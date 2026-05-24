@@ -3009,7 +3009,7 @@ export default function TemplateEditor() {
   )
 }
 
-// Render function
+// Render function - ASCII art on isometric diamond tiles
 function render(
   ctx: CanvasRenderingContext2D,
   w: number,
@@ -3020,7 +3020,7 @@ function render(
   camOffset: { x: number; y: number } = { x: 0, y: 0 }
 ) {
   // Clear
-  ctx.fillStyle = '#0a0a0a'
+  ctx.fillStyle = '#1a1a2e'
   ctx.fillRect(0, 0, w, h)
 
   const cellSize = grid.cellSize
@@ -3030,65 +3030,50 @@ function render(
   const camX = player.x - camOffset.x
   const camZ = player.z - camOffset.y
 
-  // Convert world to screen
-  const toScreen = (wx: number, wz: number) => {
-    const relX = wx - camX
-    const relZ = wz - camZ
+  // Tile dimensions - slightly overlapping to eliminate gaps
+  const tileW = cellSize * isoScale * 0.71  // Half-width of diamond
+  const tileH = cellSize * isoScale * 0.36  // Half-height of diamond
+  const heightStep = cellSize * isoScale * 0.4  // Height per elevation level
+
+  // Convert world to screen (center of diamond tile)
+  const toScreen = (col: number, row: number) => {
+    const wx = col * cellSize - camX
+    const wz = row * cellSize - camZ
     return {
-      x: w / 2 + (relX - relZ) * isoScale * 0.7,
-      y: h / 2 + (relX + relZ) * isoScale * 0.35
+      x: w / 2 + (wx - wz) * isoScale * 0.71,
+      y: h / 2 + (wx + wz) * isoScale * 0.36
     }
   }
 
-  // ─── GROUND TILES ─────────────────────────────────────────────────
+  // ─── GROUND TILES (ASCII on diamonds) ─────────────────────────────
 
-  const tilesX = Math.ceil(w / 32) + 10
-  const tilesZ = Math.ceil(h / 20) + 10
-  const startCol = Math.floor(camX / cellSize) - tilesX / 2
-  const startRow = Math.floor(camZ / cellSize) - tilesZ / 2
+  const tilesX = Math.ceil(w / 28) + 12
+  const tilesZ = Math.ceil(h / 18) + 12
+  const startCol = Math.floor(camX / cellSize) - Math.floor(tilesX / 2)
+  const startRow = Math.floor(camZ / cellSize) - Math.floor(tilesZ / 2)
 
-  ctx.font = `bold 18px ${ASCII_FONT}`
+  // Font for ground characters
+  const groundFontSize = Math.max(12, tileH * 1.1)
+  ctx.font = `bold ${groundFontSize}px ${ASCII_FONT}`
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
 
   for (let rz = 0; rz < tilesZ; rz++) {
     for (let rx = 0; rx < tilesX; rx++) {
-      const col = Math.floor(startCol + rx)
-      const row = Math.floor(startRow + rz)
+      const col = startCol + rx
+      const row = startRow + rz
 
       if (col < 0 || col >= grid.cols || row < 0 || row >= grid.rows) continue
 
-      const worldX = col * cellSize
-      const worldZ = row * cellSize
-      const p = toScreen(worldX, worldZ)
-
-      if (p.x < -50 || p.x > w + 50 || p.y < -50 || p.y > h + 50) continue
+      const p = toScreen(col, row)
+      if (p.x < -tileW * 2 || p.x > w + tileW * 2 || p.y < -tileH * 2 || p.y > h + tileH * 2) continue
 
       const tileType = grid.ground[row]?.[col] || 'grass'
       const colors = GROUND_COLORS[tileType as keyof typeof GROUND_COLORS] || GROUND_COLORS.grass
 
-      // GRASS PATCHES - create 2x2 blocks with occasional light patches
-      // Instead of checkerboard, use block-based pattern
-      let colorIdx = 0
-      if (tileType === 'grass') {
-        // Divide into 2x2 blocks
-        const blockCol = Math.floor(col / 2)
-        const blockRow = Math.floor(row / 2)
-        // Use noise-like hash for block color
-        const blockHash = ((blockCol * 7) + (blockRow * 13)) % 17
-        // Most blocks are dark (0), some are light (1)
-        colorIdx = blockHash < 4 ? 1 : 0
-        // Add some 4-cell light patches inside dark areas
-        if (colorIdx === 0 && blockHash >= 10 && blockHash <= 12) {
-          // Inner cell of some dark blocks can be light
-          const innerCol = col % 2
-          const innerRow = row % 2
-          if (innerCol === 1 && innerRow === 1) colorIdx = 1
-        }
-      } else {
-        // Other tile types use simple checker
-        colorIdx = ((col + row) % 2)
-      }
+      // Noise-based color variation (same as 2D view)
+      const noiseVal = Math.sin(col * 0.3 + row * 0.5) * Math.cos(col * 0.7 - row * 0.2)
+      const colorIdx = noiseVal > 0 ? 0 : 1
 
       const char = colors.char[colorIdx % colors.char.length]
       const fg = colors.fg[colorIdx % colors.fg.length]
@@ -3096,117 +3081,88 @@ function render(
 
       // Get cell height
       const cellHeight = grid.getHeight(col, row)
+      const heightOffset = cellHeight * heightStep
 
-      // Draw diamond tile
-      const tileW = cellSize * isoScale * 0.7
-      const tileH = cellSize * isoScale * 0.35
-      const blockHeight = cellSize * isoScale * 0.4  // Visual height per block
+      // Draw diamond tile with background
+      const drawY = p.y - heightOffset
 
-      // Calculate Y offset based on height (higher = rendered higher on screen)
-      const heightOffset = cellHeight * blockHeight
-
-      // If cell has height, draw stacked blocks
+      // If elevated, draw front faces first
       if (cellHeight > 0) {
-        // Draw side faces for each level
-        for (let level = 0; level < cellHeight; level++) {
-          const levelY = p.y - level * blockHeight - heightOffset + cellHeight * blockHeight
-
-          // Left face (darker)
-          ctx.fillStyle = darkenColor(bg, 0.6)
-          ctx.beginPath()
-          ctx.moveTo(p.x - tileW, levelY)
-          ctx.lineTo(p.x, levelY + tileH)
-          ctx.lineTo(p.x, levelY + tileH + blockHeight)
-          ctx.lineTo(p.x - tileW, levelY + blockHeight)
-          ctx.closePath()
-          ctx.fill()
-
-          // Right face (medium)
-          ctx.fillStyle = darkenColor(bg, 0.8)
-          ctx.beginPath()
-          ctx.moveTo(p.x + tileW, levelY)
-          ctx.lineTo(p.x, levelY + tileH)
-          ctx.lineTo(p.x, levelY + tileH + blockHeight)
-          ctx.lineTo(p.x + tileW, levelY + blockHeight)
-          ctx.closePath()
-          ctx.fill()
-        }
-
-        // Top face at the top of the stack
-        const topY = p.y - heightOffset
-        ctx.fillStyle = bg
+        // Left face (darker)
+        ctx.fillStyle = darkenColor(bg, 0.5)
         ctx.beginPath()
-        ctx.moveTo(p.x, topY - tileH)
-        ctx.lineTo(p.x + tileW, topY)
-        ctx.lineTo(p.x, topY + tileH)
-        ctx.lineTo(p.x - tileW, topY)
-        ctx.closePath()
-        ctx.fill()
-
-        // Draw character on top
-        ctx.fillStyle = fg
-        ctx.fillText(char, p.x, topY)
-      } else {
-        // Flat tile (no height)
-        ctx.fillStyle = bg
-        ctx.beginPath()
-        ctx.moveTo(p.x, p.y - tileH)
-        ctx.lineTo(p.x + tileW, p.y)
+        ctx.moveTo(p.x - tileW, drawY)
+        ctx.lineTo(p.x, drawY + tileH)
         ctx.lineTo(p.x, p.y + tileH)
         ctx.lineTo(p.x - tileW, p.y)
         ctx.closePath()
         ctx.fill()
 
-        // Draw character
-        ctx.fillStyle = fg
-        ctx.fillText(char, p.x, p.y)
+        // Right face (medium)
+        ctx.fillStyle = darkenColor(bg, 0.7)
+        ctx.beginPath()
+        ctx.moveTo(p.x + tileW, drawY)
+        ctx.lineTo(p.x, drawY + tileH)
+        ctx.lineTo(p.x, p.y + tileH)
+        ctx.lineTo(p.x + tileW, p.y)
+        ctx.closePath()
+        ctx.fill()
       }
+
+      // Top face (diamond) - always draw
+      ctx.fillStyle = bg
+      ctx.beginPath()
+      ctx.moveTo(p.x, drawY - tileH)
+      ctx.lineTo(p.x + tileW, drawY)
+      ctx.lineTo(p.x, drawY + tileH)
+      ctx.lineTo(p.x - tileW, drawY)
+      ctx.closePath()
+      ctx.fill()
+
+      // ASCII character on top with subtle animation
+      const flicker = tileType.includes('grass') ? Math.sin(time * 0.001 + col * 0.3 + row * 0.4) * 0.1 + 1 : 1
+      ctx.globalAlpha = 0.85 + 0.15 * flicker
+      ctx.fillStyle = fg
+      ctx.fillText(char, p.x, drawY)
+      ctx.globalAlpha = 1
     }
   }
 
-  // ─── ASSETS ───────────────────────────────────────────────────────
+  // ─── ASSETS + PLAYER (ASCII art stacked in isometric space) ────────
 
-  // Get visible assets and add player for sorting
   const visibleAssets = grid.getVisibleAssets(
     Math.floor(camX / cellSize),
     Math.floor(camZ / cellSize),
     30, 20
   )
 
-  // Sort all objects including player
-  const allObjects: { pos: { x: number; z: number }; isPlayer?: boolean; asset?: GridAsset; cellHeight?: number }[] = [
-    ...visibleAssets.map(a => ({
-      pos: { x: a.col * cellSize, z: a.row * cellSize },
-      asset: a,
-      cellHeight: grid.getHeight(a.col, a.row)
-    })),
+  // Sort all objects by depth (back to front)
+  const allObjects: { col: number; row: number; isPlayer?: boolean; asset?: GridAsset }[] = [
+    ...visibleAssets.map(a => ({ col: a.col, row: a.row, asset: a })),
     {
-      pos: { x: player.x, z: player.z },
-      isPlayer: true,
-      cellHeight: grid.getHeight(Math.floor(player.x / cellSize), Math.floor(player.z / cellSize))
+      col: player.x / cellSize,
+      row: player.z / cellSize,
+      isPlayer: true
     }
-  ].sort((a, b) => (a.pos.x + a.pos.z) - (b.pos.x + b.pos.z))
+  ].sort((a, b) => (a.col + a.row) - (b.col + b.row))
 
-  // Block height for offset calculation
-  const blockHeight = cellSize * isoScale * 0.4
-
-  // Render each object with proper isometric 3D style
+  // Render each object with ASCII art style
   for (const obj of allObjects) {
-    const p = toScreen(obj.pos.x, obj.pos.z)
-    const cellHeightOffset = (obj.cellHeight || 0) * blockHeight
+    const p = toScreen(obj.col, obj.row)
+    const cellHeight = grid.getHeight(Math.floor(obj.col), Math.floor(obj.row))
+    const heightOffset = cellHeight * heightStep
 
     if (obj.isPlayer) {
-      drawBlockCharacter(ctx, p.x, p.y - cellHeightOffset, cellSize, isoScale, player.facing, time)
+      drawIsoPlayer(ctx, p.x, p.y - heightOffset, tileW, tileH, player, time)
     } else if (obj.asset) {
-      const asset = obj.asset
-      drawIsoAsset(ctx, p.x, p.y - cellHeightOffset, asset, cellSize, isoScale, time)
+      drawIsoAssetAscii(ctx, p.x, p.y - heightOffset, obj.asset, tileW, tileH, time)
     }
   }
 
   // ─── DEBUG MODE ────────────────────────────────────────────────────
 
   if (debugMode) {
-    renderDebugOverlays(ctx, w, h, grid, player, toScreen, cellSize)
+    renderDebugOverlays(ctx, w, h, grid, player, (wx, wz) => toScreen(wx / cellSize, wz / cellSize), cellSize)
   }
 
   // ─── UI ───────────────────────────────────────────────────────────
@@ -3220,6 +3176,195 @@ function render(
   if (debugMode) {
     ctx.fillStyle = '#ff4444'
     ctx.fillText('DEBUG MODE', 10, 70)
+  }
+}
+
+// Draw player as ASCII art in isometric view (matching 2D style)
+function drawIsoPlayer(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  tileW: number,
+  tileH: number,
+  player: PlayerState,
+  time: number
+) {
+  const playerArt = getPlayerArt(player)
+  const lineHeight = tileH * 1.4
+  const fontSize = tileH * 1.2
+
+  // Breathing animation
+  const breathe = Math.sin(time * 0.004) * 2
+
+  ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+
+  // Draw each line from bottom to top
+  for (let i = 0; i < playerArt.length; i++) {
+    const line = playerArt[playerArt.length - 1 - i]
+    const lineY = y - i * lineHeight - lineHeight * 0.5 - breathe
+
+    // Shadow/outline for visibility
+    ctx.fillStyle = '#000000'
+    ctx.fillText(line, x + 1, lineY + 1)
+
+    // Yellow player color
+    ctx.fillStyle = '#ffdd00'
+    ctx.fillText(line, x, lineY)
+  }
+}
+
+// Draw asset as ASCII art in isometric view (matching 2D style)
+function drawIsoAssetAscii(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  asset: GridAsset,
+  tileW: number,
+  tileH: number,
+  time: number
+) {
+  const lineHeight = tileH * 1.3
+  const fontSize = tileH * 1.1
+  const flicker = Math.sin(time * 0.003 + x * 0.01 + y * 0.02) * 0.15 + 1
+
+  ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+
+  if (asset.type === 'tree') {
+    // Tree: trunk + layered canopy (like 2D view)
+    const layers = [
+      { text: '0', color: '#ad8621', bg: '#5a4510' },  // Trunk bottom
+      { text: 'W', color: '#c9a030', bg: '#6a5520' },  // Trunk top
+      { text: '(&)', color: `rgba(26, 182, 26, ${0.7 + 0.3 * flicker})`, bg: 'rgba(0, 100, 0, 0.9)' },
+      { text: '(@&@)', color: `rgba(50, 205, 50, ${0.8 + 0.2 * flicker})`, bg: 'rgba(0, 130, 0, 0.85)' },
+      { text: '(@&@&@)', color: `rgba(34, 200, 34, ${0.85 + 0.15 * flicker})`, bg: 'rgba(0, 110, 0, 0.8)' },
+    ]
+    for (let i = 0; i < layers.length; i++) {
+      const layer = layers[i]
+      const layerY = y - i * lineHeight - lineHeight * 0.5
+      const layerFontSize = i < 2 ? fontSize * 0.9 : fontSize * (0.7 + (i - 2) * 0.05)
+      ctx.font = `bold ${layerFontSize}px ${ASCII_FONT}`
+
+      // Background shape
+      const textWidth = ctx.measureText(layer.text).width
+      ctx.fillStyle = layer.bg
+      ctx.fillRect(x - textWidth / 2 - 2, layerY - lineHeight / 2, textWidth + 4, lineHeight)
+
+      // Text
+      ctx.fillStyle = layer.color
+      ctx.fillText(layer.text, x, layerY)
+    }
+
+  } else if (asset.type === 'building') {
+    // Building: walls + door + windows + roof (like 2D view)
+    const layers = [
+      { text: '▌', color: '#553b17', bg: '#b48441' },  // Door
+      { text: '▒', color: `rgba(255, 255, 0, ${0.3 + 0.2 * flicker})`, bg: '#b48441' },  // Window
+      { text: '▒', color: `rgba(255, 255, 0, ${0.4 + 0.2 * flicker})`, bg: '#a07030' },  // Window
+      { text: '/\\', color: `rgba(255, 99, 71, ${0.8 + 0.2 * flicker})`, bg: '#cc3030' },  // Roof bottom
+      { text: '▲', color: `rgba(255, 80, 60, ${0.85 + 0.15 * flicker})`, bg: '#aa2020' },  // Roof top
+    ]
+    for (let i = 0; i < layers.length; i++) {
+      const layer = layers[i]
+      const layerY = y - i * lineHeight - lineHeight * 0.5
+      const layerWidth = (i < 3 ? tileW * 2 : tileW * (2.4 - (i - 3) * 0.3))
+
+      // Background
+      ctx.fillStyle = layer.bg
+      ctx.fillRect(x - layerWidth / 2, layerY - lineHeight / 2, layerWidth, lineHeight)
+
+      // Character
+      ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
+      ctx.fillStyle = layer.color
+      ctx.fillText(layer.text, x, layerY)
+    }
+
+  } else if (asset.type === 'lamp' || asset.type === 'lantern') {
+    // Lamp post with glowing top
+    const glow = 0.5 + 0.5 * flicker
+    const layers = [
+      { text: '|', color: '#666666', bg: '#333333' },
+      { text: '|', color: '#777777', bg: '#444444' },
+      { text: 'o', color: `rgba(255, 220, 50, ${glow})`, bg: `rgba(100, 80, 0, ${glow})` },
+    ]
+    for (let i = 0; i < layers.length; i++) {
+      const layer = layers[i]
+      const layerY = y - i * lineHeight - lineHeight * 0.5
+
+      ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
+      ctx.fillStyle = layer.bg
+      const textWidth = ctx.measureText(layer.text).width
+      ctx.fillRect(x - textWidth / 2 - 2, layerY - lineHeight / 2, textWidth + 4, lineHeight)
+
+      ctx.fillStyle = layer.color
+      ctx.fillText(layer.text, x, layerY)
+    }
+
+  } else if (asset.type === 'bush') {
+    // Small bush
+    const layers = [
+      { text: '*', color: `rgba(80, 200, 80, ${0.8 + 0.2 * flicker})`, bg: 'rgba(0, 100, 0, 0.85)' },
+      { text: '**', color: `rgba(60, 180, 60, ${0.85 + 0.15 * flicker})`, bg: 'rgba(0, 90, 0, 0.8)' },
+    ]
+    for (let i = 0; i < layers.length; i++) {
+      const layer = layers[i]
+      const layerY = y - i * lineHeight - lineHeight * 0.5
+
+      ctx.font = `bold ${fontSize * 0.9}px ${ASCII_FONT}`
+      ctx.fillStyle = layer.bg
+      const textWidth = ctx.measureText(layer.text).width
+      ctx.fillRect(x - textWidth / 2 - 2, layerY - lineHeight / 2, textWidth + 4, lineHeight)
+
+      ctx.fillStyle = layer.color
+      ctx.fillText(layer.text, x, layerY)
+    }
+
+  } else if (asset.type === 'npc') {
+    // NPC character (similar to player but different color)
+    const layers = [
+      { text: '/=\\', color: '#4466cc', bg: '#223366' },
+      { text: '<O>', color: '#ffccaa', bg: '#886644' },
+    ]
+    for (let i = 0; i < layers.length; i++) {
+      const layer = layers[i]
+      const layerY = y - i * lineHeight - lineHeight * 0.5
+
+      ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
+      ctx.fillStyle = '#000000'
+      ctx.fillText(layer.text, x + 1, layerY + 1)
+      ctx.fillStyle = layer.color
+      ctx.fillText(layer.text, x, layerY)
+    }
+
+  } else if (asset.type === 'flower') {
+    // Small flower
+    ctx.font = `bold ${fontSize * 0.8}px ${ASCII_FONT}`
+    const layerY = y - lineHeight * 0.3
+    ctx.fillStyle = asset.color || '#ff88cc'
+    ctx.fillText('+', x, layerY)
+
+  } else if (asset.type === 'rock' || asset.type === 'decoration') {
+    // Rock/decoration
+    ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
+    const layerY = y - lineHeight * 0.5
+    ctx.fillStyle = '#555555'
+    ctx.fillRect(x - tileW / 2, layerY - lineHeight / 2, tileW, lineHeight)
+    ctx.fillStyle = '#999999'
+    ctx.fillText('O', x, layerY)
+
+  } else {
+    // Default: show the asset's art character
+    const char = asset.art[0] || '?'
+    const layerY = y - lineHeight * 0.5
+    ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
+    ctx.fillStyle = darkenColor(asset.color || '#888888', 0.4)
+    const textWidth = ctx.measureText(char).width
+    ctx.fillRect(x - textWidth / 2 - 2, layerY - lineHeight / 2, textWidth + 4, lineHeight)
+    ctx.fillStyle = asset.color || '#ffffff'
+    ctx.fillText(char, x, layerY)
   }
 }
 
