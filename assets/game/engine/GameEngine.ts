@@ -27,6 +27,9 @@ export class GameEngine {
   private worldWidth = 0
   private worldHeight = 0
 
+  // Bound event handler for proper cleanup
+  private boundResizeHandler: () => void
+
   constructor(canvas: HTMLCanvasElement, config: Partial<EngineConfig> = {}) {
     this.canvas = canvas
     this.ctx = canvas.getContext('2d', { alpha: false })!
@@ -34,8 +37,11 @@ export class GameEngine {
 
     this.camera = new Camera(this.config.camera)
 
+    // Bind the resize handler once for proper add/remove
+    this.boundResizeHandler = this.resizeCanvas.bind(this)
+
     this.resizeCanvas()
-    window.addEventListener('resize', () => this.resizeCanvas())
+    window.addEventListener('resize', this.boundResizeHandler)
   }
 
   private resizeCanvas() {
@@ -342,7 +348,18 @@ export class GameEngine {
 
   destroy() {
     this.stop()
-    window.removeEventListener('resize', () => this.resizeCanvas())
+    window.removeEventListener('resize', this.boundResizeHandler)
+    // Clean up player keyboard listeners
+    if (this.player) {
+      this.player.destroy()
+    }
+    // Clear references to help GC
+    this.tiles = []
+    this.blockingTiles = []
+    this.animatedTiles = []
+    this.animationStates.clear()
+    this.staticLayer = null
+    this.staticCtx = null
   }
 
   getCamera(): Camera {

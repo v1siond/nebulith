@@ -7,11 +7,13 @@ import Head from 'next/head'
 import Link from 'next/link'
 import { useRouter } from 'next/router'
 import { listTemplates, deleteTemplate, TemplateListItem } from '@/lib/api'
+import { useToast } from '@/components/Toast'
 
 const MAX_TEMPLATES_PROD = 1
 
 export default function GameEngineIndex() {
   const router = useRouter()
+  const { toast } = useToast()
   const [templates, setTemplates] = useState<TemplateListItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -44,14 +46,14 @@ export default function GameEngineIndex() {
       await deleteTemplate(id)
       await loadTemplates()
     } catch (err) {
-      alert('Failed to delete template')
+      toast('Failed to delete template', 'error')
       console.error(err)
     }
   }
 
   const handleNew = () => {
     if (templates.length >= maxTemplates) {
-      alert(`Template limit reached (${maxTemplates}). Delete an existing template first.`)
+      toast(`Template limit reached (${maxTemplates}). Delete one first.`, 'warning')
       return
     }
     router.push('/personal-projects/game-engine/templates?new=1')

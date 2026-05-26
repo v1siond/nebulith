@@ -20,6 +20,7 @@ import { IsometricGrid, GridAsset } from '@/engine/IsometricGrid'
 import { player as playerSprite } from '@/assets/ascii'
 import { TILES, COMPOSITE_ASSETS, getTilesByCategory, getAssetsByCategory, TileDef, CompositeAsset } from '@/engine/Tileset'
 import { listTemplates, getTemplate, createTemplate, updateTemplate, deleteTemplate, serializeGrid, deserializeToGrid, TemplateListItem, Connector } from '@/lib/api'
+import { useToast } from '@/components/Toast'
 
 const ASCII_FONT = '"JetBrains Mono", "Fira Code", "Consolas", monospace'
 
@@ -45,7 +46,12 @@ const MAX_TEMPLATES_PROD = 1
 // ═══════════════════════════════════════════════════════════════════
 
 type TemplateSize = 'small' | 'medium' | 'large'
-type TemplateTheme = 'village' | 'forest' | 'castle' | 'ice' | 'desert' | 'dungeon'
+type TemplateTheme =
+  | 'village' | 'forest' | 'castle' | 'ice' | 'desert' | 'dungeon'
+  | 'volcanic' | 'cave' | 'crypt' | 'underwater' | 'temple'
+  | 'italian' | 'chinese' | 'spanish' | 'russian' | 'japanese'
+  | 'egyptian' | 'african' | 'venezuelan' | 'peruvian' | 'argentinian'
+  | 'american' | 'mexican' | 'australian'
 type TemplateType = 'exterior' | 'interior'
 
 interface TemplatePreset {
@@ -304,16 +310,458 @@ const TEMPLATE_PRESETS: Record<string, TemplatePreset> = {
     groundType: 'stone',
     walls: { enabled: true, thickness: 1 },
   },
+
+  // ─── FROZEN ENVIRONMENTS ──────────────────────────────────────────
+  'frozen-forest': {
+    id: 'frozen-forest',
+    name: 'Frozen Forest',
+    description: 'Snow-covered woods with frosted trees and ice patches',
+    size: 'medium',
+    theme: 'ice',
+    type: 'exterior',
+    cols: { min: 50, max: 70 },
+    rows: { min: 50, max: 70 },
+    roads: { enabled: true, pattern: 'winding', width: 1 },
+    water: { type: 'lake', coverage: 0.08 },
+    buildings: { count: { min: 0, max: 2 }, types: ['hut'], hasPlaza: false },
+    nature: { treeDensity: 0.4, bushDensity: 0.1, flowerDensity: 0, rockDensity: 0.1 },
+    npcs: { enabled: false, count: { min: 0, max: 1 } },
+    groundType: 'snow',
+  },
+  'frozen-cave': {
+    id: 'frozen-cave',
+    name: 'Frozen Cave',
+    description: 'Ice walls with frozen stalactites',
+    size: 'medium',
+    theme: 'cave',
+    type: 'interior',
+    cols: { min: 35, max: 50 },
+    rows: { min: 35, max: 50 },
+    roads: { enabled: false, pattern: 'none', width: 0 },
+    water: { type: 'lake', coverage: 0.05 },
+    buildings: { count: { min: 0, max: 0 }, types: [], hasPlaza: false },
+    nature: { treeDensity: 0, bushDensity: 0, flowerDensity: 0, rockDensity: 0.15 },
+    npcs: { enabled: true, count: { min: 1, max: 3 } },
+    groundType: 'snow',
+    walls: { enabled: true, thickness: 2 },
+  },
+
+  // ─── VOLCANIC ENVIRONMENTS ────────────────────────────────────────
+  'volcanic-cave': {
+    id: 'volcanic-cave',
+    name: 'Volcanic Cave',
+    description: 'Lava flows through obsidian chambers',
+    size: 'medium',
+    theme: 'volcanic',
+    type: 'interior',
+    cols: { min: 40, max: 55 },
+    rows: { min: 40, max: 55 },
+    roads: { enabled: false, pattern: 'none', width: 0 },
+    water: { type: 'river', coverage: 0.12 },
+    buildings: { count: { min: 0, max: 0 }, types: [], hasPlaza: false },
+    nature: { treeDensity: 0, bushDensity: 0, flowerDensity: 0, rockDensity: 0.2 },
+    npcs: { enabled: true, count: { min: 1, max: 3 } },
+    groundType: 'stone',
+    walls: { enabled: true, thickness: 2 },
+  },
+  'volcanic-zone': {
+    id: 'volcanic-zone',
+    name: 'Volcanic Zone',
+    description: 'Ash-covered ground with lava rivers',
+    size: 'large',
+    theme: 'volcanic',
+    type: 'exterior',
+    cols: { min: 60, max: 80 },
+    rows: { min: 60, max: 80 },
+    roads: { enabled: true, pattern: 'winding', width: 2 },
+    water: { type: 'river', coverage: 0.15 },
+    buildings: { count: { min: 1, max: 3 }, types: ['tower'], hasPlaza: false },
+    nature: { treeDensity: 0.05, bushDensity: 0.02, flowerDensity: 0, rockDensity: 0.25 },
+    npcs: { enabled: true, count: { min: 1, max: 3 } },
+    groundType: 'stone',
+  },
+  'volcano-interior': {
+    id: 'volcano-interior',
+    name: 'Volcano Interior',
+    description: 'Molten rock and fire-lit obsidian halls',
+    size: 'large',
+    theme: 'volcanic',
+    type: 'interior',
+    cols: { min: 50, max: 70 },
+    rows: { min: 50, max: 70 },
+    roads: { enabled: true, pattern: 'cross', width: 3 },
+    water: { type: 'river', coverage: 0.2 },
+    buildings: { count: { min: 0, max: 1 }, types: ['tower'], hasPlaza: false },
+    nature: { treeDensity: 0, bushDensity: 0, flowerDensity: 0, rockDensity: 0.15 },
+    npcs: { enabled: true, count: { min: 2, max: 5 } },
+    groundType: 'stone',
+    walls: { enabled: true, thickness: 3 },
+  },
+
+  // ─── CAVE ENVIRONMENTS ────────────────────────────────────────────
+  'ancient-cave': {
+    id: 'ancient-cave',
+    name: 'Ancient Cave',
+    description: 'Moss-covered stone with glowing runes',
+    size: 'medium',
+    theme: 'cave',
+    type: 'interior',
+    cols: { min: 40, max: 55 },
+    rows: { min: 40, max: 55 },
+    roads: { enabled: false, pattern: 'none', width: 0 },
+    water: { type: 'lake', coverage: 0.05 },
+    buildings: { count: { min: 0, max: 0 }, types: [], hasPlaza: false },
+    nature: { treeDensity: 0, bushDensity: 0.05, flowerDensity: 0.02, rockDensity: 0.12 },
+    npcs: { enabled: true, count: { min: 1, max: 3 } },
+    groundType: 'stone',
+    walls: { enabled: true, thickness: 2 },
+  },
+  'forest-cave': {
+    id: 'forest-cave',
+    name: 'Forest Cave',
+    description: 'Tree roots and mushrooms in earthen tunnels',
+    size: 'small',
+    theme: 'cave',
+    type: 'interior',
+    cols: { min: 25, max: 35 },
+    rows: { min: 25, max: 35 },
+    roads: { enabled: false, pattern: 'none', width: 0 },
+    water: { type: 'none', coverage: 0 },
+    buildings: { count: { min: 0, max: 0 }, types: [], hasPlaza: false },
+    nature: { treeDensity: 0.1, bushDensity: 0.15, flowerDensity: 0.1, rockDensity: 0.08 },
+    npcs: { enabled: true, count: { min: 0, max: 2 } },
+    groundType: 'stone',
+    walls: { enabled: true, thickness: 2 },
+  },
+  'underground-cave': {
+    id: 'underground-cave',
+    name: 'Underground Cave',
+    description: 'Deep caverns with crystals and rock formations',
+    size: 'large',
+    theme: 'cave',
+    type: 'interior',
+    cols: { min: 55, max: 75 },
+    rows: { min: 55, max: 75 },
+    roads: { enabled: true, pattern: 'winding', width: 2 },
+    water: { type: 'river', coverage: 0.08 },
+    buildings: { count: { min: 0, max: 0 }, types: [], hasPlaza: false },
+    nature: { treeDensity: 0, bushDensity: 0.02, flowerDensity: 0.05, rockDensity: 0.2 },
+    npcs: { enabled: true, count: { min: 2, max: 5 } },
+    groundType: 'stone',
+    walls: { enabled: true, thickness: 2 },
+  },
+
+  // ─── CRYPT & CEMETERY ─────────────────────────────────────────────
+  'crypt': {
+    id: 'crypt',
+    name: 'Crypt',
+    description: 'Stone floors with coffins and flickering candles',
+    size: 'small',
+    theme: 'crypt',
+    type: 'interior',
+    cols: { min: 20, max: 30 },
+    rows: { min: 20, max: 30 },
+    roads: { enabled: false, pattern: 'none', width: 0 },
+    water: { type: 'none', coverage: 0 },
+    buildings: { count: { min: 0, max: 0 }, types: [], hasPlaza: false },
+    nature: { treeDensity: 0, bushDensity: 0, flowerDensity: 0, rockDensity: 0.05 },
+    npcs: { enabled: true, count: { min: 1, max: 3 } },
+    groundType: 'stone',
+    walls: { enabled: true, thickness: 2 },
+  },
+  'cemetery': {
+    id: 'cemetery',
+    name: 'Cemetery',
+    description: 'Graves, dead grass, and iron fences',
+    size: 'medium',
+    theme: 'crypt',
+    type: 'exterior',
+    cols: { min: 40, max: 55 },
+    rows: { min: 40, max: 55 },
+    roads: { enabled: true, pattern: 'grid', width: 1 },
+    water: { type: 'none', coverage: 0 },
+    buildings: { count: { min: 1, max: 3 }, types: ['hut', 'tower'], hasPlaza: false },
+    nature: { treeDensity: 0.15, bushDensity: 0.05, flowerDensity: 0.02, rockDensity: 0.15 },
+    npcs: { enabled: true, count: { min: 1, max: 4 } },
+    groundType: 'grass',
+  },
+
+  // ─── UNDERWATER & TEMPLE ──────────────────────────────────────────
+  'underwater-temple': {
+    id: 'underwater-temple',
+    name: 'Underwater Temple',
+    description: 'Coral, seaweed, and ancient submerged ruins',
+    size: 'large',
+    theme: 'underwater',
+    type: 'interior',
+    cols: { min: 50, max: 70 },
+    rows: { min: 50, max: 70 },
+    roads: { enabled: true, pattern: 'cross', width: 2 },
+    water: { type: 'none', coverage: 0 },
+    buildings: { count: { min: 2, max: 5 }, types: ['tower', 'castle'], hasPlaza: true },
+    nature: { treeDensity: 0.1, bushDensity: 0.2, flowerDensity: 0.15, rockDensity: 0.1 },
+    npcs: { enabled: true, count: { min: 2, max: 5 } },
+    groundType: 'stone',
+    walls: { enabled: true, thickness: 2 },
+  },
+  'forest-temple': {
+    id: 'forest-temple',
+    name: 'Forest Temple',
+    description: 'Overgrown stone ruins with vines and moss',
+    size: 'medium',
+    theme: 'temple',
+    type: 'exterior',
+    cols: { min: 45, max: 60 },
+    rows: { min: 45, max: 60 },
+    roads: { enabled: true, pattern: 'cross', width: 2 },
+    water: { type: 'lake', coverage: 0.05 },
+    buildings: { count: { min: 3, max: 6 }, types: ['tower', 'castle'], hasPlaza: true },
+    nature: { treeDensity: 0.35, bushDensity: 0.2, flowerDensity: 0.1, rockDensity: 0.1 },
+    npcs: { enabled: true, count: { min: 1, max: 4 } },
+    groundType: 'grass',
+  },
+
+  // ─── EGYPTIAN THEME ───────────────────────────────────────────────
+  'egyptian-desert': {
+    id: 'egyptian-desert',
+    name: 'Egyptian Desert',
+    description: 'Sand dunes with pyramids and sphinx decorations',
+    size: 'large',
+    theme: 'egyptian',
+    type: 'exterior',
+    cols: { min: 60, max: 80 },
+    rows: { min: 60, max: 80 },
+    roads: { enabled: true, pattern: 'cross', width: 2 },
+    water: { type: 'river', coverage: 0.08 },
+    buildings: { count: { min: 4, max: 8 }, types: ['tower', 'castle'], hasPlaza: true },
+    nature: { treeDensity: 0.05, bushDensity: 0.03, flowerDensity: 0.01, rockDensity: 0.12 },
+    npcs: { enabled: true, count: { min: 3, max: 7 } },
+    groundType: 'sand',
+  },
+
+  // ─── CULTURAL THEMES ──────────────────────────────────────────────
+  'italian-village': {
+    id: 'italian-village',
+    name: 'Italian Village',
+    description: 'Terracotta, olive trees, and Roman columns',
+    size: 'medium',
+    theme: 'italian',
+    type: 'exterior',
+    cols: { min: 50, max: 65 },
+    rows: { min: 50, max: 65 },
+    roads: { enabled: true, pattern: 'grid', width: 2 },
+    water: { type: 'lake', coverage: 0.05 },
+    buildings: { count: { min: 5, max: 10 }, types: ['house', 'shop', 'tower'], hasPlaza: true },
+    nature: { treeDensity: 0.2, bushDensity: 0.08, flowerDensity: 0.06, rockDensity: 0.03 },
+    npcs: { enabled: true, count: { min: 4, max: 8 } },
+    groundType: 'grass',
+  },
+  'chinese-village': {
+    id: 'chinese-village',
+    name: 'Chinese Village',
+    description: 'Red and gold pagodas with lanterns',
+    size: 'medium',
+    theme: 'chinese',
+    type: 'exterior',
+    cols: { min: 50, max: 65 },
+    rows: { min: 50, max: 65 },
+    roads: { enabled: true, pattern: 'grid', width: 2 },
+    water: { type: 'lake', coverage: 0.08 },
+    buildings: { count: { min: 5, max: 10 }, types: ['house', 'shop', 'tower'], hasPlaza: true },
+    nature: { treeDensity: 0.2, bushDensity: 0.1, flowerDensity: 0.08, rockDensity: 0.04 },
+    npcs: { enabled: true, count: { min: 4, max: 8 } },
+    groundType: 'grass',
+  },
+  'spanish-village': {
+    id: 'spanish-village',
+    name: 'Spanish Village',
+    description: 'White walls, orange roofs, and courtyards',
+    size: 'medium',
+    theme: 'spanish',
+    type: 'exterior',
+    cols: { min: 50, max: 65 },
+    rows: { min: 50, max: 65 },
+    roads: { enabled: true, pattern: 'grid', width: 2 },
+    water: { type: 'lake', coverage: 0.04 },
+    buildings: { count: { min: 6, max: 12 }, types: ['house', 'shop', 'tower'], hasPlaza: true },
+    nature: { treeDensity: 0.15, bushDensity: 0.1, flowerDensity: 0.08, rockDensity: 0.02 },
+    npcs: { enabled: true, count: { min: 5, max: 10 } },
+    groundType: 'grass',
+  },
+  'russian-village': {
+    id: 'russian-village',
+    name: 'Russian Village',
+    description: 'Onion domes, snow, and birch trees',
+    size: 'medium',
+    theme: 'russian',
+    type: 'exterior',
+    cols: { min: 50, max: 65 },
+    rows: { min: 50, max: 65 },
+    roads: { enabled: true, pattern: 'cross', width: 2 },
+    water: { type: 'lake', coverage: 0.06 },
+    buildings: { count: { min: 5, max: 9 }, types: ['house', 'shop', 'tower'], hasPlaza: true },
+    nature: { treeDensity: 0.25, bushDensity: 0.05, flowerDensity: 0.02, rockDensity: 0.05 },
+    npcs: { enabled: true, count: { min: 3, max: 7 } },
+    groundType: 'snow',
+  },
+  'japanese-village': {
+    id: 'japanese-village',
+    name: 'Japanese Village',
+    description: 'Cherry blossoms, torii gates, and bamboo',
+    size: 'medium',
+    theme: 'japanese',
+    type: 'exterior',
+    cols: { min: 50, max: 65 },
+    rows: { min: 50, max: 65 },
+    roads: { enabled: true, pattern: 'grid', width: 2 },
+    water: { type: 'lake', coverage: 0.1 },
+    buildings: { count: { min: 5, max: 10 }, types: ['house', 'shop', 'tower'], hasPlaza: true },
+    nature: { treeDensity: 0.25, bushDensity: 0.1, flowerDensity: 0.15, rockDensity: 0.05 },
+    npcs: { enabled: true, count: { min: 4, max: 8 } },
+    groundType: 'grass',
+  },
+  'african-village': {
+    id: 'african-village',
+    name: 'African Village',
+    description: 'Savanna grass, acacia trees, and mud huts',
+    size: 'medium',
+    theme: 'african',
+    type: 'exterior',
+    cols: { min: 50, max: 65 },
+    rows: { min: 50, max: 65 },
+    roads: { enabled: true, pattern: 'winding', width: 2 },
+    water: { type: 'lake', coverage: 0.06 },
+    buildings: { count: { min: 4, max: 8 }, types: ['hut', 'house'], hasPlaza: true },
+    nature: { treeDensity: 0.15, bushDensity: 0.12, flowerDensity: 0.04, rockDensity: 0.08 },
+    npcs: { enabled: true, count: { min: 4, max: 8 } },
+    groundType: 'sand',
+  },
+  'venezuelan-village': {
+    id: 'venezuelan-village',
+    name: 'Venezuelan Village',
+    description: 'Tropical paradise with colorful houses and palms',
+    size: 'medium',
+    theme: 'venezuelan',
+    type: 'exterior',
+    cols: { min: 50, max: 65 },
+    rows: { min: 50, max: 65 },
+    roads: { enabled: true, pattern: 'grid', width: 2 },
+    water: { type: 'river', coverage: 0.08 },
+    buildings: { count: { min: 5, max: 10 }, types: ['house', 'shop'], hasPlaza: true },
+    nature: { treeDensity: 0.3, bushDensity: 0.15, flowerDensity: 0.12, rockDensity: 0.03 },
+    npcs: { enabled: true, count: { min: 5, max: 10 } },
+    groundType: 'grass',
+  },
+  'peruvian-village': {
+    id: 'peruvian-village',
+    name: 'Peruvian Village',
+    description: 'Mountain village with llamas and ancient stones',
+    size: 'medium',
+    theme: 'peruvian',
+    type: 'exterior',
+    cols: { min: 50, max: 65 },
+    rows: { min: 50, max: 65 },
+    roads: { enabled: true, pattern: 'winding', width: 2 },
+    water: { type: 'river', coverage: 0.05 },
+    buildings: { count: { min: 4, max: 8 }, types: ['hut', 'house', 'tower'], hasPlaza: true },
+    nature: { treeDensity: 0.1, bushDensity: 0.1, flowerDensity: 0.05, rockDensity: 0.2 },
+    npcs: { enabled: true, count: { min: 3, max: 7 } },
+    groundType: 'grass',
+  },
+  'argentinian-village': {
+    id: 'argentinian-village',
+    name: 'Argentinian Estancia',
+    description: 'Pampas grass and ranch buildings',
+    size: 'large',
+    theme: 'argentinian',
+    type: 'exterior',
+    cols: { min: 60, max: 80 },
+    rows: { min: 60, max: 80 },
+    roads: { enabled: true, pattern: 'cross', width: 2 },
+    water: { type: 'lake', coverage: 0.04 },
+    buildings: { count: { min: 4, max: 8 }, types: ['house', 'hut'], hasPlaza: false },
+    nature: { treeDensity: 0.12, bushDensity: 0.08, flowerDensity: 0.05, rockDensity: 0.03 },
+    npcs: { enabled: true, count: { min: 3, max: 6 } },
+    groundType: 'grass',
+  },
+  'american-frontier': {
+    id: 'american-frontier',
+    name: 'American Frontier',
+    description: 'Wooden frontier town on the prairies',
+    size: 'medium',
+    theme: 'american',
+    type: 'exterior',
+    cols: { min: 50, max: 70 },
+    rows: { min: 50, max: 70 },
+    roads: { enabled: true, pattern: 'single', width: 3 },
+    water: { type: 'river', coverage: 0.05 },
+    buildings: { count: { min: 6, max: 12 }, types: ['house', 'shop', 'tower'], hasPlaza: false },
+    nature: { treeDensity: 0.08, bushDensity: 0.1, flowerDensity: 0.04, rockDensity: 0.05 },
+    npcs: { enabled: true, count: { min: 4, max: 8 } },
+    groundType: 'grass',
+  },
+  'mexican-village': {
+    id: 'mexican-village',
+    name: 'Mexican Village',
+    description: 'Adobe buildings, cacti, and vibrant colors',
+    size: 'medium',
+    theme: 'mexican',
+    type: 'exterior',
+    cols: { min: 50, max: 65 },
+    rows: { min: 50, max: 65 },
+    roads: { enabled: true, pattern: 'grid', width: 2 },
+    water: { type: 'lake', coverage: 0.03 },
+    buildings: { count: { min: 6, max: 12 }, types: ['house', 'shop', 'tower'], hasPlaza: true },
+    nature: { treeDensity: 0.08, bushDensity: 0.15, flowerDensity: 0.08, rockDensity: 0.1 },
+    npcs: { enabled: true, count: { min: 5, max: 10 } },
+    groundType: 'sand',
+  },
+  'australian-outback': {
+    id: 'australian-outback',
+    name: 'Australian Outback',
+    description: 'Red earth, eucalyptus, and desert terrain',
+    size: 'large',
+    theme: 'australian',
+    type: 'exterior',
+    cols: { min: 60, max: 80 },
+    rows: { min: 60, max: 80 },
+    roads: { enabled: true, pattern: 'winding', width: 2 },
+    water: { type: 'lake', coverage: 0.03 },
+    buildings: { count: { min: 3, max: 6 }, types: ['hut', 'house'], hasPlaza: false },
+    nature: { treeDensity: 0.12, bushDensity: 0.15, flowerDensity: 0.02, rockDensity: 0.15 },
+    npcs: { enabled: true, count: { min: 2, max: 5 } },
+    groundType: 'sand',
+  },
 }
 
 // Group presets by theme for UI
-const PRESET_CATEGORIES = {
+const PRESET_CATEGORIES: Record<string, { label: string; color: string }> = {
+  // Environment themes
   village: { label: 'Village/Town', color: 'bg-green-700' },
   forest: { label: 'Forest', color: 'bg-emerald-800' },
   castle: { label: 'Castle', color: 'bg-purple-700' },
   ice: { label: 'Ice/Snow', color: 'bg-cyan-700' },
   desert: { label: 'Desert', color: 'bg-amber-700' },
   dungeon: { label: 'Dungeon', color: 'bg-gray-700' },
+  volcanic: { label: 'Volcanic', color: 'bg-red-800' },
+  cave: { label: 'Cave', color: 'bg-stone-700' },
+  crypt: { label: 'Crypt/Cemetery', color: 'bg-zinc-800' },
+  underwater: { label: 'Underwater', color: 'bg-blue-800' },
+  temple: { label: 'Temple', color: 'bg-teal-800' },
+  // Cultural themes
+  egyptian: { label: 'Egyptian', color: 'bg-yellow-700' },
+  italian: { label: 'Italian', color: 'bg-orange-700' },
+  chinese: { label: 'Chinese', color: 'bg-red-700' },
+  spanish: { label: 'Spanish', color: 'bg-orange-600' },
+  russian: { label: 'Russian', color: 'bg-red-900' },
+  japanese: { label: 'Japanese', color: 'bg-pink-700' },
+  african: { label: 'African', color: 'bg-amber-800' },
+  venezuelan: { label: 'Venezuelan', color: 'bg-lime-700' },
+  peruvian: { label: 'Peruvian', color: 'bg-stone-600' },
+  argentinian: { label: 'Argentinian', color: 'bg-sky-700' },
+  american: { label: 'American', color: 'bg-blue-700' },
+  mexican: { label: 'Mexican', color: 'bg-rose-700' },
+  australian: { label: 'Australian', color: 'bg-orange-800' },
 }
 
 // Tile swatch component for palette
@@ -654,6 +1102,7 @@ function FlowViewOverlay({
 
 export default function TemplateEditor() {
   const router = useRouter()
+  const { toast } = useToast()
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const gridRef = useRef<IsometricGrid | null>(null)
   const [showDebug, setShowDebug] = useState(false)
@@ -1029,8 +1478,14 @@ export default function TemplateEditor() {
   }
 
   // Check if ground type is a road/path (buildings cannot be placed on these)
-  const isRoadGround = (groundType: string): boolean => {
-    return ['road', 'plaza', 'path_stone', 'path_dirt', 'bridge'].includes(groundType)
+  const isRoadGround = (groundType: string | undefined): boolean => {
+    if (!groundType) return false
+    // Include all road-like ground types including themed versions
+    const roadTypes = [
+      'road', 'road_center', 'road_edge', 'plaza', 'path_stone', 'path_dirt', 'bridge',
+      'snow_path', 'desert_road', 'wooden_planks', 'courtyard_stone'
+    ]
+    return roadTypes.includes(groundType)
   }
 
   // Place tile on selected cells
@@ -1506,11 +1961,420 @@ export default function TemplateEditor() {
     setSelectedCells(new Set())
   }
 
+  // ═══════════════════════════════════════════════════════════════════
+  // THEME COLOR SYSTEM - Returns theme-appropriate colors for all assets
+  // ═══════════════════════════════════════════════════════════════════
+  interface ThemeColors {
+    // Ground types to use
+    baseGround: string
+    tallGround: string
+    roadGround: string
+    plazaGround: string
+    waterGround: string
+    // Building colors
+    buildingColors: string[]
+    wallColor: string
+    // Nature colors
+    treeColor: string
+    bushColor: string
+    flowerColors: string[]
+    rockColor: string
+    // Special elements
+    lampColor: string
+  }
+
+  const getThemeColors = (theme: TemplateTheme, groundType: string): ThemeColors => {
+    // Default colors
+    const defaults: ThemeColors = {
+      baseGround: 'grass',
+      tallGround: 'grass_tall',
+      roadGround: 'road',
+      plazaGround: 'plaza',
+      waterGround: 'water',
+      buildingColors: ['#aa7755', '#aa6644', '#997766', '#bb8866', '#8b7355', '#cc9977', '#886655'],
+      wallColor: '#555566',
+      treeColor: '#33cc33',
+      bushColor: '#22aa22',
+      flowerColors: ['#ff88cc', '#ffaa44'],
+      rockColor: '#888888',
+      lampColor: '#ffff44',
+    }
+
+    // Theme-specific overrides
+    switch (theme) {
+      // ICE/SNOW THEMES
+      case 'ice':
+        return {
+          ...defaults,
+          baseGround: 'snow',
+          tallGround: 'snow_deep',
+          roadGround: 'snow_path',
+          plazaGround: 'ice',
+          waterGround: 'frozen_water',
+          buildingColors: ['#ccddee', '#bbccdd', '#aabbcc', '#99aabb', '#ddeeff'],
+          wallColor: '#8899aa',
+          treeColor: '#557788', // Frosted evergreens
+          bushColor: '#668899',
+          flowerColors: ['#aaddff', '#88ccff'], // Ice crystals
+          rockColor: '#99aacc',
+          lampColor: '#aaddff',
+        }
+
+      // DESERT THEMES
+      case 'desert':
+        return {
+          ...defaults,
+          baseGround: 'sand',
+          tallGround: 'sand_dune',
+          roadGround: 'desert_road',
+          plazaGround: 'sandstone',
+          waterGround: 'oasis',
+          buildingColors: ['#ddbb88', '#ccaa77', '#eeccaa', '#ddaa66', '#c9a55c'],
+          wallColor: '#aa8855',
+          treeColor: '#77aa44', // Palm trees
+          bushColor: '#889944', // Desert shrubs
+          flowerColors: ['#ffcc44', '#ff9944'], // Desert flowers
+          rockColor: '#aa9966',
+          lampColor: '#ffdd88',
+        }
+
+      // EGYPTIAN THEME
+      case 'egyptian':
+        return {
+          ...defaults,
+          baseGround: 'sand',
+          tallGround: 'sand_dune',
+          roadGround: 'desert_road',
+          plazaGround: 'hieroglyph_floor',
+          waterGround: 'oasis',
+          buildingColors: ['#ffdd88', '#eebb55', '#ddaa44', '#ccaa66', '#c9a55c'], // Golden sandstone
+          wallColor: '#ddaa55',
+          treeColor: '#669944', // Date palms
+          bushColor: '#778844',
+          flowerColors: ['#ffcc00', '#ff8800'], // Golden accents
+          rockColor: '#ddbb77',
+          lampColor: '#ffcc44',
+        }
+
+      // VOLCANIC THEMES
+      case 'volcanic':
+        return {
+          ...defaults,
+          baseGround: 'volcanic_rock',
+          tallGround: 'ash',
+          roadGround: 'obsidian',
+          plazaGround: 'volcanic_rock',
+          waterGround: 'lava',
+          buildingColors: ['#443322', '#332211', '#554433', '#221100', '#3a2a1a'],
+          wallColor: '#221111',
+          treeColor: '#553322', // Dead trees
+          bushColor: '#442211',
+          flowerColors: ['#ff6600', '#ff3300'], // Fire flowers
+          rockColor: '#444444',
+          lampColor: '#ff8833',
+        }
+
+      // CAVE THEMES
+      case 'cave':
+        return {
+          ...defaults,
+          baseGround: 'cave_floor',
+          tallGround: 'cave_moss',
+          roadGround: 'ancient_stone',
+          plazaGround: 'rune_floor',
+          waterGround: 'water_deep',
+          buildingColors: ['#555544', '#444433', '#666655', '#555533', '#4a4a3a'],
+          wallColor: '#333322',
+          treeColor: '#446633', // Mushrooms
+          bushColor: '#558844', // Cave moss
+          flowerColors: ['#99ccff', '#cc99ff'], // Glowing crystals
+          rockColor: '#666655',
+          lampColor: '#88ccff',
+        }
+
+      // CRYPT/CEMETERY THEMES
+      case 'crypt':
+        return {
+          ...defaults,
+          baseGround: groundType === 'grass' ? 'dead_grass' : 'crypt_floor',
+          tallGround: 'dead_grass',
+          roadGround: 'grave_dirt',
+          plazaGround: 'crypt_floor',
+          waterGround: 'water_deep',
+          buildingColors: ['#555555', '#444444', '#666666', '#3a3a3a', '#4a4a4a'],
+          wallColor: '#333333',
+          treeColor: '#334422', // Dead trees
+          bushColor: '#223311',
+          flowerColors: ['#553355', '#442244'], // Dead flowers
+          rockColor: '#555544',
+          lampColor: '#aacc88',
+        }
+
+      // UNDERWATER THEME
+      case 'underwater':
+        return {
+          ...defaults,
+          baseGround: 'seafloor',
+          tallGround: 'seaweed',
+          roadGround: 'coral',
+          plazaGround: 'ancient_stone',
+          waterGround: 'water_deep',
+          buildingColors: ['#557799', '#446688', '#668899', '#336677', '#5588aa'],
+          wallColor: '#335566',
+          treeColor: '#44aa77', // Kelp
+          bushColor: '#33bb88', // Sea plants
+          flowerColors: ['#ff88aa', '#ffaacc'], // Coral
+          rockColor: '#667788',
+          lampColor: '#88ffff',
+        }
+
+      // TEMPLE THEMES
+      case 'temple':
+        return {
+          ...defaults,
+          baseGround: 'grass',
+          tallGround: 'cave_moss',
+          roadGround: 'path_stone',
+          plazaGround: 'ancient_stone',
+          waterGround: 'water',
+          buildingColors: ['#888877', '#777766', '#999988', '#666655', '#7a7a6a'],
+          wallColor: '#555544',
+          treeColor: '#338833', // Overgrown vines
+          bushColor: '#449944',
+          flowerColors: ['#aabb88', '#99aa77'], // Moss flowers
+          rockColor: '#777766',
+          lampColor: '#aadd88',
+        }
+
+      // ITALIAN THEME
+      case 'italian':
+        return {
+          ...defaults,
+          baseGround: 'olive_grove',
+          tallGround: 'grass_tall',
+          roadGround: 'path_stone',
+          plazaGround: 'terracotta',
+          waterGround: 'water',
+          buildingColors: ['#ddaa77', '#cc9966', '#eebb88', '#dd9955', '#c9a077'],
+          wallColor: '#aa7744',
+          treeColor: '#557733', // Olive trees
+          bushColor: '#668844',
+          flowerColors: ['#ff6688', '#ffaa66'],
+          rockColor: '#ccbbaa',
+          lampColor: '#ffdd66',
+        }
+
+      // CHINESE THEME
+      case 'chinese':
+        return {
+          ...defaults,
+          baseGround: 'bamboo_floor',
+          tallGround: 'grass_tall',
+          roadGround: 'path_stone',
+          plazaGround: 'red_lacquer',
+          waterGround: 'koi_pond',
+          buildingColors: ['#cc3333', '#dd4444', '#bb2222', '#aa1111', '#cc2222'], // Red buildings
+          wallColor: '#aa2222',
+          treeColor: '#448844', // Bamboo
+          bushColor: '#55aa55',
+          flowerColors: ['#ffcc00', '#ff6666'], // Red/gold lanterns
+          rockColor: '#666666',
+          lampColor: '#ffcc00',
+        }
+
+      // SPANISH THEME
+      case 'spanish':
+        return {
+          ...defaults,
+          baseGround: 'grass',
+          tallGround: 'grass_tall',
+          roadGround: 'courtyard_stone',
+          plazaGround: 'spanish_tile',
+          waterGround: 'water',
+          buildingColors: ['#ffffff', '#fff8ee', '#ffeecc', '#ffeedd', '#f8f0e0'], // White walls
+          wallColor: '#eeeeee',
+          treeColor: '#557744',
+          bushColor: '#668855',
+          flowerColors: ['#ff5555', '#ff8855'], // Red/orange
+          rockColor: '#ccbbaa',
+          lampColor: '#ffcc66',
+        }
+
+      // RUSSIAN THEME
+      case 'russian':
+        return {
+          ...defaults,
+          baseGround: 'snow',
+          tallGround: 'birch_forest',
+          roadGround: 'snow_path',
+          plazaGround: 'russian_red',
+          waterGround: 'frozen_water',
+          buildingColors: ['#aa3322', '#993311', '#bb4433', '#cc5544', '#aa2211'], // Red buildings
+          wallColor: '#882211',
+          treeColor: '#eeeecc', // Birch trees
+          bushColor: '#557755',
+          flowerColors: ['#ffffff', '#eeeeff'],
+          rockColor: '#888899',
+          lampColor: '#ffdd88',
+        }
+
+      // JAPANESE THEME
+      case 'japanese':
+        return {
+          ...defaults,
+          baseGround: 'zen_garden',
+          tallGround: 'sakura_petals',
+          roadGround: 'path_stone',
+          plazaGround: 'tatami',
+          waterGround: 'koi_pond',
+          buildingColors: ['#996644', '#885533', '#aa7755', '#774422', '#8a6544'], // Natural wood
+          wallColor: '#664422',
+          treeColor: '#ffaacc', // Cherry blossom
+          bushColor: '#558844',
+          flowerColors: ['#ffccdd', '#ff99bb'], // Pink flowers
+          rockColor: '#888877',
+          lampColor: '#ffeecc',
+        }
+
+      // AFRICAN THEME
+      case 'african':
+        return {
+          ...defaults,
+          baseGround: 'savanna',
+          tallGround: 'savanna',
+          roadGround: 'red_earth',
+          plazaGround: 'mud_hut',
+          waterGround: 'water',
+          buildingColors: ['#aa7744', '#996633', '#bb8855', '#885522', '#9a6b3e'],
+          wallColor: '#775533',
+          treeColor: '#667744', // Acacia
+          bushColor: '#888855',
+          flowerColors: ['#ffcc44', '#ff9944'],
+          rockColor: '#aa8866',
+          lampColor: '#ffaa55',
+        }
+
+      // VENEZUELAN THEME
+      case 'venezuelan':
+        return {
+          ...defaults,
+          baseGround: 'tropical_grass',
+          tallGround: 'tropical_grass',
+          roadGround: 'path_dirt',
+          plazaGround: 'colorful_tile',
+          waterGround: 'water',
+          buildingColors: ['#ffcc44', '#44ccff', '#ff6688', '#88ff66', '#ff9944'], // Colorful houses
+          wallColor: '#ffffff',
+          treeColor: '#33bb33', // Palm trees
+          bushColor: '#44cc44',
+          flowerColors: ['#ff66aa', '#ffaa44', '#44ddff'],
+          rockColor: '#888877',
+          lampColor: '#ffff66',
+        }
+
+      // PERUVIAN THEME
+      case 'peruvian':
+        return {
+          ...defaults,
+          baseGround: 'grass',
+          tallGround: 'pampas',
+          roadGround: 'inca_stone',
+          plazaGround: 'inca_stone',
+          waterGround: 'water',
+          buildingColors: ['#887766', '#776655', '#998877', '#665544', '#7a6b5a'],
+          wallColor: '#554433',
+          treeColor: '#557744',
+          bushColor: '#668855',
+          flowerColors: ['#ff6644', '#ffaa44'],
+          rockColor: '#666655',
+          lampColor: '#ffcc66',
+        }
+
+      // ARGENTINIAN THEME
+      case 'argentinian':
+        return {
+          ...defaults,
+          baseGround: 'pampas',
+          tallGround: 'pampas',
+          roadGround: 'path_dirt',
+          plazaGround: 'path_stone',
+          waterGround: 'water',
+          buildingColors: ['#ddccbb', '#ccbbaa', '#eeddcc', '#bbaa99', '#d0c0b0'],
+          wallColor: '#aa9988',
+          treeColor: '#557744',
+          bushColor: '#778855',
+          flowerColors: ['#ffaacc', '#ffcc88'],
+          rockColor: '#888877',
+          lampColor: '#ffdd88',
+        }
+
+      // AMERICAN FRONTIER THEME
+      case 'american':
+        return {
+          ...defaults,
+          baseGround: 'prairie',
+          tallGround: 'prairie',
+          roadGround: 'path_dirt',
+          plazaGround: 'wooden_planks',
+          waterGround: 'water',
+          buildingColors: ['#aa7744', '#996633', '#bb8855', '#885522', '#9a7040'],
+          wallColor: '#774422',
+          treeColor: '#557744',
+          bushColor: '#888855',
+          flowerColors: ['#ffcc44', '#ffaa55'],
+          rockColor: '#887766',
+          lampColor: '#ffcc44',
+        }
+
+      // MEXICAN THEME
+      case 'mexican':
+        return {
+          ...defaults,
+          baseGround: 'sand',
+          tallGround: 'sand_dune',
+          roadGround: 'path_dirt',
+          plazaGround: 'adobe',
+          waterGround: 'water',
+          buildingColors: ['#ffcc66', '#ff9944', '#ff6688', '#88ddff', '#ddaa55'], // Vibrant colors
+          wallColor: '#ddaa55',
+          treeColor: '#557744', // Cacti
+          bushColor: '#669955',
+          flowerColors: ['#ff5566', '#ffaa44', '#ff6688'],
+          rockColor: '#aa8866',
+          lampColor: '#ffcc44',
+        }
+
+      // AUSTRALIAN OUTBACK THEME
+      case 'australian':
+        return {
+          ...defaults,
+          baseGround: 'outback_red',
+          tallGround: 'outback_red',
+          roadGround: 'path_dirt',
+          plazaGround: 'sandstone',
+          waterGround: 'water',
+          buildingColors: ['#aa7755', '#996644', '#bb8866', '#885533', '#9a7050'],
+          wallColor: '#775533',
+          treeColor: '#668877', // Eucalyptus
+          bushColor: '#779966',
+          flowerColors: ['#ffcc44', '#ff8844'],
+          rockColor: '#aa6633',
+          lampColor: '#ffaa55',
+        }
+
+      default:
+        return defaults
+    }
+  }
+
   // Random map generator using TEMPLATE_PRESETS system
   // Pipeline: grid → roads → buildings around roads → nature → collisions → NPCs
   const generateRandomMap = (presetId: string = 'village-small') => {
     const preset = TEMPLATE_PRESETS[presetId] || TEMPLATE_PRESETS['village-small']
     const seed = Math.random() * 10000
+
+    // Get theme-specific colors
+    const themeColors = getThemeColors(preset.theme, preset.groundType)
 
     // === STEP 0: Resize grid based on preset ===
     const cols = preset.cols.min + Math.floor(Math.random() * (preset.cols.max - preset.cols.min))
@@ -1546,16 +2410,8 @@ export default function TemplateEditor() {
       return nx0 * (1 - fy) + nx1 * fy
     }
 
-    // Ground type mapping for themes
-    const getBaseGround = (): string => {
-      switch (preset.groundType) {
-        case 'snow': return 'grass' // will color differently
-        case 'sand': return 'grass' // will color differently
-        case 'stone': return 'plaza'
-        case 'wood': return 'bridge'
-        default: return 'grass'
-      }
-    }
+    // Ground type mapping for themes - now uses themeColors
+    const getBaseGround = (): string => themeColors.baseGround
 
     // === STEP 1: Clear grid with natural ground formations ===
     grid.assets = []
@@ -1565,10 +2421,10 @@ export default function TemplateEditor() {
         if (preset.type === 'interior') {
           grid.setGround(c, r, baseGround)
         } else {
-          // Natural grass patches using noise
-          const grassNoise = smoothNoise(c, r, 8)
-          const grassType = grassNoise > 0.6 ? 'grass_tall' : 'grass'
-          grid.setGround(c, r, grassType)
+          // Natural ground patches using noise - use theme-specific ground types
+          const groundNoise = smoothNoise(c, r, 8)
+          const groundType = groundNoise > 0.6 ? themeColors.tallGround : themeColors.baseGround
+          grid.setGround(c, r, groundType)
         }
         grid.setCollision(c, r, false)
         grid.setHeight(c, r, 0)
@@ -1586,14 +2442,16 @@ export default function TemplateEditor() {
             grid.setHeight(c, r, 3)
             grid.setCollision(c, r, true)
             grid.placeAsset(['█'], c, r, {
-              type: 'wall', blocking: true, color: '#555566', height: 3
+              type: 'wall', blocking: true, color: themeColors.wallColor, height: 3
             })
           }
         }
       }
     }
 
-    // === STEP 3: Water features ===
+    // === STEP 3: Water features (using theme-appropriate water type) ===
+    const waterType = themeColors.waterGround
+
     if (preset.water.type === 'river') {
       const riverSide = Math.floor(Math.random() * 4)
       let rx = riverSide === 0 ? 0 : riverSide === 1 ? cols - 1 : Math.floor(Math.random() * cols)
@@ -1602,7 +2460,7 @@ export default function TemplateEditor() {
       for (let i = 0; i < Math.max(cols, rows); i++) {
         for (let w = -1; w <= 1; w++) {
           if (rx + w >= 0 && rx + w < cols && ry >= 0 && ry < rows) {
-            grid.setGround(rx + w, ry, 'water')
+            grid.setGround(rx + w, ry, waterType)
           }
         }
         rx += Math.floor(Math.random() * 3) - 1 + (rx < cx ? 0.3 : -0.3)
@@ -1623,7 +2481,7 @@ export default function TemplateEditor() {
             const px = lakeX + c
             const py = lakeY + r
             if (px >= 0 && px < cols && py >= 0 && py < rows) {
-              grid.setGround(px, py, 'water')
+              grid.setGround(px, py, waterType)
             }
           }
         }
@@ -1643,7 +2501,7 @@ export default function TemplateEditor() {
           // Add noise to moat edges
           const noise = smoothNoise(c, r, 4) * 2
           if (chebyshev >= moatDist - 2 + noise && chebyshev <= moatDist + 1 + noise) {
-            grid.setGround(c, r, 'water')
+            grid.setGround(c, r, waterType)
           }
         }
       }
@@ -1653,7 +2511,22 @@ export default function TemplateEditor() {
     // Randomize road positions significantly
     let roadX = cx + Math.floor(Math.random() * 10) - 5
     let roadY = cy + Math.floor(Math.random() * 10) - 5
-    const roadWidth = preset.roads.width
+    // Ensure minimum road width of 3 for visual depth (center + edges)
+    const roadWidth = Math.max(3, preset.roads.width)
+
+    // Helper: Set road tile with center/edge contrast
+    // w is the offset from the road start, totalWidth is the road width
+    const setRoadTile = (col: number, row: number, w: number, totalWidth: number) => {
+      if (col < 0 || col >= cols || row < 0 || row >= rows) return
+      if (grid.ground[row]?.[col] === 'water') return
+
+      // Determine if this is an edge or center tile
+      // For width 3: edges are 0 and 2, center is 1
+      // For width 4+: edges are 0 and totalWidth-1, center is middle tiles
+      const isEdge = (w === 0 || w === totalWidth - 1)
+      const groundType = isEdge ? 'road_edge' : 'road_center'
+      grid.setGround(col, row, groundType)
+    }
 
     if (preset.roads.enabled && preset.roads.pattern !== 'none') {
       if (preset.roads.pattern === 'cross') {
@@ -1661,18 +2534,14 @@ export default function TemplateEditor() {
         for (let c = 3; c < cols - 3; c++) {
           for (let w = 0; w < roadWidth; w++) {
             const r = roadY + w
-            if (r >= 0 && r < rows && grid.ground[r]?.[c] !== 'water') {
-              grid.setGround(c, r, 'road')
-            }
+            setRoadTile(c, r, w, roadWidth)
           }
         }
         // Vertical road
         for (let r = 3; r < rows - 3; r++) {
           for (let w = 0; w < roadWidth; w++) {
             const c = roadX + w
-            if (c >= 0 && c < cols && grid.ground[r]?.[c] !== 'water') {
-              grid.setGround(c, r, 'road')
-            }
+            setRoadTile(c, r, w, roadWidth)
           }
         }
       } else if (preset.roads.pattern === 'grid') {
@@ -1687,9 +2556,7 @@ export default function TemplateEditor() {
           for (let c = 3; c < cols - 3; c++) {
             for (let w = 0; w < roadWidth; w++) {
               const r = row + w
-              if (r < rows && grid.ground[r]?.[c] !== 'water') {
-                grid.setGround(c, r, 'road')
-              }
+              setRoadTile(c, r, w, roadWidth)
             }
           }
         }
@@ -1698,9 +2565,7 @@ export default function TemplateEditor() {
           for (let r = 3; r < rows - 3; r++) {
             for (let w = 0; w < roadWidth; w++) {
               const c = col + w
-              if (c < cols && grid.ground[r]?.[c] !== 'water') {
-                grid.setGround(c, r, 'road')
-              }
+              setRoadTile(c, r, w, roadWidth)
             }
           }
         }
@@ -1714,13 +2579,11 @@ export default function TemplateEditor() {
           let py = 5 + Math.floor(Math.random() * (rows - 12))
           while (px < cols - 4) {
             for (let w = 0; w < roadWidth; w++) {
-              if (py + w >= 0 && py + w < rows && grid.ground[py + w]?.[px] !== 'water') {
-                grid.setGround(px, py + w, 'road')
-              }
+              setRoadTile(px, py + w, w, roadWidth)
             }
             px++
             py += Math.floor(Math.random() * 3) - 1
-            py = Math.max(4, Math.min(rows - 5, py))
+            py = Math.max(4, Math.min(rows - 5 - roadWidth, py))
           }
           roadY = py
           roadX = cx
@@ -1729,13 +2592,11 @@ export default function TemplateEditor() {
           let py = 3
           while (py < rows - 4) {
             for (let w = 0; w < roadWidth; w++) {
-              if (px + w >= 0 && px + w < cols && grid.ground[py]?.[px + w] !== 'water') {
-                grid.setGround(px + w, py, 'road')
-              }
+              setRoadTile(px + w, py, w, roadWidth)
             }
             py++
             px += Math.floor(Math.random() * 3) - 1
-            px = Math.max(4, Math.min(cols - 5, px))
+            px = Math.max(4, Math.min(cols - 5 - roadWidth, px))
           }
           roadX = px
           roadY = cy
@@ -1749,9 +2610,7 @@ export default function TemplateEditor() {
           for (let c = 3; c < cols - 3; c++) {
             for (let w = 0; w < roadWidth; w++) {
               const r = roadRow + w
-              if (r >= 0 && r < rows && grid.ground[r]?.[c] !== 'water') {
-                grid.setGround(c, r, 'road')
-              }
+              setRoadTile(c, r, w, roadWidth)
             }
           }
           roadY = roadRow
@@ -1760,9 +2619,7 @@ export default function TemplateEditor() {
           for (let r = 3; r < rows - 3; r++) {
             for (let w = 0; w < roadWidth; w++) {
               const c = roadCol + w
-              if (c >= 0 && c < cols && grid.ground[r]?.[c] !== 'water') {
-                grid.setGround(c, r, 'road')
-              }
+              setRoadTile(c, r, w, roadWidth)
             }
           }
           roadX = roadCol
@@ -1774,9 +2631,10 @@ export default function TemplateEditor() {
         for (let c = 0; c < cols; c++) {
           if (grid.ground[r]?.[c] === 'water') {
             const adjRoad = [-1, 0, 1].some(dr =>
-              [-1, 0, 1].some(dc =>
-                grid.ground[r + dr]?.[c + dc] === 'road'
-              )
+              [-1, 0, 1].some(dc => {
+                const g = grid.ground[r + dr]?.[c + dc]
+                return g === 'road' || g === 'road_center' || g === 'road_edge'
+              })
             )
             if (adjRoad) {
               grid.setGround(c, r, 'bridge')
@@ -1786,18 +2644,18 @@ export default function TemplateEditor() {
       }
     }
 
-    // === STEP 5: Plaza/town center ===
+    // === STEP 5: Plaza/town center (using theme-appropriate ground) ===
     const plazaOffset = Math.floor(Math.random() * 4) - 2
     const plazaSize = 10 + Math.floor(Math.random() * 4)
     const townX = roadX - Math.floor(plazaSize / 2) + plazaOffset
     const townY = roadY - Math.floor(plazaSize / 2) + plazaOffset
     if (preset.buildings.hasPlaza && preset.roads.enabled) {
-      grid.fillGround(townX, townY, plazaSize, plazaSize, 'plaza')
+      grid.fillGround(townX, townY, plazaSize, plazaSize, themeColors.plazaGround)
       // Center fountain/well with random position
       const fountainOffset = Math.floor(plazaSize / 2) - 1
       const fountainX = townX + fountainOffset + Math.floor(Math.random() * 2)
       const fountainY = townY + fountainOffset + Math.floor(Math.random() * 2)
-      grid.fillGround(fountainX, fountainY, 2, 2, 'water')
+      grid.fillGround(fountainX, fountainY, 2, 2, waterType)
       // Lamps at random corners
       const lampPositions = [
         { x: townX + 1, y: townY + 1 },
@@ -1809,7 +2667,7 @@ export default function TemplateEditor() {
       const numLamps = 2 + Math.floor(Math.random() * 3)
       const shuffledLamps = lampPositions.sort(() => Math.random() - 0.5)
       for (let i = 0; i < numLamps && i < shuffledLamps.length; i++) {
-        grid.placeAsset(['!'], shuffledLamps[i].x, shuffledLamps[i].y, { type: 'lamp', blocking: true, color: '#ffff44', height: 2 })
+        grid.placeAsset(['!'], shuffledLamps[i].x, shuffledLamps[i].y, { type: 'lamp', blocking: true, color: themeColors.lampColor, height: 2 })
       }
     }
 
@@ -1867,12 +2725,16 @@ export default function TemplateEditor() {
         const x = 5 + Math.floor(Math.random() * (cols - 12))
         const y = 5 + Math.floor(Math.random() * (rows - 12))
         const ground = grid.ground[y]?.[x]
-        if (!isRoadGround(ground) && ground !== 'water' && ground !== 'plaza') {
+        // Check for any water-like or plaza-like ground (including themed versions)
+        const isWater = ground?.includes('water') || ground?.includes('lava') || ground?.includes('frozen') || ground?.includes('oasis') || ground?.includes('koi')
+        const isPlaza = ground?.includes('plaza') || ground?.includes('tile') || ground?.includes('floor') || ground?.includes('lacquer') || ground?.includes('tatami')
+        if (!isRoadGround(ground) && !isWater && !isPlaza) {
           validSpots.push({ x, y })
         }
       }
 
-      const colors = ['#aa7755', '#aa6644', '#997766', '#bb8866', '#8b7355', '#cc9977', '#886655']
+      // Use theme-specific building colors
+      const buildingColors = themeColors.buildingColors
       for (let i = 0; i < numBuildings && validSpots.length > 0; i++) {
         const spotIdx = Math.floor(Math.random() * validSpots.length)
         const spot = validSpots.splice(spotIdx, 1)[0]
@@ -1881,17 +2743,19 @@ export default function TemplateEditor() {
         const buildingDepth = 2 + Math.floor(Math.random() * 3)  // 2-4
         const buildingHeight = 2 + Math.floor(Math.random() * 3) // 2-4
 
-        // Verify footprint doesn't overlap roads/water
+        // Verify footprint doesn't overlap roads/water/plaza
         let canPlace = true
         for (let dy = 0; dy < buildingDepth && canPlace; dy++) {
           for (let dx = 0; dx < buildingWidth && canPlace; dx++) {
             const g = grid.ground[spot.y + dy]?.[spot.x + dx]
-            if (isRoadGround(g) || g === 'water' || g === 'plaza' || g === undefined) canPlace = false
+            const isWater = g?.includes('water') || g?.includes('lava') || g?.includes('frozen') || g?.includes('oasis') || g?.includes('koi')
+            const isPlaza = g?.includes('plaza') || g?.includes('tile') || g?.includes('floor') || g?.includes('lacquer') || g?.includes('tatami')
+            if (isRoadGround(g) || isWater || isPlaza || g === undefined) canPlace = false
           }
         }
         if (!canPlace) continue
 
-        const color = colors[Math.floor(Math.random() * colors.length)]
+        const color = buildingColors[Math.floor(Math.random() * buildingColors.length)]
         for (let dy = 0; dy < buildingDepth; dy++) {
           for (let dx = 0; dx < buildingWidth; dx++) {
             if (spot.x + dx < cols && spot.y + dy < rows) {
@@ -1906,13 +2770,16 @@ export default function TemplateEditor() {
       }
     }
 
-    // === STEP 7: Nature (trees, bushes, flowers, rocks) ===
+    // === STEP 7: Nature (trees, bushes, flowers, rocks) using theme colors ===
     const { treeDensity, bushDensity, flowerDensity, rockDensity } = preset.nature
 
     for (let r = 2; r < rows - 2; r++) {
       for (let c = 2; c < cols - 2; c++) {
         const ground = grid.ground[r]?.[c]
-        if (isRoadGround(ground) || ground === 'water' || ground === 'plaza') continue
+        // Skip water-like and plaza-like ground (including themed versions)
+        const isWater = ground?.includes('water') || ground?.includes('lava') || ground?.includes('frozen') || ground?.includes('oasis') || ground?.includes('koi')
+        const isPlaza = ground?.includes('plaza') || ground?.includes('tile') || ground?.includes('floor') || ground?.includes('lacquer') || ground?.includes('tatami')
+        if (isRoadGround(ground) || isWater || isPlaza) continue
 
         // Skip cells with existing assets
         const hasAsset = grid.assets.some(a => a.col === c && a.row === r)
@@ -1935,38 +2802,42 @@ export default function TemplateEditor() {
 
         const noise = smoothNoise(c, r, 6)
 
-        // Trees: use noise for clustering
+        // Trees: use noise for clustering - theme-appropriate color
         if (treeDensity > 0 && noise > (1 - treeDensity * 0.8)) {
           if (Math.random() < treeDensity * 0.5) {
-            grid.placeAsset(['@'], c, r, { type: 'tree', blocking: true, color: '#33cc33', height: 3 })
+            grid.placeAsset(['@'], c, r, { type: 'tree', blocking: true, color: themeColors.treeColor, height: 3 })
             grid.setCollision(c, r, true)
             continue
           }
         }
 
-        // Bushes
+        // Bushes - theme-appropriate color
         if (bushDensity > 0 && Math.random() < bushDensity * 0.15) {
-          grid.placeAsset(['&'], c, r, { type: 'bush', blocking: true, color: '#22aa22', height: 1 })
+          grid.placeAsset(['&'], c, r, { type: 'bush', blocking: true, color: themeColors.bushColor, height: 1 })
           grid.setCollision(c, r, true)
           continue
         }
 
-        // Flowers (not blocking)
+        // Flowers (not blocking) - theme-appropriate colors
         if (flowerDensity > 0 && Math.random() < flowerDensity * 0.1) {
+          const flowerColor = themeColors.flowerColors[Math.floor(Math.random() * themeColors.flowerColors.length)]
           grid.placeAsset(['+'], c, r, {
             type: 'flower',
-            color: Math.random() > 0.5 ? '#ff88cc' : '#ffaa44'
+            color: flowerColor
           })
           continue
         }
 
-        // Rocks (near water)
+        // Rocks (near water) - theme-appropriate color
         if (rockDensity > 0 && Math.random() < rockDensity * 0.08) {
           const nearWater = [-1, 0, 1].some(dy =>
-            [-1, 0, 1].some(dx => grid.ground[r + dy]?.[c + dx] === 'water')
+            [-1, 0, 1].some(dx => {
+              const g = grid.ground[r + dy]?.[c + dx]
+              return g?.includes('water') || g?.includes('lava') || g?.includes('frozen') || g?.includes('oasis') || g?.includes('koi')
+            })
           )
           if (nearWater || Math.random() < 0.3) {
-            grid.placeAsset(['o'], c, r, { type: 'rock', blocking: true, color: '#888888' })
+            grid.placeAsset(['o'], c, r, { type: 'rock', blocking: true, color: themeColors.rockColor })
             grid.setCollision(c, r, true)
           }
         }
@@ -1977,8 +2848,9 @@ export default function TemplateEditor() {
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols; c++) {
         const ground = grid.ground[r]?.[c]
-        // Water is blocking
-        if (ground === 'water') {
+        // Water-like elements are blocking (including themed versions)
+        const isWaterLike = ground?.includes('water') || ground?.includes('lava') || ground?.includes('frozen') || ground?.includes('oasis') || ground?.includes('koi') || ground?.includes('magma')
+        if (isWaterLike) {
           grid.setCollision(c, r, true)
         }
       }
@@ -2384,7 +3256,7 @@ export default function TemplateEditor() {
 
     // Check template limit for new templates
     if (!currentTemplateId && savedTemplates.length >= maxTemplates) {
-      alert(`Template limit reached (${maxTemplates}). Delete an existing template or update the current one.`)
+      toast(`Template limit reached (${maxTemplates}). Delete one first.`, 'warning')
       return
     }
 
@@ -2426,10 +3298,10 @@ export default function TemplateEditor() {
       }
 
       await loadTemplateList()
-      alert('Template saved!')
+      toast('Template saved!', 'success')
     } catch (error) {
       console.error('Failed to save template:', error)
-      alert('Failed to save template')
+      toast('Failed to save template', 'error')
     } finally {
       setIsSaving(false)
     }
@@ -2462,7 +3334,7 @@ export default function TemplateEditor() {
       setShowTemplateList(false)
     } catch (error) {
       console.error('Failed to load template:', error)
-      alert('Failed to load template')
+      toast('Failed to load template', 'error')
     } finally {
       setIsLoading(false)
     }
@@ -2481,7 +3353,7 @@ export default function TemplateEditor() {
       await loadTemplateList()
     } catch (error) {
       console.error('Failed to delete template:', error)
-      alert('Failed to delete template')
+      toast('Failed to delete template', 'error')
     }
   }
 
@@ -3259,22 +4131,37 @@ function drawIsoAssetAscii(
     }
 
   } else if (asset.type === 'building') {
-    // Building: walls + door + windows + roof (like 2D view)
+    // Building: connected structure with walls, windows, and peaked roof
+    // Use consistent width and visual connection between layers
+    const buildingWidth = tileW * 2.2
+    const wallColor = '#b48441'
+    const wallDarkColor = '#8a6230'
+    const roofColor = '#cc4040'
+    const roofDarkColor = '#992020'
+
     const layers = [
-      { text: '▌', color: '#553b17', bg: '#b48441' },  // Door
-      { text: '▒', color: `rgba(255, 255, 0, ${0.3 + 0.2 * flicker})`, bg: '#b48441' },  // Window
-      { text: '▒', color: `rgba(255, 255, 0, ${0.4 + 0.2 * flicker})`, bg: '#a07030' },  // Window
-      { text: '/\\', color: `rgba(255, 99, 71, ${0.8 + 0.2 * flicker})`, bg: '#cc3030' },  // Roof bottom
-      { text: '▲', color: `rgba(255, 80, 60, ${0.85 + 0.15 * flicker})`, bg: '#aa2020' },  // Roof top
+      { text: '|==|', color: '#664422', bg: wallColor, width: 1.0 },          // Base/door
+      { text: '|[]|', color: `rgba(255, 220, 80, ${0.5 + 0.3 * flicker})`, bg: wallColor, width: 1.0 },   // Window floor 1
+      { text: '|[]|', color: `rgba(255, 200, 60, ${0.4 + 0.3 * flicker})`, bg: wallDarkColor, width: 1.0 }, // Window floor 2
+      { text: '/==\\', color: roofColor, bg: roofDarkColor, width: 1.1 },     // Roof eave
+      { text: '/\\', color: `rgba(255, 100, 80, ${0.8 + 0.2 * flicker})`, bg: roofColor, width: 0.7 },    // Roof peak
     ]
+
     for (let i = 0; i < layers.length; i++) {
       const layer = layers[i]
       const layerY = y - i * lineHeight - lineHeight * 0.5
-      const layerWidth = (i < 3 ? tileW * 2 : tileW * (2.4 - (i - 3) * 0.3))
+      const layerWidth = buildingWidth * layer.width
 
-      // Background
+      // Background - maintains visual connection
       ctx.fillStyle = layer.bg
       ctx.fillRect(x - layerWidth / 2, layerY - lineHeight / 2, layerWidth, lineHeight)
+
+      // Draw connecting side walls for wall sections
+      if (i < 3) {
+        ctx.fillStyle = wallDarkColor
+        ctx.fillRect(x - layerWidth / 2 - 2, layerY - lineHeight / 2, 3, lineHeight)
+        ctx.fillRect(x + layerWidth / 2 - 1, layerY - lineHeight / 2, 3, lineHeight)
+      }
 
       // Character
       ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
@@ -3323,18 +4210,29 @@ function drawIsoAssetAscii(
     }
 
   } else if (asset.type === 'npc') {
-    // NPC character (similar to player but different color)
+    // NPC character - cleaner humanoid figure
+    // Stack: legs, body/arms, head with face
     const layers = [
-      { text: '/=\\', color: '#4466cc', bg: '#223366' },
-      { text: '<O>', color: '#ffccaa', bg: '#886644' },
+      { text: '/\\', color: '#3355aa', bg: '#1a2a55' },     // Legs (pants)
+      { text: '[=]', color: '#4466cc', bg: '#223366' },    // Body/torso
+      { text: '(o)', color: '#ffccaa', bg: '#996644' },    // Head with simple face
     ]
     for (let i = 0; i < layers.length; i++) {
       const layer = layers[i]
       const layerY = y - i * lineHeight - lineHeight * 0.5
+      const layerFontSize = i === 2 ? fontSize * 0.95 : fontSize  // Slightly smaller head
 
-      ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
+      ctx.font = `bold ${layerFontSize}px ${ASCII_FONT}`
+
+      // Background for visibility
+      const textWidth = ctx.measureText(layer.text).width
+      ctx.fillStyle = layer.bg
+      ctx.fillRect(x - textWidth / 2 - 2, layerY - lineHeight / 2, textWidth + 4, lineHeight)
+
+      // Shadow
       ctx.fillStyle = '#000000'
       ctx.fillText(layer.text, x + 1, layerY + 1)
+      // Character
       ctx.fillStyle = layer.color
       ctx.fillText(layer.text, x, layerY)
     }
@@ -3555,30 +4453,39 @@ function render2D(
         ctx.font = `bold ${tileH * 0.8}px ${ASCII_FONT}`
 
       } else if (asset.type === 'building') {
-        // Pagoda/temple style like test-ascii - red roofs, golden trim
-        const wallH = 3
-        const roofH = 2
-        // Walls - warm brown/tan
-        for (let h = 0; h < wallH; h++) {
+        // Connected building structure with walls, windows, and peaked roof
+        const wallColor = 'rgba(180, 132, 65, 0.9)'
+        const wallDarkColor = 'rgba(138, 98, 48, 0.9)'
+        const roofColor = 'rgba(200, 64, 64, 0.95)'
+        const roofDarkColor = 'rgba(153, 32, 32, 0.9)'
+
+        const layers = [
+          { text: '|==|', fg: '#664422', bg: wallColor, width: 1.0 },           // Base/door
+          { text: '|[]|', fg: `rgba(255, 220, 80, ${0.5 + 0.3 * flicker})`, bg: wallColor, width: 1.0 },    // Window 1
+          { text: '|[]|', fg: `rgba(255, 200, 60, ${0.4 + 0.3 * flicker})`, bg: wallDarkColor, width: 1.0 }, // Window 2
+          { text: '/==\\', fg: roofColor, bg: roofDarkColor, width: 1.1 },      // Roof eave
+          { text: '/\\', fg: `rgba(255, 100, 80, ${0.8 + 0.2 * flicker})`, bg: roofColor, width: 0.7 },     // Roof peak
+        ]
+
+        for (let h = 0; h < layers.length; h++) {
+          const layer = layers[h]
           const tileTop = baseY - (h + 1) * tileH
-          ctx.fillStyle = `rgba(180, 132, 65, 0.85)` // Temple brown
-          ctx.fillRect(p.x - tileW * 0.5, tileTop, tileW, tileH)
-          if (h === 0) {
-            ctx.fillStyle = 'rgba(85, 59, 23, 0.85)' // Dark door
-            ctx.fillText('▌', p.x, tileTop + tileH * 0.5)
-          } else {
-            ctx.fillStyle = `rgba(255, 255, 0, ${0.3 + 0.2 * flicker})` // Glowing window
-            ctx.fillText('▒', p.x, tileTop + tileH * 0.5)
+          const layerWidth = tileW * layer.width
+
+          // Main background
+          ctx.fillStyle = layer.bg
+          ctx.fillRect(p.x - layerWidth * 0.5, tileTop, layerWidth, tileH)
+
+          // Side walls for wall sections (visual connection)
+          if (h < 3) {
+            ctx.fillStyle = wallDarkColor
+            ctx.fillRect(p.x - layerWidth * 0.5 - 2, tileTop, 3, tileH)
+            ctx.fillRect(p.x + layerWidth * 0.5 - 1, tileTop, 3, tileH)
           }
-        }
-        // Roof - rich reds with eaves extending out
-        for (let h = 0; h < roofH; h++) {
-          const tileTop = baseY - (wallH + h + 1) * tileH
-          const roofWidth = 1.4 - h * 0.2
-          ctx.fillStyle = h === 0 ? 'rgba(200, 30, 30, 0.95)' : 'rgba(160, 0, 0, 0.9)'
-          ctx.fillRect(p.x - tileW * roofWidth * 0.5, tileTop, tileW * roofWidth, tileH)
-          ctx.fillStyle = `rgba(255, 99, 71, ${0.8 + 0.2 * flicker})` // Tomato red
-          ctx.fillText(h === 0 ? '/\\' : '▲', p.x, tileTop + tileH * 0.5)
+
+          // Character
+          ctx.fillStyle = layer.fg
+          ctx.fillText(layer.text, p.x, tileTop + tileH * 0.5)
         }
 
       } else if (asset.type === 'lamp') {
@@ -3592,6 +4499,24 @@ function render2D(
         ctx.fillRect(p.x - tileW * 0.25, baseY - tileH * 2.4, tileW * 0.5, tileH * 0.5)
         ctx.fillStyle = `rgba(255, 200, 50, ${0.7 + 0.3 * flicker})`
         ctx.fillText('o', p.x, baseY - tileH * 2.2)
+
+      } else if (asset.type === 'npc') {
+        // NPC - cleaner humanoid figure matching isometric style
+        const layers = [
+          { text: '/\\', fg: '#3355aa', bg: '#1a2a55' },     // Legs
+          { text: '[=]', fg: '#4466cc', bg: '#223366' },    // Body
+          { text: '(o)', fg: '#ffccaa', bg: '#996644' },    // Head
+        ]
+        for (let h = 0; h < layers.length; h++) {
+          const layer = layers[h]
+          const tileTop = baseY - (h + 1) * tileH
+          const layerWidth = h === 2 ? 0.7 : 0.8
+
+          ctx.fillStyle = layer.bg
+          ctx.fillRect(p.x - tileW * layerWidth * 0.5, tileTop, tileW * layerWidth, tileH)
+          ctx.fillStyle = layer.fg
+          ctx.fillText(layer.text, p.x, tileTop + tileH * 0.5)
+        }
 
       } else {
         // Default - still use vibrant colors with animation
@@ -3851,14 +4776,15 @@ function drawIsoAsset(
     ctx.fill()
 
   } else if (asset.type === 'npc') {
-    // Simple character - 2 blocks
-    drawBlock(x, y, 0.6, '#4466cc', '#3355aa', '#5577dd')
-    drawBlock(x, y - blockTall, 0.5, '#ffccaa', '#ddaa88', '#ffddbb')
-    // Face
-    ctx.fillStyle = '#000'
-    ctx.font = `bold ${blockTall * 0.4}px ${ASCII_FONT}`
+    // Humanoid character - 3 blocks (legs, body, head)
+    drawBlock(x, y, 0.5, '#3355aa', '#2244aa', '#4466bb')           // Legs
+    drawBlock(x, y - blockTall, 0.6, '#4466cc', '#3355aa', '#5577dd')  // Body
+    drawBlock(x, y - blockTall * 2, 0.45, '#ffccaa', '#ddaa88', '#ffddbb') // Head
+    // Simple face
+    ctx.fillStyle = '#333'
+    ctx.font = `bold ${blockTall * 0.35}px ${ASCII_FONT}`
     ctx.textAlign = 'center'
-    ctx.fillText('◡', x, y - blockTall * 1.2)
+    ctx.fillText('o', x, y - blockTall * 2.1)
 
   } else if (asset.type === 'bush') {
     drawBlock(x, y, 0.8,

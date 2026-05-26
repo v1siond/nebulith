@@ -90,6 +90,15 @@ export class Player {
 
   private keys: Record<string, boolean> = {}
 
+  // Bound event handlers for proper cleanup
+  private boundKeyDown: (e: KeyboardEvent) => void
+  private boundKeyUp: (e: KeyboardEvent) => void
+
+  private static readonly ACTION_KEYS = new Set([
+    'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight',
+    'w', 'W', 'a', 'A', 's', 'S', 'd', 'D', ' '
+  ])
+
   constructor(x: number, y: number, tileSize: number) {
     this.tileSize = tileSize
     // Smaller collision box - player can squeeze through tighter spaces
@@ -97,30 +106,37 @@ export class Player {
     this.height = tileSize * 1.2
     this.position = { x, y }
 
+    // Bind handlers once for proper add/remove
+    this.boundKeyDown = this.handleKeyDown.bind(this)
+    this.boundKeyUp = this.handleKeyUp.bind(this)
+
     this.setupInput()
+  }
+
+  private handleKeyDown(e: KeyboardEvent) {
+    if (Player.ACTION_KEYS.has(e.key)) {
+      e.preventDefault()
+      // Normalize: lowercase for letters, keep original for arrows/space
+      const key = e.key.length === 1 ? e.key.toLowerCase() : e.key
+      this.keys[key] = true
+    }
+  }
+
+  private handleKeyUp(e: KeyboardEvent) {
+    const key = e.key.length === 1 ? e.key.toLowerCase() : e.key
+    this.keys[key] = false
   }
 
   private setupInput() {
     if (typeof window === 'undefined') return
+    window.addEventListener('keydown', this.boundKeyDown)
+    window.addEventListener('keyup', this.boundKeyUp)
+  }
 
-    const actionKeys = [
-      'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight',
-      'w', 'W', 'a', 'A', 's', 'S', 'd', 'D', ' '
-    ]
-
-    window.addEventListener('keydown', (e) => {
-      if (actionKeys.includes(e.key)) {
-        e.preventDefault()
-        // Normalize: lowercase for letters, keep original for arrows/space
-        const key = e.key.length === 1 ? e.key.toLowerCase() : e.key
-        this.keys[key] = true
-      }
-    })
-
-    window.addEventListener('keyup', (e) => {
-      const key = e.key.length === 1 ? e.key.toLowerCase() : e.key
-      this.keys[key] = false
-    })
+  destroy() {
+    if (typeof window === 'undefined') return
+    window.removeEventListener('keydown', this.boundKeyDown)
+    window.removeEventListener('keyup', this.boundKeyUp)
   }
 
   update(deltaTime: number, checkCollision: (rect: Rectangle) => boolean) {
