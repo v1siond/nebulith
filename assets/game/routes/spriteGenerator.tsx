@@ -1,0 +1,748 @@
+'use client'
+
+import { useState, useEffect, useCallback, useRef } from 'react'
+import JSZip from 'jszip'
+
+type FrameTiming = {
+  duration: number // ms per frame
+}
+
+type GalleryItem = {
+  id: string
+  type: 'sprite' | 'animation'
+  image?: string
+  images?: string[]
+  prompt: string
+  size: number
+  animAction?: string
+  usage: number
+  createdAt: number
+  frameTiming?: FrameTiming[] // custom timing per frame
+}
+
+type ExportSettings = {
+  name: string
+  size: number
+  animAction?: string
+  frameTiming: FrameTiming[]
+  totalDuration: number
+}
+
+const STORAGE_KEY = 'pixellab-gallery'
+const ANIMATION_TYPES = ['idle', 'walking', 'running', 'attacking', 'jumping']
+const SPEED_PRESETS = {
+  'Very Slow': 400,
+  'Slow': 250,
+  'Normal': 150,
+  'Fast': 80,
+  'Very Fast': 40,
+}
+
+function loadGallery(): GalleryItem[] {
+  if (typeof window === 'undefined') return []
+  try {
+    return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]')
+  } catch {
+    return []
+  }
+}
+
+function saveGallery(items: GalleryItem[]) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(items))
+}
+
+function dataUrlToBlob(dataUrl: string): Blob {
+  const parts = dataUrl.split(',')
+  const mime = parts[0].match(/:(.*?);/)?.[1] || 'image/png'
+  const binary = atob(parts[1])
+  const array = new Uint8Array(binary.length)
+  for (let i = 0; i < binary.length; i++) {
+    array[i] = binary.charCodeAt(i)
+  }
+  return new Blob([array], { type: mime })
+}
+
+export default function SpriteGeneratorPage() {
+  // Form state
+  const [prompt, setPrompt] = useState('pixel art character, side view, warrior')
+  const [size, setSize] = useState(64)
+
+  // UI state
+  const [loading, setLoading] = useState(false)
+  const [loadingMsg, setLoadingMsg] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const [balance, setBalance] = useState<number | null>(null)
+  const [showTimingEditor, setShowTimingEditor] = useState(false)
+
+  // Gallery & selection
+  const [gallery, setGallery] = useState<GalleryItem[]>([])
+  const [selected, setSelected] = useState<GalleryItem | null>(null)
+  const [showAnimPicker, setShowAnimPicker] = useState(false)
+
+  // Animation playback with custom timing
+  const [frame, setFrame] = useState(0)
+  const [playing, setPlaying] = useState(true)
+  const [globalSpeed, setGlobalSpeed] = useState(150)
+  const [frameTiming, setFrameTiming] = useState<FrameTiming[]>([])
+  const frameTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
+  // Fetch balance
+  const fetchBalance = useCallback(async () => {
+    try {
+      const res = await fetch('/api/pixellab', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'balance' }),
+      })
+      const data = await res.json()
+      if (res.ok) setBalance(data.balance || 0)
+    } catch { /* ignore */ }
+  }, [])
+
+  // Load on mount
+  useEffect(() => {
+    setGallery(loadGallery())
+    fetchBalance()
+  }, [fetchBalance])
+
+  // Initialize frame timing when animation changes
+  useEffect(() => {
+    if (selected?.images) {
+      const savedTiming = selected.frameTiming
+      if (savedTiming && savedTiming.length === selected.images.length) {
+        setFrameTiming(savedTiming)
+      } else {
+        setFrameTiming(selected.images.map(() => ({ duration: globalSpeed })))
+      }
+    }
+  }, [selected?.id, selected?.images, selected?.frameTiming, globalSpeed])
+
+  // Animation loop with per-frame timing
+  useEffect(() => {
+    if (!selected?.images || !playing || frameTiming.length === 0) return
+
+    const scheduleNext = () => {
+      const currentDuration = frameTiming[frame]?.duration || globalSpeed
+      frameTimeoutRef.current = setTimeout(() => {
+        setFrame(f => (f + 1) % selected.images!.length)
+      }, currentDuration)
+    }
+
+    scheduleNext()
+    return () => {
+      if (frameTimeoutRef.current) clearTimeout(frameTimeoutRef.current)
+    }
+  }, [selected, playing, frame, frameTiming, globalSpeed])
+
+  // Reset frame when selection changes
+  useEffect(() => {
+    setFrame(0)
+    setPlaying(true)
+    setShowAnimPicker(false)
+    setShowTimingEditor(false)
+  }, [selected?.id])
+
+  // Gallery helpers
+  const addToGallery = (item: GalleryItem) => {
+    const updated = [item, ...gallery].slice(0, 50)
+    setGallery(updated)
+    saveGallery(updated)
+  }
+
+  const updateGalleryItem = (id: string, updates: Partial<GalleryItem>) => {
+    const updated = gallery.map(g => g.id === id ? { ...g, ...updates } : g)
+    setGallery(updated)
+    saveGallery(updated)
+    if (selected?.id === id) {
+      setSelected({ ...selected, ...updates })
+    }
+  }
+
+  const deleteItem = (id: string) => {
+    const updated = gallery.filter(g => g.id !== id)
+    setGallery(updated)
+    saveGallery(updated)
+    if (selected?.id === id) setSelected(null)
+  }
+
+  // Update single frame timing
+  const updateFrameDuration = (frameIndex: number, duration: number) => {
+    const newTiming = [...frameTiming]
+    newTiming[frameIndex] = { duration }
+    setFrameTiming(newTiming)
+  }
+
+  // Apply preset to range of frames
+  const applyPresetToRange = (startFrame: number, endFrame: number, duration: number) => {
+    const newTiming = [...frameTiming]
+    for (let i = startFrame; i <= endFrame && i < newTiming.length; i++) {
+      newTiming[i] = { duration }
+    }
+    setFrameTiming(newTiming)
+  }
+
+  // Save timing to gallery item
+  const saveTimingToItem = () => {
+    if (selected) {
+      updateGalleryItem(selected.id, { frameTiming })
+    }
+  }
+
+  // Export functions
+  const exportImages = async () => {
+    if (!selected?.images) return
+
+    const zip = new JSZip()
+    const folder = zip.folder(selected.animAction || 'sprite')!
+
+    for (let i = 0; i < selected.images.length; i++) {
+      const blob = dataUrlToBlob(selected.images[i])
+      folder.file(`frame_${i.toString().padStart(2, '0')}.png`, blob)
+    }
+
+    // Add settings JSON
+    const settings: ExportSettings = {
+      name: selected.animAction || 'animation',
+      size: selected.size,
+      animAction: selected.animAction,
+      frameTiming: frameTiming,
+      totalDuration: frameTiming.reduce((sum, f) => sum + f.duration, 0),
+    }
+    folder.file('settings.json', JSON.stringify(settings, null, 2))
+
+    const content = await zip.generateAsync({ type: 'blob' })
+    const url = URL.createObjectURL(content)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${selected.animAction || 'sprite'}_${selected.size}px.zip`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const exportSingleFrame = (frameIndex: number) => {
+    if (!selected?.images?.[frameIndex]) return
+    const a = document.createElement('a')
+    a.href = selected.images[frameIndex]
+    a.download = `${selected.animAction || 'sprite'}_frame_${frameIndex}.png`
+    a.click()
+  }
+
+  // API: Generate sprite
+  const generateSprite = async () => {
+    setLoading(true)
+    setLoadingMsg('Generating sprite...')
+    setError(null)
+
+    try {
+      const res = await fetch('/api/pixellab', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'generate',
+          description: prompt,
+          width: size,
+          height: size,
+          noBackground: true,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+
+      const item: GalleryItem = {
+        id: Date.now().toString(),
+        type: 'sprite',
+        image: data.image,
+        prompt,
+        size,
+        usage: data.usage || 0,
+        createdAt: Date.now(),
+      }
+      addToGallery(item)
+      setSelected(item)
+      fetchBalance()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to generate')
+    } finally {
+      setLoading(false)
+      setLoadingMsg('')
+    }
+  }
+
+  // API: Animate sprite
+  const animateSprite = async (action: string) => {
+    if (!selected?.image) return
+
+    setShowAnimPicker(false)
+    setLoading(true)
+    setLoadingMsg(`Creating ${action} animation...`)
+    setError(null)
+
+    try {
+      const base64 = selected.image.split(',')[1]
+      const spriteSize = selected.size
+
+      if (spriteSize <= 64) {
+        const res = await fetch('/api/pixellab', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'animate',
+            description: selected.prompt,
+            animationAction: action,
+            referenceImage: base64,
+            noBackground: true,
+          }),
+        })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error)
+
+        const item: GalleryItem = {
+          id: Date.now().toString(),
+          type: 'animation',
+          images: data.images,
+          prompt: selected.prompt,
+          size: 64,
+          animAction: action,
+          usage: data.usage || 0,
+          createdAt: Date.now(),
+        }
+        addToGallery(item)
+        setSelected(item)
+        fetchBalance()
+        return
+      }
+
+      setLoadingMsg(`Starting ${action} animation...`)
+      const startRes = await fetch('/api/pixellab', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'animate-v3-start',
+          firstFrame: base64,
+          animationAction: action,
+          width: spriteSize,
+          height: spriteSize,
+          frameCount: 8,
+          noBackground: true,
+        }),
+      })
+      const startData = await startRes.json()
+      if (!startRes.ok) throw new Error(startData.error)
+
+      const jobId = startData.jobId
+      setLoadingMsg('Rendering... (30-60s)')
+
+      let attempts = 0
+      while (attempts < 60) {
+        await new Promise(r => setTimeout(r, 3000))
+        attempts++
+
+        const statusRes = await fetch('/api/pixellab', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'animate-v3-status', jobId }),
+        })
+        const status = await statusRes.json()
+
+        if (status.status === 'completed') {
+          const item: GalleryItem = {
+            id: Date.now().toString(),
+            type: 'animation',
+            images: status.images,
+            prompt: selected.prompt,
+            size: spriteSize,
+            animAction: action,
+            usage: status.usage || 0,
+            createdAt: Date.now(),
+          }
+          addToGallery(item)
+          setSelected(item)
+          fetchBalance()
+          return
+        } else if (status.status === 'failed') {
+          throw new Error(status.error || 'Animation failed')
+        }
+
+        setLoadingMsg(`Rendering... (${attempts * 3}s)`)
+      }
+
+      throw new Error('Animation timed out')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to animate')
+    } finally {
+      setLoading(false)
+      setLoadingMsg('')
+    }
+  }
+
+  const checkerBg = {
+    background: `
+      linear-gradient(45deg, #1a1a1a 25%, transparent 25%, transparent 75%, #1a1a1a 75%),
+      linear-gradient(45deg, #1a1a1a 25%, transparent 25%, transparent 75%, #1a1a1a 75%)
+    `,
+    backgroundSize: '12px 12px',
+    backgroundPosition: '0 0, 6px 6px',
+    backgroundColor: '#252525',
+  }
+
+  const totalDuration = frameTiming.reduce((sum, f) => sum + f.duration, 0)
+
+  return (
+    <div style={{ minHeight: '100vh', background: '#0d0d0d', color: '#e0e0e0', fontFamily: 'system-ui, sans-serif' }}>
+      {/* Header */}
+      <header style={{ padding: '1rem 2rem', borderBottom: '1px solid #222', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, background: '#0d0d0d', zIndex: 100 }}>
+        <h1 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 600 }}>Sprite Generator</h1>
+        <span style={{ color: '#4ecdc4', fontFamily: 'monospace' }}>${balance?.toFixed(4) || '-.--'}</span>
+      </header>
+
+      <main style={{ maxWidth: 1000, margin: '0 auto', padding: '2rem' }}>
+        {/* Generate Section */}
+        <section style={{ marginBottom: '3rem' }}>
+          <h2 style={{ fontSize: '0.875rem', textTransform: 'uppercase', letterSpacing: '0.05em', opacity: 0.6, marginBottom: '1rem' }}>Generate</h2>
+          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+            <input
+              type="text"
+              value={prompt}
+              onChange={e => setPrompt(e.target.value)}
+              placeholder="Describe your character..."
+              style={{ flex: 1, minWidth: 200, padding: '0.75rem 1rem', background: '#1a1a1a', border: '1px solid #333', borderRadius: '8px', color: '#fff', fontSize: '0.9375rem' }}
+            />
+            <select
+              value={size}
+              onChange={e => setSize(Number(e.target.value))}
+              style={{ padding: '0.75rem 1rem', background: '#1a1a1a', border: '1px solid #333', borderRadius: '8px', color: '#fff' }}
+            >
+              <option value={32}>32px</option>
+              <option value={64}>64px</option>
+              <option value={128}>128px</option>
+            </select>
+            <button
+              onClick={generateSprite}
+              disabled={loading || !prompt.trim()}
+              style={{ padding: '0.75rem 2rem', background: loading ? '#333' : '#4a9eff', border: 'none', borderRadius: '8px', color: '#fff', fontWeight: 600, cursor: loading ? 'wait' : 'pointer', minWidth: 120 }}
+            >
+              {loading && loadingMsg.includes('Generating') ? loadingMsg : 'Generate'}
+            </button>
+          </div>
+        </section>
+
+        {/* Error */}
+        {error && (
+          <div style={{ padding: '1rem', background: '#ff4444', borderRadius: '8px', marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span>{error}</span>
+            <button onClick={() => setError(null)} style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', fontSize: '1.25rem' }}>×</button>
+          </div>
+        )}
+
+        {/* Gallery */}
+        <section style={{ marginBottom: '3rem' }}>
+          <h2 style={{ fontSize: '0.875rem', textTransform: 'uppercase', letterSpacing: '0.05em', opacity: 0.6, marginBottom: '1rem' }}>
+            Gallery {gallery.length > 0 && `(${gallery.length})`}
+          </h2>
+          {gallery.length === 0 ? (
+            <p style={{ opacity: 0.4 }}>Generated sprites will appear here</p>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))', gap: '0.75rem' }}>
+              {gallery.map(item => (
+                <div
+                  key={item.id}
+                  onClick={() => setSelected(item)}
+                  style={{
+                    aspectRatio: '1',
+                    ...checkerBg,
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    border: selected?.id === item.id ? '2px solid #4ecdc4' : '2px solid transparent',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    position: 'relative',
+                    transition: 'transform 0.1s',
+                  }}
+                  onMouseEnter={e => (e.currentTarget.style.transform = 'scale(1.05)')}
+                  onMouseLeave={e => (e.currentTarget.style.transform = 'scale(1)')}
+                >
+                  <img
+                    src={item.type === 'animation' ? item.images?.[0] : item.image}
+                    alt=""
+                    style={{ width: '80%', height: '80%', objectFit: 'contain', imageRendering: 'pixelated' }}
+                  />
+                  {item.type === 'animation' && (
+                    <div style={{ position: 'absolute', bottom: 4, right: 4, background: '#4ecdc4', color: '#000', fontSize: '9px', padding: '2px 4px', borderRadius: '3px', fontWeight: 600 }}>
+                      {item.animAction?.slice(0, 4).toUpperCase()}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
+        {/* Selected Item Preview */}
+        {selected && (
+          <section style={{ background: '#1a1a1a', borderRadius: '12px', padding: '1.5rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '1.125rem' }}>
+                  {selected.type === 'animation' ? `${selected.animAction} animation` : 'Sprite'}
+                </h3>
+                <span style={{ fontSize: '0.8125rem', opacity: 0.5 }}>{selected.size}px · ${selected.usage?.toFixed(4)}</span>
+              </div>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                {selected.type === 'animation' && (
+                  <button
+                    onClick={exportImages}
+                    style={{ background: '#4ecdc4', border: 'none', borderRadius: '6px', padding: '0.5rem 1rem', color: '#000', cursor: 'pointer', fontSize: '0.8125rem', fontWeight: 600 }}
+                  >
+                    Export ZIP
+                  </button>
+                )}
+                <button
+                  onClick={() => deleteItem(selected.id)}
+                  style={{ background: '#ff444433', border: '1px solid #ff4444', borderRadius: '6px', padding: '0.5rem 1rem', color: '#ff6666', cursor: 'pointer', fontSize: '0.8125rem' }}
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+
+            {/* Preview Image */}
+            <div style={{ ...checkerBg, padding: '2rem', borderRadius: '8px', display: 'flex', justifyContent: 'center', marginBottom: '1.5rem' }}>
+              <img
+                src={selected.type === 'animation' ? selected.images?.[frame] : selected.image}
+                alt=""
+                style={{ width: Math.max(selected.size * 3, 128), height: Math.max(selected.size * 3, 128), imageRendering: 'pixelated' }}
+              />
+            </div>
+
+            {/* Animation Controls */}
+            {selected.type === 'animation' && selected.images && (
+              <div style={{ marginBottom: '1.5rem' }}>
+                {/* Playback controls */}
+                <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap' }}>
+                  <button
+                    onClick={() => setPlaying(!playing)}
+                    style={{ padding: '0.5rem 1rem', background: playing ? '#ff6b6b' : '#4ecdc4', border: 'none', borderRadius: '6px', color: '#fff', cursor: 'pointer', fontWeight: 600 }}
+                  >
+                    {playing ? 'Pause' : 'Play'}
+                  </button>
+                  <button onClick={() => { setPlaying(false); setFrame(f => (f - 1 + selected.images!.length) % selected.images!.length) }} style={{ padding: '0.5rem 0.75rem', background: '#333', border: 'none', borderRadius: '6px', color: '#fff', cursor: 'pointer' }}>◀</button>
+                  <span style={{ minWidth: 60, textAlign: 'center', fontFamily: 'monospace' }}>{frame + 1} / {selected.images.length}</span>
+                  <button onClick={() => { setPlaying(false); setFrame(f => (f + 1) % selected.images!.length) }} style={{ padding: '0.5rem 0.75rem', background: '#333', border: 'none', borderRadius: '6px', color: '#fff', cursor: 'pointer' }}>▶</button>
+                  <span style={{ fontSize: '0.75rem', opacity: 0.6, marginLeft: '0.5rem' }}>
+                    Total: {totalDuration}ms ({(1000 / (totalDuration / selected.images.length)).toFixed(1)} fps avg)
+                  </span>
+                </div>
+
+                {/* Frame thumbnails with timing */}
+                <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center', flexWrap: 'wrap', marginBottom: '1rem' }}>
+                  {selected.images.map((img, i) => (
+                    <div key={i} style={{ textAlign: 'center' }}>
+                      <img
+                        src={img}
+                        alt={`Frame ${i + 1}`}
+                        onClick={() => { setFrame(i); setPlaying(false) }}
+                        onDoubleClick={() => exportSingleFrame(i)}
+                        title="Click to select, double-click to download"
+                        style={{
+                          width: 48,
+                          height: 48,
+                          imageRendering: 'pixelated',
+                          border: i === frame ? '2px solid #4ecdc4' : '2px solid #333',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                          background: '#252525',
+                        }}
+                      />
+                      <div style={{ fontSize: '10px', opacity: 0.6, marginTop: '2px' }}>
+                        {frameTiming[i]?.duration || globalSpeed}ms
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Timing Editor Toggle */}
+                <button
+                  onClick={() => setShowTimingEditor(!showTimingEditor)}
+                  style={{ width: '100%', padding: '0.5rem', background: showTimingEditor ? '#333' : '#252525', border: '1px solid #444', borderRadius: '6px', color: '#fff', cursor: 'pointer', marginBottom: showTimingEditor ? '1rem' : 0 }}
+                >
+                  {showTimingEditor ? '▼ Hide Timing Editor' : '▶ Speed Curve Editor'}
+                </button>
+
+                {/* Timing Editor */}
+                {showTimingEditor && (
+                  <div style={{ background: '#0d0d0d', borderRadius: '8px', padding: '1rem' }}>
+                    {/* Global speed */}
+                    <div style={{ marginBottom: '1rem' }}>
+                      <label style={{ fontSize: '0.75rem', opacity: 0.6, display: 'block', marginBottom: '0.5rem' }}>Global Speed (applies to all frames)</label>
+                      <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                        {Object.entries(SPEED_PRESETS).map(([name, ms]) => (
+                          <button
+                            key={name}
+                            onClick={() => {
+                              setGlobalSpeed(ms)
+                              setFrameTiming(selected.images!.map(() => ({ duration: ms })))
+                            }}
+                            style={{
+                              padding: '0.25rem 0.75rem',
+                              background: globalSpeed === ms ? '#4ecdc4' : '#333',
+                              color: globalSpeed === ms ? '#000' : '#fff',
+                              border: 'none',
+                              borderRadius: '4px',
+                              cursor: 'pointer',
+                              fontSize: '0.75rem',
+                            }}
+                          >
+                            {name} ({ms}ms)
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Per-frame timing */}
+                    <div style={{ marginBottom: '1rem' }}>
+                      <label style={{ fontSize: '0.75rem', opacity: 0.6, display: 'block', marginBottom: '0.5rem' }}>Per-Frame Duration (ms)</label>
+                      <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                        {frameTiming.map((ft, i) => (
+                          <div key={i} style={{ textAlign: 'center' }}>
+                            <div style={{ fontSize: '10px', opacity: 0.5, marginBottom: '2px' }}>F{i + 1}</div>
+                            <input
+                              type="number"
+                              value={ft.duration}
+                              onChange={e => updateFrameDuration(i, Math.max(10, parseInt(e.target.value) || 100))}
+                              style={{
+                                width: 50,
+                                padding: '0.25rem',
+                                background: i === frame ? '#4ecdc4' : '#252525',
+                                color: i === frame ? '#000' : '#fff',
+                                border: '1px solid #444',
+                                borderRadius: '4px',
+                                textAlign: 'center',
+                                fontSize: '0.75rem',
+                              }}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Quick patterns */}
+                    <div style={{ marginBottom: '1rem' }}>
+                      <label style={{ fontSize: '0.75rem', opacity: 0.6, display: 'block', marginBottom: '0.5rem' }}>Quick Patterns</label>
+                      <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                        <button
+                          onClick={() => {
+                            const half = Math.floor(frameTiming.length / 2)
+                            applyPresetToRange(0, half - 1, 200)
+                            applyPresetToRange(half, frameTiming.length - 1, 80)
+                          }}
+                          style={{ padding: '0.25rem 0.75rem', background: '#333', border: 'none', borderRadius: '4px', color: '#fff', cursor: 'pointer', fontSize: '0.75rem' }}
+                        >
+                          Slow → Fast
+                        </button>
+                        <button
+                          onClick={() => {
+                            const half = Math.floor(frameTiming.length / 2)
+                            applyPresetToRange(0, half - 1, 80)
+                            applyPresetToRange(half, frameTiming.length - 1, 200)
+                          }}
+                          style={{ padding: '0.25rem 0.75rem', background: '#333', border: 'none', borderRadius: '4px', color: '#fff', cursor: 'pointer', fontSize: '0.75rem' }}
+                        >
+                          Fast → Slow
+                        </button>
+                        <button
+                          onClick={() => {
+                            const third = Math.floor(frameTiming.length / 3)
+                            applyPresetToRange(0, third - 1, 200)
+                            applyPresetToRange(third, third * 2 - 1, 50)
+                            applyPresetToRange(third * 2, frameTiming.length - 1, 300)
+                          }}
+                          style={{ padding: '0.25rem 0.75rem', background: '#333', border: 'none', borderRadius: '4px', color: '#fff', cursor: 'pointer', fontSize: '0.75rem' }}
+                        >
+                          Slow → Fast → Hold
+                        </button>
+                        <button
+                          onClick={() => {
+                            setFrameTiming(frameTiming.map((_, i) => ({
+                              duration: i === 0 || i === frameTiming.length - 1 ? 300 : 80
+                            })))
+                          }}
+                          style={{ padding: '0.25rem 0.75rem', background: '#333', border: 'none', borderRadius: '4px', color: '#fff', cursor: 'pointer', fontSize: '0.75rem' }}
+                        >
+                          Hold Ends
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Save timing */}
+                    <button
+                      onClick={saveTimingToItem}
+                      style={{ width: '100%', padding: '0.5rem', background: '#4a9eff', border: 'none', borderRadius: '6px', color: '#fff', cursor: 'pointer', fontWeight: 600 }}
+                    >
+                      Save Timing to Animation
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Actions for sprites */}
+            {selected.type === 'sprite' && (
+              <div>
+                {loading ? (
+                  <div style={{ width: '100%', padding: '1rem', background: '#333', borderRadius: '8px', textAlign: 'center' }}>
+                    <span style={{ color: '#4ecdc4' }}>{loadingMsg || 'Processing...'}</span>
+                  </div>
+                ) : !showAnimPicker ? (
+                  <button
+                    onClick={() => setShowAnimPicker(true)}
+                    style={{ width: '100%', padding: '1rem', background: '#4ecdc4', border: 'none', borderRadius: '8px', color: '#000', fontWeight: 600, cursor: 'pointer', fontSize: '1rem' }}
+                  >
+                    Animate This Sprite
+                  </button>
+                ) : (
+                  <div>
+                    <p style={{ marginBottom: '0.75rem', opacity: 0.7, textAlign: 'center' }}>Choose animation type:</p>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))', gap: '0.5rem' }}>
+                      {ANIMATION_TYPES.map(type => (
+                        <button
+                          key={type}
+                          onClick={() => animateSprite(type)}
+                          style={{
+                            padding: '0.75rem',
+                            background: '#252525',
+                            border: '1px solid #444',
+                            borderRadius: '6px',
+                            color: '#fff',
+                            cursor: 'pointer',
+                            textTransform: 'capitalize',
+                            transition: 'background 0.1s',
+                          }}
+                          onMouseEnter={e => (e.currentTarget.style.background = '#333')}
+                          onMouseLeave={e => (e.currentTarget.style.background = '#252525')}
+                        >
+                          {type}
+                        </button>
+                      ))}
+                    </div>
+                    <button
+                      onClick={() => setShowAnimPicker(false)}
+                      style={{ width: '100%', marginTop: '0.75rem', padding: '0.5rem', background: 'transparent', border: '1px solid #333', borderRadius: '6px', color: '#888', cursor: 'pointer' }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Prompt */}
+            <div style={{ marginTop: '1.5rem', padding: '0.75rem', background: '#0d0d0d', borderRadius: '6px', fontSize: '0.8125rem' }}>
+              <span style={{ opacity: 0.5 }}>Prompt: </span>{selected.prompt}
+            </div>
+          </section>
+        )}
+      </main>
+    </div>
+  )
+}
