@@ -62,6 +62,88 @@ function dataUrlToBlob(dataUrl: string): Blob {
   return new Blob([array], { type: mime })
 }
 
+// Mirror an image horizontally (no AI, pure canvas manipulation)
+async function mirrorImage(dataUrl: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    img.onload = () => {
+      const canvas = document.createElement('canvas')
+      canvas.width = img.width
+      canvas.height = img.height
+      const ctx = canvas.getContext('2d')!
+      ctx.translate(canvas.width, 0)
+      ctx.scale(-1, 1)
+      ctx.drawImage(img, 0, 0)
+      resolve(canvas.toDataURL('image/png'))
+    }
+    img.onerror = reject
+    img.src = dataUrl
+  })
+}
+
+// Create a sprite sheet from multiple images (horizontal strip)
+async function createSpriteSheet(images: string[], frameSize: number): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const canvas = document.createElement('canvas')
+    canvas.width = frameSize * images.length
+    canvas.height = frameSize
+    const ctx = canvas.getContext('2d')!
+
+    let loaded = 0
+    images.forEach((dataUrl, i) => {
+      const img = new Image()
+      img.onload = () => {
+        ctx.drawImage(img, i * frameSize, 0, frameSize, frameSize)
+        loaded++
+        if (loaded === images.length) {
+          resolve(canvas.toDataURL('image/png'))
+        }
+      }
+      img.onerror = reject
+      img.src = dataUrl
+    })
+  })
+}
+
+// Create a combined sprite sheet from multiple animations (grid layout)
+async function createCombinedSpriteSheet(
+  animations: { name: string; images: string[]; size: number }[]
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    // Find max frames and consistent size
+    const maxFrames = Math.max(...animations.map(a => a.images.length))
+    const size = animations[0]?.size || 64
+
+    const canvas = document.createElement('canvas')
+    canvas.width = size * maxFrames
+    canvas.height = size * animations.length
+    const ctx = canvas.getContext('2d')!
+
+    let totalImages = animations.reduce((sum, a) => sum + a.images.length, 0)
+    let loaded = 0
+
+    animations.forEach((anim, row) => {
+      anim.images.forEach((dataUrl, col) => {
+        const img = new Image()
+        img.onload = () => {
+          ctx.drawImage(img, col * size, row * size, size, size)
+          loaded++
+          if (loaded === totalImages) {
+            resolve(canvas.toDataURL('image/png'))
+          }
+        }
+        img.onerror = reject
+        img.src = dataUrl
+      })
+    })
+
+    // Handle empty case
+    if (totalImages === 0) {
+      resolve(canvas.toDataURL('image/png'))
+    }
+  })
+}
+
 export default function SpriteGeneratorPage() {
   // Form state
   const [prompt, setPrompt] = useState('pixel art character, side view, warrior')
@@ -77,7 +159,9 @@ export default function SpriteGeneratorPage() {
   // Gallery & selection
   const [gallery, setGallery] = useState<GalleryItem[]>([])
   const [selected, setSelected] = useState<GalleryItem | null>(null)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [showAnimPicker, setShowAnimPicker] = useState(false)
+  const [showExportModal, setShowExportModal] = useState(false)
 
   // Animation playback with custom timing
   const [frame, setFrame] = useState(0)
@@ -188,7 +272,151 @@ export default function SpriteGeneratorPage() {
     }
   }
 
-  // Export functions
+  // Mirror image (no AI - pure canvas flip)
+  const mirrorSelectedImage = async () => {
+    if (!selected) return
+
+    setLoading(true)
+    setLoadingMsg('Mirroring image...')
+
+    try {
+      if (selected.type === 'sprite' && selected.image) {
+        const mirrored = await mirrorImage(selected.image)
+        const item: GalleryItem = {
+          id: Date.now().toString(),
+          type: 'sprite',
+          image: mirrored,
+          prompt: selected.prompt + ' (mirrored)',
+          size: selected.size,
+          usage: 0,
+          createdAt: Date.now(),
+        }
+        addToGallery(item)
+        setSelected(item)
+      } else if (selected.type === 'animation' && selected.images) {
+        const mirroredFrames = await Promise.all(selected.images.map(mirrorImage))
+        const item: GalleryItem = {
+          id: Date.now().toString(),
+          type: 'animation',
+          images: mirroredFrames,
+          prompt: selected.prompt + ' (mirrored)',
+          size: selected.size,
+          animAction: selected.animAction + '-mirrored',
+          usage: 0,
+          createdAt: Date.now(),
+          frameTiming: selected.frameTiming,
+        }
+        addToGallery(item)
+        setSelected(item)
+      }
+    } catch (err) {
+      setError('Failed to mirror image')
+    } finally {
+      setLoading(false)
+      setLoadingMsg('')
+    }
+  }
+
+  // Toggle selection for batch export
+  const toggleSelectForExport = (id: string) => {
+    const newSet = new Set(selectedIds)
+    if (newSet.has(id)) {
+      newSet.delete(id)
+    } else {
+      newSet.add(id)
+    }
+    setSelectedIds(newSet)
+  }
+
+  // Select all animations for export
+  const selectAllAnimations = () => {
+    const animIds = gallery.filter(g => g.type === 'animation').map(g => g.id)
+    setSelectedIds(new Set(animIds))
+  }
+
+  // Comprehensive export: individual frames + sprite sheets + combined sheet
+  const exportComprehensive = async () => {
+    const itemsToExport = gallery.filter(g => selectedIds.has(g.id) && g.type === 'animation')
+
+    if (itemsToExport.length === 0) {
+      setError('Select at least one animation to export')
+      return
+    }
+
+    setLoading(true)
+    setLoadingMsg('Creating export package...')
+
+    try {
+      const zip = new JSZip()
+
+      // 1. Individual frames per animation
+      const individualsFolder = zip.folder('individual_frames')!
+      for (const item of itemsToExport) {
+        if (!item.images) continue
+        const animFolder = individualsFolder.folder(item.animAction || 'animation')!
+        for (let i = 0; i < item.images.length; i++) {
+          const blob = dataUrlToBlob(item.images[i])
+          animFolder.file(`frame_${i.toString().padStart(2, '0')}.png`, blob)
+        }
+      }
+
+      // 2. Sprite sheet per animation (horizontal strip)
+      const sheetsFolder = zip.folder('sprite_sheets')!
+      for (const item of itemsToExport) {
+        if (!item.images) continue
+        const sheet = await createSpriteSheet(item.images, item.size)
+        const blob = dataUrlToBlob(sheet)
+        sheetsFolder.file(`${item.animAction || 'animation'}_sheet.png`, blob)
+      }
+
+      // 3. Combined sprite sheet (all animations in grid)
+      const animations = itemsToExport
+        .filter(item => item.images && item.images.length > 0)
+        .map(item => ({
+          name: item.animAction || 'animation',
+          images: item.images!,
+          size: item.size,
+        }))
+
+      if (animations.length > 0) {
+        const combinedSheet = await createCombinedSpriteSheet(animations)
+        const combinedBlob = dataUrlToBlob(combinedSheet)
+        zip.file('combined_spritesheet.png', combinedBlob)
+      }
+
+      // 4. Metadata/settings JSON
+      const metadata = {
+        exportDate: new Date().toISOString(),
+        animations: itemsToExport.map(item => ({
+          name: item.animAction,
+          frameCount: item.images?.length || 0,
+          size: item.size,
+          frameTiming: item.frameTiming,
+        })),
+        totalFrames: itemsToExport.reduce((sum, item) => sum + (item.images?.length || 0), 0),
+      }
+      zip.file('metadata.json', JSON.stringify(metadata, null, 2))
+
+      // Generate and download
+      const content = await zip.generateAsync({ type: 'blob' })
+      const url = URL.createObjectURL(content)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `sprite_export_${Date.now()}.zip`
+      a.click()
+      URL.revokeObjectURL(url)
+
+      setShowExportModal(false)
+      setSelectedIds(new Set())
+    } catch (err) {
+      setError('Export failed: ' + (err instanceof Error ? err.message : 'Unknown error'))
+    } finally {
+      setLoading(false)
+      setLoadingMsg('')
+    }
+  }
+
+  // Simple single animation export
   const exportImages = async () => {
     if (!selected?.images) return
 
@@ -199,6 +427,10 @@ export default function SpriteGeneratorPage() {
       const blob = dataUrlToBlob(selected.images[i])
       folder.file(`frame_${i.toString().padStart(2, '0')}.png`, blob)
     }
+
+    // Add sprite sheet
+    const sheet = await createSpriteSheet(selected.images, selected.size)
+    folder.file('spritesheet.png', dataUrlToBlob(sheet))
 
     // Add settings JSON
     const settings: ExportSettings = {
@@ -436,9 +668,19 @@ export default function SpriteGeneratorPage() {
 
         {/* Gallery */}
         <section style={{ marginBottom: '3rem' }}>
-          <h2 style={{ fontSize: '0.875rem', textTransform: 'uppercase', letterSpacing: '0.05em', opacity: 0.6, marginBottom: '1rem' }}>
-            Gallery {gallery.length > 0 && `(${gallery.length})`}
-          </h2>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+            <h2 style={{ fontSize: '0.875rem', textTransform: 'uppercase', letterSpacing: '0.05em', opacity: 0.6, margin: 0 }}>
+              Gallery {gallery.length > 0 && `(${gallery.length})`}
+            </h2>
+            {gallery.filter(g => g.type === 'animation').length > 0 && (
+              <button
+                onClick={() => setShowExportModal(true)}
+                style={{ padding: '0.5rem 1rem', background: '#4ecdc4', border: 'none', borderRadius: '6px', color: '#000', cursor: 'pointer', fontSize: '0.8125rem', fontWeight: 600 }}
+              >
+                Batch Export
+              </button>
+            )}
+          </div>
           {gallery.length === 0 ? (
             <p style={{ opacity: 0.4 }}>Generated sprites will appear here</p>
           ) : (
@@ -488,7 +730,14 @@ export default function SpriteGeneratorPage() {
                 </h3>
                 <span style={{ fontSize: '0.8125rem', opacity: 0.5 }}>{selected.size}px · ${selected.usage?.toFixed(4)}</span>
               </div>
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                <button
+                  onClick={mirrorSelectedImage}
+                  disabled={loading}
+                  style={{ background: '#6366f1', border: 'none', borderRadius: '6px', padding: '0.5rem 1rem', color: '#fff', cursor: loading ? 'wait' : 'pointer', fontSize: '0.8125rem', fontWeight: 600 }}
+                >
+                  Mirror
+                </button>
                 {selected.type === 'animation' && (
                   <button
                     onClick={exportImages}
@@ -743,6 +992,131 @@ export default function SpriteGeneratorPage() {
           </section>
         )}
       </main>
+
+      {/* Batch Export Modal */}
+      {showExportModal && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.8)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+          }}
+          onClick={() => setShowExportModal(false)}
+        >
+          <div
+            style={{
+              background: '#1a1a1a',
+              borderRadius: '12px',
+              padding: '1.5rem',
+              maxWidth: 600,
+              width: '90%',
+              maxHeight: '80vh',
+              overflow: 'auto',
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <h2 style={{ margin: '0 0 1rem 0', fontSize: '1.25rem' }}>Batch Export Sprites</h2>
+            <p style={{ opacity: 0.6, fontSize: '0.875rem', marginBottom: '1rem' }}>
+              Select animations to export. Package includes: individual frames, sprite sheets per animation, and a combined master sheet.
+            </p>
+
+            {/* Quick actions */}
+            <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
+              <button
+                onClick={selectAllAnimations}
+                style={{ padding: '0.5rem 1rem', background: '#333', border: 'none', borderRadius: '6px', color: '#fff', cursor: 'pointer', fontSize: '0.75rem' }}
+              >
+                Select All
+              </button>
+              <button
+                onClick={() => setSelectedIds(new Set())}
+                style={{ padding: '0.5rem 1rem', background: '#333', border: 'none', borderRadius: '6px', color: '#fff', cursor: 'pointer', fontSize: '0.75rem' }}
+              >
+                Clear Selection
+              </button>
+            </div>
+
+            {/* Animation list */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '1.5rem' }}>
+              {gallery.filter(g => g.type === 'animation').map(item => (
+                <label
+                  key={item.id}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.75rem',
+                    padding: '0.75rem',
+                    background: selectedIds.has(item.id) ? '#4ecdc422' : '#252525',
+                    border: selectedIds.has(item.id) ? '1px solid #4ecdc4' : '1px solid #333',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.has(item.id)}
+                    onChange={() => toggleSelectForExport(item.id)}
+                    style={{ width: 18, height: 18 }}
+                  />
+                  <img
+                    src={item.images?.[0]}
+                    alt=""
+                    style={{ width: 40, height: 40, imageRendering: 'pixelated', background: '#333', borderRadius: '4px' }}
+                  />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 600 }}>{item.animAction}</div>
+                    <div style={{ fontSize: '0.75rem', opacity: 0.6 }}>
+                      {item.images?.length} frames · {item.size}px
+                    </div>
+                  </div>
+                </label>
+              ))}
+            </div>
+
+            {/* Export info */}
+            {selectedIds.size > 0 && (
+              <div style={{ padding: '0.75rem', background: '#0d0d0d', borderRadius: '6px', marginBottom: '1rem', fontSize: '0.8125rem' }}>
+                <div style={{ fontWeight: 600, marginBottom: '0.5rem' }}>Export will include:</div>
+                <ul style={{ margin: 0, paddingLeft: '1.25rem', opacity: 0.7 }}>
+                  <li>{gallery.filter(g => selectedIds.has(g.id)).reduce((sum, g) => sum + (g.images?.length || 0), 0)} individual frame PNGs</li>
+                  <li>{selectedIds.size} sprite sheet{selectedIds.size > 1 ? 's' : ''} (horizontal strips)</li>
+                  <li>1 combined master sprite sheet</li>
+                  <li>metadata.json with frame timings</li>
+                </ul>
+              </div>
+            )}
+
+            {/* Actions */}
+            <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => setShowExportModal(false)}
+                style={{ padding: '0.75rem 1.5rem', background: '#333', border: 'none', borderRadius: '6px', color: '#fff', cursor: 'pointer' }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={exportComprehensive}
+                disabled={selectedIds.size === 0 || loading}
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  background: selectedIds.size === 0 ? '#333' : '#4ecdc4',
+                  border: 'none',
+                  borderRadius: '6px',
+                  color: selectedIds.size === 0 ? '#666' : '#000',
+                  cursor: selectedIds.size === 0 || loading ? 'not-allowed' : 'pointer',
+                  fontWeight: 600,
+                }}
+              >
+                {loading ? 'Exporting...' : `Export ${selectedIds.size} Animation${selectedIds.size !== 1 ? 's' : ''}`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
