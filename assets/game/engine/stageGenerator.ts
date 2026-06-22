@@ -150,14 +150,33 @@ const makeFlower = (zone: ZoneId, col: number, row: number): StageProp => {
   return { col, row, type: 'flower', char: pick.char, blocking: false, color: pick.color }
 }
 
+// Tonal rock shades (+ a little char texture) so cave/arena walls aren't one flat
+// grey — the same idea as TREE_CANOPY_SHADES for the forest.
+const ROCK_SHADES = ['#3a3340', '#332e3a', '#443b50', '#2c2832', '#3d3543'] as const
+const rockShade = (col: number, row: number): string => ROCK_SHADES[Math.abs(col * 7 + row * 13) % ROCK_SHADES.length]
+
 const makeRock = (col: number, row: number): StageProp => ({
   col,
   row,
   type: 'rock',
-  char: '▓',
+  char: Math.abs(col * 5 + row * 3) % 7 === 0 ? '▒' : '▓',
   blocking: true,
-  color: '#3a3340',
+  color: rockShade(col, row),
 })
+
+// Non-blocking cave-floor decor: stalagmites, crystals, rubble — scattered so a
+// cavern reads as a living cave, not flat grey walls + empty floor.
+const CAVE_DECOR: ReadonlyArray<{ char: string; color: string }> = [
+  { char: 'ʌ', color: '#5a5266' }, // stalagmite
+  { char: '♦', color: '#7ad0ff' }, // crystal (cyan)
+  { char: '◊', color: '#b48cff' }, // crystal (violet)
+  { char: '∴', color: '#4a4450' }, // rubble
+  { char: '·', color: '#6a6276' }, // pebbles
+]
+const makeCaveDecor = (col: number, row: number): StageProp => {
+  const d = CAVE_DECOR[randInt(0, CAVE_DECOR.length - 1)]
+  return { col, row, type: 'cave_decor', char: d.char, blocking: false, color: d.color }
+}
 
 const makeBossAnchor = (col: number, row: number): StageProp => ({
   col,
@@ -1042,6 +1061,17 @@ function placeCave(ctx: ArchetypeContext): void {
   carveCaveGate(rock, cavern, cols, rows)
 
   commitRocks(ctx, rock) // rock walls fill the negative space (blocking props)
+  scatterCaveDecor(ctx)
+}
+
+/** Sprinkle non-blocking decor (stalagmites/crystals/rubble) over the cavern floor. */
+function scatterCaveDecor(ctx: ArchetypeContext): void {
+  const { props, collision, cols, rows } = ctx
+  forEachCell(cols, rows, (col, row) => {
+    if (collision[row][col]) return // floor cells only
+    if (Math.random() > 0.12) return // sparse, so it stays walkable + readable
+    props.push(makeCaveDecor(col, row))
+  })
 }
 
 /** One double-buffered cellular-automata pass (never updates in place). */

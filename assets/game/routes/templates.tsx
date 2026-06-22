@@ -2580,9 +2580,28 @@ function EntityInspectorCard({ entity, onPatch, onDelete, onClose }: {
             <input value={entity.enemyType ?? ''} onChange={e => onPatch({ enemyType: e.target.value })} aria-label="Enemy type" className="w-full rounded bg-gray-800 p-1 text-xs" />
           </label>
         )}
-        <div className="grid grid-cols-2 gap-x-3 text-gray-300">
-          <span>HP {entity.baseStats.maxHp}</span><span>DEF {entity.baseStats.defense}</span>
-          <span>STR {entity.baseStats.strength}</span><span>INT {entity.baseStats.intelligence}</span>
+        <div>
+          <span className="mb-0.5 block text-[10px] text-gray-400">Stats (editable)</span>
+          <div className="grid grid-cols-2 gap-1">
+            {([
+              ['maxHp', 'HP'],
+              ['defense', 'DEF'],
+              ['strength', 'STR'],
+              ['intelligence', 'INT'],
+              ['dodge', 'DODGE%'],
+            ] as const).map(([stat, label]) => (
+              <label key={stat} className="flex items-center gap-1 text-[10px] text-gray-400">
+                <span className="w-12 shrink-0">{label}</span>
+                <input
+                  type="number"
+                  value={entity.baseStats[stat] ?? 0}
+                  onChange={e => onPatch({ baseStats: { ...entity.baseStats, [stat]: Number(e.target.value) } })}
+                  aria-label={`${entity.kind} ${label}`}
+                  className="w-full rounded bg-gray-800 p-1 text-xs"
+                />
+              </label>
+            ))}
+          </div>
         </div>
         <label className="flex items-center gap-2 text-gray-300">
           <input type="checkbox" checked={hittable} onChange={e => onPatch({ hittable: e.target.checked })} aria-label="Hittable" />
@@ -2619,6 +2638,9 @@ export default function TemplateEditor() {
   // Camera panning with mouse drag
   const [isPanning, setIsPanning] = useState(false)
   const [panStart, setPanStart] = useState<{ x: number; y: number } | null>(null)
+  // Click-vs-drag in the play views: a clean click selects the entity under it, a drag pans.
+  const dragMovedRef = useRef(false)
+  const downCellRef = useRef<{ col: number; row: number } | null>(null)
   const [camOffset, setCamOffset] = useState({ x: 0, y: 0 })
   const camOffsetRef = useRef({ x: 0, y: 0 })
   const [selectedTile, setSelectedTile] = useState<{ char: string; type: 'ground' | 'asset'; groundType?: string; tileKey?: string } | null>(null)
@@ -2961,6 +2983,9 @@ export default function TemplateEditor() {
     // is armed (entity / connector), in which case a left-click places in that view
     // too (top view is just the easier surface for it). Pan with middle/right-drag.
     if (e.button === 0 && !topViewMode && !entityTool && !connectorMode) {
+      // Defer the decision: clean click → select the entity here; drag → pan (mouse-up decides).
+      downCellRef.current = screenToCell(e.clientX, e.clientY)
+      dragMovedRef.current = false
       setIsPanning(true)
       setPanStart({ x: e.clientX, y: e.clientY })
       return
@@ -3022,6 +3047,7 @@ export default function TemplateEditor() {
     if (isPanning && panStart) {
       const dx = e.clientX - panStart.x
       const dy = e.clientY - panStart.y
+      if (Math.abs(dx) > 2 || Math.abs(dy) > 2) dragMovedRef.current = true
       const newOffset = {
         x: camOffsetRef.current.x + dx,
         y: camOffsetRef.current.y + dy
@@ -3052,6 +3078,13 @@ export default function TemplateEditor() {
   }
 
   const handleCanvasMouseUp = () => {
+    // A no-drag click in a play view selects the entity under it (or clears selection).
+    if (isPanning && !dragMovedRef.current && downCellRef.current) {
+      const c = downCellRef.current
+      const hit = entityAt(entitiesRef.current, c.col, c.row)
+      setSelectedEntityId(hit ? hit.id : null)
+    }
+    downCellRef.current = null
     setIsSelecting(false)
     setIsPanning(false)
     setPanStart(null)
