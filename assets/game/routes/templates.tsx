@@ -24,6 +24,16 @@ import { findTriggeredConnector } from '@/engine/connectors'
 import { generateStage, stagePaint, StageData, VariantId } from '@/engine/stageGenerator'
 import { ZoneId } from '@/engine/zones'
 import { useToast } from '@/components/Toast'
+import {
+  makePlayer,
+  makeEnemy,
+  makeNpc,
+  canPlaceEntity,
+  placeEntity,
+  removeEntity,
+  entityAt,
+} from '@/game/entities'
+import type { Entity, EntityKind } from '@/game/types'
 
 const ASCII_FONT = '"JetBrains Mono", "Fira Code", "Consolas", monospace'
 
@@ -42,6 +52,93 @@ let flowViewMode = false
 
 // Template limits
 const MAX_TEMPLATES_PROD = 1
+
+// ═══════════════════════════════════════════════════════════════════
+// ENTITY PLACEMENT (player / enemies / NPCs)
+// Glyph + colour vocabulary, id minting, and the save/load codec that
+// piggybacks entities onto the template's assetsData (api.ts has no
+// `entities` field and is read-only here). Pure + module-level so they
+// aren't re-allocated per render and stay unit-testable.
+// ═══════════════════════════════════════════════════════════════════
+
+/** Which tool the Entities card has armed. `erase` removes; `null` = off. */
+type EntityTool = EntityKind | 'erase' | null
+
+/** Glyph drawn for each entity kind, over a dark backing (spec §1). */
+const ENTITY_GLYPH: Record<EntityKind, string> = {
+  player: '☻',
+  enemy: 'E', // enemies fall back to this; a typed enemy uses its first letter
+  npc: '☺',
+}
+
+/** Distinct colours so kinds read at a glance: player yellow, enemy red, npc cyan. */
+const ENTITY_COLOR: Record<EntityKind, string> = {
+  player: '#ffdd00',
+  enemy: '#ff4d4d',
+  npc: '#33d6ff',
+}
+
+/** The glyph an entity renders as — enemies use their type's first letter. */
+function entityGlyph(entity: Entity): string {
+  if (entity.kind !== 'enemy') return ENTITY_GLYPH[entity.kind]
+  const first = entity.enemyType?.trim()?.[0]
+  return first ? first.toUpperCase() : ENTITY_GLYPH.enemy
+}
+
+/** A short, unique-enough id for an entity minted in the editor session. */
+function mintEntityId(kind: EntityKind): string {
+  return `${kind}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`
+}
+
+// ── persistence codec ────────────────────────────────────────────────
+// Entities ride inside the existing `assetsData` array as marked records so
+// they round-trip through createTemplate/updateTemplate without touching
+// api.ts. The marker type keeps them out of the visible asset renderers.
+
+const ENTITY_ASSET_TYPE = 'nebulith:entity'
+
+/** Serialize entities into asset-shaped records appended to assetsData. */
+function entitiesToAssets(entities: readonly Entity[]): GridAsset[] {
+  return entities.map(entity => ({
+    art: [entityGlyph(entity)],
+    col: entity.col,
+    row: entity.row,
+    type: ENTITY_ASSET_TYPE,
+    blocking: false, // entities are not terrain collision
+    color: ENTITY_COLOR[entity.kind],
+    label: JSON.stringify(entity), // the round-trip payload
+  }))
+}
+
+/** True for the marker records produced by entitiesToAssets. */
+function isEntityAsset(asset: GridAsset): boolean {
+  return asset.type === ENTITY_ASSET_TYPE
+}
+
+/** Decode one marker asset back into an Entity, or null if malformed. */
+function entityFromAsset(asset: GridAsset): Entity | null {
+  if (!asset.label) return null
+  try {
+    const parsed = JSON.parse(asset.label) as Entity
+    if (parsed?.kind && typeof parsed.col === 'number' && typeof parsed.row === 'number') {
+      return parsed
+    }
+    return null
+  } catch {
+    return null
+  }
+}
+
+/** Pull every entity back out of a loaded asset list (drops malformed ones). */
+function entitiesFromAssets(assets: readonly GridAsset[]): Entity[] {
+  const out: Entity[] = []
+  for (const asset of assets) {
+    if (!isEntityAsset(asset)) continue
+    const entity = entityFromAsset(asset)
+    if (entity) out.push(entity)
+  }
+  return out
+}
 
 // ═══════════════════════════════════════════════════════════════════
 // TEMPLATE PRESET SYSTEM
@@ -892,6 +989,34 @@ function PaletteGroup({
   )
 }
 
+/** A tool toggle in the Entities card (Player / Enemy / NPC / Erase). */
+function EntityToolButton({
+  label,
+  glyph,
+  active,
+  activeClass,
+  onClick,
+}: {
+  label: string
+  glyph: string
+  active: boolean
+  activeClass: string
+  onClick: () => void
+}) {
+  return (
+    <button
+      onClick={onClick}
+      aria-pressed={active}
+      className={`flex flex-col items-center gap-0.5 rounded px-2 py-1.5 text-xs font-bold transition-colors ${
+        active ? activeClass : 'bg-gray-700 hover:bg-gray-600'
+      }`}
+    >
+      <span className="text-base leading-none" aria-hidden>{glyph}</span>
+      <span>{label}</span>
+    </button>
+  )
+}
+
 type PlaceTileInfo = { char: string; type: 'ground' | 'asset'; groundType?: string; tileKey?: string }
 
 /** Swatch for a single-tile asset, resolving its glyph/colours from the tileset by key. */
@@ -1336,6 +1461,14 @@ export default function TemplateEditor() {
   const connectorModeRef = useRef(false)
   const viewTypeRef = useRef<'isometric' | '2d'>('isometric')
 
+  // Entity placement state (player / enemies / NPCs). The game loop is mounted
+  // once and reads through a ref, so entities mirror to entitiesRef like connectors.
+  const [entities, setEntities] = useState<Entity[]>([])
+  const [entityTool, setEntityTool] = useState<EntityTool>(null)
+  const [enemyType, setEnemyType] = useState('goblin')
+  const [npcName, setNpcName] = useState('')
+  const entitiesRef = useRef<Entity[]>([])
+
   // Connector teleport runtime state (read/written inside the once-mounted game loop)
   const lastCellRef = useRef<{ col: number; row: number }>({ col: -1, row: -1 })
   const interactDownRef = useRef(false)
@@ -1438,6 +1571,11 @@ export default function TemplateEditor() {
     connectorModeRef.current = connectorMode
   }, [connectorMode])
 
+  // Keep entities ref in sync so the once-mounted game loop renders the latest set
+  useEffect(() => {
+    entitiesRef.current = entities
+  }, [entities])
+
   // Convert screen position to grid cell (for top view)
   const screenToCell = (clientX: number, clientY: number): { col: number; row: number } | null => {
     const canvas = canvasRef.current
@@ -1493,6 +1631,12 @@ export default function TemplateEditor() {
         })
       }
       setEditingConnector(cell)
+      return
+    }
+
+    // Entity tool armed → place/erase on this cell instead of selecting it
+    if (entityTool) {
+      applyEntityTool(cell.col, cell.row)
       return
     }
 
@@ -1646,6 +1790,51 @@ export default function TemplateEditor() {
     if (editingConnector?.col === col && editingConnector?.row === row) {
       setEditingConnector(null)
     }
+  }
+
+  // ── Entity placement ───────────────────────────────────────────────
+  // One builder per placeable kind (dispatch map, not a switch). Each returns a
+  // fresh Entity from the pure factory; the orchestrator below guards placement.
+  const ENTITY_BUILDERS: Record<EntityKind, (col: number, row: number) => Entity> = {
+    player: (col, row) => makePlayer(mintEntityId('player'), col, row),
+    enemy: (col, row) =>
+      makeEnemy(mintEntityId('enemy'), col, row, enemyType.trim() || 'enemy'),
+    npc: (col, row) => makeNpc(mintEntityId('npc'), col, row, { name: npcName.trim() || undefined }),
+  }
+
+  /** Arm an entity tool (re-clicking the active one disarms it). Clears the
+   *  selection + connector mode so placement and selection never fight. */
+  const toggleEntityTool = (tool: Exclude<EntityTool, null>) => {
+    setEntityTool(prev => (prev === tool ? null : tool))
+    setConnectorMode(false)
+    setEditingConnector(null)
+    setSelectedCells(new Set())
+  }
+
+  /** Place or erase an entity at (col,row) for the armed tool, via the pure module. */
+  const applyEntityTool = (col: number, row: number) => {
+    const grid = gridRef.current
+    if (!grid || !entityTool) return
+
+    if (entityTool === 'erase') {
+      setEntities(prev => {
+        const target = entityAt(prev, col, row)
+        return target ? removeEntity(prev, target.id) : prev
+      })
+      return
+    }
+
+    const collisionFn = (c: number, r: number) => !!grid.collision[r]?.[c]
+
+    setEntities(prev => {
+      // Only one player: placing a new one replaces the existing player anywhere.
+      const base = entityTool === 'player' ? prev.filter(e => e.kind !== 'player') : prev
+      if (!canPlaceEntity(base, col, row, grid.cols, grid.rows, collisionFn)) {
+        toast('Cell is blocked, out of bounds, or already occupied', 'warning')
+        return prev
+      }
+      return placeEntity(base, ENTITY_BUILDERS[entityTool](col, row))
+    })
   }
 
   // Resize grid function
@@ -3455,11 +3644,11 @@ export default function TemplateEditor() {
         ctx.fillStyle = '#0a0a12'
         ctx.fillRect(0, 0, canvas.width, canvas.height)
       } else if (topViewMode) {
-        renderTopView(ctx, canvas.width, canvas.height, grid, player, zoomRef.current, selectedCellsRef.current, connectorsRef.current, connectorModeRef.current, camOffsetRef.current)
+        renderTopView(ctx, canvas.width, canvas.height, grid, player, zoomRef.current, selectedCellsRef.current, connectorsRef.current, connectorModeRef.current, camOffsetRef.current, entitiesRef.current)
       } else if (viewTypeRef.current === '2d') {
         render2D(ctx, canvas.width, canvas.height, grid, player, time, zoomRef.current, camOffsetRef.current)
       } else {
-        render(ctx, canvas.width, canvas.height, grid, player, time, camOffsetRef.current)
+        render(ctx, canvas.width, canvas.height, grid, player, time, camOffsetRef.current, entitiesRef.current)
       }
 
       // Movement works in top view too (grid-aligned for clarity)
@@ -3507,13 +3696,18 @@ export default function TemplateEditor() {
     try {
       const { groundData, heightData, assetsData } = serializeGrid(grid)
 
+      // Entities have no field in the template schema (api.ts is read-only here),
+      // so they ride alongside the assets as marked records and are split back out
+      // on load. This keeps placement persistent without touching the API layer.
+      const assetsWithEntities = [...assetsData, ...entitiesToAssets(entities)]
+
       if (currentTemplateId) {
         // Update existing
         await updateTemplate(currentTemplateId, {
           name: templateName,
           groundData,
           heightData,
-          assetsData,
+          assetsData: assetsWithEntities,
           connectors,
           cols: grid.cols,
           rows: grid.rows,
@@ -3528,7 +3722,7 @@ export default function TemplateEditor() {
           name: templateName,
           groundData,
           heightData,
-          assetsData,
+          assetsData: assetsWithEntities,
           connectors,
           cols: grid.cols,
           rows: grid.rows,
@@ -3565,6 +3759,12 @@ export default function TemplateEditor() {
 
       // Deserialize into grid
       deserializeToGrid(template, gridRef.current!)
+
+      // Split placed entities back out of the assets they rode in on, then strip
+      // the marker assets so they don't double-render as ground decoration.
+      const loadedEntities = entitiesFromAssets(gridRef.current!.assets)
+      gridRef.current!.assets = gridRef.current!.assets.filter(a => !isEntityAsset(a))
+      setEntities(loadedEntities)
 
       // Move player to valid spawn. A connector teleport overrides the template's
       // default spawn so the player lands on the connector's target cell.
@@ -3909,6 +4109,83 @@ export default function TemplateEditor() {
                 </div>
               </div>
             </Card>
+
+            {/* Entities — drop a player, enemies, and NPCs onto the stage */}
+            <Card title="Entities" accent="orange">
+              <p className="mb-2 text-[10px] text-gray-500">
+                Pick a tool, then click a cell in Top view to place. Only one player.
+              </p>
+              <div className="grid grid-cols-4 gap-1">
+                <EntityToolButton
+                  label="Player"
+                  glyph={ENTITY_GLYPH.player}
+                  active={entityTool === 'player'}
+                  activeClass="bg-yellow-600 text-black"
+                  onClick={() => toggleEntityTool('player')}
+                />
+                <EntityToolButton
+                  label="Enemy"
+                  glyph={ENTITY_GLYPH.enemy}
+                  active={entityTool === 'enemy'}
+                  activeClass="bg-red-600"
+                  onClick={() => toggleEntityTool('enemy')}
+                />
+                <EntityToolButton
+                  label="NPC"
+                  glyph={ENTITY_GLYPH.npc}
+                  active={entityTool === 'npc'}
+                  activeClass="bg-cyan-600 text-black"
+                  onClick={() => toggleEntityTool('npc')}
+                />
+                <EntityToolButton
+                  label="Erase"
+                  glyph="✕"
+                  active={entityTool === 'erase'}
+                  activeClass="bg-gray-500"
+                  onClick={() => toggleEntityTool('erase')}
+                />
+              </div>
+
+              {entityTool === 'enemy' && (
+                <label className="mt-2 block">
+                  <span className="mb-1 block text-xs font-bold text-red-400">Enemy type</span>
+                  <input
+                    type="text"
+                    value={enemyType}
+                    onChange={e => setEnemyType(e.target.value)}
+                    placeholder="goblin"
+                    aria-label="Enemy type"
+                    className="w-full rounded bg-gray-800 p-1.5 text-xs"
+                  />
+                </label>
+              )}
+
+              {entityTool === 'npc' && (
+                <label className="mt-2 block">
+                  <span className="mb-1 block text-xs font-bold text-cyan-400">NPC name (optional)</span>
+                  <input
+                    type="text"
+                    value={npcName}
+                    onChange={e => setNpcName(e.target.value)}
+                    placeholder="Villager"
+                    aria-label="NPC name"
+                    className="w-full rounded bg-gray-800 p-1.5 text-xs"
+                  />
+                </label>
+              )}
+
+              <div className="mt-3 flex items-center justify-between border-t border-white/10 pt-2 text-[10px] text-gray-400">
+                <span>{entities.length} placed</span>
+                {entities.length > 0 && (
+                  <button
+                    onClick={() => setEntities([])}
+                    className="rounded bg-red-900 px-2 py-1 font-bold text-red-200 hover:bg-red-800"
+                  >
+                    Clear all
+                  </button>
+                )}
+              </div>
+            </Card>
           </aside>
         )}
 
@@ -4106,7 +4383,8 @@ function render(
   grid: IsometricGrid,
   player: PlayerState,
   time: number,
-  camOffset: { x: number; y: number } = { x: 0, y: 0 }
+  camOffset: { x: number; y: number } = { x: 0, y: 0 },
+  entities: readonly Entity[] = []
 ) {
   // Clear
   ctx.fillStyle = '#1a1a2e'
@@ -4225,9 +4503,11 @@ function render(
     30, 20
   )
 
-  // Sort all objects by depth (back to front)
-  const allObjects: { col: number; row: number; isPlayer?: boolean; asset?: GridAsset }[] = [
+  // Sort all objects by depth (back to front). Placed entities depth-sort with
+  // assets/player and draw as glyphs on top of their cell.
+  const allObjects: { col: number; row: number; isPlayer?: boolean; asset?: GridAsset; entity?: Entity }[] = [
     ...visibleAssets.map(a => ({ col: a.col, row: a.row, asset: a })),
+    ...entities.map(e => ({ col: e.col, row: e.row, entity: e })),
     {
       col: player.x / cellSize,
       row: player.z / cellSize,
@@ -4243,6 +4523,8 @@ function render(
 
     if (obj.isPlayer) {
       drawIsoPlayer(ctx, p.x, p.y - heightOffset, tileW, tileH, player, time)
+    } else if (obj.entity) {
+      drawIsoEntity(ctx, p.x, p.y - heightOffset, obj.entity, tileH)
     } else if (obj.asset) {
       drawIsoAssetAscii(ctx, p.x, p.y - heightOffset, obj.asset, tileW, tileH, time)
     }
@@ -4325,6 +4607,49 @@ function drawIsoLabeledCell(
   ctx.fillRect(x - w / 2 - 2, cy - fontSize * 0.55, w + 4, fontSize * 1.1)
   ctx.fillStyle = asset.color ?? '#cccccc'
   ctx.fillText(char, x, cy)
+}
+
+/** Draw a placed entity as its glyph on a dark backing, in the ISO renderer.
+ *  (x,y) is the screen centre of the entity's cell; sits ON TOP of ground/assets. */
+function drawIsoEntity(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  entity: Entity,
+  tileH: number,
+): void {
+  const glyph = entityGlyph(entity)
+  const fontSize = tileH * 1.35
+  const cy = y - tileH * 0.55
+  ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  const w = ctx.measureText(glyph).width
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.7)'
+  ctx.fillRect(x - w / 2 - 3, cy - fontSize * 0.6, w + 6, fontSize * 1.2)
+  ctx.fillStyle = ENTITY_COLOR[entity.kind]
+  ctx.fillText(glyph, x, cy)
+}
+
+/** Draw a placed entity in the TOP (blueprint) renderer — a filled cell badge
+ *  with the glyph, drawn over ground/assets/player so it always reads. */
+function drawTopEntity(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  tileSize: number,
+  entity: Entity,
+): void {
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.55)'
+  ctx.fillRect(x, y, tileSize - 1, tileSize - 1)
+  ctx.strokeStyle = ENTITY_COLOR[entity.kind]
+  ctx.lineWidth = 2
+  ctx.strokeRect(x + 1, y + 1, tileSize - 3, tileSize - 3)
+  ctx.fillStyle = ENTITY_COLOR[entity.kind]
+  ctx.font = `bold ${Math.max(8, tileSize * 0.7)}px ${ASCII_FONT}`
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.fillText(entityGlyph(entity), x + tileSize / 2, y + tileSize / 2)
 }
 
 function drawIsoAssetAscii(
@@ -5314,7 +5639,8 @@ function renderTopView(
   selectedCells: Set<string> = new Set(),
   connectors: Connector[] = [],
   connectorMode: boolean = false,
-  camOffset: { x: number; y: number } = { x: 0, y: 0 }
+  camOffset: { x: number; y: number } = { x: 0, y: 0 },
+  entities: readonly Entity[] = []
 ) {
   // Clear
   ctx.fillStyle = '#0a0a10'
@@ -5500,6 +5826,13 @@ function renderTopView(
       ctx.textAlign = 'center'
       ctx.fillText(connector.targetTemplateName.slice(0, 10), cx + tileSize / 2, cy - 5)
     }
+  }
+
+  // Draw placed entities last so they sit on top of ground/assets/player.
+  for (const entity of entities) {
+    const ex = offsetX + entity.col * tileSize
+    const ey = offsetY + entity.row * tileSize
+    drawTopEntity(ctx, ex, ey, tileSize, entity)
   }
 
   // UI
