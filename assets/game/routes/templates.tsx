@@ -71,6 +71,7 @@ import type {
   Inventory,
   Loadout,
   EquipSlot,
+  MovementPattern,
 } from '@/game/types'
 import { EQUIP_SLOTS } from '@/game/types'
 import { createInventory, addItem, equipWeapon, equipArmor, useConsumable } from '@/game/inventory'
