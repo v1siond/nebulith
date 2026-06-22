@@ -5625,11 +5625,8 @@ export default function TemplateEditor() {
           style={{ cursor: isPanning ? 'grabbing' : topViewMode ? 'default' : 'grab' }}
         />
 
-        {/* Combat HUD — player HP / rage / mana. Only in play views (hidden in
-            flow + top, where you're authoring, not fighting). */}
-        {!showFlowView && !showTopView && (
-          <CombatHud hud={playerHud} />
-        )}
+        {/* Vitals are NOT an always-on HUD — they live in the selected-entity panel on
+            the right sidebar (shown only when the player or an entity is selected). */}
 
         {/* Quest tracker — active quest title + kill progress. Same play-view gate
             as the combat HUD. Renders nothing when no quest is active. */}
@@ -5994,7 +5991,10 @@ export default function TemplateEditor() {
                     onClose={() => setSelectedEntityId(null)}
                   />
                   {selected.kind === 'player' && (
-                    <InventoryCard inventory={inventory} talentPath={talentPath} onEquip={equipItem} onUse={useItem} onSetClass={setArchetype} />
+                    <>
+                      <CombatHud hud={playerHud} />
+                      <InventoryCard inventory={inventory} talentPath={talentPath} onEquip={equipItem} onUse={useItem} onSetClass={setArchetype} />
+                    </>
                   )}
                   {selected.kind === 'npc' && (
                     <QuestAuthoringCard
