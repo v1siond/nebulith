@@ -3,6 +3,7 @@
  */
 
 import type { Action as TriggerAction } from '@/engine/triggers'
+import type { Entity, Quest } from '@/game/types'
 
 export interface Connector {
   col: number
@@ -60,6 +61,9 @@ export interface TemplateData {
     label?: string
   }>
   connectors: Connector[]
+  // Placed entities (enemies / npcs / player) and authored quests for this room.
+  entities: Entity[]
+  quests: Quest[]
   thumbnail: string | null
   isPublic: boolean
   tags: string[]
@@ -81,6 +85,8 @@ export interface CreateTemplateInput {
   heightData: number[][]
   assetsData: unknown[]
   connectors?: Connector[]
+  entities?: Entity[]
+  quests?: Quest[]
   thumbnail?: string
   isPublic?: boolean
   tags?: string[]
@@ -120,11 +126,24 @@ export async function getTemplate(id: string): Promise<TemplateData> {
   return response.json()
 }
 
+/** Default the JSON collections so a save always sends concrete arrays — mirrors the
+ *  API route's destructure defaults, so what the editor sends matches what's stored. */
+export function withTemplateDefaults(
+  input: CreateTemplateInput,
+): CreateTemplateInput & { connectors: Connector[]; entities: Entity[]; quests: Quest[] } {
+  return {
+    ...input,
+    connectors: input.connectors ?? [],
+    entities: input.entities ?? [],
+    quests: input.quests ?? [],
+  }
+}
+
 export async function createTemplate(input: CreateTemplateInput): Promise<TemplateData> {
   const response = await fetch(API_BASE, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(input),
+    body: JSON.stringify(withTemplateDefaults(input)),
   })
   if (!response.ok) {
     const error = await response.json().catch(() => ({}))

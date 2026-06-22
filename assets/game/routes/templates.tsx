@@ -74,7 +74,7 @@ import type {
 } from '@/game/types'
 import { EQUIP_SLOTS } from '@/game/types'
 import { createInventory, addItem, equipWeapon, equipArmor, useConsumable } from '@/game/inventory'
-import { createLoadout, equip as equipToSlot, unequip as unequipSlot, addToBag, setSpecial, setShortcut, allowedSlots } from '@/game/loadout'
+import { createLoadout, equip as equipToSlot, unequip as unequipSlot, addToBag, setSpecial, setShortcut, allowedSlots, loadoutBonuses } from '@/game/loadout'
 import { GEAR_CATALOG, starterWarriorGear } from '@/game/gear'
 import { scatterEntities } from '@/game/spawner'
 
@@ -474,6 +474,11 @@ interface CombatStepInput {
   playerWeapon: Weapon
   /** equipped armor folds its defense into the player when taking melee hits. */
   playerArmor: Armor | null
+  /** the player's effective stats from their equipped loadout (gear str/int/defense
+   *  + dodge). Drives both the player's attacks and their dodge on retaliation. */
+  playerStats: Stats
+  /** the player's equipped shield (if any) — gives a block% on retaliation. */
+  playerShield?: Weapon
   hitMarkers: HitMarker[]
   cellSize: number
   use2D: boolean
@@ -541,7 +546,7 @@ function applyPlayerAttack(input: CombatStepInput, kills: string[]): CombatState
   // Pass BASE stats — resolveAttack derives effective stats from the weapon itself
   // (passing pre-derived stats would double-count the weapon's bonuses).
   const result = resolveAttack({
-    attacker: DEFAULT_PLAYER_STATS,
+    attacker: input.playerStats,
     defender: target.baseStats,
     attack: chosen,
     attackerWeapon: playerWeapon,
@@ -576,14 +581,12 @@ function recordEnemyDeath(runtime: EnemyRuntime, enemy: Entity, kills: string[],
 
 /** Every adjacent living enemy off its cooldown lands one melee hit on the player. */
 function applyEnemyRetaliation(input: CombatStepInput & { playerCombat: CombatState }): CombatState {
-  const { player, entities, runtime, playerWeapon, playerArmor, hitMarkers, cellSize, now } = input
+  const { player, entities, runtime, playerWeapon, hitMarkers, cellSize, now } = input
   let playerCombat = input.playerCombat
 
-  // Equipped armor raises the player's effective defense (mitigates melee). Weapon
-  // bonuses are already applied via defenderWeapon, so only fold the armor here.
-  const defenderStats: Stats = playerArmor
-    ? { ...DEFAULT_PLAYER_STATS, defense: DEFAULT_PLAYER_STATS.defense + playerArmor.defenseBonus }
-    : DEFAULT_PLAYER_STATS
+  // The player's effective stats already fold in equipped gear (defense + dodge); a
+  // shield adds a block%. resolveAttack rolls dodge then block before damage.
+  const defenderStats: Stats = input.playerStats
 
   for (const entity of entities) {
     if (!isLivingEnemy(entity, runtime)) continue
@@ -595,7 +598,7 @@ function applyEnemyRetaliation(input: CombatStepInput & { playerCombat: CombatSt
       defender: defenderStats,
       attack: ENEMY_ATTACK,
       attackerWeapon: enemyFist(entity),
-      defenderWeapon: playerWeapon,
+      defenderWeapon: input.playerShield ?? playerWeapon,
       defenderHp: playerCombat.hp,
     })
     runtime.lastAttackAt.set(entity.id, now)
@@ -2692,6 +2695,11 @@ export default function TemplateEditor() {
   // state. The player carries a default warrior loadout (sword) + full HP/rage/
   // mana; each enemy gets a CombatState keyed by id (synced from entitiesRef).
   const playerWeaponRef = useRef<Weapon>(STARTER_SWORD)
+  const playerStatsRef = useRef<Stats>(DEFAULT_PLAYER_STATS)
+  const playerShieldRef = useRef<Weapon | undefined>(undefined)
+  const playerLoadoutRef = useRef<Loadout>(seededPlayerLoadout())
+  const specialKeysRef = useRef<Record<string, boolean>>({})
+  const useSpecialSlotRef = useRef<(i: number) => void>(() => {})
   const playerCombatRef = useRef<CombatState>(startingCombatState(DEFAULT_PLAYER_STATS))
   // Player inventory: equipped weapon drives attacks, equipped armor folds into
   // defense, consumables heal. The loop reads through inventoryRef each frame.
@@ -2838,6 +2846,50 @@ export default function TemplateEditor() {
     inventoryRef.current = inventory
     playerWeaponRef.current = inventory.equippedWeapon ?? STARTER_SWORD
   }, [inventory])
+
+  // Player LOADOUT → combat refs: the equipped weapon, a shield's block%, and gear
+  // stat bonuses (str/int/defense/dodge) feed the live fight, so equipping in the
+  // inventory panel actually changes how you play.
+  useEffect(() => {
+    const pl = loadouts['__player__'] ?? seededPlayerLoadout()
+    const weapons = [pl.equipped.weapon1, pl.equipped.weapon2].flatMap(i =>
+      i && i.slot === 'weapon' ? [i.weapon] : [],
+    )
+    const shield = weapons.find(w => w.kind === 'shield')
+    const mainWeapon = weapons.find(w => w.kind !== 'shield') ?? weapons[0]
+    const b = loadoutBonuses(pl)
+    playerLoadoutRef.current = pl
+    playerWeaponRef.current = mainWeapon ?? inventory.equippedWeapon ?? STARTER_SWORD
+    playerShieldRef.current = shield
+    playerStatsRef.current = {
+      ...DEFAULT_PLAYER_STATS,
+      strength: DEFAULT_PLAYER_STATS.strength + b.strength,
+      intelligence: DEFAULT_PLAYER_STATS.intelligence + b.intelligence,
+      defense: DEFAULT_PLAYER_STATS.defense + b.defense,
+      dodge: (DEFAULT_PLAYER_STATS.dodge ?? 0) + b.dodge,
+    }
+  }, [loadouts, inventory.equippedWeapon])
+
+  // Using a special slot (from a number key): apply a consumable's effect to the
+  // player and clear the slot. Bombs/scrolls have no stat effect yet — they just
+  // get consumed with a toast (throw/teleport behaviour is a later pass).
+  useEffect(() => {
+    useSpecialSlotRef.current = (i: number) => {
+      const item = playerLoadoutRef.current.special[i]
+      if (!item) return
+      if (item.slot === 'consumable') {
+        const eff = item.effect
+        const pc = playerCombatRef.current
+        playerCombatRef.current = {
+          hp: Math.min(playerStatsRef.current.maxHp, pc.hp + (eff.hp ?? 0)),
+          rage: pc.rage + (eff.rage ?? 0),
+          mana: pc.mana + (eff.mana ?? 0),
+        }
+      }
+      toast(`Used ${item.name}`, 'success')
+      setLoadouts(prev => ({ ...prev, __player__: setSpecial(prev['__player__'] ?? seededPlayerLoadout(), i, null) }))
+    }
+  }, [])
 
   // Keep quests ref in sync so the once-mounted game loop reads the latest quests
   useEffect(() => {
@@ -5173,6 +5225,15 @@ export default function TemplateEditor() {
           else questInteractRef.current(curCol, curRow)
         }
         interactDownRef.current = interactDown
+
+        // Special-item slots: number keys (1–0) use the bound consumable/special item.
+        const sLoadout = playerLoadoutRef.current
+        for (let i = 0; i < sLoadout.special.length; i++) {
+          const sKey = sLoadout.shortcuts[i]
+          const sDown = !!keys[sKey]
+          if (sDown && !specialKeysRef.current[sKey]) useSpecialSlotRef.current(i)
+          specialKeysRef.current[sKey] = sDown
+        }
       }
 
       // ── Combat tick (only while playing, paused during connector authoring) ──
@@ -5188,6 +5249,8 @@ export default function TemplateEditor() {
           playerCombat: playerCombatRef.current,
           playerWeapon: playerWeaponRef.current,
           playerArmor: inventoryRef.current.equippedArmor,
+          playerStats: playerStatsRef.current,
+          playerShield: playerShieldRef.current,
           hitMarkers: hitMarkersRef.current,
           cellSize: grid.cellSize,
           use2D: use2DMovement,
@@ -5303,6 +5366,8 @@ export default function TemplateEditor() {
           heightData,
           assetsData: assetsWithEntities,
           connectors,
+          entities: entitiesRef.current,
+          quests: questsRef.current,
           cols: grid.cols,
           rows: grid.rows,
           cellSize: grid.cellSize,
@@ -5318,6 +5383,8 @@ export default function TemplateEditor() {
           heightData,
           assetsData: assetsWithEntities,
           connectors,
+          entities: entitiesRef.current,
+          quests: questsRef.current,
           cols: grid.cols,
           rows: grid.rows,
           cellSize: grid.cellSize,
@@ -5379,8 +5446,11 @@ export default function TemplateEditor() {
         }
       }
 
-      // Load connectors
+      // Load connectors + the persisted entities/quests (enemies, NPCs, quests survive
+      // a save→reload now; enemy CombatState is rebuilt from entitiesRef on sync).
       setConnectors(template.connectors || [])
+      setEntities(template.entities ?? [])
+      setQuests(template.quests ?? [])
 
       setCurrentTemplateId(template.id)
       setTemplateName(template.name)
