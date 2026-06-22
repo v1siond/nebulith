@@ -52,6 +52,8 @@ export interface Weapon {
 }
 
 export type ArmorKind = 'iron' | 'leather'
+/** The body slot a piece of armor / jewelry occupies. */
+export type GearSlot = 'helmet' | 'chest' | 'gloves' | 'boots' | 'ring' | 'neck'
 export interface Armor {
   id: string
   kind: ArmorKind // iron → strength build, leather → int build
@@ -59,6 +61,10 @@ export interface Armor {
   defenseBonus: number
   strengthBonus: number
   intBonus: number
+  /** body slot; defaults to 'chest' when omitted (back-compat with older armor). */
+  slot?: GearSlot
+  /** % dodge granted while worn. */
+  dodgeBonus?: number
 }
 
 // ── inventory ───────────────────────────────────────────────────────
@@ -77,6 +83,35 @@ export interface Inventory {
   items: Item[]
   equippedWeapon: Weapon | null
   equippedArmor: Armor | null
+}
+
+// ── loadout (per-entity equip slots + bag + special slots) ──────────
+export type EquipSlot =
+  | 'helmet' | 'chest' | 'gloves' | 'boots'
+  | 'weapon1' | 'weapon2'
+  | 'ring1' | 'ring2' | 'neck'
+
+/** Render/iteration order for the equip panel. */
+export const EQUIP_SLOTS: readonly EquipSlot[] = [
+  'helmet', 'chest', 'gloves', 'boots', 'weapon1', 'weapon2', 'ring1', 'ring2', 'neck',
+] as const
+
+export const DEFAULT_BAG_SLOTS = 24
+export const DEFAULT_SPECIAL_SLOTS = 4
+
+export interface LoadoutConfig {
+  bagSlots?: number // default 24
+  specialSlots?: number // default 4
+}
+
+/** One entity's gear: worn items by slot, a fixed-size bag, and quick-use special
+ *  slots (bombs / scrolls / potions) each bound to a number key (1–0). */
+export interface Loadout {
+  equipped: Partial<Record<EquipSlot, Item>>
+  bag: (Item | null)[]
+  special: (Item | null)[]
+  /** the key (1–0) bound to each special slot, by index. */
+  shortcuts: string[]
 }
 
 // ── talents ─────────────────────────────────────────────────────────
