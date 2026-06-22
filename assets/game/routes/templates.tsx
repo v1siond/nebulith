@@ -25,10 +25,11 @@ import { resolveAction, type Action as TriggerAction } from '@/engine/triggers'
 import { generateStage, stagePaint, StageData, VariantId } from '@/engine/stageGenerator'
 import { ZoneId } from '@/engine/zones'
 import { darkenColor, lightenColor, withAlpha } from '@/engine/colors'
-import { fillSelectionWithComposite } from '@/engine/compositeFill'
+import { scaleCompositeToRegion } from '@/engine/compositeFill'
 import { stepMover, initMover, type MoverState } from '@/engine/movement'
 import { shouldFire, lampPulse } from '@/engine/behaviors'
 import { weaponAnimKind, animFrame, isAnimDone, ATTACK_ANIM_MS, type AttackAnim } from '@/engine/attackAnimations'
+import { entityArt } from '@/engine/entityArt'
 import { useToast } from '@/components/Toast'
 import {
   makePlayer,
@@ -2909,17 +2910,21 @@ export default function TemplateEditor() {
     const shield = weapons.find(w => w.kind === 'shield')
     const mainWeapon = weapons.find(w => w.kind !== 'shield') ?? weapons[0]
     const b = loadoutBonuses(pl)
+    // The player is a normal entity: its inspector-edited baseStats are the base the
+    // gear bonuses add to, so editing the player's stats actually changes play.
+    const base = entities.find(e => e.kind === 'player')?.baseStats ?? DEFAULT_PLAYER_STATS
     playerLoadoutRef.current = pl
     playerWeaponRef.current = mainWeapon ?? inventory.equippedWeapon ?? STARTER_SWORD
     playerShieldRef.current = shield
     playerStatsRef.current = {
-      ...DEFAULT_PLAYER_STATS,
-      strength: DEFAULT_PLAYER_STATS.strength + b.strength,
-      intelligence: DEFAULT_PLAYER_STATS.intelligence + b.intelligence,
-      defense: DEFAULT_PLAYER_STATS.defense + b.defense,
-      dodge: (DEFAULT_PLAYER_STATS.dodge ?? 0) + b.dodge,
+      ...base,
+      strength: base.strength + b.strength,
+      intelligence: base.intelligence + b.intelligence,
+      defense: base.defense + b.defense,
+      maxHp: base.maxHp,
+      dodge: (base.dodge ?? 0) + b.dodge,
     }
-  }, [loadouts, inventory.equippedWeapon])
+  }, [loadouts, inventory.equippedWeapon, entities])
 
   // Using a special slot (from a number key): apply a consumable's effect to the
   // player and clear the slot. Bombs/scrolls have no stat effect yet — they just
@@ -3563,15 +3568,12 @@ export default function TemplateEditor() {
     })
 
     // ONE cell selected → stamp the composite once at that anchor (its natural
-    // size). A REGION selected → TILE the composite's pattern to FILL the whole
-    // selection (so "select 40 cells, click well" gives a 40-cell well, not a
-    // hardcoded 2×2). Pattern repeats by its own width/height, clipped to the
-    // selected cells, and each cell is written via placeAsset so it persists +
-    // renders in iso/2d.
+    // size). A REGION selected → SCALE it to ONE instance spanning the selection
+    // (select 10×10 + click "well" → a single 10×10 well, not a grid of wells).
     if (selectedCells.size <= 1) {
       grid.placeComposite(assetKey, tiles, col, row)
     } else {
-      fillSelectionWithComposite(grid, tiles, selectedCells)
+      scaleCompositeToRegion(grid, tiles, selectedCells)
     }
 
     setSelectedCells(new Set())
@@ -6626,21 +6628,27 @@ function drawIsoEntity(
   tileH: number,
   combat?: CombatState,
 ): void {
-  const glyph = entityGlyph(entity)
-  const fontSize = tileH * 1.35
-  const cy = y - tileH * 0.55
+  // Multi-row ASCII creature/figure, drawn bottom-to-top from the entity's cell
+  // (same approach as the player), with a shadow for legibility.
+  const art = entityArt(entity)
+  const fontSize = tileH * 0.85
+  const lineHeight = fontSize * 0.95
+  const baseY = y - tileH * 0.55
   ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
-  const w = fontSize * 0.6 // monospace single glyph; avoids per-entity measureText()
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.7)'
-  ctx.fillRect(x - w / 2 - 3, cy - fontSize * 0.6, w + 6, fontSize * 1.2)
-  ctx.fillStyle = ENTITY_COLOR[entity.kind]
-  ctx.fillText(glyph, x, cy)
+  for (let i = 0; i < art.length; i++) {
+    const line = art[art.length - 1 - i]
+    const ly = baseY - i * lineHeight
+    ctx.fillStyle = '#000000'
+    ctx.fillText(line, x + 1, ly + 1)
+    ctx.fillStyle = ENTITY_COLOR[entity.kind]
+    ctx.fillText(line, x, ly)
+  }
 
   if (entity.kind !== 'enemy') return
   const barWidth = Math.max(20, tileH * 1.4)
-  drawHpBar(ctx, x, cy - fontSize * 0.85, barWidth, 4, hpFraction(entity, combat))
+  drawHpBar(ctx, x, baseY - art.length * lineHeight, barWidth, 4, hpFraction(entity, combat))
 }
 
 /** Draw a placed entity in the TOP (blueprint) renderer — a filled cell badge
@@ -6659,11 +6667,20 @@ function drawTopEntity(
   ctx.strokeStyle = ENTITY_COLOR[entity.kind]
   ctx.lineWidth = 2
   ctx.strokeRect(x + 1, y + 1, tileSize - 3, tileSize - 3)
+
+  // Multi-row ASCII art scaled to fit the cell badge.
+  const art = entityArt(entity)
+  const fontSize = Math.max(5, (tileSize * 0.92) / art.length)
+  const lineHeight = fontSize
   ctx.fillStyle = ENTITY_COLOR[entity.kind]
-  ctx.font = `bold ${Math.max(8, tileSize * 0.7)}px ${ASCII_FONT}`
+  ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
-  ctx.fillText(entityGlyph(entity), x + tileSize / 2, y + tileSize / 2)
+  const cx = x + tileSize / 2
+  const startY = y + tileSize / 2 - ((art.length - 1) / 2) * lineHeight
+  for (let i = 0; i < art.length; i++) {
+    ctx.fillText(art[i], cx, startY + i * lineHeight)
+  }
 
   if (entity.kind !== 'enemy') return
   drawHpBar(ctx, x + tileSize / 2, y - 4, tileSize - 2, 3, hpFraction(entity, combat))

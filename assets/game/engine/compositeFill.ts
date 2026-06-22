@@ -61,3 +61,46 @@ export function fillSelectionWithComposite(
     })
   }
 }
+
+/**
+ * SCALE a composite to span the selection's bounding box as ONE instance.
+ * Each bounding-box cell maps (nearest-neighbour) to a pattern cell, so a 2×2 well
+ * selected over 10×10 becomes a single 10×10 well — not a 5×5 grid of little wells.
+ * (This is the "select a region → one big asset" behaviour, vs the tiling above.)
+ */
+export function scaleCompositeToRegion(
+  grid: IsometricGrid,
+  tiles: readonly CompositeTile[],
+  selectedCells: ReadonlySet<string>,
+): void {
+  if (tiles.length === 0 || selectedCells.size === 0) return
+
+  const cells = [...selectedCells].map(parseCell)
+  const minCol = Math.min(...cells.map(c => c.col))
+  const maxCol = Math.max(...cells.map(c => c.col))
+  const minRow = Math.min(...cells.map(c => c.row))
+  const maxRow = Math.max(...cells.map(c => c.row))
+  const regionW = maxCol - minCol + 1
+  const regionH = maxRow - minRow + 1
+  const patternW = Math.max(...tiles.map(t => t.dx)) + 1
+  const patternH = Math.max(...tiles.map(t => t.dy)) + 1
+  const byOffset = new Map(tiles.map(t => [`${t.dx},${t.dy}`, t]))
+
+  for (let row = minRow; row <= maxRow; row++) {
+    for (let col = minCol; col <= maxCol; col++) {
+      const pdx = Math.min(patternW - 1, Math.floor(((col - minCol) / regionW) * patternW))
+      const pdy = Math.min(patternH - 1, Math.floor(((row - minRow) / regionH) * patternH))
+      const tile = byOffset.get(`${pdx},${pdy}`)
+      if (!tile) continue // a gap in a non-rectangular pattern stays empty
+      grid.assets = grid.assets.filter(a => !(a.col === col && a.row === row))
+      grid.placeAsset([tile.char], col, row, {
+        type: tile.type,
+        blocking: tile.blocking,
+        color: tile.color,
+        bgColor: tile.bgColor,
+        height: tile.height ?? 0,
+        tileKey: tile.tile,
+      })
+    }
+  }
+}

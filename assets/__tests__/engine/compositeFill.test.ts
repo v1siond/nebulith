@@ -1,5 +1,5 @@
 import { IsometricGrid } from '@/engine/IsometricGrid'
-import { fillSelectionWithComposite, type CompositeTile } from '@/engine/compositeFill'
+import { fillSelectionWithComposite, scaleCompositeToRegion, type CompositeTile } from '@/engine/compositeFill'
 
 // A 2×2 "well": four blocking edge tiles — the composite that was hardcoded to 4
 // cells regardless of how many the user selected.
@@ -47,5 +47,36 @@ describe('compositeFill — tile a composite across a multi-cell selection', () 
     const b = newGrid()
     fillSelectionWithComposite(b, WELL, new Set())
     expect(b.assets.length).toBe(0)
+  })
+})
+
+// Distinct char per quadrant so we can verify the scale mapping.
+const QUAD: CompositeTile[] = [
+  { tile: 'q', char: 'A', dx: 0, dy: 0, blocking: true, type: 'decoration' },
+  { tile: 'q', char: 'B', dx: 1, dy: 0, blocking: true, type: 'decoration' },
+  { tile: 'q', char: 'C', dx: 0, dy: 1, blocking: true, type: 'decoration' },
+  { tile: 'q', char: 'D', dx: 1, dy: 1, blocking: true, type: 'decoration' },
+]
+
+describe('compositeFill — scale ONE composite to span the selection', () => {
+  it('a 2×2 over a 4×4 region → 16 cells, ONE scaled instance (each quadrant a 2×2 block)', () => {
+    const grid = newGrid()
+    scaleCompositeToRegion(grid, QUAD, region(0, 0, 4, 4))
+    expect(grid.assets.length).toBe(16) // fills the whole bounding box, one instance
+    const charAt = (c: number, r: number) => grid.assets.find(a => a.col === c && a.row === r)?.art[0]
+    expect(charAt(0, 0)).toBe('A')
+    expect(charAt(1, 1)).toBe('A') // top-left quadrant
+    expect(charAt(2, 0)).toBe('B')
+    expect(charAt(3, 1)).toBe('B') // top-right
+    expect(charAt(0, 3)).toBe('C') // bottom-left
+    expect(charAt(3, 3)).toBe('D') // bottom-right
+  })
+
+  it('does nothing for an empty pattern or selection', () => {
+    const g = newGrid()
+    scaleCompositeToRegion(g, [], region(0, 0, 3, 3))
+    expect(g.assets.length).toBe(0)
+    scaleCompositeToRegion(g, QUAD, new Set())
+    expect(g.assets.length).toBe(0)
   })
 })
