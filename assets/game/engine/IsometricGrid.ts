@@ -20,6 +20,7 @@ export interface GridAsset {
   height?: number       // Height in blocks (for buildings, towers, etc.)
   heightLevel?: number  // Which height level this asset sits on (for stacked tiles)
   tileKey?: string      // Reference to tile definition key
+  label?: string        // Cell-part label for generated multi-cell assets (tree_leaf_top, roof_top, door, …)
 }
 
 export interface GridConfig {

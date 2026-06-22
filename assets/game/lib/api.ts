@@ -51,6 +51,7 @@ export interface TemplateData {
     height?: number
     heightLevel?: number
     tileKey?: string
+    label?: string
   }>
   connectors: Connector[]
   thumbnail: string | null
@@ -207,6 +208,7 @@ export function deserializeToGrid(
     height: a.height,
     heightLevel: a.heightLevel,
     tileKey: a.tileKey,
+    label: a.label,
   }))
 
   // Rebuild collision grid from assets. Blocks are collision regardless of any

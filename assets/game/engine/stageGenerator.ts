@@ -837,7 +837,7 @@ function firstWalkable(collision: boolean[][], cols: number, rows: number): Cell
 // ── visual mapping (shared by the template mapper + the live-grid applier) ──
 export interface StagePaint {
   ground: { col: number; row: number; type: string }[]
-  assets: { col: number; row: number; char: string; type: string; color: string; blocking: boolean }[]
+  assets: { col: number; row: number; char: string; type: string; color: string; blocking: boolean; label?: string }[]
 }
 
 export function stagePaint(stage: StageData): StagePaint {
@@ -845,7 +845,7 @@ export function stagePaint(stage: StageData): StagePaint {
   const assets: StagePaint['assets'] = []
   stage.buildings.forEach(b => paintBuilding(b, ground, assets))
   stage.props.forEach(p =>
-    assets.push({ col: p.col, row: p.row, char: p.char, type: p.type, color: p.color, blocking: p.blocking }),
+    assets.push({ col: p.col, row: p.row, char: p.char, type: p.type, color: p.color, blocking: p.blocking, label: p.label }),
   )
   return { ground, assets }
 }
@@ -899,6 +899,7 @@ export function stageToTemplate(stage: StageData, name: string): StageTemplatePa
     blocking: a.blocking,
     color: a.color,
     height: 0,
+    label: a.label,
   }))
 
   return {

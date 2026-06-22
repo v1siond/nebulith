@@ -2570,7 +2570,7 @@ export default function TemplateEditor() {
       if (grid.ground[g.row]?.[g.col] !== undefined) grid.ground[g.row][g.col] = g.type
     }
     for (const a of paint.assets) {
-      grid.placeAsset([a.char], a.col, a.row, { type: a.type, blocking: a.blocking, color: a.color })
+      grid.placeAsset([a.char], a.col, a.row, { type: a.type, blocking: a.blocking, color: a.color, label: a.label })
     }
   }
 
@@ -4305,6 +4305,28 @@ function drawIsoPlayer(
 }
 
 // Draw asset as ASCII art in isometric view (matching 2D style)
+/** Draw a generated, labeled cell as a single glyph (its label char + zone color)
+ *  on a subtle backing — one cell = one tile, matching the keystone model. */
+function drawIsoLabeledCell(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  asset: GridAsset,
+  tileH: number,
+): void {
+  const char = asset.art[0] ?? '?'
+  const fontSize = tileH * 1.25
+  const cy = y - tileH * 0.45
+  ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  const w = ctx.measureText(char).width
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.5)'
+  ctx.fillRect(x - w / 2 - 2, cy - fontSize * 0.55, w + 4, fontSize * 1.1)
+  ctx.fillStyle = asset.color ?? '#cccccc'
+  ctx.fillText(char, x, cy)
+}
+
 function drawIsoAssetAscii(
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -4321,6 +4343,14 @@ function drawIsoAssetAscii(
   ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
+
+  // Generated multi-cell assets carry a cell-part label → draw each cell as ONE
+  // glyph (the cell IS the tile). The layered art below is for legacy single-cell,
+  // manually-placed assets only.
+  if (asset.label) {
+    drawIsoLabeledCell(ctx, x, y, asset, tileH)
+    return
+  }
 
   if (asset.type === 'tree') {
     // Tree: trunk + layered canopy (like 2D view)
@@ -5257,6 +5287,23 @@ function renderDebugOverlays(
 }
 
 // Top-down 2D blueprint view - flat, no height, just positions
+// Dark, neutral-ish backing per asset type so each cell's OWN glyph + color (the
+// label glyph for generated cells, the zone tint for trees) reads clearly.
+const TOP_ASSET_BACKDROP: Record<string, string> = {
+  building: '#2a1810',
+  tree: '#0a1f0a',
+  water: '#0a1c2e',
+  fountain: '#0a1c2e',
+  decoration: '#241a0e',
+  crate: '#241a0e',
+  lamp: '#241f08',
+  flower: '#1a0a12',
+  npc: '#1a1a0a',
+  rock: '#1a181c',
+  boss: '#2a0e0e',
+  column: '#1c1c1c',
+}
+
 function renderTopView(
   ctx: CanvasRenderingContext2D,
   w: number,
@@ -5316,27 +5363,12 @@ function renderTopView(
       let bg: string
 
       if (asset) {
-        // Asset on this cell - show asset icon
-        switch (asset.type) {
-          case 'building':
-            char = '█'; fg = '#ffaa55'; bg = '#442211'; break
-          case 'tree':
-            char = '@'; fg = '#33cc33'; bg = '#0a220a'; break
-          case 'water':
-          case 'fountain':
-            char = '~'; fg = '#55ccff'; bg = '#112233'; break
-          case 'decoration':
-          case 'crate':
-            char = '$'; fg = '#ddaa55'; bg = '#332211'; break
-          case 'lamp':
-            char = '!'; fg = '#ffff55'; bg = '#333300'; break
-          case 'flower':
-            char = '+'; fg = '#ff88cc'; bg = '#220a11'; break
-          case 'npc':
-            char = '☺'; fg = '#ffdd00'; bg = '#333311'; break
-          default:
-            char = '?'; fg = '#888888'; bg = '#111111'; break
-        }
+        // Show the cell's OWN glyph + color — the label glyph for generated
+        // multi-cell assets (╨│@♣ trees, autotiled masses, roofs/doors) and the
+        // zone tint for trees — over a dark type-flavored backing for contrast.
+        char = asset.art[0] ?? '?'
+        fg = asset.color ?? '#cccccc'
+        bg = TOP_ASSET_BACKDROP[asset.type] ?? '#141414'
       } else {
         // Ground tile
         const tileType = grid.ground[row]?.[col] || 'grass'
