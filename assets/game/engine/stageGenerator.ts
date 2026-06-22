@@ -828,6 +828,9 @@ function markGrassZones(ctx: ArchetypeContext, rooms: ForestRoom[]): void {
 // of a single base cell whose tall canopy used to overlap "free" cells above.
 // A standalone tree is fully SOLID: trunk → leaf → solid crown (no passable
 // cell). The whole column blocks, so you can't step "into" the leaves.
+/** Thick-trunk glyph for MATURE trees (matches Tileset.ts `trunk_thick`); young
+ *  trees keep the thin `│` from the tree_stem label. */
+const TRUNK_BIG = '║'
 const TREE_COLUMN: readonly CellLabel[] = ['tree_stem_bottom', 'tree_stem', 'tree_leaf', 'tree_crown']
 // A dead/bare tree: a tall trunk topped by a leafless snag (no walkable canopy).
 // Same height as a living tree so placement (treeFits) is shared.
@@ -873,7 +876,8 @@ function scatterGladeTrees(ctx: ArchetypeContext, densityMul = 1): void {
     const row = randInt(TREE_HEIGHT, rows - 3) // leave headroom above the base for the canopy
     if (!treeFits(collision, col, row, cols, rows)) continue
     if (placed.some(p => Math.abs(p.col - col) < minDist && Math.abs(p.row - row) < minDist)) continue
-    stampTree(ctx, col, row, Math.random() < DEAD_TREE_CHANCE[ctx.zone])
+    // ~45% of living trees are mature (thick trunk); the rest young (thin trunk).
+    stampTree(ctx, col, row, Math.random() < DEAD_TREE_CHANCE[ctx.zone], Math.random() < 0.45)
     placed.push({ col, row })
   }
 }
@@ -902,13 +906,17 @@ function hasOpenLateralNeighbour(collision: boolean[][], col: number, row: numbe
 /** Stamp a multi-cell labeled tree upward from its base; per-label collision via
  *  isWalkable. A living tree's only walkable cell is its canopy top; a `dead`
  *  snag is solid all the way up. One canopy shade per tree (no intra-tree mess). */
-function stampTree(ctx: ArchetypeContext, baseCol: number, baseRow: number, dead = false): void {
+function stampTree(ctx: ArchetypeContext, baseCol: number, baseRow: number, dead = false, big = false): void {
   const { props, collision, zone } = ctx
   const column = dead ? DEAD_TREE_COLUMN : TREE_COLUMN
   const variant = randInt(0, TREE_CANOPY_SHADES[zone].length - 1) // this tree's tone
   column.forEach((label, i) => {
     const row = baseRow - i
-    props.push(makeTreeCell(zone, baseCol, row, label, variant))
+    const cell = makeTreeCell(zone, baseCol, row, label, variant)
+    // Small vs BIG trunk actually shows now: a mature tree gets the thick trunk (║),
+    // a young/sapling tree keeps the thin (│). Label/collision stay the same.
+    if (big && label === 'tree_stem') cell.char = TRUNK_BIG
+    props.push(cell)
     collision[row][baseCol] = !isWalkable(label)
   })
 }

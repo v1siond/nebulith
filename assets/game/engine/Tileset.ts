@@ -20,6 +20,10 @@ export interface TileDef {
   bg: string
   blocking?: boolean
   description?: string
+  /** Logical footprint in cells (default 1×1). Whole structures (a tree, a well)
+   *  live in COMPOSITE_ASSETS with their own width/depth — this is for atomic tiles
+   *  the editor may stamp larger (e.g. a wall segment). */
+  size?: { w: number; h: number }
 }
 
 export const TILES: Record<string, TileDef> = {
