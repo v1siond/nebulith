@@ -13,6 +13,8 @@ export interface Stats {
   intelligence: number // ↑ magical damage, ↑ mana cap
   defense: number // ↓ melee (physical) damage taken
   maxHp: number
+  /** % chance (0–100) to fully dodge an incoming attack. Optional → 0 when absent. */
+  dodge?: number
 }
 
 /** Mutable per-entity runtime state during play. */
@@ -45,6 +47,8 @@ export interface Weapon {
   intBonus: number
   school: AttackSchool // the school this weapon attacks with by default
   range: AttackRange
+  /** shields: % chance (0–100) to fully block one incoming attack. */
+  blockChance?: number
 }
 
 export type ArmorKind = 'iron' | 'leather'

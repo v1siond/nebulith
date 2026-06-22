@@ -2,7 +2,7 @@ import { cellTile, cellGlyph, treeCanopyShade, TREE_CANOPY_SHADES, type CellTile
 import { CELL_LABELS, type CellLabel } from '@/engine/cellLabels'
 import type { ZoneId } from '@/engine/zones'
 
-const ZONES: ZoneId[] = ['spring', 'summer', 'autumn', 'winter']
+const ZONES: ZoneId[] = ['spring', 'summer', 'autumn', 'winter', 'desert', 'beach', 'lava']
 const isHex = (color: string): boolean => /^#[0-9a-fA-F]{3,8}$/.test(color)
 
 describe('cellTileset — robustness (every label resolves for every zone)', () => {

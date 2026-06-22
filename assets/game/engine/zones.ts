@@ -6,7 +6,7 @@
  * is still named `ZoneId` (the generator/editor speak "zone"); the values are seasons.
  */
 
-export type ZoneId = 'spring' | 'summer' | 'autumn' | 'winter'
+export type ZoneId = 'spring' | 'summer' | 'autumn' | 'winter' | 'desert' | 'beach' | 'lava'
 
 export const DEFAULT_ZONE: ZoneId = 'spring'
 
@@ -48,5 +48,26 @@ export const ZONE_PALETTES: Record<ZoneId, ZonePalette> = {
     hazard: 'ice_water', // ice is walkable (skate/swim later)
     wallColor: '#3a5a7a',
     accentColor: '#a0e0ff', // frost blue
+  },
+  desert: {
+    id: 'desert',
+    groundTypes: ['sand', 'sand_dune', 'sand'],
+    hazard: 'water', // rare oasis
+    wallColor: '#b89a5a', // sandstone
+    accentColor: '#e8c97a', // sunlit dune
+  },
+  beach: {
+    id: 'beach',
+    groundTypes: ['sand', 'sand_dune', 'sand'],
+    hazard: 'water', // the sea
+    wallColor: '#c2a878',
+    accentColor: '#7fd0c0', // sea-foam
+  },
+  lava: {
+    id: 'lava',
+    groundTypes: ['ash', 'rock', 'basalt'],
+    hazard: 'lava', // molten — always blocks
+    wallColor: '#4a4038',
+    accentColor: '#ff7a30', // ember
   },
 }

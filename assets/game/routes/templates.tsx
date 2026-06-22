@@ -1633,20 +1633,33 @@ function ViewButton({
   )
 }
 
-/** A labelled group of palette swatches inside the Assets card. */
+/** A collapsible labelled group of palette swatches inside the Assets card.
+ *  Each section is its own dropdown — collapsed by default so the Assets card
+ *  stays expanded but isn't a wall of swatches. */
 function PaletteGroup({
   label,
   color,
   children,
+  defaultOpen = false,
 }: {
   label: string
   color: string
   children: React.ReactNode
+  defaultOpen?: boolean
 }) {
+  const [open, setOpen] = useState(defaultOpen)
   return (
-    <div className="mb-3">
-      <p className={`mb-1 text-xs font-bold ${color}`}>{label}</p>
-      <div className="flex flex-wrap gap-1">{children}</div>
+    <div className="mb-2">
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        aria-expanded={open}
+        className={`mb-1 flex w-full items-center gap-1 text-xs font-bold ${color} hover:opacity-80`}
+      >
+        <span className="inline-block w-3 text-[10px] text-gray-400" aria-hidden>{open ? '▾' : '▸'}</span>
+        {label}
+      </button>
+      {open && <div className="flex flex-wrap gap-1">{children}</div>}
     </div>
   )
 }
@@ -1741,13 +1754,16 @@ const COMPOSITE_SWATCHES: readonly CompositeSwatch[] = [
 ]
 
 // Stage generator menu (zone × variant)
-const STAGE_ZONES = ['spring', 'summer', 'autumn', 'winter'] as const
-// Active-season button tint (the seasonal accent).
+const STAGE_ZONES = ['spring', 'summer', 'autumn', 'winter', 'desert', 'beach', 'lava'] as const
+// Active-zone button tint (seasonal accent / biome color).
 const SEASON_BTN: Record<(typeof STAGE_ZONES)[number], string> = {
   spring: 'bg-pink-600 ring-1 ring-pink-300',
   summer: 'bg-green-700 ring-1 ring-green-300',
   autumn: 'bg-orange-700 ring-1 ring-orange-300',
   winter: 'bg-sky-700 ring-1 ring-sky-300',
+  desert: 'bg-yellow-700 ring-1 ring-yellow-300',
+  beach: 'bg-teal-600 ring-1 ring-teal-300',
+  lava: 'bg-red-700 ring-1 ring-red-300',
 }
 const STAGE_VARIANTS = ['village', 'forest', 'cave', 'temple', 'boss-stage'] as const
 
@@ -2545,7 +2561,7 @@ export default function TemplateEditor() {
   const [topViewZoom, setTopViewZoom] = useState(1.0)
   const zoomRef = useRef(1.0)
   const isoZoomRef = useRef(1.0) // mouse-wheel zoom for the isometric view
-  const [gridSize, setGridSize] = useState({ cols: VILLAGE_CONFIG.cols, rows: VILLAGE_CONFIG.rows })
+  const [gridSize, setGridSize] = useState({ cols: 40, rows: 40 })
   const [selectedCells, setSelectedCells] = useState<Set<string>>(new Set())
   const [isSelecting, setIsSelecting] = useState(false)
   const [selectionStart, setSelectionStart] = useState<{ col: number; row: number } | null>(null)
@@ -4845,8 +4861,8 @@ export default function TemplateEditor() {
     // Create minimal empty grid - actual content loaded via URL params
     // Don't create random village here, let loadTemplate or generateRandomMap handle it
     gridRef.current = new IsometricGrid({
-      cols: VILLAGE_CONFIG.cols,
-      rows: VILLAGE_CONFIG.rows,
+      cols: 40,
+      rows: 40,
       cellSize: VILLAGE_CONFIG.cellSize,
       isoScale: VILLAGE_CONFIG.isoScale,
     })
@@ -5503,13 +5519,13 @@ export default function TemplateEditor() {
             {/* Stage presets */}
             <Card title="Stage presets" accent="purple">
               <p className="mb-1 text-xs text-gray-400">Zone</p>
-              <div className="mb-2 flex gap-1">
+              <div className="mb-2 grid grid-cols-4 gap-1">
                 {STAGE_ZONES.map(z => (
                   <button
                     key={z}
                     onClick={() => setGenZone(z)}
                     aria-pressed={genZone === z}
-                    className={`flex-1 rounded px-2 py-1 text-xs capitalize transition-colors ${
+                    className={`rounded px-2 py-1 text-xs capitalize transition-colors ${
                       genZone === z ? SEASON_BTN[z] : 'bg-gray-700 hover:bg-gray-600'
                     }`}
                   >
@@ -5990,6 +6006,7 @@ function render(
   const tileW = cellSize * isoScale * 0.71  // Half-width of diamond
   const tileH = cellSize * isoScale * 0.36  // Half-height of diamond
   const heightStep = cellSize * isoScale * 0.4  // Height per elevation level
+  const cubeDepth = tileH * 1.6  // base extrusion so every tile reads as a CUBE
 
   // Convert world to screen (center of diamond tile)
   const toScreen = (col: number, row: number) => {
@@ -6003,10 +6020,16 @@ function render(
 
   // ─── GROUND TILES (ASCII on diamonds) ─────────────────────────────
 
-  const tilesX = Math.ceil(w / 28) + 12
-  const tilesZ = Math.ceil(h / 18) + 12
-  const startCol = Math.floor(camX / cellSize) - Math.floor(tilesX / 2)
-  const startRow = Math.floor(camZ / cellSize) - Math.floor(tilesZ / 2)
+  // Zoom-aware visible range: derive the half-span from the ACTUAL (zoomed) tile
+  // size, so we iterate exactly the cells the camera can see — fewer when zoomed in,
+  // more when zoomed out — then CLAMP to the grid so off-grid cells aren't scanned.
+  const halfSpan = Math.ceil((w / tileW + h / tileH) / 2) + 4
+  const camCol = Math.floor(camX / cellSize)
+  const camRow = Math.floor(camZ / cellSize)
+  const startCol = Math.max(0, camCol - halfSpan)
+  const endCol = Math.min(grid.cols - 1, camCol + halfSpan)
+  const startRow = Math.max(0, camRow - halfSpan)
+  const endRow = Math.min(grid.rows - 1, camRow + halfSpan)
 
   // Font for ground characters
   const groundFontSize = Math.max(12, tileH * 1.1)
@@ -6014,13 +6037,8 @@ function render(
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
 
-  for (let rz = 0; rz < tilesZ; rz++) {
-    for (let rx = 0; rx < tilesX; rx++) {
-      const col = startCol + rx
-      const row = startRow + rz
-
-      if (col < 0 || col >= grid.cols || row < 0 || row >= grid.rows) continue
-
+  for (let row = startRow; row <= endRow; row++) {
+    for (let col = startCol; col <= endCol; col++) {
       const p = toScreen(col, row)
       if (p.x < -tileW * 2 || p.x > w + tileW * 2 || p.y < -tileH * 2 || p.y > h + tileH * 2) continue
 
@@ -6042,25 +6060,31 @@ function render(
       // Draw diamond tile with background
       const drawY = p.y - heightOffset
 
-      // If elevated, draw front faces first
-      if (cellHeight > 0) {
-        // Left face (darker)
+      // CUBE sides — but an interior cube's sides are HIDDEN by the cube in front of
+      // it; only the terrain's front edges actually show a wall. Draw the left face
+      // only when the down-left neighbour (col,row+1) is lower/absent, the right face
+      // only when the down-right neighbour (col+1,row) is. Same look, a fraction of
+      // the fills — the real iso perf win.
+      const sideBottom = p.y + cubeDepth
+      const leftOpen = row + 1 >= grid.rows || grid.getHeight(col, row + 1) < cellHeight
+      const rightOpen = col + 1 >= grid.cols || grid.getHeight(col + 1, row) < cellHeight
+      if (leftOpen) {
         ctx.fillStyle = darkenColor(bg, 0.5)
         ctx.beginPath()
         ctx.moveTo(p.x - tileW, drawY)
         ctx.lineTo(p.x, drawY + tileH)
-        ctx.lineTo(p.x, p.y + tileH)
-        ctx.lineTo(p.x - tileW, p.y)
+        ctx.lineTo(p.x, sideBottom + tileH)
+        ctx.lineTo(p.x - tileW, sideBottom)
         ctx.closePath()
         ctx.fill()
-
-        // Right face (medium)
+      }
+      if (rightOpen) {
         ctx.fillStyle = darkenColor(bg, 0.7)
         ctx.beginPath()
         ctx.moveTo(p.x + tileW, drawY)
         ctx.lineTo(p.x, drawY + tileH)
-        ctx.lineTo(p.x, p.y + tileH)
-        ctx.lineTo(p.x + tileW, p.y)
+        ctx.lineTo(p.x, sideBottom + tileH)
+        ctx.lineTo(p.x + tileW, sideBottom)
         ctx.closePath()
         ctx.fill()
       }

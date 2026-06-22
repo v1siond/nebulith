@@ -148,6 +148,8 @@ export interface ResolveAttackInput {
   defenderHp?: number
   /** attacker runtime resources — required for special (rage/mana) attacks. */
   attackerState?: CombatState
+  /** RNG for the dodge/block rolls (returns 0–1). Defaults to Math.random. */
+  roll?: () => number
 }
 
 export interface ResolveAttackResult {
@@ -161,6 +163,10 @@ export interface ResolveAttackResult {
   defenderHpAfter: number
   /** did this hit drop the defender to 0? */
   lethal: boolean
+  /** defender dodged it entirely (0 damage). */
+  dodged?: boolean
+  /** defender's shield blocked it (0 damage). */
+  blocked?: boolean
   /** which resource was spent ('rage'|'mana'), or null for free regulars. */
   resource: ResourceKey | null
   /** how much of that resource was spent. */
@@ -178,7 +184,16 @@ export function resolveAttack(input: ResolveAttackInput): ResolveAttackResult {
   const gate = gateSpecial(attack, attackerState)
   if (gate) return blocked(gate, startingHp, attackerState)
 
-  const damage = computeDamage(input)
+  // Avoidance rolls happen BEFORE damage: dodge (defender) first, then shield block.
+  // A dodged/blocked hit still "fires" (a special still spends its resource — you
+  // swung and it was avoided), but it deals no damage.
+  const roll = input.roll ?? Math.random
+  const dodgePct = defender.dodge ?? 0
+  const dodged = dodgePct > 0 && roll() * 100 < dodgePct
+  const blockPct = input.defenderWeapon?.blockChance ?? 0
+  const wasBlocked = !dodged && blockPct > 0 && roll() * 100 < blockPct
+
+  const damage = dodged || wasBlocked ? 0 : computeDamage(input)
   const defenderHpAfter = applyDamage(startingHp, damage)
   const spend = spendResource(attack, attackerState)
 
@@ -187,6 +202,8 @@ export function resolveAttack(input: ResolveAttackInput): ResolveAttackResult {
     damage,
     defenderHpAfter,
     lethal: isDead(defenderHpAfter),
+    dodged,
+    blocked: wasBlocked,
     resource: spend.resource,
     resourceSpent: spend.amount,
     attackerStateAfter: spend.stateAfter,

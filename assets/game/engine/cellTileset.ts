@@ -66,6 +66,9 @@ export const TREE_CANOPY_SHADES: Readonly<Record<ZoneId, string[]>> = {
   summer: ['#2e8b2e', '#1f6b1f', '#3fb53f', '#246b24'], // deep, lush greens
   autumn: ['#d2691e', '#c0531a', '#e0a020', '#9c4a1e'], // orange / red / gold turning leaves
   winter: ['#cfe0ea', '#aac4d8', '#e8f2fa', '#9fbccb'], // frosted / snow-laden pale blues
+  desert: ['#9a8f5a', '#b3a86b', '#7d7448', '#c7bd80'], // dry olive / khaki scrub
+  beach: ['#4fae6a', '#6fc888', '#3c8f54', '#86d49e'], // bright palm greens
+  lava: ['#3e3942', '#4a4350', '#2e2b33', '#544754'], // charred, near-black canopies
 }
 
 /** A canopy shade for a tree variant; wraps the palette safely for any integer. */
@@ -102,6 +105,21 @@ const ZONE_VISUALS: Readonly<Record<ZoneId, ZoneVisuals>> = {
     trunk: '#8fa3b5', // pale frost bark
     building: { roof: '#4a6a8a', wall: '#aac4d8', door: '#2a3a4a', window: '#dff0ff' },
     feature: { mountain: '#8fa6b8', peak: '#eef6ff', spill: '#bfe8f5' }, // icy peak, frozen waterfall
+  },
+  desert: {
+    trunk: '#a98a4f', // dry tan wood
+    building: { roof: '#c2914a', wall: '#d8c089', door: '#7a5a2a', window: '#a8d0e8' },
+    feature: { mountain: '#c2a35a', peak: '#e8d49a', spill: '#5bbcff' }, // dune massif, oasis water
+  },
+  beach: {
+    trunk: '#8a6a3a', // palm bark
+    building: { roof: '#c98a52', wall: '#e0cf9a', door: '#6a4a24', window: '#bfe8f5' },
+    feature: { mountain: '#b8a070', peak: '#efe4c2', spill: '#5bbcff' }, // headland + surf
+  },
+  lava: {
+    trunk: '#2b2420', // charred charcoal bark
+    building: { roof: '#5a2a20', wall: '#4a4038', door: '#1a1410', window: '#ff8050' },
+    feature: { mountain: '#3a2a25', peak: '#ff5a1f', spill: '#ff8a30' }, // basalt cone, ember crater, lava flow
   },
 }
 

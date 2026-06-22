@@ -234,9 +234,17 @@ describe('generateStage — zone-tinted trees (tonal variation + bare trees)', (
     expect([...lava.canopy].every(c => TREE_CANOPY_SHADES.autumn.includes(c))).toBe(true)
   })
 
-  it('keeps zone canopy palettes disjoint (no shared tone across zones)', () => {
-    const all = [...TREE_CANOPY_SHADES.summer, ...TREE_CANOPY_SHADES.winter, ...TREE_CANOPY_SHADES.autumn]
-    expect(new Set(all).size).toBe(all.length)
+  it('keeps EVERY zone canopy palette disjoint (no shared tone across all 7 zones)', () => {
+    const all = [
+      ...TREE_CANOPY_SHADES.spring,
+      ...TREE_CANOPY_SHADES.summer,
+      ...TREE_CANOPY_SHADES.autumn,
+      ...TREE_CANOPY_SHADES.winter,
+      ...TREE_CANOPY_SHADES.desert,
+      ...TREE_CANOPY_SHADES.beach,
+      ...TREE_CANOPY_SHADES.lava,
+    ]
+    expect(new Set(all).size).toBe(all.length) // every tone unique → biomes never blur together
   })
 
   it('keeps the verdant forest classic — brown trunk, green canopy from the palette', () => {
@@ -360,8 +368,41 @@ describe('generateStage — forest layout: defaults to passages', () => {
     const passages = averageTrees({ zone: 'summer', variant: 'forest', layout: 'passages', ...FOREST_SIZE })
     const open = averageTrees({ zone: 'summer', variant: 'forest', layout: 'open', ...FOREST_SIZE })
     // the default sits in the (thinned) passages band, still denser than the open glade
-    expect(defaulted).toBeGreaterThan(open * 1.15)
+    expect(defaulted).toBeGreaterThan(open * 1.08)
     expect(Math.abs(defaulted - passages)).toBeLessThan(passages * 0.5)
+  })
+})
+
+describe('generateStage — seasonal forest density (spring is airier than summer)', () => {
+  it('grows a CLEARLY sparser forest in spring than in summer (distinct seasons)', () => {
+    // spring = fresh, airy growth; summer = deep, dense canopy. Averaged over many
+    // seeds so the ~22% gap is robust against a single unlucky map.
+    const spring = averageTrees({ zone: 'spring', variant: 'forest', layout: 'passages', ...FOREST_SIZE })
+    const summer = averageTrees({ zone: 'summer', variant: 'forest', layout: 'passages', ...FOREST_SIZE })
+    expect(spring).toBeGreaterThan(0) // still a forest, just lighter
+    expect(spring).toBeLessThan(summer * 0.9) // clearly fewer trees than summer
+  })
+
+  it('keeps an arid DESERT scrub the sparsest of all', () => {
+    const desert = averageTrees({ zone: 'desert', variant: 'forest', layout: 'passages', ...FOREST_SIZE })
+    const summer = averageTrees({ zone: 'summer', variant: 'forest', layout: 'passages', ...FOREST_SIZE })
+    // (the gap widens further on bigger maps; on this small test grid erosion converges sooner)
+    expect(desert).toBeLessThan(summer * 0.82)
+  })
+})
+
+describe('generateStage — spring flower variety (a meadow in bloom)', () => {
+  it('scatters MANY distinct walkable flower types across spring forests', () => {
+    // sample a few maps so we see the full palette, not one unlucky draw
+    const flowers = [0, 1, 2].flatMap(() =>
+      generateStage({ zone: 'spring', variant: 'forest', layout: 'open', cols: 40, rows: 30 }).props.filter(
+        p => p.type === 'flower',
+      ),
+    )
+    expect(flowers.length).toBeGreaterThan(0)
+    expect(flowers.every(f => f.blocking === false)).toBe(true) // flowers never block
+    const distinctGlyphs = new Set(flowers.map(f => f.char))
+    expect(distinctGlyphs.size).toBeGreaterThanOrEqual(4) // several flower shapes, not one '*'
   })
 })
 

@@ -476,3 +476,66 @@ describe('resolveAttack — defender hp resolution & lethality', () => {
     expect(r.defenderHpAfter).toBe(5)
   })
 })
+
+describe('resolveAttack — dodge & block (avoidance before damage)', () => {
+  const hit = (): Attack => ({ school: 'physical', range: 'melee', tier: 'regular' })
+
+  it('a dodged attack still fires but deals no damage and leaves HP intact', () => {
+    const r = resolveAttack({
+      attacker: baseStats(),
+      defender: baseStats({ dodge: 100 }), // always dodges
+      attack: hit(),
+      attackerWeapon: sword(),
+      defenderHp: 100,
+      roll: () => 0, // 0 < dodge% ⇒ dodged
+    })
+    expect(r.fired).toBe(true)
+    expect(r.dodged).toBe(true)
+    expect(r.damage).toBe(0)
+    expect(r.defenderHpAfter).toBe(100)
+  })
+
+  it("a shield's block negates the hit when not dodged", () => {
+    const r = resolveAttack({
+      attacker: baseStats(),
+      defender: baseStats({ dodge: 0 }),
+      attack: hit(),
+      attackerWeapon: sword(),
+      defenderWeapon: sword({ kind: 'shield', blockChance: 100 }),
+      defenderHp: 100,
+      roll: () => 0, // dodge 0<0 false → block 0<100 true
+    })
+    expect(r.dodged).toBeFalsy()
+    expect(r.blocked).toBe(true)
+    expect(r.damage).toBe(0)
+    expect(r.defenderHpAfter).toBe(100)
+  })
+
+  it('lands normally when both rolls miss their chance', () => {
+    const r = resolveAttack({
+      attacker: baseStats(),
+      defender: baseStats({ dodge: 30 }),
+      attack: hit(),
+      attackerWeapon: sword(),
+      defenderWeapon: sword({ kind: 'shield', blockChance: 30 }),
+      roll: () => 0.99, // 99 ≥ 30 for both
+    })
+    expect(r.dodged).toBeFalsy()
+    expect(r.blocked).toBeFalsy()
+    expect(r.damage).toBeGreaterThan(0)
+  })
+
+  it('treats missing dodge/blockChance as zero (no avoidance)', () => {
+    const r = resolveAttack({
+      attacker: baseStats(),
+      defender: baseStats(), // dodge undefined
+      attack: hit(),
+      attackerWeapon: sword(),
+      defenderWeapon: sword({ kind: 'shield' }), // blockChance undefined
+      roll: () => 0,
+    })
+    expect(r.dodged).toBeFalsy()
+    expect(r.blocked).toBeFalsy()
+    expect(r.damage).toBeGreaterThan(0)
+  })
+})

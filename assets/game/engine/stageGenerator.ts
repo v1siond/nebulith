@@ -124,14 +124,31 @@ const makeFeatureCell = (zone: ZoneId, col: number, row: number, label: CellLabe
   return { col, row, type: 'feature', char: tile.char, blocking: true, color: tile.color, label }
 }
 
-const makeFlower = (col: number, row: number): StageProp => ({
-  col,
-  row,
-  type: 'flower',
-  char: '*',
-  blocking: false,
-  color: Math.random() < 0.5 ? '#ff88cc' : '#ffd24a',
-})
+// Walkable flower variants. SPRING bursts into many shapes + colors (a meadow in
+// bloom); SUMMER keeps a smaller, deeper-toned set. Zones absent here don't flower.
+type FlowerKind = { char: string; color: string }
+const SPRING_FLOWERS: ReadonlyArray<FlowerKind> = [
+  { char: '✿', color: '#ff8fc8' }, // pink bloom
+  { char: '❀', color: '#ffd24a' }, // buttercup
+  { char: '✾', color: '#c89bff' }, // lilac
+  { char: '❁', color: '#ff7a7a' }, // poppy
+  { char: '✽', color: '#ffffff' }, // daisy
+  { char: '❋', color: '#7ad0ff' }, // bluebell
+]
+const SUMMER_FLOWERS: ReadonlyArray<FlowerKind> = [
+  { char: '*', color: '#ff88cc' },
+  { char: '✿', color: '#ffd24a' },
+]
+const FLOWERS_BY_ZONE: Partial<Record<ZoneId, ReadonlyArray<FlowerKind>>> = {
+  spring: SPRING_FLOWERS,
+  summer: SUMMER_FLOWERS,
+}
+
+const makeFlower = (zone: ZoneId, col: number, row: number): StageProp => {
+  const set = FLOWERS_BY_ZONE[zone] ?? SUMMER_FLOWERS
+  const pick = set[randInt(0, set.length - 1)]
+  return { col, row, type: 'flower', char: pick.char, blocking: false, color: pick.color }
+}
 
 const makeRock = (col: number, row: number): StageProp => ({
   col,
@@ -175,7 +192,7 @@ const ARCHETYPES: Partial<Record<VariantId, (ctx: ArchetypeContext) => void>> = 
 export function generateStage(opts: GenerateOptions): StageData {
   const { zone, variant } = opts
   const cols = opts.cols ?? 40
-  const rows = opts.rows ?? 30
+  const rows = opts.rows ?? 40
   const layout = opts.layout ?? 'passages'
   const palette = ZONE_PALETTES[zone]
 
@@ -299,10 +316,9 @@ function layoutPassages(ctx: ArchetypeContext): void {
   connectRooms(trees, rooms)
   const clearing = keepLargestClearing(trees, cols, rows)
   carveGates(trees, clearing, cols, rows) // south entrance + north exit
-  thinForest(trees, cols, rows) // erode mass edges for visibility…
-  thinForest(trees, cols, rows) // …twice: a solid-passages forest was ~60% trees;
-  //   a second erosion pass opens the canopy to a navigable ~40% (the negative
-  //   space reads as paths, not a wall of trees).
+  // Erode the canopy to a navigable density. Zone-scaled: a solid-passages forest
+  // was ~45% trees; this drops it ~25% (and makes spring airier than summer).
+  thinForestForZone(trees, cols, rows, ctx.zone, 4)
 
   commitTrees(ctx, trees) // tree masses fill the negative space
   markGrassZones(ctx, rooms) // some sections become tall-grass
@@ -315,7 +331,7 @@ function layoutPassages(ctx: ArchetypeContext): void {
 //    'passages'. The whole interior is clear floor; only a sparse ring of tree
 //    clumps hugs the edges, so the middle stays a wide-open clearing. ──────────
 const OPEN_EDGE_BAND = 3 // how deep from the border tree clumps may sit
-const OPEN_CLUMP_CHANCE = 0.2 // per eligible edge cell → sparse clumps, a clearly open glade
+const OPEN_CLUMP_CHANCE = 0.12 // per eligible edge cell → sparse clumps, a clearly open glade
 
 /** Sparse tree clumps around the edges over a wide-open middle. Trees start in a
  *  thin border band only, the largest clearing is kept, then the same glade pass
@@ -328,7 +344,7 @@ function layoutOpenGlade(ctx: ArchetypeContext): void {
   carveGates(trees, clearing, cols, rows) // keep south/north edges reachable
 
   commitTrees(ctx, trees) // the sparse edge clumps
-  scatterGladeTrees(ctx) // a few standalone trees dotting the open glade
+  scatterGladeTrees(ctx, 0.45) // a FEW standalone trees — the glade stays clearly open
   scatterClearingCover(ctx) // flowers + stray mid-grass over the open floor
   repairFloorConnectivity(ctx) // keep the floor one region
 }
@@ -367,6 +383,9 @@ const LAKE_TERRAIN: Readonly<Record<ZoneId, LakeTerrain>> = {
   summer: { ground: 'water', blocks: true },
   autumn: { ground: 'water', blocks: true },
   winter: { ground: 'ice_water', blocks: false }, // ice: walkable now, skate/swim later
+  desert: { ground: 'water', blocks: true }, // a rare oasis
+  beach: { ground: 'water', blocks: true }, // the sea
+  lava: { ground: 'lava', blocks: true }, // molten — always blocks
 }
 
 /** A NAVIGABLE forest with a central hazard lake. The surround is carved with the
@@ -399,7 +418,7 @@ function layoutLake(ctx: ArchetypeContext): void {
   //    edges, erode mass edges for visibility.
   const clearing = keepLargestClearing(trees, cols, rows)
   carveGates(trees, clearing, cols, rows)
-  thinForest(trees, cols, rows)
+  thinForestForZone(trees, cols, rows, ctx.zone, 3)
 
   commitTrees(ctx, trees) // tree masses fill the negative space
   markGrassZones(ctx, rooms) // some clearings become tall-grass
@@ -770,16 +789,36 @@ const TREE_HEIGHT = TREE_COLUMN.length
 // more dead wood (charred lava, frost-killed frozen) than the lush verdant.
 // Bare/dead trees by season: many in winter (leafless), a good share in autumn,
 // few in the green seasons.
-const DEAD_TREE_CHANCE: Readonly<Record<ZoneId, number>> = { spring: 0.06, summer: 0.08, autumn: 0.28, winter: 0.45 }
+const DEAD_TREE_CHANCE: Readonly<Record<ZoneId, number>> = {
+  spring: 0.06, summer: 0.08, autumn: 0.28, winter: 0.45, desert: 0.4, beach: 0.1, lava: 0.5,
+}
+
+// Per-zone forest density (1 = densest canopy). Drives extra erosion passes + the
+// glade-tree count, so a deep SUMMER forest reads denser than an airy SPRING one,
+// and arid zones (desert/beach) are sparse scrub. Tuned to land ~25% below the old
+// flat ~45% coverage. Open/Closed: add a zone → add a row.
+const FOREST_DENSITY: Readonly<Record<ZoneId, number>> = {
+  summer: 1.0, autumn: 0.8, winter: 0.62, spring: 0.35, lava: 0.58, beach: 0.38, desert: 0.22,
+}
+
+/** Erode the tree mass `basePasses` times, PLUS extra passes scaled by how sparse
+ *  the zone should be — fewer trees overall and a clear spring(sparse)/summer(dense)
+ *  split. Each pass only erodes cells touching open floor, so the floor stays one
+ *  connected region. */
+function thinForestForZone(trees: boolean[][], cols: number, rows: number, zone: ZoneId, basePasses: number): void {
+  const extra = Math.round((1 - FOREST_DENSITY[zone]) * 4)
+  for (let i = 0; i < basePasses + extra; i++) thinForest(trees, cols, rows)
+}
 
 /** Sparse, blue-noise-spaced MULTI-CELL trees dotting the open clearings
  *  (dart-throw with a minimum spacing — a lightweight Poisson-disk per
  *  docs/ALGORITHMS.md). Each tree stamps its full vertical extent. */
-function scatterGladeTrees(ctx: ArchetypeContext): void {
+function scatterGladeTrees(ctx: ArchetypeContext, densityMul = 1): void {
   const { collision, cols, rows } = ctx
   const placed: Cell[] = []
   const minDist = 5 // wide spacing → clearings stay open and navigable
-  const attempts = Math.floor(cols * rows * 0.08)
+  // sparser in airy/arid zones; the open glade passes a low mul so it stays open
+  const attempts = Math.floor(cols * rows * 0.08 * FOREST_DENSITY[ctx.zone] * densityMul)
   for (let i = 0; i < attempts; i++) {
     const col = randInt(2, cols - 3)
     const row = randInt(TREE_HEIGHT, rows - 3) // leave headroom above the base for the canopy
@@ -928,7 +967,7 @@ function touchesOpen(trees: boolean[][], col: number, row: number): boolean {
 function scatterClearingCover(ctx: ArchetypeContext): void {
   const { ground, collision, props, zone, cols, rows } = ctx
   const accent = ZONE_PALETTES[zone].groundTypes[1]
-  const flowersAllowed = zone === 'spring' || zone === 'summer' // blooms in the green seasons
+  const flowersAllowed = FLOWERS_BY_ZONE[zone] !== undefined // only the flowering zones bloom
   forEachCell(cols, rows, (col, row) => {
     if (isEdge(col, row, cols, rows)) return
     if (collision[row][col]) return
@@ -937,7 +976,7 @@ function scatterClearingCover(ctx: ArchetypeContext): void {
       ground[row][col] = accent // mid-level accent ground (zone-themed)
       return
     }
-    if (flowersAllowed && roll < 0.22) props.push(makeFlower(col, row))
+    if (flowersAllowed && roll < 0.22) props.push(makeFlower(zone, col, row))
   })
 }
 
