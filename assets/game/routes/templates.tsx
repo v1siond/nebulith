@@ -5924,9 +5924,27 @@ export default function TemplateEditor() {
               </div>
             </Card>
 
-            {/* Selected-entity panel — inspector + (player) inventory + (npc) quest
-                authoring. Nothing here is always-on: it appears only when an entity
-                is selected, so the sidebar isn't permanently cluttered. */}
+          </aside>
+        )}
+
+        {/* RIGHT SIDEBAR — Export · Connectors · Save/Load */}
+        {showSidebars && (
+          <aside
+            className={`fixed right-4 z-10 flex flex-col gap-3 overflow-y-auto pl-1 font-mono text-white ${
+              isMobile
+                ? 'bottom-16 left-4 max-h-[42vh]'
+                : 'top-20 bottom-4 w-72'
+            }`}
+            aria-label="Project tools"
+          >
+            {/* Brand header */}
+            <div className="rounded-lg border border-white/10 bg-black/60 p-3 text-center shadow-lg shadow-black/40">
+              <h2 className="text-base font-bold tracking-widest text-yellow-400">NEBULITH</h2>
+              <p className="text-[10px] text-gray-500">{templateName || 'New Template'}</p>
+            </div>
+
+            {/* Selected-entity panel (right sidebar) — inspector + (player) inventory +
+                (npc) quest authoring. Appears only when an entity is selected. */}
             {(() => {
               const selected = entities.find(e => e.id === selectedEntityId)
               if (!selected) return null
@@ -5954,24 +5972,6 @@ export default function TemplateEditor() {
                 </>
               )
             })()}
-          </aside>
-        )}
-
-        {/* RIGHT SIDEBAR — Export · Connectors · Save/Load */}
-        {showSidebars && (
-          <aside
-            className={`fixed right-4 z-10 flex flex-col gap-3 overflow-y-auto pl-1 font-mono text-white ${
-              isMobile
-                ? 'bottom-16 left-4 max-h-[42vh]'
-                : 'top-20 bottom-4 w-72'
-            }`}
-            aria-label="Project tools"
-          >
-            {/* Brand header */}
-            <div className="rounded-lg border border-white/10 bg-black/60 p-3 text-center shadow-lg shadow-black/40">
-              <h2 className="text-base font-bold tracking-widest text-yellow-400">NEBULITH</h2>
-              <p className="text-[10px] text-gray-500">{templateName || 'New Template'}</p>
-            </div>
 
             {/* Export */}
             <Card title="Export" accent="orange">
