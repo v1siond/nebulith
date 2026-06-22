@@ -204,6 +204,52 @@ const makeBossAnchor = (col: number, row: number): StageProp => ({
   color: '#c0392b',
 })
 
+// ── terrain transitions (the "real tileset" edge logic) ────────────────────
+// Real tilesets blend at material borders instead of hard cell edges. After the
+// archetype paints the ground, we scan every walkable LAND cell and, where it
+// touches water/ice/lava, stamp a non-blocking edge decor — a shoreline ripple, a
+// frosty rim, or a charred ember crust — so coastlines/lava banks read as blended.
+const WATER_LIKE = new Set(['water', 'ice_water', 'oasis', 'koi'])
+const LAVA_LIKE = new Set(['lava', 'magma'])
+
+function edgeDecor(zone: ZoneId, neighbourType: string, col: number, row: number): StageProp | null {
+  if (WATER_LIKE.has(neighbourType)) {
+    const frost = zone === 'winter' || neighbourType === 'ice_water'
+    return { col, row, type: 'shore', char: frost ? '∼' : '≈', blocking: false, color: frost ? '#bfe6f5' : '#6fb7d8' }
+  }
+  if (LAVA_LIKE.has(neighbourType)) {
+    return { col, row, type: 'ember', char: '▒', blocking: false, color: '#d2691e' }
+  }
+  return null
+}
+
+/** Stamp blended edges on land cells bordering water/lava. Non-blocking; never
+ *  overwrites an existing prop. */
+function addTerrainTransitions(ctx: ArchetypeContext): void {
+  const { ground, collision, props, cols, rows, zone } = ctx
+  const occupied = new Set(props.map(p => `${p.col},${p.row}`))
+  const edges: StageProp[] = []
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < cols; col++) {
+      const here = ground[row][col]
+      if (WATER_LIKE.has(here) || LAVA_LIKE.has(here)) continue // decorate LAND only
+      if (collision[row][col] || occupied.has(`${col},${row}`)) continue
+      for (const [dc, dr] of ORTHO) {
+        const c = col + dc
+        const r = row + dr
+        if (!inBounds(c, r, cols, rows)) continue
+        const decor = edgeDecor(zone, ground[r][c], col, row)
+        if (decor) {
+          edges.push(decor)
+          occupied.add(`${col},${row}`)
+          break
+        }
+      }
+    }
+  }
+  props.push(...edges)
+}
+
 // ── archetypes (Open/Closed: register a variant here, no dispatcher edits) ──
 interface ArchetypeContext {
   zone: ZoneId
@@ -237,7 +283,9 @@ export function generateStage(opts: GenerateOptions): StageData {
   const buildings: PlacedBuilding[] = []
   const props: StageProp[] = []
 
-  ARCHETYPES[variant]?.({ zone, ground, collision, buildings, props, cols, rows, layout })
+  const ctx: ArchetypeContext = { zone, ground, collision, buildings, props, cols, rows, layout }
+  ARCHETYPES[variant]?.(ctx)
+  addTerrainTransitions(ctx) // blended shorelines / lava banks over the painted ground
 
   return {
     zone,
