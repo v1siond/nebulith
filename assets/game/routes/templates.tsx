@@ -28,6 +28,7 @@ import { darkenColor, lightenColor, withAlpha } from '@/engine/colors'
 import { fillSelectionWithComposite } from '@/engine/compositeFill'
 import { stepMover, initMover, type MoverState } from '@/engine/movement'
 import { shouldFire, lampPulse } from '@/engine/behaviors'
+import { weaponAnimKind, animFrame, isAnimDone, ATTACK_ANIM_MS, type AttackAnim } from '@/engine/attackAnimations'
 import { useToast } from '@/components/Toast'
 import {
   makePlayer,
@@ -104,7 +105,7 @@ const MAX_TEMPLATES_PROD = 1
 // ═══════════════════════════════════════════════════════════════════
 
 /** Which tool the Entities card has armed. `erase` removes; `null` = off. */
-type EntityTool = EntityKind | 'erase' | null
+type EntityTool = EntityKind | 'erase' | 'collision' | null
 
 /** Glyph drawn for each entity kind, over a dark backing (spec §1). */
 const ENTITY_GLYPH: Record<EntityKind, string> = {
@@ -479,6 +480,8 @@ interface CombatStepInput {
   attack: boolean // edge-triggered: regular attack this frame
   special: boolean // edge-triggered: special attack this frame
   now: number
+  /** the loop's live attack-animation list; a landed hit pushes one. */
+  anims?: AttackAnim[]
 }
 
 /** What the combat step produces back to the loop (player state may be replaced on death/spend). */
@@ -549,6 +552,18 @@ function applyPlayerAttack(input: CombatStepInput, kills: string[]): CombatState
 
   runtime.combat.set(target.id, { ...targetState, hp: result.defenderHpAfter })
   pushHitMarker(hitMarkers, target.col, target.row, result.damage, 'enemy', now)
+  if (input.anims) {
+    const kind = result.blocked ? 'block' : weaponAnimKind(playerWeapon.kind, playerWeapon.range)
+    input.anims.push({
+      kind,
+      fromX: player.x,
+      fromZ: player.z,
+      toX: target.col * cellSize + cellSize / 2,
+      toZ: target.row * cellSize + cellSize / 2,
+      start: now,
+      durationMs: ATTACK_ANIM_MS[kind],
+    })
+  }
   if (result.lethal) recordEnemyDeath(runtime, target, kills, now)
   return result.attackerStateAfter ?? playerCombat
 }
@@ -2794,6 +2809,7 @@ export default function TemplateEditor() {
   const lastEnemyMoveRef = useRef(0)
   const cannonFireRef = useRef<Map<string, number>>(new Map()) // per-cannon last-fired time
   const hitMarkersRef = useRef<HitMarker[]>([])
+  const attackAnimsRef = useRef<AttackAnim[]>([])
   // Attack-key edge triggers (mirror the interact/jump edge-trigger pattern).
   const attackDownRef = useRef(false)
   const specialDownRef = useRef(false)
@@ -3197,6 +3213,12 @@ export default function TemplateEditor() {
         const target = entityAt(prev, col, row)
         return target ? removeEntity(prev, target.id) : prev
       })
+      return
+    }
+
+    // Collision paint: toggle a cell blocked/walkable directly (easy manual control).
+    if (entityTool === 'collision') {
+      grid.setCollision(col, row, !grid.isBlocked(col, row))
       return
     }
 
@@ -5251,6 +5273,7 @@ export default function TemplateEditor() {
           attack: attackDown && !attackDownRef.current,
           special: specialDown && !specialDownRef.current,
           now: time,
+          anims: attackAnimsRef.current,
         })
         playerCombatRef.current = step.playerCombat
         attackDownRef.current = attackDown
@@ -5289,7 +5312,11 @@ export default function TemplateEditor() {
       } else if (viewTypeRef.current === '2d') {
         render2D(ctx, canvas.width, canvas.height, grid, player, time, zoomRef.current, camOffsetRef.current)
       } else {
-        render(ctx, canvas.width, canvas.height, grid, player, time, camOffsetRef.current, entitiesRef.current, runtime.combat, hitMarkersRef.current, time, isoZoomRef.current)
+        render(ctx, canvas.width, canvas.height, grid, player, time, camOffsetRef.current, entitiesRef.current, runtime.combat, hitMarkersRef.current, time, isoZoomRef.current, attackAnimsRef.current)
+      }
+      // Drop finished attack animations (kept tiny — a few in flight at once).
+      if (attackAnimsRef.current.length > 0) {
+        attackAnimsRef.current = attackAnimsRef.current.filter(a => !isAnimDone(a, time))
       }
 
       // Movement works in top view too (grid-aligned for clarity)
@@ -5849,6 +5876,13 @@ export default function TemplateEditor() {
                   activeClass="bg-gray-500"
                   onClick={() => toggleEntityTool('erase')}
                 />
+                <EntityToolButton
+                  label="Collision"
+                  glyph="▦"
+                  active={entityTool === 'collision'}
+                  activeClass="bg-red-700"
+                  onClick={() => toggleEntityTool('collision')}
+                />
               </div>
               <button
                 onClick={randomizeEntities}
@@ -6199,6 +6233,7 @@ function render(
   hitMarkers: readonly HitMarker[] = [],
   now: number = time,
   zoom: number = 1,
+  attackAnims: readonly AttackAnim[] = [],
 ) {
   // Clear
   ctx.fillStyle = '#1a1a2e'
@@ -6355,6 +6390,21 @@ function render(
       drawIsoEntity(ctx, p.x, p.y - heightOffset, obj.entity, tileH, combat)
     } else if (obj.asset) {
       drawIsoAssetAscii(ctx, p.x, p.y - heightOffset, obj.asset, tileW, tileH, time)
+    }
+  }
+
+  // Attack animations (slash / shot / lightning / block) in iso space. Read-only:
+  // the loop prunes finished ones (animFrame returns null past the duration).
+  if (attackAnims.length > 0) {
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.font = `bold ${Math.max(14, tileH * 1.7)}px ${ASCII_FONT}`
+    for (const a of attackAnims) {
+      const f = animFrame(a, now)
+      if (!f) continue
+      const sp = toScreen(f.x / cellSize, f.z / cellSize)
+      ctx.fillStyle = f.color
+      ctx.fillText(f.char, sp.x, sp.y - tileH)
     }
   }
 
