@@ -1795,6 +1795,17 @@ function facingDelta(facing: PlayerState['facing'], use2D: boolean): [number, nu
   return [1, -1] // right (isometric diagonals)
 }
 
+/** The direction currently held on WASD/arrows, or null if none. Lets a standing
+ *  jump commit to the way you're pressing (facing itself is only updated while
+ *  walking, which a jump skips). View-agnostic — facingDelta handles iso vs 2D. */
+function facingFromKeys(keys: Record<string, boolean>): PlayerState['facing'] | null {
+  if (keys['ArrowUp'] || keys['w']) return 'up'
+  if (keys['ArrowDown'] || keys['s']) return 'down'
+  if (keys['ArrowLeft'] || keys['a']) return 'left'
+  if (keys['ArrowRight'] || keys['d']) return 'right'
+  return null
+}
+
 /** A jump in flight: the loop interpolates the player from→to over JUMP_MS with a
  *  parabolic visual hop, so they travel ACROSS the intervening cell(s) and arc up,
  *  rather than teleporting. */
@@ -4939,6 +4950,12 @@ export default function TemplateEditor() {
 
       const use2DMovement = topViewMode || viewTypeRef.current === '2d'
       const jump = jumpRef.current
+
+      // Face the direction currently held BEFORE the jump trigger, so a standing
+      // jump goes the way you're pressing (facing is otherwise only set while
+      // walking — which the jump branch below skips, leaving it stale).
+      const pressedFacing = facingFromKeys(keys)
+      if (pressedFacing) player.facing = pressedFacing
 
       // Jump trigger (edge): begin an arc if not already airborne.
       const jumpDown = !!keys[' ']
