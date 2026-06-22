@@ -32,8 +32,23 @@ import {
   placeEntity,
   removeEntity,
   entityAt,
+  isRespawned,
+  DEFAULT_PLAYER_STATS,
 } from '@/game/entities'
-import type { Entity, EntityKind } from '@/game/types'
+import {
+  deriveStats,
+  startingCombatState,
+  resolveAttack,
+  isDead,
+} from '@/game/combat'
+import type {
+  Entity,
+  EntityKind,
+  Attack,
+  CombatState,
+  Weapon,
+  Stats,
+} from '@/game/types'
 
 const ASCII_FONT = '"JetBrains Mono", "Fira Code", "Consolas", monospace'
 
@@ -138,6 +153,352 @@ function entitiesFromAssets(assets: readonly GridAsset[]): Entity[] {
     if (entity) out.push(entity)
   }
   return out
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// COMBAT — wiring the pure engine (src/game/combat.ts) into the play loop.
+// All formulas live in the combat module; this is orchestration only:
+// targeting from facing, runtime state in refs, death/respawn timing, and a
+// simple enemy melee retaliation. Pure + module-level so nothing re-allocates
+// per frame and the rules stay unit-testable. (spec §2–6)
+// ═══════════════════════════════════════════════════════════════════
+
+/** The player's starting weapon — a basic warrior sword (spec §4 "one of each"). */
+const STARTER_SWORD: Weapon = {
+  id: 'starter-sword',
+  kind: 'sword',
+  name: 'Worn Sword',
+  baseDamage: 6,
+  baseMagic: 0,
+  baseDefense: 1,
+  strengthBonus: 0,
+  intBonus: 0,
+  school: 'physical',
+  range: 'melee',
+}
+
+/** The two attacks bound to input: `f` = free regular, `g` = rage-fueled special. */
+const REGULAR_MELEE: Attack = { school: 'physical', range: 'melee', tier: 'regular' }
+const SPECIAL_MELEE: Attack = { school: 'physical', range: 'melee', tier: 'special' }
+
+/** Enemy retaliation: a flat regular melee, gated by a per-enemy cooldown (ms). */
+const ENEMY_ATTACK: Attack = REGULAR_MELEE
+const ENEMY_ATTACK_COOLDOWN_MS = 900
+
+/** "+dmg" hit markers float for this long before fading. */
+const HIT_MARKER_MS = 650
+
+/** A floating damage number anchored to a cell, shown briefly after a hit. */
+interface HitMarker {
+  col: number
+  row: number
+  amount: number
+  bornAt: number
+  /** who took the hit — colors the marker (enemy red vs player white). */
+  target: 'enemy' | 'player'
+}
+
+/** Per-enemy runtime bookkeeping the loop owns, keyed by entity id. */
+interface EnemyRuntime {
+  combat: Map<string, CombatState>
+  /** death timestamp per enemy id (drives respawn timing). */
+  diedAt: Map<string, number>
+  /** last time each enemy landed a retaliation hit (drives its cooldown). */
+  lastAttackAt: Map<string, number>
+}
+
+const makeEnemyRuntime = (): EnemyRuntime => ({
+  combat: new Map(),
+  diedAt: new Map(),
+  lastAttackAt: new Map(),
+})
+
+/** Read-only snapshot of player combat for the HUD (mirrored to React state). */
+interface PlayerHud {
+  hp: number
+  maxHp: number
+  rage: number
+  rageCap: number
+  mana: number
+  manaCap: number
+}
+
+/** Is this entity a living (not currently dead/awaiting-respawn) enemy? */
+function isLivingEnemy(entity: Entity, runtime: EnemyRuntime): boolean {
+  if (entity.kind !== 'enemy') return false
+  const state = runtime.combat.get(entity.id)
+  if (!state) return true // freshly placed, not yet initialized → alive
+  return !isDead(state.hp)
+}
+
+/**
+ * Ensure every current enemy has a runtime CombatState, and prune state for
+ * enemies that no longer exist. Returns nothing — mutates the runtime maps in
+ * place (the loop owns them; this is the one sync point each frame).
+ */
+function syncEnemyRuntime(entities: readonly Entity[], runtime: EnemyRuntime): void {
+  const live = new Set<string>()
+  for (const entity of entities) {
+    if (entity.kind !== 'enemy') continue
+    live.add(entity.id)
+    if (runtime.combat.has(entity.id)) continue
+    runtime.combat.set(entity.id, startingCombatState(entity.baseStats))
+  }
+  pruneRuntimeMaps(runtime, live)
+}
+
+/** Drop runtime entries for ids no longer present (entity erased in the editor). */
+function pruneRuntimeMaps(runtime: EnemyRuntime, live: ReadonlySet<string>): void {
+  for (const id of runtime.combat.keys()) {
+    if (live.has(id)) continue
+    runtime.combat.delete(id)
+    runtime.diedAt.delete(id)
+    runtime.lastAttackAt.delete(id)
+  }
+}
+
+/** Respawn any dead enemy whose timer has elapsed (full HP, timers cleared). */
+function respawnElapsedEnemies(entities: readonly Entity[], runtime: EnemyRuntime, now: number): void {
+  for (const entity of entities) {
+    if (entity.kind !== 'enemy') continue
+    const diedAt = runtime.diedAt.get(entity.id)
+    if (diedAt === undefined) continue
+    if (!isRespawned(diedAt, entity.respawnMs, now)) continue
+    runtime.combat.set(entity.id, startingCombatState(entity.baseStats))
+    runtime.diedAt.delete(entity.id)
+    runtime.lastAttackAt.delete(entity.id)
+  }
+}
+
+/** The cell directly in front of the player, per the active view's facing delta. */
+function facingCell(player: PlayerState, cellSize: number, use2D: boolean): { col: number; row: number } {
+  const [dCol, dRow] = facingDelta(player.facing, use2D)
+  return {
+    col: Math.floor(player.x / cellSize) + dCol,
+    row: Math.floor(player.z / cellSize) + dRow,
+  }
+}
+
+const ADJACENT_DELTAS: ReadonlyArray<readonly [number, number]> = [
+  [0, -1], [0, 1], [-1, 0], [1, 0], // orthogonal first (preferred)
+  [-1, -1], [1, 1], [-1, 1], [1, -1], // then diagonals (iso neighbours)
+]
+
+/**
+ * Pick the enemy the player is attacking: the faced cell wins; otherwise the
+ * nearest living adjacent enemy; null if none in reach. Dead enemies are skipped.
+ */
+function findTarget(
+  player: PlayerState,
+  entities: readonly Entity[],
+  runtime: EnemyRuntime,
+  cellSize: number,
+  use2D: boolean,
+): Entity | null {
+  const faced = facingCell(player, cellSize, use2D)
+  const facedEnemy = enemyAtCell(entities, runtime, faced.col, faced.row)
+  if (facedEnemy) return facedEnemy
+  return nearestAdjacentEnemy(player, entities, runtime, cellSize)
+}
+
+/** A living enemy occupying (col,row), or null. */
+function enemyAtCell(
+  entities: readonly Entity[],
+  runtime: EnemyRuntime,
+  col: number,
+  row: number,
+): Entity | null {
+  const here = entityAt(entities, col, row)
+  if (!here || !isLivingEnemy(here, runtime)) return null
+  return here
+}
+
+/** First living enemy in any of the 8 cells around the player, or null. */
+function nearestAdjacentEnemy(
+  player: PlayerState,
+  entities: readonly Entity[],
+  runtime: EnemyRuntime,
+  cellSize: number,
+): Entity | null {
+  const pCol = Math.floor(player.x / cellSize)
+  const pRow = Math.floor(player.z / cellSize)
+  for (const [dCol, dRow] of ADJACENT_DELTAS) {
+    const found = enemyAtCell(entities, runtime, pCol + dCol, pRow + dRow)
+    if (found) return found
+  }
+  return null
+}
+
+/** Is the player standing adjacent (incl. diagonally) to this entity? */
+function isAdjacentToPlayer(player: PlayerState, entity: Entity, cellSize: number): boolean {
+  const pCol = Math.floor(player.x / cellSize)
+  const pRow = Math.floor(player.z / cellSize)
+  return Math.abs(entity.col - pCol) <= 1 && Math.abs(entity.row - pRow) <= 1
+}
+
+/** Build the HUD snapshot (caps derived from effective stats) for React mirroring. */
+function playerHudFrom(baseStats: Stats, weapon: Weapon, state: CombatState): PlayerHud {
+  const eff = deriveStats(baseStats, weapon)
+  const full = startingCombatState(eff)
+  return {
+    hp: state.hp,
+    maxHp: eff.maxHp,
+    rage: state.rage,
+    rageCap: full.rage,
+    mana: state.mana,
+    manaCap: full.mana,
+  }
+}
+
+/** Inputs the per-frame combat step reads/owns. Keeps the loop call site flat. */
+interface CombatStepInput {
+  player: PlayerState
+  entities: readonly Entity[]
+  runtime: EnemyRuntime
+  playerCombat: CombatState
+  playerWeapon: Weapon
+  hitMarkers: HitMarker[]
+  cellSize: number
+  use2D: boolean
+  attack: boolean // edge-triggered: regular attack this frame
+  special: boolean // edge-triggered: special attack this frame
+  now: number
+}
+
+/** What the combat step produces back to the loop (player state may be replaced on death/spend). */
+interface CombatStepResult {
+  playerCombat: CombatState
+}
+
+/**
+ * One combat tick: respawn timers, the player's attack (if pressed), enemy
+ * retaliation, and player-death reset. Mutates `runtime`/`hitMarkers` in place
+ * (the loop owns them) and returns the player's (possibly new) CombatState.
+ */
+function stepCombat(input: CombatStepInput): CombatStepResult {
+  const { entities, runtime, hitMarkers, now } = input
+  syncEnemyRuntime(entities, runtime)
+  respawnElapsedEnemies(entities, runtime, now)
+  prunePlayerStartedMarkers(hitMarkers, now)
+
+  let playerCombat = applyPlayerAttack(input)
+  playerCombat = applyEnemyRetaliation({ ...input, playerCombat })
+  playerCombat = resetPlayerIfDead(playerCombat)
+  return { playerCombat }
+}
+
+/** Drop hit markers older than their lifetime so the array stays bounded. */
+function prunePlayerStartedMarkers(markers: HitMarker[], now: number): void {
+  // Filter in place to avoid per-frame allocation churn.
+  let write = 0
+  for (let read = 0; read < markers.length; read++) {
+    const m = markers[read]
+    if (now - m.bornAt >= HIT_MARKER_MS) continue
+    markers[write++] = m
+  }
+  markers.length = write
+}
+
+/** Resolve the player's chosen attack against the current target, if any. */
+function applyPlayerAttack(input: CombatStepInput): CombatState {
+  const { player, entities, runtime, playerCombat, playerWeapon, hitMarkers, cellSize, use2D, attack, special, now } = input
+  if (!attack && !special) return playerCombat
+
+  const target = findTarget(player, entities, runtime, cellSize, use2D)
+  if (!target) return playerCombat
+
+  const targetState = runtime.combat.get(target.id)
+  if (!targetState) return playerCombat
+
+  const chosen = special ? SPECIAL_MELEE : REGULAR_MELEE
+  // Pass BASE stats — resolveAttack derives effective stats from the weapon itself
+  // (passing pre-derived stats would double-count the weapon's bonuses).
+  const result = resolveAttack({
+    attacker: DEFAULT_PLAYER_STATS,
+    defender: target.baseStats,
+    attack: chosen,
+    attackerWeapon: playerWeapon,
+    defenderHp: targetState.hp,
+    attackerState: playerCombat,
+  })
+  if (!result.fired) return playerCombat // special blocked (insufficient rage)
+
+  runtime.combat.set(target.id, { ...targetState, hp: result.defenderHpAfter })
+  pushHitMarker(hitMarkers, target.col, target.row, result.damage, 'enemy', now)
+  if (result.lethal) runtime.diedAt.set(target.id, now)
+  return result.attackerStateAfter ?? playerCombat
+}
+
+/** Every adjacent living enemy off its cooldown lands one melee hit on the player. */
+function applyEnemyRetaliation(input: CombatStepInput & { playerCombat: CombatState }): CombatState {
+  const { player, entities, runtime, playerWeapon, hitMarkers, cellSize, now } = input
+  let playerCombat = input.playerCombat
+
+  for (const entity of entities) {
+    if (!isLivingEnemy(entity, runtime)) continue
+    if (!isAdjacentToPlayer(player, entity, cellSize)) continue
+    if (!offCooldown(runtime, entity.id, now)) continue
+
+    const result = resolveAttack({
+      attacker: entity.baseStats,
+      defender: DEFAULT_PLAYER_STATS,
+      attack: ENEMY_ATTACK,
+      attackerWeapon: enemyFist(entity),
+      defenderWeapon: playerWeapon,
+      defenderHp: playerCombat.hp,
+    })
+    runtime.lastAttackAt.set(entity.id, now)
+    playerCombat = { ...playerCombat, hp: result.defenderHpAfter }
+    const pCol = Math.floor(player.x / cellSize)
+    const pRow = Math.floor(player.z / cellSize)
+    pushHitMarker(hitMarkers, pCol, pRow, result.damage, 'player', now)
+    if (isDead(playerCombat.hp)) break // dead — stop piling on this frame
+  }
+  return playerCombat
+}
+
+/** An enemy's "weapon" is its bare strength — a zero-base physical melee. */
+function enemyFist(entity: Entity): Weapon {
+  return {
+    id: `fist-${entity.id}`,
+    kind: 'sword',
+    name: 'Claw',
+    baseDamage: 0,
+    baseMagic: 0,
+    baseDefense: 0,
+    strengthBonus: 0,
+    intBonus: 0,
+    school: 'physical',
+    range: 'melee',
+  }
+}
+
+/** Has this enemy's retaliation cooldown elapsed? (first hit is always allowed) */
+function offCooldown(runtime: EnemyRuntime, enemyId: string, now: number): boolean {
+  const last = runtime.lastAttackAt.get(enemyId)
+  if (last === undefined) return true
+  return now - last >= ENEMY_ATTACK_COOLDOWN_MS
+}
+
+/** Append a floating "+dmg" marker (skipped when no damage was dealt). */
+function pushHitMarker(
+  markers: HitMarker[],
+  col: number,
+  row: number,
+  amount: number,
+  target: 'enemy' | 'player',
+  now: number,
+): void {
+  if (amount <= 0) return
+  markers.push({ col, row, amount, target, bornAt: now })
+}
+
+/** Player death → reset to full HP at spawn (placeholder until respawn/death UX). */
+function resetPlayerIfDead(playerCombat: CombatState): CombatState {
+  if (!isDead(playerCombat.hp)) return playerCombat
+  // NOTE: trivial reset for now — full restore in place. No spawn teleport yet
+  // (spec §"keep it simple first"); proper death/respawn UX comes later.
+  return startingCombatState(deriveStats(DEFAULT_PLAYER_STATS, STARTER_SWORD))
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -1120,6 +1481,59 @@ function attemptJump(player: PlayerState, grid: IsometricGrid, use2D: boolean): 
   player.z = row * grid.cellSize + grid.cellSize / 2
 }
 
+// ── Combat HUD (DOM overlay; the canvas can't easily do crisp text bars) ──
+
+/** Clamp a value/cap pair to a 0–100 percentage string for a CSS width var. */
+function barPercent(value: number, cap: number): string {
+  if (cap <= 0) return '0%'
+  const pct = Math.max(0, Math.min(100, (value / cap) * 100))
+  return `${pct}%`
+}
+
+interface CombatBarProps {
+  label: string
+  value: number
+  cap: number
+  /** Tailwind bg utility for the fill (kept out of the data shape). */
+  fillClass: string
+}
+
+/** One labelled resource bar. The only dynamic value is the fill width, which
+ *  rides a CSS custom property (`--fill`) — not a literal style magic number. */
+function CombatBar({ label, value, cap, fillClass }: CombatBarProps) {
+  const fillVar = { '--fill': barPercent(value, cap) } as React.CSSProperties
+  return (
+    <div className="flex items-center gap-2">
+      <span className="w-12 shrink-0 text-[10px] uppercase tracking-wide text-gray-300">{label}</span>
+      <div className="relative h-3 flex-1 overflow-hidden rounded-sm bg-black/70 ring-1 ring-white/10">
+        <div className={`h-full w-[var(--fill)] ${fillClass} transition-[width] duration-150`} style={fillVar} />
+      </div>
+      <span className="w-14 shrink-0 text-right text-[10px] tabular-nums text-gray-300">
+        {Math.round(value)}/{Math.round(cap)}
+      </span>
+    </div>
+  )
+}
+
+/** Bottom-left player vitals overlay: HP, rage, mana. Reads the mirrored HUD state. */
+function CombatHud({ hud }: { hud: PlayerHud }) {
+  return (
+    <div
+      className="fixed bottom-4 left-4 z-20 w-64 rounded-md bg-black/80 p-3 font-mono text-white shadow-lg ring-1 ring-white/10"
+      role="status"
+      aria-label="Player vitals"
+    >
+      <div className="mb-2 text-[11px] font-bold uppercase tracking-wider text-amber-300">Vitals</div>
+      <div className="flex flex-col gap-1.5">
+        <CombatBar label="HP" value={hud.hp} cap={hud.maxHp} fillClass="bg-emerald-500" />
+        <CombatBar label="Rage" value={hud.rage} cap={hud.rageCap} fillClass="bg-rose-500" />
+        <CombatBar label="Mana" value={hud.mana} cap={hud.manaCap} fillClass="bg-sky-500" />
+      </div>
+      <div className="mt-2 text-[10px] text-gray-400">F attack · G special</div>
+    </div>
+  )
+}
+
 const NODE_WIDTH = 160
 const NODE_HEIGHT = 80
 
@@ -1475,6 +1889,36 @@ export default function TemplateEditor() {
   const teleportingRef = useRef(false)
   const triggerConnectorRef = useRef<(c: Connector) => void>(() => {})
   const jumpDownRef = useRef(false)
+
+  // ── Combat runtime (read/written only inside the once-mounted game loop) ──
+  // Pure formulas live in @/game/combat; these refs hold the mutable per-play
+  // state. The player carries a default warrior loadout (sword) + full HP/rage/
+  // mana; each enemy gets a CombatState keyed by id (synced from entitiesRef).
+  const playerWeaponRef = useRef<Weapon>(STARTER_SWORD)
+  const playerCombatRef = useRef<CombatState>(startingCombatState(DEFAULT_PLAYER_STATS))
+  const enemyRuntimeRef = useRef<EnemyRuntime>(makeEnemyRuntime())
+  const hitMarkersRef = useRef<HitMarker[]>([])
+  // Attack-key edge triggers (mirror the interact/jump edge-trigger pattern).
+  const attackDownRef = useRef(false)
+  const specialDownRef = useRef(false)
+  // Throttle how often we mirror combat state to React (HUD only needs ~UI cadence).
+  const hudSyncAtRef = useRef(0)
+
+  // HUD mirror (the ONLY combat state in React — drives the DOM overlay).
+  const [playerHud, setPlayerHud] = useState<PlayerHud>(() => playerHudFrom(
+    DEFAULT_PLAYER_STATS,
+    STARTER_SWORD,
+    startingCombatState(DEFAULT_PLAYER_STATS),
+  ))
+
+  // Mirror the player's combat ref into React for the HUD, throttled to ~10 Hz
+  // so we don't trigger a render every animation frame (refs are the source).
+  const HUD_SYNC_INTERVAL_MS = 100
+  const syncCombatHud = useCallback((now: number) => {
+    if (now - hudSyncAtRef.current < HUD_SYNC_INTERVAL_MS) return
+    hudSyncAtRef.current = now
+    setPlayerHud(playerHudFrom(DEFAULT_PLAYER_STATS, playerWeaponRef.current, playerCombatRef.current))
+  }, [])
 
   // Keep viewType ref in sync
   useEffect(() => {
@@ -3638,17 +4082,42 @@ export default function TemplateEditor() {
         interactDownRef.current = interactDown
       }
 
+      // ── Combat tick (only while playing, paused during connector authoring) ──
+      // Attack keys are edge-triggered like interact: f = regular, g = special.
+      const runtime = enemyRuntimeRef.current
+      if (!connectorModeRef.current && !teleportingRef.current) {
+        const attackDown = !!(keys['f'] || keys['F'])
+        const specialDown = !!(keys['g'] || keys['G'])
+        const step = stepCombat({
+          player,
+          entities: entitiesRef.current,
+          runtime,
+          playerCombat: playerCombatRef.current,
+          playerWeapon: playerWeaponRef.current,
+          hitMarkers: hitMarkersRef.current,
+          cellSize: grid.cellSize,
+          use2D: use2DMovement,
+          attack: attackDown && !attackDownRef.current,
+          special: specialDown && !specialDownRef.current,
+          now: time,
+        })
+        playerCombatRef.current = step.playerCombat
+        attackDownRef.current = attackDown
+        specialDownRef.current = specialDown
+        syncCombatHud(time)
+      }
+
       // Render - movement works in all views
       if (flowViewMode) {
         // Flow view is handled by React overlay, just clear canvas
         ctx.fillStyle = '#0a0a12'
         ctx.fillRect(0, 0, canvas.width, canvas.height)
       } else if (topViewMode) {
-        renderTopView(ctx, canvas.width, canvas.height, grid, player, zoomRef.current, selectedCellsRef.current, connectorsRef.current, connectorModeRef.current, camOffsetRef.current, entitiesRef.current)
+        renderTopView(ctx, canvas.width, canvas.height, grid, player, zoomRef.current, selectedCellsRef.current, connectorsRef.current, connectorModeRef.current, camOffsetRef.current, entitiesRef.current, runtime.combat, hitMarkersRef.current, time)
       } else if (viewTypeRef.current === '2d') {
         render2D(ctx, canvas.width, canvas.height, grid, player, time, zoomRef.current, camOffsetRef.current)
       } else {
-        render(ctx, canvas.width, canvas.height, grid, player, time, camOffsetRef.current, entitiesRef.current)
+        render(ctx, canvas.width, canvas.height, grid, player, time, camOffsetRef.current, entitiesRef.current, runtime.combat, hitMarkersRef.current, time)
       }
 
       // Movement works in top view too (grid-aligned for clarity)
@@ -3872,6 +4341,12 @@ export default function TemplateEditor() {
           onContextMenu={handleContextMenu}
           style={{ cursor: isPanning ? 'grabbing' : 'default' }}
         />
+
+        {/* Combat HUD — player HP / rage / mana. Only in play views (hidden in
+            flow + top, where you're authoring, not fighting). */}
+        {!showFlowView && !showTopView && (
+          <CombatHud hud={playerHud} />
+        )}
 
         {/* Flow View Overlay */}
         {showFlowView && currentTemplateId && (
@@ -4384,7 +4859,10 @@ function render(
   player: PlayerState,
   time: number,
   camOffset: { x: number; y: number } = { x: 0, y: 0 },
-  entities: readonly Entity[] = []
+  entities: readonly Entity[] = [],
+  enemyCombat: ReadonlyMap<string, CombatState> = new Map(),
+  hitMarkers: readonly HitMarker[] = [],
+  now: number = time
 ) {
   // Clear
   ctx.fillStyle = '#1a1a2e'
@@ -4524,10 +5002,18 @@ function render(
     if (obj.isPlayer) {
       drawIsoPlayer(ctx, p.x, p.y - heightOffset, tileW, tileH, player, time)
     } else if (obj.entity) {
-      drawIsoEntity(ctx, p.x, p.y - heightOffset, obj.entity, tileH)
+      const combat = obj.entity.kind === 'enemy' ? enemyCombat.get(obj.entity.id) : undefined
+      if (isDeadEnemy(obj.entity, combat)) continue // hidden until it respawns
+      drawIsoEntity(ctx, p.x, p.y - heightOffset, obj.entity, tileH, combat)
     } else if (obj.asset) {
       drawIsoAssetAscii(ctx, p.x, p.y - heightOffset, obj.asset, tileW, tileH, time)
     }
+  }
+
+  // Floating "+dmg" hit markers, drawn over everything in iso space.
+  for (const marker of hitMarkers) {
+    const p = toScreen(marker.col + 0.5, marker.row + 0.5)
+    drawHitMarker(ctx, p.x, p.y, marker, now)
   }
 
   // ─── DEBUG MODE ────────────────────────────────────────────────────
@@ -4609,14 +5095,75 @@ function drawIsoLabeledCell(
   ctx.fillText(char, x, cy)
 }
 
+/** An enemy that's been killed and is waiting to respawn (no live combat state). */
+function isDeadEnemy(entity: Entity, combat: CombatState | undefined): boolean {
+  if (entity.kind !== 'enemy') return false
+  return !!combat && isDead(combat.hp)
+}
+
+/** Fraction (0..1) of an enemy's HP remaining; 1 if no runtime state yet. */
+function hpFraction(entity: Entity, combat: CombatState | undefined): number {
+  if (!combat) return 1
+  if (entity.baseStats.maxHp <= 0) return 0
+  return Math.max(0, Math.min(1, combat.hp / entity.baseStats.maxHp))
+}
+
+/** Color the HP bar fill green→amber→red as the enemy is whittled down. */
+function hpBarColor(fraction: number): string {
+  if (fraction > 0.5) return '#4ade80'
+  if (fraction > 0.25) return '#facc15'
+  return '#f87171'
+}
+
+/** Draw a small HP bar centred at (x,y) — shared by iso + top enemy rendering. */
+function drawHpBar(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  fraction: number,
+): void {
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.75)'
+  ctx.fillRect(x - width / 2 - 1, y - 1, width + 2, height + 2)
+  ctx.fillStyle = '#3a1414'
+  ctx.fillRect(x - width / 2, y, width, height)
+  ctx.fillStyle = hpBarColor(fraction)
+  ctx.fillRect(x - width / 2, y, width * fraction, height)
+}
+
+/** Draw a fading "+N" damage number that drifts upward over its lifetime. */
+function drawHitMarker(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  marker: HitMarker,
+  now: number,
+): void {
+  const age = (now - marker.bornAt) / HIT_MARKER_MS
+  if (age >= 1) return
+  const rise = age * 24
+  ctx.globalAlpha = 1 - age
+  ctx.font = `bold 16px ${ASCII_FONT}`
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.fillStyle = '#000000'
+  ctx.fillText(`-${marker.amount}`, x + 1, y - 18 - rise + 1)
+  ctx.fillStyle = marker.target === 'enemy' ? '#ffd166' : '#ff6b6b'
+  ctx.fillText(`-${marker.amount}`, x, y - 18 - rise)
+  ctx.globalAlpha = 1
+}
+
 /** Draw a placed entity as its glyph on a dark backing, in the ISO renderer.
- *  (x,y) is the screen centre of the entity's cell; sits ON TOP of ground/assets. */
+ *  (x,y) is the screen centre of the entity's cell; sits ON TOP of ground/assets.
+ *  Living enemies get a small HP bar floating above them. */
 function drawIsoEntity(
   ctx: CanvasRenderingContext2D,
   x: number,
   y: number,
   entity: Entity,
   tileH: number,
+  combat?: CombatState,
 ): void {
   const glyph = entityGlyph(entity)
   const fontSize = tileH * 1.35
@@ -4629,16 +5176,22 @@ function drawIsoEntity(
   ctx.fillRect(x - w / 2 - 3, cy - fontSize * 0.6, w + 6, fontSize * 1.2)
   ctx.fillStyle = ENTITY_COLOR[entity.kind]
   ctx.fillText(glyph, x, cy)
+
+  if (entity.kind !== 'enemy') return
+  const barWidth = Math.max(20, tileH * 1.4)
+  drawHpBar(ctx, x, cy - fontSize * 0.85, barWidth, 4, hpFraction(entity, combat))
 }
 
 /** Draw a placed entity in the TOP (blueprint) renderer — a filled cell badge
- *  with the glyph, drawn over ground/assets/player so it always reads. */
+ *  with the glyph, drawn over ground/assets/player so it always reads. Living
+ *  enemies get a thin HP bar across the top edge of their cell. */
 function drawTopEntity(
   ctx: CanvasRenderingContext2D,
   x: number,
   y: number,
   tileSize: number,
   entity: Entity,
+  combat?: CombatState,
 ): void {
   ctx.fillStyle = 'rgba(0, 0, 0, 0.55)'
   ctx.fillRect(x, y, tileSize - 1, tileSize - 1)
@@ -4650,6 +5203,9 @@ function drawTopEntity(
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
   ctx.fillText(entityGlyph(entity), x + tileSize / 2, y + tileSize / 2)
+
+  if (entity.kind !== 'enemy') return
+  drawHpBar(ctx, x + tileSize / 2, y - 4, tileSize - 2, 3, hpFraction(entity, combat))
 }
 
 function drawIsoAssetAscii(
@@ -5640,7 +6196,10 @@ function renderTopView(
   connectors: Connector[] = [],
   connectorMode: boolean = false,
   camOffset: { x: number; y: number } = { x: 0, y: 0 },
-  entities: readonly Entity[] = []
+  entities: readonly Entity[] = [],
+  enemyCombat: ReadonlyMap<string, CombatState> = new Map(),
+  hitMarkers: readonly HitMarker[] = [],
+  now: number = 0
 ) {
   // Clear
   ctx.fillStyle = '#0a0a10'
@@ -5830,9 +6389,18 @@ function renderTopView(
 
   // Draw placed entities last so they sit on top of ground/assets/player.
   for (const entity of entities) {
+    const combat = entity.kind === 'enemy' ? enemyCombat.get(entity.id) : undefined
+    if (isDeadEnemy(entity, combat)) continue // hidden until it respawns
     const ex = offsetX + entity.col * tileSize
     const ey = offsetY + entity.row * tileSize
-    drawTopEntity(ctx, ex, ey, tileSize, entity)
+    drawTopEntity(ctx, ex, ey, tileSize, entity, combat)
+  }
+
+  // Floating "+dmg" hit markers (cell-centred in top space).
+  for (const marker of hitMarkers) {
+    const mx = offsetX + (marker.col + 0.5) * tileSize
+    const my = offsetY + marker.row * tileSize
+    drawHitMarker(ctx, mx, my, marker, now)
   }
 
   // UI
