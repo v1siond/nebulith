@@ -304,3 +304,114 @@ describe('generateStage — multi-cell labeled trees (the keystone)', () => {
     expect(reachable).toBe(floor)
   })
 })
+
+// ── forest LAYOUT OPTIONS: the user steers the general layout, the generator
+//    randomizes the rest. Both placeForest layouts are stochastic, so tree-count
+//    comparisons average several runs to stay robust against a single unlucky map.
+const FOREST_SIZE = { cols: 30, rows: 24 } as const
+
+const countTrees = (opts: Parameters<typeof generateStage>[0]): number =>
+  generateStage(opts).props.filter(p => p.type === 'tree').length
+
+const averageTrees = (opts: Parameters<typeof generateStage>[0], runs = 20): number => {
+  let total = 0
+  for (let i = 0; i < runs; i++) total += countTrees(opts)
+  return total / runs
+}
+
+describe('generateStage — forest layout: open vs passages', () => {
+  it("'open' yields noticeably fewer trees than 'passages' at the same size", () => {
+    const passages = averageTrees({ zone: 'verdant', variant: 'forest', layout: 'passages', ...FOREST_SIZE })
+    const open = averageTrees({ zone: 'verdant', variant: 'forest', layout: 'open', ...FOREST_SIZE })
+    expect(open).toBeGreaterThan(0) // still a forest — sparse clumps + glade trees
+    expect(open).toBeLessThan(passages * 0.7) // ~0.5x in practice; 0.7 keeps margin vs RNG
+  })
+
+  it("'open' is easy to traverse — most of the map is reachable open floor", () => {
+    const stage = generateStage({ zone: 'verdant', variant: 'forest', layout: 'open', ...FOREST_SIZE })
+    expect(stage.collision[stage.spawn.row][stage.spawn.col]).toBe(false)
+    const reachable = reachableCount(stage.collision, stage.spawn)
+    // a wide-open glade: well over half the cells reachable on foot
+    expect(reachable).toBeGreaterThan((stage.cols * stage.rows) / 2)
+  })
+})
+
+describe('generateStage — forest layout: defaults to passages', () => {
+  it('omitting layout reproduces the dense passages forest, not the open glade', () => {
+    const defaulted = averageTrees({ zone: 'verdant', variant: 'forest', ...FOREST_SIZE })
+    const passages = averageTrees({ zone: 'verdant', variant: 'forest', layout: 'passages', ...FOREST_SIZE })
+    const open = averageTrees({ zone: 'verdant', variant: 'forest', layout: 'open', ...FOREST_SIZE })
+    // the default sits in the dense (passages) band, well above the open glade
+    expect(defaulted).toBeGreaterThan(open * 1.4)
+    expect(Math.abs(defaulted - passages)).toBeLessThan(passages * 0.5)
+  })
+})
+
+// 4-neighbour flood fill over a predicate grid — proves a labeled set of cells
+// (e.g. the lake's hazard ground) forms ONE contiguous block.
+function contiguousBlockSize(cells: { col: number; row: number }[]): number {
+  if (cells.length === 0) return 0
+  const inSet = new Set(cells.map(c => `${c.col},${c.row}`))
+  const seen = new Set<string>()
+  const start = cells[0]
+  const stack = [start]
+  seen.add(`${start.col},${start.row}`)
+  while (stack.length > 0) {
+    const { col, row } = stack.pop()!
+    for (const [dc, dr] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const key = `${col + dc},${row + dr}`
+      if (!inSet.has(key) || seen.has(key)) continue
+      seen.add(key)
+      stack.push({ col: col + dc, row: row + dr })
+    }
+  }
+  return seen.size
+}
+
+const hazardCells = (stage: ReturnType<typeof generateStage>, hazard: string) => {
+  const cells: { col: number; row: number }[] = []
+  stage.ground.forEach((rowArr, row) =>
+    rowArr.forEach((type, col) => {
+      if (type === hazard) cells.push({ col, row })
+    }),
+  )
+  return cells
+}
+
+describe('generateStage — forest layout: central lake', () => {
+  // zone → its hazard ground type + whether that hazard blocks movement.
+  const LAKES = [
+    { zone: 'verdant', hazard: 'water', blocks: true },
+    { zone: 'lava', hazard: 'lava', blocks: true },
+    { zone: 'frozen', hazard: 'ice_water', blocks: false },
+  ] as const
+
+  it.each(LAKES)('$zone: carves a single contiguous lake of $hazard ground', ({ zone, hazard }) => {
+    const stage = generateStage({ zone, variant: 'forest', layout: 'lake', cols: 36, rows: 30 })
+    const lake = hazardCells(stage, hazard)
+    expect(lake.length).toBeGreaterThan(10) // a real body of terrain, not a few cells
+    expect(contiguousBlockSize(lake)).toBe(lake.length) // ONE connected block
+  })
+
+  it.each(LAKES)('$zone: sets lake collision per the zone (water/lava block, ice walkable)', ({ zone, hazard, blocks }) => {
+    const stage = generateStage({ zone, variant: 'forest', layout: 'lake', cols: 36, rows: 30 })
+    const lake = hazardCells(stage, hazard)
+    expect(lake.every(c => stage.collision[c.row][c.col] === blocks)).toBe(true)
+  })
+
+  it.each(LAKES)('$zone: keeps the floor around the lake connected, spawn walkable', ({ zone }) => {
+    const stage = generateStage({ zone, variant: 'forest', layout: 'lake', cols: 36, rows: 30 })
+    expect(stage.collision[stage.spawn.row][stage.spawn.col]).toBe(false)
+    // canopy tops are a separate walkable layer — treat them as non-floor so the
+    // test measures the GROUND floor (matching the passages connectivity test).
+    const canopyTop = new Set(
+      stage.props.filter(p => p.label === 'tree_leaf_top').map(p => `${p.col},${p.row}`),
+    )
+    const floorBlocked = stage.collision.map((rowArr, r) =>
+      rowArr.map((blocked, c) => blocked || canopyTop.has(`${c},${r}`)),
+    )
+    const floor = floorBlocked.flat().filter(b => !b).length
+    const reachable = reachableCount(floorBlocked, stage.spawn)
+    expect(reachable).toBe(floor) // every ground-floor cell reachable from spawn
+  })
+})

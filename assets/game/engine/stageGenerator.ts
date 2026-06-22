@@ -15,6 +15,10 @@ import type { Connector } from '@/lib/api'
 
 export type VariantId = 'village' | 'forest' | 'cave' | 'temple' | 'boss-stage'
 
+/** General forest LAYOUT the user steers; the generator randomizes the rest.
+ *  'passages' = the default multi-passage forest (today's behavior). */
+export type ForestLayout = 'passages' | 'open' | 'lake'
+
 export interface StageProp {
   col: number
   row: number
@@ -55,6 +59,9 @@ export interface GenerateOptions {
   variant: VariantId
   cols?: number
   rows?: number
+  /** Steer the general forest layout; the rest is randomized. Default 'passages'
+   *  reproduces today's multi-passage forest. Only the forest variant reads it. */
+  layout?: ForestLayout
 }
 
 type Cell = { col: number; row: number }
@@ -194,6 +201,8 @@ interface ArchetypeContext {
   props: StageProp[]
   cols: number
   rows: number
+  /** The user-steered forest layout; only placeForest reads it. */
+  layout: ForestLayout
 }
 
 const ARCHETYPES: Partial<Record<VariantId, (ctx: ArchetypeContext) => void>> = {
@@ -208,6 +217,7 @@ export function generateStage(opts: GenerateOptions): StageData {
   const { zone, variant } = opts
   const cols = opts.cols ?? 40
   const rows = opts.rows ?? 30
+  const layout = opts.layout ?? 'passages'
   const palette = ZONE_PALETTES[zone]
 
   const ground = makeGrid(cols, rows, () => palette.groundTypes[0])
@@ -215,7 +225,7 @@ export function generateStage(opts: GenerateOptions): StageData {
   const buildings: PlacedBuilding[] = []
   const props: StageProp[] = []
 
-  ARCHETYPES[variant]?.({ zone, ground, collision, buildings, props, cols, rows })
+  ARCHETYPES[variant]?.({ zone, ground, collision, buildings, props, cols, rows, layout })
 
   return {
     zone,
@@ -302,6 +312,25 @@ function placeForest(ctx: ArchetypeContext): void {
   forEachCell(cols, rows, (col, row) => {
     ground[row][col] = floor
   })
+  // The user steers the GENERAL layout; the chosen builder randomizes the rest.
+  // Dispatch map (Open/Closed) — add a layout = add a row, no if/else chain.
+  FOREST_LAYOUTS[ctx.layout](ctx)
+}
+
+/** Forest layout builders, keyed by the user-steered ForestLayout. Each one runs
+ *  on the already-floored ctx and is fully responsible for trees/lake/repair.
+ *  Open/Closed: register a layout here, no dispatcher edits. */
+const FOREST_LAYOUTS: Readonly<Record<ForestLayout, (ctx: ArchetypeContext) => void>> = {
+  passages: layoutPassages,
+  open: layoutOpenGlade,
+  lake: layoutLake,
+}
+
+/** The default multi-passage forest: distributed clearing rooms wired into a
+ *  connected corridor network, tree masses filling the negative space, glades
+ *  and cover scattered in. Unchanged from the original placeForest body. */
+function layoutPassages(ctx: ArchetypeContext): void {
+  const { cols, rows } = ctx
 
   // LAYOUT FIRST: divide the map into distributed sections, wire them into a
   // connected network, link it to the edges — THEN populate with elements.
@@ -318,6 +347,165 @@ function placeForest(ctx: ArchetypeContext): void {
   scatterGladeTrees(ctx) // a few trees dotting the clearings
   scatterClearingCover(ctx) // flowers + stray mid-grass
   repairFloorConnectivity(ctx) // glade trunks can pinch off a pocket → keep one floor
+}
+
+// ── 'open' layout: a big open glade, easy to traverse — far fewer trees than
+//    'passages'. The whole interior is clear floor; only a sparse ring of tree
+//    clumps hugs the edges, so the middle stays a wide-open clearing. ──────────
+const OPEN_EDGE_BAND = 3 // how deep from the border tree clumps may sit
+const OPEN_CLUMP_CHANCE = 0.2 // per eligible edge cell → sparse clumps, a clearly open glade
+
+/** Sparse tree clumps around the edges over a wide-open middle. Trees start in a
+ *  thin border band only, the largest clearing is kept, then the same glade pass
+ *  dots a few standalone trees in. Many fewer trees than the passages layout. */
+function layoutOpenGlade(ctx: ArchetypeContext): void {
+  const { cols, rows } = ctx
+  const trees = makeGrid(cols, rows, () => false) // start fully OPEN (the glade)
+  seedEdgeClumps(trees, cols, rows)
+  const clearing = keepLargestClearing(trees, cols, rows)
+  carveGates(trees, clearing, cols, rows) // keep south/north edges reachable
+
+  commitTrees(ctx, trees) // the sparse edge clumps
+  scatterGladeTrees(ctx) // a few standalone trees dotting the open glade
+  scatterClearingCover(ctx) // flowers + stray mid-grass over the open floor
+  repairFloorConnectivity(ctx) // keep the floor one region
+}
+
+/** Fill only a thin border band with random tree clumps, leaving the interior
+ *  open. Edge cells stay solid (the map border); the band just inside is sparse. */
+function seedEdgeClumps(trees: boolean[][], cols: number, rows: number): void {
+  forEachCell(cols, rows, (col, row) => {
+    if (isEdge(col, row, cols, rows)) {
+      trees[row][col] = true // solid map border, like every other layout
+      return
+    }
+    if (!withinEdgeBand(col, row, cols, rows)) return // interior stays open glade
+    if (Math.random() < OPEN_CLUMP_CHANCE) trees[row][col] = true
+  })
+}
+
+const withinEdgeBand = (col: number, row: number, cols: number, rows: number): boolean =>
+  col < OPEN_EDGE_BAND || row < OPEN_EDGE_BAND || col >= cols - OPEN_EDGE_BAND || row >= rows - OPEN_EDGE_BAND
+
+// ── 'lake' layout: a forest ringed around a central LAKE of the zone's hazard
+//    terrain (frozen→ice walkable, verdant→water blocking, lava→lava blocking).
+//    Trees fill the surround; the floor around the lake stays one region. ──────
+const LAKE_RADIUS_FACTOR = 0.28 // lake radius as a fraction of the smaller axis
+
+/** Per-zone lake terrain: the hazard ground type painted into the lake cells, and
+ *  whether the lake blocks. Frozen ice is walkable (for now; swim/skate later);
+ *  water + lava block. Lookup table, not an if/else chain. */
+interface LakeTerrain {
+  ground: string
+  blocks: boolean
+}
+
+const LAKE_TERRAIN: Readonly<Record<ZoneId, LakeTerrain>> = {
+  frozen: { ground: 'ice_water', blocks: false }, // ice: walkable now, skate/swim later
+  verdant: { ground: 'water', blocks: true }, // water blocks unless you can swim
+  lava: { ground: 'lava', blocks: true }, // lava always blocks
+}
+
+/** A forested map with a central lake carved out of it. The forest fills the
+ *  whole map, the lake disc is stamped with the zone's hazard terrain (blocking
+ *  per the zone), and the surrounding floor is repaired to one connected region. */
+function layoutLake(ctx: ArchetypeContext): void {
+  const { cols, rows } = ctx
+  const trees = makeGrid(cols, rows, () => true) // start fully forested
+  const lake = lakeCells(cols, rows)
+  const lakeKeys = new Set(lake.map(c => `${c.col},${c.row}`))
+  lake.forEach(({ col, row }) => {
+    trees[row][col] = false // no trees in the water
+  })
+  carveLakeGates(trees, lakeKeys, cols, rows) // wide paths edge↔lake so it never walls off
+  thinForest(trees, cols, rows) // erode mass edges so the forest reads navigable
+
+  commitTrees(ctx, trees) // tree ring around the lake
+  carveLakeShore(ctx, lake) // a walkable shore ring so the lake never walls off floor
+  scatterClearingCover(ctx) // flowers + stray mid-grass on the shore
+  paintLake(ctx, lake) // stamp the lake FIRST (blocking per zone) so the repair sees
+  //   its real collision and never connects the map *through* still-open water (which
+  //   would strand the far side once the water blocks). Strips trees/cover on lake cells.
+  repairFloorConnectivity(ctx) // …THEN repair the surround into ONE region AROUND the
+  //   lake: ice stays walkable floor; water/lava is routed around via the shore + gates,
+  //   and any pocket the lake stranded is filled so the floor is always connected.
+}
+
+/** Open wide lanes from the lake to the south and north edges (PATH_WIDTH bands,
+ *  like carveGates) so the lake+shore are joined to the map's main floor and can
+ *  never be sealed off into a discarded pocket by the surrounding tree ring. */
+function carveLakeGates(trees: boolean[][], lakeKeys: Set<string>, cols: number, rows: number): void {
+  const cells = [...lakeKeys].map(toCell)
+  if (cells.length === 0) return
+  const south = cells.reduce((a, b) => (b.row > a.row ? b : a))
+  const north = cells.reduce((a, b) => (b.row < a.row ? b : a))
+  carveVertical(trees, south.col, south.row, rows - 1)
+  carveVertical(trees, north.col, north.row, 0)
+}
+
+/** The lake's cells: a filled disc centered on the map (a body, not a strip). */
+function lakeCells(cols: number, rows: number): Cell[] {
+  const cc = Math.floor(cols / 2)
+  const cr = Math.floor(rows / 2)
+  const radius = Math.max(2, Math.floor(Math.min(cols, rows) * LAKE_RADIUS_FACTOR))
+  const cells: Cell[] = []
+  forEachCell(cols, rows, (col, row) => {
+    if (isEdge(col, row, cols, rows)) return // never touch the map border
+    const dx = col - cc
+    const dy = row - cr
+    if (dx * dx + dy * dy <= radius * radius) cells.push({ col, row })
+  })
+  return cells
+}
+
+/** Stamp the lake: paint each cell the zone's hazard ground and set collision per
+ *  the zone (water/lava block, ice walkable). Clears any tree prop on those cells
+ *  so the lake reads as open water, not canopy. Guard-claused, no nesting. */
+function paintLake(ctx: ArchetypeContext, lake: Cell[]): void {
+  const { ground, collision, props, zone } = ctx
+  const terrain = LAKE_TERRAIN[zone]
+  const lakeKeys = new Set(lake.map(c => `${c.col},${c.row}`))
+  const kept = props.filter(p => !lakeKeys.has(`${p.col},${p.row}`)) // drop trees in the lake
+  props.length = 0
+  props.push(...kept)
+  lake.forEach(({ col, row }) => {
+    ground[row][col] = terrain.ground
+    collision[row][col] = terrain.blocks
+  })
+}
+
+/** Open a one-cell walkable shore around the lake so its tree ring can't seal the
+ *  floor off. Only ground cells (not the lake itself, not the border) are freed. */
+function carveLakeShore(ctx: ArchetypeContext, lake: Cell[]): void {
+  const { collision, props, cols, rows } = ctx
+  const lakeKeys = new Set(lake.map(c => `${c.col},${c.row}`))
+  const shore = shoreCells(lakeKeys, cols, rows)
+  if (shore.size === 0) return
+  const kept = props.filter(p => !shore.has(`${p.col},${p.row}`)) // remove trees on the shore
+  props.length = 0
+  props.push(...kept)
+  shore.forEach(key => {
+    const { col, row } = toCell(key)
+    collision[row][col] = false
+  })
+}
+
+/** Ground cells orthogonally adjacent to the lake (the shore ring), excluding the
+ *  lake and the map border. Returns a key set. */
+function shoreCells(lakeKeys: Set<string>, cols: number, rows: number): Set<string> {
+  const shore = new Set<string>()
+  lakeKeys.forEach(key => {
+    const { col, row } = toCell(key)
+    for (const [dc, dr] of ORTHO) {
+      const c = col + dc
+      const r = row + dr
+      const neighbour = `${c},${r}`
+      if (lakeKeys.has(neighbour)) continue
+      if (!inBounds(c, r, cols, rows) || isEdge(c, r, cols, rows)) continue
+      shore.add(neighbour)
+    }
+  })
+  return shore
 }
 
 /** Glade-tree trunks can pinch off a tiny floor pocket. Any ground cell outside the
