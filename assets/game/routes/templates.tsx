@@ -68,8 +68,14 @@ import type {
   Reward,
   Item,
   Inventory,
+  Loadout,
+  EquipSlot,
 } from '@/game/types'
+import { EQUIP_SLOTS } from '@/game/types'
 import { createInventory, addItem, equipWeapon, equipArmor, useConsumable } from '@/game/inventory'
+import { createLoadout, equip as equipToSlot, unequip as unequipSlot, addToBag, setSpecial, setShortcut, allowedSlots } from '@/game/loadout'
+import { GEAR_CATALOG, starterWarriorGear } from '@/game/gear'
+import { scatterEntities } from '@/game/spawner'
 
 const ASCII_FONT = '"JetBrains Mono", "Fira Code", "Consolas", monospace'
 
@@ -2471,6 +2477,121 @@ function tickCannons(
 
 /** Right-sidebar inventory: shows the equipped weapon/armor and lets the player
  *  equip gear or use a consumable. Presentational — actions bubble to the editor. */
+// ── Visual equipment panel (the per-entity inventory: equip slots + bag + specials) ──
+
+const SLOT_LABEL: Record<EquipSlot, string> = {
+  helmet: 'Helmet', chest: 'Chest', gloves: 'Gloves', boots: 'Boots',
+  weapon1: 'Weapon 1', weapon2: 'Weapon 2', ring1: 'Ring 1', ring2: 'Ring 2', neck: 'Neck',
+}
+
+/** A fresh player loadout pre-stocked with the warrior starter set (in the bag). */
+function seededPlayerLoadout(): Loadout {
+  let l = createLoadout()
+  for (const item of starterWarriorGear()) l = addToBag(l, item)
+  return l
+}
+
+/** Pull a bag item out (slot nulled). */
+function takeFromBag(loadout: Loadout, index: number): Loadout {
+  const bag = [...loadout.bag]
+  bag[index] = null
+  return { ...loadout, bag }
+}
+
+/** Click a bag item → equip it (first allowed slot, swapping any occupant back to the
+ *  bag), or if it's a consumable drop it in the first free special slot. */
+function useBagItem(loadout: Loadout, index: number): Loadout {
+  const item = loadout.bag[index]
+  if (!item) return loadout
+  const slots = allowedSlots(item)
+  if (slots.length === 0) {
+    const free = loadout.special.findIndex(s => s === null)
+    if (free < 0) return loadout
+    return setSpecial(takeFromBag(loadout, index), free, item)
+  }
+  const target = slots.find(s => !(s in loadout.equipped)) ?? slots[0]
+  const displaced = loadout.equipped[target] ?? null
+  let next = equipToSlot(takeFromBag(loadout, index), item, target)
+  if (displaced) next = addToBag(next, displaced)
+  return next
+}
+
+function EquipmentPanel({ label, loadout, onChange, onClose }: {
+  label: string
+  loadout: Loadout
+  onChange: (l: Loadout) => void
+  onClose: () => void
+}) {
+  const unequipToBag = (slot: EquipSlot) => {
+    const item = loadout.equipped[slot]
+    if (item) onChange(addToBag(unequipSlot(loadout, slot), item))
+  }
+  const sendSpecialToBag = (i: number) => {
+    const item = loadout.special[i]
+    if (item) onChange(addToBag(setSpecial(loadout, i, null), item))
+  }
+  const cycleShortcut = (i: number) => {
+    const keys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0']
+    const cur = keys.indexOf(loadout.shortcuts[i])
+    onChange(setShortcut(loadout, i, keys[(cur + 1) % keys.length]))
+  }
+
+  return (
+    <div className="fixed inset-0 z-30 flex items-center justify-center bg-black/70 p-4 font-mono" role="dialog" aria-label="Inventory" onClick={onClose}>
+      <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg border border-cyan-500/40 bg-gray-900 p-4 text-white shadow-2xl" onClick={e => e.stopPropagation()}>
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-sm font-bold text-cyan-400">Inventory — {label}</h2>
+          <button onClick={onClose} className="rounded bg-gray-700 px-2 py-1 text-xs hover:bg-gray-600" aria-label="Close inventory">✕ (I)</button>
+        </div>
+
+        <p className="mb-1 text-xs font-bold text-gray-400">Equipped</p>
+        <div className="mb-3 grid grid-cols-3 gap-1">
+          {EQUIP_SLOTS.map(slot => {
+            const item = loadout.equipped[slot]
+            return (
+              <button key={slot} onClick={() => unequipToBag(slot)} disabled={!item}
+                className={`rounded border px-2 py-1.5 text-left text-[11px] ${item ? 'border-cyan-600 bg-cyan-900/40 hover:bg-cyan-900/70' : 'border-white/10 bg-black/40 text-gray-600'}`}>
+                <span className="block text-[9px] uppercase text-gray-500">{SLOT_LABEL[slot]}</span>
+                <span className="block truncate">{item ? item.name : '—'}</span>
+              </button>
+            )
+          })}
+        </div>
+
+        <p className="mb-1 text-xs font-bold text-gray-400">Special — bound to number keys</p>
+        <div className="mb-3 flex gap-1">
+          {loadout.special.map((item, i) => (
+            <div key={i} className="flex-1 rounded border border-amber-600/40 bg-amber-900/20 p-1 text-center text-[11px]">
+              <button onClick={() => cycleShortcut(i)} className="mb-0.5 rounded bg-amber-700 px-1.5 text-[10px] font-bold hover:bg-amber-600" aria-label={`Cycle shortcut key for special slot ${i + 1}`}>{loadout.shortcuts[i]}</button>
+              <button onClick={() => sendSpecialToBag(i)} disabled={!item} className="block w-full truncate hover:text-amber-300">{item ? item.name : '—'}</button>
+            </div>
+          ))}
+        </div>
+
+        <p className="mb-1 text-xs font-bold text-gray-400">Bag ({loadout.bag.filter(Boolean).length}/{loadout.bag.length})</p>
+        <div className="mb-3 grid grid-cols-6 gap-1">
+          {loadout.bag.map((item, i) => (
+            <button key={i} onClick={() => onChange(useBagItem(loadout, i))} disabled={!item}
+              title={item ? `Equip / use ${item.name}` : ''}
+              className={`aspect-square rounded border p-1 text-[9px] leading-tight ${item ? 'border-white/20 bg-gray-800 hover:bg-gray-700' : 'border-white/5 bg-black/30 text-gray-700'}`}>
+              {item ? item.name.slice(0, 10) : ''}
+            </button>
+          ))}
+        </div>
+
+        <details>
+          <summary className="cursor-pointer text-xs text-gray-400">+ Add gear to bag</summary>
+          <div className="mt-1 grid grid-cols-3 gap-1">
+            {GEAR_CATALOG.map(g => (
+              <button key={g.id} onClick={() => onChange(addToBag(loadout, g))} className="truncate rounded bg-gray-700 px-1 py-0.5 text-[10px] hover:bg-gray-600">{g.name}</button>
+            ))}
+          </div>
+        </details>
+      </div>
+    </div>
+  )
+}
+
 function InventoryCard({ inventory, talentPath, onEquip, onUse, onSetClass }: {
   inventory: Inventory
   talentPath: TalentPath
@@ -2660,6 +2781,10 @@ export default function TemplateEditor() {
   // Player inventory: equipped weapon drives attacks, equipped armor folds into
   // defense, consumables heal. The loop reads through inventoryRef each frame.
   const [inventory, setInventory] = useState<Inventory>(starterInventory)
+  // Per-entity loadouts (equip grid + bag + specials), keyed by entity id; the
+  // player's lives under '__player__'. The visual panel toggles with the I key.
+  const [loadouts, setLoadouts] = useState<Record<string, Loadout>>({})
+  const [inventoryOpen, setInventoryOpen] = useState(false)
   const inventoryRef = useRef<Inventory>(inventory)
   // Talent path / archetype: warrior fights with a sword/axe, magician with a staff.
   const [talentPath, setTalentPath] = useState<TalentPath>('warrior')
@@ -3097,6 +3222,27 @@ export default function TemplateEditor() {
     if (!selectedEntityId) return
     setEntities(prev => removeEntity(prev, selectedEntityId))
     setSelectedEntityId(null)
+  }
+
+  // Scatter a handful of enemies (+ the odd NPC) into the stage's free cells, each
+  // pre-set with stats + a movement pattern (see game/spawner.ts).
+  const randomizeEntities = () => {
+    const grid = gridRef.current
+    if (!grid) return
+    const collision = Array.from({ length: grid.rows }, (_, r) =>
+      Array.from({ length: grid.cols }, (_, c) => grid.isBlocked(c, r)),
+    )
+    setEntities(prev => {
+      const occupied = prev.map(e => ({ col: e.col, row: e.row }))
+      const spawned = scatterEntities({
+        collision,
+        occupied,
+        count: 6,
+        kinds: ['enemy', 'enemy', 'enemy', 'npc'], // ~3:1 enemies to NPCs
+        idPrefix: `scatter-${prev.length}`,
+      })
+      return [...prev, ...spawned]
+    })
   }
 
   // ── Quest authoring + runtime (spec §10) ───────────────────────────
@@ -4912,6 +5058,12 @@ export default function TemplateEditor() {
 
     // Input handling
     const handleKeyDown = (e: KeyboardEvent) => {
+      // I toggles the inventory panel — but not while typing in a field.
+      const tag = (e.target as HTMLElement | null)?.tagName
+      if ((e.key === 'i' || e.key === 'I') && tag !== 'INPUT' && tag !== 'TEXTAREA') {
+        setInventoryOpen(o => !o)
+        return
+      }
       keysRef.current[e.key] = true
     }
     const handleKeyUp = (e: KeyboardEvent) => {
@@ -5698,6 +5850,13 @@ export default function TemplateEditor() {
                   onClick={() => toggleEntityTool('erase')}
                 />
               </div>
+              <button
+                onClick={randomizeEntities}
+                className="mt-2 w-full rounded bg-purple-700 px-2 py-1.5 text-xs font-bold transition-colors hover:bg-purple-600"
+                title="Scatter enemies + an NPC into the free space, each with stats + a movement pattern"
+              >
+                ⤳ Scatter entities
+              </button>
 
               {entityTool === 'enemy' && (
                 <label className="mt-2 block">
@@ -5997,6 +6156,30 @@ export default function TemplateEditor() {
             <p><span className="text-green-400">■</span> Walkable</p>
           </div>
         )}
+
+        {/* Inventory — open button (also toggled by the I key) + the panel overlay */}
+        {showSidebars && !inventoryOpen && !showFlowView && (
+          <button
+            onClick={() => setInventoryOpen(true)}
+            className="fixed bottom-4 left-1/2 z-20 -translate-x-1/2 rounded bg-cyan-700 px-3 py-1 font-mono text-xs font-bold text-white shadow-lg hover:bg-cyan-600"
+            aria-label="Open inventory (I)"
+          >
+            ▤ Inventory (I)
+          </button>
+        )}
+        {inventoryOpen && (() => {
+          const activeId = selectedEntityId ?? '__player__'
+          const current = loadouts[activeId] ?? (activeId === '__player__' ? seededPlayerLoadout() : createLoadout())
+          const who = selectedEntityId ? entities.find(e => e.id === selectedEntityId)?.name ?? 'Entity' : 'Player'
+          return (
+            <EquipmentPanel
+              label={who}
+              loadout={current}
+              onChange={l => setLoadouts(prev => ({ ...prev, [activeId]: l }))}
+              onClose={() => setInventoryOpen(false)}
+            />
+          )
+        })()}
       </main>
     </>
   )
