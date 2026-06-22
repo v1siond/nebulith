@@ -2945,23 +2945,45 @@ export default function TemplateEditor() {
   }, [quests])
 
   // Convert screen position to grid cell (for top view)
+  // Screen → grid cell for the ACTIVE view. Top view is the easy default, but iso and
+  // 2D work too (each just inverts its own projection) — placement isn't top-only.
   const screenToCell = (clientX: number, clientY: number): { col: number; row: number } | null => {
     const canvas = canvasRef.current
     const grid = gridRef.current
-    if (!canvas || !grid || !topViewMode) return null
+    if (!canvas || !grid) return null
 
     const rect = canvas.getBoundingClientRect()
     const x = clientX - rect.left
     const y = clientY - rect.top
+    const cs = grid.cellSize
+    const px = playerRef.current.x
+    const pz = playerRef.current.z
+    const cam = camOffsetRef.current
 
-    const tileSize = 16 * zoomRef.current
-    const playerCol = playerRef.current.x / grid.cellSize
-    const playerRow = playerRef.current.z / grid.cellSize
-    const offsetX = canvas.width / 2 - playerCol * tileSize
-    const offsetY = canvas.height / 2 - playerRow * tileSize
+    let col: number
+    let row: number
 
-    const col = Math.floor((x - offsetX) / tileSize)
-    const row = Math.floor((y - offsetY) / tileSize)
+    if (topViewMode) {
+      const tileSize = 16 * zoomRef.current
+      col = Math.floor((x - (canvas.width / 2 - (px / cs) * tileSize)) / tileSize)
+      row = Math.floor((y - (canvas.height / 2 - (pz / cs) * tileSize)) / tileSize)
+    } else if (viewTypeRef.current === '2d') {
+      const tileW = 24 * zoomRef.current
+      const camCol = px / cs - cam.x / tileW
+      const camRow = pz / cs - cam.y / tileW
+      col = Math.floor(camCol + (x - canvas.width / 2) / tileW)
+      row = Math.floor(camRow + (y - canvas.height / 2) / tileW)
+    } else {
+      // Isometric: invert the diamond projection (sx-w/2 = (wx-wz)·S, sy-h/2 = (wx+wz)·T).
+      const S = grid.isoScale * isoZoomRef.current * 0.71
+      const T = grid.isoScale * isoZoomRef.current * 0.36
+      const camX = px - cam.x
+      const camZ = pz - cam.y
+      const a = (x - canvas.width / 2) / S
+      const b = (y - canvas.height / 2) / T
+      col = Math.floor(((a + b) / 2 + camX) / cs)
+      row = Math.floor(((b - a) / 2 + camZ) / cs)
+    }
 
     if (col >= 0 && col < grid.cols && row >= 0 && row < grid.rows) {
       return { col, row }
@@ -2979,16 +3001,15 @@ export default function TemplateEditor() {
       return
     }
 
-    // Play views (iso/2d): LEFT-click + drag pans the camera, so you can move the
-    // map without walking the character. (Top view uses left-click for placement;
-    // pan there with middle/right-drag.)
-    if (e.button === 0 && !topViewMode) {
+    // Play views (iso/2d): LEFT-click + drag pans the camera — UNLESS a placement tool
+    // is armed (entity / connector), in which case a left-click places in that view
+    // too (top view is just the easier surface for it). Pan with middle/right-drag.
+    if (e.button === 0 && !topViewMode && !entityTool && !connectorMode) {
       setIsPanning(true)
       setPanStart({ x: e.clientX, y: e.clientY })
       return
     }
 
-    if (!topViewMode) return
     const cell = screenToCell(e.clientX, e.clientY)
     if (!cell) return
 
