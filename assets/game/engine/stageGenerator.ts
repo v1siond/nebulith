@@ -178,6 +178,23 @@ const makeCaveDecor = (col: number, row: number): StageProp => {
   return { col, row, type: 'cave_decor', char: d.char, blocking: false, color: d.color }
 }
 
+// Structural decor for temple / boss arena / village (readable single-glyph props).
+const makePillar = (col: number, row: number): StageProp => ({ col, row, type: 'pillar', char: '║', blocking: true, color: '#cbb68c' })
+const makeBrazier = (col: number, row: number): StageProp => ({ col, row, type: 'brazier', char: 'Φ', blocking: true, color: '#ff8a3a' })
+const makeAltar = (col: number, row: number): StageProp => ({ col, row, type: 'altar', char: '‡', blocking: true, color: '#ffe7a8' })
+const makeWell = (col: number, row: number): StageProp => ({ col, row, type: 'well', char: '◉', blocking: true, color: '#5b8bbf' })
+const makeLamp = (col: number, row: number): StageProp => ({ col, row, type: 'lamp', char: '†', blocking: true, color: '#ffd27a' })
+const makeFence = (col: number, row: number): StageProp => ({ col, row, type: 'fence', char: '╪', blocking: true, color: '#8a6a44' })
+
+/** Place a prop iff the cell is in-bounds + not already blocked; set collision when blocking. */
+function placeProp(ctx: ArchetypeContext, prop: StageProp): void {
+  const { props, collision, cols, rows } = ctx
+  if (!inBounds(prop.col, prop.row, cols, rows)) return
+  if (collision[prop.row][prop.col]) return
+  props.push(prop)
+  if (prop.blocking) collision[prop.row][prop.col] = true
+}
+
 const makeBossAnchor = (col: number, row: number): StageProp => ({
   col,
   row,
@@ -251,6 +268,19 @@ function placeVillage(ctx: ArchetypeContext): void {
     buildings.push(placeFacade(ctx, facade, 'house', x, row))
     x += facade.length + randInt(2, 4)
   }
+  villageDecor(ctx, row)
+}
+
+/** A village square below the houses: a central well, flanking lamp-posts, and a
+ *  short fence line — turns "houses on grass" into a place. */
+function villageDecor(ctx: ArchetypeContext, groundRow: number): void {
+  const { cols, rows } = ctx
+  const cx = Math.floor(cols / 2)
+  const cy = clamp(groundRow + 4, 0, rows - 2)
+  placeProp(ctx, makeWell(cx, cy))
+  placeProp(ctx, makeLamp(cx - 3, cy))
+  placeProp(ctx, makeLamp(cx + 3, cy))
+  for (let c = cx - 4; c <= cx + 4; c += 2) placeProp(ctx, makeFence(c, cy + 2))
 }
 
 /**
@@ -1011,36 +1041,29 @@ function placeTemple(ctx: ArchetypeContext): void {
   buildings.push(placeFacade(ctx, facade, 'temple', col, row))
 
   const doorCol = col + Math.floor(facade.length / 2)
-  paveApproach(ctx, doorCol, row + 1)
-  flankColumns(ctx, doorCol, row + 2)
+  templeHall(ctx, doorCol, row + 1, facade.length)
 }
 
-/** Stone path from the temple door toward the south edge. */
-function paveApproach(ctx: ArchetypeContext, doorCol: number, fromRow: number): void {
+/** A grand colonnaded hall below the temple door: an ornate checkered floor, an
+ *  altar flanked by braziers at the head, and a colonnade lining both sides. */
+function templeHall(ctx: ArchetypeContext, doorCol: number, fromRow: number, facadeLen: number): void {
   const { ground, cols, rows } = ctx
-  for (let row = fromRow; row < rows - 1; row++) {
-    for (let w = -1; w <= 1; w++) {
-      const col = doorCol + w
-      if (inBounds(col, row, cols, rows)) ground[row][col] = 'path_stone'
+  const halfW = clamp(Math.floor(facadeLen / 2), 3, 6)
+  for (let r = fromRow; r < rows - 1; r++) {
+    for (let w = -halfW; w <= halfW; w++) {
+      const c = doorCol + w
+      if (inBounds(c, r, cols, rows)) ground[r][c] = (r + c) % 2 === 0 ? 'marble' : 'gold_tile'
     }
   }
-}
-
-/** Pairs of columns lining the approach. */
-function flankColumns(ctx: ArchetypeContext, doorCol: number, fromRow: number): void {
-  const { rows } = ctx
-  for (let row = fromRow; row < rows - 3; row += 3) {
-    placeColumn(ctx, doorCol - 3, row)
-    placeColumn(ctx, doorCol + 3, row)
+  // altar + flanking braziers at the head of the hall
+  placeProp(ctx, makeAltar(doorCol, fromRow + 1))
+  placeProp(ctx, makeBrazier(doorCol - 2, fromRow + 1))
+  placeProp(ctx, makeBrazier(doorCol + 2, fromRow + 1))
+  // colonnade lining both sides, leaving the central aisle clear
+  for (let r = fromRow + 3; r < rows - 2; r += 2) {
+    placeProp(ctx, makePillar(doorCol - halfW, r))
+    placeProp(ctx, makePillar(doorCol + halfW, r))
   }
-}
-
-function placeColumn(ctx: ArchetypeContext, col: number, row: number): void {
-  const { props, collision, cols, rows } = ctx
-  if (!inBounds(col, row, cols, rows)) return
-  if (collision[row][col]) return
-  props.push({ col, row, type: 'column', char: 'I', blocking: true, color: '#c9b18a' })
-  collision[row][col] = true
 }
 
 // ── cave archetype (cellular automata, the 4-5 rule, per docs/ALGORITHMS.md §2):
@@ -1139,7 +1162,49 @@ function placeBossStage(ctx: ArchetypeContext): void {
   openEntranceCorridor(wall, arena, rows)
 
   commitArenaWalls(ctx, wall)
+  paveArena(ctx, arena)
   placeBossAnchor(ctx, arena)
+  decorateArena(ctx, arena)
+}
+
+/** Floor the open arena with ancient stone (reads as a built hall, not raw ground). */
+function paveArena(ctx: ArchetypeContext, arena: Rect): void {
+  const { ground, collision, cols, rows } = ctx
+  for (let dy = 0; dy < arena.h; dy++) {
+    for (let dx = 0; dx < arena.w; dx++) {
+      const c = arena.col + dx
+      const r = arena.row + dy
+      if (inBounds(c, r, cols, rows) && !collision[r][c]) ground[r][c] = 'ancient_stone'
+    }
+  }
+}
+
+/** A deliberate arena: corner braziers, a boss dais (flanking pillars), a rune ring
+ *  around the centre, and a sparse approach colonnade — aisle + entrance stay open. */
+function decorateArena(ctx: ArchetypeContext, arena: Rect): void {
+  const { ground, collision, cols, rows } = ctx
+  const cx = arenaCenterCol(arena)
+  const centerRow = arena.row + Math.floor(arena.h / 2)
+
+  placeProp(ctx, makeBrazier(arena.col + 1, arena.row + 1))
+  placeProp(ctx, makeBrazier(arena.col + arena.w - 2, arena.row + 1))
+  placeProp(ctx, makeBrazier(arena.col + 1, arena.row + arena.h - 2))
+  placeProp(ctx, makeBrazier(arena.col + arena.w - 2, arena.row + arena.h - 2))
+
+  placeProp(ctx, makePillar(cx - 2, arena.row + 1)) // dais flanking the boss
+  placeProp(ctx, makePillar(cx + 2, arena.row + 1))
+
+  const ringR = Math.max(2, Math.min(arena.w, arena.h) / 2 - 3)
+  for (let a = 0; a < 360; a += 18) {
+    const c = Math.round(cx + Math.cos((a * Math.PI) / 180) * ringR)
+    const r = Math.round(centerRow + Math.sin((a * Math.PI) / 180) * ringR * 0.7)
+    if (inBounds(c, r, cols, rows) && !collision[r][c]) ground[r][c] = 'rune_floor'
+  }
+
+  for (let r = arena.row + 4; r < arena.row + arena.h - 3; r += 3) {
+    placeProp(ctx, makePillar(cx - 4, r))
+    placeProp(ctx, makePillar(cx + 4, r))
+  }
 }
 
 interface Rect {

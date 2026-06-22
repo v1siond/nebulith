@@ -194,8 +194,9 @@ describe('generateStage — temple archetype', () => {
     expect(stage.buildings[0].length).toBeGreaterThanOrEqual(14)
   })
 
-  it('lines the approach with columns and keeps the spawn walkable', () => {
-    expect(stage.props.some(p => p.type === 'column')).toBe(true)
+  it('builds a colonnaded hall (pillars + altar) and keeps the spawn walkable', () => {
+    expect(stage.props.some(p => p.type === 'pillar')).toBe(true)
+    expect(stage.props.some(p => p.type === 'altar')).toBe(true)
     expect(stage.collision[stage.spawn.row][stage.spawn.col]).toBe(false)
   })
 })
