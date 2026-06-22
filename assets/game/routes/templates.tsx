@@ -2916,9 +2916,13 @@ export default function TemplateEditor() {
     let row: number
 
     if (topViewMode) {
+      // Must match renderTopView's offset EXACTLY, including the pan (camOffset) —
+      // otherwise clicks land on the wrong cell after panning.
       const tileSize = 16 * zoomRef.current
-      col = Math.floor((x - (canvas.width / 2 - (px / cs) * tileSize)) / tileSize)
-      row = Math.floor((y - (canvas.height / 2 - (pz / cs) * tileSize)) / tileSize)
+      const offsetX = canvas.width / 2 - (px / cs) * tileSize + cam.x
+      const offsetY = canvas.height / 2 - (pz / cs) * tileSize + cam.y
+      col = Math.floor((x - offsetX) / tileSize)
+      row = Math.floor((y - offsetY) / tileSize)
     } else if (viewTypeRef.current === '2d') {
       const tileW = 24 * zoomRef.current
       const camCol = px / cs - cam.x / tileW
@@ -5294,7 +5298,7 @@ export default function TemplateEditor() {
       } else if (topViewMode) {
         renderTopView(ctx, canvas.width, canvas.height, grid, player, zoomRef.current, selectedCellsRef.current, connectorsRef.current, connectorModeRef.current, camOffsetRef.current, entitiesRef.current, runtime.combat, hitMarkersRef.current, time)
       } else if (viewTypeRef.current === '2d') {
-        render2D(ctx, canvas.width, canvas.height, grid, player, time, zoomRef.current, camOffsetRef.current)
+        render2D(ctx, canvas.width, canvas.height, grid, player, time, zoomRef.current, camOffsetRef.current, entitiesRef.current, runtime.combat)
       } else {
         render(ctx, canvas.width, canvas.height, grid, player, time, camOffsetRef.current, entitiesRef.current, runtime.combat, hitMarkersRef.current, time, isoZoomRef.current, attackAnimsRef.current)
       }
@@ -6834,7 +6838,9 @@ function render2D(
   player: PlayerState,
   time: number,
   zoom: number = 1.0,
-  camOffset: { x: number; y: number } = { x: 0, y: 0 }
+  camOffset: { x: number; y: number } = { x: 0, y: 0 },
+  entities: readonly Entity[] = [],
+  enemyCombat: ReadonlyMap<string, CombatState> = new Map(),
 ) {
   // Clear with sky/background color
   ctx.fillStyle = '#1a1a2e'
@@ -7131,6 +7137,14 @@ function render2D(
         ctx.strokeRect(p.x - tileW / 2, p.y - tileH / 2, tileW, tileH)
       }
     }
+  }
+
+  // Placed entities (enemies / NPCs) on top of the world layer — same as Top/iso.
+  for (const entity of entities) {
+    const combat = entity.kind === 'enemy' ? enemyCombat.get(entity.id) : undefined
+    if (isDeadEnemy(entity, combat)) continue
+    const e = toScreen(entity.col, entity.row)
+    drawTopEntity(ctx, e.x, e.y, tileW, entity, combat)
   }
 
   // ─── UI ───────────────────────────────────────────────────────────
