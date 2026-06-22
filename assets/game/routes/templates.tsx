@@ -5740,26 +5740,35 @@ export default function TemplateEditor() {
               </div>
             </Card>
 
-            {/* Quests — link a kill objective + reward to a placed NPC (spec §10) */}
-            <QuestAuthoringCard
-              npcs={entities.filter(e => e.kind === 'npc')}
-              quests={quests}
-              draft={questDraft}
-              playerXp={playerXp}
-              onDraftChange={setQuestDraft}
-              onSave={saveQuest}
-            />
-            <InventoryCard inventory={inventory} talentPath={talentPath} onEquip={equipItem} onUse={useItem} onSetClass={setArchetype} />
+            {/* Selected-entity panel — inspector + (player) inventory + (npc) quest
+                authoring. Nothing here is always-on: it appears only when an entity
+                is selected, so the sidebar isn't permanently cluttered. */}
             {(() => {
               const selected = entities.find(e => e.id === selectedEntityId)
-              return selected ? (
-                <EntityInspectorCard
-                  entity={selected}
-                  onPatch={patchSelectedEntity}
-                  onDelete={deleteSelectedEntity}
-                  onClose={() => setSelectedEntityId(null)}
-                />
-              ) : null
+              if (!selected) return null
+              return (
+                <>
+                  <EntityInspectorCard
+                    entity={selected}
+                    onPatch={patchSelectedEntity}
+                    onDelete={deleteSelectedEntity}
+                    onClose={() => setSelectedEntityId(null)}
+                  />
+                  {selected.kind === 'player' && (
+                    <InventoryCard inventory={inventory} talentPath={talentPath} onEquip={equipItem} onUse={useItem} onSetClass={setArchetype} />
+                  )}
+                  {selected.kind === 'npc' && (
+                    <QuestAuthoringCard
+                      npcs={entities.filter(e => e.kind === 'npc')}
+                      quests={quests}
+                      draft={questDraft}
+                      playerXp={playerXp}
+                      onDraftChange={setQuestDraft}
+                      onSave={saveQuest}
+                    />
+                  )}
+                </>
+              )
             })()}
           </aside>
         )}
