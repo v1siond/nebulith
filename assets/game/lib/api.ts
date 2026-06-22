@@ -209,9 +209,10 @@ export function deserializeToGrid(
     tileKey: a.tileKey,
   }))
 
-  // Rebuild collision grid from assets
+  // Rebuild collision grid from assets. Blocks are collision regardless of any
+  // visual height level — a blocking asset always blocks its cell.
   for (const asset of grid.assets) {
-    if (asset.blocking && (!asset.heightLevel || asset.heightLevel === 0)) {
+    if (asset.blocking) {
       grid.setCollision(asset.col, asset.row, true)
     }
   }

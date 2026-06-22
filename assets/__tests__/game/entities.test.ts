@@ -1,0 +1,237 @@
+import {
+  makePlayer,
+  makeEnemy,
+  makeNpc,
+  canPlaceEntity,
+  placeEntity,
+  removeEntity,
+  entityAt,
+  isRespawned,
+  nextRespawnAt,
+  byKind,
+  enemiesOfType,
+  DEFAULT_PLAYER_STATS,
+  DEFAULT_ENEMY_STATS,
+  DEFAULT_NPC_STATS,
+} from '@/game/entities'
+import type { Entity } from '@/game/types'
+
+/** A collision predicate that blocks a fixed set of "col,row" cells. */
+function blockedCells(...cells: Array<[number, number]>) {
+  const set = new Set(cells.map(([c, r]) => `${c},${r}`))
+  return (col: number, row: number) => set.has(`${col},${row}`)
+}
+
+/** Collision predicate that never blocks (open field). */
+const noCollision = () => false
+
+describe('entity factories', () => {
+  it('makePlayer sets kind=player, position, and sane player stats', () => {
+    const p = makePlayer('p1', 3, 4)
+    expect(p.id).toBe('p1')
+    expect(p.kind).toBe('player')
+    expect(p.col).toBe(3)
+    expect(p.row).toBe(4)
+    expect(p.baseStats).toEqual(DEFAULT_PLAYER_STATS)
+    expect(p.baseStats.maxHp).toBeGreaterThan(0)
+    // a player is not an enemy/npc, so no respawn / quest / enemyType tags
+    expect(p.respawnMs).toBeUndefined()
+    expect(p.questId).toBeUndefined()
+    expect(p.enemyType).toBeUndefined()
+  })
+
+  it('makePlayer accepts an optional name', () => {
+    expect(makePlayer('p1', 0, 0).name).toBeUndefined()
+    expect(makePlayer('p1', 0, 0, 'Hero').name).toBe('Hero')
+  })
+
+  it('makeEnemy sets kind=enemy, enemyType, and sane enemy stats', () => {
+    const e = makeEnemy('e1', 5, 6, 'goblin')
+    expect(e.kind).toBe('enemy')
+    expect(e.col).toBe(5)
+    expect(e.row).toBe(6)
+    expect(e.enemyType).toBe('goblin')
+    expect(e.baseStats).toEqual(DEFAULT_ENEMY_STATS)
+    expect(e.baseStats.maxHp).toBeGreaterThan(0)
+  })
+
+  it('makeEnemy carries an optional respawnMs so kill-quests stay farmable', () => {
+    expect(makeEnemy('e1', 0, 0, 'goblin').respawnMs).toBeUndefined()
+    expect(makeEnemy('e1', 0, 0, 'goblin', { respawnMs: 30_000 }).respawnMs).toBe(30_000)
+  })
+
+  it('makeEnemy can override stats and name', () => {
+    const e = makeEnemy('boss', 0, 0, 'dragon', {
+      name: 'Old Wyrm',
+      stats: { maxHp: 500 },
+    })
+    expect(e.name).toBe('Old Wyrm')
+    expect(e.baseStats.maxHp).toBe(500)
+    // unspecified stats fall back to the enemy defaults
+    expect(e.baseStats.strength).toBe(DEFAULT_ENEMY_STATS.strength)
+  })
+
+  it('makeNpc sets kind=npc and sane npc stats', () => {
+    const n = makeNpc('n1', 2, 2)
+    expect(n.kind).toBe('npc')
+    expect(n.col).toBe(2)
+    expect(n.row).toBe(2)
+    expect(n.baseStats).toEqual(DEFAULT_NPC_STATS)
+    expect(n.questId).toBeUndefined()
+  })
+
+  it('makeNpc carries an optional questId (quest giver)', () => {
+    expect(makeNpc('n1', 0, 0, { questId: 'q-slay-goblins' }).questId).toBe('q-slay-goblins')
+  })
+
+  it('makeNpc accepts an optional name', () => {
+    expect(makeNpc('n1', 0, 0, { name: 'Elder' }).name).toBe('Elder')
+  })
+})
+
+describe('canPlaceEntity — placement guards', () => {
+  const grid = { cols: 10, rows: 8 }
+
+  it('allows an in-bounds, unblocked, unoccupied cell', () => {
+    expect(canPlaceEntity([], 4, 4, grid.cols, grid.rows, noCollision)).toBe(true)
+  })
+
+  it('rejects a negative column (out of bounds)', () => {
+    expect(canPlaceEntity([], -1, 4, grid.cols, grid.rows, noCollision)).toBe(false)
+  })
+
+  it('rejects a negative row (out of bounds)', () => {
+    expect(canPlaceEntity([], 4, -1, grid.cols, grid.rows, noCollision)).toBe(false)
+  })
+
+  it('rejects a column at/over the width (out of bounds, exclusive)', () => {
+    expect(canPlaceEntity([], 10, 4, grid.cols, grid.rows, noCollision)).toBe(false)
+  })
+
+  it('rejects a row at/over the height (out of bounds, exclusive)', () => {
+    expect(canPlaceEntity([], 4, 8, grid.cols, grid.rows, noCollision)).toBe(false)
+  })
+
+  it('rejects a blocked (collision) cell', () => {
+    const collision = blockedCells([4, 4])
+    expect(canPlaceEntity([], 4, 4, grid.cols, grid.rows, collision)).toBe(false)
+  })
+
+  it('rejects a cell already occupied by another entity', () => {
+    const existing = [makeEnemy('e1', 4, 4, 'goblin')]
+    expect(canPlaceEntity(existing, 4, 4, grid.cols, grid.rows, noCollision)).toBe(false)
+  })
+
+  it('allows a free cell even when other entities exist elsewhere', () => {
+    const existing = [makeEnemy('e1', 1, 1, 'goblin'), makePlayer('p1', 2, 2)]
+    expect(canPlaceEntity(existing, 4, 4, grid.cols, grid.rows, noCollision)).toBe(true)
+  })
+})
+
+describe('placeEntity — immutable insert', () => {
+  it('returns a NEW list with the entity appended (does not mutate the input)', () => {
+    const before: Entity[] = [makePlayer('p1', 1, 1)]
+    const enemy = makeEnemy('e1', 4, 4, 'goblin')
+    const after = placeEntity(before, enemy)
+
+    expect(after).not.toBe(before)
+    expect(before).toHaveLength(1)
+    expect(after).toHaveLength(2)
+    expect(after).toContain(enemy)
+  })
+})
+
+describe('removeEntity — immutable delete', () => {
+  it('returns a NEW list without the matching id (does not mutate the input)', () => {
+    const before: Entity[] = [makePlayer('p1', 1, 1), makeEnemy('e1', 4, 4, 'goblin')]
+    const after = removeEntity(before, 'e1')
+
+    expect(after).not.toBe(before)
+    expect(before).toHaveLength(2)
+    expect(after).toHaveLength(1)
+    expect(after.find(e => e.id === 'e1')).toBeUndefined()
+    expect(after[0].id).toBe('p1')
+  })
+
+  it('returns an equivalent NEW list when the id is absent (no-op, still immutable)', () => {
+    const before: Entity[] = [makePlayer('p1', 1, 1)]
+    const after = removeEntity(before, 'missing')
+
+    expect(after).not.toBe(before)
+    expect(after).toEqual(before)
+  })
+})
+
+describe('entityAt — cell lookup', () => {
+  const list: Entity[] = [
+    makePlayer('p1', 1, 1),
+    makeEnemy('e1', 4, 4, 'goblin'),
+  ]
+
+  it('returns the entity occupying a cell', () => {
+    expect(entityAt(list, 4, 4)?.id).toBe('e1')
+  })
+
+  it('returns null for an empty cell', () => {
+    expect(entityAt(list, 9, 9)).toBeNull()
+  })
+})
+
+describe('respawn timing — pure, time passed in', () => {
+  const diedAt = 1_000
+  const respawnMs = 5_000
+
+  it('nextRespawnAt is death time + respawn delay', () => {
+    expect(nextRespawnAt(diedAt, respawnMs)).toBe(6_000)
+  })
+
+  it('isRespawned is false before the delay has elapsed', () => {
+    expect(isRespawned(diedAt, respawnMs, diedAt + respawnMs - 1)).toBe(false)
+  })
+
+  it('isRespawned is true exactly when the delay has elapsed', () => {
+    expect(isRespawned(diedAt, respawnMs, diedAt + respawnMs)).toBe(true)
+  })
+
+  it('isRespawned is true after the delay has elapsed', () => {
+    expect(isRespawned(diedAt, respawnMs, diedAt + respawnMs + 1)).toBe(true)
+  })
+
+  it('a non-respawning enemy (no/zero respawn delay) never respawns', () => {
+    expect(isRespawned(diedAt, undefined, Number.MAX_SAFE_INTEGER)).toBe(false)
+    expect(isRespawned(diedAt, 0, Number.MAX_SAFE_INTEGER)).toBe(false)
+  })
+})
+
+describe('query helpers', () => {
+  const player = makePlayer('p1', 0, 0)
+  const goblinA = makeEnemy('e1', 1, 1, 'goblin')
+  const goblinB = makeEnemy('e2', 2, 2, 'goblin')
+  const wolf = makeEnemy('e3', 3, 3, 'wolf')
+  const npc = makeNpc('n1', 4, 4)
+  const all: Entity[] = [player, goblinA, goblinB, wolf, npc]
+
+  it('byKind filters to a single kind', () => {
+    expect(byKind(all, 'enemy')).toEqual([goblinA, goblinB, wolf])
+    expect(byKind(all, 'player')).toEqual([player])
+    expect(byKind(all, 'npc')).toEqual([npc])
+  })
+
+  it('byKind returns an empty list when none match', () => {
+    expect(byKind([player], 'enemy')).toEqual([])
+  })
+
+  it('enemiesOfType filters enemies by their enemyType tag', () => {
+    expect(enemiesOfType(all, 'goblin')).toEqual([goblinA, goblinB])
+    expect(enemiesOfType(all, 'wolf')).toEqual([wolf])
+  })
+
+  it('enemiesOfType ignores non-enemy entities even if a type were to collide', () => {
+    expect(enemiesOfType(all, 'goblin')).not.toContain(player)
+    expect(enemiesOfType(all, 'goblin')).not.toContain(npc)
+  })
+
+  it('enemiesOfType returns an empty list for an unknown type', () => {
+    expect(enemiesOfType(all, 'dragon')).toEqual([])
+  })
+})

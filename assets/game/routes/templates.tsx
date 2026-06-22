@@ -20,6 +20,9 @@ import { IsometricGrid, GridAsset } from '@/engine/IsometricGrid'
 import { player as playerSprite } from '@/assets/ascii'
 import { TILES, COMPOSITE_ASSETS, getTilesByCategory, getAssetsByCategory, TileDef, CompositeAsset } from '@/engine/Tileset'
 import { listTemplates, getTemplate, createTemplate, updateTemplate, deleteTemplate, serializeGrid, deserializeToGrid, TemplateListItem, Connector } from '@/lib/api'
+import { findTriggeredConnector } from '@/engine/connectors'
+import { generateStage, stagePaint, StageData, VariantId } from '@/engine/stageGenerator'
+import { ZoneId } from '@/engine/zones'
 import { useToast } from '@/components/Toast'
 
 const ASCII_FONT = '"JetBrains Mono", "Fira Code", "Consolas", monospace'
@@ -807,6 +810,153 @@ function TileSwatch({
   )
 }
 
+/**
+ * Editor sidebar card — a labelled, accent-bordered panel grouping one tool.
+ * Pure presentational wrapper so every panel in the two sidebars looks the same
+ * and stays readable for non-devs. Accent maps to a Tailwind border/title colour.
+ */
+type CardAccent = 'yellow' | 'purple' | 'orange' | 'blue' | 'cyan'
+
+const CARD_TITLE_COLOR: Record<CardAccent, string> = {
+  yellow: 'text-yellow-400',
+  purple: 'text-purple-400',
+  orange: 'text-orange-400',
+  blue: 'text-blue-400',
+  cyan: 'text-cyan-400',
+}
+
+function Card({
+  title,
+  accent = 'yellow',
+  action,
+  children,
+}: {
+  title: string
+  accent?: CardAccent
+  action?: React.ReactNode
+  children: React.ReactNode
+}) {
+  return (
+    <section className="rounded-lg border border-white/10 bg-black/60 p-3 shadow-lg shadow-black/40">
+      <header className="mb-3 flex items-center justify-between">
+        <h3 className={`text-sm font-bold uppercase tracking-wide ${CARD_TITLE_COLOR[accent]}`}>
+          {title}
+        </h3>
+        {action}
+      </header>
+      {children}
+    </section>
+  )
+}
+
+/** A single view-mode button in the Views card. */
+function ViewButton({
+  label,
+  active,
+  activeClass,
+  onClick,
+}: {
+  label: string
+  active: boolean
+  activeClass: string
+  onClick: () => void
+}) {
+  return (
+    <button
+      onClick={onClick}
+      aria-pressed={active}
+      className={`rounded px-2 py-1 text-xs font-bold transition-colors ${
+        active ? activeClass : 'bg-gray-700 hover:bg-gray-600'
+      }`}
+    >
+      {label}
+    </button>
+  )
+}
+
+/** A labelled group of palette swatches inside the Assets card. */
+function PaletteGroup({
+  label,
+  color,
+  children,
+}: {
+  label: string
+  color: string
+  children: React.ReactNode
+}) {
+  return (
+    <div className="mb-3">
+      <p className={`mb-1 text-xs font-bold ${color}`}>{label}</p>
+      <div className="flex flex-wrap gap-1">{children}</div>
+    </div>
+  )
+}
+
+type PlaceTileInfo = { char: string; type: 'ground' | 'asset'; groundType?: string; tileKey?: string }
+
+/** Swatch for a single-tile asset, resolving its glyph/colours from the tileset by key. */
+function AssetTileSwatch({
+  tileKey,
+  selectedTile,
+  onPlace,
+}: {
+  tileKey: string
+  selectedTile: PlaceTileInfo | null
+  onPlace: (info: PlaceTileInfo) => void
+}) {
+  const tile = TILES[tileKey]
+  if (!tile) return null
+  return (
+    <TileSwatch
+      char={tile.char}
+      name={tile.name ?? tileKey}
+      bg={tile.bg}
+      fg={tile.fg}
+      onClick={() => onPlace({ char: tile.char, type: 'asset', tileKey })}
+      selected={selectedTile?.type === 'asset' && selectedTile?.tileKey === tileKey}
+    />
+  )
+}
+
+// ── Asset palette data (drives the Assets card) ──────────────────────
+// Module-level so the palette isn't re-allocated on every render and the JSX
+// stays a flat map instead of dozens of near-identical hand-written swatches.
+type GroundSwatch = { char: string; name: string; bg: string; fg: string; groundType: string }
+
+const GROUND_SWATCHES: readonly GroundSwatch[] = [
+  { char: '.', name: 'Grass', bg: '#1a5522', fg: '#33aa33', groundType: 'grass' },
+  { char: '~', name: 'Water', bg: '#1155aa', fg: '#55bbff', groundType: 'water' },
+  { char: '=', name: 'Road', bg: '#7a6644', fg: '#ccbb88', groundType: 'road' },
+  { char: '#', name: 'Plaza', bg: '#aa9966', fg: '#eeddbb', groundType: 'plaza' },
+  { char: '|', name: 'Bridge', bg: '#664422', fg: '#bb8844', groundType: 'bridge' },
+]
+
+const NATURE_TILE_KEYS: readonly string[] = [
+  'trunk', 'trunk_thick', 'foliage', 'foliage_light', 'foliage_dark', 'stump',
+]
+const BUILDING_TILE_KEYS: readonly string[] = [
+  'wall', 'wall_stone', 'window', 'door', 'roof_flat', 'roof_peak', 'column', 'floor',
+]
+const DECORATION_TILE_KEYS: readonly string[] = [
+  'lamp', 'crate', 'barrel', 'flower', 'rock', 'fence_h', 'sign', 'npc',
+]
+
+type CompositeSwatch = { key: string; icon: string; name: string; bg: string; fg: string }
+const COMPOSITE_SWATCHES: readonly CompositeSwatch[] = [
+  { key: 'tree_small', icon: '@', name: 'Tree S', bg: 'bg-green-900', fg: 'text-green-400' },
+  { key: 'tree_medium', icon: '@', name: 'Tree M', bg: 'bg-green-900', fg: 'text-green-500' },
+  { key: 'tree_large', icon: '@', name: 'Tree L', bg: 'bg-green-900', fg: 'text-green-600' },
+  { key: 'bush', icon: '*', name: 'Bush', bg: 'bg-green-900', fg: 'text-green-300' },
+  { key: 'house_small', icon: '⌂', name: 'House', bg: 'bg-orange-900', fg: 'text-orange-400' },
+  { key: 'tower', icon: '▓', name: 'Tower', bg: 'bg-gray-800', fg: 'text-gray-400' },
+  { key: 'lamppost', icon: '!', name: 'Lamp', bg: 'bg-yellow-900', fg: 'text-yellow-400' },
+  { key: 'well', icon: '◯', name: 'Well', bg: 'bg-blue-900', fg: 'text-blue-400' },
+]
+
+// Stage generator menu (zone × variant)
+const STAGE_ZONES = ['lava', 'frozen'] as const
+const STAGE_VARIANTS = ['village', 'forest', 'cave', 'temple', 'boss-stage'] as const
+
 // Player state
 interface PlayerState {
   x: number
@@ -814,6 +964,35 @@ interface PlayerState {
   facing: 'up' | 'down' | 'left' | 'right'
   moving: boolean
   frame: number
+}
+
+// Jump = clear up to this many blocked cells in the facing direction (settings later).
+const JUMP_CLEAR = 1
+
+/** Cell delta for a facing, matching how movement reads facing per view. */
+function facingDelta(facing: PlayerState['facing'], use2D: boolean): [number, number] {
+  if (use2D) {
+    if (facing === 'up') return [0, -1]
+    if (facing === 'down') return [0, 1]
+    if (facing === 'left') return [-1, 0]
+    return [1, 0] // right
+  }
+  if (facing === 'up') return [-1, -1]
+  if (facing === 'down') return [1, 1]
+  if (facing === 'left') return [-1, 1]
+  return [1, -1] // right (isometric diagonals)
+}
+
+/** Leap (JUMP_CLEAR + 1) cells ahead, clearing blocked cells, if the landing is walkable. */
+function attemptJump(player: PlayerState, grid: IsometricGrid, use2D: boolean): void {
+  const [dCol, dRow] = facingDelta(player.facing, use2D)
+  const dist = JUMP_CLEAR + 1
+  const col = Math.floor(player.x / grid.cellSize) + dCol * dist
+  const row = Math.floor(player.z / grid.cellSize) + dRow * dist
+  if (col < 0 || row < 0 || col >= grid.cols || row >= grid.rows) return
+  if (grid.isBlocked(col, row)) return
+  player.x = col * grid.cellSize + grid.cellSize / 2
+  player.z = row * grid.cellSize + grid.cellSize / 2
 }
 
 const NODE_WIDTH = 160
@@ -1138,25 +1317,11 @@ export default function TemplateEditor() {
   const [isLoading, setIsLoading] = useState(false)
   const [showTemplateList, setShowTemplateList] = useState(false)
 
-  // Sidebar state - load from localStorage
-  const [sidebarWidth, setSidebarWidth] = useState(280)
-  const [sidebarZoom, setSidebarZoom] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('nebulith-sidebar-zoom')
-      return saved ? parseFloat(saved) : 1.0
-    }
-    return 1.0
-  })
-  const [isResizingSidebar, setIsResizingSidebar] = useState(false)
-  const sidebarRef = useRef<HTMLDivElement>(null)
-
-  // Save sidebarZoom to localStorage
-  useEffect(() => {
-    localStorage.setItem('nebulith-sidebar-zoom', String(sidebarZoom))
-  }, [sidebarZoom])
-
   // Template view type (isometric or 2d)
   const [viewType, setViewType] = useState<'isometric' | '2d'>('isometric')
+
+  // Stage generator: selected zone (the variant is chosen per click)
+  const [genZone, setGenZone] = useState<ZoneId>('lava')
 
   // Connector state
   const [connectors, setConnectors] = useState<Connector[]>([])
@@ -1171,13 +1336,20 @@ export default function TemplateEditor() {
   const connectorModeRef = useRef(false)
   const viewTypeRef = useRef<'isometric' | '2d'>('isometric')
 
+  // Connector teleport runtime state (read/written inside the once-mounted game loop)
+  const lastCellRef = useRef<{ col: number; row: number }>({ col: -1, row: -1 })
+  const interactDownRef = useRef(false)
+  const teleportingRef = useRef(false)
+  const triggerConnectorRef = useRef<(c: Connector) => void>(() => {})
+  const jumpDownRef = useRef(false)
+
   // Keep viewType ref in sync
   useEffect(() => {
     viewTypeRef.current = viewType
   }, [viewType])
 
-  // UI panels
-  const [showControlsPanel, setShowControlsPanel] = useState(true)
+  // UI panels — sidebars are collapsible on mobile to free up canvas space
+  const [showSidebars, setShowSidebars] = useState(true)
   const [isMobile, setIsMobile] = useState(false)
 
   // Detect mobile
@@ -1209,6 +1381,48 @@ export default function TemplateEditor() {
     zoomRef.current = topViewZoom
   }, [showDebug, showTopView, topViewZoom])
 
+  // ── View controls ────────────────────────────────────────────────
+  // The game loop + renderers read the module-level view globals directly, while
+  // the UI mirrors them in React state. These helpers keep both in sync in ONE
+  // place so the JSX never reaches into the globals inline (the old desync smell).
+  // `debugMode` stays an independent overlay that can ride on iso/top.
+  const showPlayView = () => {
+    topViewMode = false
+    flowViewMode = false
+    setShowTopView(false)
+    setShowFlowView(false)
+  }
+  const selectIsoView = () => {
+    setViewType('isometric')
+    showPlayView()
+  }
+  const select2DView = () => {
+    setViewType('2d')
+    showPlayView()
+  }
+  const selectTopView = () => {
+    topViewMode = true
+    flowViewMode = false
+    setShowTopView(true)
+    setShowFlowView(false)
+  }
+  const toggleFlowView = () => {
+    const next = !flowViewMode
+    flowViewMode = next
+    setShowFlowView(next)
+    if (!next) return
+    topViewMode = false
+    setShowTopView(false)
+  }
+  const toggleDebug = () => {
+    debugMode = !debugMode
+    setShowDebug(d => !d)
+  }
+
+  // Derived: which view is active (for highlighting the view buttons)
+  const activeView: 'iso' | '2d' | 'top' | 'flow' =
+    showFlowView ? 'flow' : showTopView ? 'top' : viewType === '2d' ? '2d' : 'iso'
+
   // Keep selectedCells ref in sync
   useEffect(() => {
     selectedCellsRef.current = selectedCells
@@ -1223,34 +1437,6 @@ export default function TemplateEditor() {
   useEffect(() => {
     connectorModeRef.current = connectorMode
   }, [connectorMode])
-
-  // Sidebar resize handlers
-  useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      if (!isResizingSidebar) return
-      const maxWidth = window.innerWidth * 0.5
-      const newWidth = Math.max(200, Math.min(maxWidth, e.clientX - 16))
-      setSidebarWidth(newWidth)
-    }
-
-    const handleMouseUp = () => {
-      setIsResizingSidebar(false)
-    }
-
-    if (isResizingSidebar) {
-      document.addEventListener('mousemove', handleMouseMove)
-      document.addEventListener('mouseup', handleMouseUp)
-      document.body.style.cursor = 'ew-resize'
-      document.body.style.userSelect = 'none'
-    }
-
-    return () => {
-      document.removeEventListener('mousemove', handleMouseMove)
-      document.removeEventListener('mouseup', handleMouseUp)
-      document.body.style.cursor = ''
-      document.body.style.userSelect = ''
-    }
-  }, [isResizingSidebar])
 
   // Convert screen position to grid cell (for top view)
   const screenToCell = (clientX: number, clientY: number): { col: number; row: number } | null => {
@@ -2369,6 +2555,37 @@ export default function TemplateEditor() {
 
   // Random map generator using TEMPLATE_PRESETS system
   // Pipeline: grid → roads → buildings around roads → nature → collisions → NPCs
+  // ── Stage generation (zone × variant) — randomized on click ──
+  const applyStageToGrid = (stage: StageData, grid: IsometricGrid) => {
+    for (let r = 0; r < grid.rows; r++) {
+      for (let c = 0; c < grid.cols; c++) {
+        grid.ground[r][c] = stage.ground[r]?.[c] ?? 'ash'
+        grid.height[r][c] = 0
+        grid.collision[r][c] = stage.collision[r]?.[c] ? 1 : 0
+      }
+    }
+    grid.assets = []
+    const paint = stagePaint(stage)
+    for (const g of paint.ground) {
+      if (grid.ground[g.row]?.[g.col] !== undefined) grid.ground[g.row][g.col] = g.type
+    }
+    for (const a of paint.assets) {
+      grid.placeAsset([a.char], a.col, a.row, { type: a.type, blocking: a.blocking, color: a.color })
+    }
+  }
+
+  const generateStageInEditor = (zone: ZoneId, variant: VariantId) => {
+    const cols = 30 + Math.floor(Math.random() * 16) // 30–45
+    const rows = 24 + Math.floor(Math.random() * 12) // 24–35
+    resizeGrid(cols, rows)
+    const grid = gridRef.current
+    if (!grid) return
+    const stage = generateStage({ zone, variant, cols: grid.cols, rows: grid.rows })
+    applyStageToGrid(stage, grid)
+    movePlayerToValidSpawn(stage.spawn.col, stage.spawn.row)
+    setSelectedCells(new Set())
+  }
+
   const generateRandomMap = (presetId: string = 'village-small') => {
     const preset = TEMPLATE_PRESETS[presetId] || TEMPLATE_PRESETS['village-small']
     const seed = Math.random() * 10000
@@ -2439,7 +2656,7 @@ export default function TemplateEditor() {
           const isWall = c < thickness || c >= cols - thickness ||
                          r < thickness || r >= rows - thickness
           if (isWall) {
-            grid.setHeight(c, r, 3)
+            // walls block access but do not raise terrain (blocks = collision, not elevation)
             grid.setCollision(c, r, true)
             grid.placeAsset(['█'], c, r, {
               type: 'wall', blocking: true, color: themeColors.wallColor, height: 3
@@ -2759,7 +2976,7 @@ export default function TemplateEditor() {
         for (let dy = 0; dy < buildingDepth; dy++) {
           for (let dx = 0; dx < buildingWidth; dx++) {
             if (spot.x + dx < cols && spot.y + dy < rows) {
-              grid.setHeight(spot.x + dx, spot.y + dy, buildingHeight)
+              // buildings block access but do not raise terrain (blocks = collision, not elevation)
               grid.setCollision(spot.x + dx, spot.y + dy, true)
               grid.placeAsset(['█'], spot.x + dx, spot.y + dy, {
                 type: 'building', blocking: true, color, height: buildingHeight
@@ -3092,6 +3309,7 @@ export default function TemplateEditor() {
 
     playerRef.current.x = validCol * grid.cellSize + grid.cellSize / 2
     playerRef.current.z = validRow * grid.cellSize + grid.cellSize / 2
+    lastCellRef.current = { col: validCol, row: validRow }
 
     // Input handling
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -3200,10 +3418,35 @@ export default function TemplateEditor() {
       player.x = Math.max(0, Math.min(player.x, grid.cols * grid.cellSize))
       player.z = Math.max(0, Math.min(player.z, grid.rows * grid.cellSize))
 
+      // Jump — leap over blocked cells in the facing direction (works in 2D + iso)
+      const jumpDown = !!keys[' ']
+      if (jumpDown && !jumpDownRef.current) attemptJump(player, grid, use2DMovement)
+      jumpDownRef.current = jumpDown
+
       // Animation frame
       if (player.moving && animTimer > 150) {
         player.frame = (player.frame + 1) % 2
         animTimer = 0
+      }
+
+      // ── Connector triggers (teleport between templates) ──
+      // Active only while playing (not authoring connectors) and not mid-teleport.
+      if (!connectorModeRef.current && !teleportingRef.current) {
+        const curCol = Math.floor(player.x / grid.cellSize)
+        const curRow = Math.floor(player.z / grid.cellSize)
+        const last = lastCellRef.current
+        if (curCol !== last.col || curRow !== last.row) {
+          lastCellRef.current = { col: curCol, row: curRow }
+          const entered = findTriggeredConnector(curCol, curRow, connectorsRef.current, 'enter')
+          if (entered) triggerConnectorRef.current(entered)
+        }
+        // Interact key (edge-triggered): E / Enter
+        const interactDown = !!(keys['e'] || keys['E'] || keys['Enter'])
+        if (interactDown && !interactDownRef.current) {
+          const pressed = findTriggeredConnector(curCol, curRow, connectorsRef.current, 'interact')
+          if (pressed) triggerConnectorRef.current(pressed)
+        }
+        interactDownRef.current = interactDown
       }
 
       // Render - movement works in all views
@@ -3308,7 +3551,7 @@ export default function TemplateEditor() {
   }
 
   // Load a template
-  const loadTemplate = async (id: string) => {
+  const loadTemplate = async (id: string, spawnOverride?: { col: number; row: number }) => {
     setIsLoading(true)
     try {
       const template = await getTemplate(id)
@@ -3323,8 +3566,20 @@ export default function TemplateEditor() {
       // Deserialize into grid
       deserializeToGrid(template, gridRef.current!)
 
-      // Move player to valid spawn point (validate saved spawn or find nearby valid)
-      movePlayerToValidSpawn(template.spawnCol, template.spawnRow)
+      // Move player to valid spawn. A connector teleport overrides the template's
+      // default spawn so the player lands on the connector's target cell.
+      const spawn = spawnOverride ?? { col: template.spawnCol, row: template.spawnRow }
+      movePlayerToValidSpawn(spawn.col, spawn.row)
+
+      // Sync the connector edge-detector to where we actually landed, so a connector
+      // sitting on the spawn cell doesn't instantly re-fire on the next frame.
+      const landed = gridRef.current
+      if (landed) {
+        lastCellRef.current = {
+          col: Math.floor(playerRef.current.x / landed.cellSize),
+          row: Math.floor(playerRef.current.z / landed.cellSize),
+        }
+      }
 
       // Load connectors
       setConnectors(template.connectors || [])
@@ -3339,6 +3594,24 @@ export default function TemplateEditor() {
       setIsLoading(false)
     }
   }
+
+  // Teleport the player through a connector to its target template, landing on the
+  // connector's spawn cell. Guarded so an in-flight load can't re-trigger.
+  const triggerConnector = async (c: Connector) => {
+    if (teleportingRef.current) return
+    teleportingRef.current = true
+    try {
+      await loadTemplate(c.targetTemplateId, { col: c.spawnCol, row: c.spawnRow })
+    } finally {
+      teleportingRef.current = false
+    }
+  }
+
+  // Keep the game loop's trigger callback pointed at the latest closure
+  // (the loop is mounted once, so it must call through a ref).
+  useEffect(() => {
+    triggerConnectorRef.current = triggerConnector
+  })
 
   // Delete a template
   const handleDeleteTemplate = async (id: string) => {
@@ -3414,6 +3687,16 @@ export default function TemplateEditor() {
           />
         )}
 
+        {/* Exit Flow view — the only way back, since the sidebars hide in flow */}
+        {showFlowView && (
+          <button
+            onClick={toggleFlowView}
+            className="fixed right-4 top-4 z-30 rounded bg-purple-700 px-3 py-2 font-mono text-xs font-bold text-white shadow-lg hover:bg-purple-600"
+          >
+            Exit Flow
+          </button>
+        )}
+
         {/* Navigation */}
         <nav className="fixed top-4 left-4 bg-black/90 p-3 text-white font-mono text-sm rounded flex gap-2 z-20">
           <Link href="/personal-projects/game-engine" className="px-3 py-1 bg-gray-700 rounded hover:bg-gray-600">
@@ -3422,411 +3705,270 @@ export default function TemplateEditor() {
           <Link href="/" className="px-3 py-1 bg-gray-700 rounded hover:bg-gray-600">CV</Link>
         </nav>
 
-        {/* Tileset Palette - visible in TOP or DEBUG view, hidden in FLOW */}
-        {(showTopView || showDebug) && !showFlowView && (
-          <div
-            ref={sidebarRef}
-            className="fixed left-4 top-20 bg-black/95 text-white font-mono text-sm rounded max-h-[80vh] overflow-y-auto z-10 flex"
-            style={{ width: sidebarWidth }}
+        {/* Mobile sidebar toggle — sidebars overlay the canvas, so collapse them to play */}
+        {isMobile && !showFlowView && (
+          <button
+            onClick={() => setShowSidebars(s => !s)}
+            className="fixed bottom-4 right-4 z-30 rounded-full bg-purple-700 px-4 py-2 font-mono text-xs font-bold text-white shadow-lg hover:bg-purple-600"
           >
-            <div className="flex-1 p-3 overflow-y-auto">
-            {/* Header with zoom controls */}
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-yellow-400 font-bold text-base">TILESET</h3>
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={() => setSidebarZoom(z => Math.max(0.5, z - 0.1))}
-                  className="w-6 h-6 bg-gray-700 hover:bg-gray-600 rounded text-xs font-bold"
-                >−</button>
-                <span className="text-xs text-gray-400 w-8 text-center">{Math.round(sidebarZoom * 100)}%</span>
-                <button
-                  onClick={() => setSidebarZoom(z => Math.min(2.0, z + 0.1))}
-                  className="w-6 h-6 bg-gray-700 hover:bg-gray-600 rounded text-xs font-bold"
-                >+</button>
-              </div>
-            </div>
+            {showSidebars ? 'Hide tools' : 'Show tools'}
+          </button>
+        )}
 
-            {/* View Type Selector */}
-            <div className="mb-3 p-2 bg-gray-800 rounded">
-              <p className="text-gray-400 text-xs mb-1">View Type</p>
-              <div className="flex gap-1">
-                <button
-                  onClick={() => setViewType('isometric')}
-                  className={`flex-1 px-2 py-1 rounded text-xs ${viewType === 'isometric' ? 'bg-purple-600' : 'bg-gray-700 hover:bg-gray-600'}`}
-                >Isometric</button>
-                <button
-                  onClick={() => setViewType('2d')}
-                  className={`flex-1 px-2 py-1 rounded text-xs ${viewType === '2d' ? 'bg-blue-600' : 'bg-gray-700 hover:bg-gray-600'}`}
-                >2D</button>
+        {/* LEFT SIDEBAR — Views · Stage presets · Assets */}
+        {showSidebars && !showFlowView && (
+          <aside
+            className={`fixed left-4 z-10 flex flex-col gap-3 overflow-y-auto pr-1 font-mono text-white ${
+              isMobile
+                ? 'top-16 right-4 max-h-[42vh]'
+                : 'top-20 bottom-4 w-72'
+            }`}
+            aria-label="Build tools"
+          >
+            {/* Views */}
+            <Card title="Views" accent="yellow">
+              <div className="grid grid-cols-4 gap-1">
+                <ViewButton label="ISO" active={activeView === 'iso'} activeClass="bg-yellow-600" onClick={selectIsoView} />
+                <ViewButton label="2D" active={activeView === '2d'} activeClass="bg-blue-600" onClick={select2DView} />
+                <ViewButton label="Top" active={activeView === 'top'} activeClass="bg-blue-600" onClick={selectTopView} />
+                <ViewButton label="Flow" active={activeView === 'flow'} activeClass="bg-purple-600" onClick={toggleFlowView} />
               </div>
-            </div>
+              <button
+                onClick={toggleDebug}
+                aria-pressed={showDebug}
+                className={`mt-2 w-full rounded px-2 py-1 text-xs font-bold transition-colors ${
+                  showDebug ? 'bg-red-600' : 'bg-gray-700 hover:bg-gray-600'
+                }`}
+              >
+                Debug overlay {showDebug ? 'on' : 'off'}
+              </button>
 
-            {/* Height Tool - Compact horizontal bar */}
-            <div className={`mb-3 p-2 rounded ${heightEditMode ? 'bg-cyan-900/50 ring-1 ring-cyan-500' : 'bg-gray-800'}`}>
-              <div className="flex items-center gap-2">
-                <span className="text-cyan-400 text-xs font-bold">H:</span>
-                <button
-                  onClick={() => placeHeight(Math.max(0, selectedHeight - 1))}
-                  className="w-5 h-5 rounded bg-gray-700 hover:bg-gray-600 text-xs font-bold"
-                >-</button>
-                <div className="flex gap-0.5">
-                  {[0, 1, 2, 3, 4, 5].map(h => (
-                    <button
-                      key={h}
-                      onClick={() => placeHeight(h)}
-                      className={`w-5 h-5 rounded text-xs font-bold ${
-                        selectedHeight === h && heightEditMode
-                          ? 'bg-cyan-500 text-white'
-                          : 'bg-gray-700 hover:bg-gray-600'
-                      }`}
-                    >
-                      {h}
-                    </button>
-                  ))}
-                </div>
-                <button
-                  onClick={() => placeHeight(Math.min(9, selectedHeight + 1))}
-                  className="w-5 h-5 rounded bg-gray-700 hover:bg-gray-600 text-xs font-bold"
-                >+</button>
-              </div>
-            </div>
-
-            {/* Ground Tiles */}
-            <div className="mb-3">
-              <p className="text-gray-400 mb-1 text-xs font-bold">Ground</p>
-              <div className="flex flex-wrap gap-1">
-                <TileSwatch char="." name="Grass" bg="#1a5522" fg="#33aa33" zoom={sidebarZoom}
-                  onClick={() => placeTile({ char: '.', type: 'ground', groundType: 'grass' })}
-                  selected={selectedTile?.char === '.' && selectedTile?.type === 'ground'} />
-                <TileSwatch char="~" name="Water" bg="#1155aa" fg="#55bbff" zoom={sidebarZoom}
-                  onClick={() => placeTile({ char: '~', type: 'ground', groundType: 'water' })}
-                  selected={selectedTile?.char === '~' && selectedTile?.type === 'ground'} />
-                <TileSwatch char="=" name="Road" bg="#7a6644" fg="#ccbb88" zoom={sidebarZoom}
-                  onClick={() => placeTile({ char: '=', type: 'ground', groundType: 'road' })}
-                  selected={selectedTile?.char === '=' && selectedTile?.type === 'ground'} />
-                <TileSwatch char="#" name="Plaza" bg="#aa9966" fg="#eeddbb" zoom={sidebarZoom}
-                  onClick={() => placeTile({ char: '#', type: 'ground', groundType: 'plaza' })}
-                  selected={selectedTile?.char === '#' && selectedTile?.type === 'ground'} />
-                <TileSwatch char="|" name="Bridge" bg="#664422" fg="#bb8844" zoom={sidebarZoom}
-                  onClick={() => placeTile({ char: '|', type: 'ground', groundType: 'bridge' })}
-                  selected={selectedTile?.char === '|' && selectedTile?.type === 'ground'} />
-              </div>
-            </div>
-
-            {/* Nature Parts */}
-            <div className="mb-3">
-              <p className="text-green-400 mb-1 text-xs font-bold">Nature</p>
-              <div className="flex flex-wrap gap-1">
-                <TileSwatch char={TILES.trunk.char} name="Trunk" bg={TILES.trunk.bg} fg={TILES.trunk.fg} zoom={sidebarZoom}
-                  onClick={() => placeTile({ char: TILES.trunk.char, type: 'asset', tileKey: 'trunk' })} />
-                <TileSwatch char={TILES.trunk_thick.char} name="Thick" bg={TILES.trunk_thick.bg} fg={TILES.trunk_thick.fg} zoom={sidebarZoom}
-                  onClick={() => placeTile({ char: TILES.trunk_thick.char, type: 'asset', tileKey: 'trunk_thick' })} />
-                <TileSwatch char={TILES.foliage.char} name="Foliage" bg={TILES.foliage.bg} fg={TILES.foliage.fg} zoom={sidebarZoom}
-                  onClick={() => placeTile({ char: TILES.foliage.char, type: 'asset', tileKey: 'foliage' })} />
-                <TileSwatch char={TILES.foliage_light.char} name="Light" bg={TILES.foliage_light.bg} fg={TILES.foliage_light.fg} zoom={sidebarZoom}
-                  onClick={() => placeTile({ char: TILES.foliage_light.char, type: 'asset', tileKey: 'foliage_light' })} />
-                <TileSwatch char={TILES.foliage_dark.char} name="Dark" bg={TILES.foliage_dark.bg} fg={TILES.foliage_dark.fg} zoom={sidebarZoom}
-                  onClick={() => placeTile({ char: TILES.foliage_dark.char, type: 'asset', tileKey: 'foliage_dark' })} />
-                <TileSwatch char={TILES.stump.char} name="Stump" bg={TILES.stump.bg} fg={TILES.stump.fg} zoom={sidebarZoom}
-                  onClick={() => placeTile({ char: TILES.stump.char, type: 'asset', tileKey: 'stump' })} />
-              </div>
-            </div>
-
-            {/* Building Parts */}
-            <div className="mb-3">
-              <p className="text-orange-400 mb-1 text-xs font-bold">Building</p>
-              <div className="flex flex-wrap gap-1">
-                <TileSwatch char={TILES.wall.char} name="Wall" bg={TILES.wall.bg} fg={TILES.wall.fg} zoom={sidebarZoom}
-                  onClick={() => placeTile({ char: TILES.wall.char, type: 'asset', tileKey: 'wall' })} />
-                <TileSwatch char={TILES.wall_stone.char} name="Stone" bg={TILES.wall_stone.bg} fg={TILES.wall_stone.fg} zoom={sidebarZoom}
-                  onClick={() => placeTile({ char: TILES.wall_stone.char, type: 'asset', tileKey: 'wall_stone' })} />
-                <TileSwatch char={TILES.window.char} name="Window" bg={TILES.window.bg} fg={TILES.window.fg} zoom={sidebarZoom}
-                  onClick={() => placeTile({ char: TILES.window.char, type: 'asset', tileKey: 'window' })} />
-                <TileSwatch char={TILES.door.char} name="Door" bg={TILES.door.bg} fg={TILES.door.fg} zoom={sidebarZoom}
-                  onClick={() => placeTile({ char: TILES.door.char, type: 'asset', tileKey: 'door' })} />
-                <TileSwatch char={TILES.roof_flat.char} name="Roof" bg={TILES.roof_flat.bg} fg={TILES.roof_flat.fg} zoom={sidebarZoom}
-                  onClick={() => placeTile({ char: TILES.roof_flat.char, type: 'asset', tileKey: 'roof_flat' })} />
-                <TileSwatch char={TILES.roof_peak.char} name="Peak" bg={TILES.roof_peak.bg} fg={TILES.roof_peak.fg} zoom={sidebarZoom}
-                  onClick={() => placeTile({ char: TILES.roof_peak.char, type: 'asset', tileKey: 'roof_peak' })} />
-                <TileSwatch char={TILES.column.char} name="Column" bg={TILES.column.bg} fg={TILES.column.fg} zoom={sidebarZoom}
-                  onClick={() => placeTile({ char: TILES.column.char, type: 'asset', tileKey: 'column' })} />
-                <TileSwatch char={TILES.floor.char} name="Floor" bg={TILES.floor.bg} fg={TILES.floor.fg} zoom={sidebarZoom}
-                  onClick={() => placeTile({ char: TILES.floor.char, type: 'asset', tileKey: 'floor' })} />
-              </div>
-            </div>
-
-            {/* Decoration Parts */}
-            <div className="mb-3">
-              <p className="text-pink-400 mb-1 text-xs font-bold">Decorations</p>
-              <div className="flex flex-wrap gap-1">
-                <TileSwatch char={TILES.lamp.char} name="Lamp" bg={TILES.lamp.bg} fg={TILES.lamp.fg} zoom={sidebarZoom}
-                  onClick={() => placeTile({ char: TILES.lamp.char, type: 'asset', tileKey: 'lamp' })} />
-                <TileSwatch char={TILES.crate.char} name="Crate" bg={TILES.crate.bg} fg={TILES.crate.fg} zoom={sidebarZoom}
-                  onClick={() => placeTile({ char: TILES.crate.char, type: 'asset', tileKey: 'crate' })} />
-                <TileSwatch char={TILES.barrel.char} name="Barrel" bg={TILES.barrel.bg} fg={TILES.barrel.fg} zoom={sidebarZoom}
-                  onClick={() => placeTile({ char: TILES.barrel.char, type: 'asset', tileKey: 'barrel' })} />
-                <TileSwatch char={TILES.flower.char} name="Flower" bg={TILES.flower.bg} fg={TILES.flower.fg} zoom={sidebarZoom}
-                  onClick={() => placeTile({ char: TILES.flower.char, type: 'asset', tileKey: 'flower' })} />
-                <TileSwatch char={TILES.rock.char} name="Rock" bg={TILES.rock.bg} fg={TILES.rock.fg} zoom={sidebarZoom}
-                  onClick={() => placeTile({ char: TILES.rock.char, type: 'asset', tileKey: 'rock' })} />
-                <TileSwatch char={TILES.fence_h.char} name="Fence" bg={TILES.fence_h.bg} fg={TILES.fence_h.fg} zoom={sidebarZoom}
-                  onClick={() => placeTile({ char: TILES.fence_h.char, type: 'asset', tileKey: 'fence_h' })} />
-                <TileSwatch char={TILES.sign.char} name="Sign" bg={TILES.sign.bg} fg={TILES.sign.fg} zoom={sidebarZoom}
-                  onClick={() => placeTile({ char: TILES.sign.char, type: 'asset', tileKey: 'sign' })} />
-                <TileSwatch char={TILES.npc.char} name="NPC" bg={TILES.npc.bg} fg={TILES.npc.fg} zoom={sidebarZoom}
-                  onClick={() => placeTile({ char: TILES.npc.char, type: 'asset', tileKey: 'npc' })} />
-              </div>
-            </div>
-
-            {/* Composite Assets */}
-            <div className="mb-4 border-t border-gray-700 pt-3">
-              <p className="text-cyan-400 mb-2 font-bold" style={{ fontSize: 12 * sidebarZoom }}>Composite Assets</p>
-              <div className="flex flex-wrap gap-1">
-                {[
-                  { key: 'tree_small', icon: '@', name: 'Tree S', bg: 'bg-green-900', fg: 'text-green-400' },
-                  { key: 'tree_medium', icon: '@', name: 'Tree M', bg: 'bg-green-900', fg: 'text-green-500' },
-                  { key: 'tree_large', icon: '@', name: 'Tree L', bg: 'bg-green-900', fg: 'text-green-600' },
-                  { key: 'bush', icon: '*', name: 'Bush', bg: 'bg-green-900', fg: 'text-green-300' },
-                  { key: 'house_small', icon: '⌂', name: 'House', bg: 'bg-orange-900', fg: 'text-orange-400' },
-                  { key: 'tower', icon: '▓', name: 'Tower', bg: 'bg-gray-800', fg: 'text-gray-400' },
-                  { key: 'lamppost', icon: '!', name: 'Lamp', bg: 'bg-yellow-900', fg: 'text-yellow-400' },
-                  { key: 'well', icon: '◯', name: 'Well', bg: 'bg-blue-900', fg: 'text-blue-400' },
-                ].map(item => (
+              <div className="mt-3">
+                <p className="mb-1 text-xs font-bold text-gray-400">
+                  Grid {viewType === '2d' ? '(W × H)' : '(Cols × Rows)'}
+                </p>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    aria-label="Grid columns"
+                    value={gridSize.cols}
+                    onChange={(e) => setGridSize(s => ({ ...s, cols: parseInt(e.target.value) || 10 }))}
+                    className="w-14 rounded bg-gray-800 p-1 text-center text-xs"
+                    min="10" max="100"
+                  />
+                  <span className="text-xs text-gray-400">×</span>
+                  <input
+                    type="number"
+                    aria-label="Grid rows"
+                    value={gridSize.rows}
+                    onChange={(e) => setGridSize(s => ({ ...s, rows: parseInt(e.target.value) || 10 }))}
+                    className="w-14 rounded bg-gray-800 p-1 text-center text-xs"
+                    min="10" max="100"
+                  />
                   <button
-                    key={item.key}
-                    onClick={() => placeCompositeAsset(item.key)}
-                    className={`${item.bg} hover:opacity-80 rounded flex flex-col items-center justify-center transition-all flex-shrink-0 ${
-                      selectedComposite === item.key ? 'ring-2 ring-cyan-400' : ''
-                    }`}
-                    style={{
-                      width: 56 * sidebarZoom,
-                      height: 56 * sidebarZoom,
-                      minWidth: 56 * sidebarZoom,
-                    }}
-                    title={item.name}
+                    onClick={() => resizeGrid(gridSize.cols, gridSize.rows)}
+                    className="rounded bg-red-800 px-2 py-1 text-xs font-bold hover:bg-red-700"
                   >
-                    <span className={`${item.fg} font-bold leading-none`} style={{ fontSize: 20 * sidebarZoom }}>{item.icon}</span>
-                    <span className="text-gray-300 leading-none mt-1" style={{ fontSize: 9 * sidebarZoom }}>{item.name}</span>
+                    Apply
+                  </button>
+                </div>
+              </div>
+              <p className="mt-2 text-[10px] text-gray-500">WASD / arrows move · Space jumps · E interacts</p>
+            </Card>
+
+            {/* Stage presets */}
+            <Card title="Stage presets" accent="purple">
+              <p className="mb-1 text-xs text-gray-400">Zone</p>
+              <div className="mb-2 flex gap-1">
+                {STAGE_ZONES.map(z => (
+                  <button
+                    key={z}
+                    onClick={() => setGenZone(z)}
+                    aria-pressed={genZone === z}
+                    className={`flex-1 rounded px-2 py-1 text-xs capitalize transition-colors ${
+                      genZone === z
+                        ? z === 'lava'
+                          ? 'bg-orange-700 ring-1 ring-orange-300'
+                          : 'bg-cyan-700 ring-1 ring-cyan-300'
+                        : 'bg-gray-700 hover:bg-gray-600'
+                    }`}
+                  >
+                    {z}
                   </button>
                 ))}
               </div>
-            </div>
-
-            {/* Template Generators */}
-            <div className="border-t border-gray-700 pt-3 mb-3">
-              <p className="text-purple-400 mb-2 font-bold" style={{ fontSize: 12 * sidebarZoom }}>Generate Map</p>
-              {Object.entries(PRESET_CATEGORIES).map(([theme, cat]) => {
-                const presetsForTheme = Object.values(TEMPLATE_PRESETS).filter(p => p.theme === theme)
-                if (presetsForTheme.length === 0) return null
-                return (
-                  <div key={theme} className="mb-2">
-                    <p className="text-gray-500 text-xs mb-1" style={{ fontSize: 9 * sidebarZoom }}>{cat.label}</p>
-                    <div className="flex flex-wrap gap-1">
-                      {presetsForTheme.map(preset => (
-                        <button
-                          key={preset.id}
-                          onClick={() => generateRandomMap(preset.id)}
-                          className={`${cat.color} hover:opacity-80 rounded transition-all`}
-                          style={{ padding: `${4 * sidebarZoom}px ${8 * sidebarZoom}px`, fontSize: 10 * sidebarZoom }}
-                          title={preset.description}
-                        >
-                          {preset.name}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )
-              })}
-              <p className="text-gray-500 mt-1" style={{ fontSize: 9 * sidebarZoom }}>
-                Pipeline: grid → roads → buildings → nature → NPCs</p>
-            </div>
-          </div>
-
-          {/* Resize handle */}
-          <div
-            className="w-2 cursor-ew-resize bg-gray-700 hover:bg-gray-500 transition-colors flex-shrink-0"
-            onMouseDown={() => setIsResizingSidebar(true)}
-          />
-        </div>
-        )}
-
-        {/* Top-right: View Controls (scales with sidebarZoom) */}
-        <div
-          className="fixed bg-black/90 text-white font-mono rounded z-20"
-          style={{
-            top: isMobile ? 8 : 16,
-            right: isMobile ? 8 : 16,
-            padding: (isMobile ? 8 : 12) * sidebarZoom,
-          }}
-        >
-          <div className="flex items-center gap-2 mb-2">
-            <h2 className="text-yellow-400 font-bold" style={{ fontSize: (isMobile ? 12 : 14) * sidebarZoom }}>NEBULITH</h2>
-            {!isMobile && <span className="text-gray-500" style={{ fontSize: 12 * sidebarZoom }}>WASD: Move</span>}
-          </div>
-
-          {/* View mode buttons */}
-          <div className="flex gap-1 flex-wrap">
-            <button
-              onClick={() => { topViewMode = false; debugMode = false; flowViewMode = false; setShowTopView(false); setShowDebug(false); setShowFlowView(false) }}
-              className={`rounded ${!showTopView && !showDebug && !showFlowView ? (viewType === '2d' ? 'bg-blue-600' : 'bg-yellow-600') : 'bg-gray-700 hover:bg-gray-600'}`}
-              style={{ padding: `${4 * sidebarZoom}px ${8 * sidebarZoom}px`, fontSize: 12 * sidebarZoom }}
-            >
-              {viewType === '2d' ? '2D' : 'ISO'}
-            </button>
-            <button
-              onClick={() => { topViewMode = true; flowViewMode = false; setShowTopView(true); setShowFlowView(false) }}
-              className={`rounded ${showTopView && !showFlowView ? 'bg-blue-600' : 'bg-gray-700 hover:bg-gray-600'}`}
-              style={{ padding: `${4 * sidebarZoom}px ${8 * sidebarZoom}px`, fontSize: 12 * sidebarZoom }}
-            >
-              TOP
-            </button>
-            <button
-              onClick={() => { debugMode = !debugMode; setShowDebug(!showDebug) }}
-              className={`rounded ${showDebug ? 'bg-red-600' : 'bg-gray-700 hover:bg-gray-600'}`}
-              style={{ padding: `${4 * sidebarZoom}px ${8 * sidebarZoom}px`, fontSize: 12 * sidebarZoom }}
-            >
-              DEBUG
-            </button>
-            <button
-              onClick={() => { flowViewMode = !flowViewMode; setShowFlowView(!showFlowView); if (!flowViewMode) { topViewMode = false; setShowTopView(false) } }}
-              className={`rounded ${showFlowView ? 'bg-purple-600' : 'bg-gray-700 hover:bg-gray-600'}`}
-              style={{ padding: `${4 * sidebarZoom}px ${8 * sidebarZoom}px`, fontSize: 12 * sidebarZoom }}
-            >
-              FLOW
-            </button>
-            <button
-              onClick={() => setShowControlsPanel(!showControlsPanel)}
-              className={`rounded ${showControlsPanel ? 'bg-cyan-600' : 'bg-gray-700 hover:bg-gray-600'}`}
-              style={{ padding: `${4 * sidebarZoom}px ${8 * sidebarZoom}px`, fontSize: 12 * sidebarZoom }}
-            >
-              {showControlsPanel ? '−' : '+'} CTRL
-            </button>
-          </div>
-        </div>
-
-        {/* Right-side Controls Panel (scales with sidebarZoom) */}
-        {showControlsPanel && (showTopView || showDebug) && !showFlowView && (
-          <div
-            className="fixed bg-black/95 text-white font-mono rounded overflow-y-auto z-10"
-            style={{
-              top: isMobile ? 'auto' : 96 * sidebarZoom,
-              bottom: isMobile ? 8 : 'auto',
-              right: isMobile ? 8 : 16,
-              left: isMobile ? 8 : 'auto',
-              width: isMobile ? 'auto' : 256 * sidebarZoom,
-              maxHeight: isMobile ? '50vh' : '70vh',
-              padding: (isMobile ? 8 : 12) * sidebarZoom,
-              fontSize: 12 * sidebarZoom,
-            }}
-          >
-            {/* Grid Size */}
-            <div className="mb-3 border-t border-gray-700 pt-3">
-              <p className="text-gray-400 mb-2 font-bold" style={{ fontSize: 12 * sidebarZoom }}>
-                Grid {viewType === '2d' ? '(W×H)' : '(Cols×Rows)'}
+              <p className="mb-1 text-xs text-gray-400">Variant</p>
+              <div className="grid grid-cols-2 gap-1">
+                {STAGE_VARIANTS.map(v => (
+                  <button
+                    key={v}
+                    onClick={() => generateStageInEditor(genZone, v)}
+                    className="rounded bg-purple-700 px-2 py-1.5 text-xs capitalize transition-colors hover:bg-purple-600"
+                    title={`Generate a randomized ${genZone} ${v.replace('-', ' ')}`}
+                  >
+                    {v.replace('-', ' ')}
+                  </button>
+                ))}
+              </div>
+              <p className="mt-2 text-[10px] text-gray-500">
+                Pick a variant to generate a randomized {genZone} stage — all five build (village, forest, cave, temple, boss stage).
               </p>
-              <div className="flex gap-2 items-center mb-2">
-                <input
-                  type="number"
-                  value={gridSize.cols}
-                  onChange={(e) => setGridSize(s => ({ ...s, cols: parseInt(e.target.value) || 10 }))}
-                  className={`bg-gray-800 rounded text-center ${isMobile ? 'w-10 text-[10px] p-1' : 'w-12 text-xs p-1'}`}
-                  min="10" max="100"
-                />
-                <span className={`text-gray-400 ${isMobile ? 'text-[10px]' : 'text-xs'}`}>×</span>
-                <input
-                  type="number"
-                  value={gridSize.rows}
-                  onChange={(e) => setGridSize(s => ({ ...s, rows: parseInt(e.target.value) || 10 }))}
-                  className={`bg-gray-800 rounded text-center ${isMobile ? 'w-10 text-[10px] p-1' : 'w-12 text-xs p-1'}`}
-                  min="10" max="100"
-                />
-                <button
-                  onClick={() => resizeGrid(gridSize.cols, gridSize.rows)}
-                  className={`bg-red-800 hover:bg-red-700 rounded ${isMobile ? 'px-2 py-1 text-[10px]' : 'px-2 py-1 text-xs'}`}
-                >
-                  Apply
-                </button>
-              </div>
-            </div>
+            </Card>
 
-            {/* Save/Load */}
-            <div className="mb-3 border-t border-gray-700 pt-3">
-              <p className={`text-blue-400 mb-2 font-bold ${isMobile ? 'text-[10px]' : 'text-xs'}`}>Save / Load</p>
-              <input
-                type="text"
-                value={templateName}
-                onChange={(e) => setTemplateName(e.target.value)}
-                placeholder="Template name..."
-                className={`w-full bg-gray-800 rounded mb-2 ${isMobile ? 'p-1 text-[10px]' : 'p-2 text-xs'}`}
-              />
-              <div className="flex gap-1 flex-wrap">
-                <button
-                  onClick={saveCurrentTemplate}
-                  disabled={isSaving || !templateName.trim()}
-                  className={`flex-1 bg-green-700 hover:bg-green-600 disabled:bg-gray-700 disabled:text-gray-500 rounded font-bold ${isMobile ? 'px-2 py-1 text-[10px]' : 'px-2 py-1 text-xs'}`}
-                >
-                  {isSaving ? '...' : currentTemplateId ? 'Update' : 'Save'}
-                </button>
-                <button
-                  onClick={() => setShowTemplateList(!showTemplateList)}
-                  className={`flex-1 bg-blue-800 hover:bg-blue-700 rounded ${isMobile ? 'px-2 py-1 text-[10px]' : 'px-2 py-1 text-xs'}`}
-                >
-                  Load ({savedTemplates.length})
-                </button>
-              </div>
-              {showTemplateList && (
-                <div className="mt-2 max-h-24 overflow-y-auto space-y-1">
-                  {savedTemplates.map(t => (
-                    <div key={t.id} className={`flex items-center gap-1 rounded ${currentTemplateId === t.id ? 'bg-blue-900' : 'bg-gray-800 hover:bg-gray-700'} ${isMobile ? 'p-1 text-[10px]' : 'p-1 text-xs'}`}>
-                      <button onClick={() => loadTemplate(t.id)} className="flex-1 text-left truncate" disabled={isLoading}>
-                        {t.name}
+            {/* Assets */}
+            <Card title="Assets" accent="cyan">
+              <p className="mb-2 text-[10px] text-gray-500">
+                Pick a tile, then select cells in Top view to paint them.
+              </p>
+
+              {/* Height tool */}
+              <div className={`mb-3 rounded p-2 ${heightEditMode ? 'bg-cyan-900/50 ring-1 ring-cyan-500' : 'bg-gray-800'}`}>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-cyan-400">Height</span>
+                  <button
+                    onClick={() => placeHeight(Math.max(0, selectedHeight - 1))}
+                    className="h-6 w-6 rounded bg-gray-700 text-xs font-bold hover:bg-gray-600"
+                    aria-label="Lower height"
+                  >−</button>
+                  <div className="flex gap-0.5">
+                    {[0, 1, 2, 3, 4, 5].map(h => (
+                      <button
+                        key={h}
+                        onClick={() => placeHeight(h)}
+                        className={`h-6 w-6 rounded text-xs font-bold ${
+                          selectedHeight === h && heightEditMode
+                            ? 'bg-cyan-500 text-white'
+                            : 'bg-gray-700 hover:bg-gray-600'
+                        }`}
+                      >
+                        {h}
                       </button>
-                      <button onClick={() => handleDeleteTemplate(t.id)} className="text-red-400 hover:text-red-300 px-1">✕</button>
-                    </div>
+                    ))}
+                  </div>
+                  <button
+                    onClick={() => placeHeight(Math.min(9, selectedHeight + 1))}
+                    className="h-6 w-6 rounded bg-gray-700 text-xs font-bold hover:bg-gray-600"
+                    aria-label="Raise height"
+                  >+</button>
+                </div>
+              </div>
+
+              {/* Ground */}
+              <PaletteGroup label="Ground" color="text-gray-400">
+                {GROUND_SWATCHES.map(g => (
+                  <TileSwatch
+                    key={g.char}
+                    char={g.char}
+                    name={g.name}
+                    bg={g.bg}
+                    fg={g.fg}
+                    onClick={() => placeTile({ char: g.char, type: 'ground', groundType: g.groundType })}
+                    selected={selectedTile?.char === g.char && selectedTile?.type === 'ground'}
+                  />
+                ))}
+              </PaletteGroup>
+
+              {/* Nature */}
+              <PaletteGroup label="Nature" color="text-green-400">
+                {NATURE_TILE_KEYS.map(key => (
+                  <AssetTileSwatch key={key} tileKey={key} selectedTile={selectedTile} onPlace={placeTile} />
+                ))}
+              </PaletteGroup>
+
+              {/* Building */}
+              <PaletteGroup label="Building" color="text-orange-400">
+                {BUILDING_TILE_KEYS.map(key => (
+                  <AssetTileSwatch key={key} tileKey={key} selectedTile={selectedTile} onPlace={placeTile} />
+                ))}
+              </PaletteGroup>
+
+              {/* Decorations */}
+              <PaletteGroup label="Decorations" color="text-pink-400">
+                {DECORATION_TILE_KEYS.map(key => (
+                  <AssetTileSwatch key={key} tileKey={key} selectedTile={selectedTile} onPlace={placeTile} />
+                ))}
+              </PaletteGroup>
+
+              {/* Composite assets */}
+              <div className="border-t border-white/10 pt-3">
+                <p className="mb-2 text-xs font-bold text-cyan-400">Composite</p>
+                <div className="flex flex-wrap gap-1">
+                  {COMPOSITE_SWATCHES.map(item => (
+                    <button
+                      key={item.key}
+                      onClick={() => placeCompositeAsset(item.key)}
+                      className={`flex h-14 w-14 min-w-14 flex-shrink-0 flex-col items-center justify-center rounded transition-all hover:opacity-80 ${item.bg} ${
+                        selectedComposite === item.key ? 'ring-2 ring-cyan-400' : ''
+                      }`}
+                      title={item.name}
+                    >
+                      <span className={`text-xl font-bold leading-none ${item.fg}`}>{item.icon}</span>
+                      <span className="mt-1 text-[9px] leading-none text-gray-300">{item.name}</span>
+                    </button>
                   ))}
                 </div>
-              )}
+              </div>
+            </Card>
+          </aside>
+        )}
+
+        {/* RIGHT SIDEBAR — Export · Connectors · Save/Load */}
+        {showSidebars && !showFlowView && (
+          <aside
+            className={`fixed right-4 z-10 flex flex-col gap-3 overflow-y-auto pl-1 font-mono text-white ${
+              isMobile
+                ? 'bottom-16 left-4 max-h-[42vh]'
+                : 'top-20 bottom-4 w-72'
+            }`}
+            aria-label="Project tools"
+          >
+            {/* Brand header */}
+            <div className="rounded-lg border border-white/10 bg-black/60 p-3 text-center shadow-lg shadow-black/40">
+              <h2 className="text-base font-bold tracking-widest text-yellow-400">NEBULITH</h2>
+              <p className="text-[10px] text-gray-500">{templateName || 'New Template'}</p>
             </div>
 
-            {/* Export Layers */}
-            <div className="mb-3 border-t border-gray-700 pt-3">
-              <p className={`text-orange-400 mb-2 font-bold ${isMobile ? 'text-[10px]' : 'text-xs'}`}>Export Layers</p>
-              <p className={`text-gray-500 mb-2 ${isMobile ? 'text-[8px]' : 'text-[10px]'}`}>
-                Export for tileset replacement: ground, collision, height, buildings, nature, decorations, NPCs
+            {/* Export */}
+            <Card title="Export" accent="orange">
+              <p className="mb-2 text-[10px] text-gray-500">
+                Export for tileset replacement: ground, collision, height, buildings, nature, decorations, NPCs.
               </p>
               <button
                 onClick={exportLayers}
-                className={`w-full bg-orange-700 hover:bg-orange-600 rounded font-bold ${isMobile ? 'px-2 py-1 text-[10px]' : 'px-2 py-1 text-xs'}`}
+                className="w-full rounded bg-orange-700 px-2 py-1.5 text-xs font-bold hover:bg-orange-600"
               >
                 Export JSON Layers
               </button>
-            </div>
+            </Card>
 
             {/* Connectors */}
-            <div className="border-t border-gray-700 pt-3">
-              <div className="flex items-center justify-between mb-2">
-                <p className={`text-purple-400 font-bold ${isMobile ? 'text-[10px]' : 'text-xs'}`}>Connectors</p>
+            <Card
+              title="Connectors"
+              accent="purple"
+              action={
                 <button
                   onClick={() => { setConnectorMode(!connectorMode); setEditingConnector(null) }}
-                  className={`rounded ${isMobile ? 'px-2 py-1 text-[10px]' : 'px-2 py-1 text-xs'} ${connectorMode ? 'bg-purple-600' : 'bg-gray-700 hover:bg-gray-600'}`}
+                  aria-pressed={connectorMode}
+                  className={`rounded px-2 py-1 text-xs ${connectorMode ? 'bg-purple-600' : 'bg-gray-700 hover:bg-gray-600'}`}
                 >
                   {connectorMode ? 'Exit' : 'Edit'}
                 </button>
-              </div>
-
+              }
+            >
               {connectorMode && (
-                <p className={`text-gray-400 mb-2 ${isMobile ? 'text-[10px]' : 'text-xs'}`}>Click cell to add connector</p>
+                <p className="mb-2 text-xs text-gray-400">Click a cell in Top view to add a connector.</p>
               )}
 
               {editingConnector && (
-                <div className={`bg-gray-800 rounded mb-2 ${isMobile ? 'p-2' : 'p-2'}`}>
-                  <p className={`text-yellow-400 mb-1 ${isMobile ? 'text-[10px]' : 'text-xs'}`}>
+                <div className="mb-2 rounded bg-gray-800 p-2">
+                  <p className="mb-1 text-xs text-yellow-400">
                     ({editingConnector.col}, {editingConnector.row})
                   </p>
                   <select
                     value={connectorForm.targetTemplateId || ''}
                     onChange={e => setConnectorForm(f => ({ ...f, targetTemplateId: e.target.value }))}
-                    className={`w-full bg-gray-700 rounded mb-1 ${isMobile ? 'p-1 text-[10px]' : 'p-1 text-xs'}`}
+                    aria-label="Target template"
+                    className="mb-1 w-full rounded bg-gray-700 p-1 text-xs"
                   >
                     <option value="">Target template...</option>
                     {savedTemplates.filter(t => t.id !== currentTemplateId).map(t => (
@@ -3836,42 +3978,117 @@ export default function TemplateEditor() {
                   <select
                     value={connectorForm.interaction || 'walk'}
                     onChange={e => setConnectorForm(f => ({ ...f, interaction: e.target.value as Connector['interaction'] }))}
-                    className={`w-full bg-gray-700 rounded mb-1 ${isMobile ? 'p-1 text-[10px]' : 'p-1 text-xs'}`}
+                    aria-label="How the player triggers this connector"
+                    className="mb-1 w-full rounded bg-gray-700 p-1 text-xs"
                   >
-                    <option value="walk">Walk</option>
-                    <option value="interact">Interact</option>
-                    <option value="auto">Auto</option>
+                    <option value="walk">Walk onto it</option>
+                    <option value="interact">Press E on it</option>
+                    <option value="auto">Auto on enter</option>
                   </select>
+                  <div className="mb-1 flex items-center gap-1 text-xs">
+                    <span className="whitespace-nowrap text-gray-400">Arrive at</span>
+                    <input
+                      type="number"
+                      min={0}
+                      aria-label="Spawn column in target template"
+                      value={connectorForm.spawnCol ?? 0}
+                      onChange={e => setConnectorForm(f => ({ ...f, spawnCol: Math.max(0, parseInt(e.target.value, 10) || 0) }))}
+                      className="w-12 rounded bg-gray-700 p-1 text-xs"
+                    />
+                    <span className="text-gray-500">,</span>
+                    <input
+                      type="number"
+                      min={0}
+                      aria-label="Spawn row in target template"
+                      value={connectorForm.spawnRow ?? 0}
+                      onChange={e => setConnectorForm(f => ({ ...f, spawnRow: Math.max(0, parseInt(e.target.value, 10) || 0) }))}
+                      className="w-12 rounded bg-gray-700 p-1 text-xs"
+                    />
+                    <span className="whitespace-nowrap text-gray-400">in target</span>
+                  </div>
                   <div className="flex gap-1">
-                    <button onClick={saveConnector} disabled={!connectorForm.targetTemplateId} className={`flex-1 bg-green-700 hover:bg-green-600 disabled:bg-gray-700 rounded ${isMobile ? 'p-1 text-[10px]' : 'p-1 text-xs'}`}>Save</button>
-                    <button onClick={() => deleteConnector(editingConnector.col, editingConnector.row)} className={`bg-red-800 hover:bg-red-700 rounded ${isMobile ? 'p-1 text-[10px]' : 'p-1 text-xs'}`}>Del</button>
-                    <button onClick={() => setEditingConnector(null)} className={`bg-gray-700 hover:bg-gray-600 rounded ${isMobile ? 'p-1 text-[10px]' : 'p-1 text-xs'}`}>X</button>
+                    <button onClick={saveConnector} disabled={!connectorForm.targetTemplateId} className="flex-1 rounded bg-green-700 p-1 text-xs hover:bg-green-600 disabled:bg-gray-700">Save</button>
+                    <button onClick={() => deleteConnector(editingConnector.col, editingConnector.row)} className="rounded bg-red-800 p-1 text-xs hover:bg-red-700">Del</button>
+                    <button onClick={() => setEditingConnector(null)} className="rounded bg-gray-700 p-1 text-xs hover:bg-gray-600">X</button>
                   </div>
                 </div>
               )}
 
               {connectors.length > 0 && (
-                <div className="space-y-1 max-h-20 overflow-y-auto">
+                <div className="max-h-32 space-y-1 overflow-y-auto">
                   {connectors.map(c => (
-                    <div
+                    <button
                       key={`${c.col},${c.row}`}
-                      className={`flex items-center justify-between bg-gray-800 rounded cursor-pointer hover:bg-gray-700 ${isMobile ? 'p-1 text-[10px]' : 'p-1 text-xs'}`}
+                      type="button"
+                      className="flex w-full items-center justify-between rounded bg-gray-800 p-1 text-left text-xs hover:bg-gray-700"
                       onClick={() => { setConnectorForm(c); setEditingConnector({ col: c.col, row: c.row }); setConnectorMode(true) }}
                     >
-                      <span>({c.col},{c.row})→{c.targetTemplateName?.slice(0,8) || '?'}</span>
+                      <span>({c.col},{c.row})→{c.targetTemplateName?.slice(0, 8) || '?'}</span>
                       <span className="text-purple-400">{c.interaction}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {connectors.length === 0 && !editingConnector && (
+                <p className="text-[10px] text-gray-500">No connectors yet.</p>
+              )}
+            </Card>
+
+            {/* Save / Load */}
+            <Card title="Save / Load" accent="blue">
+              <input
+                type="text"
+                value={templateName}
+                onChange={(e) => setTemplateName(e.target.value)}
+                placeholder="Template name..."
+                aria-label="Template name"
+                className="mb-2 w-full rounded bg-gray-800 p-2 text-xs"
+              />
+              <div className="flex gap-1">
+                <button
+                  onClick={saveCurrentTemplate}
+                  disabled={isSaving || !templateName.trim()}
+                  className="flex-1 rounded bg-green-700 px-2 py-1 text-xs font-bold hover:bg-green-600 disabled:bg-gray-700 disabled:text-gray-500"
+                >
+                  {isSaving ? '...' : currentTemplateId ? 'Update' : 'Save'}
+                </button>
+                <button
+                  onClick={() => setShowTemplateList(!showTemplateList)}
+                  aria-expanded={showTemplateList}
+                  className="flex-1 rounded bg-blue-800 px-2 py-1 text-xs hover:bg-blue-700"
+                >
+                  Load ({savedTemplates.length})
+                </button>
+              </div>
+              {showTemplateList && (
+                <div className="mt-2 max-h-40 space-y-1 overflow-y-auto">
+                  {savedTemplates.length === 0 && (
+                    <p className="text-[10px] text-gray-500">No saved templates.</p>
+                  )}
+                  {savedTemplates.map(t => (
+                    <div
+                      key={t.id}
+                      className={`flex items-center gap-1 rounded p-1 text-xs ${
+                        currentTemplateId === t.id ? 'bg-blue-900' : 'bg-gray-800 hover:bg-gray-700'
+                      }`}
+                    >
+                      <button onClick={() => loadTemplate(t.id)} className="flex-1 truncate text-left" disabled={isLoading}>
+                        {t.name}
+                      </button>
+                      <button onClick={() => handleDeleteTemplate(t.id)} aria-label={`Delete ${t.name}`} className="px-1 text-red-400 hover:text-red-300">✕</button>
                     </div>
                   ))}
                 </div>
               )}
-            </div>
-          </div>
+            </Card>
+          </aside>
         )}
 
-        {/* Debug Legend */}
-        {showDebug && !showTopView && !showControlsPanel && (
-          <div className={`fixed ${isMobile ? 'bottom-2 right-2' : 'bottom-4 right-4'} bg-black/90 text-white font-mono rounded ${isMobile ? 'p-2 text-[10px]' : 'p-3 text-xs'}`}>
-            <h3 className="text-red-400 font-bold mb-1">DEBUG</h3>
+        {/* Debug Legend — only when sidebars are hidden, so it isn't redundant */}
+        {showDebug && !showSidebars && !showFlowView && (
+          <div className="fixed bottom-4 left-4 z-20 rounded bg-black/90 p-3 font-mono text-xs text-white">
+            <h3 className="mb-1 font-bold text-red-400">DEBUG</h3>
             <p><span className="text-red-400">■</span> Blocked</p>
             <p><span className="text-green-400">■</span> Walkable</p>
           </div>
@@ -5198,9 +5415,12 @@ function renderTopView(
   const px = offsetX + playerCellCol * tileSize
   const py = offsetY + playerCellRow * tileSize
 
-  // Player cell background
+  // Player cell background + bold outline so it never gets lost in the foliage
   ctx.fillStyle = '#ffdd00'
   ctx.fillRect(px, py, tileSize - 1, tileSize - 1)
+  ctx.strokeStyle = '#1a1a1a'
+  ctx.lineWidth = 2
+  ctx.strokeRect(px + 1, py + 1, tileSize - 3, tileSize - 3)
 
   // Direction arrow
   ctx.fillStyle = '#000000'

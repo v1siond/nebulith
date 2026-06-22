@@ -198,14 +198,42 @@ export const GROUND_COLORS: Record<string, { char: string[]; fg: string[]; bg: s
   // BASE GROUND TYPES
   // ═══════════════════════════════════════════════════════════════════
   grass: {
+    // Olive/khaki short grass — deliberately distinct from the vivid emerald of
+    // tree canopies (#2e8b2e) so trees read clearly against the ground.
     char: [';', ','],
-    fg: ['rgba(26, 182, 26, 0.85)', 'rgba(30, 190, 30, 0.85)'],
-    bg: ['rgba(0, 130, 0, 0.92)', 'rgba(0, 135, 0, 0.90)'],
+    fg: ['rgba(154, 196, 84, 0.9)', 'rgba(146, 188, 78, 0.9)'],
+    bg: ['rgba(96, 134, 52, 0.95)', 'rgba(90, 126, 48, 0.95)'],
   },
   grass_tall: {
+    // Deeper olive — a third, readable shade between short grass and trees.
     char: ['"', '"'],
-    fg: ['rgba(50, 210, 50, 0.9)', 'rgba(55, 215, 55, 0.88)'],
-    bg: ['rgba(0, 150, 0, 0.92)', 'rgba(10, 155, 10, 0.90)'],
+    fg: ['rgba(120, 172, 60, 0.92)', 'rgba(112, 164, 56, 0.92)'],
+    bg: ['rgba(72, 108, 40, 0.95)', 'rgba(66, 100, 36, 0.95)'],
+  },
+  // ═══════════════════════════════════════════════════════════════════
+  // ZONE GROUND — only the keys not already defined in the theme sections
+  // below. lava-zone floor = ash/rock/basalt (ash + lava live under VOLCANIC);
+  // frozen-zone floor = snow/ice/frost (snow + ice live under SNOW/ICE).
+  // ═══════════════════════════════════════════════════════════════════
+  rock: {
+    char: ['▓', '▒'],
+    fg: ['rgba(90, 70, 65, 0.85)', 'rgba(80, 62, 58, 0.8)'],
+    bg: ['rgba(55, 40, 38, 0.95)', 'rgba(48, 35, 33, 0.9)'],
+  },
+  basalt: {
+    char: ['#', '▓'],
+    fg: ['rgba(70, 55, 55, 0.85)', 'rgba(60, 48, 48, 0.8)'],
+    bg: ['rgba(35, 25, 28, 0.95)', 'rgba(28, 20, 22, 0.9)'],
+  },
+  frost: {
+    char: ['*', '+'],
+    fg: ['rgba(210, 235, 255, 0.9)', 'rgba(195, 225, 250, 0.85)'],
+    bg: ['rgba(170, 200, 225, 0.92)', 'rgba(155, 188, 215, 0.9)'],
+  },
+  ice_water: {
+    char: ['~', '≈'],
+    fg: ['rgba(120, 200, 255, 0.9)', 'rgba(100, 185, 245, 0.85)'],
+    bg: ['rgba(40, 90, 150, 0.95)', 'rgba(30, 75, 135, 0.92)'],
   },
   road: {
     char: ['=', '='],

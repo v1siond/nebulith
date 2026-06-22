@@ -250,7 +250,9 @@ export class IsometricGrid {
       tileKey,
     })
 
-    if (options.blocking && heightLevel === 0) {
+    // Blocks are collision, independent of elevation: a blocking asset marks its
+    // cell blocked regardless of visual height level.
+    if (options.blocking) {
       this.setCollision(col, row, true)
     }
   }
@@ -281,12 +283,8 @@ export class IsometricGrid {
 
       if (tileCol < 0 || tileCol >= this.cols || tileRow < 0 || tileRow >= this.rows) continue
 
-      // Track the max height at this cell
-      const currentCellHeight = this.getHeight(tileCol, tileRow)
-      if (t.height >= currentCellHeight) {
-        this.setHeight(tileCol, tileRow, t.height + 1)
-      }
-
+      // Composite assets mark collision (via placeTile) but do NOT raise terrain
+      // height — elevation is a separate, deliberate feature (the Height tool).
       this.placeTile(
         t.tile,
         t.char,
