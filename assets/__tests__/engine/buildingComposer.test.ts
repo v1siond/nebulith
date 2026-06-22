@@ -1,4 +1,5 @@
-import { composeBuilding } from '@/engine/buildingComposer'
+import { composeBuilding, facadeLabel, facadeLabels } from '@/engine/buildingComposer'
+import { isWalkable } from '@/engine/cellLabels'
 
 describe('composeBuilding — Nebulith building architecture spec', () => {
   it('builds the smallest legal house: 8 long × 4 tall (3 body + 1 roof)', () => {
@@ -45,5 +46,51 @@ describe('composeBuilding — Nebulith building architecture spec', () => {
     expect(castle.length).toBeGreaterThan(house.length)
     expect(castle.height).toBeGreaterThanOrEqual(4)
     expect(castle.door.width).toBeGreaterThanOrEqual(2)
+  })
+
+  it('marks the apex (top-center) as the single roofTop cell', () => {
+    const b = composeBuilding({ type: 'house', floors: 1 })
+    expect(b.roofTop.y).toBe(0) // top row
+    expect(b.roofTop.x).toBe(Math.floor(b.length / 2)) // centered
+    expect(b.cells[b.roofTop.y][b.roofTop.x]).toBe('roof') // apex is a roof cell
+  })
+})
+
+describe('facadeLabels — facade-cell → CellLabel mapping (the keystone)', () => {
+  it('labels exactly ONE cell roof_top (the walkable apex), all others non-roof_top', () => {
+    const b = composeBuilding({ type: 'house', floors: 2 })
+    const labels = facadeLabels(b).flat()
+    const roofTops = labels.filter(l => l === 'roof_top')
+    expect(roofTops).toHaveLength(1)
+    expect(facadeLabel(b, b.roofTop.x, b.roofTop.y)).toBe('roof_top')
+  })
+
+  it('maps every facade kind to its part label (roof body, wall, door, window)', () => {
+    const b = composeBuilding({ type: 'house', floors: 1 })
+    const labels = facadeLabels(b)
+    // top row: apex is roof_top, the rest of the roof row is plain roof
+    for (let col = 0; col < b.length; col++) {
+      const expected = col === b.roofTop.x ? 'roof_top' : 'roof'
+      expect(labels[0][col]).toBe(expected)
+    }
+    // door band (bottom rows) carries 'door'; corners of the bottom row are walls
+    const bottom = b.height - 1
+    expect(labels[bottom][b.door.x]).toBe('door')
+    expect(labels[bottom][0]).toBe('wall')
+    // a window exists somewhere on a body row
+    expect(labels.flat()).toContain('window')
+  })
+
+  it('per-label collision: ONLY roof_top + doors are walkable, walls/roof/windows block', () => {
+    const b = composeBuilding({ type: 'temple' })
+    const labels = facadeLabels(b).flat().filter((l): l is NonNullable<typeof l> => l !== null)
+    const walkable = labels.filter(l => isWalkable(l))
+    // exactly one roof_top among the walkable cells; the rest are doors
+    expect(walkable.filter(l => l === 'roof_top')).toHaveLength(1)
+    expect(walkable.every(l => l === 'roof_top' || l === 'door')).toBe(true)
+    // walls, roof body, windows all block
+    expect(labels.filter(l => l === 'wall').every(l => !isWalkable(l))).toBe(true)
+    expect(labels.filter(l => l === 'roof').every(l => !isWalkable(l))).toBe(true)
+    expect(labels.filter(l => l === 'window').every(l => !isWalkable(l))).toBe(true)
   })
 })

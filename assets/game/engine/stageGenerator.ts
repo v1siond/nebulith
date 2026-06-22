@@ -8,7 +8,7 @@
  * Pure logic (no rendering, no IsometricGrid mutation) so it is unit-testable
  * and reusable by the editor, the template mapper, and the eventual AI generator.
  */
-import { composeBuilding, ComposedBuilding, BuildingType } from './buildingComposer'
+import { composeBuilding, ComposedBuilding, BuildingType, facadeLabel } from './buildingComposer'
 import { ZONE_PALETTES, ZoneId } from './zones'
 import { autotileLabel, isWalkable, labelChar, TREE_MASS_FAMILY, type CellLabel } from './cellLabels'
 import type { Connector } from '@/lib/api'
@@ -113,6 +113,51 @@ const makeTreeCell = (zone: ZoneId, col: number, row: number, label: CellLabel):
   label,
 })
 
+// Building palette: a per-PART color set (roof / wall / door / window) so a
+// multi-cell building reads as one structure. ZONE-SPECIFIC — frozen reads icy,
+// lava charred — Open/Closed: add a zone = add a row, no branching.
+interface BuildingPalette {
+  roof: string
+  wall: string
+  door: string
+  window: string
+}
+
+const BUILDING_PALETTES: Record<ZoneId, BuildingPalette> = {
+  verdant: { roof: '#8a4a30', wall: '#b89a6a', door: '#5a3a1a', window: '#a8d0e8' },
+  frozen: { roof: '#4a6a8a', wall: '#aac4d8', door: '#2a3a4a', window: '#dff0ff' },
+  lava: { roof: '#5a2a20', wall: '#4a4038', door: '#1a1410', window: '#ff8050' },
+}
+
+// Which building label paints which part. Roof apex (roof_top) and roof body
+// share the roof color; door and window are their own parts. Membership/dispatch,
+// not an if/else chain.
+const BUILDING_PART_BY_LABEL: Readonly<Record<string, keyof BuildingPalette>> = {
+  roof_top: 'roof',
+  roof: 'roof',
+  wall: 'wall',
+  door: 'door',
+  window: 'window',
+}
+
+const buildingColor = (zone: ZoneId, label: CellLabel): string => {
+  const part = BUILDING_PART_BY_LABEL[label] ?? 'wall'
+  return BUILDING_PALETTES[zone][part]
+}
+
+/** One labeled building cell — its part's label decides glyph and collision, and
+ *  the (zone, label) pair decides color so buildings pick up the zone's tint.
+ *  Mirrors makeTreeCell: the LABEL, not the asset, drives walkability. */
+const makeBuildingCell = (zone: ZoneId, col: number, row: number, label: CellLabel): StageProp => ({
+  col,
+  row,
+  type: 'building',
+  char: labelChar(label),
+  blocking: !isWalkable(label),
+  color: buildingColor(zone, label),
+  label,
+})
+
 const makeFlower = (col: number, row: number): StageProp => ({
   col,
   row,
@@ -188,35 +233,64 @@ export function generateStage(opts: GenerateOptions): StageData {
 
 // ── village archetype ───────────────────────────────────────────────
 function placeVillage(ctx: ArchetypeContext): void {
-  const { collision, buildings, cols, rows } = ctx
-  const row = clamp(Math.floor(rows * 0.35 + Math.random() * rows * 0.2), 4, rows - 3)
+  const { buildings, cols, rows } = ctx
+  // Anchor on the ground row; the facade rises upward to `row - (height-1)`, so
+  // keep enough headroom above for the tallest house we place.
+  const row = clamp(Math.floor(rows * 0.35 + Math.random() * rows * 0.2), 8, rows - 3)
   const count = randInt(2, 4)
   let x = 2 + randInt(0, 2)
   while (buildings.length < count) {
     const facade = composeBuilding({ type: 'house', floors: randInt(1, 2) })
-    if (x + facade.length + 2 > cols) break // out of room
-    buildings.push(placeFacade(facade, 'house', x, row, collision))
+    if (x + facade.length + 2 > cols) break // out of room horizontally
+    if (row - (facade.height - 1) < 0) break // out of room vertically (facade clipped)
+    buildings.push(placeFacade(ctx, facade, 'house', x, row))
     x += facade.length + randInt(2, 4)
   }
 }
 
-/** Stamp a building footprint onto collision: walls block, doors stay walkable. */
+/**
+ * Stamp a building's FULL length×height block as labeled cells (the keystone),
+ * mirroring how trees are stamped. The facade is bottom-anchored: `row` is the
+ * ground row, the facade rises to `row - (height - 1)`. Each facade cell becomes
+ * a labeled building prop (char + color + label) and sets collision per its
+ * label via isWalkable — so the apex `roof_top` and the doors are walkable while
+ * walls, roof body, and windows block. `empty` facade cells are skipped.
+ */
 function placeFacade(
+  ctx: ArchetypeContext,
   facade: ComposedBuilding,
   type: BuildingType,
   col: number,
-  row: number,
-  collision: boolean[][],
+  groundRow: number,
 ): PlacedBuilding {
-  const bottom = facade.cells[facade.height - 1]
+  const topRow = groundRow - (facade.height - 1)
   const doorCells: Cell[] = []
-  for (let i = 0; i < facade.length; i++) {
-    const cellCol = col + i
-    const isDoor = bottom[i] === 'door'
-    collision[row][cellCol] = !isDoor
-    if (isDoor) doorCells.push({ col: cellCol, row })
+  for (let r = 0; r < facade.height; r++) {
+    for (let c = 0; c < facade.length; c++) {
+      stampFacadeCell(ctx, facade, col + c, topRow + r, c, r, doorCells)
+    }
   }
-  return { type, col, row, length: facade.length, height: facade.height, doorCells, facade }
+  return { type, col, row: groundRow, length: facade.length, height: facade.height, doorCells, facade }
+}
+
+/** Emit one labeled building cell from facade-local (c, r) at grid (gridCol,
+ *  gridRow) and set its collision; collect walkable door cells. Skips `empty`. */
+function stampFacadeCell(
+  ctx: ArchetypeContext,
+  facade: ComposedBuilding,
+  gridCol: number,
+  gridRow: number,
+  c: number,
+  r: number,
+  doorCells: Cell[],
+): void {
+  const { props, collision, zone, cols, rows } = ctx
+  if (!inBounds(gridCol, gridRow, cols, rows)) return
+  const label = facadeLabel(facade, c, r)
+  if (label === null) return // empty facade cell → no prop, no collision change
+  props.push(makeBuildingCell(zone, gridCol, gridRow, label))
+  collision[gridRow][gridCol] = !isWalkable(label)
+  if (label === 'door') doorCells.push({ col: gridCol, row: gridRow })
 }
 
 // ── forest archetype (≈ Viridian Forest, per docs/ALGORITHMS.md): a fully-
@@ -602,12 +676,14 @@ function scatterClearingCover(ctx: ArchetypeContext): void {
 
 // ── temple archetype (a grand columned hall on a paved approach) ────
 function placeTemple(ctx: ArchetypeContext): void {
-  const { collision, buildings, cols, rows } = ctx
+  const { buildings, cols, rows } = ctx
   const facade = composeBuilding({ type: 'temple' })
   if (facade.length + 4 > cols) return // grid too small for a temple
   const col = Math.floor((cols - facade.length) / 2)
-  const row = Math.floor(rows * 0.4)
-  buildings.push(placeFacade(facade, 'temple', col, row, collision))
+  // Anchor on the ground row; clamp so the facade (rising upward) clears the top
+  // edge and the paved approach below still fits.
+  const row = clamp(Math.floor(rows * 0.4), facade.height, rows - 4)
+  buildings.push(placeFacade(ctx, facade, 'temple', col, row))
 
   const doorCol = col + Math.floor(facade.length / 2)
   paveApproach(ctx, doorCol, row + 1)
@@ -843,29 +919,23 @@ export interface StagePaint {
 export function stagePaint(stage: StageData): StagePaint {
   const ground: StagePaint['ground'] = []
   const assets: StagePaint['assets'] = []
-  stage.buildings.forEach(b => paintBuilding(b, ground, assets))
+  stage.buildings.forEach(b => paintBuildingGround(b, ground))
   stage.props.forEach(p =>
     assets.push({ col: p.col, row: p.row, char: p.char, type: p.type, color: p.color, blocking: p.blocking, label: p.label }),
   )
   return { ground, assets }
 }
 
-/** A building is shown as a stone plot (footprint length) with a walkable door
- *  and a structure at its center. */
-function paintBuilding(b: PlacedBuilding, ground: StagePaint['ground'], assets: StagePaint['assets']): void {
+/** A building's ground plot: a stone plaza along its footprint (ground row) with
+ *  path_stone under the doorway. The structure ITSELF is drawn per-cell from the
+ *  labeled building props (stage.props → assets) — one glyph per facade cell —
+ *  the same multi-cell model trees use, so no single placeholder block here. */
+function paintBuildingGround(b: PlacedBuilding, ground: StagePaint['ground']): void {
   for (let i = 0; i < b.length; i++) {
     const col = b.col + i
-    const isDoor = b.doorCells.some(d => d.col === col)
+    const isDoor = b.doorCells.some(d => d.col === col && d.row === b.row)
     ground.push({ col, row: b.row, type: isDoor ? 'path_stone' : 'plaza' })
   }
-  assets.push({
-    col: b.col + Math.floor(b.length / 2),
-    row: b.row,
-    char: '█',
-    type: 'building',
-    color: '#7a4a30',
-    blocking: true,
-  })
 }
 
 export interface StageTemplatePayload {

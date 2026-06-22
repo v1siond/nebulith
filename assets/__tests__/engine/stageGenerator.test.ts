@@ -49,6 +49,66 @@ describe('generateStage — lava/village vertical slice', () => {
   })
 })
 
+describe('generateStage — multi-cell labeled buildings (the keystone)', () => {
+  // A building must occupy its FULL length×height block as labeled cells with
+  // per-label collision, exactly like trees. The apex roof tile + doors are the
+  // only walkable cells; walls, roof body, and windows all block.
+  const collectBuildingCells = (stage: ReturnType<typeof generateStage>) =>
+    stage.props.filter(p => p.type === 'building')
+
+  it('emits a labeled building prop for the whole block (length×height worth of cells)', () => {
+    const stage = generateStage({ zone: 'lava', variant: 'village' })
+    const cells = collectBuildingCells(stage)
+    expect(cells.length).toBeGreaterThan(0)
+    expect(cells.every(c => typeof c.label === 'string' && c.label!.length > 0)).toBe(true)
+    // a single building's facade is taller than one row → more than `length` cells
+    for (const b of stage.buildings) {
+      const own = cells.filter(
+        c => c.col >= b.col && c.col < b.col + b.length && c.row <= b.row && c.row > b.row - b.height,
+      )
+      expect(own.length).toBeGreaterThan(b.length) // multi-row, not a single footprint row
+    }
+  })
+
+  it('blocks every building cell EXCEPT the walkable roof_top + doors (collision matches isWalkable)', () => {
+    const stage = generateStage({ zone: 'lava', variant: 'village' })
+    for (const c of collectBuildingCells(stage)) {
+      const walkable = isWalkable(c.label!)
+      expect(c.blocking).toBe(!walkable)
+      expect(stage.collision[c.row][c.col]).toBe(!walkable)
+    }
+  })
+
+  it('gives each building exactly ONE walkable roof_top apex', () => {
+    const stage = generateStage({ zone: 'lava', variant: 'village' })
+    const cells = collectBuildingCells(stage)
+    for (const b of stage.buildings) {
+      const roofTops = cells.filter(
+        c =>
+          c.label === 'roof_top' &&
+          c.col >= b.col &&
+          c.col < b.col + b.length &&
+          c.row <= b.row &&
+          c.row > b.row - b.height,
+      )
+      expect(roofTops).toHaveLength(1)
+      expect(roofTops[0].blocking).toBe(false)
+      expect(stage.collision[roofTops[0].row][roofTops[0].col]).toBe(false)
+    }
+  })
+
+  it('keeps doors walkable and walls blocking across the full facade', () => {
+    const stage = generateStage({ zone: 'frozen', variant: 'temple', cols: 36, rows: 30 })
+    const cells = collectBuildingCells(stage)
+    const doors = cells.filter(c => c.label === 'door')
+    const walls = cells.filter(c => c.label === 'wall')
+    expect(doors.length).toBeGreaterThan(0)
+    expect(walls.length).toBeGreaterThan(0)
+    expect(doors.every(d => d.blocking === false && stage.collision[d.row][d.col] === false)).toBe(true)
+    expect(walls.every(w => w.blocking === true && stage.collision[w.row][w.col] === true)).toBe(true)
+  })
+})
+
 describe('generateStage — forest archetype (Viridian-Forest style)', () => {
   const stage = generateStage({ zone: 'verdant', variant: 'forest', cols: 30, rows: 24 })
 

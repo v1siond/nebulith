@@ -10,6 +10,7 @@
  * Pure logic (no rendering / no grid mutation) so it can be unit-tested and
  * reused by the stage generator and the editor preview.
  */
+import { CellLabel } from './cellLabels'
 
 export type BuildingCellKind = 'wall' | 'window' | 'door' | 'roof' | 'empty'
 
@@ -35,6 +36,9 @@ export interface ComposedBuilding {
   height: number
   /** Door rectangle in facade coords. y is the top row of the door. */
   door: { x: number; y: number; width: number; height: number }
+  /** The single apex roof cell (top row, centered) — the ONE walkable roof tile
+   *  (maps to `roof_top`, mirroring a tree's walkable `tree_leaf_top`). */
+  roofTop: { x: number; y: number }
   /** Facade grid, cells[row][col]; row 0 is the top (roof), last row is ground. */
   cells: BuildingCellKind[][]
 }
@@ -104,6 +108,49 @@ export function composeBuilding(spec: BuildingSpec = {}): ComposedBuilding {
     length,
     height,
     door: { x: doorX, y: doorY, width: doorWidth, height: doorHeight },
+    roofTop: { x: Math.floor(length / 2), y: 0 },
     cells,
   }
+}
+
+// ── facade-cell → CellLabel mapping (the keystone, building side) ──────────
+// Each facade cell carries a descriptive part LABEL — the same per-cell model
+// trees use — so a building occupies (and labels) ALL the cells its art covers,
+// and per-label collision (cellLabels.isWalkable) decides what blocks. The ONE
+// walkable roof tile is the apex (top-center); every other roof cell blocks,
+// mirroring a tree's single walkable `tree_leaf_top` above blocking leaves.
+//
+// Dispatch map, not an if/else chain (Open/Closed: add a kind = add a row). The
+// apex roof override is positional, so it is applied by `facadeLabel` before the
+// table — the table holds the kind→label default.
+const KIND_TO_LABEL: Readonly<Record<Exclude<BuildingCellKind, 'empty'>, CellLabel>> = {
+  roof: 'roof',
+  wall: 'wall',
+  door: 'door',
+  window: 'window',
+}
+
+/** True for the single apex roof cell (top-center) — the lone walkable roof_top. */
+const isRoofTop = (b: ComposedBuilding, col: number, row: number): boolean =>
+  col === b.roofTop.x && row === b.roofTop.y
+
+/**
+ * The CellLabel for one facade cell. `'empty'` cells have no part and return
+ * `null` (the caller emits nothing for them). The apex roof tile is `roof_top`
+ * (walkable); all other cells defer to the kind→label table.
+ */
+export function facadeLabel(b: ComposedBuilding, col: number, row: number): CellLabel | null {
+  const kind = b.cells[row][col]
+  if (kind === 'empty') return null
+  if (kind === 'roof' && isRoofTop(b, col, row)) return 'roof_top'
+  return KIND_TO_LABEL[kind]
+}
+
+/**
+ * The full facade as a CellLabel grid (`labels[row][col]`), one label per cell
+ * (or `null` for an empty cell). Exactly one cell is `roof_top` — the apex.
+ * Pure: derives entirely from the composed facade, no mutation.
+ */
+export function facadeLabels(b: ComposedBuilding): (CellLabel | null)[][] {
+  return b.cells.map((rowCells, row) => rowCells.map((_, col) => facadeLabel(b, col, row)))
 }
