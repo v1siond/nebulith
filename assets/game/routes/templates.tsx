@@ -2607,9 +2607,37 @@ function EntityInspectorCard({ entity, onPatch, onDelete, onClose }: {
           <input type="checkbox" checked={hittable} onChange={e => onPatch({ hittable: e.target.checked })} aria-label="Hittable" />
           Hittable (can be attacked)
         </label>
-        {entity.movement && (
-          <div className="text-[10px] text-gray-500">Patrol: {entity.movement.waypoints.length} waypoints ({entity.movement.mode})</div>
-        )}
+        <div>
+          <span className="mb-0.5 block text-[10px] text-gray-400">Movement</span>
+          <select
+            value={entity.movement?.mode ?? 'none'}
+            onChange={e => {
+              const mode = e.target.value
+              if (mode === 'none') {
+                onPatch({ movement: undefined })
+                return
+              }
+              // A small box patrol around the entity; stepMover skips blocked/oob cells.
+              const r = 2
+              const waypoints = [
+                { col: entity.col, row: entity.row },
+                { col: entity.col + r, row: entity.row },
+                { col: entity.col + r, row: entity.row + r },
+                { col: entity.col, row: entity.row + r },
+              ]
+              onPatch({ movement: { mode: mode as MovementPattern['mode'], waypoints } })
+            }}
+            aria-label="Movement mode"
+            className="w-full rounded bg-gray-800 p-1 text-xs"
+          >
+            <option value="none">Stationary</option>
+            <option value="sequential">Patrol (loop a path)</option>
+            <option value="random">Wander (random)</option>
+          </select>
+          {entity.movement && (
+            <p className="mt-0.5 text-[10px] text-gray-500">{entity.movement.waypoints.length} waypoints · {entity.movement.mode}</p>
+          )}
+        </div>
         <div className="flex gap-1">
           <button onClick={onDelete} className="flex-1 rounded bg-red-800 px-2 py-1 hover:bg-red-700">Delete</button>
           <button onClick={onClose} className="rounded bg-gray-700 px-2 py-1 hover:bg-gray-600">Close</button>
