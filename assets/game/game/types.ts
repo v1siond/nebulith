@@ -78,6 +78,19 @@ export interface Inventory {
 // ── talents ─────────────────────────────────────────────────────────
 export type TalentPath = 'warrior' | 'magician'
 
+// ── movement patterns (patrolling entities) ─────────────────────────
+export interface Cell {
+  col: number
+  row: number
+}
+/** sequential = walk the waypoints in order, looping; random = pick a random
+ *  next waypoint on arrival. (See engine/movement.ts for the stepper.) */
+export type MovementMode = 'sequential' | 'random'
+export interface MovementPattern {
+  mode: MovementMode
+  waypoints: Cell[]
+}
+
 // ── entities ────────────────────────────────────────────────────────
 export type EntityKind = 'player' | 'enemy' | 'npc'
 export interface Entity {
@@ -93,6 +106,10 @@ export interface Entity {
   questId?: string
   /** enemy type tag used by 'kill' objectives. */
   enemyType?: string
+  /** patrol path; the play loop advances it each movement tick. */
+  movement?: MovementPattern
+  /** can this entity be attacked? defaults: enemy=true, npc/decoration=false. */
+  hittable?: boolean
 }
 
 // ── quests / missions ───────────────────────────────────────────────

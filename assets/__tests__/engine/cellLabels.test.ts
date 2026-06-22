@@ -1,16 +1,17 @@
 import {
-  CELL_LABELS,
   isWalkable,
-  labelChar,
   autotileLabel,
   TREE_MASS_FAMILY,
   type CellLabel,
 } from '@/engine/cellLabels'
 
 describe('cellLabels — per-label collision (isWalkable)', () => {
-  it('makes only tree_leaf_top walkable among tree parts', () => {
+  it('blocks all solid tree parts (only the reserved tree_leaf_top stays walkable)', () => {
+    // tree_leaf_top remains walkable in the vocabulary for a FUTURE overhead-canopy
+    // layer, but the generator no longer emits it — glade trees are capped by a
+    // SOLID tree_crown so the whole tree blocks.
     expect(isWalkable('tree_leaf_top')).toBe(true)
-    const blockingTreeParts: CellLabel[] = ['tree_stem_bottom', 'tree_stem', 'tree_leaf']
+    const blockingTreeParts: CellLabel[] = ['tree_stem_bottom', 'tree_stem', 'tree_leaf', 'tree_crown', 'tree_snag']
     for (const label of blockingTreeParts) {
       expect(isWalkable(label)).toBe(false)
     }
@@ -44,20 +45,6 @@ describe('cellLabels — per-label collision (isWalkable)', () => {
 
   it('treats an unknown label as blocking (fail-safe collision)', () => {
     expect(isWalkable('totally_unknown_label')).toBe(false)
-  })
-})
-
-describe('cellLabels — labelChar render glyphs', () => {
-  it('maps every known label to a non-empty single glyph', () => {
-    for (const label of CELL_LABELS) {
-      const glyph = labelChar(label)
-      expect(typeof glyph).toBe('string')
-      expect(glyph.length).toBeGreaterThan(0)
-    }
-  })
-
-  it('distinguishes the walkable canopy top from solid leaves', () => {
-    expect(labelChar('tree_leaf_top')).not.toBe(labelChar('tree_leaf'))
   })
 })
 

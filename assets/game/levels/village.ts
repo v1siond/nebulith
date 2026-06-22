@@ -216,14 +216,16 @@ export const GROUND_COLORS: Record<string, { char: string[]; fg: string[]; bg: s
   // frozen-zone floor = snow/ice/frost (snow + ice live under SNOW/ICE).
   // ═══════════════════════════════════════════════════════════════════
   rock: {
+    // Volcanic rock: warm-dark stone with faint ember cracks.
     char: ['▓', '▒'],
-    fg: ['rgba(90, 70, 65, 0.85)', 'rgba(80, 62, 58, 0.8)'],
-    bg: ['rgba(55, 40, 38, 0.95)', 'rgba(48, 35, 33, 0.9)'],
+    fg: ['rgba(140, 78, 56, 0.85)', 'rgba(120, 66, 48, 0.8)'],
+    bg: ['rgba(50, 30, 26, 0.96)', 'rgba(42, 26, 22, 0.93)'],
   },
   basalt: {
+    // Near-black basalt with hot cracks.
     char: ['#', '▓'],
-    fg: ['rgba(70, 55, 55, 0.85)', 'rgba(60, 48, 48, 0.8)'],
-    bg: ['rgba(35, 25, 28, 0.95)', 'rgba(28, 20, 22, 0.9)'],
+    fg: ['rgba(110, 58, 48, 0.8)', 'rgba(90, 48, 40, 0.75)'],
+    bg: ['rgba(26, 16, 15, 0.97)', 'rgba(20, 12, 12, 0.96)'],
   },
   frost: {
     char: ['*', '+'],
@@ -388,9 +390,25 @@ export const GROUND_COLORS: Record<string, { char: string[]; fg: string[]; bg: s
     bg: ['rgba(50, 35, 25, 0.98)', 'rgba(45, 30, 20, 0.95)'],
   },
   ash: {
-    char: [':', '·'],
-    fg: ['rgba(120, 115, 110, 0.90)', 'rgba(110, 105, 100, 0.88)'],
-    bg: ['rgba(70, 65, 60, 0.95)', 'rgba(60, 55, 50, 0.92)'],
+    // Charred volcanic ASH (the walkable lava-zone floor): dark, desaturated,
+    // ashy texture — deliberately NOT molten, so the bright lava HAZARD reads as
+    // the danger and the floor reads as burnt ground (clear contrast between
+    // floor, lava, and the dark charred trees).
+    char: ['░', '·'],
+    fg: ['rgba(150, 96, 74, 0.6)', 'rgba(128, 82, 64, 0.55)'],
+    bg: ['rgba(38, 28, 25, 0.97)', 'rgba(30, 22, 19, 0.96)'],
+  },
+
+  // AUTUMN-season floor: warm earthy ground + a fallen-leaves accent.
+  autumn_ground: {
+    char: ['·', '„'],
+    fg: ['rgba(176, 122, 70, 0.85)', 'rgba(156, 104, 58, 0.8)'],
+    bg: ['rgba(74, 50, 30, 0.95)', 'rgba(64, 42, 24, 0.92)'],
+  },
+  autumn_leaves: {
+    char: [';', ','],
+    fg: ['rgba(210, 120, 45, 0.9)', 'rgba(190, 90, 40, 0.85)'],
+    bg: ['rgba(86, 52, 26, 0.95)', 'rgba(72, 44, 22, 0.92)'],
   },
 
   // ═══════════════════════════════════════════════════════════════════

@@ -1,18 +1,19 @@
 import { generateStage } from '@/engine/stageGenerator'
 import { isWalkable } from '@/engine/cellLabels'
+import { TREE_CANOPY_SHADES } from '@/engine/cellTileset'
 
 describe('generateStage — lava/village vertical slice', () => {
-  const stage = generateStage({ zone: 'lava', variant: 'village' })
+  const stage = generateStage({ zone: 'autumn', variant: 'village' })
 
   it('produces a lava village of the requested identity', () => {
-    expect(stage.zone).toBe('lava')
+    expect(stage.zone).toBe('autumn')
     expect(stage.variant).toBe('village')
     expect(stage.cols).toBeGreaterThan(0)
     expect(stage.rows).toBeGreaterThan(0)
   })
 
   it('themes the ground with the lava zone palette', () => {
-    const lavaGround = new Set(['ash', 'rock', 'basalt', 'lava'])
+    const lavaGround = new Set(['autumn_ground', 'autumn_leaves'])
     const allLava = stage.ground.every(row => row.every(t => lavaGround.has(t)))
     expect(allLava).toBe(true)
   })
@@ -57,7 +58,7 @@ describe('generateStage — multi-cell labeled buildings (the keystone)', () => 
     stage.props.filter(p => p.type === 'building')
 
   it('emits a labeled building prop for the whole block (length×height worth of cells)', () => {
-    const stage = generateStage({ zone: 'lava', variant: 'village' })
+    const stage = generateStage({ zone: 'autumn', variant: 'village' })
     const cells = collectBuildingCells(stage)
     expect(cells.length).toBeGreaterThan(0)
     expect(cells.every(c => typeof c.label === 'string' && c.label!.length > 0)).toBe(true)
@@ -71,7 +72,7 @@ describe('generateStage — multi-cell labeled buildings (the keystone)', () => 
   })
 
   it('blocks every building cell EXCEPT the walkable roof_top + doors (collision matches isWalkable)', () => {
-    const stage = generateStage({ zone: 'lava', variant: 'village' })
+    const stage = generateStage({ zone: 'autumn', variant: 'village' })
     for (const c of collectBuildingCells(stage)) {
       const walkable = isWalkable(c.label!)
       expect(c.blocking).toBe(!walkable)
@@ -80,7 +81,7 @@ describe('generateStage — multi-cell labeled buildings (the keystone)', () => 
   })
 
   it('gives each building exactly ONE walkable roof_top apex', () => {
-    const stage = generateStage({ zone: 'lava', variant: 'village' })
+    const stage = generateStage({ zone: 'autumn', variant: 'village' })
     const cells = collectBuildingCells(stage)
     for (const b of stage.buildings) {
       const roofTops = cells.filter(
@@ -98,7 +99,7 @@ describe('generateStage — multi-cell labeled buildings (the keystone)', () => 
   })
 
   it('keeps doors walkable and walls blocking across the full facade', () => {
-    const stage = generateStage({ zone: 'frozen', variant: 'temple', cols: 36, rows: 30 })
+    const stage = generateStage({ zone: 'winter', variant: 'temple', cols: 36, rows: 30 })
     const cells = collectBuildingCells(stage)
     const doors = cells.filter(c => c.label === 'door')
     const walls = cells.filter(c => c.label === 'wall')
@@ -110,7 +111,7 @@ describe('generateStage — multi-cell labeled buildings (the keystone)', () => 
 })
 
 describe('generateStage — forest archetype (Viridian-Forest style)', () => {
-  const stage = generateStage({ zone: 'verdant', variant: 'forest', cols: 30, rows: 24 })
+  const stage = generateStage({ zone: 'summer', variant: 'forest', cols: 30, rows: 24 })
 
   it('fills the forest with trees and walkable flowers', () => {
     const trees = stage.props.filter(p => p.type === 'tree')
@@ -151,7 +152,7 @@ function reachableCount(collision: boolean[][], start: { col: number; row: numbe
 }
 
 describe('generateStage — cave archetype (cellular automata)', () => {
-  const stage = generateStage({ zone: 'lava', variant: 'cave', cols: 40, rows: 30 })
+  const stage = generateStage({ zone: 'autumn', variant: 'cave', cols: 40, rows: 30 })
 
   it('carves rock walls as blocking props', () => {
     const rocks = stage.props.filter(p => p.type === 'rock')
@@ -169,7 +170,7 @@ describe('generateStage — cave archetype (cellular automata)', () => {
 })
 
 describe('generateStage — boss-stage archetype (arena)', () => {
-  const stage = generateStage({ zone: 'frozen', variant: 'boss-stage', cols: 36, rows: 30 })
+  const stage = generateStage({ zone: 'winter', variant: 'boss-stage', cols: 36, rows: 30 })
 
   it('opens a large connected arena reachable from spawn', () => {
     expect(stage.collision[stage.spawn.row][stage.spawn.col]).toBe(false)
@@ -185,7 +186,7 @@ describe('generateStage — boss-stage archetype (arena)', () => {
 })
 
 describe('generateStage — temple archetype', () => {
-  const stage = generateStage({ zone: 'lava', variant: 'temple', cols: 36, rows: 30 })
+  const stage = generateStage({ zone: 'autumn', variant: 'temple', cols: 36, rows: 30 })
 
   it('places one large temple building', () => {
     expect(stage.buildings).toHaveLength(1)
@@ -199,59 +200,87 @@ describe('generateStage — temple archetype', () => {
   })
 })
 
-describe('generateStage — zone-tinted trees', () => {
-  // Collect the distinct trunk vs canopy colors a zone's forest paints. Trunk =
-  // the stem labels (tree_stem*), canopy = every other tree cell (leaves + the
-  // autotiled mass), matching the generator's trunk/canopy split.
-  const STEM_LABELS = new Set(['tree_stem', 'tree_stem_bottom'])
-  const treePalette = (zone: 'verdant' | 'frozen' | 'lava') => {
-    const stage = generateStage({ zone, variant: 'forest', cols: 30, rows: 24 })
+describe('generateStage — zone-tinted trees (tonal variation + bare trees)', () => {
+  // Trunk/dead-wood labels paint the single trunk color; every other tree cell
+  // (leaves + autotiled mass) paints a canopy SHADE from the zone's palette.
+  const STEM_LABELS = new Set(['tree_stem', 'tree_stem_bottom', 'tree_snag'])
+  const treeColors = (zone: 'summer' | 'winter' | 'autumn') => {
+    const stage = generateStage({ zone, variant: 'forest', cols: 40, rows: 30 })
     const trees = stage.props.filter(p => p.type === 'tree')
     const trunk = new Set(trees.filter(p => STEM_LABELS.has(p.label ?? '')).map(p => p.color))
     const canopy = new Set(trees.filter(p => !STEM_LABELS.has(p.label ?? '')).map(p => p.color))
     return { trunk, canopy }
   }
 
-  const verdant = treePalette('verdant')
-  const frozen = treePalette('frozen')
-  const lava = treePalette('lava')
+  const verdant = treeColors('summer')
+  const frozen = treeColors('winter')
+  const lava = treeColors('autumn')
 
-  const onlyColor = (set: Set<string>): string => {
-    expect(set.size).toBe(1) // a zone paints exactly one trunk + one canopy color
-    return [...set][0]
-  }
+  it('keeps ONE trunk color per zone, distinct across zones', () => {
+    for (const { trunk } of [verdant, frozen, lava]) expect(trunk.size).toBe(1)
+    const trunks = [...verdant.trunk, ...frozen.trunk, ...lava.trunk]
+    expect(new Set(trunks).size).toBe(3)
+  })
 
-  it('gives every zone a single, consistent trunk and canopy color', () => {
-    for (const { trunk, canopy } of [verdant, frozen, lava]) {
-      expect(trunk.size).toBe(1)
-      expect(canopy.size).toBe(1)
+  it('varies canopy tone for contrast — each zone uses MULTIPLE shades (not one flat tone)', () => {
+    for (const { canopy } of [verdant, frozen, lava]) {
+      expect(canopy.size).toBeGreaterThanOrEqual(2)
     }
   })
 
-  it('keeps trunk and canopy visually distinct WITHIN each zone', () => {
-    for (const p of [verdant, frozen, lava]) {
-      expect(onlyColor(p.trunk)).not.toBe(onlyColor(p.canopy))
+  it('draws every canopy shade from the zone palette', () => {
+    expect([...verdant.canopy].every(c => TREE_CANOPY_SHADES.summer.includes(c))).toBe(true)
+    expect([...frozen.canopy].every(c => TREE_CANOPY_SHADES.winter.includes(c))).toBe(true)
+    expect([...lava.canopy].every(c => TREE_CANOPY_SHADES.autumn.includes(c))).toBe(true)
+  })
+
+  it('keeps zone canopy palettes disjoint (no shared tone across zones)', () => {
+    const all = [...TREE_CANOPY_SHADES.summer, ...TREE_CANOPY_SHADES.winter, ...TREE_CANOPY_SHADES.autumn]
+    expect(new Set(all).size).toBe(all.length)
+  })
+
+  it('keeps the verdant forest classic — brown trunk, green canopy from the palette', () => {
+    expect([...verdant.trunk][0]).toBe('#6b4a2b')
+    expect([...verdant.canopy].every(c => c !== '#6b4a2b')).toBe(true)
+    expect(TREE_CANOPY_SHADES.summer).toContain('#2e8b2e')
+  })
+})
+
+describe('generateStage — a single tree is ONE tone (no intra-tree visual mess)', () => {
+  it('paints all canopy cells of a glade tree with the same shade', () => {
+    const stage = generateStage({ zone: 'summer', variant: 'forest', layout: 'open', cols: 40, rows: 30 })
+    const trees = stage.props.filter(p => p.type === 'tree')
+    const tops = trees.filter(p => p.label === 'tree_crown') // solid crown caps a glade tree
+    let checked = 0
+    for (const top of tops) {
+      const column = trees.filter(p => p.col === top.col && p.row >= top.row && p.row <= top.row + 3)
+      const canopyCells = column.filter(c => c.label === 'tree_leaf' || c.label === 'tree_crown')
+      if (canopyCells.length < 2) continue
+      expect(new Set(canopyCells.map(c => c.color)).size).toBe(1) // one tree → one tone
+      checked++
     }
+    expect(checked).toBeGreaterThan(0)
   })
+})
 
-  it('tints canopies per zone — frozen, lava, and verdant are all disjoint', () => {
-    const canopies = [onlyColor(verdant.canopy), onlyColor(frozen.canopy), onlyColor(lava.canopy)]
-    expect(new Set(canopies).size).toBe(3) // no two zones share a canopy color
-  })
-
-  it('tints trunks per zone — frozen, lava, and verdant are all disjoint', () => {
-    const trunks = [onlyColor(verdant.trunk), onlyColor(frozen.trunk), onlyColor(lava.trunk)]
-    expect(new Set(trunks).size).toBe(3) // no two zones share a trunk color
-  })
-
-  it('keeps the verdant forest the classic brown trunk + green canopy', () => {
-    expect(onlyColor(verdant.trunk)).toBe('#6b4a2b')
-    expect(onlyColor(verdant.canopy)).toBe('#2e8b2e')
+describe('generateStage — bare/dead trees (snags)', () => {
+  it('scatters leafless snags in a lava forest (burnt stems), all blocking', () => {
+    // dead trees are a random fraction — sample several maps until one appears
+    let snags = 0
+    for (let i = 0; i < 8 && snags === 0; i++) {
+      const stage = generateStage({ zone: 'autumn', variant: 'forest', layout: 'open', cols: 40, rows: 30 })
+      const dead = stage.props.filter(p => p.label === 'tree_snag')
+      if (dead.length > 0) {
+        snags += dead.length
+        expect(dead.every(d => d.blocking === true)).toBe(true)
+      }
+    }
+    expect(snags).toBeGreaterThan(0)
   })
 })
 
 describe('generateStage — multi-cell labeled trees (the keystone)', () => {
-  const stage = generateStage({ zone: 'verdant', variant: 'forest', cols: 30, rows: 24 })
+  const stage = generateStage({ zone: 'summer', variant: 'forest', cols: 30, rows: 24 })
   const treeProps = stage.props.filter(p => p.type === 'tree')
 
   it('labels every tree cell (no bare, label-less tree props)', () => {
@@ -259,48 +288,35 @@ describe('generateStage — multi-cell labeled trees (the keystone)', () => {
     expect(treeProps.every(p => typeof p.label === 'string' && p.label.length > 0)).toBe(true)
   })
 
-  it('blocks every tree cell EXCEPT the walkable canopy top (tree_leaf_top)', () => {
+  it('blocks EVERY tree cell — trees are fully solid (no passable cell to step into)', () => {
+    expect(treeProps.length).toBeGreaterThan(0)
     for (const p of treeProps) {
-      const walkable = isWalkable(p.label!)
-      // prop.blocking and the live collision grid must agree with the label rule
-      expect(p.blocking).toBe(!walkable)
-      expect(stage.collision[p.row][p.col]).toBe(!walkable)
+      expect(p.blocking).toBe(true)
+      expect(stage.collision[p.row][p.col]).toBe(true)
     }
   })
 
-  it('stamps standalone glade trees as MULTI-CELL columns (>1 cell each)', () => {
-    // Glade trees stand in open clearings: a tree_leaf_top sits directly above a
-    // tree_leaf, which sits above trunk cells — proving >1 cell of vertical extent.
-    const tops = treeProps.filter(p => p.label === 'tree_leaf_top')
-    const gladeTops = tops.filter(top =>
+  it('stamps standalone glade trees as MULTI-CELL solid columns (crown on top, all block)', () => {
+    // A glade tree: a solid tree_crown caps a tree_leaf above trunk cells —
+    // proving >1 cell of vertical extent, and the whole column blocks.
+    const crowns = treeProps.filter(p => p.label === 'tree_crown')
+    const gladeCrowns = crowns.filter(top =>
       treeProps.some(p => p.label === 'tree_leaf' && p.col === top.col && p.row === top.row + 1),
     )
-    expect(gladeTops.length).toBeGreaterThan(0)
+    expect(gladeCrowns.length).toBeGreaterThan(0)
 
-    for (const top of gladeTops) {
+    for (const top of gladeCrowns) {
       const column = treeProps.filter(p => p.col === top.col && p.row >= top.row && p.row <= top.row + 3)
-      // exactly ONE walkable canopy top per glade tree; the cells under it block
-      const walkableTops = column.filter(c => c.label === 'tree_leaf_top')
-      expect(walkableTops).toHaveLength(1)
-      expect(stage.collision[top.row][top.col]).toBe(false)
-      const under = column.filter(c => c.row > top.row)
-      expect(under.length).toBeGreaterThan(0)
-      expect(under.every(c => c.blocking === true)).toBe(true)
+      expect(column.length).toBeGreaterThan(1) // multi-cell
+      expect(column.every(c => c.blocking === true)).toBe(true) // every cell blocks
+      expect(stage.collision[top.row][top.col]).toBe(true) // the crown blocks too
     }
   })
 
-  it('keeps the forest FLOOR connected (canopy tops are a separate walkable layer)', () => {
-    // A tree_leaf_top is collision-free (you walk UNDER it) but it is a canopy
-    // top, not floor — reachable by jumping, not on foot. Treat canopy tops as
-    // non-floor: every GROUND cell must be reachable from spawn.
-    const canopyTop = new Set(
-      treeProps.filter(p => p.label === 'tree_leaf_top').map(p => `${p.col},${p.row}`),
-    )
-    const floorBlocked = stage.collision.map((rowArr, r) =>
-      rowArr.map((blocked, c) => blocked || canopyTop.has(`${c},${r}`)),
-    )
-    const floor = floorBlocked.flat().filter(b => !b).length
-    const reachable = reachableCount(floorBlocked, stage.spawn)
+  it('keeps the forest FLOOR connected — every non-blocking cell reachable from spawn', () => {
+    // Trees are fully solid now, so the floor is simply every non-blocking cell.
+    const floor = stage.collision.flat().filter(b => !b).length
+    const reachable = reachableCount(stage.collision, stage.spawn)
     expect(reachable).toBe(floor)
   })
 })
@@ -313,7 +329,7 @@ const FOREST_SIZE = { cols: 30, rows: 24 } as const
 const countTrees = (opts: Parameters<typeof generateStage>[0]): number =>
   generateStage(opts).props.filter(p => p.type === 'tree').length
 
-const averageTrees = (opts: Parameters<typeof generateStage>[0], runs = 20): number => {
+const averageTrees = (opts: Parameters<typeof generateStage>[0], runs = 40): number => {
   let total = 0
   for (let i = 0; i < runs; i++) total += countTrees(opts)
   return total / runs
@@ -321,14 +337,16 @@ const averageTrees = (opts: Parameters<typeof generateStage>[0], runs = 20): num
 
 describe('generateStage — forest layout: open vs passages', () => {
   it("'open' yields noticeably fewer trees than 'passages' at the same size", () => {
-    const passages = averageTrees({ zone: 'verdant', variant: 'forest', layout: 'passages', ...FOREST_SIZE })
-    const open = averageTrees({ zone: 'verdant', variant: 'forest', layout: 'open', ...FOREST_SIZE })
+    const passages = averageTrees({ zone: 'summer', variant: 'forest', layout: 'passages', ...FOREST_SIZE })
+    const open = averageTrees({ zone: 'summer', variant: 'forest', layout: 'open', ...FOREST_SIZE })
     expect(open).toBeGreaterThan(0) // still a forest — sparse clumps + glade trees
-    expect(open).toBeLessThan(passages * 0.7) // ~0.5x in practice; 0.7 keeps margin vs RNG
+    expect(open).toBeLessThan(passages * 0.92) // open is still sparser, but passages
+    //   was thinned ~30% so the gap is now small (~0.84x mean) — averaged over many
+    //   runs to stay robust against RNG.
   })
 
   it("'open' is easy to traverse — most of the map is reachable open floor", () => {
-    const stage = generateStage({ zone: 'verdant', variant: 'forest', layout: 'open', ...FOREST_SIZE })
+    const stage = generateStage({ zone: 'summer', variant: 'forest', layout: 'open', ...FOREST_SIZE })
     expect(stage.collision[stage.spawn.row][stage.spawn.col]).toBe(false)
     const reachable = reachableCount(stage.collision, stage.spawn)
     // a wide-open glade: well over half the cells reachable on foot
@@ -338,11 +356,11 @@ describe('generateStage — forest layout: open vs passages', () => {
 
 describe('generateStage — forest layout: defaults to passages', () => {
   it('omitting layout reproduces the dense passages forest, not the open glade', () => {
-    const defaulted = averageTrees({ zone: 'verdant', variant: 'forest', ...FOREST_SIZE })
-    const passages = averageTrees({ zone: 'verdant', variant: 'forest', layout: 'passages', ...FOREST_SIZE })
-    const open = averageTrees({ zone: 'verdant', variant: 'forest', layout: 'open', ...FOREST_SIZE })
-    // the default sits in the dense (passages) band, well above the open glade
-    expect(defaulted).toBeGreaterThan(open * 1.4)
+    const defaulted = averageTrees({ zone: 'summer', variant: 'forest', ...FOREST_SIZE })
+    const passages = averageTrees({ zone: 'summer', variant: 'forest', layout: 'passages', ...FOREST_SIZE })
+    const open = averageTrees({ zone: 'summer', variant: 'forest', layout: 'open', ...FOREST_SIZE })
+    // the default sits in the (thinned) passages band, still denser than the open glade
+    expect(defaulted).toBeGreaterThan(open * 1.15)
     expect(Math.abs(defaulted - passages)).toBeLessThan(passages * 0.5)
   })
 })
@@ -381,9 +399,9 @@ const hazardCells = (stage: ReturnType<typeof generateStage>, hazard: string) =>
 describe('generateStage — forest layout: central lake', () => {
   // zone → its hazard ground type + whether that hazard blocks movement.
   const LAKES = [
-    { zone: 'verdant', hazard: 'water', blocks: true },
-    { zone: 'lava', hazard: 'lava', blocks: true },
-    { zone: 'frozen', hazard: 'ice_water', blocks: false },
+    { zone: 'summer', hazard: 'water', blocks: true },
+    { zone: 'autumn', hazard: 'water', blocks: true },
+    { zone: 'winter', hazard: 'ice_water', blocks: false },
   ] as const
 
   it.each(LAKES)('$zone: carves a single contiguous lake of $hazard ground', ({ zone, hazard }) => {
@@ -413,5 +431,123 @@ describe('generateStage — forest layout: central lake', () => {
     const floor = floorBlocked.flat().filter(b => !b).length
     const reachable = reachableCount(floorBlocked, stage.spawn)
     expect(reachable).toBe(floor) // every ground-floor cell reachable from spawn
+  })
+})
+
+// ── lake BALANCE: a hazard lake forest must stay navigable — a healthy ratio of
+//    walkable LAND around the hazard, not a solid wall of trees with a pond in it.
+//    (Bug: the old lake layout started fully forested and only carved the lake +
+//    two thin gates, leaving ~4% walkable. A lake forest should read like the
+//    passages forest WITH a central hazard.) Blocking-hazard zones only — frozen
+//    ice is itself walkable, so it can't expose a solid-forest surround.
+describe('generateStage — forest layout: lake stays balanced (walkable land vs hazard)', () => {
+  const BLOCKING_LAKES = [
+    { zone: 'autumn', hazard: 'water' },
+    { zone: 'summer', hazard: 'water' },
+  ] as const
+
+  const HAZARD_GROUND = new Set(['water', 'ice_water'])
+
+  // Walkable LAND = interior cell that is collision-free, not hazard, not a canopy
+  // top (canopy tops are a separate walk-under layer, not ground you traverse).
+  const walkableLandFraction = (stage: ReturnType<typeof generateStage>): number => {
+    const canopyTop = new Set(
+      stage.props.filter(p => p.label === 'tree_leaf_top').map(p => `${p.col},${p.row}`),
+    )
+    let interior = 0
+    let land = 0
+    for (let r = 1; r < stage.rows - 1; r++) {
+      for (let c = 1; c < stage.cols - 1; c++) {
+        interior++
+        if (stage.collision[r][c]) continue
+        if (HAZARD_GROUND.has(stage.ground[r][c])) continue
+        if (canopyTop.has(`${c},${r}`)) continue
+        land++
+      }
+    }
+    return land / interior
+  }
+
+  it.each(BLOCKING_LAKES)('$zone: leaves plenty of walkable land around the lake (not a solid forest)', ({ zone }) => {
+    // A stochastic generator is tested on its DISTRIBUTION, not a brittle single
+    // worst case: the forest must be navigable ON AVERAGE (mean) and must NEVER
+    // collapse into a solid wall of trees (min). Bound a margin around the lake +
+    // 4-way gates keep the worst case well clear of the old ~4% solid-forest bug.
+    const runs = 10
+    const fractions: number[] = []
+    for (let i = 0; i < runs; i++) {
+      fractions.push(walkableLandFraction(generateStage({ zone, variant: 'forest', layout: 'lake', cols: 40, rows: 30 })))
+    }
+    const mean = fractions.reduce((s, f) => s + f, 0) / runs
+    expect(mean).toBeGreaterThan(0.4) // typically a wide, walkable forest
+    expect(Math.min(...fractions)).toBeGreaterThan(0.2) // and NEVER a solid forest (the bug was ~0.04)
+  })
+
+  it.each(BLOCKING_LAKES)('$zone: the hazard lake stays a balanced size (present, not swallowing the map)', ({ zone, hazard }) => {
+    const stage = generateStage({ zone, variant: 'forest', layout: 'lake', cols: 40, rows: 30 })
+    const lakeFraction = hazardCells(stage, hazard).length / ((stage.cols - 2) * (stage.rows - 2))
+    expect(lakeFraction).toBeGreaterThan(0.06) // a real hazard body
+    expect(lakeFraction).toBeLessThan(0.3) // but it leaves the forest room to breathe
+  })
+})
+
+// ── biome coherence: a hazard lake gets a signature FEATURE nearby — a volcano
+//    by the lava, a waterfall/mountain by the water/ice — so the scene reads as a
+//    place, not a random pond. Features are blocking terrain props.
+describe('generateStage — biome features beside the lake', () => {
+  const manhattanNear = (
+    feats: { col: number; row: number }[],
+    body: { col: number; row: number }[],
+    within: number,
+  ): boolean => feats.some(f => body.some(b => Math.abs(b.col - f.col) + Math.abs(b.row - f.row) <= within))
+
+  it('raises a volcano/mountain massif right beside the lava lake (blocking)', () => {
+    const stage = generateStage({ zone: 'autumn', variant: 'forest', layout: 'lake', cols: 44, rows: 34 })
+    const massif = stage.props.filter(p => p.label === 'peak' || p.label === 'mountain')
+    expect(massif.length).toBeGreaterThan(0)
+    expect(massif.every(p => p.blocking)).toBe(true)
+    expect(manhattanNear(massif, hazardCells(stage, 'water'), 4)).toBe(true) // close to the lava
+  })
+
+  it('exactly one glowing crater/peak crowns the massif', () => {
+    const stage = generateStage({ zone: 'autumn', variant: 'forest', layout: 'lake', cols: 44, rows: 34 })
+    expect(stage.props.filter(p => p.label === 'peak')).toHaveLength(1)
+  })
+
+  it('feeds the water lake with a waterfall spill (verdant)', () => {
+    const stage = generateStage({ zone: 'summer', variant: 'forest', layout: 'lake', cols: 44, rows: 34 })
+    const spill = stage.props.filter(p => p.label === 'spill')
+    expect(spill.length).toBeGreaterThan(0)
+    expect(manhattanNear(spill, hazardCells(stage, 'water'), 3)).toBe(true)
+  })
+})
+
+// ── organic lake edges: the hazard body should read like a natural lake / lava
+//    flow with an irregular outline, NOT a clean geometric disc. A perfect disc's
+//    boundary cells all sit ~one radius from the centroid (tiny spread); an
+//    organic outline's boundary radius varies by several cells.
+describe('generateStage — forest layout: lake has organic (irregular) edges', () => {
+  const ORTHO_DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]] as const
+
+  const lakeBoundaryRadiusSpread = (stage: ReturnType<typeof generateStage>): number => {
+    const lake = hazardCells(stage, 'water')
+    const inLake = new Set(lake.map(c => `${c.col},${c.row}`))
+    const cx = lake.reduce((s, c) => s + c.col, 0) / lake.length
+    const cy = lake.reduce((s, c) => s + c.row, 0) / lake.length
+    const isBoundary = (c: { col: number; row: number }): boolean =>
+      ORTHO_DIRS.some(([dc, dr]) => !inLake.has(`${c.col + dc},${c.row + dr}`))
+    const radii = lake.filter(isBoundary).map(c => Math.hypot(c.col - cx, c.row - cy))
+    return Math.max(...radii) - Math.min(...radii)
+  }
+
+  it('the lake outline is irregular, not a clean geometric disc', () => {
+    // Average several runs — a perfect disc gives a boundary-radius spread of ~1
+    // cell; an organic, wobbling outline varies by much more.
+    let total = 0
+    const runs = 6
+    for (let i = 0; i < runs; i++) {
+      total += lakeBoundaryRadiusSpread(generateStage({ zone: 'summer', variant: 'forest', layout: 'lake', cols: 44, rows: 34 }))
+    }
+    expect(total / runs).toBeGreaterThan(3)
   })
 })

@@ -21,8 +21,13 @@ import { player as playerSprite } from '@/assets/ascii'
 import { TILES, COMPOSITE_ASSETS, getTilesByCategory, getAssetsByCategory, TileDef, CompositeAsset } from '@/engine/Tileset'
 import { listTemplates, getTemplate, createTemplate, updateTemplate, deleteTemplate, serializeGrid, deserializeToGrid, TemplateListItem, Connector } from '@/lib/api'
 import { findTriggeredConnector } from '@/engine/connectors'
+import { resolveAction, type Action as TriggerAction } from '@/engine/triggers'
 import { generateStage, stagePaint, StageData, VariantId } from '@/engine/stageGenerator'
 import { ZoneId } from '@/engine/zones'
+import { darkenColor, lightenColor, withAlpha } from '@/engine/colors'
+import { fillSelectionWithComposite } from '@/engine/compositeFill'
+import { stepMover, initMover, type MoverState } from '@/engine/movement'
+import { shouldFire, lampPulse } from '@/engine/behaviors'
 import { useToast } from '@/components/Toast'
 import {
   makePlayer,
@@ -41,14 +46,30 @@ import {
   resolveAttack,
   isDead,
 } from '@/game/combat'
+import {
+  acceptQuest,
+  recordEvent,
+  progress,
+  turnIn,
+  isComplete,
+  type QuestEvent,
+} from '@/game/quests'
+import type { ObjectiveKind, TalentPath } from '@/game/types'
 import type {
   Entity,
   EntityKind,
   Attack,
   CombatState,
   Weapon,
+  Armor,
   Stats,
+  Quest,
+  Objective,
+  Reward,
+  Item,
+  Inventory,
 } from '@/game/types'
+import { createInventory, addItem, equipWeapon, equipArmor, useConsumable } from '@/game/inventory'
 
 const ASCII_FONT = '"JetBrains Mono", "Fira Code", "Consolas", monospace'
 
@@ -105,6 +126,11 @@ function mintEntityId(kind: EntityKind): string {
   return `${kind}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`
 }
 
+/** A short, unique-enough id for a minted item (quest rewards, etc.). */
+function mintItemId(): string {
+  return `item_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`
+}
+
 // ── persistence codec ────────────────────────────────────────────────
 // Entities ride inside the existing `assetsData` array as marked records so
 // they round-trip through createTemplate/updateTemplate without touching
@@ -155,6 +181,57 @@ function entitiesFromAssets(assets: readonly GridAsset[]): Entity[] {
   return out
 }
 
+// ── quest persistence codec ──────────────────────────────────────────
+// Quests ride the same assetsData channel as entities (api.ts has no quest
+// field and is read-only here). Each quest becomes one off-grid marker asset so
+// the set round-trips through create/updateTemplate; load splits them back out.
+// The NPC↔quest link survives independently via the entity's own questId field.
+
+const QUEST_ASSET_TYPE = 'nebulith:quest'
+
+/** Serialize quests into off-grid asset-shaped marker records. */
+function questsToAssets(quests: readonly Quest[]): GridAsset[] {
+  return quests.map(quest => ({
+    art: [' '],
+    col: -1, // off-grid: never drawn by the tile/asset renderers
+    row: -1,
+    type: QUEST_ASSET_TYPE,
+    blocking: false,
+    color: '#000000',
+    label: JSON.stringify(quest), // the round-trip payload
+  }))
+}
+
+/** True for the marker records produced by questsToAssets. */
+function isQuestAsset(asset: GridAsset): boolean {
+  return asset.type === QUEST_ASSET_TYPE
+}
+
+/** Decode one marker asset back into a Quest, or null if malformed. */
+function questFromAsset(asset: GridAsset): Quest | null {
+  if (!asset.label) return null
+  try {
+    const parsed = JSON.parse(asset.label) as Quest
+    if (parsed?.id && Array.isArray(parsed.objectives) && Array.isArray(parsed.rewards)) {
+      return parsed
+    }
+    return null
+  } catch {
+    return null
+  }
+}
+
+/** Pull every quest back out of a loaded asset list (drops malformed ones). */
+function questsFromAssets(assets: readonly GridAsset[]): Quest[] {
+  const out: Quest[] = []
+  for (const asset of assets) {
+    if (!isQuestAsset(asset)) continue
+    const quest = questFromAsset(asset)
+    if (quest) out.push(quest)
+  }
+  return out
+}
+
 // ═══════════════════════════════════════════════════════════════════
 // COMBAT — wiring the pure engine (src/game/combat.ts) into the play loop.
 // All formulas live in the combat module; this is orchestration only:
@@ -175,6 +252,36 @@ const STARTER_SWORD: Weapon = {
   intBonus: 0,
   school: 'physical',
   range: 'melee',
+}
+
+/** A magician alternative the player can equip from the starting inventory. */
+const OAK_STAFF: Weapon = {
+  id: 'oak-staff', kind: 'staff', name: 'Oak Staff',
+  baseDamage: 0, baseMagic: 10, baseDefense: 0, strengthBonus: 0, intBonus: 4,
+  school: 'magical', range: 'ranged',
+}
+
+/** A starting inventory: sword equipped, plus a staff, light armor, and a potion
+ *  to demonstrate equip/use. (Fresh objects each call.) */
+function starterInventory(): Inventory {
+  return createInventory(
+    [
+      { id: 'oak-staff', name: 'Oak Staff', slot: 'weapon', weapon: OAK_STAFF },
+      {
+        id: 'leather-vest', name: 'Leather Vest', slot: 'armor',
+        armor: { id: 'leather-vest', kind: 'leather', name: 'Leather Vest', defenseBonus: 4, strengthBonus: 0, intBonus: 2 },
+      },
+      { id: 'health-potion', name: 'Health Potion', slot: 'consumable', effect: { hp: 40 } },
+    ],
+    STARTER_SWORD,
+    null,
+  )
+}
+
+/** Build a carryable item from a quest 'item' reward (no item DB yet → a small
+ *  health potion tagged by the reward's itemId). */
+function itemFromReward(reward: Reward, id: string): Item {
+  return { id, name: reward.itemId || 'Reward Item', slot: 'consumable', effect: { hp: 25 } }
 }
 
 /** The two attacks bound to input: `f` = free regular, `g` = rage-fueled special. */
@@ -226,6 +333,7 @@ interface PlayerHud {
 /** Is this entity a living (not currently dead/awaiting-respawn) enemy? */
 function isLivingEnemy(entity: Entity, runtime: EnemyRuntime): boolean {
   if (entity.kind !== 'enemy') return false
+  if (entity.hittable === false) return false // a non-hittable enemy is passive scenery
   const state = runtime.combat.get(entity.id)
   if (!state) return true // freshly placed, not yet initialized → alive
   return !isDead(state.hp)
@@ -357,6 +465,8 @@ interface CombatStepInput {
   runtime: EnemyRuntime
   playerCombat: CombatState
   playerWeapon: Weapon
+  /** equipped armor folds its defense into the player when taking melee hits. */
+  playerArmor: Armor | null
   hitMarkers: HitMarker[]
   cellSize: number
   use2D: boolean
@@ -368,12 +478,15 @@ interface CombatStepInput {
 /** What the combat step produces back to the loop (player state may be replaced on death/spend). */
 interface CombatStepResult {
   playerCombat: CombatState
+  /** enemyType of every enemy the player killed THIS frame — feeds 'kill' quest objectives. */
+  kills: string[]
 }
 
 /**
  * One combat tick: respawn timers, the player's attack (if pressed), enemy
  * retaliation, and player-death reset. Mutates `runtime`/`hitMarkers` in place
- * (the loop owns them) and returns the player's (possibly new) CombatState.
+ * (the loop owns them) and returns the player's (possibly new) CombatState plus
+ * the enemyTypes killed this frame so the loop can advance kill quests.
  */
 function stepCombat(input: CombatStepInput): CombatStepResult {
   const { entities, runtime, hitMarkers, now } = input
@@ -381,10 +494,11 @@ function stepCombat(input: CombatStepInput): CombatStepResult {
   respawnElapsedEnemies(entities, runtime, now)
   prunePlayerStartedMarkers(hitMarkers, now)
 
-  let playerCombat = applyPlayerAttack(input)
+  const kills: string[] = []
+  let playerCombat = applyPlayerAttack(input, kills)
   playerCombat = applyEnemyRetaliation({ ...input, playerCombat })
   playerCombat = resetPlayerIfDead(playerCombat)
-  return { playerCombat }
+  return { playerCombat, kills }
 }
 
 /** Drop hit markers older than their lifetime so the array stays bounded. */
@@ -399,8 +513,12 @@ function prunePlayerStartedMarkers(markers: HitMarker[], now: number): void {
   markers.length = write
 }
 
-/** Resolve the player's chosen attack against the current target, if any. */
-function applyPlayerAttack(input: CombatStepInput): CombatState {
+/**
+ * Resolve the player's chosen attack against the current target, if any. On a
+ * lethal hit, records the death timestamp (drives respawn) AND pushes the dead
+ * enemy's `enemyType` into `kills` so the loop can advance kill-quest objectives.
+ */
+function applyPlayerAttack(input: CombatStepInput, kills: string[]): CombatState {
   const { player, entities, runtime, playerCombat, playerWeapon, hitMarkers, cellSize, use2D, attack, special, now } = input
   if (!attack && !special) return playerCombat
 
@@ -425,14 +543,26 @@ function applyPlayerAttack(input: CombatStepInput): CombatState {
 
   runtime.combat.set(target.id, { ...targetState, hp: result.defenderHpAfter })
   pushHitMarker(hitMarkers, target.col, target.row, result.damage, 'enemy', now)
-  if (result.lethal) runtime.diedAt.set(target.id, now)
+  if (result.lethal) recordEnemyDeath(runtime, target, kills, now)
   return result.attackerStateAfter ?? playerCombat
+}
+
+/** A killed enemy: stamp its death time (respawn) and report its type for kill quests. */
+function recordEnemyDeath(runtime: EnemyRuntime, enemy: Entity, kills: string[], now: number): void {
+  runtime.diedAt.set(enemy.id, now)
+  kills.push(enemy.enemyType ?? 'enemy')
 }
 
 /** Every adjacent living enemy off its cooldown lands one melee hit on the player. */
 function applyEnemyRetaliation(input: CombatStepInput & { playerCombat: CombatState }): CombatState {
-  const { player, entities, runtime, playerWeapon, hitMarkers, cellSize, now } = input
+  const { player, entities, runtime, playerWeapon, playerArmor, hitMarkers, cellSize, now } = input
   let playerCombat = input.playerCombat
+
+  // Equipped armor raises the player's effective defense (mitigates melee). Weapon
+  // bonuses are already applied via defenderWeapon, so only fold the armor here.
+  const defenderStats: Stats = playerArmor
+    ? { ...DEFAULT_PLAYER_STATS, defense: DEFAULT_PLAYER_STATS.defense + playerArmor.defenseBonus }
+    : DEFAULT_PLAYER_STATS
 
   for (const entity of entities) {
     if (!isLivingEnemy(entity, runtime)) continue
@@ -441,7 +571,7 @@ function applyEnemyRetaliation(input: CombatStepInput & { playerCombat: CombatSt
 
     const result = resolveAttack({
       attacker: entity.baseStats,
-      defender: DEFAULT_PLAYER_STATS,
+      defender: defenderStats,
       attack: ENEMY_ATTACK,
       attackerWeapon: enemyFist(entity),
       defenderWeapon: playerWeapon,
@@ -499,6 +629,167 @@ function resetPlayerIfDead(playerCombat: CombatState): CombatState {
   // NOTE: trivial reset for now — full restore in place. No spawn teleport yet
   // (spec §"keep it simple first"); proper death/respawn UX comes later.
   return startingCombatState(deriveStats(DEFAULT_PLAYER_STATS, STARTER_SWORD))
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// QUESTS — wiring the pure quest module (src/game/quests.ts) into the editor.
+// All lifecycle/progress math lives in the module; this is orchestration only:
+// authoring a Quest from the editor form, finding a giver's quest, feeding kill
+// events, and granting rewards on turn-in. Pure + module-level so nothing
+// re-allocates per render and the rules stay unit-testable. (spec §10)
+// ═══════════════════════════════════════════════════════════════════
+
+/** Reward types the simple authoring UI can grant (subset of Reward kinds). */
+type SimpleRewardKind = 'xp' | 'item'
+
+/** The fields the Quests card collects before minting a Quest. */
+interface QuestDraft {
+  giverId: string
+  title: string
+  /** objective type: slay enemies / travel to a cell / find an NPC. */
+  objectiveKind: ObjectiveKind
+  /** the objective TARGET: enemyType (kill), "col,row" cell (travel), or npc id (find). */
+  target: string
+  count: number
+  rewardKind: SimpleRewardKind
+  /** xp amount (rewardKind 'xp') — ignored for items. */
+  rewardXp: number
+  /** itemId to grant (rewardKind 'item') — ignored for xp. */
+  rewardItemId: string
+}
+
+/** A fresh, empty draft for the authoring form (no giver picked yet). */
+function emptyQuestDraft(): QuestDraft {
+  return { giverId: '', title: '', objectiveKind: 'kill', target: 'goblin', count: 3, rewardKind: 'xp', rewardXp: 50, rewardItemId: '' }
+}
+
+/** A short, unique-enough id for a quest minted in the editor session. */
+function mintQuestId(): string {
+  return `quest_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`
+}
+
+/** Build the objective from the draft (dispatch by kind; required clamped ≥1).
+ *  travel/find are single-step; kill uses the draft count. */
+const OBJECTIVE_BUILDERS: Record<ObjectiveKind, (draft: QuestDraft) => Objective> = {
+  kill: (d) => {
+    const target = d.target.trim() || 'enemy'
+    return { kind: 'kill', target, required: Math.max(1, Math.floor(d.count)), current: 0, done: false, label: `Slay ${target}` }
+  },
+  travel: (d) => {
+    const target = d.target.trim() || '0,0'
+    return { kind: 'travel', target, required: 1, current: 0, done: false, label: `Travel to ${target}` }
+  },
+  find: (d) => {
+    const target = d.target.trim()
+    return { kind: 'find', target, required: 1, current: 0, done: false, label: `Find ${target}` }
+  },
+}
+
+function objectiveFrom(draft: QuestDraft): Objective {
+  return OBJECTIVE_BUILDERS[draft.objectiveKind](draft)
+}
+
+/** A short human description of the drafted objective for the quest text. */
+function objectiveSummary(draft: QuestDraft): string {
+  if (draft.objectiveKind === 'kill') return `Defeat ${draft.count} ${draft.target.trim() || 'enemy'}`
+  if (draft.objectiveKind === 'travel') return `Travel to ${draft.target.trim() || 'the marked cell'}`
+  return `Find ${draft.target.trim() || 'the person'}`
+}
+
+/** Build the reward from the draft (dispatch by kind, not a branch chain). */
+const REWARD_BUILDERS: Record<SimpleRewardKind, (draft: QuestDraft) => Reward> = {
+  xp: (draft) => ({ kind: 'xp', amount: Math.max(0, Math.floor(draft.rewardXp)) }),
+  item: (draft) => ({ kind: 'item', amount: 1, itemId: draft.rewardItemId.trim() || 'reward-item' }),
+}
+
+/**
+ * Mint an `available` Quest from a validated draft. Pure: the caller links the
+ * giver's `questId` and stores the quest. Returns null if the draft is unusable
+ * (no giver / blank title) so the caller can surface a toast instead of saving junk.
+ */
+function questFromDraft(draft: QuestDraft): Quest | null {
+  if (!draft.giverId) return null
+  const title = draft.title.trim()
+  if (!title) return null
+  return {
+    id: mintQuestId(),
+    giverId: draft.giverId,
+    title,
+    description: `${objectiveSummary(draft)} for ${title}.`,
+    objectives: [objectiveFrom(draft)],
+    rewards: [REWARD_BUILDERS[draft.rewardKind](draft)],
+    state: 'available',
+  }
+}
+
+/** The quest a giver NPC offers (matched by the NPC's linked questId), or null. */
+function questForGiver(quests: readonly Quest[], giver: Entity): Quest | null {
+  if (!giver.questId) return null
+  return quests.find((q) => q.id === giver.questId) ?? null
+}
+
+/**
+ * The quest-giver NPC the player can interact with from (pCol,pRow): an NPC with
+ * a linked quest on or adjacent (incl. diagonally) to the player's cell. Returns
+ * the closest match (the player's own cell first), or null when none is in reach.
+ */
+function reachableQuestGiver(entities: readonly Entity[], pCol: number, pRow: number): Entity | null {
+  for (const [dCol, dRow] of QUEST_REACH_DELTAS) {
+    const giver = questGiverAt(entities, pCol + dCol, pRow + dRow)
+    if (giver) return giver
+  }
+  return null
+}
+
+/** Player's own cell first (talk while standing on it), then the 8 neighbours. */
+const QUEST_REACH_DELTAS: ReadonlyArray<readonly [number, number]> = [
+  [0, 0],
+  [0, -1], [0, 1], [-1, 0], [1, 0],
+  [-1, -1], [1, 1], [-1, 1], [1, -1],
+]
+
+/** A quest-giving NPC (has a linked questId) occupying (col,row), or null. */
+function questGiverAt(entities: readonly Entity[], col: number, row: number): Entity | null {
+  const here = entityAt(entities, col, row)
+  if (!here || here.kind !== 'npc' || !here.questId) return null
+  return here
+}
+
+/** The single quest currently `active` (the editor tracks one at a time for the HUD). */
+function activeQuest(quests: readonly Quest[]): Quest | null {
+  return quests.find((q) => q.state === 'active') ?? null
+}
+
+/** Immutably replace a quest by id in the list (no-op append if it's new). */
+function upsertQuest(quests: readonly Quest[], quest: Quest): Quest[] {
+  const exists = quests.some((q) => q.id === quest.id)
+  if (!exists) return [...quests, quest]
+  return quests.map((q) => (q.id === quest.id ? quest : q))
+}
+
+/** Feed one world event (kill / travel / find) to every active quest. Returns the
+ *  SAME reference when nothing advanced, so callers can skip a state update. */
+function applyQuestEvent(quests: readonly Quest[], event: QuestEvent): Quest[] {
+  let changed = false
+  const next = quests.map((q) => {
+    if (q.state !== 'active') return q
+    const advanced = recordEvent(q, event)
+    if (advanced !== q) changed = true
+    return advanced
+  })
+  return changed ? next : (quests as Quest[])
+}
+
+/** Human label for a kill objective's progress, e.g. "goblin 3/5". */
+function objectiveLabel(objective: Objective): string {
+  return `${objective.target} ${objective.current}/${objective.required}`
+}
+
+/** One-line reward summary for toasts, e.g. "+50 xp" or "item: sword". */
+function rewardSummary(reward: Reward): string {
+  if (reward.kind === 'xp') return `+${reward.amount} xp`
+  if (reward.kind === 'item') return `item: ${reward.itemId ?? 'reward'}`
+  return `+${reward.amount} ${reward.stat ?? 'stat'}`
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -1288,21 +1579,31 @@ function Card({
   accent = 'yellow',
   action,
   children,
+  defaultOpen = true,
 }: {
   title: string
   accent?: CardAccent
   action?: React.ReactNode
   children: React.ReactNode
+  /** start collapsed by passing false — collapsible to cut sidebar scrolling. */
+  defaultOpen?: boolean
 }) {
+  const [open, setOpen] = useState(defaultOpen)
   return (
     <section className="rounded-lg border border-white/10 bg-black/60 p-3 shadow-lg shadow-black/40">
-      <header className="mb-3 flex items-center justify-between">
-        <h3 className={`text-sm font-bold uppercase tracking-wide ${CARD_TITLE_COLOR[accent]}`}>
-          {title}
-        </h3>
+      <header className={`flex items-center justify-between gap-2 ${open ? 'mb-3' : ''}`}>
+        <button
+          type="button"
+          onClick={() => setOpen(o => !o)}
+          aria-expanded={open}
+          className={`flex flex-1 items-center gap-1.5 text-left text-sm font-bold uppercase tracking-wide ${CARD_TITLE_COLOR[accent]}`}
+        >
+          <span aria-hidden className="text-[10px]">{open ? '▾' : '▸'}</span>
+          <h3>{title}</h3>
+        </button>
         {action}
       </header>
-      {children}
+      {open && children}
     </section>
   )
 }
@@ -1421,7 +1722,7 @@ const NATURE_TILE_KEYS: readonly string[] = [
   'trunk', 'trunk_thick', 'foliage', 'foliage_light', 'foliage_dark', 'stump',
 ]
 const BUILDING_TILE_KEYS: readonly string[] = [
-  'wall', 'wall_stone', 'window', 'door', 'roof_flat', 'roof_peak', 'column', 'floor',
+  'wall', 'wall_stone', 'window', 'door', 'roof_flat', 'roof_peak', 'column', 'floor', 'cannon',
 ]
 const DECORATION_TILE_KEYS: readonly string[] = [
   'lamp', 'crate', 'barrel', 'flower', 'rock', 'fence_h', 'sign', 'npc',
@@ -1440,7 +1741,14 @@ const COMPOSITE_SWATCHES: readonly CompositeSwatch[] = [
 ]
 
 // Stage generator menu (zone × variant)
-const STAGE_ZONES = ['lava', 'frozen'] as const
+const STAGE_ZONES = ['spring', 'summer', 'autumn', 'winter'] as const
+// Active-season button tint (the seasonal accent).
+const SEASON_BTN: Record<(typeof STAGE_ZONES)[number], string> = {
+  spring: 'bg-pink-600 ring-1 ring-pink-300',
+  summer: 'bg-green-700 ring-1 ring-green-300',
+  autumn: 'bg-orange-700 ring-1 ring-orange-300',
+  winter: 'bg-sky-700 ring-1 ring-sky-300',
+}
 const STAGE_VARIANTS = ['village', 'forest', 'cave', 'temple', 'boss-stage'] as const
 
 // Player state
@@ -1450,6 +1758,8 @@ interface PlayerState {
   facing: 'up' | 'down' | 'left' | 'right'
   moving: boolean
   frame: number
+  /** visual hop height (px) while mid-jump; 0 on the ground. */
+  jumpHeight?: number
 }
 
 // Jump = clear up to this many blocked cells in the facing direction (settings later).
@@ -1469,16 +1779,38 @@ function facingDelta(facing: PlayerState['facing'], use2D: boolean): [number, nu
   return [1, -1] // right (isometric diagonals)
 }
 
-/** Leap (JUMP_CLEAR + 1) cells ahead, clearing blocked cells, if the landing is walkable. */
-function attemptJump(player: PlayerState, grid: IsometricGrid, use2D: boolean): void {
+/** A jump in flight: the loop interpolates the player from→to over JUMP_MS with a
+ *  parabolic visual hop, so they travel ACROSS the intervening cell(s) and arc up,
+ *  rather than teleporting. */
+interface JumpState {
+  active: boolean
+  fromX: number
+  fromZ: number
+  toX: number
+  toZ: number
+  start: number
+}
+const JUMP_MS = 380 // arc duration
+const JUMP_PEAK_PX = 26 // visual hop height at mid-arc
+
+/** Begin a jump (JUMP_CLEAR + 1) cells ahead IF the landing is walkable + in
+ *  bounds. The arc clears whatever sits on the intervening cells (you're airborne);
+ *  the loop animates it. No-op if already mid-jump. */
+function beginJump(player: PlayerState, grid: IsometricGrid, use2D: boolean, jump: JumpState, now: number): void {
+  if (jump.active) return
   const [dCol, dRow] = facingDelta(player.facing, use2D)
   const dist = JUMP_CLEAR + 1
-  const col = Math.floor(player.x / grid.cellSize) + dCol * dist
-  const row = Math.floor(player.z / grid.cellSize) + dRow * dist
+  const cs = grid.cellSize
+  const col = Math.floor(player.x / cs) + dCol * dist
+  const row = Math.floor(player.z / cs) + dRow * dist
   if (col < 0 || row < 0 || col >= grid.cols || row >= grid.rows) return
   if (grid.isBlocked(col, row)) return
-  player.x = col * grid.cellSize + grid.cellSize / 2
-  player.z = row * grid.cellSize + grid.cellSize / 2
+  jump.active = true
+  jump.fromX = player.x
+  jump.fromZ = player.z
+  jump.toX = col * cs + cs / 2
+  jump.toZ = row * cs + cs / 2
+  jump.start = now
 }
 
 // ── Combat HUD (DOM overlay; the canvas can't easily do crisp text bars) ──
@@ -1531,6 +1863,233 @@ function CombatHud({ hud }: { hud: PlayerHud }) {
       </div>
       <div className="mt-2 text-[10px] text-gray-400">F attack · G special</div>
     </div>
+  )
+}
+
+/**
+ * Top-center active-quest tracker: title, kill progress, and a "ready to turn in"
+ * cue when complete. Reads the active quest from React state (the loop mirrors
+ * quests into state). Returns null when no quest is active, so it never shows
+ * empty chrome.
+ */
+function QuestHud({ quest }: { quest: Quest | null }) {
+  if (!quest) return null
+  const { completed, total } = progress(quest)
+  const done = isComplete(quest)
+  return (
+    <div
+      className="fixed left-1/2 top-20 z-20 w-72 -translate-x-1/2 rounded-md bg-black/80 p-3 font-mono text-white shadow-lg ring-1 ring-amber-400/30"
+      role="status"
+      aria-label="Active quest"
+    >
+      <div className="mb-1 flex items-center justify-between">
+        <span className="truncate text-[11px] font-bold uppercase tracking-wider text-amber-300">{quest.title}</span>
+        <span className="ml-2 shrink-0 text-[10px] tabular-nums text-gray-400">{completed}/{total}</span>
+      </div>
+      <ul className="flex flex-col gap-0.5">
+        {quest.objectives.map((objective) => (
+          <li key={`${objective.kind}:${objective.target}`} className="flex items-center gap-2 text-[11px]">
+            <span aria-hidden className={objective.done ? 'text-emerald-400' : 'text-gray-500'}>
+              {objective.done ? '✓' : '•'}
+            </span>
+            <span className={objective.done ? 'text-emerald-300 line-through' : 'text-gray-200'}>
+              {objectiveLabel(objective)}
+            </span>
+          </li>
+        ))}
+      </ul>
+      {done && (
+        <div className="mt-2 rounded bg-amber-500/20 px-2 py-1 text-center text-[10px] font-bold text-amber-200">
+          Return to the giver (E) to turn in
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Quest authoring card (editor sidebar) ────────────────────────────
+
+/** Tailwind colour for each quest state badge in the authored-quest list. */
+const QUEST_STATE_BADGE: Record<Quest['state'], string> = {
+  available: 'bg-gray-600 text-gray-100',
+  active: 'bg-sky-600 text-white',
+  completed: 'bg-amber-500 text-black',
+  turned_in: 'bg-emerald-600 text-white',
+}
+
+const QUEST_FIELD_CLASS = 'w-full rounded bg-gray-800 p-1.5 text-xs'
+
+const OBJECTIVE_TARGET_LABEL: Record<ObjectiveKind, string> = { kill: 'Enemy type', travel: 'Cell "col,row"', find: 'Target NPC' }
+const OBJECTIVE_TARGET_PLACEHOLDER: Record<ObjectiveKind, string> = { kill: 'goblin', travel: '10,5', find: '' }
+
+interface QuestAuthoringCardProps {
+  npcs: Entity[]
+  quests: Quest[]
+  draft: QuestDraft
+  playerXp: number
+  onDraftChange: (next: QuestDraft) => void
+  onSave: () => void
+}
+
+/**
+ * Editor panel to author ONE kill-quest and link it to a placed NPC (spec §10):
+ * pick a giver, set a title + kill objective (enemy type × count) + a reward
+ * (xp or item). Lists already-authored quests with their lifecycle state. Purely
+ * presentational — all quest logic lives in the page/module; this only edits the
+ * draft and fires onSave.
+ */
+function QuestAuthoringCard({ npcs, quests, draft, playerXp, onDraftChange, onSave }: QuestAuthoringCardProps) {
+  const patch = (partial: Partial<QuestDraft>) => onDraftChange({ ...draft, ...partial })
+
+  return (
+    <Card title="Quests" accent="orange">
+      <p className="mb-2 text-[10px] text-gray-500">
+        Place an NPC, link it as a quest-giver, then play: press E by the NPC to accept,
+        slay the enemies, return and press E to turn in.
+      </p>
+
+      <label className="mb-2 block">
+        <span className="mb-1 block text-xs font-bold text-orange-300">Quest-giver NPC</span>
+        <select
+          value={draft.giverId}
+          onChange={e => patch({ giverId: e.target.value })}
+          aria-label="Quest-giver NPC"
+          className={QUEST_FIELD_CLASS}
+        >
+          <option value="">— pick a placed NPC —</option>
+          {npcs.map(npc => (
+            <option key={npc.id} value={npc.id}>
+              {npc.name?.trim() || `NPC @ ${npc.col},${npc.row}`}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      <label className="mb-2 block">
+        <span className="mb-1 block text-xs font-bold text-orange-300">Title</span>
+        <input
+          type="text"
+          value={draft.title}
+          onChange={e => patch({ title: e.target.value })}
+          placeholder="Cull the goblins"
+          aria-label="Quest title"
+          className={QUEST_FIELD_CLASS}
+        />
+      </label>
+
+      <div className="mb-2">
+        <span className="mb-1 block text-xs font-bold text-orange-300">Objective</span>
+        <select
+          value={draft.objectiveKind}
+          onChange={e => patch({ objectiveKind: e.target.value as ObjectiveKind, target: '' })}
+          aria-label="Objective kind"
+          className={`${QUEST_FIELD_CLASS} mb-1`}
+        >
+          <option value="kill">Slay enemies</option>
+          <option value="travel">Travel to a cell</option>
+          <option value="find">Find an NPC</option>
+        </select>
+        <div className="grid grid-cols-3 gap-2">
+          <label className="col-span-2 block">
+            <span className="mb-1 block text-[10px] text-gray-400">{OBJECTIVE_TARGET_LABEL[draft.objectiveKind]}</span>
+            {draft.objectiveKind === 'find' ? (
+              <select value={draft.target} onChange={e => patch({ target: e.target.value })} aria-label="Target NPC" className={QUEST_FIELD_CLASS}>
+                <option value="">— pick NPC —</option>
+                {npcs.map(n => <option key={n.id} value={n.id}>{n.name?.trim() || `NPC @ ${n.col},${n.row}`}</option>)}
+              </select>
+            ) : (
+              <input
+                type="text"
+                value={draft.target}
+                onChange={e => patch({ target: e.target.value })}
+                placeholder={OBJECTIVE_TARGET_PLACEHOLDER[draft.objectiveKind]}
+                aria-label="Objective target"
+                className={QUEST_FIELD_CLASS}
+              />
+            )}
+          </label>
+          {draft.objectiveKind === 'kill' && (
+            <label className="block">
+              <span className="mb-1 block text-[10px] text-gray-400">Count</span>
+              <input
+                type="number"
+                min={1}
+                value={draft.count}
+                onChange={e => patch({ count: Number(e.target.value) })}
+                aria-label="Objective count"
+                className={QUEST_FIELD_CLASS}
+              />
+            </label>
+          )}
+        </div>
+      </div>
+
+      <div className="mb-2">
+        <span className="mb-1 block text-xs font-bold text-orange-300">Reward</span>
+        <div className="mb-2 grid grid-cols-2 gap-1">
+          <RewardKindButton label="XP" active={draft.rewardKind === 'xp'} onClick={() => patch({ rewardKind: 'xp' })} />
+          <RewardKindButton label="Item" active={draft.rewardKind === 'item'} onClick={() => patch({ rewardKind: 'item' })} />
+        </div>
+        {draft.rewardKind === 'xp' ? (
+          <input
+            type="number"
+            min={0}
+            value={draft.rewardXp}
+            onChange={e => patch({ rewardXp: Number(e.target.value) })}
+            aria-label="Reward XP amount"
+            className={QUEST_FIELD_CLASS}
+          />
+        ) : (
+          <input
+            type="text"
+            value={draft.rewardItemId}
+            onChange={e => patch({ rewardItemId: e.target.value })}
+            placeholder="reward-item id"
+            aria-label="Reward item id"
+            className={QUEST_FIELD_CLASS}
+          />
+        )}
+      </div>
+
+      <button
+        onClick={onSave}
+        className="w-full rounded bg-orange-600 px-2 py-1.5 text-xs font-bold text-black transition-colors hover:bg-orange-500"
+      >
+        Link quest to giver
+      </button>
+
+      <div className="mt-3 border-t border-white/10 pt-2">
+        <div className="mb-1 flex items-center justify-between text-[10px] text-gray-400">
+          <span>{quests.length} quest{quests.length === 1 ? '' : 's'}</span>
+          <span className="tabular-nums text-amber-300">{playerXp} XP</span>
+        </div>
+        <ul className="flex flex-col gap-1">
+          {quests.map(quest => (
+            <li key={quest.id} className="flex items-center justify-between gap-2 rounded bg-black/40 px-2 py-1">
+              <span className="truncate text-[11px] text-gray-200">{quest.title}</span>
+              <span className={`shrink-0 rounded px-1.5 py-0.5 text-[9px] font-bold uppercase ${QUEST_STATE_BADGE[quest.state]}`}>
+                {quest.state.replace('_', ' ')}
+              </span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </Card>
+  )
+}
+
+/** A reward-kind toggle (XP / Item) in the Quests card. */
+function RewardKindButton({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      aria-pressed={active}
+      className={`rounded px-2 py-1 text-xs font-bold transition-colors ${
+        active ? 'bg-orange-600 text-black' : 'bg-gray-700 text-gray-200 hover:bg-gray-600'
+      }`}
+    >
+      {label}
+    </button>
   )
 }
 
@@ -1818,6 +2377,163 @@ function FlowViewOverlay({
   )
 }
 
+// Enemies advance one patrol cell roughly every ENEMY_MOVE_MS (throttled, so
+// patrols read as steps, not a blur).
+const ENEMY_MOVE_MS = 360
+
+/** Advance every patrolling enemy ONE cell along its movement pattern, treating
+ *  walls, the player's cell, and other entities as blocked. Returns a NEW entities
+ *  list when something moved, else the same reference (so the loop can skip a
+ *  re-render). Per-entity cursors persist across ticks in `cursors`. */
+function advanceEnemyMovement(
+  grid: IsometricGrid,
+  entities: readonly Entity[],
+  player: { x: number; z: number },
+  cursors: Map<string, MoverState>,
+): readonly Entity[] {
+  const pCol = Math.floor(player.x / grid.cellSize)
+  const pRow = Math.floor(player.z / grid.cellSize)
+  const occupied = new Set(entities.map(e => `${e.col},${e.row}`))
+  let moved = false
+  const next = entities.map(e => {
+    if (e.kind !== 'enemy' || !e.movement) return e
+    const blocked = (c: number, r: number): boolean =>
+      grid.isBlocked(c, r) ||
+      (c === pCol && r === pRow) ||
+      (occupied.has(`${c},${r}`) && !(c === e.col && r === e.row))
+    const stepped = stepMover({ col: e.col, row: e.row }, e.movement, cursors.get(e.id) ?? initMover(), blocked)
+    cursors.set(e.id, stepped.state)
+    if (stepped.pos.col === e.col && stepped.pos.row === e.row) return e
+    moved = true
+    return { ...e, col: stepped.pos.col, row: stepped.pos.row }
+  })
+  return moved ? next : entities
+}
+
+// Cannon behavior: a placed `cannon` asset auto-fires on this cadence, hitting a
+// player within CANNON_RANGE cells for CANNON_DAMAGE (a simple line-of-no-sight
+// turret — projectile travel is a later refinement).
+const CANNON_INTERVAL_MS = 1800
+const CANNON_RANGE = 4
+const CANNON_DAMAGE = 6
+
+/** Fire every ready cannon; return total damage dealt to the player this tick and
+ *  push a hit marker on the player when struck. `lastFired` persists per cannon. */
+function tickCannons(
+  grid: IsometricGrid,
+  player: { x: number; z: number },
+  lastFired: Map<string, number>,
+  hitMarkers: HitMarker[],
+  now: number,
+): number {
+  const pCol = Math.floor(player.x / grid.cellSize)
+  const pRow = Math.floor(player.z / grid.cellSize)
+  let damage = 0
+  for (const a of grid.assets) {
+    if (a.tileKey !== 'cannon') continue
+    const key = `${a.col},${a.row}`
+    if (!shouldFire(CANNON_INTERVAL_MS, lastFired.get(key) ?? 0, now)) continue
+    lastFired.set(key, now)
+    if (Math.abs(a.col - pCol) + Math.abs(a.row - pRow) <= CANNON_RANGE) {
+      damage += CANNON_DAMAGE
+      pushHitMarker(hitMarkers, pCol, pRow, CANNON_DAMAGE, 'player', now)
+    }
+  }
+  return damage
+}
+
+/** Right-sidebar inventory: shows the equipped weapon/armor and lets the player
+ *  equip gear or use a consumable. Presentational — actions bubble to the editor. */
+function InventoryCard({ inventory, talentPath, onEquip, onUse, onSetClass }: {
+  inventory: Inventory
+  talentPath: TalentPath
+  onEquip: (itemId: string) => void
+  onUse: (itemId: string) => void
+  onSetClass: (path: TalentPath) => void
+}) {
+  const classBtn = (path: TalentPath, label: string) =>
+    `flex-1 rounded px-2 py-0.5 ${talentPath === path ? 'bg-cyan-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`
+  return (
+    <Card title="Inventory" accent="cyan">
+      <div className="space-y-2 text-xs">
+        <div>
+          <span className="mb-1 block text-[10px] uppercase tracking-wider text-gray-400">Class</span>
+          <div className="flex gap-1">
+            <button onClick={() => onSetClass('warrior')} className={classBtn('warrior', 'Warrior')} aria-pressed={talentPath === 'warrior'}>Warrior</button>
+            <button onClick={() => onSetClass('magician')} className={classBtn('magician', 'Magician')} aria-pressed={talentPath === 'magician'}>Magician</button>
+          </div>
+        </div>
+        <div className="text-gray-300">
+          <div>Weapon: <span className="text-cyan-300">{inventory.equippedWeapon?.name ?? '—'}</span></div>
+          <div>Armor: <span className="text-cyan-300">{inventory.equippedArmor?.name ?? '—'}</span></div>
+        </div>
+        <ul className="space-y-1">
+          {inventory.items.length === 0 && <li className="text-gray-500">No items</li>}
+          {inventory.items.map(item => (
+            <li key={item.id} className="flex items-center justify-between gap-2">
+              <span className="truncate text-gray-200">
+                {item.name} <span className="text-gray-500">({item.slot})</span>
+              </span>
+              {item.slot === 'consumable' ? (
+                <button onClick={() => onUse(item.id)} className="shrink-0 rounded bg-emerald-700 px-2 py-0.5 hover:bg-emerald-600" aria-label={`Use ${item.name}`}>Use</button>
+              ) : (
+                <button onClick={() => onEquip(item.id)} className="shrink-0 rounded bg-cyan-700 px-2 py-0.5 hover:bg-cyan-600" aria-label={`Equip ${item.name}`}>Equip</button>
+              )}
+            </li>
+          ))}
+        </ul>
+      </div>
+    </Card>
+  )
+}
+
+/** Right-sidebar inspector for a clicked entity: edit its name / enemy-type, toggle
+ *  whether it's hittable (a non-hittable enemy becomes passive scenery), see its
+ *  stats + patrol, and delete it. Presentational — actions bubble to the editor. */
+function EntityInspectorCard({ entity, onPatch, onDelete, onClose }: {
+  entity: Entity
+  onPatch: (patch: Partial<Entity>) => void
+  onDelete: () => void
+  onClose: () => void
+}) {
+  const hittable = entity.hittable ?? entity.kind === 'enemy'
+  return (
+    <Card title="Selected entity" accent="orange">
+      <div className="space-y-2 text-xs">
+        <div className="flex items-center justify-between">
+          <span className="font-bold uppercase tracking-wider text-orange-300">{entity.kind}</span>
+          <span className="text-gray-500">@ {entity.col},{entity.row}</span>
+        </div>
+        <label className="block">
+          <span className="mb-0.5 block text-[10px] text-gray-400">Name</span>
+          <input value={entity.name ?? ''} onChange={e => onPatch({ name: e.target.value })} aria-label="Entity name" className="w-full rounded bg-gray-800 p-1 text-xs" />
+        </label>
+        {entity.kind === 'enemy' && (
+          <label className="block">
+            <span className="mb-0.5 block text-[10px] text-gray-400">Enemy type (kill-quest tag)</span>
+            <input value={entity.enemyType ?? ''} onChange={e => onPatch({ enemyType: e.target.value })} aria-label="Enemy type" className="w-full rounded bg-gray-800 p-1 text-xs" />
+          </label>
+        )}
+        <div className="grid grid-cols-2 gap-x-3 text-gray-300">
+          <span>HP {entity.baseStats.maxHp}</span><span>DEF {entity.baseStats.defense}</span>
+          <span>STR {entity.baseStats.strength}</span><span>INT {entity.baseStats.intelligence}</span>
+        </div>
+        <label className="flex items-center gap-2 text-gray-300">
+          <input type="checkbox" checked={hittable} onChange={e => onPatch({ hittable: e.target.checked })} aria-label="Hittable" />
+          Hittable (can be attacked)
+        </label>
+        {entity.movement && (
+          <div className="text-[10px] text-gray-500">Patrol: {entity.movement.waypoints.length} waypoints ({entity.movement.mode})</div>
+        )}
+        <div className="flex gap-1">
+          <button onClick={onDelete} className="flex-1 rounded bg-red-800 px-2 py-1 hover:bg-red-700">Delete</button>
+          <button onClick={onClose} className="rounded bg-gray-700 px-2 py-1 hover:bg-gray-600">Close</button>
+        </div>
+      </div>
+    </Card>
+  )
+}
+
 export default function TemplateEditor() {
   const router = useRouter()
   const { toast } = useToast()
@@ -1828,6 +2544,7 @@ export default function TemplateEditor() {
   const [showFlowView, setShowFlowView] = useState(false)
   const [topViewZoom, setTopViewZoom] = useState(1.0)
   const zoomRef = useRef(1.0)
+  const isoZoomRef = useRef(1.0) // mouse-wheel zoom for the isometric view
   const [gridSize, setGridSize] = useState({ cols: VILLAGE_CONFIG.cols, rows: VILLAGE_CONFIG.rows })
   const [selectedCells, setSelectedCells] = useState<Set<string>>(new Set())
   const [isSelecting, setIsSelecting] = useState(false)
@@ -1860,7 +2577,7 @@ export default function TemplateEditor() {
   const [viewType, setViewType] = useState<'isometric' | '2d'>('isometric')
 
   // Stage generator: selected zone (the variant is chosen per click)
-  const [genZone, setGenZone] = useState<ZoneId>('lava')
+  const [genZone, setGenZone] = useState<ZoneId>('spring')
 
   // Connector state
   const [connectors, setConnectors] = useState<Connector[]>([])
@@ -1879,9 +2596,20 @@ export default function TemplateEditor() {
   // once and reads through a ref, so entities mirror to entitiesRef like connectors.
   const [entities, setEntities] = useState<Entity[]>([])
   const [entityTool, setEntityTool] = useState<EntityTool>(null)
+  // The placed entity currently selected for inspection (click an entity to select).
+  const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null)
   const [enemyType, setEnemyType] = useState('goblin')
   const [npcName, setNpcName] = useState('')
   const entitiesRef = useRef<Entity[]>([])
+
+  // ── Quest state (spec §10) ──────────────────────────────────────────
+  // Quests are React state (drives the authoring panel + HUD), mirrored into a
+  // ref so the once-mounted game loop can read/advance them. The authoring form
+  // is its own draft; xp earned from turn-ins lives in a single player counter.
+  const [quests, setQuests] = useState<Quest[]>([])
+  const [questDraft, setQuestDraft] = useState<QuestDraft>(() => emptyQuestDraft())
+  const [playerXp, setPlayerXp] = useState(0)
+  const questsRef = useRef<Quest[]>([])
 
   // Connector teleport runtime state (read/written inside the once-mounted game loop)
   const lastCellRef = useRef<{ col: number; row: number }>({ col: -1, row: -1 })
@@ -1889,6 +2617,12 @@ export default function TemplateEditor() {
   const teleportingRef = useRef(false)
   const triggerConnectorRef = useRef<(c: Connector) => void>(() => {})
   const jumpDownRef = useRef(false)
+  const jumpRef = useRef<JumpState>({ active: false, fromX: 0, fromZ: 0, toX: 0, toZ: 0, start: 0 })
+  // Quest hooks the once-mounted loop calls through (latest closure, like the
+  // connector trigger): fold kills into quests, and accept/turn-in on interact.
+  const onKillsRef = useRef<(enemyTypes: readonly string[]) => void>(() => {})
+  const questInteractRef = useRef<(col: number, row: number) => void>(() => {})
+  const questEventRef = useRef<(event: QuestEvent) => void>(() => {})
 
   // ── Combat runtime (read/written only inside the once-mounted game loop) ──
   // Pure formulas live in @/game/combat; these refs hold the mutable per-play
@@ -1896,7 +2630,17 @@ export default function TemplateEditor() {
   // mana; each enemy gets a CombatState keyed by id (synced from entitiesRef).
   const playerWeaponRef = useRef<Weapon>(STARTER_SWORD)
   const playerCombatRef = useRef<CombatState>(startingCombatState(DEFAULT_PLAYER_STATS))
+  // Player inventory: equipped weapon drives attacks, equipped armor folds into
+  // defense, consumables heal. The loop reads through inventoryRef each frame.
+  const [inventory, setInventory] = useState<Inventory>(starterInventory)
+  const inventoryRef = useRef<Inventory>(inventory)
+  // Talent path / archetype: warrior fights with a sword/axe, magician with a staff.
+  const [talentPath, setTalentPath] = useState<TalentPath>('warrior')
   const enemyRuntimeRef = useRef<EnemyRuntime>(makeEnemyRuntime())
+  // Per-enemy patrol cursors + the last time enemies advanced (movement tick).
+  const movementCursorRef = useRef<Map<string, MoverState>>(new Map())
+  const lastEnemyMoveRef = useRef(0)
+  const cannonFireRef = useRef<Map<string, number>>(new Map()) // per-cannon last-fired time
   const hitMarkersRef = useRef<HitMarker[]>([])
   // Attack-key edge triggers (mirror the interact/jump edge-trigger pattern).
   const attackDownRef = useRef(false)
@@ -2020,6 +2764,18 @@ export default function TemplateEditor() {
     entitiesRef.current = entities
   }, [entities])
 
+  // Inventory → refs: the loop reads inventoryRef (armor) each frame, and the
+  // equipped weapon drives the player's attacks.
+  useEffect(() => {
+    inventoryRef.current = inventory
+    playerWeaponRef.current = inventory.equippedWeapon ?? STARTER_SWORD
+  }, [inventory])
+
+  // Keep quests ref in sync so the once-mounted game loop reads the latest quests
+  useEffect(() => {
+    questsRef.current = quests
+  }, [quests])
+
   // Convert screen position to grid cell (for top view)
   const screenToCell = (clientX: number, clientY: number): { col: number; row: number } | null => {
     const canvas = canvasRef.current
@@ -2055,6 +2811,15 @@ export default function TemplateEditor() {
       return
     }
 
+    // Play views (iso/2d): LEFT-click + drag pans the camera, so you can move the
+    // map without walking the character. (Top view uses left-click for placement;
+    // pan there with middle/right-drag.)
+    if (e.button === 0 && !topViewMode) {
+      setIsPanning(true)
+      setPanStart({ x: e.clientX, y: e.clientY })
+      return
+    }
+
     if (!topViewMode) return
     const cell = screenToCell(e.clientX, e.clientY)
     if (!cell) return
@@ -2081,6 +2846,13 @@ export default function TemplateEditor() {
     // Entity tool armed → place/erase on this cell instead of selecting it
     if (entityTool) {
       applyEntityTool(cell.col, cell.row)
+      return
+    }
+
+    // No tool armed: clicking ON a placed entity selects it (opens the inspector).
+    const clickedEntity = entityAt(entitiesRef.current, cell.col, cell.row)
+    if (clickedEntity) {
+      setSelectedEntityId(clickedEntity.id)
       return
     }
 
@@ -2208,16 +2980,19 @@ export default function TemplateEditor() {
 
   // Save connector
   const saveConnector = () => {
-    if (!connectorForm.targetTemplateId || !editingConnector) return
+    if (!editingConnector) return
+    // A connector needs EITHER a teleport target OR a typed action.
+    if (!connectorForm.targetTemplateId && !connectorForm.action) return
 
     const connector: Connector = {
       col: editingConnector.col,
       row: editingConnector.row,
-      targetTemplateId: connectorForm.targetTemplateId!,
+      targetTemplateId: connectorForm.targetTemplateId ?? '',
       targetTemplateName: savedTemplates.find(t => t.id === connectorForm.targetTemplateId)?.name,
       interaction: connectorForm.interaction || 'walk',
       spawnCol: connectorForm.spawnCol ?? 25,
       spawnRow: connectorForm.spawnRow ?? 25,
+      action: connectorForm.action,
     }
 
     setConnectors(prev => {
@@ -2241,8 +3016,13 @@ export default function TemplateEditor() {
   // fresh Entity from the pure factory; the orchestrator below guards placement.
   const ENTITY_BUILDERS: Record<EntityKind, (col: number, row: number) => Entity> = {
     player: (col, row) => makePlayer(mintEntityId('player'), col, row),
-    enemy: (col, row) =>
-      makeEnemy(mintEntityId('enemy'), col, row, enemyType.trim() || 'enemy'),
+    enemy: (col, row) => ({
+      // Placed enemies get a default left-right patrol so they MOVE out of the box
+      // (the mover waits when a waypoint is blocked/off-map); custom waypoint
+      // authoring is a follow-up.
+      ...makeEnemy(mintEntityId('enemy'), col, row, enemyType.trim() || 'enemy'),
+      movement: { mode: 'sequential', waypoints: [{ col, row }, { col: col + 3, row }] },
+    }),
     npc: (col, row) => makeNpc(mintEntityId('npc'), col, row, { name: npcName.trim() || undefined }),
   }
 
@@ -2280,6 +3060,156 @@ export default function TemplateEditor() {
       return placeEntity(base, ENTITY_BUILDERS[entityTool](col, row))
     })
   }
+
+  // ── Selected-entity inspector actions ─────────────────────────────
+  const patchSelectedEntity = (patch: Partial<Entity>) => {
+    if (!selectedEntityId) return
+    setEntities(prev => prev.map(e => (e.id === selectedEntityId ? { ...e, ...patch } : e)))
+  }
+  const deleteSelectedEntity = () => {
+    if (!selectedEntityId) return
+    setEntities(prev => removeEntity(prev, selectedEntityId))
+    setSelectedEntityId(null)
+  }
+
+  // ── Quest authoring + runtime (spec §10) ───────────────────────────
+  // Save the drafted quest against the chosen NPC: mint the Quest, store it, and
+  // link the giver's questId so interacting with that NPC offers it. Pure module
+  // (questFromDraft) builds the Quest; this just guards + commits to state.
+  const saveQuest = () => {
+    const quest = questFromDraft(questDraft)
+    if (!quest) {
+      toast('Pick a quest-giver NPC and a title first', 'warning')
+      return
+    }
+    setQuests(prev => upsertQuest(prev, quest))
+    setEntities(prev => prev.map(e => (e.id === quest.giverId ? { ...e, questId: quest.id } : e)))
+    setQuestDraft(prev => ({ ...emptyQuestDraft(), giverId: prev.giverId }))
+    toast(`Quest linked to giver: ${quest.title}`, 'success')
+  }
+
+  // ── Inventory actions ──────────────────────────────────────────────
+  // Equip a weapon/armor item (the sync effect pushes the equipped weapon into
+  // playerWeaponRef); use a consumable to apply its effect to the live combat state.
+  const equipItem = (itemId: string) => {
+    setInventory(prev => {
+      const item = prev.items.find(i => i.id === itemId)
+      if (item?.slot === 'weapon') return equipWeapon(prev, itemId)
+      if (item?.slot === 'armor') return equipArmor(prev, itemId)
+      return prev
+    })
+  }
+
+  // Pick an archetype: equip a weapon of the matching kind from the bag (warrior =
+  // sword/axe, magician = staff). The sync effect pushes it into playerWeaponRef.
+  const setArchetype = (path: TalentPath) => {
+    setTalentPath(path)
+    const wantKinds = path === 'warrior' ? ['sword', 'axe', 'shield'] : ['staff']
+    setInventory(prev => {
+      if (prev.equippedWeapon && wantKinds.includes(prev.equippedWeapon.kind)) return prev
+      const match = prev.items.find(i => i.slot === 'weapon' && wantKinds.includes(i.weapon.kind))
+      return match ? equipWeapon(prev, match.id) : prev
+    })
+  }
+
+  const useItem = (itemId: string) => {
+    setInventory(prev => {
+      const { inventory: next, effect } = useConsumable(prev, itemId)
+      if (!effect) return prev
+      const c = playerCombatRef.current
+      playerCombatRef.current = {
+        hp: effect.hp ? Math.min(DEFAULT_PLAYER_STATS.maxHp, c.hp + effect.hp) : c.hp,
+        rage: c.rage + (effect.rage ?? 0),
+        mana: c.mana + (effect.mana ?? 0),
+      }
+      return next
+    })
+  }
+
+  // Grant a single reward to the player (dispatch by kind, not a branch chain).
+  // xp bumps the counter; item rewards now drop into the inventory; stat rewards
+  // aren't authored in the simple UI yet.
+  const REWARD_GRANTERS: Record<Reward['kind'], (reward: Reward) => void> = {
+    xp: (reward) => setPlayerXp(prev => prev + reward.amount),
+    item: (reward) => setInventory(prev => addItem(prev, itemFromReward(reward, mintItemId()))),
+    stat: () => { /* stat rewards not authored in the simple UI yet */ },
+  }
+
+  // Fold this frame's kills into every active quest; toast each newly-completed
+  // quest so the player knows to head back. Pure recordEvent does the counting.
+  const handleKills = useCallback((enemyTypes: readonly string[]) => {
+    if (enemyTypes.length === 0) return
+    setQuests(prev => {
+      let next = prev
+      for (const enemyType of enemyTypes) {
+        next = applyQuestEvent(next, { kind: 'kill', enemyType })
+      }
+      announceNewlyCompleted(prev, next)
+      return next
+    })
+  }, [])
+
+  /** Feed a single quest event (travel/find) to active quests + announce completions. */
+  const recordQuestEvent = useCallback((event: QuestEvent) => {
+    setQuests(prev => {
+      const next = applyQuestEvent(prev, event)
+      if (next === prev) return prev
+      announceNewlyCompleted(prev, next)
+      return next
+    })
+  }, [])
+
+  // Toast quests that flipped active → completed between two quest lists.
+  const announceNewlyCompleted = (before: readonly Quest[], after: readonly Quest[]) => {
+    for (const quest of after) {
+      if (quest.state !== 'completed') continue
+      const prior = before.find(q => q.id === quest.id)
+      if (prior?.state === 'completed') continue
+      toast(`Objective complete: ${quest.title}`, 'success')
+    }
+  }
+
+  // Accept or turn in the quest of a giver NPC the player can reach. Reachable =
+  // the NPC sits on or adjacent to the player's cell (interaction has melee reach).
+  // Guard clauses keep the lifecycle flat: no giver → no quest → accept → turn-in.
+  const handleQuestInteract = useCallback((pCol: number, pRow: number) => {
+    // 'find' objectives: interacting on/next to an NPC counts as finding them.
+    for (const e of entitiesRef.current) {
+      if (e.kind === 'npc' && Math.abs(e.col - pCol) <= 1 && Math.abs(e.row - pRow) <= 1) {
+        recordQuestEvent({ kind: 'find', npcId: e.id })
+      }
+    }
+    const giver = reachableQuestGiver(entitiesRef.current, pCol, pRow)
+    if (!giver) return
+    const quest = questForGiver(questsRef.current, giver)
+    if (!quest) return
+    if (quest.state === 'available') return acceptGiverQuest(quest)
+    if (quest.state === 'completed') return turnInGiverQuest(quest)
+    // active (not yet complete) or already turned_in — nothing to do but remind.
+    if (quest.state === 'active') toast(`In progress: ${quest.title}`, 'info')
+  }, [])
+
+  const acceptGiverQuest = (quest: Quest) => {
+    setQuests(prev => upsertQuest(prev, acceptQuest(quest)))
+    toast(`Quest accepted: ${quest.title}`, 'success')
+  }
+
+  const turnInGiverQuest = (quest: Quest) => {
+    const result = turnIn(quest)
+    if (!result) return
+    setQuests(prev => upsertQuest(prev, result.quest))
+    for (const reward of result.rewards) {
+      REWARD_GRANTERS[reward.kind](reward)
+      toast(`Reward granted: ${rewardSummary(reward)}`, 'success')
+    }
+  }
+
+  // Point the loop's quest hooks at the latest closures (the loop is mounted once).
+  useEffect(() => {
+    onKillsRef.current = handleKills
+    questInteractRef.current = handleQuestInteract
+    questEventRef.current = recordQuestEvent
+  })
 
   // Resize grid function
   const resizeGrid = (cols: number, rows: number) => {
@@ -2398,8 +3328,17 @@ export default function TemplateEditor() {
       }
     })
 
-    // Place the composite
-    grid.placeComposite(assetKey, tiles, col, row)
+    // ONE cell selected → stamp the composite once at that anchor (its natural
+    // size). A REGION selected → TILE the composite's pattern to FILL the whole
+    // selection (so "select 40 cells, click well" gives a 40-cell well, not a
+    // hardcoded 2×2). Pattern repeats by its own width/height, clipped to the
+    // selected cells, and each cell is written via placeAsset so it persists +
+    // renders in iso/2d.
+    if (selectedCells.size <= 1) {
+      grid.placeComposite(assetKey, tiles, col, row)
+    } else {
+      fillSelectionWithComposite(grid, tiles, selectedCells)
+    }
 
     setSelectedCells(new Set())
     setSelectedComposite(null)
@@ -3952,11 +4891,14 @@ export default function TemplateEditor() {
       keysRef.current[e.key] = false
     }
     const handleWheel = (e: WheelEvent) => {
-      // Allow zoom in top view OR 2D view mode
+      e.preventDefault()
+      const delta = e.deltaY > 0 ? -0.1 : 0.1
+      // Top + 2D share one zoom; the isometric view has its own (scales the
+      // iso projection in render()). Both clamped to a sane range.
       if (topViewMode || viewTypeRef.current === '2d') {
-        e.preventDefault()
-        const delta = e.deltaY > 0 ? -0.1 : 0.1
         setTopViewZoom(z => Math.max(0.5, Math.min(4.0, z + delta)))
+      } else {
+        isoZoomRef.current = Math.max(0.5, Math.min(4.0, isoZoomRef.current + delta))
       }
     }
     window.addEventListener('keydown', handleKeyDown)
@@ -3979,16 +4921,36 @@ export default function TemplateEditor() {
 
       if (!grid) return
 
+      const use2DMovement = topViewMode || viewTypeRef.current === '2d'
+      const jump = jumpRef.current
+
+      // Jump trigger (edge): begin an arc if not already airborne.
+      const jumpDown = !!keys[' ']
+      if (jumpDown && !jumpDownRef.current) beginJump(player, grid, use2DMovement, jump, time)
+      jumpDownRef.current = jumpDown
+
+      // Mid-jump: animate the arc (lerp across the cells + parabolic hop), ignore
+      // WASD/collision until we land. Otherwise: normal walking.
+      if (jump.active) {
+        const t = Math.min(1, (time - jump.start) / JUMP_MS)
+        player.x = jump.fromX + (jump.toX - jump.fromX) * t
+        player.z = jump.fromZ + (jump.toZ - jump.fromZ) * t
+        player.jumpHeight = Math.sin(Math.PI * t) * JUMP_PEAK_PX
+        player.moving = true
+        if (t >= 1) {
+          player.x = jump.toX
+          player.z = jump.toZ
+          player.jumpHeight = 0
+          jump.active = false
+        }
+      } else {
+      player.jumpHeight = 0
       // Update player - slower speed for 16px cells
       const speed = 80 * (dt / 1000)
       player.moving = false
 
       let newX = player.x
       let newZ = player.z
-
-      // Use simple grid movement for top view OR 2D view type
-      // Use diagonal movement only for isometric view type in game view
-      const use2DMovement = topViewMode || viewTypeRef.current === '2d'
 
       if (use2DMovement) {
         // 2D/Top view: simple grid movement (up=north, down=south, etc.)
@@ -4050,11 +5012,7 @@ export default function TemplateEditor() {
       // Bounds
       player.x = Math.max(0, Math.min(player.x, grid.cols * grid.cellSize))
       player.z = Math.max(0, Math.min(player.z, grid.rows * grid.cellSize))
-
-      // Jump — leap over blocked cells in the facing direction (works in 2D + iso)
-      const jumpDown = !!keys[' ']
-      if (jumpDown && !jumpDownRef.current) attemptJump(player, grid, use2DMovement)
-      jumpDownRef.current = jumpDown
+      }
 
       // Animation frame
       if (player.moving && animTimer > 150) {
@@ -4070,14 +5028,21 @@ export default function TemplateEditor() {
         const last = lastCellRef.current
         if (curCol !== last.col || curRow !== last.row) {
           lastCellRef.current = { col: curCol, row: curRow }
+          // Travel quest objectives complete when the player reaches the target cell.
+          questEventRef.current({ kind: 'travel', place: `${curCol},${curRow}` })
           const entered = findTriggeredConnector(curCol, curRow, connectorsRef.current, 'enter')
           if (entered) triggerConnectorRef.current(entered)
         }
-        // Interact key (edge-triggered): E / Enter
+        // Interact key (edge-triggered): E / Enter — drives BOTH connectors and
+        // quest accept/turn-in. A connector on the cell wins; otherwise we offer
+        // the quest of a reachable giver NPC (accept when available, turn in when
+        // complete). Quests never block connectors — they're checked only when no
+        // interact connector fires here.
         const interactDown = !!(keys['e'] || keys['E'] || keys['Enter'])
         if (interactDown && !interactDownRef.current) {
           const pressed = findTriggeredConnector(curCol, curRow, connectorsRef.current, 'interact')
           if (pressed) triggerConnectorRef.current(pressed)
+          else questInteractRef.current(curCol, curRow)
         }
         interactDownRef.current = interactDown
       }
@@ -4094,6 +5059,7 @@ export default function TemplateEditor() {
           runtime,
           playerCombat: playerCombatRef.current,
           playerWeapon: playerWeaponRef.current,
+          playerArmor: inventoryRef.current.equippedArmor,
           hitMarkers: hitMarkersRef.current,
           cellSize: grid.cellSize,
           use2D: use2DMovement,
@@ -4104,7 +5070,28 @@ export default function TemplateEditor() {
         playerCombatRef.current = step.playerCombat
         attackDownRef.current = attackDown
         specialDownRef.current = specialDown
+        // Feed this frame's kills to active quests (the pure module counts them).
+        if (step.kills.length > 0) onKillsRef.current(step.kills)
         syncCombatHud(time)
+
+        // Cannon behavior: ready cannons fire at a nearby player.
+        const cannonDamage = tickCannons(grid, player, cannonFireRef.current, hitMarkersRef.current, time)
+        if (cannonDamage > 0) {
+          const c = playerCombatRef.current
+          playerCombatRef.current = { ...c, hp: Math.max(0, c.hp - cannonDamage) }
+        }
+
+        // Patrol tick: advance enemies one cell on a throttled cadence. Update the
+        // ref immediately (this frame renders the new positions) and mirror to
+        // React state so the two stay in sync.
+        if (time - lastEnemyMoveRef.current > ENEMY_MOVE_MS) {
+          lastEnemyMoveRef.current = time
+          const movedEntities = advanceEnemyMovement(grid, entitiesRef.current, player, movementCursorRef.current)
+          if (movedEntities !== entitiesRef.current) {
+            entitiesRef.current = movedEntities as Entity[]
+            setEntities(movedEntities as Entity[])
+          }
+        }
       }
 
       // Render - movement works in all views
@@ -4117,7 +5104,7 @@ export default function TemplateEditor() {
       } else if (viewTypeRef.current === '2d') {
         render2D(ctx, canvas.width, canvas.height, grid, player, time, zoomRef.current, camOffsetRef.current)
       } else {
-        render(ctx, canvas.width, canvas.height, grid, player, time, camOffsetRef.current, entitiesRef.current, runtime.combat, hitMarkersRef.current, time)
+        render(ctx, canvas.width, canvas.height, grid, player, time, camOffsetRef.current, entitiesRef.current, runtime.combat, hitMarkersRef.current, time, isoZoomRef.current)
       }
 
       // Movement works in top view too (grid-aligned for clarity)
@@ -4165,10 +5152,15 @@ export default function TemplateEditor() {
     try {
       const { groundData, heightData, assetsData } = serializeGrid(grid)
 
-      // Entities have no field in the template schema (api.ts is read-only here),
-      // so they ride alongside the assets as marked records and are split back out
-      // on load. This keeps placement persistent without touching the API layer.
-      const assetsWithEntities = [...assetsData, ...entitiesToAssets(entities)]
+      // Entities AND quests have no field in the template schema (api.ts is
+      // read-only here), so they ride alongside the assets as marked records and
+      // are split back out on load. This keeps both persistent without touching
+      // the API layer. NPC↔quest links survive via each entity's own questId.
+      const assetsWithEntities = [
+        ...assetsData,
+        ...entitiesToAssets(entities),
+        ...questsToAssets(quests),
+      ]
 
       if (currentTemplateId) {
         // Update existing
@@ -4229,11 +5221,15 @@ export default function TemplateEditor() {
       // Deserialize into grid
       deserializeToGrid(template, gridRef.current!)
 
-      // Split placed entities back out of the assets they rode in on, then strip
-      // the marker assets so they don't double-render as ground decoration.
+      // Split placed entities AND quests back out of the assets they rode in on,
+      // then strip both marker kinds so they don't double-render as decoration.
       const loadedEntities = entitiesFromAssets(gridRef.current!.assets)
-      gridRef.current!.assets = gridRef.current!.assets.filter(a => !isEntityAsset(a))
+      const loadedQuests = questsFromAssets(gridRef.current!.assets)
+      gridRef.current!.assets = gridRef.current!.assets.filter(
+        a => !isEntityAsset(a) && !isQuestAsset(a),
+      )
       setEntities(loadedEntities)
+      setQuests(loadedQuests)
 
       // Move player to valid spawn. A connector teleport overrides the template's
       // default spawn so the player lands on the connector's target cell.
@@ -4264,15 +5260,60 @@ export default function TemplateEditor() {
     }
   }
 
+  // Restore the LAST SAVED template (the user's most recent work) from the DB,
+  // rather than opening an empty/random editor. Falls back to the gallery only if
+  // nothing is saved yet. "Last saved" = newest updatedAt, sorted client-side so
+  // it doesn't depend on the API's list ordering.
+  const loadMostRecentTemplate = async () => {
+    try {
+      const { templates } = await listTemplates({ limit: 50 })
+      if (templates.length === 0) {
+        router.replace('/personal-projects/game-engine') // nothing saved yet → gallery
+        return
+      }
+      const mostRecent = [...templates].sort(
+        (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+      )[0]
+      await loadTemplate(mostRecent.id)
+    } catch (error) {
+      console.error('Failed to load last saved template:', error)
+      router.replace('/personal-projects/game-engine')
+    }
+  }
+
   // Teleport the player through a connector to its target template, landing on the
   // connector's spawn cell. Guarded so an in-flight load can't re-trigger.
   const triggerConnector = async (c: Connector) => {
     if (teleportingRef.current) return
+    // Typed action (triggers generalization): resolve collect / content / move
+    // (and action-encoded teleports) through the pure triggers module.
+    if (c.action) {
+      resolveConnectorAction(c.action)
+      return
+    }
+    // Legacy connector: teleport to the target template.
     teleportingRef.current = true
     try {
       await loadTemplate(c.targetTemplateId, { col: c.spawnCol, row: c.spawnRow })
     } finally {
       teleportingRef.current = false
+    }
+  }
+
+  /** Perform a connector's typed action via the pure resolver (dispatch on the
+   *  resolved effect kind — no branching on the raw action). */
+  const resolveConnectorAction = (action: TriggerAction) => {
+    const effect = resolveAction(action)
+    if (effect.kind === 'move') {
+      movePlayerToValidSpawn(effect.col, effect.row)
+    } else if (effect.kind === 'grant') {
+      setInventory(prev => addItem(prev, itemFromReward({ kind: 'item', amount: effect.qty, itemId: effect.itemId }, mintItemId())))
+      toast(`Picked up: ${effect.itemId}`, 'success')
+    } else if (effect.kind === 'reveal') {
+      toast(`Revealed: ${effect.sectionId}`, 'success')
+    } else if (effect.kind === 'teleport') {
+      teleportingRef.current = true
+      loadTemplate(effect.templateId, effect.spawn).finally(() => { teleportingRef.current = false })
     }
   }
 
@@ -4320,8 +5361,10 @@ export default function TemplateEditor() {
       setTemplateName(`Template ${new Date().toLocaleDateString()}`)
       setInitialized(true)
     } else {
-      // No ID and not creating new - redirect to template list
-      router.replace('/personal-projects/game-engine')
+      // No ID and not creating new → restore the user's LAST SAVED template from
+      // the DB (not a random/empty editor); falls back to the gallery if none.
+      loadMostRecentTemplate()
+      setInitialized(true)
     }
   }, [router.isReady, router.query, initialized])
 
@@ -4339,13 +5382,19 @@ export default function TemplateEditor() {
           onMouseUp={handleCanvasMouseUp}
           onMouseLeave={handleCanvasMouseUp}
           onContextMenu={handleContextMenu}
-          style={{ cursor: isPanning ? 'grabbing' : 'default' }}
+          style={{ cursor: isPanning ? 'grabbing' : topViewMode ? 'default' : 'grab' }}
         />
 
         {/* Combat HUD — player HP / rage / mana. Only in play views (hidden in
             flow + top, where you're authoring, not fighting). */}
         {!showFlowView && !showTopView && (
           <CombatHud hud={playerHud} />
+        )}
+
+        {/* Quest tracker — active quest title + kill progress. Same play-view gate
+            as the combat HUD. Renders nothing when no quest is active. */}
+        {!showFlowView && !showTopView && (
+          <QuestHud quest={activeQuest(quests)} />
         )}
 
         {/* Flow View Overlay */}
@@ -4380,18 +5429,18 @@ export default function TemplateEditor() {
           <Link href="/" className="px-3 py-1 bg-gray-700 rounded hover:bg-gray-600">CV</Link>
         </nav>
 
-        {/* Mobile sidebar toggle — sidebars overlay the canvas, so collapse them to play */}
-        {isMobile && !showFlowView && (
-          <button
-            onClick={() => setShowSidebars(s => !s)}
-            className="fixed bottom-4 right-4 z-30 rounded-full bg-purple-700 px-4 py-2 font-mono text-xs font-bold text-white shadow-lg hover:bg-purple-600"
-          >
-            {showSidebars ? 'Hide tools' : 'Show tools'}
-          </button>
-        )}
+        {/* Preview toggle — hide all editor UI (sidebars overlay the canvas) to
+            preview the game cleanly, in ANY view. Available on desktop + mobile. */}
+        <button
+          onClick={() => setShowSidebars(s => !s)}
+          aria-pressed={!showSidebars}
+          className="fixed bottom-4 right-4 z-30 rounded-full bg-purple-700 px-4 py-2 font-mono text-xs font-bold text-white shadow-lg hover:bg-purple-600"
+        >
+          {showSidebars ? '▣ Preview (hide UI)' : '✎ Edit (show UI)'}
+        </button>
 
         {/* LEFT SIDEBAR — Views · Stage presets · Assets */}
-        {showSidebars && !showFlowView && (
+        {showSidebars && (
           <aside
             className={`fixed left-4 z-10 flex flex-col gap-3 overflow-y-auto pr-1 font-mono text-white ${
               isMobile
@@ -4461,11 +5510,7 @@ export default function TemplateEditor() {
                     onClick={() => setGenZone(z)}
                     aria-pressed={genZone === z}
                     className={`flex-1 rounded px-2 py-1 text-xs capitalize transition-colors ${
-                      genZone === z
-                        ? z === 'lava'
-                          ? 'bg-orange-700 ring-1 ring-orange-300'
-                          : 'bg-cyan-700 ring-1 ring-cyan-300'
-                        : 'bg-gray-700 hover:bg-gray-600'
+                      genZone === z ? SEASON_BTN[z] : 'bg-gray-700 hover:bg-gray-600'
                     }`}
                   >
                     {z}
@@ -4661,11 +5706,33 @@ export default function TemplateEditor() {
                 )}
               </div>
             </Card>
+
+            {/* Quests — link a kill objective + reward to a placed NPC (spec §10) */}
+            <QuestAuthoringCard
+              npcs={entities.filter(e => e.kind === 'npc')}
+              quests={quests}
+              draft={questDraft}
+              playerXp={playerXp}
+              onDraftChange={setQuestDraft}
+              onSave={saveQuest}
+            />
+            <InventoryCard inventory={inventory} talentPath={talentPath} onEquip={equipItem} onUse={useItem} onSetClass={setArchetype} />
+            {(() => {
+              const selected = entities.find(e => e.id === selectedEntityId)
+              return selected ? (
+                <EntityInspectorCard
+                  entity={selected}
+                  onPatch={patchSelectedEntity}
+                  onDelete={deleteSelectedEntity}
+                  onClose={() => setSelectedEntityId(null)}
+                />
+              ) : null
+            })()}
           </aside>
         )}
 
         {/* RIGHT SIDEBAR — Export · Connectors · Save/Load */}
-        {showSidebars && !showFlowView && (
+        {showSidebars && (
           <aside
             className={`fixed right-4 z-10 flex flex-col gap-3 overflow-y-auto pl-1 font-mono text-white ${
               isMobile
@@ -4717,6 +5784,48 @@ export default function TemplateEditor() {
                     ({editingConnector.col}, {editingConnector.row})
                   </p>
                   <select
+                    value={connectorForm.action?.type ?? 'teleport'}
+                    onChange={e => {
+                      const t = e.target.value
+                      setConnectorForm(f => ({
+                        ...f,
+                        action:
+                          t === 'teleport' ? undefined
+                          : t === 'collect' ? { type: 'collect', itemId: '', qty: 1 }
+                          : t === 'content' ? { type: 'content', sectionId: '' }
+                          : { type: 'goto_region', col: f.spawnCol ?? 0, row: f.spawnRow ?? 0 },
+                      }))
+                    }}
+                    aria-label="Trigger action"
+                    className="mb-1 w-full rounded bg-gray-700 p-1 text-xs"
+                  >
+                    <option value="teleport">Action: Go to template (teleport)</option>
+                    <option value="goto_region">Action: Move within stage (uses Arrive-at)</option>
+                    <option value="collect">Action: Collect item</option>
+                    <option value="content">Action: Reveal content</option>
+                  </select>
+                  {connectorForm.action?.type === 'collect' && (
+                    <input
+                      type="text"
+                      placeholder="Item id to grant"
+                      aria-label="Item id to collect"
+                      value={connectorForm.action.itemId}
+                      onChange={e => setConnectorForm(f => ({ ...f, action: { type: 'collect', itemId: e.target.value, qty: 1 } }))}
+                      className="mb-1 w-full rounded bg-gray-700 p-1 text-xs"
+                    />
+                  )}
+                  {connectorForm.action?.type === 'content' && (
+                    <input
+                      type="text"
+                      placeholder="Section id to reveal"
+                      aria-label="Section id to reveal"
+                      value={connectorForm.action.sectionId}
+                      onChange={e => setConnectorForm(f => ({ ...f, action: { type: 'content', sectionId: e.target.value } }))}
+                      className="mb-1 w-full rounded bg-gray-700 p-1 text-xs"
+                    />
+                  )}
+                  {(connectorForm.action?.type ?? 'teleport') === 'teleport' && (
+                  <select
                     value={connectorForm.targetTemplateId || ''}
                     onChange={e => setConnectorForm(f => ({ ...f, targetTemplateId: e.target.value }))}
                     aria-label="Target template"
@@ -4727,6 +5836,7 @@ export default function TemplateEditor() {
                       <option key={t.id} value={t.id}>{t.name}</option>
                     ))}
                   </select>
+                  )}
                   <select
                     value={connectorForm.interaction || 'walk'}
                     onChange={e => setConnectorForm(f => ({ ...f, interaction: e.target.value as Connector['interaction'] }))}
@@ -4759,7 +5869,7 @@ export default function TemplateEditor() {
                     <span className="whitespace-nowrap text-gray-400">in target</span>
                   </div>
                   <div className="flex gap-1">
-                    <button onClick={saveConnector} disabled={!connectorForm.targetTemplateId} className="flex-1 rounded bg-green-700 p-1 text-xs hover:bg-green-600 disabled:bg-gray-700">Save</button>
+                    <button onClick={saveConnector} disabled={!connectorForm.targetTemplateId && !connectorForm.action} className="flex-1 rounded bg-green-700 p-1 text-xs hover:bg-green-600 disabled:bg-gray-700">Save</button>
                     <button onClick={() => deleteConnector(editingConnector.col, editingConnector.row)} className="rounded bg-red-800 p-1 text-xs hover:bg-red-700">Del</button>
                     <button onClick={() => setEditingConnector(null)} className="rounded bg-gray-700 p-1 text-xs hover:bg-gray-600">X</button>
                   </div>
@@ -4862,14 +5972,15 @@ function render(
   entities: readonly Entity[] = [],
   enemyCombat: ReadonlyMap<string, CombatState> = new Map(),
   hitMarkers: readonly HitMarker[] = [],
-  now: number = time
+  now: number = time,
+  zoom: number = 1,
 ) {
   // Clear
   ctx.fillStyle = '#1a1a2e'
   ctx.fillRect(0, 0, w, h)
 
   const cellSize = grid.cellSize
-  const isoScale = grid.isoScale
+  const isoScale = grid.isoScale * zoom // mouse-wheel zoom scales the iso projection
 
   // Camera follows player + pan offset
   const camX = player.x - camOffset.x
@@ -4964,12 +6075,16 @@ function render(
       ctx.closePath()
       ctx.fill()
 
-      // ASCII character on top with subtle animation
-      const flicker = tileType.includes('grass') ? Math.sin(time * 0.001 + col * 0.3 + row * 0.4) * 0.1 + 1 : 1
-      ctx.globalAlpha = 0.85 + 0.15 * flicker
+      // ASCII character on top. Only grass flickers, so only grass touches
+      // globalAlpha (skip the set/reset state-churn on every other ground cell).
       ctx.fillStyle = fg
-      ctx.fillText(char, p.x, drawY)
-      ctx.globalAlpha = 1
+      if (tileType.includes('grass')) {
+        ctx.globalAlpha = 0.85 + 0.15 * (Math.sin(time * 0.001 + col * 0.3 + row * 0.4) * 0.1 + 1)
+        ctx.fillText(char, p.x, drawY)
+        ctx.globalAlpha = 1
+      } else {
+        ctx.fillText(char, p.x, drawY)
+      }
     }
   }
 
@@ -5000,7 +6115,7 @@ function render(
     const heightOffset = cellHeight * heightStep
 
     if (obj.isPlayer) {
-      drawIsoPlayer(ctx, p.x, p.y - heightOffset, tileW, tileH, player, time)
+      drawIsoPlayer(ctx, p.x, p.y - heightOffset - (player.jumpHeight ?? 0), tileW, tileH, player, time)
     } else if (obj.entity) {
       const combat = obj.entity.kind === 'enemy' ? enemyCombat.get(obj.entity.id) : undefined
       if (isDeadEnemy(obj.entity, combat)) continue // hidden until it respawns
@@ -5084,11 +6199,17 @@ function drawIsoLabeledCell(
 ): void {
   const char = asset.art[0] ?? '?'
   const fontSize = tileH * 1.25
-  const cy = y - tileH * 0.45
+  // Sit the glyph ON its own cell (same anchor as the ground glyph: p.y -
+  // heightOffset). The old half-tile lift floated the canopy ~half a cell north
+  // of the cell it actually blocks, so leaves *looked* passable. Aligned now:
+  // the leaf you see is the cell that blocks; only the canopy TOP stays walkable.
+  const cy = y
   ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
-  const w = ctx.measureText(char).width
+  // Monospace single glyph → advance ≈ 0.6em. Avoids a per-cell measureText(), the
+  // canvas-2D layout call that tanked iso FPS on dense (forest) stages.
+  const w = fontSize * 0.6
   ctx.fillStyle = 'rgba(0, 0, 0, 0.5)'
   ctx.fillRect(x - w / 2 - 2, cy - fontSize * 0.55, w + 4, fontSize * 1.1)
   ctx.fillStyle = asset.color ?? '#cccccc'
@@ -5171,7 +6292,7 @@ function drawIsoEntity(
   ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
-  const w = ctx.measureText(glyph).width
+  const w = fontSize * 0.6 // monospace single glyph; avoids per-entity measureText()
   ctx.fillStyle = 'rgba(0, 0, 0, 0.7)'
   ctx.fillRect(x - w / 2 - 3, cy - fontSize * 0.6, w + 6, fontSize * 1.2)
   ctx.fillStyle = ENTITY_COLOR[entity.kind]
@@ -5208,6 +6329,40 @@ function drawTopEntity(
   drawHpBar(ctx, x + tileSize / 2, y - 4, tileSize - 2, 3, hpFraction(entity, combat))
 }
 
+/** The 3 canopy layer styles (fg + bg) derived from ONE base tree color, so a
+ *  legacy (hand-placed, label-less) tree's canopy tints to the asset's
+ *  zone/theme color instead of a hardcoded spring green. The trunk stays bark —
+ *  only the canopy (the "always green" part) follows the color. Shared by the iso
+ *  and 2D legacy tree paths. */
+function treeCanopyLayers(base: string, flicker: number): { fg: string; bg: string }[] {
+  return [
+    { fg: withAlpha(base, 0.7 + 0.3 * flicker), bg: darkenColor(base, 0.4) },
+    { fg: withAlpha(lightenColor(base, 0.12), 0.8 + 0.2 * flicker), bg: darkenColor(base, 0.5) },
+    { fg: withAlpha(base, 0.85 + 0.15 * flicker), bg: darkenColor(base, 0.45) },
+  ]
+}
+
+/** Draw a generated, labeled cell as a single glyph (its label char + zone/theme
+ *  color) on a dark backing in the 2D view — the cell IS the tile, matching the
+ *  iso (drawIsoLabeledCell) and top renderers so a stage looks the same in
+ *  every view (and a zone tree is NEVER spring-green). */
+function draw2DLabeledCell(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  baseY: number,
+  tileW: number,
+  tileH: number,
+  asset: GridAsset,
+): void {
+  const char = asset.art[0] ?? '?'
+  const cy = baseY - tileH * 0.5
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.45)'
+  ctx.fillRect(x - tileW / 2, cy - tileH / 2, tileW, tileH)
+  ctx.font = `bold ${tileH * 0.8}px ${ASCII_FONT}`
+  ctx.fillStyle = asset.color ?? '#cccccc'
+  ctx.fillText(char, x, cy)
+}
+
 function drawIsoAssetAscii(
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -5234,13 +6389,15 @@ function drawIsoAssetAscii(
   }
 
   if (asset.type === 'tree') {
-    // Tree: trunk + layered canopy (like 2D view)
+    // Tree: bark trunk + layered canopy. The canopy tints to the asset's
+    // zone/theme color (never hardcoded green); the trunk stays bark.
+    const canopy = treeCanopyLayers(asset.color || '#2e8b2e', flicker)
     const layers = [
       { text: '0', color: '#ad8621', bg: '#5a4510' },  // Trunk bottom
       { text: 'W', color: '#c9a030', bg: '#6a5520' },  // Trunk top
-      { text: '(&)', color: `rgba(26, 182, 26, ${0.7 + 0.3 * flicker})`, bg: 'rgba(0, 100, 0, 0.9)' },
-      { text: '(@&@)', color: `rgba(50, 205, 50, ${0.8 + 0.2 * flicker})`, bg: 'rgba(0, 130, 0, 0.85)' },
-      { text: '(@&@&@)', color: `rgba(34, 200, 34, ${0.85 + 0.15 * flicker})`, bg: 'rgba(0, 110, 0, 0.8)' },
+      { text: '(&)', color: canopy[0].fg, bg: canopy[0].bg },
+      { text: '(@&@)', color: canopy[1].fg, bg: canopy[1].bg },
+      { text: '(@&@&@)', color: canopy[2].fg, bg: canopy[2].bg },
     ]
     for (let i = 0; i < layers.length; i++) {
       const layer = layers[i]
@@ -5299,7 +6456,7 @@ function drawIsoAssetAscii(
 
   } else if (asset.type === 'lamp' || asset.type === 'lantern') {
     // Lamp post with glowing top
-    const glow = 0.5 + 0.5 * flicker
+    const glow = lampPulse(time) // looping lamp animation (behaviors module)
     const layers = [
       { text: '|', color: '#666666', bg: '#333333' },
       { text: '|', color: '#777777', bg: '#444444' },
@@ -5513,9 +6670,9 @@ function render2D(
     const elevOffset = groundHeight * heightScale
 
     if (obj.type === 'player') {
-      // Draw player using ASCII art sprite - grounded at cell bottom
+      // Draw player using ASCII art sprite - grounded at cell bottom (lifted mid-jump)
       const playerArt = getPlayerArt(player)
-      const baseY = p.y + tileH * 0.5 - elevOffset
+      const baseY = p.y + tileH * 0.5 - elevOffset - (player.jumpHeight ?? 0)
 
       // Draw each line of the ASCII art, stacking upward from baseY
       const fontSize = tileH * 0.7
@@ -5552,9 +6709,13 @@ function render2D(
       // Animation flicker based on time
       const flicker = Math.sin(time * 0.003 + obj.col * 0.5 + obj.row * 0.7) * 0.15 + 1
 
-      if (asset.type === 'tree') {
-        // Layered tree like test-ascii: (@), (@&@), (@&@&@) expanding down
-        // Trunk with golden-brown colors
+      if (asset.label) {
+        // Generated multi-cell cell → one glyph in its zone/theme color (the cell
+        // IS the tile), matching the iso + top views. No green multi-tile overdraw.
+        draw2DLabeledCell(ctx, p.x, baseY, tileW, tileH, asset)
+      } else if (asset.type === 'tree') {
+        // Layered tree: bark trunk + canopy tinted to the asset's zone/theme color.
+        const canopy = treeCanopyLayers(asset.color || '#2e8b2e', flicker)
         const trunkChars = ['W', '0', 'W']
         for (let h = 0; h < 2; h++) {
           const tileTop = baseY - (h + 1) * tileH
@@ -5563,11 +6724,11 @@ function render2D(
           ctx.fillStyle = `rgba(243, 191, 54, ${0.7 + 0.3 * flicker})` // Bright gold
           ctx.fillText(trunkChars[h] || '0', p.x, tileTop + tileH * 0.5)
         }
-        // Layered canopy - vibrant greens with @&() characters
+        // Layered canopy - tinted to the asset's zone/theme color
         const layers = [
-          { chars: '(&)', width: 1.2, bg: 'rgba(0, 130, 0, 0.9)', fg: `rgba(26, 182, 26, ${0.7 + 0.3 * flicker})` },
-          { chars: '(@&@)', width: 1.6, bg: 'rgba(0, 158, 0, 0.85)', fg: `rgba(50, 205, 50, ${0.8 + 0.2 * flicker})` },
-          { chars: '(@&@&@)', width: 2.0, bg: 'rgba(0, 130, 0, 0.8)', fg: `rgba(34, 200, 34, ${0.85 + 0.15 * flicker})` },
+          { chars: '(&)', width: 1.2, bg: canopy[0].bg, fg: canopy[0].fg },
+          { chars: '(@&@)', width: 1.6, bg: canopy[1].bg, fg: canopy[1].fg },
+          { chars: '(@&@&@)', width: 2.0, bg: canopy[2].bg, fg: canopy[2].fg },
         ]
         for (let h = 0; h < layers.length; h++) {
           const layer = layers[h]
@@ -5721,23 +6882,6 @@ function getPlayerArt(player: PlayerState): string[] {
 }
 
 // Auto-generate dark background from color
-function darkenColor(hex: string, factor: number = 0.25): string {
-  // Handle rgb() format
-  if (hex.startsWith('rgb')) {
-    const match = hex.match(/(\d+)/g)
-    if (match) {
-      const [r, g, b] = match.map(Number)
-      return `rgb(${Math.floor(r * factor)}, ${Math.floor(g * factor)}, ${Math.floor(b * factor)})`
-    }
-    return hex
-  }
-  // Handle hex format
-  const r = parseInt(hex.slice(1, 3), 16)
-  const g = parseInt(hex.slice(3, 5), 16)
-  const b = parseInt(hex.slice(5, 7), 16)
-  return `rgb(${Math.floor(r * factor)}, ${Math.floor(g * factor)}, ${Math.floor(b * factor)})`
-}
-
 // Draw ASCII art at position - ALWAYS draws background for visibility
 function drawAscii(
   ctx: CanvasRenderingContext2D,
@@ -5892,7 +7036,7 @@ function drawIsoAsset(
     ctx.fillStyle = '#555555'
     ctx.fillRect(x - blockW * 0.08, y - blockTall * 2, blockW * 0.16, blockTall * 2)
     // Glowing lantern
-    const glow = 0.5 + 0.5 * flicker
+    const glow = lampPulse(time) // looping lamp animation (behaviors module)
     ctx.fillStyle = `rgba(255, 220, 50, ${glow})`
     ctx.beginPath()
     ctx.arc(x, y - blockTall * 2.3, blockW * 0.25, 0, Math.PI * 2)

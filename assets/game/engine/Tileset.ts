@@ -129,6 +129,15 @@ export const TILES: Record<string, TileDef> = {
     blocking: true,
     description: 'Stone/brick wall'
   },
+  cannon: {
+    char: '╤',
+    name: 'Cannon',
+    category: 'building',
+    fg: '#c0c0c0',
+    bg: '#2a2a2a',
+    blocking: true,
+    description: 'Auto-fires at a nearby player every few seconds (behavior)'
+  },
   wall_light: {
     char: '░',
     name: 'Light Wall',

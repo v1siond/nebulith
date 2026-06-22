@@ -10,7 +10,8 @@
  */
 import { composeBuilding, ComposedBuilding, BuildingType, facadeLabel } from './buildingComposer'
 import { ZONE_PALETTES, ZoneId } from './zones'
-import { autotileLabel, isWalkable, labelChar, TREE_MASS_FAMILY, type CellLabel } from './cellLabels'
+import { autotileLabel, isWalkable, TREE_MASS_FAMILY, type CellLabel } from './cellLabels'
+import { cellTile, TREE_CANOPY_SHADES } from './cellTileset'
 import type { Connector } from '@/lib/api'
 
 export type VariantId = 'village' | 'forest' | 'cave' | 'temple' | 'boss-stage'
@@ -85,85 +86,43 @@ function forEachCell(cols: number, rows: number, visit: (col: number, row: numbe
   }
 }
 
-// Tree palette: a trunk + canopy color so multi-cell trees read as one asset. The
-// pair is ZONE-SPECIFIC so a frozen forest reads frosty, a lava forest charred, a
-// verdant forest green — Open/Closed: add a zone = add a row, no branching.
-interface TreePalette {
-  trunk: string
-  canopy: string
+// A labeled cell's appearance (glyph + zone-tint) comes from the tileset; its
+// collision comes from the label. The tileset is the single authority for how a
+// (zone, label) pair looks — see cellTileset.ts. Trees and buildings differ only
+// by their StageProp `type` (used by the editor/renderer for grouping).
+const makeLabeledCell = (
+  zone: ZoneId,
+  col: number,
+  row: number,
+  label: CellLabel,
+  type: 'tree' | 'building',
+  variant = 0,
+): StageProp => {
+  const tile = cellTile(zone, label, variant)
+  return { col, row, type, char: tile.char, blocking: !isWalkable(label), color: tile.color, label }
 }
 
-const TREE_PALETTES: Record<ZoneId, TreePalette> = {
-  verdant: { trunk: '#6b4a2b', canopy: '#2e8b2e' }, // brown bark, green leaves (classic)
-  frozen: { trunk: '#8fa3b5', canopy: '#dff0ff' }, // pale frost bark, icy white-blue canopy
-  lava: { trunk: '#2b2420', canopy: '#7a4032' }, // charred charcoal bark, dark ember/ash canopy
+/** One labeled tree cell — label drives glyph + collision; `variant` picks the
+ *  canopy tonal shade so a forest reads with contrast, not one flat tone. */
+const makeTreeCell = (zone: ZoneId, col: number, row: number, label: CellLabel, variant = 0): StageProp =>
+  makeLabeledCell(zone, col, row, label, 'tree', variant)
+
+/** One labeled building cell — mirrors makeTreeCell; the LABEL drives walkability. */
+const makeBuildingCell = (zone: ZoneId, col: number, row: number, label: CellLabel): StageProp =>
+  makeLabeledCell(zone, col, row, label, 'building')
+
+// A canopy tonal variant for a tree-MASS cell, derived from its position so the
+// canopy varies in coherent ~2×2 patches (contrast without per-cell noise).
+const massVariant = (col: number, row: number): number =>
+  Math.floor(col / 2) * 7 + Math.floor(row / 2) * 13
+
+/** One blocking biome-feature cell (mountain / peak / spill) — appearance from
+ *  the tileset's per-zone feature palette (ember crater in lava, snowcap + blue
+ *  waterfall otherwise). Always blocks (it's terrain). */
+const makeFeatureCell = (zone: ZoneId, col: number, row: number, label: CellLabel): StageProp => {
+  const tile = cellTile(zone, label)
+  return { col, row, type: 'feature', char: tile.char, blocking: true, color: tile.color, label }
 }
-
-// Stem labels paint the trunk; every other tree label (leaves + autotiled mass)
-// paints the canopy. Membership lookup, not an if/else chain.
-const TRUNK_LABELS: ReadonlySet<CellLabel> = new Set<CellLabel>(['tree_stem_bottom', 'tree_stem'])
-
-const treeColor = (zone: ZoneId, label: CellLabel): string => {
-  const palette = TREE_PALETTES[zone]
-  return TRUNK_LABELS.has(label) ? palette.trunk : palette.canopy
-}
-
-/** One labeled tree cell — its part's label decides glyph and collision, and the
- *  (zone, label) pair decides color so trees pick up the zone's tint. */
-const makeTreeCell = (zone: ZoneId, col: number, row: number, label: CellLabel): StageProp => ({
-  col,
-  row,
-  type: 'tree',
-  char: labelChar(label),
-  blocking: !isWalkable(label),
-  color: treeColor(zone, label),
-  label,
-})
-
-// Building palette: a per-PART color set (roof / wall / door / window) so a
-// multi-cell building reads as one structure. ZONE-SPECIFIC — frozen reads icy,
-// lava charred — Open/Closed: add a zone = add a row, no branching.
-interface BuildingPalette {
-  roof: string
-  wall: string
-  door: string
-  window: string
-}
-
-const BUILDING_PALETTES: Record<ZoneId, BuildingPalette> = {
-  verdant: { roof: '#8a4a30', wall: '#b89a6a', door: '#5a3a1a', window: '#a8d0e8' },
-  frozen: { roof: '#4a6a8a', wall: '#aac4d8', door: '#2a3a4a', window: '#dff0ff' },
-  lava: { roof: '#5a2a20', wall: '#4a4038', door: '#1a1410', window: '#ff8050' },
-}
-
-// Which building label paints which part. Roof apex (roof_top) and roof body
-// share the roof color; door and window are their own parts. Membership/dispatch,
-// not an if/else chain.
-const BUILDING_PART_BY_LABEL: Readonly<Record<string, keyof BuildingPalette>> = {
-  roof_top: 'roof',
-  roof: 'roof',
-  wall: 'wall',
-  door: 'door',
-  window: 'window',
-}
-
-const buildingColor = (zone: ZoneId, label: CellLabel): string => {
-  const part = BUILDING_PART_BY_LABEL[label] ?? 'wall'
-  return BUILDING_PALETTES[zone][part]
-}
-
-/** One labeled building cell — its part's label decides glyph and collision, and
- *  the (zone, label) pair decides color so buildings pick up the zone's tint.
- *  Mirrors makeTreeCell: the LABEL, not the asset, drives walkability. */
-const makeBuildingCell = (zone: ZoneId, col: number, row: number, label: CellLabel): StageProp => ({
-  col,
-  row,
-  type: 'building',
-  char: labelChar(label),
-  blocking: !isWalkable(label),
-  color: buildingColor(zone, label),
-  label,
-})
 
 const makeFlower = (col: number, row: number): StageProp => ({
   col,
@@ -340,7 +299,10 @@ function layoutPassages(ctx: ArchetypeContext): void {
   connectRooms(trees, rooms)
   const clearing = keepLargestClearing(trees, cols, rows)
   carveGates(trees, clearing, cols, rows) // south entrance + north exit
-  thinForest(trees, cols, rows) // erode mass edges (~25% fewer trees) for visibility
+  thinForest(trees, cols, rows) // erode mass edges for visibility…
+  thinForest(trees, cols, rows) // …twice: a solid-passages forest was ~60% trees;
+  //   a second erosion pass opens the canopy to a navigable ~40% (the negative
+  //   space reads as paths, not a wall of trees).
 
   commitTrees(ctx, trees) // tree masses fill the negative space
   markGrassZones(ctx, rooms) // some sections become tall-grass
@@ -401,34 +363,76 @@ interface LakeTerrain {
 }
 
 const LAKE_TERRAIN: Readonly<Record<ZoneId, LakeTerrain>> = {
-  frozen: { ground: 'ice_water', blocks: false }, // ice: walkable now, skate/swim later
-  verdant: { ground: 'water', blocks: true }, // water blocks unless you can swim
-  lava: { ground: 'lava', blocks: true }, // lava always blocks
+  spring: { ground: 'water', blocks: true }, // water blocks unless you can swim
+  summer: { ground: 'water', blocks: true },
+  autumn: { ground: 'water', blocks: true },
+  winter: { ground: 'ice_water', blocks: false }, // ice: walkable now, skate/swim later
 }
 
-/** A forested map with a central lake carved out of it. The forest fills the
- *  whole map, the lake disc is stamped with the zone's hazard terrain (blocking
- *  per the zone), and the surrounding floor is repaired to one connected region. */
+/** A NAVIGABLE forest with a central hazard lake. The surround is carved with the
+ *  same distributed room+corridor network the passages layout uses — so the lake
+ *  sits in a real, walkable forest (plenty of land to balance the hazard) instead
+ *  of a solid wall of trees with only a pond punched out. The lake disc is then
+ *  stamped with the zone's hazard terrain (blocking per zone) and the floor is
+ *  repaired to one connected region around it. */
 function layoutLake(ctx: ArchetypeContext): void {
   const { cols, rows } = ctx
   const trees = makeGrid(cols, rows, () => true) // start fully forested
   const lake = lakeCells(cols, rows)
   const lakeKeys = new Set(lake.map(c => `${c.col},${c.row}`))
+
+  // 1. Carve a navigable forest AROUND the lake — distributed rooms wired into a
+  //    corridor network (independent of the lake), so both sides connect on land.
+  const rooms = layoutForestRooms(cols, rows)
+  rooms.forEach(room => carveRoom(trees, room, cols, rows))
+  connectRooms(trees, rooms)
+
+  // 2. Open the lake body, a walkable lakeside clearing, and wide edge↔lake gates
+  //    so the waterside is a real shore joined to the network.
   lake.forEach(({ col, row }) => {
     trees[row][col] = false // no trees in the water
   })
-  carveLakeGates(trees, lakeKeys, cols, rows) // wide paths edge↔lake so it never walls off
-  thinForest(trees, cols, rows) // erode mass edges so the forest reads navigable
+  openLakeside(trees, lakeKeys, cols, rows)
+  carveLakeGates(trees, lakeKeys, cols, rows)
 
-  commitTrees(ctx, trees) // tree ring around the lake
-  carveLakeShore(ctx, lake) // a walkable shore ring so the lake never walls off floor
-  scatterClearingCover(ctx) // flowers + stray mid-grass on the shore
-  paintLake(ctx, lake) // stamp the lake FIRST (blocking per zone) so the repair sees
-  //   its real collision and never connects the map *through* still-open water (which
-  //   would strand the far side once the water blocks). Strips trees/cover on lake cells.
-  repairFloorConnectivity(ctx) // …THEN repair the surround into ONE region AROUND the
-  //   lake: ice stays walkable floor; water/lava is routed around via the shore + gates,
-  //   and any pocket the lake stranded is filled so the floor is always connected.
+  // 3. Finish like passages: keep one region (fill stray pockets), gate to the map
+  //    edges, erode mass edges for visibility.
+  const clearing = keepLargestClearing(trees, cols, rows)
+  carveGates(trees, clearing, cols, rows)
+  thinForest(trees, cols, rows)
+
+  commitTrees(ctx, trees) // tree masses fill the negative space
+  markGrassZones(ctx, rooms) // some clearings become tall-grass
+  scatterGladeTrees(ctx) // a few standalone trees dot the clearings
+  scatterClearingCover(ctx) // flowers + stray mid-grass
+
+  paintLake(ctx, lake) // stamp the lake (blocking per zone) so the repair sees its
+  //   real collision and never connects the map *through* still-open water/lava
+  //   (which would strand the far side once it blocks). Strips trees/cover on lake.
+  carveLakeShore(ctx, lake) // guarantee a 1-cell walkable ring even after paint
+  placeLakeFeature(ctx, lake) // a volcano (lava) / waterfall-mountain (water/ice) by the shore
+  repairFloorConnectivity(ctx) // …THEN repair the surround into ONE region: ice stays
+  //   walkable floor; water/lava is routed around via the shore + gates, and any
+  //   pocket the lake stranded is filled so the floor is always connected.
+}
+
+/** Open a walkable lakeside clearing: clear trees within a couple of cells of the
+ *  lake so the shore is a navigable band (joined to the surrounding forest), not a
+ *  bare 1-cell sliver. Skips the lake itself and the solid map border. */
+const LAKESIDE_BAND = 2
+function openLakeside(trees: boolean[][], lakeKeys: Set<string>, cols: number, rows: number): void {
+  lakeKeys.forEach(key => {
+    const { col, row } = toCell(key)
+    for (let dr = -LAKESIDE_BAND; dr <= LAKESIDE_BAND; dr++) {
+      for (let dc = -LAKESIDE_BAND; dc <= LAKESIDE_BAND; dc++) {
+        const c = col + dc
+        const r = row + dr
+        if (lakeKeys.has(`${c},${r}`)) continue
+        if (!inBounds(c, r, cols, rows) || isEdge(c, r, cols, rows)) continue
+        trees[r][c] = false
+      }
+    }
+  })
 }
 
 /** Open wide lanes from the lake to the south and north edges (PATH_WIDTH bands,
@@ -439,24 +443,41 @@ function carveLakeGates(trees: boolean[][], lakeKeys: Set<string>, cols: number,
   if (cells.length === 0) return
   const south = cells.reduce((a, b) => (b.row > a.row ? b : a))
   const north = cells.reduce((a, b) => (b.row < a.row ? b : a))
+  const east = cells.reduce((a, b) => (b.col > a.col ? b : a))
+  const west = cells.reduce((a, b) => (b.col < a.col ? b : a))
   carveVertical(trees, south.col, south.row, rows - 1)
   carveVertical(trees, north.col, north.row, 0)
+  carveHorizontal(trees, east.col, cols - 1, east.row)
+  carveHorizontal(trees, west.col, 0, west.row)
 }
 
-/** The lake's cells: a filled disc centered on the map (a body, not a strip). */
+/** The lake's cells: a centered body with an ORGANIC outline — the radius wobbles
+ *  with angle (two sine harmonics at a random phase) so it reads like a natural
+ *  lake / lava flow, not a geometric disc. The radius is a single-valued function
+ *  of angle, so the region stays star-shaped from the center → always contiguous. */
 function lakeCells(cols: number, rows: number): Cell[] {
   const cc = Math.floor(cols / 2)
   const cr = Math.floor(rows / 2)
   const radius = Math.max(2, Math.floor(Math.min(cols, rows) * LAKE_RADIUS_FACTOR))
+  const phaseA = Math.random() * Math.PI * 2
+  const phaseB = Math.random() * Math.PI * 2
+  const wobble = (angle: number): number =>
+    1 + 0.2 * Math.sin(angle * 3 + phaseA) + 0.12 * Math.sin(angle * 5 + phaseB)
+  // Hard cap so the lake always leaves a walkable margin to every border — a
+  // continuous ring of land can then encircle it, so no region ever connects ONLY
+  // through the (blocking) lake and gets stranded/filled into a solid forest.
+  const maxReach = Math.min(cc, cr) - LAKE_BORDER_MARGIN
   const cells: Cell[] = []
   forEachCell(cols, rows, (col, row) => {
     if (isEdge(col, row, cols, rows)) return // never touch the map border
     const dx = col - cc
     const dy = row - cr
-    if (dx * dx + dy * dy <= radius * radius) cells.push({ col, row })
+    const reach = Math.min(radius * wobble(Math.atan2(dy, dx)), maxReach)
+    if (dx * dx + dy * dy <= reach * reach) cells.push({ col, row })
   })
   return cells
 }
+const LAKE_BORDER_MARGIN = 4 // walkable cells kept between the lake and each border
 
 /** Stamp the lake: paint each cell the zone's hazard ground and set collision per
  *  the zone (water/lava block, ice walkable). Clears any tree prop on those cells
@@ -508,6 +529,50 @@ function shoreCells(lakeKeys: Set<string>, cols: number, rows: number): Set<stri
   return shore
 }
 
+// A signature biome FEATURE anchoring the lake: a mountain massif on the north
+// shore (a volcano in lava — ember-crowned, lava spilling in; a snow-capped peak
+// with a waterfall otherwise). Coherence: "lava near a volcano, water near a
+// waterfall/mountains." All cells block.
+const FEATURE_HEIGHT = 4 // rows from apex (narrow) down to the base near the shore
+const FEATURE_HALF = 3 // half-width at the base → a 7-wide cone
+
+/** Raise the lake's feature massif just north of the water, with a 2-cell spill
+ *  (lava flow / waterfall) running from its base into the lake. Drops any prop on
+ *  the footprint, then stamps blocking feature cells. */
+function placeLakeFeature(ctx: ArchetypeContext, lake: Cell[]): void {
+  const { props, collision, zone, cols, rows } = ctx
+  if (lake.length === 0) return
+  const north = lake.reduce((a, b) => (b.row < a.row ? b : a)) // lake's north-edge cell
+  const apexCol = clamp(north.col, FEATURE_HALF + 1, cols - FEATURE_HALF - 2)
+  const baseRow = north.row - 1
+  const apexRow = baseRow - (FEATURE_HEIGHT - 1)
+  if (apexRow < 1) return // not enough land north of the lake (shouldn't happen given the margin)
+
+  // Build the cone, keyed by cell so the spill can override mountain cells. The
+  // whole feature stays on LAND (rows ≤ baseRow, just above the lake) so it never
+  // turns walkable lake terrain (ice) into a blocker — it meets the shore, not the
+  // water. Spill = the flow down the cone's lower-centre face.
+  const cellMap = new Map<string, CellLabel>()
+  for (let r = apexRow; r <= baseRow; r++) {
+    const half = Math.round(((r - apexRow) / (FEATURE_HEIGHT - 1)) * FEATURE_HALF)
+    for (let c = apexCol - half; c <= apexCol + half; c++) {
+      cellMap.set(`${c},${r}`, r === apexRow && c === apexCol ? 'peak' : 'mountain')
+    }
+  }
+  cellMap.set(`${apexCol},${baseRow}`, 'spill') // flow reaching the shore
+  if (baseRow - 1 > apexRow) cellMap.set(`${apexCol},${baseRow - 1}`, 'spill')
+
+  const kept = props.filter(p => !cellMap.has(`${p.col},${p.row}`))
+  props.length = 0
+  props.push(...kept)
+  cellMap.forEach((label, key) => {
+    const { col, row } = toCell(key)
+    if (!inBounds(col, row, cols, rows) || isEdge(col, row, cols, rows)) return
+    props.push(makeFeatureCell(zone, col, row, label))
+    collision[row][col] = true
+  })
+}
+
 /** Glade-tree trunks can pinch off a tiny floor pocket. Any ground cell outside the
  *  largest connected floor region becomes tree mass, so the navigable floor is always
  *  ONE region. Canopy tops (tree_leaf_top) are a separate walkable layer — excluded. */
@@ -524,7 +589,7 @@ function repairFloorConnectivity(ctx: ArchetypeContext): void {
     if (!isFloor(col, row)) return
     if (largest.has(`${col},${row}`)) return
     collision[row][col] = true
-    props.push(makeTreeCell(zone, col, row, 'tree_interior')) // dead pocket → forest fills it
+    props.push(makeTreeCell(zone, col, row, 'tree_interior', massVariant(col, row))) // dead pocket → forest fills it
   })
 }
 
@@ -586,9 +651,9 @@ function layoutForestRooms(cols: number, rows: number): ForestRoom[] {
   const slotH = Math.floor(rows / slotsY)
   for (let sy = 0; sy < slotsY; sy++) {
     for (let sx = 0; sx < slotsX; sx++) {
-      if (Math.random() < 0.15) continue // a few empty slots for variety
-      const w = randInt(4, Math.max(4, slotW - 2))
-      const h = randInt(4, Math.max(4, slotH - 2))
+      if (Math.random() < 0.06) continue // rarely skip a slot — keeps dense outliers down
+      const w = randInt(6, Math.max(6, slotW - 2)) // larger clearings → fewer trees overall
+      const h = randInt(6, Math.max(6, slotH - 2))
       const col = clamp(sx * slotW + randInt(1, Math.max(1, slotW - w)), 1, cols - w - 1)
       const row = clamp(sy * slotH + randInt(1, Math.max(1, slotH - h)), 1, rows - h - 1)
       const role: ForestRoom['role'] = Math.random() < 0.4 ? 'grass' : 'clearing'
@@ -693,8 +758,19 @@ function markGrassZones(ctx: ArchetypeContext, rooms: ForestRoom[]): void {
 // canopy, walkable canopy top (bottom → top). Each cell carries its own label so
 // the canopy occupies — and correctly blocks — the cells its art covers, instead
 // of a single base cell whose tall canopy used to overlap "free" cells above.
-const TREE_COLUMN: readonly CellLabel[] = ['tree_stem_bottom', 'tree_stem', 'tree_leaf', 'tree_leaf_top']
+// A standalone tree is fully SOLID: trunk → leaf → solid crown (no passable
+// cell). The whole column blocks, so you can't step "into" the leaves.
+const TREE_COLUMN: readonly CellLabel[] = ['tree_stem_bottom', 'tree_stem', 'tree_leaf', 'tree_crown']
+// A dead/bare tree: a tall trunk topped by a leafless snag (no walkable canopy).
+// Same height as a living tree so placement (treeFits) is shared.
+const DEAD_TREE_COLUMN: readonly CellLabel[] = ['tree_stem_bottom', 'tree_stem', 'tree_stem', 'tree_snag']
 const TREE_HEIGHT = TREE_COLUMN.length
+
+// Per-zone chance a scattered glade tree is a leafless snag — harsher zones have
+// more dead wood (charred lava, frost-killed frozen) than the lush verdant.
+// Bare/dead trees by season: many in winter (leafless), a good share in autumn,
+// few in the green seasons.
+const DEAD_TREE_CHANCE: Readonly<Record<ZoneId, number>> = { spring: 0.06, summer: 0.08, autumn: 0.28, winter: 0.45 }
 
 /** Sparse, blue-noise-spaced MULTI-CELL trees dotting the open clearings
  *  (dart-throw with a minimum spacing — a lightweight Poisson-disk per
@@ -709,7 +785,7 @@ function scatterGladeTrees(ctx: ArchetypeContext): void {
     const row = randInt(TREE_HEIGHT, rows - 3) // leave headroom above the base for the canopy
     if (!treeFits(collision, col, row, cols, rows)) continue
     if (placed.some(p => Math.abs(p.col - col) < minDist && Math.abs(p.row - row) < minDist)) continue
-    stampTree(ctx, col, row)
+    stampTree(ctx, col, row, Math.random() < DEAD_TREE_CHANCE[ctx.zone])
     placed.push({ col, row })
   }
 }
@@ -736,12 +812,15 @@ function hasOpenLateralNeighbour(collision: boolean[][], col: number, row: numbe
 }
 
 /** Stamp a multi-cell labeled tree upward from its base; per-label collision via
- *  isWalkable (only the canopy top stays walkable). */
-function stampTree(ctx: ArchetypeContext, baseCol: number, baseRow: number): void {
+ *  isWalkable. A living tree's only walkable cell is its canopy top; a `dead`
+ *  snag is solid all the way up. One canopy shade per tree (no intra-tree mess). */
+function stampTree(ctx: ArchetypeContext, baseCol: number, baseRow: number, dead = false): void {
   const { props, collision, zone } = ctx
-  TREE_COLUMN.forEach((label, i) => {
+  const column = dead ? DEAD_TREE_COLUMN : TREE_COLUMN
+  const variant = randInt(0, TREE_CANOPY_SHADES[zone].length - 1) // this tree's tone
+  column.forEach((label, i) => {
     const row = baseRow - i
-    props.push(makeTreeCell(zone, baseCol, row, label))
+    props.push(makeTreeCell(zone, baseCol, row, label, variant))
     collision[row][baseCol] = !isWalkable(label)
   })
 }
@@ -821,7 +900,7 @@ function commitTrees(ctx: ArchetypeContext, trees: boolean[][]): void {
   forEachCell(cols, rows, (col, row) => {
     if (!trees[row][col]) return
     const label = autotileLabel(TREE_MASS_FAMILY, isTree, col, row)
-    props.push(makeTreeCell(zone, col, row, label))
+    props.push(makeTreeCell(zone, col, row, label, massVariant(col, row)))
     collision[row][col] = !isWalkable(label)
   })
 }
@@ -849,7 +928,7 @@ function touchesOpen(trees: boolean[][], col: number, row: number): boolean {
 function scatterClearingCover(ctx: ArchetypeContext): void {
   const { ground, collision, props, zone, cols, rows } = ctx
   const accent = ZONE_PALETTES[zone].groundTypes[1]
-  const flowersAllowed = zone === 'verdant'
+  const flowersAllowed = zone === 'spring' || zone === 'summer' // blooms in the green seasons
   forEachCell(cols, rows, (col, row) => {
     if (isEdge(col, row, cols, rows)) return
     if (collision[row][col]) return

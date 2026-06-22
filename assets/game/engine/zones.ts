@@ -1,42 +1,52 @@
 /**
- * Zone palettes for Nebulith stages (GENERATION-SPEC §3).
+ * SEASON palettes for Nebulith stages.
  *
- * A "zone" is the elemental theme that drives a stage's palette + props. MVP
- * ships two zones (lava, frozen); expand only after these make a playable game.
+ * A "zone" is now a SEASON — spring (default), summer, autumn, winter — driving the
+ * stage's ground + the seasonal tint of trees/nature (see cellTileset.ts). The type
+ * is still named `ZoneId` (the generator/editor speak "zone"); the values are seasons.
  */
 
-export type ZoneId = 'lava' | 'frozen' | 'verdant'
+export type ZoneId = 'spring' | 'summer' | 'autumn' | 'winter'
+
+export const DEFAULT_ZONE: ZoneId = 'spring'
 
 export interface ZonePalette {
   id: ZoneId
-  /** Ground tile types for this zone (index 0 is the default fill). */
+  /** Ground tile types for this season (index 0 is the default fill, 1 the accent). */
   groundTypes: string[]
-  /** The "water" equivalent hazard tile for this zone. */
+  /** The "water" equivalent hazard tile for this season (winter = walkable ice). */
   hazard: string
   wallColor: string
   accentColor: string
 }
 
 export const ZONE_PALETTES: Record<ZoneId, ZonePalette> = {
-  lava: {
-    id: 'lava',
-    groundTypes: ['ash', 'rock', 'basalt'],
-    hazard: 'lava',
-    wallColor: '#5a2a20',
-    accentColor: '#ff5520',
+  spring: {
+    id: 'spring',
+    groundTypes: ['grass', 'grass_tall', 'grass'],
+    hazard: 'water',
+    wallColor: '#6a5a3a',
+    accentColor: '#ff9ecf', // blossom pink
   },
-  frozen: {
-    id: 'frozen',
-    groundTypes: ['snow', 'ice', 'frost'],
-    hazard: 'ice_water',
-    wallColor: '#3a5a7a',
-    accentColor: '#a0e0ff',
-  },
-  verdant: {
-    id: 'verdant',
+  summer: {
+    id: 'summer',
     groundTypes: ['grass', 'grass_tall', 'grass'],
     hazard: 'water',
     wallColor: '#5a4a30',
-    accentColor: '#88cc44',
+    accentColor: '#2e8b2e', // deep green
+  },
+  autumn: {
+    id: 'autumn',
+    groundTypes: ['autumn_ground', 'autumn_leaves', 'autumn_ground'],
+    hazard: 'water',
+    wallColor: '#6a4a28',
+    accentColor: '#d2691e', // amber
+  },
+  winter: {
+    id: 'winter',
+    groundTypes: ['snow', 'ice', 'frost'],
+    hazard: 'ice_water', // ice is walkable (skate/swim later)
+    wallColor: '#3a5a7a',
+    accentColor: '#a0e0ff', // frost blue
   },
 }

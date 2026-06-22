@@ -8,8 +8,9 @@
  *      a cell blocks. A tree's canopy top is walkable (you walk *under* it), the
  *      trunk and leaves block; a building's top roof tile and doors are walkable,
  *      the rest blocks. (See project-nebulith-collision-model.)
- *   2. RENDER GLYPH (`labelChar`) — and, downstream, the real tileset tile chosen
- *      when ASCII is replaced by art (TILE-VOCABULARY-CONTRACT).
+ *   2. RENDER GLYPH + COLOR — owned by the TILESET (cellTileset.ts), not here. A
+ *      label's appearance (and, downstream, the real tile chosen when ASCII is
+ *      replaced by art) is presentation; this module is pure semantics.
  *
  * Tree/building MASSES are labeled by AUTOTILING: each filled cell gets a 9-piece
  * edge/corner/interior label from its 8-neighbour neighbourhood (grammar spec
@@ -18,7 +19,11 @@
 
 // ── label vocabulary (single source of truth) ──────────────────────────
 // Vertical single-column tree (trunk + canopy stack): bottom→top.
-const TREE_COLUMN_LABELS = ['tree_stem_bottom', 'tree_stem', 'tree_leaf', 'tree_leaf_top'] as const
+// `tree_crown` is the SOLID foliage cap of a standalone tree (it blocks — the
+// whole tree is impassable). `tree_leaf_top` is reserved (still walkable) for a
+// future overhead-canopy layer but is not emitted by the generator. `tree_snag`
+// is a dead/bare trunk top (a burnt or frozen stem); it blocks like any trunk.
+const TREE_COLUMN_LABELS = ['tree_stem_bottom', 'tree_stem', 'tree_leaf', 'tree_crown', 'tree_leaf_top', 'tree_snag'] as const
 
 // 9-piece tree-mass labels (autotiled forest canopy).
 const TREE_MASS_LABELS = [
@@ -36,7 +41,13 @@ const TREE_MASS_LABELS = [
 // Building parts.
 const BUILDING_LABELS = ['roof_top', 'roof', 'wall', 'door', 'window'] as const
 
-export const CELL_LABELS = [...TREE_COLUMN_LABELS, ...TREE_MASS_LABELS, ...BUILDING_LABELS] as const
+// Biome terrain FEATURES that anchor a hazard lake: a mountain massif (`mountain`
+// slope + `peak` crown — a glowing crater in lava) and the `spill` that connects
+// it to the water (a lava flow into a lava lake, a waterfall into a water/ice
+// lake). All block movement.
+const FEATURE_LABELS = ['mountain', 'peak', 'spill'] as const
+
+export const CELL_LABELS = [...TREE_COLUMN_LABELS, ...TREE_MASS_LABELS, ...BUILDING_LABELS, ...FEATURE_LABELS] as const
 
 export type CellLabel = (typeof CELL_LABELS)[number]
 
@@ -48,34 +59,6 @@ const WALKABLE_LABELS: ReadonlySet<string> = new Set<CellLabel>(['tree_leaf_top'
 
 export function isWalkable(label: string): boolean {
   return WALKABLE_LABELS.has(label)
-}
-
-// ── render glyphs ──────────────────────────────────────────────────────
-// One glyph per label; the walkable canopy top reads differently from solid
-// leaves so the "walk-under" cell is visible. Unknown labels fall back to '?'.
-const LABEL_CHARS: Readonly<Record<CellLabel, string>> = {
-  tree_stem_bottom: '╨',
-  tree_stem: '│',
-  tree_leaf: '@',
-  tree_leaf_top: '♣',
-  tree_top_left: '╔',
-  tree_top: '╦',
-  tree_top_right: '╗',
-  tree_edge_left: '╠',
-  tree_interior: '@',
-  tree_edge_right: '╣',
-  tree_bottom_left: '╚',
-  tree_bottom: '╩',
-  tree_bottom_right: '╝',
-  roof_top: '▔',
-  roof: '▀',
-  wall: '█',
-  door: '╫',
-  window: '▒',
-}
-
-export function labelChar(label: string): string {
-  return LABEL_CHARS[label as CellLabel] ?? '?'
 }
 
 // ── autotile labeler (9-piece corner/edge/interior) ────────────────────

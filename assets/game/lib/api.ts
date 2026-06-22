@@ -2,6 +2,8 @@
  * API Client for Templates
  */
 
+import type { Action as TriggerAction } from '@/engine/triggers'
+
 export interface Connector {
   col: number
   row: number
@@ -10,6 +12,10 @@ export interface Connector {
   interaction: 'walk' | 'interact' | 'auto'  // How player triggers it
   spawnCol: number  // Where to spawn in target template
   spawnRow: number
+  // Optional TYPED action (triggers generalization). When present it overrides the
+  // default teleport: move within the stage, collect an item, or reveal content.
+  // Absent = legacy "go to target template" (teleport). Round-trips as JSON.
+  action?: TriggerAction
 }
 
 export interface TemplateListItem {
