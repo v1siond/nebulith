@@ -2158,6 +2158,32 @@ function FlowViewOverlay({
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
+  // Lay EVERY saved template (+ the current one) out in a circle — the full level
+  // graph, not just the current room's neighbours. x/y are node centres; each node
+  // carries its own connectors (the current room's come from the live `connectors`
+  // prop, since it may have unsaved edits). Shared by render + click hit-testing.
+  const layoutNodes = useCallback(
+    (w: number, h: number) => {
+      const base = allTemplates.map(t => ({ id: t.id, name: t.name, connectors: (t.connectors as Connector[]) || [] }))
+      if (currentTemplate && !base.some(t => t.id === currentTemplate.id)) {
+        base.push({ id: currentTemplate.id, name: currentTemplate.name, connectors })
+      }
+      const radius = Math.min(w, h) * 0.32
+      const single = base.length <= 1
+      return base.map((t, i) => {
+        const angle = (i / Math.max(1, base.length)) * Math.PI * 2 - Math.PI / 2
+        return {
+          id: t.id,
+          name: t.name,
+          connectors: t.id === currentTemplate?.id ? connectors : t.connectors,
+          x: single ? w / 2 : w / 2 + Math.cos(angle) * radius,
+          y: single ? h / 2 : h / 2 + Math.sin(angle) * radius,
+        }
+      })
+    },
+    [currentTemplate, connectors, allTemplates],
+  )
+
   const render = useCallback(() => {
     const canvas = canvasRef.current
     if (!canvas || !currentTemplate) return
@@ -2185,195 +2211,85 @@ function FlowViewOverlay({
       ctx.fill()
     }
 
-    // Find connected templates
-    const outgoingIds = new Set(connectors.map(c => c.targetTemplateId))
-    const incomingTemplates = allTemplates.filter(t => {
-      const tConnectors = (t.connectors as Connector[]) || []
-      return tConnectors.some(c => c.targetTemplateId === currentTemplate.id)
-    })
-    const incomingIds = new Set(incomingTemplates.map(t => t.id))
+    // The FULL level graph: every template is a node, every connector an edge.
+    const nodes = layoutNodes(canvas.width, canvas.height)
+    const nodeOf = (id: string) => nodes.find(n => n.id === id)
 
-    // Build node positions - current in center, connected around it
-    const connectedIds = new Set([...outgoingIds, ...incomingIds])
-    const connectedTemplates = allTemplates.filter(t => connectedIds.has(t.id) && t.id !== currentTemplate.id)
-
-    // Position connected templates in a circle around center
-    const radius = Math.min(canvas.width, canvas.height) * 0.3
-    const nodes: Array<{ id: string; name: string; x: number; y: number; isOutgoing: boolean; isIncoming: boolean }> = []
-
-    connectedTemplates.forEach((t, i) => {
-      const angle = (i / connectedTemplates.length) * Math.PI * 2 - Math.PI / 2
-      nodes.push({
-        id: t.id,
-        name: t.name,
-        x: centerX + Math.cos(angle) * radius - NODE_WIDTH / 2,
-        y: centerY + Math.sin(angle) * radius - NODE_HEIGHT / 2,
-        isOutgoing: outgoingIds.has(t.id),
-        isIncoming: incomingIds.has(t.id),
-      })
-    })
-
-    // Draw connections from current to outgoing
-    for (const connector of connectors) {
-      const targetNode = nodes.find(n => n.id === connector.targetTemplateId)
-      if (!targetNode) continue
-
-      const startX = centerX
-      const startY = centerY
-      const endX = targetNode.x + NODE_WIDTH / 2
-      const endY = targetNode.y + NODE_HEIGHT / 2
-
-      // Gradient line
-      const gradient = ctx.createLinearGradient(startX, startY, endX, endY)
-      const color = connector.interaction === 'walk' ? '#aa66ff' :
-                    connector.interaction === 'interact' ? '#66aaff' : '#ffaa66'
-      gradient.addColorStop(0, color)
-      gradient.addColorStop(1, color + '88')
-
-      ctx.strokeStyle = gradient
-      ctx.lineWidth = 3
-      ctx.beginPath()
-      ctx.moveTo(startX, startY)
-      ctx.lineTo(endX, endY)
-      ctx.stroke()
-
-      // Arrow head
-      const angle = Math.atan2(endY - startY, endX - startX)
-      const arrowDist = Math.sqrt((endX - startX) ** 2 + (endY - startY) ** 2) - NODE_WIDTH / 2 - 10
-      const arrowX = startX + Math.cos(angle) * arrowDist
-      const arrowY = startY + Math.sin(angle) * arrowDist
-
-      ctx.fillStyle = color
-      ctx.beginPath()
-      ctx.moveTo(arrowX + Math.cos(angle) * 12, arrowY + Math.sin(angle) * 12)
-      ctx.lineTo(arrowX + Math.cos(angle - 0.4) * -8, arrowY + Math.sin(angle - 0.4) * -8)
-      ctx.lineTo(arrowX + Math.cos(angle + 0.4) * -8, arrowY + Math.sin(angle + 0.4) * -8)
-      ctx.closePath()
-      ctx.fill()
-
-      // Interaction label
-      const midX = (startX + endX) / 2
-      const midY = (startY + endY) / 2
-      ctx.font = 'bold 11px monospace'
-      ctx.fillStyle = '#fff'
-      ctx.textAlign = 'center'
-      ctx.textBaseline = 'middle'
-      ctx.fillText(connector.interaction, midX, midY - 12)
-    }
-
-    // Draw incoming connections
-    for (const t of incomingTemplates) {
-      const sourceNode = nodes.find(n => n.id === t.id)
-      if (!sourceNode) continue
-
-      const tConnectors = (t.connectors as Connector[]) || []
-      const relevantConnectors = tConnectors.filter(c => c.targetTemplateId === currentTemplate.id)
-
-      for (const connector of relevantConnectors) {
-        const startX = sourceNode.x + NODE_WIDTH / 2
-        const startY = sourceNode.y + NODE_HEIGHT / 2
-        const endX = centerX
-        const endY = centerY
-
-        ctx.strokeStyle = '#44aa44'
-        ctx.lineWidth = 2
-        ctx.setLineDash([5, 5])
+    // Edges — one arrowed, labelled link per connector, between its two nodes.
+    for (const node of nodes) {
+      for (const connector of node.connectors) {
+        const target = nodeOf(connector.targetTemplateId)
+        if (!target) continue
+        const color = connector.interaction === 'walk' ? '#aa66ff' : connector.interaction === 'interact' ? '#66aaff' : '#ffaa66'
+        const gradient = ctx.createLinearGradient(node.x, node.y, target.x, target.y)
+        gradient.addColorStop(0, color)
+        gradient.addColorStop(1, color + '88')
+        ctx.strokeStyle = gradient
+        ctx.lineWidth = 3
         ctx.beginPath()
-        ctx.moveTo(startX, startY)
-        ctx.lineTo(endX, endY)
+        ctx.moveTo(node.x, node.y)
+        ctx.lineTo(target.x, target.y)
         ctx.stroke()
-        ctx.setLineDash([])
 
-        // Arrow pointing to center
-        const angle = Math.atan2(endY - startY, endX - startX)
-        const arrowDist = Math.sqrt((endX - startX) ** 2 + (endY - startY) ** 2) - NODE_WIDTH / 2 - 10
-        const arrowX = startX + Math.cos(angle) * arrowDist
-        const arrowY = startY + Math.sin(angle) * arrowDist
-
-        ctx.fillStyle = '#44aa44'
+        const angle = Math.atan2(target.y - node.y, target.x - node.x)
+        const arrowDist = Math.hypot(target.x - node.x, target.y - node.y) - NODE_WIDTH / 2 - 8
+        const arrowX = node.x + Math.cos(angle) * arrowDist
+        const arrowY = node.y + Math.sin(angle) * arrowDist
+        ctx.fillStyle = color
         ctx.beginPath()
-        ctx.moveTo(arrowX + Math.cos(angle) * 10, arrowY + Math.sin(angle) * 10)
-        ctx.lineTo(arrowX + Math.cos(angle - 0.4) * -6, arrowY + Math.sin(angle - 0.4) * -6)
-        ctx.lineTo(arrowX + Math.cos(angle + 0.4) * -6, arrowY + Math.sin(angle + 0.4) * -6)
+        ctx.moveTo(arrowX + Math.cos(angle) * 12, arrowY + Math.sin(angle) * 12)
+        ctx.lineTo(arrowX + Math.cos(angle - 0.4) * -8, arrowY + Math.sin(angle - 0.4) * -8)
+        ctx.lineTo(arrowX + Math.cos(angle + 0.4) * -8, arrowY + Math.sin(angle + 0.4) * -8)
         ctx.closePath()
         ctx.fill()
+
+        ctx.font = 'bold 11px monospace'
+        ctx.fillStyle = '#fff'
+        ctx.textAlign = 'center'
+        ctx.textBaseline = 'middle'
+        ctx.fillText(connector.interaction, (node.x + target.x) / 2, (node.y + target.y) / 2 - 10)
       }
     }
 
-    // Draw current template node (center)
-    ctx.fillStyle = '#2a1a3a'
-    ctx.beginPath()
-    ctx.roundRect(centerX - NODE_WIDTH / 2, centerY - NODE_HEIGHT / 2, NODE_WIDTH, NODE_HEIGHT, 12)
-    ctx.fill()
-    ctx.strokeStyle = '#ffaa00'
-    ctx.lineWidth = 3
-    ctx.stroke()
-
-    // Glow effect
-    ctx.shadowColor = '#ffaa00'
-    ctx.shadowBlur = 20
-    ctx.strokeStyle = '#ffaa0044'
-    ctx.stroke()
-    ctx.shadowBlur = 0
-
-    ctx.fillStyle = '#ffdd00'
-    ctx.font = 'bold 14px monospace'
-    ctx.textAlign = 'center'
-    ctx.textBaseline = 'middle'
-    ctx.fillText(
-      currentTemplate.name.length > 12 ? currentTemplate.name.slice(0, 11) + '…' : currentTemplate.name,
-      centerX, centerY - 5
-    )
-    ctx.fillStyle = '#888'
-    ctx.font = '10px monospace'
-    ctx.fillText(`${connectors.length} outgoing`, centerX, centerY + 15)
-
-    // Draw connected template nodes
+    // Nodes — the current room glows gold; the rest are blue boxes.
     for (const node of nodes) {
-      ctx.fillStyle = node.isOutgoing ? '#1a2a3a' : '#1a3a2a'
+      const isCurrent = node.id === currentTemplate.id
+      ctx.fillStyle = isCurrent ? '#2a1a3a' : '#16213a'
       ctx.beginPath()
-      ctx.roundRect(node.x, node.y, NODE_WIDTH, NODE_HEIGHT, 8)
+      ctx.roundRect(node.x - NODE_WIDTH / 2, node.y - NODE_HEIGHT / 2, NODE_WIDTH, NODE_HEIGHT, 10)
       ctx.fill()
-
-      ctx.strokeStyle = node.isOutgoing ? '#aa66ff' : '#44aa44'
-      ctx.lineWidth = 2
+      if (isCurrent) {
+        ctx.shadowColor = '#ffaa00'
+        ctx.shadowBlur = 20
+      }
+      ctx.strokeStyle = isCurrent ? '#ffaa00' : '#5a7fd0'
+      ctx.lineWidth = isCurrent ? 3 : 2
       ctx.stroke()
+      ctx.shadowBlur = 0
 
-      ctx.fillStyle = '#ffffff'
-      ctx.font = 'bold 12px monospace'
+      ctx.fillStyle = isCurrent ? '#ffdd00' : '#ffffff'
+      ctx.font = 'bold 13px monospace'
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
-      ctx.fillText(
-        node.name.length > 14 ? node.name.slice(0, 13) + '…' : node.name,
-        node.x + NODE_WIDTH / 2, node.y + NODE_HEIGHT / 2 - 8
-      )
-
-      ctx.fillStyle = '#666'
+      ctx.fillText(node.name.length > 13 ? node.name.slice(0, 12) + '…' : node.name, node.x, node.y - 4)
+      ctx.fillStyle = '#888'
       ctx.font = '10px monospace'
-      const label = node.isOutgoing && node.isIncoming ? 'both' : node.isOutgoing ? 'outgoing' : 'incoming'
-      ctx.fillText(label, node.x + NODE_WIDTH / 2, node.y + NODE_HEIGHT / 2 + 12)
+      ctx.fillText(`${node.connectors.length} link${node.connectors.length === 1 ? '' : 's'}`, node.x, node.y + 13)
     }
 
     // Legend
     ctx.fillStyle = '#666'
     ctx.font = '11px monospace'
     ctx.textAlign = 'left'
-    ctx.fillText('Click a template to navigate to it', 20, canvas.height - 40)
-    ctx.fillStyle = '#aa66ff'
-    ctx.fillText('━━ outgoing', 20, canvas.height - 20)
-    ctx.fillStyle = '#44aa44'
-    ctx.fillText('┄┄ incoming', 140, canvas.height - 20)
+    ctx.fillText('Click a room to open it · arrows = connectors', 20, canvas.height - 20)
 
-    // No connections message
-    if (connectedTemplates.length === 0) {
+    if (nodes.length <= 1) {
       ctx.fillStyle = '#666'
       ctx.font = '14px monospace'
       ctx.textAlign = 'center'
-      ctx.fillText('No connections yet', centerX, centerY + NODE_HEIGHT)
-      ctx.font = '12px monospace'
-      ctx.fillText('Add connectors in TOP view to link templates', centerX, centerY + NODE_HEIGHT + 20)
+      ctx.fillText('Save more templates + add connectors to see the graph', centerX, centerY + NODE_HEIGHT)
     }
-  }, [currentTemplate, connectors, allTemplates])
+  }, [currentTemplate, layoutNodes])
 
   useEffect(() => {
     render()
@@ -2389,28 +2305,12 @@ function FlowViewOverlay({
     const x = e.clientX - rect.left
     const y = e.clientY - rect.top
 
-    const centerX = canvas.width / 2
-    const centerY = canvas.height / 2
-
-    // Find connected templates
-    const outgoingIds = new Set(connectors.map(c => c.targetTemplateId))
-    const incomingTemplates = allTemplates.filter(t => {
-      const tConnectors = (t.connectors as Connector[]) || []
-      return tConnectors.some(c => c.targetTemplateId === currentTemplate.id)
-    })
-    const connectedIds = new Set([...outgoingIds, ...incomingTemplates.map(t => t.id)])
-    const connectedTemplates = allTemplates.filter(t => connectedIds.has(t.id) && t.id !== currentTemplate.id)
-
-    const radius = Math.min(canvas.width, canvas.height) * 0.3
-
-    // Check if clicked on a connected template
-    for (let i = 0; i < connectedTemplates.length; i++) {
-      const angle = (i / connectedTemplates.length) * Math.PI * 2 - Math.PI / 2
-      const nodeX = centerX + Math.cos(angle) * radius - NODE_WIDTH / 2
-      const nodeY = centerY + Math.sin(angle) * radius - NODE_HEIGHT / 2
-
-      if (x >= nodeX && x <= nodeX + NODE_WIDTH && y >= nodeY && y <= nodeY + NODE_HEIGHT) {
-        onSelectTemplate(connectedTemplates[i].id)
+    // Hit-test against the same full-graph layout the render uses. Clicking any room
+    // (other than the current one) opens it.
+    for (const node of layoutNodes(canvas.width, canvas.height)) {
+      if (node.id === currentTemplate.id) continue
+      if (x >= node.x - NODE_WIDTH / 2 && x <= node.x + NODE_WIDTH / 2 && y >= node.y - NODE_HEIGHT / 2 && y <= node.y + NODE_HEIGHT / 2) {
+        onSelectTemplate(node.id)
         return
       }
     }
