@@ -192,7 +192,7 @@ const makeGroundDecor = (zone: ZoneId, col: number, row: number): StageProp => {
 // already detailed by their tile pattern.
 const BUILT_FLOOR: ReadonlySet<string> = new Set(['marble', 'gold_tile', 'ancient_stone', 'plaza', 'path_stone', 'rune_floor'])
 
-function scatterGroundCover(ctx: ArchetypeContext, density = 0.78): void {
+function scatterGroundCover(ctx: ArchetypeContext, density = 0.18): void {
   const { props, collision, ground, cols, rows, zone } = ctx
   const occupied = new Set(props.map(p => `${p.col},${p.row}`))
   const fill: StageProp[] = []
@@ -346,7 +346,7 @@ function placeVillage(ctx: ArchetypeContext): void {
     x += facade.length + randInt(2, 4)
   }
   villageDecor(ctx, row)
-  scatterGroundCover(ctx, 0.7) // grass/flowers/litter across the village commons (skips paths)
+  scatterGroundCover(ctx, 0.2) // occasional grass/flowers across the village commons (skips paths)
 }
 
 /** A village square below the houses: a central well, flanking lamp-posts, and a
@@ -1113,7 +1113,7 @@ function scatterClearingCover(ctx: ArchetypeContext): void {
     }
     if (flowersAllowed && roll < 0.22) props.push(makeFlower(zone, col, row))
   })
-  scatterGroundCover(ctx, 0.82) // dense non-blocking floor detail over the remaining bare cells
+  scatterGroundCover(ctx, 0.18) // sparse non-blocking floor tufts — keep clearings readable
 }
 
 // ── temple archetype (a grand columned hall on a paved approach) ────
@@ -1129,7 +1129,7 @@ function placeTemple(ctx: ArchetypeContext): void {
 
   const doorCol = col + Math.floor(facade.length / 2)
   templeHall(ctx, doorCol, row + 1, facade.length)
-  scatterGroundCover(ctx, 0.7) // litter/grass over the grounds around the hall (skips marble)
+  scatterGroundCover(ctx, 0.15) // light litter over the grounds around the hall (skips marble)
 }
 
 /** A grand colonnaded hall below the temple door: an ornate checkered floor, an
@@ -1173,7 +1173,7 @@ function placeCave(ctx: ArchetypeContext): void {
 
   commitRocks(ctx, rock) // rock walls fill the negative space (blocking props)
   scatterCaveDecor(ctx)
-  scatterGroundCover(ctx, 0.6) // dust / pebbles / embers across the cavern floor
+  scatterGroundCover(ctx, 0.22) // occasional dust / pebbles / embers across the cavern floor
 }
 
 /** Sprinkle non-blocking decor (stalagmites/crystals/rubble) over the cavern floor. */
@@ -1254,7 +1254,7 @@ function placeBossStage(ctx: ArchetypeContext): void {
   paveArena(ctx, arena)
   placeBossAnchor(ctx, arena)
   decorateArena(ctx, arena)
-  scatterGroundCover(ctx, 0.55) // detail on any unpaved ground around the arena (skips stone)
+  scatterGroundCover(ctx, 0.15) // light detail on any unpaved ground around the arena (skips stone)
 }
 
 /** Floor the open arena with ancient stone (reads as a built hall, not raw ground). */
