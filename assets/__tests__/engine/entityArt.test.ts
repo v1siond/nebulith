@@ -1,4 +1,4 @@
-import { entityArt, ENEMY_ART, ENEMY_ART_TYPES, ENEMY_FALLBACK, NPC_ART } from '@/engine/entityArt'
+import { entityArt, entityFootprint, ENEMY_ART, ENEMY_ART_TYPES, ENEMY_FALLBACK, NPC_ART } from '@/engine/entityArt'
 import { makeEnemy, makeNpc } from '@/game/entities'
 
 describe('entityArt — multi-row ASCII for entities', () => {
@@ -20,5 +20,19 @@ describe('entityArt — multi-row ASCII for entities', () => {
 
   it('npc uses the humanoid figure', () => {
     expect(entityArt(makeNpc('n1', 2, 2, { name: 'Bob' }))).toBe(NPC_ART)
+  })
+
+  it('entities are at least 2 cells tall (like the player), not 1×1', () => {
+    // NPC quest-givers: a humanoid 2 tall, 1 wide — matches the player.
+    const npc = entityFootprint(makeNpc('n1', 0, 0, { name: 'Elder' }))
+    expect(npc.h).toBeGreaterThanOrEqual(2)
+    expect(npc.w).toBe(1)
+    // Every monster is at least 2 tall; a wide one spans 2 cells across.
+    for (const t of ENEMY_ART_TYPES) {
+      const fp = entityFootprint(makeEnemy('e', 0, 0, t))
+      expect(fp.h).toBeGreaterThanOrEqual(2)
+      expect(fp.w).toBeGreaterThanOrEqual(1)
+    }
+    expect(entityFootprint(makeEnemy('g', 0, 0, 'goblin')).w).toBe(2) // '(>o<)' is 5 chars → 2 wide
   })
 })

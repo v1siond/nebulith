@@ -6648,9 +6648,11 @@ function drawIsoEntity(
   // Multi-row ASCII creature/figure, drawn bottom-to-top from the entity's cell
   // (same approach as the player), with a shadow for legibility.
   const art = entityArt(entity)
-  const fontSize = tileH * 0.85
-  const lineHeight = fontSize * 0.95
-  const baseY = y - tileH * 0.55
+  // Same scale as drawIsoPlayer, so NPCs/monsters stand as tall as the player
+  // (a 3-row figure ≈ 2 cells tall), not a squished 1×1.
+  const fontSize = tileH * 1.2
+  const lineHeight = tileH * 1.4
+  const baseY = y - lineHeight * 0.5
   ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
@@ -6679,28 +6681,33 @@ function drawTopEntity(
   entity: Entity,
   combat?: CombatState,
 ): void {
+  // The figure spans a footprint (a 3-row figure ≈ 2 cells tall, 1 wide) anchored so
+  // the entity's cell is the BOTTOM cell — matching the player's 2-tall look in top view.
+  const art = entityArt(entity)
+  const cellsTall = Math.max(2, Math.ceil(art.length / 1.5))
+  const spanH = cellsTall * tileSize
+  const topY = y - (cellsTall - 1) * tileSize
+
   ctx.fillStyle = 'rgba(0, 0, 0, 0.55)'
-  ctx.fillRect(x, y, tileSize - 1, tileSize - 1)
+  ctx.fillRect(x, topY, tileSize - 1, spanH - 1)
   ctx.strokeStyle = ENTITY_COLOR[entity.kind]
   ctx.lineWidth = 2
-  ctx.strokeRect(x + 1, y + 1, tileSize - 3, tileSize - 3)
+  ctx.strokeRect(x + 1, topY + 1, tileSize - 3, spanH - 3)
 
-  // Multi-row ASCII art scaled to fit the cell badge.
-  const art = entityArt(entity)
-  const fontSize = Math.max(5, (tileSize * 0.92) / art.length)
+  const fontSize = Math.max(6, (spanH * 0.9) / art.length)
   const lineHeight = fontSize
   ctx.fillStyle = ENTITY_COLOR[entity.kind]
   ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
   const cx = x + tileSize / 2
-  const startY = y + tileSize / 2 - ((art.length - 1) / 2) * lineHeight
+  const startY = topY + spanH / 2 - ((art.length - 1) / 2) * lineHeight
   for (let i = 0; i < art.length; i++) {
     ctx.fillText(art[i], cx, startY + i * lineHeight)
   }
 
   if (entity.kind !== 'enemy') return
-  drawHpBar(ctx, x + tileSize / 2, y - 4, tileSize - 2, 3, hpFraction(entity, combat))
+  drawHpBar(ctx, x + tileSize / 2, topY - 4, tileSize - 2, 3, hpFraction(entity, combat))
 }
 
 /** The 3 canopy layer styles (fg + bg) derived from ONE base tree color, so a

@@ -30,5 +30,16 @@ export function entityArt(entity: Entity): readonly string[] {
   return NPC_ART // npc + player
 }
 
+/** The grid footprint (in CELLS) an entity occupies, derived from its art so the
+ *  renderer + collision agree. Every entity is at least 2 cells tall (like the player
+ *  — a 3-row figure ≈ 2 cells), 1 wide; wider art (e.g. a wolf) spans 2 cells across.
+ *  ~3 art chars ≈ one cell wide; ~1.5 art rows ≈ one cell tall. */
+export function entityFootprint(entity: Entity): { w: number; h: number } {
+  const art = entityArt(entity)
+  const rows = art.length
+  const cols = art.reduce((m, r) => Math.max(m, r.length), 0)
+  return { w: Math.max(1, Math.round(cols / 3)), h: Math.max(2, Math.ceil(rows / 1.5)) }
+}
+
 /** All enemy-type keys that have bespoke art (for tests / tooling). */
 export const ENEMY_ART_TYPES = Object.keys(ENEMY_ART)
