@@ -26,6 +26,7 @@ import { generateStage, stagePaint, StageData, VariantId } from '@/engine/stageG
 import { ZoneId } from '@/engine/zones'
 import { darkenColor, lightenColor, withAlpha } from '@/engine/colors'
 import { scaleCompositeToRegion } from '@/engine/compositeFill'
+import { MULTI_CELL_ASSETS, stampAsset, assetFootprint, multiCellAssetById } from '@/engine/multiCellAssets'
 import { stepMover, initMover, type MoverState } from '@/engine/movement'
 import { shouldFire, lampPulse } from '@/engine/behaviors'
 import { weaponAnimKind, animFrame, isAnimDone, ATTACK_ANIM_MS, type AttackAnim } from '@/engine/attackAnimations'
@@ -2697,6 +2698,7 @@ export default function TemplateEditor() {
   const camOffsetRef = useRef({ x: 0, y: 0 })
   const [selectedTile, setSelectedTile] = useState<{ char: string; type: 'ground' | 'asset'; groundType?: string; tileKey?: string } | null>(null)
   const [selectedComposite, setSelectedComposite] = useState<string | null>(null)
+  const [selectedMultiAsset, setSelectedMultiAsset] = useState<string | null>(null)
   const [selectedHeight, setSelectedHeight] = useState(0)
   const [heightEditMode, setHeightEditMode] = useState(false)
   const [initialized, setInitialized] = useState(false)
@@ -3072,6 +3074,22 @@ export default function TemplateEditor() {
     // Entity tool armed → place/erase on this cell instead of selecting it
     if (entityTool) {
       applyEntityTool(cell.col, cell.row)
+      return
+    }
+
+    // Multi-cell structure armed → stamp the whole asset with its TOP-LEFT at this cell.
+    if (selectedMultiAsset) {
+      const grid = gridRef.current
+      const asset = multiCellAssetById(selectedMultiAsset)
+      if (grid && asset) {
+        const { w, h } = assetFootprint(asset)
+        // Clear any single-cell assets under the footprint first, so a re-stamp is clean.
+        grid.assets = grid.assets.filter(
+          a => !(a.col >= cell.col && a.col < cell.col + w && a.row >= cell.row && a.row < cell.row + h),
+        )
+        stampAsset(grid, asset, cell.col, cell.row)
+      }
+      setSelectedMultiAsset(null)
       return
     }
 
@@ -3515,6 +3533,7 @@ export default function TemplateEditor() {
     if (!grid || selectedCells.size === 0) {
       setSelectedTile(tileInfo)
       setSelectedComposite(null)
+      setSelectedMultiAsset(null)
       setHeightEditMode(false)
       return
     }
@@ -3564,6 +3583,7 @@ export default function TemplateEditor() {
     if (selectedCells.size === 0) {
       setSelectedComposite(assetKey)
       setSelectedTile(null)
+      setSelectedMultiAsset(null)
       setHeightEditMode(false)
       return
     }
@@ -3611,6 +3631,32 @@ export default function TemplateEditor() {
 
     setSelectedCells(new Set())
     setSelectedComposite(null)
+  }
+
+  // Arm / place a multi-cell structure asset (house, tower, well…). With no cells
+  // selected, clicking the palette ARMS it — the next click in Top view stamps it
+  // (top-left = the clicked cell). With a cell already selected, stamp at that anchor.
+  const placeMultiAsset = (assetId: string) => {
+    const grid = gridRef.current
+    const asset = multiCellAssetById(assetId)
+    if (!grid || !asset) return
+
+    if (selectedCells.size === 0) {
+      setSelectedMultiAsset(assetId)
+      setSelectedTile(null)
+      setSelectedComposite(null)
+      setHeightEditMode(false)
+      return
+    }
+
+    const [col, row] = Array.from(selectedCells)[0].split(',').map(Number)
+    const { w, h } = assetFootprint(asset)
+    grid.assets = grid.assets.filter(
+      a => !(a.col >= col && a.col < col + w && a.row >= row && a.row < row + h),
+    )
+    stampAsset(grid, asset, col, row)
+    setSelectedCells(new Set())
+    setSelectedMultiAsset(null)
   }
 
   // Place height on selected cells
@@ -5933,6 +5979,34 @@ export default function TemplateEditor() {
                       <span className="mt-1 text-[9px] leading-none text-gray-300">{item.name}</span>
                     </button>
                   ))}
+                </div>
+              </div>
+
+              {/* Multi-cell structures — one asset spans many cells (real tileset) */}
+              <div className="border-t border-white/10 pt-3">
+                <p className="mb-1 text-xs font-bold text-amber-400">Structures</p>
+                <p className="mb-2 text-[9px] leading-tight text-gray-500">
+                  One asset = many cells. Click to arm, then click a cell in Top view
+                  (top-left anchor). Doors stay walkable.
+                </p>
+                <div className="flex flex-wrap gap-1">
+                  {MULTI_CELL_ASSETS.map(asset => {
+                    const fp = assetFootprint(asset)
+                    return (
+                      <button
+                        key={asset.id}
+                        onClick={() => placeMultiAsset(asset.id)}
+                        className={`flex h-14 w-16 min-w-16 flex-shrink-0 flex-col items-center justify-center rounded bg-amber-950/40 transition-all hover:opacity-80 ${
+                          selectedMultiAsset === asset.id ? 'ring-2 ring-amber-400' : ''
+                        }`}
+                        title={`${asset.name} — ${fp.w}×${fp.h} cells`}
+                      >
+                        <span className="text-base font-bold leading-none text-amber-300">{asset.rows[0]?.trim() || '#'}</span>
+                        <span className="mt-1 text-[9px] leading-none text-gray-300">{asset.name}</span>
+                        <span className="mt-0.5 text-[8px] leading-none text-gray-500">{fp.w}×{fp.h}</span>
+                      </button>
+                    )
+                  })}
                 </div>
               </div>
             </Card>
