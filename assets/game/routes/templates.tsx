@@ -405,16 +405,29 @@ const ADJACENT_DELTAS: ReadonlyArray<readonly [number, number]> = [
  * Pick the enemy the player is attacking: the faced cell wins; otherwise the
  * nearest living adjacent enemy; null if none in reach. Dead enemies are skipped.
  */
+const RANGED_RANGE = 6 // cells a ranged weapon reaches down the facing line
+
 function findTarget(
   player: PlayerState,
   entities: readonly Entity[],
   runtime: EnemyRuntime,
   cellSize: number,
   use2D: boolean,
+  range: 'melee' | 'ranged' = 'melee',
 ): Entity | null {
   const faced = facingCell(player, cellSize, use2D)
   const facedEnemy = enemyAtCell(entities, runtime, faced.col, faced.row)
   if (facedEnemy) return facedEnemy
+  // Ranged weapons hit the nearest enemy along the facing line (basic distance attack).
+  if (range === 'ranged') {
+    const [dCol, dRow] = facingDelta(player.facing, use2D)
+    const pCol = Math.floor(player.x / cellSize)
+    const pRow = Math.floor(player.z / cellSize)
+    for (let d = 2; d <= RANGED_RANGE; d++) {
+      const e = enemyAtCell(entities, runtime, pCol + dCol * d, pRow + dRow * d)
+      if (e) return e
+    }
+  }
   return nearestAdjacentEnemy(player, entities, runtime, cellSize)
 }
 
@@ -538,41 +551,50 @@ function applyPlayerAttack(input: CombatStepInput, kills: string[]): CombatState
   const { player, entities, runtime, playerCombat, playerWeapon, hitMarkers, cellSize, use2D, attack, special, now } = input
   if (!attack && !special) return playerCombat
 
-  const target = findTarget(player, entities, runtime, cellSize, use2D)
-  if (!target) return playerCombat
+  // The attack matches the equipped weapon: sword/axe slash (melee), bow shoots (ranged),
+  // staff casts (magical) — school + range come from the weapon.
+  const range: 'melee' | 'ranged' = playerWeapon.range === 'ranged' ? 'ranged' : 'melee'
+  const faced = facingCell(player, cellSize, use2D)
+  const target = findTarget(player, entities, runtime, cellSize, use2D, range)
+  const aimCol = target ? target.col : faced.col
+  const aimRow = target ? target.row : faced.row
+  let animKind = weaponAnimKind(playerWeapon.kind, playerWeapon.range)
 
-  const targetState = runtime.combat.get(target.id)
-  if (!targetState) return playerCombat
+  // Resolve damage only if we hit something; the swing/shot is shown either way below.
+  let nextState = playerCombat
+  const targetState = target ? runtime.combat.get(target.id) : undefined
+  if (target && targetState) {
+    const chosen: Attack = { school: playerWeapon.school, range: playerWeapon.range, tier: special ? 'special' : 'regular' }
+    const result = resolveAttack({
+      attacker: input.playerStats,
+      defender: target.baseStats,
+      attack: chosen,
+      attackerWeapon: playerWeapon,
+      defenderHp: targetState.hp,
+      attackerState: playerCombat,
+    })
+    if (result.fired) {
+      runtime.combat.set(target.id, { ...targetState, hp: result.defenderHpAfter })
+      pushHitMarker(hitMarkers, target.col, target.row, result.damage, 'enemy', now)
+      if (result.blocked) animKind = 'block'
+      if (result.lethal) recordEnemyDeath(runtime, target, kills, now)
+      nextState = result.attackerStateAfter ?? playerCombat
+    }
+  }
 
-  const chosen = special ? SPECIAL_MELEE : REGULAR_MELEE
-  // Pass BASE stats — resolveAttack derives effective stats from the weapon itself
-  // (passing pre-derived stats would double-count the weapon's bonuses).
-  const result = resolveAttack({
-    attacker: input.playerStats,
-    defender: target.baseStats,
-    attack: chosen,
-    attackerWeapon: playerWeapon,
-    defenderHp: targetState.hp,
-    attackerState: playerCombat,
-  })
-  if (!result.fired) return playerCombat // special blocked (insufficient rage)
-
-  runtime.combat.set(target.id, { ...targetState, hp: result.defenderHpAfter })
-  pushHitMarker(hitMarkers, target.col, target.row, result.damage, 'enemy', now)
+  // ALWAYS show the swing/shot — even a whiff — so basic melee + ranged attacks read.
   if (input.anims) {
-    const kind = result.blocked ? 'block' : weaponAnimKind(playerWeapon.kind, playerWeapon.range)
     input.anims.push({
-      kind,
+      kind: animKind,
       fromX: player.x,
       fromZ: player.z,
-      toX: target.col * cellSize + cellSize / 2,
-      toZ: target.row * cellSize + cellSize / 2,
+      toX: aimCol * cellSize + cellSize / 2,
+      toZ: aimRow * cellSize + cellSize / 2,
       start: now,
-      durationMs: ATTACK_ANIM_MS[kind],
+      durationMs: ATTACK_ANIM_MS[animKind],
     })
   }
-  if (result.lethal) recordEnemyDeath(runtime, target, kills, now)
-  return result.attackerStateAfter ?? playerCombat
+  return nextState
 }
 
 /** A killed enemy: stamp its death time (respawn) and report its type for kill quests. */
