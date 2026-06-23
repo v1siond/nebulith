@@ -27,10 +27,19 @@ import { ZoneId } from '@/engine/zones'
 import { darkenColor, lightenColor, withAlpha } from '@/engine/colors'
 import { scaleCompositeToRegion } from '@/engine/compositeFill'
 import { MULTI_CELL_ASSETS, stampAsset, assetFootprint, multiCellAssetById } from '@/engine/multiCellAssets'
-import { stepMover, initMover, type MoverState } from '@/engine/movement'
+import {
+  stepMover,
+  initMover,
+  stepRunPatrol,
+  initRunState,
+  RUN_PATROL_LENGTH,
+  RUN_PATROL_DELAY_MS,
+  type MoverState,
+  type RunState,
+} from '@/engine/movement'
 import { shouldFire, lampPulse } from '@/engine/behaviors'
 import { weaponAnimKind, animFrame, isAnimDone, ATTACK_ANIM_MS, type AttackAnim } from '@/engine/attackAnimations'
-import { entityArt, weaponGlyph } from '@/engine/entityArt'
+import { entityArtFrame, weaponGlyph } from '@/engine/entityArt'
 import { appendWaypoint, setMovementMode, clearWaypoints, buildBoxPatrol, makeAttackPattern, defaultAttackPattern } from '@/game/patterns'
 import { useToast } from '@/components/Toast'
 import {
@@ -1845,6 +1854,7 @@ interface PlayerState {
   jumpHeight?: number
   /** held-weapon glyph drawn beside the figure (from the equipped loadout); '' = unarmed. */
   weaponGlyph?: string
+  shieldGlyph?: string
   /** wearing any armor → the figure is tinted to show the upgrade. */
   armored?: boolean
 }
@@ -2383,23 +2393,45 @@ const ENEMY_MOVE_MS = 360
  *  walls, the player's cell, and other entities as blocked. Returns a NEW entities
  *  list when something moved, else the same reference (so the loop can skip a
  *  re-render). Per-entity cursors persist across ticks in `cursors`. */
+/** Newly-placed enemies (no authored pattern) patrol erratically out of the box. */
+const DEFAULT_ENEMY_PATROL: MovementPattern = {
+  mode: 'random',
+  waypoints: [],
+  axis: 'mixed',
+  runLength: RUN_PATROL_LENGTH,
+  delayMs: RUN_PATROL_DELAY_MS,
+}
+const isRunState = (s: MoverState | RunState | undefined): s is RunState => !!s && 'stepsLeft' in s
+const isMoverState = (s: MoverState | RunState | undefined): s is MoverState => !!s && 'target' in s
+
 function advanceEnemyMovement(
   grid: IsometricGrid,
   entities: readonly Entity[],
   player: { x: number; z: number },
-  cursors: Map<string, MoverState>,
+  cursors: Map<string, MoverState | RunState>,
 ): readonly Entity[] {
   const pCol = Math.floor(player.x / grid.cellSize)
   const pRow = Math.floor(player.z / grid.cellSize)
   const occupied = new Set(entities.map(e => `${e.col},${e.row}`))
   let moved = false
   const next = entities.map(e => {
-    if (e.kind !== 'enemy' || !e.movement) return e
+    if (e.kind !== 'enemy') return e
+    const pattern = e.movement ?? DEFAULT_ENEMY_PATROL
     const blocked = (c: number, r: number): boolean =>
       grid.isBlocked(c, r) ||
       (c === pCol && r === pRow) ||
       (occupied.has(`${c},${r}`) && !(c === e.col && r === e.row))
-    const stepped = stepMover({ col: e.col, row: e.row }, e.movement, cursors.get(e.id) ?? initMover(), blocked)
+
+    // Run-patrol (move-delay-move) when an axis is set OR there aren't ≥2 waypoints to
+    // walk between; otherwise follow the authored waypoint path.
+    const useRunPatrol = !!pattern.axis || pattern.waypoints.length < 2
+    const prev = cursors.get(e.id)
+    const stepped = useRunPatrol
+      ? stepRunPatrol({ col: e.col, row: e.row }, pattern, isRunState(prev) ? prev : initRunState(pattern), blocked, {
+          delayTicks: Math.max(1, Math.round((pattern.delayMs ?? RUN_PATROL_DELAY_MS) / ENEMY_MOVE_MS)),
+        })
+      : stepMover({ col: e.col, row: e.row }, pattern, isMoverState(prev) ? prev : initMover(), blocked)
+
     cursors.set(e.id, stepped.state)
     if (stepped.pos.col === e.col && stepped.pos.row === e.row) return e
     moved = true
@@ -2870,7 +2902,7 @@ export default function TemplateEditor() {
   const [talentPath, setTalentPath] = useState<TalentPath>('warrior')
   const enemyRuntimeRef = useRef<EnemyRuntime>(makeEnemyRuntime())
   // Per-enemy patrol cursors + the last time enemies advanced (movement tick).
-  const movementCursorRef = useRef<Map<string, MoverState>>(new Map())
+  const movementCursorRef = useRef<Map<string, MoverState | RunState>>(new Map())
   const lastEnemyMoveRef = useRef(0)
   const cannonFireRef = useRef<Map<string, number>>(new Map()) // per-cannon last-fired time
   const hitMarkersRef = useRef<HitMarker[]>([])
@@ -3025,6 +3057,7 @@ export default function TemplateEditor() {
     // figure (changes when you equip a different weapon) + an armored tint.
     const armored = (['helmet', 'chest', 'gloves', 'boots'] as const).some(s => !!pl.equipped[s])
     playerRef.current.weaponGlyph = weaponGlyph(mainWeapon ?? playerWeaponRef.current)
+    playerRef.current.shieldGlyph = shield ? weaponGlyph(shield) : ''
     playerRef.current.armored = armored
     playerStatsRef.current = {
       ...base,
@@ -6525,6 +6558,10 @@ export default function TemplateEditor() {
 }
 
 // Render function - ASCII art on isometric diamond tiles
+// Eased per-entity render position (fractional cell) so run-patrol steps GLIDE in the
+// iso view instead of teleporting. Ephemeral render cache keyed by entity id.
+const entityVisualPos = new Map<string, { col: number; row: number }>()
+
 function render(
   ctx: CanvasRenderingContext2D,
   w: number,
@@ -6675,7 +6712,15 @@ function render(
     ...visibleAssets.map(a => ({ col: a.col, row: a.row, asset: a })),
     // The player ENTITY is drawn as the live sprite below (isPlayer), so skip it here
     // to avoid a ghost double at the spawn cell. (Top view keeps it — see renderTopView.)
-    ...entities.filter(e => e.kind !== 'player').map(e => ({ col: e.col, row: e.row, entity: e })),
+    ...entities.filter(e => e.kind !== 'player').map(e => {
+      // Smooth glide: ease the drawn position toward the logical cell each frame so
+      // run-patrol steps don't teleport (toScreen handles fractional cells).
+      const cur = entityVisualPos.get(e.id) ?? { col: e.col, row: e.row }
+      const col = Math.abs(e.col - cur.col) < 0.02 ? e.col : cur.col + (e.col - cur.col) * 0.2
+      const row = Math.abs(e.row - cur.row) < 0.02 ? e.row : cur.row + (e.row - cur.row) * 0.2
+      entityVisualPos.set(e.id, { col, row })
+      return { col, row, entity: e }
+    }),
     {
       col: player.x / cellSize,
       row: player.z / cellSize,
@@ -6788,6 +6833,15 @@ function drawIsoPlayer(
     ctx.fillStyle = '#e0e0e0'
     ctx.fillText(player.weaponGlyph, handX, handY)
   }
+  // A shield on the off-hand (left side), when equipped.
+  if (player.shieldGlyph) {
+    const shX = x - fontSize * 0.8
+    const shY = y - lineHeight - breathe
+    ctx.fillStyle = '#000000'
+    ctx.fillText(player.shieldGlyph, shX + 1, shY + 1)
+    ctx.fillStyle = '#9fd3ff'
+    ctx.fillText(player.shieldGlyph, shX, shY)
+  }
 }
 
 // Draw asset as ASCII art in isometric view (matching 2D style)
@@ -6881,6 +6935,11 @@ function drawHitMarker(
 /** Draw a placed entity as its glyph on a dark backing, in the ISO renderer.
  *  (x,y) is the screen centre of the entity's cell; sits ON TOP of ground/assets.
  *  Living enemies get a small HP bar floating above them. */
+/** Idle-animation clock. Returns 0 in non-browser contexts (jest), so draws are pure there. */
+const IDLE_FRAME_MS = 480
+const idleNow = (): number => (typeof performance !== 'undefined' ? performance.now() : 0)
+const idleFrame = (): number => Math.floor(idleNow() / IDLE_FRAME_MS)
+
 function drawIsoEntity(
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -6890,8 +6949,9 @@ function drawIsoEntity(
   combat?: CombatState,
 ): void {
   // Multi-row ASCII creature/figure, drawn bottom-to-top from the entity's cell
-  // (same approach as the player), with a shadow for legibility.
-  const art = entityArt(entity)
+  // (same approach as the player), with a shadow for legibility. Slow 2-frame idle
+  // (blink / arms) off the render clock — cycles each play-loop frame.
+  const art = entityArtFrame(entity, idleFrame())
   // Same scale as drawIsoPlayer, so NPCs/monsters stand as tall as the player
   // (a 3-row figure ≈ 2 cells tall), not a squished 1×1.
   const fontSize = tileH * 1.2
@@ -6932,7 +6992,7 @@ function drawTopEntity(
 ): void {
   // The figure spans a footprint (a 3-row figure ≈ 2 cells tall, 1 wide) anchored so
   // the entity's cell is the BOTTOM cell — matching the player's 2-tall look in top view.
-  const art = entityArt(entity)
+  const art = entityArtFrame(entity, idleFrame())
   const cellsTall = Math.max(2, Math.ceil(art.length / 1.5))
   const spanH = cellsTall * tileSize
   const topY = y - (cellsTall - 1) * tileSize
@@ -6940,28 +7000,23 @@ function drawTopEntity(
   const charW = fontSize * 0.6
   const maxW = art.reduce((m, r) => Math.max(m, r.length), 0)
   const cx = x + tileSize / 2
-  const spanW = Math.max(tileSize, maxW * charW + 4) // widen the badge to fit wide figures
-  const left = cx - spanW / 2
+  const textLeft = cx - (maxW * charW) / 2
+  const startY = topY + spanH / 2 - ((art.length - 1) / 2) * fontSize
 
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.55)'
-  ctx.fillRect(left, topY, spanW, spanH - 1)
-  ctx.strokeStyle = ENTITY_COLOR[entity.kind]
-  ctx.lineWidth = 2
-  ctx.strokeRect(left + 1, topY + 1, spanW - 2, spanH - 3)
-
-  // LEFT-align the rows on a shared origin so the figure holds together.
-  ctx.fillStyle = ENTITY_COLOR[entity.kind]
+  // NO background panel — the figure draws directly on the map (a colored box behind
+  // every monster/NPC made stages unreadable). A 1px shadow keeps it legible.
   ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
   ctx.textAlign = 'left'
   ctx.textBaseline = 'middle'
-  const textLeft = cx - (maxW * charW) / 2
-  const startY = topY + spanH / 2 - ((art.length - 1) / 2) * fontSize
   for (let i = 0; i < art.length; i++) {
+    ctx.fillStyle = '#000000'
+    ctx.fillText(art[i], textLeft + 1, startY + i * fontSize + 1)
+    ctx.fillStyle = ENTITY_COLOR[entity.kind]
     ctx.fillText(art[i], textLeft, startY + i * fontSize)
   }
 
   if (entity.kind !== 'enemy') return
-  drawHpBar(ctx, cx, topY - 4, spanW - 2, 3, hpFraction(entity, combat))
+  drawHpBar(ctx, cx, topY - 4, maxW * charW, 3, hpFraction(entity, combat))
 }
 
 /** The 3 canopy layer styles (fg + bg) derived from ONE base tree color, so a
@@ -7330,6 +7385,11 @@ function render2D(
       if (player.weaponGlyph) {
         ctx.fillStyle = '#e0e0e0'
         ctx.fillText(player.weaponGlyph, p.x + fontSize * 0.6, baseY - lineHeight * 1.2)
+      }
+      // Shield on the off-hand, when equipped.
+      if (player.shieldGlyph) {
+        ctx.fillStyle = '#9fd3ff'
+        ctx.fillText(player.shieldGlyph, p.x - fontSize * 0.6, baseY - lineHeight * 1.2)
       }
 
     } else if (obj.asset) {

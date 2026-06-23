@@ -125,9 +125,20 @@ export interface Cell {
 /** sequential = walk the waypoints in order, looping; random = pick a random
  *  next waypoint on arrival. (See engine/movement.ts for the stepper.) */
 export type MovementMode = 'sequential' | 'random'
+/** Run-patrol axis: which directions an entity runs along between pauses.
+ *  vertical = up/down runs; horizontal = left/right runs; mixed = pick an axis each
+ *  run (vertical → randomize up/down, horizontal → reverse / go back). */
+export type MovementAxis = 'vertical' | 'horizontal' | 'mixed'
 export interface MovementPattern {
   mode: MovementMode
   waypoints: Cell[]
+  /** When set, the entity uses RUN-PATROL instead of waypoints: it runs `runLength`
+   *  cells in one direction, pauses `delayMs`, then picks the next direction by axis. */
+  axis?: MovementAxis
+  /** cells per run before pausing (run-patrol). Default RUN_PATROL_LENGTH. */
+  runLength?: number
+  /** pause between runs, in ms (run-patrol). Default RUN_PATROL_DELAY_MS. */
+  delayMs?: number
 }
 
 /** How an enemy retaliates: melee adjacency vs ranged line-of-distance, plus the

@@ -73,3 +73,93 @@ export function stepMover(
   }
   return { pos: stepToward(pos, target, isBlocked), state }
 }
+
+// ── run-patrol: move a run of cells, pause, then turn (erratic patrol) ──────────
+export const RUN_PATROL_LENGTH = 4
+export const RUN_PATROL_DELAY_MS = 600
+
+/** Per-entity run-patrol cursor: current direction, cells left in the run, ticks
+ *  left to pause, and the last horizontal/vertical dirs (for reverse / go-back). */
+export interface RunState {
+  dc: number
+  dr: number
+  stepsLeft: number
+  waitLeft: number
+  lastDc: number
+  lastDr: number
+}
+
+/** Injectable RNG (→ [0,1)) so `mixed` patrols stay unit-testable. */
+export type Rng = () => number
+
+const runLen = (p: MovementPattern): number => Math.max(1, p.runLength ?? RUN_PATROL_LENGTH)
+
+/** Initial run cursor. Horizontal/mixed start moving right; vertical starts down. */
+export function initRunState(pattern: MovementPattern): RunState {
+  const vertical = pattern.axis === 'vertical'
+  const dc = vertical ? 0 : 1
+  const dr = vertical ? 1 : 0
+  return { dc, dr, stepsLeft: runLen(pattern), waitLeft: 0, lastDc: dc || 1, lastDr: dr || 1 }
+}
+
+/** Pick the next run direction once a run + its pause complete. */
+function chooseNextDir(pattern: MovementPattern, s: RunState, rng: Rng): Pick<RunState, 'dc' | 'dr' | 'lastDc' | 'lastDr'> {
+  const axis = pattern.axis ?? 'mixed'
+  if (axis === 'vertical') {
+    const dr = -(s.lastDr || 1) // reverse: out and back
+    return { dc: 0, dr, lastDc: s.lastDc, lastDr: dr }
+  }
+  if (axis === 'horizontal') {
+    const dc = -(s.lastDc || 1)
+    return { dc, dr: 0, lastDc: dc, lastDr: s.lastDr }
+  }
+  // mixed: pick an axis — vertical → randomize up/down; horizontal → go back (reverse)
+  if (rng() < 0.5) {
+    const dr = rng() < 0.5 ? -1 : 1
+    return { dc: 0, dr, lastDc: s.lastDc, lastDr: dr }
+  }
+  const dc = -(s.lastDc || 1)
+  return { dc, dr: 0, lastDc: dc, lastDr: s.lastDr }
+}
+
+/**
+ * Step an entity along a RUN-PATROL: move `runLength` cells in the current direction,
+ * pause `delayTicks`, then turn (per `axis`). A blocked cell ends the current run
+ * early (then it pauses + turns). Pure + deterministic (RNG injected for `mixed`).
+ */
+export function stepRunPatrol(
+  pos: Cell,
+  pattern: MovementPattern,
+  state: RunState,
+  isBlocked: (col: number, row: number) => boolean,
+  opts?: { rng?: Rng; delayTicks?: number },
+): { pos: Cell; state: RunState } {
+  const rng = opts?.rng ?? Math.random
+  const delayTicks = Math.max(0, opts?.delayTicks ?? 6)
+  let s = state
+
+  // pausing between runs
+  if (s.waitLeft > 0) {
+    const waitLeft = s.waitLeft - 1
+    if (waitLeft > 0) return { pos, state: { ...s, waitLeft } }
+    s = { ...s, ...chooseNextDir(pattern, s, rng), stepsLeft: runLen(pattern), waitLeft: 0 }
+    // fall through and take the first step of the new run
+  }
+
+  // moving along the run
+  const next = { col: pos.col + s.dc, row: pos.row + s.dr }
+  if (isBlocked(next.col, next.row)) {
+    return { pos, state: { ...s, stepsLeft: 0, waitLeft: delayTicks } } // wall → pause, then turn
+  }
+  const stepsLeft = s.stepsLeft - 1
+  return {
+    pos: next,
+    state: {
+      ...s,
+      stepsLeft: Math.max(0, stepsLeft),
+      waitLeft: stepsLeft <= 0 ? delayTicks : 0,
+      lastDc: s.dc !== 0 ? s.dc : s.lastDc,
+      lastDr: s.dr !== 0 ? s.dr : s.lastDr,
+    },
+  }
+}

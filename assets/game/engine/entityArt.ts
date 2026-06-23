@@ -86,6 +86,34 @@ export function entityArt(entity: Entity): readonly string[] {
   return NPC_ART // npc + player
 }
 
+/** Frame 1 of each idle animation — a SMALL change (blink / arms / wings), authored
+ *  at the SAME dimensions as frame 0 so the footprint never jitters. */
+export const ENEMY_ART_ALT: Readonly<Record<string, readonly string[]>> = {
+  goblin: [' ,-.', '(>o<)', '\\|Y|/', ' d b'], // arms up
+  skeleton: [' .-.', '(-.-)', ' |=|', '/|#|\\', ' " "'], // blink
+  ghost: [' .-.', '(o o)', '| O /', ' /   /', " `~~~'"], // tail sways
+  spider: ['  \\ _ /', '\\_\\(_)/_/', ' _//o\\\\_', '  \\   /'], // legs flex
+  wolf: ['/\\_/\\', '( -.- )', ' > ^ <'], // blink
+  orc: [' ,vv,', '(o~~o)', '/|##|\\', ' J  L'], // eyes
+  slime: [' .--.', '(o..o)', "'+~~+'"], // wobble
+  bat: ['_\\ ^ /_', '(o   o)', ' \\vvv/'], // wings flap
+  bandit: [' ___', '[-_-]', '\\|"|/', ' | |'], // arms
+}
+
+const ENEMY_FALLBACK_ALT: readonly string[] = [' ___', '(@_@)', '\\| |/', ' " "']
+const NPC_ART_ALT: readonly string[] = ['  O', ' \\|/', ' / \\'] // arms shift
+
+/** The art for a given idle FRAME (0 or 1). Frame 0 is the base figure; frame 1 is
+ *  the alt pose. The draw loop picks the frame from the clock for a slow idle. */
+export function entityArtFrame(entity: Entity, frame: number): readonly string[] {
+  if (frame % 2 === 0) return entityArt(entity)
+  if (entity.kind === 'enemy') {
+    const key = entity.enemyType?.trim().toLowerCase() ?? ''
+    return ENEMY_ART_ALT[key] ?? ENEMY_FALLBACK_ALT
+  }
+  return NPC_ART_ALT // npc + player
+}
+
 /** The grid footprint (in CELLS) an entity occupies, derived from its art so the
  *  renderer + collision agree. Every entity is at least 2 cells tall (like the player
  *  — a 3-row figure ≈ 2 cells), 1 wide; wider art (e.g. a spider) spans 2–3 cells.
