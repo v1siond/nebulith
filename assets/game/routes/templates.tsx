@@ -3268,14 +3268,25 @@ export default function TemplateEditor() {
 
     const collisionFn = (c: number, r: number) => !!grid.collision[r]?.[c]
 
-    setEntities(prev => {
-      // Only one player: placing a new one replaces the existing player anywhere.
-      const base = entityTool === 'player' ? prev.filter(e => e.kind !== 'player') : prev
+    // The placed PLAYER entity defines where the play-loop player spawns: only one
+    // player (replaces any existing), and the live player jumps to that cell.
+    if (entityTool === 'player') {
+      const base = entitiesRef.current.filter(e => e.kind !== 'player')
       if (!canPlaceEntity(base, col, row, grid.cols, grid.rows, collisionFn)) {
+        toast('Cell is blocked, out of bounds, or already occupied', 'warning')
+        return
+      }
+      setEntities(placeEntity(base, ENTITY_BUILDERS.player(col, row)))
+      movePlayerToValidSpawn(col, row) // placed player entity → live player position
+      return
+    }
+
+    setEntities(prev => {
+      if (!canPlaceEntity(prev, col, row, grid.cols, grid.rows, collisionFn)) {
         toast('Cell is blocked, out of bounds, or already occupied', 'warning')
         return prev
       }
-      return placeEntity(base, ENTITY_BUILDERS[entityTool](col, row))
+      return placeEntity(prev, ENTITY_BUILDERS[entityTool](col, row))
     })
   }
 
@@ -5499,9 +5510,15 @@ export default function TemplateEditor() {
       setEntities(loadedEntities)
       setQuests(loadedQuests)
 
-      // Move player to valid spawn. A connector teleport overrides the template's
-      // default spawn so the player lands on the connector's target cell.
-      const spawn = spawnOverride ?? { col: template.spawnCol, row: template.spawnRow }
+      // Move player to valid spawn. Priority: a connector teleport override, else the
+      // placed PLAYER entity's cell (player=entity: the placed player defines the spawn),
+      // else the template's default spawn.
+      const playerEntity = (template.entities ?? []).find(e => e.kind === 'player')
+      const spawn =
+        spawnOverride ??
+        (playerEntity
+          ? { col: playerEntity.col, row: playerEntity.row }
+          : { col: template.spawnCol, row: template.spawnRow })
       movePlayerToValidSpawn(spawn.col, spawn.row)
 
       // Sync the connector edge-detector to where we actually landed, so a connector
