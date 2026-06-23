@@ -6675,16 +6675,21 @@ function drawIsoEntity(
   const fontSize = tileH * 1.2
   const lineHeight = tileH * 1.4
   const baseY = y - lineHeight * 0.5
+  // LEFT-align all rows on a shared origin (monospace advance ≈ 0.6em) so the figure's
+  // shape holds together — centering each row independently mangles real ASCII art.
+  const charW = fontSize * 0.6
+  const maxW = art.reduce((m, r) => Math.max(m, r.length), 0)
+  const leftX = x - (maxW * charW) / 2
   ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
-  ctx.textAlign = 'center'
+  ctx.textAlign = 'left'
   ctx.textBaseline = 'middle'
   for (let i = 0; i < art.length; i++) {
     const line = art[art.length - 1 - i]
     const ly = baseY - i * lineHeight
     ctx.fillStyle = '#000000'
-    ctx.fillText(line, x + 1, ly + 1)
+    ctx.fillText(line, leftX + 1, ly + 1)
     ctx.fillStyle = ENTITY_COLOR[entity.kind]
-    ctx.fillText(line, x, ly)
+    ctx.fillText(line, leftX, ly)
   }
 
   if (entity.kind !== 'enemy') return
@@ -6709,27 +6714,32 @@ function drawTopEntity(
   const cellsTall = Math.max(2, Math.ceil(art.length / 1.5))
   const spanH = cellsTall * tileSize
   const topY = y - (cellsTall - 1) * tileSize
+  const fontSize = Math.max(6, (spanH * 0.9) / art.length)
+  const charW = fontSize * 0.6
+  const maxW = art.reduce((m, r) => Math.max(m, r.length), 0)
+  const cx = x + tileSize / 2
+  const spanW = Math.max(tileSize, maxW * charW + 4) // widen the badge to fit wide figures
+  const left = cx - spanW / 2
 
   ctx.fillStyle = 'rgba(0, 0, 0, 0.55)'
-  ctx.fillRect(x, topY, tileSize - 1, spanH - 1)
+  ctx.fillRect(left, topY, spanW, spanH - 1)
   ctx.strokeStyle = ENTITY_COLOR[entity.kind]
   ctx.lineWidth = 2
-  ctx.strokeRect(x + 1, topY + 1, tileSize - 3, spanH - 3)
+  ctx.strokeRect(left + 1, topY + 1, spanW - 2, spanH - 3)
 
-  const fontSize = Math.max(6, (spanH * 0.9) / art.length)
-  const lineHeight = fontSize
+  // LEFT-align the rows on a shared origin so the figure holds together.
   ctx.fillStyle = ENTITY_COLOR[entity.kind]
   ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
-  ctx.textAlign = 'center'
+  ctx.textAlign = 'left'
   ctx.textBaseline = 'middle'
-  const cx = x + tileSize / 2
-  const startY = topY + spanH / 2 - ((art.length - 1) / 2) * lineHeight
+  const textLeft = cx - (maxW * charW) / 2
+  const startY = topY + spanH / 2 - ((art.length - 1) / 2) * fontSize
   for (let i = 0; i < art.length; i++) {
-    ctx.fillText(art[i], cx, startY + i * lineHeight)
+    ctx.fillText(art[i], textLeft, startY + i * fontSize)
   }
 
   if (entity.kind !== 'enemy') return
-  drawHpBar(ctx, x + tileSize / 2, topY - 4, tileSize - 2, 3, hpFraction(entity, combat))
+  drawHpBar(ctx, cx, topY - 4, spanW - 2, 3, hpFraction(entity, combat))
 }
 
 /** The 3 canopy layer styles (fg + bg) derived from ONE base tree color, so a
