@@ -1,4 +1,4 @@
-import { entityArt, entityFootprint, ENEMY_ART, ENEMY_ART_TYPES, ENEMY_FALLBACK, NPC_ART } from '@/engine/entityArt'
+import { entityArt, entityFootprint, weaponGlyph, ENEMY_ART, ENEMY_ART_TYPES, ENEMY_FALLBACK, NPC_ART } from '@/engine/entityArt'
 import { makeEnemy, makeNpc } from '@/game/entities'
 
 describe('entityArt — multi-row ASCII for entities', () => {
@@ -34,5 +34,24 @@ describe('entityArt — multi-row ASCII for entities', () => {
       expect(fp.w).toBeGreaterThanOrEqual(1)
     }
     expect(entityFootprint(makeEnemy('g', 0, 0, 'goblin')).w).toBe(2) // '(>o<)' is 5 chars → 2 wide
+  })
+})
+
+describe('weaponGlyph — the held weapon drawn beside the player', () => {
+  it('returns nothing when unarmed', () => {
+    expect(weaponGlyph(undefined)).toBe('')
+    expect(weaponGlyph(null)).toBe('')
+  })
+
+  it('a ranged weapon reads as a bow regardless of its kind tag', () => {
+    // The catalog's bow is kind:'sword' but range:'ranged' — range wins.
+    expect(weaponGlyph({ kind: 'sword', range: 'ranged' })).toBe('}')
+  })
+
+  it('melee weapons map to distinct glyphs by kind, and change with the weapon', () => {
+    const sword = weaponGlyph({ kind: 'sword', range: 'melee' })
+    const axe = weaponGlyph({ kind: 'axe', range: 'melee' })
+    const staff = weaponGlyph({ kind: 'staff', range: 'melee' })
+    expect(new Set([sword, axe, staff]).size).toBe(3) // each weapon looks different
   })
 })

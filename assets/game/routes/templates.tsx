@@ -30,7 +30,8 @@ import { MULTI_CELL_ASSETS, stampAsset, assetFootprint, multiCellAssetById } fro
 import { stepMover, initMover, type MoverState } from '@/engine/movement'
 import { shouldFire, lampPulse } from '@/engine/behaviors'
 import { weaponAnimKind, animFrame, isAnimDone, ATTACK_ANIM_MS, type AttackAnim } from '@/engine/attackAnimations'
-import { entityArt } from '@/engine/entityArt'
+import { entityArt, weaponGlyph } from '@/engine/entityArt'
+import { appendWaypoint, setMovementMode, clearWaypoints, buildBoxPatrol, makeAttackPattern, defaultAttackPattern } from '@/game/patterns'
 import { useToast } from '@/components/Toast'
 import {
   makePlayer,
@@ -74,6 +75,7 @@ import type {
   Loadout,
   EquipSlot,
   MovementPattern,
+  AttackMode,
 } from '@/game/types'
 import { EQUIP_SLOTS } from '@/game/types'
 import { createInventory, addItem, equipWeapon, equipArmor, useConsumable } from '@/game/inventory'
@@ -298,8 +300,11 @@ function itemFromReward(reward: Reward, id: string): Item {
 const REGULAR_MELEE: Attack = { school: 'physical', range: 'melee', tier: 'regular' }
 const SPECIAL_MELEE: Attack = { school: 'physical', range: 'melee', tier: 'special' }
 
-/** Enemy retaliation: a flat regular melee, gated by a per-enemy cooldown (ms). */
+/** Enemy retaliation: a flat regular melee, gated by a per-enemy cooldown (ms). A
+ *  ranged enemy (entity.attack.mode==='ranged') uses the ranged variant + reach. */
 const ENEMY_ATTACK: Attack = REGULAR_MELEE
+const ENEMY_RANGED_ATTACK: Attack = { school: 'physical', range: 'ranged', tier: 'regular' }
+/** Fallback cooldown for enemies with no authored attack pattern. */
 const ENEMY_ATTACK_COOLDOWN_MS = 900
 
 /** "+dmg" hit markers float for this long before fading. */
@@ -615,14 +620,15 @@ function applyEnemyRetaliation(input: CombatStepInput & { playerCombat: CombatSt
 
   for (const entity of entities) {
     if (!isLivingEnemy(entity, runtime)) continue
-    if (!isAdjacentToPlayer(player, entity, cellSize)) continue
-    if (!offCooldown(runtime, entity.id, now)) continue
+    if (!withinAttackReach(player, entity, cellSize)) continue
+    if (!offCooldown(runtime, entity, now)) continue
 
+    const ranged = entity.attack?.mode === 'ranged'
     const result = resolveAttack({
       attacker: entity.baseStats,
       defender: defenderStats,
-      attack: ENEMY_ATTACK,
-      attackerWeapon: enemyFist(entity),
+      attack: ranged ? ENEMY_RANGED_ATTACK : ENEMY_ATTACK,
+      attackerWeapon: enemyFist(entity, ranged),
       defenderWeapon: input.playerShield ?? playerWeapon,
       defenderHp: playerCombat.hp,
     })
@@ -636,27 +642,39 @@ function applyEnemyRetaliation(input: CombatStepInput & { playerCombat: CombatSt
   return playerCombat
 }
 
-/** An enemy's "weapon" is its bare strength — a zero-base physical melee. */
-function enemyFist(entity: Entity): Weapon {
+/** An enemy's "weapon" is its bare strength — a zero-base physical attack. Ranged
+ *  enemies fling a bolt (range matches the attack so block/range checks line up). */
+function enemyFist(entity: Entity, ranged = false): Weapon {
   return {
     id: `fist-${entity.id}`,
     kind: 'sword',
-    name: 'Claw',
+    name: ranged ? 'Bolt' : 'Claw',
     baseDamage: 0,
     baseMagic: 0,
     baseDefense: 0,
     strengthBonus: 0,
     intBonus: 0,
     school: 'physical',
-    range: 'melee',
+    range: ranged ? 'ranged' : 'melee',
   }
 }
 
-/** Has this enemy's retaliation cooldown elapsed? (first hit is always allowed) */
-function offCooldown(runtime: EnemyRuntime, enemyId: string, now: number): boolean {
-  const last = runtime.lastAttackAt.get(enemyId)
+/** Can this enemy reach the player to retaliate? Melee = 8-adjacent; a ranged enemy
+ *  reaches up to RANGED_RANGE cells away in any direction (chebyshev distance). */
+function withinAttackReach(player: PlayerState, entity: Entity, cellSize: number): boolean {
+  if (entity.attack?.mode !== 'ranged') return isAdjacentToPlayer(player, entity, cellSize)
+  const pCol = Math.floor(player.x / cellSize)
+  const pRow = Math.floor(player.z / cellSize)
+  const dist = Math.max(Math.abs(entity.col - pCol), Math.abs(entity.row - pRow))
+  return dist >= 1 && dist <= RANGED_RANGE
+}
+
+/** Has this enemy's retaliation cooldown elapsed? (first hit is always allowed) Uses
+ *  the entity's authored attack cooldown when set, else the engine default. */
+function offCooldown(runtime: EnemyRuntime, entity: Entity, now: number): boolean {
+  const last = runtime.lastAttackAt.get(entity.id)
   if (last === undefined) return true
-  return now - last >= ENEMY_ATTACK_COOLDOWN_MS
+  return now - last >= (entity.attack?.cooldownMs ?? ENEMY_ATTACK_COOLDOWN_MS)
 }
 
 /** Append a floating "+dmg" marker (skipped when no damage was dealt). */
@@ -1825,6 +1843,10 @@ interface PlayerState {
   frame: number
   /** visual hop height (px) while mid-jump; 0 on the ground. */
   jumpHeight?: number
+  /** held-weapon glyph drawn beside the figure (from the equipped loadout); '' = unarmed. */
+  weaponGlyph?: string
+  /** wearing any armor → the figure is tinted to show the upgrade. */
+  armored?: boolean
 }
 
 // Jump = clear up to this many blocked cells in the facing direction (settings later).
@@ -2581,11 +2603,13 @@ function InventoryCard({ inventory, talentPath, onEquip, onUse, onSetClass }: {
 /** Right-sidebar inspector for a clicked entity: edit its name / enemy-type, toggle
  *  whether it's hittable (a non-hittable enemy becomes passive scenery), see its
  *  stats + patrol, and delete it. Presentational — actions bubble to the editor. */
-function EntityInspectorCard({ entity, onPatch, onDelete, onClose }: {
+function EntityInspectorCard({ entity, onPatch, onDelete, onClose, waypointMode, onToggleWaypointMode }: {
   entity: Entity
   onPatch: (patch: Partial<Entity>) => void
   onDelete: () => void
   onClose: () => void
+  waypointMode: boolean
+  onToggleWaypointMode: () => void
 }) {
   const hittable = entity.hittable ?? entity.kind === 'enemy'
   return (
@@ -2633,36 +2657,85 @@ function EntityInspectorCard({ entity, onPatch, onDelete, onClose }: {
           Hittable (can be attacked)
         </label>
         <div>
-          <span className="mb-0.5 block text-[10px] text-gray-400">Movement</span>
+          <span className="mb-0.5 block text-[10px] text-gray-400">Movement pattern</span>
           <select
-            value={entity.movement?.mode ?? 'none'}
+            value={entity.movement ? entity.movement.mode : 'none'}
             onChange={e => {
               const mode = e.target.value
               if (mode === 'none') {
                 onPatch({ movement: undefined })
                 return
               }
-              // A small box patrol around the entity; stepMover skips blocked/oob cells.
-              const r = 2
-              const waypoints = [
-                { col: entity.col, row: entity.row },
-                { col: entity.col + r, row: entity.row },
-                { col: entity.col + r, row: entity.row + r },
-                { col: entity.col, row: entity.row + r },
-              ]
-              onPatch({ movement: { mode: mode as MovementPattern['mode'], waypoints } })
+              // Keep any waypoints you've authored; only seed a box patrol the first
+              // time you enable movement on a still entity (see patterns.ts).
+              const next = entity.movement
+                ? setMovementMode(entity.movement, mode as MovementPattern['mode'])
+                : buildBoxPatrol(entity.col, entity.row, mode as MovementPattern['mode'])
+              onPatch({ movement: next })
             }}
             aria-label="Movement mode"
             className="w-full rounded bg-gray-800 p-1 text-xs"
           >
             <option value="none">Stationary</option>
-            <option value="sequential">Patrol (loop a path)</option>
-            <option value="random">Wander (random)</option>
+            <option value="sequential">Sequential (loop the path in order)</option>
+            <option value="random">Random (pick a next waypoint)</option>
           </select>
           {entity.movement && (
-            <p className="mt-0.5 text-[10px] text-gray-500">{entity.movement.waypoints.length} waypoints · {entity.movement.mode}</p>
+            <>
+              <p className="mt-1 text-[10px] text-gray-500">{entity.movement.waypoints.length} waypoints · {entity.movement.mode}</p>
+              <div className="mt-1 flex gap-1">
+                <button
+                  onClick={onToggleWaypointMode}
+                  aria-pressed={waypointMode}
+                  className={`flex-1 rounded px-2 py-1 text-[10px] ${waypointMode ? 'bg-cyan-600 text-white' : 'bg-gray-700 hover:bg-gray-600'}`}
+                >
+                  {waypointMode ? 'Click cells… (done)' : 'Set waypoints'}
+                </button>
+                <button
+                  onClick={() => onPatch({ movement: clearWaypoints(entity.movement) })}
+                  className="rounded bg-gray-700 px-2 py-1 text-[10px] hover:bg-gray-600"
+                >
+                  Clear
+                </button>
+              </div>
+              {waypointMode && (
+                <p className="mt-0.5 text-[10px] text-cyan-400">Click cells in Top view to add waypoints.</p>
+              )}
+            </>
           )}
         </div>
+        {entity.kind === 'enemy' && (
+          <div>
+            <span className="mb-0.5 block text-[10px] text-gray-400">Attack pattern</span>
+            <div className="flex gap-1">
+              <select
+                value={entity.attack?.mode ?? 'melee'}
+                onChange={e => {
+                  const mode = e.target.value as AttackMode
+                  const cooldownMs = entity.attack?.cooldownMs ?? defaultAttackPattern(mode).cooldownMs
+                  onPatch({ attack: makeAttackPattern(mode, cooldownMs) })
+                }}
+                aria-label="Attack mode"
+                className="flex-1 rounded bg-gray-800 p-1 text-xs"
+              >
+                <option value="melee">Melee (adjacent)</option>
+                <option value="ranged">Ranged (line of sight)</option>
+              </select>
+              <label className="flex items-center gap-1 text-[10px] text-gray-400">
+                <span className="shrink-0">CD ms</span>
+                <input
+                  type="number"
+                  value={entity.attack?.cooldownMs ?? defaultAttackPattern(entity.attack?.mode ?? 'melee').cooldownMs}
+                  onChange={e =>
+                    onPatch({ attack: makeAttackPattern(entity.attack?.mode ?? 'melee', Number(e.target.value)) })
+                  }
+                  aria-label="Attack cooldown ms"
+                  className="w-16 rounded bg-gray-800 p-1 text-xs"
+                />
+              </label>
+            </div>
+          </div>
+        )}
         <div className="flex gap-1">
           <button onClick={onDelete} className="flex-1 rounded bg-red-800 px-2 py-1 hover:bg-red-700">Delete</button>
           <button onClick={onClose} className="rounded bg-gray-700 px-2 py-1 hover:bg-gray-600">Close</button>
@@ -2740,6 +2813,14 @@ export default function TemplateEditor() {
   const [entityTool, setEntityTool] = useState<EntityTool>(null)
   // The placed entity currently selected for inspection (click an entity to select).
   const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null)
+  // When on, a Top-view click appends a waypoint to the selected entity's patrol path
+  // (author your own movement route instead of the default box patrol).
+  const [waypointMode, setWaypointMode] = useState(false)
+  // Disarm waypoint authoring whenever the selection changes, so clicks on a new
+  // entity select it (rather than dropping a stray waypoint on the previous one).
+  useEffect(() => {
+    setWaypointMode(false)
+  }, [selectedEntityId])
   const [enemyType, setEnemyType] = useState('goblin')
   const [npcName, setNpcName] = useState('')
   const entitiesRef = useRef<Entity[]>([])
@@ -2940,6 +3021,11 @@ export default function TemplateEditor() {
     playerLoadoutRef.current = pl
     playerWeaponRef.current = mainWeapon ?? inventory.equippedWeapon ?? STARTER_SWORD
     playerShieldRef.current = shield
+    // Make the equipped gear VISIBLE on the player: a held-weapon glyph beside the
+    // figure (changes when you equip a different weapon) + an armored tint.
+    const armored = (['helmet', 'chest', 'gloves', 'boots'] as const).some(s => !!pl.equipped[s])
+    playerRef.current.weaponGlyph = weaponGlyph(mainWeapon ?? playerWeaponRef.current)
+    playerRef.current.armored = armored
     playerStatsRef.current = {
       ...base,
       strength: base.strength + b.strength,
@@ -3051,6 +3137,19 @@ export default function TemplateEditor() {
 
     const cell = screenToCell(e.clientX, e.clientY)
     if (!cell) return
+
+    // Waypoint authoring: with "Set waypoints" armed, each click appends a cell to the
+    // selected entity's patrol path (data-only — see game/patterns.ts appendWaypoint).
+    if (waypointMode && selectedEntityId) {
+      setEntities(prev =>
+        prev.map(ent =>
+          ent.id === selectedEntityId
+            ? { ...ent, movement: appendWaypoint(ent.movement, cell, ent.movement?.mode ?? 'sequential') }
+            : ent,
+        ),
+      )
+      return
+    }
 
     // In connector mode, open connector editor
     if (connectorMode) {
@@ -3228,6 +3327,30 @@ export default function TemplateEditor() {
     const spawn = findValidSpawn(grid, col, row)
     playerRef.current.x = spawn.col * grid.cellSize + grid.cellSize / 2
     playerRef.current.z = spawn.row * grid.cellSize + grid.cellSize / 2
+  }
+
+  /** The cell the live play-loop player currently occupies. */
+  const livePlayerCell = (): { col: number; row: number } => {
+    const grid = gridRef.current
+    if (!grid) return { col: 0, row: 0 }
+    return {
+      col: Math.floor(playerRef.current.x / grid.cellSize),
+      row: Math.floor(playerRef.current.z / grid.cellSize),
+    }
+  }
+
+  /** The player IS a selectable entity (click it → its vitals/stats/inventory show in
+   *  the right sidebar). Guarantee exactly one 'player' entity exists. `reposition`
+   *  moves an existing player to (col,row) — used when generating a fresh stage;
+   *  otherwise an existing (saved/placed) player is left untouched — used on load. */
+  const syncPlayerEntity = (col: number, row: number, reposition: boolean) => {
+    setEntities(prev => {
+      const existing = prev.find(e => e.kind === 'player')
+      if (existing && !reposition) return prev
+      const others = prev.filter(e => e.kind !== 'player')
+      const player = existing ? { ...existing, col, row } : makePlayer(mintEntityId('player'), col, row)
+      return [...others, player]
+    })
   }
 
   // Save connector
@@ -4470,6 +4593,8 @@ export default function TemplateEditor() {
     const stage = generateStage({ zone, variant, cols: grid.cols, rows: grid.rows })
     applyStageToGrid(stage, grid)
     movePlayerToValidSpawn(stage.spawn.col, stage.spawn.row)
+    const live = livePlayerCell()
+    syncPlayerEntity(live.col, live.row, true) // fresh stage → player entity follows the spawn
     setSelectedCells(new Set())
   }
 
@@ -5000,6 +5125,8 @@ export default function TemplateEditor() {
     const spawnX = preset.buildings.hasPlaza ? townX + 6 : cx
     const spawnY = preset.buildings.hasPlaza ? townY + 6 : cy
     movePlayerToValidSpawn(spawnX, spawnY)
+    const live = livePlayerCell()
+    syncPlayerEntity(live.col, live.row, true) // new map → a selectable player at the spawn
     setSelectedCells(new Set())
   }
 
@@ -5604,6 +5731,10 @@ export default function TemplateEditor() {
       setConnectors(template.connectors || [])
       setEntities(template.entities ?? [])
       setQuests(template.quests ?? [])
+      // Older saves may have no player entity → mint one at the spawn so the player
+      // is still a clickable, vitals-showing entity. A saved player is kept as-is.
+      const landedCell = livePlayerCell()
+      syncPlayerEntity(landedCell.col, landedCell.row, false)
 
       setCurrentTemplateId(template.id)
       setTemplateName(template.name)
@@ -6132,7 +6263,9 @@ export default function TemplateEditor() {
                     entity={selected}
                     onPatch={patchSelectedEntity}
                     onDelete={deleteSelectedEntity}
-                    onClose={() => setSelectedEntityId(null)}
+                    onClose={() => { setWaypointMode(false); setSelectedEntityId(null) }}
+                    waypointMode={waypointMode}
+                    onToggleWaypointMode={() => setWaypointMode(v => !v)}
                   />
                   {selected.kind === 'player' && (
                     <>
@@ -6540,7 +6673,9 @@ function render(
   // assets/player and draw as glyphs on top of their cell.
   const allObjects: { col: number; row: number; isPlayer?: boolean; asset?: GridAsset; entity?: Entity }[] = [
     ...visibleAssets.map(a => ({ col: a.col, row: a.row, asset: a })),
-    ...entities.map(e => ({ col: e.col, row: e.row, entity: e })),
+    // The player ENTITY is drawn as the live sprite below (isPlayer), so skip it here
+    // to avoid a ghost double at the spawn cell. (Top view keeps it — see renderTopView.)
+    ...entities.filter(e => e.kind !== 'player').map(e => ({ col: e.col, row: e.row, entity: e })),
     {
       col: player.x / cellSize,
       row: player.z / cellSize,
@@ -6627,6 +6762,10 @@ function drawIsoPlayer(
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
 
+  // Armor tint: steel-blue when wearing gear, warm yellow otherwise — the figure
+  // visibly changes the moment you equip armor in the inventory panel.
+  const bodyColor = player.armored ? '#bcd4ff' : '#ffdd00'
+
   // Draw each line from bottom to top
   for (let i = 0; i < playerArt.length; i++) {
     const line = playerArt[playerArt.length - 1 - i]
@@ -6636,9 +6775,18 @@ function drawIsoPlayer(
     ctx.fillStyle = '#000000'
     ctx.fillText(line, x + 1, lineY + 1)
 
-    // Yellow player color
-    ctx.fillStyle = '#ffdd00'
+    ctx.fillStyle = bodyColor
     ctx.fillText(line, x, lineY)
+  }
+
+  // The held weapon, drawn beside the figure at mid-height so equipped gear shows.
+  if (player.weaponGlyph) {
+    const handX = x + fontSize * 0.55
+    const handY = y - lineHeight - breathe
+    ctx.fillStyle = '#000000'
+    ctx.fillText(player.weaponGlyph, handX + 1, handY + 1)
+    ctx.fillStyle = '#e0e0e0'
+    ctx.fillText(player.weaponGlyph, handX, handY)
   }
 }
 
@@ -7171,11 +7319,17 @@ function render2D(
       ctx.textBaseline = 'middle'
 
       // Draw each line from bottom to top (no background)
+      const bodyColor = player.armored ? '#bcd4ff' : '#ffdd00'
       for (let i = 0; i < playerArt.length; i++) {
         const line = playerArt[playerArt.length - 1 - i] // Reverse order (bottom to top)
         const lineY = baseY - (i + 0.5) * lineHeight
-        ctx.fillStyle = '#ffdd00'
+        ctx.fillStyle = bodyColor
         ctx.fillText(line, p.x, lineY)
+      }
+      // Held weapon beside the figure (changes when you equip a different weapon).
+      if (player.weaponGlyph) {
+        ctx.fillStyle = '#e0e0e0'
+        ctx.fillText(player.weaponGlyph, p.x + fontSize * 0.6, baseY - lineHeight * 1.2)
       }
 
     } else if (obj.asset) {
@@ -7349,7 +7503,9 @@ function render2D(
   }
 
   // Placed entities (enemies / NPCs) on top of the world layer — same as Top/iso.
+  // Skip the player entity: the live player sprite is drawn above (no ghost double).
   for (const entity of entities) {
+    if (entity.kind === 'player') continue
     const combat = entity.kind === 'enemy' ? enemyCombat.get(entity.id) : undefined
     if (isDeadEnemy(entity, combat)) continue
     const e = toScreen(entity.col, entity.row)

@@ -130,6 +130,14 @@ export interface MovementPattern {
   waypoints: Cell[]
 }
 
+/** How an enemy retaliates: melee adjacency vs ranged line-of-distance, plus the
+ *  cooldown (ms) between swings. Authored per-enemy in the editor's inspector. */
+export type AttackMode = 'melee' | 'ranged'
+export interface AttackPattern {
+  mode: AttackMode
+  cooldownMs: number
+}
+
 // ── entities ────────────────────────────────────────────────────────
 export type EntityKind = 'player' | 'enemy' | 'npc'
 export interface Entity {
@@ -147,6 +155,8 @@ export interface Entity {
   enemyType?: string
   /** patrol path; the play loop advances it each movement tick. */
   movement?: MovementPattern
+  /** retaliation pattern (enemies): melee/ranged + cooldown. Omitted = engine default. */
+  attack?: AttackPattern
   /** can this entity be attacked? defaults: enemy=true, npc/decoration=false. */
   hittable?: boolean
 }

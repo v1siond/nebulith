@@ -99,3 +99,23 @@ export function entityFootprint(entity: Entity): { w: number; h: number } {
 
 /** All enemy-type keys that have bespoke art (for tests / tooling). */
 export const ENEMY_ART_TYPES = Object.keys(ENEMY_ART)
+
+/** The held-weapon glyph drawn beside the player so equipped gear is visible at a
+ *  glance. A ranged weapon (e.g. a bow) reads by `range`; melee weapons by `kind`.
+ *  Returns '' when nothing is equipped (draw nothing). */
+export function weaponGlyph(weapon?: { kind?: string; range?: string } | null): string {
+  if (!weapon) return ''
+  if (weapon.range === 'ranged') return '}' // bow / drawn string
+  switch (weapon.kind) {
+    case 'staff':
+      return 'i' // a focus rod
+    case 'axe':
+      return 'T' // broad head
+    case 'shield':
+      return 'O' // boss
+    case 'sword':
+      return '/' // a blade
+    default:
+      return '/'
+  }
+}
