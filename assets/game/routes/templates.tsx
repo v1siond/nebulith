@@ -2657,6 +2657,254 @@ function InventoryCard({ inventory, talentPath, onEquip, onUse, onSetClass }: {
 /** Right-sidebar inspector for a clicked entity: edit its name / enemy-type, toggle
  *  whether it's hittable (a non-hittable enemy becomes passive scenery), see its
  *  stats + patrol, and delete it. Presentational — actions bubble to the editor. */
+/** Reusable modal — dark gaming panel; click the backdrop or press Esc to close. */
+function Modal({ title, accent = 'orange', onClose, children, wide }: {
+  title: string
+  accent?: 'orange' | 'cyan' | 'purple' | 'blue' | 'yellow' | 'red'
+  onClose: () => void
+  children: React.ReactNode
+  wide?: boolean
+}) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
+  const ring = {
+    orange: 'border-orange-500/40', cyan: 'border-cyan-500/40', purple: 'border-purple-500/40',
+    blue: 'border-blue-500/40', yellow: 'border-yellow-500/40', red: 'border-red-500/40',
+  }[accent]
+  const head = {
+    orange: 'text-orange-300', cyan: 'text-cyan-300', purple: 'text-purple-300',
+    blue: 'text-blue-300', yellow: 'text-yellow-300', red: 'text-red-300',
+  }[accent]
+  return (
+    <div
+      className="fixed inset-0 z-40 flex items-center justify-center bg-black/70 p-4 font-mono"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-label={title}
+    >
+      <div
+        className={`flex max-h-[85vh] w-full ${wide ? 'max-w-2xl' : 'max-w-md'} flex-col overflow-hidden rounded-xl border ${ring} bg-gray-950 text-white shadow-2xl shadow-black/60`}
+        onClick={e => e.stopPropagation()}
+      >
+        <header className="flex items-center justify-between border-b border-white/10 bg-black/40 px-4 py-3">
+          <h3 className={`text-sm font-bold uppercase tracking-widest ${head}`}>{title}</h3>
+          <button onClick={onClose} aria-label="Close" className="rounded px-2 py-1 text-gray-400 hover:bg-white/10 hover:text-white">✕</button>
+        </header>
+        <div className="overflow-y-auto p-4">{children}</div>
+      </div>
+    </div>
+  )
+}
+
+/** Identity + editable stats for the selected entity (Stats modal body). */
+function EntityIdentityStatsBody({ entity, onPatch }: {
+  entity: Entity
+  onPatch: (patch: Partial<Entity>) => void
+}) {
+  const hittable = entity.hittable ?? entity.kind === 'enemy'
+  return (
+    <div className="space-y-2 text-xs">
+      <div className="flex items-center justify-between">
+        <span className="font-bold uppercase tracking-wider text-orange-300">{entity.kind}</span>
+        <span className="text-gray-500">@ {entity.col},{entity.row}</span>
+      </div>
+      <label className="block">
+        <span className="mb-0.5 block text-[10px] text-gray-400">Name</span>
+        <input value={entity.name ?? ''} onChange={e => onPatch({ name: e.target.value })} aria-label="Entity name" className="w-full rounded bg-gray-800 p-1 text-xs" />
+      </label>
+      {entity.kind === 'enemy' && (
+        <label className="block">
+          <span className="mb-0.5 block text-[10px] text-gray-400">Enemy type (kill-quest tag)</span>
+          <input value={entity.enemyType ?? ''} onChange={e => onPatch({ enemyType: e.target.value })} aria-label="Enemy type" className="w-full rounded bg-gray-800 p-1 text-xs" />
+        </label>
+      )}
+      <div>
+        <span className="mb-0.5 block text-[10px] text-gray-400">Stats (editable)</span>
+        <div className="grid grid-cols-2 gap-1">
+          {([
+            ['maxHp', 'HP'],
+            ['defense', 'DEF'],
+            ['strength', 'STR'],
+            ['intelligence', 'INT'],
+            ['dodge', 'DODGE%'],
+          ] as const).map(([stat, label]) => (
+            <label key={stat} className="flex items-center gap-1 text-[10px] text-gray-400">
+              <span className="w-12 shrink-0">{label}</span>
+              <input
+                type="number"
+                value={entity.baseStats[stat] ?? 0}
+                onChange={e => onPatch({ baseStats: { ...entity.baseStats, [stat]: Number(e.target.value) } })}
+                aria-label={`${entity.kind} ${label}`}
+                className="w-full rounded bg-gray-800 p-1 text-xs"
+              />
+            </label>
+          ))}
+        </div>
+      </div>
+      <label className="flex items-center gap-2 text-gray-300">
+        <input type="checkbox" checked={hittable} onChange={e => onPatch({ hittable: e.target.checked })} aria-label="Hittable" />
+        Hittable (can be attacked)
+      </label>
+    </div>
+  )
+}
+
+/** Step-list movement editor (Movement modal body). */
+function EntityMovementBody({ entity, onPatch, waypointMode, onToggleWaypointMode }: {
+  entity: Entity
+  onPatch: (patch: Partial<Entity>) => void
+  waypointMode: boolean
+  onToggleWaypointMode: () => void
+}) {
+  return (
+    <div className="text-xs">
+      <span className="mb-0.5 block text-[10px] text-gray-400">Movement pattern</span>
+      <select
+        value={entity.movement ? entity.movement.mode : 'none'}
+        onChange={e => {
+          const mode = e.target.value
+          if (mode === 'none') {
+            onPatch({ movement: undefined })
+            return
+          }
+          const next = entity.movement
+            ? setMovementMode(entity.movement, mode as MovementPattern['mode'])
+            : buildStepList(mode as MovementPattern['mode'])
+          onPatch({ movement: next })
+        }}
+        aria-label="Movement mode"
+        className="w-full rounded bg-gray-800 p-1 text-xs"
+      >
+        <option value="none">Stationary</option>
+        <option value="sequential">Sequential (run steps in order)</option>
+        <option value="random">Random (pick a step each cycle)</option>
+      </select>
+      {entity.movement && (
+        <div className="mt-1 space-y-1">
+          {(entity.movement.steps ?? []).map((s, i) => (
+            <div key={i} className="flex items-center gap-1">
+              <select
+                value={s.dir}
+                onChange={e => onPatch({ movement: updateMovementStep(entity.movement!, i, { dir: e.target.value as Direction }) })}
+                aria-label={`Step ${i + 1} direction`}
+                className="rounded bg-gray-800 p-1 text-[11px]"
+              >
+                <option value="up">↑ up</option>
+                <option value="down">↓ down</option>
+                <option value="left">← left</option>
+                <option value="right">→ right</option>
+              </select>
+              <input
+                type="number"
+                min={1}
+                value={s.cells}
+                onChange={e => onPatch({ movement: updateMovementStep(entity.movement!, i, { cells: Number(e.target.value) }) })}
+                aria-label={`Step ${i + 1} cells`}
+                className="w-14 rounded bg-gray-800 p-1 text-[11px]"
+              />
+              <span className="text-[10px] text-gray-500">cells</span>
+              <button
+                onClick={() => onPatch({ movement: removeMovementStep(entity.movement!, i) })}
+                aria-label={`Remove step ${i + 1}`}
+                className="ml-auto rounded bg-gray-700 px-2 text-[11px] hover:bg-red-700"
+              >
+                ×
+              </button>
+            </div>
+          ))}
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => onPatch({ movement: addMovementStep(entity.movement!) })}
+              className="flex-1 rounded bg-gray-700 px-2 py-1 text-[10px] hover:bg-gray-600"
+            >
+              + Add step
+            </button>
+            <label className="flex items-center gap-1 text-[10px] text-gray-400">
+              <span className="shrink-0">delay ms</span>
+              <input
+                type="number"
+                min={0}
+                value={entity.movement.delayMs ?? 1200}
+                onChange={e => onPatch({ movement: setStepDelay(entity.movement!, Number(e.target.value)) })}
+                aria-label="Step delay ms"
+                className="w-16 rounded bg-gray-800 p-1 text-[11px]"
+              />
+            </label>
+          </div>
+          <p className="text-[10px] text-gray-500">
+            {(entity.movement.steps ?? []).length} steps · {entity.movement.mode} · a wall stops a run early
+          </p>
+          <div className="mt-1 flex gap-1">
+            <button
+              onClick={onToggleWaypointMode}
+              aria-pressed={waypointMode}
+              className={`flex-1 rounded px-2 py-1 text-[10px] ${waypointMode ? 'bg-cyan-600 text-white' : 'bg-gray-700 hover:bg-gray-600'}`}
+            >
+              {waypointMode ? 'Click cells… (done)' : 'Advanced: click-path'}
+            </button>
+            <button
+              onClick={() => onPatch({ movement: clearWaypoints(entity.movement) })}
+              className="rounded bg-gray-700 px-2 py-1 text-[10px] hover:bg-gray-600"
+            >
+              Clear path
+            </button>
+          </div>
+          {(entity.movement.waypoints?.length ?? 0) >= 2 && (
+            <p className="mt-0.5 text-[10px] text-amber-400">A click-path ({entity.movement.waypoints.length} pts) is set — it overrides the steps above.</p>
+          )}
+          {waypointMode && (
+            <p className="mt-0.5 text-[10px] text-cyan-400">Click cells in Top view to add waypoints.</p>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/** Attack-pattern editor for enemies (Attacks modal body). */
+function EntityAttackBody({ entity, onPatch }: {
+  entity: Entity
+  onPatch: (patch: Partial<Entity>) => void
+}) {
+  return (
+    <div className="text-xs">
+      <span className="mb-0.5 block text-[10px] text-gray-400">Attack pattern</span>
+      <div className="flex gap-1">
+        <select
+          value={entity.attack?.mode ?? 'melee'}
+          onChange={e => {
+            const mode = e.target.value as AttackMode
+            const cooldownMs = entity.attack?.cooldownMs ?? defaultAttackPattern(mode).cooldownMs
+            onPatch({ attack: makeAttackPattern(mode, cooldownMs) })
+          }}
+          aria-label="Attack mode"
+          className="flex-1 rounded bg-gray-800 p-1 text-xs"
+        >
+          <option value="melee">Melee (adjacent)</option>
+          <option value="ranged">Ranged (line of sight)</option>
+        </select>
+        <label className="flex items-center gap-1 text-[10px] text-gray-400">
+          <span className="shrink-0">CD ms</span>
+          <input
+            type="number"
+            value={entity.attack?.cooldownMs ?? defaultAttackPattern(entity.attack?.mode ?? 'melee').cooldownMs}
+            onChange={e =>
+              onPatch({ attack: makeAttackPattern(entity.attack?.mode ?? 'melee', Number(e.target.value)) })
+            }
+            aria-label="Attack cooldown ms"
+            className="w-16 rounded bg-gray-800 p-1 text-xs"
+          />
+        </label>
+      </div>
+      <p className="mt-1 text-[10px] text-gray-500">Melee strikes adjacent; ranged fires within line of sight. CD = cooldown between swings.</p>
+    </div>
+  )
+}
+
 function EntityInspectorCard({ entity, onPatch, onDelete, onClose, waypointMode, onToggleWaypointMode }: {
   entity: Entity
   onPatch: (patch: Partial<Entity>) => void
@@ -2929,10 +3177,13 @@ export default function TemplateEditor() {
   // When on, a Top-view click appends a waypoint to the selected entity's patrol path
   // (author your own movement route instead of the default box patrol).
   const [waypointMode, setWaypointMode] = useState(false)
-  // Disarm waypoint authoring whenever the selection changes, so clicks on a new
-  // entity select it (rather than dropping a stray waypoint on the previous one).
+  // Which entity-action modal is open (Stats / Inventory / Movement / Quests / Attacks).
+  const [entityModal, setEntityModal] = useState<'stats' | 'inventory' | 'movement' | 'quests' | 'attacks' | null>(null)
+  // Disarm waypoint authoring + close any entity modal whenever the selection changes,
+  // so clicks on a new entity select it (not drop a stray waypoint / show stale modal).
   useEffect(() => {
     setWaypointMode(false)
+    setEntityModal(null)
   }, [selectedEntityId])
   const [enemyType, setEnemyType] = useState('goblin')
   const [npcName, setNpcName] = useState('')
@@ -6029,13 +6280,68 @@ export default function TemplateEditor() {
           </button>
         )}
 
-        {/* Navigation */}
-        <nav className="fixed top-4 left-4 bg-black/90 p-3 text-white font-mono text-sm rounded flex gap-2 z-20">
-          <Link href="/personal-projects/game-engine" className="px-3 py-1 bg-gray-700 rounded hover:bg-gray-600">
-            ← Templates
-          </Link>
-          <Link href="/" className="px-3 py-1 bg-gray-700 rounded hover:bg-gray-600">CV</Link>
+        {/* TOP NAV — links · views · save/load · export · connectors · new */}
+        {showSidebars && !showFlowView && (
+        <nav className="fixed left-4 right-4 top-4 z-20 flex items-center gap-2 overflow-x-auto rounded-lg border border-white/10 bg-black/90 px-3 py-2 font-mono text-sm text-white shadow-lg shadow-black/40">
+          <Link href="/personal-projects/game-engine" className="shrink-0 rounded bg-gray-700 px-3 py-1 text-xs hover:bg-gray-600">← Templates</Link>
+          <Link href="/" className="shrink-0 rounded bg-gray-700 px-3 py-1 text-xs hover:bg-gray-600">CV</Link>
+          <span className="mx-1 h-5 w-px shrink-0 bg-white/15" />
+          <div className="flex shrink-0 gap-1">
+            <ViewButton label="ISO" active={activeView === 'iso'} activeClass="bg-yellow-600" onClick={selectIsoView} />
+            <ViewButton label="2D" active={activeView === '2d'} activeClass="bg-blue-600" onClick={select2DView} />
+            <ViewButton label="Top" active={activeView === 'top'} activeClass="bg-blue-600" onClick={selectTopView} />
+            <ViewButton label="Flow" active={activeView === 'flow'} activeClass="bg-purple-600" onClick={toggleFlowView} />
+          </div>
+          <span className="mx-1 h-5 w-px shrink-0 bg-white/15" />
+          <input
+            type="text"
+            value={templateName}
+            onChange={e => setTemplateName(e.target.value)}
+            placeholder="Template name…"
+            aria-label="Template name"
+            className="w-36 shrink-0 rounded bg-gray-800 px-2 py-1 text-xs"
+          />
+          <button
+            onClick={saveCurrentTemplate}
+            disabled={isSaving || !templateName.trim()}
+            className="shrink-0 rounded bg-green-700 px-3 py-1 text-xs font-bold hover:bg-green-600 disabled:bg-gray-700 disabled:text-gray-500"
+          >
+            {isSaving ? '…' : currentTemplateId ? 'Update' : 'Save'}
+          </button>
+          <div className="relative shrink-0">
+            <button
+              onClick={() => setShowTemplateList(!showTemplateList)}
+              aria-expanded={showTemplateList}
+              className="rounded bg-blue-800 px-3 py-1 text-xs hover:bg-blue-700"
+            >
+              Load ({savedTemplates.length})
+            </button>
+            {showTemplateList && (
+              <div className="absolute left-0 top-full z-30 mt-1 max-h-72 w-60 space-y-1 overflow-y-auto rounded-lg border border-white/10 bg-gray-950 p-2 shadow-2xl">
+                {savedTemplates.length === 0 && <p className="text-[10px] text-gray-500">No saved templates.</p>}
+                {savedTemplates.map(t => (
+                  <div
+                    key={t.id}
+                    className={`flex items-center gap-1 rounded p-1 text-xs ${currentTemplateId === t.id ? 'bg-blue-900' : 'bg-gray-800 hover:bg-gray-700'}`}
+                  >
+                    <button onClick={() => { loadTemplate(t.id); setShowTemplateList(false) }} className="flex-1 truncate text-left" disabled={isLoading}>{t.name}</button>
+                    <button onClick={() => handleDeleteTemplate(t.id)} aria-label={`Delete ${t.name}`} className="px-1 text-red-400 hover:text-red-300">✕</button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          <button onClick={exportLayers} className="shrink-0 rounded bg-orange-700 px-3 py-1 text-xs font-bold hover:bg-orange-600">Export</button>
+          <button
+            onClick={() => { setConnectorMode(!connectorMode); setEditingConnector(null) }}
+            aria-pressed={connectorMode}
+            className={`shrink-0 rounded px-3 py-1 text-xs font-bold ${connectorMode ? 'bg-purple-600' : 'bg-gray-700 hover:bg-gray-600'}`}
+          >
+            Connectors{connectorMode ? ' • on' : ''}
+          </button>
+          <Link href="/personal-projects/game-engine/templates?new=1" className="shrink-0 rounded bg-gray-700 px-3 py-1 text-xs hover:bg-gray-600">＋ New</Link>
         </nav>
+        )}
 
         {/* Preview toggle — hide all editor UI (sidebars overlay the canvas) to
             preview the game cleanly, in ANY view. Available on desktop + mobile. */}
@@ -6057,14 +6363,8 @@ export default function TemplateEditor() {
             }`}
             aria-label="Build tools"
           >
-            {/* Views */}
-            <Card title="Views" accent="yellow">
-              <div className="grid grid-cols-4 gap-1">
-                <ViewButton label="ISO" active={activeView === 'iso'} activeClass="bg-yellow-600" onClick={selectIsoView} />
-                <ViewButton label="2D" active={activeView === '2d'} activeClass="bg-blue-600" onClick={select2DView} />
-                <ViewButton label="Top" active={activeView === 'top'} activeClass="bg-blue-600" onClick={selectTopView} />
-                <ViewButton label="Flow" active={activeView === 'flow'} activeClass="bg-purple-600" onClick={toggleFlowView} />
-              </div>
+            {/* Display — view toggles live in the top nav now */}
+            <Card title="Display" accent="yellow">
               <button
                 onClick={toggleDebug}
                 aria-pressed={showDebug}
@@ -6275,6 +6575,60 @@ export default function TemplateEditor() {
               </div>
             </Card>
 
+          </aside>
+        )}
+
+        {/* RIGHT SIDEBAR — Selected entity (action bar → modals) · Entities · Connectors */}
+        {showSidebars && (
+          <aside
+            className={`fixed right-4 z-10 flex flex-col gap-3 overflow-y-auto pl-1 font-mono text-white ${
+              isMobile
+                ? 'bottom-16 left-4 max-h-[42vh]'
+                : 'top-20 bottom-4 w-72'
+            }`}
+            aria-label="Project tools"
+          >
+            {/* Brand header */}
+            <div className="rounded-lg border border-white/10 bg-black/60 p-3 text-center shadow-lg shadow-black/40">
+              <h2 className="text-base font-bold tracking-widest text-yellow-400">NEBULITH</h2>
+              <p className="text-[10px] text-gray-500">{templateName || 'New Template'}</p>
+            </div>
+
+            {/* Selected-entity ACTION BAR — opens focused modals (Stats / Inventory /
+                Movement / Quests / Attacks). Appears only when an entity is selected. */}
+            {(() => {
+              const selected = entities.find(e => e.id === selectedEntityId)
+              if (!selected) return null
+              const btn = 'rounded bg-gray-700 px-2 py-1.5 text-xs font-bold transition-colors hover:bg-gray-600'
+              return (
+                <Card title="Selected entity" accent="orange">
+                  <div className="mb-2 flex items-center justify-between text-xs">
+                    <span className="font-bold uppercase tracking-wider text-orange-300">{selected.name || selected.kind}</span>
+                    <span className="text-gray-500">@ {selected.col},{selected.row}</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-1">
+                    <button className={btn} onClick={() => setEntityModal('stats')}>⚔ Stats</button>
+                    {selected.kind === 'player' && (
+                      <button className={btn} onClick={() => setEntityModal('inventory')}>🎒 Inventory</button>
+                    )}
+                    {(selected.kind === 'enemy' || selected.kind === 'npc') && (
+                      <button className={btn} onClick={() => setEntityModal('movement')}>➤ Movement</button>
+                    )}
+                    {selected.kind === 'enemy' && (
+                      <button className={btn} onClick={() => setEntityModal('attacks')}>✦ Attacks</button>
+                    )}
+                    {selected.kind === 'npc' && (
+                      <button className={btn} onClick={() => setEntityModal('quests')}>❒ Quests</button>
+                    )}
+                  </div>
+                  <div className="mt-2 flex gap-1">
+                    <button onClick={deleteSelectedEntity} className="flex-1 rounded bg-red-800 px-2 py-1 text-xs font-bold hover:bg-red-700">Delete</button>
+                    <button onClick={() => { setWaypointMode(false); setSelectedEntityId(null) }} className="rounded bg-gray-700 px-2 py-1 text-xs hover:bg-gray-600">Deselect</button>
+                  </div>
+                </Card>
+              )
+            })()}
+
             {/* Entities — drop a player, enemies, and NPCs onto the stage */}
             <Card title="Entities" accent="orange">
               <p className="mb-2 text-[10px] text-gray-500">
@@ -6364,73 +6718,6 @@ export default function TemplateEditor() {
                   </button>
                 )}
               </div>
-            </Card>
-
-          </aside>
-        )}
-
-        {/* RIGHT SIDEBAR — Export · Connectors · Save/Load */}
-        {showSidebars && (
-          <aside
-            className={`fixed right-4 z-10 flex flex-col gap-3 overflow-y-auto pl-1 font-mono text-white ${
-              isMobile
-                ? 'bottom-16 left-4 max-h-[42vh]'
-                : 'top-20 bottom-4 w-72'
-            }`}
-            aria-label="Project tools"
-          >
-            {/* Brand header */}
-            <div className="rounded-lg border border-white/10 bg-black/60 p-3 text-center shadow-lg shadow-black/40">
-              <h2 className="text-base font-bold tracking-widest text-yellow-400">NEBULITH</h2>
-              <p className="text-[10px] text-gray-500">{templateName || 'New Template'}</p>
-            </div>
-
-            {/* Selected-entity panel (right sidebar) — inspector + (player) inventory +
-                (npc) quest authoring. Appears only when an entity is selected. */}
-            {(() => {
-              const selected = entities.find(e => e.id === selectedEntityId)
-              if (!selected) return null
-              return (
-                <>
-                  <EntityInspectorCard
-                    entity={selected}
-                    onPatch={patchSelectedEntity}
-                    onDelete={deleteSelectedEntity}
-                    onClose={() => { setWaypointMode(false); setSelectedEntityId(null) }}
-                    waypointMode={waypointMode}
-                    onToggleWaypointMode={() => setWaypointMode(v => !v)}
-                  />
-                  {selected.kind === 'player' && (
-                    <>
-                      <CombatHud hud={playerHud} />
-                      <InventoryCard inventory={inventory} talentPath={talentPath} onEquip={equipItem} onUse={useItem} onSetClass={setArchetype} />
-                    </>
-                  )}
-                  {selected.kind === 'npc' && (
-                    <QuestAuthoringCard
-                      npcs={entities.filter(e => e.kind === 'npc')}
-                      quests={quests}
-                      draft={questDraft}
-                      playerXp={playerXp}
-                      onDraftChange={setQuestDraft}
-                      onSave={saveQuest}
-                    />
-                  )}
-                </>
-              )
-            })()}
-
-            {/* Export */}
-            <Card title="Export" accent="orange">
-              <p className="mb-2 text-[10px] text-gray-500">
-                Export for tileset replacement: ground, collision, height, buildings, nature, decorations, NPCs.
-              </p>
-              <button
-                onClick={exportLayers}
-                className="w-full rounded bg-orange-700 px-2 py-1.5 text-xs font-bold hover:bg-orange-600"
-              >
-                Export JSON Layers
-              </button>
             </Card>
 
             {/* Connectors */}
@@ -6569,54 +6856,6 @@ export default function TemplateEditor() {
                 <p className="text-[10px] text-gray-500">No connectors yet.</p>
               )}
             </Card>
-
-            {/* Save / Load */}
-            <Card title="Save / Load" accent="blue">
-              <input
-                type="text"
-                value={templateName}
-                onChange={(e) => setTemplateName(e.target.value)}
-                placeholder="Template name..."
-                aria-label="Template name"
-                className="mb-2 w-full rounded bg-gray-800 p-2 text-xs"
-              />
-              <div className="flex gap-1">
-                <button
-                  onClick={saveCurrentTemplate}
-                  disabled={isSaving || !templateName.trim()}
-                  className="flex-1 rounded bg-green-700 px-2 py-1 text-xs font-bold hover:bg-green-600 disabled:bg-gray-700 disabled:text-gray-500"
-                >
-                  {isSaving ? '...' : currentTemplateId ? 'Update' : 'Save'}
-                </button>
-                <button
-                  onClick={() => setShowTemplateList(!showTemplateList)}
-                  aria-expanded={showTemplateList}
-                  className="flex-1 rounded bg-blue-800 px-2 py-1 text-xs hover:bg-blue-700"
-                >
-                  Load ({savedTemplates.length})
-                </button>
-              </div>
-              {showTemplateList && (
-                <div className="mt-2 max-h-40 space-y-1 overflow-y-auto">
-                  {savedTemplates.length === 0 && (
-                    <p className="text-[10px] text-gray-500">No saved templates.</p>
-                  )}
-                  {savedTemplates.map(t => (
-                    <div
-                      key={t.id}
-                      className={`flex items-center gap-1 rounded p-1 text-xs ${
-                        currentTemplateId === t.id ? 'bg-blue-900' : 'bg-gray-800 hover:bg-gray-700'
-                      }`}
-                    >
-                      <button onClick={() => loadTemplate(t.id)} className="flex-1 truncate text-left" disabled={isLoading}>
-                        {t.name}
-                      </button>
-                      <button onClick={() => handleDeleteTemplate(t.id)} aria-label={`Delete ${t.name}`} className="px-1 text-red-400 hover:text-red-300">✕</button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </Card>
           </aside>
         )}
 
@@ -6651,6 +6890,72 @@ export default function TemplateEditor() {
               onClose={() => setInventoryOpen(false)}
             />
           )
+        })()}
+
+        {/* Entity-action MODALS — opened from the selected-entity action bar */}
+        {entityModal && (() => {
+          const selected = entities.find(e => e.id === selectedEntityId)
+          if (!selected) return null
+          const who = selected.name || selected.kind
+          const close = () => setEntityModal(null)
+          if (entityModal === 'stats') {
+            return (
+              <Modal title={`${who} — Stats`} accent="orange" onClose={close}>
+                <EntityIdentityStatsBody entity={selected} onPatch={patchSelectedEntity} />
+                {selected.kind === 'player' && <div className="mt-3"><CombatHud hud={playerHud} /></div>}
+              </Modal>
+            )
+          }
+          if (entityModal === 'movement') {
+            return (
+              <Modal title={`${who} — Movement patterns`} accent="cyan" onClose={close}>
+                <EntityMovementBody
+                  entity={selected}
+                  onPatch={patchSelectedEntity}
+                  waypointMode={waypointMode}
+                  onToggleWaypointMode={() => setWaypointMode(v => !v)}
+                />
+              </Modal>
+            )
+          }
+          if (entityModal === 'attacks') {
+            return (
+              <Modal title={`${who} — Attacks`} accent="red" onClose={close}>
+                <EntityAttackBody entity={selected} onPatch={patchSelectedEntity} />
+              </Modal>
+            )
+          }
+          if (entityModal === 'inventory') {
+            return (
+              <Modal title={`${who} — Inventory`} accent="cyan" wide onClose={close}>
+                <CombatHud hud={playerHud} />
+                <div className="mt-3">
+                  <InventoryCard inventory={inventory} talentPath={talentPath} onEquip={equipItem} onUse={useItem} onSetClass={setArchetype} />
+                </div>
+                <button
+                  onClick={() => { close(); setInventoryOpen(true) }}
+                  className="mt-3 w-full rounded bg-cyan-700 px-2 py-1.5 text-xs font-bold hover:bg-cyan-600"
+                >
+                  Open full equipment panel
+                </button>
+              </Modal>
+            )
+          }
+          if (entityModal === 'quests') {
+            return (
+              <Modal title={`${who} — Quests`} accent="orange" wide onClose={close}>
+                <QuestAuthoringCard
+                  npcs={entities.filter(e => e.kind === 'npc')}
+                  quests={quests}
+                  draft={questDraft}
+                  playerXp={playerXp}
+                  onDraftChange={setQuestDraft}
+                  onSave={saveQuest}
+                />
+              </Modal>
+            )
+          }
+          return null
         })()}
       </main>
     </>
