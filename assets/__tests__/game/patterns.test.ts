@@ -3,6 +3,11 @@ import {
   appendWaypoint,
   setMovementMode,
   clearWaypoints,
+  buildStepList,
+  addMovementStep,
+  removeMovementStep,
+  updateMovementStep,
+  setStepDelay,
   makeAttackPattern,
   defaultAttackPattern,
   MIN_ATTACK_COOLDOWN_MS,
@@ -67,5 +72,40 @@ describe('attack patterns', () => {
       defaultAttackPattern('ranged').cooldownMs,
     )
     expect(defaultAttackPattern().mode).toBe('melee')
+  })
+})
+
+describe('step-list movement helpers', () => {
+  it('buildStepList seeds a 4-direction run list with the given mode', () => {
+    const p = buildStepList('random')
+    expect(p.mode).toBe('random')
+    expect(p.steps?.map(s => s.dir)).toEqual(['right', 'left', 'up', 'down'])
+    expect(p.steps?.every(s => s.cells === 5)).toBe(true)
+  })
+
+  it('setMovementMode PRESERVES the steps (regression: it used to drop them)', () => {
+    const p = buildStepList('sequential')
+    const flipped = setMovementMode(p, 'random')
+    expect(flipped.mode).toBe('random')
+    expect(flipped.steps).toEqual(p.steps)
+  })
+
+  it('add / remove / update steps immutably; cells clamp to ≥1', () => {
+    const p = buildStepList('sequential')
+    const added = addMovementStep(p, { dir: 'up', cells: 2 })
+    expect(added.steps).toHaveLength(5)
+    expect(p.steps).toHaveLength(4) // original untouched
+
+    const removed = removeMovementStep(added, 0)
+    expect(removed.steps).toHaveLength(4)
+    expect(removed.steps?.[0].dir).toBe('left') // first dropped
+
+    const clamped = updateMovementStep(p, 0, { cells: 0 })
+    expect(clamped.steps?.[0].cells).toBe(1) // clamped up to a minimum of 1
+  })
+
+  it('setStepDelay clamps to a whole non-negative number', () => {
+    expect(setStepDelay(buildStepList('random'), -50).delayMs).toBe(0)
+    expect(setStepDelay(buildStepList('random'), 1234.7).delayMs).toBe(1235)
   })
 })

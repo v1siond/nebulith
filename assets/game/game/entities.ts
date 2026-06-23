@@ -8,6 +8,7 @@
  * list. The game loop / editor own the stateful orchestration around these rules.
  */
 import type { Entity, EntityKind, Stats } from '@/game/types'
+import { entityFootprint } from '@/engine/entityArt'
 
 // ── default stats ───────────────────────────────────────────────────
 // Trivial starting values per the spec ("start with X/Y HP, flat numbers; tune
@@ -147,6 +148,22 @@ export function removeEntity(entities: readonly Entity[], id: string): Entity[] 
 /** The entity occupying (col,row), or null if the cell is empty. */
 export function entityAt(entities: readonly Entity[], col: number, row: number): Entity | null {
   return entities.find(e => e.col === col && e.row === row) ?? null
+}
+
+/** The entity whose multi-cell FOOTPRINT covers (col,row) — for click-selection, so
+ *  clicking any part of a 2-tall figure (not just its anchor cell) selects it. Figures
+ *  are bottom-anchored vertically (extend upward) and centered horizontally, matching
+ *  the renderer. Iterates last→first so the topmost drawn entity wins. */
+export function entityAtFootprint(entities: readonly Entity[], col: number, row: number): Entity | null {
+  for (let i = entities.length - 1; i >= 0; i--) {
+    const e = entities[i]
+    const { w, h } = entityFootprint(e)
+    const left = e.col - Math.floor((w - 1) / 2)
+    const right = e.col + Math.ceil((w - 1) / 2)
+    const top = e.row - (h - 1)
+    if (col >= left && col <= right && row >= top && row <= e.row) return e
+  }
+  return null
 }
 
 // ── respawn timing (pure; `now` passed in) ──────────────────────────

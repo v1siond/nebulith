@@ -32,15 +32,19 @@ import {
   initMover,
   stepRunPatrol,
   initRunState,
-  RUN_PATROL_LENGTH,
+  stepStepList,
+  initStepList,
+  STEP_LIST_DELAY_MS,
   RUN_PATROL_DELAY_MS,
   type MoverState,
   type RunState,
+  type StepListState,
 } from '@/engine/movement'
 import { shouldFire, lampPulse } from '@/engine/behaviors'
 import { weaponAnimKind, animFrame, isAnimDone, ATTACK_ANIM_MS, type AttackAnim } from '@/engine/attackAnimations'
 import { entityArtFrame, weaponGlyph } from '@/engine/entityArt'
-import { appendWaypoint, setMovementMode, clearWaypoints, buildBoxPatrol, makeAttackPattern, defaultAttackPattern } from '@/game/patterns'
+import { appendWaypoint, setMovementMode, clearWaypoints, buildStepList, addMovementStep, removeMovementStep, updateMovementStep, setStepDelay, makeAttackPattern, defaultAttackPattern } from '@/game/patterns'
+import type { Direction } from '@/game/types'
 import { useToast } from '@/components/Toast'
 import {
   makePlayer,
@@ -50,6 +54,7 @@ import {
   placeEntity,
   removeEntity,
   entityAt,
+  entityAtFootprint,
   isRespawned,
   DEFAULT_PLAYER_STATS,
 } from '@/game/entities'
@@ -2393,22 +2398,31 @@ const ENEMY_MOVE_MS = 360
  *  walls, the player's cell, and other entities as blocked. Returns a NEW entities
  *  list when something moved, else the same reference (so the loop can skip a
  *  re-render). Per-entity cursors persist across ticks in `cursors`. */
-/** Newly-placed enemies (no authored pattern) patrol erratically out of the box. */
+/** Newly-placed enemies (no authored pattern) patrol erratically out of the box:
+ *  a step list of 5-cell runs in each direction, picked at random with pauses. */
 const DEFAULT_ENEMY_PATROL: MovementPattern = {
   mode: 'random',
   waypoints: [],
-  axis: 'mixed',
-  runLength: RUN_PATROL_LENGTH,
-  delayMs: RUN_PATROL_DELAY_MS,
+  steps: [
+    { dir: 'right', cells: 5 },
+    { dir: 'left', cells: 5 },
+    { dir: 'up', cells: 5 },
+    { dir: 'down', cells: 5 },
+  ],
+  delayMs: STEP_LIST_DELAY_MS,
 }
-const isRunState = (s: MoverState | RunState | undefined): s is RunState => !!s && 'stepsLeft' in s
-const isMoverState = (s: MoverState | RunState | undefined): s is MoverState => !!s && 'target' in s
+/** Stable empty list passed to the renderers when entities are hidden (avoids per-frame alloc). */
+const EMPTY_ENTITIES: Entity[] = []
+type Cursor = MoverState | RunState | StepListState
+const isStepListState = (s: Cursor | undefined): s is StepListState => !!s && 'cellsLeft' in s
+const isRunState = (s: Cursor | undefined): s is RunState => !!s && 'stepsLeft' in s
+const isMoverState = (s: Cursor | undefined): s is MoverState => !!s && 'target' in s
 
 function advanceEnemyMovement(
   grid: IsometricGrid,
   entities: readonly Entity[],
   player: { x: number; z: number },
-  cursors: Map<string, MoverState | RunState>,
+  cursors: Map<string, Cursor>,
 ): readonly Entity[] {
   const pCol = Math.floor(player.x / grid.cellSize)
   const pRow = Math.floor(player.z / grid.cellSize)
@@ -2422,15 +2436,23 @@ function advanceEnemyMovement(
       (c === pCol && r === pRow) ||
       (occupied.has(`${c},${r}`) && !(c === e.col && r === e.row))
 
-    // Run-patrol (move-delay-move) when an axis is set OR there aren't ≥2 waypoints to
-    // walk between; otherwise follow the authored waypoint path.
-    const useRunPatrol = !!pattern.axis || pattern.waypoints.length < 2
+    // Pick the stepper: a step list ("advance N cells in a direction") takes precedence;
+    // else run-patrol (axis set OR <2 waypoints); else the authored waypoint path.
     const prev = cursors.get(e.id)
-    const stepped = useRunPatrol
-      ? stepRunPatrol({ col: e.col, row: e.row }, pattern, isRunState(prev) ? prev : initRunState(pattern), blocked, {
-          delayTicks: Math.max(1, Math.round((pattern.delayMs ?? RUN_PATROL_DELAY_MS) / ENEMY_MOVE_MS)),
-        })
-      : stepMover({ col: e.col, row: e.row }, pattern, isMoverState(prev) ? prev : initMover(), blocked)
+    const here = { col: e.col, row: e.row }
+    const delayTicks = Math.max(1, Math.round((pattern.delayMs ?? STEP_LIST_DELAY_MS) / ENEMY_MOVE_MS))
+    let stepped: { pos: { col: number; row: number }; state: Cursor }
+    if (pattern.waypoints.length >= 2) {
+      stepped = stepMover(here, pattern, isMoverState(prev) ? prev : initMover(), blocked) // explicit click-path wins
+    } else if (pattern.steps && pattern.steps.length > 0) {
+      stepped = stepStepList(here, pattern, isStepListState(prev) ? prev : initStepList(), blocked, { delayTicks })
+    } else if (pattern.axis) {
+      stepped = stepRunPatrol(here, pattern, isRunState(prev) ? prev : initRunState(pattern), blocked, {
+        delayTicks: Math.max(1, Math.round((pattern.delayMs ?? RUN_PATROL_DELAY_MS) / ENEMY_MOVE_MS)),
+      })
+    } else {
+      stepped = stepMover(here, pattern, isMoverState(prev) ? prev : initMover(), blocked) // no-op (<2 waypoints)
+    }
 
     cursors.set(e.id, stepped.state)
     if (stepped.pos.col === e.col && stepped.pos.row === e.row) return e
@@ -2698,42 +2720,96 @@ function EntityInspectorCard({ entity, onPatch, onDelete, onClose, waypointMode,
                 onPatch({ movement: undefined })
                 return
               }
-              // Keep any waypoints you've authored; only seed a box patrol the first
-              // time you enable movement on a still entity (see patterns.ts).
+              // Enabling movement seeds a step list; switching mode keeps your steps.
               const next = entity.movement
                 ? setMovementMode(entity.movement, mode as MovementPattern['mode'])
-                : buildBoxPatrol(entity.col, entity.row, mode as MovementPattern['mode'])
+                : buildStepList(mode as MovementPattern['mode'])
               onPatch({ movement: next })
             }}
             aria-label="Movement mode"
             className="w-full rounded bg-gray-800 p-1 text-xs"
           >
             <option value="none">Stationary</option>
-            <option value="sequential">Sequential (loop the path in order)</option>
-            <option value="random">Random (pick a next waypoint)</option>
+            <option value="sequential">Sequential (run steps in order)</option>
+            <option value="random">Random (pick a step each cycle)</option>
           </select>
           {entity.movement && (
-            <>
-              <p className="mt-1 text-[10px] text-gray-500">{entity.movement.waypoints.length} waypoints · {entity.movement.mode}</p>
+            <div className="mt-1 space-y-1">
+              {(entity.movement.steps ?? []).map((s, i) => (
+                <div key={i} className="flex items-center gap-1">
+                  <select
+                    value={s.dir}
+                    onChange={e => onPatch({ movement: updateMovementStep(entity.movement!, i, { dir: e.target.value as Direction }) })}
+                    aria-label={`Step ${i + 1} direction`}
+                    className="rounded bg-gray-800 p-1 text-[11px]"
+                  >
+                    <option value="up">↑ up</option>
+                    <option value="down">↓ down</option>
+                    <option value="left">← left</option>
+                    <option value="right">→ right</option>
+                  </select>
+                  <input
+                    type="number"
+                    min={1}
+                    value={s.cells}
+                    onChange={e => onPatch({ movement: updateMovementStep(entity.movement!, i, { cells: Number(e.target.value) }) })}
+                    aria-label={`Step ${i + 1} cells`}
+                    className="w-14 rounded bg-gray-800 p-1 text-[11px]"
+                  />
+                  <span className="text-[10px] text-gray-500">cells</span>
+                  <button
+                    onClick={() => onPatch({ movement: removeMovementStep(entity.movement!, i) })}
+                    aria-label={`Remove step ${i + 1}`}
+                    className="ml-auto rounded bg-gray-700 px-2 text-[11px] hover:bg-red-700"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => onPatch({ movement: addMovementStep(entity.movement!) })}
+                  className="flex-1 rounded bg-gray-700 px-2 py-1 text-[10px] hover:bg-gray-600"
+                >
+                  + Add step
+                </button>
+                <label className="flex items-center gap-1 text-[10px] text-gray-400">
+                  <span className="shrink-0">delay ms</span>
+                  <input
+                    type="number"
+                    min={0}
+                    value={entity.movement.delayMs ?? 1200}
+                    onChange={e => onPatch({ movement: setStepDelay(entity.movement!, Number(e.target.value)) })}
+                    aria-label="Step delay ms"
+                    className="w-16 rounded bg-gray-800 p-1 text-[11px]"
+                  />
+                </label>
+              </div>
+              <p className="text-[10px] text-gray-500">
+                {(entity.movement.steps ?? []).length} steps · {entity.movement.mode} · a wall stops a run early
+              </p>
               <div className="mt-1 flex gap-1">
                 <button
                   onClick={onToggleWaypointMode}
                   aria-pressed={waypointMode}
                   className={`flex-1 rounded px-2 py-1 text-[10px] ${waypointMode ? 'bg-cyan-600 text-white' : 'bg-gray-700 hover:bg-gray-600'}`}
                 >
-                  {waypointMode ? 'Click cells… (done)' : 'Set waypoints'}
+                  {waypointMode ? 'Click cells… (done)' : 'Advanced: click-path'}
                 </button>
                 <button
                   onClick={() => onPatch({ movement: clearWaypoints(entity.movement) })}
                   className="rounded bg-gray-700 px-2 py-1 text-[10px] hover:bg-gray-600"
                 >
-                  Clear
+                  Clear path
                 </button>
               </div>
+              {(entity.movement.waypoints?.length ?? 0) >= 2 && (
+                <p className="mt-0.5 text-[10px] text-amber-400">A click-path ({entity.movement.waypoints.length} pts) is set — it overrides the steps above.</p>
+              )}
               {waypointMode && (
                 <p className="mt-0.5 text-[10px] text-cyan-400">Click cells in Top view to add waypoints.</p>
               )}
-            </>
+            </div>
           )}
         </div>
         {entity.kind === 'enemy' && (
@@ -2806,6 +2882,11 @@ export default function TemplateEditor() {
   const [selectedMultiAsset, setSelectedMultiAsset] = useState<string | null>(null)
   const [selectedHeight, setSelectedHeight] = useState(0)
   const [heightEditMode, setHeightEditMode] = useState(false)
+  const [hideEntities, setHideEntities] = useState(false)
+  const hideEntitiesRef = useRef(false)
+  useEffect(() => {
+    hideEntitiesRef.current = hideEntities
+  }, [hideEntities])
   const [initialized, setInitialized] = useState(false)
 
   // Template limits
@@ -2902,7 +2983,7 @@ export default function TemplateEditor() {
   const [talentPath, setTalentPath] = useState<TalentPath>('warrior')
   const enemyRuntimeRef = useRef<EnemyRuntime>(makeEnemyRuntime())
   // Per-enemy patrol cursors + the last time enemies advanced (movement tick).
-  const movementCursorRef = useRef<Map<string, MoverState | RunState>>(new Map())
+  const movementCursorRef = useRef<Map<string, Cursor>>(new Map())
   const lastEnemyMoveRef = useRef(0)
   const cannonFireRef = useRef<Map<string, number>>(new Map()) // per-cannon last-fired time
   const hitMarkersRef = useRef<HitMarker[]>([])
@@ -3225,8 +3306,8 @@ export default function TemplateEditor() {
       return
     }
 
-    // No tool armed: clicking ON a placed entity selects it (opens the inspector).
-    const clickedEntity = entityAt(entitiesRef.current, cell.col, cell.row)
+    // No tool armed: clicking ANY cell of an entity's footprint selects it.
+    const clickedEntity = entityAtFootprint(entitiesRef.current, cell.col, cell.row)
     if (clickedEntity) {
       setSelectedEntityId(clickedEntity.id)
       return
@@ -3287,7 +3368,7 @@ export default function TemplateEditor() {
     // A no-drag click in a play view selects the entity under it (or clears selection).
     if (isPanning && !dragMovedRef.current && downCellRef.current) {
       const c = downCellRef.current
-      const hit = entityAt(entitiesRef.current, c.col, c.row)
+      const hit = entityAtFootprint(entitiesRef.current, c.col, c.row)
       setSelectedEntityId(hit ? hit.id : null)
     }
     downCellRef.current = null
@@ -4615,6 +4696,14 @@ export default function TemplateEditor() {
     for (const a of paint.assets) {
       grid.placeAsset([a.char], a.col, a.row, { type: a.type, blocking: a.blocking, color: a.color, label: a.label })
     }
+    // Mirror the generator's authoritative collision into the grid so trees/water/
+    // features are truly blocked — enemies (manual placement + scatter) only land on
+    // walkable cells, and patrols collide correctly.
+    for (let r = 0; r < grid.rows; r++) {
+      for (let c = 0; c < grid.cols; c++) {
+        if (stage.collision[r]?.[c] !== undefined) grid.setCollision(c, r, stage.collision[r][c])
+      }
+    }
   }
 
   const generateStageInEditor = (zone: ZoneId, variant: VariantId) => {
@@ -5593,17 +5682,19 @@ export default function TemplateEditor() {
         }
       }
 
-      // Render - movement works in all views
+      // Render - movement works in all views. When entities are hidden (authoring
+      // terrain without clutter), pass an empty list to every view.
+      const renderEntities = hideEntitiesRef.current ? EMPTY_ENTITIES : entitiesRef.current
       if (flowViewMode) {
         // Flow view is handled by React overlay, just clear canvas
         ctx.fillStyle = '#0a0a12'
         ctx.fillRect(0, 0, canvas.width, canvas.height)
       } else if (topViewMode) {
-        renderTopView(ctx, canvas.width, canvas.height, grid, player, zoomRef.current, selectedCellsRef.current, connectorsRef.current, connectorModeRef.current, camOffsetRef.current, entitiesRef.current, runtime.combat, hitMarkersRef.current, time)
+        renderTopView(ctx, canvas.width, canvas.height, grid, player, zoomRef.current, selectedCellsRef.current, connectorsRef.current, connectorModeRef.current, camOffsetRef.current, renderEntities, runtime.combat, hitMarkersRef.current, time)
       } else if (viewTypeRef.current === '2d') {
-        render2D(ctx, canvas.width, canvas.height, grid, player, time, zoomRef.current, camOffsetRef.current, entitiesRef.current, runtime.combat)
+        render2D(ctx, canvas.width, canvas.height, grid, player, time, zoomRef.current, camOffsetRef.current, renderEntities, runtime.combat)
       } else {
-        render(ctx, canvas.width, canvas.height, grid, player, time, camOffsetRef.current, entitiesRef.current, runtime.combat, hitMarkersRef.current, time, isoZoomRef.current, attackAnimsRef.current)
+        render(ctx, canvas.width, canvas.height, grid, player, time, camOffsetRef.current, renderEntities, runtime.combat, hitMarkersRef.current, time, isoZoomRef.current, attackAnimsRef.current)
       }
       // Drop finished attack animations (kept tiny — a few in flight at once).
       if (attackAnimsRef.current.length > 0) {
@@ -5982,6 +6073,15 @@ export default function TemplateEditor() {
                 }`}
               >
                 Debug overlay {showDebug ? 'on' : 'off'}
+              </button>
+              <button
+                onClick={() => setHideEntities(h => !h)}
+                aria-pressed={hideEntities}
+                className={`mt-2 w-full rounded px-2 py-1 text-xs font-bold transition-colors ${
+                  hideEntities ? 'bg-amber-600' : 'bg-gray-700 hover:bg-gray-600'
+                }`}
+              >
+                {hideEntities ? 'Entities hidden' : 'Hide entities'}
               </button>
 
               <div className="mt-3">
@@ -6637,7 +6737,7 @@ function render(
 
       const char = colors.char[colorIdx % colors.char.length]
       const fg = colors.fg[colorIdx % colors.fg.length]
-      const bg = colors.bg[colorIdx % colors.bg.length]
+      const bg = colors.bg[0] // uniform floor base — no per-cell checkerboard (calmer floor)
 
       // Get cell height
       const cellHeight = grid.getHeight(col, row)
@@ -7298,7 +7398,7 @@ function render2D(
 
       const char = colors.char[colorIdx % colors.char.length]
       const fg = colors.fg[colorIdx % colors.fg.length]
-      const bg = colors.bg[colorIdx % colors.bg.length]
+      const bg = colors.bg[0] // uniform floor base — no per-cell checkerboard (calmer floor)
 
       // Draw ground tile
       ctx.fillStyle = bg

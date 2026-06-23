@@ -129,15 +129,28 @@ export type MovementMode = 'sequential' | 'random'
  *  vertical = up/down runs; horizontal = left/right runs; mixed = pick an axis each
  *  run (vertical → randomize up/down, horizontal → reverse / go back). */
 export type MovementAxis = 'vertical' | 'horizontal' | 'mixed'
+
+/** A cardinal direction for a movement step. */
+export type Direction = 'up' | 'down' | 'left' | 'right'
+/** One authored movement step: "advance `cells` cells in `dir`". */
+export interface MovementStep {
+  dir: Direction
+  cells: number
+}
 export interface MovementPattern {
   mode: MovementMode
   waypoints: Cell[]
+  /** CANONICAL model: an ordered list of "advance N cells in a direction" steps.
+   *  sequential = run them in order, looping; random = pick one, run it, pause, repeat.
+   *  Collision-aware (see engine/movement.ts stepStepList). Takes precedence over
+   *  waypoints/axis when present + non-empty. */
+  steps?: MovementStep[]
   /** When set, the entity uses RUN-PATROL instead of waypoints: it runs `runLength`
    *  cells in one direction, pauses `delayMs`, then picks the next direction by axis. */
   axis?: MovementAxis
   /** cells per run before pausing (run-patrol). Default RUN_PATROL_LENGTH. */
   runLength?: number
-  /** pause between runs, in ms (run-patrol). Default RUN_PATROL_DELAY_MS. */
+  /** pause between steps/runs, in ms. Default RUN_PATROL_DELAY_MS. */
   delayMs?: number
 }
 

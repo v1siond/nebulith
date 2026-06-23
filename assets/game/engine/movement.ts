@@ -11,8 +11,8 @@
  * and the per-entity cursor map.
  */
 
-import type { Cell, MovementPattern } from '@/game/types'
-export type { Cell, MovementMode, MovementPattern } from '@/game/types'
+import type { Cell, MovementPattern, Direction } from '@/game/types'
+export type { Cell, MovementMode, MovementPattern, Direction, MovementStep } from '@/game/types'
 
 /** Per-entity cursor: which waypoint we're heading to, and the loop direction. */
 export interface MoverState {
@@ -162,4 +162,100 @@ export function stepRunPatrol(
       lastDr: s.dr !== 0 ? s.dr : s.lastDr,
     },
   }
+}
+
+// ── step-list patrol: "advance N cells in a direction" × list (the editor model) ──
+export const STEP_LIST_DELAY_MS = 1200
+
+const DIR_DELTA: Record<Direction, { dc: number; dr: number }> = {
+  up: { dc: 0, dr: -1 },
+  down: { dc: 0, dr: 1 },
+  left: { dc: -1, dr: 0 },
+  right: { dc: 1, dr: 0 },
+}
+
+/** Per-entity step-list cursor: which step we're running, cells left in it, pause left. */
+export interface StepListState {
+  index: number // current step index; -1 before the first step begins
+  cellsLeft: number
+  waitLeft: number
+}
+
+export const initStepList = (): StepListState => ({ index: -1, cellsLeft: 0, waitLeft: 0 })
+
+/** Free cells from `pos` in `dir`, up to `max` (stops at the first blocked cell). */
+function freeCellsInDir(pos: Cell, dir: Direction, max: number, isBlocked: (c: number, r: number) => boolean): number {
+  const { dc, dr } = DIR_DELTA[dir]
+  let n = 0
+  for (let i = 1; i <= max; i++) {
+    if (isBlocked(pos.col + dc * i, pos.row + dr * i)) break
+    n++
+  }
+  return n
+}
+
+/** Choose the next step index with DIRECTION-FIT: prefer a step whose direction has
+ *  room for its full length; fall back to "pick one anyway" so the entity always
+ *  makes progress (then collision ends it early). */
+function chooseStep(
+  pattern: MovementPattern,
+  prevIndex: number,
+  pos: Cell,
+  isBlocked: (c: number, r: number) => boolean,
+  rng: Rng,
+): number {
+  const steps = pattern.steps ?? []
+  const n = steps.length
+  const fits = (i: number): boolean => freeCellsInDir(pos, steps[i].dir, Math.max(1, steps[i].cells), isBlocked) >= Math.max(1, steps[i].cells)
+
+  if (pattern.mode === 'random') {
+    const fitting: number[] = []
+    for (let i = 0; i < n; i++) if (fits(i)) fitting.push(i)
+    const pool = fitting.length > 0 ? fitting : Array.from({ length: n }, (_, i) => i)
+    return pool[Math.floor(rng() * pool.length) % pool.length]
+  }
+  // sequential: next in order that fits; else just the next in order (fallback)
+  for (let k = 1; k <= n; k++) {
+    const idx = (prevIndex + k) % n
+    if (fits(idx)) return idx
+  }
+  return (prevIndex + 1) % n
+}
+
+/**
+ * Step an entity along its STEP LIST one cell per tick. A step runs `cells` cells in
+ * its direction; on completion (or a wall) it pauses `delayTicks`, then the next step
+ * is chosen (sequential order, or random) with direction-fit. Pure + RNG-injected.
+ */
+export function stepStepList(
+  pos: Cell,
+  pattern: MovementPattern,
+  state: StepListState,
+  isBlocked: (c: number, r: number) => boolean,
+  opts?: { rng?: Rng; delayTicks?: number },
+): { pos: Cell; state: StepListState } {
+  const steps = pattern.steps ?? []
+  if (steps.length === 0) return { pos, state }
+  const rng = opts?.rng ?? Math.random
+  const delayTicks = Math.max(0, opts?.delayTicks ?? 6)
+  let s = state
+
+  // 1) pausing between steps — each delayTick is one full no-move tick
+  if (s.waitLeft > 0) {
+    return { pos, state: { ...s, waitLeft: s.waitLeft - 1 } }
+  }
+  // 2) start the first/next step once the pause (if any) has fully elapsed
+  if (s.cellsLeft <= 0) {
+    const index = chooseStep(pattern, s.index, pos, isBlocked, rng)
+    s = { index, cellsLeft: Math.max(1, steps[index].cells), waitLeft: 0 }
+  }
+
+  // 3) move one cell in the current step's direction
+  const { dc, dr } = DIR_DELTA[steps[s.index].dir]
+  const next = { col: pos.col + dc, row: pos.row + dr }
+  if (isBlocked(next.col, next.row)) {
+    return { pos, state: { ...s, cellsLeft: 0, waitLeft: delayTicks } } // collide → end step, pause
+  }
+  const cellsLeft = s.cellsLeft - 1
+  return { pos: next, state: { ...s, cellsLeft, waitLeft: cellsLeft <= 0 ? delayTicks : 0 } }
 }

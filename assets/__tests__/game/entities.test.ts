@@ -6,6 +6,7 @@ import {
   placeEntity,
   removeEntity,
   entityAt,
+  entityAtFootprint,
   isRespawned,
   nextRespawnAt,
   byKind,
@@ -233,5 +234,28 @@ describe('query helpers', () => {
 
   it('enemiesOfType returns an empty list for an unknown type', () => {
     expect(enemiesOfType(all, 'dragon')).toEqual([])
+  })
+})
+
+describe('entityAtFootprint — clicking any cell of a multi-cell figure selects it', () => {
+  it('an NPC (2 cells tall) is hit at its anchor AND the cell above (its head)', () => {
+    const npc = makeNpc('n1', 5, 6, { name: 'Elder' }) // footprint 1×2, bottom-anchored
+    const list = [npc]
+    expect(entityAtFootprint(list, 5, 6)).toBe(npc) // anchor (feet)
+    expect(entityAtFootprint(list, 5, 5)).toBe(npc) // head — the cell ABOVE the anchor
+    expect(entityAtFootprint(list, 5, 4)).toBeNull() // above the footprint → miss
+    expect(entityAtFootprint(list, 6, 6)).toBeNull() // beside it (1 wide) → miss
+  })
+
+  it('a 2-wide monster is hit across its width', () => {
+    const goblin = makeEnemy('g1', 3, 3, 'goblin') // footprint 2×2
+    const list = [goblin]
+    expect(entityAtFootprint(list, 3, 3)).toBe(goblin)
+    expect(entityAtFootprint(list, 4, 3)).toBe(goblin) // the right column of the figure
+    expect(entityAtFootprint(list, 3, 2)).toBe(goblin) // its upper row
+  })
+
+  it('returns null when no figure covers the cell', () => {
+    expect(entityAtFootprint([makeNpc('n1', 0, 0, {})], 9, 9)).toBeNull()
   })
 })

@@ -3,6 +3,8 @@ import {
   initMover,
   initRunState,
   stepRunPatrol,
+  stepStepList,
+  initStepList,
   type MovementPattern,
 } from '@/engine/movement'
 
@@ -116,3 +118,112 @@ describe('movement — degenerate patterns', () => {
     expect(stepMover({ col: 5, row: 5 }, one, initMover(), open).pos).toEqual({ col: 5, row: 5 })
   })
 })
+
+describe('stepStepList — "advance N cells in a direction" model', () => {
+  /** Run the stepper for `ticks`, returning the visited positions (excluding start). */
+  const run = (
+    start: { col: number; row: number },
+    pattern: MovementPattern,
+    ticks: number,
+    isBlocked: (c: number, r: number) => boolean,
+    rng?: () => number,
+  ) => {
+    let pos = start
+    let state = initStepList()
+    const path: { col: number; row: number }[] = []
+    for (let i = 0; i < ticks; i++) {
+      const out = stepStepList(pos, pattern, state, isBlocked, { rng, delayTicks: pattern.delayMs ? 0 : 0 })
+      pos = out.pos
+      state = out.state
+      path.push(pos)
+    }
+    return path
+  }
+
+  it('sequential: runs each step in order and loops, collision-free', () => {
+    const p: MovementPattern = {
+      mode: 'sequential',
+      waypoints: [],
+      steps: [{ dir: 'right', cells: 2 }, { dir: 'down', cells: 2 }],
+    }
+    const path = run({ col: 0, row: 0 }, p, 5, open)
+    expect(path).toEqual([
+      { col: 1, row: 0 }, // right ×2
+      { col: 2, row: 0 },
+      { col: 2, row: 1 }, // down ×2
+      { col: 2, row: 2 },
+      { col: 3, row: 2 }, // loops back to right
+    ])
+  })
+
+  it('random: completes the chosen step, then PAUSES delayTicks before the next', () => {
+    const p: MovementPattern = {
+      mode: 'random',
+      waypoints: [],
+      steps: [{ dir: 'right', cells: 2 }, { dir: 'left', cells: 2 }],
+    }
+    let pos = { col: 0, row: 0 }
+    let state = initStepList()
+    const rng = () => 0 // always pick the first fitting step (right)
+    const opts = { rng, delayTicks: 2 }
+    ;[pos, state] = step(pos, p, state, open, opts) // right → (1,0)
+    expect(pos).toEqual({ col: 1, row: 0 })
+    ;[pos, state] = step(pos, p, state, open, opts) // right → (2,0), step done
+    expect(pos).toEqual({ col: 2, row: 0 })
+    ;[pos, state] = step(pos, p, state, open, opts) // PAUSE (waitLeft) → no move
+    expect(pos).toEqual({ col: 2, row: 0 })
+    ;[pos, state] = step(pos, p, state, open, opts) // still pausing
+    expect(pos).toEqual({ col: 2, row: 0 })
+  })
+
+  it('collision ends the current step early (then pauses)', () => {
+    const wallAtCol2 = (c: number) => c >= 2
+    const p: MovementPattern = { mode: 'sequential', waypoints: [], steps: [{ dir: 'right', cells: 5 }] }
+    let pos = { col: 0, row: 0 }
+    let state = initStepList()
+    ;[pos, state] = step(pos, p, state, wallAtCol2, { delayTicks: 1 }) // (1,0)
+    expect(pos).toEqual({ col: 1, row: 0 })
+    ;[pos, state] = step(pos, p, state, wallAtCol2, { delayTicks: 1 }) // blocked → stays, step ends
+    expect(pos).toEqual({ col: 1, row: 0 })
+  })
+
+  it('direction-fit: skips a step whose direction has too few free cells', () => {
+    const wallAtCol2 = (c: number) => c >= 2 // only 1 free cell to the right of (0,0)
+    const p: MovementPattern = {
+      mode: 'sequential',
+      waypoints: [],
+      steps: [{ dir: 'right', cells: 5 }, { dir: 'down', cells: 2 }],
+    }
+    const [pos] = step({ col: 0, row: 0 }, p, initStepList(), wallAtCol2, { delayTicks: 0 })
+    expect(pos).toEqual({ col: 0, row: 1 }) // skipped right (only 1 free), picked down
+  })
+
+  it('all-blocked fallback: picks a step without crashing, advances as far as possible', () => {
+    const boxedIn = (c: number, r: number) => !(c === 0 && r === 0) // only (0,0) free
+    const p: MovementPattern = {
+      mode: 'random',
+      waypoints: [],
+      steps: [{ dir: 'right', cells: 3 }, { dir: 'up', cells: 3 }],
+    }
+    const out = stepStepList({ col: 0, row: 0 }, p, initStepList(), boxedIn, { rng: () => 0, delayTicks: 1 })
+    expect(out.pos).toEqual({ col: 0, row: 0 }) // nowhere to go → stays put, no crash
+    expect(out.state).toBeDefined()
+  })
+
+  it('no steps → no-op', () => {
+    const p: MovementPattern = { mode: 'sequential', waypoints: [] }
+    expect(stepStepList({ col: 3, row: 3 }, p, initStepList(), open).pos).toEqual({ col: 3, row: 3 })
+  })
+})
+
+/** Tuple helper so the assertions above read cleanly. */
+function step(
+  pos: { col: number; row: number },
+  pattern: MovementPattern,
+  state: ReturnType<typeof initStepList>,
+  isBlocked: (c: number, r: number) => boolean,
+  opts?: { rng?: () => number; delayTicks?: number },
+): [{ col: number; row: number }, ReturnType<typeof initStepList>] {
+  const out = stepStepList(pos, pattern, state, isBlocked, opts)
+  return [out.pos, out.state]
+}
