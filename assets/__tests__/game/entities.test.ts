@@ -7,6 +7,7 @@ import {
   removeEntity,
   entityAt,
   entityAtFootprint,
+  entityOccupiedCells,
   isRespawned,
   nextRespawnAt,
   byKind,
@@ -257,5 +258,38 @@ describe('entityAtFootprint — clicking any cell of a multi-cell figure selects
 
   it('returns null when no figure covers the cell', () => {
     expect(entityAtFootprint([makeNpc('n1', 0, 0, {})], 9, 9)).toBeNull()
+  })
+})
+
+describe('entityOccupiedCells — full-footprint collision blocks', () => {
+  it('an NPC (1 wide, 2 tall, bottom-anchored) blocks its anchor AND the cell above', () => {
+    const cells = entityOccupiedCells([makeNpc('n1', 5, 5, {})])
+    expect(cells.has('5,5')).toBe(true) // feet / anchor
+    expect(cells.has('5,4')).toBe(true) // head
+    expect(cells.size).toBe(2)
+  })
+
+  it('a 2-wide monster (goblin) blocks both of its columns', () => {
+    const cells = entityOccupiedCells([makeEnemy('g1', 5, 5, 'goblin')])
+    // goblin footprint is 2x2 (centered horizontally, bottom-anchored)
+    expect(cells.has('5,5')).toBe(true)
+    expect(cells.has('6,5')).toBe(true)
+    expect(cells.has('5,4')).toBe(true)
+    expect(cells.has('6,4')).toBe(true)
+  })
+
+  it('an excluded entity (e.g. a dead enemy or the player) blocks nothing', () => {
+    const player = makePlayer('p1', 5, 5)
+    const enemy = makeEnemy('e1', 8, 8, 'goblin')
+    const cells = entityOccupiedCells([player, enemy], e => e.id === 'p1' || e.id === 'e1')
+    expect(cells.size).toBe(0)
+  })
+
+  it('only the non-excluded entities contribute their footprints', () => {
+    const npc = makeNpc('n1', 2, 2, {})
+    const enemy = makeEnemy('e1', 9, 9, 'goblin')
+    const cells = entityOccupiedCells([npc, enemy], e => e.kind === 'enemy')
+    expect(cells.has('2,2')).toBe(true)
+    expect(cells.has('9,9')).toBe(false) // enemy excluded
   })
 })

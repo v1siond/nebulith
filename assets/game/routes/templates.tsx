@@ -55,6 +55,7 @@ import {
   removeEntity,
   entityAt,
   entityAtFootprint,
+  entityOccupiedCells,
   isRespawned,
   DEFAULT_PLAYER_STATS,
 } from '@/game/entities'
@@ -2423,18 +2424,19 @@ function advanceEnemyMovement(
   entities: readonly Entity[],
   player: { x: number; z: number },
   cursors: Map<string, Cursor>,
+  entityBlocked: Set<string>,
 ): readonly Entity[] {
   const pCol = Math.floor(player.x / grid.cellSize)
   const pRow = Math.floor(player.z / grid.cellSize)
-  const occupied = new Set(entities.map(e => `${e.col},${e.row}`))
   let moved = false
   const next = entities.map(e => {
     if (e.kind !== 'enemy') return e
     const pattern = e.movement ?? DEFAULT_ENEMY_PATROL
+    const own = entityOccupiedCells([e]) // an entity must not collide with its own footprint
     const blocked = (c: number, r: number): boolean =>
       grid.isBlocked(c, r) ||
       (c === pCol && r === pRow) ||
-      (occupied.has(`${c},${r}`) && !(c === e.col && r === e.row))
+      (entityBlocked.has(`${c},${r}`) && !own.has(`${c},${r}`))
 
     // Pick the stepper: a step list ("advance N cells in a direction") takes precedence;
     // else run-patrol (axis set OR <2 waypoints); else the authored waypoint path.
@@ -2902,202 +2904,6 @@ function EntityAttackBody({ entity, onPatch }: {
       </div>
       <p className="mt-1 text-[10px] text-gray-500">Melee strikes adjacent; ranged fires within line of sight. CD = cooldown between swings.</p>
     </div>
-  )
-}
-
-function EntityInspectorCard({ entity, onPatch, onDelete, onClose, waypointMode, onToggleWaypointMode }: {
-  entity: Entity
-  onPatch: (patch: Partial<Entity>) => void
-  onDelete: () => void
-  onClose: () => void
-  waypointMode: boolean
-  onToggleWaypointMode: () => void
-}) {
-  const hittable = entity.hittable ?? entity.kind === 'enemy'
-  return (
-    <Card title="Selected entity" accent="orange">
-      <div className="space-y-2 text-xs">
-        <div className="flex items-center justify-between">
-          <span className="font-bold uppercase tracking-wider text-orange-300">{entity.kind}</span>
-          <span className="text-gray-500">@ {entity.col},{entity.row}</span>
-        </div>
-        <label className="block">
-          <span className="mb-0.5 block text-[10px] text-gray-400">Name</span>
-          <input value={entity.name ?? ''} onChange={e => onPatch({ name: e.target.value })} aria-label="Entity name" className="w-full rounded bg-gray-800 p-1 text-xs" />
-        </label>
-        {entity.kind === 'enemy' && (
-          <label className="block">
-            <span className="mb-0.5 block text-[10px] text-gray-400">Enemy type (kill-quest tag)</span>
-            <input value={entity.enemyType ?? ''} onChange={e => onPatch({ enemyType: e.target.value })} aria-label="Enemy type" className="w-full rounded bg-gray-800 p-1 text-xs" />
-          </label>
-        )}
-        <div>
-          <span className="mb-0.5 block text-[10px] text-gray-400">Stats (editable)</span>
-          <div className="grid grid-cols-2 gap-1">
-            {([
-              ['maxHp', 'HP'],
-              ['defense', 'DEF'],
-              ['strength', 'STR'],
-              ['intelligence', 'INT'],
-              ['dodge', 'DODGE%'],
-            ] as const).map(([stat, label]) => (
-              <label key={stat} className="flex items-center gap-1 text-[10px] text-gray-400">
-                <span className="w-12 shrink-0">{label}</span>
-                <input
-                  type="number"
-                  value={entity.baseStats[stat] ?? 0}
-                  onChange={e => onPatch({ baseStats: { ...entity.baseStats, [stat]: Number(e.target.value) } })}
-                  aria-label={`${entity.kind} ${label}`}
-                  className="w-full rounded bg-gray-800 p-1 text-xs"
-                />
-              </label>
-            ))}
-          </div>
-        </div>
-        <label className="flex items-center gap-2 text-gray-300">
-          <input type="checkbox" checked={hittable} onChange={e => onPatch({ hittable: e.target.checked })} aria-label="Hittable" />
-          Hittable (can be attacked)
-        </label>
-        <div>
-          <span className="mb-0.5 block text-[10px] text-gray-400">Movement pattern</span>
-          <select
-            value={entity.movement ? entity.movement.mode : 'none'}
-            onChange={e => {
-              const mode = e.target.value
-              if (mode === 'none') {
-                onPatch({ movement: undefined })
-                return
-              }
-              // Enabling movement seeds a step list; switching mode keeps your steps.
-              const next = entity.movement
-                ? setMovementMode(entity.movement, mode as MovementPattern['mode'])
-                : buildStepList(mode as MovementPattern['mode'])
-              onPatch({ movement: next })
-            }}
-            aria-label="Movement mode"
-            className="w-full rounded bg-gray-800 p-1 text-xs"
-          >
-            <option value="none">Stationary</option>
-            <option value="sequential">Sequential (run steps in order)</option>
-            <option value="random">Random (pick a step each cycle)</option>
-          </select>
-          {entity.movement && (
-            <div className="mt-1 space-y-1">
-              {(entity.movement.steps ?? []).map((s, i) => (
-                <div key={i} className="flex items-center gap-1">
-                  <select
-                    value={s.dir}
-                    onChange={e => onPatch({ movement: updateMovementStep(entity.movement!, i, { dir: e.target.value as Direction }) })}
-                    aria-label={`Step ${i + 1} direction`}
-                    className="rounded bg-gray-800 p-1 text-[11px]"
-                  >
-                    <option value="up">↑ up</option>
-                    <option value="down">↓ down</option>
-                    <option value="left">← left</option>
-                    <option value="right">→ right</option>
-                  </select>
-                  <input
-                    type="number"
-                    min={1}
-                    value={s.cells}
-                    onChange={e => onPatch({ movement: updateMovementStep(entity.movement!, i, { cells: Number(e.target.value) }) })}
-                    aria-label={`Step ${i + 1} cells`}
-                    className="w-14 rounded bg-gray-800 p-1 text-[11px]"
-                  />
-                  <span className="text-[10px] text-gray-500">cells</span>
-                  <button
-                    onClick={() => onPatch({ movement: removeMovementStep(entity.movement!, i) })}
-                    aria-label={`Remove step ${i + 1}`}
-                    className="ml-auto rounded bg-gray-700 px-2 text-[11px] hover:bg-red-700"
-                  >
-                    ×
-                  </button>
-                </div>
-              ))}
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={() => onPatch({ movement: addMovementStep(entity.movement!) })}
-                  className="flex-1 rounded bg-gray-700 px-2 py-1 text-[10px] hover:bg-gray-600"
-                >
-                  + Add step
-                </button>
-                <label className="flex items-center gap-1 text-[10px] text-gray-400">
-                  <span className="shrink-0">delay ms</span>
-                  <input
-                    type="number"
-                    min={0}
-                    value={entity.movement.delayMs ?? 1200}
-                    onChange={e => onPatch({ movement: setStepDelay(entity.movement!, Number(e.target.value)) })}
-                    aria-label="Step delay ms"
-                    className="w-16 rounded bg-gray-800 p-1 text-[11px]"
-                  />
-                </label>
-              </div>
-              <p className="text-[10px] text-gray-500">
-                {(entity.movement.steps ?? []).length} steps · {entity.movement.mode} · a wall stops a run early
-              </p>
-              <div className="mt-1 flex gap-1">
-                <button
-                  onClick={onToggleWaypointMode}
-                  aria-pressed={waypointMode}
-                  className={`flex-1 rounded px-2 py-1 text-[10px] ${waypointMode ? 'bg-cyan-600 text-white' : 'bg-gray-700 hover:bg-gray-600'}`}
-                >
-                  {waypointMode ? 'Click cells… (done)' : 'Advanced: click-path'}
-                </button>
-                <button
-                  onClick={() => onPatch({ movement: clearWaypoints(entity.movement) })}
-                  className="rounded bg-gray-700 px-2 py-1 text-[10px] hover:bg-gray-600"
-                >
-                  Clear path
-                </button>
-              </div>
-              {(entity.movement.waypoints?.length ?? 0) >= 2 && (
-                <p className="mt-0.5 text-[10px] text-amber-400">A click-path ({entity.movement.waypoints.length} pts) is set — it overrides the steps above.</p>
-              )}
-              {waypointMode && (
-                <p className="mt-0.5 text-[10px] text-cyan-400">Click cells in Top view to add waypoints.</p>
-              )}
-            </div>
-          )}
-        </div>
-        {entity.kind === 'enemy' && (
-          <div>
-            <span className="mb-0.5 block text-[10px] text-gray-400">Attack pattern</span>
-            <div className="flex gap-1">
-              <select
-                value={entity.attack?.mode ?? 'melee'}
-                onChange={e => {
-                  const mode = e.target.value as AttackMode
-                  const cooldownMs = entity.attack?.cooldownMs ?? defaultAttackPattern(mode).cooldownMs
-                  onPatch({ attack: makeAttackPattern(mode, cooldownMs) })
-                }}
-                aria-label="Attack mode"
-                className="flex-1 rounded bg-gray-800 p-1 text-xs"
-              >
-                <option value="melee">Melee (adjacent)</option>
-                <option value="ranged">Ranged (line of sight)</option>
-              </select>
-              <label className="flex items-center gap-1 text-[10px] text-gray-400">
-                <span className="shrink-0">CD ms</span>
-                <input
-                  type="number"
-                  value={entity.attack?.cooldownMs ?? defaultAttackPattern(entity.attack?.mode ?? 'melee').cooldownMs}
-                  onChange={e =>
-                    onPatch({ attack: makeAttackPattern(entity.attack?.mode ?? 'melee', Number(e.target.value)) })
-                  }
-                  aria-label="Attack cooldown ms"
-                  className="w-16 rounded bg-gray-800 p-1 text-xs"
-                />
-              </label>
-            </div>
-          </div>
-        )}
-        <div className="flex gap-1">
-          <button onClick={onDelete} className="flex-1 rounded bg-red-800 px-2 py-1 hover:bg-red-700">Delete</button>
-          <button onClick={onClose} className="rounded bg-gray-700 px-2 py-1 hover:bg-gray-600">Close</button>
-        </div>
-      </div>
-    </Card>
   )
 }
 
@@ -5756,6 +5562,17 @@ export default function TemplateEditor() {
       if (jumpDown && !jumpDownRef.current) beginJump(player, grid, use2DMovement, jump, time)
       jumpDownRef.current = jumpDown
 
+      // Entities block movement across their FULL footprint: NPCs + living enemies are
+      // solid, the player's own marker + dead enemies are not. Recomputed each frame so
+      // it follows patrols and clears the moment an enemy dies. Used by both the player
+      // collision below and the patrol stepper.
+      const entityBlocked = entityOccupiedCells(
+        entitiesRef.current,
+        e => e.kind === 'player' || (e.kind === 'enemy' && !isLivingEnemy(e, enemyRuntimeRef.current)),
+      )
+      const blockedCell = (x: number, z: number): boolean =>
+        entityBlocked.has(`${Math.floor(x / grid.cellSize)},${Math.floor(z / grid.cellSize)}`)
+
       // Mid-jump: animate the arc (lerp across the cells + parabolic hop), ignore
       // WASD/collision until we land. Otherwise: normal walking.
       if (jump.active) {
@@ -5831,7 +5648,7 @@ export default function TemplateEditor() {
       }
 
       // Collision check
-      if (!grid.isWorldBlocked(newX, newZ)) {
+      if (!grid.isWorldBlocked(newX, newZ) && !blockedCell(newX, newZ)) {
         player.x = newX
         player.z = newZ
       }
@@ -5925,7 +5742,7 @@ export default function TemplateEditor() {
         // React state so the two stay in sync.
         if (time - lastEnemyMoveRef.current > ENEMY_MOVE_MS) {
           lastEnemyMoveRef.current = time
-          const movedEntities = advanceEnemyMovement(grid, entitiesRef.current, player, movementCursorRef.current)
+          const movedEntities = advanceEnemyMovement(grid, entitiesRef.current, player, movementCursorRef.current, entityBlocked)
           if (movedEntities !== entitiesRef.current) {
             entitiesRef.current = movedEntities as Entity[]
             setEntities(movedEntities as Entity[])

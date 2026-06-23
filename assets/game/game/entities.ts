@@ -166,6 +166,29 @@ export function entityAtFootprint(entities: readonly Entity[], col: number, row:
   return null
 }
 
+/** The set of cells (`"col,row"`) occupied by entities' FULL footprints — for movement
+ *  collision, so the player can't walk through a monster and patrols collide with each
+ *  other. Anchoring matches `entityAtFootprint` (bottom-anchored, centered). `exclude`
+ *  skips entities (the player's own marker, dead enemies, or the entity currently
+ *  moving) so they don't block what they shouldn't. */
+export function entityOccupiedCells(
+  entities: readonly Entity[],
+  exclude?: (e: Entity) => boolean,
+): Set<string> {
+  const cells = new Set<string>()
+  for (const e of entities) {
+    if (exclude?.(e)) continue
+    const { w, h } = entityFootprint(e)
+    const left = e.col - Math.floor((w - 1) / 2)
+    const right = e.col + Math.ceil((w - 1) / 2)
+    const top = e.row - (h - 1)
+    for (let c = left; c <= right; c++) {
+      for (let r = top; r <= e.row; r++) cells.add(`${c},${r}`)
+    }
+  }
+  return cells
+}
+
 // ── respawn timing (pure; `now` passed in) ──────────────────────────
 
 /** The absolute time an enemy that died at `diedAt` will respawn. */
