@@ -16,7 +16,7 @@ const seeded = (seed: number): (() => number) => {
 describe('scatterEntities — scatter into free cells', () => {
   it('places `count` enemies on distinct, walkable, unoccupied cells', () => {
     const grid = openGrid(10, 10)
-    const ents = scatterEntities({ collision: grid, count: 5, rng: seeded(1) })
+    const ents = scatterEntities({ collision: grid, count: 5, rng: seeded(1), minGap: 0 })
     expect(ents).toHaveLength(5)
     const cells = new Set(ents.map(e => `${e.col},${e.row}`))
     expect(cells.size).toBe(5) // all distinct
@@ -29,14 +29,14 @@ describe('scatterEntities — scatter into free cells', () => {
   it('never lands on an occupied cell', () => {
     const grid = openGrid(3, 3) // 9 cells
     const occupied = [{ col: 0, row: 0 }, { col: 1, row: 1 }]
-    const ents = scatterEntities({ collision: grid, count: 7, occupied, rng: seeded(2) })
+    const ents = scatterEntities({ collision: grid, count: 7, occupied, rng: seeded(2), minGap: 0 })
     const occSet = new Set(occupied.map(o => `${o.col},${o.row}`))
     for (const e of ents) expect(occSet.has(`${e.col},${e.row}`)).toBe(false)
     expect(ents).toHaveLength(7) // 9 − 2 occupied
   })
 
   it('caps the count at the number of free cells', () => {
-    const ents = scatterEntities({ collision: openGrid(2, 2), count: 100, rng: seeded(3) })
+    const ents = scatterEntities({ collision: openGrid(2, 2), count: 100, rng: seeded(3), minGap: 0 })
     expect(ents).toHaveLength(4)
   })
 
@@ -72,6 +72,29 @@ describe('scatterEntities — scatter into free cells', () => {
       expect(e.hittable).toBe(false)
       expect(e.enemyType).toBeUndefined()
       expect(e.name).toBeTruthy()
+    }
+  })
+
+  it('spaces placed entities at least minGap apart (chebyshev)', () => {
+    const cheb = (a: { col: number; row: number }, b: { col: number; row: number }) =>
+      Math.max(Math.abs(a.col - b.col), Math.abs(a.row - b.row))
+    for (const minGap of [3, 5]) {
+      const ents = scatterEntities({ collision: openGrid(40, 40), count: 8, rng: seeded(11), minGap })
+      expect(ents.length).toBeGreaterThan(1)
+      expect(ents.length).toBeLessThanOrEqual(8)
+      for (let i = 0; i < ents.length; i++) {
+        for (let j = i + 1; j < ents.length; j++) {
+          expect(cheb(ents[i], ents[j])).toBeGreaterThanOrEqual(minGap)
+        }
+      }
+    }
+  })
+
+  it('respects spacing from pre-existing occupied cells', () => {
+    const occupied = [{ col: 10, row: 10 }]
+    const ents = scatterEntities({ collision: openGrid(40, 40), count: 6, occupied, rng: seeded(12), minGap: 4 })
+    for (const e of ents) {
+      expect(Math.max(Math.abs(e.col - 10), Math.abs(e.row - 10))).toBeGreaterThanOrEqual(4)
     }
   })
 

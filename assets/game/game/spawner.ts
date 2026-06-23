@@ -34,6 +34,10 @@ export interface ScatterOptions {
   rng?: () => number
   /** id prefix for the generated entities; default 'spawn'. */
   idPrefix?: string
+  /** minimum chebyshev spacing between placed entities (and from pre-existing
+   *  occupied cells); default 3 → enemies spread out instead of clumping. Set 0
+   *  to pack tightly. May place fewer than `count` when the stage can't fit them. */
+  minGap?: number
 }
 
 const key = (col: number, row: number): string => `${col},${row}`
@@ -41,14 +45,39 @@ const pick = <T>(arr: readonly T[], rng: () => number): T => arr[Math.floor(rng(
 
 /** Scatter `count` entities onto distinct free cells. Pure + deterministic under `rng`. */
 export function scatterEntities(opts: ScatterOptions): Entity[] {
-  const { collision, occupied = [], count, kinds = ['enemy'], rng = Math.random, idPrefix = 'spawn' } = opts
+  const { collision, occupied = [], count, kinds = ['enemy'], rng = Math.random, idPrefix = 'spawn', minGap = 3 } = opts
   if (count <= 0 || kinds.length === 0) return []
 
   const taken = new Set(occupied.map(o => key(o.col, o.row)))
   const free = collectFreeCells(collision, taken)
-  const chosen = shuffle(free, rng).slice(0, Math.min(count, free.length))
+  const chosen = pickSpaced(shuffle(free, rng), occupied, count, minGap)
 
   return chosen.map((cell, i) => buildEntity(pick(kinds, rng), `${idPrefix}-${i}`, cell, i, rng, collision))
+}
+
+const chebyshev = (a: Cell, b: { col: number; row: number }): number =>
+  Math.max(Math.abs(a.col - b.col), Math.abs(a.row - b.row))
+
+/** Greedily accept shuffled candidates that sit ≥ `minGap` (chebyshev) from every
+ *  already-accepted cell AND every pre-existing occupied cell. A single pass over the
+ *  shuffled list is the bounded "retry": each candidate is one attempt. `minGap <= 1`
+ *  falls back to plain distinct packing (old behaviour). */
+function pickSpaced(
+  candidates: Cell[],
+  occupied: ReadonlyArray<{ col: number; row: number }>,
+  count: number,
+  minGap: number,
+): Cell[] {
+  if (minGap <= 1) return candidates.slice(0, Math.min(count, candidates.length))
+  const anchors: { col: number; row: number }[] = occupied.map(o => ({ col: o.col, row: o.row }))
+  const accepted: Cell[] = []
+  for (const c of candidates) {
+    if (accepted.length >= count) break
+    if (anchors.some(a => chebyshev(c, a) < minGap)) continue
+    accepted.push(c)
+    anchors.push(c)
+  }
+  return accepted
 }
 
 function collectFreeCells(collision: boolean[][], taken: Set<string>): Cell[] {
