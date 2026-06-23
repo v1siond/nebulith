@@ -77,6 +77,27 @@ export function treeCanopyShade(zone: ZoneId, variant: number): string {
   return shades[((variant % shades.length) + shades.length) % shades.length]
 }
 
+// Non-blocking GROUND DECOR — floor detail (grass blades, litter, pebbles, blossoms,
+// embers…) scattered across walkable cells so a stage reads DENSE instead of blank.
+// Several per zone (glyph + tonal color); the generator picks a variant per cell.
+// Purely decorative overlays — they never block movement, so connectivity is unchanged.
+export interface DecorTile { char: string; color: string }
+export const GROUND_DECOR: Readonly<Record<ZoneId, DecorTile[]>> = {
+  spring: [{ char: ',', color: '#6fae54' }, { char: '`', color: '#8fbf76' }, { char: '✿', color: '#f6c945' }, { char: '❀', color: '#f2a6cf' }, { char: '·', color: '#7cc46a' }, { char: '"', color: '#5fae4f' }],
+  summer: [{ char: ',', color: '#3a7a2e' }, { char: '"', color: '#2e8b2e' }, { char: '♣', color: '#2f7f2f' }, { char: ';', color: '#3fa63f' }, { char: '·', color: '#4a7a3a' }, { char: '`', color: '#246b24' }],
+  autumn: [{ char: ',', color: '#b5742a' }, { char: '.', color: '#9c6a2a' }, { char: ';', color: '#c0531a' }, { char: '∴', color: '#a0541a' }, { char: '`', color: '#e0a020' }, { char: '·', color: '#d2691e' }],
+  winter: [{ char: '·', color: '#cfe0ea' }, { char: '*', color: '#e8f2fa' }, { char: '`', color: '#9fbccb' }, { char: ',', color: '#aac4d8' }, { char: '∴', color: '#bcd4e2' }, { char: '.', color: '#9fbccb' }],
+  desert: [{ char: '·', color: '#c2a35a' }, { char: '∴', color: '#b3935a' }, { char: ',', color: '#c7bd80' }, { char: '`', color: '#a98a4f' }, { char: ':', color: '#9a8f5a' }, { char: '.', color: '#b3a86b' }],
+  beach: [{ char: '·', color: '#e0cf9a' }, { char: ':', color: '#cabd86' }, { char: ',', color: '#6fc888' }, { char: '°', color: '#bfe8f5' }, { char: '~', color: '#7fd0e8' }, { char: '.', color: '#d8c089' }],
+  lava: [{ char: '·', color: '#5a4036' }, { char: '∴', color: '#6a3a2a' }, { char: '*', color: '#ff7a30' }, { char: '`', color: '#4a352c' }, { char: ':', color: '#ff5a1f' }, { char: '.', color: '#3a2a25' }],
+}
+
+/** Pick a ground-decor tile for a zone + variant (safe wrap). */
+export function groundDecor(zone: ZoneId, variant: number): DecorTile {
+  const set = GROUND_DECOR[zone]
+  return set[((variant % set.length) + set.length) % set.length]
+}
+
 // Per-SEASON trunk (bark), building parts, and biome feature colors. The feature's
 // peak is a snow-cap and the spill is a blue waterfall (icier in winter).
 interface ZoneVisuals {

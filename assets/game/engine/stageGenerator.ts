@@ -11,7 +11,7 @@
 import { composeBuilding, ComposedBuilding, BuildingType, facadeLabel } from './buildingComposer'
 import { ZONE_PALETTES, ZoneId } from './zones'
 import { autotileLabel, isWalkable, TREE_MASS_FAMILY, type CellLabel } from './cellLabels'
-import { cellTile, TREE_CANOPY_SHADES } from './cellTileset'
+import { cellTile, TREE_CANOPY_SHADES, groundDecor } from './cellTileset'
 import type { Connector } from '@/lib/api'
 
 export type VariantId = 'village' | 'forest' | 'cave' | 'temple' | 'boss-stage'
@@ -178,6 +178,35 @@ const makeCaveDecor = (col: number, row: number): StageProp => {
   return { col, row, type: 'cave_decor', char: d.char, blocking: false, color: d.color }
 }
 
+// Non-blocking zone GROUND DECOR (grass/litter/pebbles/embers) — the density layer.
+const makeGroundDecor = (zone: ZoneId, col: number, row: number): StageProp => {
+  const d = groundDecor(zone, Math.abs(col * 7 + row * 13))
+  return { col, row, type: 'ground_decor', char: d.char, blocking: false, color: d.color }
+}
+
+/** Fill most empty, walkable, non-edge cells with non-blocking zone ground decor so a
+ *  stage reads DENSE instead of blank. Skips cells that already hold a prop, and leaves
+ *  ~(1-density) of cells clear so the floor still reads as navigable. Decor never blocks,
+ *  so walkable connectivity is unchanged. */
+// Built/paved floors should NOT get nature decor (no grass on marble) — they're
+// already detailed by their tile pattern.
+const BUILT_FLOOR: ReadonlySet<string> = new Set(['marble', 'gold_tile', 'ancient_stone', 'plaza', 'path_stone', 'rune_floor'])
+
+function scatterGroundCover(ctx: ArchetypeContext, density = 0.78): void {
+  const { props, collision, ground, cols, rows, zone } = ctx
+  const occupied = new Set(props.map(p => `${p.col},${p.row}`))
+  const fill: StageProp[] = []
+  forEachCell(cols, rows, (col, row) => {
+    if (isEdge(col, row, cols, rows)) return
+    if (collision[row][col]) return // walkable floor only
+    if (BUILT_FLOOR.has(ground[row][col])) return // keep paved/tiled floors clean
+    if (occupied.has(`${col},${row}`)) return // don't cover trees / buildings / decor
+    if (Math.random() > density) return // breathing room
+    fill.push(makeGroundDecor(zone, col, row))
+  })
+  props.push(...fill)
+}
+
 // Structural decor for temple / boss arena / village (readable single-glyph props).
 const makePillar = (col: number, row: number): StageProp => ({ col, row, type: 'pillar', char: '║', blocking: true, color: '#cbb68c' })
 const makeBrazier = (col: number, row: number): StageProp => ({ col, row, type: 'brazier', char: 'Φ', blocking: true, color: '#ff8a3a' })
@@ -317,6 +346,7 @@ function placeVillage(ctx: ArchetypeContext): void {
     x += facade.length + randInt(2, 4)
   }
   villageDecor(ctx, row)
+  scatterGroundCover(ctx, 0.7) // grass/flowers/litter across the village commons (skips paths)
 }
 
 /** A village square below the houses: a central well, flanking lamp-posts, and a
@@ -1083,6 +1113,7 @@ function scatterClearingCover(ctx: ArchetypeContext): void {
     }
     if (flowersAllowed && roll < 0.22) props.push(makeFlower(zone, col, row))
   })
+  scatterGroundCover(ctx, 0.82) // dense non-blocking floor detail over the remaining bare cells
 }
 
 // ── temple archetype (a grand columned hall on a paved approach) ────
@@ -1098,6 +1129,7 @@ function placeTemple(ctx: ArchetypeContext): void {
 
   const doorCol = col + Math.floor(facade.length / 2)
   templeHall(ctx, doorCol, row + 1, facade.length)
+  scatterGroundCover(ctx, 0.7) // litter/grass over the grounds around the hall (skips marble)
 }
 
 /** A grand colonnaded hall below the temple door: an ornate checkered floor, an
@@ -1141,6 +1173,7 @@ function placeCave(ctx: ArchetypeContext): void {
 
   commitRocks(ctx, rock) // rock walls fill the negative space (blocking props)
   scatterCaveDecor(ctx)
+  scatterGroundCover(ctx, 0.6) // dust / pebbles / embers across the cavern floor
 }
 
 /** Sprinkle non-blocking decor (stalagmites/crystals/rubble) over the cavern floor. */
@@ -1148,7 +1181,7 @@ function scatterCaveDecor(ctx: ArchetypeContext): void {
   const { props, collision, cols, rows } = ctx
   forEachCell(cols, rows, (col, row) => {
     if (collision[row][col]) return // floor cells only
-    if (Math.random() > 0.12) return // sparse, so it stays walkable + readable
+    if (Math.random() > 0.3) return // stalagmites/crystals; ground cover fills the rest
     props.push(makeCaveDecor(col, row))
   })
 }
@@ -1221,6 +1254,7 @@ function placeBossStage(ctx: ArchetypeContext): void {
   paveArena(ctx, arena)
   placeBossAnchor(ctx, arena)
   decorateArena(ctx, arena)
+  scatterGroundCover(ctx, 0.55) // detail on any unpaved ground around the arena (skips stone)
 }
 
 /** Floor the open arena with ancient stone (reads as a built hall, not raw ground). */
