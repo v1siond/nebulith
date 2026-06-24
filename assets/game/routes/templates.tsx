@@ -36,6 +36,7 @@ import {
   initStepList,
   STEP_LIST_DELAY_MS,
   RUN_PATROL_DELAY_MS,
+  motionPos,
   type MoverState,
   type RunState,
   type StepListState,
@@ -5778,8 +5779,17 @@ export default function TemplateEditor() {
         // React state so the two stay in sync.
         if (time - lastEnemyMoveRef.current > ENEMY_MOVE_MS) {
           lastEnemyMoveRef.current = time
-          const movedEntities = advanceEnemyMovement(grid, entitiesRef.current, player, movementCursorRef.current, entityBlocked)
-          if (movedEntities !== entitiesRef.current) {
+          const before = entitiesRef.current
+          const movedEntities = advanceEnemyMovement(grid, before, player, movementCursorRef.current, entityBlocked)
+          if (movedEntities !== before) {
+            // Stamp render motion for each entity whose cell changed → the views interpolate
+            // from→to over this tick (entityRenderCell / motionPos). No motion = no movement.
+            for (const e of movedEntities) {
+              const prev = before.find(p => p.id === e.id)
+              if (prev && (prev.col !== e.col || prev.row !== e.row)) {
+                entityMotion.set(e.id, { from: { col: prev.col, row: prev.row }, to: { col: e.col, row: e.row }, startMs: time })
+              }
+            }
             entitiesRef.current = movedEntities as Entity[]
             setEntities(movedEntities as Entity[])
           }
@@ -6818,15 +6828,16 @@ export default function TemplateEditor() {
 // Render function - ASCII art on isometric diamond tiles
 // Eased per-entity render position (fractional cell) so run-patrol steps GLIDE in the
 // iso view instead of teleporting. Ephemeral render cache keyed by entity id.
-const entityVisualPos = new Map<string, { col: number; row: number }>()
+// Per-entity render motion: from→to over one patrol tick, stamped when the logical cell
+// changes (see the patrol tick). The renderers read entityRenderCell(...) every frame, so
+// movement is the SAME deterministic, unit-tested function (motionPos) in every game view.
+const entityMotion = new Map<string, { from: { col: number; row: number }; to: { col: number; row: number }; startMs: number }>()
 
-// Frame delta (ms) for the entity glide, from the render clock (clamped so a
-// backgrounded tab can't teleport entities on the next frame).
-let lastEntityGlideT = 0
-function entityGlideDt(t: number): number {
-  const dt = lastEntityGlideT > 0 ? t - lastEntityGlideT : 16
-  lastEntityGlideT = t
-  return Math.min(80, Math.max(0, dt))
+/** The entity's interpolated render cell at `now` (its logical cell if it never moved). */
+function entityRenderCell(entity: Entity, now: number): { col: number; row: number } {
+  const m = entityMotion.get(entity.id)
+  if (!m) return { col: entity.col, row: entity.row }
+  return motionPos(m.from, m.to, m.startMs, now, ENEMY_MOVE_MS)
 }
 
 function render(
@@ -6975,25 +6986,13 @@ function render(
 
   // Sort all objects by depth (back to front). Placed entities depth-sort with
   // assets/player and draw as glyphs on top of their cell.
-  const glideDt = entityGlideDt(time)
   const allObjects: { col: number; row: number; isPlayer?: boolean; asset?: GridAsset; entity?: Entity }[] = [
     ...visibleAssets.map(a => ({ col: a.col, row: a.row, asset: a })),
     // The player ENTITY is drawn as the live sprite below (isPlayer), so skip it here
     // to avoid a ghost double at the spawn cell. (Top view keeps it — see renderTopView.)
     ...entities.filter(e => e.kind !== 'player').map(e => {
-      // CONSTANT-VELOCITY glide toward the logical cell (one cell per patrol tick) so a
-      // run of steps reads as ONE continuous slide at ~player speed — no ease-out + dead
-      // pause (toScreen handles fractional cells).
-      const cur = entityVisualPos.get(e.id) ?? { col: e.col, row: e.row }
-      const dCol = e.col - cur.col
-      const dRow = e.row - cur.row
-      const dist = Math.hypot(dCol, dRow)
-      const step = glideDt / ENEMY_MOVE_MS // cells advanced this frame (1 cell / patrol tick)
-      const next = dist <= step || dist < 1e-3
-        ? { col: e.col, row: e.row }
-        : { col: cur.col + (dCol / dist) * step, row: cur.row + (dRow / dist) * step }
-      entityVisualPos.set(e.id, next)
-      return { col: next.col, row: next.row, entity: e }
+      const pos = entityRenderCell(e, now) // smooth, deterministic interpolation (motionPos)
+      return { col: pos.col, row: pos.row, entity: e }
     }),
     {
       col: player.x / cellSize,
@@ -7876,7 +7875,8 @@ function render2D(
     if (entity.kind === 'player') continue
     const combat = entity.kind === 'enemy' ? enemyCombat.get(entity.id) : undefined
     if (isDeadEnemy(entity, combat)) continue
-    const e = toScreen(entity.col, entity.row)
+    const rc = entityRenderCell(entity, time) // same interpolation as iso → no snap in 2D
+    const e = toScreen(rc.col, rc.row)
     drawTopEntity(ctx, e.x, e.y, tileW, entity, combat)
   }
 
