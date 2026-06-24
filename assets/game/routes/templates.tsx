@@ -7033,6 +7033,15 @@ function drawIsoPlayer(
   // visibly changes the moment you equip armor in the inventory panel.
   const bodyColor = player.armored ? '#bcd4ff' : '#ffdd00'
 
+  // Ground shadow at the player's feet (fixed — does NOT bob with `breathe`, so the
+  // figure looks planted while it breathes). Feet sit at ~y - 0.55·tileH.
+  ctx.save()
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.28)'
+  ctx.beginPath()
+  ctx.ellipse(x, y - tileH * 0.55, tileW * 0.5, tileH * 0.3, 0, 0, Math.PI * 2)
+  ctx.fill()
+  ctx.restore()
+
   // Draw each line from bottom to top
   for (let i = 0; i < playerArt.length; i++) {
     const line = playerArt[playerArt.length - 1 - i]
@@ -7184,6 +7193,13 @@ function drawIsoEntity(
   const charW = fontSize * 0.6
   const maxW = art.reduce((m, r) => Math.max(m, r.length), 0)
   const leftX = x - (maxW * charW) / 2
+  // Ground shadow at the entity's feet (feet sit at ~y - 0.55·tileH).
+  ctx.save()
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.28)'
+  ctx.beginPath()
+  ctx.ellipse(x, y - tileH * 0.55, tileH * 1.05, tileH * 0.3, 0, 0, Math.PI * 2)
+  ctx.fill()
+  ctx.restore()
   ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
   ctx.textAlign = 'left'
   ctx.textBaseline = 'middle'

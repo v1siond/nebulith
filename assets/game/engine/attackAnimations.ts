@@ -28,7 +28,8 @@ export const ATTACK_ANIM_MS: Record<AttackAnimKind, number> = {
 
 /** Per-kind glyph sequence (played start→end) and tint. */
 const FRAMES: Record<AttackAnimKind, string[]> = {
-  slash: ['╱', '╳', '✶', '✦'],
+  // Melee swing ARC: raised-back (\) → vertical (|) → forward (/) → low follow-through (─).
+  slash: ['\\', '|', '/', '─'],
   shot: ['·', '–', '→', '➤'],
   lightning: ['ϟ', '⌁', '⚡', '✸'],
   block: ['▢', '◇', '◈', '✦'],
