@@ -7304,17 +7304,27 @@ function drawIsoAssetAscii(
     // Tree: bark trunk + layered canopy. The canopy tints to the asset's
     // zone/theme color (never hardcoded green); the trunk stays bark.
     const canopy = treeCanopyLayers(asset.color || '#2e8b2e', flicker)
+    // Canopy is an UPRIGHT pyramid: widest just above the trunk, narrowing to the apex
+    // at the top. (Layer i rises up the screen as i grows, so wide base = drawn first.)
     const layers = [
       { text: '0', color: '#ad8621', bg: '#5a4510' },  // Trunk bottom
       { text: 'W', color: '#c9a030', bg: '#6a5520' },  // Trunk top
-      { text: '(&)', color: canopy[0].fg, bg: canopy[0].bg },
-      { text: '(@&@)', color: canopy[1].fg, bg: canopy[1].bg },
-      { text: '(@&@&@)', color: canopy[2].fg, bg: canopy[2].bg },
+      { text: '(@&@&@)', color: canopy[0].fg, bg: canopy[0].bg }, // wide base
+      { text: '(@&@)', color: canopy[1].fg, bg: canopy[1].bg },   // mid
+      { text: '(&)', color: canopy[2].fg, bg: canopy[2].bg },     // narrow apex
     ]
+    // Ground shadow at the tree base so it sits on the floor, not floating.
+    ctx.save()
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.28)'
+    ctx.beginPath()
+    ctx.ellipse(x, y, tileW * 0.55, tileH * 0.5, 0, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.restore()
     for (let i = 0; i < layers.length; i++) {
       const layer = layers[i]
       const layerY = y - i * lineHeight - lineHeight * 0.5
-      const layerFontSize = i < 2 ? fontSize * 0.9 : fontSize * (0.7 + (i - 2) * 0.05)
+      // Bigger font at the wide base, smaller toward the apex → a crisp upright pyramid.
+      const layerFontSize = i < 2 ? fontSize * 0.9 : fontSize * (0.85 - (i - 2) * 0.05)
       ctx.font = `bold ${layerFontSize}px ${ASCII_FONT}`
 
       // Background shape
@@ -7641,6 +7651,13 @@ function render2D(
       } else if (asset.type === 'tree') {
         // Layered tree: bark trunk + canopy tinted to the asset's zone/theme color.
         const canopy = treeCanopyLayers(asset.color || '#2e8b2e', flicker)
+        // Ground shadow at the tree base.
+        ctx.save()
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.25)'
+        ctx.beginPath()
+        ctx.ellipse(p.x, baseY, tileW * 0.5, tileH * 0.45, 0, 0, Math.PI * 2)
+        ctx.fill()
+        ctx.restore()
         const trunkChars = ['W', '0', 'W']
         for (let h = 0; h < 2; h++) {
           const tileTop = baseY - (h + 1) * tileH
@@ -7650,10 +7667,11 @@ function render2D(
           ctx.fillText(trunkChars[h] || '0', p.x, tileTop + tileH * 0.5)
         }
         // Layered canopy - tinted to the asset's zone/theme color
+        // Upright pyramid: wide base above the trunk (drawn first/lowest), narrow apex on top.
         const layers = [
-          { chars: '(&)', width: 1.2, bg: canopy[0].bg, fg: canopy[0].fg },
-          { chars: '(@&@)', width: 1.6, bg: canopy[1].bg, fg: canopy[1].fg },
-          { chars: '(@&@&@)', width: 2.0, bg: canopy[2].bg, fg: canopy[2].fg },
+          { chars: '(@&@&@)', width: 2.0, bg: canopy[0].bg, fg: canopy[0].fg }, // wide base
+          { chars: '(@&@)', width: 1.6, bg: canopy[1].bg, fg: canopy[1].fg },   // mid
+          { chars: '(&)', width: 1.2, bg: canopy[2].bg, fg: canopy[2].fg },     // apex
         ]
         for (let h = 0; h < layers.length; h++) {
           const layer = layers[h]
