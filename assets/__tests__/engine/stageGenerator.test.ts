@@ -12,10 +12,12 @@ describe('generateStage — lava/village vertical slice', () => {
     expect(stage.rows).toBeGreaterThan(0)
   })
 
-  it('themes the ground with the lava zone palette', () => {
-    const lavaGround = new Set(['autumn_ground', 'autumn_leaves'])
-    const allLava = stage.ground.every(row => row.every(t => lavaGround.has(t)))
-    expect(allLava).toBe(true)
+  it('themes the ground with the zone palette (village streets are path_stone)', () => {
+    const allowed = new Set(['autumn_ground', 'autumn_leaves', 'path_stone']) // streets carve path_stone
+    const allThemed = stage.ground.every(row => row.every(t => allowed.has(t)))
+    expect(allThemed).toBe(true)
+    // and there ARE streets — a real village, not bare ground
+    expect(stage.ground.flat().filter(t => t === 'path_stone').length).toBeGreaterThan(0)
   })
 
   it('places at least one legal building (>=8 long, >=4 tall, with a door)', () => {

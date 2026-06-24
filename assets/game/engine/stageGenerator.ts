@@ -9,6 +9,7 @@
  * and reusable by the editor, the template mapper, and the eventual AI generator.
  */
 import { composeBuilding, ComposedBuilding, BuildingType, facadeLabel } from './buildingComposer'
+import { planVillage, type VillageLayout } from './villageLayout'
 import { ZONE_PALETTES, ZoneId } from './zones'
 import { autotileLabel, isWalkable, TREE_MASS_FAMILY, type CellLabel } from './cellLabels'
 import { cellTile, TREE_CANOPY_SHADES, groundDecor } from './cellTileset'
@@ -391,21 +392,68 @@ export function generateStage(opts: GenerateOptions): StageData {
 
 // ── village archetype ───────────────────────────────────────────────
 function placeVillage(ctx: ArchetypeContext): void {
-  const { buildings, cols, rows } = ctx
-  // Anchor on the ground row; the facade rises upward to `row - (height-1)`, so
-  // keep enough headroom above for the tallest house we place.
-  const row = clamp(Math.floor(rows * 0.35 + Math.random() * rows * 0.2), 8, rows - 3)
-  const count = randInt(2, 4)
-  let x = 2 + randInt(0, 2)
-  while (buildings.length < count) {
-    const facade = composeBuilding({ type: 'house', floors: randInt(1, 2) })
-    if (x + facade.length + 2 > cols) break // out of room horizontally
-    if (row - (facade.height - 1) < 0) break // out of room vertically (facade clipped)
-    buildings.push(placeFacade(ctx, facade, 'house', x, row))
-    x += facade.length + randInt(2, 4)
+  const { buildings, ground, cols, rows } = ctx
+  // 1. PLAN a logical layout (roads + typed plots), then STAMP it (villageLayout.planVillage).
+  const layout = planVillage(cols, rows, Math.random, 'village')
+  // Carve the streets into the ground as walkable path_stone.
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      if (layout.roads[r][c]) ground[r][c] = 'path_stone'
+    }
   }
-  villageDecor(ctx, row)
-  scatterGroundCover(ctx, 0.2) // occasional grass/flowers across the village commons (skips paths)
+  // 2. Stamp a building at each plot — each carries its TYPE, so placeFacade colors it.
+  for (const plot of layout.plots) {
+    const facade = composeBuilding({ type: plot.type })
+    if (plot.row - (facade.height - 1) < 0) continue // not enough headroom for this facade
+    buildings.push(placeFacade(ctx, facade, plot.type, plot.col, plot.row))
+  }
+  // 3. A small plaza (well + lamps) on the main street; trees fill the rest (leafy clearing).
+  villageDecor(ctx, layout.entrances[0].row)
+  fillVillageNature(ctx, layout)
+  scatterGroundCover(ctx, 0.12) // light grass/flowers; skips paved streets
+}
+
+/**
+ * Fill the non-road, non-building cells with trees — denser toward the map EDGES so the
+ * village sits in a leafy clearing ringed by forest, sparse in the built core. Reuses the
+ * glade-tree stamper (full vertical extent) with blue-noise spacing; never on a street.
+ */
+function fillVillageNature(ctx: ArchetypeContext, layout: VillageLayout): void {
+  const { collision, ground, buildings, cols, rows } = ctx
+  // Cells occupied by (or hugging) a building — never plant a tree here, so doors + facades
+  // stay clear (a door is walkable, so treeFits alone would happily plant a tree on it).
+  const nearBuilding = new Set<string>()
+  for (const b of buildings) {
+    for (let r = b.row - b.height; r <= b.row + 1; r++) {
+      for (let c = b.col - 1; c <= b.col + b.length; c++) nearBuilding.add(`${c},${r}`)
+    }
+  }
+  const placed: Cell[] = []
+  const minDist = 3
+  const attempts = Math.floor(cols * rows * 0.5)
+  for (let i = 0; i < attempts; i++) {
+    const col = randInt(2, cols - 3)
+    const row = randInt(TREE_HEIGHT, rows - 3)
+    if (BUILT_FLOOR.has(ground[row][col])) continue
+    // the tree's WHOLE column must avoid streets + buildings — a door is walkable, so a trunk
+    // could otherwise rise into it from BELOW and block it.
+    let clearColumn = true
+    for (let h = 0; h < TREE_HEIGHT; h++) {
+      const rr = row - h
+      if (layout.roads[rr]?.[col] || nearBuilding.has(`${col},${rr}`)) {
+        clearColumn = false
+        break
+      }
+    }
+    if (!clearColumn) continue
+    if (!treeFits(collision, col, row, cols, rows)) continue
+    const edgeDist = Math.min(col, cols - 1 - col, row, rows - 1 - row)
+    const p = edgeDist < 4 ? 0.55 : edgeDist < 8 ? 0.22 : 0.08 // a forest ring at the edges
+    if (Math.random() > p) continue
+    if (placed.some(t => Math.abs(t.col - col) < minDist && Math.abs(t.row - row) < minDist)) continue
+    stampTree(ctx, col, row, Math.random() < DEAD_TREE_CHANCE[ctx.zone], Math.random() < 0.45)
+    placed.push({ col, row })
+  }
 }
 
 /** A village square below the houses: a central well, flanking lamp-posts, and a
