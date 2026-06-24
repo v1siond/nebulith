@@ -4870,7 +4870,7 @@ export default function TemplateEditor() {
       if (grid.ground[g.row]?.[g.col] !== undefined) grid.ground[g.row][g.col] = g.type
     }
     for (const a of paint.assets) {
-      grid.placeAsset([a.char], a.col, a.row, { type: a.type, blocking: a.blocking, color: a.color, label: a.label, opacity: a.opacity })
+      grid.placeAsset([a.char], a.col, a.row, { type: a.type, blocking: a.blocking, color: a.color, label: a.label, opacity: a.opacity, baseShadow: a.baseShadow })
     }
     // Mirror the generator's authoritative collision into the grid so trees/water/
     // features are truly blocked — enemies (manual placement + scatter) only land on
@@ -7141,7 +7141,7 @@ function render(
     } else if (obj.asset) {
       const op = obj.asset.opacity ?? 1 // per-asset opacity for contrast/depth
       if (op < 1) ctx.globalAlpha = op
-      drawIsoAssetAscii(ctx, p.x, p.y - heightOffset, obj.asset, tileW, tileH, time, obj.asset.type === 'structure' || (obj.asset.type === 'tree' && isGroundContact(isTreeCell, obj.asset.col, obj.asset.row)))
+      drawIsoAssetAscii(ctx, p.x, p.y - heightOffset, obj.asset, tileW, tileH, time, obj.asset.type === 'structure' || (obj.asset.type === 'tree' && (!!obj.asset.baseShadow || isGroundContact(isTreeCell, obj.asset.col, obj.asset.row))))
       if (op < 1) ctx.globalAlpha = 1
     }
   }
@@ -7906,8 +7906,9 @@ function render2D(
       } else if (asset.type === 'tree') {
         // Layered tree: bark trunk + canopy tinted to the asset's zone/theme color.
         const canopy = treeCanopyLayers(asset.color || '#2e8b2e', flicker)
-        // Ground shadow ONLY on the tree's bottom (ground-contact) cell.
-        if (isGroundContact(isTreeCell2D, asset.col, asset.row)) {
+        // Ground shadow on the tree's base: a generator-marked base cell (always, even when
+        // stacked on another tree) or any bottom (ground-contact) cell.
+        if (asset.baseShadow || isGroundContact(isTreeCell2D, asset.col, asset.row)) {
           ctx.save()
           ctx.fillStyle = 'rgba(0, 0, 0, 0.25)'
           ctx.beginPath()

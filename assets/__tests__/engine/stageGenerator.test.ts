@@ -598,3 +598,26 @@ describe('generateStage — forest layout: lake has organic (irregular) edges', 
     expect(total / runs).toBeGreaterThan(3)
   })
 })
+
+describe('generateStage — tree bases cast a ground shadow (no floating stacked trees)', () => {
+  const BASE_LABELS = new Set(['tree_stem_bottom', 'tree_bottom', 'tree_bottom_left', 'tree_bottom_right'])
+
+  it('marks every tree-base cell with baseShadow + leaves canopy tops unmarked', () => {
+    const stage = generateStage({ zone: 'summer', variant: 'forest', layout: 'passages', cols: 40, rows: 30 })
+    const trees = stage.props.filter(p => p.type === 'tree')
+    const bases = trees.filter(p => BASE_LABELS.has(p.label ?? ''))
+    expect(bases.length).toBeGreaterThan(0)
+    expect(bases.every(p => p.baseShadow === true)).toBe(true) // base always casts a shadow
+    const tops = trees.filter(p => (p.label ?? '').startsWith('tree_top'))
+    expect(tops.every(p => !p.baseShadow)).toBe(true) // canopy tops never do
+  })
+
+  it('grounds bases even when another tree sits directly below (the bug we fixed)', () => {
+    const stage = generateStage({ zone: 'summer', variant: 'forest', layout: 'passages', cols: 40, rows: 30 })
+    const trees = stage.props.filter(p => p.type === 'tree')
+    const set = new Set(trees.map(p => `${p.col},${p.row}`))
+    const stackedBases = trees.filter(p => BASE_LABELS.has(p.label ?? '') && set.has(`${p.col},${p.row + 1}`))
+    // every stacked base still carries baseShadow (would have been shadowless under pure geometry)
+    expect(stackedBases.every(p => p.baseShadow === true)).toBe(true)
+  })
+})
