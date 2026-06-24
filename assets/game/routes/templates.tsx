@@ -41,6 +41,7 @@ import {
   type RunState,
   type StepListState,
 } from '@/engine/movement'
+import { isGroundContact } from '@/engine/cellLabels'
 import { shouldFire, lampPulse } from '@/engine/behaviors'
 import { weaponAnimKind, animFrame, isAnimDone, ATTACK_ANIM_MS, type AttackAnim } from '@/engine/attackAnimations'
 import { entityArtFrame, weaponGlyph } from '@/engine/entityArt'
@@ -6983,6 +6984,9 @@ function render(
     Math.floor(camZ / cellSize),
     30, 20
   )
+  // Ground shadow goes ONLY on a tree's bottom (ground-contact) cell — see isGroundContact.
+  const treeCells = new Set(grid.assets.filter(a => a.type === 'tree').map(a => `${a.col},${a.row}`))
+  const isTreeCell = (c: number, r: number): boolean => treeCells.has(`${c},${r}`)
 
   // Sort all objects by depth (back to front). Placed entities depth-sort with
   // assets/player and draw as glyphs on top of their cell.
@@ -7014,7 +7018,7 @@ function render(
       if (isDeadEnemy(obj.entity, combat)) continue // hidden until it respawns
       drawIsoEntity(ctx, p.x, p.y - heightOffset, obj.entity, tileH, combat)
     } else if (obj.asset) {
-      drawIsoAssetAscii(ctx, p.x, p.y - heightOffset, obj.asset, tileW, tileH, time)
+      drawIsoAssetAscii(ctx, p.x, p.y - heightOffset, obj.asset, tileW, tileH, time, obj.asset.type === 'tree' && isGroundContact(isTreeCell, obj.asset.col, obj.asset.row))
     }
   }
 
@@ -7349,7 +7353,8 @@ function drawIsoAssetAscii(
   asset: GridAsset,
   tileW: number,
   tileH: number,
-  time: number
+  time: number,
+  groundContact = false,
 ) {
   const lineHeight = tileH * 1.3
   const fontSize = tileH * 1.1
@@ -7380,13 +7385,15 @@ function drawIsoAssetAscii(
       { text: '(@&@)', color: canopy[1].fg, bg: canopy[1].bg },   // mid
       { text: '(&)', color: canopy[2].fg, bg: canopy[2].bg },     // narrow apex
     ]
-    // Ground shadow at the tree base so it sits on the floor, not floating.
-    ctx.save()
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.28)'
-    ctx.beginPath()
-    ctx.ellipse(x, y, tileW * 0.55, tileH * 0.5, 0, 0, Math.PI * 2)
-    ctx.fill()
-    ctx.restore()
+    // Ground shadow ONLY on the tree's bottom (ground-contact) cell — never every cell.
+    if (groundContact) {
+      ctx.save()
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.3)'
+      ctx.beginPath()
+      ctx.ellipse(x, y, tileW * 0.55, tileH * 0.5, 0, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.restore()
+    }
     for (let i = 0; i < layers.length; i++) {
       const layer = layers[i]
       const layerY = y - i * lineHeight - lineHeight * 0.5
@@ -7642,6 +7649,8 @@ function render2D(
   const visibleAssets = grid.getVisibleAssets(
     Math.floor(camCol), Math.floor(camRow), tilesX, tilesY
   )
+  const treeCells2D = new Set(grid.assets.filter(a => a.type === 'tree').map(a => `${a.col},${a.row}`))
+  const isTreeCell2D = (c: number, r: number): boolean => treeCells2D.has(`${c},${r}`)
   for (const asset of visibleAssets) {
     drawables.push({ row: asset.row, col: asset.col, type: 'asset', asset })
   }
@@ -7718,13 +7727,15 @@ function render2D(
       } else if (asset.type === 'tree') {
         // Layered tree: bark trunk + canopy tinted to the asset's zone/theme color.
         const canopy = treeCanopyLayers(asset.color || '#2e8b2e', flicker)
-        // Ground shadow at the tree base.
-        ctx.save()
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.25)'
-        ctx.beginPath()
-        ctx.ellipse(p.x, baseY, tileW * 0.5, tileH * 0.45, 0, 0, Math.PI * 2)
-        ctx.fill()
-        ctx.restore()
+        // Ground shadow ONLY on the tree's bottom (ground-contact) cell.
+        if (isGroundContact(isTreeCell2D, asset.col, asset.row)) {
+          ctx.save()
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.25)'
+          ctx.beginPath()
+          ctx.ellipse(p.x, baseY, tileW * 0.5, tileH * 0.45, 0, 0, Math.PI * 2)
+          ctx.fill()
+          ctx.restore()
+        }
         const trunkChars = ['W', '0', 'W']
         for (let h = 0; h < 2; h++) {
           const tileTop = baseY - (h + 1) * tileH

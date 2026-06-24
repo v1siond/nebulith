@@ -97,6 +97,13 @@ export const TREE_MASS_FAMILY: MassFamily = {
 /** Is the cell part of the mass? Out-of-bounds is treated as NOT filled (an edge). */
 type Filled = (col: number, row: number) => boolean
 
+/** A cell is GROUND-CONTACT if it is filled but the cell directly BELOW it (row+1) is not
+ *  — the bottom edge of a tree/column where it meets the floor. A ground shadow belongs
+ *  ONLY on these cells, never on every trunk/leaf cell of a dense mass. Pure + testable. */
+export function isGroundContact(filled: Filled, col: number, row: number): boolean {
+  return filled(col, row) && !filled(col, row + 1)
+}
+
 // 4-bit open-side signature → 9-piece slot. Bits: top|right|bottom|left
 // (1 = that side is OPEN / not part of the mass). The table is EXHAUSTIVE over
 // all 16 signatures so labeling is a pure lookup — no fallback branching. Thin /

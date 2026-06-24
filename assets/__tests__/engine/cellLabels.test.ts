@@ -1,9 +1,30 @@
 import {
   isWalkable,
   autotileLabel,
+  isGroundContact,
   TREE_MASS_FAMILY,
   type CellLabel,
 } from '@/engine/cellLabels'
+
+describe('isGroundContact — only the BOTTOM cell of a tree/column (where the shadow goes)', () => {
+  // A vertical tree occupying rows 3,4,5 at col 2 (5 is the bottom / ground contact).
+  const tree = (col: number, row: number): boolean => col === 2 && row >= 3 && row <= 5
+
+  it('is true ONLY for the bottom cell (cell below is not a tree)', () => {
+    expect(isGroundContact(tree, 2, 5)).toBe(true) // bottom — floor below
+    expect(isGroundContact(tree, 2, 4)).toBe(false) // tree below it
+    expect(isGroundContact(tree, 2, 3)).toBe(false) // tree below it (the top/canopy)
+  })
+
+  it('is false for an empty cell', () => {
+    expect(isGroundContact(tree, 7, 7)).toBe(false)
+  })
+
+  it('a 1-cell tree is its own ground contact', () => {
+    const lone = (c: number, r: number) => c === 1 && r === 1
+    expect(isGroundContact(lone, 1, 1)).toBe(true)
+  })
+})
 
 describe('cellLabels — per-label collision (isWalkable)', () => {
   it('blocks all solid tree parts (only the reserved tree_leaf_top stays walkable)', () => {
