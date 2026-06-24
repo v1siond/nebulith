@@ -30,9 +30,6 @@ export interface StageProp {
   color: string
   /** 0–1 render opacity for decorative depth variety (default = opaque). */
   opacity?: number
-  /** generator-marked tree-base cell → always casts a ground shadow (even when another
-   *  tree sits directly below it). */
-  baseShadow?: boolean
   /** Cell-label naming this cell's part (e.g. tree_leaf_top, tree_interior).
    *  Drives per-label collision + the eventual ASCII→tileset mapping. */
   label?: string
@@ -122,18 +119,11 @@ const TRUNK_LABELS = new Set<string>(['tree_stem', 'tree_stem_bottom', 'tree_sna
  *  tonal shade. Canopy leaves additionally get a per-TREE (per-column) intensity shift so a
  *  forest reads in many tones of one base color; seeding by `col` keeps every cell of a
  *  vertical glade tree one tone (so some trees read darker, some lighter — never noisy). */
-// Glade-tree column cells STACKED above the trunk base (crown / leaves / upper trunk): a
-// shadow under these would float at canopy height, so they cast none. EVERY other tree cell
-// — autotiled mass/thicket cells (each renders its own grounded tree), the trunk base, a
-// snag — sits on its own ground and casts a shadow, so no tree floats even when stacked.
-const NO_SHADOW_LABELS = new Set<string>(['tree_crown', 'tree_leaf', 'tree_leaf_top', 'tree_stem'])
-
 const makeTreeCell = (zone: ZoneId, col: number, row: number, label: CellLabel, variant = 0): StageProp => {
   const cell = makeLabeledCell(zone, col, row, label, 'tree', variant)
   const opacity = varyOpacity(shadeNoise(col + 9.1)) // whole tree fades together (per column) for depth
-  const baseShadow = !NO_SHADOW_LABELS.has(label) || undefined
-  if (TRUNK_LABELS.has(label)) return { ...cell, opacity, baseShadow }
-  return { ...cell, color: varyIntensity(cell.color, shadeNoise(col + 0.5)), opacity, baseShadow }
+  if (TRUNK_LABELS.has(label)) return { ...cell, opacity }
+  return { ...cell, color: varyIntensity(cell.color, shadeNoise(col + 0.5)), opacity }
 }
 
 /** One labeled building cell — mirrors makeTreeCell; the LABEL drives walkability. */
@@ -1435,7 +1425,7 @@ function firstWalkable(collision: boolean[][], cols: number, rows: number): Cell
 // ── visual mapping (shared by the template mapper + the live-grid applier) ──
 export interface StagePaint {
   ground: { col: number; row: number; type: string }[]
-  assets: { col: number; row: number; char: string; type: string; color: string; blocking: boolean; label?: string; opacity?: number; baseShadow?: boolean }[]
+  assets: { col: number; row: number; char: string; type: string; color: string; blocking: boolean; label?: string; opacity?: number }[]
 }
 
 export function stagePaint(stage: StageData): StagePaint {
@@ -1443,7 +1433,7 @@ export function stagePaint(stage: StageData): StagePaint {
   const assets: StagePaint['assets'] = []
   stage.buildings.forEach(b => paintBuildingGround(b, ground))
   stage.props.forEach(p =>
-    assets.push({ col: p.col, row: p.row, char: p.char, type: p.type, color: p.color, blocking: p.blocking, label: p.label, opacity: p.opacity, baseShadow: p.baseShadow }),
+    assets.push({ col: p.col, row: p.row, char: p.char, type: p.type, color: p.color, blocking: p.blocking, label: p.label, opacity: p.opacity }),
   )
   return { ground, assets }
 }

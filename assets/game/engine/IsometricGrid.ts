@@ -25,7 +25,6 @@ export interface GridAsset {
   opacity?: number      // 0–1 render opacity (default 1) — play with contrast / depth
   brightness?: number   // render brightness multiplier (default 1) — dim or pop an element
   cycles?: AnimationCycle[]  // authored animation cycles (author panel) — driven by animationCycles
-  baseShadow?: boolean  // generator-marked tree-base cell → always casts a ground shadow
 }
 
 export interface GridConfig {
@@ -185,7 +184,6 @@ export class IsometricGrid {
       opacity: options.opacity,
       brightness: options.brightness,
       cycles: options.cycles,
-      baseShadow: options.baseShadow,
     })
 
     // If blocking, update collision grid
