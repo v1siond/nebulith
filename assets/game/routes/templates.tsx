@@ -45,7 +45,6 @@ import { isGroundContact } from '@/engine/cellLabels'
 import { frameAt, type CycleMode } from '@/engine/animationCycles'
 import { assetAnimFrame, assetCycleFrame, animationOptions, ANIMATION_LIBRARY } from '@/engine/assetAnimations'
 import { makeCycle, makeTrigger, validateCycle, describeCycle, CYCLE_MODES } from '@/engine/animationAuthoring'
-import { groundUpRows, STRUCTURES, structureById, structurePlacement } from '@/engine/structures'
 import { shouldFire, lampPulse } from '@/engine/behaviors'
 import { weaponAnimKind, animFrame, isAnimDone, ATTACK_ANIM_MS, type AttackAnim, type AttackAnimKind } from '@/engine/attackAnimations'
 import { entityArtFrame, weaponGlyph, entityPalette, topRoleColor } from '@/engine/entityArt'
@@ -2994,7 +2993,6 @@ export default function TemplateEditor() {
   const [selectedMultiAsset, setSelectedMultiAsset] = useState<string | null>(null)
   // Render opacity (0.15–1) applied to tiles placed from the palette — play with contrast / depth.
   const [placeOpacity, setPlaceOpacity] = useState(1)
-  const [selectedStructure, setSelectedStructure] = useState<string | null>(null)
   // Animation Author panel — in-progress cycle the user composes, then applies to an asset.
   const [authorAnims, setAuthorAnims] = useState<Set<string>>(new Set())
   const [authorMode, setAuthorMode] = useState<CycleMode>('sequential')
@@ -4021,28 +4019,6 @@ export default function TemplateEditor() {
     setSelectedMultiAsset(null)
   }
 
-  // Place a layered house/structure as a single BLOCKING anchor (the sprite stacks upward).
-  const placeStructure = (structureId: string) => {
-    const grid = gridRef.current
-    const def = structureById(structureId)
-    if (!grid || !def) return
-    if (selectedCells.size === 0) {
-      setSelectedStructure(structureId)
-      setSelectedTile(null)
-      setSelectedComposite(null)
-      setSelectedMultiAsset(null)
-      setHeightEditMode(false)
-      return
-    }
-    const place = structurePlacement(def)
-    selectedCells.forEach(key => {
-      const [col, row] = key.split(',').map(Number)
-      grid.assets = grid.assets.filter(a => !(a.col === col && a.row === row))
-      grid.placeAsset(place.art, col, row, { type: place.type, blocking: place.blocking, color: place.color, bgColor: place.bgColor })
-    })
-    setSelectedCells(new Set())
-    setSelectedStructure(null)
-  }
 
   // Toggle an animation in the author panel's in-progress cycle.
   const toggleAuthorAnim = (id: string) => {
@@ -6474,30 +6450,6 @@ export default function TemplateEditor() {
                 ))}
               </PaletteGroup>
 
-              {/* Structures — layered house sprites (single blocking anchor, tree-quality). */}
-              <div className="border-t border-white/10 pt-3">
-                <p className="mb-1 text-xs font-bold text-amber-400">Structures</p>
-                <p className="mb-2 text-[9px] leading-tight text-gray-500">
-                  Click to arm, then click a cell to place. One blocking cell; the sprite
-                  stacks upward like a tree.
-                </p>
-                <div className="flex flex-wrap gap-1">
-                  {STRUCTURES.map(s => (
-                    <button
-                      key={s.id}
-                      onClick={() => placeStructure(s.id)}
-                      className={`flex h-14 w-16 min-w-16 flex-shrink-0 flex-col items-center justify-center rounded bg-amber-950/40 transition-all hover:opacity-80 ${
-                        selectedStructure === s.id ? 'ring-2 ring-amber-400' : ''
-                      }`}
-                      title={`${s.name} — ${s.rows.length} rows tall`}
-                    >
-                      <span className="text-base font-bold leading-none text-amber-300">{s.rows[0]}</span>
-                      <span className="mt-1 text-[9px] leading-none text-gray-300">{s.name}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
               {/* Animation Author — compose a cycle + apply it to the selected cell's asset. */}
               <div className="border-t border-white/10 pt-3">
                 <p className="mb-1 text-xs font-bold text-fuchsia-400">Animation Author</p>
@@ -7144,7 +7096,7 @@ function render(
     } else if (obj.asset) {
       const op = obj.asset.opacity ?? 1 // per-asset opacity for contrast/depth
       if (op < 1) ctx.globalAlpha = op
-      drawIsoAssetAscii(ctx, p.x, p.y - heightOffset, obj.asset, tileW, tileH, time, obj.asset.type === 'structure' || (obj.asset.type === 'tree' && (!!obj.asset.baseShadow || isGroundContact(isTreeCell, obj.asset.col, obj.asset.row))))
+      drawIsoAssetAscii(ctx, p.x, p.y - heightOffset, obj.asset, tileW, tileH, time, obj.asset.type === 'tree' && (!!obj.asset.baseShadow || isGroundContact(isTreeCell, obj.asset.col, obj.asset.row)))
       if (op < 1) ctx.globalAlpha = 1
     }
   }
@@ -7610,31 +7562,6 @@ function drawIsoAssetAscii(
       // Text
       ctx.fillStyle = layer.color
       ctx.fillText(layer.text, x, layerY)
-    }
-
-  } else if (asset.type === 'structure') {
-    // Layered house sprite — stack the art rows GROUND→roof, shade the roof (top) darker,
-    // exactly like the tree's canopy. One blocking cell, a tall multi-row sprite.
-    const rows = groundUpRows(asset.art)
-    const wall = asset.color || '#b07a4a'
-    const roof = asset.bgColor || darkenColor(wall, 0.55) // distinct roof color, else auto-darkened wall
-    if (groundContact) {
-      ctx.save()
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.3)'
-      ctx.beginPath()
-      ctx.ellipse(x, y, tileW * 0.55, tileH * 0.5, 0, 0, Math.PI * 2)
-      ctx.fill()
-      ctx.restore()
-    }
-    for (let i = 0; i < rows.length; i++) {
-      const isRoof = i === rows.length - 1
-      const layerY = y - i * lineHeight - lineHeight * 0.5
-      ctx.font = `bold ${fontSize * 0.8}px ${ASCII_FONT}`
-      const textWidth = ctx.measureText(rows[i]).width
-      ctx.fillStyle = darkenColor(isRoof ? roof : wall, 0.6)
-      ctx.fillRect(x - textWidth / 2 - 2, layerY - lineHeight / 2, textWidth + 4, lineHeight)
-      ctx.fillStyle = isRoof ? roof : wall
-      ctx.fillText(rows[i], x, layerY)
     }
 
   } else if (asset.type === 'building') {

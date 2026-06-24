@@ -114,17 +114,17 @@ interface ZoneVisuals {
 const ZONE_VISUALS: Readonly<Record<ZoneId, ZoneVisuals>> = {
   spring: {
     trunk: '#7a5a3a', // light spring bark
-    building: { roof: '#8a4a30', wall: '#c8b486', door: '#5a3a1a', window: '#a8d0e8' },
+    building: { roof: '#c06a4a', wall: '#ddd0a8', door: '#6a4220', window: '#bfe0c8' }, // light spring: warm roof, cream wall
     feature: { mountain: '#8a8a8a', peak: '#eef4f8', spill: '#5bbcff' },
   },
   summer: {
     trunk: '#6b4a2b', // brown bark
-    building: { roof: '#8a4a30', wall: '#b89a6a', door: '#5a3a1a', window: '#a8d0e8' },
+    building: { roof: '#8a4a30', wall: '#c8a878', door: '#5a3a1a', window: '#a8d0e8' }, // summer: deep terracotta + golden wall
     feature: { mountain: '#7d7d7d', peak: '#e6edf2', spill: '#5bbcff' },
   },
   autumn: {
     trunk: '#5a3a20', // dark autumn bark
-    building: { roof: '#7a3a20', wall: '#b08a5a', door: '#4a2a12', window: '#e8c060' },
+    building: { roof: '#9c4018', wall: '#b87e44', door: '#4a2a12', window: '#e8c060' }, // autumn: rust roof + amber wall
     feature: { mountain: '#8a7a6a', peak: '#e6dcc8', spill: '#5bbcff' },
   },
   winter: {
