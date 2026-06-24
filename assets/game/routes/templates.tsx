@@ -2393,7 +2393,7 @@ function FlowViewOverlay({
 
 // Enemies advance one patrol cell roughly every ENEMY_MOVE_MS (throttled, so
 // patrols read as steps, not a blur).
-const ENEMY_MOVE_MS = 360
+const ENEMY_MOVE_MS = 220 // one patrol cell per this interval (~player speed at 16px cells)
 
 /** Advance every patrolling enemy ONE cell along its movement pattern, treating
  *  walls, the player's cell, and other entities as blocked. Returns a NEW entities
@@ -2410,7 +2410,7 @@ const DEFAULT_ENEMY_PATROL: MovementPattern = {
     { dir: 'up', cells: 5 },
     { dir: 'down', cells: 5 },
   ],
-  delayMs: STEP_LIST_DELAY_MS,
+  delayMs: 0, // continuous patrol — no dead pause between runs (the old 1.2s wait was the choppiness)
 }
 /** Stable empty list passed to the renderers when entities are hidden (avoids per-frame alloc). */
 const EMPTY_ENTITIES: Entity[] = []
@@ -2418,6 +2418,31 @@ type Cursor = MoverState | RunState | StepListState
 const isStepListState = (s: Cursor | undefined): s is StepListState => !!s && 'cellsLeft' in s
 const isRunState = (s: Cursor | undefined): s is RunState => !!s && 'stepsLeft' in s
 const isMoverState = (s: Cursor | undefined): s is MoverState => !!s && 'target' in s
+
+/** Nearest walkable cell to (col,row) via bounded 4-neighbour BFS. Returns the cell
+ *  itself if already walkable, or null if nothing walkable is near — used to unstick
+ *  enemies embedded in terrain / out of bounds. */
+function nearestWalkable(grid: IsometricGrid, col: number, row: number, maxRings = 12): { col: number; row: number } | null {
+  if (!grid.isBlocked(col, row)) return { col, row }
+  const seen = new Set<string>([`${col},${row}`])
+  let frontier = [{ col, row }]
+  for (let r = 0; r < maxRings && frontier.length > 0; r++) {
+    const nextRing: { col: number; row: number }[] = []
+    for (const c of frontier) {
+      for (const [dc, dr] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
+        const nc = c.col + dc
+        const nr = c.row + dr
+        const key = `${nc},${nr}`
+        if (seen.has(key)) continue
+        seen.add(key)
+        if (!grid.isBlocked(nc, nr)) return { col: nc, row: nr }
+        nextRing.push({ col: nc, row: nr })
+      }
+    }
+    frontier = nextRing
+  }
+  return null
+}
 
 function advanceEnemyMovement(
   grid: IsometricGrid,
@@ -2431,6 +2456,17 @@ function advanceEnemyMovement(
   let moved = false
   const next = entities.map(e => {
     if (e.kind !== 'enemy') return e
+    // UNSTICK: if the enemy is embedded in terrain or out of bounds (trees grew around it
+    // after a regenerate, or it was dropped on a wall), relocate it to the nearest walkable
+    // cell so it never sits frozen inside a tree / off the map.
+    if (grid.isBlocked(e.col, e.row)) {
+      const spot = nearestWalkable(grid, e.col, e.row)
+      if (spot && (spot.col !== e.col || spot.row !== e.row)) {
+        moved = true
+        cursors.delete(e.id)
+        return { ...e, col: spot.col, row: spot.row }
+      }
+    }
     const pattern = e.movement ?? DEFAULT_ENEMY_PATROL
     const own = entityOccupiedCells([e]) // an entity must not collide with its own footprint
     const blocked = (c: number, r: number): boolean =>
@@ -2442,7 +2478,7 @@ function advanceEnemyMovement(
     // else run-patrol (axis set OR <2 waypoints); else the authored waypoint path.
     const prev = cursors.get(e.id)
     const here = { col: e.col, row: e.row }
-    const delayTicks = Math.max(1, Math.round((pattern.delayMs ?? STEP_LIST_DELAY_MS) / ENEMY_MOVE_MS))
+    const delayTicks = Math.max(0, Math.round((pattern.delayMs ?? STEP_LIST_DELAY_MS) / ENEMY_MOVE_MS))
     let stepped: { pos: { col: number; row: number }; state: Cursor }
     if (pattern.waypoints.length >= 2) {
       stepped = stepMover(here, pattern, isMoverState(prev) ? prev : initMover(), blocked) // explicit click-path wins
@@ -2450,7 +2486,7 @@ function advanceEnemyMovement(
       stepped = stepStepList(here, pattern, isStepListState(prev) ? prev : initStepList(), blocked, { delayTicks })
     } else if (pattern.axis) {
       stepped = stepRunPatrol(here, pattern, isRunState(prev) ? prev : initRunState(pattern), blocked, {
-        delayTicks: Math.max(1, Math.round((pattern.delayMs ?? RUN_PATROL_DELAY_MS) / ENEMY_MOVE_MS)),
+        delayTicks: Math.max(0, Math.round((pattern.delayMs ?? RUN_PATROL_DELAY_MS) / ENEMY_MOVE_MS)),
       })
     } else {
       stepped = stepMover(here, pattern, isMoverState(prev) ? prev : initMover(), blocked) // no-op (<2 waypoints)
@@ -6784,6 +6820,15 @@ export default function TemplateEditor() {
 // iso view instead of teleporting. Ephemeral render cache keyed by entity id.
 const entityVisualPos = new Map<string, { col: number; row: number }>()
 
+// Frame delta (ms) for the entity glide, from the render clock (clamped so a
+// backgrounded tab can't teleport entities on the next frame).
+let lastEntityGlideT = 0
+function entityGlideDt(t: number): number {
+  const dt = lastEntityGlideT > 0 ? t - lastEntityGlideT : 16
+  lastEntityGlideT = t
+  return Math.min(80, Math.max(0, dt))
+}
+
 function render(
   ctx: CanvasRenderingContext2D,
   w: number,
@@ -6930,18 +6975,25 @@ function render(
 
   // Sort all objects by depth (back to front). Placed entities depth-sort with
   // assets/player and draw as glyphs on top of their cell.
+  const glideDt = entityGlideDt(time)
   const allObjects: { col: number; row: number; isPlayer?: boolean; asset?: GridAsset; entity?: Entity }[] = [
     ...visibleAssets.map(a => ({ col: a.col, row: a.row, asset: a })),
     // The player ENTITY is drawn as the live sprite below (isPlayer), so skip it here
     // to avoid a ghost double at the spawn cell. (Top view keeps it — see renderTopView.)
     ...entities.filter(e => e.kind !== 'player').map(e => {
-      // Smooth glide: ease the drawn position toward the logical cell each frame so
-      // run-patrol steps don't teleport (toScreen handles fractional cells).
+      // CONSTANT-VELOCITY glide toward the logical cell (one cell per patrol tick) so a
+      // run of steps reads as ONE continuous slide at ~player speed — no ease-out + dead
+      // pause (toScreen handles fractional cells).
       const cur = entityVisualPos.get(e.id) ?? { col: e.col, row: e.row }
-      const col = Math.abs(e.col - cur.col) < 0.02 ? e.col : cur.col + (e.col - cur.col) * 0.2
-      const row = Math.abs(e.row - cur.row) < 0.02 ? e.row : cur.row + (e.row - cur.row) * 0.2
-      entityVisualPos.set(e.id, { col, row })
-      return { col, row, entity: e }
+      const dCol = e.col - cur.col
+      const dRow = e.row - cur.row
+      const dist = Math.hypot(dCol, dRow)
+      const step = glideDt / ENEMY_MOVE_MS // cells advanced this frame (1 cell / patrol tick)
+      const next = dist <= step || dist < 1e-3
+        ? { col: e.col, row: e.row }
+        : { col: cur.col + (dCol / dist) * step, row: cur.row + (dRow / dist) * step }
+      entityVisualPos.set(e.id, next)
+      return { col: next.col, row: next.row, entity: e }
     }),
     {
       col: player.x / cellSize,
