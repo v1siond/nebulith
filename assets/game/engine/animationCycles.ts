@@ -89,8 +89,10 @@ export function cycleFrames(
     if (t < acc + slots[i]) {
       const local = t - acc
       const pick = cycle.mode === 'randomized' ? randIndex(iteration * anims.length + i, anims.length) : i
-      // hold the last frame during the delay portion after the anim's duration.
-      return [frameAt(anims[pick], Math.min(local, anims[pick].durationMs))]
+      const a = anims[pick]
+      if (a.frames.length === 0) return []
+      // During the delay portion (local ≥ duration) FREEZE on the last frame, else play.
+      return [local >= a.durationMs ? a.frames[a.frames.length - 1] : frameAt(a, local)]
     }
     acc += slots[i]
   }
