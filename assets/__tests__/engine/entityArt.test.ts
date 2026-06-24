@@ -1,5 +1,5 @@
-import { entityArt, entityFootprint, weaponGlyph, ENEMY_ART, ENEMY_ART_TYPES, ENEMY_FALLBACK, NPC_ART } from '@/engine/entityArt'
-import { makeEnemy, makeNpc } from '@/game/entities'
+import { entityArt, entityFootprint, weaponGlyph, ENEMY_ART, ENEMY_ART_TYPES, ENEMY_FALLBACK, NPC_ART, entityPalette, ENEMY_PALETTE, PLAYER_PALETTE, NPC_PALETTE, ENEMY_PALETTE_FALLBACK } from '@/engine/entityArt'
+import { makeEnemy, makeNpc, makePlayer } from '@/game/entities'
 
 describe('entityArt — multi-row ASCII for entities', () => {
   it('every enemy type, the fallback, and npc art is non-empty multi-row', () => {
@@ -53,5 +53,30 @@ describe('weaponGlyph — the held weapon drawn beside the player', () => {
     const axe = weaponGlyph({ kind: 'axe', range: 'melee' })
     const staff = weaponGlyph({ kind: 'staff', range: 'melee' })
     expect(new Set([sword, axe, staff]).size).toBe(3) // each weapon looks different
+  })
+})
+
+describe('entityPalette — robust fg/bg block colors (the trees\' language)', () => {
+  it('gives every enemy type a hex fg + bg pair, distinct hues across the cast', () => {
+    for (const t of ENEMY_ART_TYPES) {
+      const p = ENEMY_PALETTE[t] ?? ENEMY_PALETTE_FALLBACK
+      expect(p.fg).toMatch(/^#[0-9a-f]{6}$/i)
+      expect(p.bg).toMatch(/^#[0-9a-f]{6}$/i)
+      expect(p.fg).not.toBe(p.bg) // contrast
+    }
+    const fgs = ENEMY_ART_TYPES.map(t => (ENEMY_PALETTE[t] ?? ENEMY_PALETTE_FALLBACK).fg)
+    expect(new Set(fgs).size).toBeGreaterThan(4) // colorful, not one flat enemy color
+  })
+
+  it('resolves palette by kind (player/npc) and enemy type, fallback for unknown', () => {
+    expect(entityPalette(makePlayer('p', 0, 0))).toEqual(PLAYER_PALETTE)
+    expect(entityPalette(makeNpc('n', 0, 0))).toEqual(NPC_PALETTE)
+    expect(entityPalette(makeEnemy('e', 0, 0, 'skeleton'))).toEqual(ENEMY_PALETTE.skeleton)
+    expect(entityPalette(makeEnemy('e', 0, 0, 'dragon-xyz'))).toEqual(ENEMY_PALETTE_FALLBACK)
+  })
+
+  it('the skeleton reads as bone-white on dark + keeps its base/alt dimensions aligned', () => {
+    expect(ENEMY_PALETTE.skeleton.fg).toBe('#ece8d2')
+    expect(ENEMY_ART.skeleton.length).toBe(5)
   })
 })

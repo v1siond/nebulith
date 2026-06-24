@@ -14,11 +14,11 @@ export const ENEMY_ART: Readonly<Record<string, readonly string[]>> = {
     ' d b',
   ],
   skeleton: [
-    ' .-.',
-    '(o.o)',
-    ' |=|',
-    '/|#|\\',
-    ' " "',
+    ' ___',
+    '(o.o)', // skull with eye sockets
+    ' )|(',  // jaw / neck + collarbone
+    '/|=|\\', // ribcage (= ribs, | spine)
+    ' d b',  // leg bones
   ],
   ghost: [
     ' .-.',
@@ -62,6 +62,36 @@ export const ENEMY_ART: Readonly<Record<string, readonly string[]>> = {
   ],
 }
 
+/**
+ * A high-contrast color pair per entity — a bright glyph `fg` on a solid dark `bg` block —
+ * so creatures render as ROBUST sprites in the trees' block language, not thin transparent
+ * line-art. Each enemy type gets its own hue so the cast reads as colorful + distinct.
+ */
+export interface EntityPalette { fg: string; bg: string }
+
+export const ENEMY_PALETTE: Readonly<Record<string, EntityPalette>> = {
+  goblin: { fg: '#a6e24a', bg: '#33510f' },
+  skeleton: { fg: '#ece8d2', bg: '#4c4a3e' }, // bone-white on dark stone
+  ghost: { fg: '#cdeeff', bg: '#27384f' },
+  spider: { fg: '#c6a6ff', bg: '#352458' },
+  wolf: { fg: '#cfd2da', bg: '#36363f' },
+  orc: { fg: '#7fd24a', bg: '#274510' },
+  slime: { fg: '#6fe6c2', bg: '#13463b' },
+  bat: { fg: '#bb96e0', bg: '#281a3a' },
+  bandit: { fg: '#e6b66a', bg: '#4a3318' },
+}
+export const ENEMY_PALETTE_FALLBACK: EntityPalette = { fg: '#ff8f6a', bg: '#56241a' }
+export const PLAYER_PALETTE: EntityPalette = { fg: '#ffe24a', bg: '#5a4412' } // gold, kin to the tree trunk
+export const NPC_PALETTE: EntityPalette = { fg: '#6fd6ff', bg: '#173a55' }
+
+/** The fg/bg block palette for an entity (player / npc / enemy-by-type). */
+export function entityPalette(entity: Entity): EntityPalette {
+  if (entity.kind === 'player') return PLAYER_PALETTE
+  if (entity.kind === 'npc') return NPC_PALETTE
+  const key = entity.enemyType?.trim().toLowerCase() ?? ''
+  return ENEMY_PALETTE[key] ?? ENEMY_PALETTE_FALLBACK
+}
+
 /** Drawn for an enemy whose type has no bespoke art. */
 export const ENEMY_FALLBACK: readonly string[] = [
   ' ___',
@@ -90,7 +120,7 @@ export function entityArt(entity: Entity): readonly string[] {
  *  at the SAME dimensions as frame 0 so the footprint never jitters. */
 export const ENEMY_ART_ALT: Readonly<Record<string, readonly string[]>> = {
   goblin: [' ,-.', '(>o<)', '\\|Y|/', ' d b'], // arms up
-  skeleton: [' .-.', '(-.-)', ' |=|', '/|#|\\', ' " "'], // blink
+  skeleton: [' ___', '(-.-)', ' )|(', '\\|=|/', ' d b'], // blink + arms raise
   ghost: [' .-.', '(o o)', '| O /', ' /   /', " `~~~'"], // tail sways
   spider: ['  \\ _ /', '\\_\\(_)/_/', ' _//o\\\\_', '  \\   /'], // legs flex
   wolf: ['/\\_/\\', '( -.- )', ' > ^ <'], // blink

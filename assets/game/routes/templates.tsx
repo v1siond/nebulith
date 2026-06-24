@@ -48,7 +48,7 @@ import { makeCycle, makeTrigger, validateCycle, describeCycle, CYCLE_MODES } fro
 import { groundUpRows, STRUCTURES, structureById, structurePlacement } from '@/engine/structures'
 import { shouldFire, lampPulse } from '@/engine/behaviors'
 import { weaponAnimKind, animFrame, isAnimDone, ATTACK_ANIM_MS, type AttackAnim, type AttackAnimKind } from '@/engine/attackAnimations'
-import { entityArtFrame, weaponGlyph } from '@/engine/entityArt'
+import { entityArtFrame, weaponGlyph, entityPalette } from '@/engine/entityArt'
 import { appendWaypoint, setMovementMode, clearWaypoints, buildStepList, addMovementStep, removeMovementStep, updateMovementStep, setStepDelay, makeAttackPattern, defaultAttackPattern } from '@/game/patterns'
 import type { Direction } from '@/game/types'
 import { useToast } from '@/components/Toast'
@@ -7200,6 +7200,37 @@ function drawGroundShadow(ctx: CanvasRenderingContext2D, cx: number, footY: numb
   ctx.restore()
 }
 
+/** Draw multi-row ASCII art in the TREE block language: each row gets a solid `bg` block
+ *  (sized to that row's glyph extent) + a bright `fg` glyph + a 1px shadow. Rows stack
+ *  bottom-to-top from `baseY`, left-aligned at `leftX` (monospace advance = `charW`). Shared
+ *  by entities + the player so the whole cast reads as ROBUST sprites, not thin line-art.
+ *  Caller sets ctx.font + textAlign 'left' + textBaseline 'middle'. */
+function drawBlockFigure(
+  ctx: CanvasRenderingContext2D,
+  art: readonly string[],
+  leftX: number,
+  baseY: number,
+  lineHeight: number,
+  charW: number,
+  fg: string,
+  bg: string,
+): void {
+  for (let i = 0; i < art.length; i++) {
+    const line = art[art.length - 1 - i]
+    const ly = baseY - i * lineHeight
+    const start = line.length - line.trimStart().length // skip leading spaces — block hugs the glyphs
+    const end = line.trimEnd().length
+    if (end > start) {
+      ctx.fillStyle = bg
+      ctx.fillRect(leftX + start * charW - 2, ly - lineHeight * 0.5, (end - start) * charW + 4, lineHeight)
+    }
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.55)' // 1px drop shadow for crisp edges
+    ctx.fillText(line, leftX + 1, ly + 1)
+    ctx.fillStyle = fg
+    ctx.fillText(line, leftX, ly)
+  }
+}
+
 function drawIsoPlayer(
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -7399,14 +7430,8 @@ function drawIsoEntity(
   ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
   ctx.textAlign = 'left'
   ctx.textBaseline = 'middle'
-  for (let i = 0; i < art.length; i++) {
-    const line = art[art.length - 1 - i]
-    const ly = baseY - i * lineHeight
-    ctx.fillStyle = '#000000'
-    ctx.fillText(line, leftX + 1, ly + 1)
-    ctx.fillStyle = ENTITY_COLOR[entity.kind]
-    ctx.fillText(line, leftX, ly)
-  }
+  const pal = entityPalette(entity)
+  drawBlockFigure(ctx, art, leftX, baseY, lineHeight, charW, pal.fg, pal.bg)
 
   if (entity.kind !== 'enemy') return
   const barWidth = Math.max(20, tileH * 1.4)
