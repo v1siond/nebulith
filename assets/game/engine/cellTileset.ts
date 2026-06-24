@@ -86,15 +86,15 @@ export const GROUND_DECOR: Readonly<Record<ZoneId, DecorTile[]>> = {
   // Tight tonal clusters: the grass/litter glyphs sit within a few % of the floor tone
   // so the surface reads as ONE calm color; each zone keeps ONE muted accent (a blossom,
   // an ember) instead of several loud contrasts that made the floor a checkerboard.
-  // Forest floors stay CLEAN — only a faint dot + the zone's accent; the comma / quote /
-  // semicolon / backtick "litter" glyphs were too busy against the grass and are gone.
-  spring: [{ char: '·', color: '#5e9849' }, { char: '✿', color: '#c4b061' }, { char: '❀', color: '#c79bb4' }],
-  summer: [{ char: '·', color: '#357f33' }, { char: '♣', color: '#2a722a' }],
-  autumn: [{ char: '·', color: '#a4702c' }, { char: '∴', color: '#9c6a2c' }, { char: '.', color: '#a06a2c' }],
-  winter: [{ char: '·', color: '#c4d4e0' }, { char: '*', color: '#ccdbe7' }, { char: '∴', color: '#c8d6e2' }],
-  desert: [{ char: '·', color: '#bfa05a' }, { char: '∴', color: '#b89a58' }, { char: ':', color: '#bba360' }],
-  beach: [{ char: '·', color: '#dbcb96' }, { char: '°', color: '#cfe6ee' }, { char: '~', color: '#bfe0ec' }],
-  lava: [{ char: '·', color: '#4e3a30' }, { char: '∴', color: '#56382e' }, { char: '*', color: '#e6661f' }],
+  // Forest floors stay CLEAN — only the zone's accent (a blossom / clover / ember). The
+  // litter glyphs (comma / quote / semicolon / backtick) AND the faint dot are gone.
+  spring: [{ char: '✿', color: '#c4b061' }, { char: '❀', color: '#c79bb4' }],
+  summer: [{ char: '♣', color: '#2a722a' }],
+  autumn: [{ char: '∴', color: '#9c6a2c' }, { char: '.', color: '#a06a2c' }],
+  winter: [{ char: '*', color: '#ccdbe7' }, { char: '∴', color: '#c8d6e2' }],
+  desert: [{ char: '∴', color: '#b89a58' }, { char: ':', color: '#bba360' }],
+  beach: [{ char: '°', color: '#cfe6ee' }, { char: '~', color: '#bfe0ec' }],
+  lava: [{ char: '∴', color: '#56382e' }, { char: '*', color: '#e6661f' }],
 }
 
 /** Pick a ground-decor tile for a zone + variant (safe wrap). */
