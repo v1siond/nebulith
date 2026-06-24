@@ -18,6 +18,7 @@ export type BuildingType =
   | 'house'
   | 'big-house'
   | 'store'
+  | 'hospital'
   | 'cathedral'
   | 'temple'
   | 'castle'
@@ -62,6 +63,7 @@ const TYPE_SPECS: Record<BuildingType, TypeSpec> = {
   house: { baseLength: 8, floors: 1, doorWidth: 2 },
   'big-house': { baseLength: 12, floors: 2, doorWidth: 2 },
   store: { baseLength: 10, floors: 1, doorWidth: 3 },
+  hospital: { baseLength: 12, floors: 2, doorWidth: 3 },
   cathedral: { baseLength: 14, floors: 3, doorWidth: 3 },
   temple: { baseLength: 16, floors: 2, doorWidth: 4 },
   castle: { baseLength: 24, floors: 3, doorWidth: 4 },

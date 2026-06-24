@@ -1,4 +1,4 @@
-import { generateStage } from '@/engine/stageGenerator'
+import { generateStage, buildingCellColor } from '@/engine/stageGenerator'
 import { isWalkable } from '@/engine/cellLabels'
 import { TREE_CANOPY_SHADES } from '@/engine/cellTileset'
 
@@ -624,5 +624,24 @@ describe('generateStage — tree cells cast ground shadows (no floating trees)',
     const stackedBases = trees.filter(p => BASE_LABELS.has(p.label ?? '') && set.has(`${p.col},${p.row + 1}`))
     // every stacked base still carries baseShadow (would have been shadowless under pure geometry)
     expect(stackedBases.every(p => p.baseShadow === true)).toBe(true)
+  })
+})
+
+describe('buildingCellColor — distinct per-type roofs + visible ornaments', () => {
+  it('gives each building type a distinct roof color', () => {
+    expect(buildingCellColor('store', 'roof', 1)).toBe('#2f6fb8') // blue store
+    expect(buildingCellColor('hospital', 'roof', 1)).toBe('#3fa86a') // green hospital
+    expect(buildingCellColor('store', 'roof', 1)).not.toBe(buildingCellColor('hospital', 'roof', 1))
+  })
+
+  it('makes doors dark + windows glassy (distinct from walls)', () => {
+    expect(buildingCellColor('house', 'door', 1)).toBe('#241810')
+    expect(buildingCellColor('house', 'window', 1)).toBe('#8fc4e6')
+    expect(buildingCellColor('house', 'window', 1)).not.toBe(buildingCellColor('house', 'wall', 1))
+  })
+
+  it('varies house roof tone (red/brown/gray) by anchor so a street is not monotone', () => {
+    const roofs = new Set([0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(s => buildingCellColor('house', 'roof', s)))
+    expect(roofs.size).toBeGreaterThan(1)
   })
 })

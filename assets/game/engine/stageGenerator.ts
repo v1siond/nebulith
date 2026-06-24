@@ -136,8 +136,38 @@ const makeTreeCell = (zone: ZoneId, col: number, row: number, label: CellLabel, 
 }
 
 /** One labeled building cell — mirrors makeTreeCell; the LABEL drives walkability. */
-const makeBuildingCell = (zone: ZoneId, col: number, row: number, label: CellLabel): StageProp =>
-  makeLabeledCell(zone, col, row, label, 'building')
+// ── per-type building colors — a distinct ROOF per type so a town reads at a glance, with
+//    dark doors + glassy windows so those ornaments stand out. cellTile's zone tint stays on
+//    the glyph; the COLOR comes from here.
+interface BuildingPalette { roof: string; wall: string; door: string; window: string }
+const HOUSE_ROOFS = ['#a83a2e', '#8a5a36', '#717680'] // red / brown / gray — houses vary
+const BUILDING_PALETTES: Readonly<Record<BuildingType, BuildingPalette>> = {
+  house: { roof: '#a83a2e', wall: '#d8c49a', door: '#241810', window: '#8fc4e6' },
+  'big-house': { roof: '#5a6e8c', wall: '#cfc6b4', door: '#1e2630', window: '#a8d4ee' }, // squarer "building", cool roof
+  store: { roof: '#2f6fb8', wall: '#e2dcc8', door: '#26414f', window: '#a8dcf2' }, // blue roof
+  hospital: { roof: '#3fa86a', wall: '#f0f0ea', door: '#2a3a2a', window: '#cfeede' }, // green roof, white walls
+  cathedral: { roof: '#7a5aa0', wall: '#d8d0c0', door: '#241828', window: '#c4a8ea' },
+  temple: { roof: '#b08a3a', wall: '#d8cca0', door: '#33240f', window: '#ecc868' },
+  castle: { roof: '#5f6068', wall: '#b6b2aa', door: '#15151a', window: '#9fb2cc' },
+}
+
+/** Color for one facade cell by the building's TYPE + the cell's label. Houses vary their
+ *  roof tone (red / brown / gray) by their anchor so a street isn't monotone. Pure. */
+export function buildingCellColor(type: BuildingType, label: CellLabel, anchorSeed: number): string {
+  const pal = BUILDING_PALETTES[type] ?? BUILDING_PALETTES.house
+  if (label === 'roof' || label === 'roof_top') {
+    if (type !== 'house') return pal.roof
+    return HOUSE_ROOFS[Math.floor(shadeNoise(anchorSeed + 0.3) * HOUSE_ROOFS.length) % HOUSE_ROOFS.length]
+  }
+  if (label === 'door') return pal.door
+  if (label === 'window') return pal.window
+  return pal.wall
+}
+
+const makeBuildingCell = (zone: ZoneId, col: number, row: number, label: CellLabel, color?: string): StageProp => {
+  const cell = makeLabeledCell(zone, col, row, label, 'building')
+  return color ? { ...cell, color } : cell
+}
 
 // A canopy tonal variant for a tree-MASS cell, derived from its position so the
 // canopy varies in coherent ~2×2 patches (contrast without per-cell noise).
@@ -409,7 +439,7 @@ function placeFacade(
   const doorCells: Cell[] = []
   for (let r = 0; r < facade.height; r++) {
     for (let c = 0; c < facade.length; c++) {
-      stampFacadeCell(ctx, facade, col + c, topRow + r, c, r, doorCells)
+      stampFacadeCell(ctx, facade, col + c, topRow + r, c, r, doorCells, col)
     }
   }
   return { type, col, row: groundRow, length: facade.length, height: facade.height, doorCells, facade }
@@ -425,12 +455,13 @@ function stampFacadeCell(
   c: number,
   r: number,
   doorCells: Cell[],
+  anchorCol: number,
 ): void {
   const { props, collision, zone, cols, rows } = ctx
   if (!inBounds(gridCol, gridRow, cols, rows)) return
   const label = facadeLabel(facade, c, r)
   if (label === null) return // empty facade cell → no prop, no collision change
-  props.push(makeBuildingCell(zone, gridCol, gridRow, label))
+  props.push(makeBuildingCell(zone, gridCol, gridRow, label, buildingCellColor(facade.type, label, anchorCol)))
   collision[gridRow][gridCol] = !isWalkable(label)
   if (label === 'door') doorCells.push({ col: gridCol, row: gridRow })
 }
