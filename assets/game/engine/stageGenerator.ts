@@ -1144,7 +1144,7 @@ function scatterClearingCover(ctx: ArchetypeContext): void {
     }
     if (flowersAllowed && roll < 0.22) props.push(makeFlower(zone, col, row))
   })
-  scatterGroundCover(ctx, 0.18) // sparse non-blocking floor tufts — keep clearings readable
+  scatterGroundCover(ctx, 0.1) // light non-blocking floor tufts — keep the forest floor clean + readable
 }
 
 // ── temple archetype (a grand columned hall on a paved approach) ────

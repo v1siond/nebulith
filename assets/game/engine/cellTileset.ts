@@ -86,13 +86,15 @@ export const GROUND_DECOR: Readonly<Record<ZoneId, DecorTile[]>> = {
   // Tight tonal clusters: the grass/litter glyphs sit within a few % of the floor tone
   // so the surface reads as ONE calm color; each zone keeps ONE muted accent (a blossom,
   // an ember) instead of several loud contrasts that made the floor a checkerboard.
-  spring: [{ char: ',', color: '#5f9a4a' }, { char: '`', color: '#669f50' }, { char: '·', color: '#5e9849' }, { char: '"', color: '#639d4d' }, { char: '✿', color: '#c4b061' }, { char: '❀', color: '#c79bb4' }],
-  summer: [{ char: ',', color: '#2f7a2e' }, { char: '"', color: '#327f32' }, { char: ';', color: '#2c772c' }, { char: '·', color: '#357f33' }, { char: '♣', color: '#2a722a' }, { char: '`', color: '#307b30' }],
-  autumn: [{ char: ',', color: '#a9722f' }, { char: '.', color: '#a06a2c' }, { char: ';', color: '#ad7a2e' }, { char: '∴', color: '#9c6a2c' }, { char: '`', color: '#b3812f' }, { char: '·', color: '#a4702c' }],
-  winter: [{ char: '·', color: '#c4d4e0' }, { char: '*', color: '#ccdbe7' }, { char: '`', color: '#bccdda' }, { char: ',', color: '#c0d0dd' }, { char: '∴', color: '#c8d6e2' }, { char: '.', color: '#bccddb' }],
-  desert: [{ char: '·', color: '#bfa05a' }, { char: '∴', color: '#b89a58' }, { char: ',', color: '#c2a662' }, { char: '`', color: '#b59a5c' }, { char: ':', color: '#bba360' }, { char: '.', color: '#b89e5e' }],
-  beach: [{ char: '·', color: '#dbcb96' }, { char: ':', color: '#d3c38c' }, { char: ',', color: '#d7c890' }, { char: '°', color: '#cfe6ee' }, { char: '~', color: '#bfe0ec' }, { char: '.', color: '#d5c58e' }],
-  lava: [{ char: '·', color: '#4e3a30' }, { char: '∴', color: '#56382e' }, { char: '`', color: '#4a352c' }, { char: ':', color: '#523730' }, { char: '*', color: '#e6661f' }, { char: '.', color: '#473029' }],
+  // Forest floors stay CLEAN — only a faint dot + the zone's accent; the comma / quote /
+  // semicolon / backtick "litter" glyphs were too busy against the grass and are gone.
+  spring: [{ char: '·', color: '#5e9849' }, { char: '✿', color: '#c4b061' }, { char: '❀', color: '#c79bb4' }],
+  summer: [{ char: '·', color: '#357f33' }, { char: '♣', color: '#2a722a' }],
+  autumn: [{ char: '·', color: '#a4702c' }, { char: '∴', color: '#9c6a2c' }, { char: '.', color: '#a06a2c' }],
+  winter: [{ char: '·', color: '#c4d4e0' }, { char: '*', color: '#ccdbe7' }, { char: '∴', color: '#c8d6e2' }],
+  desert: [{ char: '·', color: '#bfa05a' }, { char: '∴', color: '#b89a58' }, { char: ':', color: '#bba360' }],
+  beach: [{ char: '·', color: '#dbcb96' }, { char: '°', color: '#cfe6ee' }, { char: '~', color: '#bfe0ec' }],
+  lava: [{ char: '·', color: '#4e3a30' }, { char: '∴', color: '#56382e' }, { char: '*', color: '#e6661f' }],
 }
 
 /** Pick a ground-decor tile for a zone + variant (safe wrap). */
