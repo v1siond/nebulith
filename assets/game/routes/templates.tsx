@@ -43,6 +43,7 @@ import {
 } from '@/engine/movement'
 import { isGroundContact } from '@/engine/cellLabels'
 import { frameAt } from '@/engine/animationCycles'
+import { assetAnimFrame } from '@/engine/assetAnimations'
 import { shouldFire, lampPulse } from '@/engine/behaviors'
 import { weaponAnimKind, animFrame, isAnimDone, ATTACK_ANIM_MS, type AttackAnim, type AttackAnimKind } from '@/engine/attackAnimations'
 import { entityArtFrame, weaponGlyph } from '@/engine/entityArt'
@@ -7523,11 +7524,11 @@ function drawIsoAssetAscii(
     }
 
   } else if (asset.type === 'flower') {
-    // Small flower
+    // Small flower — ambient sway driven by the animation engine (assetAnimFrame).
     ctx.font = `bold ${fontSize * 0.8}px ${ASCII_FONT}`
     const layerY = y - lineHeight * 0.3
     ctx.fillStyle = asset.color || '#ff88cc'
-    ctx.fillText('+', x, layerY)
+    ctx.fillText(assetAnimFrame('flower', time)?.[0] ?? '+', x, layerY)
 
   } else if (asset.type === 'rock' || asset.type === 'decoration') {
     // Rock/decoration

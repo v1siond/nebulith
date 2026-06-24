@@ -12,7 +12,7 @@ import { type Animation, frameAt } from './animationCycles'
 
 /** Ambient idle animation keyed by asset `type` (matches GridAsset.type). */
 export const ASSET_ANIMATIONS: Readonly<Record<string, Animation>> = {
-  flower: { id: 'flower-sway', frames: [['*'], ['o'], ['*'], ['.']], durationMs: 1600, loop: true },
+  flower: { id: 'flower-sway', frames: [['*'], ['o'], ['*'], ['+']], durationMs: 1600, loop: true },
   lamp: { id: 'lamp-flicker', frames: [['!'], ['i'], ['!'], ['|']], durationMs: 650, loop: true },
   bush: { id: 'bush-rustle', frames: [['&'], ['%'], ['&'], ['#']], durationMs: 2000, loop: true },
 }
