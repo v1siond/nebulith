@@ -42,6 +42,7 @@ import {
   type StepListState,
 } from '@/engine/movement'
 import { isGroundContact } from '@/engine/cellLabels'
+import { frameAt } from '@/engine/animationCycles'
 import { shouldFire, lampPulse } from '@/engine/behaviors'
 import { weaponAnimKind, animFrame, isAnimDone, ATTACK_ANIM_MS, type AttackAnim, type AttackAnimKind } from '@/engine/attackAnimations'
 import { entityArtFrame, weaponGlyph } from '@/engine/entityArt'
@@ -6966,13 +6967,18 @@ function render(
 
   // Sort all objects by depth (back to front). Placed entities depth-sort with
   // assets/player and draw as glyphs on top of their cell.
-  const allObjects: { col: number; row: number; isPlayer?: boolean; asset?: GridAsset; entity?: Entity }[] = [
+  const pCol = player.x / cellSize
+  const pRow = player.z / cellSize
+  const allObjects: { col: number; row: number; isPlayer?: boolean; asset?: GridAsset; entity?: Entity; moving?: boolean; inRange?: boolean }[] = [
     ...visibleAssets.map(a => ({ col: a.col, row: a.row, asset: a })),
     // The player ENTITY is drawn as the live sprite below (isPlayer), so skip it here
     // to avoid a ghost double at the spawn cell. (Top view keeps it — see renderTopView.)
     ...entities.filter(e => e.kind !== 'player').map(e => {
       const pos = entityRenderCell(e, now) // smooth, deterministic interpolation (motionPos)
-      return { col: pos.col, row: pos.row, entity: e }
+      const mot = entityMotion.get(e.id)
+      const moving = !!mot && now < mot.startMs + ENEMY_MOVE_MS // mid-interpolation → walk anim
+      const inRange = e.kind === 'enemy' && Math.hypot(e.col - pCol, e.row - pRow) <= COMBAT_RANGE
+      return { col: pos.col, row: pos.row, entity: e, moving, inRange }
     }),
     {
       col: player.x / cellSize,
@@ -6992,7 +6998,7 @@ function render(
     } else if (obj.entity) {
       const combat = obj.entity.kind === 'enemy' ? enemyCombat.get(obj.entity.id) : undefined
       if (isDeadEnemy(obj.entity, combat)) continue // hidden until it respawns
-      drawIsoEntity(ctx, p.x, p.y - heightOffset, obj.entity, tileH, combat)
+      drawIsoEntity(ctx, p.x, p.y - heightOffset, obj.entity, tileH, combat, now, obj.moving ?? false, obj.inRange ?? false)
     } else if (obj.asset) {
       const op = obj.asset.opacity ?? 1 // per-asset opacity for contrast/depth
       if (op < 1) ctx.globalAlpha = op
@@ -7212,6 +7218,18 @@ const IDLE_FRAME_MS = 480
 const idleNow = (): number => (typeof performance !== 'undefined' ? performance.now() : 0)
 const idleFrame = (): number => Math.floor(idleNow() / IDLE_FRAME_MS)
 
+// An enemy within this many cells of the player reads as "in combat".
+const COMBAT_RANGE = 1.6
+/** The entity's animation frame via the ENGINE: idle (slow bob), walk (while moving), or
+ *  combat (player in range) — built from the entity's base/alt art (frame 0/1). Keeps the
+ *  existing look as the base, animated through animationCycles.frameAt at a per-state speed. */
+function entityAnimFrame(entity: Entity, now: number, moving: boolean, inRange: boolean): readonly string[] {
+  const frames: (readonly string[])[] = [entityArtFrame(entity, 0), entityArtFrame(entity, 1)]
+  const state = inRange && entity.kind === 'enemy' ? 'combat' : moving ? 'walk' : 'idle'
+  const durationMs = state === 'idle' ? 900 : state === 'walk' ? 360 : 280
+  return frameAt({ id: state, frames, durationMs, loop: true }, now)
+}
+
 function drawIsoEntity(
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -7219,11 +7237,14 @@ function drawIsoEntity(
   entity: Entity,
   tileH: number,
   combat?: CombatState,
+  now: number = idleNow(),
+  moving = false,
+  inRange = false,
 ): void {
-  // Multi-row ASCII creature/figure, drawn bottom-to-top from the entity's cell
-  // (same approach as the player), with a shadow for legibility. Slow 2-frame idle
-  // (blink / arms) off the render clock — cycles each play-loop frame.
-  const art = entityArtFrame(entity, idleFrame())
+  // Multi-row ASCII creature, drawn bottom-to-top. The frame comes from the animation
+  // engine (frameAt): idle bob when still, a faster step cycle while moving, an attack
+  // cadence when the player is in range — built on top of the existing base/alt art.
+  const art = entityAnimFrame(entity, now, moving, inRange)
   // Same scale as drawIsoPlayer, so NPCs/monsters stand as tall as the player
   // (a 3-row figure ≈ 2 cells tall), not a squished 1×1.
   const fontSize = tileH * 1.2
@@ -7266,7 +7287,7 @@ function drawTopEntity(
 ): void {
   // The figure spans a footprint (a 3-row figure ≈ 2 cells tall, 1 wide) anchored so
   // the entity's cell is the BOTTOM cell — matching the player's 2-tall look in top view.
-  const art = entityArtFrame(entity, idleFrame())
+  const art = entityAnimFrame(entity, idleNow(), false, false)
   const cellsTall = Math.max(2, Math.ceil(art.length / 1.5))
   const spanH = cellsTall * tileSize
   const topY = y - (cellsTall - 1) * tileSize
