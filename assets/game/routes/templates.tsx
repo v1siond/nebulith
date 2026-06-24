@@ -1856,7 +1856,7 @@ const SEASON_BTN: Record<(typeof STAGE_ZONES)[number], string> = {
   winter: 'bg-sky-700 ring-1 ring-sky-300',
   desert: 'bg-yellow-700 ring-1 ring-yellow-300',
 }
-const STAGE_VARIANTS = ['forest'] as const // forest-only engine
+const STAGE_VARIANTS = ['forest', 'village'] as const // forest + seasonal villages (zone-themed houses)
 
 // Player state
 interface PlayerState {
