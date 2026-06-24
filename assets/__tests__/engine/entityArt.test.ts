@@ -1,5 +1,6 @@
-import { entityArt, entityFootprint, weaponGlyph, ENEMY_ART, ENEMY_ART_TYPES, ENEMY_FALLBACK, NPC_ART, entityPalette, ENEMY_PALETTE, PLAYER_PALETTE, NPC_PALETTE, ENEMY_PALETTE_FALLBACK } from '@/engine/entityArt'
+import { entityArt, entityFootprint, weaponGlyph, ENEMY_ART, ENEMY_ART_TYPES, ENEMY_FALLBACK, NPC_ART, entityPalette, ENEMY_PALETTE, PLAYER_PALETTE, NPC_PALETTE, ENEMY_PALETTE_FALLBACK, topRoleColor, TOP_ROLE_COLOR } from '@/engine/entityArt'
 import { makeEnemy, makeNpc, makePlayer } from '@/game/entities'
+import type { Quest } from '@/game/types'
 
 describe('entityArt — multi-row ASCII for entities', () => {
   it('every enemy type, the fallback, and npc art is non-empty multi-row', () => {
@@ -78,5 +79,23 @@ describe('entityPalette — robust fg/bg block colors (the trees\' language)', (
   it('the skeleton reads as bone-white on dark + keeps its base/alt dimensions aligned', () => {
     expect(ENEMY_PALETTE.skeleton.fg).toBe('#ece8d2')
     expect(ENEMY_ART.skeleton.length).toBe(5)
+  })
+})
+
+describe('topRoleColor — top-view > glyph colors by role + quest state', () => {
+  const quest = (giverId: string, state: Quest['state']): Quest =>
+    ({ giverId, state } as unknown as Quest) // topRoleColor only reads giverId + state
+
+  it('player is yellow, enemy is red', () => {
+    expect(topRoleColor(makePlayer('p', 0, 0), [])).toBe(TOP_ROLE_COLOR.player)
+    expect(topRoleColor(makeEnemy('e', 0, 0, 'goblin'), [])).toBe(TOP_ROLE_COLOR.enemy)
+  })
+
+  it('an NPC is blue by default, green with an available quest, purple with an active one', () => {
+    const n = makeNpc('n1', 0, 0)
+    expect(topRoleColor(n, [])).toBe(TOP_ROLE_COLOR.npc) // blue
+    expect(topRoleColor(n, [quest('n1', 'available')])).toBe(TOP_ROLE_COLOR.questAvailable) // green
+    expect(topRoleColor(n, [quest('n1', 'active')])).toBe(TOP_ROLE_COLOR.questActive) // purple
+    expect(topRoleColor(n, [quest('other', 'available')])).toBe(TOP_ROLE_COLOR.npc) // not this npc's quest
   })
 })

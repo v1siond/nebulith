@@ -48,7 +48,7 @@ import { makeCycle, makeTrigger, validateCycle, describeCycle, CYCLE_MODES } fro
 import { groundUpRows, STRUCTURES, structureById, structurePlacement } from '@/engine/structures'
 import { shouldFire, lampPulse } from '@/engine/behaviors'
 import { weaponAnimKind, animFrame, isAnimDone, ATTACK_ANIM_MS, type AttackAnim, type AttackAnimKind } from '@/engine/attackAnimations'
-import { entityArtFrame, weaponGlyph, entityPalette } from '@/engine/entityArt'
+import { entityArtFrame, weaponGlyph, entityPalette, topRoleColor } from '@/engine/entityArt'
 import { appendWaypoint, setMovementMode, clearWaypoints, buildStepList, addMovementStep, removeMovementStep, updateMovementStep, setStepDelay, makeAttackPattern, defaultAttackPattern } from '@/game/patterns'
 import type { Direction } from '@/game/types'
 import { useToast } from '@/components/Toast'
@@ -5886,7 +5886,7 @@ export default function TemplateEditor() {
         ctx.fillStyle = '#0a0a12'
         ctx.fillRect(0, 0, canvas.width, canvas.height)
       } else if (topViewMode) {
-        renderTopView(ctx, canvas.width, canvas.height, grid, player, zoomRef.current, selectedCellsRef.current, connectorsRef.current, connectorModeRef.current, camOffsetRef.current, renderEntities, runtime.combat, hitMarkersRef.current, time)
+        renderTopView(ctx, canvas.width, canvas.height, grid, player, zoomRef.current, selectedCellsRef.current, connectorsRef.current, connectorModeRef.current, camOffsetRef.current, renderEntities, runtime.combat, hitMarkersRef.current, time, questsRef.current)
       } else if (viewTypeRef.current === '2d') {
         render2D(ctx, canvas.width, canvas.height, grid, player, time, zoomRef.current, camOffsetRef.current, renderEntities, runtime.combat)
       } else {
@@ -7467,15 +7467,39 @@ function drawTopEntity(
   ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
   ctx.textAlign = 'left'
   ctx.textBaseline = 'middle'
+  // Block style — solid bg per row + bright glyph, so the 2D view matches the iso view.
+  const pal = entityPalette(entity)
   for (let i = 0; i < art.length; i++) {
+    const line = art[i]
+    const ly = startY + i * fontSize
+    const s = line.length - line.trimStart().length
+    const en = line.trimEnd().length
+    if (en > s) {
+      ctx.fillStyle = pal.bg
+      ctx.fillRect(textLeft + s * charW - 1, ly - fontSize * 0.42, (en - s) * charW + 2, fontSize * 0.82)
+    }
     ctx.fillStyle = '#000000'
-    ctx.fillText(art[i], textLeft + 1, startY + i * fontSize + 1)
-    ctx.fillStyle = ENTITY_COLOR[entity.kind]
-    ctx.fillText(art[i], textLeft, startY + i * fontSize)
+    ctx.fillText(line, textLeft + 1, ly + 1)
+    ctx.fillStyle = pal.fg
+    ctx.fillText(line, textLeft, ly)
   }
 
   if (entity.kind !== 'enemy') return
   drawHpBar(ctx, cx, topY - 4, maxW * charW, 3, hpFraction(entity, combat))
+}
+
+/** TOP (blueprint) view: an entity is a single `>` glyph colored by role — yellow player,
+ *  red enemy, and NPCs blue / green (offers a quest) / purple (quest in progress). */
+function drawTopArrow(ctx: CanvasRenderingContext2D, x: number, y: number, tileSize: number, color: string): void {
+  const cx = x + tileSize / 2
+  const cy = y + tileSize / 2
+  ctx.font = `bold ${tileSize * 0.95}px ${ASCII_FONT}`
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.6)'
+  ctx.fillText('>', cx + 1, cy + 1)
+  ctx.fillStyle = color
+  ctx.fillText('>', cx, cy)
 }
 
 /** The 3 canopy layer styles (fg + bg) derived from ONE base tree color, so a
@@ -8578,7 +8602,8 @@ function renderTopView(
   entities: readonly Entity[] = [],
   enemyCombat: ReadonlyMap<string, CombatState> = new Map(),
   hitMarkers: readonly HitMarker[] = [],
-  now: number = 0
+  now: number = 0,
+  quests: readonly Quest[] = []
 ) {
   // Clear
   ctx.fillStyle = '#0a0a10'
@@ -8766,13 +8791,14 @@ function renderTopView(
     }
   }
 
-  // Draw placed entities last so they sit on top of ground/assets/player.
+  // Draw placed entities last — each a single `>` glyph colored by role (blueprint legend).
   for (const entity of entities) {
     const combat = entity.kind === 'enemy' ? enemyCombat.get(entity.id) : undefined
     if (isDeadEnemy(entity, combat)) continue // hidden until it respawns
     const ex = offsetX + entity.col * tileSize
     const ey = offsetY + entity.row * tileSize
-    drawTopEntity(ctx, ex, ey, tileSize, entity, combat)
+    drawTopArrow(ctx, ex, ey, tileSize, topRoleColor(entity, quests))
+    if (entity.kind === 'enemy') drawHpBar(ctx, ex + tileSize / 2, ey - 3, tileSize, 3, hpFraction(entity, combat))
   }
 
   // Floating "+dmg" hit markers (cell-centred in top space).

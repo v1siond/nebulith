@@ -1,4 +1,4 @@
-import type { Entity } from '@/game/types'
+import type { Entity, Quest } from '@/game/types'
 
 /**
  * Multi-row ASCII figures for entities. Authored LEFT-ALIGNED (leading spaces carry
@@ -90,6 +90,26 @@ export function entityPalette(entity: Entity): EntityPalette {
   if (entity.kind === 'npc') return NPC_PALETTE
   const key = entity.enemyType?.trim().toLowerCase() ?? ''
   return ENEMY_PALETTE[key] ?? ENEMY_PALETTE_FALLBACK
+}
+
+/** Top-view role colors for the `>` glyph: yellow player, red enemy, and NPCs by quest —
+ *  blue (plain character), green (has an available quest to give), purple (quest in progress). */
+export const TOP_ROLE_COLOR = {
+  player: '#ffdd00', // yellow
+  enemy: '#ff4d4d', // red
+  npc: '#38bdf8', // blue — plain character
+  questAvailable: '#4ade80', // green
+  questActive: '#c084fc', // purple
+} as const
+
+/** Resolve an entity's top-view role color (NPCs vary by the state of the quest they give). Pure. */
+export function topRoleColor(entity: Entity, quests: readonly Quest[]): string {
+  if (entity.kind === 'player') return TOP_ROLE_COLOR.player
+  if (entity.kind === 'enemy') return TOP_ROLE_COLOR.enemy
+  const q = quests.find(qu => qu.giverId === entity.id)
+  if (q?.state === 'available') return TOP_ROLE_COLOR.questAvailable
+  if (q?.state === 'active') return TOP_ROLE_COLOR.questActive
+  return TOP_ROLE_COLOR.npc
 }
 
 /** Drawn for an enemy whose type has no bespoke art. */
