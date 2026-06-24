@@ -259,3 +259,20 @@ export function stepStepList(
   const cellsLeft = s.cellsLeft - 1
   return { pos: next, state: { ...s, cellsLeft, waitLeft: cellsLeft <= 0 ? delayTicks : 0 } }
 }
+
+// ── render-side motion interpolation (deterministic, grid-based) ──────────────
+/** The fractional grid position of an entity moving from `from` to `to`, starting at
+ *  `startMs`, over `durationMs`. PURE + clamped: t=0 → from, t=1 → to, past the end holds
+ *  at `to`, before the start holds at `from`. The renderer reads this every frame so motion
+ *  is a CONTINUOUS function of time — nothing eyeballed. When the logical cell advances every
+ *  tick (delayMs 0), consecutive windows chain into one smooth slide with no pause. */
+export function motionPos(
+  from: Cell,
+  to: Cell,
+  startMs: number,
+  now: number,
+  durationMs: number,
+): { col: number; row: number } {
+  const t = durationMs <= 0 ? 1 : Math.min(1, Math.max(0, (now - startMs) / durationMs))
+  return { col: from.col + (to.col - from.col) * t, row: from.row + (to.row - from.row) * t }
+}

@@ -5,6 +5,7 @@ import {
   stepRunPatrol,
   stepStepList,
   initStepList,
+  motionPos,
   type MovementPattern,
 } from '@/engine/movement'
 
@@ -227,3 +228,59 @@ function step(
   const out = stepStepList(pos, pattern, state, isBlocked, opts)
   return [out.pos, out.state]
 }
+
+describe('motionPos — deterministic render interpolation (proves NO pauses)', () => {
+  const A = { col: 2, row: 5 }
+  const B = { col: 3, row: 5 }
+
+  it('sits at `from` at the start, `to` at the end, exact midpoint at half', () => {
+    expect(motionPos(A, B, 1000, 1000, 200)).toEqual({ col: 2, row: 5 })
+    expect(motionPos(A, B, 1000, 1100, 200)).toEqual({ col: 2.5, row: 5 })
+    expect(motionPos(A, B, 1000, 1200, 200)).toEqual({ col: 3, row: 5 })
+  })
+
+  it('clamps before the start and after the end (holds at the endpoints)', () => {
+    expect(motionPos(A, B, 1000, 900, 200)).toEqual({ col: 2, row: 5 }) // before → from
+    expect(motionPos(A, B, 1000, 5000, 200)).toEqual({ col: 3, row: 5 }) // after → to
+  })
+
+  it('advances strictly across frames — never the SAME position twice within a step (no stall)', () => {
+    let last = -Infinity
+    let stalls = 0
+    for (let now = 1000; now < 1200; now += 16) {
+      const p = motionPos(A, B, 1000, now, 200)
+      if (p.col === last) stalls++
+      expect(p.col).toBeGreaterThanOrEqual(last)
+      last = p.col
+    }
+    expect(stalls).toBe(0) // every frame moves → continuous, no pause
+  })
+
+  it('zero/negative duration snaps to `to` (no divide-by-zero)', () => {
+    expect(motionPos(A, B, 1000, 1000, 0)).toEqual({ col: 3, row: 5 })
+  })
+})
+
+describe('stepStepList — continuous patrol: delayTicks 0 ⇒ a cell EVERY tick (no pause)', () => {
+  it('advances on every single tick across a run boundary (proves the smooth-movement logic)', () => {
+    const pattern: MovementPattern = {
+      mode: 'sequential',
+      waypoints: [],
+      steps: [{ dir: 'right', cells: 2 }, { dir: 'down', cells: 2 }],
+      delayMs: 0,
+    }
+    let pos = { col: 0, row: 0 }
+    let state = initStepList()
+    const visited: string[] = []
+    for (let i = 0; i < 6; i++) {
+      const prev = `${pos.col},${pos.row}`
+      const r = stepStepList(pos, pattern, state, open, { delayTicks: 0 })
+      expect(`${r.pos.col},${r.pos.row}`).not.toBe(prev) // EVERY tick moves — never a wait tick
+      pos = r.pos
+      state = r.state
+      visited.push(`${pos.col},${pos.row}`)
+    }
+    // 2 right, then 2 down (run boundary crossed with NO pause), then it loops right again
+    expect(visited).toEqual(['1,0', '2,0', '2,1', '2,2', '3,2', '4,2'])
+  })
+})
