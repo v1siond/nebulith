@@ -67,3 +67,10 @@ export function varyIntensity(color: string, t: number, range = 0.32): string {
   if (amount < 0.002) return color
   return t < 0.5 ? darkenColor(color, 1 - amount) : lightenColor(color, amount)
 }
+
+/** A subtle opacity in [min, 1] from a unit value `t` — decorative depth variety so some
+ *  leaves/flowers sit back a touch. Pure (2-decimal rounded). */
+export function varyOpacity(t: number, min = 0.85): number {
+  const clamped = Math.max(0, Math.min(1, t))
+  return Math.round((min + (1 - min) * clamped) * 100) / 100
+}
