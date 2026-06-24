@@ -60,9 +60,13 @@ export interface MakeEnemyOptions {
   stats?: Partial<Stats>
 }
 
+/** Default respawn delay for enemies (~45s, in the 30s–1m range) so kill-quests stay
+ *  farmable out of the box. Set respawnMs to 0 for a permanent (non-respawning) enemy. */
+export const DEFAULT_RESPAWN_MS = 45_000
+
 /**
  * Create an enemy of a given `enemyType` (the tag 'kill' objectives count).
- * Optional respawnMs keeps kill-quests farmable (§10).
+ * respawnMs defaults to DEFAULT_RESPAWN_MS so dropped enemies respawn; pass 0 for permanent.
  */
 export function makeEnemy(
   id: string,
@@ -78,7 +82,7 @@ export function makeEnemy(
     row,
     name: options.name,
     enemyType,
-    respawnMs: options.respawnMs,
+    respawnMs: options.respawnMs ?? DEFAULT_RESPAWN_MS,
     baseStats: { ...DEFAULT_ENEMY_STATS, ...options.stats },
   }
 }

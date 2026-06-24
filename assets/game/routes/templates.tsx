@@ -2792,6 +2792,19 @@ function EntityIdentityStatsBody({ entity, onPatch }: {
         <input type="checkbox" checked={hittable} onChange={e => onPatch({ hittable: e.target.checked })} aria-label="Hittable" />
         Hittable (can be attacked)
       </label>
+      {entity.kind === 'enemy' && (
+        <label className="flex items-center gap-2 text-[10px] text-gray-400">
+          <span className="w-28 shrink-0">Respawn (s · 0 = never)</span>
+          <input
+            type="number"
+            min={0}
+            value={Math.round((entity.respawnMs ?? 0) / 1000)}
+            onChange={e => onPatch({ respawnMs: Math.max(0, Number(e.target.value)) * 1000 })}
+            aria-label="Respawn seconds"
+            className="w-full rounded bg-gray-800 p-1 text-xs"
+          />
+        </label>
+      )}
     </div>
   )
 }

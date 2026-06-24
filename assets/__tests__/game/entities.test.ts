@@ -10,6 +10,7 @@ import {
   entityOccupiedCells,
   isRespawned,
   nextRespawnAt,
+  DEFAULT_RESPAWN_MS,
   byKind,
   enemiesOfType,
   DEFAULT_PLAYER_STATS,
@@ -58,7 +59,7 @@ describe('entity factories', () => {
   })
 
   it('makeEnemy carries an optional respawnMs so kill-quests stay farmable', () => {
-    expect(makeEnemy('e1', 0, 0, 'goblin').respawnMs).toBeUndefined()
+    expect(makeEnemy('e1', 0, 0, 'goblin').respawnMs).toBe(DEFAULT_RESPAWN_MS) // defaults to ~45s
     expect(makeEnemy('e1', 0, 0, 'goblin', { respawnMs: 30_000 }).respawnMs).toBe(30_000)
   })
 
