@@ -1,4 +1,4 @@
-import { STRUCTURES, structureById, structureGroundRow, groundUpRows } from '@/engine/structures'
+import { STRUCTURES, structureById, structureGroundRow, groundUpRows, structurePlacement } from '@/engine/structures'
 
 describe('structures — single-anchor layered house sprites', () => {
   it('exposes the expected set of structures', () => {
@@ -30,5 +30,12 @@ describe('structures — single-anchor layered house sprites', () => {
     expect(groundUpRows(['roof', 'wall', 'base'])).toEqual(['base', 'wall', 'roof'])
     // the cabin renders base→roof bottom-up
     expect(groundUpRows(structureById('cabin')!.rows)).toEqual(['|___|', '|[+]|', '/===\\'])
+  })
+
+  it('structurePlacement drops a structure as a single blocking anchor carrying its sprite', () => {
+    const house = structureById('house')!
+    const p = structurePlacement(house)
+    expect(p).toEqual({ art: house.rows, type: 'structure', blocking: true, color: house.color })
+    expect(p.art).not.toBe(house.rows) // copied, not the same reference (no shared mutation)
   })
 })

@@ -44,7 +44,7 @@ import {
 import { isGroundContact } from '@/engine/cellLabels'
 import { frameAt } from '@/engine/animationCycles'
 import { assetAnimFrame } from '@/engine/assetAnimations'
-import { groundUpRows } from '@/engine/structures'
+import { groundUpRows, STRUCTURES, structureById, structurePlacement } from '@/engine/structures'
 import { shouldFire, lampPulse } from '@/engine/behaviors'
 import { weaponAnimKind, animFrame, isAnimDone, ATTACK_ANIM_MS, type AttackAnim, type AttackAnimKind } from '@/engine/attackAnimations'
 import { entityArtFrame, weaponGlyph } from '@/engine/entityArt'
@@ -2993,6 +2993,7 @@ export default function TemplateEditor() {
   const [selectedMultiAsset, setSelectedMultiAsset] = useState<string | null>(null)
   // Render opacity (0.15–1) applied to tiles placed from the palette — play with contrast / depth.
   const [placeOpacity, setPlaceOpacity] = useState(1)
+  const [selectedStructure, setSelectedStructure] = useState<string | null>(null)
   const [selectedHeight, setSelectedHeight] = useState(0)
   const [heightEditMode, setHeightEditMode] = useState(false)
   const [hideEntities, setHideEntities] = useState(false)
@@ -4011,6 +4012,29 @@ export default function TemplateEditor() {
     stampAsset(grid, asset, col, row)
     setSelectedCells(new Set())
     setSelectedMultiAsset(null)
+  }
+
+  // Place a layered house/structure as a single BLOCKING anchor (the sprite stacks upward).
+  const placeStructure = (structureId: string) => {
+    const grid = gridRef.current
+    const def = structureById(structureId)
+    if (!grid || !def) return
+    if (selectedCells.size === 0) {
+      setSelectedStructure(structureId)
+      setSelectedTile(null)
+      setSelectedComposite(null)
+      setSelectedMultiAsset(null)
+      setHeightEditMode(false)
+      return
+    }
+    const place = structurePlacement(def)
+    selectedCells.forEach(key => {
+      const [col, row] = key.split(',').map(Number)
+      grid.assets = grid.assets.filter(a => !(a.col === col && a.row === row))
+      grid.placeAsset(place.art, col, row, { type: place.type, blocking: place.blocking, color: place.color })
+    })
+    setSelectedCells(new Set())
+    setSelectedStructure(null)
   }
 
   // Place height on selected cells
@@ -6415,7 +6439,29 @@ export default function TemplateEditor() {
                 ))}
               </PaletteGroup>
 
-              {/* Forest-only engine: building / decoration / composite / structure palettes removed. */}
+              {/* Structures — layered house sprites (single blocking anchor, tree-quality). */}
+              <div className="border-t border-white/10 pt-3">
+                <p className="mb-1 text-xs font-bold text-amber-400">Structures</p>
+                <p className="mb-2 text-[9px] leading-tight text-gray-500">
+                  Click to arm, then click a cell to place. One blocking cell; the sprite
+                  stacks upward like a tree.
+                </p>
+                <div className="flex flex-wrap gap-1">
+                  {STRUCTURES.map(s => (
+                    <button
+                      key={s.id}
+                      onClick={() => placeStructure(s.id)}
+                      className={`flex h-14 w-16 min-w-16 flex-shrink-0 flex-col items-center justify-center rounded bg-amber-950/40 transition-all hover:opacity-80 ${
+                        selectedStructure === s.id ? 'ring-2 ring-amber-400' : ''
+                      }`}
+                      title={`${s.name} — ${s.rows.length} rows tall`}
+                    >
+                      <span className="text-base font-bold leading-none text-amber-300">{s.rows[0]}</span>
+                      <span className="mt-1 text-[9px] leading-none text-gray-300">{s.name}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
             </Card>
 
           </aside>

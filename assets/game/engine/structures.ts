@@ -32,3 +32,14 @@ export const structureGroundRow = (def: StructureDef): string =>
 
 /** Rows ordered GROUND→ROOF (bottom first) — the order the layered renderer stacks them. Pure. */
 export const groundUpRows = (rows: readonly string[]): string[] => [...rows].reverse()
+
+/** placeAsset options for dropping a structure as a single BLOCKING anchor cell. Pure —
+ *  art carries the sprite rows; the 'structure' type routes it to the layered render path. */
+export const structurePlacement = (
+  def: StructureDef,
+): { art: string[]; type: 'structure'; blocking: true; color: string } => ({
+  art: [...def.rows],
+  type: 'structure',
+  blocking: true,
+  color: def.color,
+})
