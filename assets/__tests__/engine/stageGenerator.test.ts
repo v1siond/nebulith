@@ -599,16 +599,30 @@ describe('generateStage — forest layout: lake has organic (irregular) edges', 
   })
 })
 
-describe('generateStage — trees stack (renderer draws trunk + shadow only at ground contact)', () => {
-  it('yields both stacked cells (canopy-only) and grounded cells (trunk + shadow), no flag needed', () => {
+describe('generateStage — tree cells cast ground shadows (no floating trees)', () => {
+  const BASE_LABELS = new Set(['tree_stem_bottom', 'tree_bottom', 'tree_bottom_left', 'tree_bottom_right'])
+  // glade-tree upper-column cells whose shadow would float at canopy height
+  const NO_SHADOW = new Set(['tree_crown', 'tree_leaf', 'tree_leaf_top', 'tree_stem'])
+
+  it('casts on thicket + base cells, but NOT glade upper-column cells (would float)', () => {
+    const stage = generateStage({ zone: 'summer', variant: 'forest', layout: 'passages', cols: 40, rows: 30 })
+    const trees = stage.props.filter(p => p.type === 'tree')
+    // every tree cell EXCEPT the glade upper-column casts a ground shadow (each thicket
+    // cell renders its own grounded tree, so each needs a shadow)
+    const grounded = trees.filter(p => !NO_SHADOW.has(p.label ?? ''))
+    expect(grounded.length).toBeGreaterThan(0)
+    expect(grounded.every(p => p.baseShadow === true)).toBe(true)
+    // glade crown / leaf / upper-trunk never cast — their shadow would float
+    const floaty = trees.filter(p => NO_SHADOW.has(p.label ?? ''))
+    expect(floaty.every(p => !p.baseShadow)).toBe(true)
+  })
+
+  it('grounds bases even when another tree sits directly below (the bug we fixed)', () => {
     const stage = generateStage({ zone: 'summer', variant: 'forest', layout: 'passages', cols: 40, rows: 30 })
     const trees = stage.props.filter(p => p.type === 'tree')
     const set = new Set(trees.map(p => `${p.col},${p.row}`))
-    const stacked = trees.filter(p => set.has(`${p.col},${p.row + 1}`)) // tree below → canopy only
-    const grounded = trees.filter(p => !set.has(`${p.col},${p.row + 1}`)) // no tree below → trunk + shadow
-    expect(stacked.length).toBeGreaterThan(0)
-    expect(grounded.length).toBeGreaterThan(0)
-    // the renderer decides via isGroundContact — the generator carries no shadow flag anymore
-    expect(trees.every(p => (p as { baseShadow?: boolean }).baseShadow === undefined)).toBe(true)
+    const stackedBases = trees.filter(p => BASE_LABELS.has(p.label ?? '') && set.has(`${p.col},${p.row + 1}`))
+    // every stacked base still carries baseShadow (would have been shadowless under pure geometry)
+    expect(stackedBases.every(p => p.baseShadow === true)).toBe(true)
   })
 })

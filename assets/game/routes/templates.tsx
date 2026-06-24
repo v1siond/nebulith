@@ -4870,7 +4870,7 @@ export default function TemplateEditor() {
       if (grid.ground[g.row]?.[g.col] !== undefined) grid.ground[g.row][g.col] = g.type
     }
     for (const a of paint.assets) {
-      grid.placeAsset([a.char], a.col, a.row, { type: a.type, blocking: a.blocking, color: a.color, label: a.label, opacity: a.opacity })
+      grid.placeAsset([a.char], a.col, a.row, { type: a.type, blocking: a.blocking, color: a.color, label: a.label, opacity: a.opacity, baseShadow: a.baseShadow })
     }
     // Mirror the generator's authoritative collision into the grid so trees/water/
     // features are truly blocked — enemies (manual placement + scatter) only land on
@@ -7141,7 +7141,7 @@ function render(
     } else if (obj.asset) {
       const op = obj.asset.opacity ?? 1 // per-asset opacity for contrast/depth
       if (op < 1) ctx.globalAlpha = op
-      drawIsoAssetAscii(ctx, p.x, p.y - heightOffset, obj.asset, tileW, tileH, time, obj.asset.type === 'structure' || (obj.asset.type === 'tree' && isGroundContact(isTreeCell, obj.asset.col, obj.asset.row)))
+      drawIsoAssetAscii(ctx, p.x, p.y - heightOffset, obj.asset, tileW, tileH, time, obj.asset.type === 'structure' || (obj.asset.type === 'tree' && (!!obj.asset.baseShadow || isGroundContact(isTreeCell, obj.asset.col, obj.asset.row))))
       if (op < 1) ctx.globalAlpha = 1
     }
   }
@@ -7548,11 +7548,7 @@ function drawIsoAssetAscii(
       ctx.fill()
       ctx.restore()
     }
-    // A tree cell with another tree directly below it is canopy ABOVE the clump — render
-    // canopy only (skip the trunk layers 0,1) so it never shows a floating trunk. Trunk +
-    // shadow appear ONLY where the tree meets the ground (groundContact = no tree below).
-    const startLayer = groundContact ? 0 : 2
-    for (let i = startLayer; i < layers.length; i++) {
+    for (let i = 0; i < layers.length; i++) {
       const layer = layers[i]
       const layerY = y - i * lineHeight - lineHeight * 0.5
       // Bigger font at the wide base, smaller toward the apex → a crisp upright pyramid.
@@ -7910,24 +7906,23 @@ function render2D(
       } else if (asset.type === 'tree') {
         // Layered tree: bark trunk + canopy tinted to the asset's zone/theme color.
         const canopy = treeCanopyLayers(asset.color || '#2e8b2e', flicker)
-        // Trunk + ground shadow ONLY where the tree meets the ground (no tree below). A cell
-        // stacked above another tree is canopy of the clump → canopy only, no floating trunk.
-        const treeGrounded = isGroundContact(isTreeCell2D, asset.col, asset.row)
-        if (treeGrounded) {
+        // Ground shadow on the tree's base: a generator-marked base cell (always, even when
+        // stacked on another tree) or any bottom (ground-contact) cell.
+        if (asset.baseShadow || isGroundContact(isTreeCell2D, asset.col, asset.row)) {
           ctx.save()
           ctx.fillStyle = 'rgba(0, 0, 0, 0.25)'
           ctx.beginPath()
           ctx.ellipse(p.x, baseY, tileW * 0.5, tileH * 0.45, 0, 0, Math.PI * 2)
           ctx.fill()
           ctx.restore()
-          const trunkChars = ['W', '0', 'W']
-          for (let h = 0; h < 2; h++) {
-            const tileTop = baseY - (h + 1) * tileH
-            ctx.fillStyle = `rgba(173, 134, 33, 0.96)` // Golden brown
-            ctx.fillRect(p.x - tileW * 0.35, tileTop, tileW * 0.7, tileH)
-            ctx.fillStyle = `rgba(243, 191, 54, ${0.7 + 0.3 * flicker})` // Bright gold
-            ctx.fillText(trunkChars[h] || '0', p.x, tileTop + tileH * 0.5)
-          }
+        }
+        const trunkChars = ['W', '0', 'W']
+        for (let h = 0; h < 2; h++) {
+          const tileTop = baseY - (h + 1) * tileH
+          ctx.fillStyle = `rgba(173, 134, 33, 0.96)` // Golden brown
+          ctx.fillRect(p.x - tileW * 0.35, tileTop, tileW * 0.7, tileH)
+          ctx.fillStyle = `rgba(243, 191, 54, ${0.7 + 0.3 * flicker})` // Bright gold
+          ctx.fillText(trunkChars[h] || '0', p.x, tileTop + tileH * 0.5)
         }
         // Layered canopy - tinted to the asset's zone/theme color
         // Upright pyramid: wide base above the trunk (drawn first/lowest), narrow apex on top.
