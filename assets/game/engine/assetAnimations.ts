@@ -8,7 +8,7 @@
  * Frame glyphs are intentionally subtle + tunable — the goal is a gentle "alive" shimmer,
  * not a jarring swap. An asset with no entry here renders its static art unchanged.
  */
-import { type Animation, frameAt } from './animationCycles'
+import { type Animation, type AnimationCycle, frameAt, activeFrames } from './animationCycles'
 
 /** Ambient idle animation keyed by asset `type` (matches GridAsset.type). */
 export const ASSET_ANIMATIONS: Readonly<Record<string, Animation>> = {
@@ -29,6 +29,23 @@ export const ANIMATION_LIBRARY: Readonly<Record<string, Animation>> = Object.fro
 /** Author-panel options: the pickable animations (id + display name). Pure. */
 export const animationOptions = (): { id: string; name: string }[] =>
   Object.values(ANIMATION_LIBRARY).map(a => ({ id: a.id, name: a.id }))
+
+/** Assets have no movement/combat states, so only 'always' cycles fire on them. */
+const ASSET_STATES: ReadonlySet<string> = new Set()
+
+/**
+ * The live frame from an asset's AUTHORED cycles at `now`, or null when it has none (the
+ * renderer then keeps the asset's normal art). Resolves the cycle's animation-ids against
+ * ANIMATION_LIBRARY. Pure — same (cycles, now) → same frame.
+ */
+export function assetCycleFrame(
+  cycles: readonly AnimationCycle[] | undefined,
+  now: number,
+): readonly string[] | null {
+  if (!cycles || cycles.length === 0) return null
+  const frames = activeFrames(cycles, ANIMATION_LIBRARY, ASSET_STATES, now)
+  return frames[0] ?? null
+}
 
 /**
  * The asset's animated art at `now`, or null when this type has no ambient animation

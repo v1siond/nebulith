@@ -43,7 +43,7 @@ import {
 } from '@/engine/movement'
 import { isGroundContact } from '@/engine/cellLabels'
 import { frameAt } from '@/engine/animationCycles'
-import { assetAnimFrame } from '@/engine/assetAnimations'
+import { assetAnimFrame, assetCycleFrame } from '@/engine/assetAnimations'
 import { groundUpRows, STRUCTURES, structureById, structurePlacement } from '@/engine/structures'
 import { shouldFire, lampPulse } from '@/engine/behaviors'
 import { weaponAnimKind, animFrame, isAnimDone, ATTACK_ANIM_MS, type AttackAnim, type AttackAnimKind } from '@/engine/attackAnimations'
@@ -7421,6 +7421,17 @@ function drawIsoAssetAscii(
   // manually-placed assets only.
   if (asset.label) {
     drawIsoLabeledCell(ctx, x, y, asset, tileH)
+    return
+  }
+
+  // Authored animation cycles (author panel) OVERRIDE static type rendering with the live
+  // frame — applies to ANY asset the user animated. No cycles → normal rendering below.
+  const cycleArt = assetCycleFrame(asset.cycles, time)
+  if (cycleArt) {
+    ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
+    const layerY = y - lineHeight * 0.5
+    ctx.fillStyle = asset.color || '#ffffff'
+    ctx.fillText(cycleArt[0] ?? '?', x, layerY)
     return
   }
 

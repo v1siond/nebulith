@@ -1,4 +1,4 @@
-import { ASSET_ANIMATIONS, isAnimatedAssetType, assetAnimFrame, ANIMATION_LIBRARY, animationOptions } from '@/engine/assetAnimations'
+import { ASSET_ANIMATIONS, isAnimatedAssetType, assetAnimFrame, ANIMATION_LIBRARY, animationOptions, assetCycleFrame } from '@/engine/assetAnimations'
 
 describe('assetAnimations — ambient per-type asset animation', () => {
   it('knows which types animate', () => {
@@ -31,5 +31,14 @@ describe('assetAnimations — ambient per-type asset animation', () => {
     const ids = animationOptions().map(o => o.id)
     expect(ids).toContain('flower-sway')
     expect(ids).toContain('bush-rustle')
+  })
+
+  it('assetCycleFrame plays an asset\'s authored always-cycle (null without cycles)', () => {
+    const cycles = [
+      { id: 'c', animations: ['flower-sway'], mode: 'sequential' as const, delayMs: 0, trigger: { kind: 'always' as const } },
+    ]
+    expect(assetCycleFrame(cycles, 0)).toEqual(ASSET_ANIMATIONS.flower.frames[0])
+    expect(assetCycleFrame(undefined, 0)).toBeNull()
+    expect(assetCycleFrame([], 0)).toBeNull()
   })
 })
