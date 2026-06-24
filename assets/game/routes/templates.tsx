@@ -4038,7 +4038,7 @@ export default function TemplateEditor() {
     selectedCells.forEach(key => {
       const [col, row] = key.split(',').map(Number)
       grid.assets = grid.assets.filter(a => !(a.col === col && a.row === row))
-      grid.placeAsset(place.art, col, row, { type: place.type, blocking: place.blocking, color: place.color })
+      grid.placeAsset(place.art, col, row, { type: place.type, blocking: place.blocking, color: place.color, bgColor: place.bgColor })
     })
     setSelectedCells(new Set())
     setSelectedStructure(null)
@@ -7221,8 +7221,9 @@ function drawBlockFigure(
     const start = line.length - line.trimStart().length // skip leading spaces — block hugs the glyphs
     const end = line.trimEnd().length
     if (end > start) {
+      const blockH = lineHeight * 0.78 // skinnier than the full line — the backing hugs the glyph row
       ctx.fillStyle = bg
-      ctx.fillRect(leftX + start * charW - 2, ly - lineHeight * 0.5, (end - start) * charW + 4, lineHeight)
+      ctx.fillRect(leftX + start * charW - 1, ly - blockH / 2, (end - start) * charW + 2, blockH)
     }
     ctx.fillStyle = 'rgba(0, 0, 0, 0.55)' // 1px drop shadow for crisp edges
     ctx.fillText(line, leftX + 1, ly + 1)
@@ -7589,7 +7590,7 @@ function drawIsoAssetAscii(
     // exactly like the tree's canopy. One blocking cell, a tall multi-row sprite.
     const rows = groundUpRows(asset.art)
     const wall = asset.color || '#b07a4a'
-    const roof = darkenColor(wall, 0.55)
+    const roof = asset.bgColor || darkenColor(wall, 0.55) // distinct roof color, else auto-darkened wall
     if (groundContact) {
       ctx.save()
       ctx.fillStyle = 'rgba(0, 0, 0, 0.3)'

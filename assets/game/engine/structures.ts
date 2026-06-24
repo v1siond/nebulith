@@ -10,16 +10,18 @@ export interface StructureDef {
   name: string
   /** ASCII rows TOP→BOTTOM (roof first). The renderer draws them stacked, ground = last row. */
   rows: string[]
-  /** wall/body color (the roof row is auto-darkened from this, like tree canopy shading). */
+  /** wall/body color. */
   color: string
+  /** roof color (the top row); falls back to an auto-darkened wall if omitted. */
+  roofColor?: string
   /** how many grid cells tall the sprite reads as, for the height offset (trees use ≈3). */
   heightTiles: number
 }
 
 export const STRUCTURES: readonly StructureDef[] = [
-  { id: 'cabin', name: 'Cabin', rows: ['/===\\', '|[+]|', '|___|'], color: '#b07a4a', heightTiles: 3 },
-  { id: 'house', name: 'House', rows: ['/^^^\\', '|o.o|', '|.+.|', '|___|'], color: '#c8a06a', heightTiles: 4 },
-  { id: 'tower', name: 'Tower', rows: ['_^_', '|o|', '|=|', '|=|', '|+|'], color: '#9a9aa6', heightTiles: 5 },
+  { id: 'cabin', name: 'Cabin', rows: ['/===\\', '|o.o|', '|.+.|', '|___|'], color: '#c08a55', roofColor: '#9c3b2e', heightTiles: 4 },
+  { id: 'house', name: 'House', rows: ['/^^^\\', '|o.o|', '|._.|', '|.+.|', '|___|'], color: '#cda569', roofColor: '#7a4630', heightTiles: 5 },
+  { id: 'tower', name: 'Tower', rows: ['/^\\', '|#|', '|o|', '|#|', '|+|'], color: '#9aa0ac', roofColor: '#5b6470', heightTiles: 5 },
 ]
 
 /** Look up a structure by id (undefined when unknown). Pure. */
@@ -37,9 +39,10 @@ export const groundUpRows = (rows: readonly string[]): string[] => [...rows].rev
  *  art carries the sprite rows; the 'structure' type routes it to the layered render path. */
 export const structurePlacement = (
   def: StructureDef,
-): { art: string[]; type: 'structure'; blocking: true; color: string } => ({
+): { art: string[]; type: 'structure'; blocking: true; color: string; bgColor?: string } => ({
   art: [...def.rows],
   type: 'structure',
   blocking: true,
   color: def.color,
+  bgColor: def.roofColor, // carried to the asset → distinct roof color in the renderer
 })
