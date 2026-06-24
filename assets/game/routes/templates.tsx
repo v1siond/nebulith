@@ -7064,6 +7064,18 @@ function render(
 }
 
 // Draw player as ASCII art in isometric view (matching 2D style)
+/** A flat ground shadow centered at (cx, footY), sized a bit WIDER than the figure's
+ *  half-width so it always reads beneath the figure instead of hiding behind it.
+ *  Figure-relative = deterministic, no per-figure pixel guessing. */
+function drawGroundShadow(ctx: CanvasRenderingContext2D, cx: number, footY: number, halfWidth: number): void {
+  ctx.save()
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.32)'
+  ctx.beginPath()
+  ctx.ellipse(cx, footY, halfWidth * 1.15, Math.max(2, halfWidth * 0.34), 0, 0, Math.PI * 2)
+  ctx.fill()
+  ctx.restore()
+}
+
 function drawIsoPlayer(
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -7088,14 +7100,9 @@ function drawIsoPlayer(
   // visibly changes the moment you equip armor in the inventory panel.
   const bodyColor = player.armored ? '#bcd4ff' : '#ffdd00'
 
-  // Ground shadow at the player's feet (fixed — does NOT bob with `breathe`, so the
-  // figure looks planted while it breathes). Feet sit at ~y - 0.55·tileH.
-  ctx.save()
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.28)'
-  ctx.beginPath()
-  ctx.ellipse(x, y - tileH * 0.55, tileW * 0.5, tileH * 0.3, 0, 0, Math.PI * 2)
-  ctx.fill()
-  ctx.restore()
+  // Ground shadow sized to the player figure (always reads; fixed — doesn't bob).
+  const pHalf = (playerArt.reduce((m, r) => Math.max(m, r.length), 0) * fontSize * 0.6) / 2
+  drawGroundShadow(ctx, x, y - tileH * 0.5, pHalf)
 
   // Draw each line from bottom to top
   for (let i = 0; i < playerArt.length; i++) {
@@ -7248,13 +7255,8 @@ function drawIsoEntity(
   const charW = fontSize * 0.6
   const maxW = art.reduce((m, r) => Math.max(m, r.length), 0)
   const leftX = x - (maxW * charW) / 2
-  // Ground shadow at the entity's feet (feet sit at ~y - 0.55·tileH).
-  ctx.save()
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.28)'
-  ctx.beginPath()
-  ctx.ellipse(x, y - tileH * 0.55, tileH * 1.05, tileH * 0.3, 0, 0, Math.PI * 2)
-  ctx.fill()
-  ctx.restore()
+  // Ground shadow sized to the figure so it always reads (not hidden behind it).
+  drawGroundShadow(ctx, x, baseY + tileH * 0.1, (maxW * charW) / 2)
   ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
   ctx.textAlign = 'left'
   ctx.textBaseline = 'middle'
@@ -7296,6 +7298,8 @@ function drawTopEntity(
   const textLeft = cx - (maxW * charW) / 2
   const startY = topY + spanH / 2 - ((art.length - 1) / 2) * fontSize
 
+  // Ground shadow at the figure's feet (bottom row) — sized to the figure.
+  drawGroundShadow(ctx, cx, startY + (art.length - 1) * fontSize + fontSize * 0.35, (maxW * charW) / 2)
   // NO background panel — the figure draws directly on the map (a colored box behind
   // every monster/NPC made stages unreadable). A 1px shadow keeps it legible.
   ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
