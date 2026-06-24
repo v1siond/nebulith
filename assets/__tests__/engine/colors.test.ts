@@ -1,4 +1,4 @@
-import { parseColor, darkenColor, lightenColor, withAlpha } from '@/engine/colors'
+import { parseColor, darkenColor, lightenColor, withAlpha, varyIntensity } from '@/engine/colors'
 
 describe('colors — parseColor', () => {
   it('parses 6-digit hex', () => {
@@ -45,5 +45,26 @@ describe('colors — darken / lighten / alpha', () => {
   it('clamps darken/lighten to the 0–255 byte range', () => {
     expect(darkenColor('#ffffff', 0)).toBe('rgb(0, 0, 0)')
     expect(lightenColor('#808080', 2)).toBe('rgb(255, 255, 255)')
+  })
+})
+
+describe('colors — varyIntensity (leaf/flower tone variety)', () => {
+  const base = '#646464' // rgb(100, 100, 100)
+
+  it('leaves the color unchanged at the midpoint t=0.5', () => {
+    expect(varyIntensity(base, 0.5)).toBe(base)
+  })
+
+  it('darkens below 0.5 and lightens above 0.5', () => {
+    expect(parseColor(varyIntensity(base, 0))!.r).toBeLessThan(100) // toward black
+    expect(parseColor(varyIntensity(base, 1))!.r).toBeGreaterThan(100) // toward white
+  })
+
+  it('is deterministic (same color + t → same shade)', () => {
+    expect(varyIntensity(base, 0.2)).toBe(varyIntensity(base, 0.2))
+  })
+
+  it('is fail-safe: an unparseable color comes back unchanged', () => {
+    expect(varyIntensity('not-a-color', 0)).toBe('not-a-color')
   })
 })

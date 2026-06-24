@@ -12,6 +12,7 @@ import { composeBuilding, ComposedBuilding, BuildingType, facadeLabel } from './
 import { ZONE_PALETTES, ZoneId } from './zones'
 import { autotileLabel, isWalkable, TREE_MASS_FAMILY, type CellLabel } from './cellLabels'
 import { cellTile, TREE_CANOPY_SHADES, groundDecor } from './cellTileset'
+import { varyIntensity } from './colors'
 import type { Connector } from '@/lib/api'
 
 export type VariantId = 'village' | 'forest' | 'cave' | 'temple' | 'boss-stage'
@@ -102,10 +103,25 @@ const makeLabeledCell = (
   return { col, row, type, char: tile.char, blocking: !isWalkable(label), color: tile.color, label }
 }
 
-/** One labeled tree cell — label drives glyph + collision; `variant` picks the
- *  canopy tonal shade so a forest reads with contrast, not one flat tone. */
-const makeTreeCell = (zone: ZoneId, col: number, row: number, label: CellLabel, variant = 0): StageProp =>
-  makeLabeledCell(zone, col, row, label, 'tree', variant)
+// A deterministic [0,1) value from a seed — drives leaf/flower intensity variety WITHOUT
+// consuming the layout RNG, so generation stays reproducible. Coherent per seed.
+const shadeNoise = (seed: number): number => {
+  const h = Math.abs(Math.sin(seed * 12.9898) * 43758.5453)
+  return h - Math.floor(h)
+}
+
+// Tree parts that keep their bark/dead tone — only the CANOPY gets leaf-tone variety.
+const TRUNK_LABELS = new Set<string>(['tree_stem', 'tree_stem_bottom', 'tree_snag'])
+
+/** One labeled tree cell — label drives glyph + collision; `variant` picks the canopy
+ *  tonal shade. Canopy leaves additionally get a per-TREE (per-column) intensity shift so a
+ *  forest reads in many tones of one base color; seeding by `col` keeps every cell of a
+ *  vertical glade tree one tone (so some trees read darker, some lighter — never noisy). */
+const makeTreeCell = (zone: ZoneId, col: number, row: number, label: CellLabel, variant = 0): StageProp => {
+  const cell = makeLabeledCell(zone, col, row, label, 'tree', variant)
+  if (TRUNK_LABELS.has(label)) return cell
+  return { ...cell, color: varyIntensity(cell.color, shadeNoise(col + 0.5)) }
+}
 
 /** One labeled building cell — mirrors makeTreeCell; the LABEL drives walkability. */
 const makeBuildingCell = (zone: ZoneId, col: number, row: number, label: CellLabel): StageProp =>
@@ -147,7 +163,8 @@ const FLOWERS_BY_ZONE: Partial<Record<ZoneId, ReadonlyArray<FlowerKind>>> = {
 const makeFlower = (zone: ZoneId, col: number, row: number): StageProp => {
   const set = FLOWERS_BY_ZONE[zone] ?? SUMMER_FLOWERS
   const pick = set[randInt(0, set.length - 1)]
-  return { col, row, type: 'flower', char: pick.char, blocking: false, color: pick.color }
+  // Each flower gets its own intensity tone (per-cell) for a naturally varied meadow.
+  return { col, row, type: 'flower', char: pick.char, blocking: false, color: varyIntensity(pick.color, shadeNoise(col * 2.7 + row * 3.1)) }
 }
 
 // Tonal rock shades (+ a little char texture) so cave/arena walls aren't one flat

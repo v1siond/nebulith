@@ -55,3 +55,15 @@ export function withAlpha(color: string, alpha: number): string {
   if (!c) return color
   return `rgba(${c.r}, ${c.g}, ${c.b}, ${alpha})`
 }
+
+/**
+ * Shift a color's INTENSITY for organic variety: `t`∈[0,1) darkens (t<0.5) or lightens
+ * (t≥0.5) by up to `range`; t=0.5 leaves it unchanged. Pure + FAIL-SAFE — the stage
+ * generator feeds deterministic per-cell noise so a forest's leaves read in many tones of
+ * one base color (a few darker, a few lighter) instead of one flat tone.
+ */
+export function varyIntensity(color: string, t: number, range = 0.32): string {
+  const amount = Math.abs(t - 0.5) * 2 * range // 0 at the middle, up to `range` at the ends
+  if (amount < 0.002) return color
+  return t < 0.5 ? darkenColor(color, 1 - amount) : lightenColor(color, amount)
+}

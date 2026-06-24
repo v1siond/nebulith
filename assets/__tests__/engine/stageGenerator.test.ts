@@ -229,10 +229,15 @@ describe('generateStage — zone-tinted trees (tonal variation + bare trees)', (
     }
   })
 
-  it('draws every canopy shade from the zone palette', () => {
-    expect([...verdant.canopy].every(c => TREE_CANOPY_SHADES.summer.includes(c))).toBe(true)
-    expect([...frozen.canopy].every(c => TREE_CANOPY_SHADES.winter.includes(c))).toBe(true)
-    expect([...lava.canopy].every(c => TREE_CANOPY_SHADES.autumn.includes(c))).toBe(true)
+  it('intensity-varies canopy tones beyond the flat zone palette (richer leaf variety)', () => {
+    // varyIntensity shifts each tree's leaf tone (darker/lighter), so canopy colors are
+    // DERIVED from the zone palette but no longer limited to its exact entries — a forest of
+    // many leaf tones, not one flat shade per zone. Hue is preserved (still zone-appropriate).
+    const zones = [['summer', verdant], ['winter', frozen], ['autumn', lava]] as const
+    for (const [zone, { canopy }] of zones) {
+      const shifted = [...canopy].some(c => !TREE_CANOPY_SHADES[zone].includes(c))
+      expect(shifted).toBe(true)
+    }
   })
 
   it('keeps EVERY zone canopy palette disjoint (no shared tone across all 7 zones)', () => {
