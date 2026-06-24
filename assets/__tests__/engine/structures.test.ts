@@ -1,4 +1,4 @@
-import { STRUCTURES, structureById, structureGroundRow } from '@/engine/structures'
+import { STRUCTURES, structureById, structureGroundRow, groundUpRows } from '@/engine/structures'
 
 describe('structures — single-anchor layered house sprites', () => {
   it('exposes the expected set of structures', () => {
@@ -24,5 +24,11 @@ describe('structures — single-anchor layered house sprites', () => {
   it('structureGroundRow returns the bottom row (door/base)', () => {
     expect(structureGroundRow(structureById('cabin')!)).toBe('|___|')
     expect(structureGroundRow(structureById('tower')!)).toBe('|+|')
+  })
+
+  it('groundUpRows reverses rows so the ground row stacks first (renderer order)', () => {
+    expect(groundUpRows(['roof', 'wall', 'base'])).toEqual(['base', 'wall', 'roof'])
+    // the cabin renders base→roof bottom-up
+    expect(groundUpRows(structureById('cabin')!.rows)).toEqual(['|___|', '|[+]|', '/===\\'])
   })
 })

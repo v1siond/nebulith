@@ -29,3 +29,6 @@ export const structureById = (id: string): StructureDef | undefined =>
 /** The ground (bottom) row of a structure — where the door sits + collision anchors. Pure. */
 export const structureGroundRow = (def: StructureDef): string =>
   def.rows[def.rows.length - 1] ?? ''
+
+/** Rows ordered GROUND→ROOF (bottom first) — the order the layered renderer stacks them. Pure. */
+export const groundUpRows = (rows: readonly string[]): string[] => [...rows].reverse()

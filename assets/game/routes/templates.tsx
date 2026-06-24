@@ -44,6 +44,7 @@ import {
 import { isGroundContact } from '@/engine/cellLabels'
 import { frameAt } from '@/engine/animationCycles'
 import { assetAnimFrame } from '@/engine/assetAnimations'
+import { groundUpRows } from '@/engine/structures'
 import { shouldFire, lampPulse } from '@/engine/behaviors'
 import { weaponAnimKind, animFrame, isAnimDone, ATTACK_ANIM_MS, type AttackAnim, type AttackAnimKind } from '@/engine/attackAnimations'
 import { entityArtFrame, weaponGlyph } from '@/engine/entityArt'
@@ -7003,7 +7004,7 @@ function render(
     } else if (obj.asset) {
       const op = obj.asset.opacity ?? 1 // per-asset opacity for contrast/depth
       if (op < 1) ctx.globalAlpha = op
-      drawIsoAssetAscii(ctx, p.x, p.y - heightOffset, obj.asset, tileW, tileH, time, obj.asset.type === 'tree' && isGroundContact(isTreeCell, obj.asset.col, obj.asset.row))
+      drawIsoAssetAscii(ctx, p.x, p.y - heightOffset, obj.asset, tileW, tileH, time, obj.asset.type === 'structure' || (obj.asset.type === 'tree' && isGroundContact(isTreeCell, obj.asset.col, obj.asset.row)))
       if (op < 1) ctx.globalAlpha = 1
     }
   }
@@ -7414,6 +7415,31 @@ function drawIsoAssetAscii(
       // Text
       ctx.fillStyle = layer.color
       ctx.fillText(layer.text, x, layerY)
+    }
+
+  } else if (asset.type === 'structure') {
+    // Layered house sprite — stack the art rows GROUND→roof, shade the roof (top) darker,
+    // exactly like the tree's canopy. One blocking cell, a tall multi-row sprite.
+    const rows = groundUpRows(asset.art)
+    const wall = asset.color || '#b07a4a'
+    const roof = darkenColor(wall, 0.55)
+    if (groundContact) {
+      ctx.save()
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.3)'
+      ctx.beginPath()
+      ctx.ellipse(x, y, tileW * 0.55, tileH * 0.5, 0, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.restore()
+    }
+    for (let i = 0; i < rows.length; i++) {
+      const isRoof = i === rows.length - 1
+      const layerY = y - i * lineHeight - lineHeight * 0.5
+      ctx.font = `bold ${fontSize * 0.8}px ${ASCII_FONT}`
+      const textWidth = ctx.measureText(rows[i]).width
+      ctx.fillStyle = darkenColor(isRoof ? roof : wall, 0.6)
+      ctx.fillRect(x - textWidth / 2 - 2, layerY - lineHeight / 2, textWidth + 4, lineHeight)
+      ctx.fillStyle = isRoof ? roof : wall
+      ctx.fillText(rows[i], x, layerY)
     }
 
   } else if (asset.type === 'building') {
