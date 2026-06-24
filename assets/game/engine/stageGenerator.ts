@@ -122,14 +122,16 @@ const TRUNK_LABELS = new Set<string>(['tree_stem', 'tree_stem_bottom', 'tree_sna
  *  tonal shade. Canopy leaves additionally get a per-TREE (per-column) intensity shift so a
  *  forest reads in many tones of one base color; seeding by `col` keeps every cell of a
  *  vertical glade tree one tone (so some trees read darker, some lighter — never noisy). */
-// The bottom row of any tree (glade trunk base + autotiled mass bottom) — these cells
-// always cast a ground shadow, so a tree stacked on another tree never floats.
-const TREE_BASE_LABELS = new Set<string>(['tree_stem_bottom', 'tree_bottom', 'tree_bottom_left', 'tree_bottom_right'])
+// Glade-tree column cells STACKED above the trunk base (crown / leaves / upper trunk): a
+// shadow under these would float at canopy height, so they cast none. EVERY other tree cell
+// — autotiled mass/thicket cells (each renders its own grounded tree), the trunk base, a
+// snag — sits on its own ground and casts a shadow, so no tree floats even when stacked.
+const NO_SHADOW_LABELS = new Set<string>(['tree_crown', 'tree_leaf', 'tree_leaf_top', 'tree_stem'])
 
 const makeTreeCell = (zone: ZoneId, col: number, row: number, label: CellLabel, variant = 0): StageProp => {
   const cell = makeLabeledCell(zone, col, row, label, 'tree', variant)
   const opacity = varyOpacity(shadeNoise(col + 9.1)) // whole tree fades together (per column) for depth
-  const baseShadow = TREE_BASE_LABELS.has(label) || undefined
+  const baseShadow = !NO_SHADOW_LABELS.has(label) || undefined
   if (TRUNK_LABELS.has(label)) return { ...cell, opacity, baseShadow }
   return { ...cell, color: varyIntensity(cell.color, shadeNoise(col + 0.5)), opacity, baseShadow }
 }
