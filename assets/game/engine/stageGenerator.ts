@@ -12,7 +12,7 @@ import { composeBuilding, ComposedBuilding, BuildingType, facadeLabel } from './
 import { ZONE_PALETTES, ZoneId } from './zones'
 import { autotileLabel, isWalkable, TREE_MASS_FAMILY, type CellLabel } from './cellLabels'
 import { cellTile, TREE_CANOPY_SHADES, groundDecor } from './cellTileset'
-import { varyIntensity, varyOpacity } from './colors'
+import { varyIntensity } from './colors'
 import type { Connector } from '@/lib/api'
 
 export type VariantId = 'village' | 'forest' | 'cave' | 'temple' | 'boss-stage'
@@ -28,8 +28,6 @@ export interface StageProp {
   char: string
   blocking: boolean
   color: string
-  /** 0–1 render opacity for decorative depth variety (default = opaque). */
-  opacity?: number
   /** generator-marked tree-base cell → always casts a ground shadow (even when another
    *  tree sits directly below it). */
   baseShadow?: boolean
@@ -130,10 +128,11 @@ const NO_SHADOW_LABELS = new Set<string>(['tree_crown', 'tree_leaf', 'tree_leaf_
 
 const makeTreeCell = (zone: ZoneId, col: number, row: number, label: CellLabel, variant = 0): StageProp => {
   const cell = makeLabeledCell(zone, col, row, label, 'tree', variant)
-  const opacity = varyOpacity(shadeNoise(col + 9.1)) // whole tree fades together (per column) for depth
   const baseShadow = !NO_SHADOW_LABELS.has(label) || undefined
-  if (TRUNK_LABELS.has(label)) return { ...cell, opacity, baseShadow }
-  return { ...cell, color: varyIntensity(cell.color, shadeNoise(col + 0.5)), opacity, baseShadow }
+  if (TRUNK_LABELS.has(label)) return { ...cell, baseShadow }
+  // Per-tree (per-column) leaf-tone shift only — NO opacity (translucent trees let entities
+  // show through + blur the scene); the canopy reads in many tones of one solid color.
+  return { ...cell, color: varyIntensity(cell.color, shadeNoise(col + 0.5)), baseShadow }
 }
 
 /** One labeled building cell — mirrors makeTreeCell; the LABEL drives walkability. */
@@ -176,9 +175,8 @@ const FLOWERS_BY_ZONE: Partial<Record<ZoneId, ReadonlyArray<FlowerKind>>> = {
 const makeFlower = (zone: ZoneId, col: number, row: number): StageProp => {
   const set = FLOWERS_BY_ZONE[zone] ?? SUMMER_FLOWERS
   const pick = set[randInt(0, set.length - 1)]
-  // Each flower gets its own intensity tone + a touch of opacity (per-cell) — a varied meadow.
-  const seed = col * 2.7 + row * 3.1
-  return { col, row, type: 'flower', char: pick.char, blocking: false, color: varyIntensity(pick.color, shadeNoise(seed)), opacity: varyOpacity(shadeNoise(seed + 5.5)) }
+  // Each flower gets its own intensity tone (per-cell) for a naturally varied meadow — tone only, no opacity.
+  return { col, row, type: 'flower', char: pick.char, blocking: false, color: varyIntensity(pick.color, shadeNoise(col * 2.7 + row * 3.1)) }
 }
 
 // Tonal rock shades (+ a little char texture) so cave/arena walls aren't one flat
@@ -1435,7 +1433,7 @@ function firstWalkable(collision: boolean[][], cols: number, rows: number): Cell
 // ── visual mapping (shared by the template mapper + the live-grid applier) ──
 export interface StagePaint {
   ground: { col: number; row: number; type: string }[]
-  assets: { col: number; row: number; char: string; type: string; color: string; blocking: boolean; label?: string; opacity?: number; baseShadow?: boolean }[]
+  assets: { col: number; row: number; char: string; type: string; color: string; blocking: boolean; label?: string; baseShadow?: boolean }[]
 }
 
 export function stagePaint(stage: StageData): StagePaint {
@@ -1443,7 +1441,7 @@ export function stagePaint(stage: StageData): StagePaint {
   const assets: StagePaint['assets'] = []
   stage.buildings.forEach(b => paintBuildingGround(b, ground))
   stage.props.forEach(p =>
-    assets.push({ col: p.col, row: p.row, char: p.char, type: p.type, color: p.color, blocking: p.blocking, label: p.label, opacity: p.opacity, baseShadow: p.baseShadow }),
+    assets.push({ col: p.col, row: p.row, char: p.char, type: p.type, color: p.color, blocking: p.blocking, label: p.label, baseShadow: p.baseShadow }),
   )
   return { ground, assets }
 }

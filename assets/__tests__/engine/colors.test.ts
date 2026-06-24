@@ -1,4 +1,4 @@
-import { parseColor, darkenColor, lightenColor, withAlpha, varyIntensity, varyOpacity } from '@/engine/colors'
+import { parseColor, darkenColor, lightenColor, withAlpha, varyIntensity } from '@/engine/colors'
 
 describe('colors — parseColor', () => {
   it('parses 6-digit hex', () => {
@@ -69,16 +69,3 @@ describe('colors — varyIntensity (leaf/flower tone variety)', () => {
   })
 })
 
-describe('colors — varyOpacity (decorative depth variety)', () => {
-  it('maps t∈[0,1] into [min, 1]', () => {
-    expect(varyOpacity(0)).toBe(0.85)
-    expect(varyOpacity(1)).toBe(1)
-    expect(varyOpacity(0.5)).toBe(0.93) // 0.85 + 0.075, rounded
-  })
-
-  it('clamps out-of-range t and respects a custom min', () => {
-    expect(varyOpacity(-1)).toBe(0.85)
-    expect(varyOpacity(2)).toBe(1)
-    expect(varyOpacity(0, 0.5)).toBe(0.5)
-  })
-})
