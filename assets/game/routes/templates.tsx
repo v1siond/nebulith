@@ -43,7 +43,7 @@ import {
 } from '@/engine/movement'
 import { isGroundContact } from '@/engine/cellLabels'
 import { shouldFire, lampPulse } from '@/engine/behaviors'
-import { weaponAnimKind, animFrame, isAnimDone, ATTACK_ANIM_MS, type AttackAnim } from '@/engine/attackAnimations'
+import { weaponAnimKind, animFrame, isAnimDone, ATTACK_ANIM_MS, type AttackAnim, type AttackAnimKind } from '@/engine/attackAnimations'
 import { entityArtFrame, weaponGlyph } from '@/engine/entityArt'
 import { appendWaypoint, setMovementMode, clearWaypoints, buildStepList, addMovementStep, removeMovementStep, updateMovementStep, setStepDelay, makeAttackPattern, defaultAttackPattern } from '@/game/patterns'
 import type { Direction } from '@/game/types'
@@ -565,6 +565,18 @@ function prunePlayerStartedMarkers(markers: HitMarker[], now: number): void {
   markers.length = write
 }
 
+/** Spawn an attack animation — the SAME call for EVERY attacker (player, enemy, turret).
+ *  This is the single bridge from the attack system to the animation system; firing any
+ *  attack plays its animation through here. */
+function spawnAttackAnim(
+  anims: AttackAnim[] | undefined,
+  fromX: number, fromZ: number, toX: number, toZ: number,
+  kind: AttackAnimKind, now: number,
+): void {
+  if (!anims) return
+  anims.push({ kind, fromX, fromZ, toX, toZ, start: now, durationMs: ATTACK_ANIM_MS[kind] })
+}
+
 /**
  * Resolve the player's chosen attack against the current target, if any. On a
  * lethal hit, records the death timestamp (drives respawn) AND pushes the dead
@@ -605,18 +617,8 @@ function applyPlayerAttack(input: CombatStepInput, kills: string[]): CombatState
     }
   }
 
-  // ALWAYS show the swing/shot — even a whiff — so basic melee + ranged attacks read.
-  if (input.anims) {
-    input.anims.push({
-      kind: animKind,
-      fromX: player.x,
-      fromZ: player.z,
-      toX: aimCol * cellSize + cellSize / 2,
-      toZ: aimRow * cellSize + cellSize / 2,
-      start: now,
-      durationMs: ATTACK_ANIM_MS[animKind],
-    })
-  }
+  // ALWAYS show the swing/shot — even a whiff. Shared spawn → same for every attacker.
+  spawnAttackAnim(input.anims, player.x, player.z, aimCol * cellSize + cellSize / 2, aimRow * cellSize + cellSize / 2, animKind, now)
   return nextState
 }
 
@@ -650,6 +652,8 @@ function applyEnemyRetaliation(input: CombatStepInput & { playerCombat: CombatSt
       defenderHp: playerCombat.hp,
     })
     runtime.lastAttackAt.set(entity.id, now)
+    // The enemy's swing/bolt animates too — attacks trigger animations for EVERY attacker.
+    spawnAttackAnim(input.anims, entity.col * cellSize + cellSize / 2, entity.row * cellSize + cellSize / 2, player.x, player.z, ranged ? 'shot' : 'slash', now)
     playerCombat = { ...playerCombat, hp: result.defenderHpAfter }
     const pCol = Math.floor(player.x / cellSize)
     const pRow = Math.floor(player.z / cellSize)
