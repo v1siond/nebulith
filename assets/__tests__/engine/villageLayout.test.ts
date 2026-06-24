@@ -1,4 +1,4 @@
-import { planVillage, buildingMix, type Rng, type Entrance } from '@/engine/villageLayout'
+import { planVillage, planRoads, placePlots, buildingMix, type Rng, type Entrance } from '@/engine/villageLayout'
 
 // A tiny deterministic LCG so layouts are reproducible in tests.
 function seededRng(seed: number): Rng {
@@ -80,5 +80,49 @@ describe('villageLayout — planVillage', () => {
     const village = planVillage(60, 40, seededRng(21), 'village')
     const city = planVillage(60, 40, seededRng(21), 'city')
     expect(city.plots.length).toBeGreaterThanOrEqual(village.plots.length)
+  })
+})
+
+describe('villageLayout — planRoads (street skeleton step)', () => {
+  it('produces TWO building frontages + left/right entrances on the streets', () => {
+    const plan = planRoads(40, 30, seededRng(2), 'village')
+    expect(plan.frontages).toHaveLength(2)
+    expect(plan.entrances.some(e => e.side === 'left')).toBe(true)
+    expect(plan.entrances.some(e => e.side === 'right')).toBe(true)
+  })
+
+  it('keeps each frontage row mostly open (a connector may cross only 1-2 cells)', () => {
+    const plan = planRoads(40, 30, seededRng(4), 'village')
+    for (const f of plan.frontages) {
+      expect(plan.roads[f].filter(r => !r).length).toBeGreaterThan(30)
+    }
+  })
+})
+
+describe('villageLayout — placePlots (distribution step)', () => {
+  it('places the WHOLE mix when both frontages have room — nothing dropped', () => {
+    const plan = planRoads(64, 44, seededRng(8), 'village')
+    const mix = buildingMix('village', seededRng(8))
+    const plots = placePlots(plan.roads, plan.frontages, 64, mix, seededRng(9))
+    expect(plots).toHaveLength(mix.length)
+  })
+
+  it('never lands a plot on a road cell', () => {
+    const plan = planRoads(50, 36, seededRng(12), 'town')
+    const plots = placePlots(plan.roads, plan.frontages, 50, buildingMix('town', seededRng(12)), seededRng(13))
+    for (const p of plots) {
+      for (let c = p.col; c < p.col + p.length; c++) expect(plan.roads[p.row][c]).toBe(false)
+    }
+  })
+})
+
+describe('villageLayout — planVillage GUARANTEES the essentials', () => {
+  it('every village gets at least one store + one hospital + a house, across seeds', () => {
+    for (const seed of [1, 2, 3, 4, 5, 6]) {
+      const layout = planVillage(48, 34, seededRng(seed), 'village')
+      expect(layout.plots.some(p => p.type === 'store')).toBe(true)
+      expect(layout.plots.some(p => p.type === 'hospital')).toBe(true)
+      expect(layout.plots.filter(p => p.type === 'house').length).toBeGreaterThanOrEqual(1)
+    }
   })
 })
