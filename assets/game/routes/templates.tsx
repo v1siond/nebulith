@@ -1842,18 +1842,17 @@ const COMPOSITE_SWATCHES: readonly CompositeSwatch[] = [
 ]
 
 // Stage generator menu (zone × variant)
-const STAGE_ZONES = ['spring', 'summer', 'autumn', 'winter', 'desert', 'beach', 'lava'] as const
-// Active-zone button tint (seasonal accent / biome color).
+// Forest-only engine: 5 seasons, beach + lava removed.
+const STAGE_ZONES = ['spring', 'summer', 'autumn', 'winter', 'desert'] as const
+// Active-zone button tint (seasonal accent).
 const SEASON_BTN: Record<(typeof STAGE_ZONES)[number], string> = {
   spring: 'bg-pink-600 ring-1 ring-pink-300',
   summer: 'bg-green-700 ring-1 ring-green-300',
   autumn: 'bg-orange-700 ring-1 ring-orange-300',
   winter: 'bg-sky-700 ring-1 ring-sky-300',
   desert: 'bg-yellow-700 ring-1 ring-yellow-300',
-  beach: 'bg-teal-600 ring-1 ring-teal-300',
-  lava: 'bg-red-700 ring-1 ring-red-300',
 }
-const STAGE_VARIANTS = ['village', 'forest', 'cave', 'temple', 'boss-stage'] as const
+const STAGE_VARIANTS = ['forest'] as const // forest-only engine
 
 // Player state
 interface PlayerState {
@@ -6380,67 +6379,7 @@ export default function TemplateEditor() {
                 ))}
               </PaletteGroup>
 
-              {/* Building */}
-              <PaletteGroup label="Building" color="text-orange-400">
-                {BUILDING_TILE_KEYS.map(key => (
-                  <AssetTileSwatch key={key} tileKey={key} selectedTile={selectedTile} onPlace={placeTile} />
-                ))}
-              </PaletteGroup>
-
-              {/* Decorations */}
-              <PaletteGroup label="Decorations" color="text-pink-400">
-                {DECORATION_TILE_KEYS.map(key => (
-                  <AssetTileSwatch key={key} tileKey={key} selectedTile={selectedTile} onPlace={placeTile} />
-                ))}
-              </PaletteGroup>
-
-              {/* Composite assets */}
-              <div className="border-t border-white/10 pt-3">
-                <p className="mb-2 text-xs font-bold text-cyan-400">Composite</p>
-                <div className="flex flex-wrap gap-1">
-                  {COMPOSITE_SWATCHES.map(item => (
-                    <button
-                      key={item.key}
-                      onClick={() => placeCompositeAsset(item.key)}
-                      className={`flex h-14 w-14 min-w-14 flex-shrink-0 flex-col items-center justify-center rounded transition-all hover:opacity-80 ${item.bg} ${
-                        selectedComposite === item.key ? 'ring-2 ring-cyan-400' : ''
-                      }`}
-                      title={item.name}
-                    >
-                      <span className={`text-xl font-bold leading-none ${item.fg}`}>{item.icon}</span>
-                      <span className="mt-1 text-[9px] leading-none text-gray-300">{item.name}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Multi-cell structures — one asset spans many cells (real tileset) */}
-              <div className="border-t border-white/10 pt-3">
-                <p className="mb-1 text-xs font-bold text-amber-400">Structures</p>
-                <p className="mb-2 text-[9px] leading-tight text-gray-500">
-                  One asset = many cells. Click to arm, then click a cell in Top view
-                  (top-left anchor). Doors stay walkable.
-                </p>
-                <div className="flex flex-wrap gap-1">
-                  {MULTI_CELL_ASSETS.map(asset => {
-                    const fp = assetFootprint(asset)
-                    return (
-                      <button
-                        key={asset.id}
-                        onClick={() => placeMultiAsset(asset.id)}
-                        className={`flex h-14 w-16 min-w-16 flex-shrink-0 flex-col items-center justify-center rounded bg-amber-950/40 transition-all hover:opacity-80 ${
-                          selectedMultiAsset === asset.id ? 'ring-2 ring-amber-400' : ''
-                        }`}
-                        title={`${asset.name} — ${fp.w}×${fp.h} cells`}
-                      >
-                        <span className="text-base font-bold leading-none text-amber-300">{asset.rows[0]?.trim() || '#'}</span>
-                        <span className="mt-1 text-[9px] leading-none text-gray-300">{asset.name}</span>
-                        <span className="mt-0.5 text-[8px] leading-none text-gray-500">{fp.w}×{fp.h}</span>
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
+              {/* Forest-only engine: building / decoration / composite / structure palettes removed. */}
             </Card>
 
           </aside>
