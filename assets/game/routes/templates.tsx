@@ -7248,31 +7248,25 @@ function drawIsoPlayer(
   const breathe = Math.sin(time * 0.004) * 2
 
   ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
-  ctx.textAlign = 'center'
+  ctx.textAlign = 'left'
   ctx.textBaseline = 'middle'
 
-  // Armor tint: steel-blue when wearing gear, warm yellow otherwise — the figure
-  // visibly changes the moment you equip armor in the inventory panel.
+  // Armor tint: steel-blue when wearing gear, warm yellow otherwise — the figure visibly
+  // changes the moment you equip armor. Paired with a dark block bg (the trees' language).
   const bodyColor = player.armored ? '#bcd4ff' : '#ffdd00'
+  const bodyBg = player.armored ? '#243a5e' : '#5a4412'
 
+  const charW = fontSize * 0.6
+  const maxW = playerArt.reduce((m, r) => Math.max(m, r.length), 0)
+  const pHalf = (maxW * charW) / 2
   // Ground shadow sized to the player figure (always reads; fixed — doesn't bob).
-  const pHalf = (playerArt.reduce((m, r) => Math.max(m, r.length), 0) * fontSize * 0.6) / 2
   drawGroundShadow(ctx, x, y - tileH * 0.5, pHalf)
 
-  // Draw each line from bottom to top
-  for (let i = 0; i < playerArt.length; i++) {
-    const line = playerArt[playerArt.length - 1 - i]
-    const lineY = y - i * lineHeight - lineHeight * 0.5 - breathe
-
-    // Shadow/outline for visibility
-    ctx.fillStyle = '#000000'
-    ctx.fillText(line, x + 1, lineY + 1)
-
-    ctx.fillStyle = bodyColor
-    ctx.fillText(line, x, lineY)
-  }
+  // Robust block figure — same recipe as entities + trees; `breathe` bobs the whole figure.
+  drawBlockFigure(ctx, playerArt, x - pHalf, y - lineHeight * 0.5 - breathe, lineHeight, charW, bodyColor, bodyBg)
 
   // The held weapon, drawn beside the figure at mid-height so equipped gear shows.
+  ctx.textAlign = 'center'
   if (player.weaponGlyph) {
     const handX = x + fontSize * 0.55
     const handY = y - lineHeight - breathe
