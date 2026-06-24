@@ -37,6 +37,12 @@ export function validateCycle(
   return { ok: true }
 }
 
+/** Build a trigger from the panel's choice — a 'state' trigger defaults to 'combat' if blank. Pure. */
+export function makeTrigger(kind: 'always' | 'state', state?: string): AnimTrigger {
+  if (kind === 'always') return { kind: 'always' }
+  return { kind: 'state', state: (state ?? '').trim() || 'combat' }
+}
+
 /** A short human summary of a cycle for the panel (e.g. "stacked · 2 anim · 0ms gap · on combat"). Pure. */
 export function describeCycle(cycle: AnimationCycle): string {
   const trig = cycle.trigger.kind === 'always' ? 'always' : `on ${cycle.trigger.state}`

@@ -42,8 +42,9 @@ import {
   type StepListState,
 } from '@/engine/movement'
 import { isGroundContact } from '@/engine/cellLabels'
-import { frameAt } from '@/engine/animationCycles'
-import { assetAnimFrame, assetCycleFrame } from '@/engine/assetAnimations'
+import { frameAt, type CycleMode } from '@/engine/animationCycles'
+import { assetAnimFrame, assetCycleFrame, animationOptions, ANIMATION_LIBRARY } from '@/engine/assetAnimations'
+import { makeCycle, makeTrigger, validateCycle, describeCycle, CYCLE_MODES } from '@/engine/animationAuthoring'
 import { groundUpRows, STRUCTURES, structureById, structurePlacement } from '@/engine/structures'
 import { shouldFire, lampPulse } from '@/engine/behaviors'
 import { weaponAnimKind, animFrame, isAnimDone, ATTACK_ANIM_MS, type AttackAnim, type AttackAnimKind } from '@/engine/attackAnimations'
@@ -2994,6 +2995,12 @@ export default function TemplateEditor() {
   // Render opacity (0.15–1) applied to tiles placed from the palette — play with contrast / depth.
   const [placeOpacity, setPlaceOpacity] = useState(1)
   const [selectedStructure, setSelectedStructure] = useState<string | null>(null)
+  // Animation Author panel — in-progress cycle the user composes, then applies to an asset.
+  const [authorAnims, setAuthorAnims] = useState<Set<string>>(new Set())
+  const [authorMode, setAuthorMode] = useState<CycleMode>('sequential')
+  const [authorDelay, setAuthorDelay] = useState(0)
+  const [authorTriggerKind, setAuthorTriggerKind] = useState<'always' | 'state'>('always')
+  const [authorTriggerState, setAuthorTriggerState] = useState('combat')
   const [selectedHeight, setSelectedHeight] = useState(0)
   const [heightEditMode, setHeightEditMode] = useState(false)
   const [hideEntities, setHideEntities] = useState(false)
@@ -4035,6 +4042,34 @@ export default function TemplateEditor() {
     })
     setSelectedCells(new Set())
     setSelectedStructure(null)
+  }
+
+  // Toggle an animation in the author panel's in-progress cycle.
+  const toggleAuthorAnim = (id: string) => {
+    setAuthorAnims(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  // Apply the composed cycle to the asset(s) in the selected cell(s) → animates via the engine.
+  const applyCycleToSelectedAsset = () => {
+    const grid = gridRef.current
+    if (!grid || selectedCells.size === 0 || authorAnims.size === 0) return
+    const cycle = makeCycle(
+      `authored-${authorTriggerKind}`,
+      Array.from(authorAnims),
+      authorMode,
+      authorDelay,
+      makeTrigger(authorTriggerKind, authorTriggerState),
+    )
+    selectedCells.forEach(key => {
+      const [col, row] = key.split(',').map(Number)
+      const asset = grid.assets.find(a => a.col === col && a.row === row)
+      if (asset) asset.cycles = [cycle]
+    })
   }
 
   // Place height on selected cells
@@ -6461,6 +6496,62 @@ export default function TemplateEditor() {
                     </button>
                   ))}
                 </div>
+              </div>
+
+              {/* Animation Author — compose a cycle + apply it to the selected cell's asset. */}
+              <div className="border-t border-white/10 pt-3">
+                <p className="mb-1 text-xs font-bold text-fuchsia-400">Animation Author</p>
+                <p className="mb-2 text-[9px] leading-tight text-gray-500">
+                  Pick animations + mode + delay + trigger, select a cell, then Apply to animate its asset.
+                </p>
+                <div className="mb-2 flex flex-wrap gap-1">
+                  {animationOptions().map(o => (
+                    <button
+                      key={o.id}
+                      onClick={() => toggleAuthorAnim(o.id)}
+                      className={`rounded px-2 py-1 text-[10px] ${authorAnims.has(o.id) ? 'bg-fuchsia-700 text-white' : 'bg-gray-800 text-gray-300'}`}
+                    >
+                      {o.name}
+                    </button>
+                  ))}
+                </div>
+                <div className="mb-2 flex items-center gap-2 text-[10px] text-gray-300">
+                  <span className="w-14 shrink-0">Mode</span>
+                  <select value={authorMode} onChange={e => setAuthorMode(e.target.value as CycleMode)} className="flex-1 rounded bg-gray-800 p-1">
+                    {CYCLE_MODES.map(m => <option key={m} value={m}>{m}</option>)}
+                  </select>
+                </div>
+                <div className="mb-2 flex items-center gap-2 text-[10px] text-gray-300">
+                  <span className="w-14 shrink-0">Delay ms</span>
+                  <input type="number" min={0} value={authorDelay} onChange={e => setAuthorDelay(Number(e.target.value))} className="flex-1 rounded bg-gray-800 p-1" />
+                </div>
+                <div className="mb-2 flex items-center gap-2 text-[10px] text-gray-300">
+                  <span className="w-14 shrink-0">Trigger</span>
+                  <select value={authorTriggerKind} onChange={e => setAuthorTriggerKind(e.target.value as 'always' | 'state')} className="rounded bg-gray-800 p-1">
+                    <option value="always">always</option>
+                    <option value="state">on state</option>
+                  </select>
+                  {authorTriggerKind === 'state' && (
+                    <input value={authorTriggerState} onChange={e => setAuthorTriggerState(e.target.value)} placeholder="combat" className="flex-1 rounded bg-gray-800 p-1" />
+                  )}
+                </div>
+                {(() => {
+                  const cycle = makeCycle('preview', Array.from(authorAnims), authorMode, authorDelay, makeTrigger(authorTriggerKind, authorTriggerState))
+                  const v = validateCycle(cycle, new Set(Object.keys(ANIMATION_LIBRARY)))
+                  return (
+                    <>
+                      <p className="mb-1 text-[9px] text-gray-400">{describeCycle(cycle)}</p>
+                      {!v.ok && <p className="mb-1 text-[9px] text-amber-400">{v.reason}</p>}
+                      <button
+                        onClick={applyCycleToSelectedAsset}
+                        disabled={!v.ok || selectedCells.size === 0}
+                        className="w-full rounded bg-fuchsia-700 py-1 text-[10px] font-bold text-white transition-all hover:opacity-80 disabled:opacity-40"
+                      >
+                        {selectedCells.size === 0 ? 'Select a cell first' : 'Apply to selected cell'}
+                      </button>
+                    </>
+                  )
+                })()}
               </div>
             </Card>
 

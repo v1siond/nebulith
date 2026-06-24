@@ -1,4 +1,4 @@
-import { makeCycle, validateCycle, describeCycle, CYCLE_MODES } from '@/engine/animationAuthoring'
+import { makeCycle, validateCycle, describeCycle, makeTrigger, CYCLE_MODES } from '@/engine/animationAuthoring'
 import type { AnimationCycle } from '@/engine/animationCycles'
 
 const known = new Set(['flower-sway', 'lamp-flicker'])
@@ -28,6 +28,12 @@ describe('animationAuthoring — pure helpers behind the author panel', () => {
 
     const good = makeCycle('g', ['flower-sway', 'lamp-flicker'], 'stacked', 200, { kind: 'state', state: 'combat' })
     expect(validateCycle(good, known)).toEqual({ ok: true })
+  })
+
+  it('makeTrigger builds always / state triggers, defaulting a blank state to combat', () => {
+    expect(makeTrigger('always')).toEqual({ kind: 'always' })
+    expect(makeTrigger('state', 'walk')).toEqual({ kind: 'state', state: 'walk' })
+    expect(makeTrigger('state', '  ')).toEqual({ kind: 'state', state: 'combat' }) // blank → default
   })
 
   it('describeCycle summarizes mode / count / delay / trigger', () => {
