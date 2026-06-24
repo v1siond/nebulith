@@ -7095,10 +7095,13 @@ function render(
 
   // ─── ASSETS + PLAYER (ASCII art stacked in isometric space) ────────
 
+  // Zoom-aware cull: use the SAME span the camera can see (matches the ground tiles above),
+  // so zooming OUT reveals more of the map's elements instead of a fixed 30×20 window — at
+  // full zoom-out the span covers the whole map, so every element shows.
   const visibleAssets = grid.getVisibleAssets(
     Math.floor(camX / cellSize),
     Math.floor(camZ / cellSize),
-    30, 20
+    halfSpan * 2, halfSpan * 2
   )
   // Ground shadow goes ONLY on a tree's bottom (ground-contact) cell — see isGroundContact.
   const treeCells = new Set(grid.assets.filter(a => a.type === 'tree').map(a => `${a.col},${a.row}`))
