@@ -21,6 +21,8 @@ export interface GridAsset {
   heightLevel?: number  // Which height level this asset sits on (for stacked tiles)
   tileKey?: string      // Reference to tile definition key
   label?: string        // Cell-part label for generated multi-cell assets (tree_leaf_top, roof_top, door, …)
+  opacity?: number      // 0–1 render opacity (default 1) — play with contrast / depth
+  brightness?: number   // render brightness multiplier (default 1) — dim or pop an element
 }
 
 export interface GridConfig {
@@ -177,6 +179,8 @@ export class IsometricGrid {
       scale: options.scale ?? 1.0,
       color: options.color ?? '#ffffff',
       bgColor: options.bgColor,
+      opacity: options.opacity,
+      brightness: options.brightness,
     })
 
     // If blocking, update collision grid

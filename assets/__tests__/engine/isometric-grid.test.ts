@@ -34,3 +34,21 @@ describe('IsometricGrid — blocks are collision, not elevation', () => {
     expect(grid.getHeight(5, 5)).toBe(3)
   })
 })
+
+describe('IsometricGrid — placeAsset carries opacity/brightness (contrast controls)', () => {
+  it('round-trips opacity + brightness onto the stored asset', () => {
+    const grid = mkGrid()
+    grid.placeAsset(['@'], 2, 3, { type: 'tree', color: '#3fa63f', opacity: 0.4, brightness: 1.3 })
+    const a = grid.assets.find(x => x.col === 2 && x.row === 3)
+    expect(a?.opacity).toBe(0.4)
+    expect(a?.brightness).toBe(1.3)
+  })
+
+  it('leaves opacity/brightness undefined when not given (default = full)', () => {
+    const grid = mkGrid()
+    grid.placeAsset(['@'], 1, 1, { type: 'tree' })
+    const a = grid.assets.find(x => x.col === 1 && x.row === 1)
+    expect(a?.opacity).toBeUndefined()
+    expect(a?.brightness).toBeUndefined()
+  })
+})

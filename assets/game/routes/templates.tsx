@@ -2975,6 +2975,8 @@ export default function TemplateEditor() {
   const [selectedTile, setSelectedTile] = useState<{ char: string; type: 'ground' | 'asset'; groundType?: string; tileKey?: string } | null>(null)
   const [selectedComposite, setSelectedComposite] = useState<string | null>(null)
   const [selectedMultiAsset, setSelectedMultiAsset] = useState<string | null>(null)
+  // Render opacity (0.15–1) applied to tiles placed from the palette — play with contrast / depth.
+  const [placeOpacity, setPlaceOpacity] = useState(1)
   const [selectedHeight, setSelectedHeight] = useState(0)
   const [heightEditMode, setHeightEditMode] = useState(false)
   const [hideEntities, setHideEntities] = useState(false)
@@ -3898,6 +3900,7 @@ export default function TemplateEditor() {
           bgColor: tileDef?.bg,
           height: getDefaultAssetHeight(tileInfo.char),
           tileKey: tileInfo.tileKey,
+          opacity: placeOpacity < 1 ? placeOpacity : undefined,
         })
       }
     })
@@ -6357,6 +6360,23 @@ export default function TemplateEditor() {
                 </div>
               </div>
 
+              {/* Tile FX — place tiles at reduced opacity to play with contrast / depth. */}
+              <div className="mb-2">
+                <label className="mb-1 flex items-center justify-between text-xs font-bold text-cyan-300">
+                  <span>Opacity</span>
+                  <span className="text-[10px] text-gray-400">{Math.round(placeOpacity * 100)}%</span>
+                </label>
+                <input
+                  type="range"
+                  min={15}
+                  max={100}
+                  value={Math.round(placeOpacity * 100)}
+                  onChange={e => setPlaceOpacity(Number(e.target.value) / 100)}
+                  aria-label="Tile placement opacity"
+                  className="w-full"
+                />
+              </div>
+
               {/* Ground */}
               <PaletteGroup label="Ground" color="text-gray-400">
                 {GROUND_SWATCHES.map(g => (
@@ -6961,7 +6981,10 @@ function render(
       if (isDeadEnemy(obj.entity, combat)) continue // hidden until it respawns
       drawIsoEntity(ctx, p.x, p.y - heightOffset, obj.entity, tileH, combat)
     } else if (obj.asset) {
+      const op = obj.asset.opacity ?? 1 // per-asset opacity for contrast/depth
+      if (op < 1) ctx.globalAlpha = op
       drawIsoAssetAscii(ctx, p.x, p.y - heightOffset, obj.asset, tileW, tileH, time, obj.asset.type === 'tree' && isGroundContact(isTreeCell, obj.asset.col, obj.asset.row))
+      if (op < 1) ctx.globalAlpha = 1
     }
   }
 
