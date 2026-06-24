@@ -51,4 +51,13 @@ describe('IsometricGrid — placeAsset carries opacity/brightness (contrast cont
     expect(a?.opacity).toBeUndefined()
     expect(a?.brightness).toBeUndefined()
   })
+
+  it('round-trips authored animation cycles onto the asset', () => {
+    const grid = mkGrid()
+    const cycles = [
+      { id: 'c1', animations: ['flower-sway'], mode: 'sequential' as const, delayMs: 0, trigger: { kind: 'always' as const } },
+    ]
+    grid.placeAsset(['*'], 4, 4, { type: 'flower', cycles })
+    expect(grid.assets.find(a => a.col === 4 && a.row === 4)?.cycles).toEqual(cycles)
+  })
 })

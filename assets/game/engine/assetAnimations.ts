@@ -20,6 +20,16 @@ export const ASSET_ANIMATIONS: Readonly<Record<string, Animation>> = {
 /** Does this asset type carry an ambient animation? */
 export const isAnimatedAssetType = (type: string): boolean => type in ASSET_ANIMATIONS
 
+/** Every animation the engine knows, keyed by Animation.id — the library the author panel
+ *  offers and the renderer resolves a cycle's animation-ids against. */
+export const ANIMATION_LIBRARY: Readonly<Record<string, Animation>> = Object.fromEntries(
+  Object.values(ASSET_ANIMATIONS).map(a => [a.id, a]),
+)
+
+/** Author-panel options: the pickable animations (id + display name). Pure. */
+export const animationOptions = (): { id: string; name: string }[] =>
+  Object.values(ANIMATION_LIBRARY).map(a => ({ id: a.id, name: a.id }))
+
 /**
  * The asset's animated art at `now`, or null when this type has no ambient animation
  * (the caller then keeps the asset's static art). Pure: same (type, now) → same frame.

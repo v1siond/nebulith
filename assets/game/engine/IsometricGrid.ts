@@ -7,6 +7,7 @@
  *   grid.placeAsset(asset, col, row)
  *   grid.render(ctx, cameraX, cameraZ)
  */
+import type { AnimationCycle } from './animationCycles'
 
 export interface GridAsset {
   art: string[]
@@ -23,6 +24,7 @@ export interface GridAsset {
   label?: string        // Cell-part label for generated multi-cell assets (tree_leaf_top, roof_top, door, …)
   opacity?: number      // 0–1 render opacity (default 1) — play with contrast / depth
   brightness?: number   // render brightness multiplier (default 1) — dim or pop an element
+  cycles?: AnimationCycle[]  // authored animation cycles (author panel) — driven by animationCycles
 }
 
 export interface GridConfig {
@@ -181,6 +183,7 @@ export class IsometricGrid {
       bgColor: options.bgColor,
       opacity: options.opacity,
       brightness: options.brightness,
+      cycles: options.cycles,
     })
 
     // If blocking, update collision grid

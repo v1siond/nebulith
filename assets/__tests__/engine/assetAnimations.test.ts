@@ -1,4 +1,4 @@
-import { ASSET_ANIMATIONS, isAnimatedAssetType, assetAnimFrame } from '@/engine/assetAnimations'
+import { ASSET_ANIMATIONS, isAnimatedAssetType, assetAnimFrame, ANIMATION_LIBRARY, animationOptions } from '@/engine/assetAnimations'
 
 describe('assetAnimations — ambient per-type asset animation', () => {
   it('knows which types animate', () => {
@@ -23,5 +23,13 @@ describe('assetAnimations — ambient per-type asset animation', () => {
   it('returns null for a type with no ambient animation (renderer keeps static art)', () => {
     expect(assetAnimFrame('building', 500)).toBeNull()
     expect(assetAnimFrame('tree', 500)).toBeNull()
+  })
+
+  it('ANIMATION_LIBRARY is keyed by Animation.id and animationOptions lists them', () => {
+    expect(ANIMATION_LIBRARY['flower-sway']).toBe(ASSET_ANIMATIONS.flower)
+    expect(ANIMATION_LIBRARY['lamp-flicker']).toBeDefined()
+    const ids = animationOptions().map(o => o.id)
+    expect(ids).toContain('flower-sway')
+    expect(ids).toContain('bush-rustle')
   })
 })
