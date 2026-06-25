@@ -7251,6 +7251,10 @@ const BUILDING_BADGES: Record<string, { text: string; color: string }> = {
   hospital: { text: '✚', color: '#ff6060' }, // red cross
 }
 
+// Apex roof glyph by type: a house PEAKS (▲ = triangle roof); every other type keeps the flat
+// (squared) apex. Replaces the default roof_top glyph for that one cell.
+const ROOF_APEX_GLYPH: Record<string, string> = { house: '▲' }
+
 function drawIsoLabeledCell(
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -7273,8 +7277,10 @@ function drawIsoLabeledCell(
   const w = fontSize * 0.6
   ctx.fillStyle = 'rgba(0, 0, 0, 0.5)'
   ctx.fillRect(x - w / 2 - 2, cy - fontSize * 0.55, w + 4, fontSize * 1.1)
+  // Roof shape by building type: houses peak (▲), squared "buildings" stay flat.
+  const glyph = asset.label === 'roof_top' ? (ROOF_APEX_GLYPH[asset.buildingType ?? ''] ?? char) : char
   ctx.fillStyle = asset.color ?? '#cccccc'
-  ctx.fillText(char, x, cy)
+  ctx.fillText(glyph, x, cy)
 
   // Type signage on the apex: a "STORE" marquee, a red hospital cross. Only the ONE
   // roof_top cell per building hits this → the measureText here is rare, not per-cell.
