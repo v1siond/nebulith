@@ -44,8 +44,8 @@ export interface ComposedBuilding {
   cells: BuildingCellKind[][]
 }
 
-// Locked minimums (GENERATION-SPEC §1)
-const MIN_LENGTH = 8
+// Minimums — buildings read better at HALF the old width, so a town isn't a wall of facades.
+const MIN_LENGTH = 4
 const MIN_BODY_ROWS = 3
 const ROOF_ROWS = 1
 const MIN_HEIGHT = MIN_BODY_ROWS + ROOF_ROWS // 4
@@ -60,13 +60,13 @@ interface TypeSpec {
 
 // Per-type sizing (GENERATION-SPEC §2 — starting values, tune visually later).
 const TYPE_SPECS: Record<BuildingType, TypeSpec> = {
-  house: { baseLength: 8, floors: 1, doorWidth: 2 },
-  'big-house': { baseLength: 12, floors: 2, doorWidth: 2 },
-  store: { baseLength: 10, floors: 1, doorWidth: 3 },
-  hospital: { baseLength: 12, floors: 2, doorWidth: 3 },
-  cathedral: { baseLength: 14, floors: 3, doorWidth: 3 },
-  temple: { baseLength: 16, floors: 2, doorWidth: 4 },
-  castle: { baseLength: 24, floors: 3, doorWidth: 4 },
+  house: { baseLength: 4, floors: 1, doorWidth: 2 },
+  'big-house': { baseLength: 6, floors: 2, doorWidth: 2 },
+  store: { baseLength: 5, floors: 1, doorWidth: 2 },
+  hospital: { baseLength: 6, floors: 2, doorWidth: 2 },
+  cathedral: { baseLength: 7, floors: 3, doorWidth: 3 },
+  temple: { baseLength: 8, floors: 2, doorWidth: 3 },
+  castle: { baseLength: 12, floors: 3, doorWidth: 4 },
 }
 
 export function composeBuilding(spec: BuildingSpec = {}): ComposedBuilding {

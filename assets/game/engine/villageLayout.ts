@@ -52,7 +52,7 @@ const BIG_RANGE: Record<Settlement, [number, number]> = { village: [0, 1], town:
 const CONNECTOR_RANGE: Record<Settlement, [number, number]> = { village: [1, 1], town: [1, 2], city: [2, 3] }
 
 // MUST match buildingComposer TYPE_SPECS.baseLength so a plot reserves exactly the facade width.
-const BUILDING_LENGTH: Partial<Record<BuildingType, number>> = { house: 8, 'big-house': 12, store: 10, hospital: 12 }
+const BUILDING_LENGTH: Partial<Record<BuildingType, number>> = { house: 4, 'big-house': 6, store: 5, hospital: 6 }
 const lengthOf = (t: BuildingType): number => BUILDING_LENGTH[t] ?? 8
 
 /**

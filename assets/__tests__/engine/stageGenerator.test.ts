@@ -20,10 +20,10 @@ describe('generateStage — lava/village vertical slice', () => {
     expect(stage.ground.flat().filter(t => t === 'path_stone').length).toBeGreaterThan(0)
   })
 
-  it('places at least one legal building (>=8 long, >=4 tall, with a door)', () => {
+  it('places at least one legal building (>=4 long, >=4 tall, with a door)', () => {
     expect(stage.buildings.length).toBeGreaterThan(0)
     for (const b of stage.buildings) {
-      expect(b.length).toBeGreaterThanOrEqual(8)
+      expect(b.length).toBeGreaterThanOrEqual(4)
       expect(b.height).toBeGreaterThanOrEqual(4)
       expect(b.doorCells.length).toBeGreaterThan(0)
     }
@@ -193,7 +193,7 @@ describe('generateStage — temple archetype', () => {
   it('places one large temple building', () => {
     expect(stage.buildings).toHaveLength(1)
     expect(stage.buildings[0].type).toBe('temple')
-    expect(stage.buildings[0].length).toBeGreaterThanOrEqual(14)
+    expect(stage.buildings[0].length).toBeGreaterThanOrEqual(8) // temple is the widest type
   })
 
   it('builds a colonnaded hall (pillars + altar) and keeps the spawn walkable', () => {

@@ -2,12 +2,12 @@ import { composeBuilding, facadeLabel, facadeLabels } from '@/engine/buildingCom
 import { isWalkable } from '@/engine/cellLabels'
 
 describe('composeBuilding — Nebulith building architecture spec', () => {
-  it('builds the smallest legal house: 8 long × 4 tall (3 body + 1 roof)', () => {
+  it('builds the smallest legal house: 4 long × 4 tall (3 body + 1 roof)', () => {
     const b = composeBuilding({ type: 'house', floors: 1 })
-    expect(b.length).toBe(8)
+    expect(b.length).toBe(4)
     expect(b.height).toBe(4)
     expect(b.cells).toHaveLength(4) // 4 rows (top→bottom)
-    expect(b.cells[0]).toHaveLength(8) // 8 cols
+    expect(b.cells[0]).toHaveLength(4) // 4 cols
   })
 
   it('adds 3 cells of height per floor, always +1 for the roof', () => {
@@ -16,8 +16,8 @@ describe('composeBuilding — Nebulith building architecture spec', () => {
   })
 
   it('enforces the minimums even when smaller values are requested', () => {
-    const b = composeBuilding({ type: 'house', floors: 0, length: 3 })
-    expect(b.length).toBeGreaterThanOrEqual(8)
+    const b = composeBuilding({ type: 'house', floors: 0, length: 2 })
+    expect(b.length).toBeGreaterThanOrEqual(4)
     expect(b.height).toBeGreaterThanOrEqual(4)
   })
 
