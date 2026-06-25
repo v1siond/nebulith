@@ -16,7 +16,7 @@ import { useRouter } from 'next/router'
 import Head from 'next/head'
 import Link from 'next/link'
 import { createVillageLevel, VILLAGE_CONFIG, GROUND_COLORS } from '@/levels/village'
-import { IsometricGrid, GridAsset, IsoBuilding } from '@/engine/IsometricGrid'
+import { IsometricGrid, GridAsset } from '@/engine/IsometricGrid'
 import { player as playerSprite } from '@/assets/ascii'
 import { TILES, COMPOSITE_ASSETS, getTilesByCategory, getAssetsByCategory, TileDef, CompositeAsset } from '@/engine/Tileset'
 import { listTemplates, getTemplate, createTemplate, updateTemplate, deleteTemplate, serializeGrid, deserializeToGrid, TemplateListItem, Connector } from '@/lib/api'
@@ -4841,11 +4841,6 @@ export default function TemplateEditor() {
       }
     }
     grid.assets = []
-    // Buildings render as whole billboards in iso (real depth) — keep the metadata + colored facade.
-    grid.buildings = stage.buildings.map(b => ({
-      type: b.type, col: b.col, row: b.row, width: b.length, height: b.height, depth: b.depth,
-      roofRows: b.facade.roofRows, cells: b.renderCells,
-    }))
     const paint = stagePaint(stage)
     for (const g of paint.ground) {
       if (grid.ground[g.row]?.[g.col] !== undefined) grid.ground[g.row][g.col] = g.type
@@ -7068,10 +7063,8 @@ function render(
   // assets/player and draw as glyphs on top of their cell.
   const pCol = player.x / cellSize
   const pRow = player.z / cellSize
-  const allObjects: { col: number; row: number; isPlayer?: boolean; asset?: GridAsset; entity?: Entity; building?: IsoBuilding; moving?: boolean; inRange?: boolean }[] = [
-    // Building CELLS are skipped — each building draws as one billboard (iso depth) below.
-    ...visibleAssets.filter(a => a.type !== 'building').map(a => ({ col: a.col, row: a.row, asset: a })),
-    ...grid.buildings.map(b => ({ col: b.col + (b.width - 1) / 2, row: b.row, building: b })),
+  const allObjects: { col: number; row: number; isPlayer?: boolean; asset?: GridAsset; entity?: Entity; moving?: boolean; inRange?: boolean }[] = [
+    ...visibleAssets.map(a => ({ col: a.col, row: a.row, asset: a })),
     // The player ENTITY is drawn as the live sprite below (isPlayer), so skip it here
     // to avoid a ghost double at the spawn cell. (Top view keeps it — see renderTopView.)
     ...entities.filter(e => e.kind !== 'player').map(e => {
@@ -7100,8 +7093,6 @@ function render(
       const combat = obj.entity.kind === 'enemy' ? enemyCombat.get(obj.entity.id) : undefined
       if (isDeadEnemy(obj.entity, combat)) continue // hidden until it respawns
       drawIsoEntity(ctx, p.x, p.y - heightOffset, obj.entity, tileH, combat, now, obj.moving ?? false, obj.inRange ?? false)
-    } else if (obj.building) {
-      drawIsoBuilding(ctx, p.x, p.y - heightOffset, obj.building, tileW, tileH)
     } else if (obj.asset) {
       const op = obj.asset.opacity ?? 1 // per-asset opacity for contrast/depth
       if (op < 1) ctx.globalAlpha = op
@@ -7340,66 +7331,6 @@ function drawIsoLabeledCell(
   ctx.fillRect(x - w / 2 - 2, cy - fontSize * 0.55, w + 4, fontSize * 1.1)
   ctx.fillStyle = base
   ctx.fillText(char, x, cy)
-}
-
-function fillIsoPoly(ctx: CanvasRenderingContext2D, pts: number[][]): void {
-  ctx.beginPath()
-  ctx.moveTo(pts[0][0], pts[0][1])
-  for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1])
-  ctx.closePath()
-  ctx.fill()
-}
-
-/** First cell color of a given kind (a wall, a roof…) — for the side/cap faces. */
-function buildingKindColor(b: IsoBuilding, kind: string, fallback: string): string {
-  for (const row of b.cells) for (const cell of row) if (cell.kind === kind) return cell.color
-  return fallback
-}
-
-/**
- * Draw a building as ONE front-facing billboard with real iso DEPTH: the width×height facade
- * (flat, doors/windows by color) + a darker RIGHT side and a lighter ROOF cap extruded back by
- * `depth`. This replaces faking depth with extra roof rows — roof stays ≤2 rows, depth is its own
- * dimension. `(ax, ay)` is the footprint's front-centre on screen.
- */
-function drawIsoBuilding(ctx: CanvasRenderingContext2D, ax: number, ay: number, b: IsoBuilding, tileW: number, tileH: number): void {
-  const cw = tileW * 0.52 // front-face cell width
-  const ch = tileH * 0.62 // front-face cell height
-  const pxW = b.width * cw
-  const left = ax - pxW / 2
-  const bottomY = ay + tileH * 0.45
-  const topY = bottomY - b.height * ch
-  const ddx = b.depth * cw * 0.5 // depth vector: up-and-right (iso "back")
-  const ddy = -b.depth * ch * 0.42
-  const roofColor = b.cells[0]?.[Math.floor(b.width / 2)]?.color || '#b06a4a'
-  const wallColor = buildingKindColor(b, 'wall', '#cdbd95')
-
-  // RIGHT side (the depth face) — wall, darker.
-  ctx.fillStyle = darkenColor(wallColor, 0.42)
-  fillIsoPoly(ctx, [[left + pxW, topY], [left + pxW + ddx, topY + ddy], [left + pxW + ddx, bottomY + ddy], [left + pxW, bottomY]])
-  // ROOF cap (the top surface) — roof color, lighter.
-  ctx.fillStyle = lightenColor(roofColor, 0.12)
-  fillIsoPoly(ctx, [[left, topY], [left + pxW, topY], [left + pxW + ddx, topY + ddy], [left + ddx, topY + ddy]])
-  // FRONT facade — flat per-cell rects (doors dark, windows glass/lit, empties = sky).
-  for (let r = 0; r < b.height; r++) {
-    const row = b.cells[r]
-    if (!row) continue
-    for (let c = 0; c < b.width; c++) {
-      const cell = row[c]
-      if (!cell || cell.kind === 'empty') continue
-      ctx.fillStyle = cell.color
-      ctx.fillRect(left + c * cw, topY + r * ch, cw + 0.6, ch + 0.6)
-    }
-  }
-  // Signage badge (STORE marquee / red ✚) on the storefront.
-  const badge = BUILDING_BADGES[b.type]
-  if (badge) {
-    ctx.font = `bold ${ch * (badge.text.length > 1 ? 1.0 : 1.6)}px ${ASCII_FONT}`
-    ctx.textAlign = 'center'
-    ctx.textBaseline = 'middle'
-    ctx.fillStyle = badge.color
-    ctx.fillText(badge.text, ax, topY + b.roofRows * ch + ch * 0.8)
-  }
 }
 
 /** An enemy that's been killed and is waiting to respawn (no live combat state). */
