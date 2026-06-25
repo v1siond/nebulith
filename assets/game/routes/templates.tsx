@@ -7362,6 +7362,9 @@ function buildingKindColor(b: IsoBuilding, kind: string, fallback: string): stri
  * `depth`. This replaces faking depth with extra roof rows — roof stays ≤2 rows, depth is its own
  * dimension. `(ax, ay)` is the footprint's front-centre on screen.
  */
+// Facade glyphs — the SAME tileset chars 2D uses, so iso buildings match the 2D look.
+const BUILDING_KIND_GLYPH: Record<string, string> = { roof: '▀', wall: '█', door: '╫', window: '▒' }
+
 function drawIsoBuilding(ctx: CanvasRenderingContext2D, ax: number, ay: number, b: IsoBuilding, tileW: number, tileH: number): void {
   const cw = tileW * 0.52 // front-face cell width
   const ch = tileH * 0.62 // front-face cell height
@@ -7380,15 +7383,24 @@ function drawIsoBuilding(ctx: CanvasRenderingContext2D, ax: number, ay: number, 
   // ROOF cap (the top surface) — roof color, lighter.
   ctx.fillStyle = lightenColor(roofColor, 0.12)
   fillIsoPoly(ctx, [[left, topY], [left + pxW, topY], [left + pxW + ddx, topY + ddy], [left + ddx, topY + ddy]])
-  // FRONT facade — flat per-cell rects (doors dark, windows glass/lit, empties = sky).
+  // FRONT facade — the SAME tileset glyphs 2D uses (▀ roof, █ wall, ╫ door, ▒ window): a dark
+  // backing + the part-colored glyph per cell, so doors/windows read by color and the iso
+  // style matches 2D exactly. Empty cells (peaked-roof corners) show the sky.
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.font = `bold ${ch * 1.15}px ${ASCII_FONT}`
   for (let r = 0; r < b.height; r++) {
     const row = b.cells[r]
     if (!row) continue
     for (let c = 0; c < b.width; c++) {
       const cell = row[c]
       if (!cell || cell.kind === 'empty') continue
+      const x0 = left + c * cw
+      const y0 = topY + r * ch
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.4)'
+      ctx.fillRect(x0, y0, cw + 0.6, ch + 0.6)
       ctx.fillStyle = cell.color
-      ctx.fillRect(left + c * cw, topY + r * ch, cw + 0.6, ch + 0.6)
+      ctx.fillText(BUILDING_KIND_GLYPH[cell.kind] ?? '█', x0 + cw / 2, y0 + ch / 2)
     }
   }
   // Signage badge (STORE marquee / red ✚) on the storefront.

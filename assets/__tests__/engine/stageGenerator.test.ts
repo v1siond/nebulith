@@ -728,3 +728,16 @@ describe('generateStage — buildings carry depth + a colored render facade (iso
     }
   })
 })
+
+describe('generateStage — buildings ALIGN to the road (front parallel, faces the street)', () => {
+  it('places each village building so the row in front of its door is the street', () => {
+    const stage = generateStage({ zone: 'summer', variant: 'village', cols: 50, rows: 40 })
+    expect(stage.buildings.length).toBeGreaterThan(0)
+    for (const b of stage.buildings) {
+      // front edge is a single grid row (parallel to the horizontal road); the row directly
+      // in front of the door (b.row + 1) is the street → the building faces the road.
+      const frontCells = stage.ground[b.row + 1]?.slice(b.col, b.col + b.length) ?? []
+      expect(frontCells.some(t => t === 'path_stone')).toBe(true)
+    }
+  })
+})
