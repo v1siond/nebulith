@@ -7101,7 +7101,7 @@ function render(
       if (isDeadEnemy(obj.entity, combat)) continue // hidden until it respawns
       drawIsoEntity(ctx, p.x, p.y - heightOffset, obj.entity, tileH, combat, now, obj.moving ?? false, obj.inRange ?? false)
     } else if (obj.building) {
-      drawIsoBuilding(ctx, p.x, p.y - heightOffset, obj.building, tileW, tileH)
+      drawIsoBuilding(ctx, obj.building, toScreen, tileW, tileH)
     } else if (obj.asset) {
       const op = obj.asset.opacity ?? 1 // per-asset opacity for contrast/depth
       if (op < 1) ctx.globalAlpha = op
@@ -7365,52 +7365,55 @@ function buildingKindColor(b: IsoBuilding, kind: string, fallback: string): stri
 // Facade glyphs — the SAME tileset chars 2D uses, so iso buildings match the 2D look.
 const BUILDING_KIND_GLYPH: Record<string, string> = { roof: '▀', wall: '█', door: '╫', window: '▒' }
 
-function drawIsoBuilding(ctx: CanvasRenderingContext2D, ax: number, ay: number, b: IsoBuilding, tileW: number, tileH: number): void {
-  const cw = tileW * 0.52 // front-face cell width
-  const ch = tileH * 0.62 // front-face cell height
-  const pxW = b.width * cw
-  const left = ax - pxW / 2
-  const bottomY = ay + tileH * 0.45
-  const topY = bottomY - b.height * ch
-  const ddx = b.depth * cw * 0.5 // depth vector: up-and-right (iso "back")
-  const ddy = -b.depth * ch * 0.42
-  const roofColor = b.cells[0]?.[Math.floor(b.width / 2)]?.color || '#b06a4a'
+/**
+ * One building as a TRUE isometric box, anchored to the grid (NOT screen-space):
+ *   - `width` runs along the +col axis (the road direction) ⇒ the base edge is PARALLEL to the road.
+ *   - `height` is VERTICAL (lifted by `hs` per cell) — never faked with grid rows.
+ *   - `depth` extrudes back along the −row axis (the iso Z) ⇒ roof-top + right-side faces.
+ * Cells use the SAME tileset colors as 2D (door dark, window glass/lit, roof, wall) so the two
+ * views are the same art. The roof is just the top ≤2 cell rows.
+ */
+function drawIsoBuilding(ctx: CanvasRenderingContext2D, b: IsoBuilding, toScreen: (c: number, r: number) => { x: number; y: number }, tileW: number, tileH: number): void {
+  const W = b.width, H = b.height, D = b.depth, col = b.col, row = b.row
+  const hs = tileW * 0.8 // vertical pixels per height cell
+  const P = (gc: number, gr: number, lv: number): [number, number] => {
+    const s = toScreen(gc, gr)
+    return [s.x, s.y - lv * hs]
+  }
+  const roofColor = b.cells[0]?.[Math.floor(W / 2)]?.color || '#b06a4a'
   const wallColor = buildingKindColor(b, 'wall', '#cdbd95')
 
-  // RIGHT side (the depth face) — wall, darker.
+  // ROOF-TOP surface (footprint W×D at the top) + RIGHT-side wall (the depth Z) — drawn first (behind).
+  ctx.fillStyle = lightenColor(roofColor, 0.14)
+  fillIsoPoly(ctx, [P(col, row, H), P(col + W, row, H), P(col + W, row - D, H), P(col, row - D, H)])
   ctx.fillStyle = darkenColor(wallColor, 0.42)
-  fillIsoPoly(ctx, [[left + pxW, topY], [left + pxW + ddx, topY + ddy], [left + pxW + ddx, bottomY + ddy], [left + pxW, bottomY]])
-  // ROOF cap (the top surface) — roof color, lighter.
-  ctx.fillStyle = lightenColor(roofColor, 0.12)
-  fillIsoPoly(ctx, [[left, topY], [left + pxW, topY], [left + pxW + ddx, topY + ddy], [left + ddx, topY + ddy]])
-  // FRONT facade — the SAME tileset glyphs 2D uses (▀ roof, █ wall, ╫ door, ▒ window): a dark
-  // backing + the part-colored glyph per cell, so doors/windows read by color and the iso
-  // style matches 2D exactly. Empty cells (peaked-roof corners) show the sky.
+  fillIsoPoly(ctx, [P(col + W, row, 0), P(col + W, row - D, 0), P(col + W, row - D, H), P(col + W, row, H)])
+
+  // FRONT facade — one filled cell per (bx, by), base edge along +col (parallel to the road),
+  // rising vertically. Filled with the part color (no glyph-gaps/barcode) + a faint glyph.
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
-  ctx.font = `bold ${ch * 1.15}px ${ASCII_FONT}`
-  for (let r = 0; r < b.height; r++) {
-    const row = b.cells[r]
-    if (!row) continue
-    for (let c = 0; c < b.width; c++) {
-      const cell = row[c]
+  ctx.font = `bold ${hs * 0.7}px ${ASCII_FONT}`
+  for (let by = 0; by < H; by++) {
+    for (let bx = 0; bx < W; bx++) {
+      const cell = b.cells[by]?.[bx]
       if (!cell || cell.kind === 'empty') continue
-      const x0 = left + c * cw
-      const y0 = topY + r * ch
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.4)'
-      ctx.fillRect(x0, y0, cw + 0.6, ch + 0.6)
+      const lo = H - 1 - by, hi = H - by
+      const quad = [P(col + bx, row, lo), P(col + bx + 1, row, lo), P(col + bx + 1, row, hi), P(col + bx, row, hi)]
       ctx.fillStyle = cell.color
-      ctx.fillText(BUILDING_KIND_GLYPH[cell.kind] ?? '█', x0 + cw / 2, y0 + ch / 2)
+      fillIsoPoly(ctx, quad)
+      ctx.fillStyle = darkenColor(cell.color, 0.4)
+      ctx.fillText(BUILDING_KIND_GLYPH[cell.kind] ?? '', (quad[0][0] + quad[2][0]) / 2, (quad[0][1] + quad[2][1]) / 2)
     }
   }
-  // Signage badge (STORE marquee / red ✚) on the storefront.
+
+  // Signage badge (STORE / ✚) on the storefront.
   const badge = BUILDING_BADGES[b.type]
   if (badge) {
-    ctx.font = `bold ${ch * (badge.text.length > 1 ? 1.0 : 1.6)}px ${ASCII_FONT}`
-    ctx.textAlign = 'center'
-    ctx.textBaseline = 'middle'
+    const c = P(col + W / 2, row, (H - b.roofRows) * 0.55)
+    ctx.font = `bold ${hs * (badge.text.length > 1 ? 0.55 : 1.0)}px ${ASCII_FONT}`
     ctx.fillStyle = badge.color
-    ctx.fillText(badge.text, ax, topY + b.roofRows * ch + ch * 0.8)
+    ctx.fillText(badge.text, c[0], c[1])
   }
 }
 
