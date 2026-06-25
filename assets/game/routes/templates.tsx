@@ -16,7 +16,7 @@ import { useRouter } from 'next/router'
 import Head from 'next/head'
 import Link from 'next/link'
 import { createVillageLevel, VILLAGE_CONFIG, GROUND_COLORS } from '@/levels/village'
-import { IsometricGrid, GridAsset } from '@/engine/IsometricGrid'
+import { IsometricGrid, GridAsset, GridBuilding } from '@/engine/IsometricGrid'
 import { player as playerSprite } from '@/assets/ascii'
 import { TILES, COMPOSITE_ASSETS, getTilesByCategory, getAssetsByCategory, TileDef, CompositeAsset } from '@/engine/Tileset'
 import { listTemplates, getTemplate, createTemplate, updateTemplate, deleteTemplate, serializeGrid, deserializeToGrid, TemplateListItem, Connector } from '@/lib/api'
@@ -4131,6 +4131,7 @@ export default function TemplateEditor() {
       }
     }
     grid.assets = []
+    grid.buildings = [] // legacy template buildings are █ blocks, not grouped facades
 
     // Helper to place a building (3x3 with walls, elevated)
     const placeBuilding = (x: number, y: number, color: string = '#aa7755', height: number = 2) => {
@@ -4841,6 +4842,19 @@ export default function TemplateEditor() {
       }
     }
     grid.assets = []
+    // Group the facades for the ISO view (one upright unit per building). 2D keeps using the
+    // per-cell assets below; iso renders from grid.buildings and skips those per-cell draws.
+    grid.buildings = stage.buildings.map(b => ({
+      col: b.col,
+      row: b.row,
+      length: b.length,
+      height: b.height,
+      type: b.type,
+      cells: b.facade.cells,
+      // Vary which way each house faces in iso so a street isn't all-one-direction. Deterministic
+      // per plot (stable across re-renders), but it's just data — set it however you like later.
+      facing: (b.col * 2 + b.row * 3) % ISO_FACINGS.length,
+    }))
     const paint = stagePaint(stage)
     for (const g of paint.ground) {
       if (grid.ground[g.row]?.[g.col] !== undefined) grid.ground[g.row][g.col] = g.type
@@ -4918,6 +4932,7 @@ export default function TemplateEditor() {
 
     // === STEP 1: Clear grid with natural ground formations ===
     grid.assets = []
+    grid.buildings = [] // random-map buildings are █ blocks, not grouped facades
     const baseGround = getBaseGround()
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols; c++) {
@@ -7063,8 +7078,19 @@ function render(
   // assets/player and draw as glyphs on top of their cell.
   const pCol = player.x / cellSize
   const pRow = player.z / cellSize
-  const allObjects: { col: number; row: number; isPlayer?: boolean; asset?: GridAsset; entity?: Entity; moving?: boolean; inRange?: boolean }[] = [
-    ...visibleAssets.map(a => ({ col: a.col, row: a.row, asset: a })),
+  // Buildings render as ONE upright unit (grid.buildings) — collect their footprint cells so we
+  // SKIP the per-cell building assets in iso (2D still draws them). Legacy █ buildings aren't
+  // grouped, so they fall through and render per-cell as before.
+  const buildingFootprint = new Set<string>()
+  for (const b of grid.buildings ?? []) {
+    const top = b.row - (b.height - 1)
+    for (let r = 0; r < b.height; r++) for (let c = 0; c < b.length; c++) buildingFootprint.add(`${b.col + c},${top + r}`)
+  }
+  const allObjects: { col: number; row: number; isPlayer?: boolean; asset?: GridAsset; entity?: Entity; moving?: boolean; inRange?: boolean; building?: GridBuilding }[] = [
+    ...visibleAssets
+      .filter(a => !(a.type === 'building' && buildingFootprint.has(`${a.col},${a.row}`)))
+      .map(a => ({ col: a.col, row: a.row, asset: a })),
+    ...(grid.buildings ?? []).map(b => ({ col: b.col + (b.length - 1) / 2, row: b.row, building: b })),
     // The player ENTITY is drawn as the live sprite below (isPlayer), so skip it here
     // to avoid a ghost double at the spawn cell. (Top view keeps it — see renderTopView.)
     ...entities.filter(e => e.kind !== 'player').map(e => {
@@ -7093,6 +7119,20 @@ function render(
       const combat = obj.entity.kind === 'enemy' ? enemyCombat.get(obj.entity.id) : undefined
       if (isDeadEnemy(obj.entity, combat)) continue // hidden until it respawns
       drawIsoEntity(ctx, p.x, p.y - heightOffset, obj.entity, tileH, combat, now, obj.moving ?? false, obj.inRange ?? false)
+    } else if (obj.building) {
+      // ONE upright unit, rotated by its iso facing: facade sheared onto the iso angle + z-depth.
+      const b = obj.building
+      const f = ISO_FACINGS[(b.facing ?? 0) % ISO_FACINGS.length]
+      const cc = b.col + b.length / 2 // plot centre (front edge), so the house rotates in place
+      const cr = b.row + 0.5
+      const center = toScreen(cc, cr)
+      const lp = toScreen(cc + f.len[0], cr + f.len[1])
+      const colVec = { x: lp.x - center.x, y: lp.y - center.y } // per-column step along the length axis
+      const origin = { x: center.x - colVec.x * (b.length / 2), y: center.y - colVec.y * (b.length / 2) }
+      const dp = toScreen(cc + f.dep[0] * ISO_BUILDING_DEPTH, cr + f.dep[1] * ISO_BUILDING_DEPTH)
+      const depthVec = { x: dp.x - center.x, y: dp.y - center.y } // z-depth back, away from the camera
+      const flicker = Math.sin(time * 0.003 + b.col * 0.5 + b.row * 0.7) * 0.15 + 1
+      drawIsoBuilding(ctx, b, origin, colVec, depthVec, tileW * 0.9, flicker)
     } else if (obj.asset) {
       const op = obj.asset.opacity ?? 1 // per-asset opacity for contrast/depth
       if (op < 1) ctx.globalAlpha = op
@@ -7564,6 +7604,129 @@ function draw2DBuildingTile(
   ctx.textBaseline = 'middle'
   ctx.fillStyle = tile.fg
   ctx.fillText(tile.text, cx, top + tileH * 0.5)
+}
+
+// How many cells deep the iso z-extrusion is — the single "z width" knob. Bump up/down to taste.
+const ISO_BUILDING_DEPTH = 2
+
+// ISO facing options: which grid axis the facade LENGTH runs along, and which way DEPTH goes
+// back (away from the camera). Both keep the door facing the viewer — just from a different
+// side — so a village reads with varied orientations. Add the back-facing pair for 4-way later.
+const ISO_FACINGS: { len: [number, number]; dep: [number, number] }[] = [
+  { len: [1, 0], dep: [0, -1] }, // facade faces down-left  (length down-right, depth up-right)
+  { len: [0, 1], dep: [-1, 0] }, // facade faces down-right (length down-left,  depth up-left)
+]
+
+type Pt = { x: number; y: number }
+const ptAdd = (p: Pt, v: Pt): Pt => ({ x: p.x + v.x, y: p.y + v.y })
+const ptScale = (v: Pt, k: number): Pt => ({ x: v.x * k, y: v.y * k })
+const fillQuad = (ctx: CanvasRenderingContext2D, a: Pt, b: Pt, c: Pt, d: Pt): void => {
+  ctx.beginPath()
+  ctx.moveTo(a.x, a.y)
+  ctx.lineTo(b.x, b.y)
+  ctx.lineTo(c.x, c.y)
+  ctx.lineTo(d.x, d.y)
+  ctx.closePath()
+  ctx.fill()
+}
+
+/** One facade cell as an ISO PARALLELOGRAM: the bottom edge runs along `colVec` (the iso
+ *  angle), the sides rise straight up by `cellH`. Same tile vocabulary as 2D (red /\ roof,
+ *  gold |[]| body, |==| door) — just sheared onto the iso axis instead of a 90° rect. */
+function drawIsoFacadeTile(ctx: CanvasRenderingContext2D, bl: Pt, colVec: Pt, cellH: number, kind: string, flicker: number): void {
+  const up: Pt = { x: 0, y: -cellH }
+  const br = ptAdd(bl, colVec)
+  const tl = ptAdd(bl, up)
+  const tr = ptAdd(br, up)
+  const isRoof = kind === 'roof'
+  const isDoor = kind === 'door'
+  const bg = isRoof ? 'rgba(200, 64, 64, 0.95)' : 'rgba(180, 132, 65, 0.95)'
+  const fg = isRoof
+    ? `rgba(255, 100, 80, ${0.8 + 0.2 * flicker})`
+    : isDoor
+    ? '#5a3f22'
+    : `rgba(255, 220, 80, ${0.5 + 0.3 * flicker})`
+  const glyph = isRoof ? '/\\' : isDoor ? '==' : '[]'
+  ctx.fillStyle = bg
+  fillQuad(ctx, bl, br, tr, tl)
+  // glyph centred in the parallelogram
+  ctx.font = `bold ${cellH * 0.62}px ${ASCII_FONT}`
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.fillStyle = fg
+  ctx.fillText(glyph, (bl.x + tr.x) / 2, (bl.y + tr.y) / 2)
+}
+
+/** ISO building = the EXACT 2D facade standing at its plot, sheared onto the iso angle, PLUS a
+ *  z-depth extruded back. `origin` is the front-bottom-LEFT corner; `colVec` is the per-column
+ *  iso step (length runs along it, NOT a horizontal 90° row); `depthVec` is the z-depth delta. */
+const ROOF_ROWS = 2 // facade roof is always the top 2 rows (mirrors composeBuilding)
+
+/** A house's PEAKED roof as one solid iso volume: a front trapezoid (wide eaves → narrow
+ *  ridge, the `‾\_/‾` silhouette) + a flat top + a side slope, all extruded along depthVec.
+ *  Solid (no per-cell gaps) and sloped (no square corners) — what a flat-roofed store keeps. */
+function drawIsoPeakedRoof(ctx: CanvasRenderingContext2D, fbl: Pt, colVec: Pt, depthVec: Pt, cellH: number, L: number): void {
+  const up = (n: number): Pt => ({ x: 0, y: -n * cellH }) // fbl is already at the eaves (top of walls)
+  const OVERHANG = 0.3 // eaves stick out past the walls a touch
+  const RIDGE_FRAC = 0.46 // ridge (flat top) width as a fraction of L → the narrow top
+  const ridgeHalf = (L * RIDGE_FRAC) / 2
+  const eavesL = ptAdd(fbl, ptScale(colVec, -OVERHANG))
+  const eavesR = ptAdd(fbl, ptScale(colVec, L + OVERHANG))
+  const ridgeL = ptAdd(ptAdd(fbl, ptScale(colVec, L / 2 - ridgeHalf)), up(ROOF_ROWS))
+  const ridgeR = ptAdd(ptAdd(fbl, ptScale(colVec, L / 2 + ridgeHalf)), up(ROOF_ROWS))
+  // right slope (depth) + flat top (depth) behind, then the bright front trapezoid.
+  ctx.fillStyle = 'rgba(150, 40, 40, 0.97)'
+  fillQuad(ctx, eavesR, ridgeR, ptAdd(ridgeR, depthVec), ptAdd(eavesR, depthVec))
+  ctx.fillStyle = 'rgba(178, 52, 52, 0.97)'
+  fillQuad(ctx, ridgeL, ridgeR, ptAdd(ridgeR, depthVec), ptAdd(ridgeL, depthVec))
+  ctx.fillStyle = 'rgba(206, 70, 70, 0.98)'
+  fillQuad(ctx, eavesL, eavesR, ridgeR, ridgeL)
+}
+
+function drawIsoBuilding(
+  ctx: CanvasRenderingContext2D,
+  b: GridBuilding,
+  origin: Pt,
+  colVec: Pt,
+  depthVec: Pt,
+  cellH: number,
+  flicker: number,
+): void {
+  const L = b.length
+  const H = b.height
+  const bodyH = H - ROOF_ROWS // wall/window/door rows
+  const up = (n: number): Pt => ({ x: 0, y: -n * cellH })
+  const fbl = origin
+  const fbr = ptAdd(fbl, ptScale(colVec, L))
+  // Houses get a peaked (trapezoid) roof; flat-roofed types (store/hospital/…) keep the square
+  // slab. Data-driven: composeBuilding leaves empty corners in row 0 ONLY for peaked roofs.
+  const peaked = (b.cells[0] ?? []).some(k => k === 'empty')
+
+  // WALL side face (depth) — up to the eaves for a peaked roof, full height for a flat one.
+  const sideTopR = ptAdd(fbr, up(peaked ? bodyH : H))
+  ctx.fillStyle = 'rgba(120, 88, 44, 0.96)'
+  fillQuad(ctx, sideTopR, fbr, ptAdd(fbr, depthVec), ptAdd(sideTopR, depthVec))
+
+  if (peaked) {
+    drawIsoPeakedRoof(ctx, ptAdd(fbl, up(bodyH)), colVec, depthVec, cellH, L)
+  } else {
+    const ftl = ptAdd(fbl, up(H))
+    const ftr = ptAdd(fbr, up(H))
+    ctx.fillStyle = 'rgba(150, 42, 42, 0.96)' // flat roof slab (top)
+    fillQuad(ctx, ftl, ftr, ptAdd(ftr, depthVec), ptAdd(ftl, depthVec))
+  }
+
+  // FRONT FACADE cells — skip the roof rows on a peaked roof (drawn as the solid trapezoid).
+  for (let r = 0; r < H; r++) {
+    if (peaked && r < ROOF_ROWS) continue
+    for (let c = 0; c < L; c++) {
+      const kind = b.cells[r]?.[c]
+      if (!kind || kind === 'empty') continue
+      const rb = H - 1 - r // rows from the bottom
+      const bl = ptAdd(ptAdd(fbl, ptScale(colVec, c)), up(rb))
+      drawIsoFacadeTile(ctx, bl, colVec, cellH, kind, flicker)
+    }
+  }
 }
 
 function drawIsoAssetAscii(

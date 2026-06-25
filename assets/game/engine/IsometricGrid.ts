@@ -36,6 +36,19 @@ export interface GridConfig {
   isoScale?: number  // Default 1.4
 }
 
+// A grouped building (the 2D facade + its plot anchor) so the ISO view can render it as ONE
+// upright unit — the same 2D facade tiles standing at the plot, plus a z-depth — instead of a
+// loose pile of per-cell assets. 2D still renders the per-cell assets; this is iso-only.
+export interface GridBuilding {
+  col: number          // anchor (left) column
+  row: number          // ground (front, bottom) row
+  length: number       // cells wide
+  height: number       // cells tall (facade rows: 2 roof on top + body)
+  type: string
+  cells: string[][]    // facade kind grid [row][col]: 'roof' | 'wall' | 'window' | 'door' | 'empty'
+  facing?: number      // ISO-only facing index (which iso axis the facade runs along); 2D is always front
+}
+
 export class IsometricGrid {
   cols: number
   rows: number
@@ -53,6 +66,9 @@ export class IsometricGrid {
 
   // Placed assets
   assets: GridAsset[]
+
+  // Grouped buildings for the ISO view (see GridBuilding). Empty for non-stage maps.
+  buildings: GridBuilding[]
 
   constructor(config: GridConfig) {
     this.cols = config.cols
@@ -88,6 +104,7 @@ export class IsometricGrid {
     }
 
     this.assets = []
+    this.buildings = []
   }
 
   // Convert grid position to world position
