@@ -55,10 +55,10 @@ describe('cellLabels — per-label collision (isWalkable)', () => {
     }
   })
 
-  it('makes only the top roof tile and doors walkable among building parts', () => {
+  it('makes ONLY the top roof tile walkable among building parts (buildings are solid)', () => {
     expect(isWalkable('roof_top')).toBe(true)
-    expect(isWalkable('door')).toBe(true)
-    const blockingBuildingParts: CellLabel[] = ['roof', 'wall', 'window']
+    // doors block too now — a building is solid like a tree until interiors arrive
+    const blockingBuildingParts: CellLabel[] = ['roof', 'wall', 'window', 'door']
     for (const label of blockingBuildingParts) {
       expect(isWalkable(label)).toBe(false)
     }

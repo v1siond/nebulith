@@ -29,10 +29,10 @@ describe('generateStage — lava/village vertical slice', () => {
     }
   })
 
-  it('blocks wall footprint cells but leaves doors walkable', () => {
+  it('makes the building SOLID — doors block too, only the roof_top apex is walkable', () => {
     for (const b of stage.buildings) {
       for (const d of b.doorCells) {
-        expect(stage.collision[d.row][d.col]).toBe(false)
+        expect(stage.collision[d.row][d.col]).toBe(true) // doors block now (solid like a tree)
       }
       const blocked = stage.collision[b.row].slice(b.col, b.col + b.length).filter(Boolean)
       expect(blocked.length).toBeGreaterThan(0)
@@ -100,14 +100,14 @@ describe('generateStage — multi-cell labeled buildings (the keystone)', () => 
     }
   })
 
-  it('keeps doors walkable and walls blocking across the full facade', () => {
+  it('blocks doors AND walls across the full facade (solid building)', () => {
     const stage = generateStage({ zone: 'winter', variant: 'temple', cols: 36, rows: 30 })
     const cells = collectBuildingCells(stage)
     const doors = cells.filter(c => c.label === 'door')
     const walls = cells.filter(c => c.label === 'wall')
     expect(doors.length).toBeGreaterThan(0)
     expect(walls.length).toBeGreaterThan(0)
-    expect(doors.every(d => d.blocking === false && stage.collision[d.row][d.col] === false)).toBe(true)
+    expect(doors.every(d => d.blocking === true && stage.collision[d.row][d.col] === true)).toBe(true)
     expect(walls.every(w => w.blocking === true && stage.collision[w.row][w.col] === true)).toBe(true)
   })
 })

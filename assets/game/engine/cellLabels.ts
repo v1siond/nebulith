@@ -52,10 +52,11 @@ export const CELL_LABELS = [...TREE_COLUMN_LABELS, ...TREE_MASS_LABELS, ...BUILD
 export type CellLabel = (typeof CELL_LABELS)[number]
 
 // ── per-label collision ────────────────────────────────────────────────
-// The ONLY walkable cells: a tree's canopy top (walk under it) and a building's
-// top roof tile + doors. Everything else — and anything unknown — blocks
-// (fail-safe). Membership lookup, not an if/else chain.
-const WALKABLE_LABELS: ReadonlySet<string> = new Set<CellLabel>(['tree_leaf_top', 'roof_top', 'door'])
+// The ONLY walkable cells: a tree's canopy top (walk under it) and a building's single
+// top roof tile (apex). Everything else — walls, windows, DOORS, roof body, and anything
+// unknown — blocks (fail-safe). Buildings are SOLID like trees until interiors arrive.
+// Membership lookup, not an if/else chain.
+const WALKABLE_LABELS: ReadonlySet<string> = new Set<CellLabel>(['tree_leaf_top', 'roof_top'])
 
 export function isWalkable(label: string): boolean {
   return WALKABLE_LABELS.has(label)
