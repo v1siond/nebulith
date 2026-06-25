@@ -16,7 +16,7 @@ import { useRouter } from 'next/router'
 import Head from 'next/head'
 import Link from 'next/link'
 import { createVillageLevel, VILLAGE_CONFIG, GROUND_COLORS } from '@/levels/village'
-import { IsometricGrid, GridAsset, IsoBuilding } from '@/engine/IsometricGrid'
+import { IsometricGrid, GridAsset } from '@/engine/IsometricGrid'
 import { player as playerSprite } from '@/assets/ascii'
 import { TILES, COMPOSITE_ASSETS, getTilesByCategory, getAssetsByCategory, TileDef, CompositeAsset } from '@/engine/Tileset'
 import { listTemplates, getTemplate, createTemplate, updateTemplate, deleteTemplate, serializeGrid, deserializeToGrid, TemplateListItem, Connector } from '@/lib/api'
@@ -4841,11 +4841,6 @@ export default function TemplateEditor() {
       }
     }
     grid.assets = []
-    // Buildings render as whole billboards in iso (real depth) — keep the metadata + colored facade.
-    grid.buildings = stage.buildings.map(b => ({
-      type: b.type, col: b.col, row: b.row, width: b.length, height: b.height, depth: b.depth,
-      roofRows: b.facade.roofRows, cells: b.renderCells,
-    }))
     const paint = stagePaint(stage)
     for (const g of paint.ground) {
       if (grid.ground[g.row]?.[g.col] !== undefined) grid.ground[g.row][g.col] = g.type
@@ -7068,10 +7063,8 @@ function render(
   // assets/player and draw as glyphs on top of their cell.
   const pCol = player.x / cellSize
   const pRow = player.z / cellSize
-  const allObjects: { col: number; row: number; isPlayer?: boolean; asset?: GridAsset; entity?: Entity; building?: IsoBuilding; moving?: boolean; inRange?: boolean }[] = [
-    // Building CELLS are skipped — each building draws as one billboard (iso depth) below.
-    ...visibleAssets.filter(a => a.type !== 'building').map(a => ({ col: a.col, row: a.row, asset: a })),
-    ...grid.buildings.map(b => ({ col: b.col + (b.width - 1) / 2, row: b.row, building: b })),
+  const allObjects: { col: number; row: number; isPlayer?: boolean; asset?: GridAsset; entity?: Entity; moving?: boolean; inRange?: boolean }[] = [
+    ...visibleAssets.map(a => ({ col: a.col, row: a.row, asset: a })),
     // The player ENTITY is drawn as the live sprite below (isPlayer), so skip it here
     // to avoid a ghost double at the spawn cell. (Top view keeps it — see renderTopView.)
     ...entities.filter(e => e.kind !== 'player').map(e => {
@@ -7100,8 +7093,6 @@ function render(
       const combat = obj.entity.kind === 'enemy' ? enemyCombat.get(obj.entity.id) : undefined
       if (isDeadEnemy(obj.entity, combat)) continue // hidden until it respawns
       drawIsoEntity(ctx, p.x, p.y - heightOffset, obj.entity, tileH, combat, now, obj.moving ?? false, obj.inRange ?? false)
-    } else if (obj.building) {
-      drawBuildingVoxel(ctx, p.x, p.y - heightOffset + tileH * 0.5, obj.building, tileW, tileH, 1)
     } else if (obj.asset) {
       const op = obj.asset.opacity ?? 1 // per-asset opacity for contrast/depth
       if (op < 1) ctx.globalAlpha = op
@@ -7264,36 +7255,6 @@ const BUILDING_BADGES: Record<string, { text: string; color: string }> = {
 // (squared) apex. Replaces the default roof_top glyph for that one cell.
 const ROOF_APEX_GLYPH: Record<string, string> = { house: '▲' }
 
-/** A building cell as a little 3-D block — the per-cell extrusion IS the iso "z width": a
- *  coloured FRONT face (the part color), a lighter TOP, and a darker RIGHT side, so a building
- *  reads as solid stacked blocks instead of a flat decal. Doors/windows read by their front color. */
-function drawBuildingBlock(ctx: CanvasRenderingContext2D, x: number, cy: number, fontSize: number, color: string): void {
-  const hw = fontSize * 0.34 // half front-face width
-  const hh = fontSize * 0.56 // half front-face height
-  const dx = fontSize * 0.26 // z-depth, up-and-right (iso "back")
-  const dy = -fontSize * 0.16
-  const top = cy - hh
-  const bot = cy + hh
-  ctx.fillStyle = lightenColor(color, 0.16) // TOP face
-  ctx.beginPath()
-  ctx.moveTo(x - hw, top)
-  ctx.lineTo(x + hw, top)
-  ctx.lineTo(x + hw + dx, top + dy)
-  ctx.lineTo(x - hw + dx, top + dy)
-  ctx.closePath()
-  ctx.fill()
-  ctx.fillStyle = darkenColor(color, 0.34) // RIGHT face
-  ctx.beginPath()
-  ctx.moveTo(x + hw, top)
-  ctx.lineTo(x + hw, bot)
-  ctx.lineTo(x + hw + dx, bot + dy)
-  ctx.lineTo(x + hw + dx, top + dy)
-  ctx.closePath()
-  ctx.fill()
-  ctx.fillStyle = color // FRONT face
-  ctx.fillRect(x - hw, top, hw * 2, hh * 2)
-}
-
 function drawIsoLabeledCell(
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -7303,168 +7264,42 @@ function drawIsoLabeledCell(
 ): void {
   const char = asset.art[0] ?? '?'
   const fontSize = tileH * 1.25
+  // Sit the glyph ON its own cell (same anchor as the ground glyph: p.y -
+  // heightOffset). The old half-tile lift floated the canopy ~half a cell north
+  // of the cell it actually blocks, so leaves *looked* passable. Aligned now:
+  // the leaf you see is the cell that blocks; only the canopy TOP stays walkable.
   const cy = y
   ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
-  const base = asset.color ?? '#cccccc'
-
-  // Buildings: per-cell 3-D blocks (real z-depth in iso). The apex cell carries the roof peak
-  // (▲ house) + the STORE / ✚ signage on top of its block.
-  if (asset.type === 'building') {
-    drawBuildingBlock(ctx, x, cy, fontSize, base)
-    if (asset.label === 'roof_top') {
-      const apex = ROOF_APEX_GLYPH[asset.buildingType ?? '']
-      if (apex) {
-        ctx.fillStyle = lightenColor(base, 0.3)
-        ctx.fillText(apex, x, cy - fontSize * 0.1)
-      }
-      const badge = BUILDING_BADGES[asset.buildingType ?? '']
-      if (badge) {
-        const bf = fontSize * (badge.text.length > 1 ? 0.5 : 0.9)
-        ctx.font = `bold ${bf}px ${ASCII_FONT}`
-        const by = cy - fontSize * 0.95
-        const bw = ctx.measureText(badge.text).width
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.72)'
-        ctx.fillRect(x - bw / 2 - 2, by - bf * 0.6, bw + 4, bf * 1.2)
-        ctx.fillStyle = badge.color
-        ctx.fillText(badge.text, x, by)
-      }
-    }
-    return
-  }
-
-  // Trees / other labeled cells: a dark backing behind the colour glyph (the cell IS the tile).
+  // Monospace single glyph → advance ≈ 0.6em. Avoids a per-cell measureText(), the
+  // canvas-2D layout call that tanked iso FPS on dense (forest) stages.
   const w = fontSize * 0.6
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.5)'
+  // Building cells FILL with their own part color so a dark door + a glass/lit window read as
+  // solid coloured blocks (a dark glyph on a black backing was invisible). Trees keep the plain
+  // dark backing behind their canopy glyph.
+  const base = asset.color ?? '#cccccc'
+  ctx.fillStyle = asset.type === 'building' ? darkenColor(base, 0.28) : 'rgba(0, 0, 0, 0.5)'
   ctx.fillRect(x - w / 2 - 2, cy - fontSize * 0.55, w + 4, fontSize * 1.1)
+  // Roof shape by building type: houses peak (▲), squared "buildings" stay flat.
+  const glyph = asset.label === 'roof_top' ? (ROOF_APEX_GLYPH[asset.buildingType ?? ''] ?? char) : char
   ctx.fillStyle = base
-  ctx.fillText(char, x, cy)
-}
+  ctx.fillText(glyph, x, cy)
 
-function fillIsoPoly(ctx: CanvasRenderingContext2D, pts: number[][]): void {
-  ctx.beginPath()
-  ctx.moveTo(pts[0][0], pts[0][1])
-  for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1])
-  ctx.closePath()
-  ctx.fill()
-}
-
-/** First cell color of a given kind (a wall, a roof…) — for the side/cap faces. */
-function buildingKindColor(b: IsoBuilding, kind: string, fallback: string): string {
-  for (const row of b.cells) for (const cell of row) if (cell.kind === kind) return cell.color
-  return fallback
-}
-
-/**
- * Draw a building as ONE front-facing billboard with real iso DEPTH: the width×height facade
- * (flat, doors/windows by color) + a darker RIGHT side and a lighter ROOF cap extruded back by
- * `depth`. This replaces faking depth with extra roof rows — roof stays ≤2 rows, depth is its own
- * dimension. `(ax, ay)` is the footprint's front-centre on screen.
- */
-// Facade glyphs — the SAME tileset chars 2D uses, so iso buildings match the 2D look.
-const BUILDING_KIND_GLYPH: Record<string, string> = { roof: '▀', wall: '█', door: '╫', window: '▒' }
-
-/**
- * One building as a TRUE isometric box, anchored to the grid (NOT screen-space):
- *   - `width` runs along the +col axis (the road direction) ⇒ the base edge is PARALLEL to the road.
- *   - `height` is VERTICAL (lifted by `hs` per cell) — never faked with grid rows.
- *   - `depth` extrudes back along the −row axis (the iso Z) ⇒ roof-top + right-side faces.
- * Cells use the SAME tileset colors as 2D (door dark, window glass/lit, roof, wall) so the two
- * views are the same art. The roof is just the top ≤2 cell rows.
- */
-/**
- * ONE voxel-style house for a whole building (the 2D screenshot art) — NOT one per cell.
- * Layers rise from the door (bottom) through window floors to the roof (the top ≤2 rows:
- * eave + peak), sized to the building's width×height and colored by its own tiles. Both
- * views call this; only the screen anchor differs. (cx, baseY) = bottom-center on screen.
- */
-function drawBuildingVoxel(ctx: CanvasRenderingContext2D, cx: number, baseY: number, b: IsoBuilding, tileW: number, tileH: number, flicker: number): void {
-  const W = b.width, H = b.height
-  const cells = b.cells.flat()
-  const roof = cells.find(c => c.kind === 'roof')?.color || '#c84040'
-  const wall = cells.find(c => c.kind === 'wall')?.color || '#b48441'
-  const win = cells.find(c => c.kind === 'window')?.color || '#ffd24a'
-  const door = cells.find(c => c.kind === 'door')?.color || '#3a2416'
-  const bodyW = Math.max(tileW * 1.5, tileW * W * 0.5)
-  const winRow = '|' + '[]'.repeat(Math.max(1, Math.floor(W / 2))) + '|'
-  ctx.textAlign = 'center'
-  ctx.textBaseline = 'middle'
-  ctx.font = `bold ${tileH * 0.82}px ${ASCII_FONT}`
-  for (let h = 0; h < H; h++) {
-    const top = baseY - (h + 1) * tileH
-    const isPeak = h === H - 1, isEave = h === H - 2, isRoof = isPeak || isEave, isDoor = h === 0
-    const lw = isPeak ? bodyW * 0.72 : isEave ? bodyW * 1.06 : bodyW
-    ctx.fillStyle = isRoof ? (isPeak ? lightenColor(roof, 0.08) : roof) : (h % 2 === 0 ? wall : darkenColor(wall, 0.16))
-    ctx.fillRect(cx - lw / 2, top, lw, tileH)
-    if (!isRoof) {
-      ctx.fillStyle = darkenColor(wall, 0.38)
-      ctx.fillRect(cx - lw / 2 - 2, top, 3, tileH)
-      ctx.fillRect(cx + lw / 2 - 1, top, 3, tileH)
+  // Type signage on the apex: a "STORE" marquee, a red hospital cross. Only the ONE
+  // roof_top cell per building hits this → the measureText here is rare, not per-cell.
+  if (asset.label === 'roof_top' && asset.buildingType) {
+    const badge = BUILDING_BADGES[asset.buildingType]
+    if (badge) {
+      const bf = fontSize * (badge.text.length > 1 ? 0.5 : 0.9)
+      ctx.font = `bold ${bf}px ${ASCII_FONT}`
+      const by = cy - fontSize * 0.95
+      const bw = ctx.measureText(badge.text).width
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.72)'
+      ctx.fillRect(x - bw / 2 - 2, by - bf * 0.6, bw + 4, bf * 1.2)
+      ctx.fillStyle = badge.color
+      ctx.fillText(badge.text, x, by)
     }
-    let text: string, fg: string
-    if (isRoof) { text = '/' + (isPeak ? '‾' : '=').repeat(Math.max(1, W)) + '\\'; fg = isPeak ? lightenColor(roof, 0.25) : darkenColor(roof, 0.18) }
-    else if (isDoor) { text = '|' + '='.repeat(Math.max(2, W)) + '|'; fg = door }
-    else { text = winRow; fg = win }
-    ctx.fillStyle = fg
-    ctx.fillText(text, cx, top + tileH * 0.5)
-  }
-}
-
-function drawIsoBuilding(ctx: CanvasRenderingContext2D, b: IsoBuilding, toScreen: (c: number, r: number) => { x: number; y: number }, tileW: number, tileH: number): void {
-  const W = b.width, H = b.height, D = b.depth, col = b.col, row = b.row
-  const hs = tileW * 0.8 // vertical pixels per height cell
-  const P = (gc: number, gr: number, lv: number): [number, number] => {
-    const s = toScreen(gc, gr)
-    return [s.x, s.y - lv * hs]
-  }
-  const roofColor = b.cells[0]?.[Math.floor(W / 2)]?.color || '#b06a4a'
-  const wallColor = buildingKindColor(b, 'wall', '#cdbd95')
-
-  // Every face is painted with the SAME tile recipe 2D uses: a dark backing + the colored ASCII
-  // glyph. No new art — just the 2D tiles, now in 3-D.
-  ctx.textAlign = 'center'
-  ctx.textBaseline = 'middle'
-  ctx.font = `bold ${hs * 0.9}px ${ASCII_FONT}`
-  const paintTile = (q: number[][], glyph: string, color: string): void => {
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.45)'
-    fillIsoPoly(ctx, q)
-    if (!glyph) return
-    ctx.fillStyle = color
-    ctx.fillText(glyph, (q[0][0] + q[2][0]) / 2, (q[0][1] + q[2][1]) / 2)
-  }
-
-  // ROOF-TOP (W×D roof tiles at the top) — drawn first (behind), back rows first.
-  for (let bz = D - 1; bz >= 0; bz--) {
-    for (let bx = 0; bx < W; bx++) {
-      paintTile([P(col + bx, row - bz, H), P(col + bx + 1, row - bz, H), P(col + bx + 1, row - bz - 1, H), P(col + bx, row - bz - 1, H)], '▀', roofColor)
-    }
-  }
-  // RIGHT SIDE (the depth Z — D×H wall tiles at col+W).
-  for (let bz = D - 1; bz >= 0; bz--) {
-    for (let by = 0; by < H; by++) {
-      const lo = H - 1 - by, hi = H - by
-      paintTile([P(col + W, row - bz, lo), P(col + W, row - bz - 1, lo), P(col + W, row - bz - 1, hi), P(col + W, row - bz, hi)], '█', wallColor)
-    }
-  }
-  // FRONT facade (W×H) — base edge along +col (parallel to the road), rising vertically. The
-  // SAME per-cell tiles as 2D (door dark, window glass/lit, roof, wall). Empties = sky.
-  for (let by = 0; by < H; by++) {
-    for (let bx = 0; bx < W; bx++) {
-      const cell = b.cells[by]?.[bx]
-      if (!cell || cell.kind === 'empty') continue
-      const lo = H - 1 - by, hi = H - by
-      paintTile([P(col + bx, row, lo), P(col + bx + 1, row, lo), P(col + bx + 1, row, hi), P(col + bx, row, hi)], BUILDING_KIND_GLYPH[cell.kind] ?? '█', cell.color)
-    }
-  }
-
-  // Signage badge (STORE / ✚) on the storefront.
-  const badge = BUILDING_BADGES[b.type]
-  if (badge) {
-    const c = P(col + W / 2, row, (H - b.roofRows) * 0.55)
-    ctx.font = `bold ${hs * (badge.text.length > 1 ? 0.55 : 1.0)}px ${ASCII_FONT}`
-    ctx.fillStyle = badge.color
-    ctx.fillText(badge.text, c[0], c[1])
   }
 }
 
@@ -7991,9 +7826,8 @@ function render2D(
   const drawables: Array<{
     row: number
     col: number
-    type: 'asset' | 'player' | 'building'
+    type: 'asset' | 'player'
     asset?: GridAsset
-    building?: IsoBuilding
   }> = []
 
   // Add assets
@@ -8003,11 +7837,7 @@ function render2D(
   const treeCells2D = new Set(grid.assets.filter(a => a.type === 'tree').map(a => `${a.col},${a.row}`))
   const isTreeCell2D = (c: number, r: number): boolean => treeCells2D.has(`${c},${r}`)
   for (const asset of visibleAssets) {
-    if (asset.type === 'building') continue // buildings draw ONE voxel house each (from grid.buildings)
     drawables.push({ row: asset.row, col: asset.col, type: 'asset', asset })
-  }
-  for (const bld of grid.buildings) {
-    drawables.push({ row: bld.row, col: bld.col + (bld.width - 1) / 2, type: 'building', building: bld })
   }
 
   // Add player
@@ -8055,9 +7885,6 @@ function render2D(
         ctx.fillText(player.shieldGlyph, p.x - fontSize * 0.6, baseY - lineHeight * 1.2)
       }
 
-    } else if (obj.type === 'building' && obj.building) {
-      const flick = Math.sin(time * 0.003 + obj.col * 0.5 + obj.row * 0.7) * 0.15 + 1
-      drawBuildingVoxel(ctx, p.x, p.y + tileH * 0.5 - elevOffset, obj.building, tileW, tileH, flick)
     } else if (obj.asset) {
       const asset = obj.asset
 

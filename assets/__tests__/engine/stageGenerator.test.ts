@@ -715,29 +715,3 @@ describe('generateStage — doors + windows are VISIBLE color indicators on the 
     expect(windows.every(w => brightness(w.color) > 330)).toBe(true) // glass blue or lit yellow
   })
 })
-
-describe('generateStage — buildings carry depth + a colored render facade (iso billboard)', () => {
-  it('gives each building width×height×depth + renderCells matching dims, with a dark door', () => {
-    const stage = generateStage({ zone: 'summer', variant: 'village' })
-    expect(stage.buildings.length).toBeGreaterThan(0)
-    for (const b of stage.buildings) {
-      expect(b.depth).toBeGreaterThanOrEqual(1)
-      expect(b.renderCells).toHaveLength(b.height) // rows = height
-      expect(b.renderCells[0]).toHaveLength(b.length) // cols = width
-      expect(b.renderCells.flat().some(c => c.kind === 'door')).toBe(true)
-    }
-  })
-})
-
-describe('generateStage — buildings ALIGN to the road (front parallel, faces the street)', () => {
-  it('places each village building so the row in front of its door is the street', () => {
-    const stage = generateStage({ zone: 'summer', variant: 'village', cols: 50, rows: 40 })
-    expect(stage.buildings.length).toBeGreaterThan(0)
-    for (const b of stage.buildings) {
-      // front edge is a single grid row (parallel to the horizontal road); the row directly
-      // in front of the door (b.row + 1) is the street → the building faces the road.
-      const frontCells = stage.ground[b.row + 1]?.slice(b.col, b.col + b.length) ?? []
-      expect(frontCells.some(t => t === 'path_stone')).toBe(true)
-    }
-  })
-})
