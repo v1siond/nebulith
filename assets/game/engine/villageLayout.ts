@@ -50,6 +50,9 @@ const randInt = (rng: Rng, lo: number, hi: number): number => lo + Math.floor(rn
 const HOUSE_RANGE: Record<Settlement, [number, number]> = { village: [2, 3], town: [4, 6], city: [7, 11] }
 const BIG_RANGE: Record<Settlement, [number, number]> = { village: [0, 1], town: [1, 3], city: [3, 5] }
 const CONNECTOR_RANGE: Record<Settlement, [number, number]> = { village: [1, 1], town: [1, 2], city: [2, 3] }
+// Horizontal streets = building frontages. Cities get more so more buildings fit (capacity,
+// not just mix, scales). Clamped by map height in planRoads.
+const STREET_COUNT: Record<Settlement, number> = { village: 2, town: 2, city: 3 }
 
 // MUST match buildingComposer TYPE_SPECS.baseLength so a plot reserves exactly the facade width.
 const BUILDING_LENGTH: Partial<Record<BuildingType, number>> = { house: 4, 'big-house': 6, store: 5, hospital: 6 }
@@ -83,10 +86,19 @@ export function planRoads(cols: number, rows: number, rng: Rng, settlement: Sett
   const roads: boolean[][] = Array.from({ length: rows }, () => new Array<boolean>(cols).fill(false))
   const entrances: Entrance[] = []
 
-  // Two horizontal streets — upper third + lower third — each 2 cells wide, edge to edge.
-  const street1 = clamp(Math.round(rows * 0.32 + (rng() - 0.5) * rows * 0.08), 8, Math.floor(rows * 0.45))
-  const street2 = clamp(Math.round(rows * 0.7 + (rng() - 0.5) * rows * 0.08), street1 + 8, rows - 5)
-  for (const sr of [street1, street2]) {
+  // N evenly-spaced horizontal streets, capped by what the map height fits (each frontage
+  // needs ~9 rows of headroom for the buildings rising above it).
+  const maxStreets = Math.max(1, Math.floor((rows - 6) / 9))
+  const n = Math.min(STREET_COUNT[settlement], maxStreets)
+  const streets: number[] = []
+  for (let i = 0; i < n; i++) {
+    const frac = (i + 1) / (n + 1)
+    streets.push(clamp(Math.round(rows * frac + (rng() - 0.5) * rows * 0.03), 8, rows - 5))
+  }
+  streets.sort((a, b) => a - b)
+
+  // Carve each street (2 cells wide, edge to edge) → left + right entrances.
+  for (const sr of streets) {
     for (let c = 0; c < cols; c++) {
       roads[sr][c] = true
       roads[sr + 1][c] = true
@@ -94,14 +106,17 @@ export function planRoads(cols: number, rows: number, rng: Rng, settlement: Sett
     entrances.push({ col: 0, row: sr, side: 'left' }, { col: cols - 1, row: sr, side: 'right' })
   }
 
-  // Vertical connector(s) join the two streets (and may run to the top/bottom edges → entrances).
+  // Vertical connector(s) span first→last street, joining EVERY street into one network
+  // (and may run to the top/bottom edges → entrances).
   const [cl, ch] = CONNECTOR_RANGE[settlement]
+  const firstStreet = streets[0]
+  const lastStreet = streets[streets.length - 1]
   for (let k = randInt(rng, cl, ch); k > 0; k--) {
     const bc = clamp(randInt(rng, Math.round(cols * 0.2), Math.round(cols * 0.8)), 2, cols - 3)
     const toTop = rng() < 0.5
     const toBot = rng() < 0.5
-    const top = toTop ? 0 : street1
-    const bot = toBot ? rows - 1 : street2 + 1
+    const top = toTop ? 0 : firstStreet
+    const bot = toBot ? rows - 1 : lastStreet + 1
     for (let r = top; r <= bot; r++) {
       roads[r][bc] = true
       if (bc + 1 < cols) roads[r][bc + 1] = true
@@ -111,7 +126,7 @@ export function planRoads(cols: number, rows: number, rng: Rng, settlement: Sett
   }
 
   // Frontages: the row directly above each street (door faces the street below).
-  return { roads, frontages: [street1 - 1, street2 - 1], entrances }
+  return { roads, frontages: streets.map(s => s - 1), entrances }
 }
 
 /** No road crosses the building's footprint row, so a door isn't planted on a connector. */

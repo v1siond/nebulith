@@ -674,3 +674,27 @@ describe('generateStage — windows have "lights on"', () => {
     expect(glass).toBeGreaterThan(0) // some windows are dark
   })
 })
+
+describe('generateStage — town & city scale up from village', () => {
+  it('generates legal buildings + streets for town and city', () => {
+    for (const variant of ['town', 'city'] as const) {
+      const stage = generateStage({ zone: 'summer', variant, cols: 50, rows: 44 })
+      expect(stage.buildings.length).toBeGreaterThan(0)
+      expect(stage.ground.flat().filter(t => t === 'path_stone').length).toBeGreaterThan(0)
+      expect(stage.collision[stage.spawn.row][stage.spawn.col]).toBe(false)
+    }
+  })
+
+  it('cities have more buildings + less nature than villages', () => {
+    let vBuild = 0, cBuild = 0, vTrees = 0, cTrees = 0
+    for (let i = 0; i < 5; i++) {
+      const v = generateStage({ zone: 'summer', variant: 'village', cols: 50, rows: 44 })
+      const c = generateStage({ zone: 'summer', variant: 'city', cols: 50, rows: 44 })
+      vBuild += v.buildings.length; cBuild += c.buildings.length
+      vTrees += v.props.filter(p => p.type === 'tree').length
+      cTrees += c.props.filter(p => p.type === 'tree').length
+    }
+    expect(cBuild).toBeGreaterThan(vBuild) // cities have more buildings
+    expect(vTrees).toBeGreaterThan(cTrees) // villages have more nature
+  })
+})

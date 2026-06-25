@@ -9,14 +9,14 @@
  * and reusable by the editor, the template mapper, and the eventual AI generator.
  */
 import { composeBuilding, ComposedBuilding, BuildingType, facadeLabel } from './buildingComposer'
-import { planVillage, type VillageLayout } from './villageLayout'
+import { planVillage, type VillageLayout, type Settlement } from './villageLayout'
 import { ZONE_PALETTES, ZoneId } from './zones'
 import { autotileLabel, isWalkable, TREE_MASS_FAMILY, type CellLabel } from './cellLabels'
 import { cellTile, TREE_CANOPY_SHADES, groundDecor } from './cellTileset'
 import { varyIntensity } from './colors'
 import type { Connector } from '@/lib/api'
 
-export type VariantId = 'village' | 'forest' | 'cave' | 'temple' | 'boss-stage'
+export type VariantId = 'village' | 'town' | 'city' | 'forest' | 'cave' | 'temple' | 'boss-stage'
 
 /** General forest LAYOUT the user steers; the generator randomizes the rest.
  *  'passages' = the default multi-passage forest (today's behavior). */
@@ -361,6 +361,8 @@ interface ArchetypeContext {
 
 const ARCHETYPES: Partial<Record<VariantId, (ctx: ArchetypeContext) => void>> = {
   village: placeVillage,
+  town: placeTown,
+  city: placeCity,
   forest: placeForest,
   temple: placeTemple,
   cave: placeCave,
@@ -398,10 +400,29 @@ export function generateStage(opts: GenerateOptions): StageData {
 }
 
 // ── village archetype ───────────────────────────────────────────────
+// Nature density by settlement — villages are leafy, cities mostly paved (town in between).
+const NATURE_MULT: Record<Settlement, number> = { village: 1, town: 0.55, city: 0.28 }
+
+// Hoisted function decls (not const arrows) so ARCHETYPES above can reference them.
 function placeVillage(ctx: ArchetypeContext): void {
+  placeSettlement(ctx, 'village')
+}
+function placeTown(ctx: ArchetypeContext): void {
+  placeSettlement(ctx, 'town')
+}
+function placeCity(ctx: ArchetypeContext): void {
+  placeSettlement(ctx, 'city')
+}
+
+/**
+ * Stamp a settlement from its planned layout: carve the streets, place the typed buildings,
+ * add the plaza + lamps, fill nature around. The SAME logic for village/town/city — only the
+ * layout scale (roads/buildings) + the nature density differ, both driven by `settlement`.
+ */
+function placeSettlement(ctx: ArchetypeContext, settlement: Settlement): void {
   const { buildings, ground, cols, rows } = ctx
   // 1. PLAN a logical layout (roads + typed plots), then STAMP it (villageLayout.planVillage).
-  const layout = planVillage(cols, rows, Math.random, 'village')
+  const layout = planVillage(cols, rows, Math.random, settlement)
   // Carve the streets into the ground as walkable path_stone.
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
@@ -414,9 +435,9 @@ function placeVillage(ctx: ArchetypeContext): void {
     if (plot.row - (facade.height - 1) < 0) continue // not enough headroom for this facade
     buildings.push(placeFacade(ctx, facade, plot.type, plot.col, plot.row))
   }
-  // 3. A small plaza (well + lamps) on the main street; trees fill the rest (leafy clearing).
+  // 3. Plaza (well/fountain) + lamps; trees fill the rest, scaled by settlement (cities sparser).
   villageDecor(ctx, layout)
-  fillVillageNature(ctx, layout)
+  fillVillageNature(ctx, layout, NATURE_MULT[settlement])
   scatterGroundCover(ctx, 0.12) // light grass/flowers; skips paved streets
 }
 
@@ -425,7 +446,7 @@ function placeVillage(ctx: ArchetypeContext): void {
  * village sits in a leafy clearing ringed by forest, sparse in the built core. Reuses the
  * glade-tree stamper (full vertical extent) with blue-noise spacing; never on a street.
  */
-function fillVillageNature(ctx: ArchetypeContext, layout: VillageLayout): void {
+function fillVillageNature(ctx: ArchetypeContext, layout: VillageLayout, natureMult = 1): void {
   const { collision, ground, buildings, cols, rows } = ctx
   // Cells occupied by (or hugging) a building — never plant a tree here, so doors + facades
   // stay clear (a door is walkable, so treeFits alone would happily plant a tree on it).
@@ -457,7 +478,7 @@ function fillVillageNature(ctx: ArchetypeContext, layout: VillageLayout): void {
     const sideDist = Math.min(col, cols - 1 - col) // distance from the LEFT/RIGHT edge
     const edgeDist = Math.min(sideDist, row, rows - 1 - row)
     // Denser toward the SIDES — the village sits in a clearing framed by forest left & right.
-    const p = sideDist < 5 ? 0.72 : edgeDist < 4 ? 0.5 : edgeDist < 9 ? 0.24 : 0.08
+    const p = (sideDist < 5 ? 0.72 : edgeDist < 4 ? 0.5 : edgeDist < 9 ? 0.24 : 0.08) * natureMult
     if (Math.random() > p) continue
     if (placed.some(t => Math.abs(t.col - col) < minDist && Math.abs(t.row - row) < minDist)) continue
     stampTree(ctx, col, row, Math.random() < DEAD_TREE_CHANCE[ctx.zone], Math.random() < 0.45)

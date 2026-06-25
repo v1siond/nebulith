@@ -126,3 +126,17 @@ describe('villageLayout — planVillage GUARANTEES the essentials', () => {
     }
   })
 })
+
+describe('villageLayout — settlement scale (town/city)', () => {
+  it('a city gets more streets/frontages than a village (capacity scales)', () => {
+    const v = planRoads(50, 44, seededRng(2), 'village')
+    const c = planRoads(50, 44, seededRng(2), 'city')
+    expect(c.frontages.length).toBeGreaterThan(v.frontages.length)
+  })
+
+  it('connects all streets in a multi-street city plan', () => {
+    const plan = planRoads(50, 50, seededRng(5), 'city')
+    const reached = floodRoads(plan.roads, plan.entrances[0])
+    for (const e of plan.entrances) expect(reached.has(`${e.col},${e.row}`)).toBe(true)
+  })
+})
