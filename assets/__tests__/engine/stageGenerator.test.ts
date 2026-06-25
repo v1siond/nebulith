@@ -698,3 +698,20 @@ describe('generateStage — town & city scale up from village', () => {
     expect(vTrees).toBeGreaterThan(cTrees) // villages have more nature
   })
 })
+
+describe('generateStage — doors + windows are VISIBLE color indicators on the grid', () => {
+  const brightness = (hex: string) => {
+    const n = parseInt(hex.slice(1), 16)
+    return ((n >> 16) & 255) + ((n >> 8) & 255) + (n & 255)
+  }
+  it('paints door cells DARK and window cells LIGHT (glass/lit)', () => {
+    const stage = generateStage({ zone: 'summer', variant: 'village' })
+    const cells = stage.props.filter(p => p.type === 'building')
+    const doors = cells.filter(c => c.label === 'door')
+    const windows = cells.filter(c => c.label === 'window')
+    expect(doors.length).toBeGreaterThan(0)
+    expect(windows.length).toBeGreaterThan(0)
+    expect(doors.every(d => brightness(d.color) < 240)).toBe(true) // dark entrance
+    expect(windows.every(w => brightness(w.color) > 330)).toBe(true) // glass blue or lit yellow
+  })
+})

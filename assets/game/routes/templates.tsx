@@ -7275,11 +7275,15 @@ function drawIsoLabeledCell(
   // Monospace single glyph → advance ≈ 0.6em. Avoids a per-cell measureText(), the
   // canvas-2D layout call that tanked iso FPS on dense (forest) stages.
   const w = fontSize * 0.6
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.5)'
+  // Building cells FILL with their own part color so a dark door + a glass/lit window read as
+  // solid coloured blocks (a dark glyph on a black backing was invisible). Trees keep the plain
+  // dark backing behind their canopy glyph.
+  const base = asset.color ?? '#cccccc'
+  ctx.fillStyle = asset.type === 'building' ? darkenColor(base, 0.28) : 'rgba(0, 0, 0, 0.5)'
   ctx.fillRect(x - w / 2 - 2, cy - fontSize * 0.55, w + 4, fontSize * 1.1)
   // Roof shape by building type: houses peak (▲), squared "buildings" stay flat.
   const glyph = asset.label === 'roof_top' ? (ROOF_APEX_GLYPH[asset.buildingType ?? ''] ?? char) : char
-  ctx.fillStyle = asset.color ?? '#cccccc'
+  ctx.fillStyle = base
   ctx.fillText(glyph, x, cy)
 
   // Type signage on the apex: a "STORE" marquee, a red hospital cross. Only the ONE
