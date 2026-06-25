@@ -36,6 +36,19 @@ export interface GridConfig {
   isoScale?: number  // Default 1.4
 }
 
+/** A building rendered as ONE front-facing billboard (iso): width × height facade extruded
+ *  back by depth. The 2D view ignores this and draws the per-cell facade props instead. */
+export interface IsoBuilding {
+  type: string  // building type (store/hospital/…) → drives the signage badge
+  col: number   // front-bottom-LEFT grid column of the footprint
+  row: number   // the front ground row (door faces the street one row below)
+  width: number
+  height: number // includes the roof rows
+  depth: number  // cells into the screen (the iso z-extrusion)
+  roofRows: number
+  cells: { kind: string; color: string }[][] // [facadeRow][facadeCol], row 0 = top
+}
+
 export class IsometricGrid {
   cols: number
   rows: number
@@ -53,6 +66,9 @@ export class IsometricGrid {
 
   // Placed assets
   assets: GridAsset[]
+
+  // Buildings as whole billboards (iso depth render) — separate from per-cell assets
+  buildings: IsoBuilding[] = []
 
   constructor(config: GridConfig) {
     this.cols = config.cols

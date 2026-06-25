@@ -8,7 +8,7 @@
  * Pure logic (no rendering, no IsometricGrid mutation) so it is unit-testable
  * and reusable by the editor, the template mapper, and the eventual AI generator.
  */
-import { composeBuilding, ComposedBuilding, BuildingType, facadeLabel } from './buildingComposer'
+import { composeBuilding, ComposedBuilding, BuildingType, BuildingCellKind, facadeLabel } from './buildingComposer'
 import { planVillage, type VillageLayout, type Settlement } from './villageLayout'
 import { ZONE_PALETTES, ZoneId } from './zones'
 import { autotileLabel, isWalkable, TREE_MASS_FAMILY, type CellLabel } from './cellLabels'
@@ -40,14 +40,23 @@ export interface StageProp {
   buildingType?: string
 }
 
+/** One facade cell, ready to render: its part KIND + its resolved COLOR. */
+export interface BuildingRenderCell {
+  kind: BuildingCellKind
+  color: string
+}
+
 export interface PlacedBuilding {
   type: BuildingType
   col: number
   row: number
   length: number
   height: number
+  depth: number
   doorCells: { col: number; row: number }[]
   facade: ComposedBuilding
+  /** Colored front facade for the iso billboard: renderCells[facadeRow][facadeCol], row 0 = top. */
+  renderCells: BuildingRenderCell[][]
 }
 
 export interface StageData {
@@ -526,12 +535,26 @@ function placeFacade(
 ): PlacedBuilding {
   const topRow = groundRow - (facade.height - 1)
   const doorCells: Cell[] = []
+  const renderCells: BuildingRenderCell[][] = []
   for (let r = 0; r < facade.height; r++) {
+    const rowCells: BuildingRenderCell[] = []
     for (let c = 0; c < facade.length; c++) {
       stampFacadeCell(ctx, facade, col + c, topRow + r, c, r, doorCells, col)
+      rowCells.push(facadeRenderCell(facade, type, col, topRow, c, r))
     }
+    renderCells.push(rowCells)
   }
-  return { type, col, row: groundRow, length: facade.length, height: facade.height, doorCells, facade }
+  return { type, col, row: groundRow, length: facade.length, height: facade.height, depth: facade.depth, doorCells, facade, renderCells }
+}
+
+/** The colored render cell for the iso billboard — SAME color logic as stampFacadeCell (so a
+ *  lit window matches between the 2D facade props and the iso billboard). Empty → blank. */
+function facadeRenderCell(facade: ComposedBuilding, type: BuildingType, anchorCol: number, topRow: number, c: number, r: number): BuildingRenderCell {
+  const label = facadeLabel(facade, c, r)
+  if (label === null) return { kind: 'empty', color: '' }
+  let color = buildingCellColor(type, label, anchorCol)
+  if (label === 'window' && shadeNoise((anchorCol + c) * 1.7 + (topRow + r) * 2.3) < LIT_WINDOW_CHANCE) color = LIT_WINDOW
+  return { kind: facade.cells[r][c], color }
 }
 
 /** Emit one labeled building cell from facade-local (c, r) at grid (gridCol,

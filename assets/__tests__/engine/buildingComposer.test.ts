@@ -110,3 +110,12 @@ describe('facadeLabels — facade-cell → CellLabel mapping (the keystone)', ()
     expect(labels.filter(l => l === 'window').every(l => !isWalkable(l))).toBe(true)
   })
 })
+
+describe('composeBuilding — depth dimension (iso z)', () => {
+  it('carries a depth (default 2) + roofRows, independent of floors', () => {
+    expect(composeBuilding({ type: 'house', floors: 1 }).depth).toBe(2)
+    expect(composeBuilding({ type: 'house', floors: 3 }).depth).toBe(2) // floors don't change depth
+    expect(composeBuilding({ type: 'house', depth: 4 }).depth).toBe(4)
+    expect(composeBuilding({ type: 'house' }).roofRows).toBe(2)
+  })
+})
