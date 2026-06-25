@@ -29,12 +29,20 @@ export interface BuildingSpec {
   floors?: number
   /** Optional length override (still clamped to the type/min minimum). */
   length?: number
+  /** Optional depth (cells into the screen, isometric only). Default 2. */
+  depth?: number
 }
 
 export interface ComposedBuilding {
   type: BuildingType
+  /** Cells WIDE (the front facade width). */
   length: number
+  /** Cells TALL (front facade height, including the roof rows). */
   height: number
+  /** Cells DEEP — the iso extrusion (z). 2D ignores it; iso extrudes the facade back by this. */
+  depth: number
+  /** How many of the top rows are roof (the cap). */
+  roofRows: number
   /** Door rectangle in facade coords. y is the top row of the door. */
   door: { x: number; y: number; width: number; height: number }
   /** The single apex roof cell (top row, centered) — the ONE walkable roof tile
@@ -89,6 +97,7 @@ export function composeBuilding(spec: BuildingSpec = {}): ComposedBuilding {
   const height = Math.max(MIN_HEIGHT, floors * FLOOR_BODY + ROOF_ROWS)
   const doorWidth = Math.min(Math.max(MIN_DOOR, ts.doorWidth), Math.max(1, length - 1)) // ≥1 wall column
   const doorHeight = MIN_DOOR
+  const depth = Math.max(1, Math.floor(spec.depth ?? 2))
 
   // Roof rows (peaked → narrowing triangle, flat → full-width squared) then the wall body.
   const apexX = Math.floor(length / 2)
@@ -122,6 +131,8 @@ export function composeBuilding(spec: BuildingSpec = {}): ComposedBuilding {
     type,
     length,
     height,
+    depth,
+    roofRows: ROOF_ROWS,
     door: { x: doorX, y: doorY, width: doorWidth, height: doorHeight },
     roofTop: { x: Math.floor(length / 2), y: 0 },
     cells,
