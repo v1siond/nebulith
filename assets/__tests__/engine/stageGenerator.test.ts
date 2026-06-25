@@ -647,3 +647,15 @@ describe('buildingCellColor — distinct per-type roofs + visible ornaments', ()
     expect(roofs.size).toBeGreaterThan(1)
   })
 })
+
+describe('generateStage — building cells carry their TYPE (apex signage)', () => {
+  it('tags every building cell with buildingType; village apexes include store + hospital', () => {
+    const stage = generateStage({ zone: 'summer', variant: 'village' })
+    const buildingCells = stage.props.filter(p => p.type === 'building')
+    expect(buildingCells.length).toBeGreaterThan(0)
+    expect(buildingCells.every(c => typeof c.buildingType === 'string' && c.buildingType!.length > 0)).toBe(true)
+    const apexTypes = new Set(buildingCells.filter(c => c.label === 'roof_top').map(c => c.buildingType))
+    expect(apexTypes.has('store')).toBe(true) // village guarantees a store…
+    expect(apexTypes.has('hospital')).toBe(true) // …and a hospital
+  })
+})

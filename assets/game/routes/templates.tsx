@@ -4846,7 +4846,7 @@ export default function TemplateEditor() {
       if (grid.ground[g.row]?.[g.col] !== undefined) grid.ground[g.row][g.col] = g.type
     }
     for (const a of paint.assets) {
-      grid.placeAsset([a.char], a.col, a.row, { type: a.type, blocking: a.blocking, color: a.color, label: a.label, baseShadow: a.baseShadow })
+      grid.placeAsset([a.char], a.col, a.row, { type: a.type, blocking: a.blocking, color: a.color, label: a.label, baseShadow: a.baseShadow, buildingType: a.buildingType })
     }
     // Mirror the generator's authoritative collision into the grid so trees/water/
     // features are truly blocked — enemies (manual placement + scatter) only land on
@@ -7245,6 +7245,12 @@ function drawIsoPlayer(
 // Draw asset as ASCII art in isometric view (matching 2D style)
 /** Draw a generated, labeled cell as a single glyph (its label char + zone color)
  *  on a subtle backing — one cell = one tile, matching the keystone model. */
+// Apex signage per building TYPE — makes a store / hospital read at a glance.
+const BUILDING_BADGES: Record<string, { text: string; color: string }> = {
+  store: { text: 'STORE', color: '#ffe24a' }, // gold marquee
+  hospital: { text: '✚', color: '#ff6060' }, // red cross
+}
+
 function drawIsoLabeledCell(
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -7269,6 +7275,22 @@ function drawIsoLabeledCell(
   ctx.fillRect(x - w / 2 - 2, cy - fontSize * 0.55, w + 4, fontSize * 1.1)
   ctx.fillStyle = asset.color ?? '#cccccc'
   ctx.fillText(char, x, cy)
+
+  // Type signage on the apex: a "STORE" marquee, a red hospital cross. Only the ONE
+  // roof_top cell per building hits this → the measureText here is rare, not per-cell.
+  if (asset.label === 'roof_top' && asset.buildingType) {
+    const badge = BUILDING_BADGES[asset.buildingType]
+    if (badge) {
+      const bf = fontSize * (badge.text.length > 1 ? 0.5 : 0.9)
+      ctx.font = `bold ${bf}px ${ASCII_FONT}`
+      const by = cy - fontSize * 0.95
+      const bw = ctx.measureText(badge.text).width
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.72)'
+      ctx.fillRect(x - bw / 2 - 2, by - bf * 0.6, bw + 4, bf * 1.2)
+      ctx.fillStyle = badge.color
+      ctx.fillText(badge.text, x, by)
+    }
+  }
 }
 
 /** An enemy that's been killed and is waiting to respawn (no live combat state). */

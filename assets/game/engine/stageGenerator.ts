@@ -35,6 +35,9 @@ export interface StageProp {
   /** Cell-label naming this cell's part (e.g. tree_leaf_top, tree_interior).
    *  Drives per-label collision + the eventual ASCII→tileset mapping. */
   label?: string
+  /** For building cells: the building's TYPE (store/hospital/…), so the render can
+   *  badge the apex (a "STORE" marquee, a red hospital cross). */
+  buildingType?: string
 }
 
 export interface PlacedBuilding {
@@ -522,7 +525,8 @@ function stampFacadeCell(
   if (!inBounds(gridCol, gridRow, cols, rows)) return
   const label = facadeLabel(facade, c, r)
   if (label === null) return // empty facade cell → no prop, no collision change
-  props.push(makeBuildingCell(zone, gridCol, gridRow, label, buildingCellColor(facade.type, label, anchorCol)))
+  const cell = makeBuildingCell(zone, gridCol, gridRow, label, buildingCellColor(facade.type, label, anchorCol))
+  props.push({ ...cell, buildingType: facade.type })
   collision[gridRow][gridCol] = !isWalkable(label)
   if (label === 'door') doorCells.push({ col: gridCol, row: gridRow })
 }
@@ -1525,7 +1529,7 @@ function firstWalkable(collision: boolean[][], cols: number, rows: number): Cell
 // ── visual mapping (shared by the template mapper + the live-grid applier) ──
 export interface StagePaint {
   ground: { col: number; row: number; type: string }[]
-  assets: { col: number; row: number; char: string; type: string; color: string; blocking: boolean; label?: string; baseShadow?: boolean }[]
+  assets: { col: number; row: number; char: string; type: string; color: string; blocking: boolean; label?: string; baseShadow?: boolean; buildingType?: string }[]
 }
 
 export function stagePaint(stage: StageData): StagePaint {
@@ -1533,7 +1537,7 @@ export function stagePaint(stage: StageData): StagePaint {
   const assets: StagePaint['assets'] = []
   stage.buildings.forEach(b => paintBuildingGround(b, ground))
   stage.props.forEach(p =>
-    assets.push({ col: p.col, row: p.row, char: p.char, type: p.type, color: p.color, blocking: p.blocking, label: p.label, baseShadow: p.baseShadow }),
+    assets.push({ col: p.col, row: p.row, char: p.char, type: p.type, color: p.color, blocking: p.blocking, label: p.label, baseShadow: p.baseShadow, buildingType: p.buildingType }),
   )
   return { ground, assets }
 }

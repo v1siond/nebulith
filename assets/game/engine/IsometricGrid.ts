@@ -26,6 +26,7 @@ export interface GridAsset {
   brightness?: number   // render brightness multiplier (default 1) — dim or pop an element
   cycles?: AnimationCycle[]  // authored animation cycles (author panel) — driven by animationCycles
   baseShadow?: boolean  // generator-marked tree-base cell → always casts a ground shadow
+  buildingType?: string // building cell's TYPE (store/hospital/…) → drives the apex signage badge
 }
 
 export interface GridConfig {
