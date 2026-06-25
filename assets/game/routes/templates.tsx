@@ -7365,6 +7365,39 @@ function buildingKindColor(b: IsoBuilding, kind: string, fallback: string): stri
 // Facade glyphs — the SAME tileset chars 2D uses, so iso buildings match the 2D look.
 const BUILDING_KIND_GLYPH: Record<string, string> = { roof: '▀', wall: '█', door: '╫', window: '▒' }
 
+/** Paint ONE building cell — the single shared tile recipe used by BOTH 2D and iso: a dark
+ *  backing over the cell area + the part-colored ASCII glyph. `q` is the cell's 4 screen points
+ *  (an axis-aligned rect in 2D, an iso parallelogram in iso). Caller sets ctx.font. */
+function paintBuildingTile(ctx: CanvasRenderingContext2D, q: number[][], glyph: string, color: string): void {
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.45)'
+  fillIsoPoly(ctx, q)
+  if (!glyph) return
+  ctx.fillStyle = color
+  ctx.fillText(glyph, (q[0][0] + q[2][0]) / 2, (q[0][1] + q[2][1]) / 2)
+}
+
+/**
+ * Render a building in the 2D view — the front facade laid on the grid (roof rows on top, door
+ * at the bottom). SAME source (grid.buildings) + SAME tiles (paintBuildingTile) as iso; iso just
+ * adds depth on top of this. No Z here.
+ */
+function draw2DBuilding(ctx: CanvasRenderingContext2D, b: IsoBuilding, toScreen: (c: number, r: number) => { x: number; y: number }, tileW: number, tileH: number): void {
+  const W = b.width, H = b.height, col = b.col, topRow = b.row - (H - 1)
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.font = `bold ${tileH * 0.8}px ${ASCII_FONT}`
+  const hw = tileW / 2, hh = tileH / 2
+  for (let by = 0; by < H; by++) {
+    for (let bx = 0; bx < W; bx++) {
+      const cell = b.cells[by]?.[bx]
+      if (!cell || cell.kind === 'empty') continue
+      const s = toScreen(col + bx, topRow + by)
+      const q = [[s.x - hw, s.y + hh], [s.x + hw, s.y + hh], [s.x + hw, s.y - hh], [s.x - hw, s.y - hh]]
+      paintBuildingTile(ctx, q, BUILDING_KIND_GLYPH[cell.kind] ?? '█', cell.color)
+    }
+  }
+}
+
 /**
  * One building as a TRUE isometric box, anchored to the grid (NOT screen-space):
  *   - `width` runs along the +col axis (the road direction) ⇒ the base edge is PARALLEL to the road.
@@ -7388,13 +7421,7 @@ function drawIsoBuilding(ctx: CanvasRenderingContext2D, b: IsoBuilding, toScreen
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
   ctx.font = `bold ${hs * 0.9}px ${ASCII_FONT}`
-  const paintTile = (q: number[][], glyph: string, color: string): void => {
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.45)'
-    fillIsoPoly(ctx, q)
-    if (!glyph) return
-    ctx.fillStyle = color
-    ctx.fillText(glyph, (q[0][0] + q[2][0]) / 2, (q[0][1] + q[2][1]) / 2)
-  }
+  const paintTile = (q: number[][], glyph: string, color: string): void => paintBuildingTile(ctx, q, glyph, color)
 
   // ROOF-TOP (W×D roof tiles at the top) — drawn first (behind), back rows first.
   for (let bz = D - 1; bz >= 0; bz--) {
@@ -7953,8 +7980,9 @@ function render2D(
   const drawables: Array<{
     row: number
     col: number
-    type: 'asset' | 'player'
+    type: 'asset' | 'player' | 'building'
     asset?: GridAsset
+    building?: IsoBuilding
   }> = []
 
   // Add assets
@@ -7964,7 +7992,11 @@ function render2D(
   const treeCells2D = new Set(grid.assets.filter(a => a.type === 'tree').map(a => `${a.col},${a.row}`))
   const isTreeCell2D = (c: number, r: number): boolean => treeCells2D.has(`${c},${r}`)
   for (const asset of visibleAssets) {
+    if (asset.type === 'building') continue // buildings render whole from grid.buildings (same source as iso)
     drawables.push({ row: asset.row, col: asset.col, type: 'asset', asset })
+  }
+  for (const bld of grid.buildings) {
+    drawables.push({ row: bld.row, col: bld.col + (bld.width - 1) / 2, type: 'building', building: bld })
   }
 
   // Add player
@@ -8012,6 +8044,8 @@ function render2D(
         ctx.fillText(player.shieldGlyph, p.x - fontSize * 0.6, baseY - lineHeight * 1.2)
       }
 
+    } else if (obj.type === 'building' && obj.building) {
+      draw2DBuilding(ctx, obj.building, toScreen, tileW, tileH)
     } else if (obj.asset) {
       const asset = obj.asset
 
