@@ -431,7 +431,7 @@ function placeSettlement(ctx: ArchetypeContext, settlement: Settlement): void {
   }
   // 2. Stamp a building at each plot — each carries its TYPE, so placeFacade colors it.
   for (const plot of layout.plots) {
-    const facade = composeBuilding({ type: plot.type })
+    const facade = composeBuilding({ type: plot.type, length: plot.length })
     if (plot.row - (facade.height - 1) < 0) continue // not enough headroom for this facade
     buildings.push(placeFacade(ctx, facade, plot.type, plot.col, plot.row))
   }

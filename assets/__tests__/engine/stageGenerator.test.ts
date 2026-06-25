@@ -20,11 +20,11 @@ describe('generateStage — lava/village vertical slice', () => {
     expect(stage.ground.flat().filter(t => t === 'path_stone').length).toBeGreaterThan(0)
   })
 
-  it('places at least one legal building (>=4 long, >=4 tall, with a door)', () => {
+  it('places at least one legal building (>=2 long, >=5 tall, with a door)', () => {
     expect(stage.buildings.length).toBeGreaterThan(0)
     for (const b of stage.buildings) {
-      expect(b.length).toBeGreaterThanOrEqual(4)
-      expect(b.height).toBeGreaterThanOrEqual(4)
+      expect(b.length).toBeGreaterThanOrEqual(2) // houses scale down to 2-wide cottages
+      expect(b.height).toBeGreaterThanOrEqual(5) // 3 body + 2 roof minimum
       expect(b.doorCells.length).toBeGreaterThan(0)
     }
   })

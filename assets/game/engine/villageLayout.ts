@@ -58,6 +58,11 @@ const STREET_COUNT: Record<Settlement, number> = { village: 2, town: 2, city: 3 
 const BUILDING_LENGTH: Partial<Record<BuildingType, number>> = { house: 4, 'big-house': 6, store: 5, hospital: 6 }
 const lengthOf = (t: BuildingType): number => BUILDING_LENGTH[t] ?? 8
 
+// House footprints VARY (2 blocks min → up to 7); other types keep their fixed type width.
+const HOUSE_WIDTHS = [2, 3, 3, 4, 4, 5, 6, 7]
+const plotWidth = (type: BuildingType, rng: Rng): number =>
+  type === 'house' ? HOUSE_WIDTHS[Math.floor(rng() * HOUSE_WIDTHS.length)] : lengthOf(type)
+
 /**
  * STEP 2 — the building MIX: ALWAYS one store + one hospital (every settlement has them), plus
  * houses + big buildings scaled by size, shuffled so a street isn't a fixed order. Pure.
@@ -148,7 +153,7 @@ export function placePlots(roads: boolean[][], frontages: number[], cols: number
     let x = randInt(rng, 2, 4)
     while (mi < mix.length) {
       const type = mix[mi]
-      const len = lengthOf(type)
+      const len = plotWidth(type, rng)
       while (x + len + 1 <= cols && !frontageClear(roads, x, len, groundRow)) x += 1 // step past a connector
       if (x + len + 1 > cols) break // frontage full → move to the next frontage
       plots.push({ col: x, row: groundRow, type, length: len })

@@ -44,8 +44,8 @@ export interface ComposedBuilding {
   cells: BuildingCellKind[][]
 }
 
-// Minimums — buildings read better at HALF the old width, so a town isn't a wall of facades.
-const MIN_LENGTH = 4
+// Houses scale down to 2-wide cottages (and up to n blocks); other types keep their type width.
+const MIN_LENGTH = 2
 const MIN_BODY_ROWS = 3
 const ROOF_ROWS = 2 // two roof rows so a peaked (triangle) roof reads vs a flat (squared) one
 const MIN_HEIGHT = MIN_BODY_ROWS + ROOF_ROWS // 5
@@ -87,7 +87,7 @@ export function composeBuilding(spec: BuildingSpec = {}): ComposedBuilding {
   const floors = Math.max(1, Math.floor(spec.floors ?? ts.floors))
   const length = Math.max(MIN_LENGTH, spec.length ?? ts.baseLength)
   const height = Math.max(MIN_HEIGHT, floors * FLOOR_BODY + ROOF_ROWS)
-  const doorWidth = Math.max(MIN_DOOR, ts.doorWidth)
+  const doorWidth = Math.min(Math.max(MIN_DOOR, ts.doorWidth), Math.max(1, length - 1)) // ≥1 wall column
   const doorHeight = MIN_DOOR
 
   // Roof rows (peaked → narrowing triangle, flat → full-width squared) then the wall body.

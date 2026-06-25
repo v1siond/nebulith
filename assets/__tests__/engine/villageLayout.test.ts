@@ -140,3 +140,15 @@ describe('villageLayout — settlement scale (town/city)', () => {
     for (const e of plan.entrances) expect(reached.has(`${e.col},${e.row}`)).toBe(true)
   })
 })
+
+describe('villageLayout — house footprints vary in size', () => {
+  it('gives houses varied widths (2..n blocks), including small cottages', () => {
+    const widths = new Set<number>()
+    for (let s = 1; s <= 20; s++) {
+      const layout = planVillage(60, 44, seededRng(s), 'village')
+      for (const p of layout.plots) if (p.type === 'house') widths.add(p.length)
+    }
+    expect(widths.size).toBeGreaterThan(1) // not all the same width
+    expect(Math.min(...[...widths])).toBeLessThanOrEqual(3) // small cottages exist
+  })
+})

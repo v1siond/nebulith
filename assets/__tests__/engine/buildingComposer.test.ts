@@ -24,9 +24,17 @@ describe('composeBuilding — Nebulith building architecture spec', () => {
   })
 
   it('enforces the minimums even when smaller values are requested', () => {
-    const b = composeBuilding({ type: 'house', floors: 0, length: 2 })
-    expect(b.length).toBeGreaterThanOrEqual(4)
-    expect(b.height).toBeGreaterThanOrEqual(4)
+    const b = composeBuilding({ type: 'house', floors: 0, length: 1 })
+    expect(b.length).toBeGreaterThanOrEqual(2)
+    expect(b.height).toBeGreaterThanOrEqual(5)
+  })
+
+  it('builds a 2-wide cottage (the minimum) — still legal with a door + apex', () => {
+    const b = composeBuilding({ type: 'house', floors: 1, length: 2 })
+    expect(b.length).toBe(2)
+    expect(b.door.width).toBeGreaterThanOrEqual(1)
+    expect(b.door.x + b.door.width).toBeLessThanOrEqual(b.length)
+    expect(b.roofTop).toEqual({ x: 1, y: 0 })
   })
 
   it('places a 2×2 door at the bottom, within the facade', () => {
