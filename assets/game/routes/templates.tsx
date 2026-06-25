@@ -7383,27 +7383,40 @@ function drawIsoBuilding(ctx: CanvasRenderingContext2D, b: IsoBuilding, toScreen
   const roofColor = b.cells[0]?.[Math.floor(W / 2)]?.color || '#b06a4a'
   const wallColor = buildingKindColor(b, 'wall', '#cdbd95')
 
-  // ROOF-TOP surface (footprint W×D at the top) + RIGHT-side wall (the depth Z) — drawn first (behind).
-  ctx.fillStyle = lightenColor(roofColor, 0.14)
-  fillIsoPoly(ctx, [P(col, row, H), P(col + W, row, H), P(col + W, row - D, H), P(col, row - D, H)])
-  ctx.fillStyle = darkenColor(wallColor, 0.42)
-  fillIsoPoly(ctx, [P(col + W, row, 0), P(col + W, row - D, 0), P(col + W, row - D, H), P(col + W, row, H)])
-
-  // FRONT facade — one filled cell per (bx, by), base edge along +col (parallel to the road),
-  // rising vertically. Filled with the part color (no glyph-gaps/barcode) + a faint glyph.
+  // Every face is painted with the SAME tile recipe 2D uses: a dark backing + the colored ASCII
+  // glyph. No new art — just the 2D tiles, now in 3-D.
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
-  ctx.font = `bold ${hs * 0.7}px ${ASCII_FONT}`
+  ctx.font = `bold ${hs * 0.9}px ${ASCII_FONT}`
+  const paintTile = (q: number[][], glyph: string, color: string): void => {
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.45)'
+    fillIsoPoly(ctx, q)
+    if (!glyph) return
+    ctx.fillStyle = color
+    ctx.fillText(glyph, (q[0][0] + q[2][0]) / 2, (q[0][1] + q[2][1]) / 2)
+  }
+
+  // ROOF-TOP (W×D roof tiles at the top) — drawn first (behind), back rows first.
+  for (let bz = D - 1; bz >= 0; bz--) {
+    for (let bx = 0; bx < W; bx++) {
+      paintTile([P(col + bx, row - bz, H), P(col + bx + 1, row - bz, H), P(col + bx + 1, row - bz - 1, H), P(col + bx, row - bz - 1, H)], '▀', roofColor)
+    }
+  }
+  // RIGHT SIDE (the depth Z — D×H wall tiles at col+W).
+  for (let bz = D - 1; bz >= 0; bz--) {
+    for (let by = 0; by < H; by++) {
+      const lo = H - 1 - by, hi = H - by
+      paintTile([P(col + W, row - bz, lo), P(col + W, row - bz - 1, lo), P(col + W, row - bz - 1, hi), P(col + W, row - bz, hi)], '█', wallColor)
+    }
+  }
+  // FRONT facade (W×H) — base edge along +col (parallel to the road), rising vertically. The
+  // SAME per-cell tiles as 2D (door dark, window glass/lit, roof, wall). Empties = sky.
   for (let by = 0; by < H; by++) {
     for (let bx = 0; bx < W; bx++) {
       const cell = b.cells[by]?.[bx]
       if (!cell || cell.kind === 'empty') continue
       const lo = H - 1 - by, hi = H - by
-      const quad = [P(col + bx, row, lo), P(col + bx + 1, row, lo), P(col + bx + 1, row, hi), P(col + bx, row, hi)]
-      ctx.fillStyle = cell.color
-      fillIsoPoly(ctx, quad)
-      ctx.fillStyle = darkenColor(cell.color, 0.4)
-      ctx.fillText(BUILDING_KIND_GLYPH[cell.kind] ?? '', (quad[0][0] + quad[2][0]) / 2, (quad[0][1] + quad[2][1]) / 2)
+      paintTile([P(col + bx, row, lo), P(col + bx + 1, row, lo), P(col + bx + 1, row, hi), P(col + bx, row, hi)], BUILDING_KIND_GLYPH[cell.kind] ?? '█', cell.color)
     }
   }
 
