@@ -7120,17 +7120,17 @@ function render(
       if (isDeadEnemy(obj.entity, combat)) continue // hidden until it respawns
       drawIsoEntity(ctx, p.x, p.y - heightOffset, obj.entity, tileH, combat, now, obj.moving ?? false, obj.inRange ?? false)
     } else if (obj.building) {
-      // ONE upright unit, rotated by its iso facing: facade sheared onto the iso angle + z-depth.
+      // ONE upright unit, rotated by its iso facing — but ONLY when the rotated footprint fits
+      // inside the road-free plot rect (L < H); otherwise it stays front-facing so it can't spill.
       const b = obj.building
-      const f = ISO_FACINGS[(b.facing ?? 0) % ISO_FACINGS.length]
-      const cc = b.col + b.length / 2 // plot centre (front edge), so the house rotates in place
-      const cr = b.row + 0.5
-      const center = toScreen(cc, cr)
-      const lp = toScreen(cc + f.len[0], cr + f.len[1])
-      const colVec = { x: lp.x - center.x, y: lp.y - center.y } // per-column step along the length axis
-      const origin = { x: center.x - colVec.x * (b.length / 2), y: center.y - colVec.y * (b.length / 2) }
-      const dp = toScreen(cc + f.dep[0] * ISO_BUILDING_DEPTH, cr + f.dep[1] * ISO_BUILDING_DEPTH)
-      const depthVec = { x: dp.x - center.x, y: dp.y - center.y } // z-depth back, away from the camera
+      const f = ISO_FACINGS[b.length < b.height ? (b.facing ?? 0) % ISO_FACINGS.length : 0]
+      const oC = b.col + f.baseColFrac * b.length // base start col (which end of the frontage)
+      const oR = b.row + 0.5 // base sits on the frontage front edge
+      const origin = toScreen(oC, oR)
+      const lp = toScreen(oC + f.len[0], oR + f.len[1])
+      const colVec = { x: lp.x - origin.x, y: lp.y - origin.y } // per-column step along the length axis
+      const dp = toScreen(oC + f.dep[0] * ISO_BUILDING_DEPTH, oR + f.dep[1] * ISO_BUILDING_DEPTH)
+      const depthVec = { x: dp.x - origin.x, y: dp.y - origin.y } // z-depth UP into the clear headroom
       const flicker = Math.sin(time * 0.003 + b.col * 0.5 + b.row * 0.7) * 0.15 + 1
       drawIsoBuilding(ctx, b, origin, colVec, depthVec, tileW * 0.9, flicker)
     } else if (obj.asset) {
@@ -7609,12 +7609,15 @@ function draw2DBuildingTile(
 // How many cells deep the iso z-extrusion is — the single "z width" knob. Bump up/down to taste.
 const ISO_BUILDING_DEPTH = 2
 
-// ISO facing options: which grid axis the facade LENGTH runs along, and which way DEPTH goes
-// back (away from the camera). Both keep the door facing the viewer — just from a different
-// side — so a village reads with varied orientations. Add the back-facing pair for 4-way later.
-const ISO_FACINGS: { len: [number, number]; dep: [number, number] }[] = [
-  { len: [1, 0], dep: [0, -1] }, // facade faces down-left  (length down-right, depth up-right)
-  { len: [0, 1], dep: [-1, 0] }, // facade faces down-right (length down-left,  depth up-left)
+// ISO facing. Each building stands inside its plot RECT — cols [col, col+L] × the clear headroom
+// rows ABOVE the frontage (that whole rect is road-free, verified on the grid). A facing keeps
+// the footprint inside that rect by extruding UP into the headroom, never DOWN onto the street
+// it fronts. `baseColFrac` is which end of the frontage the base starts at; `len`/`dep` are the
+// grid axes the length + depth run along. Applied only when the rotated footprint fits (L < H);
+// wide-short types (store/temple/castle) stay front-facing so they can't spill past the rect.
+const ISO_FACINGS: { len: [number, number]; dep: [number, number]; baseColFrac: number }[] = [
+  { len: [1, 0], dep: [0, -1], baseColFrac: 0 },  // faces down-left:  base +col,        depth up-right
+  { len: [0, -1], dep: [-1, 0], baseColFrac: 1 }, // faces down-right: base up the right, depth up-left
 ]
 
 type Pt = { x: number; y: number }
@@ -7657,32 +7660,15 @@ function drawIsoFacadeTile(ctx: CanvasRenderingContext2D, bl: Pt, colVec: Pt, ce
   ctx.fillText(glyph, (bl.x + tr.x) / 2, (bl.y + tr.y) / 2)
 }
 
-/** ISO building = the EXACT 2D facade standing at its plot, sheared onto the iso angle, PLUS a
- *  z-depth extruded back. `origin` is the front-bottom-LEFT corner; `colVec` is the per-column
- *  iso step (length runs along it, NOT a horizontal 90° row); `depthVec` is the z-depth delta. */
 const ROOF_ROWS = 2 // facade roof is always the top 2 rows (mirrors composeBuilding)
+const ROOF_OVERHANG = 0.3 // peaked-roof eaves stick out past the walls
+const ROOF_RIDGE_FRAC = 0.46 // peaked-roof flat-top width as a fraction of length
 
-/** A house's PEAKED roof as one solid iso volume: a front trapezoid (wide eaves → narrow
- *  ridge, the `‾\_/‾` silhouette) + a flat top + a side slope, all extruded along depthVec.
- *  Solid (no per-cell gaps) and sloped (no square corners) — what a flat-roofed store keeps. */
-function drawIsoPeakedRoof(ctx: CanvasRenderingContext2D, fbl: Pt, colVec: Pt, depthVec: Pt, cellH: number, L: number): void {
-  const up = (n: number): Pt => ({ x: 0, y: -n * cellH }) // fbl is already at the eaves (top of walls)
-  const OVERHANG = 0.3 // eaves stick out past the walls a touch
-  const RIDGE_FRAC = 0.46 // ridge (flat top) width as a fraction of L → the narrow top
-  const ridgeHalf = (L * RIDGE_FRAC) / 2
-  const eavesL = ptAdd(fbl, ptScale(colVec, -OVERHANG))
-  const eavesR = ptAdd(fbl, ptScale(colVec, L + OVERHANG))
-  const ridgeL = ptAdd(ptAdd(fbl, ptScale(colVec, L / 2 - ridgeHalf)), up(ROOF_ROWS))
-  const ridgeR = ptAdd(ptAdd(fbl, ptScale(colVec, L / 2 + ridgeHalf)), up(ROOF_ROWS))
-  // right slope (depth) + flat top (depth) behind, then the bright front trapezoid.
-  ctx.fillStyle = 'rgba(150, 40, 40, 0.97)'
-  fillQuad(ctx, eavesR, ridgeR, ptAdd(ridgeR, depthVec), ptAdd(eavesR, depthVec))
-  ctx.fillStyle = 'rgba(178, 52, 52, 0.97)'
-  fillQuad(ctx, ridgeL, ridgeR, ptAdd(ridgeR, depthVec), ptAdd(ridgeL, depthVec))
-  ctx.fillStyle = 'rgba(206, 70, 70, 0.98)'
-  fillQuad(ctx, eavesL, eavesR, ridgeR, ridgeL)
-}
-
+/** ISO building = the 2D facade standing at its plot, sheared onto the iso angle, drawn as a
+ *  SOLID box — all four walls + every roof face filled, so it never shows through from any
+ *  facing — with the z-depth extruded along depthVec. Houses get a peaked (trapezoid-prism)
+ *  roof, flat types a box slab; EVERY roof face is red. `origin` = front-bottom-left corner;
+ *  `colVec` = per-column length step; `depthVec` = full z-depth back. */
 function drawIsoBuilding(
   ctx: CanvasRenderingContext2D,
   b: GridBuilding,
@@ -7696,34 +7682,70 @@ function drawIsoBuilding(
   const H = b.height
   const bodyH = H - ROOF_ROWS // wall/window/door rows
   const up = (n: number): Pt => ({ x: 0, y: -n * cellH })
-  const fbl = origin
-  const fbr = ptAdd(fbl, ptScale(colVec, L))
-  // Houses get a peaked (trapezoid) roof; flat-roofed types (store/hospital/…) keep the square
-  // slab. Data-driven: composeBuilding leaves empty corners in row 0 ONLY for peaked roofs.
+  // Houses peak (composeBuilding leaves empty corners in row 0); flat types keep a box roof.
   const peaked = (b.cells[0] ?? []).some(k => k === 'empty')
 
-  // WALL side face (depth) — up to the eaves for a peaked roof, full height for a flat one.
-  const sideTopR = ptAdd(fbr, up(peaked ? bodyH : H))
-  ctx.fillStyle = 'rgba(120, 88, 44, 0.96)'
-  fillQuad(ctx, sideTopR, fbr, ptAdd(fbr, depthVec), ptAdd(sideTopR, depthVec))
+  const wallSide = 'rgba(135, 99, 49, 0.98)' // solid wall faces (front is the facade tiles)
+  const wallBack = 'rgba(112, 82, 41, 0.98)'
+  const roofFront = 'rgba(206, 70, 70, 0.98)' // EVERY roof face red, shaded by orientation
+  const roofSlope = 'rgba(168, 48, 48, 0.98)'
+  const roofTop = 'rgba(190, 58, 58, 0.98)'
+  const roofBack = 'rgba(140, 38, 38, 0.98)'
 
+  // ground corners + helper to lift a corner to the eaves (top of the walls)
+  const fbl = origin
+  const fbr = ptAdd(fbl, ptScale(colVec, L))
+  const bbl = ptAdd(fbl, depthVec)
+  const bbr = ptAdd(fbr, depthVec)
+  const eave = (p: Pt): Pt => ptAdd(p, up(bodyH))
+
+  // ── WALL BODY (solid box, ground → eaves): back + both sides, behind the facade ──
+  ctx.fillStyle = wallBack
+  fillQuad(ctx, bbl, bbr, eave(bbr), eave(bbl))
+  ctx.fillStyle = wallSide
+  fillQuad(ctx, fbl, bbl, eave(bbl), eave(fbl)) // left
+  fillQuad(ctx, fbr, bbr, eave(bbr), eave(fbr)) // right
+
+  // ── ROOF (all faces red) ──
   if (peaked) {
-    drawIsoPeakedRoof(ctx, ptAdd(fbl, up(bodyH)), colVec, depthVec, cellH, L)
+    const rh = (L * ROOF_RIDGE_FRAC) / 2
+    const FEL = ptAdd(eave(fbl), ptScale(colVec, -ROOF_OVERHANG))
+    const FER = ptAdd(eave(fbr), ptScale(colVec, ROOF_OVERHANG))
+    const BEL = ptAdd(FEL, depthVec)
+    const BER = ptAdd(FER, depthVec)
+    const FRL = ptAdd(ptAdd(fbl, ptScale(colVec, L / 2 - rh)), up(H))
+    const FRR = ptAdd(ptAdd(fbl, ptScale(colVec, L / 2 + rh)), up(H))
+    const BRL = ptAdd(FRL, depthVec)
+    const BRR = ptAdd(FRR, depthVec)
+    ctx.fillStyle = roofBack
+    fillQuad(ctx, BEL, BER, BRR, BRL) // back trapezoid
+    ctx.fillStyle = roofSlope
+    fillQuad(ctx, FEL, BEL, BRL, FRL) // left slope
+    fillQuad(ctx, FER, BER, BRR, FRR) // right slope
+    ctx.fillStyle = roofTop
+    fillQuad(ctx, FRL, FRR, BRR, BRL) // flat top
+    ctx.fillStyle = roofFront
+    fillQuad(ctx, FEL, FER, FRR, FRL) // front trapezoid (the `‾\_/‾`)
   } else {
-    const ftl = ptAdd(fbl, up(H))
-    const ftr = ptAdd(fbr, up(H))
-    ctx.fillStyle = 'rgba(150, 42, 42, 0.96)' // flat roof slab (top)
-    fillQuad(ctx, ftl, ftr, ptAdd(ftr, depthVec), ptAdd(ftl, depthVec))
+    const top = (p: Pt): Pt => ptAdd(p, up(H))
+    ctx.fillStyle = roofBack
+    fillQuad(ctx, eave(bbl), eave(bbr), top(bbr), top(bbl))
+    ctx.fillStyle = roofSlope
+    fillQuad(ctx, eave(fbl), eave(bbl), top(bbl), top(fbl)) // left
+    fillQuad(ctx, eave(fbr), eave(bbr), top(bbr), top(fbr)) // right
+    ctx.fillStyle = roofTop
+    fillQuad(ctx, top(fbl), top(fbr), top(bbr), top(bbl))
+    ctx.fillStyle = roofFront
+    fillQuad(ctx, eave(fbl), eave(fbr), top(fbr), top(fbl))
   }
 
-  // FRONT FACADE cells — skip the roof rows on a peaked roof (drawn as the solid trapezoid).
+  // ── FRONT FACADE TILES (on top): body rows always; roof rows too on a flat roof ──
   for (let r = 0; r < H; r++) {
     if (peaked && r < ROOF_ROWS) continue
     for (let c = 0; c < L; c++) {
       const kind = b.cells[r]?.[c]
       if (!kind || kind === 'empty') continue
-      const rb = H - 1 - r // rows from the bottom
-      const bl = ptAdd(ptAdd(fbl, ptScale(colVec, c)), up(rb))
+      const bl = ptAdd(ptAdd(fbl, ptScale(colVec, c)), up(H - 1 - r))
       drawIsoFacadeTile(ctx, bl, colVec, cellH, kind, flicker)
     }
   }
