@@ -7520,6 +7520,52 @@ function draw2DLabeledCell(
   ctx.fillText(char, x, cy)
 }
 
+/** One building FACADE cell rendered as a single tile, using the SAME tiles the layered
+ *  house drew (|[]| windows, |==| door, /\ red roof). The cell's structural glyph picks which:
+ *  ▀/▔ → red roof, ╫ → door, everything else (█ wall, ▒ window) → the gold |[]| body tile —
+ *  so the body looks exactly like #16's dense windowed wall. Painting one tile per cell (not a
+ *  whole house per cell) keeps the red roof to the facade's 2 top rows instead of a stack. */
+function draw2DBuildingTile(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  baseY: number,
+  tileW: number,
+  tileH: number,
+  asset: GridAsset,
+  flicker: number,
+): void {
+  // Same palette the layered house used.
+  const wallColor = 'rgba(180, 132, 65, 0.9)'
+  const wallDarkColor = 'rgba(138, 98, 48, 0.9)'
+  const roofColor = 'rgba(200, 64, 64, 0.95)'
+
+  const glyph = asset.art[0] ?? '█'
+  const isRoof = glyph === '▀' || glyph === '▔'
+  const isDoor = glyph === '╫'
+  const tile = isRoof
+    ? { text: '/\\', fg: `rgba(255, 100, 80, ${0.8 + 0.2 * flicker})`, bg: roofColor }
+    : isDoor
+    ? { text: '|==|', fg: '#664422', bg: wallColor }
+    : { text: '|[]|', fg: `rgba(255, 220, 80, ${0.5 + 0.3 * flicker})`, bg: wallColor } // wall + window → dense |[]| like #16
+
+  const top = baseY - tileH
+  ctx.fillStyle = tile.bg
+  ctx.fillRect(cx - tileW * 0.5, top, tileW, tileH)
+
+  // Side-wall seams on the gold body tiles (the "connected wall" look) — not on the roof.
+  if (!isRoof) {
+    ctx.fillStyle = wallDarkColor
+    ctx.fillRect(cx - tileW * 0.5 - 2, top, 3, tileH)
+    ctx.fillRect(cx + tileW * 0.5 - 1, top, 3, tileH)
+  }
+
+  ctx.font = `bold ${tileH * 0.85}px ${ASCII_FONT}`
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.fillStyle = tile.fg
+  ctx.fillText(tile.text, cx, top + tileH * 0.5)
+}
+
 function drawIsoAssetAscii(
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -7949,40 +7995,10 @@ function render2D(
         ctx.font = `bold ${tileH * 0.8}px ${ASCII_FONT}`
 
       } else if (asset.type === 'building') {
-        // Connected building structure with walls, windows, and peaked roof
-        const wallColor = 'rgba(180, 132, 65, 0.9)'
-        const wallDarkColor = 'rgba(138, 98, 48, 0.9)'
-        const roofColor = 'rgba(200, 64, 64, 0.95)'
-        const roofDarkColor = 'rgba(153, 32, 32, 0.9)'
-
-        const layers = [
-          { text: '|==|', fg: '#664422', bg: wallColor, width: 1.0 },           // Base/door
-          { text: '|[]|', fg: `rgba(255, 220, 80, ${0.5 + 0.3 * flicker})`, bg: wallColor, width: 1.0 },    // Window 1
-          { text: '|[]|', fg: `rgba(255, 200, 60, ${0.4 + 0.3 * flicker})`, bg: wallDarkColor, width: 1.0 }, // Window 2
-          { text: '/==\\', fg: roofColor, bg: roofDarkColor, width: 1.1 },      // Roof eave
-          { text: '/\\', fg: `rgba(255, 100, 80, ${0.8 + 0.2 * flicker})`, bg: roofColor, width: 0.7 },     // Roof peak
-        ]
-
-        for (let h = 0; h < layers.length; h++) {
-          const layer = layers[h]
-          const tileTop = baseY - (h + 1) * tileH
-          const layerWidth = tileW * layer.width
-
-          // Main background
-          ctx.fillStyle = layer.bg
-          ctx.fillRect(p.x - layerWidth * 0.5, tileTop, layerWidth, tileH)
-
-          // Side walls for wall sections (visual connection)
-          if (h < 3) {
-            ctx.fillStyle = wallDarkColor
-            ctx.fillRect(p.x - layerWidth * 0.5 - 2, tileTop, 3, tileH)
-            ctx.fillRect(p.x + layerWidth * 0.5 - 1, tileTop, 3, tileH)
-          }
-
-          // Character
-          ctx.fillStyle = layer.fg
-          ctx.fillText(layer.text, p.x, tileTop + tileH * 0.5)
-        }
+        // ONE tile per facade cell (red roof / gold |[]| body / |==| door, picked by the
+        // cell's glyph) — the SAME tiles as the old layered house, but not a whole house per
+        // cell. That keeps the red roof to the facade's 2 top rows: a compact house.
+        draw2DBuildingTile(ctx, p.x, baseY, tileW, tileH, asset, flicker)
 
       } else if (asset.type === 'lamp') {
         // Animated lantern - yellow glow that flickers

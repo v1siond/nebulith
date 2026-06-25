@@ -1,4 +1,4 @@
-import { composeBuilding, facadeLabel, facadeLabels } from '@/engine/buildingComposer'
+import { composeBuilding, facadeLabel, facadeLabels, BuildingType } from '@/engine/buildingComposer'
 import { isWalkable } from '@/engine/cellLabels'
 
 describe('composeBuilding — Nebulith building architecture spec', () => {
@@ -69,6 +69,20 @@ describe('composeBuilding — Nebulith building architecture spec', () => {
     expect(b.roofTop.y).toBe(0) // top row
     expect(b.roofTop.x).toBe(Math.floor(b.length / 2)) // centered
     expect(b.cells[b.roofTop.y][b.roofTop.x]).toBe('roof') // apex is a roof cell
+  })
+
+  // The 2D renderer paints ONE tile per facade cell, red on roof cells. So the red roof is
+  // exactly as many rows as the facade has roof rows — which must always be 2, on the TOP,
+  // never more, no matter how many floors. This guards the invariant the render relies on.
+  it('keeps roof to EXACTLY 2 rows (top of the facade) across every type + floor count', () => {
+    const types: BuildingType[] = ['house', 'big-house', 'store', 'hospital', 'cathedral', 'temple', 'castle']
+    for (const type of types) {
+      for (const floors of [1, 2, 3, 5]) {
+        const b = composeBuilding({ type, floors })
+        expect(b.cells.filter(row => row.some(c => c === 'roof')).length).toBe(2)
+        for (let r = 2; r < b.height; r++) expect(b.cells[r].every(c => c !== 'roof')).toBe(true)
+      }
+    }
   })
 })
 
