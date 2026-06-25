@@ -272,8 +272,8 @@ const makePillar = (col: number, row: number): StageProp => ({ col, row, type: '
 const makeBrazier = (col: number, row: number): StageProp => ({ col, row, type: 'brazier', char: 'Φ', blocking: true, color: '#ff8a3a' })
 const makeAltar = (col: number, row: number): StageProp => ({ col, row, type: 'altar', char: '‡', blocking: true, color: '#ffe7a8' })
 const makeWell = (col: number, row: number): StageProp => ({ col, row, type: 'well', char: '◉', blocking: true, color: '#5b8bbf' })
+const makeFountain = (col: number, row: number): StageProp => ({ col, row, type: 'fountain', char: '⊙', blocking: true, color: '#5fbce0' })
 const makeLamp = (col: number, row: number): StageProp => ({ col, row, type: 'lamp', char: '†', blocking: true, color: '#ffd27a' })
-const makeFence = (col: number, row: number): StageProp => ({ col, row, type: 'fence', char: '╪', blocking: true, color: '#8a6a44' })
 
 /** Place a prop iff the cell is in-bounds + not already blocked; set collision when blocking. */
 function placeProp(ctx: ArchetypeContext, prop: StageProp): void {
@@ -408,7 +408,7 @@ function placeVillage(ctx: ArchetypeContext): void {
     buildings.push(placeFacade(ctx, facade, plot.type, plot.col, plot.row))
   }
   // 3. A small plaza (well + lamps) on the main street; trees fill the rest (leafy clearing).
-  villageDecor(ctx, layout.entrances[0].row)
+  villageDecor(ctx, layout)
   fillVillageNature(ctx, layout)
   scatterGroundCover(ctx, 0.12) // light grass/flowers; skips paved streets
 }
@@ -447,8 +447,10 @@ function fillVillageNature(ctx: ArchetypeContext, layout: VillageLayout): void {
     }
     if (!clearColumn) continue
     if (!treeFits(collision, col, row, cols, rows)) continue
-    const edgeDist = Math.min(col, cols - 1 - col, row, rows - 1 - row)
-    const p = edgeDist < 4 ? 0.55 : edgeDist < 8 ? 0.22 : 0.08 // a forest ring at the edges
+    const sideDist = Math.min(col, cols - 1 - col) // distance from the LEFT/RIGHT edge
+    const edgeDist = Math.min(sideDist, row, rows - 1 - row)
+    // Denser toward the SIDES — the village sits in a clearing framed by forest left & right.
+    const p = sideDist < 5 ? 0.72 : edgeDist < 4 ? 0.5 : edgeDist < 9 ? 0.24 : 0.08
     if (Math.random() > p) continue
     if (placed.some(t => Math.abs(t.col - col) < minDist && Math.abs(t.row - row) < minDist)) continue
     stampTree(ctx, col, row, Math.random() < DEAD_TREE_CHANCE[ctx.zone], Math.random() < 0.45)
@@ -458,14 +460,25 @@ function fillVillageNature(ctx: ArchetypeContext, layout: VillageLayout): void {
 
 /** A village square below the houses: a central well, flanking lamp-posts, and a
  *  short fence line — turns "houses on grass" into a place. */
-function villageDecor(ctx: ArchetypeContext, groundRow: number): void {
-  const { cols, rows } = ctx
-  const cx = Math.floor(cols / 2)
-  const cy = clamp(groundRow + 4, 0, rows - 2)
-  placeProp(ctx, makeWell(cx, cy))
-  placeProp(ctx, makeLamp(cx - 3, cy))
-  placeProp(ctx, makeLamp(cx + 3, cy))
-  for (let c = cx - 4; c <= cx + 4; c += 2) placeProp(ctx, makeFence(c, cy + 2))
+/** Village plaza + street lighting: a well OR fountain centrepiece, and lamp posts dotted
+ *  along the frontages (gaps between buildings), all in the shared block art style. */
+function villageDecor(ctx: ArchetypeContext, layout: VillageLayout): void {
+  const { cols, rows, collision } = ctx
+  const streetRows = [...new Set(layout.entrances.filter(e => e.side === 'left').map(e => e.row))].sort((a, b) => a - b)
+  if (streetRows.length === 0) return
+  // Plaza centrepiece — a well or a fountain — just below the first street, if the cell is clear.
+  const cx = clamp(Math.floor(cols / 2), 2, cols - 3)
+  const cy = clamp(streetRows[0] + 3, 0, rows - 2)
+  if (!collision[cy]?.[cx] && !layout.roads[cy]?.[cx]) {
+    placeProp(ctx, Math.random() < 0.5 ? makeFountain(cx, cy) : makeWell(cx, cy))
+  }
+  // Lamp posts every ~6 cells along each street's frontage gaps (never on a road or building).
+  for (const sr of streetRows) {
+    const frontage = sr - 1
+    for (let c = 5; c < cols - 4; c += 6) {
+      if (!collision[frontage]?.[c] && !layout.roads[frontage]?.[c]) placeProp(ctx, makeLamp(c, frontage))
+    }
+  }
 }
 
 /**
