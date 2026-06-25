@@ -7255,36 +7255,6 @@ const BUILDING_BADGES: Record<string, { text: string; color: string }> = {
 // (squared) apex. Replaces the default roof_top glyph for that one cell.
 const ROOF_APEX_GLYPH: Record<string, string> = { house: '▲' }
 
-/** A building cell as a little 3-D block — the per-cell extrusion IS the iso "z width": a
- *  coloured FRONT face (the part color), a lighter TOP, and a darker RIGHT side, so a building
- *  reads as solid stacked blocks instead of a flat decal. Doors/windows read by their front color. */
-function drawBuildingBlock(ctx: CanvasRenderingContext2D, x: number, cy: number, fontSize: number, color: string): void {
-  const hw = fontSize * 0.34 // half front-face width
-  const hh = fontSize * 0.56 // half front-face height
-  const dx = fontSize * 0.26 // z-depth, up-and-right (iso "back")
-  const dy = -fontSize * 0.16
-  const top = cy - hh
-  const bot = cy + hh
-  ctx.fillStyle = lightenColor(color, 0.16) // TOP face
-  ctx.beginPath()
-  ctx.moveTo(x - hw, top)
-  ctx.lineTo(x + hw, top)
-  ctx.lineTo(x + hw + dx, top + dy)
-  ctx.lineTo(x - hw + dx, top + dy)
-  ctx.closePath()
-  ctx.fill()
-  ctx.fillStyle = darkenColor(color, 0.34) // RIGHT face
-  ctx.beginPath()
-  ctx.moveTo(x + hw, top)
-  ctx.lineTo(x + hw, bot)
-  ctx.lineTo(x + hw + dx, bot + dy)
-  ctx.lineTo(x + hw + dx, top + dy)
-  ctx.closePath()
-  ctx.fill()
-  ctx.fillStyle = color // FRONT face
-  ctx.fillRect(x - hw, top, hw * 2, hh * 2)
-}
-
 function drawIsoLabeledCell(
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -7294,43 +7264,43 @@ function drawIsoLabeledCell(
 ): void {
   const char = asset.art[0] ?? '?'
   const fontSize = tileH * 1.25
+  // Sit the glyph ON its own cell (same anchor as the ground glyph: p.y -
+  // heightOffset). The old half-tile lift floated the canopy ~half a cell north
+  // of the cell it actually blocks, so leaves *looked* passable. Aligned now:
+  // the leaf you see is the cell that blocks; only the canopy TOP stays walkable.
   const cy = y
   ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
-  const base = asset.color ?? '#cccccc'
-
-  // Buildings: per-cell 3-D blocks (real z-depth in iso). The apex cell carries the roof peak
-  // (▲ house) + the STORE / ✚ signage on top of its block.
-  if (asset.type === 'building') {
-    drawBuildingBlock(ctx, x, cy, fontSize, base)
-    if (asset.label === 'roof_top') {
-      const apex = ROOF_APEX_GLYPH[asset.buildingType ?? '']
-      if (apex) {
-        ctx.fillStyle = lightenColor(base, 0.3)
-        ctx.fillText(apex, x, cy - fontSize * 0.1)
-      }
-      const badge = BUILDING_BADGES[asset.buildingType ?? '']
-      if (badge) {
-        const bf = fontSize * (badge.text.length > 1 ? 0.5 : 0.9)
-        ctx.font = `bold ${bf}px ${ASCII_FONT}`
-        const by = cy - fontSize * 0.95
-        const bw = ctx.measureText(badge.text).width
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.72)'
-        ctx.fillRect(x - bw / 2 - 2, by - bf * 0.6, bw + 4, bf * 1.2)
-        ctx.fillStyle = badge.color
-        ctx.fillText(badge.text, x, by)
-      }
-    }
-    return
-  }
-
-  // Trees / other labeled cells: a dark backing behind the colour glyph (the cell IS the tile).
+  // Monospace single glyph → advance ≈ 0.6em. Avoids a per-cell measureText(), the
+  // canvas-2D layout call that tanked iso FPS on dense (forest) stages.
   const w = fontSize * 0.6
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.5)'
+  // Building cells FILL with their own part color so a dark door + a glass/lit window read as
+  // solid coloured blocks (a dark glyph on a black backing was invisible). Trees keep the plain
+  // dark backing behind their canopy glyph.
+  const base = asset.color ?? '#cccccc'
+  ctx.fillStyle = asset.type === 'building' ? darkenColor(base, 0.28) : 'rgba(0, 0, 0, 0.5)'
   ctx.fillRect(x - w / 2 - 2, cy - fontSize * 0.55, w + 4, fontSize * 1.1)
+  // Roof shape by building type: houses peak (▲), squared "buildings" stay flat.
+  const glyph = asset.label === 'roof_top' ? (ROOF_APEX_GLYPH[asset.buildingType ?? ''] ?? char) : char
   ctx.fillStyle = base
-  ctx.fillText(char, x, cy)
+  ctx.fillText(glyph, x, cy)
+
+  // Type signage on the apex: a "STORE" marquee, a red hospital cross. Only the ONE
+  // roof_top cell per building hits this → the measureText here is rare, not per-cell.
+  if (asset.label === 'roof_top' && asset.buildingType) {
+    const badge = BUILDING_BADGES[asset.buildingType]
+    if (badge) {
+      const bf = fontSize * (badge.text.length > 1 ? 0.5 : 0.9)
+      ctx.font = `bold ${bf}px ${ASCII_FONT}`
+      const by = cy - fontSize * 0.95
+      const bw = ctx.measureText(badge.text).width
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.72)'
+      ctx.fillRect(x - bw / 2 - 2, by - bf * 0.6, bw + 4, bf * 1.2)
+      ctx.fillStyle = badge.color
+      ctx.fillText(badge.text, x, by)
+    }
+  }
 }
 
 /** An enemy that's been killed and is waiting to respawn (no live combat state). */
