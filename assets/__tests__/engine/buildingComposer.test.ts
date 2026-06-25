@@ -2,17 +2,25 @@ import { composeBuilding, facadeLabel, facadeLabels } from '@/engine/buildingCom
 import { isWalkable } from '@/engine/cellLabels'
 
 describe('composeBuilding — Nebulith building architecture spec', () => {
-  it('builds the smallest legal house: 4 long × 4 tall (3 body + 1 roof)', () => {
+  it('builds the smallest legal house: 4 long × 5 tall (3 body + 2 roof)', () => {
     const b = composeBuilding({ type: 'house', floors: 1 })
     expect(b.length).toBe(4)
-    expect(b.height).toBe(4)
-    expect(b.cells).toHaveLength(4) // 4 rows (top→bottom)
+    expect(b.height).toBe(5)
+    expect(b.cells).toHaveLength(5) // 5 rows (top→bottom)
     expect(b.cells[0]).toHaveLength(4) // 4 cols
   })
 
-  it('adds 3 cells of height per floor, always +1 for the roof', () => {
-    expect(composeBuilding({ type: 'house', floors: 2 }).height).toBe(7)
-    expect(composeBuilding({ type: 'house', floors: 3 }).height).toBe(10)
+  it('adds 3 cells of height per floor, always +2 for the roof', () => {
+    expect(composeBuilding({ type: 'house', floors: 2 }).height).toBe(8)
+    expect(composeBuilding({ type: 'house', floors: 3 }).height).toBe(11)
+  })
+
+  it('peaks the house roof (empty corners → triangle) but keeps store/building roofs flat', () => {
+    const house = composeBuilding({ type: 'house', floors: 1 })
+    const store = composeBuilding({ type: 'store', floors: 1 })
+    expect(house.cells[0].some(c => c === 'empty')).toBe(true) // top row narrows to the apex
+    expect(store.cells[0].every(c => c === 'roof')).toBe(true) // flat squared roof, full row
+    expect(house.roofTop.y).toBe(0) // apex still the top-centre walkable tile
   })
 
   it('enforces the minimums even when smaller values are requested', () => {
@@ -34,8 +42,8 @@ describe('composeBuilding — Nebulith building architecture spec', () => {
     expect(b.door.x + b.door.width).toBeLessThanOrEqual(b.length)
   })
 
-  it('roofs the top row and walls the rest (corners are walls, not door)', () => {
-    const b = composeBuilding({ type: 'house', floors: 1 })
+  it('roofs the top row (flat store) and walls the body (corners are walls, not door)', () => {
+    const b = composeBuilding({ type: 'store', floors: 1 }) // flat roof → full top row
     expect(b.cells[0].every(c => c === 'roof')).toBe(true)
     expect(b.cells[b.height - 1][0]).toBe('wall')
   })
@@ -66,7 +74,7 @@ describe('facadeLabels — facade-cell → CellLabel mapping (the keystone)', ()
   })
 
   it('maps every facade kind to its part label (roof body, wall, door, window)', () => {
-    const b = composeBuilding({ type: 'house', floors: 1 })
+    const b = composeBuilding({ type: 'store', floors: 1 }) // flat roof → full top row to check
     const labels = facadeLabels(b)
     // top row: apex is roof_top, the rest of the roof row is plain roof
     for (let col = 0; col < b.length; col++) {

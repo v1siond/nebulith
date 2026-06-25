@@ -47,8 +47,8 @@ export interface ComposedBuilding {
 // Minimums — buildings read better at HALF the old width, so a town isn't a wall of facades.
 const MIN_LENGTH = 4
 const MIN_BODY_ROWS = 3
-const ROOF_ROWS = 1
-const MIN_HEIGHT = MIN_BODY_ROWS + ROOF_ROWS // 4
+const ROOF_ROWS = 2 // two roof rows so a peaked (triangle) roof reads vs a flat (squared) one
+const MIN_HEIGHT = MIN_BODY_ROWS + ROOF_ROWS // 5
 const FLOOR_BODY = 3 // body cells added per floor
 const MIN_DOOR = 2
 
@@ -69,6 +69,17 @@ const TYPE_SPECS: Record<BuildingType, TypeSpec> = {
   castle: { baseLength: 12, floors: 3, doorWidth: 4 },
 }
 
+// Houses (and grand temples/cathedrals) get a PEAKED triangle roof; everything else a FLAT
+// squared roof. Drives the roof-cell shape below.
+const PEAKED_ROOF: ReadonlySet<BuildingType> = new Set<BuildingType>(['house', 'temple', 'cathedral'])
+
+/** One roof cell: a flat roof fills the row; a peaked roof narrows toward the apex above a
+ *  full-width eave (the bottom roof row), leaving empty corners → a triangle silhouette. */
+function roofCellKind(col: number, row: number, apexX: number, peaked: boolean): BuildingCellKind {
+  if (!peaked || row === ROOF_ROWS - 1) return 'roof'
+  return Math.abs(col - apexX) <= row ? 'roof' : 'empty'
+}
+
 export function composeBuilding(spec: BuildingSpec = {}): ComposedBuilding {
   const type = spec.type ?? 'house'
   const ts = TYPE_SPECS[type] ?? TYPE_SPECS.house
@@ -79,14 +90,16 @@ export function composeBuilding(spec: BuildingSpec = {}): ComposedBuilding {
   const doorWidth = Math.max(MIN_DOOR, ts.doorWidth)
   const doorHeight = MIN_DOOR
 
-  // Start every cell as roof (top rows) or wall (body rows).
+  // Roof rows (peaked → narrowing triangle, flat → full-width squared) then the wall body.
+  const apexX = Math.floor(length / 2)
+  const peaked = PEAKED_ROOF.has(type)
   const cells: BuildingCellKind[][] = []
   for (let row = 0; row < height; row++) {
-    const cols: BuildingCellKind[] = []
+    const cellRow: BuildingCellKind[] = []
     for (let col = 0; col < length; col++) {
-      cols.push(row < ROOF_ROWS ? 'roof' : 'wall')
+      cellRow.push(row >= ROOF_ROWS ? 'wall' : roofCellKind(col, row, apexX, peaked))
     }
-    cells.push(cols)
+    cells.push(cellRow)
   }
 
   // Windows on body rows above the door band, skipping the edges.
