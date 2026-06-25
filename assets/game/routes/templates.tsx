@@ -7101,7 +7101,7 @@ function render(
       if (isDeadEnemy(obj.entity, combat)) continue // hidden until it respawns
       drawIsoEntity(ctx, p.x, p.y - heightOffset, obj.entity, tileH, combat, now, obj.moving ?? false, obj.inRange ?? false)
     } else if (obj.building) {
-      drawIsoBuilding(ctx, obj.building, toScreen, tileW, tileH)
+      drawBuildingVoxel(ctx, p.x, p.y - heightOffset + tileH * 0.5, obj.building, tileW, tileH, 1)
     } else if (obj.asset) {
       const op = obj.asset.opacity ?? 1 // per-asset opacity for contrast/depth
       if (op < 1) ctx.globalAlpha = op
@@ -7373,6 +7373,44 @@ const BUILDING_KIND_GLYPH: Record<string, string> = { roof: '▀', wall: '█', 
  * Cells use the SAME tileset colors as 2D (door dark, window glass/lit, roof, wall) so the two
  * views are the same art. The roof is just the top ≤2 cell rows.
  */
+/**
+ * ONE voxel-style house for a whole building (the 2D screenshot art) — NOT one per cell.
+ * Layers rise from the door (bottom) through window floors to the roof (the top ≤2 rows:
+ * eave + peak), sized to the building's width×height and colored by its own tiles. Both
+ * views call this; only the screen anchor differs. (cx, baseY) = bottom-center on screen.
+ */
+function drawBuildingVoxel(ctx: CanvasRenderingContext2D, cx: number, baseY: number, b: IsoBuilding, tileW: number, tileH: number, flicker: number): void {
+  const W = b.width, H = b.height
+  const cells = b.cells.flat()
+  const roof = cells.find(c => c.kind === 'roof')?.color || '#c84040'
+  const wall = cells.find(c => c.kind === 'wall')?.color || '#b48441'
+  const win = cells.find(c => c.kind === 'window')?.color || '#ffd24a'
+  const door = cells.find(c => c.kind === 'door')?.color || '#3a2416'
+  const bodyW = Math.max(tileW * 1.5, tileW * W * 0.5)
+  const winRow = '|' + '[]'.repeat(Math.max(1, Math.floor(W / 2))) + '|'
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.font = `bold ${tileH * 0.82}px ${ASCII_FONT}`
+  for (let h = 0; h < H; h++) {
+    const top = baseY - (h + 1) * tileH
+    const isPeak = h === H - 1, isEave = h === H - 2, isRoof = isPeak || isEave, isDoor = h === 0
+    const lw = isPeak ? bodyW * 0.72 : isEave ? bodyW * 1.06 : bodyW
+    ctx.fillStyle = isRoof ? (isPeak ? lightenColor(roof, 0.08) : roof) : (h % 2 === 0 ? wall : darkenColor(wall, 0.16))
+    ctx.fillRect(cx - lw / 2, top, lw, tileH)
+    if (!isRoof) {
+      ctx.fillStyle = darkenColor(wall, 0.38)
+      ctx.fillRect(cx - lw / 2 - 2, top, 3, tileH)
+      ctx.fillRect(cx + lw / 2 - 1, top, 3, tileH)
+    }
+    let text: string, fg: string
+    if (isRoof) { text = '/' + (isPeak ? '‾' : '=').repeat(Math.max(1, W)) + '\\'; fg = isPeak ? lightenColor(roof, 0.25) : darkenColor(roof, 0.18) }
+    else if (isDoor) { text = '|' + '='.repeat(Math.max(2, W)) + '|'; fg = door }
+    else { text = winRow; fg = win }
+    ctx.fillStyle = fg
+    ctx.fillText(text, cx, top + tileH * 0.5)
+  }
+}
+
 function drawIsoBuilding(ctx: CanvasRenderingContext2D, b: IsoBuilding, toScreen: (c: number, r: number) => { x: number; y: number }, tileW: number, tileH: number): void {
   const W = b.width, H = b.height, D = b.depth, col = b.col, row = b.row
   const hs = tileW * 0.8 // vertical pixels per height cell
@@ -7953,8 +7991,9 @@ function render2D(
   const drawables: Array<{
     row: number
     col: number
-    type: 'asset' | 'player'
+    type: 'asset' | 'player' | 'building'
     asset?: GridAsset
+    building?: IsoBuilding
   }> = []
 
   // Add assets
@@ -7964,7 +8003,11 @@ function render2D(
   const treeCells2D = new Set(grid.assets.filter(a => a.type === 'tree').map(a => `${a.col},${a.row}`))
   const isTreeCell2D = (c: number, r: number): boolean => treeCells2D.has(`${c},${r}`)
   for (const asset of visibleAssets) {
+    if (asset.type === 'building') continue // buildings draw ONE voxel house each (from grid.buildings)
     drawables.push({ row: asset.row, col: asset.col, type: 'asset', asset })
+  }
+  for (const bld of grid.buildings) {
+    drawables.push({ row: bld.row, col: bld.col + (bld.width - 1) / 2, type: 'building', building: bld })
   }
 
   // Add player
@@ -8012,6 +8055,9 @@ function render2D(
         ctx.fillText(player.shieldGlyph, p.x - fontSize * 0.6, baseY - lineHeight * 1.2)
       }
 
+    } else if (obj.type === 'building' && obj.building) {
+      const flick = Math.sin(time * 0.003 + obj.col * 0.5 + obj.row * 0.7) * 0.15 + 1
+      drawBuildingVoxel(ctx, p.x, p.y + tileH * 0.5 - elevOffset, obj.building, tileW, tileH, flick)
     } else if (obj.asset) {
       const asset = obj.asset
 
