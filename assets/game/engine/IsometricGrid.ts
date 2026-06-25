@@ -203,6 +203,11 @@ export class IsometricGrid {
       brightness: options.brightness,
       cycles: options.cycles,
       baseShadow: options.baseShadow,
+      // Buildings MUST keep their cell label so each cell renders as its facade tile
+      // (roof/wall/door/window) — without it every cell falls through to the voxel-house
+      // renderer and stamps a whole house per tile. Trees deliberately drop it (tree path).
+      label: options.type === 'building' ? options.label : undefined,
+      buildingType: options.buildingType,
     })
 
     // If blocking, update collision grid
