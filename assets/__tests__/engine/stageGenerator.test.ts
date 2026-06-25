@@ -659,3 +659,18 @@ describe('generateStage — building cells carry their TYPE (apex signage)', () 
     expect(apexTypes.has('hospital')).toBe(true) // …and a hospital
   })
 })
+
+describe('generateStage — windows have "lights on"', () => {
+  it('lights some windows warm yellow while others stay glassy', () => {
+    let lit = 0, glass = 0
+    for (let i = 0; i < 8; i++) {
+      const stage = generateStage({ zone: 'summer', variant: 'village', cols: 50, rows: 40 })
+      for (const w of stage.props.filter(p => p.type === 'building' && p.label === 'window')) {
+        if (w.color === '#ffd34d') lit++
+        else glass++
+      }
+    }
+    expect(lit).toBeGreaterThan(0) // some windows are lit
+    expect(glass).toBeGreaterThan(0) // some windows are dark
+  })
+})

@@ -168,6 +168,10 @@ export function buildingCellColor(type: BuildingType, label: CellLabel, anchorSe
   return pal.wall
 }
 
+// A fraction of windows glow warm yellow — "lights on" — the rest stay glassy.
+const LIT_WINDOW = '#ffd34d'
+const LIT_WINDOW_CHANCE = 0.4
+
 const makeBuildingCell = (zone: ZoneId, col: number, row: number, label: CellLabel, color?: string): StageProp => {
   const cell = makeLabeledCell(zone, col, row, label, 'building')
   return color ? { ...cell, color } : cell
@@ -525,7 +529,10 @@ function stampFacadeCell(
   if (!inBounds(gridCol, gridRow, cols, rows)) return
   const label = facadeLabel(facade, c, r)
   if (label === null) return // empty facade cell → no prop, no collision change
-  const cell = makeBuildingCell(zone, gridCol, gridRow, label, buildingCellColor(facade.type, label, anchorCol))
+  let color = buildingCellColor(facade.type, label, anchorCol)
+  // Per-window "lights on": ~40% of windows glow warm yellow (varied by cell position).
+  if (label === 'window' && shadeNoise(gridCol * 1.7 + gridRow * 2.3) < LIT_WINDOW_CHANCE) color = LIT_WINDOW
+  const cell = makeBuildingCell(zone, gridCol, gridRow, label, color)
   props.push({ ...cell, buildingType: facade.type })
   collision[gridRow][gridCol] = !isWalkable(label)
   if (label === 'door') doorCells.push({ col: gridCol, row: gridRow })
