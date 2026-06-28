@@ -500,17 +500,27 @@ function villageDecor(ctx: ArchetypeContext, layout: VillageLayout): void {
   const { cols, rows, collision } = ctx
   const streetRows = [...new Set(layout.entrances.filter(e => e.side === 'left').map(e => e.row))].sort((a, b) => a - b)
   if (streetRows.length === 0) return
+  // Cells occupied by a building footprint (INCLUDING the walkable door). Decor must never land here:
+  // a door is walkable, so the plaza/lamp checks below would otherwise drop a fountain on a door and
+  // block the only way in. Build the exclusion set from the placed buildings.
+  const buildingCells = new Set<string>()
+  for (const b of ctx.buildings) {
+    const top = b.row - (b.height - 1)
+    for (let r = top; r <= b.row; r++) for (let c = b.col; c < b.col + b.length; c++) buildingCells.add(`${c},${r}`)
+  }
+  const decorFree = (c: number, r: number): boolean =>
+    !collision[r]?.[c] && !layout.roads[r]?.[c] && !buildingCells.has(`${c},${r}`)
   // Plaza centrepiece — a well or a fountain — just below the first street, if the cell is clear.
   const cx = clamp(Math.floor(cols / 2), 2, cols - 3)
   const cy = clamp(streetRows[0] + 3, 0, rows - 2)
-  if (!collision[cy]?.[cx] && !layout.roads[cy]?.[cx]) {
+  if (decorFree(cx, cy)) {
     placeProp(ctx, Math.random() < 0.5 ? makeFountain(cx, cy) : makeWell(cx, cy))
   }
   // Lamp posts every ~6 cells along each street's frontage gaps (never on a road or building).
   for (const sr of streetRows) {
     const frontage = sr - 1
     for (let c = 5; c < cols - 4; c += 6) {
-      if (!collision[frontage]?.[c] && !layout.roads[frontage]?.[c]) placeProp(ctx, makeLamp(c, frontage))
+      if (decorFree(c, frontage)) placeProp(ctx, makeLamp(c, frontage))
     }
   }
 }

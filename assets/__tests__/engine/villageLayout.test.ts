@@ -185,16 +185,17 @@ describe('villageLayout — planRoads (street skeleton step)', () => {
 })
 
 describe('villageLayout — placePlots (distribution step)', () => {
-  it('places the WHOLE mix when there is room — nothing dropped', () => {
+  it('FILLS frontages into rows of lots (a populated neighborhood, with the essentials)', () => {
     const plan = planRoads(72, 48, seededRng(8), 'village')
-    const mix = buildingMix('village', seededRng(8))
-    const plots = placePlots(plan.roads, plan.frontages, 72, 48, mix, seededRng(9))
-    expect(plots.length).toBe(mix.length)
+    const plots = placePlots(plan.roads, plan.frontages, 72, 48, seededRng(9), 'village')
+    expect(plots.length).toBeGreaterThanOrEqual(10) // rows lining the streets, not a handful
+    expect(plots.some(p => p.type === 'store')).toBe(true)
+    expect(plots.some(p => p.type === 'hospital')).toBe(true)
   })
 
   it('never lands a plot footprint on a road cell', () => {
     const plan = planRoads(50, 36, seededRng(12), 'town')
-    const plots = placePlots(plan.roads, plan.frontages, 50, 36, buildingMix('town', seededRng(12)), seededRng(13))
+    const plots = placePlots(plan.roads, plan.frontages, 50, 36, seededRng(13), 'town')
     for (const p of plots) {
       const r = plotRect(p)
       for (let row = r.r0; row < r.r0 + r.h; row++) {
