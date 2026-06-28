@@ -6887,28 +6887,35 @@ export default function TemplateEditor() {
     loadTemplateList()
   }, [])
 
-  // Handle URL params for initialization
+  // Handle URL params — RE-RUNS whenever the query KEY changes (a different ?id, or ?new=1), so an
+  // in-editor "＋ New" / loading another template actually takes effect instead of being blocked by a
+  // one-shot `initialized` guard.
+  const handledQueryRef = useRef<string | null>(null)
+  const loadBtnRef = useRef<HTMLButtonElement>(null)
+  const [loadMenuPos, setLoadMenuPos] = useState<{ top: number; left: number } | null>(null)
   useEffect(() => {
-    if (!router.isReady || initialized || !gridRef.current) return
-
+    if (!router.isReady || !gridRef.current) return
     const { id, new: isNew } = router.query
+    const key = typeof id === 'string' ? `id:${id}` : isNew === '1' ? 'new' : 'recent'
+    if (handledQueryRef.current === key) return
+    handledQueryRef.current = key
 
-    if (id && typeof id === 'string') {
-      // Load existing template by ID
-      loadTemplate(id)
-      setInitialized(true)
+    if (typeof id === 'string') {
+      loadTemplate(id) // sets currentTemplateId
     } else if (isNew === '1') {
-      // Generate random map only when explicitly creating new
+      // A blank NEW template: drop the current id (so the button reads "Save", not "Update"), clear
+      // authored data, and lay down a fresh map.
+      setCurrentTemplateId(null)
+      setConnectors([])
+      setQuests([])
       generateRandomMap()
       setTemplateName(`Template ${new Date().toLocaleDateString()}`)
-      setInitialized(true)
     } else {
-      // No ID and not creating new → restore the user's LAST SAVED template from
-      // the DB (not a random/empty editor); falls back to the gallery if none.
+      // No id, not new → restore the user's LAST SAVED template (falls back to the gallery).
       loadMostRecentTemplate()
-      setInitialized(true)
     }
-  }, [router.isReady, router.query, initialized])
+    setInitialized(true)
+  }, [router.isReady, router.query])
 
   return (
     <>
@@ -6990,14 +6997,24 @@ export default function TemplateEditor() {
           </button>
           <div className="relative shrink-0">
             <button
-              onClick={() => setShowTemplateList(!showTemplateList)}
+              ref={loadBtnRef}
+              onClick={() => {
+                const r = loadBtnRef.current?.getBoundingClientRect()
+                if (r) setLoadMenuPos({ top: r.bottom + 4, left: r.left })
+                setShowTemplateList(v => !v)
+              }}
               aria-expanded={showTemplateList}
               className="rounded bg-blue-800 px-3 py-1 text-xs hover:bg-blue-700"
             >
               Load ({savedTemplates.length})
             </button>
-            {showTemplateList && (
-              <div className="absolute left-0 top-full z-30 mt-1 max-h-72 w-60 space-y-1 overflow-y-auto rounded-lg border border-white/10 bg-gray-950 p-2 shadow-2xl">
+            {showTemplateList && loadMenuPos && (
+              // FIXED (not absolute) so it escapes the nav's overflow-x-auto clipping; positioned under
+              // the Load button via its measured rect.
+              <div
+                style={{ position: 'fixed', top: loadMenuPos.top, left: loadMenuPos.left }}
+                className="z-30 max-h-72 w-60 space-y-1 overflow-y-auto rounded-lg border border-white/10 bg-gray-950 p-2 shadow-2xl"
+              >
                 {savedTemplates.length === 0 && <p className="text-[10px] text-gray-500">No saved templates.</p>}
                 {savedTemplates.map(t => (
                   <div
