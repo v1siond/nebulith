@@ -655,8 +655,8 @@ describe('generateStage — tree cells cast ground shadows (no floating trees)',
 
 describe('buildingCellColor — distinct per-type roofs + visible ornaments', () => {
   it('gives each building type a distinct roof color', () => {
-    expect(buildingCellColor('store', 'roof', 1)).toBe('#2f6fb8') // blue store
-    expect(buildingCellColor('hospital', 'roof', 1)).toBe('#3fa86a') // green hospital
+    expect(buildingCellColor('store', 'roof', 1)).toBe('#235a96') // dark blue store
+    expect(buildingCellColor('hospital', 'roof', 1)).toBe('#2f7e50') // dark green hospital
     expect(buildingCellColor('store', 'roof', 1)).not.toBe(buildingCellColor('hospital', 'roof', 1))
   })
 
