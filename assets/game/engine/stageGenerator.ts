@@ -483,8 +483,9 @@ function fillVillageNature(ctx: ArchetypeContext, layout: VillageLayout, natureM
     if (!treeFits(collision, col, row, cols, rows)) continue
     const sideDist = Math.min(col, cols - 1 - col) // distance from the LEFT/RIGHT edge
     const edgeDist = Math.min(sideDist, row, rows - 1 - row)
-    // Denser toward the SIDES — the village sits in a clearing framed by forest left & right.
-    const p = (sideDist < 5 ? 0.72 : edgeDist < 4 ? 0.5 : edgeDist < 9 ? 0.24 : 0.08) * natureMult
+    // Denser toward the SIDES — the village sits in a clearing framed by forest left & right — but
+    // the INTERIOR stays leafy too (a Pokémon-style town nestled in trees, not bare lots).
+    const p = (sideDist < 5 ? 0.78 : edgeDist < 4 ? 0.6 : edgeDist < 9 ? 0.4 : 0.26) * natureMult
     if (Math.random() > p) continue
     if (placed.some(t => Math.abs(t.col - col) < minDist && Math.abs(t.row - row) < minDist)) continue
     stampTree(ctx, col, row, Math.random() < DEAD_TREE_CHANCE[ctx.zone], Math.random() < 0.45)

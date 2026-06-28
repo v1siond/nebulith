@@ -87,7 +87,15 @@ const lengthOf = (t: BuildingType): number => BUILDING_LENGTH[t] ?? 8
 // the street) and a LOT_GAP (side-yard cells between neighbours). The door faces the road across
 // the setback; a driveway crosses it (stamped by the generator).
 const SETBACK = 1
-const LOT_GAP: [number, number] = [1, 2]
+// Density per settlement: a village is a SMALL Pokémon-style town — few houses, big leafy side-yard
+// gaps, and a hard cap + short rows so it never overcrowds; a city is dense.
+const LOT_GAP_BY: Record<Settlement, [number, number]> = {
+  village: [3, 6], // big leafy gaps — a sparse Pokémon-style town
+  town: [1, 2],
+  city: [1, 2],
+}
+const MAX_PER_FRONTAGE: Record<Settlement, number> = { village: 3, town: 6, city: 99 }
+const BUILDING_CAP: Record<Settlement, number> = { village: 10, town: 30, city: 80 }
 
 // House footprints stay modest + similar so a frontage reads as a TIDY ROW, not a jagged skyline.
 const HOUSE_WIDTHS = [3, 3, 4, 4, 4, 5]
@@ -198,6 +206,12 @@ function clearanceRect(foot: Rect, f: Frontage): Rect {
     : { ...foot, c0: foot.c0 - SETBACK, w: foot.w + SETBACK } // road left → reserve left
 }
 
+/** A rect grown by `n` cells on every side — a candidate must clear this, so a 1-cell no-touch buffer
+ *  (filled by trees) always sits between neighbouring buildings; they never abut. */
+function expandRect(r: Rect, n: number): Rect {
+  return { c0: r.c0 - n, r0: r.r0 - n, w: r.w + 2 * n, h: r.h + 2 * n }
+}
+
 /** True when the whole rect is in-bounds and free of roads / already-placed buildings. */
 function rectClear(rect: Rect, occ: boolean[][], cols: number, rows: number): boolean {
   if (rect.c0 < 0 || rect.r0 < 0 || rect.c0 + rect.w > cols || rect.r0 + rect.h > rows) return false
@@ -220,13 +234,27 @@ export function placePlots(roads: boolean[][], frontages: Frontage[], cols: numb
   const plots: Plot[] = []
   if (frontages.length === 0) return plots
   const occ = roads.map(r => r.slice())
+  const cap = BUILDING_CAP[settlement]
+  const maxPer = MAX_PER_FRONTAGE[settlement]
+  const [gapLo, gapHi] = LOT_GAP_BY[settlement]
   const pending: BuildingType[] = ['store', 'hospital']
   for (let i = randInt(rng, ...BIG_RANGE[settlement]); i > 0; i--) pending.push('big-house')
 
-  for (const f of frontages) {
+  // Visit frontages SHUFFLED so a capped settlement (a small village) spreads its few houses across
+  // the whole grid instead of packing the first streets.
+  const order = frontages.map((_, i) => i)
+  for (let i = order.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1))
+    ;[order[i], order[j]] = [order[j], order[i]]
+  }
+
+  for (const fi of order) {
+    if (plots.length >= cap) break
+    const f = frontages[fi]
     let pos = f.lo + randInt(rng, 0, 1)
+    let count = 0
     let guard = 0
-    while (pos + 2 <= f.hi && guard++ < 1000) {
+    while (pos + 2 <= f.hi && count < maxPer && plots.length < cap && guard++ < 1000) {
       const want = pending[0]
       // Try the wanted essential/big first, then fall back to a house at this spot.
       const tryTypes: BuildingType[] = want ? [want, 'house'] : ['house']
@@ -235,13 +263,17 @@ export function placePlots(roads: boolean[][], frontages: Frontage[], cols: numb
         const len = plotWidth(type, rng)
         const composed = composeBuilding({ type, length: len })
         const foot = footprint(f, pos, len, composed.depth)
-        if (!rectClear(clearanceRect(foot, f), occ, cols, rows)) continue
-        const reserved = clearanceRect(foot, f)
-        for (let r = reserved.r0; r < reserved.r0 + reserved.h; r++)
-          for (let c = reserved.c0; c < reserved.c0 + reserved.w; c++) occ[r][c] = true
+        // Reserve the footprint + a 1-cell margin on every side (the road-side cell is the setback
+        // yard, never the street; the other sides are the no-touch buffer trees fill) so no two
+        // buildings ever abut.
+        const reserve = expandRect(foot, 1)
+        if (!rectClear(reserve, occ, cols, rows)) continue
+        for (let r = Math.max(0, reserve.r0); r < Math.min(rows, reserve.r0 + reserve.h); r++)
+          for (let c = Math.max(0, reserve.c0); c < Math.min(cols, reserve.c0 + reserve.w); c++) occ[r][c] = true
         plots.push({ col: foot.c0, row: foot.r0, type, length: len, depth: composed.depth, height: composed.height, facing: f.facing })
         if (type === want) pending.shift()
-        pos += len + randInt(rng, ...LOT_GAP)
+        pos += len + randInt(rng, gapLo, gapHi)
+        count++
         placed = true
         break
       }

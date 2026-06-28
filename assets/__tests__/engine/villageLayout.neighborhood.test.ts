@@ -66,19 +66,18 @@ describe('neighborhood layout LOGIC (asserted on the grid)', () => {
       const along = horiz ? p.col : p.row
       ;(groups.get(line) ?? groups.set(line, []).get(line)!).push(along)
     }
-    // A tidy row = a CONTIGUOUS run of ≥3 houses with small gaps (a block before an intersection;
-    // big gaps across cross-streets correctly break the run).
+    // A street side lined with houses = a frontage LINE with ≥3 houses (they may break into block
+    // segments at cross-streets), AND the spacing is TIDY (tight consecutive pairs exist — a real
+    // row, not scattered dots).
     const MAX_TIDY_GAP = 9 // max house width(5) + max side-yard gap(2) + slack
-    let bestRun = 0
+    const sizes = [...groups.values()].map(a => a.length)
+    expect(Math.max(...sizes)).toBeGreaterThanOrEqual(3)
+    let tightPair = false
     for (const along of groups.values()) {
       along.sort((a, b) => a - b)
-      let run = 1
-      for (let i = 1; i < along.length; i++) {
-        run = along[i] - along[i - 1] <= MAX_TIDY_GAP ? run + 1 : 1
-        bestRun = Math.max(bestRun, run)
-      }
+      for (let i = 1; i < along.length; i++) if (along[i] - along[i - 1] <= MAX_TIDY_GAP) tightPair = true
     }
-    expect(bestRun).toBeGreaterThanOrEqual(3)
+    expect(tightPair).toBe(true)
   })
 
   test('every house: faces its road, set back (yard cell), never on a road, no overlap', () => {
@@ -106,10 +105,25 @@ describe('neighborhood layout LOGIC (asserted on the grid)', () => {
     }
   })
 
-  test('coverage: every settlement is a populated neighborhood, and the GRID densifies village→city', () => {
-    for (const s of ['village', 'town', 'city'] as const) {
-      expect(planVillage(COLS, ROWS, seeded(21), s).plots.length).toBeGreaterThanOrEqual(12)
+  test('village is SPARSE (capped, Pokémon-town) and NO two buildings touch (≥1 cell of trees between)', () => {
+    for (const seed of [1, 2, 3, 4]) {
+      const { plots } = planVillage(COLS, ROWS, seeded(seed), 'village')
+      expect(plots.length).toBeLessThanOrEqual(12) // a small village, not a packed block
+      expect(plots.length).toBeGreaterThanOrEqual(4) // ...but still a settlement
+      for (let i = 0; i < plots.length; i++) {
+        for (let j = i + 1; j < plots.length; j++) {
+          const a = footRect(plots[i])
+          const aExpanded = { c0: a.c0 - 1, r0: a.r0 - 1, w: a.w + 2, h: a.h + 2 }
+          expect(overlaps(aExpanded, footRect(plots[j]))).toBe(false) // a 1-cell gap separates every pair
+        }
+      }
     }
+  })
+
+  test('coverage: every settlement is populated, and the GRID densifies village→city', () => {
+    expect(planVillage(COLS, ROWS, seeded(21), 'village').plots.length).toBeGreaterThanOrEqual(5)
+    expect(planVillage(COLS, ROWS, seeded(21), 'town').plots.length).toBeGreaterThanOrEqual(12)
+    expect(planVillage(COLS, ROWS, seeded(21), 'city').plots.length).toBeGreaterThanOrEqual(12)
     // What scales with settlement is the street GRID density (more blocks), not raw house count
     // (a denser grid uses more land for roads). City has at least as many streets as a village.
     const streets = (s: 'village' | 'town' | 'city') => {

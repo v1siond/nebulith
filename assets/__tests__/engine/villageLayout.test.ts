@@ -188,7 +188,7 @@ describe('villageLayout — placePlots (distribution step)', () => {
   it('FILLS frontages into rows of lots (a populated neighborhood, with the essentials)', () => {
     const plan = planRoads(72, 48, seededRng(8), 'village')
     const plots = placePlots(plan.roads, plan.frontages, 72, 48, seededRng(9), 'village')
-    expect(plots.length).toBeGreaterThanOrEqual(10) // rows lining the streets, not a handful
+    expect(plots.length).toBeGreaterThanOrEqual(5) // a small village — capped + spread, with trees between
     expect(plots.some(p => p.type === 'store')).toBe(true)
     expect(plots.some(p => p.type === 'hospital')).toBe(true)
   })
