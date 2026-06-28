@@ -42,7 +42,8 @@ import {
   type StepListState,
 } from '@/engine/movement'
 import { isGroundContact } from '@/engine/cellLabels'
-import { frameAt, type CycleMode } from '@/engine/animationCycles'
+import { type CycleMode } from '@/engine/animationCycles'
+import { entityAnimState, entityFrameIndex } from '@/engine/entityAnim'
 import { assetAnimFrame, assetCycleFrame, animationOptions, ANIMATION_LIBRARY } from '@/engine/assetAnimations'
 import { makeCycle, makeTrigger, validateCycle, describeCycle, CYCLE_MODES } from '@/engine/animationAuthoring'
 import { shouldFire, lampPulse } from '@/engine/behaviors'
@@ -7412,14 +7413,13 @@ const idleFrame = (): number => Math.floor(idleNow() / IDLE_FRAME_MS)
 
 // An enemy within this many cells of the player reads as "in combat".
 const COMBAT_RANGE = 1.6
-/** The entity's animation frame via the ENGINE: idle (slow bob), walk (while moving), or
- *  combat (player in range) — built from the entity's base/alt art (frame 0/1). Keeps the
- *  existing look as the base, animated through animationCycles.frameAt at a per-state speed. */
+/** The entity's animation frame, gated on movement: idle HOLDS a static pose (no leg/arm
+ *  swap over time), walk swaps the base/alt art (frame 0/1) only while the entity is moving,
+ *  and combat swaps when an enemy is in range. Pure selection lives in engine/entityAnim. */
+const ENTITY_FRAME_COUNT = 2 // entity art has a base pose (0) and an alt pose (1)
 function entityAnimFrame(entity: Entity, now: number, moving: boolean, inRange: boolean): readonly string[] {
-  const frames: (readonly string[])[] = [entityArtFrame(entity, 0), entityArtFrame(entity, 1)]
-  const state = inRange && entity.kind === 'enemy' ? 'combat' : moving ? 'walk' : 'idle'
-  const durationMs = state === 'idle' ? 900 : state === 'walk' ? 360 : 280
-  return frameAt({ id: state, frames, durationMs, loop: true }, now)
+  const state = entityAnimState({ moving, inRange, kind: entity.kind })
+  return entityArtFrame(entity, entityFrameIndex(state, now, ENTITY_FRAME_COUNT))
 }
 
 function drawIsoEntity(
@@ -7470,10 +7470,13 @@ function drawTopEntity(
   tileSize: number,
   entity: Entity,
   combat?: CombatState,
+  now: number = idleNow(),
+  moving = false,
+  inRange = false,
 ): void {
   // The figure spans a footprint (a 3-row figure ≈ 2 cells tall, 1 wide) anchored so
   // the entity's cell is the BOTTOM cell — matching the player's 2-tall look in top view.
-  const art = entityAnimFrame(entity, idleNow(), false, false)
+  const art = entityAnimFrame(entity, now, moving, inRange)
   const cellsTall = Math.max(2, Math.ceil(art.length / 1.5))
   const spanH = cellsTall * tileSize
   const topY = y - (cellsTall - 1) * tileSize
@@ -8269,13 +8272,19 @@ function render2D(
 
   // Placed entities (enemies / NPCs) on top of the world layer — same as Top/iso.
   // Skip the player entity: the live player sprite is drawn above (no ghost double).
+  const pCol = player.x / cellSize
+  const pRow = player.z / cellSize
   for (const entity of entities) {
     if (entity.kind === 'player') continue
     const combat = entity.kind === 'enemy' ? enemyCombat.get(entity.id) : undefined
     if (isDeadEnemy(entity, combat)) continue
     const rc = entityRenderCell(entity, time) // same interpolation as iso → no snap in 2D
     const e = toScreen(rc.col, rc.row)
-    drawTopEntity(ctx, e.x, e.y, tileW, entity, combat)
+    // Same movement/combat signals the iso path uses, so 2D only swaps walk frames while moving.
+    const mot = entityMotion.get(entity.id)
+    const moving = !!mot && time < mot.startMs + ENEMY_MOVE_MS
+    const inRange = entity.kind === 'enemy' && Math.hypot(entity.col - pCol, entity.row - pRow) <= COMBAT_RANGE
+    drawTopEntity(ctx, e.x, e.y, tileW, entity, combat, time, moving, inRange)
   }
 
   // ─── UI ───────────────────────────────────────────────────────────
