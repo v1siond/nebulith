@@ -8693,6 +8693,7 @@ function draw2DBuilding(
   const t = b.type as BuildingType
   const a = (col: string): string => withAlpha(col, 0.96)
   const roofBg = a(buildingCellColor(t, 'roof', b.col))
+  const roofGlyph = a(darkenColor(buildingCellColor(t, 'roof', b.col), 0.58)) // the /\ as a darker roof tone, so it reads
   const wallBg = a(buildingCellColor(t, 'wall', b.col))
   const doorBg = a(buildingCellColor(t, 'door', b.col))
   const windowBg = a(buildingCellColor(t, 'window', b.col))
@@ -8703,8 +8704,8 @@ function draw2DBuilding(
     for (let c = 0; c < L; c++) {
       const raw = cells[r]?.[c]
       if (!raw || raw === 'empty') continue
-      // Back of the house → render its door/window cells as plain wall (no door from behind).
-      const kind = !showFront && (raw === 'door' || raw === 'window') ? 'wall' : raw
+      // Back of the house → only the DOOR becomes wall (no entrance from behind); windows still show.
+      const kind = !showFront && raw === 'door' ? 'wall' : raw
       const x = centerX + (c - (L - 1) / 2) * tileW
       const cellTop = baseY - (H - r) * tileH // row r (0 = roof apex) stacks up from the front edge
       const isRoof = kind === 'roof'
@@ -8722,7 +8723,7 @@ function draw2DBuilding(
       const glyph = isRoof ? '/\\' : isDoor ? '▯' : isWindow ? '⊞' : ''
       if (glyph) {
         ctx.fillStyle = isRoof
-          ? `rgba(255, 120, 100, ${0.7 + 0.25 * flicker})`
+          ? roofGlyph // darker shade of THIS roof's color
           : isDoor
           ? 'rgba(232, 212, 170, 0.9)' // warm handle/panel on the dark door
           : 'rgba(40, 62, 84, 0.85)' // dark frame on the glass window
@@ -8780,23 +8781,29 @@ const fillQuad = (ctx: CanvasRenderingContext2D, a: Pt, b: Pt, c: Pt, d: Pt): vo
 /** One facade cell as an ISO PARALLELOGRAM: the bottom edge runs along `colVec` (the iso
  *  angle), the sides rise straight up by `cellH`. Same tile vocabulary as 2D (red /\ roof,
  *  gold |[]| body, |==| door) — just sheared onto the iso axis instead of a 90° rect. */
-function drawIsoFacadeTile(ctx: CanvasRenderingContext2D, bl: Pt, colVec: Pt, cellH: number, kind: string, flicker: number): void {
+interface FacadeColors { wall: string; door: string; window: string; roof: string }
+
+function drawIsoFacadeTile(ctx: CanvasRenderingContext2D, bl: Pt, colVec: Pt, cellH: number, kind: string, flicker: number, colors: FacadeColors): void {
   const up: Pt = { x: 0, y: -cellH }
   const br = ptAdd(bl, colVec)
   const tl = ptAdd(bl, up)
   const tr = ptAdd(br, up)
   const isRoof = kind === 'roof'
   const isDoor = kind === 'door'
-  const bg = isRoof ? 'rgba(200, 64, 64, 0.95)' : 'rgba(180, 132, 65, 0.95)'
+  const isWindow = kind === 'window'
+  // distinct per-cell bg from the SAME per-building palette as 2D (door = dark doorway, window = glass)
+  const bg = isRoof ? colors.roof : isDoor ? colors.door : isWindow ? colors.window : colors.wall
   const fg = isRoof
-    ? `rgba(255, 100, 80, ${0.8 + 0.2 * flicker})`
+    ? darkenColor(colors.roof, 0.58) // /\ as a darker shade of this roof
     : isDoor
-    ? '#5a3f22'
-    : `rgba(255, 220, 80, ${0.5 + 0.3 * flicker})`
-  const glyph = isRoof ? '/\\' : isDoor ? '==' : '[]'
+    ? 'rgba(232, 212, 170, 0.9)' // warm handle on the dark door
+    : isWindow
+    ? 'rgba(40, 62, 84, 0.85)' // dark frame on the glass
+    : darkenColor(colors.wall, 0.72)
+  const glyph = isRoof ? '/\\' : isDoor ? '▯' : isWindow ? '⊞' : ''
   ctx.fillStyle = bg
   fillQuad(ctx, bl, br, tr, tl)
-  // glyph centred in the parallelogram
+  if (!glyph) return
   ctx.font = `bold ${cellH * 0.62}px ${ASCII_FONT}`
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
@@ -8832,12 +8839,24 @@ function drawIsoBuilding(
   // Houses peak (composeBuilding leaves empty corners in row 0); flat types keep a box roof.
   const peaked = (b.cells[0] ?? []).some(k => k === 'empty')
 
-  const wallSide = 'rgba(135, 99, 49, 0.98)' // solid wall faces (front is the facade tiles)
-  const wallBack = 'rgba(112, 82, 41, 0.98)'
-  const roofFront = 'rgba(206, 70, 70, 0.98)' // EVERY roof face red, shaded by orientation
-  const roofSlope = 'rgba(168, 48, 48, 0.98)'
-  const roofTop = 'rgba(190, 58, 58, 0.98)'
-  const roofBack = 'rgba(140, 38, 38, 0.98)'
+  // Per-building colors from the SAME source as 2D/top, so all three views agree. Wall + roof faces
+  // are shaded by orientation (front brightest → back darkest); the facade tiles (door/windows) use
+  // the full palette.
+  const tcol = b.type as BuildingType
+  const wallC = buildingCellColor(tcol, 'wall', b.col)
+  const roofC = buildingCellColor(tcol, 'roof', b.col)
+  const facadeColors: FacadeColors = {
+    wall: withAlpha(wallC, 0.98),
+    door: withAlpha(buildingCellColor(tcol, 'door', b.col), 0.98),
+    window: withAlpha(buildingCellColor(tcol, 'window', b.col), 0.98),
+    roof: withAlpha(roofC, 0.98),
+  }
+  const wallSide = withAlpha(wallC, 0.98) // solid wall faces (front is the facade tiles)
+  const wallBack = withAlpha(darkenColor(wallC, 0.82), 0.98)
+  const roofFront = withAlpha(roofC, 0.98) // every roof face = this roof's color, shaded by orientation
+  const roofSlope = withAlpha(darkenColor(roofC, 0.8), 0.98)
+  const roofTop = withAlpha(darkenColor(roofC, 0.9), 0.98)
+  const roofBack = withAlpha(darkenColor(roofC, 0.66), 0.98)
 
   // ground corners + helper to lift a corner to the eaves (top of the walls)
   const fbl = origin
@@ -8854,7 +8873,7 @@ function drawIsoBuilding(
         const kind = b.cells[r]?.[c]
         if (!kind || kind === 'empty') continue
         const bl = ptAdd(ptAdd(base, ptScale(colVec, c)), up(H - 1 - r))
-        drawIsoFacadeTile(ctx, bl, colVec, cellH, kind, flicker)
+        drawIsoFacadeTile(ctx, bl, colVec, cellH, kind, flicker, facadeColors)
       }
     }
   }
