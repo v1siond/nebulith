@@ -240,6 +240,33 @@ export function placePlots(roads: boolean[][], frontages: Frontage[], cols: numb
   const pending: BuildingType[] = ['store', 'hospital']
   for (let i = randInt(rng, ...BIG_RANGE[settlement]); i > 0; i--) pending.push('big-house')
 
+  // Store + hospital ALWAYS go on the TOP horizontal street, facing FRONT (south = door toward the
+  // viewer) — good civic practice and it guarantees their labeled fronts show in 2D. Place them there
+  // first; anything that can't fit stays in `pending` and the normal fill guarantees it elsewhere.
+  const topSouth = frontages
+    .filter(f => f.facing === 'south')
+    .sort((a, b) => a.doorLine - b.doorLine)[0]
+  if (topSouth) {
+    let pos = topSouth.lo + 1
+    for (const type of ['store', 'hospital'] as BuildingType[]) {
+      let guard = 0
+      while (pos + 2 <= topSouth.hi && guard++ < 1000) {
+        const len = plotWidth(type, rng)
+        const composed = composeBuilding({ type, length: len })
+        const foot = footprint(topSouth, pos, len, composed.depth)
+        const reserve = expandRect(foot, 1)
+        if (!rectClear(reserve, occ, cols, rows)) { pos += 1; continue }
+        for (let r = Math.max(0, reserve.r0); r < Math.min(rows, reserve.r0 + reserve.h); r++)
+          for (let c = Math.max(0, reserve.c0); c < Math.min(cols, reserve.c0 + reserve.w); c++) occ[r][c] = true
+        plots.push({ col: foot.c0, row: foot.r0, type, length: len, depth: composed.depth, height: composed.height, facing: topSouth.facing })
+        pos += len + randInt(rng, gapLo, gapHi)
+        const idx = pending.indexOf(type)
+        if (idx >= 0) pending.splice(idx, 1) // placed up front → don't re-place in the fill loop
+        break
+      }
+    }
+  }
+
   // Visit frontages SHUFFLED so a capped settlement (a small village) spreads its few houses across
   // the whole grid instead of packing the first streets.
   const order = frontages.map((_, i) => i)

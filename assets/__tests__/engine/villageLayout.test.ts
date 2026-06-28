@@ -214,6 +214,21 @@ describe('villageLayout — planVillage GUARANTEES the essentials', () => {
       expect(layout.plots.filter(p => p.type === 'house').length).toBeGreaterThanOrEqual(1)
     }
   })
+
+  it('puts the store + hospital on the TOP horizontal street, facing FRONT (south)', () => {
+    for (const seed of [1, 2, 3, 4, 5]) {
+      const layout = planVillage(48, 36, seededRng(seed), 'village')
+      const store = layout.plots.find(p => p.type === 'store')
+      const hospital = layout.plots.find(p => p.type === 'hospital')
+      expect(store?.facing).toBe('south') // door toward the viewer (front shows in 2D)
+      expect(hospital?.facing).toBe('south')
+      // both sit on the TOPMOST south frontage → no south-facing building has a smaller door line
+      const southDoorLines = layout.plots.filter(p => p.facing === 'south').map(p => p.row + p.depth - 1)
+      const topLine = Math.min(...southDoorLines)
+      expect(store!.row + store!.depth - 1).toBe(topLine)
+      expect(hospital!.row + hospital!.depth - 1).toBe(topLine)
+    }
+  })
 })
 
 describe('villageLayout — settlement scale (town/city)', () => {
