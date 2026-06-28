@@ -14,3 +14,14 @@ import type { Facing } from './villageLayout'
 export function isoFacingIndex(facing: Facing): number {
   return facing === 'east' || facing === 'west' ? 1 : 0
 }
+
+/**
+ * Is the building's road (and thus its door/facade) on the side FACING AWAY from the iso camera?
+ * The camera looks toward +row/+col, so south (road below, +row) and east (road right, +col) put
+ * the door on the near/front face (visible); north (road above) and west (road left) put it on the
+ * far/back face — drawn behind the box so no door ever points at the near-side grass. Proximity
+ * transparency reveals these on approach.
+ */
+export function isoFacadeOnBack(facing: Facing): boolean {
+  return facing === 'north' || facing === 'west'
+}

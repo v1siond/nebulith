@@ -47,6 +47,7 @@ export interface GridBuilding {
   type: string
   cells: string[][]    // facade kind grid [row][col]: 'roof' | 'wall' | 'window' | 'door' | 'empty'
   facing?: number      // ISO-only facing index (which iso axis the facade runs along); 2D is always front
+  facadeOnBack?: boolean // ISO-only: door/facade is on the camera-far face (north/west houses); 2D unaffected
 }
 
 export class IsometricGrid {

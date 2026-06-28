@@ -50,7 +50,7 @@ import { shouldFire, lampPulse } from '@/engine/behaviors'
 import { weaponAnimKind, animFrame, isAnimDone, ATTACK_ANIM_MS, type AttackAnim, type AttackAnimKind } from '@/engine/attackAnimations'
 import { entityArtFrame, weaponGlyph, entityPalette, topRoleColor } from '@/engine/entityArt'
 import { entityQuestMarker, type QuestMarker } from '@/engine/entityQuestMarker'
-import { isoFacingIndex } from '@/engine/isoBuilding'
+import { isoFacingIndex, isoFacadeOnBack } from '@/engine/isoBuilding'
 import { appendWaypoint, setMovementMode, clearWaypoints, buildStepList, addMovementStep, removeMovementStep, updateMovementStep, setStepDelay, makeAttackPattern, defaultAttackPattern } from '@/game/patterns'
 import type { Direction } from '@/game/types'
 import { useToast } from '@/components/Toast'
@@ -5246,6 +5246,9 @@ export default function TemplateEditor() {
       // Orient the iso billboard by the planner's REAL road-derived facing (door toward the road):
       // horizontal-street houses run along +col (axis 0), vertical-road houses along -row (axis 1).
       facing: isoFacingIndex(b.facing),
+      // North/west houses front a road on their camera-far side → draw the door on the back face
+      // so it never points at the near grass (revealed by proximity transparency on approach).
+      facadeOnBack: isoFacadeOnBack(b.facing),
     }))
     const paint = stagePaint(stage)
     for (const g of paint.ground) {
@@ -8262,9 +8265,27 @@ function drawIsoBuilding(
   const bbr = ptAdd(fbr, depthVec)
   const eave = (p: Pt): Pt => ptAdd(p, up(bodyH))
 
-  // ── WALL BODY (solid box, ground → eaves): back + both sides, behind the facade ──
+  // Paint the facade tiles (door/windows) onto one face. `base` is that face's bottom-left corner.
+  const drawFacade = (base: Pt): void => {
+    for (let r = 0; r < H; r++) {
+      if (peaked && r < ROOF_ROWS) continue
+      for (let c = 0; c < L; c++) {
+        const kind = b.cells[r]?.[c]
+        if (!kind || kind === 'empty') continue
+        const bl = ptAdd(ptAdd(base, ptScale(colVec, c)), up(H - 1 - r))
+        drawIsoFacadeTile(ctx, bl, colVec, cellH, kind, flicker)
+      }
+    }
+  }
+
+  // North/west houses front a road on the camera-FAR side: draw their facade on the BACK face
+  // FIRST so the solid box occludes it (door toward the road, never toward the near grass).
+  if (b.facadeOnBack) drawFacade(bbl)
+
+  // ── WALL BODY (solid box, ground → eaves): both sides + the non-facade face ──
   ctx.fillStyle = wallBack
-  fillQuad(ctx, bbl, bbr, eave(bbr), eave(bbl))
+  if (b.facadeOnBack) fillQuad(ctx, fbl, fbr, eave(fbr), eave(fbl)) // plain FRONT wall (camera side)
+  else fillQuad(ctx, bbl, bbr, eave(bbr), eave(bbl)) // plain BACK wall (facade is on the front)
   ctx.fillStyle = wallSide
   fillQuad(ctx, fbl, bbl, eave(bbl), eave(fbl)) // left
   fillQuad(ctx, fbr, bbr, eave(bbr), eave(fbr)) // right
@@ -8302,16 +8323,8 @@ function drawIsoBuilding(
     fillQuad(ctx, eave(fbl), eave(fbr), top(fbr), top(fbl))
   }
 
-  // ── FRONT FACADE TILES (on top): body rows always; roof rows too on a flat roof ──
-  for (let r = 0; r < H; r++) {
-    if (peaked && r < ROOF_ROWS) continue
-    for (let c = 0; c < L; c++) {
-      const kind = b.cells[r]?.[c]
-      if (!kind || kind === 'empty') continue
-      const bl = ptAdd(ptAdd(fbl, ptScale(colVec, c)), up(H - 1 - r))
-      drawIsoFacadeTile(ctx, bl, colVec, cellH, kind, flicker)
-    }
-  }
+  // ── FRONT FACADE TILES (on top of the box, nearest the camera) for south/east houses ──
+  if (!b.facadeOnBack) drawFacade(fbl)
 }
 
 function drawIsoAssetAscii(
