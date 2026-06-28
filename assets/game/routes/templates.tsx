@@ -49,6 +49,7 @@ import { makeCycle, makeTrigger, validateCycle, describeCycle, CYCLE_MODES } fro
 import { shouldFire, lampPulse } from '@/engine/behaviors'
 import { weaponAnimKind, animFrame, isAnimDone, ATTACK_ANIM_MS, type AttackAnim, type AttackAnimKind } from '@/engine/attackAnimations'
 import { entityArtFrame, weaponGlyph, entityPalette, topRoleColor } from '@/engine/entityArt'
+import { entityQuestMarker, type QuestMarker } from '@/engine/entityQuestMarker'
 import { appendWaypoint, setMovementMode, clearWaypoints, buildStepList, addMovementStep, removeMovementStep, updateMovementStep, setStepDelay, makeAttackPattern, defaultAttackPattern } from '@/game/patterns'
 import type { Direction } from '@/game/types'
 import { useToast } from '@/components/Toast'
@@ -6104,9 +6105,9 @@ export default function TemplateEditor() {
       } else if (topViewMode) {
         renderTopView(ctx, canvas.width, canvas.height, grid, player, zoomRef.current, selectedCellsRef.current, connectorsRef.current, connectorModeRef.current, camOffsetRef.current, renderEntities, runtime.combat, hitMarkersRef.current, time, questsRef.current)
       } else if (viewTypeRef.current === '2d') {
-        render2D(ctx, canvas.width, canvas.height, grid, player, time, zoomRef.current, camOffsetRef.current, renderEntities, runtime.combat, connectorsRef.current)
+        render2D(ctx, canvas.width, canvas.height, grid, player, time, zoomRef.current, camOffsetRef.current, renderEntities, runtime.combat, connectorsRef.current, questsRef.current)
       } else {
-        render(ctx, canvas.width, canvas.height, grid, player, time, camOffsetRef.current, renderEntities, runtime.combat, hitMarkersRef.current, time, isoZoomRef.current, attackAnimsRef.current, connectorsRef.current)
+        render(ctx, canvas.width, canvas.height, grid, player, time, camOffsetRef.current, renderEntities, runtime.combat, hitMarkersRef.current, time, isoZoomRef.current, attackAnimsRef.current, connectorsRef.current, questsRef.current)
       }
       // Drop finished attack animations (kept tiny — a few in flight at once).
       if (attackAnimsRef.current.length > 0) {
@@ -7205,6 +7206,7 @@ function render(
   zoom: number = 1,
   attackAnims: readonly AttackAnim[] = [],
   connectors: Connector[] = [],
+  quests: readonly Quest[] = [],
 ) {
   // Clear
   ctx.fillStyle = '#1a1a2e'
@@ -7406,7 +7408,8 @@ function render(
     } else if (obj.entity) {
       const combat = obj.entity.kind === 'enemy' ? enemyCombat.get(obj.entity.id) : undefined
       if (isDeadEnemy(obj.entity, combat)) continue // hidden until it respawns
-      drawIsoEntity(ctx, p.x, p.y - heightOffset, obj.entity, tileH, combat, now, obj.moving ?? false, obj.inRange ?? false)
+      const anchor = drawIsoEntity(ctx, p.x, p.y - heightOffset, obj.entity, tileH, combat, now, obj.moving ?? false, obj.inRange ?? false)
+      drawQuestMarker(ctx, entityQuestMarker(obj.entity, quests), anchor.x, anchor.y, Math.max(14, tileH * 1.6))
     } else if (obj.building) {
       // ONE upright unit, rotated by its iso facing — but ONLY when the rotated footprint fits
       // inside the road-free plot rect (L < H); otherwise it stays front-facing so it can't spill.
@@ -7690,6 +7693,45 @@ function drawHitMarker(
   ctx.globalAlpha = 1
 }
 
+// Quest indicators floating above entities: a gold "!" over a giver, an amber "◆"
+// over a quest-linked enemy. Colors echo the quest UI's orange accent.
+const QUEST_GIVER_COLOR = '#ffe14d'
+const QUEST_TARGET_COLOR = '#ff9f1c'
+
+/** Draw centred text with a 1px black drop-shadow then a bright fill — legible over any map tile. */
+function drawShadowText(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  x: number,
+  y: number,
+  color: string,
+  font: string,
+): void {
+  ctx.font = font
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.fillStyle = '#000000'
+  ctx.fillText(text, x + 1, y + 1)
+  ctx.fillStyle = color
+  ctx.fillText(text, x, y)
+}
+
+/** Draw the above-entity quest marker (shared by iso / 2D / top views). */
+function drawQuestMarker(
+  ctx: CanvasRenderingContext2D,
+  marker: QuestMarker,
+  x: number,
+  y: number,
+  size: number,
+): void {
+  if (!marker) return
+  if (marker === 'giver') {
+    drawShadowText(ctx, '!', x, y, QUEST_GIVER_COLOR, `bold ${size}px ${ASCII_FONT}`)
+    return
+  }
+  drawShadowText(ctx, '◆', x, y, QUEST_TARGET_COLOR, `bold ${size * 0.8}px ${ASCII_FONT}`)
+}
+
 /** Draw a placed entity as its glyph on a dark backing, in the ISO renderer.
  *  (x,y) is the screen centre of the entity's cell; sits ON TOP of ground/assets.
  *  Living enemies get a small HP bar floating above them. */
@@ -7719,7 +7761,7 @@ function drawIsoEntity(
   now: number = idleNow(),
   moving = false,
   inRange = false,
-): void {
+): { x: number; y: number } {
   // Multi-row ASCII creature, drawn bottom-to-top. The frame comes from the animation
   // engine (frameAt): idle bob when still, a faster step cycle while moving, an attack
   // cadence when the player is in range — built on top of the existing base/alt art.
@@ -7742,9 +7784,19 @@ function drawIsoEntity(
   const pal = entityPalette(entity)
   drawBlockFigure(ctx, art, leftX, baseY, lineHeight, charW, pal.fg, pal.bg)
 
-  if (entity.kind !== 'enemy') return
-  const barWidth = Math.max(20, tileH * 1.4)
-  drawHpBar(ctx, x, baseY - art.length * lineHeight, barWidth, 4, hpFraction(entity, combat))
+  // Top of the figure — where above-entity overlays (quest marker) anchor.
+  const figureTop = baseY - art.length * lineHeight
+  if (entity.kind !== 'enemy') return { x, y: figureTop - lineHeight * 0.5 }
+
+  // Bigger, thicker enemy HP bar (was tileH*1.4 × 4) so it reads at a glance.
+  const barWidth = Math.max(28, tileH * 2.2)
+  drawHpBar(ctx, x, figureTop, barWidth, 7, hpFraction(entity, combat))
+  // Enemy name above the bar, shadow-text style.
+  const label = entity.name ?? entity.enemyType ?? 'Enemy'
+  const nameSize = Math.max(9, tileH * 0.95)
+  const nameY = figureTop - nameSize * 0.85
+  drawShadowText(ctx, label, x, nameY, '#ffe8c2', `bold ${nameSize}px ${ASCII_FONT}`)
+  return { x, y: nameY - nameSize * 0.9 }
 }
 
 /** Draw a placed entity in the TOP (blueprint) renderer — a filled cell badge
@@ -7760,7 +7812,7 @@ function drawTopEntity(
   now: number = idleNow(),
   moving = false,
   inRange = false,
-): void {
+): { x: number; y: number } {
   // The figure spans a footprint (a 3-row figure ≈ 2 cells tall, 1 wide) anchored so
   // the entity's cell is the BOTTOM cell — matching the player's 2-tall look in top view.
   const art = entityAnimFrame(entity, now, moving, inRange)
@@ -7798,8 +7850,19 @@ function drawTopEntity(
     ctx.fillText(line, textLeft, ly)
   }
 
-  if (entity.kind !== 'enemy') return
-  drawHpBar(ctx, cx, topY - 4, maxW * charW, 3, hpFraction(entity, combat))
+  // Top of the figure — where above-entity overlays (quest marker) anchor.
+  const figureTop = topY - 4
+  if (entity.kind !== 'enemy') return { x: cx, y: figureTop - fontSize * 0.6 }
+
+  // Bigger, thicker enemy HP bar (was figure-width × 3) so it reads at a glance.
+  const barWidth = Math.max(maxW * charW, tileSize * 2.2)
+  drawHpBar(ctx, cx, figureTop, barWidth, 6, hpFraction(entity, combat))
+  // Enemy name above the bar, shadow-text style.
+  const label = entity.name ?? entity.enemyType ?? 'Enemy'
+  const nameSize = Math.max(9, fontSize)
+  const nameY = figureTop - nameSize * 0.85
+  drawShadowText(ctx, label, cx, nameY, '#ffe8c2', `bold ${nameSize}px ${ASCII_FONT}`)
+  return { x: cx, y: nameY - nameSize * 0.9 }
 }
 
 /** TOP (blueprint) view: an entity is a single `>` glyph colored by role — yellow player,
@@ -8266,6 +8329,7 @@ function render2D(
   entities: readonly Entity[] = [],
   enemyCombat: ReadonlyMap<string, CombatState> = new Map(),
   connectors: Connector[] = [],
+  quests: readonly Quest[] = [],
 ) {
   // Clear with sky/background color
   ctx.fillStyle = '#1a1a2e'
@@ -8587,7 +8651,8 @@ function render2D(
     const mot = entityMotion.get(entity.id)
     const moving = !!mot && time < mot.startMs + ENEMY_MOVE_MS
     const inRange = entity.kind === 'enemy' && Math.hypot(entity.col - pCol, entity.row - pRow) <= COMBAT_RANGE
-    drawTopEntity(ctx, e.x, e.y, tileW, entity, combat, time, moving, inRange)
+    const anchor = drawTopEntity(ctx, e.x, e.y, tileW, entity, combat, time, moving, inRange)
+    drawQuestMarker(ctx, entityQuestMarker(entity, quests), anchor.x, anchor.y, Math.max(14, tileW * 1.4))
   }
 
   // ─── UI ───────────────────────────────────────────────────────────
@@ -9274,6 +9339,7 @@ function renderTopView(
     const ey = offsetY + entity.row * tileSize
     drawTopArrow(ctx, ex, ey, tileSize, topRoleColor(entity, quests))
     if (entity.kind === 'enemy') drawHpBar(ctx, ex + tileSize / 2, ey - 3, tileSize, 3, hpFraction(entity, combat))
+    drawQuestMarker(ctx, entityQuestMarker(entity, quests), ex + tileSize / 2, ey - tileSize * 0.9, Math.max(12, tileSize * 1.1))
   }
 
   // Floating "+dmg" hit markers (cell-centred in top space).
