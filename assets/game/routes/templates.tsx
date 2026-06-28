@@ -884,6 +884,60 @@ function rewardSummary(reward: Reward): string {
   return `+${reward.amount} ${reward.stat ?? 'stat'}`
 }
 
+/** Camera snapshot the quest-offer modal needs to project a giver cell to screen px. */
+export interface QuestAnchorCamera {
+  view: 'isometric' | '2d' | 'top'
+  cellSize: number
+  isoScale: number
+  player: { x: number; z: number }
+  camOffset: { x: number; y: number }
+  isoZoom: number
+  topZoom: number
+  w: number
+  h: number
+}
+
+// Keep-out margins (px) for the anchored panel: enough side room and headroom above
+// the giver for the modal, else we hand back null and the caller centers instead.
+const QUEST_ANCHOR_SIDE = 40
+const QUEST_ANCHOR_TOP = 160
+const QUEST_ANCHOR_BOTTOM = 20
+
+/**
+ * Screen-space point (px) of a giver cell for the offer modal, mirroring each view's
+ * own `toScreen` so the modal floats above the right entity. Returns null when the
+ * point is off-screen or too close to an edge to fit the panel — the caller then
+ * centers the modal. Pure: every input is passed in, nothing is read from the DOM.
+ */
+export function questAnchorScreenPos(cam: QuestAnchorCamera, col: number, row: number): { x: number; y: number } | null {
+  const { x, y } = projectCell(cam, col, row)
+  const onScreen =
+    x >= QUEST_ANCHOR_SIDE && x <= cam.w - QUEST_ANCHOR_SIDE &&
+    y >= QUEST_ANCHOR_TOP && y <= cam.h - QUEST_ANCHOR_BOTTOM
+  return onScreen ? { x, y } : null
+}
+
+/** Per-view cell→screen projection matching the render loop's entity placement. */
+function projectCell(cam: QuestAnchorCamera, col: number, row: number): { x: number; y: number } {
+  if (cam.view === 'top') {
+    const tileSize = 16 * cam.topZoom
+    const offsetX = cam.w / 2 - (cam.player.x / cam.cellSize) * tileSize + cam.camOffset.x
+    const offsetY = cam.h / 2 - (cam.player.z / cam.cellSize) * tileSize + cam.camOffset.y
+    return { x: offsetX + (col + 0.5) * tileSize, y: offsetY + (row + 0.5) * tileSize }
+  }
+  if (cam.view === '2d') {
+    const tile = 24 * cam.topZoom
+    const camCol = cam.player.x / cam.cellSize - cam.camOffset.x / tile
+    const camRow = cam.player.z / cam.cellSize - cam.camOffset.y / tile
+    return { x: cam.w / 2 + (col + 0.5 - camCol) * tile, y: cam.h / 2 + (row + 0.5 - camRow) * tile }
+  }
+  // isometric — iso entities are drawn at toScreen(col,row) (integer cell)
+  const isoScale = cam.isoScale * cam.isoZoom
+  const wx = col * cam.cellSize - (cam.player.x - cam.camOffset.x)
+  const wz = row * cam.cellSize - (cam.player.z - cam.camOffset.y)
+  return { x: cam.w / 2 + (wx - wz) * isoScale * 0.71, y: cam.h / 2 + (wx + wz) * isoScale * 0.36 }
+}
+
 // ═══════════════════════════════════════════════════════════════════
 // TEMPLATE PRESET SYSTEM
 // Categorized by: Size (S/M/L) × Theme × Type (exterior/interior)
@@ -1995,6 +2049,24 @@ function CombatHud({ hud }: { hud: PlayerHud }) {
  * quests into state). Returns null when no quest is active, so it never shows
  * empty chrome.
  */
+/** Objective checklist (✓/•) shared by the quest HUD, the offer modal and the quest log. */
+function QuestObjectives({ quest }: { quest: Quest }) {
+  return (
+    <ul className="flex flex-col gap-0.5">
+      {quest.objectives.map((objective) => (
+        <li key={`${objective.kind}:${objective.target}`} className="flex items-center gap-2 text-[11px]">
+          <span aria-hidden className={objective.done ? 'text-emerald-400' : 'text-gray-500'}>
+            {objective.done ? '✓' : '•'}
+          </span>
+          <span className={objective.done ? 'text-emerald-300 line-through' : 'text-gray-200'}>
+            {objectiveLabel(objective)}
+          </span>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
 function QuestHud({ quest }: { quest: Quest | null }) {
   if (!quest) return null
   const { completed, total } = progress(quest)
@@ -2009,18 +2081,7 @@ function QuestHud({ quest }: { quest: Quest | null }) {
         <span className="truncate text-[11px] font-bold uppercase tracking-wider text-amber-300">{quest.title}</span>
         <span className="ml-2 shrink-0 text-[10px] tabular-nums text-gray-400">{completed}/{total}</span>
       </div>
-      <ul className="flex flex-col gap-0.5">
-        {quest.objectives.map((objective) => (
-          <li key={`${objective.kind}:${objective.target}`} className="flex items-center gap-2 text-[11px]">
-            <span aria-hidden className={objective.done ? 'text-emerald-400' : 'text-gray-500'}>
-              {objective.done ? '✓' : '•'}
-            </span>
-            <span className={objective.done ? 'text-emerald-300 line-through' : 'text-gray-200'}>
-              {objectiveLabel(objective)}
-            </span>
-          </li>
-        ))}
-      </ul>
+      <QuestObjectives quest={quest} />
       {done && (
         <div className="mt-2 rounded bg-amber-500/20 px-2 py-1 text-center text-[10px] font-bold text-amber-200">
           Return to the giver (E) to turn in
@@ -2658,6 +2719,66 @@ function EquipmentPanel({ label, loadout, onChange, onClose }: {
   )
 }
 
+/** Lifecycle groups the quest log renders, in player-facing order. */
+const QUEST_LOG_GROUPS: ReadonlyArray<{ state: Quest['state']; label: string; accent: string }> = [
+  { state: 'available', label: 'Available', accent: 'text-gray-300' },
+  { state: 'active', label: 'Active', accent: 'text-sky-300' },
+  { state: 'completed', label: 'Completed', accent: 'text-amber-300' },
+  { state: 'turned_in', label: 'Turned in', accent: 'text-emerald-300' },
+]
+
+/**
+ * Quest LOG overlay — the player's quests grouped by lifecycle state, each with the
+ * shared objective checklist + a progress count. Mirrors the inventory EquipmentPanel:
+ * backdrop click or the ✕ button closes it (the page also wires Esc + the Q key).
+ */
+export function QuestLogPanel({ quests, onClose }: {
+  quests: readonly Quest[]
+  onClose: () => void
+}) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
+  return (
+    <div className="fixed inset-0 z-30 flex items-center justify-center bg-black/70 p-4 font-mono" role="dialog" aria-label="Quest log" onClick={onClose}>
+      <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg border border-orange-500/40 bg-gray-900 p-4 text-white shadow-2xl" onClick={e => e.stopPropagation()}>
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-sm font-bold text-orange-400">Quest Log</h2>
+          <button onClick={onClose} className="rounded bg-gray-700 px-2 py-1 text-xs hover:bg-gray-600" aria-label="Close quest log">✕ (Q)</button>
+        </div>
+        {quests.length === 0 && <p className="text-xs text-gray-500">No quests yet. Find a quest-giver and press E to accept one.</p>}
+        <div className="space-y-3">
+          {QUEST_LOG_GROUPS.map(group => {
+            const inGroup = quests.filter(q => q.state === group.state)
+            if (inGroup.length === 0) return null
+            return (
+              <section key={group.state}>
+                <p className={`mb-1 text-[10px] font-bold uppercase tracking-wider ${group.accent}`}>{group.label} ({inGroup.length})</p>
+                <ul className="space-y-2">
+                  {inGroup.map(quest => {
+                    const { completed, total } = progress(quest)
+                    return (
+                      <li key={quest.id} className="rounded border border-white/10 bg-black/40 p-2">
+                        <div className="mb-1 flex items-center justify-between">
+                          <span className="truncate text-[11px] font-bold text-gray-100">{quest.title}</span>
+                          <span className="ml-2 shrink-0 text-[10px] tabular-nums text-gray-400">{completed}/{total}</span>
+                        </div>
+                        <QuestObjectives quest={quest} />
+                      </li>
+                    )
+                  })}
+                </ul>
+              </section>
+            )
+          })}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function InventoryCard({ inventory, talentPath, onEquip, onUse, onSetClass }: {
   inventory: Inventory
   talentPath: TalentPath
@@ -2705,12 +2826,15 @@ function InventoryCard({ inventory, talentPath, onEquip, onUse, onSetClass }: {
  *  whether it's hittable (a non-hittable enemy becomes passive scenery), see its
  *  stats + patrol, and delete it. Presentational — actions bubble to the editor. */
 /** Reusable modal — dark gaming panel; click the backdrop or press Esc to close. */
-function Modal({ title, accent = 'orange', onClose, children, wide }: {
+function Modal({ title, accent = 'orange', onClose, children, wide, anchor }: {
   title: string
   accent?: 'orange' | 'cyan' | 'purple' | 'blue' | 'yellow' | 'red'
   onClose: () => void
   children: React.ReactNode
   wide?: boolean
+  /** World-anchored screen point (px): when set, the panel floats ABOVE it (its
+   *  bottom edge sitting at anchor.y) instead of centering. Off-screen → centered. */
+  anchor?: { x: number; y: number } | null
 }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
@@ -2725,16 +2849,23 @@ function Modal({ title, accent = 'orange', onClose, children, wide }: {
     orange: 'text-orange-300', cyan: 'text-cyan-300', purple: 'text-purple-300',
     blue: 'text-blue-300', yellow: 'text-yellow-300', red: 'text-red-300',
   }[accent]
+  // Anchored: float the panel above the world point (translate up + center on x);
+  // otherwise fall back to the centered flex layout.
+  const panelPos = anchor
+    ? 'absolute -translate-x-1/2 -translate-y-full'
+    : ''
+  const panelStyle = anchor ? { left: anchor.x, top: anchor.y } : undefined
   return (
     <div
-      className="fixed inset-0 z-40 flex items-center justify-center bg-black/70 p-4 font-mono"
+      className={`fixed inset-0 z-40 ${anchor ? '' : 'flex items-center justify-center'} bg-black/70 p-4 font-mono`}
       onClick={onClose}
       role="dialog"
       aria-modal="true"
       aria-label={title}
     >
       <div
-        className={`flex max-h-[85vh] w-full ${wide ? 'max-w-2xl' : 'max-w-md'} flex-col overflow-hidden rounded-xl border ${ring} bg-gray-950 text-white shadow-2xl shadow-black/60`}
+        className={`${panelPos} flex max-h-[85vh] w-full ${wide ? 'max-w-2xl' : 'max-w-md'} flex-col overflow-hidden rounded-xl border ${ring} bg-gray-950 text-white shadow-2xl shadow-black/60`}
+        style={panelStyle}
         onClick={e => e.stopPropagation()}
       >
         <header className="flex items-center justify-between border-b border-white/10 bg-black/40 px-4 py-3">
@@ -2965,6 +3096,47 @@ function EntityAttackBody({ entity, onPatch }: {
   )
 }
 
+/**
+ * Quest OFFER body — the modal contents shown when a player talks to a giver whose
+ * quest is still `available`. Renders the title, story, objectives and rewards, with
+ * Accept (runs the engine's acceptQuest → active) and Reject (close only — the quest
+ * stays `available`, so the giver can be re-asked later). Rendered inside the reusable
+ * Modal, anchored above the giver entity.
+ */
+export function QuestGiveBody({ quest, onAccept, onReject }: {
+  quest: Quest
+  onAccept: () => void
+  onReject: () => void
+}) {
+  return (
+    <div className="space-y-3 text-xs">
+      <h4 className="text-sm font-bold text-amber-300">{quest.title}</h4>
+      {quest.description && <p className="leading-relaxed text-gray-300">{quest.description}</p>}
+      <div>
+        <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-gray-400">Objectives</p>
+        <QuestObjectives quest={quest} />
+      </div>
+      <div>
+        <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-gray-400">Rewards</p>
+        <ul className="flex flex-col gap-0.5">
+          {quest.rewards.length === 0 && <li className="text-gray-500">—</li>}
+          {quest.rewards.map((reward, i) => (
+            <li key={i} className="text-emerald-300">{rewardSummary(reward)}</li>
+          ))}
+        </ul>
+      </div>
+      <div className="flex gap-2 pt-1">
+        <button onClick={onAccept} className="flex-1 rounded bg-emerald-700 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-600">
+          Accept
+        </button>
+        <button onClick={onReject} className="flex-1 rounded bg-gray-700 px-3 py-1.5 text-xs font-bold text-gray-200 hover:bg-gray-600">
+          Reject
+        </button>
+      </div>
+    </div>
+  )
+}
+
 export default function TemplateEditor() {
   const router = useRouter()
   const { toast } = useToast()
@@ -3069,6 +3241,11 @@ export default function TemplateEditor() {
   const [questDraft, setQuestDraft] = useState<QuestDraft>(() => emptyQuestDraft())
   const [playerXp, setPlayerXp] = useState(0)
   const questsRef = useRef<Quest[]>([])
+  // The quest log overlay (Q key / button) and the offer modal (opened when the
+  // player talks to a giver whose quest is still `available`). The offer carries a
+  // screen anchor so the modal floats above the giver; null anchor → centered.
+  const [questLogOpen, setQuestLogOpen] = useState(false)
+  const [questGiveModal, setQuestGiveModal] = useState<{ giverId: string; anchor: { x: number; y: number } | null } | null>(null)
 
   // Connector teleport runtime state (read/written inside the once-mounted game loop)
   const lastCellRef = useRef<{ col: number; row: number }>({ col: -1, row: -1 })
@@ -3849,11 +4026,34 @@ export default function TemplateEditor() {
     if (!giver) return
     const quest = questForGiver(questsRef.current, giver)
     if (!quest) return
-    if (quest.state === 'available') return acceptGiverQuest(quest)
+    // available → open the OFFER modal (anchored above the giver) instead of
+    // instant-accepting, so the player can read it and Accept/Reject (re-askable).
+    if (quest.state === 'available') return setQuestGiveModal({ giverId: giver.id, anchor: questGiverAnchor(giver) })
     if (quest.state === 'completed') return turnInGiverQuest(quest)
     // active (not yet complete) or already turned_in — nothing to do but remind.
     if (quest.state === 'active') toast(`In progress: ${quest.title}`, 'info')
   }, [])
+
+  // Project the giver's cell to a screen point ABOVE the figure for the offer modal,
+  // matching the active view's projection; null when off-screen → modal centers.
+  const questGiverAnchor = (giver: Entity): { x: number; y: number } | null => {
+    const grid = gridRef.current
+    const canvas = canvasRef.current
+    if (!grid || !canvas) return null
+    const view = topViewMode ? 'top' : viewTypeRef.current === '2d' ? '2d' : 'isometric'
+    const pos = questAnchorScreenPos({
+      view,
+      cellSize: grid.cellSize,
+      isoScale: grid.isoScale,
+      player: { x: playerRef.current.x, z: playerRef.current.z },
+      camOffset: camOffsetRef.current,
+      isoZoom: isoZoomRef.current,
+      topZoom: zoomRef.current,
+      w: canvas.width,
+      h: canvas.height,
+    }, giver.col, giver.row)
+    return pos ? { x: pos.x, y: pos.y - 28 } : null
+  }
 
   const acceptGiverQuest = (quest: Quest) => {
     setQuests(prev => upsertQuest(prev, acceptQuest(quest)))
@@ -5639,6 +5839,11 @@ export default function TemplateEditor() {
         setInventoryOpen(o => !o)
         return
       }
+      // Q toggles the quest log (same guard).
+      if ((e.key === 'q' || e.key === 'Q') && tag !== 'INPUT' && tag !== 'TEXTAREA') {
+        setQuestLogOpen(o => !o)
+        return
+      }
       keysRef.current[e.key] = true
     }
     const handleKeyUp = (e: KeyboardEvent) => {
@@ -6865,6 +7070,38 @@ export default function TemplateEditor() {
               onChange={l => setLoadouts(prev => ({ ...prev, [activeId]: l }))}
               onClose={() => setInventoryOpen(false)}
             />
+          )
+        })()}
+
+        {/* Quest log — open button (also toggled by the Q key) + the panel overlay */}
+        {showSidebars && !questLogOpen && !showFlowView && (
+          <button
+            onClick={() => setQuestLogOpen(true)}
+            className="fixed bottom-4 left-[calc(50%+150px)] z-20 -translate-x-1/2 rounded bg-orange-700 px-3 py-1 font-mono text-xs font-bold text-white shadow-lg hover:bg-orange-600"
+            aria-label="Open quest log (Q)"
+          >
+            ❒ Quests (Q)
+          </button>
+        )}
+        {questLogOpen && (
+          <QuestLogPanel quests={quests} onClose={() => setQuestLogOpen(false)} />
+        )}
+
+        {/* Quest OFFER modal — opened when the player talks to a giver with an
+            `available` quest; floats above the giver (centered if off-screen). */}
+        {questGiveModal && (() => {
+          const giver = entities.find(e => e.id === questGiveModal.giverId)
+          const quest = giver ? questForGiver(quests, giver) : null
+          const close = () => setQuestGiveModal(null)
+          if (!quest || quest.state !== 'available') return null
+          return (
+            <Modal title="Quest Offer" accent="orange" onClose={close} anchor={questGiveModal.anchor}>
+              <QuestGiveBody
+                quest={quest}
+                onAccept={() => { acceptGiverQuest(quest); close() }}
+                onReject={close}
+              />
+            </Modal>
           )
         })()}
 
