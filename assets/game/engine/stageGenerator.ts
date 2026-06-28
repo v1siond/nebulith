@@ -151,8 +151,10 @@ const makeTreeCell = (zone: ZoneId, col: number, row: number, label: CellLabel, 
 //    dark doors + glassy windows so those ornaments stand out. cellTile's zone tint stays on
 //    the glyph; the COLOR comes from here.
 interface BuildingPalette { roof: string; wall: string; door: string; window: string }
-const HOUSE_ROOFS = ['#a83a2e', '#8a5a36', '#717680'] // red / brown / gray — houses vary
-const HOUSE_DOORS = ['#1a1410', '#241810', '#2a2015'] // a few DARK entrance tones — always darker than the wall
+const HOUSE_ROOFS = ['#b24a3a', '#8a5a36', '#6f7a86', '#3f7a55', '#a86a3a'] // red / brown / slate / green / ochre
+// Real-house exterior wall colors (warm + muted, like painted siding) so a street has variety.
+const HOUSE_WALLS = ['#e6d6b0', '#b9c4a6', '#d0b596', '#aebfcc', '#d9b48c', '#c9c0b2', '#cf9f8f']
+const HOUSE_DOORS = ['#3a2414', '#2a1810', '#23303f', '#2e2a1a', '#402028'] // dark wood / navy / green-black — always darker than the wall
 const BUILDING_PALETTES: Readonly<Record<BuildingType, BuildingPalette>> = {
   house: { roof: '#a83a2e', wall: '#d8c49a', door: '#241810', window: '#8fc4e6' },
   'big-house': { roof: '#5a6e8c', wall: '#cfc6b4', door: '#1e2630', window: '#a8d4ee' }, // squarer "building", cool roof
@@ -179,8 +181,8 @@ export function buildingCellColor(type: BuildingType, label: CellLabel, anchorSe
     return HOUSE_DOORS[Math.floor(shadeNoise(anchorSeed + 0.7) * HOUSE_DOORS.length) % HOUSE_DOORS.length]
   }
   if (label === 'window') return pal.window
-  // walls: houses get a per-building intensity shift; other types keep their flat identity tone
-  return isHouse ? varyIntensity(pal.wall, shadeNoise(anchorSeed + 0.1)) : pal.wall
+  // walls: houses pick a real-house color (varied per building); other types keep their identity tone
+  return isHouse ? HOUSE_WALLS[Math.floor(shadeNoise(anchorSeed + 0.1) * HOUSE_WALLS.length) % HOUSE_WALLS.length] : pal.wall
 }
 
 const makeBuildingCell = (zone: ZoneId, col: number, row: number, label: CellLabel, color?: string): StageProp => {

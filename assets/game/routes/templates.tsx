@@ -8607,21 +8607,24 @@ function draw2DBuilding(
   tileH: number,
   flicker: number,
 ): void {
-  // The 2D house stays UPRIGHT (roof on top). It shows its FRONT (door + windows) only when the door
-  // faces the viewer (south); otherwise it shows its BACK — a plain wall, no door — since a flat 2D
-  // elevation can't show a door that faces away. The door indicator (render2D) still marks the real
-  // entrance on those.
-  const showFront = gridBuildingFacing(b) === 'south'
+  // The 2D house stays UPRIGHT (roof on top). It shows its FRONT (door + windows) only on the
+  // camera-NEAR facings (south/east — the same split iso uses via `facadeOnBack`); the FAR facings
+  // (north/west) show a plain BACK wall, since a flat elevation can't show a door that faces away.
+  // ~50/50 front/back, and the door indicator (render2D) marks the real entrance on the backs.
+  const showFront = !isoFacadeOnBack(gridBuildingFacing(b))
   const cells = b.cells
   const L = cells[0]?.length ?? b.length
   const H = cells.length
-  // Houses vary per building (wall shade + dark door) via the shared color source so a 2D street
-  // isn't monotone; other types keep their flat body tone. The roof keeps its signature red here.
-  const isHouse = b.type === 'house'
-  const wallBg = isHouse ? withAlpha(buildingCellColor('house', 'wall', b.col), 0.95) : 'rgba(180, 132, 65, 0.95)'
-  const wallDark = isHouse ? withAlpha(darkenColor(buildingCellColor('house', 'wall', b.col), 0.7), 0.95) : 'rgba(138, 98, 48, 0.95)'
-  const doorFg = isHouse ? buildingCellColor('house', 'door', b.col) : '#3a2714'
-  const roofBg = 'rgba(200, 64, 64, 0.96)'
+  // Each cell gets its OWN background so a door reads as a dark doorway and a window as glass — not a
+  // glyph on identical wall. Colors come from the shared per-building source (real-house wall tones,
+  // dark doors, glass windows; store=blue roof, hospital=green roof) so 2D matches the other views.
+  const t = b.type as BuildingType
+  const a = (col: string): string => withAlpha(col, 0.96)
+  const roofBg = a(buildingCellColor(t, 'roof', b.col))
+  const wallBg = a(buildingCellColor(t, 'wall', b.col))
+  const doorBg = a(buildingCellColor(t, 'door', b.col))
+  const windowBg = a(buildingCellColor(t, 'window', b.col))
+  const wallSeam = a(darkenColor(buildingCellColor(t, 'wall', b.col), 0.72))
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
   for (let r = 0; r < H; r++) {
@@ -8635,25 +8638,25 @@ function draw2DBuilding(
       const isRoof = kind === 'roof'
       const isDoor = kind === 'door'
       const isWindow = kind === 'window'
-      ctx.fillStyle = isRoof ? roofBg : wallBg
+      ctx.fillStyle = isRoof ? roofBg : isDoor ? doorBg : isWindow ? windowBg : wallBg
       ctx.fillRect(x - tileW * 0.5, cellTop, tileW, tileH)
-      // side-wall seams on the body (the "connected wall" look) — not on roof
-      if (!isRoof) {
-        ctx.fillStyle = wallDark
+      // seams only on plain wall cells (the connected-wall look) — keep doors/windows clean
+      if (!isRoof && !isDoor && !isWindow) {
+        ctx.fillStyle = wallSeam
         ctx.fillRect(x - tileW * 0.5 - 1, cellTop, 2, tileH)
         ctx.fillRect(x + tileW * 0.5 - 1, cellTop, 2, tileH)
       }
-      const fg = isRoof
-        ? `rgba(255, 100, 80, ${0.8 + 0.2 * flicker})`
-        : isDoor
-        ? doorFg
-        : isWindow
-        ? `rgba(255, 220, 80, ${0.5 + 0.3 * flicker})`
-        : wallDark
-      const glyph = isRoof ? '/\\' : isDoor ? '==' : isWindow ? '[]' : '||'
-      ctx.font = `bold ${tileH * 0.7}px ${ASCII_FONT}`
-      ctx.fillStyle = fg
-      ctx.fillText(glyph, x, cellTop + tileH * 0.5)
+      // detail glyph that READS on the cell's own background
+      const glyph = isRoof ? '/\\' : isDoor ? '▯' : isWindow ? '⊞' : ''
+      if (glyph) {
+        ctx.fillStyle = isRoof
+          ? `rgba(255, 120, 100, ${0.7 + 0.25 * flicker})`
+          : isDoor
+          ? 'rgba(232, 212, 170, 0.9)' // warm handle/panel on the dark door
+          : 'rgba(40, 62, 84, 0.85)' // dark frame on the glass window
+        ctx.font = `bold ${tileH * 0.7}px ${ASCII_FONT}`
+        ctx.fillText(glyph, x, cellTop + tileH * 0.5)
+      }
     }
   }
   // Type signage (STORE / HOSPITAL) above the roof apex — mirrors the iso badge so a shop / clinic
