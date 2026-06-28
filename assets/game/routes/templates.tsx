@@ -50,6 +50,7 @@ import { shouldFire, lampPulse } from '@/engine/behaviors'
 import { weaponAnimKind, animFrame, isAnimDone, ATTACK_ANIM_MS, type AttackAnim, type AttackAnimKind } from '@/engine/attackAnimations'
 import { entityArtFrame, weaponGlyph, entityPalette, topRoleColor } from '@/engine/entityArt'
 import { entityQuestMarker, type QuestMarker } from '@/engine/entityQuestMarker'
+import { isoFacingIndex } from '@/engine/isoBuilding'
 import { appendWaypoint, setMovementMode, clearWaypoints, buildStepList, addMovementStep, removeMovementStep, updateMovementStep, setStepDelay, makeAttackPattern, defaultAttackPattern } from '@/game/patterns'
 import type { Direction } from '@/game/types'
 import { useToast } from '@/components/Toast'
@@ -5242,9 +5243,9 @@ export default function TemplateEditor() {
       height: b.height,
       type: b.type,
       cells: b.facade.cells,
-      // Vary which way each house faces in iso so a street isn't all-one-direction. Deterministic
-      // per plot (stable across re-renders), but it's just data — set it however you like later.
-      facing: (b.col * 2 + b.row * 3) % ISO_FACINGS.length,
+      // Orient the iso billboard by the planner's REAL road-derived facing (door toward the road):
+      // horizontal-street houses run along +col (axis 0), vertical-road houses along -row (axis 1).
+      facing: isoFacingIndex(b.facing),
     }))
     const paint = stagePaint(stage)
     for (const g of paint.ground) {
@@ -7603,10 +7604,10 @@ function render(
       const anchor = drawIsoEntity(ctx, p.x, p.y - heightOffset, obj.entity, tileH, combat, now, obj.moving ?? false, obj.inRange ?? false)
       drawQuestMarker(ctx, entityQuestMarker(obj.entity, quests), anchor.x, anchor.y, Math.max(14, tileH * 1.6))
     } else if (obj.building) {
-      // ONE upright unit, rotated by its iso facing — but ONLY when the rotated footprint fits
-      // inside the road-free plot rect (L < H); otherwise it stays front-facing so it can't spill.
+      // ONE upright unit, oriented by its real road-derived facing. The planner already reserved
+      // the oriented footprint rect (road-free), so the billboard can't spill — no gate needed.
       const b = obj.building
-      const f = ISO_FACINGS[b.length < b.height ? (b.facing ?? 0) % ISO_FACINGS.length : 0]
+      const f = ISO_FACINGS[(b.facing ?? 0) % ISO_FACINGS.length]
       const oC = b.col + f.baseColFrac * b.length // base start col (which end of the frontage)
       const oR = b.row + 0.5 // base sits on the frontage front edge
       const origin = toScreen(oC, oR)
@@ -8237,8 +8238,11 @@ function drawIsoBuilding(
   cellH: number,
   flicker: number,
 ): void {
-  const L = b.length
-  const H = b.height
+  // Billboard size comes from the FACADE grid (b.cells), not the footprint span — for east/west
+  // buildings the footprint rect is rotated (length/height swapped), so reading b.length/b.height
+  // there would draw the facade with the wrong proportions.
+  const L = b.cells[0]?.length ?? b.length
+  const H = b.cells.length
   const bodyH = H - ROOF_ROWS // wall/window/door rows
   const up = (n: number): Pt => ({ x: 0, y: -n * cellH })
   // Houses peak (composeBuilding leaves empty corners in row 0); flat types keep a box roof.

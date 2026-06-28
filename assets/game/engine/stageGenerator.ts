@@ -46,6 +46,8 @@ export interface PlacedBuilding {
   row: number
   length: number
   height: number
+  /** The planner's road-derived facing — the iso render orients the billboard by this. */
+  facing: Facing
   doorCells: { col: number; row: number }[]
   facade: ComposedBuilding
 }
@@ -570,7 +572,7 @@ function placeFacade(
   }
   // `row` = the rect's BOTTOM row + `length`/`height` = the rect's span (cols×rows), so the
   // nature/plaza math and the iso per-cell skip read the real footprint regardless of facing.
-  return { type: plot.type, col: rect.col, row: rect.row + rect.h - 1, length: rect.w, height: rect.h, doorCells, facade }
+  return { type: plot.type, col: rect.col, row: rect.row + rect.h - 1, length: rect.w, height: rect.h, facing: plot.facing, doorCells, facade }
 }
 
 /** Emit one labeled building cell from facade-local (c, r) at grid (gridCol,
