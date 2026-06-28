@@ -1,6 +1,7 @@
-import { generateStage, buildingCellColor } from '@/engine/stageGenerator'
+import { generateStage, buildingCellColor, stagePaint } from '@/engine/stageGenerator'
 import { composeBuilding } from '@/engine/buildingComposer'
 import { TREE_CANOPY_SHADES } from '@/engine/cellTileset'
+import { parseColor } from '@/engine/colors'
 
 // The small GROUND footprint cells of a placed building: cols [col, col+length) × rows
 // [row-(height-1), row] (length = grid col-span, height = grid row-span — both small now).
@@ -660,7 +661,7 @@ describe('buildingCellColor — distinct per-type roofs + visible ornaments', ()
   })
 
   it('makes doors dark + windows glassy (distinct from walls)', () => {
-    expect(buildingCellColor('house', 'door', 1)).toBe('#241810')
+    expect(buildingCellColor('store', 'door', 1)).toBe('#26414f') // store door stays its identity tone
     expect(buildingCellColor('house', 'window', 1)).toBe('#8fc4e6')
     expect(buildingCellColor('house', 'window', 1)).not.toBe(buildingCellColor('house', 'wall', 1))
   })
@@ -719,6 +720,93 @@ describe('generateStage — town & city scale up from village', () => {
     }
     expect(cBuild).toBeGreaterThan(vBuild) // cities have more buildings
     expect(vTrees).toBeGreaterThan(cTrees) // villages have more nature
+  })
+})
+
+// Luminance of any renderer color (hex or rgb()/rgba()), via the shared parser.
+const luminance = (color: string): number => {
+  const c = parseColor(color)
+  if (!c) throw new Error(`unparseable color: ${color}`)
+  return c.r + c.g + c.b
+}
+
+// Door + its driveway sit one step toward the road (mirrors stageGenerator.FACING_STEP).
+const FACING_STEP: Record<string, [number, number]> = {
+  south: [0, 1],
+  north: [0, -1],
+  east: [1, 0],
+  west: [-1, 0],
+}
+
+describe('buildingCellColor — randomized per-house colors (street isn\'t monotone)', () => {
+  const SEEDS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 13, 17, 19, 23, 29]
+
+  it('varies the house WALL color across buildings (not all identical)', () => {
+    const walls = new Set(SEEDS.map(s => buildingCellColor('house', 'wall', s)))
+    expect(walls.size).toBeGreaterThan(1)
+  })
+
+  it('keeps every house DOOR strictly darker than + different from its wall', () => {
+    for (const s of SEEDS) {
+      const wall = buildingCellColor('house', 'wall', s)
+      const door = buildingCellColor('house', 'door', s)
+      expect(door).not.toBe(wall)
+      expect(luminance(door)).toBeLessThan(luminance(wall))
+    }
+  })
+
+  it('keeps store + hospital DETERMINISTIC (their identity must not wobble per building)', () => {
+    for (const type of ['store', 'hospital'] as const) {
+      for (const label of ['wall', 'door', 'roof'] as const) {
+        const a = buildingCellColor(type, label, 1)
+        const b = buildingCellColor(type, label, 42)
+        const c = buildingCellColor(type, label, 137)
+        expect(new Set([a, b, c]).size).toBe(1) // same color regardless of anchor
+      }
+    }
+  })
+})
+
+describe('generateStage — a village guarantees a store + a hospital with distinct palettes', () => {
+  it('places at least one store building and one hospital building', () => {
+    const stage = generateStage({ zone: 'summer', variant: 'village' })
+    expect(stage.buildings.some(b => b.type === 'store')).toBe(true)
+    expect(stage.buildings.some(b => b.type === 'hospital')).toBe(true)
+  })
+
+  it('gives the store + hospital distinct identity palettes (blue store, green hospital)', () => {
+    expect(buildingCellColor('store', 'roof', 1)).not.toBe(buildingCellColor('hospital', 'roof', 1))
+    expect(buildingCellColor('store', 'wall', 1)).not.toBe(buildingCellColor('hospital', 'wall', 1))
+  })
+})
+
+describe('generateStage — a driveway crosses the setback from every door to its street', () => {
+  it('paints ≥1 path_stone cell toward the road for every building', () => {
+    const stage = generateStage({ zone: 'summer', variant: 'village' })
+    const paved = new Set(
+      stagePaint(stage).ground.filter(g => g.type === 'path_stone').map(g => `${g.col},${g.row}`),
+    )
+    expect(stage.buildings.length).toBeGreaterThan(0)
+    for (const b of stage.buildings) {
+      const door = b.doorCells[0]
+      const [dc, dr] = FACING_STEP[b.facing]
+      expect(paved.has(`${door.col + dc},${door.row + dr}`)).toBe(true) // driveway between door + street
+    }
+  })
+})
+
+describe('generateStage — lamps never block a door or its driveway', () => {
+  it('places no lamp prop on a building door cell or its driveway cell', () => {
+    for (let i = 0; i < 6; i++) {
+      const stage = generateStage({ zone: 'summer', variant: 'village' })
+      const lamps = new Set(stage.props.filter(p => p.type === 'lamp').map(p => `${p.col},${p.row}`))
+      for (const b of stage.buildings) {
+        const door = b.doorCells[0]
+        const [dc, dr] = FACING_STEP[b.facing]
+        expect(lamps.has(`${door.col},${door.row}`)).toBe(false) // never on the door
+        expect(lamps.has(`${door.col + dc},${door.row + dr}`)).toBe(false) // never on the driveway
+      }
+    }
   })
 })
 

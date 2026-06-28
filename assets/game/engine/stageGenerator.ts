@@ -152,6 +152,7 @@ const makeTreeCell = (zone: ZoneId, col: number, row: number, label: CellLabel, 
 //    the glyph; the COLOR comes from here.
 interface BuildingPalette { roof: string; wall: string; door: string; window: string }
 const HOUSE_ROOFS = ['#a83a2e', '#8a5a36', '#717680'] // red / brown / gray — houses vary
+const HOUSE_DOORS = ['#1a1410', '#241810', '#2a2015'] // a few DARK entrance tones — always darker than the wall
 const BUILDING_PALETTES: Readonly<Record<BuildingType, BuildingPalette>> = {
   house: { roof: '#a83a2e', wall: '#d8c49a', door: '#241810', window: '#8fc4e6' },
   'big-house': { roof: '#5a6e8c', wall: '#cfc6b4', door: '#1e2630', window: '#a8d4ee' }, // squarer "building", cool roof
@@ -162,17 +163,24 @@ const BUILDING_PALETTES: Readonly<Record<BuildingType, BuildingPalette>> = {
   castle: { roof: '#5f6068', wall: '#b6b2aa', door: '#15151a', window: '#9fb2cc' },
 }
 
-/** Color for one facade cell by the building's TYPE + the cell's label. Houses vary their
- *  roof tone (red / brown / gray) by their anchor so a street isn't monotone. Pure. */
+/** Color for one facade cell by the building's TYPE + the cell's label. HOUSES vary per building
+ *  (anchorSeed) so a street isn't monotone: a roof tone (red / brown / gray), a wall shade, and a
+ *  dark door tone — the door always darker than + different from the wall. Store / hospital stay
+ *  deterministic so their identity (white+blue / green+white) reads at a glance. Pure. */
 export function buildingCellColor(type: BuildingType, label: CellLabel, anchorSeed: number): string {
   const pal = BUILDING_PALETTES[type] ?? BUILDING_PALETTES.house
+  const isHouse = type === 'house'
   if (label === 'roof' || label === 'roof_top') {
-    if (type !== 'house') return pal.roof
+    if (!isHouse) return pal.roof
     return HOUSE_ROOFS[Math.floor(shadeNoise(anchorSeed + 0.3) * HOUSE_ROOFS.length) % HOUSE_ROOFS.length]
   }
-  if (label === 'door') return pal.door
+  if (label === 'door') {
+    if (!isHouse) return pal.door
+    return HOUSE_DOORS[Math.floor(shadeNoise(anchorSeed + 0.7) * HOUSE_DOORS.length) % HOUSE_DOORS.length]
+  }
   if (label === 'window') return pal.window
-  return pal.wall
+  // walls: houses get a per-building intensity shift; other types keep their flat identity tone
+  return isHouse ? varyIntensity(pal.wall, shadeNoise(anchorSeed + 0.1)) : pal.wall
 }
 
 const makeBuildingCell = (zone: ZoneId, col: number, row: number, label: CellLabel, color?: string): StageProp => {
@@ -505,12 +513,20 @@ function villageDecor(ctx: ArchetypeContext, layout: VillageLayout): void {
   // a door is walkable, so the plaza/lamp checks below would otherwise drop a fountain on a door and
   // block the only way in. Build the exclusion set from the placed buildings.
   const buildingCells = new Set<string>()
+  // Door + its driveway (door + one step toward the road) are walkable, so they pass the collision
+  // check — but a lamp there would block the entrance or stand in the paved drive. Exclude both.
+  const doorways = new Set<string>()
   for (const b of ctx.buildings) {
     const top = b.row - (b.height - 1)
     for (let r = top; r <= b.row; r++) for (let c = b.col; c < b.col + b.length; c++) buildingCells.add(`${c},${r}`)
+    const door = b.doorCells[0]
+    if (!door) continue
+    const [dc, dr] = FACING_STEP[b.facing]
+    doorways.add(`${door.col},${door.row}`)
+    doorways.add(`${door.col + dc},${door.row + dr}`)
   }
   const decorFree = (c: number, r: number): boolean =>
-    !collision[r]?.[c] && !layout.roads[r]?.[c] && !buildingCells.has(`${c},${r}`)
+    !collision[r]?.[c] && !layout.roads[r]?.[c] && !buildingCells.has(`${c},${r}`) && !doorways.has(`${c},${r}`)
   // Plaza centrepiece — a well or a fountain — just below the first street, if the cell is clear.
   const cx = clamp(Math.floor(cols / 2), 2, cols - 3)
   const cy = clamp(streetRows[0] + 3, 0, rows - 2)

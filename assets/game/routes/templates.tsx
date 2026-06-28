@@ -25,7 +25,7 @@ import { resolveAction, type Action as TriggerAction } from '@/engine/triggers'
 import { generateStage, stagePaint, StageData, VariantId, buildingCellColor } from '@/engine/stageGenerator'
 import { ZoneId, ZONE_PALETTES } from '@/engine/zones'
 import { cellTile } from '@/engine/cellTileset'
-import type { BuildingType } from '@/engine/buildingComposer'
+import { rotateCells, type BuildingType } from '@/engine/buildingComposer'
 import type { Facing } from '@/engine/villageLayout'
 import {
   buildingFootprintCells,
@@ -36,6 +36,8 @@ import {
   makeBuilding,
   gridBuildingFacing,
   facadeLength,
+  doorCellFor,
+  buildingRect,
   type PlacementEnv,
 } from '@/engine/buildingEditor'
 import { darkenColor, lightenColor, withAlpha } from '@/engine/colors'
@@ -8211,8 +8213,8 @@ function drawIsoPlayer(
  *  on a subtle backing — one cell = one tile, matching the keystone model. */
 // Apex signage per building TYPE — makes a store / hospital read at a glance.
 const BUILDING_BADGES: Record<string, { text: string; color: string }> = {
-  store: { text: 'STORE', color: '#ffe24a' }, // gold marquee
-  hospital: { text: '✚', color: '#ff6060' }, // red cross
+  store: { text: 'STORE', color: '#ffe24a' }, // gold marquee on the blue store
+  hospital: { text: 'HOSPITAL', color: '#ffffff' }, // white word on the green hospital (green+white identity)
 }
 
 // Apex roof glyph by type: a house PEAKS (▲ = triangle roof); every other type keeps the flat
@@ -8596,6 +8598,11 @@ function draw2DBuildingTile(
  *  top) drawn upright over the small footprint's front edge. `centerX` is the footprint centre, `baseY`
  *  the bottom of the front row. The ground footprint stays width×depth (collision matches); only the
  *  drawn facade rises tall — the height/footprint decoupling, in 2D. */
+/** Per-facing CLOCKWISE quarter-turns for the facade so its DOOR (bottom edge of b.cells) lands on
+ *  the building's ROAD-facing side — matching renderTopView's door-notch placement: south → door
+ *  bottom, east → door right, north → door top, west → door left. */
+const FACING_ROTATIONS: Record<string, number> = { south: 0, west: 1, north: 2, east: 3 }
+
 function draw2DBuilding(
   ctx: CanvasRenderingContext2D,
   b: GridBuilding,
@@ -8605,11 +8612,16 @@ function draw2DBuilding(
   tileH: number,
   flicker: number,
 ): void {
-  const cells = b.cells
+  // Orient the facade so its door faces the road (not always down), like the top-view door notch.
+  const cells = rotateCells(b.cells, FACING_ROTATIONS[gridBuildingFacing(b)] ?? 0)
   const L = cells[0]?.length ?? b.length
   const H = cells.length
-  const wallBg = 'rgba(180, 132, 65, 0.95)'
-  const wallDark = 'rgba(138, 98, 48, 0.95)'
+  // Houses vary per building (wall shade + dark door) via the shared color source so a 2D street
+  // isn't monotone; other types keep their flat body tone. The roof keeps its signature red here.
+  const isHouse = b.type === 'house'
+  const wallBg = isHouse ? withAlpha(buildingCellColor('house', 'wall', b.col), 0.95) : 'rgba(180, 132, 65, 0.95)'
+  const wallDark = isHouse ? withAlpha(darkenColor(buildingCellColor('house', 'wall', b.col), 0.7), 0.95) : 'rgba(138, 98, 48, 0.95)'
+  const doorFg = isHouse ? buildingCellColor('house', 'door', b.col) : '#3a2714'
   const roofBg = 'rgba(200, 64, 64, 0.96)'
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
@@ -8633,7 +8645,7 @@ function draw2DBuilding(
       const fg = isRoof
         ? `rgba(255, 100, 80, ${0.8 + 0.2 * flicker})`
         : isDoor
-        ? '#3a2714'
+        ? doorFg
         : isWindow
         ? `rgba(255, 220, 80, ${0.5 + 0.3 * flicker})`
         : wallDark
@@ -8642,6 +8654,20 @@ function draw2DBuilding(
       ctx.fillStyle = fg
       ctx.fillText(glyph, x, cellTop + tileH * 0.5)
     }
+  }
+  // Type signage (STORE / HOSPITAL) above the roof apex — mirrors the iso badge so a shop / clinic
+  // reads at a glance in 2D too. Only store + hospital carry a badge.
+  const badge = BUILDING_BADGES[b.type]
+  if (badge) {
+    const topY = baseY - H * tileH
+    const bf = tileH * (badge.text.length > 1 ? 0.55 : 1.0)
+    ctx.font = `bold ${bf}px ${ASCII_FONT}`
+    const bw = ctx.measureText(badge.text).width
+    const by = topY - bf * 0.5
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.72)'
+    ctx.fillRect(centerX - bw / 2 - 2, by - bf * 0.6, bw + 4, bf * 1.2)
+    ctx.fillStyle = badge.color
+    ctx.fillText(badge.text, centerX, by)
   }
 }
 
@@ -9205,11 +9231,22 @@ function render2D(
       }
 
     } else if (obj.type === 'building' && obj.building) {
-      // ONE upright FRONT ELEVATION over the small footprint (door-down), raised from the building's
-      // facade — the same grid.buildings the iso reads, so 2D + iso + collision agree on one model.
+      // ONE upright FRONT ELEVATION over the small footprint, oriented so the door faces the road,
+      // raised from the building's facade — the same grid.buildings the iso reads, so 2D + iso +
+      // collision agree on one model.
       const b = obj.building
       const flicker = Math.sin(time * 0.003 + b.col * 0.5 + b.row * 0.7) * 0.15 + 1
       draw2DBuilding(ctx, b, p.x, p.y + tileH * 0.5, tileW, tileH, flicker)
+
+      // Subtle interactive-entrance marker on the door cell: a small warm chevron, so the player
+      // can tell which cell opens the building (the lone walkable footprint cell).
+      const door = doorCellFor(gridBuildingFacing(b), buildingRect(b))
+      const dp = toScreen(door.col + 0.5, door.row + 0.5)
+      ctx.fillStyle = `rgba(255, 198, 92, ${0.55 + 0.25 * flicker})`
+      ctx.font = `bold ${tileH * 0.62}px ${ASCII_FONT}`
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.fillText('▾', dp.x, dp.y)
 
     } else if (obj.asset) {
       const asset = obj.asset
@@ -10021,6 +10058,23 @@ function renderTopView(
       const dy = ry + rh / 2 - dn / 2
       const dx = b.facadeOnBack ? rx - dn * 0.25 : rx + rw - dn * 0.75
       ctx.fillRect(dx, dy, dn * 0.5, dn)
+    }
+    // Type signage (STORE / HOSPITAL) on the roof — same badge the iso + 2D views show, so a shop /
+    // clinic reads at a glance on the top-down map too.
+    const badge = BUILDING_BADGES[b.type]
+    if (badge && tileSize > 8) {
+      const bf = Math.max(7, tileSize * (badge.text.length > 1 ? 0.34 : 0.7))
+      ctx.font = `bold ${bf}px ${ASCII_FONT}`
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      const bw = ctx.measureText(badge.text).width
+      const bx = rx + rw / 2
+      const by = ry + rh / 2
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.7)'
+      ctx.fillRect(bx - bw / 2 - 2, by - bf * 0.6, bw + 4, bf * 1.2)
+      ctx.fillStyle = badge.color
+      ctx.fillText(badge.text, bx, by)
+      ctx.font = `bold ${fontSize}px ${ASCII_FONT}` // restore the cell font for subsequent draws
     }
   }
 

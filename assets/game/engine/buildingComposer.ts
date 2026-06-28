@@ -176,3 +176,29 @@ export function facadeLabel(b: ComposedBuilding, col: number, row: number): Cell
 export function facadeLabels(b: ComposedBuilding): (CellLabel | null)[][] {
   return b.cells.map((rowCells, row) => rowCells.map((_, col) => facadeLabel(b, col, row)))
 }
+
+/** One 90° CLOCKWISE turn of a cell grid: R×C → C×R, result[i][j] = M[R-1-j][i]. Pure. */
+function rotate90CW<T>(cells: T[][]): T[][] {
+  const rows = cells.length
+  const cols = cells[0]?.length ?? 0
+  const result: T[][] = []
+  for (let c = 0; c < cols; c++) {
+    const out: T[] = []
+    for (let r = rows - 1; r >= 0; r--) out.push(cells[r][c])
+    result.push(out)
+  }
+  return result
+}
+
+/**
+ * Rotate a facade cell grid by `rotations` × 90° CLOCKWISE (negatives + values ≥4 wrap).
+ * A facade has its door on the BOTTOM edge, so the four turn counts land the door on the
+ * four road-facing sides — 0 → bottom (south), 1 → left (west), 2 → top (north), 3 → right
+ * (east) — letting the 2D view point a building's door at its street. Pure, non-mutating.
+ */
+export function rotateCells<T>(cells: T[][], rotations: number): T[][] {
+  const turns = ((rotations % 4) + 4) % 4
+  let out: T[][] = cells.map(row => [...row])
+  for (let t = 0; t < turns; t++) out = rotate90CW(out)
+  return out
+}

@@ -1,4 +1,4 @@
-import { composeBuilding, facadeLabel, facadeLabels, BuildingType } from '@/engine/buildingComposer'
+import { composeBuilding, facadeLabel, facadeLabels, rotateCells, BuildingType } from '@/engine/buildingComposer'
 import { isWalkable } from '@/engine/cellLabels'
 
 describe('composeBuilding — Nebulith building architecture spec', () => {
@@ -122,5 +122,66 @@ describe('facadeLabels — facade-cell → CellLabel mapping (the keystone)', ()
     expect(labels.filter(l => l === 'wall').every(l => !isWalkable(l))).toBe(true)
     expect(labels.filter(l => l === 'roof').every(l => !isWalkable(l))).toBe(true)
     expect(labels.filter(l => l === 'window').every(l => !isWalkable(l))).toBe(true)
+  })
+})
+
+describe('rotateCells — pure 90° turns put the door on the right road-facing edge', () => {
+  // A 2-row × 3-col grid; 'D' (door) sits on the BOTTOM-centre, like a real facade.
+  //   . . .
+  //   . D .
+  const grid = [
+    ['a', 'b', 'c'],
+    ['d', 'D', 'f'],
+  ]
+  const doorAt = (cells: string[][]): { r: number; c: number } => {
+    for (let r = 0; r < cells.length; r++) {
+      const c = cells[r].indexOf('D')
+      if (c !== -1) return { r, c }
+    }
+    throw new Error('door not found')
+  }
+
+  it('0 turns leaves the grid unchanged (south → door bottom)', () => {
+    expect(rotateCells(grid, 0)).toEqual(grid)
+  })
+
+  it('1 turn (CW) is a correct 90° clockwise rotation → door on the LEFT edge (west)', () => {
+    const out = rotateCells(grid, 1)
+    expect(out).toEqual([
+      ['d', 'a'],
+      ['D', 'b'],
+      ['f', 'c'],
+    ])
+    expect(doorAt(out).c).toBe(0) // leftmost column
+  })
+
+  it('2 turns (180°) flips the grid → door on the TOP edge (north)', () => {
+    const out = rotateCells(grid, 2)
+    expect(out).toEqual([
+      ['f', 'D', 'd'],
+      ['c', 'b', 'a'],
+    ])
+    expect(doorAt(out).r).toBe(0) // top row
+  })
+
+  it('3 turns (CCW equiv) → door on the RIGHT edge (east)', () => {
+    const out = rotateCells(grid, 3)
+    expect(out).toEqual([
+      ['c', 'f'],
+      ['b', 'D'],
+      ['a', 'd'],
+    ])
+    expect(doorAt(out).c).toBe(out[0].length - 1) // rightmost column
+  })
+
+  it('wraps rotation count (4 → identity, negative turns CW the other way)', () => {
+    expect(rotateCells(grid, 4)).toEqual(grid)
+    expect(rotateCells(grid, -1)).toEqual(rotateCells(grid, 3))
+  })
+
+  it('is pure — never mutates the input grid', () => {
+    const original = grid.map(row => [...row])
+    rotateCells(grid, 3)
+    expect(grid).toEqual(original)
   })
 })
