@@ -20,7 +20,7 @@ import { IsometricGrid, GridAsset, GridBuilding } from '@/engine/IsometricGrid'
 import { player as playerSprite } from '@/assets/ascii'
 import { TILES, COMPOSITE_ASSETS, getTilesByCategory, getAssetsByCategory, TileDef, CompositeAsset } from '@/engine/Tileset'
 import { listTemplates, getTemplate, createTemplate, updateTemplate, deleteTemplate, serializeGrid, deserializeToGrid, TemplateListItem, Connector } from '@/lib/api'
-import { findTriggeredConnector } from '@/engine/connectors'
+import { findTriggeredConnector, normalizeConnector } from '@/engine/connectors'
 import { resolveAction, type Action as TriggerAction } from '@/engine/triggers'
 import { generateStage, stagePaint, StageData, VariantId } from '@/engine/stageGenerator'
 import { ZoneId } from '@/engine/zones'
@@ -3180,6 +3180,11 @@ export default function TemplateEditor() {
     flowViewMode = false
     setShowTopView(false)
     setShowFlowView(false)
+    // Entering a play view (iso/2d) exits connector authoring — authoring must never
+    // bleed into play and silently freeze triggers/combat (the dead walk-in bug).
+    connectorModeRef.current = false
+    setConnectorMode(false)
+    setEditingConnector(null)
   }
   const selectIsoView = () => {
     setViewType('isometric')
@@ -3387,20 +3392,22 @@ export default function TemplateEditor() {
       return
     }
 
-    // In connector mode, open connector editor
+    // In connector mode, open the connector editor. ONE connector owns a SET of
+    // cells: clicking a cell that belongs to an existing connector loads that whole
+    // connector (its full cell set); otherwise shift-click extends the selection and
+    // a plain click starts a fresh one. saveConnector turns the selection into cells.
     if (connectorMode) {
-      const existingConnector = connectors.find(c => c.col === cell.col && c.row === cell.row)
+      const existingConnector = connectors.find(c =>
+        c.cells.some(p => p.col === cell.col && p.row === cell.row),
+      )
       if (existingConnector) {
         setConnectorForm(existingConnector)
+        setSelectedCells(new Set(existingConnector.cells.map(p => `${p.col},${p.row}`)))
+      } else if (e.shiftKey) {
+        setSelectedCells(prev => new Set(prev).add(`${cell.col},${cell.row}`))
       } else {
-        setConnectorForm({
-          col: cell.col,
-          row: cell.row,
-          interaction: 'walk',
-          spawnCol: 25,
-          spawnRow: 25,
-          targetTemplateId: '',
-        })
+        setSelectedCells(new Set([`${cell.col},${cell.row}`]))
+        setConnectorForm({ interaction: 'walk', spawnCol: 25, spawnRow: 25, targetTemplateId: '' })
       }
       setEditingConnector(cell)
       return
@@ -3595,9 +3602,16 @@ export default function TemplateEditor() {
     // A connector needs EITHER a teleport target OR a typed action.
     if (!connectorForm.targetTemplateId && !connectorForm.action) return
 
+    // ONE connector owns ALL the selected cells (fall back to the single clicked
+    // cell when nothing is multi-selected).
+    const selected = Array.from(selectedCellsRef.current).map(key => {
+      const [col, row] = key.split(',').map(Number)
+      return { col, row }
+    })
+    const cells = selected.length > 0 ? selected : [{ col: editingConnector.col, row: editingConnector.row }]
+
     const connector: Connector = {
-      col: editingConnector.col,
-      row: editingConnector.row,
+      cells,
       targetTemplateId: connectorForm.targetTemplateId ?? '',
       targetTemplateName: savedTemplates.find(t => t.id === connectorForm.targetTemplateId)?.name,
       interaction: connectorForm.interaction || 'walk',
@@ -3607,16 +3621,18 @@ export default function TemplateEditor() {
     }
 
     setConnectors(prev => {
-      const filtered = prev.filter(c => !(c.col === connector.col && c.row === connector.row))
+      // Replace any connector that overlaps the new cell set (re-saving an edited one).
+      const cellSet = new Set(cells.map(p => `${p.col},${p.row}`))
+      const filtered = prev.filter(c => !c.cells.some(p => cellSet.has(`${p.col},${p.row}`)))
       return [...filtered, connector]
     })
     setEditingConnector(null)
     setConnectorForm({ interaction: 'walk', spawnCol: 25, spawnRow: 25 })
   }
 
-  // Delete connector
+  // Delete the connector that owns the given cell.
   const deleteConnector = (col: number, row: number) => {
-    setConnectors(prev => prev.filter(c => !(c.col === col && c.row === row)))
+    setConnectors(prev => prev.filter(c => !c.cells.some(p => p.col === col && p.row === row)))
     if (editingConnector?.col === col && editingConnector?.row === row) {
       setEditingConnector(null)
     }
@@ -5775,8 +5791,11 @@ export default function TemplateEditor() {
       }
 
       // ── Connector triggers (teleport between templates) ──
-      // Active only while playing (not authoring connectors) and not mid-teleport.
-      if (!connectorModeRef.current && !teleportingRef.current) {
+      // Movement/interact triggers fire during play regardless of the connector
+      // authoring toggle — only the click-to-author behavior (handleCanvasMouseDown)
+      // is gated on connectorMode. Suppressed only mid-teleport so a load can't
+      // re-fire the connector on the landing cell.
+      if (!teleportingRef.current) {
         const curCol = Math.floor(player.x / grid.cellSize)
         const curRow = Math.floor(player.z / grid.cellSize)
         const last = lastCellRef.current
@@ -5879,9 +5898,9 @@ export default function TemplateEditor() {
       } else if (topViewMode) {
         renderTopView(ctx, canvas.width, canvas.height, grid, player, zoomRef.current, selectedCellsRef.current, connectorsRef.current, connectorModeRef.current, camOffsetRef.current, renderEntities, runtime.combat, hitMarkersRef.current, time, questsRef.current)
       } else if (viewTypeRef.current === '2d') {
-        render2D(ctx, canvas.width, canvas.height, grid, player, time, zoomRef.current, camOffsetRef.current, renderEntities, runtime.combat)
+        render2D(ctx, canvas.width, canvas.height, grid, player, time, zoomRef.current, camOffsetRef.current, renderEntities, runtime.combat, connectorsRef.current)
       } else {
-        render(ctx, canvas.width, canvas.height, grid, player, time, camOffsetRef.current, renderEntities, runtime.combat, hitMarkersRef.current, time, isoZoomRef.current, attackAnimsRef.current)
+        render(ctx, canvas.width, canvas.height, grid, player, time, camOffsetRef.current, renderEntities, runtime.combat, hitMarkersRef.current, time, isoZoomRef.current, attackAnimsRef.current, connectorsRef.current)
       }
       // Drop finished attack animations (kept tiny — a few in flight at once).
       if (attackAnimsRef.current.length > 0) {
@@ -6039,7 +6058,9 @@ export default function TemplateEditor() {
 
       // Load connectors + the persisted entities/quests (enemies, NPCs, quests survive
       // a save→reload now; enemy CombatState is rebuilt from entitiesRef on sync).
-      setConnectors(template.connectors || [])
+      // Normalize on load so legacy single-cell saves get the {cells:[...]} shape
+      // before the trigger/render paths (which read connector.cells) ever see them.
+      setConnectors((template.connectors || []).map(normalizeConnector))
       setEntities(template.entities ?? [])
       setQuests(template.quests ?? [])
       // Older saves may have no player entity → mint one at the spawn so the player
@@ -6688,7 +6709,9 @@ export default function TemplateEditor() {
               {editingConnector && (
                 <div className="mb-2 rounded bg-gray-800 p-2">
                   <p className="mb-1 text-xs text-yellow-400">
-                    ({editingConnector.col}, {editingConnector.row})
+                    {selectedCells.size > 1
+                      ? `${selectedCells.size} cells selected`
+                      : `(${editingConnector.col}, ${editingConnector.row})`}
                   </p>
                   <select
                     value={connectorForm.action?.type ?? 'teleport'}
@@ -6785,14 +6808,19 @@ export default function TemplateEditor() {
 
               {connectors.length > 0 && (
                 <div className="max-h-32 space-y-1 overflow-y-auto">
-                  {connectors.map(c => (
+                  {connectors.map((c, i) => (
                     <button
-                      key={`${c.col},${c.row}`}
+                      key={`${c.cells[0]?.col},${c.cells[0]?.row},${i}`}
                       type="button"
                       className="flex w-full items-center justify-between rounded bg-gray-800 p-1 text-left text-xs hover:bg-gray-700"
-                      onClick={() => { setConnectorForm(c); setEditingConnector({ col: c.col, row: c.row }); setConnectorMode(true) }}
+                      onClick={() => {
+                        setConnectorForm(c)
+                        setEditingConnector({ col: c.cells[0].col, row: c.cells[0].row })
+                        setSelectedCells(new Set(c.cells.map(p => `${p.col},${p.row}`)))
+                        setConnectorMode(true)
+                      }}
                     >
-                      <span>({c.col},{c.row})→{c.targetTemplateName?.slice(0, 8) || '?'}</span>
+                      <span>({c.cells[0]?.col},{c.cells[0]?.row}){c.cells.length > 1 ? ` +${c.cells.length - 1}` : ''}→{c.targetTemplateName?.slice(0, 8) || '?'}</span>
                       <span className="text-purple-400">{c.interaction}</span>
                     </button>
                   ))}
@@ -6938,6 +6966,7 @@ function render(
   now: number = time,
   zoom: number = 1,
   attackAnims: readonly AttackAnim[] = [],
+  connectors: Connector[] = [],
 ) {
   // Clear
   ctx.fillStyle = '#1a1a2e'
@@ -7057,6 +7086,27 @@ function render(
       } else {
         ctx.fillText(char, p.x, drawY)
       }
+    }
+  }
+
+  // ─── CONNECTOR MARKERS (purple diamond + ◊ on each owned cell's top face) ──
+  for (const connector of connectors) {
+    for (const pcell of connector.cells) {
+      const p = toScreen(pcell.col, pcell.row)
+      const drawY = p.y - grid.getHeight(pcell.col, pcell.row) * heightStep
+      ctx.fillStyle = 'rgba(180, 80, 255, 0.6)'
+      ctx.beginPath()
+      ctx.moveTo(p.x, drawY - tileH)
+      ctx.lineTo(p.x + tileW, drawY)
+      ctx.lineTo(p.x, drawY + tileH)
+      ctx.lineTo(p.x - tileW, drawY)
+      ctx.closePath()
+      ctx.fill()
+      ctx.fillStyle = '#ffffff'
+      ctx.font = `bold ${tileH * 1.1}px ${ASCII_FONT}`
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.fillText('◊', p.x, drawY)
     }
   }
 
@@ -7975,6 +8025,7 @@ function render2D(
   camOffset: { x: number; y: number } = { x: 0, y: 0 },
   entities: readonly Entity[] = [],
   enemyCombat: ReadonlyMap<string, CombatState> = new Map(),
+  connectors: Connector[] = [],
 ) {
   // Clear with sky/background color
   ctx.fillStyle = '#1a1a2e'
@@ -8049,6 +8100,21 @@ function render2D(
         ctx.fillStyle = darkenColor(bg, 0.6)
         ctx.fillRect(p.x - tileW / 2, p.y + tileH / 2 - elevH, tileW, elevH)
       }
+    }
+  }
+
+  // ─── CONNECTOR MARKERS (one per owned cell, same purple ◊ as top view) ──
+  for (const connector of connectors) {
+    for (const pcell of connector.cells) {
+      const p = toScreen(pcell.col + 0.5, pcell.row + 0.5)
+      if (p.x < -tileW || p.x > w + tileW || p.y < -tileH || p.y > h + tileH) continue
+      ctx.fillStyle = 'rgba(180, 80, 255, 0.6)'
+      ctx.fillRect(p.x - tileW / 2, p.y - tileH / 2, tileW, tileH)
+      ctx.fillStyle = '#ffffff'
+      ctx.font = `bold ${tileH * 0.6}px ${ASCII_FONT}`
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.fillText('◊', p.x, p.y)
     }
   }
 
@@ -8917,38 +8983,41 @@ function renderTopView(
   }
   ctx.fillText(dirChar, px + tileSize / 2, py + tileSize / 2)
 
-  // Draw connectors
+  // Draw connectors — one marker per cell the connector owns; the label rides on
+  // the connector's first cell only.
   for (const connector of connectors) {
-    const cx = offsetX + connector.col * tileSize
-    const cy = offsetY + connector.row * tileSize
+    connector.cells.forEach((pcell, idx) => {
+      const cx = offsetX + pcell.col * tileSize
+      const cy = offsetY + pcell.row * tileSize
 
-    // Portal/connector appearance
-    ctx.fillStyle = 'rgba(180, 80, 255, 0.6)'
-    ctx.fillRect(cx, cy, tileSize - 1, tileSize - 1)
+      // Portal/connector appearance
+      ctx.fillStyle = 'rgba(180, 80, 255, 0.6)'
+      ctx.fillRect(cx, cy, tileSize - 1, tileSize - 1)
 
-    // Draw portal symbol
-    ctx.fillStyle = '#ffffff'
-    ctx.font = `bold ${tileSize * 0.6}px ${ASCII_FONT}`
-    ctx.textAlign = 'center'
-    ctx.textBaseline = 'middle'
-    ctx.fillText('◊', cx + tileSize / 2, cy + tileSize / 2)
-
-    // Draw pulsing border in connector mode
-    if (connectorMode) {
-      ctx.strokeStyle = '#ff88ff'
-      ctx.lineWidth = 2
-      ctx.strokeRect(cx, cy, tileSize - 1, tileSize - 1)
-    }
-
-    // Label (if room)
-    if (tileSize > 20 && connector.targetTemplateName) {
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.7)'
-      ctx.fillRect(cx - 5, cy - 12, tileSize + 10, 12)
-      ctx.fillStyle = '#ff88ff'
-      ctx.font = `bold 9px ${ASCII_FONT}`
+      // Draw portal symbol
+      ctx.fillStyle = '#ffffff'
+      ctx.font = `bold ${tileSize * 0.6}px ${ASCII_FONT}`
       ctx.textAlign = 'center'
-      ctx.fillText(connector.targetTemplateName.slice(0, 10), cx + tileSize / 2, cy - 5)
-    }
+      ctx.textBaseline = 'middle'
+      ctx.fillText('◊', cx + tileSize / 2, cy + tileSize / 2)
+
+      // Draw pulsing border in connector mode
+      if (connectorMode) {
+        ctx.strokeStyle = '#ff88ff'
+        ctx.lineWidth = 2
+        ctx.strokeRect(cx, cy, tileSize - 1, tileSize - 1)
+      }
+
+      // Label (if room) — only on the first cell so multi-cell connectors aren't noisy
+      if (idx === 0 && tileSize > 20 && connector.targetTemplateName) {
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)'
+        ctx.fillRect(cx - 5, cy - 12, tileSize + 10, 12)
+        ctx.fillStyle = '#ff88ff'
+        ctx.font = `bold 9px ${ASCII_FONT}`
+        ctx.textAlign = 'center'
+        ctx.fillText(connector.targetTemplateName.slice(0, 10), cx + tileSize / 2, cy - 5)
+      }
+    })
   }
 
   // Draw placed entities last — each a single `>` glyph colored by role (blueprint legend).
