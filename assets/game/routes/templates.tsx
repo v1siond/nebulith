@@ -111,7 +111,7 @@ import { EQUIP_SLOTS } from '@/game/types'
 import { createInventory, addItem, equipWeapon, equipArmor, useConsumable } from '@/game/inventory'
 import { createLoadout, equip as equipToSlot, unequip as unequipSlot, addToBag, setSpecial, setShortcut, allowedSlots, loadoutBonuses } from '@/game/loadout'
 import { GEAR_CATALOG, starterWarriorGear } from '@/game/gear'
-import { scatterEntities } from '@/game/spawner'
+import { scatterEntities, ENEMY_TYPES } from '@/game/spawner'
 
 const ASCII_FONT = '"JetBrains Mono", "Fira Code", "Consolas", monospace'
 
@@ -4084,8 +4084,9 @@ export default function TemplateEditor() {
       const spawned = scatterEntities({
         collision,
         occupied,
-        count: 6,
+        count: 16, // ~12 enemies + ~4 npc — enough per type to feed kill quests (respawn refills)
         kinds: ['enemy', 'enemy', 'enemy', 'npc'], // ~3:1 enemies to NPCs
+        enemyTypes: ENEMY_TYPES, // group each type into its own map zone (goblins, wolves, …)
         idPrefix: `scatter-${prev.length}`,
       })
       return [...prev, ...spawned]
