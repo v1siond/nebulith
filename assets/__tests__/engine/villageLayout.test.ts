@@ -52,17 +52,15 @@ function floodRoads(roads: boolean[][], start: Entrance): Set<string> {
 
 describe('villageLayout — buildingMix scales by settlement', () => {
   it('always includes exactly one store + one hospital, plus houses', () => {
-    const mix = buildingMix('village', seededRng(1))
+    const mix = buildingMix('town', seededRng(1))
     expect(mix.filter(t => t === 'store')).toHaveLength(1)
     expect(mix.filter(t => t === 'hospital')).toHaveLength(1)
     expect(mix.filter(t => t === 'house').length).toBeGreaterThanOrEqual(2)
   })
 
-  it('cities have more buildings than towns than villages', () => {
-    const v = buildingMix('village', seededRng(5)).length
+  it('cities have more buildings than towns', () => {
     const t = buildingMix('town', seededRng(5)).length
     const c = buildingMix('city', seededRng(5)).length
-    expect(t).toBeGreaterThan(v)
     expect(c).toBeGreaterThan(t)
   })
 })
@@ -154,16 +152,18 @@ describe('villageLayout — planVillage', () => {
     expect(facings.size).toBeGreaterThan(1) // buildings face more than one direction → multiple roads used
   })
 
-  it('a city plan has more plots than a village plan', () => {
-    const village = planVillage(60, 40, seededRng(21), 'village')
-    const city = planVillage(60, 40, seededRng(21), 'city')
-    expect(city.plots.length).toBeGreaterThanOrEqual(village.plots.length)
+  it('a CITY is ~3-5× a TOWN — on a large map (same seed) a city has ≥3× the plots', () => {
+    // On a large map the town stays capped (a modest settlement) while the city fills its much
+    // denser grid up to its big cap → ~4× the buildings. ≥3× is the contract ("3-5× a town").
+    const town = planVillage(90, 70, seededRng(21), 'town')
+    const city = planVillage(90, 70, seededRng(21), 'city')
+    expect(city.plots.length).toBeGreaterThanOrEqual(3 * town.plots.length)
   })
 })
 
 describe('villageLayout — planRoads (street skeleton step)', () => {
   it('produces a frontage on BOTH sides of every street (+ both sides of connectors)', () => {
-    const plan = planRoads(40, 30, seededRng(2), 'village')
+    const plan = planRoads(40, 30, seededRng(2), 'town')
     // 2 streets × 2 sides = 4, plus 1 connector × 2 sides = 2 → at least 6, all facing inward.
     expect(plan.frontages.length).toBeGreaterThanOrEqual(4)
     expect(plan.frontages.some(f => f.facing === 'south')).toBe(true)
@@ -173,7 +173,7 @@ describe('villageLayout — planRoads (street skeleton step)', () => {
   })
 
   it('a doorLine sits one cell off its road, not on it', () => {
-    const plan = planRoads(40, 30, seededRng(4), 'village')
+    const plan = planRoads(40, 30, seededRng(4), 'town')
     for (const f of plan.frontages) {
       // most of the door line is open ground (a crossing road can clip only a couple cells)
       const open = f.axis === 'col'
@@ -186,9 +186,9 @@ describe('villageLayout — planRoads (street skeleton step)', () => {
 
 describe('villageLayout — placePlots (distribution step)', () => {
   it('FILLS frontages into rows of lots (a populated neighborhood, with the essentials)', () => {
-    const plan = planRoads(72, 48, seededRng(8), 'village')
-    const plots = placePlots(plan.roads, plan.frontages, 72, 48, seededRng(9), 'village')
-    expect(plots.length).toBeGreaterThanOrEqual(5) // a small village — capped + spread, with trees between
+    const plan = planRoads(72, 48, seededRng(8), 'town')
+    const plots = placePlots(plan.roads, plan.frontages, 72, 48, seededRng(9), 'town')
+    expect(plots.length).toBeGreaterThanOrEqual(8) // a modest town — capped + spread, with trees between
     expect(plots.some(p => p.type === 'store')).toBe(true)
     expect(plots.some(p => p.type === 'hospital')).toBe(true)
   })
@@ -206,9 +206,9 @@ describe('villageLayout — placePlots (distribution step)', () => {
 })
 
 describe('villageLayout — planVillage GUARANTEES the essentials', () => {
-  it('every village gets at least one store + one hospital + a house, across seeds', () => {
+  it('every settlement gets at least one store + one hospital + a house, across seeds', () => {
     for (const seed of [1, 2, 3, 4, 5, 6]) {
-      const layout = planVillage(48, 34, seededRng(seed), 'village')
+      const layout = planVillage(48, 34, seededRng(seed), 'town')
       expect(layout.plots.some(p => p.type === 'store')).toBe(true)
       expect(layout.plots.some(p => p.type === 'hospital')).toBe(true)
       expect(layout.plots.filter(p => p.type === 'house').length).toBeGreaterThanOrEqual(1)
@@ -217,7 +217,7 @@ describe('villageLayout — planVillage GUARANTEES the essentials', () => {
 
   it('puts the store + hospital on the TOP horizontal street, facing FRONT (south)', () => {
     for (const seed of [1, 2, 3, 4, 5]) {
-      const layout = planVillage(48, 36, seededRng(seed), 'village')
+      const layout = planVillage(48, 36, seededRng(seed), 'town')
       const store = layout.plots.find(p => p.type === 'store')
       const hospital = layout.plots.find(p => p.type === 'hospital')
       expect(store?.facing).toBe('south') // door toward the viewer (front shows in 2D)
@@ -232,10 +232,10 @@ describe('villageLayout — planVillage GUARANTEES the essentials', () => {
 })
 
 describe('villageLayout — settlement scale (town/city)', () => {
-  it('a city gets more frontages than a village (capacity scales)', () => {
-    const v = planRoads(50, 44, seededRng(2), 'village')
+  it('a city gets more frontages than a town (capacity scales)', () => {
+    const t = planRoads(50, 44, seededRng(2), 'town')
     const c = planRoads(50, 44, seededRng(2), 'city')
-    expect(c.frontages.length).toBeGreaterThan(v.frontages.length)
+    expect(c.frontages.length).toBeGreaterThan(t.frontages.length)
   })
 
   it('connects all streets in a multi-street city plan', () => {
@@ -249,7 +249,7 @@ describe('villageLayout — house footprints vary in size', () => {
   it('gives houses varied widths (2..n blocks), including small cottages', () => {
     const widths = new Set<number>()
     for (let s = 1; s <= 20; s++) {
-      const layout = planVillage(60, 44, seededRng(s), 'village')
+      const layout = planVillage(60, 44, seededRng(s), 'town')
       for (const p of layout.plots) if (p.type === 'house') widths.add(p.length)
     }
     expect(widths.size).toBeGreaterThan(1) // not all the same width

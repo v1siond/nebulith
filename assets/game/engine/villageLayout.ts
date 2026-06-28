@@ -4,7 +4,7 @@
  * Built by SMALL, individually-tested steps, composed by `planVillage`:
  *   1. planRoads   — the street skeleton + the FRONTAGES (a line of buildable cells beside each
  *                    road: both sides of every horizontal street, both sides of every connector).
- *   2. buildingMix — WHICH buildings a settlement must have (≥ counts scale village→town→city).
+ *   2. buildingMix — WHICH buildings a settlement must have (≥ counts scale town→city).
  *   3. placePlots  — WHERE each goes: distribute the mix ROUND-ROBIN across all frontages, each
  *                    building FACING its road (facade parallel to it), footprint extruded AWAY.
  *
@@ -15,7 +15,7 @@
 import { type BuildingType, composeBuilding } from './buildingComposer'
 
 export type Rng = () => number
-export type Settlement = 'village' | 'town' | 'city'
+export type Settlement = 'town' | 'city'
 /** The direction a building's door/facade FACES — i.e. toward the road it fronts. */
 export type Facing = 'south' | 'north' | 'east' | 'west'
 
@@ -66,17 +66,17 @@ export interface VillageLayout {
 const clamp = (n: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, n))
 const randInt = (rng: Rng, lo: number, hi: number): number => lo + Math.floor(rng() * (hi - lo + 1))
 
-// Settlement scaling — cities are denser (more + bigger buildings, more roads) than towns
-// than villages. The [min, max] count of each.
-const HOUSE_RANGE: Record<Settlement, [number, number]> = { village: [2, 3], town: [4, 6], city: [7, 11] }
-const BIG_RANGE: Record<Settlement, [number, number]> = { village: [0, 1], town: [1, 3], city: [3, 5] }
+// Settlement scaling — a city is a much bigger, denser place than a town (more + bigger buildings,
+// a denser street grid). The [min, max] count of each.
+const HOUSE_RANGE: Record<Settlement, [number, number]> = { town: [4, 6], city: [7, 11] }
+const BIG_RANGE: Record<Settlement, [number, number]> = { town: [1, 3], city: [3, 5] }
 // Street GRID per settlement: H horizontal × V vertical FULL-SPAN streets that cross into blocks
 // (a real neighborhood grid, not a couple of stubs). Clamped by map size in planRoads so each block
-// still fits a row of lots between streets.
+// still fits a row of lots between streets. A city's grid is far denser than a town's → many more
+// frontages → many more buildings (~4× a town on the same map).
 const GRID: Record<Settlement, { h: number; v: number }> = {
-  village: { h: 2, v: 2 },
   town: { h: 3, v: 3 },
-  city: { h: 3, v: 4 },
+  city: { h: 5, v: 6 },
 }
 
 // MUST match buildingComposer TYPE_SPECS.baseLength so a plot reserves exactly the facade width.
@@ -87,15 +87,15 @@ const lengthOf = (t: BuildingType): number => BUILDING_LENGTH[t] ?? 8
 // the street) and a LOT_GAP (side-yard cells between neighbours). The door faces the road across
 // the setback; a driveway crosses it (stamped by the generator).
 const SETBACK = 1
-// Density per settlement: a village is a SMALL Pokémon-style town — few houses, big leafy side-yard
-// gaps, and a hard cap + short rows so it never overcrowds; a city is dense.
+// Density per settlement: a town is a modest, leafy settlement — tidy side-yard gaps and a low cap
+// so it stays small; a city packs the same lots much harder (no per-frontage limit, a far higher
+// cap) so it ends up ~4× the town on the same map.
 const LOT_GAP_BY: Record<Settlement, [number, number]> = {
-  village: [3, 6], // big leafy gaps — a sparse Pokémon-style town
   town: [1, 2],
-  city: [1, 2],
+  city: [1, 1], // a city packs its lots tighter than a town (smaller side-yards) → denser blocks
 }
-const MAX_PER_FRONTAGE: Record<Settlement, number> = { village: 3, town: 6, city: 99 }
-const BUILDING_CAP: Record<Settlement, number> = { village: 10, town: 30, city: 80 }
+const MAX_PER_FRONTAGE: Record<Settlement, number> = { town: 6, city: 99 }
+const BUILDING_CAP: Record<Settlement, number> = { town: 18, city: 72 }
 
 // House footprints stay modest + similar so a frontage reads as a TIDY ROW, not a jagged skyline.
 const HOUSE_WIDTHS = [3, 3, 4, 4, 4, 5]
@@ -267,7 +267,7 @@ export function placePlots(roads: boolean[][], frontages: Frontage[], cols: numb
     }
   }
 
-  // Visit frontages SHUFFLED so a capped settlement (a small village) spreads its few houses across
+  // Visit frontages SHUFFLED so a capped settlement (a modest town) spreads its houses across
   // the whole grid instead of packing the first streets.
   const order = frontages.map((_, i) => i)
   for (let i = order.length - 1; i > 0; i--) {
@@ -311,7 +311,7 @@ export function placePlots(roads: boolean[][], frontages: Frontage[], cols: numb
 }
 
 /** Compose the steps: road GRID → fill frontages with rows of lots. The pipeline the generator stamps. */
-export function planVillage(cols: number, rows: number, rng: Rng, settlement: Settlement = 'village'): VillageLayout {
+export function planVillage(cols: number, rows: number, rng: Rng, settlement: Settlement = 'town'): VillageLayout {
   const { roads, frontages, entrances } = planRoads(cols, rows, rng, settlement)
   const plots = placePlots(roads, frontages, cols, rows, rng, settlement)
   return { roads, plots, entrances }

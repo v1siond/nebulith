@@ -16,7 +16,7 @@ import { cellTile, TREE_CANOPY_SHADES, groundDecor } from './cellTileset'
 import { varyIntensity } from './colors'
 import type { Connector } from '@/lib/api'
 
-export type VariantId = 'village' | 'town' | 'city' | 'forest' | 'cave' | 'temple' | 'boss-stage'
+export type VariantId = 'town' | 'city' | 'forest' | 'cave' | 'temple' | 'boss-stage'
 
 /** General forest LAYOUT the user steers; the generator randomizes the rest.
  *  'passages' = the default multi-passage forest (today's behavior). */
@@ -375,7 +375,6 @@ interface ArchetypeContext {
 }
 
 const ARCHETYPES: Partial<Record<VariantId, (ctx: ArchetypeContext) => void>> = {
-  village: placeVillage,
   town: placeTown,
   city: placeCity,
   forest: placeForest,
@@ -414,14 +413,12 @@ export function generateStage(opts: GenerateOptions): StageData {
   }
 }
 
-// ── village archetype ───────────────────────────────────────────────
-// Nature density by settlement — villages are leafy, cities mostly paved (town in between).
-const NATURE_MULT: Record<Settlement, number> = { village: 1, town: 0.55, city: 0.28 }
+// ── settlement archetype ─────────────────────────────────────────────
+// Nature density by settlement — a town is leafy (lots of trees around the lots); a city is mostly
+// paved. Towns lean green here per design.
+const NATURE_MULT: Record<Settlement, number> = { town: 0.55, city: 0.3 }
 
 // Hoisted function decls (not const arrows) so ARCHETYPES above can reference them.
-function placeVillage(ctx: ArchetypeContext): void {
-  placeSettlement(ctx, 'village')
-}
 function placeTown(ctx: ArchetypeContext): void {
   placeSettlement(ctx, 'town')
 }

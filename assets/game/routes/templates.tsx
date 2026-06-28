@@ -1358,8 +1358,8 @@ const TEMPLATE_PRESETS: Record<string, TemplatePreset> = {
   // ─── VILLAGES ─────────────────────────────────────────────────────
   'village-small': {
     id: 'village-small',
-    name: 'Small Village',
-    description: 'Cozy hamlet with a few houses',
+    name: 'Small Town',
+    description: 'Cozy small town with a few houses',
     size: 'small',
     theme: 'village',
     type: 'exterior',
@@ -2264,7 +2264,7 @@ const SEASON_BTN: Record<(typeof STAGE_ZONES)[number], string> = {
   winter: 'bg-sky-700 ring-1 ring-sky-300',
   desert: 'bg-yellow-700 ring-1 ring-yellow-300',
 }
-const STAGE_VARIANTS = ['forest', 'village', 'town', 'city'] as const // forest + seasonal settlements (village→town→city)
+const STAGE_VARIANTS = ['forest', 'town', 'city'] as const // forest + seasonal settlements (town, then a ~4× city)
 
 // Player state
 interface PlayerState {
@@ -5633,8 +5633,12 @@ export default function TemplateEditor() {
   }
 
   const generateStageInEditor = (zone: ZoneId, variant: VariantId) => {
-    const cols = 30 + Math.floor(Math.random() * 16) // 30–45
-    const rows = 24 + Math.floor(Math.random() * 12) // 24–35
+    // A city is a big settlement — give it a markedly larger grid (~1.7× town linear) so it READS
+    // bigger on screen, on top of the denser street grid + ~4× building cap in villageLayout. Town,
+    // forest and the rest stay on the modest default grid.
+    const big = variant === 'city'
+    const cols = big ? 52 + Math.floor(Math.random() * 20) : 30 + Math.floor(Math.random() * 16) // city 52–71, else 30–45
+    const rows = big ? 42 + Math.floor(Math.random() * 16) : 24 + Math.floor(Math.random() * 12) // city 42–57, else 24–35
     resizeGrid(cols, rows)
     const grid = gridRef.current
     if (!grid) return
@@ -7200,7 +7204,7 @@ export default function TemplateEditor() {
                 ))}
               </div>
               <p className="mt-2 text-[10px] text-gray-500">
-                Pick a variant to generate a randomized {genZone} stage — all five build (village, forest, cave, temple, boss stage).
+                Pick a variant to generate a randomized {genZone} stage — forest, town, or a much larger city.
               </p>
             </Card>
 

@@ -41,7 +41,7 @@ const bands = (idx: number[]): number => idx.filter((v, i) => i === 0 || v !== i
 
 describe('neighborhood layout LOGIC (asserted on the grid)', () => {
   test('streets form a GRID: ≥2 horizontal AND ≥2 vertical full-span streets → blocks', () => {
-    for (const settlement of ['village', 'town', 'city'] as const) {
+    for (const settlement of ['town', 'city'] as const) {
       const { roads } = planRoads(COLS, ROWS, seeded(11), settlement)
       expect(bands(horizStreetRows(roads))).toBeGreaterThanOrEqual(2)
       expect(bands(vertStreetCols(roads))).toBeGreaterThanOrEqual(2)
@@ -105,11 +105,11 @@ describe('neighborhood layout LOGIC (asserted on the grid)', () => {
     }
   })
 
-  test('village is SPARSE (capped, Pokémon-town) and NO two buildings touch (≥1 cell of trees between)', () => {
+  test('town is MODEST (capped) and NO two buildings touch (≥1 cell of trees between)', () => {
     for (const seed of [1, 2, 3, 4]) {
-      const { plots } = planVillage(COLS, ROWS, seeded(seed), 'village')
-      expect(plots.length).toBeLessThanOrEqual(12) // a small village, not a packed block
-      expect(plots.length).toBeGreaterThanOrEqual(4) // ...but still a settlement
+      const { plots } = planVillage(COLS, ROWS, seeded(seed), 'town')
+      expect(plots.length).toBeLessThanOrEqual(18) // capped at the town BUILDING_CAP — a modest settlement
+      expect(plots.length).toBeGreaterThanOrEqual(4) // ...but still a real settlement
       for (let i = 0; i < plots.length; i++) {
         for (let j = i + 1; j < plots.length; j++) {
           const a = footRect(plots[i])
@@ -120,16 +120,15 @@ describe('neighborhood layout LOGIC (asserted on the grid)', () => {
     }
   })
 
-  test('coverage: every settlement is populated, and the GRID densifies village→city', () => {
-    expect(planVillage(COLS, ROWS, seeded(21), 'village').plots.length).toBeGreaterThanOrEqual(5)
+  test('coverage: both settlements are populated, and the GRID densifies town→city', () => {
     expect(planVillage(COLS, ROWS, seeded(21), 'town').plots.length).toBeGreaterThanOrEqual(12)
     expect(planVillage(COLS, ROWS, seeded(21), 'city').plots.length).toBeGreaterThanOrEqual(12)
-    // What scales with settlement is the street GRID density (more blocks), not raw house count
-    // (a denser grid uses more land for roads). City has at least as many streets as a village.
-    const streets = (s: 'village' | 'town' | 'city') => {
+    // What scales with settlement is the street GRID density (more blocks) on top of the caps.
+    // A city has at least as many streets as a town (and on a big map, far more buildings).
+    const streets = (s: 'town' | 'city') => {
       const { roads } = planRoads(COLS, ROWS, seeded(21), s)
       return bands(horizStreetRows(roads)) + bands(vertStreetCols(roads))
     }
-    expect(streets('city')).toBeGreaterThanOrEqual(streets('village'))
+    expect(streets('city')).toBeGreaterThanOrEqual(streets('town'))
   })
 })

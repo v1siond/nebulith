@@ -12,21 +12,21 @@ const footprintCells = (b: { col: number; row: number; length: number; height: n
   return cells
 }
 
-describe('generateStage — lava/village vertical slice', () => {
-  const stage = generateStage({ zone: 'autumn', variant: 'village' })
+describe('generateStage — town vertical slice', () => {
+  const stage = generateStage({ zone: 'autumn', variant: 'town' })
 
-  it('produces a lava village of the requested identity', () => {
+  it('produces a town of the requested identity', () => {
     expect(stage.zone).toBe('autumn')
-    expect(stage.variant).toBe('village')
+    expect(stage.variant).toBe('town')
     expect(stage.cols).toBeGreaterThan(0)
     expect(stage.rows).toBeGreaterThan(0)
   })
 
-  it('themes the ground with the zone palette (village streets are path_stone)', () => {
+  it('themes the ground with the zone palette (streets are path_stone)', () => {
     const allowed = new Set(['autumn_ground', 'autumn_leaves', 'path_stone']) // streets carve path_stone
     const allThemed = stage.ground.every(row => row.every(t => allowed.has(t)))
     expect(allThemed).toBe(true)
-    // and there ARE streets — a real village, not bare ground
+    // and there ARE streets — a real settlement, not bare ground
     expect(stage.ground.flat().filter(t => t === 'path_stone').length).toBeGreaterThan(0)
   })
 
@@ -80,7 +80,7 @@ describe('generateStage — small-footprint labeled buildings (the shared collis
     stage.props.filter(p => p.type === 'building')
 
   it('emits ONE labeled building prop per footprint cell (small width×depth, NOT facade-deep)', () => {
-    const stage = generateStage({ zone: 'autumn', variant: 'village' })
+    const stage = generateStage({ zone: 'autumn', variant: 'town' })
     const cells = collectBuildingCells(stage)
     expect(cells.length).toBeGreaterThan(0)
     expect(cells.every(c => typeof c.label === 'string' && c.label!.length > 0)).toBe(true)
@@ -98,7 +98,7 @@ describe('generateStage — small-footprint labeled buildings (the shared collis
   })
 
   it('blocks every footprint cell EXCEPT the single walkable door', () => {
-    const stage = generateStage({ zone: 'autumn', variant: 'village' })
+    const stage = generateStage({ zone: 'autumn', variant: 'town' })
     for (const c of collectBuildingCells(stage)) {
       const walkable = c.label === 'door'
       expect(c.blocking).toBe(!walkable)
@@ -107,7 +107,7 @@ describe('generateStage — small-footprint labeled buildings (the shared collis
   })
 
   it('gives each building exactly ONE walkable door cell in its footprint', () => {
-    const stage = generateStage({ zone: 'autumn', variant: 'village' })
+    const stage = generateStage({ zone: 'autumn', variant: 'town' })
     const cells = collectBuildingCells(stage)
     for (const b of stage.buildings) {
       const doors = cells.filter(
@@ -673,20 +673,20 @@ describe('buildingCellColor — distinct per-type roofs + visible ornaments', ()
 })
 
 describe('generateStage — building cells carry their TYPE (top-view signage)', () => {
-  it('tags every footprint cell with buildingType; a village includes a store + hospital', () => {
-    const stage = generateStage({ zone: 'summer', variant: 'village' })
+  it('tags every footprint cell with buildingType; a settlement includes a store + hospital', () => {
+    const stage = generateStage({ zone: 'summer', variant: 'town' })
     const buildingCells = stage.props.filter(p => p.type === 'building')
     expect(buildingCells.length).toBeGreaterThan(0)
     expect(buildingCells.every(c => typeof c.buildingType === 'string' && c.buildingType!.length > 0)).toBe(true)
     const types = new Set(buildingCells.map(c => c.buildingType))
-    expect(types.has('store')).toBe(true) // village guarantees a store…
+    expect(types.has('store')).toBe(true) // the settlement guarantees a store…
     expect(types.has('hospital')).toBe(true) // …and a hospital
   })
 })
 
 describe('generateStage — windows live in the facade (render-only), not on the ground', () => {
   it('keeps windows in the building facade but NEVER stamps them as ground props', () => {
-    const stage = generateStage({ zone: 'summer', variant: 'village', cols: 50, rows: 40 })
+    const stage = generateStage({ zone: 'summer', variant: 'town', cols: 50, rows: 40 })
     expect(stage.buildings.length).toBeGreaterThan(0)
     // the facade (used by the 2D/iso renders) still carries windows…
     const hasFacadeWindows = stage.buildings.some(b => b.facade.cells.some(row => row.some(k => k === 'window')))
@@ -699,7 +699,7 @@ describe('generateStage — windows live in the facade (render-only), not on the
   })
 })
 
-describe('generateStage — town & city scale up from village', () => {
+describe('generateStage — town & city both build legal stages', () => {
   it('generates legal buildings + streets for town and city', () => {
     for (const variant of ['town', 'city'] as const) {
       const stage = generateStage({ zone: 'summer', variant, cols: 50, rows: 44 })
@@ -709,17 +709,17 @@ describe('generateStage — town & city scale up from village', () => {
     }
   })
 
-  it('cities have more buildings + less nature than villages', () => {
-    let vBuild = 0, cBuild = 0, vTrees = 0, cTrees = 0
+  it('cities have more buildings + less nature than towns', () => {
+    let tBuild = 0, cBuild = 0, tTrees = 0, cTrees = 0
     for (let i = 0; i < 5; i++) {
-      const v = generateStage({ zone: 'summer', variant: 'village', cols: 50, rows: 44 })
+      const t = generateStage({ zone: 'summer', variant: 'town', cols: 50, rows: 44 })
       const c = generateStage({ zone: 'summer', variant: 'city', cols: 50, rows: 44 })
-      vBuild += v.buildings.length; cBuild += c.buildings.length
-      vTrees += v.props.filter(p => p.type === 'tree').length
+      tBuild += t.buildings.length; cBuild += c.buildings.length
+      tTrees += t.props.filter(p => p.type === 'tree').length
       cTrees += c.props.filter(p => p.type === 'tree').length
     }
-    expect(cBuild).toBeGreaterThan(vBuild) // cities have more buildings
-    expect(vTrees).toBeGreaterThan(cTrees) // villages have more nature
+    expect(cBuild).toBeGreaterThan(tBuild) // cities have more buildings
+    expect(tTrees).toBeGreaterThan(cTrees) // leafier towns have more nature
   })
 })
 
@@ -767,9 +767,9 @@ describe('buildingCellColor — randomized per-house colors (street isn\'t monot
   })
 })
 
-describe('generateStage — a village guarantees a store + a hospital with distinct palettes', () => {
+describe('generateStage — a settlement guarantees a store + a hospital with distinct palettes', () => {
   it('places at least one store building and one hospital building', () => {
-    const stage = generateStage({ zone: 'summer', variant: 'village' })
+    const stage = generateStage({ zone: 'summer', variant: 'town' })
     expect(stage.buildings.some(b => b.type === 'store')).toBe(true)
     expect(stage.buildings.some(b => b.type === 'hospital')).toBe(true)
   })
@@ -782,7 +782,7 @@ describe('generateStage — a village guarantees a store + a hospital with disti
 
 describe('generateStage — a driveway crosses the setback from every door to its street', () => {
   it('paints ≥1 path_stone cell toward the road for every building', () => {
-    const stage = generateStage({ zone: 'summer', variant: 'village' })
+    const stage = generateStage({ zone: 'summer', variant: 'town' })
     const paved = new Set(
       stagePaint(stage).ground.filter(g => g.type === 'path_stone').map(g => `${g.col},${g.row}`),
     )
@@ -798,7 +798,7 @@ describe('generateStage — a driveway crosses the setback from every door to it
 describe('generateStage — lamps never block a door or its driveway', () => {
   it('places no lamp prop on a building door cell or its driveway cell', () => {
     for (let i = 0; i < 6; i++) {
-      const stage = generateStage({ zone: 'summer', variant: 'village' })
+      const stage = generateStage({ zone: 'summer', variant: 'town' })
       const lamps = new Set(stage.props.filter(p => p.type === 'lamp').map(p => `${p.col},${p.row}`))
       for (const b of stage.buildings) {
         const door = b.doorCells[0]
@@ -816,7 +816,7 @@ describe('generateStage — the door reads as a DARK marker on the grid', () => 
     return ((n >> 16) & 255) + ((n >> 8) & 255) + (n & 255)
   }
   it('paints the door footprint cell DARK so the entrance reads from above', () => {
-    const stage = generateStage({ zone: 'summer', variant: 'village' })
+    const stage = generateStage({ zone: 'summer', variant: 'town' })
     const doors = stage.props.filter(p => p.type === 'building' && p.label === 'door')
     expect(doors.length).toBeGreaterThan(0)
     expect(doors.every(d => brightness(d.color) < 240)).toBe(true) // dark entrance

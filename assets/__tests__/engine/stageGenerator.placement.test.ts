@@ -25,7 +25,7 @@ const ROWS = 48
 
 // Run the generator with a seeded Math.random, then reproduce the EXACT layout the generator used
 // (planVillage is the first Math.random consumer in generateStage and is pure given its rng).
-function genWithSeed(settlement: 'village' | 'town' | 'city', seed: number) {
+function genWithSeed(settlement: 'town' | 'city', seed: number) {
   const realRandom = Math.random
   Math.random = seeded(seed)
   try {
@@ -38,7 +38,7 @@ function genWithSeed(settlement: 'village' | 'town' | 'city', seed: number) {
 }
 
 describe('settlement building placement (consumer matches planner contract)', () => {
-  for (const settlement of ['village', 'town', 'city'] as const) {
+  for (const settlement of ['town', 'city'] as const) {
     test(`${settlement}: every footprint cell is in bounds and OFF the roads`, () => {
       const { stage, layout } = genWithSeed(settlement, 12345)
       expect(layout.plots.length).toBeGreaterThan(0)
@@ -89,7 +89,7 @@ describe('settlement building placement (consumer matches planner contract)', ()
   }
 
   test('every building door faces a road within the setback (a road within 2 cells of the door)', () => {
-    for (const settlement of ['village', 'town', 'city'] as const) {
+    for (const settlement of ['town', 'city'] as const) {
       for (const seed of [12345, 777, 42]) {
         const { stage, layout } = genWithSeed(settlement, seed)
         const isRoad = (c: number, r: number): boolean => layout.roads[r]?.[c] === true
