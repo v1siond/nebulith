@@ -22,8 +22,22 @@ import { TILES, COMPOSITE_ASSETS, getTilesByCategory, getAssetsByCategory, TileD
 import { listTemplates, getTemplate, createTemplate, updateTemplate, deleteTemplate, serializeGrid, deserializeToGrid, TemplateListItem, Connector } from '@/lib/api'
 import { findTriggeredConnector, normalizeConnector } from '@/engine/connectors'
 import { resolveAction, type Action as TriggerAction } from '@/engine/triggers'
-import { generateStage, stagePaint, StageData, VariantId } from '@/engine/stageGenerator'
-import { ZoneId } from '@/engine/zones'
+import { generateStage, stagePaint, StageData, VariantId, buildingCellColor } from '@/engine/stageGenerator'
+import { ZoneId, ZONE_PALETTES } from '@/engine/zones'
+import { cellTile } from '@/engine/cellTileset'
+import type { BuildingType } from '@/engine/buildingComposer'
+import type { Facing } from '@/engine/villageLayout'
+import {
+  buildingFootprintCells,
+  footprintContains,
+  canPlaceBuilding,
+  moveBuilding,
+  rotateBuilding,
+  makeBuilding,
+  gridBuildingFacing,
+  facadeLength,
+  type PlacementEnv,
+} from '@/engine/buildingEditor'
 import { darkenColor, lightenColor, withAlpha } from '@/engine/colors'
 import { scaleCompositeToRegion } from '@/engine/compositeFill'
 import { MULTI_CELL_ASSETS, stampAsset, assetFootprint, multiCellAssetById } from '@/engine/multiCellAssets'
@@ -141,6 +155,121 @@ const MAX_TEMPLATES_PROD = 1
 
 /** Which tool the Entities card has armed. `erase` removes; `null` = off. */
 type EntityTool = EntityKind | 'erase' | 'collision' | null
+
+// ═══════════════════════════════════════════════════════════════════
+// MANUAL BUILDING EDITOR (select / move / rotate / delete / place)
+// The pure geometry + validity live in engine/buildingEditor.ts; this is the
+// LIVE stamp that mirrors stageGenerator.placeBuilding onto the running grid so
+// the three views (which all read grid.buildings + collision + assets) update
+// together. The invariant: footprint cells BLOCK except the walkable door cell.
+// ═══════════════════════════════════════════════════════════════════
+
+/** Which building tool is armed. Place-<type> drops a fresh building; select picks
+ *  one to move/rotate/delete; delete removes the one under the click; null = off. */
+type BuildingTool = 'select' | 'place-house' | 'place-store' | 'place-hospital' | 'delete' | null
+
+/** Map a Place-<type> tool to the BuildingType it authors. */
+const BUILDING_TOOL_TYPE: Partial<Record<NonNullable<BuildingTool>, BuildingType>> = {
+  'place-house': 'house',
+  'place-store': 'store',
+  'place-hospital': 'hospital',
+}
+
+/** Ground a building footprint may NOT cover: roads (the door faces a road from one
+ *  cell away — the footprint never sits on it) and water/lava. */
+const BLOCKED_GROUND_FOR_BUILDING: ReadonlySet<string> = new Set([
+  'path_stone', 'water', 'ice_water', 'oasis', 'koi', 'lava', 'magma',
+])
+
+/**
+ * LIVE stamp: write a building's footprint onto the grid — a 'building' asset +
+ * collision per cell (door walkable, every other cell blocking) + clean base
+ * ground under it. Mirrors stageGenerator.stampFootprintCell. Does NOT touch
+ * grid.buildings; the caller owns that array so indices stay stable across edits.
+ */
+function stampBuildingCells(grid: IsometricGrid, b: GridBuilding, zone: ZoneId): void {
+  const { cells, door } = buildingFootprintCells(b)
+  const base = ZONE_PALETTES[zone]?.groundTypes[0] ?? 'grass'
+  for (const c of cells) {
+    if (c.col < 0 || c.row < 0 || c.col >= grid.cols || c.row >= grid.rows) continue
+    const isDoor = c.col === door.col && c.row === door.row
+    const label = isDoor ? 'door' : 'roof'
+    const tile = cellTile(zone, label)
+    const color = buildingCellColor(b.type as BuildingType, label, b.col)
+    grid.assets.push({
+      art: [tile.char],
+      col: c.col,
+      row: c.row,
+      type: 'building',
+      blocking: !isDoor,
+      color,
+      label,
+      buildingType: b.type,
+    })
+    grid.collision[c.row][c.col] = isDoor ? 0 : 1
+    grid.ground[c.row][c.col] = base
+  }
+}
+
+/**
+ * LIVE unstamp (inverse of stampBuildingCells): drop the building assets on the
+ * footprint, free collision back to walkable, and reset the ground to the zone
+ * base (grass) — so a deleted/moved building leaves walkable grass behind.
+ */
+function unstampBuildingCells(grid: IsometricGrid, b: GridBuilding, zone: ZoneId): void {
+  const { cells } = buildingFootprintCells(b)
+  const base = ZONE_PALETTES[zone]?.groundTypes[0] ?? 'grass'
+  const keys = new Set(cells.map(c => `${c.col},${c.row}`))
+  grid.assets = grid.assets.filter(a => !(a.type === 'building' && keys.has(`${a.col},${a.row}`)))
+  for (const c of cells) {
+    if (c.col < 0 || c.row < 0 || c.col >= grid.cols || c.row >= grid.rows) continue
+    grid.collision[c.row][c.col] = 0
+    grid.ground[c.row][c.col] = base
+  }
+}
+
+/**
+ * The placement environment for the editor: every cell occupied by ANOTHER
+ * building, by blocking terrain, or by a road counts as blocked — except the
+ * cells in `ignore` (the moving/rotating building's current footprint, which is
+ * about to be vacated). Pure-ish reader over the live grid.
+ */
+function buildingPlacementEnv(grid: IsometricGrid, ignoreIndex: number, ignore: ReadonlySet<string>): PlacementEnv {
+  const others = new Set<string>()
+  grid.buildings.forEach((b, i) => {
+    if (i === ignoreIndex) return
+    for (const c of buildingFootprintCells(b).cells) others.add(`${c.col},${c.row}`)
+  })
+  return {
+    cols: grid.cols,
+    rows: grid.rows,
+    blocked: (col, row) => {
+      const key = `${col},${row}`
+      if (ignore.has(key)) return false
+      if (others.has(key)) return true // another building's footprint (incl. its door)
+      if (grid.collision[row]?.[col] === 1) return true // trees / water / features
+      return BLOCKED_GROUND_FOR_BUILDING.has(grid.ground[row]?.[col] ?? '')
+    },
+  }
+}
+
+/** The cardinal direction from (col,row) toward the NEAREST road cell (path_stone),
+ *  so a manually-placed building fronts a street like a generated one. Defaults to
+ *  south when the map has no roads. */
+function nearestRoadFacing(grid: IsometricGrid, col: number, row: number): Facing {
+  let best: { d: number; facing: Facing } | null = null
+  for (let r = 0; r < grid.rows; r++) {
+    for (let c = 0; c < grid.cols; c++) {
+      if (grid.ground[r]?.[c] !== 'path_stone') continue
+      const d = Math.abs(c - col) + Math.abs(r - row)
+      if (best && d >= best.d) continue
+      const facing: Facing =
+        Math.abs(c - col) > Math.abs(r - row) ? (c > col ? 'east' : 'west') : (r >= row ? 'south' : 'north')
+      best = { d, facing }
+    }
+  }
+  return best?.facing ?? 'south'
+}
 
 /** Glyph drawn for each entity kind, over a dark backing (spec §1). */
 const ENTITY_GLYPH: Record<EntityKind, string> = {
@@ -2658,6 +2787,9 @@ const DEFAULT_ENEMY_PATROL: MovementPattern = {
 }
 /** Stable empty list passed to the renderers when entities are hidden (avoids per-frame alloc). */
 const EMPTY_ENTITIES: Entity[] = []
+// A frozen empty key map → the player ignores movement input (e.g. while a building
+// is selected for editing, when arrow keys drive the BUILDING instead).
+const EMPTY_KEYS: Record<string, boolean> = {}
 type Cursor = MoverState | RunState | StepListState
 const isStepListState = (s: Cursor | undefined): s is StepListState => !!s && 'cellsLeft' in s
 const isRunState = (s: Cursor | undefined): s is RunState => !!s && 'stepsLeft' in s
@@ -3407,6 +3539,18 @@ export default function TemplateEditor() {
   const [npcName, setNpcName] = useState('')
   const entitiesRef = useRef<Entity[]>([])
 
+  // ── Manual building editor state ────────────────────────────────────
+  // The armed building tool + the index into grid.buildings of the selected
+  // building. `buildingVersion` is bumped after every live edit so the React
+  // inspector re-reads grid.buildings (the canvas itself is live via the loop).
+  const [buildingTool, setBuildingTool] = useState<BuildingTool>(null)
+  const [selectedBuildingIndex, setSelectedBuildingIndex] = useState<number | null>(null)
+  const [buildingVersion, setBuildingVersion] = useState(0)
+  const buildingToolRef = useRef<BuildingTool>(null)
+  const selectedBuildingIndexRef = useRef<number | null>(null)
+  const genZoneRef = useRef<ZoneId>(genZone)
+  const bumpBuildingVersion = () => setBuildingVersion(v => v + 1)
+
   // ── Quest state (spec §10) ──────────────────────────────────────────
   // Quests are React state (drives the authoring panel + HUD), mirrored into a
   // ref so the once-mounted game loop can read/advance them. The authoring form
@@ -3577,6 +3721,11 @@ export default function TemplateEditor() {
     selectedCellsRef.current = selectedCells
   }, [selectedCells])
 
+  // Keep building-editor refs in sync (read by the once-mounted key handler + loop)
+  useEffect(() => { buildingToolRef.current = buildingTool }, [buildingTool])
+  useEffect(() => { selectedBuildingIndexRef.current = selectedBuildingIndex }, [selectedBuildingIndex])
+  useEffect(() => { genZoneRef.current = genZone }, [genZone])
+
   // Keep connectors ref in sync
   useEffect(() => {
     connectorsRef.current = connectors
@@ -3720,9 +3869,9 @@ export default function TemplateEditor() {
     }
 
     // Play views (iso/2d): LEFT-click + drag pans the camera — UNLESS a placement tool
-    // is armed (entity / connector), in which case a left-click places in that view
-    // too (top view is just the easier surface for it). Pan with middle/right-drag.
-    if (e.button === 0 && !topViewMode && !entityTool && !connectorMode) {
+    // is armed (entity / building / connector), in which case a left-click places in that
+    // view too (top view is just the easier surface for it). Pan with middle/right-drag.
+    if (e.button === 0 && !topViewMode && !entityTool && !buildingTool && !connectorMode) {
       // Defer the decision: clean click → select the entity here; drag → pan (mouse-up decides).
       downCellRef.current = screenToCell(e.clientX, e.clientY)
       dragMovedRef.current = false
@@ -3771,6 +3920,12 @@ export default function TemplateEditor() {
     // Entity tool armed → place/erase on this cell instead of selecting it
     if (entityTool) {
       applyEntityTool(cell.col, cell.row)
+      return
+    }
+
+    // Building tool armed → select / place / delete a building on this cell
+    if (buildingTool) {
+      applyBuildingTool(cell.col, cell.row)
       return
     }
 
@@ -4009,13 +4164,166 @@ export default function TemplateEditor() {
   }
 
   /** Arm an entity tool (re-clicking the active one disarms it). Clears the
-   *  selection + connector mode so placement and selection never fight. */
+   *  selection + connector + building modes so placement and selection never fight. */
   const toggleEntityTool = (tool: Exclude<EntityTool, null>) => {
     setEntityTool(prev => (prev === tool ? null : tool))
     setConnectorMode(false)
     setEditingConnector(null)
     setSelectedCells(new Set())
+    setBuildingTool(null)
+    deselectBuilding()
   }
+
+  // ── Manual building editor actions ──────────────────────────────────
+  /** Highlight a building's whole footprint via the shared selectedCells outline. */
+  const highlightBuilding = (b: GridBuilding) => {
+    setSelectedCells(new Set(buildingFootprintCells(b).cells.map(c => `${c.col},${c.row}`)))
+  }
+
+  /** Drop the building selection + its highlight. */
+  const deselectBuilding = () => {
+    selectedBuildingIndexRef.current = null
+    setSelectedBuildingIndex(null)
+    setSelectedCells(new Set())
+  }
+
+  /** Arm a building tool (re-clicking the active one disarms it). Mutually exclusive
+   *  with the entity / connector tools so clicks route to exactly one editor. */
+  const toggleBuildingTool = (tool: Exclude<BuildingTool, null>) => {
+    setBuildingTool(prev => (prev === tool ? null : tool))
+    setEntityTool(null)
+    setConnectorMode(false)
+    setEditingConnector(null)
+    deselectBuilding()
+  }
+
+  /** Re-stamp `idx` from `old`→`next` iff the new footprint is valid (in-bounds, clear
+   *  of roads/water/other buildings). Returns whether it moved. Keeps the array index
+   *  stable so the selection stays on the same building. */
+  const tryReplaceBuilding = (grid: IsometricGrid, idx: number, old: GridBuilding, next: GridBuilding): boolean => {
+    const zone = genZoneRef.current
+    const ignore = new Set(buildingFootprintCells(old).cells.map(c => `${c.col},${c.row}`))
+    if (!canPlaceBuilding(buildingPlacementEnv(grid, idx, ignore), next)) return false
+    unstampBuildingCells(grid, old, zone)
+    stampBuildingCells(grid, next, zone)
+    grid.buildings[idx] = next
+    highlightBuilding(next)
+    bumpBuildingVersion()
+    return true
+  }
+
+  /** Select the building whose footprint contains (col,row); clears selection if none. */
+  const selectBuildingAt = (col: number, row: number) => {
+    const grid = gridRef.current
+    if (!grid) return
+    const idx = grid.buildings.findIndex(b => footprintContains(b, col, row))
+    if (idx < 0) { deselectBuilding(); return }
+    selectedBuildingIndexRef.current = idx
+    setSelectedBuildingIndex(idx)
+    highlightBuilding(grid.buildings[idx])
+    bumpBuildingVersion()
+  }
+
+  /** Place a fresh building of `type` centred on (col,row), facing the nearest road. */
+  const placeNewBuilding = (type: BuildingType, col: number, row: number) => {
+    const grid = gridRef.current
+    if (!grid) return
+    const b = makeBuilding(type, nearestRoadFacing(grid, col, row), col, row)
+    if (!canPlaceBuilding(buildingPlacementEnv(grid, -1, new Set()), b)) {
+      toast('Cannot place a building here — blocked, on a road, or out of bounds', 'warning')
+      return
+    }
+    stampBuildingCells(grid, b, genZoneRef.current)
+    grid.buildings.push(b)
+    const idx = grid.buildings.length - 1
+    selectedBuildingIndexRef.current = idx
+    setSelectedBuildingIndex(idx)
+    setBuildingTool('select') // hand off to select so it can be tweaked immediately
+    highlightBuilding(b)
+    bumpBuildingVersion()
+  }
+
+  /** Remove the building at grid index `idx` (assets + collision + grid.buildings). */
+  const removeBuildingAt = (idx: number) => {
+    const grid = gridRef.current
+    if (!grid) return
+    const b = grid.buildings[idx]
+    if (!b) return
+    unstampBuildingCells(grid, b, genZoneRef.current)
+    grid.buildings.splice(idx, 1)
+    deselectBuilding()
+    bumpBuildingVersion()
+  }
+
+  /** Apply the armed building tool at (col,row): select / delete / place-<type>. */
+  const applyBuildingTool = (col: number, row: number) => {
+    const tool = buildingTool
+    if (!tool) return
+    if (tool === 'select') { selectBuildingAt(col, row); return }
+    if (tool === 'delete') {
+      const grid = gridRef.current
+      if (!grid) return
+      const idx = grid.buildings.findIndex(b => footprintContains(b, col, row))
+      if (idx < 0) { toast('No building here to delete', 'info'); return }
+      removeBuildingAt(idx)
+      return
+    }
+    const type = BUILDING_TOOL_TYPE[tool]
+    if (type) placeNewBuilding(type, col, row)
+  }
+
+  /** Move the selected building by a grid delta (arrow keys / re-anchor). */
+  const moveSelectedBuilding = (dCol: number, dRow: number) => {
+    const grid = gridRef.current
+    const idx = selectedBuildingIndexRef.current
+    if (!grid || idx == null) return
+    const old = grid.buildings[idx]
+    if (!old) return
+    if (!tryReplaceBuilding(grid, idx, old, moveBuilding(old, dCol, dRow))) {
+      toast('Cannot move there — blocked or out of bounds', 'warning')
+    }
+  }
+
+  /** Rotate the selected building's facing south→east→north→west, re-stamped in place. */
+  const rotateSelectedBuilding = () => {
+    const grid = gridRef.current
+    const idx = selectedBuildingIndexRef.current
+    if (!grid || idx == null) return
+    const old = grid.buildings[idx]
+    if (!old) return
+    if (!tryReplaceBuilding(grid, idx, old, rotateBuilding(old))) {
+      toast('Cannot rotate — no room for the rotated footprint here', 'warning')
+    }
+  }
+
+  /** Delete the currently selected building. */
+  const deleteSelectedBuilding = () => {
+    const idx = selectedBuildingIndexRef.current
+    if (idx == null) return
+    removeBuildingAt(idx)
+  }
+
+  // Keyboard for the selected building (mounted once; reads refs + stable callbacks).
+  // Arrows nudge it a cell, R rotates, Delete removes, Esc deselects — only while the
+  // Select tool holds a building, and never while typing in a field.
+  useEffect(() => {
+    const ARROW_DELTA: Record<string, [number, number]> = {
+      ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0],
+    }
+    const onKey = (e: KeyboardEvent) => {
+      if (buildingToolRef.current !== 'select' || selectedBuildingIndexRef.current == null) return
+      const tag = (e.target as HTMLElement | null)?.tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return
+      const delta = ARROW_DELTA[e.key]
+      if (delta) { e.preventDefault(); moveSelectedBuilding(delta[0], delta[1]); return }
+      if (e.key === 'r' || e.key === 'R') { e.preventDefault(); rotateSelectedBuilding(); return }
+      if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); deleteSelectedBuilding(); return }
+      if (e.key === 'Escape') deselectBuilding()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   /** Place or erase an entity at (col,row) for the armed tool, via the pure module. */
   const applyEntityTool = (col: number, row: number) => {
@@ -5283,6 +5591,7 @@ export default function TemplateEditor() {
     const live = livePlayerCell()
     syncPlayerEntity(live.col, live.row, true) // fresh stage → player entity follows the spawn
     setSelectedCells(new Set())
+    deselectBuilding() // building indices were rebuilt → drop any stale selection
   }
 
   const generateRandomMap = (presetId: string = 'village-small') => {
@@ -6111,24 +6420,29 @@ export default function TemplateEditor() {
       let newX = player.x
       let newZ = player.z
 
+      // While the Select tool holds a building, arrow keys nudge the BUILDING (handled
+      // by its own key listener) — so the live player ignores movement input here.
+      const editingBuilding = buildingToolRef.current === 'select' && selectedBuildingIndexRef.current != null
+      const mkeys: Record<string, boolean> = editingBuilding ? EMPTY_KEYS : keys
+
       if (use2DMovement) {
         // 2D/Top view: simple grid movement (up=north, down=south, etc.)
-        if (keys['ArrowUp'] || keys['w']) {
+        if (mkeys['ArrowUp'] || mkeys['w']) {
           newZ -= speed
           player.facing = 'up'
           player.moving = true
         }
-        if (keys['ArrowDown'] || keys['s']) {
+        if (mkeys['ArrowDown'] || mkeys['s']) {
           newZ += speed
           player.facing = 'down'
           player.moving = true
         }
-        if (keys['ArrowLeft'] || keys['a']) {
+        if (mkeys['ArrowLeft'] || mkeys['a']) {
           newX -= speed
           player.facing = 'left'
           player.moving = true
         }
-        if (keys['ArrowRight'] || keys['d']) {
+        if (mkeys['ArrowRight'] || mkeys['d']) {
           newX += speed
           player.facing = 'right'
           player.moving = true
@@ -6136,25 +6450,25 @@ export default function TemplateEditor() {
       } else {
         // Isometric view: diagonal movement
         const diagSpeed = speed * 0.707
-        if (keys['ArrowUp'] || keys['w']) {
+        if (mkeys['ArrowUp'] || mkeys['w']) {
           newX -= diagSpeed
           newZ -= diagSpeed
           player.facing = 'up'
           player.moving = true
         }
-        if (keys['ArrowDown'] || keys['s']) {
+        if (mkeys['ArrowDown'] || mkeys['s']) {
           newX += diagSpeed
           newZ += diagSpeed
           player.facing = 'down'
           player.moving = true
         }
-        if (keys['ArrowLeft'] || keys['a']) {
+        if (mkeys['ArrowLeft'] || mkeys['a']) {
           newX -= diagSpeed
           newZ += diagSpeed
           player.facing = 'left'
           player.moving = true
         }
-        if (keys['ArrowRight'] || keys['d']) {
+        if (mkeys['ArrowRight'] || mkeys['d']) {
           newX += diagSpeed
           newZ -= diagSpeed
           player.facing = 'right'
@@ -7092,6 +7406,100 @@ export default function TemplateEditor() {
                     Clear all
                   </button>
                 )}
+              </div>
+            </Card>
+
+            {/* Buildings — fix the randomizer by hand: select / move / rotate / delete / place */}
+            <Card title="Buildings" accent="orange">
+              <p className="mb-2 text-[10px] text-gray-500">
+                Select a building to move (arrow keys), rotate (R), or delete. Place a new one with a type tool.
+              </p>
+              <div className="grid grid-cols-5 gap-1">
+                <EntityToolButton
+                  label="Select"
+                  glyph="◎"
+                  active={buildingTool === 'select'}
+                  activeClass="bg-yellow-600 text-black"
+                  onClick={() => toggleBuildingTool('select')}
+                />
+                <EntityToolButton
+                  label="House"
+                  glyph="⌂"
+                  active={buildingTool === 'place-house'}
+                  activeClass="bg-amber-700"
+                  onClick={() => toggleBuildingTool('place-house')}
+                />
+                <EntityToolButton
+                  label="Store"
+                  glyph="$"
+                  active={buildingTool === 'place-store'}
+                  activeClass="bg-blue-600"
+                  onClick={() => toggleBuildingTool('place-store')}
+                />
+                <EntityToolButton
+                  label="Hosp."
+                  glyph="✚"
+                  active={buildingTool === 'place-hospital'}
+                  activeClass="bg-green-600 text-black"
+                  onClick={() => toggleBuildingTool('place-hospital')}
+                />
+                <EntityToolButton
+                  label="Delete"
+                  glyph="✕"
+                  active={buildingTool === 'delete'}
+                  activeClass="bg-red-700"
+                  onClick={() => toggleBuildingTool('delete')}
+                />
+              </div>
+
+              {/* Selected-building inspector — keyed on buildingVersion so move/rotate refresh it */}
+              {(() => {
+                const grid = gridRef.current
+                const b = selectedBuildingIndex != null ? grid?.buildings[selectedBuildingIndex] : undefined
+                if (!b) return (
+                  <p className="mt-3 border-t border-white/10 pt-2 text-[10px] text-gray-500">
+                    {buildingTool === 'select' ? 'Click a building to select it.' : 'No building selected.'}
+                  </p>
+                )
+                const facing = gridBuildingFacing(b)
+                const door = buildingFootprintCells(b).door
+                return (
+                  <div key={`bld-${selectedBuildingIndex}-${buildingVersion}`} className="mt-3 border-t border-white/10 pt-2">
+                    <div className="mb-2 flex items-center justify-between text-xs">
+                      <span className="font-bold uppercase tracking-wider text-orange-300">{b.type}</span>
+                      <span className="text-gray-500">facing {facing}</span>
+                    </div>
+                    <div className="mb-2 text-[10px] text-gray-400">
+                      footprint {b.length}×{b.height} · facade {facadeLength(b)} · depth {b.depth} · door @ {door.col},{door.row}
+                    </div>
+                    <div className="flex gap-1">
+                      <button
+                        onClick={rotateSelectedBuilding}
+                        className="flex-1 rounded bg-orange-700 px-2 py-1 text-xs font-bold hover:bg-orange-600"
+                        title="Rotate facing south→east→north→west (R)"
+                      >
+                        ⟳ Rotate
+                      </button>
+                      <button
+                        onClick={deleteSelectedBuilding}
+                        className="flex-1 rounded bg-red-800 px-2 py-1 text-xs font-bold hover:bg-red-700"
+                        title="Delete this building (Del)"
+                      >
+                        Delete
+                      </button>
+                      <button
+                        onClick={deselectBuilding}
+                        className="rounded bg-gray-700 px-2 py-1 text-xs hover:bg-gray-600"
+                      >
+                        Deselect
+                      </button>
+                    </div>
+                  </div>
+                )
+              })()}
+
+              <div className="mt-3 flex items-center justify-between border-t border-white/10 pt-2 text-[10px] text-gray-400">
+                <span>{gridRef.current?.buildings.length ?? 0} buildings</span>
               </div>
             </Card>
 

@@ -1,0 +1,246 @@
+import {
+  gridBuildingFacing,
+  isoOrientation,
+  buildingRect,
+  buildingDoorCell,
+  doorCellFor,
+  buildingFootprintCells,
+  footprintContains,
+  isDoorCell,
+  facadeLength,
+  footprintCenter,
+  canPlaceBuilding,
+  moveBuilding,
+  rotateBuilding,
+  orientBuilding,
+  makeBuilding,
+  FACING_CYCLE,
+  type PlacementEnv,
+} from '../../engine/buildingEditor'
+import { composeBuilding } from '../../engine/buildingComposer'
+import type { GridBuilding } from '../../engine/IsometricGrid'
+import type { Facing } from '../../engine/villageLayout'
+
+// A south-facing house: footprint length × depth (cols × rows), `row` is the BOTTOM row.
+const house = (over: Partial<GridBuilding> = {}): GridBuilding => ({
+  col: 10,
+  row: 12, // bottom row
+  length: 4,
+  height: 3, // depth rows
+  depth: 3,
+  type: 'house',
+  cells: composeBuilding({ type: 'house' }).cells,
+  facing: 0,
+  facadeOnBack: false,
+  ...over,
+})
+
+describe('gridBuildingFacing — reconstruct the 4-way facing from iso fields', () => {
+  test('maps all four (facing index, facadeOnBack) combos back to the road facing', () => {
+    expect(gridBuildingFacing(house({ facing: 0, facadeOnBack: false }))).toBe('south')
+    expect(gridBuildingFacing(house({ facing: 0, facadeOnBack: true }))).toBe('north')
+    expect(gridBuildingFacing(house({ facing: 1, facadeOnBack: false }))).toBe('east')
+    expect(gridBuildingFacing(house({ facing: 1, facadeOnBack: true }))).toBe('west')
+  })
+
+  test('is the exact inverse of isoOrientation for every facing', () => {
+    const facings: Facing[] = ['south', 'north', 'east', 'west']
+    for (const f of facings) {
+      const iso = isoOrientation(f)
+      expect(gridBuildingFacing(house({ facing: iso.facing, facadeOnBack: iso.facadeOnBack }))).toBe(f)
+    }
+  })
+})
+
+describe('buildingRect — derive the footprint rect (row is the bottom)', () => {
+  test('top-left is (col, row-(height-1)); span is length × height', () => {
+    expect(buildingRect(house())).toEqual({ col: 10, row: 10, w: 4, h: 3 })
+  })
+})
+
+describe('doorCellFor / buildingDoorCell — door on the road-facing edge', () => {
+  const rect = { col: 10, row: 10, w: 4, h: 3 }
+  test('south = bottom edge centre', () => {
+    expect(doorCellFor('south', rect)).toEqual({ col: 12, row: 12 })
+  })
+  test('north = top edge centre', () => {
+    expect(doorCellFor('north', rect)).toEqual({ col: 12, row: 10 })
+  })
+  test('east = right edge centre', () => {
+    expect(doorCellFor('east', rect)).toEqual({ col: 13, row: 11 })
+  })
+  test('west = left edge centre', () => {
+    expect(doorCellFor('west', rect)).toEqual({ col: 10, row: 11 })
+  })
+  test('buildingDoorCell uses the reconstructed facing', () => {
+    expect(buildingDoorCell(house())).toEqual({ col: 12, row: 12 }) // south
+    expect(buildingDoorCell(house({ facing: 1, facadeOnBack: false }))).toEqual(
+      doorCellFor('east', buildingRect(house({ facing: 1, facadeOnBack: false }))),
+    )
+  })
+})
+
+describe('buildingFootprintCells — the cells it occupies + the door', () => {
+  test('covers the whole rect (length × height cells) and marks one door', () => {
+    const { cells, door } = buildingFootprintCells(house())
+    expect(cells).toHaveLength(4 * 3)
+    expect(cells).toContainEqual({ col: 10, row: 10 })
+    expect(cells).toContainEqual({ col: 13, row: 12 })
+    expect(door).toEqual({ col: 12, row: 12 })
+    // The door is one of the footprint cells (a walkable exception inside the rect).
+    expect(cells).toContainEqual(door)
+  })
+
+  test('exactly one footprint cell is the door (the invariant: rest block)', () => {
+    const b = house()
+    const { cells } = buildingFootprintCells(b)
+    const doorCount = cells.filter(c => isDoorCell(b, c.col, c.row)).length
+    expect(doorCount).toBe(1)
+  })
+})
+
+describe('footprintContains', () => {
+  test('true inside the rect, false outside', () => {
+    const b = house()
+    expect(footprintContains(b, 10, 10)).toBe(true)
+    expect(footprintContains(b, 13, 12)).toBe(true)
+    expect(footprintContains(b, 9, 10)).toBe(false)
+    expect(footprintContains(b, 14, 12)).toBe(false)
+    expect(footprintContains(b, 10, 13)).toBe(false)
+  })
+})
+
+describe('facadeLength / footprintCenter', () => {
+  test('facadeLength is the road-parallel span regardless of orientation', () => {
+    expect(facadeLength(house())).toBe(4) // horizontal → length
+    expect(facadeLength(house({ facing: 1, length: 3, height: 4 }))).toBe(4) // vertical → height
+  })
+  test('footprintCenter is the rect centre cell', () => {
+    expect(footprintCenter(house())).toEqual({ col: 12, row: 11 })
+  })
+})
+
+describe('canPlaceBuilding — in-bounds + clear of blockers', () => {
+  const env = (blockedKeys: string[] = [], cols = 40, rows = 40): PlacementEnv => ({
+    cols,
+    rows,
+    blocked: (c, r) => blockedKeys.includes(`${c},${r}`),
+  })
+
+  test('accepts a clear, in-bounds footprint', () => {
+    expect(canPlaceBuilding(env(), house())).toBe(true)
+  })
+
+  test('rejects when any footprint cell is out of bounds', () => {
+    expect(canPlaceBuilding(env([], 12, 40), house())).toBe(false) // col 13 >= 12
+    expect(canPlaceBuilding(env(), house({ col: -1 }))).toBe(false)
+    expect(canPlaceBuilding(env(), house({ row: 1 }))).toBe(false) // top row would be -1
+  })
+
+  test('rejects when a single footprint cell is blocked', () => {
+    expect(canPlaceBuilding(env(['11,11']), house())).toBe(false)
+  })
+
+  test('a blocker outside the footprint does not matter', () => {
+    expect(canPlaceBuilding(env(['9,9', '14,14']), house())).toBe(true)
+  })
+})
+
+describe('moveBuilding — shift the footprint, preserve the rest', () => {
+  test('moves col/row by the delta and keeps dims/type/facing', () => {
+    const b = house()
+    const moved = moveBuilding(b, 2, -1)
+    expect(moved.col).toBe(12)
+    expect(moved.row).toBe(11)
+    expect(moved.length).toBe(b.length)
+    expect(moved.height).toBe(b.height)
+    expect(moved.facing).toBe(b.facing)
+    expect(b.col).toBe(10) // original untouched (pure)
+  })
+
+  test('the door tracks the moved footprint', () => {
+    const moved = moveBuilding(house(), 5, 5)
+    expect(buildingDoorCell(moved)).toEqual({ col: 17, row: 17 })
+  })
+})
+
+describe('rotateBuilding — cycle facing, swap dims, keep centre', () => {
+  test('cycles south→east→north→west→south', () => {
+    let b = house()
+    const seen: Facing[] = []
+    for (let i = 0; i < 5; i++) {
+      seen.push(gridBuildingFacing(b))
+      b = rotateBuilding(b)
+    }
+    expect(seen).toEqual(['south', 'east', 'north', 'west', 'south'])
+  })
+
+  test('swaps the grid span (length↔height) and recomputes iso fields', () => {
+    const b = house() // length 4, height 3 (depth 3)
+    const east = rotateBuilding(b) // → east (vertical)
+    expect(gridBuildingFacing(east)).toBe('east')
+    expect(east.facing).toBe(1)
+    expect(east.length).toBe(b.depth) // depth becomes the col span
+    expect(east.height).toBe(facadeLength(b)) // facade length becomes the row span
+  })
+
+  test('preserves the facade length + depth across a full rotation', () => {
+    const b = house()
+    let r = b
+    for (let i = 0; i < FACING_CYCLE.length; i++) r = rotateBuilding(r)
+    expect(facadeLength(r)).toBe(facadeLength(b))
+    expect(r.depth).toBe(b.depth)
+    expect(footprintCenter(r)).toEqual(footprintCenter(b))
+  })
+
+  test('keeps the footprint centre roughly fixed', () => {
+    const b = house()
+    const east = rotateBuilding(b)
+    expect(footprintCenter(east)).toEqual(footprintCenter(b))
+  })
+})
+
+describe('orientBuilding — re-anchor at a facing around a centre', () => {
+  test('horizontal facings span facadeLength × depth; vertical swaps them', () => {
+    const b = house()
+    const south = orientBuilding(b, 'south', { col: 20, row: 20 })
+    expect(south.length).toBe(facadeLength(b))
+    expect(south.height).toBe(b.depth)
+    expect(footprintCenter(south)).toEqual({ col: 20, row: 20 })
+
+    const west = orientBuilding(b, 'west', { col: 20, row: 20 })
+    expect(west.length).toBe(b.depth)
+    expect(west.height).toBe(facadeLength(b))
+    expect(gridBuildingFacing(west)).toBe('west')
+  })
+})
+
+describe('makeBuilding — author a fresh building of a type', () => {
+  test('matches composeBuilding sizing for the type', () => {
+    const facade = composeBuilding({ type: 'store' })
+    const b = makeBuilding('store', 'south', 15, 15)
+    expect(b.type).toBe('store')
+    expect(b.cells).toEqual(facade.cells)
+    expect(b.depth).toBe(facade.depth)
+    expect(facadeLength(b)).toBe(facade.length)
+    expect(footprintCenter(b)).toEqual({ col: 15, row: 15 })
+    expect(gridBuildingFacing(b)).toBe('south')
+  })
+
+  test('east-facing building swaps to a vertical footprint', () => {
+    const facade = composeBuilding({ type: 'hospital' })
+    const b = makeBuilding('hospital', 'east', 15, 15)
+    expect(gridBuildingFacing(b)).toBe('east')
+    expect(b.length).toBe(facade.depth) // col span = depth
+    expect(b.height).toBe(facade.length) // row span = facade length
+  })
+
+  test('the door sits on the road-facing edge of the fresh footprint', () => {
+    const b = makeBuilding('house', 'south', 15, 15)
+    const { cells, door } = buildingFootprintCells(b)
+    expect(cells).toContainEqual(door)
+    // South → the door is on the bottom (max-row) edge.
+    const maxRow = Math.max(...cells.map(c => c.row))
+    expect(door.row).toBe(maxRow)
+  })
+})
