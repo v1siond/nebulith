@@ -35,7 +35,7 @@ export interface Attack {
   tier: AttackTier
 }
 
-export type WeaponKind = 'sword' | 'axe' | 'shield' | 'staff'
+export type WeaponKind = 'sword' | 'axe' | 'shield' | 'staff' | 'bow' | 'gun'
 export interface Weapon {
   id: string
   kind: WeaponKind
@@ -47,6 +47,12 @@ export interface Weapon {
   intBonus: number
   school: AttackSchool // the school this weapon attacks with by default
   range: AttackRange
+  /** how many hands the weapon needs: 1 = one-handed, 2 = two-handed.
+   *  Drives melee reach (1H → 1 cell, 2H → 2 cells). */
+  hands: 1 | 2
+  /** authored cell reach. Ranged weapons clamp this to [6,12]; melee derive reach
+   *  from `hands` instead (see game/weapons.ts weaponReach). */
+  reachCells: number
   /** shields: % chance (0–100) to fully block one incoming attack. */
   blockChance?: number
 }

@@ -20,20 +20,25 @@ function consumable(id: string, name: string, effect: ConsumableEffect): Item {
 }
 
 // ── weapons ─────────────────────────────────────────────────────────
+// sword = one-handed melee → reach 1.
 export const sword = (): Item =>
-  weaponItem({ id: 'wpn_sword', kind: 'sword', name: 'Iron Sword', baseDamage: 12, baseMagic: 0, baseDefense: 2, strengthBonus: 3, intBonus: 0, school: 'physical', range: 'melee' })
+  weaponItem({ id: 'wpn_sword', kind: 'sword', name: 'Iron Sword', baseDamage: 12, baseMagic: 0, baseDefense: 2, strengthBonus: 3, intBonus: 0, school: 'physical', range: 'melee', hands: 1, reachCells: 1 })
 
+// axe = two-handed melee → reach 2.
 export const axe = (): Item =>
-  weaponItem({ id: 'wpn_axe', kind: 'axe', name: 'Battle Axe', baseDamage: 18, baseMagic: 0, baseDefense: 0, strengthBonus: 4, intBonus: 0, school: 'physical', range: 'melee' })
+  weaponItem({ id: 'wpn_axe', kind: 'axe', name: 'Battle Axe', baseDamage: 18, baseMagic: 0, baseDefense: 0, strengthBonus: 4, intBonus: 0, school: 'physical', range: 'melee', hands: 2, reachCells: 2 })
 
+// bow = two-handed RANGED → fires a travelling arrow; reach 8 (within the 6–12 band).
 export const bow = (): Item =>
-  weaponItem({ id: 'wpn_bow', kind: 'sword', name: 'Hunter Bow', baseDamage: 10, baseMagic: 0, baseDefense: 0, strengthBonus: 2, intBonus: 0, school: 'physical', range: 'ranged' })
+  weaponItem({ id: 'wpn_bow', kind: 'bow', name: 'Hunter Bow', baseDamage: 10, baseMagic: 0, baseDefense: 0, strengthBonus: 2, intBonus: 0, school: 'physical', range: 'ranged', hands: 2, reachCells: 8 })
 
+// staff = two-handed magical MELEE caster → reach 2.
 export const staff = (): Item =>
-  weaponItem({ id: 'wpn_staff', kind: 'staff', name: 'Oak Staff', baseDamage: 2, baseMagic: 14, baseDefense: 1, strengthBonus: 0, intBonus: 4, school: 'magical', range: 'melee' })
+  weaponItem({ id: 'wpn_staff', kind: 'staff', name: 'Oak Staff', baseDamage: 2, baseMagic: 14, baseDefense: 1, strengthBonus: 0, intBonus: 4, school: 'magical', range: 'melee', hands: 2, reachCells: 2 })
 
+// shield = one-handed off-hand → reach 1.
 export const shield = (): Item =>
-  weaponItem({ id: 'wpn_shield', kind: 'shield', name: 'Round Shield', baseDamage: 0, baseMagic: 0, baseDefense: 6, strengthBonus: 0, intBonus: 0, school: 'physical', range: 'melee', blockChance: 35 })
+  weaponItem({ id: 'wpn_shield', kind: 'shield', name: 'Round Shield', baseDamage: 0, baseMagic: 0, baseDefense: 6, strengthBonus: 0, intBonus: 0, school: 'physical', range: 'melee', hands: 1, reachCells: 1, blockChance: 35 })
 
 // ── armor / clothes (covers every GearSlot) ─────────────────────────
 export const ironHelmet = (): Item =>

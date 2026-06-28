@@ -72,6 +72,13 @@ import {
   resolveAttack,
   isDead,
 } from '@/game/combat'
+import { isRanged, weaponReach } from '@/game/weapons'
+import {
+  projectileCellAt,
+  projectileArrived,
+  resolveImpact,
+  type Projectile,
+} from '@/game/projectiles'
 import {
   acceptQuest,
   recordEvent,
@@ -286,13 +293,16 @@ const STARTER_SWORD: Weapon = {
   intBonus: 0,
   school: 'physical',
   range: 'melee',
+  hands: 1,
+  reachCells: 1,
 }
 
-/** A magician alternative the player can equip from the starting inventory. */
+/** A magician alternative the player can equip from the starting inventory.
+ *  Two-handed magical melee caster (reach 2). */
 const OAK_STAFF: Weapon = {
   id: 'oak-staff', kind: 'staff', name: 'Oak Staff',
   baseDamage: 0, baseMagic: 10, baseDefense: 0, strengthBonus: 0, intBonus: 4,
-  school: 'magical', range: 'ranged',
+  school: 'magical', range: 'melee', hands: 2, reachCells: 2,
 }
 
 /** A starting inventory: sword equipped, plus a staff, light armor, and a potion
@@ -430,10 +440,11 @@ const ADJACENT_DELTAS: ReadonlyArray<readonly [number, number]> = [
 ]
 
 /**
- * Pick the enemy the player is attacking: the faced cell wins; otherwise the
+ * Pick the enemy the player is attacking: the faced cell wins; otherwise scan down
+ * the facing line up to the weapon's `reach` (melee 1–2, ranged 6–12); otherwise the
  * nearest living adjacent enemy; null if none in reach. Dead enemies are skipped.
  */
-const RANGED_RANGE = 6 // cells a ranged weapon reaches down the facing line
+const RANGED_RANGE = 6 // default cells a ranged enemy reaches (enemy retaliation)
 
 function findTarget(
   player: PlayerState,
@@ -441,17 +452,17 @@ function findTarget(
   runtime: EnemyRuntime,
   cellSize: number,
   use2D: boolean,
-  range: 'melee' | 'ranged' = 'melee',
+  reach = 1,
 ): Entity | null {
   const faced = facingCell(player, cellSize, use2D)
   const facedEnemy = enemyAtCell(entities, runtime, faced.col, faced.row)
   if (facedEnemy) return facedEnemy
-  // Ranged weapons hit the nearest enemy along the facing line (basic distance attack).
-  if (range === 'ranged') {
+  // Scan further down the facing line for reach > 1 (2H melee = 2, ranged = 6–12).
+  if (reach >= 2) {
     const [dCol, dRow] = facingDelta(player.facing, use2D)
     const pCol = Math.floor(player.x / cellSize)
     const pRow = Math.floor(player.z / cellSize)
-    for (let d = 2; d <= RANGED_RANGE; d++) {
+    for (let d = 2; d <= reach; d++) {
       const e = enemyAtCell(entities, runtime, pCol + dCol * d, pRow + dRow * d)
       if (e) return e
     }
@@ -530,6 +541,19 @@ interface CombatStepInput {
   now: number
   /** the loop's live attack-animation list; a landed hit pushes one. */
   anims?: AttackAnim[]
+  /** the loop's live projectile list; a ranged attack pushes a travelling shot here. */
+  projectiles?: Projectile[]
+  /** per-projectile attacker context, so impact-time damage knows who fired + with what. */
+  projectileCtx?: Map<string, ProjectileContext>
+}
+
+/** The attacker side of a projectile, captured at fire so the impact (resolved later,
+ *  in tickProjectiles) can run resolveAttack. The attacker's live runtime state is read
+ *  at impact, not stored here. */
+interface ProjectileContext {
+  attackerStats: Stats
+  attackerWeapon: Weapon
+  attack: Attack
 }
 
 /** What the combat step produces back to the loop (player state may be replaced on death/spend). */
@@ -582,25 +606,48 @@ function spawnAttackAnim(
   anims.push({ kind, fromX, fromZ, toX, toZ, start: now, durationMs: ATTACK_ANIM_MS[kind] })
 }
 
+/** ms a projectile spends travelling per cell — slow enough that an enemy can step off
+ *  the impact cell to dodge it (the core of "resolve on impact, not on fire"). */
+const PROJECTILE_MS_PER_CELL = 55
+
+/** The glyph a projectile draws, by firing weapon kind: bow → arrow, gun → bullet, else
+ *  a generic bolt. (Per-weapon arrow/bullet/bolt selection.) */
+const PROJECTILE_GLYPHS: Partial<Record<string, string>> = { bow: '➤', gun: '•' }
+function projectileGlyph(kind: string): string {
+  return PROJECTILE_GLYPHS[kind] ?? '→'
+}
+
+let projectileSeq = 0
+
 /**
- * Resolve the player's chosen attack against the current target, if any. On a
- * lethal hit, records the death timestamp (drives respawn) AND pushes the dead
- * enemy's `enemyType` into `kills` so the loop can advance kill-quest objectives.
+ * Resolve the player's chosen attack against the current target, if any. The equipped
+ * weapon drives everything: isRanged + weaponReach decide melee-vs-ranged and reach.
+ *   - MELEE  → instant strike within reach; damage resolves now. On a lethal hit, records
+ *     the death timestamp (respawn) AND pushes the enemy's `enemyType` into `kills`.
+ *   - RANGED → spawns a travelling Projectile and returns; NO damage now. Impact (and its
+ *     kill bookkeeping) is resolved later by tickProjectiles when the shot arrives.
  */
 function applyPlayerAttack(input: CombatStepInput, kills: string[]): CombatState {
   const { player, entities, runtime, playerCombat, playerWeapon, hitMarkers, cellSize, use2D, attack, special, now } = input
   if (!attack && !special) return playerCombat
 
-  // The attack matches the equipped weapon: sword/axe slash (melee), bow shoots (ranged),
-  // staff casts (magical) — school + range come from the weapon.
-  const range: 'melee' | 'ranged' = playerWeapon.range === 'ranged' ? 'ranged' : 'melee'
+  // Melee-vs-ranged + reach come from the equipped weapon, not a hardcoded mode/range.
+  const ranged = isRanged(playerWeapon)
+  const reach = weaponReach(playerWeapon)
   const faced = facingCell(player, cellSize, use2D)
-  const target = findTarget(player, entities, runtime, cellSize, use2D, range)
+  const target = findTarget(player, entities, runtime, cellSize, use2D, reach)
   const aimCol = target ? target.col : faced.col
   const aimRow = target ? target.row : faced.row
-  let animKind = weaponAnimKind(playerWeapon.kind, playerWeapon.range)
 
-  // Resolve damage only if we hit something; the swing/shot is shown either way below.
+  // RANGED: loose a projectile aimed at the target's CURRENT cell and stop. Damage is
+  // deferred to impact (tickProjectiles) — it misses if the target steps off that cell.
+  if (ranged) {
+    spawnProjectile(input, aimCol, aimRow, target, now)
+    return playerCombat
+  }
+
+  // MELEE: resolve damage now if we hit something; the swing is shown either way below.
+  let animKind = weaponAnimKind(playerWeapon.kind, playerWeapon.range)
   let nextState = playerCombat
   const targetState = target ? runtime.combat.get(target.id) : undefined
   if (target && targetState) {
@@ -622,7 +669,7 @@ function applyPlayerAttack(input: CombatStepInput, kills: string[]): CombatState
     }
   }
 
-  // ALWAYS show the swing/shot — even a whiff. Shared spawn → same for every attacker.
+  // ALWAYS show the swing — even a whiff. Shared spawn → same for every attacker.
   spawnAttackAnim(input.anims, player.x, player.z, aimCol * cellSize + cellSize / 2, aimRow * cellSize + cellSize / 2, animKind, now)
   return nextState
 }
@@ -631,6 +678,127 @@ function applyPlayerAttack(input: CombatStepInput, kills: string[]): CombatState
 function recordEnemyDeath(runtime: EnemyRuntime, enemy: Entity, kills: string[], now: number): void {
   runtime.diedAt.set(enemy.id, now)
   kills.push(enemy.enemyType ?? 'enemy')
+}
+
+/** Loose a travelling projectile from the player toward (aimCol,aimRow). Stores the
+ *  attacker context so the deferred impact (tickProjectiles) can run resolveAttack.
+ *  A target-less shot (no enemy acquired) still flies — it just resolves to a miss. */
+function spawnProjectile(input: CombatStepInput, aimCol: number, aimRow: number, target: Entity | null, now: number): void {
+  const list = input.projectiles
+  if (!list) return
+  const { player, cellSize, playerWeapon, special } = input
+  const fromCol = Math.floor(player.x / cellSize)
+  const fromRow = Math.floor(player.z / cellSize)
+  const dist = Math.max(1, Math.max(Math.abs(aimCol - fromCol), Math.abs(aimRow - fromRow)))
+  const id = `proj-${now}-${projectileSeq++}`
+  list.push({
+    id,
+    fromCol, fromRow,
+    toCol: aimCol, toRow: aimRow,
+    targetId: target ? target.id : '',
+    startMs: now,
+    durationMs: Math.round(dist * PROJECTILE_MS_PER_CELL),
+    glyph: projectileGlyph(playerWeapon.kind),
+    power: playerWeapon.baseDamage,
+  })
+  input.projectileCtx?.set(id, {
+    attackerStats: input.playerStats,
+    attackerWeapon: playerWeapon,
+    attack: { school: playerWeapon.school, range: playerWeapon.range, tier: special ? 'special' : 'regular' },
+  })
+}
+
+/** Inputs for one projectile-resolution tick (mirrors CombatStepResult bookkeeping). */
+interface ProjectileTickInput {
+  projectiles: Projectile[]
+  ctx: Map<string, ProjectileContext>
+  entities: readonly Entity[]
+  runtime: EnemyRuntime
+  playerCombat: CombatState
+  hitMarkers: HitMarker[]
+  anims?: AttackAnim[]
+  cellSize: number
+  now: number
+  /** RNG for the impact dodge/block rolls; defaults to Math.random. */
+  rng?: () => number
+}
+
+/**
+ * Advance active projectiles: any that have ARRIVED resolve against the target's CURRENT
+ * cell (resolveImpact → hit/missed_moved/dodged/blocked), apply damage via resolveAttack on
+ * a hit, drop a flourish, and are removed. In-flight projectiles are kept (drawn by render).
+ * Returns the (possibly spent) player state + enemyTypes killed this tick for kill quests.
+ */
+function tickProjectiles(input: ProjectileTickInput): { playerCombat: CombatState; kills: string[] } {
+  const { projectiles, ctx, now } = input
+  const rng = input.rng ?? Math.random
+  const kills: string[] = []
+  let playerCombat = input.playerCombat
+  let write = 0
+  for (let read = 0; read < projectiles.length; read++) {
+    const p = projectiles[read]
+    if (!projectileArrived(p, now)) { projectiles[write++] = p; continue }
+    playerCombat = resolveProjectileImpact(p, ctx.get(p.id), input, playerCombat, kills, rng)
+    ctx.delete(p.id)
+  }
+  projectiles.length = write
+  return { playerCombat, kills }
+}
+
+/** Resolve a single arrived projectile. Returns the attacker's state (a special spends
+ *  its resource on a landed hit). Pushes kills + a hit marker on damage, always a flourish. */
+function resolveProjectileImpact(
+  p: Projectile,
+  context: ProjectileContext | undefined,
+  env: ProjectileTickInput,
+  playerCombat: CombatState,
+  kills: string[],
+  rng: () => number,
+): CombatState {
+  const { entities, runtime, hitMarkers, anims, cellSize, now } = env
+  const target = entities.find(e => e.id === p.targetId)
+  const targetState = target ? runtime.combat.get(target.id) : undefined
+
+  // No live target (despawned / cosmetic shot) → fizzle with a flourish, no damage.
+  if (!target || !targetState || !context || isDead(targetState.hp)) {
+    spawnImpactFlourish(anims, p.toCol, p.toRow, cellSize, now)
+    return playerCombat
+  }
+
+  const dodgeChance = (target.baseStats.dodge ?? 0) / 100
+  const blockChance = (context.attackerWeapon.blockChance ?? 0) // enemies carry no shields → ~0
+  const outcome = resolveImpact(p, { col: target.col, row: target.row }, blockChance, dodgeChance, rng)
+  if (outcome !== 'hit') {
+    spawnImpactFlourish(anims, p.toCol, p.toRow, cellSize, now)
+    return playerCombat
+  }
+
+  // Confirmed hit: resolveImpact already arbitrated dodge/block, so feed resolveAttack a
+  // roll that never re-triggers them (roll()*100 < pct is false at 1.0 for pct ≤ 100).
+  const result = resolveAttack({
+    attacker: context.attackerStats,
+    defender: target.baseStats,
+    attack: context.attack,
+    attackerWeapon: context.attackerWeapon,
+    defenderHp: targetState.hp,
+    attackerState: playerCombat,
+    roll: () => 1,
+  })
+  if (result.fired) {
+    runtime.combat.set(target.id, { ...targetState, hp: result.defenderHpAfter })
+    pushHitMarker(hitMarkers, target.col, target.row, result.damage, 'enemy', now)
+    if (result.lethal) recordEnemyDeath(runtime, target, kills, now)
+    playerCombat = result.attackerStateAfter ?? playerCombat
+  }
+  spawnImpactFlourish(anims, target.col, target.row, cellSize, now)
+  return playerCombat
+}
+
+/** A short impact spark on a cell (reuses the 'block' burst frames; sits in place). */
+function spawnImpactFlourish(anims: AttackAnim[] | undefined, col: number, row: number, cellSize: number, now: number): void {
+  const x = col * cellSize + cellSize / 2
+  const z = row * cellSize + cellSize / 2
+  spawnAttackAnim(anims, x, z, x, z, 'block', now)
 }
 
 /** Every adjacent living enemy off its cooldown lands one melee hit on the player. */
@@ -682,6 +850,8 @@ function enemyFist(entity: Entity, ranged = false): Weapon {
     intBonus: 0,
     school: 'physical',
     range: ranged ? 'ranged' : 'melee',
+    hands: 1,
+    reachCells: ranged ? 6 : 1,
   }
 }
 
@@ -3289,6 +3459,9 @@ export default function TemplateEditor() {
   const cannonFireRef = useRef<Map<string, number>>(new Map()) // per-cannon last-fired time
   const hitMarkersRef = useRef<HitMarker[]>([])
   const attackAnimsRef = useRef<AttackAnim[]>([])
+  // Travelling projectiles in flight + their per-shot attacker context (for impact damage).
+  const projectilesRef = useRef<Projectile[]>([])
+  const projectileCtxRef = useRef<Map<string, ProjectileContext>>(new Map())
   // Attack-key edge triggers (mirror the interact/jump edge-trigger pattern).
   const attackDownRef = useRef(false)
   const specialDownRef = useRef(false)
@@ -6058,12 +6231,30 @@ export default function TemplateEditor() {
           special: specialDown && !specialDownRef.current,
           now: time,
           anims: attackAnimsRef.current,
+          projectiles: projectilesRef.current,
+          projectileCtx: projectileCtxRef.current,
         })
         playerCombatRef.current = step.playerCombat
         attackDownRef.current = attackDown
         specialDownRef.current = specialDown
         // Feed this frame's kills to active quests (the pure module counts them).
         if (step.kills.length > 0) onKillsRef.current(step.kills)
+
+        // Travelling projectiles resolve on impact: advance the in-flight ones and resolve
+        // any that arrived this frame against the target's CURRENT cell (move/dodge/block).
+        const projStep = tickProjectiles({
+          projectiles: projectilesRef.current,
+          ctx: projectileCtxRef.current,
+          entities: entitiesRef.current,
+          runtime,
+          playerCombat: playerCombatRef.current,
+          hitMarkers: hitMarkersRef.current,
+          anims: attackAnimsRef.current,
+          cellSize: grid.cellSize,
+          now: time,
+        })
+        playerCombatRef.current = projStep.playerCombat
+        if (projStep.kills.length > 0) onKillsRef.current(projStep.kills)
         syncCombatHud(time)
 
         // Cannon behavior: ready cannons fire at a nearby player.
@@ -6107,7 +6298,7 @@ export default function TemplateEditor() {
       } else if (viewTypeRef.current === '2d') {
         render2D(ctx, canvas.width, canvas.height, grid, player, time, zoomRef.current, camOffsetRef.current, renderEntities, runtime.combat, connectorsRef.current, questsRef.current)
       } else {
-        render(ctx, canvas.width, canvas.height, grid, player, time, camOffsetRef.current, renderEntities, runtime.combat, hitMarkersRef.current, time, isoZoomRef.current, attackAnimsRef.current, connectorsRef.current, questsRef.current)
+        render(ctx, canvas.width, canvas.height, grid, player, time, camOffsetRef.current, renderEntities, runtime.combat, hitMarkersRef.current, time, isoZoomRef.current, attackAnimsRef.current, connectorsRef.current, questsRef.current, projectilesRef.current)
       }
       // Drop finished attack animations (kept tiny — a few in flight at once).
       if (attackAnimsRef.current.length > 0) {
@@ -7207,6 +7398,7 @@ function render(
   attackAnims: readonly AttackAnim[] = [],
   connectors: Connector[] = [],
   quests: readonly Quest[] = [],
+  projectiles: readonly Projectile[] = [],
 ) {
   // Clear
   ctx.fillStyle = '#1a1a2e'
@@ -7444,6 +7636,20 @@ function render(
       const sp = toScreen(f.x / cellSize, f.z / cellSize)
       ctx.fillStyle = f.color
       ctx.fillText(f.char, sp.x, sp.y - tileH)
+    }
+  }
+
+  // Travelling projectiles (arrow/bullet/bolt) — lerp along their path in iso space. The
+  // loop ticks/resolves/drops them; this is read-only draw at the interpolated cell.
+  if (projectiles.length > 0) {
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.font = `bold ${Math.max(14, tileH * 1.6)}px ${ASCII_FONT}`
+    ctx.fillStyle = '#ffe9a8'
+    for (const pr of projectiles) {
+      const pc = projectileCellAt(pr, now)
+      const sp = toScreen(pc.col + 0.5, pc.row + 0.5)
+      ctx.fillText(pr.glyph, sp.x, sp.y - tileH)
     }
   }
 

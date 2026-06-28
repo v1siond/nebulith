@@ -27,6 +27,8 @@ function makeWeapon(over: Partial<Weapon> = {}): Weapon {
     intBonus: 0,
     school: 'physical',
     range: 'melee',
+    hands: 1,
+    reachCells: 1,
     ...over,
   }
 }
