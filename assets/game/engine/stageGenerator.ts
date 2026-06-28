@@ -9,7 +9,7 @@
  * and reusable by the editor, the template mapper, and the eventual AI generator.
  */
 import { composeBuilding, ComposedBuilding, BuildingType, facadeLabel } from './buildingComposer'
-import { planVillage, type VillageLayout, type Settlement } from './villageLayout'
+import { planVillage, type VillageLayout, type Settlement, type Plot, type Facing } from './villageLayout'
 import { ZONE_PALETTES, ZoneId } from './zones'
 import { autotileLabel, isWalkable, TREE_MASS_FAMILY, type CellLabel } from './cellLabels'
 import { cellTile, TREE_CANOPY_SHADES, groundDecor } from './cellTileset'
@@ -429,11 +429,14 @@ function placeSettlement(ctx: ArchetypeContext, settlement: Settlement): void {
       if (layout.roads[r][c]) ground[r][c] = 'path_stone'
     }
   }
-  // 2. Stamp a building at each plot — each carries its TYPE, so placeFacade colors it.
+  // 2. Stamp a building at each plot — each carries its TYPE + FACING. plot.row/plot.col are the
+  //    MIN-ROW/MIN-COL (top-left) of the oriented footprint rect; placeFacade fills that rect with
+  //    the facade oriented so its door faces the road (no ground-row recompute).
   for (const plot of layout.plots) {
     const facade = composeBuilding({ type: plot.type, length: plot.length })
-    if (plot.row - (facade.height - 1) < 0) continue // not enough headroom for this facade
-    buildings.push(placeFacade(ctx, facade, plot.type, plot.col, plot.row))
+    const rect = footprintRect(plot, facade.height)
+    if (!rectInBounds(rect, cols, rows)) continue // planner's rectClear guarantees this; stay safe
+    buildings.push(placeFacade(ctx, facade, plot, rect))
   }
   // 3. Plaza (well/fountain) + lamps; trees fill the rest, scaled by settlement (cities sparser).
   villageDecor(ctx, layout)
@@ -509,29 +512,65 @@ function villageDecor(ctx: ArchetypeContext, layout: VillageLayout): void {
   }
 }
 
+/** Footprint rect type — the cells a building actually occupies on the grid. */
+interface FootRect {
+  col: number
+  row: number
+  w: number
+  h: number
+}
+
+/** The oriented footprint rect for a plot: south/north run length×height (cols×rows); east/west
+ *  swap to height×length. `plot.col`/`plot.row` are the rect's top-left. Mirrors villageLayout's
+ *  `footprint`, so the stamp lands exactly on the road-free plot the planner reserved. */
+function footprintRect(plot: Plot, height: number): FootRect {
+  const horizontal = plot.facing === 'south' || plot.facing === 'north'
+  return { col: plot.col, row: plot.row, w: horizontal ? plot.length : height, h: horizontal ? height : plot.length }
+}
+
+const rectInBounds = (rect: FootRect, cols: number, rows: number): boolean =>
+  rect.col >= 0 && rect.row >= 0 && rect.col + rect.w <= cols && rect.row + rect.h <= rows
+
 /**
- * Stamp a building's FULL length×height block as labeled cells (the keystone),
- * mirroring how trees are stamped. The facade is bottom-anchored: `row` is the
- * ground row, the facade rises to `row - (height - 1)`. Each facade cell becomes
- * a labeled building prop (char + color + label) and sets collision per its
- * label via isWalkable — so the apex `roof_top` and the doors are walkable while
+ * Map a facade-local cell (`c` along the length, `r` along the height — r=0 is the roof apex row,
+ * r=height-1 is the ground/door row) to its grid cell inside the footprint rect, ORIENTED so the
+ * facade's door edge faces the road for this plot's facing:
+ *   south → as-authored (roof up, door down toward the street below)
+ *   north → flipped vertically (door up toward the street above)
+ *   east  → rotated so the door edge is the rect's RIGHT col (road on the right)
+ *   west  → rotated so the door edge is the rect's LEFT col (road on the left)
+ */
+function orientFacadeCell(facing: Facing, rect: FootRect, c: number, r: number, height: number): Cell {
+  if (facing === 'south') return { col: rect.col + c, row: rect.row + r }
+  if (facing === 'north') return { col: rect.col + c, row: rect.row + (height - 1 - r) }
+  if (facing === 'east') return { col: rect.col + r, row: rect.row + c }
+  return { col: rect.col + (height - 1 - r), row: rect.row + c } // west
+}
+
+/**
+ * Stamp a building's FULL facade as labeled cells (the keystone), mirroring how trees are stamped.
+ * The facade fills the plot's oriented footprint `rect`, rotated/flipped by `plot.facing` so its
+ * DOOR faces the road (2D authoring view shows the front toward its street; iso re-orients by its
+ * own facing). Each facade cell becomes a labeled building prop (char + color + label) and sets
+ * collision per its label via isWalkable — so the apex `roof_top` and the doors are walkable while
  * walls, roof body, and windows block. `empty` facade cells are skipped.
  */
 function placeFacade(
   ctx: ArchetypeContext,
   facade: ComposedBuilding,
-  type: BuildingType,
-  col: number,
-  groundRow: number,
+  plot: Plot,
+  rect: FootRect,
 ): PlacedBuilding {
-  const topRow = groundRow - (facade.height - 1)
   const doorCells: Cell[] = []
   for (let r = 0; r < facade.height; r++) {
     for (let c = 0; c < facade.length; c++) {
-      stampFacadeCell(ctx, facade, col + c, topRow + r, c, r, doorCells, col)
+      const cell = orientFacadeCell(plot.facing, rect, c, r, facade.height)
+      stampFacadeCell(ctx, facade, cell.col, cell.row, c, r, doorCells, rect.col)
     }
   }
-  return { type, col, row: groundRow, length: facade.length, height: facade.height, doorCells, facade }
+  // `row` = the rect's BOTTOM row + `length`/`height` = the rect's span (cols×rows), so the
+  // nature/plaza math and the iso per-cell skip read the real footprint regardless of facing.
+  return { type: plot.type, col: rect.col, row: rect.row + rect.h - 1, length: rect.w, height: rect.h, doorCells, facade }
 }
 
 /** Emit one labeled building cell from facade-local (c, r) at grid (gridCol,
@@ -1276,9 +1315,11 @@ function placeTemple(ctx: ArchetypeContext): void {
   if (facade.length + 4 > cols) return // grid too small for a temple
   const col = Math.floor((cols - facade.length) / 2)
   // Anchor on the ground row; clamp so the facade (rising upward) clears the top
-  // edge and the paved approach below still fits.
+  // edge and the paved approach below still fits. South-facing: door down toward the
+  // hall, so the footprint top-left sits height-1 rows above the ground row.
   const row = clamp(Math.floor(rows * 0.4), facade.height, rows - 4)
-  buildings.push(placeFacade(ctx, facade, 'temple', col, row))
+  const plot: Plot = { col, row: row - (facade.height - 1), type: 'temple', length: facade.length, facing: 'south' }
+  buildings.push(placeFacade(ctx, facade, plot, footprintRect(plot, facade.height)))
 
   const doorCol = col + Math.floor(facade.length / 2)
   templeHall(ctx, doorCol, row + 1, facade.length)
@@ -1570,15 +1611,17 @@ export function stagePaint(stage: StageData): StagePaint {
   return { ground, assets }
 }
 
-/** A building's ground plot: a stone plaza along its footprint (ground row) with
- *  path_stone under the doorway. The structure ITSELF is drawn per-cell from the
- *  labeled building props (stage.props → assets) — one glyph per facade cell —
- *  the same multi-cell model trees use, so no single placeholder block here. */
+/** A building's ground plot: a stone plaza under its WHOLE footprint rect (so no grass shows
+ *  through the facade's gaps), with path_stone under every doorway cell. The structure ITSELF is
+ *  drawn per-cell from the labeled building props (stage.props → assets) — one glyph per facade
+ *  cell — the same multi-cell model trees use, so no single placeholder block here. */
 function paintBuildingGround(b: PlacedBuilding, ground: StagePaint['ground']): void {
-  for (let i = 0; i < b.length; i++) {
-    const col = b.col + i
-    const isDoor = b.doorCells.some(d => d.col === col && d.row === b.row)
-    ground.push({ col, row: b.row, type: isDoor ? 'path_stone' : 'plaza' })
+  const doors = new Set(b.doorCells.map(d => `${d.col},${d.row}`))
+  const top = b.row - (b.height - 1)
+  for (let row = top; row <= b.row; row++) {
+    for (let col = b.col; col < b.col + b.length; col++) {
+      ground.push({ col, row, type: doors.has(`${col},${row}`) ? 'path_stone' : 'plaza' })
+    }
   }
 }
 
