@@ -405,6 +405,57 @@ function questsFromAssets(assets: readonly GridAsset[]): Quest[] {
   return out
 }
 
+// ── building persistence codec ───────────────────────────────────────
+// The GROUPED buildings (grid.buildings) drive the upright iso/2D/top render. The template schema
+// has no building field (api.ts is read-only here), so — exactly like entities + quests — each
+// building rides assetsData as one OFF-GRID marker record, split back out on load. Without this,
+// grid.buildings is empty after a load and every view falls back to the OLD per-cell building look.
+
+const BUILDING_ASSET_TYPE = 'nebulith:building'
+
+/** Serialize grouped buildings into off-grid asset-shaped marker records. */
+function buildingsToAssets(buildings: readonly GridBuilding[]): GridAsset[] {
+  return buildings.map(b => ({
+    art: [' '],
+    col: -1, // off-grid: never drawn by the tile/asset renderers
+    row: -1,
+    type: BUILDING_ASSET_TYPE,
+    blocking: false,
+    color: '#000000',
+    label: JSON.stringify(b), // the round-trip payload (cells, facing, depth, facadeOnBack, …)
+  }))
+}
+
+/** True for the marker records produced by buildingsToAssets. */
+function isBuildingAsset(asset: GridAsset): boolean {
+  return asset.type === BUILDING_ASSET_TYPE
+}
+
+/** Decode one marker asset back into a GridBuilding, or null if malformed. */
+function buildingFromAsset(asset: GridAsset): GridBuilding | null {
+  if (!asset.label) return null
+  try {
+    const parsed = JSON.parse(asset.label) as GridBuilding
+    if (Array.isArray(parsed?.cells) && typeof parsed.col === 'number' && typeof parsed.row === 'number') {
+      return parsed
+    }
+    return null
+  } catch {
+    return null
+  }
+}
+
+/** Pull every grouped building back out of a loaded asset list (drops malformed ones). */
+function buildingsFromAssets(assets: readonly GridAsset[]): GridBuilding[] {
+  const out: GridBuilding[] = []
+  for (const asset of assets) {
+    if (!isBuildingAsset(asset)) continue
+    const b = buildingFromAsset(asset)
+    if (b) out.push(b)
+  }
+  return out
+}
+
 // ═══════════════════════════════════════════════════════════════════
 // COMBAT — wiring the pure engine (src/game/combat.ts) into the play loop.
 // All formulas live in the combat module; this is orchestration only:
@@ -6683,6 +6734,7 @@ export default function TemplateEditor() {
         ...assetsData,
         ...entitiesToAssets(entities),
         ...questsToAssets(quests),
+        ...buildingsToAssets(grid.buildings), // grouped buildings ride along so load rebuilds the render
       ]
 
       if (currentTemplateId) {
@@ -6752,9 +6804,12 @@ export default function TemplateEditor() {
       // then strip both marker kinds so they don't double-render as decoration.
       const loadedEntities = entitiesFromAssets(gridRef.current!.assets)
       const loadedQuests = questsFromAssets(gridRef.current!.assets)
+      const loadedBuildings = buildingsFromAssets(gridRef.current!.assets)
       gridRef.current!.assets = gridRef.current!.assets.filter(
-        a => !isEntityAsset(a) && !isQuestAsset(a),
+        a => !isEntityAsset(a) && !isQuestAsset(a) && !isBuildingAsset(a),
       )
+      // Restore the grouped buildings so iso/2D/top render the upright model, not the per-cell fallback.
+      gridRef.current!.buildings = loadedBuildings
       setEntities(loadedEntities)
       setQuests(loadedQuests)
 
