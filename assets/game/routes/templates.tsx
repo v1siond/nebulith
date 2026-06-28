@@ -285,13 +285,16 @@ const STARTER_SWORD: Weapon = {
   intBonus: 0,
   school: 'physical',
   range: 'melee',
+  hands: 1,
+  reachCells: 1,
 }
 
-/** A magician alternative the player can equip from the starting inventory. */
+/** A magician alternative the player can equip from the starting inventory.
+ *  Two-handed magical melee caster (reach 2). */
 const OAK_STAFF: Weapon = {
   id: 'oak-staff', kind: 'staff', name: 'Oak Staff',
   baseDamage: 0, baseMagic: 10, baseDefense: 0, strengthBonus: 0, intBonus: 4,
-  school: 'magical', range: 'ranged',
+  school: 'magical', range: 'melee', hands: 2, reachCells: 2,
 }
 
 /** A starting inventory: sword equipped, plus a staff, light armor, and a potion
@@ -681,6 +684,8 @@ function enemyFist(entity: Entity, ranged = false): Weapon {
     intBonus: 0,
     school: 'physical',
     range: ranged ? 'ranged' : 'melee',
+    hands: 1,
+    reachCells: ranged ? 6 : 1,
   }
 }
 

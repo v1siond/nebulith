@@ -15,13 +15,13 @@ const weaponItem = (id = 'w1'): Item => ({
   id,
   name: 'Sword',
   slot: 'weapon',
-  weapon: { id, kind: 'sword', name: 'Sword', baseDamage: 10, baseMagic: 0, baseDefense: 0, strengthBonus: 2, intBonus: 0, school: 'physical', range: 'melee' },
+  weapon: { id, kind: 'sword', name: 'Sword', baseDamage: 10, baseMagic: 0, baseDefense: 0, strengthBonus: 2, intBonus: 0, school: 'physical', range: 'melee', hands: 1, reachCells: 1 },
 })
 const shieldItem = (id = 'sh', blockChance = 40): Item => ({
   id,
   name: 'Shield',
   slot: 'weapon',
-  weapon: { id, kind: 'shield', name: 'Shield', baseDamage: 0, baseMagic: 0, baseDefense: 5, strengthBonus: 0, intBonus: 0, school: 'physical', range: 'melee', blockChance },
+  weapon: { id, kind: 'shield', name: 'Shield', baseDamage: 0, baseMagic: 0, baseDefense: 5, strengthBonus: 0, intBonus: 0, school: 'physical', range: 'melee', hands: 1, reachCells: 1, blockChance },
 })
 const armorItem = (id: string, slot: GearSlot | undefined, dodgeBonus = 0, defenseBonus = 3): Item => ({
   id,

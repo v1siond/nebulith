@@ -37,12 +37,14 @@ const sword = (over: Partial<Weapon> = {}): Weapon => ({
   intBonus: 0,
   school: 'physical',
   range: 'melee',
+  hands: 1,
+  reachCells: 1,
   ...over,
 })
 
 const bow = (over: Partial<Weapon> = {}): Weapon => ({
   id: 'w-bow',
-  kind: 'sword', // WeaponKind has no 'bow'; ranged physical modeled via range
+  kind: 'bow',
   name: 'Hunter Bow',
   baseDamage: 8,
   baseMagic: 0,
@@ -51,6 +53,8 @@ const bow = (over: Partial<Weapon> = {}): Weapon => ({
   intBonus: 0,
   school: 'physical',
   range: 'ranged',
+  hands: 2,
+  reachCells: 8,
   ...over,
 })
 
@@ -65,6 +69,8 @@ const staff = (over: Partial<Weapon> = {}): Weapon => ({
   intBonus: 4,
   school: 'magical',
   range: 'ranged',
+  hands: 2,
+  reachCells: 2,
   ...over,
 })
 

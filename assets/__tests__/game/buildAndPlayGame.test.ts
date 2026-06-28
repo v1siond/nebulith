@@ -82,7 +82,7 @@ function pickReachable(
 
 // A strong player + a sword, an under-leveled goblin (no dodge → deterministic combat).
 const PLAYER: Stats = { strength: 16, intelligence: 8, defense: 6, maxHp: 120, dodge: 0 }
-const SWORD: Weapon = { id: 'w', kind: 'sword', name: 'Sword', baseDamage: 18, baseMagic: 0, baseDefense: 0, strengthBonus: 4, intBonus: 0, school: 'physical', range: 'melee' }
+const SWORD: Weapon = { id: 'w', kind: 'sword', name: 'Sword', baseDamage: 18, baseMagic: 0, baseDefense: 0, strengthBonus: 4, intBonus: 0, school: 'physical', range: 'melee', hands: 1, reachCells: 1 }
 const REGULAR: Attack = { school: 'physical', range: 'melee', tier: 'regular' }
 const GOBLIN_STATS: Partial<Stats> = { maxHp: 24, defense: 0, dodge: 0, strength: 4, intelligence: 4 }
 
