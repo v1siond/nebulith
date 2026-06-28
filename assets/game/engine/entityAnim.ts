@@ -8,7 +8,8 @@ export function entityAnimState(opts: { moving: boolean; inRange: boolean; kind:
 
 // idle = static (constant index, no time advance). walk/combat = time-based swap.
 // Periods are the per-frame hold time; smaller = faster leg/arm swap.
-const STATE_MS: Record<EntityAnimState, number> = { idle: 0, walk: 300, combat: 280 }
+// walk frame-swap cadence ~matches the slower ENEMY_MOVE_MS cell step so legs sync to movement.
+const STATE_MS: Record<EntityAnimState, number> = { idle: 0, walk: 360, combat: 300 }
 
 export function entityFrameIndex(state: EntityAnimState, now: number, frameCount: number): number {
   if (frameCount <= 1) return 0

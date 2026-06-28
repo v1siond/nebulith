@@ -2636,7 +2636,7 @@ function FlowViewOverlay({
 
 // Enemies advance one patrol cell roughly every ENEMY_MOVE_MS (throttled, so
 // patrols read as steps, not a blur).
-const ENEMY_MOVE_MS = 220 // one patrol cell per this interval (~player speed at 16px cells)
+const ENEMY_MOVE_MS = 360 // one patrol cell per this interval — slower, deliberate monster pace
 
 /** Advance every patrolling enemy ONE cell along its movement pattern, treating
  *  walls, the player's cell, and other entities as blocked. Returns a NEW entities
@@ -2653,7 +2653,8 @@ const DEFAULT_ENEMY_PATROL: MovementPattern = {
     { dir: 'up', cells: 5 },
     { dir: 'down', cells: 5 },
   ],
-  delayMs: 0, // continuous patrol — no dead pause between runs (the old 1.2s wait was the choppiness)
+  delayMs: 1000, // realistic patrol: walk a 5-cell run, then PAUSE/idle ~1s, then turn and walk again
+                 // (smooth glide + idle-hold animation make this read as resting, not the old choppiness)
 }
 /** Stable empty list passed to the renderers when entities are hidden (avoids per-frame alloc). */
 const EMPTY_ENTITIES: Entity[] = []
@@ -7772,12 +7773,18 @@ function drawIsoPlayer(
   // The held weapon, drawn beside the figure at mid-height so equipped gear shows.
   ctx.textAlign = 'center'
   if (player.weaponGlyph) {
-    const handX = x + fontSize * 0.55
-    const handY = y - lineHeight - breathe
+    // Held weapon: bigger so a sword actually reads, on the facing-appropriate hand (left hand when
+    // facing left, right otherwise), at hand height beside the body.
+    const weaponSize = fontSize * 1.7
+    const onLeft = player.facing === 'left'
+    const handX = onLeft ? x - pHalf - weaponSize * 0.18 : x + pHalf + weaponSize * 0.18
+    const handY = y - lineHeight * 0.95 - breathe
+    ctx.font = `bold ${weaponSize}px ${ASCII_FONT}`
     ctx.fillStyle = '#000000'
     ctx.fillText(player.weaponGlyph, handX + 1, handY + 1)
-    ctx.fillStyle = '#e0e0e0'
+    ctx.fillStyle = '#e6e6e6'
     ctx.fillText(player.weaponGlyph, handX, handY)
+    ctx.font = `bold ${fontSize}px ${ASCII_FONT}` // restore for the shield draw below
   }
   // A shield on the off-hand (left side), when equipped.
   if (player.shieldGlyph) {
@@ -9553,6 +9560,58 @@ function renderTopView(
         ctx.textBaseline = 'top'
         ctx.fillText(`${col},${row}`, x + 1, y + 1)
       }
+    }
+  }
+
+  // ── BUILDING ROOFS (top-down): each building drawn as a cohesive roof seen from above (like a
+  //    neighborhood map) over its footprint — filled roof + edge + ridge line + a door notch on the
+  //    road-facing side. Overlays the per-cell building tiles for a clean blueprint look.
+  const ROOF_TOP_COLORS: Record<string, { fill: string; ridge: string; edge: string }> = {
+    house: { fill: '#c0463c', ridge: '#e0786a', edge: '#7a2a24' },
+    'big-house': { fill: '#b0673a', ridge: '#d08f5a', edge: '#6e3f22' },
+    store: { fill: '#3a7ea5', ridge: '#5fa6cc', edge: '#234e66' },
+    hospital: { fill: '#3aa55a', ridge: '#5fcc80', edge: '#23663a' },
+  }
+  const roofPalette = (t: string) => ROOF_TOP_COLORS[t] ?? { fill: '#a0644a', ridge: '#c08a6a', edge: '#5e3a2a' }
+  for (const b of grid.buildings ?? []) {
+    const topRow = b.row - (b.height - 1)
+    if (b.col + b.length <= startCol || b.col >= endCol || topRow + b.height <= startRow || topRow >= endRow) continue
+    const rx = offsetX + b.col * tileSize
+    const ry = offsetY + topRow * tileSize
+    const rw = b.length * tileSize
+    const rh = b.height * tileSize
+    const pal = roofPalette(b.type)
+    ctx.fillStyle = pal.fill
+    ctx.fillRect(rx, ry, rw, rh)
+    ctx.strokeStyle = pal.edge
+    ctx.lineWidth = Math.max(1, tileSize * 0.12)
+    ctx.strokeRect(rx + 0.5, ry + 0.5, rw - 1, rh - 1)
+    // ridge down the longer axis (gable read)
+    ctx.strokeStyle = pal.ridge
+    ctx.lineWidth = Math.max(1, tileSize * 0.16)
+    ctx.beginPath()
+    if (rw >= rh) {
+      const my = ry + rh / 2
+      ctx.moveTo(rx + tileSize * 0.25, my)
+      ctx.lineTo(rx + rw - tileSize * 0.25, my)
+    } else {
+      const mx = rx + rw / 2
+      ctx.moveTo(mx, ry + tileSize * 0.25)
+      ctx.lineTo(mx, ry + rh - tileSize * 0.25)
+    }
+    ctx.stroke()
+    // door notch (dark) on the road-facing edge: facing 0 = horizontal street, 1 = vertical road;
+    // facadeOnBack flips near/far so the notch sits toward the actual road.
+    const dn = Math.max(3, tileSize * 0.4)
+    ctx.fillStyle = '#241308'
+    if ((b.facing ?? 0) === 0) {
+      const dx = rx + rw / 2 - dn / 2
+      const dy = b.facadeOnBack ? ry - dn * 0.25 : ry + rh - dn * 0.75
+      ctx.fillRect(dx, dy, dn, dn * 0.5)
+    } else {
+      const dy = ry + rh / 2 - dn / 2
+      const dx = b.facadeOnBack ? rx - dn * 0.25 : rx + rw - dn * 0.75
+      ctx.fillRect(dx, dy, dn * 0.5, dn)
     }
   }
 

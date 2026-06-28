@@ -21,10 +21,12 @@ describe('entityFrameIndex', () => {
     const b = entityFrameIndex('idle', 5000, 2)
     expect(a).toBe(b)
   })
-  test('walk advances frames over time', () => {
-    const a = entityFrameIndex('walk', 0, 2)
-    const b = entityFrameIndex('walk', 1000, 2)
-    expect(a).not.toBe(b)
+  test('walk advances frames over time (period-robust: produces >1 distinct frame)', () => {
+    // Sample across time; a swapping walk must show BOTH frames regardless of the exact period
+    // (asserting a single hardcoded time is fragile — it can alias on the frame period).
+    const seen = new Set<number>()
+    for (let t = 0; t <= 4000; t += 60) seen.add(entityFrameIndex('walk', t, 2))
+    expect(seen.size).toBeGreaterThan(1)
   })
   test('frame index always within range', () => {
     for (const t of [0, 123, 999, 360, 720]) {
