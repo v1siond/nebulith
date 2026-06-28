@@ -108,10 +108,12 @@ export function composeBuilding(spec: BuildingSpec = {}): ComposedBuilding {
     cells.push(cellRow)
   }
 
-  // Windows on body rows above the door band, skipping the edges.
+  // Windows on body rows above the door band — placed in MIRRORED pairs around the centre so the
+  // facade reads symmetric (never bunched to one side), for any width.
   for (let row = ROOF_ROWS; row < height - doorHeight; row++) {
-    for (let col = 1; col < length - 1; col += 2) {
+    for (let col = 1; col < length / 2; col += 2) {
       cells[row][col] = 'window'
+      cells[row][length - 1 - col] = 'window' // mirror
     }
   }
 

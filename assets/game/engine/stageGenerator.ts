@@ -151,15 +151,17 @@ const makeTreeCell = (zone: ZoneId, col: number, row: number, label: CellLabel, 
 //    dark doors + glassy windows so those ornaments stand out. cellTile's zone tint stays on
 //    the glyph; the COLOR comes from here.
 interface BuildingPalette { roof: string; wall: string; door: string; window: string }
-const HOUSE_ROOFS = ['#b24a3a', '#8a5a36', '#6f7a86', '#3f7a55', '#a86a3a'] // red / brown / slate / green / ochre
+// DARK, solid roof tones (real shingle/tile colors) — deep red, dark brown, charcoal-slate, dark
+// green, dark maroon. The roof glyph is drawn a shade darker still so it reads on these.
+const HOUSE_ROOFS = ['#6e2820', '#523322', '#33383f', '#2f4233', '#5a2a30']
 // Real-house exterior wall colors (warm + muted, like painted siding) so a street has variety.
 const HOUSE_WALLS = ['#e6d6b0', '#b9c4a6', '#d0b596', '#aebfcc', '#d9b48c', '#c9c0b2', '#cf9f8f']
 const HOUSE_DOORS = ['#3a2414', '#2a1810', '#23303f', '#2e2a1a', '#402028'] // dark wood / navy / green-black — always darker than the wall
 const BUILDING_PALETTES: Readonly<Record<BuildingType, BuildingPalette>> = {
-  house: { roof: '#a83a2e', wall: '#d8c49a', door: '#241810', window: '#8fc4e6' },
-  'big-house': { roof: '#5a6e8c', wall: '#cfc6b4', door: '#1e2630', window: '#a8d4ee' }, // squarer "building", cool roof
-  store: { roof: '#2f6fb8', wall: '#e2dcc8', door: '#26414f', window: '#a8dcf2' }, // blue roof
-  hospital: { roof: '#3fa86a', wall: '#f0f0ea', door: '#2a3a2a', window: '#cfeede' }, // green roof, white walls
+  house: { roof: '#6e2820', wall: '#d8c49a', door: '#241810', window: '#8fc4e6' },
+  'big-house': { roof: '#3f4d63', wall: '#cfc6b4', door: '#1e2630', window: '#a8d4ee' }, // squarer "building", dark cool roof
+  store: { roof: '#235a96', wall: '#e2dcc8', door: '#26414f', window: '#a8dcf2' }, // dark blue roof
+  hospital: { roof: '#2f7e50', wall: '#f0f0ea', door: '#2a3a2a', window: '#cfeede' }, // dark green roof, white walls
   cathedral: { roof: '#7a5aa0', wall: '#d8d0c0', door: '#241828', window: '#c4a8ea' },
   temple: { roof: '#b08a3a', wall: '#d8cca0', door: '#33240f', window: '#ecc868' },
   castle: { roof: '#5f6068', wall: '#b6b2aa', door: '#15151a', window: '#9fb2cc' },
