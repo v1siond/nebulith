@@ -25,7 +25,7 @@ import { resolveAction, type Action as TriggerAction } from '@/engine/triggers'
 import { generateStage, stagePaint, StageData, VariantId, buildingCellColor } from '@/engine/stageGenerator'
 import { ZoneId, ZONE_PALETTES } from '@/engine/zones'
 import { cellTile } from '@/engine/cellTileset'
-import { rotateCells, type BuildingType } from '@/engine/buildingComposer'
+import { type BuildingType } from '@/engine/buildingComposer'
 import type { Facing } from '@/engine/villageLayout'
 import {
   buildingFootprintCells,
@@ -8598,11 +8598,6 @@ function draw2DBuildingTile(
  *  top) drawn upright over the small footprint's front edge. `centerX` is the footprint centre, `baseY`
  *  the bottom of the front row. The ground footprint stays width×depth (collision matches); only the
  *  drawn facade rises tall — the height/footprint decoupling, in 2D. */
-/** Per-facing CLOCKWISE quarter-turns for the facade so its DOOR (bottom edge of b.cells) lands on
- *  the building's ROAD-facing side — matching renderTopView's door-notch placement: south → door
- *  bottom, east → door right, north → door top, west → door left. */
-const FACING_ROTATIONS: Record<string, number> = { south: 0, west: 1, north: 2, east: 3 }
-
 function draw2DBuilding(
   ctx: CanvasRenderingContext2D,
   b: GridBuilding,
@@ -8612,8 +8607,12 @@ function draw2DBuilding(
   tileH: number,
   flicker: number,
 ): void {
-  // Orient the facade so its door faces the road (not always down), like the top-view door notch.
-  const cells = rotateCells(b.cells, FACING_ROTATIONS[gridBuildingFacing(b)] ?? 0)
+  // The 2D house stays UPRIGHT (roof on top). It shows its FRONT (door + windows) only when the door
+  // faces the viewer (south); otherwise it shows its BACK — a plain wall, no door — since a flat 2D
+  // elevation can't show a door that faces away. The door indicator (render2D) still marks the real
+  // entrance on those.
+  const showFront = gridBuildingFacing(b) === 'south'
+  const cells = b.cells
   const L = cells[0]?.length ?? b.length
   const H = cells.length
   // Houses vary per building (wall shade + dark door) via the shared color source so a 2D street
@@ -8627,8 +8626,10 @@ function draw2DBuilding(
   ctx.textBaseline = 'middle'
   for (let r = 0; r < H; r++) {
     for (let c = 0; c < L; c++) {
-      const kind = cells[r]?.[c]
-      if (!kind || kind === 'empty') continue
+      const raw = cells[r]?.[c]
+      if (!raw || raw === 'empty') continue
+      // Back of the house → render its door/window cells as plain wall (no door from behind).
+      const kind = !showFront && (raw === 'door' || raw === 'window') ? 'wall' : raw
       const x = centerX + (c - (L - 1) / 2) * tileW
       const cellTop = baseY - (H - r) * tileH // row r (0 = roof apex) stacks up from the front edge
       const isRoof = kind === 'roof'
