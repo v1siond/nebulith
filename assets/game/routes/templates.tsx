@@ -50,7 +50,7 @@ import { shouldFire, lampPulse } from '@/engine/behaviors'
 import { weaponAnimKind, animFrame, isAnimDone, ATTACK_ANIM_MS, type AttackAnim, type AttackAnimKind } from '@/engine/attackAnimations'
 import { entityArtFrame, weaponGlyph, entityPalette, topRoleColor } from '@/engine/entityArt'
 import { entityQuestMarker, type QuestMarker } from '@/engine/entityQuestMarker'
-import { isoFacingIndex, isoFacadeOnBack } from '@/engine/isoBuilding'
+import { isoFacingIndex, isoFacadeOnBack, buildingFadeAlpha } from '@/engine/isoBuilding'
 import { appendWaypoint, setMovementMode, clearWaypoints, buildStepList, addMovementStep, removeMovementStep, updateMovementStep, setStepDelay, makeAttackPattern, defaultAttackPattern } from '@/game/patterns'
 import type { Direction } from '@/game/types'
 import { useToast } from '@/components/Toast'
@@ -2142,13 +2142,14 @@ interface JumpState {
 const JUMP_MS = 380 // arc duration
 const JUMP_PEAK_PX = 26 // visual hop height at mid-arc
 
-/** Begin a jump (JUMP_CLEAR + 1) cells ahead IF the landing is walkable + in
- *  bounds. The arc clears whatever sits on the intervening cells (you're airborne);
- *  the loop animates it. No-op if already mid-jump. */
-function beginJump(player: PlayerState, grid: IsometricGrid, use2D: boolean, jump: JumpState, now: number): void {
+/** Begin a jump. A MOVING jump (a direction is held) arcs (JUMP_CLEAR + 1) cells ahead IF the
+ *  landing is walkable + in bounds, clearing whatever sits between (you're airborne). A STANDING
+ *  jump (`forward === false`) hops straight UP on the same cell — no forward step. The loop
+ *  animates the arc. No-op if already mid-jump. */
+function beginJump(player: PlayerState, grid: IsometricGrid, use2D: boolean, jump: JumpState, now: number, forward: boolean): void {
   if (jump.active) return
   const [dCol, dRow] = facingDelta(player.facing, use2D)
-  const dist = JUMP_CLEAR + 1
+  const dist = forward ? JUMP_CLEAR + 1 : 0 // standing jump = straight up, same cell
   const cs = grid.cellSize
   const col = Math.floor(player.x / cs) + dCol * dist
   const row = Math.floor(player.z / cs) + dRow * dist
@@ -5241,6 +5242,7 @@ export default function TemplateEditor() {
       row: b.row,
       length: b.length,
       height: b.height,
+      depth: b.depth,
       type: b.type,
       cells: b.facade.cells,
       // Orient the iso billboard by the planner's REAL road-derived facing (door toward the road):
@@ -6069,7 +6071,8 @@ export default function TemplateEditor() {
 
       // Jump trigger (edge): begin an arc if not already airborne.
       const jumpDown = !!keys[' ']
-      if (jumpDown && !jumpDownRef.current) beginJump(player, grid, use2DMovement, jump, time)
+      // Only carry the jump forward if a direction is actually held; otherwise hop in place.
+      if (jumpDown && !jumpDownRef.current) beginJump(player, grid, use2DMovement, jump, time, pressedFacing !== null)
       jumpDownRef.current = jumpDown
 
       // Entities block movement across their FULL footprint: NPCs + living enemies are
@@ -7616,10 +7619,14 @@ function render(
       const origin = toScreen(oC, oR)
       const lp = toScreen(oC + f.len[0], oR + f.len[1])
       const colVec = { x: lp.x - origin.x, y: lp.y - origin.y } // per-column step along the length axis
-      const dp = toScreen(oC + f.dep[0] * ISO_BUILDING_DEPTH, oR + f.dep[1] * ISO_BUILDING_DEPTH)
-      const depthVec = { x: dp.x - origin.x, y: dp.y - origin.y } // z-depth UP into the clear headroom
+      const dp = toScreen(oC + f.dep[0] * b.depth, oR + f.dep[1] * b.depth)
+      const depthVec = { x: dp.x - origin.x, y: dp.y - origin.y } // z-depth = the building's own GROUND depth
       const flicker = Math.sin(time * 0.003 + b.col * 0.5 + b.row * 0.7) * 0.15 + 1
+      // Fade the building when the player is near, so a back-facing door behind it is findable.
+      const fade = buildingFadeAlpha(pCol, pRow, b, BUILDING_FADE_RADIUS, BUILDING_MIN_ALPHA)
+      if (fade < 1) ctx.globalAlpha = fade
       drawIsoBuilding(ctx, b, origin, colVec, depthVec, tileW * 0.9, flicker)
+      if (fade < 1) ctx.globalAlpha = 1
     } else if (obj.asset) {
       const op = obj.asset.opacity ?? 1 // per-asset opacity for contrast/depth
       if (op < 1) ctx.globalAlpha = op
@@ -8169,8 +8176,64 @@ function draw2DBuildingTile(
   ctx.fillText(tile.text, cx, top + tileH * 0.5)
 }
 
-// How many cells deep the iso z-extrusion is — the single "z width" knob. Bump up/down to taste.
-const ISO_BUILDING_DEPTH = 2
+/** 2D FRONT ELEVATION of a building: its facade (b.cells — door-down, windows, peaked/flat roof on
+ *  top) drawn upright over the small footprint's front edge. `centerX` is the footprint centre, `baseY`
+ *  the bottom of the front row. The ground footprint stays width×depth (collision matches); only the
+ *  drawn facade rises tall — the height/footprint decoupling, in 2D. */
+function draw2DBuilding(
+  ctx: CanvasRenderingContext2D,
+  b: GridBuilding,
+  centerX: number,
+  baseY: number,
+  tileW: number,
+  tileH: number,
+  flicker: number,
+): void {
+  const cells = b.cells
+  const L = cells[0]?.length ?? b.length
+  const H = cells.length
+  const wallBg = 'rgba(180, 132, 65, 0.95)'
+  const wallDark = 'rgba(138, 98, 48, 0.95)'
+  const roofBg = 'rgba(200, 64, 64, 0.96)'
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  for (let r = 0; r < H; r++) {
+    for (let c = 0; c < L; c++) {
+      const kind = cells[r]?.[c]
+      if (!kind || kind === 'empty') continue
+      const x = centerX + (c - (L - 1) / 2) * tileW
+      const cellTop = baseY - (H - r) * tileH // row r (0 = roof apex) stacks up from the front edge
+      const isRoof = kind === 'roof'
+      const isDoor = kind === 'door'
+      const isWindow = kind === 'window'
+      ctx.fillStyle = isRoof ? roofBg : wallBg
+      ctx.fillRect(x - tileW * 0.5, cellTop, tileW, tileH)
+      // side-wall seams on the body (the "connected wall" look) — not on roof
+      if (!isRoof) {
+        ctx.fillStyle = wallDark
+        ctx.fillRect(x - tileW * 0.5 - 1, cellTop, 2, tileH)
+        ctx.fillRect(x + tileW * 0.5 - 1, cellTop, 2, tileH)
+      }
+      const fg = isRoof
+        ? `rgba(255, 100, 80, ${0.8 + 0.2 * flicker})`
+        : isDoor
+        ? '#3a2714'
+        : isWindow
+        ? `rgba(255, 220, 80, ${0.5 + 0.3 * flicker})`
+        : wallDark
+      const glyph = isRoof ? '/\\' : isDoor ? '==' : isWindow ? '[]' : '||'
+      ctx.font = `bold ${tileH * 0.7}px ${ASCII_FONT}`
+      ctx.fillStyle = fg
+      ctx.fillText(glyph, x, cellTop + tileH * 0.5)
+    }
+  }
+}
+
+// Diablo/PoE-style proximity fade: a building goes semi-transparent when the player is within
+// BUILDING_FADE_RADIUS cells, easing to BUILDING_MIN_ALPHA when standing on it, so an occluded
+// (back-facing) door is findable on approach.
+const BUILDING_FADE_RADIUS = 3.5
+const BUILDING_MIN_ALPHA = 0.35
 
 // ISO facing. Each building stands inside its plot RECT — cols [col, col+L] × the clear headroom
 // rows ABOVE the frontage (that whole rect is road-free, verified on the grid). A facing keeps
@@ -8646,22 +8709,38 @@ function render2D(
   }
 
   // ─── OBJECTS LAYER (sorted by row for depth) ─────────────────────
-  // Collect all drawable objects: assets + player
+  // Collect all drawable objects: assets + buildings + player
   const drawables: Array<{
     row: number
     col: number
-    type: 'asset' | 'player'
+    type: 'asset' | 'player' | 'building'
     asset?: GridAsset
+    building?: GridBuilding
   }> = []
 
-  // Add assets
+  // Buildings render as ONE front elevation (from grid.buildings) — collect their footprint cells
+  // so we SKIP the per-cell building assets (a roof from above), exactly like the iso view. Legacy
+  // █ buildings aren't grouped (grid.buildings empty), so they fall through and render per-cell.
+  const buildingFootprint2D = new Set<string>()
+  for (const b of grid.buildings ?? []) {
+    const top = b.row - (b.height - 1)
+    for (let r = 0; r < b.height; r++) for (let c = 0; c < b.length; c++) buildingFootprint2D.add(`${b.col + c},${top + r}`)
+  }
+
+  // Add assets (skip the per-cell building footprint cells — the elevation replaces them)
   const visibleAssets = grid.getVisibleAssets(
     Math.floor(camCol), Math.floor(camRow), tilesX, tilesY
   )
   const treeCells2D = new Set(grid.assets.filter(a => a.type === 'tree').map(a => `${a.col},${a.row}`))
   const isTreeCell2D = (c: number, r: number): boolean => treeCells2D.has(`${c},${r}`)
   for (const asset of visibleAssets) {
+    if (asset.type === 'building' && buildingFootprint2D.has(`${asset.col},${asset.row}`)) continue
     drawables.push({ row: asset.row, col: asset.col, type: 'asset', asset })
+  }
+
+  // Add buildings as front elevations, anchored at their front (bottom) row + footprint centre.
+  for (const b of grid.buildings ?? []) {
+    drawables.push({ row: b.row, col: b.col + b.length / 2, type: 'building', building: b })
   }
 
   // Add player
@@ -8708,6 +8787,13 @@ function render2D(
         ctx.fillStyle = '#9fd3ff'
         ctx.fillText(player.shieldGlyph, p.x - fontSize * 0.6, baseY - lineHeight * 1.2)
       }
+
+    } else if (obj.type === 'building' && obj.building) {
+      // ONE upright FRONT ELEVATION over the small footprint (door-down), raised from the building's
+      // facade — the same grid.buildings the iso reads, so 2D + iso + collision agree on one model.
+      const b = obj.building
+      const flicker = Math.sin(time * 0.003 + b.col * 0.5 + b.row * 0.7) * 0.15 + 1
+      draw2DBuilding(ctx, b, p.x, p.y + tileH * 0.5, tileW, tileH, flicker)
 
     } else if (obj.asset) {
       const asset = obj.asset

@@ -35,6 +35,9 @@ export interface ComposedBuilding {
   type: BuildingType
   length: number
   height: number
+  /** GROUND footprint depth — cells perpendicular to the facade (away from the road). Small and
+   *  roughly square-ish; DECOUPLED from `height` (the facade's vertical elevation, iso-only). */
+  depth: number
   /** Door rectangle in facade coords. y is the top row of the door. */
   door: { x: number; y: number; width: number; height: number }
   /** The single apex roof cell (top row, centered) — the ONE walkable roof tile
@@ -56,17 +59,20 @@ interface TypeSpec {
   baseLength: number
   floors: number
   doorWidth: number
+  /** GROUND depth — perpendicular footprint extent (away from the road). Small / square-ish,
+   *  NOT the facade height. House 3, big-house 4, store 4, hospital 4, cathedral/temple 5, castle 6. */
+  depth: number
 }
 
 // Per-type sizing (GENERATION-SPEC §2 — starting values, tune visually later).
 const TYPE_SPECS: Record<BuildingType, TypeSpec> = {
-  house: { baseLength: 4, floors: 1, doorWidth: 2 },
-  'big-house': { baseLength: 6, floors: 2, doorWidth: 2 },
-  store: { baseLength: 5, floors: 1, doorWidth: 2 },
-  hospital: { baseLength: 6, floors: 2, doorWidth: 2 },
-  cathedral: { baseLength: 7, floors: 3, doorWidth: 3 },
-  temple: { baseLength: 8, floors: 2, doorWidth: 3 },
-  castle: { baseLength: 12, floors: 3, doorWidth: 4 },
+  house: { baseLength: 4, floors: 1, doorWidth: 2, depth: 3 },
+  'big-house': { baseLength: 6, floors: 2, doorWidth: 2, depth: 4 },
+  store: { baseLength: 5, floors: 1, doorWidth: 2, depth: 4 },
+  hospital: { baseLength: 6, floors: 2, doorWidth: 2, depth: 4 },
+  cathedral: { baseLength: 7, floors: 3, doorWidth: 3, depth: 5 },
+  temple: { baseLength: 8, floors: 2, doorWidth: 3, depth: 5 },
+  castle: { baseLength: 12, floors: 3, doorWidth: 4, depth: 6 },
 }
 
 // Houses (and grand temples/cathedrals) get a PEAKED triangle roof; everything else a FLAT
@@ -122,6 +128,7 @@ export function composeBuilding(spec: BuildingSpec = {}): ComposedBuilding {
     type,
     length,
     height,
+    depth: ts.depth,
     door: { x: doorX, y: doorY, width: doorWidth, height: doorHeight },
     roofTop: { x: Math.floor(length / 2), y: 0 },
     cells,

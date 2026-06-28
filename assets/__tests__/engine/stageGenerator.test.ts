@@ -1,6 +1,15 @@
 import { generateStage, buildingCellColor } from '@/engine/stageGenerator'
-import { isWalkable } from '@/engine/cellLabels'
+import { composeBuilding } from '@/engine/buildingComposer'
 import { TREE_CANOPY_SHADES } from '@/engine/cellTileset'
+
+// The small GROUND footprint cells of a placed building: cols [col, col+length) × rows
+// [row-(height-1), row] (length = grid col-span, height = grid row-span — both small now).
+const footprintCells = (b: { col: number; row: number; length: number; height: number }) => {
+  const cells: { col: number; row: number }[] = []
+  const top = b.row - (b.height - 1)
+  for (let r = top; r <= b.row; r++) for (let c = b.col; c < b.col + b.length; c++) cells.push({ col: c, row: r })
+  return cells
+}
 
 describe('generateStage — lava/village vertical slice', () => {
   const stage = generateStage({ zone: 'autumn', variant: 'village' })
@@ -31,28 +40,29 @@ describe('generateStage — lava/village vertical slice', () => {
     }
   })
 
-  it('makes the building SOLID — doors block too, only the roof_top apex is walkable', () => {
+  it('blocks the whole small footprint EXCEPT the single walkable road-facing door', () => {
     for (const b of stage.buildings) {
-      for (const d of b.doorCells) {
-        expect(stage.collision[d.row][d.col]).toBe(true) // doors block now (solid like a tree)
-      }
-      // The whole oriented footprint is solid (walls/roof/doors block, only the apex roof_top is
-      // walkable) regardless of facing — so count blocked cells across the rect, not one row (a
-      // road-facing building's bottom row can be the roof side).
-      const top = b.row - (b.height - 1)
+      expect(b.doorCells).toHaveLength(1)
+      const door = b.doorCells[0]
+      expect(stage.collision[door.row][door.col]).toBe(false) // the door is the way in (walkable)
+
+      const cells = footprintCells(b)
       let blocked = 0
-      for (let r = top; r <= b.row; r++) {
-        for (let c = b.col; c < b.col + b.length; c++) if (stage.collision[r][c]) blocked++
+      let walkable = 0
+      for (const { col, row } of cells) {
+        if (stage.collision[row][col]) blocked++
+        else walkable++
       }
-      expect(blocked).toBeGreaterThan(b.facade.length) // multi-row solidity, not a single strip
+      expect(blocked).toBe(b.length * b.height - 1) // every footprint cell blocks…
+      expect(walkable).toBe(1) // …except the door
     }
   })
 
-  it('keeps building footprints disjoint and the spawn walkable', () => {
+  it('keeps the SMALL width×depth footprints disjoint and the spawn walkable', () => {
     const seen = new Set<string>()
     for (const b of stage.buildings) {
-      for (let i = 0; i < b.length; i++) {
-        const key = `${b.col + i},${b.row}`
+      for (const { col, row } of footprintCells(b)) {
+        const key = `${col},${row}`
         expect(seen.has(key)).toBe(false)
         seen.add(key)
       }
@@ -61,63 +71,67 @@ describe('generateStage — lava/village vertical slice', () => {
   })
 })
 
-describe('generateStage — multi-cell labeled buildings (the keystone)', () => {
-  // A building must occupy its FULL length×height block as labeled cells with
-  // per-label collision, exactly like trees. The apex roof tile + doors are the
-  // only walkable cells; walls, roof body, and windows all block.
+describe('generateStage — small-footprint labeled buildings (the shared collision blueprint)', () => {
+  // A building stamps only its small width×depth GROUND footprint as labeled cells — a roof from
+  // above plus ONE walkable door. The facade's vertical elevation is render-only (b.facade), never
+  // stamped flat on the ground (that was the old facade-as-footprint sprawl).
   const collectBuildingCells = (stage: ReturnType<typeof generateStage>) =>
     stage.props.filter(p => p.type === 'building')
 
-  it('emits a labeled building prop for the whole block (length×height worth of cells)', () => {
+  it('emits ONE labeled building prop per footprint cell (small width×depth, NOT facade-deep)', () => {
     const stage = generateStage({ zone: 'autumn', variant: 'village' })
     const cells = collectBuildingCells(stage)
     expect(cells.length).toBeGreaterThan(0)
     expect(cells.every(c => typeof c.label === 'string' && c.label!.length > 0)).toBe(true)
-    // a single building's facade is taller than one row → more than `length` cells
     for (const b of stage.buildings) {
       const own = cells.filter(
         c => c.col >= b.col && c.col < b.col + b.length && c.row <= b.row && c.row > b.row - b.height,
       )
-      expect(own.length).toBeGreaterThan(b.length) // multi-row, not a single footprint row
+      expect(own.length).toBe(b.length * b.height) // EXACTLY the footprint — no facade-deep overdraw
+      // and the perpendicular extent is the composer's small DEPTH, decoupled from the facade height
+      const depth = composeBuilding({ type: b.type, length: b.facade.length }).depth
+      const horizontal = b.facing === 'south' || b.facing === 'north'
+      expect(horizontal ? b.height : b.length).toBe(depth)
+      expect(depth).toBeLessThan(b.facade.height)
     }
   })
 
-  it('blocks every building cell EXCEPT the walkable roof_top + doors (collision matches isWalkable)', () => {
+  it('blocks every footprint cell EXCEPT the single walkable door', () => {
     const stage = generateStage({ zone: 'autumn', variant: 'village' })
     for (const c of collectBuildingCells(stage)) {
-      const walkable = isWalkable(c.label!)
+      const walkable = c.label === 'door'
       expect(c.blocking).toBe(!walkable)
       expect(stage.collision[c.row][c.col]).toBe(!walkable)
     }
   })
 
-  it('gives each building exactly ONE walkable roof_top apex', () => {
+  it('gives each building exactly ONE walkable door cell in its footprint', () => {
     const stage = generateStage({ zone: 'autumn', variant: 'village' })
     const cells = collectBuildingCells(stage)
     for (const b of stage.buildings) {
-      const roofTops = cells.filter(
+      const doors = cells.filter(
         c =>
-          c.label === 'roof_top' &&
+          c.label === 'door' &&
           c.col >= b.col &&
           c.col < b.col + b.length &&
           c.row <= b.row &&
           c.row > b.row - b.height,
       )
-      expect(roofTops).toHaveLength(1)
-      expect(roofTops[0].blocking).toBe(false)
-      expect(stage.collision[roofTops[0].row][roofTops[0].col]).toBe(false)
+      expect(doors).toHaveLength(1)
+      expect(doors[0].blocking).toBe(false)
+      expect(stage.collision[doors[0].row][doors[0].col]).toBe(false)
     }
   })
 
-  it('blocks doors AND walls across the full facade (solid building)', () => {
+  it('makes the temple footprint solid (roof blocks) with one walkable door', () => {
     const stage = generateStage({ zone: 'winter', variant: 'temple', cols: 36, rows: 30 })
     const cells = collectBuildingCells(stage)
     const doors = cells.filter(c => c.label === 'door')
-    const walls = cells.filter(c => c.label === 'wall')
+    const roof = cells.filter(c => c.label === 'roof')
     expect(doors.length).toBeGreaterThan(0)
-    expect(walls.length).toBeGreaterThan(0)
-    expect(doors.every(d => d.blocking === true && stage.collision[d.row][d.col] === true)).toBe(true)
-    expect(walls.every(w => w.blocking === true && stage.collision[w.row][w.col] === true)).toBe(true)
+    expect(roof.length).toBeGreaterThan(0)
+    expect(doors.every(d => d.blocking === false && stage.collision[d.row][d.col] === false)).toBe(true)
+    expect(roof.every(w => w.blocking === true && stage.collision[w.row][w.col] === true)).toBe(true)
   })
 })
 
@@ -657,30 +671,30 @@ describe('buildingCellColor — distinct per-type roofs + visible ornaments', ()
   })
 })
 
-describe('generateStage — building cells carry their TYPE (apex signage)', () => {
-  it('tags every building cell with buildingType; village apexes include store + hospital', () => {
+describe('generateStage — building cells carry their TYPE (top-view signage)', () => {
+  it('tags every footprint cell with buildingType; a village includes a store + hospital', () => {
     const stage = generateStage({ zone: 'summer', variant: 'village' })
     const buildingCells = stage.props.filter(p => p.type === 'building')
     expect(buildingCells.length).toBeGreaterThan(0)
     expect(buildingCells.every(c => typeof c.buildingType === 'string' && c.buildingType!.length > 0)).toBe(true)
-    const apexTypes = new Set(buildingCells.filter(c => c.label === 'roof_top').map(c => c.buildingType))
-    expect(apexTypes.has('store')).toBe(true) // village guarantees a store…
-    expect(apexTypes.has('hospital')).toBe(true) // …and a hospital
+    const types = new Set(buildingCells.map(c => c.buildingType))
+    expect(types.has('store')).toBe(true) // village guarantees a store…
+    expect(types.has('hospital')).toBe(true) // …and a hospital
   })
 })
 
-describe('generateStage — windows have "lights on"', () => {
-  it('lights some windows warm yellow while others stay glassy', () => {
-    let lit = 0, glass = 0
-    for (let i = 0; i < 8; i++) {
-      const stage = generateStage({ zone: 'summer', variant: 'village', cols: 50, rows: 40 })
-      for (const w of stage.props.filter(p => p.type === 'building' && p.label === 'window')) {
-        if (w.color === '#ffd34d') lit++
-        else glass++
-      }
-    }
-    expect(lit).toBeGreaterThan(0) // some windows are lit
-    expect(glass).toBeGreaterThan(0) // some windows are dark
+describe('generateStage — windows live in the facade (render-only), not on the ground', () => {
+  it('keeps windows in the building facade but NEVER stamps them as ground props', () => {
+    const stage = generateStage({ zone: 'summer', variant: 'village', cols: 50, rows: 40 })
+    expect(stage.buildings.length).toBeGreaterThan(0)
+    // the facade (used by the 2D/iso renders) still carries windows…
+    const hasFacadeWindows = stage.buildings.some(b => b.facade.cells.some(row => row.some(k => k === 'window')))
+    expect(hasFacadeWindows).toBe(true)
+    // …but the small ground footprint is roof + door only (no facade-flat window/wall sprawl)
+    const windowProps = stage.props.filter(p => p.type === 'building' && p.label === 'window')
+    expect(windowProps).toHaveLength(0)
+    const groundLabels = new Set(stage.props.filter(p => p.type === 'building').map(p => p.label))
+    expect([...groundLabels].sort()).toEqual(['door', 'roof'])
   })
 })
 
@@ -708,19 +722,15 @@ describe('generateStage — town & city scale up from village', () => {
   })
 })
 
-describe('generateStage — doors + windows are VISIBLE color indicators on the grid', () => {
+describe('generateStage — the door reads as a DARK marker on the grid', () => {
   const brightness = (hex: string) => {
     const n = parseInt(hex.slice(1), 16)
     return ((n >> 16) & 255) + ((n >> 8) & 255) + (n & 255)
   }
-  it('paints door cells DARK and window cells LIGHT (glass/lit)', () => {
+  it('paints the door footprint cell DARK so the entrance reads from above', () => {
     const stage = generateStage({ zone: 'summer', variant: 'village' })
-    const cells = stage.props.filter(p => p.type === 'building')
-    const doors = cells.filter(c => c.label === 'door')
-    const windows = cells.filter(c => c.label === 'window')
+    const doors = stage.props.filter(p => p.type === 'building' && p.label === 'door')
     expect(doors.length).toBeGreaterThan(0)
-    expect(windows.length).toBeGreaterThan(0)
     expect(doors.every(d => brightness(d.color) < 240)).toBe(true) // dark entrance
-    expect(windows.every(w => brightness(w.color) > 330)).toBe(true) // glass blue or lit yellow
   })
 })

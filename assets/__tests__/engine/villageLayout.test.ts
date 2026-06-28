@@ -10,12 +10,25 @@ function seededRng(seed: number): Rng {
   }
 }
 
-// The oriented footprint rect of a plot: south/north run length×height (cols×rows); east/west
-// run height×length (cols×rows). Mirrors villageLayout's `footprint`.
+// The oriented GROUND footprint rect of a plot: south/north run length×DEPTH (cols×rows); east/west
+// swap to depth×length. Mirrors villageLayout's `footprint` — DEPTH (small), not the facade height.
 function plotRect(p: Plot): { c0: number; r0: number; w: number; h: number } {
-  const H = composeBuilding({ type: p.type, length: p.length }).height
   const horizontal = p.facing === 'south' || p.facing === 'north'
-  return { c0: p.col, r0: p.row, w: horizontal ? p.length : H, h: horizontal ? H : p.length }
+  return { c0: p.col, r0: p.row, w: horizontal ? p.length : p.depth, h: horizontal ? p.depth : p.length }
+}
+
+// The door cell — centre of the footprint's ROAD-FACING edge (mirrors stageGenerator's doorCell).
+const STEP: Record<Plot['facing'], readonly [number, number]> = {
+  south: [0, 1], north: [0, -1], east: [1, 0], west: [-1, 0],
+}
+function doorOf(p: Plot): { col: number; row: number } {
+  const r = plotRect(p)
+  const midCol = r.c0 + Math.floor(r.w / 2)
+  const midRow = r.r0 + Math.floor(r.h / 2)
+  if (p.facing === 'south') return { col: midCol, row: r.r0 + r.h - 1 }
+  if (p.facing === 'north') return { col: midCol, row: r.r0 }
+  if (p.facing === 'east') return { col: r.c0 + r.w - 1, row: midRow }
+  return { col: r.c0, row: midRow }
 }
 
 // 4-neighbour flood fill over ROAD cells from a start — proves the streets are one network.
@@ -104,6 +117,34 @@ describe('villageLayout — planVillage', () => {
           seen.add(key)
         }
       }
+    }
+  })
+
+  it('SETS BACK each building, door facing the road (a road within setback+1 of the door edge)', () => {
+    for (const seed of [11, 12, 13, 14, 15]) {
+      const layout = planVillage(48, 36, seededRng(seed))
+      expect(layout.plots.length).toBeGreaterThan(0)
+      for (const p of layout.plots) {
+        const d = doorOf(p)
+        const [dc, dr] = STEP[p.facing]
+        // the door edge itself is OFF the road (set back), and a road sits within 2 cells on the
+        // facing side (a front-yard / driveway cell between the door and the street).
+        expect(layout.roads[d.row]?.[d.col]).toBe(false)
+        const roadNear =
+          layout.roads[d.row + dr]?.[d.col + dc] === true ||
+          layout.roads[d.row + 2 * dr]?.[d.col + 2 * dc] === true
+        expect(roadNear).toBe(true)
+      }
+    }
+  })
+
+  it('footprint DEPTH equals composeBuilding(type).depth — small ground, NOT facade height', () => {
+    const layout = planVillage(60, 44, seededRng(31))
+    expect(layout.plots.length).toBeGreaterThan(0)
+    for (const p of layout.plots) {
+      const composed = composeBuilding({ type: p.type, length: p.length })
+      expect(p.depth).toBe(composed.depth) // footprint depth is the composer's small ground depth…
+      expect(p.depth).toBeLessThan(composed.height) // …decoupled from (and smaller than) the facade elevation
     }
   })
 

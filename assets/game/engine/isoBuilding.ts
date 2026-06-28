@@ -25,3 +25,24 @@ export function isoFacingIndex(facing: Facing): number {
 export function isoFacadeOnBack(facing: Facing): boolean {
   return facing === 'north' || facing === 'west'
 }
+
+/**
+ * Diablo/PoE-style proximity fade: a building goes semi-transparent as the player approaches, so an
+ * occluded door/interior behind it becomes findable. Returns 1 (fully opaque) when the player is at
+ * or beyond `radius` cells from the building footprint, easing down to `minAlpha` when standing on
+ * it. `rect.row` is the footprint's bottom row, `rect.height` its row span.
+ */
+export function buildingFadeAlpha(
+  pCol: number,
+  pRow: number,
+  rect: { col: number; row: number; length: number; height: number },
+  radius: number,
+  minAlpha: number,
+): number {
+  const top = rect.row - (rect.height - 1)
+  const nearCol = Math.max(rect.col, Math.min(pCol, rect.col + rect.length - 1))
+  const nearRow = Math.max(top, Math.min(pRow, rect.row))
+  const dist = Math.hypot(pCol - nearCol, pRow - nearRow)
+  if (dist >= radius) return 1
+  return minAlpha + (1 - minAlpha) * (dist / radius)
+}

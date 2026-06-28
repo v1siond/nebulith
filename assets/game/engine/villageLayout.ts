@@ -25,7 +25,13 @@ export interface Plot {
   /** min-ROW of the footprint rectangle. */
   row: number
   type: BuildingType
+  /** Road-PARALLEL footprint width (the frontage span). */
   length: number
+  /** Ground footprint depth — perpendicular extent (away from the road). Small / square-ish,
+   *  DECOUPLED from `height`. The footprint is `length × depth`. */
+  depth: number
+  /** Facade vertical elevation (iso rise only; NOT the ground footprint). */
+  height: number
   facing: Facing
 }
 export interface Entrance {
@@ -72,6 +78,12 @@ const STREET_COUNT: Record<Settlement, number> = { village: 2, town: 2, city: 3 
 // MUST match buildingComposer TYPE_SPECS.baseLength so a plot reserves exactly the facade width.
 const BUILDING_LENGTH: Partial<Record<BuildingType, number>> = { house: 4, 'big-house': 6, store: 5, hospital: 6 }
 const lengthOf = (t: BuildingType): number => BUILDING_LENGTH[t] ?? 8
+
+// Realistic lot rules (subdivision design): a SETBACK (front-yard cells between the building and
+// the street) and a LOT_GAP (side-yard cells between neighbours). The door faces the road across
+// the setback; a driveway crosses it (stamped by the generator).
+const SETBACK = 1
+const LOT_GAP: [number, number] = [1, 2]
 
 // House footprints VARY (2 blocks min → up to 7); other types keep their fixed type width.
 const HOUSE_WIDTHS = [2, 3, 3, 4, 4, 5, 6, 7]
@@ -150,15 +162,16 @@ export function planRoads(cols: number, rows: number, rng: Rng, settlement: Sett
     connectors.push({ bc, top, bot })
   }
 
-  // Frontages: a line of doors one cell off each road, on BOTH sides, facing it.
+  // Frontages: a line of doors SET BACK from each road (a front-yard cell between the door edge
+  // and the street), on BOTH sides, facing it. A street occupies [sr, sr+1]; a connector [bc, bc+1].
   const frontages: Frontage[] = []
   for (const sr of streets) {
-    frontages.push({ axis: 'col', facing: 'south', doorLine: sr - 1, away: -1, lo: 1, hi: cols - 1 }) // above, faces down
-    frontages.push({ axis: 'col', facing: 'north', doorLine: sr + 2, away: 1, lo: 1, hi: cols - 1 }) // below, faces up
+    frontages.push({ axis: 'col', facing: 'south', doorLine: sr - 1 - SETBACK, away: -1, lo: 1, hi: cols - 1 }) // above, faces down
+    frontages.push({ axis: 'col', facing: 'north', doorLine: sr + 2 + SETBACK, away: 1, lo: 1, hi: cols - 1 }) // below, faces up
   }
   for (const { bc, top, bot } of connectors) {
-    frontages.push({ axis: 'row', facing: 'east', doorLine: bc - 1, away: -1, lo: top + 1, hi: bot }) // left, faces right
-    frontages.push({ axis: 'row', facing: 'west', doorLine: bc + 2, away: 1, lo: top + 1, hi: bot }) // right, faces left
+    frontages.push({ axis: 'row', facing: 'east', doorLine: bc - 1 - SETBACK, away: -1, lo: top + 1, hi: bot }) // left, faces right
+    frontages.push({ axis: 'row', facing: 'west', doorLine: bc + 2 + SETBACK, away: 1, lo: top + 1, hi: bot }) // right, faces left
   }
 
   return { roads, frontages, entrances }
@@ -171,16 +184,31 @@ interface Rect {
   h: number
 }
 
-/** The footprint rect for a building of `len` × `height` at position `pos` on frontage `f`. */
-function footprint(f: Frontage, pos: number, len: number, height: number): Rect {
+/** The GROUND footprint rect for a building of `len` (road-parallel) × `depth` (perpendicular) at
+ *  position `pos` on frontage `f`. Depth — NOT facade height — sets the away-from-road extent, so
+ *  collision + lots stay a small footprint while the facade rises tall only in the iso render. */
+function footprint(f: Frontage, pos: number, len: number, depth: number): Rect {
   if (f.axis === 'col') {
-    // beside a horizontal street: length runs along cols, height extrudes along rows.
-    const r0 = f.away < 0 ? f.doorLine - height + 1 : f.doorLine
-    return { c0: pos, r0, w: len, h: height }
+    // beside a horizontal street: length runs along cols, depth extrudes along rows.
+    const r0 = f.away < 0 ? f.doorLine - depth + 1 : f.doorLine
+    return { c0: pos, r0, w: len, h: depth }
   }
-  // beside a vertical road: length runs along rows, height extrudes along cols.
-  const c0 = f.away < 0 ? f.doorLine - height + 1 : f.doorLine
-  return { c0, r0: pos, w: height, h: len }
+  // beside a vertical road: length runs along rows, depth extrudes along cols.
+  const c0 = f.away < 0 ? f.doorLine - depth + 1 : f.doorLine
+  return { c0, r0: pos, w: depth, h: len }
+}
+
+/** The footprint expanded by the SETBACK toward the road — the front-yard the planner reserves so
+ *  no neighbour lands on the driveway/yard between this building and its street. */
+function clearanceRect(foot: Rect, f: Frontage): Rect {
+  if (f.axis === 'col') {
+    return f.away < 0
+      ? { ...foot, h: foot.h + SETBACK } // road below → reserve down toward it
+      : { ...foot, r0: foot.r0 - SETBACK, h: foot.h + SETBACK } // road above → reserve up
+  }
+  return f.away < 0
+    ? { ...foot, w: foot.w + SETBACK } // road right → reserve right
+    : { ...foot, c0: foot.c0 - SETBACK, w: foot.w + SETBACK } // road left → reserve left
 }
 
 /** True when the whole rect is in-bounds and free of roads / already-placed buildings. */
@@ -214,12 +242,15 @@ export function placePlots(roads: boolean[][], frontages: Frontage[], cols: numb
     const f = frontages[idx]
     const type = mix[mi]
     const len = plotWidth(type, rng)
-    const height = composeBuilding({ type, length: len }).height
+    const composed = composeBuilding({ type, length: len })
+    const depth = composed.depth
     let pos = cursors[idx]
     let rect: Rect | null = null
     while (pos + len <= f.hi) {
-      const cand = footprint(f, pos, len, height)
-      if (rectClear(cand, occ, cols, rows)) {
+      const cand = footprint(f, pos, len, depth)
+      // Reserve the footprint PLUS its setback yard (clearance) so a neighbour can't block the
+      // driveway, and the building always stands clear of the road behind its front yard.
+      if (rectClear(clearanceRect(cand, f), occ, cols, rows)) {
         rect = cand
         break
       }
@@ -229,11 +260,12 @@ export function placePlots(roads: boolean[][], frontages: Frontage[], cols: numb
       dead[idx] = true
       continue
     }
-    for (let r = rect.r0; r < rect.r0 + rect.h; r++) {
-      for (let c = rect.c0; c < rect.c0 + rect.w; c++) occ[r][c] = true
+    const reserved = clearanceRect(rect, f)
+    for (let r = reserved.r0; r < reserved.r0 + reserved.h; r++) {
+      for (let c = reserved.c0; c < reserved.c0 + reserved.w; c++) occ[r][c] = true
     }
-    plots.push({ col: rect.c0, row: rect.r0, type, length: len, facing: f.facing })
-    cursors[idx] = pos + len + randInt(rng, 1, 2)
+    plots.push({ col: rect.c0, row: rect.r0, type, length: len, depth, height: composed.height, facing: f.facing })
+    cursors[idx] = pos + len + randInt(rng, ...LOT_GAP)
     mi++
   }
   return plots

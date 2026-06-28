@@ -12,12 +12,11 @@ function seeded(seed: number): () => number {
   }
 }
 
-// The oriented footprint rect of a plot — south/north run length×height (cols×rows); east/west
-// swap to height×length. Mirrors villageLayout's `footprint`.
+// The oriented GROUND footprint rect of a plot — south/north run length×DEPTH (cols×rows); east/west
+// swap to depth×length. Mirrors villageLayout's `footprint` — the small ground depth, not the facade.
 function plotRect(p: Plot): { c0: number; r0: number; w: number; h: number } {
-  const H = composeBuilding({ type: p.type, length: p.length }).height
   const horizontal = p.facing === 'south' || p.facing === 'north'
-  return { c0: p.col, r0: p.row, w: horizontal ? p.length : H, h: horizontal ? H : p.length }
+  return { c0: p.col, r0: p.row, w: horizontal ? p.length : p.depth, h: horizontal ? p.depth : p.length }
 }
 
 const ORTHO: ReadonlyArray<readonly [number, number]> = [[1, 0], [-1, 0], [0, 1], [0, -1]]
@@ -58,8 +57,8 @@ describe('settlement building placement (consumer matches planner contract)', ()
         }
       }
 
-      // (b) The CONSUMER bug: stamping `height-1` rows too high lands building cells ON a road or
-      //     off their footprint. Assert every ACTUALLY-stamped building cell sits off the roads.
+      // (b) Every ACTUALLY-stamped building cell sits off the roads (the small footprint never
+      //     spills onto the street it fronts).
       const buildingCells = stage.props.filter(p => p.type === 'building')
       expect(buildingCells.length).toBeGreaterThan(0)
       for (const cell of buildingCells) {
@@ -69,10 +68,27 @@ describe('settlement building placement (consumer matches planner contract)', ()
         expect(cell.col).toBeLessThan(COLS)
         expect(layout.roads[cell.row][cell.col]).toBe(false)
       }
+
+      // (c) STRONGER: collision == the small width×depth footprint. Every footprint cell BLOCKS
+      //     except the single walkable door, and the footprint depth is the composer's small depth.
+      for (const b of stage.buildings) {
+        const depth = composeBuilding({ type: b.type, length: b.facade.length }).depth
+        const horizontal = b.facing === 'south' || b.facing === 'north'
+        expect(horizontal ? b.height : b.length).toBe(depth) // grid row/col-span perpendicular = depth
+        const top = b.row - (b.height - 1)
+        let blocked = 0
+        for (let r = top; r <= b.row; r++) {
+          for (let c = b.col; c < b.col + b.length; c++) if (stage.collision[r][c]) blocked++
+        }
+        expect(b.doorCells).toHaveLength(1)
+        const d = b.doorCells[0]
+        expect(stage.collision[d.row][d.col]).toBe(false) // door walkable
+        expect(blocked).toBe(b.length * b.height - 1) // every other footprint cell blocks
+      }
     })
   }
 
-  test('every building has at least one door cell adjacent to a road (all facings reach a street)', () => {
+  test('every building door faces a road within the setback (a road within 2 cells of the door)', () => {
     for (const settlement of ['village', 'town', 'city'] as const) {
       for (const seed of [12345, 777, 42]) {
         const { stage, layout } = genWithSeed(settlement, seed)
@@ -80,9 +96,12 @@ describe('settlement building placement (consumer matches planner contract)', ()
 
         expect(stage.buildings.length).toBeGreaterThan(0)
         for (const b of stage.buildings) {
-          expect(b.doorCells.length).toBeGreaterThan(0)
-          const reachable = b.doorCells.some(d => ORTHO.some(([dc, dr]) => isRoad(d.col + dc, d.row + dr)))
-          expect(reachable).toBe(true)
+          expect(b.doorCells).toHaveLength(1)
+          const d = b.doorCells[0]
+          // door is set back: a road is within 2 cells (the setback yard + the street), not on the door.
+          expect(isRoad(d.col, d.row)).toBe(false)
+          const near = ORTHO.some(([dc, dr]) => isRoad(d.col + dc, d.row + dr) || isRoad(d.col + 2 * dc, d.row + 2 * dr))
+          expect(near).toBe(true)
         }
       }
     }

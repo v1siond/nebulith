@@ -8,7 +8,7 @@
  * Pure logic (no rendering, no IsometricGrid mutation) so it is unit-testable
  * and reusable by the editor, the template mapper, and the eventual AI generator.
  */
-import { composeBuilding, ComposedBuilding, BuildingType, facadeLabel } from './buildingComposer'
+import { composeBuilding, ComposedBuilding, BuildingType } from './buildingComposer'
 import { planVillage, type VillageLayout, type Settlement, type Plot, type Facing } from './villageLayout'
 import { ZONE_PALETTES, ZoneId } from './zones'
 import { autotileLabel, isWalkable, TREE_MASS_FAMILY, type CellLabel } from './cellLabels'
@@ -44,8 +44,13 @@ export interface PlacedBuilding {
   type: BuildingType
   col: number
   row: number
+  /** Footprint GRID col-span (= road-parallel length for south/north, = depth for east/west). */
   length: number
+  /** Footprint GRID row-span (= depth for south/north, = road-parallel length for east/west). */
   height: number
+  /** Logical GROUND depth (perpendicular to the facade) — drives the iso box z-extrusion and is
+   *  DECOUPLED from the facade's vertical elevation (`facade.height`). */
+  depth: number
   /** The planner's road-derived facing — the iso render orients the billboard by this. */
   facing: Facing
   doorCells: { col: number; row: number }[]
@@ -169,10 +174,6 @@ export function buildingCellColor(type: BuildingType, label: CellLabel, anchorSe
   if (label === 'window') return pal.window
   return pal.wall
 }
-
-// A fraction of windows glow warm yellow — "lights on" — the rest stay glassy.
-const LIT_WINDOW = '#ffd34d'
-const LIT_WINDOW_CHANCE = 0.4
 
 const makeBuildingCell = (zone: ZoneId, col: number, row: number, label: CellLabel, color?: string): StageProp => {
   const cell = makeLabeledCell(zone, col, row, label, 'building')
@@ -432,13 +433,13 @@ function placeSettlement(ctx: ArchetypeContext, settlement: Settlement): void {
     }
   }
   // 2. Stamp a building at each plot — each carries its TYPE + FACING. plot.row/plot.col are the
-  //    MIN-ROW/MIN-COL (top-left) of the oriented footprint rect; placeFacade fills that rect with
-  //    the facade oriented so its door faces the road (no ground-row recompute).
+  //    MIN-ROW/MIN-COL (top-left) of the small `length × depth` footprint rect; placeBuilding blocks
+  //    every footprint cell (a roof from above) EXCEPT the road-facing door cell (walkable).
   for (const plot of layout.plots) {
     const facade = composeBuilding({ type: plot.type, length: plot.length })
-    const rect = footprintRect(plot, facade.height)
+    const rect = footprintRect(plot)
     if (!rectInBounds(rect, cols, rows)) continue // planner's rectClear guarantees this; stay safe
-    buildings.push(placeFacade(ctx, facade, plot, rect))
+    buildings.push(placeBuilding(ctx, facade, plot, rect))
   }
   // 3. Plaza (well/fountain) + lamps; trees fill the rest, scaled by settlement (cities sparser).
   villageDecor(ctx, layout)
@@ -522,82 +523,70 @@ interface FootRect {
   h: number
 }
 
-/** The oriented footprint rect for a plot: south/north run length×height (cols×rows); east/west
- *  swap to height×length. `plot.col`/`plot.row` are the rect's top-left. Mirrors villageLayout's
- *  `footprint`, so the stamp lands exactly on the road-free plot the planner reserved. */
-function footprintRect(plot: Plot, height: number): FootRect {
+/** The oriented GROUND footprint rect for a plot: south/north run length×depth (cols×rows); east/west
+ *  swap to depth×length. `plot.col`/`plot.row` are the rect's top-left. Mirrors villageLayout's
+ *  `footprint`, so the stamp lands exactly on the small road-free plot the planner reserved. */
+function footprintRect(plot: Plot): FootRect {
   const horizontal = plot.facing === 'south' || plot.facing === 'north'
-  return { col: plot.col, row: plot.row, w: horizontal ? plot.length : height, h: horizontal ? height : plot.length }
+  return { col: plot.col, row: plot.row, w: horizontal ? plot.length : plot.depth, h: horizontal ? plot.depth : plot.length }
 }
 
 const rectInBounds = (rect: FootRect, cols: number, rows: number): boolean =>
   rect.col >= 0 && rect.row >= 0 && rect.col + rect.w <= cols && rect.row + rect.h <= rows
 
-/**
- * Map a facade-local cell (`c` along the length, `r` along the height — r=0 is the roof apex row,
- * r=height-1 is the ground/door row) to its grid cell inside the footprint rect, ORIENTED so the
- * facade's door edge faces the road for this plot's facing:
- *   south → as-authored (roof up, door down toward the street below)
- *   north → flipped vertically (door up toward the street above)
- *   east  → rotated so the door edge is the rect's RIGHT col (road on the right)
- *   west  → rotated so the door edge is the rect's LEFT col (road on the left)
- */
-function orientFacadeCell(facing: Facing, rect: FootRect, c: number, r: number, height: number): Cell {
-  if (facing === 'south') return { col: rect.col + c, row: rect.row + r }
-  if (facing === 'north') return { col: rect.col + c, row: rect.row + (height - 1 - r) }
-  if (facing === 'east') return { col: rect.col + r, row: rect.row + c }
-  return { col: rect.col + (height - 1 - r), row: rect.row + c } // west
+/** The single DOOR cell — the centre of the footprint's ROAD-FACING edge (walkable; the building's
+ *  one way in). Every other footprint cell blocks. Mirrors villageLayout's door geometry. */
+function doorCell(facing: Facing, rect: FootRect): Cell {
+  const midCol = rect.col + Math.floor(rect.w / 2)
+  const midRow = rect.row + Math.floor(rect.h / 2)
+  if (facing === 'south') return { col: midCol, row: rect.row + rect.h - 1 } // road below → bottom edge
+  if (facing === 'north') return { col: midCol, row: rect.row } // road above → top edge
+  if (facing === 'east') return { col: rect.col + rect.w - 1, row: midRow } // road right → right edge
+  return { col: rect.col, row: midRow } // west: road left → left edge
 }
 
 /**
- * Stamp a building's FULL facade as labeled cells (the keystone), mirroring how trees are stamped.
- * The facade fills the plot's oriented footprint `rect`, rotated/flipped by `plot.facing` so its
- * DOOR faces the road (2D authoring view shows the front toward its street; iso re-orients by its
- * own facing). Each facade cell becomes a labeled building prop (char + color + label) and sets
- * collision per its label via isWalkable — so the apex `roof_top` and the doors are walkable while
- * walls, roof body, and windows block. `empty` facade cells are skipped.
+ * Stamp a building's small GROUND FOOTPRINT (`rect`, width × depth): every cell BLOCKS (collision
+ * true) and emits a building prop — a roof from above — EXCEPT the single road-facing DOOR cell,
+ * which stays WALKABLE (collision false). This is the shared collision blueprint all three views
+ * read: walls/roof block, the door is the way in. The facade's vertical elevation is NOT stamped on
+ * the ground anymore — the iso/2D renders raise it from `facade` over this footprint.
  */
-function placeFacade(
+function placeBuilding(
   ctx: ArchetypeContext,
   facade: ComposedBuilding,
   plot: Plot,
   rect: FootRect,
 ): PlacedBuilding {
-  const doorCells: Cell[] = []
-  for (let r = 0; r < facade.height; r++) {
-    for (let c = 0; c < facade.length; c++) {
-      const cell = orientFacadeCell(plot.facing, rect, c, r, facade.height)
-      stampFacadeCell(ctx, facade, cell.col, cell.row, c, r, doorCells, rect.col)
+  const door = doorCell(plot.facing, rect)
+  for (let row = rect.row; row < rect.row + rect.h; row++) {
+    for (let col = rect.col; col < rect.col + rect.w; col++) {
+      stampFootprintCell(ctx, plot.type, col, row, col === door.col && row === door.row, rect.col)
     }
   }
-  // `row` = the rect's BOTTOM row + `length`/`height` = the rect's span (cols×rows), so the
-  // nature/plaza math and the iso per-cell skip read the real footprint regardless of facing.
-  return { type: plot.type, col: rect.col, row: rect.row + rect.h - 1, length: rect.w, height: rect.h, facing: plot.facing, doorCells, facade }
+  // `row` = the rect's BOTTOM row; `length`/`height` = the rect's grid span (cols×rows), so the
+  // nature math + the iso/2D per-cell skip read the real small footprint regardless of facing.
+  return { type: plot.type, col: rect.col, row: rect.row + rect.h - 1, length: rect.w, height: rect.h, depth: plot.depth, facing: plot.facing, doorCells: [door], facade }
 }
 
-/** Emit one labeled building cell from facade-local (c, r) at grid (gridCol,
- *  gridRow) and set its collision; collect walkable door cells. Skips `empty`. */
-function stampFacadeCell(
+/** Emit one footprint building cell at (col,row) and set its collision: the door is walkable, every
+ *  other cell blocks (a roof from above). The label drives the top-view glyph; collision is set
+ *  explicitly here (the door is a deliberate walkable exception, unlike isWalkable's defaults). */
+function stampFootprintCell(
   ctx: ArchetypeContext,
-  facade: ComposedBuilding,
-  gridCol: number,
-  gridRow: number,
-  c: number,
-  r: number,
-  doorCells: Cell[],
+  type: BuildingType,
+  col: number,
+  row: number,
+  isDoor: boolean,
   anchorCol: number,
 ): void {
   const { props, collision, zone, cols, rows } = ctx
-  if (!inBounds(gridCol, gridRow, cols, rows)) return
-  const label = facadeLabel(facade, c, r)
-  if (label === null) return // empty facade cell → no prop, no collision change
-  let color = buildingCellColor(facade.type, label, anchorCol)
-  // Per-window "lights on": ~40% of windows glow warm yellow (varied by cell position).
-  if (label === 'window' && shadeNoise(gridCol * 1.7 + gridRow * 2.3) < LIT_WINDOW_CHANCE) color = LIT_WINDOW
-  const cell = makeBuildingCell(zone, gridCol, gridRow, label, color)
-  props.push({ ...cell, buildingType: facade.type })
-  collision[gridRow][gridCol] = !isWalkable(label)
-  if (label === 'door') doorCells.push({ col: gridCol, row: gridRow })
+  if (!inBounds(col, row, cols, rows)) return
+  const label: CellLabel = isDoor ? 'door' : 'roof'
+  const color = buildingCellColor(type, label, anchorCol)
+  const cell = makeBuildingCell(zone, col, row, label, color)
+  props.push({ ...cell, blocking: !isDoor, buildingType: type })
+  collision[row][col] = !isDoor
 }
 
 // ── forest archetype (≈ Viridian Forest, per docs/ALGORITHMS.md): a fully-
@@ -1316,14 +1305,15 @@ function placeTemple(ctx: ArchetypeContext): void {
   const facade = composeBuilding({ type: 'temple' })
   if (facade.length + 4 > cols) return // grid too small for a temple
   const col = Math.floor((cols - facade.length) / 2)
-  // Anchor on the ground row; clamp so the facade (rising upward) clears the top
-  // edge and the paved approach below still fits. South-facing: door down toward the
-  // hall, so the footprint top-left sits height-1 rows above the ground row.
-  const row = clamp(Math.floor(rows * 0.4), facade.height, rows - 4)
-  const plot: Plot = { col, row: row - (facade.height - 1), type: 'temple', length: facade.length, facing: 'south' }
-  buildings.push(placeFacade(ctx, facade, plot, footprintRect(plot, facade.height)))
+  // Anchor on the ground row; clamp so the small footprint clears the top edge and the paved
+  // approach below still fits. South-facing: door down toward the hall, so the footprint top-left
+  // sits depth-1 rows above the ground (door) row.
+  const row = clamp(Math.floor(rows * 0.4), facade.depth, rows - 4)
+  const plot: Plot = { col, row: row - (facade.depth - 1), type: 'temple', length: facade.length, depth: facade.depth, height: facade.height, facing: 'south' }
+  const placed = placeBuilding(ctx, facade, plot, footprintRect(plot))
+  buildings.push(placed)
 
-  const doorCol = col + Math.floor(facade.length / 2)
+  const doorCol = placed.doorCells[0]?.col ?? col + Math.floor(facade.length / 2)
   templeHall(ctx, doorCol, row + 1, facade.length)
   scatterGroundCover(ctx, 0.15) // light litter over the grounds around the hall (skips marble)
 }
@@ -1613,18 +1603,24 @@ export function stagePaint(stage: StageData): StagePaint {
   return { ground, assets }
 }
 
-/** A building's ground plot: a stone plaza under its WHOLE footprint rect (so no grass shows
- *  through the facade's gaps), with path_stone under every doorway cell. The structure ITSELF is
- *  drawn per-cell from the labeled building props (stage.props → assets) — one glyph per facade
- *  cell — the same multi-cell model trees use, so no single placeholder block here. */
+// Step from a building's door toward the road it faces (across the setback front-yard).
+const FACING_STEP: Readonly<Record<Facing, readonly [number, number]>> = {
+  south: [0, 1],
+  north: [0, -1],
+  east: [1, 0],
+  west: [-1, 0],
+}
+
+/** A building's ground: a DRIVEWAY (path_stone) crossing the setback yard from the door to its
+ *  street. NO plaza is painted under the footprint anymore — the small footprint is fully covered
+ *  by its own building cells (a roof from above), and the surrounding yard stays the natural ground
+ *  (grass). This kills the old facade-height-deep plaza sprawl. */
 function paintBuildingGround(b: PlacedBuilding, ground: StagePaint['ground']): void {
-  const doors = new Set(b.doorCells.map(d => `${d.col},${d.row}`))
-  const top = b.row - (b.height - 1)
-  for (let row = top; row <= b.row; row++) {
-    for (let col = b.col; col < b.col + b.length; col++) {
-      ground.push({ col, row, type: doors.has(`${col},${row}`) ? 'path_stone' : 'plaza' })
-    }
-  }
+  const door = b.doorCells[0]
+  if (!door) return
+  const [dc, dr] = FACING_STEP[b.facing]
+  // The setback yard cell between the door and the road, paved as the driveway.
+  ground.push({ col: door.col + dc, row: door.row + dr, type: 'path_stone' })
 }
 
 export interface StageTemplatePayload {

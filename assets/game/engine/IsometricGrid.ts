@@ -42,8 +42,9 @@ export interface GridConfig {
 export interface GridBuilding {
   col: number          // anchor (left) column
   row: number          // ground (front, bottom) row
-  length: number       // cells wide
-  height: number       // cells tall (facade rows: 2 roof on top + body)
+  length: number       // footprint GRID col-span
+  height: number       // footprint GRID row-span (NOT the facade elevation — see cells)
+  depth: number        // logical GROUND depth (perpendicular to the facade) — iso box z-extrusion
   type: string
   cells: string[][]    // facade kind grid [row][col]: 'roof' | 'wall' | 'window' | 'door' | 'empty'
   facing?: number      // ISO-only facing index (which iso axis the facade runs along); 2D is always front
