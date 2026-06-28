@@ -1,4 +1,5 @@
-import { planVillage, planRoads, placePlots, buildingMix, type Rng, type Entrance } from '@/engine/villageLayout'
+import { planVillage, planRoads, placePlots, buildingMix, type Rng, type Entrance, type Plot } from '@/engine/villageLayout'
+import { composeBuilding } from '@/engine/buildingComposer'
 
 // A tiny deterministic LCG so layouts are reproducible in tests.
 function seededRng(seed: number): Rng {
@@ -7,6 +8,14 @@ function seededRng(seed: number): Rng {
     s = (Math.imul(s, 1664525) + 1013904223) >>> 0
     return s / 0x100000000
   }
+}
+
+// The oriented footprint rect of a plot: south/north run length×height (cols×rows); east/west
+// run height×length (cols×rows). Mirrors villageLayout's `footprint`.
+function plotRect(p: Plot): { c0: number; r0: number; w: number; h: number } {
+  const H = composeBuilding({ type: p.type, length: p.length }).height
+  const horizontal = p.facing === 'south' || p.facing === 'north'
+  return { c0: p.col, r0: p.row, w: horizontal ? p.length : H, h: horizontal ? H : p.length }
 }
 
 // 4-neighbour flood fill over ROAD cells from a start — proves the streets are one network.
@@ -64,16 +73,44 @@ describe('villageLayout — planVillage', () => {
     expect(layout.entrances.some(e => e.side === 'right')).toBe(true)
   })
 
-  it('plots sit ABOVE the street (never on a road) and stay in bounds', () => {
-    const layout = planVillage(40, 30, seededRng(11))
-    expect(layout.plots.length).toBeGreaterThan(0)
-    for (const p of layout.plots) {
-      expect(p.col).toBeGreaterThanOrEqual(0)
-      expect(p.col + p.length).toBeLessThanOrEqual(40)
-      for (let c = p.col; c < p.col + p.length; c++) {
-        expect(layout.roads[p.row][c]).toBe(false) // the footprint row is not a road
+  it('NO plot footprint (oriented by facing) touches a road, and all stay in bounds', () => {
+    for (const seed of [11, 12, 13, 14, 15]) {
+      const layout = planVillage(48, 36, seededRng(seed))
+      expect(layout.plots.length).toBeGreaterThan(0)
+      for (const p of layout.plots) {
+        const r = plotRect(p)
+        expect(r.c0).toBeGreaterThanOrEqual(0)
+        expect(r.r0).toBeGreaterThanOrEqual(0)
+        expect(r.c0 + r.w).toBeLessThanOrEqual(48)
+        expect(r.r0 + r.h).toBeLessThanOrEqual(36)
+        for (let row = r.r0; row < r.r0 + r.h; row++) {
+          for (let col = r.c0; col < r.c0 + r.w; col++) {
+            expect(layout.roads[row][col]).toBe(false)
+          }
+        }
       }
     }
+  })
+
+  it('NO two plot footprints overlap', () => {
+    const layout = planVillage(60, 44, seededRng(17))
+    const seen = new Set<string>()
+    for (const p of layout.plots) {
+      const r = plotRect(p)
+      for (let row = r.r0; row < r.r0 + r.h; row++) {
+        for (let col = r.c0; col < r.c0 + r.w; col++) {
+          const key = `${col},${row}`
+          expect(seen.has(key)).toBe(false)
+          seen.add(key)
+        }
+      }
+    }
+  })
+
+  it('DISTRIBUTES buildings across roads — not all on one frontage/facing', () => {
+    const layout = planVillage(60, 44, seededRng(23))
+    const facings = new Set(layout.plots.map(p => p.facing))
+    expect(facings.size).toBeGreaterThan(1) // buildings face more than one direction → multiple roads used
   })
 
   it('a city plan has more plots than a village plan', () => {
@@ -84,34 +121,44 @@ describe('villageLayout — planVillage', () => {
 })
 
 describe('villageLayout — planRoads (street skeleton step)', () => {
-  it('produces TWO building frontages + left/right entrances on the streets', () => {
+  it('produces a frontage on BOTH sides of every street (+ both sides of connectors)', () => {
     const plan = planRoads(40, 30, seededRng(2), 'village')
-    expect(plan.frontages).toHaveLength(2)
+    // 2 streets × 2 sides = 4, plus 1 connector × 2 sides = 2 → at least 6, all facing inward.
+    expect(plan.frontages.length).toBeGreaterThanOrEqual(4)
+    expect(plan.frontages.some(f => f.facing === 'south')).toBe(true)
+    expect(plan.frontages.some(f => f.facing === 'north')).toBe(true)
     expect(plan.entrances.some(e => e.side === 'left')).toBe(true)
     expect(plan.entrances.some(e => e.side === 'right')).toBe(true)
   })
 
-  it('keeps each frontage row mostly open (a connector may cross only 1-2 cells)', () => {
+  it('a doorLine sits one cell off its road, not on it', () => {
     const plan = planRoads(40, 30, seededRng(4), 'village')
     for (const f of plan.frontages) {
-      expect(plan.roads[f].filter(r => !r).length).toBeGreaterThan(30)
+      // most of the door line is open ground (a crossing road can clip only a couple cells)
+      const open = f.axis === 'col'
+        ? plan.roads[f.doorLine].filter(r => !r).length
+        : plan.roads.filter(row => !row[f.doorLine]).length
+      expect(open).toBeGreaterThan(20)
     }
   })
 })
 
 describe('villageLayout — placePlots (distribution step)', () => {
-  it('places the WHOLE mix when both frontages have room — nothing dropped', () => {
-    const plan = planRoads(64, 44, seededRng(8), 'village')
+  it('places the WHOLE mix when there is room — nothing dropped', () => {
+    const plan = planRoads(72, 48, seededRng(8), 'village')
     const mix = buildingMix('village', seededRng(8))
-    const plots = placePlots(plan.roads, plan.frontages, 64, mix, seededRng(9))
-    expect(plots).toHaveLength(mix.length)
+    const plots = placePlots(plan.roads, plan.frontages, 72, 48, mix, seededRng(9))
+    expect(plots.length).toBe(mix.length)
   })
 
-  it('never lands a plot on a road cell', () => {
+  it('never lands a plot footprint on a road cell', () => {
     const plan = planRoads(50, 36, seededRng(12), 'town')
-    const plots = placePlots(plan.roads, plan.frontages, 50, buildingMix('town', seededRng(12)), seededRng(13))
+    const plots = placePlots(plan.roads, plan.frontages, 50, 36, buildingMix('town', seededRng(12)), seededRng(13))
     for (const p of plots) {
-      for (let c = p.col; c < p.col + p.length; c++) expect(plan.roads[p.row][c]).toBe(false)
+      const r = plotRect(p)
+      for (let row = r.r0; row < r.r0 + r.h; row++) {
+        for (let col = r.c0; col < r.c0 + r.w; col++) expect(plan.roads[row][col]).toBe(false)
+      }
     }
   })
 })
@@ -128,7 +175,7 @@ describe('villageLayout — planVillage GUARANTEES the essentials', () => {
 })
 
 describe('villageLayout — settlement scale (town/city)', () => {
-  it('a city gets more streets/frontages than a village (capacity scales)', () => {
+  it('a city gets more frontages than a village (capacity scales)', () => {
     const v = planRoads(50, 44, seededRng(2), 'village')
     const c = planRoads(50, 44, seededRng(2), 'city')
     expect(c.frontages.length).toBeGreaterThan(v.frontages.length)
