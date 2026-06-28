@@ -18,6 +18,7 @@ import {
   DEFAULT_NPC_STATS,
 } from '@/game/entities'
 import type { Entity } from '@/game/types'
+import { RESPAWN_MS_BY_RARITY, respawnMsForRarity } from '@/game/types'
 
 /** A collision predicate that blocks a fixed set of "col,row" cells. */
 function blockedCells(...cells: Array<[number, number]>) {
@@ -59,8 +60,25 @@ describe('entity factories', () => {
   })
 
   it('makeEnemy carries an optional respawnMs so kill-quests stay farmable', () => {
-    expect(makeEnemy('e1', 0, 0, 'goblin').respawnMs).toBe(DEFAULT_RESPAWN_MS) // defaults to ~45s
+    expect(makeEnemy('e1', 0, 0, 'goblin').respawnMs).toBe(DEFAULT_RESPAWN_MS) // defaults to the common rarity (~20s)
     expect(makeEnemy('e1', 0, 0, 'goblin', { respawnMs: 30_000 }).respawnMs).toBe(30_000)
+  })
+
+  it('makeEnemy takes its respawn from rarity when no explicit respawnMs is given', () => {
+    const elite = makeEnemy('e1', 0, 0, 'dragon', { rarity: 'elite' })
+    expect(elite.rarity).toBe('elite')
+    expect(elite.respawnMs).toBe(RESPAWN_MS_BY_RARITY.elite) // 120s — rares take longer to return
+
+    const rare = makeEnemy('e2', 0, 0, 'troll', { rarity: 'rare' })
+    expect(rare.respawnMs).toBe(RESPAWN_MS_BY_RARITY.rare)
+
+    // an explicit respawnMs always wins over the rarity default
+    expect(makeEnemy('e3', 0, 0, 'goblin', { rarity: 'elite', respawnMs: 1_000 }).respawnMs).toBe(1_000)
+  })
+
+  it('makeEnemy with no rarity defaults to the common respawn', () => {
+    const e = makeEnemy('e1', 0, 0, 'goblin')
+    expect(e.respawnMs).toBe(RESPAWN_MS_BY_RARITY.common)
   })
 
   it('makeEnemy can override stats and name', () => {
@@ -203,6 +221,30 @@ describe('respawn timing — pure, time passed in', () => {
   it('a non-respawning enemy (no/zero respawn delay) never respawns', () => {
     expect(isRespawned(diedAt, undefined, Number.MAX_SAFE_INTEGER)).toBe(false)
     expect(isRespawned(diedAt, 0, Number.MAX_SAFE_INTEGER)).toBe(false)
+  })
+})
+
+describe('rarity → respawn timing', () => {
+  it('respawn time grows with rarity (regulars come back fastest)', () => {
+    const { common, uncommon, rare, elite } = RESPAWN_MS_BY_RARITY
+    expect(common).toBeLessThan(uncommon)
+    expect(uncommon).toBeLessThan(rare)
+    expect(rare).toBeLessThan(elite)
+    // regulars in the ~15–30s range
+    expect(common).toBeGreaterThanOrEqual(15_000)
+    expect(common).toBeLessThanOrEqual(30_000)
+  })
+
+  it('respawnMsForRarity maps each rarity to its delay', () => {
+    expect(respawnMsForRarity('common')).toBe(RESPAWN_MS_BY_RARITY.common)
+    expect(respawnMsForRarity('uncommon')).toBe(RESPAWN_MS_BY_RARITY.uncommon)
+    expect(respawnMsForRarity('rare')).toBe(RESPAWN_MS_BY_RARITY.rare)
+    expect(respawnMsForRarity('elite')).toBe(RESPAWN_MS_BY_RARITY.elite)
+  })
+
+  it('respawnMsForRarity defaults to common when no rarity is given', () => {
+    expect(respawnMsForRarity()).toBe(RESPAWN_MS_BY_RARITY.common)
+    expect(respawnMsForRarity(undefined)).toBe(RESPAWN_MS_BY_RARITY.common)
   })
 })
 

@@ -168,6 +168,24 @@ export interface AttackPattern {
   cooldownMs: number
 }
 
+// ── rarity & respawn ────────────────────────────────────────────────
+/** Enemy rarity tier. Rarer enemies are slower to respawn, so they stay scarce. */
+export type Rarity = 'common' | 'uncommon' | 'rare' | 'elite'
+
+/** Respawn delay (ms) per rarity: regulars come back in ~20s, elites take minutes.
+ *  Single source of truth shared by the factories, the spawner, and the play loop. */
+export const RESPAWN_MS_BY_RARITY: Record<Rarity, number> = {
+  common: 20_000,
+  uncommon: 35_000,
+  rare: 60_000,
+  elite: 120_000,
+}
+
+/** The respawn delay for a rarity, defaulting to 'common' when none is given. */
+export function respawnMsForRarity(rarity?: Rarity): number {
+  return RESPAWN_MS_BY_RARITY[rarity ?? 'common']
+}
+
 // ── entities ────────────────────────────────────────────────────────
 export type EntityKind = 'player' | 'enemy' | 'npc'
 export interface Entity {
@@ -183,6 +201,8 @@ export interface Entity {
   questId?: string
   /** enemy type tag used by 'kill' objectives. */
   enemyType?: string
+  /** enemy rarity tier; drives respawn timing (see RESPAWN_MS_BY_RARITY). */
+  rarity?: Rarity
   /** patrol path; the play loop advances it each movement tick. */
   movement?: MovementPattern
   /** retaliation pattern (enemies): melee/ranged + cooldown. Omitted = engine default. */

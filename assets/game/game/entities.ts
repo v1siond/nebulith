@@ -7,7 +7,8 @@
  * unit-testable. Lists are treated as immutable — mutating helpers return a NEW
  * list. The game loop / editor own the stateful orchestration around these rules.
  */
-import type { Entity, EntityKind, Stats } from '@/game/types'
+import type { Entity, EntityKind, Stats, Rarity } from '@/game/types'
+import { RESPAWN_MS_BY_RARITY, respawnMsForRarity } from '@/game/types'
 import { entityFootprint } from '@/engine/entityArt'
 
 // ── default stats ───────────────────────────────────────────────────
@@ -54,19 +55,22 @@ export function makePlayer(id: string, col: number, row: number, name?: string):
 
 export interface MakeEnemyOptions {
   name?: string
-  /** Respawn delay (ms) after death; omit/0 = does not respawn. */
+  /** Respawn delay (ms) after death; omit = derive from rarity, 0 = does not respawn. */
   respawnMs?: number
+  /** Rarity tier; sets the default respawnMs (rarer = slower to come back). Default 'common'. */
+  rarity?: Rarity
   /** Partial stat overrides merged over the enemy defaults (e.g. bosses). */
   stats?: Partial<Stats>
 }
 
-/** Default respawn delay for enemies (~45s, in the 30s–1m range) so kill-quests stay
+/** Default respawn delay for a regular (common) enemy (~20s) so kill-quests stay
  *  farmable out of the box. Set respawnMs to 0 for a permanent (non-respawning) enemy. */
-export const DEFAULT_RESPAWN_MS = 45_000
+export const DEFAULT_RESPAWN_MS = RESPAWN_MS_BY_RARITY.common
 
 /**
  * Create an enemy of a given `enemyType` (the tag 'kill' objectives count).
- * respawnMs defaults to DEFAULT_RESPAWN_MS so dropped enemies respawn; pass 0 for permanent.
+ * respawnMs defaults to the rarity's delay (common when unset) so dropped enemies
+ * respawn; pass an explicit respawnMs to override, or 0 for a permanent enemy.
  */
 export function makeEnemy(
   id: string,
@@ -82,7 +86,8 @@ export function makeEnemy(
     row,
     name: options.name,
     enemyType,
-    respawnMs: options.respawnMs ?? DEFAULT_RESPAWN_MS,
+    rarity: options.rarity,
+    respawnMs: options.respawnMs ?? respawnMsForRarity(options.rarity),
     baseStats: { ...DEFAULT_ENEMY_STATS, ...options.stats },
   }
 }
