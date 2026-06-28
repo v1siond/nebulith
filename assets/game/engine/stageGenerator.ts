@@ -416,7 +416,7 @@ export function generateStage(opts: GenerateOptions): StageData {
 // ── settlement archetype ─────────────────────────────────────────────
 // Nature density by settlement — a town is leafy (lots of trees around the lots); a city is mostly
 // paved. Towns lean green here per design.
-const NATURE_MULT: Record<Settlement, number> = { town: 0.55, city: 0.3 }
+const NATURE_MULT: Record<Settlement, number> = { town: 0.8, city: 0.3 }
 
 // Hoisted function decls (not const arrows) so ARCHETYPES above can reference them.
 function placeTown(ctx: ArchetypeContext): void {
