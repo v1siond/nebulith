@@ -37,17 +37,22 @@ describe('composeBuilding — Nebulith building architecture spec', () => {
     expect(b.roofTop).toEqual({ x: 1, y: 0 })
   })
 
-  it('places a 2×2 door at the bottom, within the facade', () => {
-    const b = composeBuilding({ type: 'house', floors: 1 })
-    expect(b.door.width).toBe(2)
-    expect(b.door.height).toBe(2)
-    const bottom = b.height - 1
-    // door occupies the bottom two rows at door.x..door.x+1
-    expect(b.cells[bottom][b.door.x]).toBe('door')
-    expect(b.cells[bottom][b.door.x + 1]).toBe('door')
-    expect(b.cells[bottom - 1][b.door.x]).toBe('door')
-    expect(b.door.x).toBeGreaterThan(0)
-    expect(b.door.x + b.door.width).toBeLessThanOrEqual(b.length)
+  it('plants a SINGLE-cell, 2-tall door at the bottom centre — it matches the 1-cell entrance', () => {
+    // house/store/hospital/big-house now use a 1-wide door so the drawn facade door lines up
+    // exactly with the 1-cell walkable doorCell + driveway the stage generator carves.
+    for (const type of ['house', 'store', 'hospital', 'big-house'] as BuildingType[]) {
+      const b = composeBuilding({ type, floors: 1 })
+      expect(b.door.width).toBe(1) // ONE cell wide → same footprint as the entrance
+      expect(b.door.height).toBe(2) // still a 2-tall doorway, not a window
+      // the door column is the facade CENTRE — the exact column stageGenerator's doorCell uses
+      // (floor(length/2), centre of the road-facing edge), so door + entrance + driveway align.
+      expect(b.door.x).toBe(Math.floor(b.length / 2))
+      const bottom = b.height - 1
+      expect(b.cells[bottom][b.door.x]).toBe('door') // ground row of the door
+      expect(b.cells[bottom - 1][b.door.x]).toBe('door') // second (top) row of the door
+      expect(b.door.x).toBeGreaterThan(0) // a wall column survives to the left
+      expect(b.door.x + b.door.width).toBeLessThanOrEqual(b.length)
+    }
   })
 
   it('roofs the top row (flat store) and walls the body (corners are walls, not door)', () => {

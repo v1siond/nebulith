@@ -53,7 +53,8 @@ const MIN_BODY_ROWS = 3
 const ROOF_ROWS = 2 // two roof rows so a peaked (triangle) roof reads vs a flat (squared) one
 const MIN_HEIGHT = MIN_BODY_ROWS + ROOF_ROWS // 5
 const FLOOR_BODY = 3 // body cells added per floor
-const MIN_DOOR = 2
+const MIN_DOOR_WIDTH = 1 // a door may be a single cell — it must MATCH the 1-cell walkable entrance
+const DOOR_HEIGHT = 2 // doors stay 2 cells tall (a doorway, not a window) regardless of width
 
 interface TypeSpec {
   baseLength: number
@@ -65,11 +66,14 @@ interface TypeSpec {
 }
 
 // Per-type sizing (GENERATION-SPEC §2 — starting values, tune visually later).
+// House/store/hospital/big-house get a SINGLE-cell door so the drawn facade door lines up
+// exactly with the 1-cell walkable entrance + path_stone driveway (see doorX below). Grand
+// structures (cathedral/temple/castle) keep a wide ceremonial doorway.
 const TYPE_SPECS: Record<BuildingType, TypeSpec> = {
-  house: { baseLength: 4, floors: 1, doorWidth: 2, depth: 3 },
-  'big-house': { baseLength: 6, floors: 2, doorWidth: 2, depth: 4 },
-  store: { baseLength: 5, floors: 1, doorWidth: 2, depth: 4 },
-  hospital: { baseLength: 6, floors: 2, doorWidth: 2, depth: 4 },
+  house: { baseLength: 4, floors: 1, doorWidth: 1, depth: 3 },
+  'big-house': { baseLength: 6, floors: 2, doorWidth: 1, depth: 4 },
+  store: { baseLength: 5, floors: 1, doorWidth: 1, depth: 4 },
+  hospital: { baseLength: 6, floors: 2, doorWidth: 1, depth: 4 },
   cathedral: { baseLength: 7, floors: 3, doorWidth: 3, depth: 5 },
   temple: { baseLength: 8, floors: 2, doorWidth: 3, depth: 5 },
   castle: { baseLength: 12, floors: 3, doorWidth: 4, depth: 6 },
@@ -93,8 +97,8 @@ export function composeBuilding(spec: BuildingSpec = {}): ComposedBuilding {
   const floors = Math.max(1, Math.floor(spec.floors ?? ts.floors))
   const length = Math.max(MIN_LENGTH, spec.length ?? ts.baseLength)
   const height = Math.max(MIN_HEIGHT, floors * FLOOR_BODY + ROOF_ROWS)
-  const doorWidth = Math.min(Math.max(MIN_DOOR, ts.doorWidth), Math.max(1, length - 1)) // ≥1 wall column
-  const doorHeight = MIN_DOOR
+  const doorWidth = Math.min(Math.max(MIN_DOOR_WIDTH, ts.doorWidth), Math.max(1, length - 1)) // ≥1 wall column
+  const doorHeight = DOOR_HEIGHT
 
   // Roof rows (peaked → narrowing triangle, flat → full-width squared) then the wall body.
   const apexX = Math.floor(length / 2)
@@ -117,8 +121,12 @@ export function composeBuilding(spec: BuildingSpec = {}): ComposedBuilding {
     }
   }
 
-  // Door: doorWidth x doorHeight, centered, planted at the bottom.
-  const doorX = Math.max(1, Math.floor((length - doorWidth) / 2))
+  // Door: doorWidth x doorHeight, planted at the bottom. A single-cell door is centered on
+  // floor(length/2) — the SAME column the stage generator's walkable doorCell + driveway sit on
+  // (the centre of the road-facing edge), so the drawn door matches the entrance for any length
+  // (incl. even widths, where floor((length-1)/2) would be off by one). Wider ceremonial doors
+  // stay band-centered.
+  const doorX = doorWidth === 1 ? Math.floor(length / 2) : Math.max(1, Math.floor((length - doorWidth) / 2))
   const doorY = height - doorHeight
   for (let row = doorY; row < height; row++) {
     for (let col = doorX; col < doorX + doorWidth; col++) {
