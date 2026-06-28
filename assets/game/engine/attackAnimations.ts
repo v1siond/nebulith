@@ -78,8 +78,12 @@ export function animFrame(anim: AttackAnim, now: number): AnimFrame | null {
   const p = animProgress(anim, now)
   const frames = FRAMES[anim.kind]
   const char = frames[Math.min(frames.length - 1, Math.floor(p * frames.length))]
-  // A shot flies along its path; melee/magic/block sit on the target cell.
-  const x = anim.kind === 'shot' ? lerp(anim.fromX, anim.toX, p) : anim.toX
-  const z = anim.kind === 'shot' ? lerp(anim.fromZ, anim.toZ, p) : anim.toZ
+  // A shot flies along its path; a SLASH swings in the attacker's HAND, reaching a little toward
+  // the target (so the sword arcs from the player, not a stick floating on the enemy cell); magic
+  // and block land on the target cell.
+  const SLASH_REACH = 0.3
+  const t = anim.kind === 'shot' ? p : anim.kind === 'slash' ? SLASH_REACH : 1
+  const x = lerp(anim.fromX, anim.toX, t)
+  const z = lerp(anim.fromZ, anim.toZ, t)
   return { char, x, z, color: COLORS[anim.kind] }
 }

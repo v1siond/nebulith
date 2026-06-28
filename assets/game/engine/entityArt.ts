@@ -192,8 +192,8 @@ export function weaponGlyph(weapon?: { kind?: string; range?: string } | null): 
     case 'shield':
       return 'O' // boss
     case 'sword':
-      return '/' // a blade
+      return '†' // upright blade + crossguard, reads as a sword (not a plain slash)
     default:
-      return '/'
+      return '†'
   }
 }

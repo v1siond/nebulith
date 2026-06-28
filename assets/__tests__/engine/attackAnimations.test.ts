@@ -52,12 +52,19 @@ describe('attackAnimations — frames', () => {
     expect(f!.color).toMatch(/^#/)
     expect(animFrame(a, 1300)).toBeNull()
   })
-  it('a shot travels from→to; a slash stays on the target', () => {
+  it('a shot travels from→to; a slash swings in the attacker hand reaching toward the target', () => {
     const shot = anim({ kind: 'shot', fromX: 0, toX: 100, fromZ: 0, toZ: 0, start: 0, durationMs: 100 })
     expect(animFrame(shot, 0)!.x).toBeCloseTo(0)
     expect(animFrame(shot, 50)!.x).toBeCloseTo(50)
+    // A slash stays near the attacker (fromX) — only a small reach toward the target, NOT pinned
+    // on the enemy cell (that was the "stick floating 1 cell away" bug).
     const slash = anim({ kind: 'slash', fromX: 0, toX: 100, start: 0, durationMs: 100 })
-    expect(animFrame(slash, 50)!.x).toBeCloseTo(100) // pinned to the target
+    const sx = animFrame(slash, 50)!.x
+    expect(sx).toBeGreaterThan(0)
+    expect(sx).toBeLessThan(50) // closer to the attacker than to the target
+    // Magic/block still land on the target cell.
+    const bolt = anim({ kind: 'lightning', fromX: 0, toX: 100, start: 0, durationMs: 100 })
+    expect(animFrame(bolt, 50)!.x).toBeCloseTo(100)
   })
   it('advances through its frame sequence over time', () => {
     const a = anim({ kind: 'lightning', start: 0, durationMs: 100 })
