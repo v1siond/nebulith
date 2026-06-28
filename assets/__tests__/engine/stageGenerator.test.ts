@@ -20,11 +20,13 @@ describe('generateStage — lava/village vertical slice', () => {
     expect(stage.ground.flat().filter(t => t === 'path_stone').length).toBeGreaterThan(0)
   })
 
-  it('places at least one legal building (>=2 long, >=5 tall, with a door)', () => {
+  it('places at least one legal building (facade >=2 long, >=5 tall, with a door)', () => {
     expect(stage.buildings.length).toBeGreaterThan(0)
     for (const b of stage.buildings) {
-      expect(b.length).toBeGreaterThanOrEqual(2) // houses scale down to 2-wide cottages
-      expect(b.height).toBeGreaterThanOrEqual(5) // 3 body + 2 roof minimum
+      // Legality is a property of the FACADE; col/row/length/height now describe the oriented
+      // footprint rect (length/height SWAP for east/west-facing buildings), so assert b.facade.
+      expect(b.facade.length).toBeGreaterThanOrEqual(2) // houses scale down to 2-wide cottages
+      expect(b.facade.height).toBeGreaterThanOrEqual(5) // 3 body + 2 roof minimum
       expect(b.doorCells.length).toBeGreaterThan(0)
     }
   })
@@ -34,8 +36,15 @@ describe('generateStage — lava/village vertical slice', () => {
       for (const d of b.doorCells) {
         expect(stage.collision[d.row][d.col]).toBe(true) // doors block now (solid like a tree)
       }
-      const blocked = stage.collision[b.row].slice(b.col, b.col + b.length).filter(Boolean)
-      expect(blocked.length).toBeGreaterThan(0)
+      // The whole oriented footprint is solid (walls/roof/doors block, only the apex roof_top is
+      // walkable) regardless of facing — so count blocked cells across the rect, not one row (a
+      // road-facing building's bottom row can be the roof side).
+      const top = b.row - (b.height - 1)
+      let blocked = 0
+      for (let r = top; r <= b.row; r++) {
+        for (let c = b.col; c < b.col + b.length; c++) if (stage.collision[r][c]) blocked++
+      }
+      expect(blocked).toBeGreaterThan(b.facade.length) // multi-row solidity, not a single strip
     }
   })
 
