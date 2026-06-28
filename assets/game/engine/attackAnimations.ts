@@ -17,6 +17,9 @@ export interface AttackAnim {
   toZ: number
   start: number
   durationMs: number
+  /** The attacker's weapon glyph — a slash swings THIS (the actual sword) in-hand, instead of a
+   *  generic floating stroke. Optional: falls back to the kind's default frame glyph. */
+  glyph?: string
 }
 
 export const ATTACK_ANIM_MS: Record<AttackAnimKind, number> = {
@@ -36,7 +39,7 @@ const FRAMES: Record<AttackAnimKind, string[]> = {
 }
 
 const COLORS: Record<AttackAnimKind, string> = {
-  slash: '#ffe28a',
+  slash: '#e6ebf3', // steel blade glint (the swung weapon), not a yellow stick
   shot: '#cfd8e3',
   lightning: '#7ad7ff',
   block: '#9effa0',
@@ -68,6 +71,9 @@ export interface AnimFrame {
   x: number
   z: number
   color: string
+  /** Radians to rotate the glyph by (slash only) — the renderer spins the blade through the swing
+   *  arc at the hand. Undefined → draw upright (shot/lightning/block). */
+  angle?: number
 }
 
 const lerp = (a: number, b: number, t: number): number => a + (b - a) * t
@@ -77,13 +83,18 @@ export function animFrame(anim: AttackAnim, now: number): AnimFrame | null {
   if (isAnimDone(anim, now)) return null
   const p = animProgress(anim, now)
   const frames = FRAMES[anim.kind]
-  const char = frames[Math.min(frames.length - 1, Math.floor(p * frames.length))]
-  // A shot flies along its path; a SLASH swings in the attacker's HAND, reaching a little toward
-  // the target (so the sword arcs from the player, not a stick floating on the enemy cell); magic
-  // and block land on the target cell.
+  const isSlash = anim.kind === 'slash'
+  // A slash swings the ATTACKER'S WEAPON (its glyph) if we have it; otherwise the generic arc stroke.
+  const char = isSlash && anim.glyph ? anim.glyph : frames[Math.min(frames.length - 1, Math.floor(p * frames.length))]
+  // A shot flies along its path; a SLASH stays in the attacker's HAND (reaches only a little toward
+  // the target) so the sword arcs from the player, not a stick floating on the enemy cell; magic +
+  // block land on the target cell.
   const SLASH_REACH = 0.3
-  const t = anim.kind === 'shot' ? p : anim.kind === 'slash' ? SLASH_REACH : 1
+  const t = anim.kind === 'shot' ? p : isSlash ? SLASH_REACH : 1
   const x = lerp(anim.fromX, anim.toX, t)
   const z = lerp(anim.fromZ, anim.toZ, t)
-  return { char, x, z, color: COLORS[anim.kind] }
+  // The blade sweeps raised-back → follow-through, mirrored toward whichever side the target is on.
+  const dir = anim.toX >= anim.fromX ? 1 : -1
+  const angle = isSlash ? dir * lerp(-1.15, 0.95, p) : undefined
+  return { char, x, z, color: COLORS[anim.kind], angle }
 }

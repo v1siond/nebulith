@@ -783,10 +783,10 @@ function prunePlayerStartedMarkers(markers: HitMarker[], now: number): void {
 function spawnAttackAnim(
   anims: AttackAnim[] | undefined,
   fromX: number, fromZ: number, toX: number, toZ: number,
-  kind: AttackAnimKind, now: number,
+  kind: AttackAnimKind, now: number, glyph?: string,
 ): void {
   if (!anims) return
-  anims.push({ kind, fromX, fromZ, toX, toZ, start: now, durationMs: ATTACK_ANIM_MS[kind] })
+  anims.push({ kind, fromX, fromZ, toX, toZ, start: now, durationMs: ATTACK_ANIM_MS[kind], glyph })
 }
 
 /** ms a projectile spends travelling per cell — slow enough that an enemy can step off
@@ -853,7 +853,7 @@ function applyPlayerAttack(input: CombatStepInput, kills: string[]): CombatState
   }
 
   // ALWAYS show the swing — even a whiff. Shared spawn → same for every attacker.
-  spawnAttackAnim(input.anims, player.x, player.z, aimCol * cellSize + cellSize / 2, aimRow * cellSize + cellSize / 2, animKind, now)
+  spawnAttackAnim(input.anims, player.x, player.z, aimCol * cellSize + cellSize / 2, aimRow * cellSize + cellSize / 2, animKind, now, player.weaponGlyph)
   return nextState
 }
 
@@ -8134,7 +8134,16 @@ function render(
       if (!f) continue
       const sp = toScreen(f.x / cellSize, f.z / cellSize)
       ctx.fillStyle = f.color
-      ctx.fillText(f.char, sp.x, sp.y - tileH)
+      if (f.angle != null) {
+        // SLASH: swing the blade through its arc AT the attacker's hand (not a stick floating off the cell)
+        ctx.save()
+        ctx.translate(sp.x, sp.y - tileH * 1.25)
+        ctx.rotate(f.angle)
+        ctx.fillText(f.char, 0, 0)
+        ctx.restore()
+      } else {
+        ctx.fillText(f.char, sp.x, sp.y - tileH)
+      }
     }
   }
 
@@ -8267,10 +8276,16 @@ function drawIsoPlayer(
     const handX = onLeft ? x - pHalf - weaponSize * 0.18 : x + pHalf + weaponSize * 0.18
     const handY = y - lineHeight * 0.95 - breathe
     ctx.font = `bold ${weaponSize}px ${ASCII_FONT}`
+    ctx.textBaseline = 'middle'
+    // Held blade points UP (ready stance), not hanging down — rotate the glyph 180° at the hand.
+    ctx.save()
+    ctx.translate(handX, handY)
+    ctx.rotate(Math.PI)
     ctx.fillStyle = '#000000'
-    ctx.fillText(player.weaponGlyph, handX + 1, handY + 1)
+    ctx.fillText(player.weaponGlyph, 1, 1)
     ctx.fillStyle = '#e6e6e6'
-    ctx.fillText(player.weaponGlyph, handX, handY)
+    ctx.fillText(player.weaponGlyph, 0, 0)
+    ctx.restore()
     ctx.font = `bold ${fontSize}px ${ASCII_FONT}` // restore for the shield draw below
   }
   // A shield on the off-hand (left side), when equipped.
