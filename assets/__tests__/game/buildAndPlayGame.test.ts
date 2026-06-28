@@ -111,8 +111,7 @@ describe('Nebulith — build a multi-room game with the system, then play it end
     const grid = deserializeToGrid(src)
     const [gate] = pickReachable(grid, { col: src.spawnCol, row: src.spawnRow }, 1)
     src.connectors.push({
-      col: gate.col,
-      row: gate.row,
+      cells: [{ col: gate.col, row: gate.row }],
       targetTemplateId: dst.id,
       targetTemplateName: dst.name,
       interaction: 'walk',
@@ -166,9 +165,11 @@ describe('Nebulith — build a multi-room game with the system, then play it end
       const grid = deserializeToGrid(t)
       const fromSpawn = reachable(grid, { col: t.spawnCol, row: t.spawnRow })
       for (const c of t.connectors) {
-        // the gate the player walks into is reachable from where they spawn
-        expect(grid.isBlocked(c.col, c.row)).toBe(false)
-        expect(fromSpawn.has(`${c.col},${c.row}`)).toBe(true)
+        // every gate cell the player walks into is reachable from where they spawn
+        for (const cell of c.cells) {
+          expect(grid.isBlocked(cell.col, cell.row)).toBe(false)
+          expect(fromSpawn.has(`${cell.col},${cell.row}`)).toBe(true)
+        }
         // the target exists, and the player lands on walkable ground there
         const target = world.get(c.targetTemplateId)
         expect(target).toBeDefined()
@@ -254,7 +255,7 @@ describe('Nebulith — build a multi-room game with the system, then play it end
       const conn: Connector | undefined = world.get(currentId)!.connectors.find(c => !c.action)
       if (!conn) break
       // the player can WALK to the gate from where they currently stand
-      expect(reachable(grid, { col: world.get(currentId)!.spawnCol, row: world.get(currentId)!.spawnRow }).has(`${conn.col},${conn.row}`)).toBe(true)
+      expect(reachable(grid, { col: world.get(currentId)!.spawnCol, row: world.get(currentId)!.spawnRow }).has(`${conn.cells[0].col},${conn.cells[0].row}`)).toBe(true)
       // traverse → load the target room, respawn on walkable ground
       currentId = conn.targetTemplateId
       grid = deserializeToGrid(world.get(currentId)!)
