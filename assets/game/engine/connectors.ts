@@ -17,24 +17,40 @@ import type { Connector } from '@/lib/api'
  */
 export type ConnectorEvent = 'enter' | 'interact'
 
+/** The legacy single-cell connector shape, still present in older saved templates. */
+type LegacyConnector = Omit<Connector, 'cells'> & { col: number; row: number }
+
+/**
+ * Migrate a raw connector to the normalized multi-cell shape. A legacy
+ * `{ col, row, ... }` becomes `{ cells: [{ col, row }], ... }`; a connector that
+ * already carries `cells` passes through unchanged. Centralize this so every read
+ * path (load, render, trigger) sees the same `cells` shape.
+ */
+export function normalizeConnector(raw: unknown): Connector {
+  const r = raw as Partial<Connector> & Partial<LegacyConnector>
+  if (Array.isArray(r.cells)) return r as Connector
+  const { col, row, ...rest } = r as LegacyConnector
+  return { ...rest, cells: [{ col, row }] } as Connector
+}
+
 /**
  * Return the connector that should fire for the player's current cell + event,
- * or null if none applies.
+ * or undefined if none applies.
  *
  * Rule: 'walk' and 'auto' connectors fire on 'enter'; 'interact' connectors fire
- * only on 'interact'.
+ * only on 'interact'. A connector matches when (col,row) is one of its cells.
  */
 export function findTriggeredConnector(
   playerCol: number,
   playerRow: number,
   connectors: Connector[],
   event: ConnectorEvent,
-): Connector | null {
+): Connector | undefined {
   for (const c of connectors) {
-    if (c.col !== playerCol || c.row !== playerRow) continue
+    if (!c.cells.some(cell => cell.col === playerCol && cell.row === playerRow)) continue
     const firesOnEnter = c.interaction === 'walk' || c.interaction === 'auto'
     if (event === 'enter' && firesOnEnter) return c
     if (event === 'interact' && c.interaction === 'interact') return c
   }
-  return null
+  return undefined
 }

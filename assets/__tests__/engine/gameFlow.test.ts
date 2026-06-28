@@ -32,8 +32,7 @@ describe('Nebulith — full game flow: 0 → game-ready → quest complete', () 
     // 2) CONNECT them into a path: forestA → forestB → temple → cave → boss.
     const order = ['forestA', 'forestB', 'temple', 'cave', 'boss'] as const
     const connectors: Connector[] = order.slice(0, -1).map((from, i) => ({
-      col: 1,
-      row: 1,
+      cells: [{ col: 1, row: 1 }],
       targetTemplateId: order[i + 1],
       interaction: 'interact',
       spawnCol: 2,

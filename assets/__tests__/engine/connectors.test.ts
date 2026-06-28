@@ -1,59 +1,34 @@
-import { findTriggeredConnector } from '@/engine/connectors'
-import type { Connector } from '@/lib/api'
+import { findTriggeredConnector, normalizeConnector } from '../../engine/connectors'
 
-/** Build a Connector with sensible defaults; override what the test cares about. */
-function makeConnector(over: Partial<Connector> = {}): Connector {
-  return {
-    col: 5,
-    row: 5,
-    targetTemplateId: 'target-1',
-    targetTemplateName: 'Target',
-    interaction: 'walk',
-    spawnCol: 10,
-    spawnRow: 12,
-    ...over,
-  }
-}
+const base = { targetTemplateId: 't1', spawnCol: 5, spawnRow: 6 }
 
-describe('findTriggeredConnector', () => {
-  it("fires a 'walk' connector when the player enters its cell", () => {
-    const c = makeConnector({ col: 3, row: 4, interaction: 'walk' })
-    expect(findTriggeredConnector(3, 4, [c], 'enter')).toBe(c)
+describe('normalizeConnector (legacy migration)', () => {
+  test('legacy single-cell {col,row} becomes cells:[{col,row}]', () => {
+    const c = normalizeConnector({ ...base, col: 3, row: 4, interaction: 'walk' })
+    expect(c.cells).toEqual([{ col: 3, row: 4 }])
+    expect(c.targetTemplateId).toBe('t1')
   })
-
-  it("fires an 'auto' connector on enter", () => {
-    const c = makeConnector({ col: 3, row: 4, interaction: 'auto' })
-    expect(findTriggeredConnector(3, 4, [c], 'enter')).toBe(c)
+  test('new multi-cell shape passes through unchanged', () => {
+    const c = normalizeConnector({ ...base, cells: [{ col: 1, row: 1 }, { col: 2, row: 1 }], interaction: 'walk' })
+    expect(c.cells).toHaveLength(2)
   })
+})
 
-  it("does NOT fire a 'walk' connector on an interact event", () => {
-    const c = makeConnector({ col: 3, row: 4, interaction: 'walk' })
-    expect(findTriggeredConnector(3, 4, [c], 'interact')).toBeNull()
+describe('findTriggeredConnector (multi-cell membership)', () => {
+  const conn = { ...base, cells: [{ col: 1, row: 1 }, { col: 2, row: 1 }], interaction: 'walk' as const }
+  test('fires on enter for ANY member cell of a walk connector', () => {
+    expect(findTriggeredConnector(1, 1, [conn], 'enter')).toBe(conn)
+    expect(findTriggeredConnector(2, 1, [conn], 'enter')).toBe(conn)
   })
-
-  it("fires an 'interact' connector only when the player presses interact on its cell", () => {
-    const c = makeConnector({ col: 3, row: 4, interaction: 'interact' })
-    expect(findTriggeredConnector(3, 4, [c], 'interact')).toBe(c)
+  test('does not fire on a non-member cell', () => {
+    expect(findTriggeredConnector(9, 9, [conn], 'enter')).toBeUndefined()
   })
-
-  it("does NOT fire an 'interact' connector merely by entering its cell", () => {
-    const c = makeConnector({ col: 3, row: 4, interaction: 'interact' })
-    expect(findTriggeredConnector(3, 4, [c], 'enter')).toBeNull()
+  test('walk connector does NOT fire on interact event', () => {
+    expect(findTriggeredConnector(1, 1, [conn], 'interact')).toBeUndefined()
   })
-
-  it('returns null when no connector sits on the player cell', () => {
-    const c = makeConnector({ col: 3, row: 4 })
-    expect(findTriggeredConnector(0, 0, [c], 'enter')).toBeNull()
-  })
-
-  it('returns null for an empty connector list', () => {
-    expect(findTriggeredConnector(3, 4, [], 'enter')).toBeNull()
-  })
-
-  it('picks the connector matching the player cell out of several', () => {
-    const a = makeConnector({ col: 1, row: 1 })
-    const b = makeConnector({ col: 8, row: 9, interaction: 'walk' })
-    const cc = makeConnector({ col: 2, row: 2 })
-    expect(findTriggeredConnector(8, 9, [a, b, cc], 'enter')).toBe(b)
+  test('interact connector fires only on interact event', () => {
+    const ic = { ...conn, interaction: 'interact' as const }
+    expect(findTriggeredConnector(1, 1, [ic], 'interact')).toBe(ic)
+    expect(findTriggeredConnector(1, 1, [ic], 'enter')).toBeUndefined()
   })
 })

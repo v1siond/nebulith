@@ -6,8 +6,9 @@ import type { Action as TriggerAction } from '@/engine/triggers'
 import type { Entity, Quest } from '@/game/types'
 
 export interface Connector {
-  col: number
-  row: number
+  // A connector owns a SET of cells — one connector can span many selected cells.
+  // Legacy saves stored a single { col, row }; normalizeConnector() migrates those.
+  cells: { col: number; row: number }[]
   targetTemplateId: string
   targetTemplateName?: string  // For display
   interaction: 'walk' | 'interact' | 'auto'  // How player triggers it
