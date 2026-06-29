@@ -40,7 +40,7 @@ import {
   buildingRect,
   type PlacementEnv,
 } from '@/engine/buildingEditor'
-import { darkenColor, lightenColor, withAlpha } from '@/engine/colors'
+import { darkenColor, lightenColor, withAlpha, varyIntensity } from '@/engine/colors'
 import { scaleCompositeToRegion } from '@/engine/compositeFill'
 import { MULTI_CELL_ASSETS, stampAsset, assetFootprint, multiCellAssetById } from '@/engine/multiCellAssets'
 import {
@@ -7918,6 +7918,14 @@ function entityRenderCell(entity: Entity, now: number): { col: number; row: numb
   return motionPos(m.from, m.to, m.startMs, now, ENEMY_MOVE_MS)
 }
 
+/** Deterministic per-cell grass tint: a stable position hash nudges the base grass bg lighter
+ *  or darker so the lawn reads as natural patches instead of one flat sheet. Computed from
+ *  (col,row) only — stable per cell, never shifts frame-to-frame. Paths/roads never call this. */
+function grassShade(baseBg: string, col: number, row: number): string {
+  const n = Math.sin(col * 127.1 + row * 311.7) * 43758.5453
+  return varyIntensity(baseBg, n - Math.floor(n), 0.22)
+}
+
 function render(
   ctx: CanvasRenderingContext2D,
   w: number,
@@ -7996,7 +8004,9 @@ function render(
 
       const char = colors.char[colorIdx % colors.char.length]
       const fg = colors.fg[colorIdx % colors.fg.length]
-      const bg = colors.bg[0] // uniform floor base — no per-cell checkerboard (calmer floor)
+      // Grass varies per-cell into natural green tones (deterministic hash); every other
+      // ground keeps its uniform floor base — no per-cell checkerboard (calmer floor).
+      const bg = tileType.includes('grass') ? grassShade(colors.bg[0], col, row) : colors.bg[0]
 
       // Get cell height
       const cellHeight = grid.getHeight(col, row)
@@ -9267,7 +9277,9 @@ function render2D(
 
       const char = colors.char[colorIdx % colors.char.length]
       const fg = colors.fg[colorIdx % colors.fg.length]
-      const bg = colors.bg[0] // uniform floor base — no per-cell checkerboard (calmer floor)
+      // Grass varies per-cell into natural green tones (deterministic hash); other ground
+      // keeps its uniform floor base.
+      const bg = tileType.includes('grass') ? grassShade(colors.bg[0], col, row) : colors.bg[0]
 
       // Draw ground tile
       ctx.fillStyle = bg
@@ -10127,7 +10139,8 @@ function renderTopView(
         const colors = GROUND_COLORS[tileType as keyof typeof GROUND_COLORS] || GROUND_COLORS.grass
         char = colors.char[0]
         fg = colors.fg[0]
-        bg = colors.bg[0]
+        // Grass varies per-cell into natural green tones (deterministic hash); other ground stays flat.
+        bg = tileType.includes('grass') ? grassShade(colors.bg[0], col, row) : colors.bg[0]
       }
 
       // Draw cell
