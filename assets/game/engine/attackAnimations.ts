@@ -20,6 +20,9 @@ export interface AttackAnim {
   /** The attacker's weapon glyph — a slash swings THIS (the actual sword) in-hand, instead of a
    *  generic floating stroke. Optional: falls back to the kind's default frame glyph. */
   glyph?: string
+  /** The PLAYER's own melee: drawn as the single swinging in-hand weapon by the player render — the
+   *  anim loop skips it so there's no second, separate stroke. */
+  inHand?: boolean
 }
 
 export const ATTACK_ANIM_MS: Record<AttackAnimKind, number> = {

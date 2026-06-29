@@ -783,10 +783,10 @@ function prunePlayerStartedMarkers(markers: HitMarker[], now: number): void {
 function spawnAttackAnim(
   anims: AttackAnim[] | undefined,
   fromX: number, fromZ: number, toX: number, toZ: number,
-  kind: AttackAnimKind, now: number, glyph?: string,
+  kind: AttackAnimKind, now: number, glyph?: string, inHand?: boolean,
 ): void {
   if (!anims) return
-  anims.push({ kind, fromX, fromZ, toX, toZ, start: now, durationMs: ATTACK_ANIM_MS[kind], glyph })
+  anims.push({ kind, fromX, fromZ, toX, toZ, start: now, durationMs: ATTACK_ANIM_MS[kind], glyph, inHand })
 }
 
 /** ms a projectile spends travelling per cell — slow enough that an enemy can step off
@@ -853,7 +853,8 @@ function applyPlayerAttack(input: CombatStepInput, kills: string[]): CombatState
   }
 
   // ALWAYS show the swing — even a whiff. Shared spawn → same for every attacker.
-  spawnAttackAnim(input.anims, player.x, player.z, aimCol * cellSize + cellSize / 2, aimRow * cellSize + cellSize / 2, animKind, now, player.weaponGlyph)
+  // melee → the single in-hand weapon swings (drawn by the player); ranged/magic keep their own anim
+  spawnAttackAnim(input.anims, player.x, player.z, aimCol * cellSize + cellSize / 2, aimRow * cellSize + cellSize / 2, animKind, now, player.weaponGlyph, animKind === 'slash')
   return nextState
 }
 
@@ -8091,7 +8092,10 @@ function render(
     const heightOffset = cellHeight * heightStep
 
     if (obj.isPlayer) {
-      drawIsoPlayer(ctx, p.x, p.y - heightOffset - (player.jumpHeight ?? 0), tileW, tileH, player, time)
+      // The player's melee swing progress (0..1) drives the in-hand weapon animation below.
+      const inHandSlash = attackAnims.find(a => a.inHand && now - a.start < a.durationMs)
+      const swingP = inHandSlash ? Math.min(1, (now - inHandSlash.start) / inHandSlash.durationMs) : null
+      drawIsoPlayer(ctx, p.x, p.y - heightOffset - (player.jumpHeight ?? 0), tileW, tileH, player, time, swingP)
     } else if (obj.entity) {
       const combat = obj.entity.kind === 'enemy' ? enemyCombat.get(obj.entity.id) : undefined
       if (isDeadEnemy(obj.entity, combat)) continue // hidden until it respawns
@@ -8130,6 +8134,7 @@ function render(
     ctx.textBaseline = 'middle'
     ctx.font = `bold ${Math.max(14, tileH * 1.7)}px ${ASCII_FONT}`
     for (const a of attackAnims) {
+      if (a.inHand) continue // the player's melee is the ONE in-hand weapon swinging (drawn by drawIsoPlayer)
       const f = animFrame(a, now)
       if (!f) continue
       const sp = toScreen(f.x / cellSize, f.z / cellSize)
@@ -8239,7 +8244,8 @@ function drawIsoPlayer(
   tileW: number,
   tileH: number,
   player: PlayerState,
-  time: number
+  time: number,
+  swingP: number | null = null,
 ) {
   const playerArt = getPlayerArt(player)
   const lineHeight = tileH * 1.4
@@ -8269,18 +8275,22 @@ function drawIsoPlayer(
   // The held weapon, drawn beside the figure at mid-height so equipped gear shows.
   ctx.textAlign = 'center'
   if (player.weaponGlyph) {
-    // Held weapon: bigger so a sword actually reads, on the facing-appropriate hand (left hand when
-    // facing left, right otherwise), at hand height beside the body.
+    // The ONE held weapon — bigger so a sword reads, on the facing hand, at ARM/body height (the
+    // <#> row, one line above the legs). At rest the blade points UP; on attack THIS SAME blade
+    // swings through the arc (no separate stroke), mirrored by facing.
     const weaponSize = fontSize * 1.7
     const onLeft = player.facing === 'left'
+    const dir = onLeft ? -1 : 1
     const handX = onLeft ? x - pHalf - weaponSize * 0.18 : x + pHalf + weaponSize * 0.18
-    const handY = y - lineHeight * 0.95 - breathe
+    const handY = y - lineHeight * 1.5 - breathe // body/arm row — NOT the legs
+    const rot = swingP == null
+      ? Math.PI // rest: blade up
+      : Math.PI + dir * (-0.5 + 2.0 * swingP) // wind back → sweep forward through the slash
     ctx.font = `bold ${weaponSize}px ${ASCII_FONT}`
     ctx.textBaseline = 'middle'
-    // Held blade points UP (ready stance), not hanging down — rotate the glyph 180° at the hand.
     ctx.save()
     ctx.translate(handX, handY)
-    ctx.rotate(Math.PI)
+    ctx.rotate(rot)
     ctx.fillStyle = '#000000'
     ctx.fillText(player.weaponGlyph, 1, 1)
     ctx.fillStyle = '#e6e6e6'
