@@ -8499,6 +8499,12 @@ function render(
       ctx.closePath()
       ctx.fill()
 
+      // Water gets ISO DEPTH: a sunken bank rim + a recessed surface, so a pond reads
+      // as a basin instead of a flat blue diamond (#50). Sparse tiles → cheap.
+      if (WATER_DEPTH_TILES.has(tileType)) {
+        drawIsoWaterDepth(ctx, p.x, drawY, tileW, tileH, bg, time, col, row)
+      }
+
       // ASCII character on top. Only grass flickers, so only grass touches
       // globalAlpha (skip the set/reset state-churn on every other ground cell).
       ctx.fillStyle = fg
@@ -9631,6 +9637,138 @@ function drawIsoBuilding(
   }
 }
 
+// ── shared iso solids (raised structures + water depth) ──────────────────
+// Ground tiles that get an iso DEPTH treatment (a sunken basin) instead of a flat diamond.
+const WATER_DEPTH_TILES: ReadonlySet<string> = new Set(['water', 'ice_water', 'oasis', 'koi'])
+
+/** Fill one iso diamond centred at (cx,cy) with half-extents (hw,hh). */
+function fillDiamond(ctx: CanvasRenderingContext2D, cx: number, cy: number, hw: number, hh: number, fill: string): void {
+  ctx.fillStyle = fill
+  ctx.beginPath()
+  ctx.moveTo(cx, cy - hh)
+  ctx.lineTo(cx + hw, cy)
+  ctx.lineTo(cx, cy + hh)
+  ctx.lineTo(cx - hw, cy)
+  ctx.closePath()
+  ctx.fill()
+}
+
+/** A raised iso PRISM: a `height`-tall box whose BASE diamond is centred at (cx, baseY).
+ *  Draws the two camera-facing side faces (left/right shaded) + the top diamond. */
+function drawIsoPrism(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  baseY: number,
+  hw: number,
+  hh: number,
+  height: number,
+  top: string,
+  left: string,
+  right: string,
+): void {
+  const topY = baseY - height
+  ctx.fillStyle = left
+  ctx.beginPath()
+  ctx.moveTo(cx - hw, topY)
+  ctx.lineTo(cx, topY + hh)
+  ctx.lineTo(cx, baseY + hh)
+  ctx.lineTo(cx - hw, baseY)
+  ctx.closePath()
+  ctx.fill()
+  ctx.fillStyle = right
+  ctx.beginPath()
+  ctx.moveTo(cx + hw, topY)
+  ctx.lineTo(cx, topY + hh)
+  ctx.lineTo(cx, baseY + hh)
+  ctx.lineTo(cx + hw, baseY)
+  ctx.closePath()
+  ctx.fill()
+  fillDiamond(ctx, cx, topY, hw, hh, top)
+}
+
+/** Give a water ground cell ISO DEPTH (#50): a darker sunken bank rim + a recessed,
+ *  gently-shimmering surface dropped below the lip — so a pond reads as a basin with
+ *  depth, not a flat blue diamond. Render-only; (cx,cy) is the tile's top-face centre. */
+function drawIsoWaterDepth(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  hw: number,
+  hh: number,
+  base: string,
+  time: number,
+  col: number,
+  row: number,
+): void {
+  fillDiamond(ctx, cx, cy, hw * 0.84, hh * 0.84, darkenColor(base, 0.5)) // shaded inner bank
+  const sink = hh * 0.42
+  const shimmer = 0.5 + 0.5 * Math.sin(time * 0.0018 + col * 0.7 + row * 0.5)
+  fillDiamond(ctx, cx, cy + sink, hw * 0.64, hh * 0.64, lightenColor(base, 0.1 + 0.14 * shimmer)) // recessed surface
+}
+
+/** A well / fountain as a RAISED iso structure (#50): a stone basin prism with a recessed
+ *  water pool on top, then a distinguishing topper — a fountain's animated water jet or a
+ *  well's posted, peaked roof. Mirrors the building iso standard (a 3D volume, not a flat glyph). */
+function drawIsoWellFountain(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  asset: GridAsset,
+  tileW: number,
+  tileH: number,
+  time: number,
+): void {
+  const isFountain = asset.type === 'fountain'
+  const hw = tileW * 0.62
+  const hh = tileH * 0.62
+  const bodyH = tileH * 1.8 // raised ~1-tile stone basin
+  const baseY = y + tileH * 0.45 // base sits toward the cell's front edge
+  const stone = '#a39b8c'
+  // stone basin body
+  drawIsoPrism(ctx, x, baseY, hw, hh, bodyH, lightenColor(stone, 0.18), darkenColor(stone, 0.5), darkenColor(stone, 0.72))
+  const topY = baseY - bodyH
+  // water pool recessed into the basin top, gently shimmering
+  const water = isFountain ? '#5fbce0' : '#3f78c0'
+  const shimmer = 0.5 + 0.5 * Math.sin(time * 0.004 + x * 0.05)
+  fillDiamond(ctx, x, topY + hh * 0.16, hw * 0.66, hh * 0.66, darkenColor(water, 0.55)) // pool depth
+  fillDiamond(ctx, x, topY + hh * 0.3, hw * 0.5, hh * 0.5, lightenColor(water, 0.08 + 0.16 * shimmer)) // surface
+
+  if (isFountain) {
+    // tiered centre + an animated vertical water jet with falling droplets
+    drawIsoPrism(ctx, x, topY + hh * 0.2, hw * 0.26, hh * 0.26, bodyH * 0.45, lightenColor(stone, 0.22), darkenColor(stone, 0.5), darkenColor(stone, 0.72))
+    const drop = Math.sin(time * 0.005) * 0.5 + 0.5
+    const jetTop = topY - bodyH * 0.55
+    ctx.fillStyle = withAlpha('#bfe8ff', 0.85)
+    ctx.beginPath() // tapering jet
+    ctx.moveTo(x, jetTop)
+    ctx.lineTo(x + tileW * 0.06, topY - bodyH * 0.05)
+    ctx.lineTo(x - tileW * 0.06, topY - bodyH * 0.05)
+    ctx.closePath()
+    ctx.fill()
+    ctx.beginPath()
+    ctx.arc(x - hw * 0.5, topY - bodyH * 0.1 - drop * tileH, tileW * 0.05, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.beginPath()
+    ctx.arc(x + hw * 0.5, topY - bodyH * 0.28 + drop * tileH * 0.5, tileW * 0.05, 0, Math.PI * 2)
+    ctx.fill()
+    return
+  }
+
+  // a well: two stone posts carrying a small peaked roof over the shaft
+  const postH = bodyH * 0.95
+  const roofY = topY - postH
+  drawIsoPrism(ctx, x - hw * 0.72, topY, hw * 0.1, hh * 0.1, postH, '#8a6a3a', '#5e4724', '#7a5c30')
+  drawIsoPrism(ctx, x + hw * 0.72, topY, hw * 0.1, hh * 0.1, postH, '#8a6a3a', '#5e4724', '#7a5c30')
+  fillDiamond(ctx, x, roofY + hh * 0.4, hw * 1.05, hh * 0.5, '#7a2f2a') // roof eave
+  ctx.fillStyle = '#a14038' // peaked roof
+  ctx.beginPath()
+  ctx.moveTo(x, roofY - hh * 0.9)
+  ctx.lineTo(x + hw * 1.05, roofY + hh * 0.4)
+  ctx.lineTo(x - hw * 1.05, roofY + hh * 0.4)
+  ctx.closePath()
+  ctx.fill()
+}
+
 function drawIsoAssetAscii(
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -9832,6 +9970,10 @@ function drawIsoAssetAscii(
     ctx.fillRect(x - tileW / 2, layerY - lineHeight / 2, tileW, lineHeight)
     ctx.fillStyle = '#999999'
     ctx.fillText('O', x, layerY)
+
+  } else if (asset.type === 'well' || asset.type === 'fountain') {
+    // Town centrepiece: a raised 3D iso basin (stone + recessed water), not a flat glyph (#50).
+    drawIsoWellFountain(ctx, x, y, asset, tileW, tileH, time)
 
   } else {
     // Default: show the asset's art character
