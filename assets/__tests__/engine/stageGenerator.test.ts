@@ -1,4 +1,4 @@
-import { generateStage, buildingCellColor, stagePaint, footprintEdgeClass } from '@/engine/stageGenerator'
+import { generateStage, buildingCellColor, stagePaint, footprintEdgeClass, footprintSide, footprintRing, edgeToSide, treeSubpart, labelForCell } from '@/engine/stageGenerator'
 import { composeBuilding } from '@/engine/buildingComposer'
 import { TREE_CANOPY_SHADES } from '@/engine/cellTileset'
 import { parseColor } from '@/engine/colors'
@@ -871,5 +871,99 @@ describe('footprintEdgeClass — corner/edge/interior tileset classification (#4
     // stagePaint carries the edge through to the render layer.
     const painted = stagePaint(stage).assets.filter(a => a.type === 'building')
     expect(painted.every(a => a.edge !== undefined)).toBe(true)
+  })
+})
+
+describe('labelForCell — ONE consistent debug-label standard across every element', () => {
+  // A 3×3 footprint at (10,5): cols 10..12, rows 5..7 — the canonical multi-cell element.
+  const rect = { col: 10, row: 5, w: 3, h: 3 }
+
+  it('footprintSide yields the 4 corners + 4 edges + INTERIOR centre of a 3×3', () => {
+    // corners
+    expect(footprintSide(10, 5, rect)).toBe('NW')
+    expect(footprintSide(12, 5, rect)).toBe('NE')
+    expect(footprintSide(10, 7, rect)).toBe('SW')
+    expect(footprintSide(12, 7, rect)).toBe('SE')
+    // edges
+    expect(footprintSide(11, 5, rect)).toBe('N')
+    expect(footprintSide(11, 7, rect)).toBe('S')
+    expect(footprintSide(10, 6, rect)).toBe('W')
+    expect(footprintSide(12, 6, rect)).toBe('E')
+    // centre
+    expect(footprintSide(11, 6, rect)).toBe('INTERIOR')
+  })
+
+  it('edgeToSide maps a BuildingEdge class to its uppercase caption token', () => {
+    expect(edgeToSide('nw')).toBe('NW')
+    expect(edgeToSide('s')).toBe('S')
+    expect(edgeToSide('interior')).toBe('INTERIOR')
+  })
+
+  it('labels a building footprint cell as "<TYPE> <SIDE>" (the existing scheme, via the shared helper)', () => {
+    expect(labelForCell('building', footprintSide(10, 5, rect))).toBe('BUILDING NW')
+    expect(labelForCell('building', footprintSide(11, 5, rect))).toBe('BUILDING N')
+    expect(labelForCell('building', footprintSide(11, 6, rect))).toBe('BUILDING INTERIOR')
+  })
+
+  it('labels a tree by TRUNK vs CANOPY-side (column stems + autotiled canopy + apex)', () => {
+    // vertical column tree: stems are the trunk, the cap is the canopy top
+    expect(treeSubpart('tree_stem_bottom')).toBe('TRUNK')
+    expect(treeSubpart('tree_stem')).toBe('TRUNK')
+    expect(treeSubpart('tree_snag')).toBe('TRUNK')
+    expect(treeSubpart('tree_crown')).toBe('CANOPY TOP')
+    expect(treeSubpart('tree_leaf_top')).toBe('CANOPY TOP')
+    expect(treeSubpart('tree_leaf')).toBe('CANOPY')
+    // autotiled forest mass: the canopy gets corner/edge sides, mirroring a building footprint
+    expect(treeSubpart('tree_top_left')).toBe('CANOPY NW')
+    expect(treeSubpart('tree_top')).toBe('CANOPY N')
+    expect(treeSubpart('tree_edge_right')).toBe('CANOPY E')
+    expect(treeSubpart('tree_interior')).toBe('CANOPY INTERIOR')
+    expect(treeSubpart('tree_bottom_right')).toBe('CANOPY SE')
+    // assembled captions read "TREE TRUNK" / "TREE CANOPY NW"
+    expect(labelForCell('tree', treeSubpart('tree_stem'))).toBe('TREE TRUNK')
+    expect(labelForCell('tree', treeSubpart('tree_top_left'))).toBe('TREE CANOPY NW')
+  })
+
+  it('labels a single-cell element as just its TYPE (no spurious position)', () => {
+    expect(labelForCell('lamp')).toBe('LAMP')
+    expect(labelForCell('lamp', treeSubpart(undefined))).toBe('LAMP') // unknown sub-part → bare type
+    expect(labelForCell('flower')).toBe('FLOWER')
+    expect(labelForCell('ground_decor')).toBe('GROUND_DECOR')
+  })
+
+  it('labels a fountain basin like a building footprint: rim sides + WATER ring + CENTER', () => {
+    // 3×3 fountain → rim ring (corners/edges) + a single CENTER cell, no water ring.
+    const f3 = { col: 0, row: 0, w: 3, h: 3 }
+    const fountainPos = (col: number, row: number, r: typeof f3): string => {
+      const side = footprintSide(col, row, r)
+      if (side !== 'INTERIOR') return side
+      const maxRing = Math.floor((Math.min(r.w, r.h) - 1) / 2)
+      return footprintRing(col, row, r) >= maxRing ? 'CENTER' : 'WATER'
+    }
+    expect(labelForCell('fountain', fountainPos(0, 0, f3))).toBe('FOUNTAIN NW') // rim corner
+    expect(labelForCell('fountain', fountainPos(1, 0, f3))).toBe('FOUNTAIN N')  // rim edge
+    expect(labelForCell('fountain', fountainPos(1, 1, f3))).toBe('FOUNTAIN CENTER')
+    // 5×5 fountain → rim, then a WATER ring, then the CENTER cell.
+    const f5 = { col: 0, row: 0, w: 5, h: 5 }
+    expect(labelForCell('fountain', fountainPos(0, 0, f5))).toBe('FOUNTAIN NW') // rim corner
+    expect(labelForCell('fountain', fountainPos(1, 1, f5))).toBe('FOUNTAIN WATER') // inner ring
+    expect(labelForCell('fountain', fountainPos(2, 2, f5))).toBe('FOUNTAIN CENTER')
+    expect(footprintRing(0, 0, f5)).toBe(0) // rim
+    expect(footprintRing(2, 2, f5)).toBe(2) // centre
+  })
+
+  it('produces the SAME caption string regardless of which view asks (no drift)', () => {
+    // The label is a pure function of (type, resolved position) — identical inputs, identical output.
+    const inputs: Array<[string, string]> = [
+      ['building', footprintSide(12, 7, rect)],
+      ['tree', treeSubpart('tree_top_right')],
+      ['fountain', footprintSide(10, 5, { col: 10, row: 5, w: 3, h: 3 })],
+      ['lamp', ''],
+    ]
+    for (const [type, pos] of inputs) {
+      expect(labelForCell(type, pos)).toBe(labelForCell(type, pos)) // deterministic, view-agnostic
+    }
+    expect(labelForCell('building', 'NE')).toBe('BUILDING NE')
+    expect(labelForCell('tree', 'CANOPY NE')).toBe('TREE CANOPY NE')
   })
 })

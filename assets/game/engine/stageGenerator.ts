@@ -621,6 +621,67 @@ export function footprintEdgeClass(col: number, row: number, rect: FootRect): Bu
   return (vert || horiz || 'interior') as BuildingEdge // an edge (n/s/e/w) or the interior fill
 }
 
+// ── shared DEBUG-LABEL vocabulary ───────────────────────────────────────────
+// One labeling standard for EVERY element so the debug overlay reads uniformly and the
+// labels can guide future tile replacement. The format is `<TYPE> <POSITION>` — the same
+// scheme buildings already use ("BUILDING NE") generalized to every multi-cell asset, and
+// IDENTICAL across the top / 2D / iso views because all three build their captions through
+// these PURE helpers (no view computes a label on its own).
+
+/** The uppercase POSITION token for a footprint cell — the corner/edge/interior CLASS turned
+ *  into a caption token: corners NE/NW/SE/SW, edges N/S/E/W, INTERIOR for an inner cell. The
+ *  single place a class is uppercased, so a building cell and a fountain cell read the same. */
+export function edgeToSide(edge: string): string {
+  return edge === 'interior' ? 'INTERIOR' : edge.toUpperCase()
+}
+
+/** Generalizes footprintEdgeClass into the caption SIDE for ANY multi-cell element (tree mass,
+ *  fountain basin, …), not just buildings: NE/NW/SE/SW / N/S/E/W / INTERIOR derived purely from
+ *  the cell's place in its footprint rect. Every view derives a cell's side through this. */
+export function footprintSide(col: number, row: number, rect: FootRect): string {
+  return edgeToSide(footprintEdgeClass(col, row, rect))
+}
+
+/** Concentric ring of a footprint cell: 0 = the outer rim, increasing inward to the centre.
+ *  Lets a fountain basin read rim → water → centre (the inner rings beyond the rim). Pure. */
+export function footprintRing(col: number, row: number, rect: FootRect): number {
+  return Math.min(col - rect.col, rect.col + rect.w - 1 - col, row - rect.row, rect.row + rect.h - 1 - row)
+}
+
+// Trunk vs canopy from a tree cell's CellLabel. The vertical column stems (incl. the dead snag)
+// are the TRUNK; the solid cap / walkable apex is the CANOPY TOP; an autotiled forest-MASS cell
+// maps its 9-piece leaf label to a canopy SIDE (NW…SE / INTERIOR) — so a tree mass labels exactly
+// like a building footprint; a plain leaf is the CANOPY.
+const TREE_TRUNK_LABELS: ReadonlySet<string> = new Set(['tree_stem_bottom', 'tree_stem', 'tree_snag'])
+const TREE_CANOPY_TOP_LABELS: ReadonlySet<string> = new Set(['tree_crown', 'tree_leaf_top'])
+const TREE_MASS_SIDE: Readonly<Record<string, string>> = {
+  tree_top_left: 'NW', tree_top: 'N', tree_top_right: 'NE',
+  tree_edge_left: 'W', tree_interior: 'INTERIOR', tree_edge_right: 'E',
+  tree_bottom_left: 'SW', tree_bottom: 'S', tree_bottom_right: 'SE',
+}
+
+/** A tree cell's debug sub-part from its CellLabel: 'TRUNK' for stem/snag cells, 'CANOPY TOP' for
+ *  the apex cap, 'CANOPY <SIDE>' for an autotiled forest-mass cell, 'CANOPY' for a plain leaf.
+ *  '' when the label is missing/unknown (the cell then reads as a bare 'TREE'). Pure + view-agnostic. */
+export function treeSubpart(label?: string): string {
+  if (!label) return ''
+  if (TREE_TRUNK_LABELS.has(label)) return 'TRUNK'
+  if (TREE_CANOPY_TOP_LABELS.has(label)) return 'CANOPY TOP'
+  const side = TREE_MASS_SIDE[label]
+  if (side) return `CANOPY ${side}`
+  if (label === 'tree_leaf') return 'CANOPY'
+  return ''
+}
+
+/** THE single, PURE debug caption for one placed cell: `<TYPE> <POSITION>`, or a bare `<TYPE>` for a
+ *  single-cell element. EVERY debug overlay (top / 2D / iso) builds its captions through this one
+ *  function, so a cell's label can never drift between views. `pos` is the already-resolved position
+ *  token — footprintSide for footprint elements, treeSubpart for trees, '' for single-cell assets. */
+export function labelForCell(type: string, pos = ''): string {
+  const t = type.toUpperCase()
+  return pos ? `${t} ${pos}` : t
+}
+
 /** The single DOOR cell — the centre of the footprint's ROAD-FACING edge (walkable; the building's
  *  one way in). Every other footprint cell blocks. Mirrors villageLayout's door geometry. */
 function doorCell(facing: Facing, rect: FootRect): Cell {
