@@ -511,6 +511,9 @@ function itemFromReward(reward: Reward, id: string): Item {
   return { id, name: reward.itemId || 'Reward Item', slot: 'consumable', effect: { hp: 25 } }
 }
 
+/** Hold-to-loop cadence for the regular attack — one swing per this interval while `f` is held
+ *  (matches the swing animation so swings chain seamlessly). */
+const ATTACK_LOOP_MS = 200
 /** The two attacks bound to input: `f` = free regular, `g` = rage-fueled special. */
 const REGULAR_MELEE: Attack = { school: 'physical', range: 'melee', tier: 'regular' }
 const SPECIAL_MELEE: Attack = { school: 'physical', range: 'melee', tier: 'special' }
@@ -780,6 +783,38 @@ function prunePlayerStartedMarkers(markers: HitMarker[], now: number): void {
 /** Spawn an attack animation — the SAME call for EVERY attacker (player, enemy, turret).
  *  This is the single bridge from the attack system to the animation system; firing any
  *  attack plays its animation through here. */
+// A short synthesized "swoosh" for a melee swing — decaying noise through a bandpass that sweeps
+// down. No asset; lazily creates the AudioContext on the first swing (a key press = a user gesture).
+let swooshCtx: AudioContext | null = null
+function playSwoosh(): void {
+  try {
+    const Ctor = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
+    swooshCtx = swooshCtx ?? new Ctor()
+    const ctx = swooshCtx
+    if (ctx.state === 'suspended') void ctx.resume()
+    const dur = 0.16
+    const buf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * dur), ctx.sampleRate)
+    const data = buf.getChannelData(0)
+    for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / data.length) // decaying noise
+    const src = ctx.createBufferSource()
+    src.buffer = buf
+    const bp = ctx.createBiquadFilter()
+    bp.type = 'bandpass'
+    bp.Q.value = 1.1
+    bp.frequency.setValueAtTime(1900, ctx.currentTime)
+    bp.frequency.exponentialRampToValueAtTime(550, ctx.currentTime + dur) // sweep down = swoosh
+    const g = ctx.createGain()
+    g.gain.setValueAtTime(0.22, ctx.currentTime)
+    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur)
+    src.connect(bp)
+    bp.connect(g)
+    g.connect(ctx.destination)
+    src.start()
+  } catch {
+    /* audio unavailable — stay silent */
+  }
+}
+
 function spawnAttackAnim(
   anims: AttackAnim[] | undefined,
   fromX: number, fromZ: number, toX: number, toZ: number,
@@ -3666,6 +3701,7 @@ export default function TemplateEditor() {
   // Attack-key edge triggers (mirror the interact/jump edge-trigger pattern).
   const attackDownRef = useRef(false)
   const specialDownRef = useRef(false)
+  const lastAttackFireRef = useRef(0) // for hold-to-loop: when the last regular swing fired
   // Throttle how often we mirror combat state to React (HUD only needs ~UI cadence).
   const hudSyncAtRef = useRef(0)
 
@@ -6596,6 +6632,10 @@ export default function TemplateEditor() {
       if (!connectorModeRef.current && !teleportingRef.current) {
         const attackDown = !!(keys['f'] || keys['F'])
         const specialDown = !!(keys['g'] || keys['G'])
+        // Hold-to-loop the regular attack: fire on the rising edge, then repeat every ATTACK_LOOP_MS
+        // while held so swings chain; each fire plays a swoosh.
+        const fireAttack = attackDown && (!attackDownRef.current || time - lastAttackFireRef.current >= ATTACK_LOOP_MS)
+        if (fireAttack) { lastAttackFireRef.current = time; playSwoosh() }
         const step = stepCombat({
           player,
           entities: entitiesRef.current,
@@ -6608,7 +6648,7 @@ export default function TemplateEditor() {
           hitMarkers: hitMarkersRef.current,
           cellSize: grid.cellSize,
           use2D: use2DMovement,
-          attack: attackDown && !attackDownRef.current,
+          attack: fireAttack,
           special: specialDown && !specialDownRef.current,
           now: time,
           anims: attackAnimsRef.current,

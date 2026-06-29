@@ -26,7 +26,7 @@ export interface AttackAnim {
 }
 
 export const ATTACK_ANIM_MS: Record<AttackAnimKind, number> = {
-  slash: 280,
+  slash: 200,
   shot: 360,
   lightning: 320,
   block: 260,
