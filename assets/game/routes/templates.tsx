@@ -9567,13 +9567,21 @@ function drawIsoPlayer(
     ctx.translate(shoulderX, shoulderY) // PIVOT = the shoulder; the whole arm rotates around it
     ctx.rotate(swing)
     if (swinging) {
-      ctx.strokeStyle = bodyColor // the figure's own tone — the arm reads as part of the body
-      ctx.lineWidth = Math.max(3, fontSize * 0.22)
-      ctx.lineCap = 'round'
-      ctx.beginPath()
-      ctx.moveTo(0, 0)           // shoulder
-      ctx.lineTo(handLX, handDY) // angle down-out to the hand
-      ctx.stroke()
+      // #63: the forearm is a sharp ASCII bar GLYPH (figure font + tone) stretched along the arm
+      // axis — reads as part of the text figure, not the old smooth round-capped "noodle".
+      const armLen = Math.hypot(handLX, handDY)
+      const armAng = Math.atan2(handDY, handLX)
+      ctx.save()
+      ctx.rotate(armAng)
+      ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.fillStyle = bodyColor
+      const charW = ctx.measureText('━').width || fontSize * 0.6
+      ctx.scale(armLen / charW, 1)
+      ctx.fillText('━', charW / 2, 0) // centred → spans shoulder→hand after the x-scale
+      ctx.restore()
+      ctx.textAlign = 'left'
     }
     ctx.translate(handLX, handDY) // move to the hand at the end of the arm
     if (player.weaponGlyph) {
@@ -9588,11 +9596,10 @@ function drawIsoPlayer(
       ctx.fillStyle = swingTint ?? '#e6e6e6' // steel by default; an ability (Fire Slash) recolors the blade
       ctx.fillText(player.weaponGlyph, 0, weaponSize * 0.45)
     } else {
-      // unarmed: a small fist at the end of the swinging arm
-      ctx.beginPath()
-      ctx.arc(0, 0, Math.max(3, fontSize * 0.18), 0, Math.PI * 2)
+      // unarmed: a small SHARP block fist (not a round disc) — matches the ASCII/blocky figure (#63)
+      const fistS = Math.max(3, fontSize * 0.34)
       ctx.fillStyle = bodyColor
-      ctx.fill()
+      ctx.fillRect(-fistS / 2, -fistS / 2, fistS, fistS)
     }
     ctx.restore()
     ctx.font = `bold ${fontSize}px ${ASCII_FONT}` // restore for the shield draw below
@@ -11243,13 +11250,21 @@ function render2D(
         ctx.translate(shoulderX, shoulderY)  // PIVOT = the shoulder; the whole arm rotates around it
         ctx.rotate(facingDir * 2.2 * swingP) // sweep the tip down-forward through the swing
         if (swinging) {
-          ctx.strokeStyle = bodyColor // the figure's own tone — the arm reads as part of the body
-          ctx.lineWidth = Math.max(3, fontSize * 0.22)
-          ctx.lineCap = 'round'
-          ctx.beginPath()
-          ctx.moveTo(0, 0)           // shoulder
-          ctx.lineTo(handLX, handDY) // angle down-out to the hand
-          ctx.stroke()
+          // #63: forearm = a sharp ASCII bar GLYPH (figure font + tone) stretched along the arm axis,
+          // matching the text figure instead of the old smooth round-capped stroke.
+          const armLen = Math.hypot(handLX, handDY)
+          const armAng = Math.atan2(handDY, handLX)
+          ctx.save()
+          ctx.rotate(armAng)
+          ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
+          ctx.textAlign = 'center'
+          ctx.textBaseline = 'middle'
+          ctx.fillStyle = bodyColor
+          const charW = ctx.measureText('━').width || fontSize * 0.6
+          ctx.scale(armLen / charW, 1)
+          ctx.fillText('━', charW / 2, 0)
+          ctx.restore()
+          ctx.textAlign = 'left'
         }
         ctx.translate(handLX, handDY) // move to the hand at the end of the arm
         if (player.weaponGlyph) {
@@ -11263,11 +11278,10 @@ function render2D(
           ctx.fillStyle = inHandSlash?.tint ?? '#e0e0e0' // steel by default; ability swings recolor it
           ctx.fillText(player.weaponGlyph, 0, weaponSize * 0.45)
         } else {
-          // unarmed: a small fist at the end of the swinging arm
-          ctx.beginPath()
-          ctx.arc(0, 0, Math.max(3, fontSize * 0.18), 0, Math.PI * 2)
+          // unarmed: a small SHARP block fist (not a round disc) — matches the ASCII/blocky figure (#63)
+          const fistS = Math.max(3, fontSize * 0.34)
           ctx.fillStyle = bodyColor
-          ctx.fill()
+          ctx.fillRect(-fistS / 2, -fistS / 2, fistS, fistS)
         }
         ctx.restore()
         ctx.font = `bold ${fontSize}px ${ASCII_FONT}` // restore for the shield draw
