@@ -31,6 +31,7 @@ import {
   buildingFootprintCells,
   footprintContains,
   canPlaceBuilding,
+  buildingCellBlocked,
   moveBuilding,
   rotateBuilding,
   makeBuilding,
@@ -193,11 +194,6 @@ const BUILDING_TOOL_TYPE: Partial<Record<NonNullable<BuildingTool>, BuildingType
   'place-hospital': 'hospital',
 }
 
-/** Ground a building footprint may NOT cover: roads (the door faces a road from one
- *  cell away — the footprint never sits on it) and water/lava. */
-const BLOCKED_GROUND_FOR_BUILDING: ReadonlySet<string> = new Set([
-  'path_stone', 'water', 'ice_water', 'oasis', 'koi', 'lava', 'magma',
-])
 
 /**
  * LIVE stamp: write a building's footprint onto the grid — a 'building' asset +
@@ -247,10 +243,13 @@ function unstampBuildingCells(grid: IsometricGrid, b: GridBuilding, zone: ZoneId
 }
 
 /**
- * The placement environment for the editor: every cell occupied by ANOTHER
- * building, by blocking terrain, or by a road counts as blocked — except the
- * cells in `ignore` (the moving/rotating building's current footprint, which is
- * about to be vacated). Pure-ish reader over the live grid.
+ * The placement environment for the editor. A footprint cell is blocked only when it is
+ * truly occupied — it overlaps ANOTHER building's footprint, carries collision (trees,
+ * water, lava, features, or any blocking asset), or is a road — except the cells in
+ * `ignore` (the moving/rotating building's own footprint, about to be vacated). Any other
+ * walkable, non-road cell is free: bare grass, an interior floor, or a cell that only holds
+ * non-blocking ground decor. Pure-ish reader over the live grid; the policy itself lives in
+ * the pure `buildingCellBlocked` so it stays unit-testable.
  */
 function buildingPlacementEnv(grid: IsometricGrid, ignoreIndex: number, ignore: ReadonlySet<string>): PlacementEnv {
   const others = new Set<string>()
@@ -264,9 +263,11 @@ function buildingPlacementEnv(grid: IsometricGrid, ignoreIndex: number, ignore: 
     blocked: (col, row) => {
       const key = `${col},${row}`
       if (ignore.has(key)) return false
-      if (others.has(key)) return true // another building's footprint (incl. its door)
-      if (grid.collision[row]?.[col] === 1) return true // trees / water / features
-      return BLOCKED_GROUND_FOR_BUILDING.has(grid.ground[row]?.[col] ?? '')
+      return buildingCellBlocked({
+        occupied: others.has(key), // another building's footprint (incl. its door)
+        collision: grid.collision[row]?.[col] === 1, // trees / water / lava / features / blocking assets
+        ground: grid.ground[row]?.[col] ?? '',
+      })
     },
   }
 }

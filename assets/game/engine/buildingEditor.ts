@@ -124,6 +124,33 @@ export function canPlaceBuilding(env: PlacementEnv, b: GridBuilding): boolean {
   )
 }
 
+/** The one walkable ground a building footprint may NOT cover: a road. A building fronts a
+ *  road from one cell away, so its footprint never sits on the road itself. Impassable
+ *  terrain (water/lava/…) is already collision, so the collision check below handles that —
+ *  only the *walkable* road needs a ground-level exclusion. */
+export const ROAD_GROUND = 'path_stone'
+
+/**
+ * Is a single grid cell unavailable to a building's footprint? A cell is taken only when it
+ *   - already belongs to another building/asset footprint (`occupied`),
+ *   - carries `collision` (trees, water, lava, features, or any *blocking* asset), or
+ *   - is a road (`ground === ROAD_GROUND`).
+ * Everything else is free — bare grass, an interior floor, or a walkable cell that merely
+ * holds non-blocking ground decor. Pure, so the manual-placement policy is testable on its
+ * own and reads the same way the spec states it: not occupied, not collision, not a road.
+ */
+export function buildingCellBlocked({
+  occupied,
+  collision,
+  ground,
+}: {
+  occupied: boolean
+  collision: boolean
+  ground: string
+}): boolean {
+  return occupied || collision || ground === ROAD_GROUND
+}
+
 /** Move a building by (dCol,dRow). Pure — returns a new GridBuilding. */
 export function moveBuilding(b: GridBuilding, dCol: number, dRow: number): GridBuilding {
   return { ...b, col: b.col + dCol, row: b.row + dRow }

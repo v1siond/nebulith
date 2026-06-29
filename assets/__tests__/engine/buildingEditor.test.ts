@@ -10,6 +10,8 @@ import {
   facadeLength,
   footprintCenter,
   canPlaceBuilding,
+  buildingCellBlocked,
+  ROAD_GROUND,
   moveBuilding,
   rotateBuilding,
   orientBuilding,
@@ -143,6 +145,88 @@ describe('canPlaceBuilding — in-bounds + clear of blockers', () => {
 
   test('a blocker outside the footprint does not matter', () => {
     expect(canPlaceBuilding(env(['9,9', '14,14']), house())).toBe(true)
+  })
+})
+
+describe('buildingCellBlocked — the manual-placement policy (occupied / collision / road)', () => {
+  test('a free walkable, non-road cell is placeable (bare grass / interior floor)', () => {
+    expect(buildingCellBlocked({ occupied: false, collision: false, ground: 'grass' })).toBe(false)
+    expect(buildingCellBlocked({ occupied: false, collision: false, ground: 'ash' })).toBe(false)
+    expect(buildingCellBlocked({ occupied: false, collision: false, ground: 'rune_floor' })).toBe(false)
+  })
+
+  test('blocks a cell already owned by another building/asset footprint', () => {
+    expect(buildingCellBlocked({ occupied: true, collision: false, ground: 'grass' })).toBe(true)
+  })
+
+  test('blocks collision (trees, water, lava, features, blocking assets)', () => {
+    expect(buildingCellBlocked({ occupied: false, collision: true, ground: 'grass' })).toBe(true)
+    // Impassable terrain is collision, so it's caught here regardless of its ground tag.
+    expect(buildingCellBlocked({ occupied: false, collision: true, ground: 'water' })).toBe(true)
+    expect(buildingCellBlocked({ occupied: false, collision: true, ground: 'lava' })).toBe(true)
+  })
+
+  test('blocks a road by ground tag', () => {
+    expect(buildingCellBlocked({ occupied: false, collision: false, ground: ROAD_GROUND })).toBe(true)
+    expect(ROAD_GROUND).toBe('path_stone')
+  })
+
+  test('the loosening: a WALKABLE decorative water-like ground (collision-free, non-road) is placeable', () => {
+    // A hand-painted koi/oasis/water tile leaves collision untouched; per the policy default
+    // (any non-collision, non-road, non-asset cell) it is now build-able — it was not before.
+    for (const ground of ['water', 'ice_water', 'oasis', 'koi', 'lava', 'magma']) {
+      expect(buildingCellBlocked({ occupied: false, collision: false, ground })).toBe(false)
+    }
+  })
+})
+
+describe('placement over a live-grid model (policy + canPlaceBuilding end to end)', () => {
+  // A 40×40 world: collision/ground grids + an occupied set, wired through buildingCellBlocked
+  // exactly like buildingPlacementEnv does in templates.tsx.
+  const makeGridEnv = (over: {
+    collision?: Array<[number, number]>
+    road?: Array<[number, number]>
+    occupied?: Array<[number, number]>
+    waterPaint?: Array<[number, number]>
+  } = {}): PlacementEnv => {
+    const coll = new Set((over.collision ?? []).map(([c, r]) => `${c},${r}`))
+    const road = new Set((over.road ?? []).map(([c, r]) => `${c},${r}`))
+    const water = new Set((over.waterPaint ?? []).map(([c, r]) => `${c},${r}`))
+    const occ = new Set((over.occupied ?? []).map(([c, r]) => `${c},${r}`))
+    return {
+      cols: 40,
+      rows: 40,
+      blocked: (col, row) => {
+        const key = `${col},${row}`
+        return buildingCellBlocked({
+          occupied: occ.has(key),
+          collision: coll.has(key),
+          ground: road.has(key) ? 'path_stone' : water.has(key) ? 'koi' : 'grass',
+        })
+      },
+    }
+  }
+
+  test('places a house on an open grass/floor section', () => {
+    expect(canPlaceBuilding(makeGridEnv(), house())).toBe(true)
+  })
+
+  test('rejects when the footprint clips collision (a tree at 11,11)', () => {
+    expect(canPlaceBuilding(makeGridEnv({ collision: [[11, 11]] }), house())).toBe(false)
+  })
+
+  test('rejects when the footprint clips a road', () => {
+    expect(canPlaceBuilding(makeGridEnv({ road: [[12, 12]] }), house())).toBe(false) // the door cell
+  })
+
+  test('rejects when the footprint overlaps an existing building footprint', () => {
+    expect(canPlaceBuilding(makeGridEnv({ occupied: [[10, 10]] }), house())).toBe(false)
+  })
+
+  test('places ON a walkable, hand-painted koi pond (the loosening: was rejected before)', () => {
+    // Every footprint cell painted koi but left walkable (no collision) → now build-able.
+    const cells = buildingFootprintCells(house()).cells.map(c => [c.col, c.row] as [number, number])
+    expect(canPlaceBuilding(makeGridEnv({ waterPaint: cells }), house())).toBe(true)
   })
 })
 
