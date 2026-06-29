@@ -91,7 +91,19 @@ import {
   applyDamage,
   isDead,
 } from '@/game/combat'
-import { ABILITY_TINT, DEFAULT_ABILITY_LOADOUT, abilityReady, type AbilityBinding } from '@/game/abilities'
+import {
+  ABILITY_TINT,
+  DEFAULT_ABILITY_LOADOUT,
+  ABILITY_REGISTRY,
+  ABILITY_SLOTS,
+  abilityReady,
+  bindingForSlot,
+  assignAbility,
+  removeAbility,
+  type AbilityBinding,
+  type AbilityDef,
+  type AbilitySlot,
+} from '@/game/abilities'
 import { isRanged, weaponReach } from '@/game/weapons'
 import {
   projectileCellAt,
@@ -3224,6 +3236,36 @@ function ItemTooltip({ item, x, y }: { item: Item; x: number; y: number }) {
   )
 }
 
+/** Tooltip stat lines for an ability (category / cooldown / effect) — mirrors itemTooltipStats. */
+function abilityTooltipLines(a: AbilityDef): string[] {
+  const lines = [`Category: ${a.category}`, `Cooldown ${(a.cooldownMs / 1000).toFixed(1)}s`]
+  if (a.effect.damage) lines.push(`Damage ${a.effect.damage}`)
+  if (a.effect.healing) lines.push(`Healing ${a.effect.healing}`)
+  if (a.effect.shieldMs) lines.push(`Shield ${(a.effect.shieldMs / 1000).toFixed(1)}s`)
+  if (a.effect.debuff) lines.push(`${a.effect.debuff.kind} ${(a.effect.debuff.durationMs / 1000).toFixed(1)}s`)
+  return lines
+}
+
+/** Floating ability tooltip — same cursor-anchored dark panel as ItemTooltip (#51), tinted to the
+ *  ability's animation color so a Fire Slash reads orange, a Frost reads blue, etc. */
+function AbilityTooltip({ ability, x, y }: { ability: AbilityDef; x: number; y: number }) {
+  const lines = abilityTooltipLines(ability)
+  const vw = typeof window !== 'undefined' ? window.innerWidth : 1920
+  const vh = typeof window !== 'undefined' ? window.innerHeight : 1080
+  const left = Math.max(8, Math.min(x + 14, vw - 192))
+  const top = Math.max(8, Math.min(y + 14, vh - (lines.length * 15 + 44)))
+  return (
+    <div
+      role="tooltip"
+      className="pointer-events-none fixed z-50 w-44 rounded border border-fuchsia-500/50 bg-gray-900/95 px-2 py-1.5 font-mono text-[10px] text-gray-300 shadow-xl"
+      style={{ left, top }}
+    >
+      <div className="mb-0.5 truncate text-[11px] font-bold" style={{ color: ABILITY_TINT[ability.animation] }}>{ability.name}</div>
+      {lines.map((line, i) => <div key={i}>{line}</div>)}
+    </div>
+  )
+}
+
 // ── live player/entity stats panel (#52) ────────────────────────────
 /** One labelled stat readout in the stats grid. */
 function StatChip({ label, value }: { label: string; value: string }) {
@@ -3276,13 +3318,17 @@ function PlayerStatsPanel({ baseStats, loadout, hp }: {
   )
 }
 
-function EquipmentPanel({ label, loadout, baseStats, hp, onChange, onClose }: {
+function EquipmentPanel({ label, loadout, baseStats, hp, onChange, onClose, abilityLoadout, onAbilityChange }: {
   label: string
   loadout: Loadout
   baseStats: Stats
   hp: { current: number; max: number }
   onChange: (l: Loadout) => void
   onClose: () => void
+  // Ability loadout (slot 1–4 → ability). Optional: only the player passes these in v1, so an
+  // enemy's inventory shows gear only. When present, the Abilities section becomes editable.
+  abilityLoadout?: readonly AbilityBinding[]
+  onAbilityChange?: (l: readonly AbilityBinding[]) => void
 }) {
   // Hovered item + live cursor pos for the stat tooltip (#51). Cleared on leave.
   const [hovered, setHovered] = useState<{ item: Item; x: number; y: number } | null>(null)
@@ -3310,6 +3356,14 @@ function EquipmentPanel({ label, loadout, baseStats, hp, onChange, onClose }: {
     const cur = keys.indexOf(loadout.shortcuts[i])
     onChange(setShortcut(loadout, i, keys[(cur + 1) % keys.length]))
   }
+  // Ability assign/remove: which slot's picker is open + the hovered ability tooltip (#51 style).
+  const [pickerSlot, setPickerSlot] = useState<AbilitySlot | null>(null)
+  const [hoveredAbility, setHoveredAbility] = useState<{ ability: AbilityDef; x: number; y: number } | null>(null)
+  const abilityTipProps = (a: AbilityDef) => ({
+    onMouseEnter: (e: React.MouseEvent) => setHoveredAbility({ ability: a, x: e.clientX, y: e.clientY }),
+    onMouseMove: (e: React.MouseEvent) => setHoveredAbility(h => (h ? { ...h, x: e.clientX, y: e.clientY } : h)),
+    onMouseLeave: () => setHoveredAbility(null),
+  })
 
   return (
     <div className="fixed inset-0 z-30 flex items-center justify-center bg-black/70 p-4 font-mono" role="dialog" aria-label="Inventory" onClick={onClose}>
@@ -3345,6 +3399,75 @@ function EquipmentPanel({ label, loadout, baseStats, hp, onChange, onClose }: {
           ))}
         </div>
 
+        {abilityLoadout && onAbilityChange && (
+          <>
+            <p className="mb-1 text-xs font-bold text-gray-400">Abilities — bound to keys 1–4</p>
+            <div className="mb-2 flex gap-1">
+              {ABILITY_SLOTS.map(slot => {
+                const ability = bindingForSlot(abilityLoadout, slot)?.ability
+                return (
+                  <div
+                    key={slot}
+                    className="relative flex-1 rounded border border-fuchsia-600/40 bg-fuchsia-900/20 p-1 text-center text-[11px]"
+                    style={ability ? { borderColor: ABILITY_TINT[ability.animation] } : undefined}
+                  >
+                    <div className="mb-0.5 flex items-center justify-center gap-1">
+                      <span className="rounded bg-fuchsia-700 px-1.5 text-[10px] font-bold">{slot}</span>
+                      {ability && (
+                        <button
+                          onClick={() => onAbilityChange(removeAbility(abilityLoadout, slot))}
+                          className="rounded bg-black/40 px-1 text-[10px] text-fuchsia-200 hover:text-red-300"
+                          aria-label={`Remove ability from slot ${slot}`}
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+                    {ability ? (
+                      <button
+                        {...abilityTipProps(ability)}
+                        className="block w-full truncate font-bold hover:text-fuchsia-300"
+                        style={{ color: ABILITY_TINT[ability.animation] }}
+                      >
+                        {ability.name}
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => setPickerSlot(slot)}
+                        className="block w-full truncate text-gray-500 hover:text-fuchsia-300"
+                        aria-label={`Assign ability to slot ${slot}`}
+                      >
+                        + Assign
+                      </button>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+            {pickerSlot !== null && (
+              <div className="mb-3 rounded border border-fuchsia-500/40 bg-black/60 p-2">
+                <div className="mb-1 flex items-center justify-between">
+                  <span className="text-[10px] font-bold text-fuchsia-300">Assign an ability to slot {pickerSlot}</span>
+                  <button onClick={() => setPickerSlot(null)} className="text-[10px] text-gray-400 hover:text-white" aria-label="Close ability picker">✕</button>
+                </div>
+                <div className="grid grid-cols-2 gap-1">
+                  {ABILITY_REGISTRY.map(a => (
+                    <button
+                      key={a.id}
+                      onClick={() => { onAbilityChange(assignAbility(abilityLoadout, pickerSlot, a)); setPickerSlot(null) }}
+                      {...abilityTipProps(a)}
+                      className="rounded bg-gray-800 px-1.5 py-1 text-left hover:bg-fuchsia-900/60"
+                    >
+                      <span className="block truncate text-[10px] font-bold" style={{ color: ABILITY_TINT[a.animation] }}>{a.name}</span>
+                      <span className="block truncate text-[9px] text-gray-400">{a.category} · {(a.cooldownMs / 1000).toFixed(0)}s</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
         <p className="mb-1 text-xs font-bold text-gray-400">Bag ({loadout.bag.filter(Boolean).length}/{loadout.bag.length})</p>
         <div className="mb-3 grid grid-cols-6 gap-1">
           {loadout.bag.map((item, i) => (
@@ -3366,6 +3489,7 @@ function EquipmentPanel({ label, loadout, baseStats, hp, onChange, onClose }: {
         </details>
       </div>
       {hovered && <ItemTooltip item={hovered.item} x={hovered.x} y={hovered.y} />}
+      {hoveredAbility && <AbilityTooltip ability={hoveredAbility.ability} x={hoveredAbility.x} y={hoveredAbility.y} />}
     </div>
   )
 }
@@ -3968,6 +4092,14 @@ export default function TemplateEditor() {
   // (keyed by ability id) so each ability respects its own cooldown.
   const abilityKeysRef = useRef<Record<string, boolean>>({})
   const abilityLastUsedRef = useRef<Map<string, number>>(new Map())
+  // Editable per-entity ability loadout (slot 1–4 → ability), keyed by entity id like the gear
+  // loadouts. v1 only the player ('__player__') is editable; the play loop + the inventory UI +
+  // the HUD bar all read the SAME state, so assigning in the inventory changes what the keys fire.
+  // The ref mirrors the player's loadout so the once-mounted game loop reads it without re-binding.
+  const [abilityLoadouts, setAbilityLoadouts] = useState<Record<string, readonly AbilityBinding[]>>({
+    __player__: DEFAULT_ABILITY_LOADOUT,
+  })
+  const playerAbilityLoadoutRef = useRef<readonly AbilityBinding[]>(DEFAULT_ABILITY_LOADOUT)
   // Throttle how often we mirror combat state to React (HUD only needs ~UI cadence).
   const hudSyncAtRef = useRef(0)
 
@@ -4180,6 +4312,12 @@ export default function TemplateEditor() {
       setLoadouts(prev => ({ ...prev, __player__: setSpecial(prev['__player__'] ?? seededPlayerLoadout(), i, null) }))
     }
   }, [])
+
+  // Player ABILITY loadout → ref: the once-mounted game loop fires the CURRENT loadout's slot
+  // ability (not a hardcoded default), so assigning/removing in the inventory takes effect live.
+  useEffect(() => {
+    playerAbilityLoadoutRef.current = abilityLoadouts['__player__'] ?? DEFAULT_ABILITY_LOADOUT
+  }, [abilityLoadouts])
 
   // Keep quests ref in sync so the once-mounted game loop reads the latest quests
   useEffect(() => {
@@ -6943,7 +7081,7 @@ export default function TemplateEditor() {
         // Abilities (keys 1–4, data-driven loadout): on the key's rising edge, fire the bound ability
         // if it's off cooldown → a melee swing with its authored damage + a tinted blade. First
         // binding to fire this frame wins (one swing per tick).
-        const abilitySwing = triggerAbility(DEFAULT_ABILITY_LOADOUT, keys, abilityKeysRef.current, abilityLastUsedRef.current, time)
+        const abilitySwing = triggerAbility(playerAbilityLoadoutRef.current, keys, abilityKeysRef.current, abilityLastUsedRef.current, time)
         if (abilitySwing) playSwoosh()
         const step = stepCombat({
           player,
@@ -8151,6 +8289,13 @@ export default function TemplateEditor() {
               hp={hp}
               onChange={l => setLoadouts(prev => ({ ...prev, [activeId]: l }))}
               onClose={() => setInventoryOpen(false)}
+              {...(activeId === '__player__'
+                ? {
+                    abilityLoadout: abilityLoadouts['__player__'] ?? DEFAULT_ABILITY_LOADOUT,
+                    onAbilityChange: (l: readonly AbilityBinding[]) =>
+                      setAbilityLoadouts(prev => ({ ...prev, __player__: l })),
+                  }
+                : {})}
             />
           )
         })()}
