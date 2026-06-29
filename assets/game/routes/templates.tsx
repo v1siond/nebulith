@@ -3574,6 +3574,12 @@ export default function TemplateEditor() {
   useEffect(() => {
     hideEntitiesRef.current = hideEntities
   }, [hideEntities])
+  // Day/Night: the render loop reads the ref each frame; default day.
+  const [dayNight, setDayNight] = useState<DayNight>('day')
+  const dayNightRef = useRef<DayNight>('day')
+  useEffect(() => {
+    dayNightRef.current = dayNight
+  }, [dayNight])
   const [initialized, setInitialized] = useState(false)
 
   // Template limits
@@ -6715,11 +6721,11 @@ export default function TemplateEditor() {
         ctx.fillStyle = '#0a0a12'
         ctx.fillRect(0, 0, canvas.width, canvas.height)
       } else if (topViewMode) {
-        renderTopView(ctx, canvas.width, canvas.height, grid, player, zoomRef.current, selectedCellsRef.current, connectorsRef.current, connectorModeRef.current, camOffsetRef.current, renderEntities, runtime.combat, hitMarkersRef.current, time, questsRef.current)
+        renderTopView(ctx, canvas.width, canvas.height, grid, player, zoomRef.current, selectedCellsRef.current, connectorsRef.current, connectorModeRef.current, camOffsetRef.current, renderEntities, runtime.combat, hitMarkersRef.current, time, questsRef.current, dayNightRef.current)
       } else if (viewTypeRef.current === '2d') {
-        render2D(ctx, canvas.width, canvas.height, grid, player, time, zoomRef.current, camOffsetRef.current, renderEntities, runtime.combat, connectorsRef.current, questsRef.current)
+        render2D(ctx, canvas.width, canvas.height, grid, player, time, zoomRef.current, camOffsetRef.current, renderEntities, runtime.combat, connectorsRef.current, questsRef.current, dayNightRef.current)
       } else {
-        render(ctx, canvas.width, canvas.height, grid, player, time, camOffsetRef.current, renderEntities, runtime.combat, hitMarkersRef.current, time, isoZoomRef.current, attackAnimsRef.current, connectorsRef.current, questsRef.current, projectilesRef.current)
+        render(ctx, canvas.width, canvas.height, grid, player, time, camOffsetRef.current, renderEntities, runtime.combat, hitMarkersRef.current, time, isoZoomRef.current, attackAnimsRef.current, connectorsRef.current, questsRef.current, projectilesRef.current, dayNightRef.current)
       }
       // Drop finished attack animations (kept tiny — a few in flight at once).
       if (attackAnimsRef.current.length > 0) {
@@ -7179,6 +7185,15 @@ export default function TemplateEditor() {
                 }`}
               >
                 {hideEntities ? 'Entities hidden' : 'Hide entities'}
+              </button>
+              <button
+                onClick={() => setDayNight(d => (d === 'day' ? 'night' : 'day'))}
+                aria-pressed={dayNight === 'night'}
+                className={`mt-2 w-full rounded px-2 py-1 text-xs font-bold transition-colors ${
+                  dayNight === 'night' ? 'bg-indigo-700' : 'bg-gray-700 hover:bg-gray-600'
+                }`}
+              >
+                Night mode {dayNight === 'night' ? 'on' : 'off'}
               </button>
 
               <div className="mt-3">
@@ -7918,6 +7933,74 @@ function entityRenderCell(entity: Entity, now: number): { col: number; row: numb
   return motionPos(m.from, m.to, m.startMs, now, ENEMY_MOVE_MS)
 }
 
+// ── LIGHTING MODEL ───────────────────────────────────────────────────────────
+// ONE global light source so per-face shading + drop-shadows reference the same sun instead of
+// scattering magic angles. `dir` is the normalized screen-space direction pointing FROM a surface
+// TOWARD the sun (upper-left). Day = bright, sun-driven shading + lamps off; night = a dark navy
+// veil pierced by steady warm lamp pools (drawNightLighting).
+type DayNight = 'day' | 'night'
+const LIGHT = {
+  dir: { x: -0.6, y: -0.8 }, // sun from the upper-left
+  night: { overlay: 'rgba(10, 14, 38, 0.5)' }, // deep-navy veil laid over the whole scene
+}
+const LAMP_GLOW = { rgb: '255, 217, 138', radiusTiles: 3.2 } // warm night light pool
+
+/** Per-face brightness from the global light: a face whose outward screen normal points toward the
+ *  sun is brighter, one facing away dimmer. Returns a darken factor in [0.6, 1.0]. */
+function faceLight(nx: number, ny: number): number {
+  const len = Math.hypot(nx, ny) || 1
+  const d = (nx / len) * LIGHT.dir.x + (ny / len) * LIGHT.dir.y // -1 (away) .. 1 (toward)
+  return 0.6 + 0.4 * (d * 0.5 + 0.5)
+}
+
+/** Night pass: darken the whole canvas with a navy veil, then punch warm radial light pools through
+ *  it at each lamp (additive 'lighter' blend). Steady — never a flicker. `lamps` are screen-space
+ *  centres + pixel radii. */
+function drawNightLighting(
+  ctx: CanvasRenderingContext2D,
+  w: number,
+  h: number,
+  lamps: readonly { x: number; y: number; r: number }[],
+): void {
+  ctx.save()
+  ctx.fillStyle = LIGHT.night.overlay
+  ctx.fillRect(0, 0, w, h)
+  ctx.globalCompositeOperation = 'lighter'
+  for (const l of lamps) {
+    const g = ctx.createRadialGradient(l.x, l.y, 0, l.x, l.y, l.r)
+    g.addColorStop(0, `rgba(${LAMP_GLOW.rgb}, 0.55)`)
+    g.addColorStop(0.45, `rgba(${LAMP_GLOW.rgb}, 0.2)`)
+    g.addColorStop(1, `rgba(${LAMP_GLOW.rgb}, 0)`)
+    ctx.fillStyle = g
+    ctx.beginPath()
+    ctx.arc(l.x, l.y, l.r, 0, Math.PI * 2)
+    ctx.fill()
+  }
+  ctx.restore()
+}
+
+/** Screen-space centres + radii of every lamp/lantern on the grid that lands on-screen — the
+ *  anchors for the night light pools. `cellCenter` maps a cell to its screen centre (each view
+ *  projects differently); `lift` raises the pool to the lamp head. Shared by all views. */
+function collectLampGlows(
+  grid: IsometricGrid,
+  cellCenter: (col: number, row: number) => { x: number; y: number },
+  radiusPx: number,
+  lift: number,
+  w: number,
+  h: number,
+): { x: number; y: number; r: number }[] {
+  const out: { x: number; y: number; r: number }[] = []
+  for (const a of grid.assets) {
+    if (a.type !== 'lamp' && a.type !== 'lantern') continue
+    const p = cellCenter(a.col, a.row)
+    const y = p.y - lift
+    if (p.x < -radiusPx || p.x > w + radiusPx || y < -radiusPx || y > h + radiusPx) continue
+    out.push({ x: p.x, y, r: radiusPx })
+  }
+  return out
+}
+
 /** Deterministic per-cell grass tint: a stable position hash nudges the base grass bg lighter
  *  or darker so the lawn reads as natural patches instead of one flat sheet. Computed from
  *  (col,row) only — stable per cell, never shifts frame-to-frame. Paths/roads never call this. */
@@ -7943,6 +8026,7 @@ function render(
   connectors: Connector[] = [],
   quests: readonly Quest[] = [],
   projectiles: readonly Projectile[] = [],
+  dayNight: DayNight = 'day',
 ) {
   // Clear
   ctx.fillStyle = '#1a1a2e'
@@ -8172,7 +8256,7 @@ function render(
     } else if (obj.asset) {
       const op = obj.asset.opacity ?? 1 // per-asset opacity for contrast/depth
       if (op < 1) ctx.globalAlpha = op
-      drawIsoAssetAscii(ctx, p.x, p.y - heightOffset, obj.asset, tileW, tileH, time, obj.asset.type === 'tree' && (!!obj.asset.baseShadow || isGroundContact(isTreeCell, obj.asset.col, obj.asset.row)))
+      drawIsoAssetAscii(ctx, p.x, p.y - heightOffset, obj.asset, tileW, tileH, time, obj.asset.type === 'tree' && (!!obj.asset.baseShadow || isGroundContact(isTreeCell, obj.asset.col, obj.asset.row)), dayNight)
       if (op < 1) ctx.globalAlpha = 1
     }
   }
@@ -8220,6 +8304,13 @@ function render(
   for (const marker of hitMarkers) {
     const p = toScreen(marker.col + 0.5, marker.row + 0.5)
     drawHitMarker(ctx, p.x, p.y, marker, now)
+  }
+
+  // ─── NIGHT LIGHTING ─────────────────────────────────────────────────
+  // After the scene draws: a navy veil over everything, then steady warm pools at each lamp head.
+  if (dayNight === 'night') {
+    const lamps = collectLampGlows(grid, (c, r) => toScreen(c, r), tileW * LAMP_GLOW.radiusTiles, tileH * 1.5, w, h)
+    drawNightLighting(ctx, w, h, lamps)
   }
 
   // ─── DEBUG MODE ────────────────────────────────────────────────────
@@ -8930,10 +9021,16 @@ function drawIsoBuilding(
     window: withAlpha(buildingCellColor(tcol, 'window', b.col), 0.98),
     roof: withAlpha(roofC, 0.98),
   }
-  const wallSide = withAlpha(wallC, 0.98) // solid wall faces (front is the facade tiles)
+  // Side faces are shaded by the global LIGHT: the wall facing the sun is brighter than the one
+  // facing away (outward normals ≈ ∓colVec). Front facade stays full/bright, the far wall dim.
+  const sideLF = faceLight(-colVec.x, -colVec.y) // left wall (faces -col)
+  const sideRF = faceLight(colVec.x, colVec.y) // right wall (faces +col)
+  const wallLeft = withAlpha(darkenColor(wallC, sideLF), 0.98)
+  const wallRight = withAlpha(darkenColor(wallC, sideRF), 0.98)
   const wallBack = withAlpha(darkenColor(wallC, 0.82), 0.98)
-  const roofFront = withAlpha(roofC, 0.98) // every roof face = this roof's color, shaded by orientation
-  const roofSlope = withAlpha(darkenColor(roofC, 0.8), 0.98)
+  const roofFront = withAlpha(roofC, 0.98) // sunny front roof face = full roof color
+  const roofSlopeL = withAlpha(darkenColor(roofC, Math.min(1, sideLF + 0.06)), 0.98)
+  const roofSlopeR = withAlpha(darkenColor(roofC, Math.min(1, sideRF + 0.06)), 0.98)
   const roofTop = withAlpha(darkenColor(roofC, 0.9), 0.98)
   const roofBack = withAlpha(darkenColor(roofC, 0.66), 0.98)
 
@@ -8988,6 +9085,17 @@ function drawIsoBuilding(
   }
   const roofSideCount = Math.max(2, Math.min(4, Math.round(b.depth)))
 
+  // Simple ground shadow: a soft ellipse offset opposite the sun (down-right along -LIGHT.dir), so
+  // the building reads as grounded. Drawn first → the box sits on top; only the cast part shows.
+  const gC = mid(mid(fbl, fbr), mid(bbl, bbr))
+  const footSpan = Math.hypot(colVec.x, colVec.y) * L + Math.hypot(depthVec.x, depthVec.y) * b.depth
+  ctx.save()
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.16)'
+  ctx.beginPath()
+  ctx.ellipse(gC.x - LIGHT.dir.x * cellH * 0.6, gC.y - LIGHT.dir.y * cellH * 0.6 + cellH * 0.15, footSpan * 0.34, footSpan * 0.18, 0, 0, Math.PI * 2)
+  ctx.fill()
+  ctx.restore()
+
   // Paint the facade tiles (door/windows) onto one face. `base` is that face's bottom-left corner.
   const drawFacade = (base: Pt): void => {
     for (let r = 0; r < H; r++) {
@@ -9009,8 +9117,9 @@ function drawIsoBuilding(
   ctx.fillStyle = wallBack
   if (b.facadeOnBack) fillQuad(ctx, fbl, fbr, eave(fbr), eave(fbl)) // plain FRONT wall (camera side)
   else fillQuad(ctx, bbl, bbr, eave(bbr), eave(bbl)) // plain BACK wall (facade is on the front)
-  ctx.fillStyle = wallSide
+  ctx.fillStyle = wallLeft
   fillQuad(ctx, fbl, bbl, eave(bbl), eave(fbl)) // left
+  ctx.fillStyle = wallRight
   fillQuad(ctx, fbr, bbr, eave(bbr), eave(fbr)) // right
 
   // Windows on the faces the front facade doesn't cover: both sides + the plain (non-facade) wall.
@@ -9034,8 +9143,9 @@ function drawIsoBuilding(
     const BRR = ptAdd(FRR, depthVec)
     ctx.fillStyle = roofBack
     fillQuad(ctx, BEL, BER, BRR, BRL) // back trapezoid
-    ctx.fillStyle = roofSlope
+    ctx.fillStyle = roofSlopeL
     fillQuad(ctx, FEL, BEL, BRL, FRL) // left slope
+    ctx.fillStyle = roofSlopeR
     fillQuad(ctx, FER, BER, BRR, FRR) // right slope
     ctx.fillStyle = roofTop
     fillQuad(ctx, FRL, FRR, BRR, BRL) // flat top
@@ -9048,8 +9158,9 @@ function drawIsoBuilding(
     const top = (p: Pt): Pt => ptAdd(p, up(H))
     ctx.fillStyle = roofBack
     fillQuad(ctx, eave(bbl), eave(bbr), top(bbr), top(bbl))
-    ctx.fillStyle = roofSlope
+    ctx.fillStyle = roofSlopeL
     fillQuad(ctx, eave(fbl), eave(bbl), top(bbl), top(fbl)) // left
+    ctx.fillStyle = roofSlopeR
     fillQuad(ctx, eave(fbr), eave(bbr), top(bbr), top(fbr)) // right
     ctx.fillStyle = roofTop
     fillQuad(ctx, top(fbl), top(fbr), top(bbr), top(bbl))
@@ -9091,6 +9202,7 @@ function drawIsoAssetAscii(
   tileH: number,
   time: number,
   groundContact = false,
+  dayNight: DayNight = 'day',
 ) {
   const lineHeight = tileH * 1.3
   const fontSize = tileH * 1.1
@@ -9198,8 +9310,10 @@ function drawIsoAssetAscii(
     }
 
   } else if (asset.type === 'lamp' || asset.type === 'lantern') {
-    // Lamp post with glowing top
-    const glow = lampPulse(time) // looping lamp animation (behaviors module)
+    // Lamp post. STEADY light — ON (constant warm bulb) at night, OFF (dim, unlit bulb) by day.
+    // The old lampPulse faded the bulb in/out every cycle, which read as a broken flicker; the
+    // night ambience now comes from the warm light pool in drawNightLighting, not a pulsing glyph.
+    const glow = dayNight === 'night' ? 1 : 0.18
     const layers = [
       { text: '|', color: '#666666', bg: '#333333' },
       { text: '|', color: '#777777', bg: '#444444' },
@@ -9308,6 +9422,7 @@ function render2D(
   enemyCombat: ReadonlyMap<string, CombatState> = new Map(),
   connectors: Connector[] = [],
   quests: readonly Quest[] = [],
+  dayNight: DayNight = 'day',
 ) {
   // Clear with sky/background color
   ctx.fillStyle = '#1a1a2e'
@@ -9570,15 +9685,16 @@ function render2D(
         draw2DBuildingTile(ctx, p.x, baseY, tileW, tileH, asset, flicker)
 
       } else if (asset.type === 'lamp') {
-        // Animated lantern - yellow glow that flickers
+        // Lamp post — STEADY bulb (ON at night, dim by day), no time-based pulse/flicker.
+        const glow = dayNight === 'night' ? 1 : 0.2
         ctx.fillStyle = '#333333'
         ctx.fillRect(p.x - tileW * 0.12, baseY - tileH * 2, tileW * 0.24, tileH * 2)
         ctx.fillStyle = '#555555'
         ctx.fillText('|', p.x, baseY - tileH * 0.5)
-        // Glowing lamp top
-        ctx.fillStyle = `rgba(255, 255, 0, ${0.6 + 0.4 * flicker})`
+        // Bulb
+        ctx.fillStyle = `rgba(255, 255, 0, ${0.4 + 0.6 * glow})`
         ctx.fillRect(p.x - tileW * 0.25, baseY - tileH * 2.4, tileW * 0.5, tileH * 0.5)
-        ctx.fillStyle = `rgba(255, 200, 50, ${0.7 + 0.3 * flicker})`
+        ctx.fillStyle = `rgba(255, 200, 50, ${0.4 + 0.6 * glow})`
         ctx.fillText('o', p.x, baseY - tileH * 2.2)
 
       } else if (asset.type === 'npc') {
@@ -9667,6 +9783,12 @@ function render2D(
     const inRange = entity.kind === 'enemy' && Math.hypot(entity.col - pCol, entity.row - pRow) <= COMBAT_RANGE
     const anchor = drawTopEntity(ctx, e.x, e.y, tileW, entity, combat, time, moving, inRange)
     drawQuestMarker(ctx, entityQuestMarker(entity, quests), anchor.x, anchor.y, Math.max(14, tileW * 1.4))
+  }
+
+  // ─── NIGHT LIGHTING ─────────────────────────────────────────────────
+  if (dayNight === 'night') {
+    const lamps = collectLampGlows(grid, (c, r) => toScreen(c + 0.5, r + 0.5), tileW * LAMP_GLOW.radiusTiles, tileH * 2.2, w, h)
+    drawNightLighting(ctx, w, h, lamps)
   }
 
   // ─── UI ───────────────────────────────────────────────────────────
@@ -10154,7 +10276,8 @@ function renderTopView(
   enemyCombat: ReadonlyMap<string, CombatState> = new Map(),
   hitMarkers: readonly HitMarker[] = [],
   now: number = 0,
-  quests: readonly Quest[] = []
+  quests: readonly Quest[] = [],
+  dayNight: DayNight = 'day',
 ) {
   // Clear
   ctx.fillStyle = '#0a0a10'
@@ -10431,6 +10554,19 @@ function renderTopView(
     const mx = offsetX + (marker.col + 0.5) * tileSize
     const my = offsetY + marker.row * tileSize
     drawHitMarker(ctx, mx, my, marker, now)
+  }
+
+  // ─── NIGHT LIGHTING ─────────────────────────────────────────────────
+  if (dayNight === 'night') {
+    const lamps = collectLampGlows(
+      grid,
+      (c, r) => ({ x: offsetX + (c + 0.5) * tileSize, y: offsetY + (r + 0.5) * tileSize }),
+      tileSize * LAMP_GLOW.radiusTiles,
+      0,
+      w,
+      h,
+    )
+    drawNightLighting(ctx, w, h, lamps)
   }
 
   // UI
