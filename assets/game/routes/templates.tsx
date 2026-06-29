@@ -4206,29 +4206,38 @@ export default function TemplateEditor() {
     let row: number
 
     if (topViewMode) {
-      // Must match renderTopView's offset EXACTLY, including the pan (camOffset) —
-      // otherwise clicks land on the wrong cell after panning.
+      // Match renderTopView EXACTLY, INCLUDING the #38 camera CLAMP (clampCameraAxis on the focus) —
+      // otherwise clicks land on the wrong cell near the grid edges. Mirrors lines ~11047/11057.
       const tileSize = 16 * zoomRef.current
-      const offsetX = canvas.width / 2 - (px / cs) * tileSize + cam.x
-      const offsetY = canvas.height / 2 - (pz / cs) * tileSize + cam.y
-      col = Math.floor((x - offsetX) / tileSize)
-      row = Math.floor((y - offsetY) / tileSize)
+      const fCol = clampCameraAxis(px / cs - cam.x / tileSize, canvas.width / tileSize / 2, grid.cols)
+      const fRow = clampCameraAxis(pz / cs - cam.y / tileSize, canvas.height / tileSize / 2, grid.rows)
+      col = Math.floor((x - (canvas.width / 2 - fCol * tileSize)) / tileSize)
+      row = Math.floor((y - (canvas.height / 2 - fRow * tileSize)) / tileSize)
     } else if (viewTypeRef.current === '2d') {
+      // Match render2D's clamped camera (baseTileSize 24).
       const tileW = 24 * zoomRef.current
-      const camCol = px / cs - cam.x / tileW
-      const camRow = pz / cs - cam.y / tileW
+      const camCol = clampCameraAxis(px / cs - cam.x / tileW, canvas.width / tileW / 2, grid.cols)
+      const camRow = clampCameraAxis(pz / cs - cam.y / tileW, canvas.height / tileW / 2, grid.rows)
       col = Math.floor(camCol + (x - canvas.width / 2) / tileW)
       row = Math.floor(camRow + (y - canvas.height / 2) / tileW)
     } else {
-      // Isometric: invert the diamond projection (sx-w/2 = (wx-wz)·S, sy-h/2 = (wx+wz)·T).
-      const S = grid.isoScale * isoZoomRef.current * 0.71
-      const T = grid.isoScale * isoZoomRef.current * 0.36
-      const camX = px - cam.x
-      const camZ = pz - cam.y
+      // Isometric: invert the diamond projection, with the SAME clamped focus the render uses (#38
+      // p/q diamond clamp, p=col-row q=col+row) — else clicks drift near the edges.
+      const eff = grid.isoScale * isoZoomRef.current
+      const S = eff * 0.71
+      const T = eff * 0.36
+      const pPad = canvas.width / (2 * cs * S)
+      const qPad = canvas.height / (2 * cs * T)
+      let fc = (px - cam.x) / cs
+      let fr = (pz - cam.y) / cs
+      const pDiag = clampOrCenter(fc - fr, pPad - grid.rows, grid.cols - pPad, (grid.cols - grid.rows) / 2)
+      const qDiag = clampOrCenter(fc + fr, qPad, grid.cols + grid.rows - qPad, (grid.cols + grid.rows) / 2)
+      fc = (pDiag + qDiag) / 2
+      fr = (qDiag - pDiag) / 2
       const a = (x - canvas.width / 2) / S
       const b = (y - canvas.height / 2) / T
-      col = Math.floor(((a + b) / 2 + camX) / cs)
-      row = Math.floor(((b - a) / 2 + camZ) / cs)
+      col = Math.floor(((a + b) / 2 + fc * cs) / cs)
+      row = Math.floor(((b - a) / 2 + fr * cs) / cs)
     }
 
     if (col >= 0 && col < grid.cols && row >= 0 && row < grid.rows) {
@@ -9734,23 +9743,46 @@ function drawIsoWellFountain(
   fillDiamond(ctx, x, topY + hh * 0.3, hw * 0.5, hh * 0.5, lightenColor(water, 0.08 + 0.16 * shimmer)) // surface
 
   if (isFountain) {
-    // tiered centre + an animated vertical water jet with falling droplets
-    drawIsoPrism(ctx, x, topY + hh * 0.2, hw * 0.26, hh * 0.26, bodyH * 0.45, lightenColor(stone, 0.22), darkenColor(stone, 0.5), darkenColor(stone, 0.72))
-    const drop = Math.sin(time * 0.005) * 0.5 + 0.5
-    const jetTop = topY - bodyH * 0.55
-    ctx.fillStyle = withAlpha('#bfe8ff', 0.85)
-    ctx.beginPath() // tapering jet
-    ctx.moveTo(x, jetTop)
-    ctx.lineTo(x + tileW * 0.06, topY - bodyH * 0.05)
-    ctx.lineTo(x - tileW * 0.06, topY - bodyH * 0.05)
+    // A TIERED park fountain: stacked stone pedestals each carrying a blue water BOWL, narrowing
+    // upward, with water arcing from the top spout down into the bowls + the pool (per the refs).
+    const tierStone = lightenColor(stone, 0.16)
+    const waterSurf = lightenColor(water, 0.12 + 0.16 * shimmer)
+    // tier 1 — a short pedestal rising from the pool carrying a wide bowl
+    const p1Y = topY + hh * 0.2
+    drawIsoPrism(ctx, x, p1Y, hw * 0.12, hh * 0.12, bodyH * 0.5, tierStone, darkenColor(stone, 0.5), darkenColor(stone, 0.72))
+    const b1Y = p1Y - bodyH * 0.5
+    fillDiamond(ctx, x, b1Y, hw * 0.44, hh * 0.44, lightenColor(stone, 0.08)) // bowl rim (stone)
+    fillDiamond(ctx, x, b1Y, hw * 0.34, hh * 0.34, darkenColor(water, 0.5)) // bowl depth
+    fillDiamond(ctx, x, b1Y - hh * 0.05, hw * 0.28, hh * 0.28, waterSurf) // bowl water
+    // tier 2 — a thinner pedestal + a small upper bowl
+    drawIsoPrism(ctx, x, b1Y - hh * 0.05, hw * 0.07, hh * 0.07, bodyH * 0.42, tierStone, darkenColor(stone, 0.5), darkenColor(stone, 0.72))
+    const b2Y = b1Y - hh * 0.05 - bodyH * 0.42
+    fillDiamond(ctx, x, b2Y, hw * 0.22, hh * 0.22, lightenColor(stone, 0.08))
+    fillDiamond(ctx, x, b2Y - hh * 0.03, hw * 0.15, hh * 0.15, waterSurf)
+    // water — a central jet + two arcs spraying out from the top spout down into the lower bowl
+    const sprayTop = b2Y - bodyH * 0.45
+    ctx.strokeStyle = withAlpha('#d4f0ff', 0.85)
+    ctx.lineWidth = Math.max(1.5, tileW * 0.03)
+    ctx.lineCap = 'round'
+    for (const dx of [-1, 1]) {
+      ctx.beginPath()
+      ctx.moveTo(x, sprayTop)
+      ctx.quadraticCurveTo(x + dx * hw * 0.55, sprayTop + hh * 0.1, x + dx * hw * 0.5, b1Y + hh * 0.05)
+      ctx.stroke()
+    }
+    ctx.fillStyle = withAlpha('#e6f6ff', 0.9) // central vertical jet
+    ctx.beginPath()
+    ctx.moveTo(x, sprayTop - hh * 0.3)
+    ctx.lineTo(x + tileW * 0.045, b2Y - hh * 0.05)
+    ctx.lineTo(x - tileW * 0.045, b2Y - hh * 0.05)
     ctx.closePath()
     ctx.fill()
-    ctx.beginPath()
-    ctx.arc(x - hw * 0.5, topY - bodyH * 0.1 - drop * tileH, tileW * 0.05, 0, Math.PI * 2)
-    ctx.fill()
-    ctx.beginPath()
-    ctx.arc(x + hw * 0.5, topY - bodyH * 0.28 + drop * tileH * 0.5, tileW * 0.05, 0, Math.PI * 2)
-    ctx.fill()
+    const drop = Math.sin(time * 0.005) * 0.5 + 0.5 // animated falling droplets
+    for (const dx of [-0.45, 0.45]) {
+      ctx.beginPath()
+      ctx.arc(x + dx * hw, b1Y - drop * tileH * 0.4, tileW * 0.045, 0, Math.PI * 2)
+      ctx.fill()
+    }
     return
   }
 
