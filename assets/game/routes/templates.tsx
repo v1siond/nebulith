@@ -6623,7 +6623,7 @@ export default function TemplateEditor() {
       if (grid.ground[g.row]?.[g.col] !== undefined) grid.ground[g.row][g.col] = g.type
     }
     for (const a of paint.assets) {
-      grid.placeAsset([a.char], a.col, a.row, { type: a.type, blocking: a.blocking, color: a.color, label: a.label, baseShadow: a.baseShadow, buildingType: a.buildingType, edge: a.edge, footprint: a.footprint })
+      grid.placeAsset([a.char], a.col, a.row, { type: a.type, blocking: a.blocking, color: a.color, label: a.label, baseShadow: a.baseShadow, buildingType: a.buildingType, edge: a.edge, footprint: a.footprint, cellPart: a.label })
     }
     // Mirror the generator's authoritative collision into the grid so trees/water/
     // features are truly blocked — enemies (manual placement + scatter) only land on
@@ -11906,7 +11906,7 @@ function adjustColorBrightness(hex: string, factor: number): string {
  *  (asset.edge), trunk/canopy for a tree (asset.label), '' for any single-cell element. The
  *  fountain's multi-cell basin is expanded separately in debugCellCaptions. */
 function assetCaptionPos(asset: GridAsset): string {
-  if (asset.type === 'tree') return treeSubpart(asset.label)
+  if (asset.type === 'tree') return treeSubpart(asset.cellPart)
   if (asset.edge) return edgeToSide(asset.edge)
   return ''
 }

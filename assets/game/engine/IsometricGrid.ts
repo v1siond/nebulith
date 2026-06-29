@@ -31,6 +31,9 @@ export interface GridAsset {
   buildingType?: string // building cell's TYPE (store/hospital/…) → drives the apex signage badge
   edge?: string         // building cell's corner/edge/interior class (nw/n/ne/w/interior/e/sw/s/se) → tileset mapping + debug overlay
   footprint?: number    // town-square fountain: the basin side (cells) this ONE prop spans → render one big fountain, not N
+  cellPart?: string     // generated cell-part label (tree_stem/tree_top_left/…) surfaced for the DEBUG overlay only. Kept
+                        // separate from `label` on purpose: `label` gates a different per-cell render path, so reusing it
+                        // here would silently flip world rendering — this field never touches the renderers.
 }
 
 export interface GridConfig {
@@ -212,6 +215,7 @@ export class IsometricGrid {
       baseShadow: options.baseShadow,
       edge: options.edge,
       footprint: options.footprint,
+      cellPart: options.cellPart,
     })
 
     // If blocking, update collision grid
