@@ -8505,17 +8505,18 @@ function drawIsoPlayer(
   // Robust block figure — same recipe as entities + trees; `breathe` bobs the whole figure.
   drawBlockFigure(ctx, playerArt, x - pHalf, y - lineHeight * 0.5 - breathe, lineHeight, charW, bodyColor, bodyBg)
 
-  // The held weapon, drawn beside the figure at mid-height so equipped gear shows.
+  // The held weapon + the shield, both at the ARM row. The weapon sits on the FACING hand; the
+  // shield on the OFF-hand (the side OPPOSITE the weapon) at the SAME arm height — so they never
+  // land on the same hand in any facing (#49).
   ctx.textAlign = 'center'
+  const onLeft = player.facing === 'left'
+  const dir = onLeft ? -1 : 1 // +1 → facing right, weapon on the RIGHT hand
+  const weaponSize = fontSize * 1.7
+  const handY = y - lineHeight * 1.5 - breathe // the HAND, at the arm/body row (shared by weapon + shield)
   if (player.weaponGlyph) {
-    // The ONE held weapon — bigger so a sword reads, on the facing hand, at ARM/body height (the
-    // <#> row, one line above the legs). At rest the blade points UP; on attack THIS SAME blade
-    // swings through the arc (no separate stroke), mirrored by facing.
-    const weaponSize = fontSize * 1.7
-    const onLeft = player.facing === 'left'
-    const dir = onLeft ? -1 : 1
-    const handX = onLeft ? x - pHalf - weaponSize * 0.18 : x + pHalf + weaponSize * 0.18
-    const handY = y - lineHeight * 1.5 - breathe // the HAND, at the arm/body row — NOT the legs
+    // The ONE held weapon — bigger so a sword reads, on the facing hand. At rest the blade points
+    // UP; on attack THIS SAME blade swings through the arc, mirrored by facing.
+    const handX = x + dir * (pHalf + weaponSize * 0.18)
     const swing = dir * 2.2 * (swingP ?? 0) // 0 at rest (blade up) → sweep the tip DOWN-forward
     ctx.font = `bold ${weaponSize}px ${ASCII_FONT}`
     ctx.textBaseline = 'middle'
@@ -8531,11 +8532,11 @@ function drawIsoPlayer(
     ctx.restore()
     ctx.font = `bold ${fontSize}px ${ASCII_FONT}` // restore for the shield draw below
   }
-  // A shield on the off-hand (left side), when equipped. A FILLED disc sits behind the glyph so
-  // the shield reads as a solid shield, not a hollow "O".
+  // Shield on the OFF-hand — the side OPPOSITE the weapon — at the SAME arm height (handY). A FILLED
+  // disc sits behind the glyph so the shield reads as a solid shield, not a hollow "O".
   if (player.shieldGlyph) {
-    const shX = x - fontSize * 0.8
-    const shY = y - lineHeight - breathe
+    const shX = x - dir * (pHalf + fontSize * 0.3) // off-hand: opposite the weapon
+    const shY = handY                               // same arm row as the weapon hand
     const shR = fontSize * 0.5
     ctx.beginPath()
     ctx.arc(shX, shY, shR, 0, Math.PI * 2)
@@ -9733,15 +9734,18 @@ function render2D(
       // (mirrors drawIsoPlayer): at rest it points up; an attack sweeps it through the arc, and an
       // ability recolors it (Fire Slash → red-orange). 2D drew nothing animated here before, so
       // attacks looked like they did nothing — this is the #34 fix.
+      // Weapon on the FACING hand, shield on the OFF-hand — both at the ARM row, never the same
+      // hand in any facing (#49). (Mirrors drawIsoPlayer.)
+      const facingDir = player.facing === 'left' ? -1 : 1
+      const armY = baseY - lineHeight * 1.2 // the arm/hand row, shared by weapon + shield
       if (player.weaponGlyph) {
         const inHandSlash = attackAnims.find(a => a.inHand && time - a.start < a.durationMs)
         const swingP = inHandSlash ? Math.min(1, (time - inHandSlash.start) / inHandSlash.durationMs) : 0
-        const dir = player.facing === 'left' ? -1 : 1
         const weaponSize = fontSize * 1.7
         ctx.save()
-        ctx.translate(p.x + dir * fontSize * 0.6, baseY - lineHeight * 1.2) // pivot = the hand/hilt
-        ctx.rotate(dir * 2.2 * swingP) // sweep the tip down-forward through the swing
-        ctx.rotate(Math.PI)            // flip so the blade extends UP from the hilt at rest
+        ctx.translate(p.x + facingDir * fontSize * 0.6, armY) // pivot = the hand/hilt
+        ctx.rotate(facingDir * 2.2 * swingP) // sweep the tip down-forward through the swing
+        ctx.rotate(Math.PI)                  // flip so the blade extends UP from the hilt at rest
         ctx.font = `bold ${weaponSize}px ${ASCII_FONT}`
         ctx.fillStyle = '#000000'
         ctx.fillText(player.weaponGlyph, 0, weaponSize * 0.45 + 1)
@@ -9750,11 +9754,11 @@ function render2D(
         ctx.restore()
         ctx.font = `bold ${fontSize}px ${ASCII_FONT}` // restore for the shield draw
       }
-      // Shield on the off-hand, when equipped. Filled disc behind the glyph so it reads as a
-      // solid shield, not a hollow "O".
+      // Shield on the OFF-hand (opposite the weapon) at the SAME arm height. Filled disc behind the
+      // glyph so it reads as a solid shield, not a hollow "O".
       if (player.shieldGlyph) {
-        const shX = p.x - fontSize * 0.6
-        const shY = baseY - lineHeight * 1.2
+        const shX = p.x - facingDir * fontSize * 0.6 // off-hand: opposite the weapon
+        const shY = armY
         const shR = fontSize * 0.55
         ctx.beginPath()
         ctx.arc(shX, shY, shR, 0, Math.PI * 2)
