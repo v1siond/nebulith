@@ -88,6 +88,59 @@ describe('settlement building placement (consumer matches planner contract)', ()
     })
   }
 
+  test('the town SQUARE is reserved CENTRALLY before houses, and is ONE fountain (never N props)', () => {
+    for (const settlement of ['town', 'city'] as const) {
+      let sawFountain = false
+      for (const seed of [12345, 777, 42, 1, 2, 3, 7, 99]) {
+        const { stage, layout } = genWithSeed(settlement, seed)
+        const plaza = layout.plaza
+        expect(plaza).not.toBeNull()
+        if (!plaza) continue
+
+        // (a) reserved CENTRALLY — the square sits near the map centre (a town square, not wherever-fits).
+        const pcx = plaza.c0 + plaza.size / 2
+        const pcy = plaza.r0 + plaza.size / 2
+        expect(Math.abs(pcx - COLS / 2)).toBeLessThanOrEqual(COLS * 0.3)
+        expect(Math.abs(pcy - ROWS / 2)).toBeLessThanOrEqual(ROWS * 0.3)
+
+        // (b) NO building footprint cell lands on the reserved square (houses built AROUND it).
+        for (const b of stage.buildings) {
+          const top = b.row - (b.height - 1)
+          for (let r = top; r <= b.row; r++) {
+            for (let c = b.col; c < b.col + b.length; c++) {
+              const inPlaza = c >= plaza.c0 && c < plaza.c0 + plaza.size && r >= plaza.r0 && r < plaza.r0 + plaza.size
+              expect(inPlaza).toBe(false)
+            }
+          }
+        }
+
+        // (c) the plain WELL is dropped, and the centrepiece is ONE structure — at most a single
+        //     fountain prop (never a cluster of N per-cell props).
+        const wells = stage.props.filter(p => p.type === 'well')
+        const fountains = stage.props.filter(p => p.type === 'fountain')
+        expect(wells).toHaveLength(0)
+        expect(fountains.length).toBeLessThanOrEqual(1)
+
+        // (d) when it's a fountain (the common case), it's ONE prop centred on the square, carrying
+        //     the basin span, and every basin cell BLOCKS (you walk the paved ring around it).
+        if (fountains.length === 1) {
+          sawFountain = true
+          const fountain = fountains[0]
+          expect(fountain.footprint).toBeGreaterThanOrEqual(3)
+          const basin = plaza.size >= 7 ? 5 : 3
+          expect(fountain.footprint).toBe(basin)
+          const bc = plaza.c0 + Math.floor((plaza.size - basin) / 2)
+          const br = plaza.r0 + Math.floor((plaza.size - basin) / 2)
+          expect(fountain.col).toBe(bc + Math.floor(basin / 2))
+          expect(fountain.row).toBe(br + Math.floor(basin / 2))
+          for (let r = br; r < br + basin; r++)
+            for (let c = bc; c < bc + basin; c++) expect(stage.collision[r][c]).toBe(true)
+        }
+      }
+      expect(sawFountain).toBe(true) // the fountain (not the rare pond) is the dominant centrepiece
+    }
+  })
+
   test('every building door faces a road within the setback (a road within 2 cells of the door)', () => {
     for (const settlement of ['town', 'city'] as const) {
       for (const seed of [12345, 777, 42]) {

@@ -9,7 +9,7 @@
  * and reusable by the editor, the template mapper, and the eventual AI generator.
  */
 import { composeBuilding, ComposedBuilding, BuildingType } from './buildingComposer'
-import { planVillage, type VillageLayout, type Settlement, type Plot, type Facing } from './villageLayout'
+import { planVillage, type VillageLayout, type Settlement, type Plot, type Facing, type PlazaRect } from './villageLayout'
 import { ZONE_PALETTES, ZoneId } from './zones'
 import { autotileLabel, isWalkable, TREE_MASS_FAMILY, type CellLabel } from './cellLabels'
 import { cellTile, TREE_CANOPY_SHADES, groundDecor } from './cellTileset'
@@ -41,6 +41,10 @@ export interface StageProp {
   /** For building cells: the cell's corner/edge/interior class within the footprint
    *  rect (nw/n/ne/w/interior/e/sw/s/se) — the directional info a tileset maps. */
   edge?: BuildingEdge
+  /** For the town-square fountain: the side (in cells) of the square basin this ONE prop spans,
+   *  centred on its cell. Lets the render draw a SINGLE big fountain over the whole plaza instead of
+   *  one mini-structure per cell. Absent on every other prop. */
+  footprint?: number
 }
 
 export interface PlacedBuilding {
@@ -296,8 +300,11 @@ function scatterGroundCover(ctx: ArchetypeContext, density = 0.18): void {
 const makePillar = (col: number, row: number): StageProp => ({ col, row, type: 'pillar', char: '║', blocking: true, color: '#cbb68c' })
 const makeBrazier = (col: number, row: number): StageProp => ({ col, row, type: 'brazier', char: 'Φ', blocking: true, color: '#ff8a3a' })
 const makeAltar = (col: number, row: number): StageProp => ({ col, row, type: 'altar', char: '‡', blocking: true, color: '#ffe7a8' })
-const makeWell = (col: number, row: number): StageProp => ({ col, row, type: 'well', char: '◉', blocking: true, color: '#5b8bbf' })
-const makeFountain = (col: number, row: number): StageProp => ({ col, row, type: 'fountain', char: '⊙', blocking: true, color: '#5fbce0' })
+// The town-square centrepiece — ONE big fountain prop carrying its `footprint` (the basin spans
+// footprint×footprint cells, centred on this cell). The render draws a single tiered fountain over
+// the whole plaza; the other footprint cells are blocked directly in the collision grid (no prop), so
+// it never reads as N clustered mini-wells.
+const makeTownFountain = (col: number, row: number, footprint: number): StageProp => ({ col, row, type: 'fountain', char: '⊙', blocking: true, color: '#5fbce0', footprint })
 const makeLamp = (col: number, row: number): StageProp => ({ col, row, type: 'lamp', char: '†', blocking: true, color: '#ffd27a' })
 
 /** Place a prop iff the cell is in-bounds + not already blocked; set collision when blocking. */
@@ -531,9 +538,9 @@ function villageDecor(ctx: ArchetypeContext, layout: VillageLayout): void {
   }
   const decorFree = (c: number, r: number): boolean =>
     !collision[r]?.[c] && !layout.roads[r]?.[c] && !buildingCells.has(`${c},${r}`) && !doorways.has(`${c},${r}`)
-  // Central plaza centrepiece — a BIG well, fountain, or pond at the most central CLEAR block,
-  // ringed by a path_stone plaza. The settlement's focal point.
-  placeCentrepiece(ctx, decorFree)
+  // The town SQUARE: ONE big fountain (rarely a pond) on the plaza the planner reserved dead-centre
+  // BEFORE the houses — the settlement's focal landmark, not a leftover-space afterthought.
+  placeCentrepiece(ctx, layout.plaza)
   // Lamp posts every ~6 cells along each street's frontage gaps (never on a road or building).
   for (const sr of streetRows) {
     const frontage = sr - 1
@@ -543,46 +550,33 @@ function villageDecor(ctx: ArchetypeContext, layout: VillageLayout): void {
   }
 }
 
-/** Place a big central feature — a 2×2 well/fountain or a 3×3 pond — on the most central CLEAR block,
- *  ringed by a path_stone plaza. Searches outward from the map centre so it always lands somewhere
- *  open; `isFree` excludes roads, buildings, and doorways. */
-function placeCentrepiece(ctx: ArchetypeContext, isFree: (c: number, r: number) => boolean): void {
+/** Stamp the town SQUARE the planner reserved dead-centre BEFORE the houses: pave the whole block
+ *  path_stone, then drop ONE big fountain (rarely a pond) at its centre. The fountain is a SINGLE
+ *  prop spanning a central odd-sized basin (collision-blocked, you walk the paved ring around it) —
+ *  not N clustered mini-structures. A pond fills the same central basin with water instead. */
+function placeCentrepiece(ctx: ArchetypeContext, plaza: PlazaRect | null): void {
+  if (!plaza) return
   const { cols, rows, ground, collision } = ctx
-  const isLake = Math.random() < 0.34
-  const size = isLake ? 3 : 2
-  const blockClear = (c0: number, r0: number): boolean => {
-    for (let r = r0; r < r0 + size; r++)
-      for (let c = c0; c < c0 + size; c++)
-        if (!inBounds(c, r, cols, rows) || !isFree(c, r)) return false
-    return true
-  }
-  const cc = Math.floor(cols / 2)
-  const cr = Math.floor(rows / 2)
-  let spot: { c: number; r: number } | null = null
-  for (let radius = 0; radius < Math.max(cols, rows) && !spot; radius++) {
-    for (let dr = -radius; dr <= radius && !spot; dr++) {
-      for (let dc = -radius; dc <= radius && !spot; dc++) {
-        if (Math.max(Math.abs(dc), Math.abs(dr)) !== radius) continue // walk the ring at this radius only
-        if (blockClear(cc + dc, cr + dr)) spot = { c: cc + dc, r: cr + dr }
-      }
-    }
-  }
-  if (!spot) return
-  const { c, r } = spot
-  const makeStruct = Math.random() < 0.5 ? makeFountain : makeWell
-  for (let rr = r; rr < r + size; rr++)
-    for (let c2 = c; c2 < c + size; c2++) {
-      if (isLake) {
-        ground[rr][c2] = 'water'
-        collision[rr][c2] = true // a pond — blocks; you walk around it
-      } else {
-        placeProp(ctx, makeStruct(c2, rr)) // blocking structure cells (placeProp sets collision)
-      }
-    }
-  // a path_stone plaza ring around the centrepiece (only on free cells)
-  for (let rr = r - 1; rr <= r + size; rr++)
-    for (let c2 = c - 1; c2 <= c + size; c2++)
-      if (inBounds(c2, rr, cols, rows) && isFree(c2, rr)) ground[rr][c2] = 'path_stone'
+  const { c0, r0, size } = plaza
+  // Pave the whole square as a walkable stone plaza (the ring you stroll around the fountain).
+  for (let r = r0; r < r0 + size; r++)
+    for (let c = c0; c < c0 + size; c++) if (inBounds(c, r, cols, rows)) ground[r][c] = 'path_stone'
+
+  // The basin is a centred ODD block (a clean centre cell) leaving a ≥1-cell paved ring to walk.
+  const basin = size >= 7 ? 5 : 3
+  const bc = c0 + Math.floor((size - basin) / 2)
+  const br = r0 + Math.floor((size - basin) / 2)
+  const centreCol = bc + Math.floor(basin / 2)
+  const centreRow = br + Math.floor(basin / 2)
+
+  // The basin BLOCKS (you walk the paved ring around it). The plain roofed well + the flat water pond
+  // are dropped — a real town square gets a real fountain (per the references), so the centrepiece is
+  // ALWAYS ONE fountain, never a cluster of mini-wells.
+  for (let r = br; r < br + basin; r++)
+    for (let c = bc; c < bc + basin; c++) if (inBounds(c, r, cols, rows)) collision[r][c] = true
+  // ONE fountain prop, centred, carrying the basin span so the render draws a SINGLE big fountain
+  // over the whole basin (a wide basin + tiered column + animated jets), not N per-cell structures.
+  ctx.props.push(makeTownFountain(centreCol, centreRow, basin))
 }
 
 /** Footprint rect type — the cells a building actually occupies on the grid. */
@@ -1684,7 +1678,7 @@ function firstWalkable(collision: boolean[][], cols: number, rows: number): Cell
 // ── visual mapping (shared by the template mapper + the live-grid applier) ──
 export interface StagePaint {
   ground: { col: number; row: number; type: string }[]
-  assets: { col: number; row: number; char: string; type: string; color: string; blocking: boolean; label?: string; baseShadow?: boolean; buildingType?: string; edge?: BuildingEdge }[]
+  assets: { col: number; row: number; char: string; type: string; color: string; blocking: boolean; label?: string; baseShadow?: boolean; buildingType?: string; edge?: BuildingEdge; footprint?: number }[]
 }
 
 export function stagePaint(stage: StageData): StagePaint {
@@ -1692,7 +1686,7 @@ export function stagePaint(stage: StageData): StagePaint {
   const assets: StagePaint['assets'] = []
   stage.buildings.forEach(b => paintBuildingGround(b, ground))
   stage.props.forEach(p =>
-    assets.push({ col: p.col, row: p.row, char: p.char, type: p.type, color: p.color, blocking: p.blocking, label: p.label, baseShadow: p.baseShadow, buildingType: p.buildingType, edge: p.edge }),
+    assets.push({ col: p.col, row: p.row, char: p.char, type: p.type, color: p.color, blocking: p.blocking, label: p.label, baseShadow: p.baseShadow, buildingType: p.buildingType, edge: p.edge, footprint: p.footprint }),
   )
   return { ground, assets }
 }
@@ -1749,6 +1743,7 @@ export function stageToTemplate(stage: StageData, name: string): StageTemplatePa
     color: a.color,
     height: 0,
     label: a.label,
+    footprint: a.footprint,
   }))
 
   return {

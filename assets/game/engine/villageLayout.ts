@@ -57,10 +57,19 @@ export interface RoadPlan {
   frontages: Frontage[]
   entrances: Entrance[]
 }
+/** A reserved, road-free square block — the town SQUARE. Buildings keep off it; the generator paves
+ *  it path_stone and drops ONE big fountain at its centre. `c0/r0` = min-col/min-row, `size` = side. */
+export interface PlazaRect {
+  c0: number
+  r0: number
+  size: number
+}
 export interface VillageLayout {
   roads: boolean[][]
   plots: Plot[]
   entrances: Entrance[]
+  /** The central town-square block reserved BEFORE buildings (null if the map is too small to fit one). */
+  plaza: PlazaRect | null
 }
 
 const clamp = (n: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, n))
@@ -78,6 +87,10 @@ const GRID: Record<Settlement, { h: number; v: number }> = {
   town: { h: 3, v: 3 },
   city: { h: 5, v: 6 },
 }
+
+// The town SQUARE: a road-free block reserved dead-centre BEFORE buildings, so houses ring it
+// instead of squeezing the fountain into leftovers. A city's square is bigger (grander fountain).
+const PLAZA_SIZE: Record<Settlement, number> = { town: 5, city: 7 }
 
 // MUST match buildingComposer TYPE_SPECS.baseLength so a plot reserves exactly the facade width.
 const BUILDING_LENGTH: Partial<Record<BuildingType, number>> = { house: 4, 'big-house': 6, store: 5, hospital: 6 }
@@ -225,6 +238,57 @@ function rectClear(rect: Rect, occ: boolean[][], cols: number, rows: number): bo
   return true
 }
 
+/** The nearest-to-CENTRE road-free `size×size` block: try the centred block, then spiral outward
+ *  along Chebyshev rings, so the square lands dead-centre when the grid allows and in a block toward
+ *  a corner otherwise. Deterministic (no rng). Null when no road-free block of `size` fits. */
+function findPlazaSpot(cols: number, rows: number, roads: boolean[][], size: number): PlazaRect | null {
+  if (cols < size + 2 || rows < size + 2) return null
+  const fits = (c0: number, r0: number): boolean => {
+    if (c0 < 1 || r0 < 1 || c0 + size > cols - 1 || r0 + size > rows - 1) return false
+    for (let r = r0; r < r0 + size; r++) for (let c = c0; c < c0 + size; c++) if (roads[r]?.[c]) return false
+    return true
+  }
+  const cc = Math.floor((cols - size) / 2)
+  const cr = Math.floor((rows - size) / 2)
+  for (let radius = 0; radius <= Math.max(cols, rows); radius++) {
+    for (let dr = -radius; dr <= radius; dr++) {
+      for (let dc = -radius; dc <= radius; dc++) {
+        if (Math.max(Math.abs(dc), Math.abs(dr)) !== radius) continue // walk only this ring
+        if (fits(cc + dc, cr + dr)) return { c0: cc + dc, r0: cr + dr, size }
+      }
+    }
+  }
+  return null
+}
+
+/**
+ * STEP 2.5 — reserve the town SQUARE: a road-free block as close to map CENTRE as possible, sized for
+ * the settlement (a city's square is grander), falling back to a smaller square when a dense street
+ * grid leaves no room for the big one. Deterministic (no rng). Null only on a map too small for any
+ * square — the generator then just skips the fountain.
+ */
+export function planPlaza(cols: number, rows: number, roads: boolean[][], settlement: Settlement): PlazaRect | null {
+  const sizes = [...new Set([PLAZA_SIZE[settlement], 5])] // preferred, then a compact fallback
+  const mc = cols / 2
+  const mr = rows / 2
+  let best: PlazaRect | null = null
+  let bestScore = Infinity
+  for (const size of sizes) {
+    const spot = findPlazaSpot(cols, rows, roads, size)
+    if (!spot) continue
+    // CENTRALITY wins: pick the spot nearest map centre. The bigger square only beats a smaller, more
+    // central one when it's roughly as central (a size/2 bonus), so the grand plaza is used when it
+    // fits near centre but we never shove a big square into a far corner over a central small one.
+    const dist = Math.max(Math.abs(spot.c0 + size / 2 - mc), Math.abs(spot.r0 + size / 2 - mr))
+    const score = dist - size * 0.5
+    if (score < bestScore) {
+      bestScore = score
+      best = spot
+    }
+  }
+  return best
+}
+
 /**
  * STEP 3 — FILL every frontage with a tidy ROW of lots: walk it end-to-end placing buildings back
  * to back (uniform-ish width + a side-yard gap), each SET BACK behind a front yard and FACING its
@@ -232,10 +296,18 @@ function rectClear(rect: Rect, occ: boolean[][], cols: number, rows: number): bo
  * rest fill as houses; where an essential doesn't fit a spot, a house fills it instead so rows never
  * starve. rectClear skips cells over cross-streets, so rows break cleanly at intersections. Pure.
  */
-export function placePlots(roads: boolean[][], frontages: Frontage[], cols: number, rows: number, rng: Rng, settlement: Settlement): Plot[] {
+export function placePlots(roads: boolean[][], frontages: Frontage[], cols: number, rows: number, rng: Rng, settlement: Settlement, reserved: PlazaRect | null = null): Plot[] {
   const plots: Plot[] = []
   if (frontages.length === 0) return plots
   const occ = roads.map(r => r.slice())
+  // Pre-mark the reserved town SQUARE as occupied so the round-robin fill builds houses AROUND it —
+  // the square is a focal landmark, claimed FIRST, not squeezed into leftovers. No extra moat needed:
+  // every candidate already clears its own footprint+1 buffer against `occ`, so houses keep off it.
+  if (reserved) {
+    for (let r = reserved.r0; r < reserved.r0 + reserved.size; r++)
+      for (let c = reserved.c0; c < reserved.c0 + reserved.size; c++)
+        if (r >= 0 && r < rows && c >= 0 && c < cols) occ[r][c] = true
+  }
   const cap = BUILDING_CAP[settlement]
   const maxPer = MAX_PER_FRONTAGE[settlement]
   const [gapLo, gapHi] = LOT_GAP_BY[settlement]
@@ -312,9 +384,11 @@ export function placePlots(roads: boolean[][], frontages: Frontage[], cols: numb
   return plots
 }
 
-/** Compose the steps: road GRID → fill frontages with rows of lots. The pipeline the generator stamps. */
+/** Compose the steps: road GRID → reserve the central SQUARE → fill frontages with rows of lots
+ *  AROUND the square. The pipeline the generator stamps (it paves the square + drops ONE fountain). */
 export function planVillage(cols: number, rows: number, rng: Rng, settlement: Settlement = 'town'): VillageLayout {
   const { roads, frontages, entrances } = planRoads(cols, rows, rng, settlement)
-  const plots = placePlots(roads, frontages, cols, rows, rng, settlement)
-  return { roads, plots, entrances }
+  const plaza = planPlaza(cols, rows, roads, settlement)
+  const plots = placePlots(roads, frontages, cols, rows, rng, settlement, plaza)
+  return { roads, plots, entrances, plaza }
 }

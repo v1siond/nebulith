@@ -28,6 +28,7 @@ export interface GridAsset {
   baseShadow?: boolean  // generator-marked tree-base cell → always casts a ground shadow
   buildingType?: string // building cell's TYPE (store/hospital/…) → drives the apex signage badge
   edge?: string         // building cell's corner/edge/interior class (nw/n/ne/w/interior/e/sw/s/se) → tileset mapping + debug overlay
+  footprint?: number    // town-square fountain: the basin side (cells) this ONE prop spans → render one big fountain, not N
 }
 
 export interface GridConfig {
@@ -208,6 +209,7 @@ export class IsometricGrid {
       cycles: options.cycles,
       baseShadow: options.baseShadow,
       edge: options.edge,
+      footprint: options.footprint,
     })
 
     // If blocking, update collision grid

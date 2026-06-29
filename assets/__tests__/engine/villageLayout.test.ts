@@ -154,9 +154,11 @@ describe('villageLayout — planVillage', () => {
 
   it('a CITY is ~3-5× a TOWN — on a large map (same seed) a city has ≥3× the plots', () => {
     // On a large map the town stays capped (a modest settlement) while the city fills its much
-    // denser grid up to its big cap → ~4× the buildings. ≥3× is the contract ("3-5× a town").
-    const town = planVillage(90, 70, seededRng(21), 'town')
-    const city = planVillage(90, 70, seededRng(21), 'city')
+    // denser grid up to its big cap → ~4× the buildings. ≥3× is the contract ("3-5× a town"). Sized
+    // large enough (110×84) that the city SATURATES its cap, so the central plaza's one reserved lot
+    // leaves the contract real headroom (a 90×70 city is frontage-pinned at exactly 3.0× — a knife-edge).
+    const town = planVillage(110, 84, seededRng(21), 'town')
+    const city = planVillage(110, 84, seededRng(21), 'city')
     expect(city.plots.length).toBeGreaterThanOrEqual(3 * town.plots.length)
   })
 })
@@ -242,6 +244,49 @@ describe('villageLayout — settlement scale (town/city)', () => {
     const plan = planRoads(50, 50, seededRng(5), 'city')
     const reached = floodRoads(plan.roads, plan.entrances[0])
     for (const e of plan.entrances) expect(reached.has(`${e.col},${e.row}`)).toBe(true)
+  })
+})
+
+describe('villageLayout — reserves a central town SQUARE before houses', () => {
+  it('returns a road-free plaza near the map centre, and NO plot footprint overlaps it', () => {
+    for (const settlement of ['town', 'city'] as const) {
+      for (const seed of [11, 12, 13, 14, 15]) {
+        const layout = planVillage(56, 44, seededRng(seed), settlement)
+        const plaza = layout.plaza
+        expect(plaza).not.toBeNull()
+        if (!plaza) continue
+
+        // road-free + in bounds
+        for (let r = plaza.r0; r < plaza.r0 + plaza.size; r++) {
+          for (let c = plaza.c0; c < plaza.c0 + plaza.size; c++) {
+            expect(c).toBeGreaterThanOrEqual(0)
+            expect(r).toBeGreaterThanOrEqual(0)
+            expect(c).toBeLessThan(56)
+            expect(r).toBeLessThan(44)
+            expect(layout.roads[r][c]).toBe(false)
+          }
+        }
+        // central — the square sits in the middle of the map, not shoved to an edge
+        expect(Math.abs(plaza.c0 + plaza.size / 2 - 28)).toBeLessThanOrEqual(56 * 0.3)
+        expect(Math.abs(plaza.r0 + plaza.size / 2 - 22)).toBeLessThanOrEqual(44 * 0.3)
+
+        // houses build AROUND it — no plot footprint lands on the reserved square
+        for (const p of layout.plots) {
+          const r = plotRect(p)
+          for (let row = r.r0; row < r.r0 + r.h; row++) {
+            for (let col = r.c0; col < r.c0 + r.w; col++) {
+              const inPlaza =
+                col >= plaza.c0 && col < plaza.c0 + plaza.size && row >= plaza.r0 && row < plaza.r0 + plaza.size
+              expect(inPlaza).toBe(false)
+            }
+          }
+        }
+      }
+    }
+  })
+
+  it('is deterministic (same plaza for the same seed)', () => {
+    expect(planVillage(50, 40, seededRng(3)).plaza).toEqual(planVillage(50, 40, seededRng(3)).plaza)
   })
 })
 
