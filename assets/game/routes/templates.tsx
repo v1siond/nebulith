@@ -2410,12 +2410,28 @@ const JUMP_PEAK_PX = 26 // visual hop height at mid-arc
 function beginJump(player: PlayerState, grid: IsometricGrid, use2D: boolean, jump: JumpState, now: number, forward: boolean): void {
   if (jump.active) return
   const [dCol, dRow] = facingDelta(player.facing, use2D)
-  const dist = forward ? JUMP_CLEAR + 1 : 0 // standing jump = straight up, same cell
   const cs = grid.cellSize
-  const col = Math.floor(player.x / cs) + dCol * dist
-  const row = Math.floor(player.z / cs) + dRow * dist
-  if (col < 0 || row < 0 || col >= grid.cols || row >= grid.rows) return
-  if (grid.isBlocked(col, row)) return
+  const pCol = Math.floor(player.x / cs)
+  const pRow = Math.floor(player.z / cs)
+  // A MOVING jump carries the player FORWARD along the facing direction — in iso that's BOTH x and
+  // z (the facing delta is diagonal). It lands on the farthest reachable cell up to JUMP_CLEAR+1, so
+  // a blocked cell ahead only SHORTENS the leap (lands 1 cell) instead of cancelling it — which is
+  // why a jump in a dense town used to look like it just bobbed. The loop lays the arc on top.
+  let dist = 0
+  if (forward) {
+    for (let d = JUMP_CLEAR + 1; d >= 1; d--) {
+      const col = pCol + dCol * d
+      const row = pRow + dRow * d
+      if (col < 0 || row < 0 || col >= grid.cols || row >= grid.rows) continue
+      if (grid.isBlocked(col, row)) continue
+      dist = d
+      break
+    }
+    if (dist === 0) return // nowhere forward to land — keep walking rather than lock into a bob
+  }
+  // dist 0 = standing jump (hop straight up on the same cell).
+  const col = pCol + dCol * dist
+  const row = pRow + dRow * dist
   jump.active = true
   jump.fromX = player.x
   jump.fromZ = player.z
