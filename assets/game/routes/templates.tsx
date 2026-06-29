@@ -168,7 +168,7 @@ import { EQUIP_SLOTS } from '@/game/types'
 import { createInventory, addItem, equipWeapon, equipArmor, useConsumable } from '@/game/inventory'
 import { createLoadout, equip as equipToSlot, unequip as unequipSlot, addToBag, setSpecial, setShortcut, allowedSlots, loadoutBonuses } from '@/game/loadout'
 import { GEAR_CATALOG, starterWarriorGear } from '@/game/gear'
-import { scatterEntities, ENEMY_TYPES } from '@/game/spawner'
+import { scatterEntities, ENEMY_TYPES, archetypeForEnemyType } from '@/game/spawner'
 import {
   type Game,
   createGame,
@@ -5174,8 +5174,11 @@ export default function TemplateEditor() {
     enemy: (col, row) => ({
       // Placed enemies get a default left-right patrol so they MOVE out of the box
       // (the mover waits when a waypoint is blocked/off-map); custom waypoint
-      // authoring is a follow-up.
-      ...makeEnemy(mintEntityId('enemy'), col, row, enemyType.trim() || 'enemy'),
+      // authoring is a follow-up. The typed enemy type also picks a combat archetype
+      // (stats + attack pattern) so a placed goblin/wolf/bandit/skeleton differs.
+      ...makeEnemy(mintEntityId('enemy'), col, row, enemyType.trim() || 'enemy', {
+        archetype: archetypeForEnemyType(enemyType.trim()),
+      }),
       movement: { mode: 'sequential', waypoints: [{ col, row }, { col: col + 3, row }] },
     }),
     npc: (col, row) => makeNpc(mintEntityId('npc'), col, row, { name: npcName.trim() || undefined }),

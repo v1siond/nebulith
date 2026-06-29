@@ -10,19 +10,29 @@
  * and each requested enemy type gets its own home zone, so wolves cluster in one
  * area, goblins in another, etc. — instead of every type clumping in one corner.
  */
-import type { Entity, EntityKind, Stats, MovementPattern, Cell, Rarity } from '@/game/types'
+import type { Entity, EntityKind, MovementPattern, Cell, Rarity } from '@/game/types'
 import { makeEnemy, makeNpc, makePlayer } from '@/game/entities'
+import { buildArchetypeProfile, type EnemyArchetypeId } from '@/game/archetypes'
 
 /** The enemy roster a randomizer draws from (the tag 'kill' objectives count). */
 export const ENEMY_TYPES = ['goblin', 'wolf', 'bandit', 'skeleton'] as const
 export type EnemyType = (typeof ENEMY_TYPES)[number]
 
-/** Per-type stat flavour, merged over the enemy defaults. */
-const ENEMY_STATS: Record<EnemyType, Partial<Stats>> = {
-  goblin: { maxHp: 28, strength: 5, defense: 2, dodge: 5 },
-  wolf: { maxHp: 22, strength: 7, defense: 1, dodge: 15 },
-  bandit: { maxHp: 34, strength: 6, defense: 3, dodge: 8 },
-  skeleton: { maxHp: 30, strength: 4, defense: 4, dodge: 2 },
+/** Each roster type maps to a distinct combat ARCHETYPE, so the type-grouped zones also
+ *  vary by fighting style: goblins are basic grunts, wolves dart (skirmisher), bandits
+ *  shoot (archer), skeletons hit like brutes. The archetype seeds the enemy's stats +
+ *  attack pattern (see entities.makeEnemy). */
+const ARCHETYPE_BY_ENEMY_TYPE: Record<EnemyType, EnemyArchetypeId> = {
+  goblin: 'grunt',
+  wolf: 'skirmisher',
+  bandit: 'archer',
+  skeleton: 'brute',
+}
+
+/** The archetype for a roster type, or undefined for an unknown/custom type (→ plain
+ *  default mob). Exposed so the editor's manual placement varies enemies by type too. */
+export function archetypeForEnemyType(type: string): EnemyArchetypeId | undefined {
+  return (ARCHETYPE_BY_ENEMY_TYPE as Record<string, EnemyArchetypeId>)[type]
 }
 
 export interface ScatterOptions {
@@ -224,8 +234,9 @@ function shuffle<T>(items: readonly T[], rng: () => number): T[] {
   return out
 }
 
-/** Build a clustered enemy of `type`: per-type stats, rarity-driven respawn (set in
- *  makeEnemy), hittable, and a small patrol around its spawn. */
+/** Build a clustered enemy of `type`: archetype stats + attack pattern, rarity-driven
+ *  respawn (set in makeEnemy), hittable, and a small patrol around its spawn paced by the
+ *  archetype's move speed (brutes lumber, skirmishers dart). */
 function buildEnemy(
   type: string,
   id: string,
@@ -234,9 +245,10 @@ function buildEnemy(
   collision: boolean[][],
   rarity?: Rarity,
 ): Entity {
-  const stats = (ENEMY_STATS as Record<string, Partial<Stats>>)[type]
-  const enemy = makeEnemy(id, cell.col, cell.row, type, { stats, rarity })
-  return { ...enemy, hittable: true, movement: makePatrol(cell, rng, collision) }
+  const archetype = archetypeForEnemyType(type)
+  const enemy = makeEnemy(id, cell.col, cell.row, type, { archetype, rarity })
+  const moveDelayMs = archetype ? buildArchetypeProfile(archetype).moveDelayMs : undefined
+  return { ...enemy, hittable: true, movement: makePatrol(cell, rng, collision, moveDelayMs) }
 }
 
 /** Build a non-enemy (npc/player) — not type-grouped; just named + placed. */
@@ -250,8 +262,9 @@ const isFree = (collision: boolean[][], col: number, row: number): boolean =>
 
 /** A random patrol of 3–4 waypoints jittered ±2 cells around the spawn, keeping
  *  only walkable, in-bounds cells. The spawn itself is always waypoint 0, so the
- *  pattern always has ≥1 waypoint. */
-function makePatrol(spawn: Cell, rng: () => number, collision: boolean[][]): MovementPattern {
+ *  pattern always has ≥1 waypoint. `delayMs` (the archetype's move cadence) paces the
+ *  patrol when given; omitted → the engine's default step delay. */
+function makePatrol(spawn: Cell, rng: () => number, collision: boolean[][], delayMs?: number): MovementPattern {
   const waypoints: Cell[] = [{ ...spawn }]
   const extra = 3 + Math.floor(rng() * 2) // 3 or 4 attempts
   for (let k = 0; k < extra; k++) {
@@ -259,5 +272,5 @@ function makePatrol(spawn: Cell, rng: () => number, collision: boolean[][]): Mov
     const row = spawn.row + (Math.floor(rng() * 5) - 2)
     if (isFree(collision, col, row)) waypoints.push({ col, row })
   }
-  return { mode: 'random', waypoints }
+  return { mode: 'random', waypoints, ...(delayMs != null ? { delayMs } : {}) }
 }

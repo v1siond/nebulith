@@ -10,6 +10,7 @@
 import type { Entity, EntityKind, Stats, Rarity } from '@/game/types'
 import { RESPAWN_MS_BY_RARITY, respawnMsForRarity } from '@/game/types'
 import { entityFootprint } from '@/engine/entityArt'
+import { buildArchetypeProfile, type EnemyArchetypeId } from '@/game/archetypes'
 
 // ── default stats ───────────────────────────────────────────────────
 // Trivial starting values per the spec ("start with X/Y HP, flat numbers; tune
@@ -59,7 +60,10 @@ export interface MakeEnemyOptions {
   respawnMs?: number
   /** Rarity tier; sets the default respawnMs (rarer = slower to come back). Default 'common'. */
   rarity?: Rarity
-  /** Partial stat overrides merged over the enemy defaults (e.g. bosses). */
+  /** Stat ARCHETYPE (grunt/brute/archer/…): seeds the full stat block + a real attack pattern.
+   *  Omit for a plain default mob (back-compat). `stats` still overrides the archetype's stats. */
+  archetype?: EnemyArchetypeId
+  /** Partial stat overrides merged over the archetype (or enemy defaults) — e.g. bosses. */
   stats?: Partial<Stats>
 }
 
@@ -71,6 +75,11 @@ export const DEFAULT_RESPAWN_MS = RESPAWN_MS_BY_RARITY.common
  * Create an enemy of a given `enemyType` (the tag 'kill' objectives count).
  * respawnMs defaults to the rarity's delay (common when unset) so dropped enemies
  * respawn; pass an explicit respawnMs to override, or 0 for a permanent enemy.
+ *
+ * Pass an `archetype` to seed a distinct stat block + a real attack pattern (grunt /
+ * brute / archer / …). With NO archetype the enemy keeps the legacy defaults (flat
+ * stats, no authored attack → the engine's single-melee fallback), so nothing regresses.
+ * An explicit `stats` override always wins over the archetype's stats.
  */
 export function makeEnemy(
   id: string,
@@ -79,6 +88,7 @@ export function makeEnemy(
   enemyType: string,
   options: MakeEnemyOptions = {},
 ): Entity {
+  const profile = options.archetype ? buildArchetypeProfile(options.archetype) : undefined
   return {
     id,
     kind: 'enemy',
@@ -88,7 +98,8 @@ export function makeEnemy(
     enemyType,
     rarity: options.rarity,
     respawnMs: options.respawnMs ?? respawnMsForRarity(options.rarity),
-    baseStats: { ...DEFAULT_ENEMY_STATS, ...options.stats },
+    baseStats: { ...DEFAULT_ENEMY_STATS, ...profile?.stats, ...options.stats },
+    ...(profile ? { attack: profile.attack } : {}),
   }
 }
 
