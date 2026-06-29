@@ -2477,6 +2477,13 @@ export interface PlayerState {
    *  glyph / block-bg colors when unarmored. Undefined → the classic gold. */
   bodyColor?: string
   bodyBg?: string
+  /** live HP + its max, mirrored from the combat state each frame so every view can draw the
+   *  over-figure life bar the SAME way enemies get one. Undefined → no bar drawn yet. */
+  hp?: number
+  maxHp?: number
+  /** display name shown above the life bar (like an enemy's type/name) + in the inventory
+   *  header. Mirrored from the player entity each sync; persists on that entity. */
+  name?: string
 }
 
 // Jump = clear up to this many blocked cells in the facing direction (settings later).
@@ -7860,6 +7867,10 @@ export default function TemplateEditor() {
       // Render - movement works in all views. When entities are hidden (authoring
       // terrain without clutter), pass an empty list to every view.
       const renderEntities = hideEntitiesRef.current ? EMPTY_ENTITIES : entitiesRef.current
+      // Mirror live HP onto the player struct so every view can draw the over-figure life bar
+      // (the SAME bar enemies get); maxHp is the bar's denominator.
+      player.hp = playerCombatRef.current.hp
+      player.maxHp = playerStatsRef.current.maxHp
       if (flowViewMode) {
         // Flow view is handled by React overlay, just clear canvas
         ctx.fillStyle = '#0a0a12'
@@ -9794,6 +9805,15 @@ function drawIsoPlayer(
     ctx.fillStyle = '#9fd3ff' // bright rim (the glyph) over the filled body
     ctx.fillText(player.shieldGlyph, shX, shY)
   }
+
+  // Life bar + name above the head — the SAME treatment enemies get (drawFigureVitals), so the
+  // player reads identically. Drawn only once HP is mirrored onto the struct (see the game loop).
+  if (player.maxHp != null) {
+    const figureTop = y - lineHeight * 0.5 - breathe - playerArt.length * lineHeight
+    const barWidth = Math.max(28, tileH * 2.2)
+    const nameSize = Math.max(9, tileH * 0.95)
+    drawFigureVitals(ctx, x, figureTop, barWidth, 7, nameSize, barFraction(player.hp ?? player.maxHp, player.maxHp), playerDisplayName(player.name))
+  }
 }
 
 // Draw asset as ASCII art in isometric view (matching 2D style)
@@ -9863,11 +9883,24 @@ function isDeadEnemy(entity: Entity, combat: CombatState | undefined): boolean {
   return !!combat && isDead(combat.hp)
 }
 
+/** Clamp value/max into 0..1 (0 when max ≤ 0). Pure — shared by the enemy + player life bars. */
+export function barFraction(value: number, max: number): number {
+  if (max <= 0) return 0
+  return Math.max(0, Math.min(1, value / max))
+}
+
 /** Fraction (0..1) of an enemy's HP remaining; 1 if no runtime state yet. */
 function hpFraction(entity: Entity, combat: CombatState | undefined): number {
   if (!combat) return 1
-  if (entity.baseStats.maxHp <= 0) return 0
-  return Math.max(0, Math.min(1, combat.hp / entity.baseStats.maxHp))
+  return barFraction(combat.hp, entity.baseStats.maxHp)
+}
+
+/** Default shown when the player has no name yet. */
+export const DEFAULT_PLAYER_NAME = 'Hero'
+
+/** The player's shown name: its (trimmed) entity name when set, else the default. Pure. */
+export function playerDisplayName(name?: string | null): string {
+  return (name ?? '').trim() || DEFAULT_PLAYER_NAME
 }
 
 /** Color the HP bar fill green→amber→red as the enemy is whittled down. */
@@ -9953,6 +9986,28 @@ function drawQuestMarker(
     return
   }
   drawShadowText(ctx, '◆', x, y, QUEST_TARGET_COLOR, `bold ${size * 0.8}px ${ASCII_FONT}`)
+}
+
+/** Warm parchment tone for the name floating over a figure (enemy type or player name). */
+const VITALS_NAME_COLOR = '#ffe8c2'
+
+/** HP bar + name label floating above a figure — shared by enemies AND the player so the two
+ *  read identically. `x` is the figure centre, `figureTop` the y of the figure's top edge.
+ *  Returns the anchor just above the name (where an above-figure quest marker sits). */
+function drawFigureVitals(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  figureTop: number,
+  barWidth: number,
+  barHeight: number,
+  nameSize: number,
+  fraction: number,
+  label: string,
+): { x: number; y: number } {
+  drawHpBar(ctx, x, figureTop, barWidth, barHeight, fraction)
+  const nameY = figureTop - nameSize * 0.85
+  drawShadowText(ctx, label, x, nameY, VITALS_NAME_COLOR, `bold ${nameSize}px ${ASCII_FONT}`)
+  return { x, y: nameY - nameSize * 0.9 }
 }
 
 /** Draw a placed entity as its glyph on a dark backing, in the ISO renderer.
@@ -10041,15 +10096,12 @@ function drawIsoEntity(
   const figureTop = baseY - art.length * lineHeight
   if (entity.kind !== 'enemy') return { x, y: figureTop - lineHeight * 0.5 }
 
-  // Bigger, thicker enemy HP bar (was tileH*1.4 × 4) so it reads at a glance.
+  // Bigger, thicker enemy HP bar (was tileH*1.4 × 4) so it reads at a glance, plus the enemy
+  // name above it — the SAME treatment the player's life bar reuses (drawFigureVitals).
   const barWidth = Math.max(28, tileH * 2.2)
-  drawHpBar(ctx, x, figureTop, barWidth, 7, hpFraction(entity, combat))
-  // Enemy name above the bar, shadow-text style.
   const label = entity.name ?? entity.enemyType ?? 'Enemy'
   const nameSize = Math.max(9, tileH * 0.95)
-  const nameY = figureTop - nameSize * 0.85
-  drawShadowText(ctx, label, x, nameY, '#ffe8c2', `bold ${nameSize}px ${ASCII_FONT}`)
-  return { x, y: nameY - nameSize * 0.9 }
+  return drawFigureVitals(ctx, x, figureTop, barWidth, 7, nameSize, hpFraction(entity, combat), label)
 }
 
 /** Draw a placed entity in the TOP (blueprint) renderer — a filled cell badge
@@ -10111,15 +10163,12 @@ function drawTopEntity(
   const figureTop = topY - 4
   if (entity.kind !== 'enemy') return { x: cx, y: figureTop - fontSize * 0.6 }
 
-  // Bigger, thicker enemy HP bar (was figure-width × 3) so it reads at a glance.
+  // Bigger, thicker enemy HP bar (was figure-width × 3) so it reads at a glance, plus the enemy
+  // name above it — the SAME treatment the player's life bar reuses (drawFigureVitals).
   const barWidth = Math.max(maxW * charW, tileSize * 2.2)
-  drawHpBar(ctx, cx, figureTop, barWidth, 6, hpFraction(entity, combat))
-  // Enemy name above the bar, shadow-text style.
   const label = entity.name ?? entity.enemyType ?? 'Enemy'
   const nameSize = Math.max(9, fontSize)
-  const nameY = figureTop - nameSize * 0.85
-  drawShadowText(ctx, label, cx, nameY, '#ffe8c2', `bold ${nameSize}px ${ASCII_FONT}`)
-  return { x: cx, y: nameY - nameSize * 0.9 }
+  return drawFigureVitals(ctx, cx, figureTop, barWidth, 6, nameSize, hpFraction(entity, combat), label)
 }
 
 /** TOP (blueprint) view: an entity is a single `>` glyph colored by role — yellow player,
@@ -11475,6 +11524,14 @@ function render2D(
         ctx.fillText(player.shieldGlyph, shX, shY)
       }
 
+      // Life bar + name above the head — the SAME treatment enemies get (drawFigureVitals).
+      if (player.maxHp != null) {
+        const figureTop = baseY - figArt2.length * lineHeight
+        const barWidth = Math.max(28, tileH * 2.2)
+        const nameSize = Math.max(9, fontSize)
+        drawFigureVitals(ctx, p.x, figureTop, barWidth, 6, nameSize, barFraction(player.hp ?? player.maxHp, player.maxHp), playerDisplayName(player.name))
+      }
+
     } else if (obj.type === 'building' && obj.building) {
       // ONE upright FRONT ELEVATION over the small footprint, oriented so the door faces the road,
       // raised from the building's facade — the same grid.buildings the iso reads, so 2D + iso +
@@ -12536,6 +12593,11 @@ function renderTopView(
     case 'right': dirChar = '>'; break
   }
   ctx.fillText(dirChar, px + tileSize / 2, py + tileSize / 2)
+
+  // Life bar above the player cell — the SAME drawHpBar enemies get in this view (below).
+  if (player.maxHp != null) {
+    drawHpBar(ctx, px + tileSize / 2, py - 3, tileSize, 3, barFraction(player.hp ?? player.maxHp, player.maxHp))
+  }
 
   // Draw connectors — one marker per cell the connector owns; the label rides on
   // the connector's first cell only.
