@@ -8,6 +8,7 @@
  *   grid.render(ctx, cameraX, cameraZ)
  */
 import type { AnimationCycle } from './animationCycles'
+import type { CellAnimation } from './cellAnimation'
 
 export interface GridAsset {
   art: string[]
@@ -24,7 +25,8 @@ export interface GridAsset {
   label?: string        // Cell-part label for generated multi-cell assets (tree_leaf_top, roof_top, door, …)
   opacity?: number      // 0–1 render opacity (default 1) — play with contrast / depth
   brightness?: number   // render brightness multiplier (default 1) — dim or pop an element
-  cycles?: AnimationCycle[]  // authored animation cycles (author panel) — driven by animationCycles
+  cycles?: AnimationCycle[]  // authored glyph-swap cycles — driven by animationCycles
+  cellAnim?: CellAnimation   // authored FRAME-BASED transform animation (sway/wind) — driven by cellAnimation
   baseShadow?: boolean  // generator-marked tree-base cell → always casts a ground shadow
   buildingType?: string // building cell's TYPE (store/hospital/…) → drives the apex signage badge
   edge?: string         // building cell's corner/edge/interior class (nw/n/ne/w/interior/e/sw/s/se) → tileset mapping + debug overlay
