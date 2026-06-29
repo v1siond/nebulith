@@ -217,10 +217,15 @@ export const ENEMY_ART_TYPES = Object.keys(ENEMY_ART)
  *  cleanly through the arc (the old '†' read as a tiny '+' at hand size). */
 export const SWORD_GLYPH = 'Ɨ'
 
+/** Held glyphs for the ranged weapons: a drawn bow (the string), a stubby pistol. */
+export const BOW_GLYPH = '}'
+export const GUN_GLYPH = '¬'
+
 export function weaponGlyph(weapon?: { kind?: string; range?: string } | null): string {
   if (!weapon) return ''
   if (weapon.kind === 'unarmed') return '' // bare hands — the fist swings, no blade is drawn
-  if (weapon.range === 'ranged') return '}' // bow / drawn string
+  // Ranged reads by silhouette: a gun is a pistol, everything else ranged is a drawn bow.
+  if (weapon.range === 'ranged') return weapon.kind === 'gun' ? GUN_GLYPH : BOW_GLYPH
   switch (weapon.kind) {
     case 'staff':
       return 'i' // a focus rod

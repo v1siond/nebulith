@@ -56,6 +56,14 @@ describe('weaponGlyph — the held weapon drawn beside the player', () => {
     expect(weaponGlyph({ kind: 'sword', range: 'ranged' })).toBe('}')
   })
 
+  it('a gun reads as a pistol, distinct from the bow', () => {
+    const gun = weaponGlyph({ kind: 'gun', range: 'ranged' })
+    const bow = weaponGlyph({ kind: 'bow', range: 'ranged' })
+    expect(bow).toBe('}')
+    expect(gun.length).toBeGreaterThan(0)
+    expect(gun).not.toBe(bow) // a gun and a bow don't look the same in hand
+  })
+
   it('melee weapons map to distinct glyphs by kind, and change with the weapon', () => {
     const sword = weaponGlyph({ kind: 'sword', range: 'melee' })
     const axe = weaponGlyph({ kind: 'axe', range: 'melee' })

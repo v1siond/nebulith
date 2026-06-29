@@ -32,6 +32,11 @@ export const axe = (): Item =>
 export const bow = (): Item =>
   weaponItem({ id: 'wpn_bow', kind: 'bow', name: 'Hunter Bow', baseDamage: 10, baseMagic: 0, baseDefense: 0, strengthBonus: 2, intBonus: 0, school: 'physical', range: 'ranged', hands: 2, reachCells: 8 })
 
+// gun = one-handed RANGED → fires a travelling bullet; harder hit than the bow, no str scaling;
+// reach 7 (within the 6–12 band).
+export const gun = (): Item =>
+  weaponItem({ id: 'wpn_gun', kind: 'gun', name: 'Flintlock Pistol', baseDamage: 16, baseMagic: 0, baseDefense: 0, strengthBonus: 0, intBonus: 0, school: 'physical', range: 'ranged', hands: 1, reachCells: 7 })
+
 // staff = two-handed magical MELEE caster → reach 2.
 export const staff = (): Item =>
   weaponItem({ id: 'wpn_staff', kind: 'staff', name: 'Oak Staff', baseDamage: 2, baseMagic: 14, baseDefense: 1, strengthBonus: 0, intBonus: 4, school: 'magical', range: 'melee', hands: 2, reachCells: 2 })
@@ -82,15 +87,16 @@ export const teleportScroll = (): Item => consumable('itm_scroll_teleport', 'Tel
 
 // ── catalog + starter sets ──────────────────────────────────────────
 export const GEAR_CATALOG: Item[] = [
-  sword(), axe(), bow(), staff(), shield(),
+  sword(), axe(), bow(), gun(), staff(), shield(),
   ironHelmet(), ironChest(), leatherChest(), ironGloves(), leatherGloves(),
   ironBoots(), leatherBoots(), dodgeRing(), focusRing(), amulet(),
   healthPotion(), manaPotion(), rageTonic(), bomb(), teleportScroll(),
 ]
 
-/** A melee tank kit: sword + shield + iron plate + a heal. */
+/** A melee tank kit: sword + shield + iron plate + a heal, plus a bow + gun so the player can
+ *  switch to ranged (equip either and fire). */
 export const starterWarriorGear = (): Item[] => [
-  sword(), shield(), ironHelmet(), ironChest(), ironGloves(), ironBoots(), healthPotion(),
+  sword(), shield(), bow(), gun(), ironHelmet(), ironChest(), ironGloves(), ironBoots(), healthPotion(),
 ]
 
 /** A caster kit: staff + light armor + a focus ring + mana. */

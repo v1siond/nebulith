@@ -1,5 +1,5 @@
 import {
-  sword, axe, bow, staff, shield,
+  sword, axe, bow, gun, staff, shield,
   ironHelmet, ironChest, leatherChest, ironGloves, leatherGloves,
   ironBoots, leatherBoots, dodgeRing, focusRing, amulet,
   healthPotion, manaPotion, rageTonic, bomb, teleportScroll,
@@ -33,6 +33,15 @@ describe('gear catalog — weapons', () => {
       expect(st.weapon.baseMagic).toBeGreaterThan(0)
       expect(st.weapon.intBonus).toBeGreaterThan(0)
     }
+  })
+
+  it('gun is a ranged physical weapon that deals damage (fires a projectile)', () => {
+    const g = gun()
+    if (g.slot !== 'weapon') throw new Error('gun must be a weapon item')
+    expect(g.weapon.kind).toBe('gun')
+    expect(g.weapon.range).toBe('ranged')
+    expect(g.weapon.school).toBe('physical')
+    expect(g.weapon.baseDamage).toBeGreaterThan(0)
   })
 
   it('shield carries a block chance and defense', () => {
@@ -103,5 +112,8 @@ describe('gear catalog — catalog + starter sets', () => {
     }
     expect(starterWarriorGear().some(i => i.id === 'wpn_shield')).toBe(true)
     expect(starterMageGear().some(i => i.id === 'wpn_staff')).toBe(true)
+    // the warrior bag also carries the ranged options so the player can switch + fire
+    expect(starterWarriorGear().some(i => i.id === 'wpn_bow')).toBe(true)
+    expect(starterWarriorGear().some(i => i.id === 'wpn_gun')).toBe(true)
   })
 })

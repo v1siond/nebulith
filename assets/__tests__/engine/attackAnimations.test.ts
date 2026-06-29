@@ -21,6 +21,7 @@ describe('attackAnimations — weapon → animation kind', () => {
     expect(weaponAnimKind('sword', 'melee')).toBe('slash')
     expect(weaponAnimKind('axe', 'melee')).toBe('slash')
     expect(weaponAnimKind('bow', 'ranged')).toBe('shot')
+    expect(weaponAnimKind('gun', 'ranged')).toBe('shot')
     expect(weaponAnimKind('staff', 'melee')).toBe('lightning')
   })
   it('any ranged weapon shoots regardless of kind', () => {
