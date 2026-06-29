@@ -79,6 +79,7 @@ import {
   removeEntity,
   entityAt,
   entityAtFootprint,
+  entityCovers,
   entityOccupiedCells,
   isRespawned,
   DEFAULT_PLAYER_STATS,
@@ -543,7 +544,7 @@ interface HitMarker {
 }
 
 /** Per-enemy runtime bookkeeping the loop owns, keyed by entity id. */
-interface EnemyRuntime {
+export interface EnemyRuntime {
   combat: Map<string, CombatState>
   /** death timestamp per enemy id (drives respawn timing). */
   diedAt: Map<string, number>
@@ -551,7 +552,7 @@ interface EnemyRuntime {
   lastAttackAt: Map<string, number>
 }
 
-const makeEnemyRuntime = (): EnemyRuntime => ({
+export const makeEnemyRuntime = (): EnemyRuntime => ({
   combat: new Map(),
   diedAt: new Map(),
   lastAttackAt: new Map(),
@@ -636,7 +637,7 @@ const ADJACENT_DELTAS: ReadonlyArray<readonly [number, number]> = [
  */
 const RANGED_RANGE = 6 // default cells a ranged enemy reaches (enemy retaliation)
 
-function findTarget(
+export function findTarget(
   player: PlayerState,
   entities: readonly Entity[],
   runtime: EnemyRuntime,
@@ -660,16 +661,20 @@ function findTarget(
   return nearestAdjacentEnemy(player, entities, runtime, cellSize)
 }
 
-/** A living enemy occupying (col,row), or null. */
+/** A living enemy whose FOOTPRINT covers (col,row), or null. Footprint-aware (not just the anchor):
+ *  enemies are multi-cell (a goblin is 2 wide × 3 tall), so a swing at ANY of its cells lands —
+ *  otherwise attacking from the side its body extends toward silently missed (#36). Topmost-first. */
 function enemyAtCell(
   entities: readonly Entity[],
   runtime: EnemyRuntime,
   col: number,
   row: number,
 ): Entity | null {
-  const here = entityAt(entities, col, row)
-  if (!here || !isLivingEnemy(here, runtime)) return null
-  return here
+  for (let i = entities.length - 1; i >= 0; i--) {
+    const e = entities[i]
+    if (isLivingEnemy(e, runtime) && entityCovers(e, col, row)) return e
+  }
+  return null
 }
 
 /** First living enemy in any of the 8 cells around the player, or null. */
@@ -2346,7 +2351,7 @@ const SEASON_BTN: Record<(typeof STAGE_ZONES)[number], string> = {
 const STAGE_VARIANTS = ['forest', 'town', 'city'] as const // forest + seasonal settlements (town, then a ~4× city)
 
 // Player state
-interface PlayerState {
+export interface PlayerState {
   x: number
   z: number
   facing: 'up' | 'down' | 'left' | 'right'

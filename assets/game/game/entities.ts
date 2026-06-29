@@ -159,18 +159,23 @@ export function entityAt(entities: readonly Entity[], col: number, row: number):
   return entities.find(e => e.col === col && e.row === row) ?? null
 }
 
+/** Does the entity's multi-cell FOOTPRINT cover (col,row)? Footprints are bottom-anchored
+ *  vertically (extend upward) and centered horizontally, matching the renderer. Shared by
+ *  click-selection AND combat targeting so they agree on what a figure occupies. */
+export function entityCovers(entity: Entity, col: number, row: number): boolean {
+  const { w, h } = entityFootprint(entity)
+  const left = entity.col - Math.floor((w - 1) / 2)
+  const right = entity.col + Math.ceil((w - 1) / 2)
+  const top = entity.row - (h - 1)
+  return col >= left && col <= right && row >= top && row <= entity.row
+}
+
 /** The entity whose multi-cell FOOTPRINT covers (col,row) — for click-selection, so
- *  clicking any part of a 2-tall figure (not just its anchor cell) selects it. Figures
- *  are bottom-anchored vertically (extend upward) and centered horizontally, matching
- *  the renderer. Iterates last→first so the topmost drawn entity wins. */
+ *  clicking any part of a 2-tall figure (not just its anchor cell) selects it.
+ *  Iterates last→first so the topmost drawn entity wins. */
 export function entityAtFootprint(entities: readonly Entity[], col: number, row: number): Entity | null {
   for (let i = entities.length - 1; i >= 0; i--) {
-    const e = entities[i]
-    const { w, h } = entityFootprint(e)
-    const left = e.col - Math.floor((w - 1) / 2)
-    const right = e.col + Math.ceil((w - 1) / 2)
-    const top = e.row - (h - 1)
-    if (col >= left && col <= right && row >= top && row <= e.row) return e
+    if (entityCovers(entities[i], col, row)) return entities[i]
   }
   return null
 }
