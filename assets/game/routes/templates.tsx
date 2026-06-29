@@ -22,7 +22,7 @@ import { TILES, COMPOSITE_ASSETS, getTilesByCategory, getAssetsByCategory, TileD
 import { listTemplates, getTemplate, createTemplate, updateTemplate, deleteTemplate, serializeGrid, deserializeToGrid, TemplateListItem, Connector } from '@/lib/api'
 import { findTriggeredConnector, normalizeConnector } from '@/engine/connectors'
 import { resolveAction, type Action as TriggerAction } from '@/engine/triggers'
-import { generateStage, stagePaint, StageData, VariantId, buildingCellColor } from '@/engine/stageGenerator'
+import { generateStage, stagePaint, StageData, VariantId, buildingCellColor, edgeToSide, footprintSide, footprintRing, treeSubpart, labelForCell } from '@/engine/stageGenerator'
 import { ZoneId, ZONE_PALETTES } from '@/engine/zones'
 import { cellTile } from '@/engine/cellTileset'
 import { type BuildingType } from '@/engine/buildingComposer'
@@ -11479,19 +11479,18 @@ function render2D(
       }
     }
 
-    // Pass 2: asset TYPE (+ corner/edge class) captions above each visible asset.
+    // Pass 2: per-cell TYPE + POSITION captions — same flattened captions every view draws.
     const debugAssets = grid.getVisibleAssets(Math.floor(player.x / cellSize), Math.floor(player.z / cellSize), 30, 20)
     ctx.font = `bold 11px ${ASCII_FONT}`
-    for (const asset of debugAssets) {
-      const p = toScreen(asset.col + 0.5, asset.row + 0.5)
-      const { fg: labelColor, bg: labelBg } = debugLabelColors(asset.type)
-      const label = assetDebugLabel(asset)
-      const metrics = ctx.measureText(label)
+    for (const cap of debugCellCaptions(debugAssets)) {
+      const p = toScreen(cap.col + 0.5, cap.row + 0.5)
+      const { fg: labelColor, bg: labelBg } = debugLabelColors(cap.type)
+      const metrics = ctx.measureText(cap.text)
       const labelY = p.y - tileH - 10
       ctx.fillStyle = labelBg
       ctx.fillRect(p.x - metrics.width / 2 - 3, labelY - 8, metrics.width + 6, 16)
       ctx.fillStyle = labelColor
-      ctx.fillText(label, p.x, labelY)
+      ctx.fillText(cap.text, p.x, labelY)
       ctx.strokeStyle = labelColor
       ctx.setLineDash([2, 2])
       ctx.beginPath()
@@ -11903,12 +11902,40 @@ function adjustColorBrightness(hex: string, factor: number): string {
   return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`
 }
 
-/** The debug caption for one asset: its TYPE, plus the corner/edge class for building
- *  cells (e.g. "BUILDING NW") so the tileset-facing classification is verifiable on screen.
- *  Shared by the iso + 2D debug overlays. */
-function assetDebugLabel(asset: GridAsset): string {
-  const base = asset.type.toUpperCase()
-  return asset.edge ? `${base} ${asset.edge.toUpperCase()}` : base
+/** The POSITION token for a SINGLE placed asset cell: footprint side for a building cell
+ *  (asset.edge), trunk/canopy for a tree (asset.label), '' for any single-cell element. The
+ *  fountain's multi-cell basin is expanded separately in debugCellCaptions. */
+function assetCaptionPos(asset: GridAsset): string {
+  if (asset.type === 'tree') return treeSubpart(asset.label)
+  if (asset.edge) return edgeToSide(asset.edge)
+  return ''
+}
+
+/** One debug caption PER CELL, flattened so the top / 2D / iso overlays draw IDENTICAL strings —
+ *  the core of the consistent labeling standard. Buildings & trees caption per stamped cell; the
+ *  town fountain (one prop carrying its basin `footprint`) expands over the whole basin: rim sides
+ *  (mirroring a building footprint), an inner WATER ring, and the CENTER cell. Every other asset
+ *  gets a bare type. Pure — the string always comes from the shared labelForCell helper. */
+function debugCellCaptions(assets: readonly GridAsset[]): { col: number; row: number; type: string; text: string }[] {
+  const out: { col: number; row: number; type: string; text: string }[] = []
+  for (const asset of assets) {
+    const span = asset.type === 'fountain' ? asset.footprint ?? 1 : 1
+    if (span > 1) {
+      const half = Math.floor(span / 2) // odd basin centred on the prop cell
+      const rect = { col: asset.col - half, row: asset.row - half, w: span, h: span }
+      const maxRing = Math.floor((span - 1) / 2)
+      for (let row = rect.row; row < rect.row + rect.h; row++) {
+        for (let col = rect.col; col < rect.col + rect.w; col++) {
+          const side = footprintSide(col, row, rect)
+          const pos = side !== 'INTERIOR' ? side : footprintRing(col, row, rect) >= maxRing ? 'CENTER' : 'WATER'
+          out.push({ col, row, type: asset.type, text: labelForCell(asset.type, pos) })
+        }
+      }
+      continue
+    }
+    out.push({ col: asset.col, row: asset.row, type: asset.type, text: labelForCell(asset.type, assetCaptionPos(asset)) })
+  }
+  return out
 }
 
 /** Caption fg/bg for an asset's debug label, keyed by type — shared by the iso + 2D overlays
@@ -11983,7 +12010,7 @@ function renderDebugOverlays(
     }
   }
 
-  // Pass 2: Asset type labels
+  // Pass 2: per-cell TYPE + POSITION captions — same flattened captions every view draws.
   const visibleAssets = grid.getVisibleAssets(
     Math.floor(player.x / cellSize),
     Math.floor(player.z / cellSize),
@@ -11992,24 +12019,23 @@ function renderDebugOverlays(
 
   ctx.font = `bold 11px ${ASCII_FONT}`
 
-  for (const asset of visibleAssets) {
-    const worldX = asset.col * cellSize
-    const worldZ = asset.row * cellSize
+  for (const cap of debugCellCaptions(visibleAssets)) {
+    const worldX = cap.col * cellSize
+    const worldZ = cap.row * cellSize
     const p = toScreen(worldX, worldZ)
 
     // Color by type
-    const { fg: labelColor, bg: labelBg } = debugLabelColors(asset.type)
+    const { fg: labelColor, bg: labelBg } = debugLabelColors(cap.type)
 
-    // Draw label background (TYPE + corner/edge class for building cells)
-    const label = assetDebugLabel(asset)
-    const metrics = ctx.measureText(label)
+    // Draw label background (TYPE + corner/edge/sub-part — identical to top + 2D)
+    const metrics = ctx.measureText(cap.text)
     const labelY = p.y - 30
 
     ctx.fillStyle = labelBg
     ctx.fillRect(p.x - metrics.width / 2 - 3, labelY - 8, metrics.width + 6, 16)
 
     ctx.fillStyle = labelColor
-    ctx.fillText(label, p.x, labelY)
+    ctx.fillText(cap.text, p.x, labelY)
 
     // Connection line
     ctx.strokeStyle = labelColor
@@ -12260,6 +12286,25 @@ function renderTopView(
     const cx = offsetX + (a.col + 0.5) * tileSize
     const cy = offsetY + (a.row + 0.5) * tileSize
     drawTopTownFountain(ctx, cx, cy, f * tileSize * 0.5 * 0.94, now)
+  }
+
+  // Debug: per-cell TYPE + POSITION captions — the SAME flattened captions the 2D + iso overlays
+  // draw, so a cell reads identically in every view (the consistent labeling standard).
+  if (debugMode) {
+    ctx.font = `bold ${Math.max(8, tileSize * 0.5)}px ${ASCII_FONT}`
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    for (const cap of debugCellCaptions(grid.assets)) {
+      if (cap.col < startCol || cap.col >= endCol || cap.row < startRow || cap.row >= endRow) continue
+      const cx = offsetX + (cap.col + 0.5) * tileSize
+      const labelY = offsetY + cap.row * tileSize - tileSize * 0.25
+      const { fg: labelColor, bg: labelBg } = debugLabelColors(cap.type)
+      const metrics = ctx.measureText(cap.text)
+      ctx.fillStyle = labelBg
+      ctx.fillRect(cx - metrics.width / 2 - 3, labelY - 8, metrics.width + 6, 16)
+      ctx.fillStyle = labelColor
+      ctx.fillText(cap.text, cx, labelY)
+    }
   }
 
   // Grid lines (subtle)
