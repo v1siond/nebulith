@@ -56,8 +56,12 @@ export const ABILITY_TINT: Record<AbilityAnimation, string> = {
   'guard-flash': '#9fd3ff',
 }
 
-// ── seeded defaults (engine ships these; the editor authors more later) ──────────────
+// ── the ability REGISTRY (the database) ──────────────────────────────────────────────
+// The engine seeds these; the author assigns them into slots and (later) edits/adds more.
+// Adding a new ability is just one const + one line in ABILITY_REGISTRY — no other wiring.
+// Keep VARIETY: at least one per category so there's something real to assign.
 
+/** Offensive melee — the blade burns red-orange and bites for fire damage. */
 export const FIRE_SLASH: AbilityDef = {
   id: 'fire-slash',
   name: 'Fire Slash',
@@ -68,7 +72,47 @@ export const FIRE_SLASH: AbilityDef = {
   effect: { damage: 18 },
 }
 
-export const SEEDED_ABILITIES: readonly AbilityDef[] = [FIRE_SLASH]
+/** Offensive ranged — a heavy piercing bolt that hits harder than the basic shot. */
+export const POWER_SHOT: AbilityDef = {
+  id: 'power-shot',
+  name: 'Power Shot',
+  description: 'A drawn-back piercing bolt — slower to ready, but it punches through for big damage.',
+  category: 'offensive',
+  animation: 'piercing-shot',
+  cooldownMs: 8000,
+  effect: { damage: 26 },
+}
+
+/** Defensive — a brief shield-flash window that soaks incoming damage. */
+export const GUARD: AbilityDef = {
+  id: 'guard',
+  name: 'Guard',
+  description: 'Raise a flash-guard for a few seconds, cutting the damage you take.',
+  category: 'defensive',
+  animation: 'guard-flash',
+  cooldownMs: 12000,
+  effect: { shieldMs: 4000 },
+}
+
+/** Debuff — an icy slash that chills the target, slowing it for a few seconds. */
+export const FROST: AbilityDef = {
+  id: 'frost',
+  name: 'Frost',
+  description: 'An icy slash that chills the target — it crawls (slowed) for a few seconds.',
+  category: 'debuff',
+  animation: 'ice-slash',
+  cooldownMs: 9000,
+  effect: { damage: 8, debuff: { kind: 'slow', durationMs: 3000, magnitude: 0.4 } },
+}
+
+/** The seeded ability database the UI reads to populate the assign-picker. Add/update =
+ *  edit a def + this list; the lookup + loadout helpers stay untouched. */
+export const ABILITY_REGISTRY: readonly AbilityDef[] = [FIRE_SLASH, POWER_SHOT, GUARD, FROST]
+
+/** Look an ability up by id (round-trips with ABILITY_REGISTRY). Pure. */
+export function getAbility(id: string): AbilityDef | undefined {
+  return ABILITY_REGISTRY.find(a => a.id === id)
+}
 
 // ── loadout: up to 4 abilities on keys 1–4 (rebindable) ──────────────────────────────
 
@@ -103,4 +147,30 @@ export function meetsRequirements(ability: AbilityDef, ctx: { level?: number; we
 /** Find the binding triggered by a key in a loadout, or undefined. Pure. */
 export function bindingForKey(loadout: readonly AbilityBinding[], key: string): AbilityBinding | undefined {
   return loadout.find(b => b.key === key)
+}
+
+// ── editing a loadout: assign / remove abilities by slot (the configurable bit) ────────
+
+/** Every slot, in HUD + key order — what the inventory UI and the action bar iterate. */
+export const ABILITY_SLOTS: readonly AbilitySlot[] = [1, 2, 3, 4]
+
+/** The binding occupying a slot, or undefined. Pure. */
+export function bindingForSlot(loadout: readonly AbilityBinding[], slot: AbilitySlot): AbilityBinding | undefined {
+  return loadout.find(b => b.slot === slot)
+}
+
+/** Put an ability into a slot (key defaults to the slot number), replacing any current
+ *  occupant. Returns a NEW loadout (slot-ordered); input untouched. Pure. */
+export function assignAbility(
+  loadout: readonly AbilityBinding[],
+  slot: AbilitySlot,
+  ability: AbilityDef,
+): AbilityBinding[] {
+  const rest = loadout.filter(b => b.slot !== slot)
+  return [...rest, { slot, key: String(slot), ability }].sort((a, b) => a.slot - b.slot)
+}
+
+/** Take whatever ability is in a slot back out. Returns a NEW loadout; input untouched. Pure. */
+export function removeAbility(loadout: readonly AbilityBinding[], slot: AbilitySlot): AbilityBinding[] {
+  return loadout.filter(b => b.slot !== slot)
 }
