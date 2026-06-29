@@ -3224,9 +3224,63 @@ function ItemTooltip({ item, x, y }: { item: Item; x: number; y: number }) {
   )
 }
 
-function EquipmentPanel({ label, loadout, onChange, onClose }: {
+// ── live player/entity stats panel (#52) ────────────────────────────
+/** One labelled stat readout in the stats grid. */
+function StatChip({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded border border-white/10 bg-black/40 px-2 py-1">
+      <div className="text-[8px] uppercase tracking-wider text-gray-500">{label}</div>
+      <div className="text-[12px] font-bold tabular-nums text-gray-100">{value}</div>
+    </div>
+  )
+}
+
+/**
+ * Live stats for the entity whose loadout is open — the SAME source the combat HUD
+ * reads from: base stats folded with the equipped gear's bonuses (loadoutBonuses)
+ * and the equipped weapon. Equipping/unequipping re-renders this with new totals, so
+ * the numbers move as you change gear (sword → attack up, shield → block up, etc.).
+ */
+function PlayerStatsPanel({ baseStats, loadout, hp }: {
+  baseStats: Stats
+  loadout: Loadout
+  hp: { current: number; max: number }
+}) {
+  const b = loadoutBonuses(loadout)
+  const weapons = [loadout.equipped.weapon1, loadout.equipped.weapon2].flatMap(i =>
+    i && i.slot === 'weapon' ? [i.weapon] : [],
+  )
+  const weapon = weapons.find(w => w.kind !== 'shield') ?? weapons[0] ?? BARE_HANDS
+  // Effective stats = base + worn gear (mirrors the play-loop's playerStatsRef wiring).
+  const strength = baseStats.strength + b.strength
+  const intelligence = baseStats.intelligence + b.intelligence
+  const defense = baseStats.defense + b.defense
+  const dodge = (baseStats.dodge ?? 0) + b.dodge
+  // Regular-hit damage per the combat formula (physical scales str, magical scales int).
+  const attack = weapon.school === 'magical' ? weapon.baseMagic + intelligence : weapon.baseDamage + strength
+  return (
+    <div className="mb-3 rounded-lg border border-amber-500/30 bg-black/40 p-2">
+      <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wider text-amber-300">Stats — live totals (incl. gear)</p>
+      <div className="grid grid-cols-4 gap-1">
+        <StatChip label="HP" value={`${hp.current}/${hp.max}`} />
+        <StatChip label="Attack" value={`${attack} ${weapon.school === 'magical' ? '✦' : '⚔'}`} />
+        <StatChip label="Defense" value={`${defense}`} />
+        <StatChip label="Reach" value={`${weaponReach(weapon)} ${weapon.range === 'ranged' ? 'rng' : 'mel'}`} />
+        <StatChip label="Dodge" value={`${dodge}%`} />
+        <StatChip label="Block" value={`${b.block}%`} />
+        <StatChip label="Strength" value={`${strength}`} />
+        <StatChip label="Intelligence" value={`${intelligence}`} />
+      </div>
+      <p className="mt-1 truncate text-[9px] text-gray-500">Weapon: {weapon.name}</p>
+    </div>
+  )
+}
+
+function EquipmentPanel({ label, loadout, baseStats, hp, onChange, onClose }: {
   label: string
   loadout: Loadout
+  baseStats: Stats
+  hp: { current: number; max: number }
   onChange: (l: Loadout) => void
   onClose: () => void
 }) {
@@ -3264,6 +3318,8 @@ function EquipmentPanel({ label, loadout, onChange, onClose }: {
           <h2 className="text-sm font-bold text-cyan-400">Inventory — {label}</h2>
           <button onClick={onClose} className="rounded bg-gray-700 px-2 py-1 text-xs hover:bg-gray-600" aria-label="Close inventory">✕ (I)</button>
         </div>
+
+        <PlayerStatsPanel baseStats={baseStats} loadout={loadout} hp={hp} />
 
         <p className="mb-1 text-xs font-bold text-gray-400">Equipped</p>
         <div className="mb-3 grid grid-cols-3 gap-1">
@@ -8030,11 +8086,21 @@ export default function TemplateEditor() {
         {inventoryOpen && (() => {
           const activeId = selectedEntityId ?? '__player__'
           const current = loadouts[activeId] ?? (activeId === '__player__' ? seededPlayerLoadout() : createLoadout())
-          const who = selectedEntityId ? entities.find(e => e.id === selectedEntityId)?.name ?? 'Entity' : 'Player'
+          const selEntity = selectedEntityId ? entities.find(e => e.id === selectedEntityId) : undefined
+          const who = selEntity?.name ?? (selectedEntityId ? 'Entity' : 'Player')
+          // Whose stats the panel shows: the selected entity, else the player. HP for the
+          // player comes from the live HUD mirror (same source the combat HUD reads).
+          const playerEntity = entities.find(e => e.kind === 'player')
+          const baseStats = selEntity?.baseStats ?? playerEntity?.baseStats ?? DEFAULT_PLAYER_STATS
+          const hp = selEntity
+            ? { current: selEntity.baseStats.maxHp, max: selEntity.baseStats.maxHp }
+            : { current: Math.round(playerHud.hp), max: Math.round(playerHud.maxHp) }
           return (
             <EquipmentPanel
               label={who}
               loadout={current}
+              baseStats={baseStats}
+              hp={hp}
               onChange={l => setLoadouts(prev => ({ ...prev, [activeId]: l }))}
               onClose={() => setInventoryOpen(false)}
             />
