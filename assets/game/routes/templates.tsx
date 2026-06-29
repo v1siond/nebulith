@@ -5946,7 +5946,7 @@ export default function TemplateEditor() {
       if (grid.ground[g.row]?.[g.col] !== undefined) grid.ground[g.row][g.col] = g.type
     }
     for (const a of paint.assets) {
-      grid.placeAsset([a.char], a.col, a.row, { type: a.type, blocking: a.blocking, color: a.color, label: a.label, baseShadow: a.baseShadow, buildingType: a.buildingType })
+      grid.placeAsset([a.char], a.col, a.row, { type: a.type, blocking: a.blocking, color: a.color, label: a.label, baseShadow: a.baseShadow, buildingType: a.buildingType, edge: a.edge })
     }
     // Mirror the generator's authoritative collision into the grid so trees/water/
     // features are truly blocked — enemies (manual placement + scatter) only land on
@@ -10674,6 +10674,31 @@ function adjustColorBrightness(hex: string, factor: number): string {
   return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`
 }
 
+/** The debug caption for one asset: its TYPE, plus the corner/edge class for building
+ *  cells (e.g. "BUILDING NW") so the tileset-facing classification is verifiable on screen.
+ *  Shared by the iso + 2D debug overlays. */
+function assetDebugLabel(asset: GridAsset): string {
+  const base = asset.type.toUpperCase()
+  return asset.edge ? `${base} ${asset.edge.toUpperCase()}` : base
+}
+
+/** Caption fg/bg for an asset's debug label, keyed by type — shared by the iso + 2D overlays
+ *  so both views colour BUILDING/TREE/WATER/… identically. */
+function debugLabelColors(type: string): { fg: string; bg: string } {
+  switch (type) {
+    case 'building': return { fg: '#ffaa00', bg: 'rgba(100, 60, 0, 0.8)' }
+    case 'tree': return { fg: '#44ff44', bg: 'rgba(0, 60, 0, 0.8)' }
+    case 'water':
+    case 'well':
+    case 'fountain': return { fg: '#44aaff', bg: 'rgba(0, 40, 80, 0.8)' }
+    case 'decoration':
+    case 'crate':
+    case 'lamp': return { fg: '#ffff44', bg: 'rgba(60, 60, 0, 0.8)' }
+    case 'flower': return { fg: '#ff88ff', bg: 'rgba(60, 0, 60, 0.8)' }
+    default: return { fg: '#ffffff', bg: 'rgba(0, 0, 0, 0.7)' }
+  }
+}
+
 // Debug overlay rendering
 function renderDebugOverlays(
   ctx: CanvasRenderingContext2D,
@@ -10744,36 +10769,10 @@ function renderDebugOverlays(
     const p = toScreen(worldX, worldZ)
 
     // Color by type
-    let labelColor = '#ffffff'
-    let labelBg = 'rgba(0, 0, 0, 0.7)'
-    switch (asset.type) {
-      case 'building':
-        labelColor = '#ffaa00'
-        labelBg = 'rgba(100, 60, 0, 0.8)'
-        break
-      case 'tree':
-        labelColor = '#44ff44'
-        labelBg = 'rgba(0, 60, 0, 0.8)'
-        break
-      case 'water':
-      case 'fountain':
-        labelColor = '#44aaff'
-        labelBg = 'rgba(0, 40, 80, 0.8)'
-        break
-      case 'decoration':
-      case 'crate':
-      case 'lamp':
-        labelColor = '#ffff44'
-        labelBg = 'rgba(60, 60, 0, 0.8)'
-        break
-      case 'flower':
-        labelColor = '#ff88ff'
-        labelBg = 'rgba(60, 0, 60, 0.8)'
-        break
-    }
+    const { fg: labelColor, bg: labelBg } = debugLabelColors(asset.type)
 
-    // Draw label background
-    const label = asset.type.toUpperCase()
+    // Draw label background (TYPE + corner/edge class for building cells)
+    const label = assetDebugLabel(asset)
     const metrics = ctx.measureText(label)
     const labelY = p.y - 30
 

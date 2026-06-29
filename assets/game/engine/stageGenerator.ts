@@ -38,6 +38,9 @@ export interface StageProp {
   /** For building cells: the building's TYPE (store/hospital/…), so the render can
    *  badge the apex (a "STORE" marquee, a red hospital cross). */
   buildingType?: string
+  /** For building cells: the cell's corner/edge/interior class within the footprint
+   *  rect (nw/n/ne/w/interior/e/sw/s/se) — the directional info a tileset maps. */
+  edge?: BuildingEdge
 }
 
 export interface PlacedBuilding {
@@ -601,6 +604,29 @@ function footprintRect(plot: Plot): FootRect {
 const rectInBounds = (rect: FootRect, cols: number, rows: number): boolean =>
   rect.col >= 0 && rect.row >= 0 && rect.col + rect.w <= cols && rect.row + rect.h <= rows
 
+/**
+ * A building cell's CORNER / EDGE / INTERIOR class within its GROUND footprint rect —
+ * the directional sub-classification a real tileset needs (a corner tile ≠ an edge
+ * tile ≠ an interior fill tile). The 9 classes laid out on the rect:
+ *
+ *     nw   n   ne
+ *      w   ·   e        (· = interior)
+ *     sw   s   se
+ *
+ * Derived from the cell's position in the grid-aligned footprint rect (length × depth),
+ * NOT facade-relative — so it maps straight onto the cells a tileset paints on the ground.
+ * Degenerate footprints collapse their thin axis (N wins over S, W wins over E): a
+ * 1-deep strip reads nw/n/ne, a 1-wide strip nw/w/sw, and a 1×1 footprint is 'nw'.
+ */
+export type BuildingEdge = 'nw' | 'n' | 'ne' | 'w' | 'interior' | 'e' | 'sw' | 's' | 'se'
+
+export function footprintEdgeClass(col: number, row: number, rect: FootRect): BuildingEdge {
+  const vert = row === rect.row ? 'n' : row === rect.row + rect.h - 1 ? 's' : '' // N wins on a 1-row strip
+  const horiz = col === rect.col ? 'w' : col === rect.col + rect.w - 1 ? 'e' : '' // W wins on a 1-col strip
+  if (vert && horiz) return (vert + horiz) as BuildingEdge // a corner: nw / ne / sw / se
+  return (vert || horiz || 'interior') as BuildingEdge // an edge (n/s/e/w) or the interior fill
+}
+
 /** The single DOOR cell — the centre of the footprint's ROAD-FACING edge (walkable; the building's
  *  one way in). Every other footprint cell blocks. Mirrors villageLayout's door geometry. */
 function doorCell(facing: Facing, rect: FootRect): Cell {
@@ -628,7 +654,7 @@ function placeBuilding(
   const door = doorCell(plot.facing, rect)
   for (let row = rect.row; row < rect.row + rect.h; row++) {
     for (let col = rect.col; col < rect.col + rect.w; col++) {
-      stampFootprintCell(ctx, plot.type, col, row, col === door.col && row === door.row, rect.col)
+      stampFootprintCell(ctx, plot.type, col, row, col === door.col && row === door.row, rect.col, rect)
     }
   }
   // `row` = the rect's BOTTOM row; `length`/`height` = the rect's grid span (cols×rows), so the
@@ -646,13 +672,14 @@ function stampFootprintCell(
   row: number,
   isDoor: boolean,
   anchorCol: number,
+  rect: FootRect,
 ): void {
   const { props, collision, zone, cols, rows } = ctx
   if (!inBounds(col, row, cols, rows)) return
   const label: CellLabel = isDoor ? 'door' : 'roof'
   const color = buildingCellColor(type, label, anchorCol)
   const cell = makeBuildingCell(zone, col, row, label, color)
-  props.push({ ...cell, blocking: !isDoor, buildingType: type })
+  props.push({ ...cell, blocking: !isDoor, buildingType: type, edge: footprintEdgeClass(col, row, rect) })
   collision[row][col] = !isDoor
 }
 
@@ -1657,7 +1684,7 @@ function firstWalkable(collision: boolean[][], cols: number, rows: number): Cell
 // ── visual mapping (shared by the template mapper + the live-grid applier) ──
 export interface StagePaint {
   ground: { col: number; row: number; type: string }[]
-  assets: { col: number; row: number; char: string; type: string; color: string; blocking: boolean; label?: string; baseShadow?: boolean; buildingType?: string }[]
+  assets: { col: number; row: number; char: string; type: string; color: string; blocking: boolean; label?: string; baseShadow?: boolean; buildingType?: string; edge?: BuildingEdge }[]
 }
 
 export function stagePaint(stage: StageData): StagePaint {
@@ -1665,7 +1692,7 @@ export function stagePaint(stage: StageData): StagePaint {
   const assets: StagePaint['assets'] = []
   stage.buildings.forEach(b => paintBuildingGround(b, ground))
   stage.props.forEach(p =>
-    assets.push({ col: p.col, row: p.row, char: p.char, type: p.type, color: p.color, blocking: p.blocking, label: p.label, baseShadow: p.baseShadow, buildingType: p.buildingType }),
+    assets.push({ col: p.col, row: p.row, char: p.char, type: p.type, color: p.color, blocking: p.blocking, label: p.label, baseShadow: p.baseShadow, buildingType: p.buildingType, edge: p.edge }),
   )
   return { ground, assets }
 }

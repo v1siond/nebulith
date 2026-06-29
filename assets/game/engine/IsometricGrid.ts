@@ -27,6 +27,7 @@ export interface GridAsset {
   cycles?: AnimationCycle[]  // authored animation cycles (author panel) — driven by animationCycles
   baseShadow?: boolean  // generator-marked tree-base cell → always casts a ground shadow
   buildingType?: string // building cell's TYPE (store/hospital/…) → drives the apex signage badge
+  edge?: string         // building cell's corner/edge/interior class (nw/n/ne/w/interior/e/sw/s/se) → tileset mapping + debug overlay
 }
 
 export interface GridConfig {
@@ -206,6 +207,7 @@ export class IsometricGrid {
       brightness: options.brightness,
       cycles: options.cycles,
       baseShadow: options.baseShadow,
+      edge: options.edge,
     })
 
     // If blocking, update collision grid

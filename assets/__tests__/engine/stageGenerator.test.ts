@@ -1,4 +1,4 @@
-import { generateStage, buildingCellColor, stagePaint } from '@/engine/stageGenerator'
+import { generateStage, buildingCellColor, stagePaint, footprintEdgeClass } from '@/engine/stageGenerator'
 import { composeBuilding } from '@/engine/buildingComposer'
 import { TREE_CANOPY_SHADES } from '@/engine/cellTileset'
 import { parseColor } from '@/engine/colors'
@@ -820,5 +820,56 @@ describe('generateStage — the door reads as a DARK marker on the grid', () => 
     const doors = stage.props.filter(p => p.type === 'building' && p.label === 'door')
     expect(doors.length).toBeGreaterThan(0)
     expect(doors.every(d => brightness(d.color) < 240)).toBe(true) // dark entrance
+  })
+})
+
+describe('footprintEdgeClass — corner/edge/interior tileset classification (#41)', () => {
+  // A 4-wide × 3-deep footprint rect at (10,5): cols 10..13, rows 5..7.
+  const rect = { col: 10, row: 5, w: 4, h: 3 }
+
+  it('classifies the four corners', () => {
+    expect(footprintEdgeClass(10, 5, rect)).toBe('nw') // top-left
+    expect(footprintEdgeClass(13, 5, rect)).toBe('ne') // top-right
+    expect(footprintEdgeClass(10, 7, rect)).toBe('sw') // bottom-left
+    expect(footprintEdgeClass(13, 7, rect)).toBe('se') // bottom-right
+  })
+
+  it('classifies the four edges (non-corner border cells)', () => {
+    expect(footprintEdgeClass(11, 5, rect)).toBe('n') // top edge
+    expect(footprintEdgeClass(12, 7, rect)).toBe('s') // bottom edge
+    expect(footprintEdgeClass(10, 6, rect)).toBe('w') // left edge
+    expect(footprintEdgeClass(13, 6, rect)).toBe('e') // right edge
+  })
+
+  it('classifies an interior cell', () => {
+    expect(footprintEdgeClass(11, 6, rect)).toBe('interior')
+    expect(footprintEdgeClass(12, 6, rect)).toBe('interior')
+  })
+
+  it('collapses degenerate footprints (thin strips and a single cell)', () => {
+    const strip1xN = { col: 4, row: 4, w: 1, h: 3 } // 1-wide column → nw/w/sw
+    expect(footprintEdgeClass(4, 4, strip1xN)).toBe('nw')
+    expect(footprintEdgeClass(4, 5, strip1xN)).toBe('w')
+    expect(footprintEdgeClass(4, 6, strip1xN)).toBe('sw')
+
+    const stripNx1 = { col: 4, row: 4, w: 3, h: 1 } // 1-deep row → nw/n/ne
+    expect(footprintEdgeClass(4, 4, stripNx1)).toBe('nw')
+    expect(footprintEdgeClass(5, 4, stripNx1)).toBe('n')
+    expect(footprintEdgeClass(6, 4, stripNx1)).toBe('ne')
+
+    expect(footprintEdgeClass(0, 0, { col: 0, row: 0, w: 1, h: 1 })).toBe('nw') // 1×1 → nw
+  })
+
+  it('surfaces edge classes on generated building footprint cells (4 corners + interiors)', () => {
+    const stage = generateStage({ zone: 'autumn', variant: 'town' })
+    const buildingCells = stage.props.filter(p => p.type === 'building')
+    expect(buildingCells.length).toBeGreaterThan(0)
+    expect(buildingCells.every(c => c.edge !== undefined)).toBe(true)
+    // Across a town there is at least one of each corner among the footprints.
+    const edges = new Set(buildingCells.map(c => c.edge))
+    for (const corner of ['nw', 'ne', 'sw', 'se']) expect(edges.has(corner as never)).toBe(true)
+    // stagePaint carries the edge through to the render layer.
+    const painted = stagePaint(stage).assets.filter(a => a.type === 'building')
+    expect(painted.every(a => a.edge !== undefined)).toBe(true)
   })
 })
