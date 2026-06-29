@@ -10242,9 +10242,11 @@ function render2D(
   }
 
   // ─── DEBUG OVERLAY ─────────────────────────────────────────────────
+  // Mirrors the iso renderDebugOverlays: a collision tint + per-cell coords on every
+  // cell, then a TYPE (+ corner/edge) caption above each asset, then a PLAYER tag.
   if (debugMode) {
     ctx.globalAlpha = 0.6
-    // Draw collision overlay
+    // Pass 1: collision tint + height numbers
     for (let row = startRow; row < startRow + tilesY; row++) {
       for (let col = startCol; col < startCol + tilesX; col++) {
         if (col < 0 || col >= grid.cols || row < 0 || row >= grid.rows) continue
@@ -10257,27 +10259,62 @@ function render2D(
           ctx.fillRect(p.x - tileW / 2, p.y - tileH / 2, tileW, tileH)
         }
 
-        // Show height numbers
+        // Show height numbers (2D-only extra) above the coords so they don't collide
         if (cellHeight > 0) {
           ctx.fillStyle = '#ffff00'
           ctx.font = `bold ${tileH * 0.4}px ${ASCII_FONT}`
           ctx.textAlign = 'center'
           ctx.textBaseline = 'middle'
-          ctx.fillText(String(cellHeight), p.x, p.y)
+          ctx.fillText(String(cellHeight), p.x, p.y - tileH * 0.3)
         }
       }
     }
     ctx.globalAlpha = 1
 
-    // Grid lines
+    // Grid lines + per-cell coords (col,row) — the same labels the iso overlay prints.
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)'
     ctx.lineWidth = 1
+    ctx.font = `bold ${Math.max(7, tileH * 0.3)}px ${ASCII_FONT}`
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
     for (let row = startRow; row < startRow + tilesY; row++) {
       for (let col = startCol; col < startCol + tilesX; col++) {
+        if (col < 0 || col >= grid.cols || row < 0 || row >= grid.rows) continue
         const p = toScreen(col + 0.5, row + 0.5)
         ctx.strokeRect(p.x - tileW / 2, p.y - tileH / 2, tileW, tileH)
+        ctx.fillStyle = grid.collision[row]?.[col] ? '#ffaaaa' : '#aaffaa'
+        ctx.fillText(`${col},${row}`, p.x, p.y + tileH * 0.12)
       }
     }
+
+    // Pass 2: asset TYPE (+ corner/edge class) captions above each visible asset.
+    const debugAssets = grid.getVisibleAssets(Math.floor(player.x / cellSize), Math.floor(player.z / cellSize), 30, 20)
+    ctx.font = `bold 11px ${ASCII_FONT}`
+    for (const asset of debugAssets) {
+      const p = toScreen(asset.col + 0.5, asset.row + 0.5)
+      const { fg: labelColor, bg: labelBg } = debugLabelColors(asset.type)
+      const label = assetDebugLabel(asset)
+      const metrics = ctx.measureText(label)
+      const labelY = p.y - tileH - 10
+      ctx.fillStyle = labelBg
+      ctx.fillRect(p.x - metrics.width / 2 - 3, labelY - 8, metrics.width + 6, 16)
+      ctx.fillStyle = labelColor
+      ctx.fillText(label, p.x, labelY)
+      ctx.strokeStyle = labelColor
+      ctx.setLineDash([2, 2])
+      ctx.beginPath()
+      ctx.moveTo(p.x, labelY + 8)
+      ctx.lineTo(p.x, p.y - 5)
+      ctx.stroke()
+      ctx.setLineDash([])
+    }
+
+    // PLAYER tag over the player's cell.
+    const pp = toScreen(player.x / cellSize, player.z / cellSize)
+    ctx.fillStyle = 'rgba(80, 60, 0, 0.8)'
+    ctx.fillRect(pp.x - 25, pp.y - tileH - 26, 50, 16)
+    ctx.fillStyle = '#ffdd00'
+    ctx.fillText('PLAYER', pp.x, pp.y - tileH - 18)
   }
 
   // Placed entities (enemies / NPCs) on top of the world layer — same as Top/iso.
