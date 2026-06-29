@@ -2563,6 +2563,67 @@ function CombatHud({ hud }: { hud: PlayerHud }) {
 }
 
 /**
+ * Play-view ABILITY BAR: the 4 assigned slots (keys 1–4) with a cooldown sweep. The slots reflect
+ * the live loadout (re-renders on assign/remove); the sweep reads the SAME last-used clock the play
+ * loop stamps on fire (`lastUsedRef`) against `performance.now()` — that clock shares the rAF time
+ * origin the loop uses, so the math lines up. A dark overlay fills the slot from the bottom and
+ * shrinks as it cools; the icon dims while cooling and brightens (full color) when ready.
+ */
+function AbilityBar({ loadout, lastUsedRef }: {
+  loadout: readonly AbilityBinding[]
+  lastUsedRef: React.MutableRefObject<Map<string, number>>
+}) {
+  // Repaint a few times a second so the sweep animates — cooldowns are seconds long, so ~16 fps is
+  // plenty smooth and far cheaper than a per-frame rAF. The clock itself comes from performance.now.
+  const [, repaint] = useState(0)
+  useEffect(() => {
+    const id = setInterval(() => repaint(t => (t + 1) % 1_000_000), 60)
+    return () => clearInterval(id)
+  }, [])
+  const now = typeof performance !== 'undefined' ? performance.now() : 0
+  return (
+    <div
+      className="fixed bottom-16 left-1/2 z-20 flex -translate-x-1/2 gap-1.5 rounded-md bg-black/80 p-1.5 font-mono shadow-lg ring-1 ring-white/10"
+      role="group"
+      aria-label="Ability bar"
+    >
+      {ABILITY_SLOTS.map(slot => {
+        const ability = bindingForSlot(loadout, slot)?.ability
+        const tint = ability ? ABILITY_TINT[ability.animation] : '#555'
+        const lastUsed = ability ? lastUsedRef.current.get(ability.id) : undefined
+        const ready = !ability || abilityReady(ability, lastUsed, now)
+        const remaining = ability && lastUsed != null ? Math.max(0, ability.cooldownMs - (now - lastUsed)) : 0
+        const fillPct = ability && ability.cooldownMs > 0 ? (remaining / ability.cooldownMs) * 100 : 0
+        const abbrev = ability ? ability.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() : '—'
+        return (
+          <div
+            key={slot}
+            title={ability ? `${ability.name} · ${(ability.cooldownMs / 1000).toFixed(0)}s` : `Slot ${slot} — empty`}
+            className="relative h-11 w-11 overflow-hidden rounded border bg-black/70"
+            style={{ borderColor: ability ? tint : 'rgba(255,255,255,0.15)' }}
+          >
+            {/* cooldown sweep: a dark overlay that fills the slot then shrinks to 0 as it cools */}
+            {!ready && <div className="absolute inset-x-0 bottom-0 bg-black/70" style={{ height: `${fillPct}%` }} />}
+            <span className="absolute left-0.5 top-0 text-[9px] font-bold text-gray-300">{slot}</span>
+            <span
+              className="flex h-full items-center justify-center text-[13px] font-bold"
+              style={{ color: tint, opacity: ready ? 1 : 0.55 }}
+            >
+              {abbrev}
+            </span>
+            {!ready && (
+              <span className="absolute inset-0 flex items-center justify-center text-[12px] font-bold tabular-nums text-white">
+                {Math.ceil(remaining / 1000)}
+              </span>
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+/**
  * Top-center active-quest tracker: title, kill progress, and a "ready to turn in"
  * cue when complete. Reads the active quest from React state (the loop mirrors
  * quests into state). Returns null when no quest is active, so it never shows
@@ -7495,6 +7556,12 @@ export default function TemplateEditor() {
             clean PLAY VIEW so vitals stay visible while playing. */}
         {playMode && !showFlowView && (
           <CombatHud hud={playerHud} />
+        )}
+
+        {/* Ability action bar (keys 1–4 + cooldown sweep) — shows the live player loadout, same
+            play-view gate as the vitals HUD. */}
+        {playMode && !showFlowView && (
+          <AbilityBar loadout={abilityLoadouts['__player__'] ?? DEFAULT_ABILITY_LOADOUT} lastUsedRef={abilityLastUsedRef} />
         )}
 
         {/* Flow View Overlay */}
