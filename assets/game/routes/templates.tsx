@@ -8300,6 +8300,21 @@ function grassShade(baseBg: string, col: number, row: number): string {
   return varyIntensity(baseBg, n - Math.floor(n), 0.22)
 }
 
+/** Clamp a camera focus coord (in cells) so a viewport spanning `halfSpan` cells
+ *  each side stays inside [0, total]; if the grid is smaller than the viewport,
+ *  centre it. Used by the orthographic 2D + top views. */
+function clampCameraAxis(focus: number, halfSpan: number, total: number): number {
+  if (total <= halfSpan * 2) return total / 2
+  return Math.min(Math.max(focus, halfSpan), total - halfSpan)
+}
+
+/** Clamp v to [lo, hi]; if the range is empty (the grid is smaller than the
+ *  viewport on this axis) fall back to `mid` so the grid is centred instead. */
+function clampOrCenter(v: number, lo: number, hi: number, mid: number): number {
+  if (lo > hi) return mid
+  return Math.min(Math.max(v, lo), hi)
+}
+
 function render(
   ctx: CanvasRenderingContext2D,
   w: number,
@@ -8327,9 +8342,24 @@ function render(
   const cellSize = grid.cellSize
   const isoScale = grid.isoScale * zoom // mouse-wheel zoom scales the iso projection
 
-  // Camera follows player + pan offset
-  const camX = player.x - camOffset.x
-  const camZ = player.z - camOffset.y
+  // Camera follows player + pan offset, then CLAMP to the grid's projected iso
+  // bounding box so the viewport never reveals void beyond the diamond. Iso maps
+  // screen x/y to the diagonal coords p = col-row and q = col+row, so we clamp the
+  // focus in THAT space to keep the diamond's screen-space bbox covering the
+  // viewport. (A rectangular viewport can't avoid void at the diamond's own corners
+  // unless the grid is huge — this kills the big dark edge borders, the real bug.)
+  const Kx = cellSize * isoScale * 0.71  // screen px per unit of (col - row)
+  const Ky = cellSize * isoScale * 0.36  // screen px per unit of (col + row)
+  const pPad = w / (2 * Kx)              // half viewport width, in (col-row) units
+  const qPad = h / (2 * Ky)              // half viewport height, in (col+row) units
+  let fc = (player.x - camOffset.x) / cellSize
+  let fr = (player.z - camOffset.y) / cellSize
+  const pDiag = clampOrCenter(fc - fr, pPad - grid.rows, grid.cols - pPad, (grid.cols - grid.rows) / 2)
+  const qDiag = clampOrCenter(fc + fr, qPad, grid.cols + grid.rows - qPad, (grid.cols + grid.rows) / 2)
+  fc = (pDiag + qDiag) / 2
+  fr = (qDiag - pDiag) / 2
+  const camX = fc * cellSize
+  const camZ = fr * cellSize
 
   // Tile dimensions - slightly overlapping to eliminate gaps
   const tileW = cellSize * isoScale * 0.71  // Half-width of diamond
@@ -9807,9 +9837,11 @@ function render2D(
   const tileH = baseTileSize * zoom // Tile height in pixels
   const heightScale = 16 * zoom // Pixels per height unit (objects extend upward)
 
-  // Camera follows player (centered) + pan offset
-  const camCol = player.x / cellSize - camOffset.x / tileW
-  const camRow = player.z / cellSize - camOffset.y / tileH
+  // Camera follows player (centered) + pan offset, then CLAMP to the grid so the
+  // viewport never shows off-grid void (centre when the grid is smaller than the
+  // view). Half-span = half the visible cell count on each axis.
+  const camCol = clampCameraAxis(player.x / cellSize - camOffset.x / tileW, w / tileW / 2, grid.cols)
+  const camRow = clampCameraAxis(player.z / cellSize - camOffset.y / tileH, h / tileH / 2, grid.rows)
 
   // Convert grid position to screen
   const toScreen = (col: number, row: number) => ({
@@ -10779,9 +10811,13 @@ function renderTopView(
   const playerCol = player.x / cellSize
   const playerRow = player.z / cellSize
 
-  // Offset so player is centered + camera pan
-  const offsetX = w / 2 - playerCol * tileSize + camOffset.x
-  const offsetY = h / 2 - playerRow * tileSize + camOffset.y
+  // Camera focus (cols/rows) = player + pan, CLAMPED to the grid so the viewport
+  // never shows off-grid void (centre when the grid is smaller than the view); then
+  // derive the draw offset from the clamped focus.
+  const focusCol = clampCameraAxis(playerCol - camOffset.x / tileSize, w / tileSize / 2, grid.cols)
+  const focusRow = clampCameraAxis(playerRow - camOffset.y / tileSize, h / tileSize / 2, grid.rows)
+  const offsetX = w / 2 - focusCol * tileSize
+  const offsetY = h / 2 - focusRow * tileSize
 
   const fontSize = Math.max(8, tileSize * 0.6)
   ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
