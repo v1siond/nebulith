@@ -8943,6 +8943,50 @@ function drawIsoBuilding(
   const bbl = ptAdd(fbl, depthVec)
   const bbr = ptAdd(fbr, depthVec)
   const eave = (p: Pt): Pt => ptAdd(p, up(bodyH))
+  const mid = (a: Pt, c: Pt): Pt => ({ x: (a.x + c.x) / 2, y: (a.y + c.y) / 2 })
+
+  // A row of small windows on a wall face: `base` = the face's bottom-left ground corner, `axis` =
+  // its bottom edge vector (full span), `count` evenly-spaced lights at mid-wall height. Glass fill
+  // + dark frame mirrors the front facade so the side/back walls read as windowed, not blank.
+  const wallWindows = (base: Pt, axis: Pt, count: number): void => {
+    if (bodyH < 1) return
+    const slot = 1 / count
+    const halfW = slot * 0.26 // window half-width as a fraction of the wall span
+    const sill = up(bodyH * 0.46) // window bottom, ~mid wall
+    const winH = up(bodyH * 0.42) // window height
+    ctx.lineWidth = Math.max(1, cellH * 0.06)
+    for (let i = 0; i < count; i++) {
+      const t = (i + 0.5) * slot
+      const bl = ptAdd(ptAdd(base, ptScale(axis, t - halfW)), sill)
+      const br = ptAdd(ptAdd(base, ptScale(axis, t + halfW)), sill)
+      const tl = ptAdd(bl, winH)
+      const tr = ptAdd(br, winH)
+      ctx.beginPath()
+      ctx.moveTo(bl.x, bl.y)
+      ctx.lineTo(br.x, br.y)
+      ctx.lineTo(tr.x, tr.y)
+      ctx.lineTo(tl.x, tl.y)
+      ctx.closePath()
+      ctx.fillStyle = facadeColors.window
+      ctx.fill()
+      ctx.strokeStyle = darkenColor(wallC, 0.45)
+      ctx.stroke()
+    }
+  }
+
+  // `/\` chevrons marching along a roof SIDE face's centre line (front→back), in a darker roof
+  // tone — so the roof reads as shingled from the side too, like draw2DBuilding's roof glyph.
+  const roofChevrons = (frontMid: Pt, backMid: Pt, count: number): void => {
+    ctx.font = `bold ${cellH * 0.5}px ${ASCII_FONT}`
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillStyle = darkenColor(roofC, 0.58)
+    for (let i = 0; i < count; i++) {
+      const t = (i + 0.5) / count
+      ctx.fillText('/\\', frontMid.x + (backMid.x - frontMid.x) * t, frontMid.y + (backMid.y - frontMid.y) * t)
+    }
+  }
+  const roofSideCount = Math.max(2, Math.min(4, Math.round(b.depth)))
 
   // Paint the facade tiles (door/windows) onto one face. `base` is that face's bottom-left corner.
   const drawFacade = (base: Pt): void => {
@@ -8969,6 +9013,14 @@ function drawIsoBuilding(
   fillQuad(ctx, fbl, bbl, eave(bbl), eave(fbl)) // left
   fillQuad(ctx, fbr, bbr, eave(bbr), eave(fbr)) // right
 
+  // Windows on the faces the front facade doesn't cover: both sides + the plain (non-facade) wall.
+  const depthWindows = Math.max(2, Math.min(3, Math.round(b.depth)))
+  const lenWindows = Math.max(2, Math.min(3, Math.round(L / 2)))
+  wallWindows(fbl, depthVec, depthWindows) // left wall
+  wallWindows(fbr, depthVec, depthWindows) // right wall
+  if (b.facadeOnBack) wallWindows(fbl, ptScale(colVec, L), lenWindows) // plain FRONT wall (camera side)
+  else wallWindows(bbl, ptScale(colVec, L), lenWindows) // plain BACK wall
+
   // ── ROOF (all faces red) ──
   if (peaked) {
     const rh = (L * ROOF_RIDGE_FRAC) / 2
@@ -8989,6 +9041,9 @@ function drawIsoBuilding(
     fillQuad(ctx, FRL, FRR, BRR, BRL) // flat top
     ctx.fillStyle = roofFront
     fillQuad(ctx, FEL, FER, FRR, FRL) // front trapezoid (the `‾\_/‾`)
+    // shingle the two side slopes with /\ so the roof reads from the side too
+    roofChevrons(mid(FEL, FRL), mid(BEL, BRL), roofSideCount) // left slope
+    roofChevrons(mid(FER, FRR), mid(BER, BRR), roofSideCount) // right slope
   } else {
     const top = (p: Pt): Pt => ptAdd(p, up(H))
     ctx.fillStyle = roofBack
@@ -9000,6 +9055,9 @@ function drawIsoBuilding(
     fillQuad(ctx, top(fbl), top(fbr), top(bbr), top(bbl))
     ctx.fillStyle = roofFront
     fillQuad(ctx, eave(fbl), eave(fbr), top(fbr), top(fbl))
+    // shingle the two side faces with /\ so the slab roof reads from the side too
+    roofChevrons(mid(eave(fbl), top(fbl)), mid(eave(bbl), top(bbl)), roofSideCount) // left
+    roofChevrons(mid(eave(fbr), top(fbr)), mid(eave(bbr), top(bbr)), roofSideCount) // right
   }
 
   // ── FRONT FACADE TILES (on top of the box, nearest the camera) for south/east houses ──
