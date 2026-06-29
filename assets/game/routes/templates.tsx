@@ -6792,7 +6792,7 @@ export default function TemplateEditor() {
       } else if (topViewMode) {
         renderTopView(ctx, canvas.width, canvas.height, grid, player, zoomRef.current, selectedCellsRef.current, connectorsRef.current, connectorModeRef.current, camOffsetRef.current, renderEntities, runtime.combat, hitMarkersRef.current, time, questsRef.current, dayNightRef.current)
       } else if (viewTypeRef.current === '2d') {
-        render2D(ctx, canvas.width, canvas.height, grid, player, time, zoomRef.current, camOffsetRef.current, renderEntities, runtime.combat, connectorsRef.current, questsRef.current, dayNightRef.current)
+        render2D(ctx, canvas.width, canvas.height, grid, player, time, zoomRef.current, camOffsetRef.current, renderEntities, runtime.combat, connectorsRef.current, questsRef.current, dayNightRef.current, attackAnimsRef.current, hitMarkersRef.current, projectilesRef.current)
       } else {
         render(ctx, canvas.width, canvas.height, grid, player, time, camOffsetRef.current, renderEntities, runtime.combat, hitMarkersRef.current, time, isoZoomRef.current, attackAnimsRef.current, connectorsRef.current, questsRef.current, projectilesRef.current, dayNightRef.current)
       }
@@ -9493,6 +9493,9 @@ function render2D(
   connectors: Connector[] = [],
   quests: readonly Quest[] = [],
   dayNight: DayNight = 'day',
+  attackAnims: readonly AttackAnim[] = [],
+  hitMarkers: readonly HitMarker[] = [],
+  projectiles: readonly Projectile[] = [],
 ) {
   // Clear with sky/background color
   ctx.fillStyle = '#1a1a2e'
@@ -9656,10 +9659,26 @@ function render2D(
         ctx.fillStyle = bodyColor
         ctx.fillText(line, p.x, lineY)
       }
-      // Held weapon beside the figure (changes when you equip a different weapon).
+      // Held weapon — the SAME single blade, swung in-hand when a melee attack is mid-flight
+      // (mirrors drawIsoPlayer): at rest it points up; an attack sweeps it through the arc, and an
+      // ability recolors it (Fire Slash → red-orange). 2D drew nothing animated here before, so
+      // attacks looked like they did nothing — this is the #34 fix.
       if (player.weaponGlyph) {
-        ctx.fillStyle = '#e0e0e0'
-        ctx.fillText(player.weaponGlyph, p.x + fontSize * 0.6, baseY - lineHeight * 1.2)
+        const inHandSlash = attackAnims.find(a => a.inHand && time - a.start < a.durationMs)
+        const swingP = inHandSlash ? Math.min(1, (time - inHandSlash.start) / inHandSlash.durationMs) : 0
+        const dir = player.facing === 'left' ? -1 : 1
+        const weaponSize = fontSize * 1.7
+        ctx.save()
+        ctx.translate(p.x + dir * fontSize * 0.6, baseY - lineHeight * 1.2) // pivot = the hand/hilt
+        ctx.rotate(dir * 2.2 * swingP) // sweep the tip down-forward through the swing
+        ctx.rotate(Math.PI)            // flip so the blade extends UP from the hilt at rest
+        ctx.font = `bold ${weaponSize}px ${ASCII_FONT}`
+        ctx.fillStyle = '#000000'
+        ctx.fillText(player.weaponGlyph, 0, weaponSize * 0.45 + 1)
+        ctx.fillStyle = inHandSlash?.tint ?? '#e0e0e0' // steel by default; ability swings recolor it
+        ctx.fillText(player.weaponGlyph, 0, weaponSize * 0.45)
+        ctx.restore()
+        ctx.font = `bold ${fontSize}px ${ASCII_FONT}` // restore for the shield draw
       }
       // Shield on the off-hand, when equipped.
       if (player.shieldGlyph) {
@@ -9853,6 +9872,50 @@ function render2D(
     const inRange = entity.kind === 'enemy' && Math.hypot(entity.col - pCol, entity.row - pRow) <= COMBAT_RANGE
     const anchor = drawTopEntity(ctx, e.x, e.y, tileW, entity, combat, time, moving, inRange)
     drawQuestMarker(ctx, entityQuestMarker(entity, quests), anchor.x, anchor.y, Math.max(14, tileW * 1.4))
+  }
+
+  // Attack animations (enemy slashes / shots / magic / block) in 2D space — mirrors the iso path.
+  // The player's own melee is the in-hand swing drawn above (a.inHand), so skip those here. Without
+  // this, 2D combat showed no feedback at all (#34).
+  if (attackAnims.length > 0) {
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.font = `bold ${Math.max(12, tileH * 0.9)}px ${ASCII_FONT}`
+    for (const a of attackAnims) {
+      if (a.inHand) continue
+      const f = animFrame(a, time)
+      if (!f) continue
+      const sp = toScreen(f.x / cellSize, f.z / cellSize)
+      ctx.fillStyle = f.color
+      if (f.angle != null) {
+        ctx.save()
+        ctx.translate(sp.x, sp.y - tileH)
+        ctx.rotate(f.angle)
+        ctx.fillText(f.char, 0, 0)
+        ctx.restore()
+      } else {
+        ctx.fillText(f.char, sp.x, sp.y - tileH * 0.6)
+      }
+    }
+  }
+
+  // Travelling projectiles (arrow/bullet/bolt) — lerp along their path in 2D space.
+  if (projectiles.length > 0) {
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.font = `bold ${Math.max(12, tileH * 0.85)}px ${ASCII_FONT}`
+    ctx.fillStyle = '#ffe9a8'
+    for (const pr of projectiles) {
+      const pc = projectileCellAt(pr, time)
+      const sp = toScreen(pc.col + 0.5, pc.row + 0.5)
+      ctx.fillText(pr.glyph, sp.x, sp.y - tileH * 0.6)
+    }
+  }
+
+  // Floating "+dmg" hit markers, over everything.
+  for (const marker of hitMarkers) {
+    const p = toScreen(marker.col + 0.5, marker.row + 0.5)
+    drawHitMarker(ctx, p.x, p.y - tileH * 0.6, marker, time)
   }
 
   // ─── NIGHT LIGHTING ─────────────────────────────────────────────────
