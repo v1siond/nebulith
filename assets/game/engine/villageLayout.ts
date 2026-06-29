@@ -87,6 +87,8 @@ const lengthOf = (t: BuildingType): number => BUILDING_LENGTH[t] ?? 8
 // the street) and a LOT_GAP (side-yard cells between neighbours). The door faces the road across
 // the setback; a driveway crosses it (stamped by the generator).
 const SETBACK = 1
+// Street width in cells — wider avenues read better than a thin 2-cell path.
+const ROAD_W = 4
 // Density per settlement: a town is a modest, leafy settlement — tidy side-yard gaps and a low cap
 // so it stays small; a city packs the same lots much harder (no per-frontage limit, a far higher
 // cap) so it ends up ~4× the town on the same map.
@@ -125,8 +127,8 @@ export function buildingMix(settlement: Settlement, rng: Rng): BuildingType[] {
 function streetLines(span: number, n: number): number[] {
   const out: number[] = []
   for (let i = 1; i <= n; i++) {
-    const p = clamp(Math.round((span * i) / (n + 1)), 5, span - 7)
-    if (!out.some(q => Math.abs(q - p) <= 2)) out.push(p)
+    const p = clamp(Math.round((span * i) / (n + 1)), 5, span - 5 - ROAD_W)
+    if (!out.some(q => Math.abs(q - p) <= ROAD_W + 2)) out.push(p)
   }
   return out.sort((a, b) => a - b)
 }
@@ -140,33 +142,33 @@ export function planRoads(cols: number, rows: number, rng: Rng, settlement: Sett
   const roads: boolean[][] = Array.from({ length: rows }, () => new Array<boolean>(cols).fill(false))
   const entrances: Entrance[] = []
   const g = GRID[settlement]
-  // Each block between streets needs ≈ depth(3)+setback(1) of lots on a side → ~9 cells of spacing;
-  // clamp the grid to the map so blocks never collapse (min 2×2 so it always reads as a grid).
-  const hN = Math.max(2, Math.min(g.h, Math.floor((rows - 4) / 9)))
-  const vN = Math.max(2, Math.min(g.v, Math.floor((cols - 4) / 9)))
+  // Each block between streets needs the road (ROAD_W) + a lot row on each side (≈ depth 3 + setback 1
+  // + buffer) → ~ROAD_W+7 cells of spacing; clamp the grid to the map so blocks never collapse.
+  const hN = Math.max(2, Math.min(g.h, Math.floor((rows - 4) / (ROAD_W + 7))))
+  const vN = Math.max(2, Math.min(g.v, Math.floor((cols - 4) / (ROAD_W + 7))))
   const streetRows = streetLines(rows, hN)
   const streetCols = streetLines(cols, vN)
 
   for (const sr of streetRows) {
-    for (let c = 0; c < cols; c++) { roads[sr][c] = true; roads[sr + 1][c] = true }
+    for (let c = 0; c < cols; c++) for (let w = 0; w < ROAD_W; w++) roads[sr + w][c] = true
     entrances.push({ col: 0, row: sr, side: 'left' }, { col: cols - 1, row: sr, side: 'right' })
   }
   for (const sc of streetCols) {
-    for (let r = 0; r < rows; r++) { roads[r][sc] = true; roads[r][sc + 1] = true }
+    for (let r = 0; r < rows; r++) for (let w = 0; w < ROAD_W; w++) roads[r][sc + w] = true
     entrances.push({ col: sc, row: 0, side: 'top' }, { col: sc, row: rows - 1, side: 'bottom' })
   }
 
   // Frontages: a row of doors SET BACK from each street (a front-yard cell between the door edge and
   // the street), on BOTH sides, facing it. placePlots fills each into a row; rectClear skips cells
-  // over the cross-streets (intersections), so rows break cleanly at corners. Street = [s, s+1].
+  // over the cross-streets (intersections), so rows break cleanly at corners. Street = [s, s+ROAD_W-1].
   const frontages: Frontage[] = []
   for (const sr of streetRows) {
     frontages.push({ axis: 'col', facing: 'south', doorLine: sr - 1 - SETBACK, away: -1, lo: 1, hi: cols - 1 }) // above, faces down
-    frontages.push({ axis: 'col', facing: 'north', doorLine: sr + 2 + SETBACK, away: 1, lo: 1, hi: cols - 1 }) // below, faces up
+    frontages.push({ axis: 'col', facing: 'north', doorLine: sr + ROAD_W + SETBACK, away: 1, lo: 1, hi: cols - 1 }) // below, faces up
   }
   for (const sc of streetCols) {
     frontages.push({ axis: 'row', facing: 'east', doorLine: sc - 1 - SETBACK, away: -1, lo: 1, hi: rows - 1 }) // left, faces right
-    frontages.push({ axis: 'row', facing: 'west', doorLine: sc + 2 + SETBACK, away: 1, lo: 1, hi: rows - 1 }) // right, faces left
+    frontages.push({ axis: 'row', facing: 'west', doorLine: sc + ROAD_W + SETBACK, away: 1, lo: 1, hi: rows - 1 }) // right, faces left
   }
 
   return { roads, frontages, entrances }
