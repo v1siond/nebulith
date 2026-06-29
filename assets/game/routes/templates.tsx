@@ -8513,22 +8513,43 @@ function drawIsoPlayer(
   const dir = onLeft ? -1 : 1 // +1 → facing right, weapon on the RIGHT hand
   const weaponSize = fontSize * 1.7
   const handY = y - lineHeight * 1.5 - breathe // the HAND, at the arm/body row (shared by weapon + shield)
-  if (player.weaponGlyph) {
-    // The ONE held weapon — bigger so a sword reads, on the facing hand. At rest the blade points
-    // UP; on attack THIS SAME blade swings through the arc, mirrored by facing.
+  const swinging = swingP != null // an attack is mid-flight → the ARM drives the swing (#47)
+  if (player.weaponGlyph || swinging) {
+    // The arm + the held weapon on the facing hand. The arm — a thick stroke in the figure's own
+    // tone — pivots at the SHOULDER and sweeps through the SAME arc as the blade, so the arm drives
+    // the swing and stays connected to the body. Unarmed: the arm + a small fist still swing.
     const handX = x + dir * (pHalf + weaponSize * 0.18)
     const swing = dir * 2.2 * (swingP ?? 0) // 0 at rest (blade up) → sweep the tip DOWN-forward
-    ctx.font = `bold ${weaponSize}px ${ASCII_FONT}`
-    ctx.textBaseline = 'middle'
+    const shoulderX = x + dir * pHalf * 0.25 // at the body, on the weapon side
+    const handLX = handX - shoulderX         // hand offset from the shoulder pivot (rest pose)
     ctx.save()
-    ctx.translate(handX, handY) // PIVOT = the hand = the HILT (bottom of the blade)
-    ctx.rotate(swing)           // sweep the blade around the hilt
-    ctx.rotate(Math.PI)         // flip the down-pointing glyph so the blade extends UP from the hilt
-    // offset the glyph so its hilt sits at the pivot and the blade reaches up (toward the head)
-    ctx.fillStyle = '#000000'
-    ctx.fillText(player.weaponGlyph, 0, weaponSize * 0.45 + 1)
-    ctx.fillStyle = swingTint ?? '#e6e6e6' // steel by default; an ability (Fire Slash) recolors the blade
-    ctx.fillText(player.weaponGlyph, 0, weaponSize * 0.45)
+    ctx.translate(shoulderX, handY) // PIVOT = the shoulder; the whole arm rotates around it
+    ctx.rotate(swing)
+    if (swinging) {
+      ctx.strokeStyle = bodyColor // the figure's own tone — the arm reads as part of the body
+      ctx.lineWidth = Math.max(3, fontSize * 0.22)
+      ctx.lineCap = 'round'
+      ctx.beginPath()
+      ctx.moveTo(0, 0)      // shoulder
+      ctx.lineTo(handLX, 0) // out to the hand
+      ctx.stroke()
+    }
+    ctx.translate(handLX, 0) // move to the hand at the end of the arm
+    if (player.weaponGlyph) {
+      ctx.rotate(Math.PI)    // flip the down-pointing glyph so the blade extends UP from the hilt
+      ctx.font = `bold ${weaponSize}px ${ASCII_FONT}`
+      ctx.textBaseline = 'middle'
+      ctx.fillStyle = '#000000'
+      ctx.fillText(player.weaponGlyph, 0, weaponSize * 0.45 + 1)
+      ctx.fillStyle = swingTint ?? '#e6e6e6' // steel by default; an ability (Fire Slash) recolors the blade
+      ctx.fillText(player.weaponGlyph, 0, weaponSize * 0.45)
+    } else {
+      // unarmed: a small fist at the end of the swinging arm
+      ctx.beginPath()
+      ctx.arc(0, 0, Math.max(3, fontSize * 0.18), 0, Math.PI * 2)
+      ctx.fillStyle = bodyColor
+      ctx.fill()
+    }
     ctx.restore()
     ctx.font = `bold ${fontSize}px ${ASCII_FONT}` // restore for the shield draw below
   }
@@ -9738,19 +9759,43 @@ function render2D(
       // hand in any facing (#49). (Mirrors drawIsoPlayer.)
       const facingDir = player.facing === 'left' ? -1 : 1
       const armY = baseY - lineHeight * 1.2 // the arm/hand row, shared by weapon + shield
-      if (player.weaponGlyph) {
-        const inHandSlash = attackAnims.find(a => a.inHand && time - a.start < a.durationMs)
+      const inHandSlash = attackAnims.find(a => a.inHand && time - a.start < a.durationMs)
+      const swinging = !!inHandSlash // an attack is mid-flight → the ARM drives the swing (#47)
+      if (player.weaponGlyph || swinging) {
+        // The arm pivots at the SHOULDER and sweeps through the SAME arc as the blade, so the arm
+        // drives the swing connected to the body. Unarmed: the arm + a small fist still swing.
         const swingP = inHandSlash ? Math.min(1, (time - inHandSlash.start) / inHandSlash.durationMs) : 0
         const weaponSize = fontSize * 1.7
+        const handX = p.x + facingDir * fontSize * 0.6
+        const shoulderX = p.x + facingDir * fontSize * 0.18 // at the body, weapon side
+        const handLX = handX - shoulderX                    // hand offset from the shoulder pivot
         ctx.save()
-        ctx.translate(p.x + facingDir * fontSize * 0.6, armY) // pivot = the hand/hilt
+        ctx.translate(shoulderX, armY)       // PIVOT = the shoulder; the whole arm rotates around it
         ctx.rotate(facingDir * 2.2 * swingP) // sweep the tip down-forward through the swing
-        ctx.rotate(Math.PI)                  // flip so the blade extends UP from the hilt at rest
-        ctx.font = `bold ${weaponSize}px ${ASCII_FONT}`
-        ctx.fillStyle = '#000000'
-        ctx.fillText(player.weaponGlyph, 0, weaponSize * 0.45 + 1)
-        ctx.fillStyle = inHandSlash?.tint ?? '#e0e0e0' // steel by default; ability swings recolor it
-        ctx.fillText(player.weaponGlyph, 0, weaponSize * 0.45)
+        if (swinging) {
+          ctx.strokeStyle = bodyColor // the figure's own tone — the arm reads as part of the body
+          ctx.lineWidth = Math.max(3, fontSize * 0.22)
+          ctx.lineCap = 'round'
+          ctx.beginPath()
+          ctx.moveTo(0, 0)      // shoulder
+          ctx.lineTo(handLX, 0) // out to the hand
+          ctx.stroke()
+        }
+        ctx.translate(handLX, 0) // move to the hand at the end of the arm
+        if (player.weaponGlyph) {
+          ctx.rotate(Math.PI) // flip so the blade extends UP from the hilt at rest
+          ctx.font = `bold ${weaponSize}px ${ASCII_FONT}`
+          ctx.fillStyle = '#000000'
+          ctx.fillText(player.weaponGlyph, 0, weaponSize * 0.45 + 1)
+          ctx.fillStyle = inHandSlash?.tint ?? '#e0e0e0' // steel by default; ability swings recolor it
+          ctx.fillText(player.weaponGlyph, 0, weaponSize * 0.45)
+        } else {
+          // unarmed: a small fist at the end of the swinging arm
+          ctx.beginPath()
+          ctx.arc(0, 0, Math.max(3, fontSize * 0.18), 0, Math.PI * 2)
+          ctx.fillStyle = bodyColor
+          ctx.fill()
+        }
         ctx.restore()
         ctx.font = `bold ${fontSize}px ${ASCII_FONT}` // restore for the shield draw
       }
