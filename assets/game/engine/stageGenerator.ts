@@ -416,7 +416,7 @@ export function generateStage(opts: GenerateOptions): StageData {
 // ── settlement archetype ─────────────────────────────────────────────
 // Nature density by settlement — a town is leafy (lots of trees around the lots); a city is mostly
 // paved. Towns lean green here per design.
-const NATURE_MULT: Record<Settlement, number> = { town: 0.8, city: 0.3 }
+const NATURE_MULT: Record<Settlement, number> = { town: 1.15, city: 0.4 }
 
 // Hoisted function decls (not const arrows) so ARCHETYPES above can reference them.
 function placeTown(ctx: ArchetypeContext): void {
@@ -494,7 +494,7 @@ function fillVillageNature(ctx: ArchetypeContext, layout: VillageLayout, natureM
     const edgeDist = Math.min(sideDist, row, rows - 1 - row)
     // Denser toward the SIDES — the village sits in a clearing framed by forest left & right — but
     // the INTERIOR stays leafy too (a Pokémon-style town nestled in trees, not bare lots).
-    const p = (sideDist < 5 ? 0.78 : edgeDist < 4 ? 0.6 : edgeDist < 9 ? 0.4 : 0.26) * natureMult
+    const p = (sideDist < 5 ? 0.82 : edgeDist < 4 ? 0.66 : edgeDist < 9 ? 0.52 : 0.36) * natureMult
     if (Math.random() > p) continue
     if (placed.some(t => Math.abs(t.col - col) < minDist && Math.abs(t.row - row) < minDist)) continue
     stampTree(ctx, col, row, Math.random() < DEAD_TREE_CHANCE[ctx.zone], Math.random() < 0.45)
@@ -528,12 +528,9 @@ function villageDecor(ctx: ArchetypeContext, layout: VillageLayout): void {
   }
   const decorFree = (c: number, r: number): boolean =>
     !collision[r]?.[c] && !layout.roads[r]?.[c] && !buildingCells.has(`${c},${r}`) && !doorways.has(`${c},${r}`)
-  // Plaza centrepiece — a well or a fountain — just below the first street, if the cell is clear.
-  const cx = clamp(Math.floor(cols / 2), 2, cols - 3)
-  const cy = clamp(streetRows[0] + 3, 0, rows - 2)
-  if (decorFree(cx, cy)) {
-    placeProp(ctx, Math.random() < 0.5 ? makeFountain(cx, cy) : makeWell(cx, cy))
-  }
+  // Central plaza centrepiece — a BIG well, fountain, or pond at the most central CLEAR block,
+  // ringed by a path_stone plaza. The settlement's focal point.
+  placeCentrepiece(ctx, decorFree)
   // Lamp posts every ~6 cells along each street's frontage gaps (never on a road or building).
   for (const sr of streetRows) {
     const frontage = sr - 1
@@ -541,6 +538,48 @@ function villageDecor(ctx: ArchetypeContext, layout: VillageLayout): void {
       if (decorFree(c, frontage)) placeProp(ctx, makeLamp(c, frontage))
     }
   }
+}
+
+/** Place a big central feature — a 2×2 well/fountain or a 3×3 pond — on the most central CLEAR block,
+ *  ringed by a path_stone plaza. Searches outward from the map centre so it always lands somewhere
+ *  open; `isFree` excludes roads, buildings, and doorways. */
+function placeCentrepiece(ctx: ArchetypeContext, isFree: (c: number, r: number) => boolean): void {
+  const { cols, rows, ground, collision } = ctx
+  const isLake = Math.random() < 0.34
+  const size = isLake ? 3 : 2
+  const blockClear = (c0: number, r0: number): boolean => {
+    for (let r = r0; r < r0 + size; r++)
+      for (let c = c0; c < c0 + size; c++)
+        if (!inBounds(c, r, cols, rows) || !isFree(c, r)) return false
+    return true
+  }
+  const cc = Math.floor(cols / 2)
+  const cr = Math.floor(rows / 2)
+  let spot: { c: number; r: number } | null = null
+  for (let radius = 0; radius < Math.max(cols, rows) && !spot; radius++) {
+    for (let dr = -radius; dr <= radius && !spot; dr++) {
+      for (let dc = -radius; dc <= radius && !spot; dc++) {
+        if (Math.max(Math.abs(dc), Math.abs(dr)) !== radius) continue // walk the ring at this radius only
+        if (blockClear(cc + dc, cr + dr)) spot = { c: cc + dc, r: cr + dr }
+      }
+    }
+  }
+  if (!spot) return
+  const { c, r } = spot
+  const makeStruct = Math.random() < 0.5 ? makeFountain : makeWell
+  for (let rr = r; rr < r + size; rr++)
+    for (let c2 = c; c2 < c + size; c2++) {
+      if (isLake) {
+        ground[rr][c2] = 'water'
+        collision[rr][c2] = true // a pond — blocks; you walk around it
+      } else {
+        placeProp(ctx, makeStruct(c2, rr)) // blocking structure cells (placeProp sets collision)
+      }
+    }
+  // a path_stone plaza ring around the centrepiece (only on free cells)
+  for (let rr = r - 1; rr <= r + size; rr++)
+    for (let c2 = c - 1; c2 <= c + size; c2++)
+      if (inBounds(c2, rr, cols, rows) && isFree(c2, rr)) ground[rr][c2] = 'path_stone'
 }
 
 /** Footprint rect type — the cells a building actually occupies on the grid. */
