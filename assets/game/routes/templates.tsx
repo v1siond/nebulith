@@ -64,7 +64,7 @@ import { assetAnimFrame, assetCycleFrame, animationOptions, ANIMATION_LIBRARY } 
 import { makeCycle, makeTrigger, validateCycle, describeCycle, CYCLE_MODES } from '@/engine/animationAuthoring'
 import { shouldFire, lampPulse } from '@/engine/behaviors'
 import { weaponAnimKind, animFrame, isAnimDone, ATTACK_ANIM_MS, type AttackAnim, type AttackAnimKind } from '@/engine/attackAnimations'
-import { entityArtFrame, weaponGlyph, entityPalette, topRoleColor } from '@/engine/entityArt'
+import { entityArtFrame, weaponGlyph, entityPalette, topRoleColor, entityFootprint } from '@/engine/entityArt'
 import { entityQuestMarker, type QuestMarker } from '@/engine/entityQuestMarker'
 import { isoFacingIndex, isoFacadeOnBack, buildingFadeAlpha } from '@/engine/isoBuilding'
 import { appendWaypoint, setMovementMode, clearWaypoints, buildStepList, addMovementStep, removeMovementStep, updateMovementStep, setStepDelay, makeAttackPattern, defaultAttackPattern } from '@/game/patterns'
@@ -6792,9 +6792,9 @@ export default function TemplateEditor() {
       } else if (topViewMode) {
         renderTopView(ctx, canvas.width, canvas.height, grid, player, zoomRef.current, selectedCellsRef.current, connectorsRef.current, connectorModeRef.current, camOffsetRef.current, renderEntities, runtime.combat, hitMarkersRef.current, time, questsRef.current, dayNightRef.current)
       } else if (viewTypeRef.current === '2d') {
-        render2D(ctx, canvas.width, canvas.height, grid, player, time, zoomRef.current, camOffsetRef.current, renderEntities, runtime.combat, connectorsRef.current, questsRef.current, dayNightRef.current, attackAnimsRef.current, hitMarkersRef.current, projectilesRef.current)
+        render2D(ctx, canvas.width, canvas.height, grid, player, time, zoomRef.current, camOffsetRef.current, renderEntities, runtime.combat, connectorsRef.current, questsRef.current, dayNightRef.current, attackAnimsRef.current, hitMarkersRef.current, projectilesRef.current, weaponReach(playerWeaponRef.current))
       } else {
-        render(ctx, canvas.width, canvas.height, grid, player, time, camOffsetRef.current, renderEntities, runtime.combat, hitMarkersRef.current, time, isoZoomRef.current, attackAnimsRef.current, connectorsRef.current, questsRef.current, projectilesRef.current, dayNightRef.current)
+        render(ctx, canvas.width, canvas.height, grid, player, time, camOffsetRef.current, renderEntities, runtime.combat, hitMarkersRef.current, time, isoZoomRef.current, attackAnimsRef.current, connectorsRef.current, questsRef.current, projectilesRef.current, dayNightRef.current, weaponReach(playerWeaponRef.current))
       }
       // Drop finished attack animations (kept tiny — a few in flight at once).
       if (attackAnimsRef.current.length > 0) {
@@ -8096,6 +8096,7 @@ function render(
   quests: readonly Quest[] = [],
   projectiles: readonly Projectile[] = [],
   dayNight: DayNight = 'day',
+  attackReach: number = 1,
 ) {
   // Clear
   ctx.fillStyle = '#1a1a2e'
@@ -8302,7 +8303,8 @@ function render(
     } else if (obj.entity) {
       const combat = obj.entity.kind === 'enemy' ? enemyCombat.get(obj.entity.id) : undefined
       if (isDeadEnemy(obj.entity, combat)) continue // hidden until it respawns
-      const anchor = drawIsoEntity(ctx, p.x, p.y - heightOffset, obj.entity, tileH, combat, now, obj.moving ?? false, obj.inRange ?? false)
+      const attackable = enemyInAttackReach(obj.entity, Math.floor(player.x / cellSize), Math.floor(player.z / cellSize), attackReach)
+      const anchor = drawIsoEntity(ctx, p.x, p.y - heightOffset, obj.entity, tileH, combat, now, obj.moving ?? false, obj.inRange ?? false, attackable)
       drawQuestMarker(ctx, entityQuestMarker(obj.entity, quests), anchor.x, anchor.y, Math.max(14, tileH * 1.6))
     } else if (obj.building) {
       // ONE upright unit, oriented by its real road-derived facing. The planner already reserved
@@ -8689,6 +8691,33 @@ const idleFrame = (): number => Math.floor(idleNow() / IDLE_FRAME_MS)
 
 // An enemy within this many cells of the player reads as "in combat".
 const COMBAT_RANGE = 1.6
+
+/** Is the enemy within the player's weapon REACH right now — i.e. some cell of its footprint is
+ *  ≤ reach cells (chebyshev) from the player's cell? Footprint-aware so it matches the targeting:
+ *  when this is true, a strike will land. Drives the on-monster range indicator (#35). */
+function enemyInAttackReach(entity: Entity, pCol: number, pRow: number, reach: number): boolean {
+  if (entity.kind !== 'enemy' || entity.hittable === false) return false
+  const { w, h } = entityFootprint(entity)
+  const left = entity.col - Math.floor((w - 1) / 2)
+  const right = entity.col + Math.ceil((w - 1) / 2)
+  const top = entity.row - (h - 1)
+  const dx = Math.max(left - pCol, 0, pCol - right)
+  const dy = Math.max(top - pRow, 0, pRow - entity.row)
+  return Math.max(dx, dy) <= reach
+}
+
+/** A subtle pulsing ring at an enemy's feet, shown only while it's in strike range — quiet, but
+ *  unmistakable: warm red-orange = "an attack will hit this one". */
+function drawRangeRing(ctx: CanvasRenderingContext2D, cx: number, footY: number, radiusX: number, now: number): void {
+  const pulse = 0.5 + 0.5 * Math.sin(now * 0.006)
+  ctx.save()
+  ctx.lineWidth = 2
+  ctx.strokeStyle = `rgba(255, 96, 56, ${0.4 + 0.4 * pulse})`
+  ctx.beginPath()
+  ctx.ellipse(cx, footY, radiusX, Math.max(2, radiusX * 0.42), 0, 0, Math.PI * 2)
+  ctx.stroke()
+  ctx.restore()
+}
 /** The entity's animation frame, gated on movement: idle HOLDS a static pose (no leg/arm
  *  swap over time), walk swaps the base/alt art (frame 0/1) only while the entity is moving,
  *  and combat swaps when an enemy is in range. Pure selection lives in engine/entityAnim. */
@@ -8708,6 +8737,7 @@ function drawIsoEntity(
   now: number = idleNow(),
   moving = false,
   inRange = false,
+  attackable = false,
 ): { x: number; y: number } {
   // Multi-row ASCII creature, drawn bottom-to-top. The frame comes from the animation
   // engine (frameAt): idle bob when still, a faster step cycle while moving, an attack
@@ -8725,6 +8755,8 @@ function drawIsoEntity(
   const leftX = x - (maxW * charW) / 2
   // Ground shadow sized to the figure so it always reads (not hidden behind it).
   drawGroundShadow(ctx, x, baseY + tileH * 0.1, (maxW * charW) / 2)
+  // In-strike-range indicator: a ring at the feet, under the figure (#35).
+  if (attackable) drawRangeRing(ctx, x, baseY + tileH * 0.1, (maxW * charW) / 2 + tileH * 0.2, now)
   ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
   ctx.textAlign = 'left'
   ctx.textBaseline = 'middle'
@@ -8759,6 +8791,7 @@ function drawTopEntity(
   now: number = idleNow(),
   moving = false,
   inRange = false,
+  attackable = false,
 ): { x: number; y: number } {
   // The figure spans a footprint (a 3-row figure ≈ 2 cells tall, 1 wide) anchored so
   // the entity's cell is the BOTTOM cell — matching the player's 2-tall look in top view.
@@ -8774,7 +8807,10 @@ function drawTopEntity(
   const startY = topY + spanH / 2 - ((art.length - 1) / 2) * fontSize
 
   // Ground shadow at the figure's feet (bottom row) — sized to the figure.
-  drawGroundShadow(ctx, cx, startY + (art.length - 1) * fontSize + fontSize * 0.35, (maxW * charW) / 2)
+  const footY = startY + (art.length - 1) * fontSize + fontSize * 0.35
+  drawGroundShadow(ctx, cx, footY, (maxW * charW) / 2)
+  // In-strike-range indicator: a ring at the feet (#35).
+  if (attackable) drawRangeRing(ctx, cx, footY, (maxW * charW) / 2 + tileSize * 0.2, now)
   // NO background panel — the figure draws directly on the map (a colored box behind
   // every monster/NPC made stages unreadable). A 1px shadow keeps it legible.
   ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
@@ -9496,6 +9532,7 @@ function render2D(
   attackAnims: readonly AttackAnim[] = [],
   hitMarkers: readonly HitMarker[] = [],
   projectiles: readonly Projectile[] = [],
+  attackReach: number = 1,
 ) {
   // Clear with sky/background color
   ctx.fillStyle = '#1a1a2e'
@@ -9870,7 +9907,8 @@ function render2D(
     const mot = entityMotion.get(entity.id)
     const moving = !!mot && time < mot.startMs + ENEMY_MOVE_MS
     const inRange = entity.kind === 'enemy' && Math.hypot(entity.col - pCol, entity.row - pRow) <= COMBAT_RANGE
-    const anchor = drawTopEntity(ctx, e.x, e.y, tileW, entity, combat, time, moving, inRange)
+    const attackable = enemyInAttackReach(entity, Math.floor(player.x / cellSize), Math.floor(player.z / cellSize), attackReach)
+    const anchor = drawTopEntity(ctx, e.x, e.y, tileW, entity, combat, time, moving, inRange, attackable)
     drawQuestMarker(ctx, entityQuestMarker(entity, quests), anchor.x, anchor.y, Math.max(14, tileW * 1.4))
   }
 
