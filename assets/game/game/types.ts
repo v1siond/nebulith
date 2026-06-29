@@ -6,6 +6,7 @@
  * build against these types. Treat it as stable/read-only from those modules;
  * module-internal types live in their own files.
  */
+import type { AbilityAnimation } from './abilities'
 
 // ── stats & runtime combat state ────────────────────────────────────
 export interface Stats {
@@ -160,12 +161,43 @@ export interface MovementPattern {
   delayMs?: number
 }
 
-/** How an enemy retaliates: melee adjacency vs ranged line-of-distance, plus the
- *  cooldown (ms) between swings. Authored per-enemy in the editor's inspector. */
+/** Per-attack range: melee = strike when adjacent; ranged = fling a bolt within reach. */
 export type AttackMode = 'melee' | 'ranged'
-export interface AttackPattern {
+
+/** Traversal across an enemy's attack list — mirrors MovementMode. 'sequential' cycles the
+ *  attacks in order (then repeats); 'random' picks one each time it fires. */
+export type AttackPatternMode = 'sequential' | 'random'
+
+/** One attack in an enemy's pattern — the enemy-side mirror of a player ability/attack:
+ *  melee vs ranged, its damage, cooldown, and a visual (animation → blade/bolt tint). Authored
+ *  per-enemy in the editor, or derived from a registry AbilityDef (patterns.enemyAttackFromAbility),
+ *  so an enemy attack IS an attack like the player's. */
+export interface EnemyAttack {
+  /** strike when adjacent (melee) vs fling a bolt within reach (ranged). */
   mode: AttackMode
+  /** extra damage on top of the enemy's strength (this swing's "weapon base"); 0 = strength only. */
+  damage: number
+  /** cooldown (ms) before this enemy can fire its NEXT attack. */
   cooldownMs: number
+  /** which seeded animation plays — drives the swing/bolt tint. Omitted → the kind's default. */
+  animation?: AbilityAnimation
+  /** ranged reach in cells (chebyshev). Ignored for melee (uses adjacency). */
+  reachCells?: number
+  /** set when built from a registry ability — provenance + a display label. */
+  abilityId?: string
+  /** display label (registry name / preset name). */
+  name?: string
+}
+
+/** How an enemy retaliates: an ORDERED list of attacks + a traversal `mode` (sequential cycles,
+ *  random picks) — mirroring MovementPattern. Authored per-enemy in the editor's inspector.
+ *  Legacy single-attack saves ({ mode:'melee'|'ranged', cooldownMs }) are still accepted and
+ *  normalized to a one-attack list — see patterns.normalizeAttackPattern. */
+export interface AttackPattern {
+  /** traversal of `attacks`: 'sequential' | 'random'. */
+  mode: AttackPatternMode
+  /** the ordered attacks this enemy fires from. */
+  attacks: EnemyAttack[]
 }
 
 // ── rarity & respawn ────────────────────────────────────────────────
