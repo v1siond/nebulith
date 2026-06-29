@@ -181,8 +181,14 @@ export const ENEMY_ART_TYPES = Object.keys(ENEMY_ART)
 /** The held-weapon glyph drawn beside the player so equipped gear is visible at a
  *  glance. A ranged weapon (e.g. a bow) reads by `range`; melee weapons by `kind`.
  *  Returns '' when nothing is equipped (draw nothing). */
+/** The held sword: a long vertical blade with a crossguard. The render pivots it at the hand
+ *  and swings it on attack, so a vertical-dominant glyph reads as a blade at rest AND sweeps
+ *  cleanly through the arc (the old '†' read as a tiny '+' at hand size). */
+export const SWORD_GLYPH = 'Ɨ'
+
 export function weaponGlyph(weapon?: { kind?: string; range?: string } | null): string {
   if (!weapon) return ''
+  if (weapon.kind === 'unarmed') return '' // bare hands — the fist swings, no blade is drawn
   if (weapon.range === 'ranged') return '}' // bow / drawn string
   switch (weapon.kind) {
     case 'staff':
@@ -192,8 +198,8 @@ export function weaponGlyph(weapon?: { kind?: string; range?: string } | null): 
     case 'shield':
       return 'O' // boss
     case 'sword':
-      return '†' // upright blade + crossguard, reads as a sword (not a plain slash)
+      return SWORD_GLYPH
     default:
-      return '†'
+      return SWORD_GLYPH
   }
 }

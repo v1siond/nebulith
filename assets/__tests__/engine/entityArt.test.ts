@@ -1,4 +1,4 @@
-import { entityArt, entityFootprint, weaponGlyph, ENEMY_ART, ENEMY_ART_TYPES, ENEMY_FALLBACK, NPC_ART, entityPalette, ENEMY_PALETTE, PLAYER_PALETTE, NPC_PALETTE, ENEMY_PALETTE_FALLBACK, topRoleColor, TOP_ROLE_COLOR } from '@/engine/entityArt'
+import { entityArt, entityFootprint, weaponGlyph, SWORD_GLYPH, ENEMY_ART, ENEMY_ART_TYPES, ENEMY_FALLBACK, NPC_ART, entityPalette, ENEMY_PALETTE, PLAYER_PALETTE, NPC_PALETTE, ENEMY_PALETTE_FALLBACK, topRoleColor, TOP_ROLE_COLOR } from '@/engine/entityArt'
 import { makeEnemy, makeNpc, makePlayer } from '@/game/entities'
 import type { Quest } from '@/game/types'
 
@@ -39,9 +39,16 @@ describe('entityArt — multi-row ASCII for entities', () => {
 })
 
 describe('weaponGlyph — the held weapon drawn beside the player', () => {
-  it('returns nothing when unarmed', () => {
+  it('returns nothing when unarmed (no weapon, or the bare-hands kind)', () => {
     expect(weaponGlyph(undefined)).toBe('')
     expect(weaponGlyph(null)).toBe('')
+    // bare hands: a weapon exists for combat math but draws NO blade
+    expect(weaponGlyph({ kind: 'unarmed', range: 'melee' })).toBe('')
+  })
+
+  it('a sword maps to the clean held-blade glyph (the good sword look)', () => {
+    expect(weaponGlyph({ kind: 'sword', range: 'melee' })).toBe(SWORD_GLYPH)
+    expect(SWORD_GLYPH.length).toBeGreaterThan(0)
   })
 
   it('a ranged weapon reads as a bow regardless of its kind tag', () => {

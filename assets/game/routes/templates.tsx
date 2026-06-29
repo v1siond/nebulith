@@ -467,14 +467,16 @@ function buildingsFromAssets(assets: readonly GridAsset[]): GridBuilding[] {
 // per frame and the rules stay unit-testable. (spec §2–6)
 // ═══════════════════════════════════════════════════════════════════
 
-/** The player's starting weapon — a basic warrior sword (spec §4 "one of each"). */
-const STARTER_SWORD: Weapon = {
-  id: 'starter-sword',
-  kind: 'sword',
-  name: 'Worn Sword',
-  baseDamage: 6,
+/** The player's DEFAULT melee — bare fists. The player starts unarmed (no weapon auto-equipped):
+ *  weaponGlyph('unarmed') returns '' so NO blade is drawn, but the swing, the 1.5s cadence, and
+ *  the reach (1 cell) all still resolve. Equip a weapon to show its blade. */
+const BARE_HANDS: Weapon = {
+  id: 'bare-hands',
+  kind: 'unarmed',
+  name: 'Bare Hands',
+  baseDamage: 4,
   baseMagic: 0,
-  baseDefense: 1,
+  baseDefense: 0,
   strengthBonus: 0,
   intBonus: 0,
   school: 'physical',
@@ -491,8 +493,8 @@ const OAK_STAFF: Weapon = {
   school: 'magical', range: 'melee', hands: 2, reachCells: 2,
 }
 
-/** A starting inventory: sword equipped, plus a staff, light armor, and a potion
- *  to demonstrate equip/use. (Fresh objects each call.) */
+/** A starting inventory: NOTHING equipped (the player begins bare-handed), plus a staff,
+ *  light armor, and a potion to demonstrate equip/use. (Fresh objects each call.) */
 function starterInventory(): Inventory {
   return createInventory(
     [
@@ -503,7 +505,7 @@ function starterInventory(): Inventory {
       },
       { id: 'health-potion', name: 'Health Potion', slot: 'consumable', effect: { hp: 40 } },
     ],
-    STARTER_SWORD,
+    null, // start UNARMED — the player fights bare-handed until a weapon is equipped
     null,
   )
 }
@@ -1158,7 +1160,7 @@ function resetPlayerIfDead(playerCombat: CombatState): CombatState {
   if (!isDead(playerCombat.hp)) return playerCombat
   // NOTE: trivial reset for now — full restore in place. No spawn teleport yet
   // (spec §"keep it simple first"); proper death/respawn UX comes later.
-  return startingCombatState(deriveStats(DEFAULT_PLAYER_STATS, STARTER_SWORD))
+  return startingCombatState(deriveStats(DEFAULT_PLAYER_STATS, BARE_HANDS))
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -3741,7 +3743,7 @@ export default function TemplateEditor() {
   // Pure formulas live in @/game/combat; these refs hold the mutable per-play
   // state. The player carries a default warrior loadout (sword) + full HP/rage/
   // mana; each enemy gets a CombatState keyed by id (synced from entitiesRef).
-  const playerWeaponRef = useRef<Weapon>(STARTER_SWORD)
+  const playerWeaponRef = useRef<Weapon>(BARE_HANDS)
   const playerStatsRef = useRef<Stats>(DEFAULT_PLAYER_STATS)
   const playerShieldRef = useRef<Weapon | undefined>(undefined)
   const playerLoadoutRef = useRef<Loadout>(seededPlayerLoadout())
@@ -3782,7 +3784,7 @@ export default function TemplateEditor() {
   // HUD mirror (the ONLY combat state in React — drives the DOM overlay).
   const [playerHud, setPlayerHud] = useState<PlayerHud>(() => playerHudFrom(
     DEFAULT_PLAYER_STATS,
-    STARTER_SWORD,
+    BARE_HANDS,
     startingCombatState(DEFAULT_PLAYER_STATS),
   ))
 
@@ -3909,7 +3911,7 @@ export default function TemplateEditor() {
   // equipped weapon drives the player's attacks.
   useEffect(() => {
     inventoryRef.current = inventory
-    playerWeaponRef.current = inventory.equippedWeapon ?? STARTER_SWORD
+    playerWeaponRef.current = inventory.equippedWeapon ?? BARE_HANDS
   }, [inventory])
 
   // Player LOADOUT → combat refs: the equipped weapon, a shield's block%, and gear
@@ -3927,7 +3929,8 @@ export default function TemplateEditor() {
     // gear bonuses add to, so editing the player's stats actually changes play.
     const base = entities.find(e => e.kind === 'player')?.baseStats ?? DEFAULT_PLAYER_STATS
     playerLoadoutRef.current = pl
-    playerWeaponRef.current = mainWeapon ?? inventory.equippedWeapon ?? STARTER_SWORD
+    // No weapon equipped → BARE_HANDS (kind 'unarmed') drives the swing/reach but draws no blade.
+    playerWeaponRef.current = mainWeapon ?? inventory.equippedWeapon ?? BARE_HANDS
     playerShieldRef.current = shield
     // Make the equipped gear VISIBLE on the player: a held-weapon glyph beside the
     // figure (changes when you equip a different weapon) + an armored tint.
@@ -8516,13 +8519,23 @@ function drawIsoPlayer(
     ctx.restore()
     ctx.font = `bold ${fontSize}px ${ASCII_FONT}` // restore for the shield draw below
   }
-  // A shield on the off-hand (left side), when equipped.
+  // A shield on the off-hand (left side), when equipped. A FILLED disc sits behind the glyph so
+  // the shield reads as a solid shield, not a hollow "O".
   if (player.shieldGlyph) {
     const shX = x - fontSize * 0.8
     const shY = y - lineHeight - breathe
+    const shR = fontSize * 0.5
+    ctx.beginPath()
+    ctx.arc(shX, shY, shR, 0, Math.PI * 2)
+    ctx.fillStyle = '#3f5f8f' // steel-blue shield body
+    ctx.fill()
+    ctx.beginPath()
+    ctx.arc(shX, shY, shR * 0.34, 0, Math.PI * 2)
+    ctx.fillStyle = '#cfe6ff' // centre boss highlight
+    ctx.fill()
     ctx.fillStyle = '#000000'
     ctx.fillText(player.shieldGlyph, shX + 1, shY + 1)
-    ctx.fillStyle = '#9fd3ff'
+    ctx.fillStyle = '#9fd3ff' // bright rim (the glyph) over the filled body
     ctx.fillText(player.shieldGlyph, shX, shY)
   }
 }
@@ -9725,10 +9738,24 @@ function render2D(
         ctx.restore()
         ctx.font = `bold ${fontSize}px ${ASCII_FONT}` // restore for the shield draw
       }
-      // Shield on the off-hand, when equipped.
+      // Shield on the off-hand, when equipped. Filled disc behind the glyph so it reads as a
+      // solid shield, not a hollow "O".
       if (player.shieldGlyph) {
+        const shX = p.x - fontSize * 0.6
+        const shY = baseY - lineHeight * 1.2
+        const shR = fontSize * 0.55
+        ctx.beginPath()
+        ctx.arc(shX, shY, shR, 0, Math.PI * 2)
+        ctx.fillStyle = '#3f5f8f'
+        ctx.fill()
+        ctx.beginPath()
+        ctx.arc(shX, shY, shR * 0.34, 0, Math.PI * 2)
+        ctx.fillStyle = '#cfe6ff'
+        ctx.fill()
+        ctx.fillStyle = '#000000'
+        ctx.fillText(player.shieldGlyph, shX + 1, shY + 1)
         ctx.fillStyle = '#9fd3ff'
-        ctx.fillText(player.shieldGlyph, p.x - fontSize * 0.6, baseY - lineHeight * 1.2)
+        ctx.fillText(player.shieldGlyph, shX, shY)
       }
 
     } else if (obj.type === 'building' && obj.building) {

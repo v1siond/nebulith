@@ -35,7 +35,7 @@ export interface Attack {
   tier: AttackTier
 }
 
-export type WeaponKind = 'sword' | 'axe' | 'shield' | 'staff' | 'bow' | 'gun'
+export type WeaponKind = 'sword' | 'axe' | 'shield' | 'staff' | 'bow' | 'gun' | 'unarmed'
 export interface Weapon {
   id: string
   kind: WeaponKind
