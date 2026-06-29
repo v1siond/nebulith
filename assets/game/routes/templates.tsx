@@ -59,10 +59,18 @@ import {
   type StepListState,
 } from '@/engine/movement'
 import { isGroundContact } from '@/engine/cellLabels'
-import { type CycleMode } from '@/engine/animationCycles'
 import { entityAnimState, entityFrameIndex } from '@/engine/entityAnim'
-import { assetAnimFrame, assetCycleFrame, animationOptions, ANIMATION_LIBRARY } from '@/engine/assetAnimations'
-import { makeCycle, makeTrigger, validateCycle, describeCycle, CYCLE_MODES } from '@/engine/animationAuthoring'
+import { assetAnimFrame, assetCycleFrame } from '@/engine/assetAnimations'
+import {
+  assetCellTransform,
+  makeCellAnimation,
+  restFrame,
+  CELL_ANIM_PRESETS,
+  type AnimFrame,
+  type AnimPreset,
+  type AnimTransform,
+  type Ease,
+} from '@/engine/cellAnimation'
 import { shouldFire, lampPulse } from '@/engine/behaviors'
 import { weaponAnimKind, animFrame, isAnimDone, ATTACK_ANIM_MS, type AttackAnim, type AttackAnimKind } from '@/engine/attackAnimations'
 import { entityArtFrame, weaponGlyph, entityPalette, topRoleColor, entityFootprint } from '@/engine/entityArt'
@@ -2250,6 +2258,31 @@ function Card({
   )
 }
 
+/** A −/value/+ stepper for one transform field of an animation frame (x / y / rot). */
+function FrameStepper({
+  label,
+  value,
+  step,
+  onChange,
+}: {
+  label: string
+  value: number
+  step: number
+  onChange: (v: number) => void
+}) {
+  const round2 = (v: number) => Math.round(v * 100) / 100
+  return (
+    <div className="flex flex-col items-center rounded bg-gray-800 p-0.5">
+      <span className="text-[8px] uppercase text-gray-500">{label}</span>
+      <div className="flex items-center gap-0.5">
+        <button onClick={() => onChange(round2(value - step))} className="px-1 text-fuchsia-300 hover:text-white" aria-label={`${label} minus`}>−</button>
+        <span className="w-8 text-center text-[9px] text-gray-200">{value > 0 ? '+' : ''}{round2(value)}</span>
+        <button onClick={() => onChange(round2(value + step))} className="px-1 text-fuchsia-300 hover:text-white" aria-label={`${label} plus`}>+</button>
+      </div>
+    </div>
+  )
+}
+
 /** A single view-mode button in the Views card. */
 function ViewButton({
   label,
@@ -4180,12 +4213,14 @@ export default function TemplateEditor() {
   const [selectedMultiAsset, setSelectedMultiAsset] = useState<string | null>(null)
   // Render opacity (0.15–1) applied to tiles placed from the palette — play with contrast / depth.
   const [placeOpacity, setPlaceOpacity] = useState(1)
-  // Animation Author panel — in-progress cycle the user composes, then applies to an asset.
-  const [authorAnims, setAuthorAnims] = useState<Set<string>>(new Set())
-  const [authorMode, setAuthorMode] = useState<CycleMode>('sequential')
-  const [authorDelay, setAuthorDelay] = useState(0)
-  const [authorTriggerKind, setAuthorTriggerKind] = useState<'always' | 'state'>('always')
-  const [authorTriggerState, setAuthorTriggerState] = useState('combat')
+  // Animation Author panel — the frames + timing the user defines, then attaches to selected cells.
+  // Frame 0 is always the rest pose; later frames are offset nudges (dx/dy/rot/scale).
+  const [authorFrames, setAuthorFrames] = useState<AnimFrame[]>([restFrame()])
+  const [authorDuration, setAuthorDuration] = useState(1200)
+  const [authorDelay, setAuthorDelay] = useState(400)
+  const [authorLoop, setAuthorLoop] = useState(true)
+  const [authorEase, setAuthorEase] = useState<Ease>('sine')
+  const [authorStatus, setAuthorStatus] = useState('')
   const [selectedHeight, setSelectedHeight] = useState(0)
   const [heightEditMode, setHeightEditMode] = useState(false)
   const [hideEntities, setHideEntities] = useState(false)
@@ -5488,32 +5523,80 @@ export default function TemplateEditor() {
   }
 
 
-  // Toggle an animation in the author panel's in-progress cycle.
-  const toggleAuthorAnim = (id: string) => {
-    setAuthorAnims(prev => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
+  // ── Frame-based Animation Author handlers ──────────────────────────
+  const round2 = (v: number) => Math.round(v * 100) / 100
+
+  // "+ Add frame": append an offset frame, nudged a bit further right than the last so the new
+  // frame is visibly different (the author then tweaks it).
+  const addAuthorFrame = () => {
+    setAuthorFrames(prev => {
+      const last = prev[prev.length - 1] ?? restFrame()
+      return [...prev, { dx: round2((last.dx ?? 0) + 0.15), dy: last.dy ?? 0, rot: last.rot, scale: last.scale }]
+    })
+    setAuthorStatus('')
+  }
+
+  const updateAuthorFrame = (i: number, patch: Partial<AnimFrame>) => {
+    setAuthorFrames(prev => prev.map((f, idx) => (idx === i ? { ...f, ...patch } : f)))
+  }
+
+  // Frame 0 is the rest pose and can't be deleted or moved off the front.
+  const deleteAuthorFrame = (i: number) => {
+    if (i === 0) return
+    setAuthorFrames(prev => prev.filter((_, idx) => idx !== i))
+  }
+
+  const moveAuthorFrame = (i: number, dir: -1 | 1) => {
+    setAuthorFrames(prev => {
+      const j = i + dir
+      if (i <= 0 || j <= 0 || j >= prev.length) return prev
+      const next = [...prev]
+      ;[next[i], next[j]] = [next[j], next[i]]
       return next
     })
   }
 
-  // Apply the composed cycle to the asset(s) in the selected cell(s) → animates via the engine.
-  const applyCycleToSelectedAsset = () => {
+  // Load a starting template (the old presets, now ready-to-tweak frame sets).
+  const loadAuthorPreset = (p: AnimPreset) => {
+    setAuthorFrames(p.frames.map(f => ({ ...f })))
+    setAuthorDuration(p.durationMs)
+    setAuthorDelay(p.delayMs)
+    setAuthorEase(p.ease)
+    setAuthorLoop(true)
+    setAuthorStatus(`loaded "${p.name}" — tweak the frames, then Apply`)
+  }
+
+  // Attach the authored animation to the selected cells' assets. It plays live immediately because
+  // the render loop reads asset.cellAnim every frame, so Preview and Apply share this path.
+  const attachAuthorAnim = (commit: boolean) => {
     const grid = gridRef.current
-    if (!grid || selectedCells.size === 0 || authorAnims.size === 0) return
-    const cycle = makeCycle(
-      `authored-${authorTriggerKind}`,
-      Array.from(authorAnims),
-      authorMode,
-      authorDelay,
-      makeTrigger(authorTriggerKind, authorTriggerState),
-    )
+    if (!grid || selectedCells.size === 0) return
+    const cells = Array.from(selectedCells).map(key => {
+      const [col, row] = key.split(',').map(Number)
+      return { col, row }
+    })
+    const anim = makeCellAnimation(cells, authorFrames, {
+      id: `cellanim-${Date.now()}`,
+      durationMs: authorDuration,
+      delayMs: authorDelay,
+      loop: authorLoop,
+      ease: authorEase,
+      trigger: 'always',
+    })
+    let hit = 0
     selectedCells.forEach(key => {
       const [col, row] = key.split(',').map(Number)
       const asset = grid.assets.find(a => a.col === col && a.row === row)
-      if (asset) asset.cycles = [cycle]
+      if (asset) {
+        asset.cellAnim = anim
+        hit++
+      }
     })
+    setAuthorStatus(
+      hit === 0
+        ? 'no asset in the selected cell(s) — place one first'
+        : `${commit ? 'applied' : 'previewing'} on ${hit} cell${hit === 1 ? '' : 's'} — it plays live`,
+    )
   }
 
   // Place height on selected cells
@@ -8053,60 +8136,105 @@ export default function TemplateEditor() {
                 ))}
               </PaletteGroup>
 
-              {/* Animation Author — compose a cycle + apply it to the selected cell's asset. */}
-              <div className="border-t border-white/10 pt-3">
-                <p className="mb-1 text-xs font-bold text-fuchsia-400">Animation Author</p>
+              {/* Animation Author — define an asset's motion as FRAMES, set timing, it loops. */}
+              <div className="border-t border-white/10 pt-3" data-testid="animation-author">
+                <p className="mb-1 text-xs font-bold text-fuchsia-400">Animation Author — frames</p>
                 <p className="mb-2 text-[9px] leading-tight text-gray-500">
-                  Pick animations + mode + delay + trigger, select a cell, then Apply to animate its asset.
+                  Define frames (frame 0 = rest), set a duration → it loops. Each later frame nudges the
+                  asset right/left/up/down + rotate; chain them for a wind sway. Select a cell, then Apply.
                 </p>
-                <div className="mb-2 flex flex-wrap gap-1">
-                  {animationOptions().map(o => (
+
+                {/* Starting templates — the old presets, now ready-to-tweak frame sets. */}
+                <p className="mb-1 text-[9px] uppercase tracking-wide text-gray-500">Start from a template</p>
+                <div className="mb-3 flex flex-wrap gap-1">
+                  {CELL_ANIM_PRESETS.map(p => (
                     <button
-                      key={o.id}
-                      onClick={() => toggleAuthorAnim(o.id)}
-                      className={`rounded px-2 py-1 text-[10px] ${authorAnims.has(o.id) ? 'bg-fuchsia-700 text-white' : 'bg-gray-800 text-gray-300'}`}
+                      key={p.id}
+                      onClick={() => loadAuthorPreset(p)}
+                      className="rounded bg-gray-800 px-2 py-1 text-[10px] text-gray-200 transition-colors hover:bg-fuchsia-800 hover:text-white"
                     >
-                      {o.name}
+                      {p.name}
                     </button>
                   ))}
                 </div>
-                <div className="mb-2 flex items-center gap-2 text-[10px] text-gray-300">
-                  <span className="w-14 shrink-0">Mode</span>
-                  <select value={authorMode} onChange={e => setAuthorMode(e.target.value as CycleMode)} className="flex-1 rounded bg-gray-800 p-1">
-                    {CYCLE_MODES.map(m => <option key={m} value={m}>{m}</option>)}
-                  </select>
+
+                {/* FRAME STRIP — frame 0 = rest; add/reorder/delete offset frames. */}
+                <div className="mb-3">
+                  <div className="mb-1 flex items-center justify-between">
+                    <span className="text-[9px] uppercase tracking-wide text-gray-500">Frames ({authorFrames.length})</span>
+                    <button
+                      onClick={addAuthorFrame}
+                      className="rounded bg-fuchsia-700 px-2 py-0.5 text-[10px] font-bold text-white transition-all hover:opacity-80"
+                    >
+                      + Add frame
+                    </button>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    {authorFrames.map((f, i) => (
+                      <div key={i} className="rounded bg-black/40 p-1.5 text-[9px]" data-testid={`anim-frame-${i}`}>
+                        <div className="mb-1 flex items-center justify-between">
+                          <span className="font-bold text-gray-300">{i === 0 ? 'Frame 0 · rest' : `Frame ${i}`}</span>
+                          <span className="flex gap-1">
+                            <button onClick={() => moveAuthorFrame(i, -1)} disabled={i <= 1} className="px-1 text-gray-400 hover:text-white disabled:opacity-30" aria-label="move earlier">◀</button>
+                            <button onClick={() => moveAuthorFrame(i, 1)} disabled={i === 0 || i === authorFrames.length - 1} className="px-1 text-gray-400 hover:text-white disabled:opacity-30" aria-label="move later">▶</button>
+                            <button onClick={() => deleteAuthorFrame(i)} disabled={i === 0} className="px-1 text-red-400 hover:text-red-300 disabled:opacity-30" aria-label="delete frame">✕</button>
+                          </span>
+                        </div>
+                        {i === 0 ? (
+                          <p className="text-gray-600">no offset — the asset's normal position</p>
+                        ) : (
+                          <div className="grid grid-cols-3 gap-1">
+                            <FrameStepper label="x" value={f.dx} step={0.05} onChange={v => updateAuthorFrame(i, { dx: v })} />
+                            <FrameStepper label="y" value={f.dy} step={0.05} onChange={v => updateAuthorFrame(i, { dy: v })} />
+                            <FrameStepper label="rot" value={f.rot ?? 0} step={0.05} onChange={v => updateAuthorFrame(i, { rot: v })} />
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                <div className="mb-2 flex items-center gap-2 text-[10px] text-gray-300">
-                  <span className="w-14 shrink-0">Delay ms</span>
-                  <input type="number" min={0} value={authorDelay} onChange={e => setAuthorDelay(Number(e.target.value))} className="flex-1 rounded bg-gray-800 p-1" />
+
+                {/* TIMING — duration to play frame 0 → last, delay before the loop, ease, loop. */}
+                <div className="mb-2 grid grid-cols-2 gap-1.5 text-[10px] text-gray-300">
+                  <label className="flex flex-col gap-0.5">
+                    <span className="text-gray-500">Duration ms</span>
+                    <input type="number" min={0} value={authorDuration} onChange={e => setAuthorDuration(Math.max(0, Number(e.target.value)))} className="rounded bg-gray-800 p-1" />
+                  </label>
+                  <label className="flex flex-col gap-0.5">
+                    <span className="text-gray-500">Delay ms</span>
+                    <input type="number" min={0} value={authorDelay} onChange={e => setAuthorDelay(Math.max(0, Number(e.target.value)))} className="rounded bg-gray-800 p-1" />
+                  </label>
+                  <label className="flex flex-col gap-0.5">
+                    <span className="text-gray-500">Ease</span>
+                    <select value={authorEase} onChange={e => setAuthorEase(e.target.value as Ease)} className="rounded bg-gray-800 p-1">
+                      <option value="sine">sine (natural)</option>
+                      <option value="linear">linear</option>
+                    </select>
+                  </label>
+                  <label className="flex items-end gap-1 pb-1">
+                    <input type="checkbox" checked={authorLoop} onChange={e => setAuthorLoop(e.target.checked)} />
+                    <span>loop</span>
+                  </label>
                 </div>
-                <div className="mb-2 flex items-center gap-2 text-[10px] text-gray-300">
-                  <span className="w-14 shrink-0">Trigger</span>
-                  <select value={authorTriggerKind} onChange={e => setAuthorTriggerKind(e.target.value as 'always' | 'state')} className="rounded bg-gray-800 p-1">
-                    <option value="always">always</option>
-                    <option value="state">on state</option>
-                  </select>
-                  {authorTriggerKind === 'state' && (
-                    <input value={authorTriggerState} onChange={e => setAuthorTriggerState(e.target.value)} placeholder="combat" className="flex-1 rounded bg-gray-800 p-1" />
-                  )}
+
+                {authorStatus && <p className="mb-1 text-[9px] text-amber-300">{authorStatus}</p>}
+
+                <div className="flex gap-1">
+                  <button
+                    onClick={() => attachAuthorAnim(false)}
+                    disabled={selectedCells.size === 0 || authorFrames.length < 2}
+                    className="flex-1 rounded bg-gray-700 py-1 text-[10px] font-bold text-white transition-all hover:opacity-80 disabled:opacity-40"
+                  >
+                    Preview
+                  </button>
+                  <button
+                    onClick={() => attachAuthorAnim(true)}
+                    disabled={selectedCells.size === 0 || authorFrames.length < 2}
+                    className="flex-1 rounded bg-fuchsia-700 py-1 text-[10px] font-bold text-white transition-all hover:opacity-80 disabled:opacity-40"
+                  >
+                    {selectedCells.size === 0 ? 'Select a cell' : 'Apply'}
+                  </button>
                 </div>
-                {(() => {
-                  const cycle = makeCycle('preview', Array.from(authorAnims), authorMode, authorDelay, makeTrigger(authorTriggerKind, authorTriggerState))
-                  const v = validateCycle(cycle, new Set(Object.keys(ANIMATION_LIBRARY)))
-                  return (
-                    <>
-                      <p className="mb-1 text-[9px] text-gray-400">{describeCycle(cycle)}</p>
-                      {!v.ok && <p className="mb-1 text-[9px] text-amber-400">{v.reason}</p>}
-                      <button
-                        onClick={applyCycleToSelectedAsset}
-                        disabled={!v.ok || selectedCells.size === 0}
-                        className="w-full rounded bg-fuchsia-700 py-1 text-[10px] font-bold text-white transition-all hover:opacity-80 disabled:opacity-40"
-                      >
-                        {selectedCells.size === 0 ? 'Select a cell first' : 'Apply to selected cell'}
-                      </button>
-                    </>
-                  )
-                })()}
               </div>
             </Card>
 
@@ -9023,7 +9151,12 @@ function render(
     } else if (obj.asset) {
       const op = obj.asset.opacity ?? 1 // per-asset opacity for contrast/depth
       if (op < 1) ctx.globalAlpha = op
-      drawIsoAssetAscii(ctx, p.x, p.y - heightOffset, obj.asset, tileW, tileH, time, obj.asset.type === 'tree' && (!!obj.asset.baseShadow || isGroundContact(isTreeCell, obj.asset.col, obj.asset.row)), dayNight)
+      // Authored frame animation: offset/rotate/scale the asset around its cell (sway/wind).
+      const ax = p.x, ay = p.y - heightOffset
+      const ct = assetCellTransform(obj.asset.cellAnim, time)
+      if (ct) applyCellTransform(ctx, ax, ay, ct, tileW, tileH)
+      drawIsoAssetAscii(ctx, ax, ay, obj.asset, tileW, tileH, time, obj.asset.type === 'tree' && (!!obj.asset.baseShadow || isGroundContact(isTreeCell, obj.asset.col, obj.asset.row)), dayNight)
+      if (ct) ctx.restore()
       if (op < 1) ctx.globalAlpha = 1
     }
   }
@@ -10307,6 +10440,26 @@ function drawIsoWellFountain(
   ctx.fill()
 }
 
+/**
+ * Push a cell-animation transform onto the canvas around pivot (x, y): translate by the frame's
+ * dx/dy (fractions of a tile), then rotate + scale about the pivot. Calls ctx.save(); the caller
+ * MUST ctx.restore() once the asset is drawn. unitX/unitY = the tile size the offsets scale against.
+ */
+function applyCellTransform(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  t: AnimTransform,
+  unitX: number,
+  unitY: number,
+): void {
+  ctx.save()
+  ctx.translate(x + t.dx * unitX, y + t.dy * unitY)
+  if (t.rot) ctx.rotate(t.rot)
+  if (t.scale !== 1) ctx.scale(t.scale, t.scale)
+  ctx.translate(-x, -y)
+}
+
 function drawIsoAssetAscii(
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -10945,6 +11098,10 @@ function render2D(
       // Base at bottom of cell - tiles stack upward
       const baseY = p.y + tileH * 0.5 - elevOffset
 
+      // Authored frame animation: offset/rotate/scale the asset around its ground point (sway/wind).
+      const ct2d = assetCellTransform(asset.cellAnim, time)
+      if (ct2d) applyCellTransform(ctx, p.x, baseY, ct2d, tileW, tileH)
+
       ctx.font = `bold ${tileH * 0.8}px ${ASCII_FONT}`
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
@@ -11047,6 +11204,8 @@ function render2D(
         ctx.fillStyle = tileFg
         ctx.fillText(char, p.x, baseY - tileH * 0.5)
       }
+
+      if (ct2d) ctx.restore() // pop the cell-animation transform
     }
   }
 
@@ -11754,7 +11913,12 @@ function renderTopView(
       ctx.fillRect(x, y, tileSize - 1, tileSize - 1)
 
       ctx.fillStyle = fg
-      ctx.fillText(char, x + tileSize / 2, y + tileSize / 2)
+      // Authored frame animation moves the asset GLYPH (not its cell backing) around its centre.
+      const gx = x + tileSize / 2, gy = y + tileSize / 2
+      const ctTop = asset ? assetCellTransform(asset.cellAnim, now) : null
+      if (ctTop) applyCellTransform(ctx, gx, gy, ctTop, tileSize, tileSize)
+      ctx.fillText(char, gx, gy)
+      if (ctTop) ctx.restore()
 
       // Height indicator (show in corner if height > 0)
       const cellHeight = grid.getHeight(col, row)
