@@ -9004,6 +9004,24 @@ function drawIsoBuilding(
 
   // ── FRONT FACADE TILES (on top of the box, nearest the camera) for south/east houses ──
   if (!b.facadeOnBack) drawFacade(fbl)
+
+  // ── TYPE SIGNAGE (STORE / HOSPITAL) floating above the roof apex — mirrors the 2D/top badge
+  //    (black pill + colored text) so a shop / clinic reads at a glance in iso too. Only
+  //    store + hospital carry a badge. Projected at the footprint-centre lifted to the roof top.
+  const badge = BUILDING_BADGES[b.type]
+  if (badge) {
+    const apex = ptAdd(ptAdd(ptAdd(fbl, ptScale(colVec, L / 2)), ptScale(depthVec, 0.5)), up(H))
+    const bf = cellH * (badge.text.length > 1 ? 0.7 : 1.1)
+    ctx.font = `bold ${bf}px ${ASCII_FONT}`
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    const bw = ctx.measureText(badge.text).width
+    const by = apex.y - bf * 0.9 // sit just above the apex
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.72)'
+    ctx.fillRect(apex.x - bw / 2 - 3, by - bf * 0.65, bw + 6, bf * 1.3)
+    ctx.fillStyle = badge.color
+    ctx.fillText(badge.text, apex.x, by)
+  }
 }
 
 function drawIsoAssetAscii(
