@@ -5,8 +5,11 @@
  * to data (category, cooldown, requirements, effect magnitudes). Entities equip up to 4, bound to
  * keys 1–4. Pure module: no rendering, no React — the play loop reads these + the cooldown helper.
  *
- * v1 ships ONE seeded ability (Fire Slash) + the model/helpers, so the database/editor + progress
- * system can plug in later without reshaping this.
+ * The engine seeds a database of abilities spanning every category (offensive melee/ranged, defensive,
+ * protection, debuff, healing); the inventory's "browse abilities" modal lists them and assigns one
+ * into a slot. Adding/editing an ability is one const + one line in ABILITY_REGISTRY — the lookup and
+ * loadout helpers stay untouched, so the editor + progress system can plug in later without reshaping
+ * this.
  */
 
 export type AbilityCategory = 'offensive' | 'defensive' | 'debuff' | 'protection' | 'healing'
@@ -105,9 +108,115 @@ export const FROST: AbilityDef = {
   effect: { damage: 8, debuff: { kind: 'slow', durationMs: 3000, magnitude: 0.4 } },
 }
 
-/** The seeded ability database the UI reads to populate the assign-picker. Add/update =
- *  edit a def + this list; the lookup + loadout helpers stay untouched. */
-export const ABILITY_REGISTRY: readonly AbilityDef[] = [FIRE_SLASH, POWER_SHOT, GUARD, FROST]
+/** Offensive melee — a wide two-handed swing that cleaves for heavy physical damage. */
+export const CLEAVE: AbilityDef = {
+  id: 'cleave',
+  name: 'Cleave',
+  description: 'A wide, two-handed swing that cleaves through for heavy physical damage.',
+  category: 'offensive',
+  animation: 'cleave',
+  cooldownMs: 7000,
+  effect: { damage: 22 },
+}
+
+/** Offensive ranged (magic) — a fast arcane bolt that snaps out for steady damage. */
+export const ARCANE_BOLT: AbilityDef = {
+  id: 'arcane-bolt',
+  name: 'Arcane Bolt',
+  description: 'A quick bolt of raw arcane force — short cooldown, reliable ranged damage.',
+  category: 'offensive',
+  animation: 'bolt',
+  cooldownMs: 5000,
+  effect: { damage: 20 },
+}
+
+/** Offensive (magic burst) — a violet nova that detonates around you for big damage. */
+export const NOVA_BURST: AbilityDef = {
+  id: 'nova-burst',
+  name: 'Nova Burst',
+  description: 'A violet nova that detonates around you — slow to charge, hits hard.',
+  category: 'offensive',
+  animation: 'nova',
+  cooldownMs: 14000,
+  effect: { damage: 30 },
+}
+
+/** Offensive (magic) — a forked bolt of lightning that arcs into the target. */
+export const CHAIN_LIGHTNING: AbilityDef = {
+  id: 'chain-lightning',
+  name: 'Chain Lightning',
+  description: 'A forked bolt of lightning that arcs into the target for strong shock damage.',
+  category: 'offensive',
+  animation: 'lightning',
+  cooldownMs: 11000,
+  effect: { damage: 24 },
+}
+
+/** Protection — a heavy bulwark that holds a long damage-soak window (longer than Guard). */
+export const BULWARK: AbilityDef = {
+  id: 'bulwark',
+  name: 'Bulwark',
+  description: 'Brace behind a heavy bulwark — a long window that soaks most incoming damage.',
+  category: 'protection',
+  animation: 'guard-flash',
+  cooldownMs: 16000,
+  effect: { shieldMs: 6000 },
+}
+
+/** Debuff — a venom-tipped shot: light damage now, poison ticking after. */
+export const POISON_DART: AbilityDef = {
+  id: 'poison-dart',
+  name: 'Poison Dart',
+  description: 'A venom-tipped shot — light hit up front, then poison eats away at the target.',
+  category: 'debuff',
+  animation: 'piercing-shot',
+  cooldownMs: 8000,
+  effect: { damage: 6, debuff: { kind: 'poison', durationMs: 5000, magnitude: 4 } },
+}
+
+/** Debuff — an enfeebling pulse that weakens the target's hits for a while. */
+export const ENFEEBLE: AbilityDef = {
+  id: 'enfeeble',
+  name: 'Enfeeble',
+  description: 'A draining pulse that weakens the target — its blows land softer for a while.',
+  category: 'debuff',
+  animation: 'nova',
+  cooldownMs: 10000,
+  effect: { debuff: { kind: 'weaken', durationMs: 6000, magnitude: 0.3 } },
+}
+
+/** Healing — a burst of restorative light that mends a solid chunk of HP. */
+export const MEND: AbilityDef = {
+  id: 'mend',
+  name: 'Mend',
+  description: 'A burst of restorative light — mends a solid chunk of your health.',
+  category: 'healing',
+  animation: 'heal-glow',
+  cooldownMs: 10000,
+  effect: { healing: 25 },
+}
+
+/** Healing — a quick, low-cooldown top-up of health when you need it fast. */
+export const RENEW: AbilityDef = {
+  id: 'renew',
+  name: 'Renew',
+  description: 'A quick top-up of health on a short cooldown — small, but always ready.',
+  category: 'healing',
+  animation: 'heal-glow',
+  cooldownMs: 7000,
+  effect: { healing: 14 },
+}
+
+/** The seeded ability database the UI reads to populate the browse-abilities modal. Add/update =
+ *  edit a def + this list; the lookup + loadout helpers stay untouched. Spans every category. */
+export const ABILITY_REGISTRY: readonly AbilityDef[] = [
+  FIRE_SLASH, CLEAVE, // offensive melee
+  POWER_SHOT, ARCANE_BOLT, NOVA_BURST, CHAIN_LIGHTNING, // offensive ranged / magic
+  GUARD, // defensive
+  BULWARK, // protection
+  FROST, POISON_DART, ENFEEBLE, // debuff
+  MEND, RENEW, // healing
+]
 
 /** Look an ability up by id (round-trips with ABILITY_REGISTRY). Pure. */
 export function getAbility(id: string): AbilityDef | undefined {
@@ -173,4 +282,26 @@ export function assignAbility(
 /** Take whatever ability is in a slot back out. Returns a NEW loadout; input untouched. Pure. */
 export function removeAbility(loadout: readonly AbilityBinding[], slot: AbilitySlot): AbilityBinding[] {
   return loadout.filter(b => b.slot !== slot)
+}
+
+/** Rebind the trigger KEY of the binding in `slot` (abilities are user-keyed; they default to
+ *  1–4 but the player can map any key). If another binding already holds `key`, the two SWAP keys
+ *  so every binding keeps a unique trigger — that's what keeps the ability and special-action sets
+ *  from silently colliding. No-op if the slot is empty. Returns a NEW slot-ordered loadout; input
+ *  untouched. Pure. */
+export function rebindAbility(
+  loadout: readonly AbilityBinding[],
+  slot: AbilitySlot,
+  key: string,
+): AbilityBinding[] {
+  const target = loadout.find(b => b.slot === slot)
+  if (!target || target.key === key) return [...loadout].sort((a, b) => a.slot - b.slot)
+  const oldKey = target.key
+  return loadout
+    .map(b => {
+      if (b.slot === slot) return { ...b, key }
+      if (b.key === key) return { ...b, key: oldKey } // swap so keys stay unique
+      return b
+    })
+    .sort((a, b) => a.slot - b.slot)
 }
