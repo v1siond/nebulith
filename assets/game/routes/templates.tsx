@@ -123,6 +123,7 @@ import type {
   Inventory,
   Loadout,
   EquipSlot,
+  ConsumableEffect,
   MovementPattern,
   AttackMode,
 } from '@/game/types'
@@ -3153,12 +3154,95 @@ function useBagItem(loadout: Loadout, index: number): Loadout {
   return next
 }
 
+// ── item hover tooltips (#51): read the real numbers off each item def ──
+/** Stat lines for a weapon. Shields lead with block%; everything else shows the
+ *  damage / reach / hands / school that drives a swing. */
+function weaponTooltipStats(w: Weapon): string[] {
+  if (w.kind === 'shield') {
+    const lines = [`Block ${w.blockChance ?? 0}%`, `Defense ${w.baseDefense}`]
+    if (w.strengthBonus) lines.push(`Strength +${w.strengthBonus}`)
+    if (w.intBonus) lines.push(`Intelligence +${w.intBonus}`)
+    return lines
+  }
+  const dmg = w.school === 'magical' ? w.baseMagic : w.baseDamage
+  const lines = [
+    `Damage ${dmg}`,
+    `Reach ${weaponReach(w)} (${w.range})`,
+    `${w.hands === 2 ? 'Two-handed' : 'One-handed'} · ${w.school}`,
+  ]
+  if (w.strengthBonus) lines.push(`Strength +${w.strengthBonus}`)
+  if (w.intBonus) lines.push(`Intelligence +${w.intBonus}`)
+  if (w.baseDefense) lines.push(`Defense +${w.baseDefense}`)
+  return lines
+}
+
+/** Stat lines for a piece of armor: its defense value plus any worn bonuses. */
+function armorTooltipStats(a: Armor): string[] {
+  const lines = [`Armor ${a.defenseBonus}`]
+  if (a.strengthBonus) lines.push(`Strength +${a.strengthBonus}`)
+  if (a.intBonus) lines.push(`Intelligence +${a.intBonus}`)
+  if (a.dodgeBonus) lines.push(`Dodge +${a.dodgeBonus}%`)
+  return lines
+}
+
+/** Stat lines for a consumable / special item: what it restores, or a plain note
+ *  for throwables (bomb / scroll) whose behaviour fires in the play loop. */
+function consumableTooltipStats(effect: ConsumableEffect): string[] {
+  const lines: string[] = []
+  if (effect.hp) lines.push(`Restore ${effect.hp} HP`)
+  if (effect.mana) lines.push(`Restore ${effect.mana} Mana`)
+  if (effect.rage) lines.push(`Restore ${effect.rage} Rage`)
+  if (lines.length === 0) lines.push('Special item')
+  return lines
+}
+
+/** The hover-tooltip stat lines for ANY item (dispatch on its slot). */
+function itemTooltipStats(item: Item): string[] {
+  if (item.slot === 'weapon') return weaponTooltipStats(item.weapon)
+  if (item.slot === 'armor') return armorTooltipStats(item.armor)
+  return consumableTooltipStats(item.effect)
+}
+
+/** Floating, cursor-anchored item tooltip (dark mono panel, matches the editor UI).
+ *  Pinned with `position: fixed` to the live cursor and clamped to the viewport so it
+ *  never clips off an edge; pointer-events-none so it never eats the hover/click. */
+function ItemTooltip({ item, x, y }: { item: Item; x: number; y: number }) {
+  const lines = itemTooltipStats(item)
+  const vw = typeof window !== 'undefined' ? window.innerWidth : 1920
+  const vh = typeof window !== 'undefined' ? window.innerHeight : 1080
+  const left = Math.max(8, Math.min(x + 14, vw - 192))
+  const top = Math.max(8, Math.min(y + 14, vh - (lines.length * 15 + 44)))
+  return (
+    <div
+      role="tooltip"
+      className="pointer-events-none fixed z-50 w-44 rounded border border-cyan-500/50 bg-gray-900/95 px-2 py-1.5 font-mono text-[10px] text-gray-300 shadow-xl"
+      style={{ left, top }}
+    >
+      <div className="mb-0.5 truncate text-[11px] font-bold text-cyan-300">{item.name}</div>
+      {lines.map((line, i) => <div key={i}>{line}</div>)}
+    </div>
+  )
+}
+
 function EquipmentPanel({ label, loadout, onChange, onClose }: {
   label: string
   loadout: Loadout
   onChange: (l: Loadout) => void
   onClose: () => void
 }) {
+  // Hovered item + live cursor pos for the stat tooltip (#51). Cleared on leave.
+  const [hovered, setHovered] = useState<{ item: Item; x: number; y: number } | null>(null)
+  const hideTip = () => setHovered(null)
+  const moveTip = (e: React.MouseEvent) => setHovered(h => (h ? { ...h, x: e.clientX, y: e.clientY } : h))
+  /** Hover-handler props for an item button; no-op object for empty slots. */
+  const tipProps = (item: Item | null | undefined) =>
+    item
+      ? {
+          onMouseEnter: (e: React.MouseEvent) => setHovered({ item, x: e.clientX, y: e.clientY }),
+          onMouseMove: moveTip,
+          onMouseLeave: hideTip,
+        }
+      : {}
   const unequipToBag = (slot: EquipSlot) => {
     const item = loadout.equipped[slot]
     if (item) onChange(addToBag(unequipSlot(loadout, slot), item))
@@ -3186,7 +3270,7 @@ function EquipmentPanel({ label, loadout, onChange, onClose }: {
           {EQUIP_SLOTS.map(slot => {
             const item = loadout.equipped[slot]
             return (
-              <button key={slot} onClick={() => unequipToBag(slot)} disabled={!item}
+              <button key={slot} onClick={() => unequipToBag(slot)} disabled={!item} {...tipProps(item)}
                 className={`rounded border px-2 py-1.5 text-left text-[11px] ${item ? 'border-cyan-600 bg-cyan-900/40 hover:bg-cyan-900/70' : 'border-white/10 bg-black/40 text-gray-600'}`}>
                 <span className="block text-[9px] uppercase text-gray-500">{SLOT_LABEL[slot]}</span>
                 <span className="block truncate">{item ? item.name : '—'}</span>
@@ -3200,7 +3284,7 @@ function EquipmentPanel({ label, loadout, onChange, onClose }: {
           {loadout.special.map((item, i) => (
             <div key={i} className="flex-1 rounded border border-amber-600/40 bg-amber-900/20 p-1 text-center text-[11px]">
               <button onClick={() => cycleShortcut(i)} className="mb-0.5 rounded bg-amber-700 px-1.5 text-[10px] font-bold hover:bg-amber-600" aria-label={`Cycle shortcut key for special slot ${i + 1}`}>{loadout.shortcuts[i]}</button>
-              <button onClick={() => sendSpecialToBag(i)} disabled={!item} className="block w-full truncate hover:text-amber-300">{item ? item.name : '—'}</button>
+              <button onClick={() => sendSpecialToBag(i)} disabled={!item} {...tipProps(item)} className="block w-full truncate hover:text-amber-300">{item ? item.name : '—'}</button>
             </div>
           ))}
         </div>
@@ -3208,7 +3292,7 @@ function EquipmentPanel({ label, loadout, onChange, onClose }: {
         <p className="mb-1 text-xs font-bold text-gray-400">Bag ({loadout.bag.filter(Boolean).length}/{loadout.bag.length})</p>
         <div className="mb-3 grid grid-cols-6 gap-1">
           {loadout.bag.map((item, i) => (
-            <button key={i} onClick={() => onChange(useBagItem(loadout, i))} disabled={!item}
+            <button key={i} onClick={() => onChange(useBagItem(loadout, i))} disabled={!item} {...tipProps(item)}
               title={item ? `Equip / use ${item.name}` : ''}
               className={`aspect-square rounded border p-1 text-[9px] leading-tight ${item ? 'border-white/20 bg-gray-800 hover:bg-gray-700' : 'border-white/5 bg-black/30 text-gray-700'}`}>
               {item ? item.name.slice(0, 10) : ''}
@@ -3225,6 +3309,7 @@ function EquipmentPanel({ label, loadout, onChange, onClose }: {
           </div>
         </details>
       </div>
+      {hovered && <ItemTooltip item={hovered.item} x={hovered.x} y={hovered.y} />}
     </div>
   )
 }
