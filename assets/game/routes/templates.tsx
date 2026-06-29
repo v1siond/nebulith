@@ -8813,20 +8813,22 @@ function drawIsoPlayer(
     const handX = x + dir * (pHalf + weaponSize * 0.18)
     const swing = dir * 2.2 * (swingP ?? 0) // 0 at rest (blade up) → sweep the tip DOWN-forward
     const shoulderX = x + dir * pHalf * 0.25 // at the body, on the weapon side
-    const handLX = handX - shoulderX         // hand offset from the shoulder pivot (rest pose)
+    const shoulderY = y - lineHeight * 1.95 - breathe // PIVOT at the SHOULDER = TOP of the # row (not mid-torso/hip)
+    const handLX = handX - shoulderX         // hand offset from the shoulder pivot
+    const handDY = handY - shoulderY         // hand sits a touch BELOW the shoulder → arm angles down
     ctx.save()
-    ctx.translate(shoulderX, handY) // PIVOT = the shoulder; the whole arm rotates around it
+    ctx.translate(shoulderX, shoulderY) // PIVOT = the shoulder; the whole arm rotates around it
     ctx.rotate(swing)
     if (swinging) {
       ctx.strokeStyle = bodyColor // the figure's own tone — the arm reads as part of the body
       ctx.lineWidth = Math.max(3, fontSize * 0.22)
       ctx.lineCap = 'round'
       ctx.beginPath()
-      ctx.moveTo(0, 0)      // shoulder
-      ctx.lineTo(handLX, 0) // out to the hand
+      ctx.moveTo(0, 0)           // shoulder
+      ctx.lineTo(handLX, handDY) // angle down-out to the hand
       ctx.stroke()
     }
-    ctx.translate(handLX, 0) // move to the hand at the end of the arm
+    ctx.translate(handLX, handDY) // move to the hand at the end of the arm
     if (player.weaponGlyph) {
       // Mirror the glyph horizontally when facing RIGHT so an asymmetric weapon (bow `}`, gun `¬`)
       // points OUTWARD in both facings (#54) — without it the right-hand bow drew backwards.
@@ -10468,19 +10470,21 @@ function render2D(
         const handX = p.x + facingDir * fontSize * 0.6
         const shoulderX = p.x + facingDir * fontSize * 0.18 // at the body, weapon side
         const handLX = handX - shoulderX                    // hand offset from the shoulder pivot
+        const shoulderY = baseY - lineHeight * 1.9 // PIVOT at the SHOULDER = TOP of the # row (not the hip)
+        const handDY = armY - shoulderY            // hand sits below the shoulder → arm angles down
         ctx.save()
-        ctx.translate(shoulderX, armY)       // PIVOT = the shoulder; the whole arm rotates around it
+        ctx.translate(shoulderX, shoulderY)  // PIVOT = the shoulder; the whole arm rotates around it
         ctx.rotate(facingDir * 2.2 * swingP) // sweep the tip down-forward through the swing
         if (swinging) {
           ctx.strokeStyle = bodyColor // the figure's own tone — the arm reads as part of the body
           ctx.lineWidth = Math.max(3, fontSize * 0.22)
           ctx.lineCap = 'round'
           ctx.beginPath()
-          ctx.moveTo(0, 0)      // shoulder
-          ctx.lineTo(handLX, 0) // out to the hand
+          ctx.moveTo(0, 0)           // shoulder
+          ctx.lineTo(handLX, handDY) // angle down-out to the hand
           ctx.stroke()
         }
-        ctx.translate(handLX, 0) // move to the hand at the end of the arm
+        ctx.translate(handLX, handDY) // move to the hand at the end of the arm
         if (player.weaponGlyph) {
           // Mirror the glyph horizontally when facing RIGHT so an asymmetric weapon (bow `}`,
           // gun `¬`) points OUTWARD in both facings (#54), matching drawIsoPlayer.
