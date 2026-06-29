@@ -896,10 +896,17 @@ function applyPlayerAttack(input: CombatStepInput, kills: string[]): CombatState
   // Melee-vs-ranged + reach come from the equipped weapon, not a hardcoded mode/range.
   const ranged = isRanged(playerWeapon)
   const reach = weaponReach(playerWeapon)
-  const faced = facingCell(player, cellSize, use2D)
   const target = findTarget(player, entities, runtime, cellSize, use2D, reach)
-  const aimCol = target ? target.col : faced.col
-  const aimRow = target ? target.row : faced.row
+  // Aim at an acquired target's cell; otherwise straight down the facing line. A RANGED shot
+  // with no target flies its FULL reach, so a bow/gun covers the SAME distance in EVERY
+  // direction (#53) — it used to die at the 1-cell faced cell, so an open-field shot barely
+  // left the player. Melee keeps its whiff at the adjacent faced cell.
+  const [dCol, dRow] = facingDelta(player.facing, use2D)
+  const pCol = Math.floor(player.x / cellSize)
+  const pRow = Math.floor(player.z / cellSize)
+  const lineDist = ranged ? reach : 1
+  const aimCol = target ? target.col : pCol + dCol * lineDist
+  const aimRow = target ? target.row : pRow + dRow * lineDist
 
   // RANGED: loose a projectile aimed at the target's CURRENT cell and stop. Damage is
   // deferred to impact (tickProjectiles) — it misses if the target steps off that cell.
