@@ -520,7 +520,7 @@ function itemFromReward(reward: Reward, id: string): Item {
  *  The basic strike is always-available on a 1.5s beat (per the ability spec — see
  *  docs/ability-system.md); abilities (keys 1–4) are the faster/heavier hits, gated by their own
  *  cooldowns. */
-const ATTACK_LOOP_MS = 1500
+const ATTACK_LOOP_MS = 500
 /** The two attacks bound to input: `f` = free regular, `g` = rage-fueled special. */
 const REGULAR_MELEE: Attack = { school: 'physical', range: 'melee', tier: 'regular' }
 const SPECIAL_MELEE: Attack = { school: 'physical', range: 'melee', tier: 'special' }
@@ -8502,8 +8502,14 @@ function drawIsoPlayer(
   // Ground shadow sized to the player figure (always reads; fixed — doesn't bob).
   drawGroundShadow(ctx, x, y - tileH * 0.5, pHalf)
 
-  // Robust block figure — same recipe as entities + trees; `breathe` bobs the whole figure.
-  drawBlockFigure(ctx, playerArt, x - pHalf, y - lineHeight * 0.5 - breathe, lineHeight, charW, bodyColor, bodyBg)
+  // Robust block figure — same recipe as entities + trees; `breathe` bobs the whole figure. When
+  // attacking, HIDE the static arm on the swinging side (the animated swing-arm below replaces it) so
+  // we never draw two arms (#47/#39).
+  const swingArmDir = player.facing === 'left' ? -1 : 1
+  const figArt = swingP == null
+    ? playerArt
+    : playerArt.map(row => (swingArmDir > 0 ? row.replace(/>(?=[^>]*$)/, ' ') : row.replace('<', ' ')))
+  drawBlockFigure(ctx, figArt, x - pHalf, y - lineHeight * 0.5 - breathe, lineHeight, charW, bodyColor, bodyBg)
 
   // The held weapon + the shield, both at the ARM row. The weapon sits on the FACING hand; the
   // shield on the OFF-hand (the side OPPOSITE the weapon) at the SAME arm height — so they never
@@ -9743,10 +9749,16 @@ function render2D(
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
 
-      // Draw each line from bottom to top (no background)
+      // Draw each line from bottom to top (no background). When attacking, HIDE the static arm on
+      // the swinging side so the animated swing-arm below doesn't double it (#47/#39).
       const bodyColor = player.armored ? '#bcd4ff' : (player.bodyColor ?? '#ffdd00')
-      for (let i = 0; i < playerArt.length; i++) {
-        const line = playerArt[playerArt.length - 1 - i] // Reverse order (bottom to top)
+      const swingArmDir2 = player.facing === 'left' ? -1 : 1
+      const swinging2 = attackAnims.some(a => a.inHand && time - a.start < a.durationMs)
+      const figArt2 = !swinging2
+        ? playerArt
+        : playerArt.map(row => (swingArmDir2 > 0 ? row.replace(/>(?=[^>]*$)/, ' ') : row.replace('<', ' ')))
+      for (let i = 0; i < figArt2.length; i++) {
+        const line = figArt2[figArt2.length - 1 - i] // Reverse order (bottom to top)
         const lineY = baseY - (i + 0.5) * lineHeight
         ctx.fillStyle = bodyColor
         ctx.fillText(line, p.x, lineY)
