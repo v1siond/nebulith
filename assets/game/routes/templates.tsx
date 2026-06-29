@@ -121,6 +121,7 @@ import {
   bindingForSlot,
   assignAbility,
   removeAbility,
+  rebindAbility,
   type AbilityBinding,
   type AbilityDef,
   type AbilitySlot,
@@ -3578,6 +3579,17 @@ function abilityTooltipLines(a: AbilityDef): string[] {
   return lines
 }
 
+/** Compact one-line effect summary for an ability card (browse modal): the headline number. */
+function abilityEffectLabel(a: AbilityDef): string {
+  const e = a.effect
+  if (e.healing) return `+${e.healing} HP`
+  if (e.shieldMs) return `shield ${(e.shieldMs / 1000).toFixed(0)}s`
+  const parts: string[] = []
+  if (e.damage) parts.push(`${e.damage} dmg`)
+  if (e.debuff) parts.push(e.debuff.kind)
+  return parts.join(' · ') || '—'
+}
+
 /** Floating ability tooltip — same cursor-anchored dark panel as ItemTooltip (#51), tinted to the
  *  ability's animation color so a Fire Slash reads orange, a Frost reads blue, etc. */
 function AbilityTooltip({ ability, x, y }: { ability: AbilityDef; x: number; y: number }) {
@@ -3650,6 +3662,100 @@ function PlayerStatsPanel({ baseStats, loadout, hp }: {
   )
 }
 
+/** Hover-handler bundle for an ability button (drives the #51-style floating tooltip). */
+type AbilityTipProps = {
+  onMouseEnter: (e: React.MouseEvent) => void
+  onMouseMove: (e: React.MouseEvent) => void
+  onMouseLeave: () => void
+}
+
+/** First ability slot with no binding — the default target for the "Browse abilities" button. */
+function firstEmptyAbilitySlot(loadout: readonly AbilityBinding[]): AbilitySlot {
+  return ABILITY_SLOTS.find(s => !bindingForSlot(loadout, s)) ?? 1
+}
+
+/** A clickable trigger-key badge: click → the parent enters key-capture mode and rebinds on the next
+ *  keypress; while capturing it pulses "press…". Shared by special-action + ability slots so BOTH
+ *  sets read as user-keyed and remappable. */
+function KeyCaptureBadge({ keyLabel, capturing, onClick, ariaLabel, tone }: {
+  keyLabel: string
+  capturing: boolean
+  onClick: () => void
+  ariaLabel: string
+  tone: 'amber' | 'fuchsia'
+}) {
+  const toneCls = tone === 'amber' ? 'bg-amber-700 hover:bg-amber-600' : 'bg-fuchsia-700 hover:bg-fuchsia-600'
+  return (
+    <button
+      onClick={onClick}
+      aria-label={ariaLabel}
+      title="Click, then press a key to rebind"
+      className={`rounded px-1.5 text-[10px] font-bold leading-tight ${capturing ? 'animate-pulse bg-white/30 text-white ring-1 ring-white' : toneCls}`}
+    >
+      {capturing ? 'press…' : keyLabel.toUpperCase()}
+    </button>
+  )
+}
+
+/**
+ * External "browse abilities" modal (#51-style cards) — lists the WHOLE registry (name, category,
+ * cooldown, effect) and assigns the picked ability into the chosen slot. Slot tabs across the top
+ * select the target; assigning keeps the modal open so several slots can be filled in one visit.
+ * Sits above the inventory panel (z-40); its hover tooltips render in the parent at z-50.
+ */
+function AbilityBrowseModal({ loadout, targetSlot, onPickSlot, onAssign, onClose, tipProps }: {
+  loadout: readonly AbilityBinding[]
+  targetSlot: AbilitySlot
+  onPickSlot: (s: AbilitySlot) => void
+  onAssign: (slot: AbilitySlot, ability: AbilityDef) => void
+  onClose: () => void
+  tipProps: (a: AbilityDef) => AbilityTipProps
+}) {
+  return (
+    <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/80 p-4 font-mono" role="dialog" aria-label="Browse abilities" onClick={onClose}>
+      <div className="max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-lg border border-fuchsia-500/50 bg-gray-900 p-4 text-white shadow-2xl" onClick={e => e.stopPropagation()}>
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-sm font-bold text-fuchsia-300">Browse Abilities</h2>
+          <button onClick={onClose} className="rounded bg-gray-700 px-2 py-1 text-xs hover:bg-gray-600" aria-label="Close ability browser">✕</button>
+        </div>
+        <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-gray-400">Assign to slot</p>
+        <div className="mb-3 grid grid-cols-4 gap-1">
+          {ABILITY_SLOTS.map(slot => {
+            const ability = bindingForSlot(loadout, slot)?.ability
+            const active = slot === targetSlot
+            return (
+              <button
+                key={slot}
+                onClick={() => onPickSlot(slot)}
+                aria-label={`Target slot ${slot}${active ? ' (selected)' : ''}`}
+                className={`rounded border px-1.5 py-1 text-center text-[10px] ${active ? 'border-fuchsia-400 bg-fuchsia-900/60' : 'border-white/10 bg-black/40 hover:bg-white/5'}`}
+              >
+                <span className="block font-bold">Slot {slot}</span>
+                <span className="block truncate text-[9px]" style={{ color: ability ? ABILITY_TINT[ability.animation] : '#6b7280' }}>{ability ? ability.name : 'empty'}</span>
+              </button>
+            )
+          })}
+        </div>
+        <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-gray-400">Abilities ({ABILITY_REGISTRY.length})</p>
+        <div className="grid grid-cols-2 gap-1.5">
+          {ABILITY_REGISTRY.map(a => (
+            <button
+              key={a.id}
+              onClick={() => onAssign(targetSlot, a)}
+              {...tipProps(a)}
+              className="rounded border border-white/10 bg-gray-800 px-2 py-1.5 text-left hover:border-fuchsia-500/60 hover:bg-fuchsia-900/40"
+            >
+              <span className="block truncate text-[11px] font-bold" style={{ color: ABILITY_TINT[a.animation] }}>{a.name}</span>
+              <span className="block truncate text-[9px] text-gray-400">{a.category} · {(a.cooldownMs / 1000).toFixed(0)}s cd</span>
+              <span className="block truncate text-[9px] text-gray-300">{abilityEffectLabel(a)}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function EquipmentPanel({ label, loadout, baseStats, hp, onChange, onClose, abilityLoadout, onAbilityChange }: {
   label: string
   loadout: Loadout
@@ -3683,146 +3789,199 @@ function EquipmentPanel({ label, loadout, baseStats, hp, onChange, onClose, abil
     const item = loadout.special[i]
     if (item) onChange(addToBag(setSpecial(loadout, i, null), item))
   }
-  const cycleShortcut = (i: number) => {
-    const keys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0']
-    const cur = keys.indexOf(loadout.shortcuts[i])
-    onChange(setShortcut(loadout, i, keys[(cur + 1) % keys.length]))
-  }
-  // Ability assign/remove: which slot's picker is open + the hovered ability tooltip (#51 style).
-  const [pickerSlot, setPickerSlot] = useState<AbilitySlot | null>(null)
+  // Hovered ability tooltip (#51 style) — fed by the ability slots AND the browse modal's cards.
   const [hoveredAbility, setHoveredAbility] = useState<{ ability: AbilityDef; x: number; y: number } | null>(null)
-  const abilityTipProps = (a: AbilityDef) => ({
+  const abilityTipProps = (a: AbilityDef): AbilityTipProps => ({
     onMouseEnter: (e: React.MouseEvent) => setHoveredAbility({ ability: a, x: e.clientX, y: e.clientY }),
     onMouseMove: (e: React.MouseEvent) => setHoveredAbility(h => (h ? { ...h, x: e.clientX, y: e.clientY } : h)),
     onMouseLeave: () => setHoveredAbility(null),
   })
+  // Browse-abilities modal: the slot it targets (null = closed). Opened from the abilities section.
+  const [browseSlot, setBrowseSlot] = useState<AbilitySlot | null>(null)
+  // Key-capture: which slot is being rebound (null = idle). Click a key badge → the NEXT keypress
+  // remaps that slot. Special actions + abilities share this, so both read as user-keyed/remappable.
+  const [capturing, setCapturing] = useState<{ kind: 'ability' | 'special'; index: number } | null>(null)
+  useEffect(() => {
+    if (!capturing) return
+    const onKey = (e: KeyboardEvent) => {
+      // Capture phase + stopImmediatePropagation: the press rebinds HERE and never reaches the play
+      // loop's key map, so we don't fire the very action we're rebinding (or toggle the inventory).
+      e.preventDefault()
+      e.stopImmediatePropagation()
+      if (e.key === 'Escape') { setCapturing(null); return }
+      if (['Shift', 'Control', 'Alt', 'Meta'].includes(e.key)) return // wait for a non-modifier key
+      const key = e.key.length === 1 ? e.key.toLowerCase() : e.key
+      if (capturing.kind === 'ability' && abilityLoadout && onAbilityChange) {
+        onAbilityChange(rebindAbility(abilityLoadout, capturing.index as AbilitySlot, key))
+      } else if (capturing.kind === 'special') {
+        onChange(setShortcut(loadout, capturing.index, key))
+      }
+      setCapturing(null)
+    }
+    window.addEventListener('keydown', onKey, true)
+    return () => window.removeEventListener('keydown', onKey, true)
+  }, [capturing, abilityLoadout, onAbilityChange, loadout, onChange])
+  const capturingSpecial = (i: number) => capturing?.kind === 'special' && capturing.index === i
+  const capturingAbility = (slot: AbilitySlot) => capturing?.kind === 'ability' && capturing.index === slot
 
   return (
-    <div className="fixed inset-0 z-30 flex items-center justify-center bg-black/70 p-4 font-mono" role="dialog" aria-label="Inventory" onClick={onClose}>
-      <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg border border-cyan-500/40 bg-gray-900 p-4 text-white shadow-2xl" onClick={e => e.stopPropagation()}>
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-sm font-bold text-cyan-400">Inventory — {label}</h2>
-          <button onClick={onClose} className="rounded bg-gray-700 px-2 py-1 text-xs hover:bg-gray-600" aria-label="Close inventory">✕ (I)</button>
-        </div>
+    <>
+      <div className="fixed inset-0 z-30 flex items-center justify-center bg-black/70 p-4 font-mono" role="dialog" aria-label="Inventory" onClick={onClose}>
+        <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-lg border border-cyan-500/40 bg-gray-900 p-4 text-white shadow-2xl" onClick={e => e.stopPropagation()}>
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-sm font-bold text-cyan-400">Inventory — {label}</h2>
+            <button onClick={onClose} className="rounded bg-gray-700 px-2 py-1 text-xs hover:bg-gray-600" aria-label="Close inventory">✕ (I)</button>
+          </div>
 
-        <PlayerStatsPanel baseStats={baseStats} loadout={loadout} hp={hp} />
-
-        <p className="mb-1 text-xs font-bold text-gray-400">Equipped</p>
-        <div className="mb-3 grid grid-cols-3 gap-1">
-          {EQUIP_SLOTS.map(slot => {
-            const item = loadout.equipped[slot]
-            return (
-              <button key={slot} onClick={() => unequipToBag(slot)} disabled={!item} {...tipProps(item)}
-                className={`rounded border px-2 py-1.5 text-left text-[11px] ${item ? 'border-cyan-600 bg-cyan-900/40 hover:bg-cyan-900/70' : 'border-white/10 bg-black/40 text-gray-600'}`}>
-                <span className="block text-[9px] uppercase text-gray-500">{SLOT_LABEL[slot]}</span>
-                <span className="block truncate">{item ? item.name : '—'}</span>
-              </button>
-            )
-          })}
-        </div>
-
-        <p className="mb-1 text-xs font-bold text-gray-400">Special — bound to number keys</p>
-        <div className="mb-3 flex gap-1">
-          {loadout.special.map((item, i) => (
-            <div key={i} className="flex-1 rounded border border-amber-600/40 bg-amber-900/20 p-1 text-center text-[11px]">
-              <button onClick={() => cycleShortcut(i)} className="mb-0.5 rounded bg-amber-700 px-1.5 text-[10px] font-bold hover:bg-amber-600" aria-label={`Cycle shortcut key for special slot ${i + 1}`}>{loadout.shortcuts[i]}</button>
-              <button onClick={() => sendSpecialToBag(i)} disabled={!item} {...tipProps(item)} className="block w-full truncate hover:text-amber-300">{item ? item.name : '—'}</button>
-            </div>
-          ))}
-        </div>
-
-        {abilityLoadout && onAbilityChange && (
-          <>
-            <p className="mb-1 text-xs font-bold text-gray-400">Abilities — bound to keys 1–4</p>
-            <div className="mb-2 flex gap-1">
-              {ABILITY_SLOTS.map(slot => {
-                const ability = bindingForSlot(abilityLoadout, slot)?.ability
-                return (
-                  <div
-                    key={slot}
-                    className="relative flex-1 rounded border border-fuchsia-600/40 bg-fuchsia-900/20 p-1 text-center text-[11px]"
-                    style={ability ? { borderColor: ABILITY_TINT[ability.animation] } : undefined}
-                  >
-                    <div className="mb-0.5 flex items-center justify-center gap-1">
-                      <span className="rounded bg-fuchsia-700 px-1.5 text-[10px] font-bold">{slot}</span>
-                      {ability && (
-                        <button
-                          onClick={() => onAbilityChange(removeAbility(abilityLoadout, slot))}
-                          className="rounded bg-black/40 px-1 text-[10px] text-fuchsia-200 hover:text-red-300"
-                          aria-label={`Remove ability from slot ${slot}`}
-                        >
-                          ✕
-                        </button>
-                      )}
-                    </div>
-                    {ability ? (
-                      <button
-                        {...abilityTipProps(ability)}
-                        className="block w-full truncate font-bold hover:text-fuchsia-300"
-                        style={{ color: ABILITY_TINT[ability.animation] }}
-                      >
-                        {ability.name}
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => setPickerSlot(slot)}
-                        className="block w-full truncate text-gray-500 hover:text-fuchsia-300"
-                        aria-label={`Assign ability to slot ${slot}`}
-                      >
-                        + Assign
-                      </button>
-                    )}
+          {/* ── Action slots: SPECIAL ACTIONS beside ABILITIES — two distinct, user-keyed sets ── */}
+          <div className="mb-3 grid grid-cols-2 gap-3">
+            {/* Special actions (consumables / throwables) — default keys 5–8, rebindable to any key. */}
+            <section className="rounded-lg border border-amber-500/30 bg-black/40 p-2">
+              <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wider text-amber-300">Special actions — own keys</p>
+              <div className="grid grid-cols-2 gap-1">
+                {loadout.special.map((item, i) => (
+                  <div key={i} className="rounded border border-amber-600/40 bg-amber-900/20 p-1 text-center text-[11px]">
+                    <KeyCaptureBadge
+                      keyLabel={loadout.shortcuts[i]}
+                      capturing={capturingSpecial(i)}
+                      onClick={() => setCapturing({ kind: 'special', index: i })}
+                      ariaLabel={`Rebind key for special slot ${i + 1}`}
+                      tone="amber"
+                    />
+                    <button onClick={() => sendSpecialToBag(i)} disabled={!item} {...tipProps(item)} className="mt-0.5 block w-full truncate hover:text-amber-300">{item ? item.name : '—'}</button>
                   </div>
-                )
-              })}
-            </div>
-            {pickerSlot !== null && (
-              <div className="mb-3 rounded border border-fuchsia-500/40 bg-black/60 p-2">
-                <div className="mb-1 flex items-center justify-between">
-                  <span className="text-[10px] font-bold text-fuchsia-300">Assign an ability to slot {pickerSlot}</span>
-                  <button onClick={() => setPickerSlot(null)} className="text-[10px] text-gray-400 hover:text-white" aria-label="Close ability picker">✕</button>
-                </div>
+                ))}
+              </div>
+            </section>
+
+            {/* Abilities — default keys 1–4, rebindable; assigned from the external browse modal. */}
+            <section className="rounded-lg border border-fuchsia-500/30 bg-black/40 p-2">
+              <div className="mb-1.5 flex items-center justify-between">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-fuchsia-300">Abilities — own keys</p>
+                {abilityLoadout && onAbilityChange && (
+                  <button
+                    onClick={() => setBrowseSlot(firstEmptyAbilitySlot(abilityLoadout))}
+                    className="rounded bg-fuchsia-700 px-1.5 py-0.5 text-[9px] font-bold hover:bg-fuchsia-600"
+                    aria-label="Browse abilities"
+                  >
+                    ＋ Browse
+                  </button>
+                )}
+              </div>
+              {abilityLoadout && onAbilityChange ? (
                 <div className="grid grid-cols-2 gap-1">
-                  {ABILITY_REGISTRY.map(a => (
-                    <button
-                      key={a.id}
-                      onClick={() => { onAbilityChange(assignAbility(abilityLoadout, pickerSlot, a)); setPickerSlot(null) }}
-                      {...abilityTipProps(a)}
-                      className="rounded bg-gray-800 px-1.5 py-1 text-left hover:bg-fuchsia-900/60"
-                    >
-                      <span className="block truncate text-[10px] font-bold" style={{ color: ABILITY_TINT[a.animation] }}>{a.name}</span>
-                      <span className="block truncate text-[9px] text-gray-400">{a.category} · {(a.cooldownMs / 1000).toFixed(0)}s</span>
-                    </button>
+                  {ABILITY_SLOTS.map(slot => {
+                    const binding = bindingForSlot(abilityLoadout, slot)
+                    const ability = binding?.ability
+                    return (
+                      <div
+                        key={slot}
+                        className="rounded border border-fuchsia-600/40 bg-fuchsia-900/20 p-1 text-center text-[11px]"
+                        style={ability ? { borderColor: ABILITY_TINT[ability.animation] } : undefined}
+                      >
+                        <div className="flex items-center justify-center gap-1">
+                          <KeyCaptureBadge
+                            keyLabel={binding?.key ?? String(slot)}
+                            capturing={capturingAbility(slot)}
+                            onClick={() => setCapturing({ kind: 'ability', index: slot })}
+                            ariaLabel={`Rebind key for ability slot ${slot}`}
+                            tone="fuchsia"
+                          />
+                          {ability && (
+                            <button
+                              onClick={() => onAbilityChange(removeAbility(abilityLoadout, slot))}
+                              className="rounded bg-black/40 px-1 text-[10px] text-fuchsia-200 hover:text-red-300"
+                              aria-label={`Remove ability from slot ${slot}`}
+                            >
+                              ✕
+                            </button>
+                          )}
+                        </div>
+                        {ability ? (
+                          <button
+                            {...abilityTipProps(ability)}
+                            onClick={() => setBrowseSlot(slot)}
+                            className="mt-0.5 block w-full truncate font-bold hover:text-fuchsia-300"
+                            style={{ color: ABILITY_TINT[ability.animation] }}
+                          >
+                            {ability.name}
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => setBrowseSlot(slot)}
+                            className="mt-0.5 block w-full truncate text-gray-500 hover:text-fuchsia-300"
+                            aria-label={`Assign ability to slot ${slot}`}
+                          >
+                            + Assign
+                          </button>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              ) : (
+                <p className="text-[10px] text-gray-600">No abilities for this entity.</p>
+              )}
+            </section>
+          </div>
+
+          {/* ── Two-column body: LEFT = bag (inventory), RIGHT = character equipment + stats ── */}
+          <div className="grid grid-cols-2 gap-3">
+            {/* LEFT — the bag */}
+            <section>
+              <p className="mb-1 text-xs font-bold text-gray-400">Inventory — Bag ({loadout.bag.filter(Boolean).length}/{loadout.bag.length})</p>
+              <div className="mb-3 grid grid-cols-4 gap-1">
+                {loadout.bag.map((item, i) => (
+                  <button key={i} onClick={() => onChange(useBagItem(loadout, i))} disabled={!item} {...tipProps(item)}
+                    title={item ? `Equip / use ${item.name}` : ''}
+                    className={`aspect-square rounded border p-1 text-[9px] leading-tight ${item ? 'border-white/20 bg-gray-800 hover:bg-gray-700' : 'border-white/5 bg-black/30 text-gray-700'}`}>
+                    {item ? item.name.slice(0, 10) : ''}
+                  </button>
+                ))}
+              </div>
+              <details>
+                <summary className="cursor-pointer text-xs text-gray-400">+ Add gear to bag</summary>
+                <div className="mt-1 grid grid-cols-2 gap-1">
+                  {GEAR_CATALOG.map(g => (
+                    <button key={g.id} onClick={() => onChange(addToBag(loadout, g))} className="truncate rounded bg-gray-700 px-1 py-0.5 text-[10px] hover:bg-gray-600">{g.name}</button>
                   ))}
                 </div>
+              </details>
+            </section>
+
+            {/* RIGHT — character equipment + live stat totals */}
+            <section>
+              <PlayerStatsPanel baseStats={baseStats} loadout={loadout} hp={hp} />
+              <p className="mb-1 text-xs font-bold text-gray-400">Equipment</p>
+              <div className="grid grid-cols-2 gap-1">
+                {EQUIP_SLOTS.map(slot => {
+                  const item = loadout.equipped[slot]
+                  return (
+                    <button key={slot} onClick={() => unequipToBag(slot)} disabled={!item} {...tipProps(item)}
+                      className={`rounded border px-2 py-1.5 text-left text-[11px] ${item ? 'border-cyan-600 bg-cyan-900/40 hover:bg-cyan-900/70' : 'border-white/10 bg-black/40 text-gray-600'}`}>
+                      <span className="block text-[9px] uppercase text-gray-500">{SLOT_LABEL[slot]}</span>
+                      <span className="block truncate">{item ? item.name : '—'}</span>
+                    </button>
+                  )
+                })}
               </div>
-            )}
-          </>
-        )}
-
-        <p className="mb-1 text-xs font-bold text-gray-400">Bag ({loadout.bag.filter(Boolean).length}/{loadout.bag.length})</p>
-        <div className="mb-3 grid grid-cols-6 gap-1">
-          {loadout.bag.map((item, i) => (
-            <button key={i} onClick={() => onChange(useBagItem(loadout, i))} disabled={!item} {...tipProps(item)}
-              title={item ? `Equip / use ${item.name}` : ''}
-              className={`aspect-square rounded border p-1 text-[9px] leading-tight ${item ? 'border-white/20 bg-gray-800 hover:bg-gray-700' : 'border-white/5 bg-black/30 text-gray-700'}`}>
-              {item ? item.name.slice(0, 10) : ''}
-            </button>
-          ))}
-        </div>
-
-        <details>
-          <summary className="cursor-pointer text-xs text-gray-400">+ Add gear to bag</summary>
-          <div className="mt-1 grid grid-cols-3 gap-1">
-            {GEAR_CATALOG.map(g => (
-              <button key={g.id} onClick={() => onChange(addToBag(loadout, g))} className="truncate rounded bg-gray-700 px-1 py-0.5 text-[10px] hover:bg-gray-600">{g.name}</button>
-            ))}
+            </section>
           </div>
-        </details>
+        </div>
       </div>
+      {browseSlot !== null && abilityLoadout && onAbilityChange && (
+        <AbilityBrowseModal
+          loadout={abilityLoadout}
+          targetSlot={browseSlot}
+          onPickSlot={setBrowseSlot}
+          onAssign={(slot, ability) => onAbilityChange(assignAbility(abilityLoadout, slot, ability))}
+          onClose={() => setBrowseSlot(null)}
+          tipProps={abilityTipProps}
+        />
+      )}
       {hovered && <ItemTooltip item={hovered.item} x={hovered.x} y={hovered.y} />}
       {hoveredAbility && <AbilityTooltip ability={hoveredAbility.ability} x={hoveredAbility.x} y={hoveredAbility.y} />}
-    </div>
+    </>
   )
 }
 
