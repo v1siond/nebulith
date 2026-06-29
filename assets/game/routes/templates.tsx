@@ -68,7 +68,19 @@ import { weaponAnimKind, animFrame, isAnimDone, ATTACK_ANIM_MS, type AttackAnim,
 import { entityArtFrame, weaponGlyph, entityPalette, topRoleColor, entityFootprint } from '@/engine/entityArt'
 import { entityQuestMarker, type QuestMarker } from '@/engine/entityQuestMarker'
 import { isoFacingIndex, isoFacadeOnBack, buildingFadeAlpha } from '@/engine/isoBuilding'
-import { appendWaypoint, setMovementMode, clearWaypoints, buildStepList, addMovementStep, removeMovementStep, updateMovementStep, setStepDelay, makeAttackPattern, defaultAttackPattern } from '@/game/patterns'
+import { appendWaypoint, setMovementMode, clearWaypoints, buildStepList, addMovementStep, removeMovementStep, updateMovementStep, setStepDelay } from '@/game/patterns'
+import {
+  nextEnemyAttack,
+  normalizeAttackPattern,
+  buildAttackPattern,
+  setAttackPatternMode,
+  addEnemyAttack,
+  removeEnemyAttack,
+  updateEnemyAttack,
+  defaultEnemyAttack,
+  enemyAttackFromAbility,
+  ENEMY_ATTACK_PRESETS,
+} from '@/game/patterns'
 import type { Direction } from '@/game/types'
 import { useToast } from '@/components/Toast'
 import {
@@ -104,6 +116,7 @@ import {
   type AbilityBinding,
   type AbilityDef,
   type AbilitySlot,
+  type AbilityAnimation,
 } from '@/game/abilities'
 import { isRanged, weaponReach } from '@/game/weapons'
 import {
@@ -139,6 +152,9 @@ import type {
   ConsumableEffect,
   MovementPattern,
   AttackMode,
+  AttackPattern,
+  AttackPatternMode,
+  EnemyAttack,
 } from '@/game/types'
 import { EQUIP_SLOTS } from '@/game/types'
 import { createInventory, addItem, equipWeapon, equipArmor, useConsumable } from '@/game/inventory'
@@ -539,12 +555,11 @@ const ATTACK_LOOP_MS = 500
 const REGULAR_MELEE: Attack = { school: 'physical', range: 'melee', tier: 'regular' }
 const SPECIAL_MELEE: Attack = { school: 'physical', range: 'melee', tier: 'special' }
 
-/** Enemy retaliation: a flat regular melee, gated by a per-enemy cooldown (ms). A
- *  ranged enemy (entity.attack.mode==='ranged') uses the ranged variant + reach. */
+/** The two combat-engine attack shapes an enemy swing resolves through (resolveAttack reads
+ *  school/range). Which one (and its damage/cooldown/tint) is chosen each tick comes from the
+ *  enemy's attack PATTERN — see nextEnemyAttack + applyEnemyRetaliation. */
 const ENEMY_ATTACK: Attack = REGULAR_MELEE
 const ENEMY_RANGED_ATTACK: Attack = { school: 'physical', range: 'ranged', tier: 'regular' }
-/** Fallback cooldown for enemies with no authored attack pattern. */
-const ENEMY_ATTACK_COOLDOWN_MS = 900
 
 /** "+dmg" hit markers float for this long before fading. */
 const HIT_MARKER_MS = 650
@@ -566,12 +581,15 @@ export interface EnemyRuntime {
   diedAt: Map<string, number>
   /** last time each enemy landed a retaliation hit (drives its cooldown). */
   lastAttackAt: Map<string, number>
+  /** how many times each enemy has fired (drives sequential attack-pattern cycling). */
+  attackFireCount: Map<string, number>
 }
 
 export const makeEnemyRuntime = (): EnemyRuntime => ({
   combat: new Map(),
   diedAt: new Map(),
   lastAttackAt: new Map(),
+  attackFireCount: new Map(),
 })
 
 /** Read-only snapshot of player combat for the HUD (mirrored to React state). */
@@ -616,6 +634,7 @@ function pruneRuntimeMaps(runtime: EnemyRuntime, live: ReadonlySet<string>): voi
     runtime.combat.delete(id)
     runtime.diedAt.delete(id)
     runtime.lastAttackAt.delete(id)
+    runtime.attackFireCount.delete(id)
   }
 }
 
@@ -629,6 +648,7 @@ function respawnElapsedEnemies(entities: readonly Entity[], runtime: EnemyRuntim
     runtime.combat.set(entity.id, startingCombatState(entity.baseStats))
     runtime.diedAt.delete(entity.id)
     runtime.lastAttackAt.delete(entity.id)
+    runtime.attackFireCount.delete(entity.id) // restart its attack cycle on respawn
   }
 }
 
@@ -731,7 +751,7 @@ function playerHudFrom(baseStats: Stats, weapon: Weapon, state: CombatState): Pl
 }
 
 /** Inputs the per-frame combat step reads/owns. Keeps the loop call site flat. */
-interface CombatStepInput {
+export interface CombatStepInput {
   player: PlayerState
   entities: readonly Entity[]
   runtime: EnemyRuntime
@@ -1092,8 +1112,14 @@ function spawnImpactFlourish(anims: AttackAnim[] | undefined, col: number, row: 
   spawnAttackAnim(anims, x, z, x, z, 'block', now)
 }
 
-/** Every adjacent living enemy off its cooldown lands one melee hit on the player. */
-function applyEnemyRetaliation(input: CombatStepInput & { playerCombat: CombatState }): CombatState {
+/**
+ * Each living enemy fires the NEXT attack from its authored pattern (sequential cycle / random
+ * pick — see nextEnemyAttack), if that attack is in range AND off cooldown. The chosen attack
+ * drives EVERYTHING: melee vs ranged reach, its damage (the swing's weapon base), its cooldown,
+ * and its animation tint — so an enemy with a [melee, ranged] list visibly alternates a slash and
+ * a bolt. An enemy with no authored pattern falls back to a single strength-only melee (no regress).
+ */
+export function applyEnemyRetaliation(input: CombatStepInput & { playerCombat: CombatState }): CombatState {
   const { player, entities, runtime, playerWeapon, hitMarkers, cellSize, now } = input
   let playerCombat = input.playerCombat
 
@@ -1103,21 +1129,27 @@ function applyEnemyRetaliation(input: CombatStepInput & { playerCombat: CombatSt
 
   for (const entity of entities) {
     if (!isLivingEnemy(entity, runtime)) continue
-    if (!withinAttackReach(player, entity, cellSize)) continue
-    if (!offCooldown(runtime, entity, now)) continue
+    // The pattern decides the next attack (the cooldown gate uses THAT attack's cooldown).
+    const fireCount = runtime.attackFireCount.get(entity.id) ?? 0
+    const chosen = nextEnemyAttack(entity.attack, { fireCount })
+    if (!withinAttackReach(player, entity, cellSize, chosen)) continue
+    if (!offCooldown(runtime, entity, now, chosen)) continue
 
-    const ranged = entity.attack?.mode === 'ranged'
+    const ranged = chosen.mode === 'ranged'
     const result = resolveAttack({
       attacker: entity.baseStats,
       defender: defenderStats,
       attack: ranged ? ENEMY_RANGED_ATTACK : ENEMY_ATTACK,
-      attackerWeapon: enemyFist(entity, ranged),
+      attackerWeapon: enemyFist(entity, chosen),
       defenderWeapon: input.playerShield ?? playerWeapon,
       defenderHp: playerCombat.hp,
     })
     runtime.lastAttackAt.set(entity.id, now)
-    // The enemy's swing/bolt animates too — attacks trigger animations for EVERY attacker.
-    spawnAttackAnim(input.anims, entity.col * cellSize + cellSize / 2, entity.row * cellSize + cellSize / 2, player.x, player.z, ranged ? 'shot' : 'slash', now)
+    runtime.attackFireCount.set(entity.id, fireCount + 1) // advance the sequential cycle
+    // The enemy's swing/bolt animates too — attacks trigger animations for EVERY attacker. The
+    // attack's animation recolors it (a fire bite burns orange, a frost bolt glows blue).
+    const tint = chosen.animation ? ABILITY_TINT[chosen.animation] : undefined
+    spawnAttackAnim(input.anims, entity.col * cellSize + cellSize / 2, entity.row * cellSize + cellSize / 2, player.x, player.z, ranged ? 'shot' : 'slash', now, undefined, false, tint)
     playerCombat = { ...playerCombat, hp: result.defenderHpAfter }
     const pCol = Math.floor(player.x / cellSize)
     const pRow = Math.floor(player.z / cellSize)
@@ -1127,14 +1159,15 @@ function applyEnemyRetaliation(input: CombatStepInput & { playerCombat: CombatSt
   return playerCombat
 }
 
-/** An enemy's "weapon" is its bare strength — a zero-base physical attack. Ranged
- *  enemies fling a bolt (range matches the attack so block/range checks line up). */
-function enemyFist(entity: Entity, ranged = false): Weapon {
+/** An enemy's "weapon" for one attack: its bare strength plus the attack's authored damage as the
+ *  weapon base. Ranged attacks fling a bolt (range + reach match so block/range checks line up). */
+function enemyFist(entity: Entity, attack: EnemyAttack): Weapon {
+  const ranged = attack.mode === 'ranged'
   return {
     id: `fist-${entity.id}`,
     kind: 'sword',
-    name: ranged ? 'Bolt' : 'Claw',
-    baseDamage: 0,
+    name: attack.name ?? (ranged ? 'Bolt' : 'Claw'),
+    baseDamage: attack.damage, // authored damage rides as the swing's weapon base
     baseMagic: 0,
     baseDefense: 0,
     strengthBonus: 0,
@@ -1142,26 +1175,27 @@ function enemyFist(entity: Entity, ranged = false): Weapon {
     school: 'physical',
     range: ranged ? 'ranged' : 'melee',
     hands: 1,
-    reachCells: ranged ? 6 : 1,
+    reachCells: ranged ? (attack.reachCells ?? RANGED_RANGE) : 1,
   }
 }
 
-/** Can this enemy reach the player to retaliate? Melee = 8-adjacent; a ranged enemy
- *  reaches up to RANGED_RANGE cells away in any direction (chebyshev distance). */
-function withinAttackReach(player: PlayerState, entity: Entity, cellSize: number): boolean {
-  if (entity.attack?.mode !== 'ranged') return isAdjacentToPlayer(player, entity, cellSize)
+/** Can this enemy land THIS attack on the player? Melee = 8-adjacent; ranged reaches up to the
+ *  attack's reachCells (default RANGED_RANGE) cells away in any direction (chebyshev distance). */
+function withinAttackReach(player: PlayerState, entity: Entity, cellSize: number, attack: EnemyAttack): boolean {
+  if (attack.mode !== 'ranged') return isAdjacentToPlayer(player, entity, cellSize)
   const pCol = Math.floor(player.x / cellSize)
   const pRow = Math.floor(player.z / cellSize)
   const dist = Math.max(Math.abs(entity.col - pCol), Math.abs(entity.row - pRow))
-  return dist >= 1 && dist <= RANGED_RANGE
+  const reach = attack.reachCells ?? RANGED_RANGE
+  return dist >= 1 && dist <= reach
 }
 
-/** Has this enemy's retaliation cooldown elapsed? (first hit is always allowed) Uses
- *  the entity's authored attack cooldown when set, else the engine default. */
-function offCooldown(runtime: EnemyRuntime, entity: Entity, now: number): boolean {
+/** Has enough time elapsed since this enemy's last swing to fire its NEXT attack? (first hit is
+ *  always allowed.) Gated by the chosen attack's own cooldown. */
+function offCooldown(runtime: EnemyRuntime, entity: Entity, now: number, attack: EnemyAttack): boolean {
   const last = runtime.lastAttackAt.get(entity.id)
   if (last === undefined) return true
-  return now - last >= (entity.attack?.cooldownMs ?? ENEMY_ATTACK_COOLDOWN_MS)
+  return now - last >= attack.cooldownMs
 }
 
 /** Append a floating "+dmg" marker (skipped when no damage was dealt). */
@@ -3893,42 +3927,185 @@ function EntityMovementBody({ entity, onPatch, waypointMode, onToggleWaypointMod
   )
 }
 
-/** Attack-pattern editor for enemies (Attacks modal body). */
-function EntityAttackBody({ entity, onPatch }: {
-  entity: Entity
-  onPatch: (patch: Partial<Entity>) => void
+/** The seeded animation ids (drive the swing/bolt tint) — for the per-attack tint picker. */
+const ATTACK_ANIMATION_OPTIONS = Object.keys(ABILITY_TINT) as AbilityAnimation[]
+
+/** One attack row in the pattern editor: melee/ranged + damage + cooldown + tint + remove. */
+function EnemyAttackRow({ attack, index, onChange, onRemove }: {
+  attack: EnemyAttack
+  index: number
+  onChange: (patch: Partial<EnemyAttack>) => void
+  onRemove: () => void
 }) {
+  const tint = attack.animation ? ABILITY_TINT[attack.animation] : '#9aa4b2'
   return (
-    <div className="text-xs">
-      <span className="mb-0.5 block text-[10px] text-gray-400">Attack pattern</span>
-      <div className="flex gap-1">
+    <div className="rounded border border-gray-700 p-1.5">
+      <div className="mb-1 flex items-center gap-1">
+        <span className="text-[11px] font-bold" style={{ color: tint }}>
+          {attack.name ?? `Attack ${index + 1}`}
+        </span>
+        <span className="text-[10px] text-gray-500">{attack.mode}</span>
+        <button
+          onClick={onRemove}
+          aria-label={`Remove attack ${index + 1}`}
+          className="ml-auto rounded bg-gray-700 px-2 text-[11px] hover:bg-red-700"
+        >
+          ×
+        </button>
+      </div>
+      <div className="flex flex-wrap items-center gap-1">
         <select
-          value={entity.attack?.mode ?? 'melee'}
-          onChange={e => {
-            const mode = e.target.value as AttackMode
-            const cooldownMs = entity.attack?.cooldownMs ?? defaultAttackPattern(mode).cooldownMs
-            onPatch({ attack: makeAttackPattern(mode, cooldownMs) })
-          }}
-          aria-label="Attack mode"
-          className="flex-1 rounded bg-gray-800 p-1 text-xs"
+          value={attack.mode}
+          onChange={e => onChange({ mode: e.target.value as AttackMode })}
+          aria-label={`Attack ${index + 1} mode`}
+          className="rounded bg-gray-800 p-1 text-[11px]"
         >
           <option value="melee">Melee (adjacent)</option>
-          <option value="ranged">Ranged (line of sight)</option>
+          <option value="ranged">Ranged (reach)</option>
         </select>
+        <label className="flex items-center gap-1 text-[10px] text-gray-400">
+          <span className="shrink-0">dmg</span>
+          <input
+            type="number"
+            min={0}
+            value={attack.damage}
+            onChange={e => onChange({ damage: Number(e.target.value) })}
+            aria-label={`Attack ${index + 1} damage`}
+            className="w-14 rounded bg-gray-800 p-1 text-[11px]"
+          />
+        </label>
         <label className="flex items-center gap-1 text-[10px] text-gray-400">
           <span className="shrink-0">CD ms</span>
           <input
             type="number"
-            value={entity.attack?.cooldownMs ?? defaultAttackPattern(entity.attack?.mode ?? 'melee').cooldownMs}
-            onChange={e =>
-              onPatch({ attack: makeAttackPattern(entity.attack?.mode ?? 'melee', Number(e.target.value)) })
-            }
-            aria-label="Attack cooldown ms"
-            className="w-16 rounded bg-gray-800 p-1 text-xs"
+            value={attack.cooldownMs}
+            onChange={e => onChange({ cooldownMs: Number(e.target.value) })}
+            aria-label={`Attack ${index + 1} cooldown ms`}
+            className="w-16 rounded bg-gray-800 p-1 text-[11px]"
           />
         </label>
+        <select
+          value={attack.animation ?? ''}
+          onChange={e => onChange({ animation: (e.target.value || undefined) as AbilityAnimation | undefined })}
+          aria-label={`Attack ${index + 1} animation`}
+          className="rounded bg-gray-800 p-1 text-[11px]"
+          style={{ color: tint }}
+        >
+          <option value="">(default tint)</option>
+          {ATTACK_ANIMATION_OPTIONS.map(a => (
+            <option key={a} value={a}>{a}</option>
+          ))}
+        </select>
       </div>
-      <p className="mt-1 text-[10px] text-gray-500">Melee strikes adjacent; ranged fires within line of sight. CD = cooldown between swings.</p>
+    </div>
+  )
+}
+
+/**
+ * Attack-pattern editor for enemies (Attacks modal body) — the enemy mirror of the movement
+ * editor. The author builds an ordered LIST of attacks (add presets / registry abilities / blank
+ * melee + ranged), tunes each one's damage / cooldown / tint, and picks the traversal mode
+ * (sequential cycles the list, random picks one) — exactly how movement steps are authored. The
+ * pattern rides the entity record, so it saves with the template.
+ */
+function EntityAttackBody({ entity, onPatch }: {
+  entity: Entity
+  onPatch: (patch: Partial<Entity>) => void
+}) {
+  // entity.attack may be absent (engine default) or a legacy single-attack save → normalize for
+  // display, but only AFTER the author has opted into a pattern (absent stays "Default").
+  const pattern = entity.attack ? normalizeAttackPattern(entity.attack) : undefined
+
+  const setPattern = (next: AttackPattern) =>
+    onPatch({ attack: next.attacks.length > 0 ? next : undefined })
+
+  return (
+    <div className="text-xs">
+      <span className="mb-0.5 block text-[10px] text-gray-400">Attack pattern</span>
+      <select
+        value={pattern ? pattern.mode : 'default'}
+        onChange={e => {
+          const mode = e.target.value
+          if (mode === 'default') {
+            onPatch({ attack: undefined })
+            return
+          }
+          const next = pattern
+            ? setAttackPatternMode(pattern, mode as AttackPatternMode)
+            : buildAttackPattern(mode as AttackPatternMode)
+          onPatch({ attack: next })
+        }}
+        aria-label="Attack pattern mode"
+        className="w-full rounded bg-gray-800 p-1 text-xs"
+      >
+        <option value="default">Default (single melee)</option>
+        <option value="sequential">Sequential (cycle attacks in order)</option>
+        <option value="random">Random (pick an attack each swing)</option>
+      </select>
+
+      {pattern && (
+        <div className="mt-1 space-y-1">
+          {pattern.attacks.map((attack, i) => (
+            <EnemyAttackRow
+              key={i}
+              attack={attack}
+              index={i}
+              onChange={patch => setPattern(updateEnemyAttack(pattern, i, patch))}
+              onRemove={() => setPattern(removeEnemyAttack(pattern, i))}
+            />
+          ))}
+
+          <div className="flex flex-wrap items-center gap-1">
+            <button
+              onClick={() => onPatch({ attack: addEnemyAttack(pattern, defaultEnemyAttack()) })}
+              className="rounded bg-gray-700 px-2 py-1 text-[10px] hover:bg-gray-600"
+            >
+              + Melee
+            </button>
+            <button
+              onClick={() => onPatch({ attack: addEnemyAttack(pattern, ENEMY_ATTACK_PRESETS[2]) })}
+              className="rounded bg-gray-700 px-2 py-1 text-[10px] hover:bg-gray-600"
+            >
+              + Ranged
+            </button>
+            <select
+              value=""
+              onChange={e => {
+                const v = e.target.value
+                if (!v) return
+                if (v.startsWith('preset:')) {
+                  const preset = ENEMY_ATTACK_PRESETS[Number(v.slice('preset:'.length))]
+                  if (preset) onPatch({ attack: addEnemyAttack(pattern, preset) })
+                  return
+                }
+                const ability = ABILITY_REGISTRY.find(a => a.id === v.slice('ability:'.length))
+                if (ability) onPatch({ attack: addEnemyAttack(pattern, enemyAttackFromAbility(ability)) })
+              }}
+              aria-label="Add attack from preset or ability"
+              className="rounded bg-gray-800 p-1 text-[10px]"
+            >
+              <option value="">+ From library…</option>
+              <optgroup label="Presets">
+                {ENEMY_ATTACK_PRESETS.map((p, i) => (
+                  <option key={i} value={`preset:${i}`}>{p.name}</option>
+                ))}
+              </optgroup>
+              <optgroup label="Abilities">
+                {ABILITY_REGISTRY.filter(a => (a.effect.damage ?? 0) > 0).map(a => (
+                  <option key={a.id} value={`ability:${a.id}`}>{a.name}</option>
+                ))}
+              </optgroup>
+            </select>
+          </div>
+
+          <p className="text-[10px] text-gray-500">
+            {pattern.attacks.length} attack{pattern.attacks.length === 1 ? '' : 's'} · {pattern.mode} · melee strikes adjacent, ranged fires within reach
+          </p>
+        </div>
+      )}
+      {!pattern && (
+        <p className="mt-1 text-[10px] text-gray-500">No pattern: a single strength-only melee swing. Pick Sequential / Random to build a multi-attack list.</p>
+      )}
     </div>
   )
 }
