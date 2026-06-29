@@ -618,9 +618,9 @@ function respawnElapsedEnemies(entities: readonly Entity[], runtime: EnemyRuntim
   }
 }
 
-/** The cell directly in front of the player, per the active view's facing delta. */
-function facingCell(player: PlayerState, cellSize: number, use2D: boolean): { col: number; row: number } {
-  const [dCol, dRow] = facingDelta(player.facing, use2D)
+/** The cell one step along the player's AIM (its 8-way grid delta, or the facing fallback). */
+function aimCell(player: PlayerState, cellSize: number, use2D: boolean): { col: number; row: number } {
+  const [dCol, dRow] = aimDelta(player, use2D)
   return {
     col: Math.floor(player.x / cellSize) + dCol,
     row: Math.floor(player.z / cellSize) + dRow,
@@ -633,8 +633,8 @@ const ADJACENT_DELTAS: ReadonlyArray<readonly [number, number]> = [
 ]
 
 /**
- * Pick the enemy the player is attacking: the faced cell wins; otherwise scan down
- * the facing line up to the weapon's `reach` (melee 1–2, ranged 6–12); otherwise the
+ * Pick the enemy the player is attacking: the aimed cell wins; otherwise scan down
+ * the 8-way aim line up to the weapon's `reach` (melee 1–2, ranged 6–12); otherwise the
  * nearest living adjacent enemy; null if none in reach. Dead enemies are skipped.
  */
 const RANGED_RANGE = 6 // default cells a ranged enemy reaches (enemy retaliation)
@@ -647,12 +647,12 @@ export function findTarget(
   use2D: boolean,
   reach = 1,
 ): Entity | null {
-  const faced = facingCell(player, cellSize, use2D)
+  const faced = aimCell(player, cellSize, use2D)
   const facedEnemy = enemyAtCell(entities, runtime, faced.col, faced.row)
   if (facedEnemy) return facedEnemy
-  // Scan further down the facing line for reach > 1 (2H melee = 2, ranged = 6–12).
+  // Scan further down the aim line for reach > 1 (2H melee = 2, ranged = 6–12).
   if (reach >= 2) {
-    const [dCol, dRow] = facingDelta(player.facing, use2D)
+    const [dCol, dRow] = aimDelta(player, use2D)
     const pCol = Math.floor(player.x / cellSize)
     const pRow = Math.floor(player.z / cellSize)
     for (let d = 2; d <= reach; d++) {
@@ -897,11 +897,12 @@ function applyPlayerAttack(input: CombatStepInput, kills: string[]): CombatState
   const ranged = isRanged(playerWeapon)
   const reach = weaponReach(playerWeapon)
   const target = findTarget(player, entities, runtime, cellSize, use2D, reach)
-  // Aim at an acquired target's cell; otherwise straight down the facing line. A RANGED shot
+  // Aim at an acquired target's cell; otherwise straight down the 8-way aim line. A RANGED shot
   // with no target flies its FULL reach, so a bow/gun covers the SAME distance in EVERY
   // direction (#53) — it used to die at the 1-cell faced cell, so an open-field shot barely
-  // left the player. Melee keeps its whiff at the adjacent faced cell.
-  const [dCol, dRow] = facingDelta(player.facing, use2D)
+  // left the player. Melee keeps its whiff at the adjacent aimed cell. The aim is 8-way + in
+  // grid space (#55), so projectiles + the swing fire along all 8 directions in both views.
+  const [dCol, dRow] = aimDelta(player, use2D)
   const pCol = Math.floor(player.x / cellSize)
   const pRow = Math.floor(player.z / cellSize)
   const lineDist = ranged ? reach : 1
@@ -2364,6 +2365,10 @@ export interface PlayerState {
   x: number
   z: number
   facing: 'up' | 'down' | 'left' | 'right'
+  /** 8-way GRID aim delta (col/row each ∈ -1..1) the player's targeting, projectiles, and
+   *  swing follow — set from the movement keys, mapped to grid space per view. Separate from the
+   *  4-way `facing` (which drives the weapon hand). Undefined → fall back to the facing delta. */
+  aim?: { col: number; row: number }
   moving: boolean
   frame: number
   /** visual hop height (px) while mid-jump; 0 on the ground. */
@@ -2405,6 +2410,39 @@ function facingFromKeys(keys: Record<string, boolean>): PlayerState['facing'] | 
   if (keys['ArrowLeft'] || keys['a']) return 'left'
   if (keys['ArrowRight'] || keys['d']) return 'right'
   return null
+}
+
+/** The 8-way GRID aim delta the player's targeting, projectiles, and swing follow. Prefers the
+ *  player's live `aim` (set from the movement keys) and falls back to the 4-way `facing` delta
+ *  when none is held. The delta is in GRID space, so all 8 directions resolve identically in 2D
+ *  and iso (the iso projection turns a grid "down" step into down-right on screen, etc.). */
+export function aimDelta(player: PlayerState, use2D: boolean): [number, number] {
+  const a = player.aim
+  if (a && (a.col !== 0 || a.row !== 0)) return [a.col, a.row]
+  return facingDelta(player.facing, use2D)
+}
+
+/** The 8-way GRID aim from the movement keys held this frame: sum each pressed direction's
+ *  per-view grid delta — the SAME mapping movement uses, so you aim where you'd walk — then snap
+ *  each axis to its sign. Two keys → a diagonal (e.g. W+D); one key → a grid orthogonal in 2D /
+ *  a grid diagonal in iso. Opposite keys cancel. null when nothing aimable is held (keep the
+ *  last aim so a standing shot still fires the way you last moved). */
+export function aimFromKeys(keys: Record<string, boolean>, use2D: boolean): { col: number; row: number } | null {
+  let col = 0
+  let row = 0
+  const add = (f: PlayerState['facing']): void => {
+    const [c, r] = facingDelta(f, use2D)
+    col += c
+    row += r
+  }
+  if (keys['ArrowUp'] || keys['w']) add('up')
+  if (keys['ArrowDown'] || keys['s']) add('down')
+  if (keys['ArrowLeft'] || keys['a']) add('left')
+  if (keys['ArrowRight'] || keys['d']) add('right')
+  const sc = Math.sign(col)
+  const sr = Math.sign(row)
+  if (sc === 0 && sr === 0) return null
+  return { col: sc, row: sr }
 }
 
 /** A jump in flight: the loop interpolates the player from→to over JUMP_MS with a
@@ -6569,6 +6607,12 @@ export default function TemplateEditor() {
       // walking — which the jump branch below skips, leaving it stale).
       const pressedFacing = facingFromKeys(keys)
       if (pressedFacing) player.facing = pressedFacing
+
+      // 8-way GRID aim (separate from the 4-way facing that drives the weapon hand): set from the
+      // movement keys so the player aims where they move — hold two keys for a diagonal. Kept when
+      // nothing is held, so a standing shot fires the last-aimed direction. Attacks read player.aim.
+      const pressedAim = aimFromKeys(keys, use2DMovement)
+      if (pressedAim) player.aim = pressedAim
 
       // Jump trigger (edge): begin an arc if not already airborne.
       const jumpDown = !!keys[' ']
