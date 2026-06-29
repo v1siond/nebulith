@@ -8316,7 +8316,7 @@ function render(
       // the oriented footprint rect (road-free), so the billboard can't spill — no gate needed.
       const b = obj.building
       const f = ISO_FACINGS[(b.facing ?? 0) % ISO_FACINGS.length]
-      const oC = b.col + f.baseColFrac * b.length // base start col (which end of the frontage)
+      const oC = b.col - 0.5 + f.baseColFrac * b.length // base start = footprint's LEFT EDGE (cell left corner), not the cell centre
       const oR = b.row + 0.5 // base sits on the frontage front edge
       const origin = toScreen(oC, oR)
       const lp = toScreen(oC + f.len[0], oR + f.len[1])
@@ -9663,8 +9663,11 @@ function render2D(
   }
 
   // Add buildings as front elevations, anchored at their front (bottom) row + footprint centre.
+  // The draw loop adds +0.5 (the cell-centre offset every drawable gets), so subtract it here:
+  // (b.col + length/2 - 0.5) + 0.5 = b.col + length/2 = the footprint's true centre grid-point,
+  // keeping the facade columns (and the door) over their own collision cells + driveway.
   for (const b of grid.buildings ?? []) {
-    drawables.push({ row: b.row, col: b.col + b.length / 2, type: 'building', building: b })
+    drawables.push({ row: b.row, col: b.col + b.length / 2 - 0.5, type: 'building', building: b })
   }
 
   // Add player
@@ -10598,18 +10601,20 @@ function renderTopView(
       ctx.lineTo(mx, ry + rh - tileSize * 0.25)
     }
     ctx.stroke()
-    // door notch (dark) on the road-facing edge: facing 0 = horizontal street, 1 = vertical road;
-    // facadeOnBack flips near/far so the notch sits toward the actual road.
+    // door notch (dark) centred on the actual walkable DOOR cell, on the road-facing edge: facing 0 =
+    // horizontal street, 1 = vertical road; facadeOnBack flips near/far so the notch sits toward the
+    // road. Centring on doorCellFor (not the roof mid-width) keeps even-length buildings aligned too.
     const dn = Math.max(3, tileSize * 0.4)
+    const door = doorCellFor(gridBuildingFacing(b), buildingRect(b))
     ctx.fillStyle = '#241308'
     if ((b.facing ?? 0) === 0) {
-      const dx = rx + rw / 2 - dn / 2
+      const dcx = offsetX + (door.col + 0.5) * tileSize // centre of the door cell's column
       const dy = b.facadeOnBack ? ry - dn * 0.25 : ry + rh - dn * 0.75
-      ctx.fillRect(dx, dy, dn, dn * 0.5)
+      ctx.fillRect(dcx - dn / 2, dy, dn, dn * 0.5)
     } else {
-      const dy = ry + rh / 2 - dn / 2
+      const dcy = offsetY + (door.row + 0.5) * tileSize // centre of the door cell's row
       const dx = b.facadeOnBack ? rx - dn * 0.25 : rx + rw - dn * 0.75
-      ctx.fillRect(dx, dy, dn * 0.5, dn)
+      ctx.fillRect(dx, dcy - dn / 2, dn * 0.5, dn)
     }
     // Type signage (STORE / HOSPITAL) on the roof — same badge the iso + 2D views show, so a shop /
     // clinic reads at a glance on the top-down map too.
