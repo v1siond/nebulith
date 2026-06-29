@@ -2553,40 +2553,50 @@ interface JumpState {
 const JUMP_MS = 380 // arc duration
 const JUMP_PEAK_PX = 26 // visual hop height at mid-arc
 
-/** Begin a jump. A MOVING jump (a direction is held) arcs (JUMP_CLEAR + 1) cells ahead IF the
- *  landing is walkable + in bounds, clearing whatever sits between (you're airborne). A STANDING
- *  jump (`forward === false`) hops straight UP on the same cell — no forward step. The loop
- *  animates the arc. No-op if already mid-jump. */
+/** The cell a jump lands on: the farthest reachable cell up to JUMP_CLEAR+1 along (dCol,dRow),
+ *  skipping blocked/out-of-bounds cells between (you're airborne, so a wall only SHORTENS the leap
+ *  instead of cancelling it — which is why a jump in a dense town used to look like it just bobbed).
+ *  A standing jump (forward=false) stays on (pCol,pRow). Returns null when moving but nothing ahead
+ *  is reachable — the caller keeps walking rather than lock into a bob. Pure (grid via isBlocked). */
+export function jumpLandingCell(
+  pCol: number,
+  pRow: number,
+  dCol: number,
+  dRow: number,
+  forward: boolean,
+  isBlocked: (col: number, row: number) => boolean,
+  cols: number,
+  rows: number,
+): { col: number; row: number } | null {
+  if (!forward) return { col: pCol, row: pRow } // standing hop — straight up on the same cell
+  for (let d = JUMP_CLEAR + 1; d >= 1; d--) {
+    const col = pCol + dCol * d
+    const row = pRow + dRow * d
+    if (col < 0 || row < 0 || col >= cols || row >= rows) continue
+    if (isBlocked(col, row)) continue
+    return { col, row }
+  }
+  return null
+}
+
+/** Begin a jump. A MOVING jump leaps along the 8-way AIM (so all 8 directions work, #66); a STANDING
+ *  jump (`forward===false`) hops straight up on the same cell. The loop animates the arc. No-op if
+ *  already mid-jump. */
 function beginJump(player: PlayerState, grid: IsometricGrid, use2D: boolean, jump: JumpState, now: number, forward: boolean): void {
   if (jump.active) return
-  const [dCol, dRow] = facingDelta(player.facing, use2D)
+  // Leap along the 8-way AIM (the way you're actually moving), not the 4-way facing — otherwise a
+  // diagonal hold collapses to a cardinal hop (the iso "x/y but no z" + 2D "no diagonal" bug). #66
+  const [dCol, dRow] = aimDelta(player, use2D)
   const cs = grid.cellSize
   const pCol = Math.floor(player.x / cs)
   const pRow = Math.floor(player.z / cs)
-  // A MOVING jump carries the player FORWARD along the facing direction — in iso that's BOTH x and
-  // z (the facing delta is diagonal). It lands on the farthest reachable cell up to JUMP_CLEAR+1, so
-  // a blocked cell ahead only SHORTENS the leap (lands 1 cell) instead of cancelling it — which is
-  // why a jump in a dense town used to look like it just bobbed. The loop lays the arc on top.
-  let dist = 0
-  if (forward) {
-    for (let d = JUMP_CLEAR + 1; d >= 1; d--) {
-      const col = pCol + dCol * d
-      const row = pRow + dRow * d
-      if (col < 0 || row < 0 || col >= grid.cols || row >= grid.rows) continue
-      if (grid.isBlocked(col, row)) continue
-      dist = d
-      break
-    }
-    if (dist === 0) return // nowhere forward to land — keep walking rather than lock into a bob
-  }
-  // dist 0 = standing jump (hop straight up on the same cell).
-  const col = pCol + dCol * dist
-  const row = pRow + dRow * dist
+  const landing = jumpLandingCell(pCol, pRow, dCol, dRow, forward, (c, r) => grid.isBlocked(c, r), grid.cols, grid.rows)
+  if (!landing) return
   jump.active = true
   jump.fromX = player.x
   jump.fromZ = player.z
-  jump.toX = col * cs + cs / 2
-  jump.toZ = row * cs + cs / 2
+  jump.toX = landing.col * cs + cs / 2
+  jump.toZ = landing.row * cs + cs / 2
   jump.start = now
 }
 
@@ -9558,7 +9568,7 @@ function drawIsoPlayer(
     // tone — pivots at the SHOULDER and sweeps through the SAME arc as the blade, so the arm drives
     // the swing and stays connected to the body. Unarmed: the arm + a small fist still swing.
     const handX = x + dir * (pHalf + weaponSize * 0.18)
-    const swing = dir * 2.2 * (swingP ?? 0) // 0 at rest (blade up) → sweep the tip DOWN-forward
+    const swing = dir * (Math.PI / 2) * (swingP ?? 0) // rest = blade UP → sweep DOWN to MIDDLE (horizontal), not past to the bottom
     const shoulderX = x + dir * pHalf * 0.25 // at the body, on the weapon side
     const shoulderY = y - lineHeight * 1.95 - breathe // PIVOT at the SHOULDER = TOP of the # row (not mid-torso/hip)
     const handLX = handX - shoulderX         // hand offset from the shoulder pivot
@@ -11248,7 +11258,7 @@ function render2D(
         const handDY = armY - shoulderY            // hand sits below the shoulder → arm angles down
         ctx.save()
         ctx.translate(shoulderX, shoulderY)  // PIVOT = the shoulder; the whole arm rotates around it
-        ctx.rotate(facingDir * 2.2 * swingP) // sweep the tip down-forward through the swing
+        ctx.rotate(facingDir * (Math.PI / 2) * swingP) // rest = blade UP → sweep DOWN to MIDDLE (horizontal), not to the bottom
         if (swinging) {
           // #63: forearm = a sharp ASCII bar GLYPH (figure font + tone) stretched along the arm axis,
           // matching the text figure instead of the old smooth round-capped stroke.
