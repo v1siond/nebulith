@@ -111,13 +111,13 @@ export interface LoadoutConfig {
   specialSlots?: number // default 4
 }
 
-/** One entity's gear: worn items by slot, a fixed-size bag, and quick-use special
- *  slots (bombs / scrolls / potions) each bound to a number key (1–0). */
+/** One entity's gear: worn items by slot, a fixed-size bag, and quick-use special-action
+ *  slots (bombs / scrolls / potions) each bound to a trigger key (default 5–8, rebindable). */
 export interface Loadout {
   equipped: Partial<Record<EquipSlot, Item>>
   bag: (Item | null)[]
   special: (Item | null)[]
-  /** the key (1–0) bound to each special slot, by index. */
+  /** the trigger key bound to each special-action slot, by index (default 5–8, rebindable). */
   shortcuts: string[]
 }
 

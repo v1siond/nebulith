@@ -32,19 +32,19 @@ const armorItem = (id: string, slot: GearSlot | undefined, dodgeBonus = 0, defen
 const potion = (id = 'p1'): Item => ({ id, name: 'Potion', slot: 'consumable', effect: { hp: 20 } })
 
 describe('loadout — creation + config', () => {
-  it('defaults to 24 bag + 4 special slots, empty, with 1–4 shortcuts', () => {
+  it('defaults to 24 bag + 4 special slots, empty, with 5–8 shortcuts (clear of abilities 1–4)', () => {
     const l = createLoadout()
     expect(l.bag).toHaveLength(DEFAULT_BAG_SLOTS)
     expect(l.special).toHaveLength(DEFAULT_SPECIAL_SLOTS)
     expect(l.bag.every(s => s === null)).toBe(true)
     expect(Object.keys(l.equipped)).toHaveLength(0)
-    expect(l.shortcuts).toEqual(['1', '2', '3', '4'])
+    expect(l.shortcuts).toEqual(['5', '6', '7', '8'])
   })
   it('honors a custom bag/special size', () => {
     const l = createLoadout({ bagSlots: 10, specialSlots: 2 })
     expect(l.bag).toHaveLength(10)
     expect(l.special).toHaveLength(2)
-    expect(l.shortcuts).toEqual(['1', '2'])
+    expect(l.shortcuts).toEqual(['5', '6'])
   })
 })
 

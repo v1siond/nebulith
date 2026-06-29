@@ -1,6 +1,6 @@
 /**
- * Per-entity LOADOUT: worn gear by equip slot, a fixed-size bag, and quick-use
- * special slots (bombs / scrolls / potions) bound to number keys (1–0).
+ * Per-entity LOADOUT: worn gear by equip slot, a fixed-size bag, and quick-use special-action
+ * slots (bombs / scrolls / potions) bound to trigger keys (default 5–8, rebindable to any key).
  *
  * Pure + immutable — every mutator returns a new Loadout, inputs untouched.
  * `loadoutBonuses` aggregates the stat contribution of everything worn (dodge from
@@ -16,7 +16,10 @@ import {
   DEFAULT_SPECIAL_SLOTS,
 } from './types'
 
-const SHORTCUT_KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'] as const
+/** Default trigger keys for the special-action slots. They start at 5 (not 1) so they never
+ *  collide with the ABILITY slots, which default to 1–4. Both sets are independently rebindable
+ *  to any key (setShortcut for specials, rebindAbility for abilities). */
+const DEFAULT_SPECIAL_KEYS = ['5', '6', '7', '8', '9', '0', '1', '2', '3', '4'] as const
 
 /** Which equip slots a given item may occupy (empty for non-equippables). */
 const ARMOR_SLOTS: Record<GearSlot, EquipSlot[]> = {
@@ -43,7 +46,7 @@ export function createLoadout(config: LoadoutConfig = {}): Loadout {
     equipped: {},
     bag: Array.from({ length: bagSlots }, () => null),
     special: Array.from({ length: specialSlots }, () => null),
-    shortcuts: Array.from({ length: specialSlots }, (_, i) => SHORTCUT_KEYS[i % SHORTCUT_KEYS.length]),
+    shortcuts: Array.from({ length: specialSlots }, (_, i) => DEFAULT_SPECIAL_KEYS[i % DEFAULT_SPECIAL_KEYS.length]),
   }
 }
 
