@@ -8282,19 +8282,19 @@ function drawIsoPlayer(
     const onLeft = player.facing === 'left'
     const dir = onLeft ? -1 : 1
     const handX = onLeft ? x - pHalf - weaponSize * 0.18 : x + pHalf + weaponSize * 0.18
-    const handY = y - lineHeight * 1.5 - breathe // body/arm row — NOT the legs
-    const rot = swingP == null
-      ? Math.PI // rest: blade up
-      : Math.PI + dir * (-0.5 + 2.0 * swingP) // wind back → sweep forward through the slash
+    const handY = y - lineHeight * 1.5 - breathe // the HAND, at the arm/body row — NOT the legs
+    const swing = dir * 2.2 * (swingP ?? 0) // 0 at rest (blade up) → sweep the tip DOWN-forward
     ctx.font = `bold ${weaponSize}px ${ASCII_FONT}`
     ctx.textBaseline = 'middle'
     ctx.save()
-    ctx.translate(handX, handY)
-    ctx.rotate(rot)
+    ctx.translate(handX, handY) // PIVOT = the hand = the HILT (bottom of the blade)
+    ctx.rotate(swing)           // sweep the blade around the hilt
+    ctx.rotate(Math.PI)         // flip the down-pointing glyph so the blade extends UP from the hilt
+    // offset the glyph so its hilt sits at the pivot and the blade reaches up (toward the head)
     ctx.fillStyle = '#000000'
-    ctx.fillText(player.weaponGlyph, 1, 1)
+    ctx.fillText(player.weaponGlyph, 0, weaponSize * 0.45 + 1)
     ctx.fillStyle = '#e6e6e6'
-    ctx.fillText(player.weaponGlyph, 0, 0)
+    ctx.fillText(player.weaponGlyph, 0, weaponSize * 0.45)
     ctx.restore()
     ctx.font = `bold ${fontSize}px ${ASCII_FONT}` // restore for the shield draw below
   }
