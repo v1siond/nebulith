@@ -1,4 +1,4 @@
-import { entityArt, entityFootprint, weaponGlyph, SWORD_GLYPH, ENEMY_ART, ENEMY_ART_TYPES, ENEMY_FALLBACK, NPC_ART, entityPalette, ENEMY_PALETTE, PLAYER_PALETTE, NPC_PALETTE, ENEMY_PALETTE_FALLBACK, topRoleColor, TOP_ROLE_COLOR } from '@/engine/entityArt'
+import { entityArt, entityFootprint, weaponGlyph, SWORD_GLYPH, ENEMY_ART, ENEMY_ART_TYPES, ENEMY_FALLBACK, NPC_ART, entityPalette, ENEMY_PALETTE, CHARACTER_TONES, characterTone, ENEMY_PALETTE_FALLBACK, topRoleColor, TOP_ROLE_COLOR } from '@/engine/entityArt'
 import { makeEnemy, makeNpc, makePlayer } from '@/game/entities'
 import type { Quest } from '@/game/types'
 
@@ -76,11 +76,26 @@ describe('entityPalette — robust fg/bg block colors (the trees\' language)', (
     expect(new Set(fgs).size).toBeGreaterThan(4) // colorful, not one flat enemy color
   })
 
-  it('resolves palette by kind (player/npc) and enemy type, fallback for unknown', () => {
-    expect(entityPalette(makePlayer('p', 0, 0))).toEqual(PLAYER_PALETTE)
-    expect(entityPalette(makeNpc('n', 0, 0))).toEqual(NPC_PALETTE)
+  it('resolves enemy palette by type, with a fallback for an unknown type', () => {
     expect(entityPalette(makeEnemy('e', 0, 0, 'skeleton'))).toEqual(ENEMY_PALETTE.skeleton)
     expect(entityPalette(makeEnemy('e', 0, 0, 'dragon-xyz'))).toEqual(ENEMY_PALETTE_FALLBACK)
+  })
+
+  it('player + npc get a per-id character tone — deterministic by id, varied across ids', () => {
+    // every CHARACTER_TONE is a valid bright-on-dark pair
+    for (const t of CHARACTER_TONES) {
+      expect(t.fg).toMatch(/^#[0-9a-f]{6}$/i)
+      expect(t.bg).toMatch(/^#[0-9a-f]{6}$/i)
+      expect(t.fg).not.toBe(t.bg)
+    }
+    // deterministic: the SAME id (regardless of position) always resolves to the same tone
+    expect(entityPalette(makeNpc('villager-7', 0, 0))).toEqual(entityPalette(makeNpc('villager-7', 9, 9)))
+    expect(entityPalette(makePlayer('hero-1', 0, 0))).toEqual(entityPalette(makePlayer('hero-1', 4, 4)))
+    // the tone resolved for an entity is the one characterTone(id) picks
+    expect(entityPalette(makeNpc('villager-7', 0, 0))).toEqual(characterTone('villager-7'))
+    // varied across a spread of ids (not one flat character color)
+    const fgs = Array.from({ length: 16 }, (_, i) => entityPalette(makeNpc(`npc-${i}`, 0, 0)).fg)
+    expect(new Set(fgs).size).toBeGreaterThan(2)
   })
 
   it('the skeleton reads as bone-white on dark + keeps its base/alt dimensions aligned', () => {

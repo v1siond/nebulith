@@ -81,13 +81,44 @@ export const ENEMY_PALETTE: Readonly<Record<string, EntityPalette>> = {
   bandit: { fg: '#e6b66a', bg: '#4a3318' },
 }
 export const ENEMY_PALETTE_FALLBACK: EntityPalette = { fg: '#ff8f6a', bg: '#56241a' }
-export const PLAYER_PALETTE: EntityPalette = { fg: '#ffe24a', bg: '#5a4412' } // gold, kin to the tree trunk
-export const NPC_PALETTE: EntityPalette = { fg: '#6fd6ff', bg: '#173a55' }
 
-/** The fg/bg block palette for an entity (player / npc / enemy-by-type). */
+/**
+ * Character (player + npc) clothing/skin tones. A villager or hero draws ONE of these,
+ * picked deterministically by its entity id, so the cast reads as distinct people the way
+ * enemies vary by type — instead of every NPC being the same flat blue. Same recipe as the
+ * enemy palette: a bright glyph `fg` on a solid dark block `bg`. Tasteful, not neon.
+ * [0] gold = the classic hero tone, [1] sky-blue = the old plain-NPC tone (kept for continuity).
+ */
+export const CHARACTER_TONES: readonly EntityPalette[] = [
+  { fg: '#ffe24a', bg: '#5a4412' }, // gold (hero)
+  { fg: '#6fd6ff', bg: '#173a55' }, // sky blue
+  { fg: '#8fe39a', bg: '#1d4a2a' }, // forest green
+  { fg: '#ff9b8a', bg: '#5a221a' }, // terracotta
+  { fg: '#c7a6ff', bg: '#322152' }, // violet robe
+  { fg: '#ffc06a', bg: '#5a3a12' }, // amber
+  { fg: '#ffa6d4', bg: '#4f1f3a' }, // rose
+  { fg: '#9fe8e0', bg: '#114744' }, // teal
+]
+
+/** Stable 32-bit FNV-1a hash of a string → deterministic, well-spread per-entity variety. */
+function hashString(s: string): number {
+  let h = 0x811c9dc5
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i)
+    h = Math.imul(h, 0x01000193)
+  }
+  return h >>> 0
+}
+
+/** The character tone a player/npc draws, chosen deterministically from CHARACTER_TONES by id. */
+export function characterTone(id: string): EntityPalette {
+  return CHARACTER_TONES[hashString(id) % CHARACTER_TONES.length]
+}
+
+/** The fg/bg block palette for an entity. Characters (player/npc) get a per-id tone so each
+ *  reads as a distinct person; enemies keep their per-type hue. */
 export function entityPalette(entity: Entity): EntityPalette {
-  if (entity.kind === 'player') return PLAYER_PALETTE
-  if (entity.kind === 'npc') return NPC_PALETTE
+  if (entity.kind === 'player' || entity.kind === 'npc') return characterTone(entity.id)
   const key = entity.enemyType?.trim().toLowerCase() ?? ''
   return ENEMY_PALETTE[key] ?? ENEMY_PALETTE_FALLBACK
 }

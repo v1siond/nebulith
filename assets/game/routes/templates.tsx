@@ -2366,6 +2366,10 @@ export interface PlayerState {
   shieldGlyph?: string
   /** wearing any armor → the figure is tinted to show the upgrade. */
   armored?: boolean
+  /** per-entity character tone (deterministic by the player entity's id) — the figure's body
+   *  glyph / block-bg colors when unarmored. Undefined → the classic gold. */
+  bodyColor?: string
+  bodyBg?: string
 }
 
 // Jump = clear up to this many blocked cells in the facing direction (settings later).
@@ -3927,7 +3931,8 @@ export default function TemplateEditor() {
     const b = loadoutBonuses(pl)
     // The player is a normal entity: its inspector-edited baseStats are the base the
     // gear bonuses add to, so editing the player's stats actually changes play.
-    const base = entities.find(e => e.kind === 'player')?.baseStats ?? DEFAULT_PLAYER_STATS
+    const playerEntity = entities.find(e => e.kind === 'player')
+    const base = playerEntity?.baseStats ?? DEFAULT_PLAYER_STATS
     playerLoadoutRef.current = pl
     // No weapon equipped → BARE_HANDS (kind 'unarmed') drives the swing/reach but draws no blade.
     playerWeaponRef.current = mainWeapon ?? inventory.equippedWeapon ?? BARE_HANDS
@@ -3938,6 +3943,13 @@ export default function TemplateEditor() {
     playerRef.current.weaponGlyph = weaponGlyph(mainWeapon ?? playerWeaponRef.current)
     playerRef.current.shieldGlyph = shield ? weaponGlyph(shield) : ''
     playerRef.current.armored = armored
+    // Per-entity character tone (deterministic by id) so the player varies like NPCs do;
+    // the armored steel-blue still overrides this in the render. No player entity → gold default.
+    if (playerEntity) {
+      const pal = entityPalette(playerEntity)
+      playerRef.current.bodyColor = pal.fg
+      playerRef.current.bodyBg = pal.bg
+    }
     playerStatsRef.current = {
       ...base,
       strength: base.strength + b.strength,
@@ -8481,8 +8493,8 @@ function drawIsoPlayer(
 
   // Armor tint: steel-blue when wearing gear, warm yellow otherwise — the figure visibly
   // changes the moment you equip armor. Paired with a dark block bg (the trees' language).
-  const bodyColor = player.armored ? '#bcd4ff' : '#ffdd00'
-  const bodyBg = player.armored ? '#243a5e' : '#5a4412'
+  const bodyColor = player.armored ? '#bcd4ff' : (player.bodyColor ?? '#ffdd00')
+  const bodyBg = player.armored ? '#243a5e' : (player.bodyBg ?? '#5a4412')
 
   const charW = fontSize * 0.6
   const maxW = playerArt.reduce((m, r) => Math.max(m, r.length), 0)
@@ -9710,7 +9722,7 @@ function render2D(
       ctx.textBaseline = 'middle'
 
       // Draw each line from bottom to top (no background)
-      const bodyColor = player.armored ? '#bcd4ff' : '#ffdd00'
+      const bodyColor = player.armored ? '#bcd4ff' : (player.bodyColor ?? '#ffdd00')
       for (let i = 0; i < playerArt.length; i++) {
         const line = playerArt[playerArt.length - 1 - i] // Reverse order (bottom to top)
         const lineY = baseY - (i + 0.5) * lineHeight
