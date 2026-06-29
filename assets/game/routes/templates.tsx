@@ -8542,6 +8542,9 @@ function drawIsoPlayer(
     }
     ctx.translate(handLX, 0) // move to the hand at the end of the arm
     if (player.weaponGlyph) {
+      // Mirror the glyph horizontally when facing RIGHT so an asymmetric weapon (bow `}`, gun `¬`)
+      // points OUTWARD in both facings (#54) — without it the right-hand bow drew backwards.
+      if (dir > 0) ctx.scale(-1, 1)
       ctx.rotate(Math.PI)    // flip the down-pointing glyph so the blade extends UP from the hilt
       ctx.font = `bold ${weaponSize}px ${ASCII_FONT}`
       ctx.textBaseline = 'middle'
@@ -9795,6 +9798,9 @@ function render2D(
         }
         ctx.translate(handLX, 0) // move to the hand at the end of the arm
         if (player.weaponGlyph) {
+          // Mirror the glyph horizontally when facing RIGHT so an asymmetric weapon (bow `}`,
+          // gun `¬`) points OUTWARD in both facings (#54), matching drawIsoPlayer.
+          if (facingDir > 0) ctx.scale(-1, 1)
           ctx.rotate(Math.PI) // flip so the blade extends UP from the hilt at rest
           ctx.font = `bold ${weaponSize}px ${ASCII_FONT}`
           ctx.fillStyle = '#000000'
