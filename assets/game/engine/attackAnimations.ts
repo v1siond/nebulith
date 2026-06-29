@@ -23,6 +23,9 @@ export interface AttackAnim {
   /** The PLAYER's own melee: drawn as the single swinging in-hand weapon by the player render — the
    *  anim loop skips it so there's no second, separate stroke. */
   inHand?: boolean
+  /** Overrides the kind's default color (e.g. an ability recolors the blade — Fire Slash burns
+   *  red-orange). Undefined → the kind's steel/default tint. */
+  tint?: string
 }
 
 export const ATTACK_ANIM_MS: Record<AttackAnimKind, number> = {
@@ -99,5 +102,5 @@ export function animFrame(anim: AttackAnim, now: number): AnimFrame | null {
   // The blade sweeps raised-back → follow-through, mirrored toward whichever side the target is on.
   const dir = anim.toX >= anim.fromX ? 1 : -1
   const angle = isSlash ? dir * lerp(-1.15, 0.95, p) : undefined
-  return { char, x, z, color: COLORS[anim.kind], angle }
+  return { char, x, z, color: anim.tint ?? COLORS[anim.kind], angle }
 }

@@ -87,8 +87,10 @@ import {
   deriveStats,
   startingCombatState,
   resolveAttack,
+  applyDamage,
   isDead,
 } from '@/game/combat'
+import { ABILITY_TINT, DEFAULT_ABILITY_LOADOUT, abilityReady, type AbilityBinding } from '@/game/abilities'
 import { isRanged, weaponReach } from '@/game/weapons'
 import {
   projectileCellAt,
@@ -511,9 +513,11 @@ function itemFromReward(reward: Reward, id: string): Item {
   return { id, name: reward.itemId || 'Reward Item', slot: 'consumable', effect: { hp: 25 } }
 }
 
-/** Hold-to-loop cadence for the regular attack — one swing per this interval while `f` is held
- *  (matches the swing animation so swings chain seamlessly). */
-const ATTACK_LOOP_MS = 200
+/** Hold-to-loop cadence for the regular attack — one swing per this interval while `f` is held.
+ *  The basic strike is always-available on a 1.5s beat (per the ability spec — see
+ *  docs/ability-system.md); abilities (keys 1–4) are the faster/heavier hits, gated by their own
+ *  cooldowns. */
+const ATTACK_LOOP_MS = 1500
 /** The two attacks bound to input: `f` = free regular, `g` = rage-fueled special. */
 const REGULAR_MELEE: Attack = { school: 'physical', range: 'melee', tier: 'regular' }
 const SPECIAL_MELEE: Attack = { school: 'physical', range: 'melee', tier: 'special' }
@@ -724,6 +728,8 @@ interface CombatStepInput {
   use2D: boolean
   attack: boolean // edge-triggered: regular attack this frame
   special: boolean // edge-triggered: special attack this frame
+  /** an ability fired this frame (key 1–4): a melee swing with the ability's damage + blade tint. */
+  abilitySwing?: AbilitySwing
   now: number
   /** the loop's live attack-animation list; a landed hit pushes one. */
   anims?: AttackAnim[]
@@ -818,10 +824,41 @@ function playSwoosh(): void {
 function spawnAttackAnim(
   anims: AttackAnim[] | undefined,
   fromX: number, fromZ: number, toX: number, toZ: number,
-  kind: AttackAnimKind, now: number, glyph?: string, inHand?: boolean,
+  kind: AttackAnimKind, now: number, glyph?: string, inHand?: boolean, tint?: string,
 ): void {
   if (!anims) return
-  anims.push({ kind, fromX, fromZ, toX, toZ, start: now, durationMs: ATTACK_ANIM_MS[kind], glyph, inHand })
+  anims.push({ kind, fromX, fromZ, toX, toZ, start: now, durationMs: ATTACK_ANIM_MS[kind], glyph, inHand, tint })
+}
+
+/** A triggered ability's contribution to this frame's player attack: its authored damage (applied
+ *  in place of the weapon's roll, per the data-driven model) and the blade tint for the swing. */
+interface AbilitySwing {
+  damage: number
+  tint: string
+}
+
+/** Fire the first off-cooldown ability whose bound key is on its rising edge this frame. Keys come
+ *  from the loadout (rebindable, not hardcoded). Mutates `keyState` (per-key prev-down) and
+ *  `lastUsed` (per-ability-id clock) in place; returns the swing to apply, or undefined. */
+function triggerAbility(
+  loadout: readonly AbilityBinding[],
+  keys: Record<string, boolean>,
+  keyState: Record<string, boolean>,
+  lastUsed: Map<string, number>,
+  now: number,
+): AbilitySwing | undefined {
+  let swing: AbilitySwing | undefined
+  for (const binding of loadout) {
+    const down = !!keys[binding.key]
+    const rising = down && !keyState[binding.key]
+    keyState[binding.key] = down
+    if (swing || !rising) continue // edge-trigger; first ability to fire this frame wins
+    const ability = binding.ability
+    if (!abilityReady(ability, lastUsed.get(ability.id), now)) continue
+    lastUsed.set(ability.id, now)
+    swing = { damage: ability.effect.damage ?? 0, tint: ABILITY_TINT[ability.animation] }
+  }
+  return swing
 }
 
 /** ms a projectile spends travelling per cell — slow enough that an enemy can step off
@@ -879,17 +916,23 @@ function applyPlayerAttack(input: CombatStepInput, kills: string[]): CombatState
       attackerState: playerCombat,
     })
     if (result.fired) {
-      runtime.combat.set(target.id, { ...targetState, hp: result.defenderHpAfter })
-      pushHitMarker(hitMarkers, target.col, target.row, result.damage, 'enemy', now)
+      // An ability swing deals its OWN authored damage (data-driven model), not the weapon roll —
+      // but still respects the avoidance rolls (a dodged/blocked slash deals 0 either way).
+      const landed = !result.dodged && !result.blocked
+      const damage = input.abilitySwing && landed ? input.abilitySwing.damage : result.damage
+      const hpAfter = applyDamage(targetState.hp, damage)
+      runtime.combat.set(target.id, { ...targetState, hp: hpAfter })
+      pushHitMarker(hitMarkers, target.col, target.row, damage, 'enemy', now)
       if (result.blocked) animKind = 'block'
-      if (result.lethal) recordEnemyDeath(runtime, target, kills, now)
+      if (isDead(hpAfter)) recordEnemyDeath(runtime, target, kills, now)
       nextState = result.attackerStateAfter ?? playerCombat
     }
   }
 
   // ALWAYS show the swing — even a whiff. Shared spawn → same for every attacker.
-  // melee → the single in-hand weapon swings (drawn by the player); ranged/magic keep their own anim
-  spawnAttackAnim(input.anims, player.x, player.z, aimCol * cellSize + cellSize / 2, aimRow * cellSize + cellSize / 2, animKind, now, player.weaponGlyph, animKind === 'slash')
+  // melee → the single in-hand weapon swings (drawn by the player); ranged/magic keep their own anim.
+  // An ability recolors that one swing (Fire Slash → red-orange blade); a basic 'f' stays steel.
+  spawnAttackAnim(input.anims, player.x, player.z, aimCol * cellSize + cellSize / 2, aimRow * cellSize + cellSize / 2, animKind, now, player.weaponGlyph, animKind === 'slash', input.abilitySwing?.tint)
   return nextState
 }
 
@@ -3708,6 +3751,10 @@ export default function TemplateEditor() {
   const attackDownRef = useRef(false)
   const specialDownRef = useRef(false)
   const lastAttackFireRef = useRef(0) // for hold-to-loop: when the last regular swing fired
+  // Ability keys (1–4, data-driven loadout): edge-trigger per key + per-ability last-used clock
+  // (keyed by ability id) so each ability respects its own cooldown.
+  const abilityKeysRef = useRef<Record<string, boolean>>({})
+  const abilityLastUsedRef = useRef<Map<string, number>>(new Map())
   // Throttle how often we mirror combat state to React (HUD only needs ~UI cadence).
   const hudSyncAtRef = useRef(0)
 
@@ -6642,6 +6689,11 @@ export default function TemplateEditor() {
         // while held so swings chain; each fire plays a swoosh.
         const fireAttack = attackDown && (!attackDownRef.current || time - lastAttackFireRef.current >= ATTACK_LOOP_MS)
         if (fireAttack) { lastAttackFireRef.current = time; playSwoosh() }
+        // Abilities (keys 1–4, data-driven loadout): on the key's rising edge, fire the bound ability
+        // if it's off cooldown → a melee swing with its authored damage + a tinted blade. First
+        // binding to fire this frame wins (one swing per tick).
+        const abilitySwing = triggerAbility(DEFAULT_ABILITY_LOADOUT, keys, abilityKeysRef.current, abilityLastUsedRef.current, time)
+        if (abilitySwing) playSwoosh()
         const step = stepCombat({
           player,
           entities: entitiesRef.current,
@@ -6654,8 +6706,9 @@ export default function TemplateEditor() {
           hitMarkers: hitMarkersRef.current,
           cellSize: grid.cellSize,
           use2D: use2DMovement,
-          attack: fireAttack,
+          attack: fireAttack || !!abilitySwing,
           special: specialDown && !specialDownRef.current,
+          abilitySwing,
           now: time,
           anims: attackAnimsRef.current,
           projectiles: projectilesRef.current,
@@ -8229,7 +8282,7 @@ function render(
       // The player's melee swing progress (0..1) drives the in-hand weapon animation below.
       const inHandSlash = attackAnims.find(a => a.inHand && now - a.start < a.durationMs)
       const swingP = inHandSlash ? Math.min(1, (now - inHandSlash.start) / inHandSlash.durationMs) : null
-      drawIsoPlayer(ctx, p.x, p.y - heightOffset - (player.jumpHeight ?? 0), tileW, tileH, player, time, swingP)
+      drawIsoPlayer(ctx, p.x, p.y - heightOffset - (player.jumpHeight ?? 0), tileW, tileH, player, time, swingP, inHandSlash?.tint)
     } else if (obj.entity) {
       const combat = obj.entity.kind === 'enemy' ? enemyCombat.get(obj.entity.id) : undefined
       if (isDeadEnemy(obj.entity, combat)) continue // hidden until it respawns
@@ -8387,6 +8440,7 @@ function drawIsoPlayer(
   player: PlayerState,
   time: number,
   swingP: number | null = null,
+  swingTint?: string,
 ) {
   const playerArt = getPlayerArt(player)
   const lineHeight = tileH * 1.4
@@ -8434,7 +8488,7 @@ function drawIsoPlayer(
     // offset the glyph so its hilt sits at the pivot and the blade reaches up (toward the head)
     ctx.fillStyle = '#000000'
     ctx.fillText(player.weaponGlyph, 0, weaponSize * 0.45 + 1)
-    ctx.fillStyle = '#e6e6e6'
+    ctx.fillStyle = swingTint ?? '#e6e6e6' // steel by default; an ability (Fire Slash) recolors the blade
     ctx.fillText(player.weaponGlyph, 0, weaponSize * 0.45)
     ctx.restore()
     ctx.font = `bold ${fontSize}px ${ASCII_FONT}` // restore for the shield draw below
