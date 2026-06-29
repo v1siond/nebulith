@@ -3994,6 +3994,11 @@ export default function TemplateEditor() {
 
   // UI panels — sidebars are collapsible on mobile to free up canvas space
   const [showSidebars, setShowSidebars] = useState(true)
+  // PLAY MODE — the clean play view: hides ALL editor chrome (nav + both sidebars +
+  // the Preview toggle), leaving only the canvas, the combat HUD and the Inventory /
+  // Quests buttons (+ an Exit). Movement, combat and the connector flow all keep
+  // running (the game loop never gated on chrome), so you can just play the level.
+  const [playMode, setPlayMode] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
 
   // Detect mobile
@@ -4063,6 +4068,15 @@ export default function TemplateEditor() {
     topViewMode = false
     setShowTopView(false)
   }
+  // Enter the clean PLAY VIEW. Top/flow aren't playable, so drop into iso; otherwise
+  // keep the user's iso/2d choice. showPlayView() also clears connector authoring so
+  // walk-in connectors + combat fire freely (the dead walk-in bug guard).
+  const enterPlayMode = () => {
+    if (showTopView || showFlowView) selectIsoView()
+    else showPlayView()
+    setPlayMode(true)
+  }
+  const exitPlayMode = () => setPlayMode(false)
   const toggleDebug = () => {
     debugMode = !debugMode
     setShowDebug(d => !d)
@@ -7330,6 +7344,12 @@ export default function TemplateEditor() {
           <QuestHud quest={activeQuest(quests)} />
         )}
 
+        {/* Combat HUD (HP / rage / mana + F attack · G special) — always shown in the
+            clean PLAY VIEW so vitals stay visible while playing. */}
+        {playMode && !showFlowView && (
+          <CombatHud hud={playerHud} />
+        )}
+
         {/* Flow View Overlay */}
         {showFlowView && currentTemplateId && (
           <FlowViewOverlay
@@ -7355,10 +7375,17 @@ export default function TemplateEditor() {
         )}
 
         {/* TOP NAV — links · views · save/load · export · connectors · new */}
-        {showSidebars && !showFlowView && (
+        {showSidebars && !showFlowView && !playMode && (
         <nav className="fixed left-4 right-4 top-4 z-20 flex items-center gap-2 overflow-x-auto rounded-lg border border-white/10 bg-black/90 px-3 py-2 font-mono text-sm text-white shadow-lg shadow-black/40">
           <Link href="/personal-projects/game-engine" className="shrink-0 rounded bg-gray-700 px-3 py-1 text-xs hover:bg-gray-600">← Templates</Link>
           <Link href="/" className="shrink-0 rounded bg-gray-700 px-3 py-1 text-xs hover:bg-gray-600">CV</Link>
+          <button
+            onClick={enterPlayMode}
+            aria-label="Execute game"
+            className="shrink-0 rounded bg-emerald-600 px-3 py-1 text-xs font-bold text-white shadow hover:bg-emerald-500"
+          >
+            ▶ Execute Game
+          </button>
           <span className="mx-1 h-5 w-px shrink-0 bg-white/15" />
           <div className="flex shrink-0 gap-1">
             <ViewButton label="ISO" active={activeView === 'iso'} activeClass="bg-yellow-600" onClick={selectIsoView} />
@@ -7427,18 +7454,30 @@ export default function TemplateEditor() {
         </nav>
         )}
 
-        {/* Preview toggle — hide all editor UI (sidebars overlay the canvas) to
-            preview the game cleanly, in ANY view. Available on desktop + mobile. */}
-        <button
-          onClick={() => setShowSidebars(s => !s)}
-          aria-pressed={!showSidebars}
-          className="fixed bottom-4 right-4 z-30 rounded-full bg-purple-700 px-4 py-2 font-mono text-xs font-bold text-white shadow-lg hover:bg-purple-600"
-        >
-          {showSidebars ? '▣ Preview (hide UI)' : '✎ Edit (show UI)'}
-        </button>
+        {/* Bottom-right floating control: Preview toggle in the editor (hides the
+            sidebars for a clean look), Exit Game while playing. Execute Game (top nav)
+            enters the full clean PLAY VIEW; this is how you leave it. */}
+        {!playMode && (
+          <button
+            onClick={() => setShowSidebars(s => !s)}
+            aria-pressed={!showSidebars}
+            className="fixed bottom-4 right-4 z-30 rounded-full bg-purple-700 px-4 py-2 font-mono text-xs font-bold text-white shadow-lg hover:bg-purple-600"
+          >
+            {showSidebars ? '▣ Preview (hide UI)' : '✎ Edit (show UI)'}
+          </button>
+        )}
+        {playMode && (
+          <button
+            onClick={exitPlayMode}
+            aria-label="Exit game"
+            className="fixed left-4 top-4 z-30 rounded-full bg-red-700 px-4 py-2 font-mono text-xs font-bold text-white shadow-lg hover:bg-red-600"
+          >
+            ⨯ Exit Game
+          </button>
+        )}
 
         {/* LEFT SIDEBAR — Views · Stage presets · Assets */}
-        {showSidebars && (
+        {showSidebars && !playMode && (
           <aside
             className={`fixed left-4 z-10 flex flex-col gap-3 overflow-y-auto pr-1 font-mono text-white ${
               isMobile
@@ -7683,7 +7722,7 @@ export default function TemplateEditor() {
         )}
 
         {/* RIGHT SIDEBAR — Selected entity (action bar → modals) · Entities · Connectors */}
-        {showSidebars && (
+        {showSidebars && !playMode && (
           <aside
             className={`fixed right-4 z-10 flex flex-col gap-3 overflow-y-auto pl-1 font-mono text-white ${
               isMobile
@@ -8074,7 +8113,7 @@ export default function TemplateEditor() {
         )}
 
         {/* Inventory — open button (also toggled by the I key) + the panel overlay */}
-        {showSidebars && !inventoryOpen && !showFlowView && (
+        {(showSidebars || playMode) && !inventoryOpen && !showFlowView && (
           <button
             onClick={() => setInventoryOpen(true)}
             className="fixed bottom-4 left-1/2 z-20 -translate-x-1/2 rounded bg-cyan-700 px-3 py-1 font-mono text-xs font-bold text-white shadow-lg hover:bg-cyan-600"
@@ -8108,7 +8147,7 @@ export default function TemplateEditor() {
         })()}
 
         {/* Quest log — open button (also toggled by the Q key) + the panel overlay */}
-        {showSidebars && !questLogOpen && !showFlowView && (
+        {(showSidebars || playMode) && !questLogOpen && !showFlowView && (
           <button
             onClick={() => setQuestLogOpen(true)}
             className="fixed bottom-4 left-[calc(50%+150px)] z-20 -translate-x-1/2 rounded bg-orange-700 px-3 py-1 font-mono text-xs font-bold text-white shadow-lg hover:bg-orange-600"
