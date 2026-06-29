@@ -367,7 +367,7 @@ function mintItemId(): string {
 const ENTITY_ASSET_TYPE = 'nebulith:entity'
 
 /** Serialize entities into asset-shaped records appended to assetsData. */
-function entitiesToAssets(entities: readonly Entity[]): GridAsset[] {
+export function entitiesToAssets(entities: readonly Entity[]): GridAsset[] {
   return entities.map(entity => ({
     art: [entityGlyph(entity)],
     col: entity.col,
@@ -399,7 +399,7 @@ function entityFromAsset(asset: GridAsset): Entity | null {
 }
 
 /** Pull every entity back out of a loaded asset list (drops malformed ones). */
-function entitiesFromAssets(assets: readonly GridAsset[]): Entity[] {
+export function entitiesFromAssets(assets: readonly GridAsset[]): Entity[] {
   const out: Entity[] = []
   for (const asset of assets) {
     if (!isEntityAsset(asset)) continue
@@ -3763,7 +3763,7 @@ function AbilityBrowseModal({ loadout, targetSlot, onPickSlot, onAssign, onClose
   )
 }
 
-function EquipmentPanel({ label, loadout, baseStats, hp, onChange, onClose, abilityLoadout, onAbilityChange }: {
+function EquipmentPanel({ label, loadout, baseStats, hp, onChange, onClose, abilityLoadout, onAbilityChange, nameValue, onNameChange }: {
   label: string
   loadout: Loadout
   baseStats: Stats
@@ -3774,6 +3774,10 @@ function EquipmentPanel({ label, loadout, baseStats, hp, onChange, onClose, abil
   // enemy's inventory shows gear only. When present, the Abilities section becomes editable.
   abilityLoadout?: readonly AbilityBinding[]
   onAbilityChange?: (l: readonly AbilityBinding[]) => void
+  // Player only: the raw, EDITABLE name (empty = falls back to the default). When onNameChange is
+  // passed the header name becomes an input so you can rename right from the inventory.
+  nameValue?: string
+  onNameChange?: (name: string) => void
 }) {
   // Hovered item + live cursor pos for the stat tooltip (#51). Cleared on leave.
   const [hovered, setHovered] = useState<{ item: Item; x: number; y: number } | null>(null)
@@ -3836,7 +3840,20 @@ function EquipmentPanel({ label, loadout, baseStats, hp, onChange, onClose, abil
       <div className="fixed inset-0 z-30 flex items-center justify-center bg-black/70 p-4 font-mono" role="dialog" aria-label="Inventory" onClick={onClose}>
         <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-lg border border-cyan-500/40 bg-gray-900 p-4 text-white shadow-2xl" onClick={e => e.stopPropagation()}>
           <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-sm font-bold text-cyan-400">Inventory — {label}</h2>
+            <h2 className="flex items-center gap-1 text-sm font-bold text-cyan-400">
+              Inventory —{' '}
+              {onNameChange ? (
+                <input
+                  value={nameValue ?? ''}
+                  onChange={e => onNameChange(e.target.value)}
+                  placeholder={DEFAULT_PLAYER_NAME}
+                  aria-label="Player name"
+                  className="w-40 rounded bg-gray-800 px-1.5 py-0.5 text-sm font-bold text-cyan-300 outline-none focus:ring-1 focus:ring-cyan-500"
+                />
+              ) : (
+                label
+              )}
+            </h2>
             <button onClick={onClose} className="rounded bg-gray-700 px-2 py-1 text-xs hover:bg-gray-600" aria-label="Close inventory">✕ (I)</button>
           </div>
 
@@ -4940,6 +4957,9 @@ export default function TemplateEditor() {
       playerRef.current.bodyColor = pal.fg
       playerRef.current.bodyBg = pal.bg
     }
+    // Mirror the player entity's (persisted) name onto the render struct so the life-bar label
+    // shows it the way enemies show their type/name.
+    playerRef.current.name = playerDisplayName(playerEntity?.name)
     playerStatsRef.current = {
       ...base,
       strength: base.strength + b.strength,
@@ -5564,6 +5584,11 @@ export default function TemplateEditor() {
     if (!selectedEntityId) return
     setEntities(prev => removeEntity(prev, selectedEntityId))
     setSelectedEntityId(null)
+  }
+  /** Rename the player — patches the player entity's name, which persists via the entities codec
+   *  (entitiesToAssets/entitiesFromAssets) and shows on the life bar + inventory header. */
+  const setPlayerName = (name: string) => {
+    setEntities(prev => prev.map(e => (e.kind === 'player' ? { ...e, name } : e)))
   }
 
   // Scatter a handful of enemies (+ the odd NPC) into the stage's free cells, each
@@ -9053,10 +9078,10 @@ export default function TemplateEditor() {
           const activeId = selectedEntityId ?? '__player__'
           const current = loadouts[activeId] ?? (activeId === '__player__' ? seededPlayerLoadout() : createLoadout())
           const selEntity = selectedEntityId ? entities.find(e => e.id === selectedEntityId) : undefined
-          const who = selEntity?.name ?? (selectedEntityId ? 'Entity' : 'Player')
           // Whose stats the panel shows: the selected entity, else the player. HP for the
           // player comes from the live HUD mirror (same source the combat HUD reads).
           const playerEntity = entities.find(e => e.kind === 'player')
+          const who = selEntity?.name ?? (selectedEntityId ? 'Entity' : playerDisplayName(playerEntity?.name))
           const baseStats = selEntity?.baseStats ?? playerEntity?.baseStats ?? DEFAULT_PLAYER_STATS
           const hp = selEntity
             ? { current: selEntity.baseStats.maxHp, max: selEntity.baseStats.maxHp }
@@ -9071,6 +9096,8 @@ export default function TemplateEditor() {
               onClose={() => setInventoryOpen(false)}
               {...(activeId === '__player__'
                 ? {
+                    nameValue: playerEntity?.name ?? '',
+                    onNameChange: setPlayerName,
                     abilityLoadout: abilityLoadouts['__player__'] ?? DEFAULT_ABILITY_LOADOUT,
                     onAbilityChange: (l: readonly AbilityBinding[]) =>
                       setAbilityLoadouts(prev => ({ ...prev, __player__: l })),
