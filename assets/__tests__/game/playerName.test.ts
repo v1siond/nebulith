@@ -2,7 +2,7 @@ import {
   playerDisplayName,
   DEFAULT_PLAYER_NAME,
   barFraction,
-} from '@/pages/personal-projects/game-engine/templates'
+} from '@/game/runtime/player'
 import { entitiesToAssets, entitiesFromAssets } from '@/lib/gridCodec'
 import { makePlayer, makeEnemy } from '@/game/entities'
 

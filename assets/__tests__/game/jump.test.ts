@@ -1,4 +1,4 @@
-import { aimDelta, jumpLandingCell, type PlayerState } from '@/pages/personal-projects/game-engine/templates'
+import { aimDelta, jumpLandingCell, type PlayerState } from '@/game/runtime/player'
 
 // Minimal player — aimDelta only reads `aim` + `facing`.
 const player = (aim: { col: number; row: number } | undefined, facing: PlayerState['facing'] = 'up'): PlayerState =>

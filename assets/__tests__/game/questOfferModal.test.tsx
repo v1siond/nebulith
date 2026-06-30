@@ -3,7 +3,8 @@ import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { acceptQuest } from '@/game/quests'
 import type { Quest } from '@/game/types'
-import { QuestGiveBody, QuestLogPanel, questAnchorScreenPos } from '@/pages/personal-projects/game-engine/templates'
+import { QuestGiveBody, QuestLogPanel } from '@/pages/personal-projects/game-engine/templates'
+import { questAnchorScreenPos } from '@/game/runtime/quest'
 
 // ───────────────────────────────────────────────────────────────────────────
 // Quest UI (React DOM) — the offer modal body + the quest log panel.

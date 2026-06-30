@@ -1,10 +1,5 @@
-import {
-  findTarget,
-  makeEnemyRuntime,
-  aimFromKeys,
-  aimDelta,
-  type PlayerState,
-} from '@/pages/personal-projects/game-engine/templates'
+import { findTarget, makeEnemyRuntime } from '@/game/runtime/targeting'
+import { aimFromKeys, aimDelta, type PlayerState } from '@/game/runtime/player'
 import { makeEnemy } from '@/game/entities'
 
 // ───────────────────────────────────────────────────────────────────────────

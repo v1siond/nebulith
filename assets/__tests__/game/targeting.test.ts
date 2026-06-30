@@ -1,4 +1,5 @@
-import { findTarget, makeEnemyRuntime, type PlayerState } from '@/pages/personal-projects/game-engine/templates'
+import { findTarget, makeEnemyRuntime } from '@/game/runtime/targeting'
+import { type PlayerState } from '@/game/runtime/player'
 import { makeEnemy } from '@/game/entities'
 import { entityFootprint } from '@/engine/entityArt'
 import type { Entity } from '@/game/types'

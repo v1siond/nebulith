@@ -1,10 +1,6 @@
-import {
-  applyEnemyRetaliation,
-  makeEnemyRuntime,
-  type CombatStepInput,
-  type PlayerState,
-  type EnemyRuntime,
-} from '@/pages/personal-projects/game-engine/templates'
+import { applyEnemyRetaliation, type CombatStepInput } from '@/game/runtime/combat'
+import { makeEnemyRuntime, type EnemyRuntime } from '@/game/runtime/targeting'
+import { type PlayerState } from '@/game/runtime/player'
 import { buildAttackPattern, makeEnemyAttack } from '@/game/patterns'
 import type { AttackAnim } from '@/engine/attackAnimations'
 import type { Entity, Stats, Weapon, CombatState, AttackPattern } from '@/game/types'
