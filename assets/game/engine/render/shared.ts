@@ -126,6 +126,43 @@ export function clampCameraAxis(focus: number, halfSpan: number, total: number):
 }
 
 
+/** Clamp a focus coord into [lo, hi] keeping `pad` units of viewport each side; if that span
+ *  is narrower than the viewport, centre it. The general form of clampCameraAxis (which is just
+ *  this with lo = 0, hi = total). */
+export function clampCameraSpan(focus: number, pad: number, lo: number, hi: number): number {
+  if (hi - lo <= pad * 2) return (lo + hi) / 2
+  return Math.min(Math.max(focus, lo + pad), hi - pad)
+}
+
+
+/** Clamp an ISOMETRIC camera focus (col `fc`, row `fr`) so the viewport can pan all the way to
+ *  the map's top/bottom and left/right corners. Iso screen axes are the diagonals
+ *  p = col - row (horizontal) and q = col + row (vertical); the viewport spans ±`pPad` in p and
+ *  ±`qPad` in q.
+ *
+ *  We clamp in (p, q) space: q to the diamond's full vertical extent [0, cols + rows] so the
+ *  camera reaches the top/bottom corners — the old combined col/row clamp stopped it `pPad`
+ *  short of them (#38) — then p to the diamond's WIDTH AT THAT HEIGHT so the sides stay inside
+ *  the diamond. Returns the clamped {fc, fr}. */
+export function isoCameraFocus(
+  fc: number,
+  fr: number,
+  pPad: number,
+  qPad: number,
+  cols: number,
+  rows: number,
+): { fc: number; fr: number } {
+  // q = col + row (vertical screen axis): the diamond spans q ∈ [0, cols + rows].
+  const fq = clampCameraSpan(fc + fr, qPad, 0, cols + rows)
+  // p = col - row (horizontal). At height q the diamond's four edges bound p to:
+  //   col ≥ 0 → p ≥ -q ;  col ≤ cols → p ≤ 2·cols - q ;  row ≥ 0 → p ≤ q ;  row ≤ rows → p ≥ q - 2·rows
+  const pLo = Math.max(-fq, fq - 2 * rows)
+  const pHi = Math.min(fq, 2 * cols - fq)
+  const fp = clampCameraSpan(fc - fr, pPad, pLo, pHi)
+  return { fc: (fp + fq) / 2, fr: (fq - fp) / 2 }
+}
+
+
 // Draw player as ASCII art in isometric view (matching 2D style)
 /** A flat ground shadow centered at (cx, footY), sized a bit WIDER than the figure's
  *  half-width so it always reads beneath the figure instead of hiding behind it.

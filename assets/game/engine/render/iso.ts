@@ -16,7 +16,7 @@ import { type PlayerState, barFraction, hpFraction, playerDisplayName } from '@/
 import { type CombatState, type Entity, type Quest } from '@/game/types'
 import { GROUND_COLORS } from '@/levels/village'
 import { Connector } from '@/lib/api'
-import { ASCII_FONT, BUILDING_BADGES, COMBAT_RANGE, type DayNight, ENEMY_MOVE_MS, LAMP_GLOW, LIGHT, applyCellTransform, clampCameraAxis, collectLampGlows, debugCellCaptions, debugLabelColors, drawFigureVitals, drawGroundShadow, drawHitMarker, drawNightLighting, drawPlayerArm, drawQuestMarker, drawRangeRing, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, getPlayerArt, grassShade, idleNow, isDeadEnemy, isDebugMode, treeCanopyLayers } from './shared'
+import { ASCII_FONT, BUILDING_BADGES, COMBAT_RANGE, type DayNight, ENEMY_MOVE_MS, LAMP_GLOW, LIGHT, applyCellTransform, isoCameraFocus, collectLampGlows, debugCellCaptions, debugLabelColors, drawFigureVitals, drawGroundShadow, drawHitMarker, drawNightLighting, drawPlayerArm, drawQuestMarker, drawRangeRing, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, getPlayerArt, grassShade, idleNow, isDeadEnemy, isDebugMode, treeCanopyLayers } from './shared'
 
 
 /** Per-face brightness from the global light: a face whose outward screen normal points toward the
@@ -261,26 +261,25 @@ export function render(
   const cellSize = grid.cellSize
   const isoScale = grid.isoScale * zoom // mouse-wheel zoom scales the iso projection
 
-  // Camera follows player + pan offset, then CLAMP to the grid's projected iso
-  // bounding box so the viewport never reveals void beyond the diamond. Iso maps
-  // screen x/y to the diagonal coords p = col-row and q = col+row, so we clamp the
-  // focus in THAT space to keep the diamond's screen-space bbox covering the
-  // viewport. (A rectangular viewport can't avoid void at the diamond's own corners
-  // unless the grid is huge — this kills the big dark edge borders, the real bug.)
+  // Camera follows player + pan offset, then CLAMP so the viewport stays on the map. Iso maps
+  // screen x/y to the diagonal coords p = col-row (horizontal) and q = col+row (vertical); the
+  // viewport spans ±pPad in p and ±qPad in q.
   const Kx = cellSize * isoScale * 0.71  // screen px per unit of (col - row)
   const Ky = cellSize * isoScale * 0.36  // screen px per unit of (col + row)
   const pPad = w / (2 * Kx)              // half viewport width, in (col-row) units
   const qPad = h / (2 * Ky)              // half viewport height, in (col+row) units
-  // The screen viewport is an axis-aligned rect in (p=col-row, q=col+row) space; its WORST corner
-  // constrains BOTH the col and row focus by (pPad+qPad)/2. Clamping col/row with that combined
-  // half-span (exactly like the 2D edge clamp) keeps the rect INSIDE the projected diamond, so
-  // zooming/panning never reveals void past the map edges (#70). Clamping p/q independently — the old
-  // way — only bounded the diamond's bbox, letting the rect poke past the slanted edges when zoomed in.
-  let fc = (player.x - camOffset.x) / cellSize
-  let fr = (player.z - camOffset.y) / cellSize
-  const isoHalfSpan = (pPad + qPad) / 2
-  fc = clampCameraAxis(fc, isoHalfSpan, grid.cols)
-  fr = clampCameraAxis(fr, isoHalfSpan, grid.rows)
+  // Clamp in (p, q) space: q to the diamond's full vertical extent so the camera can pan all the
+  // way to the top/bottom corners — the old combined (pPad+qPad)/2 col/row clamp kept the whole
+  // rect inside the diamond but stopped the camera pPad short of the bottom/top rows (#38). p is
+  // then clamped to the diamond's width AT THAT HEIGHT so the sides stay inside it.
+  const { fc, fr } = isoCameraFocus(
+    (player.x - camOffset.x) / cellSize,
+    (player.z - camOffset.y) / cellSize,
+    pPad,
+    qPad,
+    grid.cols,
+    grid.rows,
+  )
   const camX = fc * cellSize
   const camZ = fr * cellSize
 
