@@ -175,8 +175,26 @@ export function draw2DBuilding(
   // ~50/50 front/back, and the door indicator (render2D) marks the real entrance on the backs.
   const showFront = !isoFacadeOnBack(gridBuildingFacing(b))
   const cells = b.cells
-  const L = cells[0]?.length ?? b.length
   const H = cells.length
+  // Draw ONE elevation column per GROUND-footprint column (b.length), aligned to the footprint's
+  // own collision cells — so a drawn wall ALWAYS sits on a blocked cell (the #82 fix). A rotated
+  // (east/west) building's footprint col-span is its DEPTH, narrower than the facade length, so the
+  // old "draw a facade-length-wide elevation centred on the footprint" spilled a phantom wall column
+  // PAST the footprint with no collision behind it — you could walk straight through that drawn wall.
+  // We map the footprint's real road-edge door column to the facade's door column and fill the rest
+  // from wall columns. Axis-aligned (south/north) buildings have footprint width == facade length
+  // with the door already centred, so they take the identity path and render exactly as before.
+  const facing = gridBuildingFacing(b)
+  const rect = buildingRect(b)
+  const N = b.length // footprint column span == collision width
+  const identity = facing === 'south' || facing === 'north' // 1:1 facade↔footprint, render unchanged
+  const dFoot = doorCellFor(facing, rect).col - b.col // footprint-relative door column
+  const bottomRow = cells[H - 1] ?? []
+  const dFace = Math.max(0, bottomRow.findIndex(k => k === 'door')) // facade door column
+  const wallSrcCols = bottomRow.map((k, c) => (k === 'door' ? -1 : c)).filter(c => c >= 0)
+  // facade source column for footprint column i (its door column → the facade door; else a wall column)
+  const srcCol = (i: number): number =>
+    identity ? i : i === dFoot ? dFace : wallSrcCols.length ? wallSrcCols[i % wallSrcCols.length] : 0
   // Each cell gets its OWN background so a door reads as a dark doorway and a window as glass — not a
   // glyph on identical wall. Colors come from the shared per-building source (real-house wall tones,
   // dark doors, glass windows; store=blue roof, hospital=green roof) so 2D matches the other views.
@@ -191,12 +209,15 @@ export function draw2DBuilding(
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
   for (let r = 0; r < H; r++) {
-    for (let c = 0; c < L; c++) {
-      const raw = cells[r]?.[c]
+    for (let i = 0; i < N; i++) {
+      const raw = cells[r]?.[srcCol(i)]
       if (!raw || raw === 'empty') continue
+      // A door glyph mapped onto a non-door footprint column (rotated buildings) reverts to wall so
+      // the entrance stays single + on the real road edge. Identity (axis-aligned) keeps b.cells as-is.
+      const cellKind = !identity && raw === 'door' && i !== dFoot ? 'wall' : raw
       // Back of the house → only the DOOR becomes wall (no entrance from behind); windows still show.
-      const kind = !showFront && raw === 'door' ? 'wall' : raw
-      const x = centerX + (c - (L - 1) / 2) * tileW
+      const kind = !showFront && cellKind === 'door' ? 'wall' : cellKind
+      const x = centerX + (i - (N - 1) / 2) * tileW
       const cellTop = baseY - (H - r) * tileH // row r (0 = roof apex) stacks up from the front edge
       const isRoof = kind === 'roof'
       const isDoor = kind === 'door'
