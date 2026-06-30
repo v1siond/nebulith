@@ -5,7 +5,7 @@ import {
   questsFromAssets,
   buildingsToAssets,
   buildingsFromAssets,
-} from '@/pages/personal-projects/game-engine/templates'
+} from '@/lib/gridCodec'
 import type { Entity, Quest } from '@/game/types'
 import type { GridAsset, GridBuilding } from '@/engine/IsometricGrid'
 

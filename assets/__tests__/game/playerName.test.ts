@@ -2,9 +2,8 @@ import {
   playerDisplayName,
   DEFAULT_PLAYER_NAME,
   barFraction,
-  entitiesToAssets,
-  entitiesFromAssets,
 } from '@/pages/personal-projects/game-engine/templates'
+import { entitiesToAssets, entitiesFromAssets } from '@/lib/gridCodec'
 import { makePlayer, makeEnemy } from '@/game/entities'
 
 // ───────────────────────────────────────────────────────────────────────────
