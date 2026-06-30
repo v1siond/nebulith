@@ -364,11 +364,52 @@ function mintItemId(): string {
 // they round-trip through createTemplate/updateTemplate without touching
 // api.ts. The marker type keeps them out of the visible asset renderers.
 
-const ENTITY_ASSET_TYPE = 'nebulith:entity'
+interface AssetCodec<T> {
+  /** Serialize items into the marker records appended to assetsData. */
+  toAssets: (items: readonly T[]) => GridAsset[]
+  /** Pull every item back out of a loaded asset list (drops malformed ones). */
+  fromAssets: (assets: readonly GridAsset[]) => T[]
+  /** True for the marker records this codec produced. */
+  isMarker: (asset: GridAsset) => boolean
+}
 
-/** Serialize entities into asset-shaped records appended to assetsData. */
-export function entitiesToAssets(entities: readonly Entity[]): GridAsset[] {
-  return entities.map(entity => ({
+/**
+ * Build one entity/quest/building codec. Only two things differ per type:
+ * `toRecord` (how an item is shaped into a marked GridAsset) and `validate`
+ * (the guard on a parsed payload). The marker check, JSON parse + try/catch,
+ * and the filter/decode loop are identical, so they live here once.
+ */
+function makeAssetCodec<T>(
+  markerType: string,
+  toRecord: (item: T) => GridAsset,
+  validate: (parsed: T) => boolean,
+): AssetCodec<T> {
+  const isMarker = (asset: GridAsset): boolean => asset.type === markerType
+  const fromAsset = (asset: GridAsset): T | null => {
+    if (!asset.label) return null
+    try {
+      const parsed = JSON.parse(asset.label) as T
+      return validate(parsed) ? parsed : null
+    } catch {
+      return null
+    }
+  }
+  const fromAssets = (assets: readonly GridAsset[]): T[] => {
+    const out: T[] = []
+    for (const asset of assets) {
+      if (!isMarker(asset)) continue
+      const item = fromAsset(asset)
+      if (item) out.push(item)
+    }
+    return out
+  }
+  return { toAssets: items => items.map(toRecord), fromAssets, isMarker }
+}
+
+const ENTITY_ASSET_TYPE = 'nebulith:entity'
+const entityCodec = makeAssetCodec<Entity>(
+  ENTITY_ASSET_TYPE,
+  entity => ({
     art: [entityGlyph(entity)],
     col: entity.col,
     row: entity.row,
@@ -376,38 +417,12 @@ export function entitiesToAssets(entities: readonly Entity[]): GridAsset[] {
     blocking: false, // entities are not terrain collision
     color: ENTITY_COLOR[entity.kind],
     label: JSON.stringify(entity), // the round-trip payload
-  }))
-}
-
-/** True for the marker records produced by entitiesToAssets. */
-function isEntityAsset(asset: GridAsset): boolean {
-  return asset.type === ENTITY_ASSET_TYPE
-}
-
-/** Decode one marker asset back into an Entity, or null if malformed. */
-function entityFromAsset(asset: GridAsset): Entity | null {
-  if (!asset.label) return null
-  try {
-    const parsed = JSON.parse(asset.label) as Entity
-    if (parsed?.kind && typeof parsed.col === 'number' && typeof parsed.row === 'number') {
-      return parsed
-    }
-    return null
-  } catch {
-    return null
-  }
-}
-
-/** Pull every entity back out of a loaded asset list (drops malformed ones). */
-export function entitiesFromAssets(assets: readonly GridAsset[]): Entity[] {
-  const out: Entity[] = []
-  for (const asset of assets) {
-    if (!isEntityAsset(asset)) continue
-    const entity = entityFromAsset(asset)
-    if (entity) out.push(entity)
-  }
-  return out
-}
+  }),
+  parsed => !!(parsed?.kind && typeof parsed.col === 'number' && typeof parsed.row === 'number'),
+)
+export const entitiesToAssets = entityCodec.toAssets
+export const entitiesFromAssets = entityCodec.fromAssets
+const isEntityAsset = entityCodec.isMarker
 
 // ── quest persistence codec ──────────────────────────────────────────
 // Quests ride the same assetsData channel as entities (api.ts has no quest
@@ -416,10 +431,9 @@ export function entitiesFromAssets(assets: readonly GridAsset[]): Entity[] {
 // The NPC↔quest link survives independently via the entity's own questId field.
 
 const QUEST_ASSET_TYPE = 'nebulith:quest'
-
-/** Serialize quests into off-grid asset-shaped marker records. */
-function questsToAssets(quests: readonly Quest[]): GridAsset[] {
-  return quests.map(quest => ({
+const questCodec = makeAssetCodec<Quest>(
+  QUEST_ASSET_TYPE,
+  quest => ({
     art: [' '],
     col: -1, // off-grid: never drawn by the tile/asset renderers
     row: -1,
@@ -427,38 +441,12 @@ function questsToAssets(quests: readonly Quest[]): GridAsset[] {
     blocking: false,
     color: '#000000',
     label: JSON.stringify(quest), // the round-trip payload
-  }))
-}
-
-/** True for the marker records produced by questsToAssets. */
-function isQuestAsset(asset: GridAsset): boolean {
-  return asset.type === QUEST_ASSET_TYPE
-}
-
-/** Decode one marker asset back into a Quest, or null if malformed. */
-function questFromAsset(asset: GridAsset): Quest | null {
-  if (!asset.label) return null
-  try {
-    const parsed = JSON.parse(asset.label) as Quest
-    if (parsed?.id && Array.isArray(parsed.objectives) && Array.isArray(parsed.rewards)) {
-      return parsed
-    }
-    return null
-  } catch {
-    return null
-  }
-}
-
-/** Pull every quest back out of a loaded asset list (drops malformed ones). */
-function questsFromAssets(assets: readonly GridAsset[]): Quest[] {
-  const out: Quest[] = []
-  for (const asset of assets) {
-    if (!isQuestAsset(asset)) continue
-    const quest = questFromAsset(asset)
-    if (quest) out.push(quest)
-  }
-  return out
-}
+  }),
+  parsed => !!(parsed?.id && Array.isArray(parsed.objectives) && Array.isArray(parsed.rewards)),
+)
+export const questsToAssets = questCodec.toAssets
+export const questsFromAssets = questCodec.fromAssets
+const isQuestAsset = questCodec.isMarker
 
 // ── building persistence codec ───────────────────────────────────────
 // The GROUPED buildings (grid.buildings) drive the upright iso/2D/top render. The template schema
@@ -467,10 +455,9 @@ function questsFromAssets(assets: readonly GridAsset[]): Quest[] {
 // grid.buildings is empty after a load and every view falls back to the OLD per-cell building look.
 
 const BUILDING_ASSET_TYPE = 'nebulith:building'
-
-/** Serialize grouped buildings into off-grid asset-shaped marker records. */
-function buildingsToAssets(buildings: readonly GridBuilding[]): GridAsset[] {
-  return buildings.map(b => ({
+const buildingCodec = makeAssetCodec<GridBuilding>(
+  BUILDING_ASSET_TYPE,
+  b => ({
     art: [' '],
     col: -1, // off-grid: never drawn by the tile/asset renderers
     row: -1,
@@ -478,38 +465,12 @@ function buildingsToAssets(buildings: readonly GridBuilding[]): GridAsset[] {
     blocking: false,
     color: '#000000',
     label: JSON.stringify(b), // the round-trip payload (cells, facing, depth, facadeOnBack, …)
-  }))
-}
-
-/** True for the marker records produced by buildingsToAssets. */
-function isBuildingAsset(asset: GridAsset): boolean {
-  return asset.type === BUILDING_ASSET_TYPE
-}
-
-/** Decode one marker asset back into a GridBuilding, or null if malformed. */
-function buildingFromAsset(asset: GridAsset): GridBuilding | null {
-  if (!asset.label) return null
-  try {
-    const parsed = JSON.parse(asset.label) as GridBuilding
-    if (Array.isArray(parsed?.cells) && typeof parsed.col === 'number' && typeof parsed.row === 'number') {
-      return parsed
-    }
-    return null
-  } catch {
-    return null
-  }
-}
-
-/** Pull every grouped building back out of a loaded asset list (drops malformed ones). */
-function buildingsFromAssets(assets: readonly GridAsset[]): GridBuilding[] {
-  const out: GridBuilding[] = []
-  for (const asset of assets) {
-    if (!isBuildingAsset(asset)) continue
-    const b = buildingFromAsset(asset)
-    if (b) out.push(b)
-  }
-  return out
-}
+  }),
+  parsed => !!(Array.isArray(parsed?.cells) && typeof parsed.col === 'number' && typeof parsed.row === 'number'),
+)
+export const buildingsToAssets = buildingCodec.toAssets
+export const buildingsFromAssets = buildingCodec.fromAssets
+const isBuildingAsset = buildingCodec.isMarker
 
 // ═══════════════════════════════════════════════════════════════════
 // COMBAT — wiring the pure engine (src/game/combat.ts) into the play loop.
