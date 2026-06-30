@@ -1,0 +1,858 @@
+import { player as playerSprite } from '@/assets/ascii'
+import { GridAsset, GridBuilding, IsometricGrid } from '@/engine/IsometricGrid'
+import { type AttackAnim, animFrame } from '@/engine/attackAnimations'
+import { type BuildingType } from '@/engine/buildingComposer'
+import { buildingRect, doorCellFor, gridBuildingFacing } from '@/engine/buildingEditor'
+import { assetCellTransform } from '@/engine/cellAnimation'
+import { isGroundContact } from '@/engine/cellLabels'
+import { darkenColor, lightenColor, withAlpha } from '@/engine/colors'
+import { entityPalette } from '@/engine/entityArt'
+import { entityQuestMarker } from '@/engine/entityQuestMarker'
+import { isoFacadeOnBack } from '@/engine/isoBuilding'
+import { buildingCellColor } from '@/engine/stageGenerator'
+import { type Projectile, projectileCellAt } from '@/game/projectiles'
+import { type HitMarker } from '@/game/runtime/combat'
+import { type PlayerState, barFraction, hpFraction, playerDisplayName } from '@/game/runtime/player'
+import { type CombatState, type Entity, type Quest } from '@/game/types'
+import { GROUND_COLORS } from '@/levels/village'
+import { Connector } from '@/lib/api'
+import { ASCII_FONT, BUILDING_BADGES, COMBAT_RANGE, type DayNight, ENEMY_MOVE_MS, LAMP_GLOW, applyCellTransform, clampCameraAxis, collectLampGlows, debugCellCaptions, debugLabelColors, drawFigureVitals, drawGroundShadow, drawHitMarker, drawNightLighting, drawPlayerArm, drawQuestMarker, drawRangeRing, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, getPlayerArt, grassShade, idleNow, isDeadEnemy, isDebugMode, treeCanopyLayers } from './shared'
+
+
+/** Draw a placed entity in the TOP (blueprint) renderer — a filled cell badge
+ *  with the glyph, drawn over ground/assets/player so it always reads. Living
+ *  enemies get a thin HP bar across the top edge of their cell. */
+export function drawTopEntity(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  tileSize: number,
+  entity: Entity,
+  combat?: CombatState,
+  now: number = idleNow(),
+  moving = false,
+  inRange = false,
+  attackable = false,
+): { x: number; y: number } {
+  // The figure spans a footprint (a 3-row figure ≈ 2 cells tall, 1 wide) anchored so
+  // the entity's cell is the BOTTOM cell — matching the player's 2-tall look in top view.
+  const art = entityAnimFrame(entity, now, moving, inRange)
+  const cellsTall = Math.max(2, Math.ceil(art.length / 1.5))
+  const spanH = cellsTall * tileSize
+  const topY = y - (cellsTall - 1) * tileSize
+  const fontSize = Math.max(6, (spanH * 0.9) / art.length)
+  const charW = fontSize * 0.6
+  const maxW = art.reduce((m, r) => Math.max(m, r.length), 0)
+  const cx = x + tileSize / 2
+  const textLeft = cx - (maxW * charW) / 2
+  const startY = topY + spanH / 2 - ((art.length - 1) / 2) * fontSize
+
+  // Ground shadow at the figure's feet (bottom row) — sized to the figure.
+  const footY = startY + (art.length - 1) * fontSize + fontSize * 0.35
+  drawGroundShadow(ctx, cx, footY, (maxW * charW) / 2)
+  // In-strike-range indicator: a ring at the feet (#35).
+  if (attackable) drawRangeRing(ctx, cx, footY, (maxW * charW) / 2 + tileSize * 0.2, now)
+  // NO background panel — the figure draws directly on the map (a colored box behind
+  // every monster/NPC made stages unreadable). A 1px shadow keeps it legible.
+  ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
+  ctx.textAlign = 'left'
+  ctx.textBaseline = 'middle'
+  // Block style — solid bg per row + bright glyph, so the 2D view matches the iso view.
+  const pal = entityPalette(entity)
+  for (let i = 0; i < art.length; i++) {
+    const line = art[i]
+    const ly = startY + i * fontSize
+    const s = line.length - line.trimStart().length
+    const en = line.trimEnd().length
+    if (en > s) {
+      ctx.fillStyle = pal.bg
+      ctx.fillRect(textLeft + s * charW - 1, ly - fontSize * 0.42, (en - s) * charW + 2, fontSize * 0.82)
+    }
+    ctx.fillStyle = '#000000'
+    ctx.fillText(line, textLeft + 1, ly + 1)
+    ctx.fillStyle = pal.fg
+    ctx.fillText(line, textLeft, ly)
+  }
+
+  // Top of the figure — where above-entity overlays (quest marker) anchor.
+  const figureTop = topY - 4
+  if (entity.kind !== 'enemy') return { x: cx, y: figureTop - fontSize * 0.6 }
+
+  // Bigger, thicker enemy HP bar (was figure-width × 3) so it reads at a glance, plus the enemy
+  // name above it — the SAME treatment the player's life bar reuses (drawFigureVitals).
+  const barWidth = Math.max(maxW * charW, tileSize * 2.2)
+  const label = entity.name ?? entity.enemyType ?? 'Enemy'
+  const nameSize = Math.max(9, fontSize)
+  return drawFigureVitals(ctx, cx, figureTop, barWidth, 6, nameSize, hpFraction(entity, combat), label)
+}
+
+
+/** Draw a generated, labeled cell as a single glyph (its label char + zone/theme
+ *  color) on a dark backing in the 2D view — the cell IS the tile, matching the
+ *  iso (drawIsoLabeledCell) and top renderers so a stage looks the same in
+ *  every view (and a zone tree is NEVER spring-green). */
+export function draw2DLabeledCell(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  baseY: number,
+  tileW: number,
+  tileH: number,
+  asset: GridAsset,
+): void {
+  const char = asset.art[0] ?? '?'
+  const cy = baseY - tileH * 0.5
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.45)'
+  ctx.fillRect(x - tileW / 2, cy - tileH / 2, tileW, tileH)
+  ctx.font = `bold ${tileH * 0.8}px ${ASCII_FONT}`
+  ctx.fillStyle = asset.color ?? '#cccccc'
+  ctx.fillText(char, x, cy)
+}
+
+
+/** One building FACADE cell rendered as a single tile, using the SAME tiles the layered
+ *  house drew (|[]| windows, |==| door, /\ red roof). The cell's structural glyph picks which:
+ *  ▀/▔ → red roof, ╫ → door, everything else (█ wall, ▒ window) → the gold |[]| body tile —
+ *  so the body looks exactly like #16's dense windowed wall. Painting one tile per cell (not a
+ *  whole house per cell) keeps the red roof to the facade's 2 top rows instead of a stack. */
+export function draw2DBuildingTile(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  baseY: number,
+  tileW: number,
+  tileH: number,
+  asset: GridAsset,
+  flicker: number,
+): void {
+  // Same palette the layered house used.
+  const wallColor = 'rgba(180, 132, 65, 0.9)'
+  const wallDarkColor = 'rgba(138, 98, 48, 0.9)'
+  const roofColor = 'rgba(200, 64, 64, 0.95)'
+
+  const glyph = asset.art[0] ?? '█'
+  const isRoof = glyph === '▀' || glyph === '▔'
+  const isDoor = glyph === '╫'
+  const tile = isRoof
+    ? { text: '/\\', fg: `rgba(255, 100, 80, ${0.8 + 0.2 * flicker})`, bg: roofColor }
+    : isDoor
+    ? { text: '|==|', fg: '#664422', bg: wallColor }
+    : { text: '|[]|', fg: `rgba(255, 220, 80, ${0.5 + 0.3 * flicker})`, bg: wallColor } // wall + window → dense |[]| like #16
+
+  const top = baseY - tileH
+  ctx.fillStyle = tile.bg
+  ctx.fillRect(cx - tileW * 0.5, top, tileW, tileH)
+
+  // Side-wall seams on the gold body tiles (the "connected wall" look) — not on the roof.
+  if (!isRoof) {
+    ctx.fillStyle = wallDarkColor
+    ctx.fillRect(cx - tileW * 0.5 - 2, top, 3, tileH)
+    ctx.fillRect(cx + tileW * 0.5 - 1, top, 3, tileH)
+  }
+
+  ctx.font = `bold ${tileH * 0.85}px ${ASCII_FONT}`
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.fillStyle = tile.fg
+  ctx.fillText(tile.text, cx, top + tileH * 0.5)
+}
+
+
+/** 2D FRONT ELEVATION of a building: its facade (b.cells — door-down, windows, peaked/flat roof on
+ *  top) drawn upright over the small footprint's front edge. `centerX` is the footprint centre, `baseY`
+ *  the bottom of the front row. The ground footprint stays width×depth (collision matches); only the
+ *  drawn facade rises tall — the height/footprint decoupling, in 2D. */
+export function draw2DBuilding(
+  ctx: CanvasRenderingContext2D,
+  b: GridBuilding,
+  centerX: number,
+  baseY: number,
+  tileW: number,
+  tileH: number,
+  flicker: number,
+): void {
+  // The 2D house stays UPRIGHT (roof on top). It shows its FRONT (door + windows) only on the
+  // camera-NEAR facings (south/east — the same split iso uses via `facadeOnBack`); the FAR facings
+  // (north/west) show a plain BACK wall, since a flat elevation can't show a door that faces away.
+  // ~50/50 front/back, and the door indicator (render2D) marks the real entrance on the backs.
+  const showFront = !isoFacadeOnBack(gridBuildingFacing(b))
+  const cells = b.cells
+  const L = cells[0]?.length ?? b.length
+  const H = cells.length
+  // Each cell gets its OWN background so a door reads as a dark doorway and a window as glass — not a
+  // glyph on identical wall. Colors come from the shared per-building source (real-house wall tones,
+  // dark doors, glass windows; store=blue roof, hospital=green roof) so 2D matches the other views.
+  const t = b.type as BuildingType
+  const a = (col: string): string => withAlpha(col, 0.96)
+  const roofBg = a(buildingCellColor(t, 'roof', b.col))
+  const roofGlyph = a(darkenColor(buildingCellColor(t, 'roof', b.col), 0.58)) // the /\ as a darker roof tone, so it reads
+  const wallBg = a(buildingCellColor(t, 'wall', b.col))
+  const doorBg = a(buildingCellColor(t, 'door', b.col))
+  const windowBg = a(buildingCellColor(t, 'window', b.col))
+  const wallSeam = a(darkenColor(buildingCellColor(t, 'wall', b.col), 0.72))
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  for (let r = 0; r < H; r++) {
+    for (let c = 0; c < L; c++) {
+      const raw = cells[r]?.[c]
+      if (!raw || raw === 'empty') continue
+      // Back of the house → only the DOOR becomes wall (no entrance from behind); windows still show.
+      const kind = !showFront && raw === 'door' ? 'wall' : raw
+      const x = centerX + (c - (L - 1) / 2) * tileW
+      const cellTop = baseY - (H - r) * tileH // row r (0 = roof apex) stacks up from the front edge
+      const isRoof = kind === 'roof'
+      const isDoor = kind === 'door'
+      const isWindow = kind === 'window'
+      ctx.fillStyle = isRoof ? roofBg : isDoor ? doorBg : isWindow ? windowBg : wallBg
+      ctx.fillRect(x - tileW * 0.5, cellTop, tileW, tileH)
+      // seams only on plain wall cells (the connected-wall look) — keep doors/windows clean
+      if (!isRoof && !isDoor && !isWindow) {
+        ctx.fillStyle = wallSeam
+        ctx.fillRect(x - tileW * 0.5 - 1, cellTop, 2, tileH)
+        ctx.fillRect(x + tileW * 0.5 - 1, cellTop, 2, tileH)
+      }
+      // detail glyph that READS on the cell's own background
+      const glyph = isRoof ? '/\\' : isDoor ? '▯' : isWindow ? '⊞' : ''
+      if (glyph) {
+        ctx.fillStyle = isRoof
+          ? roofGlyph // darker shade of THIS roof's color
+          : isDoor
+          ? 'rgba(232, 212, 170, 0.9)' // warm handle/panel on the dark door
+          : 'rgba(40, 62, 84, 0.85)' // dark frame on the glass window
+        ctx.font = `bold ${tileH * 0.7}px ${ASCII_FONT}`
+        ctx.fillText(glyph, x, cellTop + tileH * 0.5)
+      }
+    }
+  }
+  // Type signage (STORE / HOSPITAL) above the roof apex — mirrors the iso badge so a shop / clinic
+  // reads at a glance in 2D too. Only store + hospital carry a badge.
+  const badge = BUILDING_BADGES[b.type]
+  if (badge) {
+    const topY = baseY - H * tileH
+    const bf = tileH * (badge.text.length > 1 ? 0.55 : 1.0)
+    ctx.font = `bold ${bf}px ${ASCII_FONT}`
+    const bw = ctx.measureText(badge.text).width
+    const by = topY - bf * 0.5
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.72)'
+    ctx.fillRect(centerX - bw / 2 - 2, by - bf * 0.6, bw + 4, bf * 1.2)
+    ctx.fillStyle = badge.color
+    ctx.fillText(badge.text, centerX, by)
+  }
+}
+
+
+/** The town-square fountain in the 2D (3/4) view: ONE front-facing animated park fountain spanning
+ *  its plaza — a stone platform, a blue basin, a central tiered column, and water jets. `baseY` is the
+ *  bottom of the centre cell; the structure spans `asset.footprint` cells wide and stacks upward. */
+export function draw2DTownFountain(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  baseY: number,
+  tileW: number,
+  tileH: number,
+  asset: GridAsset,
+  time: number,
+): void {
+  const f = Math.max(2, asset.footprint ?? 3)
+  const fw = tileW * f
+  const hwid = fw * 0.5
+  const stone = '#bcb3a2'
+  const water = '#3fb2e6'
+  const waterDeep = darkenColor(water, 0.45)
+  const shimmer = 0.5 + 0.5 * Math.sin(time * 0.003)
+  const ellipse = (cy: number, rx: number, ry: number, fill: string): void => {
+    ctx.fillStyle = fill
+    ctx.beginPath()
+    ctx.ellipse(x, cy, rx, ry, 0, 0, Math.PI * 2)
+    ctx.fill()
+  }
+
+  // base PLATFORM — a short stone wall under a wide rounded slab
+  const platRy = tileH * 0.5
+  const platCy = baseY - platRy * 0.5
+  ctx.fillStyle = darkenColor(stone, 0.5)
+  ctx.fillRect(x - hwid, platCy, hwid * 2, tileH * 0.45)
+  ellipse(platCy, hwid, platRy, lightenColor(stone, 0.08))
+
+  // BASIN — stone bowl + blue water + ripples
+  const basinHw = hwid * 0.8
+  const basinRy = platRy * 0.8
+  const basinCy = platCy - tileH * 0.5
+  ctx.fillStyle = darkenColor(stone, 0.4)
+  ctx.fillRect(x - basinHw, basinCy, basinHw * 2, tileH * 0.55)
+  ellipse(basinCy, basinHw, basinRy, stone)
+  ellipse(basinCy, basinHw * 0.82, basinRy * 0.82, waterDeep)
+  ellipse(basinCy, basinHw * 0.74, basinRy * 0.74, withAlpha(lightenColor(water, 0.05 + 0.12 * shimmer), 0.96))
+  ctx.lineWidth = Math.max(1, tileW * 0.02)
+  for (let k = 0; k < 2; k++) {
+    const ph = (time * 0.0012 + k / 2) % 1
+    ctx.strokeStyle = withAlpha('#e2f5ff', (1 - ph) * 0.4)
+    ctx.beginPath()
+    ctx.ellipse(x, basinCy, basinHw * 0.74 * (0.2 + ph * 0.8), basinRy * 0.74 * (0.2 + ph * 0.8), 0, 0, Math.PI * 2)
+    ctx.stroke()
+  }
+
+  // central TIERED column — pedestal + wide lower bowl, thin pedestal + small upper bowl
+  const lb = basinHw * 0.5
+  const lbY = basinCy - basinRy * 0.2 - tileH * 0.9
+  ctx.fillStyle = stone
+  ctx.fillRect(x - fw * 0.06, lbY, fw * 0.12, basinCy - basinRy * 0.2 - lbY)
+  ellipse(lbY, lb, lb * 0.4, stone)
+  ellipse(lbY - tileH * 0.05, lb * 0.7, lb * 0.28, withAlpha(lightenColor(water, 0.1 + 0.12 * shimmer), 0.96))
+  const ub = basinHw * 0.26
+  const ubY = lbY - tileH * 0.7
+  ctx.fillStyle = stone
+  ctx.fillRect(x - fw * 0.035, ubY, fw * 0.07, lbY - ubY)
+  ellipse(ubY, ub, ub * 0.42, stone)
+  ellipse(ubY - tileH * 0.04, ub * 0.66, ub * 0.3, withAlpha(lightenColor(water, 0.12 + 0.12 * shimmer), 0.96))
+
+  // JETS — central vertical jet + side arcs into the lower bowl + cascade into the basin (animated)
+  const spoutY = ubY - tileH * 0.1
+  const jetH = tileH * 1.6 * (0.82 + 0.18 * Math.sin(time * 0.006))
+  ctx.fillStyle = withAlpha('#eaf8ff', 0.9)
+  ctx.beginPath()
+  ctx.moveTo(x, spoutY - jetH)
+  ctx.lineTo(x + tileW * 0.06, spoutY)
+  ctx.lineTo(x - tileW * 0.06, spoutY)
+  ctx.closePath()
+  ctx.fill()
+  ctx.strokeStyle = withAlpha('#d4f0ff', 0.8)
+  ctx.lineWidth = Math.max(1.5, tileW * 0.03)
+  ctx.lineCap = 'round'
+  for (const dir of [-1, 1]) {
+    ctx.beginPath()
+    ctx.moveTo(x, spoutY - jetH * 0.5)
+    ctx.quadraticCurveTo(x + dir * lb * 1.4, spoutY - jetH * 0.1, x + dir * lb * 0.9, lbY)
+    ctx.stroke()
+    ctx.beginPath()
+    ctx.moveTo(x + dir * lb * 0.9, lbY)
+    ctx.quadraticCurveTo(x + dir * basinHw * 0.9, (lbY + basinCy) / 2, x + dir * basinHw * 0.8, basinCy - basinRy * 0.2)
+    ctx.stroke()
+  }
+}
+
+
+// 2D Render function - RPG-style 3/4 top-down view (like Pokemon/Zelda)
+export function render2D(
+  ctx: CanvasRenderingContext2D,
+  w: number,
+  h: number,
+  grid: IsometricGrid,
+  player: PlayerState,
+  time: number,
+  zoom: number = 1.0,
+  camOffset: { x: number; y: number } = { x: 0, y: 0 },
+  entities: readonly Entity[] = [],
+  enemyCombat: ReadonlyMap<string, CombatState> = new Map(),
+  connectors: Connector[] = [],
+  quests: readonly Quest[] = [],
+  dayNight: DayNight = 'day',
+  attackAnims: readonly AttackAnim[] = [],
+  hitMarkers: readonly HitMarker[] = [],
+  projectiles: readonly Projectile[] = [],
+  attackReach: number = 1,
+) {
+  // Clear with sky/background color
+  ctx.fillStyle = '#1a1a2e'
+  ctx.fillRect(0, 0, w, h)
+
+  const cellSize = grid.cellSize
+  const baseTileSize = 24
+  const tileW = baseTileSize * zoom // Tile width in pixels
+  const tileH = baseTileSize * zoom // Tile height in pixels
+  const heightScale = 16 * zoom // Pixels per height unit (objects extend upward)
+
+  // Camera follows player (centered) + pan offset, then CLAMP to the grid so the
+  // viewport never shows off-grid void (centre when the grid is smaller than the
+  // view). Half-span = half the visible cell count on each axis.
+  const camCol = clampCameraAxis(player.x / cellSize - camOffset.x / tileW, w / tileW / 2, grid.cols)
+  const camRow = clampCameraAxis(player.z / cellSize - camOffset.y / tileH, h / tileH / 2, grid.rows)
+
+  // Convert grid position to screen
+  const toScreen = (col: number, row: number) => ({
+    x: w / 2 + (col - camCol) * tileW,
+    y: h / 2 + (row - camRow) * tileH
+  })
+
+  // Calculate visible range
+  const tilesX = Math.ceil(w / tileW) + 4
+  const tilesY = Math.ceil(h / tileH) + 4
+  const startCol = Math.floor(camCol) - Math.floor(tilesX / 2)
+  const startRow = Math.floor(camRow) - Math.floor(tilesY / 2)
+
+  // ─── GROUND LAYER ─────────────────────────────────────────────────
+  for (let row = startRow; row < startRow + tilesY; row++) {
+    for (let col = startCol; col < startCol + tilesX; col++) {
+      if (col < 0 || col >= grid.cols || row < 0 || row >= grid.rows) continue
+
+      const p = toScreen(col + 0.5, row + 0.5)
+      if (p.x < -tileW || p.x > w + tileW || p.y < -tileH || p.y > h + tileH) continue
+
+      const tileType = grid.ground[row]?.[col] || 'grass'
+      const colors = GROUND_COLORS[tileType as keyof typeof GROUND_COLORS] || GROUND_COLORS.grass
+
+      // Use noise-based variation for natural look (not checkerboard)
+      // Create larger patches using position-based pseudo-noise
+      const noiseVal = Math.sin(col * 0.3 + row * 0.5) * Math.cos(col * 0.7 - row * 0.2)
+      const colorIdx = noiseVal > 0 ? 0 : 1 // Smooth patches instead of checkerboard
+
+      const char = colors.char[colorIdx % colors.char.length]
+      const fg = colors.fg[colorIdx % colors.fg.length]
+      // Grass varies per-cell into natural green tones (deterministic hash); other ground
+      // keeps its uniform floor base.
+      const bg = tileType.includes('grass') ? grassShade(colors.bg[0], col, row) : colors.bg[0]
+
+      // Draw ground tile
+      ctx.fillStyle = bg
+      ctx.fillRect(p.x - tileW / 2, p.y - tileH / 2, tileW, tileH)
+
+      // Draw ground character with slight animation
+      const grassFlicker = tileType.includes('grass') ? Math.sin(time * 0.001 + col * 0.3 + row * 0.4) * 0.1 + 1 : 1
+      ctx.fillStyle = fg
+      ctx.globalAlpha = 0.85 + 0.15 * grassFlicker
+      ctx.font = `bold ${tileH * 0.7}px ${ASCII_FONT}`
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.fillText(char, p.x, p.y)
+      ctx.globalAlpha = 1
+
+      // Height creates elevated platforms - draw "front face" if height > 0
+      const cellHeight = grid.getHeight(col, row)
+      if (cellHeight > 0) {
+        const elevH = cellHeight * heightScale
+        // Top surface (slightly brighter)
+        ctx.fillStyle = bg
+        ctx.fillRect(p.x - tileW / 2, p.y - tileH / 2 - elevH, tileW, tileH)
+        ctx.fillStyle = fg
+        ctx.fillText(char, p.x, p.y - elevH)
+        // Front face (darker)
+        ctx.fillStyle = darkenColor(bg, 0.6)
+        ctx.fillRect(p.x - tileW / 2, p.y + tileH / 2 - elevH, tileW, elevH)
+      }
+    }
+  }
+
+  // ─── CONNECTOR MARKERS (one per owned cell, same purple ◊ as top view) ──
+  for (const connector of connectors) {
+    for (const pcell of connector.cells) {
+      const p = toScreen(pcell.col + 0.5, pcell.row + 0.5)
+      if (p.x < -tileW || p.x > w + tileW || p.y < -tileH || p.y > h + tileH) continue
+      ctx.fillStyle = 'rgba(180, 80, 255, 0.6)'
+      ctx.fillRect(p.x - tileW / 2, p.y - tileH / 2, tileW, tileH)
+      ctx.fillStyle = '#ffffff'
+      ctx.font = `bold ${tileH * 0.6}px ${ASCII_FONT}`
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.fillText('◊', p.x, p.y)
+    }
+  }
+
+  // ─── OBJECTS LAYER (sorted by row for depth) ─────────────────────
+  // Collect all drawable objects: assets + buildings + player
+  const drawables: Array<{
+    row: number
+    col: number
+    type: 'asset' | 'player' | 'building'
+    asset?: GridAsset
+    building?: GridBuilding
+  }> = []
+
+  // Buildings render as ONE front elevation (from grid.buildings) — collect their footprint cells
+  // so we SKIP the per-cell building assets (a roof from above), exactly like the iso view. Legacy
+  // █ buildings aren't grouped (grid.buildings empty), so they fall through and render per-cell.
+  const buildingFootprint2D = new Set<string>()
+  for (const b of grid.buildings ?? []) {
+    const top = b.row - (b.height - 1)
+    for (let r = 0; r < b.height; r++) for (let c = 0; c < b.length; c++) buildingFootprint2D.add(`${b.col + c},${top + r}`)
+  }
+
+  // Add assets (skip the per-cell building footprint cells — the elevation replaces them)
+  const visibleAssets = grid.getVisibleAssets(
+    Math.floor(camCol), Math.floor(camRow), tilesX, tilesY
+  )
+  const treeCells2D = new Set(grid.assets.filter(a => a.type === 'tree').map(a => `${a.col},${a.row}`))
+  const isTreeCell2D = (c: number, r: number): boolean => treeCells2D.has(`${c},${r}`)
+  for (const asset of visibleAssets) {
+    if (asset.type === 'building' && buildingFootprint2D.has(`${asset.col},${asset.row}`)) continue
+    drawables.push({ row: asset.row, col: asset.col, type: 'asset', asset })
+  }
+
+  // Add buildings as front elevations, anchored at their front (bottom) row + footprint centre.
+  // The draw loop adds +0.5 (the cell-centre offset every drawable gets), so subtract it here:
+  // (b.col + length/2 - 0.5) + 0.5 = b.col + length/2 = the footprint's true centre grid-point,
+  // keeping the facade columns (and the door) over their own collision cells + driveway.
+  for (const b of grid.buildings ?? []) {
+    drawables.push({ row: b.row, col: b.col + b.length / 2 - 0.5, type: 'building', building: b })
+  }
+
+  // Add player
+  const playerCol = player.x / cellSize
+  const playerRow = player.z / cellSize
+  drawables.push({ row: playerRow, col: playerCol, type: 'player' })
+
+  // Sort by row (things further up screen drawn first = behind)
+  drawables.sort((a, b) => a.row - b.row)
+
+  // Draw each object
+  for (const obj of drawables) {
+    const p = toScreen(obj.col + 0.5, obj.row + 0.5)
+    const groundHeight = grid.getHeight(Math.floor(obj.col), Math.floor(obj.row))
+    const elevOffset = groundHeight * heightScale
+
+    if (obj.type === 'player') {
+      // Draw player using ASCII art sprite - grounded at cell bottom (lifted mid-jump)
+      const playerArt = getPlayerArt(player)
+      const baseY = p.y + tileH * 0.5 - elevOffset - (player.jumpHeight ?? 0)
+
+      // Draw each line of the ASCII art, stacking upward from baseY
+      const fontSize = tileH * 0.7
+      const lineHeight = fontSize * 0.9
+      ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+
+      // Draw each line from bottom to top (no background). When attacking, HIDE the static arm on
+      // the swinging side so the animated swing-arm below doesn't double it (#47/#39).
+      const bodyColor = player.armored ? '#bcd4ff' : (player.bodyColor ?? '#ffdd00')
+      const swingArmDir2 = player.facing === 'left' ? -1 : 1
+      const swinging2 = attackAnims.some(a => a.inHand && time - a.start < a.durationMs)
+      const figArt2 = !swinging2
+        ? playerArt
+        : playerSprite.idle.map(row => (swingArmDir2 > 0 ? row.replace('>', ' ') : row.replace('<', ' ')))
+      for (let i = 0; i < figArt2.length; i++) {
+        const line = figArt2[figArt2.length - 1 - i] // Reverse order (bottom to top)
+        const lineY = baseY - (i + 0.5) * lineHeight
+        ctx.fillStyle = bodyColor
+        ctx.fillText(line, p.x, lineY)
+      }
+      // Held weapon — the SAME single blade, swung in-hand when a melee attack is mid-flight
+      // (mirrors drawIsoPlayer): at rest it points up; an attack sweeps it through the arc, and an
+      // ability recolors it (Fire Slash → red-orange). 2D drew nothing animated here before, so
+      // attacks looked like they did nothing — this is the #34 fix.
+      // Weapon on the FACING hand, shield on the OFF-hand — both at the ARM row, never the same
+      // hand in any facing (#49). (Mirrors drawIsoPlayer.)
+      const facingDir = player.facing === 'left' ? -1 : 1
+      const armY = baseY - lineHeight * 1.2 // the arm/hand row, shared by weapon + shield
+      const inHandSlash = attackAnims.find(a => a.inHand && time - a.start < a.durationMs)
+      const swinging = !!inHandSlash // an attack is mid-flight → the ARM drives the swing (#47)
+      const swingP = inHandSlash ? Math.min(1, (time - inHandSlash.start) / inHandSlash.durationMs) : 0
+      const shoulderX = p.x + facingDir * fontSize * 0.18 // at the body, weapon side
+      const shoulderY = baseY - lineHeight * 1.9 // shoulder = TOP of the # row (the pivot)
+      drawPlayerArm(ctx, {
+        swinging,
+        swingP,
+        facingDir,
+        fontSize,
+        bodyColor,
+        weaponGlyph: player.weaponGlyph,
+        weaponTint: '#e0e0e0',
+        swingTint: inHandSlash?.tint,
+        shoulderX,
+        shoulderY,
+        restHandX: p.x + facingDir * fontSize * 0.6,
+        restHandY: armY,
+        shieldGlyph: player.shieldGlyph,
+        shieldX: p.x - facingDir * fontSize * 0.6, // off-hand: opposite the weapon
+        shieldY: armY,
+        shieldR: fontSize * 0.55,
+      })
+
+      // Life bar + name above the head — the SAME treatment enemies get (drawFigureVitals).
+      if (player.maxHp != null) {
+        const figureTop = baseY - figArt2.length * lineHeight
+        const barWidth = Math.max(28, tileH * 2.2)
+        const nameSize = Math.max(9, fontSize)
+        drawFigureVitals(ctx, p.x, figureTop, barWidth, 6, nameSize, barFraction(player.hp ?? player.maxHp, player.maxHp), playerDisplayName(player.name))
+      }
+
+    } else if (obj.type === 'building' && obj.building) {
+      // ONE upright FRONT ELEVATION over the small footprint, oriented so the door faces the road,
+      // raised from the building's facade — the same grid.buildings the iso reads, so 2D + iso +
+      // collision agree on one model.
+      const b = obj.building
+      const flicker = Math.sin(time * 0.003 + b.col * 0.5 + b.row * 0.7) * 0.15 + 1
+      draw2DBuilding(ctx, b, p.x, p.y + tileH * 0.5, tileW, tileH, flicker)
+
+      // Subtle interactive-entrance marker on the door cell: a small warm chevron, so the player
+      // can tell which cell opens the building (the lone walkable footprint cell).
+      const door = doorCellFor(gridBuildingFacing(b), buildingRect(b))
+      const dp = toScreen(door.col + 0.5, door.row + 0.5)
+      ctx.fillStyle = `rgba(255, 198, 92, ${0.55 + 0.25 * flicker})`
+      ctx.font = `bold ${tileH * 0.62}px ${ASCII_FONT}`
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.fillText('▾', dp.x, dp.y)
+
+    } else if (obj.asset) {
+      const asset = obj.asset
+
+      // Get proper height for 2D RPG view based on asset type
+      let heightTiles = 1
+      if (asset.type === 'tree') heightTiles = 3
+      else if (asset.type === 'building') heightTiles = 4
+      else if (asset.type === 'lamp') heightTiles = 2
+
+      // Base at bottom of cell - tiles stack upward
+      const baseY = p.y + tileH * 0.5 - elevOffset
+
+      // Authored frame animation: offset/rotate/scale the asset around its ground point (sway/wind).
+      const ct2d = assetCellTransform(asset.cellAnim, time)
+      if (ct2d) applyCellTransform(ctx, p.x, baseY, ct2d, tileW, tileH)
+
+      ctx.font = `bold ${tileH * 0.8}px ${ASCII_FONT}`
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+
+      // Draw based on asset type - VIBRANT test-ascii style (Crash Bandicoot palette)
+      // Animation flicker based on time
+      const flicker = Math.sin(time * 0.003 + obj.col * 0.5 + obj.row * 0.7) * 0.15 + 1
+
+      if (asset.label) {
+        // Generated multi-cell cell → one glyph in its zone/theme color (the cell
+        // IS the tile), matching the iso + top views. No green multi-tile overdraw.
+        draw2DLabeledCell(ctx, p.x, baseY, tileW, tileH, asset)
+      } else if (asset.type === 'tree') {
+        // Layered tree: bark trunk + canopy tinted to the asset's zone/theme color.
+        const canopy = treeCanopyLayers(asset.color || '#2e8b2e', flicker)
+        // Ground shadow on the tree's base: a generator-marked base cell (always, even when
+        // stacked on another tree) or any bottom (ground-contact) cell.
+        if (asset.baseShadow || isGroundContact(isTreeCell2D, asset.col, asset.row)) {
+          ctx.save()
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.25)'
+          ctx.beginPath()
+          ctx.ellipse(p.x, baseY, tileW * 0.5, tileH * 0.45, 0, 0, Math.PI * 2)
+          ctx.fill()
+          ctx.restore()
+        }
+        const trunkChars = ['W', '0', 'W']
+        for (let h = 0; h < 2; h++) {
+          const tileTop = baseY - (h + 1) * tileH
+          ctx.fillStyle = `rgba(173, 134, 33, 0.96)` // Golden brown
+          ctx.fillRect(p.x - tileW * 0.35, tileTop, tileW * 0.7, tileH)
+          ctx.fillStyle = `rgba(243, 191, 54, ${0.7 + 0.3 * flicker})` // Bright gold
+          ctx.fillText(trunkChars[h] || '0', p.x, tileTop + tileH * 0.5)
+        }
+        // Layered canopy - tinted to the asset's zone/theme color
+        // Upright pyramid: wide base above the trunk (drawn first/lowest), narrow apex on top.
+        const layers = [
+          { chars: '(@&@&@)', width: 2.0, bg: canopy[0].bg, fg: canopy[0].fg }, // wide base
+          { chars: '(@&@)', width: 1.6, bg: canopy[1].bg, fg: canopy[1].fg },   // mid
+          { chars: '(&)', width: 1.2, bg: canopy[2].bg, fg: canopy[2].fg },     // apex
+        ]
+        for (let h = 0; h < layers.length; h++) {
+          const layer = layers[h]
+          const tileTop = baseY - (h + 3) * tileH
+          ctx.fillStyle = layer.bg
+          ctx.fillRect(p.x - tileW * layer.width * 0.5, tileTop, tileW * layer.width, tileH)
+          ctx.fillStyle = layer.fg
+          ctx.font = `bold ${tileH * 0.65}px ${ASCII_FONT}`
+          ctx.fillText(layer.chars, p.x, tileTop + tileH * 0.5)
+        }
+        ctx.font = `bold ${tileH * 0.8}px ${ASCII_FONT}`
+
+      } else if (asset.type === 'building') {
+        // ONE tile per facade cell (red roof / gold |[]| body / |==| door, picked by the
+        // cell's glyph) — the SAME tiles as the old layered house, but not a whole house per
+        // cell. That keeps the red roof to the facade's 2 top rows: a compact house.
+        draw2DBuildingTile(ctx, p.x, baseY, tileW, tileH, asset, flicker)
+
+      } else if (asset.type === 'lamp') {
+        // Lamp post — STEADY bulb (ON at night, dim by day), no time-based pulse/flicker.
+        const glow = dayNight === 'night' ? 1 : 0.2
+        ctx.fillStyle = '#333333'
+        ctx.fillRect(p.x - tileW * 0.12, baseY - tileH * 2, tileW * 0.24, tileH * 2)
+        ctx.fillStyle = '#555555'
+        ctx.fillText('|', p.x, baseY - tileH * 0.5)
+        // Bulb
+        ctx.fillStyle = `rgba(255, 255, 0, ${0.4 + 0.6 * glow})`
+        ctx.fillRect(p.x - tileW * 0.25, baseY - tileH * 2.4, tileW * 0.5, tileH * 0.5)
+        ctx.fillStyle = `rgba(255, 200, 50, ${0.4 + 0.6 * glow})`
+        ctx.fillText('o', p.x, baseY - tileH * 2.2)
+
+      } else if (asset.type === 'fountain' && asset.footprint) {
+        // The town SQUARE centrepiece: ONE big animated fountain spanning its plaza (not N glyphs).
+        draw2DTownFountain(ctx, p.x, baseY, tileW, tileH, asset, time)
+
+      } else if (asset.type === 'npc') {
+        // NPC - cleaner humanoid figure matching isometric style
+        const layers = [
+          { text: '/\\', fg: '#3355aa', bg: '#1a2a55' },     // Legs
+          { text: '[=]', fg: '#4466cc', bg: '#223366' },    // Body
+          { text: '(o)', fg: '#ffccaa', bg: '#996644' },    // Head
+        ]
+        for (let h = 0; h < layers.length; h++) {
+          const layer = layers[h]
+          const tileTop = baseY - (h + 1) * tileH
+          const layerWidth = h === 2 ? 0.7 : 0.8
+
+          ctx.fillStyle = layer.bg
+          ctx.fillRect(p.x - tileW * layerWidth * 0.5, tileTop, tileW * layerWidth, tileH)
+          ctx.fillStyle = layer.fg
+          ctx.fillText(layer.text, p.x, tileTop + tileH * 0.5)
+        }
+
+      } else {
+        // Default - still use vibrant colors with animation
+        const tileFg = asset.color || '#ffffff'
+        const tileBg = asset.bgColor || darkenColor(tileFg, 0.3)
+        const char = asset.art[0] || '?'
+        ctx.fillStyle = tileBg
+        ctx.fillRect(p.x - tileW * 0.5, baseY - tileH, tileW, tileH)
+        ctx.fillStyle = tileFg
+        ctx.fillText(char, p.x, baseY - tileH * 0.5)
+      }
+
+      if (ct2d) ctx.restore() // pop the cell-animation transform
+    }
+  }
+
+  // ─── DEBUG OVERLAY ─────────────────────────────────────────────────
+  // Mirrors the iso renderDebugOverlays: a collision tint + per-cell coords on every
+  // cell, then a TYPE (+ corner/edge) caption above each asset, then a PLAYER tag.
+  if (isDebugMode()) {
+    ctx.globalAlpha = 0.6
+    // Pass 1: collision tint + height numbers
+    for (let row = startRow; row < startRow + tilesY; row++) {
+      for (let col = startCol; col < startCol + tilesX; col++) {
+        if (col < 0 || col >= grid.cols || row < 0 || row >= grid.rows) continue
+        const p = toScreen(col + 0.5, row + 0.5)
+        const isCollision = grid.collision[row]?.[col]
+        const cellHeight = grid.getHeight(col, row)
+
+        if (isCollision) {
+          ctx.fillStyle = 'rgba(255, 50, 50, 0.4)'
+          ctx.fillRect(p.x - tileW / 2, p.y - tileH / 2, tileW, tileH)
+        }
+
+        // Show height numbers (2D-only extra) above the coords so they don't collide
+        if (cellHeight > 0) {
+          ctx.fillStyle = '#ffff00'
+          ctx.font = `bold ${tileH * 0.4}px ${ASCII_FONT}`
+          ctx.textAlign = 'center'
+          ctx.textBaseline = 'middle'
+          ctx.fillText(String(cellHeight), p.x, p.y - tileH * 0.3)
+        }
+      }
+    }
+    ctx.globalAlpha = 1
+
+    // Grid lines + per-cell coords (col,row) — the same labels the iso overlay prints.
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)'
+    ctx.lineWidth = 1
+    ctx.font = `bold ${Math.max(7, tileH * 0.3)}px ${ASCII_FONT}`
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    for (let row = startRow; row < startRow + tilesY; row++) {
+      for (let col = startCol; col < startCol + tilesX; col++) {
+        if (col < 0 || col >= grid.cols || row < 0 || row >= grid.rows) continue
+        const p = toScreen(col + 0.5, row + 0.5)
+        ctx.strokeRect(p.x - tileW / 2, p.y - tileH / 2, tileW, tileH)
+        ctx.fillStyle = grid.collision[row]?.[col] ? '#ffaaaa' : '#aaffaa'
+        ctx.fillText(`${col},${row}`, p.x, p.y + tileH * 0.12)
+      }
+    }
+
+    // Pass 2: per-cell TYPE + POSITION captions — same flattened captions every view draws.
+    const debugAssets = grid.getVisibleAssets(Math.floor(player.x / cellSize), Math.floor(player.z / cellSize), 30, 20)
+    ctx.font = `bold 11px ${ASCII_FONT}`
+    for (const cap of debugCellCaptions(debugAssets)) {
+      const p = toScreen(cap.col + 0.5, cap.row + 0.5)
+      const { fg: labelColor, bg: labelBg } = debugLabelColors(cap.type)
+      const metrics = ctx.measureText(cap.text)
+      const labelY = p.y - tileH - 10
+      ctx.fillStyle = labelBg
+      ctx.fillRect(p.x - metrics.width / 2 - 3, labelY - 8, metrics.width + 6, 16)
+      ctx.fillStyle = labelColor
+      ctx.fillText(cap.text, p.x, labelY)
+      ctx.strokeStyle = labelColor
+      ctx.setLineDash([2, 2])
+      ctx.beginPath()
+      ctx.moveTo(p.x, labelY + 8)
+      ctx.lineTo(p.x, p.y - 5)
+      ctx.stroke()
+      ctx.setLineDash([])
+    }
+
+    // PLAYER tag over the player's cell.
+    const pp = toScreen(player.x / cellSize, player.z / cellSize)
+    ctx.fillStyle = 'rgba(80, 60, 0, 0.8)'
+    ctx.fillRect(pp.x - 25, pp.y - tileH - 26, 50, 16)
+    ctx.fillStyle = '#ffdd00'
+    ctx.fillText('PLAYER', pp.x, pp.y - tileH - 18)
+  }
+
+  // Placed entities (enemies / NPCs) on top of the world layer — same as Top/iso.
+  // Skip the player entity: the live player sprite is drawn above (no ghost double).
+  const pCol = player.x / cellSize
+  const pRow = player.z / cellSize
+  for (const entity of entities) {
+    if (entity.kind === 'player') continue
+    const combat = entity.kind === 'enemy' ? enemyCombat.get(entity.id) : undefined
+    if (isDeadEnemy(entity, combat)) continue
+    const rc = entityRenderCell(entity, time) // same interpolation as iso → no snap in 2D
+    const e = toScreen(rc.col, rc.row)
+    // Same movement/combat signals the iso path uses, so 2D only swaps walk frames while moving.
+    const mot = entityMotion.get(entity.id)
+    const moving = !!mot && time < mot.startMs + ENEMY_MOVE_MS
+    const inRange = entity.kind === 'enemy' && Math.hypot(entity.col - pCol, entity.row - pRow) <= COMBAT_RANGE
+    const attackable = enemyInAttackReach(entity, Math.floor(player.x / cellSize), Math.floor(player.z / cellSize), attackReach)
+    const anchor = drawTopEntity(ctx, e.x, e.y, tileW, entity, combat, time, moving, inRange, attackable)
+    drawQuestMarker(ctx, entityQuestMarker(entity, quests), anchor.x, anchor.y, Math.max(14, tileW * 1.4))
+  }
+
+  // Attack animations (enemy slashes / shots / magic / block) in 2D space — mirrors the iso path.
+  // The player's own melee is the in-hand swing drawn above (a.inHand), so skip those here. Without
+  // this, 2D combat showed no feedback at all (#34).
+  if (attackAnims.length > 0) {
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.font = `bold ${Math.max(12, tileH * 0.9)}px ${ASCII_FONT}`
+    for (const a of attackAnims) {
+      if (a.inHand) continue
+      const f = animFrame(a, time)
+      if (!f) continue
+      const sp = toScreen(f.x / cellSize, f.z / cellSize)
+      ctx.fillStyle = f.color
+      if (f.angle != null) {
+        ctx.save()
+        ctx.translate(sp.x, sp.y - tileH)
+        ctx.rotate(f.angle)
+        ctx.fillText(f.char, 0, 0)
+        ctx.restore()
+      } else {
+        ctx.fillText(f.char, sp.x, sp.y - tileH * 0.6)
+      }
+    }
+  }
+
+  // Travelling projectiles (arrow/bullet/bolt) — lerp along their path in 2D space.
+  if (projectiles.length > 0) {
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.font = `bold ${Math.max(12, tileH * 0.85)}px ${ASCII_FONT}`
+    ctx.fillStyle = '#ffe9a8'
+    for (const pr of projectiles) {
+      const pc = projectileCellAt(pr, time)
+      const sp = toScreen(pc.col + 0.5, pc.row + 0.5)
+      ctx.fillText(pr.glyph, sp.x, sp.y - tileH * 0.6)
+    }
+  }
+
+  // Floating "+dmg" hit markers, over everything.
+  for (const marker of hitMarkers) {
+    const p = toScreen(marker.col + 0.5, marker.row + 0.5)
+    drawHitMarker(ctx, p.x, p.y - tileH * 0.6, marker, time)
+  }
+
+  // ─── NIGHT LIGHTING ─────────────────────────────────────────────────
+  if (dayNight === 'night') {
+    const lamps = collectLampGlows(grid, (c, r) => toScreen(c + 0.5, r + 0.5), tileW * LAMP_GLOW.radiusTiles, tileH * 2.2, w, h)
+    drawNightLighting(ctx, w, h, lamps)
+  }
+
+  // ─── UI ───────────────────────────────────────────────────────────
+  ctx.fillStyle = '#ffffff'
+  ctx.font = `14px ${ASCII_FONT}`
+  ctx.textAlign = 'left'
+  ctx.fillText(`Pos: ${Math.floor(player.x)}, ${Math.floor(player.z)}`, 10, 30)
+  ctx.fillStyle = isDebugMode() ? '#ff6666' : '#4488ff'
+  ctx.fillText(isDebugMode() ? '2D DEBUG MODE' : '2D RPG MODE', 10, 50)
+}
