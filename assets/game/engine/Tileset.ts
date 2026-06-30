@@ -933,63 +933,6 @@ export const COMPOSITE_ASSETS: Record<string, CompositeAsset> = {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// TERRAIN PRESETS - For quick terrain painting
-// ═══════════════════════════════════════════════════════════════════
-
-export interface TerrainPreset {
-  name: string
-  description: string
-  groundTile: keyof typeof TILES
-  heightChange: number
-  blocking: boolean
-}
-
-export const TERRAIN_PRESETS: Record<string, TerrainPreset> = {
-  cliff_edge: {
-    name: 'Cliff Edge',
-    description: 'Creates +1 height elevation',
-    groundTile: 'cliff_top',
-    heightChange: 1,
-    blocking: true,
-  },
-  cliff_2: {
-    name: 'High Cliff',
-    description: 'Creates +2 height elevation',
-    groundTile: 'cliff_top',
-    heightChange: 2,
-    blocking: true,
-  },
-  stairs: {
-    name: 'Stairs',
-    description: 'Walkable transition between heights',
-    groundTile: 'stairs_up',
-    heightChange: 0.5,
-    blocking: false,
-  },
-  water_pond: {
-    name: 'Deep Water',
-    description: 'Impassable water',
-    groundTile: 'water_deep',
-    heightChange: -0.5,
-    blocking: true,
-  },
-  water_wade: {
-    name: 'Shallow Water',
-    description: 'Walkable water',
-    groundTile: 'water_shallow',
-    heightChange: 0,
-    blocking: false,
-  },
-  path: {
-    name: 'Stone Path',
-    description: 'Cobblestone walkway',
-    groundTile: 'path_stone',
-    heightChange: 0,
-    blocking: false,
-  },
-}
-
-// ═══════════════════════════════════════════════════════════════════
 // HELPER FUNCTIONS
 // ═══════════════════════════════════════════════════════════════════
 
@@ -1011,12 +954,4 @@ export function getAssetsByCategory(category: CompositeAsset['category']): Recor
     }
   }
   return result
-}
-
-export function getTile(key: string): TileDef | undefined {
-  return TILES[key]
-}
-
-export function getAsset(key: string): CompositeAsset | undefined {
-  return COMPOSITE_ASSETS[key]
 }
