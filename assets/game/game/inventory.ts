@@ -16,6 +16,7 @@ import type {
   Inventory,
   Item,
   ItemSlot,
+  Reward,
   Weapon,
 } from '@/game/types'
 
@@ -195,4 +196,44 @@ function weaponSlotToItems(weapon: Weapon | null): WeaponItem[] {
 function armorSlotToItems(armor: Armor | null): ArmorItem[] {
   if (!armor) return []
   return [{ id: armor.id, name: armor.name, slot: 'armor', armor }]
+}
+
+// ── editor starter kit + id minting ──────────────────────────────────
+// Demo starter inventory + small mint helpers moved out of the game-engine page
+// (stage 5a). Fresh objects each call so callers never alias mutable references.
+
+/** A magician alternative the player can equip from the starting inventory.
+ *  Two-handed magical melee caster (reach 2). */
+const OAK_STAFF: Weapon = {
+  id: 'oak-staff', kind: 'staff', name: 'Oak Staff',
+  baseDamage: 0, baseMagic: 10, baseDefense: 0, strengthBonus: 0, intBonus: 4,
+  school: 'magical', range: 'melee', hands: 2, reachCells: 2,
+}
+
+/** A starting inventory: NOTHING equipped (the player begins bare-handed), plus a staff,
+ *  light armor, and a potion to demonstrate equip/use. (Fresh objects each call.) */
+export function starterInventory(): Inventory {
+  return createInventory(
+    [
+      { id: 'oak-staff', name: 'Oak Staff', slot: 'weapon', weapon: OAK_STAFF },
+      {
+        id: 'leather-vest', name: 'Leather Vest', slot: 'armor',
+        armor: { id: 'leather-vest', kind: 'leather', name: 'Leather Vest', defenseBonus: 4, strengthBonus: 0, intBonus: 2 },
+      },
+      { id: 'health-potion', name: 'Health Potion', slot: 'consumable', effect: { hp: 40 } },
+    ],
+    null, // start UNARMED — the player fights bare-handed until a weapon is equipped
+    null,
+  )
+}
+
+/** Build a carryable item from a quest 'item' reward (no item DB yet → a small
+ *  health potion tagged by the reward's itemId). */
+export function itemFromReward(reward: Reward, id: string): Item {
+  return { id, name: reward.itemId || 'Reward Item', slot: 'consumable', effect: { hp: 25 } }
+}
+
+/** A short, unique-enough id for a minted item (quest rewards, etc.). */
+export function mintItemId(): string {
+  return `item_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`
 }

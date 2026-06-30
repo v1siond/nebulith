@@ -15,6 +15,7 @@ import {
   DEFAULT_BAG_SLOTS,
   DEFAULT_SPECIAL_SLOTS,
 } from './types'
+import { starterWarriorGear } from './gear'
 
 /** Default trigger keys for the special-action slots. They start at 5 (not 1) so they never
  *  collide with the ABILITY slots, which default to 1–4. Both sets are independently rebindable
@@ -112,4 +113,12 @@ export function loadoutBonuses(loadout: Loadout): LoadoutBonuses {
     }
   }
   return acc
+}
+
+/** A fresh player loadout pre-stocked with the warrior starter set (in the bag).
+ *  Moved out of the game-engine page (stage 5a). */
+export function seededPlayerLoadout(): Loadout {
+  let l = createLoadout()
+  for (const item of starterWarriorGear()) l = addToBag(l, item)
+  return l
 }

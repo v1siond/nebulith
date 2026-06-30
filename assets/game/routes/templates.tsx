@@ -17,37 +17,32 @@ import { useToast } from '@/components/Toast'
 import { GridBuilding, IsometricGrid } from '@/engine/IsometricGrid'
 import { COMPOSITE_ASSETS, TILES } from '@/engine/Tileset'
 import { type AttackAnim, isAnimDone } from '@/engine/attackAnimations'
-import { shouldFire } from '@/engine/behaviors'
 import { type BuildingType } from '@/engine/buildingComposer'
-import { type PlacementEnv, buildingCellBlocked, buildingFootprintCells, canPlaceBuilding, facadeLength, footprintContains, gridBuildingFacing, makeBuilding, moveBuilding, rotateBuilding } from '@/engine/buildingEditor'
+import { buildingFootprintCells, canPlaceBuilding, facadeLength, footprintContains, gridBuildingFacing, makeBuilding, moveBuilding, rotateBuilding } from '@/engine/buildingEditor'
 import { type AnimFrame, type AnimPreset, CELL_ANIM_PRESETS, type Ease, makeCellAnimation, restFrame } from '@/engine/cellAnimation'
-import { cellTile } from '@/engine/cellTileset'
 import { scaleCompositeToRegion } from '@/engine/compositeFill'
 import { findTriggeredConnector, normalizeConnector } from '@/engine/connectors'
 import { entityPalette, weaponGlyph } from '@/engine/entityArt'
 import { isoFacadeOnBack, isoFacingIndex } from '@/engine/isoBuilding'
-import { type MoverState, RUN_PATROL_DELAY_MS, type RunState, STEP_LIST_DELAY_MS, type StepListState, initMover, initRunState, initStepList, stepMover, stepRunPatrol, stepStepList } from '@/engine/movement'
 import { assetFootprint, multiCellAssetById, stampAsset } from '@/engine/multiCellAssets'
-import { StageData, VariantId, buildingCellColor, generateStage, stagePaint } from '@/engine/stageGenerator'
+import { StageData, VariantId, generateStage, stagePaint } from '@/engine/stageGenerator'
 import { type Action as TriggerAction, resolveAction } from '@/engine/triggers'
-import { type Facing } from '@/engine/villageLayout'
-import { ZONE_PALETTES, ZoneId } from '@/engine/zones'
+import { ZoneId } from '@/engine/zones'
 import { type AbilityBinding, DEFAULT_ABILITY_LOADOUT } from '@/game/abilities'
 import { startingCombatState } from '@/game/combat'
-import { DEFAULT_PLAYER_STATS, canPlaceEntity, entityAt, entityAtFootprint, entityOccupiedCells, makeEnemy, makeNpc, makePlayer, placeEntity, removeEntity } from '@/game/entities'
-import { starterWarriorGear } from '@/game/gear'
-import { addItem, createInventory, equipArmor, equipWeapon, useConsumable } from '@/game/inventory'
-import { addToBag, createLoadout, loadoutBonuses, setSpecial } from '@/game/loadout'
+import { DEFAULT_PLAYER_STATS, canPlaceEntity, entityAt, entityAtFootprint, entityOccupiedCells, makeEnemy, makeNpc, makePlayer, mintEntityId, placeEntity, removeEntity } from '@/game/entities'
+import { addItem, equipArmor, equipWeapon, itemFromReward, mintItemId, starterInventory, useConsumable } from '@/game/inventory'
+import { createLoadout, loadoutBonuses, seededPlayerLoadout, setSpecial } from '@/game/loadout'
 import { appendWaypoint } from '@/game/patterns'
 import { TEMPLATE_PRESETS, type TemplateTheme } from '@/game/presets'
 import { type Projectile } from '@/game/projectiles'
 import { type QuestEvent, acceptQuest, recordEvent, turnIn } from '@/game/quests'
-import { BARE_HANDS, type HitMarker, type PlayerHud, type ProjectileContext, playerHudFrom, pushHitMarker, stepCombat, tickProjectiles, triggerAbility } from '@/game/runtime/combat'
-import { type PlayerState, aimDelta, aimFromKeys, facingFromKeys, jumpLandingCell, playerDisplayName } from '@/game/runtime/player'
-import { questAnchorScreenPos, rewardSummary } from '@/game/runtime/quest'
+import { BARE_HANDS, type HitMarker, type PlayerHud, type ProjectileContext, playerHudFrom, stepCombat, tickProjectiles, triggerAbility } from '@/game/runtime/combat'
+import { type PlayerState, aimFromKeys, facingFromKeys, playerDisplayName } from '@/game/runtime/player'
+import { activeQuest, applyQuestEvent, questAnchorScreenPos, questForGiver, reachableQuestGiver, rewardSummary, upsertQuest } from '@/game/runtime/quest'
 import { type EnemyRuntime, isLivingEnemy, makeEnemyRuntime } from '@/game/runtime/targeting'
 import { ENEMY_TYPES, archetypeForEnemyType, scatterEntities } from '@/game/spawner'
-import { type CombatState, type Entity, type EntityKind, type Inventory, type Item, type Loadout, type MovementPattern, type Quest, type Reward, type Stats, type TalentPath, type Weapon } from '@/game/types'
+import { type CombatState, type Entity, type EntityKind, type Inventory, type Item, type Loadout, type Quest, type Reward, type Stats, type TalentPath, type Weapon } from '@/game/types'
 import { weaponReach } from '@/game/weapons'
 import { VILLAGE_CONFIG } from '@/levels/village'
 import { Connector, TemplateListItem, createTemplate, deleteTemplate, deserializeToGrid, getTemplate, listTemplates, serializeGrid, updateTemplate } from '@/lib/api'
@@ -56,20 +51,16 @@ import { useRouter } from 'next/router'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { render, render2D, renderTopView, clampCameraAxis, entityMotion, ENEMY_MOVE_MS, isDebugMode, setDebugMode, type DayNight } from '@/engine/render'
 import { type QuestDraft, emptyQuestDraft, questFromDraft } from '@/game/runtime/questDraft'
+import { buildingPlacementEnv, nearestRoadFacing, stampBuildingCells, unstampBuildingCells } from '@/game/runtime/buildings'
+import { type Cursor, type JumpState, JUMP_MS, JUMP_PEAK_PX, advanceEnemyMovement, beginJump, tickCannons } from '@/game/runtime/movement'
+import { playSwoosh } from '@/game/runtime/audio'
 import { AssetTileSwatch, Card, EntityToolButton, FrameStepper, PaletteGroup, TileSwatch, ViewButton } from '@/components/game/controls'
 import { AbilityBar, CombatHud, QuestHud } from '@/components/game/hud'
 import { EquipmentPanel, InventoryCard, QuestAuthoringCard, QuestLogPanel } from '@/components/game/panels'
 import { EntityAttackBody, EntityIdentityStatsBody, EntityMovementBody, Modal, QuestGiveBody } from '@/components/game/modals'
 import { FlowViewOverlay, GamesViewOverlay } from '@/components/game/games'
+import { BUILDING_TOOL_TYPE, type BuildingTool, type EntityTool, GROUND_SWATCHES, NATURE_TILE_KEYS, SEASON_BTN, STAGE_VARIANTS, STAGE_ZONES } from '@/components/game/editorConfig'
 
-
-// Block-based sizing: each block is 16x16x16 (width x depth x height)
-const BLOCK_SIZE = 16
-
-// Character dimensions in blocks
-const CHAR_WIDTH = 1   // 1 block wide
-const CHAR_DEPTH = 1   // 1 block deep
-const CHAR_HEIGHT = 3  // 3 blocks tall (legs, body, head)
 
 // View mode states (global for game loop access)
 let topViewMode = false
@@ -78,549 +69,17 @@ let flowViewMode = false
 // Template limits
 const MAX_TEMPLATES_PROD = 1
 
-// ═══════════════════════════════════════════════════════════════════
-// ENTITY PLACEMENT (player / enemies / NPCs)
-// Glyph + colour vocabulary, id minting, and the save/load codec that
-// piggybacks entities onto the template's assetsData (api.ts has no
-// `entities` field and is read-only here). Pure + module-level so they
-// aren't re-allocated per render and stay unit-testable.
-// ═══════════════════════════════════════════════════════════════════
-
-/** Which tool the Entities card has armed. `erase` removes; `null` = off. */
-type EntityTool = EntityKind | 'erase' | 'collision' | null
-
-// ═══════════════════════════════════════════════════════════════════
-// MANUAL BUILDING EDITOR (select / move / rotate / delete / place)
-// The pure geometry + validity live in engine/buildingEditor.ts; this is the
-// LIVE stamp that mirrors stageGenerator.placeBuilding onto the running grid so
-// the three views (which all read grid.buildings + collision + assets) update
-// together. The invariant: footprint cells BLOCK except the walkable door cell.
-// ═══════════════════════════════════════════════════════════════════
-
-/** Which building tool is armed. Place-<type> drops a fresh building; select picks
- *  one to move/rotate/delete; delete removes the one under the click; null = off. */
-type BuildingTool = 'select' | 'place-house' | 'place-store' | 'place-hospital' | 'delete' | null
-
-/** Map a Place-<type> tool to the BuildingType it authors. */
-const BUILDING_TOOL_TYPE: Partial<Record<NonNullable<BuildingTool>, BuildingType>> = {
-  'place-house': 'house',
-  'place-store': 'store',
-  'place-hospital': 'hospital',
-}
-
-
-/**
- * LIVE stamp: write a building's footprint onto the grid — a 'building' asset +
- * collision per cell (door walkable, every other cell blocking) + clean base
- * ground under it. Mirrors stageGenerator.stampFootprintCell. Does NOT touch
- * grid.buildings; the caller owns that array so indices stay stable across edits.
- */
-function stampBuildingCells(grid: IsometricGrid, b: GridBuilding, zone: ZoneId): void {
-  const { cells, door } = buildingFootprintCells(b)
-  const base = ZONE_PALETTES[zone]?.groundTypes[0] ?? 'grass'
-  for (const c of cells) {
-    if (c.col < 0 || c.row < 0 || c.col >= grid.cols || c.row >= grid.rows) continue
-    const isDoor = c.col === door.col && c.row === door.row
-    const label = isDoor ? 'door' : 'roof'
-    const tile = cellTile(zone, label)
-    const color = buildingCellColor(b.type as BuildingType, label, b.col)
-    grid.assets.push({
-      art: [tile.char],
-      col: c.col,
-      row: c.row,
-      type: 'building',
-      blocking: !isDoor,
-      color,
-      label,
-      buildingType: b.type,
-    })
-    grid.collision[c.row][c.col] = isDoor ? 0 : 1
-    grid.ground[c.row][c.col] = base
-  }
-}
-
-/**
- * LIVE unstamp (inverse of stampBuildingCells): drop the building assets on the
- * footprint, free collision back to walkable, and reset the ground to the zone
- * base (grass) — so a deleted/moved building leaves walkable grass behind.
- */
-function unstampBuildingCells(grid: IsometricGrid, b: GridBuilding, zone: ZoneId): void {
-  const { cells } = buildingFootprintCells(b)
-  const base = ZONE_PALETTES[zone]?.groundTypes[0] ?? 'grass'
-  const keys = new Set(cells.map(c => `${c.col},${c.row}`))
-  grid.assets = grid.assets.filter(a => !(a.type === 'building' && keys.has(`${a.col},${a.row}`)))
-  for (const c of cells) {
-    if (c.col < 0 || c.row < 0 || c.col >= grid.cols || c.row >= grid.rows) continue
-    grid.collision[c.row][c.col] = 0
-    grid.ground[c.row][c.col] = base
-  }
-}
-
-/**
- * The placement environment for the editor. A footprint cell is blocked only when it is
- * truly occupied — it overlaps ANOTHER building's footprint, carries collision (trees,
- * water, lava, features, or any blocking asset), or is a road — except the cells in
- * `ignore` (the moving/rotating building's own footprint, about to be vacated). Any other
- * walkable, non-road cell is free: bare grass, an interior floor, or a cell that only holds
- * non-blocking ground decor. Pure-ish reader over the live grid; the policy itself lives in
- * the pure `buildingCellBlocked` so it stays unit-testable.
- */
-function buildingPlacementEnv(grid: IsometricGrid, ignoreIndex: number, ignore: ReadonlySet<string>): PlacementEnv {
-  const others = new Set<string>()
-  grid.buildings.forEach((b, i) => {
-    if (i === ignoreIndex) return
-    for (const c of buildingFootprintCells(b).cells) others.add(`${c.col},${c.row}`)
-  })
-  return {
-    cols: grid.cols,
-    rows: grid.rows,
-    blocked: (col, row) => {
-      const key = `${col},${row}`
-      if (ignore.has(key)) return false
-      return buildingCellBlocked({
-        occupied: others.has(key), // another building's footprint (incl. its door)
-        collision: grid.collision[row]?.[col] === 1, // trees / water / lava / features / blocking assets
-        ground: grid.ground[row]?.[col] ?? '',
-      })
-    },
-  }
-}
-
-/** The cardinal direction from (col,row) toward the NEAREST road cell (path_stone),
- *  so a manually-placed building fronts a street like a generated one. Defaults to
- *  south when the map has no roads. */
-function nearestRoadFacing(grid: IsometricGrid, col: number, row: number): Facing {
-  let best: { d: number; facing: Facing } | null = null
-  for (let r = 0; r < grid.rows; r++) {
-    for (let c = 0; c < grid.cols; c++) {
-      if (grid.ground[r]?.[c] !== 'path_stone') continue
-      const d = Math.abs(c - col) + Math.abs(r - row)
-      if (best && d >= best.d) continue
-      const facing: Facing =
-        Math.abs(c - col) > Math.abs(r - row) ? (c > col ? 'east' : 'west') : (r >= row ? 'south' : 'north')
-      best = { d, facing }
-    }
-  }
-  return best?.facing ?? 'south'
-}
-
-/** A short, unique-enough id for an entity minted in the editor session. */
-function mintEntityId(kind: EntityKind): string {
-  return `${kind}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`
-}
-
-/** A short, unique-enough id for a minted item (quest rewards, etc.). */
-function mintItemId(): string {
-  return `item_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`
-}
-
-// ═══════════════════════════════════════════════════════════════════
-// COMBAT — wiring the pure engine (src/game/combat.ts) into the play loop.
-// All formulas live in the combat module; this is orchestration only:
-// targeting from facing, runtime state in refs, death/respawn timing, and a
-// simple enemy melee retaliation. Pure + module-level so nothing re-allocates
-// per frame and the rules stay unit-testable. (spec §2–6)
-// ═══════════════════════════════════════════════════════════════════
-
-
-/** A magician alternative the player can equip from the starting inventory.
- *  Two-handed magical melee caster (reach 2). */
-const OAK_STAFF: Weapon = {
-  id: 'oak-staff', kind: 'staff', name: 'Oak Staff',
-  baseDamage: 0, baseMagic: 10, baseDefense: 0, strengthBonus: 0, intBonus: 4,
-  school: 'magical', range: 'melee', hands: 2, reachCells: 2,
-}
-
-/** A starting inventory: NOTHING equipped (the player begins bare-handed), plus a staff,
- *  light armor, and a potion to demonstrate equip/use. (Fresh objects each call.) */
-function starterInventory(): Inventory {
-  return createInventory(
-    [
-      { id: 'oak-staff', name: 'Oak Staff', slot: 'weapon', weapon: OAK_STAFF },
-      {
-        id: 'leather-vest', name: 'Leather Vest', slot: 'armor',
-        armor: { id: 'leather-vest', kind: 'leather', name: 'Leather Vest', defenseBonus: 4, strengthBonus: 0, intBonus: 2 },
-      },
-      { id: 'health-potion', name: 'Health Potion', slot: 'consumable', effect: { hp: 40 } },
-    ],
-    null, // start UNARMED — the player fights bare-handed until a weapon is equipped
-    null,
-  )
-}
-
-/** Build a carryable item from a quest 'item' reward (no item DB yet → a small
- *  health potion tagged by the reward's itemId). */
-function itemFromReward(reward: Reward, id: string): Item {
-  return { id, name: reward.itemId || 'Reward Item', slot: 'consumable', effect: { hp: 25 } }
-}
-
 /** Hold-to-loop cadence for the regular attack — one swing per this interval while `f` is held.
  *  The basic strike is always-available on a 1.5s beat (per the ability spec — see
  *  docs/ability-system.md); abilities (keys 1–4) are the faster/heavier hits, gated by their own
  *  cooldowns. */
 const ATTACK_LOOP_MS = 500
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// A short synthesized "swoosh" for a melee swing — decaying noise through a bandpass that sweeps
-// down. No asset; lazily creates the AudioContext on the first swing (a key press = a user gesture).
-let swooshCtx: AudioContext | null = null
-function playSwoosh(): void {
-  try {
-    const Ctor = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
-    swooshCtx = swooshCtx ?? new Ctor()
-    const ctx = swooshCtx
-    if (ctx.state === 'suspended') void ctx.resume()
-    const dur = 0.16
-    const buf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * dur), ctx.sampleRate)
-    const data = buf.getChannelData(0)
-    for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / data.length) // decaying noise
-    const src = ctx.createBufferSource()
-    src.buffer = buf
-    const bp = ctx.createBiquadFilter()
-    bp.type = 'bandpass'
-    bp.Q.value = 1.1
-    bp.frequency.setValueAtTime(1900, ctx.currentTime)
-    bp.frequency.exponentialRampToValueAtTime(550, ctx.currentTime + dur) // sweep down = swoosh
-    const g = ctx.createGain()
-    g.gain.setValueAtTime(0.22, ctx.currentTime)
-    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur)
-    src.connect(bp)
-    bp.connect(g)
-    g.connect(ctx.destination)
-    src.start()
-  } catch {
-    /* audio unavailable — stay silent */
-  }
-}
-
-
-
-
-
-
-// ═══════════════════════════════════════════════════════════════════
-// QUESTS — wiring the pure quest module (src/game/quests.ts) into the editor.
-// All lifecycle/progress math lives in the module; this is orchestration only:
-// authoring a Quest from the editor form, finding a giver's quest, feeding kill
-// events, and granting rewards on turn-in. Pure + module-level so nothing
-// re-allocates per render and the rules stay unit-testable. (spec §10)
-// ═══════════════════════════════════════════════════════════════════
-
-
-/** The quest a giver NPC offers (matched by the NPC's linked questId), or null. */
-function questForGiver(quests: readonly Quest[], giver: Entity): Quest | null {
-  if (!giver.questId) return null
-  return quests.find((q) => q.id === giver.questId) ?? null
-}
-
-/**
- * The quest-giver NPC the player can interact with from (pCol,pRow): an NPC with
- * a linked quest on or adjacent (incl. diagonally) to the player's cell. Returns
- * the closest match (the player's own cell first), or null when none is in reach.
- */
-function reachableQuestGiver(entities: readonly Entity[], pCol: number, pRow: number): Entity | null {
-  for (const [dCol, dRow] of QUEST_REACH_DELTAS) {
-    const giver = questGiverAt(entities, pCol + dCol, pRow + dRow)
-    if (giver) return giver
-  }
-  return null
-}
-
-/** Player's own cell first (talk while standing on it), then the 8 neighbours. */
-const QUEST_REACH_DELTAS: ReadonlyArray<readonly [number, number]> = [
-  [0, 0],
-  [0, -1], [0, 1], [-1, 0], [1, 0],
-  [-1, -1], [1, 1], [-1, 1], [1, -1],
-]
-
-/** A quest-giving NPC (has a linked questId) occupying (col,row), or null. */
-function questGiverAt(entities: readonly Entity[], col: number, row: number): Entity | null {
-  const here = entityAt(entities, col, row)
-  if (!here || here.kind !== 'npc' || !here.questId) return null
-  return here
-}
-
-/** The single quest currently `active` (the editor tracks one at a time for the HUD). */
-function activeQuest(quests: readonly Quest[]): Quest | null {
-  return quests.find((q) => q.state === 'active') ?? null
-}
-
-/** Immutably replace a quest by id in the list (no-op append if it's new). */
-function upsertQuest(quests: readonly Quest[], quest: Quest): Quest[] {
-  const exists = quests.some((q) => q.id === quest.id)
-  if (!exists) return [...quests, quest]
-  return quests.map((q) => (q.id === quest.id ? quest : q))
-}
-
-/** Feed one world event (kill / travel / find) to every active quest. Returns the
- *  SAME reference when nothing advanced, so callers can skip a state update. */
-function applyQuestEvent(quests: readonly Quest[], event: QuestEvent): Quest[] {
-  let changed = false
-  const next = quests.map((q) => {
-    if (q.state !== 'active') return q
-    const advanced = recordEvent(q, event)
-    if (advanced !== q) changed = true
-    return advanced
-  })
-  return changed ? next : (quests as Quest[])
-}
-
-
-
-
-// ── Asset palette data (drives the Assets card) ──────────────────────
-// Module-level so the palette isn't re-allocated on every render and the JSX
-// stays a flat map instead of dozens of near-identical hand-written swatches.
-type GroundSwatch = { char: string; name: string; bg: string; fg: string; groundType: string }
-
-const GROUND_SWATCHES: readonly GroundSwatch[] = [
-  { char: '.', name: 'Grass', bg: '#1a5522', fg: '#33aa33', groundType: 'grass' },
-  { char: '~', name: 'Water', bg: '#1155aa', fg: '#55bbff', groundType: 'water' },
-  { char: '=', name: 'Road', bg: '#7a6644', fg: '#ccbb88', groundType: 'road' },
-  { char: '#', name: 'Plaza', bg: '#aa9966', fg: '#eeddbb', groundType: 'plaza' },
-  { char: '|', name: 'Bridge', bg: '#664422', fg: '#bb8844', groundType: 'bridge' },
-]
-
-const NATURE_TILE_KEYS: readonly string[] = [
-  'trunk', 'trunk_thick', 'foliage', 'foliage_light', 'foliage_dark', 'stump',
-]
-const BUILDING_TILE_KEYS: readonly string[] = [
-  'wall', 'wall_stone', 'window', 'door', 'roof_flat', 'roof_peak', 'column', 'floor', 'cannon',
-]
-const DECORATION_TILE_KEYS: readonly string[] = [
-  'lamp', 'crate', 'barrel', 'flower', 'rock', 'fence_h', 'sign', 'npc',
-]
-
-type CompositeSwatch = { key: string; icon: string; name: string; bg: string; fg: string }
-const COMPOSITE_SWATCHES: readonly CompositeSwatch[] = [
-  { key: 'tree_small', icon: '@', name: 'Tree S', bg: 'bg-green-900', fg: 'text-green-400' },
-  { key: 'tree_medium', icon: '@', name: 'Tree M', bg: 'bg-green-900', fg: 'text-green-500' },
-  { key: 'tree_large', icon: '@', name: 'Tree L', bg: 'bg-green-900', fg: 'text-green-600' },
-  { key: 'bush', icon: '*', name: 'Bush', bg: 'bg-green-900', fg: 'text-green-300' },
-  { key: 'house_small', icon: '⌂', name: 'House', bg: 'bg-orange-900', fg: 'text-orange-400' },
-  { key: 'tower', icon: '▓', name: 'Tower', bg: 'bg-gray-800', fg: 'text-gray-400' },
-  { key: 'lamppost', icon: '!', name: 'Lamp', bg: 'bg-yellow-900', fg: 'text-yellow-400' },
-  { key: 'well', icon: '◯', name: 'Well', bg: 'bg-blue-900', fg: 'text-blue-400' },
-]
-
-// Stage generator menu (zone × variant)
-// Forest-only engine: 5 seasons, beach + lava removed.
-const STAGE_ZONES = ['spring', 'summer', 'autumn', 'winter', 'desert'] as const
-// Active-zone button tint (seasonal accent).
-const SEASON_BTN: Record<(typeof STAGE_ZONES)[number], string> = {
-  spring: 'bg-pink-600 ring-1 ring-pink-300',
-  summer: 'bg-green-700 ring-1 ring-green-300',
-  autumn: 'bg-orange-700 ring-1 ring-orange-300',
-  winter: 'bg-sky-700 ring-1 ring-sky-300',
-  desert: 'bg-yellow-700 ring-1 ring-yellow-300',
-}
-const STAGE_VARIANTS = ['forest', 'town', 'city'] as const // forest + seasonal settlements (town, then a ~4× city)
-
-
-
-
-
-
-/** A jump in flight: the loop interpolates the player from→to over JUMP_MS with a
- *  parabolic visual hop, so they travel ACROSS the intervening cell(s) and arc up,
- *  rather than teleporting. */
-interface JumpState {
-  active: boolean
-  fromX: number
-  fromZ: number
-  toX: number
-  toZ: number
-  start: number
-}
-const JUMP_MS = 380 // arc duration
-const JUMP_PEAK_PX = 26 // visual hop height at mid-arc
-
-
-/** Begin a jump. A MOVING jump leaps along the 8-way AIM (so all 8 directions work, #66); a STANDING
- *  jump (`forward===false`) hops straight up on the same cell. The loop animates the arc. No-op if
- *  already mid-jump. */
-function beginJump(player: PlayerState, grid: IsometricGrid, use2D: boolean, jump: JumpState, now: number, forward: boolean): void {
-  if (jump.active) return
-  // Leap along the 8-way AIM (the way you're actually moving), not the 4-way facing — otherwise a
-  // diagonal hold collapses to a cardinal hop (the iso "x/y but no z" + 2D "no diagonal" bug). #66
-  const [dCol, dRow] = aimDelta(player, use2D)
-  const cs = grid.cellSize
-  const pCol = Math.floor(player.x / cs)
-  const pRow = Math.floor(player.z / cs)
-  const landing = jumpLandingCell(pCol, pRow, dCol, dRow, forward, (c, r) => grid.isBlocked(c, r), grid.cols, grid.rows)
-  if (!landing) return
-  jump.active = true
-  jump.fromX = player.x
-  jump.fromZ = player.z
-  jump.toX = landing.col * cs + cs / 2
-  jump.toZ = landing.row * cs + cs / 2
-  jump.start = now
-}
-
-
-
-
-/** Advance every patrolling enemy ONE cell along its movement pattern, treating
- *  walls, the player's cell, and other entities as blocked. Returns a NEW entities
- *  list when something moved, else the same reference (so the loop can skip a
- *  re-render). Per-entity cursors persist across ticks in `cursors`. */
-/** Newly-placed enemies (no authored pattern) patrol erratically out of the box:
- *  a step list of 5-cell runs in each direction, picked at random with pauses. */
-const DEFAULT_ENEMY_PATROL: MovementPattern = {
-  mode: 'random',
-  waypoints: [],
-  steps: [
-    { dir: 'right', cells: 5 },
-    { dir: 'left', cells: 5 },
-    { dir: 'up', cells: 5 },
-    { dir: 'down', cells: 5 },
-  ],
-  delayMs: 1000, // realistic patrol: walk a 5-cell run, then PAUSE/idle ~1s, then turn and walk again
-                 // (smooth glide + idle-hold animation make this read as resting, not the old choppiness)
-}
 /** Stable empty list passed to the renderers when entities are hidden (avoids per-frame alloc). */
 const EMPTY_ENTITIES: Entity[] = []
 // A frozen empty key map → the player ignores movement input (e.g. while a building
 // is selected for editing, when arrow keys drive the BUILDING instead).
 const EMPTY_KEYS: Record<string, boolean> = {}
-type Cursor = MoverState | RunState | StepListState
-const isStepListState = (s: Cursor | undefined): s is StepListState => !!s && 'cellsLeft' in s
-const isRunState = (s: Cursor | undefined): s is RunState => !!s && 'stepsLeft' in s
-const isMoverState = (s: Cursor | undefined): s is MoverState => !!s && 'target' in s
-
-/** Nearest walkable cell to (col,row) via bounded 4-neighbour BFS. Returns the cell
- *  itself if already walkable, or null if nothing walkable is near — used to unstick
- *  enemies embedded in terrain / out of bounds. */
-function nearestWalkable(grid: IsometricGrid, col: number, row: number, maxRings = 12): { col: number; row: number } | null {
-  if (!grid.isBlocked(col, row)) return { col, row }
-  const seen = new Set<string>([`${col},${row}`])
-  let frontier = [{ col, row }]
-  for (let r = 0; r < maxRings && frontier.length > 0; r++) {
-    const nextRing: { col: number; row: number }[] = []
-    for (const c of frontier) {
-      for (const [dc, dr] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
-        const nc = c.col + dc
-        const nr = c.row + dr
-        const key = `${nc},${nr}`
-        if (seen.has(key)) continue
-        seen.add(key)
-        if (!grid.isBlocked(nc, nr)) return { col: nc, row: nr }
-        nextRing.push({ col: nc, row: nr })
-      }
-    }
-    frontier = nextRing
-  }
-  return null
-}
-
-function advanceEnemyMovement(
-  grid: IsometricGrid,
-  entities: readonly Entity[],
-  player: { x: number; z: number },
-  cursors: Map<string, Cursor>,
-  entityBlocked: Set<string>,
-): readonly Entity[] {
-  const pCol = Math.floor(player.x / grid.cellSize)
-  const pRow = Math.floor(player.z / grid.cellSize)
-  let moved = false
-  const next = entities.map(e => {
-    if (e.kind !== 'enemy') return e
-    // UNSTICK: if the enemy is embedded in terrain or out of bounds (trees grew around it
-    // after a regenerate, or it was dropped on a wall), relocate it to the nearest walkable
-    // cell so it never sits frozen inside a tree / off the map.
-    if (grid.isBlocked(e.col, e.row)) {
-      const spot = nearestWalkable(grid, e.col, e.row)
-      if (spot && (spot.col !== e.col || spot.row !== e.row)) {
-        moved = true
-        cursors.delete(e.id)
-        return { ...e, col: spot.col, row: spot.row }
-      }
-    }
-    const pattern = e.movement ?? DEFAULT_ENEMY_PATROL
-    const own = entityOccupiedCells([e]) // an entity must not collide with its own footprint
-    const blocked = (c: number, r: number): boolean =>
-      grid.isBlocked(c, r) ||
-      (c === pCol && r === pRow) ||
-      (entityBlocked.has(`${c},${r}`) && !own.has(`${c},${r}`))
-
-    // Pick the stepper: a step list ("advance N cells in a direction") takes precedence;
-    // else run-patrol (axis set OR <2 waypoints); else the authored waypoint path.
-    const prev = cursors.get(e.id)
-    const here = { col: e.col, row: e.row }
-    const delayTicks = Math.max(0, Math.round((pattern.delayMs ?? STEP_LIST_DELAY_MS) / ENEMY_MOVE_MS))
-    let stepped: { pos: { col: number; row: number }; state: Cursor }
-    if (pattern.waypoints.length >= 2) {
-      stepped = stepMover(here, pattern, isMoverState(prev) ? prev : initMover(), blocked) // explicit click-path wins
-    } else if (pattern.steps && pattern.steps.length > 0) {
-      stepped = stepStepList(here, pattern, isStepListState(prev) ? prev : initStepList(), blocked, { delayTicks })
-    } else if (pattern.axis) {
-      stepped = stepRunPatrol(here, pattern, isRunState(prev) ? prev : initRunState(pattern), blocked, {
-        delayTicks: Math.max(0, Math.round((pattern.delayMs ?? RUN_PATROL_DELAY_MS) / ENEMY_MOVE_MS)),
-      })
-    } else {
-      stepped = stepMover(here, pattern, isMoverState(prev) ? prev : initMover(), blocked) // no-op (<2 waypoints)
-    }
-
-    cursors.set(e.id, stepped.state)
-    if (stepped.pos.col === e.col && stepped.pos.row === e.row) return e
-    moved = true
-    return { ...e, col: stepped.pos.col, row: stepped.pos.row }
-  })
-  return moved ? next : entities
-}
-
-// Cannon behavior: a placed `cannon` asset auto-fires on this cadence, hitting a
-// player within CANNON_RANGE cells for CANNON_DAMAGE (a simple line-of-no-sight
-// turret — projectile travel is a later refinement).
-const CANNON_INTERVAL_MS = 1800
-const CANNON_RANGE = 4
-const CANNON_DAMAGE = 6
-
-/** Fire every ready cannon; return total damage dealt to the player this tick and
- *  push a hit marker on the player when struck. `lastFired` persists per cannon. */
-function tickCannons(
-  grid: IsometricGrid,
-  player: { x: number; z: number },
-  lastFired: Map<string, number>,
-  hitMarkers: HitMarker[],
-  now: number,
-): number {
-  const pCol = Math.floor(player.x / grid.cellSize)
-  const pRow = Math.floor(player.z / grid.cellSize)
-  let damage = 0
-  for (const a of grid.assets) {
-    if (a.tileKey !== 'cannon') continue
-    const key = `${a.col},${a.row}`
-    if (!shouldFire(CANNON_INTERVAL_MS, lastFired.get(key) ?? 0, now)) continue
-    lastFired.set(key, now)
-    if (Math.abs(a.col - pCol) + Math.abs(a.row - pRow) <= CANNON_RANGE) {
-      damage += CANNON_DAMAGE
-      pushHitMarker(hitMarkers, pCol, pRow, CANNON_DAMAGE, 'player', now)
-    }
-  }
-  return damage
-}
-
-
-/** A fresh player loadout pre-stocked with the warrior starter set (in the bag). */
-function seededPlayerLoadout(): Loadout {
-  let l = createLoadout()
-  for (const item of starterWarriorGear()) l = addToBag(l, item)
-  return l
-}
 
 
 export default function TemplateEditor() {

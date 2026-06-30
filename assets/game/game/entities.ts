@@ -241,3 +241,9 @@ export function byKind(entities: readonly Entity[], kind: EntityKind): Entity[] 
 export function enemiesOfType(entities: readonly Entity[], enemyType: string): Entity[] {
   return entities.filter(e => e.kind === 'enemy' && e.enemyType === enemyType)
 }
+
+/** A short, unique-enough id for an entity minted in the editor session.
+ *  Moved out of the game-engine page (stage 5a). */
+export function mintEntityId(kind: EntityKind): string {
+  return `${kind}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`
+}
