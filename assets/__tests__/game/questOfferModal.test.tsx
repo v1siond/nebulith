@@ -3,7 +3,8 @@ import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { acceptQuest } from '@/game/quests'
 import type { Quest } from '@/game/types'
-import { QuestGiveBody, QuestLogPanel } from '@/pages/personal-projects/game-engine/templates'
+import { QuestGiveBody } from '@/components/game/modals'
+import { QuestLogPanel } from '@/components/game/panels'
 import { questAnchorScreenPos } from '@/game/runtime/quest'
 
 // ───────────────────────────────────────────────────────────────────────────

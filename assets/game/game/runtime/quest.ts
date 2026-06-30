@@ -1,6 +1,7 @@
 // Pure quest-anchor projection: where the offer modal floats over a giver cell,
 // mirroring each view's cell->screen math. Moved out of the game-engine page
 // (stage 2). Pure — every input is passed in, nothing read from the DOM.
+import type { Reward } from '@/game/types'
 
 /** Camera snapshot the quest-offer modal needs to project a giver cell to screen px. */
 export interface QuestAnchorCamera {
@@ -54,4 +55,11 @@ function projectCell(cam: QuestAnchorCamera, col: number, row: number): { x: num
   const wx = col * cam.cellSize - (cam.player.x - cam.camOffset.x)
   const wz = row * cam.cellSize - (cam.player.z - cam.camOffset.y)
   return { x: cam.w / 2 + (wx - wz) * isoScale * 0.71, y: cam.h / 2 + (wx + wz) * isoScale * 0.36 }
+}
+
+/** One-line reward summary for toasts, e.g. "+50 xp" or "item: sword". */
+export function rewardSummary(reward: Reward): string {
+  if (reward.kind === 'xp') return `+${reward.amount} xp`
+  if (reward.kind === 'item') return `item: ${reward.itemId ?? 'reward'}`
+  return `+${reward.amount} ${reward.stat ?? 'stat'}`
 }
