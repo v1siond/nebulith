@@ -11,6 +11,7 @@
  * animation system compose: firing an attack = the trigger that plays its animation.
  */
 import type { Cell } from '@/game/types'
+import { chebyshev } from '@/lib/math'
 
 export type AttackRange = 'melee' | 'ranged'
 
@@ -44,8 +45,7 @@ export const initAttacker = (): AttackerState => ({ lastFiredAt: {} })
 export const COMBO_WINDOW_MS = 800
 
 /** Chebyshev cell distance (8-neighbour reach). */
-export const cellDistance = (a: Cell, b: Cell): number =>
-  Math.max(Math.abs(a.col - b.col), Math.abs(a.row - b.row))
+export const cellDistance = chebyshev
 
 /** Off cooldown? The first use of an attack is always allowed. Pure. */
 export function offCooldown(def: AttackDef, state: AttackerState, now: number): boolean {

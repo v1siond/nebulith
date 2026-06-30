@@ -13,6 +13,7 @@
 import type { Entity, EntityKind, MovementPattern, Cell, Rarity } from '@/game/types'
 import { makeEnemy, makeNpc, makePlayer } from '@/game/entities'
 import { buildArchetypeProfile, type EnemyArchetypeId } from '@/game/archetypes'
+import { chebyshev } from '@/lib/math'
 
 /** The enemy roster a randomizer draws from (the tag 'kill' objectives count). */
 export const ENEMY_TYPES = ['goblin', 'wolf', 'bandit', 'skeleton'] as const
@@ -60,8 +61,6 @@ export interface ScatterOptions {
 
 const key = (col: number, row: number): string => `${col},${row}`
 const pick = <T>(arr: readonly T[], rng: () => number): T => arr[Math.floor(rng() * arr.length)]
-const chebyshev = (a: Cell, b: { col: number; row: number }): number =>
-  Math.max(Math.abs(a.col - b.col), Math.abs(a.row - b.row))
 
 /**
  * Scatter `count` entities onto distinct free cells. Pure + deterministic under `rng`.

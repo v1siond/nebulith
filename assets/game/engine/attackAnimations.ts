@@ -7,6 +7,8 @@
  * block (defensive flash on the blocker).
  */
 
+import { lerp } from '@/lib/math'
+
 export type AttackAnimKind = 'slash' | 'shot' | 'lightning' | 'block'
 
 export interface AttackAnim {
@@ -81,8 +83,6 @@ export interface AnimFrame {
    *  arc at the hand. Undefined → draw upright (shot/lightning/block). */
   angle?: number
 }
-
-const lerp = (a: number, b: number, t: number): number => a + (b - a) * t
 
 /** The glyph + world position to draw this frame, or null once finished. */
 export function animFrame(anim: AttackAnim, now: number): AnimFrame | null {

@@ -15,6 +15,7 @@ import { autotileLabel, isWalkable, TREE_MASS_FAMILY, type CellLabel } from './c
 import { cellTile, TREE_CANOPY_SHADES, groundDecor } from './cellTileset'
 import { varyIntensity } from './colors'
 import type { Connector } from '@/lib/api'
+import { clamp, randInt, manhattan } from '@/lib/math'
 
 export type VariantId = 'town' | 'city' | 'forest' | 'cave' | 'temple' | 'boss-stage'
 
@@ -91,8 +92,6 @@ type Cell = { col: number; row: number }
 type Plant = (col: number, row: number) => void
 
 // ── small pure helpers ──────────────────────────────────────────────
-const randInt = (min: number, max: number): number => min + Math.floor(Math.random() * (max - min + 1))
-const clamp = (v: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, v))
 const inBounds = (col: number, row: number, cols: number, rows: number): boolean =>
   col >= 0 && col < cols && row >= 0 && row < rows
 const isEdge = (col: number, row: number, cols: number, rows: number): boolean =>
@@ -1186,8 +1185,6 @@ function nearestPending(linked: ForestRoom[], pending: ForestRoom[]): { from: Fo
   })
   return best
 }
-
-const manhattan = (a: Cell, b: Cell): number => Math.abs(a.col - b.col) + Math.abs(a.row - b.row)
 
 /** L-shaped, 2-wide corridor between two cells. */
 function carveCorridor(trees: boolean[][], a: Cell, b: Cell): void {

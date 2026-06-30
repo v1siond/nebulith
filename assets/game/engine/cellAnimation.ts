@@ -12,6 +12,8 @@
  * deterministic + unit-testable; the renderer reads the clock each frame and applies the result.
  */
 
+import { lerp } from '@/lib/math'
+
 /** A grid cell the animation is attached to. */
 export interface Cell {
   col: number
@@ -59,8 +61,6 @@ export interface AnimTransform {
 
 /** The rest transform — no movement. */
 export const REST: AnimTransform = { dx: 0, dy: 0, rot: 0, scale: 1 }
-
-const lerp = (a: number, b: number, t: number): number => a + (b - a) * t
 
 /** Eased 0→1 interpolation parameter. sine = ease-in-out (reads as a natural sway). */
 export function easeT(kind: Ease | undefined, t: number): number {

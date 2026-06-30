@@ -13,6 +13,7 @@
  * roads, stamps each building ORIENTED by its facing, then fills nature around it.
  */
 import { type BuildingType, composeBuilding } from './buildingComposer'
+import { clamp, randIntWith as randInt } from '@/lib/math'
 
 export type Rng = () => number
 export type Settlement = 'town' | 'city'
@@ -71,9 +72,6 @@ export interface VillageLayout {
   /** The central town-square block reserved BEFORE buildings (null if the map is too small to fit one). */
   plaza: PlazaRect | null
 }
-
-const clamp = (n: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, n))
-const randInt = (rng: Rng, lo: number, hi: number): number => lo + Math.floor(rng() * (hi - lo + 1))
 
 // Settlement scaling — a city is a much bigger, denser place than a town (more + bigger buildings,
 // a denser street grid). The [min, max] count of each.
