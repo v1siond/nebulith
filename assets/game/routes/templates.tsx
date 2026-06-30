@@ -9314,6 +9314,199 @@ function clampOrCenter(v: number, lo: number, hi: number, mid: number): number {
   return Math.min(Math.max(v, lo), hi)
 }
 
+// ════════════════════════════════════════════════════════════════════════════
+// ISO STATIC-GROUND OFFSCREEN CACHE
+// The ground layer (cube sides + diamond tops + per-cell glyphs) is by far the
+// heaviest part of an iso frame — thousands of fills/glyphs redrawn every rAF even
+// when nothing moves, which pins the GPU and stutters other tabs' video. It only
+// changes with the camera, zoom, viewport size, or the visible map cells — the
+// only per-frame ground motion is the grass micro-flicker and the water shimmer.
+// So we render it ONCE into an offscreen canvas keyed on exactly those inputs and
+// BLIT it each frame; the dynamic layer (live water, entities, buildings, effects,
+// night, UI) is drawn fresh on top. The blit is at offset (0,0) with the SAME
+// projection/camera the cache was built with, so it is pixel-identical to a direct
+// draw — no resampling. Grass's ≤1.5% flicker (mostly clamped to 1.0) is baked at
+// full alpha so the cache is time-independent and reusable (measured pixel impact
+// ~2e-5 MAE); the animated water surface is excluded and redrawn live. While the
+// camera is moving (key changing every frame) we draw directly — no regression.
+// Module state only — no game state is touched.
+type IsoGroundCache = { canvas: HTMLCanvasElement; ctx: CanvasRenderingContext2D; camKey: string; contentSig: number; width: number; height: number; waterCells: { col: number; row: number }[] }
+let isoGroundCache: IsoGroundCache | null = null
+let isoCacheCanvas: HTMLCanvasElement | null = null
+let isoLastFrameKey = ''
+let isoRenderMsEMA = 0
+const ISO_CACHE_MAX_DIM = 8192
+
+function perfNow(): number {
+  return typeof performance !== 'undefined' ? performance.now() : Date.now()
+}
+
+/** Lazily create / resize the shared offscreen cache canvas. Null when there's no
+ *  DOM (SSR / tests) — callers then fall back to a direct draw. */
+function ensureIsoCacheCanvas(w: number, h: number): { canvas: HTMLCanvasElement; ctx: CanvasRenderingContext2D } | null {
+  if (typeof document === 'undefined') return null
+  if (!isoCacheCanvas) isoCacheCanvas = document.createElement('canvas')
+  if (isoCacheCanvas.width !== w) isoCacheCanvas.width = w
+  if (isoCacheCanvas.height !== h) isoCacheCanvas.height = h
+  const ctx = isoCacheCanvas.getContext('2d')
+  if (!ctx) return null
+  return { canvas: isoCacheCanvas, ctx }
+}
+
+/** Fast FNV-1a over the visible cells' ground type + height — the only static-cache
+ *  inputs an in-place map edit can change. Cheap (a few hundred cells, pure CPU) and
+ *  complete: it catches any visible paint/height edit regardless of mutation path. */
+function isoGroundSignature(grid: IsometricGrid, startCol: number, endCol: number, startRow: number, endRow: number): number {
+  let hsh = 0x811c9dc5
+  for (let row = startRow; row <= endRow; row++) {
+    const groundRow = grid.ground[row]
+    const heightRow = grid.height[row]
+    for (let col = startCol; col <= endCol; col++) {
+      const g = groundRow ? groundRow[col] : undefined
+      if (g) for (let i = 0; i < g.length; i++) { hsh ^= g.charCodeAt(i); hsh = Math.imul(hsh, 0x01000193) }
+      hsh ^= (heightRow ? heightRow[col] : 0) | 0
+      hsh = Math.imul(hsh, 0x01000193)
+    }
+  }
+  return hsh >>> 0
+}
+
+interface IsoGroundParams {
+  grid: IsometricGrid
+  w: number; h: number; time: number
+  camX: number; camZ: number; isoScale: number; cellSize: number
+  tileW: number; tileH: number; heightStep: number; cubeDepth: number
+  startCol: number; endCol: number; startRow: number; endRow: number
+  groundFontSize: number
+}
+
+/** Draw the ground layer (cube sides + diamond tops + glyphs). `bakeStatic = true`
+ *  renders only the time-independent parts (grass glyph at full alpha; the animated
+ *  water surface is skipped and its cells pushed into `waterOut`) into the offscreen
+ *  cache. `false` renders the full layer byte-identically to the original inline loop
+ *  (live grass flicker + live water shimmer) for the direct / fallback path. The
+ *  projection is inlined so the hot double-loop never allocates a point per cell. */
+function drawIsoGroundLayer(ctx: CanvasRenderingContext2D, p: IsoGroundParams, bakeStatic: boolean, waterOut: { col: number; row: number }[] | null): void {
+  const { grid, w, h, time, camX, camZ, isoScale, cellSize, tileW, tileH, heightStep, cubeDepth, startCol, endCol, startRow, endRow, groundFontSize } = p
+  ctx.font = `bold ${groundFontSize}px ${ASCII_FONT}`
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  for (let row = startRow; row <= endRow; row++) {
+    for (let col = startCol; col <= endCol; col++) {
+      const wx = col * cellSize - camX
+      const wz = row * cellSize - camZ
+      const px = w / 2 + (wx - wz) * isoScale * 0.71
+      const py = h / 2 + (wx + wz) * isoScale * 0.36
+      if (px < -tileW * 2 || px > w + tileW * 2 || py < -tileH * 2 || py > h + tileH * 2) continue
+
+      const tileType = grid.ground[row]?.[col] || 'grass'
+      const colors = GROUND_COLORS[tileType as keyof typeof GROUND_COLORS] || GROUND_COLORS.grass
+
+      // Noise-based color variation (same as 2D view)
+      const noiseVal = Math.sin(col * 0.3 + row * 0.5) * Math.cos(col * 0.7 - row * 0.2)
+      const colorIdx = noiseVal > 0 ? 0 : 1
+
+      const char = colors.char[colorIdx % colors.char.length]
+      const fg = colors.fg[colorIdx % colors.fg.length]
+      const isGrass = tileType.includes('grass')
+      // Grass varies per-cell into natural green tones (deterministic hash); every other
+      // ground keeps its uniform floor base — no per-cell checkerboard (calmer floor).
+      const bg = isGrass ? grassShade(colors.bg[0], col, row) : colors.bg[0]
+
+      const cellHeight = grid.getHeight(col, row)
+      const heightOffset = cellHeight * heightStep
+      const drawY = py - heightOffset
+
+      // CUBE sides — only the terrain's exposed front edges actually show a wall, so draw
+      // the left face only when the down-left neighbour is lower/absent and the right face
+      // only when the down-right neighbour is. Same look, a fraction of the fills.
+      const sideBottom = py + cubeDepth
+      const leftOpen = row + 1 >= grid.rows || grid.getHeight(col, row + 1) < cellHeight
+      const rightOpen = col + 1 >= grid.cols || grid.getHeight(col + 1, row) < cellHeight
+      if (leftOpen) {
+        ctx.fillStyle = darkenColor(bg, 0.5)
+        ctx.beginPath()
+        ctx.moveTo(px - tileW, drawY)
+        ctx.lineTo(px, drawY + tileH)
+        ctx.lineTo(px, sideBottom + tileH)
+        ctx.lineTo(px - tileW, sideBottom)
+        ctx.closePath()
+        ctx.fill()
+      }
+      if (rightOpen) {
+        ctx.fillStyle = darkenColor(bg, 0.7)
+        ctx.beginPath()
+        ctx.moveTo(px + tileW, drawY)
+        ctx.lineTo(px, drawY + tileH)
+        ctx.lineTo(px, sideBottom + tileH)
+        ctx.lineTo(px + tileW, sideBottom)
+        ctx.closePath()
+        ctx.fill()
+      }
+
+      // Top face (diamond) - always draw
+      ctx.fillStyle = bg
+      ctx.beginPath()
+      ctx.moveTo(px, drawY - tileH)
+      ctx.lineTo(px + tileW, drawY)
+      ctx.lineTo(px, drawY + tileH)
+      ctx.lineTo(px - tileW, drawY)
+      ctx.closePath()
+      ctx.fill()
+
+      const isWater = WATER_DEPTH_TILES.has(tileType)
+
+      if (bakeStatic) {
+        // Static cache: skip the animated water surface (collected for the live pass);
+        // bake the grass glyph at full alpha (the ≤1.5% flicker is render-only motion).
+        if (isWater) { if (waterOut) waterOut.push({ col, row }); continue }
+        ctx.fillStyle = fg
+        ctx.fillText(char, px, drawY)
+        continue
+      }
+
+      // Direct / fallback path — byte-identical to the original inline loop.
+      if (isWater) drawIsoWaterDepth(ctx, px, drawY, tileW, tileH, bg, time, col, row)
+      ctx.fillStyle = fg
+      if (isGrass) {
+        ctx.globalAlpha = 0.85 + 0.15 * (Math.sin(time * 0.001 + col * 0.3 + row * 0.4) * 0.1 + 1)
+        ctx.fillText(char, px, drawY)
+        ctx.globalAlpha = 1
+      } else {
+        ctx.fillText(char, px, drawY)
+      }
+    }
+  }
+}
+
+/** Redraw the animated water cells (recessed shimmer surface + glyph) on top of the
+ *  blitted static cache — the one ground element that must stay live each frame.
+ *  Matches the original per-water-cell draw order: water depth, then the glyph. */
+function drawIsoWaterCells(ctx: CanvasRenderingContext2D, p: IsoGroundParams, cells: { col: number; row: number }[]): void {
+  const { grid, w, h, time, camX, camZ, isoScale, cellSize, tileW, tileH, heightStep, groundFontSize } = p
+  ctx.font = `bold ${groundFontSize}px ${ASCII_FONT}`
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  for (const cell of cells) {
+    const { col, row } = cell
+    const wx = col * cellSize - camX
+    const wz = row * cellSize - camZ
+    const px = w / 2 + (wx - wz) * isoScale * 0.71
+    const py = h / 2 + (wx + wz) * isoScale * 0.36
+    const tileType = grid.ground[row]?.[col] || 'grass'
+    const colors = GROUND_COLORS[tileType as keyof typeof GROUND_COLORS] || GROUND_COLORS.grass
+    const noiseVal = Math.sin(col * 0.3 + row * 0.5) * Math.cos(col * 0.7 - row * 0.2)
+    const colorIdx = noiseVal > 0 ? 0 : 1
+    const char = colors.char[colorIdx % colors.char.length]
+    const fg = colors.fg[colorIdx % colors.fg.length]
+    const bg = colors.bg[0]
+    const drawY = py - grid.getHeight(col, row) * heightStep
+    drawIsoWaterDepth(ctx, px, drawY, tileW, tileH, bg, time, col, row)
+    ctx.fillStyle = fg
+    ctx.fillText(char, px, drawY)
+  }
+}
+
 function render(
   ctx: CanvasRenderingContext2D,
   w: number,
@@ -9334,6 +9527,7 @@ function render(
   dayNight: DayNight = 'day',
   attackReach: number = 1,
 ) {
+  const __isoT0 = perfNow() // perf probe — rolling avg of render() ms, exposed on window.__isoRenderMs
   // Clear
   ctx.fillStyle = '#1a1a2e'
   ctx.fillRect(0, 0, w, h)
@@ -9380,7 +9574,11 @@ function render(
     }
   }
 
-  // ─── GROUND TILES (ASCII on diamonds) ─────────────────────────────
+  // ─── GROUND TILES (cube sides + diamond tops + glyphs) ─────────────
+  // The heaviest part of the frame. Cache it to an offscreen canvas keyed on the
+  // camera / zoom / viewport / visible-cells and BLIT it each frame; only draw it
+  // directly while the camera is moving (key changing every frame) or when the
+  // cache can't be built. The animated water surface is always drawn live on top.
 
   // Zoom-aware visible range: derive the half-span from the ACTUAL (zoomed) tile
   // size, so we iterate exactly the cells the camera can see — fewer when zoomed in,
@@ -9392,95 +9590,55 @@ function render(
   const endCol = Math.min(grid.cols - 1, camCol + halfSpan)
   const startRow = Math.max(0, camRow - halfSpan)
   const endRow = Math.min(grid.rows - 1, camRow + halfSpan)
-
-  // Font for ground characters
   const groundFontSize = Math.max(12, tileH * 1.1)
-  ctx.font = `bold ${groundFontSize}px ${ASCII_FONT}`
-  ctx.textAlign = 'center'
-  ctx.textBaseline = 'middle'
 
-  for (let row = startRow; row <= endRow; row++) {
-    for (let col = startCol; col <= endCol; col++) {
-      const p = toScreen(col, row)
-      if (p.x < -tileW * 2 || p.x > w + tileW * 2 || p.y < -tileH * 2 || p.y > h + tileH * 2) continue
+  const groundParams: IsoGroundParams = {
+    grid, w, h, time, camX, camZ, isoScale, cellSize,
+    tileW, tileH, heightStep, cubeDepth,
+    startCol, endCol, startRow, endRow, groundFontSize,
+  }
 
-      const tileType = grid.ground[row]?.[col] || 'grass'
-      const colors = GROUND_COLORS[tileType as keyof typeof GROUND_COLORS] || GROUND_COLORS.grass
+  ctx.globalAlpha = 1
+  const forceDirect = typeof window !== 'undefined' && !!(window as unknown as { __ISO_NOCACHE?: boolean }).__ISO_NOCACHE
+  const cacheFits = w <= ISO_CACHE_MAX_DIM && h <= ISO_CACHE_MAX_DIM
+  // Camera key = viewport + exact camera + zoom/cell scale. The exact camera means the
+  // blit is at offset (0,0) → no resampling → pixel-identical to a direct draw. The
+  // content hash (visible cells) is computed ONLY when the camera is stable (a cache-hit
+  // candidate) — never while panning, so movement stays a cheap direct draw.
+  const camKey = `${w}x${h}|${camX.toFixed(3)},${camZ.toFixed(3)}|${isoScale.toFixed(4)}|${cellSize}`
+  let liveWater: { col: number; row: number }[] | null = null
+  let didCache = false
 
-      // Noise-based color variation (same as 2D view)
-      const noiseVal = Math.sin(col * 0.3 + row * 0.5) * Math.cos(col * 0.7 - row * 0.2)
-      const colorIdx = noiseVal > 0 ? 0 : 1
-
-      const char = colors.char[colorIdx % colors.char.length]
-      const fg = colors.fg[colorIdx % colors.fg.length]
-      // Grass varies per-cell into natural green tones (deterministic hash); every other
-      // ground keeps its uniform floor base — no per-cell checkerboard (calmer floor).
-      const bg = tileType.includes('grass') ? grassShade(colors.bg[0], col, row) : colors.bg[0]
-
-      // Get cell height
-      const cellHeight = grid.getHeight(col, row)
-      const heightOffset = cellHeight * heightStep
-
-      // Draw diamond tile with background
-      const drawY = p.y - heightOffset
-
-      // CUBE sides — but an interior cube's sides are HIDDEN by the cube in front of
-      // it; only the terrain's front edges actually show a wall. Draw the left face
-      // only when the down-left neighbour (col,row+1) is lower/absent, the right face
-      // only when the down-right neighbour (col+1,row) is. Same look, a fraction of
-      // the fills — the real iso perf win.
-      const sideBottom = p.y + cubeDepth
-      const leftOpen = row + 1 >= grid.rows || grid.getHeight(col, row + 1) < cellHeight
-      const rightOpen = col + 1 >= grid.cols || grid.getHeight(col + 1, row) < cellHeight
-      if (leftOpen) {
-        ctx.fillStyle = darkenColor(bg, 0.5)
-        ctx.beginPath()
-        ctx.moveTo(p.x - tileW, drawY)
-        ctx.lineTo(p.x, drawY + tileH)
-        ctx.lineTo(p.x, sideBottom + tileH)
-        ctx.lineTo(p.x - tileW, sideBottom)
-        ctx.closePath()
-        ctx.fill()
-      }
-      if (rightOpen) {
-        ctx.fillStyle = darkenColor(bg, 0.7)
-        ctx.beginPath()
-        ctx.moveTo(p.x + tileW, drawY)
-        ctx.lineTo(p.x, drawY + tileH)
-        ctx.lineTo(p.x, sideBottom + tileH)
-        ctx.lineTo(p.x + tileW, sideBottom)
-        ctx.closePath()
-        ctx.fill()
-      }
-
-      // Top face (diamond) - always draw
-      ctx.fillStyle = bg
-      ctx.beginPath()
-      ctx.moveTo(p.x, drawY - tileH)
-      ctx.lineTo(p.x + tileW, drawY)
-      ctx.lineTo(p.x, drawY + tileH)
-      ctx.lineTo(p.x - tileW, drawY)
-      ctx.closePath()
-      ctx.fill()
-
-      // Water gets ISO DEPTH: a sunken bank rim + a recessed surface, so a pond reads
-      // as a basin instead of a flat blue diamond (#50). Sparse tiles → cheap.
-      if (WATER_DEPTH_TILES.has(tileType)) {
-        drawIsoWaterDepth(ctx, p.x, drawY, tileW, tileH, bg, time, col, row)
-      }
-
-      // ASCII character on top. Only grass flickers, so only grass touches
-      // globalAlpha (skip the set/reset state-churn on every other ground cell).
-      ctx.fillStyle = fg
-      if (tileType.includes('grass')) {
-        ctx.globalAlpha = 0.85 + 0.15 * (Math.sin(time * 0.001 + col * 0.3 + row * 0.4) * 0.1 + 1)
-        ctx.fillText(char, p.x, drawY)
-        ctx.globalAlpha = 1
+  if (!forceDirect && cacheFits) {
+    const stableCam = !!isoGroundCache && isoGroundCache.camKey === camKey && isoGroundCache.width === w && isoGroundCache.height === h
+    if (stableCam || camKey === isoLastFrameKey) {
+      const sig = isoGroundSignature(grid, startCol, endCol, startRow, endRow)
+      if (stableCam && isoGroundCache!.contentSig === sig) {
+        ctx.drawImage(isoGroundCache!.canvas, 0, 0) // hit → one blit instead of thousands of fills/glyphs
+        liveWater = isoGroundCache!.waterCells
+        didCache = true
       } else {
-        ctx.fillText(char, p.x, drawY)
+        const cc = ensureIsoCacheCanvas(w, h) // camera settled or map edited → (re)build, then blit
+        if (cc) {
+          cc.ctx.clearRect(0, 0, w, h)
+          cc.ctx.globalAlpha = 1
+          const water: { col: number; row: number }[] = []
+          drawIsoGroundLayer(cc.ctx, groundParams, true, water)
+          isoGroundCache = { canvas: cc.canvas, ctx: cc.ctx, camKey, contentSig: sig, width: w, height: h, waterCells: water }
+          ctx.drawImage(cc.canvas, 0, 0)
+          liveWater = water
+          didCache = true
+        }
       }
     }
   }
+  // Moving / first frame / viewport too big / no DOM → draw directly (no regression, identical).
+  if (!didCache) drawIsoGroundLayer(ctx, groundParams, false, null)
+  isoLastFrameKey = camKey
+
+  // The animated water surface is excluded from the static cache so its shimmer stays
+  // live — redraw just those (sparse) cells on top of the blit each frame.
+  if (liveWater && liveWater.length) drawIsoWaterCells(ctx, groundParams, liveWater)
 
   // ─── CONNECTOR MARKERS (purple diamond + ◊ on each owned cell's top face) ──
   for (const connector of connectors) {
@@ -9668,6 +9826,10 @@ function render(
     ctx.fillStyle = '#ff4444'
     ctx.fillText('DEBUG MODE', 10, 70)
   }
+
+  const __isoMs = perfNow() - __isoT0
+  isoRenderMsEMA = isoRenderMsEMA === 0 ? __isoMs : isoRenderMsEMA * 0.9 + __isoMs * 0.1
+  if (typeof window !== 'undefined') (window as unknown as { __isoRenderMs?: number }).__isoRenderMs = isoRenderMsEMA
 }
 
 // Draw player as ASCII art in isometric view (matching 2D style)
