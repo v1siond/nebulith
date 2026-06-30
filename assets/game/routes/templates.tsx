@@ -9838,6 +9838,105 @@ function drawBlockFigure(
   }
 }
 
+interface PlayerArmParams {
+  /** true → an attack is mid-flight; the arm bracket swings and carries the weapon */
+  swinging: boolean
+  /** 0..1 swing progress (0 = windup/up, 1 = strike/forward); ignored when not swinging */
+  swingP: number
+  /** +1 facing right, -1 facing left */
+  facingDir: number
+  /** drives the arm font + the derived charW/armR/weaponSize (identical ratios in both views) */
+  fontSize: number
+  /** arm-bracket fill colour (the figure's body colour) */
+  bodyColor: string
+  weaponGlyph?: string
+  /** default weapon top-fill colour (iso #e6e6e6 / 2D #e0e0e0) */
+  weaponTint: string
+  /** attack-driven tint that overrides weaponTint on the swing (ability recolour) */
+  swingTint?: string
+  /** swing pivot (the shoulder) */
+  shoulderX: number
+  shoulderY: number
+  /** weapon hand when NOT swinging (the rest pose) */
+  restHandX: number
+  restHandY: number
+  shieldGlyph?: string
+  shieldX: number
+  shieldY: number
+  shieldR: number
+}
+
+/**
+ * The player's held weapon (swung in-hand mid-attack, rested otherwise) + the off-hand shield disc.
+ * Shared by the iso (drawIsoPlayer) and 2D player renderers — they differ ONLY in the coordinate
+ * source (and the per-view weapon-tint + shield-radius), all passed in. charW/armR/weaponSize derive
+ * from fontSize with the same ratios both views already used, so the output is pixel-identical.
+ */
+function drawPlayerArm(ctx: CanvasRenderingContext2D, params: PlayerArmParams): void {
+  const { swinging, swingP, facingDir, fontSize, bodyColor, weaponGlyph, weaponTint, swingTint } = params
+  const charW = fontSize * 0.6
+  const armR = charW * 1.15 // SHORT — about one char (≈ the walk arm / legs), not the full reach
+  const weaponSize = fontSize * 1.7
+  ctx.textAlign = 'center'
+  if (swinging) {
+    // The swing arm IS the figure’s facing bracket, pivoting at the SHOULDER and rotating from
+    // raised-UP (swingP 0) down to forward/MIDDLE (swingP 1). The held weapon rides at its hand.
+    const armChar = facingDir > 0 ? '>' : '<'
+    const rot = -facingDir * 1.3 * (1 - swingP)
+    ctx.save()
+    ctx.translate(params.shoulderX, params.shoulderY)
+    ctx.rotate(rot)
+    ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillStyle = bodyColor
+    ctx.fillText(armChar, facingDir * armR, 0)
+    if (weaponGlyph) {
+      ctx.translate(facingDir * (armR + charW), 0) // the hand, just past the bracket
+      if (facingDir > 0) ctx.scale(-1, 1) // weapon points OUTWARD in both facings (#54)
+      ctx.rotate(Math.PI)
+      ctx.font = `bold ${weaponSize}px ${ASCII_FONT}`
+      ctx.fillStyle = '#000000'
+      ctx.fillText(weaponGlyph, 0, weaponSize * 0.45 + 1)
+      ctx.fillStyle = swingTint ?? weaponTint
+      ctx.fillText(weaponGlyph, 0, weaponSize * 0.45)
+    }
+    ctx.restore()
+    ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
+  } else if (weaponGlyph) {
+    // Holding (not swinging): the weapon rests in the figure’s natural hand — its own arm holds it.
+    ctx.save()
+    ctx.translate(params.restHandX, params.restHandY)
+    if (facingDir > 0) ctx.scale(-1, 1)
+    ctx.rotate(Math.PI)
+    ctx.font = `bold ${weaponSize}px ${ASCII_FONT}`
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillStyle = '#000000'
+    ctx.fillText(weaponGlyph, 0, weaponSize * 0.45 + 1)
+    ctx.fillStyle = weaponTint
+    ctx.fillText(weaponGlyph, 0, weaponSize * 0.45)
+    ctx.restore()
+    ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
+  }
+  // Shield on the OFF-hand — a FILLED disc behind the glyph so it reads as a solid shield.
+  if (params.shieldGlyph) {
+    const { shieldX: shX, shieldY: shY, shieldR: shR } = params
+    ctx.beginPath()
+    ctx.arc(shX, shY, shR, 0, Math.PI * 2)
+    ctx.fillStyle = '#3f5f8f' // steel-blue shield body
+    ctx.fill()
+    ctx.beginPath()
+    ctx.arc(shX, shY, shR * 0.34, 0, Math.PI * 2)
+    ctx.fillStyle = '#cfe6ff' // centre boss highlight
+    ctx.fill()
+    ctx.fillStyle = '#000000'
+    ctx.fillText(params.shieldGlyph, shX + 1, shY + 1)
+    ctx.fillStyle = '#9fd3ff' // bright rim (the glyph) over the filled body
+    ctx.fillText(params.shieldGlyph, shX, shY)
+  }
+}
+
 function drawIsoPlayer(
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -9885,79 +9984,30 @@ function drawIsoPlayer(
   // The held weapon + the shield, both at the ARM row. The weapon sits on the FACING hand; the
   // shield on the OFF-hand (the side OPPOSITE the weapon) at the SAME arm height — so they never
   // land on the same hand in any facing (#49).
-  ctx.textAlign = 'center'
   const onLeft = player.facing === 'left'
   const dir = onLeft ? -1 : 1 // +1 → facing right, weapon on the RIGHT hand
   const weaponSize = fontSize * 1.7
   const handY = y - lineHeight * 1.5 - breathe // the HAND, at the arm/body row (shared by weapon + shield)
-  const swinging = swingP != null // an attack is mid-flight → the ARM drives the swing (#47)
   const shoulderX = x + dir * pHalf * 0.25 // at the body, on the weapon side
   const shoulderY = y - lineHeight * 1.95 - breathe // shoulder = TOP of the # row (the pivot)
-  if (swinging) {
-    // The swing arm IS the figure's facing bracket (the SAME glyph the walk sprite uses), pivoting at
-    // the SHOULDER and rotating from raised-UP (start) down to forward/MIDDLE (end) = up→middle. No
-    // separate limb (#67). It's short (≈ one char, like the walk arm). The held weapon rides at the
-    // arm's hand and swings with it.
-    const armChar = dir > 0 ? '>' : '<'
-    const armR = charW * 1.15 // SHORT — about one char (≈ the walk arm / legs), not the full reach
-    const rot = -dir * 1.3 * (1 - (swingP ?? 0)) // swingP 0 → UP (windup); 1 → forward/MIDDLE (strike)
-    ctx.save()
-    ctx.translate(shoulderX, shoulderY)
-    ctx.rotate(rot)
-    ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
-    ctx.textAlign = 'center'
-    ctx.textBaseline = 'middle'
-    ctx.fillStyle = bodyColor
-    ctx.fillText(armChar, dir * armR, 0)
-    if (player.weaponGlyph) {
-      ctx.translate(dir * (armR + charW), 0) // the hand, just past the bracket
-      if (dir > 0) ctx.scale(-1, 1) // weapon points OUTWARD in both facings (#54)
-      ctx.rotate(Math.PI)
-      ctx.font = `bold ${weaponSize}px ${ASCII_FONT}`
-      ctx.fillStyle = '#000000'
-      ctx.fillText(player.weaponGlyph, 0, weaponSize * 0.45 + 1)
-      ctx.fillStyle = swingTint ?? '#e6e6e6'
-      ctx.fillText(player.weaponGlyph, 0, weaponSize * 0.45)
-    }
-    ctx.restore()
-    ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
-  } else if (player.weaponGlyph) {
-    // Holding (not swinging): the weapon rests in the figure's natural hand — the figure's own arm
-    // bracket holds it, no separate arm drawn.
-    const handX = x + dir * (pHalf + weaponSize * 0.18)
-    ctx.save()
-    ctx.translate(handX, handY)
-    if (dir > 0) ctx.scale(-1, 1)
-    ctx.rotate(Math.PI)
-    ctx.font = `bold ${weaponSize}px ${ASCII_FONT}`
-    ctx.textAlign = 'center'
-    ctx.textBaseline = 'middle'
-    ctx.fillStyle = '#000000'
-    ctx.fillText(player.weaponGlyph, 0, weaponSize * 0.45 + 1)
-    ctx.fillStyle = '#e6e6e6'
-    ctx.fillText(player.weaponGlyph, 0, weaponSize * 0.45)
-    ctx.restore()
-    ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
-  }
-  // Shield on the OFF-hand — the side OPPOSITE the weapon — at the SAME arm height (handY). A FILLED
-  // disc sits behind the glyph so the shield reads as a solid shield, not a hollow "O".
-  if (player.shieldGlyph) {
-    const shX = x - dir * (pHalf + fontSize * 0.3) // off-hand: opposite the weapon
-    const shY = handY                               // same arm row as the weapon hand
-    const shR = fontSize * 0.5
-    ctx.beginPath()
-    ctx.arc(shX, shY, shR, 0, Math.PI * 2)
-    ctx.fillStyle = '#3f5f8f' // steel-blue shield body
-    ctx.fill()
-    ctx.beginPath()
-    ctx.arc(shX, shY, shR * 0.34, 0, Math.PI * 2)
-    ctx.fillStyle = '#cfe6ff' // centre boss highlight
-    ctx.fill()
-    ctx.fillStyle = '#000000'
-    ctx.fillText(player.shieldGlyph, shX + 1, shY + 1)
-    ctx.fillStyle = '#9fd3ff' // bright rim (the glyph) over the filled body
-    ctx.fillText(player.shieldGlyph, shX, shY)
-  }
+  drawPlayerArm(ctx, {
+    swinging: swingP != null, // an attack is mid-flight → the ARM drives the swing (#47)
+    swingP: swingP ?? 0,
+    facingDir: dir,
+    fontSize,
+    bodyColor,
+    weaponGlyph: player.weaponGlyph,
+    weaponTint: '#e6e6e6',
+    swingTint,
+    shoulderX,
+    shoulderY,
+    restHandX: x + dir * (pHalf + weaponSize * 0.18),
+    restHandY: handY,
+    shieldGlyph: player.shieldGlyph,
+    shieldX: x - dir * (pHalf + fontSize * 0.3), // off-hand: opposite the weapon
+    shieldY: handY, // same arm row as the weapon hand
+    shieldR: fontSize * 0.5,
+  })
 
   // Life bar + name above the head — the SAME treatment enemies get (drawFigureVitals), so the
   // player reads identically. Drawn only once HP is mirrored onto the struct (see the game loop).
@@ -11610,72 +11660,26 @@ function render2D(
       const inHandSlash = attackAnims.find(a => a.inHand && time - a.start < a.durationMs)
       const swinging = !!inHandSlash // an attack is mid-flight → the ARM drives the swing (#47)
       const swingP = inHandSlash ? Math.min(1, (time - inHandSlash.start) / inHandSlash.durationMs) : 0
-      const weaponSize = fontSize * 1.7
       const shoulderX = p.x + facingDir * fontSize * 0.18 // at the body, weapon side
       const shoulderY = baseY - lineHeight * 1.9 // shoulder = TOP of the # row (the pivot)
-      if (swinging) {
-        // The swing arm IS the figure's facing bracket (the SAME glyph the walk sprite uses), pivoting
-        // at the SHOULDER and rotating from raised-UP (start) down to forward/MIDDLE (end) = up→middle.
-        // No separate limb (#67); short (≈ one char). The held weapon rides at the arm's hand.
-        const armChar = facingDir > 0 ? '>' : '<'
-        const armR = fontSize * 0.6 * 1.15
-        const rot = -facingDir * 1.3 * (1 - swingP) // swingP 0 → UP (windup); 1 → forward/MIDDLE (strike)
-        ctx.save()
-        ctx.translate(shoulderX, shoulderY)
-        ctx.rotate(rot)
-        ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
-        ctx.textAlign = 'center'
-        ctx.textBaseline = 'middle'
-        ctx.fillStyle = bodyColor
-        ctx.fillText(armChar, facingDir * armR, 0)
-        if (player.weaponGlyph) {
-          ctx.translate(facingDir * (armR + fontSize * 0.6), 0) // the hand, just past the bracket
-          if (facingDir > 0) ctx.scale(-1, 1) // weapon points OUTWARD in both facings (#54)
-          ctx.rotate(Math.PI)
-          ctx.font = `bold ${weaponSize}px ${ASCII_FONT}`
-          ctx.fillStyle = '#000000'
-          ctx.fillText(player.weaponGlyph, 0, weaponSize * 0.45 + 1)
-          ctx.fillStyle = inHandSlash?.tint ?? '#e0e0e0'
-          ctx.fillText(player.weaponGlyph, 0, weaponSize * 0.45)
-        }
-        ctx.restore()
-        ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
-      } else if (player.weaponGlyph) {
-        // Holding (not swinging): the weapon rests in the figure's natural hand — its own arm holds it.
-        const handX = p.x + facingDir * fontSize * 0.6
-        ctx.save()
-        ctx.translate(handX, armY)
-        if (facingDir > 0) ctx.scale(-1, 1)
-        ctx.rotate(Math.PI)
-        ctx.font = `bold ${weaponSize}px ${ASCII_FONT}`
-        ctx.textAlign = 'center'
-        ctx.textBaseline = 'middle'
-        ctx.fillStyle = '#000000'
-        ctx.fillText(player.weaponGlyph, 0, weaponSize * 0.45 + 1)
-        ctx.fillStyle = '#e0e0e0'
-        ctx.fillText(player.weaponGlyph, 0, weaponSize * 0.45)
-        ctx.restore()
-        ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
-      }
-      // Shield on the OFF-hand (opposite the weapon) at the SAME arm height. Filled disc behind the
-      // glyph so it reads as a solid shield, not a hollow "O".
-      if (player.shieldGlyph) {
-        const shX = p.x - facingDir * fontSize * 0.6 // off-hand: opposite the weapon
-        const shY = armY
-        const shR = fontSize * 0.55
-        ctx.beginPath()
-        ctx.arc(shX, shY, shR, 0, Math.PI * 2)
-        ctx.fillStyle = '#3f5f8f'
-        ctx.fill()
-        ctx.beginPath()
-        ctx.arc(shX, shY, shR * 0.34, 0, Math.PI * 2)
-        ctx.fillStyle = '#cfe6ff'
-        ctx.fill()
-        ctx.fillStyle = '#000000'
-        ctx.fillText(player.shieldGlyph, shX + 1, shY + 1)
-        ctx.fillStyle = '#9fd3ff'
-        ctx.fillText(player.shieldGlyph, shX, shY)
-      }
+      drawPlayerArm(ctx, {
+        swinging,
+        swingP,
+        facingDir,
+        fontSize,
+        bodyColor,
+        weaponGlyph: player.weaponGlyph,
+        weaponTint: '#e0e0e0',
+        swingTint: inHandSlash?.tint,
+        shoulderX,
+        shoulderY,
+        restHandX: p.x + facingDir * fontSize * 0.6,
+        restHandY: armY,
+        shieldGlyph: player.shieldGlyph,
+        shieldX: p.x - facingDir * fontSize * 0.6, // off-hand: opposite the weapon
+        shieldY: armY,
+        shieldR: fontSize * 0.55,
+      })
 
       // Life bar + name above the head — the SAME treatment enemies get (drawFigureVitals).
       if (player.maxHp != null) {
