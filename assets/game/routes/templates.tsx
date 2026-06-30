@@ -59,7 +59,8 @@ import { AbilityBar, CombatHud, QuestHud } from '@/components/game/hud'
 import { EquipmentPanel, InventoryCard, QuestAuthoringCard, QuestLogPanel } from '@/components/game/panels'
 import { EntityAttackBody, EntityIdentityStatsBody, EntityMovementBody, Modal, QuestGiveBody } from '@/components/game/modals'
 import { FlowViewOverlay, GamesViewOverlay } from '@/components/game/games'
-import { BUILDING_TOOL_TYPE, type BuildingTool, type EntityTool, GROUND_SWATCHES, NATURE_TILE_KEYS, SEASON_BTN, STAGE_VARIANTS, STAGE_ZONES } from '@/components/game/editorConfig'
+import { BUILDING_TOOL_TYPE, type BuildingTool, type EditorMode, type EntityTool, GROUND_SWATCHES, NATURE_TILE_KEYS } from '@/components/game/editorConfig'
+import { Dropdown, GenerateControls, InspectorPlaceholder, StylePicker, ToolRail } from '@/components/game/editorChrome'
 
 
 // View mode states (global for game loop access)
@@ -171,6 +172,11 @@ export default function TemplateEditor() {
   // once and reads through a ref, so entities mirror to entitiesRef like connectors.
   const [entities, setEntities] = useState<Entity[]>([])
   const [entityTool, setEntityTool] = useState<EntityTool>(null)
+  // UI-only flag: the left tool-rail's "Paint" mode (reveals the tile palette). It
+  // doesn't gate any canvas behaviour — painting is driven by selectedTile + the
+  // selected cells — it only decides which mode the rail highlights / which left
+  // panel shows. The other rail modes derive straight from the tool state below.
+  const [paintMode, setPaintMode] = useState(false)
   // The placed entity currently selected for inspection (click an entity to select).
   const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null)
   // When on, a Top-view click appends a waypoint to the selected entity's patrol path
@@ -404,6 +410,17 @@ export default function TemplateEditor() {
   // Derived: which view is active (for highlighting the view buttons)
   const activeView: 'iso' | '2d' | 'top' | 'flow' =
     showFlowView ? 'flow' : showTopView ? 'top' : viewType === '2d' ? '2d' : 'iso'
+
+  // Derived: which tool-rail MODE is active. Connector/building/unit win over the
+  // UI-only paint flag so the rail always mirrors the real armed tool — toggling a
+  // tool off (it goes null) drops back to paint or select. The canvas handlers read
+  // the fine-grained state, not this; the rail is just a switcher + highlighter.
+  const editorMode: EditorMode =
+    connectorMode ? 'connector'
+    : buildingTool ? 'building'
+    : entityTool ? 'unit'
+    : paintMode ? 'paint'
+    : 'select'
 
   // Keep selectedCells ref in sync
   useEffect(() => {
@@ -885,6 +902,7 @@ export default function TemplateEditor() {
    *  selection + connector + building modes so placement and selection never fight. */
   const toggleEntityTool = (tool: Exclude<EntityTool, null>) => {
     setEntityTool(prev => (prev === tool ? null : tool))
+    setPaintMode(false)
     setConnectorMode(false)
     setEditingConnector(null)
     setSelectedCells(new Set())
@@ -909,10 +927,67 @@ export default function TemplateEditor() {
    *  with the entity / connector tools so clicks route to exactly one editor. */
   const toggleBuildingTool = (tool: Exclude<BuildingTool, null>) => {
     setBuildingTool(prev => (prev === tool ? null : tool))
+    setPaintMode(false)
     setEntityTool(null)
     setConnectorMode(false)
     setEditingConnector(null)
     deselectBuilding()
+  }
+
+  /** Clear any armed tile so a Select-mode click inspects instead of painting. */
+  const clearPaintTile = () => {
+    setSelectedTile(null)
+    setSelectedComposite(null)
+    setSelectedMultiAsset(null)
+    setHeightEditMode(false)
+  }
+
+  /** Switch the left tool-rail mode. Each mode arms the matching existing tool
+   *  state (so the canvas handlers behave exactly as before) and disarms the rest;
+   *  unit/building arm a sensible default sub-tool, kept if one is already chosen. */
+  const selectMode = (m: EditorMode) => {
+    setEditingConnector(null)
+    if (m === 'select') {
+      setPaintMode(false)
+      setEntityTool(null)
+      setBuildingTool(null)
+      setConnectorMode(false)
+      deselectBuilding()
+      clearPaintTile()
+      return
+    }
+    if (m === 'paint') {
+      setPaintMode(true)
+      setEntityTool(null)
+      setBuildingTool(null)
+      setConnectorMode(false)
+      deselectBuilding()
+      return
+    }
+    if (m === 'unit') {
+      setPaintMode(false)
+      setBuildingTool(null)
+      setConnectorMode(false)
+      deselectBuilding()
+      clearPaintTile()
+      setEntityTool(prev => prev ?? 'enemy')
+      return
+    }
+    if (m === 'building') {
+      setPaintMode(false)
+      setEntityTool(null)
+      setConnectorMode(false)
+      clearPaintTile()
+      setBuildingTool(prev => prev ?? 'select')
+      return
+    }
+    // connector
+    setPaintMode(false)
+    setEntityTool(null)
+    setBuildingTool(null)
+    deselectBuilding()
+    clearPaintTile()
+    setConnectorMode(true)
   }
 
   /** Re-stamp `idx` from `old`→`next` iff the new footprint is valid (in-bounds, clear
@@ -3801,48 +3876,66 @@ export default function TemplateEditor() {
           />
         )}
 
-        {/* TOP NAV — links · views · save/load · export · connectors · new */}
+        {/* TOP BAR — brand · view toggle · ⚡ Generate · 🎨 Style · ▶ Play · 💾 Save · Load · ⋯ More */}
         {showSidebars && !showFlowView && !showGamesView && !playMode && (
         <nav className="fixed left-4 right-4 top-4 z-20 flex items-center gap-2 overflow-x-auto rounded-lg border border-white/10 bg-black/90 px-3 py-2 font-mono text-sm text-white shadow-lg shadow-black/40">
-          <Link href="/personal-projects/game-engine" className="shrink-0 rounded bg-gray-700 px-3 py-1 text-xs hover:bg-gray-600">← Templates</Link>
-          <Link href="/" className="shrink-0 rounded bg-gray-700 px-3 py-1 text-xs hover:bg-gray-600">CV</Link>
-          <button
-            onClick={enterPlayMode}
-            aria-label="Execute game"
-            className="shrink-0 rounded bg-emerald-600 px-3 py-1 text-xs font-bold text-white shadow hover:bg-emerald-500"
-          >
-            ▶ Execute Game
-          </button>
-          <button
-            onClick={openGamesView}
-            aria-label="Games"
-            className="shrink-0 rounded bg-indigo-700 px-3 py-1 text-xs font-bold text-white shadow hover:bg-indigo-600"
-          >
-            Games
-          </button>
+          <span className="shrink-0 select-none text-sm font-bold tracking-widest text-yellow-400">NEBULITH</span>
           <span className="mx-1 h-5 w-px shrink-0 bg-white/15" />
+          {/* view toggle */}
           <div className="flex shrink-0 gap-1">
-            <ViewButton label="ISO" active={activeView === 'iso'} activeClass="bg-yellow-600" onClick={selectIsoView} />
+            <ViewButton label="↖ ISO" active={activeView === 'iso'} activeClass="bg-yellow-600" onClick={selectIsoView} />
             <ViewButton label="2D" active={activeView === '2d'} activeClass="bg-blue-600" onClick={select2DView} />
             <ViewButton label="Top" active={activeView === 'top'} activeClass="bg-blue-600" onClick={selectTopView} />
             <ViewButton label="Flow" active={activeView === 'flow'} activeClass="bg-purple-600" onClick={toggleFlowView} />
           </div>
           <span className="mx-1 h-5 w-px shrink-0 bg-white/15" />
+          {/* ⚡ Generate — the stage-preset zone/variant controls as a dropdown */}
+          <Dropdown
+            label={<>⚡ Generate</>}
+            title="Generate a randomized stage"
+            btnClass="bg-purple-700 hover:bg-purple-600"
+            panelClass="w-72"
+          >
+            {close => (
+              <GenerateControls
+                zone={genZone}
+                onZone={setGenZone}
+                onGenerate={(z, v) => { generateStageInEditor(z, v); close() }}
+              />
+            )}
+          </Dropdown>
+          {/* 🎨 Style — art skin (ASCII placeholder; real swap is stage D) */}
+          <Dropdown label={<>🎨 Style: ASCII</>} title="Art style" panelClass="w-56">
+            {close => <StylePicker onClose={close} />}
+          </Dropdown>
+          <div className="flex-1" />
+          {/* ▶ Play — enter the clean play view */}
+          <button
+            onClick={enterPlayMode}
+            aria-label="Execute game"
+            title="Play the game"
+            className="shrink-0 rounded bg-emerald-600 px-3 py-1 text-xs font-bold text-white shadow hover:bg-emerald-500"
+          >
+            ▶ Play
+          </button>
+          {/* 💾 Save — name + save/update */}
           <input
             type="text"
             value={templateName}
             onChange={e => setTemplateName(e.target.value)}
             placeholder="Template name…"
             aria-label="Template name"
-            className="w-36 shrink-0 rounded bg-gray-800 px-2 py-1 text-xs"
+            className="w-32 shrink-0 rounded bg-gray-800 px-2 py-1 text-xs"
           />
           <button
             onClick={saveCurrentTemplate}
             disabled={isSaving || !templateName.trim()}
+            aria-label="Save template"
             className="shrink-0 rounded bg-green-700 px-3 py-1 text-xs font-bold hover:bg-green-600 disabled:bg-gray-700 disabled:text-gray-500"
           >
-            {isSaving ? '…' : currentTemplateId ? 'Update' : 'Save'}
+            {isSaving ? '…' : `💾 ${currentTemplateId ? 'Update' : 'Save'}`}
           </button>
+          {/* Load — measured fixed popover (escapes the nav's overflow clipping) */}
           <div className="relative shrink-0">
             <button
               ref={loadBtnRef}
@@ -3857,11 +3950,9 @@ export default function TemplateEditor() {
               Load ({savedTemplates.length})
             </button>
             {showTemplateList && loadMenuPos && (
-              // FIXED (not absolute) so it escapes the nav's overflow-x-auto clipping; positioned under
-              // the Load button via its measured rect.
               <div
                 style={{ position: 'fixed', top: loadMenuPos.top, left: loadMenuPos.left }}
-                className="z-30 max-h-72 w-60 space-y-1 overflow-y-auto rounded-lg border border-white/10 bg-gray-950 p-2 shadow-2xl"
+                className="z-40 max-h-72 w-60 space-y-1 overflow-y-auto rounded-lg border border-white/10 bg-gray-950 p-2 shadow-2xl"
               >
                 {savedTemplates.length === 0 && <p className="text-[10px] text-gray-500">No saved templates.</p>}
                 {savedTemplates.map(t => (
@@ -3876,15 +3967,18 @@ export default function TemplateEditor() {
               </div>
             )}
           </div>
-          <button onClick={exportLayers} className="shrink-0 rounded bg-orange-700 px-3 py-1 text-xs font-bold hover:bg-orange-600">Export</button>
-          <button
-            onClick={() => { setConnectorMode(!connectorMode); setEditingConnector(null) }}
-            aria-pressed={connectorMode}
-            className={`shrink-0 rounded px-3 py-1 text-xs font-bold ${connectorMode ? 'bg-purple-600' : 'bg-gray-700 hover:bg-gray-600'}`}
-          >
-            Connectors{connectorMode ? ' • on' : ''}
-          </button>
-          <Link href="/personal-projects/game-engine/templates?new=1" className="shrink-0 rounded bg-gray-700 px-3 py-1 text-xs hover:bg-gray-600">＋ New</Link>
+          {/* ⋯ More — the remaining entry points kept reachable in an overflow menu */}
+          <Dropdown label={<>⋯ More</>} align="right" panelClass="w-52">
+            {close => (
+              <div className="space-y-1 text-xs">
+                <button onClick={() => { openGamesView(); close() }} className="block w-full rounded bg-indigo-700 px-2 py-1.5 text-left font-bold hover:bg-indigo-600">Games</button>
+                <button onClick={() => { exportLayers(); close() }} className="block w-full rounded bg-orange-700 px-2 py-1.5 text-left font-bold hover:bg-orange-600">Export</button>
+                <Link href="/personal-projects/game-engine" onClick={close} className="block w-full rounded bg-gray-700 px-2 py-1.5 text-left hover:bg-gray-600">← Templates</Link>
+                <Link href="/personal-projects/game-engine/templates?new=1" onClick={close} className="block w-full rounded bg-gray-700 px-2 py-1.5 text-left hover:bg-gray-600">＋ New template</Link>
+                <Link href="/" onClick={close} className="block w-full rounded bg-gray-700 px-2 py-1.5 text-left hover:bg-gray-600">CV / Portfolio</Link>
+              </div>
+            )}
+          </Dropdown>
         </nav>
         )}
 
@@ -3910,675 +4004,673 @@ export default function TemplateEditor() {
           </button>
         )}
 
-        {/* LEFT SIDEBAR — Views · Stage presets · Assets */}
-        {showSidebars && !playMode && (
+        {/* LEFT — tool-rail: the editor modes (Select / Paint / Unit / Building / Connector) */}
+        {showSidebars && !showFlowView && !showGamesView && !playMode && (
+          <ToolRail mode={editorMode} onPick={selectMode} />
+        )}
+
+        {/* LEFT MODE PANEL — the active mode's tools, docked next to the rail */}
+        {showSidebars && !showFlowView && !showGamesView && !playMode && (
           <aside
-            className={`fixed left-4 z-10 flex flex-col gap-3 overflow-y-auto pr-1 font-mono text-white ${
+            className={`fixed z-10 flex flex-col gap-3 overflow-y-auto pr-1 font-mono text-white ${
               isMobile
-                ? 'top-16 right-4 max-h-[42vh]'
-                : 'top-20 bottom-4 w-72'
+                ? 'left-20 right-4 top-[4.75rem] max-h-[40vh]'
+                : 'left-[4.75rem] top-20 bottom-4 w-72'
             }`}
-            aria-label="Build tools"
+            aria-label="Tool panel"
           >
-            {/* Display — view toggles live in the top nav now */}
-            <Card title="Display" accent="yellow">
-              <button
-                onClick={toggleDebug}
-                aria-pressed={showDebug}
-                className={`mt-2 w-full rounded px-2 py-1 text-xs font-bold transition-colors ${
-                  showDebug ? 'bg-red-600' : 'bg-gray-700 hover:bg-gray-600'
-                }`}
-              >
-                Debug overlay {showDebug ? 'on' : 'off'}
-              </button>
-              <button
-                onClick={() => setHideEntities(h => !h)}
-                aria-pressed={hideEntities}
-                className={`mt-2 w-full rounded px-2 py-1 text-xs font-bold transition-colors ${
-                  hideEntities ? 'bg-amber-600' : 'bg-gray-700 hover:bg-gray-600'
-                }`}
-              >
-                {hideEntities ? 'Entities hidden' : 'Hide entities'}
-              </button>
-              <button
-                onClick={() => setDayNight(d => (d === 'day' ? 'night' : 'day'))}
-                aria-pressed={dayNight === 'night'}
-                className={`mt-2 w-full rounded px-2 py-1 text-xs font-bold transition-colors ${
-                  dayNight === 'night' ? 'bg-indigo-700' : 'bg-gray-700 hover:bg-gray-600'
-                }`}
-              >
-                Night mode {dayNight === 'night' ? 'on' : 'off'}
-              </button>
-
-              <div className="mt-3">
-                <p className="mb-1 text-xs font-bold text-gray-400">
-                  Grid {viewType === '2d' ? '(W × H)' : '(Cols × Rows)'}
+            {editorMode === 'select' && (
+              <Card title="Select" accent="yellow">
+                <p className="text-[11px] leading-tight text-gray-400">
+                  Click an element on the canvas to select it — its settings appear in the Inspector on the right.
                 </p>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="number"
-                    aria-label="Grid columns"
-                    value={gridSize.cols}
-                    onChange={(e) => setGridSize(s => ({ ...s, cols: parseInt(e.target.value) || 10 }))}
-                    className="w-14 rounded bg-gray-800 p-1 text-center text-xs"
-                    min="10" max="100"
-                  />
-                  <span className="text-xs text-gray-400">×</span>
-                  <input
-                    type="number"
-                    aria-label="Grid rows"
-                    value={gridSize.rows}
-                    onChange={(e) => setGridSize(s => ({ ...s, rows: parseInt(e.target.value) || 10 }))}
-                    className="w-14 rounded bg-gray-800 p-1 text-center text-xs"
-                    min="10" max="100"
-                  />
-                  <button
-                    onClick={() => resizeGrid(gridSize.cols, gridSize.rows)}
-                    className="rounded bg-red-800 px-2 py-1 text-xs font-bold hover:bg-red-700"
-                  >
-                    Apply
-                  </button>
+                <p className="mt-2 text-[10px] leading-tight text-gray-500">
+                  Pick a tool on the left rail to paint tiles, place units or buildings, or draw connectors. Stage settings (Generate, grid, day/night) live in the Inspector.
+                </p>
+              </Card>
+            )}
+
+            {editorMode === 'paint' && (
+              <Card title="Paint — tiles & ground" accent="cyan">
+                <p className="mb-2 text-[10px] text-gray-500">
+                  Pick a tile, then select cells in Top view to paint them.
+                </p>
+
+                {/* Height tool */}
+                <div className={`mb-3 rounded p-2 ${heightEditMode ? 'bg-cyan-900/50 ring-1 ring-cyan-500' : 'bg-gray-800'}`}>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-cyan-400">Height</span>
+                    <button
+                      onClick={() => placeHeight(Math.max(0, selectedHeight - 1))}
+                      className="h-6 w-6 rounded bg-gray-700 text-xs font-bold hover:bg-gray-600"
+                      aria-label="Lower height"
+                    >−</button>
+                    <div className="flex gap-0.5">
+                      {[0, 1, 2, 3, 4, 5].map(h => (
+                        <button
+                          key={h}
+                          onClick={() => placeHeight(h)}
+                          className={`h-6 w-6 rounded text-xs font-bold ${
+                            selectedHeight === h && heightEditMode
+                              ? 'bg-cyan-500 text-white'
+                              : 'bg-gray-700 hover:bg-gray-600'
+                          }`}
+                        >
+                          {h}
+                        </button>
+                      ))}
+                    </div>
+                    <button
+                      onClick={() => placeHeight(Math.min(9, selectedHeight + 1))}
+                      className="h-6 w-6 rounded bg-gray-700 text-xs font-bold hover:bg-gray-600"
+                      aria-label="Raise height"
+                    >+</button>
+                  </div>
                 </div>
-              </div>
-              <p className="mt-2 text-[10px] text-gray-500">WASD / arrows move · Space jumps · E interacts</p>
-            </Card>
 
-            {/* Stage presets */}
-            <Card title="Stage presets" accent="purple">
-              <p className="mb-1 text-xs text-gray-400">Zone</p>
-              <div className="mb-2 grid grid-cols-4 gap-1">
-                {STAGE_ZONES.map(z => (
-                  <button
-                    key={z}
-                    onClick={() => setGenZone(z)}
-                    aria-pressed={genZone === z}
-                    className={`rounded px-2 py-1 text-xs capitalize transition-colors ${
-                      genZone === z ? SEASON_BTN[z] : 'bg-gray-700 hover:bg-gray-600'
-                    }`}
-                  >
-                    {z}
-                  </button>
-                ))}
-              </div>
-              <p className="mb-1 text-xs text-gray-400">Variant</p>
-              <div className="grid grid-cols-2 gap-1">
-                {STAGE_VARIANTS.map(v => (
-                  <button
-                    key={v}
-                    onClick={() => generateStageInEditor(genZone, v)}
-                    className="rounded bg-purple-700 px-2 py-1.5 text-xs capitalize transition-colors hover:bg-purple-600"
-                    title={`Generate a randomized ${genZone} ${v.replace('-', ' ')}`}
-                  >
-                    {v.replace('-', ' ')}
-                  </button>
-                ))}
-              </div>
-              <p className="mt-2 text-[10px] text-gray-500">
-                Pick a variant to generate a randomized {genZone} stage — forest, town, or a much larger city.
-              </p>
-            </Card>
+                {/* Tile FX — place tiles at reduced opacity to play with contrast / depth. */}
+                <div className="mb-2">
+                  <label className="mb-1 flex items-center justify-between text-xs font-bold text-cyan-300">
+                    <span>Opacity</span>
+                    <span className="text-[10px] text-gray-400">{Math.round(placeOpacity * 100)}%</span>
+                  </label>
+                  <input
+                    type="range"
+                    min={15}
+                    max={100}
+                    value={Math.round(placeOpacity * 100)}
+                    onChange={e => setPlaceOpacity(Number(e.target.value) / 100)}
+                    aria-label="Tile placement opacity"
+                    className="w-full"
+                  />
+                </div>
 
-            {/* Assets */}
-            <Card title="Assets" accent="cyan">
-              <p className="mb-2 text-[10px] text-gray-500">
-                Pick a tile, then select cells in Top view to paint them.
-              </p>
+                {/* Ground */}
+                <PaletteGroup label="Ground" color="text-gray-400">
+                  {GROUND_SWATCHES.map(g => (
+                    <TileSwatch
+                      key={g.char}
+                      char={g.char}
+                      name={g.name}
+                      bg={g.bg}
+                      fg={g.fg}
+                      onClick={() => placeTile({ char: g.char, type: 'ground', groundType: g.groundType })}
+                      selected={selectedTile?.char === g.char && selectedTile?.type === 'ground'}
+                    />
+                  ))}
+                </PaletteGroup>
 
-              {/* Height tool */}
-              <div className={`mb-3 rounded p-2 ${heightEditMode ? 'bg-cyan-900/50 ring-1 ring-cyan-500' : 'bg-gray-800'}`}>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold text-cyan-400">Height</span>
-                  <button
-                    onClick={() => placeHeight(Math.max(0, selectedHeight - 1))}
-                    className="h-6 w-6 rounded bg-gray-700 text-xs font-bold hover:bg-gray-600"
-                    aria-label="Lower height"
-                  >−</button>
-                  <div className="flex gap-0.5">
-                    {[0, 1, 2, 3, 4, 5].map(h => (
+                {/* Nature */}
+                <PaletteGroup label="Nature" color="text-green-400">
+                  {NATURE_TILE_KEYS.map(key => (
+                    <AssetTileSwatch key={key} tileKey={key} selectedTile={selectedTile} onPlace={placeTile} />
+                  ))}
+                </PaletteGroup>
+
+                {/* Animation Author — define an asset's motion as FRAMES, set timing, it loops. */}
+                <div className="border-t border-white/10 pt-3" data-testid="animation-author">
+                  <p className="mb-1 text-xs font-bold text-fuchsia-400">Animation Author — frames</p>
+                  <p className="mb-2 text-[9px] leading-tight text-gray-500">
+                    Define frames (frame 0 = rest), set a duration → it loops. Each later frame nudges the
+                    asset right/left/up/down + rotate; chain them for a wind sway. Select a cell, then Apply.
+                  </p>
+
+                  {/* Starting templates — the old presets, now ready-to-tweak frame sets. */}
+                  <p className="mb-1 text-[9px] uppercase tracking-wide text-gray-500">Start from a template</p>
+                  <div className="mb-3 flex flex-wrap gap-1">
+                    {CELL_ANIM_PRESETS.map(p => (
                       <button
-                        key={h}
-                        onClick={() => placeHeight(h)}
-                        className={`h-6 w-6 rounded text-xs font-bold ${
-                          selectedHeight === h && heightEditMode
-                            ? 'bg-cyan-500 text-white'
-                            : 'bg-gray-700 hover:bg-gray-600'
-                        }`}
+                        key={p.id}
+                        onClick={() => loadAuthorPreset(p)}
+                        className="rounded bg-gray-800 px-2 py-1 text-[10px] text-gray-200 transition-colors hover:bg-fuchsia-800 hover:text-white"
                       >
-                        {h}
+                        {p.name}
                       </button>
                     ))}
                   </div>
-                  <button
-                    onClick={() => placeHeight(Math.min(9, selectedHeight + 1))}
-                    className="h-6 w-6 rounded bg-gray-700 text-xs font-bold hover:bg-gray-600"
-                    aria-label="Raise height"
-                  >+</button>
-                </div>
-              </div>
 
-              {/* Tile FX — place tiles at reduced opacity to play with contrast / depth. */}
-              <div className="mb-2">
-                <label className="mb-1 flex items-center justify-between text-xs font-bold text-cyan-300">
-                  <span>Opacity</span>
-                  <span className="text-[10px] text-gray-400">{Math.round(placeOpacity * 100)}%</span>
-                </label>
-                <input
-                  type="range"
-                  min={15}
-                  max={100}
-                  value={Math.round(placeOpacity * 100)}
-                  onChange={e => setPlaceOpacity(Number(e.target.value) / 100)}
-                  aria-label="Tile placement opacity"
-                  className="w-full"
-                />
-              </div>
+                  {/* FRAME STRIP — frame 0 = rest; add/reorder/delete offset frames. */}
+                  <div className="mb-3">
+                    <div className="mb-1 flex items-center justify-between">
+                      <span className="text-[9px] uppercase tracking-wide text-gray-500">Frames ({authorFrames.length})</span>
+                      <button
+                        onClick={addAuthorFrame}
+                        className="rounded bg-fuchsia-700 px-2 py-0.5 text-[10px] font-bold text-white transition-all hover:opacity-80"
+                      >
+                        + Add frame
+                      </button>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      {authorFrames.map((f, i) => (
+                        <div key={i} className="rounded bg-black/40 p-1.5 text-[9px]" data-testid={`anim-frame-${i}`}>
+                          <div className="mb-1 flex items-center justify-between">
+                            <span className="font-bold text-gray-300">{i === 0 ? 'Frame 0 · rest' : `Frame ${i}`}</span>
+                            <span className="flex gap-1">
+                              <button onClick={() => moveAuthorFrame(i, -1)} disabled={i <= 1} className="px-1 text-gray-400 hover:text-white disabled:opacity-30" aria-label="move earlier">◀</button>
+                              <button onClick={() => moveAuthorFrame(i, 1)} disabled={i === 0 || i === authorFrames.length - 1} className="px-1 text-gray-400 hover:text-white disabled:opacity-30" aria-label="move later">▶</button>
+                              <button onClick={() => deleteAuthorFrame(i)} disabled={i === 0} className="px-1 text-red-400 hover:text-red-300 disabled:opacity-30" aria-label="delete frame">✕</button>
+                            </span>
+                          </div>
+                          {i === 0 ? (
+                            <p className="text-gray-600">no offset — the asset's normal position</p>
+                          ) : (
+                            <div className="grid grid-cols-3 gap-1">
+                              <FrameStepper label="x" value={f.dx} step={0.05} onChange={v => updateAuthorFrame(i, { dx: v })} />
+                              <FrameStepper label="y" value={f.dy} step={0.05} onChange={v => updateAuthorFrame(i, { dy: v })} />
+                              <FrameStepper label="rot" value={f.rot ?? 0} step={0.05} onChange={v => updateAuthorFrame(i, { rot: v })} />
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
 
-              {/* Ground */}
-              <PaletteGroup label="Ground" color="text-gray-400">
-                {GROUND_SWATCHES.map(g => (
-                  <TileSwatch
-                    key={g.char}
-                    char={g.char}
-                    name={g.name}
-                    bg={g.bg}
-                    fg={g.fg}
-                    onClick={() => placeTile({ char: g.char, type: 'ground', groundType: g.groundType })}
-                    selected={selectedTile?.char === g.char && selectedTile?.type === 'ground'}
-                  />
-                ))}
-              </PaletteGroup>
+                  {/* TIMING — duration to play frame 0 → last, delay before the loop, ease, loop. */}
+                  <div className="mb-2 grid grid-cols-2 gap-1.5 text-[10px] text-gray-300">
+                    <label className="flex flex-col gap-0.5">
+                      <span className="text-gray-500">Duration ms</span>
+                      <input type="number" min={0} value={authorDuration} onChange={e => setAuthorDuration(Math.max(0, Number(e.target.value)))} className="rounded bg-gray-800 p-1" />
+                    </label>
+                    <label className="flex flex-col gap-0.5">
+                      <span className="text-gray-500">Delay ms</span>
+                      <input type="number" min={0} value={authorDelay} onChange={e => setAuthorDelay(Math.max(0, Number(e.target.value)))} className="rounded bg-gray-800 p-1" />
+                    </label>
+                    <label className="flex flex-col gap-0.5">
+                      <span className="text-gray-500">Ease</span>
+                      <select value={authorEase} onChange={e => setAuthorEase(e.target.value as Ease)} className="rounded bg-gray-800 p-1">
+                        <option value="sine">sine (natural)</option>
+                        <option value="linear">linear</option>
+                      </select>
+                    </label>
+                    <label className="flex items-end gap-1 pb-1">
+                      <input type="checkbox" checked={authorLoop} onChange={e => setAuthorLoop(e.target.checked)} />
+                      <span>loop</span>
+                    </label>
+                  </div>
 
-              {/* Nature */}
-              <PaletteGroup label="Nature" color="text-green-400">
-                {NATURE_TILE_KEYS.map(key => (
-                  <AssetTileSwatch key={key} tileKey={key} selectedTile={selectedTile} onPlace={placeTile} />
-                ))}
-              </PaletteGroup>
+                  {authorStatus && <p className="mb-1 text-[9px] text-amber-300">{authorStatus}</p>}
 
-              {/* Animation Author — define an asset's motion as FRAMES, set timing, it loops. */}
-              <div className="border-t border-white/10 pt-3" data-testid="animation-author">
-                <p className="mb-1 text-xs font-bold text-fuchsia-400">Animation Author — frames</p>
-                <p className="mb-2 text-[9px] leading-tight text-gray-500">
-                  Define frames (frame 0 = rest), set a duration → it loops. Each later frame nudges the
-                  asset right/left/up/down + rotate; chain them for a wind sway. Select a cell, then Apply.
-                </p>
-
-                {/* Starting templates — the old presets, now ready-to-tweak frame sets. */}
-                <p className="mb-1 text-[9px] uppercase tracking-wide text-gray-500">Start from a template</p>
-                <div className="mb-3 flex flex-wrap gap-1">
-                  {CELL_ANIM_PRESETS.map(p => (
+                  <div className="flex gap-1">
                     <button
-                      key={p.id}
-                      onClick={() => loadAuthorPreset(p)}
-                      className="rounded bg-gray-800 px-2 py-1 text-[10px] text-gray-200 transition-colors hover:bg-fuchsia-800 hover:text-white"
+                      onClick={() => attachAuthorAnim(false)}
+                      disabled={selectedCells.size === 0 || authorFrames.length < 2}
+                      className="flex-1 rounded bg-gray-700 py-1 text-[10px] font-bold text-white transition-all hover:opacity-80 disabled:opacity-40"
                     >
-                      {p.name}
+                      Preview
                     </button>
-                  ))}
-                </div>
-
-                {/* FRAME STRIP — frame 0 = rest; add/reorder/delete offset frames. */}
-                <div className="mb-3">
-                  <div className="mb-1 flex items-center justify-between">
-                    <span className="text-[9px] uppercase tracking-wide text-gray-500">Frames ({authorFrames.length})</span>
                     <button
-                      onClick={addAuthorFrame}
-                      className="rounded bg-fuchsia-700 px-2 py-0.5 text-[10px] font-bold text-white transition-all hover:opacity-80"
+                      onClick={() => attachAuthorAnim(true)}
+                      disabled={selectedCells.size === 0 || authorFrames.length < 2}
+                      className="flex-1 rounded bg-fuchsia-700 py-1 text-[10px] font-bold text-white transition-all hover:opacity-80 disabled:opacity-40"
                     >
-                      + Add frame
+                      {selectedCells.size === 0 ? 'Select a cell' : 'Apply'}
                     </button>
                   </div>
-                  <div className="flex flex-col gap-1">
-                    {authorFrames.map((f, i) => (
-                      <div key={i} className="rounded bg-black/40 p-1.5 text-[9px]" data-testid={`anim-frame-${i}`}>
-                        <div className="mb-1 flex items-center justify-between">
-                          <span className="font-bold text-gray-300">{i === 0 ? 'Frame 0 · rest' : `Frame ${i}`}</span>
-                          <span className="flex gap-1">
-                            <button onClick={() => moveAuthorFrame(i, -1)} disabled={i <= 1} className="px-1 text-gray-400 hover:text-white disabled:opacity-30" aria-label="move earlier">◀</button>
-                            <button onClick={() => moveAuthorFrame(i, 1)} disabled={i === 0 || i === authorFrames.length - 1} className="px-1 text-gray-400 hover:text-white disabled:opacity-30" aria-label="move later">▶</button>
-                            <button onClick={() => deleteAuthorFrame(i)} disabled={i === 0} className="px-1 text-red-400 hover:text-red-300 disabled:opacity-30" aria-label="delete frame">✕</button>
-                          </span>
-                        </div>
-                        {i === 0 ? (
-                          <p className="text-gray-600">no offset — the asset's normal position</p>
-                        ) : (
-                          <div className="grid grid-cols-3 gap-1">
-                            <FrameStepper label="x" value={f.dx} step={0.05} onChange={v => updateAuthorFrame(i, { dx: v })} />
-                            <FrameStepper label="y" value={f.dy} step={0.05} onChange={v => updateAuthorFrame(i, { dy: v })} />
-                            <FrameStepper label="rot" value={f.rot ?? 0} step={0.05} onChange={v => updateAuthorFrame(i, { rot: v })} />
-                          </div>
-                        )}
+                </div>
+              </Card>
+            )}
+
+            {editorMode === 'unit' && (
+              <Card title="Entities" accent="orange">
+                <p className="mb-2 text-[10px] text-gray-500">
+                  Pick a tool, then click a cell in Top view to place. Only one player.
+                </p>
+                <div className="grid grid-cols-4 gap-1">
+                  <EntityToolButton
+                    label="Player"
+                    glyph={ENTITY_GLYPH.player}
+                    active={entityTool === 'player'}
+                    activeClass="bg-yellow-600 text-black"
+                    onClick={() => toggleEntityTool('player')}
+                  />
+                  <EntityToolButton
+                    label="Enemy"
+                    glyph={ENTITY_GLYPH.enemy}
+                    active={entityTool === 'enemy'}
+                    activeClass="bg-red-600"
+                    onClick={() => toggleEntityTool('enemy')}
+                  />
+                  <EntityToolButton
+                    label="NPC"
+                    glyph={ENTITY_GLYPH.npc}
+                    active={entityTool === 'npc'}
+                    activeClass="bg-cyan-600 text-black"
+                    onClick={() => toggleEntityTool('npc')}
+                  />
+                  <EntityToolButton
+                    label="Erase"
+                    glyph="✕"
+                    active={entityTool === 'erase'}
+                    activeClass="bg-gray-500"
+                    onClick={() => toggleEntityTool('erase')}
+                  />
+                  <EntityToolButton
+                    label="Collision"
+                    glyph="▦"
+                    active={entityTool === 'collision'}
+                    activeClass="bg-red-700"
+                    onClick={() => toggleEntityTool('collision')}
+                  />
+                </div>
+                <button
+                  onClick={randomizeEntities}
+                  className="mt-2 w-full rounded bg-purple-700 px-2 py-1.5 text-xs font-bold transition-colors hover:bg-purple-600"
+                  title="Scatter enemies + an NPC into the free space, each with stats + a movement pattern"
+                >
+                  ⤳ Scatter entities
+                </button>
+
+                {entityTool === 'enemy' && (
+                  <label className="mt-2 block">
+                    <span className="mb-1 block text-xs font-bold text-red-400">Enemy type</span>
+                    <input
+                      type="text"
+                      value={enemyType}
+                      onChange={e => setEnemyType(e.target.value)}
+                      placeholder="goblin"
+                      aria-label="Enemy type"
+                      className="w-full rounded bg-gray-800 p-1.5 text-xs"
+                    />
+                  </label>
+                )}
+
+                {entityTool === 'npc' && (
+                  <label className="mt-2 block">
+                    <span className="mb-1 block text-xs font-bold text-cyan-400">NPC name (optional)</span>
+                    <input
+                      type="text"
+                      value={npcName}
+                      onChange={e => setNpcName(e.target.value)}
+                      placeholder="Villager"
+                      aria-label="NPC name"
+                      className="w-full rounded bg-gray-800 p-1.5 text-xs"
+                    />
+                  </label>
+                )}
+
+                <div className="mt-3 flex items-center justify-between border-t border-white/10 pt-2 text-[10px] text-gray-400">
+                  <span>{entities.length} placed</span>
+                  {entities.length > 0 && (
+                    <button
+                      onClick={() => setEntities([])}
+                      className="rounded bg-red-900 px-2 py-1 font-bold text-red-200 hover:bg-red-800"
+                    >
+                      Clear all
+                    </button>
+                  )}
+                </div>
+              </Card>
+            )}
+
+            {editorMode === 'building' && (
+              <Card title="Buildings" accent="orange">
+                <p className="mb-2 text-[10px] text-gray-500">
+                  Select a building to move (arrow keys), rotate (R), or delete. Place a new one with a type tool.
+                </p>
+                <div className="grid grid-cols-5 gap-1">
+                  <EntityToolButton
+                    label="Select"
+                    glyph="◎"
+                    active={buildingTool === 'select'}
+                    activeClass="bg-yellow-600 text-black"
+                    onClick={() => toggleBuildingTool('select')}
+                  />
+                  <EntityToolButton
+                    label="House"
+                    glyph="⌂"
+                    active={buildingTool === 'place-house'}
+                    activeClass="bg-amber-700"
+                    onClick={() => toggleBuildingTool('place-house')}
+                  />
+                  <EntityToolButton
+                    label="Store"
+                    glyph="$"
+                    active={buildingTool === 'place-store'}
+                    activeClass="bg-blue-600"
+                    onClick={() => toggleBuildingTool('place-store')}
+                  />
+                  <EntityToolButton
+                    label="Hosp."
+                    glyph="✚"
+                    active={buildingTool === 'place-hospital'}
+                    activeClass="bg-green-600 text-black"
+                    onClick={() => toggleBuildingTool('place-hospital')}
+                  />
+                  <EntityToolButton
+                    label="Delete"
+                    glyph="✕"
+                    active={buildingTool === 'delete'}
+                    activeClass="bg-red-700"
+                    onClick={() => toggleBuildingTool('delete')}
+                  />
+                </div>
+
+                {/* Selected-building inspector — keyed on buildingVersion so move/rotate refresh it */}
+                {(() => {
+                  const grid = gridRef.current
+                  const b = selectedBuildingIndex != null ? grid?.buildings[selectedBuildingIndex] : undefined
+                  if (!b) return (
+                    <p className="mt-3 border-t border-white/10 pt-2 text-[10px] text-gray-500">
+                      {buildingTool === 'select' ? 'Click a building to select it.' : 'No building selected.'}
+                    </p>
+                  )
+                  const facing = gridBuildingFacing(b)
+                  const door = buildingFootprintCells(b).door
+                  return (
+                    <div key={`bld-${selectedBuildingIndex}-${buildingVersion}`} className="mt-3 border-t border-white/10 pt-2">
+                      <div className="mb-2 flex items-center justify-between text-xs">
+                        <span className="font-bold uppercase tracking-wider text-orange-300">{b.type}</span>
+                        <span className="text-gray-500">facing {facing}</span>
                       </div>
+                      <div className="mb-2 text-[10px] text-gray-400">
+                        footprint {b.length}×{b.height} · facade {facadeLength(b)} · depth {b.depth} · door @ {door.col},{door.row}
+                      </div>
+                      <div className="flex gap-1">
+                        <button
+                          onClick={rotateSelectedBuilding}
+                          className="flex-1 rounded bg-orange-700 px-2 py-1 text-xs font-bold hover:bg-orange-600"
+                          title="Rotate facing south→east→north→west (R)"
+                        >
+                          ⟳ Rotate
+                        </button>
+                        <button
+                          onClick={deleteSelectedBuilding}
+                          className="flex-1 rounded bg-red-800 px-2 py-1 text-xs font-bold hover:bg-red-700"
+                          title="Delete this building (Del)"
+                        >
+                          Delete
+                        </button>
+                        <button
+                          onClick={deselectBuilding}
+                          className="rounded bg-gray-700 px-2 py-1 text-xs hover:bg-gray-600"
+                        >
+                          Deselect
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })()}
+
+                <div className="mt-3 flex items-center justify-between border-t border-white/10 pt-2 text-[10px] text-gray-400">
+                  <span>{gridRef.current?.buildings.length ?? 0} buildings</span>
+                </div>
+              </Card>
+            )}
+
+            {editorMode === 'connector' && (
+              <Card
+                title="Connectors"
+                accent="purple"
+                action={
+                  <button
+                    onClick={() => { setConnectorMode(!connectorMode); setEditingConnector(null) }}
+                    aria-pressed={connectorMode}
+                    className={`rounded px-2 py-1 text-xs ${connectorMode ? 'bg-purple-600' : 'bg-gray-700 hover:bg-gray-600'}`}
+                  >
+                    {connectorMode ? 'Exit' : 'Edit'}
+                  </button>
+                }
+              >
+                {connectorMode && (
+                  <p className="mb-2 text-xs text-gray-400">Click a cell in Top view to add a connector.</p>
+                )}
+
+                {editingConnector && (
+                  <div className="mb-2 rounded bg-gray-800 p-2">
+                    <p className="mb-1 text-xs text-yellow-400">
+                      {selectedCells.size > 1
+                        ? `${selectedCells.size} cells selected`
+                        : `(${editingConnector.col}, ${editingConnector.row})`}
+                    </p>
+                    <select
+                      value={connectorForm.action?.type ?? 'teleport'}
+                      onChange={e => {
+                        const t = e.target.value
+                        setConnectorForm(f => ({
+                          ...f,
+                          action:
+                            t === 'teleport' ? undefined
+                            : t === 'collect' ? { type: 'collect', itemId: '', qty: 1 }
+                            : t === 'content' ? { type: 'content', sectionId: '' }
+                            : { type: 'goto_region', col: f.spawnCol ?? 0, row: f.spawnRow ?? 0 },
+                        }))
+                      }}
+                      aria-label="Trigger action"
+                      className="mb-1 w-full rounded bg-gray-700 p-1 text-xs"
+                    >
+                      <option value="teleport">Action: Go to template (teleport)</option>
+                      <option value="goto_region">Action: Move within stage (uses Arrive-at)</option>
+                      <option value="collect">Action: Collect item</option>
+                      <option value="content">Action: Reveal content</option>
+                    </select>
+                    {connectorForm.action?.type === 'collect' && (
+                      <input
+                        type="text"
+                        placeholder="Item id to grant"
+                        aria-label="Item id to collect"
+                        value={connectorForm.action.itemId}
+                        onChange={e => setConnectorForm(f => ({ ...f, action: { type: 'collect', itemId: e.target.value, qty: 1 } }))}
+                        className="mb-1 w-full rounded bg-gray-700 p-1 text-xs"
+                      />
+                    )}
+                    {connectorForm.action?.type === 'content' && (
+                      <input
+                        type="text"
+                        placeholder="Section id to reveal"
+                        aria-label="Section id to reveal"
+                        value={connectorForm.action.sectionId}
+                        onChange={e => setConnectorForm(f => ({ ...f, action: { type: 'content', sectionId: e.target.value } }))}
+                        className="mb-1 w-full rounded bg-gray-700 p-1 text-xs"
+                      />
+                    )}
+                    {(connectorForm.action?.type ?? 'teleport') === 'teleport' && (
+                    <select
+                      value={connectorForm.targetTemplateId || ''}
+                      onChange={e => setConnectorForm(f => ({ ...f, targetTemplateId: e.target.value }))}
+                      aria-label="Target template"
+                      className="mb-1 w-full rounded bg-gray-700 p-1 text-xs"
+                    >
+                      <option value="">Target template...</option>
+                      {savedTemplates.filter(t => t.id !== currentTemplateId).map(t => (
+                        <option key={t.id} value={t.id}>{t.name}</option>
+                      ))}
+                    </select>
+                    )}
+                    <select
+                      value={connectorForm.interaction || 'walk'}
+                      onChange={e => setConnectorForm(f => ({ ...f, interaction: e.target.value as Connector['interaction'] }))}
+                      aria-label="How the player triggers this connector"
+                      className="mb-1 w-full rounded bg-gray-700 p-1 text-xs"
+                    >
+                      <option value="walk">Walk onto it</option>
+                      <option value="interact">Press E on it</option>
+                      <option value="auto">Auto on enter</option>
+                    </select>
+                    <div className="mb-1 flex items-center gap-1 text-xs">
+                      <span className="whitespace-nowrap text-gray-400">Arrive at</span>
+                      <input
+                        type="number"
+                        min={0}
+                        aria-label="Spawn column in target template"
+                        value={connectorForm.spawnCol ?? 0}
+                        onChange={e => setConnectorForm(f => ({ ...f, spawnCol: Math.max(0, parseInt(e.target.value, 10) || 0) }))}
+                        className="w-12 rounded bg-gray-700 p-1 text-xs"
+                      />
+                      <span className="text-gray-500">,</span>
+                      <input
+                        type="number"
+                        min={0}
+                        aria-label="Spawn row in target template"
+                        value={connectorForm.spawnRow ?? 0}
+                        onChange={e => setConnectorForm(f => ({ ...f, spawnRow: Math.max(0, parseInt(e.target.value, 10) || 0) }))}
+                        className="w-12 rounded bg-gray-700 p-1 text-xs"
+                      />
+                      <span className="whitespace-nowrap text-gray-400">in target</span>
+                    </div>
+                    <div className="flex gap-1">
+                      <button onClick={saveConnector} disabled={!connectorForm.targetTemplateId && !connectorForm.action} className="flex-1 rounded bg-green-700 p-1 text-xs hover:bg-green-600 disabled:bg-gray-700">Save</button>
+                      <button onClick={() => deleteConnector(editingConnector.col, editingConnector.row)} className="rounded bg-red-800 p-1 text-xs hover:bg-red-700">Del</button>
+                      <button onClick={() => setEditingConnector(null)} className="rounded bg-gray-700 p-1 text-xs hover:bg-gray-600">X</button>
+                    </div>
+                  </div>
+                )}
+
+                {connectors.length > 0 && (
+                  <div className="max-h-32 space-y-1 overflow-y-auto">
+                    {connectors.map((c, i) => (
+                      <button
+                        key={`${c.cells[0]?.col},${c.cells[0]?.row},${i}`}
+                        type="button"
+                        className="flex w-full items-center justify-between rounded bg-gray-800 p-1 text-left text-xs hover:bg-gray-700"
+                        onClick={() => {
+                          setConnectorForm(c)
+                          setEditingConnector({ col: c.cells[0].col, row: c.cells[0].row })
+                          setSelectedCells(new Set(c.cells.map(p => `${p.col},${p.row}`)))
+                          setConnectorMode(true)
+                        }}
+                      >
+                        <span>({c.cells[0]?.col},{c.cells[0]?.row}){c.cells.length > 1 ? ` +${c.cells.length - 1}` : ''}→{c.targetTemplateName?.slice(0, 8) || '?'}</span>
+                        <span className="text-purple-400">{c.interaction}</span>
+                      </button>
                     ))}
                   </div>
-                </div>
+                )}
 
-                {/* TIMING — duration to play frame 0 → last, delay before the loop, ease, loop. */}
-                <div className="mb-2 grid grid-cols-2 gap-1.5 text-[10px] text-gray-300">
-                  <label className="flex flex-col gap-0.5">
-                    <span className="text-gray-500">Duration ms</span>
-                    <input type="number" min={0} value={authorDuration} onChange={e => setAuthorDuration(Math.max(0, Number(e.target.value)))} className="rounded bg-gray-800 p-1" />
-                  </label>
-                  <label className="flex flex-col gap-0.5">
-                    <span className="text-gray-500">Delay ms</span>
-                    <input type="number" min={0} value={authorDelay} onChange={e => setAuthorDelay(Math.max(0, Number(e.target.value)))} className="rounded bg-gray-800 p-1" />
-                  </label>
-                  <label className="flex flex-col gap-0.5">
-                    <span className="text-gray-500">Ease</span>
-                    <select value={authorEase} onChange={e => setAuthorEase(e.target.value as Ease)} className="rounded bg-gray-800 p-1">
-                      <option value="sine">sine (natural)</option>
-                      <option value="linear">linear</option>
-                    </select>
-                  </label>
-                  <label className="flex items-end gap-1 pb-1">
-                    <input type="checkbox" checked={authorLoop} onChange={e => setAuthorLoop(e.target.checked)} />
-                    <span>loop</span>
-                  </label>
-                </div>
-
-                {authorStatus && <p className="mb-1 text-[9px] text-amber-300">{authorStatus}</p>}
-
-                <div className="flex gap-1">
-                  <button
-                    onClick={() => attachAuthorAnim(false)}
-                    disabled={selectedCells.size === 0 || authorFrames.length < 2}
-                    className="flex-1 rounded bg-gray-700 py-1 text-[10px] font-bold text-white transition-all hover:opacity-80 disabled:opacity-40"
-                  >
-                    Preview
-                  </button>
-                  <button
-                    onClick={() => attachAuthorAnim(true)}
-                    disabled={selectedCells.size === 0 || authorFrames.length < 2}
-                    className="flex-1 rounded bg-fuchsia-700 py-1 text-[10px] font-bold text-white transition-all hover:opacity-80 disabled:opacity-40"
-                  >
-                    {selectedCells.size === 0 ? 'Select a cell' : 'Apply'}
-                  </button>
-                </div>
-              </div>
-            </Card>
-
+                {connectors.length === 0 && !editingConnector && (
+                  <p className="text-[10px] text-gray-500">No connectors yet.</p>
+                )}
+              </Card>
+            )}
           </aside>
         )}
 
-        {/* RIGHT SIDEBAR — Selected entity (action bar → modals) · Entities · Connectors */}
-        {showSidebars && !playMode && (
+        {/* RIGHT — Inspector: stage settings when nothing is selected, else the selection */}
+        {showSidebars && !showFlowView && !showGamesView && !playMode && (
           <aside
             className={`fixed right-4 z-10 flex flex-col gap-3 overflow-y-auto pl-1 font-mono text-white ${
               isMobile
-                ? 'bottom-16 left-4 max-h-[42vh]'
+                ? 'bottom-4 left-4 max-h-[40vh]'
                 : 'top-20 bottom-4 w-72'
             }`}
-            aria-label="Project tools"
+            aria-label="Inspector"
           >
-            {/* Brand header */}
-            <div className="rounded-lg border border-white/10 bg-black/60 p-3 text-center shadow-lg shadow-black/40">
-              <h2 className="text-base font-bold tracking-widest text-yellow-400">NEBULITH</h2>
+            <div className="rounded-lg border border-white/10 bg-black/60 p-3 shadow-lg shadow-black/40">
+              <h2 className="text-sm font-bold uppercase tracking-widest text-yellow-400">Inspector</h2>
               <p className="text-[10px] text-gray-500">{templateName || 'New Template'}</p>
             </div>
 
-            {/* Selected-entity ACTION BAR — opens focused modals (Stats / Inventory /
-                Movement / Quests / Attacks). Appears only when an entity is selected. */}
             {(() => {
+              // Stage A: a selected entity keeps its existing quick-action launchers under a
+              // placeholder; nothing selected shows the stage settings. The full per-selection
+              // morphing inspector (inline stats/art/triggers) is stage B.
               const selected = entities.find(e => e.id === selectedEntityId)
-              if (!selected) return null
-              const btn = 'rounded bg-gray-700 px-2 py-1.5 text-xs font-bold transition-colors hover:bg-gray-600'
+              if (selected) {
+                const btn = 'rounded bg-gray-700 px-2 py-1.5 text-xs font-bold transition-colors hover:bg-gray-600'
+                return (
+                  <>
+                    <InspectorPlaceholder kind={selected.kind} label={selected.name || selected.kind} />
+                    <Card title="Quick actions" accent="orange">
+                      <div className="mb-2 flex items-center justify-between text-xs">
+                        <span className="font-bold uppercase tracking-wider text-orange-300">{selected.name || selected.kind}</span>
+                        <span className="text-gray-500">@ {selected.col},{selected.row}</span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-1">
+                        <button className={btn} onClick={() => setEntityModal('stats')}>⚔ Stats</button>
+                        {selected.kind === 'player' && (
+                          <button className={btn} onClick={() => setEntityModal('inventory')}>🎒 Inventory</button>
+                        )}
+                        {(selected.kind === 'enemy' || selected.kind === 'npc') && (
+                          <button className={btn} onClick={() => setEntityModal('movement')}>➤ Movement</button>
+                        )}
+                        {selected.kind === 'enemy' && (
+                          <button className={btn} onClick={() => setEntityModal('attacks')}>✦ Attacks</button>
+                        )}
+                        {selected.kind === 'npc' && (
+                          <button className={btn} onClick={() => setEntityModal('quests')}>❒ Quests</button>
+                        )}
+                      </div>
+                      <div className="mt-2 flex gap-1">
+                        <button onClick={deleteSelectedEntity} className="flex-1 rounded bg-red-800 px-2 py-1 text-xs font-bold hover:bg-red-700">Delete</button>
+                        <button onClick={() => { setWaypointMode(false); setSelectedEntityId(null) }} className="rounded bg-gray-700 px-2 py-1 text-xs hover:bg-gray-600">Deselect</button>
+                      </div>
+                    </Card>
+                  </>
+                )
+              }
               return (
-                <Card title="Selected entity" accent="orange">
-                  <div className="mb-2 flex items-center justify-between text-xs">
-                    <span className="font-bold uppercase tracking-wider text-orange-300">{selected.name || selected.kind}</span>
-                    <span className="text-gray-500">@ {selected.col},{selected.row}</span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-1">
-                    <button className={btn} onClick={() => setEntityModal('stats')}>⚔ Stats</button>
-                    {selected.kind === 'player' && (
-                      <button className={btn} onClick={() => setEntityModal('inventory')}>🎒 Inventory</button>
-                    )}
-                    {(selected.kind === 'enemy' || selected.kind === 'npc') && (
-                      <button className={btn} onClick={() => setEntityModal('movement')}>➤ Movement</button>
-                    )}
-                    {selected.kind === 'enemy' && (
-                      <button className={btn} onClick={() => setEntityModal('attacks')}>✦ Attacks</button>
-                    )}
-                    {selected.kind === 'npc' && (
-                      <button className={btn} onClick={() => setEntityModal('quests')}>❒ Quests</button>
-                    )}
-                  </div>
-                  <div className="mt-2 flex gap-1">
-                    <button onClick={deleteSelectedEntity} className="flex-1 rounded bg-red-800 px-2 py-1 text-xs font-bold hover:bg-red-700">Delete</button>
-                    <button onClick={() => { setWaypointMode(false); setSelectedEntityId(null) }} className="rounded bg-gray-700 px-2 py-1 text-xs hover:bg-gray-600">Deselect</button>
-                  </div>
-                </Card>
+                <>
+                  <Card title="Generate" accent="purple">
+                    <GenerateControls zone={genZone} onZone={setGenZone} onGenerate={generateStageInEditor} />
+                  </Card>
+
+                  <Card title="Style" accent="cyan">
+                    <StylePicker />
+                  </Card>
+
+                  <Card title="Stage" accent="yellow">
+                    <div className="mb-3">
+                      <p className="mb-1 text-xs font-bold text-gray-400">
+                        Grid {viewType === '2d' ? '(W × H)' : '(Cols × Rows)'}
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          aria-label="Grid columns"
+                          value={gridSize.cols}
+                          onChange={(e) => setGridSize(s => ({ ...s, cols: parseInt(e.target.value) || 10 }))}
+                          className="w-14 rounded bg-gray-800 p-1 text-center text-xs"
+                          min="10" max="100"
+                        />
+                        <span className="text-xs text-gray-400">×</span>
+                        <input
+                          type="number"
+                          aria-label="Grid rows"
+                          value={gridSize.rows}
+                          onChange={(e) => setGridSize(s => ({ ...s, rows: parseInt(e.target.value) || 10 }))}
+                          className="w-14 rounded bg-gray-800 p-1 text-center text-xs"
+                          min="10" max="100"
+                        />
+                        <button
+                          onClick={() => resizeGrid(gridSize.cols, gridSize.rows)}
+                          className="rounded bg-red-800 px-2 py-1 text-xs font-bold hover:bg-red-700"
+                        >
+                          Apply
+                        </button>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => setDayNight(d => (d === 'day' ? 'night' : 'day'))}
+                      aria-pressed={dayNight === 'night'}
+                      className={`mt-1 w-full rounded px-2 py-1 text-xs font-bold transition-colors ${
+                        dayNight === 'night' ? 'bg-indigo-700' : 'bg-gray-700 hover:bg-gray-600'
+                      }`}
+                    >
+                      Night mode {dayNight === 'night' ? 'on' : 'off'}
+                    </button>
+                    <button
+                      onClick={toggleDebug}
+                      aria-pressed={showDebug}
+                      className={`mt-2 w-full rounded px-2 py-1 text-xs font-bold transition-colors ${
+                        showDebug ? 'bg-red-600' : 'bg-gray-700 hover:bg-gray-600'
+                      }`}
+                    >
+                      Debug overlay {showDebug ? 'on' : 'off'}
+                    </button>
+                    <button
+                      onClick={() => setHideEntities(h => !h)}
+                      aria-pressed={hideEntities}
+                      className={`mt-2 w-full rounded px-2 py-1 text-xs font-bold transition-colors ${
+                        hideEntities ? 'bg-amber-600' : 'bg-gray-700 hover:bg-gray-600'
+                      }`}
+                    >
+                      {hideEntities ? 'Entities hidden' : 'Hide entities'}
+                    </button>
+                    <p className="mt-2 text-[10px] text-gray-500">WASD / arrows move · Space jumps · E interacts</p>
+                  </Card>
+                </>
               )
             })()}
-
-            {/* Entities — drop a player, enemies, and NPCs onto the stage */}
-            <Card title="Entities" accent="orange">
-              <p className="mb-2 text-[10px] text-gray-500">
-                Pick a tool, then click a cell in Top view to place. Only one player.
-              </p>
-              <div className="grid grid-cols-4 gap-1">
-                <EntityToolButton
-                  label="Player"
-                  glyph={ENTITY_GLYPH.player}
-                  active={entityTool === 'player'}
-                  activeClass="bg-yellow-600 text-black"
-                  onClick={() => toggleEntityTool('player')}
-                />
-                <EntityToolButton
-                  label="Enemy"
-                  glyph={ENTITY_GLYPH.enemy}
-                  active={entityTool === 'enemy'}
-                  activeClass="bg-red-600"
-                  onClick={() => toggleEntityTool('enemy')}
-                />
-                <EntityToolButton
-                  label="NPC"
-                  glyph={ENTITY_GLYPH.npc}
-                  active={entityTool === 'npc'}
-                  activeClass="bg-cyan-600 text-black"
-                  onClick={() => toggleEntityTool('npc')}
-                />
-                <EntityToolButton
-                  label="Erase"
-                  glyph="✕"
-                  active={entityTool === 'erase'}
-                  activeClass="bg-gray-500"
-                  onClick={() => toggleEntityTool('erase')}
-                />
-                <EntityToolButton
-                  label="Collision"
-                  glyph="▦"
-                  active={entityTool === 'collision'}
-                  activeClass="bg-red-700"
-                  onClick={() => toggleEntityTool('collision')}
-                />
-              </div>
-              <button
-                onClick={randomizeEntities}
-                className="mt-2 w-full rounded bg-purple-700 px-2 py-1.5 text-xs font-bold transition-colors hover:bg-purple-600"
-                title="Scatter enemies + an NPC into the free space, each with stats + a movement pattern"
-              >
-                ⤳ Scatter entities
-              </button>
-
-              {entityTool === 'enemy' && (
-                <label className="mt-2 block">
-                  <span className="mb-1 block text-xs font-bold text-red-400">Enemy type</span>
-                  <input
-                    type="text"
-                    value={enemyType}
-                    onChange={e => setEnemyType(e.target.value)}
-                    placeholder="goblin"
-                    aria-label="Enemy type"
-                    className="w-full rounded bg-gray-800 p-1.5 text-xs"
-                  />
-                </label>
-              )}
-
-              {entityTool === 'npc' && (
-                <label className="mt-2 block">
-                  <span className="mb-1 block text-xs font-bold text-cyan-400">NPC name (optional)</span>
-                  <input
-                    type="text"
-                    value={npcName}
-                    onChange={e => setNpcName(e.target.value)}
-                    placeholder="Villager"
-                    aria-label="NPC name"
-                    className="w-full rounded bg-gray-800 p-1.5 text-xs"
-                  />
-                </label>
-              )}
-
-              <div className="mt-3 flex items-center justify-between border-t border-white/10 pt-2 text-[10px] text-gray-400">
-                <span>{entities.length} placed</span>
-                {entities.length > 0 && (
-                  <button
-                    onClick={() => setEntities([])}
-                    className="rounded bg-red-900 px-2 py-1 font-bold text-red-200 hover:bg-red-800"
-                  >
-                    Clear all
-                  </button>
-                )}
-              </div>
-            </Card>
-
-            {/* Buildings — fix the randomizer by hand: select / move / rotate / delete / place */}
-            <Card title="Buildings" accent="orange">
-              <p className="mb-2 text-[10px] text-gray-500">
-                Select a building to move (arrow keys), rotate (R), or delete. Place a new one with a type tool.
-              </p>
-              <div className="grid grid-cols-5 gap-1">
-                <EntityToolButton
-                  label="Select"
-                  glyph="◎"
-                  active={buildingTool === 'select'}
-                  activeClass="bg-yellow-600 text-black"
-                  onClick={() => toggleBuildingTool('select')}
-                />
-                <EntityToolButton
-                  label="House"
-                  glyph="⌂"
-                  active={buildingTool === 'place-house'}
-                  activeClass="bg-amber-700"
-                  onClick={() => toggleBuildingTool('place-house')}
-                />
-                <EntityToolButton
-                  label="Store"
-                  glyph="$"
-                  active={buildingTool === 'place-store'}
-                  activeClass="bg-blue-600"
-                  onClick={() => toggleBuildingTool('place-store')}
-                />
-                <EntityToolButton
-                  label="Hosp."
-                  glyph="✚"
-                  active={buildingTool === 'place-hospital'}
-                  activeClass="bg-green-600 text-black"
-                  onClick={() => toggleBuildingTool('place-hospital')}
-                />
-                <EntityToolButton
-                  label="Delete"
-                  glyph="✕"
-                  active={buildingTool === 'delete'}
-                  activeClass="bg-red-700"
-                  onClick={() => toggleBuildingTool('delete')}
-                />
-              </div>
-
-              {/* Selected-building inspector — keyed on buildingVersion so move/rotate refresh it */}
-              {(() => {
-                const grid = gridRef.current
-                const b = selectedBuildingIndex != null ? grid?.buildings[selectedBuildingIndex] : undefined
-                if (!b) return (
-                  <p className="mt-3 border-t border-white/10 pt-2 text-[10px] text-gray-500">
-                    {buildingTool === 'select' ? 'Click a building to select it.' : 'No building selected.'}
-                  </p>
-                )
-                const facing = gridBuildingFacing(b)
-                const door = buildingFootprintCells(b).door
-                return (
-                  <div key={`bld-${selectedBuildingIndex}-${buildingVersion}`} className="mt-3 border-t border-white/10 pt-2">
-                    <div className="mb-2 flex items-center justify-between text-xs">
-                      <span className="font-bold uppercase tracking-wider text-orange-300">{b.type}</span>
-                      <span className="text-gray-500">facing {facing}</span>
-                    </div>
-                    <div className="mb-2 text-[10px] text-gray-400">
-                      footprint {b.length}×{b.height} · facade {facadeLength(b)} · depth {b.depth} · door @ {door.col},{door.row}
-                    </div>
-                    <div className="flex gap-1">
-                      <button
-                        onClick={rotateSelectedBuilding}
-                        className="flex-1 rounded bg-orange-700 px-2 py-1 text-xs font-bold hover:bg-orange-600"
-                        title="Rotate facing south→east→north→west (R)"
-                      >
-                        ⟳ Rotate
-                      </button>
-                      <button
-                        onClick={deleteSelectedBuilding}
-                        className="flex-1 rounded bg-red-800 px-2 py-1 text-xs font-bold hover:bg-red-700"
-                        title="Delete this building (Del)"
-                      >
-                        Delete
-                      </button>
-                      <button
-                        onClick={deselectBuilding}
-                        className="rounded bg-gray-700 px-2 py-1 text-xs hover:bg-gray-600"
-                      >
-                        Deselect
-                      </button>
-                    </div>
-                  </div>
-                )
-              })()}
-
-              <div className="mt-3 flex items-center justify-between border-t border-white/10 pt-2 text-[10px] text-gray-400">
-                <span>{gridRef.current?.buildings.length ?? 0} buildings</span>
-              </div>
-            </Card>
-
-            {/* Connectors */}
-            <Card
-              title="Connectors"
-              accent="purple"
-              action={
-                <button
-                  onClick={() => { setConnectorMode(!connectorMode); setEditingConnector(null) }}
-                  aria-pressed={connectorMode}
-                  className={`rounded px-2 py-1 text-xs ${connectorMode ? 'bg-purple-600' : 'bg-gray-700 hover:bg-gray-600'}`}
-                >
-                  {connectorMode ? 'Exit' : 'Edit'}
-                </button>
-              }
-            >
-              {connectorMode && (
-                <p className="mb-2 text-xs text-gray-400">Click a cell in Top view to add a connector.</p>
-              )}
-
-              {editingConnector && (
-                <div className="mb-2 rounded bg-gray-800 p-2">
-                  <p className="mb-1 text-xs text-yellow-400">
-                    {selectedCells.size > 1
-                      ? `${selectedCells.size} cells selected`
-                      : `(${editingConnector.col}, ${editingConnector.row})`}
-                  </p>
-                  <select
-                    value={connectorForm.action?.type ?? 'teleport'}
-                    onChange={e => {
-                      const t = e.target.value
-                      setConnectorForm(f => ({
-                        ...f,
-                        action:
-                          t === 'teleport' ? undefined
-                          : t === 'collect' ? { type: 'collect', itemId: '', qty: 1 }
-                          : t === 'content' ? { type: 'content', sectionId: '' }
-                          : { type: 'goto_region', col: f.spawnCol ?? 0, row: f.spawnRow ?? 0 },
-                      }))
-                    }}
-                    aria-label="Trigger action"
-                    className="mb-1 w-full rounded bg-gray-700 p-1 text-xs"
-                  >
-                    <option value="teleport">Action: Go to template (teleport)</option>
-                    <option value="goto_region">Action: Move within stage (uses Arrive-at)</option>
-                    <option value="collect">Action: Collect item</option>
-                    <option value="content">Action: Reveal content</option>
-                  </select>
-                  {connectorForm.action?.type === 'collect' && (
-                    <input
-                      type="text"
-                      placeholder="Item id to grant"
-                      aria-label="Item id to collect"
-                      value={connectorForm.action.itemId}
-                      onChange={e => setConnectorForm(f => ({ ...f, action: { type: 'collect', itemId: e.target.value, qty: 1 } }))}
-                      className="mb-1 w-full rounded bg-gray-700 p-1 text-xs"
-                    />
-                  )}
-                  {connectorForm.action?.type === 'content' && (
-                    <input
-                      type="text"
-                      placeholder="Section id to reveal"
-                      aria-label="Section id to reveal"
-                      value={connectorForm.action.sectionId}
-                      onChange={e => setConnectorForm(f => ({ ...f, action: { type: 'content', sectionId: e.target.value } }))}
-                      className="mb-1 w-full rounded bg-gray-700 p-1 text-xs"
-                    />
-                  )}
-                  {(connectorForm.action?.type ?? 'teleport') === 'teleport' && (
-                  <select
-                    value={connectorForm.targetTemplateId || ''}
-                    onChange={e => setConnectorForm(f => ({ ...f, targetTemplateId: e.target.value }))}
-                    aria-label="Target template"
-                    className="mb-1 w-full rounded bg-gray-700 p-1 text-xs"
-                  >
-                    <option value="">Target template...</option>
-                    {savedTemplates.filter(t => t.id !== currentTemplateId).map(t => (
-                      <option key={t.id} value={t.id}>{t.name}</option>
-                    ))}
-                  </select>
-                  )}
-                  <select
-                    value={connectorForm.interaction || 'walk'}
-                    onChange={e => setConnectorForm(f => ({ ...f, interaction: e.target.value as Connector['interaction'] }))}
-                    aria-label="How the player triggers this connector"
-                    className="mb-1 w-full rounded bg-gray-700 p-1 text-xs"
-                  >
-                    <option value="walk">Walk onto it</option>
-                    <option value="interact">Press E on it</option>
-                    <option value="auto">Auto on enter</option>
-                  </select>
-                  <div className="mb-1 flex items-center gap-1 text-xs">
-                    <span className="whitespace-nowrap text-gray-400">Arrive at</span>
-                    <input
-                      type="number"
-                      min={0}
-                      aria-label="Spawn column in target template"
-                      value={connectorForm.spawnCol ?? 0}
-                      onChange={e => setConnectorForm(f => ({ ...f, spawnCol: Math.max(0, parseInt(e.target.value, 10) || 0) }))}
-                      className="w-12 rounded bg-gray-700 p-1 text-xs"
-                    />
-                    <span className="text-gray-500">,</span>
-                    <input
-                      type="number"
-                      min={0}
-                      aria-label="Spawn row in target template"
-                      value={connectorForm.spawnRow ?? 0}
-                      onChange={e => setConnectorForm(f => ({ ...f, spawnRow: Math.max(0, parseInt(e.target.value, 10) || 0) }))}
-                      className="w-12 rounded bg-gray-700 p-1 text-xs"
-                    />
-                    <span className="whitespace-nowrap text-gray-400">in target</span>
-                  </div>
-                  <div className="flex gap-1">
-                    <button onClick={saveConnector} disabled={!connectorForm.targetTemplateId && !connectorForm.action} className="flex-1 rounded bg-green-700 p-1 text-xs hover:bg-green-600 disabled:bg-gray-700">Save</button>
-                    <button onClick={() => deleteConnector(editingConnector.col, editingConnector.row)} className="rounded bg-red-800 p-1 text-xs hover:bg-red-700">Del</button>
-                    <button onClick={() => setEditingConnector(null)} className="rounded bg-gray-700 p-1 text-xs hover:bg-gray-600">X</button>
-                  </div>
-                </div>
-              )}
-
-              {connectors.length > 0 && (
-                <div className="max-h-32 space-y-1 overflow-y-auto">
-                  {connectors.map((c, i) => (
-                    <button
-                      key={`${c.cells[0]?.col},${c.cells[0]?.row},${i}`}
-                      type="button"
-                      className="flex w-full items-center justify-between rounded bg-gray-800 p-1 text-left text-xs hover:bg-gray-700"
-                      onClick={() => {
-                        setConnectorForm(c)
-                        setEditingConnector({ col: c.cells[0].col, row: c.cells[0].row })
-                        setSelectedCells(new Set(c.cells.map(p => `${p.col},${p.row}`)))
-                        setConnectorMode(true)
-                      }}
-                    >
-                      <span>({c.cells[0]?.col},{c.cells[0]?.row}){c.cells.length > 1 ? ` +${c.cells.length - 1}` : ''}→{c.targetTemplateName?.slice(0, 8) || '?'}</span>
-                      <span className="text-purple-400">{c.interaction}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              {connectors.length === 0 && !editingConnector && (
-                <p className="text-[10px] text-gray-500">No connectors yet.</p>
-              )}
-            </Card>
           </aside>
         )}
 

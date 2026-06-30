@@ -8,6 +8,12 @@ import { type EntityKind } from '@/game/types'
 
 // ── editor tool state ────────────────────────────────────────────────
 
+/** The five editor MODES the left tool-rail switches between. Each maps onto the
+ *  existing fine-grained tool state — `select` arms nothing (click to inspect),
+ *  `paint` reveals the tile palette, and `unit`/`building`/`connector` arm their
+ *  respective placement tools. */
+export type EditorMode = 'select' | 'paint' | 'unit' | 'building' | 'connector'
+
 /** Which tool the Entities card has armed. `erase` removes; `null` = off. */
 export type EntityTool = EntityKind | 'erase' | 'collision' | null
 
