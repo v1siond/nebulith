@@ -3603,21 +3603,31 @@ export default function TemplateEditor() {
   // rather than opening an empty/random editor. Falls back to the gallery only if
   // nothing is saved yet. "Last saved" = newest updatedAt, sorted client-side so
   // it doesn't depend on the API's list ordering.
-  const loadMostRecentTemplate = async () => {
+  const loadMostRecentTemplate = async (): Promise<string | null> => {
     try {
       const { templates } = await listTemplates({ limit: 50 })
       if (templates.length === 0) {
         router.replace('/personal-projects/game-engine') // nothing saved yet → gallery
-        return
+        return null
       }
       const mostRecent = [...templates].sort(
         (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
       )[0]
       await loadTemplate(mostRecent.id)
+      return mostRecent.id // caller reflects it in the URL (replace, no history entry)
     } catch (error) {
       console.error('Failed to load last saved template:', error)
       router.replace('/personal-projects/game-engine')
+      return null
     }
+  }
+
+  /** Open a saved template by routing THROUGH the URL (?id=…), so the address bar reflects the
+   *  open map and the deep-link effect runs the single load. Shallow + push = no full reload and
+   *  Back/Forward steps between opened templates. The effect's handledQueryRef dedupes, so pushing
+   *  a new ?id loads exactly once. */
+  const openTemplate = (id: string) => {
+    router.push({ pathname: router.pathname, query: { id } }, undefined, { shallow: true })
   }
 
   // Teleport the player through a connector to its target template, landing on the
@@ -3708,8 +3718,14 @@ export default function TemplateEditor() {
       generateRandomMap()
       setTemplateName(`Template ${new Date().toLocaleDateString()}`)
     } else {
-      // No id, not new → restore the user's LAST SAVED template (falls back to the gallery).
-      loadMostRecentTemplate()
+      // No id, not new → restore the user's LAST SAVED template (falls back to the gallery) and
+      // reflect it in the URL with a REPLACE (no history entry). Pre-mark the resulting ?id key as
+      // handled so that replace doesn't re-fire this effect into a second load.
+      loadMostRecentTemplate().then(loadedId => {
+        if (!loadedId) return
+        handledQueryRef.current = `id:${loadedId}`
+        router.replace({ pathname: router.pathname, query: { id: loadedId } }, undefined, { shallow: true })
+      })
     }
     setInitialized(true)
   }, [router.isReady, router.query])
@@ -3761,7 +3777,7 @@ export default function TemplateEditor() {
             onSelectTemplate={(id) => {
               flowViewMode = false
               setShowFlowView(false)
-              loadTemplate(id)
+              openTemplate(id) // through the URL so the address bar updates + Back/Forward works
             }}
           />
         )}
@@ -3853,7 +3869,7 @@ export default function TemplateEditor() {
                     key={t.id}
                     className={`flex items-center gap-1 rounded p-1 text-xs ${currentTemplateId === t.id ? 'bg-blue-900' : 'bg-gray-800 hover:bg-gray-700'}`}
                   >
-                    <button onClick={() => { loadTemplate(t.id); setShowTemplateList(false) }} className="flex-1 truncate text-left" disabled={isLoading}>{t.name}</button>
+                    <button onClick={() => { openTemplate(t.id); setShowTemplateList(false) }} className="flex-1 truncate text-left" disabled={isLoading}>{t.name}</button>
                     <button onClick={() => handleDeleteTemplate(t.id)} aria-label={`Delete ${t.name}`} className="px-1 text-red-400 hover:text-red-300">✕</button>
                   </div>
                 ))}
