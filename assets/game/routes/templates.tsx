@@ -5037,8 +5037,8 @@ export default function TemplateEditor() {
       col = Math.floor(camCol + (x - canvas.width / 2) / tileW)
       row = Math.floor(camRow + (y - canvas.height / 2) / tileW)
     } else {
-      // Isometric: invert the diamond projection, with the SAME clamped focus the render uses (#38
-      // p/q diamond clamp, p=col-row q=col+row) — else clicks drift near the edges.
+      // Isometric: invert the diamond projection, with the SAME clamped focus the render uses — the
+      // col/row edge clamp (#70), so clicks track the camera near the edges.
       const eff = grid.isoScale * isoZoomRef.current
       const S = eff * 0.71
       const T = eff * 0.36
@@ -5046,10 +5046,9 @@ export default function TemplateEditor() {
       const qPad = canvas.height / (2 * cs * T)
       let fc = (px - cam.x) / cs
       let fr = (pz - cam.y) / cs
-      const pDiag = clampOrCenter(fc - fr, pPad - grid.rows, grid.cols - pPad, (grid.cols - grid.rows) / 2)
-      const qDiag = clampOrCenter(fc + fr, qPad, grid.cols + grid.rows - qPad, (grid.cols + grid.rows) / 2)
-      fc = (pDiag + qDiag) / 2
-      fr = (qDiag - pDiag) / 2
+      const isoHalfSpan = (pPad + qPad) / 2
+      fc = clampCameraAxis(fc, isoHalfSpan, grid.cols)
+      fr = clampCameraAxis(fr, isoHalfSpan, grid.rows)
       const a = (x - canvas.width / 2) / S
       const b = (y - canvas.height / 2) / T
       col = Math.floor(((a + b) / 2 + fc * cs) / cs)
@@ -9352,12 +9351,16 @@ function render(
   const Ky = cellSize * isoScale * 0.36  // screen px per unit of (col + row)
   const pPad = w / (2 * Kx)              // half viewport width, in (col-row) units
   const qPad = h / (2 * Ky)              // half viewport height, in (col+row) units
+  // The screen viewport is an axis-aligned rect in (p=col-row, q=col+row) space; its WORST corner
+  // constrains BOTH the col and row focus by (pPad+qPad)/2. Clamping col/row with that combined
+  // half-span (exactly like the 2D edge clamp) keeps the rect INSIDE the projected diamond, so
+  // zooming/panning never reveals void past the map edges (#70). Clamping p/q independently — the old
+  // way — only bounded the diamond's bbox, letting the rect poke past the slanted edges when zoomed in.
   let fc = (player.x - camOffset.x) / cellSize
   let fr = (player.z - camOffset.y) / cellSize
-  const pDiag = clampOrCenter(fc - fr, pPad - grid.rows, grid.cols - pPad, (grid.cols - grid.rows) / 2)
-  const qDiag = clampOrCenter(fc + fr, qPad, grid.cols + grid.rows - qPad, (grid.cols + grid.rows) / 2)
-  fc = (pDiag + qDiag) / 2
-  fr = (qDiag - pDiag) / 2
+  const isoHalfSpan = (pPad + qPad) / 2
+  fc = clampCameraAxis(fc, isoHalfSpan, grid.cols)
+  fr = clampCameraAxis(fr, isoHalfSpan, grid.rows)
   const camX = fc * cellSize
   const camZ = fr * cellSize
 
