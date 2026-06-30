@@ -222,20 +222,12 @@ export function deserializeToGrid(
     }
   }
 
-  // Load assets
-  grid.assets = data.assetsData.map(a => ({
-    art: a.art,
-    col: a.col,
-    row: a.row,
-    type: a.type,
-    blocking: a.blocking,
-    color: a.color,
-    bgColor: a.bgColor,
-    height: a.height,
-    heightLevel: a.heightLevel,
-    tileKey: a.tileKey,
-    label: a.label,
-  }))
+  // Load assets — preserve EVERY saved field (clone). Cherry-picking columns used to DROP generator
+  // metadata that the renderers key on: `footprint` (the town-square fountain reverted to a single
+  // cell on load — #72), `cellAnim`/`cycles` (authored animations), `edge`/`cellPart` (debug labels),
+  // `baseShadow`, `buildingType`. serializeGrid saves the full GridAsset, so a shallow clone round-
+  // trips them all; new GridAsset fields are carried automatically.
+  grid.assets = data.assetsData.map(a => ({ ...a }) as unknown as GridAsset)
 
   // Rebuild collision grid from assets. Blocks are collision regardless of any
   // visual height level — a blocking asset always blocks its cell.
