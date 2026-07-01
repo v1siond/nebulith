@@ -192,7 +192,7 @@ export function drawIsoGroundLayer(ctx: CanvasRenderingContext2D, p: IsoGroundPa
       // the SAME cube+diamond geometry with the tile hue (so it stays iso-angled with z) and drop a
       // small hint — the geometry is reused, only the fill/asset changes. No tint → bg (identical).
       const gdv = resolveDraw(groundKind(tileType), style, undefined, char, fg)
-      const fillBg = gdv.tint ?? bg
+      const fillBg = gdv.tint ? grassShade(gdv.tint, col, row) : bg // reskin tint VARIED per cell (not flat-uniform)
 
       const cellHeight = grid.getHeight(col, row)
       const heightOffset = cellHeight * heightStep
@@ -276,7 +276,7 @@ export function drawIsoWaterCells(ctx: CanvasRenderingContext2D, p: IsoGroundPar
     const bg = colors.bg[0]
     const drawY = py - grid.getHeight(col, row) * heightStep
     const wdv = resolveDraw(groundKind(tileType), style, undefined, char, fg)
-    const fillBg = wdv.tint ?? bg // reskinned water tints the SAME iso basin; ASCII → bg (identical)
+    const fillBg = wdv.tint ? grassShade(wdv.tint, col, row) : bg // reskin water tint VARIED per cell; ASCII → bg
     drawIsoWaterDepth(ctx, px, drawY, tileW, tileH, fillBg, time, col, row)
     drawIsoGroundContent(ctx, wdv, px, drawY, tileW, tileH, false, true, time, col, row)
   }

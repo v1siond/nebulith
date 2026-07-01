@@ -245,15 +245,7 @@ export function draw2DBuilding(
       const isRoof = kind === 'roof'
       const isDoor = kind === 'door'
       const isWindow = kind === 'window'
-      ctx.fillStyle = isRoof ? roofBg : isDoor ? doorBg : isWindow ? windowBg : wallBg
-      ctx.fillRect(x - tileW * 0.5, cellTop, tileW, tileH)
-      // seams only on plain wall cells (the connected-wall look) — keep doors/windows clean
-      if (!isRoof && !isDoor && !isWindow) {
-        ctx.fillStyle = wallSeam
-        ctx.fillRect(x - tileW * 0.5 - 1, cellTop, 2, tileH)
-        ctx.fillRect(x + tileW * 0.5 - 1, cellTop, 2, tileH)
-      }
-      // detail glyph that READS on the cell's own background
+      // detail glyph that READS on the cell's own background (ASCII); a reskin swaps it for the tile.
       const glyph = isRoof ? '/\\' : isDoor ? '▯' : isWindow ? '⊞' : ''
       const glyphColor = isRoof
         ? roofGlyph // darker shade of THIS roof's color
@@ -265,11 +257,23 @@ export function draw2DBuilding(
       // Style resolve: ASCII passthrough keeps the glyph (or '' for a plain wall → nothing);
       // an Emoji style supplies 🧱/🟥/🚪/🪟 even where the wall drew no glyph before.
       const bdv = resolveDraw(kind as ElementKind, style, undefined, glyph, glyphColor)
+      const asciiBg = isRoof ? roofBg : isDoor ? doorBg : isWindow ? windowBg : wallBg
+      // RESKIN: fill the cell with the TILE's OWN colour (varied per cell), so no ASCII building
+      // palette bleeds behind the emoji — the 2D building reads as one tileset, not red-roof-on-blue.
+      // ASCII → the building palette exactly as before.
+      ctx.fillStyle = bdv.tint ? withAlpha(grassShade(bdv.tint, i, r), 0.96) : asciiBg
+      ctx.fillRect(x - tileW * 0.5, cellTop, tileW, tileH)
+      // ASCII-only wall seams (a reskin brick already reads as a wall — no ASCII seam over it)
+      if (!bdv.tint && !isRoof && !isDoor && !isWindow) {
+        ctx.fillStyle = wallSeam
+        ctx.fillRect(x - tileW * 0.5 - 1, cellTop, 2, tileH)
+        ctx.fillRect(x + tileW * 0.5 - 1, cellTop, 2, tileH)
+      }
       if (bdv.image) {
         drawStyledImage(ctx, bdv.image, x, cellTop + tileH * 0.5, tileH)
       } else if (bdv.char) {
         ctx.fillStyle = bdv.color
-        ctx.font = `bold ${tileH * 0.7}px ${ASCII_FONT}`
+        ctx.font = `bold ${tileH * (bdv.tint ? 0.82 : 0.7)}px ${ASCII_FONT}`
         ctx.fillText(bdv.char, x, cellTop + tileH * 0.5)
       }
     }
@@ -453,9 +457,10 @@ export function render2D(
       // keeps its uniform floor base.
       const bg = tileType.includes('grass') ? grassShade(colors.bg[0], col, row) : colors.bg[0]
       // Active art style (ASCII passthrough → the char+fg above, byte-identical). A reskin tints the
-      // flat cell at the tile hue so 2D agrees with the iso diamond; ASCII → bg (identical).
+      // flat cell at the tile hue, VARIED per cell (same deterministic noise ASCII grass uses) so an
+      // emoji field isn't flat-uniform; ASCII → bg (identical).
       const gdv = resolveDraw(groundKind(tileType), style, undefined, char, fg)
-      const fillBg = gdv.tint ?? bg
+      const fillBg = gdv.tint ? grassShade(gdv.tint, col, row) : bg
 
       // Draw ground tile
       ctx.fillStyle = fillBg
