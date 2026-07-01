@@ -38,7 +38,7 @@ import { TEMPLATE_PRESETS, type TemplateTheme } from '@/game/presets'
 import { type Projectile } from '@/game/projectiles'
 import { type QuestEvent, acceptQuest, recordEvent, turnIn } from '@/game/quests'
 import { BARE_HANDS, type HitMarker, type PlayerHud, type ProjectileContext, playerHudFrom, stepCombat, tickProjectiles, triggerAbility } from '@/game/runtime/combat'
-import { type PlayerState, aimFromKeys, facingFromKeys, playerDisplayName } from '@/game/runtime/player'
+import { type PlayerState, aimFromKeys, facingFromKeys, playerDisplayName, resolveSpawnCell } from '@/game/runtime/player'
 import { activeQuest, applyQuestEvent, questAnchorScreenPos, questForGiver, reachableQuestGiver, rewardSummary, upsertQuest } from '@/game/runtime/quest'
 import { type EnemyRuntime, isLivingEnemy, makeEnemyRuntime } from '@/game/runtime/targeting'
 import { ENEMY_TYPES, CAVE_ENEMY_TYPES, TEMPLE_ENEMY_TYPES, archetypeForEnemyType, scatterEntities } from '@/game/spawner'
@@ -443,7 +443,7 @@ export default function TemplateEditor() {
   // view. Await the load so enterPlayMode reads the freshly loaded grid/spawn.
   const playGameLevel = async (templateId: string) => {
     setShowGamesView(false)
-    await loadTemplate(templateId)
+    await loadTemplate(templateId, undefined, { resetToSpawn: true }) // starting a level → begin at its spawn
     enterPlayMode()
   }
   const toggleDebug = () => {
@@ -3847,8 +3847,11 @@ export default function TemplateEditor() {
   }
 
   // Load a template
-  const loadTemplate = async (id: string, spawnOverride?: { col: number; row: number }) => {
+  const loadTemplate = async (id: string, spawnOverride?: { col: number; row: number }, opts?: { resetToSpawn?: boolean }) => {
     setIsLoading(true)
+    // #87: capture where the player IS *before* any resize/deserialize can move them, so reloading
+    // the map they're already in can KEEP that position instead of jumping to the last-saved spawn.
+    const preloadCell = livePlayerCell()
     try {
       const template = await getTemplate(id)
       const grid = gridRef.current
@@ -3883,11 +3886,23 @@ export default function TemplateEditor() {
       // placed PLAYER entity's cell (player=entity: the placed player defines the spawn),
       // else the template's default spawn.
       const playerEntity = (template.entities ?? []).find(e => e.kind === 'player')
-      const spawn =
-        spawnOverride ??
-        (playerEntity
-          ? { col: playerEntity.col, row: playerEntity.row }
-          : { col: template.spawnCol, row: template.spawnRow })
+      const tgt = gridRef.current!
+      // #87: reloading the map you're ALREADY in keeps your CURRENT position — a load must not yank
+      // you back to the last-saved spawn. A connector/trigger teleport or a deliberate reset
+      // (restart / play-a-level, opts.resetToSpawn) still uses the target spawn.
+      const keptCell = !spawnOverride && !opts?.resetToSpawn && id === currentTemplateId ? preloadCell : null
+      // Priority (teleport → keep-current → saved marker → template spawn), clamped to the target so a
+      // stale/off-map spawn (e.g. a legacy fixed 25,25 on a smaller map) never lands off the map (#88).
+      const spawn = resolveSpawnCell(
+        {
+          override: spawnOverride,
+          keptCell,
+          playerMarker: playerEntity ? { col: playerEntity.col, row: playerEntity.row } : null,
+          templateSpawn: { col: template.spawnCol, row: template.spawnRow },
+        },
+        tgt.cols,
+        tgt.rows,
+      )
       movePlayerToValidSpawn(spawn.col, spawn.row)
 
       // Sync the connector edge-detector to where we actually landed, so a connector
@@ -3910,7 +3925,9 @@ export default function TemplateEditor() {
       // Older saves may have no player entity → mint one at the spawn so the player
       // is still a clickable, vitals-showing entity. A saved player is kept as-is.
       const landedCell = livePlayerCell()
-      syncPlayerEntity(landedCell.col, landedCell.row, false)
+      // Keep the clickable player MARKER with the live player: reposition it when we preserved the
+      // current position (#87); otherwise leave a saved marker where it loaded.
+      syncPlayerEntity(landedCell.col, landedCell.row, !!keptCell)
 
       setCurrentTemplateId(template.id)
       setTemplateName(template.name)
@@ -3951,6 +3968,10 @@ export default function TemplateEditor() {
    *  Back/Forward steps between opened templates. The effect's handledQueryRef dedupes, so pushing
    *  a new ?id loads exactly once. */
   const openTemplate = (id: string) => {
+    // Reopening the template you're already in: the URL key is unchanged, so the deep-link effect
+    // would no-op (handledQueryRef dedupe) — reload it directly, KEEPING the current position (#87).
+    // A different template routes through the URL and loads at its own spawn.
+    if (id === currentTemplateId) { loadTemplate(id); return }
     router.push({ pathname: router.pathname, query: { id } }, undefined, { shallow: true })
   }
 
@@ -4063,7 +4084,7 @@ export default function TemplateEditor() {
     setTriggerMessage(null)
     prevDiedRef.current = new Set()
     playerCombatRef.current = { ...playerCombatRef.current, hp: playerStatsRef.current.maxHp }
-    if (currentTemplateId) loadTemplate(currentTemplateId)
+    if (currentTemplateId) loadTemplate(currentTemplateId, undefined, { resetToSpawn: true }) // restart → back to spawn
   }
 
   // Keep the game loop's trigger callbacks pointed at the latest closure

@@ -36,6 +36,32 @@ export interface PlayerState {
   name?: string
 }
 
+/** A grid cell. */
+export interface SpawnCell { col: number; row: number }
+
+/**
+ * Where the player lands on a template LOAD. Priority:
+ *   1. `override`  — an explicit teleport target (connector / trigger `go to`);
+ *   2. `keptCell`  — reloading the map you're already in: keep the CURRENT position (#87), so a
+ *                    load never yanks you back to the last-saved spawn;
+ *   3. `playerMarker` — the saved player entity's cell (the placed spawn);
+ *   4. `templateSpawn` — the template's authored default spawn.
+ * The chosen cell is CLAMPED to the grid, so a stale / out-of-bounds spawn (e.g. a legacy fixed
+ * 25,25 on a smaller target) can never land off-map (#88) — the caller then snaps it to the nearest
+ * WALKABLE cell. Pure: no grid/DOM access, so the priority + clamp are unit-tested directly.
+ */
+export function resolveSpawnCell(
+  choices: { override?: SpawnCell | null; keptCell?: SpawnCell | null; playerMarker?: SpawnCell | null; templateSpawn: SpawnCell },
+  cols: number,
+  rows: number,
+): SpawnCell {
+  const pick = choices.override ?? choices.keptCell ?? choices.playerMarker ?? choices.templateSpawn
+  return {
+    col: Math.max(0, Math.min(pick.col, cols - 1)),
+    row: Math.max(0, Math.min(pick.row, rows - 1)),
+  }
+}
+
 // Jump = clear up to this many blocked cells in the facing direction (settings later).
 const JUMP_CLEAR = 1
 
