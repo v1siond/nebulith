@@ -258,23 +258,28 @@ export function draw2DBuilding(
       // an Emoji style supplies 🧱/🟥/🚪/🪟 even where the wall drew no glyph before.
       const bdv = resolveDraw(kind as ElementKind, style, undefined, glyph, glyphColor)
       const asciiBg = isRoof ? roofBg : isDoor ? doorBg : isWindow ? windowBg : wallBg
-      // RESKIN: fill the cell with the TILE's OWN colour (varied per cell), so no ASCII building
-      // palette bleeds behind the emoji — the 2D building reads as one tileset, not red-roof-on-blue.
-      // ASCII → the building palette exactly as before.
-      ctx.fillStyle = bdv.tint ? withAlpha(grassShade(bdv.tint, i, r), 0.96) : asciiBg
-      ctx.fillRect(x - tileW * 0.5, cellTop, tileW, tileH)
-      // ASCII-only wall seams (a reskin brick already reads as a wall — no ASCII seam over it)
-      if (!bdv.tint && !isRoof && !isDoor && !isWindow) {
-        ctx.fillStyle = wallSeam
-        ctx.fillRect(x - tileW * 0.5 - 1, cellTop, 2, tileH)
-        ctx.fillRect(x + tileW * 0.5 - 1, cellTop, 2, tileH)
-      }
-      if (bdv.image) {
-        drawStyledImage(ctx, bdv.image, x, cellTop + tileH * 0.5, tileH)
-      } else if (bdv.char) {
-        ctx.fillStyle = bdv.color
-        ctx.font = `bold ${tileH * (bdv.tint ? 0.82 : 0.7)}px ${ASCII_FONT}`
-        ctx.fillText(bdv.char, x, cellTop + tileH * 0.5)
+      const cy = cellTop + tileH * 0.5
+      if (bdv.tint || bdv.image) {
+        // RESKIN: full-cell, one coherent tileset (no ASCII glyph, no seam). Fill = the building's
+        // OWN colour from the game DATA (buildingCellColor already varies the roof PER BUILDING, so
+        // roofs aren't monotone red). The ROOF shows that varied colour directly — a fixed-colour
+        // roof emoji would hide it; wall/door/window draw their tile on top.
+        ctx.fillStyle = asciiBg
+        ctx.fillRect(x - tileW * 0.5, cellTop, tileW, tileH)
+        if (!isRoof) {
+          if (bdv.image) drawStyledImage(ctx, bdv.image, x, cy, Math.max(tileW, tileH))
+          else if (bdv.char) { ctx.fillStyle = bdv.color; ctx.font = `${Math.max(tileW, tileH) * 1.02}px ${ASCII_FONT}`; ctx.fillText(bdv.char, x, cy) }
+        }
+      } else {
+        // ASCII — the building palette + wall seams + the /\ ▯ ⊞ glyph, exactly as before.
+        ctx.fillStyle = asciiBg
+        ctx.fillRect(x - tileW * 0.5, cellTop, tileW, tileH)
+        if (!isRoof && !isDoor && !isWindow) {
+          ctx.fillStyle = wallSeam
+          ctx.fillRect(x - tileW * 0.5 - 1, cellTop, 2, tileH)
+          ctx.fillRect(x + tileW * 0.5 - 1, cellTop, 2, tileH)
+        }
+        if (bdv.char) { ctx.fillStyle = bdv.color; ctx.font = `bold ${tileH * 0.7}px ${ASCII_FONT}`; ctx.fillText(bdv.char, x, cy) }
       }
     }
   }
@@ -460,22 +465,26 @@ export function render2D(
       // flat cell at the tile hue, VARIED per cell (same deterministic noise ASCII grass uses) so an
       // emoji field isn't flat-uniform; ASCII → bg (identical).
       const gdv = resolveDraw(groundKind(tileType), style, undefined, char, fg)
-      const fillBg = gdv.tint ? grassShade(gdv.tint, col, row) : bg
-
-      // Draw ground tile
-      ctx.fillStyle = fillBg
-      ctx.fillRect(p.x - tileW / 2, p.y - tileH / 2, tileW, tileH)
-
-      // Draw ground character with slight animation
-      const grassFlicker = tileType.includes('grass') ? Math.sin(time * 0.001 + col * 0.3 + row * 0.4) * 0.1 + 1 : 1
-      ctx.fillStyle = gdv.color
-      ctx.globalAlpha = 0.85 + 0.15 * grassFlicker
-      ctx.font = `bold ${tileH * 0.7}px ${ASCII_FONT}`
+      // Cell fill: a reskin uses the tile's OWN colour (from the catalog DATA); ASCII → the ground bg.
+      const fillBg = gdv.tint ?? bg
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
-      if (gdv.image) drawStyledImage(ctx, gdv.image, p.x, p.y, tileH)
-      else ctx.fillText(gdv.char, p.x, p.y)
-      ctx.globalAlpha = 1
+      ctx.fillStyle = fillBg
+      ctx.fillRect(p.x - tileW / 2, p.y - tileH / 2, tileW, tileH)
+      if (gdv.tint || gdv.image) {
+        // RESKIN: draw the DATA tile FULL-CELL (no 'grid view'). The char + colour come from the tile
+        // data — NOT invented in JS; ground variety comes from the map's ground data / the catalog.
+        if (gdv.image) drawStyledImage(ctx, gdv.image, p.x, p.y, Math.max(tileW, tileH) * 1.02)
+        else { ctx.font = `${Math.max(tileW, tileH) * 1.04}px ${ASCII_FONT}`; ctx.fillText(gdv.char, p.x, p.y) }
+      } else {
+        // ASCII passthrough — byte-identical to before.
+        const grassFlicker = tileType.includes('grass') ? Math.sin(time * 0.001 + col * 0.3 + row * 0.4) * 0.1 + 1 : 1
+        ctx.fillStyle = gdv.color
+        ctx.globalAlpha = 0.85 + 0.15 * grassFlicker
+        ctx.font = `bold ${tileH * 0.7}px ${ASCII_FONT}`
+        ctx.fillText(gdv.char, p.x, p.y)
+        ctx.globalAlpha = 1
+      }
 
       // Height creates elevated platforms - draw "front face" if height > 0
       const cellHeight = grid.getHeight(col, row)

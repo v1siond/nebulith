@@ -192,7 +192,7 @@ export function drawIsoGroundLayer(ctx: CanvasRenderingContext2D, p: IsoGroundPa
       // the SAME cube+diamond geometry with the tile hue (so it stays iso-angled with z) and drop a
       // small hint — the geometry is reused, only the fill/asset changes. No tint → bg (identical).
       const gdv = resolveDraw(groundKind(tileType), style, undefined, char, fg)
-      const fillBg = gdv.tint ? grassShade(gdv.tint, col, row) : bg // reskin tint VARIED per cell (not flat-uniform)
+      const fillBg = gdv.tint ?? bg // reskin → the tile's OWN colour (catalog data); ASCII → bg (identical)
 
       const cellHeight = grid.getHeight(col, row)
       const heightOffset = cellHeight * heightStep
@@ -276,7 +276,7 @@ export function drawIsoWaterCells(ctx: CanvasRenderingContext2D, p: IsoGroundPar
     const bg = colors.bg[0]
     const drawY = py - grid.getHeight(col, row) * heightStep
     const wdv = resolveDraw(groundKind(tileType), style, undefined, char, fg)
-    const fillBg = wdv.tint ? grassShade(wdv.tint, col, row) : bg // reskin water tint VARIED per cell; ASCII → bg
+    const fillBg = wdv.tint ?? bg // reskin water → the tile's own colour (catalog data); ASCII → bg
     drawIsoWaterDepth(ctx, px, drawY, tileW, tileH, fillBg, time, col, row)
     drawIsoGroundContent(ctx, wdv, px, drawY, tileW, tileH, false, true, time, col, row)
   }
@@ -1043,10 +1043,14 @@ export function drawIsoBuilding(
   const wallDV = resolveDraw('wall', style, undefined, '', buildingCellColor(tcol, 'wall', b.col))
   const roofDV = resolveDraw('roof', style, undefined, '', buildingCellColor(tcol, 'roof', b.col))
   const wallC = wallDV.tint ?? buildingCellColor(tcol, 'wall', b.col)
-  const roofC = roofDV.tint ?? buildingCellColor(tcol, 'roof', b.col)
+  // Roof colour ALWAYS from the game DATA (buildingCellColor varies the roof PER BUILDING → roofs
+  // aren't monotone red, even on a reskin). The reskin roof faces show this varied colour directly;
+  // a fixed-colour roof emoji would hide it, so the roof tiles NO glyph (walls still tile their brick).
+  const roofC = buildingCellColor(tcol, 'roof', b.col)
   const doorC = resolveDraw('door', style, undefined, '', buildingCellColor(tcol, 'door', b.col)).tint ?? buildingCellColor(tcol, 'door', b.col)
   const windowC = resolveDraw('window', style, undefined, '', buildingCellColor(tcol, 'window', b.col)).tint ?? buildingCellColor(tcol, 'window', b.col)
   const reskinned = !!(wallDV.tint || wallDV.image || roofDV.tint || roofDV.image)
+  const roofFaceDV: DrawVisual = { char: '', color: roofC } // reskin roof: coloured face, no emoji glyph
   const facadeColors: FacadeColors = {
     wall: withAlpha(wallC, 0.98),
     door: withAlpha(doorC, 0.98),
@@ -1196,11 +1200,11 @@ export function drawIsoBuilding(
     ctx.fillStyle = roofBack
     fillQuad(ctx, BEL, BER, BRR, BRL) // back trapezoid (kept flat-tinted — not a parallelogram)
     ctx.fillStyle = roofSlopeL
-    fillQuad(ctx, FEL, BEL, BRL, FRL); tileFace(FEL, BEL, FRL, roofDV, b.depth, ROOF_ROWS) // left slope
+    fillQuad(ctx, FEL, BEL, BRL, FRL); tileFace(FEL, BEL, FRL, roofFaceDV, b.depth, ROOF_ROWS) // left slope
     ctx.fillStyle = roofSlopeR
-    fillQuad(ctx, FER, BER, BRR, FRR); tileFace(FER, BER, FRR, roofDV, b.depth, ROOF_ROWS) // right slope
+    fillQuad(ctx, FER, BER, BRR, FRR); tileFace(FER, BER, FRR, roofFaceDV, b.depth, ROOF_ROWS) // right slope
     ctx.fillStyle = roofTop
-    fillQuad(ctx, FRL, FRR, BRR, BRL); tileFace(FRL, FRR, BRL, roofDV, 2, b.depth) // flat ridge top
+    fillQuad(ctx, FRL, FRR, BRR, BRL); tileFace(FRL, FRR, BRL, roofFaceDV, 2, b.depth) // flat ridge top
     ctx.fillStyle = roofFront
     fillQuad(ctx, FEL, FER, FRR, FRL) // front trapezoid (the `‾\_/‾`, kept flat-tinted)
     // shingle the two side slopes with /\ so the roof reads from the side too
@@ -1209,15 +1213,15 @@ export function drawIsoBuilding(
   } else {
     const top = (p: Pt): Pt => ptAdd(p, up(H))
     ctx.fillStyle = roofBack
-    fillQuad(ctx, eave(bbl), eave(bbr), top(bbr), top(bbl)); tileFace(eave(bbl), eave(bbr), top(bbl), roofDV, L, ROOF_ROWS)
+    fillQuad(ctx, eave(bbl), eave(bbr), top(bbr), top(bbl)); tileFace(eave(bbl), eave(bbr), top(bbl), roofFaceDV, L, ROOF_ROWS)
     ctx.fillStyle = roofSlopeL
-    fillQuad(ctx, eave(fbl), eave(bbl), top(bbl), top(fbl)); tileFace(eave(fbl), eave(bbl), top(fbl), roofDV, b.depth, ROOF_ROWS) // left
+    fillQuad(ctx, eave(fbl), eave(bbl), top(bbl), top(fbl)); tileFace(eave(fbl), eave(bbl), top(fbl), roofFaceDV, b.depth, ROOF_ROWS) // left
     ctx.fillStyle = roofSlopeR
-    fillQuad(ctx, eave(fbr), eave(bbr), top(bbr), top(fbr)); tileFace(eave(fbr), eave(bbr), top(fbr), roofDV, b.depth, ROOF_ROWS) // right
+    fillQuad(ctx, eave(fbr), eave(bbr), top(bbr), top(fbr)); tileFace(eave(fbr), eave(bbr), top(fbr), roofFaceDV, b.depth, ROOF_ROWS) // right
     ctx.fillStyle = roofTop
-    fillQuad(ctx, top(fbl), top(fbr), top(bbr), top(bbl)); tileFace(top(fbl), top(fbr), top(bbl), roofDV, L, b.depth)
+    fillQuad(ctx, top(fbl), top(fbr), top(bbr), top(bbl)); tileFace(top(fbl), top(fbr), top(bbl), roofFaceDV, L, b.depth)
     ctx.fillStyle = roofFront
-    fillQuad(ctx, eave(fbl), eave(fbr), top(fbr), top(fbl)); tileFace(eave(fbl), eave(fbr), top(fbl), roofDV, L, ROOF_ROWS)
+    fillQuad(ctx, eave(fbl), eave(fbr), top(fbr), top(fbl)); tileFace(eave(fbl), eave(fbr), top(fbl), roofFaceDV, L, ROOF_ROWS)
     // shingle the two side faces with /\ so the slab roof reads from the side too
     roofChevrons(mid(eave(fbl), top(fbl)), mid(eave(bbl), top(bbl)), roofSideCount) // left
     roofChevrons(mid(eave(fbr), top(fbr)), mid(eave(bbr), top(bbr)), roofSideCount) // right
