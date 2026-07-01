@@ -1,7 +1,7 @@
 // Editor-UI primitives for the game-engine editor: palette swatches, the sidebar
 // Card wrapper, view/tool toggle buttons, and the animation frame stepper.
 // Module-level, props-driven presentational components moved out of the page (stage 4).
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { TILES } from '@/engine/Tileset'
 
 // Tile swatch component for palette
@@ -68,6 +68,8 @@ export function Card({
   action,
   children,
   defaultOpen = true,
+  sectionId,
+  focus,
 }: {
   title: string
   accent?: CardAccent
@@ -75,10 +77,23 @@ export function Card({
   children: React.ReactNode
   /** start collapsed by passing false — collapsible to cut sidebar scrolling. */
   defaultOpen?: boolean
+  /** stable id so the on-canvas quick-actions can target this section. */
+  sectionId?: string
+  /** bumped `{ id, n }` from a quick-action: when `id` matches `sectionId` the card
+   *  opens itself + scrolls into view. The `n` nonce lets a repeat click re-focus. */
+  focus?: { id: string; n: number } | null
 }) {
   const [open, setOpen] = useState(defaultOpen)
+  const ref = useRef<HTMLElement>(null)
+  useEffect(() => {
+    if (!focus || !sectionId || focus.id !== sectionId) return
+    setOpen(true)
+    // wait a frame so the just-expanded body has laid out before we scroll to it.
+    const raf = requestAnimationFrame(() => ref.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }))
+    return () => cancelAnimationFrame(raf)
+  }, [focus, sectionId])
   return (
-    <section className="rounded-lg border border-white/10 bg-black/60 p-3 shadow-lg shadow-black/40">
+    <section ref={ref} data-section={sectionId} className="rounded-lg border border-white/10 bg-black/60 p-3 shadow-lg shadow-black/40">
       <header className={`flex items-center justify-between gap-2 ${open ? 'mb-3' : ''}`}>
         <button
           type="button"

@@ -64,6 +64,92 @@ export function ToolRail({ mode, onPick }: { mode: EditorMode; onPick: (m: Edito
   )
 }
 
+// ── On-canvas quick-action toolbar (stage C) ─────────────────────────
+/** One verb in the floating toolbar — a glyph + label that focuses an Inspector section. */
+export type QuickAction = { key: string; glyph: string; label: string; onClick: () => void }
+
+/**
+ * A small floating toolbar drawn OVER the canvas, glued above the selected element.
+ * It is pure affordance/navigation: each button opens + scrolls the matching Inspector
+ * section (the deep edit UI stays in the panel). Positioning runs on a rAF loop that
+ * reads the live camera/zoom via `getPos` and moves the node with a direct style write
+ * — so it tracks smoothly while panning WITHOUT re-rendering React every frame. The
+ * container is pointer-events-none; only the buttons take clicks, so canvas clicks pass
+ * through everywhere else.
+ */
+export function QuickActionToolbar({
+  actions,
+  onDeselect,
+  getPos,
+}: {
+  actions: readonly QuickAction[]
+  onDeselect: () => void
+  /** viewport coords of the selected element's centre, or null when off-screen/unavailable. */
+  getPos: () => { x: number; y: number } | null
+}) {
+  const ref = useRef<HTMLDivElement>(null)
+  // Keep the latest projector in a ref so the rAF loop mounts once yet always reads fresh.
+  const getPosRef = useRef(getPos)
+  getPosRef.current = getPos
+
+  useEffect(() => {
+    let raf = 0
+    const tick = () => {
+      const el = ref.current
+      if (el) {
+        const p = getPosRef.current()
+        if (!p) {
+          el.style.opacity = '0'
+        } else {
+          const w = el.offsetWidth
+          const h = el.offsetHeight
+          const gap = 14 // sit just above the element
+          const left = Math.max(8, Math.min(p.x - w / 2, window.innerWidth - w - 8))
+          const top = Math.max(8, Math.min(p.y - h - gap, window.innerHeight - h - 8))
+          el.style.transform = `translate3d(${left}px, ${top}px, 0)`
+          el.style.opacity = '1'
+        }
+      }
+      raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+  }, [])
+
+  return (
+    <div
+      ref={ref}
+      role="toolbar"
+      aria-label="Quick actions"
+      style={{ opacity: 0, willChange: 'transform' }}
+      className="pointer-events-none fixed left-0 top-0 z-30 flex items-center gap-0.5 rounded-lg border border-white/15 bg-black/90 p-1 font-mono shadow-xl shadow-black/60 backdrop-blur-sm"
+    >
+      {actions.map(a => (
+        <button
+          key={a.key}
+          type="button"
+          onClick={a.onClick}
+          title={a.label}
+          aria-label={a.label}
+          className="pointer-events-auto flex items-center gap-1 rounded px-2 py-1 text-[11px] font-bold leading-none text-gray-200 transition-colors hover:bg-white/15 hover:text-white"
+        >
+          <span aria-hidden className="text-xs">{a.glyph}</span>
+          <span>{a.label}</span>
+        </button>
+      ))}
+      <button
+        type="button"
+        onClick={onDeselect}
+        title="Deselect"
+        aria-label="Deselect"
+        className="pointer-events-auto ml-0.5 rounded px-1.5 py-1 text-[11px] font-bold leading-none text-gray-400 transition-colors hover:bg-red-600/80 hover:text-white"
+      >
+        ✕
+      </button>
+    </div>
+  )
+}
+
 // ── Dropdown / popover (top-bar menus) ───────────────────────────────
 /**
  * A trigger button + a fixed-position popover anchored under it. `fixed` (not

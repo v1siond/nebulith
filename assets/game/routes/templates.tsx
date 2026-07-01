@@ -60,7 +60,7 @@ import { EquipmentPanel, InventoryCard, QuestAuthoringCard, QuestLogPanel } from
 import { EntityAttackBody, EntityIdentityStatsBody, EntityMovementBody, Modal, QuestGiveBody } from '@/components/game/modals'
 import { FlowViewOverlay, GamesViewOverlay } from '@/components/game/games'
 import { BUILDING_TOOL_TYPE, type BuildingTool, type EditorMode, type EntityTool, GROUND_SWATCHES, NATURE_TILE_KEYS } from '@/components/game/editorConfig'
-import { ArtPlaceholder, Dropdown, GenerateControls, SelectionHeader, StylePicker, ToolRail, TriggerPlaceholder } from '@/components/game/editorChrome'
+import { ArtPlaceholder, Dropdown, GenerateControls, type QuickAction, QuickActionToolbar, SelectionHeader, StylePicker, ToolRail, TriggerPlaceholder } from '@/components/game/editorChrome'
 
 
 // View mode states (global for game loop access)
@@ -179,6 +179,10 @@ export default function TemplateEditor() {
   const [paintMode, setPaintMode] = useState(false)
   // The placed entity currently selected for inspection (click an entity to select).
   const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null)
+  // Which Inspector section a quick-action asked to focus. `n` is a nonce so clicking
+  // the same verb twice still re-opens + re-scrolls that section (see Card `focus`).
+  const [sectionFocus, setSectionFocus] = useState<{ id: string; n: number } | null>(null)
+  const focusInspectorSection = (id: string) => setSectionFocus(f => ({ id, n: (f?.n ?? 0) + 1 }))
   // When on, a Top-view click appends a waypoint to the selected entity's patrol path
   // (author your own movement route instead of the default box patrol).
   const [waypointMode, setWaypointMode] = useState(false)
@@ -205,6 +209,17 @@ export default function TemplateEditor() {
   const selectedBuildingIndexRef = useRef<number | null>(null)
   const genZoneRef = useRef<ZoneId>(genZone)
   const bumpBuildingVersion = () => setBuildingVersion(v => v + 1)
+
+  // Clear a pending quick-action section focus whenever the SELECTION itself changes, so
+  // a section opened on one element doesn't auto-open on the next. Done during render
+  // (not a post-commit effect) so the freshly-mounted Inspector cards never see the stale
+  // focus. Keyed by a value string — selectedCells is a fresh Set each update.
+  const selectionKey = `${selectedEntityId ?? ''}|${selectedBuildingIndex ?? ''}|${editingConnector ? `${editingConnector.col},${editingConnector.row}` : ''}|${Array.from(selectedCells).sort().join(';')}`
+  const prevSelectionKeyRef = useRef(selectionKey)
+  if (prevSelectionKeyRef.current !== selectionKey) {
+    prevSelectionKeyRef.current = selectionKey
+    if (sectionFocus) setSectionFocus(null)
+  }
 
   // ── Quest state (spec §10) ──────────────────────────────────────────
   // Quests are React state (drives the authoring panel + HUD), mirrored into a
@@ -588,6 +603,63 @@ export default function TemplateEditor() {
       return { col, row }
     }
     return null
+  }
+
+  // Grid cell → viewport screen coords (the FORWARD of screenToCell above). Used to
+  // glue the on-canvas quick-action toolbar over the selected element for the ACTIVE
+  // view. Returns the cell CENTRE (col+0.5, row+0.5) in viewport pixels, or null when
+  // there's no canvas/grid yet. Kept in lockstep with screenToCell's clamped camera so
+  // the toolbar sits exactly where the selection highlight draws.
+  const cellToScreen = (col: number, row: number): { x: number; y: number } | null => {
+    const canvas = canvasRef.current
+    const grid = gridRef.current
+    if (!canvas || !grid) return null
+
+    const rect = canvas.getBoundingClientRect()
+    const cs = grid.cellSize
+    const px = playerRef.current.x
+    const pz = playerRef.current.z
+    const cam = camOffsetRef.current
+    const cc = col + 0.5
+    const rr = row + 0.5
+
+    let x: number
+    let y: number
+
+    if (topViewMode) {
+      const tileSize = 16 * zoomRef.current
+      const fCol = clampCameraAxis(px / cs - cam.x / tileSize, canvas.width / tileSize / 2, grid.cols)
+      const fRow = clampCameraAxis(pz / cs - cam.y / tileSize, canvas.height / tileSize / 2, grid.rows)
+      x = cc * tileSize + (canvas.width / 2 - fCol * tileSize)
+      y = rr * tileSize + (canvas.height / 2 - fRow * tileSize)
+    } else if (viewTypeRef.current === '2d') {
+      const tileW = 24 * zoomRef.current
+      const camCol = clampCameraAxis(px / cs - cam.x / tileW, canvas.width / tileW / 2, grid.cols)
+      const camRow = clampCameraAxis(pz / cs - cam.y / tileW, canvas.height / tileW / 2, grid.rows)
+      x = canvas.width / 2 + (cc - camCol) * tileW
+      y = canvas.height / 2 + (rr - camRow) * tileW
+    } else {
+      const eff = grid.isoScale * isoZoomRef.current
+      const S = eff * 0.71
+      const T = eff * 0.36
+      const pPad = canvas.width / (2 * cs * S)
+      const qPad = canvas.height / (2 * cs * T)
+      let fc = (px - cam.x) / cs
+      let fr = (pz - cam.y) / cs
+      const isoHalfSpan = (pPad + qPad) / 2
+      fc = clampCameraAxis(fc, isoHalfSpan, grid.cols)
+      fr = clampCameraAxis(fr, isoHalfSpan, grid.rows)
+      const a = ((cc - fc) - (rr - fr)) * cs
+      const b = ((cc - fc) + (rr - fr)) * cs
+      x = a * S + canvas.width / 2
+      y = b * T + canvas.height / 2
+    }
+
+    // canvas backing store == CSS size (both = window inner size), so scale is ~1, but
+    // account for it + the canvas offset anyway to stay correct if the layout changes.
+    const scaleX = canvas.width ? rect.width / canvas.width : 1
+    const scaleY = canvas.height ? rect.height / canvas.height : 1
+    return { x: rect.left + x * scaleX, y: rect.top + y * scaleY }
   }
 
   // Mouse handlers for cell selection and panning
@@ -3828,6 +3900,66 @@ export default function TemplateEditor() {
           style={{ cursor: isPanning ? 'grabbing' : topViewMode ? 'default' : 'grab' }}
         />
 
+        {/* On-canvas quick-actions (stage C): a small floating toolbar over the SELECTED
+            element with its hottest verbs. Each verb just opens + scrolls the matching
+            Inspector section (deep edit stays in the panel); ✕ deselects. Hidden in play
+            mode / overlays / when nothing is selected. Same selection precedence as the
+            Inspector morph: unit → building → connector → cell. */}
+        {showSidebars && !playMode && !showFlowView && !showGamesView && (() => {
+          const selEntity = entities.find(e => e.id === selectedEntityId)
+          const selBuilding = selectedBuildingIndex != null ? gridRef.current?.buildings[selectedBuildingIndex] : undefined
+
+          let anchor: { col: number; row: number } | null = null
+          let actions: QuickAction[] = []
+          let onDeselect = () => {}
+
+          if (selEntity) {
+            anchor = { col: selEntity.col, row: selEntity.row }
+            actions = [
+              { key: 'animate', glyph: '✦', label: 'Animate', onClick: () => focusInspectorSection('animation') },
+              { key: 'trigger', glyph: '⚡', label: 'Trigger', onClick: () => focusInspectorSection('trigger') },
+              { key: 'style', glyph: '◰', label: 'Style', onClick: () => focusInspectorSection('art') },
+            ]
+            // ✕ is a clean full deselect — also drop any cell selection that lingered from
+            // the click that selected this unit, so the toolbar truly hides (not a cell fallback).
+            onDeselect = () => { setWaypointMode(false); setSelectedEntityId(null); setSelectedCells(new Set()) }
+          } else if (selBuilding) {
+            anchor = buildingFootprintCells(selBuilding).door
+            actions = [
+              { key: 'animate', glyph: '✦', label: 'Animate', onClick: () => focusInspectorSection('animation') },
+              { key: 'style', glyph: '◰', label: 'Style', onClick: () => focusInspectorSection('art') },
+            ]
+            onDeselect = deselectBuilding
+          } else if (editingConnector) {
+            anchor = { col: editingConnector.col, row: editingConnector.row }
+            actions = [
+              { key: 'connect', glyph: '↗', label: 'Connect', onClick: () => focusInspectorSection('connect') },
+              { key: 'when', glyph: '⚡', label: 'Trigger', onClick: () => focusInspectorSection('when') },
+            ]
+            onDeselect = () => { setEditingConnector(null); setSelectedCells(new Set()) }
+          } else if (selectedCells.size > 0) {
+            const [c, r] = Array.from(selectedCells)[0].split(',').map(Number)
+            anchor = { col: c, row: r }
+            actions = [
+              { key: 'style', glyph: '◰', label: 'Style', onClick: () => focusInspectorSection('tile') },
+              { key: 'animate', glyph: '✦', label: 'Animate', onClick: () => focusInspectorSection('animation') },
+              { key: 'trigger', glyph: '⚡', label: 'Trigger', onClick: () => focusInspectorSection('trigger') },
+            ]
+            onDeselect = () => setSelectedCells(new Set())
+          }
+
+          if (!anchor) return null
+          const cell = anchor
+          return (
+            <QuickActionToolbar
+              key={`qa-${selectedEntityId ?? ''}-${selectedBuildingIndex ?? ''}-${editingConnector ? `${editingConnector.col},${editingConnector.row}` : ''}-${selectedCells.size}`}
+              actions={actions}
+              onDeselect={onDeselect}
+              getPos={() => cellToScreen(cell.col, cell.row)}
+            />
+          )
+        })()}
+
         {/* Vitals are NOT an always-on HUD — they live in the selected-entity panel on
             the right sidebar (shown only when the player or an entity is selected). */}
 
@@ -4457,10 +4589,10 @@ export default function TemplateEditor() {
                       <EntityIdentityStatsBody entity={selEntity} onPatch={patchSelectedEntity} />
                       {isPlayer && <div className="mt-3"><CombatHud hud={playerHud} /></div>}
                     </Card>
-                    <Card title="Art / sprite" accent="cyan">
+                    <Card title="Art / sprite" accent="cyan" sectionId="art" focus={sectionFocus}>
                       <ArtPlaceholder />
                     </Card>
-                    <Card title="Animation" accent="cyan" defaultOpen={false}>
+                    <Card title="Animation" accent="cyan" defaultOpen={false} sectionId="animation" focus={sectionFocus}>
                       <p className="text-[10px] leading-tight text-gray-500">
                         Per-unit animation presets ride in with the art system — coming in a later update.
                       </p>
@@ -4486,7 +4618,7 @@ export default function TemplateEditor() {
                         {isNpc && <button className={libBtn} onClick={() => setEntityModal('quests')}>❒ Quests…</button>}
                       </Card>
                     )}
-                    <Card title="Trigger" accent="yellow" defaultOpen={false}>
+                    <Card title="Trigger" accent="yellow" defaultOpen={false} sectionId="trigger" focus={sectionFocus}>
                       <TriggerPlaceholder event="on defeat" />
                     </Card>
                     <div className="flex gap-1">
@@ -4517,10 +4649,10 @@ export default function TemplateEditor() {
                         <p className="text-[10px] text-gray-500">Arrow keys nudge it a cell · R rotates · Del removes.</p>
                       </div>
                     </Card>
-                    <Card title="Art (walls / roof)" accent="cyan" defaultOpen={false}>
+                    <Card title="Art (walls / roof)" accent="cyan" defaultOpen={false} sectionId="art" focus={sectionFocus}>
                       <ArtPlaceholder />
                     </Card>
-                    <Card title="Animation" accent="cyan" defaultOpen={false}>
+                    <Card title="Animation" accent="cyan" defaultOpen={false} sectionId="animation" focus={sectionFocus}>
                       <p className="text-[10px] leading-tight text-gray-500">
                         Building animation presets ride in with the art system — coming in a later update.
                       </p>
@@ -4536,7 +4668,7 @@ export default function TemplateEditor() {
                 return (
                   <>
                     <SelectionHeader kind="connector" label="connector" coords={coordLabel} />
-                    <Card title="Target level" accent="purple">
+                    <Card title="Target level" accent="purple" sectionId="connect" focus={sectionFocus}>
                       <div className="space-y-1 text-xs">
                         <select
                           value={actionType}
@@ -4594,7 +4726,7 @@ export default function TemplateEditor() {
                         )}
                       </div>
                     </Card>
-                    <Card title="When" accent="purple">
+                    <Card title="When" accent="purple" sectionId="when" focus={sectionFocus}>
                       <select
                         value={connectorForm.interaction || 'walk'}
                         onChange={e => setConnectorForm(f => ({ ...f, interaction: e.target.value as Connector['interaction'] }))}
@@ -4646,7 +4778,7 @@ export default function TemplateEditor() {
                 return (
                   <>
                     <SelectionHeader kind="cell" label="cell" coords={cellLabel} />
-                    <Card title="Tile / ground" accent="cyan">
+                    <Card title="Tile / ground" accent="cyan" sectionId="tile" focus={sectionFocus}>
                       <div className="mb-2">
                         <label className="mb-1 flex items-center justify-between text-xs font-bold text-cyan-300">
                           <span>Opacity</span>
@@ -4694,7 +4826,7 @@ export default function TemplateEditor() {
                       </div>
                       <p className="mt-1 text-[10px] leading-tight text-gray-500">Set the terrain height of the selected cell(s).</p>
                     </Card>
-                    <Card title="Animation" accent="purple" defaultOpen={false}>
+                    <Card title="Animation" accent="purple" defaultOpen={false} sectionId="animation" focus={sectionFocus}>
                       <p className="mb-2 text-[10px] leading-tight text-gray-500">One-click a preset, then Apply it to an asset in the selected cell(s). The full frame builder lives in the Paint tool.</p>
                       <div className="mb-2 flex flex-wrap gap-1">
                         {CELL_ANIM_PRESETS.map(p => (
@@ -4707,7 +4839,7 @@ export default function TemplateEditor() {
                       </div>
                       {authorStatus && <p className="mt-1 text-[9px] text-amber-300">{authorStatus}</p>}
                     </Card>
-                    <Card title="Trigger" accent="yellow" defaultOpen={false}>
+                    <Card title="Trigger" accent="yellow" defaultOpen={false} sectionId="trigger" focus={sectionFocus}>
                       <TriggerPlaceholder event="on enter" />
                     </Card>
                     <button onClick={() => setSelectedCells(new Set())} className="rounded bg-gray-700 px-2 py-1.5 text-xs hover:bg-gray-600">Clear selection</button>
