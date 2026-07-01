@@ -265,7 +265,9 @@ function buildEnemy(
 /** Build a non-enemy (npc/player) — not type-grouped; just named + placed. */
 function buildOther(kind: EntityKind, id: string, cell: Cell, index: number): Entity {
   if (kind === 'player') return makePlayer(id, cell.col, cell.row, `Hero ${index + 1}`)
-  return { ...makeNpc(id, cell.col, cell.row, { name: `Wanderer ${index + 1}` }), hittable: false }
+  // Alternate the gender so a crowd of npcs is a MIX, not all 'dudes' (~half female).
+  const variant: 'male' | 'female' = index % 2 === 0 ? 'male' : 'female'
+  return { ...makeNpc(id, cell.col, cell.row, { name: `Wanderer ${index + 1}` }), hittable: false, variant }
 }
 
 const isFree = (collision: boolean[][], col: number, row: number): boolean =>

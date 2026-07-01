@@ -3384,11 +3384,17 @@ export default function TemplateEditor() {
         setQuestLogOpen(o => !o)
         return
       }
-      keysRef.current[e.key] = true
+      // Normalize letter keys to lowercase: holding SHIFT makes 'w' arrive as 'W' on keydown but
+      // 'w' on keyup (or vice-versa), so an un-normalized key never clears → the player runs forever
+      // (the stuck-Shift bug). Single-char keys → lowercase; named keys (ArrowUp, Shift) unchanged.
+      keysRef.current[e.key.length === 1 ? e.key.toLowerCase() : e.key] = true
     }
     const handleKeyUp = (e: KeyboardEvent) => {
-      keysRef.current[e.key] = false
+      keysRef.current[e.key.length === 1 ? e.key.toLowerCase() : e.key] = false
     }
+    // Losing focus (alt-tab / clicking a field) can drop a keyup → clear all held keys so movement
+    // doesn't stick.
+    const handleBlur = () => { keysRef.current = {} }
     const handleWheel = (e: WheelEvent) => {
       e.preventDefault()
       const delta = e.deltaY > 0 ? -0.1 : 0.1
@@ -3402,6 +3408,7 @@ export default function TemplateEditor() {
     }
     window.addEventListener('keydown', handleKeyDown)
     window.addEventListener('keyup', handleKeyUp)
+    window.addEventListener('blur', handleBlur)
     canvas.addEventListener('wheel', handleWheel, { passive: false })
 
     // Game loop
@@ -3756,6 +3763,7 @@ export default function TemplateEditor() {
       cancelAnimationFrame(animFrame)
       window.removeEventListener('keydown', handleKeyDown)
       window.removeEventListener('keyup', handleKeyUp)
+      window.removeEventListener('blur', handleBlur)
       canvas.removeEventListener('wheel', handleWheel)
     }
   }, [])

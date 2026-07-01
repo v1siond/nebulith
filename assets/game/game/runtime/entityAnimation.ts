@@ -141,13 +141,17 @@ const RUN = '🏃'
 const DIRS: Facing[] = ['up', 'down', 'left', 'right']
 
 function move(dir: Facing, running: boolean): EntityAnimation {
+  const motion = running ? RUN : WALK
   return {
     id: `char-${running ? 'run' : 'walk'}-${dir}`,
     name: `${running ? 'run' : 'walk'} ${dir}`,
     trigger: { on: 'move', ...(running ? { whileRunning: true } : {}) },
     direction: dir,
-    frames: [{}, { char: running ? RUN : WALK, flipX: dir === 'right' }],
-    durationMs: running ? 220 : 300,
+    // The walk cycle is the moving emoji then the SAME emoji MIRRORED — never back to the idle glyph
+    // (that flickered idle↔walk AND swapped shirt colour). Same char both frames → one consistent
+    // figure; the mirror gives the step motion.
+    frames: [{ char: motion }, { char: motion, flipX: true }],
+    durationMs: running ? 300 : 440,
     loopDelayMs: 0,
     loop: true,
   }

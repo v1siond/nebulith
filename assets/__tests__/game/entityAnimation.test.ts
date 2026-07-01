@@ -69,13 +69,19 @@ describe('resolveFrame / activeFrame — what to draw (data, incl. flip)', () =>
   test('no animations → the base tile, never mirrored', () => {
     expect(activeFrame([], { char: '👾' }, { moving: true, facing: 'right' }, 150)).toEqual({ char: '👾', flipX: false })
   })
-  test('walking right on the motion beat shows 🚶 MIRRORED (data flip, not JS logic)', () => {
-    const f = activeFrame(A, { char: '🧍' }, { moving: true, facing: 'right' }, 150)
-    expect(f).toEqual({ char: '🚶', flipX: true })
+  test('the walk cycle is 🚶 then 🚶 MIRRORED — same emoji, NEVER back to the idle 🧍 mid-move', () => {
+    // walk durationMs 440, 2 frames → 220ms each. Frame 0 = 🚶, frame 1 = 🚶 mirrored. Both 🚶
+    // (one consistent figure/colour); the mirror is the step motion.
+    expect(activeFrame(A, { char: '🧍' }, { moving: true, facing: 'left' }, 0)).toEqual({ char: '🚶', flipX: false })
+    expect(activeFrame(A, { char: '🧍' }, { moving: true, facing: 'left' }, 250)).toEqual({ char: '🚶', flipX: true })
+    // never the idle glyph while moving:
+    for (const t of [0, 100, 250, 400, 500]) {
+      expect(activeFrame(A, { char: '🧍' }, { moving: true, facing: 'down' }, t).char).toBe('🚶')
+    }
   })
-  test('walking left shows 🚶 un-mirrored; the off-beat frame is the base 🧍', () => {
-    expect(activeFrame(A, { char: '🧍' }, { moving: true, facing: 'left' }, 150)).toEqual({ char: '🚶', flipX: false })
-    expect(activeFrame(A, { char: '🧍' }, { moving: true, facing: 'left' }, 0)).toEqual({ char: '🧍', flipX: false })
+  test('running swaps the moving emoji to 🏃 (still same-emoji cycle)', () => {
+    expect(activeFrame(A, { char: '🧍' }, { moving: true, running: true, facing: 'right' }, 0).char).toBe('🏃')
+    expect(activeFrame(A, { char: '🧍' }, { moving: false, facing: 'down' }, 0).char).toBe('🧍') // stationary → idle
   })
 })
 
