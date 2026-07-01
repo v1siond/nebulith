@@ -196,6 +196,22 @@ export function cellFill(tint: string | undefined, bg: string, grassy: boolean, 
   return grassy ? grassShade(tint, col, row) : tint
 }
 
+/** Draw an emoji glyph RECOLOURED toward `tint`, keeping its shape + internal shading — so one 🌲 reads
+ *  spring-green, autumn-amber, or winter-frost by the zone's canopy colour (emoji CAN be recoloured: we
+ *  overlay the tint with `source-atop`, which only paints the glyph's own opaque pixels, never the ground
+ *  behind it). `glyphPx` is the drawn font size (sizes the overlay); `strength` 0–1 is how hard to push
+ *  the hue (0 = the emoji's native colours). Caller sets font + textAlign:'center' before calling. */
+export function fillTintedGlyph(ctx: CanvasRenderingContext2D, char: string, x: number, y: number, glyphPx: number, tint?: string, strength = 0.5): void {
+  ctx.fillText(char, x, y)
+  if (!tint || strength <= 0) return
+  ctx.save()
+  ctx.globalCompositeOperation = 'source-atop'
+  ctx.globalAlpha = Math.min(1, Math.max(0, strength))
+  ctx.fillStyle = tint
+  ctx.fillRect(x - glyphPx, y - glyphPx, glyphPx * 2, glyphPx * 2)
+  ctx.restore()
+}
+
 
 /** Clamp a camera focus coord (in cells) so a viewport spanning `halfSpan` cells
  *  each side stays inside [0, total]; if the grid is smaller than the viewport,

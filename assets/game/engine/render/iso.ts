@@ -16,7 +16,7 @@ import { type PlayerState, barFraction, hpFraction, playerDisplayName } from '@/
 import { type CombatState, type Entity, type Quest } from '@/game/types'
 import { GROUND_COLORS } from '@/levels/village'
 import { Connector } from '@/lib/api'
-import { ASCII_FONT, BUILDING_BADGES, COMBAT_RANGE, type DayNight, type DrawVisual, ENEMY_MOVE_MS, LAMP_GLOW, LIGHT, applyCellTransform, isoCameraFocus, collectLampGlows, debugCellCaptions, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawNightLighting, drawPlayerArm, drawQuestMarker, drawRangeRing, drawStyledImage, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, getPlayerArt, grassShade, cellFill, idleNow, isDeadEnemy, isDebugMode, resolveDraw, tileImage, treeCanopyLayers } from './shared'
+import { ASCII_FONT, BUILDING_BADGES, COMBAT_RANGE, type DayNight, type DrawVisual, ENEMY_MOVE_MS, LAMP_GLOW, LIGHT, applyCellTransform, isoCameraFocus, collectLampGlows, debugCellCaptions, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawNightLighting, drawPlayerArm, drawQuestMarker, drawRangeRing, drawStyledImage, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, getPlayerArt, grassShade, cellFill, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, resolveDraw, tileImage, treeCanopyLayers } from './shared'
 import { ASCII_STYLE, assetKind, entityKind, enemyTileId, genderize, groundKind, type ElementKind, type ImageVisual, type Style } from '@/game/artStyle'
 import { DEFAULT_CHARACTER_ANIMATIONS, activeFrame } from '@/game/runtime/entityAnimation'
 
@@ -1557,9 +1557,13 @@ export function drawIsoAssetAscii(
   if (adv.char) {
     // Trees tower (~3 cells, like the ASCII tree) instead of a tiny one-cell 🌲, anchored at the base.
     const isTree = asset.type === 'tree'
-    ctx.font = `bold ${fontSize * (isTree ? 2.7 : 1.7)}px ${ASCII_FONT}`
+    const glyphPx = fontSize * (isTree ? 2.7 : 1.7)
+    ctx.font = `bold ${glyphPx}px ${ASCII_FONT}`
     ctx.fillStyle = adv.color || '#ffffff'
-    ctx.fillText(adv.char, x, y - lineHeight * (isTree ? 1.15 : 0.6))
+    const gy = y - lineHeight * (isTree ? 1.15 : 0.6)
+    // A tree keeps its shape but is recoloured to its SEASON's canopy shade (asset.color).
+    if (isTree) fillTintedGlyph(ctx, adv.char, x, gy, glyphPx, asset.color, 0.55)
+    else ctx.fillText(adv.char, x, gy)
     ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
     return
   }
