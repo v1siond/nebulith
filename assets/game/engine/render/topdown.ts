@@ -444,11 +444,13 @@ export function render2D(
       // Grass varies per-cell into natural green tones (deterministic hash); other ground
       // keeps its uniform floor base.
       const bg = tileType.includes('grass') ? grassShade(colors.bg[0], col, row) : colors.bg[0]
-      // Active art style (ASCII passthrough → the char+fg above, byte-identical).
+      // Active art style (ASCII passthrough → the char+fg above, byte-identical). A reskin tints the
+      // flat cell at the tile hue so 2D agrees with the iso diamond; ASCII → bg (identical).
       const gdv = resolveDraw(groundKind(tileType), style, undefined, char, fg)
+      const fillBg = gdv.tint ?? bg
 
       // Draw ground tile
-      ctx.fillStyle = bg
+      ctx.fillStyle = fillBg
       ctx.fillRect(p.x - tileW / 2, p.y - tileH / 2, tileW, tileH)
 
       // Draw ground character with slight animation
@@ -467,13 +469,13 @@ export function render2D(
       if (cellHeight > 0) {
         const elevH = cellHeight * heightScale
         // Top surface (slightly brighter)
-        ctx.fillStyle = bg
+        ctx.fillStyle = fillBg
         ctx.fillRect(p.x - tileW / 2, p.y - tileH / 2 - elevH, tileW, tileH)
         ctx.fillStyle = gdv.color
         if (gdv.image) drawStyledImage(ctx, gdv.image, p.x, p.y - elevH, tileH)
         else ctx.fillText(gdv.char, p.x, p.y - elevH)
         // Front face (darker)
-        ctx.fillStyle = darkenColor(bg, 0.6)
+        ctx.fillStyle = darkenColor(fillBg, 0.6)
         ctx.fillRect(p.x - tileW / 2, p.y + tileH / 2 - elevH, tileW, elevH)
       }
     }

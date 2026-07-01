@@ -169,8 +169,8 @@ export function renderTopView(
       // Resolve the active art style (ASCII passthrough → the defaults above, unchanged).
       const dv = resolveDraw(kind, style, asset?.tileOverride, char, fg)
 
-      // Draw cell
-      ctx.fillStyle = bg
+      // Draw cell — a reskin tints the blueprint cell at the tile hue (agrees with iso/2D); ASCII → bg.
+      ctx.fillStyle = dv.tint ?? bg
       ctx.fillRect(x, y, tileSize - 1, tileSize - 1)
 
       ctx.fillStyle = dv.color
