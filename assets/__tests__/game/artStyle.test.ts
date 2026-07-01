@@ -29,6 +29,9 @@ describe('resolveVisual — the one style decision point', () => {
     expect(resolveVisual('grass', EMOJI_STYLE)).toMatchObject({ kind: 'glyph', char: '🍀' })
     expect(resolveVisual('enemy', EMOJI_STYLE)).toMatchObject({ kind: 'glyph', char: '👾' })
     expect(resolveVisual('player', EMOJI_STYLE)).toMatchObject({ kind: 'glyph', char: '🧍' })
+    // a fountain is its OWN kind now (⛲), not folded onto plain water 🌊 — "fountain translated wrong"
+    expect(resolveVisual('fountain', EMOJI_STYLE)).toMatchObject({ kind: 'glyph', char: '⛲' })
+    expect(assetKind({ type: 'fountain' })).toBe('fountain')
   })
 
   it('every Emoji tile carries a fill COLOUR — the tint the geometry-preserving renderers fill each unit with', () => {
@@ -118,7 +121,7 @@ describe('kind classifiers', () => {
     expect(assetKind({ type: 'flower' })).toBe('flower')
     expect(assetKind({ type: 'lantern' })).toBe('lamp')
     expect(assetKind({ type: 'building' })).toBe('wall')
-    expect(assetKind({ type: 'fountain' })).toBe('water')
+    expect(assetKind({ type: 'fountain' })).toBe('fountain')
     expect(assetKind({ type: 'totally-unknown' })).toBe('ground')
   })
 

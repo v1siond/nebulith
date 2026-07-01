@@ -22,7 +22,7 @@
 // ── element kinds (the vocabulary a Style maps) ──────────────────────────
 export type ElementKind =
   | 'grass' | 'water' | 'path' | 'plaza' | 'sand' | 'ground' // terrain
-  | 'wall' | 'roof' | 'door' | 'window'                       // buildings
+  | 'wall' | 'roof' | 'door' | 'window' | 'fountain'          // buildings
   | 'tree' | 'flower' | 'bush' | 'rock' | 'crate' | 'lamp'    // nature / props
   | 'crystal' | 'mushroom'                                     // cave features
   | 'pillar' | 'altar' | 'torch' | 'hazard' | 'key'          // temple / dungeon features
@@ -84,6 +84,7 @@ export const EMOJI_STYLE: Style = {
     roof: { kind: 'glyph', char: '🟥', color: '#c8443c' },
     door: { kind: 'glyph', char: '🚪', color: '#5a3a22' },
     window: { kind: 'glyph', char: '🪟', color: '#7fb4d8' },
+    fountain: { kind: 'glyph', char: '⛲', color: '#4a90e2' },
     // nature / props — upright billboards, `color` fills the glyph
     tree: { kind: 'glyph', char: '🌲', color: '#2f8f3f' },
     flower: { kind: 'glyph', char: '🌸', color: '#e785b5' },
@@ -188,7 +189,7 @@ export function assetKind(asset: { type: string; label?: string }): ElementKind 
 const TYPE_KIND: Readonly<Record<string, ElementKind>> = {
   tree: 'tree', flower: 'flower', bush: 'bush', rock: 'rock', decoration: 'rock',
   crate: 'crate', lamp: 'lamp', lantern: 'lamp', npc: 'npc',
-  water: 'water', fountain: 'water', building: 'wall',
+  water: 'water', fountain: 'fountain', building: 'wall',
   // cave props — walls + rubble read as rock; crystals + mushrooms get their own tint.
   cave_decor: 'rock', crystal: 'crystal', mushroom: 'mushroom',
   // temple props — walls read as wall; the colonnade/altar/torch/hazard/key get their own kinds
@@ -217,7 +218,7 @@ export interface TileDef {
 
 const CATEGORY_OF: Readonly<Record<ElementKind, TileCategory>> = {
   grass: 'terrain', water: 'terrain', path: 'terrain', plaza: 'terrain', sand: 'terrain', ground: 'terrain', mountain: 'terrain',
-  wall: 'buildings', roof: 'buildings', door: 'buildings', window: 'buildings',
+  wall: 'buildings', roof: 'buildings', door: 'buildings', window: 'buildings', fountain: 'buildings',
   pillar: 'buildings', altar: 'buildings',
   tree: 'nature', flower: 'nature', bush: 'nature', rock: 'nature', crate: 'nature', lamp: 'nature',
   crystal: 'nature', mushroom: 'nature', torch: 'nature', hazard: 'nature', key: 'nature',
@@ -226,7 +227,7 @@ const CATEGORY_OF: Readonly<Record<ElementKind, TileCategory>> = {
 
 const KIND_LABEL: Readonly<Record<ElementKind, string>> = {
   grass: 'Grass', water: 'Water', path: 'Path', plaza: 'Plaza', sand: 'Sand', ground: 'Ground', mountain: 'Mountain',
-  wall: 'Wall', roof: 'Roof', door: 'Door', window: 'Window',
+  wall: 'Wall', roof: 'Roof', door: 'Door', window: 'Window', fountain: 'Fountain',
   pillar: 'Pillar', altar: 'Altar',
   tree: 'Tree', flower: 'Flower', bush: 'Bush', rock: 'Rock', crate: 'Crate', lamp: 'Lamp',
   crystal: 'Crystal', mushroom: 'Mushroom', torch: 'Torch', hazard: 'Hazard', key: 'Key',
