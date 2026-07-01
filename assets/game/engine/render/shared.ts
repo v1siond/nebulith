@@ -216,15 +216,39 @@ export function drawBuildingLandmark(ctx: CanvasRenderingContext2D, emoji: strin
  *  overlay the tint with `source-atop`, which only paints the glyph's own opaque pixels, never the ground
  *  behind it). `glyphPx` is the drawn font size (sizes the overlay); `strength` 0–1 is how hard to push
  *  the hue (0 = the emoji's native colours). Caller sets font + textAlign:'center' before calling. */
+// A reusable OFFSCREEN canvas for per-glyph recolouring. The tint MUST be applied on a layer that holds
+// ONLY the glyph — `source-atop` over the MAIN canvas tints every opaque pixel under the rect (the ground
+// behind the tree → a coloured BOX, the bug). On its own offscreen it clips to the glyph alone.
+let _tintCanvas: HTMLCanvasElement | null = null
+function tintScratch(size: number): HTMLCanvasElement | null {
+  if (typeof document === 'undefined') return null
+  if (!_tintCanvas) _tintCanvas = document.createElement('canvas')
+  if (_tintCanvas.width < size) _tintCanvas.width = size
+  if (_tintCanvas.height < size) _tintCanvas.height = size
+  return _tintCanvas
+}
+
 export function fillTintedGlyph(ctx: CanvasRenderingContext2D, char: string, x: number, y: number, glyphPx: number, tint?: string, strength = 0.5): void {
-  ctx.fillText(char, x, y)
-  if (!tint || strength <= 0) return
-  ctx.save()
-  ctx.globalCompositeOperation = 'source-atop'
-  ctx.globalAlpha = Math.min(1, Math.max(0, strength))
-  ctx.fillStyle = tint
-  ctx.fillRect(x - glyphPx, y - glyphPx, glyphPx * 2, glyphPx * 2)
-  ctx.restore()
+  if (!tint || strength <= 0) { ctx.fillText(char, x, y); return }
+  const size = Math.ceil(glyphPx * 2)
+  const off = tintScratch(size)
+  const octx = off?.getContext('2d')
+  if (!off || !octx) { ctx.fillText(char, x, y); return } // no offscreen (SSR) → draw untinted, never a box
+  octx.clearRect(0, 0, off.width, off.height)
+  octx.font = ctx.font
+  octx.textAlign = 'center'
+  octx.textBaseline = 'middle'
+  octx.fillStyle = '#ffffff'
+  octx.fillText(char, size / 2, size / 2) // the emoji renders in its own colours (fillStyle ignored)
+  // Recolour ONLY the emoji's pixels — the offscreen holds nothing else, so no background box.
+  octx.globalCompositeOperation = 'source-atop'
+  octx.globalAlpha = Math.min(1, Math.max(0, strength))
+  octx.fillStyle = tint
+  octx.fillRect(0, 0, size, size)
+  octx.globalCompositeOperation = 'source-over'
+  octx.globalAlpha = 1
+  // Blit centred at (x,y) — the tree callers draw center/middle, so this lands exactly where fillText would.
+  ctx.drawImage(off, 0, 0, size, size, x - size / 2, y - size / 2, size, size)
 }
 
 

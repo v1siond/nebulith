@@ -228,14 +228,18 @@ export function enemyTileId(enemyType: string | undefined, style: Style): string
   return ENEMY_TILE_BY_TYPE[enemyType.toLowerCase()]
 }
 
-/** LANDMARK building types render as their own big emoji under a reskin (a castle looks like 🏰, a
- *  cathedral ⛪, a temple 🏛️, a manor 🏘️) — so temple/manor/castle/cathedral read distinctly instead of
- *  four identical brick boxes. Houses/stores/hospitals keep the 3D brick structure (they read fine). */
+/** Under a reskin EVERY building type renders as its own big landmark emoji so each reads as exactly what
+ *  it's named after — a house 🏠, a manor 🏡, a store 🏪, a hospital 🏥, a temple 🏛️, a cathedral ⛪, a
+ *  castle 🏰 — instead of interchangeable brick boxes (the user couldn't tell temple/manor/castle/cathedral
+ *  apart). Keyed by BuildingType; ASCII style skips this and keeps the drawn facade (see below). */
 export const BUILDING_LANDMARK_EMOJI: Readonly<Record<string, string>> = {
+  house: '🏠',
+  'big-house': '🏡',
+  store: '🏪',
+  hospital: '🏥',
   temple: '🏛️',
-  'big-house': '🏘️',
-  castle: '🏰',
   cathedral: '⛪',
+  castle: '🏰',
 }
 
 /** The landmark emoji for a building type under a reskin, or undefined (ASCII, or a non-landmark type
