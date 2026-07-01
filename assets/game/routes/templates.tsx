@@ -2745,10 +2745,23 @@ export default function TemplateEditor() {
     movePlayerToValidSpawn(stage.spawn.col, stage.spawn.row)
     const live = livePlayerCell()
     syncPlayerEntity(live.col, live.row, true) // fresh stage → player entity follows the spawn
-    // Generated wanderers become real, SELECTABLE, gendered npc entities (not genderless ☺ props).
-    // Drop any wanderers from a previous generate; keep the player + scattered enemies.
+    // Populate with real, SELECTABLE, gendered npc entities. Any ☺ props get promoted; on top of that,
+    // SETTLED stages (forest/town/city) carry NO npcs from the generator, so scatter gendered townsfolk
+    // onto walkable cells — else a "town" has no townspeople (and no females). Dungeons (cave/temple)
+    // get enemies instead (below). Drop any wanderers from a previous generate; keep the player.
     const promotedNpcs = promoteNpcAssetsToEntities(grid)
-    setEntities(prev => [...prev.filter(e => e.kind !== 'npc'), ...promotedNpcs])
+    const settled = variant !== 'cave' && variant !== 'temple'
+    const townCount = variant === 'city' ? 14 : variant === 'town' ? 8 : 5
+    const collision = Array.from({ length: grid.rows }, (_, r) =>
+      Array.from({ length: grid.cols }, (_, c) => grid.isBlocked(c, r)),
+    )
+    setEntities(prev => {
+      const kept = prev.filter(e => e.kind !== 'npc')
+      const townsfolk = settled
+        ? scatterEntities({ collision, occupied: kept.map(e => ({ col: e.col, row: e.row })), count: townCount, kinds: ['npc'], idPrefix: `town-${prev.length}` })
+        : []
+      return [...kept, ...promotedNpcs, ...townsfolk]
+    })
     if (variant === 'cave') seedStageEnemies(grid, CAVE_ENEMY_TYPES, 'cave') // bats/spiders/skeletons
     if (variant === 'temple') seedStageEnemies(grid, TEMPLE_ENEMY_TYPES, 'temple') // skeletons/guardians/wraiths
     setSelectedCells(new Set())
