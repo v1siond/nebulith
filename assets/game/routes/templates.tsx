@@ -540,6 +540,7 @@ export default function TemplateEditor() {
     playerRef.current.name = playerDisplayName(playerEntity?.name)
     // Mirror the player entity's authored animations so the live hero plays what you author (#91).
     playerRef.current.animations = playerEntity?.animations
+    playerRef.current.variant = playerEntity?.variant // male/female figure
     playerStatsRef.current = {
       ...base,
       strength: base.strength + b.strength,
@@ -4904,6 +4905,21 @@ export default function TemplateEditor() {
                       <ArtSection override={selEntity.tileOverride} styleName={activeStyle.name} onOpen={() => setTileLibraryOpen(true)} />
                     </Card>
                     <Card title="Animation" accent="cyan" defaultOpen={false} sectionId="animation" focus={sectionFocus}>
+                      <div className="mb-3 flex items-center gap-2 text-[11px]">
+                        <span className="text-gray-400">Figure</span>
+                        {(['', 'male', 'female'] as const).map(v => (
+                          <button
+                            key={v || 'neutral'}
+                            type="button"
+                            onClick={() => patchSelectedEntity({ variant: (v || undefined) as 'male' | 'female' | undefined })}
+                            className={`rounded px-2 py-0.5 font-bold transition-colors ${
+                              (selEntity.variant ?? '') === v ? 'bg-cyan-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                            }`}
+                          >
+                            {v || 'neutral'}
+                          </button>
+                        ))}
+                      </div>
                       <AnimationEditor
                         animations={selEntity.animations ?? []}
                         category="units"

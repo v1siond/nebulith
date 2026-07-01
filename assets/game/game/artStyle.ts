@@ -107,6 +107,33 @@ export const EMOJI_STYLE: Style = {
   },
 }
 
+// Gendered forms of the person glyphs, so an entity's `variant` renders the matching figure. A
+// monster / colored-square / variant-less glyph is returned unchanged (genderize passes it through).
+const GENDERED: Readonly<Record<string, { male: string; female: string }>> = {
+  '🧍': { male: '🧍‍♂️', female: '🧍‍♀️' },
+  '🚶': { male: '🚶‍♂️', female: '🚶‍♀️' },
+  '🏃': { male: '🏃‍♂️', female: '🏃‍♀️' },
+  '🧑': { male: '👨', female: '👩' },
+  '🧒': { male: '👦', female: '👧' },
+  '🧓': { male: '👴', female: '👵' },
+  '🧙': { male: '🧙‍♂️', female: '🧙‍♀️' },
+  '🧝': { male: '🧝‍♂️', female: '🧝‍♀️' },
+  '🧛': { male: '🧛‍♂️', female: '🧛‍♀️' },
+  '🧟': { male: '🧟‍♂️', female: '🧟‍♀️' },
+  '💂': { male: '💂‍♂️', female: '💂‍♀️' },
+  '👮': { male: '👮‍♂️', female: '👮‍♀️' },
+  '👷': { male: '👷‍♂️', female: '👷‍♀️' },
+  '🦸': { male: '🦸‍♂️', female: '🦸‍♀️' },
+  '🦹': { male: '🦹‍♂️', female: '🦹‍♀️' },
+}
+
+/** The gendered form of a person glyph for an entity `variant`; a non-person or variant-less glyph
+ *  (a monster, a terrain square) passes through unchanged. Data-only — the renderer just calls it. */
+export function genderize(char: string, variant?: 'male' | 'female'): string {
+  if (!variant) return char
+  return GENDERED[char]?.[variant] ?? char
+}
+
 /** The styles the picker offers, in order. ASCII first (the default). */
 export const BUILT_IN_STYLES: readonly Style[] = [ASCII_STYLE, EMOJI_STYLE]
 

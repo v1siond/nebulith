@@ -17,7 +17,7 @@ import { type CombatState, type Entity, type Quest } from '@/game/types'
 import { GROUND_COLORS } from '@/levels/village'
 import { Connector } from '@/lib/api'
 import { ASCII_FONT, BUILDING_BADGES, COMBAT_RANGE, type DayNight, type DrawVisual, ENEMY_MOVE_MS, LAMP_GLOW, LIGHT, applyCellTransform, isoCameraFocus, collectLampGlows, debugCellCaptions, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawNightLighting, drawPlayerArm, drawQuestMarker, drawRangeRing, drawStyledImage, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, getPlayerArt, grassShade, idleNow, isDeadEnemy, isDebugMode, resolveDraw, tileImage, treeCanopyLayers } from './shared'
-import { ASCII_STYLE, assetKind, entityKind, groundKind, type ElementKind, type ImageVisual, type Style } from '@/game/artStyle'
+import { ASCII_STYLE, assetKind, entityKind, genderize, groundKind, type ElementKind, type ImageVisual, type Style } from '@/game/artStyle'
 import { DEFAULT_CHARACTER_ANIMATIONS, activeFrame } from '@/game/runtime/entityAnimation'
 
 
@@ -694,7 +694,7 @@ export function drawIsoPlayer(
     ctx.fillStyle = pdv.color
     // Play the hero's AUTHORED animation (data-driven, direction-aware) — no hardcoded walk/run/flip.
     const pf = activeFrame(player.animations ?? DEFAULT_CHARACTER_ANIMATIONS, { char: pdv.char }, { moving: player.moving, facing: player.facing, running: player.running ?? false }, time)
-    drawFacingGlyph(ctx, pf.char ?? pdv.char, x, y - lineHeight - breathe, pf.flipX)
+    drawFacingGlyph(ctx, genderize(pf.char ?? pdv.char, player.variant), x, y - lineHeight - breathe, pf.flipX)
     ctx.textAlign = 'left'
     ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
   } else {
@@ -847,7 +847,7 @@ export function drawIsoEntity(
     ctx.fillStyle = edv.color
     const anims = entity.animations ?? (isEnemy ? undefined : DEFAULT_CHARACTER_ANIMATIONS)
     const ef = activeFrame(anims, { char: edv.char }, { moving, facing: 'down', running: false }, now)
-    drawFacingGlyph(ctx, ef.char ?? edv.char, x, groundY - emojiPx * 0.42, ef.flipX)
+    drawFacingGlyph(ctx, genderize(ef.char ?? edv.char, entity.variant), x, groundY - emojiPx * 0.42, ef.flipX)
     ctx.textAlign = 'left'
     ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
   } else {

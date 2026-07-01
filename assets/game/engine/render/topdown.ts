@@ -17,7 +17,7 @@ import { type CombatState, type Entity, type Quest } from '@/game/types'
 import { GROUND_COLORS } from '@/levels/village'
 import { Connector } from '@/lib/api'
 import { ASCII_FONT, BUILDING_BADGES, COMBAT_RANGE, type DayNight, ENEMY_MOVE_MS, LAMP_GLOW, applyCellTransform, clampCameraAxis, collectLampGlows, debugCellCaptions, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawNightLighting, drawPlayerArm, drawQuestMarker, drawRangeRing, drawStyledImage, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, getPlayerArt, grassShade, idleNow, isDeadEnemy, isDebugMode, resolveDraw, treeCanopyLayers } from './shared'
-import { ASCII_STYLE, assetKind, entityKind, groundKind, type ElementKind, type Style } from '@/game/artStyle'
+import { ASCII_STYLE, assetKind, entityKind, genderize, groundKind, type ElementKind, type Style } from '@/game/artStyle'
 import { DEFAULT_CHARACTER_ANIMATIONS, activeFrame } from '@/game/runtime/entityAnimation'
 
 
@@ -77,7 +77,7 @@ export function drawTopEntity(
     ctx.fillStyle = edv.color
     const anims = entity.animations ?? (isEnemy ? undefined : DEFAULT_CHARACTER_ANIMATIONS)
     const ef = activeFrame(anims, { char: edv.char }, { moving, facing: 'down', running: false }, now)
-    drawFacingGlyph(ctx, ef.char ?? edv.char, cx, footY - emojiPx * 0.42, ef.flipX)
+    drawFacingGlyph(ctx, genderize(ef.char ?? edv.char, entity.variant), cx, footY - emojiPx * 0.42, ef.flipX)
     ctx.textAlign = 'left'
   } else {
     for (let i = 0; i < art.length; i++) {
@@ -588,7 +588,7 @@ export function render2D(
         ctx.font = `bold ${tileH * 1.7}px ${ASCII_FONT}` // character height, matching npcs
         // Play the hero's AUTHORED animation (data-driven, direction-aware) — no hardcoded walk/run.
         const pf = activeFrame(player.animations ?? DEFAULT_CHARACTER_ANIMATIONS, { char: pdv.char }, { moving: player.moving, facing: player.facing, running: player.running ?? false }, time)
-        drawFacingGlyph(ctx, pf.char ?? pdv.char, p.x, baseY - lineHeight * 1.2, pf.flipX)
+        drawFacingGlyph(ctx, genderize(pf.char ?? pdv.char, player.variant), p.x, baseY - lineHeight * 1.2, pf.flipX)
         ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
       } else {
         for (let i = 0; i < figArt2.length; i++) {

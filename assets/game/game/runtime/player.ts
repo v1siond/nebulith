@@ -19,6 +19,8 @@ export interface PlayerState {
   /** authored animations mirrored from the player entity, so the live hero plays whatever you author
    *  in the Inspector (falls back to the default character set when absent). */
   animations?: EntityAnimation[]
+  /** person variant mirrored from the player entity → the hero renders the male/female figure. */
+  variant?: 'male' | 'female'
   frame: number
   /** visual hop height (px) while mid-jump; 0 on the ground. */
   jumpHeight?: number
