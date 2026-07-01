@@ -228,6 +228,23 @@ export function enemyTileId(enemyType: string | undefined, style: Style): string
   return ENEMY_TILE_BY_TYPE[enemyType.toLowerCase()]
 }
 
+/** LANDMARK building types render as their own big emoji under a reskin (a castle looks like 🏰, a
+ *  cathedral ⛪, a temple 🏛️, a manor 🏘️) — so temple/manor/castle/cathedral read distinctly instead of
+ *  four identical brick boxes. Houses/stores/hospitals keep the 3D brick structure (they read fine). */
+export const BUILDING_LANDMARK_EMOJI: Readonly<Record<string, string>> = {
+  temple: '🏛️',
+  'big-house': '🏘️',
+  castle: '🏰',
+  cathedral: '⛪',
+}
+
+/** The landmark emoji for a building type under a reskin, or undefined (ASCII, or a non-landmark type
+ *  that keeps its structure). */
+export function buildingLandmarkEmoji(type: string, style: Style): string | undefined {
+  if (style.id === 'ascii') return undefined
+  return BUILDING_LANDMARK_EMOJI[type]
+}
+
 // ── the Tile Library catalog (what the modal lists + what an override points at) ──
 export interface TileDef {
   /** style-agnostic, globally-unique tile id (what a `tileOverride` stores). */

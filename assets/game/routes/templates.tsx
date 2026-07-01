@@ -1363,12 +1363,20 @@ export default function TemplateEditor() {
       __cellSel?: () => { count: number; first: string | null }
       __selectCells?: (keys: string[]) => number
       __applyCellTile?: (tileId: string | null) => void
+      __clearRegion?: (col0: number, row0: number, col1: number, row1: number) => void
     }
     // Cell-editing validation seams: read the current cell selection, set it, and pin a tile to it — so
     // "select any cell + replace it" is validated deterministically (independent of click/drag timing).
     win.__cellSel = () => ({ count: selectedCellsRef.current.size, first: Array.from(selectedCellsRef.current)[0] ?? null })
     win.__selectCells = (keys: string[]) => { setSelectedCells(new Set(keys)); setSelectedEntityId(null); return keys.length }
     win.__applyCellTile = (tileId: string | null) => setSelectionOverride(tileId)
+    win.__clearRegion = (col0: number, row0: number, col1: number, row1: number) => {
+      const g = gridRef.current
+      if (!g) return
+      for (let r = row0; r <= row1; r++) for (let c = col0; c <= col1; c++) { g.setGround(c, r, 'grass'); g.setCollision(c, r, false) }
+      g.assets = g.assets.filter(a => !(a.col >= col0 && a.col <= col1 && a.row >= row0 && a.row <= row1))
+      g.buildings = g.buildings.filter(bd => !(bd.col >= col0 - 4 && bd.col <= col1 && bd.row >= row0 - 4 && bd.row <= row1 + 4))
+    }
     // Building-tool validation seams: place a house, resize it, read its facade length — so house-sizing
     // ("make a house 4 or 6 cells long, iso re-extrudes") is validated in the real editor deterministically.
     win.__placeBuilding = (type: string, col: number, row: number) => placeNewBuilding(type as BuildingType, col, row)
@@ -1460,7 +1468,7 @@ export default function TemplateEditor() {
       setSelectedCells(new Set([`${best.col},${best.row}`]))
       return best
     }
-    return () => { delete win.__setArtStyle; delete win.__selectFirstTreeCell; delete win.__setView; delete win.__gridKinds; delete win.__entityInfo; delete win.__entityScreens; delete win.__selectEntity; delete win.__selectedEntityInfo; delete win.__placeBuilding; delete win.__selectBuilding; delete win.__resizeBuilding; delete win.__selectedBuildingLen; delete win.__cellSel; delete win.__selectCells; delete win.__applyCellTile }
+    return () => { delete win.__setArtStyle; delete win.__selectFirstTreeCell; delete win.__setView; delete win.__gridKinds; delete win.__entityInfo; delete win.__entityScreens; delete win.__selectEntity; delete win.__selectedEntityInfo; delete win.__placeBuilding; delete win.__selectBuilding; delete win.__resizeBuilding; delete win.__selectedBuildingLen; delete win.__cellSel; delete win.__selectCells; delete win.__applyCellTile; delete win.__clearRegion }
   }, [])
 
   // ── Selected-entity inspector actions ─────────────────────────────

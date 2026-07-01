@@ -196,6 +196,21 @@ export function cellFill(tint: string | undefined, bg: string, grassy: boolean, 
   return grassy ? grassShade(tint, col, row) : tint
 }
 
+/** Draw a LANDMARK building as its big emoji (🏰/⛪/🏛️/🏘️), base-anchored + centred so it sits on its
+ *  footprint like a real structure — used so a castle reads as a castle, not a generic brick box. A soft
+ *  shadow keeps it legible over any ground. */
+export function drawBuildingLandmark(ctx: CanvasRenderingContext2D, emoji: string, cx: number, baseY: number, spanPx: number): void {
+  ctx.save()
+  ctx.font = `${spanPx}px ${ASCII_FONT}`
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'alphabetic'
+  ctx.fillStyle = 'rgba(0,0,0,0.35)'
+  ctx.fillText(emoji, cx + spanPx * 0.03, baseY + spanPx * 0.03)
+  ctx.fillStyle = '#ffffff'
+  ctx.fillText(emoji, cx, baseY)
+  ctx.restore()
+}
+
 /** Draw an emoji glyph RECOLOURED toward `tint`, keeping its shape + internal shading — so one 🌲 reads
  *  spring-green, autumn-amber, or winter-frost by the zone's canopy colour (emoji CAN be recoloured: we
  *  overlay the tint with `source-atop`, which only paints the glyph's own opaque pixels, never the ground

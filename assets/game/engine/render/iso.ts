@@ -16,8 +16,8 @@ import { type PlayerState, barFraction, hpFraction, playerDisplayName } from '@/
 import { type CombatState, type Entity, type Quest } from '@/game/types'
 import { GROUND_COLORS } from '@/levels/village'
 import { Connector } from '@/lib/api'
-import { ASCII_FONT, BUILDING_BADGES, COMBAT_RANGE, type DayNight, type DrawVisual, ENEMY_MOVE_MS, LAMP_GLOW, LIGHT, applyCellTransform, isoCameraFocus, collectLampGlows, debugCellCaptions, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawNightLighting, drawPlayerArm, drawQuestMarker, drawRangeRing, drawStyledImage, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, getPlayerArt, grassShade, cellFill, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, resolveDraw, tileImage, treeCanopyLayers } from './shared'
-import { ASCII_STYLE, assetKind, entityKind, enemyTileId, genderize, groundKind, type ElementKind, type ImageVisual, type Style } from '@/game/artStyle'
+import { ASCII_FONT, BUILDING_BADGES, COMBAT_RANGE, type DayNight, type DrawVisual, ENEMY_MOVE_MS, LAMP_GLOW, LIGHT, applyCellTransform, isoCameraFocus, collectLampGlows, debugCellCaptions, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawNightLighting, drawPlayerArm, drawQuestMarker, drawRangeRing, drawStyledImage, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, getPlayerArt, grassShade, cellFill, fillTintedGlyph, drawBuildingLandmark, idleNow, isDeadEnemy, isDebugMode, resolveDraw, tileImage, treeCanopyLayers } from './shared'
+import { ASCII_STYLE, assetKind, buildingLandmarkEmoji, entityKind, enemyTileId, genderize, groundKind, type ElementKind, type ImageVisual, type Style } from '@/game/artStyle'
 import { DEFAULT_CHARACTER_ANIMATIONS, activeFrame } from '@/game/runtime/entityAnimation'
 
 
@@ -1031,6 +1031,16 @@ export function drawIsoBuilding(
   // there would draw the facade with the wrong proportions.
   const L = b.cells[0]?.length ?? b.length
   const H = b.cells.length
+  // A landmark type (temple/manor/castle/cathedral) draws as its own big emoji, sitting on its
+  // footprint, so it reads as what it IS instead of another brick box. Others fall through to the box.
+  const landmark = buildingLandmarkEmoji(b.type, style)
+  if (landmark) {
+    const depth = Math.max(1, b.depth)
+    const cx = origin.x + colVec.x * (L / 2) + depthVec.x * (depth / 2)
+    const gy = origin.y + colVec.y * (L / 2) + depthVec.y * (depth / 2)
+    drawBuildingLandmark(ctx, landmark, cx, gy + cellH * 0.4, Math.max(L, depth) * cellH * 1.25)
+    return
+  }
   const bodyH = H - ROOF_ROWS // wall/window/door rows
   const up = (n: number): Pt => ({ x: 0, y: -n * cellH })
   // Houses peak (composeBuilding leaves empty corners in row 0); flat types keep a box roof.

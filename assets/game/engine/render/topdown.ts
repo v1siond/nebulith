@@ -16,8 +16,8 @@ import { type PlayerState, barFraction, hpFraction, playerDisplayName } from '@/
 import { type CombatState, type Entity, type Quest } from '@/game/types'
 import { GROUND_COLORS } from '@/levels/village'
 import { Connector } from '@/lib/api'
-import { ASCII_FONT, BUILDING_BADGES, COMBAT_RANGE, type DayNight, ENEMY_MOVE_MS, LAMP_GLOW, applyCellTransform, clampCameraAxis, collectLampGlows, debugCellCaptions, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawNightLighting, drawPlayerArm, drawQuestMarker, drawRangeRing, drawStyledImage, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, getPlayerArt, grassShade, cellFill, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, resolveDraw, treeCanopyLayers } from './shared'
-import { ASCII_STYLE, assetKind, entityKind, enemyTileId, genderize, groundKind, type ElementKind, type Style } from '@/game/artStyle'
+import { ASCII_FONT, BUILDING_BADGES, COMBAT_RANGE, type DayNight, ENEMY_MOVE_MS, LAMP_GLOW, applyCellTransform, clampCameraAxis, collectLampGlows, debugCellCaptions, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawNightLighting, drawPlayerArm, drawQuestMarker, drawRangeRing, drawStyledImage, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, getPlayerArt, grassShade, cellFill, fillTintedGlyph, drawBuildingLandmark, idleNow, isDeadEnemy, isDebugMode, resolveDraw, treeCanopyLayers } from './shared'
+import { ASCII_STYLE, assetKind, buildingLandmarkEmoji, entityKind, enemyTileId, genderize, groundKind, type ElementKind, type Style } from '@/game/artStyle'
 import { DEFAULT_CHARACTER_ANIMATIONS, activeFrame } from '@/game/runtime/entityAnimation'
 
 
@@ -198,6 +198,13 @@ export function draw2DBuilding(
   // camera-NEAR facings (south/east — the same split iso uses via `facadeOnBack`); the FAR facings
   // (north/west) show a plain BACK wall, since a flat elevation can't show a door that faces away.
   // ~50/50 front/back, and the door indicator (render2D) marks the real entrance on the backs.
+  // A landmark type (temple/manor/castle/cathedral) draws as its own big emoji so it reads as what it
+  // IS, not another brick box. Houses/stores/hospitals fall through to the 3D facade below.
+  const landmark = buildingLandmarkEmoji(b.type, style)
+  if (landmark) {
+    drawBuildingLandmark(ctx, landmark, centerX, baseY, Math.max(b.length * tileW, b.height * tileH) * 1.05)
+    return
+  }
   const showFront = !isoFacadeOnBack(gridBuildingFacing(b))
   const cells = b.cells
   const H = cells.length
