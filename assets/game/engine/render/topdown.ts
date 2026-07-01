@@ -102,12 +102,15 @@ export function drawTopEntity(
   const figureTop = topY - 4
   if (entity.kind !== 'enemy') return { x: cx, y: figureTop - fontSize * 0.6 }
 
-  // Bigger, thicker enemy HP bar (was figure-width × 3) so it reads at a glance, plus the enemy
-  // name above it — the SAME treatment the player's life bar reuses (drawFigureVitals).
+  // Enemy vitals (HP bar + name) drew for EVERY enemy, so a mob-heavy cave/temple became a wall of
+  // "skeleton/bat/spider" text. Show them only when the enemy is ENGAGED (in combat proximity) or
+  // DAMAGED; an idle distant enemy is just its self-identifying glyph — click it for the Inspector.
+  const frac = hpFraction(entity, combat)
+  if (frac >= 0.999 && !inRange && !attackable) return { x: cx, y: figureTop - fontSize * 0.6 }
   const barWidth = Math.max(maxW * charW, tileSize * 2.2)
   const label = entity.name ?? entity.enemyType ?? 'Enemy'
   const nameSize = Math.max(9, fontSize)
-  return drawFigureVitals(ctx, cx, figureTop, barWidth, 6, nameSize, hpFraction(entity, combat), label)
+  return drawFigureVitals(ctx, cx, figureTop, barWidth, 6, nameSize, frac, label)
 }
 
 

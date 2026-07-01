@@ -427,7 +427,9 @@ export function renderTopView(
     // pass through unchanged); matches iso/2d.
     if (edv.image) drawStyledImage(ctx, edv.image, ex + tileSize / 2, ey + tileSize / 2, tileSize)
     else drawTopArrow(ctx, ex, ey, tileSize, edv.color, genderize(edv.char, entity.variant))
-    if (entity.kind === 'enemy') drawHpBar(ctx, ex + tileSize / 2, ey - 3, tileSize, 3, hpFraction(entity, combat))
+    // Only DAMAGED enemies show a bar in the overview — a full-HP mob adds nothing but clutter (its
+    // glyph already marks its position); matches the engaged/damaged gate iso + 2D use for vitals.
+    if (entity.kind === 'enemy') { const f = hpFraction(entity, combat); if (f < 0.999) drawHpBar(ctx, ex + tileSize / 2, ey - 3, tileSize, 3, f) }
     drawQuestMarker(ctx, entityQuestMarker(entity, quests), ex + tileSize / 2, ey - tileSize * 0.9, Math.max(12, tileSize * 1.1))
   }
 

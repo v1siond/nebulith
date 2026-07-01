@@ -863,12 +863,16 @@ export function drawIsoEntity(
   const figureTop = baseY - art.length * lineHeight
   if (entity.kind !== 'enemy') return { x, y: figureTop - lineHeight * 0.5 }
 
-  // Bigger, thicker enemy HP bar (was tileH*1.4 × 4) so it reads at a glance, plus the enemy
-  // name above it — the SAME treatment the player's life bar reuses (drawFigureVitals).
+  // Enemy vitals (HP bar + name) drew for EVERY enemy, so a mob-heavy cave/temple became a wall of
+  // "skeleton/bat/spider" text. Show them only when the enemy is ENGAGED (in combat proximity) or
+  // DAMAGED; an idle distant enemy is just its self-identifying glyph (💀/🦇/🕷️) — click it for the
+  // Inspector. Standard action-RPG behaviour: bars appear on engagement/damage, not always-on.
+  const frac = hpFraction(entity, combat)
+  if (frac >= 0.999 && !inRange && !attackable) return { x, y: figureTop - lineHeight * 0.5 }
   const barWidth = Math.max(28, tileH * 2.2)
   const label = entity.name ?? entity.enemyType ?? 'Enemy'
   const nameSize = Math.max(9, tileH * 0.95)
-  return drawFigureVitals(ctx, x, figureTop, barWidth, 7, nameSize, hpFraction(entity, combat), label)
+  return drawFigureVitals(ctx, x, figureTop, barWidth, 7, nameSize, frac, label)
 }
 
 
