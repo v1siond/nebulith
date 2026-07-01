@@ -16,8 +16,9 @@ import { type PlayerState, barFraction, hpFraction, playerDisplayName } from '@/
 import { type CombatState, type Entity, type Quest } from '@/game/types'
 import { GROUND_COLORS } from '@/levels/village'
 import { Connector } from '@/lib/api'
-import { ASCII_FONT, BUILDING_BADGES, COMBAT_RANGE, type DayNight, ENEMY_MOVE_MS, LAMP_GLOW, applyCellTransform, clampCameraAxis, collectLampGlows, debugCellCaptions, debugLabelColors, drawFigureVitals, drawGroundShadow, drawHitMarker, drawNightLighting, drawPlayerArm, drawQuestMarker, drawRangeRing, drawStyledImage, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, getPlayerArt, grassShade, idleNow, isDeadEnemy, isDebugMode, resolveDraw, treeCanopyLayers } from './shared'
-import { ASCII_STYLE, assetKind, characterMotionChar, entityKind, groundKind, type ElementKind, type Style } from '@/game/artStyle'
+import { ASCII_FONT, BUILDING_BADGES, COMBAT_RANGE, type DayNight, ENEMY_MOVE_MS, LAMP_GLOW, applyCellTransform, clampCameraAxis, collectLampGlows, debugCellCaptions, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawNightLighting, drawPlayerArm, drawQuestMarker, drawRangeRing, drawStyledImage, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, getPlayerArt, grassShade, idleNow, isDeadEnemy, isDebugMode, resolveDraw, treeCanopyLayers } from './shared'
+import { ASCII_STYLE, assetKind, entityKind, groundKind, type ElementKind, type Style } from '@/game/artStyle'
+import { DEFAULT_CHARACTER_ANIMATIONS, activeFrame } from '@/game/runtime/entityAnimation'
 
 
 /** Draw a placed entity in the TOP (blueprint) renderer — a filled cell badge
@@ -63,16 +64,20 @@ export function drawTopEntity(
   const pal = entityPalette(entity)
   const edv = resolveDraw(entityKind(entity.kind), style, entity.tileOverride, '', pal.fg)
   if (edv.image) {
-    drawStyledImage(ctx, edv.image, cx, startY + ((art.length - 1) / 2) * fontSize, spanH * 0.9)
+    const imgPx = spanH * 0.9
+    drawStyledImage(ctx, edv.image, cx, footY - imgPx * 0.42, imgPx)
   } else if (edv.char) {
-    // Styled: one emoji replaces the multi-row figure (still gets the HP bar / name below). Size is
-    // a FIXED multiple of the cell — not the ASCII row count, which ballooned big creatures. Enemies
-    // read a touch smaller than people; people (npcs) stand at character height and animate the walk.
+    // One emoji replaces the multi-row figure. FIXED cell-multiple size (not the ASCII row count,
+    // which ballooned big creatures), and grounded by its BOTTOM at the shadow (footY) so a smaller
+    // enemy doesn't float. People play their AUTHORED animation; enemies default to a static glyph.
     const isEnemy = entityKind(entity.kind) === 'enemy'
-    ctx.font = `bold ${tileSize * (isEnemy ? 1.35 : 1.7)}px ${ASCII_FONT}`
+    const emojiPx = tileSize * (isEnemy ? 1.35 : 1.7)
+    ctx.font = `bold ${emojiPx}px ${ASCII_FONT}`
     ctx.textAlign = 'center'
     ctx.fillStyle = edv.color
-    ctx.fillText(isEnemy ? edv.char : characterMotionChar(edv.char, moving, false, now), cx, startY + ((art.length - 1) / 2) * fontSize)
+    const anims = entity.animations ?? (isEnemy ? undefined : DEFAULT_CHARACTER_ANIMATIONS)
+    const ef = activeFrame(anims, { char: edv.char }, { moving, facing: 'down', running: false }, now)
+    drawFacingGlyph(ctx, ef.char ?? edv.char, cx, footY - emojiPx * 0.42, ef.flipX)
     ctx.textAlign = 'left'
   } else {
     for (let i = 0; i < art.length; i++) {
@@ -575,8 +580,10 @@ export function render2D(
       if (pdv.image) {
         drawStyledImage(ctx, pdv.image, p.x, baseY - lineHeight * 1.4, tileH * 1.8)
       } else if (pdv.char) {
-        ctx.font = `bold ${tileH * 1.7}px ${ASCII_FONT}` // character height, matching npcs (was art-scaled + small)
-        ctx.fillText(characterMotionChar(pdv.char, player.moving, player.running ?? false, time), p.x, baseY - lineHeight * 1.2)
+        ctx.font = `bold ${tileH * 1.7}px ${ASCII_FONT}` // character height, matching npcs
+        // Play the hero's AUTHORED animation (data-driven, direction-aware) — no hardcoded walk/run.
+        const pf = activeFrame(DEFAULT_CHARACTER_ANIMATIONS, { char: pdv.char }, { moving: player.moving, facing: player.facing, running: player.running ?? false }, time)
+        drawFacingGlyph(ctx, pf.char ?? pdv.char, p.x, baseY - lineHeight * 1.2, pf.flipX)
         ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
       } else {
         for (let i = 0; i < figArt2.length; i++) {

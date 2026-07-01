@@ -107,20 +107,6 @@ export const EMOJI_STYLE: Style = {
   },
 }
 
-/** Walk/run motion emojis — the moving frame of the character's 3-frame [idle, motion, idle] cycle.
- *  Emoji here is the v1 TEST HARNESS for real per-frame sprites: swapping the glyph each step is
- *  exactly how an image tileset will animate. (An image style that ships a player sprite would carry
- *  its own walk/run frames; until then all people share these.) Running (Shift) swaps 🚶→🏃. */
-export const MOTION_EMOJI = { walk: '🚶', run: '🏃' } as const
-
-/** The character glyph to draw THIS frame: the idle glyph when still; otherwise ping-pong
- *  idle↔motion at a walk cadence — "current frame, then the walk/run emoji, then current frame". */
-export function characterMotionChar(idleChar: string, moving: boolean, running: boolean, timeMs: number): string {
-  if (!moving) return idleChar
-  const motion = running ? MOTION_EMOJI.run : MOTION_EMOJI.walk
-  return Math.floor(timeMs / 150) % 2 === 1 ? motion : idleChar
-}
-
 /** The styles the picker offers, in order. ASCII first (the default). */
 export const BUILT_IN_STYLES: readonly Style[] = [ASCII_STYLE, EMOJI_STYLE]
 

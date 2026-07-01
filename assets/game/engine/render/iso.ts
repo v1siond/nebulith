@@ -16,8 +16,9 @@ import { type PlayerState, barFraction, hpFraction, playerDisplayName } from '@/
 import { type CombatState, type Entity, type Quest } from '@/game/types'
 import { GROUND_COLORS } from '@/levels/village'
 import { Connector } from '@/lib/api'
-import { ASCII_FONT, BUILDING_BADGES, COMBAT_RANGE, type DayNight, type DrawVisual, ENEMY_MOVE_MS, LAMP_GLOW, LIGHT, applyCellTransform, isoCameraFocus, collectLampGlows, debugCellCaptions, debugLabelColors, drawFigureVitals, drawGroundShadow, drawHitMarker, drawNightLighting, drawPlayerArm, drawQuestMarker, drawRangeRing, drawStyledImage, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, getPlayerArt, grassShade, idleNow, isDeadEnemy, isDebugMode, resolveDraw, tileImage, treeCanopyLayers } from './shared'
-import { ASCII_STYLE, assetKind, characterMotionChar, entityKind, groundKind, type ElementKind, type ImageVisual, type Style } from '@/game/artStyle'
+import { ASCII_FONT, BUILDING_BADGES, COMBAT_RANGE, type DayNight, type DrawVisual, ENEMY_MOVE_MS, LAMP_GLOW, LIGHT, applyCellTransform, isoCameraFocus, collectLampGlows, debugCellCaptions, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawNightLighting, drawPlayerArm, drawQuestMarker, drawRangeRing, drawStyledImage, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, getPlayerArt, grassShade, idleNow, isDeadEnemy, isDebugMode, resolveDraw, tileImage, treeCanopyLayers } from './shared'
+import { ASCII_STYLE, assetKind, entityKind, groundKind, type ElementKind, type ImageVisual, type Style } from '@/game/artStyle'
+import { DEFAULT_CHARACTER_ANIMATIONS, activeFrame } from '@/game/runtime/entityAnimation'
 
 
 /** Per-face brightness from the global light: a face whose outward screen normal points toward the
@@ -691,9 +692,9 @@ export function drawIsoPlayer(
     ctx.font = `bold ${fontSize * 1.8}px ${ASCII_FONT}`
     ctx.textAlign = 'center'
     ctx.fillStyle = pdv.color
-    // Walk/run frame: swap the standing figure for 🚶/🏃 on the moving beat (the emoji test for
-    // real per-frame sprites). Running (Shift) picks 🏃.
-    ctx.fillText(characterMotionChar(pdv.char, player.moving, player.running ?? false, time), x, y - lineHeight - breathe)
+    // Play the hero's AUTHORED animation (data-driven, direction-aware) — no hardcoded walk/run/flip.
+    const pf = activeFrame(DEFAULT_CHARACTER_ANIMATIONS, { char: pdv.char }, { moving: player.moving, facing: player.facing, running: player.running ?? false }, time)
+    drawFacingGlyph(ctx, pf.char ?? pdv.char, x, y - lineHeight - breathe, pf.flipX)
     ctx.textAlign = 'left'
     ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
   } else {
@@ -831,15 +832,22 @@ export function drawIsoEntity(
   const kind = entityKind(entity.kind)
   const isEnemy = kind === 'enemy'
   const edv = resolveDraw(kind, style, entity.tileOverride, '', pal.fg)
+  // Ground the billboard by its BOTTOM at the shadow line, so ANY tile size stays grounded (a
+  // smaller enemy no longer floats above its shadow). `groundY` is the feet contact point.
+  const groundY = baseY + tileH * 0.1
   if (edv.image) {
-    drawStyledImage(ctx, edv.image, x, baseY - lineHeight, tileH * (isEnemy ? 1.9 : 2.4))
+    const imgPx = tileH * (isEnemy ? 1.9 : 2.4)
+    drawStyledImage(ctx, edv.image, x, groundY - imgPx * 0.42, imgPx)
   } else if (edv.char) {
-    // Enemies read a touch smaller than people so a mob doesn't tower over the hero; people
-    // (npcs) stand at the player's height and animate the SAME walk cycle when moving.
-    ctx.font = `bold ${fontSize * (isEnemy ? 1.35 : 1.7)}px ${ASCII_FONT}`
+    // Enemies read a touch smaller than people so a mob doesn't tower over the hero. Play the
+    // entity's AUTHORED animation (data-driven); enemies default to their static glyph.
+    const emojiPx = fontSize * (isEnemy ? 1.35 : 1.7)
+    ctx.font = `bold ${emojiPx}px ${ASCII_FONT}`
     ctx.textAlign = 'center'
     ctx.fillStyle = edv.color
-    ctx.fillText(isEnemy ? edv.char : characterMotionChar(edv.char, moving, false, now), x, baseY - lineHeight)
+    const anims = entity.animations ?? (isEnemy ? undefined : DEFAULT_CHARACTER_ANIMATIONS)
+    const ef = activeFrame(anims, { char: edv.char }, { moving, facing: 'down', running: false }, now)
+    drawFacingGlyph(ctx, ef.char ?? edv.char, x, groundY - emojiPx * 0.42, ef.flipX)
     ctx.textAlign = 'left'
     ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
   } else {

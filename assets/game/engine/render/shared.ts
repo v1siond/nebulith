@@ -65,6 +65,18 @@ export function tileImage(src: string): HTMLImageElement | null {
   return img.complete && img.naturalWidth > 0 ? img : null
 }
 
+/** Draw a glyph centered at (x, y), optionally MIRRORED horizontally about x. The mirror is a DATA
+ *  property of the animation frame (e.g. a right-facing walk reuses the left-facing emoji flipped) —
+ *  the renderer only honors the flag, it never decides to flip. Uses the current font / fillStyle. */
+export function drawFacingGlyph(ctx: CanvasRenderingContext2D, char: string, x: number, y: number, flipX: boolean): void {
+  if (!flipX) { ctx.fillText(char, x, y); return }
+  ctx.save()
+  ctx.translate(x, 0)
+  ctx.scale(-1, 1)
+  ctx.fillText(char, 0, y)
+  ctx.restore()
+}
+
 /** Draw an image tile centered at (cx, cy) filling a `size`×`size` box (optional atlas sub-rect). */
 export function drawStyledImage(ctx: CanvasRenderingContext2D, v: ImageVisual, cx: number, cy: number, size: number): void {
   const img = tileImage(v.src)

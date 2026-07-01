@@ -7,6 +7,7 @@
  * module-internal types live in their own files.
  */
 import type { AbilityAnimation } from './abilities'
+import type { EntityAnimation } from './runtime/entityAnimation'
 import type { Trigger } from './runtime/trigger'
 
 // ── stats & runtime combat state ────────────────────────────────────
@@ -248,6 +249,11 @@ export interface Entity {
   /** on-defeat triggers: fire when THIS entity is killed (spawn/give/win/message/…).
    *  Rides the `entities` field on save; the play loop fires them on death. Additive. */
   triggers?: Trigger[]
+  /** authored, data-driven animations (#91): the game plays frames by trigger + direction; frame 0
+   *  seeds from this entity's own tile. Absent → the default character set (person walk/idle). */
+  animations?: EntityAnimation[]
+  /** person variant → which gendered emoji family renders (Stage 3). */
+  variant?: 'male' | 'female'
 }
 
 // ── quests / missions ───────────────────────────────────────────────
