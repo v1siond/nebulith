@@ -46,7 +46,8 @@ import { type CombatState, type Entity, type EntityKind, type Inventory, type It
 import { weaponReach } from '@/game/weapons'
 import { VILLAGE_CONFIG } from '@/levels/village'
 import { Connector, TemplateListItem, createTemplate, deleteTemplate, deserializeToGrid, getTemplate, listTemplates, serializeGrid, updateTemplate } from '@/lib/api'
-import { ENTITY_GLYPH, buildingsFromAssets, buildingsToAssets, entitiesFromAssets, entitiesToAssets, isBuildingAsset, isEntityAsset, isQuestAsset, isStyleAsset, questsFromAssets, questsToAssets, styleFromAssets, styleToAssets } from '@/lib/gridCodec'
+import { type CellTriggerGroup, ENTITY_GLYPH, buildingsFromAssets, buildingsToAssets, cellTriggersFromAssets, cellTriggersToAssets, entitiesFromAssets, entitiesToAssets, isBuildingAsset, isEntityAsset, isQuestAsset, isStyleAsset, isTriggerAsset, questsFromAssets, questsToAssets, styleFromAssets, styleToAssets, triggersAtCell } from '@/lib/gridCodec'
+import { type Trigger, type TriggerEffect, fireTriggers } from '@/game/runtime/trigger'
 import { ASCII_STYLE, type Style, styleById } from '@/game/artStyle'
 import { useRouter } from 'next/router'
 import { useCallback, useEffect, useRef, useState } from 'react'
@@ -61,7 +62,7 @@ import { EquipmentPanel, InventoryCard, QuestAuthoringCard, QuestLogPanel } from
 import { EntityAttackBody, EntityIdentityStatsBody, EntityMovementBody, Modal, QuestGiveBody } from '@/components/game/modals'
 import { FlowViewOverlay, GamesViewOverlay } from '@/components/game/games'
 import { BUILDING_TOOL_TYPE, type BuildingTool, type EditorMode, type EntityTool, GROUND_SWATCHES, NATURE_TILE_KEYS } from '@/components/game/editorConfig'
-import { ArtSection, Dropdown, GenerateControls, type QuickAction, QuickActionToolbar, SelectionHeader, StylePicker, TileLibraryBody, ToolRail, TriggerPlaceholder } from '@/components/game/editorChrome'
+import { ArtSection, Dropdown, GenerateControls, type QuickAction, QuickActionToolbar, SelectionHeader, StylePicker, TileLibraryBody, ToolRail, TriggerEditor } from '@/components/game/editorChrome'
 
 
 // View mode states (global for game loop access)
@@ -169,6 +170,17 @@ export default function TemplateEditor() {
   const connectorModeRef = useRef(false)
   const viewTypeRef = useRef<'isometric' | '2d'>('isometric')
 
+  // ── Unified triggers (stage E) ──────────────────────────────────────
+  // "When [event] → do [action]." Cell triggers (enter / interact) live here,
+  // keyed by cell; on-defeat triggers live on the entity (entity.triggers). The
+  // once-mounted loop reads cell triggers through a ref. Persist via a marker asset.
+  const [cellTriggers, setCellTriggers] = useState<CellTriggerGroup[]>([])
+  const cellTriggersRef = useRef<CellTriggerGroup[]>([])
+  // Play-mode overlays fired by triggers: a win/lose end-state and a dismissible
+  // message popup. Null = hidden. The loop sets these through refs (latest closure).
+  const [endState, setEndState] = useState<'win' | 'lose' | null>(null)
+  const [triggerMessage, setTriggerMessage] = useState<string | null>(null)
+
   // Entity placement state (player / enemies / NPCs). The game loop is mounted
   // once and reads through a ref, so entities mirror to entitiesRef like connectors.
   const [entities, setEntities] = useState<Entity[]>([])
@@ -252,6 +264,11 @@ export default function TemplateEditor() {
   const interactDownRef = useRef(false)
   const teleportingRef = useRef(false)
   const triggerConnectorRef = useRef<(c: Connector) => void>(() => {})
+  // Unified-trigger effect applier the once-mounted loop calls through (latest closure,
+  // like triggerConnector). `prevDiedRef` tracks which enemies were already dead last
+  // frame so an on-defeat trigger fires exactly once per death (re-fires after respawn).
+  const applyTriggerEffectRef = useRef<(effect: TriggerEffect) => void>(() => {})
+  const prevDiedRef = useRef<Set<string>>(new Set())
   const jumpDownRef = useRef(false)
   const jumpRef = useRef<JumpState>({ active: false, fromX: 0, fromZ: 0, toX: 0, toZ: 0, start: 0 })
   // Quest hooks the once-mounted loop calls through (latest closure, like the
@@ -468,6 +485,11 @@ export default function TemplateEditor() {
   useEffect(() => {
     connectorModeRef.current = connectorMode
   }, [connectorMode])
+
+  // Keep the cell-triggers ref in sync so the once-mounted loop fires the latest set
+  useEffect(() => {
+    cellTriggersRef.current = cellTriggers
+  }, [cellTriggers])
 
   // Keep entities ref in sync so the once-mounted game loop renders the latest set
   useEffect(() => {
@@ -3515,6 +3537,14 @@ export default function TemplateEditor() {
           questEventRef.current({ kind: 'travel', place: `${curCol},${curRow}` })
           const entered = findTriggeredConnector(curCol, curRow, connectorsRef.current, 'enter')
           if (entered) triggerConnectorRef.current(entered)
+          // Unified triggers: fire this cell's `on enter` triggers (win / spawn / message
+          // / goto / …). Additive to connectors — both can live on the same map.
+          const enterTrigs = triggersAtCell(cellTriggersRef.current, curCol, curRow)
+          if (enterTrigs.length > 0) {
+            for (const eff of fireTriggers('enter', enterTrigs, { at: { col: curCol, row: curRow } })) {
+              applyTriggerEffectRef.current(eff)
+            }
+          }
         }
         // Interact key (edge-triggered): E / Enter — drives BOTH connectors and
         // quest accept/turn-in. A connector on the cell wins; otherwise we offer
@@ -3526,6 +3556,12 @@ export default function TemplateEditor() {
           const pressed = findTriggeredConnector(curCol, curRow, connectorsRef.current, 'interact')
           if (pressed) triggerConnectorRef.current(pressed)
           else questInteractRef.current(curCol, curRow)
+          // Unified triggers: fire this cell's `on interact` triggers too (additive —
+          // never blocks the connector/quest path above).
+          const interactTrigs = triggersAtCell(cellTriggersRef.current, curCol, curRow)
+          for (const eff of fireTriggers('interact', interactTrigs, { at: { col: curCol, row: curRow } })) {
+            applyTriggerEffectRef.current(eff)
+          }
         }
         interactDownRef.current = interactDown
 
@@ -3596,6 +3632,26 @@ export default function TemplateEditor() {
         playerCombatRef.current = projStep.playerCombat
         if (projStep.kills.length > 0) onKillsRef.current(projStep.kills)
         syncCombatHud(time)
+
+        // ── On-defeat triggers ──
+        // The combat module stamps a death time in runtime.diedAt when an enemy is
+        // killed. Newly-present ids (not dead last frame) died THIS frame → fire that
+        // entity's `on defeat` triggers exactly once. Comparing against prevDiedRef
+        // (reset to the current dead set each frame) also re-arms after a respawn clears
+        // the id, so a boss killed twice fires twice.
+        const diedNow = runtime.diedAt
+        const prevDied = prevDiedRef.current
+        if (diedNow.size > 0) {
+          for (const id of diedNow.keys()) {
+            if (prevDied.has(id)) continue
+            const ent = entitiesRef.current.find(e => e.id === id)
+            if (!ent?.triggers?.length) continue
+            for (const eff of fireTriggers('defeat', ent.triggers, { at: { col: ent.col, row: ent.row } })) {
+              applyTriggerEffectRef.current(eff)
+            }
+          }
+        }
+        prevDiedRef.current = new Set(diedNow.keys())
 
         // Cannon behavior: ready cannons fire at a nearby player.
         const cannonDamage = tickCannons(grid, player, cannonFireRef.current, hitMarkersRef.current, time)
@@ -3704,6 +3760,7 @@ export default function TemplateEditor() {
         ...questsToAssets(quests),
         ...buildingsToAssets(grid.buildings), // grouped buildings ride along so load rebuilds the render
         ...styleToAssets(activeStyleId), // active art style rides as one off-grid marker (ASCII → none)
+        ...cellTriggersToAssets(cellTriggers), // cell triggers (enter/interact) ride as off-grid markers
       ]
 
       if (currentTemplateId) {
@@ -3775,10 +3832,12 @@ export default function TemplateEditor() {
       const loadedQuests = questsFromAssets(gridRef.current!.assets)
       const loadedBuildings = buildingsFromAssets(gridRef.current!.assets)
       const loadedStyle = styleFromAssets(gridRef.current!.assets) // active art style marker (null → ASCII)
+      const loadedCellTriggers = cellTriggersFromAssets(gridRef.current!.assets) // cell triggers (enter/interact)
       gridRef.current!.assets = gridRef.current!.assets.filter(
-        a => !isEntityAsset(a) && !isQuestAsset(a) && !isBuildingAsset(a) && !isStyleAsset(a),
+        a => !isEntityAsset(a) && !isQuestAsset(a) && !isBuildingAsset(a) && !isStyleAsset(a) && !isTriggerAsset(a),
       )
       setActiveStyleId(styleById(loadedStyle).id) // restore the saved global skin (defaults to ASCII)
+      setCellTriggers(loadedCellTriggers) // restore the authored cell triggers
       // Restore the grouped buildings so iso/2D/top render the upright model, not the per-cell fallback.
       gridRef.current!.buildings = loadedBuildings
       setEntities(loadedEntities)
@@ -3895,10 +3954,87 @@ export default function TemplateEditor() {
     }
   }
 
-  // Keep the game loop's trigger callback pointed at the latest closure
+  /** Spawn `count` enemies of `enemyType` on free cells spiralling out from (col,row).
+   *  Only appends to the entities list — the combat module lazily seeds each new enemy's
+   *  runtime the first frame it sees it (syncEnemyRuntime). Skips blocked / occupied /
+   *  out-of-bounds cells so enemies never stack or land in a wall. */
+  const spawnEnemiesNear = (col: number, row: number, enemyType: string, count: number) => {
+    const grid = gridRef.current
+    if (!grid) return
+    const type = enemyType.trim() || 'enemy'
+    const archetype = archetypeForEnemyType(type)
+    const blocked = (c: number, r: number) => grid.isBlocked(c, r)
+    setEntities(prev => {
+      let next = prev
+      let placed = 0
+      for (let ring = 0; ring <= 6 && placed < count; ring++) {
+        for (let dc = -ring; dc <= ring && placed < count; dc++) {
+          for (let dr = -ring; dr <= ring && placed < count; dr++) {
+            if (Math.max(Math.abs(dc), Math.abs(dr)) !== ring) continue // walk the ring perimeter only
+            const c = col + dc, r = row + dr
+            if (!canPlaceEntity(next, c, r, grid.cols, grid.rows, blocked)) continue
+            next = placeEntity(next, { ...makeEnemy(mintEntityId('enemy'), c, r, type, { archetype }), hittable: true })
+            placed++
+          }
+        }
+      }
+      return next
+    })
+  }
+
+  /** Apply one resolved trigger effect (the loop calls this via applyTriggerEffectRef).
+   *  `goto` reuses the SAME teleport path as connectors, so a trigger's goto == today's
+   *  connector; the rest drive spawn / bag / message / win-lose overlays. */
+  const applyTriggerEffect = (effect: TriggerEffect) => {
+    if (effect.kind === 'goto') {
+      if (teleportingRef.current || !effect.templateId) return
+      teleportingRef.current = true
+      loadTemplate(effect.templateId, { col: effect.spawnCol ?? 0, row: effect.spawnRow ?? 0 })
+        .finally(() => { teleportingRef.current = false })
+    } else if (effect.kind === 'spawn') {
+      spawnEnemiesNear(effect.col, effect.row, effect.enemyType, effect.count)
+    } else if (effect.kind === 'give') {
+      setInventory(prev => addItem(prev, itemFromReward({ kind: 'item', amount: 1, itemId: effect.itemId }, mintItemId())))
+      toast(`Received: ${effect.itemId || 'item'}`, 'success')
+    } else if (effect.kind === 'message') {
+      setTriggerMessage(effect.text || '…')
+    } else if (effect.kind === 'win') {
+      setEndState('win')
+    } else if (effect.kind === 'lose') {
+      setEndState('lose')
+    }
+  }
+
+  // ── Inspector trigger authoring (cell + entity) ─────────────────────
+  /** Replace the triggers on one cell — drops the group entirely when it goes empty. */
+  const setTriggersForCell = (col: number, row: number, next: Trigger[]) => {
+    setCellTriggers(prev => {
+      const rest = prev.filter(g => !(g.col === col && g.row === row))
+      return next.length > 0 ? [...rest, { col, row, triggers: next }] : rest
+    })
+  }
+  /** Replace an entity's on-defeat triggers (undefined when empty, so it stays additive). */
+  const setTriggersForEntity = (id: string, next: Trigger[]) => {
+    setEntities(prev => prev.map(e => (e.id === id ? { ...e, triggers: next.length > 0 ? next : undefined } : e)))
+  }
+  /** Templates a `go to level` trigger can target (every saved map but this one). */
+  const gotoTargets = savedTemplates.filter(t => t.id !== currentTemplateId).map(t => ({ id: t.id, name: t.name }))
+
+  /** Restart after a win/lose overlay: clear the end-state, refill the player's HP, and
+   *  reload the current map so enemies/spawn reset for a clean run. */
+  const restartLevel = () => {
+    setEndState(null)
+    setTriggerMessage(null)
+    prevDiedRef.current = new Set()
+    playerCombatRef.current = { ...playerCombatRef.current, hp: playerStatsRef.current.maxHp }
+    if (currentTemplateId) loadTemplate(currentTemplateId)
+  }
+
+  // Keep the game loop's trigger callbacks pointed at the latest closure
   // (the loop is mounted once, so it must call through a ref).
   useEffect(() => {
     triggerConnectorRef.current = triggerConnector
+    applyTriggerEffectRef.current = applyTriggerEffect
   })
 
   // Delete a template
@@ -3944,6 +4080,7 @@ export default function TemplateEditor() {
       setCurrentTemplateId(null)
       setConnectors([])
       setQuests([])
+      setCellTriggers([])
       generateRandomMap()
       setTemplateName(`Template ${new Date().toLocaleDateString()}`)
     } else {
@@ -4055,6 +4192,38 @@ export default function TemplateEditor() {
             play-view gate as the vitals HUD. */}
         {playMode && !showFlowView && (
           <AbilityBar loadout={abilityLoadouts['__player__'] ?? DEFAULT_ABILITY_LOADOUT} lastUsedRef={abilityLastUsedRef} />
+        )}
+
+        {/* Trigger message popup — a small dismissible text box (show message action). */}
+        {triggerMessage !== null && (
+          <div className="fixed bottom-24 left-1/2 z-40 -translate-x-1/2 rounded-lg border border-white/15 bg-black/90 px-4 py-3 font-mono shadow-lg shadow-black/50">
+            <div className="flex items-start gap-3">
+              <p className="max-w-xs text-sm text-gray-100">{triggerMessage}</p>
+              <button
+                onClick={() => setTriggerMessage(null)}
+                aria-label="Dismiss message"
+                className="rounded bg-gray-700 px-1.5 py-0.5 text-xs font-bold text-gray-200 hover:bg-gray-600"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Win / Lose end-state overlay — fired by a win/lose trigger. */}
+        {endState !== null && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 font-mono">
+            <div className="flex flex-col items-center gap-4 rounded-xl border border-white/10 bg-black/80 px-10 py-8 shadow-2xl shadow-black/60">
+              <p className={`text-4xl font-black tracking-widest ${endState === 'win' ? 'text-emerald-300' : 'text-red-400'}`}>
+                {endState === 'win' ? 'YOU WIN' : 'YOU LOSE'}
+              </p>
+              <p className="text-xs text-gray-400">{endState === 'win' ? 'the map is cleared' : 'better luck next run'}</p>
+              <div className="mt-2 flex gap-2">
+                <button onClick={restartLevel} className="rounded bg-emerald-700 px-4 py-2 text-sm font-bold text-white hover:bg-emerald-600">↻ Restart</button>
+                <button onClick={() => { setEndState(null); exitPlayMode() }} className="rounded bg-gray-700 px-4 py-2 text-sm font-bold text-white hover:bg-gray-600">⨯ Exit</button>
+              </div>
+            </div>
+          </div>
         )}
 
         {/* Flow View Overlay */}
@@ -4695,7 +4864,13 @@ export default function TemplateEditor() {
                       </Card>
                     )}
                     <Card title="Trigger" accent="yellow" defaultOpen={false} sectionId="trigger" focus={sectionFocus}>
-                      <TriggerPlaceholder event="on defeat" />
+                      <TriggerEditor
+                        triggers={selEntity.triggers ?? []}
+                        events={['defeat']}
+                        templates={gotoTargets}
+                        enemyTypes={ENEMY_TYPES}
+                        onChange={next => setTriggersForEntity(selEntity.id, next)}
+                      />
                     </Card>
                     <div className="flex gap-1">
                       <button onClick={deleteSelectedEntity} className="flex-1 rounded bg-red-800 px-2 py-1.5 text-xs font-bold hover:bg-red-700">Delete</button>
@@ -4854,6 +5029,9 @@ export default function TemplateEditor() {
                 const first = Array.from(selectedCells)[0].split(',')
                 const cellLabel = selectedCells.size > 1 ? `${selectedCells.size} cells` : `(${first[0]}, ${first[1]})`
                 const animReady = authorFrames.length >= 2
+                // Cell triggers attach to the FIRST selected cell (the one the label shows).
+                const trigCol = parseInt(first[0], 10)
+                const trigRow = parseInt(first[1], 10)
                 return (
                   <>
                     <SelectionHeader kind="cell" label="cell" coords={cellLabel} />
@@ -4922,7 +5100,13 @@ export default function TemplateEditor() {
                       {authorStatus && <p className="mt-1 text-[9px] text-amber-300">{authorStatus}</p>}
                     </Card>
                     <Card title="Trigger" accent="yellow" defaultOpen={false} sectionId="trigger" focus={sectionFocus}>
-                      <TriggerPlaceholder event="on enter" />
+                      <TriggerEditor
+                        triggers={triggersAtCell(cellTriggers, trigCol, trigRow)}
+                        events={['enter', 'interact']}
+                        templates={gotoTargets}
+                        enemyTypes={ENEMY_TYPES}
+                        onChange={next => setTriggersForCell(trigCol, trigRow, next)}
+                      />
                     </Card>
                     <button onClick={() => setSelectedCells(new Set())} className="rounded bg-gray-700 px-2 py-1.5 text-xs hover:bg-gray-600">Clear selection</button>
                   </>
