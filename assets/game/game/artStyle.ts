@@ -22,6 +22,7 @@
 // ── element kinds (the vocabulary a Style maps) ──────────────────────────
 export type ElementKind =
   | 'grass' | 'water' | 'path' | 'plaza' | 'sand' | 'ground' | 'snow' | 'autumn' // terrain (+ seasons)
+  | 'cavefloor' | 'moss'                                       // dungeon terrain (cavern floor + moss)
   | 'wall' | 'roof' | 'door' | 'window' | 'fountain'          // buildings
   | 'tree' | 'flower' | 'bush' | 'rock' | 'crate' | 'lamp'    // nature / props
   | 'crystal' | 'mushroom'                                     // cave features
@@ -81,6 +82,11 @@ export const EMOJI_STYLE: Style = {
     // snow is a pale field, autumn an amber one with fallen leaves.
     snow: { kind: 'glyph', char: '⬜', color: '#e2ecf5' },
     autumn: { kind: 'glyph', char: '🍂', color: '#b5732f' },
+    // dungeon terrain — a dark rocky cavern floor (varies per-cell like grass, so it isn't flatly
+    // tiled) with green moss accents. Without these, cave_floor/cave_moss leaked to ASCII (the cave
+    // rendered >60% ASCII glyphs). basalt/ash (lava cave) fold onto cavefloor too. See groundKind.
+    cavefloor: { kind: 'glyph', char: '🪨', color: '#3f3a34' },
+    moss: { kind: 'glyph', char: '🌿', color: '#4a6b3a' },
     mountain: { kind: 'glyph', char: '🗻', color: '#8d8d97' },
     // buildings — `color` tints the CUBE face (roof colour on the roof faces, wall colour
     // on the walls); the facade door/window cells fill at their own hue.
@@ -156,6 +162,9 @@ const SAND_GROUND = /sand|desert|dune/
 const SNOW_GROUND = /snow|ice|frost/
 // Polished temple/dungeon floors read as a paved plaza in the emoji reskin (⬜).
 const TEMPLE_FLOOR = /temple_floor|marble|gold_tile|ancient_stone|rune_floor/
+// Raw cavern floors → dark rock; damp moss/lichen accents → green. basalt/ash are the lava-cave floor.
+const CAVE_FLOOR = /cave_floor|basalt|^ash$/
+const CAVE_MOSS = /moss/
 
 /** Classify a ground TILE TYPE string (grass / path_stone / water_deep / …) into a kind.
  *  Unrecognized terrain → 'ground' (unmapped → passes through to ASCII, never mis-skinned). */
@@ -167,6 +176,8 @@ export function groundKind(tileType: string): ElementKind {
   if (SAND_GROUND.test(tileType)) return 'sand'
   if (SNOW_GROUND.test(tileType)) return 'snow' // winter: snow/ice/frost — a WHITE field, not green
   if (tileType.startsWith('autumn')) return 'autumn' // autumn: amber ground + fallen leaves
+  if (CAVE_MOSS.test(tileType)) return 'moss' // damp cavern moss/lichen (before cavefloor: distinct green)
+  if (CAVE_FLOOR.test(tileType)) return 'cavefloor' // rocky cavern floor (incl. lava-cave basalt/ash)
   if (tileType.startsWith('grass')) return 'grass'
   return 'ground'
 }
@@ -197,12 +208,13 @@ const TYPE_KIND: Readonly<Record<string, ElementKind>> = {
   tree: 'tree', flower: 'flower', bush: 'bush', rock: 'rock', decoration: 'rock',
   crate: 'crate', lamp: 'lamp', lantern: 'lamp', npc: 'npc',
   water: 'water', fountain: 'fountain', building: 'wall',
-  // cave props — walls + rubble read as rock; crystals + mushrooms get their own tint.
-  cave_decor: 'rock', crystal: 'crystal', mushroom: 'mushroom',
+  // cave props — walls + rubble read as rock; crystals + mushrooms get their own tint; a water-edge
+  // shore reads as sand so it doesn't leak to ASCII.
+  cave_decor: 'rock', crystal: 'crystal', mushroom: 'mushroom', shore: 'sand',
   // temple props — walls read as wall; the colonnade/altar/torch/hazard/key get their own kinds
-  // (a brazier reuses the torch flame).
+  // (a brazier reuses the torch flame); a placed door uses the door glyph.
   temple_wall: 'wall', pillar: 'pillar', altar: 'altar', torch: 'torch', brazier: 'torch',
-  hazard: 'hazard', key: 'key',
+  hazard: 'hazard', key: 'key', door: 'door',
 }
 
 /** Kind for an entity by its role. */
@@ -261,7 +273,7 @@ export interface TileDef {
 }
 
 const CATEGORY_OF: Readonly<Record<ElementKind, TileCategory>> = {
-  grass: 'terrain', water: 'terrain', path: 'terrain', plaza: 'terrain', sand: 'terrain', ground: 'terrain', mountain: 'terrain', snow: 'terrain', autumn: 'terrain',
+  grass: 'terrain', water: 'terrain', path: 'terrain', plaza: 'terrain', sand: 'terrain', ground: 'terrain', mountain: 'terrain', snow: 'terrain', autumn: 'terrain', cavefloor: 'terrain', moss: 'terrain',
   wall: 'buildings', roof: 'buildings', door: 'buildings', window: 'buildings', fountain: 'buildings',
   pillar: 'buildings', altar: 'buildings',
   tree: 'nature', flower: 'nature', bush: 'nature', rock: 'nature', crate: 'nature', lamp: 'nature',
@@ -270,7 +282,7 @@ const CATEGORY_OF: Readonly<Record<ElementKind, TileCategory>> = {
 }
 
 const KIND_LABEL: Readonly<Record<ElementKind, string>> = {
-  grass: 'Grass', water: 'Water', path: 'Path', plaza: 'Plaza', sand: 'Sand', ground: 'Ground', mountain: 'Mountain', snow: 'Snow', autumn: 'Autumn Ground',
+  grass: 'Grass', water: 'Water', path: 'Path', plaza: 'Plaza', sand: 'Sand', ground: 'Ground', mountain: 'Mountain', snow: 'Snow', autumn: 'Autumn Ground', cavefloor: 'Cave Floor', moss: 'Moss',
   wall: 'Wall', roof: 'Roof', door: 'Door', window: 'Window', fountain: 'Fountain',
   pillar: 'Pillar', altar: 'Altar',
   tree: 'Tree', flower: 'Flower', bush: 'Bush', rock: 'Rock', crate: 'Crate', lamp: 'Lamp',
@@ -281,7 +293,7 @@ const KIND_LABEL: Readonly<Record<ElementKind, string>> = {
 // Explicit ASCII glyph tiles so the Library has content for the ASCII style too (its
 // `map` is intentionally empty for passthrough). These mirror the engine's own glyphs.
 const ASCII_TILE_GLYPHS: Partial<Record<ElementKind, string>> = {
-  grass: '"', water: '≈', path: '░', plaza: '#', sand: '∴', mountain: '▲',
+  grass: '"', water: '≈', path: '░', plaza: '#', sand: '∴', mountain: '▲', cavefloor: ':', moss: ',',
   wall: '█', roof: '▀', door: '╫', window: '▒',
   pillar: '║', altar: '‡', torch: 'ϯ', hazard: '▲', key: '⚷',
   tree: '♣', flower: '+', bush: '*', rock: 'O', crate: '$', lamp: '!',

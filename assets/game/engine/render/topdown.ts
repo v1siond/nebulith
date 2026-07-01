@@ -473,10 +473,11 @@ export function render2D(
       // Active art style (ASCII passthrough → the char+fg above, byte-identical). A reskin tints the
       // flat cell at the tile hue, VARIED per cell (same deterministic noise ASCII grass uses) so an
       // emoji field isn't flat-uniform; ASCII → bg (identical).
-      const gdv = resolveDraw(groundKind(tileType), style, undefined, char, fg)
-      // Cell fill: a reskin uses the tile's OWN colour (from the catalog DATA), but grass keeps its
-      // per-cell shade so a field isn't one flat green ("grass is just color"); ASCII → the ground bg.
-      const fillBg = cellFill(gdv.tint, bg, tileType.includes('grass'), col, row)
+      const gk = groundKind(tileType)
+      const gdv = resolveDraw(gk, style, undefined, char, fg)
+      // Cell fill: a reskin uses the tile's OWN colour (from the catalog DATA), but grass AND the rocky
+      // cave floor keep their per-cell shade so it isn't one flat sheet ("grass is just color"); ASCII → bg.
+      const fillBg = cellFill(gdv.tint, bg, tileType.includes('grass') || gk === 'cavefloor', col, row)
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
       ctx.fillStyle = fillBg

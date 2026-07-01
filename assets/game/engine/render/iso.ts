@@ -191,10 +191,11 @@ export function drawIsoGroundLayer(ctx: CanvasRenderingContext2D, p: IsoGroundPa
       // a style switch rebuilds the offscreen ground. `tint` present → this is a REskinned tile: fill
       // the SAME cube+diamond geometry with the tile hue (so it stays iso-angled with z) and drop a
       // small hint — the geometry is reused, only the fill/asset changes. No tint → bg (identical).
-      const gdv = resolveDraw(groundKind(tileType), style, undefined, char, fg)
-      // reskin → the tile's OWN colour (catalog data), but grass KEEPS its per-cell shade so a field
-      // isn't one flat green ("grass is just color"); ASCII → bg (identical).
-      const fillBg = cellFill(gdv.tint, bg, isGrass, col, row)
+      const gk = groundKind(tileType)
+      const gdv = resolveDraw(gk, style, undefined, char, fg)
+      // reskin → the tile's OWN colour (catalog data), but grass AND the rocky cave floor KEEP their
+      // per-cell shade so the field/cavern isn't one flat sheet ("grass is just color"); ASCII → bg.
+      const fillBg = cellFill(gdv.tint, bg, isGrass || gk === 'cavefloor', col, row)
 
       const cellHeight = grid.getHeight(col, row)
       const heightOffset = cellHeight * heightStep

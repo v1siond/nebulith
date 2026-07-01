@@ -162,10 +162,10 @@ export function renderTopView(
         const colors = GROUND_COLORS[tileType as keyof typeof GROUND_COLORS] || GROUND_COLORS.grass
         char = colors.char[0]
         fg = colors.fg[0]
-        // Grass varies per-cell into natural green tones (deterministic hash); other ground stays flat.
-        grassy = tileType.includes('grass')
-        bg = grassy ? grassShade(colors.bg[0], col, row) : colors.bg[0]
         kind = groundKind(tileType)
+        // Grass AND the rocky cave floor vary per-cell into natural tones (deterministic hash); flat else.
+        grassy = tileType.includes('grass') || kind === 'cavefloor'
+        bg = grassy ? grassShade(colors.bg[0], col, row) : colors.bg[0]
       }
 
       // Resolve the active art style (ASCII passthrough → the defaults above, unchanged).
