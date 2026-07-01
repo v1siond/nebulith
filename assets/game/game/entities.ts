@@ -240,6 +240,25 @@ export function entityOccupiedCells(
   return cells
 }
 
+/** The cells that BLOCK MOVEMENT — only each entity's BASE ROW (where its feet stand), NOT the tall
+ *  billboard that `entityOccupiedCells`/`entityCovers` cover for click-selection + targeting. A 3-tall
+ *  goblin's collision is just its 1–2 feet cells, so you can walk right up beside it and pass around —
+ *  the cells ABOVE its feet (all billboard, no body) are walkable. Fixes "stuck near an enemy". */
+export function entityCollisionCells(
+  entities: readonly Entity[],
+  exclude?: (e: Entity) => boolean,
+): Set<string> {
+  const cells = new Set<string>()
+  for (const e of entities) {
+    if (exclude?.(e)) continue
+    const { w } = entityFootprint(e)
+    const left = e.col - Math.floor((w - 1) / 2)
+    const right = e.col + Math.ceil((w - 1) / 2)
+    for (let c = left; c <= right; c++) cells.add(`${c},${e.row}`)
+  }
+  return cells
+}
+
 // ── respawn timing (pure; `now` passed in) ──────────────────────────
 
 /** The absolute time an enemy that died at `diedAt` will respawn. */

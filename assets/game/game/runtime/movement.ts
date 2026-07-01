@@ -7,7 +7,7 @@ import { shouldFire } from '@/engine/behaviors'
 import type { IsometricGrid } from '@/engine/IsometricGrid'
 import { type MoverState, RUN_PATROL_DELAY_MS, type RunState, STEP_LIST_DELAY_MS, type StepListState, initMover, initRunState, initStepList, stepMover, stepRunPatrol, stepStepList } from '@/engine/movement'
 import { ENEMY_MOVE_MS } from '@/engine/render/shared'
-import { entityOccupiedCells } from '@/game/entities'
+import { entityCollisionCells } from '@/game/entities'
 import { type HitMarker, pushHitMarker } from '@/game/runtime/combat'
 import { type PlayerState, aimDelta, jumpLandingCell } from '@/game/runtime/player'
 import { type Entity, type MovementPattern } from '@/game/types'
@@ -124,7 +124,7 @@ export function advanceEnemyMovement(
       }
     }
     const pattern = e.movement ?? DEFAULT_ENEMY_PATROL
-    const own = entityOccupiedCells([e]) // an entity must not collide with its own footprint
+    const own = entityCollisionCells([e]) // an entity must not collide with its own (base-row) footprint
     const blocked = (c: number, r: number): boolean =>
       grid.isBlocked(c, r) ||
       (c === pCol && r === pRow) ||

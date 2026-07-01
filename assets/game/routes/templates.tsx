@@ -30,7 +30,7 @@ import { type Action as TriggerAction, resolveAction } from '@/engine/triggers'
 import { ZoneId } from '@/engine/zones'
 import { type AbilityBinding, DEFAULT_ABILITY_LOADOUT } from '@/game/abilities'
 import { startingCombatState } from '@/game/combat'
-import { DEFAULT_PLAYER_STATS, canPlaceEntity, entityAt, entityAtClick, entityAtFootprint, entityOccupiedCells, makeEnemy, makeNpc, makePlayer, mintEntityId, placeEntity, removeEntity } from '@/game/entities'
+import { DEFAULT_PLAYER_STATS, canPlaceEntity, entityAt, entityAtClick, entityAtFootprint, entityCollisionCells, makeEnemy, makeNpc, makePlayer, mintEntityId, placeEntity, removeEntity } from '@/game/entities'
 import { addItem, equipArmor, equipWeapon, itemFromReward, mintItemId, starterInventory, useConsumable } from '@/game/inventory'
 import { createLoadout, loadoutBonuses, seededPlayerLoadout, setSpecial } from '@/game/loadout'
 import { appendWaypoint } from '@/game/patterns'
@@ -3581,7 +3581,7 @@ export default function TemplateEditor() {
       // solid, the player's own marker + dead enemies are not. Recomputed each frame so
       // it follows patrols and clears the moment an enemy dies. Used by both the player
       // collision below and the patrol stepper.
-      const entityBlocked = entityOccupiedCells(
+      const entityBlocked = entityCollisionCells(
         entitiesRef.current,
         e => e.kind === 'player' || (e.kind === 'enemy' && !isLivingEnemy(e, enemyRuntimeRef.current)),
       )

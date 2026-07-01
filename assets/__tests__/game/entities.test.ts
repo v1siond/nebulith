@@ -8,6 +8,7 @@ import {
   entityAt,
   entityAtFootprint,
   entityOccupiedCells,
+  entityCollisionCells,
   isRespawned,
   nextRespawnAt,
   DEFAULT_RESPAWN_MS,
@@ -334,5 +335,26 @@ describe('entityOccupiedCells — full-footprint collision blocks', () => {
     const cells = entityOccupiedCells([npc, enemy], e => e.kind === 'enemy')
     expect(cells.has('2,2')).toBe(true)
     expect(cells.has('9,9')).toBe(false) // enemy excluded
+  })
+})
+
+describe('entityCollisionCells — base-row only (walk around a tall enemy)', () => {
+  it("blocks only the enemy's FEET row, not the billboard cells above it", () => {
+    const cells = entityCollisionCells([makeEnemy('g1', 5, 5, 'goblin')])
+    expect(cells.has('5,5')).toBe(true) // feet
+    expect(cells.has('6,5')).toBe(true) // feet (2 wide)
+    expect(cells.has('5,4')).toBe(false) // ABOVE the feet → walkable (the fix)
+    expect(cells.has('6,4')).toBe(false)
+    expect(cells.size).toBe(2)
+  })
+  it('a 1-wide npc blocks a single cell (not the head cell above)', () => {
+    const cells = entityCollisionCells([makeNpc('n1', 5, 5, {})])
+    expect(cells.has('5,5')).toBe(true)
+    expect(cells.has('5,4')).toBe(false)
+    expect(cells.size).toBe(1)
+  })
+  it('respects the exclude predicate (dead/self)', () => {
+    const cells = entityCollisionCells([makeEnemy('e1', 8, 8, 'goblin')], () => true)
+    expect(cells.size).toBe(0)
   })
 })
