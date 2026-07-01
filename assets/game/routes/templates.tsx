@@ -1607,6 +1607,21 @@ export default function TemplateEditor() {
     setSelectedTile(null)
   }
 
+  /** Bulk-CLEAR the selected cells: reset ground to grass, drop any assets, flatten height — an easy
+   *  eraser over a rectangle selection (there was no way to bulk-clean the grid before). */
+  const clearSelectedCells = () => {
+    const grid = gridRef.current
+    if (!grid || selectedCells.size === 0) return
+    selectedCells.forEach(key => {
+      const [col, row] = key.split(',').map(Number)
+      grid.setGround(col, row, 'grass')
+      grid.setHeight(col, row, 0)
+      grid.setCollision(col, row, false)
+    })
+    grid.assets = grid.assets.filter(a => !selectedCells.has(`${a.col},${a.row}`))
+    setSelectedCells(new Set())
+  }
+
   // Place a composite asset at the first selected cell
   const placeCompositeAsset = (assetKey: string) => {
     const grid = gridRef.current
@@ -4535,6 +4550,16 @@ export default function TemplateEditor() {
                     className="w-full"
                   />
                 </div>
+
+                {/* Bulk clear the current selection back to grass */}
+                <button
+                  onClick={clearSelectedCells}
+                  disabled={selectedCells.size === 0}
+                  className="mb-2 w-full rounded bg-red-800 px-2 py-1.5 text-xs font-bold transition-colors enabled:hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-gray-800/60 disabled:text-gray-600"
+                  title="Reset the selected cells to grass and remove assets/height"
+                >
+                  ⌫ Clear selected cells ({selectedCells.size})
+                </button>
 
                 {/* Ground */}
                 <PaletteGroup label="Ground" color="text-gray-400">
