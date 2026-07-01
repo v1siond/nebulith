@@ -439,6 +439,18 @@ export const GROUND_COLORS: Record<string, { char: string[]; fg: string[]; bg: s
     fg: ['rgba(100, 200, 255, 0.95)', 'rgba(80, 180, 250, 0.92)'],
     bg: ['rgba(50, 50, 70, 0.95)', 'rgba(40, 40, 60, 0.92)'],
   },
+  // Polished temple flagstone — a warm grey-gold hall floor (the dungeon's default paved floor).
+  temple_floor: {
+    char: ['▫', '·'],
+    fg: ['rgba(206, 192, 158, 0.90)', 'rgba(194, 180, 146, 0.88)'],
+    bg: ['rgba(108, 100, 78, 0.95)', 'rgba(98, 90, 70, 0.92)'],
+  },
+  // Quicksand / sand-trap floor for a desert temple hazard — a churned, sinking amber pit.
+  sand_trap: {
+    char: ['≈', '∴'],
+    fg: ['rgba(200, 168, 96, 0.90)', 'rgba(186, 154, 84, 0.88)'],
+    bg: ['rgba(150, 116, 56, 0.96)', 'rgba(134, 102, 48, 0.93)'],
+  },
 
   // ═══════════════════════════════════════════════════════════════════
   // CRYPT/CEMETERY THEME

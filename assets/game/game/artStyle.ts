@@ -25,6 +25,7 @@ export type ElementKind =
   | 'wall' | 'roof' | 'door' | 'window'                       // buildings
   | 'tree' | 'flower' | 'bush' | 'rock' | 'crate' | 'lamp'    // nature / props
   | 'crystal' | 'mushroom'                                     // cave features
+  | 'pillar' | 'altar' | 'torch' | 'hazard' | 'key'          // temple / dungeon features
   | 'enemy' | 'npc' | 'player'                                // units
   | 'mountain'
 
@@ -91,6 +92,13 @@ export const EMOJI_STYLE: Style = {
     // cave features — upright billboards, `color` fills the glyph (season-tinted at the site)
     crystal: { kind: 'glyph', char: '💎', color: '#b48cff' },
     mushroom: { kind: 'glyph', char: '🍄', color: '#d24a4a' },
+    // temple / dungeon features — colonnade columns, the boss altar, wall torches, floor
+    // hazards, and the locked-door key (season-tinted where the generator sets `color`).
+    pillar: { kind: 'glyph', char: '🏛️', color: '#cbb68c' },
+    altar: { kind: 'glyph', char: '🗿', color: '#ffe7a8' },
+    torch: { kind: 'glyph', char: '🔥', color: '#ff8a3a' },
+    hazard: { kind: 'glyph', char: '🔺', color: '#d0402a' },
+    key: { kind: 'glyph', char: '🗝️', color: '#ffd24a' },
     // units — upright billboards
     enemy: { kind: 'glyph', char: '👾', color: '#b45ac0' },
     npc: { kind: 'glyph', char: '🧑', color: '#d9a066' },
@@ -110,12 +118,15 @@ export function styleById(id: string | null | undefined): Style {
 const WATER_GROUND = /water|oasis|koi_pond/
 const PATH_GROUND = /road|path|bridge|courtyard_stone/
 const SAND_GROUND = /sand|desert|dune/
+// Polished temple/dungeon floors read as a paved plaza in the emoji reskin (⬜).
+const TEMPLE_FLOOR = /temple_floor|marble|gold_tile|ancient_stone|rune_floor/
 
 /** Classify a ground TILE TYPE string (grass / path_stone / water_deep / …) into a kind.
  *  Unrecognized terrain → 'ground' (unmapped → passes through to ASCII, never mis-skinned). */
 export function groundKind(tileType: string): ElementKind {
   if (WATER_GROUND.test(tileType)) return 'water'
   if (PATH_GROUND.test(tileType)) return 'path'
+  if (TEMPLE_FLOOR.test(tileType)) return 'plaza'
   if (tileType.startsWith('plaza')) return 'plaza'
   if (SAND_GROUND.test(tileType)) return 'sand'
   if (tileType.startsWith('grass')) return 'grass'
@@ -150,6 +161,10 @@ const TYPE_KIND: Readonly<Record<string, ElementKind>> = {
   water: 'water', fountain: 'water', building: 'wall',
   // cave props — walls + rubble read as rock; crystals + mushrooms get their own tint.
   cave_decor: 'rock', crystal: 'crystal', mushroom: 'mushroom',
+  // temple props — walls read as wall; the colonnade/altar/torch/hazard/key get their own kinds
+  // (a brazier reuses the torch flame).
+  temple_wall: 'wall', pillar: 'pillar', altar: 'altar', torch: 'torch', brazier: 'torch',
+  hazard: 'hazard', key: 'key',
 }
 
 /** Kind for an entity by its role. */
@@ -173,16 +188,18 @@ export interface TileDef {
 const CATEGORY_OF: Readonly<Record<ElementKind, TileCategory>> = {
   grass: 'terrain', water: 'terrain', path: 'terrain', plaza: 'terrain', sand: 'terrain', ground: 'terrain', mountain: 'terrain',
   wall: 'buildings', roof: 'buildings', door: 'buildings', window: 'buildings',
+  pillar: 'buildings', altar: 'buildings',
   tree: 'nature', flower: 'nature', bush: 'nature', rock: 'nature', crate: 'nature', lamp: 'nature',
-  crystal: 'nature', mushroom: 'nature',
+  crystal: 'nature', mushroom: 'nature', torch: 'nature', hazard: 'nature', key: 'nature',
   enemy: 'units', npc: 'units', player: 'units',
 }
 
 const KIND_LABEL: Readonly<Record<ElementKind, string>> = {
   grass: 'Grass', water: 'Water', path: 'Path', plaza: 'Plaza', sand: 'Sand', ground: 'Ground', mountain: 'Mountain',
   wall: 'Wall', roof: 'Roof', door: 'Door', window: 'Window',
+  pillar: 'Pillar', altar: 'Altar',
   tree: 'Tree', flower: 'Flower', bush: 'Bush', rock: 'Rock', crate: 'Crate', lamp: 'Lamp',
-  crystal: 'Crystal', mushroom: 'Mushroom',
+  crystal: 'Crystal', mushroom: 'Mushroom', torch: 'Torch', hazard: 'Hazard', key: 'Key',
   enemy: 'Enemy', npc: 'NPC', player: 'Player',
 }
 
@@ -191,6 +208,7 @@ const KIND_LABEL: Readonly<Record<ElementKind, string>> = {
 const ASCII_TILE_GLYPHS: Partial<Record<ElementKind, string>> = {
   grass: '"', water: '≈', path: '░', plaza: '#', sand: '∴', mountain: '▲',
   wall: '█', roof: '▀', door: '╫', window: '▒',
+  pillar: '║', altar: '‡', torch: 'ϯ', hazard: '▲', key: '⚷',
   tree: '♣', flower: '+', bush: '*', rock: 'O', crate: '$', lamp: '!',
   crystal: '◆', mushroom: '♠',
   enemy: '&', npc: '☺', player: '@',
