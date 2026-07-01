@@ -16,7 +16,7 @@ import { type PlayerState, barFraction, hpFraction, playerDisplayName } from '@/
 import { type CombatState, type Entity, type Quest } from '@/game/types'
 import { GROUND_COLORS } from '@/levels/village'
 import { Connector } from '@/lib/api'
-import { ASCII_FONT, BUILDING_BADGES, COMBAT_RANGE, type DayNight, ENEMY_MOVE_MS, LAMP_GLOW, LIGHT, applyCellTransform, isoCameraFocus, collectLampGlows, debugCellCaptions, debugLabelColors, drawFigureVitals, drawGroundShadow, drawHitMarker, drawNightLighting, drawPlayerArm, drawQuestMarker, drawRangeRing, drawStyledImage, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, getPlayerArt, grassShade, idleNow, isDeadEnemy, isDebugMode, resolveDraw, treeCanopyLayers } from './shared'
+import { ASCII_FONT, BUILDING_BADGES, COMBAT_RANGE, type DayNight, type DrawVisual, ENEMY_MOVE_MS, LAMP_GLOW, LIGHT, applyCellTransform, isoCameraFocus, collectLampGlows, debugCellCaptions, debugLabelColors, drawFigureVitals, drawGroundShadow, drawHitMarker, drawNightLighting, drawPlayerArm, drawQuestMarker, drawRangeRing, drawStyledImage, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, getPlayerArt, grassShade, idleNow, isDeadEnemy, isDebugMode, resolveDraw, treeCanopyLayers } from './shared'
 import { ASCII_STYLE, assetKind, entityKind, groundKind, type ElementKind, type Style } from '@/game/artStyle'
 
 
@@ -106,6 +106,65 @@ export interface IsoGroundParams {
 }
 
 
+/** Clip the context to the iso ground DIAMOND centred at (cx, cy) — so an IMAGE tile reads
+ *  angled onto the iso plane, never as a flat upright square. (v1 ships no image pack, so
+ *  this only bites once a sprite pack lands; the plumbing is here so it lands iso-correct.) */
+function clipIsoDiamond(ctx: CanvasRenderingContext2D, cx: number, cy: number, hw: number, hh: number): void {
+  ctx.beginPath()
+  ctx.moveTo(cx, cy - hh)
+  ctx.lineTo(cx + hw, cy)
+  ctx.lineTo(cx, cy + hh)
+  ctx.lineTo(cx - hw, cy)
+  ctx.closePath()
+  ctx.clip()
+}
+
+
+/** Draw a ground cell's CONTENT on top of its already-filled diamond. THE StageD fix lives here:
+ *   - image tile        → the sprite CLIPPED to the diamond (iso-angled);
+ *   - styled glyph (tint) → the diamond is ALREADY filled at the tile hue, so overlay only a SMALL
+ *     centred emoji hint — never a full-cell upright square sitting flat on the diamond;
+ *   - passthrough (no tint) → the caller's ASCII glyph exactly as before (grass keeps its live
+ *     flicker when `live`), byte-identical to the pre-style inline loop. */
+function drawIsoGroundContent(
+  ctx: CanvasRenderingContext2D,
+  gdv: DrawVisual,
+  px: number,
+  drawY: number,
+  tileW: number,
+  tileH: number,
+  groundFontSize: number,
+  isGrass: boolean,
+  live: boolean,
+  time: number,
+  col: number,
+  row: number,
+): void {
+  if (gdv.image) {
+    ctx.save()
+    clipIsoDiamond(ctx, px, drawY, tileW, tileH)
+    drawStyledImage(ctx, gdv.image, px, drawY, tileH * 2)
+    ctx.restore()
+    return
+  }
+  if (gdv.tint) {
+    ctx.font = `bold ${tileH * 0.85}px ${ASCII_FONT}` // small hint keeps the ANGLED diamond dominant
+    ctx.fillStyle = gdv.color
+    ctx.fillText(gdv.char, px, drawY)
+    ctx.font = `bold ${groundFontSize}px ${ASCII_FONT}`
+    return
+  }
+  ctx.fillStyle = gdv.color
+  if (live && isGrass) {
+    ctx.globalAlpha = 0.85 + 0.15 * (Math.sin(time * 0.001 + col * 0.3 + row * 0.4) * 0.1 + 1)
+    ctx.fillText(gdv.char, px, drawY)
+    ctx.globalAlpha = 1
+  } else {
+    ctx.fillText(gdv.char, px, drawY)
+  }
+}
+
+
 /** Draw the ground layer (cube sides + diamond tops + glyphs). `bakeStatic = true`
  *  renders only the time-independent parts (grass glyph at full alpha; the animated
  *  water surface is skipped and its cells pushed into `waterOut`) into the offscreen
@@ -139,6 +198,14 @@ export function drawIsoGroundLayer(ctx: CanvasRenderingContext2D, p: IsoGroundPa
       // ground keeps its uniform floor base — no per-cell checkerboard (calmer floor).
       const bg = isGrass ? grassShade(colors.bg[0], col, row) : colors.bg[0]
 
+      // Active art style (ASCII passthrough → char+fg above, byte-identical). Ground cells carry no
+      // per-element override, so this depends only on the active style — folded into the cache key so
+      // a style switch rebuilds the offscreen ground. `tint` present → this is a REskinned tile: fill
+      // the SAME cube+diamond geometry with the tile hue (so it stays iso-angled with z) and drop a
+      // small hint — the geometry is reused, only the fill/asset changes. No tint → bg (identical).
+      const gdv = resolveDraw(groundKind(tileType), style, undefined, char, fg)
+      const fillBg = gdv.tint ?? bg
+
       const cellHeight = grid.getHeight(col, row)
       const heightOffset = cellHeight * heightStep
       const drawY = py - heightOffset
@@ -150,7 +217,7 @@ export function drawIsoGroundLayer(ctx: CanvasRenderingContext2D, p: IsoGroundPa
       const leftOpen = row + 1 >= grid.rows || grid.getHeight(col, row + 1) < cellHeight
       const rightOpen = col + 1 >= grid.cols || grid.getHeight(col + 1, row) < cellHeight
       if (leftOpen) {
-        ctx.fillStyle = darkenColor(bg, 0.5)
+        ctx.fillStyle = darkenColor(fillBg, 0.5)
         ctx.beginPath()
         ctx.moveTo(px - tileW, drawY)
         ctx.lineTo(px, drawY + tileH)
@@ -160,7 +227,7 @@ export function drawIsoGroundLayer(ctx: CanvasRenderingContext2D, p: IsoGroundPa
         ctx.fill()
       }
       if (rightOpen) {
-        ctx.fillStyle = darkenColor(bg, 0.7)
+        ctx.fillStyle = darkenColor(fillBg, 0.7)
         ctx.beginPath()
         ctx.moveTo(px + tileW, drawY)
         ctx.lineTo(px, drawY + tileH)
@@ -170,8 +237,8 @@ export function drawIsoGroundLayer(ctx: CanvasRenderingContext2D, p: IsoGroundPa
         ctx.fill()
       }
 
-      // Top face (diamond) - always draw
-      ctx.fillStyle = bg
+      // Top face (diamond) - always draw, filled with the tile hue (bg for ASCII → identical)
+      ctx.fillStyle = fillBg
       ctx.beginPath()
       ctx.moveTo(px, drawY - tileH)
       ctx.lineTo(px + tileW, drawY)
@@ -181,33 +248,18 @@ export function drawIsoGroundLayer(ctx: CanvasRenderingContext2D, p: IsoGroundPa
       ctx.fill()
 
       const isWater = WATER_DEPTH_TILES.has(tileType)
-      // Active art style (ASCII passthrough → char+fg above, byte-identical). Ground cells
-      // carry no per-element override, so this depends only on the active style — which is
-      // folded into the cache key so a style switch rebuilds the offscreen ground.
-      const gdv = resolveDraw(groundKind(tileType), style, undefined, char, fg)
 
       if (bakeStatic) {
         // Static cache: skip the animated water surface (collected for the live pass);
         // bake the grass glyph at full alpha (the ≤1.5% flicker is render-only motion).
         if (isWater) { if (waterOut) waterOut.push({ col, row }); continue }
-        ctx.fillStyle = gdv.color
-        if (gdv.image) drawStyledImage(ctx, gdv.image, px, drawY, tileH * 2)
-        else ctx.fillText(gdv.char, px, drawY)
+        drawIsoGroundContent(ctx, gdv, px, drawY, tileW, tileH, groundFontSize, isGrass, false, time, col, row)
         continue
       }
 
-      // Direct / fallback path — byte-identical to the original inline loop.
-      if (isWater) drawIsoWaterDepth(ctx, px, drawY, tileW, tileH, bg, time, col, row)
-      ctx.fillStyle = gdv.color
-      if (gdv.image) {
-        drawStyledImage(ctx, gdv.image, px, drawY, tileH * 2)
-      } else if (isGrass) {
-        ctx.globalAlpha = 0.85 + 0.15 * (Math.sin(time * 0.001 + col * 0.3 + row * 0.4) * 0.1 + 1)
-        ctx.fillText(gdv.char, px, drawY)
-        ctx.globalAlpha = 1
-      } else {
-        ctx.fillText(gdv.char, px, drawY)
-      }
+      // Direct / fallback path — byte-identical to the original inline loop for ASCII.
+      if (isWater) drawIsoWaterDepth(ctx, px, drawY, tileW, tileH, fillBg, time, col, row)
+      drawIsoGroundContent(ctx, gdv, px, drawY, tileW, tileH, groundFontSize, isGrass, true, time, col, row)
     }
   }
 }
@@ -236,10 +288,9 @@ export function drawIsoWaterCells(ctx: CanvasRenderingContext2D, p: IsoGroundPar
     const bg = colors.bg[0]
     const drawY = py - grid.getHeight(col, row) * heightStep
     const wdv = resolveDraw(groundKind(tileType), style, undefined, char, fg)
-    drawIsoWaterDepth(ctx, px, drawY, tileW, tileH, bg, time, col, row)
-    ctx.fillStyle = wdv.color
-    if (wdv.image) drawStyledImage(ctx, wdv.image, px, drawY, tileH * 2)
-    else ctx.fillText(wdv.char, px, drawY)
+    const fillBg = wdv.tint ?? bg // reskinned water tints the SAME iso basin; ASCII → bg (identical)
+    drawIsoWaterDepth(ctx, px, drawY, tileW, tileH, fillBg, time, col, row)
+    drawIsoGroundContent(ctx, wdv, px, drawY, tileW, tileH, groundFontSize, false, true, time, col, row)
   }
 }
 
@@ -876,13 +927,23 @@ export function drawIsoFacadeTile(ctx: CanvasRenderingContext2D, bl: Pt, colVec:
     ? 'rgba(40, 62, 84, 0.85)' // dark frame on the glass
     : darkenColor(colors.wall, 0.72)
   const glyph = isRoof ? '/\\' : isDoor ? '▯' : isWindow ? '⊞' : ''
-  ctx.fillStyle = bg
+  ctx.fillStyle = bg // the sheared iso QUAD, filled at the tile hue (facadeColors are style-tinted when reskinned)
   fillQuad(ctx, bl, br, tr, tl)
-  // Style resolve: ASCII passthrough keeps the glyph (or '' for a plain wall → nothing drawn);
-  // an Emoji style supplies 🧱/🟥/🚪/🪟 even for the wall cell that drew no glyph before.
   const mid = { x: (bl.x + tr.x) / 2, y: (bl.y + tr.y) / 2 }
   const fdv = resolveDraw(kind as ElementKind, style, undefined, glyph, fg)
   if (fdv.image) { drawStyledImage(ctx, fdv.image, mid.x, mid.y, cellH); return }
+  // Reskin (tint present): the sheared face IS the tile — a plain wall/roof cell gets NO upright
+  // emoji (that was the flat-square bug); only the door/window carry a SMALL centred hint so the
+  // entrance/glass still read. ASCII passthrough (no tint) draws its glyph exactly as before.
+  if (fdv.tint) {
+    if (!isDoor && !isWindow) return
+    ctx.font = `bold ${cellH * 0.5}px ${ASCII_FONT}`
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillStyle = fdv.color
+    ctx.fillText(fdv.char, mid.x, mid.y)
+    return
+  }
   if (!fdv.char) return
   ctx.font = `bold ${cellH * 0.62}px ${ASCII_FONT}`
   ctx.textAlign = 'center'
@@ -928,12 +989,17 @@ export function drawIsoBuilding(
   // are shaded by orientation (front brightest → back darkest); the facade tiles (door/windows) use
   // the full palette.
   const tcol = b.type as BuildingType
-  const wallC = buildingCellColor(tcol, 'wall', b.col)
-  const roofC = buildingCellColor(tcol, 'roof', b.col)
+  // A reskin (Emoji/image style) TINTS the SAME cube: roof colour on the roof faces, wall colour on
+  // the walls, door/window at their own hue — reusing the iso box geometry (z + angles), never a
+  // per-cell upright emoji. ASCII → tint undefined → the byte-identical building palette below.
+  const wallC = resolveDraw('wall', style, undefined, '', buildingCellColor(tcol, 'wall', b.col)).tint ?? buildingCellColor(tcol, 'wall', b.col)
+  const roofC = resolveDraw('roof', style, undefined, '', buildingCellColor(tcol, 'roof', b.col)).tint ?? buildingCellColor(tcol, 'roof', b.col)
+  const doorC = resolveDraw('door', style, undefined, '', buildingCellColor(tcol, 'door', b.col)).tint ?? buildingCellColor(tcol, 'door', b.col)
+  const windowC = resolveDraw('window', style, undefined, '', buildingCellColor(tcol, 'window', b.col)).tint ?? buildingCellColor(tcol, 'window', b.col)
   const facadeColors: FacadeColors = {
     wall: withAlpha(wallC, 0.98),
-    door: withAlpha(buildingCellColor(tcol, 'door', b.col), 0.98),
-    window: withAlpha(buildingCellColor(tcol, 'window', b.col), 0.98),
+    door: withAlpha(doorC, 0.98),
+    window: withAlpha(windowC, 0.98),
     roof: withAlpha(roofC, 0.98),
   }
   // Side faces are shaded by the global LIGHT: the wall facing the sun is brighter than the one
