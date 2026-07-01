@@ -48,7 +48,7 @@ import { VILLAGE_CONFIG } from '@/levels/village'
 import { Connector, TemplateListItem, createTemplate, deleteTemplate, deserializeToGrid, getTemplate, listTemplates, serializeGrid, updateTemplate } from '@/lib/api'
 import { type CellTriggerGroup, ENTITY_GLYPH, buildingsFromAssets, buildingsToAssets, cellTriggersFromAssets, cellTriggersToAssets, entitiesFromAssets, entitiesToAssets, isBuildingAsset, isEntityAsset, isQuestAsset, isStyleAsset, isTriggerAsset, questsFromAssets, questsToAssets, styleFromAssets, styleToAssets, triggersAtCell } from '@/lib/gridCodec'
 import { type Trigger, type TriggerEffect, fireTriggers } from '@/game/runtime/trigger'
-import { ASCII_STYLE, type Style, styleById, groundKind, assetKind, entityKind, genderize, resolveVisual } from '@/game/artStyle'
+import { ASCII_STYLE, type Style, styleById, groundKind, assetKind, entityKind, genderize, resolveVisual, visualForTileId } from '@/game/artStyle'
 import { useRouter } from 'next/router'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { render, render2D, renderTopView, clampCameraAxis, isoCameraFocus, entityMotion, ENEMY_MOVE_MS, isDebugMode, setDebugMode, type DayNight } from '@/engine/render'
@@ -711,10 +711,11 @@ export default function TemplateEditor() {
       return
     }
 
-    // Play views (iso/2d): LEFT-click + drag pans the camera — UNLESS a placement tool
-    // is armed (entity / building / connector), in which case a left-click places in that
-    // view too (top view is just the easier surface for it). Pan with middle/right-drag.
-    if (e.button === 0 && !topViewMode && !entityTool && !buildingTool && !connectorMode) {
+    // Play views (iso/2d): LEFT-click + drag pans the camera — UNLESS a placement tool is armed
+    // (entity / building / connector), OR SHIFT is held (shift+drag bulk-SELECTS cells in iso/2d, just
+    // like a plain drag does in top view — so you can select/clear/replace cells in any view). Pan with
+    // plain left-drag or middle/right-drag.
+    if (e.button === 0 && !topViewMode && !entityTool && !buildingTool && !connectorMode && !e.shiftKey) {
       // Defer the decision: clean click → select the entity here; drag → pan (mouse-up decides).
       downCellRef.current = screenToCell(e.clientX, e.clientY)
       dragMovedRef.current = false
@@ -833,7 +834,7 @@ export default function TemplateEditor() {
       return
     }
 
-    if (!isSelecting || !selectionStart || !topViewMode) return
+    if (!isSelecting || !selectionStart) return // drag-select the cell rectangle (top view, or shift+drag in iso/2d)
     const cell = screenToCell(e.clientX, e.clientY)
     if (!cell) return
 
@@ -858,7 +859,14 @@ export default function TemplateEditor() {
     if (isPanning && !dragMovedRef.current && downCellRef.current) {
       const c = downCellRef.current
       const hit = entityAtClick(entitiesRef.current, c.col, c.row, viewTypeRef.current === '2d' ? '2d' : 'iso')
-      setSelectedEntityId(hit ? hit.id : null)
+      if (hit) {
+        setSelectedEntityId(hit.id)
+      } else {
+        // Empty ground in a play view → select THAT CELL (not just clear), so it becomes the Inspector's
+        // subject and you can replace/clear it (Tile Library) right there — cell editing works in iso/2d too.
+        setSelectedEntityId(null)
+        setSelectedCells(new Set([`${c.col},${c.row}`]))
+      }
     }
     downCellRef.current = null
     setIsSelecting(false)
@@ -1320,7 +1328,15 @@ export default function TemplateEditor() {
     if (!grid || selectedCells.size === 0) return
     for (const key of selectedCells) {
       const [c, r] = key.split(',').map(Number)
-      for (const a of grid.getAssetsAtCell(c, r)) a.tileOverride = tileId ?? undefined
+      const assets = grid.getAssetsAtCell(c, r)
+      if (assets.length > 0) {
+        for (const a of assets) a.tileOverride = tileId ?? undefined
+      } else if (tileId) {
+        // A BARE ground cell (no asset to pin) → drop a decoration asset locked to the chosen tile, so
+        // you can replace ANY cell with any tile, not just cells that already hold a tree/prop.
+        const v = visualForTileId(tileId)
+        grid.placeAsset([v?.kind === 'glyph' ? v.char : '?'], c, r, { type: 'decoration', tileOverride: tileId })
+      }
     }
     bumpBuildingVersion() // nudge a re-render (assets mutate in place)
   }
@@ -1344,7 +1360,15 @@ export default function TemplateEditor() {
       __selectBuilding?: (i: number) => number | null
       __resizeBuilding?: (delta: number) => void
       __selectedBuildingLen?: () => number | null
+      __cellSel?: () => { count: number; first: string | null }
+      __selectCells?: (keys: string[]) => number
+      __applyCellTile?: (tileId: string | null) => void
     }
+    // Cell-editing validation seams: read the current cell selection, set it, and pin a tile to it — so
+    // "select any cell + replace it" is validated deterministically (independent of click/drag timing).
+    win.__cellSel = () => ({ count: selectedCellsRef.current.size, first: Array.from(selectedCellsRef.current)[0] ?? null })
+    win.__selectCells = (keys: string[]) => { setSelectedCells(new Set(keys)); setSelectedEntityId(null); return keys.length }
+    win.__applyCellTile = (tileId: string | null) => setSelectionOverride(tileId)
     // Building-tool validation seams: place a house, resize it, read its facade length — so house-sizing
     // ("make a house 4 or 6 cells long, iso re-extrudes") is validated in the real editor deterministically.
     win.__placeBuilding = (type: string, col: number, row: number) => placeNewBuilding(type as BuildingType, col, row)
@@ -1436,7 +1460,7 @@ export default function TemplateEditor() {
       setSelectedCells(new Set([`${best.col},${best.row}`]))
       return best
     }
-    return () => { delete win.__setArtStyle; delete win.__selectFirstTreeCell; delete win.__setView; delete win.__gridKinds; delete win.__entityInfo; delete win.__entityScreens; delete win.__selectEntity; delete win.__selectedEntityInfo; delete win.__placeBuilding; delete win.__selectBuilding; delete win.__resizeBuilding; delete win.__selectedBuildingLen }
+    return () => { delete win.__setArtStyle; delete win.__selectFirstTreeCell; delete win.__setView; delete win.__gridKinds; delete win.__entityInfo; delete win.__entityScreens; delete win.__selectEntity; delete win.__selectedEntityInfo; delete win.__placeBuilding; delete win.__selectBuilding; delete win.__resizeBuilding; delete win.__selectedBuildingLen; delete win.__cellSel; delete win.__selectCells; delete win.__applyCellTile }
   }, [])
 
   // ── Selected-entity inspector actions ─────────────────────────────
