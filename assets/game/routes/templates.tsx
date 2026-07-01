@@ -48,7 +48,7 @@ import { VILLAGE_CONFIG } from '@/levels/village'
 import { Connector, TemplateListItem, createTemplate, deleteTemplate, deserializeToGrid, getTemplate, listTemplates, serializeGrid, updateTemplate } from '@/lib/api'
 import { type CellTriggerGroup, ENTITY_GLYPH, buildingsFromAssets, buildingsToAssets, cellTriggersFromAssets, cellTriggersToAssets, entitiesFromAssets, entitiesToAssets, isBuildingAsset, isEntityAsset, isQuestAsset, isStyleAsset, isTriggerAsset, questsFromAssets, questsToAssets, styleFromAssets, styleToAssets, triggersAtCell } from '@/lib/gridCodec'
 import { type Trigger, type TriggerEffect, fireTriggers } from '@/game/runtime/trigger'
-import { ASCII_STYLE, type Style, styleById } from '@/game/artStyle'
+import { ASCII_STYLE, type Style, styleById, groundKind, assetKind, resolveVisual } from '@/game/artStyle'
 import { useRouter } from 'next/router'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { render, render2D, renderTopView, clampCameraAxis, isoCameraFocus, entityMotion, ENEMY_MOVE_MS, isDebugMode, setDebugMode, type DayNight } from '@/engine/render'
@@ -1314,8 +1314,44 @@ export default function TemplateEditor() {
     const win = window as unknown as {
       __setArtStyle?: (id: string) => void
       __selectFirstTreeCell?: () => { col: number; row: number } | null
+      __setView?: (v: 'iso' | '2d' | 'top') => void
+      __gridKinds?: () => unknown
     }
     win.__setArtStyle = (id: string) => setActiveStyleId(id)
+    // Flip the active VIEW without the toolbar — for validation screenshots across iso/2d/top.
+    win.__setView = (v: 'iso' | '2d' | 'top') => {
+      if (v === 'top') return selectTopView()
+      if (v === '2d') return select2DView()
+      return selectIsoView()
+    }
+    // GRID-based mixing audit: classify every ground cell + asset under the ACTIVE style and report
+    // which tile types fall through to ASCII (kind==='ascii'). In emoji mode this must be EMPTY — any
+    // entry is a real cell rendering an ascii glyph next to emoji. Validates the grid, not a screenshot.
+    win.__gridKinds = () => {
+      const grid = gridRef.current
+      const style = activeStyleRef.current
+      if (!grid) return null
+      const ascii: Record<string, number> = {}
+      let total = 0
+      let emoji = 0
+      const tally = (falls: boolean, tag: string) => {
+        total++
+        if (falls) ascii[tag] = (ascii[tag] ?? 0) + 1
+        else emoji++
+      }
+      for (let r = 0; r < grid.rows; r++) {
+        for (let c = 0; c < grid.cols; c++) {
+          const t = grid.ground[r]?.[c] || 'grass'
+          const k = groundKind(t)
+          tally(resolveVisual(k, style).kind === 'ascii', `ground:${t}→${k}`)
+        }
+      }
+      for (const a of grid.assets) {
+        const k = assetKind(a)
+        tally(resolveVisual(k, style, a.tileOverride).kind === 'ascii', `asset:${a.type}/${a.label ?? '-'}→${k}`)
+      }
+      return { style: style.id, total, emoji, asciiCount: total - emoji, asciiKinds: Object.entries(ascii).sort((x, y) => y[1] - x[1]) }
+    }
     win.__selectFirstTreeCell = () => {
       const grid = gridRef.current
       if (!grid) return null
@@ -1334,7 +1370,7 @@ export default function TemplateEditor() {
       setSelectedCells(new Set([`${best.col},${best.row}`]))
       return best
     }
-    return () => { delete win.__setArtStyle; delete win.__selectFirstTreeCell }
+    return () => { delete win.__setArtStyle; delete win.__selectFirstTreeCell; delete win.__setView; delete win.__gridKinds }
   }, [])
 
   // ── Selected-entity inspector actions ─────────────────────────────
