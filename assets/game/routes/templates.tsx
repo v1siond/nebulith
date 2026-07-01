@@ -2768,7 +2768,7 @@ export default function TemplateEditor() {
 
     // === STEP 1: Clear grid with natural ground formations ===
     grid.assets = []
-    grid.buildings = [] // random-map buildings are █ blocks, not grouped facades
+    grid.buildings = [] // rebuilt below as STRUCTURED buildings (walls+roof), populated in STEP 6
     const baseGround = getBaseGround()
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols; c++) {
@@ -3087,40 +3087,19 @@ export default function TemplateEditor() {
         }
       }
 
-      // Use theme-specific building colors
-      const buildingColors = themeColors.buildingColors
+      // Weighted building types — mostly houses, a few bigger/civic — so a village reads as homes.
+      const HOUSE_TYPES: BuildingType[] = ['house', 'house', 'house', 'big-house', 'store', 'hospital']
       for (let i = 0; i < numBuildings && validSpots.length > 0; i++) {
         const spotIdx = Math.floor(Math.random() * validSpots.length)
         const spot = validSpots.splice(spotIdx, 1)[0]
-        // Randomize building dimensions
-        const buildingWidth = 2 + Math.floor(Math.random() * 3)  // 2-4
-        const buildingDepth = 2 + Math.floor(Math.random() * 3)  // 2-4
-        const buildingHeight = 2 + Math.floor(Math.random() * 3) // 2-4
-
-        // Verify footprint doesn't overlap roads/water/plaza
-        let canPlace = true
-        for (let dy = 0; dy < buildingDepth && canPlace; dy++) {
-          for (let dx = 0; dx < buildingWidth && canPlace; dx++) {
-            const g = grid.ground[spot.y + dy]?.[spot.x + dx]
-            const isWater = g?.includes('water') || g?.includes('lava') || g?.includes('frozen') || g?.includes('oasis') || g?.includes('koi')
-            const isPlaza = g?.includes('plaza') || g?.includes('tile') || g?.includes('floor') || g?.includes('lacquer') || g?.includes('tatami')
-            if (isRoadGround(g) || isWater || isPlaza || g === undefined) canPlace = false
-          }
-        }
-        if (!canPlace) continue
-
-        const color = buildingColors[Math.floor(Math.random() * buildingColors.length)]
-        for (let dy = 0; dy < buildingDepth; dy++) {
-          for (let dx = 0; dx < buildingWidth; dx++) {
-            if (spot.x + dx < cols && spot.y + dy < rows) {
-              // buildings block access but do not raise terrain (blocks = collision, not elevation)
-              grid.setCollision(spot.x + dx, spot.y + dy, true)
-              grid.placeAsset(['█'], spot.x + dx, spot.y + dy, {
-                type: 'building', blocking: true, color, height: buildingHeight
-              })
-            }
-          }
-        }
+        // A real STRUCTURED building (walls + roof + door), NOT a flat brick block: iso extrudes a 3D
+        // house and 2D draws a proper facade. The type sets the size; face the nearest road so the door
+        // fronts it. canPlaceBuilding rejects overlaps/roads/water/out-of-bounds (skip → fewer, never bad).
+        const type = HOUSE_TYPES[Math.floor(Math.random() * HOUSE_TYPES.length)]
+        const b = makeBuilding(type, nearestRoadFacing(grid, spot.x, spot.y), spot.x, spot.y)
+        if (!canPlaceBuilding(buildingPlacementEnv(grid, -1, new Set()), b)) continue
+        stampBuildingCells(grid, b, genZoneRef.current)
+        grid.buildings.push(b)
       }
     }
 
