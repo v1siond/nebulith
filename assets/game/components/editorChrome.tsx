@@ -5,6 +5,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { ZoneId } from '@/engine/zones'
 import { BUILT_IN_STYLES, type TileCategory, tilesForStyle } from '@/game/artStyle'
+import { DEFAULT_ACTION_PARAMS, makeTrigger, type Trigger, type TriggerActionType, type TriggerEvent } from '@/game/runtime/trigger'
 import { type EditorMode, SEASON_BTN, STAGE_VARIANTS, STAGE_ZONES } from './editorConfig'
 
 // ── Tool-rail (left, slim icon strip) ────────────────────────────────
@@ -430,23 +431,120 @@ export function SelectionHeader({ kind, label, coords }: { kind: string; label: 
   )
 }
 
-/** Trigger section stub — the unified trigger model (on enter / interact / defeat →
- *  action) is stage E. Shows the shape, disabled, so the section already reads right. */
-export function TriggerPlaceholder({ event = 'on defeat' }: { event?: string }) {
+// ── Trigger editor (stage E) — "When [event] → do [action]." ─────────
+// The unified trigger authoring UI. One editor serves both a CELL (events enter /
+// interact) and a UNIT (event defeat) — the `events` prop picks which. Pure &
+// props-driven: it holds no state; every edit flows up through `onChange`.
+
+/** Human labels for the event dropdown. */
+const TRIGGER_EVENT_LABEL: Record<TriggerEvent, string> = {
+  enter: 'on enter',
+  interact: 'on interact',
+  defeat: 'on defeat',
+}
+
+/** Human labels + order for the action dropdown (the playable verbs come first). */
+const TRIGGER_ACTIONS: ReadonlyArray<{ id: TriggerActionType; label: string }> = [
+  { id: 'goto', label: 'go to level' },
+  { id: 'win', label: 'win' },
+  { id: 'message', label: 'show message' },
+  { id: 'spawn', label: 'spawn units' },
+  { id: 'give', label: 'give item' },
+  { id: 'lose', label: 'lose' },
+]
+
+export interface TriggerEditorProps {
+  triggers: Trigger[]
+  /** which events this selection allows: cell → [enter, interact]; unit → [defeat]. */
+  events: readonly TriggerEvent[]
+  /** templates to pick from for a `go to level` action (already excludes the current one). */
+  templates: ReadonlyArray<{ id: string; name: string }>
+  /** enemy roster for a `spawn units` action. */
+  enemyTypes: readonly string[]
+  onChange: (next: Trigger[]) => void
+}
+
+const SELECT_CLS = 'flex-1 rounded bg-gray-800 p-1 text-xs text-gray-100'
+const INPUT_CLS = 'w-full rounded bg-gray-800 p-1 text-xs text-gray-100'
+
+/** The real trigger authoring editor — add / edit / remove multiple triggers. */
+export function TriggerEditor({ triggers, events, templates, enemyTypes, onChange }: TriggerEditorProps) {
+  const replace = (i: number, next: Trigger) => onChange(triggers.map((t, j) => (j === i ? next : t)))
+  const setEvent = (i: number, event: TriggerEvent) => replace(i, { ...triggers[i], event } as Trigger)
+  const setAction = (i: number, action: TriggerActionType) =>
+    replace(i, { id: triggers[i].id, event: triggers[i].event, action, params: DEFAULT_ACTION_PARAMS[action]() } as Trigger)
+  // Merge a params patch (narrowing handled by the per-action fields that call it).
+  const patchParams = (i: number, patch: Record<string, unknown>) =>
+    replace(i, { ...triggers[i], params: { ...triggers[i].params, ...patch } } as Trigger)
+  const remove = (i: number) => onChange(triggers.filter((_, j) => j !== i))
+  const add = () => onChange([...triggers, makeTrigger(events[0], 'win')])
+
   return (
-    <div className="text-xs">
-      <div className="flex items-center gap-1">
-        <select disabled aria-label="Trigger event" className="flex-1 cursor-not-allowed rounded bg-gray-800/60 p-1 text-gray-400">
-          <option>{event}</option>
-        </select>
-        <span aria-hidden className="text-gray-500">→</span>
-        <select disabled aria-label="Trigger action" className="flex-1 cursor-not-allowed rounded bg-gray-800/60 p-1 text-gray-400">
-          <option>do…</option>
-        </select>
-      </div>
-      <p className="mt-1 text-[10px] leading-tight text-gray-500">
-        When {event}, do something — the trigger system arrives in a later update.
-      </p>
+    <div className="space-y-2 text-xs">
+      {triggers.length === 0 && (
+        <p className="text-[10px] leading-tight text-gray-500">No triggers yet — add one to make this cell do something.</p>
+      )}
+      {triggers.map((t, i) => (
+        <div key={t.id} className="space-y-1 rounded border border-yellow-500/20 bg-black/40 p-1.5">
+          <div className="flex items-center gap-1">
+            <span className="text-[10px] font-bold text-yellow-300">When</span>
+            <select value={t.event} onChange={e => setEvent(i, e.target.value as TriggerEvent)} aria-label="Trigger event" className={SELECT_CLS}>
+              {events.map(ev => <option key={ev} value={ev}>{TRIGGER_EVENT_LABEL[ev]}</option>)}
+            </select>
+            <span aria-hidden className="text-gray-500">→</span>
+            <select value={t.action} onChange={e => setAction(i, e.target.value as TriggerActionType)} aria-label="Trigger action" className={SELECT_CLS}>
+              {TRIGGER_ACTIONS.map(a => <option key={a.id} value={a.id}>{a.label}</option>)}
+            </select>
+            <button onClick={() => remove(i)} aria-label="Remove trigger" title="Remove trigger" className="rounded bg-red-900/70 px-1.5 py-1 text-[10px] font-bold text-red-200 hover:bg-red-800">✕</button>
+          </div>
+          <TriggerParamsFields trigger={t} templates={templates} enemyTypes={enemyTypes} onPatch={patch => patchParams(i, patch)} />
+        </div>
+      ))}
+      <button onClick={add} className="w-full rounded bg-yellow-700/80 px-2 py-1 text-[11px] font-bold text-white transition-colors hover:bg-yellow-600">
+        ⚡ Add trigger
+      </button>
     </div>
   )
+}
+
+/** The action-specific parameter inputs (dispatch on the action, not a chain). */
+function TriggerParamsFields({
+  trigger, templates, enemyTypes, onPatch,
+}: {
+  trigger: Trigger
+  templates: ReadonlyArray<{ id: string; name: string }>
+  enemyTypes: readonly string[]
+  onPatch: (patch: Record<string, unknown>) => void
+}) {
+  if (trigger.action === 'goto') {
+    return (
+      <select value={trigger.params.templateId} onChange={e => onPatch({ templateId: e.target.value })} aria-label="Target level" className={INPUT_CLS}>
+        <option value="">Target level…</option>
+        {templates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+      </select>
+    )
+  }
+  if (trigger.action === 'spawn') {
+    return (
+      <div className="flex items-center gap-1">
+        <select value={trigger.params.enemyType} onChange={e => onPatch({ enemyType: e.target.value })} aria-label="Enemy type to spawn" className={SELECT_CLS}>
+          {enemyTypes.map(t => <option key={t} value={t}>{t}</option>)}
+        </select>
+        <span className="text-[10px] text-gray-400">×</span>
+        <input type="number" min={1} value={trigger.params.count} onChange={e => onPatch({ count: Math.max(1, parseInt(e.target.value, 10) || 1) })} aria-label="How many to spawn" className="w-14 rounded bg-gray-800 p-1 text-xs text-gray-100" />
+      </div>
+    )
+  }
+  if (trigger.action === 'give') {
+    return (
+      <input type="text" value={trigger.params.itemId} onChange={e => onPatch({ itemId: e.target.value })} placeholder="Item id to give" aria-label="Item to give" className={INPUT_CLS} />
+    )
+  }
+  if (trigger.action === 'message') {
+    return (
+      <input type="text" value={trigger.params.text} onChange={e => onPatch({ text: e.target.value })} placeholder="Message to show…" aria-label="Message text" className={INPUT_CLS} />
+    )
+  }
+  // win / lose take no params.
+  return null
 }
