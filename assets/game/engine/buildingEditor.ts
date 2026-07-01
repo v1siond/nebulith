@@ -183,6 +183,23 @@ export function orientBuilding(b: GridBuilding, facing: Facing, center: Cell): G
   return { ...b, col, row: topRow + h - 1, length: w, height: h, depth, facing: iso.facing, facadeOnBack: iso.facadeOnBack }
 }
 
+/** Resize a building's FACADE LENGTH (frontage), keeping its type, facing, and footprint CENTRE.
+ *  Re-composes the facade at the new length (composeBuilding clamps to its own MIN_LENGTH) and
+ *  re-derives the oriented grid span + cells — i.e. "make a house 4 or 6 cells long, then let the iso
+ *  logic re-extrude it". Pure — returns a new GridBuilding. */
+export function resizeBuilding(b: GridBuilding, facadeLen: number): GridBuilding {
+  const facade = composeBuilding({ type: b.type as BuildingType, length: facadeLen })
+  const facing = gridBuildingFacing(b)
+  const center = footprintCenter(b)
+  const horizontal = facing === 'south' || facing === 'north'
+  const w = horizontal ? facade.length : facade.depth
+  const h = horizontal ? facade.depth : facade.length
+  const col = center.col - Math.floor(w / 2)
+  const topRow = center.row - Math.floor(h / 2)
+  const iso = isoOrientation(facing)
+  return { ...b, col, row: topRow + h - 1, length: w, height: h, depth: facade.depth, cells: facade.cells, facing: iso.facing, facadeOnBack: iso.facadeOnBack }
+}
+
 /** The footprint's centre cell (used to keep a rotation in place). */
 export function footprintCenter(b: GridBuilding): Cell {
   const r = buildingRect(b)

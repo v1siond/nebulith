@@ -14,6 +14,7 @@ import {
   ROAD_GROUND,
   moveBuilding,
   rotateBuilding,
+  resizeBuilding,
   orientBuilding,
   makeBuilding,
   FACING_CYCLE,
@@ -119,6 +120,29 @@ describe('facadeLength / footprintCenter', () => {
   })
   test('footprintCenter is the rect centre cell', () => {
     expect(footprintCenter(house())).toEqual({ col: 12, row: 11 })
+  })
+})
+
+describe('resizeBuilding — grow/shrink the facade length, re-extruded in place', () => {
+  test('a south house grows its length, re-composing the facade, keeping the centre', () => {
+    const before = house() // length 4, centre (12,11)
+    const bigger = resizeBuilding(before, 6)
+    expect(facadeLength(bigger)).toBe(6)
+    expect(bigger.length).toBe(6) // south → grid col-span == facade length
+    expect(footprintCenter(bigger)).toEqual(footprintCenter(before)) // centred in place
+    expect(bigger.cells).toEqual(composeBuilding({ type: 'house', length: 6 }).cells) // real re-extrude
+  })
+  test('shrinking works too and the type/facing are preserved', () => {
+    const smaller = resizeBuilding(house(), 3)
+    expect(facadeLength(smaller)).toBe(3)
+    expect(smaller.type).toBe('house')
+    expect(gridBuildingFacing(smaller)).toBe('south')
+  })
+  test('a vertical (east/west) house grows along its height span, not its length', () => {
+    const vert = house({ facing: 1, length: 3, height: 4, facadeOnBack: false })
+    const bigger = resizeBuilding(vert, 6)
+    expect(facadeLength(bigger)).toBe(6) // road-parallel span is the height for a vertical house
+    expect(bigger.height).toBe(6)
   })
 })
 
