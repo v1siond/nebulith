@@ -1,4 +1,4 @@
-import { entityArt, entityFootprint, weaponGlyph, SWORD_GLYPH, ENEMY_ART, ENEMY_ART_TYPES, ENEMY_FALLBACK, NPC_ART, entityPalette, ENEMY_PALETTE, CHARACTER_TONES, characterTone, ENEMY_PALETTE_FALLBACK, topRoleColor, TOP_ROLE_COLOR } from '@/engine/entityArt'
+import { entityArt, entityFootprint, weaponGlyph, weaponEmoji, SWORD_GLYPH, ENEMY_ART, ENEMY_ART_TYPES, ENEMY_FALLBACK, NPC_ART, entityPalette, ENEMY_PALETTE, CHARACTER_TONES, characterTone, ENEMY_PALETTE_FALLBACK, topRoleColor, TOP_ROLE_COLOR } from '@/engine/entityArt'
 import { makeEnemy, makeNpc, makePlayer } from '@/game/entities'
 import type { Quest } from '@/game/types'
 
@@ -49,6 +49,16 @@ describe('weaponGlyph — the held weapon drawn beside the player', () => {
   it('a sword maps to the clean held-blade glyph (the good sword look)', () => {
     expect(weaponGlyph({ kind: 'sword', range: 'melee' })).toBe(SWORD_GLYPH)
     expect(SWORD_GLYPH.length).toBeGreaterThan(0)
+  })
+
+  it('weaponEmoji gives a real emoji weapon per kind (for the reskin styles)', () => {
+    expect(weaponEmoji({ kind: 'sword' })).toBe('⚔️')
+    expect(weaponEmoji({ kind: 'bow' })).toBe('🏹')
+    expect(weaponEmoji({ kind: 'staff' })).toBe('🪄')
+    expect(weaponEmoji({ kind: 'axe' })).toBe('🪓')
+    expect(weaponEmoji({ kind: 'shield' })).toBe('🛡️')
+    expect(weaponEmoji({ kind: 'unarmed' })).toBe('') // bare hands draw nothing
+    expect(weaponEmoji(null)).toBe('')
   })
 
   it('a ranged weapon reads as a bow regardless of its kind tag', () => {

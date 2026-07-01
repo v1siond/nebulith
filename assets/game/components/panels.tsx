@@ -4,6 +4,7 @@
 // inventory card. Moved out of the page (stage 4); props-driven presentational.
 import { useEffect, useState } from 'react'
 import { ABILITY_REGISTRY, ABILITY_SLOTS, ABILITY_TINT, type AbilityBinding, type AbilityDef, type AbilitySlot, assignAbility, bindingForSlot, rebindAbility, removeAbility } from '@/game/abilities'
+import { weaponEmoji } from '@/engine/entityArt'
 import { GEAR_CATALOG } from '@/game/gear'
 import { addToBag, allowedSlots, equip as equipToSlot, loadoutBonuses, setShortcut, setSpecial, unequip as unequipSlot } from '@/game/loadout'
 import { progress } from '@/game/quests'
@@ -684,7 +685,12 @@ export function EquipmentPanel({ label, loadout, baseStats, hp, onChange, onClos
                   <button key={i} onClick={() => onChange(useBagItem(loadout, i))} disabled={!item} {...tipProps(item)}
                     title={item ? `Equip / use ${item.name}` : ''}
                     className={`aspect-square rounded border p-1 text-[9px] leading-tight ${item ? 'border-white/20 bg-gray-800 hover:bg-gray-700' : 'border-white/5 bg-black/30 text-gray-700'}`}>
-                    {item ? item.name.slice(0, 10) : ''}
+                    {item ? (
+                      <span className="flex flex-col items-center gap-0.5">
+                        <span aria-hidden className="text-lg leading-none">{itemIcon(item)}</span>
+                        <span className="w-full truncate text-center">{item.name.slice(0, 8)}</span>
+                      </span>
+                    ) : ''}
                   </button>
                 ))}
               </div>
@@ -709,7 +715,7 @@ export function EquipmentPanel({ label, loadout, baseStats, hp, onChange, onClos
                     <button key={slot} onClick={() => unequipToBag(slot)} disabled={!item} {...tipProps(item)}
                       className={`rounded border px-2 py-1.5 text-left text-[11px] ${item ? 'border-cyan-600 bg-cyan-900/40 hover:bg-cyan-900/70' : 'border-white/10 bg-black/40 text-gray-600'}`}>
                       <span className="block text-[9px] uppercase text-gray-500">{SLOT_LABEL[slot]}</span>
-                      <span className="block truncate">{item ? item.name : '—'}</span>
+                      <span className="block truncate">{item ? <><span aria-hidden className="mr-1">{itemIcon(item)}</span>{item.name}</> : '—'}</span>
                     </button>
                   )
                 })}
@@ -794,6 +800,14 @@ export function QuestLogPanel({ quests, onClose }: {
   )
 }
 
+/** An emoji icon for an inventory item — the weapon's own ⚔️/🏹/🪄, a shield/armor 🛡️, a consumable 🧪 —
+ *  so the bag reads at a glance instead of plain text. Data-derived from the item's slot/kind. */
+function itemIcon(item: Item): string {
+  if (item.slot === 'weapon') return weaponEmoji(item.weapon) || '⚔️'
+  if (item.slot === 'armor') return '🛡️'
+  return '🧪'
+}
+
 export function InventoryCard({ inventory, talentPath, onEquip, onUse, onSetClass }: {
   inventory: Inventory
   talentPath: TalentPath
@@ -822,6 +836,7 @@ export function InventoryCard({ inventory, talentPath, onEquip, onUse, onSetClas
           {inventory.items.map(item => (
             <li key={item.id} className="flex items-center justify-between gap-2">
               <span className="truncate text-gray-200">
+                <span className="mr-1" aria-hidden>{itemIcon(item)}</span>
                 {item.name} <span className="text-gray-500">({item.slot})</span>
               </span>
               {item.slot === 'consumable' ? (

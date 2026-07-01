@@ -237,6 +237,21 @@ export const SWORD_GLYPH = 'Ɨ'
 export const BOW_GLYPH = '}'
 export const GUN_GLYPH = '¬'
 
+/** Emoji held-weapon glyph for the reskin styles — a real ⚔️/🏹/🪄 in hand instead of the ASCII `Ɨ`/`}`.
+ *  Bare hands draw nothing. Used when the active style isn't ASCII (see the player loadout sync). */
+export function weaponEmoji(weapon?: { kind?: string; range?: string } | null): string {
+  if (!weapon || weapon.kind === 'unarmed') return ''
+  switch (weapon.kind) {
+    case 'bow': return '🏹'
+    case 'gun': return '🔫'
+    case 'staff': return '🪄'
+    case 'axe': return '🪓'
+    case 'shield': return '🛡️'
+    case 'sword': return '⚔️'
+    default: return weapon.range === 'ranged' ? '🏹' : '⚔️'
+  }
+}
+
 export function weaponGlyph(weapon?: { kind?: string; range?: string } | null): string {
   if (!weapon) return ''
   if (weapon.kind === 'unarmed') return '' // bare hands — the fist swings, no blade is drawn

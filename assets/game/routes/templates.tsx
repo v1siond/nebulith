@@ -22,7 +22,7 @@ import { buildingFootprintCells, canPlaceBuilding, facadeLength, footprintContai
 import { type AnimFrame, type AnimPreset, CELL_ANIM_PRESETS, type Ease, makeCellAnimation, restFrame } from '@/engine/cellAnimation'
 import { scaleCompositeToRegion } from '@/engine/compositeFill'
 import { findTriggeredConnector, normalizeConnector } from '@/engine/connectors'
-import { entityPalette, weaponGlyph } from '@/engine/entityArt'
+import { entityPalette, weaponEmoji, weaponGlyph } from '@/engine/entityArt'
 import { isoFacadeOnBack, isoFacingIndex } from '@/engine/isoBuilding'
 import { assetFootprint, multiCellAssetById, stampAsset } from '@/engine/multiCellAssets'
 import { StageData, VariantId, generateStage, stagePaint } from '@/engine/stageGenerator'
@@ -527,8 +527,11 @@ export default function TemplateEditor() {
     // Make the equipped gear VISIBLE on the player: a held-weapon glyph beside the
     // figure (changes when you equip a different weapon) + an armored tint.
     const armored = (['helmet', 'chest', 'gloves', 'boots'] as const).some(s => !!pl.equipped[s])
-    playerRef.current.weaponGlyph = weaponGlyph(mainWeapon ?? playerWeaponRef.current)
-    playerRef.current.shieldGlyph = shield ? weaponGlyph(shield) : ''
+    // Under a reskin style, the hero holds a real ⚔️/🏹/🪄/🛡️ emoji; ASCII keeps the drawn glyph.
+    const emojiHands = activeStyleId !== 'ascii'
+    const heldWeapon = mainWeapon ?? playerWeaponRef.current
+    playerRef.current.weaponGlyph = emojiHands ? weaponEmoji(heldWeapon) : weaponGlyph(heldWeapon)
+    playerRef.current.shieldGlyph = shield ? (emojiHands ? weaponEmoji(shield) : weaponGlyph(shield)) : ''
     playerRef.current.armored = armored
     // Per-entity character tone (deterministic by id) so the player varies like NPCs do;
     // the armored steel-blue still overrides this in the render. No player entity → gold default.
@@ -551,7 +554,7 @@ export default function TemplateEditor() {
       maxHp: base.maxHp,
       dodge: (base.dodge ?? 0) + b.dodge,
     }
-  }, [loadouts, inventory.equippedWeapon, entities])
+  }, [loadouts, inventory.equippedWeapon, entities, activeStyleId])
 
   // Using a special slot (from a number key): apply a consumable's effect to the
   // player and clear the slot. Bombs/scrolls have no stat effect yet — they just
