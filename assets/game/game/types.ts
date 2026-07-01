@@ -7,6 +7,7 @@
  * module-internal types live in their own files.
  */
 import type { AbilityAnimation } from './abilities'
+import type { Trigger } from './runtime/trigger'
 
 // ── stats & runtime combat state ────────────────────────────────────
 export interface Stats {
@@ -244,6 +245,9 @@ export interface Entity {
   /** art-style override: a style-agnostic Tile Library id pinning THIS entity's visual
    *  regardless of the active global style. Absent → follows the active style. */
   tileOverride?: string
+  /** on-defeat triggers: fire when THIS entity is killed (spawn/give/win/message/…).
+   *  Rides the `entities` field on save; the play loop fires them on death. Additive. */
+  triggers?: Trigger[]
 }
 
 // ── quests / missions ───────────────────────────────────────────────

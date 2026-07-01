@@ -9,6 +9,7 @@
  */
 import type { Entity, EntityKind, Quest } from '@/game/types'
 import type { GridAsset, GridBuilding } from '@/engine/IsometricGrid'
+import type { Trigger } from '@/game/runtime/trigger'
 
 /** Glyph drawn for each entity kind, over a dark backing (spec §1). */
 export const ENTITY_GLYPH: Record<EntityKind, string> = {
@@ -143,6 +144,44 @@ const buildingCodec = makeAssetCodec<GridBuilding>(
 export const buildingsToAssets = buildingCodec.toAssets
 export const buildingsFromAssets = buildingCodec.fromAssets
 export const isBuildingAsset = buildingCodec.isMarker
+
+// ── cell-trigger persistence codec ───────────────────────────────────
+// Cell triggers (on enter / on interact → action) belong to a CELL, but the
+// template schema has no per-cell channel. So — exactly like quests + buildings —
+// each cell's trigger group rides assetsData as ONE off-grid marker record, split
+// back out on load. (On-DEFEAT triggers live on the entity itself and ride the
+// `entities` field, so they're not part of this codec.) The group carries its own
+// col/row in the payload; the marker asset is off-grid so no renderer draws it.
+
+/** All triggers authored on one cell — the persisted unit for cell triggers. */
+export interface CellTriggerGroup {
+  col: number
+  row: number
+  triggers: Trigger[]
+}
+
+export const TRIGGER_ASSET_TYPE = 'nebulith:trigger'
+const triggerCodec = makeAssetCodec<CellTriggerGroup>(
+  TRIGGER_ASSET_TYPE,
+  group => ({
+    art: [' '],
+    col: -1, // off-grid: never drawn by the tile/asset renderers
+    row: -1,
+    type: TRIGGER_ASSET_TYPE,
+    blocking: false,
+    color: '#000000',
+    label: JSON.stringify(group), // the round-trip payload (cell + its triggers)
+  }),
+  parsed => !!(Array.isArray(parsed?.triggers) && typeof parsed.col === 'number' && typeof parsed.row === 'number'),
+)
+export const cellTriggersToAssets = triggerCodec.toAssets
+export const cellTriggersFromAssets = triggerCodec.fromAssets
+export const isTriggerAsset = triggerCodec.isMarker
+
+/** The triggers authored on (col,row), or an empty list when the cell has none. */
+export function triggersAtCell(groups: readonly CellTriggerGroup[], col: number, row: number): Trigger[] {
+  return groups.find(g => g.col === col && g.row === row)?.triggers ?? []
+}
 
 // ── active-art-style persistence ─────────────────────────────────────
 // The active GLOBAL art style (a single style id) rides assetsData as ONE off-grid marker,
