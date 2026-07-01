@@ -1316,6 +1316,15 @@ export default function TemplateEditor() {
       __selectFirstTreeCell?: () => { col: number; row: number } | null
       __setView?: (v: 'iso' | '2d' | 'top') => void
       __gridKinds?: () => unknown
+      __entityInfo?: () => unknown
+    }
+    // Read the live entity roster's kind + variant — so we can VALIDATE that randomized npcs actually
+    // carry male/female variants in the DATA (the female-units question), not just eyeball the render.
+    win.__entityInfo = () => {
+      const ents = entitiesRef.current
+      const byVariant = { male: 0, female: 0, none: 0 }
+      for (const e of ents) byVariant[e.variant ?? 'none']++
+      return { count: ents.length, byVariant, entities: ents.map(e => ({ kind: e.kind, variant: e.variant ?? null, name: e.name })) }
     }
     win.__setArtStyle = (id: string) => setActiveStyleId(id)
     // Flip the active VIEW without the toolbar — for validation screenshots across iso/2d/top.
@@ -1370,7 +1379,7 @@ export default function TemplateEditor() {
       setSelectedCells(new Set([`${best.col},${best.row}`]))
       return best
     }
-    return () => { delete win.__setArtStyle; delete win.__selectFirstTreeCell; delete win.__setView; delete win.__gridKinds }
+    return () => { delete win.__setArtStyle; delete win.__selectFirstTreeCell; delete win.__setView; delete win.__gridKinds; delete win.__entityInfo }
   }, [])
 
   // ── Selected-entity inspector actions ─────────────────────────────
@@ -2652,6 +2661,21 @@ export default function TemplateEditor() {
     }
   }
 
+  /** Promote the generators' decorative ☺ NPC assets into REAL npc entities: a generated town's
+   *  wanderers become SELECTABLE units that carry a male/female variant (alternating), instead of
+   *  genderless ☺ props that always render neutral (the "no female units" gap). The bare `type:'npc'`
+   *  assets are removed and entities take their place, rendering through the gendered entity path.
+   *  Real saved entities (type 'nebulith:entity') are never matched, so this never touches them. */
+  const promoteNpcAssetsToEntities = (grid: IsometricGrid): Entity[] => {
+    const bare = grid.assets.filter(a => a.type === 'npc')
+    if (bare.length === 0) return []
+    grid.assets = grid.assets.filter(a => a.type !== 'npc')
+    return bare.map((a, i) => ({
+      ...makeNpc(mintEntityId('npc'), a.col, a.row, { name: `Wanderer ${i + 1}` }),
+      variant: (i % 2 === 0 ? 'male' : 'female') as 'male' | 'female',
+    }))
+  }
+
   const generateStageInEditor = (zone: ZoneId, variant: VariantId) => {
     // A city is a big settlement — give it a markedly larger grid (~1.7× town linear) so it READS
     // bigger on screen, on top of the denser street grid + ~4× building cap in villageLayout. Town,
@@ -2667,6 +2691,10 @@ export default function TemplateEditor() {
     movePlayerToValidSpawn(stage.spawn.col, stage.spawn.row)
     const live = livePlayerCell()
     syncPlayerEntity(live.col, live.row, true) // fresh stage → player entity follows the spawn
+    // Generated wanderers become real, SELECTABLE, gendered npc entities (not genderless ☺ props).
+    // Drop any wanderers from a previous generate; keep the player + scattered enemies.
+    const promotedNpcs = promoteNpcAssetsToEntities(grid)
+    setEntities(prev => [...prev.filter(e => e.kind !== 'npc'), ...promotedNpcs])
     if (variant === 'cave') seedStageEnemies(grid, CAVE_ENEMY_TYPES, 'cave') // bats/spiders/skeletons
     if (variant === 'temple') seedStageEnemies(grid, TEMPLE_ENEMY_TYPES, 'temple') // skeletons/guardians/wraiths
     setSelectedCells(new Set())
@@ -3224,6 +3252,10 @@ export default function TemplateEditor() {
     movePlayerToValidSpawn(spawnX, spawnY)
     const live = livePlayerCell()
     syncPlayerEntity(live.col, live.row, true) // new map → a selectable player at the spawn
+    // The village's ☺ wanderers become real, SELECTABLE, gendered npc entities (male/female
+    // alternating) instead of genderless props — the "no female units when randomizing" fix.
+    const promotedNpcs = promoteNpcAssetsToEntities(grid)
+    setEntities(prev => [...prev.filter(e => e.kind !== 'npc'), ...promotedNpcs])
     setSelectedCells(new Set())
   }
 
