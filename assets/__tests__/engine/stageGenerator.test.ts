@@ -124,15 +124,17 @@ describe('generateStage — small-footprint labeled buildings (the shared collis
     }
   })
 
-  it('makes the temple footprint solid (roof blocks) with one walkable door', () => {
+  it('generates the temple INTERIOR as a walled dungeon with a boss altar (not a building)', () => {
+    // The `temple` variant is now the temple INTERIOR dungeon (rooms/corridors/altar), so it
+    // has NO overworld buildings — the temple STRUCTURE is a settlement building type instead
+    // (see stageGenerator.temple.test.ts). Here we just assert the dungeon's signature content.
     const stage = generateStage({ zone: 'winter', variant: 'temple', cols: 36, rows: 30 })
-    const cells = collectBuildingCells(stage)
-    const doors = cells.filter(c => c.label === 'door')
-    const roof = cells.filter(c => c.label === 'roof')
-    expect(doors.length).toBeGreaterThan(0)
-    expect(roof.length).toBeGreaterThan(0)
-    expect(doors.every(d => d.blocking === false && stage.collision[d.row][d.col] === false)).toBe(true)
-    expect(roof.every(w => w.blocking === true && stage.collision[w.row][w.col] === true)).toBe(true)
+    expect(stage.buildings).toHaveLength(0)
+    const walls = stage.props.filter(p => p.type === 'temple_wall')
+    expect(walls.length).toBeGreaterThan(0)
+    expect(walls.every(w => w.blocking === true && stage.collision[w.row][w.col] === true)).toBe(true)
+    expect(stage.props.some(p => p.type === 'altar')).toBe(true) // the boss chamber
+    expect(stage.collision[stage.spawn.row][stage.spawn.col]).toBe(false) // walkable spawn
   })
 })
 
@@ -211,16 +213,18 @@ describe('generateStage — boss-stage archetype (arena)', () => {
   })
 })
 
-describe('generateStage — temple archetype', () => {
+describe('generateStage — temple archetype (INTERIOR dungeon)', () => {
+  // The `temple` variant is a room-and-corridor DUNGEON now (see stageGenerator.temple.test.ts
+  // for the full suite). It has no overworld buildings — the temple STRUCTURE is a settlement
+  // building type. These two smoke tests live alongside the other archetype slices.
   const stage = generateStage({ zone: 'autumn', variant: 'temple', cols: 36, rows: 30 })
 
-  it('places one large temple building', () => {
-    expect(stage.buildings).toHaveLength(1)
-    expect(stage.buildings[0].type).toBe('temple')
-    expect(stage.buildings[0].length).toBeGreaterThanOrEqual(8) // temple is the widest type
+  it('is a walled dungeon (no overworld buildings)', () => {
+    expect(stage.buildings).toHaveLength(0)
+    expect(stage.props.some(p => p.type === 'temple_wall' && p.blocking)).toBe(true)
   })
 
-  it('builds a colonnaded hall (pillars + altar) and keeps the spawn walkable', () => {
+  it('builds a pillared hall + a boss altar, and keeps the spawn walkable', () => {
     expect(stage.props.some(p => p.type === 'pillar')).toBe(true)
     expect(stage.props.some(p => p.type === 'altar')).toBe(true)
     expect(stage.collision[stage.spawn.row][stage.spawn.col]).toBe(false)

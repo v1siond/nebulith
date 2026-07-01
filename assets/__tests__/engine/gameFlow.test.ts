@@ -24,7 +24,8 @@ describe('Nebulith — full game flow: 0 → game-ready → quest complete', () 
       expect(stage.collision[stage.spawn.row][stage.spawn.col]).toBe(false)
     }
     // each archetype produced its signature content
-    expect(temple.buildings.length).toBeGreaterThan(0)
+    expect(temple.props.some(p => p.type === 'altar')).toBe(true) // the temple dungeon's boss chamber
+    expect(temple.props.some(p => p.type === 'temple_wall')).toBe(true) // walled interior
     expect(cave.props.some(p => p.type === 'rock')).toBe(true)
     expect(boss.props.some(p => p.type === 'boss')).toBe(true)
     expect(forestB.ground.flat().includes('water')).toBe(true) // the lake hazard
