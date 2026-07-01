@@ -18,7 +18,7 @@ import { GridBuilding, IsometricGrid } from '@/engine/IsometricGrid'
 import { COMPOSITE_ASSETS, TILES } from '@/engine/Tileset'
 import { type AttackAnim, isAnimDone } from '@/engine/attackAnimations'
 import { type BuildingType } from '@/engine/buildingComposer'
-import { buildingFootprintCells, canPlaceBuilding, facadeLength, footprintContains, gridBuildingFacing, makeBuilding, moveBuilding, rotateBuilding } from '@/engine/buildingEditor'
+import { buildingFootprintCells, canPlaceBuilding, facadeLength, footprintContains, gridBuildingFacing, makeBuilding, moveBuilding, resizeBuilding, rotateBuilding } from '@/engine/buildingEditor'
 import { type AnimFrame, type AnimPreset, CELL_ANIM_PRESETS, type Ease, makeCellAnimation, restFrame } from '@/engine/cellAnimation'
 import { scaleCompositeToRegion } from '@/engine/compositeFill'
 import { findTriggeredConnector, normalizeConnector } from '@/engine/connectors'
@@ -48,7 +48,7 @@ import { VILLAGE_CONFIG } from '@/levels/village'
 import { Connector, TemplateListItem, createTemplate, deleteTemplate, deserializeToGrid, getTemplate, listTemplates, serializeGrid, updateTemplate } from '@/lib/api'
 import { type CellTriggerGroup, ENTITY_GLYPH, buildingsFromAssets, buildingsToAssets, cellTriggersFromAssets, cellTriggersToAssets, entitiesFromAssets, entitiesToAssets, isBuildingAsset, isEntityAsset, isQuestAsset, isStyleAsset, isTriggerAsset, questsFromAssets, questsToAssets, styleFromAssets, styleToAssets, triggersAtCell } from '@/lib/gridCodec'
 import { type Trigger, type TriggerEffect, fireTriggers } from '@/game/runtime/trigger'
-import { ASCII_STYLE, type Style, styleById, groundKind, assetKind, resolveVisual } from '@/game/artStyle'
+import { ASCII_STYLE, type Style, styleById, groundKind, assetKind, entityKind, genderize, resolveVisual } from '@/game/artStyle'
 import { useRouter } from 'next/router'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { render, render2D, renderTopView, clampCameraAxis, isoCameraFocus, entityMotion, ENEMY_MOVE_MS, isDebugMode, setDebugMode, type DayNight } from '@/engine/render'
@@ -203,6 +203,7 @@ export default function TemplateEditor() {
 
   // The placed entity currently selected for inspection (click an entity to select).
   const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null)
+  const selectedEntityIdRef = useRef<string | null>(null) // live mirror for the game loop / debug seams
   // Which Inspector section a quick-action asked to focus. `n` is a nonce so clicking
   // the same verb twice still re-opens + re-scrolls that section (see Card `focus`).
   const [sectionFocus, setSectionFocus] = useState<{ id: string; n: number } | null>(null)
@@ -215,6 +216,7 @@ export default function TemplateEditor() {
   // Disarm waypoint authoring + close any entity modal whenever the selection changes,
   // so clicks on a new entity select it (not drop a stray waypoint / show stale modal).
   useEffect(() => {
+    selectedEntityIdRef.current = selectedEntityId
     setWaypointMode(false)
     setEntityModal(null)
   }, [selectedEntityId])
@@ -1204,6 +1206,21 @@ export default function TemplateEditor() {
     }
   }
 
+  /** Grow/shrink the selected building's FACADE LENGTH by `delta` cells (3–8), re-extruded in place —
+   *  "put a house tile and make it 4 or 6 cells long". Keeps the footprint centred; skips if blocked. */
+  const resizeSelectedBuilding = (delta: number) => {
+    const grid = gridRef.current
+    const idx = selectedBuildingIndexRef.current
+    if (!grid || idx == null) return
+    const old = grid.buildings[idx]
+    if (!old) return
+    const nextLen = Math.min(8, Math.max(3, facadeLength(old) + delta))
+    if (nextLen === facadeLength(old)) return
+    if (!tryReplaceBuilding(grid, idx, old, resizeBuilding(old, nextLen))) {
+      toast('Cannot resize — no room for the new footprint here', 'warning')
+    }
+  }
+
   /** Delete the currently selected building. */
   const deleteSelectedBuilding = () => {
     const idx = selectedBuildingIndexRef.current
@@ -1317,6 +1334,30 @@ export default function TemplateEditor() {
       __setView?: (v: 'iso' | '2d' | 'top') => void
       __gridKinds?: () => unknown
       __entityInfo?: () => unknown
+      __entityScreens?: () => Array<{ id: string; kind: string; variant: string | null; x: number | null; y: number | null }>
+      __selectEntity?: (id: string) => string
+      __selectedEntityInfo?: () => unknown
+      __placeBuilding?: (type: string, col: number, row: number) => void
+      __selectBuilding?: (i: number) => number | null
+      __resizeBuilding?: (delta: number) => void
+      __selectedBuildingLen?: () => number | null
+    }
+    // Building-tool validation seams: place a house, resize it, read its facade length — so house-sizing
+    // ("make a house 4 or 6 cells long, iso re-extrudes") is validated in the real editor deterministically.
+    win.__placeBuilding = (type: string, col: number, row: number) => placeNewBuilding(type as BuildingType, col, row)
+    win.__selectBuilding = (i: number) => {
+      const g = gridRef.current
+      if (!g || !g.buildings[i]) return null
+      setSelectedEntityId(null)
+      selectedBuildingIndexRef.current = i
+      setSelectedBuildingIndex(i)
+      return facadeLength(g.buildings[i])
+    }
+    win.__resizeBuilding = (delta: number) => resizeSelectedBuilding(delta)
+    win.__selectedBuildingLen = () => {
+      const g = gridRef.current
+      const i = selectedBuildingIndexRef.current
+      return g && i != null && g.buildings[i] ? facadeLength(g.buildings[i]) : null
     }
     // Read the live entity roster's kind + variant — so we can VALIDATE that randomized npcs actually
     // carry male/female variants in the DATA (the female-units question), not just eyeball the render.
@@ -1324,7 +1365,20 @@ export default function TemplateEditor() {
       const ents = entitiesRef.current
       const byVariant = { male: 0, female: 0, none: 0 }
       for (const e of ents) byVariant[e.variant ?? 'none']++
-      return { count: ents.length, byVariant, entities: ents.map(e => ({ kind: e.kind, variant: e.variant ?? null, name: e.name })) }
+      return { count: ents.length, byVariant, entities: ents.map(e => ({ id: e.id, kind: e.kind, variant: e.variant ?? null, name: e.name, col: e.col, row: e.row, anims: e.animations?.length ?? 0 })) }
+    }
+    // Each entity's SCREEN position in the current view (via the same cellToScreen the click path uses) —
+    // so a validation click lands exactly on a figure, and we can tell click-mapping from inspector bugs.
+    win.__entityScreens = () => entitiesRef.current.map(e => ({ id: e.id, kind: e.kind, variant: e.variant ?? null, ...(cellToScreen(e.col, e.row) ?? { x: null, y: null }) }))
+    // Select an entity DIRECTLY (bypassing the click hit-test) to isolate whether selection-display works
+    // from whether click-MAPPING works.
+    win.__selectEntity = (id: string) => { setSelectedEntityId(id); return id }
+    // What the inspector currently considers selected + its animation frames (the exact thing the user sees).
+    win.__selectedEntityInfo = () => {
+      const id = selectedEntityIdRef.current
+      const e = entitiesRef.current.find(x => x.id === id)
+      if (!e) return { selectedId: id, found: false }
+      return { selectedId: id, found: true, kind: e.kind, variant: e.variant ?? null, name: e.name, animations: (e.animations ?? []).map(a => ({ name: a.name, frames: a.frames.map(f => f.char ?? f.tileId ?? '(base)') })) }
     }
     win.__setArtStyle = (id: string) => setActiveStyleId(id)
     // Flip the active VIEW without the toolbar — for validation screenshots across iso/2d/top.
@@ -1379,7 +1433,7 @@ export default function TemplateEditor() {
       setSelectedCells(new Set([`${best.col},${best.row}`]))
       return best
     }
-    return () => { delete win.__setArtStyle; delete win.__selectFirstTreeCell; delete win.__setView; delete win.__gridKinds; delete win.__entityInfo }
+    return () => { delete win.__setArtStyle; delete win.__selectFirstTreeCell; delete win.__setView; delete win.__gridKinds; delete win.__entityInfo; delete win.__entityScreens; delete win.__selectEntity; delete win.__selectedEntityInfo; delete win.__placeBuilding; delete win.__selectBuilding; delete win.__resizeBuilding; delete win.__selectedBuildingLen }
   }, [])
 
   // ── Selected-entity inspector actions ─────────────────────────────
@@ -4973,6 +5027,10 @@ export default function TemplateEditor() {
                 const isPlayer = selEntity.kind === 'player'
                 const isEnemy = selEntity.kind === 'enemy'
                 const isNpc = selEntity.kind === 'npc'
+                // The entity's OWN resolved figure (gendered) — the animation editor previews an empty
+                // "base" frame AS this, and gendered char frames, so the preview matches what renders.
+                const selFigVisual = resolveVisual(entityKind(selEntity.kind), activeStyle, selEntity.tileOverride)
+                const selFigure = genderize(selFigVisual.kind === 'glyph' ? selFigVisual.char : (isEnemy ? '👾' : '🧍'), selEntity.variant)
                 const libBtn = 'w-full rounded bg-gray-700 px-2 py-1.5 text-left text-xs font-bold transition-colors hover:bg-gray-600'
                 return (
                   <>
@@ -5004,6 +5062,8 @@ export default function TemplateEditor() {
                         animations={selEntity.animations ?? []}
                         category="units"
                         styleId={activeStyleId}
+                        baseGlyph={selFigure}
+                        variant={selEntity.variant}
                         onChange={next => patchSelectedEntity({ animations: next })}
                       />
                     </Card>
@@ -5057,12 +5117,18 @@ export default function TemplateEditor() {
                         <p className="text-[10px] text-gray-400">
                           footprint {selBuilding.length}×{selBuilding.height} · facade {facadeLength(selBuilding)} · depth {selBuilding.depth} · door @ {door.col},{door.row}
                         </p>
+                        <div className="flex items-center gap-1">
+                          <span className="text-[10px] text-gray-400">Length</span>
+                          <button onClick={() => resizeSelectedBuilding(-1)} disabled={facadeLength(selBuilding) <= 3} className="rounded bg-orange-700 px-2 py-1 text-xs font-bold enabled:hover:bg-orange-600 disabled:cursor-not-allowed disabled:bg-gray-800/60 disabled:text-gray-600" title="Make the house shorter (min 3 cells)">−</button>
+                          <span className="w-14 text-center text-xs font-bold tabular-nums">{facadeLength(selBuilding)} cells</span>
+                          <button onClick={() => resizeSelectedBuilding(1)} disabled={facadeLength(selBuilding) >= 8} className="rounded bg-orange-700 px-2 py-1 text-xs font-bold enabled:hover:bg-orange-600 disabled:cursor-not-allowed disabled:bg-gray-800/60 disabled:text-gray-600" title="Make the house longer (max 8 cells) — iso re-extrudes it">＋</button>
+                        </div>
                         <div className="flex gap-1">
                           <button onClick={rotateSelectedBuilding} className="flex-1 rounded bg-orange-700 px-2 py-1 text-xs font-bold hover:bg-orange-600" title="Rotate the door side south→east→north→west (R)">⟳ Rotate door</button>
                           <button onClick={deleteSelectedBuilding} className="flex-1 rounded bg-red-800 px-2 py-1 text-xs font-bold hover:bg-red-700" title="Delete this building (Del)">Delete</button>
                           <button onClick={deselectBuilding} className="rounded bg-gray-700 px-2 py-1 text-xs hover:bg-gray-600">Deselect</button>
                         </div>
-                        <p className="text-[10px] text-gray-500">Arrow keys nudge it a cell · R rotates · Del removes.</p>
+                        <p className="text-[10px] text-gray-500">Arrow keys nudge it a cell · R rotates · −/＋ resize · Del removes.</p>
                       </div>
                     </Card>
                     <Card title="Art (walls / roof)" accent="cyan" defaultOpen={false} sectionId="art" focus={sectionFocus}>

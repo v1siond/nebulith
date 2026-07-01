@@ -4,7 +4,7 @@
 // props-driven — all gameplay state/handlers live in the page; this is layout only.
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { ZoneId } from '@/engine/zones'
-import { BUILT_IN_STYLES, type TileCategory, tilesForStyle, visualForTileId } from '@/game/artStyle'
+import { BUILT_IN_STYLES, type TileCategory, genderize, tilesForStyle, visualForTileId } from '@/game/artStyle'
 import type { AnimDirection, AnimFrame, AnimTrigger, EntityAnimation } from '@/game/runtime/entityAnimation'
 import { DEFAULT_ACTION_PARAMS, makeTrigger, type Trigger, type TriggerActionType, type TriggerEvent } from '@/game/runtime/trigger'
 import { type EditorMode, SEASON_BTN, STAGE_VARIANTS, STAGE_ZONES } from './editorConfig'
@@ -568,28 +568,32 @@ const ANIM_TRIGGERS: ReadonlyArray<{ id: AnimTrigger['on']; label: string }> = [
 
 const ANIM_DIRECTIONS: readonly AnimDirection[] = ['up', 'down', 'left', 'right', 'any']
 
-/** The emoji/glyph a frame slot shows: raw `char` → catalog tile glyph → 🖼 for an image tile →
- *  '·' when empty (an empty frame draws the entity's OWN tile at play time — that's frame 0). */
-function frameGlyph(frame: AnimFrame): string {
-  if (frame.char) return frame.char
+/** The emoji/glyph a frame slot shows — the SAME image the renderer draws, so the preview matches play:
+ *  an empty frame shows the entity's OWN figure (frame 0 = the entity as-is), a `char`/tile is gendered
+ *  to the entity's variant (so a walk 🚶 previews as 🚶‍♀️ for a female, matching the idle 🧍‍♀️), and an
+ *  image tile shows 🖼. `baseGlyph` is the entity's resolved figure; falls back to '·' if unknown. */
+function frameGlyph(frame: AnimFrame, baseGlyph = '', variant?: 'male' | 'female'): string {
+  if (frame.char) return genderize(frame.char, variant)
   if (frame.tileId) {
     const v = visualForTileId(frame.tileId)
-    if (v?.kind === 'glyph') return v.char
+    if (v?.kind === 'glyph') return genderize(v.char, variant)
     if (v?.kind === 'image') return '🖼'
   }
-  return '·'
+  return baseGlyph || '·'
 }
 
 /** One frame slot: the resolved glyph (mirrored when flipped) + a flip toggle. Clicking the tile
  *  opens the picker for this frame; ⇄ mirrors the frame (a DATA property the renderer honors). */
 function FrameSlot({
-  frame, index, active, onOpen, onToggleFlip,
+  frame, index, active, onOpen, onToggleFlip, baseGlyph, variant,
 }: {
   frame: AnimFrame
   index: number
   active: boolean
   onOpen: () => void
   onToggleFlip: () => void
+  baseGlyph: string
+  variant?: 'male' | 'female'
 }) {
   return (
     <div className="flex flex-col items-center gap-0.5">
@@ -601,7 +605,7 @@ function FrameSlot({
           active ? 'border-cyan-400 bg-cyan-900/40' : 'border-white/15 bg-black/40 hover:bg-white/10'
         }`}
       >
-        <span style={frame.flipX ? { display: 'inline-block', transform: 'scaleX(-1)' } : undefined}>{frameGlyph(frame)}</span>
+        <span style={frame.flipX ? { display: 'inline-block', transform: 'scaleX(-1)' } : undefined}>{frameGlyph(frame, baseGlyph, variant)}</span>
       </button>
       <button
         onClick={onToggleFlip}
@@ -665,13 +669,15 @@ function FramePicker({
  *  loop, the frame strip + picker, and a delete. Every edit patches this animation immutably up
  *  through `onAnim`. */
 function AnimationRow({
-  anim, category, styleId, onAnim, onRemove,
+  anim, category, styleId, onAnim, onRemove, baseGlyph, variant,
 }: {
   anim: EntityAnimation
   category: TileCategory
   styleId: string
   onAnim: (next: EntityAnimation) => void
   onRemove: () => void
+  baseGlyph: string
+  variant?: 'male' | 'female'
 }) {
   const [pickerFrame, setPickerFrame] = useState<number | null>(null)
   const patch = (p: Partial<EntityAnimation>) => onAnim({ ...anim, ...p })
@@ -747,6 +753,8 @@ function AnimationRow({
               active={pickerFrame === fi}
               onOpen={() => setPickerFrame(p => (p === fi ? null : fi))}
               onToggleFlip={() => patchFrame(fi, { flipX: !f.flipX })}
+              baseGlyph={baseGlyph}
+              variant={variant}
             />
           ))}
           <div className="flex flex-col gap-0.5">
@@ -774,13 +782,17 @@ export interface AnimationEditorProps {
   category: TileCategory
   /** the active art style whose tiles the frame picker offers. */
   styleId: string
+  /** the entity's OWN resolved figure (already gendered) — what an empty "base" frame previews as. */
+  baseGlyph: string
+  /** the entity's male/female variant, so char/tile frames preview gendered (matching the render). */
+  variant?: 'male' | 'female'
   onChange: (next: EntityAnimation[]) => void
 }
 
 /** Author the data-driven animations that ride on an entity — the player included (the player IS an
  *  entity, so this authors the live hero). Add/edit/remove animations; each has a trigger, direction,
  *  timing, loop, and a frame strip with a category-constrained tile picker. */
-export function AnimationEditor({ animations, category, styleId, onChange }: AnimationEditorProps) {
+export function AnimationEditor({ animations, category, styleId, baseGlyph, variant, onChange }: AnimationEditorProps) {
   const replace = (i: number, next: EntityAnimation) => onChange(animations.map((a, j) => (j === i ? next : a)))
   const remove = (i: number) => onChange(animations.filter((_, j) => j !== i))
   const add = () =>
@@ -807,7 +819,7 @@ export function AnimationEditor({ animations, category, styleId, onChange }: Ani
         </p>
       )}
       {animations.map((a, i) => (
-        <AnimationRow key={a.id} anim={a} category={category} styleId={styleId} onAnim={next => replace(i, next)} onRemove={() => remove(i)} />
+        <AnimationRow key={a.id} anim={a} category={category} styleId={styleId} baseGlyph={baseGlyph} variant={variant} onAnim={next => replace(i, next)} onRemove={() => remove(i)} />
       ))}
       <button onClick={add} className="w-full rounded bg-cyan-800 px-2 py-1 text-[11px] font-bold text-white transition-colors hover:bg-cyan-700">
         ✦ Add animation
