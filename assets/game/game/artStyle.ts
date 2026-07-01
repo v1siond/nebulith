@@ -24,6 +24,7 @@ export type ElementKind =
   | 'grass' | 'water' | 'path' | 'plaza' | 'sand' | 'ground' // terrain
   | 'wall' | 'roof' | 'door' | 'window'                       // buildings
   | 'tree' | 'flower' | 'bush' | 'rock' | 'crate' | 'lamp'    // nature / props
+  | 'crystal' | 'mushroom'                                     // cave features
   | 'enemy' | 'npc' | 'player'                                // units
   | 'mountain'
 
@@ -87,6 +88,9 @@ export const EMOJI_STYLE: Style = {
     rock: { kind: 'glyph', char: '🪨', color: '#8a8a8a' },
     crate: { kind: 'glyph', char: '📦', color: '#b5793a' },
     lamp: { kind: 'glyph', char: '💡', color: '#ffd24a' },
+    // cave features — upright billboards, `color` fills the glyph (season-tinted at the site)
+    crystal: { kind: 'glyph', char: '💎', color: '#b48cff' },
+    mushroom: { kind: 'glyph', char: '🍄', color: '#d24a4a' },
     // units — upright billboards
     enemy: { kind: 'glyph', char: '👾', color: '#b45ac0' },
     npc: { kind: 'glyph', char: '🧑', color: '#d9a066' },
@@ -144,6 +148,8 @@ const TYPE_KIND: Readonly<Record<string, ElementKind>> = {
   tree: 'tree', flower: 'flower', bush: 'bush', rock: 'rock', decoration: 'rock',
   crate: 'crate', lamp: 'lamp', lantern: 'lamp', npc: 'npc',
   water: 'water', fountain: 'water', building: 'wall',
+  // cave props — walls + rubble read as rock; crystals + mushrooms get their own tint.
+  cave_decor: 'rock', crystal: 'crystal', mushroom: 'mushroom',
 }
 
 /** Kind for an entity by its role. */
@@ -168,6 +174,7 @@ const CATEGORY_OF: Readonly<Record<ElementKind, TileCategory>> = {
   grass: 'terrain', water: 'terrain', path: 'terrain', plaza: 'terrain', sand: 'terrain', ground: 'terrain', mountain: 'terrain',
   wall: 'buildings', roof: 'buildings', door: 'buildings', window: 'buildings',
   tree: 'nature', flower: 'nature', bush: 'nature', rock: 'nature', crate: 'nature', lamp: 'nature',
+  crystal: 'nature', mushroom: 'nature',
   enemy: 'units', npc: 'units', player: 'units',
 }
 
@@ -175,6 +182,7 @@ const KIND_LABEL: Readonly<Record<ElementKind, string>> = {
   grass: 'Grass', water: 'Water', path: 'Path', plaza: 'Plaza', sand: 'Sand', ground: 'Ground', mountain: 'Mountain',
   wall: 'Wall', roof: 'Roof', door: 'Door', window: 'Window',
   tree: 'Tree', flower: 'Flower', bush: 'Bush', rock: 'Rock', crate: 'Crate', lamp: 'Lamp',
+  crystal: 'Crystal', mushroom: 'Mushroom',
   enemy: 'Enemy', npc: 'NPC', player: 'Player',
 }
 
@@ -184,6 +192,7 @@ const ASCII_TILE_GLYPHS: Partial<Record<ElementKind, string>> = {
   grass: '"', water: '≈', path: '░', plaza: '#', sand: '∴', mountain: '▲',
   wall: '█', roof: '▀', door: '╫', window: '▒',
   tree: '♣', flower: '+', bush: '*', rock: 'O', crate: '$', lamp: '!',
+  crystal: '◆', mushroom: '♠',
   enemy: '&', npc: '☺', player: '@',
 }
 
