@@ -25,8 +25,8 @@ describe('resolveVisual — the one style decision point', () => {
 
   it('a mapped kind on the Emoji style → its glyph', () => {
     expect(resolveVisual('tree', EMOJI_STYLE)).toMatchObject({ kind: 'glyph', char: '🌲' })
-    expect(resolveVisual('water', EMOJI_STYLE)).toMatchObject({ kind: 'glyph', char: '🟦' })
-    expect(resolveVisual('grass', EMOJI_STYLE)).toMatchObject({ kind: 'glyph', char: '🟩' })
+    expect(resolveVisual('water', EMOJI_STYLE)).toMatchObject({ kind: 'glyph', char: '🌊' })
+    expect(resolveVisual('grass', EMOJI_STYLE)).toMatchObject({ kind: 'glyph', char: '🍀' })
     expect(resolveVisual('enemy', EMOJI_STYLE)).toMatchObject({ kind: 'glyph', char: '👾' })
     expect(resolveVisual('player', EMOJI_STYLE)).toMatchObject({ kind: 'glyph', char: '🧍' })
   })
@@ -51,7 +51,7 @@ describe('resolveVisual — the one style decision point', () => {
   it('a per-element override WINS over the active style — even ASCII', () => {
     // override an ASCII tree with the emoji water tile → the override tile (glyph + tint) draws
     const v = resolveVisual('tree', ASCII_STYLE, 'emoji:water') as GlyphVisual
-    expect(v).toMatchObject({ kind: 'glyph', char: '🟦' })
+    expect(v).toMatchObject({ kind: 'glyph', char: '🌊' })
     expect(v.color).toMatch(/^#/)
   })
 
@@ -77,14 +77,14 @@ describe('resolveDraw — surfaces the tint the geometry sites fill with', () =>
 
   it('a styled glyph surfaces its emoji AND a tint (the diamond/cube fill colour)', () => {
     const d = resolveDraw('grass', EMOJI_STYLE, undefined, ';', '#9ac454')
-    expect(d.char).toBe('🟩')
+    expect(d.char).toBe('🍀')
     expect(d.tint).toMatch(/^#/) // present → the caller fills geometry, never a flat square
     expect(d.color).toBe(d.tint) // glyph fill == the tile hue
   })
 
   it('a per-element override surfaces the override tile tint over the active style', () => {
     const d = resolveDraw('grass', ASCII_STYLE, 'emoji:water', ';', '#9ac454')
-    expect(d.char).toBe('🟦')
+    expect(d.char).toBe('🌊')
     expect(d.tint).toMatch(/^#/)
   })
 })

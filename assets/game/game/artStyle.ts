@@ -68,10 +68,12 @@ export const EMOJI_STYLE: Style = {
   name: 'Emoji',
   icon: '😀',
   map: {
-    // terrain — `color` is the DIAMOND fill hue (harmonised with the ASCII GROUND_COLORS
-    // so the reskin reads as the same world), the emoji rides on top as a small hint.
-    grass: { kind: 'glyph', char: '🟩', color: '#5faf4a' },
-    water: { kind: 'glyph', char: '🟦', color: '#4a90e2' },
+    // terrain — `color` is the FILL hue (harmonised with the ASCII GROUND_COLORS so the reskin reads
+    // as the same world); the emoji rides FULL-CELL on top as the texture. Grass/water use a REAL
+    // texture glyph (clover, wave) not a same-colour square — a colored square just vanishes into the
+    // fill ("grass is just color"). Grass also keeps its per-cell shade (cellFill) so a field varies.
+    grass: { kind: 'glyph', char: '🍀', color: '#5faf4a' },
+    water: { kind: 'glyph', char: '🌊', color: '#4a90e2' },
     path: { kind: 'glyph', char: '🟫', color: '#9c7b4d' },
     plaza: { kind: 'glyph', char: '⬜', color: '#cabfa6' },
     sand: { kind: 'glyph', char: '🟨', color: '#e2c86b' },
@@ -279,9 +281,9 @@ function emojiTile(category: TileCategory, slug: string, label: string, char: st
  */
 export const EMOJI_TILES: TileDef[] = [
   // ── terrain — grounds, water, and the biome extremes (square/round + landform glyphs) ──
-  emojiTile('terrain', 'grass-field', 'Grass', '🟩', '#5faf4a'),
-  emojiTile('terrain', 'dark-grass', 'Dark Grass', '🟢', '#3c7a2f'),
-  emojiTile('terrain', 'shallow-water', 'Shallow Water', '🟦', '#4a90e2'),
+  emojiTile('terrain', 'grass-field', 'Grass', '🍀', '#5faf4a'),
+  emojiTile('terrain', 'dark-grass', 'Dark Grass', '🌿', '#3c7a2f'),
+  emojiTile('terrain', 'shallow-water', 'Shallow Water', '🌊', '#4a90e2'),
   emojiTile('terrain', 'deep-water', 'Deep Water', '🔵', '#1c5fa8'),
   emojiTile('terrain', 'beach-sand', 'Sand', '🟨', '#e2c86b'),
   emojiTile('terrain', 'desert', 'Desert', '🏜️', '#d9b45f'),

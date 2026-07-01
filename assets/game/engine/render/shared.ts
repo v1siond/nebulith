@@ -187,6 +187,15 @@ export function grassShade(baseBg: string, col: number, row: number): string {
   return varyIntensity(baseBg, n - Math.floor(n), 0.22)
 }
 
+/** Fill colour for a ground cell. A reskin (`tint` set) normally fills with the tile's flat catalog
+ *  hue — but for GRASS that made a whole field ONE flat green ("grass is just color"), because the
+ *  flat tint overrode the per-cell shade. So grassy cells keep the same deterministic grassShade
+ *  variation the ASCII grass has, applied to the emoji hue. No tint (ASCII) → the precomputed bg. */
+export function cellFill(tint: string | undefined, bg: string, grassy: boolean, col: number, row: number): string {
+  if (!tint) return bg
+  return grassy ? grassShade(tint, col, row) : tint
+}
+
 
 /** Clamp a camera focus coord (in cells) so a viewport spanning `halfSpan` cells
  *  each side stays inside [0, total]; if the grid is smaller than the viewport,

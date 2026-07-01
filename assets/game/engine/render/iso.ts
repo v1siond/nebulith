@@ -16,7 +16,7 @@ import { type PlayerState, barFraction, hpFraction, playerDisplayName } from '@/
 import { type CombatState, type Entity, type Quest } from '@/game/types'
 import { GROUND_COLORS } from '@/levels/village'
 import { Connector } from '@/lib/api'
-import { ASCII_FONT, BUILDING_BADGES, COMBAT_RANGE, type DayNight, type DrawVisual, ENEMY_MOVE_MS, LAMP_GLOW, LIGHT, applyCellTransform, isoCameraFocus, collectLampGlows, debugCellCaptions, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawNightLighting, drawPlayerArm, drawQuestMarker, drawRangeRing, drawStyledImage, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, getPlayerArt, grassShade, idleNow, isDeadEnemy, isDebugMode, resolveDraw, tileImage, treeCanopyLayers } from './shared'
+import { ASCII_FONT, BUILDING_BADGES, COMBAT_RANGE, type DayNight, type DrawVisual, ENEMY_MOVE_MS, LAMP_GLOW, LIGHT, applyCellTransform, isoCameraFocus, collectLampGlows, debugCellCaptions, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawNightLighting, drawPlayerArm, drawQuestMarker, drawRangeRing, drawStyledImage, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, getPlayerArt, grassShade, cellFill, idleNow, isDeadEnemy, isDebugMode, resolveDraw, tileImage, treeCanopyLayers } from './shared'
 import { ASCII_STYLE, assetKind, entityKind, genderize, groundKind, type ElementKind, type ImageVisual, type Style } from '@/game/artStyle'
 import { DEFAULT_CHARACTER_ANIMATIONS, activeFrame } from '@/game/runtime/entityAnimation'
 
@@ -192,7 +192,9 @@ export function drawIsoGroundLayer(ctx: CanvasRenderingContext2D, p: IsoGroundPa
       // the SAME cube+diamond geometry with the tile hue (so it stays iso-angled with z) and drop a
       // small hint — the geometry is reused, only the fill/asset changes. No tint → bg (identical).
       const gdv = resolveDraw(groundKind(tileType), style, undefined, char, fg)
-      const fillBg = gdv.tint ?? bg // reskin → the tile's OWN colour (catalog data); ASCII → bg (identical)
+      // reskin → the tile's OWN colour (catalog data), but grass KEEPS its per-cell shade so a field
+      // isn't one flat green ("grass is just color"); ASCII → bg (identical).
+      const fillBg = cellFill(gdv.tint, bg, isGrass, col, row)
 
       const cellHeight = grid.getHeight(col, row)
       const heightOffset = cellHeight * heightStep

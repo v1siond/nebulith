@@ -9,7 +9,7 @@ import { type PlayerState, barFraction, hpFraction } from '@/game/runtime/player
 import { type CombatState, type Entity, type Quest } from '@/game/types'
 import { GROUND_COLORS } from '@/levels/village'
 import { Connector } from '@/lib/api'
-import { ASCII_FONT, BUILDING_BADGES, type DayNight, LAMP_GLOW, applyCellTransform, clampCameraAxis, collectLampGlows, debugCellCaptions, debugLabelColors, drawHitMarker, drawHpBar, drawNightLighting, drawQuestMarker, drawStyledImage, grassShade, isDeadEnemy, isDebugMode, resolveDraw } from './shared'
+import { ASCII_FONT, BUILDING_BADGES, type DayNight, LAMP_GLOW, applyCellTransform, clampCameraAxis, collectLampGlows, debugCellCaptions, debugLabelColors, drawHitMarker, drawHpBar, drawNightLighting, drawQuestMarker, drawStyledImage, grassShade, cellFill, isDeadEnemy, isDebugMode, resolveDraw } from './shared'
 import { ASCII_STYLE, assetKind, entityKind, groundKind, type Style } from '@/game/artStyle'
 
 
@@ -145,6 +145,7 @@ export function renderTopView(
       let char: string
       let fg: string
       let bg: string
+      let grassy = false
       let kind: ReturnType<typeof assetKind>
 
       if (asset) {
@@ -162,15 +163,17 @@ export function renderTopView(
         char = colors.char[0]
         fg = colors.fg[0]
         // Grass varies per-cell into natural green tones (deterministic hash); other ground stays flat.
-        bg = tileType.includes('grass') ? grassShade(colors.bg[0], col, row) : colors.bg[0]
+        grassy = tileType.includes('grass')
+        bg = grassy ? grassShade(colors.bg[0], col, row) : colors.bg[0]
         kind = groundKind(tileType)
       }
 
       // Resolve the active art style (ASCII passthrough → the defaults above, unchanged).
       const dv = resolveDraw(kind, style, asset?.tileOverride, char, fg)
 
-      // Draw cell — a reskin tints the blueprint cell at the tile hue (agrees with iso/2D); ASCII → bg.
-      ctx.fillStyle = dv.tint ?? bg
+      // Draw cell — a reskin tints the blueprint cell at the tile hue (agrees with iso/2D), but grass
+      // keeps its per-cell shade so a field isn't one flat green ("grass is just color"); ASCII → bg.
+      ctx.fillStyle = cellFill(dv.tint, bg, grassy, col, row)
       ctx.fillRect(x, y, tileSize - 1, tileSize - 1)
 
       ctx.fillStyle = dv.color

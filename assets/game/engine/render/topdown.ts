@@ -16,7 +16,7 @@ import { type PlayerState, barFraction, hpFraction, playerDisplayName } from '@/
 import { type CombatState, type Entity, type Quest } from '@/game/types'
 import { GROUND_COLORS } from '@/levels/village'
 import { Connector } from '@/lib/api'
-import { ASCII_FONT, BUILDING_BADGES, COMBAT_RANGE, type DayNight, ENEMY_MOVE_MS, LAMP_GLOW, applyCellTransform, clampCameraAxis, collectLampGlows, debugCellCaptions, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawNightLighting, drawPlayerArm, drawQuestMarker, drawRangeRing, drawStyledImage, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, getPlayerArt, grassShade, idleNow, isDeadEnemy, isDebugMode, resolveDraw, treeCanopyLayers } from './shared'
+import { ASCII_FONT, BUILDING_BADGES, COMBAT_RANGE, type DayNight, ENEMY_MOVE_MS, LAMP_GLOW, applyCellTransform, clampCameraAxis, collectLampGlows, debugCellCaptions, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawNightLighting, drawPlayerArm, drawQuestMarker, drawRangeRing, drawStyledImage, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, getPlayerArt, grassShade, cellFill, idleNow, isDeadEnemy, isDebugMode, resolveDraw, treeCanopyLayers } from './shared'
 import { ASCII_STYLE, assetKind, entityKind, genderize, groundKind, type ElementKind, type Style } from '@/game/artStyle'
 import { DEFAULT_CHARACTER_ANIMATIONS, activeFrame } from '@/game/runtime/entityAnimation'
 
@@ -465,8 +465,9 @@ export function render2D(
       // flat cell at the tile hue, VARIED per cell (same deterministic noise ASCII grass uses) so an
       // emoji field isn't flat-uniform; ASCII → bg (identical).
       const gdv = resolveDraw(groundKind(tileType), style, undefined, char, fg)
-      // Cell fill: a reskin uses the tile's OWN colour (from the catalog DATA); ASCII → the ground bg.
-      const fillBg = gdv.tint ?? bg
+      // Cell fill: a reskin uses the tile's OWN colour (from the catalog DATA), but grass keeps its
+      // per-cell shade so a field isn't one flat green ("grass is just color"); ASCII → the ground bg.
+      const fillBg = cellFill(gdv.tint, bg, tileType.includes('grass'), col, row)
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
       ctx.fillStyle = fillBg
