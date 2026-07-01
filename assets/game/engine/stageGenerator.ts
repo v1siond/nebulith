@@ -320,9 +320,37 @@ function scatterGroundCover(ctx: ArchetypeContext, density = 0.18): void {
 }
 
 // Structural decor for temple / boss arena / village (readable single-glyph props).
-const makePillar = (col: number, row: number): StageProp => ({ col, row, type: 'pillar', char: '║', blocking: true, color: '#cbb68c' })
+const makePillar = (col: number, row: number, color = '#cbb68c'): StageProp => ({ col, row, type: 'pillar', char: '║', blocking: true, color })
 const makeBrazier = (col: number, row: number): StageProp => ({ col, row, type: 'brazier', char: 'Φ', blocking: true, color: '#ff8a3a' })
-const makeAltar = (col: number, row: number): StageProp => ({ col, row, type: 'altar', char: '‡', blocking: true, color: '#ffe7a8' })
+const makeAltar = (col: number, row: number, color = '#ffe7a8'): StageProp => ({ col, row, type: 'altar', char: '‡', blocking: true, color })
+
+// ── temple-interior feature cells (all SEASONAL) — every KIND maps to an ASCII glyph+color
+//    AND an emoji tint (see game/artStyle.ts): temple_wall → 🧱, pillar → 🏛️, altar → 🗿,
+//    torch → 🔥, hazard → 🔺, key → 🗝️, the gateway door → 🚪.
+// One blocking temple WALL cell — the dungeon's stone boundary + inner walls, tinted per
+// season (mossy marble in spring, sandstone in desert, frozen blue in winter, basalt in lava)
+// so a temple reads by season the way the cavern does.
+const makeTempleWall = (col: number, row: number, shades: readonly string[]): StageProp => ({
+  col, row, type: 'temple_wall',
+  char: Math.abs(col * 5 + row * 3) % 6 === 0 ? '▓' : '█',
+  blocking: true,
+  color: shades[Math.abs(col * 7 + row * 13) % shades.length],
+})
+
+// A wall TORCH — a mounted flame lighting the halls. Non-blocking (a sconce you pass under),
+// so it can never pinch off the walkable floor.
+const makeTorch = (col: number, row: number, color: string): StageProp => ({ col, row, type: 'torch', char: 'ϯ', blocking: false, color })
+
+// A floor HAZARD — spike/pit trap tile. Non-blocking (you CAN step on it — it would deal
+// damage in play), so hazards never disconnect the dungeon floor. Season-tinted.
+const makeHazard = (col: number, row: number, char: string, color: string): StageProp => ({ col, row, type: 'hazard', char, blocking: false, color })
+
+// The boss-door KEY — a collectible on the floor of a side room. Non-blocking.
+const makeKey = (col: number, row: number): StageProp => ({ col, row, type: 'key', char: '⚷', blocking: false, color: '#ffd24a' })
+
+// A gateway/threshold prop marking the (narratively locked) boss door — WALKABLE (label
+// 'door'), so it reskins as 🚪 and the floor stays one connected region.
+const makeGateway = (col: number, row: number, color: string): StageProp => ({ col, row, type: 'door', char: '∏', blocking: false, color, label: 'door' })
 // The town-square centrepiece — ONE big fountain prop carrying its `footprint` (the basin spans
 // footprint×footprint cells, centred on this cell). The render draws a single tiered fountain over
 // the whole plaza; the other footprint cells are blocked directly in the collision grid (no prop), so
@@ -1469,45 +1497,337 @@ function scatterClearingCover(ctx: ArchetypeContext): void {
   scatterGroundCover(ctx, 0.1) // light non-blocking floor tufts — keep the forest floor clean + readable
 }
 
-// ── temple archetype (a grand columned hall on a paved approach) ────
-function placeTemple(ctx: ArchetypeContext): void {
-  const { buildings, cols, rows } = ctx
-  const facade = composeBuilding({ type: 'temple' })
-  if (facade.length + 4 > cols) return // grid too small for a temple
-  const col = Math.floor((cols - facade.length) / 2)
-  // Anchor on the ground row; clamp so the small footprint clears the top edge and the paved
-  // approach below still fits. South-facing: door down toward the hall, so the footprint top-left
-  // sits depth-1 rows above the ground (door) row.
-  const row = clamp(Math.floor(rows * 0.4), facade.depth, rows - 4)
-  const plot: Plot = { col, row: row - (facade.depth - 1), type: 'temple', length: facade.length, depth: facade.depth, height: facade.height, facing: 'south' }
-  const placed = placeBuilding(ctx, facade, plot, footprintRect(plot))
-  buildings.push(placed)
-
-  const doorCol = placed.doorCells[0]?.col ?? col + Math.floor(facade.length / 2)
-  templeHall(ctx, doorCol, row + 1, facade.length)
-  scatterGroundCover(ctx, 0.15) // light litter over the grounds around the hall (skips marble)
+// ── temple archetype (a real SEASONAL DUNGEON, Zelda/Tomb-of-Sargeras style) ──
+// A room-and-corridor dungeon: distinct ROOMS wired into a connected network by
+// narrow CORRIDORS, a south ENTRANCE hall (spawn), a grand north BOSS chamber with a
+// central ALTAR + pillar ring, pillared side halls, wall torches, seasonal hazards
+// (spike traps + water/ice/lava/sand-trap pools), and a narratively-locked boss
+// gateway + key. Flood-fill repair guarantees ONE connected floor every seed.
+// The SEASON drives the whole look: floor + wall tone, hazard terrain, torch/altar
+// glow. Every feature KIND maps to an ASCII glyph+colour AND an emoji tint (temple_wall
+// → 🧱, pillar → 🏛️, altar → 🗿, torch → 🔥, hazard → 🔺, key → 🗝️; see game/artStyle.ts).
+interface TemplePalette {
+  /** main paved dungeon floor tile. */
+  floor: string
+  /** checker-inlay accent tile (the ornate tiled look). */
+  accent: string
+  /** tonal wall colours — the stone boundary + inner walls, varied per cell (disjoint per season). */
+  wall: readonly string[]
+  /** colonnade pillar colour. */
+  pillar: string
+  /** wall-torch flame colour. */
+  torch: string
+  /** boss-altar glow colour. */
+  altar: string
+  /** seasonal hazard-pool terrain (water / walkable ice / molten lava / desert sand-trap). */
+  pool: string
+  /** water/lava/sand-trap block; frozen ice is walkable. */
+  poolBlocks: boolean
+  /** spike-trap glyph + colour (a non-blocking floor hazard). */
+  spikeChar: string
+  spikeColor: string
 }
 
-/** A grand colonnaded hall below the temple door: an ornate checkered floor, an
- *  altar flanked by braziers at the head, and a colonnade lining both sides. */
-function templeHall(ctx: ArchetypeContext, doorCol: number, fromRow: number, facadeLen: number): void {
-  const { ground, cols, rows } = ctx
-  const halfW = clamp(Math.floor(facadeLen / 2), 3, 6)
-  for (let r = fromRow; r < rows - 1; r++) {
-    for (let w = -halfW; w <= halfW; w++) {
-      const c = doorCol + w
-      if (inBounds(c, r, cols, rows)) ground[r][c] = (r + c) % 2 === 0 ? 'marble' : 'gold_tile'
+// Open/Closed: add a season → add a row. Each season has a DISTINCT floor tile + wall
+// palette + hazard, so ≥3 seasons always render as clearly different temples.
+const TEMPLE_PALETTES: Readonly<Record<ZoneId, TemplePalette>> = {
+  spring: { floor: 'temple_floor', accent: 'cave_moss', wall: ['#5b6a52', '#53614b', '#4c5945', '#616e58'], pillar: '#b9c6a6', torch: '#ffb24a', altar: '#d8f0b0', pool: 'water', poolBlocks: true, spikeChar: '▲', spikeColor: '#6a9f4a' },
+  summer: { floor: 'ancient_stone', accent: 'marble', wall: ['#7a736a', '#6f6860', '#847c72', '#655f57'], pillar: '#e6ddc8', torch: '#ff9a3a', altar: '#ffe7a8', pool: 'water', poolBlocks: true, spikeChar: '▲', spikeColor: '#c0402a' },
+  autumn: { floor: 'ancient_stone', accent: 'gold_tile', wall: ['#6a5540', '#5f4c3a', '#74604a', '#544433'], pillar: '#d8c090', torch: '#ff8a3a', altar: '#ffcf8a', pool: 'water', poolBlocks: true, spikeChar: '▲', spikeColor: '#b5602a' },
+  winter: { floor: 'frost', accent: 'ice', wall: ['#5a6a7a', '#647486', '#516070', '#6d7d8e'], pillar: '#bcd6e6', torch: '#8fd0ff', altar: '#dff0ff', pool: 'ice_water', poolBlocks: false, spikeChar: '❆', spikeColor: '#bfe8f5' },
+  desert: { floor: 'sandstone', accent: 'sand', wall: ['#b08a52', '#c2975c', '#9c7a46', '#b89060'], pillar: '#e2c88a', torch: '#ffc24a', altar: '#ffe6a0', pool: 'sand_trap', poolBlocks: true, spikeChar: '▲', spikeColor: '#c99a52' },
+  beach: { floor: 'sandstone', accent: 'temple_floor', wall: ['#9a8a6a', '#a89a78', '#8a7c5e', '#b0a284'], pillar: '#d8c9a4', torch: '#ffb86a', altar: '#ffe6c0', pool: 'water', poolBlocks: true, spikeChar: '▲', spikeColor: '#a8926a' },
+  lava: { floor: 'basalt', accent: 'obsidian', wall: ['#2e2824', '#3a322c', '#241f1c', '#332b26'], pillar: '#8a6a52', torch: '#ff5a1f', altar: '#ff9a5a', pool: 'lava', poolBlocks: true, spikeChar: '▲', spikeColor: '#ff6a2a' },
+}
+
+/** A dungeon room: a carved rectangle with a role. entrance = south spawn hall; boss = the
+ *  grand north altar chamber; hall = a pillared side room. */
+interface TempleRoom extends Rect {
+  role: 'entrance' | 'boss' | 'hall'
+}
+
+const TEMPLE_CORRIDOR_HALF = 1 // → 3-wide corridors (narrow dungeon halls, not open forest lanes)
+
+const roomCentre = (room: Rect): Cell => ({ col: room.col + Math.floor(room.w / 2), row: room.row + Math.floor(room.h / 2) })
+
+function placeTemple(ctx: ArchetypeContext): void {
+  const { cols, rows, zone } = ctx
+  const pal = TEMPLE_PALETTES[zone] ?? TEMPLE_PALETTES.summer
+
+  // 1. Repaint the whole ground to the seasonal temple floor; start fully walled (solid stone).
+  forEachCell(cols, rows, (col, row) => {
+    ctx.ground[row][col] = pal.floor
+  })
+  const wall = makeGrid(cols, rows, () => true)
+
+  // 2. Carve the ROOMS (south entrance, north boss chamber, pillared side halls).
+  const rooms = templeRooms(cols, rows)
+  rooms.forEach(room => carveTempleRoom(wall, room, cols, rows))
+
+  // 3. Wire the rooms into a connected NETWORK with narrow corridors (+ a couple of loops).
+  connectTempleRooms(wall, rooms, cols, rows)
+
+  // 4. Seal the map border so the dungeon is fully enclosed.
+  forEachCell(cols, rows, (col, row) => {
+    if (isEdge(col, row, cols, rows)) wall[row][col] = true
+  })
+
+  // 5. Commit the seasonal stone walls (blocking) over the negative space.
+  commitTempleWalls(ctx, wall, pal)
+
+  const boss = rooms.find(r => r.role === 'boss')!
+  const entrance = rooms.find(r => r.role === 'entrance')!
+
+  // 6. Ornate checker inlay over the room floors (the tiled temple look).
+  paintTempleInlay(ctx, rooms, pal)
+
+  // 7. Pillared halls — colonnades lining every room but the entrance (kept clear for spawn).
+  rooms.forEach(room => {
+    if (room.role !== 'entrance') placePillaredHall(ctx, room, pal)
+  })
+
+  // 8. The grand BOSS chamber: a central altar, flanking braziers, a pillar ring.
+  placeAltarChamber(ctx, boss, pal)
+
+  // 9. Wall torches lighting the halls.
+  placeTorches(ctx, rooms, pal)
+
+  // 10. Seasonal HAZARDS — spike traps on room floors + water/ice/lava/sand-trap pools (kept out
+  //     of the entrance + boss chambers so the critical path is never gated).
+  placeTempleHazards(ctx, rooms, pal)
+
+  // 11. Guarantee ONE connected floor — fill any pocket a blocking pool stranded with wall.
+  repairTempleFloor(ctx, pal)
+
+  // 12. The narratively-locked boss GATEWAY (walkable threshold) + its KEY in a side hall.
+  placeLockedDoorAndKey(ctx, boss, entrance, rooms, pal)
+}
+
+/** Lay out the dungeon rooms: a south ENTRANCE hall (spawn), a grand north BOSS chamber, and a
+ *  row of pillared side HALLS across the middle band. Deterministic sizes, jittered positions. */
+function templeRooms(cols: number, rows: number): TempleRoom[] {
+  const rooms: TempleRoom[] = []
+  // Grand boss chamber, centred near the top.
+  const bw = clamp(Math.floor(cols * 0.42), 8, cols - 6)
+  const bh = clamp(Math.floor(rows * 0.30), 6, rows - 10)
+  const boss: TempleRoom = { col: Math.floor((cols - bw) / 2), row: 2, w: bw, h: bh, role: 'boss' }
+  rooms.push(boss)
+
+  // Entrance hall, centred near the bottom (the spawn region).
+  const ew = clamp(Math.floor(cols * 0.30), 6, cols - 6)
+  const eh = clamp(Math.floor(rows * 0.20), 4, rows - 10)
+  const entrance: TempleRoom = { col: Math.floor((cols - ew) / 2), row: rows - 2 - eh, w: ew, h: eh, role: 'entrance' }
+  rooms.push(entrance)
+
+  // Side halls across the middle band between boss + entrance.
+  const midTop = boss.row + boss.h + 1
+  const midBot = entrance.row - 1
+  const bandH = Math.max(4, midBot - midTop)
+  const hallH = clamp(Math.floor(bandH * 0.7), 4, 8)
+  const hallW = clamp(Math.floor(cols * 0.22), 5, 10)
+  const midRow = clamp(midTop + randInt(0, Math.max(0, bandH - hallH)), 1, rows - hallH - 1)
+  const lanes = [0.16, 0.5, 0.84]
+  lanes.forEach(frac => {
+    const col = clamp(Math.floor(cols * frac - hallW / 2), 1, cols - hallW - 1)
+    const jitter = randInt(-1, 1)
+    rooms.push({ col, row: clamp(midRow + jitter, 1, rows - hallH - 1), w: hallW, h: hallH, role: 'hall' })
+  })
+  return rooms
+}
+
+/** Carve a room's rectangle open (skips the solid map border). */
+function carveTempleRoom(wall: boolean[][], room: Rect, cols: number, rows: number): void {
+  for (let dy = 0; dy < room.h; dy++) {
+    for (let dx = 0; dx < room.w; dx++) {
+      const col = room.col + dx
+      const row = room.row + dy
+      if (inBounds(col, row, cols, rows) && !isEdge(col, row, cols, rows)) wall[row][col] = false
     }
   }
-  // altar + flanking braziers at the head of the hall
-  placeProp(ctx, makeAltar(doorCol, fromRow + 1))
-  placeProp(ctx, makeBrazier(doorCol - 2, fromRow + 1))
-  placeProp(ctx, makeBrazier(doorCol + 2, fromRow + 1))
-  // colonnade lining both sides, leaving the central aisle clear
-  for (let r = fromRow + 3; r < rows - 2; r += 2) {
-    placeProp(ctx, makePillar(doorCol - halfW, r))
-    placeProp(ctx, makePillar(doorCol + halfW, r))
+}
+
+/** Nearest-neighbour spanning tree of corridors + a couple of extra links (loops), so the rooms
+ *  form a navigable NETWORK rather than a single line (the Zelda "hub + legs" topology). */
+function connectTempleRooms(wall: boolean[][], rooms: TempleRoom[], cols: number, rows: number): void {
+  if (rooms.length < 2) return
+  const linked = [rooms[0]]
+  const pending = rooms.slice(1)
+  while (pending.length > 0) {
+    let best = { from: linked[0], index: 0, dist: Infinity }
+    pending.forEach((room, index) => {
+      linked.forEach(from => {
+        const dist = manhattan(roomCentre(from), roomCentre(room))
+        if (dist < best.dist) best = { from, index, dist }
+      })
+    })
+    carveTempleCorridor(wall, roomCentre(best.from), roomCentre(pending[best.index]), cols, rows)
+    linked.push(pending.splice(best.index, 1)[0])
   }
+  // A couple of loop links so the dungeon isn't a pure tree.
+  for (let i = 0; i < Math.min(2, rooms.length - 1); i++) {
+    const a = rooms[randInt(0, rooms.length - 1)]
+    const b = rooms[randInt(0, rooms.length - 1)]
+    if (a !== b) carveTempleCorridor(wall, roomCentre(a), roomCentre(b), cols, rows)
+  }
+}
+
+/** L-shaped, 3-wide corridor between two cells (never clears the sealed border). */
+function carveTempleCorridor(wall: boolean[][], a: Cell, b: Cell, cols: number, rows: number): void {
+  const clear = (col: number, row: number, vertical: boolean): void => {
+    for (let w = -TEMPLE_CORRIDOR_HALF; w <= TEMPLE_CORRIDOR_HALF; w++) {
+      const c = vertical ? col + w : col
+      const r = vertical ? row : row + w
+      if (inBounds(c, r, cols, rows) && !isEdge(c, r, cols, rows)) wall[r][c] = false
+    }
+  }
+  const stepC = b.col >= a.col ? 1 : -1
+  for (let col = a.col; col !== b.col + stepC; col += stepC) clear(col, a.row, false)
+  const stepR = b.row >= a.row ? 1 : -1
+  for (let row = a.row; row !== b.row + stepR; row += stepR) clear(b.col, row, true)
+}
+
+/** Commit the seasonal stone walls: every wall cell becomes a blocking temple_wall prop. */
+function commitTempleWalls(ctx: ArchetypeContext, wall: boolean[][], pal: TemplePalette): void {
+  const { props, collision, cols, rows } = ctx
+  forEachCell(cols, rows, (col, row) => {
+    if (!wall[row][col]) return
+    props.push(makeTempleWall(col, row, pal.wall))
+    collision[row][col] = true
+  })
+}
+
+/** Ornate CHECKER inlay over the room floors — alternate the season's floor + accent tile so a
+ *  temple reads as a tiled hall, not a flat slab. Floor cells only (never repaints a wall). */
+function paintTempleInlay(ctx: ArchetypeContext, rooms: TempleRoom[], pal: TemplePalette): void {
+  const { ground, collision, cols, rows } = ctx
+  rooms.forEach(room => {
+    for (let dy = 0; dy < room.h; dy++) {
+      for (let dx = 0; dx < room.w; dx++) {
+        const col = room.col + dx
+        const row = room.row + dy
+        if (!inBounds(col, row, cols, rows) || collision[row][col]) continue
+        ground[row][col] = (row + col) % 2 === 0 ? pal.floor : pal.accent
+      }
+    }
+  })
+}
+
+/** A colonnade lining a room's two long sides (one cell in), pillars every other row, leaving the
+ *  central aisle clear — the pillared-hall look. Guarded (never on the door/aisle). */
+function placePillaredHall(ctx: ArchetypeContext, room: TempleRoom, pal: TemplePalette): void {
+  if (room.w < 5 || room.h < 4) return
+  const left = room.col + 1
+  const right = room.col + room.w - 2
+  for (let row = room.row + 1; row < room.row + room.h - 1; row += 2) {
+    placeProp(ctx, makePillar(left, row, pal.pillar))
+    placeProp(ctx, makePillar(right, row, pal.pillar))
+  }
+}
+
+/** The grand boss chamber: a central ALTAR flanked by braziers, ringed by pillars — the
+ *  set-piece the dungeon builds toward. */
+function placeAltarChamber(ctx: ArchetypeContext, boss: TempleRoom, pal: TemplePalette): void {
+  const c = roomCentre(boss)
+  placeProp(ctx, makeAltar(c.col, c.row, pal.altar))
+  placeProp(ctx, makeBrazier(c.col - 2, c.row))
+  placeProp(ctx, makeBrazier(c.col + 2, c.row))
+  // a pillar ring around the altar (corners of a 5×5 box), + torches at the chamber corners
+  for (const [dc, dr] of [[-2, -2], [2, -2], [-2, 2], [2, 2]] as const) {
+    placeProp(ctx, makePillar(c.col + dc, c.row + dr, pal.pillar))
+  }
+  placeProp(ctx, makeTorch(boss.col + 1, boss.row + 1, pal.torch))
+  placeProp(ctx, makeTorch(boss.col + boss.w - 2, boss.row + 1, pal.torch))
+}
+
+/** Wall torches lighting each room — dropped at the interior corners (non-blocking sconces). */
+function placeTorches(ctx: ArchetypeContext, rooms: TempleRoom[], pal: TemplePalette): void {
+  rooms.forEach(room => {
+    if (room.w < 4 || room.h < 3) return
+    const corners: Cell[] = [
+      { col: room.col + 1, row: room.row + 1 },
+      { col: room.col + room.w - 2, row: room.row + 1 },
+      { col: room.col + 1, row: room.row + room.h - 2 },
+      { col: room.col + room.w - 2, row: room.row + room.h - 2 },
+    ]
+    corners.forEach(cell => placeProp(ctx, makeTorch(cell.col, cell.row, pal.torch)))
+  })
+}
+
+/** Seasonal hazards: spike-trap tiles scattered on hall floors (non-blocking) + one hazard POOL
+ *  per side hall (blocking per season, kept inside the room interior so it can't gate a corridor).
+ *  The entrance + boss chambers stay hazard-free (clean spawn + fair boss arena). */
+function placeTempleHazards(ctx: ArchetypeContext, rooms: TempleRoom[], pal: TemplePalette): void {
+  const { collision, props, cols, rows } = ctx
+  const occupied = new Set(props.map(p => `${p.col},${p.row}`))
+  rooms.forEach(room => {
+    if (room.role !== 'hall') return
+    // a hazard pool near the room centre (radius 1–2), confined to the room interior.
+    stampTemplePool(ctx, room, pal)
+    // a few spike traps on remaining floor cells of the room interior.
+    const spikes = 2 + randInt(0, 3)
+    for (let i = 0; i < spikes; i++) {
+      const col = randInt(room.col + 1, room.col + room.w - 2)
+      const row = randInt(room.row + 1, room.row + room.h - 2)
+      if (!inBounds(col, row, cols, rows) || collision[row][col]) continue
+      if (occupied.has(`${col},${row}`)) continue
+      props.push(makeHazard(col, row, pal.spikeChar, pal.spikeColor))
+      occupied.add(`${col},${row}`)
+    }
+  })
+}
+
+/** One organic hazard pool inside a room's interior (never spilling onto the room edge/corridor),
+ *  painted only over floor cells. Blocking per season (ice stays walkable). */
+function stampTemplePool(ctx: ArchetypeContext, room: TempleRoom, pal: TemplePalette): void {
+  const { ground, collision, cols, rows } = ctx
+  const c = roomCentre(room)
+  const radius = 1 + randInt(0, 1)
+  const phase = Math.random() * Math.PI * 2
+  for (let dr = -radius; dr <= radius; dr++) {
+    for (let dc = -radius; dc <= radius; dc++) {
+      const col = c.col + dc
+      const row = c.row + dr
+      // stay strictly inside the room interior so the pool can't seal a doorway/corridor.
+      if (col <= room.col + 1 || col >= room.col + room.w - 2) continue
+      if (row <= room.row + 1 || row >= room.row + room.h - 2) continue
+      if (!inBounds(col, row, cols, rows) || collision[row][col]) continue
+      const reach = radius * (1 + 0.25 * Math.sin(Math.atan2(dr, dc) * 3 + phase))
+      if (dc * dc + dr * dr > reach * reach) continue
+      ground[row][col] = pal.pool
+      collision[row][col] = pal.poolBlocks
+    }
+  }
+}
+
+/** Flood-fill the walkable floor and fill every cell OUTSIDE the largest region with wall — so
+ *  the dungeon floor is always ONE connected region, even after blocking hazard pools. */
+function repairTempleFloor(ctx: ArchetypeContext, pal: TemplePalette): void {
+  const { collision, props, cols, rows } = ctx
+  const isFloor = (col: number, row: number): boolean => inBounds(col, row, cols, rows) && !collision[row][col]
+  const largest = largestFloorRegion(isFloor, cols, rows)
+  forEachCell(cols, rows, (col, row) => {
+    if (!isFloor(col, row)) return
+    if (largest.has(`${col},${row}`)) return
+    collision[row][col] = true
+    props.push(makeTempleWall(col, row, pal.wall)) // stranded pocket → wall it off
+  })
+}
+
+/** The (narratively) locked boss GATEWAY — a walkable threshold prop at the corridor mouth just
+ *  south of the boss chamber — and its KEY, dropped on a side-hall floor. Both guarded + optional
+ *  (skipped when no clear cell is found), and WALKABLE so connectivity is never broken. */
+function placeLockedDoorAndKey(ctx: ArchetypeContext, boss: TempleRoom, entrance: TempleRoom, rooms: TempleRoom[], pal: TemplePalette): void {
+  const { collision, cols, rows } = ctx
+  const gateCol = roomCentre(boss).col
+  for (let row = boss.row + boss.h; row < entrance.row; row++) {
+    if (!inBounds(gateCol, row, cols, rows) || collision[row][gateCol]) continue
+    ctx.props.push(makeGateway(gateCol, row, pal.pillar)) // walkable — see makeGateway
+    break
+  }
+  const hall = rooms.find(r => r.role === 'hall')
+  if (!hall) return
+  const kc = roomCentre(hall)
+  if (inBounds(kc.col, kc.row, cols, rows) && !collision[kc.row][kc.col]) ctx.props.push(makeKey(kc.col, kc.row))
 }
 
 // ── cave archetype (a real SEASONAL cavern) ─────────────────────────────────
