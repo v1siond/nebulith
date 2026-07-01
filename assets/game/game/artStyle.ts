@@ -205,6 +205,22 @@ export function entityKind(kind: string): ElementKind {
   return 'enemy'
 }
 
+/** enemyType → catalog tile id, so a wolf draws 🐺 and a skeleton 💀 instead of every enemy sharing the
+ *  generic 👾. Keyed on the lowercase enemyType tag. Unmapped types fall back to the plain 👾 enemy. */
+export const ENEMY_TILE_BY_TYPE: Readonly<Record<string, string>> = {
+  goblin: 'emoji:goblin', wolf: 'emoji:wolf', bandit: 'emoji:ninja', skeleton: 'emoji:skeleton',
+  bat: 'emoji:bat', spider: 'emoji:spider', guardian: 'emoji:troll', wraith: 'emoji:ghost',
+  orc: 'emoji:ogre', ogre: 'emoji:ogre', ghost: 'emoji:ghost', zombie: 'emoji:zombie',
+  vampire: 'emoji:vampire', dragon: 'emoji:dragon', troll: 'emoji:troll', slime: 'emoji:alien',
+}
+
+/** The per-type tile OVERRIDE for an enemy under a reskin style — so goblin→👺, wolf→🐺, etc. Returns
+ *  undefined for ASCII (its enemies stay block-figures) and for unmapped/blank types (→ the base 👾). */
+export function enemyTileId(enemyType: string | undefined, style: Style): string | undefined {
+  if (style.id === 'ascii' || !enemyType) return undefined
+  return ENEMY_TILE_BY_TYPE[enemyType.toLowerCase()]
+}
+
 // ── the Tile Library catalog (what the modal lists + what an override points at) ──
 export interface TileDef {
   /** style-agnostic, globally-unique tile id (what a `tileOverride` stores). */

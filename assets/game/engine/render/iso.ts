@@ -17,7 +17,7 @@ import { type CombatState, type Entity, type Quest } from '@/game/types'
 import { GROUND_COLORS } from '@/levels/village'
 import { Connector } from '@/lib/api'
 import { ASCII_FONT, BUILDING_BADGES, COMBAT_RANGE, type DayNight, type DrawVisual, ENEMY_MOVE_MS, LAMP_GLOW, LIGHT, applyCellTransform, isoCameraFocus, collectLampGlows, debugCellCaptions, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawNightLighting, drawPlayerArm, drawQuestMarker, drawRangeRing, drawStyledImage, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, getPlayerArt, grassShade, cellFill, idleNow, isDeadEnemy, isDebugMode, resolveDraw, tileImage, treeCanopyLayers } from './shared'
-import { ASCII_STYLE, assetKind, entityKind, genderize, groundKind, type ElementKind, type ImageVisual, type Style } from '@/game/artStyle'
+import { ASCII_STYLE, assetKind, entityKind, enemyTileId, genderize, groundKind, type ElementKind, type ImageVisual, type Style } from '@/game/artStyle'
 import { DEFAULT_CHARACTER_ANIMATIONS, activeFrame } from '@/game/runtime/entityAnimation'
 
 
@@ -833,7 +833,9 @@ export function drawIsoEntity(
   const pal = entityPalette(entity)
   const kind = entityKind(entity.kind)
   const isEnemy = kind === 'enemy'
-  const edv = resolveDraw(kind, style, entity.tileOverride, '', pal.fg)
+  // An enemy draws its per-type tile (goblin→👺, wolf→🐺, …) unless a manual tileOverride wins.
+  const override = entity.tileOverride ?? (isEnemy ? enemyTileId(entity.enemyType, style) : undefined)
+  const edv = resolveDraw(kind, style, override, '', pal.fg)
   // Ground the billboard by its BOTTOM at the shadow line, so ANY tile size stays grounded (a
   // smaller enemy no longer floats above its shadow). `groundY` is the feet contact point.
   const groundY = baseY + tileH * 0.1

@@ -17,7 +17,7 @@ import { type CombatState, type Entity, type Quest } from '@/game/types'
 import { GROUND_COLORS } from '@/levels/village'
 import { Connector } from '@/lib/api'
 import { ASCII_FONT, BUILDING_BADGES, COMBAT_RANGE, type DayNight, ENEMY_MOVE_MS, LAMP_GLOW, applyCellTransform, clampCameraAxis, collectLampGlows, debugCellCaptions, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawNightLighting, drawPlayerArm, drawQuestMarker, drawRangeRing, drawStyledImage, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, getPlayerArt, grassShade, cellFill, idleNow, isDeadEnemy, isDebugMode, resolveDraw, treeCanopyLayers } from './shared'
-import { ASCII_STYLE, assetKind, entityKind, genderize, groundKind, type ElementKind, type Style } from '@/game/artStyle'
+import { ASCII_STYLE, assetKind, entityKind, enemyTileId, genderize, groundKind, type ElementKind, type Style } from '@/game/artStyle'
 import { DEFAULT_CHARACTER_ANIMATIONS, activeFrame } from '@/game/runtime/entityAnimation'
 
 
@@ -62,7 +62,9 @@ export function drawTopEntity(
   ctx.textBaseline = 'middle'
   // Block style — solid bg per row + bright glyph, so the 2D view matches the iso view.
   const pal = entityPalette(entity)
-  const edv = resolveDraw(entityKind(entity.kind), style, entity.tileOverride, '', pal.fg)
+  // An enemy draws its per-type tile (goblin→👺, wolf→🐺, …) unless a manual tileOverride wins.
+  const override = entity.tileOverride ?? (entity.kind === 'enemy' ? enemyTileId(entity.enemyType, style) : undefined)
+  const edv = resolveDraw(entityKind(entity.kind), style, override, '', pal.fg)
   if (edv.image) {
     const imgPx = spanH * 0.9
     drawStyledImage(ctx, edv.image, cx, footY - imgPx * 0.42, imgPx)

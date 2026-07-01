@@ -10,7 +10,7 @@ import { type CombatState, type Entity, type Quest } from '@/game/types'
 import { GROUND_COLORS } from '@/levels/village'
 import { Connector } from '@/lib/api'
 import { ASCII_FONT, BUILDING_BADGES, type DayNight, LAMP_GLOW, applyCellTransform, clampCameraAxis, collectLampGlows, debugCellCaptions, debugLabelColors, drawHitMarker, drawHpBar, drawNightLighting, drawQuestMarker, drawStyledImage, grassShade, cellFill, isDeadEnemy, isDebugMode, resolveDraw } from './shared'
-import { ASCII_STYLE, assetKind, entityKind, genderize, groundKind, type Style } from '@/game/artStyle'
+import { ASCII_STYLE, assetKind, entityKind, enemyTileId, genderize, groundKind, type Style } from '@/game/artStyle'
 
 
 /** TOP (blueprint) view: an entity is a single `>` glyph colored by role — yellow player,
@@ -421,7 +421,8 @@ export function renderTopView(
     if (isDeadEnemy(entity, combat)) continue // hidden until it respawns
     const ex = offsetX + entity.col * tileSize
     const ey = offsetY + entity.row * tileSize
-    const edv = resolveDraw(entityKind(entity.kind), style, entity.tileOverride, '>', topRoleColor(entity, quests))
+    const bdvOverride = entity.tileOverride ?? (entity.kind === 'enemy' ? enemyTileId(entity.enemyType, style) : undefined)
+    const edv = resolveDraw(entityKind(entity.kind), style, bdvOverride, '>', topRoleColor(entity, quests))
     // genderize so npcs show their male/female figure in top view too (the ASCII `>` fallback and 👾
     // pass through unchanged); matches iso/2d.
     if (edv.image) drawStyledImage(ctx, edv.image, ex + tileSize / 2, ey + tileSize / 2, tileSize)

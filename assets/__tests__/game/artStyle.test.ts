@@ -8,6 +8,7 @@ import {
   groundKind,
   assetKind,
   entityKind,
+  enemyTileId,
   tilesForStyle,
   visualForTileId,
   TILE_CATALOG,
@@ -32,6 +33,17 @@ describe('resolveVisual — the one style decision point', () => {
     // a fountain is its OWN kind now (⛲), not folded onto plain water 🌊 — "fountain translated wrong"
     expect(resolveVisual('fountain', EMOJI_STYLE)).toMatchObject({ kind: 'glyph', char: '⛲' })
     expect(assetKind({ type: 'fountain' })).toBe('fountain')
+  })
+
+  it('enemyTileId maps enemyType → a distinct emoji tile under a reskin (not the generic 👾)', () => {
+    // the per-type override resolves to the right catalog glyph
+    expect(resolveVisual('enemy', EMOJI_STYLE, enemyTileId('goblin', EMOJI_STYLE))).toMatchObject({ char: '👺' })
+    expect(resolveVisual('enemy', EMOJI_STYLE, enemyTileId('wolf', EMOJI_STYLE))).toMatchObject({ char: '🐺' })
+    expect(resolveVisual('enemy', EMOJI_STYLE, enemyTileId('skeleton', EMOJI_STYLE))).toMatchObject({ char: '💀' })
+    // ASCII keeps its own enemy art (no override), and an unmapped/blank type falls back to base 👾
+    expect(enemyTileId('goblin', ASCII_STYLE)).toBeUndefined()
+    expect(enemyTileId('nonesuch', EMOJI_STYLE)).toBeUndefined()
+    expect(enemyTileId(undefined, EMOJI_STYLE)).toBeUndefined()
   })
 
   it('every Emoji tile carries a fill COLOUR — the tint the geometry-preserving renderers fill each unit with', () => {
