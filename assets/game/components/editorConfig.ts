@@ -19,14 +19,19 @@ export type EntityTool = EntityKind | 'erase' | 'collision' | null
 
 /** Which building tool is armed. Place-<type> drops a fresh building; select picks
  *  one to move/rotate/delete; delete removes the one under the click; null = off. */
-export type BuildingTool = 'select' | 'place-house' | 'place-store' | 'place-hospital' | 'place-temple' | 'delete' | null
+export type BuildingTool =
+  | 'select' | 'place-house' | 'place-big-house' | 'place-store' | 'place-hospital'
+  | 'place-temple' | 'place-cathedral' | 'place-castle' | 'delete' | null
 
 /** Map a Place-<type> tool to the BuildingType it authors. */
 export const BUILDING_TOOL_TYPE: Partial<Record<NonNullable<BuildingTool>, BuildingType>> = {
   'place-house': 'house',
+  'place-big-house': 'big-house',
   'place-store': 'store',
   'place-hospital': 'hospital',
   'place-temple': 'temple',
+  'place-cathedral': 'cathedral',
+  'place-castle': 'castle',
 }
 
 // ── asset palette data (drives the Assets card) ──────────────────────

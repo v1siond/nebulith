@@ -3155,7 +3155,8 @@ export default function TemplateEditor() {
       }
 
       // Weighted building types — mostly houses, a few bigger/civic — so a village reads as homes.
-      const HOUSE_TYPES: BuildingType[] = ['house', 'house', 'house', 'big-house', 'store', 'hospital']
+      // Mostly homes, then civic + a rare landmark (temple/cathedral/castle) so a town has variety.
+      const HOUSE_TYPES: BuildingType[] = ['house', 'house', 'house', 'big-house', 'store', 'hospital', 'temple', 'cathedral', 'castle']
       for (let i = 0; i < numBuildings && validSpots.length > 0; i++) {
         const spotIdx = Math.floor(Math.random() * validSpots.length)
         const spot = validSpots.splice(spotIdx, 1)[0]
@@ -4932,6 +4933,27 @@ export default function TemplateEditor() {
                     active={buildingTool === 'place-temple'}
                     activeClass="bg-amber-600 text-black"
                     onClick={() => toggleBuildingTool('place-temple')}
+                  />
+                  <EntityToolButton
+                    label="Manor"
+                    glyph="⌂"
+                    active={buildingTool === 'place-big-house'}
+                    activeClass="bg-amber-800"
+                    onClick={() => toggleBuildingTool('place-big-house')}
+                  />
+                  <EntityToolButton
+                    label="Cathedral"
+                    glyph="⛪"
+                    active={buildingTool === 'place-cathedral'}
+                    activeClass="bg-purple-700"
+                    onClick={() => toggleBuildingTool('place-cathedral')}
+                  />
+                  <EntityToolButton
+                    label="Castle"
+                    glyph="🏰"
+                    active={buildingTool === 'place-castle'}
+                    activeClass="bg-stone-600"
+                    onClick={() => toggleBuildingTool('place-castle')}
                   />
                   <EntityToolButton
                     label="Delete"
