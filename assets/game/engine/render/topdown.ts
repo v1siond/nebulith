@@ -697,11 +697,16 @@ export function render2D(
       if (adv.image) {
         drawStyledImage(ctx, adv.image, p.x, baseY - tileH * 0.7, tileH * 1.5)
       } else if (adv.char) {
-        ctx.font = `bold ${tileH * 1.3}px ${ASCII_FONT}`
+        // Trees are drawn TALLER (a 🌲 in one cell reads tiny) — roughly the 3-cell height the ASCII
+        // tree gets — anchored at the base so the trunk sits on its cell and the canopy rises.
+        const isTree = asset.type === 'tree'
+        const glyphPx = isTree ? tileH * 2.3 : tileH * 1.3
+        const lift = isTree ? tileH * 1.05 : tileH * 0.6
+        ctx.font = `bold ${glyphPx}px ${ASCII_FONT}`
         ctx.textAlign = 'center'
         ctx.textBaseline = 'middle'
         ctx.fillStyle = adv.color || '#ffffff'
-        ctx.fillText(adv.char, p.x, baseY - tileH * 0.6)
+        ctx.fillText(adv.char, p.x, baseY - lift)
       } else if (asset.label) {
         // Generated multi-cell cell → one glyph in its zone/theme color (the cell
         // IS the tile), matching the iso + top views. No green multi-tile overdraw.

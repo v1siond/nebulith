@@ -1553,9 +1553,11 @@ export function drawIsoAssetAscii(
   const adv = resolveDraw(assetKind(asset), style, asset.tileOverride, '', asset.color ?? '#ffffff')
   if (adv.image) { drawStyledImage(ctx, adv.image, x, y - lineHeight * 0.6, tileH * 2.2); return }
   if (adv.char) {
-    ctx.font = `bold ${fontSize * 1.7}px ${ASCII_FONT}`
+    // Trees tower (~3 cells, like the ASCII tree) instead of a tiny one-cell 🌲, anchored at the base.
+    const isTree = asset.type === 'tree'
+    ctx.font = `bold ${fontSize * (isTree ? 2.7 : 1.7)}px ${ASCII_FONT}`
     ctx.fillStyle = adv.color || '#ffffff'
-    ctx.fillText(adv.char, x, y - lineHeight * 0.6)
+    ctx.fillText(adv.char, x, y - lineHeight * (isTree ? 1.15 : 0.6))
     ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
     return
   }
