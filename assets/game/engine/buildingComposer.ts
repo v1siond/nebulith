@@ -75,7 +75,7 @@ const TYPE_SPECS: Record<BuildingType, TypeSpec> = {
   store: { baseLength: 5, floors: 1, doorWidth: 1, depth: 4 },
   hospital: { baseLength: 6, floors: 2, doorWidth: 1, depth: 4 },
   cathedral: { baseLength: 7, floors: 3, doorWidth: 3, depth: 5 },
-  temple: { baseLength: 8, floors: 2, doorWidth: 3, depth: 5 },
+  temple: { baseLength: 8, floors: 3, doorWidth: 3, depth: 4 }, // tall, wide, colonnaded landmark
   castle: { baseLength: 12, floors: 3, doorWidth: 4, depth: 6 },
 }
 
@@ -113,8 +113,15 @@ export function composeBuilding(spec: BuildingSpec = {}): ComposedBuilding {
   }
 
   // Windows on body rows above the door band — placed in MIRRORED pairs around the centre so the
-  // facade reads symmetric (never bunched to one side), for any width.
+  // facade reads symmetric (never bunched to one side), for any width. A TEMPLE instead reads as a
+  // COLONNADE: every other column is an open bay (a 'window' gap) between solid wall pillars, so the
+  // grand facade is a row of columns — distinct from a house's punched windows.
+  const colonnade = type === 'temple'
   for (let row = ROOF_ROWS; row < height - doorHeight; row++) {
+    if (colonnade) {
+      for (let col = 1; col < length; col += 2) cells[row][col] = 'window' // bays between pillars
+      continue
+    }
     for (let col = 1; col < length / 2; col += 2) {
       cells[row][col] = 'window'
       cells[row][length - 1 - col] = 'window' // mirror

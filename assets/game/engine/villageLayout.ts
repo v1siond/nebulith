@@ -91,7 +91,7 @@ const GRID: Record<Settlement, { h: number; v: number }> = {
 const PLAZA_SIZE: Record<Settlement, number> = { town: 5, city: 7 }
 
 // MUST match buildingComposer TYPE_SPECS.baseLength so a plot reserves exactly the facade width.
-const BUILDING_LENGTH: Partial<Record<BuildingType, number>> = { house: 4, 'big-house': 6, store: 5, hospital: 6 }
+const BUILDING_LENGTH: Partial<Record<BuildingType, number>> = { house: 4, 'big-house': 6, store: 5, hospital: 6, temple: 8 }
 const lengthOf = (t: BuildingType): number => BUILDING_LENGTH[t] ?? 8
 
 // Realistic lot rules (subdivision design): a SETBACK (front-yard cells between the building and
@@ -309,7 +309,9 @@ export function placePlots(roads: boolean[][], frontages: Frontage[], cols: numb
   const cap = BUILDING_CAP[settlement]
   const maxPer = MAX_PER_FRONTAGE[settlement]
   const [gapLo, gapHi] = LOT_GAP_BY[settlement]
-  const pending: BuildingType[] = ['store', 'hospital']
+  // Civic essentials — every settlement gets a store + hospital, and a grand TEMPLE landmark (the
+  // round-robin fill places the temple wherever its bigger footprint fits, else it stays pending).
+  const pending: BuildingType[] = ['store', 'hospital', 'temple']
   for (let i = randInt(rng, ...BIG_RANGE[settlement]); i > 0; i--) pending.push('big-house')
 
   // Store + hospital ALWAYS go on the TOP horizontal street, facing FRONT (south = door toward the
