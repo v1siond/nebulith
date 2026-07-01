@@ -163,3 +163,14 @@ export const DEFAULT_CHARACTER_ANIMATIONS: readonly EntityAnimation[] = [
   ...DIRS.map(d => move(d, false)),
   ...DIRS.map(d => move(d, true)),
 ]
+
+/** A fresh, EDITABLE deep copy of the default person animations — SEEDED onto a person entity at
+ *  creation so the authored set shows in the Inspector + saves with the entity. (The renderer's
+ *  `DEFAULT_CHARACTER_ANIMATIONS` fallback only covers entities minted before seeding.) */
+export function seedCharacterAnimations(): EntityAnimation[] {
+  return DEFAULT_CHARACTER_ANIMATIONS.map(a => ({
+    ...a,
+    trigger: { ...a.trigger },
+    frames: a.frames.map(f => ({ ...f })),
+  }))
+}

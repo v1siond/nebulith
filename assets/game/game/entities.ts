@@ -11,6 +11,7 @@ import type { Entity, EntityKind, Stats, Rarity } from '@/game/types'
 import { RESPAWN_MS_BY_RARITY, respawnMsForRarity } from '@/game/types'
 import { entityFootprint } from '@/engine/entityArt'
 import { buildArchetypeProfile, type EnemyArchetypeId } from '@/game/archetypes'
+import { seedCharacterAnimations } from '@/game/runtime/entityAnimation'
 
 // ── default stats ───────────────────────────────────────────────────
 // Trivial starting values per the spec ("start with X/Y HP, flat numbers; tune
@@ -51,6 +52,7 @@ export function makePlayer(id: string, col: number, row: number, name?: string):
     row,
     name,
     baseStats: { ...DEFAULT_PLAYER_STATS },
+    animations: seedCharacterAnimations(), // seed the walk/idle/run set as DATA so it shows + edits
   }
 }
 
@@ -119,6 +121,7 @@ export function makeNpc(id: string, col: number, row: number, options: MakeNpcOp
     name: options.name,
     questId: options.questId,
     baseStats: { ...DEFAULT_NPC_STATS },
+    animations: seedCharacterAnimations(), // seed the walk/idle set as DATA so it shows + edits
   }
 }
 
