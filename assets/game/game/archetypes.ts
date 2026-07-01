@@ -16,8 +16,8 @@ import { buildAttackPattern, makeEnemyAttack, enemyAttackFromAbility, ENEMY_ATTA
 import { FIRE_SLASH } from './abilities'
 
 /** The archetype roster. Melee: grunt/brute/skirmisher; ranged: archer/mage; mixed: raider;
- *  cave: flyer (bat) / crawler (spider). */
-export type EnemyArchetypeId = 'grunt' | 'brute' | 'skirmisher' | 'archer' | 'mage' | 'raider' | 'flyer' | 'crawler'
+ *  cave: flyer (bat) / crawler (spider); temple: sentinel (guardian). */
+export type EnemyArchetypeId = 'grunt' | 'brute' | 'skirmisher' | 'archer' | 'mage' | 'raider' | 'flyer' | 'crawler' | 'sentinel'
 
 /** One archetype's full combat profile: stats + move cadence + reach + default attack pattern. */
 export interface EnemyArchetype {
@@ -143,11 +143,24 @@ export const ENEMY_ARCHETYPES: Readonly<Record<EnemyArchetypeId, EnemyArchetype>
       { ...makeEnemyAttack('melee', 4, 900, 'cleave'), name: 'Venom Bite' },
     ]),
   },
+  // Temple SENTINEL (guardian): a stone warden — an elite BRUTE. Very high hp + defense, no
+  // dodge, lumbers at the brute's heavy pace, and a crushing heavy melee. The tanky wall a
+  // temple's boss chamber is guarded by.
+  sentinel: {
+    id: 'sentinel',
+    name: 'Guardian',
+    stats: { strength: 14, intelligence: 0, defense: 9, maxHp: 96, dodge: 0 },
+    moveDelayMs: 1700, // ties the brute as the slowest, heaviest mover
+    reachCells: MELEE_REACH,
+    attack: buildAttackPattern('sequential', [
+      { ...makeEnemyAttack('melee', 20, 2200, 'cleave'), name: 'Crush' },
+    ]),
+  },
 }
 
 /** Iteration order for the archetype roster (editor pickers / tests). */
 export const ENEMY_ARCHETYPE_IDS: readonly EnemyArchetypeId[] = [
-  'grunt', 'brute', 'skirmisher', 'archer', 'mage', 'raider', 'flyer', 'crawler',
+  'grunt', 'brute', 'skirmisher', 'archer', 'mage', 'raider', 'flyer', 'crawler', 'sentinel',
 ]
 
 /** Narrow an arbitrary string to a known archetype id. */

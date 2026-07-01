@@ -60,6 +60,18 @@ export const ENEMY_ART: Readonly<Record<string, readonly string[]>> = {
     '/|"|\\',
     ' | |',
   ],
+  guardian: [
+    ' [=]',   // helmed stone warden
+    '[|O|]',
+    '/|#|\\',  // armoured torso
+    ' |_|',
+  ],
+  wraith: [
+    ' /^\\',
+    '(x x)',  // hollow-eyed specter
+    ' \\~/ ',
+    '  ~  ',
+  ],
 }
 
 /**
@@ -79,6 +91,8 @@ export const ENEMY_PALETTE: Readonly<Record<string, EntityPalette>> = {
   slime: { fg: '#6fe6c2', bg: '#13463b' },
   bat: { fg: '#bb96e0', bg: '#281a3a' },
   bandit: { fg: '#e6b66a', bg: '#4a3318' },
+  guardian: { fg: '#cdd2c0', bg: '#3a4436' }, // mossy-stone warden
+  wraith: { fg: '#bfeaff', bg: '#243a4a' }, // spectral blue
 }
 export const ENEMY_PALETTE_FALLBACK: EntityPalette = { fg: '#ff8f6a', bg: '#56241a' }
 
@@ -179,6 +193,8 @@ export const ENEMY_ART_ALT: Readonly<Record<string, readonly string[]>> = {
   slime: [' .--.', '(o..o)', "'+~~+'"], // wobble
   bat: ['_\\ ^ /_', '(o   o)', ' \\vvv/'], // wings flap
   bandit: [' ___', '[-_-]', '\\|"|/', ' | |'], // arms
+  guardian: [' [=]', '[|o|]', '\\|#|/', ' |_|'], // eye dims, arms shift
+  wraith: [' /^\\', '(- -)', ' /~\\ ', '  ~  '], // blink + drift
 }
 
 const ENEMY_FALLBACK_ALT: readonly string[] = [' ___', '(@_@)', '\\| |/', ' " "']

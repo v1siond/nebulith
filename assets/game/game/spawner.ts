@@ -23,6 +23,10 @@ export type EnemyType = (typeof ENEMY_TYPES)[number]
  *  hard (brute). The cave generator seeds these so a cavern comes populated. */
 export const CAVE_ENEMY_TYPES = ['bat', 'spider', 'skeleton'] as const
 
+/** Temple-appropriate enemies — skeletons rise (brute), stone guardians ward the halls
+ *  (sentinel), wraiths haunt them (mage caster). The temple interior seeds these. */
+export const TEMPLE_ENEMY_TYPES = ['skeleton', 'guardian', 'wraith'] as const
+
 /** Each roster type maps to a distinct combat ARCHETYPE, so the type-grouped zones also
  *  vary by fighting style: goblins are basic grunts, wolves dart (skirmisher), bandits
  *  shoot (archer), skeletons hit like brutes, bats flit (flyer), spiders ambush (crawler).
@@ -34,6 +38,8 @@ const ARCHETYPE_BY_ENEMY_TYPE: Record<string, EnemyArchetypeId> = {
   skeleton: 'brute',
   bat: 'flyer',
   spider: 'crawler',
+  guardian: 'sentinel', // temple stone warden — tanky, crushing melee
+  wraith: 'mage', // temple caster — haunts the halls with arcane bolts
 }
 
 /** The archetype for a roster type, or undefined for an unknown/custom type (→ plain
