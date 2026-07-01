@@ -191,6 +191,29 @@ export function entityAtFootprint(entities: readonly Entity[], col: number, row:
   return null
 }
 
+/** Hit-test a CLICK to a unit, accounting for the standing BILLBOARD. In iso/2d a unit's figure is
+ *  drawn ABOVE its foot cell (it stands up), so a click on the figure lands on a cell 1–2 above it in
+ *  SCREEN space. Screen-up maps to `row−` in 2d and `col−,row−` in iso — so to find the unit we also
+ *  check cells TOWARD THE FEET (screen-down: +row in 2d, +col,+row in iso). Top view draws the unit ON
+ *  its cell, so only that cell is checked. The exact cell wins first. This is WHY selection must be
+ *  view-aware — the old cell-only test only ever worked in top view. */
+export function entityAtClick(
+  entities: readonly Entity[],
+  col: number,
+  row: number,
+  view: 'top' | '2d' | 'iso',
+  figCells = 2,
+): Entity | null {
+  const exact = entityAtFootprint(entities, col, row)
+  if (exact || view === 'top') return exact
+  const dc = view === 'iso' ? 1 : 0 // screen-down (toward the feet): iso = +col,+row; 2d = +row
+  for (let k = 1; k <= figCells; k++) {
+    const hit = entityAtFootprint(entities, col + dc * k, row + k)
+    if (hit) return hit
+  }
+  return null
+}
+
 /** The set of cells (`"col,row"`) occupied by entities' FULL footprints — for movement
  *  collision, so the player can't walk through a monster and patrols collide with each
  *  other. Anchoring matches `entityAtFootprint` (bottom-anchored, centered). `exclude`

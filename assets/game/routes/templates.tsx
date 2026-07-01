@@ -30,7 +30,7 @@ import { type Action as TriggerAction, resolveAction } from '@/engine/triggers'
 import { ZoneId } from '@/engine/zones'
 import { type AbilityBinding, DEFAULT_ABILITY_LOADOUT } from '@/game/abilities'
 import { startingCombatState } from '@/game/combat'
-import { DEFAULT_PLAYER_STATS, canPlaceEntity, entityAt, entityAtFootprint, entityOccupiedCells, makeEnemy, makeNpc, makePlayer, mintEntityId, placeEntity, removeEntity } from '@/game/entities'
+import { DEFAULT_PLAYER_STATS, canPlaceEntity, entityAt, entityAtClick, entityAtFootprint, entityOccupiedCells, makeEnemy, makeNpc, makePlayer, mintEntityId, placeEntity, removeEntity } from '@/game/entities'
 import { addItem, equipArmor, equipWeapon, itemFromReward, mintItemId, starterInventory, useConsumable } from '@/game/inventory'
 import { createLoadout, loadoutBonuses, seededPlayerLoadout, setSpecial } from '@/game/loadout'
 import { appendWaypoint } from '@/game/patterns'
@@ -51,7 +51,7 @@ import { type Trigger, type TriggerEffect, fireTriggers } from '@/game/runtime/t
 import { ASCII_STYLE, type Style, styleById } from '@/game/artStyle'
 import { useRouter } from 'next/router'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { render, render2D, renderTopView, clampCameraAxis, entityMotion, ENEMY_MOVE_MS, isDebugMode, setDebugMode, type DayNight } from '@/engine/render'
+import { render, render2D, renderTopView, clampCameraAxis, isoCameraFocus, entityMotion, ENEMY_MOVE_MS, isDebugMode, setDebugMode, type DayNight } from '@/engine/render'
 import { type QuestDraft, emptyQuestDraft, questFromDraft } from '@/game/runtime/questDraft'
 import { buildingPlacementEnv, nearestRoadFacing, stampBuildingCells, unstampBuildingCells } from '@/game/runtime/buildings'
 import { type Cursor, type JumpState, JUMP_MS, JUMP_PEAK_PX, advanceEnemyMovement, beginJump, tickCannons } from '@/game/runtime/movement'
@@ -625,11 +625,10 @@ export default function TemplateEditor() {
       const T = eff * 0.36
       const pPad = canvas.width / (2 * cs * S)
       const qPad = canvas.height / (2 * cs * T)
-      let fc = (px - cam.x) / cs
-      let fr = (pz - cam.y) / cs
-      const isoHalfSpan = (pPad + qPad) / 2
-      fc = clampCameraAxis(fc, isoHalfSpan, grid.cols)
-      fr = clampCameraAxis(fr, isoHalfSpan, grid.rows)
+      // Use the SAME camera focus the iso render uses (isoCameraFocus, the #38/#70 edge clamp) — the
+      // old clampCameraAxis here disagreed with the render, so clicks landed 3–4 cells off and units
+      // (incl. the player) couldn't be selected in iso.
+      const { fc, fr } = isoCameraFocus((px - cam.x) / cs, (pz - cam.y) / cs, pPad, qPad, grid.cols, grid.rows)
       const a = (x - canvas.width / 2) / S
       const b = (y - canvas.height / 2) / T
       col = Math.floor(((a + b) / 2 + fc * cs) / cs)
@@ -681,11 +680,9 @@ export default function TemplateEditor() {
       const T = eff * 0.36
       const pPad = canvas.width / (2 * cs * S)
       const qPad = canvas.height / (2 * cs * T)
-      let fc = (px - cam.x) / cs
-      let fr = (pz - cam.y) / cs
-      const isoHalfSpan = (pPad + qPad) / 2
-      fc = clampCameraAxis(fc, isoHalfSpan, grid.cols)
-      fr = clampCameraAxis(fr, isoHalfSpan, grid.rows)
+      // Same iso focus as the render + screenToCell (isoCameraFocus, not the stale clampCameraAxis) so
+      // the quick-action toolbar sits exactly over the selected element.
+      const { fc, fr } = isoCameraFocus((px - cam.x) / cs, (pz - cam.y) / cs, pPad, qPad, grid.cols, grid.rows)
       const a = ((cc - fc) - (rr - fr)) * cs
       const b = ((cc - fc) + (rr - fr)) * cs
       x = a * S + canvas.width / 2
@@ -787,8 +784,10 @@ export default function TemplateEditor() {
       return
     }
 
-    // No tool armed: clicking ANY cell of an entity's footprint selects it.
-    const clickedEntity = entityAtFootprint(entitiesRef.current, cell.col, cell.row)
+    // No tool armed: clicking a unit selects it — view-aware, so clicking the standing FIGURE works
+    // (not just its foot cell). Top view: the unit is on its cell; iso/2d: the figure stands above it.
+    const view = topViewMode ? 'top' : viewTypeRef.current === '2d' ? '2d' : 'iso'
+    const clickedEntity = entityAtClick(entitiesRef.current, cell.col, cell.row, view)
     if (clickedEntity) {
       setSelectedEntityId(clickedEntity.id)
       return
@@ -849,10 +848,11 @@ export default function TemplateEditor() {
   }
 
   const handleCanvasMouseUp = () => {
-    // A no-drag click in a play view selects the entity under it (or clears selection).
+    // A no-drag click in a play view (iso/2d) selects the unit under it — view-aware so clicking the
+    // standing FIGURE (drawn above its foot cell) selects it, not only a click on the exact cell.
     if (isPanning && !dragMovedRef.current && downCellRef.current) {
       const c = downCellRef.current
-      const hit = entityAtFootprint(entitiesRef.current, c.col, c.row)
+      const hit = entityAtClick(entitiesRef.current, c.col, c.row, viewTypeRef.current === '2d' ? '2d' : 'iso')
       setSelectedEntityId(hit ? hit.id : null)
     }
     downCellRef.current = null
