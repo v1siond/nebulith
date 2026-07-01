@@ -235,10 +235,134 @@ function tilesFromStyle(style: Style): TileDef[] {
   }))
 }
 
-/** Every catalog tile, flat (ASCII glyph tiles + each non-ASCII style's mapped tiles). */
+/** A curated emoji tile helper — one call per row keeps the big catalog below readable.
+ *  `slug` is the id suffix (kept distinct from every EMOJI_STYLE kind name so the whole
+ *  catalog stays id-unique); `color` is the dominant hue (the iso diamond/cube tint + ASCII
+ *  fallback — an emoji glyph draws itself, but a sensible tint keeps the geometry on-hue). */
+function emojiTile(category: TileCategory, slug: string, label: string, char: string, color: string): TileDef {
+  return { id: `emoji:${slug}`, label, category, styleId: 'emoji', visual: { kind: 'glyph', char, color } }
+}
+
+/**
+ * The FULL, categorized + labeled emoji tileset the Library browses — every tree, every
+ * building, every terrain, every character, each with a clear human label. This is what makes
+ * the Library read like a real tileset instead of the sparse one-per-kind starter map. These
+ * are catalog/override tiles only (they don't touch EMOJI_STYLE.map, so render is unchanged);
+ * they surface in `tilesForStyle('emoji')` and can be pinned per-element via `visualForTileId`.
+ */
+export const EMOJI_TILES: TileDef[] = [
+  // ── terrain — grounds, water, and the biome extremes (square/round + landform glyphs) ──
+  emojiTile('terrain', 'grass-field', 'Grass', '🟩', '#5faf4a'),
+  emojiTile('terrain', 'dark-grass', 'Dark Grass', '🟢', '#3c7a2f'),
+  emojiTile('terrain', 'shallow-water', 'Shallow Water', '🟦', '#4a90e2'),
+  emojiTile('terrain', 'deep-water', 'Deep Water', '🔵', '#1c5fa8'),
+  emojiTile('terrain', 'beach-sand', 'Sand', '🟨', '#e2c86b'),
+  emojiTile('terrain', 'desert', 'Desert', '🏜️', '#d9b45f'),
+  emojiTile('terrain', 'dirt-path', 'Dirt Path', '🟫', '#9c7b4d'),
+  emojiTile('terrain', 'gravel', 'Gravel', '🟤', '#7c6a52'),
+  emojiTile('terrain', 'cobblestone', 'Cobblestone', '⬜', '#b9b2a3'),
+  emojiTile('terrain', 'snow', 'Snow', '❄️', '#eaf4ff'),
+  emojiTile('terrain', 'ice', 'Ice', '🧊', '#a8d8f0'),
+  emojiTile('terrain', 'lava', 'Lava', '🟥', '#d0402a'),
+  emojiTile('terrain', 'volcano', 'Volcano', '🌋', '#b5372a'),
+  emojiTile('terrain', 'mountain-slope', 'Mountain', '⛰️', '#8d8d97'),
+  emojiTile('terrain', 'snowy-peak', 'Snowy Peak', '🏔️', '#cfd8e3'),
+
+  // ── nature — ALL trees, plants, flowers, and ground props/items ──
+  emojiTile('nature', 'pine-tree', 'Pine Tree', '🌲', '#2f8f3f'),
+  emojiTile('nature', 'oak-tree', 'Oak Tree', '🌳', '#4caf50'),
+  emojiTile('nature', 'palm-tree', 'Palm Tree', '🌴', '#4f9d5a'),
+  emojiTile('nature', 'sapling', 'Sapling', '🌱', '#7cc36a'),
+  emojiTile('nature', 'dead-tree', 'Dead Tree', '🪾', '#8a6f4a'),
+  emojiTile('nature', 'cactus', 'Cactus', '🌵', '#4a8f3f'),
+  emojiTile('nature', 'shrub', 'Shrub', '🌿', '#4fa03f'),
+  emojiTile('nature', 'shamrock', 'Shamrock', '☘️', '#3fa03f'),
+  emojiTile('nature', 'clover', 'Four-Leaf Clover', '🍀', '#3c9a3a'),
+  emojiTile('nature', 'cherry-blossom', 'Cherry Blossom', '🌸', '#e785b5'),
+  emojiTile('nature', 'tulip', 'Tulip', '🌷', '#e05a7a'),
+  emojiTile('nature', 'rose', 'Rose', '🌹', '#d13b3b'),
+  emojiTile('nature', 'hibiscus', 'Hibiscus', '🌺', '#e5527a'),
+  emojiTile('nature', 'sunflower', 'Sunflower', '🌻', '#f2c33a'),
+  emojiTile('nature', 'blossom', 'Blossom', '🌼', '#f2d84a'),
+  emojiTile('nature', 'bouquet', 'Bouquet', '💐', '#e57ba0'),
+  emojiTile('nature', 'wilted-flower', 'Wilted Flower', '🥀', '#9c6a7a'),
+  emojiTile('nature', 'red-mushroom', 'Red Mushroom', '🍄', '#d24a4a'),
+  emojiTile('nature', 'boulder', 'Boulder', '🪨', '#8a8a8a'),
+  emojiTile('nature', 'wood-log', 'Wood Log', '🪵', '#a9793f'),
+  emojiTile('nature', 'wheat', 'Wheat', '🌾', '#d9b25f'),
+  emojiTile('nature', 'fallen-leaf', 'Fallen Leaf', '🍂', '#c8742f'),
+  emojiTile('nature', 'maple-leaf', 'Maple Leaf', '🍁', '#d0552a'),
+  emojiTile('nature', 'coral', 'Coral', '🪸', '#e06a5a'),
+  emojiTile('nature', 'seashell', 'Seashell', '🐚', '#f0c8a8'),
+  emojiTile('nature', 'potted-plant', 'Potted Plant', '🪴', '#5a9a4a'),
+
+  // ── buildings — ALL of them: homes, civic, worship, defensive, and building parts ──
+  emojiTile('buildings', 'house', 'House', '🏠', '#c8443c'),
+  emojiTile('buildings', 'house-garden', 'House with Garden', '🏡', '#b5793a'),
+  emojiTile('buildings', 'houses', 'Houses', '🏘️', '#c86b4d'),
+  emojiTile('buildings', 'derelict-house', 'Derelict House', '🏚️', '#8a7a5f'),
+  emojiTile('buildings', 'office-building', 'Office Building', '🏢', '#7f8c9a'),
+  emojiTile('buildings', 'department-store', 'Department Store', '🏬', '#b05a8a'),
+  emojiTile('buildings', 'convenience-store', 'Convenience Store', '🏪', '#4a9ac8'),
+  emojiTile('buildings', 'hospital', 'Hospital', '🏥', '#e05a5a'),
+  emojiTile('buildings', 'bank', 'Bank', '🏦', '#6a8f5a'),
+  emojiTile('buildings', 'hotel', 'Hotel', '🏨', '#c89a4a'),
+  emojiTile('buildings', 'school', 'School', '🏫', '#d0a83a'),
+  emojiTile('buildings', 'classical-building', 'Classical Building', '🏛️', '#cbb68c'),
+  emojiTile('buildings', 'castle', 'Castle', '🏰', '#9a8a7a'),
+  emojiTile('buildings', 'japanese-castle', 'Japanese Castle', '🏯', '#d9c8a8'),
+  emojiTile('buildings', 'church', 'Church', '⛪', '#b0a89a'),
+  emojiTile('buildings', 'mosque', 'Mosque', '🕌', '#8aa88a'),
+  emojiTile('buildings', 'tower', 'Tower', '🗼', '#d0553a'),
+  emojiTile('buildings', 'torii-gate', 'Torii Gate', '⛩️', '#d0402a'),
+  emojiTile('buildings', 'tent', 'Tent', '⛺', '#7a9a5a'),
+  emojiTile('buildings', 'factory', 'Factory', '🏭', '#8a8a8a'),
+  emojiTile('buildings', 'brick', 'Brick', '🧱', '#b0603a'),
+  emojiTile('buildings', 'wooden-door', 'Wooden Door', '🚪', '#5a3a22'),
+  emojiTile('buildings', 'glass-window', 'Glass Window', '🪟', '#7fb4d8'),
+  emojiTile('buildings', 'stadium', 'Stadium', '🏟️', '#9a9a8a'),
+
+  // ── units — characters + monsters (the animation frame picker draws from here) ──
+  emojiTile('units', 'person', 'Person', '🧍', '#d9a066'),
+  emojiTile('units', 'man', 'Man', '🧍‍♂️', '#6a8fd9'),
+  emojiTile('units', 'woman', 'Woman', '🧍‍♀️', '#d96a9a'),
+  emojiTile('units', 'adult', 'Adult', '🧑', '#d9a066'),
+  emojiTile('units', 'boy', 'Boy', '👦', '#e0b060'),
+  emojiTile('units', 'girl', 'Girl', '👧', '#e5a0b0'),
+  emojiTile('units', 'old-man', 'Old Man', '👴', '#c8c8c8'),
+  emojiTile('units', 'old-woman', 'Old Woman', '👵', '#d0c0c8'),
+  emojiTile('units', 'mage', 'Mage', '🧙', '#7a5ac0'),
+  emojiTile('units', 'wizard', 'Wizard', '🧙‍♂️', '#6a4ab0'),
+  emojiTile('units', 'witch', 'Witch', '🧙‍♀️', '#9a5ac0'),
+  emojiTile('units', 'elf', 'Elf', '🧝', '#6ac07a'),
+  emojiTile('units', 'ninja', 'Ninja', '🥷', '#3a3a4a'),
+  emojiTile('units', 'guard', 'Guard', '💂', '#c8443c'),
+  emojiTile('units', 'prince', 'Prince', '🤴', '#d0a83a'),
+  emojiTile('units', 'princess', 'Princess', '👸', '#e585b5'),
+  emojiTile('units', 'police-officer', 'Police Officer', '👮', '#4a6ac0'),
+  emojiTile('units', 'construction-worker', 'Construction Worker', '👷', '#e5b03a'),
+  emojiTile('units', 'vampire', 'Vampire', '🧛', '#8a4a6a'),
+  emojiTile('units', 'zombie', 'Zombie', '🧟', '#6a8f5a'),
+  emojiTile('units', 'troll', 'Troll', '🧌', '#7a6a4a'),
+  emojiTile('units', 'goblin', 'Goblin', '👺', '#c8443c'),
+  emojiTile('units', 'ogre', 'Ogre', '👹', '#d0402a'),
+  emojiTile('units', 'ghost', 'Ghost', '👻', '#e0e0f0'),
+  emojiTile('units', 'skeleton', 'Skeleton', '💀', '#e8e8e8'),
+  emojiTile('units', 'skull', 'Skull', '☠️', '#d8d8d8'),
+  emojiTile('units', 'alien', 'Alien', '👾', '#b45ac0'),
+  emojiTile('units', 'pumpkin', 'Jack-o-Lantern', '🎃', '#e5842a'),
+  emojiTile('units', 'dragon', 'Dragon', '🐉', '#4a9a5a'),
+  emojiTile('units', 'wolf', 'Wolf', '🐺', '#8a8a9a'),
+  emojiTile('units', 'bat', 'Bat', '🦇', '#5a4a5a'),
+  emojiTile('units', 'spider', 'Spider', '🕷️', '#3a3a3a'),
+]
+
+/** Every catalog tile, flat (ASCII glyph tiles + each non-ASCII style's mapped tiles + the
+ *  full curated emoji tileset above). */
 export const TILE_CATALOG: readonly TileDef[] = [
   ...tilesForAscii(),
   ...BUILT_IN_STYLES.filter(s => s.id !== 'ascii').flatMap(tilesFromStyle),
+  ...EMOJI_TILES,
 ]
 
 const TILE_BY_ID: Readonly<Record<string, TileDef>> = Object.fromEntries(TILE_CATALOG.map(t => [t.id, t]))
