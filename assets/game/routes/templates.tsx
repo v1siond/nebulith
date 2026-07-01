@@ -3689,6 +3689,15 @@ export default function TemplateEditor() {
       // (the SAME bar enemies get); maxHp is the bar's denominator.
       player.hp = playerCombatRef.current.hp
       player.maxHp = playerStatsRef.current.maxHp
+      // Debug/profiling seam (like window.__isoRenderMs): the live player cell + entity
+      // count, read by dev tooling and the trigger play-mode smoke. No behavior effect.
+      if (typeof window !== 'undefined') {
+        ;(window as unknown as { __nebulith?: unknown }).__nebulith = {
+          playerCol: Math.floor(player.x / grid.cellSize),
+          playerRow: Math.floor(player.z / grid.cellSize),
+          entityCount: entitiesRef.current.length,
+        }
+      }
       if (flowViewMode) {
         // Flow view is handled by React overlay, just clear canvas
         ctx.fillStyle = '#0a0a12'
