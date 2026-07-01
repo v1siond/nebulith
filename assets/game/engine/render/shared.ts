@@ -15,6 +15,57 @@ import { type CombatState, type Entity } from '@/game/types'
 // Monospace stack for all canvas ASCII glyphs (moved here from the page; render-only).
 export const ASCII_FONT = '"JetBrains Mono", "Fira Code", "Consolas", monospace'
 
+// ── ART-STYLE resolution at the draw site ────────────────────────────────────
+// Every glyph draw funnels its element KIND + the active Style + this element's
+// optional override through resolveVisual, then draws the result. The load-bearing
+// property: on the ASCII style with NO override, resolveVisual returns the passthrough
+// sentinel, so `resolveDraw` returns the caller's OWN default char+color unchanged —
+// the fillText that follows is byte-identical to the pre-style code.
+import { resolveVisual, type ElementKind, type ImageVisual, type Style } from '@/game/artStyle'
+
+export interface DrawVisual {
+  /** the char to fillText (the caller's default when passing through / drawing an image). */
+  char: string
+  /** the fill color (the caller's default when passing through). */
+  color: string
+  /** present only when the active tile is an IMAGE — draw it instead of the glyph. */
+  image?: ImageVisual
+}
+
+/** Resolve what to actually draw for one element. `defChar`/`defColor` are the caller's
+ *  existing ASCII values; they are returned unchanged for the passthrough (ASCII) case. */
+export function resolveDraw(
+  kind: ElementKind,
+  style: Style,
+  override: string | null | undefined,
+  defChar: string,
+  defColor: string,
+): DrawVisual {
+  const v = resolveVisual(kind, style, override)
+  if (v.kind === 'glyph') return { char: v.char, color: v.color ?? defColor }
+  if (v.kind === 'image') return { char: defChar, color: defColor, image: v }
+  return { char: defChar, color: defColor } // ascii passthrough — identical to the old path
+}
+
+// Image/atlas cache so a tile src is decoded once, not per frame. v1 ships no image
+// pack, so this stays empty in practice, but the pixel-pack / Pixellab / upload path is wired.
+const _imgCache = new Map<string, HTMLImageElement>()
+function tileImage(src: string): HTMLImageElement | null {
+  if (typeof Image === 'undefined') return null
+  let img = _imgCache.get(src)
+  if (!img) { img = new Image(); img.src = src; _imgCache.set(src, img) }
+  return img.complete && img.naturalWidth > 0 ? img : null
+}
+
+/** Draw an image tile centered at (cx, cy) filling a `size`×`size` box (optional atlas sub-rect). */
+export function drawStyledImage(ctx: CanvasRenderingContext2D, v: ImageVisual, cx: number, cy: number, size: number): void {
+  const img = tileImage(v.src)
+  if (!img) return
+  const sx = v.sx ?? 0, sy = v.sy ?? 0
+  const sw = v.sw ?? img.naturalWidth, sh = v.sh ?? img.naturalHeight
+  ctx.drawImage(img, sx, sy, sw, sh, cx - size / 2, cy - size / 2, size, size)
+}
+
 // Enemies advance one patrol cell roughly every ENEMY_MOVE_MS (throttled, so
 // patrols read as steps, not a blur). Shared by the AI loop (page) and the
 // render-side motion interpolation (entityRenderCell).

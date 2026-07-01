@@ -9,21 +9,23 @@ import { type PlayerState, barFraction, hpFraction } from '@/game/runtime/player
 import { type CombatState, type Entity, type Quest } from '@/game/types'
 import { GROUND_COLORS } from '@/levels/village'
 import { Connector } from '@/lib/api'
-import { ASCII_FONT, BUILDING_BADGES, type DayNight, LAMP_GLOW, applyCellTransform, clampCameraAxis, collectLampGlows, debugCellCaptions, debugLabelColors, drawHitMarker, drawHpBar, drawNightLighting, drawQuestMarker, grassShade, isDeadEnemy, isDebugMode } from './shared'
+import { ASCII_FONT, BUILDING_BADGES, type DayNight, LAMP_GLOW, applyCellTransform, clampCameraAxis, collectLampGlows, debugCellCaptions, debugLabelColors, drawHitMarker, drawHpBar, drawNightLighting, drawQuestMarker, drawStyledImage, grassShade, isDeadEnemy, isDebugMode, resolveDraw } from './shared'
+import { ASCII_STYLE, assetKind, entityKind, groundKind, type Style } from '@/game/artStyle'
 
 
 /** TOP (blueprint) view: an entity is a single `>` glyph colored by role — yellow player,
- *  red enemy, and NPCs blue / green (offers a quest) / purple (quest in progress). */
-export function drawTopArrow(ctx: CanvasRenderingContext2D, x: number, y: number, tileSize: number, color: string): void {
+ *  red enemy, and NPCs blue / green (offers a quest) / purple (quest in progress). The
+ *  glyph is style-resolved (emoji reskin swaps `>` for 👾/🧑/…); ASCII keeps `>`. */
+export function drawTopArrow(ctx: CanvasRenderingContext2D, x: number, y: number, tileSize: number, color: string, glyph: string = '>'): void {
   const cx = x + tileSize / 2
   const cy = y + tileSize / 2
   ctx.font = `bold ${tileSize * 0.95}px ${ASCII_FONT}`
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
   ctx.fillStyle = 'rgba(0, 0, 0, 0.6)'
-  ctx.fillText('>', cx + 1, cy + 1)
+  ctx.fillText(glyph, cx + 1, cy + 1)
   ctx.fillStyle = color
-  ctx.fillText('>', cx, cy)
+  ctx.fillText(glyph, cx, cy)
 }
 
 
@@ -92,6 +94,7 @@ export function renderTopView(
   now: number = 0,
   quests: readonly Quest[] = [],
   dayNight: DayNight = 'day',
+  style: Style = ASCII_STYLE,
 ) {
   // Clear
   ctx.fillStyle = '#0a0a10'
@@ -142,6 +145,7 @@ export function renderTopView(
       let char: string
       let fg: string
       let bg: string
+      let kind: ReturnType<typeof assetKind>
 
       if (asset) {
         // Show the cell's OWN glyph + color — the label glyph for generated
@@ -150,6 +154,7 @@ export function renderTopView(
         char = asset.art[0] ?? '?'
         fg = asset.color ?? '#cccccc'
         bg = TOP_ASSET_BACKDROP[asset.type] ?? '#141414'
+        kind = assetKind(asset)
       } else {
         // Ground tile
         const tileType = grid.ground[row]?.[col] || 'grass'
@@ -158,18 +163,23 @@ export function renderTopView(
         fg = colors.fg[0]
         // Grass varies per-cell into natural green tones (deterministic hash); other ground stays flat.
         bg = tileType.includes('grass') ? grassShade(colors.bg[0], col, row) : colors.bg[0]
+        kind = groundKind(tileType)
       }
+
+      // Resolve the active art style (ASCII passthrough → the defaults above, unchanged).
+      const dv = resolveDraw(kind, style, asset?.tileOverride, char, fg)
 
       // Draw cell
       ctx.fillStyle = bg
       ctx.fillRect(x, y, tileSize - 1, tileSize - 1)
 
-      ctx.fillStyle = fg
+      ctx.fillStyle = dv.color
       // Authored frame animation moves the asset GLYPH (not its cell backing) around its centre.
       const gx = x + tileSize / 2, gy = y + tileSize / 2
       const ctTop = asset ? assetCellTransform(asset.cellAnim, now) : null
       if (ctTop) applyCellTransform(ctx, gx, gy, ctTop, tileSize, tileSize)
-      ctx.fillText(char, gx, gy)
+      if (dv.image) drawStyledImage(ctx, dv.image, gx, gy, tileSize)
+      else ctx.fillText(dv.char, gx, gy)
       if (ctTop) ctx.restore()
 
       // Height indicator (show in corner if height > 0)
@@ -354,7 +364,9 @@ export function renderTopView(
     case 'left': dirChar = '<'; break
     case 'right': dirChar = '>'; break
   }
-  ctx.fillText(dirChar, px + tileSize / 2, py + tileSize / 2)
+  const pdv = resolveDraw('player', style, undefined, dirChar, '#000000')
+  if (pdv.image) drawStyledImage(ctx, pdv.image, px + tileSize / 2, py + tileSize / 2, tileSize)
+  else ctx.fillText(pdv.char, px + tileSize / 2, py + tileSize / 2)
 
   // Life bar above the player cell — the SAME drawHpBar enemies get in this view (below).
   if (player.maxHp != null) {
@@ -404,7 +416,9 @@ export function renderTopView(
     if (isDeadEnemy(entity, combat)) continue // hidden until it respawns
     const ex = offsetX + entity.col * tileSize
     const ey = offsetY + entity.row * tileSize
-    drawTopArrow(ctx, ex, ey, tileSize, topRoleColor(entity, quests))
+    const edv = resolveDraw(entityKind(entity.kind), style, entity.tileOverride, '>', topRoleColor(entity, quests))
+    if (edv.image) drawStyledImage(ctx, edv.image, ex + tileSize / 2, ey + tileSize / 2, tileSize)
+    else drawTopArrow(ctx, ex, ey, tileSize, edv.color, edv.char)
     if (entity.kind === 'enemy') drawHpBar(ctx, ex + tileSize / 2, ey - 3, tileSize, 3, hpFraction(entity, combat))
     drawQuestMarker(ctx, entityQuestMarker(entity, quests), ex + tileSize / 2, ey - tileSize * 0.9, Math.max(12, tileSize * 1.1))
   }

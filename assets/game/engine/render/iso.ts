@@ -16,7 +16,8 @@ import { type PlayerState, barFraction, hpFraction, playerDisplayName } from '@/
 import { type CombatState, type Entity, type Quest } from '@/game/types'
 import { GROUND_COLORS } from '@/levels/village'
 import { Connector } from '@/lib/api'
-import { ASCII_FONT, BUILDING_BADGES, COMBAT_RANGE, type DayNight, ENEMY_MOVE_MS, LAMP_GLOW, LIGHT, applyCellTransform, isoCameraFocus, collectLampGlows, debugCellCaptions, debugLabelColors, drawFigureVitals, drawGroundShadow, drawHitMarker, drawNightLighting, drawPlayerArm, drawQuestMarker, drawRangeRing, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, getPlayerArt, grassShade, idleNow, isDeadEnemy, isDebugMode, treeCanopyLayers } from './shared'
+import { ASCII_FONT, BUILDING_BADGES, COMBAT_RANGE, type DayNight, ENEMY_MOVE_MS, LAMP_GLOW, LIGHT, applyCellTransform, isoCameraFocus, collectLampGlows, debugCellCaptions, debugLabelColors, drawFigureVitals, drawGroundShadow, drawHitMarker, drawNightLighting, drawPlayerArm, drawQuestMarker, drawRangeRing, drawStyledImage, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, getPlayerArt, grassShade, idleNow, isDeadEnemy, isDebugMode, resolveDraw, treeCanopyLayers } from './shared'
+import { ASCII_STYLE, assetKind, entityKind, groundKind, type ElementKind, type Style } from '@/game/artStyle'
 
 
 /** Per-face brightness from the global light: a face whose outward screen normal points toward the
@@ -101,6 +102,7 @@ export interface IsoGroundParams {
   tileW: number; tileH: number; heightStep: number; cubeDepth: number
   startCol: number; endCol: number; startRow: number; endRow: number
   groundFontSize: number
+  style: Style
 }
 
 
@@ -111,7 +113,7 @@ export interface IsoGroundParams {
  *  (live grass flicker + live water shimmer) for the direct / fallback path. The
  *  projection is inlined so the hot double-loop never allocates a point per cell. */
 export function drawIsoGroundLayer(ctx: CanvasRenderingContext2D, p: IsoGroundParams, bakeStatic: boolean, waterOut: { col: number; row: number }[] | null): void {
-  const { grid, w, h, time, camX, camZ, isoScale, cellSize, tileW, tileH, heightStep, cubeDepth, startCol, endCol, startRow, endRow, groundFontSize } = p
+  const { grid, w, h, time, camX, camZ, isoScale, cellSize, tileW, tileH, heightStep, cubeDepth, startCol, endCol, startRow, endRow, groundFontSize, style } = p
   ctx.font = `bold ${groundFontSize}px ${ASCII_FONT}`
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
@@ -179,25 +181,32 @@ export function drawIsoGroundLayer(ctx: CanvasRenderingContext2D, p: IsoGroundPa
       ctx.fill()
 
       const isWater = WATER_DEPTH_TILES.has(tileType)
+      // Active art style (ASCII passthrough → char+fg above, byte-identical). Ground cells
+      // carry no per-element override, so this depends only on the active style — which is
+      // folded into the cache key so a style switch rebuilds the offscreen ground.
+      const gdv = resolveDraw(groundKind(tileType), style, undefined, char, fg)
 
       if (bakeStatic) {
         // Static cache: skip the animated water surface (collected for the live pass);
         // bake the grass glyph at full alpha (the ≤1.5% flicker is render-only motion).
         if (isWater) { if (waterOut) waterOut.push({ col, row }); continue }
-        ctx.fillStyle = fg
-        ctx.fillText(char, px, drawY)
+        ctx.fillStyle = gdv.color
+        if (gdv.image) drawStyledImage(ctx, gdv.image, px, drawY, tileH * 2)
+        else ctx.fillText(gdv.char, px, drawY)
         continue
       }
 
       // Direct / fallback path — byte-identical to the original inline loop.
       if (isWater) drawIsoWaterDepth(ctx, px, drawY, tileW, tileH, bg, time, col, row)
-      ctx.fillStyle = fg
-      if (isGrass) {
+      ctx.fillStyle = gdv.color
+      if (gdv.image) {
+        drawStyledImage(ctx, gdv.image, px, drawY, tileH * 2)
+      } else if (isGrass) {
         ctx.globalAlpha = 0.85 + 0.15 * (Math.sin(time * 0.001 + col * 0.3 + row * 0.4) * 0.1 + 1)
-        ctx.fillText(char, px, drawY)
+        ctx.fillText(gdv.char, px, drawY)
         ctx.globalAlpha = 1
       } else {
-        ctx.fillText(char, px, drawY)
+        ctx.fillText(gdv.char, px, drawY)
       }
     }
   }
@@ -208,7 +217,7 @@ export function drawIsoGroundLayer(ctx: CanvasRenderingContext2D, p: IsoGroundPa
  *  blitted static cache — the one ground element that must stay live each frame.
  *  Matches the original per-water-cell draw order: water depth, then the glyph. */
 export function drawIsoWaterCells(ctx: CanvasRenderingContext2D, p: IsoGroundParams, cells: { col: number; row: number }[]): void {
-  const { grid, w, h, time, camX, camZ, isoScale, cellSize, tileW, tileH, heightStep, groundFontSize } = p
+  const { grid, w, h, time, camX, camZ, isoScale, cellSize, tileW, tileH, heightStep, groundFontSize, style } = p
   ctx.font = `bold ${groundFontSize}px ${ASCII_FONT}`
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
@@ -226,9 +235,11 @@ export function drawIsoWaterCells(ctx: CanvasRenderingContext2D, p: IsoGroundPar
     const fg = colors.fg[colorIdx % colors.fg.length]
     const bg = colors.bg[0]
     const drawY = py - grid.getHeight(col, row) * heightStep
+    const wdv = resolveDraw(groundKind(tileType), style, undefined, char, fg)
     drawIsoWaterDepth(ctx, px, drawY, tileW, tileH, bg, time, col, row)
-    ctx.fillStyle = fg
-    ctx.fillText(char, px, drawY)
+    ctx.fillStyle = wdv.color
+    if (wdv.image) drawStyledImage(ctx, wdv.image, px, drawY, tileH * 2)
+    else ctx.fillText(wdv.char, px, drawY)
   }
 }
 
@@ -252,6 +263,7 @@ export function render(
   projectiles: readonly Projectile[] = [],
   dayNight: DayNight = 'day',
   attackReach: number = 1,
+  style: Style = ASCII_STYLE,
 ) {
   const __isoT0 = perfNow() // perf probe — rolling avg of render() ms, exposed on window.__isoRenderMs
   // Clear
@@ -320,7 +332,7 @@ export function render(
   const groundParams: IsoGroundParams = {
     grid, w, h, time, camX, camZ, isoScale, cellSize,
     tileW, tileH, heightStep, cubeDepth,
-    startCol, endCol, startRow, endRow, groundFontSize,
+    startCol, endCol, startRow, endRow, groundFontSize, style,
   }
 
   ctx.globalAlpha = 1
@@ -330,7 +342,7 @@ export function render(
   // blit is at offset (0,0) → no resampling → pixel-identical to a direct draw. The
   // content hash (visible cells) is computed ONLY when the camera is stable (a cache-hit
   // candidate) — never while panning, so movement stays a cheap direct draw.
-  const camKey = `${w}x${h}|${camX.toFixed(3)},${camZ.toFixed(3)}|${isoScale.toFixed(4)}|${cellSize}`
+  const camKey = `${w}x${h}|${camX.toFixed(3)},${camZ.toFixed(3)}|${isoScale.toFixed(4)}|${cellSize}|${style.id}`
   let liveWater: { col: number; row: number }[] | null = null
   let didCache = false
 
@@ -443,12 +455,12 @@ export function render(
       // The player's melee swing progress (0..1) drives the in-hand weapon animation below.
       const inHandSlash = attackAnims.find(a => a.inHand && now - a.start < a.durationMs)
       const swingP = inHandSlash ? Math.min(1, (now - inHandSlash.start) / inHandSlash.durationMs) : null
-      drawIsoPlayer(ctx, p.x, p.y - heightOffset - (player.jumpHeight ?? 0), tileW, tileH, player, time, swingP, inHandSlash?.tint)
+      drawIsoPlayer(ctx, p.x, p.y - heightOffset - (player.jumpHeight ?? 0), tileW, tileH, player, time, swingP, inHandSlash?.tint, style)
     } else if (obj.entity) {
       const combat = obj.entity.kind === 'enemy' ? enemyCombat.get(obj.entity.id) : undefined
       if (isDeadEnemy(obj.entity, combat)) continue // hidden until it respawns
       const attackable = enemyInAttackReach(obj.entity, Math.floor(player.x / cellSize), Math.floor(player.z / cellSize), attackReach)
-      const anchor = drawIsoEntity(ctx, p.x, p.y - heightOffset, obj.entity, tileH, combat, now, obj.moving ?? false, obj.inRange ?? false, attackable)
+      const anchor = drawIsoEntity(ctx, p.x, p.y - heightOffset, obj.entity, tileH, combat, now, obj.moving ?? false, obj.inRange ?? false, attackable, style)
       drawQuestMarker(ctx, entityQuestMarker(obj.entity, quests), anchor.x, anchor.y, Math.max(14, tileH * 1.6))
     } else if (obj.building) {
       // ONE upright unit, oriented by its real road-derived facing. The planner already reserved
@@ -466,7 +478,7 @@ export function render(
       // Fade the building when the player is near, so a back-facing door behind it is findable.
       const fade = buildingFadeAlpha(pCol, pRow, b, BUILDING_FADE_RADIUS, BUILDING_MIN_ALPHA)
       if (fade < 1) ctx.globalAlpha = fade
-      drawIsoBuilding(ctx, b, origin, colVec, depthVec, tileW * 0.9, flicker)
+      drawIsoBuilding(ctx, b, origin, colVec, depthVec, tileW * 0.9, flicker, style)
       if (fade < 1) ctx.globalAlpha = 1
     } else if (obj.asset) {
       const op = obj.asset.opacity ?? 1 // per-asset opacity for contrast/depth
@@ -475,7 +487,7 @@ export function render(
       const ax = p.x, ay = p.y - heightOffset
       const ct = assetCellTransform(obj.asset.cellAnim, time)
       if (ct) applyCellTransform(ctx, ax, ay, ct, tileW, tileH)
-      drawIsoAssetAscii(ctx, ax, ay, obj.asset, tileW, tileH, time, obj.asset.type === 'tree' && (!!obj.asset.baseShadow || isGroundContact(isTreeCell, obj.asset.col, obj.asset.row)), dayNight)
+      drawIsoAssetAscii(ctx, ax, ay, obj.asset, tileW, tileH, time, obj.asset.type === 'tree' && (!!obj.asset.baseShadow || isGroundContact(isTreeCell, obj.asset.col, obj.asset.row)), dayNight, style)
       if (ct) ctx.restore()
       if (op < 1) ctx.globalAlpha = 1
     }
@@ -601,6 +613,7 @@ export function drawIsoPlayer(
   time: number,
   swingP: number | null = null,
   swingTint?: string,
+  style: Style = ASCII_STYLE,
 ) {
   const playerArt = getPlayerArt(player)
   const lineHeight = tileH * 1.4
@@ -633,7 +646,19 @@ export function drawIsoPlayer(
   const figArt = swingP == null
     ? playerArt
     : playerSprite.idle.map(row => (swingArmDir > 0 ? row.replace('>', ' ') : row.replace('<', ' ')))
-  drawBlockFigure(ctx, figArt, x - pHalf, y - lineHeight * 0.5 - breathe, lineHeight, charW, bodyColor, bodyBg)
+  const pdv = resolveDraw('player', style, undefined, '', bodyColor)
+  if (pdv.image) {
+    drawStyledImage(ctx, pdv.image, x, y - lineHeight - breathe, tileH * 2.6)
+  } else if (pdv.char) {
+    ctx.font = `bold ${fontSize * 1.8}px ${ASCII_FONT}`
+    ctx.textAlign = 'center'
+    ctx.fillStyle = pdv.color
+    ctx.fillText(pdv.char, x, y - lineHeight - breathe)
+    ctx.textAlign = 'left'
+    ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
+  } else {
+    drawBlockFigure(ctx, figArt, x - pHalf, y - lineHeight * 0.5 - breathe, lineHeight, charW, bodyColor, bodyBg)
+  }
 
   // The held weapon + the shield, both at the ARM row. The weapon sits on the FACING hand; the
   // shield on the OFF-hand (the side OPPOSITE the weapon) at the SAME arm height — so they never
@@ -739,6 +764,7 @@ export function drawIsoEntity(
   moving = false,
   inRange = false,
   attackable = false,
+  style: Style = ASCII_STYLE,
 ): { x: number; y: number } {
   // Multi-row ASCII creature, drawn bottom-to-top. The frame comes from the animation
   // engine (frameAt): idle bob when still, a faster step cycle while moving, an attack
@@ -762,7 +788,19 @@ export function drawIsoEntity(
   ctx.textAlign = 'left'
   ctx.textBaseline = 'middle'
   const pal = entityPalette(entity)
-  drawBlockFigure(ctx, art, leftX, baseY, lineHeight, charW, pal.fg, pal.bg)
+  const edv = resolveDraw(entityKind(entity.kind), style, entity.tileOverride, '', pal.fg)
+  if (edv.image) {
+    drawStyledImage(ctx, edv.image, x, baseY - lineHeight, tileH * 2.4)
+  } else if (edv.char) {
+    ctx.font = `bold ${fontSize * 1.7}px ${ASCII_FONT}`
+    ctx.textAlign = 'center'
+    ctx.fillStyle = edv.color
+    ctx.fillText(edv.char, x, baseY - lineHeight)
+    ctx.textAlign = 'left'
+    ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
+  } else {
+    drawBlockFigure(ctx, art, leftX, baseY, lineHeight, charW, pal.fg, pal.bg)
+  }
 
   // Top of the figure — where above-entity overlays (quest marker) anchor.
   const figureTop = baseY - art.length * lineHeight
@@ -820,7 +858,7 @@ export const fillQuad = (ctx: CanvasRenderingContext2D, a: Pt, b: Pt, c: Pt, d: 
 export interface FacadeColors { wall: string; door: string; window: string; roof: string }
 
 
-export function drawIsoFacadeTile(ctx: CanvasRenderingContext2D, bl: Pt, colVec: Pt, cellH: number, kind: string, flicker: number, colors: FacadeColors): void {
+export function drawIsoFacadeTile(ctx: CanvasRenderingContext2D, bl: Pt, colVec: Pt, cellH: number, kind: string, flicker: number, colors: FacadeColors, style: Style = ASCII_STYLE): void {
   const up: Pt = { x: 0, y: -cellH }
   const br = ptAdd(bl, colVec)
   const tl = ptAdd(bl, up)
@@ -840,12 +878,17 @@ export function drawIsoFacadeTile(ctx: CanvasRenderingContext2D, bl: Pt, colVec:
   const glyph = isRoof ? '/\\' : isDoor ? '▯' : isWindow ? '⊞' : ''
   ctx.fillStyle = bg
   fillQuad(ctx, bl, br, tr, tl)
-  if (!glyph) return
+  // Style resolve: ASCII passthrough keeps the glyph (or '' for a plain wall → nothing drawn);
+  // an Emoji style supplies 🧱/🟥/🚪/🪟 even for the wall cell that drew no glyph before.
+  const mid = { x: (bl.x + tr.x) / 2, y: (bl.y + tr.y) / 2 }
+  const fdv = resolveDraw(kind as ElementKind, style, undefined, glyph, fg)
+  if (fdv.image) { drawStyledImage(ctx, fdv.image, mid.x, mid.y, cellH); return }
+  if (!fdv.char) return
   ctx.font = `bold ${cellH * 0.62}px ${ASCII_FONT}`
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
-  ctx.fillStyle = fg
-  ctx.fillText(glyph, (bl.x + tr.x) / 2, (bl.y + tr.y) / 2)
+  ctx.fillStyle = fdv.color
+  ctx.fillText(fdv.char, mid.x, mid.y)
 }
 
 
@@ -869,6 +912,7 @@ export function drawIsoBuilding(
   depthVec: Pt,
   cellH: number,
   flicker: number,
+  style: Style = ASCII_STYLE,
 ): void {
   // Billboard size comes from the FACADE grid (b.cells), not the footprint span — for east/west
   // buildings the footprint rect is rotated (length/height swapped), so reading b.length/b.height
@@ -975,7 +1019,7 @@ export function drawIsoBuilding(
         const kind = b.cells[r]?.[c]
         if (!kind || kind === 'empty') continue
         const bl = ptAdd(ptAdd(base, ptScale(colVec, c)), up(H - 1 - r))
-        drawIsoFacadeTile(ctx, bl, colVec, cellH, kind, flicker, facadeColors)
+        drawIsoFacadeTile(ctx, bl, colVec, cellH, kind, flicker, facadeColors, style)
       }
     }
   }
@@ -1350,6 +1394,7 @@ export function drawIsoAssetAscii(
   time: number,
   groundContact = false,
   dayNight: DayNight = 'day',
+  style: Style = ASCII_STYLE,
 ) {
   const lineHeight = tileH * 1.3
   const fontSize = tileH * 1.1
@@ -1358,6 +1403,19 @@ export function drawIsoAssetAscii(
   ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
+
+  // Active art style: a mapped kind (or a per-element override) replaces ALL of the per-type
+  // art below (labeled cells, trees, legacy buildings, props) with ONE tile. ASCII + no
+  // override → adv.char '' → falls through to the byte-identical per-type rendering.
+  const adv = resolveDraw(assetKind(asset), style, asset.tileOverride, '', asset.color ?? '#ffffff')
+  if (adv.image) { drawStyledImage(ctx, adv.image, x, y - lineHeight * 0.6, tileH * 2.2); return }
+  if (adv.char) {
+    ctx.font = `bold ${fontSize * 1.7}px ${ASCII_FONT}`
+    ctx.fillStyle = adv.color || '#ffffff'
+    ctx.fillText(adv.char, x, y - lineHeight * 0.6)
+    ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
+    return
+  }
 
   // Generated multi-cell assets carry a cell-part label → draw each cell as ONE
   // glyph (the cell IS the tile). The layered art below is for legacy single-cell,

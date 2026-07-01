@@ -16,7 +16,8 @@ import { type PlayerState, barFraction, hpFraction, playerDisplayName } from '@/
 import { type CombatState, type Entity, type Quest } from '@/game/types'
 import { GROUND_COLORS } from '@/levels/village'
 import { Connector } from '@/lib/api'
-import { ASCII_FONT, BUILDING_BADGES, COMBAT_RANGE, type DayNight, ENEMY_MOVE_MS, LAMP_GLOW, applyCellTransform, clampCameraAxis, collectLampGlows, debugCellCaptions, debugLabelColors, drawFigureVitals, drawGroundShadow, drawHitMarker, drawNightLighting, drawPlayerArm, drawQuestMarker, drawRangeRing, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, getPlayerArt, grassShade, idleNow, isDeadEnemy, isDebugMode, treeCanopyLayers } from './shared'
+import { ASCII_FONT, BUILDING_BADGES, COMBAT_RANGE, type DayNight, ENEMY_MOVE_MS, LAMP_GLOW, applyCellTransform, clampCameraAxis, collectLampGlows, debugCellCaptions, debugLabelColors, drawFigureVitals, drawGroundShadow, drawHitMarker, drawNightLighting, drawPlayerArm, drawQuestMarker, drawRangeRing, drawStyledImage, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, getPlayerArt, grassShade, idleNow, isDeadEnemy, isDebugMode, resolveDraw, treeCanopyLayers } from './shared'
+import { ASCII_STYLE, assetKind, entityKind, groundKind, type ElementKind, type Style } from '@/game/artStyle'
 
 
 /** Draw a placed entity in the TOP (blueprint) renderer — a filled cell badge
@@ -33,6 +34,7 @@ export function drawTopEntity(
   moving = false,
   inRange = false,
   attackable = false,
+  style: Style = ASCII_STYLE,
 ): { x: number; y: number } {
   // The figure spans a footprint (a 3-row figure ≈ 2 cells tall, 1 wide) anchored so
   // the entity's cell is the BOTTOM cell — matching the player's 2-tall look in top view.
@@ -59,19 +61,31 @@ export function drawTopEntity(
   ctx.textBaseline = 'middle'
   // Block style — solid bg per row + bright glyph, so the 2D view matches the iso view.
   const pal = entityPalette(entity)
-  for (let i = 0; i < art.length; i++) {
-    const line = art[i]
-    const ly = startY + i * fontSize
-    const s = line.length - line.trimStart().length
-    const en = line.trimEnd().length
-    if (en > s) {
-      ctx.fillStyle = pal.bg
-      ctx.fillRect(textLeft + s * charW - 1, ly - fontSize * 0.42, (en - s) * charW + 2, fontSize * 0.82)
+  const edv = resolveDraw(entityKind(entity.kind), style, entity.tileOverride, '', pal.fg)
+  if (edv.image) {
+    drawStyledImage(ctx, edv.image, cx, startY + ((art.length - 1) / 2) * fontSize, spanH * 0.9)
+  } else if (edv.char) {
+    // Styled: one emoji replaces the multi-row figure (still gets the HP bar / name below).
+    ctx.font = `bold ${fontSize * (art.length + 0.5)}px ${ASCII_FONT}`
+    ctx.textAlign = 'center'
+    ctx.fillStyle = edv.color
+    ctx.fillText(edv.char, cx, startY + ((art.length - 1) / 2) * fontSize)
+    ctx.textAlign = 'left'
+  } else {
+    for (let i = 0; i < art.length; i++) {
+      const line = art[i]
+      const ly = startY + i * fontSize
+      const s = line.length - line.trimStart().length
+      const en = line.trimEnd().length
+      if (en > s) {
+        ctx.fillStyle = pal.bg
+        ctx.fillRect(textLeft + s * charW - 1, ly - fontSize * 0.42, (en - s) * charW + 2, fontSize * 0.82)
+      }
+      ctx.fillStyle = '#000000'
+      ctx.fillText(line, textLeft + 1, ly + 1)
+      ctx.fillStyle = pal.fg
+      ctx.fillText(line, textLeft, ly)
     }
-    ctx.fillStyle = '#000000'
-    ctx.fillText(line, textLeft + 1, ly + 1)
-    ctx.fillStyle = pal.fg
-    ctx.fillText(line, textLeft, ly)
   }
 
   // Top of the figure — where above-entity overlays (quest marker) anchor.
@@ -168,6 +182,7 @@ export function draw2DBuilding(
   tileW: number,
   tileH: number,
   flicker: number,
+  style: Style = ASCII_STYLE,
 ): void {
   // The 2D house stays UPRIGHT (roof on top). It shows its FRONT (door + windows) only on the
   // camera-NEAR facings (south/east — the same split iso uses via `facadeOnBack`); the FAR facings
@@ -232,14 +247,22 @@ export function draw2DBuilding(
       }
       // detail glyph that READS on the cell's own background
       const glyph = isRoof ? '/\\' : isDoor ? '▯' : isWindow ? '⊞' : ''
-      if (glyph) {
-        ctx.fillStyle = isRoof
-          ? roofGlyph // darker shade of THIS roof's color
-          : isDoor
-          ? 'rgba(232, 212, 170, 0.9)' // warm handle/panel on the dark door
-          : 'rgba(40, 62, 84, 0.85)' // dark frame on the glass window
+      const glyphColor = isRoof
+        ? roofGlyph // darker shade of THIS roof's color
+        : isDoor
+        ? 'rgba(232, 212, 170, 0.9)' // warm handle/panel on the dark door
+        : isWindow
+        ? 'rgba(40, 62, 84, 0.85)' // dark frame on the glass window
+        : wallSeam // wall has no ASCII glyph; color only matters when a style supplies one
+      // Style resolve: ASCII passthrough keeps the glyph (or '' for a plain wall → nothing);
+      // an Emoji style supplies 🧱/🟥/🚪/🪟 even where the wall drew no glyph before.
+      const bdv = resolveDraw(kind as ElementKind, style, undefined, glyph, glyphColor)
+      if (bdv.image) {
+        drawStyledImage(ctx, bdv.image, x, cellTop + tileH * 0.5, tileH)
+      } else if (bdv.char) {
+        ctx.fillStyle = bdv.color
         ctx.font = `bold ${tileH * 0.7}px ${ASCII_FONT}`
-        ctx.fillText(glyph, x, cellTop + tileH * 0.5)
+        ctx.fillText(bdv.char, x, cellTop + tileH * 0.5)
       }
     }
   }
@@ -370,6 +393,7 @@ export function render2D(
   hitMarkers: readonly HitMarker[] = [],
   projectiles: readonly Projectile[] = [],
   attackReach: number = 1,
+  style: Style = ASCII_STYLE,
 ) {
   // Clear with sky/background color
   ctx.fillStyle = '#1a1a2e'
@@ -420,6 +444,8 @@ export function render2D(
       // Grass varies per-cell into natural green tones (deterministic hash); other ground
       // keeps its uniform floor base.
       const bg = tileType.includes('grass') ? grassShade(colors.bg[0], col, row) : colors.bg[0]
+      // Active art style (ASCII passthrough → the char+fg above, byte-identical).
+      const gdv = resolveDraw(groundKind(tileType), style, undefined, char, fg)
 
       // Draw ground tile
       ctx.fillStyle = bg
@@ -427,12 +453,13 @@ export function render2D(
 
       // Draw ground character with slight animation
       const grassFlicker = tileType.includes('grass') ? Math.sin(time * 0.001 + col * 0.3 + row * 0.4) * 0.1 + 1 : 1
-      ctx.fillStyle = fg
+      ctx.fillStyle = gdv.color
       ctx.globalAlpha = 0.85 + 0.15 * grassFlicker
       ctx.font = `bold ${tileH * 0.7}px ${ASCII_FONT}`
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
-      ctx.fillText(char, p.x, p.y)
+      if (gdv.image) drawStyledImage(ctx, gdv.image, p.x, p.y, tileH)
+      else ctx.fillText(gdv.char, p.x, p.y)
       ctx.globalAlpha = 1
 
       // Height creates elevated platforms - draw "front face" if height > 0
@@ -442,8 +469,9 @@ export function render2D(
         // Top surface (slightly brighter)
         ctx.fillStyle = bg
         ctx.fillRect(p.x - tileW / 2, p.y - tileH / 2 - elevH, tileW, tileH)
-        ctx.fillStyle = fg
-        ctx.fillText(char, p.x, p.y - elevH)
+        ctx.fillStyle = gdv.color
+        if (gdv.image) drawStyledImage(ctx, gdv.image, p.x, p.y - elevH, tileH)
+        else ctx.fillText(gdv.char, p.x, p.y - elevH)
         // Front face (darker)
         ctx.fillStyle = darkenColor(bg, 0.6)
         ctx.fillRect(p.x - tileW / 2, p.y + tileH / 2 - elevH, tileW, elevH)
@@ -538,11 +566,20 @@ export function render2D(
       const figArt2 = !swinging2
         ? playerArt
         : playerSprite.idle.map(row => (swingArmDir2 > 0 ? row.replace('>', ' ') : row.replace('<', ' ')))
-      for (let i = 0; i < figArt2.length; i++) {
-        const line = figArt2[figArt2.length - 1 - i] // Reverse order (bottom to top)
-        const lineY = baseY - (i + 0.5) * lineHeight
-        ctx.fillStyle = bodyColor
-        ctx.fillText(line, p.x, lineY)
+      const pdv = resolveDraw('player', style, undefined, '', bodyColor)
+      if (pdv.image) {
+        drawStyledImage(ctx, pdv.image, p.x, baseY - lineHeight * 1.4, tileH * 1.8)
+      } else if (pdv.char) {
+        ctx.font = `bold ${fontSize * 1.7}px ${ASCII_FONT}`
+        ctx.fillText(pdv.char, p.x, baseY - lineHeight * 1.2)
+        ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
+      } else {
+        for (let i = 0; i < figArt2.length; i++) {
+          const line = figArt2[figArt2.length - 1 - i] // Reverse order (bottom to top)
+          const lineY = baseY - (i + 0.5) * lineHeight
+          ctx.fillStyle = bodyColor
+          ctx.fillText(line, p.x, lineY)
+        }
       }
       // Held weapon — the SAME single blade, swung in-hand when a melee attack is mid-flight
       // (mirrors drawIsoPlayer): at rest it points up; an attack sweeps it through the arc, and an
@@ -590,7 +627,7 @@ export function render2D(
       // collision agree on one model.
       const b = obj.building
       const flicker = Math.sin(time * 0.003 + b.col * 0.5 + b.row * 0.7) * 0.15 + 1
-      draw2DBuilding(ctx, b, p.x, p.y + tileH * 0.5, tileW, tileH, flicker)
+      draw2DBuilding(ctx, b, p.x, p.y + tileH * 0.5, tileW, tileH, flicker, style)
 
       // Subtle interactive-entrance marker on the door cell: a small warm chevron, so the player
       // can tell which cell opens the building (the lone walkable footprint cell).
@@ -626,7 +663,19 @@ export function render2D(
       // Animation flicker based on time
       const flicker = Math.sin(time * 0.003 + obj.col * 0.5 + obj.row * 0.7) * 0.15 + 1
 
-      if (asset.label) {
+      // Active art style: a mapped kind (or a per-element override) replaces the whole
+      // per-type ASCII art with ONE tile. ASCII + no override → adv.char '' → falls
+      // through to the byte-identical per-type branches below.
+      const adv = resolveDraw(assetKind(asset), style, asset.tileOverride, '', '')
+      if (adv.image) {
+        drawStyledImage(ctx, adv.image, p.x, baseY - tileH * 0.7, tileH * 1.5)
+      } else if (adv.char) {
+        ctx.font = `bold ${tileH * 1.3}px ${ASCII_FONT}`
+        ctx.textAlign = 'center'
+        ctx.textBaseline = 'middle'
+        ctx.fillStyle = adv.color || '#ffffff'
+        ctx.fillText(adv.char, p.x, baseY - tileH * 0.6)
+      } else if (asset.label) {
         // Generated multi-cell cell → one glyph in its zone/theme color (the cell
         // IS the tile), matching the iso + top views. No green multi-tile overdraw.
         draw2DLabeledCell(ctx, p.x, baseY, tileW, tileH, asset)
@@ -815,7 +864,7 @@ export function render2D(
     const moving = !!mot && time < mot.startMs + ENEMY_MOVE_MS
     const inRange = entity.kind === 'enemy' && Math.hypot(entity.col - pCol, entity.row - pRow) <= COMBAT_RANGE
     const attackable = enemyInAttackReach(entity, Math.floor(player.x / cellSize), Math.floor(player.z / cellSize), attackReach)
-    const anchor = drawTopEntity(ctx, e.x, e.y, tileW, entity, combat, time, moving, inRange, attackable)
+    const anchor = drawTopEntity(ctx, e.x, e.y, tileW, entity, combat, time, moving, inRange, attackable, style)
     drawQuestMarker(ctx, entityQuestMarker(entity, quests), anchor.x, anchor.y, Math.max(14, tileW * 1.4))
   }
 
