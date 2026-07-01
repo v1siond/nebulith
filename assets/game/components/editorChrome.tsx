@@ -275,7 +275,7 @@ export function GenerateControls({
         ))}
       </div>
       <p className="mt-2 text-[10px] text-gray-500">
-        Pick a variant to generate a randomized {zone} stage — forest, town, a much larger city, or a cavern.
+        Pick a variant to generate a randomized {zone} stage — forest, town, a much larger city, a cavern, or a temple dungeon.
       </p>
     </div>
   )

@@ -41,7 +41,7 @@ import { BARE_HANDS, type HitMarker, type PlayerHud, type ProjectileContext, pla
 import { type PlayerState, aimFromKeys, facingFromKeys, playerDisplayName } from '@/game/runtime/player'
 import { activeQuest, applyQuestEvent, questAnchorScreenPos, questForGiver, reachableQuestGiver, rewardSummary, upsertQuest } from '@/game/runtime/quest'
 import { type EnemyRuntime, isLivingEnemy, makeEnemyRuntime } from '@/game/runtime/targeting'
-import { ENEMY_TYPES, CAVE_ENEMY_TYPES, archetypeForEnemyType, scatterEntities } from '@/game/spawner'
+import { ENEMY_TYPES, CAVE_ENEMY_TYPES, TEMPLE_ENEMY_TYPES, archetypeForEnemyType, scatterEntities } from '@/game/spawner'
 import { type CombatState, type Entity, type EntityKind, type Inventory, type Item, type Loadout, type Quest, type Reward, type Stats, type TalentPath, type Weapon } from '@/game/types'
 import { weaponReach } from '@/game/weapons'
 import { VILLAGE_CONFIG } from '@/levels/village'
@@ -2613,15 +2613,16 @@ export default function TemplateEditor() {
     movePlayerToValidSpawn(stage.spawn.col, stage.spawn.row)
     const live = livePlayerCell()
     syncPlayerEntity(live.col, live.row, true) // fresh stage → player entity follows the spawn
-    if (variant === 'cave') seedCaveEnemies(grid) // populate the cavern with bats/spiders/skeletons
+    if (variant === 'cave') seedStageEnemies(grid, CAVE_ENEMY_TYPES, 'cave') // bats/spiders/skeletons
+    if (variant === 'temple') seedStageEnemies(grid, TEMPLE_ENEMY_TYPES, 'temple') // skeletons/guardians/wraiths
     setSelectedCells(new Set())
     deselectBuilding() // building indices were rebuilt → drop any stale selection
   }
 
-  // Scatter cave-appropriate enemies onto the freshly-generated cavern floor (grouped by
+  // Scatter archetype-appropriate enemies onto a freshly-generated dungeon floor (grouped by
   // type via the shared spawner), spaced from the player + any existing entities. The play
-  // loop lazily gives each a combat runtime the first frame it's seen.
-  const seedCaveEnemies = (grid: IsometricGrid) => {
+  // loop lazily gives each a combat runtime the first frame it's seen. Shared by cave + temple.
+  const seedStageEnemies = (grid: IsometricGrid, enemyTypes: readonly string[], prefix: string) => {
     const collision = Array.from({ length: grid.rows }, (_, r) =>
       Array.from({ length: grid.cols }, (_, c) => grid.isBlocked(c, r)),
     )
@@ -2632,8 +2633,8 @@ export default function TemplateEditor() {
         occupied,
         count: 10,
         kinds: ['enemy'],
-        enemyTypes: CAVE_ENEMY_TYPES, // bats / spiders / skeletons, each in its own zone
-        idPrefix: `cave-${prev.length}`,
+        enemyTypes, // each type grouped into its own map zone
+        idPrefix: `${prefix}-${prev.length}`,
       })
       return [...prev, ...spawned]
     })
@@ -4721,7 +4722,7 @@ export default function TemplateEditor() {
                 <p className="mb-2 text-[10px] text-gray-500">
                   Select a building to move (arrow keys), rotate (R), or delete. Place a new one with a type tool.
                 </p>
-                <div className="grid grid-cols-5 gap-1">
+                <div className="grid grid-cols-6 gap-1">
                   <EntityToolButton
                     label="Select"
                     glyph="◎"
@@ -4749,6 +4750,13 @@ export default function TemplateEditor() {
                     active={buildingTool === 'place-hospital'}
                     activeClass="bg-green-600 text-black"
                     onClick={() => toggleBuildingTool('place-hospital')}
+                  />
+                  <EntityToolButton
+                    label="Temple"
+                    glyph="🏛"
+                    active={buildingTool === 'place-temple'}
+                    activeClass="bg-amber-600 text-black"
+                    onClick={() => toggleBuildingTool('place-temple')}
                   />
                   <EntityToolButton
                     label="Delete"

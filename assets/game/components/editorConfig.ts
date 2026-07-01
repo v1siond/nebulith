@@ -19,13 +19,14 @@ export type EntityTool = EntityKind | 'erase' | 'collision' | null
 
 /** Which building tool is armed. Place-<type> drops a fresh building; select picks
  *  one to move/rotate/delete; delete removes the one under the click; null = off. */
-export type BuildingTool = 'select' | 'place-house' | 'place-store' | 'place-hospital' | 'delete' | null
+export type BuildingTool = 'select' | 'place-house' | 'place-store' | 'place-hospital' | 'place-temple' | 'delete' | null
 
 /** Map a Place-<type> tool to the BuildingType it authors. */
 export const BUILDING_TOOL_TYPE: Partial<Record<NonNullable<BuildingTool>, BuildingType>> = {
   'place-house': 'house',
   'place-store': 'store',
   'place-hospital': 'hospital',
+  'place-temple': 'temple',
 }
 
 // ── asset palette data (drives the Assets card) ──────────────────────
@@ -54,4 +55,4 @@ export const SEASON_BTN: Record<(typeof STAGE_ZONES)[number], string> = {
   winter: 'bg-sky-700 ring-1 ring-sky-300',
   desert: 'bg-yellow-700 ring-1 ring-yellow-300',
 }
-export const STAGE_VARIANTS = ['forest', 'town', 'city', 'cave'] as const // forest, seasonal settlements (town → ~4× city), + a seasonal cavern
+export const STAGE_VARIANTS = ['forest', 'town', 'city', 'cave', 'temple'] as const // forest, seasonal settlements (town → ~4× city), a seasonal cavern, + a seasonal temple dungeon
