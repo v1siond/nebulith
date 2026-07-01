@@ -60,7 +60,7 @@ import { EquipmentPanel, InventoryCard, QuestAuthoringCard, QuestLogPanel } from
 import { EntityAttackBody, EntityIdentityStatsBody, EntityMovementBody, Modal, QuestGiveBody } from '@/components/game/modals'
 import { FlowViewOverlay, GamesViewOverlay } from '@/components/game/games'
 import { BUILDING_TOOL_TYPE, type BuildingTool, type EditorMode, type EntityTool, GROUND_SWATCHES, NATURE_TILE_KEYS } from '@/components/game/editorConfig'
-import { Dropdown, GenerateControls, InspectorPlaceholder, StylePicker, ToolRail } from '@/components/game/editorChrome'
+import { ArtPlaceholder, Dropdown, GenerateControls, SelectionHeader, StylePicker, ToolRail, TriggerPlaceholder } from '@/components/game/editorChrome'
 
 
 // View mode states (global for game loop access)
@@ -183,7 +183,7 @@ export default function TemplateEditor() {
   // (author your own movement route instead of the default box patrol).
   const [waypointMode, setWaypointMode] = useState(false)
   // Which entity-action modal is open (Stats / Inventory / Movement / Quests / Attacks).
-  const [entityModal, setEntityModal] = useState<'stats' | 'inventory' | 'movement' | 'quests' | 'attacks' | null>(null)
+  const [entityModal, setEntityModal] = useState<'inventory' | 'quests' | null>(null)
   // Disarm waypoint authoring + close any entity modal whenever the selection changes,
   // so clicks on a new entity select it (not drop a stray waypoint / show stale modal).
   useEffect(() => {
@@ -633,6 +633,7 @@ export default function TemplateEditor() {
     // connector (its full cell set); otherwise shift-click extends the selection and
     // a plain click starts a fresh one. saveConnector turns the selection into cells.
     if (connectorMode) {
+      setSelectedEntityId(null) // editing a connector → the Inspector morphs to it
       const existingConnector = connectors.find(c =>
         c.cells.some(p => p.col === cell.col && p.row === cell.row),
       )
@@ -684,6 +685,9 @@ export default function TemplateEditor() {
       return
     }
 
+    // Selecting cells makes the CELL the Inspector's subject — drop any unit selection
+    // so the panel morphs to the cell instead of lingering on the last-clicked entity.
+    setSelectedEntityId(null)
     setIsSelecting(true)
     setSelectionStart(cell)
 
@@ -1011,6 +1015,7 @@ export default function TemplateEditor() {
     if (!grid) return
     const idx = grid.buildings.findIndex(b => footprintContains(b, col, row))
     if (idx < 0) { deselectBuilding(); return }
+    setSelectedEntityId(null) // the building becomes the Inspector's subject
     selectedBuildingIndexRef.current = idx
     setSelectedBuildingIndex(idx)
     highlightBuilding(grid.buildings[idx])
@@ -1029,6 +1034,7 @@ export default function TemplateEditor() {
     stampBuildingCells(grid, b, genZoneRef.current)
     grid.buildings.push(b)
     const idx = grid.buildings.length - 1
+    setSelectedEntityId(null) // the fresh building becomes the Inspector's subject
     selectedBuildingIndexRef.current = idx
     setSelectedBuildingIndex(idx)
     setBuildingTool('select') // hand off to select so it can be tweaked immediately
@@ -4345,51 +4351,13 @@ export default function TemplateEditor() {
                   />
                 </div>
 
-                {/* Selected-building inspector — keyed on buildingVersion so move/rotate refresh it */}
-                {(() => {
-                  const grid = gridRef.current
-                  const b = selectedBuildingIndex != null ? grid?.buildings[selectedBuildingIndex] : undefined
-                  if (!b) return (
-                    <p className="mt-3 border-t border-white/10 pt-2 text-[10px] text-gray-500">
-                      {buildingTool === 'select' ? 'Click a building to select it.' : 'No building selected.'}
-                    </p>
-                  )
-                  const facing = gridBuildingFacing(b)
-                  const door = buildingFootprintCells(b).door
-                  return (
-                    <div key={`bld-${selectedBuildingIndex}-${buildingVersion}`} className="mt-3 border-t border-white/10 pt-2">
-                      <div className="mb-2 flex items-center justify-between text-xs">
-                        <span className="font-bold uppercase tracking-wider text-orange-300">{b.type}</span>
-                        <span className="text-gray-500">facing {facing}</span>
-                      </div>
-                      <div className="mb-2 text-[10px] text-gray-400">
-                        footprint {b.length}×{b.height} · facade {facadeLength(b)} · depth {b.depth} · door @ {door.col},{door.row}
-                      </div>
-                      <div className="flex gap-1">
-                        <button
-                          onClick={rotateSelectedBuilding}
-                          className="flex-1 rounded bg-orange-700 px-2 py-1 text-xs font-bold hover:bg-orange-600"
-                          title="Rotate facing south→east→north→west (R)"
-                        >
-                          ⟳ Rotate
-                        </button>
-                        <button
-                          onClick={deleteSelectedBuilding}
-                          className="flex-1 rounded bg-red-800 px-2 py-1 text-xs font-bold hover:bg-red-700"
-                          title="Delete this building (Del)"
-                        >
-                          Delete
-                        </button>
-                        <button
-                          onClick={deselectBuilding}
-                          className="rounded bg-gray-700 px-2 py-1 text-xs hover:bg-gray-600"
-                        >
-                          Deselect
-                        </button>
-                      </div>
-                    </div>
-                  )
-                })()}
+                {/* A selected building's settings (rotate / delete / door side) now live in the
+                    right Inspector — the left panel keeps only the place/select/delete tools. */}
+                <p className="mt-3 border-t border-white/10 pt-2 text-[10px] leading-tight text-gray-500">
+                  {selectedBuildingIndex != null
+                    ? 'Selected — its settings are in the Inspector on the right.'
+                    : buildingTool === 'select' ? 'Click a building to select it — its settings open in the Inspector.' : 'No building selected.'}
+                </p>
 
                 <div className="mt-3 flex items-center justify-between border-t border-white/10 pt-2 text-[10px] text-gray-400">
                   <span>{gridRef.current?.buildings.length ?? 0} buildings</span>
@@ -4415,104 +4383,12 @@ export default function TemplateEditor() {
                   <p className="mb-2 text-xs text-gray-400">Click a cell in Top view to add a connector.</p>
                 )}
 
+                {/* The connector FORM (target / when / spawn cell) now lives in the right
+                    Inspector — click a cell (or a saved connector below) to open it there. */}
                 {editingConnector && (
-                  <div className="mb-2 rounded bg-gray-800 p-2">
-                    <p className="mb-1 text-xs text-yellow-400">
-                      {selectedCells.size > 1
-                        ? `${selectedCells.size} cells selected`
-                        : `(${editingConnector.col}, ${editingConnector.row})`}
-                    </p>
-                    <select
-                      value={connectorForm.action?.type ?? 'teleport'}
-                      onChange={e => {
-                        const t = e.target.value
-                        setConnectorForm(f => ({
-                          ...f,
-                          action:
-                            t === 'teleport' ? undefined
-                            : t === 'collect' ? { type: 'collect', itemId: '', qty: 1 }
-                            : t === 'content' ? { type: 'content', sectionId: '' }
-                            : { type: 'goto_region', col: f.spawnCol ?? 0, row: f.spawnRow ?? 0 },
-                        }))
-                      }}
-                      aria-label="Trigger action"
-                      className="mb-1 w-full rounded bg-gray-700 p-1 text-xs"
-                    >
-                      <option value="teleport">Action: Go to template (teleport)</option>
-                      <option value="goto_region">Action: Move within stage (uses Arrive-at)</option>
-                      <option value="collect">Action: Collect item</option>
-                      <option value="content">Action: Reveal content</option>
-                    </select>
-                    {connectorForm.action?.type === 'collect' && (
-                      <input
-                        type="text"
-                        placeholder="Item id to grant"
-                        aria-label="Item id to collect"
-                        value={connectorForm.action.itemId}
-                        onChange={e => setConnectorForm(f => ({ ...f, action: { type: 'collect', itemId: e.target.value, qty: 1 } }))}
-                        className="mb-1 w-full rounded bg-gray-700 p-1 text-xs"
-                      />
-                    )}
-                    {connectorForm.action?.type === 'content' && (
-                      <input
-                        type="text"
-                        placeholder="Section id to reveal"
-                        aria-label="Section id to reveal"
-                        value={connectorForm.action.sectionId}
-                        onChange={e => setConnectorForm(f => ({ ...f, action: { type: 'content', sectionId: e.target.value } }))}
-                        className="mb-1 w-full rounded bg-gray-700 p-1 text-xs"
-                      />
-                    )}
-                    {(connectorForm.action?.type ?? 'teleport') === 'teleport' && (
-                    <select
-                      value={connectorForm.targetTemplateId || ''}
-                      onChange={e => setConnectorForm(f => ({ ...f, targetTemplateId: e.target.value }))}
-                      aria-label="Target template"
-                      className="mb-1 w-full rounded bg-gray-700 p-1 text-xs"
-                    >
-                      <option value="">Target template...</option>
-                      {savedTemplates.filter(t => t.id !== currentTemplateId).map(t => (
-                        <option key={t.id} value={t.id}>{t.name}</option>
-                      ))}
-                    </select>
-                    )}
-                    <select
-                      value={connectorForm.interaction || 'walk'}
-                      onChange={e => setConnectorForm(f => ({ ...f, interaction: e.target.value as Connector['interaction'] }))}
-                      aria-label="How the player triggers this connector"
-                      className="mb-1 w-full rounded bg-gray-700 p-1 text-xs"
-                    >
-                      <option value="walk">Walk onto it</option>
-                      <option value="interact">Press E on it</option>
-                      <option value="auto">Auto on enter</option>
-                    </select>
-                    <div className="mb-1 flex items-center gap-1 text-xs">
-                      <span className="whitespace-nowrap text-gray-400">Arrive at</span>
-                      <input
-                        type="number"
-                        min={0}
-                        aria-label="Spawn column in target template"
-                        value={connectorForm.spawnCol ?? 0}
-                        onChange={e => setConnectorForm(f => ({ ...f, spawnCol: Math.max(0, parseInt(e.target.value, 10) || 0) }))}
-                        className="w-12 rounded bg-gray-700 p-1 text-xs"
-                      />
-                      <span className="text-gray-500">,</span>
-                      <input
-                        type="number"
-                        min={0}
-                        aria-label="Spawn row in target template"
-                        value={connectorForm.spawnRow ?? 0}
-                        onChange={e => setConnectorForm(f => ({ ...f, spawnRow: Math.max(0, parseInt(e.target.value, 10) || 0) }))}
-                        className="w-12 rounded bg-gray-700 p-1 text-xs"
-                      />
-                      <span className="whitespace-nowrap text-gray-400">in target</span>
-                    </div>
-                    <div className="flex gap-1">
-                      <button onClick={saveConnector} disabled={!connectorForm.targetTemplateId && !connectorForm.action} className="flex-1 rounded bg-green-700 p-1 text-xs hover:bg-green-600 disabled:bg-gray-700">Save</button>
-                      <button onClick={() => deleteConnector(editingConnector.col, editingConnector.row)} className="rounded bg-red-800 p-1 text-xs hover:bg-red-700">Del</button>
-                      <button onClick={() => setEditingConnector(null)} className="rounded bg-gray-700 p-1 text-xs hover:bg-gray-600">X</button>
-                    </div>
-                  </div>
+                  <p className="mb-2 rounded bg-gray-800 p-2 text-[10px] leading-tight text-yellow-400">
+                    {selectedCells.size > 1 ? `${selectedCells.size} cells selected` : `(${editingConnector.col}, ${editingConnector.row})`} — edit its target, when &amp; spawn cell in the Inspector on the right.
+                  </p>
                 )}
 
                 {connectors.length > 0 && (
@@ -4523,6 +4399,7 @@ export default function TemplateEditor() {
                         type="button"
                         className="flex w-full items-center justify-between rounded bg-gray-800 p-1 text-left text-xs hover:bg-gray-700"
                         onClick={() => {
+                          setSelectedEntityId(null)
                           setConnectorForm(c)
                           setEditingConnector({ col: c.cells[0].col, row: c.cells[0].row })
                           setSelectedCells(new Set(c.cells.map(p => `${p.col},${p.row}`)))
@@ -4560,43 +4437,284 @@ export default function TemplateEditor() {
             </div>
 
             {(() => {
-              // Stage A: a selected entity keeps its existing quick-action launchers under a
-              // placeholder; nothing selected shows the stage settings. The full per-selection
-              // morphing inspector (inline stats/art/triggers) is stage B.
-              const selected = entities.find(e => e.id === selectedEntityId)
-              if (selected) {
-                const btn = 'rounded bg-gray-700 px-2 py-1.5 text-xs font-bold transition-colors hover:bg-gray-600'
+              // Stage B — the Inspector MORPHS to the current selection. Precedence:
+              // unit → building → connector → cell → nothing. Each branch renders the SAME
+              // edit bodies/handlers the old modals/left-cards used, now inline + collapsible.
+              // Nothing selected falls through to the stage settings below.
+              const selEntity = entities.find(e => e.id === selectedEntityId)
+              const selBuilding = selectedBuildingIndex != null ? gridRef.current?.buildings[selectedBuildingIndex] : undefined
+
+              // ── UNIT (player / enemy / npc) ───────────────────────
+              if (selEntity) {
+                const isPlayer = selEntity.kind === 'player'
+                const isEnemy = selEntity.kind === 'enemy'
+                const isNpc = selEntity.kind === 'npc'
+                const libBtn = 'w-full rounded bg-gray-700 px-2 py-1.5 text-left text-xs font-bold transition-colors hover:bg-gray-600'
                 return (
                   <>
-                    <InspectorPlaceholder kind={selected.kind} label={selected.name || selected.kind} />
-                    <Card title="Quick actions" accent="orange">
-                      <div className="mb-2 flex items-center justify-between text-xs">
-                        <span className="font-bold uppercase tracking-wider text-orange-300">{selected.name || selected.kind}</span>
-                        <span className="text-gray-500">@ {selected.col},{selected.row}</span>
-                      </div>
-                      <div className="grid grid-cols-2 gap-1">
-                        <button className={btn} onClick={() => setEntityModal('stats')}>⚔ Stats</button>
-                        {selected.kind === 'player' && (
-                          <button className={btn} onClick={() => setEntityModal('inventory')}>🎒 Inventory</button>
-                        )}
-                        {(selected.kind === 'enemy' || selected.kind === 'npc') && (
-                          <button className={btn} onClick={() => setEntityModal('movement')}>➤ Movement</button>
-                        )}
-                        {selected.kind === 'enemy' && (
-                          <button className={btn} onClick={() => setEntityModal('attacks')}>✦ Attacks</button>
-                        )}
-                        {selected.kind === 'npc' && (
-                          <button className={btn} onClick={() => setEntityModal('quests')}>❒ Quests</button>
-                        )}
-                      </div>
-                      <div className="mt-2 flex gap-1">
-                        <button onClick={deleteSelectedEntity} className="flex-1 rounded bg-red-800 px-2 py-1 text-xs font-bold hover:bg-red-700">Delete</button>
-                        <button onClick={() => { setWaypointMode(false); setSelectedEntityId(null) }} className="rounded bg-gray-700 px-2 py-1 text-xs hover:bg-gray-600">Deselect</button>
-                      </div>
+                    <SelectionHeader kind={selEntity.kind} label={`${selEntity.name || selEntity.kind} (${selEntity.kind})`} coords={`@ ${selEntity.col},${selEntity.row}`} />
+                    <Card title="Identity & stats" accent="orange">
+                      <EntityIdentityStatsBody entity={selEntity} onPatch={patchSelectedEntity} />
+                      {isPlayer && <div className="mt-3"><CombatHud hud={playerHud} /></div>}
                     </Card>
+                    <Card title="Art / sprite" accent="cyan">
+                      <ArtPlaceholder />
+                    </Card>
+                    <Card title="Animation" accent="cyan" defaultOpen={false}>
+                      <p className="text-[10px] leading-tight text-gray-500">
+                        Per-unit animation presets ride in with the art system — coming in a later update.
+                      </p>
+                    </Card>
+                    {isEnemy && (
+                      <Card title="Attacks / abilities" accent="orange" defaultOpen={false}>
+                        <EntityAttackBody entity={selEntity} onPatch={patchSelectedEntity} />
+                      </Card>
+                    )}
+                    {(isEnemy || isNpc) && (
+                      <Card title="Movement pattern" accent="cyan" defaultOpen={false}>
+                        <EntityMovementBody
+                          entity={selEntity}
+                          onPatch={patchSelectedEntity}
+                          waypointMode={waypointMode}
+                          onToggleWaypointMode={() => setWaypointMode(v => !v)}
+                        />
+                      </Card>
+                    )}
+                    {(isPlayer || isNpc) && (
+                      <Card title="Library" accent="purple" defaultOpen={false}>
+                        {isPlayer && <button className={libBtn} onClick={() => setEntityModal('inventory')}>🎒 Inventory &amp; abilities…</button>}
+                        {isNpc && <button className={libBtn} onClick={() => setEntityModal('quests')}>❒ Quests…</button>}
+                      </Card>
+                    )}
+                    <Card title="Trigger" accent="yellow" defaultOpen={false}>
+                      <TriggerPlaceholder event="on defeat" />
+                    </Card>
+                    <div className="flex gap-1">
+                      <button onClick={deleteSelectedEntity} className="flex-1 rounded bg-red-800 px-2 py-1.5 text-xs font-bold hover:bg-red-700">Delete</button>
+                      <button onClick={() => { setWaypointMode(false); setSelectedEntityId(null) }} className="rounded bg-gray-700 px-2 py-1.5 text-xs hover:bg-gray-600">Deselect</button>
+                    </div>
                   </>
                 )
               }
+
+              // ── BUILDING ──────────────────────────────────────────
+              if (selBuilding) {
+                const facing = gridBuildingFacing(selBuilding)
+                const door = buildingFootprintCells(selBuilding).door
+                return (
+                  <div key={`bld-insp-${selectedBuildingIndex}-${buildingVersion}`} className="flex flex-col gap-3">
+                    <SelectionHeader kind="building" label={`${selBuilding.type} (building)`} coords={`facing ${facing}`} />
+                    <Card title="Type & door side" accent="orange">
+                      <div className="space-y-2 text-xs">
+                        <p className="text-[10px] text-gray-400">
+                          footprint {selBuilding.length}×{selBuilding.height} · facade {facadeLength(selBuilding)} · depth {selBuilding.depth} · door @ {door.col},{door.row}
+                        </p>
+                        <div className="flex gap-1">
+                          <button onClick={rotateSelectedBuilding} className="flex-1 rounded bg-orange-700 px-2 py-1 text-xs font-bold hover:bg-orange-600" title="Rotate the door side south→east→north→west (R)">⟳ Rotate door</button>
+                          <button onClick={deleteSelectedBuilding} className="flex-1 rounded bg-red-800 px-2 py-1 text-xs font-bold hover:bg-red-700" title="Delete this building (Del)">Delete</button>
+                          <button onClick={deselectBuilding} className="rounded bg-gray-700 px-2 py-1 text-xs hover:bg-gray-600">Deselect</button>
+                        </div>
+                        <p className="text-[10px] text-gray-500">Arrow keys nudge it a cell · R rotates · Del removes.</p>
+                      </div>
+                    </Card>
+                    <Card title="Art (walls / roof)" accent="cyan" defaultOpen={false}>
+                      <ArtPlaceholder />
+                    </Card>
+                    <Card title="Animation" accent="cyan" defaultOpen={false}>
+                      <p className="text-[10px] leading-tight text-gray-500">
+                        Building animation presets ride in with the art system — coming in a later update.
+                      </p>
+                    </Card>
+                  </div>
+                )
+              }
+
+              // ── CONNECTOR (migrated from the left panel form) ─────
+              if (editingConnector) {
+                const coordLabel = selectedCells.size > 1 ? `${selectedCells.size} cells` : `(${editingConnector.col}, ${editingConnector.row})`
+                const actionType = connectorForm.action?.type ?? 'teleport'
+                return (
+                  <>
+                    <SelectionHeader kind="connector" label="connector" coords={coordLabel} />
+                    <Card title="Target level" accent="purple">
+                      <div className="space-y-1 text-xs">
+                        <select
+                          value={actionType}
+                          onChange={e => {
+                            const t = e.target.value
+                            setConnectorForm(f => ({
+                              ...f,
+                              action:
+                                t === 'teleport' ? undefined
+                                : t === 'collect' ? { type: 'collect', itemId: '', qty: 1 }
+                                : t === 'content' ? { type: 'content', sectionId: '' }
+                                : { type: 'goto_region', col: f.spawnCol ?? 0, row: f.spawnRow ?? 0 },
+                            }))
+                          }}
+                          aria-label="Trigger action"
+                          className="w-full rounded bg-gray-800 p-1 text-xs"
+                        >
+                          <option value="teleport">Go to template (teleport)</option>
+                          <option value="goto_region">Move within stage (uses Arrive-at)</option>
+                          <option value="collect">Collect item</option>
+                          <option value="content">Reveal content</option>
+                        </select>
+                        {connectorForm.action?.type === 'collect' && (
+                          <input
+                            type="text"
+                            placeholder="Item id to grant"
+                            aria-label="Item id to collect"
+                            value={connectorForm.action.itemId}
+                            onChange={e => setConnectorForm(f => ({ ...f, action: { type: 'collect', itemId: e.target.value, qty: 1 } }))}
+                            className="w-full rounded bg-gray-800 p-1 text-xs"
+                          />
+                        )}
+                        {connectorForm.action?.type === 'content' && (
+                          <input
+                            type="text"
+                            placeholder="Section id to reveal"
+                            aria-label="Section id to reveal"
+                            value={connectorForm.action.sectionId}
+                            onChange={e => setConnectorForm(f => ({ ...f, action: { type: 'content', sectionId: e.target.value } }))}
+                            className="w-full rounded bg-gray-800 p-1 text-xs"
+                          />
+                        )}
+                        {actionType === 'teleport' && (
+                          <select
+                            value={connectorForm.targetTemplateId || ''}
+                            onChange={e => setConnectorForm(f => ({ ...f, targetTemplateId: e.target.value }))}
+                            aria-label="Target template"
+                            className="w-full rounded bg-gray-800 p-1 text-xs"
+                          >
+                            <option value="">Target template…</option>
+                            {savedTemplates.filter(t => t.id !== currentTemplateId).map(t => (
+                              <option key={t.id} value={t.id}>{t.name}</option>
+                            ))}
+                          </select>
+                        )}
+                      </div>
+                    </Card>
+                    <Card title="When" accent="purple">
+                      <select
+                        value={connectorForm.interaction || 'walk'}
+                        onChange={e => setConnectorForm(f => ({ ...f, interaction: e.target.value as Connector['interaction'] }))}
+                        aria-label="How the player triggers this connector"
+                        className="w-full rounded bg-gray-800 p-1 text-xs"
+                      >
+                        <option value="walk">Walk onto it</option>
+                        <option value="interact">Press E on it</option>
+                        <option value="auto">Auto on enter</option>
+                      </select>
+                    </Card>
+                    <Card title="Spawn cell" accent="purple">
+                      <div className="flex items-center gap-1 text-xs">
+                        <span className="whitespace-nowrap text-gray-400">Arrive at</span>
+                        <input
+                          type="number"
+                          min={0}
+                          aria-label="Spawn column in target template"
+                          value={connectorForm.spawnCol ?? 0}
+                          onChange={e => setConnectorForm(f => ({ ...f, spawnCol: Math.max(0, parseInt(e.target.value, 10) || 0) }))}
+                          className="w-14 rounded bg-gray-800 p-1 text-xs"
+                        />
+                        <span className="text-gray-500">,</span>
+                        <input
+                          type="number"
+                          min={0}
+                          aria-label="Spawn row in target template"
+                          value={connectorForm.spawnRow ?? 0}
+                          onChange={e => setConnectorForm(f => ({ ...f, spawnRow: Math.max(0, parseInt(e.target.value, 10) || 0) }))}
+                          className="w-14 rounded bg-gray-800 p-1 text-xs"
+                        />
+                        <span className="whitespace-nowrap text-gray-400">in target</span>
+                      </div>
+                    </Card>
+                    <div className="flex gap-1">
+                      <button onClick={saveConnector} disabled={!connectorForm.targetTemplateId && !connectorForm.action} className="flex-1 rounded bg-green-700 px-2 py-1.5 text-xs font-bold hover:bg-green-600 disabled:bg-gray-700">Save</button>
+                      <button onClick={() => deleteConnector(editingConnector.col, editingConnector.row)} className="rounded bg-red-800 px-2 py-1.5 text-xs hover:bg-red-700">Del</button>
+                      <button onClick={() => setEditingConnector(null)} className="rounded bg-gray-700 px-2 py-1.5 text-xs hover:bg-gray-600">Cancel</button>
+                    </div>
+                  </>
+                )
+              }
+
+              // ── CELL(S) ───────────────────────────────────────────
+              if (selectedCells.size > 0) {
+                const first = Array.from(selectedCells)[0].split(',')
+                const cellLabel = selectedCells.size > 1 ? `${selectedCells.size} cells` : `(${first[0]}, ${first[1]})`
+                const animReady = authorFrames.length >= 2
+                return (
+                  <>
+                    <SelectionHeader kind="cell" label="cell" coords={cellLabel} />
+                    <Card title="Tile / ground" accent="cyan">
+                      <div className="mb-2">
+                        <label className="mb-1 flex items-center justify-between text-xs font-bold text-cyan-300">
+                          <span>Opacity</span>
+                          <span className="text-[10px] text-gray-400">{Math.round(placeOpacity * 100)}%</span>
+                        </label>
+                        <input
+                          type="range"
+                          min={15}
+                          max={100}
+                          value={Math.round(placeOpacity * 100)}
+                          onChange={e => setPlaceOpacity(Number(e.target.value) / 100)}
+                          aria-label="Tile placement opacity"
+                          className="w-full"
+                        />
+                      </div>
+                      <PaletteGroup label="Ground" color="text-gray-400">
+                        {GROUND_SWATCHES.map(g => (
+                          <TileSwatch
+                            key={g.char}
+                            char={g.char}
+                            name={g.name}
+                            bg={g.bg}
+                            fg={g.fg}
+                            onClick={() => placeTile({ char: g.char, type: 'ground', groundType: g.groundType })}
+                            selected={selectedTile?.char === g.char && selectedTile?.type === 'ground'}
+                          />
+                        ))}
+                      </PaletteGroup>
+                      <PaletteGroup label="Nature" color="text-green-400">
+                        {NATURE_TILE_KEYS.map(key => (
+                          <AssetTileSwatch key={key} tileKey={key} selectedTile={selectedTile} onPlace={placeTile} />
+                        ))}
+                      </PaletteGroup>
+                      <p className="mt-1 text-[10px] leading-tight text-gray-500">Pick a tile to paint the selected cell(s).</p>
+                    </Card>
+                    <Card title="Height" accent="cyan">
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => placeHeight(Math.max(0, selectedHeight - 1))} className="h-6 w-6 rounded bg-gray-700 text-xs font-bold hover:bg-gray-600" aria-label="Lower height">−</button>
+                        <div className="flex gap-0.5">
+                          {[0, 1, 2, 3, 4, 5].map(h => (
+                            <button key={h} onClick={() => placeHeight(h)} className={`h-6 w-6 rounded text-xs font-bold ${selectedHeight === h && heightEditMode ? 'bg-cyan-500 text-white' : 'bg-gray-700 hover:bg-gray-600'}`}>{h}</button>
+                          ))}
+                        </div>
+                        <button onClick={() => placeHeight(Math.min(9, selectedHeight + 1))} className="h-6 w-6 rounded bg-gray-700 text-xs font-bold hover:bg-gray-600" aria-label="Raise height">+</button>
+                      </div>
+                      <p className="mt-1 text-[10px] leading-tight text-gray-500">Set the terrain height of the selected cell(s).</p>
+                    </Card>
+                    <Card title="Animation" accent="purple" defaultOpen={false}>
+                      <p className="mb-2 text-[10px] leading-tight text-gray-500">One-click a preset, then Apply it to an asset in the selected cell(s). The full frame builder lives in the Paint tool.</p>
+                      <div className="mb-2 flex flex-wrap gap-1">
+                        {CELL_ANIM_PRESETS.map(p => (
+                          <button key={p.id} onClick={() => loadAuthorPreset(p)} className="rounded bg-gray-800 px-2 py-1 text-[10px] text-gray-200 transition-colors hover:bg-fuchsia-800 hover:text-white">{p.name}</button>
+                        ))}
+                      </div>
+                      <div className="flex gap-1">
+                        <button onClick={() => attachAuthorAnim(false)} disabled={!animReady} className="flex-1 rounded bg-gray-700 py-1 text-[10px] font-bold text-white transition-all hover:opacity-80 disabled:opacity-40">Preview</button>
+                        <button onClick={() => attachAuthorAnim(true)} disabled={!animReady} className="flex-1 rounded bg-fuchsia-700 py-1 text-[10px] font-bold text-white transition-all hover:opacity-80 disabled:opacity-40">Apply</button>
+                      </div>
+                      {authorStatus && <p className="mt-1 text-[9px] text-amber-300">{authorStatus}</p>}
+                    </Card>
+                    <Card title="Trigger" accent="yellow" defaultOpen={false}>
+                      <TriggerPlaceholder event="on enter" />
+                    </Card>
+                    <button onClick={() => setSelectedCells(new Set())} className="rounded bg-gray-700 px-2 py-1.5 text-xs hover:bg-gray-600">Clear selection</button>
+                  </>
+                )
+              }
+
               return (
                 <>
                   <Card title="Generate" accent="purple">
@@ -4758,39 +4876,13 @@ export default function TemplateEditor() {
           )
         })()}
 
-        {/* Entity-action MODALS — opened from the selected-entity action bar */}
+        {/* LIBRARY modals — the per-element SETTINGS moved inline into the Inspector;
+            these two stay modal (the player equipment/abilities + the NPC quest authoring). */}
         {entityModal && (() => {
           const selected = entities.find(e => e.id === selectedEntityId)
           if (!selected) return null
           const who = selected.name || selected.kind
           const close = () => setEntityModal(null)
-          if (entityModal === 'stats') {
-            return (
-              <Modal title={`${who} — Stats`} accent="orange" onClose={close}>
-                <EntityIdentityStatsBody entity={selected} onPatch={patchSelectedEntity} />
-                {selected.kind === 'player' && <div className="mt-3"><CombatHud hud={playerHud} /></div>}
-              </Modal>
-            )
-          }
-          if (entityModal === 'movement') {
-            return (
-              <Modal title={`${who} — Movement patterns`} accent="cyan" onClose={close}>
-                <EntityMovementBody
-                  entity={selected}
-                  onPatch={patchSelectedEntity}
-                  waypointMode={waypointMode}
-                  onToggleWaypointMode={() => setWaypointMode(v => !v)}
-                />
-              </Modal>
-            )
-          }
-          if (entityModal === 'attacks') {
-            return (
-              <Modal title={`${who} — Attacks`} accent="red" onClose={close}>
-                <EntityAttackBody entity={selected} onPatch={patchSelectedEntity} />
-              </Modal>
-            )
-          }
           if (entityModal === 'inventory') {
             return (
               <Modal title={`${who} — Inventory`} accent="cyan" wide onClose={close}>

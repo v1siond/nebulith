@@ -224,6 +224,8 @@ const SELECTION_KIND_COLOR: Record<string, string> = {
   enemy: 'text-red-300',
   npc: 'text-cyan-300',
   building: 'text-amber-300',
+  cell: 'text-cyan-300',
+  connector: 'text-purple-300',
 }
 
 /** Shown in the right Inspector when something is selected. Stage A keeps the
@@ -237,6 +239,55 @@ export function InspectorPlaceholder({ kind, label }: { kind: string; label?: st
       </p>
       <p className="mt-1 text-[10px] leading-tight text-gray-500">
         Inline settings land in the next update — quick actions below for now.
+      </p>
+    </div>
+  )
+}
+
+// ── Morphing-Inspector selection header + not-yet-built section stubs ─
+/** Compact identity header at the top of a morphed selection (kind + coordinates). */
+export function SelectionHeader({ kind, label, coords }: { kind: string; label: string; coords?: string }) {
+  return (
+    <div className="flex items-center justify-between rounded-lg border border-white/10 bg-black/60 px-3 py-2 shadow-lg shadow-black/40">
+      <span className={`text-xs font-bold uppercase tracking-wider ${SELECTION_KIND_COLOR[kind] ?? 'text-orange-300'}`}>
+        ▸ {label}
+      </span>
+      {coords && <span className="text-[10px] text-gray-500">{coords}</span>}
+    </div>
+  )
+}
+
+/** Art / sprite section stub — the per-element tile swap arrives with the style
+ *  system (stage D). Shows the active skin, disabled, so authors see what is coming. */
+export function ArtPlaceholder() {
+  return (
+    <div className="text-xs">
+      <select disabled aria-label="Art / sprite" className="w-full cursor-not-allowed rounded bg-gray-800/60 p-1 text-gray-400">
+        <option>ASCII (default skin)</option>
+      </select>
+      <p className="mt-1 text-[10px] leading-tight text-gray-500">
+        Swap this element for a tile or sprite once art styles land — coming in a later update.
+      </p>
+    </div>
+  )
+}
+
+/** Trigger section stub — the unified trigger model (on enter / interact / defeat →
+ *  action) is stage E. Shows the shape, disabled, so the section already reads right. */
+export function TriggerPlaceholder({ event = 'on defeat' }: { event?: string }) {
+  return (
+    <div className="text-xs">
+      <div className="flex items-center gap-1">
+        <select disabled aria-label="Trigger event" className="flex-1 cursor-not-allowed rounded bg-gray-800/60 p-1 text-gray-400">
+          <option>{event}</option>
+        </select>
+        <span aria-hidden className="text-gray-500">→</span>
+        <select disabled aria-label="Trigger action" className="flex-1 cursor-not-allowed rounded bg-gray-800/60 p-1 text-gray-400">
+          <option>do…</option>
+        </select>
+      </div>
+      <p className="mt-1 text-[10px] leading-tight text-gray-500">
+        When {event}, do something — the trigger system arrives in a later update.
       </p>
     </div>
   )
