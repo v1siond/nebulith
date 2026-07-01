@@ -62,7 +62,7 @@ import { EquipmentPanel, InventoryCard, QuestAuthoringCard, QuestLogPanel } from
 import { EntityAttackBody, EntityIdentityStatsBody, EntityMovementBody, Modal, QuestGiveBody } from '@/components/game/modals'
 import { FlowViewOverlay, GamesViewOverlay } from '@/components/game/games'
 import { BUILDING_TOOL_TYPE, type BuildingTool, type EditorMode, type EntityTool, GROUND_SWATCHES, NATURE_TILE_KEYS } from '@/components/game/editorConfig'
-import { ArtSection, Dropdown, GenerateControls, type QuickAction, QuickActionToolbar, SelectionHeader, StylePicker, TileLibraryBody, ToolRail, TriggerEditor } from '@/components/game/editorChrome'
+import { AnimationEditor, ArtSection, Dropdown, GenerateControls, type QuickAction, QuickActionToolbar, SelectionHeader, StylePicker, TileLibraryBody, ToolRail, TriggerEditor } from '@/components/game/editorChrome'
 
 
 // View mode states (global for game loop access)
@@ -4904,9 +4904,12 @@ export default function TemplateEditor() {
                       <ArtSection override={selEntity.tileOverride} styleName={activeStyle.name} onOpen={() => setTileLibraryOpen(true)} />
                     </Card>
                     <Card title="Animation" accent="cyan" defaultOpen={false} sectionId="animation" focus={sectionFocus}>
-                      <p className="text-[10px] leading-tight text-gray-500">
-                        Per-unit animation presets ride in with the art system — coming in a later update.
-                      </p>
+                      <AnimationEditor
+                        animations={selEntity.animations ?? []}
+                        category="units"
+                        styleId={activeStyleId}
+                        onChange={next => patchSelectedEntity({ animations: next })}
+                      />
                     </Card>
                     {isEnemy && (
                       <Card title="Attacks / abilities" accent="orange" defaultOpen={false}>

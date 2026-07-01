@@ -4,7 +4,8 @@
 // props-driven — all gameplay state/handlers live in the page; this is layout only.
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { ZoneId } from '@/engine/zones'
-import { BUILT_IN_STYLES, type TileCategory, tilesForStyle } from '@/game/artStyle'
+import { BUILT_IN_STYLES, type TileCategory, tilesForStyle, visualForTileId } from '@/game/artStyle'
+import type { AnimDirection, AnimFrame, AnimTrigger, EntityAnimation } from '@/game/runtime/entityAnimation'
 import { DEFAULT_ACTION_PARAMS, makeTrigger, type Trigger, type TriggerActionType, type TriggerEvent } from '@/game/runtime/trigger'
 import { type EditorMode, SEASON_BTN, STAGE_VARIANTS, STAGE_ZONES } from './editorConfig'
 
@@ -547,4 +548,270 @@ function TriggerParamsFields({
   }
   // win / lose take no params.
   return null
+}
+
+// ── ✦ Animation editor (stage 2, #91) — author DATA-DRIVEN per-entity animations ─────
+// The Inspector authoring UI for `entity.animations`. EVERY entity carries a list of
+// EntityAnimation (the player IS an entity, so this authors the live hero too); the renderer
+// already plays them by trigger + direction, so saving an animation here makes it play in-game
+// with NO extra code. Pure & props-driven like TriggerEditor — the only local state is which
+// frame's tile-picker is open; every edit flows up through `onChange` immutably.
+
+/** The trigger events an animation can fire on (dropdown order). */
+const ANIM_TRIGGERS: ReadonlyArray<{ id: AnimTrigger['on']; label: string }> = [
+  { id: 'idle', label: 'idle' },
+  { id: 'move', label: 'move' },
+  { id: 'attack', label: 'attack' },
+  { id: 'interact', label: 'interact' },
+  { id: 'key', label: 'key' },
+]
+
+const ANIM_DIRECTIONS: readonly AnimDirection[] = ['up', 'down', 'left', 'right', 'any']
+
+/** The emoji/glyph a frame slot shows: raw `char` → catalog tile glyph → 🖼 for an image tile →
+ *  '·' when empty (an empty frame draws the entity's OWN tile at play time — that's frame 0). */
+function frameGlyph(frame: AnimFrame): string {
+  if (frame.char) return frame.char
+  if (frame.tileId) {
+    const v = visualForTileId(frame.tileId)
+    if (v?.kind === 'glyph') return v.char
+    if (v?.kind === 'image') return '🖼'
+  }
+  return '·'
+}
+
+/** One frame slot: the resolved glyph (mirrored when flipped) + a flip toggle. Clicking the tile
+ *  opens the picker for this frame; ⇄ mirrors the frame (a DATA property the renderer honors). */
+function FrameSlot({
+  frame, index, active, onOpen, onToggleFlip,
+}: {
+  frame: AnimFrame
+  index: number
+  active: boolean
+  onOpen: () => void
+  onToggleFlip: () => void
+}) {
+  return (
+    <div className="flex flex-col items-center gap-0.5">
+      <button
+        onClick={onOpen}
+        aria-pressed={active}
+        title={`Frame ${index} — click to pick a tile`}
+        className={`flex h-9 w-9 items-center justify-center rounded border text-lg leading-none transition-colors ${
+          active ? 'border-cyan-400 bg-cyan-900/40' : 'border-white/15 bg-black/40 hover:bg-white/10'
+        }`}
+      >
+        <span style={frame.flipX ? { display: 'inline-block', transform: 'scaleX(-1)' } : undefined}>{frameGlyph(frame)}</span>
+      </button>
+      <button
+        onClick={onToggleFlip}
+        aria-pressed={!!frame.flipX}
+        title="Flip horizontally (mirror this frame)"
+        className={`rounded px-1 text-[9px] leading-none transition-colors ${
+          frame.flipX ? 'bg-cyan-700 text-white' : 'bg-gray-800 text-gray-400 hover:text-white'
+        }`}
+      >
+        ⇄
+      </button>
+      <span className="text-[8px] leading-none text-gray-600">{index}</span>
+    </div>
+  )
+}
+
+/** The category-constrained tile grid for a frame — only the entity's own category (units for a
+ *  character), so a person's frames pick from people/monsters, never buildings. "Base" clears the
+ *  frame back to the entity's own tile (an empty frame). */
+function FramePicker({
+  styleId, category, onPick, onClose,
+}: {
+  styleId: string
+  category: TileCategory
+  onPick: (patch: Partial<AnimFrame>) => void
+  onClose: () => void
+}) {
+  const tiles = tilesForStyle(styleId)[category]
+  return (
+    <div className="mt-1.5 rounded border border-cyan-500/30 bg-black/60 p-1.5">
+      <div className="mb-1 flex items-center justify-between">
+        <span className="text-[9px] uppercase tracking-wide text-gray-500">Pick {category} frame</span>
+        <button onClick={onClose} aria-label="Close tile picker" className="rounded px-1 text-[10px] text-gray-400 hover:text-white">✕</button>
+      </div>
+      <div className="grid max-h-44 grid-cols-6 gap-1 overflow-y-auto">
+        <button
+          onClick={() => onPick({ tileId: undefined, char: undefined })}
+          title="Base tile — the entity's own"
+          className="flex flex-col items-center gap-0.5 rounded border border-white/10 bg-black/40 px-1 py-1 hover:bg-white/10"
+        >
+          <span className="text-base leading-none">·</span>
+          <span className="text-[8px] text-gray-400">base</span>
+        </button>
+        {tiles.map(t => (
+          <button
+            key={t.id}
+            onClick={() => onPick({ tileId: t.id, char: undefined })}
+            title={`${t.label} (${t.id})`}
+            className="flex flex-col items-center gap-0.5 rounded border border-white/10 bg-black/40 px-1 py-1 hover:bg-white/10"
+          >
+            <span className="text-base leading-none">{t.visual.kind === 'glyph' ? t.visual.char : '🖼'}</span>
+            <span className="w-full truncate text-center text-[8px] text-gray-400">{t.label}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+/** One animation's full editing row: name, trigger + its conditional fields, direction, timing,
+ *  loop, the frame strip + picker, and a delete. Every edit patches this animation immutably up
+ *  through `onAnim`. */
+function AnimationRow({
+  anim, category, styleId, onAnim, onRemove,
+}: {
+  anim: EntityAnimation
+  category: TileCategory
+  styleId: string
+  onAnim: (next: EntityAnimation) => void
+  onRemove: () => void
+}) {
+  const [pickerFrame, setPickerFrame] = useState<number | null>(null)
+  const patch = (p: Partial<EntityAnimation>) => onAnim({ ...anim, ...p })
+  const patchTrigger = (p: Partial<AnimTrigger>) => patch({ trigger: { ...anim.trigger, ...p } })
+  const patchFrame = (fi: number, p: Partial<AnimFrame>) =>
+    patch({ frames: anim.frames.map((f, j) => (j === fi ? { ...f, ...p } : f)) })
+  const addFrame = () => patch({ frames: [...anim.frames, {}] })
+  const removeFrame = () => {
+    if (anim.frames.length > 1) patch({ frames: anim.frames.slice(0, -1) })
+    setPickerFrame(null)
+  }
+  const numMs = (raw: string) => Math.max(0, parseInt(raw, 10) || 0)
+
+  return (
+    <div className="space-y-1.5 rounded border border-cyan-500/20 bg-black/40 p-1.5">
+      <div className="flex items-center gap-1">
+        <input value={anim.name} onChange={e => patch({ name: e.target.value })} aria-label="Animation name" placeholder="name" className={INPUT_CLS} />
+        <button onClick={onRemove} aria-label="Delete animation" title="Delete animation" className="rounded bg-red-900/70 px-1.5 py-1 text-[10px] font-bold text-red-200 hover:bg-red-800">✕</button>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-1">
+        <span className="text-[10px] font-bold text-cyan-300">When</span>
+        <select value={anim.trigger.on} onChange={e => patchTrigger({ on: e.target.value as AnimTrigger['on'] })} aria-label="Animation trigger" className={SELECT_CLS}>
+          {ANIM_TRIGGERS.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
+        </select>
+        <span aria-hidden className="text-gray-500">·</span>
+        <select value={anim.direction} onChange={e => patch({ direction: e.target.value as AnimDirection })} aria-label="Animation direction" className={SELECT_CLS}>
+          {ANIM_DIRECTIONS.map(d => <option key={d} value={d}>{d}</option>)}
+        </select>
+      </div>
+
+      {anim.trigger.on === 'move' && (
+        <label className="flex items-center gap-1 text-[10px] text-gray-300">
+          <input type="checkbox" checked={!!anim.trigger.whileRunning} onChange={e => patchTrigger({ whileRunning: e.target.checked })} />
+          while running (Shift)
+        </label>
+      )}
+      {anim.trigger.on === 'key' && (
+        <div className="flex items-center gap-1">
+          <input value={anim.trigger.key ?? ''} onChange={e => patchTrigger({ key: e.target.value })} placeholder="key (e.g. Shift)" aria-label="Trigger key" className={INPUT_CLS} />
+          <select value={anim.trigger.mode ?? 'hold'} onChange={e => patchTrigger({ mode: e.target.value as 'tap' | 'hold' })} aria-label="Key mode" className={SELECT_CLS}>
+            <option value="tap">tap</option>
+            <option value="hold">hold</option>
+          </select>
+        </div>
+      )}
+
+      <div className="flex flex-wrap items-center gap-2 text-[10px] text-gray-300">
+        <label className="flex items-center gap-1">
+          dur
+          <input type="number" min={0} value={anim.durationMs} onChange={e => patch({ durationMs: numMs(e.target.value) })} aria-label="Duration in ms" className="w-14 rounded bg-gray-800 p-1 text-xs text-gray-100" />
+          ms
+        </label>
+        <label className="flex items-center gap-1">
+          delay
+          <input type="number" min={0} value={anim.loopDelayMs ?? 0} onChange={e => patch({ loopDelayMs: numMs(e.target.value) })} aria-label="Loop delay in ms" className="w-14 rounded bg-gray-800 p-1 text-xs text-gray-100" />
+          ms
+        </label>
+        <label className="flex items-center gap-1">
+          <input type="checkbox" checked={anim.loop} onChange={e => patch({ loop: e.target.checked })} />
+          loop
+        </label>
+      </div>
+
+      <div>
+        <p className="mb-1 text-[9px] uppercase tracking-wide text-gray-500">Frames — frame 0 is the entity's own tile</p>
+        <div className="flex flex-wrap items-start gap-1.5">
+          {anim.frames.map((f, fi) => (
+            <FrameSlot
+              key={fi}
+              frame={f}
+              index={fi}
+              active={pickerFrame === fi}
+              onOpen={() => setPickerFrame(p => (p === fi ? null : fi))}
+              onToggleFlip={() => patchFrame(fi, { flipX: !f.flipX })}
+            />
+          ))}
+          <div className="flex flex-col gap-0.5">
+            <button onClick={addFrame} aria-label="Add frame" title="Add a frame" className="h-9 w-7 rounded border border-white/15 bg-black/40 text-sm font-bold text-cyan-300 hover:bg-white/10">+</button>
+            <button onClick={removeFrame} disabled={anim.frames.length <= 1} aria-label="Remove last frame" title="Remove the last frame" className="h-5 w-7 rounded border border-white/10 bg-black/40 text-xs text-gray-400 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40">−</button>
+          </div>
+        </div>
+        {pickerFrame != null && (
+          <FramePicker
+            styleId={styleId}
+            category={category}
+            onPick={p => { patchFrame(pickerFrame, p); setPickerFrame(null) }}
+            onClose={() => setPickerFrame(null)}
+          />
+        )}
+      </div>
+    </div>
+  )
+}
+
+export interface AnimationEditorProps {
+  /** the entity's authored animations (empty → it plays the default character set). */
+  animations: EntityAnimation[]
+  /** the entity's tile category — 'units' for any character (player/npc/enemy); constrains the picker. */
+  category: TileCategory
+  /** the active art style whose tiles the frame picker offers. */
+  styleId: string
+  onChange: (next: EntityAnimation[]) => void
+}
+
+/** Author the data-driven animations that ride on an entity — the player included (the player IS an
+ *  entity, so this authors the live hero). Add/edit/remove animations; each has a trigger, direction,
+ *  timing, loop, and a frame strip with a category-constrained tile picker. */
+export function AnimationEditor({ animations, category, styleId, onChange }: AnimationEditorProps) {
+  const replace = (i: number, next: EntityAnimation) => onChange(animations.map((a, j) => (j === i ? next : a)))
+  const remove = (i: number) => onChange(animations.filter((_, j) => j !== i))
+  const add = () =>
+    onChange([
+      ...animations,
+      {
+        // stable-ish id: index + a base-36 timestamp so two adds in the same session never collide.
+        id: `anim-${animations.length}-${Date.now().toString(36)}`,
+        name: 'new animation',
+        trigger: { on: 'move' },
+        direction: 'down',
+        frames: [{}, {}],
+        durationMs: 300,
+        loopDelayMs: 0,
+        loop: true,
+      },
+    ])
+
+  return (
+    <div className="space-y-2 text-xs">
+      {animations.length === 0 && (
+        <p className="text-[10px] leading-tight text-gray-500">
+          No animations yet — this entity plays the default character set. Add one to author a custom walk / idle / attack…
+        </p>
+      )}
+      {animations.map((a, i) => (
+        <AnimationRow key={a.id} anim={a} category={category} styleId={styleId} onAnim={next => replace(i, next)} onRemove={() => remove(i)} />
+      ))}
+      <button onClick={add} className="w-full rounded bg-cyan-800 px-2 py-1 text-[11px] font-bold text-white transition-colors hover:bg-cyan-700">
+        ✦ Add animation
+      </button>
+    </div>
+  )
 }
