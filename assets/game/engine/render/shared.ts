@@ -28,12 +28,20 @@ export interface DrawVisual {
   char: string
   /** the fill color (the caller's default when passing through). */
   color: string
+  /** The geometry FILL/TINT — present ONLY when a non-ASCII style (or override) is active and
+   *  carries a colour. Its presence is the load-bearing signal to the geometry-preserving draw
+   *  sites: a styled unit fills its own iso DIAMOND / cube FACE with `tint` (keeping the angle +
+   *  z) and draws `char` as a small hint, instead of stamping a flat upright emoji square. When
+   *  it is undefined the caller draws EXACTLY as before (ASCII passthrough → byte-identical). */
+  tint?: string
   /** present only when the active tile is an IMAGE — draw it instead of the glyph. */
   image?: ImageVisual
 }
 
 /** Resolve what to actually draw for one element. `defChar`/`defColor` are the caller's
- *  existing ASCII values; they are returned unchanged for the passthrough (ASCII) case. */
+ *  existing ASCII values; they are returned unchanged for the passthrough (ASCII) case.
+ *  A styled glyph/image also reports its `tint` so the geometry-preserving sites can fill
+ *  the diamond/cube with the tile's colour rather than draw a flat square. */
 export function resolveDraw(
   kind: ElementKind,
   style: Style,
@@ -42,8 +50,8 @@ export function resolveDraw(
   defColor: string,
 ): DrawVisual {
   const v = resolveVisual(kind, style, override)
-  if (v.kind === 'glyph') return { char: v.char, color: v.color ?? defColor }
-  if (v.kind === 'image') return { char: defChar, color: defColor, image: v }
+  if (v.kind === 'glyph') return { char: v.char, color: v.color ?? defColor, tint: v.color }
+  if (v.kind === 'image') return { char: defChar, color: defColor, image: v, tint: v.color }
   return { char: defChar, color: defColor } // ascii passthrough — identical to the old path
 }
 

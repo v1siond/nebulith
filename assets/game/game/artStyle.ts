@@ -30,11 +30,16 @@ export type ElementKind =
 export type TileCategory = 'terrain' | 'buildings' | 'units' | 'nature'
 
 // ── visuals ──────────────────────────────────────────────────────────────
-/** Draw a char (ASCII glyph OR an emoji) with fillText. `color` is optional — an
- *  emoji ignores fill color, an ASCII glyph inherits the renderer's default when omitted. */
+/** Draw a char (ASCII glyph OR an emoji) with fillText. `color` does DOUBLE duty:
+ *  it is the glyph fill (an emoji ignores it; an ASCII glyph inherits the renderer's
+ *  default when omitted) AND — crucially — the TINT the geometry-preserving renderers
+ *  fill each unit with (the iso ground DIAMOND, the building CUBE faces). A style glyph
+ *  must carry a `color` so the diamond/cube it reskins is filled at the tile's own hue
+ *  instead of drawing a flat upright emoji square on top of the ASCII fill. */
 export interface GlyphVisual { kind: 'glyph'; char: string; color?: string }
-/** Draw an image/sprite (optionally a sub-rect of an atlas) with drawImage. */
-export interface ImageVisual { kind: 'image'; src: string; sx?: number; sy?: number; sw?: number; sh?: number }
+/** Draw an image/sprite (optionally a sub-rect of an atlas) with drawImage. `color` is an
+ *  optional backing TINT (drawn as the diamond/cube fill under the clipped sprite). */
+export interface ImageVisual { kind: 'image'; src: string; color?: string; sx?: number; sy?: number; sw?: number; sh?: number }
 /** Passthrough: draw exactly what the renderer already computed (the ASCII default). */
 export interface AsciiVisual { kind: 'ascii' }
 export type Visual = GlyphVisual | ImageVisual | AsciiVisual
@@ -61,29 +66,31 @@ export const EMOJI_STYLE: Style = {
   name: 'Emoji',
   icon: '😀',
   map: {
-    // terrain
-    grass: { kind: 'glyph', char: '🟩' },
-    water: { kind: 'glyph', char: '🟦' },
-    path: { kind: 'glyph', char: '🟫' },
-    plaza: { kind: 'glyph', char: '⬜' },
-    sand: { kind: 'glyph', char: '🟨' },
-    mountain: { kind: 'glyph', char: '🗻' },
-    // buildings (facade cells reskin tile-by-tile)
-    wall: { kind: 'glyph', char: '🧱' },
-    roof: { kind: 'glyph', char: '🟥' },
-    door: { kind: 'glyph', char: '🚪' },
-    window: { kind: 'glyph', char: '🪟' },
-    // nature / props
-    tree: { kind: 'glyph', char: '🌲' },
-    flower: { kind: 'glyph', char: '🌸' },
-    bush: { kind: 'glyph', char: '🌿' },
-    rock: { kind: 'glyph', char: '🪨' },
-    crate: { kind: 'glyph', char: '📦' },
-    lamp: { kind: 'glyph', char: '💡' },
-    // units
-    enemy: { kind: 'glyph', char: '👾' },
-    npc: { kind: 'glyph', char: '🧑' },
-    player: { kind: 'glyph', char: '🧍' },
+    // terrain — `color` is the DIAMOND fill hue (harmonised with the ASCII GROUND_COLORS
+    // so the reskin reads as the same world), the emoji rides on top as a small hint.
+    grass: { kind: 'glyph', char: '🟩', color: '#5faf4a' },
+    water: { kind: 'glyph', char: '🟦', color: '#4a90e2' },
+    path: { kind: 'glyph', char: '🟫', color: '#9c7b4d' },
+    plaza: { kind: 'glyph', char: '⬜', color: '#cabfa6' },
+    sand: { kind: 'glyph', char: '🟨', color: '#e2c86b' },
+    mountain: { kind: 'glyph', char: '🗻', color: '#8d8d97' },
+    // buildings — `color` tints the CUBE face (roof colour on the roof faces, wall colour
+    // on the walls); the facade door/window cells fill at their own hue.
+    wall: { kind: 'glyph', char: '🧱', color: '#b0603a' },
+    roof: { kind: 'glyph', char: '🟥', color: '#c8443c' },
+    door: { kind: 'glyph', char: '🚪', color: '#5a3a22' },
+    window: { kind: 'glyph', char: '🪟', color: '#7fb4d8' },
+    // nature / props — upright billboards, `color` fills the glyph
+    tree: { kind: 'glyph', char: '🌲', color: '#2f8f3f' },
+    flower: { kind: 'glyph', char: '🌸', color: '#e785b5' },
+    bush: { kind: 'glyph', char: '🌿', color: '#4fa03f' },
+    rock: { kind: 'glyph', char: '🪨', color: '#8a8a8a' },
+    crate: { kind: 'glyph', char: '📦', color: '#b5793a' },
+    lamp: { kind: 'glyph', char: '💡', color: '#ffd24a' },
+    // units — upright billboards
+    enemy: { kind: 'glyph', char: '👾', color: '#b45ac0' },
+    npc: { kind: 'glyph', char: '🧑', color: '#d9a066' },
+    player: { kind: 'glyph', char: '🧍', color: '#ffcf3a' },
   },
 }
 

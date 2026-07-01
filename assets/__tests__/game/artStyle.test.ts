@@ -13,6 +13,7 @@ import {
   TILE_CATALOG,
   type GlyphVisual,
 } from '@/game/artStyle'
+import { resolveDraw } from '@/engine/render/shared'
 
 describe('resolveVisual — the one style decision point', () => {
   it('ASCII style + no override → the passthrough sentinel for every kind (byte-identical gate)', () => {
@@ -23,11 +24,23 @@ describe('resolveVisual — the one style decision point', () => {
   })
 
   it('a mapped kind on the Emoji style → its glyph', () => {
-    expect(resolveVisual('tree', EMOJI_STYLE)).toEqual({ kind: 'glyph', char: '🌲' })
-    expect(resolveVisual('water', EMOJI_STYLE)).toEqual({ kind: 'glyph', char: '🟦' })
-    expect(resolveVisual('grass', EMOJI_STYLE)).toEqual({ kind: 'glyph', char: '🟩' })
-    expect(resolveVisual('enemy', EMOJI_STYLE)).toEqual({ kind: 'glyph', char: '👾' })
-    expect(resolveVisual('player', EMOJI_STYLE)).toEqual({ kind: 'glyph', char: '🧍' })
+    expect(resolveVisual('tree', EMOJI_STYLE)).toMatchObject({ kind: 'glyph', char: '🌲' })
+    expect(resolveVisual('water', EMOJI_STYLE)).toMatchObject({ kind: 'glyph', char: '🟦' })
+    expect(resolveVisual('grass', EMOJI_STYLE)).toMatchObject({ kind: 'glyph', char: '🟩' })
+    expect(resolveVisual('enemy', EMOJI_STYLE)).toMatchObject({ kind: 'glyph', char: '👾' })
+    expect(resolveVisual('player', EMOJI_STYLE)).toMatchObject({ kind: 'glyph', char: '🧍' })
+  })
+
+  it('every Emoji tile carries a fill COLOUR — the tint the geometry-preserving renderers fill each unit with', () => {
+    // Without a colour there is nothing to fill the iso diamond / building cube with, and the
+    // renderer falls back to stamping a flat upright emoji square (the StageD bug). Assert the
+    // whole map carries one, terrain + buildings especially (those fill geometry).
+    for (const kind of Object.keys(EMOJI_STYLE.map) as (keyof typeof EMOJI_STYLE.map)[]) {
+      const v = EMOJI_STYLE.map[kind] as GlyphVisual
+      expect(v.kind).toBe('glyph')
+      expect(typeof v.color).toBe('string')
+      expect(v.color).toMatch(/^#[0-9a-f]{3,8}$/i)
+    }
   })
 
   it('an unmapped kind on a non-ASCII style still passes through to ASCII (never blank)', () => {
@@ -36,9 +49,10 @@ describe('resolveVisual — the one style decision point', () => {
   })
 
   it('a per-element override WINS over the active style — even ASCII', () => {
-    // override an ASCII tree with the emoji water tile → the override tile draws
+    // override an ASCII tree with the emoji water tile → the override tile (glyph + tint) draws
     const v = resolveVisual('tree', ASCII_STYLE, 'emoji:water') as GlyphVisual
-    expect(v).toEqual({ kind: 'glyph', char: '🟦' })
+    expect(v).toMatchObject({ kind: 'glyph', char: '🟦' })
+    expect(v.color).toMatch(/^#/)
   })
 
   it('a per-element override WINS over a non-ASCII style too', () => {
@@ -49,8 +63,29 @@ describe('resolveVisual — the one style decision point', () => {
   })
 
   it('an unknown override id falls through to the style (does not throw / blank)', () => {
-    expect(resolveVisual('tree', EMOJI_STYLE, 'nope:missing')).toEqual({ kind: 'glyph', char: '🌲' })
+    expect(resolveVisual('tree', EMOJI_STYLE, 'nope:missing')).toMatchObject({ kind: 'glyph', char: '🌲' })
     expect(resolveVisual('tree', ASCII_STYLE, 'nope:missing')).toEqual(ASCII_PASSTHROUGH)
+  })
+})
+
+describe('resolveDraw — surfaces the tint the geometry sites fill with', () => {
+  it('ASCII passthrough returns the caller default char+color and NO tint (byte-identical gate)', () => {
+    const d = resolveDraw('grass', ASCII_STYLE, undefined, ';', '#9ac454')
+    expect(d).toEqual({ char: ';', color: '#9ac454' })
+    expect(d.tint).toBeUndefined()
+  })
+
+  it('a styled glyph surfaces its emoji AND a tint (the diamond/cube fill colour)', () => {
+    const d = resolveDraw('grass', EMOJI_STYLE, undefined, ';', '#9ac454')
+    expect(d.char).toBe('🟩')
+    expect(d.tint).toMatch(/^#/) // present → the caller fills geometry, never a flat square
+    expect(d.color).toBe(d.tint) // glyph fill == the tile hue
+  })
+
+  it('a per-element override surfaces the override tile tint over the active style', () => {
+    const d = resolveDraw('grass', ASCII_STYLE, 'emoji:water', ';', '#9ac454')
+    expect(d.char).toBe('🟦')
+    expect(d.tint).toMatch(/^#/)
   })
 })
 
