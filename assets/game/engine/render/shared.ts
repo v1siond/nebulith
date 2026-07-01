@@ -58,7 +58,7 @@ export function resolveDraw(
 // Image/atlas cache so a tile src is decoded once, not per frame. v1 ships no image
 // pack, so this stays empty in practice, but the pixel-pack / Pixellab / upload path is wired.
 const _imgCache = new Map<string, HTMLImageElement>()
-function tileImage(src: string): HTMLImageElement | null {
+export function tileImage(src: string): HTMLImageElement | null {
   if (typeof Image === 'undefined') return null
   let img = _imgCache.get(src)
   if (!img) { img = new Image(); img.src = src; _imgCache.set(src, img) }

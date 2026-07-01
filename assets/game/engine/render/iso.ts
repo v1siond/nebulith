@@ -16,8 +16,8 @@ import { type PlayerState, barFraction, hpFraction, playerDisplayName } from '@/
 import { type CombatState, type Entity, type Quest } from '@/game/types'
 import { GROUND_COLORS } from '@/levels/village'
 import { Connector } from '@/lib/api'
-import { ASCII_FONT, BUILDING_BADGES, COMBAT_RANGE, type DayNight, type DrawVisual, ENEMY_MOVE_MS, LAMP_GLOW, LIGHT, applyCellTransform, isoCameraFocus, collectLampGlows, debugCellCaptions, debugLabelColors, drawFigureVitals, drawGroundShadow, drawHitMarker, drawNightLighting, drawPlayerArm, drawQuestMarker, drawRangeRing, drawStyledImage, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, getPlayerArt, grassShade, idleNow, isDeadEnemy, isDebugMode, resolveDraw, treeCanopyLayers } from './shared'
-import { ASCII_STYLE, assetKind, entityKind, groundKind, type ElementKind, type Style } from '@/game/artStyle'
+import { ASCII_FONT, BUILDING_BADGES, COMBAT_RANGE, type DayNight, type DrawVisual, ENEMY_MOVE_MS, LAMP_GLOW, LIGHT, applyCellTransform, isoCameraFocus, collectLampGlows, debugCellCaptions, debugLabelColors, drawFigureVitals, drawGroundShadow, drawHitMarker, drawNightLighting, drawPlayerArm, drawQuestMarker, drawRangeRing, drawStyledImage, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, getPlayerArt, grassShade, idleNow, isDeadEnemy, isDebugMode, resolveDraw, tileImage, treeCanopyLayers } from './shared'
+import { ASCII_STYLE, assetKind, entityKind, groundKind, type ElementKind, type ImageVisual, type Style } from '@/game/artStyle'
 
 
 /** Per-face brightness from the global light: a face whose outward screen normal points toward the
@@ -106,24 +106,9 @@ export interface IsoGroundParams {
 }
 
 
-/** Clip the context to the iso ground DIAMOND centred at (cx, cy) — so an IMAGE tile reads
- *  angled onto the iso plane, never as a flat upright square. (v1 ships no image pack, so
- *  this only bites once a sprite pack lands; the plumbing is here so it lands iso-correct.) */
-function clipIsoDiamond(ctx: CanvasRenderingContext2D, cx: number, cy: number, hw: number, hh: number): void {
-  ctx.beginPath()
-  ctx.moveTo(cx, cy - hh)
-  ctx.lineTo(cx + hw, cy)
-  ctx.lineTo(cx, cy + hh)
-  ctx.lineTo(cx - hw, cy)
-  ctx.closePath()
-  ctx.clip()
-}
-
-
-/** Draw a ground cell's CONTENT on top of its already-filled diamond. THE StageD fix lives here:
- *   - image tile        → the sprite CLIPPED to the diamond (iso-angled);
- *   - styled glyph (tint) → the diamond is ALREADY filled at the tile hue, so overlay only a SMALL
- *     centred emoji hint — never a full-cell upright square sitting flat on the diamond;
+/** Draw a ground cell's CONTENT on top of its already-filled diamond:
+ *   - reskin (a style tile / image is active) → the tile SHEARED flat onto the iso diamond via
+ *     fillIsoFaceWithTile (angled, with the cube's z below it) — one path for emoji + image;
  *   - passthrough (no tint) → the caller's ASCII glyph exactly as before (grass keeps its live
  *     flicker when `live`), byte-identical to the pre-style inline loop. */
 function drawIsoGroundContent(
@@ -133,25 +118,27 @@ function drawIsoGroundContent(
   drawY: number,
   tileW: number,
   tileH: number,
-  groundFontSize: number,
   isGrass: boolean,
   live: boolean,
   time: number,
   col: number,
   row: number,
 ): void {
-  if (gdv.image) {
-    ctx.save()
-    clipIsoDiamond(ctx, px, drawY, tileW, tileH)
-    drawStyledImage(ctx, gdv.image, px, drawY, tileH * 2)
-    ctx.restore()
-    return
-  }
-  if (gdv.tint) {
-    ctx.font = `bold ${tileH * 0.85}px ${ASCII_FONT}` // small hint keeps the ANGLED diamond dominant
-    ctx.fillStyle = gdv.color
-    ctx.fillText(gdv.char, px, drawY)
-    ctx.font = `bold ${groundFontSize}px ${ASCII_FONT}`
+  // Reskin (a style tile is active): SHEAR the tile onto the iso DIAMOND so it lies FLAT on the
+  // ground plane — angled, with the cube's z below it — never an upright square stamped on top.
+  // The diamond is the parallelogram from its LEFT corner: eA→top, eB→bottom. One primitive covers
+  // an emoji glyph and an image sprite. ASCII passthrough (no tint/image) falls through to the
+  // byte-identical glyph draw below.
+  if (gdv.tint || gdv.image) {
+    fillIsoFaceWithTile(
+      ctx,
+      { x: px - tileW, y: drawY },
+      { x: tileW, y: -tileH },
+      { x: tileW, y: tileH },
+      { char: gdv.char, color: gdv.color, image: gdv.image },
+      1,
+      1,
+    )
     return
   }
   ctx.fillStyle = gdv.color
@@ -253,13 +240,13 @@ export function drawIsoGroundLayer(ctx: CanvasRenderingContext2D, p: IsoGroundPa
         // Static cache: skip the animated water surface (collected for the live pass);
         // bake the grass glyph at full alpha (the ≤1.5% flicker is render-only motion).
         if (isWater) { if (waterOut) waterOut.push({ col, row }); continue }
-        drawIsoGroundContent(ctx, gdv, px, drawY, tileW, tileH, groundFontSize, isGrass, false, time, col, row)
+        drawIsoGroundContent(ctx, gdv, px, drawY, tileW, tileH, isGrass, false, time, col, row)
         continue
       }
 
       // Direct / fallback path — byte-identical to the original inline loop for ASCII.
       if (isWater) drawIsoWaterDepth(ctx, px, drawY, tileW, tileH, fillBg, time, col, row)
-      drawIsoGroundContent(ctx, gdv, px, drawY, tileW, tileH, groundFontSize, isGrass, true, time, col, row)
+      drawIsoGroundContent(ctx, gdv, px, drawY, tileW, tileH, isGrass, true, time, col, row)
     }
   }
 }
@@ -290,7 +277,7 @@ export function drawIsoWaterCells(ctx: CanvasRenderingContext2D, p: IsoGroundPar
     const wdv = resolveDraw(groundKind(tileType), style, undefined, char, fg)
     const fillBg = wdv.tint ?? bg // reskinned water tints the SAME iso basin; ASCII → bg (identical)
     drawIsoWaterDepth(ctx, px, drawY, tileW, tileH, fillBg, time, col, row)
-    drawIsoGroundContent(ctx, wdv, px, drawY, tileW, tileH, groundFontSize, false, true, time, col, row)
+    drawIsoGroundContent(ctx, wdv, px, drawY, tileW, tileH, false, true, time, col, row)
   }
 }
 
@@ -903,6 +890,57 @@ export const fillQuad = (ctx: CanvasRenderingContext2D, a: Pt, b: Pt, c: Pt, d: 
 }
 
 
+/**
+ * Fill an iso FACE by tiling a TILE across it, SHEARED to the face — the ONE place a tile
+ * (an emoji glyph now, an image sprite later) becomes an iso-angled texture. The face is the
+ * parallelogram `origin + [0,1]·eA + [0,1]·eB` (eA = the bottom edge vector, eB = the up/side
+ * edge vector). We push a CTM built from (eA, eB, origin) scaled into a 64×64 work box — so a
+ * unit tile maps onto the parallelogram and every glyph/image inherits the shear — clip to the
+ * box, then stamp `na`×`nb` tiles across it. That single transform is why a colored-square emoji
+ * becomes the ground DIAMOND fill and a brick emoji tiles UP a wall at the iso angle, instead of
+ * standing upright. Font size is kept in a normal px range (the 64-box) so glyphs never clamp to
+ * a sub-pixel size. Callers invoke this only on a reskin (a style tile is active); the ASCII
+ * passthrough path never reaches here, so ASCII stays byte-identical.
+ */
+export function fillIsoFaceWithTile(
+  ctx: CanvasRenderingContext2D,
+  origin: Pt,
+  eA: Pt,
+  eB: Pt,
+  tv: { char?: string; color: string; image?: ImageVisual },
+  na: number,
+  nb: number,
+): void {
+  const S = 64 // work-box side; keeps font px normal under the shear CTM (no sub-pixel fonts)
+  const cols = Math.max(1, Math.round(na))
+  const rows = Math.max(1, Math.round(nb))
+  const cw = S / cols
+  const ch = S / rows
+  ctx.save()
+  ctx.transform(eA.x / S, eA.y / S, eB.x / S, eB.y / S, origin.x, origin.y)
+  ctx.beginPath()
+  ctx.rect(0, 0, S, S)
+  ctx.clip()
+  if (tv.image) {
+    const img = tileImage(tv.image.src)
+    if (img) {
+      const sx = tv.image.sx ?? 0
+      const sy = tv.image.sy ?? 0
+      const sw = tv.image.sw ?? img.naturalWidth
+      const sh = tv.image.sh ?? img.naturalHeight
+      for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) ctx.drawImage(img, sx, sy, sw, sh, i * cw, j * ch, cw, ch)
+    }
+  } else if (tv.char) {
+    ctx.fillStyle = tv.color
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.font = `${Math.min(cw, ch) * 1.16}px ${ASCII_FONT}` // slight overfill; the clip trims the excess
+    for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) ctx.fillText(tv.char, (i + 0.5) * cw, (j + 0.5) * ch)
+  }
+  ctx.restore()
+}
+
+
 /** One facade cell as an ISO PARALLELOGRAM: the bottom edge runs along `colVec` (the iso
  *  angle), the sides rise straight up by `cellH`. Same tile vocabulary as 2D (red /\ roof,
  *  gold |[]| body, |==| door) — just sheared onto the iso axis instead of a 90° rect. */
@@ -931,17 +969,12 @@ export function drawIsoFacadeTile(ctx: CanvasRenderingContext2D, bl: Pt, colVec:
   fillQuad(ctx, bl, br, tr, tl)
   const mid = { x: (bl.x + tr.x) / 2, y: (bl.y + tr.y) / 2 }
   const fdv = resolveDraw(kind as ElementKind, style, undefined, glyph, fg)
-  if (fdv.image) { drawStyledImage(ctx, fdv.image, mid.x, mid.y, cellH); return }
-  // Reskin (tint present): the sheared face IS the tile — a plain wall/roof cell gets NO upright
-  // emoji (that was the flat-square bug); only the door/window carry a SMALL centred hint so the
-  // entrance/glass still read. ASCII passthrough (no tint) draws its glyph exactly as before.
-  if (fdv.tint) {
-    if (!isDoor && !isWindow) return
-    ctx.font = `bold ${cellH * 0.5}px ${ASCII_FONT}`
-    ctx.textAlign = 'center'
-    ctx.textBaseline = 'middle'
-    ctx.fillStyle = fdv.color
-    ctx.fillText(fdv.char, mid.x, mid.y)
+  // Reskin (a style tile / image is active): tile it SHEARED onto this facade face — the face IS
+  // the parallelogram (bl, colVec, up), so wall→brick, roof→tile, door/window carry their own
+  // glyph, all angled WITH the face (never an upright square). One primitive for emoji + image.
+  // ASCII passthrough (no tint/image) draws its glyph centered exactly as before.
+  if (fdv.tint || fdv.image) {
+    fillIsoFaceWithTile(ctx, bl, colVec, up, { char: fdv.char, color: fdv.color, image: fdv.image }, 1, 1)
     return
   }
   if (!fdv.char) return
@@ -989,13 +1022,17 @@ export function drawIsoBuilding(
   // are shaded by orientation (front brightest → back darkest); the facade tiles (door/windows) use
   // the full palette.
   const tcol = b.type as BuildingType
-  // A reskin (Emoji/image style) TINTS the SAME cube: roof colour on the roof faces, wall colour on
-  // the walls, door/window at their own hue — reusing the iso box geometry (z + angles), never a
-  // per-cell upright emoji. ASCII → tint undefined → the byte-identical building palette below.
-  const wallC = resolveDraw('wall', style, undefined, '', buildingCellColor(tcol, 'wall', b.col)).tint ?? buildingCellColor(tcol, 'wall', b.col)
-  const roofC = resolveDraw('roof', style, undefined, '', buildingCellColor(tcol, 'roof', b.col)).tint ?? buildingCellColor(tcol, 'roof', b.col)
+  // A reskin (Emoji/image style) tints the SAME cube (roof colour on the roof faces, wall on the
+  // walls, door/window at their own hue) AND — via tileFace below — overlays the real tile SHEARED
+  // onto each face, so the box reads as brick/tiled at the iso angle (the emoji test for real
+  // sprites). ASCII → tint undefined → the byte-identical building palette, no overlay.
+  const wallDV = resolveDraw('wall', style, undefined, '', buildingCellColor(tcol, 'wall', b.col))
+  const roofDV = resolveDraw('roof', style, undefined, '', buildingCellColor(tcol, 'roof', b.col))
+  const wallC = wallDV.tint ?? buildingCellColor(tcol, 'wall', b.col)
+  const roofC = roofDV.tint ?? buildingCellColor(tcol, 'roof', b.col)
   const doorC = resolveDraw('door', style, undefined, '', buildingCellColor(tcol, 'door', b.col)).tint ?? buildingCellColor(tcol, 'door', b.col)
   const windowC = resolveDraw('window', style, undefined, '', buildingCellColor(tcol, 'window', b.col)).tint ?? buildingCellColor(tcol, 'window', b.col)
+  const reskinned = !!(wallDV.tint || wallDV.image || roofDV.tint || roofDV.image)
   const facadeColors: FacadeColors = {
     wall: withAlpha(wallC, 0.98),
     door: withAlpha(doorC, 0.98),
@@ -1022,6 +1059,25 @@ export function drawIsoBuilding(
   const bbr = ptAdd(fbr, depthVec)
   const eave = (p: Pt): Pt => ptAdd(p, up(bodyH))
   const mid = (a: Pt, c: Pt): Pt => ({ x: (a.x + c.x) / 2, y: (a.y + c.y) / 2 })
+
+  // On a reskin, overlay the wall/roof TILE sheared onto a SOLID face: a = bottom-left corner,
+  // b = bottom-right (so b−a is the bottom edge), d = top-left (d−a is the up/side edge). Tile
+  // counts are capped so a big wall stays a few tiles (emoji fillText runs every frame). The two
+  // peaked-roof trapezoid caps aren't parallelograms, so they keep their flat roof tint. No-op on
+  // ASCII (reskinned = false) → the box stays byte-identical.
+  const FACE_CAP = 3
+  const tileFace = (a: Pt, b: Pt, d: Pt, dv: DrawVisual, na: number, nb: number): void => {
+    if (!reskinned) return
+    fillIsoFaceWithTile(
+      ctx,
+      a,
+      { x: b.x - a.x, y: b.y - a.y },
+      { x: d.x - a.x, y: d.y - a.y },
+      { char: dv.char, color: dv.color, image: dv.image },
+      Math.min(FACE_CAP, na),
+      Math.min(FACE_CAP, nb),
+    )
+  }
 
   // A row of small windows on a wall face: `base` = the face's bottom-left ground corner, `axis` =
   // its bottom edge vector (full span), `count` evenly-spaced lights at mid-wall height. Glass fill
@@ -1055,6 +1111,7 @@ export function drawIsoBuilding(
   // `/\` chevrons marching along a roof SIDE face's centre line (front→back), in a darker roof
   // tone — so the roof reads as shingled from the side too, like draw2DBuilding's roof glyph.
   const roofChevrons = (frontMid: Pt, backMid: Pt, count: number): void => {
+    if (reskinned) return // the emoji/image roof tiles already read as shingled — no ASCII /\ on top
     ctx.font = `bold ${cellH * 0.5}px ${ASCII_FONT}`
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
@@ -1096,12 +1153,12 @@ export function drawIsoBuilding(
 
   // ── WALL BODY (solid box, ground → eaves): both sides + the non-facade face ──
   ctx.fillStyle = wallBack
-  if (b.facadeOnBack) fillQuad(ctx, fbl, fbr, eave(fbr), eave(fbl)) // plain FRONT wall (camera side)
-  else fillQuad(ctx, bbl, bbr, eave(bbr), eave(bbl)) // plain BACK wall (facade is on the front)
+  if (b.facadeOnBack) { fillQuad(ctx, fbl, fbr, eave(fbr), eave(fbl)); tileFace(fbl, fbr, eave(fbl), wallDV, L, bodyH) } // plain FRONT wall (camera side)
+  else { fillQuad(ctx, bbl, bbr, eave(bbr), eave(bbl)); tileFace(bbl, bbr, eave(bbl), wallDV, L, bodyH) } // plain BACK wall
   ctx.fillStyle = wallLeft
-  fillQuad(ctx, fbl, bbl, eave(bbl), eave(fbl)) // left
+  fillQuad(ctx, fbl, bbl, eave(bbl), eave(fbl)); tileFace(fbl, bbl, eave(fbl), wallDV, b.depth, bodyH) // left
   ctx.fillStyle = wallRight
-  fillQuad(ctx, fbr, bbr, eave(bbr), eave(fbr)) // right
+  fillQuad(ctx, fbr, bbr, eave(bbr), eave(fbr)); tileFace(fbr, bbr, eave(fbr), wallDV, b.depth, bodyH) // right
 
   // Windows on the faces the front facade doesn't cover: both sides + the plain (non-facade) wall.
   const depthWindows = Math.max(2, Math.min(3, Math.round(b.depth)))
@@ -1123,30 +1180,30 @@ export function drawIsoBuilding(
     const BRL = ptAdd(FRL, depthVec)
     const BRR = ptAdd(FRR, depthVec)
     ctx.fillStyle = roofBack
-    fillQuad(ctx, BEL, BER, BRR, BRL) // back trapezoid
+    fillQuad(ctx, BEL, BER, BRR, BRL) // back trapezoid (kept flat-tinted — not a parallelogram)
     ctx.fillStyle = roofSlopeL
-    fillQuad(ctx, FEL, BEL, BRL, FRL) // left slope
+    fillQuad(ctx, FEL, BEL, BRL, FRL); tileFace(FEL, BEL, FRL, roofDV, b.depth, ROOF_ROWS) // left slope
     ctx.fillStyle = roofSlopeR
-    fillQuad(ctx, FER, BER, BRR, FRR) // right slope
+    fillQuad(ctx, FER, BER, BRR, FRR); tileFace(FER, BER, FRR, roofDV, b.depth, ROOF_ROWS) // right slope
     ctx.fillStyle = roofTop
-    fillQuad(ctx, FRL, FRR, BRR, BRL) // flat top
+    fillQuad(ctx, FRL, FRR, BRR, BRL); tileFace(FRL, FRR, BRL, roofDV, 2, b.depth) // flat ridge top
     ctx.fillStyle = roofFront
-    fillQuad(ctx, FEL, FER, FRR, FRL) // front trapezoid (the `‾\_/‾`)
+    fillQuad(ctx, FEL, FER, FRR, FRL) // front trapezoid (the `‾\_/‾`, kept flat-tinted)
     // shingle the two side slopes with /\ so the roof reads from the side too
     roofChevrons(mid(FEL, FRL), mid(BEL, BRL), roofSideCount) // left slope
     roofChevrons(mid(FER, FRR), mid(BER, BRR), roofSideCount) // right slope
   } else {
     const top = (p: Pt): Pt => ptAdd(p, up(H))
     ctx.fillStyle = roofBack
-    fillQuad(ctx, eave(bbl), eave(bbr), top(bbr), top(bbl))
+    fillQuad(ctx, eave(bbl), eave(bbr), top(bbr), top(bbl)); tileFace(eave(bbl), eave(bbr), top(bbl), roofDV, L, ROOF_ROWS)
     ctx.fillStyle = roofSlopeL
-    fillQuad(ctx, eave(fbl), eave(bbl), top(bbl), top(fbl)) // left
+    fillQuad(ctx, eave(fbl), eave(bbl), top(bbl), top(fbl)); tileFace(eave(fbl), eave(bbl), top(fbl), roofDV, b.depth, ROOF_ROWS) // left
     ctx.fillStyle = roofSlopeR
-    fillQuad(ctx, eave(fbr), eave(bbr), top(bbr), top(fbr)) // right
+    fillQuad(ctx, eave(fbr), eave(bbr), top(bbr), top(fbr)); tileFace(eave(fbr), eave(bbr), top(fbr), roofDV, b.depth, ROOF_ROWS) // right
     ctx.fillStyle = roofTop
-    fillQuad(ctx, top(fbl), top(fbr), top(bbr), top(bbl))
+    fillQuad(ctx, top(fbl), top(fbr), top(bbr), top(bbl)); tileFace(top(fbl), top(fbr), top(bbl), roofDV, L, b.depth)
     ctx.fillStyle = roofFront
-    fillQuad(ctx, eave(fbl), eave(fbr), top(fbr), top(fbl))
+    fillQuad(ctx, eave(fbl), eave(fbr), top(fbr), top(fbl)); tileFace(eave(fbl), eave(fbr), top(fbl), roofDV, L, ROOF_ROWS)
     // shingle the two side faces with /\ so the slab roof reads from the side too
     roofChevrons(mid(eave(fbl), top(fbl)), mid(eave(bbl), top(bbl)), roofSideCount) // left
     roofChevrons(mid(eave(fbr), top(fbr)), mid(eave(bbr), top(bbr)), roofSideCount) // right
