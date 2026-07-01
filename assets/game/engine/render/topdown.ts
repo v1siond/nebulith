@@ -17,7 +17,7 @@ import { type CombatState, type Entity, type Quest } from '@/game/types'
 import { GROUND_COLORS } from '@/levels/village'
 import { Connector } from '@/lib/api'
 import { ASCII_FONT, BUILDING_BADGES, COMBAT_RANGE, type DayNight, ENEMY_MOVE_MS, LAMP_GLOW, applyCellTransform, clampCameraAxis, collectLampGlows, debugCellCaptions, debugLabelColors, drawFigureVitals, drawGroundShadow, drawHitMarker, drawNightLighting, drawPlayerArm, drawQuestMarker, drawRangeRing, drawStyledImage, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, getPlayerArt, grassShade, idleNow, isDeadEnemy, isDebugMode, resolveDraw, treeCanopyLayers } from './shared'
-import { ASCII_STYLE, assetKind, entityKind, groundKind, type ElementKind, type Style } from '@/game/artStyle'
+import { ASCII_STYLE, assetKind, characterMotionChar, entityKind, groundKind, type ElementKind, type Style } from '@/game/artStyle'
 
 
 /** Draw a placed entity in the TOP (blueprint) renderer — a filled cell badge
@@ -65,11 +65,14 @@ export function drawTopEntity(
   if (edv.image) {
     drawStyledImage(ctx, edv.image, cx, startY + ((art.length - 1) / 2) * fontSize, spanH * 0.9)
   } else if (edv.char) {
-    // Styled: one emoji replaces the multi-row figure (still gets the HP bar / name below).
-    ctx.font = `bold ${fontSize * (art.length + 0.5)}px ${ASCII_FONT}`
+    // Styled: one emoji replaces the multi-row figure (still gets the HP bar / name below). Size is
+    // a FIXED multiple of the cell — not the ASCII row count, which ballooned big creatures. Enemies
+    // read a touch smaller than people; people (npcs) stand at character height and animate the walk.
+    const isEnemy = entityKind(entity.kind) === 'enemy'
+    ctx.font = `bold ${tileSize * (isEnemy ? 1.35 : 1.7)}px ${ASCII_FONT}`
     ctx.textAlign = 'center'
     ctx.fillStyle = edv.color
-    ctx.fillText(edv.char, cx, startY + ((art.length - 1) / 2) * fontSize)
+    ctx.fillText(isEnemy ? edv.char : characterMotionChar(edv.char, moving, false, now), cx, startY + ((art.length - 1) / 2) * fontSize)
     ctx.textAlign = 'left'
   } else {
     for (let i = 0; i < art.length; i++) {
@@ -572,8 +575,8 @@ export function render2D(
       if (pdv.image) {
         drawStyledImage(ctx, pdv.image, p.x, baseY - lineHeight * 1.4, tileH * 1.8)
       } else if (pdv.char) {
-        ctx.font = `bold ${fontSize * 1.7}px ${ASCII_FONT}`
-        ctx.fillText(pdv.char, p.x, baseY - lineHeight * 1.2)
+        ctx.font = `bold ${tileH * 1.7}px ${ASCII_FONT}` // character height, matching npcs (was art-scaled + small)
+        ctx.fillText(characterMotionChar(pdv.char, player.moving, player.running ?? false, time), p.x, baseY - lineHeight * 1.2)
         ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
       } else {
         for (let i = 0; i < figArt2.length; i++) {

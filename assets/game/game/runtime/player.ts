@@ -13,6 +13,8 @@ export interface PlayerState {
    *  4-way `facing` (which drives the weapon hand). Undefined → fall back to the facing delta. */
   aim?: { col: number; row: number }
   moving: boolean
+  /** true while moving with Shift held — drives the RUN animation frame (🏃 vs the walk 🚶). */
+  running?: boolean
   frame: number
   /** visual hop height (px) while mid-jump; 0 on the ground. */
   jumpHeight?: number

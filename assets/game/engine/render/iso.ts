@@ -17,7 +17,7 @@ import { type CombatState, type Entity, type Quest } from '@/game/types'
 import { GROUND_COLORS } from '@/levels/village'
 import { Connector } from '@/lib/api'
 import { ASCII_FONT, BUILDING_BADGES, COMBAT_RANGE, type DayNight, type DrawVisual, ENEMY_MOVE_MS, LAMP_GLOW, LIGHT, applyCellTransform, isoCameraFocus, collectLampGlows, debugCellCaptions, debugLabelColors, drawFigureVitals, drawGroundShadow, drawHitMarker, drawNightLighting, drawPlayerArm, drawQuestMarker, drawRangeRing, drawStyledImage, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, getPlayerArt, grassShade, idleNow, isDeadEnemy, isDebugMode, resolveDraw, tileImage, treeCanopyLayers } from './shared'
-import { ASCII_STYLE, assetKind, entityKind, groundKind, type ElementKind, type ImageVisual, type Style } from '@/game/artStyle'
+import { ASCII_STYLE, assetKind, characterMotionChar, entityKind, groundKind, type ElementKind, type ImageVisual, type Style } from '@/game/artStyle'
 
 
 /** Per-face brightness from the global light: a face whose outward screen normal points toward the
@@ -691,7 +691,9 @@ export function drawIsoPlayer(
     ctx.font = `bold ${fontSize * 1.8}px ${ASCII_FONT}`
     ctx.textAlign = 'center'
     ctx.fillStyle = pdv.color
-    ctx.fillText(pdv.char, x, y - lineHeight - breathe)
+    // Walk/run frame: swap the standing figure for 🚶/🏃 on the moving beat (the emoji test for
+    // real per-frame sprites). Running (Shift) picks 🏃.
+    ctx.fillText(characterMotionChar(pdv.char, player.moving, player.running ?? false, time), x, y - lineHeight - breathe)
     ctx.textAlign = 'left'
     ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
   } else {
@@ -826,14 +828,18 @@ export function drawIsoEntity(
   ctx.textAlign = 'left'
   ctx.textBaseline = 'middle'
   const pal = entityPalette(entity)
-  const edv = resolveDraw(entityKind(entity.kind), style, entity.tileOverride, '', pal.fg)
+  const kind = entityKind(entity.kind)
+  const isEnemy = kind === 'enemy'
+  const edv = resolveDraw(kind, style, entity.tileOverride, '', pal.fg)
   if (edv.image) {
-    drawStyledImage(ctx, edv.image, x, baseY - lineHeight, tileH * 2.4)
+    drawStyledImage(ctx, edv.image, x, baseY - lineHeight, tileH * (isEnemy ? 1.9 : 2.4))
   } else if (edv.char) {
-    ctx.font = `bold ${fontSize * 1.7}px ${ASCII_FONT}`
+    // Enemies read a touch smaller than people so a mob doesn't tower over the hero; people
+    // (npcs) stand at the player's height and animate the SAME walk cycle when moving.
+    ctx.font = `bold ${fontSize * (isEnemy ? 1.35 : 1.7)}px ${ASCII_FONT}`
     ctx.textAlign = 'center'
     ctx.fillStyle = edv.color
-    ctx.fillText(edv.char, x, baseY - lineHeight)
+    ctx.fillText(isEnemy ? edv.char : characterMotionChar(edv.char, moving, false, now), x, baseY - lineHeight)
     ctx.textAlign = 'left'
     ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
   } else {

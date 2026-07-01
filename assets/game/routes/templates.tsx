@@ -3465,8 +3465,10 @@ export default function TemplateEditor() {
         }
       } else {
       player.jumpHeight = 0
-      // Update player - slower speed for 16px cells
-      const speed = 80 * (dt / 1000)
+      // Update player - slower speed for 16px cells. Holding Shift while moving SPRINTS (faster +
+      // the run animation frame 🏃 instead of the walk 🚶).
+      const running = !!keys['Shift']
+      const speed = 80 * (dt / 1000) * (running ? 1.7 : 1)
       player.moving = false
 
       let newX = player.x
@@ -3527,6 +3529,8 @@ export default function TemplateEditor() {
           player.moving = true
         }
       }
+      // Running = actually moving with Shift down (drives the 🏃 run frame; idle/still → not running).
+      player.running = running && player.moving
 
       // Collision check
       if (!grid.isWorldBlocked(newX, newZ) && !blockedCell(newX, newZ)) {
