@@ -538,6 +538,8 @@ export default function TemplateEditor() {
     // Mirror the player entity's (persisted) name onto the render struct so the life-bar label
     // shows it the way enemies show their type/name.
     playerRef.current.name = playerDisplayName(playerEntity?.name)
+    // Mirror the player entity's authored animations so the live hero plays what you author (#91).
+    playerRef.current.animations = playerEntity?.animations
     playerStatsRef.current = {
       ...base,
       strength: base.strength + b.strength,

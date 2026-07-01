@@ -587,7 +587,7 @@ export function render2D(
       } else if (pdv.char) {
         ctx.font = `bold ${tileH * 1.7}px ${ASCII_FONT}` // character height, matching npcs
         // Play the hero's AUTHORED animation (data-driven, direction-aware) — no hardcoded walk/run.
-        const pf = activeFrame(DEFAULT_CHARACTER_ANIMATIONS, { char: pdv.char }, { moving: player.moving, facing: player.facing, running: player.running ?? false }, time)
+        const pf = activeFrame(player.animations ?? DEFAULT_CHARACTER_ANIMATIONS, { char: pdv.char }, { moving: player.moving, facing: player.facing, running: player.running ?? false }, time)
         drawFacingGlyph(ctx, pf.char ?? pdv.char, p.x, baseY - lineHeight * 1.2, pf.flipX)
         ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
       } else {

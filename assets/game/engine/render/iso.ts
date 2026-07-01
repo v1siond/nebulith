@@ -693,7 +693,7 @@ export function drawIsoPlayer(
     ctx.textAlign = 'center'
     ctx.fillStyle = pdv.color
     // Play the hero's AUTHORED animation (data-driven, direction-aware) — no hardcoded walk/run/flip.
-    const pf = activeFrame(DEFAULT_CHARACTER_ANIMATIONS, { char: pdv.char }, { moving: player.moving, facing: player.facing, running: player.running ?? false }, time)
+    const pf = activeFrame(player.animations ?? DEFAULT_CHARACTER_ANIMATIONS, { char: pdv.char }, { moving: player.moving, facing: player.facing, running: player.running ?? false }, time)
     drawFacingGlyph(ctx, pf.char ?? pdv.char, x, y - lineHeight - breathe, pf.flipX)
     ctx.textAlign = 'left'
     ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
