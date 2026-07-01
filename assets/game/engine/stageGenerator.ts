@@ -252,19 +252,43 @@ const makeRock = (col: number, row: number): StageProp => ({
   color: rockShade(col, row),
 })
 
-// Non-blocking cave-floor decor: stalagmites, crystals, rubble — scattered so a
-// cavern reads as a living cave, not flat grey walls + empty floor.
-const CAVE_DECOR: ReadonlyArray<{ char: string; color: string }> = [
-  { char: 'ʌ', color: '#5a5266' }, // stalagmite
-  { char: '♦', color: '#7ad0ff' }, // crystal (cyan)
-  { char: '◊', color: '#b48cff' }, // crystal (violet)
-  { char: '∴', color: '#4a4450' }, // rubble
-  { char: '·', color: '#6a6276' }, // pebbles
-]
-const makeCaveDecor = (col: number, row: number): StageProp => {
-  const d = CAVE_DECOR[randInt(0, CAVE_DECOR.length - 1)]
-  return { col, row, type: 'cave_decor', char: d.char, blocking: false, color: d.color }
-}
+// ── cave feature cells (all SEASONAL) — every KIND maps to an ASCII glyph+color AND
+//    an emoji tint (see game/artStyle.ts): wall/rubble → 🪨, crystal → 💎, mushroom → 🍄.
+// Non-blocking cave-floor DECOR: stalagmites + rubble + pebbles, tinted from the
+// season's rock tone so they read as living rock against the cavern walls.
+const CAVE_DECOR: ReadonlyArray<string> = ['ʌ', '∧', '∴', '·'] // stalagmite / slim / rubble / pebbles
+const makeCaveDecor = (col: number, row: number, tone: string): StageProp => ({
+  col, row, type: 'cave_decor',
+  char: CAVE_DECOR[Math.abs(col * 5 + row * 7) % CAVE_DECOR.length],
+  blocking: false,
+  color: varyIntensity(tone, shadeNoise(col * 1.7 + row * 2.3)),
+})
+
+// A crystal-cluster cell — a glowing gem tinted by the season (blossom-violet spring,
+// cyan summer, amber autumn, icy winter, gold desert, ember lava). Non-blocking.
+const makeCrystal = (col: number, row: number, tint: string): StageProp => ({
+  col, row, type: 'crystal',
+  char: Math.abs(col + row) % 2 === 0 ? '◆' : '◇',
+  blocking: false,
+  color: varyIntensity(tint, shadeNoise(col * 3.1 + row * 1.9)),
+})
+
+// A cave mushroom (damp seasons only) — a red/tan toadstool on the floor. Non-blocking.
+const MUSHROOM_TONES = ['#d24a4a', '#c98a52', '#e0a0c0'] as const
+const makeMushroom = (col: number, row: number): StageProp => ({
+  col, row, type: 'mushroom', char: '♠', blocking: false,
+  color: MUSHROOM_TONES[Math.abs(col * 3 + row * 5) % MUSHROOM_TONES.length],
+})
+
+// One blocking cave WALL cell — the rock boundary + internal formations. Tonal per
+// season (pale ice-rock in winter, warm sandstone in desert, charred basalt in lava,
+// mossy grey otherwise) so a cavern reads by season the way the forest does.
+const makeCaveWall = (col: number, row: number, shades: readonly string[]): StageProp => ({
+  col, row, type: 'rock',
+  char: Math.abs(col * 5 + row * 3) % 7 === 0 ? '▒' : '▓',
+  blocking: true,
+  color: shades[Math.abs(col * 7 + row * 13) % shades.length],
+})
 
 // Non-blocking zone GROUND DECOR (grass/litter/pebbles/embers) — the density layer.
 const makeGroundDecor = (zone: ZoneId, col: number, row: number): StageProp => {
@@ -1486,36 +1510,271 @@ function templeHall(ctx: ArchetypeContext, doorCol: number, fromRow: number, fac
   }
 }
 
-// ── cave archetype (cellular automata, the 4-5 rule, per docs/ALGORITHMS.md §2):
-//    ~45% random rock fill → 4-5 smoothing passes (OOB counts as rock) → keep the
-//    single largest cavern (the rest fills back to rock) → carve a guaranteed
-//    south gate so the spawn area reaches the cavern. Randomized per run. ──────
+// ── cave archetype (a real SEASONAL cavern) ─────────────────────────────────
+// Cellular automata (the 4-5 rule, per docs/ALGORITHMS.md §2) carves an ORGANIC
+// cavern; flood-fill keeps ONE connected floor; a south ENTRANCE chamber joins it.
+// The SEASON drives the whole look + features: floor + wall tone, water/ice/lava
+// pools, crystal colour, and whether moss + mushrooms grow. Every feature cell KIND
+// maps to an ASCII glyph+colour AND an emoji tint (rock → 🪨, crystal → 💎, mushroom →
+// 🍄, pool ground → 🟦; see game/artStyle.ts), so a cave reads in ASCII and Emoji.
 const CAVE_FILL = 0.45 // initial random rock probability (40-50% range)
 const CAVE_ITERATIONS = 5 // smoothing passes (4-5 gives crisp caverns)
 
-function placeCave(ctx: ArchetypeContext): void {
-  const { cols, rows } = ctx
-
-  // LAYOUT FIRST: carve the cavern skeleton, keep one connected region, then gate
-  // it to the south edge — only after the shape is fixed do we commit props.
-  let rock = makeGrid(cols, rows, () => Math.random() < CAVE_FILL)
-  for (let i = 0; i < CAVE_ITERATIONS; i++) rock = smoothCave(rock, cols, rows)
-  const cavern = keepLargestClearing(rock, cols, rows) // reuse: true = blocked
-  carveCaveGate(rock, cavern, cols, rows)
-
-  commitRocks(ctx, rock) // rock walls fill the negative space (blocking props)
-  scatterCaveDecor(ctx)
-  scatterGroundCover(ctx, 0.22) // occasional dust / pebbles / embers across the cavern floor
+interface CavePalette {
+  /** base cave-floor ground tile (a GROUND_COLORS key that renders in the live engine). */
+  floor: string
+  /** patchy floor accent (moss / fallen leaves / dune / ash). */
+  accent: string
+  /** fraction of floor cells that take the accent — how mossy/leafy the cave reads. */
+  accentChance: number
+  /** tonal wall colours — the rock boundary + internal formations, varied per cell. */
+  wall: readonly string[]
+  /** the season's pool terrain (water / walkable ice / molten lava). */
+  pool: string
+  /** water + lava block; frozen ice is walkable. */
+  poolBlocks: boolean
+  /** crystal-cluster tint. */
+  crystal: string
+  /** damp seasons grow a fungi patch; arid/frozen/molten ones don't. */
+  mushrooms: boolean
 }
 
-/** Sprinkle non-blocking decor (stalagmites/crystals/rubble) over the cavern floor. */
-function scatterCaveDecor(ctx: ArchetypeContext): void {
+// Open/Closed: add a season → add a row. Each season has a DISTINCT floor tile + wall
+// palette + pool + crystal, so ≥3 seasons always render as clearly different caves.
+const CAVE_PALETTES: Readonly<Record<ZoneId, CavePalette>> = {
+  spring: { floor: 'cave_floor', accent: 'cave_moss', accentChance: 0.14, wall: ['#4c4a44', '#565248', '#42403a', '#514d46'], pool: 'water', poolBlocks: true, crystal: '#e79ec8', mushrooms: true },
+  summer: { floor: 'cave_floor', accent: 'cave_moss', accentChance: 0.24, wall: ['#46493f', '#3f463a', '#4e5145', '#3a3f36'], pool: 'water', poolBlocks: true, crystal: '#5fd0e0', mushrooms: true },
+  autumn: { floor: 'cave_floor', accent: 'autumn_leaves', accentChance: 0.16, wall: ['#5a4a38', '#6a5540', '#4e4030', '#5f4c3a'], pool: 'water', poolBlocks: true, crystal: '#e0a020', mushrooms: true },
+  winter: { floor: 'frost', accent: 'ice', accentChance: 0.2, wall: ['#5a6a7a', '#647486', '#516070', '#6d7d8e'], pool: 'ice_water', poolBlocks: false, crystal: '#bfe8f5', mushrooms: false },
+  desert: { floor: 'sand', accent: 'sandstone', accentChance: 0.2, wall: ['#b08a52', '#c2975c', '#9c7a46', '#b89060'], pool: 'water', poolBlocks: true, crystal: '#e8c060', mushrooms: false },
+  beach: { floor: 'sand', accent: 'cave_floor', accentChance: 0.16, wall: ['#9a8a6a', '#a89a78', '#8a7c5e', '#b0a284'], pool: 'water', poolBlocks: true, crystal: '#7fd0c0', mushrooms: false },
+  lava: { floor: 'basalt', accent: 'ash', accentChance: 0.22, wall: ['#2e2824', '#3a322c', '#241f1c', '#332b26'], pool: 'lava', poolBlocks: true, crystal: '#ff7a30', mushrooms: false },
+}
+
+// The south ENTRANCE — a guaranteed clear starting chamber joined to the cavern.
+const ENTRANCE_HALF = 3 // → a 7-wide chamber
+const ENTRANCE_HEIGHT = 4
+
+function placeCave(ctx: ArchetypeContext): void {
+  const { cols, rows, zone } = ctx
+  const pal = CAVE_PALETTES[zone] ?? CAVE_PALETTES.summer
+
+  // 1. Repaint the whole ground to the seasonal cave floor (walls cover their cells).
+  forEachCell(cols, rows, (col, row) => {
+    ctx.ground[row][col] = pal.floor
+  })
+
+  // 2. CA cavern skeleton → keep ONE connected cavern (stray pockets fill back to rock).
+  let rock = makeGrid(cols, rows, () => Math.random() < CAVE_FILL)
+  for (let i = 0; i < CAVE_ITERATIONS; i++) rock = smoothCave(rock, cols, rows)
+  const cavern = keepLargestClearing(rock, cols, rows) // true = rock
+
+  // 3. Carve the south entrance chamber and join it to the cavern with a wide corridor.
+  const entrance = carveEntranceChamber(rock, cols, rows)
+  joinEntranceToCavern(rock, entrance, cavern, cols, rows)
+
+  // 4. Seal the map border so the cavern is fully ENCLOSED (the CA can leave stray
+  //    open border cells; force them rock — the interior floor is repaired below).
+  forEachCell(cols, rows, (col, row) => {
+    if (isEdge(col, row, cols, rows)) rock[row][col] = true
+  })
+
+  // 5. Commit the seasonal rock walls (blocking) over the negative space.
+  commitCaveWalls(ctx, rock, pal)
+
+  // 6. Seasonal water / ice / lava pools in the cavern (kept north of the entrance).
+  carveCavePools(ctx, pal, entrance)
+
+  // 7. Guarantee ONE connected floor — fill any pocket a pool stranded with rock.
+  repairCaveFloor(ctx, pal)
+
+  // 8. Populate: moss/leaf accents, crystal clusters, a mushroom patch, floor rubble.
+  paintFloorAccents(ctx, pal)
+  scatterCrystalClusters(ctx, pal)
+  if (pal.mushrooms) placeMushroomPatch(ctx, pal)
+  scatterCaveRubble(ctx, pal)
+}
+
+/** Carve the guaranteed south entrance chamber (a clear starting region just inside
+ *  the border, centred on the map). Returns its rect so pools/spawn stay clear of it. */
+function carveEntranceChamber(rock: boolean[][], cols: number, rows: number): Rect {
+  const w = ENTRANCE_HALF * 2 + 1
+  const centerCol = Math.floor(cols / 2)
+  const col0 = clamp(centerCol - ENTRANCE_HALF, 1, cols - 1 - w)
+  const h = Math.min(ENTRANCE_HEIGHT, rows - 2)
+  const row0 = rows - 1 - h // just inside the south border (bottom row is the wall)
+  for (let r = row0; r < row0 + h; r++) {
+    for (let c = col0; c < col0 + w; c++) {
+      if (inBounds(c, r, cols, rows) && !isEdge(c, r, cols, rows)) rock[r][c] = false
+    }
+  }
+  return { col: col0, row: row0, w, h }
+}
+
+/** Open a wide corridor from the entrance mouth to the nearest cavern cell, so the
+ *  starting chamber always reaches the single connected cavern. */
+function joinEntranceToCavern(rock: boolean[][], entrance: Rect, cavern: Set<string>, cols: number, rows: number): void {
+  const mouth: Cell = { col: entrance.col + Math.floor(entrance.w / 2), row: entrance.row }
+  const cells = [...cavern].map(toCell)
+  if (cells.length === 0) {
+    carveVertical(rock, mouth.col, mouth.row, 1) // no cavern (tiny map) → cut straight up
+    return
+  }
+  const target = cells.reduce((a, b) => (manhattan(mouth, b) < manhattan(mouth, a) ? b : a))
+  carveCorridor(rock, mouth, target)
+}
+
+/** Commit the seasonal rock walls: every rock cell becomes a blocking wall prop. */
+function commitCaveWalls(ctx: ArchetypeContext, rock: boolean[][], pal: CavePalette): void {
   const { props, collision, cols, rows } = ctx
   forEachCell(cols, rows, (col, row) => {
-    if (collision[row][col]) return // floor cells only
-    if (Math.random() > 0.3) return // stalagmites/crystals; ground cover fills the rest
-    props.push(makeCaveDecor(col, row))
+    if (!rock[row][col]) return
+    props.push(makeCaveWall(col, row, pal.wall))
+    collision[row][col] = true
   })
+}
+
+/** Stamp 1–3 seasonal pools onto cavern FLOOR (never carving into rock walls), north
+ *  of the entrance. Water + lava block (routed around); frozen ice stays walkable. */
+function carveCavePools(ctx: ArchetypeContext, pal: CavePalette, entrance: Rect): void {
+  const { collision, cols, rows } = ctx
+  const count = 1 + Math.floor(Math.random() * 3)
+  const maxRow = Math.max(4, entrance.row - 2) // keep pools clear of the entrance chamber
+  for (let i = 0; i < count; i++) {
+    let seed: Cell | null = null
+    for (let tries = 0; tries < 40 && !seed; tries++) {
+      const col = randInt(3, cols - 4)
+      const row = randInt(3, maxRow)
+      if (!collision[row][col]) seed = { col, row }
+    }
+    if (seed) stampPool(ctx, pal, seed.col, seed.row)
+  }
+}
+
+/** One organic pool disc (a wobbling radius so it reads natural, not a clean circle),
+ *  painted only over existing floor cells. */
+function stampPool(ctx: ArchetypeContext, pal: CavePalette, cc: number, cr: number): void {
+  const { ground, collision, cols, rows } = ctx
+  const radius = 2 + Math.floor(Math.random() * 2) // 2–3
+  const phase = Math.random() * Math.PI * 2
+  for (let dr = -radius - 1; dr <= radius + 1; dr++) {
+    for (let dc = -radius - 1; dc <= radius + 1; dc++) {
+      const col = cc + dc
+      const row = cr + dr
+      if (!inBounds(col, row, cols, rows) || isEdge(col, row, cols, rows)) continue
+      if (collision[row][col]) continue // pool sits on floor, never punches through a wall
+      const reach = radius * (1 + 0.22 * Math.sin(Math.atan2(dr, dc) * 3 + phase))
+      if (dc * dc + dr * dr > reach * reach) continue
+      ground[row][col] = pal.pool
+      collision[row][col] = pal.poolBlocks
+    }
+  }
+}
+
+/** Flood-fill the walkable floor and fill every cell OUTSIDE the largest region with
+ *  rock — so the cavern floor is always ONE connected region (no unreachable pockets),
+ *  even after blocking pools carve the space. */
+function repairCaveFloor(ctx: ArchetypeContext, pal: CavePalette): void {
+  const { collision, props, cols, rows } = ctx
+  const isFloor = (col: number, row: number): boolean => inBounds(col, row, cols, rows) && !collision[row][col]
+  const largest = largestFloorRegion(isFloor, cols, rows)
+  forEachCell(cols, rows, (col, row) => {
+    if (!isFloor(col, row)) return
+    if (largest.has(`${col},${row}`)) return
+    collision[row][col] = true
+    props.push(makeCaveWall(col, row, pal.wall)) // stranded pocket → rock
+  })
+}
+
+/** Paint patchy seasonal accent ground (moss / fallen leaves / dune) over the floor. */
+function paintFloorAccents(ctx: ArchetypeContext, pal: CavePalette): void {
+  const { ground, collision, cols, rows } = ctx
+  forEachCell(cols, rows, (col, row) => {
+    if (isEdge(col, row, cols, rows)) return
+    if (collision[row][col]) return // floor only
+    if (ground[row][col] !== pal.floor) return // don't repaint pools
+    if (Math.random() < pal.accentChance) ground[row][col] = pal.accent
+  })
+}
+
+/** Scatter 2–4 crystal CLUSTERS — each a small blob of gems grown near a wall (a random
+ *  walk from a floor cell that touches rock), tinted by the season. Non-blocking. */
+function scatterCrystalClusters(ctx: ArchetypeContext, pal: CavePalette): void {
+  const { collision, props, cols, rows } = ctx
+  const occupied = new Set(props.map(p => `${p.col},${p.row}`))
+  const clusters = 2 + Math.floor(Math.random() * 3)
+  for (let i = 0; i < clusters; i++) {
+    const seed = findFloorNearWall(ctx, occupied)
+    if (!seed) continue
+    growBlob(seed, 3 + Math.floor(Math.random() * 4), collision, occupied, cols, rows, (col, row) =>
+      props.push(makeCrystal(col, row, pal.crystal)),
+    )
+  }
+}
+
+/** Grow ONE clustered mushroom patch on a damp floor spot, dampening the ground to moss
+ *  under it where the season is mossy. A real patch (5–12 caps), non-blocking. */
+function placeMushroomPatch(ctx: ArchetypeContext, pal: CavePalette): void {
+  const { ground, collision, props, cols, rows } = ctx
+  const occupied = new Set(props.map(p => `${p.col},${p.row}`))
+  const seed = findFloorNearWall(ctx, occupied) ?? firstWalkable(collision, cols, rows)
+  growBlob(seed, 5 + Math.floor(Math.random() * 8), collision, occupied, cols, rows, (col, row) => {
+    props.push(makeMushroom(col, row))
+    if (pal.accent === 'cave_moss' && ground[row][col] === pal.floor) ground[row][col] = pal.accent
+  })
+}
+
+/** Sprinkle non-blocking stalagmites / rubble / pebbles over the cavern floor so it
+ *  reads as living rock rather than empty grey. Tinted from the season's wall tone. */
+function scatterCaveRubble(ctx: ArchetypeContext, pal: CavePalette): void {
+  const { ground, collision, props, cols, rows } = ctx
+  const occupied = new Set(props.map(p => `${p.col},${p.row}`))
+  const tone = pal.wall[0]
+  forEachCell(cols, rows, (col, row) => {
+    if (isEdge(col, row, cols, rows)) return
+    if (collision[row][col]) return
+    if (occupied.has(`${col},${row}`)) return
+    if (ground[row][col] !== pal.floor && ground[row][col] !== pal.accent) return // not on pools
+    if (Math.random() > 0.14) return
+    props.push(makeCaveDecor(col, row, tone))
+  })
+}
+
+/** A random floor cell that orthogonally touches a rock wall (where crystals/mushrooms
+ *  grow), avoiding cells already holding a prop. Null if none found in a bounded search. */
+function findFloorNearWall(ctx: ArchetypeContext, occupied: Set<string>): Cell | null {
+  const { collision, cols, rows } = ctx
+  for (let tries = 0; tries < 60; tries++) {
+    const col = randInt(2, cols - 3)
+    const row = randInt(2, rows - 3)
+    if (collision[row][col] || occupied.has(`${col},${row}`)) continue
+    if (ORTHO.some(([dc, dr]) => collision[row + dr]?.[col + dc])) return { col, row }
+  }
+  return null
+}
+
+/** Random-walk a small blob of `size` cells from `seed`, invoking `place` on each free,
+ *  in-bounds floor cell — the shared clustered-placement helper for crystals + mushrooms. */
+function growBlob(
+  seed: Cell,
+  size: number,
+  collision: boolean[][],
+  occupied: Set<string>,
+  cols: number,
+  rows: number,
+  place: (col: number, row: number) => void,
+): void {
+  let { col, row } = seed
+  let placed = 0
+  for (let guard = 0; placed < size && guard < size * 5; guard++) {
+    if (inBounds(col, row, cols, rows) && !collision[row][col] && !occupied.has(`${col},${row}`)) {
+      place(col, row)
+      occupied.add(`${col},${row}`)
+      placed++
+    }
+    col += randInt(-1, 1)
+    row += randInt(-1, 1)
+  }
 }
 
 /** One double-buffered cellular-automata pass (never updates in place). */
@@ -1546,24 +1805,6 @@ function countRockNeighbours(rock: boolean[][], col: number, row: number, cols: 
     }
   }
   return n
-}
-
-/** Open a wide gate from the south edge up to the cavern's lowest cell so the
- *  spawn area (bottom) is guaranteed to reach the single connected cavern. */
-function carveCaveGate(rock: boolean[][], cavern: Set<string>, cols: number, rows: number): void {
-  const cells = [...cavern].map(toCell)
-  if (cells.length === 0) return
-  const south = cells.reduce((a, b) => (b.row > a.row ? b : a))
-  carveVertical(rock, south.col, south.row, rows - 1) // PATH_WIDTH band, joins the cavern
-}
-
-function commitRocks(ctx: ArchetypeContext, rock: boolean[][]): void {
-  const { props, collision, cols, rows } = ctx
-  forEachCell(cols, rows, (col, row) => {
-    if (!rock[row][col]) return
-    props.push(makeRock(col, row))
-    collision[row][col] = true
-  })
 }
 
 // ── boss-stage archetype (an ARENA, per GENERATION-SPEC §3 boss-room): a large
