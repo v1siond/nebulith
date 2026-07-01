@@ -143,3 +143,25 @@ const buildingCodec = makeAssetCodec<GridBuilding>(
 export const buildingsToAssets = buildingCodec.toAssets
 export const buildingsFromAssets = buildingCodec.fromAssets
 export const isBuildingAsset = buildingCodec.isMarker
+
+// ── active-art-style persistence ─────────────────────────────────────
+// The active GLOBAL art style (a single style id) rides assetsData as ONE off-grid marker,
+// exactly like buildings — so it saves/loads with the template without touching api.ts. A
+// scalar, not a list, so it's a small pair rather than the list codec. Absent on load →
+// the editor keeps ASCII (styleById defaults to ASCII).
+
+export const STYLE_ASSET_TYPE = 'nebulith:style'
+
+/** One off-grid marker carrying the active style id (empty when ASCII/default → no marker). */
+export function styleToAssets(styleId: string | null | undefined): GridAsset[] {
+  if (!styleId || styleId === 'ascii') return []
+  return [{ art: [' '], col: -1, row: -1, type: STYLE_ASSET_TYPE, blocking: false, color: '#000000', label: styleId }]
+}
+
+/** The saved active style id (or null when none was persisted). */
+export function styleFromAssets(assets: readonly GridAsset[]): string | null {
+  const marker = assets.find(a => a.type === STYLE_ASSET_TYPE)
+  return marker?.label ?? null
+}
+
+export const isStyleAsset = (asset: GridAsset): boolean => asset.type === STYLE_ASSET_TYPE

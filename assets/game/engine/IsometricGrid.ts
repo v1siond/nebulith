@@ -22,6 +22,8 @@ export interface GridAsset {
   height?: number       // Height in blocks (for buildings, towers, etc.)
   heightLevel?: number  // Which height level this asset sits on (for stacked tiles)
   tileKey?: string      // Reference to tile definition key
+  tileOverride?: string // Art-style override: a style-agnostic Tile Library id pinning THIS cell's
+                        // visual regardless of the active global style. Absent → follows the style.
   label?: string        // Cell-part label for generated multi-cell assets (tree_leaf_top, roof_top, door, …)
   opacity?: number      // 0–1 render opacity (default 1) — play with contrast / depth
   brightness?: number   // render brightness multiplier (default 1) — dim or pop an element

@@ -241,6 +241,9 @@ export interface Entity {
   attack?: AttackPattern
   /** can this entity be attacked? defaults: enemy=true, npc/decoration=false. */
   hittable?: boolean
+  /** art-style override: a style-agnostic Tile Library id pinning THIS entity's visual
+   *  regardless of the active global style. Absent → follows the active style. */
+  tileOverride?: string
 }
 
 // ── quests / missions ───────────────────────────────────────────────
