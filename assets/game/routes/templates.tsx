@@ -41,7 +41,7 @@ import { BARE_HANDS, type HitMarker, type PlayerHud, type ProjectileContext, pla
 import { type PlayerState, aimFromKeys, facingFromKeys, playerDisplayName } from '@/game/runtime/player'
 import { activeQuest, applyQuestEvent, questAnchorScreenPos, questForGiver, reachableQuestGiver, rewardSummary, upsertQuest } from '@/game/runtime/quest'
 import { type EnemyRuntime, isLivingEnemy, makeEnemyRuntime } from '@/game/runtime/targeting'
-import { ENEMY_TYPES, archetypeForEnemyType, scatterEntities } from '@/game/spawner'
+import { ENEMY_TYPES, CAVE_ENEMY_TYPES, archetypeForEnemyType, scatterEntities } from '@/game/spawner'
 import { type CombatState, type Entity, type EntityKind, type Inventory, type Item, type Loadout, type Quest, type Reward, type Stats, type TalentPath, type Weapon } from '@/game/types'
 import { weaponReach } from '@/game/weapons'
 import { VILLAGE_CONFIG } from '@/levels/village'
@@ -2613,8 +2613,30 @@ export default function TemplateEditor() {
     movePlayerToValidSpawn(stage.spawn.col, stage.spawn.row)
     const live = livePlayerCell()
     syncPlayerEntity(live.col, live.row, true) // fresh stage → player entity follows the spawn
+    if (variant === 'cave') seedCaveEnemies(grid) // populate the cavern with bats/spiders/skeletons
     setSelectedCells(new Set())
     deselectBuilding() // building indices were rebuilt → drop any stale selection
+  }
+
+  // Scatter cave-appropriate enemies onto the freshly-generated cavern floor (grouped by
+  // type via the shared spawner), spaced from the player + any existing entities. The play
+  // loop lazily gives each a combat runtime the first frame it's seen.
+  const seedCaveEnemies = (grid: IsometricGrid) => {
+    const collision = Array.from({ length: grid.rows }, (_, r) =>
+      Array.from({ length: grid.cols }, (_, c) => grid.isBlocked(c, r)),
+    )
+    setEntities(prev => {
+      const occupied = prev.map(e => ({ col: e.col, row: e.row }))
+      const spawned = scatterEntities({
+        collision,
+        occupied,
+        count: 10,
+        kinds: ['enemy'],
+        enemyTypes: CAVE_ENEMY_TYPES, // bats / spiders / skeletons, each in its own zone
+        idPrefix: `cave-${prev.length}`,
+      })
+      return [...prev, ...spawned]
+    })
   }
 
   const generateRandomMap = (presetId: string = 'village-small') => {
