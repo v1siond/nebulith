@@ -21,7 +21,7 @@
 
 // ── element kinds (the vocabulary a Style maps) ──────────────────────────
 export type ElementKind =
-  | 'grass' | 'water' | 'path' | 'plaza' | 'sand' | 'ground' // terrain
+  | 'grass' | 'water' | 'path' | 'plaza' | 'sand' | 'ground' | 'snow' | 'autumn' // terrain (+ seasons)
   | 'wall' | 'roof' | 'door' | 'window' | 'fountain'          // buildings
   | 'tree' | 'flower' | 'bush' | 'rock' | 'crate' | 'lamp'    // nature / props
   | 'crystal' | 'mushroom'                                     // cave features
@@ -77,6 +77,10 @@ export const EMOJI_STYLE: Style = {
     path: { kind: 'glyph', char: '🟫', color: '#9c7b4d' },
     plaza: { kind: 'glyph', char: '⬜', color: '#cabfa6' },
     sand: { kind: 'glyph', char: '🟨', color: '#e2c86b' },
+    // seasons — the WHOLE ground shifts hue so a winter/autumn map doesn't read as the same green:
+    // snow is a pale field, autumn an amber one with fallen leaves.
+    snow: { kind: 'glyph', char: '⬜', color: '#e2ecf5' },
+    autumn: { kind: 'glyph', char: '🍂', color: '#b5732f' },
     mountain: { kind: 'glyph', char: '🗻', color: '#8d8d97' },
     // buildings — `color` tints the CUBE face (roof colour on the roof faces, wall colour
     // on the walls); the facade door/window cells fill at their own hue.
@@ -149,6 +153,7 @@ export function styleById(id: string | null | undefined): Style {
 const WATER_GROUND = /water|oasis|koi_pond/
 const PATH_GROUND = /road|path|bridge|courtyard_stone/
 const SAND_GROUND = /sand|desert|dune/
+const SNOW_GROUND = /snow|ice|frost/
 // Polished temple/dungeon floors read as a paved plaza in the emoji reskin (⬜).
 const TEMPLE_FLOOR = /temple_floor|marble|gold_tile|ancient_stone|rune_floor/
 
@@ -160,6 +165,8 @@ export function groundKind(tileType: string): ElementKind {
   if (TEMPLE_FLOOR.test(tileType)) return 'plaza'
   if (tileType.startsWith('plaza')) return 'plaza'
   if (SAND_GROUND.test(tileType)) return 'sand'
+  if (SNOW_GROUND.test(tileType)) return 'snow' // winter: snow/ice/frost — a WHITE field, not green
+  if (tileType.startsWith('autumn')) return 'autumn' // autumn: amber ground + fallen leaves
   if (tileType.startsWith('grass')) return 'grass'
   return 'ground'
 }
@@ -233,7 +240,7 @@ export interface TileDef {
 }
 
 const CATEGORY_OF: Readonly<Record<ElementKind, TileCategory>> = {
-  grass: 'terrain', water: 'terrain', path: 'terrain', plaza: 'terrain', sand: 'terrain', ground: 'terrain', mountain: 'terrain',
+  grass: 'terrain', water: 'terrain', path: 'terrain', plaza: 'terrain', sand: 'terrain', ground: 'terrain', mountain: 'terrain', snow: 'terrain', autumn: 'terrain',
   wall: 'buildings', roof: 'buildings', door: 'buildings', window: 'buildings', fountain: 'buildings',
   pillar: 'buildings', altar: 'buildings',
   tree: 'nature', flower: 'nature', bush: 'nature', rock: 'nature', crate: 'nature', lamp: 'nature',
@@ -242,7 +249,7 @@ const CATEGORY_OF: Readonly<Record<ElementKind, TileCategory>> = {
 }
 
 const KIND_LABEL: Readonly<Record<ElementKind, string>> = {
-  grass: 'Grass', water: 'Water', path: 'Path', plaza: 'Plaza', sand: 'Sand', ground: 'Ground', mountain: 'Mountain',
+  grass: 'Grass', water: 'Water', path: 'Path', plaza: 'Plaza', sand: 'Sand', ground: 'Ground', mountain: 'Mountain', snow: 'Snow', autumn: 'Autumn Ground',
   wall: 'Wall', roof: 'Roof', door: 'Door', window: 'Window', fountain: 'Fountain',
   pillar: 'Pillar', altar: 'Altar',
   tree: 'Tree', flower: 'Flower', bush: 'Bush', rock: 'Rock', crate: 'Crate', lamp: 'Lamp',
@@ -307,7 +314,7 @@ export const EMOJI_TILES: TileDef[] = [
   emojiTile('terrain', 'dirt-path', 'Dirt Path', '🟫', '#9c7b4d'),
   emojiTile('terrain', 'gravel', 'Gravel', '🟤', '#7c6a52'),
   emojiTile('terrain', 'cobblestone', 'Cobblestone', '⬜', '#b9b2a3'),
-  emojiTile('terrain', 'snow', 'Snow', '❄️', '#eaf4ff'),
+  emojiTile('terrain', 'snowflake', 'Snowflake', '❄️', '#eaf4ff'),
   emojiTile('terrain', 'ice', 'Ice', '🧊', '#a8d8f0'),
   emojiTile('terrain', 'lava', 'Lava', '🟥', '#d0402a'),
   emojiTile('terrain', 'volcano', 'Volcano', '🌋', '#b5372a'),

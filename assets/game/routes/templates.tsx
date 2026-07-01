@@ -27,7 +27,7 @@ import { isoFacadeOnBack, isoFacingIndex } from '@/engine/isoBuilding'
 import { assetFootprint, multiCellAssetById, stampAsset } from '@/engine/multiCellAssets'
 import { StageData, VariantId, generateStage, stagePaint } from '@/engine/stageGenerator'
 import { type Action as TriggerAction, resolveAction } from '@/engine/triggers'
-import { ZoneId } from '@/engine/zones'
+import { ZONE_DECOR_TILE, ZONE_TREE_TILE, ZoneId } from '@/engine/zones'
 import { type AbilityBinding, DEFAULT_ABILITY_LOADOUT } from '@/game/abilities'
 import { startingCombatState } from '@/game/combat'
 import { DEFAULT_PLAYER_STATS, canPlaceEntity, entityAt, entityAtClick, entityAtFootprint, entityCollisionCells, makeEnemy, makeNpc, makePlayer, mintEntityId, placeEntity, removeEntity } from '@/game/entities'
@@ -2705,8 +2705,14 @@ export default function TemplateEditor() {
     for (const g of paint.ground) {
       if (grid.ground[g.row]?.[g.col] !== undefined) grid.ground[g.row][g.col] = g.type
     }
+    // A tree/ground-decor carries its SEASON's tile as a per-cell override, so autumn draws 🍁 trees +
+    // 🍂 litter, winter 🪾 + ❄️, desert 🌵 + 🌾 — instead of one green 🌲 in every zone AND ugly ascii
+    // specks (emoji can't be recoloured — the season swaps the tile).
+    const treeTile = ZONE_TREE_TILE[stage.zone]
+    const decorTile = ZONE_DECOR_TILE[stage.zone]
     for (const a of paint.assets) {
-      grid.placeAsset([a.char], a.col, a.row, { type: a.type, blocking: a.blocking, color: a.color, label: a.label, baseShadow: a.baseShadow, buildingType: a.buildingType, edge: a.edge, footprint: a.footprint, cellPart: a.label })
+      const override = a.type === 'tree' ? treeTile : a.type === 'ground_decor' ? decorTile : undefined
+      grid.placeAsset([a.char], a.col, a.row, { type: a.type, blocking: a.blocking, color: a.color, label: a.label, baseShadow: a.baseShadow, buildingType: a.buildingType, edge: a.edge, footprint: a.footprint, cellPart: a.label, tileOverride: override })
     }
     // Mirror the generator's authoritative collision into the grid so trees/water/
     // features are truly blocked — enemies (manual placement + scatter) only land on

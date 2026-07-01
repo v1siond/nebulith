@@ -218,6 +218,7 @@ export class IsometricGrid {
       edge: options.edge,
       footprint: options.footprint,
       cellPart: options.cellPart,
+      tileOverride: options.tileOverride, // per-cell art-style pin (e.g. a season's tree tile) — was dropped
     })
 
     // If blocking, update collision grid

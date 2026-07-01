@@ -71,3 +71,30 @@ export const ZONE_PALETTES: Record<ZoneId, ZonePalette> = {
     accentColor: '#ff7a30', // ember
   },
 }
+
+/** The tree tile a zone's foliage uses — so a season reads at a glance: pink blossoms in spring, deep
+ *  green in summer, amber maple in autumn, bare grey in winter, cactus in the desert, palms on a beach.
+ *  Emoji can't be tinted, so the SEASON PICKS A DIFFERENT TREE TILE (stamped as the tree's tileOverride
+ *  by the generator) instead of recolouring one green 🌲. Ids point at the Tile Library catalog. */
+export const ZONE_TREE_TILE: Record<ZoneId, string> = {
+  spring: 'emoji:cherry-blossom', // 🌸
+  summer: 'emoji:oak-tree', // 🌳 deep green
+  autumn: 'emoji:maple-leaf', // 🍁 amber
+  winter: 'emoji:dead-tree', // 🪾 bare
+  desert: 'emoji:cactus', // 🌵
+  beach: 'emoji:palm-tree', // 🌴
+  lava: 'emoji:dead-tree', // 🪾 scorched
+}
+
+/** The subtle floor-litter tile a zone scatters (was ASCII specks that drew as ugly dark boxes in the
+ *  emoji style). A small zone-appropriate accent instead — blossoms in spring, dry wheat in the desert,
+ *  a snowflake in winter. Stamped as the ground_decor's tileOverride by the generator. */
+export const ZONE_DECOR_TILE: Record<ZoneId, string> = {
+  spring: 'emoji:blossom', // 🌼
+  summer: 'emoji:clover', // 🍀
+  autumn: 'emoji:fallen-leaf', // 🍂
+  winter: 'emoji:snowflake', // ❄️
+  desert: 'emoji:wheat', // 🌾 dry grass
+  beach: 'emoji:seashell', // 🐚
+  lava: 'emoji:boulder', // 🪨 scorched stone
+}
