@@ -4,6 +4,7 @@
 // props-driven — all gameplay state/handlers live in the page; this is layout only.
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { ZoneId } from '@/engine/zones'
+import { BUILT_IN_STYLES, type TileCategory, tilesForStyle } from '@/game/artStyle'
 import { type EditorMode, SEASON_BTN, STAGE_VARIANTS, STAGE_ZONES } from './editorConfig'
 
 // ── Tool-rail (left, slim icon strip) ────────────────────────────────
@@ -279,27 +280,113 @@ export function GenerateControls({
   )
 }
 
-// ── 🎨 Style (art skin) — placeholder until stage D ──────────────────
-/** The art-style picker. ASCII is the only skin today; tilesets land in stage D,
- *  so the other rows are shown-but-disabled to signal what's coming. */
-export function StylePicker({ onClose }: { onClose?: () => void }) {
+// ── 🎨 Style (art skin) — the global reskin switch (stage D) ─────────
+/** The art-style picker: pick a built-in style → the whole world reskins instantly. ASCII is
+ *  the default (byte-identical to the classic renderers); Emoji proves the swap with zero assets. */
+export function StylePicker({ activeId, onPick, onClose }: { activeId: string; onPick: (id: string) => void; onClose?: () => void }) {
   return (
     <div className="space-y-1">
-      <p className="mb-1 text-[10px] uppercase tracking-wide text-gray-500">Art style</p>
-      <button
-        onClick={onClose}
-        className="flex w-full items-center justify-between rounded bg-cyan-800 px-2 py-1.5 text-xs font-bold text-white"
-      >
-        <span>ASCII</span>
-        <span aria-hidden className="text-cyan-300">✓</span>
-      </button>
-      <div className="flex w-full items-center justify-between rounded bg-gray-800/60 px-2 py-1.5 text-xs text-gray-500">
-        <span>Pixel packs</span>
-        <span className="text-[9px] uppercase">soon</span>
-      </div>
+      <p className="mb-1 text-[10px] uppercase tracking-wide text-gray-500">Art style — one switch reskins everything</p>
+      {BUILT_IN_STYLES.map(s => {
+        const active = s.id === activeId
+        return (
+          <button
+            key={s.id}
+            onClick={() => { onPick(s.id); onClose?.() }}
+            aria-pressed={active}
+            className={`flex w-full items-center justify-between rounded px-2 py-1.5 text-xs font-bold transition-colors ${
+              active ? 'bg-cyan-800 text-white' : 'bg-gray-800/60 text-gray-300 hover:bg-gray-700'
+            }`}
+          >
+            <span>{s.icon} {s.name}</span>
+            {active && <span aria-hidden className="text-cyan-300">✓</span>}
+          </button>
+        )
+      })}
       <p className="pt-1 text-[10px] leading-tight text-gray-500">
-        Swappable tilesets reskin the whole world in one click — coming in a later update.
+        Every element follows the active style — unless you pin a specific tile via the Tile Library (◰ Art).
       </p>
+    </div>
+  )
+}
+
+// ── ◰ Tile Library (stage D) — per-element override picker ───────────
+const LIBRARY_CATEGORIES: readonly TileCategory[] = ['terrain', 'buildings', 'units', 'nature']
+
+/** The Tile Library body: every tile of the active style, grouped by category. Picking one pins
+ *  it to the selected element (a per-element override that beats the global style); "Follow style"
+ *  clears the override so the element tracks the active skin again. */
+export function TileLibraryBody({
+  styleId,
+  styleName,
+  override,
+  onPick,
+}: {
+  styleId: string
+  styleName: string
+  override?: string | null
+  onPick: (tileId: string | null) => void
+}) {
+  const groups = tilesForStyle(styleId)
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-[11px] text-gray-400">
+          <span className="text-cyan-300">{styleName}</span> tiles — pick one to pin it to this element.
+        </p>
+        <button
+          onClick={() => onPick(null)}
+          disabled={!override}
+          className={`shrink-0 rounded px-2 py-1 text-[10px] font-bold transition-colors ${
+            override ? 'bg-gray-700 text-gray-100 hover:bg-gray-600' : 'cursor-not-allowed bg-gray-800/50 text-gray-600'
+          }`}
+        >
+          Follow style
+        </button>
+      </div>
+      {LIBRARY_CATEGORIES.map(cat =>
+        groups[cat].length === 0 ? null : (
+          <div key={cat}>
+            <p className="mb-1 text-[10px] uppercase tracking-wide text-gray-500">{cat}</p>
+            <div className="grid grid-cols-4 gap-1">
+              {groups[cat].map(t => {
+                const on = override === t.id
+                return (
+                  <button
+                    key={t.id}
+                    onClick={() => onPick(t.id)}
+                    title={`${t.label} (${t.id})`}
+                    aria-pressed={on}
+                    className={`flex flex-col items-center gap-0.5 rounded border px-1 py-1.5 transition-colors ${
+                      on ? 'border-cyan-400 bg-cyan-900/40' : 'border-white/10 bg-black/40 hover:bg-white/10'
+                    }`}
+                  >
+                    <span className="text-lg leading-none">{t.visual.kind === 'glyph' ? t.visual.char : '🖼'}</span>
+                    <span className="text-[9px] text-gray-400">{t.label}</span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        ),
+      )}
+    </div>
+  )
+}
+
+/** Inspector ◰ Art section — shows whether this element follows the global style or a pinned
+ *  tile, and opens the Tile Library modal to change it. */
+export function ArtSection({ override, styleName, onOpen }: { override?: string | null; styleName: string; onOpen: () => void }) {
+  return (
+    <div className="space-y-1.5 text-xs">
+      <p className="text-[10px] leading-tight text-gray-400">
+        {override
+          ? <>Pinned tile: <span className="font-bold text-cyan-300">{override}</span> (ignores the global style).</>
+          : <>Following the <span className="font-bold text-cyan-300">{styleName}</span> style.</>}
+      </p>
+      <button onClick={onOpen} className="w-full rounded bg-cyan-800 px-2 py-1.5 text-xs font-bold text-white transition-colors hover:bg-cyan-700">
+        ◰ Open Tile Library…
+      </button>
     </div>
   )
 }
@@ -339,21 +426,6 @@ export function SelectionHeader({ kind, label, coords }: { kind: string; label: 
         ▸ {label}
       </span>
       {coords && <span className="text-[10px] text-gray-500">{coords}</span>}
-    </div>
-  )
-}
-
-/** Art / sprite section stub — the per-element tile swap arrives with the style
- *  system (stage D). Shows the active skin, disabled, so authors see what is coming. */
-export function ArtPlaceholder() {
-  return (
-    <div className="text-xs">
-      <select disabled aria-label="Art / sprite" className="w-full cursor-not-allowed rounded bg-gray-800/60 p-1 text-gray-400">
-        <option>ASCII (default skin)</option>
-      </select>
-      <p className="mt-1 text-[10px] leading-tight text-gray-500">
-        Swap this element for a tile or sprite once art styles land — coming in a later update.
-      </p>
     </div>
   )
 }

@@ -46,7 +46,8 @@ import { type CombatState, type Entity, type EntityKind, type Inventory, type It
 import { weaponReach } from '@/game/weapons'
 import { VILLAGE_CONFIG } from '@/levels/village'
 import { Connector, TemplateListItem, createTemplate, deleteTemplate, deserializeToGrid, getTemplate, listTemplates, serializeGrid, updateTemplate } from '@/lib/api'
-import { ENTITY_GLYPH, buildingsFromAssets, buildingsToAssets, entitiesFromAssets, entitiesToAssets, isBuildingAsset, isEntityAsset, isQuestAsset, questsFromAssets, questsToAssets } from '@/lib/gridCodec'
+import { ENTITY_GLYPH, buildingsFromAssets, buildingsToAssets, entitiesFromAssets, entitiesToAssets, isBuildingAsset, isEntityAsset, isQuestAsset, isStyleAsset, questsFromAssets, questsToAssets, styleFromAssets, styleToAssets } from '@/lib/gridCodec'
+import { ASCII_STYLE, type Style, styleById } from '@/game/artStyle'
 import { useRouter } from 'next/router'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { render, render2D, renderTopView, clampCameraAxis, entityMotion, ENEMY_MOVE_MS, isDebugMode, setDebugMode, type DayNight } from '@/engine/render'
@@ -60,7 +61,7 @@ import { EquipmentPanel, InventoryCard, QuestAuthoringCard, QuestLogPanel } from
 import { EntityAttackBody, EntityIdentityStatsBody, EntityMovementBody, Modal, QuestGiveBody } from '@/components/game/modals'
 import { FlowViewOverlay, GamesViewOverlay } from '@/components/game/games'
 import { BUILDING_TOOL_TYPE, type BuildingTool, type EditorMode, type EntityTool, GROUND_SWATCHES, NATURE_TILE_KEYS } from '@/components/game/editorConfig'
-import { ArtPlaceholder, Dropdown, GenerateControls, type QuickAction, QuickActionToolbar, SelectionHeader, StylePicker, ToolRail, TriggerPlaceholder } from '@/components/game/editorChrome'
+import { ArtSection, Dropdown, GenerateControls, type QuickAction, QuickActionToolbar, SelectionHeader, StylePicker, TileLibraryBody, ToolRail, TriggerPlaceholder } from '@/components/game/editorChrome'
 
 
 // View mode states (global for game loop access)
@@ -177,6 +178,17 @@ export default function TemplateEditor() {
   // selected cells — it only decides which mode the rail highlights / which left
   // panel shows. The other rail modes derive straight from the tool state below.
   const [paintMode, setPaintMode] = useState(false)
+  // ── ART STYLE (stage D) — the global reskin switch. State drives the UI; a ref feeds
+  //    the once-mounted render loop. A style change reskins every view instantly (the iso
+  //    ground cache keys on style.id, so it rebuilds on switch). Persists with the template.
+  const [activeStyleId, setActiveStyleId] = useState<string>('ascii')
+  const activeStyleRef = useRef<Style>(ASCII_STYLE)
+  useEffect(() => { activeStyleRef.current = styleById(activeStyleId) }, [activeStyleId])
+  const activeStyle = styleById(activeStyleId)
+  // Which selection the Tile Library modal is editing (null = closed). It pins/clears the
+  // selected element's per-element override; scope tracks the current selection precedence.
+  const [tileLibraryOpen, setTileLibraryOpen] = useState(false)
+
   // The placed entity currently selected for inspection (click an entity to select).
   const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null)
   // Which Inspector section a quick-action asked to focus. `n` is a nonce so clicking
@@ -1238,6 +1250,67 @@ export default function TemplateEditor() {
       return placeEntity(prev, ENTITY_BUILDERS[entityTool](col, row))
     })
   }
+
+  // ── Art-style overrides (stage D) — pin/clear a per-element tile ───
+  /** The current selection's override id (entity's, or the first selected cell's asset's). */
+  const selectedOverride = (() => {
+    if (selectedEntityId) return entities.find(e => e.id === selectedEntityId)?.tileOverride ?? null
+    const grid = gridRef.current
+    if (grid && selectedCells.size > 0) {
+      const [c, r] = Array.from(selectedCells)[0].split(',').map(Number)
+      return grid.getAssetsAtCell(c, r)[0]?.tileOverride ?? null
+    }
+    return null
+  })()
+
+  /** Pin (or clear, with null) a Library tile id on the selected element — an entity, or the
+   *  asset(s) under the selected cell(s). Rides the asset/entity through the codec (clone),
+   *  so it saves + reloads with the template. Buildings reskin via the global style only. */
+  const setSelectionOverride = (tileId: string | null) => {
+    if (selectedEntityId) {
+      setEntities(prev => prev.map(e => (e.id === selectedEntityId ? { ...e, tileOverride: tileId ?? undefined } : e)))
+      return
+    }
+    const grid = gridRef.current
+    if (!grid || selectedCells.size === 0) return
+    for (const key of selectedCells) {
+      const [c, r] = key.split(',').map(Number)
+      for (const a of grid.getAssetsAtCell(c, r)) a.tileOverride = tileId ?? undefined
+    }
+    bumpBuildingVersion() // nudge a re-render (assets mutate in place)
+  }
+
+  // Editor debug/validation hooks on window (same family as __ISO_NOCACHE / __isoRenderMs):
+  //  __setArtStyle(id)      → flip the active global style without the dropdown
+  //  __selectFirstTreeCell()→ select the first tree's cell (returns {col,row}) so the real
+  //                           Inspector ◰ Art + Tile Library flow can be driven deterministically.
+  // Editor-only; harmless in production.
+  useEffect(() => {
+    const win = window as unknown as {
+      __setArtStyle?: (id: string) => void
+      __selectFirstTreeCell?: () => { col: number; row: number } | null
+    }
+    win.__setArtStyle = (id: string) => setActiveStyleId(id)
+    win.__selectFirstTreeCell = () => {
+      const grid = gridRef.current
+      if (!grid) return null
+      const pc = playerRef.current.x / grid.cellSize
+      const pr = playerRef.current.z / grid.cellSize
+      // the tree NEAREST the player (so it's on-screen for a validation screenshot)
+      let best: { col: number; row: number } | null = null
+      let bestD = Infinity
+      for (const a of grid.assets) {
+        if (a.type !== 'tree') continue
+        const d = (a.col - pc) ** 2 + (a.row - pr) ** 2
+        if (d < bestD) { bestD = d; best = { col: a.col, row: a.row } }
+      }
+      if (!best) return null
+      setSelectedEntityId(null)
+      setSelectedCells(new Set([`${best.col},${best.row}`]))
+      return best
+    }
+    return () => { delete win.__setArtStyle; delete win.__selectFirstTreeCell }
+  }, [])
 
   // ── Selected-entity inspector actions ─────────────────────────────
   const patchSelectedEntity = (patch: Partial<Entity>) => {
@@ -3565,11 +3638,11 @@ export default function TemplateEditor() {
         ctx.fillStyle = '#0a0a12'
         ctx.fillRect(0, 0, canvas.width, canvas.height)
       } else if (topViewMode) {
-        renderTopView(ctx, canvas.width, canvas.height, grid, player, zoomRef.current, selectedCellsRef.current, connectorsRef.current, connectorModeRef.current, camOffsetRef.current, renderEntities, runtime.combat, hitMarkersRef.current, time, questsRef.current, dayNightRef.current)
+        renderTopView(ctx, canvas.width, canvas.height, grid, player, zoomRef.current, selectedCellsRef.current, connectorsRef.current, connectorModeRef.current, camOffsetRef.current, renderEntities, runtime.combat, hitMarkersRef.current, time, questsRef.current, dayNightRef.current, activeStyleRef.current)
       } else if (viewTypeRef.current === '2d') {
-        render2D(ctx, canvas.width, canvas.height, grid, player, time, zoomRef.current, camOffsetRef.current, renderEntities, runtime.combat, connectorsRef.current, questsRef.current, dayNightRef.current, attackAnimsRef.current, hitMarkersRef.current, projectilesRef.current, weaponReach(playerWeaponRef.current))
+        render2D(ctx, canvas.width, canvas.height, grid, player, time, zoomRef.current, camOffsetRef.current, renderEntities, runtime.combat, connectorsRef.current, questsRef.current, dayNightRef.current, attackAnimsRef.current, hitMarkersRef.current, projectilesRef.current, weaponReach(playerWeaponRef.current), activeStyleRef.current)
       } else {
-        render(ctx, canvas.width, canvas.height, grid, player, time, camOffsetRef.current, renderEntities, runtime.combat, hitMarkersRef.current, time, isoZoomRef.current, attackAnimsRef.current, connectorsRef.current, questsRef.current, projectilesRef.current, dayNightRef.current, weaponReach(playerWeaponRef.current))
+        render(ctx, canvas.width, canvas.height, grid, player, time, camOffsetRef.current, renderEntities, runtime.combat, hitMarkersRef.current, time, isoZoomRef.current, attackAnimsRef.current, connectorsRef.current, questsRef.current, projectilesRef.current, dayNightRef.current, weaponReach(playerWeaponRef.current), activeStyleRef.current)
       }
       // Drop finished attack animations (kept tiny — a few in flight at once).
       if (attackAnimsRef.current.length > 0) {
@@ -3630,6 +3703,7 @@ export default function TemplateEditor() {
         ...entitiesToAssets(entities),
         ...questsToAssets(quests),
         ...buildingsToAssets(grid.buildings), // grouped buildings ride along so load rebuilds the render
+        ...styleToAssets(activeStyleId), // active art style rides as one off-grid marker (ASCII → none)
       ]
 
       if (currentTemplateId) {
@@ -3700,9 +3774,11 @@ export default function TemplateEditor() {
       const loadedEntities = entitiesFromAssets(gridRef.current!.assets)
       const loadedQuests = questsFromAssets(gridRef.current!.assets)
       const loadedBuildings = buildingsFromAssets(gridRef.current!.assets)
+      const loadedStyle = styleFromAssets(gridRef.current!.assets) // active art style marker (null → ASCII)
       gridRef.current!.assets = gridRef.current!.assets.filter(
-        a => !isEntityAsset(a) && !isQuestAsset(a) && !isBuildingAsset(a),
+        a => !isEntityAsset(a) && !isQuestAsset(a) && !isBuildingAsset(a) && !isStyleAsset(a),
       )
+      setActiveStyleId(styleById(loadedStyle).id) // restore the saved global skin (defaults to ASCII)
       // Restore the grouped buildings so iso/2D/top render the upright model, not the per-cell fallback.
       gridRef.current!.buildings = loadedBuildings
       setEntities(loadedEntities)
@@ -3918,7 +3994,7 @@ export default function TemplateEditor() {
             actions = [
               { key: 'animate', glyph: '✦', label: 'Animate', onClick: () => focusInspectorSection('animation') },
               { key: 'trigger', glyph: '⚡', label: 'Trigger', onClick: () => focusInspectorSection('trigger') },
-              { key: 'style', glyph: '◰', label: 'Style', onClick: () => focusInspectorSection('art') },
+              { key: 'style', glyph: '◰', label: 'Style', onClick: () => { focusInspectorSection('art'); setTileLibraryOpen(true) } },
             ]
             // ✕ is a clean full deselect — also drop any cell selection that lingered from
             // the click that selected this unit, so the toolbar truly hides (not a cell fallback).
@@ -3927,7 +4003,7 @@ export default function TemplateEditor() {
             anchor = buildingFootprintCells(selBuilding).door
             actions = [
               { key: 'animate', glyph: '✦', label: 'Animate', onClick: () => focusInspectorSection('animation') },
-              { key: 'style', glyph: '◰', label: 'Style', onClick: () => focusInspectorSection('art') },
+              { key: 'style', glyph: '◰', label: 'Style', onClick: () => { focusInspectorSection('art'); setTileLibraryOpen(true) } },
             ]
             onDeselect = deselectBuilding
           } else if (editingConnector) {
@@ -3941,7 +4017,7 @@ export default function TemplateEditor() {
             const [c, r] = Array.from(selectedCells)[0].split(',').map(Number)
             anchor = { col: c, row: r }
             actions = [
-              { key: 'style', glyph: '◰', label: 'Style', onClick: () => focusInspectorSection('tile') },
+              { key: 'style', glyph: '◰', label: 'Style', onClick: () => { focusInspectorSection('tile'); setTileLibraryOpen(true) } },
               { key: 'animate', glyph: '✦', label: 'Animate', onClick: () => focusInspectorSection('animation') },
               { key: 'trigger', glyph: '⚡', label: 'Trigger', onClick: () => focusInspectorSection('trigger') },
             ]
@@ -4042,9 +4118,9 @@ export default function TemplateEditor() {
               />
             )}
           </Dropdown>
-          {/* 🎨 Style — art skin (ASCII placeholder; real swap is stage D) */}
-          <Dropdown label={<>🎨 Style: ASCII</>} title="Art style" panelClass="w-56">
-            {close => <StylePicker onClose={close} />}
+          {/* 🎨 Style — the global art-skin switch: pick a style → the whole world reskins */}
+          <Dropdown label={<>🎨 Style: {activeStyle.name}</>} title="Art style" panelClass="w-56">
+            {close => <StylePicker activeId={activeStyleId} onPick={setActiveStyleId} onClose={close} />}
           </Dropdown>
           <div className="flex-1" />
           {/* ▶ Play — enter the clean play view */}
@@ -4590,7 +4666,7 @@ export default function TemplateEditor() {
                       {isPlayer && <div className="mt-3"><CombatHud hud={playerHud} /></div>}
                     </Card>
                     <Card title="Art / sprite" accent="cyan" sectionId="art" focus={sectionFocus}>
-                      <ArtPlaceholder />
+                      <ArtSection override={selEntity.tileOverride} styleName={activeStyle.name} onOpen={() => setTileLibraryOpen(true)} />
                     </Card>
                     <Card title="Animation" accent="cyan" defaultOpen={false} sectionId="animation" focus={sectionFocus}>
                       <p className="text-[10px] leading-tight text-gray-500">
@@ -4650,7 +4726,10 @@ export default function TemplateEditor() {
                       </div>
                     </Card>
                     <Card title="Art (walls / roof)" accent="cyan" defaultOpen={false} sectionId="art" focus={sectionFocus}>
-                      <ArtPlaceholder />
+                      <p className="text-[10px] leading-tight text-gray-500">
+                        Walls, roof, doors &amp; windows follow the global <span className="font-bold text-cyan-300">{activeStyle.name}</span> style
+                        (switch it in the top bar 🎨). Per-building tile overrides land in a later update.
+                      </p>
                     </Card>
                     <Card title="Animation" accent="cyan" defaultOpen={false} sectionId="animation" focus={sectionFocus}>
                       <p className="text-[10px] leading-tight text-gray-500">
@@ -4814,6 +4893,9 @@ export default function TemplateEditor() {
                       </PaletteGroup>
                       <p className="mt-1 text-[10px] leading-tight text-gray-500">Pick a tile to paint the selected cell(s).</p>
                     </Card>
+                    <Card title="Art / style override" accent="cyan" sectionId="art" focus={sectionFocus}>
+                      <ArtSection override={selectedOverride} styleName={activeStyle.name} onOpen={() => setTileLibraryOpen(true)} />
+                    </Card>
                     <Card title="Height" accent="cyan">
                       <div className="flex items-center gap-2">
                         <button onClick={() => placeHeight(Math.max(0, selectedHeight - 1))} className="h-6 w-6 rounded bg-gray-700 text-xs font-bold hover:bg-gray-600" aria-label="Lower height">−</button>
@@ -4854,7 +4936,7 @@ export default function TemplateEditor() {
                   </Card>
 
                   <Card title="Style" accent="cyan">
-                    <StylePicker />
+                    <StylePicker activeId={activeStyleId} onPick={setActiveStyleId} />
                   </Card>
 
                   <Card title="Stage" accent="yellow">
@@ -5004,6 +5086,35 @@ export default function TemplateEditor() {
                 onAccept={() => { acceptGiverQuest(quest); close() }}
                 onReject={close}
               />
+            </Modal>
+          )
+        })()}
+
+        {/* ◰ TILE LIBRARY (stage D) — lists the active style's tiles by category; picking one pins
+            it to the selected element (a per-element override). Reachable from the Inspector ◰ Art
+            section AND the on-canvas ◰ Style quick-action. */}
+        {tileLibraryOpen && (() => {
+          const close = () => setTileLibraryOpen(false)
+          const scope = selectedEntityId
+            ? 'unit'
+            : selectedCells.size > 0
+            ? (selectedCells.size > 1 ? `${selectedCells.size} cells` : 'cell')
+            : null
+          return (
+            <Modal title={`Tile Library — ${activeStyle.name}${scope ? ` · ${scope}` : ''}`} accent="cyan" wide onClose={close}>
+              {scope ? (
+                <TileLibraryBody
+                  styleId={activeStyleId}
+                  styleName={activeStyle.name}
+                  override={selectedOverride}
+                  onPick={setSelectionOverride}
+                />
+              ) : (
+                <p className="text-xs leading-relaxed text-gray-400">
+                  Select a unit or a cell first (↖ Select tool), then reopen the Library to pin a tile to it.
+                  The global style switch lives in the top bar 🎨.
+                </p>
+              )}
             </Modal>
           )
         })()}
