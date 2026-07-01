@@ -10,7 +10,7 @@ import { type CombatState, type Entity, type Quest } from '@/game/types'
 import { GROUND_COLORS } from '@/levels/village'
 import { Connector } from '@/lib/api'
 import { ASCII_FONT, BUILDING_BADGES, type DayNight, LAMP_GLOW, applyCellTransform, clampCameraAxis, collectLampGlows, debugCellCaptions, debugLabelColors, drawHitMarker, drawHpBar, drawNightLighting, drawQuestMarker, drawStyledImage, grassShade, cellFill, isDeadEnemy, isDebugMode, resolveDraw } from './shared'
-import { ASCII_STYLE, assetKind, entityKind, groundKind, type Style } from '@/game/artStyle'
+import { ASCII_STYLE, assetKind, entityKind, genderize, groundKind, type Style } from '@/game/artStyle'
 
 
 /** TOP (blueprint) view: an entity is a single `>` glyph colored by role — yellow player,
@@ -368,8 +368,10 @@ export function renderTopView(
     case 'right': dirChar = '>'; break
   }
   const pdv = resolveDraw('player', style, undefined, dirChar, '#000000')
+  // genderize the person glyph so the hero's male/female figure shows in top view too (matches
+  // iso/2d); the ASCII direction arrow passes through genderize unchanged.
   if (pdv.image) drawStyledImage(ctx, pdv.image, px + tileSize / 2, py + tileSize / 2, tileSize)
-  else ctx.fillText(pdv.char, px + tileSize / 2, py + tileSize / 2)
+  else ctx.fillText(genderize(pdv.char, player.variant), px + tileSize / 2, py + tileSize / 2)
 
   // Life bar above the player cell — the SAME drawHpBar enemies get in this view (below).
   if (player.maxHp != null) {
@@ -420,8 +422,10 @@ export function renderTopView(
     const ex = offsetX + entity.col * tileSize
     const ey = offsetY + entity.row * tileSize
     const edv = resolveDraw(entityKind(entity.kind), style, entity.tileOverride, '>', topRoleColor(entity, quests))
+    // genderize so npcs show their male/female figure in top view too (the ASCII `>` fallback and 👾
+    // pass through unchanged); matches iso/2d.
     if (edv.image) drawStyledImage(ctx, edv.image, ex + tileSize / 2, ey + tileSize / 2, tileSize)
-    else drawTopArrow(ctx, ex, ey, tileSize, edv.color, edv.char)
+    else drawTopArrow(ctx, ex, ey, tileSize, edv.color, genderize(edv.char, entity.variant))
     if (entity.kind === 'enemy') drawHpBar(ctx, ex + tileSize / 2, ey - 3, tileSize, 3, hpFraction(entity, combat))
     drawQuestMarker(ctx, entityQuestMarker(entity, quests), ex + tileSize / 2, ey - tileSize * 0.9, Math.max(12, tileSize * 1.1))
   }
