@@ -15,8 +15,9 @@ import type { Stats, AttackPattern } from './types'
 import { buildAttackPattern, makeEnemyAttack, enemyAttackFromAbility, ENEMY_ATTACK_PRESETS } from './patterns'
 import { FIRE_SLASH } from './abilities'
 
-/** The archetype roster. Melee: grunt/brute/skirmisher; ranged: archer/mage; mixed: raider. */
-export type EnemyArchetypeId = 'grunt' | 'brute' | 'skirmisher' | 'archer' | 'mage' | 'raider'
+/** The archetype roster. Melee: grunt/brute/skirmisher; ranged: archer/mage; mixed: raider;
+ *  cave: flyer (bat) / crawler (spider). */
+export type EnemyArchetypeId = 'grunt' | 'brute' | 'skirmisher' | 'archer' | 'mage' | 'raider' | 'flyer' | 'crawler'
 
 /** One archetype's full combat profile: stats + move cadence + reach + default attack pattern. */
 export interface EnemyArchetype {
@@ -118,11 +119,35 @@ export const ENEMY_ARCHETYPES: Readonly<Record<EnemyArchetypeId, EnemyArchetype>
       { ...makeEnemyAttack('ranged', 9, 1400, 'bolt'), reachCells: ARCHER_REACH, name: 'Snipe' },
     ]),
   },
+  // Cave FLYER (bat): tiny hp, VERY high dodge, a flitting nuisance that lands a light
+  // quick bite — nimble (just behind the skirmisher's darting pace).
+  flyer: {
+    id: 'flyer',
+    name: 'Bat',
+    stats: { strength: 4, intelligence: 0, defense: 0, maxHp: 16, dodge: 24 },
+    moveDelayMs: 560,
+    reachCells: MELEE_REACH,
+    attack: buildAttackPattern('sequential', [
+      { ...makeEnemyAttack('melee', 2, 500, 'cleave'), name: 'Bite' },
+    ]),
+  },
+  // Cave CRAWLER (spider): medium hp, lurking pace, a stronger venom bite on a slower
+  // cadence — the ambush melee of a cavern.
+  crawler: {
+    id: 'crawler',
+    name: 'Spider',
+    stats: { strength: 6, intelligence: 0, defense: 2, maxHp: 30, dodge: 12 },
+    moveDelayMs: 720,
+    reachCells: MELEE_REACH,
+    attack: buildAttackPattern('sequential', [
+      { ...makeEnemyAttack('melee', 4, 900, 'cleave'), name: 'Venom Bite' },
+    ]),
+  },
 }
 
 /** Iteration order for the archetype roster (editor pickers / tests). */
 export const ENEMY_ARCHETYPE_IDS: readonly EnemyArchetypeId[] = [
-  'grunt', 'brute', 'skirmisher', 'archer', 'mage', 'raider',
+  'grunt', 'brute', 'skirmisher', 'archer', 'mage', 'raider', 'flyer', 'crawler',
 ]
 
 /** Narrow an arbitrary string to a known archetype id. */

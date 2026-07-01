@@ -19,15 +19,21 @@ import { chebyshev } from '@/lib/math'
 export const ENEMY_TYPES = ['goblin', 'wolf', 'bandit', 'skeleton'] as const
 export type EnemyType = (typeof ENEMY_TYPES)[number]
 
+/** Cave-appropriate enemies — bats dart (flyer), spiders lurk (crawler), skeletons hit
+ *  hard (brute). The cave generator seeds these so a cavern comes populated. */
+export const CAVE_ENEMY_TYPES = ['bat', 'spider', 'skeleton'] as const
+
 /** Each roster type maps to a distinct combat ARCHETYPE, so the type-grouped zones also
  *  vary by fighting style: goblins are basic grunts, wolves dart (skirmisher), bandits
- *  shoot (archer), skeletons hit like brutes. The archetype seeds the enemy's stats +
- *  attack pattern (see entities.makeEnemy). */
-const ARCHETYPE_BY_ENEMY_TYPE: Record<EnemyType, EnemyArchetypeId> = {
+ *  shoot (archer), skeletons hit like brutes, bats flit (flyer), spiders ambush (crawler).
+ *  The archetype seeds the enemy's stats + attack pattern (see entities.makeEnemy). */
+const ARCHETYPE_BY_ENEMY_TYPE: Record<string, EnemyArchetypeId> = {
   goblin: 'grunt',
   wolf: 'skirmisher',
   bandit: 'archer',
   skeleton: 'brute',
+  bat: 'flyer',
+  spider: 'crawler',
 }
 
 /** The archetype for a roster type, or undefined for an unknown/custom type (→ plain
