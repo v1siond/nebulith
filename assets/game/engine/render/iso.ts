@@ -16,7 +16,7 @@ import { type PlayerState, barFraction, hpFraction, playerDisplayName } from '@/
 import { type CombatState, type Entity, type Quest } from '@/game/types'
 import { GROUND_COLORS } from '@/levels/village'
 import { Connector } from '@/lib/api'
-import { ASCII_FONT, BUILDING_BADGES, COMBAT_RANGE, type DayNight, type DrawVisual, ENEMY_MOVE_MS, LAMP_GLOW, LIGHT, applyCellTransform, isoCameraFocus, collectLampGlows, debugCellCaptions, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawNightLighting, drawPlayerArm, drawQuestMarker, drawRangeRing, drawStyledImage, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, getPlayerArt, grassShade, cellFill, fillTintedGlyph, drawBuildingLandmark, idleNow, isDeadEnemy, isDebugMode, resolveDraw, tileImage, treeCanopyLayers } from './shared'
+import { ASCII_FONT, BUILDING_BADGES, COMBAT_RANGE, type DayNight, type DrawVisual, ENEMY_MOVE_MS, LAMP_GLOW, LIGHT, applyCellTransform, isoCameraFocus, cellCaptionMap, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawNightLighting, drawPlayerArm, drawQuestMarker, drawRangeRing, drawStyledImage, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, getPlayerArt, grassShade, cellFill, fillTintedGlyph, drawBuildingLandmark, idleNow, isDeadEnemy, isDebugMode, resolveDraw, tileImage, treeCanopyLayers } from './shared'
 import { ASCII_STYLE, assetKind, buildingLandmarkEmoji, entityKind, enemyTileId, genderize, groundKind, type ElementKind, type ImageVisual, type Style } from '@/game/artStyle'
 import { DEFAULT_CHARACTER_ANIMATIONS, activeFrame } from '@/game/runtime/entityAnimation'
 
@@ -1808,7 +1808,11 @@ export function renderDebugOverlays(
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
 
-  // Pass 1: Draw collision overlay (red tint on blocked cells)
+  // The per-cell TILESET LABEL for every visible cell: terrain autotile label (GRASS TOP-LEFT …)
+  // overridden by the asset caption (BUILDING TOP-LEFT, TREE CANOPY …). Drawn centred IN each cell.
+  const captions = cellCaptionMap(grid.ground, grid.getVisibleAssets(Math.floor(player.x / cellSize), Math.floor(player.z / cellSize), 30, 20))
+
+  // Pass 1: collision tint + per-cell coords + the cell's <TYPE> <POSITION> label (fit to the diamond)
   for (let rz = 0; rz < tilesZ; rz++) {
     for (let rx = 0; rx < tilesX; rx++) {
       const col = Math.floor(startCol + rx)
@@ -1838,47 +1842,20 @@ export function renderDebugOverlays(
         ctx.fill()
       }
 
-      // Grid coordinates
-      ctx.fillStyle = isBlocked ? '#ffaaaa' : '#aaffaa'
-      ctx.fillText(`${col},${row}`, p.x, p.y)
+      // Tiny coords in the cell (top-left of the diamond), so the centred label stays readable.
+      ctx.font = `${Math.max(6, tileH * 0.42)}px ${ASCII_FONT}`
+      ctx.textAlign = 'left'
+      ctx.textBaseline = 'top'
+      ctx.fillStyle = isBlocked ? 'rgba(255,150,150,0.75)' : 'rgba(150,255,150,0.55)'
+      ctx.fillText(`${col},${row}`, p.x - tileW * 0.42, p.y - tileH * 0.5)
+
+      // The cell's tileset label, centred in the diamond + shrunk to fit (never overflows).
+      const cap = captions.get(`${col},${row}`)
+      if (cap) {
+        const { fg, bg } = debugLabelColors(cap.type)
+        drawCellLabel(ctx, cap.text, p.x, p.y, tileW * 1.7, fg, bg)
+      }
     }
-  }
-
-  // Pass 2: per-cell TYPE + POSITION captions — same flattened captions every view draws.
-  const visibleAssets = grid.getVisibleAssets(
-    Math.floor(player.x / cellSize),
-    Math.floor(player.z / cellSize),
-    30, 20
-  )
-
-  ctx.font = `bold 11px ${ASCII_FONT}`
-
-  for (const cap of debugCellCaptions(visibleAssets)) {
-    const worldX = cap.col * cellSize
-    const worldZ = cap.row * cellSize
-    const p = toScreen(worldX, worldZ)
-
-    // Color by type
-    const { fg: labelColor, bg: labelBg } = debugLabelColors(cap.type)
-
-    // Draw label background (TYPE + corner/edge/sub-part — identical to top + 2D)
-    const metrics = ctx.measureText(cap.text)
-    const labelY = p.y - 30
-
-    ctx.fillStyle = labelBg
-    ctx.fillRect(p.x - metrics.width / 2 - 3, labelY - 8, metrics.width + 6, 16)
-
-    ctx.fillStyle = labelColor
-    ctx.fillText(cap.text, p.x, labelY)
-
-    // Connection line
-    ctx.strokeStyle = labelColor
-    ctx.setLineDash([2, 2])
-    ctx.beginPath()
-    ctx.moveTo(p.x, labelY + 8)
-    ctx.lineTo(p.x, p.y - 5)
-    ctx.stroke()
-    ctx.setLineDash([])
   }
 
   // Player label

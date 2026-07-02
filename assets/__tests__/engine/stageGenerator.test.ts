@@ -884,28 +884,28 @@ describe('labelForCell — ONE consistent debug-label standard across every elem
 
   it('footprintSide yields the 4 corners + 4 edges + INTERIOR centre of a 3×3', () => {
     // corners
-    expect(footprintSide(10, 5, rect)).toBe('NW')
-    expect(footprintSide(12, 5, rect)).toBe('NE')
-    expect(footprintSide(10, 7, rect)).toBe('SW')
-    expect(footprintSide(12, 7, rect)).toBe('SE')
+    expect(footprintSide(10, 5, rect)).toBe('TOP-LEFT')
+    expect(footprintSide(12, 5, rect)).toBe('TOP-RIGHT')
+    expect(footprintSide(10, 7, rect)).toBe('BOTTOM-LEFT')
+    expect(footprintSide(12, 7, rect)).toBe('BOTTOM-RIGHT')
     // edges
-    expect(footprintSide(11, 5, rect)).toBe('N')
-    expect(footprintSide(11, 7, rect)).toBe('S')
-    expect(footprintSide(10, 6, rect)).toBe('W')
-    expect(footprintSide(12, 6, rect)).toBe('E')
+    expect(footprintSide(11, 5, rect)).toBe('TOP')
+    expect(footprintSide(11, 7, rect)).toBe('BOTTOM')
+    expect(footprintSide(10, 6, rect)).toBe('LEFT')
+    expect(footprintSide(12, 6, rect)).toBe('RIGHT')
     // centre
     expect(footprintSide(11, 6, rect)).toBe('INTERIOR')
   })
 
-  it('edgeToSide maps a BuildingEdge class to its uppercase caption token', () => {
-    expect(edgeToSide('nw')).toBe('NW')
-    expect(edgeToSide('s')).toBe('S')
+  it('edgeToSide maps a BuildingEdge class to the shared TOP/BOTTOM/LEFT/RIGHT caption token', () => {
+    expect(edgeToSide('nw')).toBe('TOP-LEFT')
+    expect(edgeToSide('s')).toBe('BOTTOM')
     expect(edgeToSide('interior')).toBe('INTERIOR')
   })
 
   it('labels a building footprint cell as "<TYPE> <SIDE>" (the existing scheme, via the shared helper)', () => {
-    expect(labelForCell('building', footprintSide(10, 5, rect))).toBe('BUILDING NW')
-    expect(labelForCell('building', footprintSide(11, 5, rect))).toBe('BUILDING N')
+    expect(labelForCell('building', footprintSide(10, 5, rect))).toBe('BUILDING TOP-LEFT')
+    expect(labelForCell('building', footprintSide(11, 5, rect))).toBe('BUILDING TOP')
     expect(labelForCell('building', footprintSide(11, 6, rect))).toBe('BUILDING INTERIOR')
   })
 
@@ -918,14 +918,14 @@ describe('labelForCell — ONE consistent debug-label standard across every elem
     expect(treeSubpart('tree_leaf_top')).toBe('CANOPY TOP')
     expect(treeSubpart('tree_leaf')).toBe('CANOPY')
     // autotiled forest mass: the canopy gets corner/edge sides, mirroring a building footprint
-    expect(treeSubpart('tree_top_left')).toBe('CANOPY NW')
-    expect(treeSubpart('tree_top')).toBe('CANOPY N')
-    expect(treeSubpart('tree_edge_right')).toBe('CANOPY E')
+    expect(treeSubpart('tree_top_left')).toBe('CANOPY TOP-LEFT')
+    expect(treeSubpart('tree_top')).toBe('CANOPY TOP')
+    expect(treeSubpart('tree_edge_right')).toBe('CANOPY RIGHT')
     expect(treeSubpart('tree_interior')).toBe('CANOPY INTERIOR')
-    expect(treeSubpart('tree_bottom_right')).toBe('CANOPY SE')
-    // assembled captions read "TREE TRUNK" / "TREE CANOPY NW"
+    expect(treeSubpart('tree_bottom_right')).toBe('CANOPY BOTTOM-RIGHT')
+    // assembled captions read "TREE TRUNK" / "TREE CANOPY TOP-LEFT"
     expect(labelForCell('tree', treeSubpart('tree_stem'))).toBe('TREE TRUNK')
-    expect(labelForCell('tree', treeSubpart('tree_top_left'))).toBe('TREE CANOPY NW')
+    expect(labelForCell('tree', treeSubpart('tree_top_left'))).toBe('TREE CANOPY TOP-LEFT')
   })
 
   it('labels a single-cell element as just its TYPE (no spurious position)', () => {
@@ -944,12 +944,12 @@ describe('labelForCell — ONE consistent debug-label standard across every elem
       const maxRing = Math.floor((Math.min(r.w, r.h) - 1) / 2)
       return footprintRing(col, row, r) >= maxRing ? 'CENTER' : 'WATER'
     }
-    expect(labelForCell('fountain', fountainPos(0, 0, f3))).toBe('FOUNTAIN NW') // rim corner
-    expect(labelForCell('fountain', fountainPos(1, 0, f3))).toBe('FOUNTAIN N')  // rim edge
+    expect(labelForCell('fountain', fountainPos(0, 0, f3))).toBe('FOUNTAIN TOP-LEFT') // rim corner
+    expect(labelForCell('fountain', fountainPos(1, 0, f3))).toBe('FOUNTAIN TOP')  // rim edge
     expect(labelForCell('fountain', fountainPos(1, 1, f3))).toBe('FOUNTAIN CENTER')
     // 5×5 fountain → rim, then a WATER ring, then the CENTER cell.
     const f5 = { col: 0, row: 0, w: 5, h: 5 }
-    expect(labelForCell('fountain', fountainPos(0, 0, f5))).toBe('FOUNTAIN NW') // rim corner
+    expect(labelForCell('fountain', fountainPos(0, 0, f5))).toBe('FOUNTAIN TOP-LEFT') // rim corner
     expect(labelForCell('fountain', fountainPos(1, 1, f5))).toBe('FOUNTAIN WATER') // inner ring
     expect(labelForCell('fountain', fountainPos(2, 2, f5))).toBe('FOUNTAIN CENTER')
     expect(footprintRing(0, 0, f5)).toBe(0) // rim
@@ -967,7 +967,7 @@ describe('labelForCell — ONE consistent debug-label standard across every elem
     for (const [type, pos] of inputs) {
       expect(labelForCell(type, pos)).toBe(labelForCell(type, pos)) // deterministic, view-agnostic
     }
-    expect(labelForCell('building', 'NE')).toBe('BUILDING NE')
-    expect(labelForCell('tree', 'CANOPY NE')).toBe('TREE CANOPY NE')
+    expect(labelForCell('building', 'TOP-RIGHT')).toBe('BUILDING TOP-RIGHT')
+    expect(labelForCell('tree', 'CANOPY TOP-RIGHT')).toBe('TREE CANOPY TOP-RIGHT')
   })
 })

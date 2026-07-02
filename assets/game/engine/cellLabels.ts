@@ -157,3 +157,23 @@ export function autotileLabel(family: MassFamily, filled: Filled, col: number, r
   const slot = SLOT_BY_SIGNATURE[openSignature(filled, col, row)] ?? 'interior'
   return family[slot]
 }
+
+// The ONE display vocabulary for an autotile slot — the position tokens every cell caption uses
+// (terrain, trees, buildings) so a label reads the SAME everywhere: <TYPE> <POSITION>. Hyphenated
+// corners (TOP-LEFT) per the tileset-label spec; a fully-surrounded fill cell is INTERIOR.
+export const SLOT_TOKEN: Readonly<Record<keyof MassFamily, string>> = {
+  topLeft: 'TOP-LEFT', top: 'TOP', topRight: 'TOP-RIGHT',
+  edgeLeft: 'LEFT', interior: 'INTERIOR', edgeRight: 'RIGHT',
+  bottomLeft: 'BOTTOM-LEFT', bottom: 'BOTTOM', bottomRight: 'BOTTOM-RIGHT',
+}
+
+/**
+ * The 9-piece autotile POSITION token (TOP-LEFT / TOP / … / INTERIOR) for a filled cell, from its
+ * 8-neighbourhood — the SAME scheme trees/buildings use, exposed so ANY material (a terrain mass:
+ * grass, water, path, …) autotiles into edge/corner/interior pieces for accurate tile replacement.
+ * Pure: depends only on which same-material neighbours are present.
+ */
+export function autotilePosition(filled: Filled, col: number, row: number): string {
+  const slot = SLOT_BY_SIGNATURE[openSignature(filled, col, row)] ?? 'interior'
+  return SLOT_TOKEN[slot]
+}

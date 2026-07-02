@@ -7,6 +7,7 @@ import { entityArtFrame, entityFootprint } from '@/engine/entityArt'
 import { type QuestMarker } from '@/engine/entityQuestMarker'
 import { motionPos } from '@/engine/movement'
 import { edgeToSide, footprintRing, footprintSide, labelForCell, treeSubpart } from '@/engine/stageGenerator'
+import { terrainCaptions } from '@/engine/terrainLabels'
 import { isDead } from '@/game/combat'
 import { HIT_MARKER_MS, type HitMarker } from '@/game/runtime/combat'
 import { type PlayerState } from '@/game/runtime/player'
@@ -679,6 +680,48 @@ export function debugCellCaptions(assets: readonly GridAsset[]): { col: number; 
 }
 
 
+/** The debug label for EVERY cell, keyed "col,row": the TERRAIN autotile label (GRASS TOP-LEFT …)
+ *  for the ground, OVERRIDDEN by the asset caption (BUILDING TOP-LEFT, TREE CANOPY …) where a cell
+ *  carries a placed element. So no cell is ever unlabeled and every label follows one <TYPE>
+ *  <POSITION> vocabulary — the tileset-replacement key the whole grid is built around. */
+export function cellCaptionMap(
+  ground: readonly (readonly string[])[],
+  assets: readonly GridAsset[],
+): Map<string, { col: number; row: number; type: string; text: string }> {
+  const m = new Map<string, { col: number; row: number; type: string; text: string }>()
+  for (const t of terrainCaptions(ground)) m.set(`${t.col},${t.row}`, { col: t.col, row: t.row, type: 'terrain', text: t.label })
+  for (const a of debugCellCaptions(assets)) m.set(`${a.col},${a.row}`, { col: a.col, row: a.row, type: a.type, text: a.text })
+  return m
+}
+
+/** Draw a debug cell label CENTERED in its cell, shrinking the font until it fits `maxW` — so a
+ *  label always sits on its own cell (aligned to the position it names) and can NEVER overflow into
+ *  the neighbour (the old floating pills overlapped into "BUILDING WING INTERIOR" soup). */
+export function drawCellLabel(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  cx: number,
+  cy: number,
+  maxW: number,
+  fg: string,
+  bg: string,
+): void {
+  let px = Math.min(11, maxW * 0.24)
+  ctx.font = `bold ${px}px ${ASCII_FONT}`
+  let w = ctx.measureText(text).width
+  if (w > maxW - 2) {
+    px *= (maxW - 2) / w
+    ctx.font = `bold ${px}px ${ASCII_FONT}`
+    w = ctx.measureText(text).width
+  }
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.fillStyle = bg
+  ctx.fillRect(cx - w / 2 - 1, cy - px * 0.7, w + 2, px * 1.4)
+  ctx.fillStyle = fg
+  ctx.fillText(text, cx, cy)
+}
+
 /** Caption fg/bg for an asset's debug label, keyed by type — shared by the iso + 2D overlays
  *  so both views colour BUILDING/TREE/WATER/… identically. */
 export function debugLabelColors(type: string): { fg: string; bg: string } {
@@ -692,6 +735,7 @@ export function debugLabelColors(type: string): { fg: string; bg: string } {
     case 'crate':
     case 'lamp': return { fg: '#ffff44', bg: 'rgba(60, 60, 0, 0.8)' }
     case 'flower': return { fg: '#ff88ff', bg: 'rgba(60, 0, 60, 0.8)' }
+    case 'terrain': return { fg: '#d8e0c0', bg: 'rgba(20, 30, 15, 0.72)' } // ground autotile labels
     default: return { fg: '#ffffff', bg: 'rgba(0, 0, 0, 0.7)' }
   }
 }

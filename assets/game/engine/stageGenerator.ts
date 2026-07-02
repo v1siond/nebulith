@@ -679,11 +679,21 @@ export function footprintEdgeClass(col: number, row: number, rect: FootRect): Bu
 // IDENTICAL across the top / 2D / iso views because all three build their captions through
 // these PURE helpers (no view computes a label on its own).
 
-/** The uppercase POSITION token for a footprint cell — the corner/edge/interior CLASS turned
- *  into a caption token: corners NE/NW/SE/SW, edges N/S/E/W, INTERIOR for an inner cell. The
- *  single place a class is uppercased, so a building cell and a fountain cell read the same. */
+// A footprint edge CLASS (n/s/e/w/nw/ne/sw/se/interior) → the ONE shared POSITION vocabulary
+// (TOP/BOTTOM/LEFT/RIGHT + hyphenated corners + INTERIOR) that terrain autotiling also uses, so a
+// building/fountain cell reads the SAME token format as a grass cell — the consistency the tileset
+// swap needs. Mirrors cellLabels.SLOT_TOKEN (compass class ↔ autotile slot).
+const EDGE_TOKEN: Readonly<Record<string, string>> = {
+  n: 'TOP', s: 'BOTTOM', e: 'RIGHT', w: 'LEFT',
+  nw: 'TOP-LEFT', ne: 'TOP-RIGHT', sw: 'BOTTOM-LEFT', se: 'BOTTOM-RIGHT',
+  interior: 'INTERIOR',
+}
+
+/** The POSITION token for a footprint cell — corner/edge/interior CLASS → the shared display token
+ *  (TOP-LEFT/TOP/…/INTERIOR). The single place a class is tokenized, so a building cell, a fountain
+ *  cell, and a grass cell all read the same `<TYPE> <POSITION>` format. */
 export function edgeToSide(edge: string): string {
-  return edge === 'interior' ? 'INTERIOR' : edge.toUpperCase()
+  return EDGE_TOKEN[edge] ?? edge.toUpperCase()
 }
 
 /** Generalizes footprintEdgeClass into the caption SIDE for ANY multi-cell element (tree mass,
@@ -706,9 +716,9 @@ export function footprintRing(col: number, row: number, rect: FootRect): number 
 const TREE_TRUNK_LABELS: ReadonlySet<string> = new Set(['tree_stem_bottom', 'tree_stem', 'tree_snag'])
 const TREE_CANOPY_TOP_LABELS: ReadonlySet<string> = new Set(['tree_crown', 'tree_leaf_top'])
 const TREE_MASS_SIDE: Readonly<Record<string, string>> = {
-  tree_top_left: 'NW', tree_top: 'N', tree_top_right: 'NE',
-  tree_edge_left: 'W', tree_interior: 'INTERIOR', tree_edge_right: 'E',
-  tree_bottom_left: 'SW', tree_bottom: 'S', tree_bottom_right: 'SE',
+  tree_top_left: 'TOP-LEFT', tree_top: 'TOP', tree_top_right: 'TOP-RIGHT',
+  tree_edge_left: 'LEFT', tree_interior: 'INTERIOR', tree_edge_right: 'RIGHT',
+  tree_bottom_left: 'BOTTOM-LEFT', tree_bottom: 'BOTTOM', tree_bottom_right: 'BOTTOM-RIGHT',
 }
 
 /** A tree cell's debug sub-part from its CellLabel: 'TRUNK' for stem/snag cells, 'CANOPY TOP' for

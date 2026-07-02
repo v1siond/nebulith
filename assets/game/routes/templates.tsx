@@ -51,7 +51,7 @@ import { type Trigger, type TriggerEffect, fireTriggers } from '@/game/runtime/t
 import { ASCII_STYLE, type Style, styleById, groundKind, assetKind, entityKind, genderize, resolveVisual, visualForTileId } from '@/game/artStyle'
 import { useRouter } from 'next/router'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { render, render2D, renderTopView, clampCameraAxis, isoCameraFocus, entityMotion, ENEMY_MOVE_MS, isDebugMode, setDebugMode, type DayNight } from '@/engine/render'
+import { render, render2D, renderTopView, clampCameraAxis, isoCameraFocus, entityMotion, ENEMY_MOVE_MS, isDebugMode, setDebugMode, cellCaptionMap, type DayNight } from '@/engine/render'
 import { type QuestDraft, emptyQuestDraft, questFromDraft } from '@/game/runtime/questDraft'
 import { buildingPlacementEnv, nearestRoadFacing, stampBuildingCells, unstampBuildingCells } from '@/game/runtime/buildings'
 import { type Cursor, type JumpState, JUMP_MS, JUMP_PEAK_PX, advanceEnemyMovement, beginJump, tickCannons } from '@/game/runtime/movement'
@@ -1364,6 +1364,23 @@ export default function TemplateEditor() {
       __selectCells?: (keys: string[]) => number
       __applyCellTile?: (tileId: string | null) => void
       __clearRegion?: (col0: number, row0: number, col1: number, row1: number) => void
+      __setDebug?: (v: boolean) => void
+      __cellLabels?: (col0: number, row0: number, col1: number, row1: number) => unknown
+    }
+    // Debug-overlay + tileset-label validation seams: toggle the label overlay, and DUMP the
+    // `<TYPE> <POSITION>` label of every cell in a region (terrain autotile label overridden by an
+    // asset caption) — so "every cell carries a consistent tileset label" is validated as DATA.
+    win.__setDebug = (v: boolean) => setDebugMode(!!v)
+    win.__cellLabels = (col0: number, row0: number, col1: number, row1: number) => {
+      const grid = gridRef.current
+      if (!grid) return null
+      const caps = cellCaptionMap(grid.ground, grid.assets)
+      const out: { col: number; row: number; label: string; type: string }[] = []
+      for (let r = row0; r <= row1; r++) for (let c = col0; c <= col1; c++) {
+        const cap = caps.get(`${c},${r}`)
+        out.push({ col: c, row: r, label: cap?.text ?? '(none)', type: cap?.type ?? 'none' })
+      }
+      return out
     }
     // Cell-editing validation seams: read the current cell selection, set it, and pin a tile to it — so
     // "select any cell + replace it" is validated deterministically (independent of click/drag timing).
@@ -1468,7 +1485,7 @@ export default function TemplateEditor() {
       setSelectedCells(new Set([`${best.col},${best.row}`]))
       return best
     }
-    return () => { delete win.__setArtStyle; delete win.__selectFirstTreeCell; delete win.__setView; delete win.__gridKinds; delete win.__entityInfo; delete win.__entityScreens; delete win.__selectEntity; delete win.__selectedEntityInfo; delete win.__placeBuilding; delete win.__selectBuilding; delete win.__resizeBuilding; delete win.__selectedBuildingLen; delete win.__cellSel; delete win.__selectCells; delete win.__applyCellTile; delete win.__clearRegion }
+    return () => { delete win.__setArtStyle; delete win.__selectFirstTreeCell; delete win.__setView; delete win.__gridKinds; delete win.__entityInfo; delete win.__entityScreens; delete win.__selectEntity; delete win.__selectedEntityInfo; delete win.__placeBuilding; delete win.__selectBuilding; delete win.__resizeBuilding; delete win.__selectedBuildingLen; delete win.__cellSel; delete win.__selectCells; delete win.__applyCellTile; delete win.__clearRegion; delete win.__setDebug; delete win.__cellLabels }
   }, [])
 
   // ── Selected-entity inspector actions ─────────────────────────────
