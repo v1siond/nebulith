@@ -253,6 +253,35 @@ export function fillTintedGlyph(ctx: CanvasRenderingContext2D, char: string, x: 
 }
 
 
+/** Give a flat emoji real Z-WIDTH by EXTRUDING the sprite itself (never the ASCII box): the same glyph
+ *  is stacked into the iso "up/back" direction, each copy darker the deeper it sits, then the bright
+ *  face caps the front — so a 🏠/🏛️/🏰 reads as a 3D volume rising off the ground, not a sticker on it.
+ *  `(cx,cy)` is the front-face CENTRE (sits on the footprint); `liftPx` is the extrusion depth (height).
+ *  A soft ground shadow first grounds it. */
+export function drawExtrudedGlyph(ctx: CanvasRenderingContext2D, emoji: string, cx: number, cy: number, glyphPx: number, liftPx: number): void {
+  ctx.save()
+  ctx.font = `${glyphPx}px ${ASCII_FONT}`
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  // grounding shadow, offset opposite the light so the volume reads as planted
+  ctx.fillStyle = 'rgba(0,0,0,0.22)'
+  ctx.beginPath()
+  ctx.ellipse(cx, cy + glyphPx * 0.34, glyphPx * 0.42, glyphPx * 0.16, 0, 0, Math.PI * 2)
+  ctx.fill()
+  const steps = Math.max(6, Math.round(liftPx / 1.5))
+  const dx = (liftPx * 0.16) / steps // slight rightward skew → reads as an iso extrusion, not a vertical stretch
+  const dy = -liftPx / steps // main axis: upward = height/z-width
+  // Extruded body: farthest (top/back) first so nearer copies paint over it; darker the deeper it is.
+  for (let i = steps; i >= 1; i--) {
+    const t = i / steps
+    fillTintedGlyph(ctx, emoji, cx + dx * i, cy + dy * i, glyphPx, '#0b0d18', 0.32 + 0.34 * t)
+  }
+  // Bright front face on top of the stack, sitting on the footprint.
+  ctx.fillText(emoji, cx, cy)
+  ctx.restore()
+}
+
+
 /** Clamp a camera focus coord (in cells) so a viewport spanning `halfSpan` cells
  *  each side stays inside [0, total]; if the grid is smaller than the viewport,
  *  centre it. Used by the orthographic 2D + top views. */
