@@ -300,6 +300,7 @@ export function render(
   dayNight: DayNight = 'day',
   attackReach: number = 1,
   style: Style = ASCII_STYLE,
+  clampCamera: boolean = true,
 ) {
   const __isoT0 = perfNow() // perf probe — rolling avg of render() ms, exposed on window.__isoRenderMs
   // Clear
@@ -320,14 +321,11 @@ export function render(
   // way to the top/bottom corners — the old combined (pPad+qPad)/2 col/row clamp kept the whole
   // rect inside the diamond but stopped the camera pPad short of the bottom/top rows (#38). p is
   // then clamped to the diamond's width AT THAT HEIGHT so the sides stay inside it.
-  const { fc, fr } = isoCameraFocus(
-    (player.x - camOffset.x) / cellSize,
-    (player.z - camOffset.y) / cellSize,
-    pPad,
-    qPad,
-    grid.cols,
-    grid.rows,
-  )
+  // Clamp the camera to the map ONLY in game mode (predefined zooms, no drag). In dev mode the clamp
+  // fought drag-to-pan — the system couldn't decide when to limit — so there the camera pans freely.
+  const rawFc = (player.x - camOffset.x) / cellSize
+  const rawFr = (player.z - camOffset.y) / cellSize
+  const { fc, fr } = clampCamera ? isoCameraFocus(rawFc, rawFr, pPad, qPad, grid.cols, grid.rows) : { fc: rawFc, fr: rawFr }
   const camX = fc * cellSize
   const camZ = fr * cellSize
 
@@ -1013,6 +1011,14 @@ export const ROOF_OVERHANG = 0.3 // peaked-roof eaves stick out past the walls
 export const ROOF_RIDGE_FRAC = 0.46 // peaked-roof flat-top width as a fraction of length
 
 
+// Interior FLOOR colour per building type — shown when a house FADES in iso so you see the floor,
+// not the grass beneath. First-pass per-type tone; real floor TILES (wood/stone) come with the
+// authored tileset, and interior details (table, ornaments) will sit on this floor.
+const BUILDING_FLOOR: Readonly<Record<string, string>> = {
+  house: '#9a7b52', 'big-house': '#9a7b52', store: '#b8b0a2', hospital: '#d0ccc4',
+  cathedral: '#8f8a7e', temple: '#9c9384', castle: '#837d72',
+}
+
 /** ISO building = the 2D facade standing at its plot, sheared onto the iso angle, drawn as a
  *  SOLID box — all four walls + every roof face filled, so it never shows through from any
  *  facing — with the z-depth extruded along depthVec. Houses get a peaked (trapezoid-prism)
@@ -1041,7 +1047,13 @@ export function drawIsoBuilding(
   // Segoe black-silhouette entirely (no glyph stacking). Per-TYPE identity (temple vs castle) is a
   // per-type tileset, authored — not a single landmark glyph.
   const bodyH = H - ROOF_ROWS // wall/window/door rows
-  const up = (n: number): Pt => ({ x: 0, y: -n * cellH })
+  // Cap the DRAWN height at the base's LARGER dimension (max(length, depth)) so a tall building can't
+  // tower over — and visually spill onto — the road/grass behind it. Only the walkable roof apex may
+  // sit over the back cell; everything else stays within the base. Vertical-only scale (footprint +
+  // tile widths unchanged), so a tall facade compresses to fit its base.
+  const maxBaseDim = Math.max(L, Math.max(1, Math.round(b.depth)))
+  const vCell = cellH * (H > maxBaseDim ? maxBaseDim / H : 1)
+  const up = (n: number): Pt => ({ x: 0, y: -n * vCell })
   // Houses peak (composeBuilding leaves empty corners in row 0); flat types keep a box roof.
   const peaked = (b.cells[0] ?? []).some(k => k === 'empty')
 
@@ -1049,6 +1061,7 @@ export function drawIsoBuilding(
   // are shaded by orientation (front brightest → back darkest); the facade tiles (door/windows) use
   // the full palette.
   const tcol = b.type as BuildingType
+  const floorC = BUILDING_FLOOR[tcol] ?? '#9a7b52' // interior floor shown when the house fades (see floor, not grass)
   // A reskin (Emoji/image style) tints the SAME cube (roof colour on the roof faces, wall on the
   // walls, door/window at their own hue) AND — via tileFace below — overlays the real tile SHEARED
   // onto each face, so the box reads as brick/tiled at the iso angle (the emoji test for real
@@ -1173,6 +1186,15 @@ export function drawIsoBuilding(
   ctx.fill()
   ctx.restore()
 
+  // FLOOR — a solid interior floor over the footprint, drawn OPAQUE (its own alpha) so a FADED house
+  // reveals its floor instead of the grass beneath. When not faded the solid box covers it; interior
+  // details (table, ornaments) will later sit on this floor.
+  ctx.save()
+  ctx.globalAlpha = 1
+  ctx.fillStyle = floorC
+  fillQuad(ctx, fbl, fbr, bbr, bbl)
+  ctx.restore()
+
   // Paint the facade tiles (door/windows) onto one face. `base` is that face's bottom-left corner.
   const drawFacade = (base: Pt): void => {
     for (let r = 0; r < H; r++) {
@@ -1181,7 +1203,7 @@ export function drawIsoBuilding(
         const kind = b.cells[r]?.[c]
         if (!kind || kind === 'empty') continue
         const bl = ptAdd(ptAdd(base, ptScale(colVec, c)), up(H - 1 - r))
-        drawIsoFacadeTile(ctx, bl, colVec, cellH, kind, flicker, facadeColors, style, wallTile)
+        drawIsoFacadeTile(ctx, bl, colVec, vCell, kind, flicker, facadeColors, style, wallTile)
       }
     }
   }

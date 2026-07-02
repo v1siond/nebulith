@@ -357,6 +357,8 @@ export default function TemplateEditor() {
   // Quests buttons (+ an Exit). Movement, combat and the connector flow all keep
   // running (the game loop never gated on chrome), so you can just play the level.
   const [playMode, setPlayMode] = useState(false)
+  const playModeRef = useRef(false) // live playMode for the raf render loop (mirrors activeStyleRef)
+  useEffect(() => { playModeRef.current = playMode }, [playMode])
   const [isMobile, setIsMobile] = useState(false)
 
   // Detect mobile
@@ -3934,7 +3936,7 @@ export default function TemplateEditor() {
       } else if (viewTypeRef.current === '2d') {
         render2D(ctx, canvas.width, canvas.height, grid, player, time, zoomRef.current, camOffsetRef.current, renderEntities, runtime.combat, connectorsRef.current, questsRef.current, dayNightRef.current, attackAnimsRef.current, hitMarkersRef.current, projectilesRef.current, weaponReach(playerWeaponRef.current), activeStyleRef.current)
       } else {
-        render(ctx, canvas.width, canvas.height, grid, player, time, camOffsetRef.current, renderEntities, runtime.combat, hitMarkersRef.current, time, isoZoomRef.current, attackAnimsRef.current, connectorsRef.current, questsRef.current, projectilesRef.current, dayNightRef.current, weaponReach(playerWeaponRef.current), activeStyleRef.current)
+        render(ctx, canvas.width, canvas.height, grid, player, time, camOffsetRef.current, renderEntities, runtime.combat, hitMarkersRef.current, time, isoZoomRef.current, attackAnimsRef.current, connectorsRef.current, questsRef.current, projectilesRef.current, dayNightRef.current, weaponReach(playerWeaponRef.current), activeStyleRef.current, playModeRef.current)
       }
       // Drop finished attack animations (kept tiny — a few in flight at once).
       if (attackAnimsRef.current.length > 0) {
