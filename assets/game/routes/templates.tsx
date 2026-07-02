@@ -1375,10 +1375,10 @@ export default function TemplateEditor() {
       const grid = gridRef.current
       if (!grid) return null
       const caps = cellCaptionMap(grid.ground, grid.assets)
-      const out: { col: number; row: number; label: string; type: string }[] = []
+      const out: { col: number; row: number; label: string; type: string; blocked: boolean }[] = []
       for (let r = row0; r <= row1; r++) for (let c = col0; c <= col1; c++) {
         const cap = caps.get(`${c},${r}`)
-        out.push({ col: c, row: r, label: cap?.text ?? '(none)', type: cap?.type ?? 'none' })
+        out.push({ col: c, row: r, label: cap?.text ?? '(none)', type: cap?.type ?? 'none', blocked: grid.isBlocked(c, r) })
       }
       return out
     }
