@@ -1367,7 +1367,9 @@ export default function TemplateEditor() {
       __clearRegion?: (col0: number, row0: number, col1: number, row1: number) => void
       __setDebug?: (v: boolean) => void
       __cellLabels?: (col0: number, row0: number, col1: number, row1: number) => unknown
+      __camOffset?: () => { x: number; y: number }
     }
+    win.__camOffset = () => ({ ...camOffsetRef.current })
     // Debug-overlay + tileset-label validation seams: toggle the label overlay, and DUMP the
     // `<TYPE> <POSITION>` label of every cell in a region (terrain autotile label overridden by an
     // asset caption) — so "every cell carries a consistent tileset label" is validated as DATA.

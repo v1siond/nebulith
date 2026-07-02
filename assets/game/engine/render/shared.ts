@@ -351,8 +351,12 @@ export function clampCameraAxis(focus: number, halfSpan: number, total: number):
  *  is narrower than the viewport, centre it. The general form of clampCameraAxis (which is just
  *  this with lo = 0, hi = total). */
 export function clampCameraSpan(focus: number, pad: number, lo: number, hi: number): number {
+  // Map SMALLER than the viewport (span ≤ 2·pad) → re-centre it. Otherwise clamp the focus to the
+  // MAP EXTENT [lo, hi] so ANY cell (incl. the corners) can be dragged to centre — free pan. The old
+  // `[lo+pad, hi-pad]` kept the whole viewport inside the map, which for a viewport ~as big as the map
+  // pinned the camera so dragging did nothing (you may now see a little void past an edge — expected).
   if (hi - lo <= pad * 2) return (lo + hi) / 2
-  return Math.min(Math.max(focus, lo + pad), hi - pad)
+  return Math.min(Math.max(focus, lo), hi)
 }
 
 
