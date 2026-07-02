@@ -711,11 +711,11 @@ export default function TemplateEditor() {
       return
     }
 
-    // Play views (iso/2d): LEFT-click + drag pans the camera — UNLESS a placement tool is armed
-    // (entity / building / connector), OR SHIFT is held (shift+drag bulk-SELECTS cells in iso/2d, just
-    // like a plain drag does in top view — so you can select/clear/replace cells in any view). Pan with
-    // plain left-drag or middle/right-drag.
-    if (e.button === 0 && !topViewMode && !entityTool && !buildingTool && !connectorMode && !e.shiftKey) {
+    // ALL views (iso/2d/top): LEFT-click + drag pans the camera — UNLESS a placement tool is armed
+    // (entity / building / connector), OR SHIFT is held (shift+drag bulk-SELECTS cells in every view).
+    // Plain left-drag pans, shift+drag selects — the SAME gesture everywhere (top view no longer
+    // hijacks plain drag for select, which is why the screen wouldn't move). Middle/right-drag also pans.
+    if (e.button === 0 && !entityTool && !buildingTool && !connectorMode && !e.shiftKey) {
       // Defer the decision: clean click → select the entity here; drag → pan (mouse-up decides).
       downCellRef.current = screenToCell(e.clientX, e.clientY)
       dragMovedRef.current = false
@@ -858,7 +858,8 @@ export default function TemplateEditor() {
     // standing FIGURE (drawn above its foot cell) selects it, not only a click on the exact cell.
     if (isPanning && !dragMovedRef.current && downCellRef.current) {
       const c = downCellRef.current
-      const hit = entityAtClick(entitiesRef.current, c.col, c.row, viewTypeRef.current === '2d' ? '2d' : 'iso')
+      const clickView = topViewMode ? 'top' : viewTypeRef.current === '2d' ? '2d' : 'iso'
+      const hit = entityAtClick(entitiesRef.current, c.col, c.row, clickView)
       if (hit) {
         setSelectedEntityId(hit.id)
       } else {
