@@ -16,7 +16,7 @@ import { type PlayerState, barFraction, hpFraction, playerDisplayName } from '@/
 import { type CombatState, type Entity, type Quest } from '@/game/types'
 import { GROUND_COLORS } from '@/levels/village'
 import { Connector } from '@/lib/api'
-import { ASCII_FONT, BUILDING_BADGES, COMBAT_RANGE, type DayNight, ENEMY_MOVE_MS, LAMP_GLOW, applyCellTransform, clampCameraAxis, cellCaptionMap, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawNightLighting, drawPlayerArm, drawQuestMarker, drawRangeRing, drawStyledImage, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, getPlayerArt, grassShade, cellFill, fillTintedGlyph, drawBuildingLandmark, idleNow, isDeadEnemy, isDebugMode, resolveDraw, treeCanopyLayers } from './shared'
+import { ASCII_FONT, BUILDING_BADGES, COMBAT_RANGE, type DayNight, ENEMY_MOVE_MS, LAMP_GLOW, applyCellTransform, clampCameraAxis, assetCaptionByCell, terrainLabelAt, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawNightLighting, drawPlayerArm, drawQuestMarker, drawRangeRing, drawStyledImage, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, getPlayerArt, grassShade, cellFill, fillTintedGlyph, drawBuildingLandmark, idleNow, isDeadEnemy, isDebugMode, resolveDraw, treeCanopyLayers } from './shared'
 import { ASCII_STYLE, assetKind, buildingLandmarkEmoji, entityKind, enemyTileId, genderize, groundKind, type ElementKind, type Style } from '@/game/artStyle'
 import { DEFAULT_CHARACTER_ANIMATIONS, activeFrame } from '@/game/runtime/entityAnimation'
 
@@ -856,7 +856,7 @@ export function render2D(
     // the terrain label (GRASS TOP-LEFT …) or, where a cell carries a placed element, its asset caption
     // (BUILDING TOP-LEFT, TREE CANOPY …). Each label is centred IN its own cell + shrunk to fit, so it
     // aligns to the position it names and never overflows into the neighbour. Coords sit tiny in the corner.
-    const captions = cellCaptionMap(grid.ground, grid.getVisibleAssets(Math.floor(player.x / cellSize), Math.floor(player.z / cellSize), 30, 20))
+    const assetCaps = assetCaptionByCell(grid.getVisibleAssets(Math.floor(player.x / cellSize), Math.floor(player.z / cellSize), 30, 20))
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)'
     ctx.lineWidth = 1
     for (let row = startRow; row < startRow + tilesY; row++) {
@@ -869,11 +869,10 @@ export function render2D(
         ctx.textBaseline = 'top'
         ctx.fillStyle = grid.collision[row]?.[col] ? 'rgba(255,150,150,0.75)' : 'rgba(150,255,150,0.6)'
         ctx.fillText(`${col},${row}`, p.x - tileW / 2 + 2, p.y - tileH / 2 + 1)
-        const cap = captions.get(`${col},${row}`)
-        if (cap) {
-          const { fg, bg } = debugLabelColors(cap.type)
-          drawCellLabel(ctx, cap.text, p.x, p.y + tileH * 0.12, tileW - 3, fg, bg)
-        }
+        const ac = assetCaps.get(`${col},${row}`)
+        const text = ac?.text ?? terrainLabelAt(grid.ground, col, row)
+        const lc = debugLabelColors(ac?.type ?? 'terrain')
+        drawCellLabel(ctx, text, p.x, p.y + tileH * 0.12, tileW - 3, lc.fg, lc.bg)
       }
     }
 

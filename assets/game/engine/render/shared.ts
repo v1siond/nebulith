@@ -253,32 +253,88 @@ export function fillTintedGlyph(ctx: CanvasRenderingContext2D, char: string, x: 
 }
 
 
-/** Give a flat emoji real Z-WIDTH by EXTRUDING the sprite itself (never the ASCII box): the same glyph
- *  is stacked into the iso "up/back" direction, each copy darker the deeper it sits, then the bright
- *  face caps the front — so a 🏠/🏛️/🏰 reads as a 3D volume rising off the ground, not a sticker on it.
- *  `(cx,cy)` is the front-face CENTRE (sits on the footprint); `liftPx` is the extrusion depth (height).
- *  A soft ground shadow first grounds it. */
-export function drawExtrudedGlyph(ctx: CanvasRenderingContext2D, emoji: string, cx: number, cy: number, glyphPx: number, liftPx: number): void {
-  ctx.save()
-  ctx.font = `${glyphPx}px ${ASCII_FONT}`
-  ctx.textAlign = 'center'
-  ctx.textBaseline = 'middle'
-  // grounding shadow, offset opposite the light so the volume reads as planted
-  ctx.fillStyle = 'rgba(0,0,0,0.22)'
-  ctx.beginPath()
-  ctx.ellipse(cx, cy + glyphPx * 0.34, glyphPx * 0.42, glyphPx * 0.16, 0, 0, Math.PI * 2)
-  ctx.fill()
-  const steps = Math.max(6, Math.round(liftPx / 1.5))
-  const dx = (liftPx * 0.16) / steps // slight rightward skew → reads as an iso extrusion, not a vertical stretch
-  const dy = -liftPx / steps // main axis: upward = height/z-width
-  // Extruded body: farthest (top/back) first so nearer copies paint over it; darker the deeper it is.
+// ── emoji z-width extrusion (cached, in the emoji's OWN colours) ─────────────────────────────────
+// A tile is not "an emoji" — it's a tileset cell that, in iso, is a 3D BLOCK. We extrude the emoji
+// sprite up the iso axis so it gains z-width, but the extruded body keeps the emoji's OWN colours
+// (a darkened copy — hue preserved, NOT black) and the whole block is rendered ONCE to an offscreen
+// and cached, so per-frame is a single blit (no re-rasterising the glyph dozens of times = the perf).
+type ExtrudedSprite = { canvas: HTMLCanvasElement; ax: number; ay: number } // ax,ay = front-face centre in-canvas
+const _extrudeCache = new Map<string, ExtrudedSprite | null>()
+
+/** One emoji rasterised to its own S×S sprite; `dark` (0–1) overlays a dark wash source-atop so the
+ *  glyph's colours DARKEN (hue kept) for the extruded side faces — never a flat black silhouette. */
+function rasterEmoji(emoji: string, glyphPx: number, dark: number): HTMLCanvasElement | null {
+  if (typeof document === 'undefined') return null
+  const S = Math.ceil(glyphPx * 1.4)
+  const cv = document.createElement('canvas')
+  cv.width = S
+  cv.height = S
+  const c = cv.getContext('2d')
+  if (!c) return null
+  c.font = `${glyphPx}px ${ASCII_FONT}`
+  c.textAlign = 'center'
+  c.textBaseline = 'middle'
+  c.fillText(emoji, S / 2, S / 2)
+  if (dark > 0) {
+    c.globalCompositeOperation = 'source-atop'
+    c.globalAlpha = dark
+    c.fillStyle = '#0a1020'
+    c.fillRect(0, 0, S, S)
+  }
+  return cv
+}
+
+function extrudedSprite(emoji: string, glyphPx: number, liftPx: number): ExtrudedSprite | null {
+  const key = `${emoji}|${Math.round(glyphPx)}|${Math.round(liftPx)}`
+  const hit = _extrudeCache.get(key)
+  if (hit !== undefined) return hit
+  const bright = rasterEmoji(emoji, glyphPx, 0)
+  const dark = rasterEmoji(emoji, glyphPx, 0.38) // darkened EMOJI (keeps hue) → the extruded sides
+  if (!bright || !dark) { _extrudeCache.set(key, null); return null }
+  const S = bright.width
+  const steps = Math.max(4, Math.round(liftPx)) // 1px steps → a SOLID extrusion, no gaps
+  const dxTot = liftPx * 0.5 // iso skew: up + right ≈ the isometric angle (not a vertical stretch)
+  const W = Math.ceil(S + dxTot)
+  const H = Math.ceil(S + liftPx)
+  const cv = document.createElement('canvas')
+  cv.width = W
+  cv.height = H
+  const c = cv.getContext('2d')
+  if (!c) { _extrudeCache.set(key, null); return null }
+  const frontX = 0
+  const frontY = liftPx // front face sits at the bottom; body extrudes up into the top band
   for (let i = steps; i >= 1; i--) {
     const t = i / steps
-    fillTintedGlyph(ctx, emoji, cx + dx * i, cy + dy * i, glyphPx, '#0b0d18', 0.32 + 0.34 * t)
+    c.drawImage(dark, frontX + dxTot * t, frontY - liftPx * t)
   }
-  // Bright front face on top of the stack, sitting on the footprint.
-  ctx.fillText(emoji, cx, cy)
+  c.drawImage(bright, frontX, frontY)
+  const sprite: ExtrudedSprite = { canvas: cv, ax: frontX + S / 2, ay: frontY + S / 2 }
+  _extrudeCache.set(key, sprite)
+  return sprite
+}
+
+/** Give an emoji real Z-WIDTH by EXTRUDING the sprite (never the ASCII box): a cached 3D block whose
+ *  sides are the emoji's OWN colours darkened, capped by the bright front face — so a 🏠/🏛️/🏰 reads
+ *  as a volume standing on the iso ground. `(cx,cy)` = the front-face CENTRE on the footprint; `liftPx`
+ *  = the z-height. Cached per (emoji,size,lift): one blit per frame. Grounding shadow first. */
+export function drawExtrudedGlyph(ctx: CanvasRenderingContext2D, emoji: string, cx: number, cy: number, glyphPx: number, liftPx: number): void {
+  ctx.save()
+  ctx.fillStyle = 'rgba(0,0,0,0.22)'
+  ctx.beginPath()
+  ctx.ellipse(cx, cy + glyphPx * 0.32, glyphPx * 0.42, glyphPx * 0.16, 0, 0, Math.PI * 2)
+  ctx.fill()
   ctx.restore()
+  const s = extrudedSprite(emoji, glyphPx, liftPx)
+  if (!s) { // SSR / no canvas → flat glyph, never a box
+    ctx.save()
+    ctx.font = `${glyphPx}px ${ASCII_FONT}`
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillText(emoji, cx, cy)
+    ctx.restore()
+    return
+  }
+  ctx.drawImage(s.canvas, cx - s.ax, cy - s.ay)
 }
 
 
@@ -723,6 +779,17 @@ export function cellCaptionMap(
   return m
 }
 
+/** Just the ASSET captions keyed "col,row" (cheap — the placed assets only). The debug overlay pairs
+ *  this with per-visible-cell `terrainLabelAt`, so it NEVER iterates the whole grid per frame (the
+ *  old cellCaptionMap did, which was the debug-mode perf sink). */
+export function assetCaptionByCell(assets: readonly GridAsset[]): Map<string, { type: string; text: string }> {
+  const m = new Map<string, { type: string; text: string }>()
+  for (const a of debugCellCaptions(assets)) m.set(`${a.col},${a.row}`, { type: a.type, text: a.text })
+  return m
+}
+
+export { terrainLabelAt } from '@/engine/terrainLabels'
+
 /** Draw a debug cell label CENTERED in its cell, shrinking the font until it fits `maxW` — so a
  *  label always sits on its own cell (aligned to the position it names) and can NEVER overflow into
  *  the neighbour (the old floating pills overlapped into "BUILDING WING INTERIOR" soup). */
@@ -735,14 +802,14 @@ export function drawCellLabel(
   fg: string,
   bg: string,
 ): void {
+  // Width is ESTIMATED from the char count (≈0.62em on this mono-ish font) — never measureText, which
+  // per visible cell per frame was the debug-overlay perf sink. Font is shrunk to fit maxW.
+  const CH = 0.62
   let px = Math.min(11, maxW * 0.24)
+  const wAt = (p: number): number => text.length * p * CH
+  if (wAt(px) > maxW - 2) px = (maxW - 2) / (text.length * CH)
+  const w = wAt(px)
   ctx.font = `bold ${px}px ${ASCII_FONT}`
-  let w = ctx.measureText(text).width
-  if (w > maxW - 2) {
-    px *= (maxW - 2) / w
-    ctx.font = `bold ${px}px ${ASCII_FONT}`
-    w = ctx.measureText(text).width
-  }
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
   ctx.fillStyle = bg

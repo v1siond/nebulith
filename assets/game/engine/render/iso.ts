@@ -16,7 +16,7 @@ import { type PlayerState, barFraction, hpFraction, playerDisplayName } from '@/
 import { type CombatState, type Entity, type Quest } from '@/game/types'
 import { GROUND_COLORS } from '@/levels/village'
 import { Connector } from '@/lib/api'
-import { ASCII_FONT, BUILDING_BADGES, COMBAT_RANGE, type DayNight, type DrawVisual, ENEMY_MOVE_MS, LAMP_GLOW, LIGHT, applyCellTransform, isoCameraFocus, cellCaptionMap, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawNightLighting, drawPlayerArm, drawQuestMarker, drawRangeRing, drawStyledImage, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, getPlayerArt, grassShade, cellFill, fillTintedGlyph, drawExtrudedGlyph, idleNow, isDeadEnemy, isDebugMode, resolveDraw, tileImage, treeCanopyLayers } from './shared'
+import { ASCII_FONT, BUILDING_BADGES, COMBAT_RANGE, type DayNight, type DrawVisual, ENEMY_MOVE_MS, LAMP_GLOW, LIGHT, applyCellTransform, isoCameraFocus, assetCaptionByCell, terrainLabelAt, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawNightLighting, drawPlayerArm, drawQuestMarker, drawRangeRing, drawStyledImage, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, getPlayerArt, grassShade, cellFill, fillTintedGlyph, drawExtrudedGlyph, idleNow, isDeadEnemy, isDebugMode, resolveDraw, tileImage, treeCanopyLayers } from './shared'
 import { ASCII_STYLE, assetKind, buildingLandmarkEmoji, entityKind, enemyTileId, genderize, groundKind, type ElementKind, type ImageVisual, type Style } from '@/game/artStyle'
 import { DEFAULT_CHARACTER_ANIMATIONS, activeFrame } from '@/game/runtime/entityAnimation'
 
@@ -1811,9 +1811,9 @@ export function renderDebugOverlays(
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
 
-  // The per-cell TILESET LABEL for every visible cell: terrain autotile label (GRASS TOP-LEFT …)
-  // overridden by the asset caption (BUILDING TOP-LEFT, TREE CANOPY …). Drawn centred IN each cell.
-  const captions = cellCaptionMap(grid.ground, grid.getVisibleAssets(Math.floor(player.x / cellSize), Math.floor(player.z / cellSize), 30, 20))
+  // Per-cell TILESET LABEL: the asset caption where a cell carries a placed element, else the terrain
+  // autotile label computed PER VISIBLE CELL (not a whole-grid rebuild — that was the debug perf sink).
+  const assetCaps = assetCaptionByCell(grid.getVisibleAssets(Math.floor(player.x / cellSize), Math.floor(player.z / cellSize), 30, 20))
 
   // Pass 1: collision tint + per-cell coords + the cell's <TYPE> <POSITION> label (fit to the diamond)
   for (let rz = 0; rz < tilesZ; rz++) {
@@ -1853,11 +1853,10 @@ export function renderDebugOverlays(
       ctx.fillText(`${col},${row}`, p.x - tileW * 0.42, p.y - tileH * 0.5)
 
       // The cell's tileset label, centred in the diamond + shrunk to fit (never overflows).
-      const cap = captions.get(`${col},${row}`)
-      if (cap) {
-        const { fg, bg } = debugLabelColors(cap.type)
-        drawCellLabel(ctx, cap.text, p.x, p.y, tileW * 1.7, fg, bg)
-      }
+      const ac = assetCaps.get(`${col},${row}`)
+      const text = ac?.text ?? terrainLabelAt(grid.ground, col, row)
+      const lc = debugLabelColors(ac?.type ?? 'terrain')
+      drawCellLabel(ctx, text, p.x, p.y, tileW * 1.7, lc.fg, lc.bg)
     }
   }
 
