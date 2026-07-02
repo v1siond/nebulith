@@ -16,7 +16,7 @@ import { type PlayerState, barFraction, hpFraction, playerDisplayName } from '@/
 import { type CombatState, type Entity, type Quest } from '@/game/types'
 import { GROUND_COLORS } from '@/levels/village'
 import { Connector } from '@/lib/api'
-import { ASCII_FONT, BUILDING_BADGES, COMBAT_RANGE, type DayNight, type DrawVisual, ENEMY_MOVE_MS, LAMP_GLOW, LIGHT, applyCellTransform, isoCameraFocus, assetCaptionByCell, terrainLabelAt, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawNightLighting, drawPlayerArm, drawQuestMarker, drawRangeRing, drawStyledImage, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, getPlayerArt, grassShade, cellFill, fillTintedGlyph, drawExtrudedGlyph, idleNow, isDeadEnemy, isDebugMode, resolveDraw, tileImage, treeCanopyLayers } from './shared'
+import { ASCII_FONT, BUILDING_BADGES, COMBAT_RANGE, type DayNight, type DrawVisual, ENEMY_MOVE_MS, LAMP_GLOW, LIGHT, applyCellTransform, isoCameraFocus, assetCaptionByCell, terrainLabelAt, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawNightLighting, drawPlayerArm, drawQuestMarker, drawRangeRing, drawStyledImage, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, getPlayerArt, grassShade, cellFill, fillTintedGlyph, drawBuildingLandmark, idleNow, isDeadEnemy, isDebugMode, resolveDraw, tileImage, treeCanopyLayers } from './shared'
 import { ASCII_STYLE, assetKind, buildingLandmarkEmoji, entityKind, enemyTileId, genderize, groundKind, type ElementKind, type ImageVisual, type Style } from '@/game/artStyle'
 import { DEFAULT_CHARACTER_ANIMATIONS, activeFrame } from '@/game/runtime/entityAnimation'
 
@@ -1036,17 +1036,16 @@ export function drawIsoBuilding(
   // there would draw the facade with the wrong proportions.
   const L = b.cells[0]?.length ?? b.length
   const H = b.cells.length
-  // A landmark type draws as its own emoji, but EXTRUDED into a 3D volume (z-width) so it rises off
-  // the iso ground instead of lying flat like a sticker — the emoji itself is the material, not an
-  // ASCII brick box. Sized + planted on the footprint; height scales with the building's facade rows.
+  // A landmark type draws as its FLAT emoji billboard. (The sprite-EXTRUSION z-width was reverted: it
+  // stacked the glyph, and platforms whose emoji font has thick BLACK outlines — Windows Segoe — extruded
+  // those outlines into a black silhouette. Real z-width must be a GEOMETRIC iso block, not a stacked
+  // sprite; that's a separate build, validated on the user's actual emoji font.)
   const landmark = buildingLandmarkEmoji(b.type, style)
   if (landmark) {
     const depth = Math.max(1, b.depth)
     const cx = origin.x + colVec.x * (L / 2) + depthVec.x * (depth / 2)
     const gy = origin.y + colVec.y * (L / 2) + depthVec.y * (depth / 2)
-    const span = Math.max(L, depth) * cellH * 1.25
-    const lift = Math.max(cellH * 1.6, H * cellH * 0.55) // z-height ← taller buildings extrude more
-    drawExtrudedGlyph(ctx, landmark, cx, gy - span * 0.16, span, lift)
+    drawBuildingLandmark(ctx, landmark, cx, gy + cellH * 0.4, Math.max(L, depth) * cellH * 1.25)
     return
   }
   const bodyH = H - ROOF_ROWS // wall/window/door rows
