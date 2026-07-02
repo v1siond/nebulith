@@ -9,15 +9,16 @@ import { darkenColor, lightenColor, withAlpha } from '@/engine/colors'
 import { entityPalette } from '@/engine/entityArt'
 import { entityQuestMarker } from '@/engine/entityQuestMarker'
 import { buildingFadeAlpha } from '@/engine/isoBuilding'
-import { buildingCellColor } from '@/engine/stageGenerator'
+import { buildingCellColor, wallMaterialTile } from '@/engine/stageGenerator'
 import { type Projectile, projectileCellAt } from '@/game/projectiles'
 import { type HitMarker } from '@/game/runtime/combat'
 import { type PlayerState, barFraction, hpFraction, playerDisplayName } from '@/game/runtime/player'
 import { type CombatState, type Entity, type Quest } from '@/game/types'
-import { GROUND_COLORS } from '@/levels/village'
+import { resolveGroundTile } from '@/engine/tileset/tileset'
+import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 import { Connector } from '@/lib/api'
-import { ASCII_FONT, BUILDING_BADGES, COMBAT_RANGE, type DayNight, type DrawVisual, ENEMY_MOVE_MS, LAMP_GLOW, LIGHT, applyCellTransform, isoCameraFocus, assetCaptionByCell, terrainLabelAt, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawNightLighting, drawPlayerArm, drawQuestMarker, drawRangeRing, drawStyledImage, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, getPlayerArt, grassShade, cellFill, fillTintedGlyph, drawBuildingLandmark, idleNow, isDeadEnemy, isDebugMode, resolveDraw, tileImage, treeCanopyLayers } from './shared'
-import { ASCII_STYLE, assetKind, buildingLandmarkEmoji, entityKind, enemyTileId, genderize, groundKind, type ElementKind, type ImageVisual, type Style } from '@/game/artStyle'
+import { ASCII_FONT, BUILDING_BADGES, COMBAT_RANGE, type DayNight, type DrawVisual, ENEMY_MOVE_MS, LAMP_GLOW, LIGHT, applyCellTransform, isoCameraFocus, assetCaptionByCell, terrainLabelAt, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawNightLighting, drawPlayerArm, drawQuestMarker, drawRangeRing, drawStyledImage, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, getPlayerArt, grassShade, cellFill, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, resolveDraw, tileImage, treeCanopyLayers } from './shared'
+import { ASCII_STYLE, assetKind, entityKind, enemyTileId, genderize, groundKind, type ElementKind, type ImageVisual, type Style } from '@/game/artStyle'
 import { DEFAULT_CHARACTER_ANIMATIONS, activeFrame } from '@/game/runtime/entityAnimation'
 
 
@@ -173,18 +174,13 @@ export function drawIsoGroundLayer(ctx: CanvasRenderingContext2D, p: IsoGroundPa
       if (px < -tileW * 2 || px > w + tileW * 2 || py < -tileH * 2 || py > h + tileH * 2) continue
 
       const tileType = grid.ground[row]?.[col] || 'grass'
-      const colors = GROUND_COLORS[tileType as keyof typeof GROUND_COLORS] || GROUND_COLORS.grass
-
-      // Noise-based color variation (same as 2D view)
-      const noiseVal = Math.sin(col * 0.3 + row * 0.5) * Math.cos(col * 0.7 - row * 0.2)
-      const colorIdx = noiseVal > 0 ? 0 : 1
-
-      const char = colors.char[colorIdx % colors.char.length]
-      const fg = colors.fg[colorIdx % colors.fg.length]
+      // Ground appearance now LOADS from the tileset (resolveGroundTile) instead of the hardcoded
+      // GROUND_COLORS table — byte-identical selection (same noise variant). Grass keeps its per-cell shade.
+      const gt = resolveGroundTile(ASCII_TILESET, tileType, col, row)
+      const char = gt.char
+      const fg = gt.fg
       const isGrass = tileType.includes('grass')
-      // Grass varies per-cell into natural green tones (deterministic hash); every other
-      // ground keeps its uniform floor base — no per-cell checkerboard (calmer floor).
-      const bg = isGrass ? grassShade(colors.bg[0], col, row) : colors.bg[0]
+      const bg = isGrass ? grassShade(gt.bg, col, row) : gt.bg
 
       // Active art style (ASCII passthrough → char+fg above, byte-identical). Ground cells carry no
       // per-element override, so this depends only on the active style — folded into the cache key so
@@ -271,12 +267,10 @@ export function drawIsoWaterCells(ctx: CanvasRenderingContext2D, p: IsoGroundPar
     const px = w / 2 + (wx - wz) * isoScale * 0.71
     const py = h / 2 + (wx + wz) * isoScale * 0.36
     const tileType = grid.ground[row]?.[col] || 'grass'
-    const colors = GROUND_COLORS[tileType as keyof typeof GROUND_COLORS] || GROUND_COLORS.grass
-    const noiseVal = Math.sin(col * 0.3 + row * 0.5) * Math.cos(col * 0.7 - row * 0.2)
-    const colorIdx = noiseVal > 0 ? 0 : 1
-    const char = colors.char[colorIdx % colors.char.length]
-    const fg = colors.fg[colorIdx % colors.fg.length]
-    const bg = colors.bg[0]
+    const gt = resolveGroundTile(ASCII_TILESET, tileType, col, row) // LOADS from the tileset (byte-identical)
+    const char = gt.char
+    const fg = gt.fg
+    const bg = gt.bg
     const drawY = py - grid.getHeight(col, row) * heightStep
     const wdv = resolveDraw(groundKind(tileType), style, undefined, char, fg)
     const fillBg = wdv.tint ?? bg // reskin water → the tile's own colour (catalog data); ASCII → bg
@@ -970,7 +964,7 @@ export function fillIsoFaceWithTile(
 export interface FacadeColors { wall: string; door: string; window: string; roof: string }
 
 
-export function drawIsoFacadeTile(ctx: CanvasRenderingContext2D, bl: Pt, colVec: Pt, cellH: number, kind: string, flicker: number, colors: FacadeColors, style: Style = ASCII_STYLE): void {
+export function drawIsoFacadeTile(ctx: CanvasRenderingContext2D, bl: Pt, colVec: Pt, cellH: number, kind: string, flicker: number, colors: FacadeColors, style: Style = ASCII_STYLE, wallTile?: string): void {
   const up: Pt = { x: 0, y: -cellH }
   const br = ptAdd(bl, colVec)
   const tl = ptAdd(bl, up)
@@ -997,7 +991,10 @@ export function drawIsoFacadeTile(ctx: CanvasRenderingContext2D, bl: Pt, colVec:
   // glyph, all angled WITH the face (never an upright square). One primitive for emoji + image.
   // ASCII passthrough (no tint/image) draws its glyph centered exactly as before.
   if (fdv.tint || fdv.image) {
-    fillIsoFaceWithTile(ctx, bl, colVec, up, { char: fdv.char, color: fdv.color, image: fdv.image }, 1, 1)
+    // Wall cells ride the building's MATERIAL tile (wallTile; '' plaster → colour only); door / window
+    // keep their own resolved tile. One primitive for emoji + image, still sheared onto the iso face.
+    const tileChar = kind === 'wall' && wallTile !== undefined ? wallTile : fdv.char
+    fillIsoFaceWithTile(ctx, bl, colVec, up, { char: tileChar, color: fdv.color, image: fdv.image }, 1, 1)
     return
   }
   if (!fdv.char) return
@@ -1036,18 +1033,13 @@ export function drawIsoBuilding(
   // there would draw the facade with the wrong proportions.
   const L = b.cells[0]?.length ?? b.length
   const H = b.cells.length
-  // A landmark type draws as its FLAT emoji billboard. (The sprite-EXTRUSION z-width was reverted: it
-  // stacked the glyph, and platforms whose emoji font has thick BLACK outlines — Windows Segoe — extruded
-  // those outlines into a black silhouette. Real z-width must be a GEOMETRIC iso block, not a stacked
-  // sprite; that's a separate build, validated on the user's actual emoji font.)
-  const landmark = buildingLandmarkEmoji(b.type, style)
-  if (landmark) {
-    const depth = Math.max(1, b.depth)
-    const cx = origin.x + colVec.x * (L / 2) + depthVec.x * (depth / 2)
-    const gy = origin.y + colVec.y * (L / 2) + depthVec.y * (depth / 2)
-    drawBuildingLandmark(ctx, landmark, cx, gy + cellH * 0.4, Math.max(L, depth) * cellH * 1.25)
-    return
-  }
+  // EVERY building — in EVERY art style — renders as the geometric per-cell tileset BLOCK below: walls,
+  // roof faces and the door/window facade, each a solid iso quad with the active style's tile SHEARED
+  // onto it at the iso angle (tileFace → fillIsoFaceWithTile). A reskin is a TILESET swap, not a sprite
+  // swap: the emoji is the per-face tile (🧱 wall, 🟥 roof, 🚪 door, 🪟 window), never a flat whole-
+  // building billboard. That gives z-width + grid-alignment + the iso angle for free, and sidesteps the
+  // Segoe black-silhouette entirely (no glyph stacking). Per-TYPE identity (temple vs castle) is a
+  // per-type tileset, authored — not a single landmark glyph.
   const bodyH = H - ROOF_ROWS // wall/window/door rows
   const up = (n: number): Pt => ({ x: 0, y: -n * cellH })
   // Houses peak (composeBuilding leaves empty corners in row 0); flat types keep a box roof.
@@ -1063,7 +1055,10 @@ export function drawIsoBuilding(
   // sprites). ASCII → tint undefined → the byte-identical building palette, no overlay.
   const wallDV = resolveDraw('wall', style, undefined, '', buildingCellColor(tcol, 'wall', b.col))
   const roofDV = resolveDraw('roof', style, undefined, '', buildingCellColor(tcol, 'roof', b.col))
-  const wallC = wallDV.tint ?? buildingCellColor(tcol, 'wall', b.col)
+  // Wall FACE colour ALWAYS from the game DATA (buildingCellColor gives this building's MATERIAL colour
+  // — wood/stone/brick/plaster, varied per building), never the one global emoji wall tint. Mirrors the
+  // roof rule below, so 2D and iso agree and a street isn't monotone "wood".
+  const wallC = buildingCellColor(tcol, 'wall', b.col)
   // Roof colour ALWAYS from the game DATA (buildingCellColor varies the roof PER BUILDING → roofs
   // aren't monotone red, even on a reskin). The reskin roof faces show this varied colour directly;
   // a fixed-colour roof emoji would hide it, so the roof tiles NO glyph (walls still tile their brick).
@@ -1071,6 +1066,11 @@ export function drawIsoBuilding(
   const doorC = resolveDraw('door', style, undefined, '', buildingCellColor(tcol, 'door', b.col)).tint ?? buildingCellColor(tcol, 'door', b.col)
   const windowC = resolveDraw('window', style, undefined, '', buildingCellColor(tcol, 'window', b.col)).tint ?? buildingCellColor(tcol, 'window', b.col)
   const reskinned = !!(wallDV.tint || wallDV.image || roofDV.tint || roofDV.image)
+  // Under a reskin the wall faces ride THIS building's MATERIAL tile (🪵 wood / 🧱 brick / 🪨 stone; ''
+  // for plaster → no texture, the painted colour reads flat) instead of one global brick. That's the
+  // "different wall types" — a house rolls its material, civic types keep an identity one. ASCII → ''.
+  const wallTile = reskinned ? wallMaterialTile(tcol, b.col) : ''
+  const wallTileDV: DrawVisual = { char: wallTile, color: wallC, image: wallDV.image }
   const roofFaceDV: DrawVisual = { char: '', color: roofC } // reskin roof: coloured face, no emoji glyph
   const facadeColors: FacadeColors = {
     wall: withAlpha(wallC, 0.98),
@@ -1181,7 +1181,7 @@ export function drawIsoBuilding(
         const kind = b.cells[r]?.[c]
         if (!kind || kind === 'empty') continue
         const bl = ptAdd(ptAdd(base, ptScale(colVec, c)), up(H - 1 - r))
-        drawIsoFacadeTile(ctx, bl, colVec, cellH, kind, flicker, facadeColors, style)
+        drawIsoFacadeTile(ctx, bl, colVec, cellH, kind, flicker, facadeColors, style, wallTile)
       }
     }
   }
@@ -1192,12 +1192,12 @@ export function drawIsoBuilding(
 
   // ── WALL BODY (solid box, ground → eaves): both sides + the non-facade face ──
   ctx.fillStyle = wallBack
-  if (b.facadeOnBack) { fillQuad(ctx, fbl, fbr, eave(fbr), eave(fbl)); tileFace(fbl, fbr, eave(fbl), wallDV, L, bodyH) } // plain FRONT wall (camera side)
-  else { fillQuad(ctx, bbl, bbr, eave(bbr), eave(bbl)); tileFace(bbl, bbr, eave(bbl), wallDV, L, bodyH) } // plain BACK wall
+  if (b.facadeOnBack) { fillQuad(ctx, fbl, fbr, eave(fbr), eave(fbl)); tileFace(fbl, fbr, eave(fbl), wallTileDV, L, bodyH) } // plain FRONT wall (camera side)
+  else { fillQuad(ctx, bbl, bbr, eave(bbr), eave(bbl)); tileFace(bbl, bbr, eave(bbl), wallTileDV, L, bodyH) } // plain BACK wall
   ctx.fillStyle = wallLeft
-  fillQuad(ctx, fbl, bbl, eave(bbl), eave(fbl)); tileFace(fbl, bbl, eave(fbl), wallDV, b.depth, bodyH) // left
+  fillQuad(ctx, fbl, bbl, eave(bbl), eave(fbl)); tileFace(fbl, bbl, eave(fbl), wallTileDV, b.depth, bodyH) // left
   ctx.fillStyle = wallRight
-  fillQuad(ctx, fbr, bbr, eave(bbr), eave(fbr)); tileFace(fbr, bbr, eave(fbr), wallDV, b.depth, bodyH) // right
+  fillQuad(ctx, fbr, bbr, eave(bbr), eave(fbr)); tileFace(fbr, bbr, eave(fbr), wallTileDV, b.depth, bodyH) // right
 
   // Windows on the faces the front facade doesn't cover: both sides + the plain (non-facade) wall.
   const depthWindows = Math.max(2, Math.min(3, Math.round(b.depth)))

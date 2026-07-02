@@ -12,7 +12,9 @@ import { composeBuilding, ComposedBuilding, BuildingType } from './buildingCompo
 import { planVillage, type VillageLayout, type Settlement, type Plot, type Facing, type PlazaRect } from './villageLayout'
 import { ZONE_PALETTES, ZoneId } from './zones'
 import { autotileLabel, isWalkable, TREE_MASS_FAMILY, type CellLabel } from './cellLabels'
-import { cellTile, TREE_CANOPY_SHADES, groundDecor } from './cellTileset'
+import { TREE_CANOPY_SHADES, groundDecor } from './cellTileset'
+import { resolveTile } from './tileset/tileset'
+import { ASCII_TILESET } from './tileset/asciiTileset'
 import { varyIntensity } from './colors'
 import type { Connector } from '@/lib/api'
 import { clamp, randInt, manhattan } from '@/lib/math'
@@ -119,7 +121,7 @@ const makeLabeledCell = (
   type: 'tree' | 'building',
   variant = 0,
 ): StageProp => {
-  const tile = cellTile(zone, label, variant)
+  const tile = resolveTile(ASCII_TILESET, zone, label, variant) // LOADS from the tileset, not hardcoded cellTile
   return { col, row, type, char: tile.char, blocking: !isWalkable(label), color: tile.color, label }
 }
 
@@ -173,6 +175,44 @@ const BUILDING_PALETTES: Readonly<Record<BuildingType, BuildingPalette>> = {
   castle: { roof: '#5f6068', wall: '#b6b2aa', door: '#15151a', window: '#9fb2cc' },
 }
 
+// ── wall MATERIALS — a building's walls are a real material, not all "wood". Each material is a TILE
+//    (the emoji ridden onto the wall faces under a reskin) + its own colour range. HOUSES roll a
+//    material per building (seeded, so a street MIXES wood/brick/stone/plaster); civic types keep an
+//    identity material. PLASTER has no texture tile, so its painted colour reads flat (like the roof).
+export type WallMaterial = 'wood' | 'brick' | 'stone' | 'plaster'
+
+interface MaterialDef { emoji: string; walls: readonly string[] }
+export const WALL_MATERIALS: Readonly<Record<WallMaterial, MaterialDef>> = {
+  wood: { emoji: '🪵', walls: ['#9c6b3f', '#8a5a34', '#a67a48', '#7d5330'] }, // warm log/plank browns
+  brick: { emoji: '🧱', walls: ['#b0603a', '#a5542f', '#9c4e30', '#b56a44'] }, // red-brown brick
+  stone: { emoji: '🪨', walls: ['#8f8a82', '#7c776f', '#9a958c', '#847e75'] }, // muted greys
+  plaster: { emoji: '', walls: HOUSE_WALLS }, // painted siding — colour only, no texture tile
+}
+
+// House rolls one of these per building; every other type maps to a fixed identity material.
+const HOUSE_MATERIALS: readonly WallMaterial[] = ['wood', 'brick', 'stone', 'plaster']
+const CIVIC_MATERIAL: Readonly<Record<Exclude<BuildingType, 'house'>, WallMaterial>> = {
+  'big-house': 'brick',
+  store: 'brick',
+  hospital: 'plaster', // white painted clinic
+  cathedral: 'stone',
+  temple: 'stone',
+  castle: 'stone',
+}
+
+/** The wall material for a building — deterministic. Houses vary per building (seeded on anchorSeed,
+ *  so a street mixes materials); every other type has a fixed identity material. Pure. */
+export function buildingWallMaterial(type: BuildingType, anchorSeed: number): WallMaterial {
+  if (type !== 'house') return CIVIC_MATERIAL[type]
+  return HOUSE_MATERIALS[Math.floor(shadeNoise(anchorSeed + 0.9) * HOUSE_MATERIALS.length) % HOUSE_MATERIALS.length]
+}
+
+/** The wall TILE (emoji) for a building's material under a reskin — '' for plaster (no texture; the
+ *  painted colour reads flat). The renderer rides this on the wall faces instead of one global brick. */
+export function wallMaterialTile(type: BuildingType, anchorSeed: number): string {
+  return WALL_MATERIALS[buildingWallMaterial(type, anchorSeed)].emoji
+}
+
 /** Color for one facade cell by the building's TYPE + the cell's label. HOUSES vary per building
  *  (anchorSeed) so a street isn't monotone: a roof tone (red / brown / gray), a wall shade, and a
  *  dark door tone — the door always darker than + different from the wall. Store / hospital stay
@@ -189,8 +229,11 @@ export function buildingCellColor(type: BuildingType, label: CellLabel, anchorSe
     return HOUSE_DOORS[Math.floor(shadeNoise(anchorSeed + 0.7) * HOUSE_DOORS.length) % HOUSE_DOORS.length]
   }
   if (label === 'window') return pal.window
-  // walls: houses pick a real-house color (varied per building); other types keep their identity tone
-  return isHouse ? HOUSE_WALLS[Math.floor(shadeNoise(anchorSeed + 0.1) * HOUSE_WALLS.length) % HOUSE_WALLS.length] : pal.wall
+  // walls: a house takes its MATERIAL's colour range (wood browns / stone greys / brick reds / painted
+  // plaster) varied per building; every other type keeps its identity tone.
+  if (!isHouse) return pal.wall
+  const matWalls = WALL_MATERIALS[buildingWallMaterial(type, anchorSeed)].walls
+  return matWalls[Math.floor(shadeNoise(anchorSeed + 0.1) * matWalls.length) % matWalls.length]
 }
 
 const makeBuildingCell = (zone: ZoneId, col: number, row: number, label: CellLabel, color?: string): StageProp => {
@@ -207,7 +250,7 @@ const massVariant = (col: number, row: number): number =>
  *  the tileset's per-zone feature palette (ember crater in lava, snowcap + blue
  *  waterfall otherwise). Always blocks (it's terrain). */
 const makeFeatureCell = (zone: ZoneId, col: number, row: number, label: CellLabel): StageProp => {
-  const tile = cellTile(zone, label)
+  const tile = resolveTile(ASCII_TILESET, zone, label) // LOADS from the tileset, not hardcoded cellTile
   return { col, row, type: 'feature', char: tile.char, blocking: true, color: tile.color, label }
 }
 

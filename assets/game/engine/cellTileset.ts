@@ -30,7 +30,7 @@ export interface CellTile {
 // connected canopy; the walkable canopy top (♣) reads differently from solid
 // leaves (@) so the "walk-under" cell is visible. Corners stay zone-independent
 // on purpose — only the COLOR carries the zone (see keepsCornersStructural test).
-const CELL_GLYPHS: Readonly<Record<CellLabel, string>> = {
+export const CELL_GLYPHS: Readonly<Record<CellLabel, string>> = {
   tree_stem_bottom: '╨',
   tree_stem: '│',
   tree_leaf: '@',
@@ -105,13 +105,13 @@ export function groundDecor(zone: ZoneId, variant: number): DecorTile {
 
 // Per-SEASON trunk (bark), building parts, and biome feature colors. The feature's
 // peak is a snow-cap and the spill is a blue waterfall (icier in winter).
-interface ZoneVisuals {
+export interface ZoneVisuals {
   trunk: string
   building: { roof: string; wall: string; door: string; window: string }
   feature: { mountain: string; peak: string; spill: string }
 }
 
-const ZONE_VISUALS: Readonly<Record<ZoneId, ZoneVisuals>> = {
+export const ZONE_VISUALS: Readonly<Record<ZoneId, ZoneVisuals>> = {
   spring: {
     trunk: '#7a5a3a', // light spring bark
     building: { roof: '#c06a4a', wall: '#ddd0a8', door: '#6a4220', window: '#bfe0c8' }, // light spring: warm roof, cream wall

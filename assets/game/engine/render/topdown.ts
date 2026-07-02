@@ -9,15 +9,16 @@ import { darkenColor, lightenColor, withAlpha } from '@/engine/colors'
 import { entityPalette } from '@/engine/entityArt'
 import { entityQuestMarker } from '@/engine/entityQuestMarker'
 import { isoFacadeOnBack } from '@/engine/isoBuilding'
-import { buildingCellColor } from '@/engine/stageGenerator'
+import { buildingCellColor, wallMaterialTile } from '@/engine/stageGenerator'
 import { type Projectile, projectileCellAt } from '@/game/projectiles'
 import { type HitMarker } from '@/game/runtime/combat'
 import { type PlayerState, barFraction, hpFraction, playerDisplayName } from '@/game/runtime/player'
 import { type CombatState, type Entity, type Quest } from '@/game/types'
-import { GROUND_COLORS } from '@/levels/village'
+import { resolveGroundTile } from '@/engine/tileset/tileset'
+import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 import { Connector } from '@/lib/api'
-import { ASCII_FONT, BUILDING_BADGES, COMBAT_RANGE, type DayNight, ENEMY_MOVE_MS, LAMP_GLOW, applyCellTransform, clampCameraAxis, assetCaptionByCell, terrainLabelAt, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawNightLighting, drawPlayerArm, drawQuestMarker, drawRangeRing, drawStyledImage, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, getPlayerArt, grassShade, cellFill, fillTintedGlyph, drawBuildingLandmark, idleNow, isDeadEnemy, isDebugMode, resolveDraw, treeCanopyLayers } from './shared'
-import { ASCII_STYLE, assetKind, buildingLandmarkEmoji, entityKind, enemyTileId, genderize, groundKind, type ElementKind, type Style } from '@/game/artStyle'
+import { ASCII_FONT, BUILDING_BADGES, COMBAT_RANGE, type DayNight, ENEMY_MOVE_MS, LAMP_GLOW, applyCellTransform, clampCameraAxis, assetCaptionByCell, terrainLabelAt, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawNightLighting, drawPlayerArm, drawQuestMarker, drawRangeRing, drawStyledImage, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, getPlayerArt, grassShade, cellFill, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, resolveDraw, treeCanopyLayers } from './shared'
+import { ASCII_STYLE, assetKind, entityKind, enemyTileId, genderize, groundKind, type ElementKind, type Style } from '@/game/artStyle'
 import { DEFAULT_CHARACTER_ANIMATIONS, activeFrame } from '@/game/runtime/entityAnimation'
 
 
@@ -201,13 +202,9 @@ export function draw2DBuilding(
   // camera-NEAR facings (south/east — the same split iso uses via `facadeOnBack`); the FAR facings
   // (north/west) show a plain BACK wall, since a flat elevation can't show a door that faces away.
   // ~50/50 front/back, and the door indicator (render2D) marks the real entrance on the backs.
-  // A landmark type (temple/manor/castle/cathedral) draws as its own big emoji so it reads as what it
-  // IS, not another brick box. Houses/stores/hospitals fall through to the 3D facade below.
-  const landmark = buildingLandmarkEmoji(b.type, style)
-  if (landmark) {
-    drawBuildingLandmark(ctx, landmark, centerX, baseY, Math.max(b.length * tileW, b.height * tileH) * 1.05)
-    return
-  }
+  // EVERY building — in EVERY art style — draws its per-cell facade below; a reskin swaps each cell's
+  // TILE (🧱/🟥/🚪/🪟), it never replaces the whole building with one landmark sprite. Buildings are a
+  // tileset like everything else; per-TYPE identity is a per-type tileset, authored, not a single glyph.
   const showFront = !isoFacadeOnBack(gridBuildingFacing(b))
   const cells = b.cells
   const H = cells.length
@@ -234,6 +231,7 @@ export function draw2DBuilding(
   // glyph on identical wall. Colors come from the shared per-building source (real-house wall tones,
   // dark doors, glass windows; store=blue roof, hospital=green roof) so 2D matches the other views.
   const t = b.type as BuildingType
+  const wallTile2D = wallMaterialTile(t, b.col) // this building's MATERIAL tile (🪵/🧱/🪨; '' = plaster)
   const a = (col: string): string => withAlpha(col, 0.96)
   const roofBg = a(buildingCellColor(t, 'roof', b.col))
   const roofGlyph = a(darkenColor(buildingCellColor(t, 'roof', b.col), 0.58)) // the /\ as a darker roof tone, so it reads
@@ -279,8 +277,11 @@ export function draw2DBuilding(
         ctx.fillStyle = asciiBg
         ctx.fillRect(x - tileW * 0.5, cellTop, tileW, tileH)
         if (!isRoof) {
-          if (bdv.image) drawStyledImage(ctx, bdv.image, x, cy, Math.max(tileW, tileH))
-          else if (bdv.char) { ctx.fillStyle = bdv.color; ctx.font = `${Math.max(tileW, tileH) * 1.02}px ${ASCII_FONT}`; ctx.fillText(bdv.char, x, cy) }
+          // Wall cells stamp the building's MATERIAL tile (wood/brick/stone; '' plaster → the painted
+          // fill reads flat); door/window keep their own resolved tile.
+          const tileChar = kind === 'wall' ? wallTile2D : bdv.char
+          if (bdv.image && kind !== 'wall') drawStyledImage(ctx, bdv.image, x, cy, Math.max(tileW, tileH))
+          else if (tileChar) { ctx.fillStyle = bdv.color; ctx.font = `${Math.max(tileW, tileH) * 1.02}px ${ASCII_FONT}`; ctx.fillText(tileChar, x, cy) }
         }
       } else {
         // ASCII — the building palette + wall seams + the /\ ▯ ⊞ glyph, exactly as before.
@@ -461,18 +462,11 @@ export function render2D(
       if (p.x < -tileW || p.x > w + tileW || p.y < -tileH || p.y > h + tileH) continue
 
       const tileType = grid.ground[row]?.[col] || 'grass'
-      const colors = GROUND_COLORS[tileType as keyof typeof GROUND_COLORS] || GROUND_COLORS.grass
-
-      // Use noise-based variation for natural look (not checkerboard)
-      // Create larger patches using position-based pseudo-noise
-      const noiseVal = Math.sin(col * 0.3 + row * 0.5) * Math.cos(col * 0.7 - row * 0.2)
-      const colorIdx = noiseVal > 0 ? 0 : 1 // Smooth patches instead of checkerboard
-
-      const char = colors.char[colorIdx % colors.char.length]
-      const fg = colors.fg[colorIdx % colors.fg.length]
-      // Grass varies per-cell into natural green tones (deterministic hash); other ground
-      // keeps its uniform floor base.
-      const bg = tileType.includes('grass') ? grassShade(colors.bg[0], col, row) : colors.bg[0]
+      // Ground LOADS from the tileset (byte-identical noise selection); grass keeps its per-cell shade.
+      const gt = resolveGroundTile(ASCII_TILESET, tileType, col, row)
+      const char = gt.char
+      const fg = gt.fg
+      const bg = tileType.includes('grass') ? grassShade(gt.bg, col, row) : gt.bg
       // Active art style (ASCII passthrough → the char+fg above, byte-identical). A reskin tints the
       // flat cell at the tile hue, VARIED per cell (same deterministic noise ASCII grass uses) so an
       // emoji field isn't flat-uniform; ASCII → bg (identical).

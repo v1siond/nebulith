@@ -7,7 +7,7 @@ import { entityQuestMarker } from '@/engine/entityQuestMarker'
 import { type HitMarker } from '@/game/runtime/combat'
 import { type PlayerState, barFraction, hpFraction } from '@/game/runtime/player'
 import { type CombatState, type Entity, type Quest } from '@/game/types'
-import { GROUND_COLORS } from '@/levels/village'
+import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 import { Connector } from '@/lib/api'
 import { ASCII_FONT, BUILDING_BADGES, type DayNight, LAMP_GLOW, applyCellTransform, clampCameraAxis, collectLampGlows, debugCellCaptions, debugLabelColors, drawHitMarker, drawHpBar, drawNightLighting, drawQuestMarker, drawStyledImage, grassShade, cellFill, isDeadEnemy, isDebugMode, resolveDraw } from './shared'
 import { ASCII_STYLE, assetKind, entityKind, enemyTileId, genderize, groundKind, type Style } from '@/game/artStyle'
@@ -159,7 +159,8 @@ export function renderTopView(
       } else {
         // Ground tile
         const tileType = grid.ground[row]?.[col] || 'grass'
-        const colors = GROUND_COLORS[tileType as keyof typeof GROUND_COLORS] || GROUND_COLORS.grass
+        // Ground LOADS from the tileset's terrain data; the blueprint view uses the base variant (index 0).
+        const colors = ASCII_TILESET.terrain[tileType] ?? ASCII_TILESET.terrain.grass
         char = colors.char[0]
         fg = colors.fg[0]
         kind = groundKind(tileType)

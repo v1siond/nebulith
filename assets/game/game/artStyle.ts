@@ -20,6 +20,8 @@
  */
 
 // ── element kinds (the vocabulary a Style maps) ──────────────────────────
+import { EMOJI_TILESET } from '@/engine/tileset/emojiTileset'
+
 export type ElementKind =
   | 'grass' | 'water' | 'path' | 'plaza' | 'sand' | 'ground' | 'snow' | 'autumn' // terrain (+ seasons)
   | 'cavefloor' | 'moss'                                       // dungeon terrain (cavern floor + moss)
@@ -63,61 +65,25 @@ export interface Style {
 /** The built-in default — maps nothing, so EVERY kind passes through unchanged. */
 export const ASCII_STYLE: Style = { id: 'ascii', name: 'ASCII', icon: '⌨', map: {} }
 
-/** Zero-asset, visually striking reskin — proves the mechanism with pure emoji glyphs. */
+/** Build the emoji Style's map from the plain-data EMOJI_TILESET — each kind → a glyph Visual. This
+ *  is the "load different" seam for emoji: the glyph+colour data lives in EMOJI_TILESET (JSON-
+ *  serialisable, DB-seed-ready), and EMOJI_STYLE is just a view over it — not a hardcoded literal. */
+function emojiStyleMap(): Partial<Record<ElementKind, Visual>> {
+  const map: Partial<Record<ElementKind, Visual>> = {}
+  for (const kind of Object.keys(EMOJI_TILESET)) {
+    const tile = EMOJI_TILESET[kind]
+    map[kind as ElementKind] = { kind: 'glyph', char: tile.char, color: tile.color }
+  }
+  return map
+}
+
+/** Zero-asset, visually striking reskin — proves the mechanism with pure emoji glyphs. Built from
+ *  EMOJI_TILESET (loadable plain data), so the emoji tileset isn't hardcoded here. */
 export const EMOJI_STYLE: Style = {
   id: 'emoji',
   name: 'Emoji',
   icon: '😀',
-  map: {
-    // terrain — `color` is the FILL hue (harmonised with the ASCII GROUND_COLORS so the reskin reads
-    // as the same world); the emoji rides FULL-CELL on top as the texture. Grass/water use a REAL
-    // texture glyph (clover, wave) not a same-colour square — a colored square just vanishes into the
-    // fill ("grass is just color"). Grass also keeps its per-cell shade (cellFill) so a field varies.
-    grass: { kind: 'glyph', char: '🍀', color: '#5faf4a' },
-    water: { kind: 'glyph', char: '🌊', color: '#4a90e2' },
-    path: { kind: 'glyph', char: '🟫', color: '#9c7b4d' },
-    plaza: { kind: 'glyph', char: '⬜', color: '#cabfa6' },
-    sand: { kind: 'glyph', char: '🟨', color: '#e2c86b' },
-    // seasons — the WHOLE ground shifts hue so a winter/autumn map doesn't read as the same green:
-    // snow is a pale field, autumn an amber one with fallen leaves.
-    snow: { kind: 'glyph', char: '⬜', color: '#e2ecf5' },
-    autumn: { kind: 'glyph', char: '🍂', color: '#b5732f' },
-    // dungeon terrain — a dark rocky cavern floor (varies per-cell like grass, so it isn't flatly
-    // tiled) with green moss accents. Without these, cave_floor/cave_moss leaked to ASCII (the cave
-    // rendered >60% ASCII glyphs). basalt/ash (lava cave) fold onto cavefloor too. See groundKind.
-    cavefloor: { kind: 'glyph', char: '🪨', color: '#3f3a34' },
-    moss: { kind: 'glyph', char: '🌿', color: '#4a6b3a' },
-    mountain: { kind: 'glyph', char: '🗻', color: '#8d8d97' },
-    // buildings — `color` tints the CUBE face (roof colour on the roof faces, wall colour
-    // on the walls); the facade door/window cells fill at their own hue.
-    wall: { kind: 'glyph', char: '🧱', color: '#b0603a' },
-    roof: { kind: 'glyph', char: '🟥', color: '#c8443c' },
-    door: { kind: 'glyph', char: '🚪', color: '#5a3a22' },
-    window: { kind: 'glyph', char: '🪟', color: '#7fb4d8' },
-    fountain: { kind: 'glyph', char: '⛲', color: '#4a90e2' },
-    // nature / props — upright billboards, `color` fills the glyph
-    tree: { kind: 'glyph', char: '🌲', color: '#2f8f3f' },
-    flower: { kind: 'glyph', char: '🌸', color: '#e785b5' },
-    bush: { kind: 'glyph', char: '🌿', color: '#4fa03f' },
-    rock: { kind: 'glyph', char: '🪨', color: '#8a8a8a' },
-    crate: { kind: 'glyph', char: '📦', color: '#b5793a' },
-    lamp: { kind: 'glyph', char: '💡', color: '#ffd24a' },
-    // cave features — upright billboards, `color` fills the glyph (season-tinted at the site)
-    crystal: { kind: 'glyph', char: '💎', color: '#b48cff' },
-    mushroom: { kind: 'glyph', char: '🍄', color: '#d24a4a' },
-    // temple / dungeon features — colonnade columns, the boss altar, wall torches, floor
-    // hazards, and the locked-door key (season-tinted where the generator sets `color`).
-    pillar: { kind: 'glyph', char: '🏛️', color: '#cbb68c' },
-    altar: { kind: 'glyph', char: '🗿', color: '#ffe7a8' },
-    torch: { kind: 'glyph', char: '🔥', color: '#ff8a3a' },
-    hazard: { kind: 'glyph', char: '🔺', color: '#d0402a' },
-    key: { kind: 'glyph', char: '🗝️', color: '#ffd24a' },
-    // units — upright billboards. Every PERSON (player + npcs) uses the SAME standing-figure
-    // family (🧍) and animates identically; only enemies get the monster glyph.
-    enemy: { kind: 'glyph', char: '👾', color: '#b45ac0' },
-    npc: { kind: 'glyph', char: '🧍', color: '#d9a066' },
-    player: { kind: 'glyph', char: '🧍', color: '#ffcf3a' },
-  },
+  map: emojiStyleMap(),
 }
 
 // Gendered forms of the person glyphs, so an entity's `variant` renders the matching figure. A
