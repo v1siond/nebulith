@@ -639,7 +639,12 @@ export default function TemplateEditor() {
       // Use the SAME camera focus the iso render uses (isoCameraFocus, the #38/#70 edge clamp) — the
       // old clampCameraAxis here disagreed with the render, so clicks landed 3–4 cells off and units
       // (incl. the player) couldn't be selected in iso.
-      const { fc, fr } = isoCameraFocus((px - cam.x) / cs, (pz - cam.y) / cs, pPad, qPad, grid.cols, grid.rows)
+      const rawFc = (px - cam.x) / cs
+      const rawFr = (pz - cam.y) / cs
+      // Match the iso render's camera EXACTLY: it clamps ONLY in play mode (render's clampCamera). In dev
+      // mode the render uses the RAW focus (so drag pans freely), so this MUST too — otherwise clicks and
+      // the toolbar desync from what's drawn and nothing selects.
+      const { fc, fr } = playModeRef.current ? isoCameraFocus(rawFc, rawFr, pPad, qPad, grid.cols, grid.rows) : { fc: rawFc, fr: rawFr }
       const a = (x - canvas.width / 2) / S
       const b = (y - canvas.height / 2) / T
       col = Math.floor(((a + b) / 2 + fc * cs) / cs)
@@ -693,7 +698,12 @@ export default function TemplateEditor() {
       const qPad = canvas.height / (2 * cs * T)
       // Same iso focus as the render + screenToCell (isoCameraFocus, not the stale clampCameraAxis) so
       // the quick-action toolbar sits exactly over the selected element.
-      const { fc, fr } = isoCameraFocus((px - cam.x) / cs, (pz - cam.y) / cs, pPad, qPad, grid.cols, grid.rows)
+      const rawFc = (px - cam.x) / cs
+      const rawFr = (pz - cam.y) / cs
+      // Match the iso render's camera EXACTLY: it clamps ONLY in play mode (render's clampCamera). In dev
+      // mode the render uses the RAW focus (so drag pans freely), so this MUST too — otherwise clicks and
+      // the toolbar desync from what's drawn and nothing selects.
+      const { fc, fr } = playModeRef.current ? isoCameraFocus(rawFc, rawFr, pPad, qPad, grid.cols, grid.rows) : { fc: rawFc, fr: rawFr }
       const a = ((cc - fc) - (rr - fr)) * cs
       const b = ((cc - fc) + (rr - fr)) * cs
       x = a * S + canvas.width / 2
