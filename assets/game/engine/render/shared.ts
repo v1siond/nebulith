@@ -581,6 +581,18 @@ export function drawRangeRing(ctx: CanvasRenderingContext2D, cx: number, footY: 
   ctx.restore()
 }
 
+/** WoW-style TARGET reticle: a bright RED ring at the current target's feet — the "this unit is selected"
+ *  indicator (distinct from the pulsing strike-range ring above). Solid so it reads at a glance. */
+export function drawSelectionRing(ctx: CanvasRenderingContext2D, cx: number, footY: number, radiusX: number): void {
+  ctx.save()
+  ctx.lineWidth = 2.5
+  ctx.strokeStyle = 'rgba(255, 40, 40, 0.95)'
+  ctx.beginPath()
+  ctx.ellipse(cx, footY, radiusX, Math.max(2, radiusX * 0.42), 0, 0, Math.PI * 2)
+  ctx.stroke()
+  ctx.restore()
+}
+
 /** The entity's animation frame, gated on movement: idle HOLDS a static pose (no leg/arm
  *  swap over time), walk swaps the base/alt art (frame 0/1) only while the entity is moving,
  *  and combat swaps when an enemy is in range. Pure selection lives in engine/entityAnim. */

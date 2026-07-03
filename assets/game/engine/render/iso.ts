@@ -17,7 +17,7 @@ import { type CombatState, type Entity, type Quest } from '@/game/types'
 import { resolveGroundTile } from '@/engine/tileset/tileset'
 import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 import { Connector } from '@/lib/api'
-import { ASCII_FONT, BUILDING_BADGES, COMBAT_RANGE, type DayNight, type DrawVisual, ENEMY_MOVE_MS, LAMP_GLOW, LIGHT, applyCellTransform, isoCameraFocus, assetCaptionByCell, terrainLabelAt, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawNightLighting, drawPlayerArm, drawQuestMarker, drawRangeRing, drawStyledImage, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, getPlayerArt, grassShade, cellFill, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, resolveDraw, assetOverride, tileImage, treeCanopyLayers } from './shared'
+import { ASCII_FONT, BUILDING_BADGES, COMBAT_RANGE, type DayNight, type DrawVisual, ENEMY_MOVE_MS, LAMP_GLOW, LIGHT, applyCellTransform, isoCameraFocus, assetCaptionByCell, terrainLabelAt, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawNightLighting, drawPlayerArm, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, getPlayerArt, grassShade, cellFill, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, resolveDraw, assetOverride, tileImage, treeCanopyLayers } from './shared'
 import { ASCII_STYLE, assetKind, entityKind, enemyTileId, genderize, groundKind, type ElementKind, type ImageVisual, type Style } from '@/game/artStyle'
 import { DEFAULT_CHARACTER_ANIMATIONS, activeFrame } from '@/game/runtime/entityAnimation'
 
@@ -301,6 +301,7 @@ export function render(
   attackReach: number = 1,
   style: Style = ASCII_STYLE,
   clampCamera: boolean = true,
+  targetId: string | null = null,
 ) {
   const __isoT0 = perfNow() // perf probe — rolling avg of render() ms, exposed on window.__isoRenderMs
   // Clear
@@ -480,6 +481,7 @@ export function render(
   ].sort((a, b) => (a.col + a.row) - (b.col + b.row))
 
   // Render each object with ASCII art style
+  const playerIsTarget = !!targetId && entities.some(e => e.kind === 'player' && e.id === targetId)
   for (const obj of allObjects) {
     const p = toScreen(obj.col, obj.row)
     const cellHeight = grid.getHeight(Math.floor(obj.col), Math.floor(obj.row))
@@ -489,12 +491,12 @@ export function render(
       // The player's melee swing progress (0..1) drives the in-hand weapon animation below.
       const inHandSlash = attackAnims.find(a => a.inHand && now - a.start < a.durationMs)
       const swingP = inHandSlash ? Math.min(1, (now - inHandSlash.start) / inHandSlash.durationMs) : null
-      drawIsoPlayer(ctx, p.x, p.y - heightOffset - (player.jumpHeight ?? 0), tileW, tileH, player, time, swingP, inHandSlash?.tint, style)
+      drawIsoPlayer(ctx, p.x, p.y - heightOffset - (player.jumpHeight ?? 0), tileW, tileH, player, time, swingP, inHandSlash?.tint, style, playerIsTarget)
     } else if (obj.entity) {
       const combat = obj.entity.kind === 'enemy' ? enemyCombat.get(obj.entity.id) : undefined
       if (isDeadEnemy(obj.entity, combat)) continue // hidden until it respawns
       const attackable = enemyInAttackReach(obj.entity, Math.floor(player.x / cellSize), Math.floor(player.z / cellSize), attackReach)
-      const anchor = drawIsoEntity(ctx, p.x, p.y - heightOffset, obj.entity, tileH, combat, now, obj.moving ?? false, obj.inRange ?? false, attackable, style)
+      const anchor = drawIsoEntity(ctx, p.x, p.y - heightOffset, obj.entity, tileH, combat, now, obj.moving ?? false, obj.inRange ?? false, attackable, style, obj.entity.id === targetId)
       drawQuestMarker(ctx, entityQuestMarker(obj.entity, quests), anchor.x, anchor.y, Math.max(14, tileH * 1.6))
     } else if (obj.building) {
       // ONE upright unit, oriented by its real road-derived facing. The planner already reserved
@@ -648,6 +650,7 @@ export function drawIsoPlayer(
   swingP: number | null = null,
   swingTint?: string,
   style: Style = ASCII_STYLE,
+  isTarget: boolean = false,
 ) {
   const playerArt = getPlayerArt(player)
   const lineHeight = tileH * 1.4
@@ -670,6 +673,7 @@ export function drawIsoPlayer(
   const pHalf = (maxW * charW) / 2
   // Ground shadow sized to the player figure (always reads; fixed — doesn't bob).
   drawGroundShadow(ctx, x, y - tileH * 0.5, pHalf)
+  if (isTarget) drawSelectionRing(ctx, x, y - tileH * 0.5, pHalf + tileH * 0.18) // red target reticle at the feet
 
   // Robust block figure — same recipe as entities + trees; `breathe` bobs the whole figure. When
   // attacking, HIDE the static arm on the swinging side (the animated swing-arm below replaces it) so
@@ -801,6 +805,7 @@ export function drawIsoEntity(
   inRange = false,
   attackable = false,
   style: Style = ASCII_STYLE,
+  isTarget = false,
 ): { x: number; y: number } {
   // Multi-row ASCII creature, drawn bottom-to-top. The frame comes from the animation
   // engine (frameAt): idle bob when still, a faster step cycle while moving, an attack
@@ -818,6 +823,7 @@ export function drawIsoEntity(
   const leftX = x - (maxW * charW) / 2
   // Ground shadow sized to the figure so it always reads (not hidden behind it).
   drawGroundShadow(ctx, x, baseY + tileH * 0.1, (maxW * charW) / 2)
+  if (isTarget) drawSelectionRing(ctx, x, baseY + tileH * 0.1, (maxW * charW) / 2 + tileH * 0.28) // red target reticle at the feet
   // In-strike-range indicator: a ring at the feet, under the figure (#35).
   if (attackable) drawRangeRing(ctx, x, baseY + tileH * 0.1, (maxW * charW) / 2 + tileH * 0.2, now)
   ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
