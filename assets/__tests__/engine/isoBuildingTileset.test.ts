@@ -110,10 +110,11 @@ describe('drawIsoBuilding — different wall MATERIALS, not one global brick ("n
     expect(glyphs).not.toContain('🟫')
   })
 
-  test('a brick building (store) rides 🧱, never stone or wood', () => {
+  test('a brick building (store) uses the BRICK material (Noto image), never stone 🪨 or wood 🟫', () => {
     const { ctx, glyphs } = recordingCtx()
     drawIsoBuilding(ctx, building('store'), origin, colVec, depthVec, cellH, 1, EMOJI_STYLE)
-    expect(glyphs).toContain('🧱')
+    // brick is a Noto image tile now (headless can't decode it; the fallback char is suppressed) — assert via DATA.
+    expect(wallMaterialImage('store', building('store').col)).toMatch(/emoji_u1f9f1\.png$/)
     expect(glyphs).not.toContain('🪨')
     expect(glyphs).not.toContain('🟫')
   })

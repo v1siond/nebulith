@@ -186,7 +186,7 @@ export const WALL_MATERIALS: Readonly<Record<WallMaterial, MaterialDef>> = {
   // wood 🪵 + stone 🪨 are Unicode-13 glyphs Segoe lacks (they tofu to [?]) → render them from a Noto
   // image instead (the emoji stays as ASCII/label fallback). brick 🧱 renders fine → glyph. plaster = none.
   wood: { emoji: '🟫', image: '/tiles/emoji/noto/emoji_u1f7eb.png', walls: ['#9c6b3f', '#8a5a34', '#a67a48', '#7d5330'] }, // 🟫 clean brown wall (🪵 log read as ugly); warm browns
-  brick: { emoji: '🧱', walls: ['#b0603a', '#a5542f', '#9c4e30', '#b56a44'] }, // red-brown brick
+  brick: { emoji: '🧱', image: '/tiles/emoji/noto/emoji_u1f9f1.png', walls: ['#b0603a', '#a5542f', '#9c4e30', '#b56a44'] }, // Noto brick image (cleaner than the chunky Segoe glyph)
   stone: { emoji: '🪨', image: '/tiles/emoji/noto/emoji_u1faa8.png', walls: ['#8f8a82', '#7c776f', '#9a958c', '#847e75'] }, // muted greys
   plaster: { emoji: '', walls: HOUSE_WALLS }, // painted siding — colour only, no texture tile
 }
