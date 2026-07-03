@@ -17,7 +17,7 @@ import { type CombatState, type Entity, type Quest } from '@/game/types'
 import { resolveGroundTile } from '@/engine/tileset/tileset'
 import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 import { Connector } from '@/lib/api'
-import { ASCII_FONT, BUILDING_BADGES, COMBAT_RANGE, type DayNight, ENEMY_MOVE_MS, LAMP_GLOW, applyCellTransform, clampCameraAxis, assetCaptionByCell, terrainLabelAt, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawNightLighting, drawPlayerArm, drawQuestMarker, drawRangeRing, drawStyledImage, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, getPlayerArt, grassShade, cellFill, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, resolveDraw, assetOverride, treeCanopyLayers } from './shared'
+import { ASCII_FONT, BUILDING_BADGES, COMBAT_RANGE, type DayNight, ENEMY_MOVE_MS, LAMP_GLOW, applyCellTransform, clampCameraAxis, assetCaptionByCell, terrainLabelAt, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawQuestMarker, drawRangeRing, drawStyledImage, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, getPlayerArt, grassShade, cellFill, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, resolveDraw, assetOverride, treeCanopyLayers } from './shared'
 import { ASCII_STYLE, assetKind, entityKind, enemyTileId, genderize, groundKind, type ElementKind, type Style } from '@/game/artStyle'
 import { DEFAULT_CHARACTER_ANIMATIONS, activeFrame } from '@/game/runtime/entityAnimation'
 
@@ -935,7 +935,9 @@ export function render2D(
     for (const pr of projectiles) {
       const pc = projectileCellAt(pr, time)
       const sp = toScreen(pc.col + 0.5, pc.row + 0.5)
-      ctx.fillText(pr.glyph, sp.x, sp.y - tileH * 0.6)
+      const from = toScreen(pr.fromCol + 0.5, pr.fromRow + 0.5)
+      const to = toScreen(pr.toCol + 0.5, pr.toRow + 0.5)
+      drawProjectileGlyph(ctx, pr.glyph, sp.x, sp.y - tileH * 0.6, from.x, from.y, to.x, to.y)
     }
   }
 

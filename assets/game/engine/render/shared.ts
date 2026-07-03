@@ -457,6 +457,30 @@ export function drawPlayerArm(ctx: CanvasRenderingContext2D, params: PlayerArmPa
   }
 }
 
+/**
+ * Draw a travelling projectile rotated to point along its SCREEN-SPACE travel vector. The arrow glyphs
+ * (➤ →) natively aim RIGHT (angle 0), so we rotate by the vector's angle to make them follow the shot in
+ * ANY direction (fixed "arrows always point right / backwards"); a symmetric bullet (•) is unaffected.
+ * The caller projects from/to into ITS view's screen space (iso vs 2D) and sets font/fill before calling.
+ */
+export function drawProjectileGlyph(
+  ctx: CanvasRenderingContext2D,
+  glyph: string,
+  drawX: number,
+  drawY: number,
+  fromX: number,
+  fromY: number,
+  toX: number,
+  toY: number,
+): void {
+  const angle = Math.atan2(toY - fromY, toX - fromX)
+  ctx.save()
+  ctx.translate(drawX, drawY)
+  ctx.rotate(angle)
+  ctx.fillText(glyph, 0, 0)
+  ctx.restore()
+}
+
 
 // Draw asset as ASCII art in isometric view (matching 2D style)
 /** Draw a generated, labeled cell as a single glyph (its label char + zone color)
