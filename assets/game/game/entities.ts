@@ -217,6 +217,15 @@ export function entityAtClick(
   return null
 }
 
+/** Return the entities list with the PLAYER entity's cell overridden to `playerCell`. The player
+ *  SPRITE is drawn at its live play-loop position (playerRef), but the player ENTITY's col/row is
+ *  only written by spawn/load/place — the game loop never re-syncs it — so after the hero walks the
+ *  two diverge and click hit-testing misses the player. Feed this to entityAtClick so the player is
+ *  hit-tested where it is actually DRAWN. Others pass through unchanged. Pure. */
+export function withPlayerCell(entities: readonly Entity[], playerCell: { col: number; row: number }): Entity[] {
+  return entities.map(e => (e.kind === 'player' ? { ...e, col: playerCell.col, row: playerCell.row } : e))
+}
+
 /** The set of cells (`"col,row"`) occupied by entities' FULL footprints — for movement
  *  collision, so the player can't walk through a monster and patrols collide with each
  *  other. Anchoring matches `entityAtFootprint` (bottom-anchored, centered). `exclude`

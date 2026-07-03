@@ -30,7 +30,7 @@ import { type Action as TriggerAction, resolveAction } from '@/engine/triggers'
 import { ZONE_DECOR_TILE, ZoneId } from '@/engine/zones'
 import { type AbilityBinding, DEFAULT_ABILITY_LOADOUT } from '@/game/abilities'
 import { startingCombatState } from '@/game/combat'
-import { DEFAULT_PLAYER_STATS, canPlaceEntity, entityAt, entityAtClick, entityAtFootprint, entityCollisionCells, makeEnemy, makeNpc, makePlayer, mintEntityId, placeEntity, removeEntity } from '@/game/entities'
+import { DEFAULT_PLAYER_STATS, canPlaceEntity, entityAt, entityAtClick, entityAtFootprint, entityCollisionCells, makeEnemy, makeNpc, makePlayer, mintEntityId, placeEntity, removeEntity, withPlayerCell } from '@/game/entities'
 import { addItem, equipArmor, equipWeapon, itemFromReward, mintItemId, starterInventory, useConsumable } from '@/game/inventory'
 import { createLoadout, loadoutBonuses, seededPlayerLoadout, setSpecial } from '@/game/loadout'
 import { appendWaypoint } from '@/game/patterns'
@@ -809,7 +809,10 @@ export default function TemplateEditor() {
     // No tool armed: clicking a unit selects it — view-aware, so clicking the standing FIGURE works
     // (not just its foot cell). Top view: the unit is on its cell; iso/2d: the figure stands above it.
     const view = topViewMode ? 'top' : viewTypeRef.current === '2d' ? '2d' : 'iso'
-    const clickedEntity = entityAtClick(entitiesRef.current, cell.col, cell.row, view)
+    // Hit-test the PLAYER at its LIVE cell: its sprite tracks playerRef, but the player entity's
+    // col/row is frozen at spawn (only syncPlayerEntity writes it), so use withPlayerCell or the
+    // walked hero is unselectable.
+    const clickedEntity = entityAtClick(withPlayerCell(entitiesRef.current, livePlayerCell()), cell.col, cell.row, view)
     if (clickedEntity) {
       setSelectedEntityId(clickedEntity.id)
       return
@@ -875,7 +878,9 @@ export default function TemplateEditor() {
     if (isPanning && !dragMovedRef.current && downCellRef.current) {
       const c = downCellRef.current
       const clickView = topViewMode ? 'top' : viewTypeRef.current === '2d' ? '2d' : 'iso'
-      const hit = entityAtClick(entitiesRef.current, c.col, c.row, clickView)
+      // Player is hit-tested at its LIVE cell (see withPlayerCell) — the entity's stored cell is
+      // frozen at spawn, so without this the walked hero can't be selected in a play view.
+      const hit = entityAtClick(withPlayerCell(entitiesRef.current, livePlayerCell()), c.col, c.row, clickView)
       if (hit) {
         setSelectedEntityId(hit.id)
       } else {
