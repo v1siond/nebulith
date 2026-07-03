@@ -9,7 +9,7 @@ import { type PlayerState, barFraction, hpFraction } from '@/game/runtime/player
 import { type CombatState, type Entity, type Quest } from '@/game/types'
 import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 import { Connector } from '@/lib/api'
-import { ASCII_FONT, BUILDING_BADGES, type DayNight, LAMP_GLOW, applyCellTransform, clampCameraAxis, collectLampGlows, debugCellCaptions, debugLabelColors, drawHitMarker, drawHpBar, drawNightLighting, drawQuestMarker, drawStyledImage, grassShade, cellFill, isDeadEnemy, isDebugMode, resolveDraw } from './shared'
+import { ASCII_FONT, BUILDING_BADGES, type DayNight, LAMP_GLOW, applyCellTransform, clampCameraAxis, collectLampGlows, debugCellCaptions, debugLabelColors, drawHitMarker, drawHpBar, drawNightLighting, drawQuestMarker, drawStyledImage, grassShade, cellFill, isDeadEnemy, isDebugMode, resolveDraw, assetOverride } from './shared'
 import { ASCII_STYLE, assetKind, entityKind, enemyTileId, genderize, groundKind, type Style } from '@/game/artStyle'
 
 
@@ -170,7 +170,7 @@ export function renderTopView(
       }
 
       // Resolve the active art style (ASCII passthrough → the defaults above, unchanged).
-      const dv = resolveDraw(kind, style, asset?.tileOverride, char, fg)
+      const dv = resolveDraw(kind, style, asset ? assetOverride(asset, style) : undefined, char, fg)
 
       // Draw cell — a reskin tints the blueprint cell at the tile hue (agrees with iso/2D), but grass
       // keeps its per-cell shade so a field isn't one flat green ("grass is just color"); ASCII → bg.

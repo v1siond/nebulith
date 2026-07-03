@@ -56,6 +56,16 @@ export function resolveDraw(
   return { char: defChar, color: defColor } // ascii passthrough — identical to the old path
 }
 
+/** The effective per-cell tile override for an asset under a style. Auto-generated ground_decor litter
+ *  gets a STYLE-SPECIFIC emoji override baked at generation (e.g. 🌼 blossom); that must NOT leak into
+ *  ASCII, so under ASCII we drop it and the decor draws its own dingbat (✿). Manual pins on OTHER assets
+ *  are untouched (they intentionally win over the active style, even ASCII). Resolved at RENDER time so a
+ *  Style toggle updates the decor without regenerating the stage. */
+export function assetOverride(asset: GridAsset, style: Style): string | null | undefined {
+  if (asset.type === 'ground_decor' && style.id === 'ascii') return undefined // drop the auto emoji litter under ASCII
+  return asset.tileOverride
+}
+
 // Image/atlas cache so a tile src is decoded once, not per frame. v1 ships no image
 // pack, so this stays empty in practice, but the pixel-pack / Pixellab / upload path is wired.
 const _imgCache = new Map<string, HTMLImageElement>()

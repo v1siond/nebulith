@@ -17,7 +17,7 @@ import { type CombatState, type Entity, type Quest } from '@/game/types'
 import { resolveGroundTile } from '@/engine/tileset/tileset'
 import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 import { Connector } from '@/lib/api'
-import { ASCII_FONT, BUILDING_BADGES, COMBAT_RANGE, type DayNight, type DrawVisual, ENEMY_MOVE_MS, LAMP_GLOW, LIGHT, applyCellTransform, isoCameraFocus, assetCaptionByCell, terrainLabelAt, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawNightLighting, drawPlayerArm, drawQuestMarker, drawRangeRing, drawStyledImage, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, getPlayerArt, grassShade, cellFill, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, resolveDraw, tileImage, treeCanopyLayers } from './shared'
+import { ASCII_FONT, BUILDING_BADGES, COMBAT_RANGE, type DayNight, type DrawVisual, ENEMY_MOVE_MS, LAMP_GLOW, LIGHT, applyCellTransform, isoCameraFocus, assetCaptionByCell, terrainLabelAt, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawNightLighting, drawPlayerArm, drawQuestMarker, drawRangeRing, drawStyledImage, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, getPlayerArt, grassShade, cellFill, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, resolveDraw, assetOverride, tileImage, treeCanopyLayers } from './shared'
 import { ASCII_STYLE, assetKind, entityKind, enemyTileId, genderize, groundKind, type ElementKind, type ImageVisual, type Style } from '@/game/artStyle'
 import { DEFAULT_CHARACTER_ANIMATIONS, activeFrame } from '@/game/runtime/entityAnimation'
 
@@ -1602,7 +1602,7 @@ export function drawIsoAssetAscii(
   // Active art style: a mapped kind (or a per-element override) replaces ALL of the per-type
   // art below (labeled cells, trees, legacy buildings, props) with ONE tile. ASCII + no
   // override → adv.char '' → falls through to the byte-identical per-type rendering.
-  const adv = resolveDraw(assetKind(asset), style, asset.tileOverride, '', asset.color ?? '#ffffff')
+  const adv = resolveDraw(assetKind(asset), style, assetOverride(asset, style), '', asset.color ?? '#ffffff')
   if (adv.image) { drawStyledImage(ctx, adv.image, x, y - lineHeight * 0.6, tileH * 2.2); return }
   if (adv.char) {
     // Trees tower (~3 cells, like the ASCII tree) instead of a tiny one-cell 🌲, anchored at the base.
