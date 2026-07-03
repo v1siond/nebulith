@@ -247,8 +247,8 @@ export function weaponEmoji(weapon?: { kind?: string; range?: string } | null): 
     case 'staff': return '🪄'
     case 'axe': return '🪓'
     case 'shield': return '🛡️'
-    case 'sword': return '⚔️'
-    default: return weapon.range === 'ranged' ? '🏹' : '⚔️'
+    case 'sword': return '🗡️'
+    default: return weapon.range === 'ranged' ? '🏹' : '🗡️'
   }
 }
 

@@ -52,7 +52,7 @@ describe('weaponGlyph — the held weapon drawn beside the player', () => {
   })
 
   it('weaponEmoji gives a real emoji weapon per kind (for the reskin styles)', () => {
-    expect(weaponEmoji({ kind: 'sword' })).toBe('⚔️')
+    expect(weaponEmoji({ kind: 'sword' })).toBe('🗡️') // single blade, not ⚔️ (crossed = two swords)
     expect(weaponEmoji({ kind: 'bow' })).toBe('🏹')
     expect(weaponEmoji({ kind: 'staff' })).toBe('🪄')
     expect(weaponEmoji({ kind: 'axe' })).toBe('🪓')

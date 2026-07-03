@@ -347,6 +347,10 @@ export interface PlayerArmParams {
  * source (and the per-view weapon-tint + shield-radius), all passed in. charW/armR/weaponSize derive
  * from fontSize with the same ratios both views already used, so the output is pixel-identical.
  */
+/** An emoji weapon renders in its OWN colour, so it must NOT be flipped 180° (that inverts it) nor drawn
+ *  twice (a black-shadow pass doubles it) like a monochrome ASCII glyph — detect it and draw it upright. */
+const isWeaponEmoji = (g: string): boolean => /\p{Extended_Pictographic}/u.test(g)
+
 export function drawPlayerArm(ctx: CanvasRenderingContext2D, params: PlayerArmParams): void {
   const { swinging, swingP, facingDir, fontSize, bodyColor, weaponGlyph, weaponTint, swingTint } = params
   const charW = fontSize * 0.6
@@ -368,13 +372,18 @@ export function drawPlayerArm(ctx: CanvasRenderingContext2D, params: PlayerArmPa
     ctx.fillText(armChar, facingDir * armR, 0)
     if (weaponGlyph) {
       ctx.translate(facingDir * (armR + charW), 0) // the hand, just past the bracket
-      if (facingDir > 0) ctx.scale(-1, 1) // weapon points OUTWARD in both facings (#54)
-      ctx.rotate(Math.PI)
       ctx.font = `bold ${weaponSize}px ${ASCII_FONT}`
-      ctx.fillStyle = '#000000'
-      ctx.fillText(weaponGlyph, 0, weaponSize * 0.45 + 1)
-      ctx.fillStyle = swingTint ?? weaponTint
-      ctx.fillText(weaponGlyph, 0, weaponSize * 0.45)
+      if (isWeaponEmoji(weaponGlyph)) {
+        if (facingDir < 0) ctx.scale(-1, 1) // upright + MIRRORED to the facing; drawn ONCE (own colour)
+        ctx.fillText(weaponGlyph, 0, 0)
+      } else {
+        if (facingDir > 0) ctx.scale(-1, 1) // ASCII glyph: points OUTWARD in both facings (#54)
+        ctx.rotate(Math.PI)
+        ctx.fillStyle = '#000000'
+        ctx.fillText(weaponGlyph, 0, weaponSize * 0.45 + 1)
+        ctx.fillStyle = swingTint ?? weaponTint
+        ctx.fillText(weaponGlyph, 0, weaponSize * 0.45)
+      }
     }
     ctx.restore()
     ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
@@ -382,15 +391,20 @@ export function drawPlayerArm(ctx: CanvasRenderingContext2D, params: PlayerArmPa
     // Holding (not swinging): the weapon rests in the figure’s natural hand — its own arm holds it.
     ctx.save()
     ctx.translate(params.restHandX, params.restHandY)
-    if (facingDir > 0) ctx.scale(-1, 1)
-    ctx.rotate(Math.PI)
     ctx.font = `bold ${weaponSize}px ${ASCII_FONT}`
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
-    ctx.fillStyle = '#000000'
-    ctx.fillText(weaponGlyph, 0, weaponSize * 0.45 + 1)
-    ctx.fillStyle = weaponTint
-    ctx.fillText(weaponGlyph, 0, weaponSize * 0.45)
+    if (isWeaponEmoji(weaponGlyph)) {
+      if (facingDir < 0) ctx.scale(-1, 1) // upright + MIRRORED to the facing; drawn ONCE (own colour)
+      ctx.fillText(weaponGlyph, 0, 0)
+    } else {
+      if (facingDir > 0) ctx.scale(-1, 1)
+      ctx.rotate(Math.PI)
+      ctx.fillStyle = '#000000'
+      ctx.fillText(weaponGlyph, 0, weaponSize * 0.45 + 1)
+      ctx.fillStyle = weaponTint
+      ctx.fillText(weaponGlyph, 0, weaponSize * 0.45)
+    }
     ctx.restore()
     ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
   }
