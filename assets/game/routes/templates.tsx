@@ -31,6 +31,7 @@ import { ZONE_DECOR_TILE, ZoneId } from '@/engine/zones'
 import { type AbilityBinding, DEFAULT_ABILITY_LOADOUT } from '@/game/abilities'
 import { startingCombatState } from '@/game/combat'
 import { DEFAULT_PLAYER_STATS, canPlaceEntity, entityAt, entityAtClick, entityAtFootprint, entityCollisionCells, makeEnemy, makeNpc, makePlayer, mintEntityId, placeEntity, removeEntity, withPlayerCell } from '@/game/entities'
+import { cycleSelection } from '@/game/unitSelection'
 import { addItem, equipArmor, equipWeapon, itemFromReward, mintItemId, starterInventory, useConsumable } from '@/game/inventory'
 import { createLoadout, loadoutBonuses, seededPlayerLoadout, setSpecial } from '@/game/loadout'
 import { appendWaypoint } from '@/game/patterns'
@@ -3593,6 +3594,16 @@ export default function TemplateEditor() {
       // Q toggles the quest log (same guard).
       if ((e.key === 'q' || e.key === 'Q') && tag !== 'INPUT' && tag !== 'TEXTAREA') {
         setQuestLogOpen(o => !o)
+        return
+      }
+      // Tab cycles the SELECTED unit (target) through every unit — a reliable selection that never
+      // depends on clicking a billboarded figure. Shift+Tab goes back. preventDefault so Tab doesn't
+      // shift DOM focus / scroll. The Inspector already shows whatever entity is selected (incl. player).
+      if (e.key === 'Tab' && tag !== 'INPUT' && tag !== 'TEXTAREA') {
+        e.preventDefault()
+        const ids = entitiesRef.current.map(en => en.id)
+        const next = cycleSelection(ids, selectedEntityIdRef.current, e.shiftKey ? -1 : 1)
+        if (next) setSelectedEntityId(next)
         return
       }
       // Normalize letter keys to lowercase: holding SHIFT makes 'w' arrive as 'W' on keydown but
