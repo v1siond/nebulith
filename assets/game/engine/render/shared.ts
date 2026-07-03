@@ -348,14 +348,37 @@ export interface PlayerArmParams {
  * from fontSize with the same ratios both views already used, so the output is pixel-identical.
  */
 /** An emoji weapon renders in its OWN colour, so it must NOT be flipped 180° (that inverts it) nor drawn
- *  twice (a black-shadow pass doubles it) like a monochrome ASCII glyph — detect it and draw it upright. */
+ *  twice (a black-shadow pass doubles it) like a monochrome ASCII glyph. Each weapon emoji ALSO has its
+ *  own NATIVE orientation (gun 🔫 points ←, sword 🗡️ blade ↙, bow 🏹 ↗ …), so no single mirror rule can
+ *  aim them all — this table (VALIDATED by rendering each L/R) gives the rotation + native-flip that makes
+ *  the weapon point up-forward when facing RIGHT; left-facing mirrors the whole pose. */
 const isWeaponEmoji = (g: string): boolean => /\p{Extended_Pictographic}/u.test(g)
+const WEAPON_ORIENT: Readonly<Record<string, { rot: number; flip: boolean }>> = {
+  '🗡️': { rot: Math.PI, flip: false }, // native blade ↙ → 180° → blade ↗ (up-forward)
+  '🔫': { rot: 0, flip: true }, // native barrel ← → flip → points forward
+  '🏹': { rot: 0, flip: false }, // native ↗ already forward
+  '🪓': { rot: 0, flip: true }, // native ↖ → flip → ↗
+  '🪄': { rot: 0, flip: false },
+}
+/** Draw an emoji weapon at the current origin (the hand): aimed in the facing direction + upright per its
+ *  native orientation, ONCE (own colour). The caller has already translated to the hand + saved the ctx. */
+function drawEmojiWeapon(ctx: CanvasRenderingContext2D, glyph: string, facingDir: number, sizePx: number): void {
+  const o = WEAPON_ORIENT[glyph] ?? { rot: 0, flip: false }
+  ctx.font = `${sizePx}px ${ASCII_FONT}`
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  if (facingDir < 0) ctx.scale(-1, 1) // left-facing = mirror the whole right-facing pose
+  if (o.flip) ctx.scale(-1, 1) // per-weapon: flip the native so it aims forward-right
+  if (o.rot) ctx.rotate(o.rot)
+  ctx.fillText(glyph, 0, 0)
+}
 
 export function drawPlayerArm(ctx: CanvasRenderingContext2D, params: PlayerArmParams): void {
   const { swinging, swingP, facingDir, fontSize, bodyColor, weaponGlyph, weaponTint, swingTint } = params
   const charW = fontSize * 0.6
   const armR = charW * 1.15 // SHORT — about one char (≈ the walk arm / legs), not the full reach
   const weaponSize = fontSize * 1.7
+  const emojiWeaponSize = fontSize * 1.1 // emoji weapons are full-colour images — smaller than the ascii glyph so they don't dwarf the figure
   ctx.textAlign = 'center'
   if (swinging) {
     // The swing arm IS the figure’s facing bracket, pivoting at the SHOULDER and rotating from
@@ -374,8 +397,7 @@ export function drawPlayerArm(ctx: CanvasRenderingContext2D, params: PlayerArmPa
       ctx.translate(facingDir * (armR + charW), 0) // the hand, just past the bracket
       ctx.font = `bold ${weaponSize}px ${ASCII_FONT}`
       if (isWeaponEmoji(weaponGlyph)) {
-        if (facingDir < 0) ctx.scale(-1, 1) // upright + MIRRORED to the facing; drawn ONCE (own colour)
-        ctx.fillText(weaponGlyph, 0, 0)
+        drawEmojiWeapon(ctx, weaponGlyph, facingDir, emojiWeaponSize)
       } else {
         if (facingDir > 0) ctx.scale(-1, 1) // ASCII glyph: points OUTWARD in both facings (#54)
         ctx.rotate(Math.PI)
@@ -395,8 +417,7 @@ export function drawPlayerArm(ctx: CanvasRenderingContext2D, params: PlayerArmPa
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
     if (isWeaponEmoji(weaponGlyph)) {
-      if (facingDir < 0) ctx.scale(-1, 1) // upright + MIRRORED to the facing; drawn ONCE (own colour)
-      ctx.fillText(weaponGlyph, 0, 0)
+      drawEmojiWeapon(ctx, weaponGlyph, facingDir, emojiWeaponSize)
     } else {
       if (facingDir > 0) ctx.scale(-1, 1)
       ctx.rotate(Math.PI)
@@ -408,21 +429,31 @@ export function drawPlayerArm(ctx: CanvasRenderingContext2D, params: PlayerArmPa
     ctx.restore()
     ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
   }
-  // Shield on the OFF-hand — a FILLED disc behind the glyph so it reads as a solid shield.
+  // Shield on the OFF-hand.
   if (params.shieldGlyph) {
     const { shieldX: shX, shieldY: shY, shieldR: shR } = params
-    ctx.beginPath()
-    ctx.arc(shX, shY, shR, 0, Math.PI * 2)
-    ctx.fillStyle = '#3f5f8f' // steel-blue shield body
-    ctx.fill()
-    ctx.beginPath()
-    ctx.arc(shX, shY, shR * 0.34, 0, Math.PI * 2)
-    ctx.fillStyle = '#cfe6ff' // centre boss highlight
-    ctx.fill()
-    ctx.fillStyle = '#000000'
-    ctx.fillText(params.shieldGlyph, shX + 1, shY + 1)
-    ctx.fillStyle = '#9fd3ff' // bright rim (the glyph) over the filled body
-    ctx.fillText(params.shieldGlyph, shX, shY)
+    if (isWeaponEmoji(params.shieldGlyph)) {
+      // Emoji shield (🛡️) is already a shield image — draw it ONCE at the shield size, no steel disc and
+      // no black-shadow double (that garbled it into a blob over a blue circle).
+      ctx.font = `${shR * 2}px ${ASCII_FONT}`
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.fillText(params.shieldGlyph, shX, shY)
+    } else {
+      // ASCII shield glyph: a FILLED disc behind the glyph so it reads as a solid shield.
+      ctx.beginPath()
+      ctx.arc(shX, shY, shR, 0, Math.PI * 2)
+      ctx.fillStyle = '#3f5f8f' // steel-blue shield body
+      ctx.fill()
+      ctx.beginPath()
+      ctx.arc(shX, shY, shR * 0.34, 0, Math.PI * 2)
+      ctx.fillStyle = '#cfe6ff' // centre boss highlight
+      ctx.fill()
+      ctx.fillStyle = '#000000'
+      ctx.fillText(params.shieldGlyph, shX + 1, shY + 1)
+      ctx.fillStyle = '#9fd3ff' // bright rim (the glyph) over the filled body
+      ctx.fillText(params.shieldGlyph, shX, shY)
+    }
   }
 }
 
