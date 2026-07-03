@@ -107,7 +107,7 @@ describe('drawIsoBuilding — different wall MATERIALS, not one global brick ("n
     // assert it IS stone via DATA + that no OTHER material glyph (brick/wood) leaks onto the walls.
     expect(wallMaterialImage('castle', building('castle').col)).toMatch(/emoji_u1faa8\.png$/)
     expect(glyphs).not.toContain('🧱')
-    expect(glyphs).not.toContain('🪵')
+    expect(glyphs).not.toContain('🟫')
   })
 
   test('a brick building (store) rides 🧱, never stone or wood', () => {
@@ -115,7 +115,7 @@ describe('drawIsoBuilding — different wall MATERIALS, not one global brick ("n
     drawIsoBuilding(ctx, building('store'), origin, colVec, depthVec, cellH, 1, EMOJI_STYLE)
     expect(glyphs).toContain('🧱')
     expect(glyphs).not.toContain('🪨')
-    expect(glyphs).not.toContain('🪵')
+    expect(glyphs).not.toContain('🟫')
   })
 
   test('a plaster building (hospital) stamps NO wall texture (painted colour reads) but keeps its windows', () => {
@@ -123,7 +123,7 @@ describe('drawIsoBuilding — different wall MATERIALS, not one global brick ("n
     drawIsoBuilding(ctx, building('hospital'), origin, colVec, depthVec, cellH, 1, EMOJI_STYLE)
     expect(glyphs).not.toContain('🧱')
     expect(glyphs).not.toContain('🪨')
-    expect(glyphs).not.toContain('🪵')
+    expect(glyphs).not.toContain('🟫')
     expect(glyphs).toContain('⊞') // windows are Noto image tiles → non-tofu ASCII (⊞) fallback headless; still a real per-cell facade
   })
 })
@@ -147,6 +147,6 @@ describe('draw2DBuilding — the 2D facade is also a per-cell tileset, not a lan
     draw2DBuilding(ctx, building('castle'), 400, 300, 22, 22, 1, EMOJI_STYLE)
     expect(wallMaterialImage('castle', building('castle').col)).toMatch(/emoji_u1faa8\.png$/)
     expect(glyphs).not.toContain('🧱')
-    expect(glyphs).not.toContain('🪵')
+    expect(glyphs).not.toContain('🟫')
   })
 })

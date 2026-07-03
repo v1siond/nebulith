@@ -38,13 +38,13 @@ describe('wallMaterialTile — the emoji ridden on the wall faces (or "" for pla
     expect(wallMaterialTile('store', 3)).toBe('🧱') // brick
     expect(wallMaterialTile('castle', 3)).toBe('🪨') // stone
     expect(wallMaterialTile('hospital', 3)).toBe('') // plaster → no texture tile
-    expect(WALL_MATERIALS.wood.emoji).toBe('🪵')
+    expect(WALL_MATERIALS.wood.emoji).toBe('🟫')
   })
 })
 
 describe('wallMaterialImage — Noto image for the tofu materials (wood/stone), none for brick/plaster', () => {
   test('wood + stone carry a Noto image (their 🪵/🪨 glyphs tofu on Segoe); brick + plaster do not', () => {
-    expect(WALL_MATERIALS.wood.image).toMatch(/emoji_u1fab5\.png$/)
+    expect(WALL_MATERIALS.wood.image).toMatch(/emoji_u1f7eb\.png$/)
     expect(WALL_MATERIALS.stone.image).toMatch(/emoji_u1faa8\.png$/)
     expect(WALL_MATERIALS.brick.image).toBeUndefined() // 🧱 renders fine on Segoe → stays a glyph
     expect(WALL_MATERIALS.plaster.image).toBeUndefined() // colour only, no texture
