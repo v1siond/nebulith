@@ -936,15 +936,15 @@ export function fillIsoFaceWithTile(
   ctx.beginPath()
   ctx.rect(0, 0, S, S)
   ctx.clip()
-  if (tv.image) {
-    const img = tileImage(tv.image.src)
-    if (img) {
-      const sx = tv.image.sx ?? 0
-      const sy = tv.image.sy ?? 0
-      const sw = tv.image.sw ?? img.naturalWidth
-      const sh = tv.image.sh ?? img.naturalHeight
-      for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) ctx.drawImage(img, sx, sy, sw, sh, i * cw, j * ch, cw, ch)
-    }
+  // Image tile if its raster is ready; otherwise fall back to the glyph so the face is NEVER blank —
+  // covers the split second before a Noto PNG decodes AND a failed/missing image (graceful degradation).
+  const img = tv.image ? tileImage(tv.image.src) : null
+  if (img) {
+    const sx = tv.image!.sx ?? 0
+    const sy = tv.image!.sy ?? 0
+    const sw = tv.image!.sw ?? img.naturalWidth
+    const sh = tv.image!.sh ?? img.naturalHeight
+    for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) ctx.drawImage(img, sx, sy, sw, sh, i * cw, j * ch, cw, ch)
   } else if (tv.char) {
     ctx.fillStyle = tv.color
     ctx.textAlign = 'center'

@@ -72,7 +72,11 @@ function emojiStyleMap(): Partial<Record<ElementKind, Visual>> {
   const map: Partial<Record<ElementKind, Visual>> = {}
   for (const kind of Object.keys(EMOJI_TILESET)) {
     const tile = EMOJI_TILESET[kind]
-    map[kind as ElementKind] = { kind: 'glyph', char: tile.char, color: tile.color }
+    // A tile with an `image` (a Noto PNG) renders through the wired drawImage path — kills the Segoe
+    // `[?]` tofu on Unicode-13 glyphs. `color` still rides along as the geometry backing tint.
+    map[kind as ElementKind] = tile.image
+      ? { kind: 'image', src: tile.image, color: tile.color }
+      : { kind: 'glyph', char: tile.char, color: tile.color }
   }
   return map
 }

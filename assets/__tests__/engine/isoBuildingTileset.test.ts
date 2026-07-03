@@ -58,7 +58,9 @@ describe('drawIsoBuilding — a reskinned building is a per-cell tileset block, 
     if (wallTile) expect(glyphs).toContain(wallTile)
     // The facade carries its own door + window tiles (a house has both).
     expect(glyphs).toContain('🚪')
-    expect(glyphs).toContain('🪟')
+    // Windows are Noto IMAGE tiles now (🪟 tofus on Segoe): the facade draws the decoded image in the
+    // browser, else the non-tofu ASCII window fallback (⊞). Headless can't decode → ⊞. Still per-cell.
+    expect(glyphs).toContain('⊞')
   })
 
   test('Emoji style NEVER draws the whole-building landmark sprite (no flat 🏠 billboard)', () => {
@@ -109,7 +111,7 @@ describe('drawIsoBuilding — different wall MATERIALS, not one global brick ("n
     expect(glyphs).not.toContain('🧱')
     expect(glyphs).not.toContain('🪨')
     expect(glyphs).not.toContain('🪵')
-    expect(glyphs).toContain('🪟') // still a real per-cell facade, just plaster walls
+    expect(glyphs).toContain('⊞') // windows are Noto image tiles → non-tofu ASCII (⊞) fallback headless; still a real per-cell facade
   })
 })
 

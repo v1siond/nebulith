@@ -13,6 +13,7 @@ import {
   visualForTileId,
   TILE_CATALOG,
   type GlyphVisual,
+  type ImageVisual,
 } from '@/game/artStyle'
 import { resolveDraw } from '@/engine/render/shared'
 
@@ -51,8 +52,8 @@ describe('resolveVisual — the one style decision point', () => {
     // renderer falls back to stamping a flat upright emoji square (the StageD bug). Assert the
     // whole map carries one, terrain + buildings especially (those fill geometry).
     for (const kind of Object.keys(EMOJI_STYLE.map) as (keyof typeof EMOJI_STYLE.map)[]) {
-      const v = EMOJI_STYLE.map[kind] as GlyphVisual
-      expect(v.kind).toBe('glyph')
+      const v = EMOJI_STYLE.map[kind] as GlyphVisual | ImageVisual
+      expect(['glyph', 'image']).toContain(v.kind) // an image tile (Noto png) carries the backing tint too
       expect(typeof v.color).toBe('string')
       expect(v.color).toMatch(/^#[0-9a-f]{3,8}$/i)
     }

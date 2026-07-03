@@ -16,7 +16,7 @@ describe('emoji tile catalog — full categorized + labeled tileset', () => {
     expect(grouped.units.length).toBeGreaterThanOrEqual(20)
   })
 
-  it('every emoji tile in the Library has a non-empty label and a drawable glyph char', () => {
+  it('every emoji tile in the Library has a non-empty label and is drawable (glyph char OR image src)', () => {
     const emojiTiles: TileDef[] = [
       ...grouped.terrain, ...grouped.nature, ...grouped.buildings, ...grouped.units,
     ]
@@ -25,9 +25,11 @@ describe('emoji tile catalog — full categorized + labeled tileset', () => {
       expect(t.styleId).toBe('emoji')
       expect(typeof t.label).toBe('string')
       expect(t.label.trim().length).toBeGreaterThan(0)
-      expect(t.visual.kind).toBe('glyph')
-      // a glyph tile must carry a non-empty char (what the picker + renderer stamp)
-      expect(t.visual.kind === 'glyph' && t.visual.char.length > 0).toBe(true)
+      // drawable = a glyph tile carries a non-empty char, OR an image tile carries a src (Noto png).
+      const drawable =
+        (t.visual.kind === 'glyph' && t.visual.char.length > 0) ||
+        (t.visual.kind === 'image' && t.visual.src.length > 0)
+      expect(drawable).toBe(true)
     }
   })
 

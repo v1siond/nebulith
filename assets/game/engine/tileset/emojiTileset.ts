@@ -14,6 +14,11 @@ export interface EmojiTile {
   char: string
   /** The fill/tint colour (harmonised with the ASCII palette so a reskin reads as the same world). */
   color: string
+  /** OPTIONAL portable image asset (a Noto PNG). When set, the tile renders as an IMAGE via the wired
+   *  drawImage path instead of the `char` — so Unicode-13 glyphs Segoe lacks (🪨/🪟/…) stop tofu-ing to
+   *  `[?]`. A path under /public (e.g. `/tiles/emoji/noto/emoji_u1faa8.png`), so it's DB-servable data,
+   *  not a hardcoded glyph. `char` stays as the ASCII/label fallback + the catalog preview. */
+  image?: string
 }
 
 export let EMOJI_TILESET: Record<string, EmojiTile> = {
@@ -25,20 +30,20 @@ export let EMOJI_TILESET: Record<string, EmojiTile> = {
   sand: { char: '🟨', color: '#e2c86b' },
   snow: { char: '⬜', color: '#e2ecf5' },
   autumn: { char: '🍂', color: '#b5732f' },
-  cavefloor: { char: '🪨', color: '#3f3a34' },
+  cavefloor: { char: '🪨', color: '#3f3a34', image: '/tiles/emoji/noto/emoji_u1faa8.png' }, // 🪨 tofus on Segoe → Noto
   moss: { char: '🌿', color: '#4a6b3a' },
   mountain: { char: '🗻', color: '#8d8d97' },
   // buildings — `color` tints the cube face; the facade door/window fill at their own hue.
   wall: { char: '🧱', color: '#b0603a' },
   roof: { char: '🟥', color: '#c8443c' },
   door: { char: '🚪', color: '#5a3a22' },
-  window: { char: '🪟', color: '#7fb4d8' },
+  window: { char: '🪟', color: '#7fb4d8', image: '/tiles/emoji/noto/emoji_u1fa9f.png' }, // 🪟 tofus on Segoe → Noto
   fountain: { char: '⛲', color: '#4a90e2' },
   // nature / props — upright billboards; `color` fills the glyph.
   tree: { char: '🌲', color: '#2f8f3f' },
   flower: { char: '🌸', color: '#e785b5' },
   bush: { char: '🌿', color: '#4fa03f' },
-  rock: { char: '🪨', color: '#8a8a8a' },
+  rock: { char: '🪨', color: '#8a8a8a', image: '/tiles/emoji/noto/emoji_u1faa8.png' }, // 🪨 tofus on Segoe → Noto
   crate: { char: '📦', color: '#b5793a' },
   lamp: { char: '💡', color: '#ffd24a' },
   // cave features.

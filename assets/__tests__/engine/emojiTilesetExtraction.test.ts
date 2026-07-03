@@ -6,22 +6,31 @@
  * accepted; it dies later when tiles become rasterised assets).
  */
 import { EMOJI_TILESET } from '@/engine/tileset/emojiTileset'
-import { EMOJI_STYLE, resolveVisual, type GlyphVisual } from '@/game/artStyle'
+import { EMOJI_STYLE, resolveVisual, type GlyphVisual, type ImageVisual } from '@/game/artStyle'
 
 describe('emoji tileset extraction — EMOJI_STYLE is a faithful view over EMOJI_TILESET', () => {
-  test('every kind in the tileset becomes a glyph Visual with the tileset char + colour', () => {
+  test('every kind becomes a Visual matching its tile — image tiles → ImageVisual, else GlyphVisual', () => {
     for (const kind of Object.keys(EMOJI_TILESET)) {
       const tile = EMOJI_TILESET[kind]
-      expect(EMOJI_STYLE.map[kind as keyof typeof EMOJI_STYLE.map]).toEqual({ kind: 'glyph', char: tile.char, color: tile.color })
+      const expected = tile.image
+        ? { kind: 'image', src: tile.image, color: tile.color }
+        : { kind: 'glyph', char: tile.char, color: tile.color }
+      expect(EMOJI_STYLE.map[kind as keyof typeof EMOJI_STYLE.map]).toEqual(expected)
     }
   })
 
   test('resolveVisual over the derived style returns each kind’s emoji tile', () => {
     for (const kind of Object.keys(EMOJI_TILESET)) {
-      const v = resolveVisual(kind as never, EMOJI_STYLE) as GlyphVisual
-      expect(v.kind).toBe('glyph')
-      expect(v.char).toBe(EMOJI_TILESET[kind].char)
-      expect(v.color).toBe(EMOJI_TILESET[kind].color)
+      const tile = EMOJI_TILESET[kind]
+      const v = resolveVisual(kind as never, EMOJI_STYLE)
+      if (tile.image) {
+        expect(v.kind).toBe('image')
+        expect((v as ImageVisual).src).toBe(tile.image)
+      } else {
+        expect(v.kind).toBe('glyph')
+        expect((v as GlyphVisual).char).toBe(tile.char)
+      }
+      expect((v as GlyphVisual | ImageVisual).color).toBe(tile.color) // both carry the backing tint
     }
   })
 
