@@ -181,11 +181,13 @@ const BUILDING_PALETTES: Readonly<Record<BuildingType, BuildingPalette>> = {
 //    identity material. PLASTER has no texture tile, so its painted colour reads flat (like the roof).
 export type WallMaterial = 'wood' | 'brick' | 'stone' | 'plaster'
 
-interface MaterialDef { emoji: string; walls: readonly string[] }
+interface MaterialDef { emoji: string; image?: string; walls: readonly string[] }
 export const WALL_MATERIALS: Readonly<Record<WallMaterial, MaterialDef>> = {
-  wood: { emoji: '🪵', walls: ['#9c6b3f', '#8a5a34', '#a67a48', '#7d5330'] }, // warm log/plank browns
+  // wood 🪵 + stone 🪨 are Unicode-13 glyphs Segoe lacks (they tofu to [?]) → render them from a Noto
+  // image instead (the emoji stays as ASCII/label fallback). brick 🧱 renders fine → glyph. plaster = none.
+  wood: { emoji: '🪵', image: '/tiles/emoji/noto/emoji_u1fab5.png', walls: ['#9c6b3f', '#8a5a34', '#a67a48', '#7d5330'] }, // warm log/plank browns
   brick: { emoji: '🧱', walls: ['#b0603a', '#a5542f', '#9c4e30', '#b56a44'] }, // red-brown brick
-  stone: { emoji: '🪨', walls: ['#8f8a82', '#7c776f', '#9a958c', '#847e75'] }, // muted greys
+  stone: { emoji: '🪨', image: '/tiles/emoji/noto/emoji_u1faa8.png', walls: ['#8f8a82', '#7c776f', '#9a958c', '#847e75'] }, // muted greys
   plaster: { emoji: '', walls: HOUSE_WALLS }, // painted siding — colour only, no texture tile
 }
 
@@ -211,6 +213,13 @@ export function buildingWallMaterial(type: BuildingType, anchorSeed: number): Wa
  *  painted colour reads flat). The renderer rides this on the wall faces instead of one global brick. */
 export function wallMaterialTile(type: BuildingType, anchorSeed: number): string {
   return WALL_MATERIALS[buildingWallMaterial(type, anchorSeed)].emoji
+}
+
+/** The wall IMAGE (a Noto png) for a building's material under a reskin — set for wood/stone (whose
+ *  🪵/🪨 glyphs tofu on Segoe), undefined for brick (glyph renders fine) and plaster (colour only).
+ *  The renderer draws this on the wall faces; the emoji is the ASCII/label fallback. Pure. */
+export function wallMaterialImage(type: BuildingType, anchorSeed: number): string | undefined {
+  return WALL_MATERIALS[buildingWallMaterial(type, anchorSeed)].image
 }
 
 /** Color for one facade cell by the building's TYPE + the cell's label. HOUSES vary per building

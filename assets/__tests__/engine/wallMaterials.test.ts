@@ -4,7 +4,9 @@
  * so a street mixes them); every other type has a fixed identity material. buildingCellColor's wall
  * colour must come from that material, so colour and texture always agree.
  */
-import { buildingWallMaterial, wallMaterialTile, WALL_MATERIALS, buildingCellColor } from '@/engine/stageGenerator'
+import fs from 'fs'
+import path from 'path'
+import { buildingWallMaterial, wallMaterialTile, wallMaterialImage, WALL_MATERIALS, buildingCellColor } from '@/engine/stageGenerator'
 import type { BuildingType } from '@/engine/buildingComposer'
 
 describe('buildingWallMaterial — identity per civic type, variety per house', () => {
@@ -37,6 +39,29 @@ describe('wallMaterialTile — the emoji ridden on the wall faces (or "" for pla
     expect(wallMaterialTile('castle', 3)).toBe('🪨') // stone
     expect(wallMaterialTile('hospital', 3)).toBe('') // plaster → no texture tile
     expect(WALL_MATERIALS.wood.emoji).toBe('🪵')
+  })
+})
+
+describe('wallMaterialImage — Noto image for the tofu materials (wood/stone), none for brick/plaster', () => {
+  test('wood + stone carry a Noto image (their 🪵/🪨 glyphs tofu on Segoe); brick + plaster do not', () => {
+    expect(WALL_MATERIALS.wood.image).toMatch(/emoji_u1fab5\.png$/)
+    expect(WALL_MATERIALS.stone.image).toMatch(/emoji_u1faa8\.png$/)
+    expect(WALL_MATERIALS.brick.image).toBeUndefined() // 🧱 renders fine on Segoe → stays a glyph
+    expect(WALL_MATERIALS.plaster.image).toBeUndefined() // colour only, no texture
+  })
+
+  test('wallMaterialImage resolves a building to its material image (or undefined)', () => {
+    expect(wallMaterialImage('castle', 3)).toMatch(/emoji_u1faa8\.png$/) // castle = stone → stone image
+    expect(wallMaterialImage('store', 3)).toBeUndefined() // brick → glyph, no image
+    expect(wallMaterialImage('hospital', 3)).toBeUndefined() // plaster → colour only
+  })
+
+  test('every wall-material image ref points to a bundled asset that exists on disk', () => {
+    const pub = path.join(__dirname, '../../../public')
+    for (const m of Object.values(WALL_MATERIALS)) {
+      if (!m.image) continue
+      expect(fs.existsSync(path.join(pub, m.image.replace(/^\//, '')))).toBe(true)
+    }
   })
 })
 

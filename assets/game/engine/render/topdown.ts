@@ -9,7 +9,7 @@ import { darkenColor, lightenColor, withAlpha } from '@/engine/colors'
 import { entityPalette } from '@/engine/entityArt'
 import { entityQuestMarker } from '@/engine/entityQuestMarker'
 import { isoFacadeOnBack } from '@/engine/isoBuilding'
-import { buildingCellColor, wallMaterialTile } from '@/engine/stageGenerator'
+import { buildingCellColor, wallMaterialTile, wallMaterialImage } from '@/engine/stageGenerator'
 import { type Projectile, projectileCellAt } from '@/game/projectiles'
 import { type HitMarker } from '@/game/runtime/combat'
 import { type PlayerState, barFraction, hpFraction, playerDisplayName } from '@/game/runtime/player'
@@ -232,6 +232,7 @@ export function draw2DBuilding(
   // dark doors, glass windows; store=blue roof, hospital=green roof) so 2D matches the other views.
   const t = b.type as BuildingType
   const wallTile2D = wallMaterialTile(t, b.col) // this building's MATERIAL tile (🪵/🧱/🪨; '' = plaster)
+  const wallImage2D = wallMaterialImage(t, b.col) // wood/stone → a Noto image (their glyphs tofu); brick/plaster → undefined
   const a = (col: string): string => withAlpha(col, 0.96)
   const roofBg = a(buildingCellColor(t, 'roof', b.col))
   const roofGlyph = a(darkenColor(buildingCellColor(t, 'roof', b.col), 0.58)) // the /\ as a darker roof tone, so it reads
@@ -279,8 +280,11 @@ export function draw2DBuilding(
         if (!isRoof) {
           // Wall cells stamp the building's MATERIAL tile (wood/brick/stone; '' plaster → the painted
           // fill reads flat); door/window keep their own resolved tile.
-          const tileChar = kind === 'wall' ? wallTile2D : bdv.char
-          if (bdv.image && kind !== 'wall') drawStyledImage(ctx, bdv.image, x, cy, Math.max(tileW, tileH))
+          // Wall cells ride the MATERIAL image (wood/stone) if any — the cell bg colour (already filled)
+          // is the fallback, NOT the 🪵/🪨 glyph (tofu). Brick → its 🧱 glyph; plaster '' → colour only.
+          const tileChar = kind === 'wall' ? (wallImage2D ? '' : wallTile2D) : bdv.char
+          if (kind === 'wall' && wallImage2D) drawStyledImage(ctx, { kind: 'image', src: wallImage2D }, x, cy, Math.max(tileW, tileH))
+          else if (bdv.image && kind !== 'wall') drawStyledImage(ctx, bdv.image, x, cy, Math.max(tileW, tileH))
           else if (tileChar) { ctx.fillStyle = bdv.color; ctx.font = `${Math.max(tileW, tileH) * 1.02}px ${ASCII_FONT}`; ctx.fillText(tileChar, x, cy) }
         }
       } else {

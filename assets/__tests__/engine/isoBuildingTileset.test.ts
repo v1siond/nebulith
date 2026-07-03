@@ -11,7 +11,7 @@
 import { drawIsoBuilding, type Pt } from '@/engine/render/iso'
 import { draw2DBuilding } from '@/engine/render/topdown'
 import { composeBuilding, type BuildingType } from '@/engine/buildingComposer'
-import { wallMaterialTile } from '@/engine/stageGenerator'
+import { wallMaterialTile, wallMaterialImage } from '@/engine/stageGenerator'
 import { EMOJI_STYLE, ASCII_STYLE } from '@/game/artStyle'
 import type { GridBuilding } from '@/engine/IsometricGrid'
 
@@ -55,7 +55,9 @@ describe('drawIsoBuilding — a reskinned building is a per-cell tileset block, 
 
     // The wall faces ride THIS house's material tile (sheared via tileFace); plaster is colour-only.
     const wallTile = wallMaterialTile('house', b.col)
-    if (wallTile) expect(glyphs).toContain(wallTile)
+    // brick draws its 🧱 glyph; wood/stone are Noto image tiles (no glyph headless), so only assert
+    // the material glyph when the material has NO image.
+    if (wallTile && !wallMaterialImage('house', b.col)) expect(glyphs).toContain(wallTile)
     // The facade carries its own door + window tiles (a house has both).
     expect(glyphs).toContain('🚪')
     // Windows are Noto IMAGE tiles now (🪟 tofus on Segoe): the facade draws the decoded image in the
@@ -98,11 +100,14 @@ describe('drawIsoBuilding — a reskinned building is a per-cell tileset block, 
 })
 
 describe('drawIsoBuilding — different wall MATERIALS, not one global brick ("not all wood")', () => {
-  test('a stone building (castle) rides 🪨 on its walls, never the brick 🧱', () => {
+  test('a stone building (castle) uses the STONE material (Noto image), never brick 🧱 or wood 🪵', () => {
     const { ctx, glyphs } = recordingCtx()
     drawIsoBuilding(ctx, building('castle'), origin, colVec, depthVec, cellH, 1, EMOJI_STYLE)
-    expect(glyphs).toContain('🪨')
+    // stone renders as its Noto image (headless can't decode; the 🪨 glyph tofus so it's suppressed) —
+    // assert it IS stone via DATA + that no OTHER material glyph (brick/wood) leaks onto the walls.
+    expect(wallMaterialImage('castle', building('castle').col)).toMatch(/emoji_u1faa8\.png$/)
     expect(glyphs).not.toContain('🧱')
+    expect(glyphs).not.toContain('🪵')
   })
 
   test('a brick building (store) rides 🧱, never stone or wood', () => {
@@ -130,15 +135,18 @@ describe('draw2DBuilding — the 2D facade is also a per-cell tileset, not a lan
     draw2DBuilding(ctx, b, 400, 300, 22, 22, 1, EMOJI_STYLE)
 
     const wallTile = wallMaterialTile('house', b.col)
-    if (wallTile) expect(glyphs).toContain(wallTile)
+    // brick draws its 🧱 glyph; wood/stone are Noto image tiles (no glyph headless), so only assert
+    // the material glyph when the material has NO image.
+    if (wallTile && !wallMaterialImage('house', b.col)) expect(glyphs).toContain(wallTile)
     expect(glyphs).not.toContain('🏠')
     expect(glyphs).not.toContain('🏡')
   })
 
-  test('2D honours the wall MATERIAL too: a stone building (castle) uses 🪨, not 🧱', () => {
+  test('2D honours the wall MATERIAL too: a stone castle uses the stone image, not brick 🧱 or wood 🪵', () => {
     const { ctx, glyphs } = recordingCtx()
     draw2DBuilding(ctx, building('castle'), 400, 300, 22, 22, 1, EMOJI_STYLE)
-    expect(glyphs).toContain('🪨')
+    expect(wallMaterialImage('castle', building('castle').col)).toMatch(/emoji_u1faa8\.png$/)
     expect(glyphs).not.toContain('🧱')
+    expect(glyphs).not.toContain('🪵')
   })
 })

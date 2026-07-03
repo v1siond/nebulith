@@ -9,7 +9,7 @@ import { darkenColor, lightenColor, withAlpha } from '@/engine/colors'
 import { entityPalette } from '@/engine/entityArt'
 import { entityQuestMarker } from '@/engine/entityQuestMarker'
 import { buildingFadeAlpha } from '@/engine/isoBuilding'
-import { buildingCellColor, wallMaterialTile } from '@/engine/stageGenerator'
+import { buildingCellColor, wallMaterialTile, wallMaterialImage } from '@/engine/stageGenerator'
 import { type Projectile, projectileCellAt } from '@/game/projectiles'
 import { type HitMarker } from '@/game/runtime/combat'
 import { type PlayerState, barFraction, hpFraction, playerDisplayName } from '@/game/runtime/player'
@@ -962,7 +962,7 @@ export function fillIsoFaceWithTile(
 export interface FacadeColors { wall: string; door: string; window: string; roof: string }
 
 
-export function drawIsoFacadeTile(ctx: CanvasRenderingContext2D, bl: Pt, colVec: Pt, cellH: number, kind: string, flicker: number, colors: FacadeColors, style: Style = ASCII_STYLE, wallTile?: string): void {
+export function drawIsoFacadeTile(ctx: CanvasRenderingContext2D, bl: Pt, colVec: Pt, cellH: number, kind: string, flicker: number, colors: FacadeColors, style: Style = ASCII_STYLE, wallTile?: string, wallImage?: string): void {
   const up: Pt = { x: 0, y: -cellH }
   const br = ptAdd(bl, colVec)
   const tl = ptAdd(bl, up)
@@ -994,8 +994,13 @@ export function drawIsoFacadeTile(ctx: CanvasRenderingContext2D, bl: Pt, colVec:
   if (fdv.tint || fdv.image) {
     // Wall cells ride the building's MATERIAL tile (wallTile; '' plaster → colour only); door / window
     // keep their own resolved tile. One primitive for emoji + image, still sheared onto the iso face.
-    const tileChar = kind === 'wall' && wallTile !== undefined ? wallTile : fdv.char
-    fillIsoFaceWithTile(ctx, bl, colVec, up, { char: tileChar, color: fdv.color, image: fdv.image }, 1, 1)
+    // Wall cells ride the building's MATERIAL: its Noto image (wood/stone) if it has one — with the
+    // face's DATA colour (already filled) as the ONLY fallback, never the 🪵/🪨 glyph (those tofu on
+    // Segoe). Brick has no image → its 🧱 glyph. Door/window keep their own resolved tile/image.
+    const wallImg = kind === 'wall' ? wallImage : undefined
+    const tileChar = kind === 'wall' ? (wallImg ? '' : (wallTile ?? '')) : fdv.char
+    const tileImg = kind === 'wall' ? (wallImg ? { kind: 'image' as const, src: wallImg } : undefined) : fdv.image
+    fillIsoFaceWithTile(ctx, bl, colVec, up, { char: tileChar, color: fdv.color, image: tileImg }, 1, 1)
     return
   }
   if (!fdv.char) return
@@ -1086,7 +1091,10 @@ export function drawIsoBuilding(
   // for plaster → no texture, the painted colour reads flat) instead of one global brick. That's the
   // "different wall types" — a house rolls its material, civic types keep an identity one. ASCII → ''.
   const wallTile = reskinned ? wallMaterialTile(tcol, b.col) : ''
-  const wallTileDV: DrawVisual = { char: wallTile, color: wallC, image: wallDV.image }
+  const wallImage = reskinned ? wallMaterialImage(tcol, b.col) : undefined
+  // solid-box wall faces: the material IMAGE (wood/stone) with the wall colour as the ONLY fallback
+  // (never the 🪵/🪨 glyph — tofu); brick keeps its 🧱 glyph; plaster stays colour-only.
+  const wallTileDV: DrawVisual = { char: wallImage ? '' : wallTile, color: wallC, image: wallImage ? { kind: 'image', src: wallImage } : undefined }
   const roofFaceDV: DrawVisual = { char: '', color: roofC } // reskin roof: coloured face, no emoji glyph
   const facadeColors: FacadeColors = {
     wall: withAlpha(wallC, 0.98),
@@ -1206,7 +1214,7 @@ export function drawIsoBuilding(
         const kind = b.cells[r]?.[c]
         if (!kind || kind === 'empty') continue
         const bl = ptAdd(ptAdd(base, ptScale(colVec, c)), up(H - 1 - r))
-        drawIsoFacadeTile(ctx, bl, colVec, vCell, kind, flicker, facadeColors, style, wallTile)
+        drawIsoFacadeTile(ctx, bl, colVec, vCell, kind, flicker, facadeColors, style, wallTile, wallImage)
       }
     }
   }
