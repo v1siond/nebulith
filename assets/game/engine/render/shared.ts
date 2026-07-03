@@ -197,21 +197,6 @@ export function cellFill(tint: string | undefined, bg: string, grassy: boolean, 
   return grassy ? grassShade(tint, col, row) : tint
 }
 
-/** Draw a LANDMARK building as its big emoji (🏰/⛪/🏛️/🏘️), base-anchored + centred so it sits on its
- *  footprint like a real structure — used so a castle reads as a castle, not a generic brick box. A soft
- *  shadow keeps it legible over any ground. */
-export function drawBuildingLandmark(ctx: CanvasRenderingContext2D, emoji: string, cx: number, baseY: number, spanPx: number): void {
-  ctx.save()
-  ctx.font = `${spanPx}px ${ASCII_FONT}`
-  ctx.textAlign = 'center'
-  ctx.textBaseline = 'alphabetic'
-  ctx.fillStyle = 'rgba(0,0,0,0.35)'
-  ctx.fillText(emoji, cx + spanPx * 0.03, baseY + spanPx * 0.03)
-  ctx.fillStyle = '#ffffff'
-  ctx.fillText(emoji, cx, baseY)
-  ctx.restore()
-}
-
 /** Draw an emoji glyph RECOLOURED toward `tint`, keeping its shape + internal shading — so one 🌲 reads
  *  spring-green, autumn-amber, or winter-frost by the zone's canopy colour (emoji CAN be recoloured: we
  *  overlay the tint with `source-atop`, which only paints the glyph's own opaque pixels, never the ground
@@ -250,91 +235,6 @@ export function fillTintedGlyph(ctx: CanvasRenderingContext2D, char: string, x: 
   octx.globalAlpha = 1
   // Blit centred at (x,y) — the tree callers draw center/middle, so this lands exactly where fillText would.
   ctx.drawImage(off, 0, 0, size, size, x - size / 2, y - size / 2, size, size)
-}
-
-
-// ── emoji z-width extrusion (cached, in the emoji's OWN colours) ─────────────────────────────────
-// A tile is not "an emoji" — it's a tileset cell that, in iso, is a 3D BLOCK. We extrude the emoji
-// sprite up the iso axis so it gains z-width, but the extruded body keeps the emoji's OWN colours
-// (a darkened copy — hue preserved, NOT black) and the whole block is rendered ONCE to an offscreen
-// and cached, so per-frame is a single blit (no re-rasterising the glyph dozens of times = the perf).
-type ExtrudedSprite = { canvas: HTMLCanvasElement; ax: number; ay: number } // ax,ay = front-face centre in-canvas
-const _extrudeCache = new Map<string, ExtrudedSprite | null>()
-
-/** One emoji rasterised to its own S×S sprite; `dark` (0–1) overlays a dark wash source-atop so the
- *  glyph's colours DARKEN (hue kept) for the extruded side faces — never a flat black silhouette. */
-function rasterEmoji(emoji: string, glyphPx: number, dark: number): HTMLCanvasElement | null {
-  if (typeof document === 'undefined') return null
-  const S = Math.ceil(glyphPx * 1.4)
-  const cv = document.createElement('canvas')
-  cv.width = S
-  cv.height = S
-  const c = cv.getContext('2d')
-  if (!c) return null
-  c.font = `${glyphPx}px ${ASCII_FONT}`
-  c.textAlign = 'center'
-  c.textBaseline = 'middle'
-  c.fillText(emoji, S / 2, S / 2)
-  if (dark > 0) {
-    c.globalCompositeOperation = 'source-atop'
-    c.globalAlpha = dark
-    c.fillStyle = '#0a1020'
-    c.fillRect(0, 0, S, S)
-  }
-  return cv
-}
-
-function extrudedSprite(emoji: string, glyphPx: number, liftPx: number): ExtrudedSprite | null {
-  const key = `${emoji}|${Math.round(glyphPx)}|${Math.round(liftPx)}`
-  const hit = _extrudeCache.get(key)
-  if (hit !== undefined) return hit
-  const bright = rasterEmoji(emoji, glyphPx, 0)
-  const dark = rasterEmoji(emoji, glyphPx, 0.38) // darkened EMOJI (keeps hue) → the extruded sides
-  if (!bright || !dark) { _extrudeCache.set(key, null); return null }
-  const S = bright.width
-  const steps = Math.max(4, Math.round(liftPx)) // 1px steps → a SOLID extrusion, no gaps
-  const dxTot = liftPx * 0.5 // iso skew: up + right ≈ the isometric angle (not a vertical stretch)
-  const W = Math.ceil(S + dxTot)
-  const H = Math.ceil(S + liftPx)
-  const cv = document.createElement('canvas')
-  cv.width = W
-  cv.height = H
-  const c = cv.getContext('2d')
-  if (!c) { _extrudeCache.set(key, null); return null }
-  const frontX = 0
-  const frontY = liftPx // front face sits at the bottom; body extrudes up into the top band
-  for (let i = steps; i >= 1; i--) {
-    const t = i / steps
-    c.drawImage(dark, frontX + dxTot * t, frontY - liftPx * t)
-  }
-  c.drawImage(bright, frontX, frontY)
-  const sprite: ExtrudedSprite = { canvas: cv, ax: frontX + S / 2, ay: frontY + S / 2 }
-  _extrudeCache.set(key, sprite)
-  return sprite
-}
-
-/** Give an emoji real Z-WIDTH by EXTRUDING the sprite (never the ASCII box): a cached 3D block whose
- *  sides are the emoji's OWN colours darkened, capped by the bright front face — so a 🏠/🏛️/🏰 reads
- *  as a volume standing on the iso ground. `(cx,cy)` = the front-face CENTRE on the footprint; `liftPx`
- *  = the z-height. Cached per (emoji,size,lift): one blit per frame. Grounding shadow first. */
-export function drawExtrudedGlyph(ctx: CanvasRenderingContext2D, emoji: string, cx: number, cy: number, glyphPx: number, liftPx: number): void {
-  ctx.save()
-  ctx.fillStyle = 'rgba(0,0,0,0.22)'
-  ctx.beginPath()
-  ctx.ellipse(cx, cy + glyphPx * 0.32, glyphPx * 0.42, glyphPx * 0.16, 0, 0, Math.PI * 2)
-  ctx.fill()
-  ctx.restore()
-  const s = extrudedSprite(emoji, glyphPx, liftPx)
-  if (!s) { // SSR / no canvas → flat glyph, never a box
-    ctx.save()
-    ctx.font = `${glyphPx}px ${ASCII_FONT}`
-    ctx.textAlign = 'center'
-    ctx.textBaseline = 'middle'
-    ctx.fillText(emoji, cx, cy)
-    ctx.restore()
-    return
-  }
-  ctx.drawImage(s.canvas, cx - s.ax, cy - s.ay)
 }
 
 
