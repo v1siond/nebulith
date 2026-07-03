@@ -66,21 +66,3 @@ export let EMOJI_TILESET: Record<string, EmojiTile> = {
 export function setEmojiTileset(tiles: Record<string, EmojiTile>): void {
   EMOJI_TILESET = tiles
 }
-
-/** A STABLE snapshot of the bundled Noto image assets per kind, captured at import (BEFORE any backend
- *  load reassigns EMOJI_TILESET). Lets a backend tileset whose emoji data has no `image` field keep
- *  them, so the `[?]` tofu fix survives the backend load. */
-export const BUNDLED_EMOJI_IMAGES: Readonly<Record<string, string | undefined>> = Object.fromEntries(
-  Object.entries(EMOJI_TILESET).map(([k, t]) => [k, t.image]),
-)
-
-/** Re-inject the bundled Noto image assets into a loaded (backend) tileset that lacks them — a backend
- *  tile's OWN image always wins; kinds with no bundled image are unchanged. Without this, loading the
- *  backend emoji tileset (which has no image fields yet) strips the images and windows/rocks tofu again. */
-export function withBundledImages(tiles: Record<string, EmojiTile>): Record<string, EmojiTile> {
-  const out: Record<string, EmojiTile> = {}
-  for (const [kind, tile] of Object.entries(tiles)) {
-    out[kind] = tile.image ? tile : { ...tile, image: BUNDLED_EMOJI_IMAGES[kind] }
-  }
-  return out
-}

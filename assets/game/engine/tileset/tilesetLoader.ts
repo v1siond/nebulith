@@ -8,7 +8,7 @@
  * verifiable (devtools console + a GET to :4001/api/tilesets in the network tab).
  */
 import { setAsciiTileset } from './asciiTileset'
-import { setEmojiTileset, withBundledImages, type EmojiTile } from './emojiTileset'
+import { setEmojiTileset, type EmojiTile } from './emojiTileset'
 import { rebuildEmojiStyle } from '@/game/artStyle'
 import type { Tileset } from './tileset'
 
@@ -27,7 +27,7 @@ export async function loadTilesetsFromBackend(): Promise<string[]> {
     const loaded: string[] = []
     for (const t of list) {
       if (t.key === 'ascii') { setAsciiTileset(t.data as Tileset); loaded.push('ascii') }
-      if (t.key === 'emoji') { setEmojiTileset(withBundledImages(t.data as Record<string, EmojiTile>)); rebuildEmojiStyle(); loaded.push('emoji') } // keep bundled Noto images — backend has none yet
+      if (t.key === 'emoji') { setEmojiTileset(t.data as Record<string, EmojiTile>); rebuildEmojiStyle(); loaded.push('emoji') } // tileset (incl. image refs) comes straight from the backend DB
     }
 
     if (typeof window !== 'undefined') (window as unknown as { __nebulithTilesets?: string[] }).__nebulithTilesets = loaded
