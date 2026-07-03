@@ -63,6 +63,14 @@ describe('drawIsoBuilding — a reskinned building is a per-cell tileset block, 
     expect(glyphs).toContain('⊞')
   })
 
+  test('Emoji style does NOT stamp the red roof tile 🟥 on iso roof cells (roof reads its data colour, like 2D)', () => {
+    const { ctx, glyphs } = recordingCtx()
+    // A store is a FLAT building → it draws the facade roof rows (peaked houses skip them). Those rows
+    // were stamping the emoji roof tile 🟥 (#c8443c) as a red BAND — 2D never does (topdown guards !isRoof).
+    drawIsoBuilding(ctx, building('store'), origin, colVec, depthVec, cellH, 1, EMOJI_STYLE)
+    expect(glyphs).not.toContain('🟥')
+  })
+
   test('Emoji style NEVER draws the whole-building landmark sprite (no flat 🏠 billboard)', () => {
     const { ctx, glyphs } = recordingCtx()
     drawIsoBuilding(ctx, houseBuilding(), origin, colVec, depthVec, cellH, 1, EMOJI_STYLE)

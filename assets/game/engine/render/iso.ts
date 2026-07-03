@@ -982,6 +982,9 @@ export function drawIsoFacadeTile(ctx: CanvasRenderingContext2D, bl: Pt, colVec:
   const glyph = isRoof ? '/\\' : isDoor ? '▯' : isWindow ? '⊞' : ''
   ctx.fillStyle = bg // the sheared iso QUAD, filled at the tile hue (facadeColors are style-tinted when reskinned)
   fillQuad(ctx, bl, br, tr, tl)
+  // Roof facade cells are their DATA colour ONLY — mirror 2D (topdown draws roof cells as bg, no tile).
+  // Without this, a reskin stamps the emoji roof tile 🟥 (#c8443c) as a red BAND over the roof front rows.
+  if (isRoof) return
   const mid = { x: (bl.x + tr.x) / 2, y: (bl.y + tr.y) / 2 }
   const fdv = resolveDraw(kind as ElementKind, style, undefined, glyph, fg)
   // Reskin (a style tile / image is active): tile it SHEARED onto this facade face — the face IS
