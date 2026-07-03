@@ -16,7 +16,7 @@ export interface EmojiTile {
   color: string
 }
 
-export const EMOJI_TILESET: Readonly<Record<string, EmojiTile>> = {
+export let EMOJI_TILESET: Record<string, EmojiTile> = {
   // terrain — `color` is the FILL hue (harmonised with the ASCII GROUND_COLORS); the emoji rides on top.
   grass: { char: '🍀', color: '#5faf4a' },
   water: { char: '🌊', color: '#4a90e2' },
@@ -54,4 +54,10 @@ export const EMOJI_TILESET: Readonly<Record<string, EmojiTile>> = {
   enemy: { char: '👾', color: '#b45ac0' },
   npc: { char: '🧍', color: '#d9a066' },
   player: { char: '🧍', color: '#ffcf3a' },
+}
+
+/** Swap the active emoji tileset (the DB-loaded emoji tiles). Call artStyle.rebuildEmojiStyle() after,
+ *  so the derived EMOJI_STYLE.map picks up the new data. */
+export function setEmojiTileset(tiles: Record<string, EmojiTile>): void {
+  EMOJI_TILESET = tiles
 }

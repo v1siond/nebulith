@@ -86,6 +86,12 @@ export const EMOJI_STYLE: Style = {
   map: emojiStyleMap(),
 }
 
+/** Rebuild EMOJI_STYLE.map from the current EMOJI_TILESET — call after setEmojiTileset() so DB-loaded
+ *  emoji tiles install into the active style (EMOJI_STYLE is a stable object; only its map is swapped). */
+export function rebuildEmojiStyle(): void {
+  EMOJI_STYLE.map = emojiStyleMap()
+}
+
 // Gendered forms of the person glyphs, so an entity's `variant` renders the matching figure. A
 // monster / colored-square / variant-less glyph is returned unchanged (genderize passes it through).
 const GENDERED: Readonly<Record<string, { male: string; female: string }>> = {

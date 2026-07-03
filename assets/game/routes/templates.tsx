@@ -52,6 +52,7 @@ import { ASCII_STYLE, type Style, styleById, groundKind, assetKind, entityKind, 
 import { useRouter } from 'next/router'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { render, render2D, renderTopView, clampCameraAxis, isoCameraFocus, entityMotion, ENEMY_MOVE_MS, isDebugMode, setDebugMode, cellCaptionMap, type DayNight } from '@/engine/render'
+import { loadTilesetsFromBackend } from '@/engine/tileset/tilesetLoader'
 import { type QuestDraft, emptyQuestDraft, questFromDraft } from '@/game/runtime/questDraft'
 import { buildingPlacementEnv, nearestRoadFacing, stampBuildingCells, unstampBuildingCells } from '@/game/runtime/buildings'
 import { type Cursor, type JumpState, JUMP_MS, JUMP_PEAK_PX, advanceEnemyMovement, beginJump, tickCannons } from '@/game/runtime/movement'
@@ -359,6 +360,9 @@ export default function TemplateEditor() {
   const [playMode, setPlayMode] = useState(false)
   const playModeRef = useRef(false) // live playMode for the raf render loop (mirrors activeStyleRef)
   useEffect(() => { playModeRef.current = playMode }, [playMode])
+  // Load tilesets from the nebulith Elixir backend on mount — replaces the bundled defaults (same shape,
+  // so render + generation transparently use the DB-served data); falls back to bundled if the API is down.
+  useEffect(() => { void loadTilesetsFromBackend() }, [])
   const [isMobile, setIsMobile] = useState(false)
 
   // Detect mobile

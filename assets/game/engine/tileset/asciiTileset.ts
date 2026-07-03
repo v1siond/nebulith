@@ -83,13 +83,18 @@ function buildPalettes(): Record<string, ZonePalette> {
   return palettes
 }
 
-/** The ASCII tileset — the working ASCII art as loadable data. Same output as cellTile() +
- *  the inline ground selection, just loaded. `terrain` is the current GROUND_COLORS table carried
- *  as tileset data (ground tiles are a distinct family from the labeled cell tiles). */
-export const ASCII_TILESET: Tileset = {
+/** The ACTIVE ASCII tileset. Starts as the bundled default (built from the current art); the backend
+ *  loader (tilesetLoader) can REPLACE it with the DB-served tileset — same shape, so render + generation
+ *  (which read this LIVE binding) switch to the loaded data with no other change. */
+export let ASCII_TILESET: Tileset = {
   id: 'ascii',
   name: 'ASCII',
   tiles: buildTiles(),
   palettes: buildPalettes(),
   terrain: GROUND_COLORS,
+}
+
+/** Swap the active ASCII tileset — used to install the one loaded from the nebulith API. */
+export function setAsciiTileset(tileset: Tileset): void {
+  ASCII_TILESET = tileset
 }
