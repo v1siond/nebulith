@@ -132,15 +132,15 @@ function drawIsoGroundContent(
   // an emoji glyph and an image sprite. ASCII passthrough (no tint/image) falls through to the
   // byte-identical glyph draw below.
   if (gdv.tint || gdv.image) {
-    fillIsoFaceWithTile(
-      ctx,
-      { x: px - tileW, y: drawY },
-      { x: tileW, y: -tileH },
-      { x: tileW, y: tileH },
-      { char: gdv.char, color: gdv.color, image: gdv.image },
-      1,
-      1,
-    )
+    // Blit the pre-baked diamond sprite (constant shear → one bake reused for every cell) instead of a
+    // per-cell transform+clip — the ground-perf fix. Falls back to the direct draw when there's no sprite
+    // (SSR / an image tile still decoding).
+    const sprite = groundSprite(gdv, tileW, tileH)
+    if (sprite) {
+      ctx.drawImage(sprite, px - tileW, drawY - tileH)
+      return
+    }
+    fillIsoFaceWithTile(ctx, { x: px - tileW, y: drawY }, { x: tileW, y: -tileH }, { x: tileW, y: tileH }, { char: gdv.char, color: gdv.color, image: gdv.image }, 1, 1)
     return
   }
   ctx.fillStyle = gdv.color
@@ -953,6 +953,35 @@ export function fillIsoFaceWithTile(
     for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) ctx.fillText(tv.char, (i + 0.5) * cw, (j + 0.5) * ch)
   }
   ctx.restore()
+}
+
+
+/** Ground-tile SPRITE CACHE — the iso shear is CONSTANT per frame (only the cell position translates),
+ *  so a reskinned ground tile is pixel-identical for every cell of a given appearance. Bake it ONCE to
+ *  an offscreen diamond sprite and blit it translated per cell (drawImage) instead of paying a per-cell
+ *  save/transform/clip/restore — the ctx.clip() over ~1000 ground cells/frame was the emoji-vs-ascii perf
+ *  sink. Keyed on (tile,colour,size); ground resolves to only a handful of appearances per zoom level. */
+const _groundSpriteCache = new Map<string, HTMLCanvasElement | null>()
+function groundSprite(gdv: DrawVisual, tileW: number, tileH: number): HTMLCanvasElement | null {
+  if (typeof document === 'undefined') return null
+  // Don't bake until an image tile's raster is decoded — else the sprite would freeze the ASCII fallback.
+  if (gdv.image && !tileImage(gdv.image.src)) return null
+  const key = `${gdv.image?.src ?? gdv.char}|${gdv.color}|${Math.round(tileW)}|${Math.round(tileH)}`
+  const hit = _groundSpriteCache.get(key)
+  if (hit !== undefined) return hit
+  const cv = document.createElement('canvas')
+  cv.width = Math.ceil(2 * tileW)
+  cv.height = Math.ceil(2 * tileH)
+  const c = cv.getContext('2d')
+  if (!c) {
+    _groundSpriteCache.set(key, null)
+    return null
+  }
+  // Bake with the diamond's LEFT corner at local (0, tileH) → the sprite's bbox top-left is (0,0), so a
+  // blit at (px - tileW, drawY - tileH) lands the diamond exactly where the per-cell clipped draw did.
+  fillIsoFaceWithTile(c, { x: 0, y: tileH }, { x: tileW, y: -tileH }, { x: tileW, y: tileH }, { char: gdv.char, color: gdv.color, image: gdv.image }, 1, 1)
+  _groundSpriteCache.set(key, cv)
+  return cv
 }
 
 
