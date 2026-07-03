@@ -3606,6 +3606,12 @@ export default function TemplateEditor() {
         if (next) setSelectedEntityId(next)
         return
       }
+      // Esc drops the current target. Guarded so it only fires when something IS selected — otherwise
+      // Esc falls through to whatever else wants it (menus, the build editor).
+      if (e.key === 'Escape' && selectedEntityIdRef.current) {
+        setSelectedEntityId(null)
+        return
+      }
       // Normalize letter keys to lowercase: holding SHIFT makes 'w' arrive as 'W' on keydown but
       // 'w' on keyup (or vice-versa), so an un-normalized key never clears → the player runs forever
       // (the stuck-Shift bug). Single-char keys → lowercase; named keys (ArrowUp, Shift) unchanged.
