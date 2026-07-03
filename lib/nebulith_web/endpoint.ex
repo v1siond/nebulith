@@ -51,5 +51,7 @@ defmodule NebulithWeb.Endpoint do
   plug Plug.MethodOverride
   plug Plug.Head
   plug Plug.Session, @session_options
+  # Allow the game-website frontend (any localhost dev port) to fetch the tileset API cross-origin.
+  plug CORSPlug, origin: [~r/^http:\/\/localhost:\d+$/]
   plug NebulithWeb.Router
 end

@@ -20,10 +20,11 @@ defmodule NebulithWeb.Router do
     get "/", PageController, :home
   end
 
-  # Other scopes may use custom stacks.
-  # scope "/api", NebulithWeb do
-  #   pipe_through :api
-  # end
+  scope "/api", NebulithWeb do
+    pipe_through :api
+
+    resources "/tilesets", TilesetController, except: [:new, :edit]
+  end
 
   # Enable LiveDashboard in development
   if Application.compile_env(:nebulith, :dev_routes) do
