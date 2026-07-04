@@ -1288,10 +1288,23 @@ export function drawIsoBuilding(
   ctx.fillStyle = wallRight
   fillQuad(ctx, fbr, bbr, eave(bbr), eave(fbr)); tileFace(fbr, bbr, eave(fbr), wallTileDV, b.depth, bodyH) // right
 
-  // Windows are painted once, uniformly, on the three camera-visible faces AFTER the roof + facade (see
-  // the wallWindows pass at the end) so they're never covered and every building reads the same.
+  // ── FRONT FACADE TILES (door/wall) nearest the camera for south/east houses — drawn BEFORE the roof
+  //    so the roof correctly occludes the wall top. ──
+  if (!b.facadeOnBack) drawFacade(fbl)
 
-  // ── ROOF (all faces red) ──
+  // ── WINDOWS (uniform, deterministic, WALL faces only) ──
+  // ONE treatment on every camera-visible WALL — the near/front wall + BOTH side walls (the far side is
+  // occluded by the solid box, the back is never drawn). Count scales with the face's own cell span
+  // (~one window per two cells), so spacing is uniform across every face and building — deterministic,
+  // never random. Painted BEFORE the roof: the roof (drawn last) covers any part that would fall in the
+  // roof region, so windows can only ever appear on the WALLS, never on the roof (#32). Mid-wall height,
+  // clear of the ground-row door.
+  const faceWindows = (span: number): number => Math.max(2, Math.min(4, Math.round(span / 2)))
+  wallWindows(fbl, ptScale(colVec, L), faceWindows(L)) // near/front wall
+  wallWindows(fbl, depthVec, faceWindows(b.depth)) // left side
+  wallWindows(fbr, depthVec, faceWindows(b.depth)) // right side
+
+  // ── ROOF (all faces red) — drawn LAST so it occludes any wall/window pixels in the roof region ──
   if (peaked) {
     const rh = (L * ROOF_RIDGE_FRAC) / 2
     const FEL = ptAdd(eave(fbl), ptScale(colVec, -ROOF_OVERHANG))
@@ -1331,21 +1344,6 @@ export function drawIsoBuilding(
     roofChevrons(mid(eave(fbl), top(fbl)), mid(eave(bbl), top(bbl)), roofSideCount) // left
     roofChevrons(mid(eave(fbr), top(fbr)), mid(eave(bbr), top(bbr)), roofSideCount) // right
   }
-
-  // ── FRONT FACADE TILES (on top of the box, nearest the camera) for south/east houses ──
-  if (!b.facadeOnBack) drawFacade(fbl)
-
-  // ── WINDOWS (uniform, deterministic, visible faces only) ──
-  // ONE treatment on every camera-visible face — the near/front wall + BOTH side walls (the far side is
-  // occluded by the solid box, the back is never drawn) — so a house's front matches its sides and its
-  // neighbours (no authored-cell-vs-generated mix, no facadeOnBack special-case). The count scales with
-  // the face's own cell span (~one window per two cells), so window SPACING is uniform across every face
-  // and every building — deterministic, never random. Drawn last so nothing covers them; windows sit at
-  // mid-wall height, clear of the ground-row door.
-  const faceWindows = (span: number): number => Math.max(2, Math.min(4, Math.round(span / 2)))
-  wallWindows(fbl, ptScale(colVec, L), faceWindows(L)) // near/front wall
-  wallWindows(fbl, depthVec, faceWindows(b.depth)) // left side
-  wallWindows(fbr, depthVec, faceWindows(b.depth)) // right side
 
   // ── TYPE SIGNAGE (STORE / HOSPITAL) floating above the roof apex — mirrors the 2D/top badge
   //    (black pill + colored text) so a shop / clinic reads at a glance in iso too. Only
