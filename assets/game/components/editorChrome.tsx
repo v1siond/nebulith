@@ -6,6 +6,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { ZoneId } from '@/engine/zones'
 import { BUILT_IN_STYLES, type TileCategory, genderize, tilesForStyle, visualForTileId } from '@/game/artStyle'
 import type { AnimDirection, AnimFrame, AnimTrigger, EntityAnimation } from '@/game/runtime/entityAnimation'
+import type { TilePose } from '@/engine/tileset/pose'
 import { DEFAULT_ACTION_PARAMS, makeTrigger, type Trigger, type TriggerActionType, type TriggerEvent } from '@/game/runtime/trigger'
 import { type EditorMode, SEASON_BTN, STAGE_VARIANTS, STAGE_ZONES } from './editorConfig'
 
@@ -388,6 +389,54 @@ export function ArtSection({ override, styleName, onOpen }: { override?: string 
       </p>
       <button onClick={onOpen} className="w-full rounded bg-cyan-800 px-2 py-1.5 text-xs font-bold text-white transition-colors hover:bg-cyan-700">
         ◰ Open Tile Library…
+      </button>
+    </div>
+  )
+}
+
+/** The tile kinds that are WEAPONS (get a muzzle control) — matches the seeded weapon tileset entries. */
+export const WEAPON_KINDS = new Set(['sword', 'bow', 'gun', 'axe', 'staff', 'shield'])
+
+/** One labeled row of the pose editor: a range slider paired with a typeable number input (same units).
+ *  Unit-agnostic — the caller converts (e.g. degrees→radians for rotation) so this stays a dumb control. */
+function PoseRow({ label, value, min, max, step, suffix, onInput }: { label: string; value: number; min: number; max: number; step: number; suffix?: string; onInput: (v: number) => void }) {
+  const emit = (raw: string) => { const n = parseFloat(raw); if (!Number.isNaN(n)) onInput(n) }
+  return (
+    <label className="flex items-center gap-2">
+      <span className="w-12 shrink-0 text-[10px] text-gray-400">{label}</span>
+      <input type="range" min={min} max={max} step={step} value={value} onChange={e => emit(e.target.value)} aria-label={label} className="flex-1 accent-cyan-500" />
+      <input type="number" min={min} max={max} step={step} value={value} onChange={e => emit(e.target.value)} aria-label={`${label} value`} className="w-14 rounded bg-gray-800 p-1 text-[10px] tabular-nums text-cyan-300" />
+      {suffix && <span className="text-[10px] text-gray-400">{suffix}</span>}
+    </label>
+  )
+}
+
+/** Live POSE editor for the selected tile/weapon — sliders retune its position/rotation/scale/colour and,
+ *  for a weapon, the projectile muzzle. Each change builds the next pose and calls `onChange`; the page
+ *  writes it into the in-memory tileset and the RAF loop redraws, so the element moves IN-SCENE live.
+ *  Rotation is authored in DEGREES and converted to radians at this boundary (the stored pose is radians,
+ *  AnimTransform parity). Reset drops the pose back to identity (deviations-only). */
+export function PoseControls({ kind, pose, isWeapon, onChange, onReset }: { kind: string; pose?: TilePose; isWeapon: boolean; onChange: (pose: TilePose) => void; onReset: () => void }) {
+  const set = (patch: Partial<TilePose>) => onChange({ ...pose, ...patch })
+  const rotDeg = Math.round((pose?.rot ?? 0) * 180 / Math.PI)
+  return (
+    <div className="space-y-1.5 rounded-lg border border-white/10 bg-black/40 p-2 text-xs">
+      <p className="text-[10px] font-bold uppercase tracking-wider text-cyan-300">Pose — {kind}</p>
+      <PoseRow label="x" value={pose?.dx ?? 0} min={-1} max={1} step={0.01} onInput={v => set({ dx: v })} />
+      <PoseRow label="y" value={pose?.dy ?? 0} min={-1} max={1} step={0.01} onInput={v => set({ dy: v })} />
+      <PoseRow label="rotate" value={rotDeg} min={-180} max={180} step={1} suffix="°" onInput={v => set({ rot: v * Math.PI / 180 })} />
+      <PoseRow label="scale" value={pose?.scale ?? 1} min={0.2} max={3} step={0.05} onInput={v => set({ scale: v })} />
+      {isWeapon && <PoseRow label="muzzle" value={pose?.muzzle ?? 0} min={0} max={1} step={0.05} onInput={v => set({ muzzle: v })} />}
+      <label className="flex items-center gap-2">
+        <input type="checkbox" checked={pose?.flip ?? false} onChange={e => set({ flip: e.target.checked })} className="accent-cyan-500" />
+        <span className="text-[10px] text-gray-400">flip horizontally</span>
+      </label>
+      <label className="flex items-center gap-2">
+        <span className="w-12 shrink-0 text-[10px] text-gray-400">colour</span>
+        <input type="color" value={pose?.color ?? '#ffffff'} onChange={e => set({ color: e.target.value })} aria-label="Base colour override" className="h-6 w-10 rounded bg-gray-800" />
+      </label>
+      <button onClick={onReset} className="w-full rounded bg-gray-700 px-2 py-1 text-[10px] font-bold text-white transition-colors hover:bg-gray-600">
+        ↺ Reset pose
       </button>
     </div>
   )

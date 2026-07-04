@@ -72,3 +72,13 @@ export let EMOJI_TILESET: Record<string, EmojiTile> = {
 export function setEmojiTileset(tiles: Record<string, EmojiTile>): void {
   EMOJI_TILESET = tiles
 }
+
+/** Set (or clear) a tile's POSE in the IN-MEMORY tileset — the live editor writes here and the RAF render
+ *  loop redraws from the same data, so a slider retunes the element in-scene immediately. An empty/undefined
+ *  pose DROPS the deviation (back to identity) so the tile renders byte-identically to an unposed one. */
+export function setTilePose(kind: string, pose: TilePose | undefined): void {
+  const tile = EMOJI_TILESET[kind]
+  if (!tile) return
+  if (pose && Object.keys(pose).length > 0) tile.pose = pose
+  else delete tile.pose
+}

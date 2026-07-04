@@ -51,9 +51,11 @@ import { type CellTriggerGroup, ENTITY_GLYPH, buildingsFromAssets, buildingsToAs
 import { type Trigger, type TriggerEffect, fireTriggers } from '@/game/runtime/trigger'
 import { ASCII_STYLE, type Style, styleById, groundKind, assetKind, entityKind, genderize, resolveVisual, visualForTileId } from '@/game/artStyle'
 import { useRouter } from 'next/router'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
 import { render, render2D, renderTopView, clampCameraAxis, isoCameraFocus, entityMotion, ENEMY_MOVE_MS, isDebugMode, setDebugMode, cellCaptionMap, type DayNight } from '@/engine/render'
 import { loadTilesetsFromBackend } from '@/engine/tileset/tilesetLoader'
+import { EMOJI_TILESET, setTilePose } from '@/engine/tileset/emojiTileset'
+import { type TilePose } from '@/engine/tileset/pose'
 import { type QuestDraft, emptyQuestDraft, questFromDraft } from '@/game/runtime/questDraft'
 import { buildingPlacementEnv, nearestRoadFacing, stampBuildingCells, unstampBuildingCells } from '@/game/runtime/buildings'
 import { type Cursor, type JumpState, JUMP_MS, JUMP_PEAK_PX, advanceEnemyMovement, beginJump, tickCannons } from '@/game/runtime/movement'
@@ -64,7 +66,7 @@ import { EquipmentPanel, InventoryCard, QuestAuthoringCard, QuestLogPanel } from
 import { EntityAttackBody, EntityIdentityStatsBody, EntityMovementBody, Modal, QuestGiveBody } from '@/components/game/modals'
 import { FlowViewOverlay, GamesViewOverlay } from '@/components/game/games'
 import { BUILDING_TOOL_TYPE, type BuildingTool, type EditorMode, type EntityTool, GROUND_SWATCHES, NATURE_TILE_KEYS } from '@/components/game/editorConfig'
-import { AnimationEditor, ArtSection, Dropdown, GenerateControls, type QuickAction, QuickActionToolbar, SelectionHeader, StylePicker, TileLibraryBody, ToolRail, TriggerEditor } from '@/components/game/editorChrome'
+import { AnimationEditor, ArtSection, Dropdown, GenerateControls, PoseControls, type QuickAction, QuickActionToolbar, SelectionHeader, StylePicker, TileLibraryBody, ToolRail, TriggerEditor, WEAPON_KINDS } from '@/components/game/editorChrome'
 
 
 // View mode states (global for game loop access)
@@ -199,6 +201,14 @@ export default function TemplateEditor() {
   const activeStyleRef = useRef<Style>(ASCII_STYLE)
   useEffect(() => { activeStyleRef.current = styleById(activeStyleId) }, [activeStyleId])
   const activeStyle = styleById(activeStyleId)
+  // Live POSE editing writes straight into the in-memory tileset (the RAF loop redraws from it, so the
+  // element retunes in-scene); bumpPose then forces the Inspector's PoseControls to re-read the mutation
+  // so its sliders track the new value. Undefined pose → setTilePose drops the deviation (back to identity).
+  const [, bumpPose] = useReducer((n: number) => n + 1, 0)
+  const writeTilePose = useCallback((kind: string, pose: TilePose | undefined) => {
+    setTilePose(kind, pose)
+    bumpPose()
+  }, [])
   // Which selection the Tile Library modal is editing (null = closed). It pins/clears the
   // selected element's per-element override; scope tracks the current selection precedence.
   const [tileLibraryOpen, setTileLibraryOpen] = useState(false)
@@ -5167,6 +5177,9 @@ export default function TemplateEditor() {
                 const isPlayer = selEntity.kind === 'player'
                 const isEnemy = selEntity.kind === 'enemy'
                 const isNpc = selEntity.kind === 'npc'
+                // The player's held EMOJI weapon is pose-driven — tunable right here so the sword/bow etc.
+                // orientation is fixed live in-hand (poses are emoji-only, so gate on a non-ASCII style).
+                const heldWeaponKind = isPlayer && activeStyleId !== 'ascii' ? inventory.equippedWeapon?.kind : undefined
                 // The entity's OWN resolved figure (gendered) — the animation editor previews an empty
                 // "base" frame AS this, and gendered char frames, so the preview matches what renders.
                 const selFigVisual = resolveVisual(entityKind(selEntity.kind), activeStyle, selEntity.tileOverride)
@@ -5181,6 +5194,17 @@ export default function TemplateEditor() {
                     </Card>
                     <Card title="Art / sprite" accent="cyan" sectionId="art" focus={sectionFocus}>
                       <ArtSection override={selEntity.tileOverride} styleName={activeStyle.name} onOpen={() => setTileLibraryOpen(true)} />
+                      {heldWeaponKind && EMOJI_TILESET[heldWeaponKind] && (
+                        <div className="mt-2">
+                          <PoseControls
+                            kind={heldWeaponKind}
+                            pose={EMOJI_TILESET[heldWeaponKind]?.pose}
+                            isWeapon={WEAPON_KINDS.has(heldWeaponKind)}
+                            onChange={p => writeTilePose(heldWeaponKind, p)}
+                            onReset={() => writeTilePose(heldWeaponKind, undefined)}
+                          />
+                        </div>
+                      )}
                     </Card>
                     <Card title="Animation" accent="cyan" defaultOpen={false} sectionId="animation" focus={sectionFocus}>
                       <div className="mb-3 flex items-center gap-2 text-[11px]">
@@ -5403,6 +5427,11 @@ export default function TemplateEditor() {
                 // Cell triggers attach to the FIRST selected cell (the one the label shows).
                 const trigCol = parseInt(first[0], 10)
                 const trigRow = parseInt(first[1], 10)
+                // The tile KIND under this cell (an asset pinned there wins, else the ground kind) — its
+                // POSE is what the editor retunes. Only kinds present in the emoji tileset are tunable.
+                const poseGrid = gridRef.current
+                const cellAsset = poseGrid?.getAssetsAtCell(trigCol, trigRow)[0]
+                const poseKind = cellAsset ? assetKind(cellAsset) : groundKind(poseGrid?.ground[trigRow]?.[trigCol] ?? 'grass')
                 return (
                   <>
                     <SelectionHeader kind="cell" label="cell" coords={cellLabel} />
@@ -5444,6 +5473,17 @@ export default function TemplateEditor() {
                     </Card>
                     <Card title="Art / style override" accent="cyan" sectionId="art" focus={sectionFocus}>
                       <ArtSection override={selectedOverride} styleName={activeStyle.name} onOpen={() => setTileLibraryOpen(true)} />
+                      {poseKind && EMOJI_TILESET[poseKind] && (
+                        <div className="mt-2">
+                          <PoseControls
+                            kind={poseKind}
+                            pose={EMOJI_TILESET[poseKind]?.pose}
+                            isWeapon={WEAPON_KINDS.has(poseKind)}
+                            onChange={p => writeTilePose(poseKind, p)}
+                            onReset={() => writeTilePose(poseKind, undefined)}
+                          />
+                        </div>
+                      )}
                     </Card>
                     <Card title="Height" accent="cyan">
                       <div className="flex items-center gap-2">
