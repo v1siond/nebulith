@@ -26,6 +26,7 @@ import { entityPalette, punchTile, weaponEmoji, weaponGlyph, weaponPose } from '
 import { isoFacadeOnBack, isoFacingIndex } from '@/engine/isoBuilding'
 import { assetFootprint, multiCellAssetById, stampAsset } from '@/engine/multiCellAssets'
 import { StageData, VariantId, generateStage, stagePaint } from '@/engine/stageGenerator'
+import { syncTilesetPropCollision } from '@/engine/tilesetCollision'
 import { type Action as TriggerAction, resolveAction } from '@/engine/triggers'
 import { ZONE_DECOR_TILE, ZoneId } from '@/engine/zones'
 import { type AbilityBinding, DEFAULT_ABILITY_LOADOUT } from '@/game/abilities'
@@ -201,6 +202,10 @@ export default function TemplateEditor() {
   const [activeStyleId, setActiveStyleId] = useState<string>('ascii')
   const activeStyleRef = useRef<Style>(ASCII_STYLE)
   useEffect(() => { activeStyleRef.current = styleById(activeStyleId) }, [activeStyleId])
+  // Prop collision follows the tileset: on every Style switch (and on mount), resync multi-cell props —
+  // the town fountain is a big basin in ASCII but a single ⛲ cell in emoji, so its collision must match
+  // the tile it actually draws.
+  useEffect(() => { if (gridRef.current) syncTilesetPropCollision(gridRef.current, activeStyleId !== 'ascii') }, [activeStyleId])
   const activeStyle = styleById(activeStyleId)
   // Live POSE editing writes straight into the in-memory tileset (the RAF loop redraws from it, so the
   // element retunes in-scene); bumpPose then forces the Inspector's PoseControls to re-read the mutation
@@ -2913,6 +2918,9 @@ export default function TemplateEditor() {
     if (!grid) return
     const stage = generateStage({ zone, variant, cols: grid.cols, rows: grid.rows })
     applyStageToGrid(stage, grid)
+    // The stage bakes ASCII (multi-cell) prop collision; shrink it to the active tileset (emoji = the
+    // single drawn cell). Also re-run on every Style switch (effect below).
+    syncTilesetPropCollision(grid, activeStyleRef.current.id !== 'ascii')
     movePlayerToValidSpawn(stage.spawn.col, stage.spawn.row)
     const live = livePlayerCell()
     syncPlayerEntity(live.col, live.row, true) // fresh stage → player entity follows the spawn
