@@ -1,5 +1,5 @@
 import { resolvePose, applyPose, type TilePose } from '@/engine/tileset/pose'
-import { drawPoseGlyph } from '@/engine/render/shared'
+import { drawPoseGlyph, buildGlyphImageIndex } from '@/engine/render/shared'
 
 describe('resolvePose — deviations-only', () => {
   test('absent pose → identity', () => {
@@ -64,6 +64,8 @@ function drawCtx() {
 }
 
 describe('drawPoseGlyph — applies the pose then draws the glyph once at the origin', () => {
+  // The bundled EMOJI_TILESET carries no weapons/images (they live only in the DB tileset), so with no
+  // baked image resolvable the draw stays a single fillText — byte-identical to before this system.
   test('rot-only pose: rotate then a single fillText (no stray transforms)', () => {
     const { ctx, calls } = drawCtx()
     drawPoseGlyph(ctx, '🗡️', { rot: 3.14 }, 1, 24)
@@ -73,5 +75,22 @@ describe('drawPoseGlyph — applies the pose then draws the glyph once at the or
     const { ctx, calls } = drawCtx()
     drawPoseGlyph(ctx, '🛡️', undefined, 1, 24)
     expect(calls).toEqual(['text(🛡️)'])
+  })
+})
+
+describe('buildGlyphImageIndex — char → baked image src, so a glyph-only weapon draw finds its PNG', () => {
+  test('indexes only tiles that carry BOTH a char and an image', () => {
+    const index = buildGlyphImageIndex({
+      sword: { char: '🗡️', image: '/tiles/emoji/baked/sword.png' },
+      grass: { char: '🍀' }, // no image → not indexed (falls back to the glyph)
+      broken: { image: '/x.png' }, // no char → not indexed
+    })
+    expect(index.get('🗡️')).toBe('/tiles/emoji/baked/sword.png')
+    expect(index.has('🍀')).toBe(false)
+    expect(index.size).toBe(1)
+  })
+  test('an unknown glyph resolves to nothing', () => {
+    const index = buildGlyphImageIndex({ fist: { char: '👊', image: '/tiles/emoji/baked/fist.png' } })
+    expect(index.get('🗿')).toBeUndefined()
   })
 })

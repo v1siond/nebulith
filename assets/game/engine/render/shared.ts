@@ -7,6 +7,7 @@ import { entityArtFrame, entityFootprint } from '@/engine/entityArt'
 import { type QuestMarker } from '@/engine/entityQuestMarker'
 import { motionPos } from '@/engine/movement'
 import { applyPose, type TilePose } from '@/engine/tileset/pose'
+import { EMOJI_TILESET } from '@/engine/tileset/emojiTileset'
 import { edgeToSide, footprintRing, footprintSide, labelForCell, treeSubpart } from '@/engine/stageGenerator'
 import { terrainCaptions } from '@/engine/terrainLabels'
 import { isDead } from '@/game/combat'
@@ -75,6 +76,34 @@ export function tileImage(src: string): HTMLImageElement | null {
   let img = _imgCache.get(src)
   if (!img) { img = new Image(); img.src = src; _imgCache.set(src, img) }
   return img.complete && img.naturalWidth > 0 ? img : null
+}
+
+/** Index a tileset by emoji CHAR → baked image src. A weapon/shield/fist is drawn through drawPoseGlyph,
+ *  which only receives the glyph char (not the tile key), so it can't take the resolveDraw image path —
+ *  this lets it find the SAME pre-rendered PNG by char. Char is unique per weapon, so a duplicate-char
+ *  collision (npc/player both 🧍) is irrelevant to the weapon lookup. Pure — tested directly. */
+export function buildGlyphImageIndex(tiles: Record<string, { char?: string; image?: string }>): Map<string, string> {
+  const map = new Map<string, string>()
+  for (const key of Object.keys(tiles)) {
+    const tile = tiles[key]
+    if (tile?.image && tile?.char) map.set(tile.char, tile.image)
+  }
+  return map
+}
+
+// Rebuilt only when EMOJI_TILESET is SWAPPED (a DB tileset load reassigns the live binding), never per
+// frame — the index is keyed by the tileset object reference.
+let _glyphIndex: { src: unknown; map: Map<string, string> } | null = null
+function glyphImageIndex(): Map<string, string> {
+  if (_glyphIndex?.src !== EMOJI_TILESET) _glyphIndex = { src: EMOJI_TILESET, map: buildGlyphImageIndex(EMOJI_TILESET) }
+  return _glyphIndex.map
+}
+
+/** The baked tile IMAGE for a glyph drawn by char (a held weapon / shield / fist), or null when the
+ *  active tileset has no image for it — then the caller draws the glyph, byte-identically to before. */
+export function glyphTileImage(glyph: string): HTMLImageElement | null {
+  const src = glyphImageIndex().get(glyph)
+  return src ? tileImage(src) : null
 }
 
 /** Draw a glyph centered at (x, y), optionally MIRRORED horizontally about x. The mirror is a DATA
@@ -373,6 +402,10 @@ export function drawPoseGlyph(ctx: CanvasRenderingContext2D, glyph: string, pose
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
   applyPose(ctx, pose, facingDir, unit)
+  // Prefer the baked PNG (identical on every OS) — the pose transform already applied above carries the
+  // image (rotate/flip/scale) exactly as it did the glyph. No image (ascii / backend down) → fillText.
+  const img = glyphTileImage(glyph)
+  if (img) { ctx.drawImage(img, -unit / 2, -unit / 2, unit, unit); return }
   ctx.fillText(glyph, 0, 0)
 }
 
