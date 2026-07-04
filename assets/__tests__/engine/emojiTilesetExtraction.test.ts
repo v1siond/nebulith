@@ -13,7 +13,7 @@ describe('emoji tileset extraction — EMOJI_STYLE is a faithful view over EMOJI
     for (const kind of Object.keys(EMOJI_TILESET)) {
       const tile = EMOJI_TILESET[kind]
       const expected = tile.image
-        ? { kind: 'image', src: tile.image, color: tile.color }
+        ? { kind: 'image', src: tile.image, color: tile.color, char: tile.char } // image tiles keep the source glyph as label/fallback
         : { kind: 'glyph', char: tile.char, color: tile.color }
       expect(EMOJI_STYLE.map[kind as keyof typeof EMOJI_STYLE.map]).toEqual(expected)
     }

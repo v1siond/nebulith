@@ -54,7 +54,8 @@ describe('AC-picker-constrained — the frame picker draws from the entity CATEG
     expect(emoji.units.length).toBeGreaterThan(0)
     const person = emoji.units.find(t => t.id === 'emoji:person')
     expect(person).toBeDefined()
-    expect(person?.visual).toMatchObject({ kind: 'glyph', char: '🧍' })
+    // The person tile is now a baked IMAGE (identical on every OS); it still carries its 🧍 source glyph.
+    expect(person?.visual).toMatchObject({ char: '🧍' })
   })
 
   test('buildings is a DIFFERENT, disjoint set — a character never picks a house as a frame', () => {
