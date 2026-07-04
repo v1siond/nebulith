@@ -687,15 +687,20 @@ export function drawIsoPlayer(
     ? playerArt
     : playerSprite.idle.map(row => (swingArmDir > 0 ? row.replace('>', ' ') : row.replace('<', ' ')))
   const pdv = resolveDraw('player', style, undefined, '', bodyColor)
+  // An emoji figure sits a touch HIGH in its em box (pronounced on Windows/Segoe), so its feet hover
+  // above the ground shadow — it reads as floating. Drop the WHOLE emoji figure (glyph + held gear +
+  // vitals) by a fraction of a tile so the feet meet the shadow/cell ground point. ASCII (drawBlockFigure)
+  // keeps its own baseline (emojiFootLift 0), so it's byte-identical.
+  const emojiFootLift = (pdv.char || pdv.image) ? tileH * 0.2 : 0
   if (pdv.image) {
-    drawStyledImage(ctx, pdv.image, x, y - lineHeight - breathe, tileH * 2.6)
+    drawStyledImage(ctx, pdv.image, x, y - lineHeight - breathe + emojiFootLift, tileH * 2.6)
   } else if (pdv.char) {
     ctx.font = `bold ${fontSize * 1.8}px ${ASCII_FONT}`
     ctx.textAlign = 'center'
     ctx.fillStyle = pdv.color
     // Play the hero's AUTHORED animation (data-driven, direction-aware) — no hardcoded walk/run/flip.
     const pf = activeFrame(player.animations ?? DEFAULT_CHARACTER_ANIMATIONS, { char: pdv.char }, { moving: player.moving, facing: player.facing, running: player.running ?? false }, time)
-    drawFacingGlyph(ctx, genderize(pf.char ?? pdv.char, player.variant), x, y - lineHeight - breathe, pf.flipX)
+    drawFacingGlyph(ctx, genderize(pf.char ?? pdv.char, player.variant), x, y - lineHeight - breathe + emojiFootLift, pf.flipX)
     ctx.textAlign = 'left'
     ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
   } else {
@@ -708,9 +713,9 @@ export function drawIsoPlayer(
   const onLeft = player.facing === 'left'
   const dir = onLeft ? -1 : 1 // +1 → facing right, weapon on the RIGHT hand
   const weaponSize = fontSize * 1.7
-  const handY = y - lineHeight * 1.5 - breathe // the HAND, at the arm/body row (shared by weapon + shield)
+  const handY = y - lineHeight * 1.5 - breathe + emojiFootLift // the HAND, at the arm/body row (shared by weapon + shield)
   const shoulderX = x + dir * pHalf * 0.25 // at the body, on the weapon side
-  const shoulderY = y - lineHeight * 1.95 - breathe // shoulder = TOP of the # row (the pivot)
+  const shoulderY = y - lineHeight * 1.95 - breathe + emojiFootLift // shoulder = TOP of the # row (the pivot)
   drawPlayerArm(ctx, {
     swinging: swingP != null, // an attack is mid-flight → the ARM drives the swing (#47)
     swingP: swingP ?? 0,
@@ -735,7 +740,7 @@ export function drawIsoPlayer(
   // Life bar + name above the head — the SAME treatment enemies get (drawFigureVitals), so the
   // player reads identically. Drawn only once HP is mirrored onto the struct (see the game loop).
   if (player.maxHp != null) {
-    const figureTop = y - lineHeight * 0.5 - breathe - playerArt.length * lineHeight
+    const figureTop = y - lineHeight * 0.5 - breathe - playerArt.length * lineHeight + emojiFootLift
     const barWidth = Math.max(28, tileH * 2.2)
     const nameSize = Math.max(9, tileH * 0.95)
     drawFigureVitals(ctx, x, figureTop, barWidth, 7, nameSize, barFraction(player.hp ?? player.maxHp, player.maxHp), playerDisplayName(player.name))
