@@ -3759,7 +3759,7 @@ export default function TemplateEditor() {
       // Jump trigger (edge): begin an arc if not already airborne.
       const jumpDown = !!keys[' ']
       // Only carry the jump forward if a direction is actually held; otherwise hop in place.
-      if (jumpDown && !jumpDownRef.current) beginJump(player, grid, use2DMovement, jump, time, pressedFacing !== null)
+      if (jumpDown && !jumpDownRef.current) beginJump(player, grid, use2DMovement, jump, time, pressedFacing !== null, !!keys['Shift'])
       jumpDownRef.current = jumpDown
 
       // Entities block movement across their FULL footprint: NPCs + living enemies are

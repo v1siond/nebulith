@@ -9,7 +9,7 @@ import { type MoverState, RUN_PATROL_DELAY_MS, type RunState, STEP_LIST_DELAY_MS
 import { ENEMY_MOVE_MS } from '@/engine/render/shared'
 import { entityCollisionCells } from '@/game/entities'
 import { type HitMarker, pushHitMarker } from '@/game/runtime/combat'
-import { type PlayerState, aimDelta, jumpLandingCell } from '@/game/runtime/player'
+import { type PlayerState, RUN_JUMP_CELLS, WALK_JUMP_CELLS, aimDelta, jumpLandingCell } from '@/game/runtime/player'
 import { type Entity, type MovementPattern } from '@/game/types'
 
 // ── JUMP ─────────────────────────────────────────────────────────────
@@ -29,9 +29,10 @@ export const JUMP_MS = 380 // arc duration
 export const JUMP_PEAK_PX = 26 // visual hop height at mid-arc
 
 /** Begin a jump. A MOVING jump leaps along the 8-way AIM (so all 8 directions work, #66); a STANDING
- *  jump (`forward===false`) hops straight up on the same cell. The loop animates the arc. No-op if
- *  already mid-jump. */
-export function beginJump(player: PlayerState, grid: IsometricGrid, use2D: boolean, jump: JumpState, now: number, forward: boolean): void {
+ *  jump (`forward===false`) hops straight up on the same cell. `running` (Shift held) makes it a longer
+ *  RUN leap vs a short WALK hop, so the jump carries the momentum of your gait (#34). The loop animates
+ *  the arc over a fixed time → the longer running leap is a faster arc. No-op if already mid-jump. */
+export function beginJump(player: PlayerState, grid: IsometricGrid, use2D: boolean, jump: JumpState, now: number, forward: boolean, running: boolean): void {
   if (jump.active) return
   // Leap along the 8-way AIM (the way you're actually moving), not the 4-way facing — otherwise a
   // diagonal hold collapses to a cardinal hop (the iso "x/y but no z" + 2D "no diagonal" bug). #66
@@ -39,7 +40,8 @@ export function beginJump(player: PlayerState, grid: IsometricGrid, use2D: boole
   const cs = grid.cellSize
   const pCol = Math.floor(player.x / cs)
   const pRow = Math.floor(player.z / cs)
-  const landing = jumpLandingCell(pCol, pRow, dCol, dRow, forward, (c, r) => grid.isBlocked(c, r), grid.cols, grid.rows)
+  const reach = running ? RUN_JUMP_CELLS : WALK_JUMP_CELLS // running carries farther → faster arc
+  const landing = jumpLandingCell(pCol, pRow, dCol, dRow, forward, (c, r) => grid.isBlocked(c, r), grid.cols, grid.rows, reach)
   if (!landing) return
   jump.active = true
   jump.fromX = player.x
