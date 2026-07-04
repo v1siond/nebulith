@@ -9,6 +9,7 @@ import { projectileArrived, resolveImpact, type Projectile } from '@/game/projec
 import { nextEnemyAttack } from '@/game/patterns'
 import { abilityReady, ABILITY_TINT, type AbilityBinding } from '@/game/abilities'
 import { weaponAnimKind, ATTACK_ANIM_MS, type AttackAnim, type AttackAnimKind } from '@/engine/attackAnimations'
+import { weaponPose } from '@/engine/entityArt'
 import { aimDelta, type PlayerState } from './player'
 import { findTarget, isLivingEnemy, isAdjacentToPlayer, RANGED_RANGE, type EnemyRuntime } from './targeting'
 
@@ -327,6 +328,14 @@ function recordEnemyDeath(runtime: EnemyRuntime, enemy: Entity, kills: string[],
   kills.push(enemy.enemyType ?? 'enemy')
 }
 
+/** The cell a projectile actually LEAVES from: the shooter cell offset `muzzle` fraction toward the aim,
+ *  so an arrow/shot emerges from the weapon's muzzle instead of the shooter's centre. `muzzle` null/absent
+ *  → the shooter cell unchanged (melee weapons and any weapon without a muzzle pose). Pure. */
+export function muzzleOrigin(fromCol: number, fromRow: number, aimCol: number, aimRow: number, muzzle?: number | null): { col: number; row: number } {
+  const m = muzzle ?? 0
+  return { col: fromCol + (aimCol - fromCol) * m, row: fromRow + (aimRow - fromRow) * m }
+}
+
 /** Loose a travelling projectile from the player toward (aimCol,aimRow). Stores the
  *  attacker context so the deferred impact (tickProjectiles) can run resolveAttack.
  *  A target-less shot (no enemy acquired) still flies — it just resolves to a miss. */
@@ -337,10 +346,12 @@ function spawnProjectile(input: CombatStepInput, aimCol: number, aimRow: number,
   const fromCol = Math.floor(player.x / cellSize)
   const fromRow = Math.floor(player.z / cellSize)
   const dist = Math.max(1, Math.max(Math.abs(aimCol - fromCol), Math.abs(aimRow - fromRow)))
+  // The shot leaves the weapon's muzzle (pose.muzzle) — absent in the seeds → the shooter cell, unchanged.
+  const o = muzzleOrigin(fromCol, fromRow, aimCol, aimRow, weaponPose(playerWeapon.kind, 'emoji')?.muzzle)
   const id = `proj-${now}-${projectileSeq++}`
   list.push({
     id,
-    fromCol, fromRow,
+    fromCol: o.col, fromRow: o.row,
     toCol: aimCol, toRow: aimRow,
     targetId: target ? target.id : '',
     startMs: now,
