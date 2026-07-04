@@ -222,6 +222,11 @@ export function respawnMsForRarity(rarity?: Rarity): number {
 
 // ── entities ────────────────────────────────────────────────────────
 export type EntityKind = 'player' | 'enemy' | 'npc'
+
+/** A person/entity VARIANT — which baked figure renders. Beyond male/female to age (old, child) and
+ *  the exotic (alien, robot). Resolves to a baked image in artStyle (variantSlug); male/female also
+ *  gender the glyph fallback. */
+export type EntityVariant = 'male' | 'female' | 'old' | 'child' | 'alien' | 'robot'
 export interface Entity {
   id: string
   kind: EntityKind
@@ -252,8 +257,11 @@ export interface Entity {
   /** authored, data-driven animations (#91): the game plays frames by trigger + direction; frame 0
    *  seeds from this entity's own tile. Absent → the default character set (person walk/idle). */
   animations?: EntityAnimation[]
-  /** person variant → which gendered emoji family renders (Stage 3). */
-  variant?: 'male' | 'female'
+  /** person variant → which baked figure renders (male/female + age/exotic; see EntityVariant). */
+  variant?: EntityVariant
+  /** render + stat SCALE (1 = normal). A boss at size 2 draws twice as big and derives beefier
+   *  stats (see scaleStatsBySize). Bottom-grounded so a bigger figure still stands on its shadow. */
+  size?: number
 }
 
 // ── quests / missions ───────────────────────────────────────────────

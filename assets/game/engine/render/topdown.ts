@@ -20,7 +20,7 @@ import { EMOJI_TILESET } from '@/engine/tileset/emojiTileset'
 import { applyPose } from '@/engine/tileset/pose'
 import { Connector } from '@/lib/api'
 import { ASCII_FONT, BUILDING_BADGES, COMBAT_RANGE, type DayNight, ENEMY_MOVE_MS, LAMP_GLOW, applyCellTransform, clampCameraAxis, assetCaptionByCell, terrainLabelAt, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawHoverRing, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, getPlayerArt, grassShade, cellFill, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, resolveDraw, assetOverride, treeCanopyLayers } from './shared'
-import { ASCII_STYLE, assetKind, entityKind, enemyTileId, genderize, groundKind, type ElementKind, type Style } from '@/game/artStyle'
+import { ASCII_STYLE, assetKind, entityKind, entityStyleOverride, genderize, groundKind, personVariantTileId, type ElementKind, type Style } from '@/game/artStyle'
 import { DEFAULT_CHARACTER_ANIMATIONS, activeFrame } from '@/game/runtime/entityAnimation'
 
 
@@ -70,8 +70,9 @@ export function drawTopEntity(
   ctx.textBaseline = 'middle'
   // Block style — solid bg per row + bright glyph, so the 2D view matches the iso view.
   const pal = entityPalette(entity)
-  // An enemy draws its per-type tile (goblin→👺, wolf→🐺, …) unless a manual tileOverride wins.
-  const override = entity.tileOverride ?? (entity.kind === 'enemy' ? enemyTileId(entity.enemyType, style) : undefined)
+  // An enemy draws its per-type tile (goblin→👺, wolf→🐺, …); a person draws its per-variant figure
+  // (male→🧍‍♂️, old→🧓, …) — both baked images. A manual tileOverride still wins.
+  const override = entity.tileOverride ?? entityStyleOverride(entity, style)
   const edv = resolveDraw(entityKind(entity.kind), style, override, '', pal.fg)
   if (edv.image) {
     const imgPx = spanH * 0.9

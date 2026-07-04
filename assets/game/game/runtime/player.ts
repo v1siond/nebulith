@@ -1,7 +1,7 @@
 // Pure player runtime: state shape, 8-way aim + facing, jump landing, and the
 // name/life-bar display helpers. Moved out of the game-engine page (stage 2) so
 // tests + every view share one source. Pure — no React, no DOM.
-import type { Entity, CombatState } from '@/game/types'
+import type { Entity, CombatState, EntityVariant } from '@/game/types'
 import type { EntityAnimation } from './entityAnimation'
 import type { TilePose } from '@/engine/tileset/pose'
 
@@ -20,8 +20,8 @@ export interface PlayerState {
   /** authored animations mirrored from the player entity, so the live hero plays whatever you author
    *  in the Inspector (falls back to the default character set when absent). */
   animations?: EntityAnimation[]
-  /** person variant mirrored from the player entity → the hero renders the male/female figure. */
-  variant?: 'male' | 'female'
+  /** person variant mirrored from the player entity → the hero renders the matching baked figure. */
+  variant?: EntityVariant
   frame: number
   /** visual hop height (px) while mid-jump; 0 on the ground. */
   jumpHeight?: number

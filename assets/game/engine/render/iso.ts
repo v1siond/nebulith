@@ -18,7 +18,7 @@ import { resolveGroundTile } from '@/engine/tileset/tileset'
 import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 import { Connector } from '@/lib/api'
 import { ASCII_FONT, BUILDING_BADGES, COMBAT_RANGE, type DayNight, type DrawVisual, ENEMY_MOVE_MS, LAMP_GLOW, LIGHT, applyCellTransform, isoCameraFocus, assetCaptionByCell, terrainLabelAt, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawHoverRing, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, getPlayerArt, grassShade, cellFill, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, resolveDraw, assetOverride, tileImage, treeCanopyLayers } from './shared'
-import { ASCII_STYLE, assetKind, entityKind, enemyTileId, genderize, groundKind, type ElementKind, type ImageVisual, type Style } from '@/game/artStyle'
+import { ASCII_STYLE, assetKind, entityKind, entityStyleOverride, genderize, groundKind, personVariantTileId, type ElementKind, type ImageVisual, type Style } from '@/game/artStyle'
 import { DEFAULT_CHARACTER_ANIMATIONS, activeFrame } from '@/game/runtime/entityAnimation'
 
 
@@ -696,7 +696,7 @@ export function drawIsoPlayer(
   const figArt = swingP == null
     ? playerArt
     : playerSprite.idle.map(row => (swingArmDir > 0 ? row.replace('>', ' ') : row.replace('<', ' ')))
-  const pdv = resolveDraw('player', style, undefined, '', bodyColor)
+  const pdv = resolveDraw('player', style, personVariantTileId(player.variant, style), '', bodyColor)
   if (pdv.image) {
     drawStyledImage(ctx, pdv.image, x, groundY - (tileH * 2.6) * 0.42 - breathe, tileH * 2.6)
   } else if (pdv.char) {
@@ -851,8 +851,9 @@ export function drawIsoEntity(
   const pal = entityPalette(entity)
   const kind = entityKind(entity.kind)
   const isEnemy = kind === 'enemy'
-  // An enemy draws its per-type tile (goblin→👺, wolf→🐺, …) unless a manual tileOverride wins.
-  const override = entity.tileOverride ?? (isEnemy ? enemyTileId(entity.enemyType, style) : undefined)
+  // An enemy draws its per-type tile (goblin→👺, wolf→🐺, …); a person draws its per-variant figure
+  // (male→🧍‍♂️, old→🧓, …) — both baked images. A manual tileOverride still wins.
+  const override = entity.tileOverride ?? entityStyleOverride(entity, style)
   const edv = resolveDraw(kind, style, override, '', pal.fg)
   // Ground the billboard by its BOTTOM at the shadow line, so ANY tile size stays grounded (a
   // smaller enemy no longer floats above its shadow). `groundY` is the feet contact point.

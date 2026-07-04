@@ -36,9 +36,11 @@ describe('emoji tile catalog — full categorized + labeled tileset', () => {
   it('every curated EMOJI_TILES id is prefixed emoji: and carries a tint colour', () => {
     for (const t of EMOJI_TILES) {
       expect(t.id.startsWith('emoji:')).toBe(true)
-      expect(t.visual.kind).toBe('glyph')
-      // dominant-hue tint for the iso diamond/cube fill + ASCII fallback
-      expect(t.visual.kind === 'glyph' && typeof t.visual.color === 'string' && /^#[0-9a-f]{3,8}$/i.test(t.visual.color!)).toBe(true)
+      // A unit whose glyph was baked to a Noto PNG is an IMAGE tile (goblin/man/…); the rest stay glyphs.
+      // Either way it carries the dominant-hue tint for the iso diamond/cube fill + the ASCII fallback.
+      expect(['glyph', 'image']).toContain(t.visual.kind)
+      const color = t.visual.kind === 'glyph' || t.visual.kind === 'image' ? t.visual.color : undefined
+      expect(typeof color === 'string' && /^#[0-9a-f]{3,8}$/i.test(color)).toBe(true)
     }
   })
 

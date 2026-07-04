@@ -21,6 +21,11 @@
 
 // ── element kinds (the vocabulary a Style maps) ──────────────────────────
 import { EMOJI_TILESET } from '@/engine/tileset/emojiTileset'
+// The single source for the BAKED entity/person/enemy tiles (slug → glyph) + the resolution maps
+// (enemyType → slug, variant → slug). The bake script (scripts/bake-entity-tiles.mjs) reads the SAME
+// file, so the baked PNGs and the images wired here can never drift.
+import ENTITY_TILES from '@/game/data/entityTiles.json'
+import type { EntityVariant } from '@/game/types'
 
 export type ElementKind =
   | 'grass' | 'water' | 'path' | 'plaza' | 'sand' | 'ground' | 'snow' | 'autumn' // terrain (+ seasons)
@@ -43,8 +48,10 @@ export type TileCategory = 'terrain' | 'buildings' | 'units' | 'nature'
  *  instead of drawing a flat upright emoji square on top of the ASCII fill. */
 export interface GlyphVisual { kind: 'glyph'; char: string; color?: string }
 /** Draw an image/sprite (optionally a sub-rect of an atlas) with drawImage. `color` is an
- *  optional backing TINT (drawn as the diamond/cube fill under the clipped sprite). */
-export interface ImageVisual { kind: 'image'; src: string; color?: string; sx?: number; sy?: number; sw?: number; sh?: number }
+ *  optional backing TINT (drawn as the diamond/cube fill under the clipped sprite). `char` is the
+ *  SOURCE glyph the image was baked from — kept as the label + the first-paint fallback (before the
+ *  PNG decodes) so an image tile never has to invent a char. */
+export interface ImageVisual { kind: 'image'; src: string; color?: string; char?: string; sx?: number; sy?: number; sw?: number; sh?: number }
 /** Passthrough: draw exactly what the renderer already computed (the ASCII default). */
 export interface AsciiVisual { kind: 'ascii' }
 export type Visual = GlyphVisual | ImageVisual | AsciiVisual
@@ -75,7 +82,7 @@ function emojiStyleMap(): Partial<Record<ElementKind, Visual>> {
     // A tile with an `image` (a Noto PNG) renders through the wired drawImage path — kills the Segoe
     // `[?]` tofu on Unicode-13 glyphs. `color` still rides along as the geometry backing tint.
     map[kind as ElementKind] = tile.image
-      ? { kind: 'image', src: tile.image, color: tile.color }
+      ? { kind: 'image', src: tile.image, color: tile.color, char: tile.char }
       : { kind: 'glyph', char: tile.char, color: tile.color }
   }
   return map
@@ -116,11 +123,46 @@ const GENDERED: Readonly<Record<string, { male: string; female: string }>> = {
   '🦹': { male: '🦹‍♂️', female: '🦹‍♀️' },
 }
 
-/** The gendered form of a person glyph for an entity `variant`; a non-person or variant-less glyph
- *  (a monster, a terrain square) passes through unchanged. Data-only — the renderer just calls it. */
-export function genderize(char: string, variant?: 'male' | 'female'): string {
+/** The gendered form of a person glyph for an entity `variant` — the GLYPH fallback (used before the
+ *  baked image decodes / when a tileset has no image). male/female swap to the gendered figure; the
+ *  age/exotic variants (and a non-person or variant-less glyph) pass through unchanged. Data-only. */
+export function genderize(char: string, variant?: EntityVariant): string {
   if (!variant) return char
-  return GENDERED[char]?.[variant] ?? char
+  return GENDERED[char]?.[variant as 'male' | 'female'] ?? char
+}
+
+// ── baked entity/variant tiles (people + typed enemies as IMAGES) ──────────
+// The baked slug set + the resolution maps come from ONE data file (entityTiles.json), shared with the
+// bake script so a slug can never be wired to a PNG that wasn't baked.
+const ENTITY_TILE_DIR: string = ENTITY_TILES.dir
+const BAKED_ENTITY_SLUGS = ENTITY_TILES.tiles as Readonly<Record<string, string>>
+const VARIANT_SLUG = ENTITY_TILES.variantSlug as Readonly<Record<string, string>>
+
+/** The baked PNG for an entity slug (goblin / man / robot …), or undefined when nothing was baked for
+ *  it — so a catalog tile whose glyph the font couldn't rasterise stays a glyph instead of pointing at
+ *  a missing image. A path under /public, so it's static, always-served data (no DB needed). */
+export function bakedEntityImage(slug: string): string | undefined {
+  return slug in BAKED_ENTITY_SLUGS ? `${ENTITY_TILE_DIR}/${slug}.png` : undefined
+}
+
+/** The per-variant tile OVERRIDE for a PERSON (npc/player) under a reskin — male→🧍‍♂️ man, old→🧓 elder,
+ *  robot→🤖 … each a baked image. Returns undefined for ASCII, for no variant, or for a variant with no
+ *  baked tile — all of which fall back to the BASE figure (never a raw glyph). Mirrors enemyTileId. */
+export function personVariantTileId(variant: EntityVariant | undefined, style: Style): string | undefined {
+  if (style.id === 'ascii' || !variant) return undefined
+  const slug = VARIANT_SLUG[variant]
+  return slug && bakedEntityImage(slug) ? `emoji:${slug}` : undefined
+}
+
+/** The style-derived tile override for an ENTITY: an enemy's per-type tile (goblin→👺) or a person's
+ *  per-variant figure (male→🧍‍♂️). One decision point so every renderer resolves entities identically.
+ *  A manual `entity.tileOverride` still wins — the caller applies it before this. */
+export function entityStyleOverride(
+  entity: { kind: string; enemyType?: string; variant?: EntityVariant },
+  style: Style,
+): string | undefined {
+  if (entity.kind === 'enemy') return enemyTileId(entity.enemyType, style)
+  return personVariantTileId(entity.variant, style)
 }
 
 /** The styles the picker offers, in order. ASCII first (the default). */
@@ -201,13 +243,13 @@ export function entityKind(kind: string): ElementKind {
 }
 
 /** enemyType → catalog tile id, so a wolf draws 🐺 and a skeleton 💀 instead of every enemy sharing the
- *  generic 👾. Keyed on the lowercase enemyType tag. Unmapped types fall back to the plain 👾 enemy. */
-export const ENEMY_TILE_BY_TYPE: Readonly<Record<string, string>> = {
-  goblin: 'emoji:goblin', wolf: 'emoji:wolf', bandit: 'emoji:ninja', skeleton: 'emoji:skeleton',
-  bat: 'emoji:bat', spider: 'emoji:spider', guardian: 'emoji:troll', wraith: 'emoji:ghost',
-  orc: 'emoji:ogre', ogre: 'emoji:ogre', ghost: 'emoji:ghost', zombie: 'emoji:zombie',
-  vampire: 'emoji:vampire', dragon: 'emoji:dragon', troll: 'emoji:troll', slime: 'emoji:alien',
-}
+ *  generic 👾. Derived from entityTiles.json's enemyType→slug map (the same data the bake reads), so the
+ *  id always points at a baked tile. Keyed on the lowercase enemyType tag; unmapped types fall back to 👾. */
+export const ENEMY_TILE_BY_TYPE: Readonly<Record<string, string>> = Object.fromEntries(
+  Object.entries(ENTITY_TILES.enemyTypeSlug as Readonly<Record<string, string>>).map(
+    ([type, slug]) => [type, `emoji:${slug}`],
+  ),
+)
 
 /** The per-type tile OVERRIDE for an enemy under a reskin style — so goblin→👺, wolf→🐺, etc. Returns
  *  undefined for ASCII (its enemies stay block-figures) and for unmapped/blank types (→ the base 👾). */
@@ -281,7 +323,13 @@ function tilesFromStyle(style: Style): TileDef[] {
  *  catalog stays id-unique); `color` is the dominant hue (the iso diamond/cube tint + ASCII
  *  fallback — an emoji glyph draws itself, but a sensible tint keeps the geometry on-hue). */
 function emojiTile(category: TileCategory, slug: string, label: string, char: string, color: string): TileDef {
-  return { id: `emoji:${slug}`, label, category, styleId: 'emoji', visual: { kind: 'glyph', char, color } }
+  // A slug with a baked PNG (people + typed enemies) renders as an IMAGE — identical on every OS, no
+  // Segoe tofu — carrying the source glyph + tint as label/fallback. Everything else stays a glyph.
+  const image = bakedEntityImage(slug)
+  const visual: Visual = image
+    ? { kind: 'image', src: image, color, char }
+    : { kind: 'glyph', char, color }
+  return { id: `emoji:${slug}`, label, category, styleId: 'emoji', visual }
 }
 
 /**
@@ -399,6 +447,10 @@ export const EMOJI_TILES: TileDef[] = [
   emojiTile('units', 'girl', 'Girl', '👧', '#e5a0b0'),
   emojiTile('units', 'old-man', 'Old Man', '👴', '#c8c8c8'),
   emojiTile('units', 'old-woman', 'Old Woman', '👵', '#d0c0c8'),
+  emojiTile('units', 'elder', 'Elder', '🧓', '#cabfc0'), // gender-neutral old (the `old` variant)
+  emojiTile('units', 'child', 'Child', '🧒', '#e5b878'), // gender-neutral child (the `child` variant)
+  emojiTile('units', 'grey-alien', 'Grey Alien', '👽', '#8fd18a'), // the exotic `alien` variant (👽, not the 👾 monster)
+  emojiTile('units', 'robot', 'Robot', '🤖', '#9aa6b2'), // the exotic `robot` variant
   emojiTile('units', 'mage', 'Mage', '🧙', '#7a5ac0'),
   emojiTile('units', 'wizard', 'Wizard', '🧙‍♂️', '#6a4ab0'),
   emojiTile('units', 'witch', 'Witch', '🧙‍♀️', '#9a5ac0'),
@@ -412,6 +464,7 @@ export const EMOJI_TILES: TileDef[] = [
   emojiTile('units', 'vampire', 'Vampire', '🧛', '#8a4a6a'),
   emojiTile('units', 'zombie', 'Zombie', '🧟', '#6a8f5a'),
   emojiTile('units', 'troll', 'Troll', '🧌', '#7a6a4a'),
+  emojiTile('units', 'guardian', 'Guardian', '🗿', '#8a8f80'), // stone warden (troll/guardian enemy tile)
   emojiTile('units', 'goblin', 'Goblin', '👺', '#c8443c'),
   emojiTile('units', 'ogre', 'Ogre', '👹', '#d0402a'),
   emojiTile('units', 'ghost', 'Ghost', '👻', '#e0e0f0'),

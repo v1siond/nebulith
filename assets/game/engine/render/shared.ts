@@ -54,7 +54,8 @@ export function resolveDraw(
 ): DrawVisual {
   const v = resolveVisual(kind, style, override)
   if (v.kind === 'glyph') return { char: v.char, color: v.color ?? defColor, tint: v.color }
-  if (v.kind === 'image') return { char: defChar, color: defColor, image: v, tint: v.color }
+  // An image tile keeps its source glyph as the char (label + first-paint fallback before the PNG decodes).
+  if (v.kind === 'image') return { char: v.char ?? defChar, color: v.color ?? defColor, image: v, tint: v.color }
   return { char: defChar, color: defColor } // ascii passthrough — identical to the old path
 }
 

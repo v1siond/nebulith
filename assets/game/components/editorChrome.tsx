@@ -5,6 +5,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { ZoneId } from '@/engine/zones'
 import { BUILT_IN_STYLES, type TileCategory, genderize, tilesForStyle, visualForTileId } from '@/game/artStyle'
+import type { EntityVariant } from '@/game/types'
 import type { AnimDirection, AnimFrame, AnimTrigger, EntityAnimation } from '@/game/runtime/entityAnimation'
 import type { TilePose } from '@/engine/tileset/pose'
 import { DEFAULT_ACTION_PARAMS, makeTrigger, type Trigger, type TriggerActionType, type TriggerEvent } from '@/game/runtime/trigger'
@@ -621,7 +622,7 @@ const ANIM_DIRECTIONS: readonly AnimDirection[] = ['up', 'down', 'left', 'right'
  *  an empty frame shows the entity's OWN figure (frame 0 = the entity as-is), a `char`/tile is gendered
  *  to the entity's variant (so a walk 🚶 previews as 🚶‍♀️ for a female, matching the idle 🧍‍♀️), and an
  *  image tile shows 🖼. `baseGlyph` is the entity's resolved figure; falls back to '·' if unknown. */
-function frameGlyph(frame: AnimFrame, baseGlyph = '', variant?: 'male' | 'female'): string {
+function frameGlyph(frame: AnimFrame, baseGlyph = '', variant?: EntityVariant): string {
   if (frame.char) return genderize(frame.char, variant)
   if (frame.tileId) {
     const v = visualForTileId(frame.tileId)
@@ -642,7 +643,7 @@ function FrameSlot({
   onOpen: () => void
   onToggleFlip: () => void
   baseGlyph: string
-  variant?: 'male' | 'female'
+  variant?: EntityVariant
 }) {
   return (
     <div className="flex flex-col items-center gap-0.5">
@@ -726,7 +727,7 @@ function AnimationRow({
   onAnim: (next: EntityAnimation) => void
   onRemove: () => void
   baseGlyph: string
-  variant?: 'male' | 'female'
+  variant?: EntityVariant
 }) {
   const [pickerFrame, setPickerFrame] = useState<number | null>(null)
   const patch = (p: Partial<EntityAnimation>) => onAnim({ ...anim, ...p })
@@ -833,8 +834,8 @@ export interface AnimationEditorProps {
   styleId: string
   /** the entity's OWN resolved figure (already gendered) — what an empty "base" frame previews as. */
   baseGlyph: string
-  /** the entity's male/female variant, so char/tile frames preview gendered (matching the render). */
-  variant?: 'male' | 'female'
+  /** the entity's variant, so char/tile frames preview gendered (matching the render). */
+  variant?: EntityVariant
   onChange: (next: EntityAnimation[]) => void
 }
 

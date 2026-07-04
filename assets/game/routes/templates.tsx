@@ -43,7 +43,7 @@ import { type PlayerState, aimFromKeys, facingFromKeys, playerDisplayName, resol
 import { activeQuest, applyQuestEvent, questAnchorScreenPos, questForGiver, reachableQuestGiver, rewardSummary, upsertQuest } from '@/game/runtime/quest'
 import { type EnemyRuntime, isLivingEnemy, makeEnemyRuntime, RANGED_RANGE } from '@/game/runtime/targeting'
 import { ENEMY_TYPES, CAVE_ENEMY_TYPES, TEMPLE_ENEMY_TYPES, archetypeForEnemyType, scatterEntities } from '@/game/spawner'
-import { type CombatState, type Entity, type EntityKind, type Inventory, type Item, type Loadout, type Quest, type Reward, type Stats, type TalentPath, type Weapon } from '@/game/types'
+import { type CombatState, type Entity, type EntityKind, type EntityVariant, type Inventory, type Item, type Loadout, type Quest, type Reward, type Stats, type TalentPath, type Weapon } from '@/game/types'
 import { weaponReach } from '@/game/weapons'
 import { VILLAGE_CONFIG } from '@/levels/village'
 import { Connector, TemplateListItem, createTemplate, deleteTemplate, deserializeToGrid, getTemplate, listTemplates, serializeGrid, updateTemplate } from '@/lib/api'
@@ -1482,8 +1482,8 @@ export default function TemplateEditor() {
     // carry male/female variants in the DATA (the female-units question), not just eyeball the render.
     win.__entityInfo = () => {
       const ents = entitiesRef.current
-      const byVariant = { male: 0, female: 0, none: 0 }
-      for (const e of ents) byVariant[e.variant ?? 'none']++
+      const byVariant: Record<string, number> = {}
+      for (const e of ents) { const key = e.variant ?? 'none'; byVariant[key] = (byVariant[key] ?? 0) + 1 }
       return { count: ents.length, byVariant, entities: ents.map(e => ({ id: e.id, kind: e.kind, variant: e.variant ?? null, name: e.name, col: e.col, row: e.row, anims: e.animations?.length ?? 0 })) }
     }
     // Each entity's SCREEN position in the current view (via the same cellToScreen the click path uses) —
@@ -5253,11 +5253,11 @@ export default function TemplateEditor() {
                     <Card title="Animation" accent="cyan" defaultOpen={false} sectionId="animation" focus={sectionFocus}>
                       <div className="mb-3 flex items-center gap-2 text-[11px]">
                         <span className="text-gray-400">Figure</span>
-                        {(['', 'male', 'female'] as const).map(v => (
+                        {(['', 'male', 'female', 'old', 'child', 'alien', 'robot'] as const).map(v => (
                           <button
                             key={v || 'neutral'}
                             type="button"
-                            onClick={() => patchSelectedEntity({ variant: (v || undefined) as 'male' | 'female' | undefined })}
+                            onClick={() => patchSelectedEntity({ variant: (v || undefined) as EntityVariant | undefined })}
                             className={`rounded px-2 py-0.5 font-bold transition-colors ${
                               (selEntity.variant ?? '') === v ? 'bg-cyan-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                             }`}
