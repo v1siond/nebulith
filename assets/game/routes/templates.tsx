@@ -3751,6 +3751,10 @@ export default function TemplateEditor() {
       if (!grid) return
 
       const use2DMovement = topViewMode || viewTypeRef.current === '2d'
+      // Collision is PER-VIEW: each view projects the 3D building differently, so it occupies different
+      // cells. Top = footprint; 2D = the elevation; iso = the up-screen box. The hero can't walk into
+      // the cells the building is DRAWN over in the active view.
+      const collisionView: 'top' | 'td' | 'iso' = topViewMode ? 'top' : viewTypeRef.current === '2d' ? 'td' : 'iso'
       const jump = jumpRef.current
 
       // Face the direction currently held BEFORE the jump trigger, so a standing
@@ -3866,7 +3870,7 @@ export default function TemplateEditor() {
       player.running = running && player.moving
 
       // Collision check
-      if (!grid.isWorldBlocked(newX, newZ) && !blockedCell(newX, newZ)) {
+      if (!grid.isWorldBlockedInView(newX, newZ, collisionView) && !blockedCell(newX, newZ)) {
         player.x = newX
         player.z = newZ
       }
