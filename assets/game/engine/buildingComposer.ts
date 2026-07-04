@@ -5,7 +5,7 @@
  * locked architecture rules (see nebulith/docs/GENERATION-SPEC.md):
  *   - height >= 4 cells: >= 3 body + 1 roof; +3 cells per extra floor
  *   - length >= 8 cells
- *   - door >= 2x2 cells, at the bottom of the facade
+ *   - door 2 cells tall, CENTRED + symmetric with the windows (2 cols wide on even facades, 1 on odd)
  *
  * Pure logic (no rendering / no grid mutation) so it can be unit-tested and
  * reused by the stage generator and the editor preview.
@@ -97,7 +97,15 @@ export function composeBuilding(spec: BuildingSpec = {}): ComposedBuilding {
   const floors = Math.max(1, Math.floor(spec.floors ?? ts.floors))
   const length = Math.max(MIN_LENGTH, spec.length ?? ts.baseLength)
   const height = Math.max(MIN_HEIGHT, floors * FLOOR_BODY + ROOF_ROWS)
-  const doorWidth = Math.min(Math.max(MIN_DOOR_WIDTH, ts.doorWidth), Math.max(1, length - 1)) // ≥1 wall column
+  // A 1-cell door can't sit CENTRED on an EVEN facade (no middle column), which reads asymmetric
+  // against the mirrored windows (#49). For those door types widen to the two middle columns (2 wide)
+  // on even widths and keep a 1-cell centre column on odd — always centred, always symmetric. The
+  // widened door still covers the walkable entrance at floor(length/2), so #40 stays fixed. Ceremonial
+  // types keep their authored wide doorway.
+  const centredDoor = ts.doorWidth === 1
+  const doorWidth = centredDoor
+    ? (length % 2 === 0 ? 2 : 1)
+    : Math.min(Math.max(MIN_DOOR_WIDTH, ts.doorWidth), Math.max(1, length - 1)) // ≥1 wall column
   const doorHeight = DOOR_HEIGHT
 
   // Roof rows (peaked → narrowing triangle, flat → full-width squared) then the wall body.
@@ -128,12 +136,12 @@ export function composeBuilding(spec: BuildingSpec = {}): ComposedBuilding {
     }
   }
 
-  // Door: doorWidth x doorHeight, planted at the bottom. A single-cell door is centered on
-  // floor(length/2) — the SAME column the stage generator's walkable doorCell + driveway sit on
-  // (the centre of the road-facing edge), so the drawn door matches the entrance for any length
-  // (incl. even widths, where floor((length-1)/2) would be off by one). Wider ceremonial doors
-  // stay band-centered.
-  const doorX = doorWidth === 1 ? Math.floor(length / 2) : Math.max(1, Math.floor((length - doorWidth) / 2))
+  // Door: doorWidth x doorHeight, planted at the bottom and CENTRED — equal wall margins either side
+  // (2*doorX + doorWidth == length) so it reads symmetric with the mirrored windows. That span always
+  // contains floor(length/2), the column stageGenerator's walkable doorCell + driveway sit on, so the
+  // drawn door still lines up with the entrance for any length. Ceremonial (wide) doors keep ≥1 wall
+  // column each side.
+  const doorX = Math.max(centredDoor ? 0 : 1, Math.floor((length - doorWidth) / 2))
   const doorY = height - doorHeight
   for (let row = doorY; row < height; row++) {
     for (let col = doorX; col < doorX + doorWidth; col++) {

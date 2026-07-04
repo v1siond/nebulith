@@ -37,16 +37,20 @@ describe('composeBuilding — Nebulith building architecture spec', () => {
     expect(b.roofTop).toEqual({ x: 1, y: 0 })
   })
 
-  it('plants a SINGLE-cell, 2-tall door at the bottom centre — it matches the 1-cell entrance', () => {
-    // house/store/hospital/big-house now use a 1-wide door so the drawn facade door lines up
-    // exactly with the 1-cell walkable doorCell + driveway the stage generator carves.
+  it('plants a CENTERED, 2-tall door symmetric with the windows — still covers the 1-cell entrance', () => {
+    // house/store/hospital/big-house CENTRE the door so it reads symmetric with the mirrored windows
+    // (#49): a 1-cell column on ODD widths, the two middle columns (2-wide) on EVEN widths (a single
+    // cell can't be centred with no middle column — the user's "2x2 not 1x2"). Either way it stays
+    // centred (equal wall margins) AND still covers the walkable entrance at floor(length/2), so the
+    // door + entrance + driveway keep lining up (#40).
     for (const type of ['house', 'store', 'hospital', 'big-house'] as BuildingType[]) {
       const b = composeBuilding({ type, floors: 1 })
-      expect(b.door.width).toBe(1) // ONE cell wide → same footprint as the entrance
-      expect(b.door.height).toBe(2) // still a 2-tall doorway, not a window
-      // the door column is the facade CENTRE — the exact column stageGenerator's doorCell uses
-      // (floor(length/2), centre of the road-facing edge), so door + entrance + driveway align.
-      expect(b.door.x).toBe(Math.floor(b.length / 2))
+      expect(b.door.height).toBe(2) // a 2-tall doorway, not a window
+      expect(b.door.width).toBe(b.length % 2 === 0 ? 2 : 1) // parity → a real centre exists
+      expect(2 * b.door.x + b.door.width).toBe(b.length) // equal margins ⇒ symmetric with the windows
+      const entrance = Math.floor(b.length / 2) // stageGenerator's doorCell column
+      expect(entrance).toBeGreaterThanOrEqual(b.door.x)
+      expect(entrance).toBeLessThan(b.door.x + b.door.width) // the door still covers it
       const bottom = b.height - 1
       expect(b.cells[bottom][b.door.x]).toBe('door') // ground row of the door
       expect(b.cells[bottom - 1][b.door.x]).toBe('door') // second (top) row of the door
