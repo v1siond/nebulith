@@ -687,18 +687,20 @@ export function render2D(
       const figArt2 = !swinging2
         ? playerArt
         : playerSprite.idle.map(row => (swingArmDir2 > 0 ? row.replace('>', ' ') : row.replace('<', ' ')))
-      const pdv = resolveDraw('player', style, undefined, '', bodyColor)
-      // Emoji figures seat a touch HIGH in their em box (esp. Windows/Segoe) → feet float above the cell.
-      // Drop the whole emoji figure (glyph + held gear + vitals) so the feet meet the cell's ground line;
-      // ASCII keeps its own baseline (lift 0). Mirrors drawIsoPlayer's emojiFootLift.
-      const emojiFootLift = (pdv.char || pdv.image) ? tileH * 0.2 : 0
+      const pdv = resolveDraw('player', style, personVariantTileId(player.variant, style), '', bodyColor)
+      // BOTTOM-ANCHOR the emoji hero EXACTLY like the 2D NPCs (drawTopEntity): the figure's FEET sit on
+      // the shadow line (baseY), lifted by 0.42 of its own draw size — so the hero stands on its shadow
+      // the SAME way every NPC does. (Replaces the old emojiFootLift band-aid, which nudged only the
+      // emoji figure and left the hero anchored differently from every NPC — the 2D float bug.)
+      const personImgPx = tileH * 1.8 // image height, matching the 2D NPC figure
+      const personGlyphPx = tileH * 1.7 // glyph height, matching the 2D NPC figure
       if (pdv.image) {
-        drawStyledImage(ctx, pdv.image, p.x, baseY - lineHeight * 1.4 + emojiFootLift, tileH * 1.8)
+        drawStyledImage(ctx, pdv.image, p.x, baseY - personImgPx * 0.42, personImgPx)
       } else if (pdv.char) {
-        ctx.font = `bold ${tileH * 1.7}px ${ASCII_FONT}` // character height, matching npcs
+        ctx.font = `bold ${personGlyphPx}px ${ASCII_FONT}` // character height, matching npcs
         // Play the hero's AUTHORED animation (data-driven, direction-aware) — no hardcoded walk/run.
         const pf = activeFrame(player.animations ?? DEFAULT_CHARACTER_ANIMATIONS, { char: pdv.char }, { moving: player.moving, facing: player.facing, running: player.running ?? false }, time)
-        drawFacingGlyph(ctx, genderize(pf.char ?? pdv.char, player.variant), p.x, baseY - lineHeight * 1.2 + emojiFootLift, pf.flipX)
+        drawFacingGlyph(ctx, genderize(pf.char ?? pdv.char, player.variant), p.x, baseY - personGlyphPx * 0.42, pf.flipX)
         ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
       } else {
         for (let i = 0; i < figArt2.length; i++) {
@@ -715,12 +717,12 @@ export function render2D(
       // Weapon on the FACING hand, shield on the OFF-hand — both at the ARM row, never the same
       // hand in any facing (#49). (Mirrors drawIsoPlayer.)
       const facingDir = player.facing === 'left' ? -1 : 1
-      const armY = baseY - lineHeight * 1.2 + emojiFootLift // the arm/hand row, shared by weapon + shield
+      const armY = baseY - lineHeight * 1.2 // the arm/hand row, shared by weapon + shield
       const inHandSlash = attackAnims.find(a => a.inHand && time - a.start < a.durationMs)
       const swinging = !!inHandSlash // an attack is mid-flight → the ARM drives the swing (#47)
       const swingP = inHandSlash ? Math.min(1, (time - inHandSlash.start) / inHandSlash.durationMs) : 0
       const shoulderX = p.x + facingDir * fontSize * 0.18 // at the body, weapon side
-      const shoulderY = baseY - lineHeight * 1.9 + emojiFootLift // shoulder = TOP of the # row (the pivot)
+      const shoulderY = baseY - lineHeight * 1.9 // shoulder = TOP of the # row (the pivot)
       drawPlayerArm(ctx, {
         swinging,
         swingP,
@@ -747,7 +749,7 @@ export function render2D(
 
       // Life bar + name above the head — the SAME treatment enemies get (drawFigureVitals).
       if (player.maxHp != null) {
-        const figureTop = baseY - figArt2.length * lineHeight + emojiFootLift
+        const figureTop = baseY - figArt2.length * lineHeight
         const barWidth = Math.max(28, tileH * 2.2)
         const nameSize = Math.max(9, fontSize)
         drawFigureVitals(ctx, p.x, figureTop, barWidth, 6, nameSize, barFraction(player.hp ?? player.maxHp, player.maxHp), playerDisplayName(player.name))
