@@ -3,6 +3,16 @@
 alias Nebulith.Repo
 alias Nebulith.Catalog.Tileset
 
+# Backend admin account for the /admin area. Idempotent (upsert by email).
+# Override the defaults with NEBULITH_ADMIN_EMAIL / NEBULITH_ADMIN_PASSWORD.
+admin_email = System.get_env("NEBULITH_ADMIN_EMAIL") || "admin@nebulith.local"
+admin_password = System.get_env("NEBULITH_ADMIN_PASSWORD") || "nebulith-admin"
+
+{:ok, admin} =
+  Nebulith.Accounts.upsert_admin_user(admin_email, %{password: admin_password, role: "admin"})
+
+IO.puts("seeded admin user '#{admin.email}' (role: #{admin.role})")
+
 dir = Path.join(["priv", "repo", "tilesets"])
 
 for {key, name, file} <- [{"ascii", "ASCII", "ascii.json"}, {"emoji", "Emoji", "emoji.json"}] do
