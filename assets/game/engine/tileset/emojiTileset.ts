@@ -9,11 +9,17 @@
  *
  * Pure data: no imports, JSON-serialisable. The one place the emoji glyph+colour for a kind lives.
  */
+import type { TilePose } from '@/engine/tileset/pose'
+
 export interface EmojiTile {
   /** The emoji glyph drawn for this kind. */
   char: string
   /** The fill/tint colour (harmonised with the ASCII palette so a reskin reads as the same world). */
   color: string
+  /** OPTIONAL positioning data (rotation/scale/flip/offset/muzzle/colour) resolved through `applyPose`.
+   *  Deviations-only: absent = identity, so an unposed tile renders byte-identically. Weapons carry the
+   *  orientation/size that used to be the hardcoded WEAPON_ORIENT/emojiWeaponSize table. */
+  pose?: TilePose
   /** OPTIONAL portable image asset (a Noto PNG). When set, the tile renders as an IMAGE via the wired
    *  drawImage path instead of the `char` — so Unicode-13 glyphs Segoe lacks (🪨/🪟/…) stop tofu-ing to
    *  `[?]`. A path under /public (e.g. `/tiles/emoji/noto/emoji_u1faa8.png`), so it's DB-servable data,

@@ -3,6 +3,7 @@
 // tests + every view share one source. Pure — no React, no DOM.
 import type { Entity, CombatState } from '@/game/types'
 import type { EntityAnimation } from './entityAnimation'
+import type { TilePose } from '@/engine/tileset/pose'
 
 // Player state
 export interface PlayerState {
@@ -27,6 +28,10 @@ export interface PlayerState {
   /** held-weapon glyph drawn beside the figure (from the equipped loadout); '' = unarmed. */
   weaponGlyph?: string
   shieldGlyph?: string
+  /** the equipped weapon/shield POSE (orientation/size/flip/offset) from the loaded tileset; the arm
+   *  renderer applies it so the weapon's look is data-driven. Undefined → identity (no transform). */
+  weaponPose?: TilePose
+  shieldPose?: TilePose
   /** wearing any armor → the figure is tinted to show the upgrade. */
   armored?: boolean
   /** per-entity character tone (deterministic by the player entity's id) — the figure's body

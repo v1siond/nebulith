@@ -1,4 +1,5 @@
-import { entityArt, entityFootprint, weaponGlyph, weaponEmoji, SWORD_GLYPH, ENEMY_ART, ENEMY_ART_TYPES, ENEMY_FALLBACK, NPC_ART, entityPalette, ENEMY_PALETTE, CHARACTER_TONES, characterTone, ENEMY_PALETTE_FALLBACK, topRoleColor, TOP_ROLE_COLOR } from '@/engine/entityArt'
+import { entityArt, entityFootprint, weaponGlyph, weaponEmoji, weaponPose, SWORD_GLYPH, ENEMY_ART, ENEMY_ART_TYPES, ENEMY_FALLBACK, NPC_ART, entityPalette, ENEMY_PALETTE, CHARACTER_TONES, characterTone, ENEMY_PALETTE_FALLBACK, topRoleColor, TOP_ROLE_COLOR } from '@/engine/entityArt'
+import { setEmojiTileset } from '@/engine/tileset/emojiTileset'
 import { makeEnemy, makeNpc, makePlayer } from '@/game/entities'
 import type { Quest } from '@/game/types'
 
@@ -137,5 +138,17 @@ describe('topRoleColor — top-view > glyph colors by role + quest state', () =>
     expect(topRoleColor(n, [quest('n1', 'available')])).toBe(TOP_ROLE_COLOR.questAvailable) // green
     expect(topRoleColor(n, [quest('n1', 'active')])).toBe(TOP_ROLE_COLOR.questActive) // purple
     expect(topRoleColor(n, [quest('other', 'available')])).toBe(TOP_ROLE_COLOR.npc) // not this npc's quest
+  })
+})
+
+// NOTE: this REPLACES the in-memory emoji tileset (like the backend loader does), so it lives last
+// and its own describe — the weaponEmoji tests above rely on the bundled fallback tileset.
+describe('weaponPose — the equipped weapon reads its pose from the loaded tileset', () => {
+  it('returns the tileset entry pose for emoji, undefined for ascii / unknown', () => {
+    setEmojiTileset({ sword: { char: '🗡️', color: '#fff', pose: { rot: 3.14, scale: 1.1 } } } as never)
+    expect(weaponPose('sword', 'emoji')).toEqual({ rot: 3.14, scale: 1.1 })
+    expect(weaponPose('sword', 'ascii')).toBeUndefined() // ascii poses aren't wired yet
+    expect(weaponPose('bow', 'emoji')).toBeUndefined() // not in the tileset → no pose
+    expect(weaponPose(undefined, 'emoji')).toBeUndefined()
   })
 })

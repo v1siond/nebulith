@@ -22,7 +22,7 @@ import { buildingFootprintCells, canPlaceBuilding, facadeLength, footprintContai
 import { type AnimFrame, type AnimPreset, CELL_ANIM_PRESETS, type Ease, makeCellAnimation, restFrame } from '@/engine/cellAnimation'
 import { scaleCompositeToRegion } from '@/engine/compositeFill'
 import { findTriggeredConnector, normalizeConnector } from '@/engine/connectors'
-import { entityPalette, weaponEmoji, weaponGlyph } from '@/engine/entityArt'
+import { entityPalette, weaponEmoji, weaponGlyph, weaponPose } from '@/engine/entityArt'
 import { isoFacadeOnBack, isoFacingIndex } from '@/engine/isoBuilding'
 import { assetFootprint, multiCellAssetById, stampAsset } from '@/engine/multiCellAssets'
 import { StageData, VariantId, generateStage, stagePaint } from '@/engine/stageGenerator'
@@ -537,8 +537,12 @@ export default function TemplateEditor() {
     // Under a reskin style, the hero holds a real ⚔️/🏹/🪄/🛡️ emoji; ASCII keeps the drawn glyph.
     const emojiHands = activeStyleId !== 'ascii'
     const heldWeapon = mainWeapon ?? playerWeaponRef.current
+    const poseStyle = emojiHands ? 'emoji' : 'ascii'
     playerRef.current.weaponGlyph = emojiHands ? weaponEmoji(heldWeapon) : weaponGlyph(heldWeapon)
     playerRef.current.shieldGlyph = shield ? (emojiHands ? weaponEmoji(shield) : weaponGlyph(shield)) : ''
+    // The weapon/shield POSE rides alongside the glyph so the arm renderer positions it from tileset data.
+    playerRef.current.weaponPose = weaponPose(heldWeapon?.kind, poseStyle)
+    playerRef.current.shieldPose = weaponPose(shield?.kind, poseStyle)
     playerRef.current.armored = armored
     // Per-entity character tone (deterministic by id) so the player varies like NPCs do;
     // the armored steel-blue still overrides this in the render. No player entity → gold default.

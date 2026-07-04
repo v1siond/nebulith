@@ -1,4 +1,6 @@
 import type { Entity, Quest } from '@/game/types'
+import { EMOJI_TILESET } from '@/engine/tileset/emojiTileset'
+import type { TilePose } from '@/engine/tileset/pose'
 
 /**
  * Multi-row ASCII figures for entities. Authored LEFT-ALIGNED (leading spaces carry
@@ -241,6 +243,10 @@ export const GUN_GLYPH = '¬'
  *  Bare hands draw nothing. Used when the active style isn't ASCII (see the player loadout sync). */
 export function weaponEmoji(weapon?: { kind?: string; range?: string } | null): string {
   if (!weapon || weapon.kind === 'unarmed') return ''
+  // Prefer the loaded tileset's glyph so the weapon char is data-driven (backend/DB); fall back to the
+  // switch when the tileset hasn't loaded yet (SSR / backend down) so the hand is never empty.
+  const fromTileset = weapon.kind ? EMOJI_TILESET[weapon.kind]?.char : undefined
+  if (fromTileset) return fromTileset
   switch (weapon.kind) {
     case 'bow': return '🏹'
     case 'gun': return '🔫'
@@ -250,6 +256,15 @@ export function weaponEmoji(weapon?: { kind?: string; range?: string } | null): 
     case 'sword': return '🗡️'
     default: return weapon.range === 'ranged' ? '🏹' : '🗡️'
   }
+}
+
+/** The equipped weapon's POSE (orientation/size/flip/offset/muzzle) from the loaded tileset — the
+ *  data that used to be the hardcoded WEAPON_ORIENT/emojiWeaponSize. Emoji reads its tileset entry;
+ *  ascii returns undefined for now (the ascii weapon path keeps its own drawing). Absent → the render
+ *  falls back to identity (no rotation/scale), so keep the backend tileset seeded with the weapon poses. */
+export function weaponPose(kind: string | undefined, style: 'emoji' | 'ascii'): TilePose | undefined {
+  if (!kind || style !== 'emoji') return undefined
+  return EMOJI_TILESET[kind]?.pose
 }
 
 export function weaponGlyph(weapon?: { kind?: string; range?: string } | null): string {
