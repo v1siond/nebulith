@@ -41,11 +41,13 @@ describe('generateStage — town vertical slice', () => {
     }
   })
 
-  it('blocks the whole small footprint EXCEPT the single walkable road-facing door', () => {
+  it('blocks the whole small footprint EXCEPT the walkable road-facing door (its full drawn width)', () => {
     for (const b of stage.buildings) {
-      expect(b.doorCells).toHaveLength(1)
-      const door = b.doorCells[0]
-      expect(stage.collision[door.row][door.col]).toBe(false) // the door is the way in (walkable)
+      // The door opens its FULL drawn width: `door.width` cells on axis-aligned facades (2 on even
+      // frontages, #49), 1 cell on rotated ones (the 2D facade collapses those to a single edge cell).
+      const axis = b.facing === 'south' || b.facing === 'north'
+      expect(b.doorCells).toHaveLength(axis ? b.facade.door.width : 1)
+      for (const door of b.doorCells) expect(stage.collision[door.row][door.col]).toBe(false) // the way in
 
       const cells = footprintCells(b)
       let blocked = 0
@@ -54,8 +56,8 @@ describe('generateStage — town vertical slice', () => {
         if (stage.collision[row][col]) blocked++
         else walkable++
       }
-      expect(blocked).toBe(b.length * b.height - 1) // every footprint cell blocks…
-      expect(walkable).toBe(1) // …except the door
+      expect(blocked).toBe(b.length * b.height - b.doorCells.length) // every footprint cell blocks…
+      expect(walkable).toBe(b.doorCells.length) // …except the door cell(s)
     }
   })
 
@@ -106,7 +108,7 @@ describe('generateStage — small-footprint labeled buildings (the shared collis
     }
   })
 
-  it('gives each building exactly ONE walkable door cell in its footprint', () => {
+  it('opens the full drawn door width as walkable door cells in each footprint', () => {
     const stage = generateStage({ zone: 'autumn', variant: 'town' })
     const cells = collectBuildingCells(stage)
     for (const b of stage.buildings) {
@@ -118,9 +120,13 @@ describe('generateStage — small-footprint labeled buildings (the shared collis
           c.row <= b.row &&
           c.row > b.row - b.height,
       )
-      expect(doors).toHaveLength(1)
-      expect(doors[0].blocking).toBe(false)
-      expect(stage.collision[doors[0].row][doors[0].col]).toBe(false)
+      // axis-aligned facades draw (and open) the door at its full width; rotated collapse to 1 cell.
+      const axis = b.facing === 'south' || b.facing === 'north'
+      expect(doors).toHaveLength(axis ? b.facade.door.width : 1)
+      for (const d of doors) {
+        expect(d.blocking).toBe(false)
+        expect(stage.collision[d.row][d.col]).toBe(false)
+      }
     }
   })
 

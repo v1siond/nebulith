@@ -636,11 +636,11 @@ function villageDecor(ctx: ArchetypeContext, layout: VillageLayout): void {
   for (const b of ctx.buildings) {
     const top = b.row - (b.height - 1)
     for (let r = top; r <= b.row; r++) for (let c = b.col; c < b.col + b.length; c++) buildingCells.add(`${c},${r}`)
-    const door = b.doorCells[0]
-    if (!door) continue
     const [dc, dr] = FACING_STEP[b.facing]
-    doorways.add(`${door.col},${door.row}`)
-    doorways.add(`${door.col + dc},${door.row + dr}`)
+    for (const door of b.doorCells) {
+      doorways.add(`${door.col},${door.row}`) // the walkable entrance cell(s)
+      doorways.add(`${door.col + dc},${door.row + dr}`) // its paved driveway step toward the road
+    }
   }
   const decorFree = (c: number, r: number): boolean =>
     !collision[r]?.[c] && !layout.roads[r]?.[c] && !buildingCells.has(`${c},${r}`) && !doorways.has(`${c},${r}`)
@@ -798,15 +798,26 @@ export function labelForCell(type: string, pos = ''): string {
   return pos ? `${t} ${pos}` : t
 }
 
-/** The single DOOR cell — the centre of the footprint's ROAD-FACING edge (walkable; the building's
- *  one way in). Every other footprint cell blocks. Mirrors villageLayout's door geometry. */
-function doorCell(facing: Facing, rect: FootRect): Cell {
-  const midCol = rect.col + Math.floor(rect.w / 2)
+/**
+ * The walkable DOOR cells — the building's way in — on the footprint's ROAD-FACING edge. Every OTHER
+ * footprint cell blocks.
+ *
+ * The DRAWN door is `door.width` cells wide (2 on even frontages, #49). AXIS-ALIGNED (south/north) 2D
+ * facades draw the door at its full width, so the walkable opening must be that wide too — otherwise a
+ * 2-wide door has a walkable half and a blocked half and you "walk between two tiles but not the actual
+ * entrance". The door is CENTRED, so its facade span [door.x, door.x+width) maps straight onto the edge's
+ * frontage cells (rect.w == facade.length for south/north). ROTATED (east/west) 2D facades collapse the
+ * door to a SINGLE edge cell (draw2DBuilding maps one road-edge column to the facade door, the rest to
+ * wall), so the opening stays 1 cell there — matching what's drawn (no walk-through-wall).
+ */
+export function doorCells(facing: Facing, rect: FootRect, door: { x: number; width: number }): Cell[] {
   const midRow = rect.row + Math.floor(rect.h / 2)
-  if (facing === 'south') return { col: midCol, row: rect.row + rect.h - 1 } // road below → bottom edge
-  if (facing === 'north') return { col: midCol, row: rect.row } // road above → top edge
-  if (facing === 'east') return { col: rect.col + rect.w - 1, row: midRow } // road right → right edge
-  return { col: rect.col, row: midRow } // west: road left → left edge
+  if (facing === 'east') return [{ col: rect.col + rect.w - 1, row: midRow }] // road right → right edge
+  if (facing === 'west') return [{ col: rect.col, row: midRow }] // road left → left edge
+  const row = facing === 'south' ? rect.row + rect.h - 1 : rect.row // road below/above → bottom/top edge
+  const cells: Cell[] = []
+  for (let i = 0; i < door.width; i++) cells.push({ col: rect.col + door.x + i, row })
+  return cells
 }
 
 /**
@@ -822,15 +833,16 @@ function placeBuilding(
   plot: Plot,
   rect: FootRect,
 ): PlacedBuilding {
-  const door = doorCell(plot.facing, rect)
+  const doors = doorCells(plot.facing, rect, facade.door)
+  const isDoor = new Set(doors.map(d => `${d.col},${d.row}`))
   for (let row = rect.row; row < rect.row + rect.h; row++) {
     for (let col = rect.col; col < rect.col + rect.w; col++) {
-      stampFootprintCell(ctx, plot.type, col, row, col === door.col && row === door.row, rect.col, rect)
+      stampFootprintCell(ctx, plot.type, col, row, isDoor.has(`${col},${row}`), rect.col, rect)
     }
   }
   // `row` = the rect's BOTTOM row; `length`/`height` = the rect's grid span (cols×rows), so the
   // nature math + the iso/2D per-cell skip read the real small footprint regardless of facing.
-  return { type: plot.type, col: rect.col, row: rect.row + rect.h - 1, length: rect.w, height: rect.h, depth: plot.depth, facing: plot.facing, doorCells: [door], facade }
+  return { type: plot.type, col: rect.col, row: rect.row + rect.h - 1, length: rect.w, height: rect.h, depth: plot.depth, facing: plot.facing, doorCells: doors, facade }
 }
 
 /** Emit one footprint building cell at (col,row) and set its collision: the door is walkable, every
@@ -2403,11 +2415,10 @@ const FACING_STEP: Readonly<Record<Facing, readonly [number, number]>> = {
  *  by its own building cells (a roof from above), and the surrounding yard stays the natural ground
  *  (grass). This kills the old facade-height-deep plaza sprawl. */
 function paintBuildingGround(b: PlacedBuilding, ground: StagePaint['ground']): void {
-  const door = b.doorCells[0]
-  if (!door) return
   const [dc, dr] = FACING_STEP[b.facing]
-  // The setback yard cell between the door and the road, paved as the driveway.
-  ground.push({ col: door.col + dc, row: door.row + dr, type: 'path_stone' })
+  // The setback yard cell in front of EACH door cell, paved as the driveway — a 2-wide door gets a
+  // 2-wide drive so the paving matches the full (now fully walkable) entrance.
+  for (const door of b.doorCells) ground.push({ col: door.col + dc, row: door.row + dr, type: 'path_stone' })
 }
 
 export interface StageTemplatePayload {

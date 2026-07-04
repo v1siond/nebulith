@@ -1,4 +1,4 @@
-import { generateStage, treeColumnClearsPaving } from '@/engine/stageGenerator'
+import { generateStage, treeColumnClearsPaving, doorCells } from '@/engine/stageGenerator'
 import { planVillage, type Plot } from '@/engine/villageLayout'
 import { composeBuilding } from '@/engine/buildingComposer'
 
@@ -80,10 +80,12 @@ describe('settlement building placement (consumer matches planner contract)', ()
         for (let r = top; r <= b.row; r++) {
           for (let c = b.col; c < b.col + b.length; c++) if (stage.collision[r][c]) blocked++
         }
-        expect(b.doorCells).toHaveLength(1)
-        const d = b.doorCells[0]
-        expect(stage.collision[d.row][d.col]).toBe(false) // door walkable
-        expect(blocked).toBe(b.length * b.height - 1) // every other footprint cell blocks
+        // south/north facades draw the door at its FULL width, so the walkable entrance is that wide;
+        // rotated (east/west) 2D facades collapse the door to 1 cell, so the opening stays 1 there.
+        const axis = b.facing === 'south' || b.facing === 'north'
+        expect(b.doorCells).toHaveLength(axis ? b.facade.door.width : 1)
+        for (const d of b.doorCells) expect(stage.collision[d.row][d.col]).toBe(false) // every door cell walkable
+        expect(blocked).toBe(b.length * b.height - b.doorCells.length) // every NON-door footprint cell blocks
       }
     })
   }
@@ -155,6 +157,32 @@ describe('settlement building placement (consumer matches planner contract)', ()
     expect(treeColumnClearsPaving(canopyPaved, 1, 5)).toBe(false) // anchor grass but canopy over paving → rejected
   })
 
+  // The DRAWN door is `door.width` cells wide (2 on even frontages, #49) but only 1 collision cell used to
+  // open — so a 2-wide door had a walkable half and a blocked half: you could "walk between two tiles" but
+  // not stand on the actual entrance. The walkable opening must match the drawn door.
+  test('doorCells: an axis-aligned entrance spans the full door width; a rotated one stays 1 cell', () => {
+    const rect = { col: 10, row: 20, w: 6, h: 4 }
+    // south: door at facade x=2, width=2 → the two middle cells of the bottom edge (row 23), cols 12 & 13.
+    expect(doorCells('south', rect, { x: 2, width: 2 })).toEqual([{ col: 12, row: 23 }, { col: 13, row: 23 }])
+    // north: same span on the TOP edge (row 20).
+    expect(doorCells('north', rect, { x: 2, width: 2 })).toEqual([{ col: 12, row: 20 }, { col: 13, row: 20 }])
+    // east/west (rotated): the 2D facade collapses the door to ONE edge cell, so the opening stays 1 cell.
+    expect(doorCells('east', rect, { x: 2, width: 2 })).toEqual([{ col: 15, row: 22 }])
+    expect(doorCells('west', rect, { x: 2, width: 2 })).toEqual([{ col: 10, row: 22 }])
+  })
+
+  test('an axis-aligned door opens its FULL drawn width — no walkable-half/blocked-half 2-wide door', () => {
+    for (const seed of [12345, 777, 42, 1, 2, 3]) {
+      const { stage } = genWithSeed('town', seed)
+      const axisBuildings = stage.buildings.filter(b => b.facing === 'south' || b.facing === 'north')
+      expect(axisBuildings.length).toBeGreaterThan(0)
+      for (const b of axisBuildings) {
+        expect(b.doorCells.length).toBe(b.facade.door.width) // walkable opening == the DRAWN door width
+        for (const d of b.doorCells) expect(stage.collision[d.row][d.col]).toBe(false) // all of it walkable
+      }
+    }
+  })
+
   test('town: every tree cell stands on GRASS — never on the paved plaza or roads', () => {
     const GRASS = new Set(['grass', 'grass_tall'])
     for (const seed of [12345, 777, 42, 1, 2, 3, 7, 99]) {
@@ -175,12 +203,13 @@ describe('settlement building placement (consumer matches planner contract)', ()
 
         expect(stage.buildings.length).toBeGreaterThan(0)
         for (const b of stage.buildings) {
-          expect(b.doorCells).toHaveLength(1)
-          const d = b.doorCells[0]
-          // door is set back: a road is within 2 cells (the setback yard + the street), not on the door.
-          expect(isRoad(d.col, d.row)).toBe(false)
-          const near = ORTHO.some(([dc, dr]) => isRoad(d.col + dc, d.row + dr) || isRoad(d.col + 2 * dc, d.row + 2 * dr))
-          expect(near).toBe(true)
+          expect(b.doorCells.length).toBeGreaterThanOrEqual(1)
+          for (const d of b.doorCells) {
+            // every door cell is set back: a road is within 2 cells (setback yard + street), not on the door.
+            expect(isRoad(d.col, d.row)).toBe(false)
+            const near = ORTHO.some(([dc, dr]) => isRoad(d.col + dc, d.row + dr) || isRoad(d.col + 2 * dc, d.row + 2 * dr))
+            expect(near).toBe(true)
+          }
         }
       }
     }
