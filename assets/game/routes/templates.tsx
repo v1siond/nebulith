@@ -509,6 +509,13 @@ export default function TemplateEditor() {
   useEffect(() => { selectedBuildingIndexRef.current = selectedBuildingIndex }, [selectedBuildingIndex])
   useEffect(() => { genZoneRef.current = genZone }, [genZone])
 
+  // Flow view is a full-screen graph — flag it on <body> so the global FPS overlay (rendered
+  // outside this tree in _app) can hide itself instead of sitting on top of the flow.
+  useEffect(() => {
+    document.body.classList.toggle('flow-view-active', showFlowView)
+    return () => document.body.classList.remove('flow-view-active')
+  }, [showFlowView])
+
   // Keep connectors ref in sync
   useEffect(() => {
     connectorsRef.current = connectors
@@ -4587,16 +4594,6 @@ export default function TemplateEditor() {
           />
         )}
 
-        {/* Exit Flow view — the only way back, since the sidebars hide in flow */}
-        {showFlowView && (
-          <button
-            onClick={toggleFlowView}
-            className="fixed right-4 top-4 z-30 rounded bg-purple-700 px-3 py-2 font-mono text-xs font-bold text-white shadow-lg hover:bg-purple-600"
-          >
-            Exit Flow
-          </button>
-        )}
-
         {/* GAMES view — list playable flows + the game editor; ▶ plays from a level. */}
         {showGamesView && (
           <GamesViewOverlay
@@ -4607,7 +4604,7 @@ export default function TemplateEditor() {
         )}
 
         {/* TOP BAR — brand · view toggle · ⚡ Generate · 🎨 Style · ▶ Play · 💾 Save · Load · ⋯ More */}
-        {showSidebars && !showFlowView && !showGamesView && !playMode && (
+        {showSidebars && !showGamesView && !playMode && (
         <nav className="fixed left-4 right-4 top-4 z-20 flex items-center gap-2 overflow-x-auto rounded-lg border border-white/10 bg-black/90 px-3 py-2 font-mono text-sm text-white shadow-lg shadow-black/40">
           <span className="shrink-0 select-none text-sm font-bold tracking-widest text-yellow-400">NEBULITH</span>
           <span className="mx-1 h-5 w-px shrink-0 bg-white/15" />
@@ -4735,12 +4732,12 @@ export default function TemplateEditor() {
         )}
 
         {/* LEFT — tool-rail: the editor modes (Select / Paint / Unit / Building / Connector) */}
-        {showSidebars && !showFlowView && !showGamesView && !playMode && (
+        {showSidebars && !showGamesView && !playMode && (
           <ToolRail mode={editorMode} onPick={selectMode} />
         )}
 
         {/* LEFT MODE PANEL — the active mode's tools, docked next to the rail */}
-        {showSidebars && !showFlowView && !showGamesView && !playMode && (
+        {showSidebars && !showGamesView && !playMode && (
           <aside
             className={`fixed z-10 flex flex-col gap-3 overflow-y-auto pr-1 font-mono text-white ${
               isMobile
@@ -5184,7 +5181,7 @@ export default function TemplateEditor() {
         )}
 
         {/* RIGHT — Inspector: stage settings when nothing is selected, else the selection */}
-        {showSidebars && !showFlowView && !showGamesView && !playMode && (
+        {showSidebars && !showGamesView && !playMode && (
           <aside
             className={`fixed right-4 z-10 flex flex-col gap-3 overflow-y-auto pl-1 font-mono text-white ${
               isMobile
