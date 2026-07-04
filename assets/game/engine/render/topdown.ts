@@ -74,21 +74,27 @@ export function drawTopEntity(
   // (male→🧍‍♂️, old→🧓, …) — both baked images. A manual tileOverride still wins.
   const override = entity.tileOverride ?? entityStyleOverride(entity, style)
   const edv = resolveDraw(entityKind(entity.kind), style, override, '', pal.fg)
+  // Per-entity SIZE scales the drawn figure (a size-2 boss draws twice as big); it grows UP from the
+  // feet line (footY) — the `- (drawPx-basePx)*0.5` fixes the BOTTOM — so a bigger figure stays grounded
+  // on its shadow. size 1 is byte-identical to before.
+  const size = Math.max(1, entity.size ?? 1)
   if (edv.image) {
-    const imgPx = spanH * 0.9
-    drawStyledImage(ctx, edv.image, cx, footY - imgPx * 0.42, imgPx)
+    const baseImgPx = spanH * 0.9
+    const imgPx = baseImgPx * size
+    drawStyledImage(ctx, edv.image, cx, footY - baseImgPx * 0.42 - (imgPx - baseImgPx) * 0.5, imgPx)
   } else if (edv.char) {
     // One emoji replaces the multi-row figure. FIXED cell-multiple size (not the ASCII row count,
     // which ballooned big creatures), and grounded by its BOTTOM at the shadow (footY) so a smaller
     // enemy doesn't float. People play their AUTHORED animation; enemies default to a static glyph.
     const isEnemy = entityKind(entity.kind) === 'enemy'
-    const emojiPx = tileSize * (isEnemy ? 1.35 : 1.7)
+    const baseEmojiPx = tileSize * (isEnemy ? 1.35 : 1.7)
+    const emojiPx = baseEmojiPx * size
     ctx.font = `bold ${emojiPx}px ${ASCII_FONT}`
     ctx.textAlign = 'center'
     ctx.fillStyle = edv.color
     const anims = entity.animations ?? (isEnemy ? undefined : DEFAULT_CHARACTER_ANIMATIONS)
     const ef = activeFrame(anims, { char: edv.char }, { moving, facing: 'down', running: false }, now)
-    drawFacingGlyph(ctx, genderize(ef.char ?? edv.char, entity.variant), cx, footY - emojiPx * 0.42, ef.flipX)
+    drawFacingGlyph(ctx, genderize(ef.char ?? edv.char, entity.variant), cx, footY - baseEmojiPx * 0.42 - (emojiPx - baseEmojiPx) * 0.5, ef.flipX)
     ctx.textAlign = 'left'
   } else {
     for (let i = 0; i < art.length; i++) {

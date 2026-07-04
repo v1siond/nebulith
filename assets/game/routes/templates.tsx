@@ -1560,6 +1560,28 @@ export default function TemplateEditor() {
     if (!selectedEntityId) return
     setEntities(prev => prev.map(e => (e.id === selectedEntityId ? { ...e, ...patch } : e)))
   }
+  /** Set the selected entity's render SIZE (a boss draws bigger). Rescales the stat block by the size
+   *  RATIO so the figure and its stats stay in step (makeEnemy scales at creation; this keeps an
+   *  in-editor change consistent). size 1 drops the field (a normal-sized entity carries no size). */
+  const setSelectedEntitySize = (nextSize: number) => {
+    if (!selectedEntityId) return
+    setEntities(prev => prev.map(e => {
+      if (e.id !== selectedEntityId) return e
+      const ratio = nextSize / (e.size ?? 1)
+      const s = e.baseStats
+      const baseStats = ratio === 1 ? s : {
+        ...s,
+        maxHp: Math.round(s.maxHp * ratio),
+        strength: Math.round(s.strength * ratio),
+        intelligence: Math.round(s.intelligence * ratio),
+        defense: Math.round(s.defense * ratio),
+      }
+      const next = { ...e, baseStats }
+      if (nextSize > 1) next.size = nextSize
+      else delete next.size
+      return next
+    }))
+  }
   const deleteSelectedEntity = () => {
     if (!selectedEntityId) return
     setEntities(prev => removeEntity(prev, selectedEntityId))
@@ -5263,6 +5285,22 @@ export default function TemplateEditor() {
                             }`}
                           >
                             {v || 'neutral'}
+                          </button>
+                        ))}
+                      </div>
+                      <div className="mb-3 flex items-center gap-2 text-[11px]">
+                        <span className="text-gray-400">Size</span>
+                        {[1, 2, 3].map(sz => (
+                          <button
+                            key={sz}
+                            type="button"
+                            onClick={() => setSelectedEntitySize(sz)}
+                            title={sz > 1 ? `${sz}× — a boss: bigger figure + ~${sz}× stats` : 'normal size'}
+                            className={`rounded px-2 py-0.5 font-bold transition-colors ${
+                              (selEntity.size ?? 1) === sz ? 'bg-cyan-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                            }`}
+                          >
+                            {sz}×
                           </button>
                         ))}
                       </div>

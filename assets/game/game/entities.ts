@@ -41,6 +41,28 @@ export const DEFAULT_NPC_STATS: Stats = {
   maxHp: 10,
 }
 
+// ── size → stats ────────────────────────────────────────────────────
+/** How an entity's render SIZE scales its stats. A size-N enemy multiplies its HP + offensive/defensive
+ *  stats by N^SIZE_STAT_EXPONENT — at the default exponent 1 that's plain linear (a size-2 boss has ~2×
+ *  the HP and hits ~2× as hard). FLAG FOR TUNING: this is the one knob — raise the exponent (>1) for
+ *  super-linear boss scaling, or lower it (<1) to soften it. */
+export const SIZE_STAT_EXPONENT = 1
+
+/** Scale a stat block by an entity's render `size` (pure; returns a fresh block). size ≤ 1 → unchanged.
+ *  maxHp/strength/intelligence/defense grow with size so a bigger figure is genuinely tougher; dodge is
+ *  left alone (a hulking boss shouldn't also be evasive). */
+export function scaleStatsBySize(base: Stats, size: number): Stats {
+  const m = size > 1 ? size ** SIZE_STAT_EXPONENT : 1
+  if (m === 1) return { ...base }
+  return {
+    ...base,
+    maxHp: Math.round(base.maxHp * m),
+    strength: Math.round(base.strength * m),
+    intelligence: Math.round(base.intelligence * m),
+    defense: Math.round(base.defense * m),
+  }
+}
+
 // ── factories ───────────────────────────────────────────────────────
 
 /** Create the player/spawn entity. */
@@ -67,6 +89,9 @@ export interface MakeEnemyOptions {
   archetype?: EnemyArchetypeId
   /** Partial stat overrides merged over the archetype (or enemy defaults) — e.g. bosses. */
   stats?: Partial<Stats>
+  /** render + stat SCALE (default 1). A boss at size 2 draws twice as big and derives beefier stats
+   *  (see scaleStatsBySize) — applied AFTER the archetype/stat overrides, so size multiplies the final block. */
+  size?: number
 }
 
 /** Default respawn delay for a regular (common) enemy (~20s) so kill-quests stay
@@ -91,6 +116,10 @@ export function makeEnemy(
   options: MakeEnemyOptions = {},
 ): Entity {
   const profile = options.archetype ? buildArchetypeProfile(options.archetype) : undefined
+  const size = options.size ?? 1
+  // Size multiplies the FINAL stat block (defaults ← archetype ← explicit overrides), so a boss is just
+  // a normal enemy scaled up. Only stamp `size` on the entity when it's non-trivial (keeps saves clean).
+  const baseStats = scaleStatsBySize({ ...DEFAULT_ENEMY_STATS, ...profile?.stats, ...options.stats }, size)
   return {
     id,
     kind: 'enemy',
@@ -100,7 +129,8 @@ export function makeEnemy(
     enemyType,
     rarity: options.rarity,
     respawnMs: options.respawnMs ?? respawnMsForRarity(options.rarity),
-    baseStats: { ...DEFAULT_ENEMY_STATS, ...profile?.stats, ...options.stats },
+    baseStats,
+    ...(size > 1 ? { size } : {}),
     ...(profile ? { attack: profile.attack } : {}),
   }
 }

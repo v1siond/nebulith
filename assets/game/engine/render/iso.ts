@@ -858,19 +858,25 @@ export function drawIsoEntity(
   // Ground the billboard by its BOTTOM at the shadow line, so ANY tile size stays grounded (a
   // smaller enemy no longer floats above its shadow). `groundY` is the feet contact point.
   const groundY = baseY + tileH * 0.1
+  // Per-entity SIZE scales the drawn figure (a size-2 boss draws twice as big). It grows UP from the
+  // feet line (the `- (drawPx-basePx)*0.5` keeps the BOTTOM fixed), so a bigger figure stays grounded
+  // on its shadow instead of sinking through the floor. size 1 is byte-identical to before.
+  const size = Math.max(1, entity.size ?? 1)
   if (edv.image) {
-    const imgPx = tileH * (isEnemy ? 1.9 : 2.4)
-    drawStyledImage(ctx, edv.image, x, groundY - imgPx * 0.42, imgPx)
+    const baseImgPx = tileH * (isEnemy ? 1.9 : 2.4)
+    const imgPx = baseImgPx * size
+    drawStyledImage(ctx, edv.image, x, groundY - baseImgPx * 0.42 - (imgPx - baseImgPx) * 0.5, imgPx)
   } else if (edv.char) {
     // Enemies read a touch smaller than people so a mob doesn't tower over the hero. Play the
     // entity's AUTHORED animation (data-driven); enemies default to their static glyph.
-    const emojiPx = fontSize * (isEnemy ? 1.35 : 1.7)
+    const baseEmojiPx = fontSize * (isEnemy ? 1.35 : 1.7)
+    const emojiPx = baseEmojiPx * size
     ctx.font = `bold ${emojiPx}px ${ASCII_FONT}`
     ctx.textAlign = 'center'
     ctx.fillStyle = edv.color
     const anims = entity.animations ?? (isEnemy ? undefined : DEFAULT_CHARACTER_ANIMATIONS)
     const ef = activeFrame(anims, { char: edv.char }, { moving, facing: 'down', running: false }, now)
-    drawFacingGlyph(ctx, genderize(ef.char ?? edv.char, entity.variant), x, groundY - emojiPx * 0.42, ef.flipX)
+    drawFacingGlyph(ctx, genderize(ef.char ?? edv.char, entity.variant), x, groundY - baseEmojiPx * 0.42 - (emojiPx - baseEmojiPx) * 0.5, ef.flipX)
     ctx.textAlign = 'left'
     ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
   } else {
