@@ -19,7 +19,7 @@ import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 import { EMOJI_TILESET } from '@/engine/tileset/emojiTileset'
 import { applyPose } from '@/engine/tileset/pose'
 import { Connector } from '@/lib/api'
-import { ASCII_FONT, BUILDING_BADGES, COMBAT_RANGE, type DayNight, ENEMY_MOVE_MS, LAMP_GLOW, applyCellTransform, clampCameraAxis, assetCaptionByCell, terrainLabelAt, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, getPlayerArt, grassShade, cellFill, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, resolveDraw, assetOverride, treeCanopyLayers } from './shared'
+import { ASCII_FONT, BUILDING_BADGES, COMBAT_RANGE, type DayNight, ENEMY_MOVE_MS, LAMP_GLOW, applyCellTransform, clampCameraAxis, assetCaptionByCell, terrainLabelAt, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawHoverRing, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, getPlayerArt, grassShade, cellFill, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, resolveDraw, assetOverride, treeCanopyLayers } from './shared'
 import { ASCII_STYLE, assetKind, entityKind, enemyTileId, genderize, groundKind, type ElementKind, type Style } from '@/game/artStyle'
 import { DEFAULT_CHARACTER_ANIMATIONS, activeFrame } from '@/game/runtime/entityAnimation'
 
@@ -40,6 +40,7 @@ export function drawTopEntity(
   attackable = false,
   style: Style = ASCII_STYLE,
   isTarget = false,
+  isHover = false,
 ): { x: number; y: number } {
   // The figure spans a footprint (a 3-row figure ≈ 2 cells tall, 1 wide) anchored so
   // the entity's cell is the BOTTOM cell — matching the player's 2-tall look in top view.
@@ -59,6 +60,7 @@ export function drawTopEntity(
   drawGroundShadow(ctx, cx, footY, (maxW * charW) / 2)
   // Selected target: red reticle at the feet (mirrors the iso view's drawSelectionRing).
   if (isTarget) drawSelectionRing(ctx, cx, footY, (maxW * charW) / 2 + tileSize * 0.28)
+  else if (isHover) drawHoverRing(ctx, cx, footY, (maxW * charW) / 2 + tileSize * 0.28) // dim white hover reticle
   // In-strike-range indicator: a ring at the feet (#35).
   if (attackable) drawRangeRing(ctx, cx, footY, (maxW * charW) / 2 + tileSize * 0.2, now)
   // NO background panel — the figure draws directly on the map (a colored box behind
@@ -446,9 +448,11 @@ export function render2D(
   attackReach: number = 1,
   style: Style = ASCII_STYLE,
   targetId: string | null = null,
+  hoverId: string | null = null,
 ) {
   const __t0 = typeof performance !== 'undefined' ? performance.now() : 0
   const playerIsTarget = !!targetId && entities.some(e => e.kind === 'player' && e.id === targetId)
+  const playerIsHover = !!hoverId && entities.some(e => e.kind === 'player' && e.id === hoverId)
   // Clear with sky/background color
   ctx.fillStyle = '#1a1a2e'
   ctx.fillRect(0, 0, w, h)
@@ -665,6 +669,7 @@ export function render2D(
 
       // Selected target: red reticle at the player's feet (parity with the iso view + the enemies above).
       if (playerIsTarget) drawSelectionRing(ctx, p.x, baseY, tileH * 0.65)
+      else if (playerIsHover) drawHoverRing(ctx, p.x, baseY, tileH * 0.65) // dim white hover reticle
 
       // Draw each line of the ASCII art, stacking upward from baseY
       const fontSize = tileH * 0.7
@@ -985,7 +990,7 @@ export function render2D(
     const moving = !!mot && time < mot.startMs + ENEMY_MOVE_MS
     const inRange = entity.kind === 'enemy' && Math.hypot(entity.col - pCol, entity.row - pRow) <= COMBAT_RANGE
     const attackable = enemyInAttackReach(entity, Math.floor(player.x / cellSize), Math.floor(player.z / cellSize), attackReach)
-    const anchor = drawTopEntity(ctx, e.x, e.y, tileW, entity, combat, time, moving, inRange, attackable, style, entity.id === targetId)
+    const anchor = drawTopEntity(ctx, e.x, e.y, tileW, entity, combat, time, moving, inRange, attackable, style, entity.id === targetId, entity.id === hoverId)
     drawQuestMarker(ctx, entityQuestMarker(entity, quests), anchor.x, anchor.y, Math.max(14, tileW * 1.4))
   }
 

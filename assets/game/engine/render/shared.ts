@@ -670,6 +670,19 @@ export function drawSelectionRing(ctx: CanvasRenderingContext2D, cx: number, foo
   ctx.restore()
 }
 
+/** HOVER reticle: a dim WHITE ring at the unit under the cursor — the "you'd target this" hint. Distinct
+ *  from the solid red selection ring (dimmer + thinner) so hover ≠ selected. Skipped for the already-
+ *  selected unit (the red ring wins), so a hovered target doesn't get two overlapping rings. */
+export function drawHoverRing(ctx: CanvasRenderingContext2D, cx: number, footY: number, radiusX: number): void {
+  ctx.save()
+  ctx.lineWidth = 1.5
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.55)'
+  ctx.beginPath()
+  ctx.ellipse(cx, footY, radiusX, Math.max(2, radiusX * 0.42), 0, 0, Math.PI * 2)
+  ctx.stroke()
+  ctx.restore()
+}
+
 /** The entity's animation frame, gated on movement: idle HOLDS a static pose (no leg/arm
  *  swap over time), walk swaps the base/alt art (frame 0/1) only while the entity is moving,
  *  and combat swaps when an enemy is in range. Pure selection lives in engine/entityAnim. */

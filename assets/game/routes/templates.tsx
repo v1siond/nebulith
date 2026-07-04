@@ -229,6 +229,7 @@ export default function TemplateEditor() {
   // The placed entity currently selected for inspection (click an entity to select).
   const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null)
   const selectedEntityIdRef = useRef<string | null>(null) // live mirror for the game loop / debug seams
+  const hoveredEntityIdRef = useRef<string | null>(null) // unit under the cursor — the RAF loop draws its hover reticle (no React state on mousemove)
   // Which Inspector section a quick-action asked to focus. `n` is a nonce so clicking
   // the same verb twice still re-opens + re-scrolls that section (see Card `focus`).
   const [sectionFocus, setSectionFocus] = useState<{ id: string; n: number } | null>(null)
@@ -864,6 +865,15 @@ export default function TemplateEditor() {
   }
 
   const handleCanvasMouseMove = (e: React.MouseEvent) => {
+    // Hover targeting (#24): hit-test the unit under the cursor — view-aware, the SAME test the click-select
+    // uses (withPlayerCell so the walked hero is hittable) — and stash its id in a REF. The RAF loop reads
+    // it to draw a dim white hover reticle. A ref (not state) so a mousemove never triggers a React render.
+    const hoverCell = screenToCell(e.clientX, e.clientY)
+    const hoverView = topViewMode ? 'top' : viewTypeRef.current === '2d' ? '2d' : 'iso'
+    hoveredEntityIdRef.current = hoverCell
+      ? (entityAtClick(withPlayerCell(entitiesRef.current, livePlayerCell()), hoverCell.col, hoverCell.row, hoverView)?.id ?? null)
+      : null
+
     // Handle panning
     if (isPanning && panStart) {
       const dx = e.clientX - panStart.x
@@ -4008,9 +4018,9 @@ export default function TemplateEditor() {
       } else if (topViewMode) {
         renderTopView(ctx, canvas.width, canvas.height, grid, player, zoomRef.current, selectedCellsRef.current, connectorsRef.current, connectorModeRef.current, camOffsetRef.current, renderEntities, runtime.combat, hitMarkersRef.current, time, questsRef.current, dayNightRef.current, activeStyleRef.current)
       } else if (viewTypeRef.current === '2d') {
-        render2D(ctx, canvas.width, canvas.height, grid, player, time, zoomRef.current, camOffsetRef.current, renderEntities, runtime.combat, connectorsRef.current, questsRef.current, dayNightRef.current, attackAnimsRef.current, hitMarkersRef.current, projectilesRef.current, weaponReach(playerWeaponRef.current), activeStyleRef.current, selectedEntityIdRef.current)
+        render2D(ctx, canvas.width, canvas.height, grid, player, time, zoomRef.current, camOffsetRef.current, renderEntities, runtime.combat, connectorsRef.current, questsRef.current, dayNightRef.current, attackAnimsRef.current, hitMarkersRef.current, projectilesRef.current, weaponReach(playerWeaponRef.current), activeStyleRef.current, selectedEntityIdRef.current, hoveredEntityIdRef.current)
       } else {
-        render(ctx, canvas.width, canvas.height, grid, player, time, camOffsetRef.current, renderEntities, runtime.combat, hitMarkersRef.current, time, isoZoomRef.current, attackAnimsRef.current, connectorsRef.current, questsRef.current, projectilesRef.current, dayNightRef.current, weaponReach(playerWeaponRef.current), activeStyleRef.current, playModeRef.current, selectedEntityIdRef.current)
+        render(ctx, canvas.width, canvas.height, grid, player, time, camOffsetRef.current, renderEntities, runtime.combat, hitMarkersRef.current, time, isoZoomRef.current, attackAnimsRef.current, connectorsRef.current, questsRef.current, projectilesRef.current, dayNightRef.current, weaponReach(playerWeaponRef.current), activeStyleRef.current, playModeRef.current, selectedEntityIdRef.current, hoveredEntityIdRef.current)
       }
       // Drop finished attack animations (kept tiny — a few in flight at once).
       if (attackAnimsRef.current.length > 0) {
@@ -4442,7 +4452,7 @@ export default function TemplateEditor() {
           onMouseDown={handleCanvasMouseDown}
           onMouseMove={handleCanvasMouseMove}
           onMouseUp={handleCanvasMouseUp}
-          onMouseLeave={handleCanvasMouseUp}
+          onMouseLeave={() => { hoveredEntityIdRef.current = null; handleCanvasMouseUp() }}
           onContextMenu={handleContextMenu}
           style={{ cursor: isPanning ? 'grabbing' : topViewMode ? 'default' : 'grab' }}
         />
