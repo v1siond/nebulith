@@ -1,4 +1,26 @@
-import { nearestUnit, cycleSelection } from '@/game/unitSelection'
+import { nearestUnit, cycleSelection, unitsInRange } from '@/game/unitSelection'
+
+describe('unitsInRange — Tab-target candidates are only units near the player, nearest first', () => {
+  const player = { col: 10, row: 10 }
+  const units = [
+    { id: 'far', col: 30, row: 10 },   // 20 cells away
+    { id: 'near', col: 12, row: 10 },  // 2 cells
+    { id: 'mid', col: 10, row: 15 },   // 5 cells
+    { id: 'edge', col: 16, row: 10 },  // 6 cells (== range)
+  ]
+  test('excludes units beyond the range', () => {
+    expect(unitsInRange(units, player.col, player.row, 6)).not.toContain('far')
+  })
+  test('includes a unit exactly at the range boundary', () => {
+    expect(unitsInRange(units, player.col, player.row, 6)).toContain('edge')
+  })
+  test('orders survivors NEAREST first', () => {
+    expect(unitsInRange(units, player.col, player.row, 6)).toEqual(['near', 'mid', 'edge'])
+  })
+  test('nothing in range → empty list', () => {
+    expect(unitsInRange(units, 100, 100, 6)).toEqual([])
+  })
+})
 
 describe('nearestUnit — click near a unit picks the nearest within range', () => {
   const cands = [

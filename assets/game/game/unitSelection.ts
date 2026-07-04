@@ -29,6 +29,24 @@ export function nearestUnit(candidates: readonly ScreenPoint[], px: number, py: 
   return best !== null && bestD <= maxDist * maxDist ? best : null
 }
 
+export interface UnitCell {
+  id: string
+  col: number
+  row: number
+}
+
+/** Ids of units within `range` cells of the player (pCol,pRow), NEAREST first — the Tab-target
+ *  candidates. The caller passes only eligible units (living ENEMIES); this applies the distance cutoff
+ *  (≤ range, so Tab only targets enemies close to the player) and nearest-first ordering so cycling is
+ *  predictable. */
+export function unitsInRange(units: readonly UnitCell[], pCol: number, pRow: number, range: number): string[] {
+  return units
+    .map(u => ({ id: u.id, d: Math.hypot(u.col - pCol, u.row - pRow) }))
+    .filter(u => u.d <= range)
+    .sort((a, b) => a.d - b.d)
+    .map(u => u.id)
+}
+
 /** The next selection id cycling through `ids` from `current` (dir +1 forward / -1 back), wrapping. When
  *  `current` isn't in the list (or is null), returns the first (dir +1) or last (dir -1). null if empty. */
 export function cycleSelection(ids: readonly string[], current: string | null, dir: 1 | -1 = 1): string | null {

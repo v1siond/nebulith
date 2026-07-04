@@ -31,7 +31,7 @@ import { ZONE_DECOR_TILE, ZoneId } from '@/engine/zones'
 import { type AbilityBinding, DEFAULT_ABILITY_LOADOUT } from '@/game/abilities'
 import { startingCombatState } from '@/game/combat'
 import { DEFAULT_PLAYER_STATS, canPlaceEntity, entityAt, entityAtClick, entityAtFootprint, entityCollisionCells, makeEnemy, makeNpc, makePlayer, mintEntityId, placeEntity, removeEntity, withPlayerCell } from '@/game/entities'
-import { cycleSelection } from '@/game/unitSelection'
+import { cycleSelection, unitsInRange } from '@/game/unitSelection'
 import { addItem, equipArmor, equipWeapon, itemFromReward, mintItemId, starterInventory, useConsumable } from '@/game/inventory'
 import { createLoadout, loadoutBonuses, seededPlayerLoadout, setSpecial } from '@/game/loadout'
 import { appendWaypoint } from '@/game/patterns'
@@ -41,7 +41,7 @@ import { type QuestEvent, acceptQuest, recordEvent, turnIn } from '@/game/quests
 import { BARE_HANDS, type HitMarker, type PlayerHud, type ProjectileContext, playerHudFrom, stepCombat, tickProjectiles, triggerAbility } from '@/game/runtime/combat'
 import { type PlayerState, aimFromKeys, facingFromKeys, playerDisplayName, resolveSpawnCell } from '@/game/runtime/player'
 import { activeQuest, applyQuestEvent, questAnchorScreenPos, questForGiver, reachableQuestGiver, rewardSummary, upsertQuest } from '@/game/runtime/quest'
-import { type EnemyRuntime, isLivingEnemy, makeEnemyRuntime } from '@/game/runtime/targeting'
+import { type EnemyRuntime, isLivingEnemy, makeEnemyRuntime, RANGED_RANGE } from '@/game/runtime/targeting'
 import { ENEMY_TYPES, CAVE_ENEMY_TYPES, TEMPLE_ENEMY_TYPES, archetypeForEnemyType, scatterEntities } from '@/game/spawner'
 import { type CombatState, type Entity, type EntityKind, type Inventory, type Item, type Loadout, type Quest, type Reward, type Stats, type TalentPath, type Weapon } from '@/game/types'
 import { weaponReach } from '@/game/weapons'
@@ -3596,20 +3596,23 @@ export default function TemplateEditor() {
         setQuestLogOpen(o => !o)
         return
       }
-      // Tab cycles the SELECTED unit (target) through every unit — a reliable selection that never
-      // depends on clicking a billboarded figure. Shift+Tab goes back. preventDefault so Tab doesn't
-      // shift DOM focus / scroll. The Inspector already shows whatever entity is selected (incl. player).
+      // Tab cycles the target through the ENEMIES CLOSE to the player (living enemies within RANGED_RANGE),
+      // nearest first — not every unit on the map, and never NPCs or the player. Shift+Tab goes back.
+      // preventDefault so Tab doesn't shift DOM focus / scroll.
       if (e.key === 'Tab' && tag !== 'INPUT' && tag !== 'TEXTAREA') {
         e.preventDefault()
-        const ids = entitiesRef.current.map(en => en.id)
+        const pc = livePlayerCell()
+        const nearby = entitiesRef.current.filter(en => en.kind === 'enemy' && isLivingEnemy(en, enemyRuntimeRef.current))
+        const ids = unitsInRange(nearby, pc.col, pc.row, RANGED_RANGE)
         const next = cycleSelection(ids, selectedEntityIdRef.current, e.shiftKey ? -1 : 1)
         if (next) setSelectedEntityId(next)
         return
       }
-      // Esc drops the current target. Guarded so it only fires when something IS selected — otherwise
-      // Esc falls through to whatever else wants it (menus, the build editor).
-      if (e.key === 'Escape' && selectedEntityIdRef.current) {
+      // Esc resets the WHOLE selection — the target AND any selected cells. Guarded so it only fires when
+      // something IS selected; otherwise Esc falls through to whatever else wants it (menus, build editor).
+      if (e.key === 'Escape' && (selectedEntityIdRef.current || selectedCellsRef.current.size > 0)) {
         setSelectedEntityId(null)
+        setSelectedCells(new Set())
         return
       }
       // Normalize letter keys to lowercase: holding SHIFT makes 'w' arrive as 'W' on keydown but
