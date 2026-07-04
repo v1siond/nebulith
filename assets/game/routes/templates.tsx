@@ -4690,6 +4690,28 @@ export default function TemplateEditor() {
           <Dropdown label={<>🎨 Style: {activeStyle.name}</>} title="Art style" panelClass="w-56">
             {close => <StylePicker activeId={activeStyleId} onPick={setActiveStyleId} onClose={close} />}
           </Dropdown>
+          {/* ⚙ Stage — grid size + view toggles (night / debug / collisions / hide entities). Lives in the
+              top nav so it's ALWAYS reachable, even with an element selected (it used to hide in the sidebar). */}
+          <Dropdown label={<>⚙ Stage</>} title="Stage settings" panelClass="w-64">
+            {() => (
+              <div className="space-y-2">
+                <div>
+                  <p className="mb-1 text-xs font-bold text-gray-400">Grid {viewType === '2d' ? '(W × H)' : '(Cols × Rows)'}</p>
+                  <div className="flex items-center gap-2">
+                    <input type="number" aria-label="Grid columns" value={gridSize.cols} onChange={(e) => setGridSize(s => ({ ...s, cols: parseInt(e.target.value) || 10 }))} className="w-14 rounded bg-gray-800 p-1 text-center text-xs" min="10" max="100" />
+                    <span className="text-xs text-gray-400">×</span>
+                    <input type="number" aria-label="Grid rows" value={gridSize.rows} onChange={(e) => setGridSize(s => ({ ...s, rows: parseInt(e.target.value) || 10 }))} className="w-14 rounded bg-gray-800 p-1 text-center text-xs" min="10" max="100" />
+                    <button onClick={() => resizeGrid(gridSize.cols, gridSize.rows)} className="rounded bg-red-800 px-2 py-1 text-xs font-bold hover:bg-red-700">Apply</button>
+                  </div>
+                </div>
+                <button onClick={() => setDayNight(d => (d === 'day' ? 'night' : 'day'))} aria-pressed={dayNight === 'night'} className={`w-full rounded px-2 py-1 text-xs font-bold transition-colors ${dayNight === 'night' ? 'bg-indigo-700' : 'bg-gray-700 hover:bg-gray-600'}`}>Night mode {dayNight === 'night' ? 'on' : 'off'}</button>
+                <button onClick={toggleDebug} aria-pressed={showDebug} className={`w-full rounded px-2 py-1 text-xs font-bold transition-colors ${showDebug ? 'bg-red-600' : 'bg-gray-700 hover:bg-gray-600'}`}>Debug overlay {showDebug ? 'on' : 'off'}</button>
+                <button onClick={toggleCollisions} aria-pressed={showCollisions} className={`w-full rounded px-2 py-1 text-xs font-bold transition-colors ${showCollisions ? 'bg-red-600' : 'bg-gray-700 hover:bg-gray-600'}`}>Show collisions {showCollisions ? 'on' : 'off'}</button>
+                <button onClick={() => setHideEntities(h => !h)} aria-pressed={hideEntities} className={`w-full rounded px-2 py-1 text-xs font-bold transition-colors ${hideEntities ? 'bg-amber-600' : 'bg-gray-700 hover:bg-gray-600'}`}>{hideEntities ? 'Entities hidden' : 'Hide entities'}</button>
+                <p className="text-[10px] text-gray-500">WASD / arrows move · Space jumps · E interacts</p>
+              </div>
+            )}
+          </Dropdown>
           <div className="flex-1" />
           {/* ▶ Play — enter the clean play view */}
           <button
@@ -5646,77 +5668,6 @@ export default function TemplateEditor() {
                 <>
                   <Card title="Style" accent="cyan">
                     <StylePicker activeId={activeStyleId} onPick={setActiveStyleId} />
-                  </Card>
-
-                  <Card title="Stage" accent="yellow">
-                    <div className="mb-3">
-                      <p className="mb-1 text-xs font-bold text-gray-400">
-                        Grid {viewType === '2d' ? '(W × H)' : '(Cols × Rows)'}
-                      </p>
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="number"
-                          aria-label="Grid columns"
-                          value={gridSize.cols}
-                          onChange={(e) => setGridSize(s => ({ ...s, cols: parseInt(e.target.value) || 10 }))}
-                          className="w-14 rounded bg-gray-800 p-1 text-center text-xs"
-                          min="10" max="100"
-                        />
-                        <span className="text-xs text-gray-400">×</span>
-                        <input
-                          type="number"
-                          aria-label="Grid rows"
-                          value={gridSize.rows}
-                          onChange={(e) => setGridSize(s => ({ ...s, rows: parseInt(e.target.value) || 10 }))}
-                          className="w-14 rounded bg-gray-800 p-1 text-center text-xs"
-                          min="10" max="100"
-                        />
-                        <button
-                          onClick={() => resizeGrid(gridSize.cols, gridSize.rows)}
-                          className="rounded bg-red-800 px-2 py-1 text-xs font-bold hover:bg-red-700"
-                        >
-                          Apply
-                        </button>
-                      </div>
-                    </div>
-
-                    <button
-                      onClick={() => setDayNight(d => (d === 'day' ? 'night' : 'day'))}
-                      aria-pressed={dayNight === 'night'}
-                      className={`mt-1 w-full rounded px-2 py-1 text-xs font-bold transition-colors ${
-                        dayNight === 'night' ? 'bg-indigo-700' : 'bg-gray-700 hover:bg-gray-600'
-                      }`}
-                    >
-                      Night mode {dayNight === 'night' ? 'on' : 'off'}
-                    </button>
-                    <button
-                      onClick={toggleDebug}
-                      aria-pressed={showDebug}
-                      className={`mt-2 w-full rounded px-2 py-1 text-xs font-bold transition-colors ${
-                        showDebug ? 'bg-red-600' : 'bg-gray-700 hover:bg-gray-600'
-                      }`}
-                    >
-                      Debug overlay {showDebug ? 'on' : 'off'}
-                    </button>
-                    <button
-                      onClick={toggleCollisions}
-                      aria-pressed={showCollisions}
-                      className={`mt-2 w-full rounded px-2 py-1 text-xs font-bold transition-colors ${
-                        showCollisions ? 'bg-red-600' : 'bg-gray-700 hover:bg-gray-600'
-                      }`}
-                    >
-                      Show collisions {showCollisions ? 'on' : 'off'}
-                    </button>
-                    <button
-                      onClick={() => setHideEntities(h => !h)}
-                      aria-pressed={hideEntities}
-                      className={`mt-2 w-full rounded px-2 py-1 text-xs font-bold transition-colors ${
-                        hideEntities ? 'bg-amber-600' : 'bg-gray-700 hover:bg-gray-600'
-                      }`}
-                    >
-                      {hideEntities ? 'Entities hidden' : 'Hide entities'}
-                    </button>
-                    <p className="mt-2 text-[10px] text-gray-500">WASD / arrows move · Space jumps · E interacts</p>
                   </Card>
                 </>
               )
