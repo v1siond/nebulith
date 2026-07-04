@@ -5576,10 +5576,6 @@ export default function TemplateEditor() {
 
               return (
                 <>
-                  <Card title="Generate" accent="purple">
-                    <GenerateControls zone={genZone} onZone={setGenZone} onGenerate={generateStageInEditor} />
-                  </Card>
-
                   <Card title="Style" accent="cyan">
                     <StylePicker activeId={activeStyleId} onPick={setActiveStyleId} />
                   </Card>
