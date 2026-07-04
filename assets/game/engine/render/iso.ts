@@ -661,8 +661,10 @@ export function drawIsoPlayer(
   const lineHeight = tileH * 1.4
   const fontSize = tileH * 1.2
 
-  // Breathing animation
-  const breathe = Math.sin(time * 0.004) * 2
+  // The hero does NOT bob: the old sin() breathe made the figure loop up-and-down and read as FLOATING
+  // (NPCs never bobbed, so it also made the hero inconsistent with them). Kept as a named 0 so the body,
+  // weapon and vitals still share one anchor origin — re-enabling is a one-line change.
+  const breathe = 0
 
   ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
   ctx.textAlign = 'left'
@@ -681,7 +683,7 @@ export function drawIsoPlayer(
   // size so its feet land there, and the shadow + reticles sit AT groundY. (Replaces the old `emojiFootLift`
   // band-aid that only nudged the emoji figure and left the player anchored differently from every NPC.)
   const baseY = y - lineHeight * 0.5
-  const groundY = baseY + tileH * 0.1
+  const groundY = baseY + tileH * 0.24
   // Ground shadow sized to the player figure (always reads; fixed — doesn't bob).
   drawGroundShadow(ctx, x, groundY, pHalf)
   if (isTarget) drawSelectionRing(ctx, x, groundY, pHalf + tileH * 0.18) // red target reticle at the feet
@@ -846,11 +848,11 @@ export function drawIsoEntity(
   const maxW = art.reduce((m, r) => Math.max(m, r.length), 0)
   const leftX = x - (maxW * charW) / 2
   // Ground shadow sized to the figure so it always reads (not hidden behind it).
-  drawGroundShadow(ctx, x, baseY + tileH * 0.1, (maxW * charW) / 2)
-  if (isTarget) drawSelectionRing(ctx, x, baseY + tileH * 0.1, (maxW * charW) / 2 + tileH * 0.28) // red target reticle at the feet
-  else if (isHover) drawHoverRing(ctx, x, baseY + tileH * 0.1, (maxW * charW) / 2 + tileH * 0.28) // dim white hover reticle
+  drawGroundShadow(ctx, x, baseY + tileH * 0.24, (maxW * charW) / 2)
+  if (isTarget) drawSelectionRing(ctx, x, baseY + tileH * 0.24, (maxW * charW) / 2 + tileH * 0.28) // red target reticle at the feet
+  else if (isHover) drawHoverRing(ctx, x, baseY + tileH * 0.24, (maxW * charW) / 2 + tileH * 0.28) // dim white hover reticle
   // In-strike-range indicator: a ring at the feet, under the figure (#35).
-  if (attackable) drawRangeRing(ctx, x, baseY + tileH * 0.1, (maxW * charW) / 2 + tileH * 0.2, now)
+  if (attackable) drawRangeRing(ctx, x, baseY + tileH * 0.24, (maxW * charW) / 2 + tileH * 0.2, now)
   ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
   ctx.textAlign = 'left'
   ctx.textBaseline = 'middle'
@@ -863,7 +865,7 @@ export function drawIsoEntity(
   const edv = resolveDraw(kind, style, override, '', pal.fg)
   // Ground the billboard by its BOTTOM at the shadow line, so ANY tile size stays grounded (a
   // smaller enemy no longer floats above its shadow). `groundY` is the feet contact point.
-  const groundY = baseY + tileH * 0.1
+  const groundY = baseY + tileH * 0.24
   // Per-entity SIZE scales the drawn figure (a size-2 boss draws twice as big). It grows UP from the
   // feet line (the `- (drawPx-basePx)*0.5` keeps the BOTTOM fixed), so a bigger figure stays grounded
   // on its shadow instead of sinking through the floor. size 1 is byte-identical to before.
