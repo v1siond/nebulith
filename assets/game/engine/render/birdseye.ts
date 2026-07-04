@@ -186,12 +186,6 @@ export function renderTopView(
       else ctx.fillText(dv.char, gx, gy)
       if (ctTop) ctx.restore()
 
-      // Collision overlay: tint blocked cells for the debug overlay OR the lighter "show collisions" toggle.
-      if ((isDebugMode() || isShowCollisions()) && grid.collision[row]?.[col]) {
-        ctx.fillStyle = 'rgba(255, 50, 50, 0.4)'
-        ctx.fillRect(x, y, tileSize - 1, tileSize - 1)
-      }
-
       // Height indicator (show in corner if height > 0)
       const cellHeight = grid.getHeight(col, row)
       if (cellHeight > 0 && tileSize > 10) {
@@ -308,6 +302,19 @@ export function renderTopView(
     const cx = offsetX + (a.col + 0.5) * tileSize
     const cy = offsetY + (a.row + 0.5) * tileSize
     drawTopTownFountain(ctx, cx, cy, f * tileSize * 0.5 * 0.94, now)
+  }
+
+  // Collision overlay — drawn LAST (over the roofs + fountains) so it shows on BUILDING cells too; the
+  // per-cell pass is painted before the roof blueprint, which would otherwise hide the tint on buildings.
+  // Debug overlay OR the lighter "show collisions" toggle.
+  if (isDebugMode() || isShowCollisions()) {
+    for (let row = startRow; row < endRow; row++) {
+      for (let col = startCol; col < endCol; col++) {
+        if (!grid.collision[row]?.[col]) continue
+        ctx.fillStyle = 'rgba(255, 50, 50, 0.4)'
+        ctx.fillRect(offsetX + col * tileSize, offsetY + row * tileSize, tileSize - 1, tileSize - 1)
+      }
+    }
   }
 
   // Debug: per-cell TYPE + POSITION captions — the SAME flattened captions the 2D + iso overlays
