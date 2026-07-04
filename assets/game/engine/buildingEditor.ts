@@ -100,56 +100,6 @@ export function footprintContains(b: GridBuilding, col: number, row: number): bo
   return col >= r.col && col < r.col + r.w && row >= r.row && row < r.row + r.h
 }
 
-/** Which VIEW's collision we want. Each view is a different PROJECTION of the same 3D building, so the
- *  cells it occupies (and thus its collision) differ. */
-export type BuildingCollisionView = 'top' | 'td' | 'iso'
-
-/** The building's facade elevation height in rows (b.cells rows). Falls back to the footprint row-span. */
-export function buildingFacadeHeight(b: GridBuilding): number {
-  return Math.max(1, b.cells?.length ?? b.height)
-}
-
-/** The grid cells a building occupies IN A GIVEN VIEW, BEYOND its flat top-down footprint (already in
- *  grid.collision). Each view is a different projection of the 3D box, so collision differs:
- *   - TOP (roof from above, X/Y layout, no height): footprint only → NO extra cells.
- *   - 2D  (front elevation: width × height, no depth): the facade rises to its full HEIGHT straight up
- *         (north) → extra = the (facadeHeight − footprintDepth) rows ABOVE the footprint, W wide.
- *   - ISO (3D box, X/Y/Z): the box rises along the iso vertical, which on the iso screen is the (−1,−1)
- *         grid diagonal → extra = the footprint swept up that diagonal by the facade height.
- *  Excludes the footprint itself. Pure → unit-tested + overlay-validated (the tint must cover the drawn
- *  building exactly, in the user's running game). */
-export function buildingViewExtraCells(b: GridBuilding, view: BuildingCollisionView): Cell[] {
-  if (view === 'top') return []
-  const rect = buildingRect(b)
-  const facadeH = buildingFacadeHeight(b)
-  const frontRow = rect.row + rect.h - 1 // the footprint's front (bottom, largest-row) edge
-  const out: Cell[] = []
-  if (view === 'td') {
-    // 2D elevation stands W wide × facadeH tall, upright from the front row → the extra cells are the
-    // facade rows ABOVE the footprint's own rows.
-    for (let row = frontRow - (facadeH - 1); row < rect.row; row++)
-      for (let col = rect.col; col < rect.col + rect.w; col++) out.push({ col, row })
-    return out
-  }
-  // ISO: the box rises up-screen along the (−1,−1) grid diagonal (iso "straight up"). Its drawn height is
-  // facadeH levels × vCell(≈ one row's screen-height, tileH); one (−1,−1) grid step moves 2·tileH on the
-  // iso screen, so the box covers ceil(facadeH/2) grid steps up the diagonal — the sweep `reach`. Its extra
-  // cells are the footprint swept up by `reach`, generated with a single predicate scan (no per-cell sweep
-  // + dedup Set): a cell (c,r) up-left of the footprint is covered iff some footprint cell sits exactly k
-  // steps down-right for a k in 1..reach. O(area), one push per output cell, zero allocation.
-  const rc = rect.col, rr = rect.row, W = rect.w, D = rect.h
-  const reach = Math.max(1, Math.ceil(facadeH / 2))
-  for (let r = rr - reach; r < rr + D; r++) {
-    for (let c = rc - reach; c < rc + W; c++) {
-      if (c >= rc && r >= rr) continue // the footprint (down-right quadrant) is already blocked
-      const lo = Math.max(rc - c, rr - r, 1)
-      const hi = Math.min(rc + W - 1 - c, rr + D - 1 - r, reach)
-      if (lo <= hi) out.push({ col: c, row: r })
-    }
-  }
-  return out
-}
-
 /** The footprint dimension PARALLEL to the road (the facade length / frontage span),
  *  as opposed to the perpendicular `depth`. Invariant across rotations. */
 export function facadeLength(b: GridBuilding): number {

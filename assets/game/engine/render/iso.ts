@@ -1980,9 +1980,9 @@ export function renderDebugOverlays(
 
       if (p.x < -50 || p.x > w + 50 || p.y < -50 || p.y > h + 50) continue
 
-      const isBlocked = grid.isBlockedInView(col, row, 'iso') // view-aware: the drawn box's up-screen cells
-      const tileW = cellSize * grid.isoScale * 0.7
-      const tileH = cellSize * grid.isoScale * 0.35
+      const isBlocked = grid.isBlocked(col, row)
+      const tileW = cellSize * grid.isoScale * 0.71 // match the ground-tile diamond exactly so blocked
+      const tileH = cellSize * grid.isoScale * 0.36 // cells GLUE together (no gaps between the tints)
 
       if (isBlocked) {
         // Red overlay for collision
