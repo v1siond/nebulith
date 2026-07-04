@@ -53,7 +53,7 @@ import { ASCII_STYLE, type Style, styleById, groundKind, assetKind, entityKind, 
 import { useRouter } from 'next/router'
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
 import { render, render2D, renderTopView, clampCameraAxis, isoCameraFocus, entityMotion, ENEMY_MOVE_MS, isDebugMode, setDebugMode, cellCaptionMap, type DayNight } from '@/engine/render'
-import { loadTilesetsFromBackend } from '@/engine/tileset/tilesetLoader'
+import { loadTilesetsFromBackend, saveTilesetToBackend } from '@/engine/tileset/tilesetLoader'
 import { EMOJI_TILESET, setTilePose } from '@/engine/tileset/emojiTileset'
 import { type TilePose } from '@/engine/tileset/pose'
 import { type QuestDraft, emptyQuestDraft, questFromDraft } from '@/game/runtime/questDraft'
@@ -209,6 +209,19 @@ export default function TemplateEditor() {
     setTilePose(kind, pose)
     bumpPose()
   }, [])
+  const [savingPoses, setSavingPoses] = useState(false)
+  // Persist the live-tuned emoji tileset (poses included) back to the backend DB. Success/error → a toast.
+  const saveEmojiPoses = useCallback(async () => {
+    setSavingPoses(true)
+    try {
+      await saveTilesetToBackend('emoji')
+      toast('Saved poses to the backend', 'success')
+    } catch (e) {
+      toast(`Save failed: ${(e as Error).message}`, 'warning')
+    } finally {
+      setSavingPoses(false)
+    }
+  }, [toast])
   // Which selection the Tile Library modal is editing (null = closed). It pins/clears the
   // selected element's per-element override; scope tracks the current selection precedence.
   const [tileLibraryOpen, setTileLibraryOpen] = useState(false)
@@ -5203,6 +5216,9 @@ export default function TemplateEditor() {
                             onChange={p => writeTilePose(heldWeaponKind, p)}
                             onReset={() => writeTilePose(heldWeaponKind, undefined)}
                           />
+                          <button onClick={saveEmojiPoses} disabled={savingPoses} className="mt-1.5 w-full rounded bg-emerald-700 px-2 py-1 text-[10px] font-bold text-white transition-colors hover:bg-emerald-600 disabled:opacity-40">
+                            {savingPoses ? 'Saving…' : '⭳ Save poses to backend'}
+                          </button>
                         </div>
                       )}
                     </Card>
@@ -5482,6 +5498,9 @@ export default function TemplateEditor() {
                             onChange={p => writeTilePose(poseKind, p)}
                             onReset={() => writeTilePose(poseKind, undefined)}
                           />
+                          <button onClick={saveEmojiPoses} disabled={savingPoses} className="mt-1.5 w-full rounded bg-emerald-700 px-2 py-1 text-[10px] font-bold text-white transition-colors hover:bg-emerald-600 disabled:opacity-40">
+                            {savingPoses ? 'Saving…' : '⭳ Save poses to backend'}
+                          </button>
                         </div>
                       )}
                     </Card>
