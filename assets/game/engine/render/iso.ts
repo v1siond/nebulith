@@ -1130,15 +1130,17 @@ export function drawIsoBuilding(
   // Segoe black-silhouette entirely (no glyph stacking). Per-TYPE identity (temple vs castle) is a
   // per-type tileset, authored — not a single landmark glyph.
   const bodyH = H - ROOF_ROWS // wall/window/door rows
-  // Cap the DRAWN height so a tall building can't tower over — and visually spill onto — the road/grass
-  // BEHIND it. The budget is max(length, depth) cells of height, but measured in the GROUND PLANE's own
-  // per-cell vertical rise (≈ tileH: the screen-y one footprint cell recedes by), NOT `cellH` (the facade
-  // TILE WIDTH, ~1.8× larger). The old cap used cellH as the height unit, so even a "max(L,depth) cells"
-  // building still rose ~1.8× past the depth it recedes over and towered onto the cells behind it (#30).
-  // Vertical-only scale (footprint + tile widths unchanged) — a tall facade compresses to fit its base.
-  const maxBaseDim = Math.max(L, Math.max(1, Math.round(b.depth)))
+  // Per-floor height: each floor rises at the GROUND PLANE's own per-cell rate (cellRiseY ≈ tileH — the
+  // screen-y one footprint cell recedes by), CONSTANT per floor. So an H-row building reads as H floors in
+  // iso — the SAME floor count the 2D elevation draws — instead of the old `maxBaseDim*cellRiseY/H` cap,
+  // which divided the height by the floor count and compressed a tall building down to its base size (a
+  // 4-floor building showed as ~1). A floor rising like one ground cell keeps the tower FAR shorter than
+  // the old cellH-per-floor (the facade TILE WIDTH, ~1.8× larger) that spilled onto the cells behind it
+  // (#30), while still standing at its true floor count. Capped at cellH so one floor never exceeds the
+  // facade width. TRADEOFF: a very tall thin building now genuinely rises past its small footprint — the
+  // honest floor count, matching 2D, is preferred over hiding floors.
   const cellRiseY = (Math.abs(colVec.y) + Math.abs(depthVec.y) / Math.max(1, b.depth)) / 2
-  const vCell = Math.min(cellH, (maxBaseDim * cellRiseY) / H)
+  const vCell = Math.min(cellH, cellRiseY)
   const up = (n: number): Pt => ({ x: 0, y: -n * vCell })
   // Houses peak (composeBuilding leaves empty corners in row 0); flat types keep a box roof.
   const peaked = (b.cells[0] ?? []).some(k => k === 'empty')
