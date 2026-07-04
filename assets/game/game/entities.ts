@@ -211,8 +211,13 @@ export function entityAtClick(
   if (exact || view === 'top') return exact
   const dc = view === 'iso' ? 1 : 0 // screen-down (toward the feet): iso = +col,+row; 2d = +row
   for (let k = 1; k <= figCells; k++) {
-    const hit = entityAtFootprint(entities, col + dc * k, row + k)
-    if (hit) return hit
+    // The figure stands `k` cells toward the feet (screen-down). A held weapon/shield sits ~1 cell to
+    // either side at the arm row, so also probe the flanking columns — clicking the SWORD (or the figure's
+    // edge) selects the unit, not the empty cell under it. Centre column first so the foot wins ties.
+    for (const dCol of [0, -1, 1]) {
+      const hit = entityAtFootprint(entities, col + dc * k + dCol, row + k)
+      if (hit) return hit
+    }
   }
   return null
 }

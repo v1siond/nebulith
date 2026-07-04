@@ -5210,7 +5210,11 @@ export default function TemplateEditor() {
                 const isNpc = selEntity.kind === 'npc'
                 // The player's held EMOJI weapon is pose-driven — tunable right here so the sword/bow etc.
                 // orientation is fixed live in-hand (poses are emoji-only, so gate on a non-ASCII style).
-                const heldWeaponKind = isPlayer && activeStyleId !== 'ascii' ? inventory.equippedWeapon?.kind : undefined
+                // Read the ACTUALLY-held weapon (playerWeaponRef — the same source the render draws in-hand;
+                // it prefers the loadout's weapon over inventory.equippedWeapon), so selecting the hero always
+                // surfaces the pose card for whatever weapon is really equipped. Bare hands → no card.
+                const heldWeapon = playerWeaponRef.current
+                const heldWeaponKind = isPlayer && activeStyleId !== 'ascii' && heldWeapon && heldWeapon.kind !== 'unarmed' ? heldWeapon.kind : undefined
                 // The entity's OWN resolved figure (gendered) — the animation editor previews an empty
                 // "base" frame AS this, and gendered char frames, so the preview matches what renders.
                 const selFigVisual = resolveVisual(entityKind(selEntity.kind), activeStyle, selEntity.tileOverride)
@@ -5227,6 +5231,9 @@ export default function TemplateEditor() {
                       <ArtSection override={selEntity.tileOverride} styleName={activeStyle.name} onOpen={() => setTileLibraryOpen(true)} />
                       {heldWeaponKind && EMOJI_TILESET[heldWeaponKind] && (
                         <div className="mt-2">
+                          <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-amber-300">
+                            🗡️ Held weapon — {heldWeaponKind} <span className="font-normal text-gray-500">(drag to retune it live in-hand)</span>
+                          </p>
                           <PoseControls
                             kind={heldWeaponKind}
                             pose={EMOJI_TILESET[heldWeaponKind]?.pose}
@@ -5238,6 +5245,9 @@ export default function TemplateEditor() {
                             {savingPoses ? 'Saving…' : '⭳ Save poses to backend'}
                           </button>
                         </div>
+                      )}
+                      {isPlayer && activeStyleId === 'ascii' && playerWeaponRef.current?.kind && playerWeaponRef.current.kind !== 'unarmed' && (
+                        <p className="mt-2 text-[10px] text-gray-500">Weapon pose tuning lives in the Emoji style — ASCII weapons draw their own glyph and aren&apos;t pose-driven yet.</p>
                       )}
                     </Card>
                     <Card title="Animation" accent="cyan" defaultOpen={false} sectionId="animation" focus={sectionFocus}>
@@ -5658,9 +5668,12 @@ export default function TemplateEditor() {
           </button>
         )}
         {inventoryOpen && (() => {
-          const activeId = selectedEntityId ?? '__player__'
-          const current = loadouts[activeId] ?? (activeId === '__player__' ? seededPlayerLoadout() : createLoadout())
           const selEntity = selectedEntityId ? entities.find(e => e.id === selectedEntityId) : undefined
+          // The player ENTITY and the '__player__' loadout are the SAME character: when the player is
+          // selected, resolve to '__player__' so the panel shows the REAL equipped gear (matching the
+          // footer + the render), not a separate empty per-entity loadout. Other entities key on their id.
+          const activeId = selEntity?.kind === 'player' ? '__player__' : (selectedEntityId ?? '__player__')
+          const current = loadouts[activeId] ?? (activeId === '__player__' ? seededPlayerLoadout() : createLoadout())
           // Whose stats the panel shows: the selected entity, else the player. HP for the
           // player comes from the live HUD mirror (same source the combat HUD reads).
           const playerEntity = entities.find(e => e.kind === 'player')

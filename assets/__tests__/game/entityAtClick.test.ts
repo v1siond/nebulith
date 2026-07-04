@@ -21,6 +21,14 @@ describe('entityAtClick — billboard-aware selection', () => {
     expect(entityAtClick(E, 10, 9, '2d')?.id).toBe('p')
     expect(entityAtClick(E, 10, 8, '2d')?.id).toBe('p')
   })
+  test('iso/2d: clicking the HELD WEAPON (one column off the figure) still selects the unit', () => {
+    // the sword/shield sits ~1 cell to the side at the arm row → the flanking-column probe catches it,
+    // so clicking the glyph selects the hero instead of the empty cell under it (the pose-editor fix).
+    expect(entityAtClick(E, 8, 9, 'iso')?.id).toBe('p') // 1 up-screen, one col to the side of the figure
+    expect(entityAtClick(E, 9, 8, 'iso')?.id).toBe('p') // 2 up-screen, one col to the side
+    expect(entityAtClick(E, 9, 9, '2d')?.id).toBe('p') // above the foot, one col left
+    expect(entityAtClick(E, 11, 9, '2d')?.id).toBe('p') // above the foot, one col right
+  })
   test('top view checks ONLY the cell (figure is on the cell there)', () => {
     expect(entityAtClick(E, 10, 8, 'top')).toBeNull()
   })
