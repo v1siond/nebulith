@@ -1208,30 +1208,25 @@ export function drawIsoBuilding(
 
   // A row of small windows on a wall FACE: `base` = the face's bottom-left ground corner, `axis` = its
   // bottom edge vector (full span), `count` evenly-spaced lights at mid-wall height. Only drawn on the
-  // faces VISIBLE from the camera (front + the near side), never the hidden back/far side.
+  // faces VISIBLE from the camera (front + the near side), never the hidden back/far side. Each slot draws
+  // the ACTUAL window TILE from the active tileset (🪟 image under Emoji, ⊞ glyph under ASCII), sheared onto
+  // the wall face exactly like the wall bricks / door — never a painted glass rectangle. Resolved once per
+  // building (kind-only, not per slot).
+  const windowDV = resolveDraw('window', style, undefined, '⊞', facadeColors.window)
   const wallWindows = (base: Pt, axis: Pt, count: number): void => {
     if (bodyH < 1) return
     const slot = 1 / count
     const halfW = slot * 0.26 // window half-width as a fraction of the wall span
     const sill = up(bodyH * 0.46) // window bottom, ~mid wall
     const winH = up(bodyH * 0.42) // window height
-    ctx.lineWidth = Math.max(1, cellH * 0.06)
     for (let i = 0; i < count; i++) {
       const t = (i + 0.5) * slot
-      const bl = ptAdd(ptAdd(base, ptScale(axis, t - halfW)), sill)
-      const br = ptAdd(ptAdd(base, ptScale(axis, t + halfW)), sill)
-      const tl = ptAdd(bl, winH)
-      const tr = ptAdd(br, winH)
-      ctx.beginPath()
-      ctx.moveTo(bl.x, bl.y)
-      ctx.lineTo(br.x, br.y)
-      ctx.lineTo(tr.x, tr.y)
-      ctx.lineTo(tl.x, tl.y)
-      ctx.closePath()
-      ctx.fillStyle = facadeColors.window
-      ctx.fill()
-      ctx.strokeStyle = darkenColor(wallC, 0.45)
-      ctx.stroke()
+      const bl = ptAdd(ptAdd(base, ptScale(axis, t - halfW)), sill) // slot's bottom-left corner = the window face's origin
+      const br = ptAdd(ptAdd(base, ptScale(axis, t + halfW)), sill) // bottom-right (along the wall axis)
+      const tl = ptAdd(bl, winH)                                    // top-left (straight up the wall)
+      // The window's own little iso FACE: bottom edge (bl→br) runs along the wall's axis, side edge (bl→tl)
+      // rises up — so the tile shears to the SAME angle as the wall it sits on.
+      fillIsoFaceWithTile(ctx, bl, { x: br.x - bl.x, y: br.y - bl.y }, { x: tl.x - bl.x, y: tl.y - bl.y }, { char: windowDV.char, color: windowDV.color, image: windowDV.image }, 1, 1)
     }
   }
 

@@ -50,7 +50,7 @@ const cellH = 24
 
 describe('drawIsoBuilding — a reskinned building is a per-cell tileset block, not a billboard', () => {
   test('Emoji style shears the building-part TILES onto the iso faces (material wall + 🚪 door) + uniform windows', () => {
-    const { ctx, glyphs, getStrokes } = recordingCtx()
+    const { ctx, glyphs } = recordingCtx()
     const b = houseBuilding()
     drawIsoBuilding(ctx, b, origin, colVec, depthVec, cellH, 1, EMOJI_STYLE)
 
@@ -62,8 +62,9 @@ describe('drawIsoBuilding — a reskinned building is a per-cell tileset block, 
     // The facade still carries its own door tile.
     expect(glyphs).toContain('🚪')
     // Windows are now ONE uniform, deterministic pass (wallWindows) across the three camera-visible faces
-    // — front + both sides — each a stroked glass frame (the only stroker under Emoji). ≥2 per face → ≥6.
-    expect(getStrokes()).toBeGreaterThanOrEqual(6)
+    // — front + both sides — each drawing the REAL 🪟 window TILE (headless can't decode the PNG, so the
+    // tile's 🪟 char fallback is stamped in its place). ≥2 per face → ≥6 windows.
+    expect(glyphs.filter(g => g === '🪟').length).toBeGreaterThanOrEqual(6)
   })
 
   test('Emoji style does NOT stamp the red roof tile 🟥 on iso roof cells (roof reads its data colour, like 2D)', () => {
@@ -121,12 +122,13 @@ describe('drawIsoBuilding — different wall MATERIALS, not one global brick ("n
   })
 
   test('a plaster building (hospital) stamps NO wall texture (painted colour reads) but keeps its windows', () => {
-    const { ctx, glyphs, getStrokes } = recordingCtx()
+    const { ctx, glyphs } = recordingCtx()
     drawIsoBuilding(ctx, building('hospital'), origin, colVec, depthVec, cellH, 1, EMOJI_STYLE)
     expect(glyphs).not.toContain('🧱')
     expect(glyphs).not.toContain('🪨')
     expect(glyphs).not.toContain('🟫')
-    expect(getStrokes()).toBeGreaterThanOrEqual(6) // windows come from the uniform wallWindows pass (stroked frames), not per-cell facade tiles
+    // windows still come from the uniform wallWindows pass — now the real 🪟 tile (its char fallback headless), not per-cell facade tiles
+    expect(glyphs.filter(g => g === '🪟').length).toBeGreaterThanOrEqual(6)
   })
 })
 
