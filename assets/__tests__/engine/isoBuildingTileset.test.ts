@@ -19,19 +19,20 @@ import type { GridBuilding } from '@/engine/IsometricGrid'
 function recordingCtx() {
   const glyphs: string[] = []
   let fills = 0
+  let strokes = 0 // each window (wallWindows) draws a stroked frame — the only stroker under Emoji
   const ctx = {
     fillStyle: '#000', strokeStyle: '#000', font: '', lineWidth: 1, globalAlpha: 1,
     textAlign: '' as CanvasTextAlign, textBaseline: '' as CanvasTextBaseline,
     save() {}, restore() {}, beginPath() {}, closePath() {},
     moveTo() {}, lineTo() {}, rect() {}, clip() {}, ellipse() {},
-    transform() {}, stroke() {},
+    transform() {}, stroke() { strokes++ },
     fill() { fills++ },
     fillRect() {},
     fillText(char: string) { glyphs.push(char) },
     measureText() { return { width: 10 } as TextMetrics },
     drawImage() {},
   }
-  return { ctx: ctx as unknown as CanvasRenderingContext2D, glyphs, getFills: () => fills }
+  return { ctx: ctx as unknown as CanvasRenderingContext2D, glyphs, getFills: () => fills, getStrokes: () => strokes }
 }
 
 // A real building anchored on the grid (composeBuilding is the source-of-truth facade model). `col`
@@ -48,8 +49,8 @@ const depthVec: Pt = { x: -22, y: 11 } // z-depth back along the other axis
 const cellH = 24
 
 describe('drawIsoBuilding — a reskinned building is a per-cell tileset block, not a billboard', () => {
-  test('Emoji style shears the building-part TILES onto the iso faces (material wall + 🚪 door + 🪟 window)', () => {
-    const { ctx, glyphs } = recordingCtx()
+  test('Emoji style shears the building-part TILES onto the iso faces (material wall + 🚪 door) + uniform windows', () => {
+    const { ctx, glyphs, getStrokes } = recordingCtx()
     const b = houseBuilding()
     drawIsoBuilding(ctx, b, origin, colVec, depthVec, cellH, 1, EMOJI_STYLE)
 
@@ -58,11 +59,11 @@ describe('drawIsoBuilding — a reskinned building is a per-cell tileset block, 
     // brick draws its 🧱 glyph; wood/stone are Noto image tiles (no glyph headless), so only assert
     // the material glyph when the material has NO image.
     if (wallTile && !wallMaterialImage('house', b.col)) expect(glyphs).toContain(wallTile)
-    // The facade carries its own door + window tiles (a house has both).
+    // The facade still carries its own door tile.
     expect(glyphs).toContain('🚪')
-    // Windows are Noto IMAGE tiles now (🪟 tofus on Segoe): the facade draws the decoded image in the
-    // browser, else the non-tofu ASCII window fallback (⊞). Headless can't decode → ⊞. Still per-cell.
-    expect(glyphs).toContain('⊞')
+    // Windows are now ONE uniform, deterministic pass (wallWindows) across the three camera-visible faces
+    // — front + both sides — each a stroked glass frame (the only stroker under Emoji). ≥2 per face → ≥6.
+    expect(getStrokes()).toBeGreaterThanOrEqual(6)
   })
 
   test('Emoji style does NOT stamp the red roof tile 🟥 on iso roof cells (roof reads its data colour, like 2D)', () => {
@@ -120,12 +121,12 @@ describe('drawIsoBuilding — different wall MATERIALS, not one global brick ("n
   })
 
   test('a plaster building (hospital) stamps NO wall texture (painted colour reads) but keeps its windows', () => {
-    const { ctx, glyphs } = recordingCtx()
+    const { ctx, glyphs, getStrokes } = recordingCtx()
     drawIsoBuilding(ctx, building('hospital'), origin, colVec, depthVec, cellH, 1, EMOJI_STYLE)
     expect(glyphs).not.toContain('🧱')
     expect(glyphs).not.toContain('🪨')
     expect(glyphs).not.toContain('🟫')
-    expect(glyphs).toContain('⊞') // windows are Noto image tiles → non-tofu ASCII (⊞) fallback headless; still a real per-cell facade
+    expect(getStrokes()).toBeGreaterThanOrEqual(6) // windows come from the uniform wallWindows pass (stroked frames), not per-cell facade tiles
   })
 })
 
