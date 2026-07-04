@@ -10,9 +10,21 @@ describe('composeBuilding — Nebulith building architecture spec', () => {
     expect(b.cells[0]).toHaveLength(4) // 4 cols
   })
 
-  it('adds 3 cells of height per floor, always +2 for the roof', () => {
-    expect(composeBuilding({ type: 'house', floors: 2 }).height).toBe(8)
-    expect(composeBuilding({ type: 'house', floors: 3 }).height).toBe(11)
+  it('caps the roof-top at the grass-base WIDTH (length) — a building never towers over its base', () => {
+    // "the height of the building — the top roof — capped at the size of the grass base in 2D": the only
+    // base dimension drawn in 2D is the footprint WIDTH (length), so total facade height <= length.
+    // Floors add height only until they hit that width cap — a tall building needs a WIDE base.
+    expect(composeBuilding({ type: 'hospital' }).height).toBe(6) // 6 wide, 2 floors → 8 uncapped, capped to 6
+    expect(composeBuilding({ type: 'big-house' }).height).toBe(6) // 6 wide, 2 floors → 8 uncapped, capped to 6
+    expect(composeBuilding({ type: 'cathedral' }).height).toBe(7) // 7 wide, 3 floors → 11 uncapped, capped to 7
+    // floors DO add height when the footprint is wide enough to carry them (under the width cap):
+    expect(composeBuilding({ type: 'house', floors: 3, length: 12 }).height).toBe(11) // 3*3+2, below the 12 cap
+    // a narrow base can't carry extra floors — a 3-floor cottage on a 4-wide base stays at the minimum:
+    expect(composeBuilding({ type: 'house', floors: 3, length: 4 }).height).toBe(5) // width-capped to the floor
+  })
+
+  it('never caps below the structural minimum (3 body + 2 roof), even on a tiny base', () => {
+    expect(composeBuilding({ type: 'house', floors: 1, length: 2 }).height).toBe(5)
   })
 
   it('peaks the house roof (empty corners → triangle) but keeps store/building roofs flat', () => {

@@ -96,7 +96,12 @@ export function composeBuilding(spec: BuildingSpec = {}): ComposedBuilding {
 
   const floors = Math.max(1, Math.floor(spec.floors ?? ts.floors))
   const length = Math.max(MIN_LENGTH, spec.length ?? ts.baseLength)
-  const height = Math.max(MIN_HEIGHT, floors * FLOOR_BODY + ROOF_ROWS)
+  // Cap the roof-top at the grass base's WIDTH (the only base dimension DRAWN in 2D): a building never
+  // towers over its own footprint — total facade height <= length. Floors add height only until they hit
+  // that width cap (a tall building needs a WIDE base), and never below the structural minimum (3 body +
+  // 2 roof). This is the "height of the building — the top roof — capped at the size of the grass base
+  // in 2D" rule: a 6-wide hospital caps at 6 (was 8), a 7-wide cathedral at 7 (was 11).
+  const height = Math.max(MIN_HEIGHT, Math.min(floors * FLOOR_BODY + ROOF_ROWS, length))
   // A 1-cell door can't sit CENTRED on an EVEN facade (no middle column), which reads asymmetric
   // against the mirrored windows (#49). For those door types widen to the two middle columns (2 wide)
   // on even widths and keep a 1-cell centre column on odd — always centred, always symmetric. The
