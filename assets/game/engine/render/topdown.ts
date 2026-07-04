@@ -16,6 +16,8 @@ import { type PlayerState, barFraction, hpFraction, playerDisplayName } from '@/
 import { type CombatState, type Entity, type Quest } from '@/game/types'
 import { resolveGroundTile } from '@/engine/tileset/tileset'
 import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
+import { EMOJI_TILESET } from '@/engine/tileset/emojiTileset'
+import { applyPose } from '@/engine/tileset/pose'
 import { Connector } from '@/lib/api'
 import { ASCII_FONT, BUILDING_BADGES, COMBAT_RANGE, type DayNight, ENEMY_MOVE_MS, LAMP_GLOW, applyCellTransform, clampCameraAxis, assetCaptionByCell, terrainLabelAt, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, getPlayerArt, grassShade, cellFill, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, resolveDraw, assetOverride, treeCanopyLayers } from './shared'
 import { ASCII_STYLE, assetKind, entityKind, enemyTileId, genderize, groundKind, type ElementKind, type Style } from '@/game/artStyle'
@@ -508,8 +510,22 @@ export function render2D(
         if (gdv.tint || gdv.image) {
           // RESKIN: draw the DATA tile FULL-CELL (no 'grid view'). The char + colour come from the tile
           // data — NOT invented in JS; ground variety comes from the map's ground data / the catalog.
-          if (gdv.image) drawStyledImage(tctx, gdv.image, p.x, p.y, Math.max(tileW, tileH) * 1.02)
-          else { tctx.font = `${Math.max(tileW, tileH) * 1.04}px ${ASCII_FONT}`; tctx.fillText(gdv.char, p.x, p.y) }
+          const cell = Math.max(tileW, tileH)
+          // The tile's optional POSE (from the emoji tileset entry), applied at the CELL CENTRE. Absent for
+          // ~every ground tile → we draw at (p.x,p.y) exactly as before, so the cached ground stays identical.
+          const tilePose = style.id === 'emoji' ? EMOJI_TILESET[gk]?.pose : undefined
+          if (tilePose) {
+            tctx.save()
+            tctx.translate(p.x, p.y)
+            applyPose(tctx, tilePose, 1, cell)
+            if (gdv.image) drawStyledImage(tctx, gdv.image, 0, 0, cell * 1.02)
+            else { tctx.font = `${cell * 1.04}px ${ASCII_FONT}`; tctx.fillText(gdv.char, 0, 0) }
+            tctx.restore()
+          } else if (gdv.image) {
+            drawStyledImage(tctx, gdv.image, p.x, p.y, cell * 1.02)
+          } else {
+            tctx.font = `${cell * 1.04}px ${ASCII_FONT}`; tctx.fillText(gdv.char, p.x, p.y)
+          }
         } else {
           // ASCII passthrough — byte-identical to before.
           const grassFlicker = tileType.includes('grass') ? Math.sin(time * 0.001 + col * 0.3 + row * 0.4) * 0.1 + 1 : 1
