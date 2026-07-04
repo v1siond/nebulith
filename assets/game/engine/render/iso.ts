@@ -514,7 +514,10 @@ export function render(
       const depthVec = { x: dp.x - origin.x, y: dp.y - origin.y } // z-depth = the building's own GROUND depth
       const flicker = Math.sin(time * 0.003 + b.col * 0.5 + b.row * 0.7) * 0.15 + 1
       // Fade the building when the player is near, so a back-facing door behind it is findable.
-      const fade = buildingFadeAlpha(pCol, pRow, b, BUILDING_FADE_RADIUS, BUILDING_MIN_ALPHA)
+      // window.__ISO_FADE_ALL forces every building translucent (dev/QA hook, mirrors __ISO_NOCACHE) so
+      // the faded-building look can be validated without walking the hero up to each one.
+      const forceFade = typeof window !== 'undefined' && !!(window as unknown as { __ISO_FADE_ALL?: boolean }).__ISO_FADE_ALL
+      const fade = forceFade ? BUILDING_MIN_ALPHA : buildingFadeAlpha(pCol, pRow, b, BUILDING_FADE_RADIUS, BUILDING_MIN_ALPHA)
       if (fade < 1) ctx.globalAlpha = fade
       drawIsoBuilding(ctx, b, origin, colVec, depthVec, tileW * 0.9, flicker, style)
       if (fade < 1) ctx.globalAlpha = 1
@@ -1102,6 +1105,29 @@ const BUILDING_FLOOR: Readonly<Record<string, string>> = {
   cathedral: '#8f8a7e', temple: '#9c9384', castle: '#837d72',
 }
 
+/** One wall of an iso building footprint: its bottom-left ground corner `base`, the `axis` vector
+ *  along the wall's whole bottom edge, and the `span` in cells (drives the window count). */
+export interface IsoWall { base: Pt; axis: Pt; span: number }
+
+/** The TWO camera-NEAR walls of an iso box, from its four ground corners + footprint size. A wall is
+ *  "near" (its outward face points toward the viewer) when its bottom-edge midpoint sits BELOW — larger
+ *  screen-y — the footprint centre. Exactly two of the four qualify, and WHICH two flips with the
+ *  building's orientation (colVec/depthVec signs). Windows draw ONLY on these, never the two far/hidden
+ *  walls — so a faded (translucent) building never bleeds hidden-wall windows through onto the roof
+ *  (#32: they used to, because the "roof drawn last occludes them" trick only holds while opaque).
+ *  Pure geometry → unit-tested. */
+export function cameraNearWalls(fbl: Pt, fbr: Pt, bbl: Pt, bbr: Pt, length: number, depth: number): IsoWall[] {
+  const cy = (fbl.y + fbr.y + bbl.y + bbr.y) / 4 // footprint centre screen-y
+  const midY = (base: Pt, axis: Pt): number => base.y + axis.y / 2 // bottom-edge midpoint y
+  const walls: IsoWall[] = [
+    { base: fbl, axis: { x: fbr.x - fbl.x, y: fbr.y - fbl.y }, span: length }, // front (south edge)
+    { base: bbl, axis: { x: bbr.x - bbl.x, y: bbr.y - bbl.y }, span: length }, // back  (north edge)
+    { base: fbl, axis: { x: bbl.x - fbl.x, y: bbl.y - fbl.y }, span: depth }, // left  (west edge)
+    { base: fbr, axis: { x: bbr.x - fbr.x, y: bbr.y - fbr.y }, span: depth }, // right (east edge)
+  ]
+  return walls.filter(w => midY(w.base, w.axis) > cy)
+}
+
 /** ISO building = the 2D facade standing at its plot, sheared onto the iso angle, drawn as a
  *  SOLID box — all four walls + every roof face filled, so it never shows through from any
  *  facing — with the z-depth extruded along depthVec. Houses get a peaked (trapezoid-prism)
@@ -1323,17 +1349,14 @@ export function drawIsoBuilding(
   //    so the roof correctly occludes the wall top. ──
   if (!b.facadeOnBack) drawFacade(fbl)
 
-  // ── WINDOWS (uniform, deterministic, WALL faces only) ──
-  // ONE treatment on every camera-visible WALL — the near/front wall + BOTH side walls (the far side is
-  // occluded by the solid box, the back is never drawn). Count scales with the face's own cell span
-  // (~one window per two cells), so spacing is uniform across every face and building — deterministic,
-  // never random. Painted BEFORE the roof: the roof (drawn last) covers any part that would fall in the
-  // roof region, so windows can only ever appear on the WALLS, never on the roof (#32). Mid-wall height,
-  // clear of the ground-row door.
+  // ── WINDOWS (uniform, deterministic, the 2 CAMERA-VISIBLE wall faces only) ──
+  // On iso a box shows the camera exactly TWO of its four walls; windows go on THOSE two and nowhere
+  // else. cameraNearWalls picks them geometrically (bottom-edge midpoint below the footprint centre),
+  // so WHICH two flips with the building's orientation and the two hidden far walls NEVER get glass —
+  // no phantom windows bleeding through onto the roof when the building fades (#32). Count scales with
+  // each face's own cell span (~one window per two cells) → uniform spacing across faces and buildings.
   const faceWindows = (span: number): number => Math.max(2, Math.min(4, Math.round(span / 2)))
-  wallWindows(fbl, ptScale(colVec, L), faceWindows(L)) // near/front wall
-  wallWindows(fbl, depthVec, faceWindows(b.depth)) // left side
-  wallWindows(fbr, depthVec, faceWindows(b.depth)) // right side
+  for (const w of cameraNearWalls(fbl, fbr, bbl, bbr, L, b.depth)) wallWindows(w.base, w.axis, faceWindows(w.span))
 
   // ── ROOF (all faces red) — drawn LAST so it occludes any wall/window pixels in the roof region ──
   if (peaked) {

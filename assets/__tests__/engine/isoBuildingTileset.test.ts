@@ -48,6 +48,13 @@ const colVec: Pt = { x: 22, y: 11 }   // per-column step down-right along one is
 const depthVec: Pt = { x: -22, y: 11 } // z-depth back along the other axis
 const cellH = 24
 
+// Windows draw on the TWO camera-visible walls only (never the two hidden far walls — see
+// cameraNearWalls). The near pair is always ONE length-span wall + ONE depth-span wall, whatever the
+// orientation, so the exact 🪟 count is faceWindows(length) + faceWindows(depth). Asserting THIS (not a
+// loose ≥) fails loudly if a third face's windows ever come back (the old front+both-sides bug, #32).
+const faceWindows = (span: number): number => Math.max(2, Math.min(4, Math.round(span / 2)))
+const expectedWindows = (b: GridBuilding): number => faceWindows(b.cells[0]?.length ?? b.length) + faceWindows(b.depth)
+
 describe('drawIsoBuilding — a reskinned building is a per-cell tileset block, not a billboard', () => {
   test('Emoji style shears the building-part TILES onto the iso faces (material wall + 🚪 door) + uniform windows', () => {
     const { ctx, glyphs } = recordingCtx()
@@ -61,10 +68,10 @@ describe('drawIsoBuilding — a reskinned building is a per-cell tileset block, 
     if (wallTile && !wallMaterialImage('house', b.col)) expect(glyphs).toContain(wallTile)
     // The facade still carries its own door tile.
     expect(glyphs).toContain('🚪')
-    // Windows are now ONE uniform, deterministic pass (wallWindows) across the three camera-visible faces
-    // — front + both sides — each drawing the REAL 🪟 window TILE (headless can't decode the PNG, so the
-    // tile's 🪟 char fallback is stamped in its place). ≥2 per face → ≥6 windows.
-    expect(glyphs.filter(g => g === '🪟').length).toBeGreaterThanOrEqual(6)
+    // Windows are ONE uniform, deterministic pass (wallWindows) across the TWO camera-visible faces —
+    // each drawing the REAL 🪟 window TILE (headless can't decode the PNG, so the tile's 🪟 char fallback
+    // is stamped). Exactly faceWindows(length)+faceWindows(depth) — the far walls get NO glass (#32).
+    expect(glyphs.filter(g => g === '🪟').length).toBe(expectedWindows(b))
   })
 
   test('Emoji style does NOT stamp the red roof tile 🟥 on iso roof cells (roof reads its data colour, like 2D)', () => {
@@ -123,12 +130,14 @@ describe('drawIsoBuilding — different wall MATERIALS, not one global brick ("n
 
   test('a plaster building (hospital) stamps NO wall texture (painted colour reads) but keeps its windows', () => {
     const { ctx, glyphs } = recordingCtx()
-    drawIsoBuilding(ctx, building('hospital'), origin, colVec, depthVec, cellH, 1, EMOJI_STYLE)
+    const b = building('hospital')
+    drawIsoBuilding(ctx, b, origin, colVec, depthVec, cellH, 1, EMOJI_STYLE)
     expect(glyphs).not.toContain('🧱')
     expect(glyphs).not.toContain('🪨')
     expect(glyphs).not.toContain('🟫')
-    // windows still come from the uniform wallWindows pass — now the real 🪟 tile (its char fallback headless), not per-cell facade tiles
-    expect(glyphs.filter(g => g === '🪟').length).toBeGreaterThanOrEqual(6)
+    // windows still come from the uniform wallWindows pass — the real 🪟 tile (char fallback headless), on
+    // the two camera-visible faces only, not per-cell facade tiles.
+    expect(glyphs.filter(g => g === '🪟').length).toBe(expectedWindows(b))
   })
 })
 
