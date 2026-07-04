@@ -30,7 +30,7 @@ import { type Action as TriggerAction, resolveAction } from '@/engine/triggers'
 import { ZONE_DECOR_TILE, ZoneId } from '@/engine/zones'
 import { type AbilityBinding, DEFAULT_ABILITY_LOADOUT } from '@/game/abilities'
 import { startingCombatState } from '@/game/combat'
-import { DEFAULT_PLAYER_STATS, canPlaceEntity, entityAt, entityAtClick, entityAtFootprint, entityCollisionCells, makeEnemy, makeNpc, makePlayer, mintEntityId, placeEntity, removeEntity, withPlayerCell } from '@/game/entities'
+import { DEFAULT_PLAYER_STATS, byKind, canPlaceEntity, entityAt, entityAtClick, entityAtFootprint, entityCollisionCells, makeEnemy, makeNpc, makePlayer, mintEntityId, placeEntity, removeEntity, withPlayerCell } from '@/game/entities'
 import { cycleSelection, unitsInRange } from '@/game/unitSelection'
 import { addItem, equipArmor, equipWeapon, itemFromReward, mintItemId, starterInventory, useConsumable } from '@/game/inventory'
 import { createLoadout, loadoutBonuses, seededPlayerLoadout, setSpecial } from '@/game/loadout'
@@ -2865,7 +2865,8 @@ export default function TemplateEditor() {
     // Populate with real, SELECTABLE, gendered npc entities. Any ☺ props get promoted; on top of that,
     // SETTLED stages (forest/town/city) carry NO npcs from the generator, so scatter gendered townsfolk
     // onto walkable cells — else a "town" has no townspeople (and no females). Dungeons (cave/temple)
-    // get enemies instead (below). Drop any wanderers from a previous generate; keep the player.
+    // get enemies instead (below). A (re)generate RESETS the roster to just the player — drop any
+    // enemies + wanderers left from a previous generate so they don't stack up, then re-randomize.
     const promotedNpcs = promoteNpcAssetsToEntities(grid)
     const settled = variant !== 'cave' && variant !== 'temple'
     const townCount = variant === 'city' ? 14 : variant === 'town' ? 8 : 5
@@ -2873,7 +2874,7 @@ export default function TemplateEditor() {
       Array.from({ length: grid.cols }, (_, c) => grid.isBlocked(c, r)),
     )
     setEntities(prev => {
-      const kept = prev.filter(e => e.kind !== 'npc')
+      const kept = byKind(prev, 'player')
       const townsfolk = settled
         ? scatterEntities({ collision, occupied: kept.map(e => ({ col: e.col, row: e.row })), count: townCount, kinds: ['npc'], idPrefix: `town-${prev.length}` })
         : []
@@ -3419,7 +3420,9 @@ export default function TemplateEditor() {
     // The village's ☺ wanderers become real, SELECTABLE, gendered npc entities (male/female
     // alternating) instead of genderless props — the "no female units when randomizing" fix.
     const promotedNpcs = promoteNpcAssetsToEntities(grid)
-    setEntities(prev => [...prev.filter(e => e.kind !== 'npc'), ...promotedNpcs])
+    // Reset the roster to just the player before re-scattering, so regenerating doesn't stack
+    // enemies/wanderers from a previous generate on top of the fresh map.
+    setEntities(prev => [...byKind(prev, 'player'), ...promotedNpcs])
     setSelectedCells(new Set())
   }
 

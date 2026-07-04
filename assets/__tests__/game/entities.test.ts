@@ -282,6 +282,24 @@ describe('query helpers', () => {
   })
 })
 
+describe('regenerate resets the roster to the player', () => {
+  // A (re)generate should re-randomize from a clean slate — keep the player, drop the previous
+  // run's enemies + wanderers — so the entity list never grows on each generate (the accumulation bug).
+  const player = makePlayer('p1', 0, 0)
+
+  it('keeps only the player, dropping enemies and npcs', () => {
+    const before: Entity[] = [player, makeEnemy('e1', 1, 1, 'goblin'), makeEnemy('e2', 2, 2, 'wolf'), makeNpc('n1', 3, 3)]
+    expect(byKind(before, 'player')).toEqual([player])
+  })
+
+  it('does not accumulate — repeated resets stay at a single player', () => {
+    const gen1: Entity[] = [...byKind([player], 'player'), makeEnemy('e1', 1, 1, 'goblin'), makeEnemy('e2', 2, 2, 'goblin')]
+    const gen2: Entity[] = [...byKind(gen1, 'player'), makeEnemy('e3', 4, 4, 'wolf')]
+    expect(byKind(gen2, 'player')).toHaveLength(1)
+    expect(gen2.filter(e => e.kind === 'enemy')).toHaveLength(1) // only the newest run's enemy, not stacked
+  })
+})
+
 describe('entityAtFootprint — clicking any cell of a multi-cell figure selects it', () => {
   it('an NPC (2 cells tall) is hit at its anchor AND the cell above (its head)', () => {
     const npc = makeNpc('n1', 5, 6, { name: 'Elder' }) // footprint 1×2, bottom-anchored
