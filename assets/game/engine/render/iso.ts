@@ -17,7 +17,7 @@ import { type CombatState, type Entity, type Quest } from '@/game/types'
 import { resolveGroundTile } from '@/engine/tileset/tileset'
 import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 import { Connector } from '@/lib/api'
-import { ASCII_FONT, BUILDING_BADGES, COMBAT_RANGE, type DayNight, type DrawVisual, ENEMY_MOVE_MS, LAMP_GLOW, LIGHT, applyCellTransform, isoCameraFocus, assetCaptionByCell, terrainLabelAt, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawHoverRing, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, getPlayerArt, grassShade, cellFill, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, resolveDraw, assetOverride, tileImage, treeCanopyLayers } from './shared'
+import { ASCII_FONT, BUILDING_BADGES, COMBAT_RANGE, type DayNight, type DrawVisual, ENEMY_MOVE_MS, LAMP_GLOW, LIGHT, applyCellTransform, isoCameraFocus, assetCaptionByCell, terrainLabelAt, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawHoverRing, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, frameImage, getPlayerArt, grassShade, cellFill, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, resolveDraw, assetOverride, tileImage, treeCanopyLayers } from './shared'
 import { ASCII_STYLE, assetKind, entityKind, entityStyleOverride, genderize, groundKind, personVariantTileId, type ElementKind, type ImageVisual, type Style } from '@/game/artStyle'
 import { DEFAULT_CHARACTER_ANIMATIONS, activeFrame } from '@/game/runtime/entityAnimation'
 
@@ -697,17 +697,23 @@ export function drawIsoPlayer(
     ? playerArt
     : playerSprite.idle.map(row => (swingArmDir > 0 ? row.replace('>', ' ') : row.replace('<', ' ')))
   const pdv = resolveDraw('player', style, personVariantTileId(player.variant, style), '', bodyColor)
-  if (pdv.image) {
-    drawStyledImage(ctx, pdv.image, x, groundY - (tileH * 2.6) * 0.42 - breathe, tileH * 2.6)
-  } else if (pdv.char) {
-    ctx.font = `bold ${fontSize * 1.8}px ${ASCII_FONT}`
-    ctx.textAlign = 'center'
-    ctx.fillStyle = pdv.color
-    // Play the hero's AUTHORED animation (data-driven, direction-aware) — no hardcoded walk/run/flip.
+  // Under an emoji/image style the ACTIVE animation frame drives what's drawn (idle/walk/run) — data, not
+  // hardcoded. The frame resolves to a baked image (the base tile or an override tile) OR a glyph, honouring
+  // its flipX, so the authored walk/idle actually PLAYS instead of freezing on the static base image. ASCII
+  // (no image, empty char) keeps its block-figure sprite below (which animates via getPlayerArt).
+  if (pdv.image || pdv.char) {
     const pf = activeFrame(player.animations ?? DEFAULT_CHARACTER_ANIMATIONS, { char: pdv.char }, { moving: player.moving, facing: player.facing, running: player.running ?? false }, time)
-    drawFacingGlyph(ctx, genderize(pf.char ?? pdv.char, player.variant), x, groundY - (fontSize * 1.8) * 0.42 - breathe, pf.flipX)
-    ctx.textAlign = 'left'
-    ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
+    const pfImg = frameImage(pf, pdv.char, pdv.image)
+    if (pfImg) {
+      drawStyledImage(ctx, pfImg, x, groundY - (tileH * 2.6) * 0.42 - breathe, tileH * 2.6, pf.flipX)
+    } else {
+      ctx.font = `bold ${fontSize * 1.8}px ${ASCII_FONT}`
+      ctx.textAlign = 'center'
+      ctx.fillStyle = pdv.color
+      drawFacingGlyph(ctx, genderize(pf.char ?? pdv.char, player.variant), x, groundY - (fontSize * 1.8) * 0.42 - breathe, pf.flipX)
+      ctx.textAlign = 'left'
+      ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
+    }
   } else {
     drawBlockFigure(ctx, figArt, x - pHalf, baseY - breathe, lineHeight, charW, bodyColor, bodyBg)
   }
@@ -862,23 +868,29 @@ export function drawIsoEntity(
   // feet line (the `- (drawPx-basePx)*0.5` keeps the BOTTOM fixed), so a bigger figure stays grounded
   // on its shadow instead of sinking through the floor. size 1 is byte-identical to before.
   const size = Math.max(1, entity.size ?? 1)
-  if (edv.image) {
-    const baseImgPx = tileH * (isEnemy ? 1.9 : 2.4)
-    const imgPx = baseImgPx * size
-    drawStyledImage(ctx, edv.image, x, groundY - baseImgPx * 0.42 - (imgPx - baseImgPx) * 0.5, imgPx)
-  } else if (edv.char) {
-    // Enemies read a touch smaller than people so a mob doesn't tower over the hero. Play the
-    // entity's AUTHORED animation (data-driven); enemies default to their static glyph.
-    const baseEmojiPx = fontSize * (isEnemy ? 1.35 : 1.7)
-    const emojiPx = baseEmojiPx * size
-    ctx.font = `bold ${emojiPx}px ${ASCII_FONT}`
-    ctx.textAlign = 'center'
-    ctx.fillStyle = edv.color
-    const anims = entity.animations ?? (isEnemy ? undefined : DEFAULT_CHARACTER_ANIMATIONS)
+  // The entity's AUTHORED animation frame drives what's drawn (data-driven); people default to the walk/
+  // idle set, enemies to their static glyph. The frame resolves to a baked image (base or override tile)
+  // OR a glyph — honouring flipX — so a moving person actually animates instead of freezing on the base
+  // image. ASCII (no image, empty char) keeps its block-figure sprite below.
+  const anims = entity.animations ?? (isEnemy ? undefined : DEFAULT_CHARACTER_ANIMATIONS)
+  if (edv.image || edv.char) {
     const ef = activeFrame(anims, { char: edv.char }, { moving, facing: 'down', running: false }, now)
-    drawFacingGlyph(ctx, genderize(ef.char ?? edv.char, entity.variant), x, groundY - baseEmojiPx * 0.42 - (emojiPx - baseEmojiPx) * 0.5, ef.flipX)
-    ctx.textAlign = 'left'
-    ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
+    const efImg = frameImage(ef, edv.char, edv.image)
+    if (efImg) {
+      const baseImgPx = tileH * (isEnemy ? 1.9 : 2.4)
+      const imgPx = baseImgPx * size
+      drawStyledImage(ctx, efImg, x, groundY - baseImgPx * 0.42 - (imgPx - baseImgPx) * 0.5, imgPx, ef.flipX)
+    } else {
+      // Enemies read a touch smaller than people so a mob doesn't tower over the hero.
+      const baseEmojiPx = fontSize * (isEnemy ? 1.35 : 1.7)
+      const emojiPx = baseEmojiPx * size
+      ctx.font = `bold ${emojiPx}px ${ASCII_FONT}`
+      ctx.textAlign = 'center'
+      ctx.fillStyle = edv.color
+      drawFacingGlyph(ctx, genderize(ef.char ?? edv.char, entity.variant), x, groundY - baseEmojiPx * 0.42 - (emojiPx - baseEmojiPx) * 0.5, ef.flipX)
+      ctx.textAlign = 'left'
+      ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
+    }
   } else {
     drawBlockFigure(ctx, art, leftX, baseY, lineHeight, charW, pal.fg, pal.bg)
   }

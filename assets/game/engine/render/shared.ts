@@ -14,6 +14,7 @@ import { isDead } from '@/game/combat'
 import { HIT_MARKER_MS, type HitMarker } from '@/game/runtime/combat'
 import { type PlayerState } from '@/game/runtime/player'
 import { type CombatState, type Entity } from '@/game/types'
+import { type ResolvedFrame } from '@/game/runtime/entityAnimation'
 
 // Monospace stack for all canvas ASCII glyphs (moved here from the page; render-only).
 export const ASCII_FONT = '"JetBrains Mono", "Fira Code", "Consolas", monospace'
@@ -107,6 +108,24 @@ export function glyphTileImage(glyph: string): HTMLImageElement | null {
   return src ? tileImage(src) : null
 }
 
+/** The baked IMAGE VISUAL for a glyph char, or undefined when the active tileset has no image for it —
+ *  the ImageVisual twin of glyphTileImage (so an animation frame's char resolves to a drawable tile). */
+export function glyphImageVisual(glyph: string): ImageVisual | undefined {
+  const src = glyphImageIndex().get(glyph)
+  return src ? { kind: 'image', src } : undefined
+}
+
+/** Resolve the CURRENT animation FRAME to the baked IMAGE to draw, or undefined when the frame is a glyph
+ *  the caller should draw itself (so an authored walk/idle actually PLAYS on a baked-image figure, instead
+ *  of the render freezing on the static base tile). Precedence: an explicit frame image → a frame whose
+ *  char IS the base tile's own char draws the base image (variant-exact) → any other char resolves to ITS
+ *  baked image (none → undefined, the caller draws the glyph) → an empty frame → the base image. */
+export function frameImage(frame: ResolvedFrame, baseChar: string, baseImage: ImageVisual | undefined): ImageVisual | undefined {
+  if (frame.image) return frame.image
+  if (frame.char) return frame.char === baseChar ? baseImage : glyphImageVisual(frame.char)
+  return baseImage
+}
+
 /** Draw a glyph centered at (x, y), optionally MIRRORED horizontally about x. The mirror is a DATA
  *  property of the animation frame (e.g. a right-facing walk reuses the left-facing emoji flipped) —
  *  the renderer only honors the flag, it never decides to flip. Uses the current font / fillStyle. */
@@ -119,13 +138,20 @@ export function drawFacingGlyph(ctx: CanvasRenderingContext2D, char: string, x: 
   ctx.restore()
 }
 
-/** Draw an image tile centered at (cx, cy) filling a `size`×`size` box (optional atlas sub-rect). */
-export function drawStyledImage(ctx: CanvasRenderingContext2D, v: ImageVisual, cx: number, cy: number, size: number): void {
+/** Draw an image tile centered at (cx, cy) filling a `size`×`size` box (optional atlas sub-rect).
+ *  `flipX` mirrors it horizontally about cx — a DATA property of an animation frame (a right-facing
+ *  walk reuses the left-facing tile flipped), so the baked-image figure animates like the glyph one. */
+export function drawStyledImage(ctx: CanvasRenderingContext2D, v: ImageVisual, cx: number, cy: number, size: number, flipX = false): void {
   const img = tileImage(v.src)
   if (!img) return
   const sx = v.sx ?? 0, sy = v.sy ?? 0
   const sw = v.sw ?? img.naturalWidth, sh = v.sh ?? img.naturalHeight
-  ctx.drawImage(img, sx, sy, sw, sh, cx - size / 2, cy - size / 2, size, size)
+  if (!flipX) { ctx.drawImage(img, sx, sy, sw, sh, cx - size / 2, cy - size / 2, size, size); return }
+  ctx.save()
+  ctx.translate(cx, 0)
+  ctx.scale(-1, 1)
+  ctx.drawImage(img, sx, sy, sw, sh, -size / 2, cy - size / 2, size, size)
+  ctx.restore()
 }
 
 // Enemies advance one patrol cell roughly every ENEMY_MOVE_MS (throttled, so

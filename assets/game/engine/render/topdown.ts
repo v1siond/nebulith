@@ -19,7 +19,7 @@ import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 import { EMOJI_TILESET } from '@/engine/tileset/emojiTileset'
 import { applyPose } from '@/engine/tileset/pose'
 import { Connector } from '@/lib/api'
-import { ASCII_FONT, BUILDING_BADGES, COMBAT_RANGE, type DayNight, ENEMY_MOVE_MS, LAMP_GLOW, applyCellTransform, clampCameraAxis, assetCaptionByCell, terrainLabelAt, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawHoverRing, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, getPlayerArt, grassShade, cellFill, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, resolveDraw, assetOverride, treeCanopyLayers } from './shared'
+import { ASCII_FONT, BUILDING_BADGES, COMBAT_RANGE, type DayNight, ENEMY_MOVE_MS, LAMP_GLOW, applyCellTransform, clampCameraAxis, assetCaptionByCell, terrainLabelAt, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawHoverRing, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, frameImage, getPlayerArt, grassShade, cellFill, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, resolveDraw, assetOverride, treeCanopyLayers } from './shared'
 import { ASCII_STYLE, assetKind, entityKind, entityStyleOverride, genderize, groundKind, personVariantTileId, type ElementKind, type Style } from '@/game/artStyle'
 import { DEFAULT_CHARACTER_ANIMATIONS, activeFrame } from '@/game/runtime/entityAnimation'
 
@@ -78,24 +78,30 @@ export function drawTopEntity(
   // feet line (footY) — the `- (drawPx-basePx)*0.5` fixes the BOTTOM — so a bigger figure stays grounded
   // on its shadow. size 1 is byte-identical to before.
   const size = Math.max(1, entity.size ?? 1)
-  if (edv.image) {
-    const baseImgPx = spanH * 0.9
-    const imgPx = baseImgPx * size
-    drawStyledImage(ctx, edv.image, cx, footY - baseImgPx * 0.42 - (imgPx - baseImgPx) * 0.5, imgPx)
-  } else if (edv.char) {
-    // One emoji replaces the multi-row figure. FIXED cell-multiple size (not the ASCII row count,
-    // which ballooned big creatures), and grounded by its BOTTOM at the shadow (footY) so a smaller
-    // enemy doesn't float. People play their AUTHORED animation; enemies default to a static glyph.
-    const isEnemy = entityKind(entity.kind) === 'enemy'
-    const baseEmojiPx = tileSize * (isEnemy ? 1.35 : 1.7)
-    const emojiPx = baseEmojiPx * size
-    ctx.font = `bold ${emojiPx}px ${ASCII_FONT}`
-    ctx.textAlign = 'center'
-    ctx.fillStyle = edv.color
-    const anims = entity.animations ?? (isEnemy ? undefined : DEFAULT_CHARACTER_ANIMATIONS)
+  const isEnemy = entityKind(entity.kind) === 'enemy'
+  // The entity's AUTHORED animation frame drives what's drawn — people default to walk/idle, enemies to a
+  // static glyph. The frame resolves to a baked image (base or override tile) OR a glyph — honouring flipX
+  // — so a moving person animates instead of freezing on the base image. ASCII (no image, empty char) keeps
+  // its multi-row sprite below.
+  const anims = entity.animations ?? (isEnemy ? undefined : DEFAULT_CHARACTER_ANIMATIONS)
+  if (edv.image || edv.char) {
     const ef = activeFrame(anims, { char: edv.char }, { moving, facing: 'down', running: false }, now)
-    drawFacingGlyph(ctx, genderize(ef.char ?? edv.char, entity.variant), cx, footY - baseEmojiPx * 0.42 - (emojiPx - baseEmojiPx) * 0.5, ef.flipX)
-    ctx.textAlign = 'left'
+    const efImg = frameImage(ef, edv.char, edv.image)
+    if (efImg) {
+      const baseImgPx = spanH * 0.9
+      const imgPx = baseImgPx * size
+      drawStyledImage(ctx, efImg, cx, footY - baseImgPx * 0.42 - (imgPx - baseImgPx) * 0.5, imgPx, ef.flipX)
+    } else {
+      // One emoji replaces the multi-row figure. FIXED cell-multiple size, grounded by its BOTTOM at the
+      // shadow (footY) so a smaller enemy doesn't float.
+      const baseEmojiPx = tileSize * (isEnemy ? 1.35 : 1.7)
+      const emojiPx = baseEmojiPx * size
+      ctx.font = `bold ${emojiPx}px ${ASCII_FONT}`
+      ctx.textAlign = 'center'
+      ctx.fillStyle = edv.color
+      drawFacingGlyph(ctx, genderize(ef.char ?? edv.char, entity.variant), cx, footY - baseEmojiPx * 0.42 - (emojiPx - baseEmojiPx) * 0.5, ef.flipX)
+      ctx.textAlign = 'left'
+    }
   } else {
     for (let i = 0; i < art.length; i++) {
       const line = art[i]
@@ -700,14 +706,19 @@ export function render2D(
       // emoji figure and left the hero anchored differently from every NPC — the 2D float bug.)
       const personImgPx = tileH * 1.8 // image height, matching the 2D NPC figure
       const personGlyphPx = tileH * 1.7 // glyph height, matching the 2D NPC figure
-      if (pdv.image) {
-        drawStyledImage(ctx, pdv.image, p.x, baseY - personImgPx * 0.42, personImgPx)
-      } else if (pdv.char) {
-        ctx.font = `bold ${personGlyphPx}px ${ASCII_FONT}` // character height, matching npcs
-        // Play the hero's AUTHORED animation (data-driven, direction-aware) — no hardcoded walk/run.
+      // The active animation frame drives what's drawn (idle/walk/run) — a baked image or a glyph, honouring
+      // flipX — so the hero ANIMATES when moving instead of freezing on the static base image. ASCII keeps
+      // its multi-row sprite below.
+      if (pdv.image || pdv.char) {
         const pf = activeFrame(player.animations ?? DEFAULT_CHARACTER_ANIMATIONS, { char: pdv.char }, { moving: player.moving, facing: player.facing, running: player.running ?? false }, time)
-        drawFacingGlyph(ctx, genderize(pf.char ?? pdv.char, player.variant), p.x, baseY - personGlyphPx * 0.42, pf.flipX)
-        ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
+        const pfImg = frameImage(pf, pdv.char, pdv.image)
+        if (pfImg) {
+          drawStyledImage(ctx, pfImg, p.x, baseY - personImgPx * 0.42, personImgPx, pf.flipX)
+        } else {
+          ctx.font = `bold ${personGlyphPx}px ${ASCII_FONT}` // character height, matching npcs
+          drawFacingGlyph(ctx, genderize(pf.char ?? pdv.char, player.variant), p.x, baseY - personGlyphPx * 0.42, pf.flipX)
+          ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
+        }
       } else {
         for (let i = 0; i < figArt2.length; i++) {
           const line = figArt2[figArt2.length - 1 - i] // Reverse order (bottom to top)
