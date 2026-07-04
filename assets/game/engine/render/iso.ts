@@ -1245,13 +1245,16 @@ export function drawIsoBuilding(
   fillQuad(ctx, fbl, fbr, bbr, bbl)
   ctx.restore()
 
-  // Paint the facade tiles (door/windows) onto one face. `base` is that face's bottom-left corner.
+  // Paint the facade tiles (door/wall/roof) onto one face. `base` is that face's bottom-left corner.
+  // Authored WINDOW cells are intentionally skipped here: every building's windows are painted by the
+  // single deterministic `wallWindows` pass below (front + both sides), so a house's front windows read
+  // the SAME as its side windows and the same as its neighbours' — no authored-cell-vs-generated mix.
   const drawFacade = (base: Pt): void => {
     for (let r = 0; r < H; r++) {
       if (peaked && r < ROOF_ROWS) continue
       for (let c = 0; c < L; c++) {
         const kind = b.cells[r]?.[c]
-        if (!kind || kind === 'empty') continue
+        if (!kind || kind === 'empty' || kind === 'window') continue
         const bl = ptAdd(ptAdd(base, ptScale(colVec, c)), up(H - 1 - r))
         drawIsoFacadeTile(ctx, bl, colVec, vCell, kind, flicker, facadeColors, style, wallTile, wallImage)
       }
@@ -1271,16 +1274,8 @@ export function drawIsoBuilding(
   ctx.fillStyle = wallRight
   fillQuad(ctx, fbr, bbr, eave(bbr), eave(fbr)); tileFace(fbr, bbr, eave(fbr), wallTileDV, b.depth, bodyH) // right
 
-  // Windows on the faces the camera can SEE. In iso you see the near face + ONE side; the far side is
-  // occluded (its windows just don't show) and the BACK is never drawn windowed — that was the "windows
-  // on a face the player can't see" bug. drawFacade already lit the facade's own window cells; here we add
-  // them to BOTH side walls (only the visible one appears) and to the near wall when the facade sits on
-  // the hidden back (facadeOnBack) so the wall the player actually looks at isn't blank.
-  const depthWindows = Math.max(2, Math.min(3, Math.round(b.depth)))
-  const lenWindows = Math.max(2, Math.min(3, Math.round(L / 2)))
-  wallWindows(fbl, depthVec, depthWindows) // left side
-  wallWindows(fbr, depthVec, depthWindows) // right side
-  if (b.facadeOnBack) wallWindows(fbl, ptScale(colVec, L), lenWindows) // near wall is plain (facade is on the back)
+  // Windows are painted once, uniformly, on the three camera-visible faces AFTER the roof + facade (see
+  // the wallWindows pass at the end) so they're never covered and every building reads the same.
 
   // ── ROOF (all faces red) ──
   if (peaked) {
@@ -1325,6 +1320,18 @@ export function drawIsoBuilding(
 
   // ── FRONT FACADE TILES (on top of the box, nearest the camera) for south/east houses ──
   if (!b.facadeOnBack) drawFacade(fbl)
+
+  // ── WINDOWS (uniform, deterministic, visible faces only) ──
+  // ONE treatment on every camera-visible face — the near/front wall + BOTH side walls (the far side is
+  // occluded by the solid box, the back is never drawn) — so a house's front matches its sides and its
+  // neighbours (no authored-cell-vs-generated mix, no facadeOnBack special-case). The count scales with
+  // the face's own cell span (~one window per two cells), so window SPACING is uniform across every face
+  // and every building — deterministic, never random. Drawn last so nothing covers them; windows sit at
+  // mid-wall height, clear of the ground-row door.
+  const faceWindows = (span: number): number => Math.max(2, Math.min(4, Math.round(span / 2)))
+  wallWindows(fbl, ptScale(colVec, L), faceWindows(L)) // near/front wall
+  wallWindows(fbl, depthVec, faceWindows(b.depth)) // left side
+  wallWindows(fbr, depthVec, faceWindows(b.depth)) // right side
 
   // ── TYPE SIGNAGE (STORE / HOSPITAL) floating above the roof apex — mirrors the 2D/top badge
   //    (black pill + colored text) so a shop / clinic reads at a glance in iso too. Only
