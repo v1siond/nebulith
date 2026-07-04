@@ -3970,7 +3970,7 @@ export default function TemplateEditor() {
       } else if (topViewMode) {
         renderTopView(ctx, canvas.width, canvas.height, grid, player, zoomRef.current, selectedCellsRef.current, connectorsRef.current, connectorModeRef.current, camOffsetRef.current, renderEntities, runtime.combat, hitMarkersRef.current, time, questsRef.current, dayNightRef.current, activeStyleRef.current)
       } else if (viewTypeRef.current === '2d') {
-        render2D(ctx, canvas.width, canvas.height, grid, player, time, zoomRef.current, camOffsetRef.current, renderEntities, runtime.combat, connectorsRef.current, questsRef.current, dayNightRef.current, attackAnimsRef.current, hitMarkersRef.current, projectilesRef.current, weaponReach(playerWeaponRef.current), activeStyleRef.current)
+        render2D(ctx, canvas.width, canvas.height, grid, player, time, zoomRef.current, camOffsetRef.current, renderEntities, runtime.combat, connectorsRef.current, questsRef.current, dayNightRef.current, attackAnimsRef.current, hitMarkersRef.current, projectilesRef.current, weaponReach(playerWeaponRef.current), activeStyleRef.current, selectedEntityIdRef.current)
       } else {
         render(ctx, canvas.width, canvas.height, grid, player, time, camOffsetRef.current, renderEntities, runtime.combat, hitMarkersRef.current, time, isoZoomRef.current, attackAnimsRef.current, connectorsRef.current, questsRef.current, projectilesRef.current, dayNightRef.current, weaponReach(playerWeaponRef.current), activeStyleRef.current, playModeRef.current, selectedEntityIdRef.current)
       }
