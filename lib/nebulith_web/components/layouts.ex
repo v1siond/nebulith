@@ -34,6 +34,11 @@ defmodule NebulithWeb.Layouts do
   slot :inner_block, required: true
 
   def app(assigns) do
+    assigns =
+      assign_new(assigns, :dev_routes?, fn ->
+        Application.get_env(:nebulith, :dev_routes, false)
+      end)
+
     ~H"""
     <header class="navbar px-4 sm:px-6 lg:px-8">
       <div class="flex-1">
@@ -43,20 +48,21 @@ defmodule NebulithWeb.Layouts do
         </a>
       </div>
       <div class="flex-none">
-        <ul class="flex flex-column px-1 space-x-4 items-center">
+        <ul class="flex flex-column px-1 space-x-1 items-center">
           <li>
-            <a href="https://phoenixframework.org/" class="btn btn-ghost">Website</a>
+            <.link href={~p"/"} class="btn btn-ghost btn-sm">Home</.link>
           </li>
           <li>
-            <a href="https://github.com/phoenixframework/phoenix" class="btn btn-ghost">GitHub</a>
+            <.link href={~p"/admin"} class="btn btn-ghost btn-sm">Admin</.link>
+          </li>
+          <li>
+            <.link href={~p"/api/tilesets"} class="btn btn-ghost btn-sm">Tilesets API</.link>
+          </li>
+          <li :if={@dev_routes?}>
+            <a href="/dev/dashboard" class="btn btn-ghost btn-sm">Dashboard</a>
           </li>
           <li>
             <.theme_toggle />
-          </li>
-          <li>
-            <a href="https://phoenix.hexdocs.pm/overview.html" class="btn btn-primary">
-              Get Started <span aria-hidden="true">&rarr;</span>
-            </a>
           </li>
         </ul>
       </div>
