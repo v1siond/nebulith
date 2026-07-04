@@ -299,7 +299,7 @@ export default function TemplateEditor() {
   const applyTriggerEffectRef = useRef<(effect: TriggerEffect) => void>(() => {})
   const prevDiedRef = useRef<Set<string>>(new Set())
   const jumpDownRef = useRef(false)
-  const jumpRef = useRef<JumpState>({ active: false, fromX: 0, fromZ: 0, toX: 0, toZ: 0, start: 0 })
+  const jumpRef = useRef<JumpState>({ active: false, start: 0 })
   // Quest hooks the once-mounted loop calls through (latest closure, like the
   // connector trigger): fold kills into quests, and accept/turn-in on interact.
   const onKillsRef = useRef<(enemyTypes: readonly string[]) => void>(() => {})
@@ -3769,10 +3769,10 @@ export default function TemplateEditor() {
       const pressedAim = aimFromKeys(keys, use2DMovement)
       if (pressedAim) player.aim = pressedAim
 
-      // Jump trigger (edge): begin an arc if not already airborne.
+      // Jump trigger (edge): start the visual hop if not already airborne. The player keeps moving
+      // normally during it (see below), so the hop follows the current speed + direction.
       const jumpDown = !!keys[' ']
-      // Only carry the jump forward if a direction is actually held; otherwise hop in place.
-      if (jumpDown && !jumpDownRef.current) beginJump(player, grid, use2DMovement, jump, time, pressedFacing !== null, !!keys['Shift'])
+      if (jumpDown && !jumpDownRef.current) beginJump(jump, time)
       jumpDownRef.current = jumpDown
 
       // Entities block movement across their FULL footprint: NPCs + living enemies are
@@ -3786,24 +3786,19 @@ export default function TemplateEditor() {
       const blockedCell = (x: number, z: number): boolean =>
         entityBlocked.has(`${Math.floor(x / grid.cellSize)},${Math.floor(z / grid.cellSize)}`)
 
-      // Mid-jump: animate the arc (lerp across the cells + parabolic hop), ignore
-      // WASD/collision until we land. Otherwise: normal walking.
+      // Jump = a visual HOP that PRESERVES momentum: the player keeps moving (WASD at their current
+      // speed + direction) while arcing up, so a running-right jump goes up-and-right AT run speed —
+      // instead of a fixed leap that froze the horizontal movement and read as "straight up" (#34).
       if (jump.active) {
         const t = Math.min(1, (time - jump.start) / JUMP_MS)
-        player.x = jump.fromX + (jump.toX - jump.fromX) * t
-        player.z = jump.fromZ + (jump.toZ - jump.fromZ) * t
         player.jumpHeight = Math.sin(Math.PI * t) * JUMP_PEAK_PX
-        player.moving = true
-        if (t >= 1) {
-          player.x = jump.toX
-          player.z = jump.toZ
-          player.jumpHeight = 0
-          jump.active = false
-        }
+        if (t >= 1) { player.jumpHeight = 0; jump.active = false }
       } else {
-      player.jumpHeight = 0
+        player.jumpHeight = 0
+      }
+
       // Update player - slower speed for 16px cells. Holding Shift while moving SPRINTS (faster +
-      // the run animation frame 🏃 instead of the walk 🚶).
+      // the run animation frame 🏃 instead of the walk 🚶). Runs EVERY frame (incl. mid-jump).
       const running = !!keys['Shift']
       const speed = 80 * (dt / 1000) * (running ? 1.7 : 1)
       player.moving = false
@@ -3869,16 +3864,21 @@ export default function TemplateEditor() {
       // Running = actually moving with Shift down (drives the 🏃 run frame; idle/still → not running).
       player.running = running && player.moving
 
-      // Collision check
-      if (!grid.isWorldBlockedInView(newX, newZ, collisionView) && !blockedCell(newX, newZ)) {
-        player.x = newX
-        player.z = newZ
-      }
+      // Collision — the player is a BODY, not a point: reject a move if ANY corner of its footprint
+      // would land on a blocked cell, so it can't slip through a wall while its centre sits on the open
+      // cell next to it (blocked until it's completely OUT of the wall cell). Resolved per-axis so it
+      // slides along a wall instead of sticking.
+      const pr = grid.cellSize * 0.42 // player collision half-extent
+      const clearAt = (x: number, z: number): boolean =>
+        !grid.isWorldBlockedInView(x, z, collisionView) && !blockedCell(x, z)
+      const footprintClear = (x: number, z: number): boolean =>
+        clearAt(x - pr, z - pr) && clearAt(x + pr, z - pr) && clearAt(x - pr, z + pr) && clearAt(x + pr, z + pr)
+      if (footprintClear(newX, player.z)) player.x = newX
+      if (footprintClear(player.x, newZ)) player.z = newZ
 
       // Bounds
       player.x = Math.max(0, Math.min(player.x, grid.cols * grid.cellSize))
       player.z = Math.max(0, Math.min(player.z, grid.rows * grid.cellSize))
-      }
 
       // Animation frame
       if (player.moving && animTimer > 150) {

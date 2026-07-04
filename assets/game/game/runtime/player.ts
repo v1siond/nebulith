@@ -78,12 +78,6 @@ export function resolveSpawnCell(
   }
 }
 
-// Jump leap distance per GAIT: a walking hop covers ONE cell; a running leap TWO (momentum), and it can
-// clear a single blocked cell (a gap) the walking hop can't. The arc duration is fixed, so a longer leap
-// reads as a faster (running) jump — which is what makes the jump match how you were moving (#34).
-export const WALK_JUMP_CELLS = 1
-export const RUN_JUMP_CELLS = 2
-
 /** Cell delta for a facing, matching how movement reads facing per view. */
 export function facingDelta(facing: PlayerState['facing'], use2D: boolean): [number, number] {
   if (use2D) {
@@ -140,34 +134,6 @@ export function aimFromKeys(keys: Record<string, boolean>, use2D: boolean): { co
   const sr = Math.sign(row)
   if (sc === 0 && sr === 0) return null
   return { col: sc, row: sr }
-}
-
-/** The cell a jump lands on: the farthest reachable cell up to `reach` along (dCol,dRow), skipping
- *  blocked/out-of-bounds cells between (you're airborne, so a wall only SHORTENS the leap instead of
- *  cancelling it — which is why a jump in a dense town used to look like it just bobbed). `reach` is
- *  the gait's leap distance (WALK_JUMP_CELLS=1 hop vs RUN_JUMP_CELLS=2 leap, #34). A standing jump
- *  (forward=false) stays on (pCol,pRow). Returns null when moving but nothing ahead is reachable — the
- *  caller keeps walking rather than lock into a bob. Pure (grid via isBlocked). */
-export function jumpLandingCell(
-  pCol: number,
-  pRow: number,
-  dCol: number,
-  dRow: number,
-  forward: boolean,
-  isBlocked: (col: number, row: number) => boolean,
-  cols: number,
-  rows: number,
-  reach: number = RUN_JUMP_CELLS,
-): { col: number; row: number } | null {
-  if (!forward) return { col: pCol, row: pRow } // standing hop — straight up on the same cell
-  for (let d = reach; d >= 1; d--) {
-    const col = pCol + dCol * d
-    const row = pRow + dRow * d
-    if (col < 0 || row < 0 || col >= cols || row >= rows) continue
-    if (isBlocked(col, row)) continue
-    return { col, row }
-  }
-  return null
 }
 
 /** Clamp value/max into 0..1 (0 when max ≤ 0). Pure — shared by the enemy + player life bars. */

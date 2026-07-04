@@ -9,45 +9,24 @@ import { type MoverState, RUN_PATROL_DELAY_MS, type RunState, STEP_LIST_DELAY_MS
 import { ENEMY_MOVE_MS } from '@/engine/render/shared'
 import { entityCollisionCells } from '@/game/entities'
 import { type HitMarker, pushHitMarker } from '@/game/runtime/combat'
-import { type PlayerState, RUN_JUMP_CELLS, WALK_JUMP_CELLS, aimDelta, jumpLandingCell } from '@/game/runtime/player'
 import { type Entity, type MovementPattern } from '@/game/types'
 
 // ── JUMP ─────────────────────────────────────────────────────────────
 
-/** A jump in flight: the loop interpolates the player from→to over JUMP_MS with a
- *  parabolic visual hop, so they travel ACROSS the intervening cell(s) and arc up,
- *  rather than teleporting. */
+/** A jump in flight: just a timed visual HOP. The player keeps moving normally (WASD) during it, so the
+ *  jump follows the current walk/run speed + direction instead of a fixed leap that froze movement (#34). */
 export interface JumpState {
   active: boolean
-  fromX: number
-  fromZ: number
-  toX: number
-  toZ: number
   start: number
 }
-export const JUMP_MS = 380 // arc duration
+export const JUMP_MS = 380 // hop duration
 export const JUMP_PEAK_PX = 26 // visual hop height at mid-arc
 
-/** Begin a jump. A MOVING jump leaps along the 8-way AIM (so all 8 directions work, #66); a STANDING
- *  jump (`forward===false`) hops straight up on the same cell. `running` (Shift held) makes it a longer
- *  RUN leap vs a short WALK hop, so the jump carries the momentum of your gait (#34). The loop animates
- *  the arc over a fixed time → the longer running leap is a faster arc. No-op if already mid-jump. */
-export function beginJump(player: PlayerState, grid: IsometricGrid, use2D: boolean, jump: JumpState, now: number, forward: boolean, running: boolean): void {
+/** Begin a jump: start the timed hop. Normal movement runs during it (the loop adds only the vertical
+ *  arc), so the hop carries the current speed + direction. No-op if already mid-hop. */
+export function beginJump(jump: JumpState, now: number): void {
   if (jump.active) return
-  // Leap along the 8-way AIM (the way you're actually moving), not the 4-way facing — otherwise a
-  // diagonal hold collapses to a cardinal hop (the iso "x/y but no z" + 2D "no diagonal" bug). #66
-  const [dCol, dRow] = aimDelta(player, use2D)
-  const cs = grid.cellSize
-  const pCol = Math.floor(player.x / cs)
-  const pRow = Math.floor(player.z / cs)
-  const reach = running ? RUN_JUMP_CELLS : WALK_JUMP_CELLS // running carries farther → faster arc
-  const landing = jumpLandingCell(pCol, pRow, dCol, dRow, forward, (c, r) => grid.isBlocked(c, r), grid.cols, grid.rows, reach)
-  if (!landing) return
   jump.active = true
-  jump.fromX = player.x
-  jump.fromZ = player.z
-  jump.toX = landing.col * cs + cs / 2
-  jump.toZ = landing.row * cs + cs / 2
   jump.start = now
 }
 
