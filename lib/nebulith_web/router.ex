@@ -14,10 +14,20 @@ defmodule NebulithWeb.Router do
     plug :accepts, ["json"]
   end
 
+  pipeline :admin do
+    plug NebulithWeb.AdminAuth
+  end
+
   scope "/", NebulithWeb do
     pipe_through :browser
 
     get "/", PageController, :home
+  end
+
+  scope "/admin", NebulithWeb do
+    pipe_through [:browser, :admin]
+
+    get "/", AdminController, :index
   end
 
   scope "/api", NebulithWeb do
