@@ -1980,7 +1980,7 @@ export function renderDebugOverlays(
 
       if (p.x < -50 || p.x > w + 50 || p.y < -50 || p.y > h + 50) continue
 
-      const isBlocked = grid.isBlocked(col, row)
+      const isBlocked = grid.isBlockedInView(col, row, 'iso') // view-aware: tall buildings block up-screen
       const tileW = cellSize * grid.isoScale * 0.7
       const tileH = cellSize * grid.isoScale * 0.35
 

@@ -944,7 +944,7 @@ export function render2D(
       for (let col = startCol; col < startCol + tilesX; col++) {
         if (col < 0 || col >= grid.cols || row < 0 || row >= grid.rows) continue
         const p = toScreen(col + 0.5, row + 0.5)
-        const isCollision = grid.collision[row]?.[col]
+        const isCollision = grid.isBlockedInView(col, row, 'td') // view-aware: tall buildings block north
 
         if (isCollision) {
           ctx.fillStyle = 'rgba(255, 50, 50, 0.4)'

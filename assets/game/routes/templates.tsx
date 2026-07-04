@@ -3751,6 +3751,9 @@ export default function TemplateEditor() {
       if (!grid) return
 
       const use2DMovement = topViewMode || viewTypeRef.current === '2d'
+      // Collision is per-view (approach B): top = flat footprint, 2D + iso also block the ground a tall
+      // building's drawn box rises over, so the hero can't walk behind/into it.
+      const collisionView: 'top' | 'td' | 'iso' = topViewMode ? 'top' : viewTypeRef.current === '2d' ? 'td' : 'iso'
       const jump = jumpRef.current
 
       // Face the direction currently held BEFORE the jump trigger, so a standing
@@ -3866,7 +3869,7 @@ export default function TemplateEditor() {
       player.running = running && player.moving
 
       // Collision check
-      if (!grid.isWorldBlocked(newX, newZ) && !blockedCell(newX, newZ)) {
+      if (!grid.isWorldBlockedInView(newX, newZ, collisionView) && !blockedCell(newX, newZ)) {
         player.x = newX
         player.z = newZ
       }
