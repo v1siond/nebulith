@@ -76,6 +76,12 @@ describe('drawPoseGlyph — applies the pose then draws the glyph once at the or
     drawPoseGlyph(ctx, '🛡️', undefined, 1, 24)
     expect(calls).toEqual(['text(🛡️)'])
   })
+  test('a MONOCHROME (ascii) glyph gets a black under-draw for depth — shadow then top (two fillTexts)', () => {
+    const { ctx, calls } = drawCtx()
+    // The ascii sword pose: mirror (flip, right-facing) → rotate → scale, then the depth double-draw.
+    drawPoseGlyph(ctx, 'Ɨ', { flip: true, rot: 3.14, scale: 1.7 }, 1, 24)
+    expect(calls).toEqual(['scale(-1,1)', 'rotate(3.14)', 'scale(1.7,1.7)', 'text(Ɨ)', 'text(Ɨ)'])
+  })
 })
 
 describe('buildGlyphImageIndex — char → baked image src, so a glyph-only weapon draw finds its PNG', () => {

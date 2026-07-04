@@ -1,4 +1,4 @@
-import { entityArt, entityFootprint, weaponGlyph, weaponEmoji, weaponPose, SWORD_GLYPH, ENEMY_ART, ENEMY_ART_TYPES, ENEMY_FALLBACK, NPC_ART, entityPalette, ENEMY_PALETTE, CHARACTER_TONES, characterTone, ENEMY_PALETTE_FALLBACK, topRoleColor, TOP_ROLE_COLOR } from '@/engine/entityArt'
+import { entityArt, entityFootprint, weaponGlyph, weaponEmoji, weaponPose, ASCII_WEAPON_POSE, SWORD_GLYPH, ENEMY_ART, ENEMY_ART_TYPES, ENEMY_FALLBACK, NPC_ART, entityPalette, ENEMY_PALETTE, CHARACTER_TONES, characterTone, ENEMY_PALETTE_FALLBACK, topRoleColor, TOP_ROLE_COLOR } from '@/engine/entityArt'
 import { setEmojiTileset } from '@/engine/tileset/emojiTileset'
 import { makeEnemy, makeNpc, makePlayer } from '@/game/entities'
 import type { Quest } from '@/game/types'
@@ -144,11 +144,14 @@ describe('topRoleColor — top-view > glyph colors by role + quest state', () =>
 // NOTE: this REPLACES the in-memory emoji tileset (like the backend loader does), so it lives last
 // and its own describe — the weaponEmoji tests above rely on the bundled fallback tileset.
 describe('weaponPose — the equipped weapon reads its pose from the loaded tileset', () => {
-  it('returns the tileset entry pose for emoji, undefined for ascii / unknown', () => {
+  it('returns the tileset entry pose for emoji, the ascii tileset pose (fallback) for ascii, undefined for unknown', () => {
     setEmojiTileset({ sword: { char: '🗡️', color: '#fff', pose: { rot: 3.14, scale: 1.1 } } } as never)
     expect(weaponPose('sword', 'emoji')).toEqual({ rot: 3.14, scale: 1.1 })
-    expect(weaponPose('sword', 'ascii')).toBeUndefined() // ascii poses aren't wired yet
+    // ASCII now reads its tileset pose; the bundled ascii tileset carries no per-weapon pose here, so it
+    // falls back to the shared ASCII_WEAPON_POSE — the ascii weapon look is data-driven, never regresses.
+    expect(weaponPose('sword', 'ascii')).toEqual(ASCII_WEAPON_POSE)
     expect(weaponPose('bow', 'emoji')).toBeUndefined() // not in the tileset → no pose
     expect(weaponPose(undefined, 'emoji')).toBeUndefined()
+    expect(weaponPose(undefined, 'ascii')).toBeUndefined()
   })
 })

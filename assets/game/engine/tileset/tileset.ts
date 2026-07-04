@@ -9,6 +9,7 @@
  * renderer LOADS (asciiTileset.ts); later the SAME shape is a row set served by the Elixir/Ecto API.
  * The render logic never changes — only where the tileset comes from.
  */
+import type { TilePose } from './pose'
 
 // 9-piece autotile POSITION — the swap standard: all sides + corners. 'single' = a non-tiling tile.
 export type TilePosition =
@@ -27,6 +28,10 @@ export interface TilesetTile {
   walkable: boolean
   /** Which palette entry supplies the colour (e.g. 'canopy', 'trunk', 'building.roof'). */
   colorRole: string
+  /** OPTIONAL positioning data (rotation/scale/flip/offset) resolved through `applyPose` — the SAME
+   *  deviations-only shape the emoji tiles carry. Held items (weapons/shield) store here the orientation
+   *  the ASCII renderer used to hardcode, so ASCII drives its weapon pose from tileset DATA like emoji. */
+  pose?: TilePose
 }
 
 export interface ZonePalette {

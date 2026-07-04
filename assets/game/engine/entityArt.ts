@@ -1,5 +1,6 @@
 import type { Entity, Quest } from '@/game/types'
 import { EMOJI_TILESET } from '@/engine/tileset/emojiTileset'
+import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 import type { TilePose } from '@/engine/tileset/pose'
 
 /**
@@ -262,8 +263,19 @@ export function weaponEmoji(weapon?: { kind?: string; range?: string } | null): 
  *  data that used to be the hardcoded WEAPON_ORIENT/emojiWeaponSize. Emoji reads its tileset entry;
  *  ascii returns undefined for now (the ascii weapon path keeps its own drawing). Absent → the render
  *  falls back to identity (no rotation/scale), so keep the backend tileset seeded with the weapon poses. */
+/** The uniform ASCII held-weapon pose — the orientation the ascii weapon branch used to HARDCODE: rotate
+ *  π (a vertical blade points down out of the fist and reads as a blade both ways), MIRROR on the facing
+ *  (`flip` XOR left-facing → the glyph points OUTWARD in both facings, #54), and grow to the old weaponSize
+ *  (fontSize×1.7) offset half a weapon-length down the hand (dy = 1.7×0.45). Every ascii weapon shared this
+ *  one look. Used as the fallback when the loaded ascii tileset carries no per-weapon pose (bundled default
+ *  / backend down), mirroring how `weaponEmoji` falls back to a switch — so the ascii look never regresses. */
+export const ASCII_WEAPON_POSE: TilePose = { rot: Math.PI, flip: true, scale: 1.7, dy: 0.765 }
+
 export function weaponPose(kind: string | undefined, style: 'emoji' | 'ascii'): TilePose | undefined {
-  if (!kind || style !== 'emoji') return undefined
+  if (!kind) return undefined
+  // ASCII is just another tileset: read the weapon's pose from the loaded ascii tiles, falling back to the
+  // shared ASCII_WEAPON_POSE when the tileset hasn't loaded a per-weapon pose (so the look never regresses).
+  if (style === 'ascii') return ASCII_TILESET.tiles[kind]?.pose ?? ASCII_WEAPON_POSE
   return EMOJI_TILESET[kind]?.pose
 }
 

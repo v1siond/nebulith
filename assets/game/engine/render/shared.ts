@@ -399,7 +399,7 @@ const isWeaponEmoji = (g: string): boolean => /\p{Extended_Pictographic}/u.test(
  *  + emojiWeaponSize table: a seeded weapon pose reproduces the old look exactly (uniform scale commutes
  *  with rotation, so font=unit + applyPose(scale) renders the same as the old font=scale×unit). */
 export function drawPoseGlyph(ctx: CanvasRenderingContext2D, glyph: string, pose: TilePose | null | undefined, facingDir: number, unit: number): void {
-  ctx.font = `${unit}px ${ASCII_FONT}`
+  ctx.font = `bold ${unit}px ${ASCII_FONT}` // bold so a monochrome (ascii) weapon glyph reads as heavy as the old hardcoded branch; emoji ignore weight
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
   applyPose(ctx, pose, facingDir, unit)
@@ -407,6 +407,14 @@ export function drawPoseGlyph(ctx: CanvasRenderingContext2D, glyph: string, pose
   // image (rotate/flip/scale) exactly as it did the glyph. No image (ascii / backend down) → fillText.
   const img = glyphTileImage(glyph)
   if (img) { ctx.drawImage(img, -unit / 2, -unit / 2, unit, unit); return }
+  // A colour EMOJI glyph carries its own shading → draw once. A MONOCHROME (ascii) glyph gets a black
+  // under-draw for crisp depth — the double-draw the ascii weapon used to do in its own branch, now a
+  // property of drawing ANY glyph here (one path). The caller's fillStyle is the top (tint) colour.
+  if (isWeaponEmoji(glyph)) { ctx.fillText(glyph, 0, 0); return }
+  const top = ctx.fillStyle
+  ctx.fillStyle = '#000000'
+  ctx.fillText(glyph, 0, 1)
+  ctx.fillStyle = top
   ctx.fillText(glyph, 0, 0)
 }
 
@@ -414,7 +422,6 @@ export function drawPlayerArm(ctx: CanvasRenderingContext2D, params: PlayerArmPa
   const { swinging, swingP, facingDir, fontSize, bodyColor, weaponGlyph, weaponTint, swingTint } = params
   const charW = fontSize * 0.6
   const armR = charW * 1.15 // SHORT — about one char (≈ the walk arm / legs), not the full reach
-  const weaponSize = fontSize * 1.7
   ctx.textAlign = 'center'
   if (swinging) {
     // The swing arm IS the figure’s facing bracket, pivoting at the SHOULDER and rotating from
@@ -431,42 +438,25 @@ export function drawPlayerArm(ctx: CanvasRenderingContext2D, params: PlayerArmPa
     // Under emoji/reskin the figure is a single glyph with its own arms — an ASCII `>`/`<` bracket next to
     // it is exactly the "ascii art on the emoji tileset" the player never wants. Only ASCII draws it.
     if (!params.isEmoji) ctx.fillText(armChar, facingDir * armR, 0)
-    // The swing carries the held weapon, or — bare-handed under a reskin — the 👊 fist (same pose path).
+    // The swing carries the held weapon, or — bare-handed under a reskin — the 👊 fist. BOTH take the ONE
+    // pose path: the weapon's tileset POSE drives orientation/size (emoji from emoji.json, ASCII from the
+    // ascii tileset / ASCII_WEAPON_POSE), and drawPoseGlyph draws the baked image or, for a glyph weapon,
+    // the glyph with its depth shadow — so there's no separate ASCII rotate/shadow branch here anymore.
     const swingGlyph = weaponGlyph || params.punchGlyph
     const swingPose = weaponGlyph ? params.weaponPose : params.punchPose
     if (swingGlyph) {
       ctx.translate(facingDir * (armR + charW), 0) // the hand, just past the bracket
-      ctx.font = `bold ${weaponSize}px ${ASCII_FONT}`
-      if (isWeaponEmoji(swingGlyph)) {
-        drawPoseGlyph(ctx, swingGlyph, swingPose, facingDir, fontSize)
-      } else {
-        if (facingDir > 0) ctx.scale(-1, 1) // ASCII glyph: points OUTWARD in both facings (#54)
-        ctx.rotate(Math.PI)
-        ctx.fillStyle = '#000000'
-        ctx.fillText(swingGlyph, 0, weaponSize * 0.45 + 1)
-        ctx.fillStyle = swingTint ?? weaponTint
-        ctx.fillText(swingGlyph, 0, weaponSize * 0.45)
-      }
+      ctx.fillStyle = swingTint ?? weaponTint // the top colour for a monochrome (ascii) glyph; an emoji ignores it
+      drawPoseGlyph(ctx, swingGlyph, swingPose, facingDir, fontSize)
     }
     ctx.restore()
     ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
   } else if (weaponGlyph) {
-    // Holding (not swinging): the weapon rests in the figure’s natural hand — its own arm holds it.
+    // Holding (not swinging): the weapon rests in the figure’s natural hand — the SAME one pose path.
     ctx.save()
     ctx.translate(params.restHandX, params.restHandY)
-    ctx.font = `bold ${weaponSize}px ${ASCII_FONT}`
-    ctx.textAlign = 'center'
-    ctx.textBaseline = 'middle'
-    if (isWeaponEmoji(weaponGlyph)) {
-      drawPoseGlyph(ctx, weaponGlyph, params.weaponPose, facingDir, fontSize)
-    } else {
-      if (facingDir > 0) ctx.scale(-1, 1)
-      ctx.rotate(Math.PI)
-      ctx.fillStyle = '#000000'
-      ctx.fillText(weaponGlyph, 0, weaponSize * 0.45 + 1)
-      ctx.fillStyle = weaponTint
-      ctx.fillText(weaponGlyph, 0, weaponSize * 0.45)
-    }
+    ctx.fillStyle = weaponTint
+    drawPoseGlyph(ctx, weaponGlyph, params.weaponPose, facingDir, fontSize)
     ctx.restore()
     ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
   }
