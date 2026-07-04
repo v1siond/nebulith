@@ -320,6 +320,9 @@ export interface PlayerArmParams {
   swingP: number
   /** +1 facing right, -1 facing left */
   facingDir: number
+  /** true → an emoji/reskin style is active: draw NO ASCII art (the `>`/`<` swing-arm bracket is skipped;
+   *  the emoji figure has its own arms and the weapon/fist swings on its own). ASCII keeps the bracket. */
+  isEmoji?: boolean
   /** drives the arm font + the derived charW/armR/weaponSize (identical ratios in both views) */
   fontSize: number
   /** arm-bracket fill colour (the figure's body colour) */
@@ -387,7 +390,9 @@ export function drawPlayerArm(ctx: CanvasRenderingContext2D, params: PlayerArmPa
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
     ctx.fillStyle = bodyColor
-    ctx.fillText(armChar, facingDir * armR, 0)
+    // Under emoji/reskin the figure is a single glyph with its own arms — an ASCII `>`/`<` bracket next to
+    // it is exactly the "ascii art on the emoji tileset" the player never wants. Only ASCII draws it.
+    if (!params.isEmoji) ctx.fillText(armChar, facingDir * armR, 0)
     if (weaponGlyph) {
       ctx.translate(facingDir * (armR + charW), 0) // the hand, just past the bracket
       ctx.font = `bold ${weaponSize}px ${ASCII_FONT}`

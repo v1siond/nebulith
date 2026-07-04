@@ -720,6 +720,7 @@ export function drawIsoPlayer(
     swinging: swingP != null, // an attack is mid-flight → the ARM drives the swing (#47)
     swingP: swingP ?? 0,
     facingDir: dir,
+    isEmoji: style.id !== ASCII_STYLE.id, // reskin → no ASCII `>`/`<` bracket beside the emoji figure
     fontSize,
     bodyColor,
     weaponGlyph: player.weaponGlyph,

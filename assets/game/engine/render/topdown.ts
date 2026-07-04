@@ -719,6 +719,7 @@ export function render2D(
         swinging,
         swingP,
         facingDir,
+        isEmoji: style.id !== ASCII_STYLE.id, // reskin → no ASCII `>`/`<` bracket beside the emoji figure
         fontSize,
         bodyColor,
         weaponGlyph: player.weaponGlyph,
