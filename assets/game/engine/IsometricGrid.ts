@@ -285,17 +285,9 @@ export class IsometricGrid {
     return this.isBlockedInView(col, row, view)
   }
 
-  // Get all assets sorted by depth for rendering
-  getAssetsByDepth(): GridAsset[] {
-    return [...this.assets].sort((a, b) => {
-      // Sort by z + x for isometric depth
-      const depthA = a.row + a.col
-      const depthB = b.row + b.col
-      return depthA - depthB
-    })
-  }
-
-  // Get visible assets within camera view
+  // Assets within the camera view rect (+ margin). Just a cull — NO depth sort here: every render path
+  // re-sorts the merged asset+building+entity+player draw list by the same depth key, so sorting the
+  // assets first was a second O(N log N) pass over EVERY asset on the map, every frame, thrown away.
   getVisibleAssets(cameraCol: number, cameraRow: number, viewCols: number, viewRows: number): GridAsset[] {
     const margin = 5
     const minCol = cameraCol - viewCols / 2 - margin
@@ -303,7 +295,7 @@ export class IsometricGrid {
     const minRow = cameraRow - viewRows / 2 - margin
     const maxRow = cameraRow + viewRows / 2 + margin
 
-    return this.getAssetsByDepth().filter(asset =>
+    return this.assets.filter(asset =>
       asset.col >= minCol && asset.col <= maxCol &&
       asset.row >= minRow && asset.row <= maxRow
     )
