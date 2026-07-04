@@ -1,4 +1,5 @@
 import { resolvePose, applyPose, type TilePose } from '@/engine/tileset/pose'
+import { drawPoseGlyph } from '@/engine/render/shared'
 
 describe('resolvePose — deviations-only', () => {
   test('absent pose → identity', () => {
@@ -45,5 +46,32 @@ describe('applyPose — mirror → rotate → offset → scale, no-op when ident
     const { ctx, calls } = recCtx()
     applyPose(ctx, { flip: true, rot: 3.14, dx: 0.5, dy: -0.25, scale: 1.1 }, 1, 24)
     expect(calls).toEqual(['scale(-1,1)', 'rotate(3.14)', 'translate(12,-6)', 'scale(1.1,1.1)'])
+  })
+})
+
+// A recording ctx that also stubs the text setters + fillText so drawPoseGlyph's draw op is observable.
+function drawCtx() {
+  const calls: string[] = []
+  const ctx = {
+    save() {}, restore() {},
+    scale: (x: number, y: number) => calls.push(`scale(${x},${y})`),
+    rotate: (a: number) => calls.push(`rotate(${a})`),
+    translate: (x: number, y: number) => calls.push(`translate(${x},${y})`),
+    fillText: (t: string) => calls.push(`text(${t})`),
+    set font(_v: string) {}, set textAlign(_v: string) {}, set textBaseline(_v: string) {},
+  } as unknown as CanvasRenderingContext2D
+  return { ctx, calls }
+}
+
+describe('drawPoseGlyph — applies the pose then draws the glyph once at the origin', () => {
+  test('rot-only pose: rotate then a single fillText (no stray transforms)', () => {
+    const { ctx, calls } = drawCtx()
+    drawPoseGlyph(ctx, '🗡️', { rot: 3.14 }, 1, 24)
+    expect(calls).toEqual(['rotate(3.14)', 'text(🗡️)'])
+  })
+  test('identity pose: just the fillText (unposed weapon renders unchanged)', () => {
+    const { ctx, calls } = drawCtx()
+    drawPoseGlyph(ctx, '🛡️', undefined, 1, 24)
+    expect(calls).toEqual(['text(🛡️)'])
   })
 })

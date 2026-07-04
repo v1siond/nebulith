@@ -702,6 +702,7 @@ export function render2D(
         fontSize,
         bodyColor,
         weaponGlyph: player.weaponGlyph,
+        weaponPose: player.weaponPose,
         weaponTint: '#e0e0e0',
         swingTint: inHandSlash?.tint,
         shoulderX,
@@ -709,6 +710,7 @@ export function render2D(
         restHandX: p.x + facingDir * fontSize * 0.6,
         restHandY: armY,
         shieldGlyph: player.shieldGlyph,
+        shieldPose: player.shieldPose,
         shieldX: p.x - facingDir * fontSize * 0.6, // off-hand: opposite the weapon
         shieldY: armY,
         shieldR: fontSize * 0.55,

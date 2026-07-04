@@ -718,6 +718,7 @@ export function drawIsoPlayer(
     fontSize,
     bodyColor,
     weaponGlyph: player.weaponGlyph,
+    weaponPose: player.weaponPose,
     weaponTint: '#e6e6e6',
     swingTint,
     shoulderX,
@@ -725,6 +726,7 @@ export function drawIsoPlayer(
     restHandX: x + dir * (pHalf + weaponSize * 0.18),
     restHandY: handY,
     shieldGlyph: player.shieldGlyph,
+    shieldPose: player.shieldPose,
     shieldX: x - dir * (pHalf + fontSize * 0.3), // off-hand: opposite the weapon
     shieldY: handY, // same arm row as the weapon hand
     shieldR: fontSize * 0.5,

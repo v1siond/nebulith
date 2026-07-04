@@ -6,6 +6,7 @@ import { entityAnimState, entityFrameIndex } from '@/engine/entityAnim'
 import { entityArtFrame, entityFootprint } from '@/engine/entityArt'
 import { type QuestMarker } from '@/engine/entityQuestMarker'
 import { motionPos } from '@/engine/movement'
+import { applyPose, type TilePose } from '@/engine/tileset/pose'
 import { edgeToSide, footprintRing, footprintSide, labelForCell, treeSubpart } from '@/engine/stageGenerator'
 import { terrainCaptions } from '@/engine/terrainLabels'
 import { isDead } from '@/game/combat'
@@ -324,6 +325,8 @@ export interface PlayerArmParams {
   /** arm-bracket fill colour (the figure's body colour) */
   bodyColor: string
   weaponGlyph?: string
+  /** the equipped weapon's POSE (orientation/size/flip) from the tileset — drives the emoji weapon draw. */
+  weaponPose?: TilePose
   /** default weapon top-fill colour (iso #e6e6e6 / 2D #e0e0e0) */
   weaponTint: string
   /** attack-driven tint that overrides weaponTint on the swing (ability recolour) */
@@ -335,6 +338,8 @@ export interface PlayerArmParams {
   restHandX: number
   restHandY: number
   shieldGlyph?: string
+  /** the equipped shield's POSE from the tileset — drives the emoji shield draw (absent = today's look). */
+  shieldPose?: TilePose
   shieldX: number
   shieldY: number
   shieldR: number
@@ -347,29 +352,20 @@ export interface PlayerArmParams {
  * source (and the per-view weapon-tint + shield-radius), all passed in. charW/armR/weaponSize derive
  * from fontSize with the same ratios both views already used, so the output is pixel-identical.
  */
-/** An emoji weapon renders in its OWN colour, so it must NOT be flipped 180° (that inverts it) nor drawn
- *  twice (a black-shadow pass doubles it) like a monochrome ASCII glyph. Each weapon emoji ALSO has its
- *  own NATIVE orientation (gun 🔫 points ←, sword 🗡️ blade ↙, bow 🏹 ↗ …), so no single mirror rule can
- *  aim them all — this table (VALIDATED by rendering each L/R) gives the rotation + native-flip that makes
- *  the weapon point up-forward when facing RIGHT; left-facing mirrors the whole pose. */
+/** An emoji weapon renders in its OWN colour, so it must NOT be drawn twice (a black-shadow pass doubles
+ *  it) like a monochrome ASCII glyph — this check routes an emoji glyph to the single-draw pose path. */
 const isWeaponEmoji = (g: string): boolean => /\p{Extended_Pictographic}/u.test(g)
-const WEAPON_ORIENT: Readonly<Record<string, { rot: number; flip: boolean }>> = {
-  '🗡️': { rot: Math.PI, flip: false }, // native blade ↙ → 180° → blade ↗ (up-forward)
-  '🔫': { rot: 0, flip: true }, // native barrel ← → flip → points forward
-  '🏹': { rot: 0, flip: false }, // native ↗ already forward
-  '🪓': { rot: 0, flip: true }, // native ↖ → flip → ↗
-  '🪄': { rot: 0, flip: false },
-}
-/** Draw an emoji weapon at the current origin (the hand): aimed in the facing direction + upright per its
- *  native orientation, ONCE (own colour). The caller has already translated to the hand + saved the ctx. */
-function drawEmojiWeapon(ctx: CanvasRenderingContext2D, glyph: string, facingDir: number, sizePx: number): void {
-  const o = WEAPON_ORIENT[glyph] ?? { rot: 0, flip: false }
-  ctx.font = `${sizePx}px ${ASCII_FONT}`
+
+/** Draw a glyph at the current origin (the hand / cell centre — the caller has already translated + saved),
+ *  applying a tile POSE: mirror (flip XOR left-facing) → rotate → offset → scale, then ONE fillText. `unit`
+ *  is the base draw size in px; the pose's `scale` multiplies it. This replaces the hardcoded WEAPON_ORIENT
+ *  + emojiWeaponSize table: a seeded weapon pose reproduces the old look exactly (uniform scale commutes
+ *  with rotation, so font=unit + applyPose(scale) renders the same as the old font=scale×unit). */
+export function drawPoseGlyph(ctx: CanvasRenderingContext2D, glyph: string, pose: TilePose | null | undefined, facingDir: number, unit: number): void {
+  ctx.font = `${unit}px ${ASCII_FONT}`
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
-  if (facingDir < 0) ctx.scale(-1, 1) // left-facing = mirror the whole right-facing pose
-  if (o.flip) ctx.scale(-1, 1) // per-weapon: flip the native so it aims forward-right
-  if (o.rot) ctx.rotate(o.rot)
+  applyPose(ctx, pose, facingDir, unit)
   ctx.fillText(glyph, 0, 0)
 }
 
@@ -378,7 +374,6 @@ export function drawPlayerArm(ctx: CanvasRenderingContext2D, params: PlayerArmPa
   const charW = fontSize * 0.6
   const armR = charW * 1.15 // SHORT — about one char (≈ the walk arm / legs), not the full reach
   const weaponSize = fontSize * 1.7
-  const emojiWeaponSize = fontSize * 1.1 // emoji weapons are full-colour images — smaller than the ascii glyph so they don't dwarf the figure
   ctx.textAlign = 'center'
   if (swinging) {
     // The swing arm IS the figure’s facing bracket, pivoting at the SHOULDER and rotating from
@@ -397,7 +392,7 @@ export function drawPlayerArm(ctx: CanvasRenderingContext2D, params: PlayerArmPa
       ctx.translate(facingDir * (armR + charW), 0) // the hand, just past the bracket
       ctx.font = `bold ${weaponSize}px ${ASCII_FONT}`
       if (isWeaponEmoji(weaponGlyph)) {
-        drawEmojiWeapon(ctx, weaponGlyph, facingDir, emojiWeaponSize)
+        drawPoseGlyph(ctx, weaponGlyph, params.weaponPose, facingDir, fontSize)
       } else {
         if (facingDir > 0) ctx.scale(-1, 1) // ASCII glyph: points OUTWARD in both facings (#54)
         ctx.rotate(Math.PI)
@@ -417,7 +412,7 @@ export function drawPlayerArm(ctx: CanvasRenderingContext2D, params: PlayerArmPa
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
     if (isWeaponEmoji(weaponGlyph)) {
-      drawEmojiWeapon(ctx, weaponGlyph, facingDir, emojiWeaponSize)
+      drawPoseGlyph(ctx, weaponGlyph, params.weaponPose, facingDir, fontSize)
     } else {
       if (facingDir > 0) ctx.scale(-1, 1)
       ctx.rotate(Math.PI)
@@ -433,12 +428,13 @@ export function drawPlayerArm(ctx: CanvasRenderingContext2D, params: PlayerArmPa
   if (params.shieldGlyph) {
     const { shieldX: shX, shieldY: shY, shieldR: shR } = params
     if (isWeaponEmoji(params.shieldGlyph)) {
-      // Emoji shield (🛡️) is already a shield image — draw it ONCE at the shield size, no steel disc and
-      // no black-shadow double (that garbled it into a blob over a blue circle).
-      ctx.font = `${shR * 2}px ${ASCII_FONT}`
-      ctx.textAlign = 'center'
-      ctx.textBaseline = 'middle'
-      ctx.fillText(params.shieldGlyph, shX, shY)
+      // Emoji shield (🛡️) is already a shield image — draw it ONCE at the shield size through the pose path
+      // (no steel disc, no black-shadow double). facingDir=1: the shield never mirrors with the facing, so
+      // an absent pose reproduces today's plain fillText(shX,shY) exactly.
+      ctx.save()
+      ctx.translate(shX, shY)
+      drawPoseGlyph(ctx, params.shieldGlyph, params.shieldPose, 1, shR * 2)
+      ctx.restore()
     } else {
       // ASCII shield glyph: a FILLED disc behind the glyph so it reads as a solid shield.
       ctx.beginPath()
