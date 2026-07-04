@@ -1179,35 +1179,6 @@ export function drawIsoBuilding(
     )
   }
 
-  // A row of small windows on a wall face: `base` = the face's bottom-left ground corner, `axis` =
-  // its bottom edge vector (full span), `count` evenly-spaced lights at mid-wall height. Glass fill
-  // + dark frame mirrors the front facade so the side/back walls read as windowed, not blank.
-  const wallWindows = (base: Pt, axis: Pt, count: number): void => {
-    if (bodyH < 1) return
-    const slot = 1 / count
-    const halfW = slot * 0.26 // window half-width as a fraction of the wall span
-    const sill = up(bodyH * 0.46) // window bottom, ~mid wall
-    const winH = up(bodyH * 0.42) // window height
-    ctx.lineWidth = Math.max(1, cellH * 0.06)
-    for (let i = 0; i < count; i++) {
-      const t = (i + 0.5) * slot
-      const bl = ptAdd(ptAdd(base, ptScale(axis, t - halfW)), sill)
-      const br = ptAdd(ptAdd(base, ptScale(axis, t + halfW)), sill)
-      const tl = ptAdd(bl, winH)
-      const tr = ptAdd(br, winH)
-      ctx.beginPath()
-      ctx.moveTo(bl.x, bl.y)
-      ctx.lineTo(br.x, br.y)
-      ctx.lineTo(tr.x, tr.y)
-      ctx.lineTo(tl.x, tl.y)
-      ctx.closePath()
-      ctx.fillStyle = facadeColors.window
-      ctx.fill()
-      ctx.strokeStyle = darkenColor(wallC, 0.45)
-      ctx.stroke()
-    }
-  }
-
   // `/\` chevrons marching along a roof SIDE face's centre line (front→back), in a darker roof
   // tone — so the roof reads as shingled from the side too, like draw2DBuilding's roof glyph.
   const roofChevrons = (frontMid: Pt, backMid: Pt, count: number): void => {
@@ -1269,13 +1240,8 @@ export function drawIsoBuilding(
   ctx.fillStyle = wallRight
   fillQuad(ctx, fbr, bbr, eave(bbr), eave(fbr)); tileFace(fbr, bbr, eave(fbr), wallTileDV, b.depth, bodyH) // right
 
-  // Windows on the faces the front facade doesn't cover: both sides + the plain (non-facade) wall.
-  const depthWindows = Math.max(2, Math.min(3, Math.round(b.depth)))
-  const lenWindows = Math.max(2, Math.min(3, Math.round(L / 2)))
-  wallWindows(fbl, depthVec, depthWindows) // left wall
-  wallWindows(fbr, depthVec, depthWindows) // right wall
-  if (b.facadeOnBack) wallWindows(fbl, ptScale(colVec, L), lenWindows) // plain FRONT wall (camera side)
-  else wallWindows(bbl, ptScale(colVec, L), lenWindows) // plain BACK wall
+  // Windows live ONLY on the front-facing facade (drawFacade paints the real door/window cells there).
+  // The side + back walls stay blank — no painted windows on non-front-facing faces.
 
   // ── ROOF (all faces red) ──
   if (peaked) {
