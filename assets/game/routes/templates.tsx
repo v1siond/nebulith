@@ -1420,6 +1420,8 @@ export default function TemplateEditor() {
       __entityInfo?: () => unknown
       __entityScreens?: () => Array<{ id: string; kind: string; variant: string | null; x: number | null; y: number | null }>
       __selectEntity?: (id: string) => string
+      __setEntitySize?: (id: string, size: number) => number
+      __scatter?: () => void
       __selectedEntityInfo?: () => unknown
       __placeBuilding?: (type: string, col: number, row: number) => void
       __selectBuilding?: (i: number) => number | null
@@ -1492,6 +1494,10 @@ export default function TemplateEditor() {
     // Select an entity DIRECTLY (bypassing the click hit-test) to isolate whether selection-display works
     // from whether click-MAPPING works.
     win.__selectEntity = (id: string) => { setSelectedEntityId(id); return id }
+    // Set an entity's render SIZE by id (a boss) — automation/validation hook, mirrors the Inspector's
+    // Size control (rescales stats by the same ratio). Same family as __resizeBuilding.
+    win.__setEntitySize = (id: string, size: number) => { resizeEntityById(id, size); return size }
+    win.__scatter = () => randomizeEntities() // scatter enemies + an npc (mirrors the ⤳ Scatter button)
     // What the inspector currently considers selected + its animation frames (the exact thing the user sees).
     win.__selectedEntityInfo = () => {
       const id = selectedEntityIdRef.current
@@ -1552,7 +1558,7 @@ export default function TemplateEditor() {
       setSelectedCells(new Set([`${best.col},${best.row}`]))
       return best
     }
-    return () => { delete win.__setArtStyle; delete win.__selectFirstTreeCell; delete win.__setView; delete win.__gridKinds; delete win.__entityInfo; delete win.__entityScreens; delete win.__selectEntity; delete win.__selectedEntityInfo; delete win.__placeBuilding; delete win.__selectBuilding; delete win.__resizeBuilding; delete win.__selectedBuildingLen; delete win.__cellSel; delete win.__selectCells; delete win.__applyCellTile; delete win.__clearRegion; delete win.__setDebug; delete win.__cellLabels }
+    return () => { delete win.__setArtStyle; delete win.__selectFirstTreeCell; delete win.__setView; delete win.__gridKinds; delete win.__entityInfo; delete win.__entityScreens; delete win.__selectEntity; delete win.__setEntitySize; delete win.__scatter; delete win.__selectedEntityInfo; delete win.__placeBuilding; delete win.__selectBuilding; delete win.__resizeBuilding; delete win.__selectedBuildingLen; delete win.__cellSel; delete win.__selectCells; delete win.__applyCellTile; delete win.__clearRegion; delete win.__setDebug; delete win.__cellLabels }
   }, [])
 
   // ── Selected-entity inspector actions ─────────────────────────────
@@ -1560,13 +1566,12 @@ export default function TemplateEditor() {
     if (!selectedEntityId) return
     setEntities(prev => prev.map(e => (e.id === selectedEntityId ? { ...e, ...patch } : e)))
   }
-  /** Set the selected entity's render SIZE (a boss draws bigger). Rescales the stat block by the size
-   *  RATIO so the figure and its stats stay in step (makeEnemy scales at creation; this keeps an
-   *  in-editor change consistent). size 1 drops the field (a normal-sized entity carries no size). */
-  const setSelectedEntitySize = (nextSize: number) => {
-    if (!selectedEntityId) return
+  /** Set an entity's render SIZE (a boss draws bigger). Rescales the stat block by the size RATIO so the
+   *  figure and its stats stay in step (makeEnemy scales at creation; this keeps an in-editor change
+   *  consistent). size 1 drops the field (a normal-sized entity carries no size). */
+  const resizeEntityById = (id: string, nextSize: number) => {
     setEntities(prev => prev.map(e => {
-      if (e.id !== selectedEntityId) return e
+      if (e.id !== id) return e
       const ratio = nextSize / (e.size ?? 1)
       const s = e.baseStats
       const baseStats = ratio === 1 ? s : {
@@ -1581,6 +1586,9 @@ export default function TemplateEditor() {
       else delete next.size
       return next
     }))
+  }
+  const setSelectedEntitySize = (nextSize: number) => {
+    if (selectedEntityId) resizeEntityById(selectedEntityId, nextSize)
   }
   const deleteSelectedEntity = () => {
     if (!selectedEntityId) return
