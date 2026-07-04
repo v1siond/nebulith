@@ -1,4 +1,4 @@
-import { generateStage } from '@/engine/stageGenerator'
+import { generateStage, treeColumnClearsPaving } from '@/engine/stageGenerator'
 import { planVillage, type Plot } from '@/engine/villageLayout'
 import { composeBuilding } from '@/engine/buildingComposer'
 
@@ -138,6 +138,32 @@ describe('settlement building placement (consumer matches planner contract)', ()
         }
       }
       expect(sawFountain).toBe(true) // the fountain (not the rare pond) is the dominant centrepiece
+    }
+  })
+
+  // A tree is a 4-cell vertical column (trunk → canopy). It used to be rejected only when its ANCHOR
+  // (trunk base) sat on paved ground, so a tree planted on grass just south of the stone plaza rose its
+  // canopy UP over the square + fountain — the "trees weirdly in the centre, not on grass" bug. The whole
+  // column must clear paving.
+  test('treeColumnClearsPaving rejects a column whose CANOPY (not just the trunk) rises over paving', () => {
+    const grass = (): string[][] => Array.from({ length: 6 }, () => ['grass', 'grass', 'grass'])
+    // base at (col 1, row 5): the 4-cell column covers rows 5,4,3,2.
+    expect(treeColumnClearsPaving(grass(), 1, 5)).toBe(true) // all grass → fits
+    const anchorPaved = grass(); anchorPaved[5][1] = 'path_stone'
+    expect(treeColumnClearsPaving(anchorPaved, 1, 5)).toBe(false) // trunk base on the plaza → rejected
+    const canopyPaved = grass(); canopyPaved[3][1] = 'path_stone' // a CANOPY cell over the plaza
+    expect(treeColumnClearsPaving(canopyPaved, 1, 5)).toBe(false) // anchor grass but canopy over paving → rejected
+  })
+
+  test('town: every tree cell stands on GRASS — never on the paved plaza or roads', () => {
+    const GRASS = new Set(['grass', 'grass_tall'])
+    for (const seed of [12345, 777, 42, 1, 2, 3, 7, 99]) {
+      const { stage } = genWithSeed('town', seed)
+      const treeCells = stage.props.filter(p => p.type === 'tree')
+      expect(treeCells.length).toBeGreaterThan(0) // a spring town is leafy
+      for (const t of treeCells) {
+        expect(GRASS.has(stage.ground[t.row][t.col])).toBe(true)
+      }
     }
   })
 

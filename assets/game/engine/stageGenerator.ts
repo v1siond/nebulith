@@ -590,9 +590,12 @@ function fillVillageNature(ctx: ArchetypeContext, layout: VillageLayout, natureM
   for (let i = 0; i < attempts; i++) {
     const col = randInt(2, cols - 3)
     const row = randInt(TREE_HEIGHT, rows - 3)
-    if (BUILT_FLOOR.has(ground[row][col])) continue
-    // the tree's WHOLE column must avoid streets + buildings — a door is walkable, so a trunk
-    // could otherwise rise into it from BELOW and block it.
+    // The tree's WHOLE 4-cell column — canopy included, not just the trunk base — must clear PAVED floors
+    // (the stone plaza, driveways, roads). A tree planted on grass just south of the town square used to
+    // rise its canopy UP over the paved plaza + fountain (the "trees weirdly in the centre, not on grass"
+    // bug); checking every column cell keeps the whole tree off the square.
+    if (!treeColumnClearsPaving(ground, col, row)) continue
+    // …and off buildings — a door is walkable, so a trunk could otherwise rise into it from BELOW.
     let clearColumn = true
     for (let h = 0; h < TREE_HEIGHT; h++) {
       const rr = row - h
@@ -1414,6 +1417,21 @@ function treeFits(collision: boolean[][], baseCol: number, baseRow: number, cols
     if (collision[baseRow - i][baseCol]) return false
   }
   return hasOpenLateralNeighbour(collision, baseCol, topRow, cols, rows)
+}
+
+/**
+ * A tree's WHOLE vertical column (trunk base → canopy top) must stand on UNPAVED ground — not just its
+ * trunk base. `treeFits` only guards collision; this guards the GROUND. A tree planted on grass just
+ * south of the town square used to rise its canopy up over the paved plaza + fountain (the "trees weirdly
+ * in the centre, not on grass, collision mixing with the fountain" bug) because only the anchor cell was
+ * checked for paving. Rejecting a column with ANY paved cell keeps the whole tree off the square, roads,
+ * and driveways. Pure — reads `ground` only.
+ */
+export function treeColumnClearsPaving(ground: string[][], col: number, baseRow: number): boolean {
+  for (let h = 0; h < TREE_HEIGHT; h++) {
+    if (BUILT_FLOOR.has(ground[baseRow - h]?.[col])) return false
+  }
+  return true
 }
 
 /** True if the cell has an open (walkable) horizontal neighbour — keeps a stamped
