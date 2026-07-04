@@ -165,6 +165,13 @@ let _debugMode = false
 export const isDebugMode = (): boolean => _debugMode
 export const setDebugMode = (v: boolean): void => { _debugMode = v }
 
+// Collision overlay flag — a lighter sibling of the debug overlay: it tints only the BLOCKED cells
+// (no coords, no tileset labels), so the raw collision layer is visible over the live game in any
+// view. Its own toggle so you can watch collisions without the busy debug labels.
+let _showCollisions = false
+export const isShowCollisions = (): boolean => _showCollisions
+export const setShowCollisions = (v: boolean): void => { _showCollisions = v }
+
 // Render function - ASCII art on isometric diamond tiles
 // Eased per-entity render position (fractional cell) so run-patrol steps GLIDE in the
 // iso view instead of teleporting. Ephemeral render cache keyed by entity id.

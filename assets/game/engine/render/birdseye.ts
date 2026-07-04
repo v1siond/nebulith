@@ -9,7 +9,7 @@ import { type PlayerState, barFraction, hpFraction } from '@/game/runtime/player
 import { type CombatState, type Entity, type Quest } from '@/game/types'
 import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 import { Connector } from '@/lib/api'
-import { ASCII_FONT, BUILDING_BADGES, type DayNight, LAMP_GLOW, applyCellTransform, clampCameraAxis, collectLampGlows, debugCellCaptions, debugLabelColors, drawHitMarker, drawHpBar, drawNightLighting, drawQuestMarker, drawStyledImage, grassShade, cellFill, isDeadEnemy, isDebugMode, resolveDraw, assetOverride } from './shared'
+import { ASCII_FONT, BUILDING_BADGES, type DayNight, LAMP_GLOW, applyCellTransform, clampCameraAxis, collectLampGlows, debugCellCaptions, debugLabelColors, drawHitMarker, drawHpBar, drawNightLighting, drawQuestMarker, drawStyledImage, grassShade, cellFill, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, assetOverride } from './shared'
 import { ASCII_STYLE, assetKind, entityKind, entityStyleOverride, genderize, groundKind, personVariantTileId, type Style } from '@/game/artStyle'
 
 
@@ -185,6 +185,12 @@ export function renderTopView(
       if (dv.image) drawStyledImage(ctx, dv.image, gx, gy, tileSize)
       else ctx.fillText(dv.char, gx, gy)
       if (ctTop) ctx.restore()
+
+      // Collision overlay: tint blocked cells for the debug overlay OR the lighter "show collisions" toggle.
+      if ((isDebugMode() || isShowCollisions()) && grid.collision[row]?.[col]) {
+        ctx.fillStyle = 'rgba(255, 50, 50, 0.4)'
+        ctx.fillRect(x, y, tileSize - 1, tileSize - 1)
+      }
 
       // Height indicator (show in corner if height > 0)
       const cellHeight = grid.getHeight(col, row)

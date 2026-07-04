@@ -17,7 +17,7 @@ import { type CombatState, type Entity, type Quest } from '@/game/types'
 import { resolveGroundTile } from '@/engine/tileset/tileset'
 import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 import { Connector } from '@/lib/api'
-import { ASCII_FONT, BUILDING_BADGES, COMBAT_RANGE, type DayNight, type DrawVisual, ENEMY_MOVE_MS, LAMP_GLOW, LIGHT, applyCellTransform, isoCameraFocus, assetCaptionByCell, terrainLabelAt, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawHoverRing, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, frameImage, getPlayerArt, grassShade, cellFill, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, resolveDraw, assetOverride, tileImage, treeCanopyLayers } from './shared'
+import { ASCII_FONT, BUILDING_BADGES, COMBAT_RANGE, type DayNight, type DrawVisual, ENEMY_MOVE_MS, LAMP_GLOW, LIGHT, applyCellTransform, isoCameraFocus, assetCaptionByCell, terrainLabelAt, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawHoverRing, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, frameImage, getPlayerArt, grassShade, cellFill, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, assetOverride, tileImage, treeCanopyLayers } from './shared'
 import { ASCII_STYLE, assetKind, entityKind, entityStyleOverride, genderize, groundKind, personVariantTileId, type ElementKind, type ImageVisual, type Style } from '@/game/artStyle'
 import { DEFAULT_CHARACTER_ANIMATIONS, activeFrame } from '@/game/runtime/entityAnimation'
 
@@ -592,6 +592,9 @@ export function render(
 
   if (isDebugMode()) {
     renderDebugOverlays(ctx, w, h, grid, player, (wx, wz) => toScreen(wx / cellSize, wz / cellSize), cellSize)
+  } else if (isShowCollisions()) {
+    // Collision-only overlay: same red diamonds as debug, no coords/labels.
+    renderDebugOverlays(ctx, w, h, grid, player, (wx, wz) => toScreen(wx / cellSize, wz / cellSize), cellSize, false)
   }
 
   // ─── UI ───────────────────────────────────────────────────────────
@@ -1947,7 +1950,8 @@ export function renderDebugOverlays(
   grid: IsometricGrid,
   player: PlayerState,
   toScreen: (wx: number, wz: number) => { x: number; y: number },
-  cellSize: number
+  cellSize: number,
+  labels = true, // false → COLLISION-ONLY overlay (red tint on blocked cells, no coords/labels/player tag)
 ) {
   const tilesX = Math.ceil(w / 32) + 10
   const tilesZ = Math.ceil(h / 20) + 10
@@ -1960,7 +1964,7 @@ export function renderDebugOverlays(
 
   // Per-cell TILESET LABEL: the asset caption where a cell carries a placed element, else the terrain
   // autotile label computed PER VISIBLE CELL (not a whole-grid rebuild — that was the debug perf sink).
-  const assetCaps = assetCaptionByCell(grid.getVisibleAssets(Math.floor(player.x / cellSize), Math.floor(player.z / cellSize), 30, 20))
+  const assetCaps = labels ? assetCaptionByCell(grid.getVisibleAssets(Math.floor(player.x / cellSize), Math.floor(player.z / cellSize), 30, 20)) : new Map()
 
   // Pass 1: collision tint + per-cell coords + the cell's <TYPE> <POSITION> label (fit to the diamond)
   for (let rz = 0; rz < tilesZ; rz++) {
@@ -1992,6 +1996,8 @@ export function renderDebugOverlays(
         ctx.fill()
       }
 
+      if (!labels) continue // collision-only overlay: tint blocked cells, skip the coords + label
+
       // Tiny coords in the cell (top-left of the diamond), so the centred label stays readable.
       ctx.font = `${Math.max(6, tileH * 0.42)}px ${ASCII_FONT}`
       ctx.textAlign = 'left'
@@ -2006,6 +2012,8 @@ export function renderDebugOverlays(
       drawCellLabel(ctx, text, p.x, p.y, tileW * 1.7, lc.fg, lc.bg)
     }
   }
+
+  if (!labels) return // collision-only overlay ends here — no PLAYER tag
 
   // Player label
   const playerP = toScreen(player.x, player.z)

@@ -1,4 +1,4 @@
 export { render } from './iso'
 export { render2D } from './topdown'
 export { renderTopView } from './birdseye'
-export { clampCameraAxis, isoCameraFocus, entityMotion, ENEMY_MOVE_MS, isDebugMode, setDebugMode, cellCaptionMap, type DayNight } from './shared'
+export { clampCameraAxis, isoCameraFocus, entityMotion, ENEMY_MOVE_MS, isDebugMode, setDebugMode, isShowCollisions, setShowCollisions, cellCaptionMap, type DayNight } from './shared'

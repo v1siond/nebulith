@@ -52,7 +52,7 @@ import { type Trigger, type TriggerEffect, fireTriggers } from '@/game/runtime/t
 import { ASCII_STYLE, type Style, styleById, groundKind, assetKind, entityKind, genderize, resolveVisual, visualForTileId } from '@/game/artStyle'
 import { useRouter } from 'next/router'
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
-import { render, render2D, renderTopView, clampCameraAxis, isoCameraFocus, entityMotion, ENEMY_MOVE_MS, isDebugMode, setDebugMode, cellCaptionMap, type DayNight } from '@/engine/render'
+import { render, render2D, renderTopView, clampCameraAxis, isoCameraFocus, entityMotion, ENEMY_MOVE_MS, isDebugMode, setDebugMode, isShowCollisions, setShowCollisions as setCollisionsFlag, cellCaptionMap, type DayNight } from '@/engine/render'
 import { loadTilesetsFromBackend, saveTilesetToBackend } from '@/engine/tileset/tilesetLoader'
 import { EMOJI_TILESET, setTilePose } from '@/engine/tileset/emojiTileset'
 import { type TilePose } from '@/engine/tileset/pose'
@@ -95,6 +95,7 @@ export default function TemplateEditor() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const gridRef = useRef<IsometricGrid | null>(null)
   const [showDebug, setShowDebug] = useState(false)
+  const [showCollisions, setShowCollisions] = useState(false) // lighter overlay: tint blocked cells only
   const [showTopView, setShowTopView] = useState(false)
   const [showFlowView, setShowFlowView] = useState(false)
   // GAMES view — a full overlay (like Flow) listing playable flows + a game editor.
@@ -403,10 +404,13 @@ export default function TemplateEditor() {
     const savedDebug = localStorage.getItem('village-debug') === 'true'
     const savedTopView = localStorage.getItem('village-topview') === 'true'
     const savedZoom = parseFloat(localStorage.getItem('village-topview-zoom') || '1.0')
+    const savedCollisions = localStorage.getItem('village-show-collisions') === 'true'
     setDebugMode(savedDebug)
+    setCollisionsFlag(savedCollisions)
     topViewMode = savedTopView
     zoomRef.current = savedZoom
     setShowDebug(savedDebug)
+    setShowCollisions(savedCollisions)
     setShowTopView(savedTopView)
     setTopViewZoom(savedZoom)
   }, [])
@@ -414,10 +418,11 @@ export default function TemplateEditor() {
   // Save view state to localStorage when it changes
   useEffect(() => {
     localStorage.setItem('village-debug', showDebug.toString())
+    localStorage.setItem('village-show-collisions', showCollisions.toString())
     localStorage.setItem('village-topview', showTopView.toString())
     localStorage.setItem('village-topview-zoom', topViewZoom.toString())
     zoomRef.current = topViewZoom
-  }, [showDebug, showTopView, topViewZoom])
+  }, [showDebug, showCollisions, showTopView, topViewZoom])
 
   // ── View controls ────────────────────────────────────────────────
   // The game loop + renderers read the module-level view globals directly, while
@@ -482,6 +487,10 @@ export default function TemplateEditor() {
   const toggleDebug = () => {
     setDebugMode(!isDebugMode())
     setShowDebug(d => !d)
+  }
+  const toggleCollisions = () => {
+    setCollisionsFlag(!isShowCollisions())
+    setShowCollisions(c => !c)
   }
 
   // Derived: which view is active (for highlighting the view buttons)
@@ -5680,6 +5689,15 @@ export default function TemplateEditor() {
                       }`}
                     >
                       Debug overlay {showDebug ? 'on' : 'off'}
+                    </button>
+                    <button
+                      onClick={toggleCollisions}
+                      aria-pressed={showCollisions}
+                      className={`mt-2 w-full rounded px-2 py-1 text-xs font-bold transition-colors ${
+                        showCollisions ? 'bg-red-600' : 'bg-gray-700 hover:bg-gray-600'
+                      }`}
+                    >
+                      Show collisions {showCollisions ? 'on' : 'off'}
                     </button>
                     <button
                       onClick={() => setHideEntities(h => !h)}

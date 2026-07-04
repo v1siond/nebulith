@@ -19,7 +19,7 @@ import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 import { EMOJI_TILESET } from '@/engine/tileset/emojiTileset'
 import { applyPose } from '@/engine/tileset/pose'
 import { Connector } from '@/lib/api'
-import { ASCII_FONT, BUILDING_BADGES, COMBAT_RANGE, type DayNight, ENEMY_MOVE_MS, LAMP_GLOW, applyCellTransform, clampCameraAxis, assetCaptionByCell, terrainLabelAt, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawHoverRing, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, frameImage, getPlayerArt, grassShade, cellFill, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, resolveDraw, assetOverride, treeCanopyLayers } from './shared'
+import { ASCII_FONT, BUILDING_BADGES, COMBAT_RANGE, type DayNight, ENEMY_MOVE_MS, LAMP_GLOW, applyCellTransform, clampCameraAxis, assetCaptionByCell, terrainLabelAt, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawHoverRing, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, frameImage, getPlayerArt, grassShade, cellFill, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, assetOverride, treeCanopyLayers } from './shared'
 import { ASCII_STYLE, assetKind, entityKind, entityStyleOverride, genderize, groundKind, personVariantTileId, type ElementKind, type Style } from '@/game/artStyle'
 import { DEFAULT_CHARACTER_ANIMATIONS, activeFrame } from '@/game/runtime/entityAnimation'
 
@@ -936,23 +936,23 @@ export function render2D(
   // ─── DEBUG OVERLAY ─────────────────────────────────────────────────
   // Mirrors the iso renderDebugOverlays: a collision tint + per-cell coords on every
   // cell, then a TYPE (+ corner/edge) caption above each asset, then a PLAYER tag.
-  if (isDebugMode()) {
+  // Pass 1: collision tint — shown for the DEBUG overlay OR the lighter "show collisions" overlay.
+  // The height numbers are a debug-only extra (kept off the collision-only view).
+  if (isDebugMode() || isShowCollisions()) {
     ctx.globalAlpha = 0.6
-    // Pass 1: collision tint + height numbers
     for (let row = startRow; row < startRow + tilesY; row++) {
       for (let col = startCol; col < startCol + tilesX; col++) {
         if (col < 0 || col >= grid.cols || row < 0 || row >= grid.rows) continue
         const p = toScreen(col + 0.5, row + 0.5)
         const isCollision = grid.collision[row]?.[col]
-        const cellHeight = grid.getHeight(col, row)
 
         if (isCollision) {
           ctx.fillStyle = 'rgba(255, 50, 50, 0.4)'
           ctx.fillRect(p.x - tileW / 2, p.y - tileH / 2, tileW, tileH)
         }
 
-        // Show height numbers (2D-only extra) above the coords so they don't collide
-        if (cellHeight > 0) {
+        const cellHeight = grid.getHeight(col, row)
+        if (isDebugMode() && cellHeight > 0) {
           ctx.fillStyle = '#ffff00'
           ctx.font = `bold ${tileH * 0.4}px ${ASCII_FONT}`
           ctx.textAlign = 'center'
@@ -962,7 +962,9 @@ export function render2D(
       }
     }
     ctx.globalAlpha = 1
+  }
 
+  if (isDebugMode()) {
     // Grid lines + the per-cell TILESET LABEL. EVERY cell shows its <TYPE> <POSITION> autotile key —
     // the terrain label (GRASS TOP-LEFT …) or, where a cell carries a placed element, its asset caption
     // (BUILDING TOP-LEFT, TREE CANOPY …). Each label is centred IN its own cell + shrunk to fit, so it
