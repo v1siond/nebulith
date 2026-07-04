@@ -1262,6 +1262,15 @@ export function drawIsoBuilding(
   fillQuad(ctx, fbl, fbr, bbr, bbl)
   ctx.restore()
 
+  // East/west facades run their columns UP the grid ROWS (colVec is the -row step) starting at the
+  // building's FRONT edge (facade column 0), but doorCellFor/gridBuildingFacing index the reserved
+  // entrance from the BACK (rect.row) — so the authored door column (floor(L/2)) lands MIRROR-flipped,
+  // off the real driveway for even frontages (#31). Reverse the column mapping for the row-axis facings
+  // (facing 1 = east/west) so authored facade column c sits on grid frontage cell c, landing the door on
+  // doorCellFor's entrance for all four facings. Axis-aligned (south/north) facades already match 1:1.
+  const rowAxisFacing = (b.facing ?? 0) === 1
+  const facadeCol = (c: number): number => (rowAxisFacing ? L - 1 - c : c)
+
   // Paint the facade tiles (door/wall/roof) onto one face. `base` is that face's bottom-left corner.
   // Authored WINDOW cells are intentionally skipped here: every building's windows are painted by the
   // single deterministic `wallWindows` pass below (front + both sides), so a house's front windows read
@@ -1272,7 +1281,7 @@ export function drawIsoBuilding(
       for (let c = 0; c < L; c++) {
         const kind = b.cells[r]?.[c]
         if (!kind || kind === 'empty' || kind === 'window') continue
-        const bl = ptAdd(ptAdd(base, ptScale(colVec, c)), up(H - 1 - r))
+        const bl = ptAdd(ptAdd(base, ptScale(colVec, facadeCol(c))), up(H - 1 - r))
         drawIsoFacadeTile(ctx, bl, colVec, vCell, kind, flicker, facadeColors, style, wallTile, wallImage)
       }
     }
