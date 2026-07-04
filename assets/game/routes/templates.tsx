@@ -560,12 +560,10 @@ export default function TemplateEditor() {
     // Under a reskin style, the hero holds a real ⚔️/🏹/🪄/🛡️ emoji; ASCII keeps the drawn glyph.
     const emojiHands = activeStyleId !== 'ascii'
     const heldWeapon = mainWeapon ?? playerWeaponRef.current
-    const poseStyle = emojiHands ? 'emoji' : 'ascii'
     playerRef.current.weaponGlyph = emojiHands ? weaponEmoji(heldWeapon) : weaponGlyph(heldWeapon)
     playerRef.current.shieldGlyph = shield ? (emojiHands ? weaponEmoji(shield) : weaponGlyph(shield)) : ''
-    // The weapon/shield POSE rides alongside the glyph so the arm renderer positions it from tileset data.
-    playerRef.current.weaponPose = weaponPose(heldWeapon?.kind, poseStyle)
-    playerRef.current.shieldPose = weaponPose(shield?.kind, poseStyle)
+    // The weapon/shield POSE is re-read from the tileset each frame in the render loop (so the live Pose
+    // editor retunes the equipped weapon in-scene) — not cached here.
     playerRef.current.armored = armored
     // Per-entity character tone (deterministic by id) so the player varies like NPCs do;
     // the armored steel-blue still overrides this in the render. No player entity → gold default.
@@ -3993,6 +3991,11 @@ export default function TemplateEditor() {
           entityCount: entitiesRef.current.length,
         }
       }
+      // Re-read the held weapon/shield pose from the tileset EVERY frame, so the Pose editor's sliders
+      // retune the equipped weapon live in-scene — the pose is DATA in the tileset, not a cached snapshot.
+      const poseStyleNow = activeStyleRef.current.id === 'ascii' ? 'ascii' : 'emoji'
+      player.weaponPose = weaponPose(playerWeaponRef.current?.kind, poseStyleNow)
+      player.shieldPose = weaponPose(playerShieldRef.current?.kind, poseStyleNow)
       if (flowViewMode) {
         // Flow view is handled by React overlay, just clear canvas
         ctx.fillStyle = '#0a0a12'
