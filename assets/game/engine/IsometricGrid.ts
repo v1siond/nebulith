@@ -81,6 +81,10 @@ export class IsometricGrid {
   // Grouped buildings for the ISO view (see GridBuilding). Empty for non-stage maps.
   buildings: GridBuilding[]
 
+  // Bumped on every ground/height edit so the 2D renderer can cache the static ground layer and rebuild
+  // it ONLY when the terrain actually changed (see render2D's _groundLayer).
+  groundVersion = 0
+
   constructor(config: GridConfig) {
     this.cols = config.cols
     this.rows = config.rows
@@ -147,6 +151,7 @@ export class IsometricGrid {
   // Set ground tile type
   setGround(col: number, row: number, type: string) {
     if (col >= 0 && col < this.cols && row >= 0 && row < this.rows) {
+      if (this.ground[row][col] !== type) this.groundVersion++
       this.ground[row][col] = type
     }
   }
@@ -179,6 +184,7 @@ export class IsometricGrid {
   // Set height at position
   setHeight(col: number, row: number, h: number) {
     if (col >= 0 && col < this.cols && row >= 0 && row < this.rows) {
+      if (this.height[row][col] !== h) this.groundVersion++
       this.height[row][col] = h
     }
   }

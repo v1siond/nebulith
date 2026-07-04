@@ -409,6 +409,18 @@ export function draw2DTownFountain(
 
 
 // 2D Render function - RPG-style 3/4 top-down view (like Pokemon/Zelda)
+export let twoDRenderMsEMA = 0 // rolling avg of render2D() ms, exposed on window.__2dRenderMs (perf probe)
+
+// The static ground layer, baked to an offscreen canvas and blitted per frame. The ground doesn't change
+// between frames (a reskin ground has NO time-varying term — the grass flicker is ASCII-only), so
+// re-resolving + re-drawing every visible cell EVERY frame is pure waste — the profile showed the 2D frame
+// is dominated by per-cell draw calls. We rebuild only when something that affects the ground changes
+// (its data, heights, camera, zoom, style, or canvas size); otherwise it's a single drawImage. This is the
+// idle-cost fix ("consuming resources while I watch youtube" — the RAF loop keeps rendering while nothing moves).
+let _groundLayer: { cv: HTMLCanvasElement; ctx: CanvasRenderingContext2D; key: string; grid: IsometricGrid } | null = null
+let _groundPendingKey = '' // the ground key seen LAST frame; we only bake once it repeats (camera held still),
+// so actively scrolling draws direct with no extra bake+blit penalty, and only a stationary scene caches.
+
 export function render2D(
   ctx: CanvasRenderingContext2D,
   w: number,
@@ -429,6 +441,7 @@ export function render2D(
   attackReach: number = 1,
   style: Style = ASCII_STYLE,
 ) {
+  const __t0 = typeof performance !== 'undefined' ? performance.now() : 0
   // Clear with sky/background color
   ctx.fillStyle = '#1a1a2e'
   ctx.fillRect(0, 0, w, h)
@@ -457,62 +470,104 @@ export function render2D(
   const startCol = Math.floor(camCol) - Math.floor(tilesX / 2)
   const startRow = Math.floor(camRow) - Math.floor(tilesY / 2)
 
-  // ─── GROUND LAYER ─────────────────────────────────────────────────
-  for (let row = startRow; row < startRow + tilesY; row++) {
-    for (let col = startCol; col < startCol + tilesX; col++) {
-      if (col < 0 || col >= grid.cols || row < 0 || row >= grid.rows) continue
+  // ─── GROUND LAYER (cached for reskins — see _groundLayer) ─────────
+  // Paint every visible ground cell into `tctx`. For a reskin this is a pure function of (ground data,
+  // heights, camera, zoom, style, size) — no per-frame term — so it's cacheable; ASCII keeps a live grass
+  // flicker so it always paints direct.
+  const paintGround = (tctx: CanvasRenderingContext2D): void => {
+    for (let row = startRow; row < startRow + tilesY; row++) {
+      for (let col = startCol; col < startCol + tilesX; col++) {
+        if (col < 0 || col >= grid.cols || row < 0 || row >= grid.rows) continue
 
-      const p = toScreen(col + 0.5, row + 0.5)
-      if (p.x < -tileW || p.x > w + tileW || p.y < -tileH || p.y > h + tileH) continue
+        const p = toScreen(col + 0.5, row + 0.5)
+        if (p.x < -tileW || p.x > w + tileW || p.y < -tileH || p.y > h + tileH) continue
 
-      const tileType = grid.ground[row]?.[col] || 'grass'
-      // Ground LOADS from the tileset (byte-identical noise selection); grass keeps its per-cell shade.
-      const gt = resolveGroundTile(ASCII_TILESET, tileType, col, row)
-      const char = gt.char
-      const fg = gt.fg
-      const bg = tileType.includes('grass') ? grassShade(gt.bg, col, row) : gt.bg
-      // Active art style (ASCII passthrough → the char+fg above, byte-identical). A reskin tints the
-      // flat cell at the tile hue, VARIED per cell (same deterministic noise ASCII grass uses) so an
-      // emoji field isn't flat-uniform; ASCII → bg (identical).
-      const gk = groundKind(tileType)
-      const gdv = resolveDraw(gk, style, undefined, char, fg)
-      // Cell fill: a reskin uses the tile's OWN colour (from the catalog DATA), but grass AND the rocky
-      // cave floor keep their per-cell shade so it isn't one flat sheet ("grass is just color"); ASCII → bg.
-      const fillBg = cellFill(gdv.tint, bg, tileType.includes('grass') || gk === 'cavefloor', col, row)
-      ctx.textAlign = 'center'
-      ctx.textBaseline = 'middle'
-      ctx.fillStyle = fillBg
-      ctx.fillRect(p.x - tileW / 2, p.y - tileH / 2, tileW, tileH)
-      if (gdv.tint || gdv.image) {
-        // RESKIN: draw the DATA tile FULL-CELL (no 'grid view'). The char + colour come from the tile
-        // data — NOT invented in JS; ground variety comes from the map's ground data / the catalog.
-        if (gdv.image) drawStyledImage(ctx, gdv.image, p.x, p.y, Math.max(tileW, tileH) * 1.02)
-        else { ctx.font = `${Math.max(tileW, tileH) * 1.04}px ${ASCII_FONT}`; ctx.fillText(gdv.char, p.x, p.y) }
-      } else {
-        // ASCII passthrough — byte-identical to before.
-        const grassFlicker = tileType.includes('grass') ? Math.sin(time * 0.001 + col * 0.3 + row * 0.4) * 0.1 + 1 : 1
-        ctx.fillStyle = gdv.color
-        ctx.globalAlpha = 0.85 + 0.15 * grassFlicker
-        ctx.font = `bold ${tileH * 0.7}px ${ASCII_FONT}`
-        ctx.fillText(gdv.char, p.x, p.y)
-        ctx.globalAlpha = 1
-      }
+        const tileType = grid.ground[row]?.[col] || 'grass'
+        // Ground LOADS from the tileset (byte-identical noise selection); grass keeps its per-cell shade.
+        const gt = resolveGroundTile(ASCII_TILESET, tileType, col, row)
+        const char = gt.char
+        const fg = gt.fg
+        const bg = tileType.includes('grass') ? grassShade(gt.bg, col, row) : gt.bg
+        // Active art style (ASCII passthrough → the char+fg above, byte-identical). A reskin tints the
+        // flat cell at the tile hue, VARIED per cell (same deterministic noise ASCII grass uses) so an
+        // emoji field isn't flat-uniform; ASCII → bg (identical).
+        const gk = groundKind(tileType)
+        const gdv = resolveDraw(gk, style, undefined, char, fg)
+        // Cell fill: a reskin uses the tile's OWN colour (from the catalog DATA), but grass AND the rocky
+        // cave floor keep their per-cell shade so it isn't one flat sheet ("grass is just color"); ASCII → bg.
+        const fillBg = cellFill(gdv.tint, bg, tileType.includes('grass') || gk === 'cavefloor', col, row)
+        tctx.textAlign = 'center'
+        tctx.textBaseline = 'middle'
+        tctx.fillStyle = fillBg
+        tctx.fillRect(p.x - tileW / 2, p.y - tileH / 2, tileW, tileH)
+        if (gdv.tint || gdv.image) {
+          // RESKIN: draw the DATA tile FULL-CELL (no 'grid view'). The char + colour come from the tile
+          // data — NOT invented in JS; ground variety comes from the map's ground data / the catalog.
+          if (gdv.image) drawStyledImage(tctx, gdv.image, p.x, p.y, Math.max(tileW, tileH) * 1.02)
+          else { tctx.font = `${Math.max(tileW, tileH) * 1.04}px ${ASCII_FONT}`; tctx.fillText(gdv.char, p.x, p.y) }
+        } else {
+          // ASCII passthrough — byte-identical to before.
+          const grassFlicker = tileType.includes('grass') ? Math.sin(time * 0.001 + col * 0.3 + row * 0.4) * 0.1 + 1 : 1
+          tctx.fillStyle = gdv.color
+          tctx.globalAlpha = 0.85 + 0.15 * grassFlicker
+          tctx.font = `bold ${tileH * 0.7}px ${ASCII_FONT}`
+          tctx.fillText(gdv.char, p.x, p.y)
+          tctx.globalAlpha = 1
+        }
 
-      // Height creates elevated platforms - draw "front face" if height > 0
-      const cellHeight = grid.getHeight(col, row)
-      if (cellHeight > 0) {
-        const elevH = cellHeight * heightScale
-        // Top surface (slightly brighter)
-        ctx.fillStyle = fillBg
-        ctx.fillRect(p.x - tileW / 2, p.y - tileH / 2 - elevH, tileW, tileH)
-        ctx.fillStyle = gdv.color
-        if (gdv.image) drawStyledImage(ctx, gdv.image, p.x, p.y - elevH, tileH)
-        else ctx.fillText(gdv.char, p.x, p.y - elevH)
-        // Front face (darker)
-        ctx.fillStyle = darkenColor(fillBg, 0.6)
-        ctx.fillRect(p.x - tileW / 2, p.y + tileH / 2 - elevH, tileW, elevH)
+        // Height creates elevated platforms - draw "front face" if height > 0
+        const cellHeight = grid.getHeight(col, row)
+        if (cellHeight > 0) {
+          const elevH = cellHeight * heightScale
+          // Top surface (slightly brighter)
+          tctx.fillStyle = fillBg
+          tctx.fillRect(p.x - tileW / 2, p.y - tileH / 2 - elevH, tileW, tileH)
+          tctx.fillStyle = gdv.color
+          if (gdv.image) drawStyledImage(tctx, gdv.image, p.x, p.y - elevH, tileH)
+          else tctx.fillText(gdv.char, p.x, p.y - elevH)
+          // Front face (darker)
+          tctx.fillStyle = darkenColor(fillBg, 0.6)
+          tctx.fillRect(p.x - tileW / 2, p.y + tileH / 2 - elevH, tileW, elevH)
+        }
       }
     }
+  }
+
+  // For a reskin the ground is static, so bake it once and blit — rebuild ONLY when the terrain
+  // (grid.groundVersion), camera, zoom, style or canvas size changes. This is the idle-cost fix: standing
+  // still (watching a video) no longer re-rasterizes the whole map every frame. ASCII paints live.
+  const canCacheGround = style.id !== ASCII_STYLE.id && typeof document !== 'undefined'
+  if (!canCacheGround) {
+    paintGround(ctx)
+  } else {
+    const key = `${grid.groundVersion}|${Math.round(camCol * 1000)}|${Math.round(camRow * 1000)}|${Math.round(zoom * 1000)}|${style.id}|${w}|${h}`
+    if (_groundLayer && _groundLayer.key === key && _groundLayer.grid === grid) {
+      ctx.drawImage(_groundLayer.cv, 0, 0) // HIT — the whole static ground in one blit
+    } else if (_groundPendingKey === key) {
+      // The camera has held this position for a frame → bake the ground now; from here it's a blit.
+      let layer = _groundLayer
+      if (!layer || layer.cv.width !== w || layer.cv.height !== h) {
+        const cv = document.createElement('canvas')
+        cv.width = w
+        cv.height = h
+        const lctx = cv.getContext('2d')
+        layer = lctx ? { cv, ctx: lctx, key: '', grid } : null
+      }
+      if (!layer) {
+        paintGround(ctx)
+      } else {
+        layer.ctx.clearRect(0, 0, w, h)
+        paintGround(layer.ctx)
+        layer.key = key
+        layer.grid = grid
+        _groundLayer = layer
+        ctx.drawImage(layer.cv, 0, 0)
+      }
+    } else {
+      // Moving (or first frame at this key) → draw straight to the screen, NO extra bake+blit cost.
+      paintGround(ctx)
+    }
+    _groundPendingKey = key
   }
 
   // ─── CONNECTOR MARKERS (one per owned cell, same purple ◊ as top view) ──
@@ -960,4 +1015,8 @@ export function render2D(
   ctx.fillText(`Pos: ${Math.floor(player.x)}, ${Math.floor(player.z)}`, 10, 30)
   ctx.fillStyle = isDebugMode() ? '#ff6666' : '#4488ff'
   ctx.fillText(isDebugMode() ? '2D DEBUG MODE' : '2D RPG MODE', 10, 50)
+
+  const __ms = (typeof performance !== 'undefined' ? performance.now() : 0) - __t0
+  twoDRenderMsEMA = twoDRenderMsEMA === 0 ? __ms : twoDRenderMsEMA * 0.9 + __ms * 0.1
+  if (typeof window !== 'undefined') (window as unknown as { __2dRenderMs?: number }).__2dRenderMs = twoDRenderMsEMA
 }
