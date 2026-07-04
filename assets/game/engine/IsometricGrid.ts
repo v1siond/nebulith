@@ -9,9 +9,6 @@
  */
 import type { AnimationCycle } from './animationCycles'
 import type { CellAnimation } from './cellAnimation'
-import { buildingHeightExtraCells, type BuildingCollisionView } from './buildingEditor'
-
-const EMPTY_BLOCK_SET: ReadonlySet<string> = new Set()
 
 export interface GridAsset {
   art: string[]
@@ -248,40 +245,6 @@ export class IsometricGrid {
   isWorldBlocked(x: number, z: number): boolean {
     const { col, row } = this.worldToGrid(x, z)
     return this.isBlocked(col, row)
-  }
-
-  // ── VIEW-AWARE collision (approach B) ──────────────────────────────────────
-  // `collision` is the flat top-view footprint (the positional guide). In the TALL views (2D/iso) a
-  // building keeps its drawn box and ALSO blocks the ground it rises over — buildingHeightExtraCells
-  // extrapolates that from the building's facade height. Cached per view; rebuilt when buildings change.
-  private _viewBlockedCache: Partial<Record<BuildingCollisionView, { sig: number; set: ReadonlySet<string> }>> = {}
-  private buildingsSignature(): number {
-    let s = this.buildings.length
-    for (const b of this.buildings) s = (s * 31 + b.col * 7 + b.row * 5 + b.length * 3 + b.height * 11 + ((b.facing ?? 0) + 1) * 13 + (b.cells?.length ?? 0) * 101) | 0
-    return s
-  }
-  private viewExtraBlocked(view: BuildingCollisionView): ReadonlySet<string> {
-    if (view === 'top') return EMPTY_BLOCK_SET
-    const sig = this.buildingsSignature()
-    const cached = this._viewBlockedCache[view]
-    if (cached && cached.sig === sig) return cached.set
-    const set = new Set<string>()
-    for (const b of this.buildings) for (const c of buildingHeightExtraCells(b, view)) set.add(`${c.col},${c.row}`)
-    this._viewBlockedCache[view] = { sig, set }
-    return set
-  }
-
-  /** isBlocked, but VIEW-AWARE: in 2D/iso a tall building also blocks the ground its drawn box covers. */
-  isBlockedInView(col: number, row: number, view: BuildingCollisionView): boolean {
-    if (this.isBlocked(col, row)) return true
-    if (view === 'top') return false
-    return this.viewExtraBlocked(view).has(`${col},${row}`)
-  }
-
-  /** World-space view-aware block test — movement uses this so the hero can't walk into a tall building. */
-  isWorldBlockedInView(x: number, z: number, view: BuildingCollisionView): boolean {
-    const { col, row } = this.worldToGrid(x, z)
-    return this.isBlockedInView(col, row, view)
   }
 
   // Get all assets sorted by depth for rendering

@@ -94,48 +94,6 @@ export function buildingFootprintCells(b: GridBuilding): { cells: Cell[]; door: 
   return { cells, door }
 }
 
-/** Which VIEW's collision we want: the flat top-view footprint, or a TALL view (2D/iso) that also blocks
- *  the ground the drawn box covers as it rises. */
-export type BuildingCollisionView = 'top' | 'td' | 'iso'
-
-// How many grid rows of screen-up a building's facade covers per facade row, PER VIEW. iso's screen-up
-// is the (-1,-1) diagonal — one diagonal step drops ~2 rows of iso screen-y, so a facade covers ~half its
-// rows in diagonal steps; 2D rises straight north, ~one grid row per facade row. Tunable against the
-// Show-collisions overlay (the tint must cover the drawn walls) — the USER is the source of truth.
-const ISO_RISE_FACTOR = 0.5
-const TD_RISE_FACTOR = 1
-
-/** The EXTRA ground cells a building blocks in a TALL view (2D/iso) BEYOND its flat footprint — the
- *  cells its drawn box covers as it rises up-screen (approach B: keep buildings tall, extend collision to
- *  match). Empty for 'top' (the flat footprint is the positional guide). iso rises along the (-1,-1) grid
- *  diagonal (straight up on the iso screen), 2D straight north (row-). The sweep length comes from the
- *  building's facade HEIGHT (b.cells.length) — "extrapolate height from the top". Excludes the footprint
- *  itself (already blocked via grid.collision). Pure → unit-tested + overlay-validated. */
-export function buildingHeightExtraCells(b: GridBuilding, view: BuildingCollisionView): Cell[] {
-  if (view === 'top') return []
-  const rect = buildingRect(b)
-  const facadeRows = Math.max(1, b.cells?.length ?? b.height)
-  const [dc, dr] = view === 'iso' ? [-1, -1] : [0, -1] // grid step per screen-up row
-  const reach = Math.max(1, Math.round(facadeRows * (view === 'iso' ? ISO_RISE_FACTOR : TD_RISE_FACTOR)))
-  const seen = new Set<string>()
-  for (let row = rect.row; row < rect.row + rect.h; row++)
-    for (let col = rect.col; col < rect.col + rect.w; col++) seen.add(`${col},${row}`) // footprint stays excluded
-  const extra: Cell[] = []
-  for (let row = rect.row; row < rect.row + rect.h; row++) {
-    for (let col = rect.col; col < rect.col + rect.w; col++) {
-      for (let k = 1; k <= reach; k++) {
-        const nc = col + dc * k
-        const nr = row + dr * k
-        const key = `${nc},${nr}`
-        if (seen.has(key)) continue
-        seen.add(key)
-        extra.push({ col: nc, row: nr })
-      }
-    }
-  }
-  return extra
-}
-
 /** True iff (col,row) lies on the building's footprint. */
 export function footprintContains(b: GridBuilding, col: number, row: number): boolean {
   const r = buildingRect(b)
