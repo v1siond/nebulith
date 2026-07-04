@@ -66,6 +66,10 @@ export let EMOJI_TILESET: Record<string, EmojiTile> = {
   npc: { char: '🧍', color: '#d9a066' },
   player: { char: '🧍', color: '#ffcf3a' },
 }
+// NOTE: weapons (sword/bow/…) and the bare-handed `fist` are NOT in this in-code default — they live only
+// in the DB-loaded tileset (emoji.json), exactly like the other combat tiles. Keeping them out of the
+// default keeps them out of the browseable TILE_CATALOG (which is derived from this default at import),
+// so `punchTile`/`weaponPose` read them from the loaded tileset when the backend is up.
 
 /** Swap the active emoji tileset (the DB-loaded emoji tiles). Call artStyle.rebuildEmojiStyle() after,
  *  so the derived EMOJI_STYLE.map picks up the new data. */

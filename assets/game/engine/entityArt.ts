@@ -267,6 +267,15 @@ export function weaponPose(kind: string | undefined, style: 'emoji' | 'ascii'): 
   return EMOJI_TILESET[kind]?.pose
 }
 
+/** The bare-handed PUNCH tile (glyph + pose) for the reskin styles — a real 👊 swung at the hand when the
+ *  hero fights unarmed, instead of the ASCII swing. Data-driven: reads the loaded tileset's `fist` entry
+ *  like the weapons read theirs. ASCII bare hands stay as they were (no glyph → the fist is emoji art). */
+export function punchTile(style: 'emoji' | 'ascii'): { glyph: string; pose?: TilePose } {
+  if (style !== 'emoji') return { glyph: '' }
+  const t = EMOJI_TILESET['fist']
+  return { glyph: t?.char ?? '', pose: t?.pose }
+}
+
 export function weaponGlyph(weapon?: { kind?: string; range?: string } | null): string {
   if (!weapon) return ''
   if (weapon.kind === 'unarmed') return '' // bare hands — the fist swings, no blade is drawn

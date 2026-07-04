@@ -330,6 +330,10 @@ export interface PlayerArmParams {
   weaponGlyph?: string
   /** the equipped weapon's POSE (orientation/size/flip) from the tileset — drives the emoji weapon draw. */
   weaponPose?: TilePose
+  /** bare-handed PUNCH glyph + pose (emoji 👊) — swung at the hand when UNARMED (no weaponGlyph) AND
+   *  swinging, via the SAME pose path as a weapon. Absent/'' → an unarmed swing draws no glyph (ASCII). */
+  punchGlyph?: string
+  punchPose?: TilePose
   /** default weapon top-fill colour (iso #e6e6e6 / 2D #e0e0e0) */
   weaponTint: string
   /** attack-driven tint that overrides weaponTint on the swing (ability recolour) */
@@ -393,18 +397,21 @@ export function drawPlayerArm(ctx: CanvasRenderingContext2D, params: PlayerArmPa
     // Under emoji/reskin the figure is a single glyph with its own arms — an ASCII `>`/`<` bracket next to
     // it is exactly the "ascii art on the emoji tileset" the player never wants. Only ASCII draws it.
     if (!params.isEmoji) ctx.fillText(armChar, facingDir * armR, 0)
-    if (weaponGlyph) {
+    // The swing carries the held weapon, or — bare-handed under a reskin — the 👊 fist (same pose path).
+    const swingGlyph = weaponGlyph || params.punchGlyph
+    const swingPose = weaponGlyph ? params.weaponPose : params.punchPose
+    if (swingGlyph) {
       ctx.translate(facingDir * (armR + charW), 0) // the hand, just past the bracket
       ctx.font = `bold ${weaponSize}px ${ASCII_FONT}`
-      if (isWeaponEmoji(weaponGlyph)) {
-        drawPoseGlyph(ctx, weaponGlyph, params.weaponPose, facingDir, fontSize)
+      if (isWeaponEmoji(swingGlyph)) {
+        drawPoseGlyph(ctx, swingGlyph, swingPose, facingDir, fontSize)
       } else {
         if (facingDir > 0) ctx.scale(-1, 1) // ASCII glyph: points OUTWARD in both facings (#54)
         ctx.rotate(Math.PI)
         ctx.fillStyle = '#000000'
-        ctx.fillText(weaponGlyph, 0, weaponSize * 0.45 + 1)
+        ctx.fillText(swingGlyph, 0, weaponSize * 0.45 + 1)
         ctx.fillStyle = swingTint ?? weaponTint
-        ctx.fillText(weaponGlyph, 0, weaponSize * 0.45)
+        ctx.fillText(swingGlyph, 0, weaponSize * 0.45)
       }
     }
     ctx.restore()

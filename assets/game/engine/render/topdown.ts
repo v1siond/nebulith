@@ -724,6 +724,8 @@ export function render2D(
         bodyColor,
         weaponGlyph: player.weaponGlyph,
         weaponPose: player.weaponPose,
+        punchGlyph: player.punchGlyph,
+        punchPose: player.punchPose,
         weaponTint: '#e0e0e0',
         swingTint: inHandSlash?.tint,
         shoulderX,

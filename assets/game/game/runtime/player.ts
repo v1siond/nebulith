@@ -32,6 +32,11 @@ export interface PlayerState {
    *  renderer applies it so the weapon's look is data-driven. Undefined → identity (no transform). */
   weaponPose?: TilePose
   shieldPose?: TilePose
+  /** bare-handed PUNCH glyph + pose (from the loaded tileset) — drawn at the swing hand when the hero is
+   *  unarmed AND mid-swing under a reskin style, so an unarmed attack shows a 👊 instead of ASCII. '' when
+   *  armed or ASCII (the equipped weapon / ASCII swing takes over). */
+  punchGlyph?: string
+  punchPose?: TilePose
   /** wearing any armor → the figure is tinted to show the upgrade. */
   armored?: boolean
   /** per-entity character tone (deterministic by the player entity's id) — the figure's body

@@ -22,7 +22,7 @@ import { buildingFootprintCells, canPlaceBuilding, facadeLength, footprintContai
 import { type AnimFrame, type AnimPreset, CELL_ANIM_PRESETS, type Ease, makeCellAnimation, restFrame } from '@/engine/cellAnimation'
 import { scaleCompositeToRegion } from '@/engine/compositeFill'
 import { findTriggeredConnector, normalizeConnector } from '@/engine/connectors'
-import { entityPalette, weaponEmoji, weaponGlyph, weaponPose } from '@/engine/entityArt'
+import { entityPalette, punchTile, weaponEmoji, weaponGlyph, weaponPose } from '@/engine/entityArt'
 import { isoFacadeOnBack, isoFacingIndex } from '@/engine/isoBuilding'
 import { assetFootprint, multiCellAssetById, stampAsset } from '@/engine/multiCellAssets'
 import { StageData, VariantId, generateStage, stagePaint } from '@/engine/stageGenerator'
@@ -3996,6 +3996,11 @@ export default function TemplateEditor() {
       const poseStyleNow = activeStyleRef.current.id === 'ascii' ? 'ascii' : 'emoji'
       player.weaponPose = weaponPose(playerWeaponRef.current?.kind, poseStyleNow)
       player.shieldPose = weaponPose(playerShieldRef.current?.kind, poseStyleNow)
+      // Bare-handed swing → a 👊 fist at the hand (emoji styles only), read from the same tileset each
+      // frame so a tuned fist pose is live too. Armed or ASCII → '' (the weapon / ASCII swing takes over).
+      const punch = punchTile(poseStyleNow)
+      player.punchGlyph = punch.glyph
+      player.punchPose = punch.pose
       if (flowViewMode) {
         // Flow view is handled by React overlay, just clear canvas
         ctx.fillStyle = '#0a0a12'

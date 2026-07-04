@@ -725,6 +725,8 @@ export function drawIsoPlayer(
     bodyColor,
     weaponGlyph: player.weaponGlyph,
     weaponPose: player.weaponPose,
+    punchGlyph: player.punchGlyph,
+    punchPose: player.punchPose,
     weaponTint: '#e6e6e6',
     swingTint,
     shoulderX,
