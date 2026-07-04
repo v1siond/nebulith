@@ -516,6 +516,14 @@ export default function TemplateEditor() {
     return () => document.body.classList.remove('flow-view-active')
   }, [showFlowView])
 
+  // The game-engine page fills all four screen corners with its own HUD/nav, so flag it on <body>
+  // and pull the global FPS overlay (mounted in _app, top-right) out of the top nav zone via CSS —
+  // it was overlapping the "More" button. Removed on unmount so other pages keep the default corner.
+  useEffect(() => {
+    document.body.classList.add('game-engine-active')
+    return () => document.body.classList.remove('game-engine-active')
+  }, [])
+
   // Keep connectors ref in sync
   useEffect(() => {
     connectorsRef.current = connectors
