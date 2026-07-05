@@ -34,6 +34,7 @@ defmodule NebulithWeb.Router do
     pipe_through :api
 
     resources "/tilesets", TilesetController, except: [:new, :edit]
+    resources "/templates", TemplateController, except: [:new, :edit]
   end
 
   # Enable LiveDashboard in development
