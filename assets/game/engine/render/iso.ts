@@ -1247,27 +1247,33 @@ export function drawIsoBuilding(
     )
   }
 
-  // A row of small windows on a wall FACE: `base` = the face's bottom-left ground corner, `axis` = its
-  // bottom edge vector (full span), `count` evenly-spaced lights at mid-wall height. Only drawn on the
-  // faces VISIBLE from the camera (front + the near side), never the hidden back/far side. Each slot draws
-  // the ACTUAL window TILE from the active tileset (🪟 image under Emoji, ⊞ glyph under ASCII), sheared onto
-  // the wall face exactly like the wall bricks / door — never a painted glass rectangle. Resolved once per
-  // building (kind-only, not per slot).
+  // Windows on a wall FACE, ONE ROW PER FLOOR — matching the 2D elevation. The window ROWS come straight
+  // from the facade grid (`b.cells`), the SAME data draw2DBuilding reads, so an N-floor building shows N
+  // floors of windows in iso too (not a single mid-wall row that read as one story). `base` = the face's
+  // bottom-left ground corner, `axis` = its bottom edge vector (full span), `count` evenly-spaced lights
+  // per row. Drawn only on the camera-VISIBLE faces (front + near side). Each slot draws the ACTUAL window
+  // TILE (🪟 image under Emoji, ⊞ glyph under ASCII) sheared onto the wall face, never a painted rectangle.
   const windowDV = resolveDraw('window', style, undefined, '⊞', facadeColors.window)
+  // Facade rows carrying a window → one iso window band each. drawFacade puts row r's cell BOTTOM at
+  // up(H-1-r), so a window centred in that cell sits at up(H-1-r + 0.28), half a block tall.
+  const windowRows: number[] = []
+  for (let r = 0; r < H; r++) if ((b.cells[r] ?? []).some(k => k === 'window')) windowRows.push(r)
+  const winH = up(0.5) // one window ≈ half a cell block tall (was ~half the WHOLE wall)
   const wallWindows = (base: Pt, axis: Pt, count: number): void => {
     if (bodyH < 1) return
     const slot = 1 / count
     const halfW = slot * 0.26 // window half-width as a fraction of the wall span
-    const sill = up(bodyH * 0.46) // window bottom, ~mid wall
-    const winH = up(bodyH * 0.42) // window height
-    for (let i = 0; i < count; i++) {
-      const t = (i + 0.5) * slot
-      const bl = ptAdd(ptAdd(base, ptScale(axis, t - halfW)), sill) // slot's bottom-left corner = the window face's origin
-      const br = ptAdd(ptAdd(base, ptScale(axis, t + halfW)), sill) // bottom-right (along the wall axis)
-      const tl = ptAdd(bl, winH)                                    // top-left (straight up the wall)
-      // The window's own little iso FACE: bottom edge (bl→br) runs along the wall's axis, side edge (bl→tl)
-      // rises up — so the tile shears to the SAME angle as the wall it sits on.
-      fillIsoFaceWithTile(ctx, bl, { x: br.x - bl.x, y: br.y - bl.y }, { x: tl.x - bl.x, y: tl.y - bl.y }, { char: windowDV.char, color: windowDV.color, image: windowDV.image }, 1, 1)
+    for (const r of windowRows) {
+      const sill = up(H - 1 - r + 0.28) // window bottom, centred in facade row r's cell
+      for (let i = 0; i < count; i++) {
+        const t = (i + 0.5) * slot
+        const bl = ptAdd(ptAdd(base, ptScale(axis, t - halfW)), sill) // slot's bottom-left corner = the window face's origin
+        const br = ptAdd(ptAdd(base, ptScale(axis, t + halfW)), sill) // bottom-right (along the wall axis)
+        const tl = ptAdd(bl, winH)                                    // top-left (straight up the wall)
+        // The window's own little iso FACE: bottom edge (bl→br) runs along the wall's axis, side edge (bl→tl)
+        // rises up — so the tile shears to the SAME angle as the wall it sits on.
+        fillIsoFaceWithTile(ctx, bl, { x: br.x - bl.x, y: br.y - bl.y }, { x: tl.x - bl.x, y: tl.y - bl.y }, { char: windowDV.char, color: windowDV.color, image: windowDV.image }, 1, 1)
+      }
     }
   }
 

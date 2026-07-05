@@ -50,10 +50,14 @@ const cellH = 24
 
 // Windows draw on the TWO camera-visible walls only (never the two hidden far walls — see
 // cameraNearWalls). The near pair is always ONE length-span wall + ONE depth-span wall, whatever the
-// orientation, so the exact 🪟 count is faceWindows(length) + faceWindows(depth). Asserting THIS (not a
-// loose ≥) fails loudly if a third face's windows ever come back (the old front+both-sides bug, #32).
+// orientation, so per ROW the exact 🪟 count is faceWindows(length) + faceWindows(depth). Windows are now
+// drawn ONE ROW PER FLOOR — a band at every facade row that carries a window — so the full count is that
+// per-row pair times the number of window rows (matching the 2D elevation's floors). Asserting THIS (not a
+// loose ≥) fails loudly if a third face's windows come back (#32) OR the per-floor rows regress to one.
 const faceWindows = (span: number): number => Math.max(2, Math.min(4, Math.round(span / 2)))
-const expectedWindows = (b: GridBuilding): number => faceWindows(b.cells[0]?.length ?? b.length) + faceWindows(b.depth)
+const windowRowCount = (b: GridBuilding): number => b.cells.filter(row => row.some(k => k === 'window')).length
+const expectedWindows = (b: GridBuilding): number =>
+  (faceWindows(b.cells[0]?.length ?? b.length) + faceWindows(b.depth)) * windowRowCount(b)
 
 describe('drawIsoBuilding — a reskinned building is a per-cell tileset block, not a billboard', () => {
   test('Emoji style shears the building-part TILES onto the iso faces (material wall + 🚪 door) + uniform windows', () => {

@@ -205,7 +205,7 @@ describe('generateStage — temple STRUCTURE: a grand settlement building', () =
     return null
   }
 
-  it('stamps the temple footprint as collision with exactly one walkable door', () => {
+  it('stamps the temple footprint as collision, walkable only across its full drawn door width', () => {
     const found = findTempleBuilding()
     expect(found).not.toBeNull()
     const { stage, temple: b } = found!
@@ -213,12 +213,15 @@ describe('generateStage — temple STRUCTURE: a grand settlement building', () =
     const cells: { col: number; row: number }[] = []
     const top = b.row - (b.height - 1)
     for (let r = top; r <= b.row; r++) for (let c = b.col; c < b.col + b.length; c++) cells.push({ col: c, row: r })
-    const door = b.doorCells[0]
-    expect(b.doorCells).toHaveLength(1)
-    expect(stage.collision[door.row][door.col]).toBe(false) // the one way in is walkable
+    // A temple's ceremonial door is WIDE (doorWidth 3). Axis-aligned facades open the door's full drawn
+    // width as walkable cells; rotated (east/west) 2D facades collapse the door to one edge cell.
+    const axis = b.facing === 'south' || b.facing === 'north'
+    expect(b.doorCells).toHaveLength(axis ? b.facade.door.width : 1)
+    const doorSet = new Set(b.doorCells.map(d => `${d.col},${d.row}`))
+    for (const d of b.doorCells) expect(stage.collision[d.row][d.col]).toBe(false) // every door cell is a way in
     // every OTHER footprint cell blocks
     for (const c of cells) {
-      const isDoor = c.col === door.col && c.row === door.row
+      const isDoor = doorSet.has(`${c.col},${c.row}`)
       expect(stage.collision[c.row][c.col]).toBe(!isDoor)
     }
   })
