@@ -536,6 +536,23 @@ export function PropertiesPanel(p: PropertiesPanelProps) {
   )
 }
 
+const fpsColor = (v: number) => (v >= 55 ? '#22c55e' : v >= 45 ? '#eab308' : v >= 30 ? '#f97316' : '#ef4444')
+
+/** Compact FPS readout (#86). `variant='nav'` = an inline pill for the editor top bar (edit/show);
+ *  `variant='floating'` = a fixed corner box for play mode. One upstream `useFps()` feeds both. */
+export function FpsReadout({ fps, variant }: { fps: number; variant: 'nav' | 'floating' }) {
+  const body = (
+    <span className="font-mono text-xs" title="Frames per second">
+      <span className="text-gray-400">FPS </span>
+      <span style={{ color: fpsColor(fps), fontWeight: 700 }}>{fps || '—'}</span>
+    </span>
+  )
+  if (variant === 'floating') {
+    return <div className="fixed right-4 top-4 z-30 rounded-lg border border-white/10 bg-black/80 px-3 py-1.5 shadow-lg">{body}</div>
+  }
+  return <span className="shrink-0 rounded bg-white/5 px-2 py-1">{body}</span>
+}
+
 // ── Inspector selection placeholder (stage B builds the real morph) ──
 const SELECTION_KIND_COLOR: Record<string, string> = {
   player: 'text-yellow-300',

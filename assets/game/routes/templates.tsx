@@ -68,7 +68,8 @@ import { EquipmentPanel, InventoryCard, QuestAuthoringCard, QuestLogPanel } from
 import { EntityAttackBody, EntityIdentityStatsBody, EntityMovementBody, Modal, QuestGiveBody } from '@/components/game/modals'
 import { FlowViewOverlay, GamesViewOverlay } from '@/components/game/games'
 import { BUILDING_TOOL_TYPE, type BuildingTool, type EditorMode, type EntityTool, GROUND_SWATCHES, NATURE_TILE_KEYS } from '@/components/game/editorConfig'
-import { AnimationEditor, ArtSection, Dropdown, GenerateControls, PoseControls, PropertiesPanel, SelectionHeader, StylePicker, TileLibraryBody, ToolRail, TriggerEditor, WEAPON_KINDS } from '@/components/game/editorChrome'
+import { AnimationEditor, ArtSection, Dropdown, FpsReadout, GenerateControls, PoseControls, PropertiesPanel, SelectionHeader, StylePicker, TileLibraryBody, ToolRail, TriggerEditor, WEAPON_KINDS } from '@/components/game/editorChrome'
+import { useFps } from '@/components/useFps'
 import { commonValue, commonBool, cellsFromKeys } from '@/game/editor/selectionEdit'
 
 
@@ -417,6 +418,7 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
   const [playMode, setPlayMode] = useState(false)
   const playModeRef = useRef(false) // live playMode for the raf render loop (mirrors activeStyleRef)
   useEffect(() => { playModeRef.current = playMode }, [playMode])
+  const fps = useFps() // #86 — one sampler feeds the nav readout (edit/show) + the play-mode floating box
   // Load tilesets from the nebulith Elixir backend on mount — replaces the bundled defaults (same shape,
   // so render + generation transparently use the DB-served data); falls back to bundled if the API is down.
   useEffect(() => { void loadTilesetsFromBackend() }, [])
@@ -4819,6 +4821,7 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
               </div>
             )}
           </Dropdown>
+          <FpsReadout fps={fps} variant="nav" />
           <div className="flex-1" />
           {/* ▶ Play — enter the clean play view */}
           <button
@@ -4914,6 +4917,7 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
             ⨯ Exit Game
           </button>
         )}
+        {playMode && <FpsReadout fps={fps} variant="floating" />}
 
         {/* LEFT — tool-rail: the editor modes (Select / Paint / Unit / Building / Connector) */}
         {showSidebars && !showGamesView && !playMode && (
