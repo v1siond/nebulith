@@ -75,6 +75,10 @@ export class IsometricGrid {
   // Collision grid - 0 = walkable, 1 = blocked
   collision: number[][]
 
+  // Per-cell FLOOR COLOUR override (null = use the tile catalog colour). Set from the Property panel,
+  // serialized with the template. A colour edit bumps groundVersion so the cached ground layer rebuilds.
+  groundColor: (string | null)[][]
+
   // Placed assets
   assets: GridAsset[]
 
@@ -115,6 +119,15 @@ export class IsometricGrid {
       this.collision[r] = []
       for (let c = 0; c < this.cols; c++) {
         this.collision[r][c] = 0
+      }
+    }
+
+    // Initialize floor-colour overrides as none (null → the tile's own catalog colour shows)
+    this.groundColor = []
+    for (let r = 0; r < this.rows; r++) {
+      this.groundColor[r] = []
+      for (let c = 0; c < this.cols; c++) {
+        this.groundColor[r][c] = null
       }
     }
 
@@ -160,6 +173,16 @@ export class IsometricGrid {
   setCollision(col: number, row: number, blocked: boolean) {
     if (col >= 0 && col < this.cols && row >= 0 && row < this.rows) {
       this.collision[row][col] = blocked ? 1 : 0
+    }
+  }
+
+  // Set (or clear, with null) a per-cell FLOOR COLOUR override. Bumps groundVersion so the cached
+  // ground layer rebuilds and the edit shows immediately.
+  setGroundColor(col: number, row: number, color: string | null) {
+    if (col >= 0 && col < this.cols && row >= 0 && row < this.rows) {
+      if (!this.groundColor[row]) this.groundColor[row] = []
+      this.groundColor[row][col] = color
+      this.groundVersion++
     }
   }
 

@@ -174,7 +174,10 @@ export function renderTopView(
 
       // Draw cell — a reskin tints the blueprint cell at the tile hue (agrees with iso/2D), but grass
       // keeps its per-cell shade so a field isn't one flat green ("grass is just color"); ASCII → bg.
-      ctx.fillStyle = cellFill(dv.tint, bg, grassy, col, row)
+      // A per-cell FLOOR COLOUR override (Property panel) wins on a bare GROUND cell (asset cells keep the
+      // asset tint, matching the separate ground layer under props in 2D/iso).
+      const floorOverride = !asset ? grid.groundColor?.[row]?.[col] : null
+      ctx.fillStyle = floorOverride ?? cellFill(dv.tint, bg, grassy, col, row)
       ctx.fillRect(x, y, tileSize - 1, tileSize - 1)
 
       ctx.fillStyle = dv.color

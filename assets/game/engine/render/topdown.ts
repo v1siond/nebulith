@@ -519,7 +519,8 @@ export function render2D(
         const gdv = resolveDraw(gk, style, undefined, char, fg)
         // Cell fill: a reskin uses the tile's OWN colour (from the catalog DATA), but grass AND the rocky
         // cave floor keep their per-cell shade so it isn't one flat sheet ("grass is just color"); ASCII → bg.
-        const fillBg = cellFill(gdv.tint, bg, tileType.includes('grass') || gk === 'cavefloor', col, row)
+        // Per-cell FLOOR COLOUR override (from the Property panel) wins over the catalog colour; else the catalog fill.
+        const fillBg = grid.groundColor?.[row]?.[col] ?? cellFill(gdv.tint, bg, tileType.includes('grass') || gk === 'cavefloor', col, row)
         tctx.textAlign = 'center'
         tctx.textBaseline = 'middle'
         tctx.fillStyle = fillBg

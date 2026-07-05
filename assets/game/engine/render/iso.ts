@@ -86,11 +86,15 @@ export function isoGroundSignature(grid: IsometricGrid, startCol: number, endCol
   for (let row = startRow; row <= endRow; row++) {
     const groundRow = grid.ground[row]
     const heightRow = grid.height[row]
+    const colorRow = grid.groundColor?.[row]
     for (let col = startCol; col <= endCol; col++) {
       const g = groundRow ? groundRow[col] : undefined
       if (g) for (let i = 0; i < g.length; i++) { hsh ^= g.charCodeAt(i); hsh = Math.imul(hsh, 0x01000193) }
       hsh ^= (heightRow ? heightRow[col] : 0) | 0
       hsh = Math.imul(hsh, 0x01000193)
+      // fold the per-cell FLOOR COLOUR override into the hash so a colour edit rebuilds the cached ground
+      const oc = colorRow ? colorRow[col] : null
+      if (oc) for (let i = 0; i < oc.length; i++) { hsh ^= oc.charCodeAt(i); hsh = Math.imul(hsh, 0x01000193) }
     }
   }
   return hsh >>> 0
@@ -191,7 +195,9 @@ export function drawIsoGroundLayer(ctx: CanvasRenderingContext2D, p: IsoGroundPa
       const gdv = resolveDraw(gk, style, undefined, char, fg)
       // reskin → the tile's OWN colour (catalog data), but grass AND the rocky cave floor KEEP their
       // per-cell shade so the field/cavern isn't one flat sheet ("grass is just color"); ASCII → bg.
-      const fillBg = cellFill(gdv.tint, bg, isGrass || gk === 'cavefloor', col, row)
+      // A per-cell FLOOR COLOUR override (Property panel) wins over the catalog colour (drives the diamond
+      // top AND the darkened cube sides below, so a recoloured cell reads solid in iso).
+      const fillBg = grid.groundColor?.[row]?.[col] ?? cellFill(gdv.tint, bg, isGrass || gk === 'cavefloor', col, row)
 
       const cellHeight = grid.getHeight(col, row)
       const heightOffset = cellHeight * heightStep

@@ -443,6 +443,76 @@ export function PoseControls({ kind, pose, isWeapon, onChange, onReset }: { kind
   )
 }
 
+/** Universal per-selection PROPERTY editor. Edits the CURRENT (multi-)selection's floor colour, object
+ *  colour, collision, terrain height and size — applied to EVERY selected element at once. Presentational:
+ *  the page computes each shared value (`null` = the elements differ → "mixed") and each callback applies
+ *  the edit across the selection + bumps a redraw. Only controls relevant to the selection are shown. */
+export interface PropertiesPanelProps {
+  count: number
+  floorColor: string | null // shared floor override, or null (none/mixed)
+  hasObject: boolean // any selected cell holds a prop/unit
+  objectColor: string | null // shared object/unit colour, or null (mixed)
+  collision: boolean | null // shared collision state, or null (mixed)
+  height: number | null // shared terrain height, or null (mixed)
+  size: number | null // shared size (elements that support one), or null (mixed)
+  showSize: boolean
+  onFloorColor: (color: string) => void
+  onClearFloorColor: () => void
+  onObjectColor: (color: string) => void
+  onCollision: (blocked: boolean) => void
+  onHeight: (h: number) => void
+  onSize: (s: number) => void
+}
+
+export function PropertiesPanel(p: PropertiesPanelProps) {
+  const mixed = <span className="text-[9px] italic text-amber-300">mixed</span>
+  const num = (raw: string, cb: (n: number) => void) => { const n = parseFloat(raw); if (!Number.isNaN(n)) cb(n) }
+  return (
+    <div className="space-y-2 rounded-lg border border-white/10 bg-black/40 p-2 text-xs">
+      <p className="text-[10px] font-bold uppercase tracking-wider text-cyan-300">
+        Properties — {p.count} cell{p.count === 1 ? '' : 's'}
+      </p>
+
+      <div className="flex items-center gap-2">
+        <span className="w-16 shrink-0 text-[10px] text-gray-400">Floor</span>
+        <input type="color" value={p.floorColor ?? '#3a7d34'} onChange={e => p.onFloorColor(e.target.value)} aria-label="Floor colour" className="h-6 w-10 rounded bg-gray-800" />
+        {p.floorColor === null && mixed}
+        <button onClick={p.onClearFloorColor} className="ml-auto rounded bg-gray-700 px-2 py-0.5 text-[9px] hover:bg-gray-600" title="Reset the floor to its tile colour">↺ reset</button>
+      </div>
+
+      {p.hasObject && (
+        <div className="flex items-center gap-2">
+          <span className="w-16 shrink-0 text-[10px] text-gray-400">Object</span>
+          <input type="color" value={p.objectColor ?? '#ffffff'} onChange={e => p.onObjectColor(e.target.value)} aria-label="Object colour" className="h-6 w-10 rounded bg-gray-800" />
+          {p.objectColor === null && mixed}
+        </div>
+      )}
+
+      <div className="flex items-center gap-2">
+        <span className="w-16 shrink-0 text-[10px] text-gray-400">Collision</span>
+        <button onClick={() => p.onCollision(true)} aria-pressed={p.collision === true} className={`rounded px-2 py-0.5 text-[10px] font-bold ${p.collision === true ? 'bg-red-600 text-white' : 'bg-gray-700 hover:bg-gray-600'}`}>Blocked</button>
+        <button onClick={() => p.onCollision(false)} aria-pressed={p.collision === false} className={`rounded px-2 py-0.5 text-[10px] font-bold ${p.collision === false ? 'bg-emerald-600 text-white' : 'bg-gray-700 hover:bg-gray-600'}`}>Walkable</button>
+        {p.collision === null && mixed}
+      </div>
+
+      <label className="flex items-center gap-2">
+        <span className="w-16 shrink-0 text-[10px] text-gray-400">Height</span>
+        <input type="number" min={0} max={9} step={1} value={p.height ?? 0} onChange={e => num(e.target.value, n => p.onHeight(Math.round(n)))} aria-label="Terrain height" className="w-14 rounded bg-gray-800 p-1 text-[10px] tabular-nums text-cyan-300" />
+        {p.height === null && mixed}
+      </label>
+
+      {p.showSize && (
+        <label className="flex items-center gap-2">
+          <span className="w-16 shrink-0 text-[10px] text-gray-400">Size</span>
+          <input type="range" min={0.5} max={3} step={0.1} value={p.size ?? 1} onChange={e => num(e.target.value, p.onSize)} aria-label="Size" className="flex-1 accent-cyan-500" />
+          <input type="number" min={0.5} max={3} step={0.1} value={p.size ?? 1} onChange={e => num(e.target.value, p.onSize)} aria-label="Size value" className="w-14 rounded bg-gray-800 p-1 text-[10px] tabular-nums text-cyan-300" />
+          {p.size === null && mixed}
+        </label>
+      )}
+    </div>
+  )
+}
+
 // ── Inspector selection placeholder (stage B builds the real morph) ──
 const SELECTION_KIND_COLOR: Record<string, string> = {
   player: 'text-yellow-300',

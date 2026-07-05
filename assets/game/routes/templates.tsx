@@ -67,7 +67,8 @@ import { EquipmentPanel, InventoryCard, QuestAuthoringCard, QuestLogPanel } from
 import { EntityAttackBody, EntityIdentityStatsBody, EntityMovementBody, Modal, QuestGiveBody } from '@/components/game/modals'
 import { FlowViewOverlay, GamesViewOverlay } from '@/components/game/games'
 import { BUILDING_TOOL_TYPE, type BuildingTool, type EditorMode, type EntityTool, GROUND_SWATCHES, NATURE_TILE_KEYS } from '@/components/game/editorConfig'
-import { AnimationEditor, ArtSection, Dropdown, GenerateControls, PoseControls, type QuickAction, QuickActionToolbar, SelectionHeader, StylePicker, TileLibraryBody, ToolRail, TriggerEditor, WEAPON_KINDS } from '@/components/game/editorChrome'
+import { AnimationEditor, ArtSection, Dropdown, GenerateControls, PoseControls, PropertiesPanel, type QuickAction, QuickActionToolbar, SelectionHeader, StylePicker, TileLibraryBody, ToolRail, TriggerEditor, WEAPON_KINDS } from '@/components/game/editorChrome'
+import { commonValue, commonBool, cellsFromKeys } from '@/game/editor/selectionEdit'
 
 
 // View mode states (global for game loop access)
@@ -1427,6 +1428,21 @@ export default function TemplateEditor() {
     }
     bumpBuildingVersion() // nudge a re-render (assets mutate in place)
   }
+
+  // ── Universal PROPERTY panel: apply an edit to EVERY selected cell (floor colour / object colour /
+  //    collision / terrain height / size), then bump a redraw. Assets + ground mutate in place; the RAF
+  //    loop re-reads the grid every frame, and bumpBuildingVersion re-reads the shared values into the panel. ──
+  const applyToSelectedCells = (fn: (col: number, row: number, grid: IsometricGrid) => void) => {
+    const grid = gridRef.current
+    if (!grid) return
+    for (const { col, row } of cellsFromKeys(selectedCells)) fn(col, row, grid)
+    bumpBuildingVersion()
+  }
+  const setFloorColor = (color: string | null) => applyToSelectedCells((col, row, grid) => grid.setGroundColor(col, row, color))
+  const setObjectColor = (color: string) => applyToSelectedCells((col, row, grid) => { for (const a of grid.getAssetsAtCell(col, row)) a.color = color })
+  const setCellCollision = (blocked: boolean) => applyToSelectedCells((col, row, grid) => grid.setCollision(col, row, blocked))
+  const setCellHeight = (h: number) => applyToSelectedCells((col, row, grid) => grid.setHeight(col, row, h))
+  const setCellSize = (s: number) => applyToSelectedCells((col, row, grid) => { for (const a of grid.getAssetsAtCell(col, row)) a.scale = s })
 
   // Editor debug/validation hooks on window (same family as __ISO_NOCACHE / __isoRenderMs):
   //  __setArtStyle(id)      → flip the active global style without the dropdown
@@ -5572,6 +5588,35 @@ export default function TemplateEditor() {
                 return (
                   <>
                     <SelectionHeader kind="cell" label="cell" coords={cellLabel} />
+                    {/* Universal PROPERTY editor — colour/collision/height/size for the whole (multi-)selection. */}
+                    <Card title="Properties" accent="cyan" sectionId="properties" focus={sectionFocus}>
+                      {(() => {
+                        const grid = gridRef.current
+                        const cells = cellsFromKeys(selectedCells)
+                        if (!grid || cells.length === 0) return null
+                        void buildingVersion // re-read shared values after an edit (bumpBuildingVersion)
+                        const objs = cells.map(({ col, row }) => grid.getAssetsAtCell(col, row)[0]).filter((a): a is NonNullable<typeof a> => !!a)
+                        const sized = objs.filter(a => typeof a.scale === 'number')
+                        return (
+                          <PropertiesPanel
+                            count={cells.length}
+                            floorColor={commonValue(cells.map(({ col, row }) => grid.groundColor?.[row]?.[col] ?? null))}
+                            hasObject={objs.length > 0}
+                            objectColor={objs.length ? commonValue(objs.map(a => a.color ?? '#ffffff')) : null}
+                            collision={commonBool(cells.map(({ col, row }) => grid.isBlocked(col, row)))}
+                            height={commonValue(cells.map(({ col, row }) => grid.getHeight(col, row)))}
+                            size={sized.length ? commonValue(sized.map(a => a.scale as number)) : null}
+                            showSize={sized.length > 0}
+                            onFloorColor={setFloorColor}
+                            onClearFloorColor={() => setFloorColor(null)}
+                            onObjectColor={setObjectColor}
+                            onCollision={setCellCollision}
+                            onHeight={setCellHeight}
+                            onSize={setCellSize}
+                          />
+                        )
+                      })()}
+                    </Card>
                     <Card title="Tile / ground" accent="cyan" sectionId="tile" focus={sectionFocus}>
                       <div className="mb-2">
                         <label className="mb-1 flex items-center justify-between text-xs font-bold text-cyan-300">
