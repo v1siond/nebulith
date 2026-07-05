@@ -4660,6 +4660,15 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
         {/* (Removed the on-canvas floating quick-actions toolbar — Style/Animate/Trigger live in the
             right-sidebar Inspector cards now, so the game view stays uncluttered.) */}
 
+        {/* Multi-select hint — plain drag pans, so bulk cell-select needs Shift. Shown only while idle in
+            select mode (nothing picked yet) so it nudges without cluttering once you're working. */}
+        {showSidebars && !playMode && !showFlowView && !showGamesView && editorMode === 'select'
+          && selectedCells.size === 0 && !selectedEntityId && selectedBuildingIndex == null && !editingConnector && (
+          <div className="pointer-events-none fixed bottom-6 left-1/2 z-20 -translate-x-1/2 rounded-full border border-white/10 bg-black/70 px-3 py-1.5 text-[11px] text-gray-300 shadow-lg shadow-black/40">
+            <span className="font-bold text-yellow-300">⇧ Shift + drag</span> to select cells · plain drag pans
+          </div>
+        )}
+
         {/* Vitals are NOT an always-on HUD — they live in the selected-entity panel on
             the right sidebar (shown only when the player or an entity is selected). */}
 
@@ -4905,6 +4914,9 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
               <Card title="Select" accent="yellow">
                 <p className="text-[11px] leading-tight text-gray-400">
                   Click an element on the canvas to select it — its settings appear in the Inspector on the right.
+                </p>
+                <p className="mt-2 rounded bg-yellow-500/10 px-2 py-1 text-[11px] leading-tight text-yellow-300">
+                  <span className="font-bold">⇧ Shift + drag</span> to select many cells at once. Plain drag pans the map.
                 </p>
                 <p className="mt-2 text-[10px] leading-tight text-gray-500">
                   Pick a tool on the left rail to paint tiles, place units or buildings, or draw connectors. Stage settings (Generate, grid, day/night) live in the Inspector.
