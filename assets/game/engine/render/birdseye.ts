@@ -185,7 +185,7 @@ export function renderTopView(
       const gx = x + tileSize / 2, gy = y + tileSize / 2
       const ctTop = asset ? assetCellTransform(asset.cellAnim, now) : null
       if (ctTop) applyCellTransform(ctx, gx, gy, ctTop, tileSize, tileSize)
-      if (dv.image) drawStyledImage(ctx, dv.image, gx, gy, tileSize)
+      if (dv.image) drawStyledImage(ctx, dv.image, gx, gy, tileSize, false, asset?.color) // #80 colour override tints the sprite
       else ctx.fillText(dv.char, gx, gy)
       if (ctTop) ctx.restore()
 

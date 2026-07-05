@@ -138,19 +138,49 @@ export function drawFacingGlyph(ctx: CanvasRenderingContext2D, char: string, x: 
   ctx.restore()
 }
 
+// A baked emoji tile ships with its own colours, so an editor colour override can't just change a fill —
+// it has to RECOLOUR the sprite. We do it once per (src, colour) into an offscreen canvas and cache it:
+// draw the sprite, blend the colour with `'color'` (keeps the sprite's shading/luminance, takes the
+// override's hue+saturation), then `'destination-in'` re-masks to the sprite's alpha so transparent
+// pixels stay transparent. Keyed by src+colour at natural resolution, so it's size-independent.
+const _tintCache = new Map<string, HTMLCanvasElement>()
+function tintedImage(img: HTMLImageElement, src: string, tint: string): CanvasImageSource {
+  if (typeof document === 'undefined') return img // SSR / tests: no canvas → draw untinted
+  const key = `${src}|${tint}`
+  const cached = _tintCache.get(key)
+  if (cached) return cached
+  const w = img.naturalWidth || 64, h = img.naturalHeight || 64
+  const off = document.createElement('canvas')
+  off.width = w
+  off.height = h
+  const octx = off.getContext('2d')
+  if (!octx) return img
+  octx.drawImage(img, 0, 0, w, h)
+  octx.globalCompositeOperation = 'color' // recolour: override hue/sat, sprite luminance
+  octx.fillStyle = tint
+  octx.fillRect(0, 0, w, h)
+  octx.globalCompositeOperation = 'destination-in' // clip the recolour back to the sprite's silhouette
+  octx.drawImage(img, 0, 0, w, h)
+  octx.globalCompositeOperation = 'source-over'
+  _tintCache.set(key, off)
+  return off
+}
+
 /** Draw an image tile centered at (cx, cy) filling a `size`×`size` box (optional atlas sub-rect).
  *  `flipX` mirrors it horizontally about cx — a DATA property of an animation frame (a right-facing
- *  walk reuses the left-facing tile flipped), so the baked-image figure animates like the glyph one. */
-export function drawStyledImage(ctx: CanvasRenderingContext2D, v: ImageVisual, cx: number, cy: number, size: number, flipX = false): void {
+ *  walk reuses the left-facing tile flipped), so the baked-image figure animates like the glyph one.
+ *  `tint` (an editor colour override) recolours the sprite to that hue while keeping its shading. */
+export function drawStyledImage(ctx: CanvasRenderingContext2D, v: ImageVisual, cx: number, cy: number, size: number, flipX = false, tint?: string): void {
   const img = tileImage(v.src)
   if (!img) return
+  const drawSrc = tint ? tintedImage(img, v.src, tint) : img
   const sx = v.sx ?? 0, sy = v.sy ?? 0
   const sw = v.sw ?? img.naturalWidth, sh = v.sh ?? img.naturalHeight
-  if (!flipX) { ctx.drawImage(img, sx, sy, sw, sh, cx - size / 2, cy - size / 2, size, size); return }
+  if (!flipX) { ctx.drawImage(drawSrc, sx, sy, sw, sh, cx - size / 2, cy - size / 2, size, size); return }
   ctx.save()
   ctx.translate(cx, 0)
   ctx.scale(-1, 1)
-  ctx.drawImage(img, sx, sy, sw, sh, -size / 2, cy - size / 2, size, size)
+  ctx.drawImage(drawSrc, sx, sy, sw, sh, -size / 2, cy - size / 2, size, size)
   ctx.restore()
 }
 

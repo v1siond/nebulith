@@ -1748,7 +1748,9 @@ export function drawIsoAssetAscii(
   // art below (labeled cells, trees, legacy buildings, props) with ONE tile. ASCII + no
   // override → adv.char '' → falls through to the byte-identical per-type rendering.
   const adv = resolveDraw(assetKind(asset), style, assetOverride(asset, style), '', asset.color ?? '#ffffff')
-  if (adv.image) { drawStyledImage(ctx, adv.image, x, y - lineHeight * 0.6, tileH * 2.2); return }
+  // A per-asset colour override tints the baked sprite (an emoji ships its own colours, so an override
+  // has to recolour the image, not a fill) — #80. Undefined colour → drawn untinted.
+  if (adv.image) { drawStyledImage(ctx, adv.image, x, y - lineHeight * 0.6, tileH * 2.2, false, asset.color); return }
   if (adv.char) {
     // Trees tower (~3 cells, like the ASCII tree) instead of a tiny one-cell 🌲, anchored at the base.
     const isTree = asset.type === 'tree'

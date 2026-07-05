@@ -821,7 +821,8 @@ export function render2D(
       // through to the byte-identical per-type branches below.
       const adv = resolveDraw(assetKind(asset), style, assetOverride(asset, style), '', '')
       if (adv.image) {
-        drawStyledImage(ctx, adv.image, p.x, baseY - tileH * 0.7, tileH * 1.5)
+        // A per-asset colour override recolours the baked sprite (#80); undefined → drawn untinted.
+        drawStyledImage(ctx, adv.image, p.x, baseY - tileH * 0.7, tileH * 1.5, false, asset.color)
       } else if (adv.char) {
         // Trees are drawn TALLER (a 🌲 in one cell reads tiny) — roughly the 3-cell height the ASCII
         // tree gets — anchored at the base so the trunk sits on its cell and the canopy rises.
