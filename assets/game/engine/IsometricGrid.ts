@@ -16,7 +16,10 @@ export interface GridAsset {
   row: number
   type: string
   blocking?: boolean
-  scale?: number
+  scale?: number        // uniform Zoom — multiplies every draw axis (#77/#78). Default 1.
+  scaleX?: number       // Width — horizontal sprite stretch, every view (#77/#78). Default 1.
+  scaleY?: number       // Height — vertical stretch, grows UP from the base; iso/2D views (#77/#78). Default 1.
+  scaleZ?: number       // Depth — vertical stretch in the overhead/top view only (#77/#78). Default 1.
   color?: string
   bgColor?: string
   height?: number       // Height in blocks (for buildings, towers, etc.)

@@ -170,17 +170,20 @@ export function tintedImage(img: HTMLImageElement, src: string, tint: string): C
  *  `flipX` mirrors it horizontally about cx — a DATA property of an animation frame (a right-facing
  *  walk reuses the left-facing tile flipped), so the baked-image figure animates like the glyph one.
  *  `tint` (an editor colour override) recolours the sprite to that hue while keeping its shading. */
-export function drawStyledImage(ctx: CanvasRenderingContext2D, v: ImageVisual, cx: number, cy: number, size: number, flipX = false, tint?: string): void {
+export function drawStyledImage(ctx: CanvasRenderingContext2D, v: ImageVisual, cx: number, cy: number, size: number, flipX = false, tint?: string, sizeH?: number): void {
   const img = tileImage(v.src)
   if (!img) return
   const drawSrc = tint ? tintedImage(img, v.src, tint) : img
   const sx = v.sx ?? 0, sy = v.sy ?? 0
   const sw = v.sw ?? img.naturalWidth, sh = v.sh ?? img.naturalHeight
-  if (!flipX) { ctx.drawImage(drawSrc, sx, sy, sw, sh, cx - size / 2, cy - size / 2, size, size); return }
+  // `size` is the draw WIDTH; `sizeH` the draw HEIGHT (defaults to a square). Non-uniform sizes come
+  // from per-element dimensions (#77/#78) — the caller lifts cy so Height grows up from the base.
+  const w = size, h = sizeH ?? size
+  if (!flipX) { ctx.drawImage(drawSrc, sx, sy, sw, sh, cx - w / 2, cy - h / 2, w, h); return }
   ctx.save()
   ctx.translate(cx, 0)
   ctx.scale(-1, 1)
-  ctx.drawImage(drawSrc, sx, sy, sw, sh, -size / 2, cy - size / 2, size, size)
+  ctx.drawImage(drawSrc, sx, sy, sw, sh, -w / 2, cy - h / 2, w, h)
   ctx.restore()
 }
 

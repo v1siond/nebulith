@@ -1467,7 +1467,11 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
   const setObjectColor = (color: string) => applyToSelectedCells((col, row, grid) => { for (const a of grid.getAssetsAtCell(col, row)) a.color = color })
   const setCellCollision = (blocked: boolean) => applyToSelectedCells((col, row, grid) => grid.setCollision(col, row, blocked))
   const setCellHeight = (h: number) => applyToSelectedCells((col, row, grid) => grid.setHeight(col, row, h))
-  const setCellSize = (s: number) => applyToSelectedCells((col, row, grid) => { for (const a of grid.getAssetsAtCell(col, row)) a.scale = s })
+  // Per-element sprite scale (#77/#78): Width/Height/Depth are per-axis, Zoom is uniform. Dispatch the UI
+  // axis to the asset field it writes; the renderers read these back per view (assetDimensions.ts).
+  const DIM_FIELD = { width: 'scaleX', height: 'scaleY', depth: 'scaleZ', zoom: 'scale' } as const
+  const setElementDim = (axis: keyof typeof DIM_FIELD, v: number) =>
+    applyToSelectedCells((col, row, grid) => { for (const a of grid.getAssetsAtCell(col, row)) a[DIM_FIELD[axis]] = v })
 
   // Editor debug/validation hooks on window (same family as __ISO_NOCACHE / __isoRenderMs):
   //  __setArtStyle(id)      → flip the active global style without the dropdown
@@ -5723,23 +5727,29 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
                         if (!grid || cells.length === 0) return null
                         void buildingVersion // re-read shared values after an edit (bumpBuildingVersion)
                         const objs = cells.map(({ col, row }) => grid.getAssetsAtCell(col, row)[0]).filter((a): a is NonNullable<typeof a> => !!a)
-                        const sized = objs.filter(a => typeof a.scale === 'number')
+                        // Shared value of a per-element dim across the selection (defaults undefined→1); null = mixed.
+                        const dim = (read: (a: (typeof objs)[number]) => number) => (objs.length ? commonValue(objs.map(read)) : null)
                         return (
                           <PropertiesPanel
                             count={cells.length}
                             floorColor={commonValue(cells.map(({ col, row }) => grid.groundColor?.[row]?.[col] ?? null))}
-                            hasObject={objs.length > 0}
-                            objectColor={objs.length ? commonValue(objs.map(a => a.color ?? '#ffffff')) : null}
                             collision={commonBool(cells.map(({ col, row }) => grid.isBlocked(col, row)))}
                             height={commonValue(cells.map(({ col, row }) => grid.getHeight(col, row)))}
-                            size={sized.length ? commonValue(sized.map(a => a.scale as number)) : null}
-                            showSize={sized.length > 0}
+                            hasObject={objs.length > 0}
+                            elementKind={objs.length ? assetKind(objs[0]) : null}
+                            objectColor={objs.length ? commonValue(objs.map(a => a.color ?? '#ffffff')) : null}
+                            dims={{
+                              width: dim(a => a.scaleX ?? 1),
+                              height: dim(a => a.scaleY ?? 1),
+                              depth: dim(a => a.scaleZ ?? 1),
+                              zoom: dim(a => a.scale ?? 1),
+                            }}
                             onFloorColor={setFloorColor}
                             onClearFloorColor={() => setFloorColor(null)}
                             onObjectColor={setObjectColor}
                             onCollision={setCellCollision}
                             onHeight={setCellHeight}
-                            onSize={setCellSize}
+                            onDim={setElementDim}
                           />
                         )
                       })()}

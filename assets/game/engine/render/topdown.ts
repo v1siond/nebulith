@@ -20,6 +20,7 @@ import { EMOJI_TILESET } from '@/engine/tileset/emojiTileset'
 import { applyPose } from '@/engine/tileset/pose'
 import { Connector } from '@/lib/api'
 import { ASCII_FONT, BUILDING_BADGES, COMBAT_RANGE, type DayNight, ENEMY_MOVE_MS, LAMP_GLOW, applyCellTransform, clampCameraAxis, assetCaptionByCell, terrainLabelAt, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawHoverRing, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, frameImage, getPlayerArt, grassShade, cellFill, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, assetOverride, treeCanopyLayers } from './shared'
+import { resolveAssetDrawSize } from './assetDimensions'
 import { ASCII_STYLE, assetKind, entityKind, entityStyleOverride, genderize, groundKind, personVariantTileId, type ElementKind, type Style } from '@/game/artStyle'
 import { DEFAULT_CHARACTER_ANIMATIONS, activeFrame } from '@/game/runtime/entityAnimation'
 
@@ -822,7 +823,9 @@ export function render2D(
       const adv = resolveDraw(assetKind(asset), style, assetOverride(asset, style), '', '')
       if (adv.image) {
         // A per-asset colour override recolours the baked sprite (#80); undefined → drawn untinted.
-        drawStyledImage(ctx, adv.image, p.x, baseY - tileH * 0.7, tileH * 1.5, false, asset.color)
+        // Per-element dimensions (#77/#78): non-uniform draw, lifted so Height grows UP from the base.
+        const d = resolveAssetDrawSize(tileH * 1.5, asset, 'billboard')
+        drawStyledImage(ctx, adv.image, p.x, baseY - tileH * 0.7 - d.baseLift, d.w, false, asset.color, d.h)
       } else if (adv.char) {
         // Trees are drawn TALLER (a 🌲 in one cell reads tiny) — roughly the 3-cell height the ASCII
         // tree gets — anchored at the base so the trunk sits on its cell and the canopy rises.

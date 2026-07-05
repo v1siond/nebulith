@@ -55,6 +55,10 @@ export interface TemplateData {
     type: string
     blocking?: boolean
     color?: string
+    scale?: number   // uniform Zoom (#77/#78)
+    scaleX?: number  // Width — horizontal sprite scale (#77/#78)
+    scaleY?: number  // Height — vertical sprite scale, grows up (#77/#78)
+    scaleZ?: number  // Depth — overhead-view vertical scale (#77/#78)
     bgColor?: string
     height?: number
     heightLevel?: number

@@ -10,6 +10,7 @@ import { type CombatState, type Entity, type Quest } from '@/game/types'
 import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 import { Connector } from '@/lib/api'
 import { ASCII_FONT, BUILDING_BADGES, type DayNight, LAMP_GLOW, applyCellTransform, clampCameraAxis, collectLampGlows, debugCellCaptions, debugLabelColors, drawHitMarker, drawHpBar, drawNightLighting, drawQuestMarker, drawStyledImage, grassShade, cellFill, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, assetOverride } from './shared'
+import { resolveAssetDrawSize } from './assetDimensions'
 import { ASCII_STYLE, assetKind, entityKind, entityStyleOverride, genderize, groundKind, personVariantTileId, type Style } from '@/game/artStyle'
 
 
@@ -185,8 +186,11 @@ export function renderTopView(
       const gx = x + tileSize / 2, gy = y + tileSize / 2
       const ctTop = asset ? assetCellTransform(asset.cellAnim, now) : null
       if (ctTop) applyCellTransform(ctx, gx, gy, ctTop, tileSize, tileSize)
-      if (dv.image) drawStyledImage(ctx, dv.image, gx, gy, tileSize, false, asset?.color) // #80 colour override tints the sprite
-      else ctx.fillText(dv.char, gx, gy)
+      if (dv.image) {
+        // Per-element dimensions (#77/#78): overhead view stretches Width (x) + Depth (y).
+        const d = resolveAssetDrawSize(tileSize, asset ?? {}, 'overhead')
+        drawStyledImage(ctx, dv.image, gx, gy, d.w, false, asset?.color, d.h) // #80 colour override tints the sprite
+      } else ctx.fillText(dv.char, gx, gy)
       if (ctTop) ctx.restore()
 
       // Height indicator (show in corner if height > 0)
