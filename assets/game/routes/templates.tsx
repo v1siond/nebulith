@@ -67,7 +67,7 @@ import { EquipmentPanel, InventoryCard, QuestAuthoringCard, QuestLogPanel } from
 import { EntityAttackBody, EntityIdentityStatsBody, EntityMovementBody, Modal, QuestGiveBody } from '@/components/game/modals'
 import { FlowViewOverlay, GamesViewOverlay } from '@/components/game/games'
 import { BUILDING_TOOL_TYPE, type BuildingTool, type EditorMode, type EntityTool, GROUND_SWATCHES, NATURE_TILE_KEYS } from '@/components/game/editorConfig'
-import { AnimationEditor, ArtSection, Dropdown, GenerateControls, PoseControls, PropertiesPanel, type QuickAction, QuickActionToolbar, SelectionHeader, StylePicker, TileLibraryBody, ToolRail, TriggerEditor, WEAPON_KINDS } from '@/components/game/editorChrome'
+import { AnimationEditor, ArtSection, Dropdown, GenerateControls, PoseControls, PropertiesPanel, SelectionHeader, StylePicker, TileLibraryBody, ToolRail, TriggerEditor, WEAPON_KINDS } from '@/components/game/editorChrome'
 import { commonValue, commonBool, cellsFromKeys } from '@/game/editor/selectionEdit'
 
 
@@ -254,7 +254,6 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
   // Which Inspector section a quick-action asked to focus. `n` is a nonce so clicking
   // the same verb twice still re-opens + re-scrolls that section (see Card `focus`).
   const [sectionFocus, setSectionFocus] = useState<{ id: string; n: number } | null>(null)
-  const focusInspectorSection = (id: string) => setSectionFocus(f => ({ id, n: (f?.n ?? 0) + 1 }))
   // When on, a Top-view click appends a waypoint to the selected entity's patrol path
   // (author your own movement route instead of the default box patrol).
   const [waypointMode, setWaypointMode] = useState(false)
@@ -4658,65 +4657,8 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
           style={{ cursor: isPanning ? 'grabbing' : topViewMode ? 'default' : 'grab' }}
         />
 
-        {/* On-canvas quick-actions (stage C): a small floating toolbar over the SELECTED
-            element with its hottest verbs. Each verb just opens + scrolls the matching
-            Inspector section (deep edit stays in the panel); ✕ deselects. Hidden in play
-            mode / overlays / when nothing is selected. Same selection precedence as the
-            Inspector morph: unit → building → connector → cell. */}
-        {showSidebars && !playMode && !showFlowView && !showGamesView && (() => {
-          const selEntity = entities.find(e => e.id === selectedEntityId)
-          const selBuilding = selectedBuildingIndex != null ? gridRef.current?.buildings[selectedBuildingIndex] : undefined
-
-          let anchor: { col: number; row: number } | null = null
-          let actions: QuickAction[] = []
-          let onDeselect = () => {}
-
-          if (selEntity) {
-            anchor = { col: selEntity.col, row: selEntity.row }
-            actions = [
-              { key: 'animate', glyph: '✦', label: 'Animate', onClick: () => focusInspectorSection('animation') },
-              { key: 'trigger', glyph: '⚡', label: 'Trigger', onClick: () => focusInspectorSection('trigger') },
-              { key: 'style', glyph: '◰', label: 'Style', onClick: () => { focusInspectorSection('art'); setTileLibraryOpen(true) } },
-            ]
-            // ✕ is a clean full deselect — also drop any cell selection that lingered from
-            // the click that selected this unit, so the toolbar truly hides (not a cell fallback).
-            onDeselect = () => { setWaypointMode(false); setSelectedEntityId(null); setSelectedCells(new Set()) }
-          } else if (selBuilding) {
-            anchor = buildingFootprintCells(selBuilding).door
-            actions = [
-              { key: 'animate', glyph: '✦', label: 'Animate', onClick: () => focusInspectorSection('animation') },
-              { key: 'style', glyph: '◰', label: 'Style', onClick: () => { focusInspectorSection('art'); setTileLibraryOpen(true) } },
-            ]
-            onDeselect = deselectBuilding
-          } else if (editingConnector) {
-            anchor = { col: editingConnector.col, row: editingConnector.row }
-            actions = [
-              { key: 'connect', glyph: '↗', label: 'Connect', onClick: () => focusInspectorSection('connect') },
-              { key: 'when', glyph: '⚡', label: 'Trigger', onClick: () => focusInspectorSection('when') },
-            ]
-            onDeselect = () => { setEditingConnector(null); setSelectedCells(new Set()) }
-          } else if (selectedCells.size > 0) {
-            const [c, r] = Array.from(selectedCells)[0].split(',').map(Number)
-            anchor = { col: c, row: r }
-            actions = [
-              { key: 'style', glyph: '◰', label: 'Style', onClick: () => { focusInspectorSection('tile'); setTileLibraryOpen(true) } },
-              { key: 'animate', glyph: '✦', label: 'Animate', onClick: () => focusInspectorSection('animation') },
-              { key: 'trigger', glyph: '⚡', label: 'Trigger', onClick: () => focusInspectorSection('trigger') },
-            ]
-            onDeselect = () => setSelectedCells(new Set())
-          }
-
-          if (!anchor) return null
-          const cell = anchor
-          return (
-            <QuickActionToolbar
-              key={`qa-${selectedEntityId ?? ''}-${selectedBuildingIndex ?? ''}-${editingConnector ? `${editingConnector.col},${editingConnector.row}` : ''}-${selectedCells.size}`}
-              actions={actions}
-              onDeselect={onDeselect}
-              getPos={() => cellToScreen(cell.col, cell.row)}
-            />
-          )
-        })()}
+        {/* (Removed the on-canvas floating quick-actions toolbar — Style/Animate/Trigger live in the
+            right-sidebar Inspector cards now, so the game view stays uncluttered.) */}
 
         {/* Vitals are NOT an always-on HUD — they live in the selected-entity panel on
             the right sidebar (shown only when the player or an entity is selected). */}
