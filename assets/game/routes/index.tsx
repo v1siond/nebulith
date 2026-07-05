@@ -3,11 +3,11 @@
  * Lists saved templates and allows creating new ones
  */
 import { useEffect, useState } from 'react'
-import Head from 'next/head'
 import Link from 'next/link'
 import { useRouter } from 'next/router'
 import { listTemplates, deleteTemplate, TemplateListItem } from '@/lib/api'
 import { useToast } from '@/components/Toast'
+import { GameEngineLayout } from '@/components/game/GameEngineLayout'
 
 const MAX_TEMPLATES_PROD = 1
 
@@ -62,34 +62,7 @@ export default function GameEngineIndex() {
   const canCreateNew = templates.length < maxTemplates
 
   return (
-    <>
-      <Head>
-        <title>Nebulith</title>
-      </Head>
-      <main className="min-h-screen bg-gray-900 text-white font-mono p-8 w-screen max-w-full">
-        {/* Header */}
-        <div className="max-w-6xl mx-auto">
-          <div className="flex items-center justify-between mb-8">
-            <div>
-              <h1 className="text-3xl font-bold text-yellow-400 mb-2">Nebulith</h1>
-              <p className="text-gray-400">ASCII tile-based game engine</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <Link
-                href="/personal-projects/game-engine/games"
-                className="px-4 py-2 bg-indigo-700 hover:bg-indigo-600 rounded text-sm font-bold"
-              >
-                🎮 Games
-              </Link>
-              <Link
-                href="/"
-                className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm"
-              >
-                Back to CV
-              </Link>
-            </div>
-          </div>
-
+    <GameEngineLayout active="templates">
           {/* Stats Bar */}
           <div className="bg-gray-800 rounded-lg p-4 mb-6 flex items-center justify-between">
             <div className="flex items-center gap-6">
@@ -211,22 +184,6 @@ export default function GameEngineIndex() {
             </div>
           )}
 
-          {/* Footer */}
-          <div className="mt-12 text-center text-gray-500 text-sm">
-            <p>Built with ASCII tiles • Elixir + PostgreSQL</p>
-            <p className="mt-1">
-              <a
-                href="https://github.com/yourusername/game-engine"
-                className="text-blue-400 hover:underline"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Open source engine coming soon
-              </a>
-            </p>
-          </div>
-        </div>
-      </main>
-    </>
+    </GameEngineLayout>
   )
 }
