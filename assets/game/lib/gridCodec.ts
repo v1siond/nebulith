@@ -204,3 +204,38 @@ export function styleFromAssets(assets: readonly GridAsset[]): string | null {
 }
 
 export const isStyleAsset = (asset: GridAsset): boolean => asset.type === STYLE_ASSET_TYPE
+
+// ── floor-colour persistence ─────────────────────────────────────────
+// Per-cell FLOOR colour overrides (grid.groundColor, indexed [row][col]) ride as ONE off-grid marker
+// carrying a sparse { "col,row": color } map of only the recoloured cells — serializeGrid has no
+// groundColor field, so this keeps floor colour out of the schema like the rest. Empty → no marker.
+
+export const GROUND_COLOR_ASSET_TYPE = 'nebulith:groundColor'
+
+/** One off-grid marker with the sparse floor-colour map (empty → no marker). */
+export function groundColorToAssets(groundColor: readonly (readonly (string | null)[])[]): GridAsset[] {
+  const map: Record<string, string> = {}
+  for (let row = 0; row < groundColor.length; row++) {
+    const cells = groundColor[row]
+    for (let col = 0; col < (cells?.length ?? 0); col++) {
+      const color = cells[col]
+      if (color) map[`${col},${row}`] = color
+    }
+  }
+  if (Object.keys(map).length === 0) return []
+  return [{ art: [], col: -1, row: -1, type: GROUND_COLOR_ASSET_TYPE, blocking: false, label: JSON.stringify(map) }]
+}
+
+/** The saved floor-colour map, keyed "col,row" (empty when none was persisted). */
+export function groundColorFromAssets(assets: readonly GridAsset[]): Record<string, string> {
+  const marker = assets.find(a => a.type === GROUND_COLOR_ASSET_TYPE)
+  if (!marker?.label) return {}
+  try {
+    const parsed = JSON.parse(marker.label)
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? (parsed as Record<string, string>) : {}
+  } catch {
+    return {}
+  }
+}
+
+export const isGroundColorAsset = (asset: GridAsset): boolean => asset.type === GROUND_COLOR_ASSET_TYPE

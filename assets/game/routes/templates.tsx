@@ -48,7 +48,7 @@ import { type CombatState, type Entity, type EntityKind, type EntityVariant, typ
 import { weaponReach } from '@/game/weapons'
 import { VILLAGE_CONFIG } from '@/levels/village'
 import { Connector, TemplateListItem, createTemplate, deleteTemplate, deserializeToGrid, getTemplate, listTemplates, serializeGrid, updateTemplate, updateGame } from '@/lib/api'
-import { type CellTriggerGroup, ENTITY_GLYPH, buildingsFromAssets, buildingsToAssets, cellTriggersFromAssets, cellTriggersToAssets, entitiesFromAssets, entitiesToAssets, isBuildingAsset, isEntityAsset, isQuestAsset, isStyleAsset, isTriggerAsset, questsFromAssets, questsToAssets, styleFromAssets, styleToAssets, triggersAtCell } from '@/lib/gridCodec'
+import { type CellTriggerGroup, ENTITY_GLYPH, buildingsFromAssets, buildingsToAssets, cellTriggersFromAssets, cellTriggersToAssets, entitiesFromAssets, entitiesToAssets, groundColorFromAssets, groundColorToAssets, isBuildingAsset, isEntityAsset, isGroundColorAsset, isQuestAsset, isStyleAsset, isTriggerAsset, questsFromAssets, questsToAssets, styleFromAssets, styleToAssets, triggersAtCell } from '@/lib/gridCodec'
 import { type Trigger, type TriggerEffect, fireTriggers } from '@/game/runtime/trigger'
 import { ASCII_STYLE, type Style, styleById, groundKind, assetKind, entityKind, genderize, resolveVisual, visualForTileId } from '@/game/artStyle'
 import { useRouter } from 'next/router'
@@ -4230,6 +4230,7 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
         ...buildingsToAssets(grid.buildings), // grouped buildings ride along so load rebuilds the render
         ...styleToAssets(activeStyleId), // active art style rides as one off-grid marker (ASCII → none)
         ...cellTriggersToAssets(cellTriggers), // cell triggers (enter/interact) ride as off-grid markers
+        ...groundColorToAssets(grid.groundColor), // per-cell floor colours ride as one off-grid marker
       ]
 
       let savedTemplateId = currentTemplateId
@@ -4311,9 +4312,21 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
       const loadedBuildings = buildingsFromAssets(gridRef.current!.assets)
       const loadedStyle = styleFromAssets(gridRef.current!.assets) // active art style marker (null → ASCII)
       const loadedCellTriggers = cellTriggersFromAssets(gridRef.current!.assets) // cell triggers (enter/interact)
+      const loadedGroundColor = groundColorFromAssets(gridRef.current!.assets) // per-cell floor colours
       gridRef.current!.assets = gridRef.current!.assets.filter(
-        a => !isEntityAsset(a) && !isQuestAsset(a) && !isBuildingAsset(a) && !isStyleAsset(a) && !isTriggerAsset(a),
+        a => !isEntityAsset(a) && !isQuestAsset(a) && !isBuildingAsset(a) && !isStyleAsset(a) && !isTriggerAsset(a) && !isGroundColorAsset(a),
       )
+      // Restore per-cell floor colours: clear any stale overrides (a reused grid keeps the last map),
+      // then apply the saved ones. setGroundColor bumps groundVersion so the cached ground layer rebuilds.
+      {
+        const g = gridRef.current!
+        for (let r = 0; r < g.rows; r++)
+          for (let c = 0; c < g.cols; c++) if (g.groundColor[r]?.[c]) g.setGroundColor(c, r, null)
+        for (const [key, color] of Object.entries(loadedGroundColor)) {
+          const [c, r] = key.split(',').map(Number)
+          g.setGroundColor(c, r, color)
+        }
+      }
       setActiveStyleId(styleById(loadedStyle).id) // restore the saved global skin (defaults to ASCII)
       setCellTriggers(loadedCellTriggers) // restore the authored cell triggers
       // Restore the grouped buildings so iso/2D/top render the upright model, not the per-cell fallback.
