@@ -62,7 +62,7 @@ export const CELL_GLYPHS: Readonly<Record<CellLabel, string>> = {
 // tree/cluster a variant index into this palette. The trunk + building parts are
 // single per-zone colors. shade[0] is the zone's signature canopy tone.
 export const TREE_CANOPY_SHADES: Readonly<Record<ZoneId, string[]>> = {
-  spring: ['#7cc46a', '#9ed87f', '#5fae4f', '#e79ec8'], // fresh new growth + a blossom pink
+  spring: ['#2f9345', '#43a95a', '#1f6e34', '#e79ec8'], // fresh growth, but DEEPER + bluer than the yellow-green grass lawn (#5faf4a) so trees stand out, not blend — + a blossom pink
   summer: ['#2e8b2e', '#1f6b1f', '#3fb53f', '#246b24'], // deep, lush greens
   autumn: ['#d2691e', '#c0531a', '#e0a020', '#9c4a1e'], // orange / red / gold turning leaves
   winter: ['#cfe0ea', '#aac4d8', '#e8f2fa', '#9fbccb'], // frosted / snow-laden pale blues
