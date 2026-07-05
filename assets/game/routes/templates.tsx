@@ -4411,6 +4411,10 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
     // would no-op (handledQueryRef dedupe) — reload it directly, KEEPING the current position (#87).
     // A different template routes through the URL and loads at its own spawn.
     if (id === currentTemplateId) { loadTemplate(id); return }
+    // Inside a game the route is /games/[gameId], where `id` is the PATH segment (the game id) — routing
+    // through `query:{ id }` would overwrite it with the template id and land on /games/<templateId>
+    // ("game not found"). Switch the template in memory instead; lastTemplateId persists via its effect.
+    if (gameContext) { loadTemplate(id); return }
     router.push({ pathname: router.pathname, query: { id } }, undefined, { shallow: true })
   }
 
