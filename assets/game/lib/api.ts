@@ -185,6 +185,69 @@ export async function deleteTemplate(id: string): Promise<void> {
 }
 
 // ═══════════════════════════════════════════════════════════════════
+// Games — a GAME is a named, ordered flow of templates (many-to-many).
+// Persisted in the Elixir backend (/api/games); templates are a reusable resource.
+// ═══════════════════════════════════════════════════════════════════
+
+export interface Game {
+  id: string
+  name: string
+  description: string | null
+  /** The template the game reopens to (the last one watched). */
+  lastTemplateId: string | null
+  /** Ordered member templates — index 0 = level 1. */
+  templateIds: string[]
+}
+
+const GAMES_BASE = `${NEBULITH_API}/games`
+
+export async function listGames(): Promise<Game[]> {
+  const res = await fetch(GAMES_BASE)
+  if (!res.ok) throw new Error(`Failed to list games: ${res.statusText}`)
+  const data = await res.json()
+  return data.games ?? []
+}
+
+export async function getGame(id: string): Promise<Game> {
+  const res = await fetch(`${GAMES_BASE}/${id}`)
+  if (!res.ok) throw new Error(`Failed to get game: ${res.statusText}`)
+  return res.json()
+}
+
+export async function createGame(input: {
+  name: string
+  description?: string
+  templateIds?: string[]
+  lastTemplateId?: string
+}): Promise<Game> {
+  const res = await fetch(GAMES_BASE, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  })
+  if (!res.ok) throw new Error(`Failed to create game: ${res.statusText}`)
+  return res.json()
+}
+
+export async function updateGame(
+  id: string,
+  input: Partial<{ name: string; description: string; templateIds: string[]; lastTemplateId: string }>,
+): Promise<Game> {
+  const res = await fetch(`${GAMES_BASE}/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  })
+  if (!res.ok) throw new Error(`Failed to update game: ${res.statusText}`)
+  return res.json()
+}
+
+export async function deleteGame(id: string): Promise<void> {
+  const res = await fetch(`${GAMES_BASE}/${id}`, { method: 'DELETE' })
+  if (!res.ok) throw new Error(`Failed to delete game: ${res.statusText}`)
+}
+
+// ═══════════════════════════════════════════════════════════════════
 // Grid Serialization Helpers
 // ═══════════════════════════════════════════════════════════════════
 

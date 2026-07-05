@@ -3,20 +3,20 @@ import Link from 'next/link'
 import type { ReactNode } from 'react'
 
 /**
- * Shared shell for the game-engine gallery pages — the SAME nebulith layout + nav for Templates and Games,
- * so `/personal-projects/game-engine` (templates) and `/personal-projects/game-engine/games` (games/flows)
- * look and navigate identically, only the content differs. The `active` tab is highlighted.
+ * Shared shell for the game-engine pages — the nebulith layout + nav. Everything is scoped to GAMES now
+ * (templates are a reusable resource reached only inside a game), so the nav is just Games + Back to CV.
+ * The `active` prop is kept for forward-compat but currently only 'games' exists.
  */
 export function GameEngineLayout({
-  active,
+  active = 'games',
   title = 'Nebulith',
   children,
 }: {
-  active: 'templates' | 'games'
+  active?: 'games'
   title?: string
   children: ReactNode
 }) {
-  const tab = (href: string, label: string, key: 'templates' | 'games') => (
+  const tab = (href: string, label: string, key: 'games') => (
     <Link
       href={href}
       className={`px-4 py-2 rounded text-sm font-bold ${
@@ -41,7 +41,6 @@ export function GameEngineLayout({
               <p className="text-gray-400">ASCII tile-based game engine</p>
             </div>
             <div className="flex items-center gap-2">
-              {tab('/personal-projects/game-engine', '🗺️ Templates', 'templates')}
               {tab('/personal-projects/game-engine/games', '🎮 Games', 'games')}
               <Link href="/" className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm">
                 Back to CV

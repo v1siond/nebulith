@@ -47,7 +47,7 @@ import { ENEMY_TYPES, CAVE_ENEMY_TYPES, TEMPLE_ENEMY_TYPES, archetypeForEnemyTyp
 import { type CombatState, type Entity, type EntityKind, type EntityVariant, type Inventory, type Item, type Loadout, type Quest, type Reward, type Stats, type TalentPath, type Weapon } from '@/game/types'
 import { weaponReach } from '@/game/weapons'
 import { VILLAGE_CONFIG } from '@/levels/village'
-import { Connector, TemplateListItem, createTemplate, deleteTemplate, deserializeToGrid, getTemplate, listTemplates, serializeGrid, updateTemplate } from '@/lib/api'
+import { Connector, TemplateListItem, createTemplate, deleteTemplate, deserializeToGrid, getTemplate, listTemplates, serializeGrid, updateTemplate, updateGame } from '@/lib/api'
 import { type CellTriggerGroup, ENTITY_GLYPH, buildingsFromAssets, buildingsToAssets, cellTriggersFromAssets, cellTriggersToAssets, entitiesFromAssets, entitiesToAssets, isBuildingAsset, isEntityAsset, isQuestAsset, isStyleAsset, isTriggerAsset, questsFromAssets, questsToAssets, styleFromAssets, styleToAssets, triggersAtCell } from '@/lib/gridCodec'
 import { type Trigger, type TriggerEffect, fireTriggers } from '@/game/runtime/trigger'
 import { ASCII_STYLE, type Style, styleById, groundKind, assetKind, entityKind, genderize, resolveVisual, visualForTileId } from '@/game/artStyle'
@@ -90,8 +90,19 @@ const EMPTY_ENTITIES: Entity[] = []
 // is selected for editing, when arrow keys drive the BUILDING instead).
 const EMPTY_KEYS: Record<string, boolean> = {}
 
+/**
+ * When the editor is opened INSIDE a game (route /games/[id]) it receives this context instead of
+ * reading a template id off the URL. `startTemplateId` is the template to open first (the game's
+ * last-watched); switching templates within the game writes the new one back as `lastTemplateId`.
+ */
+export interface EditorGameContext {
+  gameId: string
+  templateIds: string[]
+  startTemplateId: string | null
+  play: boolean
+}
 
-export default function TemplateEditor() {
+export default function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {}) {
   const router = useRouter()
   const { toast } = useToast()
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -4491,7 +4502,23 @@ export default function TemplateEditor() {
   const loadBtnRef = useRef<HTMLButtonElement>(null)
   const [loadMenuPos, setLoadMenuPos] = useState<{ top: number; left: number } | null>(null)
   useEffect(() => {
-    if (!router.isReady || !gridRef.current) return
+    if (!gridRef.current) return
+    // Opened INSIDE a game (route /games/[id]) — drive the first load from the game context, not the URL
+    // (the [id] path segment is the GAME id, not a template). Open the game's last-watched template.
+    if (gameContext) {
+      const startId = gameContext.startTemplateId
+      const key = startId ? `game:${startId}${gameContext.play ? ':play' : ''}` : 'game:empty'
+      if (handledQueryRef.current === key) return
+      handledQueryRef.current = key
+      if (startId && gameContext.play) {
+        loadTemplate(startId, undefined, { resetToSpawn: true }).then(() => enterPlayMode())
+      } else if (startId) {
+        loadTemplate(startId)
+      }
+      setInitialized(true)
+      return
+    }
+    if (!router.isReady) return
     const { id, new: isNew, play } = router.query
     const wantPlay = play === '1' // deep-link straight into the play view (from the Games route ▶ Play)
     const key = typeof id === 'string' ? `id:${id}${wantPlay ? ':play' : ''}` : isNew === '1' ? 'new' : 'recent'
@@ -4525,7 +4552,17 @@ export default function TemplateEditor() {
       })
     }
     setInitialized(true)
-  }, [router.isReady, router.query])
+  }, [router.isReady, router.query, gameContext])
+
+  // Inside a game, remember the last template watched so reopening the game resumes here. Skip the very
+  // first render (the load we just kicked off) — only persist once the user actually SWITCHES templates.
+  const lastSavedTemplateRef = useRef<string | null>(gameContext?.startTemplateId ?? null)
+  useEffect(() => {
+    if (!gameContext || !currentTemplateId) return
+    if (currentTemplateId === lastSavedTemplateRef.current) return
+    lastSavedTemplateRef.current = currentTemplateId
+    updateGame(gameContext.gameId, { lastTemplateId: currentTemplateId }).catch(() => {})
+  }, [currentTemplateId, gameContext])
 
   return (
     <>
