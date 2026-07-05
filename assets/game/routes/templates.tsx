@@ -58,6 +58,7 @@ import { loadTilesetsFromBackend, saveTilesetToBackend } from '@/engine/tileset/
 import { EMOJI_TILESET, setTilePose } from '@/engine/tileset/emojiTileset'
 import { type TilePose } from '@/engine/tileset/pose'
 import { type QuestDraft, emptyQuestDraft, questFromDraft } from '@/game/runtime/questDraft'
+import { seedCharacterAnimations } from '@/game/runtime/entityAnimation'
 import { buildingPlacementEnv, nearestRoadFacing, stampBuildingCells, unstampBuildingCells } from '@/game/runtime/buildings'
 import { type Cursor, type JumpState, JUMP_MS, JUMP_PEAK_PX, advanceEnemyMovement, beginJump, tickCannons } from '@/game/runtime/movement'
 import { playSwoosh } from '@/game/runtime/audio'
@@ -89,6 +90,17 @@ const EMPTY_ENTITIES: Entity[] = []
 // A frozen empty key map → the player ignores movement input (e.g. while a building
 // is selected for editing, when arrow keys drive the BUILDING instead).
 const EMPTY_KEYS: Record<string, boolean> = {}
+
+/** Forward-seed the default character animation set onto any person (player/npc) that has none, so the
+ *  animation list follows the UNIT across templates and persists on save (#88 — persons saved before
+ *  animation-seeding existed load with an empty list even though they play the default set). */
+function withSeededPersonAnimations(list: Entity[]): Entity[] {
+  return list.map(e =>
+    (e.kind === 'player' || e.kind === 'npc') && !(e.animations && e.animations.length > 0)
+      ? { ...e, animations: seedCharacterAnimations() }
+      : e,
+  )
+}
 
 /**
  * When the editor is opened INSIDE a game (route /games/[id]) it receives this context instead of
@@ -4306,7 +4318,11 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
 
       // Split placed entities AND quests back out of the assets they rode in on,
       // then strip both marker kinds so they don't double-render as decoration.
-      const loadedEntities = entitiesFromAssets(gridRef.current!.assets)
+      // A person entity (player/npc) authored BEFORE animation-seeding existed loads with no animations,
+      // so its Inspector list reads empty even though it PLAYS the default character set (#88 — the Forest
+      // hero vs Village hero mismatch). Forward-seed the default set onto any person that has none, so the
+      // animation list follows the UNIT consistently and persists on the next save.
+      const loadedEntities = withSeededPersonAnimations(entitiesFromAssets(gridRef.current!.assets))
       const loadedQuests = questsFromAssets(gridRef.current!.assets)
       const loadedBuildings = buildingsFromAssets(gridRef.current!.assets)
       const loadedStyle = styleFromAssets(gridRef.current!.assets) // active art style marker (null → ASCII)
@@ -4371,7 +4387,7 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
       // Normalize on load so legacy single-cell saves get the {cells:[...]} shape
       // before the trigger/render paths (which read connector.cells) ever see them.
       setConnectors((template.connectors || []).map(normalizeConnector))
-      setEntities(template.entities ?? [])
+      setEntities(withSeededPersonAnimations(template.entities ?? []))
       setQuests(template.quests ?? [])
       // Older saves may have no player entity → mint one at the spawn so the player
       // is still a clickable, vitals-showing entity. A saved player is kept as-is.
