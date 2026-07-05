@@ -29,6 +29,9 @@ export interface BuildingSpec {
   floors?: number
   /** Optional length override (still clamped to the type/min minimum). */
   length?: number
+  /** Caller's roll to ALLOW a 2-wide centred door. Only takes effect on a >=3-floor, even-width
+   *  building (the possibility "unlocks" at 3 floors); ignored otherwise. */
+  wideDoor?: boolean
 }
 
 export interface ComposedBuilding {
@@ -107,9 +110,14 @@ export function composeBuilding(spec: BuildingSpec = {}): ComposedBuilding {
   // on even widths and keep a 1-cell centre column on odd — always centred, always symmetric. The
   // widened door still covers the walkable entrance at floor(length/2), so #40 stays fixed. Ceremonial
   // types keep their authored wide doorway.
+  // A wide (2-cell) centred door only UNLOCKS for a tall building (>=3 floors) on an EVEN frontage, and
+  // even then it's the caller's roll (spec.wideDoor) — a possibility, not automatic. Short buildings and
+  // odd frontages keep a 1-cell door. Ceremonial types keep their authored wide doorway. Entrance +
+  // driveway derive from this door rect (doorCells), so a 1-wide door stays aligned either way.
   const centredDoor = ts.doorWidth === 1
+  const wideDoorUnlocked = floors >= 3 && length % 2 === 0 && !!spec.wideDoor
   const doorWidth = centredDoor
-    ? (length % 2 === 0 ? 2 : 1)
+    ? (wideDoorUnlocked ? 2 : 1)
     : Math.min(Math.max(MIN_DOOR_WIDTH, ts.doorWidth), Math.max(1, length - 1)) // ≥1 wall column
   const doorHeight = DOOR_HEIGHT
 

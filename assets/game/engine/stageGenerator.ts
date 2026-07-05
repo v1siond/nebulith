@@ -558,7 +558,8 @@ function placeSettlement(ctx: ArchetypeContext, settlement: Settlement): void {
   //    MIN-ROW/MIN-COL (top-left) of the small `length × depth` footprint rect; placeBuilding blocks
   //    every footprint cell (a roof from above) EXCEPT the road-facing door cell (walkable).
   for (const plot of layout.plots) {
-    const facade = composeBuilding({ type: plot.type, length: plot.length })
+    // Roll for a wide door — only "unlocks" inside composeBuilding for a >=3-floor even-width building.
+    const facade = composeBuilding({ type: plot.type, length: plot.length, wideDoor: Math.random() < 0.5 })
     const rect = footprintRect(plot)
     if (!rectInBounds(rect, cols, rows)) continue // planner's rectClear guarantees this; stay safe
     buildings.push(placeBuilding(ctx, facade, plot, rect))

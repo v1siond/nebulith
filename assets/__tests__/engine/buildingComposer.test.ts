@@ -49,26 +49,33 @@ describe('composeBuilding — Nebulith building architecture spec', () => {
     expect(b.roofTop).toEqual({ x: 1, y: 0 })
   })
 
-  it('plants a CENTERED, 2-tall door symmetric with the windows — still covers the 1-cell entrance', () => {
-    // house/store/hospital/big-house CENTRE the door so it reads symmetric with the mirrored windows
-    // (#49): a 1-cell column on ODD widths, the two middle columns (2-wide) on EVEN widths (a single
-    // cell can't be centred with no middle column — the user's "2x2 not 1x2"). Either way it stays
-    // centred (equal wall margins) AND still covers the walkable entrance at floor(length/2), so the
-    // door + entrance + driveway keep lining up (#40).
+  it('a short building (<3 floors) always gets a 1-cell, 2-tall door — never a wide one', () => {
+    // The wide-door "possibility" only unlocks at 3+ floors (the user's rule), so house/store/hospital/
+    // big-house (1–2 floors) keep a single-cell door regardless of frontage parity. The walkable entrance
+    // + driveway derive from this door rect (doorCells), so a 1-cell door still lines up (#40).
     for (const type of ['house', 'store', 'hospital', 'big-house'] as BuildingType[]) {
-      const b = composeBuilding({ type, floors: 1 })
+      const b = composeBuilding({ type, floors: 1, wideDoor: true }) // even with the roll ON, floors gate it
       expect(b.door.height).toBe(2) // a 2-tall doorway, not a window
-      expect(b.door.width).toBe(b.length % 2 === 0 ? 2 : 1) // parity → a real centre exists
-      expect(2 * b.door.x + b.door.width).toBe(b.length) // equal margins ⇒ symmetric with the windows
-      const entrance = Math.floor(b.length / 2) // stageGenerator's doorCell column
-      expect(entrance).toBeGreaterThanOrEqual(b.door.x)
-      expect(entrance).toBeLessThan(b.door.x + b.door.width) // the door still covers it
+      expect(b.door.width).toBe(1) // <3 floors → never wide
       const bottom = b.height - 1
       expect(b.cells[bottom][b.door.x]).toBe('door') // ground row of the door
       expect(b.cells[bottom - 1][b.door.x]).toBe('door') // second (top) row of the door
       expect(b.door.x).toBeGreaterThan(0) // a wall column survives to the left
       expect(b.door.x + b.door.width).toBeLessThanOrEqual(b.length)
     }
+  })
+
+  it('unlocks a 2-wide centred door ONLY for a 3+ floor even-width building when the roll allows it', () => {
+    // eligible (3 floors, even width) + roll ON → 2 wide + centred (symmetric with the mirrored windows)
+    const wide = composeBuilding({ type: 'house', floors: 3, length: 6, wideDoor: true })
+    expect(wide.door.width).toBe(2)
+    expect(2 * wide.door.x + wide.door.width).toBe(wide.length) // equal margins ⇒ centred/symmetric
+    // same building, roll OFF → stays 1 wide (a possibility, not automatic)
+    expect(composeBuilding({ type: 'house', floors: 3, length: 6, wideDoor: false }).door.width).toBe(1)
+    // <3 floors, even, roll ON → still 1 (the floor gate wins)
+    expect(composeBuilding({ type: 'house', floors: 2, length: 6, wideDoor: true }).door.width).toBe(1)
+    // odd width, 3 floors, roll ON → 1 (a single cell already centres cleanly on odd)
+    expect(composeBuilding({ type: 'house', floors: 3, length: 5, wideDoor: true }).door.width).toBe(1)
   })
 
   it('roofs the top row (flat store) and walls the body (corners are walls, not door)', () => {
