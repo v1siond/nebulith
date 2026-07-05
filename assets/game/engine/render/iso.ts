@@ -1159,17 +1159,13 @@ export function drawIsoBuilding(
   // Segoe black-silhouette entirely (no glyph stacking). Per-TYPE identity (temple vs castle) is a
   // per-type tileset, authored — not a single landmark glyph.
   const bodyH = H - ROOF_ROWS // wall/window/door rows
-  // Per-floor height: each floor rises at the GROUND PLANE's own per-cell rate (cellRiseY ≈ tileH — the
-  // screen-y one footprint cell recedes by), CONSTANT per floor. So an H-row building reads as H floors in
-  // iso — the SAME floor count the 2D elevation draws — instead of the old `maxBaseDim*cellRiseY/H` cap,
-  // which divided the height by the floor count and compressed a tall building down to its base size (a
-  // 4-floor building showed as ~1). A floor rising like one ground cell keeps the tower FAR shorter than
-  // the old cellH-per-floor (the facade TILE WIDTH, ~1.8× larger) that spilled onto the cells behind it
-  // (#30), while still standing at its true floor count. Capped at cellH so one floor never exceeds the
-  // facade width. TRADEOFF: a very tall thin building now genuinely rises past its small footprint — the
-  // honest floor count, matching 2D, is preferred over hiding floors.
-  const cellRiseY = (Math.abs(colVec.y) + Math.abs(depthVec.y) / Math.max(1, b.depth)) / 2
-  const vCell = Math.min(cellH, cellRiseY)
+  // Per-row height = the cell BLOCK size (cellH — one facade cell's iso height, ≈ its iso WIDTH `colVec`,
+  // so a cell reads ~SQUARE like the 2D elevation's square cells). An H-row building therefore rises
+  // H × cellH: the SAME row count the 2D facade draws, translated 1:1 to iso — height = number of rows ×
+  // block size. The old clamp to the flat ground-plane recede rate (cellRiseY ≈ tileH ≈ 0.35× a block)
+  // squashed every floor, so a 5-row building read as ~2 in iso. composeBuilding already CAPS H to the
+  // base width, so a full-block-per-row rise stays proportional — never a runaway tower.
+  const vCell = cellH
   const up = (n: number): Pt => ({ x: 0, y: -n * vCell })
   // Houses peak (composeBuilding leaves empty corners in row 0); flat types keep a box roof.
   const peaked = (b.cells[0] ?? []).some(k => k === 'empty')
