@@ -36,7 +36,7 @@ describe('template persistence — entities + quests round-trip', () => {
     expect(body.connectors).toEqual([])
   })
 
-  it('survives a JSON round-trip (what the Prisma Json column does on save/load)', () => {
+  it('survives a JSON round-trip (what a JSON column does on save/load)', () => {
     const body = withTemplateDefaults(baseInput({ entities: [enemy, npc], quests: [quest] }))
     const loaded = JSON.parse(JSON.stringify(body)) as unknown as TemplateData
     expect(loaded.entities).toHaveLength(2)

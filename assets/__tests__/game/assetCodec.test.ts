@@ -43,7 +43,7 @@ describe('asset codec round-trips (entity / quest / building)', () => {
     expect(buildingsFromAssets(buildingsToAssets([building]))).toEqual([building])
   })
 
-  it('survives a JSON round-trip (what the Prisma Json column does on save/load)', () => {
+  it('survives a JSON round-trip (what a JSON column does on save/load)', () => {
     const assets = [
       ...entitiesToAssets([enemy, npc]),
       ...questsToAssets([quest]),

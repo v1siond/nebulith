@@ -4,7 +4,7 @@ import { entitiesToAssets, entitiesFromAssets, styleToAssets, styleFromAssets } 
 import type { Entity } from '@/game/types'
 
 // Wrap a serialized grid in the minimal TemplateData shape the loader consumes, going
-// through JSON.stringify/parse first — that is exactly what the Prisma Json column does
+// through JSON.stringify/parse first — that is exactly what a JSON column does
 // on save/load, so this proves the field survives the real persistence path.
 function roundTripGrid(grid: IsometricGrid): IsometricGrid {
   const s = serializeGrid(grid)

@@ -213,7 +213,7 @@ export default function GameEngineIndex() {
 
           {/* Footer */}
           <div className="mt-12 text-center text-gray-500 text-sm">
-            <p>Built with ASCII tiles • Prisma + PostgreSQL</p>
+            <p>Built with ASCII tiles • Elixir + PostgreSQL</p>
             <p className="mt-1">
               <a
                 href="https://github.com/yourusername/game-engine"
