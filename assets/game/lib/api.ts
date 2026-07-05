@@ -97,7 +97,12 @@ export interface CreateTemplateInput {
 // API Functions
 // ═══════════════════════════════════════════════════════════════════
 
-const API_BASE = '/api/templates'
+// Templates persist in the nebulith ELIXIR backend (like the tilesets at /api/tilesets) — NOT Prisma.
+// Dev points straight at :4001; later this becomes configurable / same-origin behind a proxy (mirrors
+// src/engine/tileset/tilesetLoader.ts). The Elixir endpoint returns the SAME shapes this client expects
+// ({templates,total} list, bare object show/create/update, {success,id} delete), so only the base URL moves.
+const NEBULITH_API = 'http://localhost:4001/api'
+const API_BASE = `${NEBULITH_API}/templates`
 
 export async function listTemplates(options: {
   category?: string
