@@ -4492,13 +4492,19 @@ export default function TemplateEditor() {
   const [loadMenuPos, setLoadMenuPos] = useState<{ top: number; left: number } | null>(null)
   useEffect(() => {
     if (!router.isReady || !gridRef.current) return
-    const { id, new: isNew } = router.query
-    const key = typeof id === 'string' ? `id:${id}` : isNew === '1' ? 'new' : 'recent'
+    const { id, new: isNew, play } = router.query
+    const wantPlay = play === '1' // deep-link straight into the play view (from the Games route ▶ Play)
+    const key = typeof id === 'string' ? `id:${id}${wantPlay ? ':play' : ''}` : isNew === '1' ? 'new' : 'recent'
     if (handledQueryRef.current === key) return
     handledQueryRef.current = key
 
     if (typeof id === 'string') {
-      loadTemplate(id) // sets currentTemplateId
+      if (wantPlay) {
+        // ▶ Play a game level: load the template at its spawn and enter play mode (mirrors playGameLevel).
+        loadTemplate(id, undefined, { resetToSpawn: true }).then(() => enterPlayMode())
+      } else {
+        loadTemplate(id) // sets currentTemplateId
+      }
     } else if (isNew === '1') {
       // A blank NEW template: drop the current id (so the button reads "Save", not "Update"), clear
       // authored data, and lay down a fresh map.

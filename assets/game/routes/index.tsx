@@ -74,12 +74,20 @@ export default function GameEngineIndex() {
               <h1 className="text-3xl font-bold text-yellow-400 mb-2">Nebulith</h1>
               <p className="text-gray-400">ASCII tile-based game engine</p>
             </div>
-            <Link
-              href="/"
-              className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm"
-            >
-              Back to CV
-            </Link>
+            <div className="flex items-center gap-2">
+              <Link
+                href="/personal-projects/game-engine/games"
+                className="px-4 py-2 bg-indigo-700 hover:bg-indigo-600 rounded text-sm font-bold"
+              >
+                🎮 Games
+              </Link>
+              <Link
+                href="/"
+                className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm"
+              >
+                Back to CV
+              </Link>
+            </div>
           </div>
 
           {/* Stats Bar */}
