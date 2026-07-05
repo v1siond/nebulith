@@ -309,6 +309,7 @@ export function render(
   clampCamera: boolean = true,
   targetId: string | null = null,
   hoverId: string | null = null,
+  selectedCells: ReadonlySet<string> = new Set(),
 ) {
   const __isoT0 = perfNow() // perf probe — rolling avg of render() ms, exposed on window.__isoRenderMs
   // Clear
@@ -601,6 +602,24 @@ export function render(
   } else if (isShowCollisions()) {
     // Collision-only overlay: same red diamonds as debug, no coords/labels.
     renderDebugOverlays(ctx, w, h, grid, player, (wx, wz) => toScreen(wx / cellSize, wz / cellSize), cellSize, false)
+  }
+
+  // ─── Selection outline (property-editor multi-select) — a yellow diamond around each
+  //     selected cell's ground footprint, drawn over the world like the 2D/top views. ──
+  if (selectedCells.size > 0) {
+    ctx.strokeStyle = '#ffff00'
+    ctx.lineWidth = 2
+    for (const key of selectedCells) {
+      const [col, row] = key.split(',').map(Number)
+      const p = toScreen(col, row)
+      ctx.beginPath()
+      ctx.moveTo(p.x, p.y - tileH)
+      ctx.lineTo(p.x + tileW, p.y)
+      ctx.lineTo(p.x, p.y + tileH)
+      ctx.lineTo(p.x - tileW, p.y)
+      ctx.closePath()
+      ctx.stroke()
+    }
   }
 
   // ─── UI ───────────────────────────────────────────────────────────

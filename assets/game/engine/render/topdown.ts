@@ -462,6 +462,7 @@ export function render2D(
   style: Style = ASCII_STYLE,
   targetId: string | null = null,
   hoverId: string | null = null,
+  selectedCells: ReadonlySet<string> = new Set(),
 ) {
   const __t0 = typeof performance !== 'undefined' ? performance.now() : 0
   const playerIsTarget = !!targetId && entities.some(e => e.kind === 'player' && e.id === targetId)
@@ -1067,6 +1068,18 @@ export function render2D(
   if (dayNight === 'night') {
     const lamps = collectLampGlows(grid, (c, r) => toScreen(c + 0.5, r + 0.5), tileW * LAMP_GLOW.radiusTiles, tileH * 2.2, w, h)
     drawNightLighting(ctx, w, h, lamps)
+  }
+
+  // ─── Selection outline (property-editor multi-select) — drawn over the world so
+  //     the yellow ring shows on top of tiles/props, mirroring the top view. ────────
+  if (selectedCells.size > 0) {
+    ctx.strokeStyle = '#ffff00'
+    ctx.lineWidth = 2
+    for (const key of selectedCells) {
+      const [col, row] = key.split(',').map(Number)
+      const p = toScreen(col, row)
+      ctx.strokeRect(p.x + 1, p.y + 1, tileW - 2, tileH - 2)
+    }
   }
 
   // ─── UI ───────────────────────────────────────────────────────────
