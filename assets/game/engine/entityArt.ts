@@ -135,9 +135,12 @@ export function characterTone(id: string): EntityPalette {
 /** The fg/bg block palette for an entity. Characters (player/npc) get a per-id tone so each
  *  reads as a distinct person; enemies keep their per-type hue. */
 export function entityPalette(entity: Entity): EntityPalette {
-  if (entity.kind === 'player' || entity.kind === 'npc') return characterTone(entity.id)
-  const key = entity.enemyType?.trim().toLowerCase() ?? ''
-  return ENEMY_PALETTE[key] ?? ENEMY_PALETTE_FALLBACK
+  const base =
+    entity.kind === 'player' || entity.kind === 'npc'
+      ? characterTone(entity.id)
+      : ENEMY_PALETTE[entity.enemyType?.trim().toLowerCase() ?? ''] ?? ENEMY_PALETTE_FALLBACK
+  // An editor colour override recolours the glyph; the bg stays the role's, for contrast.
+  return entity.color ? { ...base, fg: entity.color } : base
 }
 
 /** Top-view role colors for the `>` glyph: yellow player, red enemy, and NPCs by quest —
@@ -152,6 +155,7 @@ export const TOP_ROLE_COLOR = {
 
 /** Resolve an entity's top-view role color (NPCs vary by the state of the quest they give). Pure. */
 export function topRoleColor(entity: Entity, quests: readonly Quest[]): string {
+  if (entity.color) return entity.color // an explicit editor colour wins over the role/quest default
   if (entity.kind === 'player') return TOP_ROLE_COLOR.player
   if (entity.kind === 'enemy') return TOP_ROLE_COLOR.enemy
   const q = quests.find(qu => qu.giverId === entity.id)

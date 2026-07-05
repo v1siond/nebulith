@@ -5482,6 +5482,26 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
                           </button>
                         ))}
                       </div>
+                      <div className="mb-3 flex items-center gap-2 text-[11px]">
+                        <span className="text-gray-400">Colour</span>
+                        <input
+                          type="color"
+                          aria-label="Unit colour"
+                          value={selEntity.color ?? '#ffffff'}
+                          onChange={e => patchSelectedEntity({ color: e.target.value })}
+                          className="h-6 w-10 rounded bg-gray-700"
+                        />
+                        {selEntity.color && (
+                          <button
+                            type="button"
+                            onClick={() => patchSelectedEntity({ color: undefined })}
+                            title="Back to the default role colour"
+                            className="rounded bg-gray-700 px-2 py-0.5 text-gray-300 hover:bg-gray-600"
+                          >
+                            default
+                          </button>
+                        )}
+                      </div>
                       <AnimationEditor
                         animations={selEntity.animations ?? []}
                         category="units"

@@ -121,6 +121,15 @@ describe('entityPalette — robust fg/bg block colors (the trees\' language)', (
     expect(ENEMY_PALETTE.skeleton.fg).toBe('#ece8d2')
     expect(ENEMY_ART.skeleton.length).toBe(5)
   })
+
+  it('an editor colour override recolours the fg but keeps the role bg for contrast', () => {
+    const e = makeEnemy('e', 0, 0, 'skeleton')
+    const base = ENEMY_PALETTE.skeleton
+    const colored = entityPalette({ ...e, color: '#ff00aa' })
+    expect(colored.fg).toBe('#ff00aa') // the override wins
+    expect(colored.bg).toBe(base.bg) // bg unchanged
+    expect(entityPalette(e).fg).toBe(base.fg) // no override → role default
+  })
 })
 
 describe('topRoleColor — top-view > glyph colors by role + quest state', () => {
@@ -138,6 +147,13 @@ describe('topRoleColor — top-view > glyph colors by role + quest state', () =>
     expect(topRoleColor(n, [quest('n1', 'available')])).toBe(TOP_ROLE_COLOR.questAvailable) // green
     expect(topRoleColor(n, [quest('n1', 'active')])).toBe(TOP_ROLE_COLOR.questActive) // purple
     expect(topRoleColor(n, [quest('other', 'available')])).toBe(TOP_ROLE_COLOR.npc) // not this npc's quest
+  })
+
+  it('an editor colour override wins over the role/quest colour', () => {
+    const n = makeNpc('n1', 0, 0)
+    expect(topRoleColor({ ...n, color: '#123456' }, [])).toBe('#123456')
+    expect(topRoleColor({ ...n, color: '#123456' }, [quest('n1', 'active')])).toBe('#123456') // wins over quest state
+    expect(topRoleColor(n, [])).toBe(TOP_ROLE_COLOR.npc) // no override → role colour
   })
 })
 

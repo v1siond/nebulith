@@ -262,6 +262,8 @@ export interface Entity {
   /** render + stat SCALE (1 = normal). A boss at size 2 draws twice as big and derives beefier
    *  stats (see scaleStatsBySize). Bottom-grounded so a bigger figure still stands on its shadow. */
   size?: number
+  /** editor colour override for the figure glyph. Absent → the kind/role default palette. */
+  color?: string
 }
 
 // ── quests / missions ───────────────────────────────────────────────
