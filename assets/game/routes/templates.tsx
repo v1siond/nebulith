@@ -163,6 +163,9 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
 
   // Template management state
   const [savedTemplates, setSavedTemplates] = useState<TemplateListItem[]>([])
+  // When editing inside a game, the templates linked to it (the many-to-many). Kept in sync as
+  // connections are made so the game always contains the flow it opens.
+  const [gameTemplateIds, setGameTemplateIds] = useState<string[]>(gameContext?.templateIds ?? [])
   const [currentTemplateId, setCurrentTemplateId] = useState<string | null>(null)
   const [templateName, setTemplateName] = useState('')
   const [isSaving, setIsSaving] = useState(false)
@@ -4150,6 +4153,57 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
     }
   }
 
+  // ── Game membership (many-to-many) ─────────────────────────────────────────
+  // Link templates into the current game, persisting the join. Idempotent — a template already in the
+  // game is a no-op. Only meaningful inside a game (route /games/[id]); a plain editor session skips it.
+  const linkTemplatesToGame = async (ids: string[]) => {
+    if (!gameContext) return
+    const additions = ids.filter(id => id && !gameTemplateIds.includes(id))
+    if (additions.length === 0) return
+    const next = [...gameTemplateIds, ...additions]
+    setGameTemplateIds(next)
+    await updateGame(gameContext.gameId, { templateIds: next }).catch(() => {})
+  }
+
+  // Create a fresh, blank template (same dimensions as the current map) so a connection can target it.
+  // The user opens it later to build it out. Returns the new id, or null on failure.
+  const createBlankTemplate = async (name: string): Promise<string | null> => {
+    const grid = gridRef.current
+    if (!grid) return null
+    const blank = new IsometricGrid({ cols: grid.cols, rows: grid.rows, cellSize: grid.cellSize, isoScale: grid.isoScale })
+    const { groundData, heightData, assetsData } = serializeGrid(blank)
+    try {
+      const created = await createTemplate({
+        name,
+        groundData,
+        heightData,
+        assetsData,
+        cols: blank.cols,
+        rows: blank.rows,
+        cellSize: blank.cellSize,
+        isoScale: blank.isoScale,
+        spawnCol: Math.floor(blank.cols / 2),
+        spawnRow: Math.floor(blank.rows / 2),
+      })
+      await loadTemplateList()
+      return created.id
+    } catch {
+      toast('Failed to create template', 'error')
+      return null
+    }
+  }
+
+  // Connector picker "＋ New": make a new template, select it as this connector's target, and (in a game)
+  // link it. Lets the user branch the flow to a fresh room without leaving the connection form.
+  const handleNewConnectorTarget = async () => {
+    const name = window.prompt('New template name?')?.trim()
+    if (!name) return
+    const id = await createBlankTemplate(name)
+    if (!id) return
+    setConnectorForm(f => ({ ...f, targetTemplateId: id }))
+    await linkTemplatesToGame([id])
+  }
+
   // Save current map as template
   const saveCurrentTemplate = async () => {
     const grid = gridRef.current
@@ -4178,6 +4232,7 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
         ...cellTriggersToAssets(cellTriggers), // cell triggers (enter/interact) ride as off-grid markers
       ]
 
+      let savedTemplateId = currentTemplateId
       if (currentTemplateId) {
         // Update existing
         await updateTemplate(currentTemplateId, {
@@ -4213,9 +4268,14 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
           spawnRow: Math.floor(playerRef.current.z / grid.cellSize),
         })
         setCurrentTemplateId(created.id)
+        savedTemplateId = created.id
       }
 
       await loadTemplateList()
+      // Inside a game: keep the join in sync — this template and everything it connects to belong to the game.
+      if (savedTemplateId) {
+        await linkTemplatesToGame([savedTemplateId, ...connectors.map(c => c.targetTemplateId)])
+      }
       toast('Template saved!', 'success')
     } catch (error) {
       console.error('Failed to save template:', error)
@@ -5557,17 +5617,27 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
                           />
                         )}
                         {actionType === 'teleport' && (
-                          <select
-                            value={connectorForm.targetTemplateId || ''}
-                            onChange={e => setConnectorForm(f => ({ ...f, targetTemplateId: e.target.value }))}
-                            aria-label="Target template"
-                            className="w-full rounded bg-gray-800 p-1 text-xs"
-                          >
-                            <option value="">Target template…</option>
-                            {savedTemplates.filter(t => t.id !== currentTemplateId).map(t => (
-                              <option key={t.id} value={t.id}>{t.name}</option>
-                            ))}
-                          </select>
+                          <div className="flex items-center gap-1">
+                            <select
+                              value={connectorForm.targetTemplateId || ''}
+                              onChange={e => setConnectorForm(f => ({ ...f, targetTemplateId: e.target.value }))}
+                              aria-label="Target template"
+                              className="flex-1 rounded bg-gray-800 p-1 text-xs"
+                            >
+                              <option value="">Target template…</option>
+                              {savedTemplates.filter(t => t.id !== currentTemplateId).map(t => (
+                                <option key={t.id} value={t.id}>{t.name}</option>
+                              ))}
+                            </select>
+                            <button
+                              type="button"
+                              onClick={handleNewConnectorTarget}
+                              title="Create a new template to connect to"
+                              className="whitespace-nowrap rounded bg-blue-700 px-2 py-1 text-xs font-bold hover:bg-blue-600"
+                            >
+                              ＋ New
+                            </button>
+                          </div>
                         )}
                       </div>
                     </Card>
