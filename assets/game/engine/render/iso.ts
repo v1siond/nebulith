@@ -17,7 +17,7 @@ import { type CombatState, type Entity, type Quest } from '@/game/types'
 import { resolveGroundTile } from '@/engine/tileset/tileset'
 import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 import { Connector } from '@/lib/api'
-import { ASCII_FONT, BUILDING_BADGES, COMBAT_RANGE, type DayNight, type DrawVisual, ENEMY_MOVE_MS, LAMP_GLOW, LIGHT, applyCellTransform, isoCameraFocus, assetCaptionByCell, terrainLabelAt, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawHoverRing, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, frameImage, getPlayerArt, grassShade, cellFill, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, assetOverride, tileImage, treeCanopyLayers } from './shared'
+import { ASCII_FONT, BUILDING_BADGES, COMBAT_RANGE, type DayNight, type DrawVisual, ENEMY_MOVE_MS, LAMP_GLOW, LIGHT, applyCellTransform, isoCameraFocus, assetCaptionByCell, terrainLabelAt, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawHoverRing, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, frameImage, getPlayerArt, grassShade, cellFill, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, assetOverride, tileImage, tintedImage, treeCanopyLayers } from './shared'
 import { ASCII_STYLE, assetKind, entityKind, entityStyleOverride, genderize, groundKind, personVariantTileId, type ElementKind, type ImageVisual, type Style } from '@/game/artStyle'
 import { DEFAULT_CHARACTER_ANIMATIONS, activeFrame } from '@/game/runtime/entityAnimation'
 
@@ -129,6 +129,7 @@ function drawIsoGroundContent(
   time: number,
   col: number,
   row: number,
+  tint?: string, // per-cell floor-colour override → recolour the ground tile image (#80)
 ): void {
   // Reskin (a style tile is active): SHEAR the tile onto the iso DIAMOND so it lies FLAT on the
   // ground plane — angled, with the cube's z below it — never an upright square stamped on top.
@@ -139,12 +140,12 @@ function drawIsoGroundContent(
     // Blit the pre-baked diamond sprite (constant shear → one bake reused for every cell) instead of a
     // per-cell transform+clip — the ground-perf fix. Falls back to the direct draw when there's no sprite
     // (SSR / an image tile still decoding).
-    const sprite = groundSprite(gdv, tileW, tileH)
+    const sprite = groundSprite(gdv, tileW, tileH, tint)
     if (sprite) {
       ctx.drawImage(sprite, px - tileW, drawY - tileH)
       return
     }
-    fillIsoFaceWithTile(ctx, { x: px - tileW, y: drawY }, { x: tileW, y: -tileH }, { x: tileW, y: tileH }, { char: gdv.char, color: gdv.color, image: gdv.image }, 1, 1)
+    fillIsoFaceWithTile(ctx, { x: px - tileW, y: drawY }, { x: tileW, y: -tileH }, { x: tileW, y: tileH }, { char: gdv.char, color: gdv.color, image: gdv.image }, 1, 1, tint)
     return
   }
   ctx.fillStyle = gdv.color
@@ -246,13 +247,13 @@ export function drawIsoGroundLayer(ctx: CanvasRenderingContext2D, p: IsoGroundPa
         // Static cache: skip the animated water surface (collected for the live pass);
         // bake the grass glyph at full alpha (the ≤1.5% flicker is render-only motion).
         if (isWater) { if (waterOut) waterOut.push({ col, row }); continue }
-        drawIsoGroundContent(ctx, gdv, px, drawY, tileW, tileH, isGrass, false, time, col, row)
+        drawIsoGroundContent(ctx, gdv, px, drawY, tileW, tileH, isGrass, false, time, col, row, grid.groundColor?.[row]?.[col] ?? undefined)
         continue
       }
 
       // Direct / fallback path — byte-identical to the original inline loop for ASCII.
       if (isWater) drawIsoWaterDepth(ctx, px, drawY, tileW, tileH, fillBg, time, col, row)
-      drawIsoGroundContent(ctx, gdv, px, drawY, tileW, tileH, isGrass, true, time, col, row)
+      drawIsoGroundContent(ctx, gdv, px, drawY, tileW, tileH, isGrass, true, time, col, row, grid.groundColor?.[row]?.[col] ?? undefined)
     }
   }
 }
@@ -281,7 +282,7 @@ export function drawIsoWaterCells(ctx: CanvasRenderingContext2D, p: IsoGroundPar
     const wdv = resolveDraw(groundKind(tileType), style, undefined, char, fg)
     const fillBg = wdv.tint ?? bg // reskin water → the tile's own colour (catalog data); ASCII → bg
     drawIsoWaterDepth(ctx, px, drawY, tileW, tileH, fillBg, time, col, row)
-    drawIsoGroundContent(ctx, wdv, px, drawY, tileW, tileH, false, true, time, col, row)
+    drawIsoGroundContent(ctx, wdv, px, drawY, tileW, tileH, false, true, time, col, row, grid.groundColor?.[row]?.[col] ?? undefined)
   }
 }
 
@@ -1002,6 +1003,7 @@ export function fillIsoFaceWithTile(
   tv: { char?: string; color: string; image?: ImageVisual },
   na: number,
   nb: number,
+  tint?: string, // an editor floor-colour override → recolour the tile image (#80)
 ): void {
   const S = 64 // work-box side; keeps font px normal under the shear CTM (no sub-pixel fonts)
   const cols = Math.max(1, Math.round(na))
@@ -1017,11 +1019,12 @@ export function fillIsoFaceWithTile(
   // covers the split second before a Noto PNG decodes AND a failed/missing image (graceful degradation).
   const img = tv.image ? tileImage(tv.image.src) : null
   if (img) {
+    const drawSrc = tint ? tintedImage(img, tv.image!.src, tint) : img
     const sx = tv.image!.sx ?? 0
     const sy = tv.image!.sy ?? 0
     const sw = tv.image!.sw ?? img.naturalWidth
     const sh = tv.image!.sh ?? img.naturalHeight
-    for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) ctx.drawImage(img, sx, sy, sw, sh, i * cw, j * ch, cw, ch)
+    for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) ctx.drawImage(drawSrc, sx, sy, sw, sh, i * cw, j * ch, cw, ch)
   } else if (tv.char) {
     ctx.fillStyle = tv.color
     ctx.textAlign = 'center'
@@ -1039,11 +1042,11 @@ export function fillIsoFaceWithTile(
  *  save/transform/clip/restore — the ctx.clip() over ~1000 ground cells/frame was the emoji-vs-ascii perf
  *  sink. Keyed on (tile,colour,size); ground resolves to only a handful of appearances per zoom level. */
 const _groundSpriteCache = new Map<string, HTMLCanvasElement | null>()
-function groundSprite(gdv: DrawVisual, tileW: number, tileH: number): HTMLCanvasElement | null {
+function groundSprite(gdv: DrawVisual, tileW: number, tileH: number, tint?: string): HTMLCanvasElement | null {
   if (typeof document === 'undefined') return null
   // Don't bake until an image tile's raster is decoded — else the sprite would freeze the ASCII fallback.
   if (gdv.image && !tileImage(gdv.image.src)) return null
-  const key = `${gdv.image?.src ?? gdv.char}|${gdv.color}|${Math.round(tileW)}|${Math.round(tileH)}`
+  const key = `${gdv.image?.src ?? gdv.char}|${gdv.color}|${tint ?? ''}|${Math.round(tileW)}|${Math.round(tileH)}`
   const hit = _groundSpriteCache.get(key)
   if (hit !== undefined) return hit
   const cv = document.createElement('canvas')
@@ -1056,7 +1059,7 @@ function groundSprite(gdv: DrawVisual, tileW: number, tileH: number): HTMLCanvas
   }
   // Bake with the diamond's LEFT corner at local (0, tileH) → the sprite's bbox top-left is (0,0), so a
   // blit at (px - tileW, drawY - tileH) lands the diamond exactly where the per-cell clipped draw did.
-  fillIsoFaceWithTile(c, { x: 0, y: tileH }, { x: tileW, y: -tileH }, { x: tileW, y: tileH }, { char: gdv.char, color: gdv.color, image: gdv.image }, 1, 1)
+  fillIsoFaceWithTile(c, { x: 0, y: tileH }, { x: tileW, y: -tileH }, { x: tileW, y: tileH }, { char: gdv.char, color: gdv.color, image: gdv.image }, 1, 1, tint)
   _groundSpriteCache.set(key, cv)
   return cv
 }

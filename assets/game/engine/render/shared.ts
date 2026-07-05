@@ -144,7 +144,7 @@ export function drawFacingGlyph(ctx: CanvasRenderingContext2D, char: string, x: 
 // override's hue+saturation), then `'destination-in'` re-masks to the sprite's alpha so transparent
 // pixels stay transparent. Keyed by src+colour at natural resolution, so it's size-independent.
 const _tintCache = new Map<string, HTMLCanvasElement>()
-function tintedImage(img: HTMLImageElement, src: string, tint: string): CanvasImageSource {
+export function tintedImage(img: HTMLImageElement, src: string, tint: string): CanvasImageSource {
   if (typeof document === 'undefined') return img // SSR / tests: no canvas → draw untinted
   const key = `${src}|${tint}`
   const cached = _tintCache.get(key)
