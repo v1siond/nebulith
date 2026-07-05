@@ -35,6 +35,7 @@ defmodule NebulithWeb.Router do
 
     resources "/tilesets", TilesetController, except: [:new, :edit]
     resources "/templates", TemplateController, except: [:new, :edit]
+    resources "/games", GameController, except: [:new, :edit]
     get "/cv", CVController, :index
   end
 
