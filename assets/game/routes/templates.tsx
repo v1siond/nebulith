@@ -5306,7 +5306,9 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
                 )}
 
                 {connectors.length > 0 && (
-                  <div className="max-h-32 space-y-1 overflow-y-auto">
+                  // Fill most of the panel height — most templates have a few connectors, so a tight
+                  // scroll box was overkill (#82). Still scrolls if a template has a lot of them.
+                  <div className="max-h-[calc(100vh-13rem)] space-y-1 overflow-y-auto">
                     {connectors.map((c, i) => (
                       <button
                         key={`${c.cells[0]?.col},${c.cells[0]?.row},${i}`}
@@ -5378,12 +5380,16 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
                 return (
                   <>
                     <SelectionHeader kind={selEntity.kind} label={`${selEntity.name || selEntity.kind} (${selEntity.kind})`} coords={`@ ${selEntity.col},${selEntity.row}`} />
-                    <Card title="Identity & stats" accent="orange">
+                    <Card title="Identity & stats" accent="orange" sectionId="art" focus={sectionFocus}>
                       <EntityIdentityStatsBody entity={selEntity} onPatch={patchSelectedEntity} />
                       {isPlayer && <div className="mt-3"><CombatHud hud={playerHud} /></div>}
-                    </Card>
-                    <Card title="Art / sprite" accent="cyan" sectionId="art" focus={sectionFocus}>
-                      <ArtSection override={selEntity.tileOverride} styleName={activeStyle.name} onOpen={() => setTileLibraryOpen(true)} />
+                      {/* Sprite folded in from the old Art/Sprite card (#61): show the current sprite + picker. */}
+                      <div className="mt-3 border-t border-white/10 pt-3">
+                        <div className="mb-2 flex items-center gap-2">
+                          <span aria-hidden className="text-2xl leading-none">{selFigure}</span>
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Current sprite</span>
+                        </div>
+                        <ArtSection override={selEntity.tileOverride} styleName={activeStyle.name} onOpen={() => setTileLibraryOpen(true)} />
                       {heldWeaponKind && EMOJI_TILESET[heldWeaponKind] && (
                         <div className="mt-2">
                           <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-amber-300">
@@ -5404,6 +5410,7 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
                       {isPlayer && activeStyleId === 'ascii' && playerWeaponRef.current?.kind && playerWeaponRef.current.kind !== 'unarmed' && (
                         <p className="mt-2 text-[10px] text-gray-500">Weapon pose tuning lives in the Emoji style — ASCII weapons draw their own glyph and aren&apos;t pose-driven yet.</p>
                       )}
+                      </div>
                     </Card>
                     <Card title="Animation" accent="cyan" defaultOpen={false} sectionId="animation" focus={sectionFocus}>
                       <div className="mb-3 flex items-center gap-2 text-[11px]">
