@@ -5761,6 +5761,16 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
                           />
                         )
                       })()}
+                      {/* Discoverable save right where you edit — persists floor colour, element colour, dims &
+                          height with the template. Unnamed map → a toast, not a silent no-op (spec §4). */}
+                      <button
+                        onClick={() => { if (!templateName.trim()) { toast('Name your map in the top bar to save', 'warning'); return } void saveCurrentTemplate() }}
+                        disabled={isSaving}
+                        aria-label="Save map"
+                        className="mt-2 w-full rounded bg-green-700 px-2 py-1.5 text-xs font-bold text-white transition-colors hover:bg-green-600 disabled:opacity-40"
+                      >
+                        {isSaving ? 'Saving…' : '💾 Save map'}
+                      </button>
                     </Card>
                     <Card title="Tile / ground" accent="cyan" sectionId="tile" focus={sectionFocus}>
                       <div className="mb-2">
