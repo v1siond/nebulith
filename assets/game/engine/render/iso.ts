@@ -1776,17 +1776,21 @@ export function drawIsoAssetAscii(
     // Trees tower (~3 cells, like the ASCII tree) instead of a tiny one-cell 🌲, anchored at the base.
     const isTree = asset.type === 'tree'
     const vt = style.id === 'emoji' ? EMOJI_TILESET[assetKind(asset)] : undefined
-    const glyphPx = fontSize * (isTree ? 2.7 : 1.7) * (resolveTileSize(vt, 'iso') ?? 1)
-    ctx.font = `bold ${glyphPx}px ${ASCII_FONT}`
-    // Element colour override (asset.color) wins over the tile colour. The non-tree glyph path used to
-    // paint with adv.color and ignore the override, so flowers/props couldn't be recoloured (#universal).
-    ctx.fillStyle = asset.color ?? adv.color ?? '#ffffff'
-    const gy = y - lineHeight * (isTree ? 1.15 : 0.6)
+    const base = fontSize * (isTree ? 2.7 : 1.7) * (resolveTileSize(vt, 'iso') ?? 1)
+    const d = resolveAssetDrawSize(base, asset, 'billboard') // #universal: Width/Height/Zoom apply to glyphs too
+    const gy = y - lineHeight * (isTree ? 1.15 : 0.6) - d.baseLift
     const pose = resolveTilePose(vt, 'iso')
-    // A tree keeps its shape but is recoloured to its SEASON's canopy shade (asset.color).
-    const paint = (px: number, py: number) => { if (isTree) fillTintedGlyph(ctx, adv.char, px, py, glyphPx, asset.color, 0.55); else ctx.fillText(adv.char, px, py) }
-    if (pose) { ctx.save(); ctx.translate(x, gy); applyPose(ctx, pose, 1, tileH); paint(0, 0); ctx.restore() }
-    else paint(x, gy)
+    const strength = asset.color ? (isTree ? 0.55 : 0.85) : 0 // colour-emoji ignore fillStyle → wash the tint on
+    ctx.font = `bold ${d.h}px ${ASCII_FONT}`
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillStyle = asset.color ?? adv.color ?? '#ffffff' // ASCII glyphs / the no-override fillText path
+    ctx.save()
+    ctx.translate(x, gy)
+    if (pose) applyPose(ctx, pose, 1, tileH)
+    if (d.w !== d.h) ctx.scale(d.w / d.h, 1) // non-uniform Width vs Height, like the image branch
+    fillTintedGlyph(ctx, adv.char, 0, 0, d.h, asset.color, strength)
+    ctx.restore()
     ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
     return
   }
