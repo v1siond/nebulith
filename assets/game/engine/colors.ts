@@ -34,6 +34,17 @@ export function parseColor(color: string): RGB | null {
   return null
 }
 
+/** Recolour one sprite pixel to `tint` while KEEPING the sprite's shading: the pixel's luminance
+ *  modulates the tint's brightness (a gamma lifts mid/low tones so it isn't muddy), so a WHITE pixel
+ *  becomes the FULL tint colour and darks stay dark. Unlike a 'color' composite blend (which preserves
+ *  the sprite's luminance and so leaves white sprites white), this recolours ANY sprite — the core of
+ *  tintedImage's luminance-mapped colorize. Pure + unit-testable. */
+export function luminanceTint(r: number, g: number, b: number, tint: RGB, gamma = 0.7): RGB {
+  const l = (0.299 * r + 0.587 * g + 0.114 * b) / 255 // sprite luminance 0..1
+  const s = Math.pow(l, gamma) // gamma-lifted so mid/low tones aren't muddy
+  return { r: clampByte(tint.r * s), g: clampByte(tint.g * s), b: clampByte(tint.b * s) }
+}
+
 /** Scale every channel toward black by `factor` (0 = black, 1 = unchanged). */
 export function darkenColor(color: string, factor = 0.25): string {
   const c = parseColor(color)

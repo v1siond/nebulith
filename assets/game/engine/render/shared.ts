@@ -1,7 +1,7 @@
 import { player as playerSprite } from '@/assets/ascii'
 import { GridAsset, IsometricGrid } from '@/engine/IsometricGrid'
 import { type AnimTransform } from '@/engine/cellAnimation'
-import { darkenColor, lightenColor, varyIntensity, withAlpha } from '@/engine/colors'
+import { darkenColor, lightenColor, luminanceTint, parseColor, varyIntensity, withAlpha } from '@/engine/colors'
 import { entityAnimState, entityFrameIndex } from '@/engine/entityAnim'
 import { entityArtFrame, entityFootprint } from '@/engine/entityArt'
 import { type QuestMarker } from '@/engine/entityQuestMarker'
@@ -156,12 +156,24 @@ export function tintedImage(img: HTMLImageElement, src: string, tint: string): C
   const octx = off.getContext('2d')
   if (!octx) return img
   octx.drawImage(img, 0, 0, w, h)
-  octx.globalCompositeOperation = 'color' // recolour: override hue/sat, sprite luminance
-  octx.fillStyle = tint
-  octx.fillRect(0, 0, w, h)
-  octx.globalCompositeOperation = 'destination-in' // clip the recolour back to the sprite's silhouette
-  octx.drawImage(img, 0, 0, w, h)
-  octx.globalCompositeOperation = 'source-over'
+  // Luminance-mapped colorize (see colors.luminanceTint): recolour each pixel to `tint` scaled by its
+  // own luminance, so WHITE→the full colour, darks→dark, and shading is kept. The old 'color' composite
+  // blend PRESERVED luminance, so white sprites (a daisy) stayed white and couldn't be recoloured. Alpha
+  // is untouched (silhouette preserved). Cached per src+colour → this per-pixel pass runs once. Guarded:
+  // a tainted (cross-origin) canvas can't be read back, so we leave the sprite untinted instead of throwing.
+  const rgb = parseColor(tint)
+  if (rgb) {
+    try {
+      const id = octx.getImageData(0, 0, w, h)
+      const px = id.data
+      for (let i = 0; i < px.length; i += 4) {
+        if (px[i + 3] === 0) continue // transparent → skip (keep the silhouette)
+        const o = luminanceTint(px[i], px[i + 1], px[i + 2], rgb)
+        px[i] = o.r; px[i + 1] = o.g; px[i + 2] = o.b
+      }
+      octx.putImageData(id, 0, 0)
+    } catch { /* tainted canvas — leave the sprite untinted */ }
+  }
   _tintCache.set(key, off)
   return off
 }
