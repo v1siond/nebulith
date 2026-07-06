@@ -1,0 +1,900 @@
+{
+  "dir": "/tiles/emoji/catalog",
+  "tiles": {
+    "grass-field": {
+      "category": "terrain",
+      "label": "Grass",
+      "char": "🍀",
+      "color": "#5faf4a"
+    },
+    "dark-grass": {
+      "category": "terrain",
+      "label": "Dark Grass",
+      "char": "🌿",
+      "color": "#3c7a2f"
+    },
+    "shallow-water": {
+      "category": "terrain",
+      "label": "Shallow Water",
+      "char": "🌊",
+      "color": "#4a90e2"
+    },
+    "deep-water": {
+      "category": "terrain",
+      "label": "Deep Water",
+      "char": "🔵",
+      "color": "#1c5fa8"
+    },
+    "beach-sand": {
+      "category": "terrain",
+      "label": "Sand",
+      "char": "🟨",
+      "color": "#e2c86b"
+    },
+    "desert": {
+      "category": "terrain",
+      "label": "Desert",
+      "char": "🏜️",
+      "color": "#d9b45f"
+    },
+    "dirt-path": {
+      "category": "terrain",
+      "label": "Dirt Path",
+      "char": "🟫",
+      "color": "#9c7b4d"
+    },
+    "gravel": {
+      "category": "terrain",
+      "label": "Gravel",
+      "char": "🟤",
+      "color": "#7c6a52"
+    },
+    "cobblestone": {
+      "category": "terrain",
+      "label": "Cobblestone",
+      "char": "⬜",
+      "color": "#b9b2a3"
+    },
+    "snowflake": {
+      "category": "terrain",
+      "label": "Snowflake",
+      "char": "❄️",
+      "color": "#eaf4ff"
+    },
+    "ice": {
+      "category": "terrain",
+      "label": "Ice",
+      "char": "🧊",
+      "color": "#a8d8f0"
+    },
+    "lava": {
+      "category": "terrain",
+      "label": "Lava",
+      "char": "🟥",
+      "color": "#d0402a"
+    },
+    "volcano": {
+      "category": "terrain",
+      "label": "Volcano",
+      "char": "🌋",
+      "color": "#b5372a"
+    },
+    "mountain-slope": {
+      "category": "terrain",
+      "label": "Mountain",
+      "char": "⛰️",
+      "color": "#8d8d97"
+    },
+    "snowy-peak": {
+      "category": "terrain",
+      "label": "Snowy Peak",
+      "char": "🏔️",
+      "color": "#cfd8e3"
+    },
+    "pine-tree": {
+      "category": "nature",
+      "label": "Pine Tree",
+      "char": "🌲",
+      "color": "#2f8f3f"
+    },
+    "oak-tree": {
+      "category": "nature",
+      "label": "Oak Tree",
+      "char": "🌳",
+      "color": "#4caf50"
+    },
+    "palm-tree": {
+      "category": "nature",
+      "label": "Palm Tree",
+      "char": "🌴",
+      "color": "#4f9d5a"
+    },
+    "sapling": {
+      "category": "nature",
+      "label": "Sapling",
+      "char": "🌱",
+      "color": "#7cc36a"
+    },
+    "dead-tree": {
+      "category": "nature",
+      "label": "Dead Tree",
+      "char": "🪾",
+      "color": "#8a6f4a"
+    },
+    "cactus": {
+      "category": "nature",
+      "label": "Cactus",
+      "char": "🌵",
+      "color": "#4a8f3f"
+    },
+    "shrub": {
+      "category": "nature",
+      "label": "Shrub",
+      "char": "🌿",
+      "color": "#4fa03f"
+    },
+    "shamrock": {
+      "category": "nature",
+      "label": "Shamrock",
+      "char": "☘️",
+      "color": "#3fa03f"
+    },
+    "clover": {
+      "category": "nature",
+      "label": "Four-Leaf Clover",
+      "char": "🍀",
+      "color": "#3c9a3a"
+    },
+    "cherry-blossom": {
+      "category": "nature",
+      "label": "Cherry Blossom",
+      "char": "🌸",
+      "color": "#e785b5"
+    },
+    "tulip": {
+      "category": "nature",
+      "label": "Tulip",
+      "char": "🌷",
+      "color": "#e05a7a"
+    },
+    "rose": {
+      "category": "nature",
+      "label": "Rose",
+      "char": "🌹",
+      "color": "#d13b3b"
+    },
+    "hibiscus": {
+      "category": "nature",
+      "label": "Hibiscus",
+      "char": "🌺",
+      "color": "#e5527a"
+    },
+    "sunflower": {
+      "category": "nature",
+      "label": "Sunflower",
+      "char": "🌻",
+      "color": "#f2c33a"
+    },
+    "blossom": {
+      "category": "nature",
+      "label": "Blossom",
+      "char": "🌼",
+      "color": "#f2d84a"
+    },
+    "bouquet": {
+      "category": "nature",
+      "label": "Bouquet",
+      "char": "💐",
+      "color": "#e57ba0"
+    },
+    "wilted-flower": {
+      "category": "nature",
+      "label": "Wilted Flower",
+      "char": "🥀",
+      "color": "#9c6a7a"
+    },
+    "red-mushroom": {
+      "category": "nature",
+      "label": "Red Mushroom",
+      "char": "🍄",
+      "color": "#d24a4a"
+    },
+    "boulder": {
+      "category": "nature",
+      "label": "Boulder",
+      "char": "🪨",
+      "color": "#8a8a8a"
+    },
+    "wood-log": {
+      "category": "nature",
+      "label": "Wood Log",
+      "char": "🪵",
+      "color": "#a9793f"
+    },
+    "wheat": {
+      "category": "nature",
+      "label": "Wheat",
+      "char": "🌾",
+      "color": "#d9b25f"
+    },
+    "fallen-leaf": {
+      "category": "nature",
+      "label": "Fallen Leaf",
+      "char": "🍂",
+      "color": "#c8742f"
+    },
+    "maple-leaf": {
+      "category": "nature",
+      "label": "Maple Leaf",
+      "char": "🍁",
+      "color": "#d0552a"
+    },
+    "coral": {
+      "category": "nature",
+      "label": "Coral",
+      "char": "🪸",
+      "color": "#e06a5a"
+    },
+    "seashell": {
+      "category": "nature",
+      "label": "Seashell",
+      "char": "🐚",
+      "color": "#f0c8a8"
+    },
+    "potted-plant": {
+      "category": "nature",
+      "label": "Potted Plant",
+      "char": "🪴",
+      "color": "#5a9a4a"
+    },
+    "cow": {
+      "category": "nature",
+      "label": "Cow",
+      "char": "🐄",
+      "color": "#c9b8a8"
+    },
+    "sheep": {
+      "category": "nature",
+      "label": "Sheep",
+      "char": "🐑",
+      "color": "#e8e4dc"
+    },
+    "pig": {
+      "category": "nature",
+      "label": "Pig",
+      "char": "🐖",
+      "color": "#e59ab0"
+    },
+    "goat": {
+      "category": "nature",
+      "label": "Goat",
+      "char": "🐐",
+      "color": "#b8a888"
+    },
+    "horse": {
+      "category": "nature",
+      "label": "Horse",
+      "char": "🐎",
+      "color": "#a9793f"
+    },
+    "chicken": {
+      "category": "nature",
+      "label": "Chicken",
+      "char": "🐓",
+      "color": "#d8663a"
+    },
+    "rabbit": {
+      "category": "nature",
+      "label": "Rabbit",
+      "char": "🐇",
+      "color": "#d8cbb8"
+    },
+    "deer": {
+      "category": "nature",
+      "label": "Deer",
+      "char": "🦌",
+      "color": "#a9763f"
+    },
+    "fox": {
+      "category": "nature",
+      "label": "Fox",
+      "char": "🦊",
+      "color": "#e0863a"
+    },
+    "grey-wolf": {
+      "category": "nature",
+      "label": "Grey Wolf",
+      "char": "🐺",
+      "color": "#8a8f9a"
+    },
+    "boar": {
+      "category": "nature",
+      "label": "Boar",
+      "char": "🐗",
+      "color": "#7a6a5a"
+    },
+    "bear": {
+      "category": "nature",
+      "label": "Bear",
+      "char": "🐻",
+      "color": "#8a5f3a"
+    },
+    "squirrel": {
+      "category": "nature",
+      "label": "Squirrel",
+      "char": "🐿️",
+      "color": "#b5793a"
+    },
+    "hedgehog": {
+      "category": "nature",
+      "label": "Hedgehog",
+      "char": "🦔",
+      "color": "#a98f6a"
+    },
+    "turtle": {
+      "category": "nature",
+      "label": "Turtle",
+      "char": "🐢",
+      "color": "#4f8f5a"
+    },
+    "frog": {
+      "category": "nature",
+      "label": "Frog",
+      "char": "🐸",
+      "color": "#5fa03f"
+    },
+    "snail": {
+      "category": "nature",
+      "label": "Snail",
+      "char": "🐌",
+      "color": "#c8a06a"
+    },
+    "bird": {
+      "category": "nature",
+      "label": "Bird",
+      "char": "🐦",
+      "color": "#5a8fc8"
+    },
+    "owl": {
+      "category": "nature",
+      "label": "Owl",
+      "char": "🦉",
+      "color": "#a98f6a"
+    },
+    "duck": {
+      "category": "nature",
+      "label": "Duck",
+      "char": "🦆",
+      "color": "#6a8f4a"
+    },
+    "dove": {
+      "category": "nature",
+      "label": "Dove",
+      "char": "🕊️",
+      "color": "#e8e8e8"
+    },
+    "butterfly": {
+      "category": "nature",
+      "label": "Butterfly",
+      "char": "🦋",
+      "color": "#6a9ad8"
+    },
+    "honeybee": {
+      "category": "nature",
+      "label": "Honeybee",
+      "char": "🐝",
+      "color": "#e5b53a"
+    },
+    "ladybug": {
+      "category": "nature",
+      "label": "Ladybug",
+      "char": "🐞",
+      "color": "#d13b3b"
+    },
+    "cat": {
+      "category": "nature",
+      "label": "Cat",
+      "char": "🐈",
+      "color": "#c8964a"
+    },
+    "dog": {
+      "category": "nature",
+      "label": "Dog",
+      "char": "🐕",
+      "color": "#b5854a"
+    },
+    "house": {
+      "category": "buildings",
+      "label": "House",
+      "char": "🏠",
+      "color": "#c8443c"
+    },
+    "house-garden": {
+      "category": "buildings",
+      "label": "House with Garden",
+      "char": "🏡",
+      "color": "#b5793a"
+    },
+    "houses": {
+      "category": "buildings",
+      "label": "Houses",
+      "char": "🏘️",
+      "color": "#c86b4d"
+    },
+    "derelict-house": {
+      "category": "buildings",
+      "label": "Derelict House",
+      "char": "🏚️",
+      "color": "#8a7a5f"
+    },
+    "office-building": {
+      "category": "buildings",
+      "label": "Office Building",
+      "char": "🏢",
+      "color": "#7f8c9a"
+    },
+    "department-store": {
+      "category": "buildings",
+      "label": "Department Store",
+      "char": "🏬",
+      "color": "#b05a8a"
+    },
+    "convenience-store": {
+      "category": "buildings",
+      "label": "Convenience Store",
+      "char": "🏪",
+      "color": "#4a9ac8"
+    },
+    "hospital": {
+      "category": "buildings",
+      "label": "Hospital",
+      "char": "🏥",
+      "color": "#e05a5a"
+    },
+    "bank": {
+      "category": "buildings",
+      "label": "Bank",
+      "char": "🏦",
+      "color": "#6a8f5a"
+    },
+    "hotel": {
+      "category": "buildings",
+      "label": "Hotel",
+      "char": "🏨",
+      "color": "#c89a4a"
+    },
+    "school": {
+      "category": "buildings",
+      "label": "School",
+      "char": "🏫",
+      "color": "#d0a83a"
+    },
+    "classical-building": {
+      "category": "buildings",
+      "label": "Classical Building",
+      "char": "🏛️",
+      "color": "#cbb68c"
+    },
+    "castle": {
+      "category": "buildings",
+      "label": "Castle",
+      "char": "🏰",
+      "color": "#9a8a7a"
+    },
+    "japanese-castle": {
+      "category": "buildings",
+      "label": "Japanese Castle",
+      "char": "🏯",
+      "color": "#d9c8a8"
+    },
+    "church": {
+      "category": "buildings",
+      "label": "Church",
+      "char": "⛪",
+      "color": "#b0a89a"
+    },
+    "mosque": {
+      "category": "buildings",
+      "label": "Mosque",
+      "char": "🕌",
+      "color": "#8aa88a"
+    },
+    "tower": {
+      "category": "buildings",
+      "label": "Tower",
+      "char": "🗼",
+      "color": "#d0553a"
+    },
+    "torii-gate": {
+      "category": "buildings",
+      "label": "Torii Gate",
+      "char": "⛩️",
+      "color": "#d0402a"
+    },
+    "tent": {
+      "category": "buildings",
+      "label": "Tent",
+      "char": "⛺",
+      "color": "#7a9a5a"
+    },
+    "factory": {
+      "category": "buildings",
+      "label": "Factory",
+      "char": "🏭",
+      "color": "#8a8a8a"
+    },
+    "brick": {
+      "category": "buildings",
+      "label": "Brick",
+      "char": "🧱",
+      "color": "#b0603a"
+    },
+    "wooden-door": {
+      "category": "buildings",
+      "label": "Wooden Door",
+      "char": "🚪",
+      "color": "#5a3a22"
+    },
+    "glass-window": {
+      "category": "buildings",
+      "label": "Glass Window",
+      "char": "🪟",
+      "color": "#7fb4d8"
+    },
+    "stadium": {
+      "category": "buildings",
+      "label": "Stadium",
+      "char": "🏟️",
+      "color": "#9a9a8a"
+    },
+    "person": {
+      "category": "units",
+      "label": "Person",
+      "char": "🧍",
+      "color": "#d9a066"
+    },
+    "man": {
+      "category": "units",
+      "label": "Man",
+      "char": "🧍‍♂️",
+      "color": "#6a8fd9"
+    },
+    "woman": {
+      "category": "units",
+      "label": "Woman",
+      "char": "🧍‍♀️",
+      "color": "#d96a9a"
+    },
+    "adult": {
+      "category": "units",
+      "label": "Adult",
+      "char": "🧑",
+      "color": "#d9a066"
+    },
+    "boy": {
+      "category": "units",
+      "label": "Boy",
+      "char": "👦",
+      "color": "#e0b060"
+    },
+    "girl": {
+      "category": "units",
+      "label": "Girl",
+      "char": "👧",
+      "color": "#e5a0b0"
+    },
+    "old-man": {
+      "category": "units",
+      "label": "Old Man",
+      "char": "👴",
+      "color": "#c8c8c8"
+    },
+    "old-woman": {
+      "category": "units",
+      "label": "Old Woman",
+      "char": "👵",
+      "color": "#d0c0c8"
+    },
+    "elder": {
+      "category": "units",
+      "label": "Elder",
+      "char": "🧓",
+      "color": "#cabfc0"
+    },
+    "child": {
+      "category": "units",
+      "label": "Child",
+      "char": "🧒",
+      "color": "#e5b878"
+    },
+    "grey-alien": {
+      "category": "units",
+      "label": "Grey Alien",
+      "char": "👽",
+      "color": "#8fd18a"
+    },
+    "robot": {
+      "category": "units",
+      "label": "Robot",
+      "char": "🤖",
+      "color": "#9aa6b2"
+    },
+    "mage": {
+      "category": "units",
+      "label": "Mage",
+      "char": "🧙",
+      "color": "#7a5ac0"
+    },
+    "wizard": {
+      "category": "units",
+      "label": "Wizard",
+      "char": "🧙‍♂️",
+      "color": "#6a4ab0"
+    },
+    "witch": {
+      "category": "units",
+      "label": "Witch",
+      "char": "🧙‍♀️",
+      "color": "#9a5ac0"
+    },
+    "elf": {
+      "category": "units",
+      "label": "Elf",
+      "char": "🧝",
+      "color": "#6ac07a"
+    },
+    "ninja": {
+      "category": "units",
+      "label": "Ninja",
+      "char": "🥷",
+      "color": "#3a3a4a"
+    },
+    "guard": {
+      "category": "units",
+      "label": "Guard",
+      "char": "💂",
+      "color": "#c8443c"
+    },
+    "prince": {
+      "category": "units",
+      "label": "Prince",
+      "char": "🤴",
+      "color": "#d0a83a"
+    },
+    "princess": {
+      "category": "units",
+      "label": "Princess",
+      "char": "👸",
+      "color": "#e585b5"
+    },
+    "police-officer": {
+      "category": "units",
+      "label": "Police Officer",
+      "char": "👮",
+      "color": "#4a6ac0"
+    },
+    "construction-worker": {
+      "category": "units",
+      "label": "Construction Worker",
+      "char": "👷",
+      "color": "#e5b03a"
+    },
+    "vampire": {
+      "category": "units",
+      "label": "Vampire",
+      "char": "🧛",
+      "color": "#8a4a6a"
+    },
+    "zombie": {
+      "category": "units",
+      "label": "Zombie",
+      "char": "🧟",
+      "color": "#6a8f5a"
+    },
+    "troll": {
+      "category": "units",
+      "label": "Troll",
+      "char": "🧌",
+      "color": "#7a6a4a"
+    },
+    "guardian": {
+      "category": "units",
+      "label": "Guardian",
+      "char": "🗿",
+      "color": "#8a8f80"
+    },
+    "goblin": {
+      "category": "units",
+      "label": "Goblin",
+      "char": "👺",
+      "color": "#c8443c"
+    },
+    "ogre": {
+      "category": "units",
+      "label": "Ogre",
+      "char": "👹",
+      "color": "#d0402a"
+    },
+    "ghost": {
+      "category": "units",
+      "label": "Ghost",
+      "char": "👻",
+      "color": "#e0e0f0"
+    },
+    "skeleton": {
+      "category": "units",
+      "label": "Skeleton",
+      "char": "💀",
+      "color": "#e8e8e8"
+    },
+    "skull": {
+      "category": "units",
+      "label": "Skull",
+      "char": "☠️",
+      "color": "#d8d8d8"
+    },
+    "alien": {
+      "category": "units",
+      "label": "Alien",
+      "char": "👾",
+      "color": "#b45ac0"
+    },
+    "pumpkin": {
+      "category": "units",
+      "label": "Jack-o-Lantern",
+      "char": "🎃",
+      "color": "#e5842a"
+    },
+    "dragon": {
+      "category": "units",
+      "label": "Dragon",
+      "char": "🐉",
+      "color": "#4a9a5a"
+    },
+    "wolf": {
+      "category": "units",
+      "label": "Wolf",
+      "char": "🐺",
+      "color": "#8a8a9a"
+    },
+    "bat": {
+      "category": "units",
+      "label": "Bat",
+      "char": "🦇",
+      "color": "#5a4a5a"
+    },
+    "spider": {
+      "category": "units",
+      "label": "Spider",
+      "char": "🕷️",
+      "color": "#3a3a3a"
+    }
+  },
+  "baked": [
+    "adult",
+    "alien",
+    "bank",
+    "bat",
+    "beach-sand",
+    "bear",
+    "bird",
+    "blossom",
+    "boar",
+    "boulder",
+    "bouquet",
+    "boy",
+    "brick",
+    "butterfly",
+    "cactus",
+    "castle",
+    "cat",
+    "cherry-blossom",
+    "chicken",
+    "child",
+    "church",
+    "classical-building",
+    "clover",
+    "cobblestone",
+    "construction-worker",
+    "convenience-store",
+    "cow",
+    "dark-grass",
+    "deep-water",
+    "deer",
+    "department-store",
+    "derelict-house",
+    "desert",
+    "dirt-path",
+    "dog",
+    "dove",
+    "dragon",
+    "duck",
+    "elder",
+    "elf",
+    "factory",
+    "fallen-leaf",
+    "fox",
+    "frog",
+    "ghost",
+    "girl",
+    "glass-window",
+    "goat",
+    "goblin",
+    "grass-field",
+    "gravel",
+    "grey-alien",
+    "grey-wolf",
+    "guard",
+    "guardian",
+    "hedgehog",
+    "hibiscus",
+    "honeybee",
+    "horse",
+    "hospital",
+    "hotel",
+    "house",
+    "house-garden",
+    "houses",
+    "ice",
+    "japanese-castle",
+    "ladybug",
+    "lava",
+    "mage",
+    "man",
+    "maple-leaf",
+    "mosque",
+    "mountain-slope",
+    "ninja",
+    "oak-tree",
+    "office-building",
+    "ogre",
+    "old-man",
+    "old-woman",
+    "owl",
+    "palm-tree",
+    "person",
+    "pig",
+    "pine-tree",
+    "police-officer",
+    "potted-plant",
+    "prince",
+    "princess",
+    "pumpkin",
+    "rabbit",
+    "red-mushroom",
+    "robot",
+    "rose",
+    "sapling",
+    "school",
+    "seashell",
+    "shallow-water",
+    "shamrock",
+    "sheep",
+    "shrub",
+    "skeleton",
+    "skull",
+    "snail",
+    "snowflake",
+    "snowy-peak",
+    "spider",
+    "squirrel",
+    "stadium",
+    "sunflower",
+    "tent",
+    "torii-gate",
+    "tower",
+    "tulip",
+    "turtle",
+    "vampire",
+    "volcano",
+    "wheat",
+    "wilted-flower",
+    "witch",
+    "wizard",
+    "wolf",
+    "woman",
+    "wood-log",
+    "wooden-door",
+    "zombie"
+  ]
+}

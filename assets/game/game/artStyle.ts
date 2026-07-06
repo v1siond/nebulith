@@ -25,6 +25,7 @@ import { EMOJI_TILESET } from '@/engine/tileset/emojiTileset'
 // (enemyType → slug, variant → slug). The bake script (scripts/bake-entity-tiles.mjs) reads the SAME
 // file, so the baked PNGs and the images wired here can never drift.
 import ENTITY_TILES from '@/game/data/entityTiles.json'
+import EMOJI_CATALOG from '@/game/data/emojiCatalog.json'
 import type { EntityVariant } from '@/game/types'
 
 export type ElementKind =
@@ -143,6 +144,15 @@ const VARIANT_SLUG = ENTITY_TILES.variantSlug as Readonly<Record<string, string>
  *  a missing image. A path under /public, so it's static, always-served data (no DB needed). */
 export function bakedEntityImage(slug: string): string | undefined {
   return slug in BAKED_ENTITY_SLUGS ? `${ENTITY_TILE_DIR}/${slug}.png` : undefined
+}
+
+// The full emoji CATALOG is baked to PNGs too (scripts/bake-catalog-tiles.mjs), driven by the SAME data
+// file so bake set and wiring never drift — so every placeable tile draws as an IMAGE, not a live glyph.
+const CATALOG_DIR: string = EMOJI_CATALOG.dir
+const BAKED_CATALOG_SLUGS = new Set(EMOJI_CATALOG.baked as readonly string[])
+/** A catalog slug with a baked PNG → its image path; else undefined (the few Noto can't ink stay glyphs). */
+export function bakedCatalogImage(slug: string): string | undefined {
+  return BAKED_CATALOG_SLUGS.has(slug) ? `${CATALOG_DIR}/${slug}.png` : undefined
 }
 
 /** The per-variant tile OVERRIDE for a PERSON (npc/player) under a reskin — male→🧍‍♂️ man, old→🧓 elder,
@@ -325,7 +335,7 @@ function tilesFromStyle(style: Style): TileDef[] {
 function emojiTile(category: TileCategory, slug: string, label: string, char: string, color: string): TileDef {
   // A slug with a baked PNG (people + typed enemies) renders as an IMAGE — identical on every OS, no
   // Segoe tofu — carrying the source glyph + tint as label/fallback. Everything else stays a glyph.
-  const image = bakedEntityImage(slug)
+  const image = bakedEntityImage(slug) ?? bakedCatalogImage(slug)
   const visual: Visual = image
     ? { kind: 'image', src: image, color, char }
     : { kind: 'glyph', char, color }
@@ -339,144 +349,9 @@ function emojiTile(category: TileCategory, slug: string, label: string, char: st
  * are catalog/override tiles only (they don't touch EMOJI_STYLE.map, so render is unchanged);
  * they surface in `tilesForStyle('emoji')` and can be pinned per-element via `visualForTileId`.
  */
-export const EMOJI_TILES: TileDef[] = [
-  // ── terrain — grounds, water, and the biome extremes (square/round + landform glyphs) ──
-  emojiTile('terrain', 'grass-field', 'Grass', '🍀', '#5faf4a'),
-  emojiTile('terrain', 'dark-grass', 'Dark Grass', '🌿', '#3c7a2f'),
-  emojiTile('terrain', 'shallow-water', 'Shallow Water', '🌊', '#4a90e2'),
-  emojiTile('terrain', 'deep-water', 'Deep Water', '🔵', '#1c5fa8'),
-  emojiTile('terrain', 'beach-sand', 'Sand', '🟨', '#e2c86b'),
-  emojiTile('terrain', 'desert', 'Desert', '🏜️', '#d9b45f'),
-  emojiTile('terrain', 'dirt-path', 'Dirt Path', '🟫', '#9c7b4d'),
-  emojiTile('terrain', 'gravel', 'Gravel', '🟤', '#7c6a52'),
-  emojiTile('terrain', 'cobblestone', 'Cobblestone', '⬜', '#b9b2a3'),
-  emojiTile('terrain', 'snowflake', 'Snowflake', '❄️', '#eaf4ff'),
-  emojiTile('terrain', 'ice', 'Ice', '🧊', '#a8d8f0'),
-  emojiTile('terrain', 'lava', 'Lava', '🟥', '#d0402a'),
-  emojiTile('terrain', 'volcano', 'Volcano', '🌋', '#b5372a'),
-  emojiTile('terrain', 'mountain-slope', 'Mountain', '⛰️', '#8d8d97'),
-  emojiTile('terrain', 'snowy-peak', 'Snowy Peak', '🏔️', '#cfd8e3'),
-
-  // ── nature — ALL trees, plants, flowers, and ground props/items ──
-  emojiTile('nature', 'pine-tree', 'Pine Tree', '🌲', '#2f8f3f'),
-  emojiTile('nature', 'oak-tree', 'Oak Tree', '🌳', '#4caf50'),
-  emojiTile('nature', 'palm-tree', 'Palm Tree', '🌴', '#4f9d5a'),
-  emojiTile('nature', 'sapling', 'Sapling', '🌱', '#7cc36a'),
-  emojiTile('nature', 'dead-tree', 'Dead Tree', '🪾', '#8a6f4a'),
-  emojiTile('nature', 'cactus', 'Cactus', '🌵', '#4a8f3f'),
-  emojiTile('nature', 'shrub', 'Shrub', '🌿', '#4fa03f'),
-  emojiTile('nature', 'shamrock', 'Shamrock', '☘️', '#3fa03f'),
-  emojiTile('nature', 'clover', 'Four-Leaf Clover', '🍀', '#3c9a3a'),
-  emojiTile('nature', 'cherry-blossom', 'Cherry Blossom', '🌸', '#e785b5'),
-  emojiTile('nature', 'tulip', 'Tulip', '🌷', '#e05a7a'),
-  emojiTile('nature', 'rose', 'Rose', '🌹', '#d13b3b'),
-  emojiTile('nature', 'hibiscus', 'Hibiscus', '🌺', '#e5527a'),
-  emojiTile('nature', 'sunflower', 'Sunflower', '🌻', '#f2c33a'),
-  emojiTile('nature', 'blossom', 'Blossom', '🌼', '#f2d84a'),
-  emojiTile('nature', 'bouquet', 'Bouquet', '💐', '#e57ba0'),
-  emojiTile('nature', 'wilted-flower', 'Wilted Flower', '🥀', '#9c6a7a'),
-  emojiTile('nature', 'red-mushroom', 'Red Mushroom', '🍄', '#d24a4a'),
-  emojiTile('nature', 'boulder', 'Boulder', '🪨', '#8a8a8a'),
-  emojiTile('nature', 'wood-log', 'Wood Log', '🪵', '#a9793f'),
-  emojiTile('nature', 'wheat', 'Wheat', '🌾', '#d9b25f'),
-  emojiTile('nature', 'fallen-leaf', 'Fallen Leaf', '🍂', '#c8742f'),
-  emojiTile('nature', 'maple-leaf', 'Maple Leaf', '🍁', '#d0552a'),
-  emojiTile('nature', 'coral', 'Coral', '🪸', '#e06a5a'),
-  emojiTile('nature', 'seashell', 'Seashell', '🐚', '#f0c8a8'),
-  emojiTile('nature', 'potted-plant', 'Potted Plant', '🪴', '#5a9a4a'),
-  // ── animals — livestock, woodland critters, birds + bugs (a living world, not just plants) ──
-  emojiTile('nature', 'cow', 'Cow', '🐄', '#c9b8a8'),
-  emojiTile('nature', 'sheep', 'Sheep', '🐑', '#e8e4dc'),
-  emojiTile('nature', 'pig', 'Pig', '🐖', '#e59ab0'),
-  emojiTile('nature', 'goat', 'Goat', '🐐', '#b8a888'),
-  emojiTile('nature', 'horse', 'Horse', '🐎', '#a9793f'),
-  emojiTile('nature', 'chicken', 'Chicken', '🐓', '#d8663a'),
-  emojiTile('nature', 'rabbit', 'Rabbit', '🐇', '#d8cbb8'),
-  emojiTile('nature', 'deer', 'Deer', '🦌', '#a9763f'),
-  emojiTile('nature', 'fox', 'Fox', '🦊', '#e0863a'),
-  emojiTile('nature', 'grey-wolf', 'Grey Wolf', '🐺', '#8a8f9a'),
-  emojiTile('nature', 'boar', 'Boar', '🐗', '#7a6a5a'),
-  emojiTile('nature', 'bear', 'Bear', '🐻', '#8a5f3a'),
-  emojiTile('nature', 'squirrel', 'Squirrel', '🐿️', '#b5793a'),
-  emojiTile('nature', 'hedgehog', 'Hedgehog', '🦔', '#a98f6a'),
-  emojiTile('nature', 'turtle', 'Turtle', '🐢', '#4f8f5a'),
-  emojiTile('nature', 'frog', 'Frog', '🐸', '#5fa03f'),
-  emojiTile('nature', 'snail', 'Snail', '🐌', '#c8a06a'),
-  emojiTile('nature', 'bird', 'Bird', '🐦', '#5a8fc8'),
-  emojiTile('nature', 'owl', 'Owl', '🦉', '#a98f6a'),
-  emojiTile('nature', 'duck', 'Duck', '🦆', '#6a8f4a'),
-  emojiTile('nature', 'dove', 'Dove', '🕊️', '#e8e8e8'),
-  emojiTile('nature', 'butterfly', 'Butterfly', '🦋', '#6a9ad8'),
-  emojiTile('nature', 'honeybee', 'Honeybee', '🐝', '#e5b53a'),
-  emojiTile('nature', 'ladybug', 'Ladybug', '🐞', '#d13b3b'),
-  emojiTile('nature', 'cat', 'Cat', '🐈', '#c8964a'),
-  emojiTile('nature', 'dog', 'Dog', '🐕', '#b5854a'),
-
-  // ── buildings — ALL of them: homes, civic, worship, defensive, and building parts ──
-  emojiTile('buildings', 'house', 'House', '🏠', '#c8443c'),
-  emojiTile('buildings', 'house-garden', 'House with Garden', '🏡', '#b5793a'),
-  emojiTile('buildings', 'houses', 'Houses', '🏘️', '#c86b4d'),
-  emojiTile('buildings', 'derelict-house', 'Derelict House', '🏚️', '#8a7a5f'),
-  emojiTile('buildings', 'office-building', 'Office Building', '🏢', '#7f8c9a'),
-  emojiTile('buildings', 'department-store', 'Department Store', '🏬', '#b05a8a'),
-  emojiTile('buildings', 'convenience-store', 'Convenience Store', '🏪', '#4a9ac8'),
-  emojiTile('buildings', 'hospital', 'Hospital', '🏥', '#e05a5a'),
-  emojiTile('buildings', 'bank', 'Bank', '🏦', '#6a8f5a'),
-  emojiTile('buildings', 'hotel', 'Hotel', '🏨', '#c89a4a'),
-  emojiTile('buildings', 'school', 'School', '🏫', '#d0a83a'),
-  emojiTile('buildings', 'classical-building', 'Classical Building', '🏛️', '#cbb68c'),
-  emojiTile('buildings', 'castle', 'Castle', '🏰', '#9a8a7a'),
-  emojiTile('buildings', 'japanese-castle', 'Japanese Castle', '🏯', '#d9c8a8'),
-  emojiTile('buildings', 'church', 'Church', '⛪', '#b0a89a'),
-  emojiTile('buildings', 'mosque', 'Mosque', '🕌', '#8aa88a'),
-  emojiTile('buildings', 'tower', 'Tower', '🗼', '#d0553a'),
-  emojiTile('buildings', 'torii-gate', 'Torii Gate', '⛩️', '#d0402a'),
-  emojiTile('buildings', 'tent', 'Tent', '⛺', '#7a9a5a'),
-  emojiTile('buildings', 'factory', 'Factory', '🏭', '#8a8a8a'),
-  emojiTile('buildings', 'brick', 'Brick', '🧱', '#b0603a'),
-  emojiTile('buildings', 'wooden-door', 'Wooden Door', '🚪', '#5a3a22'),
-  emojiTile('buildings', 'glass-window', 'Glass Window', '🪟', '#7fb4d8'),
-  emojiTile('buildings', 'stadium', 'Stadium', '🏟️', '#9a9a8a'),
-
-  // ── units — characters + monsters (the animation frame picker draws from here) ──
-  emojiTile('units', 'person', 'Person', '🧍', '#d9a066'),
-  emojiTile('units', 'man', 'Man', '🧍‍♂️', '#6a8fd9'),
-  emojiTile('units', 'woman', 'Woman', '🧍‍♀️', '#d96a9a'),
-  emojiTile('units', 'adult', 'Adult', '🧑', '#d9a066'),
-  emojiTile('units', 'boy', 'Boy', '👦', '#e0b060'),
-  emojiTile('units', 'girl', 'Girl', '👧', '#e5a0b0'),
-  emojiTile('units', 'old-man', 'Old Man', '👴', '#c8c8c8'),
-  emojiTile('units', 'old-woman', 'Old Woman', '👵', '#d0c0c8'),
-  emojiTile('units', 'elder', 'Elder', '🧓', '#cabfc0'), // gender-neutral old (the `old` variant)
-  emojiTile('units', 'child', 'Child', '🧒', '#e5b878'), // gender-neutral child (the `child` variant)
-  emojiTile('units', 'grey-alien', 'Grey Alien', '👽', '#8fd18a'), // the exotic `alien` variant (👽, not the 👾 monster)
-  emojiTile('units', 'robot', 'Robot', '🤖', '#9aa6b2'), // the exotic `robot` variant
-  emojiTile('units', 'mage', 'Mage', '🧙', '#7a5ac0'),
-  emojiTile('units', 'wizard', 'Wizard', '🧙‍♂️', '#6a4ab0'),
-  emojiTile('units', 'witch', 'Witch', '🧙‍♀️', '#9a5ac0'),
-  emojiTile('units', 'elf', 'Elf', '🧝', '#6ac07a'),
-  emojiTile('units', 'ninja', 'Ninja', '🥷', '#3a3a4a'),
-  emojiTile('units', 'guard', 'Guard', '💂', '#c8443c'),
-  emojiTile('units', 'prince', 'Prince', '🤴', '#d0a83a'),
-  emojiTile('units', 'princess', 'Princess', '👸', '#e585b5'),
-  emojiTile('units', 'police-officer', 'Police Officer', '👮', '#4a6ac0'),
-  emojiTile('units', 'construction-worker', 'Construction Worker', '👷', '#e5b03a'),
-  emojiTile('units', 'vampire', 'Vampire', '🧛', '#8a4a6a'),
-  emojiTile('units', 'zombie', 'Zombie', '🧟', '#6a8f5a'),
-  emojiTile('units', 'troll', 'Troll', '🧌', '#7a6a4a'),
-  emojiTile('units', 'guardian', 'Guardian', '🗿', '#8a8f80'), // stone warden (troll/guardian enemy tile)
-  emojiTile('units', 'goblin', 'Goblin', '👺', '#c8443c'),
-  emojiTile('units', 'ogre', 'Ogre', '👹', '#d0402a'),
-  emojiTile('units', 'ghost', 'Ghost', '👻', '#e0e0f0'),
-  emojiTile('units', 'skeleton', 'Skeleton', '💀', '#e8e8e8'),
-  emojiTile('units', 'skull', 'Skull', '☠️', '#d8d8d8'),
-  emojiTile('units', 'alien', 'Alien', '👾', '#b45ac0'),
-  emojiTile('units', 'pumpkin', 'Jack-o-Lantern', '🎃', '#e5842a'),
-  emojiTile('units', 'dragon', 'Dragon', '🐉', '#4a9a5a'),
-  emojiTile('units', 'wolf', 'Wolf', '🐺', '#8a8a9a'),
-  emojiTile('units', 'bat', 'Bat', '🦇', '#5a4a5a'),
-  emojiTile('units', 'spider', 'Spider', '🕷️', '#3a3a3a'),
-]
+export const EMOJI_TILES: TileDef[] = Object.entries(
+  EMOJI_CATALOG.tiles as Record<string, { category: TileCategory; label: string; char: string; color: string }>,
+).map(([slug, t]) => emojiTile(t.category, slug, t.label, t.char, t.color))
 
 /** Every catalog tile, flat (ASCII glyph tiles + each non-ASCII style's mapped tiles + the
  *  full curated emoji tileset above). */
