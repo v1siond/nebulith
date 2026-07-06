@@ -11,6 +11,9 @@ import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 import { Connector } from '@/lib/api'
 import { ASCII_FONT, BUILDING_BADGES, type DayNight, LAMP_GLOW, applyCellTransform, clampCameraAxis, collectLampGlows, debugCellCaptions, debugLabelColors, drawHitMarker, drawHpBar, drawNightLighting, drawQuestMarker, drawStyledImage, grassShade, cellFill, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, assetOverride } from './shared'
 import { resolveAssetDrawSize } from './assetDimensions'
+import { EMOJI_TILESET } from '@/engine/tileset/emojiTileset'
+import { applyPose } from '@/engine/tileset/pose'
+import { resolveTileSize, resolveTilePose } from '@/engine/tileset/tileViewSettings'
 import { ASCII_STYLE, assetKind, entityKind, entityStyleOverride, genderize, groundKind, personVariantTileId, type Style } from '@/game/artStyle'
 
 
@@ -187,9 +190,17 @@ export function renderTopView(
       const ctTop = asset ? assetCellTransform(asset.cellAnim, now) : null
       if (ctTop) applyCellTransform(ctx, gx, gy, ctTop, tileSize, tileSize)
       if (dv.image) {
-        // Per-element dimensions (#77/#78): overhead view stretches Width (x) + Depth (y).
-        const d = resolveAssetDrawSize(tileSize, asset ?? {}, 'overhead')
-        drawStyledImage(ctx, dv.image, gx, gy, d.w, false, asset?.color, d.h) // #80 colour override tints the sprite
+        // Per-view tile size (byte-identical when unset: old tileSize base), then per-element dims (#77/#78).
+        const vt = style.id === 'emoji' && asset ? EMOJI_TILESET[assetKind(asset)] : undefined
+        const d = resolveAssetDrawSize(tileSize * (resolveTileSize(vt, 'top') ?? 1), asset ?? {}, 'overhead')
+        const pose = resolveTilePose(vt, 'top') // #1: props finally read a per-view pose (was unwired)
+        if (pose) {
+          ctx.save(); ctx.translate(gx, gy); applyPose(ctx, pose, 1, tileSize)
+          drawStyledImage(ctx, dv.image, 0, 0, d.w, false, asset?.color, d.h)
+          ctx.restore()
+        } else {
+          drawStyledImage(ctx, dv.image, gx, gy, d.w, false, asset?.color, d.h) // #80 colour override tints the sprite
+        }
       } else ctx.fillText(dv.char, gx, gy)
       if (ctTop) ctx.restore()
 
