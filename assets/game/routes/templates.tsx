@@ -688,8 +688,15 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
     if (!canvas || !grid) return null
 
     const rect = canvas.getBoundingClientRect()
-    const x = clientX - rect.left
-    const y = clientY - rect.top
+    // Map the click from CSS/display pixels to INTERNAL canvas pixels — the projection below is in
+    // canvas.width/height space. This is the exact inverse of cellToScreen's `* rect.width/canvas.width`
+    // scaling; without it, clicks desync from the drawing whenever the canvas is displayed at a different
+    // size than its backing store (layout change / window resize / browser zoom), and the error grows as
+    // the tiles shrink — which is why it read as "inaccurate, especially when zooming".
+    const scaleX = rect.width ? canvas.width / rect.width : 1
+    const scaleY = rect.height ? canvas.height / rect.height : 1
+    const x = (clientX - rect.left) * scaleX
+    const y = (clientY - rect.top) * scaleY
     const cs = grid.cellSize
     const px = playerRef.current.x
     const pz = playerRef.current.z
