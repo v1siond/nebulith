@@ -25,7 +25,6 @@ import { findTriggeredConnector, normalizeConnector } from '@/engine/connectors'
 import { entityPalette, punchTile, weaponEmoji, weaponGlyph, weaponPose } from '@/engine/entityArt'
 import { isoFacadeOnBack, isoFacingIndex } from '@/engine/isoBuilding'
 import { assetFootprint, multiCellAssetById, stampAsset } from '@/engine/multiCellAssets'
-import { assetAtClick } from '@/engine/assetPicking'
 import { StageData, VariantId, generateStage, stagePaint } from '@/engine/stageGenerator'
 import { syncTilesetPropCollision } from '@/engine/tilesetCollision'
 import { type Action as TriggerAction, resolveAction } from '@/engine/triggers'
@@ -898,13 +897,10 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
       return
     }
 
-    // No tool armed: clicking a unit selects it — view-aware, so clicking the standing FIGURE works
-    // (not just its foot cell). Top view: the unit is on its cell; iso/2d: the figure stands above it.
-    const view = topViewMode ? 'top' : viewTypeRef.current === '2d' ? '2d' : 'iso'
-    // Hit-test the PLAYER at its LIVE cell: its sprite tracks playerRef, but the player entity's
-    // col/row is frozen at spawn (only syncPlayerEntity writes it), so use withPlayerCell or the
-    // walked hero is unselectable.
-    const clickedEntity = entityAtClick(withPlayerCell(entitiesRef.current, livePlayerCell()), cell.col, cell.row, view)
+    // No tool armed: select the EXACT cell under the pointer — a unit is picked only when its OWN
+    // footprint covers this cell (no walk), so a click never grabs a neighbouring unit. The player is
+    // hit-tested at its LIVE cell (withPlayerCell) since its entity col/row is frozen at spawn.
+    const clickedEntity = entityAtFootprint(withPlayerCell(entitiesRef.current, livePlayerCell()), cell.col, cell.row)
     if (clickedEntity) {
       setSelectedEntityId(clickedEntity.id)
       return
@@ -978,20 +974,15 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
     // standing FIGURE (drawn above its foot cell) selects it, not only a click on the exact cell.
     if (isPanning && !dragMovedRef.current && downCellRef.current) {
       const c = downCellRef.current
-      const clickView = topViewMode ? 'top' : viewTypeRef.current === '2d' ? '2d' : 'iso'
-      // Player is hit-tested at its LIVE cell (see withPlayerCell) — the entity's stored cell is
-      // frozen at spawn, so without this the walked hero can't be selected in a play view.
-      const hit = entityAtClick(withPlayerCell(entitiesRef.current, livePlayerCell()), c.col, c.row, clickView)
+      // Always select the EXACT cell under the pointer — no walk, so a click never grabs a neighbouring
+      // cell or prop. A unit is picked only when its OWN footprint covers this cell (hit-tested at its LIVE
+      // cell via withPlayerCell, since the entity's stored cell is frozen at spawn).
+      const hit = entityAtFootprint(withPlayerCell(entitiesRef.current, livePlayerCell()), c.col, c.row)
       if (hit) {
         setSelectedEntityId(hit.id)
       } else {
-        // No unit here → hit-test a placed ASSET's billboard first: a tree/flower is drawn ABOVE its base
-        // cell, so clicking the sprite selects the ELEMENT (its base cell), cascading to its tile — not the
-        // empty cell above it. Falls back to the raw clicked cell so empty-ground editing still works.
         setSelectedEntityId(null)
-        const clickedAsset = gridRef.current ? assetAtClick(gridRef.current.assets, c.col, c.row, clickView) : null
-        const sel = clickedAsset ?? c
-        setSelectedCells(new Set([`${sel.col},${sel.row}`]))
+        setSelectedCells(new Set([`${c.col},${c.row}`]))
       }
     }
     downCellRef.current = null
