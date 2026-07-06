@@ -10,6 +10,7 @@
  * Pure data: no imports, JSON-serialisable. The one place the emoji glyph+colour for a kind lives.
  */
 import type { TilePose } from '@/engine/tileset/pose'
+import type { TileView, TileViewSettings } from '@/engine/tileset/tileViewSettings'
 
 export interface EmojiTile {
   /** The emoji glyph drawn for this kind. */
@@ -25,6 +26,10 @@ export interface EmojiTile {
    *  `[?]`. A path under /public (e.g. `/tiles/emoji/noto/emoji_u1faa8.png`), so it's DB-servable data,
    *  not a hardcoded glyph. `char` stays as the ASCII/label fallback + the catalog preview. */
   image?: string
+  /** OPTIONAL per-view settings (size/pose/…) — deviations-only; an absent view/field falls back to the
+   *  tile's shared value then the renderer's hardcoded default, so an unset tile renders byte-identically.
+   *  Round-trips through the DB blob (opaque jsonb). Powers the unified tile-settings model. */
+  views?: Partial<Record<TileView, TileViewSettings>>
 }
 
 export let EMOJI_TILESET: Record<string, EmojiTile> = {

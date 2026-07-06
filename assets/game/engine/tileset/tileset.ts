@@ -10,6 +10,7 @@
  * The render logic never changes — only where the tileset comes from.
  */
 import type { TilePose } from './pose'
+import type { TileView, TileViewSettings } from './tileViewSettings'
 
 // 9-piece autotile POSITION — the swap standard: all sides + corners. 'single' = a non-tiling tile.
 export type TilePosition =
@@ -32,6 +33,9 @@ export interface TilesetTile {
    *  deviations-only shape the emoji tiles carry. Held items (weapons/shield) store here the orientation
    *  the ASCII renderer used to hardcode, so ASCII drives its weapon pose from tileset DATA like emoji. */
   pose?: TilePose
+  /** OPTIONAL per-view settings (size/pose/…) — the SAME deviations-only shape the emoji tiles carry;
+   *  absent view/field falls back to the tile's shared value then the renderer's hardcoded default. */
+  views?: Partial<Record<TileView, TileViewSettings>>
 }
 
 export interface ZonePalette {
