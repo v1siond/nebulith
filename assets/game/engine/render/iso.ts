@@ -19,6 +19,9 @@ import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 import { Connector } from '@/lib/api'
 import { ASCII_FONT, BUILDING_BADGES, COMBAT_RANGE, type DayNight, type DrawVisual, ENEMY_MOVE_MS, LAMP_GLOW, LIGHT, applyCellTransform, isoCameraFocus, assetCaptionByCell, terrainLabelAt, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawHoverRing, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, frameImage, getPlayerArt, grassShade, cellFill, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, assetOverride, tileImage, tintedImage, treeCanopyLayers } from './shared'
 import { resolveAssetDrawSize } from './assetDimensions'
+import { EMOJI_TILESET } from '@/engine/tileset/emojiTileset'
+import { applyPose } from '@/engine/tileset/pose'
+import { resolveTileSize, resolveTilePose } from '@/engine/tileset/tileViewSettings'
 import { ASCII_STYLE, assetKind, entityKind, entityStyleOverride, genderize, groundKind, personVariantTileId, type ElementKind, type ImageVisual, type Style } from '@/game/artStyle'
 import { DEFAULT_CHARACTER_ANIMATIONS, activeFrame } from '@/game/runtime/entityAnimation'
 
@@ -1755,9 +1758,18 @@ export function drawIsoAssetAscii(
   // A per-asset colour override tints the baked sprite (an emoji ships its own colours, so an override
   // has to recolour the image, not a fill) — #80. Undefined colour → drawn untinted.
   if (adv.image) {
-    // Per-element dimensions (#77/#78): non-uniform draw, lifted so Height grows UP from the base.
-    const d = resolveAssetDrawSize(tileH * 2.2, asset, 'billboard')
-    drawStyledImage(ctx, adv.image, x, y - lineHeight * 0.6 - d.baseLift, d.w, false, asset.color, d.h)
+    // Per-view tile size (byte-identical when unset: falls back to the old 2.2 constant), then per-element dims (#77/#78).
+    const vt = style.id === 'emoji' ? EMOJI_TILESET[assetKind(asset)] : undefined
+    const d = resolveAssetDrawSize(tileH * (resolveTileSize(vt, 'iso') ?? 2.2), asset, 'billboard')
+    const cx = x, cy = y - lineHeight * 0.6 - d.baseLift
+    const pose = resolveTilePose(vt, 'iso') // #1: props finally read a per-view pose (was unwired)
+    if (pose) {
+      ctx.save(); ctx.translate(cx, cy); applyPose(ctx, pose, 1, tileH)
+      drawStyledImage(ctx, adv.image, 0, 0, d.w, false, asset.color, d.h)
+      ctx.restore()
+    } else {
+      drawStyledImage(ctx, adv.image, cx, cy, d.w, false, asset.color, d.h)
+    }
     return
   }
   if (adv.char) {

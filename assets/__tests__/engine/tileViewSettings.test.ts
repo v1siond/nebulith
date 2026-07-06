@@ -24,4 +24,11 @@ describe('per-view tile settings cascade', () => {
     expect(resolveTileSize({}, 'iso')).toBeUndefined()
     expect(resolveTilePose(undefined, 'top')).toBeUndefined()
   })
+
+  test('unset per-view size composes to the legacy hardcoded base (byte-identical draw)', () => {
+    const tileH = 32, tileSize = 40
+    expect(tileH * (resolveTileSize({}, 'iso') ?? 2.2)).toBe(tileH * 2.2) // iso base
+    expect(tileH * (resolveTileSize({}, '2d') ?? 1.5)).toBe(tileH * 1.5) // 2D base
+    expect(tileSize * (resolveTileSize({}, 'top') ?? 1)).toBe(tileSize) //  top base
+  })
 })
