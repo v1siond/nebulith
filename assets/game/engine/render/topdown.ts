@@ -840,16 +840,20 @@ export function render2D(
         // Trees are drawn TALLER (a 🌲 in one cell reads tiny) — roughly the 3-cell height the ASCII
         // tree gets — anchored at the base so the trunk sits on its cell and the canopy rises.
         const isTree = asset.type === 'tree'
-        const glyphPx = isTree ? tileH * 2.3 : tileH * 1.3
+        const vt = style.id === 'emoji' ? EMOJI_TILESET[assetKind(asset)] : undefined
+        const glyphPx = (isTree ? tileH * 2.3 : tileH * 1.3) * (resolveTileSize(vt, '2d') ?? 1)
         const lift = isTree ? tileH * 1.05 : tileH * 0.6
         ctx.font = `bold ${glyphPx}px ${ASCII_FONT}`
         ctx.textAlign = 'center'
         ctx.textBaseline = 'middle'
-        ctx.fillStyle = adv.color || '#ffffff'
-        // A tree keeps its 🌲 shape but is recoloured to its SEASON's canopy shade (asset.color) — so
-        // autumn trees are amber, winter frosted, etc., instead of one flat green or a swapped flower.
-        if (isTree) fillTintedGlyph(ctx, adv.char, p.x, baseY - lift, glyphPx, asset.color, 0.55)
-        else ctx.fillText(adv.char, p.x, baseY - lift)
+        // Element colour override (asset.color) wins over the tile colour. The non-tree glyph path used to
+        // paint with adv.color and ignore the override, so flowers/props couldn't be recoloured (#universal).
+        ctx.fillStyle = asset.color ?? adv.color ?? '#ffffff'
+        const pose = resolveTilePose(vt, '2d')
+        // A tree keeps its 🌲 shape but is recoloured to its SEASON's canopy shade (asset.color).
+        const paint = (px: number, py: number) => { if (isTree) fillTintedGlyph(ctx, adv.char, px, py, glyphPx, asset.color, 0.55); else ctx.fillText(adv.char, px, py) }
+        if (pose) { ctx.save(); ctx.translate(p.x, baseY - lift); applyPose(ctx, pose, 1, tileH); paint(0, 0); ctx.restore() }
+        else paint(p.x, baseY - lift)
       } else if (asset.label) {
         // Generated multi-cell cell → one glyph in its zone/theme color (the cell
         // IS the tile), matching the iso + top views. No green multi-tile overdraw.

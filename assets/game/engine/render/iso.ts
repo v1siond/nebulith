@@ -1775,13 +1775,18 @@ export function drawIsoAssetAscii(
   if (adv.char) {
     // Trees tower (~3 cells, like the ASCII tree) instead of a tiny one-cell 🌲, anchored at the base.
     const isTree = asset.type === 'tree'
-    const glyphPx = fontSize * (isTree ? 2.7 : 1.7)
+    const vt = style.id === 'emoji' ? EMOJI_TILESET[assetKind(asset)] : undefined
+    const glyphPx = fontSize * (isTree ? 2.7 : 1.7) * (resolveTileSize(vt, 'iso') ?? 1)
     ctx.font = `bold ${glyphPx}px ${ASCII_FONT}`
-    ctx.fillStyle = adv.color || '#ffffff'
+    // Element colour override (asset.color) wins over the tile colour. The non-tree glyph path used to
+    // paint with adv.color and ignore the override, so flowers/props couldn't be recoloured (#universal).
+    ctx.fillStyle = asset.color ?? adv.color ?? '#ffffff'
     const gy = y - lineHeight * (isTree ? 1.15 : 0.6)
+    const pose = resolveTilePose(vt, 'iso')
     // A tree keeps its shape but is recoloured to its SEASON's canopy shade (asset.color).
-    if (isTree) fillTintedGlyph(ctx, adv.char, x, gy, glyphPx, asset.color, 0.55)
-    else ctx.fillText(adv.char, x, gy)
+    const paint = (px: number, py: number) => { if (isTree) fillTintedGlyph(ctx, adv.char, px, py, glyphPx, asset.color, 0.55); else ctx.fillText(adv.char, px, py) }
+    if (pose) { ctx.save(); ctx.translate(x, gy); applyPose(ctx, pose, 1, tileH); paint(0, 0); ctx.restore() }
+    else paint(x, gy)
     ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
     return
   }
