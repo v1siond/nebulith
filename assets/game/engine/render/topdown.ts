@@ -18,6 +18,7 @@ import { resolveGroundTile } from '@/engine/tileset/tileset'
 import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 import { EMOJI_TILESET } from '@/engine/tileset/emojiTileset'
 import { applyPose } from '@/engine/tileset/pose'
+import { resolveTileSize, resolveTilePose } from '@/engine/tileset/tileViewSettings'
 import { Connector } from '@/lib/api'
 import { ASCII_FONT, BUILDING_BADGES, COMBAT_RANGE, type DayNight, ENEMY_MOVE_MS, LAMP_GLOW, applyCellTransform, clampCameraAxis, assetCaptionByCell, terrainLabelAt, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawHoverRing, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, frameImage, getPlayerArt, grassShade, cellFill, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, assetOverride, treeCanopyLayers } from './shared'
 import { resolveAssetDrawSize } from './assetDimensions'
@@ -823,9 +824,18 @@ export function render2D(
       const adv = resolveDraw(assetKind(asset), style, assetOverride(asset, style), '', '')
       if (adv.image) {
         // A per-asset colour override recolours the baked sprite (#80); undefined → drawn untinted.
-        // Per-element dimensions (#77/#78): non-uniform draw, lifted so Height grows UP from the base.
-        const d = resolveAssetDrawSize(tileH * 1.5, asset, 'billboard')
-        drawStyledImage(ctx, adv.image, p.x, baseY - tileH * 0.7 - d.baseLift, d.w, false, asset.color, d.h)
+        // Per-view tile size (byte-identical when unset: old 1.5 constant), then per-element dims (#77/#78).
+        const vt = style.id === 'emoji' ? EMOJI_TILESET[assetKind(asset)] : undefined
+        const d = resolveAssetDrawSize(tileH * (resolveTileSize(vt, '2d') ?? 1.5), asset, 'billboard')
+        const cx = p.x, cy = baseY - tileH * 0.7 - d.baseLift
+        const pose = resolveTilePose(vt, '2d') // #1: props finally read a per-view pose (was unwired)
+        if (pose) {
+          ctx.save(); ctx.translate(cx, cy); applyPose(ctx, pose, 1, tileH)
+          drawStyledImage(ctx, adv.image, 0, 0, d.w, false, asset.color, d.h)
+          ctx.restore()
+        } else {
+          drawStyledImage(ctx, adv.image, cx, cy, d.w, false, asset.color, d.h)
+        }
       } else if (adv.char) {
         // Trees are drawn TALLER (a 🌲 in one cell reads tiny) — roughly the 3-cell height the ASCII
         // tree gets — anchored at the base so the trunk sits on its cell and the canopy rises.
