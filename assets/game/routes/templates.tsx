@@ -25,6 +25,7 @@ import { findTriggeredConnector, normalizeConnector } from '@/engine/connectors'
 import { entityPalette, punchTile, weaponEmoji, weaponGlyph, weaponPose } from '@/engine/entityArt'
 import { isoFacadeOnBack, isoFacingIndex } from '@/engine/isoBuilding'
 import { assetFootprint, multiCellAssetById, stampAsset } from '@/engine/multiCellAssets'
+import { assetAtClick } from '@/engine/assetPicking'
 import { StageData, VariantId, generateStage, stagePaint } from '@/engine/stageGenerator'
 import { syncTilesetPropCollision } from '@/engine/tilesetCollision'
 import { type Action as TriggerAction, resolveAction } from '@/engine/triggers'
@@ -977,10 +978,13 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
       if (hit) {
         setSelectedEntityId(hit.id)
       } else {
-        // Empty ground in a play view → select THAT CELL (not just clear), so it becomes the Inspector's
-        // subject and you can replace/clear it (Tile Library) right there — cell editing works in iso/2d too.
+        // No unit here → hit-test a placed ASSET's billboard first: a tree/flower is drawn ABOVE its base
+        // cell, so clicking the sprite selects the ELEMENT (its base cell), cascading to its tile — not the
+        // empty cell above it. Falls back to the raw clicked cell so empty-ground editing still works.
         setSelectedEntityId(null)
-        setSelectedCells(new Set([`${c.col},${c.row}`]))
+        const clickedAsset = gridRef.current ? assetAtClick(gridRef.current.assets, c.col, c.row, clickView) : null
+        const sel = clickedAsset ?? c
+        setSelectedCells(new Set([`${sel.col},${sel.row}`]))
       }
     }
     downCellRef.current = null
