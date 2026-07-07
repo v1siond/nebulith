@@ -94,6 +94,41 @@ export function buildingFootprintCells(b: GridBuilding): { cells: Cell[]; door: 
   return { cells, door }
 }
 
+/** A footprint tile in ABSOLUTE grid coords + its role + iso block height — the on-grid twin of the
+ *  pure buildingFootprint() cell. */
+export interface GridFootprintCell {
+  col: number
+  row: number
+  kind: 'wall' | 'floor' | 'door'
+  /** iso block height: walls rise `floors` blocks; floor/door are flat (0). */
+  height: number
+}
+
+/**
+ * Regenerate a saved facade building into wall / floor / door TILES (the 2D+3D model): every perimeter
+ * cell becomes a WALL at height = the facade's floor count, the interior becomes flat FLOOR, and the
+ * road-facing DOOR cell (doorCellFor — facing-aware) stays flat so its connector survives. Position,
+ * size and floors are kept; the old facade's exact per-cell art is dropped. Pure — called on template
+ * LOAD so pre-tileset maps come back as tiles instead of the retired facade box.
+ */
+export function facadeToFootprint(b: GridBuilding): GridFootprintCell[] {
+  const rect = buildingRect(b)
+  const door = doorCellFor(gridBuildingFacing(b), rect)
+  // Floors = the facade's body rows (anything that isn't pure roof/empty). Clamp to ≥1 so a stubby
+  // saved facade still rises one block.
+  const floors = Math.max(1, b.cells.filter(r => r.some(k => k === 'wall' || k === 'window' || k === 'door')).length)
+  const cells: GridFootprintCell[] = []
+  for (let row = rect.row; row < rect.row + rect.h; row++) {
+    for (let col = rect.col; col < rect.col + rect.w; col++) {
+      const isDoor = col === door.col && row === door.row
+      const perimeter = col === rect.col || col === rect.col + rect.w - 1 || row === rect.row || row === rect.row + rect.h - 1
+      const kind: GridFootprintCell['kind'] = isDoor ? 'door' : perimeter ? 'wall' : 'floor'
+      cells.push({ col, row, kind, height: kind === 'wall' ? floors : 0 })
+    }
+  }
+  return cells
+}
+
 /** True iff (col,row) lies on the building's footprint. */
 export function footprintContains(b: GridBuilding, col: number, row: number): boolean {
   const r = buildingRect(b)
