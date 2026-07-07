@@ -30,6 +30,11 @@ export interface EmojiTile {
    *  tile's shared value then the renderer's hardcoded default, so an unset tile renders byte-identically.
    *  Round-trips through the DB blob (opaque jsonb). Powers the unified tile-settings model. */
   views?: Partial<Record<TileView, TileViewSettings>>
+  /** OPTIONAL default iso BLOCK height (the 3D half of the 2D+3D model): 0/absent = a flat ground square,
+   *  1 = one cube, N = N tall. In 2D/top a tile is ALWAYS a flat square; iso reads this (via resolveTileHeight,
+   *  the editor's per-instance GridAsset.height overriding it) and extrudes the tile into a block through
+   *  drawIsoTileBlock. Data-driven — the same field moves to the Ecto DB at migration. */
+  height?: number
 }
 
 export let EMOJI_TILESET: Record<string, EmojiTile> = {
@@ -45,7 +50,7 @@ export let EMOJI_TILESET: Record<string, EmojiTile> = {
   moss: { char: '🌿', color: '#4a6b3a' },
   mountain: { char: '🗻', color: '#8d8d97' },
   // buildings — `color` tints the cube face; the facade door/window fill at their own hue.
-  wall: { char: '🧱', color: '#b0603a' },
+  wall: { char: '🧱', color: '#b0603a', height: 1 }, // a wall is one cube tall by default (buildings raise it to `floors`)
   roof: { char: '🟥', color: '#c8443c' },
   door: { char: '🚪', color: '#5a3a22' },
   window: { char: '🪟', color: '#7fb4d8', image: '/tiles/emoji/noto/emoji_u1fa9f.png' }, // 🪟 tofus on Segoe → Noto
@@ -54,8 +59,8 @@ export let EMOJI_TILESET: Record<string, EmojiTile> = {
   tree: { char: '🌲', color: '#2f8f3f' },
   flower: { char: '🌸', color: '#e785b5' },
   bush: { char: '🌿', color: '#4fa03f' },
-  rock: { char: '🪨', color: '#8a8a8a', image: '/tiles/emoji/noto/emoji_u1faa8.png' }, // 🪨 tofus on Segoe → Noto
-  crate: { char: '📦', color: '#b5793a' },
+  rock: { char: '🪨', color: '#8a8a8a', image: '/tiles/emoji/noto/emoji_u1faa8.png', height: 1 }, // 🪨 tofus on Segoe → Noto; a boulder is a block
+  crate: { char: '📦', color: '#b5793a', height: 1 }, // a crate is a one-cube block
   lamp: { char: '💡', color: '#ffd24a' },
   // cave features.
   crystal: { char: '💎', color: '#b48cff' },

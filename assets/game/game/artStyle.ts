@@ -350,7 +350,7 @@ function emojiTile(category: TileCategory, slug: string, label: string, char: st
  * they surface in `tilesForStyle('emoji')` and can be pinned per-element via `visualForTileId`.
  */
 export const EMOJI_TILES: TileDef[] = Object.entries(
-  EMOJI_CATALOG.tiles as Record<string, { category: TileCategory; label: string; char: string; color: string }>,
+  EMOJI_CATALOG.tiles as Record<string, { category: TileCategory; label: string; char: string; color: string; height?: number }>,
 ).map(([slug, t]) => emojiTile(t.category, slug, t.label, t.char, t.color))
 
 /** Every catalog tile, flat (ASCII glyph tiles + each non-ASCII style's mapped tiles + the

@@ -41,11 +41,11 @@ describe('emoji tileset extraction — EMOJI_STYLE is a faithful view over EMOJI
   test('the tileset is JSON-serialisable plain data (DB-seed ready)', () => {
     const round = JSON.parse(JSON.stringify(EMOJI_TILESET))
     expect(round).toEqual(EMOJI_TILESET)
-    expect(round.wall).toEqual({ char: '🧱', color: '#b0603a' })
+    expect(round.wall).toEqual({ char: '🧱', color: '#b0603a', height: 1 }) // wall carries its default iso block height
   })
 
   test('transcription guard — key values pinned verbatim', () => {
-    expect(EMOJI_TILESET.wall).toEqual({ char: '🧱', color: '#b0603a' })
+    expect(EMOJI_TILESET.wall).toEqual({ char: '🧱', color: '#b0603a', height: 1 }) // 3D half: one cube tall by default
     expect(EMOJI_TILESET.roof).toEqual({ char: '🟥', color: '#c8443c' })
     expect(EMOJI_TILESET.path).toEqual({ char: '🟫', color: '#9c7b4d' })
     expect(EMOJI_TILESET.mountain).toEqual({ char: '🗻', color: '#8d8d97' })

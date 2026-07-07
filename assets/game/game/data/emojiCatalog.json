@@ -203,7 +203,8 @@
       "category": "nature",
       "label": "Boulder",
       "char": "🪨",
-      "color": "#8a8a8a"
+      "color": "#8a8a8a",
+      "height": 1
     },
     "wood-log": {
       "category": "nature",
@@ -527,7 +528,8 @@
       "category": "buildings",
       "label": "Brick",
       "char": "🧱",
-      "color": "#b0603a"
+      "color": "#b0603a",
+      "height": 1
     },
     "wooden-door": {
       "category": "buildings",

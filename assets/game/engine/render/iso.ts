@@ -19,6 +19,8 @@ import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 import { Connector } from '@/lib/api'
 import { ASCII_FONT, BUILDING_BADGES, COMBAT_RANGE, type DayNight, type DrawVisual, ENEMY_MOVE_MS, LAMP_GLOW, LIGHT, applyCellTransform, isoCameraFocus, assetCaptionByCell, terrainLabelAt, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawHoverRing, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, frameImage, getPlayerArt, grassShade, cellFill, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, assetOverride, tileImage, tintedImage, treeCanopyLayers } from './shared'
 import { resolveAssetDrawSize } from './assetDimensions'
+import { isoBlockFaces, type BlockFace } from './isoBlock'
+import { resolveTileHeight } from '@/engine/tileset/tileHeight'
 import { EMOJI_TILESET } from '@/engine/tileset/emojiTileset'
 import { applyPose } from '@/engine/tileset/pose'
 import { resolveTileSize, resolveTilePose } from '@/engine/tileset/tileViewSettings'
@@ -1125,6 +1127,50 @@ export function drawIsoFacadeTile(ctx: CanvasRenderingContext2D, bl: Pt, colVec:
 }
 
 
+/** Render a height≥1 tile/asset as an iso CUBE — the 3D half of the 2D+3D tileset model. The cell's
+ *  flat diamond extrudes into `height` stacked blocks (isoBlockFaces); each block fills its two
+ *  camera-visible side faces + the top face gets the final cap, and the tile is SHEARED onto every
+ *  face via fillIsoFaceWithTile (auto-extrude — one image on all faces; per-face art is a later phase).
+ *  Side faces are shaded by the global LIGHT (top brightest, the two front walls dimmer) so the block
+ *  reads 3D even when the tile has no per-face detail. `tint` = a per-instance colour override that
+ *  recolours the whole cube (the colour-as-data rule). Impure canvas glue; the corner math is the pure,
+ *  unit-tested isoBlockFaces. `dv.char`/`dv.image` come from resolveDraw — ASCII passthrough never
+ *  reaches here (its assets stay flat), only a styled/emoji tile block does. */
+export function drawIsoTileBlock(
+  ctx: CanvasRenderingContext2D,
+  center: Pt,
+  tileW: number,
+  tileH: number,
+  blockH: number,
+  height: number,
+  dv: DrawVisual,
+  tint?: string,
+): void {
+  const n = Math.max(1, Math.floor(height))
+  const faceColor = tint ?? dv.tint ?? dv.color
+  // Per-face brightness from the sun (outward screen normals of the two FRONT walls). Constant per
+  // block → hoisted out of the stacking loop. Mirrors drawIsoBuilding's faceLight shading.
+  const leftShade = darkenColor(faceColor, faceLight(-tileH, tileW)) // front-left wall (L→B edge)
+  const rightShade = darkenColor(faceColor, faceLight(tileH, tileW)) // front-right wall (B→R edge)
+  const hasTile = !!(dv.image || dv.char)
+  // Fill a face as a shaded solid quad, then overlay the tile sheared onto it (the auto-extrude).
+  const fillFace = (f: BlockFace, colour: string): void => {
+    ctx.fillStyle = colour
+    fillQuad(ctx, f.a, f.b, f.c, f.d)
+    if (hasTile) {
+      fillIsoFaceWithTile(ctx, f.a, { x: f.b.x - f.a.x, y: f.b.y - f.a.y }, { x: f.d.x - f.a.x, y: f.d.y - f.a.y }, { char: dv.char, color: dv.color, image: dv.image }, 1, 1, tint)
+    }
+  }
+  // Stack bottom→top so higher blocks composite over lower ones; the TOP face is capped last (full-bright).
+  for (let k = 0; k < n; k++) {
+    const faces = isoBlockFaces(center, tileW, tileH, blockH, k)
+    fillFace(faces.left, leftShade)
+    fillFace(faces.right, rightShade)
+  }
+  fillFace(isoBlockFaces(center, tileW, tileH, blockH, n - 1).top, faceColor)
+}
+
+
 export const ROOF_ROWS = 2 // facade roof is always the top 2 rows (mirrors composeBuilding)
 
 export const ROOF_OVERHANG = 0.3 // peaked-roof eaves stick out past the walls
@@ -1755,11 +1801,20 @@ export function drawIsoAssetAscii(
   // art below (labeled cells, trees, legacy buildings, props) with ONE tile. ASCII + no
   // override → adv.char '' → falls through to the byte-identical per-type rendering.
   const adv = resolveDraw(assetKind(asset), style, assetOverride(asset, style), '', asset.color ?? '#ffffff')
+  // The tile's emoji-tileset entry: per-view size/pose + the iso block-height default. Undefined under ASCII.
+  const vt = style.id === 'emoji' ? EMOJI_TILESET[assetKind(asset)] : undefined
+  // 3D half of the 2D+3D tileset: a tile (or the placed instance via GridAsset.height) with height≥1 extrudes
+  // into an iso BLOCK instead of a flat billboard. Height 0 / ASCII passthrough (adv.char '') → the flat draw below.
+  const blocks = resolveTileHeight(vt, asset)
+  if (blocks >= 1 && (adv.image || adv.char)) {
+    const bh = resolveAssetDrawSize(tileW * 0.9, asset, 'billboard').h // one block ≈ the cell's iso width; Height/Zoom stretch it
+    drawIsoTileBlock(ctx, { x, y }, tileW, tileH, bh, blocks, adv, asset.color)
+    return
+  }
   // A per-asset colour override tints the baked sprite (an emoji ships its own colours, so an override
   // has to recolour the image, not a fill) — #80. Undefined colour → drawn untinted.
   if (adv.image) {
     // Per-view tile size (byte-identical when unset: falls back to the old 2.2 constant), then per-element dims (#77/#78).
-    const vt = style.id === 'emoji' ? EMOJI_TILESET[assetKind(asset)] : undefined
     const d = resolveAssetDrawSize(tileH * (resolveTileSize(vt, 'iso') ?? 2.2), asset, 'billboard')
     const cx = x, cy = y - lineHeight * 0.6 - d.baseLift
     const pose = resolveTilePose(vt, 'iso') // #1: props finally read a per-view pose (was unwired)
@@ -1775,7 +1830,6 @@ export function drawIsoAssetAscii(
   if (adv.char) {
     // Trees tower (~3 cells, like the ASCII tree) instead of a tiny one-cell 🌲, anchored at the base.
     const isTree = asset.type === 'tree'
-    const vt = style.id === 'emoji' ? EMOJI_TILESET[assetKind(asset)] : undefined
     const base = fontSize * (isTree ? 2.7 : 1.7) * (resolveTileSize(vt, 'iso') ?? 1)
     const d = resolveAssetDrawSize(base, asset, 'billboard') // #universal: Width/Height/Zoom apply to glyphs too
     const gy = y - lineHeight * (isTree ? 1.15 : 0.6) - d.baseLift
