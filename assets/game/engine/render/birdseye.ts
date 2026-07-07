@@ -9,7 +9,7 @@ import { type PlayerState, barFraction, hpFraction } from '@/game/runtime/player
 import { type CombatState, type Entity, type Quest } from '@/game/types'
 import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 import { Connector } from '@/lib/api'
-import { ASCII_FONT, BUILDING_BADGES, type DayNight, LAMP_GLOW, applyCellTransform, clampCameraAxis, collectLampGlows, debugCellCaptions, debugLabelColors, drawHitMarker, drawHpBar, drawNightLighting, drawQuestMarker, drawStyledImage, grassShade, cellFill, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, assetOverride } from './shared'
+import { ASCII_FONT, BUILDING_BADGES, type DayNight, LAMP_GLOW, applyCellTransform, clampCameraAxis, collectLampGlows, debugCellCaptions, debugLabelColors, drawHitMarker, drawHpBar, drawNightLighting, drawQuestMarker, drawStyledImage, fillTintedGlyph, grassShade, cellFill, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, assetOverride } from './shared'
 import { resolveAssetDrawSize } from './assetDimensions'
 import { EMOJI_TILESET } from '@/engine/tileset/emojiTileset'
 import { applyPose } from '@/engine/tileset/pose'
@@ -201,7 +201,24 @@ export function renderTopView(
         } else {
           drawStyledImage(ctx, dv.image, gx, gy, d.w, false, asset?.color, d.h) // #80 colour override tints the sprite
         }
-      } else ctx.fillText(dv.char, gx, gy)
+      } else {
+        // GLYPH tile (no image): honour the per-view tile size + per-element dims + the colour override,
+        // mirroring topdown's 2D glyph path (here the overhead view → Width × Depth). A bare ground glyph
+        // (no asset, dims 1, no tint) falls through fillTintedGlyph to a plain centred fillText at the old
+        // font size — byte-identical to before.
+        const vt = style.id === 'emoji' && asset ? EMOJI_TILESET[assetKind(asset)] : undefined
+        const d = resolveAssetDrawSize(fontSize * (resolveTileSize(vt, 'top') ?? 1), asset ?? {}, 'overhead')
+        const pose = resolveTilePose(vt, 'top')
+        const strength = asset?.color ? 0.85 : 0 // colour-emoji ignore fillStyle → wash the tint on
+        ctx.font = `bold ${d.h}px ${ASCII_FONT}`
+        ctx.save()
+        ctx.translate(gx, gy)
+        if (pose) applyPose(ctx, pose, 1, tileSize)
+        if (d.w !== d.h) ctx.scale(d.w / d.h, 1) // non-uniform Width vs Depth, like the image branch
+        fillTintedGlyph(ctx, dv.char, 0, 0, d.h, asset?.color, strength)
+        ctx.restore()
+        ctx.font = `bold ${fontSize}px ${ASCII_FONT}` // restore the loop's shared font for the next cell
+      }
       if (ctTop) ctx.restore()
 
       // Height indicator (show in corner if height > 0)
