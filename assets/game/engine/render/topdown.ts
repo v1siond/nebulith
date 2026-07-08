@@ -22,7 +22,8 @@ import { resolveTileSize, resolveTilePose } from '@/engine/tileset/tileViewSetti
 import { Connector } from '@/lib/api'
 import { ASCII_FONT, BUILDING_BADGES, COMBAT_RANGE, type DayNight, ENEMY_MOVE_MS, LAMP_GLOW, applyCellTransform, clampCameraAxis, assetCaptionByCell, terrainLabelAt, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawHoverRing, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawConnectorMarker, drawAttackAnimFrame, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, frameImage, getPlayerArt, grassShade, cellFill, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, resolveAssetDraw, resolveEntityDraw, assetOverride, treeCanopyLayers, treeCellSet } from './shared'
 import { resolveAssetDrawSize } from './assetDimensions'
-import { groundSizeFactors, groundDimsActive } from '@/engine/groundDims'
+import { groundSizeFactors, groundDimsActive, type GroundCellDims } from '@/engine/groundDims'
+import { getStack } from '@/engine/cellStack'
 import { ASCII_STYLE, assetKind, entityKind, entityStyleOverride, genderize, groundKind, personVariantTileId, type ElementKind, type Style } from '@/game/artStyle'
 import { DEFAULT_CHARACTER_ANIMATIONS, activeFrame } from '@/game/runtime/entityAnimation'
 
@@ -619,7 +620,14 @@ export function render2D(
         const p = toScreen(col + 0.5, row + 0.5)
         if (p.x < -tileW || p.x > w + tileW || p.y < -tileH || p.y > h + tileH) continue
 
-        const tileType = grid.ground[row]?.[col] || 'grass'
+        // Step 4a — the FLOOR is read as tile index 0 of the cell's unified stack. getStack projects the
+        // SAME ground slug/colour/dims the direct grid.ground/groundColor/groundDims reads produced, so
+        // resolveGroundTile/cellFill + the dims path below stay byte-identical — only the SOURCE moved onto
+        // the one tile-in-cell adapter. (Props still come from getVisibleAssets below: the TileEntry
+        // projection is lossy for a prop — no footprint/cellAnim/baseShadow/bgColor/back-ref — and per-cell
+        // iteration would reorder same-row props, either of which would break the pixel-identical contract.)
+        const floor = getStack(grid, col, row)[0]
+        const tileType = floor.slug || 'grass'
         // Ground LOADS from the tileset (byte-identical noise selection); grass keeps its per-cell shade.
         const gt = resolveGroundTile(ASCII_TILESET, tileType, col, row)
         const char = gt.char
@@ -633,7 +641,7 @@ export function render2D(
         // Cell fill: a reskin uses the tile's OWN colour (from the catalog DATA), but grass AND the rocky
         // cave floor keep their per-cell shade so it isn't one flat sheet ("grass is just color"); ASCII → bg.
         // Per-cell FLOOR COLOUR override (from the Property panel) wins over the catalog colour; else the catalog fill.
-        const fillBg = grid.groundColor?.[row]?.[col] ?? cellFill(gdv.tint, bg, tileType.includes('grass') || gk === 'cavefloor', col, row)
+        const fillBg = floor.color ?? cellFill(gdv.tint, bg, tileType.includes('grass') || gk === 'cavefloor', col, row)
         tctx.textAlign = 'center'
         tctx.textBaseline = 'middle'
         tctx.fillStyle = fillBg
@@ -648,9 +656,12 @@ export function render2D(
           // Per-cell FLOOR DIMS override (Width/Height/Depth/Zoom + a per-cell pose) — the SAME settings a
           // prop carries, on THIS one floor tile. Overhead: Width×Zoom scales x, Depth×Zoom scales y (Height
           // has no axis looking down). Unset → the byte-identical direct draws in the final two branches.
-          const gdims = grid.groundDims?.[row]?.[col]
+          // FLOOR DIMS also ride the floor tile — the SAME GroundCellDims the old `grid.groundDims` read
+          // gave (getStack maps scaleX/scaleZ/scale/scaleY/pose → w/d/zoom/scaleY/pose). groundDimsActive
+          // + groundSizeFactors resolve identically (an all-unset floor → w:1,d:1 → inactive, {fx:1,fy:1}).
+          const gdims: GroundCellDims = { scaleX: floor.w, scaleY: floor.scaleY, scaleZ: floor.d, scale: floor.zoom, pose: floor.pose }
           const dimsOn = groundDimsActive(gdims)
-          const cellPose = dimsOn ? gdims!.pose : undefined
+          const cellPose = dimsOn ? gdims.pose : undefined
           if (tilePose || cellPose || dimsOn) {
             const { fx, fy } = groundSizeFactors(gdims)
             tctx.save()
