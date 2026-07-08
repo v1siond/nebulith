@@ -48,7 +48,8 @@ import { type CombatState, type Entity, type EntityKind, type EntityVariant, typ
 import { weaponReach } from '@/game/weapons'
 import { VILLAGE_CONFIG } from '@/levels/village'
 import { Connector, TemplateListItem, createTemplate, deleteTemplate, deserializeToGrid, getTemplate, listTemplates, serializeGrid, updateTemplate, updateGame } from '@/lib/api'
-import { type CellTriggerGroup, ENTITY_GLYPH, buildingsFromAssets, buildingsToAssets, cellTriggersFromAssets, cellTriggersToAssets, entitiesFromAssets, entitiesToAssets, groundColorFromAssets, groundColorToAssets, isBuildingAsset, isEntityAsset, isGroundColorAsset, isQuestAsset, isStyleAsset, isTriggerAsset, questsFromAssets, questsToAssets, styleFromAssets, styleToAssets, triggersAtCell } from '@/lib/gridCodec'
+import { type CellTriggerGroup, ENTITY_GLYPH, buildingsFromAssets, buildingsToAssets, cellTriggersFromAssets, cellTriggersToAssets, entitiesFromAssets, entitiesToAssets, groundColorFromAssets, groundColorToAssets, groundDimsFromAssets, groundDimsToAssets, isBuildingAsset, isEntityAsset, isGroundColorAsset, isGroundDimsAsset, isQuestAsset, isStyleAsset, isTriggerAsset, questsFromAssets, questsToAssets, styleFromAssets, styleToAssets, triggersAtCell } from '@/lib/gridCodec'
+import type { GroundCellDims } from '@/engine/groundDims'
 import { type Trigger, type TriggerEffect, fireTriggers } from '@/game/runtime/trigger'
 import { ASCII_STYLE, type Style, styleById, groundKind, assetKind, entityKind, genderize, resolveVisual, visualForTileId } from '@/game/artStyle'
 import { useRouter } from 'next/router'
@@ -140,6 +141,7 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
   // Click-vs-drag in the play views: a clean click selects the entity under it, a drag pans.
   const dragMovedRef = useRef(false)
   const downCellRef = useRef<{ col: number; row: number } | null>(null)
+  const downAltRef = useRef(false) // Alt held on mouse-DOWN — mouse-up reads it to select the CELL under a unit (instead of the unit)
   const [camOffset, setCamOffset] = useState({ x: 0, y: 0 })
   const camOffsetRef = useRef({ x: 0, y: 0 })
   const [selectedTile, setSelectedTile] = useState<{ char: string; type: 'ground' | 'asset'; groundType?: string; tileKey?: string } | null>(null)
@@ -264,6 +266,7 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
   const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null)
   const selectedEntityIdRef = useRef<string | null>(null) // live mirror for the game loop / debug seams
   const hoveredEntityIdRef = useRef<string | null>(null) // unit under the cursor — the RAF loop draws its hover reticle (no React state on mousemove)
+  const hoveredCellRef = useRef<{ col: number; row: number } | null>(null) // CELL under the cursor — RAF draws a dim hover outline on EVERY cell (in ADDITION to the unit reticle), so any cell is targetable even when a unit sits on it
   // Which Inspector section a quick-action asked to focus. `n` is a nonce so clicking
   // the same verb twice still re-opens + re-scrolls that section (see Card `focus`).
   const [sectionFocus, setSectionFocus] = useState<{ id: string; n: number } | null>(null)
@@ -825,6 +828,7 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
     if (e.button === 0 && !entityTool && !buildingTool && !connectorMode && !e.shiftKey) {
       // Defer the decision: clean click → select the entity here; drag → pan (mouse-up decides).
       downCellRef.current = screenToCell(e.clientX, e.clientY)
+      downAltRef.current = e.altKey // Alt+left → resolve to the CELL under any unit (mouse-up reads this)
       dragMovedRef.current = false
       setIsPanning(true)
       setPanStart({ x: e.clientX, y: e.clientY })
@@ -900,7 +904,8 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
     // No tool armed: select the EXACT cell under the pointer — a unit is picked only when its OWN
     // footprint covers this cell (no walk), so a click never grabs a neighbouring unit. The player is
     // hit-tested at its LIVE cell (withPlayerCell) since its entity col/row is frozen at spawn.
-    const clickedEntity = entityAtFootprint(withPlayerCell(entitiesRef.current, livePlayerCell()), cell.col, cell.row)
+    // Alt+click always prefers the CELL — skip the entity hit-test so a unit's floor tile stays editable.
+    const clickedEntity = e.altKey ? null : entityAtFootprint(withPlayerCell(entitiesRef.current, livePlayerCell()), cell.col, cell.row)
     if (clickedEntity) {
       setSelectedEntityId(clickedEntity.id)
       return
@@ -934,6 +939,10 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
     hoveredEntityIdRef.current = hoverCell
       ? (entityAtClick(withPlayerCell(entitiesRef.current, livePlayerCell()), hoverCell.col, hoverCell.row, hoverView)?.id ?? null)
       : null
+    // Cell-hover indicator (#—): track the cell under the cursor on EVERY move, UNCONDITIONALLY (before
+    // any pan/select early-return) so the dim outline follows the pointer even mid-idle — the RAF loop draws
+    // it on all cells IN ADDITION to the unit reticle, so a cell stays targetable even with a unit on it.
+    hoveredCellRef.current = hoverCell
 
     // Handle panning
     if (isPanning && panStart) {
@@ -974,18 +983,26 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
     // standing FIGURE (drawn above its foot cell) selects it, not only a click on the exact cell.
     if (isPanning && !dragMovedRef.current && downCellRef.current) {
       const c = downCellRef.current
-      // Always select the EXACT cell under the pointer — no walk, so a click never grabs a neighbouring
-      // cell or prop. A unit is picked only when its OWN footprint covers this cell (hit-tested at its LIVE
-      // cell via withPlayerCell, since the entity's stored cell is frozen at spawn).
-      const hit = entityAtFootprint(withPlayerCell(entitiesRef.current, livePlayerCell()), c.col, c.row)
-      if (hit) {
-        setSelectedEntityId(hit.id)
-      } else {
+      if (downAltRef.current) {
+        // Alt+click ALWAYS reaches the CELL, even when a unit occupies it — drop any entity selection and
+        // pick the cell so its floor-tile settings become editable. (Plain click below stays entity-first.)
         setSelectedEntityId(null)
         setSelectedCells(new Set([`${c.col},${c.row}`]))
+      } else {
+        // Plain click (unchanged): select the EXACT cell under the pointer — no walk, so a click never grabs a
+        // neighbouring cell or prop. A unit is picked only when its OWN footprint covers this cell (hit-tested
+        // at its LIVE cell via withPlayerCell, since the entity's stored cell is frozen at spawn). ENTITY-FIRST.
+        const hit = entityAtFootprint(withPlayerCell(entitiesRef.current, livePlayerCell()), c.col, c.row)
+        if (hit) {
+          setSelectedEntityId(hit.id)
+        } else {
+          setSelectedEntityId(null)
+          setSelectedCells(new Set([`${c.col},${c.row}`]))
+        }
       }
     }
     downCellRef.current = null
+    downAltRef.current = false
     setIsSelecting(false)
     setIsPanning(false)
     setPanStart(null)
@@ -1476,6 +1493,14 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
   const DIM_FIELD = { width: 'scaleX', height: 'scaleY', depth: 'scaleZ', zoom: 'scale' } as const
   const setElementDim = (axis: keyof typeof DIM_FIELD, v: number) =>
     applyToSelectedCells((col, row, grid) => { for (const a of grid.getAssetsAtCell(col, row)) a[DIM_FIELD[axis]] = v })
+  // Per-CELL floor dims + pose — the SAME Width/Height/Depth/Zoom, but written to grid.groundDims so they
+  // size/pose THIS floor tile (every tile, not just props). setGroundDims merges + bumps groundVersion.
+  const setGroundDim = (axis: keyof typeof DIM_FIELD, v: number) =>
+    applyToSelectedCells((col, row, grid) => grid.setGroundDims(col, row, { [DIM_FIELD[axis]]: v } as Partial<GroundCellDims>))
+  const setGroundPose = (pose: TilePose) =>
+    applyToSelectedCells((col, row, grid) => grid.setGroundDims(col, row, { pose }))
+  const clearGroundPose = () =>
+    applyToSelectedCells((col, row, grid) => grid.setGroundDims(col, row, { pose: undefined }))
 
   // Editor debug/validation hooks on window (same family as __ISO_NOCACHE / __isoRenderMs):
   //  __setArtStyle(id)      → flip the active global style without the dropdown
@@ -4130,11 +4155,11 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
         ctx.fillStyle = '#0a0a12'
         ctx.fillRect(0, 0, canvas.width, canvas.height)
       } else if (topViewMode) {
-        renderTopView(ctx, canvas.width, canvas.height, grid, player, zoomRef.current, selectedCellsRef.current, connectorsRef.current, connectorModeRef.current, camOffsetRef.current, renderEntities, runtime.combat, hitMarkersRef.current, time, questsRef.current, dayNightRef.current, activeStyleRef.current)
+        renderTopView(ctx, canvas.width, canvas.height, grid, player, zoomRef.current, selectedCellsRef.current, connectorsRef.current, connectorModeRef.current, camOffsetRef.current, renderEntities, runtime.combat, hitMarkersRef.current, time, questsRef.current, dayNightRef.current, activeStyleRef.current, hoveredCellRef.current)
       } else if (viewTypeRef.current === '2d') {
-        render2D(ctx, canvas.width, canvas.height, grid, player, time, zoomRef.current, camOffsetRef.current, renderEntities, runtime.combat, connectorsRef.current, questsRef.current, dayNightRef.current, attackAnimsRef.current, hitMarkersRef.current, projectilesRef.current, weaponReach(playerWeaponRef.current), activeStyleRef.current, selectedEntityIdRef.current, hoveredEntityIdRef.current, selectedCellsRef.current)
+        render2D(ctx, canvas.width, canvas.height, grid, player, time, zoomRef.current, camOffsetRef.current, renderEntities, runtime.combat, connectorsRef.current, questsRef.current, dayNightRef.current, attackAnimsRef.current, hitMarkersRef.current, projectilesRef.current, weaponReach(playerWeaponRef.current), activeStyleRef.current, selectedEntityIdRef.current, hoveredEntityIdRef.current, selectedCellsRef.current, hoveredCellRef.current)
       } else {
-        render(ctx, canvas.width, canvas.height, grid, player, time, camOffsetRef.current, renderEntities, runtime.combat, hitMarkersRef.current, time, isoZoomRef.current, attackAnimsRef.current, connectorsRef.current, questsRef.current, projectilesRef.current, dayNightRef.current, weaponReach(playerWeaponRef.current), activeStyleRef.current, playModeRef.current, selectedEntityIdRef.current, hoveredEntityIdRef.current, selectedCellsRef.current)
+        render(ctx, canvas.width, canvas.height, grid, player, time, camOffsetRef.current, renderEntities, runtime.combat, hitMarkersRef.current, time, isoZoomRef.current, attackAnimsRef.current, connectorsRef.current, questsRef.current, projectilesRef.current, dayNightRef.current, weaponReach(playerWeaponRef.current), activeStyleRef.current, playModeRef.current, selectedEntityIdRef.current, hoveredEntityIdRef.current, selectedCellsRef.current, hoveredCellRef.current)
       }
       // Drop finished attack animations (kept tiny — a few in flight at once).
       if (attackAnimsRef.current.length > 0) {
@@ -4250,6 +4275,7 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
         ...styleToAssets(activeStyleId), // active art style rides as one off-grid marker (ASCII → none)
         ...cellTriggersToAssets(cellTriggers), // cell triggers (enter/interact) ride as off-grid markers
         ...groundColorToAssets(grid.groundColor), // per-cell floor colours ride as one off-grid marker
+        ...groundDimsToAssets(grid.groundDims), // per-cell floor dims (W/H/D/Zoom + pose) ride as one off-grid marker
       ]
 
       let savedTemplateId = currentTemplateId
@@ -4336,8 +4362,9 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
       const loadedStyle = styleFromAssets(gridRef.current!.assets) // active art style marker (null → ASCII)
       const loadedCellTriggers = cellTriggersFromAssets(gridRef.current!.assets) // cell triggers (enter/interact)
       const loadedGroundColor = groundColorFromAssets(gridRef.current!.assets) // per-cell floor colours
+      const loadedGroundDims = groundDimsFromAssets(gridRef.current!.assets) // per-cell floor dims (W/H/D/Zoom + pose)
       gridRef.current!.assets = gridRef.current!.assets.filter(
-        a => !isEntityAsset(a) && !isQuestAsset(a) && !isBuildingAsset(a) && !isStyleAsset(a) && !isTriggerAsset(a) && !isGroundColorAsset(a),
+        a => !isEntityAsset(a) && !isQuestAsset(a) && !isBuildingAsset(a) && !isStyleAsset(a) && !isTriggerAsset(a) && !isGroundColorAsset(a) && !isGroundDimsAsset(a),
       )
       // Restore per-cell floor colours: clear any stale overrides (a reused grid keeps the last map),
       // then apply the saved ones. setGroundColor bumps groundVersion so the cached ground layer rebuilds.
@@ -4348,6 +4375,19 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
         for (const [key, color] of Object.entries(loadedGroundColor)) {
           const [c, r] = key.split(',').map(Number)
           g.setGroundColor(c, r, color)
+        }
+      }
+      // Restore per-cell floor dims the same way: clear the stale sparse map, then apply the saved one.
+      // setGroundDims bumps groundVersion so the 2D + iso ground caches rebuild with the loaded dims; if the
+      // loaded map has NO dims but the reused grid did, the clear itself bumps so the caches drop them too.
+      {
+        const g = gridRef.current!
+        let cleared = false
+        for (let r = 0; r < g.rows; r++) if (g.groundDims[r]?.length) { g.groundDims[r] = []; cleared = true }
+        if (cleared) g.groundVersion++
+        for (const [key, dims] of Object.entries(loadedGroundDims)) {
+          const [c, r] = key.split(',').map(Number)
+          g.setGroundDims(c, r, dims)
         }
       }
       setActiveStyleId(styleById(loadedStyle).id) // restore the saved global skin (defaults to ASCII)
@@ -4676,7 +4716,7 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
           onMouseDown={handleCanvasMouseDown}
           onMouseMove={handleCanvasMouseMove}
           onMouseUp={handleCanvasMouseUp}
-          onMouseLeave={() => { hoveredEntityIdRef.current = null; handleCanvasMouseUp() }}
+          onMouseLeave={() => { hoveredEntityIdRef.current = null; hoveredCellRef.current = null; handleCanvasMouseUp() }}
           onContextMenu={handleContextMenu}
           style={{ cursor: isPanning ? 'grabbing' : topViewMode ? 'default' : 'grab' }}
         />
@@ -5735,12 +5775,24 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
                         const objs = cells.map(({ col, row }) => grid.getAssetsAtCell(col, row)[0]).filter((a): a is NonNullable<typeof a> => !!a)
                         // Shared value of a per-element dim across the selection (defaults undefined→1); null = mixed.
                         const dim = (read: (a: (typeof objs)[number]) => number) => (objs.length ? commonValue(objs.map(read)) : null)
+                        // Shared value of a per-CELL floor dim across the selection (grid.groundDims; unset→1; null = mixed).
+                        const gdim = (read: (d: GroundCellDims | undefined) => number) => commonValue(cells.map(({ col, row }) => read(grid.groundDims?.[row]?.[col])))
+                        const firstCell = cells[0]
+                        const firstGroundKind = groundKind(grid.ground[firstCell.row]?.[firstCell.col] ?? 'grass')
                         return (
                           <PropertiesPanel
                             count={cells.length}
                             floorColor={commonValue(cells.map(({ col, row }) => grid.groundColor?.[row]?.[col] ?? null))}
                             collision={commonBool(cells.map(({ col, row }) => grid.isBlocked(col, row)))}
                             height={commonValue(cells.map(({ col, row }) => grid.getHeight(col, row)))}
+                            groundKind={firstGroundKind}
+                            groundDims={{
+                              width: gdim(d => d?.scaleX ?? 1),
+                              height: gdim(d => d?.scaleY ?? 1),
+                              depth: gdim(d => d?.scaleZ ?? 1),
+                              zoom: gdim(d => d?.scale ?? 1),
+                            }}
+                            groundPose={grid.groundDims?.[firstCell.row]?.[firstCell.col]?.pose}
                             hasObject={objs.length > 0}
                             elementKind={objs.length ? assetKind(objs[0]) : null}
                             objectColor={objs.length ? commonValue(objs.map(a => a.color ?? '#ffffff')) : null}
@@ -5752,6 +5804,9 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
                             }}
                             onFloorColor={setFloorColor}
                             onClearFloorColor={() => setFloorColor(null)}
+                            onGroundDim={setGroundDim}
+                            onGroundPose={setGroundPose}
+                            onGroundPoseReset={clearGroundPose}
                             onObjectColor={setObjectColor}
                             onCollision={setCellCollision}
                             onHeight={setCellHeight}

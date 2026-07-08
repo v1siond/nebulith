@@ -9,6 +9,7 @@
  */
 import type { Entity, EntityKind, Quest } from '@/game/types'
 import type { GridAsset, GridBuilding } from '@/engine/IsometricGrid'
+import { type GroundCellDims, groundDimsActive } from '@/engine/groundDims'
 import type { Trigger } from '@/game/runtime/trigger'
 
 /** Glyph drawn for each entity kind, over a dark backing (spec §1). */
@@ -239,3 +240,38 @@ export function groundColorFromAssets(assets: readonly GridAsset[]): Record<stri
 }
 
 export const isGroundColorAsset = (asset: GridAsset): boolean => asset.type === GROUND_COLOR_ASSET_TYPE
+
+// ── floor-dims persistence ───────────────────────────────────────────
+// Per-cell FLOOR dims (grid.groundDims, indexed [row][col]) ride as ONE off-grid marker carrying a
+// sparse { "col,row": GroundCellDims } map of only the OVERRIDDEN cells — serializeGrid has no
+// groundDims field, so this keeps floor dims out of the schema like groundColor. All-default → no marker.
+
+export const GROUND_DIMS_ASSET_TYPE = 'nebulith:groundDims'
+
+/** One off-grid marker with the sparse floor-dims map (only cells that actually deviate; empty → none). */
+export function groundDimsToAssets(groundDims: readonly (readonly (GroundCellDims | undefined)[])[]): GridAsset[] {
+  const map: Record<string, GroundCellDims> = {}
+  for (let row = 0; row < groundDims.length; row++) {
+    const cells = groundDims[row]
+    for (let col = 0; col < (cells?.length ?? 0); col++) {
+      const d = cells[col]
+      if (d && groundDimsActive(d)) map[`${col},${row}`] = d
+    }
+  }
+  if (Object.keys(map).length === 0) return []
+  return [{ art: [], col: -1, row: -1, type: GROUND_DIMS_ASSET_TYPE, blocking: false, label: JSON.stringify(map) }]
+}
+
+/** The saved floor-dims map, keyed "col,row" (empty when none was persisted). */
+export function groundDimsFromAssets(assets: readonly GridAsset[]): Record<string, GroundCellDims> {
+  const marker = assets.find(a => a.type === GROUND_DIMS_ASSET_TYPE)
+  if (!marker?.label) return {}
+  try {
+    const parsed = JSON.parse(marker.label)
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? (parsed as Record<string, GroundCellDims>) : {}
+  } catch {
+    return {}
+  }
+}
+
+export const isGroundDimsAsset = (asset: GridAsset): boolean => asset.type === GROUND_DIMS_ASSET_TYPE

@@ -3,6 +3,7 @@ import { GridAsset, GridBuilding, IsometricGrid } from '@/engine/IsometricGrid'
 import { assetAnimFrame, assetCycleFrame } from '@/engine/assetAnimations'
 import { type AttackAnim, animFrame } from '@/engine/attackAnimations'
 import { type BuildingType } from '@/engine/buildingComposer'
+import { facadeToFootprint, buildingRect, doorCellFor, gridBuildingFacing } from '@/engine/buildingEditor'
 import { assetCellTransform } from '@/engine/cellAnimation'
 import { isGroundContact } from '@/engine/cellLabels'
 import { darkenColor, lightenColor, withAlpha } from '@/engine/colors'
@@ -17,8 +18,9 @@ import { type CombatState, type Entity, type Quest } from '@/game/types'
 import { resolveGroundTile } from '@/engine/tileset/tileset'
 import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 import { Connector } from '@/lib/api'
-import { ASCII_FONT, BUILDING_BADGES, COMBAT_RANGE, type DayNight, type DrawVisual, ENEMY_MOVE_MS, LAMP_GLOW, LIGHT, applyCellTransform, isoCameraFocus, assetCaptionByCell, terrainLabelAt, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawHoverRing, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, frameImage, getPlayerArt, grassShade, cellFill, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, assetOverride, tileImage, tintedImage, treeCanopyLayers } from './shared'
+import { ASCII_FONT, BUILDING_BADGES, COMBAT_RANGE, type DayNight, type DrawVisual, ENEMY_MOVE_MS, LAMP_GLOW, LIGHT, applyCellTransform, isoCameraFocus, assetCaptionByCell, terrainLabelAt, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawHoverRing, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, frameImage, getPlayerArt, grassShade, cellFill, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, assetOverride, tileImage, tintedImage, tintedGlyphSprite, treeCanopyLayers } from './shared'
 import { resolveAssetDrawSize } from './assetDimensions'
+import { type GroundCellDims, groundSizeFactors, groundDimsActive } from '@/engine/groundDims'
 import { isoBlockFaces, type BlockFace } from './isoBlock'
 import { resolveTileHeight } from '@/engine/tileset/tileHeight'
 import { EMOJI_TILESET } from '@/engine/tileset/emojiTileset'
@@ -93,6 +95,7 @@ export function isoGroundSignature(grid: IsometricGrid, startCol: number, endCol
     const groundRow = grid.ground[row]
     const heightRow = grid.height[row]
     const colorRow = grid.groundColor?.[row]
+    const dimsRow = grid.groundDims?.[row]
     for (let col = startCol; col <= endCol; col++) {
       const g = groundRow ? groundRow[col] : undefined
       if (g) for (let i = 0; i < g.length; i++) { hsh ^= g.charCodeAt(i); hsh = Math.imul(hsh, 0x01000193) }
@@ -101,6 +104,10 @@ export function isoGroundSignature(grid: IsometricGrid, startCol: number, endCol
       // fold the per-cell FLOOR COLOUR override into the hash so a colour edit rebuilds the cached ground
       const oc = colorRow ? colorRow[col] : null
       if (oc) for (let i = 0; i < oc.length; i++) { hsh ^= oc.charCodeAt(i); hsh = Math.imul(hsh, 0x01000193) }
+      // …and the per-cell FLOOR DIMS override (Width/Height/Depth/Zoom/pose) so a dims edit rebuilds it
+      // too. Sparse → only edited cells pay the stringify; unedited cells add nothing (stay identical).
+      const od = dimsRow ? dimsRow[col] : undefined
+      if (od) { const s = JSON.stringify(od); for (let i = 0; i < s.length; i++) { hsh ^= s.charCodeAt(i); hsh = Math.imul(hsh, 0x01000193) } }
     }
   }
   return hsh >>> 0
@@ -136,6 +143,7 @@ function drawIsoGroundContent(
   col: number,
   row: number,
   tint?: string, // per-cell floor-colour override → recolour the ground tile image (#80)
+  dims?: GroundCellDims, // per-cell floor-dims override (Width/Depth/Zoom + pose) — undefined → default look
 ): void {
   // Reskin (a style tile is active): SHEAR the tile onto the iso DIAMOND so it lies FLAT on the
   // ground plane — angled, with the cube's z below it — never an upright square stamped on top.
@@ -143,6 +151,37 @@ function drawIsoGroundContent(
   // an emoji glyph and an image sprite. ASCII passthrough (no tint/image) falls through to the
   // byte-identical glyph draw below.
   if (gdv.tint || gdv.image) {
+    // Per-cell DIMS override: size the diamond (Width→x, Depth→y, Zoom→both) and apply the per-cell pose,
+    // so THIS one floor cell stretches/shifts without touching its neighbours. Sized cells bake their own
+    // sprite (keyed on the factors); a pose blits under a per-cell transform. Only overridden cells reach
+    // here — an unset cell falls through to the shared unsized sprite below (byte-identical).
+    if (dims && groundDimsActive(dims)) {
+      const { fx, fy } = groundSizeFactors(dims)
+      const tw = tileW * fx
+      const th = tileH * fy
+      const pose = dims.pose
+      const poseUnit = Math.max(tileW, tileH) * 2 // ≈ one cell → pose dx/dy read as fractions of a tile
+      const sprite = groundSprite(gdv, tileW, tileH, tint, fx, fy)
+      if (sprite) {
+        if (pose) {
+          ctx.save()
+          ctx.translate(px, drawY)
+          applyPose(ctx, pose, 1, poseUnit)
+          ctx.drawImage(sprite, -tw, -th)
+          ctx.restore()
+        } else {
+          ctx.drawImage(sprite, px - tw, drawY - th)
+        }
+        return
+      }
+      // No baked sprite yet (SSR / image still decoding) → direct sheared draw, scaled + posed.
+      ctx.save()
+      ctx.translate(px, drawY)
+      if (pose) applyPose(ctx, pose, 1, poseUnit)
+      fillIsoFaceWithTile(ctx, { x: -tw, y: 0 }, { x: tw, y: -th }, { x: tw, y: th }, { char: gdv.char, color: gdv.color, image: gdv.image }, 1, 1, tint)
+      ctx.restore()
+      return
+    }
     // Blit the pre-baked diamond sprite (constant shear → one bake reused for every cell) instead of a
     // per-cell transform+clip — the ground-perf fix. Falls back to the direct draw when there's no sprite
     // (SSR / an image tile still decoding).
@@ -253,13 +292,13 @@ export function drawIsoGroundLayer(ctx: CanvasRenderingContext2D, p: IsoGroundPa
         // Static cache: skip the animated water surface (collected for the live pass);
         // bake the grass glyph at full alpha (the ≤1.5% flicker is render-only motion).
         if (isWater) { if (waterOut) waterOut.push({ col, row }); continue }
-        drawIsoGroundContent(ctx, gdv, px, drawY, tileW, tileH, isGrass, false, time, col, row, grid.groundColor?.[row]?.[col] ?? undefined)
+        drawIsoGroundContent(ctx, gdv, px, drawY, tileW, tileH, isGrass, false, time, col, row, grid.groundColor?.[row]?.[col] ?? undefined, grid.groundDims?.[row]?.[col])
         continue
       }
 
       // Direct / fallback path — byte-identical to the original inline loop for ASCII.
       if (isWater) drawIsoWaterDepth(ctx, px, drawY, tileW, tileH, fillBg, time, col, row)
-      drawIsoGroundContent(ctx, gdv, px, drawY, tileW, tileH, isGrass, true, time, col, row, grid.groundColor?.[row]?.[col] ?? undefined)
+      drawIsoGroundContent(ctx, gdv, px, drawY, tileW, tileH, isGrass, true, time, col, row, grid.groundColor?.[row]?.[col] ?? undefined, grid.groundDims?.[row]?.[col])
     }
   }
 }
@@ -288,7 +327,7 @@ export function drawIsoWaterCells(ctx: CanvasRenderingContext2D, p: IsoGroundPar
     const wdv = resolveDraw(groundKind(tileType), style, undefined, char, fg)
     const fillBg = wdv.tint ?? bg // reskin water → the tile's own colour (catalog data); ASCII → bg
     drawIsoWaterDepth(ctx, px, drawY, tileW, tileH, fillBg, time, col, row)
-    drawIsoGroundContent(ctx, wdv, px, drawY, tileW, tileH, false, true, time, col, row, grid.groundColor?.[row]?.[col] ?? undefined)
+    drawIsoGroundContent(ctx, wdv, px, drawY, tileW, tileH, false, true, time, col, row, grid.groundColor?.[row]?.[col] ?? undefined, grid.groundDims?.[row]?.[col])
   }
 }
 
@@ -317,6 +356,7 @@ export function render(
   targetId: string | null = null,
   hoverId: string | null = null,
   selectedCells: ReadonlySet<string> = new Set(),
+  hoveredCell: { col: number; row: number } | null = null,
 ) {
   const __isoT0 = perfNow() // perf probe — rolling avg of render() ms, exposed on window.__isoRenderMs
   // Clear
@@ -515,26 +555,13 @@ export function render(
       const anchor = drawIsoEntity(ctx, p.x, p.y - heightOffset, obj.entity, tileH, combat, now, obj.moving ?? false, obj.inRange ?? false, attackable, style, obj.entity.id === targetId, obj.entity.id === hoverId)
       drawQuestMarker(ctx, entityQuestMarker(obj.entity, quests), anchor.x, anchor.y, Math.max(14, tileH * 1.6))
     } else if (obj.building) {
-      // ONE upright unit, oriented by its real road-derived facing. The planner already reserved
-      // the oriented footprint rect (road-free), so the billboard can't spill — no gate needed.
+      // A building is drawn PURELY FROM TILES now — per-cell wall/roof/door blocks via drawIsoBuildingTiles,
+      // not the hardcoded facade box. Keep the wall-fade so the interior/door stay findable when the hero is near.
       const b = obj.building
-      const f = ISO_FACINGS[(b.facing ?? 0) % ISO_FACINGS.length]
-      const oC = b.col - 0.5 + f.baseColFrac * b.length // base start = footprint's LEFT EDGE (cell left corner), not the cell centre
-      const oR = b.row + 0.5 // base sits on the frontage front edge
-      const origin = toScreen(oC, oR)
-      const lp = toScreen(oC + f.len[0], oR + f.len[1])
-      const colVec = { x: lp.x - origin.x, y: lp.y - origin.y } // per-column step along the length axis
-      const dp = toScreen(oC + f.dep[0] * b.depth, oR + f.dep[1] * b.depth)
-      const depthVec = { x: dp.x - origin.x, y: dp.y - origin.y } // z-depth = the building's own GROUND depth
-      const flicker = Math.sin(time * 0.003 + b.col * 0.5 + b.row * 0.7) * 0.15 + 1
-      // Fade the building when the player is near, so a back-facing door behind it is findable.
-      // window.__ISO_FADE_ALL forces every building translucent (dev/QA hook, mirrors __ISO_NOCACHE) so
-      // the faded-building look can be validated without walking the hero up to each one.
       const forceFade = typeof window !== 'undefined' && !!(window as unknown as { __ISO_FADE_ALL?: boolean }).__ISO_FADE_ALL
       const fade = forceFade ? BUILDING_MIN_ALPHA : buildingFadeAlpha(pCol, pRow, b, BUILDING_FADE_RADIUS, BUILDING_MIN_ALPHA)
-      if (fade < 1) ctx.globalAlpha = fade
-      drawIsoBuilding(ctx, b, origin, colVec, depthVec, tileW * 0.9, flicker, style)
-      if (fade < 1) ctx.globalAlpha = 1
+      // drawIsoBuildingTiles applies the fade PER CELL (walls more transparent, door more opaque).
+      drawIsoBuildingTiles(ctx, b, toScreen, (c, r) => grid.getHeight(c, r), heightStep, tileW, tileH, style, fade)
     } else if (obj.asset) {
       const op = obj.asset.opacity ?? 1 // per-asset opacity for contrast/depth
       if (op < 1) ctx.globalAlpha = op
@@ -605,10 +632,30 @@ export function render(
   // ─── DEBUG MODE ────────────────────────────────────────────────────
 
   if (isDebugMode()) {
-    renderDebugOverlays(ctx, w, h, grid, player, (wx, wz) => toScreen(wx / cellSize, wz / cellSize), cellSize)
+    renderDebugOverlays(ctx, w, h, grid, player, (wx, wz) => toScreen(wx / cellSize, wz / cellSize), cellSize, true, tileW, tileH)
   } else if (isShowCollisions()) {
-    // Collision-only overlay: same red diamonds as debug, no coords/labels.
-    renderDebugOverlays(ctx, w, h, grid, player, (wx, wz) => toScreen(wx / cellSize, wz / cellSize), cellSize, false)
+    // Collision-only overlay: same red diamonds as debug, no coords/labels. Pass the render's ZOOMED
+    // tileW/tileH so the diamonds fill each cell edge-to-edge (not the unzoomed grid.isoScale default).
+    renderDebugOverlays(ctx, w, h, grid, player, (wx, wz) => toScreen(wx / cellSize, wz / cellSize), cellSize, false, tileW, tileH)
+  }
+
+  // ─── Cell-hover outline — a DIM/translucent iso cube around the cell under the cursor, mirroring the
+  //     selection cube below but drawn UNDER it (so it never hides the solid-yellow selection). Shows on
+  //     EVERY cell, even one a unit stands on, in addition to the unit hover reticle. ──────────────────
+  if (hoveredCell) {
+    ctx.strokeStyle = 'rgba(255,255,255,0.5)'
+    ctx.lineWidth = 1.5
+    const selH = tileW * 0.9 // same cube height as the selection so hover + select read as the same block
+    const p = toScreen(hoveredCell.col, hoveredCell.row)
+    const gt = { x: p.x, y: p.y - tileH }, gr = { x: p.x + tileW, y: p.y }, gb = { x: p.x, y: p.y + tileH }, gl = { x: p.x - tileW, y: p.y }
+    ctx.beginPath(); ctx.moveTo(gt.x, gt.y - selH); ctx.lineTo(gr.x, gr.y - selH); ctx.lineTo(gb.x, gb.y - selH); ctx.lineTo(gl.x, gl.y - selH); ctx.closePath(); ctx.stroke()
+    ctx.beginPath(); ctx.moveTo(gt.x, gt.y); ctx.lineTo(gr.x, gr.y); ctx.lineTo(gb.x, gb.y); ctx.lineTo(gl.x, gl.y); ctx.closePath(); ctx.stroke()
+    ctx.beginPath()
+    ctx.moveTo(gl.x, gl.y); ctx.lineTo(gl.x, gl.y - selH)
+    ctx.moveTo(gr.x, gr.y); ctx.lineTo(gr.x, gr.y - selH)
+    ctx.moveTo(gb.x, gb.y); ctx.lineTo(gb.x, gb.y - selH)
+    ctx.moveTo(gt.x, gt.y); ctx.lineTo(gt.x, gt.y - selH)
+    ctx.stroke()
   }
 
   // ─── Selection outline (property-editor multi-select) — a yellow diamond around each
@@ -616,15 +663,19 @@ export function render(
   if (selectedCells.size > 0) {
     ctx.strokeStyle = '#ffff00'
     ctx.lineWidth = 2
+    const selH = tileW * 0.9 // cube height ≈ one tile block → the selector reads as a CUBE, not a flat diamond
     for (const key of selectedCells) {
       const [col, row] = key.split(',').map(Number)
       const p = toScreen(col, row)
+      const gt = { x: p.x, y: p.y - tileH }, gr = { x: p.x + tileW, y: p.y }, gb = { x: p.x, y: p.y + tileH }, gl = { x: p.x - tileW, y: p.y }
+      // TOP diamond (raised) + GROUND diamond + the 4 vertical edges = an iso cube outline
+      ctx.beginPath(); ctx.moveTo(gt.x, gt.y - selH); ctx.lineTo(gr.x, gr.y - selH); ctx.lineTo(gb.x, gb.y - selH); ctx.lineTo(gl.x, gl.y - selH); ctx.closePath(); ctx.stroke()
+      ctx.beginPath(); ctx.moveTo(gt.x, gt.y); ctx.lineTo(gr.x, gr.y); ctx.lineTo(gb.x, gb.y); ctx.lineTo(gl.x, gl.y); ctx.closePath(); ctx.stroke()
       ctx.beginPath()
-      ctx.moveTo(p.x, p.y - tileH)
-      ctx.lineTo(p.x + tileW, p.y)
-      ctx.lineTo(p.x, p.y + tileH)
-      ctx.lineTo(p.x - tileW, p.y)
-      ctx.closePath()
+      ctx.moveTo(gl.x, gl.y); ctx.lineTo(gl.x, gl.y - selH)
+      ctx.moveTo(gr.x, gr.y); ctx.lineTo(gr.x, gr.y - selH)
+      ctx.moveTo(gb.x, gb.y); ctx.lineTo(gb.x, gb.y - selH)
+      ctx.moveTo(gt.x, gt.y); ctx.lineTo(gt.x, gt.y - selH)
       ctx.stroke()
     }
   }
@@ -724,8 +775,8 @@ export function drawIsoPlayer(
   const groundY = baseY + tileH * 0.24
   // Ground shadow sized to the player figure (always reads; fixed — doesn't bob).
   drawGroundShadow(ctx, x, groundY, pHalf)
-  if (isTarget) drawSelectionRing(ctx, x, groundY, pHalf + tileH * 0.18) // red target reticle at the feet
-  else if (isHover) drawHoverRing(ctx, x, groundY, pHalf + tileH * 0.18) // dim white hover reticle
+  if (isTarget) drawSelectionRing(ctx, x, groundY, pHalf * 0.8) // red target reticle at the feet
+  else if (isHover) drawHoverRing(ctx, x, groundY, pHalf * 0.8) // dim white hover reticle
 
   // Robust block figure — same recipe as entities + trees; `breathe` bobs the whole figure. When
   // attacking, HIDE the static arm on the swinging side (the animated swing-arm below replaces it) so
@@ -887,10 +938,10 @@ export function drawIsoEntity(
   const leftX = x - (maxW * charW) / 2
   // Ground shadow sized to the figure so it always reads (not hidden behind it).
   drawGroundShadow(ctx, x, baseY + tileH * 0.24, (maxW * charW) / 2)
-  if (isTarget) drawSelectionRing(ctx, x, baseY + tileH * 0.24, (maxW * charW) / 2 + tileH * 0.28) // red target reticle at the feet
-  else if (isHover) drawHoverRing(ctx, x, baseY + tileH * 0.24, (maxW * charW) / 2 + tileH * 0.28) // dim white hover reticle
+  if (isTarget) drawSelectionRing(ctx, x, baseY + tileH * 0.24, (maxW * charW) / 2 * 0.8) // red target reticle at the feet
+  else if (isHover) drawHoverRing(ctx, x, baseY + tileH * 0.24, (maxW * charW) / 2 * 0.8) // dim white hover reticle
   // In-strike-range indicator: a ring at the feet, under the figure (#35).
-  if (attackable) drawRangeRing(ctx, x, baseY + tileH * 0.24, (maxW * charW) / 2 + tileH * 0.2, now)
+  if (attackable) drawRangeRing(ctx, x, baseY + tileH * 0.24, (maxW * charW) / 2 * 0.85, now)
   ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
   ctx.textAlign = 'left'
   ctx.textBaseline = 'middle'
@@ -1006,7 +1057,7 @@ export function fillIsoFaceWithTile(
   origin: Pt,
   eA: Pt,
   eB: Pt,
-  tv: { char?: string; color: string; image?: ImageVisual },
+  tv: { char?: string; color: string; image?: ImageVisual; tintTo?: string }, // tintTo → recolour a colour-emoji GLYPH (the roof 🟥 → roof colour)
   na: number,
   nb: number,
   tint?: string, // an editor floor-colour override → recolour the tile image (#80)
@@ -1032,11 +1083,18 @@ export function fillIsoFaceWithTile(
     const sh = tv.image!.sh ?? img.naturalHeight
     for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) ctx.drawImage(drawSrc, sx, sy, sw, sh, i * cw, j * ch, cw, ch)
   } else if (tv.char) {
-    ctx.fillStyle = tv.color
-    ctx.textAlign = 'center'
-    ctx.textBaseline = 'middle'
-    ctx.font = `${Math.min(cw, ch) * 1.16}px ${ASCII_FONT}` // slight overfill; the clip trims the excess
-    for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) ctx.fillText(tv.char, (i + 0.5) * cw, (j + 0.5) * ch)
+    // A colour-emoji ignores fillStyle, so a per-building roof colour can't be applied with fillText — when
+    // `tintTo` is set (the roof), shear a RECOLOURED sprite instead so the roof 🟥 reads the roof's own hue.
+    const sprite = tv.tintTo ? tintedGlyphSprite(tv.char, Math.max(cw, ch), tv.tintTo) : null
+    if (sprite) {
+      for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) ctx.drawImage(sprite, 0, 0, sprite.width, sprite.height, i * cw, j * ch, cw, ch)
+    } else {
+      ctx.fillStyle = tv.color
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.font = `${Math.min(cw, ch) * 1.16}px ${ASCII_FONT}` // slight overfill; the clip trims the excess
+      for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) ctx.fillText(tv.char, (i + 0.5) * cw, (j + 0.5) * ch)
+    }
   }
   ctx.restore()
 }
@@ -1048,82 +1106,32 @@ export function fillIsoFaceWithTile(
  *  save/transform/clip/restore — the ctx.clip() over ~1000 ground cells/frame was the emoji-vs-ascii perf
  *  sink. Keyed on (tile,colour,size); ground resolves to only a handful of appearances per zoom level. */
 const _groundSpriteCache = new Map<string, HTMLCanvasElement | null>()
-function groundSprite(gdv: DrawVisual, tileW: number, tileH: number, tint?: string): HTMLCanvasElement | null {
+// `sizeW`/`sizeD` (default 1) SCALE the baked diamond for a per-cell floor-dims override (Width×Zoom on x,
+// Depth×Zoom on the ground axis). At 1×1 the key + bake are byte-identical to before — the common (unsized)
+// ground cell reuses the ONE shared sprite. A sized cell bakes its own (few of them, so the cache stays small).
+function groundSprite(gdv: DrawVisual, tileW: number, tileH: number, tint?: string, sizeW = 1, sizeD = 1): HTMLCanvasElement | null {
   if (typeof document === 'undefined') return null
   // Don't bake until an image tile's raster is decoded — else the sprite would freeze the ASCII fallback.
   if (gdv.image && !tileImage(gdv.image.src)) return null
-  const key = `${gdv.image?.src ?? gdv.char}|${gdv.color}|${tint ?? ''}|${Math.round(tileW)}|${Math.round(tileH)}`
+  const tw = tileW * sizeW
+  const th = tileH * sizeD
+  const sizeKey = sizeW !== 1 || sizeD !== 1 ? `|${sizeW}|${sizeD}` : '' // unsized → EXACTLY the old key
+  const key = `${gdv.image?.src ?? gdv.char}|${gdv.color}|${tint ?? ''}|${Math.round(tileW)}|${Math.round(tileH)}${sizeKey}`
   const hit = _groundSpriteCache.get(key)
   if (hit !== undefined) return hit
   const cv = document.createElement('canvas')
-  cv.width = Math.ceil(2 * tileW)
-  cv.height = Math.ceil(2 * tileH)
+  cv.width = Math.ceil(2 * tw)
+  cv.height = Math.ceil(2 * th)
   const c = cv.getContext('2d')
   if (!c) {
     _groundSpriteCache.set(key, null)
     return null
   }
-  // Bake with the diamond's LEFT corner at local (0, tileH) → the sprite's bbox top-left is (0,0), so a
-  // blit at (px - tileW, drawY - tileH) lands the diamond exactly where the per-cell clipped draw did.
-  fillIsoFaceWithTile(c, { x: 0, y: tileH }, { x: tileW, y: -tileH }, { x: tileW, y: tileH }, { char: gdv.char, color: gdv.color, image: gdv.image }, 1, 1, tint)
+  // Bake with the diamond's LEFT corner at local (0, th) → the sprite's bbox top-left is (0,0), so a
+  // blit at (px - tw, drawY - th) lands the (scaled) diamond centred exactly where the unsized draw did.
+  fillIsoFaceWithTile(c, { x: 0, y: th }, { x: tw, y: -th }, { x: tw, y: th }, { char: gdv.char, color: gdv.color, image: gdv.image }, 1, 1, tint)
   _groundSpriteCache.set(key, cv)
   return cv
-}
-
-
-/** One facade cell as an ISO PARALLELOGRAM: the bottom edge runs along `colVec` (the iso
- *  angle), the sides rise straight up by `cellH`. Same tile vocabulary as 2D (red /\ roof,
- *  gold |[]| body, |==| door) — just sheared onto the iso axis instead of a 90° rect. */
-export interface FacadeColors { wall: string; door: string; window: string; roof: string }
-
-
-export function drawIsoFacadeTile(ctx: CanvasRenderingContext2D, bl: Pt, colVec: Pt, cellH: number, kind: string, flicker: number, colors: FacadeColors, style: Style = ASCII_STYLE, wallTile?: string, wallImage?: string): void {
-  const up: Pt = { x: 0, y: -cellH }
-  const br = ptAdd(bl, colVec)
-  const tl = ptAdd(bl, up)
-  const tr = ptAdd(br, up)
-  const isRoof = kind === 'roof'
-  const isDoor = kind === 'door'
-  const isWindow = kind === 'window'
-  // distinct per-cell bg from the SAME per-building palette as 2D (door = dark doorway, window = glass)
-  const bg = isRoof ? colors.roof : isDoor ? colors.door : isWindow ? colors.window : colors.wall
-  const fg = isRoof
-    ? darkenColor(colors.roof, 0.58) // /\ as a darker shade of this roof
-    : isDoor
-    ? 'rgba(232, 212, 170, 0.9)' // warm handle on the dark door
-    : isWindow
-    ? 'rgba(40, 62, 84, 0.85)' // dark frame on the glass
-    : darkenColor(colors.wall, 0.72)
-  const glyph = isRoof ? '/\\' : isDoor ? '▯' : isWindow ? '⊞' : ''
-  ctx.fillStyle = bg // the sheared iso QUAD, filled at the tile hue (facadeColors are style-tinted when reskinned)
-  fillQuad(ctx, bl, br, tr, tl)
-  // Roof facade cells are their DATA colour ONLY — mirror 2D (topdown draws roof cells as bg, no tile).
-  // Without this, a reskin stamps the emoji roof tile 🟥 (#c8443c) as a red BAND over the roof front rows.
-  if (isRoof) return
-  const mid = { x: (bl.x + tr.x) / 2, y: (bl.y + tr.y) / 2 }
-  const fdv = resolveDraw(kind as ElementKind, style, undefined, glyph, fg)
-  // Reskin (a style tile / image is active): tile it SHEARED onto this facade face — the face IS
-  // the parallelogram (bl, colVec, up), so wall→brick, roof→tile, door/window carry their own
-  // glyph, all angled WITH the face (never an upright square). One primitive for emoji + image.
-  // ASCII passthrough (no tint/image) draws its glyph centered exactly as before.
-  if (fdv.tint || fdv.image) {
-    // Wall cells ride the building's MATERIAL tile (wallTile; '' plaster → colour only); door / window
-    // keep their own resolved tile. One primitive for emoji + image, still sheared onto the iso face.
-    // Wall cells ride the building's MATERIAL: its Noto image (wood/stone) if it has one — with the
-    // face's DATA colour (already filled) as the ONLY fallback, never the 🪵/🪨 glyph (those tofu on
-    // Segoe). Brick has no image → its 🧱 glyph. Door/window keep their own resolved tile/image.
-    const wallImg = kind === 'wall' ? wallImage : undefined
-    const tileChar = kind === 'wall' ? (wallImg ? '' : (wallTile ?? '')) : fdv.char
-    const tileImg = kind === 'wall' ? (wallImg ? { kind: 'image' as const, src: wallImg } : undefined) : fdv.image
-    fillIsoFaceWithTile(ctx, bl, colVec, up, { char: tileChar, color: fdv.color, image: tileImg }, 1, 1)
-    return
-  }
-  if (!fdv.char) return
-  ctx.font = `bold ${cellH * 0.62}px ${ASCII_FONT}`
-  ctx.textAlign = 'center'
-  ctx.textBaseline = 'middle'
-  ctx.fillStyle = fdv.color
-  ctx.fillText(fdv.char, mid.x, mid.y)
 }
 
 
@@ -1145,29 +1153,290 @@ export function drawIsoTileBlock(
   height: number,
   dv: DrawVisual,
   tint?: string,
+  topDv?: DrawVisual, // optional DIFFERENT tile for the TOP face (e.g. a ROOF cap on a WALL block)
 ): void {
   const n = Math.max(1, Math.floor(height))
   const faceColor = tint ?? dv.tint ?? dv.color
   // Per-face brightness from the sun (outward screen normals of the two FRONT walls). Constant per
-  // block → hoisted out of the stacking loop. Mirrors drawIsoBuilding's faceLight shading.
+  // block → hoisted out of the stacking loop. Same faceLight shading the peaked roof uses.
   const leftShade = darkenColor(faceColor, faceLight(-tileH, tileW)) // front-left wall (L→B edge)
   const rightShade = darkenColor(faceColor, faceLight(tileH, tileW)) // front-right wall (B→R edge)
-  const hasTile = !!(dv.image || dv.char)
-  // Fill a face as a shaded solid quad, then overlay the tile sheared onto it (the auto-extrude).
-  const fillFace = (f: BlockFace, colour: string): void => {
+  // Fill a face as a shaded solid quad, then overlay ITS tile sheared onto it (the auto-extrude).
+  const fillFace = (f: BlockFace, colour: string, fdv: DrawVisual, ftint?: string): void => {
     ctx.fillStyle = colour
     fillQuad(ctx, f.a, f.b, f.c, f.d)
-    if (hasTile) {
-      fillIsoFaceWithTile(ctx, f.a, { x: f.b.x - f.a.x, y: f.b.y - f.a.y }, { x: f.d.x - f.a.x, y: f.d.y - f.a.y }, { char: dv.char, color: dv.color, image: dv.image }, 1, 1, tint)
+    if (fdv.image || fdv.char) {
+      fillIsoFaceWithTile(ctx, f.a, { x: f.b.x - f.a.x, y: f.b.y - f.a.y }, { x: f.d.x - f.a.x, y: f.d.y - f.a.y }, { char: fdv.char, color: fdv.color, image: fdv.image }, 1, 1, ftint)
     }
   }
   // Stack bottom→top so higher blocks composite over lower ones; the TOP face is capped last (full-bright).
   for (let k = 0; k < n; k++) {
     const faces = isoBlockFaces(center, tileW, tileH, blockH, k)
-    fillFace(faces.left, leftShade)
-    fillFace(faces.right, rightShade)
+    fillFace(faces.left, leftShade, dv, tint)
+    fillFace(faces.right, rightShade, dv, tint)
   }
-  fillFace(isoBlockFaces(center, tileW, tileH, blockH, n - 1).top, faceColor)
+  const top = isoBlockFaces(center, tileW, tileH, blockH, n - 1).top
+  if (topDv) fillFace(top, topDv.tint ?? topDv.color ?? faceColor, topDv) // a ROOF tile capping a wall block
+  else fillFace(top, faceColor, dv, tint)
+}
+
+// Building-interior setting (default OFF = HOLLOW): buildings render as an empty shell so the DOOR and the
+// wall-fade read — you can see IN when the hero is near (a filled interior blocks that). ON = filled;
+// interior decorations come later. The editor toggles this via setShowBuildingInterior.
+export let SHOW_BUILDING_INTERIOR = false
+export function setShowBuildingInterior(v: boolean): void { SHOW_BUILDING_INTERIOR = v }
+
+/** Windows per wall FACE — ~one per two cells, clamped [2,4] — matching the 2D elevation's spacing so a
+ *  street reads uniform. Shared by the iso render + its test (single source of truth). */
+export function faceWindowCount(span: number): number {
+  return Math.max(2, Math.min(4, Math.round(span / 2)))
+}
+
+
+/** Overlay the roof TILE onto ONE peaked-roof face (an arbitrary quad), CLIPPED to that quad so it can
+ *  never spill past the face, and RECOLOURED to the face's own `shade`. The caller already fillQuad'd the
+ *  shade underneath, so this is purely the tile LAYER that makes the face genuinely tile-based (like 2D)
+ *  without changing the look. ASCII (no tile char/image) → no-op. Headless (no offscreen) → the glyph is
+ *  stamped at the centroid so the render still resolves a tile. */
+function drawRoofTileOnQuad(ctx: CanvasRenderingContext2D, pts: Pt[], dv: DrawVisual, shade: string): void {
+  if (!dv.char && !dv.image) return
+  const xs = pts.map(p => p.x), ys = pts.map(p => p.y)
+  const minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys)
+  const cx = (minX + maxX) / 2, cy = (minY + maxY) / 2, span = Math.max(maxX - minX, maxY - minY)
+  ctx.save()
+  ctx.beginPath()
+  ctx.moveTo(pts[0].x, pts[0].y)
+  for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y)
+  ctx.closePath()
+  ctx.clip()
+  if (dv.image) {
+    drawStyledImage(ctx, dv.image, cx, cy, span, false, shade) // image roof → luminance-tint to the face shade
+  } else {
+    const sprite = tintedGlyphSprite(dv.char, span, shade)
+    if (sprite) ctx.drawImage(sprite, cx - span / 2, cy - span / 2, span, span)
+    else { ctx.fillStyle = shade; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = `${span}px ${ASCII_FONT}`; ctx.fillText(dv.char, cx, cy) }
+  }
+  ctx.restore()
+}
+
+
+/** A peaked (gable) roof over the footprint BOX: the eaves overhang the walls, a ridge runs front→back at
+ *  the length midpoint lifted `roofRise` above the eaves — the SAME trapezoid-prism the 2D house peaks
+ *  into, extruded along the footprint's depth. Every face is fillQuad'd in the building's roof DATA colour
+ *  (shaded by orientation), then the roof TILE is sheared onto it recoloured to that shade (drawRoofTileOnQuad)
+ *  — so the roof is genuinely tile-based like the 2D elevation while the varied per-building colour still
+ *  reads and the look is unchanged. Filled back-to-front so nearer faces occlude farther ones. `fbl/fbr/bbl/bbr`
+ *  are the box's four GROUND corners (front-left, front-right, back-left, back-right); `L` = the length span. */
+function drawIsoPeakedRoof(ctx: CanvasRenderingContext2D, fbl: Pt, fbr: Pt, bbl: Pt, bbr: Pt, L: number, liftEave: number, roofRise: number, roofC: string, roofTileDV: DrawVisual): void {
+  const colVec: Pt = { x: (fbr.x - fbl.x) / L, y: (fbr.y - fbl.y) / L } // per-cell length step (down-right)
+  const depthVec: Pt = { x: bbl.x - fbl.x, y: bbl.y - fbl.y }           // full depth back
+  const eaveOf = (p: Pt): Pt => ({ x: p.x, y: p.y - liftEave })
+  const rh = (L * ROOF_RIDGE_FRAC) / 2 // ridge half-width, in cells
+  const upRoof = liftEave + roofRise
+  const FEL = ptAdd(eaveOf(fbl), ptScale(colVec, -ROOF_OVERHANG)) // eaves stick out past the walls
+  const FER = ptAdd(eaveOf(fbr), ptScale(colVec, ROOF_OVERHANG))
+  const BEL = ptAdd(FEL, depthVec)
+  const BER = ptAdd(FER, depthVec)
+  const ridge = (t: number): Pt => ({ x: fbl.x + colVec.x * t, y: fbl.y + colVec.y * t - upRoof })
+  const FRL = ridge(L / 2 - rh)
+  const FRR = ridge(L / 2 + rh)
+  const BRL = ptAdd(FRL, depthVec)
+  const BRR = ptAdd(FRR, depthVec)
+  const sideLF = faceLight(-colVec.x, -colVec.y) // left slope faces -col; right slope +col
+  const sideRF = faceLight(colVec.x, colVec.y)
+  // Each face: fill the shaded roof colour (the look), then shear the roof TILE onto it recoloured to that
+  // same shade (clipped, so it can't spill) — genuinely tile-based, visually identical to the solid fill.
+  const face = (shade: string, a: Pt, b: Pt, c: Pt, d: Pt): void => {
+    ctx.fillStyle = shade
+    fillQuad(ctx, a, b, c, d)
+    drawRoofTileOnQuad(ctx, [a, b, c, d], roofTileDV, shade)
+  }
+  face(darkenColor(roofC, 0.66), BEL, BER, BRR, BRL)                         // back trapezoid
+  face(darkenColor(roofC, Math.min(1, sideLF + 0.06)), FEL, BEL, BRL, FRL)   // left slope
+  face(darkenColor(roofC, Math.min(1, sideRF + 0.06)), FER, BER, BRR, FRR)   // right slope
+  face(darkenColor(roofC, 0.9), FRL, FRR, BRR, BRL)                          // ridge top
+  face(roofC, FEL, FER, FRR, FRL)                                            // front gable (full roof colour)
+}
+
+
+/**
+ * ISO building rendered PURELY FROM TILES = the 2D facade + DEPTH. Every footprint cell extrudes as a
+ * tile block through the SAME primitive (drawIsoTileBlock) as every rock/prop: perimeter WALL cells rise
+ * `floors` blocks carrying THIS building's MATERIAL tile (🪵/🧱/🪨/plaster, like 2D — not one global
+ * brick); the DOOR cell is a LOW doorway (min 2 blocks, not a full cube). Over that, the two camera-near
+ * walls get WINDOW tiles — one band per floor, exactly the rows the 2D elevation punches — and the top is
+ * capped with a real ROOF: a peaked gable for houses/temple/cathedral, a flat plane otherwise, in the
+ * building's roof DATA colour (no red 🟥 band, mirroring 2D). A STORE/HOSPITAL badge floats over the apex.
+ * No whole-building landmark glyph, no solid-only content faces. Cells draw back-to-front so nearer walls
+ * occlude farther ones; the interior stays HOLLOW unless SHOW_BUILDING_INTERIOR. */
+export function drawIsoBuildingTiles(
+  ctx: CanvasRenderingContext2D,
+  b: GridBuilding,
+  toScreen: (col: number, row: number) => Pt,
+  cellElevation: (col: number, row: number) => number,
+  heightStep: number,
+  tileW: number,
+  tileH: number,
+  style: Style,
+  fade = 1,
+): void {
+  const tcol = b.type as BuildingType
+  const wallC = buildingCellColor(tcol, 'wall', b.col)
+  const roofC = buildingCellColor(tcol, 'roof', b.col)
+  const doorC = buildingCellColor(tcol, 'door', b.col)
+  const windowC = buildingCellColor(tcol, 'window', b.col)
+  const doorDV = resolveDraw('door', style, undefined, '', doorC)
+  // Windows: the real 🪟 tile (its ⊞ fallback under ASCII / before the PNG decodes), sheared onto the wall.
+  const windowDV = resolveDraw('window', style, undefined, '⊞', windowC)
+  // Walls ride THIS building's MATERIAL tile (🪵 wood / 🧱 brick / 🪨 stone; '' plaster → colour only) — the
+  // SAME per-building material 2D reads, never one global brick. ASCII (passthrough) → no overlay, so the
+  // wall face stays its solid colour, byte-identical to before.
+  const reskinned = style.id !== ASCII_STYLE.id
+  const wallTile = reskinned ? wallMaterialTile(tcol, b.col) : ''
+  const wallImage = reskinned ? wallMaterialImage(tcol, b.col) : undefined
+  const wallTileDV: DrawVisual = { char: wallImage ? '' : wallTile, color: wallC, image: wallImage ? { kind: 'image', src: wallImage } : undefined }
+  // Wall-block top CAPS stay a plain roof-colour fill (they're overdrawn by the real roof below).
+  const roofFaceDV: DrawVisual = { char: '', color: roofC }
+  // The roof TILE itself (🟥 under emoji; '' under ASCII → no tile). Sheared onto the visible roof faces
+  // and RECOLOURED per-face to the roof's data shade, so the roof is a genuine tile like the 2D elevation
+  // — no solid-colour-only roof face — while the varied per-building colour still reads. ASCII → unchanged.
+  const roofTileDV = resolveDraw('roof', style, undefined, '', roofC)
+
+  const blockH = tileW * 0.9 // one floor ≈ the cell's iso width
+  const rect = buildingRect(b)
+  const cells = facadeToFootprint(b).sort((a, z) => (a.col + a.row) - (z.col + z.row))
+  const floors = cells.reduce((m, c) => Math.max(m, c.height), 1)
+  // Facade WINDOW rows → iso block LEVELS: facade row r sits at block k = H-1-r from the ground, so an
+  // N-floor building shows N floors of windows — the SAME rows draw2DBuilding punches (b.cells).
+  const H = b.cells.length
+  const windowLevels: number[] = []
+  for (let r = 0; r < H; r++) if ((b.cells[r] ?? []).some(k => k === 'window')) windowLevels.push(H - 1 - r)
+  const peaked = (b.cells[0] ?? []).some(k => k === 'empty') // houses/temple/cathedral leave empty roof corners
+  const roofRise = ROOF_ROWS * blockH // the roof's 2 rows, translated 1 row = 1 block like the walls
+  // When the building fades (hero near), the WALLS go MORE transparent so you can see IN, but the DOOR
+  // stays MORE opaque so it's findable. Not faded (fade=1) → everything opaque.
+  const wallAlpha = fade < 1 ? fade * 0.55 : 1
+  const doorAlpha = fade < 1 ? Math.min(1, fade + 0.45) : 1
+
+  // ── WALL / DOOR blocks (+ optional interior) — back-to-front so nearer cells occlude farther ones ──
+  for (const c of cells) {
+    const p = toScreen(c.col, c.row)
+    const center: Pt = { x: p.x, y: p.y - cellElevation(c.col, c.row) * heightStep }
+    // The DOOR cell is a CONTINUOUS wall for the block geometry (full height, same material as its
+    // neighbours — no short standalone cube); the 🚪 door tile shears onto its road-facing FACE below.
+    if (c.kind === 'wall' || c.kind === 'door') { ctx.globalAlpha = wallAlpha; drawIsoTileBlock(ctx, center, tileW, tileH, blockH, floors, wallTileDV, wallC, roofFaceDV) }
+    else if (SHOW_BUILDING_INTERIOR) { ctx.globalAlpha = wallAlpha; drawIsoTileBlock(ctx, center, tileW, tileH, blockH, floors, roofFaceDV, roofC) } // interior filled only when the setting is ON (default: HOLLOW)
+  }
+
+  // ── Outer footprint BOX (its four GROUND corners) — the window bands + a peaked roof hang on it. Each
+  //    corner is a perimeter cell's outermost diamond vertex, so the box edges sit flush on the wall faces. ──
+  const corner = (col: number, row: number, offX: number, offY: number): Pt => {
+    const s = toScreen(col, row)
+    return { x: s.x + offX, y: s.y - cellElevation(col, row) * heightStep + offY }
+  }
+  const c0 = rect.col, c1 = rect.col + rect.w - 1, r0 = rect.row, r1 = rect.row + rect.h - 1
+  const fbl = corner(c0, r1, -tileW, 0) // left (SW) vertex
+  const fbr = corner(c1, r1, 0, tileH)  // front (S) vertex
+  const bbl = corner(c0, r0, 0, -tileH) // back (N) vertex
+  const bbr = corner(c1, r0, tileW, 0)  // right (NE) vertex
+  const liftEave = floors * blockH
+
+  // ── WINDOWS: the 🪟 window TILE sheared onto the TWO camera-near walls (front + near side), one band per
+  //    floor — matching the 2D facade's window rows. The two hidden far walls get NONE (cameraNearWalls),
+  //    so a faded building never bleeds phantom glass onto the roof. Faded with the wall it sits in. ──
+  ctx.globalAlpha = wallAlpha
+  const winH = blockH * 0.5 // a window ≈ half a floor tall
+  for (const wall of cameraNearWalls(fbl, fbr, bbl, bbr, rect.w, rect.h)) {
+    const count = faceWindowCount(wall.span)
+    const slot = 1 / count
+    const halfW = slot * 0.26 // window half-width as a fraction of the wall span
+    for (const k of windowLevels) {
+      const sill = k * blockH + blockH * 0.28 // window bottom, centred in this floor's block
+      for (let i = 0; i < count; i++) {
+        const t = (i + 0.5) * slot
+        const bl: Pt = { x: wall.base.x + wall.axis.x * (t - halfW), y: wall.base.y + wall.axis.y * (t - halfW) - sill }
+        const br: Pt = { x: wall.base.x + wall.axis.x * (t + halfW), y: wall.base.y + wall.axis.y * (t + halfW) - sill }
+        // the window's own iso face: bottom edge (bl→br) runs along the wall axis, side edge rises straight up
+        fillIsoFaceWithTile(ctx, bl, { x: br.x - bl.x, y: br.y - bl.y }, { x: 0, y: -winH }, { char: windowDV.char, color: windowDV.color, image: windowDV.image }, 1, 1)
+      }
+    }
+  }
+
+  // ── DOORS: FULL-CELL door TILES sheared onto the ground floor of the entrance wall — ONE per facade door
+  //    cell, so the iso door COUNT equals the 2D facade's (house 1, cathedral 3, castle 4), as a CONTIGUOUS
+  //    run CENTRED on the walkable entrance. Each door fills a WHOLE wall cell (full face width × one block
+  //    tall — the same footprint a wall/window tile cell has), not a narrow doorway. The run rides a
+  //    CAMERA-NEAR wall so it is ALWAYS visible: the south (front) row and east (right) col are the two edges
+  //    the camera sees (their L→B / B→R faces — the pair cameraNearWalls returns for this projection, the SAME
+  //    set the windows use). A south/east entrance is already near, so the doors sit on the real entrance; a
+  //    north/west entrance faces a HIDDEN far wall, so the run is MIRRORED onto the near edge of its axis
+  //    (north→south front row, west→east right col) — the user's "always findable" choice: a hidden-side house
+  //    still shows its doors on the wall facing the camera. Drawn AFTER walls + windows so they read over them,
+  //    at doorAlpha (kept more opaque than the faded walls so they stay findable when the hero fades the
+  //    building). VISUAL only — the single walkable door cell + collision are unchanged. ──
+  const bottomRow = b.cells[b.cells.length - 1] ?? []
+  const doorCount = bottomRow.filter(k => k === 'door').length // = the 2D facade door width (1 / 3 / 4)
+  if (doorCount > 0) {
+    const facing = gridBuildingFacing(b)
+    const rowAxis = facing === 'south' || facing === 'north' // entrance runs along COLS (a front/back row) vs ROWS
+    const door = doorCellFor(facing, rect) // the lone walkable entrance cell — the door run centres on it
+    const edgeLen = rowAxis ? rect.w : rect.h // cells along the entrance edge (== facade length)
+    const centreIdx = rowAxis ? door.col - rect.col : door.row - rect.row // walkable cell's index along the edge
+    const start = Math.max(0, Math.min(edgeLen - doorCount, centreIdx - Math.floor(doorCount / 2)))
+    // The near edge the run draws on: south front row (L→B 'left' face) for a col-running entrance, east right
+    // col (B→R 'right' face) for a row-running one — always camera-visible, mirroring a hidden north/west edge.
+    const side: 'left' | 'right' = rowAxis ? 'left' : 'right'
+    const frontRow = rect.row + rect.h - 1
+    const rightCol = rect.col + rect.w - 1
+    ctx.globalAlpha = doorAlpha
+    for (let k = 0; k < doorCount; k++) {
+      const col = rowAxis ? rect.col + start + k : rightCol
+      const row = rowAxis ? frontRow : rect.row + start + k
+      const dp = toScreen(col, row)
+      const dCenter: Pt = { x: dp.x, y: dp.y - cellElevation(col, row) * heightStep }
+      const face = isoBlockFaces(dCenter, tileW, tileH, blockH, 0)[side] // ground block's camera-near face
+      // FULL CELL: the whole bottom edge (face.a→face.b) wide, ONE block (blockH) tall — a wall-cell footprint.
+      fillIsoFaceWithTile(ctx, face.a, { x: face.b.x - face.a.x, y: face.b.y - face.a.y }, { x: 0, y: -blockH }, { char: doorDV.char, color: doorDV.color, image: doorDV.image }, 1, 1)
+    }
+  }
+
+  // ── ROOF (drawn LAST so it occludes the wall/window tops it overlaps) — peaked gable for houses etc.,
+  //    a flat plane otherwise, both in the building's roof DATA colour like 2D. Faded with the building. ──
+  ctx.globalAlpha = fade
+  if (peaked) {
+    drawIsoPeakedRoof(ctx, fbl, fbr, bbl, bbr, rect.w, liftEave, roofRise, roofC, roofTileDV)
+  } else {
+    for (const c of cells) {
+      const p = toScreen(c.col, c.row)
+      const top = isoBlockFaces({ x: p.x, y: p.y - cellElevation(c.col, c.row) * heightStep }, tileW, tileH, blockH, floors - 1).top
+      ctx.fillStyle = roofC
+      fillQuad(ctx, top.a, top.b, top.c, top.d)
+      // shear the roof TILE flat onto the diamond top, recoloured to roofC — a real tile face (like 2D), not colour-only
+      fillIsoFaceWithTile(ctx, top.a, { x: top.b.x - top.a.x, y: top.b.y - top.a.y }, { x: top.d.x - top.a.x, y: top.d.y - top.a.y }, { char: roofTileDV.char, color: roofC, image: roofTileDV.image, tintTo: roofC }, 1, 1, roofC)
+    }
+  }
+
+  // ── TYPE BADGE (STORE / HOSPITAL) floating over the roof apex — mirrors the 2D/top badge so a shop /
+  //    clinic reads at a glance. Only store + hospital carry one. Always full-opacity so it stays legible. ──
+  const badge = BUILDING_BADGES[b.type]
+  if (badge) {
+    ctx.globalAlpha = 1
+    const cx = (fbl.x + fbr.x + bbl.x + bbr.x) / 4
+    const cy = (fbl.y + fbr.y + bbl.y + bbr.y) / 4
+    const apexY = cy - liftEave - (peaked ? roofRise : blockH * 0.4)
+    const bf = blockH * (badge.text.length > 1 ? 0.6 : 0.95)
+    ctx.font = `bold ${bf}px ${ASCII_FONT}`
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    const bw = ctx.measureText(badge.text).width
+    const by = apexY - bf * 0.9
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.72)'
+    ctx.fillRect(cx - bw / 2 - 3, by - bf * 0.65, bw + 6, bf * 1.3)
+    ctx.fillStyle = badge.color
+    ctx.fillText(badge.text, cx, by)
+  }
+
+  ctx.globalAlpha = 1
 }
 
 
@@ -1177,14 +1446,6 @@ export const ROOF_OVERHANG = 0.3 // peaked-roof eaves stick out past the walls
 
 export const ROOF_RIDGE_FRAC = 0.46 // peaked-roof flat-top width as a fraction of length
 
-
-// Interior FLOOR colour per building type — shown when a house FADES in iso so you see the floor,
-// not the grass beneath. First-pass per-type tone; real floor TILES (wood/stone) come with the
-// authored tileset, and interior details (table, ornaments) will sit on this floor.
-const BUILDING_FLOOR: Readonly<Record<string, string>> = {
-  house: '#9a7b52', 'big-house': '#9a7b52', store: '#b8b0a2', hospital: '#d0ccc4',
-  cathedral: '#8f8a7e', temple: '#9c9384', castle: '#837d72',
-}
 
 /** One wall of an iso building footprint: its bottom-left ground corner `base`, the `axis` vector
  *  along the wall's whole bottom edge, and the `span` in cells (drives the window count). */
@@ -1209,297 +1470,6 @@ export function cameraNearWalls(fbl: Pt, fbr: Pt, bbl: Pt, bbr: Pt, length: numb
   return walls.filter(w => midY(w.base, w.axis) > cy)
 }
 
-/** ISO building = the 2D facade standing at its plot, sheared onto the iso angle, drawn as a
- *  SOLID box — all four walls + every roof face filled, so it never shows through from any
- *  facing — with the z-depth extruded along depthVec. Houses get a peaked (trapezoid-prism)
- *  roof, flat types a box slab; EVERY roof face is red. `origin` = front-bottom-left corner;
- *  `colVec` = per-column length step; `depthVec` = full z-depth back. */
-export function drawIsoBuilding(
-  ctx: CanvasRenderingContext2D,
-  b: GridBuilding,
-  origin: Pt,
-  colVec: Pt,
-  depthVec: Pt,
-  cellH: number,
-  flicker: number,
-  style: Style = ASCII_STYLE,
-): void {
-  // Billboard size comes from the FACADE grid (b.cells), not the footprint span — for east/west
-  // buildings the footprint rect is rotated (length/height swapped), so reading b.length/b.height
-  // there would draw the facade with the wrong proportions.
-  const L = b.cells[0]?.length ?? b.length
-  const H = b.cells.length
-  // EVERY building — in EVERY art style — renders as the geometric per-cell tileset BLOCK below: walls,
-  // roof faces and the door/window facade, each a solid iso quad with the active style's tile SHEARED
-  // onto it at the iso angle (tileFace → fillIsoFaceWithTile). A reskin is a TILESET swap, not a sprite
-  // swap: the emoji is the per-face tile (🧱 wall, 🟥 roof, 🚪 door, 🪟 window), never a flat whole-
-  // building billboard. That gives z-width + grid-alignment + the iso angle for free, and sidesteps the
-  // Segoe black-silhouette entirely (no glyph stacking). Per-TYPE identity (temple vs castle) is a
-  // per-type tileset, authored — not a single landmark glyph.
-  const bodyH = H - ROOF_ROWS // wall/window/door rows
-  // Per-row height = the cell BLOCK size (cellH — one facade cell's iso height, ≈ its iso WIDTH `colVec`,
-  // so a cell reads ~SQUARE like the 2D elevation's square cells). An H-row building therefore rises
-  // H × cellH: the SAME row count the 2D facade draws, translated 1:1 to iso — height = number of rows ×
-  // block size. The old clamp to the flat ground-plane recede rate (cellRiseY ≈ tileH ≈ 0.35× a block)
-  // squashed every floor, so a 5-row building read as ~2 in iso. composeBuilding already CAPS H to the
-  // base width, so a full-block-per-row rise stays proportional — never a runaway tower.
-  const vCell = cellH
-  const up = (n: number): Pt => ({ x: 0, y: -n * vCell })
-  // Houses peak (composeBuilding leaves empty corners in row 0); flat types keep a box roof.
-  const peaked = (b.cells[0] ?? []).some(k => k === 'empty')
-
-  // Per-building colors from the SAME source as 2D/top, so all three views agree. Wall + roof faces
-  // are shaded by orientation (front brightest → back darkest); the facade tiles (door/windows) use
-  // the full palette.
-  const tcol = b.type as BuildingType
-  const floorC = BUILDING_FLOOR[tcol] ?? '#9a7b52' // interior floor shown when the house fades (see floor, not grass)
-  // A reskin (Emoji/image style) tints the SAME cube (roof colour on the roof faces, wall on the
-  // walls, door/window at their own hue) AND — via tileFace below — overlays the real tile SHEARED
-  // onto each face, so the box reads as brick/tiled at the iso angle (the emoji test for real
-  // sprites). ASCII → tint undefined → the byte-identical building palette, no overlay.
-  const wallDV = resolveDraw('wall', style, undefined, '', buildingCellColor(tcol, 'wall', b.col))
-  const roofDV = resolveDraw('roof', style, undefined, '', buildingCellColor(tcol, 'roof', b.col))
-  // Wall FACE colour ALWAYS from the game DATA (buildingCellColor gives this building's MATERIAL colour
-  // — wood/stone/brick/plaster, varied per building), never the one global emoji wall tint. Mirrors the
-  // roof rule below, so 2D and iso agree and a street isn't monotone "wood".
-  const wallC = buildingCellColor(tcol, 'wall', b.col)
-  // Roof colour ALWAYS from the game DATA (buildingCellColor varies the roof PER BUILDING → roofs
-  // aren't monotone red, even on a reskin). The reskin roof faces show this varied colour directly;
-  // a fixed-colour roof emoji would hide it, so the roof tiles NO glyph (walls still tile their brick).
-  const roofC = buildingCellColor(tcol, 'roof', b.col)
-  const doorC = resolveDraw('door', style, undefined, '', buildingCellColor(tcol, 'door', b.col)).tint ?? buildingCellColor(tcol, 'door', b.col)
-  const windowC = resolveDraw('window', style, undefined, '', buildingCellColor(tcol, 'window', b.col)).tint ?? buildingCellColor(tcol, 'window', b.col)
-  const reskinned = !!(wallDV.tint || wallDV.image || roofDV.tint || roofDV.image)
-  // Under a reskin the wall faces ride THIS building's MATERIAL tile (🪵 wood / 🧱 brick / 🪨 stone; ''
-  // for plaster → no texture, the painted colour reads flat) instead of one global brick. That's the
-  // "different wall types" — a house rolls its material, civic types keep an identity one. ASCII → ''.
-  const wallTile = reskinned ? wallMaterialTile(tcol, b.col) : ''
-  const wallImage = reskinned ? wallMaterialImage(tcol, b.col) : undefined
-  // solid-box wall faces: the material IMAGE (wood/stone) with the wall colour as the ONLY fallback
-  // (never the 🪵/🪨 glyph — tofu); brick keeps its 🧱 glyph; plaster stays colour-only.
-  const wallTileDV: DrawVisual = { char: wallImage ? '' : wallTile, color: wallC, image: wallImage ? { kind: 'image', src: wallImage } : undefined }
-  const roofFaceDV: DrawVisual = { char: '', color: roofC } // reskin roof: coloured face, no emoji glyph
-  const facadeColors: FacadeColors = {
-    wall: withAlpha(wallC, 0.98),
-    door: withAlpha(doorC, 0.98),
-    window: withAlpha(windowC, 0.98),
-    roof: withAlpha(roofC, 0.98),
-  }
-  // Side faces are shaded by the global LIGHT: the wall facing the sun is brighter than the one
-  // facing away (outward normals ≈ ∓colVec). Front facade stays full/bright, the far wall dim.
-  const sideLF = faceLight(-colVec.x, -colVec.y) // left wall (faces -col)
-  const sideRF = faceLight(colVec.x, colVec.y) // right wall (faces +col)
-  const wallLeft = withAlpha(darkenColor(wallC, sideLF), 0.98)
-  const wallRight = withAlpha(darkenColor(wallC, sideRF), 0.98)
-  const wallBack = withAlpha(darkenColor(wallC, 0.82), 0.98)
-  const roofFront = withAlpha(roofC, 0.98) // sunny front roof face = full roof color
-  const roofSlopeL = withAlpha(darkenColor(roofC, Math.min(1, sideLF + 0.06)), 0.98)
-  const roofSlopeR = withAlpha(darkenColor(roofC, Math.min(1, sideRF + 0.06)), 0.98)
-  const roofTop = withAlpha(darkenColor(roofC, 0.9), 0.98)
-  const roofBack = withAlpha(darkenColor(roofC, 0.66), 0.98)
-
-  // ground corners + helper to lift a corner to the eaves (top of the walls)
-  const fbl = origin
-  const fbr = ptAdd(fbl, ptScale(colVec, L))
-  const bbl = ptAdd(fbl, depthVec)
-  const bbr = ptAdd(fbr, depthVec)
-  const eave = (p: Pt): Pt => ptAdd(p, up(bodyH))
-  const mid = (a: Pt, c: Pt): Pt => ({ x: (a.x + c.x) / 2, y: (a.y + c.y) / 2 })
-
-  // On a reskin, overlay the wall/roof TILE sheared onto a SOLID face: a = bottom-left corner,
-  // b = bottom-right (so b−a is the bottom edge), d = top-left (d−a is the up/side edge). Tile
-  // counts are capped so a big wall stays a few tiles (emoji fillText runs every frame). The two
-  // peaked-roof trapezoid caps aren't parallelograms, so they keep their flat roof tint. No-op on
-  // ASCII (reskinned = false) → the box stays byte-identical.
-  const FACE_CAP = 3
-  const tileFace = (a: Pt, b: Pt, d: Pt, dv: DrawVisual, na: number, nb: number): void => {
-    if (!reskinned) return
-    fillIsoFaceWithTile(
-      ctx,
-      a,
-      { x: b.x - a.x, y: b.y - a.y },
-      { x: d.x - a.x, y: d.y - a.y },
-      { char: dv.char, color: dv.color, image: dv.image },
-      Math.min(FACE_CAP, na),
-      Math.min(FACE_CAP, nb),
-    )
-  }
-
-  // Windows on a wall FACE, ONE ROW PER FLOOR — matching the 2D elevation. The window ROWS come straight
-  // from the facade grid (`b.cells`), the SAME data draw2DBuilding reads, so an N-floor building shows N
-  // floors of windows in iso too (not a single mid-wall row that read as one story). `base` = the face's
-  // bottom-left ground corner, `axis` = its bottom edge vector (full span), `count` evenly-spaced lights
-  // per row. Drawn only on the camera-VISIBLE faces (front + near side). Each slot draws the ACTUAL window
-  // TILE (🪟 image under Emoji, ⊞ glyph under ASCII) sheared onto the wall face, never a painted rectangle.
-  const windowDV = resolveDraw('window', style, undefined, '⊞', facadeColors.window)
-  // Facade rows carrying a window → one iso window band each. drawFacade puts row r's cell BOTTOM at
-  // up(H-1-r), so a window centred in that cell sits at up(H-1-r + 0.28), half a block tall.
-  const windowRows: number[] = []
-  for (let r = 0; r < H; r++) if ((b.cells[r] ?? []).some(k => k === 'window')) windowRows.push(r)
-  const winH = up(0.5) // one window ≈ half a cell block tall (was ~half the WHOLE wall)
-  const wallWindows = (base: Pt, axis: Pt, count: number): void => {
-    if (bodyH < 1) return
-    const slot = 1 / count
-    const halfW = slot * 0.26 // window half-width as a fraction of the wall span
-    for (const r of windowRows) {
-      const sill = up(H - 1 - r + 0.28) // window bottom, centred in facade row r's cell
-      for (let i = 0; i < count; i++) {
-        const t = (i + 0.5) * slot
-        const bl = ptAdd(ptAdd(base, ptScale(axis, t - halfW)), sill) // slot's bottom-left corner = the window face's origin
-        const br = ptAdd(ptAdd(base, ptScale(axis, t + halfW)), sill) // bottom-right (along the wall axis)
-        const tl = ptAdd(bl, winH)                                    // top-left (straight up the wall)
-        // The window's own little iso FACE: bottom edge (bl→br) runs along the wall's axis, side edge (bl→tl)
-        // rises up — so the tile shears to the SAME angle as the wall it sits on.
-        fillIsoFaceWithTile(ctx, bl, { x: br.x - bl.x, y: br.y - bl.y }, { x: tl.x - bl.x, y: tl.y - bl.y }, { char: windowDV.char, color: windowDV.color, image: windowDV.image }, 1, 1)
-      }
-    }
-  }
-
-  // `/\` chevrons marching along a roof SIDE face's centre line (front→back), in a darker roof
-  // tone — so the roof reads as shingled from the side too, like draw2DBuilding's roof glyph.
-  const roofChevrons = (frontMid: Pt, backMid: Pt, count: number): void => {
-    if (reskinned) return // the emoji/image roof tiles already read as shingled — no ASCII /\ on top
-    ctx.font = `bold ${cellH * 0.5}px ${ASCII_FONT}`
-    ctx.textAlign = 'center'
-    ctx.textBaseline = 'middle'
-    ctx.fillStyle = darkenColor(roofC, 0.58)
-    for (let i = 0; i < count; i++) {
-      const t = (i + 0.5) / count
-      ctx.fillText('/\\', frontMid.x + (backMid.x - frontMid.x) * t, frontMid.y + (backMid.y - frontMid.y) * t)
-    }
-  }
-  const roofSideCount = Math.max(2, Math.min(4, Math.round(b.depth)))
-
-  // Simple ground shadow: a soft ellipse offset opposite the sun (down-right along -LIGHT.dir), so
-  // the building reads as grounded. Drawn first → the box sits on top; only the cast part shows.
-  const gC = mid(mid(fbl, fbr), mid(bbl, bbr))
-  const footSpan = Math.hypot(colVec.x, colVec.y) * L + Math.hypot(depthVec.x, depthVec.y) * b.depth
-  ctx.save()
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.16)'
-  ctx.beginPath()
-  ctx.ellipse(gC.x - LIGHT.dir.x * cellH * 0.6, gC.y - LIGHT.dir.y * cellH * 0.6 + cellH * 0.15, footSpan * 0.34, footSpan * 0.18, 0, 0, Math.PI * 2)
-  ctx.fill()
-  ctx.restore()
-
-  // FLOOR — a solid interior floor over the footprint, drawn OPAQUE (its own alpha) so a FADED house
-  // reveals its floor instead of the grass beneath. When not faded the solid box covers it; interior
-  // details (table, ornaments) will later sit on this floor.
-  ctx.save()
-  ctx.globalAlpha = 1
-  ctx.fillStyle = floorC
-  fillQuad(ctx, fbl, fbr, bbr, bbl)
-  ctx.restore()
-
-  // East/west facades run their columns UP the grid ROWS (colVec is the -row step) starting at the
-  // building's FRONT edge (facade column 0), but doorCellFor/gridBuildingFacing index the reserved
-  // entrance from the BACK (rect.row) — so the authored door column (floor(L/2)) lands MIRROR-flipped,
-  // off the real driveway for even frontages (#31). Reverse the column mapping for the row-axis facings
-  // (facing 1 = east/west) so authored facade column c sits on grid frontage cell c, landing the door on
-  // doorCellFor's entrance for all four facings. Axis-aligned (south/north) facades already match 1:1.
-  const rowAxisFacing = (b.facing ?? 0) === 1
-  const facadeCol = (c: number): number => (rowAxisFacing ? L - 1 - c : c)
-
-  // Paint the facade tiles (door/wall/roof) onto one face. `base` is that face's bottom-left corner.
-  // Authored WINDOW cells are intentionally skipped here: every building's windows are painted by the
-  // single deterministic `wallWindows` pass below (front + both sides), so a house's front windows read
-  // the SAME as its side windows and the same as its neighbours' — no authored-cell-vs-generated mix.
-  const drawFacade = (base: Pt): void => {
-    for (let r = 0; r < H; r++) {
-      if (peaked && r < ROOF_ROWS) continue
-      for (let c = 0; c < L; c++) {
-        const kind = b.cells[r]?.[c]
-        if (!kind || kind === 'empty' || kind === 'window') continue
-        const bl = ptAdd(ptAdd(base, ptScale(colVec, facadeCol(c))), up(H - 1 - r))
-        drawIsoFacadeTile(ctx, bl, colVec, vCell, kind, flicker, facadeColors, style, wallTile, wallImage)
-      }
-    }
-  }
-
-  // North/west houses front a road on the camera-FAR side: draw their facade on the BACK face
-  // FIRST so the solid box occludes it (door toward the road, never toward the near grass).
-  if (b.facadeOnBack) drawFacade(bbl)
-
-  // ── WALL BODY (solid box, ground → eaves): both sides + the non-facade face ──
-  ctx.fillStyle = wallBack
-  if (b.facadeOnBack) { fillQuad(ctx, fbl, fbr, eave(fbr), eave(fbl)); tileFace(fbl, fbr, eave(fbl), wallTileDV, L, bodyH) } // plain FRONT wall (camera side)
-  else { fillQuad(ctx, bbl, bbr, eave(bbr), eave(bbl)); tileFace(bbl, bbr, eave(bbl), wallTileDV, L, bodyH) } // plain BACK wall
-  ctx.fillStyle = wallLeft
-  fillQuad(ctx, fbl, bbl, eave(bbl), eave(fbl)); tileFace(fbl, bbl, eave(fbl), wallTileDV, b.depth, bodyH) // left
-  ctx.fillStyle = wallRight
-  fillQuad(ctx, fbr, bbr, eave(bbr), eave(fbr)); tileFace(fbr, bbr, eave(fbr), wallTileDV, b.depth, bodyH) // right
-
-  // ── FRONT FACADE TILES (door/wall) nearest the camera for south/east houses — drawn BEFORE the roof
-  //    so the roof correctly occludes the wall top. ──
-  if (!b.facadeOnBack) drawFacade(fbl)
-
-  // ── WINDOWS (uniform, deterministic, the 2 CAMERA-VISIBLE wall faces only) ──
-  // On iso a box shows the camera exactly TWO of its four walls; windows go on THOSE two and nowhere
-  // else. cameraNearWalls picks them geometrically (bottom-edge midpoint below the footprint centre),
-  // so WHICH two flips with the building's orientation and the two hidden far walls NEVER get glass —
-  // no phantom windows bleeding through onto the roof when the building fades (#32). Count scales with
-  // each face's own cell span (~one window per two cells) → uniform spacing across faces and buildings.
-  const faceWindows = (span: number): number => Math.max(2, Math.min(4, Math.round(span / 2)))
-  for (const w of cameraNearWalls(fbl, fbr, bbl, bbr, L, b.depth)) wallWindows(w.base, w.axis, faceWindows(w.span))
-
-  // ── ROOF (all faces red) — drawn LAST so it occludes any wall/window pixels in the roof region ──
-  if (peaked) {
-    const rh = (L * ROOF_RIDGE_FRAC) / 2
-    const FEL = ptAdd(eave(fbl), ptScale(colVec, -ROOF_OVERHANG))
-    const FER = ptAdd(eave(fbr), ptScale(colVec, ROOF_OVERHANG))
-    const BEL = ptAdd(FEL, depthVec)
-    const BER = ptAdd(FER, depthVec)
-    const FRL = ptAdd(ptAdd(fbl, ptScale(colVec, L / 2 - rh)), up(H))
-    const FRR = ptAdd(ptAdd(fbl, ptScale(colVec, L / 2 + rh)), up(H))
-    const BRL = ptAdd(FRL, depthVec)
-    const BRR = ptAdd(FRR, depthVec)
-    ctx.fillStyle = roofBack
-    fillQuad(ctx, BEL, BER, BRR, BRL) // back trapezoid (kept flat-tinted — not a parallelogram)
-    ctx.fillStyle = roofSlopeL
-    fillQuad(ctx, FEL, BEL, BRL, FRL); tileFace(FEL, BEL, FRL, roofFaceDV, b.depth, ROOF_ROWS) // left slope
-    ctx.fillStyle = roofSlopeR
-    fillQuad(ctx, FER, BER, BRR, FRR); tileFace(FER, BER, FRR, roofFaceDV, b.depth, ROOF_ROWS) // right slope
-    ctx.fillStyle = roofTop
-    fillQuad(ctx, FRL, FRR, BRR, BRL); tileFace(FRL, FRR, BRL, roofFaceDV, 2, b.depth) // flat ridge top
-    ctx.fillStyle = roofFront
-    fillQuad(ctx, FEL, FER, FRR, FRL) // front trapezoid (the `‾\_/‾`, kept flat-tinted)
-    // shingle the two side slopes with /\ so the roof reads from the side too
-    roofChevrons(mid(FEL, FRL), mid(BEL, BRL), roofSideCount) // left slope
-    roofChevrons(mid(FER, FRR), mid(BER, BRR), roofSideCount) // right slope
-  } else {
-    const top = (p: Pt): Pt => ptAdd(p, up(H))
-    ctx.fillStyle = roofBack
-    fillQuad(ctx, eave(bbl), eave(bbr), top(bbr), top(bbl)); tileFace(eave(bbl), eave(bbr), top(bbl), roofFaceDV, L, ROOF_ROWS)
-    ctx.fillStyle = roofSlopeL
-    fillQuad(ctx, eave(fbl), eave(bbl), top(bbl), top(fbl)); tileFace(eave(fbl), eave(bbl), top(fbl), roofFaceDV, b.depth, ROOF_ROWS) // left
-    ctx.fillStyle = roofSlopeR
-    fillQuad(ctx, eave(fbr), eave(bbr), top(bbr), top(fbr)); tileFace(eave(fbr), eave(bbr), top(fbr), roofFaceDV, b.depth, ROOF_ROWS) // right
-    ctx.fillStyle = roofTop
-    fillQuad(ctx, top(fbl), top(fbr), top(bbr), top(bbl)); tileFace(top(fbl), top(fbr), top(bbl), roofFaceDV, L, b.depth)
-    ctx.fillStyle = roofFront
-    fillQuad(ctx, eave(fbl), eave(fbr), top(fbr), top(fbl)); tileFace(eave(fbl), eave(fbr), top(fbl), roofFaceDV, L, ROOF_ROWS)
-    // shingle the two side faces with /\ so the slab roof reads from the side too
-    roofChevrons(mid(eave(fbl), top(fbl)), mid(eave(bbl), top(bbl)), roofSideCount) // left
-    roofChevrons(mid(eave(fbr), top(fbr)), mid(eave(bbr), top(bbr)), roofSideCount) // right
-  }
-
-  // ── TYPE SIGNAGE (STORE / HOSPITAL) floating above the roof apex — mirrors the 2D/top badge
-  //    (black pill + colored text) so a shop / clinic reads at a glance in iso too. Only
-  //    store + hospital carry a badge. Projected at the footprint-centre lifted to the roof top.
-  const badge = BUILDING_BADGES[b.type]
-  if (badge) {
-    const apex = ptAdd(ptAdd(ptAdd(fbl, ptScale(colVec, L / 2)), ptScale(depthVec, 0.5)), up(H))
-    const bf = cellH * (badge.text.length > 1 ? 0.7 : 1.1)
-    ctx.font = `bold ${bf}px ${ASCII_FONT}`
-    ctx.textAlign = 'center'
-    ctx.textBaseline = 'middle'
-    const bw = ctx.measureText(badge.text).width
-    const by = apex.y - bf * 0.9 // sit just above the apex
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.72)'
-    ctx.fillRect(apex.x - bw / 2 - 3, by - bf * 0.65, bw + 6, bf * 1.3)
-    ctx.fillStyle = badge.color
-    ctx.fillText(badge.text, apex.x, by)
-  }
-}
 
 
 // ── shared iso solids (raised structures + water depth) ──────────────────
@@ -2065,6 +2035,11 @@ export function renderDebugOverlays(
   toScreen: (wx: number, wz: number) => { x: number; y: number },
   cellSize: number,
   labels = true, // false → COLLISION-ONLY overlay (red tint on blocked cells, no coords/labels/player tag)
+  // Diamond half-extents. render() passes its ALREADY-ZOOMED tileW/tileH (cellSize·isoScale·zoom·…) so the
+  // red diamonds fill each cell edge-to-edge at any zoom. The defaults reproduce the old UNZOOMED formula
+  // (off grid.isoScale) for callers/tests that don't pass a zoom — back-compat, but they under-fill zoomed.
+  tileW = cellSize * grid.isoScale * 0.71,
+  tileH = cellSize * grid.isoScale * 0.36,
 ) {
   const tilesX = Math.ceil(w / 32) + 10
   const tilesZ = Math.ceil(h / 20) + 10
@@ -2094,8 +2069,8 @@ export function renderDebugOverlays(
       if (p.x < -50 || p.x > w + 50 || p.y < -50 || p.y > h + 50) continue
 
       const isBlocked = grid.isBlocked(col, row)
-      const tileW = cellSize * grid.isoScale * 0.71 // match the ground-tile diamond exactly so blocked
-      const tileH = cellSize * grid.isoScale * 0.36 // cells GLUE together (no gaps between the tints)
+      // tileW/tileH are the render's own (zoomed) diamond half-extents, so the tint matches the ground-tile
+      // diamond + the building-footprint cube EXACTLY at any zoom — blocked cells GLUE edge-to-edge, no gaps.
 
       if (isBlocked) {
         // Red overlay for collision

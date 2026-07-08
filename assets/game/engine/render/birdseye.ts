@@ -99,6 +99,7 @@ export function renderTopView(
   quests: readonly Quest[] = [],
   dayNight: DayNight = 'day',
   style: Style = ASCII_STYLE,
+  hoveredCell: { col: number; row: number } | null = null,
 ) {
   // Clear
   ctx.fillStyle = '#0a0a10'
@@ -480,6 +481,17 @@ export function renderTopView(
     // glyph already marks its position); matches the engaged/damaged gate iso + 2D use for vitals.
     if (entity.kind === 'enemy') { const f = hpFraction(entity, combat); if (f < 0.999) drawHpBar(ctx, ex + tileSize / 2, ey - 3, tileSize, 3, f) }
     drawQuestMarker(ctx, entityQuestMarker(entity, quests), ex + tileSize / 2, ey - tileSize * 0.9, Math.max(12, tileSize * 1.1))
+  }
+
+  // ─── Cell-hover outline — a DIM/translucent square on the cell under the cursor, drawn OVER the
+  //     entities/roofs so it shows even when a unit occupies the cell (in addition to the unit reticle),
+  //     keeping the floor tile targetable. Mirrors the yellow per-cell selection but subtle. ──────────
+  if (hoveredCell) {
+    ctx.strokeStyle = 'rgba(255,255,255,0.5)'
+    ctx.lineWidth = 1.5
+    const hx = offsetX + hoveredCell.col * tileSize
+    const hy = offsetY + hoveredCell.row * tileSize
+    ctx.strokeRect(hx + 1, hy + 1, tileSize - 3, tileSize - 3)
   }
 
   // Floating "+dmg" hit markers (cell-centred in top space).

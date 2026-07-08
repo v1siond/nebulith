@@ -9,6 +9,7 @@
  */
 import type { AnimationCycle } from './animationCycles'
 import type { CellAnimation } from './cellAnimation'
+import type { GroundCellDims } from './groundDims'
 
 export interface GridAsset {
   art: string[]
@@ -82,6 +83,12 @@ export class IsometricGrid {
   // serialized with the template. A colour edit bumps groundVersion so the cached ground layer rebuilds.
   groundColor: (string | null)[][]
 
+  // Per-cell FLOOR DIMS override (per-tile Width/Height/Depth/Zoom + a per-cell pose) — the SAME settings
+  // props carry, now on EVERY floor tile. undefined = the default (byte-identical) render. Sparse; set
+  // from the Property panel and serialized with the template. A dims edit bumps groundVersion so the
+  // cached ground layers (2D static layer + iso offscreen cache) rebuild. Mirrors groundColor.
+  groundDims: (GroundCellDims | undefined)[][]
+
   // Placed assets
   assets: GridAsset[]
 
@@ -134,6 +141,10 @@ export class IsometricGrid {
       }
     }
 
+    // Initialize floor-dims overrides as none (sparse — a cell stays undefined until it's edited)
+    this.groundDims = []
+    for (let r = 0; r < this.rows; r++) this.groundDims[r] = []
+
     this.assets = []
     this.buildings = []
   }
@@ -185,6 +196,17 @@ export class IsometricGrid {
     if (col >= 0 && col < this.cols && row >= 0 && row < this.rows) {
       if (!this.groundColor[row]) this.groundColor[row] = []
       this.groundColor[row][col] = color
+      this.groundVersion++
+    }
+  }
+
+  // Merge a per-cell FLOOR DIMS override (per-tile Width/Height/Depth/Zoom + pose). The partial merges
+  // onto the cell's existing entry (set one axis at a time from the panel); pass { pose: undefined } to
+  // clear the pose. Bumps groundVersion so the cached ground layers rebuild and the edit shows at once.
+  setGroundDims(col: number, row: number, partial: Partial<GroundCellDims>) {
+    if (col >= 0 && col < this.cols && row >= 0 && row < this.rows) {
+      if (!this.groundDims[row]) this.groundDims[row] = []
+      this.groundDims[row][col] = { ...this.groundDims[row][col], ...partial }
       this.groundVersion++
     }
   }

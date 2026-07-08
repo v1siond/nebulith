@@ -48,6 +48,9 @@ export interface StageProp {
    *  centred on its cell. Lets the render draw a SINGLE big fountain over the whole plaza instead of
    *  one mini-structure per cell. Absent on every other prop. */
   footprint?: number
+  /** Per-cell iso block height (default extrusion): a building WALL cell rises `floors` blocks; flat
+   *  cells (door/ground) are 0. Drives the tile-block render (2D+3D tileset model). */
+  height?: number
 }
 
 export interface PlacedBuilding {
@@ -836,9 +839,12 @@ function placeBuilding(
 ): PlacedBuilding {
   const doors = doorCells(plot.facing, rect, facade.door)
   const isDoor = new Set(doors.map(d => `${d.col},${d.row}`))
+  // Wall block height = the facade's BODY rows (rows carrying wall/window/door), mirroring
+  // facadeToFootprint so a generated building matches a hand-placed one.
+  const floors = Math.max(1, facade.cells.filter(r => r.some(k => k === 'wall' || k === 'window' || k === 'door')).length)
   for (let row = rect.row; row < rect.row + rect.h; row++) {
     for (let col = rect.col; col < rect.col + rect.w; col++) {
-      stampFootprintCell(ctx, plot.type, col, row, isDoor.has(`${col},${row}`), rect.col, rect)
+      stampFootprintCell(ctx, plot.type, col, row, isDoor.has(`${col},${row}`), rect.col, rect, floors)
     }
   }
   // `row` = the rect's BOTTOM row; `length`/`height` = the rect's grid span (cols×rows), so the
@@ -857,13 +863,20 @@ function stampFootprintCell(
   isDoor: boolean,
   anchorCol: number,
   rect: FootRect,
+  floors: number,
 ): void {
   const { props, collision, zone, cols, rows } = ctx
   if (!inBounds(col, row, cols, rows)) return
-  const label: CellLabel = isDoor ? 'door' : 'roof'
+  // Per-cell tile model (2D+3D tileset): the PERIMETER becomes WALL (rises `floors` blocks in iso) so the
+  // iso/2D render can build the box out of tiles; the road-facing cell stays the flat walkable DOOR; the
+  // INTERIOR stays a flat ROOF cell. Collision is UNCHANGED (whole footprint blocks except the door) — the
+  // design's walkable-floor interior is a separate, later step. Was: one filled roof-rect.
+  const perimeter = col === rect.col || col === rect.col + rect.w - 1 || row === rect.row || row === rect.row + rect.h - 1
+  const label: CellLabel = isDoor ? 'door' : perimeter ? 'wall' : 'roof'
+  const height = label === 'wall' ? floors : 0
   const color = buildingCellColor(type, label, anchorCol)
   const cell = makeBuildingCell(zone, col, row, label, color)
-  props.push({ ...cell, blocking: !isDoor, buildingType: type, edge: footprintEdgeClass(col, row, rect) })
+  props.push({ ...cell, blocking: !isDoor, height, buildingType: type, edge: footprintEdgeClass(col, row, rect) })
   collision[row][col] = !isDoor
 }
 
@@ -2390,7 +2403,7 @@ function firstWalkable(collision: boolean[][], cols: number, rows: number): Cell
 // ── visual mapping (shared by the template mapper + the live-grid applier) ──
 export interface StagePaint {
   ground: { col: number; row: number; type: string }[]
-  assets: { col: number; row: number; char: string; type: string; color: string; blocking: boolean; label?: string; baseShadow?: boolean; buildingType?: string; edge?: BuildingEdge; footprint?: number }[]
+  assets: { col: number; row: number; char: string; type: string; color: string; blocking: boolean; label?: string; baseShadow?: boolean; buildingType?: string; edge?: BuildingEdge; footprint?: number; height?: number }[]
 }
 
 export function stagePaint(stage: StageData): StagePaint {
@@ -2398,7 +2411,7 @@ export function stagePaint(stage: StageData): StagePaint {
   const assets: StagePaint['assets'] = []
   stage.buildings.forEach(b => paintBuildingGround(b, ground))
   stage.props.forEach(p =>
-    assets.push({ col: p.col, row: p.row, char: p.char, type: p.type, color: p.color, blocking: p.blocking, label: p.label, baseShadow: p.baseShadow, buildingType: p.buildingType, edge: p.edge, footprint: p.footprint }),
+    assets.push({ col: p.col, row: p.row, char: p.char, type: p.type, color: p.color, blocking: p.blocking, label: p.label, baseShadow: p.baseShadow, buildingType: p.buildingType, edge: p.edge, footprint: p.footprint, height: p.height }),
   )
   return { ground, assets }
 }

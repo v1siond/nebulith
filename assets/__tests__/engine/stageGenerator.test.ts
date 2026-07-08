@@ -701,11 +701,26 @@ describe('generateStage — windows live in the facade (render-only), not on the
     // the facade (used by the 2D/iso renders) still carries windows…
     const hasFacadeWindows = stage.buildings.some(b => b.facade.cells.some(row => row.some(k => k === 'window')))
     expect(hasFacadeWindows).toBe(true)
-    // …but the small ground footprint is roof + door only (no facade-flat window/wall sprawl)
+    // …but the small ground footprint is the per-cell tile model — perimeter WALL + interior ROOF + the
+    // single DOOR (windows stay in the facade, NEVER stamped as ground props).
     const windowProps = stage.props.filter(p => p.type === 'building' && p.label === 'window')
     expect(windowProps).toHaveLength(0)
     const groundLabels = new Set(stage.props.filter(p => p.type === 'building').map(p => p.label))
-    expect([...groundLabels].sort()).toEqual(['door', 'roof'])
+    expect([...groundLabels].sort()).toEqual(['door', 'roof', 'wall'])
+  })
+})
+
+describe('generateStage — buildings stamp the 2D+3D tile model (perimeter WALL cells carry block height)', () => {
+  it('stamps the perimeter as WALL cells that rise ≥1 iso block; door/roof stay flat', () => {
+    const stage = generateStage({ zone: 'summer', variant: 'town', cols: 50, rows: 40 })
+    const buildingProps = stage.props.filter(p => p.type === 'building')
+    const walls = buildingProps.filter(p => p.label === 'wall')
+    // Perimeter is WALL now (not a filled roof-rect) — the iso render extrudes these into the box.
+    expect(walls.length).toBeGreaterThan(0)
+    expect(walls.every(w => (w.height ?? 0) >= 1)).toBe(true) // each wall rises `floors` blocks
+    // Flat cells (the interior roof cap + the door) stay height 0 — they don't extrude.
+    const flat = buildingProps.filter(p => p.label !== 'wall')
+    expect(flat.every(p => (p.height ?? 0) === 0)).toBe(true)
   })
 })
 

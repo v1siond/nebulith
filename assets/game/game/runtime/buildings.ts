@@ -5,7 +5,7 @@
 // stay in engine/buildingEditor; this is the side-effecting stamp/unstamp + the
 // live placement reader. Moved out of the game-engine page (stage 5a).
 import { type BuildingType } from '@/engine/buildingComposer'
-import { type PlacementEnv, buildingCellBlocked, buildingFootprintCells } from '@/engine/buildingEditor'
+import { type PlacementEnv, buildingCellBlocked, buildingFootprintCells, buildingRect } from '@/engine/buildingEditor'
 import { cellTile } from '@/engine/cellTileset'
 import type { GridBuilding, IsometricGrid } from '@/engine/IsometricGrid'
 import { buildingCellColor } from '@/engine/stageGenerator'
@@ -20,11 +20,17 @@ import { ZONE_PALETTES, ZoneId } from '@/engine/zones'
  */
 export function stampBuildingCells(grid: IsometricGrid, b: GridBuilding, zone: ZoneId): void {
   const { cells, door } = buildingFootprintCells(b)
+  const rect = buildingRect(b)
   const base = ZONE_PALETTES[zone]?.groundTypes[0] ?? 'grass'
+  // Wall block height = the facade's body rows (mirrors the generator + facadeToFootprint).
+  const floors = Math.max(1, b.cells.filter(r => r.some(k => k === 'wall' || k === 'window' || k === 'door')).length)
   for (const c of cells) {
     if (c.col < 0 || c.row < 0 || c.col >= grid.cols || c.row >= grid.rows) continue
     const isDoor = c.col === door.col && c.row === door.row
-    const label = isDoor ? 'door' : 'roof'
+    const perimeter = c.col === rect.col || c.col === rect.col + rect.w - 1 || c.row === rect.row || c.row === rect.row + rect.h - 1
+    // Per-cell tile model: perimeter = WALL (rises `floors` blocks in iso), door = flat walkable, interior =
+    // flat ROOF cell. Collision UNCHANGED (whole footprint blocks except the door). Mirrors stampFootprintCell.
+    const label = isDoor ? 'door' : perimeter ? 'wall' : 'roof'
     const tile = cellTile(zone, label)
     const color = buildingCellColor(b.type as BuildingType, label, b.col)
     grid.assets.push({
@@ -36,6 +42,7 @@ export function stampBuildingCells(grid: IsometricGrid, b: GridBuilding, zone: Z
       color,
       label,
       buildingType: b.type,
+      height: label === 'wall' ? floors : 0,
     })
     grid.collision[c.row][c.col] = isDoor ? 0 : 1
     grid.ground[c.row][c.col] = base

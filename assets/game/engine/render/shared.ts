@@ -357,6 +357,40 @@ export function fillTintedGlyph(ctx: CanvasRenderingContext2D, char: string, x: 
 }
 
 
+// A cached offscreen canvas per (glyph, size, tint, strength). The recolour pass (source-atop fill) runs
+// once per key, not per frame — buildings are sparse, so a handful of roof sprites cover a whole scene.
+const _tintGlyphCache = new Map<string, HTMLCanvasElement | null>()
+
+/** A standalone RECOLOURED-glyph sprite: `char` drawn to its own `px` canvas, then repainted to `tint`
+ *  (source-atop, keeping the emoji silhouette + shading) — the reusable twin of fillTintedGlyph's inline
+ *  recolour. Returned as a canvas so a caller under an iso SHEAR CTM (fillIsoFaceWithTile / a clipped roof
+ *  face) can drawImage it onto the angled face — you can't shear a colour-emoji with fillText+fillStyle
+ *  (the glyph ignores fillStyle), so this is how the roof 🟥 becomes the building's own roof colour on the
+ *  iso roof. Null in SSR / headless (no 2D offscreen) → callers fall back to an untinted glyph stamp. */
+export function tintedGlyphSprite(char: string, px: number, tint: string, strength = 1): HTMLCanvasElement | null {
+  if (typeof document === 'undefined') return null
+  const size = Math.max(2, Math.ceil(px))
+  const key = `${char}|${size}|${tint}|${strength}`
+  const hit = _tintGlyphCache.get(key)
+  if (hit !== undefined) return hit
+  const off = document.createElement('canvas')
+  off.width = size
+  off.height = size
+  const octx = off.getContext('2d')
+  if (!octx) { _tintGlyphCache.set(key, null); return null }
+  octx.textAlign = 'center'
+  octx.textBaseline = 'middle'
+  octx.font = `${size * 1.16}px ${ASCII_FONT}` // slight overfill so the glyph covers the box (matches fillIsoFaceWithTile)
+  octx.fillText(char, size / 2, size / 2) // the emoji renders in its own colours (fillStyle ignored)
+  octx.globalCompositeOperation = 'source-atop' // recolour ONLY the emoji's pixels — no background box
+  octx.globalAlpha = Math.min(1, Math.max(0, strength))
+  octx.fillStyle = tint
+  octx.fillRect(0, 0, size, size)
+  _tintGlyphCache.set(key, off)
+  return off
+}
+
+
 /** Clamp a camera focus coord (in cells) so a viewport spanning `halfSpan` cells
  *  each side stays inside [0, total]; if the grid is smaller than the viewport,
  *  centre it. Used by the orthographic 2D + top views. */

@@ -466,6 +466,13 @@ export interface PropertiesPanelProps {
   onClearFloorColor: () => void
   onCollision: (blocked: boolean) => void
   onHeight: (h: number) => void
+  // ── floor tile ── (the CELL's own ground tile — the SAME W/H/D/Zoom + pose props get, on EVERY tile)
+  groundKind: string // the first cell's ground kind → labels the per-cell pose, e.g. "grass"
+  groundDims: ElementDims // shared per-cell floor scale (Width/Height/Depth/Zoom), null per axis = mixed
+  groundPose?: TilePose // the first cell's per-cell floor pose (position/rotation within its own cell)
+  onGroundDim: (axis: DimAxis, value: number) => void
+  onGroundPose: (pose: TilePose) => void
+  onGroundPoseReset: () => void
   // ── element ── (the prop/unit standing on the cell)
   hasObject: boolean // any selected cell holds a prop/unit
   elementKind: string | null // the first object's kind → labels the section, e.g. "element (tree)"
@@ -484,12 +491,13 @@ export function PropertiesPanel(p: PropertiesPanelProps) {
   const divider = (label: string) => (
     <p className="mt-1 border-t border-white/10 pt-1.5 text-[9px] font-bold uppercase tracking-wider text-gray-500">— {label} —</p>
   )
-  // A sprite-scale row (Width/Height/Depth/Zoom): default 1 = the element's natural drawn size.
-  const dimRow = (label: string, axis: DimAxis, value: number | null, title: string) => (
+  // A sprite-scale row (Width/Height/Depth/Zoom): default 1 = the tile's natural drawn size. `onDim` lets
+  // the SAME row drive either the element (p.onDim) or the cell's own floor tile (p.onGroundDim).
+  const dimRow = (label: string, axis: DimAxis, value: number | null, title: string, onDim: (axis: DimAxis, value: number) => void) => (
     <label className="flex items-center gap-2" title={title}>
       <span className="w-14 shrink-0 text-[10px] text-gray-400">{label}</span>
-      <input type="range" min={0.25} max={5} step={0.05} value={value ?? 1} onChange={e => num(e.target.value, v => p.onDim(axis, v))} aria-label={label} className="flex-1 accent-cyan-500" />
-      <input type="number" min={0.25} max={5} step={0.05} value={value ?? 1} onChange={e => num(e.target.value, v => p.onDim(axis, v))} aria-label={`${label} value`} className="w-14 rounded bg-gray-800 p-1 text-[10px] tabular-nums text-cyan-300" />
+      <input type="range" min={0.25} max={5} step={0.05} value={value ?? 1} onChange={e => num(e.target.value, v => onDim(axis, v))} aria-label={label} className="flex-1 accent-cyan-500" />
+      <input type="number" min={0.25} max={5} step={0.05} value={value ?? 1} onChange={e => num(e.target.value, v => onDim(axis, v))} aria-label={`${label} value`} className="w-14 rounded bg-gray-800 p-1 text-[10px] tabular-nums text-cyan-300" />
       {value === null && mixed}
     </label>
   )
@@ -518,6 +526,16 @@ export function PropertiesPanel(p: PropertiesPanelProps) {
         {p.collision === null && mixed}
       </div>
 
+      {/* FLOOR TILE — the same Width/Height/Depth/Zoom + a per-cell pose that props get, now on EVERY tile
+          (the user's ask: "the settings are available FOR EVERY TILE not just decorations"). These size/pose
+          the CELL's own ground tile, per-cell, in both 2D and iso. Default (all 1, no pose) = the current look. */}
+      {divider('floor tile')}
+      {dimRow('Width', 'width', p.groundDims.width, 'Width — stretches THIS floor tile horizontally (both views)', p.onGroundDim)}
+      {dimRow('Height', 'height', p.groundDims.height, 'Height — no effect on a flat floor; use Grid height above to raise the cell', p.onGroundDim)}
+      {dimRow('Depth', 'depth', p.groundDims.depth, 'Depth — stretches this floor tile along the ground axis', p.onGroundDim)}
+      {dimRow('Zoom', 'zoom', p.groundDims.zoom, 'Zoom — scales this floor tile uniformly', p.onGroundDim)}
+      <PoseControls kind={`this cell (${p.groundKind})`} pose={p.groundPose} isWeapon={false} onChange={p.onGroundPose} onReset={p.onGroundPoseReset} />
+
       {p.hasObject && (
         <>
           {divider(p.elementKind ? `element (${p.elementKind})` : 'element')}
@@ -526,10 +544,10 @@ export function PropertiesPanel(p: PropertiesPanelProps) {
             <input type="color" value={p.objectColor ?? '#ffffff'} onChange={e => p.onObjectColor(e.target.value)} aria-label="Object colour" className="h-6 w-10 rounded bg-gray-800" />
             {p.objectColor === null && mixed}
           </div>
-          {dimRow('Width', 'width', p.dims.width, 'Width — horizontal stretch (every view)')}
-          {dimRow('Height', 'height', p.dims.height, 'Height — grows UP from the base (iso + 2D views)')}
-          {dimRow('Depth', 'depth', p.dims.depth, 'Depth — stretches the ground axis in the top view only')}
-          {dimRow('Zoom', 'zoom', p.dims.zoom, 'Zoom — scales Width, Height and Depth together')}
+          {dimRow('Width', 'width', p.dims.width, 'Width — horizontal stretch (every view)', p.onDim)}
+          {dimRow('Height', 'height', p.dims.height, 'Height — grows UP from the base (iso + 2D views)', p.onDim)}
+          {dimRow('Depth', 'depth', p.dims.depth, 'Depth — stretches the ground axis in the top view only', p.onDim)}
+          {dimRow('Zoom', 'zoom', p.dims.zoom, 'Zoom — scales Width, Height and Depth together', p.onDim)}
         </>
       )}
     </div>

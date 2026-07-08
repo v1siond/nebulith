@@ -22,6 +22,7 @@ import { resolveTileSize, resolveTilePose } from '@/engine/tileset/tileViewSetti
 import { Connector } from '@/lib/api'
 import { ASCII_FONT, BUILDING_BADGES, COMBAT_RANGE, type DayNight, ENEMY_MOVE_MS, LAMP_GLOW, applyCellTransform, clampCameraAxis, assetCaptionByCell, terrainLabelAt, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawHoverRing, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, frameImage, getPlayerArt, grassShade, cellFill, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, assetOverride, treeCanopyLayers } from './shared'
 import { resolveAssetDrawSize } from './assetDimensions'
+import { groundSizeFactors, groundDimsActive } from '@/engine/groundDims'
 import { ASCII_STYLE, assetKind, entityKind, entityStyleOverride, genderize, groundKind, personVariantTileId, type ElementKind, type Style } from '@/game/artStyle'
 import { DEFAULT_CHARACTER_ANIMATIONS, activeFrame } from '@/game/runtime/entityAnimation'
 
@@ -293,21 +294,30 @@ export function draw2DBuilding(
       const asciiBg = isRoof ? roofBg : isDoor ? doorBg : isWindow ? windowBg : wallBg
       const cy = cellTop + tileH * 0.5
       if (bdv.tint || bdv.image) {
-        // RESKIN: full-cell, one coherent tileset (no ASCII glyph, no seam). Fill = the building's
-        // OWN colour from the game DATA (buildingCellColor already varies the roof PER BUILDING, so
-        // roofs aren't monotone red). The ROOF shows that varied colour directly — a fixed-colour
-        // roof emoji would hide it; wall/door/window draw their tile on top.
+        // RESKIN: full-cell, one coherent tileset (no ASCII glyph, no seam). Fill = the building's OWN
+        // colour from the game DATA (buildingCellColor varies the roof PER BUILDING, so roofs aren't
+        // monotone red). Every surface then draws its TILE on top of that base — including the ROOF, whose
+        // tile is RECOLOURED to the varied roof colour so it's a genuine tile without going monotone red.
         ctx.fillStyle = asciiBg
         ctx.fillRect(x - tileW * 0.5, cellTop, tileW, tileH)
-        if (!isRoof) {
+        const cellPx = Math.max(tileW, tileH)
+        if (isRoof) {
+          // The ROOF is a TILE too now — the one 2D surface that used to be colour-only. Stamp the roof tile
+          // RECOLOURED to THIS building's roof colour over the roof-colour base (a fixed 🟥 would hide the
+          // varied red/green/blue per type). Image roof → drawStyledImage's colour override; glyph 🟥 →
+          // fillTintedGlyph. Consistent with the iso, which shears the same recoloured roof tile onto its faces.
+          const roofTint = buildingCellColor(t, 'roof', b.col)
+          if (bdv.image) drawStyledImage(ctx, bdv.image, x, cy, cellPx, false, roofTint)
+          else if (bdv.char) { ctx.font = `${cellPx * 1.02}px ${ASCII_FONT}`; fillTintedGlyph(ctx, bdv.char, x, cy, cellPx, roofTint, 1) }
+        } else {
           // Wall cells stamp the building's MATERIAL tile (wood/brick/stone; '' plaster → the painted
           // fill reads flat); door/window keep their own resolved tile.
           // Wall cells ride the MATERIAL image (wood/stone) if any — the cell bg colour (already filled)
           // is the fallback, NOT the 🪵/🪨 glyph (tofu). Brick → its 🧱 glyph; plaster '' → colour only.
           const tileChar = kind === 'wall' ? (wallImage2D ? '' : wallTile2D) : bdv.char
-          if (kind === 'wall' && wallImage2D) drawStyledImage(ctx, { kind: 'image', src: wallImage2D }, x, cy, Math.max(tileW, tileH))
-          else if (bdv.image && kind !== 'wall') drawStyledImage(ctx, bdv.image, x, cy, Math.max(tileW, tileH))
-          else if (tileChar) { ctx.fillStyle = bdv.color; ctx.font = `${Math.max(tileW, tileH) * 1.02}px ${ASCII_FONT}`; ctx.fillText(tileChar, x, cy) }
+          if (kind === 'wall' && wallImage2D) drawStyledImage(ctx, { kind: 'image', src: wallImage2D }, x, cy, cellPx)
+          else if (bdv.image && kind !== 'wall') drawStyledImage(ctx, bdv.image, x, cy, cellPx)
+          else if (tileChar) { ctx.fillStyle = bdv.color; ctx.font = `${cellPx * 1.02}px ${ASCII_FONT}`; ctx.fillText(tileChar, x, cy) }
         }
       } else {
         // ASCII — the building palette + wall seams + the /\ ▯ ⊞ glyph, exactly as before.
@@ -465,6 +475,7 @@ export function render2D(
   targetId: string | null = null,
   hoverId: string | null = null,
   selectedCells: ReadonlySet<string> = new Set(),
+  hoveredCell: { col: number; row: number } | null = null,
 ) {
   const __t0 = typeof performance !== 'undefined' ? performance.now() : 0
   const playerIsTarget = !!targetId && entities.some(e => e.kind === 'player' && e.id === targetId)
@@ -535,10 +546,19 @@ export function render2D(
           // The tile's optional POSE (from the emoji tileset entry), applied at the CELL CENTRE. Absent for
           // ~every ground tile → we draw at (p.x,p.y) exactly as before, so the cached ground stays identical.
           const tilePose = style.id === 'emoji' ? EMOJI_TILESET[gk]?.pose : undefined
-          if (tilePose) {
+          // Per-cell FLOOR DIMS override (Width/Height/Depth/Zoom + a per-cell pose) — the SAME settings a
+          // prop carries, on THIS one floor tile. Overhead: Width×Zoom scales x, Depth×Zoom scales y (Height
+          // has no axis looking down). Unset → the byte-identical direct draws in the final two branches.
+          const gdims = grid.groundDims?.[row]?.[col]
+          const dimsOn = groundDimsActive(gdims)
+          const cellPose = dimsOn ? gdims!.pose : undefined
+          if (tilePose || cellPose || dimsOn) {
+            const { fx, fy } = groundSizeFactors(gdims)
             tctx.save()
             tctx.translate(p.x, p.y)
-            applyPose(tctx, tilePose, 1, cell)
+            if (tilePose) applyPose(tctx, tilePose, 1, cell)
+            if (cellPose) applyPose(tctx, cellPose, 1, cell)
+            if (dimsOn) tctx.scale(fx, fy) // overhead: Width×Zoom on x, Depth×Zoom on y
             if (gdv.image) drawStyledImage(tctx, gdv.image, 0, 0, cell * 1.02)
             else { tctx.font = `${cell * 1.04}px ${ASCII_FONT}`; tctx.fillText(gdv.char, 0, 0) }
             tctx.restore()
@@ -1089,6 +1109,16 @@ export function render2D(
   if (dayNight === 'night') {
     const lamps = collectLampGlows(grid, (c, r) => toScreen(c + 0.5, r + 0.5), tileW * LAMP_GLOW.radiusTiles, tileH * 2.2, w, h)
     drawNightLighting(ctx, w, h, lamps)
+  }
+
+  // ─── Cell-hover outline — a DIM/translucent square on the cell under the cursor, drawn UNDER the
+  //     solid-yellow selection below so it never hides it. Shows on EVERY cell (even one a unit sits on),
+  //     in addition to the unit hover reticle, so any floor tile stays targetable. ──────────────────
+  if (hoveredCell) {
+    ctx.strokeStyle = 'rgba(255,255,255,0.5)'
+    ctx.lineWidth = 1.5
+    const p = toScreen(hoveredCell.col, hoveredCell.row)
+    ctx.strokeRect(p.x + 1, p.y + 1, tileW - 2, tileH - 2)
   }
 
   // ─── Selection outline (property-editor multi-select) — drawn over the world so
