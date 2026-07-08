@@ -504,11 +504,7 @@ export function PoseControls({ kind, pose, isWeapon, onChange, onReset }: { kind
   )
 }
 
-/** Universal per-selection PROPERTY editor. Edits the CURRENT (multi-)selection's floor colour, object
- *  colour, collision, terrain height and size — applied to EVERY selected element at once. Presentational:
- *  the page computes each shared value (`null` = the elements differ → "mixed") and each callback applies
- *  the edit across the selection + bumps a redraw. Only controls relevant to the selection are shown. */
-/** The four per-element sprite-scale axes (#77/#78). Width/Height/Depth are per-axis; Zoom is uniform. */
+/** The four per-tile sprite-scale axes (#77/#78). Width/Height/Depth are per-axis; Zoom is uniform. */
 export type DimAxis = 'width' | 'height' | 'depth' | 'zoom'
 export interface ElementDims {
   width: number | null // shared scaleX, or null (mixed)
@@ -517,95 +513,98 @@ export interface ElementDims {
   zoom: number | null // shared scale (uniform), or null (mixed)
 }
 
-export interface PropertiesPanelProps {
-  count: number
-  // ── cell ── (the grid cell itself). A cell is a fixed-size block: its only props are
-  // collision + floor colour. Terrain grid-height was removed from the inspector — cells
-  // are fixed blocks and height/depth is a TILE property (next voxel/tileset pass).
-  floorColor: string | null // shared floor override, or null (none/mixed)
-  collision: boolean | null // shared collision state, or null (mixed)
-  onFloorColor: (color: string) => void
-  onClearFloorColor: () => void
-  onCollision: (blocked: boolean) => void
-  // ── floor tile ── (the CELL's own ground tile — the SAME W/H/D/Zoom + pose props get, on EVERY tile)
-  groundKind: string // the first cell's ground kind → labels the per-cell pose, e.g. "grass"
-  groundDims: ElementDims // shared per-cell floor scale (Width/Height/Depth/Zoom), null per axis = mixed
-  groundPose?: TilePose // the first cell's per-cell floor pose (position/rotation within its own cell)
-  onGroundDim: (axis: DimAxis, value: number) => void
-  onGroundPose: (pose: TilePose) => void
-  onGroundPoseReset: () => void
-  // ── element ── (the prop/unit standing on the cell)
-  hasObject: boolean // any selected cell holds a prop/unit
-  elementKind: string | null // the first object's kind → labels the section, e.g. "element (tree)"
-  objectColor: string | null // shared object/unit colour, or null (mixed)
-  dims: ElementDims // shared per-axis sprite scale
-  onObjectColor: (color: string) => void
+/** One uniform TILE control group in the Cell inspector. The heart of the tile-in-cell model: the floor
+ *  (a height-0 tile) and every stacked prop/unit are the SAME atom — a tile — and get the SAME controls
+ *  (Width/Height/Depth/Zoom + colour, plus a pose for tiles that carry one). The page pre-computes each
+ *  shared value across a multi-cell selection (`null` per field = the tiles differ → "mixed") and each
+ *  callback applies the edit to THIS tile across the whole selection. */
+export interface TileControlModel {
+  /** stable identity for the react key + section divider (e.g. 'floor', 'tile-0'). */
+  key: string
+  /** human label for this tile's section, e.g. "floor · grass" or "tree". */
+  label: string
+  /** shared Width/Height/Depth/Zoom (null per axis = mixed). */
+  dims: ElementDims
+  /** shared colour override, or null (none/mixed). */
+  color: string | null
+  /** swatch shown when `color` is null. */
+  colorFallback: string
   onDim: (axis: DimAxis, value: number) => void
+  onColor: (color: string) => void
+  /** floor tiles can reset to the tileset colour; props may omit. */
+  onClearColor?: () => void
+  /** per-cell pose — only tiles that carry one (the floor today; GridAsset has no pose field). */
+  pose?: TilePose
+  onPose?: (pose: TilePose) => void
+  onPoseReset?: () => void
 }
 
-/** A cell can hold BOTH a floor and an element; the panel keeps them in two clearly-labeled sections so
- *  it's obvious whether you're editing the CELL (floor / grid elevation / collision) or the ELEMENT on it
- *  (colour + Width/Height/Depth/Zoom sprite scale). #58 + #77/#78. */
-export function PropertiesPanel(p: PropertiesPanelProps) {
-  const mixed = <span className="text-[9px] italic text-amber-300">mixed</span>
-  const num = (raw: string, cb: (n: number) => void) => { const n = parseFloat(raw); if (!Number.isNaN(n)) cb(n) }
-  const divider = (label: string) => (
-    <p className="mt-1 border-t border-white/10 pt-1.5 text-[9px] font-bold uppercase tracking-wider text-gray-500">— {label} —</p>
-  )
-  // A sprite-scale row (Width/Height/Depth/Zoom): default 1 = the tile's natural drawn size. `onDim` lets
-  // the SAME row drive either the element (p.onDim) or the cell's own floor tile (p.onGroundDim).
-  const dimRow = (label: string, axis: DimAxis, value: number | null, title: string, onDim: (axis: DimAxis, value: number) => void) => (
+/** PROPERTY editor for the current cell selection. A CELL is a fixed slot — its only control is
+ *  COLLISION (grid elevation stays a cell prop, edited with the terrain-height tool). EVERYTHING placed
+ *  in the cell is a uniform TILE, driven off the cell-stack adapter: the floor is the height-0 tile and
+ *  gets the SAME controls as any prop/unit. No cell-vs-element split, no card-in-card. */
+export interface PropertiesPanelProps {
+  /** shared collision state across the selection, or null (mixed). */
+  collision: boolean | null
+  onCollision: (blocked: boolean) => void
+  /** ONE control group per TILE in the cell's stack (floor first, then stacked props/units). EMPTY = a
+   *  BARE cell (nothing placed) → only the Cell section (collision) shows, no size controls anywhere. */
+  tiles: TileControlModel[]
+}
+
+const mixedBadge = <span className="text-[9px] italic text-amber-300">mixed</span>
+const parseNum = (raw: string, cb: (n: number) => void) => { const n = parseFloat(raw); if (!Number.isNaN(n)) cb(n) }
+
+/** A sprite-scale row (Width/Height/Depth/Zoom): default 1 = the tile's natural drawn size. */
+function DimRow({ label, axis, value, title, onDim }: { label: string; axis: DimAxis; value: number | null; title: string; onDim: (axis: DimAxis, value: number) => void }) {
+  return (
     <label className="flex items-center gap-2" title={title}>
       <span className="w-14 shrink-0 text-[10px] text-gray-400">{label}</span>
-      <input type="range" min={0.25} max={5} step={0.05} value={value ?? 1} onChange={e => num(e.target.value, v => onDim(axis, v))} aria-label={label} className="flex-1 accent-cyan-500" />
-      <input type="number" min={0.25} max={5} step={0.05} value={value ?? 1} onChange={e => num(e.target.value, v => onDim(axis, v))} aria-label={`${label} value`} className="w-14 rounded bg-gray-800 p-1 text-[10px] tabular-nums text-cyan-300" />
-      {value === null && mixed}
+      <input type="range" min={0.25} max={5} step={0.05} value={value ?? 1} onChange={e => parseNum(e.target.value, v => onDim(axis, v))} aria-label={label} className="flex-1 accent-cyan-500" />
+      <input type="number" min={0.25} max={5} step={0.05} value={value ?? 1} onChange={e => parseNum(e.target.value, v => onDim(axis, v))} aria-label={`${label} value`} className="w-14 rounded bg-gray-800 p-1 text-[10px] tabular-nums text-cyan-300" />
+      {value === null && mixedBadge}
     </label>
   )
-  // No outer card-box / header here: this panel renders INSIDE the consolidated "Cell" <Card>,
-  // so wrapping it again would be a card-in-card with a duplicate title. Two labeled sections:
-  // CELL (collision + floor colour — the cell's only props) and TILE (dims + pose of the ground
-  // tile / prop standing on it — "a tile can be an npc, building part, tree, anything").
+}
+
+/** ONE uniform tile control group — reused verbatim for the floor AND every stacked prop/unit, so the
+ *  floor (a height-0 tile) gets the EXACT SAME Width/Height/Depth/Zoom + colour (+ pose) controls as a
+ *  wall or a tree. This is why there is no cell-vs-element split anymore. */
+export function TileControls({ tile }: { tile: TileControlModel }) {
+  return (
+    <div className="space-y-1.5">
+      <p className="mt-1 border-t border-white/10 pt-1.5 text-[9px] font-bold uppercase tracking-wider text-gray-500">— {tile.label} —</p>
+      <div className="flex items-center gap-2">
+        <span className="w-14 shrink-0 text-[10px] text-gray-400">Colour</span>
+        <input type="color" value={tile.color ?? tile.colorFallback} onChange={e => tile.onColor(e.target.value)} aria-label={`${tile.label} colour`} className="h-6 w-10 rounded bg-gray-800" />
+        {tile.color === null && mixedBadge}
+        {tile.onClearColor && <button onClick={tile.onClearColor} className="ml-auto rounded bg-gray-700 px-2 py-0.5 text-[9px] hover:bg-gray-600" title="Reset to the tile's own colour">↺ reset</button>}
+      </div>
+      <DimRow label="Width" axis="width" value={tile.dims.width} title="Width — horizontal stretch (every view)" onDim={tile.onDim} />
+      <DimRow label="Height" axis="height" value={tile.dims.height} title="Height — grows UP from the base (iso + 2D views)" onDim={tile.onDim} />
+      <DimRow label="Depth" axis="depth" value={tile.dims.depth} title="Depth — stretches the ground axis in the top view only" onDim={tile.onDim} />
+      <DimRow label="Zoom" axis="zoom" value={tile.dims.zoom} title="Zoom — scales Width, Height and Depth together" onDim={tile.onDim} />
+      {tile.pose && tile.onPose && tile.onPoseReset && (
+        <PoseControls kind={tile.label} pose={tile.pose} isWeapon={false} onChange={tile.onPose} onReset={tile.onPoseReset} />
+      )}
+    </div>
+  )
+}
+
+/** The Cell inspector body. Renders INSIDE the consolidated "Cell" <Card> (no card-box / header of its
+ *  own — that would be a card-in-card with a duplicate title). One Cell section (collision only — the
+ *  cell's sole tunable prop) followed by one TileControls group PER TILE in the cell's stack. */
+export function PropertiesPanel(p: PropertiesPanelProps) {
   return (
     <div className="space-y-1.5 text-xs">
-      {divider('cell')}
-      <div className="flex items-center gap-2">
-        <span className="w-14 shrink-0 text-[10px] text-gray-400">Floor</span>
-        <input type="color" value={p.floorColor ?? '#3a7d34'} onChange={e => p.onFloorColor(e.target.value)} aria-label="Floor colour" className="h-6 w-10 rounded bg-gray-800" />
-        {p.floorColor === null && mixed}
-        <button onClick={p.onClearFloorColor} className="ml-auto rounded bg-gray-700 px-2 py-0.5 text-[9px] hover:bg-gray-600" title="Reset the floor to its tile colour">↺ reset</button>
-      </div>
+      <p className="text-[9px] font-bold uppercase tracking-wider text-gray-500">— cell —</p>
       <div className="flex items-center gap-2">
         <span className="w-14 shrink-0 text-[10px] text-gray-400">Collision</span>
         <button onClick={() => p.onCollision(true)} aria-pressed={p.collision === true} className={`rounded px-2 py-0.5 text-[10px] font-bold ${p.collision === true ? 'bg-red-600 text-white' : 'bg-gray-700 hover:bg-gray-600'}`}>Blocked</button>
         <button onClick={() => p.onCollision(false)} aria-pressed={p.collision === false} className={`rounded px-2 py-0.5 text-[10px] font-bold ${p.collision === false ? 'bg-emerald-600 text-white' : 'bg-gray-700 hover:bg-gray-600'}`}>Walkable</button>
-        {p.collision === null && mixed}
+        {p.collision === null && mixedBadge}
       </div>
-
-      {/* TILE — Width/Height/Depth/Zoom + a per-cell pose for the CELL's own ground tile, in both 2D and
-          iso. Default (all 1, no pose) = the current look. The prop/element on the cell (if any) gets the
-          same controls below. */}
-      {divider('tile')}
-      {dimRow('Width', 'width', p.groundDims.width, 'Width — stretches THIS floor tile horizontally (both views)', p.onGroundDim)}
-      {dimRow('Height', 'height', p.groundDims.height, 'Height — stretches this floor tile vertically', p.onGroundDim)}
-      {dimRow('Depth', 'depth', p.groundDims.depth, 'Depth — stretches this floor tile along the ground axis', p.onGroundDim)}
-      {dimRow('Zoom', 'zoom', p.groundDims.zoom, 'Zoom — scales this floor tile uniformly', p.onGroundDim)}
-      <PoseControls kind={`this cell (${p.groundKind})`} pose={p.groundPose} isWeapon={false} onChange={p.onGroundPose} onReset={p.onGroundPoseReset} />
-
-      {p.hasObject && (
-        <>
-          {divider(p.elementKind ? `element (${p.elementKind})` : 'element')}
-          <div className="flex items-center gap-2">
-            <span className="w-14 shrink-0 text-[10px] text-gray-400">Colour</span>
-            <input type="color" value={p.objectColor ?? '#ffffff'} onChange={e => p.onObjectColor(e.target.value)} aria-label="Object colour" className="h-6 w-10 rounded bg-gray-800" />
-            {p.objectColor === null && mixed}
-          </div>
-          {dimRow('Width', 'width', p.dims.width, 'Width — horizontal stretch (every view)', p.onDim)}
-          {dimRow('Height', 'height', p.dims.height, 'Height — grows UP from the base (iso + 2D views)', p.onDim)}
-          {dimRow('Depth', 'depth', p.dims.depth, 'Depth — stretches the ground axis in the top view only', p.onDim)}
-          {dimRow('Zoom', 'zoom', p.dims.zoom, 'Zoom — scales Width, Height and Depth together', p.onDim)}
-        </>
-      )}
+      {p.tiles.map(t => <TileControls key={t.key} tile={t} />)}
     </div>
   )
 }

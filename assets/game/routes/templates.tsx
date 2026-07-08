@@ -14,7 +14,8 @@
 import Head from 'next/head'
 import Link from 'next/link'
 import { useToast } from '@/components/Toast'
-import { GridBuilding, IsometricGrid } from '@/engine/IsometricGrid'
+import { GridBuilding, type GridAsset, IsometricGrid } from '@/engine/IsometricGrid'
+import { getStack } from '@/engine/cellStack'
 import { type AttackAnim, isAnimDone } from '@/engine/attackAnimations'
 import { type BuildingType } from '@/engine/buildingComposer'
 import { buildingFootprintCells, canPlaceBuilding, facadeLength, footprintContains, gridBuildingFacing, isRoadGround, makeBuilding, moveBuilding, resizeBuilding, rotateBuilding } from '@/engine/buildingEditor'
@@ -66,7 +67,7 @@ import { EquipmentPanel, InventoryCard, QuestAuthoringCard, QuestLogPanel } from
 import { EntityAttackBody, EntityIdentityStatsBody, EntityMovementBody, Modal, QuestGiveBody } from '@/components/game/modals'
 import { FlowViewOverlay, GamesViewOverlay } from '@/components/game/games'
 import { BUILDING_TOOL_TYPE, type BuildingTool, type EditorMode, type EntityTool } from '@/components/game/editorConfig'
-import { AnimationEditor, ArtSection, Dropdown, FpsReadout, GenerateControls, PoseControls, PropertiesPanel, SelectionHeader, StylePicker, TileLibraryBody, TilePalette, ToolRail, TriggerEditor, WEAPON_KINDS } from '@/components/game/editorChrome'
+import { AnimationEditor, ArtSection, Dropdown, FpsReadout, GenerateControls, PoseControls, PropertiesPanel, type TileControlModel, SelectionHeader, StylePicker, TileLibraryBody, TilePalette, ToolRail, TriggerEditor, WEAPON_KINDS } from '@/components/game/editorChrome'
 import { useFps } from '@/components/useFps'
 import { commonValue, commonBool, cellsFromKeys } from '@/game/editor/selectionEdit'
 import { entityKindForUnitSlug, placementFor, tileSlug } from '@/game/editor/tilePlacement'
@@ -1481,13 +1482,19 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
     bumpBuildingVersion()
   }
   const setFloorColor = (color: string | null) => applyToSelectedCells((col, row, grid) => grid.setGroundColor(col, row, color))
-  const setObjectColor = (color: string) => applyToSelectedCells((col, row, grid) => { for (const a of grid.getAssetsAtCell(col, row)) a.color = color })
   const setCellCollision = (blocked: boolean) => applyToSelectedCells((col, row, grid) => grid.setCollision(col, row, blocked))
-  // Per-element sprite scale (#77/#78): Width/Height/Depth are per-axis, Zoom is uniform. Dispatch the UI
+  // A cell's stacked tiles in the SAME order the cell-stack adapter (getStack) projects them — sorted by
+  // heightLevel — so the inspector's per-tile index maps to the right asset on both read and write.
+  const stackedAssetsAt = (grid: IsometricGrid, col: number, row: number): GridAsset[] =>
+    [...grid.getAssetsAtCell(col, row)].sort((a, b) => (a.heightLevel ?? 0) - (b.heightLevel ?? 0))
+  // Per-tile sprite scale (#77/#78): Width/Height/Depth are per-axis, Zoom is uniform. Dispatch the UI
   // axis to the asset field it writes; the renderers read these back per view (assetDimensions.ts).
   const DIM_FIELD = { width: 'scaleX', height: 'scaleY', depth: 'scaleZ', zoom: 'scale' } as const
-  const setElementDim = (axis: keyof typeof DIM_FIELD, v: number) =>
-    applyToSelectedCells((col, row, grid) => { for (const a of grid.getAssetsAtCell(col, row)) a[DIM_FIELD[axis]] = v })
+  // Write the i-th stacked TILE of every selected cell (per-tile, not "all assets in the cell at once").
+  const setAssetDim = (i: number, axis: keyof typeof DIM_FIELD, v: number) =>
+    applyToSelectedCells((col, row, grid) => { const a = stackedAssetsAt(grid, col, row)[i]; if (a) a[DIM_FIELD[axis]] = v })
+  const setAssetColor = (i: number, color: string) =>
+    applyToSelectedCells((col, row, grid) => { const a = stackedAssetsAt(grid, col, row)[i]; if (a) a.color = color })
   // Per-CELL floor dims + pose — the SAME Width/Height/Depth/Zoom, but written to grid.groundDims so they
   // size/pose THIS floor tile (every tile, not just props). setGroundDims merges + bumps groundVersion.
   const setGroundDim = (axis: keyof typeof DIM_FIELD, v: number) =>
@@ -5620,53 +5627,78 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
                 return (
                   <>
                     <SelectionHeader kind="cell" label="cell" coords={cellLabel} />
-                    {/* ONE consolidated Cell card. A cell is a fixed-size block: its only props are collision +
-                        floor colour. Below that, the TILE subsection (dims / pose of the ground tile or the prop
-                        on it) + the tile-art override. The old Properties / Tile-ground / Art-style / Height
-                        cards are all folded in here. */}
+                    {/* ONE consolidated Cell card. A CELL is a fixed slot — its only tunable prop is collision
+                        (grid elevation stays a cell prop, painted with the terrain-height tool). EVERYTHING in
+                        the cell is a uniform TILE: the floor is the height-0 tile and gets the SAME controls as
+                        any prop/unit, so the panel is one Cell section + one control group per tile in the
+                        stack, then the tile-art override. No cell-vs-element split, no card-in-card. */}
                     <Card title="Cell" accent="cyan">
                       {(() => {
                         const grid = gridRef.current
                         const cells = cellsFromKeys(selectedCells)
                         if (!grid || cells.length === 0) return null
                         void buildingVersion // re-read shared values after an edit (bumpBuildingVersion)
-                        const objs = cells.map(({ col, row }) => grid.getAssetsAtCell(col, row)[0]).filter((a): a is NonNullable<typeof a> => !!a)
-                        // Shared value of a per-element dim across the selection (defaults undefined→1); null = mixed.
-                        const dim = (read: (a: (typeof objs)[number]) => number) => (objs.length ? commonValue(objs.map(read)) : null)
-                        // Shared value of a per-CELL floor dim across the selection (grid.groundDims; unset→1; null = mixed).
+                        const fc = cells[0]
+                        // Drive the inspector off the cell-stack adapter: index 0 = the floor (a height-0
+                        // tile), 1.. = stacked props/units. The STRUCTURE (which tiles) comes from the first
+                        // cell; each VALUE is shared across the whole selection (null per field = mixed) and
+                        // every write applies to all selected cells.
+                        const stack = getStack(grid, fc.col, fc.row)
+                        const stacked = stack.slice(1)
+                        // Shared floor dim across the selection (grid.groundDims; unset→1; null = mixed).
                         const gdim = (read: (d: GroundCellDims | undefined) => number) => commonValue(cells.map(({ col, row }) => read(grid.groundDims?.[row]?.[col])))
-                        const firstCell = cells[0]
-                        const firstGroundKind = groundKind(grid.ground[firstCell.row]?.[firstCell.col] ?? 'grass')
+                        // Shared value of the i-th stacked tile's field across the cells that HAVE it.
+                        const adim = (i: number, read: (a: GridAsset) => number) => {
+                          const vals = cells.map(({ col, row }) => stackedAssetsAt(grid, col, row)[i]).filter((a): a is GridAsset => !!a).map(read)
+                          return vals.length ? commonValue(vals) : 1
+                        }
+                        // The floor is ALWAYS a tile (a height-0 tile): every cell has one, so its size
+                        // controls always show, labeled as the floor tile. The CELL itself has no size —
+                        // only collision. (Unified model: whatever is in a cell is a tile.)
+                        const groundSlug = grid.ground[fc.row]?.[fc.col] ?? 'grass'
+                        const floorDimsFc = grid.groundDims?.[fc.row]?.[fc.col]
+
+                        const tiles: TileControlModel[] = []
+                        tiles.push({
+                          key: 'floor',
+                          label: `floor · ${groundKind(groundSlug)}`,
+                          dims: {
+                            width: gdim(d => d?.scaleX ?? 1),
+                            height: gdim(d => d?.scaleY ?? 1),
+                            depth: gdim(d => d?.scaleZ ?? 1),
+                            zoom: gdim(d => d?.scale ?? 1),
+                          },
+                          color: commonValue(cells.map(({ col, row }) => grid.groundColor?.[row]?.[col] ?? null)),
+                          colorFallback: '#3a7d34',
+                          onDim: setGroundDim,
+                          onColor: setFloorColor,
+                          onClearColor: () => setFloorColor(null),
+                          pose: floorDimsFc?.pose,
+                          onPose: setGroundPose,
+                          onPoseReset: clearGroundPose,
+                        })
+                        stacked.forEach((t, i) => {
+                          const a0 = stackedAssetsAt(grid, fc.col, fc.row)[i]
+                          tiles.push({
+                            key: `tile-${i}`,
+                            label: a0 ? assetKind(a0) : (t.slug || `tile ${i + 1}`),
+                            dims: {
+                              width: adim(i, a => a.scaleX ?? 1),
+                              height: adim(i, a => a.scaleY ?? 1),
+                              depth: adim(i, a => a.scaleZ ?? 1),
+                              zoom: adim(i, a => a.scale ?? 1),
+                            },
+                            color: commonValue(cells.map(({ col, row }) => stackedAssetsAt(grid, col, row)[i]?.color ?? '#ffffff')),
+                            colorFallback: '#ffffff',
+                            onDim: (axis, v) => setAssetDim(i, axis, v),
+                            onColor: c => setAssetColor(i, c),
+                          })
+                        })
                         return (
                           <PropertiesPanel
-                            count={cells.length}
-                            floorColor={commonValue(cells.map(({ col, row }) => grid.groundColor?.[row]?.[col] ?? null))}
                             collision={commonBool(cells.map(({ col, row }) => grid.isBlocked(col, row)))}
-                            groundKind={firstGroundKind}
-                            groundDims={{
-                              width: gdim(d => d?.scaleX ?? 1),
-                              height: gdim(d => d?.scaleY ?? 1),
-                              depth: gdim(d => d?.scaleZ ?? 1),
-                              zoom: gdim(d => d?.scale ?? 1),
-                            }}
-                            groundPose={grid.groundDims?.[firstCell.row]?.[firstCell.col]?.pose}
-                            hasObject={objs.length > 0}
-                            elementKind={objs.length ? assetKind(objs[0]) : null}
-                            objectColor={objs.length ? commonValue(objs.map(a => a.color ?? '#ffffff')) : null}
-                            dims={{
-                              width: dim(a => a.scaleX ?? 1),
-                              height: dim(a => a.scaleY ?? 1),
-                              depth: dim(a => a.scaleZ ?? 1),
-                              zoom: dim(a => a.scale ?? 1),
-                            }}
-                            onFloorColor={setFloorColor}
-                            onClearFloorColor={() => setFloorColor(null)}
-                            onGroundDim={setGroundDim}
-                            onGroundPose={setGroundPose}
-                            onGroundPoseReset={clearGroundPose}
-                            onObjectColor={setObjectColor}
                             onCollision={setCellCollision}
-                            onDim={setElementDim}
+                            tiles={tiles}
                           />
                         )
                       })()}
