@@ -25,7 +25,8 @@ export const ASCII_FONT = '"JetBrains Mono", "Fira Code", "Consolas", monospace'
 // property: on the ASCII style with NO override, resolveVisual returns the passthrough
 // sentinel, so `resolveDraw` returns the caller's OWN default char+color unchanged —
 // the fillText that follows is byte-identical to the pre-style code.
-import { resolveVisual, type ElementKind, type ImageVisual, type Style } from '@/game/artStyle'
+import { resolveVisual, visualForTileId, type ElementKind, type ImageVisual, type Style, type Visual } from '@/game/artStyle'
+import { tileSlug } from '@/game/editor/tilePlacement'
 import { type AttackAnim, type AnimFrame } from '@/engine/attackAnimations'
 
 export interface DrawVisual {
@@ -54,11 +55,73 @@ export function resolveDraw(
   defChar: string,
   defColor: string,
 ): DrawVisual {
-  const v = resolveVisual(kind, style, override)
+  return drawFromVisual(resolveVisual(kind, style, override), defChar, defColor)
+}
+
+/** Map a resolved Visual to the concrete DrawVisual a draw site consumes. `defChar`/`defColor` are the
+ *  caller's ASCII defaults, returned unchanged for the passthrough case (byte-identical to the old path).
+ *  A styled glyph/image also reports its `tint` so the geometry-preserving sites fill the diamond/cube. */
+export function drawFromVisual(v: Visual, defChar: string, defColor: string): DrawVisual {
   if (v.kind === 'glyph') return { char: v.char, color: v.color ?? defColor, tint: v.color }
   // An image tile keeps its source glyph as the char (label + first-paint fallback before the PNG decodes).
   if (v.kind === 'image') return { char: v.char ?? defChar, color: v.color ?? defColor, image: v, tint: v.color }
   return { char: defChar, color: defColor } // ascii passthrough — identical to the old path
+}
+
+/**
+ * The core "everything reskins" rule for a PLACED asset: the Visual for its frozen `tileOverride`
+ * RE-HOMED onto the ACTIVE style, so a placed catalog tile follows the world's art style instead of
+ * staying pinned to the style it was picked in. The stored id embeds that style (`emoji:pine-tree`),
+ * which froze it; the SLUG (`pine-tree`) is style-agnostic, so we look the slug up under the ACTIVE
+ * style:
+ *   · the active style HAS per-slug art → its Visual (identity preserved AND reskinned — the emoji
+ *     pine-tree under emoji, the same slug's tile in any other style that carries it);
+ *   · it does NOT (e.g. ASCII's kind-only catalog has no `pine-tree`) → null, so the caller falls back
+ *     to the coarse `assetKind` in the active style (the ascii TREE, not the frozen emoji).
+ * Pure catalog lookup — `activeStyle` is used only for its id; nothing STORED on the asset changes.
+ */
+export function activeStyleVisualForOverride(overrideId: string, activeStyle: Style): Visual | null {
+  return visualForTileId(`${activeStyle.id}:${tileSlug(overrideId)}`)
+}
+
+/** DrawVisual for a PLACED ASSET — the placed-asset twin of resolveDraw that every asset draw site
+ *  (iso / 2D / top) funnels through. It re-homes the asset's effective override onto the ACTIVE style
+ *  (activeStyleVisualForOverride) so the tile RESKINS: a style with per-slug art → that reskinned tile
+ *  (identity kept); a style without it → the coarse `kind` in the active style (the assetKind fallback,
+ *  identical to a no-override resolveDraw). `rawOverride` is the asset's override via assetOverride
+ *  (which already drops the auto ground_decor litter under ASCII); null/undefined → straight to `kind`. */
+export function resolveAssetDraw(
+  kind: ElementKind,
+  style: Style,
+  rawOverride: string | null | undefined,
+  defChar: string,
+  defColor: string,
+): DrawVisual {
+  const styled = rawOverride ? activeStyleVisualForOverride(rawOverride, style) : null
+  if (styled) return drawFromVisual(styled, defChar, defColor)
+  return resolveDraw(kind, style, undefined, defChar, defColor)
+}
+
+/** DrawVisual for a placed UNIT — the entity twin of resolveAssetDraw that every unit draw site
+ *  (iso / 2D / top) funnels through. A brush-placed unit carries a FROZEN `tileOverride` (e.g.
+ *  `emoji:goblin`), which used to pin the unit to the style it was placed in even under ASCII; we
+ *  re-home its SLUG onto the ACTIVE style (activeStyleVisualForOverride) so the unit RESKINS exactly
+ *  like a placed asset: a style with per-slug art → that reskinned figure (identity kept), a style
+ *  without it → the coarse KIND in the active style. `styleOverride` is the style-derived default
+ *  (entityStyleOverride: an enemy's per-type tile / a person's per-variant figure) used when there is
+ *  NO manual pin — so a non-pinned unit resolves byte-identically to the old
+ *  resolveDraw(kind, style, styleOverride). */
+export function resolveEntityDraw(
+  kind: ElementKind,
+  style: Style,
+  tileOverride: string | null | undefined,
+  styleOverride: string | null | undefined,
+  defChar: string,
+  defColor: string,
+): DrawVisual {
+  const styled = tileOverride ? activeStyleVisualForOverride(tileOverride, style) : null
+  if (styled) return drawFromVisual(styled, defChar, defColor)
+  return resolveDraw(kind, style, styleOverride, defChar, defColor)
 }
 
 /** The effective per-cell tile override for an asset under a style. Auto-generated ground_decor litter

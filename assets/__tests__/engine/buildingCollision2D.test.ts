@@ -9,7 +9,7 @@
  *      has no collision behind it (the east/west walk-through-wall bug).
  */
 import { draw2DBuilding } from '@/engine/render/topdown'
-import { makeBuilding, buildingFootprintCells, buildingDoorCell, buildingRect, resizeBuilding } from '@/engine/buildingEditor'
+import { makeBuilding, buildingFootprintCells, buildingDoorCell, buildingDoorCells, buildingRect, resizeBuilding } from '@/engine/buildingEditor'
 import { IsometricGrid } from '@/engine/IsometricGrid'
 import type { Facing } from '@/engine/villageLayout'
 import { stampBuildingCells } from '@/game/runtime/buildings'
@@ -62,6 +62,43 @@ describe('#82 A — grid-level: stamped wall cells block, the door stays walkabl
       expect(walkable).toEqual([door])
     })
   }
+})
+
+// Hospital entrance ≥ 2×2 (user: "considering hospital are big, their entrance should always be at least
+// 2x2."). The DRAWN 2-wide door must have a 2-wide WALKABLE opening — the live stamp must open BOTH door
+// cells, on the same columns the facade draws them, or you get a "walk between two tiles" half-blocked door.
+describe('hospital 2×2 entrance — the walkable/collision opening matches the 2-wide drawn door', () => {
+  for (const facing of ['south', 'north'] as Facing[]) {
+    test(`${facing}: opens exactly 2 walkable door cells, aligned to the drawn facade door columns`, () => {
+      const b = makeBuilding('hospital', facing, 20, 20)
+      const bottom = b.cells[b.cells.length - 1]
+      const facadeDoorCols = bottom.map((k, c) => (k === 'door' ? c : -1)).filter(c => c >= 0)
+      expect(facadeDoorCols.length).toBe(2) // the facade draws a 2-wide door
+
+      const doors = buildingDoorCells(b)
+      expect(doors).toHaveLength(2) // …and the walkable opening is 2 cells too
+
+      const grid = new IsometricGrid({ cols: 40, rows: 40, cellSize: 16, isoScale: 1 })
+      stampBuildingCells(grid, b, 'spring')
+      for (const d of doors) expect(grid.collision[d.row][d.col]).toBe(0) // every door cell walkable
+
+      // Exactly TWO walkable cells in the whole footprint (the door run); everything else blocks.
+      const { cells } = buildingFootprintCells(b)
+      const walkable = cells.filter(c => grid.collision[c.row][c.col] === 0)
+      expect(walkable).toHaveLength(2)
+
+      // The walkable columns line up with the drawn facade door columns (b.col + facade col) — aligned.
+      const walkCols = doors.map(d => d.col).sort((a, z) => a - z)
+      const facadeCols = facadeDoorCols.map(c => b.col + c).sort((a, z) => a - z)
+      expect(walkCols).toEqual(facadeCols)
+    })
+  }
+
+  test('east/west hospital collapses the opening to 1 cell (matches the rotated 2D door collapse)', () => {
+    for (const facing of ['east', 'west'] as Facing[]) {
+      expect(buildingDoorCells(makeBuilding('hospital', facing, 20, 20))).toHaveLength(1)
+    }
+  })
 })
 
 // A canvas ctx mock that records the cell-background rects draw2DBuilding paints.

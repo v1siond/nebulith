@@ -15,16 +15,13 @@ import Head from 'next/head'
 import Link from 'next/link'
 import { useToast } from '@/components/Toast'
 import { GridBuilding, IsometricGrid } from '@/engine/IsometricGrid'
-import { COMPOSITE_ASSETS, TILES } from '@/engine/Tileset'
 import { type AttackAnim, isAnimDone } from '@/engine/attackAnimations'
 import { type BuildingType } from '@/engine/buildingComposer'
 import { buildingFootprintCells, canPlaceBuilding, facadeLength, footprintContains, gridBuildingFacing, isRoadGround, makeBuilding, moveBuilding, resizeBuilding, rotateBuilding } from '@/engine/buildingEditor'
 import { type AnimFrame, type AnimPreset, CELL_ANIM_PRESETS, type Ease, makeCellAnimation, restFrame } from '@/engine/cellAnimation'
-import { scaleCompositeToRegion } from '@/engine/compositeFill'
 import { findTriggeredConnector, normalizeConnector } from '@/engine/connectors'
 import { entityPalette, punchTile, weaponEmoji, weaponGlyph, weaponPose } from '@/engine/entityArt'
 import { isoFacadeOnBack, isoFacingIndex } from '@/engine/isoBuilding'
-import { assetFootprint, multiCellAssetById, stampAsset } from '@/engine/multiCellAssets'
 import { StageData, VariantId, generateStage, stagePaint } from '@/engine/stageGenerator'
 import { syncTilesetPropCollision } from '@/engine/tilesetCollision'
 import { type Action as TriggerAction, resolveAction } from '@/engine/triggers'
@@ -51,7 +48,7 @@ import { Connector, TemplateListItem, createTemplate, deleteTemplate, deserializ
 import { type CellTriggerGroup, ENTITY_GLYPH, buildingsFromAssets, buildingsToAssets, cellTriggersFromAssets, cellTriggersToAssets, entitiesFromAssets, entitiesToAssets, groundColorFromAssets, groundColorToAssets, groundDimsFromAssets, groundDimsToAssets, isBuildingAsset, isEntityAsset, isGroundColorAsset, isGroundDimsAsset, isQuestAsset, isStyleAsset, isTriggerAsset, questsFromAssets, questsToAssets, styleFromAssets, styleToAssets, triggersAtCell } from '@/lib/gridCodec'
 import type { GroundCellDims } from '@/engine/groundDims'
 import { type Trigger, type TriggerEffect, fireTriggers } from '@/game/runtime/trigger'
-import { ASCII_STYLE, type Style, styleById, groundKind, assetKind, entityKind, genderize, resolveVisual, visualForTileId } from '@/game/artStyle'
+import { ASCII_STYLE, type Style, type TileDef, styleById, groundKind, assetKind, entityKind, genderize, resolveVisual, visualForTileId } from '@/game/artStyle'
 import { useRouter } from 'next/router'
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
 import { render, render2D, renderTopView, clampCameraAxis, isoCameraFocus, entityMotion, ENEMY_MOVE_MS, isDebugMode, setDebugMode, isShowCollisions, setShowCollisions as setCollisionsFlag, cellCaptionMap, type DayNight } from '@/engine/render'
@@ -63,15 +60,17 @@ import { seedCharacterAnimations } from '@/game/runtime/entityAnimation'
 import { buildingPlacementEnv, nearestRoadFacing, stampBuildingCells, unstampBuildingCells } from '@/game/runtime/buildings'
 import { type Cursor, type JumpState, JUMP_MS, JUMP_PEAK_PX, advanceEnemyMovement, beginJump, tickCannons } from '@/game/runtime/movement'
 import { playSwoosh } from '@/game/runtime/audio'
-import { AssetTileSwatch, Card, EntityToolButton, FrameStepper, PaletteGroup, TileSwatch, ViewButton } from '@/components/game/controls'
+import { Card, EntityToolButton, FrameStepper, ViewButton } from '@/components/game/controls'
 import { AbilityBar, CombatHud, QuestHud } from '@/components/game/hud'
 import { EquipmentPanel, InventoryCard, QuestAuthoringCard, QuestLogPanel } from '@/components/game/panels'
 import { EntityAttackBody, EntityIdentityStatsBody, EntityMovementBody, Modal, QuestGiveBody } from '@/components/game/modals'
 import { FlowViewOverlay, GamesViewOverlay } from '@/components/game/games'
-import { BUILDING_TOOL_TYPE, type BuildingTool, type EditorMode, type EntityTool, GROUND_SWATCHES, NATURE_TILE_KEYS } from '@/components/game/editorConfig'
-import { AnimationEditor, ArtSection, Dropdown, FpsReadout, GenerateControls, PoseControls, PropertiesPanel, SelectionHeader, StylePicker, TileLibraryBody, ToolRail, TriggerEditor, WEAPON_KINDS } from '@/components/game/editorChrome'
+import { BUILDING_TOOL_TYPE, type BuildingTool, type EditorMode, type EntityTool } from '@/components/game/editorConfig'
+import { AnimationEditor, ArtSection, Dropdown, FpsReadout, GenerateControls, PoseControls, PropertiesPanel, SelectionHeader, StylePicker, TileLibraryBody, TilePalette, ToolRail, TriggerEditor, WEAPON_KINDS } from '@/components/game/editorChrome'
 import { useFps } from '@/components/useFps'
 import { commonValue, commonBool, cellsFromKeys } from '@/game/editor/selectionEdit'
+import { entityKindForUnitSlug, placementFor, tileSlug } from '@/game/editor/tilePlacement'
+import { placeGroundTile, removeTopAsset, stackAssetTile } from '@/game/editor/tileBrush'
 
 
 // View mode states (global for game loop access)
@@ -144,9 +143,12 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
   const downAltRef = useRef(false) // Alt held on mouse-DOWN — mouse-up reads it to select the CELL under a unit (instead of the unit)
   const [camOffset, setCamOffset] = useState({ x: 0, y: 0 })
   const camOffsetRef = useRef({ x: 0, y: 0 })
-  const [selectedTile, setSelectedTile] = useState<{ char: string; type: 'ground' | 'asset'; groundType?: string; tileKey?: string } | null>(null)
-  const [selectedComposite, setSelectedComposite] = useState<string | null>(null)
-  const [selectedMultiAsset, setSelectedMultiAsset] = useState<string | null>(null)
+  // The ARMED placement brush — a full catalog TileDef (from the Paint palette). Minecraft-style: pick a
+  // tile, then each LEFT-click on the map places it (⌥Alt-click removes the top asset); one brush at a
+  // time; clicking it again / Esc / Disarm clears it. Replaces the old cell-first {char,type} paint tile.
+  const [armedTile, setArmedTile] = useState<TileDef | null>(null)
+  const armedTileRef = useRef<TileDef | null>(null) // live mirror for the mounted-once keydown handler (Esc disarms)
+  useEffect(() => { armedTileRef.current = armedTile }, [armedTile])
   // Render opacity (0.15–1) applied to tiles placed from the palette — play with contrast / depth.
   const [placeOpacity, setPlaceOpacity] = useState(1)
   // Animation Author panel — the frames + timing the user defines, then attaches to selected cells.
@@ -221,10 +223,9 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
   // once and reads through a ref, so entities mirror to entitiesRef like connectors.
   const [entities, setEntities] = useState<Entity[]>([])
   const [entityTool, setEntityTool] = useState<EntityTool>(null)
-  // UI-only flag: the left tool-rail's "Paint" mode (reveals the tile palette). It
-  // doesn't gate any canvas behaviour — painting is driven by selectedTile + the
-  // selected cells — it only decides which mode the rail highlights / which left
-  // panel shows. The other rail modes derive straight from the tool state below.
+  // UI-only flag: the left tool-rail's "Paint" mode (reveals the tile palette). It only decides which
+  // mode the rail highlights / which left panel shows; canvas placement is gated by `armedTile` (the
+  // brush picked from the palette). The other rail modes derive straight from the tool state below.
   const [paintMode, setPaintMode] = useState(false)
   // ── ART STYLE (stage D) — the global reskin switch. State drives the UI; a ref feeds
   //    the once-mounted render loop. A style change reskins every view instantly (the iso
@@ -275,12 +276,16 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
   const [waypointMode, setWaypointMode] = useState(false)
   // Which entity-action modal is open (Stats / Inventory / Movement / Quests / Attacks).
   const [entityModal, setEntityModal] = useState<'inventory' | 'quests' | null>(null)
+  // The unit card shows a COMPACT animation summary + a "See more…" that opens the full
+  // AnimationEditor in this modal (keeps the sidebar card short — no frame pickers inline).
+  const [animEditorOpen, setAnimEditorOpen] = useState(false)
   // Disarm waypoint authoring + close any entity modal whenever the selection changes,
   // so clicks on a new entity select it (not drop a stray waypoint / show stale modal).
   useEffect(() => {
     selectedEntityIdRef.current = selectedEntityId
     setWaypointMode(false)
     setEntityModal(null)
+    setAnimEditorOpen(false)
   }, [selectedEntityId])
   const [enemyType, setEnemyType] = useState('goblin')
   const [npcName, setNpcName] = useState('')
@@ -821,6 +826,15 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
       return
     }
 
+    // ARMED BRUSH (Paint mode): a palette tile is picked → LEFT-click PLACES it (⌥Alt-click removes the
+    // top asset), on the current multi-cell selection when there is one, else on the single clicked cell.
+    // SHIFT is left to the selection gesture below so a bulk selection can still be built while armed.
+    if (e.button === 0 && armedTile && !e.shiftKey) {
+      const cell = screenToCell(e.clientX, e.clientY)
+      if (cell) applyArmedBrush(cell, e.altKey)
+      return
+    }
+
     // ALL views (iso/2d/top): LEFT-click + drag pans the camera — UNLESS a placement tool is armed
     // (entity / building / connector), OR SHIFT is held (shift+drag bulk-SELECTS cells in every view).
     // Plain left-drag pans, shift+drag selects — the SAME gesture everywhere (top view no longer
@@ -882,22 +896,6 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
     // Building tool armed → select / place / delete a building on this cell
     if (buildingTool) {
       applyBuildingTool(cell.col, cell.row)
-      return
-    }
-
-    // Multi-cell structure armed → stamp the whole asset with its TOP-LEFT at this cell.
-    if (selectedMultiAsset) {
-      const grid = gridRef.current
-      const asset = multiCellAssetById(selectedMultiAsset)
-      if (grid && asset) {
-        const { w, h } = assetFootprint(asset)
-        // Clear any single-cell assets under the footprint first, so a re-stamp is clean.
-        grid.assets = grid.assets.filter(
-          a => !(a.col >= cell.col && a.col < cell.col + w && a.row >= cell.row && a.row < cell.row + h),
-        )
-        stampAsset(grid, asset, cell.col, cell.row)
-      }
-      setSelectedMultiAsset(null)
       return
     }
 
@@ -1196,9 +1194,7 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
 
   /** Clear any armed tile so a Select-mode click inspects instead of painting. */
   const clearPaintTile = () => {
-    setSelectedTile(null)
-    setSelectedComposite(null)
-    setSelectedMultiAsset(null)
+    setArmedTile(null)
     setHeightEditMode(false)
   }
 
@@ -1487,7 +1483,6 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
   const setFloorColor = (color: string | null) => applyToSelectedCells((col, row, grid) => grid.setGroundColor(col, row, color))
   const setObjectColor = (color: string) => applyToSelectedCells((col, row, grid) => { for (const a of grid.getAssetsAtCell(col, row)) a.color = color })
   const setCellCollision = (blocked: boolean) => applyToSelectedCells((col, row, grid) => grid.setCollision(col, row, blocked))
-  const setCellHeight = (h: number) => applyToSelectedCells((col, row, grid) => grid.setHeight(col, row, h))
   // Per-element sprite scale (#77/#78): Width/Height/Depth are per-axis, Zoom is uniform. Dispatch the UI
   // axis to the asset field it writes; the renderers read these back per view (assetDimensions.ts).
   const DIM_FIELD = { width: 'scaleX', height: 'scaleY', depth: 'scaleZ', zoom: 'scale' } as const
@@ -1896,48 +1891,76 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
     movePlayerToValidSpawn(Math.floor(cols / 2), Math.floor(rows / 2))
   }
 
-  // Place tile on selected cells
-  const placeTile = (tileInfo: { char: string; type: 'ground' | 'asset'; groundType?: string; tileKey?: string }) => {
+  // ── Minecraft-style tile brush (Paint mode) ─────────────────────────
+  // Pick a tile from the DB catalog palette → it becomes the ARMED brush; each canvas LEFT-click PLACES
+  // it, routed by the tile's CATEGORY through the pure tilePlacement module. One general path for every
+  // content type (terrain / nature / buildings / units). The exact tile always renders because we pin
+  // `tileOverride = tile.id` on the placed asset/entity (terrain resolves via its slug's groundKind).
+
+  /** Arm a palette tile as the placement brush; clicking the SAME tile again (or Disarm / Esc) clears it.
+   *  One brush at a time — arming drops the height-paint sub-tool so clicks route to placement. */
+  const armTile = (tile: TileDef | null) => {
+    setArmedTile(prev => (tile && prev?.id === tile.id ? null : tile))
+    setHeightEditMode(false)
+  }
+
+  /** units → place an ENTITY (player / npc / enemy by slug), pinning the exact figure via tileOverride.
+   *  Reuses the entity factories + the canPlaceEntity guard. Returns whether it actually placed. */
+  const placeUnitTile = (col: number, row: number, tile: TileDef): boolean => {
     const grid = gridRef.current
-    if (!grid || selectedCells.size === 0) {
-      setSelectedTile(tileInfo)
-      setSelectedComposite(null)
-      setSelectedMultiAsset(null)
-      setHeightEditMode(false)
-      return
+    if (!grid) return false
+    const slug = tileSlug(tile.id)
+    const kind = entityKindForUnitSlug(slug)
+    const collisionFn = (c: number, r: number) => !!grid.collision[r]?.[c]
+    if (kind === 'player') {
+      const base = entitiesRef.current.filter(e => e.kind !== 'player')
+      if (!canPlaceEntity(base, col, row, grid.cols, grid.rows, collisionFn)) return false
+      setEntities(placeEntity(base, { ...makePlayer(mintEntityId('player'), col, row), tileOverride: tile.id }))
+      movePlayerToValidSpawn(col, row)
+      return true
     }
-
-    // Check if this is a building/structure asset
-    const tileDef = tileInfo.tileKey ? TILES[tileInfo.tileKey] : null
-    const assetType = tileDef?.category ?? getAssetType(tileInfo.char)
-    const isBuilding = assetType === 'building'
-
-    selectedCells.forEach(key => {
-      const [col, row] = key.split(',').map(Number)
-      if (tileInfo.type === 'ground' && tileInfo.groundType) {
-        grid.setGround(col, row, tileInfo.groundType)
-      } else if (tileInfo.type === 'asset') {
-        // Prevent buildings on roads
-        const groundType = grid.ground[row]?.[col] || 'grass'
-        if (isBuilding && isRoadGround(groundType)) {
-          return // Skip this cell - can't place building on road
-        }
-        // Remove any existing asset at this location first
-        grid.assets = grid.assets.filter(a => !(a.col === col && a.row === row))
-        // Use tileset definition if available
-        grid.placeAsset([tileInfo.char], col, row, {
-          type: assetType,
-          blocking: tileDef?.blocking ?? isBlockingAsset(tileInfo.char),
-          color: tileDef?.fg ?? getAssetColor(tileInfo.char),
-          bgColor: tileDef?.bg,
-          height: getDefaultAssetHeight(tileInfo.char),
-          tileKey: tileInfo.tileKey,
-          opacity: placeOpacity < 1 ? placeOpacity : undefined,
-        })
-      }
+    let placed = false
+    setEntities(prev => {
+      if (!canPlaceEntity(prev, col, row, grid.cols, grid.rows, collisionFn)) return prev
+      const ent: Entity = kind === 'enemy'
+        ? { ...makeEnemy(mintEntityId('enemy'), col, row, slug, { archetype: archetypeForEnemyType(slug) }), tileOverride: tile.id }
+        : { ...makeNpc(mintEntityId('npc'), col, row, {}), tileOverride: tile.id }
+      placed = true
+      return placeEntity(prev, ent)
     })
-    setSelectedCells(new Set())
-    setSelectedTile(null)
+    return placed
+  }
+
+  /** Place the armed tile on ONE cell, routed by its category via placementFor. Terrain + asset stacking
+   *  delegate to the pure tileBrush module (reuses the grid primitives); units place an entity here. */
+  const placeArmedTileAt = (col: number, row: number) => {
+    const grid = gridRef.current
+    if (!grid || !armedTile) return
+    const route = placementFor(armedTile)
+    if (route === 'terrain') { placeGroundTile(grid, col, row, armedTile); return }
+    if (route === 'entity') { placeUnitTile(col, row, armedTile); return }
+    stackAssetTile(grid, col, row, armedTile, { opacity: placeOpacity < 1 ? placeOpacity : undefined })
+  }
+
+  /** ⌥Alt-click → remove the top stacked asset on a cell (collision re-derived by the tileBrush module). */
+  const removeTopAssetAt = (col: number, row: number) => {
+    const grid = gridRef.current
+    if (grid) removeTopAsset(grid, col, row)
+  }
+
+  /** The armed-brush action for a canvas click: apply to the whole multi-cell SELECTION when there is one
+   *  (bulk — "select a tile, multi-select 4 cells → 4 trees"), else to the single clicked cell. Alt removes
+   *  the top asset; otherwise it places. The brush STAYS armed (keep clicking); a bulk fill then clears the
+   *  selection so the next single click paints just one cell. */
+  const applyArmedBrush = (cell: { col: number; row: number }, alt: boolean) => {
+    if (!armedTile) return
+    const selected = cellsFromKeys(selectedCellsRef.current)
+    const targets = selected.length ? selected : [cell]
+    for (const t of targets) {
+      if (alt) removeTopAssetAt(t.col, t.row)
+      else placeArmedTileAt(t.col, t.row)
+    }
+    if (selected.length) setSelectedCells(new Set())
   }
 
   /** Bulk-CLEAR the selected cells: reset ground to grass, drop any assets, flatten height — an easy
@@ -1954,96 +1977,6 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
     grid.assets = grid.assets.filter(a => !selectedCells.has(`${a.col},${a.row}`))
     setSelectedCells(new Set())
   }
-
-  // Place a composite asset at the first selected cell
-  const placeCompositeAsset = (assetKey: string) => {
-    const grid = gridRef.current
-    if (!grid) return
-
-    // Get the composite asset definition
-    const asset = COMPOSITE_ASSETS[assetKey]
-    if (!asset) return
-
-    // If no cells selected, just select the asset for next click
-    if (selectedCells.size === 0) {
-      setSelectedComposite(assetKey)
-      setSelectedTile(null)
-      setSelectedMultiAsset(null)
-      setHeightEditMode(false)
-      return
-    }
-
-    // Get the first selected cell as the anchor point
-    const firstCell = Array.from(selectedCells)[0]
-    const [col, row] = firstCell.split(',').map(Number)
-
-    // Check if any target cell is on a road (buildings can't go there)
-    if (asset.category === 'building') {
-      for (const t of asset.tiles) {
-        const targetCol = col + t.dx
-        const targetRow = row + t.dy
-        const groundType = grid.ground[targetRow]?.[targetCol] || 'grass'
-        if (isRoadGround(groundType)) {
-          return // Can't place building on road
-        }
-      }
-    }
-
-    // Build the tiles array with actual characters
-    const tiles = asset.tiles.map(t => {
-      const tileDef = TILES[t.tile]
-      return {
-        tile: t.tile,
-        char: tileDef?.char ?? '?',
-        dx: t.dx,
-        dy: t.dy,
-        height: t.height,
-        color: t.colorOverride ?? tileDef?.fg,
-        bgColor: tileDef?.bg,
-        blocking: tileDef?.blocking ?? false,
-        type: asset.category,
-      }
-    })
-
-    // ONE cell selected → stamp the composite once at that anchor (its natural
-    // size). A REGION selected → SCALE it to ONE instance spanning the selection
-    // (select 10×10 + click "well" → a single 10×10 well, not a grid of wells).
-    if (selectedCells.size <= 1) {
-      grid.placeComposite(assetKey, tiles, col, row)
-    } else {
-      scaleCompositeToRegion(grid, tiles, selectedCells)
-    }
-
-    setSelectedCells(new Set())
-    setSelectedComposite(null)
-  }
-
-  // Arm / place a multi-cell structure asset (house, tower, well…). With no cells
-  // selected, clicking the palette ARMS it — the next click in Top view stamps it
-  // (top-left = the clicked cell). With a cell already selected, stamp at that anchor.
-  const placeMultiAsset = (assetId: string) => {
-    const grid = gridRef.current
-    const asset = multiCellAssetById(assetId)
-    if (!grid || !asset) return
-
-    if (selectedCells.size === 0) {
-      setSelectedMultiAsset(assetId)
-      setSelectedTile(null)
-      setSelectedComposite(null)
-      setHeightEditMode(false)
-      return
-    }
-
-    const [col, row] = Array.from(selectedCells)[0].split(',').map(Number)
-    const { w, h } = assetFootprint(asset)
-    grid.assets = grid.assets.filter(
-      a => !(a.col >= col && a.col < col + w && a.row >= row && a.row < row + h),
-    )
-    stampAsset(grid, asset, col, row)
-    setSelectedCells(new Set())
-    setSelectedMultiAsset(null)
-  }
-
 
   // ── Frame-based Animation Author handlers ──────────────────────────
   const round2 = (v: number) => Math.round(v * 100) / 100
@@ -2135,54 +2068,6 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
       grid.setHeight(col, row, h)
     })
     setSelectedCells(new Set())
-  }
-
-  // Default heights for different asset types
-  const getDefaultAssetHeight = (char: string): number => {
-    switch (char) {
-      case '█': return 2  // Wall - 2 blocks tall
-      case '▀': return 3  // Roof - 3 blocks tall (on top of walls)
-      case '░': return 1  // Floor - 1 block tall
-      case '@': return 3  // Tree - 3 blocks tall
-      case '*': return 1  // Bush - 1 block tall
-      case '!': return 2  // Lamp - 2 blocks tall
-      case '☺': return 2  // NPC - 2 blocks tall
-      default: return 1
-    }
-  }
-
-  // Helper functions for asset properties
-  const getAssetType = (char: string): string => {
-    switch (char) {
-      case '@': case '*': return 'tree'
-      case '$': return 'crate'
-      case '!': return 'lamp'
-      case '+': return 'flower'
-      case 'o': return 'decoration'
-      case '█': case '▀': case '░': return 'building'
-      case '☺': return 'npc'
-      default: return 'decoration'
-    }
-  }
-
-  const isBlockingAsset = (char: string): boolean => {
-    return ['@', '*', '$', '!', 'o', '█', '▀', '☺'].includes(char)
-  }
-
-  const getAssetColor = (char: string): string => {
-    switch (char) {
-      case '@': return '#33cc33'
-      case '*': return '#44bb44'
-      case '$': return '#ddaa55'
-      case '!': return '#ffff55'
-      case '+': return '#ff88cc'
-      case 'o': return '#888888'
-      case '█': return '#aa7755'
-      case '▀': return '#dd7755'
-      case '░': return '#aa9977'
-      case '☺': return '#ffdd00'
-      default: return '#ffffff'
-    }
   }
 
   // Layout templates - complete with buildings, trees, NPCs
@@ -3771,6 +3656,11 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
         if (next) setSelectedEntityId(next)
         return
       }
+      // Esc DISARMS the placement brush first (so the next click inspects instead of painting).
+      if (e.key === 'Escape' && armedTileRef.current) {
+        setArmedTile(null)
+        return
+      }
       // Esc resets the WHOLE selection — the target AND any selected cells. Guarded so it only fires when
       // something IS selected; otherwise Esc falls through to whatever else wants it (menus, build editor).
       if (e.key === 'Escape' && (selectedEntityIdRef.current || selectedCellsRef.current.size > 0)) {
@@ -4830,6 +4720,55 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
           <Dropdown label={<>🎨 Style: {activeStyle.name}</>} title="Art style" panelClass="w-56">
             {close => <StylePicker activeId={activeStyleId} onPick={setActiveStyleId} onClose={close} />}
           </Dropdown>
+          {/* ◈ Unit — place units (player / enemies / NPCs). Moved off the left tool-rail into the top nav
+              (same pattern as ⚙ Stage / 🎨 Style). Arming a tool derives editorMode → 'unit', so canvas
+              clicks place exactly as before; the button highlights while a tool is armed. */}
+          <Dropdown
+            label={<>◈ Unit</>}
+            title="Place units — player, enemies, NPCs"
+            btnClass={entityTool ? 'bg-orange-600 text-black' : 'bg-gray-700 hover:bg-gray-600'}
+            panelClass="w-64"
+          >
+            {() => (
+              <div>
+                <p className="mb-2 text-[10px] text-gray-500">
+                  Pick a tool, then click a cell in Top view to place. Only one player.
+                </p>
+                <div className="grid grid-cols-4 gap-1">
+                  <EntityToolButton label="Player" glyph={ENTITY_GLYPH.player} active={entityTool === 'player'} activeClass="bg-yellow-600 text-black" onClick={() => toggleEntityTool('player')} />
+                  <EntityToolButton label="Enemy" glyph={ENTITY_GLYPH.enemy} active={entityTool === 'enemy'} activeClass="bg-red-600" onClick={() => toggleEntityTool('enemy')} />
+                  <EntityToolButton label="NPC" glyph={ENTITY_GLYPH.npc} active={entityTool === 'npc'} activeClass="bg-cyan-600 text-black" onClick={() => toggleEntityTool('npc')} />
+                  <EntityToolButton label="Erase" glyph="✕" active={entityTool === 'erase'} activeClass="bg-gray-500" onClick={() => toggleEntityTool('erase')} />
+                  <EntityToolButton label="Collision" glyph="▦" active={entityTool === 'collision'} activeClass="bg-red-700" onClick={() => toggleEntityTool('collision')} />
+                </div>
+                <button
+                  onClick={randomizeEntities}
+                  className="mt-2 w-full rounded bg-purple-700 px-2 py-1.5 text-xs font-bold transition-colors hover:bg-purple-600"
+                  title="Scatter enemies + an NPC into the free space, each with stats + a movement pattern"
+                >
+                  ⤳ Scatter entities
+                </button>
+                {entityTool === 'enemy' && (
+                  <label className="mt-2 block">
+                    <span className="mb-1 block text-xs font-bold text-red-400">Enemy type</span>
+                    <input type="text" value={enemyType} onChange={e => setEnemyType(e.target.value)} placeholder="goblin" aria-label="Enemy type" className="w-full rounded bg-gray-800 p-1.5 text-xs" />
+                  </label>
+                )}
+                {entityTool === 'npc' && (
+                  <label className="mt-2 block">
+                    <span className="mb-1 block text-xs font-bold text-cyan-400">NPC name (optional)</span>
+                    <input type="text" value={npcName} onChange={e => setNpcName(e.target.value)} placeholder="Villager" aria-label="NPC name" className="w-full rounded bg-gray-800 p-1.5 text-xs" />
+                  </label>
+                )}
+                <div className="mt-3 flex items-center justify-between border-t border-white/10 pt-2 text-[10px] text-gray-400">
+                  <span>{entities.length} placed</span>
+                  {entities.length > 0 && (
+                    <button onClick={() => setEntities([])} className="rounded bg-red-900 px-2 py-1 font-bold text-red-200 hover:bg-red-800">Clear all</button>
+                  )}
+                </div>
+              </div>
+            )}
+          </Dropdown>
           {/* ⚙ Stage — grid size + view toggles (night / debug / collisions / hide entities). Lives in the
               top nav so it's ALWAYS reachable, even with an element selected (it used to hide in the sidebar). */}
           <Dropdown label={<>⚙ Stage</>} title="Stage settings" panelClass="w-64">
@@ -4982,7 +4921,8 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
             {editorMode === 'paint' && (
               <Card title="Paint — tiles & ground" accent="cyan">
                 <p className="mb-2 text-[10px] text-gray-500">
-                  Pick a tile, then select cells in Top view to paint them.
+                  Pick a tile below, then LEFT-click the map to place it (nature/props stack on what&apos;s there);
+                  ⌥Alt-click removes the top. Shift-drag to select cells first, then a click fills them all.
                 </p>
 
                 {/* Height tool */}
@@ -5044,27 +4984,15 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
                   ⌫ Clear selected cells ({selectedCells.size})
                 </button>
 
-                {/* Ground */}
-                <PaletteGroup label="Ground" color="text-gray-400">
-                  {GROUND_SWATCHES.map(g => (
-                    <TileSwatch
-                      key={g.char}
-                      char={g.char}
-                      name={g.name}
-                      bg={g.bg}
-                      fg={g.fg}
-                      onClick={() => placeTile({ char: g.char, type: 'ground', groundType: g.groundType })}
-                      selected={selectedTile?.char === g.char && selectedTile?.type === 'ground'}
-                    />
-                  ))}
-                </PaletteGroup>
-
-                {/* Nature */}
-                <PaletteGroup label="Nature" color="text-green-400">
-                  {NATURE_TILE_KEYS.map(key => (
-                    <AssetTileSwatch key={key} tileKey={key} selectedTile={selectedTile} onPlace={placeTile} />
-                  ))}
-                </PaletteGroup>
+                {/* DB tile catalog — the FULL tileset (terrain / buildings / units / nature) for the active
+                    art style, straight from tilesForStyle. Pick one to ARM it as the brush, then click the
+                    map to place; the exact tile is pinned per-cell so it survives a style switch too. */}
+                <TilePalette
+                  styleId={activeStyleId}
+                  styleName={activeStyle.name}
+                  armedId={armedTile?.id ?? null}
+                  onArm={armTile}
+                />
 
                 {/* Animation Author — define an asset's motion as FRAMES, set timing, it loops. */}
                 <div className="border-t border-white/10 pt-3" data-testid="animation-author">
@@ -5165,98 +5093,6 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
                       {selectedCells.size === 0 ? 'Select a cell' : 'Apply'}
                     </button>
                   </div>
-                </div>
-              </Card>
-            )}
-
-            {editorMode === 'unit' && (
-              <Card title="Entities" accent="orange">
-                <p className="mb-2 text-[10px] text-gray-500">
-                  Pick a tool, then click a cell in Top view to place. Only one player.
-                </p>
-                <div className="grid grid-cols-4 gap-1">
-                  <EntityToolButton
-                    label="Player"
-                    glyph={ENTITY_GLYPH.player}
-                    active={entityTool === 'player'}
-                    activeClass="bg-yellow-600 text-black"
-                    onClick={() => toggleEntityTool('player')}
-                  />
-                  <EntityToolButton
-                    label="Enemy"
-                    glyph={ENTITY_GLYPH.enemy}
-                    active={entityTool === 'enemy'}
-                    activeClass="bg-red-600"
-                    onClick={() => toggleEntityTool('enemy')}
-                  />
-                  <EntityToolButton
-                    label="NPC"
-                    glyph={ENTITY_GLYPH.npc}
-                    active={entityTool === 'npc'}
-                    activeClass="bg-cyan-600 text-black"
-                    onClick={() => toggleEntityTool('npc')}
-                  />
-                  <EntityToolButton
-                    label="Erase"
-                    glyph="✕"
-                    active={entityTool === 'erase'}
-                    activeClass="bg-gray-500"
-                    onClick={() => toggleEntityTool('erase')}
-                  />
-                  <EntityToolButton
-                    label="Collision"
-                    glyph="▦"
-                    active={entityTool === 'collision'}
-                    activeClass="bg-red-700"
-                    onClick={() => toggleEntityTool('collision')}
-                  />
-                </div>
-                <button
-                  onClick={randomizeEntities}
-                  className="mt-2 w-full rounded bg-purple-700 px-2 py-1.5 text-xs font-bold transition-colors hover:bg-purple-600"
-                  title="Scatter enemies + an NPC into the free space, each with stats + a movement pattern"
-                >
-                  ⤳ Scatter entities
-                </button>
-
-                {entityTool === 'enemy' && (
-                  <label className="mt-2 block">
-                    <span className="mb-1 block text-xs font-bold text-red-400">Enemy type</span>
-                    <input
-                      type="text"
-                      value={enemyType}
-                      onChange={e => setEnemyType(e.target.value)}
-                      placeholder="goblin"
-                      aria-label="Enemy type"
-                      className="w-full rounded bg-gray-800 p-1.5 text-xs"
-                    />
-                  </label>
-                )}
-
-                {entityTool === 'npc' && (
-                  <label className="mt-2 block">
-                    <span className="mb-1 block text-xs font-bold text-cyan-400">NPC name (optional)</span>
-                    <input
-                      type="text"
-                      value={npcName}
-                      onChange={e => setNpcName(e.target.value)}
-                      placeholder="Villager"
-                      aria-label="NPC name"
-                      className="w-full rounded bg-gray-800 p-1.5 text-xs"
-                    />
-                  </label>
-                )}
-
-                <div className="mt-3 flex items-center justify-between border-t border-white/10 pt-2 text-[10px] text-gray-400">
-                  <span>{entities.length} placed</span>
-                  {entities.length > 0 && (
-                    <button
-                      onClick={() => setEntities([])}
-                      className="rounded bg-red-900 px-2 py-1 font-bold text-red-200 hover:bg-red-800"
-                    >
-                      Clear all
-                    </button>
-                  )}
                 </div>
               </Card>
             )}
@@ -5447,7 +5283,10 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
                 return (
                   <>
                     <SelectionHeader kind={selEntity.kind} label={`${selEntity.name || selEntity.kind} (${selEntity.kind})`} coords={`@ ${selEntity.col},${selEntity.row}`} />
-                    <Card title="Identity & stats" accent="orange" sectionId="art" focus={sectionFocus}>
+                    {/* Consolidated unit card — identity + stats + sprite + a compact animation section +
+                        the inventory/quests entry points, all in ONE card (the old Identity / Animation /
+                        Library cards folded together). */}
+                    <Card title={isPlayer ? 'Player' : isEnemy ? 'Enemy' : 'NPC'} accent="orange">
                       <EntityIdentityStatsBody entity={selEntity} onPatch={patchSelectedEntity} />
                       {isPlayer && <div className="mt-3"><CombatHud hud={playerHud} /></div>}
                       {/* Sprite folded in from the old Art/Sprite card (#61): show the current sprite + picker. */}
@@ -5478,8 +5317,11 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
                         <p className="mt-2 text-[10px] text-gray-500">Weapon pose tuning lives in the Emoji style — ASCII weapons draw their own glyph and aren&apos;t pose-driven yet.</p>
                       )}
                       </div>
-                    </Card>
-                    <Card title="Animation" accent="cyan" defaultOpen={false} sectionId="animation" focus={sectionFocus}>
+                      {/* ── Animation (compact) — figure / size / colour + a read-only state summary, folded
+                          in from the old standalone Animation card. The full frame editor opens in a modal
+                          via "See more…" — NO sprite/frame pickers inline (keeps the sidebar card short). */}
+                      <div className="mt-3 border-t border-white/10 pt-3">
+                      <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-cyan-300">Animation</p>
                       <div className="mb-3 flex items-center gap-2 text-[11px]">
                         <span className="text-gray-400">Figure</span>
                         {(['', 'male', 'female', 'old', 'child', 'alien', 'robot'] as const).map(v => (
@@ -5531,14 +5373,30 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
                           </button>
                         )}
                       </div>
-                      <AnimationEditor
-                        animations={selEntity.animations ?? []}
-                        category="units"
-                        styleId={activeStyleId}
-                        baseGlyph={selFigure}
-                        variant={selEntity.variant}
-                        onChange={next => patchSelectedEntity({ animations: next })}
-                      />
+                      {(selEntity.animations ?? []).length === 0 ? (
+                        <p className="text-[10px] leading-tight text-gray-500">No custom animations — plays the default character set.</p>
+                      ) : (
+                        <ul className="space-y-0.5">
+                          {(selEntity.animations ?? []).map(a => (
+                            <li key={a.id} className="flex items-center gap-2 text-[10px] text-gray-300">
+                              <span className="font-bold text-cyan-300">{a.name || 'unnamed'}</span>
+                              <span className="text-gray-500">{a.trigger.on} · {a.direction} · {a.frames.length}f</span>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                      <button onClick={() => setAnimEditorOpen(true)} className="mt-2 w-full rounded bg-cyan-800 px-2 py-1 text-[10px] font-bold text-white transition-colors hover:bg-cyan-700">
+                        ✦ See more… (animation editor)
+                      </button>
+                      </div>
+                      {/* ── Library entry points — folded in from the old Library card. Small buttons that open
+                          the inventory / quests modals; the manage UI lives inside those modals. */}
+                      {(isPlayer || isNpc) && (
+                        <div className="mt-3 space-y-1 border-t border-white/10 pt-3">
+                          {isPlayer && <button className={libBtn} onClick={() => setEntityModal('inventory')}>🎒 Inventory &amp; abilities…</button>}
+                          {isNpc && <button className={libBtn} onClick={() => setEntityModal('quests')}>❒ Quests…</button>}
+                        </div>
+                      )}
                     </Card>
                     {isEnemy && (
                       <Card title="Attacks / abilities" accent="orange" defaultOpen={false}>
@@ -5555,12 +5413,6 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
                         />
                       </Card>
                     )}
-                    {(isPlayer || isNpc) && (
-                      <Card title="Library" accent="purple" defaultOpen={false}>
-                        {isPlayer && <button className={libBtn} onClick={() => setEntityModal('inventory')}>🎒 Inventory &amp; abilities…</button>}
-                        {isNpc && <button className={libBtn} onClick={() => setEntityModal('quests')}>❒ Quests…</button>}
-                      </Card>
-                    )}
                     <Card title="Trigger" accent="yellow" defaultOpen={false} sectionId="trigger" focus={sectionFocus}>
                       <TriggerEditor
                         triggers={selEntity.triggers ?? []}
@@ -5574,6 +5426,20 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
                       <button onClick={deleteSelectedEntity} className="flex-1 rounded bg-red-800 px-2 py-1.5 text-xs font-bold hover:bg-red-700">Delete</button>
                       <button onClick={() => { setWaypointMode(false); setSelectedEntityId(null) }} className="rounded bg-gray-700 px-2 py-1.5 text-xs hover:bg-gray-600">Deselect</button>
                     </div>
+                    {/* The full frame-by-frame AnimationEditor (opened from the card's "See more…") — the
+                        same editor that used to sit inline in the Animation card, now in a modal. */}
+                    {animEditorOpen && (
+                      <Modal title={`${selEntity.name || selEntity.kind} — Animation`} accent="cyan" wide onClose={() => setAnimEditorOpen(false)}>
+                        <AnimationEditor
+                          animations={selEntity.animations ?? []}
+                          category="units"
+                          styleId={activeStyleId}
+                          baseGlyph={selFigure}
+                          variant={selEntity.variant}
+                          onChange={next => patchSelectedEntity({ animations: next })}
+                        />
+                      </Modal>
+                    )}
                   </>
                 )
               }
@@ -5754,8 +5620,11 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
                 return (
                   <>
                     <SelectionHeader kind="cell" label="cell" coords={cellLabel} />
-                    {/* Universal PROPERTY editor — colour/collision/height/size for the whole (multi-)selection. */}
-                    <Card title="Properties" accent="cyan" sectionId="properties" focus={sectionFocus}>
+                    {/* ONE consolidated Cell card. A cell is a fixed-size block: its only props are collision +
+                        floor colour. Below that, the TILE subsection (dims / pose of the ground tile or the prop
+                        on it) + the tile-art override. The old Properties / Tile-ground / Art-style / Height
+                        cards are all folded in here. */}
+                    <Card title="Cell" accent="cyan">
                       {(() => {
                         const grid = gridRef.current
                         const cells = cellsFromKeys(selectedCells)
@@ -5773,7 +5642,6 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
                             count={cells.length}
                             floorColor={commonValue(cells.map(({ col, row }) => grid.groundColor?.[row]?.[col] ?? null))}
                             collision={commonBool(cells.map(({ col, row }) => grid.isBlocked(col, row)))}
-                            height={commonValue(cells.map(({ col, row }) => grid.getHeight(col, row)))}
                             groundKind={firstGroundKind}
                             groundDims={{
                               width: gdim(d => d?.scaleX ?? 1),
@@ -5798,13 +5666,32 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
                             onGroundPoseReset={clearGroundPose}
                             onObjectColor={setObjectColor}
                             onCollision={setCellCollision}
-                            onHeight={setCellHeight}
                             onDim={setElementDim}
                           />
                         )
                       })()}
-                      {/* Discoverable save right where you edit — persists floor colour, element colour, dims &
-                          height with the template. Unnamed map → a toast, not a silent no-op (spec §4). */}
+                      {/* Tile-art override (folded in from the old "Art / style override" card) — pin a specific
+                          Library tile to this cell + retune the tileset pose, saved to the backend. Part of the
+                          Tile subsection. */}
+                      <div className="mt-2 border-t border-white/10 pt-2">
+                        <ArtSection override={selectedOverride} styleName={activeStyle.name} onOpen={() => setTileLibraryOpen(true)} />
+                        {poseKind && EMOJI_TILESET[poseKind] && (
+                          <div className="mt-2">
+                            <PoseControls
+                              kind={poseKind}
+                              pose={EMOJI_TILESET[poseKind]?.pose}
+                              isWeapon={WEAPON_KINDS.has(poseKind)}
+                              onChange={p => writeTilePose(poseKind, p)}
+                              onReset={() => writeTilePose(poseKind, undefined)}
+                            />
+                            <button onClick={saveEmojiPoses} disabled={savingPoses} className="mt-1.5 w-full rounded bg-emerald-700 px-2 py-1 text-[10px] font-bold text-white transition-colors hover:bg-emerald-600 disabled:opacity-40">
+                              {savingPoses ? 'Saving…' : '⭳ Save poses to backend'}
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                      {/* Discoverable save right where you edit — persists floor colour, element colour & dims
+                          with the template. Unnamed map → a toast, not a silent no-op (spec §4). */}
                       <button
                         onClick={() => { if (!templateName.trim()) { toast('Name your map in the top bar to save', 'warning'); return } void saveCurrentTemplate() }}
                         disabled={isSaving}
@@ -5813,71 +5700,6 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
                       >
                         {isSaving ? 'Saving…' : '💾 Save map'}
                       </button>
-                    </Card>
-                    <Card title="Tile / ground" accent="cyan" sectionId="tile" focus={sectionFocus}>
-                      <div className="mb-2">
-                        <label className="mb-1 flex items-center justify-between text-xs font-bold text-cyan-300">
-                          <span>Opacity</span>
-                          <span className="text-[10px] text-gray-400">{Math.round(placeOpacity * 100)}%</span>
-                        </label>
-                        <input
-                          type="range"
-                          min={15}
-                          max={100}
-                          value={Math.round(placeOpacity * 100)}
-                          onChange={e => setPlaceOpacity(Number(e.target.value) / 100)}
-                          aria-label="Tile placement opacity"
-                          className="w-full"
-                        />
-                      </div>
-                      <PaletteGroup label="Ground" color="text-gray-400">
-                        {GROUND_SWATCHES.map(g => (
-                          <TileSwatch
-                            key={g.char}
-                            char={g.char}
-                            name={g.name}
-                            bg={g.bg}
-                            fg={g.fg}
-                            onClick={() => placeTile({ char: g.char, type: 'ground', groundType: g.groundType })}
-                            selected={selectedTile?.char === g.char && selectedTile?.type === 'ground'}
-                          />
-                        ))}
-                      </PaletteGroup>
-                      <PaletteGroup label="Nature" color="text-green-400">
-                        {NATURE_TILE_KEYS.map(key => (
-                          <AssetTileSwatch key={key} tileKey={key} selectedTile={selectedTile} onPlace={placeTile} />
-                        ))}
-                      </PaletteGroup>
-                      <p className="mt-1 text-[10px] leading-tight text-gray-500">Pick a tile to paint the selected cell(s).</p>
-                    </Card>
-                    <Card title="Art / style override" accent="cyan" sectionId="art" focus={sectionFocus}>
-                      <ArtSection override={selectedOverride} styleName={activeStyle.name} onOpen={() => setTileLibraryOpen(true)} />
-                      {poseKind && EMOJI_TILESET[poseKind] && (
-                        <div className="mt-2">
-                          <PoseControls
-                            kind={poseKind}
-                            pose={EMOJI_TILESET[poseKind]?.pose}
-                            isWeapon={WEAPON_KINDS.has(poseKind)}
-                            onChange={p => writeTilePose(poseKind, p)}
-                            onReset={() => writeTilePose(poseKind, undefined)}
-                          />
-                          <button onClick={saveEmojiPoses} disabled={savingPoses} className="mt-1.5 w-full rounded bg-emerald-700 px-2 py-1 text-[10px] font-bold text-white transition-colors hover:bg-emerald-600 disabled:opacity-40">
-                            {savingPoses ? 'Saving…' : '⭳ Save poses to backend'}
-                          </button>
-                        </div>
-                      )}
-                    </Card>
-                    <Card title="Height" accent="cyan">
-                      <div className="flex items-center gap-2">
-                        <button onClick={() => placeHeight(Math.max(0, selectedHeight - 1))} className="h-6 w-6 rounded bg-gray-700 text-xs font-bold hover:bg-gray-600" aria-label="Lower height">−</button>
-                        <div className="flex gap-0.5">
-                          {[0, 1, 2, 3, 4, 5].map(h => (
-                            <button key={h} onClick={() => placeHeight(h)} className={`h-6 w-6 rounded text-xs font-bold ${selectedHeight === h && heightEditMode ? 'bg-cyan-500 text-white' : 'bg-gray-700 hover:bg-gray-600'}`}>{h}</button>
-                          ))}
-                        </div>
-                        <button onClick={() => placeHeight(Math.min(9, selectedHeight + 1))} className="h-6 w-6 rounded bg-gray-700 text-xs font-bold hover:bg-gray-600" aria-label="Raise height">+</button>
-                      </div>
-                      <p className="mt-1 text-[10px] leading-tight text-gray-500">Set the terrain height of the selected cell(s).</p>
                     </Card>
                     <Card title="Animation" accent="purple" defaultOpen={false} sectionId="animation" focus={sectionFocus}>
                       <p className="mb-2 text-[10px] leading-tight text-gray-500">One-click a preset, then Apply it to an asset in the selected cell(s). The full frame builder lives in the Paint tool.</p>

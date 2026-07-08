@@ -74,6 +74,31 @@ export function buildingDoorCell(b: GridBuilding): Cell {
   return doorCellFor(gridBuildingFacing(b), buildingRect(b))
 }
 
+/**
+ * The walkable DOOR run — the GridBuilding twin of the generator's `doorCells` (stageGenerator.ts), so a
+ * hand-placed/moved building opens the SAME entrance a generated one does. The DRAWN facade door can be
+ * more than one cell wide (a hospital's 2-wide civic doorway, a cathedral's 3-wide ceremonial one), so the
+ * walkable opening must be that wide too — otherwise a wide door has a walkable half and a blocked half
+ * ("walk between two tiles but not the actual entrance"). AXIS-ALIGNED (south/north) facades draw the door
+ * at its full width, centred on the walkable door column, so the opening spans those same cells. ROTATED
+ * (east/west) facades collapse the drawn door to a single edge cell (draw2DBuilding maps one road-edge
+ * column to the door, the rest to wall), so the opening stays 1 cell there — matching what's drawn.
+ */
+export function buildingDoorCells(b: GridBuilding): Cell[] {
+  const facing = gridBuildingFacing(b)
+  const rect = buildingRect(b)
+  const door = doorCellFor(facing, rect)
+  if (facing === 'east' || facing === 'west') return [door] // rotated → the single collapsed edge cell
+  // south/north: a run `doorCount` cells wide, centred on the walkable door column — the SAME cells the
+  // 2D facade + iso door run draw (drawn width == b.cells' bottom-row 'door' count).
+  const bottomRow = b.cells[b.cells.length - 1] ?? []
+  const doorCount = Math.max(1, bottomRow.filter(k => k === 'door').length)
+  const start = Math.max(rect.col, Math.min(rect.col + rect.w - doorCount, door.col - Math.floor(doorCount / 2)))
+  const cells: Cell[] = []
+  for (let i = 0; i < doorCount; i++) cells.push({ col: start + i, row: door.row })
+  return cells
+}
+
 /** True iff (col,row) is the building's walkable door cell. */
 export function isDoorCell(b: GridBuilding, col: number, row: number): boolean {
   const d = buildingDoorCell(b)
@@ -261,8 +286,10 @@ export function footprintCenter(b: GridBuilding): Cell {
  * from composeBuilding, so a manually-placed building matches a generated one of
  * the same type. Pure (no grid).
  */
-export function makeBuilding(type: BuildingType, facing: Facing, centerCol: number, centerRow: number): GridBuilding {
-  const facade = composeBuilding({ type })
+export function makeBuilding(type: BuildingType, facing: Facing, centerCol: number, centerRow: number, seed?: number): GridBuilding {
+  // `seed` (optional) drives the seeded peaked-vs-box roof roll for store/hospital; omitted → a box roof
+  // (the default), so existing callers/tests are byte-identical.
+  const facade = composeBuilding({ type, seed })
   const horizontal = facing === 'south' || facing === 'north'
   const w = horizontal ? facade.length : facade.depth
   const h = horizontal ? facade.depth : facade.length

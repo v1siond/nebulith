@@ -5,7 +5,7 @@
 // stay in engine/buildingEditor; this is the side-effecting stamp/unstamp + the
 // live placement reader. Moved out of the game-engine page (stage 5a).
 import { type BuildingType } from '@/engine/buildingComposer'
-import { type PlacementEnv, buildingCellBlocked, buildingFootprintCells, buildingRect, isRoadGround } from '@/engine/buildingEditor'
+import { type PlacementEnv, buildingCellBlocked, buildingDoorCells, buildingFootprintCells, buildingRect, isRoadGround } from '@/engine/buildingEditor'
 import { cellTile } from '@/engine/cellTileset'
 import type { GridBuilding, IsometricGrid } from '@/engine/IsometricGrid'
 import { buildingCellColor } from '@/engine/stageGenerator'
@@ -19,14 +19,18 @@ import { ZONE_PALETTES, ZoneId } from '@/engine/zones'
  * grid.buildings; the caller owns that array so indices stay stable across edits.
  */
 export function stampBuildingCells(grid: IsometricGrid, b: GridBuilding, zone: ZoneId): void {
-  const { cells, door } = buildingFootprintCells(b)
+  const { cells } = buildingFootprintCells(b)
   const rect = buildingRect(b)
   const base = ZONE_PALETTES[zone]?.groundTypes[0] ?? 'grass'
+  // The walkable entrance is the FULL door run (a hospital's 2-wide doorway, a cathedral's 3-wide one) —
+  // the SAME cells the generator opens + the facade/iso draw, so the drawn door always lands on walkable
+  // collision (no walkable-half/blocked-half wide door). A 1-wide door → the single doorCellFor cell.
+  const doorSet = new Set(buildingDoorCells(b).map(d => `${d.col},${d.row}`))
   // Wall block height = the facade's body rows (mirrors the generator + facadeToFootprint).
   const floors = Math.max(1, b.cells.filter(r => r.some(k => k === 'wall' || k === 'window' || k === 'door')).length)
   for (const c of cells) {
     if (c.col < 0 || c.row < 0 || c.col >= grid.cols || c.row >= grid.rows) continue
-    const isDoor = c.col === door.col && c.row === door.row
+    const isDoor = doorSet.has(`${c.col},${c.row}`)
     const perimeter = c.col === rect.col || c.col === rect.col + rect.w - 1 || c.row === rect.row || c.row === rect.row + rect.h - 1
     // Per-cell tile model: perimeter = WALL (rises `floors` blocks in iso), door = flat walkable, interior =
     // flat ROOF cell. Collision UNCHANGED (whole footprint blocks except the door). Mirrors stampFootprintCell.

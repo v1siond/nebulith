@@ -32,6 +32,10 @@ export interface BuildingSpec {
   /** Caller's roll to ALLOW a 2-wide centred door. Only takes effect on a >=3-floor, even-width
    *  building (the possibility "unlocks" at 3 floors); ignored otherwise. */
   wideDoor?: boolean
+  /** A STABLE per-building seed (e.g. its col/row). Drives the seeded peaked-vs-box roof roll for the
+   *  types that can go either way (store/hospital) — so a town shows a deterministic MIX. Absent → the
+   *  optional-peaked types default to a box roof (back-compat). */
+  seed?: number
 }
 
 export interface ComposedBuilding {
@@ -76,15 +80,34 @@ const TYPE_SPECS: Record<BuildingType, TypeSpec> = {
   house: { baseLength: 4, floors: 1, doorWidth: 1, depth: 3 },
   'big-house': { baseLength: 6, floors: 2, doorWidth: 1, depth: 4 },
   store: { baseLength: 5, floors: 1, doorWidth: 1, depth: 4 },
-  hospital: { baseLength: 6, floors: 2, doorWidth: 1, depth: 4 },
+  // Hospitals are big, so their entrance is always at least 2×2 (2 wide × the 2-tall DOOR_HEIGHT) — a
+  // wide civic doorway, not a single-cell house door.
+  hospital: { baseLength: 6, floors: 2, doorWidth: 2, depth: 4 },
   cathedral: { baseLength: 7, floors: 3, doorWidth: 3, depth: 5 },
   temple: { baseLength: 8, floors: 3, doorWidth: 3, depth: 4 }, // tall, wide, colonnaded landmark
   castle: { baseLength: 12, floors: 3, doorWidth: 4, depth: 6 },
 }
 
-// Houses (and grand temples/cathedrals) get a PEAKED triangle roof; everything else a FLAT
-// squared roof. Drives the roof-cell shape below.
+// Houses + the grand temples/cathedrals ALWAYS get a PEAKED (triangle/gable) roof. Store + hospital
+// can go EITHER way — a peaked or a box roof, rolled per building on a seed (see peakedFromSeed) so a
+// town shows a MIX. Everything else stays box. Drives the roof-cell shape below.
 const PEAKED_ROOF: ReadonlySet<BuildingType> = new Set<BuildingType>(['house', 'temple', 'cathedral'])
+const OPTIONAL_PEAKED_ROOF: ReadonlySet<BuildingType> = new Set<BuildingType>(['store', 'hospital'])
+
+// A deterministic [0,1) value from a seed — the SAME hash the stage generator's shadeNoise uses, so the
+// peaked-vs-box roll is stable per building (keyed on a stable per-building seed) and reproducible in tests.
+const seededUnit = (seed: number): number => {
+  const h = Math.abs(Math.sin(seed * 12.9898) * 43758.5453)
+  return h - Math.floor(h)
+}
+
+/** Whether an optional-peaked type (store/hospital) rolls a PEAKED roof for this building. Seeded +
+ *  deterministic, so the SAME building always decides the same way — and since the composed `cells` carry
+ *  the result (empty corners ⇒ peaked), the 2D and iso renders read the SAME choice. No seed ⇒ box. */
+function peakedFromSeed(type: BuildingType, seed: number | undefined): boolean {
+  if (!OPTIONAL_PEAKED_ROOF.has(type) || seed === undefined) return false
+  return seededUnit(seed + 0.137) < 0.5
+}
 
 /** One roof cell: a flat roof fills the row; a peaked roof narrows toward the apex above a
  *  full-width eave (the bottom roof row), leaving empty corners → a triangle silhouette. */
@@ -123,7 +146,7 @@ export function composeBuilding(spec: BuildingSpec = {}): ComposedBuilding {
 
   // Roof rows (peaked → narrowing triangle, flat → full-width squared) then the wall body.
   const apexX = Math.floor(length / 2)
-  const peaked = PEAKED_ROOF.has(type)
+  const peaked = PEAKED_ROOF.has(type) || peakedFromSeed(type, spec.seed)
   const cells: BuildingCellKind[][] = []
   for (let row = 0; row < height; row++) {
     const cellRow: BuildingCellKind[] = []

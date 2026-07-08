@@ -49,11 +49,12 @@ describe('composeBuilding — Nebulith building architecture spec', () => {
     expect(b.roofTop).toEqual({ x: 1, y: 0 })
   })
 
-  it('a short building (<3 floors) always gets a 1-cell, 2-tall door — never a wide one', () => {
-    // The wide-door "possibility" only unlocks at 3+ floors (the user's rule), so house/store/hospital/
-    // big-house (1–2 floors) keep a single-cell door regardless of frontage parity. The walkable entrance
-    // + driveway derive from this door rect (doorCells), so a 1-cell door still lines up (#40).
-    for (const type of ['house', 'store', 'hospital', 'big-house'] as BuildingType[]) {
+  it('a short building (<3 floors) always gets a 1-cell, 2-tall door — never a wide one (hospital excepted)', () => {
+    // The wide-door "possibility" only unlocks at 3+ floors (the user's rule), so house/store/big-house
+    // (1–2 floors) keep a single-cell door regardless of frontage parity. The walkable entrance + driveway
+    // derive from this door rect (doorCells), so a 1-cell door still lines up (#40). HOSPITAL is the
+    // exception (its own test below): it's a big civic building, so it always gets a >=2-wide entrance.
+    for (const type of ['house', 'store', 'big-house'] as BuildingType[]) {
       const b = composeBuilding({ type, floors: 1, wideDoor: true }) // even with the roll ON, floors gate it
       expect(b.door.height).toBe(2) // a 2-tall doorway, not a window
       expect(b.door.width).toBe(1) // <3 floors → never wide
@@ -62,6 +63,27 @@ describe('composeBuilding — Nebulith building architecture spec', () => {
       expect(b.cells[bottom - 1][b.door.x]).toBe('door') // second (top) row of the door
       expect(b.door.x).toBeGreaterThan(0) // a wall column survives to the left
       expect(b.door.x + b.door.width).toBeLessThanOrEqual(b.length)
+    }
+  })
+
+  it('a HOSPITAL always gets at least a 2×2 entrance (2 wide × 2 tall) — a big civic doorway', () => {
+    // "considering hospital are big, their entrance should always be at least 2x2." The 2×2 = doorWidth>=2
+    // (wide) × DOOR_HEIGHT (2 tall), regardless of floor count. A wall column still survives each side, and
+    // the drawn door SPAN covers the walkable entrance column so collision + the drawn door stay aligned.
+    for (const floors of [1, 2, 3]) {
+      const b = composeBuilding({ type: 'hospital', floors })
+      expect(b.door.width).toBeGreaterThanOrEqual(2) // at least 2 WIDE
+      expect(b.door.height).toBe(2) // 2 TALL (DOOR_HEIGHT)
+      const bottom = b.height - 1
+      for (let c = b.door.x; c < b.door.x + b.door.width; c++) {
+        expect(b.cells[bottom][c]).toBe('door') // ground row of the door, full width
+        expect(b.cells[bottom - 1][c]).toBe('door') // second (top) row — 2 tall
+      }
+      expect(b.door.x).toBeGreaterThan(0) // a wall column survives to the left
+      expect(b.door.x + b.door.width).toBeLessThanOrEqual(b.length) // …and to the right
+      const mid = Math.floor(b.length / 2) // the walkable entrance column (doorCellFor uses floor(w/2))
+      expect(mid).toBeGreaterThanOrEqual(b.door.x)
+      expect(mid).toBeLessThan(b.door.x + b.door.width) // the drawn door covers the walkable entrance
     }
   })
 

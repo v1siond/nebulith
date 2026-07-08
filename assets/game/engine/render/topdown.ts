@@ -20,7 +20,7 @@ import { EMOJI_TILESET } from '@/engine/tileset/emojiTileset'
 import { applyPose } from '@/engine/tileset/pose'
 import { resolveTileSize, resolveTilePose } from '@/engine/tileset/tileViewSettings'
 import { Connector } from '@/lib/api'
-import { ASCII_FONT, BUILDING_BADGES, COMBAT_RANGE, type DayNight, ENEMY_MOVE_MS, LAMP_GLOW, applyCellTransform, clampCameraAxis, assetCaptionByCell, terrainLabelAt, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawHoverRing, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawConnectorMarker, drawAttackAnimFrame, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, frameImage, getPlayerArt, grassShade, cellFill, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, assetOverride, treeCanopyLayers, treeCellSet } from './shared'
+import { ASCII_FONT, BUILDING_BADGES, COMBAT_RANGE, type DayNight, ENEMY_MOVE_MS, LAMP_GLOW, applyCellTransform, clampCameraAxis, assetCaptionByCell, terrainLabelAt, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawHoverRing, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawConnectorMarker, drawAttackAnimFrame, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, frameImage, getPlayerArt, grassShade, cellFill, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, resolveAssetDraw, resolveEntityDraw, assetOverride, treeCanopyLayers, treeCellSet } from './shared'
 import { resolveAssetDrawSize } from './assetDimensions'
 import { groundSizeFactors, groundDimsActive } from '@/engine/groundDims'
 import { ASCII_STYLE, assetKind, entityKind, entityStyleOverride, genderize, groundKind, personVariantTileId, type ElementKind, type Style } from '@/game/artStyle'
@@ -74,9 +74,10 @@ export function drawTopEntity(
   // Block style — solid bg per row + bright glyph, so the 2D view matches the iso view.
   const pal = entityPalette(entity)
   // An enemy draws its per-type tile (goblin→👺, wolf→🐺, …); a person draws its per-variant figure
-  // (male→🧍‍♂️, old→🧓, …) — both baked images. A manual tileOverride still wins.
-  const override = entity.tileOverride ?? entityStyleOverride(entity, style)
-  const edv = resolveDraw(entityKind(entity.kind), style, override, '', pal.fg)
+  // (male→🧍‍♂️, old→🧓, …) — both baked images. A brush-placed unit's manual `tileOverride` RE-HOMES onto
+  // the active style (resolveEntityDraw) so it RESKINS like a placed asset instead of freezing to the
+  // style it was placed in; no pin → the style-derived default, byte-identical to before.
+  const edv = resolveEntityDraw(entityKind(entity.kind), style, entity.tileOverride, entityStyleOverride(entity, style), '', pal.fg)
   // Per-entity SIZE scales the drawn figure (a size-2 boss draws twice as big); it grows UP from the
   // feet line (footY) — the `- (drawPx-basePx)*0.5` fixes the BOTTOM — so a bigger figure stays grounded
   // on its shadow. size 1 is byte-identical to before.
@@ -921,8 +922,11 @@ export function render2D(
       else if (asset.type === 'building') heightTiles = 4
       else if (asset.type === 'lamp') heightTiles = 2
 
-      // Base at bottom of cell - tiles stack upward
-      const baseY = p.y + tileH * 0.5 - elevOffset
+      // Base at bottom of cell - tiles stack upward. A stacked asset (editor brush, heightLevel > 0)
+      // is lifted ~0.9 cell per level so the pile reads as separate raised items instead of overlapping
+      // on one spot. heightLevel is absent (→ 0) on every generated/existing asset, so this is a no-op
+      // for anything but a deliberately stacked cell.
+      const baseY = p.y + tileH * 0.5 - elevOffset - (asset.heightLevel ?? 0) * tileH * 0.9
 
       // Authored frame animation: offset/rotate/scale the asset around its ground point (sway/wind).
       const ct2d = assetCellTransform(asset.cellAnim, time)
@@ -937,9 +941,10 @@ export function render2D(
       const flicker = Math.sin(time * 0.003 + obj.col * 0.5 + obj.row * 0.7) * 0.15 + 1
 
       // Active art style: a mapped kind (or a per-element override) replaces the whole
-      // per-type ASCII art with ONE tile. ASCII + no override → adv.char '' → falls
-      // through to the byte-identical per-type branches below.
-      const adv = resolveDraw(assetKind(asset), style, assetOverride(asset, style), '', '')
+      // per-type ASCII art with ONE tile. A PLACED tile's override re-homes onto the active
+      // style so it RESKINS (resolveAssetDraw), never freezing to the style it was picked in.
+      // ASCII + no override → adv.char '' → falls through to the byte-identical per-type branches.
+      const adv = resolveAssetDraw(assetKind(asset), style, assetOverride(asset, style), '', '')
       if (adv.image) {
         // A per-asset colour override recolours the baked sprite (#80); undefined → drawn untinted.
         // Per-view tile size (byte-identical when unset: old 1.5 constant), then per-element dims (#77/#78).

@@ -4,7 +4,7 @@
 // props-driven — all gameplay state/handlers live in the page; this is layout only.
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { ZoneId } from '@/engine/zones'
-import { BUILT_IN_STYLES, type TileCategory, genderize, tilesForStyle, visualForTileId } from '@/game/artStyle'
+import { BUILT_IN_STYLES, type TileCategory, type TileDef, genderize, tilesForStyle, visualForTileId } from '@/game/artStyle'
 import type { EntityVariant } from '@/game/types'
 import type { AnimDirection, AnimFrame, AnimTrigger, EntityAnimation } from '@/game/runtime/entityAnimation'
 import type { TilePose } from '@/engine/tileset/pose'
@@ -14,11 +14,11 @@ import { type EditorMode, SEASON_BTN, STAGE_VARIANTS, STAGE_ZONES } from './edit
 // ── Tool-rail (left, slim icon strip) ────────────────────────────────
 type RailDef = { mode: EditorMode; glyph: string; label: string; hint: string }
 
-/** The five modes, top→bottom. Glyphs mirror the approved design mockup. */
+/** The rail modes, top→bottom. Glyphs mirror the approved design mockup. The Unit tool
+ *  lives in the TOP NAV now (a dropdown, like ⚙ Stage / 🎨 Style), so it's off the rail. */
 export const RAIL_MODES: readonly RailDef[] = [
   { mode: 'select', glyph: '↖', label: 'Select', hint: 'Select & inspect — click an element to edit it' },
   { mode: 'paint', glyph: '▢', label: 'Paint', hint: 'Paint tiles & ground onto selected cells' },
-  { mode: 'unit', glyph: '◈', label: 'Unit', hint: 'Place units — player, enemies, NPCs' },
   { mode: 'building', glyph: '⌂', label: 'Building', hint: 'Place, move & rotate buildings' },
   { mode: 'connector', glyph: '↗', label: 'Connector', hint: 'Link cells to other levels & actions' },
 ]
@@ -317,6 +317,51 @@ export function StylePicker({ activeId, onPick, onClose }: { activeId: string; o
 // ── ◰ Tile Library (stage D) — per-element override picker ───────────
 const LIBRARY_CATEGORIES: readonly TileCategory[] = ['terrain', 'buildings', 'units', 'nature']
 
+/** The shared categorized tile GRID: every tile of a style's `groups`, grouped by category, 4-per-row.
+ *  Each tile is a button that highlights when `isOn(tile)` and calls `onPick(tile)`. Reused by the Tile
+ *  Library (pins a tile to the selected element) and the Paint palette (arms a placement brush) so both
+ *  read as the exact same tileset grid. */
+function TileCategoryGrid({
+  groups,
+  isOn,
+  onPick,
+}: {
+  groups: Record<TileCategory, TileDef[]>
+  isOn: (tile: TileDef) => boolean
+  onPick: (tile: TileDef) => void
+}) {
+  return (
+    <>
+      {LIBRARY_CATEGORIES.map(cat =>
+        groups[cat].length === 0 ? null : (
+          <div key={cat}>
+            <p className="mb-1 text-[10px] uppercase tracking-wide text-gray-500">{cat}</p>
+            <div className="grid grid-cols-4 gap-1">
+              {groups[cat].map(t => {
+                const on = isOn(t)
+                return (
+                  <button
+                    key={t.id}
+                    onClick={() => onPick(t)}
+                    title={`${t.label} (${t.id})`}
+                    aria-pressed={on}
+                    className={`flex flex-col items-center gap-0.5 rounded border px-1 py-1.5 transition-colors ${
+                      on ? 'border-cyan-400 bg-cyan-900/40' : 'border-white/10 bg-black/40 hover:bg-white/10'
+                    }`}
+                  >
+                    <span className="text-lg leading-none">{t.visual.kind === 'glyph' ? t.visual.char : '🖼'}</span>
+                    <span className="text-[9px] text-gray-400">{t.label}</span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        ),
+      )}
+    </>
+  )
+}
+
 /** The Tile Library body: every tile of the active style, grouped by category. Picking one pins
  *  it to the selected element (a per-element override that beats the global style); "Follow style"
  *  clears the override so the element tracks the active skin again. */
@@ -348,32 +393,48 @@ export function TileLibraryBody({
           Follow style
         </button>
       </div>
-      {LIBRARY_CATEGORIES.map(cat =>
-        groups[cat].length === 0 ? null : (
-          <div key={cat}>
-            <p className="mb-1 text-[10px] uppercase tracking-wide text-gray-500">{cat}</p>
-            <div className="grid grid-cols-4 gap-1">
-              {groups[cat].map(t => {
-                const on = override === t.id
-                return (
-                  <button
-                    key={t.id}
-                    onClick={() => onPick(t.id)}
-                    title={`${t.label} (${t.id})`}
-                    aria-pressed={on}
-                    className={`flex flex-col items-center gap-0.5 rounded border px-1 py-1.5 transition-colors ${
-                      on ? 'border-cyan-400 bg-cyan-900/40' : 'border-white/10 bg-black/40 hover:bg-white/10'
-                    }`}
-                  >
-                    <span className="text-lg leading-none">{t.visual.kind === 'glyph' ? t.visual.char : '🖼'}</span>
-                    <span className="text-[9px] text-gray-400">{t.label}</span>
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-        ),
-      )}
+      <TileCategoryGrid groups={groups} isOn={t => override === t.id} onPick={t => onPick(t.id)} />
+    </div>
+  )
+}
+
+/** The Paint palette body — the "tileset builder" tile source. It shows the SAME categorized tile grid
+ *  as the Tile Library (every terrain / building / unit / nature tile of the active style), but each click
+ *  ARMS that tile as the placement brush instead of pinning an element. Clicking the armed tile again — or
+ *  Disarm — clears it (onArm(null)). The page then routes a canvas click through tilePlacement by category
+ *  (terrain → ground, nature/buildings → stacked asset, units → entity). */
+export function TilePalette({
+  styleId,
+  styleName,
+  armedId,
+  onArm,
+}: {
+  styleId: string
+  styleName: string
+  armedId: string | null
+  onArm: (tile: TileDef | null) => void
+}) {
+  const groups = tilesForStyle(styleId)
+  const armed = armedId ? (Object.values(groups).flat() as TileDef[]).find(t => t.id === armedId) ?? null : null
+  return (
+    <div className="space-y-3" data-testid="tile-palette">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-[11px] leading-tight text-gray-400">
+          {armed
+            ? <>Brush: <span className="font-bold text-cyan-300">{armed.label}</span> — click cells to place, ⌥Alt-click to remove.</>
+            : <><span className="text-cyan-300">{styleName}</span> tiles — pick one, then click the map to place it.</>}
+        </p>
+        <button
+          onClick={() => onArm(null)}
+          disabled={!armed}
+          className={`shrink-0 rounded px-2 py-1 text-[10px] font-bold transition-colors ${
+            armed ? 'bg-gray-700 text-gray-100 hover:bg-gray-600' : 'cursor-not-allowed bg-gray-800/50 text-gray-600'
+          }`}
+        >
+          Disarm
+        </button>
+      </div>
+      <TileCategoryGrid groups={groups} isOn={t => armedId === t.id} onPick={onArm} />
     </div>
   )
 }
@@ -458,14 +519,14 @@ export interface ElementDims {
 
 export interface PropertiesPanelProps {
   count: number
-  // ── cell ── (the grid cell itself)
+  // ── cell ── (the grid cell itself). A cell is a fixed-size block: its only props are
+  // collision + floor colour. Terrain grid-height was removed from the inspector — cells
+  // are fixed blocks and height/depth is a TILE property (next voxel/tileset pass).
   floorColor: string | null // shared floor override, or null (none/mixed)
   collision: boolean | null // shared collision state, or null (mixed)
-  height: number | null // shared terrain grid-height (iso elevation), or null (mixed)
   onFloorColor: (color: string) => void
   onClearFloorColor: () => void
   onCollision: (blocked: boolean) => void
-  onHeight: (h: number) => void
   // ── floor tile ── (the CELL's own ground tile — the SAME W/H/D/Zoom + pose props get, on EVERY tile)
   groundKind: string // the first cell's ground kind → labels the per-cell pose, e.g. "grass"
   groundDims: ElementDims // shared per-cell floor scale (Width/Height/Depth/Zoom), null per axis = mixed
@@ -501,12 +562,12 @@ export function PropertiesPanel(p: PropertiesPanelProps) {
       {value === null && mixed}
     </label>
   )
+  // No outer card-box / header here: this panel renders INSIDE the consolidated "Cell" <Card>,
+  // so wrapping it again would be a card-in-card with a duplicate title. Two labeled sections:
+  // CELL (collision + floor colour — the cell's only props) and TILE (dims + pose of the ground
+  // tile / prop standing on it — "a tile can be an npc, building part, tree, anything").
   return (
-    <div className="space-y-1.5 rounded-lg border border-white/10 bg-black/40 p-2 text-xs">
-      <p className="text-[10px] font-bold uppercase tracking-wider text-cyan-300">
-        Properties — {p.count} cell{p.count === 1 ? '' : 's'}
-      </p>
-
+    <div className="space-y-1.5 text-xs">
       {divider('cell')}
       <div className="flex items-center gap-2">
         <span className="w-14 shrink-0 text-[10px] text-gray-400">Floor</span>
@@ -514,11 +575,6 @@ export function PropertiesPanel(p: PropertiesPanelProps) {
         {p.floorColor === null && mixed}
         <button onClick={p.onClearFloorColor} className="ml-auto rounded bg-gray-700 px-2 py-0.5 text-[9px] hover:bg-gray-600" title="Reset the floor to its tile colour">↺ reset</button>
       </div>
-      <label className="flex items-center gap-2" title="Terrain elevation — raises the CELL (iso blocks). This is NOT the element's height.">
-        <span className="w-14 shrink-0 text-[10px] text-gray-400">Grid height</span>
-        <input type="number" min={0} max={9} step={1} value={p.height ?? 0} onChange={e => num(e.target.value, n => p.onHeight(Math.round(n)))} aria-label="Terrain grid height" className="w-14 rounded bg-gray-800 p-1 text-[10px] tabular-nums text-cyan-300" />
-        {p.height === null && mixed}
-      </label>
       <div className="flex items-center gap-2">
         <span className="w-14 shrink-0 text-[10px] text-gray-400">Collision</span>
         <button onClick={() => p.onCollision(true)} aria-pressed={p.collision === true} className={`rounded px-2 py-0.5 text-[10px] font-bold ${p.collision === true ? 'bg-red-600 text-white' : 'bg-gray-700 hover:bg-gray-600'}`}>Blocked</button>
@@ -526,12 +582,12 @@ export function PropertiesPanel(p: PropertiesPanelProps) {
         {p.collision === null && mixed}
       </div>
 
-      {/* FLOOR TILE — the same Width/Height/Depth/Zoom + a per-cell pose that props get, now on EVERY tile
-          (the user's ask: "the settings are available FOR EVERY TILE not just decorations"). These size/pose
-          the CELL's own ground tile, per-cell, in both 2D and iso. Default (all 1, no pose) = the current look. */}
-      {divider('floor tile')}
+      {/* TILE — Width/Height/Depth/Zoom + a per-cell pose for the CELL's own ground tile, in both 2D and
+          iso. Default (all 1, no pose) = the current look. The prop/element on the cell (if any) gets the
+          same controls below. */}
+      {divider('tile')}
       {dimRow('Width', 'width', p.groundDims.width, 'Width — stretches THIS floor tile horizontally (both views)', p.onGroundDim)}
-      {dimRow('Height', 'height', p.groundDims.height, 'Height — no effect on a flat floor; use Grid height above to raise the cell', p.onGroundDim)}
+      {dimRow('Height', 'height', p.groundDims.height, 'Height — stretches this floor tile vertically', p.onGroundDim)}
       {dimRow('Depth', 'depth', p.groundDims.depth, 'Depth — stretches this floor tile along the ground axis', p.onGroundDim)}
       {dimRow('Zoom', 'zoom', p.groundDims.zoom, 'Zoom — scales this floor tile uniformly', p.onGroundDim)}
       <PoseControls kind={`this cell (${p.groundKind})`} pose={p.groundPose} isWeapon={false} onChange={p.onGroundPose} onReset={p.onGroundPoseReset} />

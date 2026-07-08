@@ -562,7 +562,9 @@ function placeSettlement(ctx: ArchetypeContext, settlement: Settlement): void {
   //    every footprint cell (a roof from above) EXCEPT the road-facing door cell (walkable).
   for (const plot of layout.plots) {
     // Roll for a wide door — only "unlocks" inside composeBuilding for a >=3-floor even-width building.
-    const facade = composeBuilding({ type: plot.type, length: plot.length, wideDoor: Math.random() < 0.5 })
+    // `seed` (the plot's stable position) drives the seeded peaked-vs-box roof roll for store/hospital, so a
+    // town shows a deterministic MIX of peaked + box for them (composeBuilding bakes the choice into cells).
+    const facade = composeBuilding({ type: plot.type, length: plot.length, wideDoor: Math.random() < 0.5, seed: plot.col + plot.row })
     const rect = footprintRect(plot)
     if (!rectInBounds(rect, cols, rows)) continue // planner's rectClear guarantees this; stay safe
     buildings.push(placeBuilding(ctx, facade, plot, rect))

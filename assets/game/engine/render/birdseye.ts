@@ -11,7 +11,7 @@ import { type PlayerState, barFraction, hpFraction } from '@/game/runtime/player
 import { type CombatState, type Entity, type Quest } from '@/game/types'
 import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 import { Connector } from '@/lib/api'
-import { ASCII_FONT, BUILDING_BADGES, type DayNight, LAMP_GLOW, applyCellTransform, clampCameraAxis, collectLampGlows, debugCellCaptions, debugLabelColors, drawConnectorMarker, drawHitMarker, drawHpBar, drawNightLighting, drawQuestMarker, drawStyledImage, fillTintedGlyph, grassShade, cellFill, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, assetOverride, tileImage } from './shared'
+import { ASCII_FONT, BUILDING_BADGES, type DayNight, LAMP_GLOW, applyCellTransform, clampCameraAxis, collectLampGlows, debugCellCaptions, debugLabelColors, drawConnectorMarker, drawHitMarker, drawHpBar, drawNightLighting, drawQuestMarker, drawStyledImage, fillTintedGlyph, grassShade, cellFill, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, resolveAssetDraw, resolveEntityDraw, assetOverride, tileImage } from './shared'
 import { resolveAssetDrawSize } from './assetDimensions'
 import { EMOJI_TILESET } from '@/engine/tileset/emojiTileset'
 import { applyPose } from '@/engine/tileset/pose'
@@ -302,8 +302,10 @@ export function renderTopView(
         bg = grassy ? grassShade(colors.bg[0], col, row) : colors.bg[0]
       }
 
-      // Resolve the active art style (ASCII passthrough → the defaults above, unchanged).
-      const dv = resolveDraw(kind, style, asset ? assetOverride(asset, style) : undefined, char, fg)
+      // Resolve the active art style (ASCII passthrough → the defaults above, unchanged). A PLACED
+      // tile's override re-homes onto the active style so it RESKINS (resolveAssetDraw); a bare ground
+      // cell (no asset) passes undefined → the coarse kind, unchanged.
+      const dv = resolveAssetDraw(kind, style, asset ? assetOverride(asset, style) : undefined, char, fg)
 
       // Draw cell — a reskin tints the blueprint cell at the tile hue (agrees with iso/2D), but grass
       // keeps its per-cell shade so a field isn't one flat green ("grass is just color"); ASCII → bg.
@@ -540,8 +542,10 @@ export function renderTopView(
     if (isDeadEnemy(entity, combat)) continue // hidden until it respawns
     const ex = offsetX + entity.col * tileSize
     const ey = offsetY + entity.row * tileSize
-    const bdvOverride = entity.tileOverride ?? entityStyleOverride(entity, style)
-    const edv = resolveDraw(entityKind(entity.kind), style, bdvOverride, '>', topRoleColor(entity, quests))
+    // A brush-placed unit's manual `tileOverride` RE-HOMES onto the active style (resolveEntityDraw) so it
+    // RESKINS like a placed asset instead of freezing to the style it was placed in; no pin → the style-
+    // derived default (entityStyleOverride), byte-identical to before.
+    const edv = resolveEntityDraw(entityKind(entity.kind), style, entity.tileOverride, entityStyleOverride(entity, style), '>', topRoleColor(entity, quests))
     // genderize so npcs show their male/female figure in top view too (the ASCII `>` fallback and 👾
     // pass through unchanged); matches iso/2d.
     if (edv.image) drawStyledImage(ctx, edv.image, ex + tileSize / 2, ey + tileSize / 2, tileSize)

@@ -19,7 +19,7 @@ import { type CombatState, type Entity, type Quest } from '@/game/types'
 import { resolveGroundTile } from '@/engine/tileset/tileset'
 import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 import { Connector } from '@/lib/api'
-import { ASCII_FONT, BUILDING_BADGES, COMBAT_RANGE, type DayNight, type DrawVisual, ENEMY_MOVE_MS, LAMP_GLOW, LIGHT, applyCellTransform, isoCameraFocus, assetCaptionByCell, terrainLabelAt, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawHoverRing, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawConnectorMarker, drawAttackAnimFrame, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, frameImage, getPlayerArt, grassShade, cellFill, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, assetOverride, tileImage, tintedImage, tintedGlyphSprite, treeCanopyLayers, treeCellSet } from './shared'
+import { ASCII_FONT, BUILDING_BADGES, COMBAT_RANGE, type DayNight, type DrawVisual, ENEMY_MOVE_MS, LAMP_GLOW, LIGHT, applyCellTransform, isoCameraFocus, assetCaptionByCell, terrainLabelAt, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawHoverRing, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawConnectorMarker, drawAttackAnimFrame, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, frameImage, getPlayerArt, grassShade, cellFill, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, resolveAssetDraw, resolveEntityDraw, assetOverride, tileImage, tintedImage, tintedGlyphSprite, treeCanopyLayers, treeCellSet } from './shared'
 import { resolveAssetDrawSize } from './assetDimensions'
 import { type GroundCellDims, groundSizeFactors, groundDimsActive } from '@/engine/groundDims'
 import { isoBlockFaces, type BlockFace } from './isoBlock'
@@ -510,7 +510,7 @@ export function render(
       row: player.z / cellSize,
       isPlayer: true
     }
-  ].sort((a, b) => (a.col + a.row) - (b.col + b.row))
+  ].sort(isoDepthCompare) // back-to-front, then bottom-up within a stacked cell (higher blocks over lower)
 
   // Render each object with ASCII art style
   const playerIsTarget = !!targetId && entities.some(e => e.kind === 'player' && e.id === targetId)
@@ -544,8 +544,12 @@ export function render(
     } else if (obj.asset) {
       const op = obj.asset.opacity ?? 1 // per-asset opacity for contrast/depth
       if (op < 1) ctx.globalAlpha = op
+      // Brush STACK: lift this entry `heightLevel` cubes up so the pile climbs in iso (block-kinds extrude
+      // into stacked cubes, decorative sprites become a lifted billboard). No-op at heightLevel 0 — every
+      // generated/existing asset — so non-stacked maps are byte-identical. Mirrors the 2D raised stack.
+      const stackLift = isoStackLift(tileW, obj.asset.heightLevel)
       // Authored frame animation: offset/rotate/scale the asset around its cell (sway/wind).
-      const ax = p.x, ay = p.y - heightOffset
+      const ax = p.x, ay = p.y - heightOffset - stackLift
       const ct = assetCellTransform(obj.asset.cellAnim, time)
       if (ct) applyCellTransform(ctx, ax, ay, ct, tileW, tileH)
       drawIsoAssetAscii(ctx, ax, ay, obj.asset, tileW, tileH, time, obj.asset.type === 'tree' && (!!obj.asset.baseShadow || isGroundContact(isTreeCell, obj.asset.col, obj.asset.row)), dayNight, style)
@@ -924,9 +928,10 @@ export function drawIsoEntity(
   const kind = entityKind(entity.kind)
   const isEnemy = kind === 'enemy'
   // An enemy draws its per-type tile (goblin→👺, wolf→🐺, …); a person draws its per-variant figure
-  // (male→🧍‍♂️, old→🧓, …) — both baked images. A manual tileOverride still wins.
-  const override = entity.tileOverride ?? entityStyleOverride(entity, style)
-  const edv = resolveDraw(kind, style, override, '', pal.fg)
+  // (male→🧍‍♂️, old→🧓, …) — both baked images. A brush-placed unit's manual `tileOverride` RE-HOMES onto
+  // the active style (resolveEntityDraw) so it RESKINS like a placed asset instead of freezing to the
+  // style it was placed in; no pin → the style-derived default, byte-identical to before.
+  const edv = resolveEntityDraw(kind, style, entity.tileOverride, entityStyleOverride(entity, style), '', pal.fg)
   // Ground the billboard by its BOTTOM at the shadow line, so ANY tile size stays grounded (a
   // smaller enemy no longer floats above its shadow). `groundY` is the feet contact point.
   const groundY = baseY + tileH * 0.24
@@ -1110,6 +1115,35 @@ function groundSprite(gdv: DrawVisual, tileW: number, tileH: number, tint?: stri
 }
 
 
+// The default iso BLOCK height (screen px) of ONE stack level — one cube tall. drawIsoTileBlock draws
+// a default-dim cube exactly this tall (its `bh` base is tileW * 0.9), so lifting a stacked asset by
+// this per level makes the pile climb in lockstep with the cubes (and with the 2D raised stack).
+export const ISO_BLOCK_H_FRAC = 0.9
+
+/** Iso screen-space RISE for a stacked asset: `heightLevel` cubes up (one ISO_BLOCK_H per level). The
+ *  new brush stacks assets on a cell with heightLevel 0,1,2,… so the render lifts each entry by this —
+ *  a 3-tall stack reads as 3 items climbing. heightLevel absent/0 (every generated/existing asset) → 0,
+ *  so this is a pure no-op for non-stacked maps. Matches topdown.ts's 2D `heightLevel * tileH * 0.9`. */
+export function isoStackLift(tileW: number, heightLevel: number | undefined): number {
+  return (heightLevel ?? 0) * tileW * ISO_BLOCK_H_FRAC
+}
+
+/** Depth order for the merged iso draw list: back-to-front by the iso key (col + row), then — for two
+ *  ASSETS on the SAME cell — bottom-up by heightLevel so a brush STACK composites higher blocks OVER
+ *  lower ones (matching the isoStackLift rise). A non-asset tie (entity/player/building) returns 0 to
+ *  keep the array's stable insertion order, so nothing but same-cell asset stacks is reordered — the
+ *  no-stack case is byte-identical to the old `(a.col+a.row)-(b.col+b.row)` sort. */
+export function isoDepthCompare(
+  a: { col: number; row: number; asset?: { heightLevel?: number } },
+  b: { col: number; row: number; asset?: { heightLevel?: number } },
+): number {
+  const d = (a.col + a.row) - (b.col + b.row)
+  if (d !== 0) return d
+  if (a.asset && b.asset) return (a.asset.heightLevel ?? 0) - (b.asset.heightLevel ?? 0)
+  return 0
+}
+
+
 /** Render a height≥1 tile/asset as an iso CUBE — the 3D half of the 2D+3D tileset model. The cell's
  *  flat diamond extrudes into `height` stacked blocks (isoBlockFaces); each block fills its two
  *  camera-visible side faces + the top face gets the final cap, and the tile is SHEARED onto every
@@ -1155,11 +1189,8 @@ export function drawIsoTileBlock(
   else fillFace(top, faceColor, dv, tint)
 }
 
-// Building-interior setting (default OFF = HOLLOW): buildings render as an empty shell so the DOOR and the
-// wall-fade read — you can see IN when the hero is near (a filled interior blocks that). ON = filled;
-// interior decorations come later. The editor toggles this via setShowBuildingInterior.
-export let SHOW_BUILDING_INTERIOR = false
-export function setShowBuildingInterior(v: boolean): void { SHOW_BUILDING_INTERIOR = v }
+// Buildings always render as an empty shell (HOLLOW) so the DOOR and the wall-fade read — you can see IN
+// when the hero is near. Interior decorations come later as real tiles, not a fill toggle.
 
 /** Windows per wall FACE — ~one per two cells, clamped [2,4] — matching the 2D elevation's spacing so a
  *  street reads uniform. Shared by the iso render + its test (single source of truth). */
@@ -1231,6 +1262,32 @@ function drawIsoPeakedRoof(ctx: CanvasRenderingContext2D, fbl: Pt, fbr: Pt, bbl:
   face(darkenColor(roofC, Math.min(1, sideRF + 0.06)), FER, BER, BRR, FRR)   // right slope
   face(darkenColor(roofC, 0.9), FRL, FRR, BRR, BRL)                          // ridge top
   face(roofC, FEL, FER, FRR, FRL)                                            // front gable (full roof colour)
+}
+
+
+/** A BOX (flat-topped, extruded) roof over the footprint BOX: the same whole-footprint plane the old flat
+ *  roof used, but RAISED into a ROOF_ROWS-tall block so it has the SAME 2-cell height the 2D facade shows
+ *  (was a height-0 plane stamped at the eaves — the "the roof doesn't have any height" bug). The two
+ *  camera-near side faces rise `roofRise` from the eaves and a top diamond caps it; every face is fillQuad'd
+ *  in the building's roof DATA colour — shaded by orientation with the SAME faceLight the wall cubes use —
+ *  then the roof TILE is sheared onto it recoloured to that shade (drawRoofTileOnQuad), so it's genuinely
+ *  tile-based like the peaked roof + the 2D elevation, and stays ONE coherent box (not a per-cell grid).
+ *  Side faces first, top cap last (nearer/higher paints over). `fbl/fbr/bbl/bbr` are the box's four GROUND
+ *  corners (front-left, front, back-left, right). */
+function drawIsoBoxRoof(ctx: CanvasRenderingContext2D, fbl: Pt, fbr: Pt, bbl: Pt, bbr: Pt, liftEave: number, roofRise: number, roofC: string, roofTileDV: DrawVisual, tileW: number, tileH: number): void {
+  const eave = (p: Pt): Pt => ({ x: p.x, y: p.y - liftEave })              // top of the walls
+  const top = (p: Pt): Pt => ({ x: p.x, y: p.y - liftEave - roofRise })    // top of the roof box
+  // Near side faces shaded like the wall cubes: front-left (L→B edge) dimmer, front-right (B→R edge).
+  const leftShade = darkenColor(roofC, faceLight(-tileH, tileW))
+  const rightShade = darkenColor(roofC, faceLight(tileH, tileW))
+  const face = (shade: string, a: Pt, b: Pt, c: Pt, d: Pt): void => {
+    ctx.fillStyle = shade
+    fillQuad(ctx, a, b, c, d)
+    drawRoofTileOnQuad(ctx, [a, b, c, d], roofTileDV, shade)
+  }
+  face(leftShade, eave(fbl), eave(fbr), top(fbr), top(fbl))   // front-left wall of the box
+  face(rightShade, eave(fbr), eave(bbr), top(bbr), top(fbr))  // front-right wall of the box
+  face(roofC, top(fbl), top(fbr), top(bbr), top(bbl))         // TOP cap diamond (full roof colour), last
 }
 
 
@@ -1335,7 +1392,7 @@ export function isoBuildingDescriptor(b: GridBuilding, style: Style): IsoBuildin
  * capped with a real ROOF: a peaked gable for houses/temple/cathedral, a flat plane otherwise, in the
  * building's roof DATA colour (no red 🟥 band, mirroring 2D). A STORE/HOSPITAL badge floats over the apex.
  * No whole-building landmark glyph, no solid-only content faces. Cells draw back-to-front so nearer walls
- * occlude farther ones; the interior stays HOLLOW unless SHOW_BUILDING_INTERIOR. */
+ * occlude farther ones; the interior always stays HOLLOW. */
 export function drawIsoBuildingTiles(
   ctx: CanvasRenderingContext2D,
   b: GridBuilding,
@@ -1398,7 +1455,7 @@ export function drawIsoBuildingTiles(
     // The DOOR cell is a CONTINUOUS wall for the block geometry (full height, same material as its
     // neighbours — no short standalone cube); the 🚪 door tile shears onto its road-facing FACE below.
     if (c.kind === 'wall' || c.kind === 'door') { ctx.globalAlpha = wallAlpha; drawIsoTileBlock(ctx, center, tileW, tileH, blockH, floors, wallTileDV, wallC, roofFaceDV) }
-    else if (SHOW_BUILDING_INTERIOR) { ctx.globalAlpha = wallAlpha; drawIsoTileBlock(ctx, center, tileW, tileH, blockH, floors, roofFaceDV, roofC) } // interior filled only when the setting is ON (default: HOLLOW)
+    // non-wall interior cells draw nothing — the building stays HOLLOW.
   }
 
   // ── Outer footprint BOX (its four GROUND corners) — the window bands + a peaked roof hang on it. Each
@@ -1445,16 +1502,12 @@ export function drawIsoBuildingTiles(
   if (peaked) {
     drawIsoPeakedRoof(ctx, fbl, fbr, bbl, bbr, rect.w, liftEave, roofRise, roofC, roofTileDV)
   } else {
-    // FLAT roof (store / hospital / …): ONE clean plane over the WHOLE footprint box at the eave height —
-    // the same single-coherent-shape treatment the peaked roof gets. Was: a separate diamond tile stamped
-    // per footprint cell, which read as a gridded, boxy emoji-REPEAT (the "store/hospital roof looks weird"
-    // bug). Fill the footprint diamond once in the roof DATA colour, then shear the roof TILE onto it via the
-    // SAME drawRoofTileOnQuad helper the peaked faces use — a genuine recoloured tile, no per-cell grid.
-    const eaveOf = (p: Pt): Pt => ({ x: p.x, y: p.y - liftEave })
-    const quad = [eaveOf(fbl), eaveOf(fbr), eaveOf(bbr), eaveOf(bbl)] // left → front → right → back diamond
-    ctx.fillStyle = roofC
-    fillQuad(ctx, quad[0], quad[1], quad[2], quad[3])
-    drawRoofTileOnQuad(ctx, quad, roofTileDV, roofC)
+    // BOX roof (store / hospital / …): the same clean WHOLE-footprint plane, but EXTRUDED into a
+    // ROOF_ROWS-tall block so it has the SAME 2-cell height the 2D facade shows — matching the peaked
+    // roof's rise (was a height-0 plane at the eaves: the "the roof doesn't have any height, it should
+    // match the size it has on 2d" bug). Still one coherent shape (not a per-cell grid), still a genuine
+    // recoloured roof tile via the SAME drawRoofTileOnQuad the peaked faces use.
+    drawIsoBoxRoof(ctx, fbl, fbr, bbl, bbr, liftEave, roofRise, roofC, roofTileDV, tileW, tileH)
   }
 
   // ── TYPE BADGE (STORE / HOSPITAL) floating over the roof apex — mirrors the 2D/top badge so a shop /
@@ -1464,7 +1517,7 @@ export function drawIsoBuildingTiles(
     ctx.globalAlpha = 1
     const cx = (fbl.x + fbr.x + bbl.x + bbr.x) / 4
     const cy = (fbl.y + fbr.y + bbl.y + bbr.y) / 4
-    const apexY = cy - liftEave - (peaked ? roofRise : blockH * 0.4)
+    const apexY = cy - liftEave - roofRise // both roofs now rise roofRise (peaked ridge / box top)
     const bf = blockH * (badge.text.length > 1 ? 0.6 : 0.95)
     ctx.font = `bold ${bf}px ${ASCII_FONT}`
     ctx.textAlign = 'center'
@@ -1561,7 +1614,7 @@ function bakeIsoBuildingSprite(
     const cx = (fbl.x + fbr.x + bbl.x + bbr.x) / 4
     const cy = (fbl.y + fbr.y + bbl.y + bbr.y) / 4
     const liftEave = desc.floors * blockH
-    const apexY = cy - liftEave - (desc.peaked ? roofRise : blockH * 0.4)
+    const apexY = cy - liftEave - roofRise // both roofs now rise roofRise (peaked ridge / box top)
     const bf = blockH * (badge.text.length > 1 ? 0.6 : 0.95)
     const bw = badge.text.length * bf * 0.75 + 8 // upper-bound for measureText on this mono-ish bold font
     const by = apexY - bf * 0.9
@@ -1609,7 +1662,7 @@ export function drawIsoBuildingSprited(
     drawIsoBuildingTiles(ctx, b, toScreen, cellElevation, heightStep, tileW, tileH, style, fade)
     return
   }
-  const key = `${style.id}|${Math.round(tileW)}|${Math.round(tileH)}|${elevVersion}|${SHOW_BUILDING_INTERIOR ? 1 : 0}`
+  const key = `${style.id}|${Math.round(tileW)}|${Math.round(tileH)}|${elevVersion}`
   let sprite = _isoBuildingSprites.get(b)
   if (!sprite || sprite.key !== key) {
     const baked = bakeIsoBuildingSprite(b, desc, toScreen, cellElevation, heightStep, tileW, tileH, style)
@@ -1953,9 +2006,10 @@ export function drawIsoAssetAscii(
   ctx.textBaseline = 'middle'
 
   // Active art style: a mapped kind (or a per-element override) replaces ALL of the per-type
-  // art below (labeled cells, trees, legacy buildings, props) with ONE tile. ASCII + no
-  // override → adv.char '' → falls through to the byte-identical per-type rendering.
-  const adv = resolveDraw(assetKind(asset), style, assetOverride(asset, style), '', asset.color ?? '#ffffff')
+  // art below (labeled cells, trees, legacy buildings, props) with ONE tile. A PLACED tile's
+  // override re-homes onto the active style so it RESKINS (resolveAssetDraw), never freezing to
+  // the style it was picked in. ASCII + no override → adv.char '' → the byte-identical per-type draw.
+  const adv = resolveAssetDraw(assetKind(asset), style, assetOverride(asset, style), '', asset.color ?? '#ffffff')
   // The tile's emoji-tileset entry: per-view size/pose + the iso block-height default. Undefined under ASCII.
   const vt = style.id === 'emoji' ? EMOJI_TILESET[assetKind(asset)] : undefined
   // 3D half of the 2D+3D tileset: a tile (or the placed instance via GridAsset.height) with height≥1 extrudes

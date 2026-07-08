@@ -273,6 +273,7 @@ export class IsometricGrid {
       footprint: options.footprint,
       cellPart: options.cellPart,
       tileOverride: options.tileOverride, // per-cell art-style pin (e.g. a season's tree tile) — was dropped
+      heightLevel: options.heightLevel,   // stack level: the editor brush stacks assets on one cell
     })
 
     // If blocking, update collision grid
