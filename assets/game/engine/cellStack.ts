@@ -36,12 +36,14 @@ export interface TileEntry {
   tileId?: string
   /** what this tile IS: the ground slug for the floor; `label ?? type` for a stacked asset. */
   slug: string
-  /** Width (x) — horizontal stretch. GroundCellDims.scaleX / GridAsset.scaleX. Default 1. */
-  w: number
-  /** Depth (into-screen ground axis). GroundCellDims.scaleZ / GridAsset.scaleZ. Default 1. */
-  d: number
-  /** BLOCK height: 0 = flat floor tile, ≥1 = extruded cube. resolveTileHeight(GridAsset.height); floor = 0. */
-  h: number
+  /** Width (x) — horizontal stretch. GroundCellDims.scaleX / GridAsset.scaleX. Absent = tile default (→1). */
+  w?: number
+  /** Depth (into-screen ground axis). GroundCellDims.scaleZ / GridAsset.scaleZ. Absent = tile default (→1). */
+  d?: number
+  /** BLOCK height: 0 = flat floor tile, ≥1 = extruded cube. resolveTileHeight(GridAsset.height); floor = 0.
+   *  Absent = do NOT pin a per-instance height — the renderer falls back to the tile's catalog height (the
+   *  editor brush relies on this so a placed house/tree keeps its authored extrusion). */
+  h?: number
   /** Zoom — uniform multiplier over every axis. GroundCellDims.scale / GridAsset.scale. */
   zoom?: number
   /** Height (up) — vertical sprite stretch (grows UP). GroundCellDims.scaleY / GridAsset.scaleY. Carried;
@@ -51,6 +53,8 @@ export interface TileEntry {
   pose?: TilePose
   /** colour override (GroundCellDims via groundColor / GridAsset.color). null/absent = catalog colour. */
   color?: string | null
+  /** per-instance sprite opacity (GridAsset.opacity). absent = fully opaque (the renderer uses `opacity ?? 1`). */
+  opacity?: number
   /** does this tile block movement (GridAsset.blocking). See deriveCellCollision. */
   collision?: boolean
   /** which legacy layer this entry came from. */
@@ -111,6 +115,7 @@ function assetEntry(a: GridAsset): TileEntry {
     zoom: a.scale,
     scaleY: a.scaleY,
     color: a.color ?? null,
+    opacity: a.opacity,
     collision: a.blocking ?? false,
     heightLevel: a.heightLevel ?? 0,
     art: a.art,
@@ -171,22 +176,26 @@ function topLevel(grid: IsometricGrid, col: number, row: number): number {
 
 /** pushTile → placeAsset at heightLevel = (top + 1). placeAsset's fixed option list drops the per-instance
  *  dims (scaleX/scaleZ/scaleY/height) and the label, so we assign those onto the just-placed asset to keep
- *  the uniform-tile push lossless. Returns the placed GridAsset. */
+ *  the uniform-tile push lossless. Each patch is applied ONLY when the entry actually pins that field: an
+ *  entry that OMITS w/d/h (the editor brush, which places a tile at its catalog size/height) leaves
+ *  scaleX/scaleZ/height undefined so the renderer falls back to the tile default — byte-identical to the
+ *  pre-adapter placeAsset call. Returns the placed GridAsset. */
 export function pushTile(grid: IsometricGrid, col: number, row: number, entry: TileEntry): GridAsset {
   const heightLevel = topLevel(grid, col, row) + 1
   grid.placeAsset(entry.art ?? [], col, row, {
     type: entry.type,
     blocking: entry.collision ?? false,
     color: entry.color ?? undefined,
+    opacity: entry.opacity,
     scale: entry.zoom,
     tileOverride: entry.tileId,
     heightLevel,
   })
   const placed = grid.assets[grid.assets.length - 1]
-  placed.scaleX = entry.w
-  placed.scaleZ = entry.d
-  placed.scaleY = entry.scaleY
-  placed.height = entry.h
+  if (entry.w !== undefined) placed.scaleX = entry.w
+  if (entry.d !== undefined) placed.scaleZ = entry.d
+  if (entry.scaleY !== undefined) placed.scaleY = entry.scaleY
+  if (entry.h !== undefined) placed.height = entry.h
   if (entry.label !== undefined) placed.label = entry.label
   return placed
 }

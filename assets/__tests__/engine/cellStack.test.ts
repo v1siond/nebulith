@@ -193,6 +193,23 @@ describe('mutators translate stack ops back onto the grid setters', () => {
     expect(stack[2]).toMatchObject({ w: 1.5, d: 0.5, h: 1, scaleY: 2, zoom: 1.25 })
   })
 
+  test('pushTile passes opacity through and leaves OMITTED w/d/h undefined (editor-brush parity)', () => {
+    const grid = mkGrid()
+    // A brush-style entry pins art/type/tile/colour + opacity but OMITS w/d/h, so the placed instance keeps
+    // its catalog size/height (scaleX/scaleZ/height stay undefined) exactly like the pre-adapter placeAsset.
+    const placed = pushTile(grid, 1, 1, {
+      source: 'asset', slug: 'pine-tree', type: 'tree', art: ['🌲'],
+      tileId: 'emoji:pine-tree', color: '#2e8b57', collision: true, opacity: 0.5,
+    })
+    expect(placed.opacity).toBe(0.5)
+    expect(placed.scaleX).toBeUndefined()
+    expect(placed.scaleZ).toBeUndefined()
+    expect(placed.scaleY).toBeUndefined()
+    expect(placed.height).toBeUndefined() // no per-instance height → renderer uses the tile's catalog height
+    expect(placed.tileOverride).toBe('emoji:pine-tree')
+    expect(grid.isBlocked(1, 1)).toBe(true)
+  })
+
   test('popTile removes only the TOP asset and returns it; no-op on a floor-only cell', () => {
     const grid = mkGrid()
     pushTile(grid, 3, 3, { source: 'asset', slug: 'base', type: 'tile', label: 'base', art: ['.'], w: 1, d: 1, h: 1 })
