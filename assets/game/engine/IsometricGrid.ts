@@ -254,9 +254,11 @@ export class IsometricGrid {
     }
   }
 
-  // Place an asset at grid position
-  placeAsset(art: string[], col: number, row: number, options: Partial<GridAsset> = {}) {
-    this.assets.push({
+  // Place an asset at grid position. Returns the placed asset so a caller can set the few GridAsset
+  // fields this fixed option list doesn't carry (height/label/buildingType/…) WITHOUT reaching into
+  // grid.assets directly — the same trick cellStack.pushTile uses.
+  placeAsset(art: string[], col: number, row: number, options: Partial<GridAsset> = {}): GridAsset {
+    const asset: GridAsset = {
       art,
       col,
       row,
@@ -274,12 +276,14 @@ export class IsometricGrid {
       cellPart: options.cellPart,
       tileOverride: options.tileOverride, // per-cell art-style pin (e.g. a season's tree tile) — was dropped
       heightLevel: options.heightLevel,   // stack level: the editor brush stacks assets on one cell
-    })
+    }
+    this.assets.push(asset)
 
     // If blocking, update collision grid
     if (options.blocking) {
       this.setCollision(col, row, true)
     }
+    return asset
   }
 
   // Check if position is blocked
@@ -403,6 +407,24 @@ export class IsometricGrid {
     this.assets = this.assets.filter(a => !(a.col === col && a.row === row))
     this.setCollision(col, row, false)
     this.setHeight(col, row, 0)
+  }
+
+  // Replace the WHOLE asset list — the single write-point for a wholesale swap (load/deserialize), so a
+  // later step can rebuild per-cell stacks here instead of code assigning grid.assets directly.
+  setAssets(assets: GridAsset[]) {
+    this.assets = assets
+  }
+
+  // Drop every asset (keeps ground/collision/height). Reassigns the array — identical to the `assets = []`
+  // it replaces — so identity-keyed render caches (e.g. the tree-cell set) rebuild.
+  clearAssets() {
+    this.assets = []
+  }
+
+  // Drop every asset matching `pred`. Reassigns to a filtered array (new identity) exactly like the
+  // `assets = assets.filter(...)` writes it replaces, so behaviour and cache-busting are unchanged.
+  removeAssetsWhere(pred: (asset: GridAsset) => boolean) {
+    this.assets = this.assets.filter(a => !pred(a))
   }
 }
 

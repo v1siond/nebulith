@@ -283,14 +283,14 @@ export function deserializeToGrid(
   // Load ground data
   for (let r = 0; r < data.rows && r < data.groundData.length; r++) {
     for (let c = 0; c < data.cols && c < data.groundData[r].length; c++) {
-      grid.ground[r][c] = data.groundData[r][c]
+      grid.setGround(c, r, data.groundData[r][c])
     }
   }
 
   // Load height data
   for (let r = 0; r < data.rows && r < data.heightData.length; r++) {
     for (let c = 0; c < data.cols && c < data.heightData[r].length; c++) {
-      grid.height[r][c] = data.heightData[r][c]
+      grid.setHeight(c, r, data.heightData[r][c])
     }
   }
 
@@ -299,7 +299,7 @@ export function deserializeToGrid(
   // cell on load — #72), `cellAnim`/`cycles` (authored animations), `edge`/`cellPart` (debug labels),
   // `baseShadow`, `buildingType`. serializeGrid saves the full GridAsset, so a shallow clone round-
   // trips them all; new GridAsset fields are carried automatically.
-  grid.assets = data.assetsData.map(a => ({ ...a }) as unknown as GridAsset)
+  grid.setAssets(data.assetsData.map(a => ({ ...a }) as unknown as GridAsset))
 
   // Rebuild collision grid from assets. Blocks are collision regardless of any
   // visual height level — a blocking asset always blocks its cell.

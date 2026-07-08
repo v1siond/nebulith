@@ -198,7 +198,7 @@ export function popTile(grid: IsometricGrid, col: number, row: number): GridAsse
   const assets = grid.getAssetsAtCell(col, row)
   if (assets.length === 0) return undefined
   const top = assets[assets.length - 1]
-  grid.assets = grid.assets.filter(a => a !== top)
+  grid.removeAssetsWhere(a => a === top)
   return top
 }
 

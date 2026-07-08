@@ -61,7 +61,7 @@ export function removeTopAsset(grid: IsometricGrid, col: number, row: number): G
   const stack = grid.getAssetsAtCell(col, row) // sorted ascending by heightLevel
   const top = stack[stack.length - 1]
   if (!top) return null
-  grid.assets = grid.assets.filter(a => a !== top)
+  grid.removeAssetsWhere(a => a === top)
   grid.setCollision(col, row, grid.getAssetsAtCell(col, row).some(a => a.blocking))
   return top
 }

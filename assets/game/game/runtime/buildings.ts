@@ -37,19 +37,13 @@ export function stampBuildingCells(grid: IsometricGrid, b: GridBuilding, zone: Z
     const label = isDoor ? 'door' : perimeter ? 'wall' : 'roof'
     const tile = cellTile(zone, label)
     const color = buildingCellColor(b.type as BuildingType, label, b.col)
-    grid.assets.push({
-      art: [tile.char],
-      col: c.col,
-      row: c.row,
-      type: 'building',
-      blocking: !isDoor,
-      color,
-      label,
-      buildingType: b.type,
-      height: label === 'wall' ? floors : 0,
-    })
-    grid.collision[c.row][c.col] = isDoor ? 0 : 1
-    grid.ground[c.row][c.col] = base
+    const asset = grid.placeAsset([tile.char], c.col, c.row, { type: 'building', blocking: !isDoor, color })
+    // placeAsset's fixed option list doesn't carry these — set them on the returned asset (was the raw push).
+    asset.label = label
+    asset.buildingType = b.type
+    asset.height = label === 'wall' ? floors : 0
+    grid.setCollision(c.col, c.row, !isDoor) // door walkable, every other footprint cell blocks
+    grid.setGround(c.col, c.row, base)
   }
 }
 
@@ -62,11 +56,11 @@ export function unstampBuildingCells(grid: IsometricGrid, b: GridBuilding, zone:
   const { cells } = buildingFootprintCells(b)
   const base = ZONE_PALETTES[zone]?.groundTypes[0] ?? 'grass'
   const keys = new Set(cells.map(c => `${c.col},${c.row}`))
-  grid.assets = grid.assets.filter(a => !(a.type === 'building' && keys.has(`${a.col},${a.row}`)))
+  grid.removeAssetsWhere(a => a.type === 'building' && keys.has(`${a.col},${a.row}`))
   for (const c of cells) {
     if (c.col < 0 || c.row < 0 || c.col >= grid.cols || c.row >= grid.rows) continue
-    grid.collision[c.row][c.col] = 0
-    grid.ground[c.row][c.col] = base
+    grid.setCollision(c.col, c.row, false)
+    grid.setGround(c.col, c.row, base)
   }
 }
 

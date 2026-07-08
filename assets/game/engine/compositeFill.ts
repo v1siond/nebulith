@@ -50,7 +50,7 @@ export function fillSelectionWithComposite(
     const tile = byOffset.get(`${pdx},${pdy}`)
     if (!tile) continue // a gap in a non-rectangular pattern → leave the cell empty
 
-    grid.assets = grid.assets.filter(a => !(a.col === col && a.row === row)) // replace
+    grid.removeAssetsWhere(a => a.col === col && a.row === row) // replace
     grid.placeAsset([tile.char], col, row, {
       type: tile.type,
       blocking: tile.blocking,
@@ -92,7 +92,7 @@ export function scaleCompositeToRegion(
       const pdy = Math.min(patternH - 1, Math.floor(((row - minRow) / regionH) * patternH))
       const tile = byOffset.get(`${pdx},${pdy}`)
       if (!tile) continue // a gap in a non-rectangular pattern stays empty
-      grid.assets = grid.assets.filter(a => !(a.col === col && a.row === row))
+      grid.removeAssetsWhere(a => a.col === col && a.row === row)
       grid.placeAsset([tile.char], col, row, {
         type: tile.type,
         blocking: tile.blocking,

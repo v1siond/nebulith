@@ -1551,7 +1551,7 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
       const g = gridRef.current
       if (!g) return
       for (let r = row0; r <= row1; r++) for (let c = col0; c <= col1; c++) { g.setGround(c, r, 'grass'); g.setCollision(c, r, false) }
-      g.assets = g.assets.filter(a => !(a.col >= col0 && a.col <= col1 && a.row >= row0 && a.row <= row1))
+      g.removeAssetsWhere(a => a.col >= col0 && a.col <= col1 && a.row >= row0 && a.row <= row1)
       g.buildings = g.buildings.filter(bd => !(bd.col >= col0 - 4 && bd.col <= col1 && bd.row >= row0 - 4 && bd.row <= row1 + 4))
     }
     // Building-tool validation seams: place a house, resize it, read its facade length — so house-sizing
@@ -1974,7 +1974,7 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
       grid.setHeight(col, row, 0)
       grid.setCollision(col, row, false)
     })
-    grid.assets = grid.assets.filter(a => !selectedCells.has(`${a.col},${a.row}`))
+    grid.removeAssetsWhere(a => selectedCells.has(`${a.col},${a.row}`))
     setSelectedCells(new Set())
   }
 
@@ -2088,7 +2088,7 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
         grid.setHeight(c, r, 0)
       }
     }
-    grid.assets = []
+    grid.clearAssets()
     grid.buildings = [] // legacy template buildings are █ blocks, not grouped facades
 
     // Helper to place a building (3x3 with walls, elevated)
@@ -2211,9 +2211,9 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
         // Small clearing with cabin (height 2 for cozy cabin)
         grid.fillGround(cx - 4, cy - 4, 9, 9, 'grass')
         // Remove trees from clearing (they were placed, need to filter)
-        grid.assets = grid.assets.filter(a => {
+        grid.removeAssetsWhere(a => {
           const inClearing = a.col >= cx - 4 && a.col < cx + 5 && a.row >= cy - 4 && a.row < cy + 5
-          return !inClearing || a.type !== 'tree'
+          return inClearing && a.type === 'tree'
         })
         placeBuilding(cx - 1, cy - 1, '#8b4513', 2)
 
@@ -2254,9 +2254,9 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
         grid.fillGround(cx - 2, rows - 5, 5, 3, 'road')
         grid.fillHeight(cx - 2, rows - 5, 5, 3, 0)
         // Remove wall blocks at gate
-        grid.assets = grid.assets.filter(a => {
+        grid.removeAssetsWhere(a => {
           const atGate = a.col >= cx - 2 && a.col < cx + 3 && a.row >= rows - 5
-          return !atGate
+          return atGate
         })
 
         // Inner courtyard
@@ -2360,9 +2360,9 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
         placeTrees(cx - Math.floor(radius) + 3, cy - Math.floor(radius) + 3,
                    Math.floor(radius * 2) - 6, Math.floor(radius * 2) - 6, 0.12)
         // Clear trees from village area
-        grid.assets = grid.assets.filter(a => {
+        grid.removeAssetsWhere(a => {
           const inVillage = a.col >= cx - 5 && a.col < cx + 6 && a.row >= cy - 5 && a.row < cy + 6
-          return !inVillage || a.type !== 'tree'
+          return inVillage && a.type === 'tree'
         })
 
         // Small dock
@@ -2794,12 +2794,12 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
   const applyStageToGrid = (stage: StageData, grid: IsometricGrid) => {
     for (let r = 0; r < grid.rows; r++) {
       for (let c = 0; c < grid.cols; c++) {
-        grid.ground[r][c] = stage.ground[r]?.[c] ?? 'ash'
-        grid.height[r][c] = 0
-        grid.collision[r][c] = stage.collision[r]?.[c] ? 1 : 0
+        grid.setGround(c, r, stage.ground[r]?.[c] ?? 'ash')
+        grid.setHeight(c, r, 0)
+        grid.setCollision(c, r, !!stage.collision[r]?.[c])
       }
     }
-    grid.assets = []
+    grid.clearAssets()
     // Group the facades for the ISO view (one upright unit per building). 2D keeps using the
     // per-cell assets below; iso renders from grid.buildings and skips those per-cell draws.
     grid.buildings = stage.buildings.map(b => ({
@@ -2819,7 +2819,7 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
     }))
     const paint = stagePaint(stage)
     for (const g of paint.ground) {
-      if (grid.ground[g.row]?.[g.col] !== undefined) grid.ground[g.row][g.col] = g.type
+      if (grid.ground[g.row]?.[g.col] !== undefined) grid.setGround(g.col, g.row, g.type)
     }
     // TREES keep their 🌲 shape and are RECOLOURED to the season by the renderer (asset.color = the zone
     // canopy shade), so autumn trees are amber, winter frosted — NOT replaced with a flower/leaf. Only the
@@ -2847,7 +2847,7 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
   const promoteNpcAssetsToEntities = (grid: IsometricGrid): Entity[] => {
     const bare = grid.assets.filter(a => a.type === 'npc')
     if (bare.length === 0) return []
-    grid.assets = grid.assets.filter(a => a.type !== 'npc')
+    grid.removeAssetsWhere(a => a.type === 'npc')
     return bare.map((a, i) => ({
       ...makeNpc(mintEntityId('npc'), a.col, a.row, { name: `Wanderer ${i + 1}` }),
       variant: (i % 2 === 0 ? 'male' : 'female') as 'male' | 'female',
@@ -2962,7 +2962,7 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
     const getBaseGround = (): string => themeColors.baseGround
 
     // === STEP 1: Clear grid with natural ground formations ===
-    grid.assets = []
+    grid.clearAssets()
     grid.buildings = [] // rebuilt below as STRUCTURED buildings (walls+roof), populated in STEP 6
     const baseGround = getBaseGround()
     for (let r = 0; r < rows; r++) {
@@ -4242,8 +4242,8 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
       const loadedCellTriggers = cellTriggersFromAssets(gridRef.current!.assets) // cell triggers (enter/interact)
       const loadedGroundColor = groundColorFromAssets(gridRef.current!.assets) // per-cell floor colours
       const loadedGroundDims = groundDimsFromAssets(gridRef.current!.assets) // per-cell floor dims (W/H/D/Zoom + pose)
-      gridRef.current!.assets = gridRef.current!.assets.filter(
-        a => !isEntityAsset(a) && !isQuestAsset(a) && !isBuildingAsset(a) && !isStyleAsset(a) && !isTriggerAsset(a) && !isGroundColorAsset(a) && !isGroundDimsAsset(a),
+      gridRef.current!.removeAssetsWhere(
+        a => isEntityAsset(a) || isQuestAsset(a) || isBuildingAsset(a) || isStyleAsset(a) || isTriggerAsset(a) || isGroundColorAsset(a) || isGroundDimsAsset(a),
       )
       // Restore per-cell floor colours: clear any stale overrides (a reused grid keeps the last map),
       // then apply the saved ones. setGroundColor bumps groundVersion so the cached ground layer rebuilds.
