@@ -10,9 +10,9 @@
  * material walls, per-floor WINDOWS, a DOOR, and a peaked/flat ROOF TILE recoloured to the building's
  * own data colour (a genuine tile on every face, like 2D — no solid-colour-only roof).
  */
-import { drawIsoBuildingTiles, faceWindowCount, type Pt } from '@/engine/render/iso'
+import { drawIsoBuildingTiles, faceWindowCount, doorFaceEdge, type Pt } from '@/engine/render/iso'
 import { draw2DBuilding } from '@/engine/render/topdown'
-import { makeBuilding, buildingRect } from '@/engine/buildingEditor'
+import { makeBuilding, buildingRect, buildingDoorCell } from '@/engine/buildingEditor'
 import { type BuildingType } from '@/engine/buildingComposer'
 import { wallMaterialTile, wallMaterialImage, buildingCellColor } from '@/engine/stageGenerator'
 import { EMOJI_STYLE, ASCII_STYLE } from '@/game/artStyle'
@@ -105,17 +105,42 @@ describe('drawIsoBuildingTiles — the iso building is the 2D facade + depth, a 
   const facadeDoorCount = (b: GridBuilding): number => (b.cells[b.cells.length - 1] ?? []).filter(k => k === 'door').length
   const isoDoorFaces = (b: GridBuilding): number => draw(b).glyphs.filter(g => g === '🚪').length
 
-  test('the iso door COUNT equals the 2D facade door count — for EVERY facing (always visible, never a cube)', () => {
+  test('the iso door COUNT equals the 2D facade door count — for EVERY facing (never a cube)', () => {
     // A house carries ONE facade door, a cathedral THREE, a castle FOUR — the same run the 2D elevation draws.
-    // The iso must render exactly that many door FACES, and keep the count through every rotation: a south/east
-    // building shows the run on its real (camera-near) entrance; a north/west building — whose entrance faces a
-    // HIDDEN far wall — has the whole run MIRRORED onto a camera-near wall, so a door is ALWAYS visible (the
-    // reported #24 bug: a north/west house used to show NO door at all).
+    // The iso must render exactly that many door FACES, and keep the count through every rotation. The run sits
+    // on the TRUE road-facing entrance wall (same cell as 2D + collision) — a south/east entrance on its
+    // camera-near wall, a north/west entrance on its (hidden) far wall, revealed by the wall-fade. The COUNT is
+    // invariant either way (the reported #24 bug: a north/west house once showed NO door at all).
     for (const [type, expected] of [['house', 1], ['cathedral', 3], ['castle', 4]] as [BuildingType, number][]) {
       expect(facadeDoorCount(makeBuilding(type, 'south', 8, 8))).toBe(expected) // sanity: the facade truly carries N doors
       for (const facing of ['south', 'east', 'north', 'west'] as const) {
         expect(isoDoorFaces(makeBuilding(type, facing, 8, 8))).toBe(expected)
       }
+    }
+  })
+
+  test('doorFaceEdge maps each facing to its entrance wall edge (near south/east, FAR north/west)', () => {
+    const px = 100, by = 50, w = 20, h = 10
+    // The four diamond edges of a cell centred at (100,50): L(80,50) T(100,40) R(120,50) B(100,60).
+    expect(doorFaceEdge('south', px, by, w, h)).toEqual({ a: { x: 80, y: 50 }, b: { x: 100, y: 60 } }) // L→B (near)
+    expect(doorFaceEdge('east', px, by, w, h)).toEqual({ a: { x: 100, y: 60 }, b: { x: 120, y: 50 } })  // B→R (near)
+    expect(doorFaceEdge('north', px, by, w, h)).toEqual({ a: { x: 100, y: 40 }, b: { x: 120, y: 50 } })  // T→R (far)
+    expect(doorFaceEdge('west', px, by, w, h)).toEqual({ a: { x: 80, y: 50 }, b: { x: 100, y: 40 } })    // L→T (far)
+  })
+
+  test('the iso door renders on the TRUE entrance wall for EVERY facing (not relocated to a near wall)', () => {
+    // The door tile's shear ORIGIN (stamp.e/f) is the entrance wall's bottom-left corner. For each facing it
+    // must equal doorFaceEdge at the WALKABLE door cell — i.e. the door sits on the same road-facing wall the
+    // 2D facade + collision use, NOT force-relocated to the camera-near front/right wall.
+    for (const facing of ['south', 'east', 'north', 'west'] as const) {
+      const b = makeBuilding('house', facing, 8, 8)
+      const door = buildingDoorCell(b) // the lone walkable entrance cell
+      const dp = toScreen(door.col, door.row) // flatGround → 0 elevation, so screen == ground
+      const expected = doorFaceEdge(facing, dp.x, dp.y, tileW, tileH)
+      const doorStamps = draw(b).stamps.filter(s => s.char === '🚪')
+      expect(doorStamps).toHaveLength(1)
+      expect(doorStamps[0].e).toBeCloseTo(expected.a.x, 5) // shear origin x = entrance edge corner
+      expect(doorStamps[0].f).toBeCloseTo(expected.a.y, 5) // shear origin y
     }
   })
 

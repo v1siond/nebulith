@@ -149,12 +149,16 @@ export function composeBuilding(spec: BuildingSpec = {}): ComposedBuilding {
     }
   }
 
-  // Door: doorWidth x doorHeight, planted at the bottom and CENTRED — equal wall margins either side
-  // (2*doorX + doorWidth == length) so it reads symmetric with the mirrored windows. That span always
-  // contains floor(length/2), the column stageGenerator's walkable doorCell + driveway sit on, so the
-  // drawn door still lines up with the entrance for any length. Ceremonial (wide) doors keep ≥1 wall
-  // column each side.
-  const doorX = Math.max(centredDoor ? 0 : 1, Math.floor((length - doorWidth) / 2))
+  // Door: doorWidth x doorHeight, planted at the bottom and CENTRED on the walkable entrance COLUMN —
+  // floor(length/2), the exact cell doorCellFor (the collision door + the 2D entrance chevron + the iso
+  // door) sits on, and where the driveway crosses. Centring the door SPAN on that column guarantees the
+  // drawn door always COVERS the walkable cell — the old `floor((length - doorWidth)/2)` centred the span
+  // but left a 1-wide door on an EVEN frontage one column LEFT of floor(length/2), so the drawn door + its
+  // driveway landed off the entrance the collision opened (the reported "door not at the entrance, free
+  // collision doesn't match" bug). Symmetric parities (even/even, odd/odd, the 2-wide centred door) are
+  // unchanged; only the mismatched 1-wide-even case shifts one cell right onto its walkable entrance.
+  // Ceremonial (wide) doors keep ≥1 wall column each side.
+  const doorX = Math.max(centredDoor ? 0 : 1, Math.floor(length / 2) - Math.floor(doorWidth / 2))
   const doorY = height - doorHeight
   for (let row = doorY; row < height; row++) {
     for (let col = doorX; col < doorX + doorWidth; col++) {

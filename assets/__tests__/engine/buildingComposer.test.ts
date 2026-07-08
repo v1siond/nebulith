@@ -78,6 +78,22 @@ describe('composeBuilding — Nebulith building architecture spec', () => {
     expect(composeBuilding({ type: 'house', floors: 3, length: 5, wideDoor: true }).door.width).toBe(1)
   })
 
+  it('centres the drawn door SPAN on the walkable entrance column floor(length/2) for EVERY length + type', () => {
+    // #A: the walkable doorCell (collision) + driveway sit on floor(length/2); the DRAWN facade door must
+    // COVER that column or it lands off the entrance the collision opened. The old `floor((L-doorWidth)/2)`
+    // left a 1-wide door on an EVEN frontage one column LEFT of floor(L/2) — the "door not at entrance" bug.
+    const types: BuildingType[] = ['house', 'store', 'hospital', 'big-house', 'cathedral', 'temple', 'castle']
+    for (const type of types) {
+      for (const length of [2, 3, 4, 5, 6, 7, 8]) {
+        const b = composeBuilding({ type, length })
+        const mid = Math.floor(b.length / 2) // the walkable entrance column (doorCellFor uses floor(w/2))
+        expect(mid).toBeGreaterThanOrEqual(b.door.x)
+        expect(mid).toBeLessThan(b.door.x + b.door.width) // the drawn door SPAN covers the walkable column
+        expect(b.cells[b.height - 1][mid]).toBe('door')   // …and the bottom-row cell there really IS drawn a door
+      }
+    }
+  })
+
   it('roofs the top row (flat store) and walls the body (corners are walls, not door)', () => {
     const b = composeBuilding({ type: 'store', floors: 1 }) // flat roof → full top row
     expect(b.cells[0].every(c => c === 'roof')).toBe(true)

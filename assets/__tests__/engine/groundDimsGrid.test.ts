@@ -2,11 +2,10 @@
  * Per-cell floor dims on the grid model + the iso static-ground cache invalidation.
  *
  * setGroundDims mirrors setGroundColor: a per-cell override that bumps groundVersion so BOTH the 2D
- * static-ground layer (keyed on groundVersion) and the iso offscreen cache (keyed on
- * isoGroundSignature, which must now fold groundDims) rebuild when a floor cell's dims change.
+ * static-ground layer AND the iso offscreen cache — which now BOTH key their content signature on
+ * grid.groundVersion (O(1)) — rebuild when a floor cell's dims change.
  */
 import { IsometricGrid } from '@/engine/IsometricGrid'
-import { isoGroundSignature } from '@/engine/render/iso'
 
 const mkGrid = () => new IsometricGrid({ cols: 6, rows: 6, cellSize: 16, isoScale: 1.4 })
 
@@ -51,28 +50,30 @@ describe('IsometricGrid.setGroundDims — per-cell floor dims (mirrors setGround
   })
 })
 
-describe('isoGroundSignature folds groundDims → the iso static-ground cache invalidates on a dims edit', () => {
-  test('signature changes when a visible cell gets per-cell dims', () => {
+describe('groundVersion is the iso static-ground cache signature → a floor-dims edit invalidates it', () => {
+  // The iso offscreen cache now compares grid.groundVersion (see render/iso.ts) as its content
+  // signature, exactly like the 2D static-ground layer. So the invariant the cache relies on is that
+  // any floor edit bumps groundVersion — a version change is what forces a rebuild.
+  test('a dims edit bumps groundVersion so the cache rebuilds', () => {
     const grid = mkGrid()
-    const before = isoGroundSignature(grid, 0, 5, 0, 5)
+    const before = grid.groundVersion
     grid.setGroundDims(2, 2, { scaleX: 2 })
-    const after = isoGroundSignature(grid, 0, 5, 0, 5)
-    expect(after).not.toBe(before)
+    expect(grid.groundVersion).toBe(before + 1)
   })
 
-  test('a pose-only edit also changes the signature', () => {
+  test('a pose-only edit also bumps groundVersion', () => {
     const grid = mkGrid()
-    const before = isoGroundSignature(grid, 0, 5, 0, 5)
+    const before = grid.groundVersion
     grid.setGroundDims(3, 1, { pose: { dx: 0.5 } })
-    const after = isoGroundSignature(grid, 0, 5, 0, 5)
-    expect(after).not.toBe(before)
+    expect(grid.groundVersion).toBe(before + 1)
   })
 
-  test('an out-of-view dims edit does NOT change the in-view signature', () => {
+  test('a colour or height edit bumps the same signature (all floor edits invalidate the cache)', () => {
     const grid = mkGrid()
-    const before = isoGroundSignature(grid, 0, 2, 0, 2)
-    grid.setGroundDims(5, 5, { scaleX: 2 }) // outside the [0..2] window
-    const after = isoGroundSignature(grid, 0, 2, 0, 2)
-    expect(after).toBe(before)
+    const v0 = grid.groundVersion
+    grid.setGroundColor(1, 1, '#ff0000')
+    grid.setHeight(2, 2, 3)
+    grid.setGround(0, 0, 'stone')
+    expect(grid.groundVersion).toBe(v0 + 3)
   })
 })

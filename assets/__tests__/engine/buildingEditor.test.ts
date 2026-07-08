@@ -12,6 +12,7 @@ import {
   canPlaceBuilding,
   buildingCellBlocked,
   ROAD_GROUND,
+  isRoadGround,
   moveBuilding,
   rotateBuilding,
   resizeBuilding,
@@ -195,6 +196,19 @@ describe('buildingCellBlocked — the manual-placement policy (occupied / collis
     expect(ROAD_GROUND).toBe('path_stone')
   })
 
+  // #B road-overlap: this module used to recognise ONLY 'path_stone', so canPlaceBuilding happily stamped a
+  // building onto a generated 'road_center'/'road_edge'/'path_dirt' street — the "building still mixes with
+  // the road" bug. Every road/path ground the game paints must block, matching the editor's own placement guard.
+  test('blocks EVERY road/path ground type, not just path_stone', () => {
+    for (const ground of ['road', 'road_center', 'road_edge', 'plaza', 'path_stone', 'path_dirt', 'bridge', 'snow_path', 'desert_road', 'wooden_planks', 'courtyard_stone']) {
+      expect(buildingCellBlocked({ occupied: false, collision: false, ground })).toBe(true)
+      expect(isRoadGround(ground)).toBe(true)
+    }
+    // …and non-road walkable grounds stay placeable.
+    for (const ground of ['grass', 'ash', 'rune_floor', 'koi']) expect(isRoadGround(ground)).toBe(false)
+    expect(isRoadGround(undefined)).toBe(false)
+  })
+
   test('the loosening: a WALKABLE decorative water-like ground (collision-free, non-road) is placeable', () => {
     // A hand-painted koi/oasis/water tile leaves collision untouched; per the policy default
     // (any non-collision, non-road, non-asset cell) it is now build-able — it was not before.
@@ -241,6 +255,15 @@ describe('placement over a live-grid model (policy + canPlaceBuilding end to end
 
   test('rejects when the footprint clips a road', () => {
     expect(canPlaceBuilding(makeGridEnv({ road: [[12, 12]] }), house())).toBe(false) // the door cell
+  })
+
+  test('rejects a footprint clipping a NON-path_stone street (road_center) — the road-overlap fix', () => {
+    // A legacy-preset map paints streets as 'road_center'/'road_edge'; those must reject a footprint too.
+    const env: PlacementEnv = {
+      cols: 40, rows: 40,
+      blocked: (col, row) => buildingCellBlocked({ occupied: false, collision: false, ground: (col === 11 && row === 11) ? 'road_center' : 'grass' }),
+    }
+    expect(canPlaceBuilding(env, house())).toBe(false) // (11,11) is inside the house footprint
   })
 
   test('rejects when the footprint overlaps an existing building footprint', () => {

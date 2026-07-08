@@ -300,6 +300,25 @@ export function collectLampGlows(
 }
 
 
+// The tree-cell key Set (`col,row` of every `tree` asset) — the anchor for the ground-contact shadow
+// lookup (isGroundContact) both views run per placed asset every frame. Rebuilding it with a full
+// grid.assets scan + Set alloc each frame was pure waste; memoize it. Trees are only ADDED via
+// assets.push (array reference stable, length grows) or removed/moved by REASSIGNING grid.assets (new
+// reference); an in-place field edit (e.g. a recolour) changes neither the reference, the length, nor
+// any tree cell. So keying on (assets reference, length) rebuilds exactly when the tree cells can
+// change and reuses the Set otherwise — same content the inline `new Set(...filter...map...)` built.
+// Module state only; no game state is touched. Shared by iso + 2D so both stay in lockstep.
+let _treeCellCache: { assets: readonly GridAsset[]; len: number; set: Set<string> } | null = null
+export function treeCellSet(grid: IsometricGrid): Set<string> {
+  const assets = grid.assets
+  if (_treeCellCache && _treeCellCache.assets === assets && _treeCellCache.len === assets.length) return _treeCellCache.set
+  const set = new Set<string>()
+  for (const a of assets) if (a.type === 'tree') set.add(`${a.col},${a.row}`)
+  _treeCellCache = { assets, len: assets.length, set }
+  return set
+}
+
+
 /** Deterministic per-cell grass tint: a stable position hash nudges the base grass bg lighter
  *  or darker so the lawn reads as natural patches instead of one flat sheet. Computed from
  *  (col,row) only — stable per cell, never shifts frame-to-frame. Paths/roads never call this. */

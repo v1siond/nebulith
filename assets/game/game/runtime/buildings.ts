@@ -5,7 +5,7 @@
 // stay in engine/buildingEditor; this is the side-effecting stamp/unstamp + the
 // live placement reader. Moved out of the game-engine page (stage 5a).
 import { type BuildingType } from '@/engine/buildingComposer'
-import { type PlacementEnv, buildingCellBlocked, buildingFootprintCells, buildingRect } from '@/engine/buildingEditor'
+import { type PlacementEnv, buildingCellBlocked, buildingFootprintCells, buildingRect, isRoadGround } from '@/engine/buildingEditor'
 import { cellTile } from '@/engine/cellTileset'
 import type { GridBuilding, IsometricGrid } from '@/engine/IsometricGrid'
 import { buildingCellColor } from '@/engine/stageGenerator'
@@ -96,14 +96,15 @@ export function buildingPlacementEnv(grid: IsometricGrid, ignoreIndex: number, i
   }
 }
 
-/** The cardinal direction from (col,row) toward the NEAREST road cell (path_stone),
- *  so a manually-placed building fronts a street like a generated one. Defaults to
- *  south when the map has no roads. */
+/** The cardinal direction from (col,row) toward the NEAREST road cell (any road/path ground —
+ *  road_center/road_edge/path_stone/…, so it works on generated AND legacy-preset maps), so a
+ *  manually-placed building fronts a street like a generated one. Defaults to south when the map
+ *  has no roads. */
 export function nearestRoadFacing(grid: IsometricGrid, col: number, row: number): Facing {
   let best: { d: number; facing: Facing } | null = null
   for (let r = 0; r < grid.rows; r++) {
     for (let c = 0; c < grid.cols; c++) {
-      if (grid.ground[r]?.[c] !== 'path_stone') continue
+      if (!isRoadGround(grid.ground[r]?.[c])) continue
       const d = Math.abs(c - col) + Math.abs(r - row)
       if (best && d >= best.d) continue
       const facing: Facing =

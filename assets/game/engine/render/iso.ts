@@ -4,6 +4,7 @@ import { assetAnimFrame, assetCycleFrame } from '@/engine/assetAnimations'
 import { type AttackAnim, animFrame } from '@/engine/attackAnimations'
 import { type BuildingType } from '@/engine/buildingComposer'
 import { facadeToFootprint, buildingRect, doorCellFor, gridBuildingFacing } from '@/engine/buildingEditor'
+import { type Facing } from '@/engine/villageLayout'
 import { assetCellTransform } from '@/engine/cellAnimation'
 import { isGroundContact } from '@/engine/cellLabels'
 import { darkenColor, lightenColor, withAlpha } from '@/engine/colors'
@@ -18,7 +19,7 @@ import { type CombatState, type Entity, type Quest } from '@/game/types'
 import { resolveGroundTile } from '@/engine/tileset/tileset'
 import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 import { Connector } from '@/lib/api'
-import { ASCII_FONT, BUILDING_BADGES, COMBAT_RANGE, type DayNight, type DrawVisual, ENEMY_MOVE_MS, LAMP_GLOW, LIGHT, applyCellTransform, isoCameraFocus, assetCaptionByCell, terrainLabelAt, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawHoverRing, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawConnectorMarker, drawAttackAnimFrame, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, frameImage, getPlayerArt, grassShade, cellFill, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, assetOverride, tileImage, tintedImage, tintedGlyphSprite, treeCanopyLayers } from './shared'
+import { ASCII_FONT, BUILDING_BADGES, COMBAT_RANGE, type DayNight, type DrawVisual, ENEMY_MOVE_MS, LAMP_GLOW, LIGHT, applyCellTransform, isoCameraFocus, assetCaptionByCell, terrainLabelAt, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawHoverRing, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawConnectorMarker, drawAttackAnimFrame, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, frameImage, getPlayerArt, grassShade, cellFill, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, assetOverride, tileImage, tintedImage, tintedGlyphSprite, treeCanopyLayers, treeCellSet } from './shared'
 import { resolveAssetDrawSize } from './assetDimensions'
 import { type GroundCellDims, groundSizeFactors, groundDimsActive } from '@/engine/groundDims'
 import { isoBlockFaces, type BlockFace } from './isoBlock'
@@ -83,34 +84,6 @@ export function ensureIsoCacheCanvas(w: number, h: number): { canvas: HTMLCanvas
   const ctx = isoCacheCanvas.getContext('2d')
   if (!ctx) return null
   return { canvas: isoCacheCanvas, ctx }
-}
-
-
-/** Fast FNV-1a over the visible cells' ground type + height — the only static-cache
- *  inputs an in-place map edit can change. Cheap (a few hundred cells, pure CPU) and
- *  complete: it catches any visible paint/height edit regardless of mutation path. */
-export function isoGroundSignature(grid: IsometricGrid, startCol: number, endCol: number, startRow: number, endRow: number): number {
-  let hsh = 0x811c9dc5
-  for (let row = startRow; row <= endRow; row++) {
-    const groundRow = grid.ground[row]
-    const heightRow = grid.height[row]
-    const colorRow = grid.groundColor?.[row]
-    const dimsRow = grid.groundDims?.[row]
-    for (let col = startCol; col <= endCol; col++) {
-      const g = groundRow ? groundRow[col] : undefined
-      if (g) for (let i = 0; i < g.length; i++) { hsh ^= g.charCodeAt(i); hsh = Math.imul(hsh, 0x01000193) }
-      hsh ^= (heightRow ? heightRow[col] : 0) | 0
-      hsh = Math.imul(hsh, 0x01000193)
-      // fold the per-cell FLOOR COLOUR override into the hash so a colour edit rebuilds the cached ground
-      const oc = colorRow ? colorRow[col] : null
-      if (oc) for (let i = 0; i < oc.length; i++) { hsh ^= oc.charCodeAt(i); hsh = Math.imul(hsh, 0x01000193) }
-      // …and the per-cell FLOOR DIMS override (Width/Height/Depth/Zoom/pose) so a dims edit rebuilds it
-      // too. Sparse → only edited cells pay the stringify; unedited cells add nothing (stay identical).
-      const od = dimsRow ? dimsRow[col] : undefined
-      if (od) { const s = JSON.stringify(od); for (let i = 0; i < s.length; i++) { hsh ^= s.charCodeAt(i); hsh = Math.imul(hsh, 0x01000193) } }
-    }
-  }
-  return hsh >>> 0
 }
 
 
@@ -430,8 +403,11 @@ export function render(
   const cacheFits = w <= ISO_CACHE_MAX_DIM && h <= ISO_CACHE_MAX_DIM
   // Camera key = viewport + exact camera + zoom/cell scale. The exact camera means the
   // blit is at offset (0,0) → no resampling → pixel-identical to a direct draw. The
-  // content hash (visible cells) is computed ONLY when the camera is stable (a cache-hit
-  // candidate) — never while panning, so movement stays a cheap direct draw.
+  // CONTENT signature is grid.groundVersion — an O(1) counter the grid bumps on every
+  // ground/height/colour/dims edit (setGround/setGroundColor/setGroundDims/setHeight), the
+  // SAME signal the 2D static-ground layer keys on. This replaces the per-frame FNV hash
+  // over the visible cells (which stringified every groundDims cell) with a single int
+  // compare on the hot cache-hit path; any map edit still forces a rebuild (never stale).
   const camKey = `${w}x${h}|${camX.toFixed(3)},${camZ.toFixed(3)}|${isoScale.toFixed(4)}|${cellSize}|${style.id}`
   let liveWater: { col: number; row: number }[] | null = null
   let didCache = false
@@ -439,7 +415,7 @@ export function render(
   if (!forceDirect && cacheFits) {
     const stableCam = !!isoGroundCache && isoGroundCache.camKey === camKey && isoGroundCache.width === w && isoGroundCache.height === h
     if (stableCam || camKey === isoLastFrameKey) {
-      const sig = isoGroundSignature(grid, startCol, endCol, startRow, endRow)
+      const sig = grid.groundVersion
       if (stableCam && isoGroundCache!.contentSig === sig) {
         ctx.drawImage(isoGroundCache!.canvas, 0, 0) // hit → one blit instead of thousands of fills/glyphs
         liveWater = isoGroundCache!.waterCells
@@ -498,8 +474,9 @@ export function render(
     Math.floor(camZ / cellSize),
     halfSpan * 2, halfSpan * 2
   )
-  // Ground shadow goes ONLY on a tree's bottom (ground-contact) cell — see isGroundContact.
-  const treeCells = new Set(grid.assets.filter(a => a.type === 'tree').map(a => `${a.col},${a.row}`))
+  // Ground shadow goes ONLY on a tree's bottom (ground-contact) cell — see isGroundContact. The
+  // tree-cell Set is memoized (treeCellSet) so we don't rescan every asset + realloc each frame.
+  const treeCells = treeCellSet(grid)
   const isTreeCell = (c: number, r: number): boolean => treeCells.has(`${c},${r}`)
 
   // Sort all objects by depth (back to front). Placed entities depth-sort with
@@ -560,8 +537,10 @@ export function render(
       const b = obj.building
       const forceFade = typeof window !== 'undefined' && !!(window as unknown as { __ISO_FADE_ALL?: boolean }).__ISO_FADE_ALL
       const fade = forceFade ? BUILDING_MIN_ALPHA : buildingFadeAlpha(pCol, pRow, b, BUILDING_FADE_RADIUS, BUILDING_MIN_ALPHA)
-      // drawIsoBuildingTiles applies the fade PER CELL (walls more transparent, door more opaque).
-      drawIsoBuildingTiles(ctx, b, toScreen, (c, r) => grid.getHeight(c, r), heightStep, tileW, tileH, style, fade)
+      // drawIsoBuildingSprited blits a cached offscreen sprite when the building isn't fading (fade===1),
+      // and falls back to a live drawIsoBuildingTiles (per-cell fade: walls more transparent, door more
+      // opaque) while it fades. grid.groundVersion keys the terrain elevation under the footprint.
+      drawIsoBuildingSprited(ctx, b, toScreen, (c, r) => grid.getHeight(c, r), heightStep, tileW, tileH, style, fade, grid.groundVersion)
     } else if (obj.asset) {
       const op = obj.asset.opacity ?? 1 // per-asset opacity for contrast/depth
       if (op < 1) ctx.globalAlpha = op
@@ -1255,27 +1234,46 @@ function drawIsoPeakedRoof(ctx: CanvasRenderingContext2D, fbl: Pt, fbr: Pt, bbl:
 }
 
 
-/**
- * ISO building rendered PURELY FROM TILES = the 2D facade + DEPTH. Every footprint cell extrudes as a
- * tile block through the SAME primitive (drawIsoTileBlock) as every rock/prop: perimeter WALL cells rise
- * `floors` blocks carrying THIS building's MATERIAL tile (🪵/🧱/🪨/plaster, like 2D — not one global
- * brick); the DOOR cell is a LOW doorway (min 2 blocks, not a full cube). Over that, the two camera-near
- * walls get WINDOW tiles — one band per floor, exactly the rows the 2D elevation punches — and the top is
- * capped with a real ROOF: a peaked gable for houses/temple/cathedral, a flat plane otherwise, in the
- * building's roof DATA colour (no red 🟥 band, mirroring 2D). A STORE/HOSPITAL badge floats over the apex.
- * No whole-building landmark glyph, no solid-only content faces. Cells draw back-to-front so nearer walls
- * occlude farther ones; the interior stays HOLLOW unless SHOW_BUILDING_INTERIOR. */
-export function drawIsoBuildingTiles(
-  ctx: CanvasRenderingContext2D,
-  b: GridBuilding,
-  toScreen: (col: number, row: number) => Pt,
-  cellElevation: (col: number, row: number) => number,
-  heightStep: number,
-  tileW: number,
-  tileH: number,
-  style: Style,
-  fade = 1,
-): void {
+/** The bottom edge (a→b) of a ground block's ENTRANCE-facing wall, for an iso cell centred at (px,by).
+ *  The door tile shears one block straight UP from this edge. The four cardinal entrance walls map to the
+ *  four diamond edges: south = the front-left L→B wall, east = the front-right B→R wall (both camera-NEAR);
+ *  north = the FAR T→R wall, west = the FAR L→T wall — so a north/west door renders on its TRUE road-facing
+ *  wall (same cell as 2D + collision), even though the camera can't see it until the wall-fade reveals it.
+ *  Pure geometry (mirrors isoBlockFaces' diamond corners) → unit-tested. */
+export function doorFaceEdge(facing: Facing, px: number, by: number, tileW: number, tileH: number): { a: Pt; b: Pt } {
+  const L: Pt = { x: px - tileW, y: by }        // left vertex
+  const T: Pt = { x: px, y: by - tileH }        // top vertex (toward the FAR north/west)
+  const R: Pt = { x: px + tileW, y: by }        // right vertex
+  const B: Pt = { x: px, y: by + tileH }        // bottom vertex (toward the NEAR south/east)
+  if (facing === 'south') return { a: L, b: B } // front-left wall (camera-near)
+  if (facing === 'east') return { a: B, b: R }  // front-right wall (camera-near)
+  if (facing === 'north') return { a: T, b: R } // back wall (camera-far)
+  return { a: L, b: T }                         // west: left wall (camera-far)
+}
+
+/** Everything drawIsoBuildingTiles needs that is a PURE function of (building, style): the resolved
+ *  colours + tile visuals, the sorted footprint cells, floor count, window levels, facing and the door
+ *  run metrics. Only the hero-proximity `fade` and the on-screen projection (toScreen/tileW/tileH/
+ *  heightStep) vary frame-to-frame — so this is computed ONCE per (building, styleId) and reused. */
+export interface IsoBuildingDescriptor {
+  wallC: string
+  roofC: string
+  doorDV: DrawVisual
+  windowDV: DrawVisual
+  wallTileDV: DrawVisual
+  roofFaceDV: DrawVisual
+  roofTileDV: DrawVisual
+  rect: ReturnType<typeof buildingRect>
+  cells: ReturnType<typeof facadeToFootprint>
+  floors: number
+  windowLevels: number[]
+  peaked: boolean
+  facing: Facing
+  doorCount: number
+  doorNear: boolean
+}
+
+function computeIsoBuildingDescriptor(b: GridBuilding, style: Style): IsoBuildingDescriptor {
   const tcol = b.type as BuildingType
   const wallC = buildingCellColor(tcol, 'wall', b.col)
   const roofC = buildingCellColor(tcol, 'roof', b.col)
@@ -1297,8 +1295,6 @@ export function drawIsoBuildingTiles(
   // and RECOLOURED per-face to the roof's data shade, so the roof is a genuine tile like the 2D elevation
   // — no solid-colour-only roof face — while the varied per-building colour still reads. ASCII → unchanged.
   const roofTileDV = resolveDraw('roof', style, undefined, '', roofC)
-
-  const blockH = tileW * 0.9 // one floor ≈ the cell's iso width
   const rect = buildingRect(b)
   const cells = facadeToFootprint(b).sort((a, z) => (a.col + a.row) - (z.col + z.row))
   const floors = cells.reduce((m, c) => Math.max(m, c.height), 1)
@@ -1308,11 +1304,92 @@ export function drawIsoBuildingTiles(
   const windowLevels: number[] = []
   for (let r = 0; r < H; r++) if ((b.cells[r] ?? []).some(k => k === 'window')) windowLevels.push(H - 1 - r)
   const peaked = (b.cells[0] ?? []).some(k => k === 'empty') // houses/temple/cathedral leave empty roof corners
+  const facing = gridBuildingFacing(b)
+  const bottomRow = b.cells[b.cells.length - 1] ?? []
+  const doorCount = bottomRow.filter(k => k === 'door').length // = the 2D facade door width (1 / 3 / 4)
+  const doorNear = facing === 'south' || facing === 'east' // entrance on a camera-near wall
+  return { wallC, roofC, doorDV, windowDV, wallTileDV, roofFaceDV, roofTileDV, rect, cells, floors, windowLevels, peaked, facing, doorCount, doorNear }
+}
+
+// Cache keyed on (building object → styleId). A building EDIT REPLACES the object (grid.buildings[idx] =
+// next; move/rotate/resize/place all return NEW objects — see buildingEditor.ts), so the WeakMap entry
+// drops itself: no invalidation bookkeeping, no staleness. (Verified: nothing mutates a building's fields
+// in place. If an in-place edit is ever added, extend the inner key with a version so a stale descriptor
+// can't survive.) The styleId inner key mirrors the styleId the ground offscreen caches already key on.
+const _isoBuildingDescriptors = new WeakMap<GridBuilding, Map<string, IsoBuildingDescriptor>>()
+
+export function isoBuildingDescriptor(b: GridBuilding, style: Style): IsoBuildingDescriptor {
+  let byStyle = _isoBuildingDescriptors.get(b)
+  if (!byStyle) { byStyle = new Map(); _isoBuildingDescriptors.set(b, byStyle) }
+  let d = byStyle.get(style.id)
+  if (!d) { d = computeIsoBuildingDescriptor(b, style); byStyle.set(style.id, d) }
+  return d
+}
+
+/**
+ * ISO building rendered PURELY FROM TILES = the 2D facade + DEPTH. Every footprint cell extrudes as a
+ * tile block through the SAME primitive (drawIsoTileBlock) as every rock/prop: perimeter WALL cells rise
+ * `floors` blocks carrying THIS building's MATERIAL tile (🪵/🧱/🪨/plaster, like 2D — not one global
+ * brick); the DOOR cell is a LOW doorway (min 2 blocks, not a full cube). Over that, the two camera-near
+ * walls get WINDOW tiles — one band per floor, exactly the rows the 2D elevation punches — and the top is
+ * capped with a real ROOF: a peaked gable for houses/temple/cathedral, a flat plane otherwise, in the
+ * building's roof DATA colour (no red 🟥 band, mirroring 2D). A STORE/HOSPITAL badge floats over the apex.
+ * No whole-building landmark glyph, no solid-only content faces. Cells draw back-to-front so nearer walls
+ * occlude farther ones; the interior stays HOLLOW unless SHOW_BUILDING_INTERIOR. */
+export function drawIsoBuildingTiles(
+  ctx: CanvasRenderingContext2D,
+  b: GridBuilding,
+  toScreen: (col: number, row: number) => Pt,
+  cellElevation: (col: number, row: number) => number,
+  heightStep: number,
+  tileW: number,
+  tileH: number,
+  style: Style,
+  fade = 1,
+): void {
+  // All values that are a pure function of (building, style) — colours, tile visuals, sorted footprint
+  // cells, floor count, window levels, facing + door metrics — are memoized in isoBuildingDescriptor and
+  // reused every frame. Only `fade` + the projection below (blockH etc.) vary frame-to-frame.
+  const { wallC, roofC, doorDV, windowDV, wallTileDV, roofFaceDV, roofTileDV, rect, cells, floors, windowLevels, peaked, facing, doorCount, doorNear } = isoBuildingDescriptor(b, style)
+
+  const blockH = tileW * 0.9 // one floor ≈ the cell's iso width (zoom-dependent → per frame)
   const roofRise = ROOF_ROWS * blockH // the roof's 2 rows, translated 1 row = 1 block like the walls
   // When the building fades (hero near), the WALLS go MORE transparent so you can see IN, but the DOOR
   // stays MORE opaque so it's findable. Not faded (fade=1) → everything opaque.
   const wallAlpha = fade < 1 ? fade * 0.55 : 1
   const doorAlpha = fade < 1 ? Math.min(1, fade + 0.45) : 1
+
+  // ── DOOR run geometry (shared) — the door(s) render on the TRUE ENTRANCE wall: the road-facing wall
+  //    that holds the walkable doorCell, the SAME cell 2D + collision use, at full-cell size, with the door
+  //    COUNT matching the 2D facade (house 1, cathedral 3, castle 4) as a contiguous run centred on that
+  //    cell. A south/east entrance is a camera-NEAR wall, so its run draws AFTER the walls/windows (always
+  //    visible). A north/west entrance is a HIDDEN FAR wall, so its run draws BEFORE the wall cubes: the
+  //    near cubes then occlude it while the building is opaque, and the existing wall-fade (near walls go
+  //    translucent as the hero approaches) reveals it — the user's "doors on the non-visible side" choice.
+  //    VISUAL only: the walkable door cell + collision are unchanged. ──
+  const drawDoorRun = (): void => {
+    if (doorCount <= 0) return
+    const door = doorCellFor(facing, rect) // the lone walkable entrance cell — the run centres on it
+    const rowAxis = facing === 'south' || facing === 'north' // entrance runs along COLS (a front/back row)
+    const edgeLen = rowAxis ? rect.w : rect.h
+    const centreIdx = rowAxis ? door.col - rect.col : door.row - rect.row
+    const start = Math.max(0, Math.min(edgeLen - doorCount, centreIdx - Math.floor(doorCount / 2)))
+    const entRow = facing === 'south' ? rect.row + rect.h - 1 : rect.row // front / back row (n/s)
+    const entCol = facing === 'east' ? rect.col + rect.w - 1 : rect.col  // right / left col (e/w)
+    ctx.globalAlpha = doorAlpha
+    for (let k = 0; k < doorCount; k++) {
+      const col = rowAxis ? rect.col + start + k : entCol
+      const row = rowAxis ? entRow : rect.row + start + k
+      const dp = toScreen(col, row)
+      const px = dp.x, by = dp.y - cellElevation(col, row) * heightStep
+      const edge = doorFaceEdge(facing, px, by, tileW, tileH) // the entrance wall's ground-block bottom edge
+      // FULL CELL: the whole bottom edge (a→b) wide, ONE block (blockH) tall — a wall-cell footprint.
+      fillIsoFaceWithTile(ctx, edge.a, { x: edge.b.x - edge.a.x, y: edge.b.y - edge.a.y }, { x: 0, y: -blockH }, { char: doorDV.char, color: doorDV.color, image: doorDV.image }, 1, 1)
+    }
+  }
+  // FAR (north/west) entrance: draw the run FIRST so the wall cubes drawn next occlude it while opaque and
+  // the wall-fade reveals it. (NEAR south/east entrances draw their run in the late pass below.)
+  if (!doorNear) drawDoorRun()
 
   // ── WALL / DOOR blocks (+ optional interior) — back-to-front so nearer cells occlude farther ones ──
   for (const c of cells) {
@@ -1358,43 +1435,9 @@ export function drawIsoBuildingTiles(
     }
   }
 
-  // ── DOORS: FULL-CELL door TILES sheared onto the ground floor of the entrance wall — ONE per facade door
-  //    cell, so the iso door COUNT equals the 2D facade's (house 1, cathedral 3, castle 4), as a CONTIGUOUS
-  //    run CENTRED on the walkable entrance. Each door fills a WHOLE wall cell (full face width × one block
-  //    tall — the same footprint a wall/window tile cell has), not a narrow doorway. The run rides a
-  //    CAMERA-NEAR wall so it is ALWAYS visible: the south (front) row and east (right) col are the two edges
-  //    the camera sees (their L→B / B→R faces — the pair cameraNearWalls returns for this projection, the SAME
-  //    set the windows use). A south/east entrance is already near, so the doors sit on the real entrance; a
-  //    north/west entrance faces a HIDDEN far wall, so the run is MIRRORED onto the near edge of its axis
-  //    (north→south front row, west→east right col) — the user's "always findable" choice: a hidden-side house
-  //    still shows its doors on the wall facing the camera. Drawn AFTER walls + windows so they read over them,
-  //    at doorAlpha (kept more opaque than the faded walls so they stay findable when the hero fades the
-  //    building). VISUAL only — the single walkable door cell + collision are unchanged. ──
-  const bottomRow = b.cells[b.cells.length - 1] ?? []
-  const doorCount = bottomRow.filter(k => k === 'door').length // = the 2D facade door width (1 / 3 / 4)
-  if (doorCount > 0) {
-    const facing = gridBuildingFacing(b)
-    const rowAxis = facing === 'south' || facing === 'north' // entrance runs along COLS (a front/back row) vs ROWS
-    const door = doorCellFor(facing, rect) // the lone walkable entrance cell — the door run centres on it
-    const edgeLen = rowAxis ? rect.w : rect.h // cells along the entrance edge (== facade length)
-    const centreIdx = rowAxis ? door.col - rect.col : door.row - rect.row // walkable cell's index along the edge
-    const start = Math.max(0, Math.min(edgeLen - doorCount, centreIdx - Math.floor(doorCount / 2)))
-    // The near edge the run draws on: south front row (L→B 'left' face) for a col-running entrance, east right
-    // col (B→R 'right' face) for a row-running one — always camera-visible, mirroring a hidden north/west edge.
-    const side: 'left' | 'right' = rowAxis ? 'left' : 'right'
-    const frontRow = rect.row + rect.h - 1
-    const rightCol = rect.col + rect.w - 1
-    ctx.globalAlpha = doorAlpha
-    for (let k = 0; k < doorCount; k++) {
-      const col = rowAxis ? rect.col + start + k : rightCol
-      const row = rowAxis ? frontRow : rect.row + start + k
-      const dp = toScreen(col, row)
-      const dCenter: Pt = { x: dp.x, y: dp.y - cellElevation(col, row) * heightStep }
-      const face = isoBlockFaces(dCenter, tileW, tileH, blockH, 0)[side] // ground block's camera-near face
-      // FULL CELL: the whole bottom edge (face.a→face.b) wide, ONE block (blockH) tall — a wall-cell footprint.
-      fillIsoFaceWithTile(ctx, face.a, { x: face.b.x - face.a.x, y: face.b.y - face.a.y }, { x: 0, y: -blockH }, { char: doorDV.char, color: doorDV.color, image: doorDV.image }, 1, 1)
-    }
-  }
+  // NEAR (south/east) entrance: draw the door run AFTER the walls + windows so it reads over its own
+  // camera-visible wall (the far north/west run was already drawn before the wall cubes, above).
+  if (doorNear) drawDoorRun()
 
   // ── ROOF (drawn LAST so it occludes the wall/window tops it overlaps) — peaked gable for houses etc.,
   //    a flat plane otherwise, both in the building's roof DATA colour like 2D. Faded with the building. ──
@@ -1402,14 +1445,16 @@ export function drawIsoBuildingTiles(
   if (peaked) {
     drawIsoPeakedRoof(ctx, fbl, fbr, bbl, bbr, rect.w, liftEave, roofRise, roofC, roofTileDV)
   } else {
-    for (const c of cells) {
-      const p = toScreen(c.col, c.row)
-      const top = isoBlockFaces({ x: p.x, y: p.y - cellElevation(c.col, c.row) * heightStep }, tileW, tileH, blockH, floors - 1).top
-      ctx.fillStyle = roofC
-      fillQuad(ctx, top.a, top.b, top.c, top.d)
-      // shear the roof TILE flat onto the diamond top, recoloured to roofC — a real tile face (like 2D), not colour-only
-      fillIsoFaceWithTile(ctx, top.a, { x: top.b.x - top.a.x, y: top.b.y - top.a.y }, { x: top.d.x - top.a.x, y: top.d.y - top.a.y }, { char: roofTileDV.char, color: roofC, image: roofTileDV.image, tintTo: roofC }, 1, 1, roofC)
-    }
+    // FLAT roof (store / hospital / …): ONE clean plane over the WHOLE footprint box at the eave height —
+    // the same single-coherent-shape treatment the peaked roof gets. Was: a separate diamond tile stamped
+    // per footprint cell, which read as a gridded, boxy emoji-REPEAT (the "store/hospital roof looks weird"
+    // bug). Fill the footprint diamond once in the roof DATA colour, then shear the roof TILE onto it via the
+    // SAME drawRoofTileOnQuad helper the peaked faces use — a genuine recoloured tile, no per-cell grid.
+    const eaveOf = (p: Pt): Pt => ({ x: p.x, y: p.y - liftEave })
+    const quad = [eaveOf(fbl), eaveOf(fbr), eaveOf(bbr), eaveOf(bbl)] // left → front → right → back diamond
+    ctx.fillStyle = roofC
+    fillQuad(ctx, quad[0], quad[1], quad[2], quad[3])
+    drawRoofTileOnQuad(ctx, quad, roofTileDV, roofC)
   }
 
   // ── TYPE BADGE (STORE / HOSPITAL) floating over the roof apex — mirrors the 2D/top badge so a shop /
@@ -1433,6 +1478,150 @@ export function drawIsoBuildingTiles(
   }
 
   ctx.globalAlpha = 1
+}
+
+
+// ════════════════════════════════════════════════════════════════════════════
+// ISO PER-BUILDING OFFSCREEN SPRITE CACHE  (⚑ VISUAL VALIDATION NEEDED)
+// After the descriptor memo (#1), the dominant remaining iso building cost is the ~cells×floors CLIPPED
+// tile blits inside drawIsoBuildingTiles (fillIsoFaceWithTile does save→transform→clip→…→restore per
+// face). That output is IDENTICAL frame-to-frame while a building isn't fading, so we render each
+// building ONCE into its own transparent offscreen canvas (via the SAME drawIsoBuildingTiles, so the
+// pixels match a live draw) and drawImage it per frame — the same "bake once, blit" pattern as the iso
+// ground cache and the 2D _groundLayer. Correctness guarantees:
+//  • ATOMIC OCCLUSION — a building is one entry in the depth sort (allObjects), so blitting its whole
+//    sprite at that sort slot is exactly what the live single-unit draw did: objects sorted before it go
+//    under, after it go over. The transparent background means only the building's pixels paint.
+//  • EXACT ANCHOR — the offscreen is built in CAMERA-INDEPENDENT relative coords (toScreen minus the
+//    anchor cell), so the camera only TRANSLATES it; we blit at an INTEGER anchor (no scaling → no
+//    resampling blur). A still camera → a pixel-stable building; panning snaps it ≤1px, the accepted
+//    integer-anchor tradeoff.
+//  • FADE STAYS LIVE — the hero-proximity fade must animate, so we NEVER bake it: a building with fade<1
+//    falls back to the live path (only the ONE building the hero is next to fades — cheap). Cached blits
+//    are always fade===1 (globalAlpha 1). This is the spec's "fall back to live-draw while fade<1".
+//  • NEVER STALE — the building object is the WeakMap key (an edit REPLACES it → entry auto-drops); the
+//    inner key re-bakes on zoom (tileW/tileH), style, terrain elevation (groundVersion) or the interior
+//    toggle change. Image tiles that haven't decoded yet → live draw until ready (no frozen fallback).
+//  • FALLBACK — if the sprite would exceed the size cap (or no offscreen), that building live-draws.
+// Toggle off for A/B visual comparison with window.__ISO_NOCACHE or window.__ISO_NO_BUILDING_CACHE.
+type IsoBuildingSprite = { key: string; canvas: HTMLCanvasElement; ox: number; oy: number }
+const _isoBuildingSprites = new WeakMap<GridBuilding, IsoBuildingSprite>()
+export const ISO_BUILDING_SPRITE_MAX_DIM = 2048
+
+/** Every image tile the building would draw is decoded — else baking would freeze the glyph fallback
+ *  (mirrors groundSprite's decode guard). ASCII has no images → always ready. */
+function isoBuildingImagesReady(desc: IsoBuildingDescriptor): boolean {
+  const imgs = [desc.wallTileDV.image, desc.doorDV.image, desc.windowDV.image, desc.roofTileDV.image]
+  for (const v of imgs) if (v && !tileImage(v.src)) return false
+  return true
+}
+
+/** Bake the building into a transparent offscreen in relative (camera-independent) coords. Returns the
+ *  canvas + the offscreen pixel (ox,oy) that holds the anchor cell (rel 0,0). null → too big / headless. */
+function bakeIsoBuildingSprite(
+  b: GridBuilding,
+  desc: IsoBuildingDescriptor,
+  toScreen: (col: number, row: number) => Pt,
+  cellElevation: (col: number, row: number) => number,
+  heightStep: number,
+  tileW: number,
+  tileH: number,
+  style: Style,
+): { canvas: HTMLCanvasElement; ox: number; oy: number } | null {
+  if (typeof document === 'undefined') return null
+  const ref = toScreen(b.col, b.row)
+  const blockH = tileW * 0.9
+  const roofRise = ROOF_ROWS * blockH
+  const topRise = desc.floors * blockH + roofRise // walls + roof rise above a cell centre
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity
+  // Footprint cells: each diamond is ±tileW/±tileH about its (elevated) centre and its block rises topRise.
+  for (const c of desc.cells) {
+    const s = toScreen(c.col, c.row)
+    const cx = s.x - ref.x
+    const cy = s.y - ref.y - cellElevation(c.col, c.row) * heightStep
+    if (cx - tileW < minX) minX = cx - tileW
+    if (cx + tileW > maxX) maxX = cx + tileW
+    if (cy + tileH > maxY) maxY = cy + tileH
+    if (cy - tileH - topRise < minY) minY = cy - tileH - topRise
+  }
+  if (!isFinite(minX)) return null
+  // Roof eaves overhang the walls; widen the box (diagonal ≈ ROOF_OVERHANG of a cell).
+  const overhang = tileW * (ROOF_OVERHANG + 0.5)
+  minX -= overhang; maxX += overhang
+  // The type badge floats above the apex and can be wider than the roof — fold its EXACT rect in.
+  const badge = BUILDING_BADGES[b.type]
+  if (badge) {
+    const cornerRel = (col: number, row: number, offX: number, offY: number): Pt => {
+      const s = toScreen(col, row)
+      return { x: s.x - ref.x + offX, y: s.y - ref.y - cellElevation(col, row) * heightStep + offY }
+    }
+    const c0 = desc.rect.col, c1 = desc.rect.col + desc.rect.w - 1, r0 = desc.rect.row, r1 = desc.rect.row + desc.rect.h - 1
+    const fbl = cornerRel(c0, r1, -tileW, 0), fbr = cornerRel(c1, r1, 0, tileH)
+    const bbl = cornerRel(c0, r0, 0, -tileH), bbr = cornerRel(c1, r0, tileW, 0)
+    const cx = (fbl.x + fbr.x + bbl.x + bbr.x) / 4
+    const cy = (fbl.y + fbr.y + bbl.y + bbr.y) / 4
+    const liftEave = desc.floors * blockH
+    const apexY = cy - liftEave - (desc.peaked ? roofRise : blockH * 0.4)
+    const bf = blockH * (badge.text.length > 1 ? 0.6 : 0.95)
+    const bw = badge.text.length * bf * 0.75 + 8 // upper-bound for measureText on this mono-ish bold font
+    const by = apexY - bf * 0.9
+    minX = Math.min(minX, cx - bw / 2 - 3); maxX = Math.max(maxX, cx + bw / 2 + 3)
+    minY = Math.min(minY, by - bf * 0.65)
+  }
+  const pad = Math.ceil(tileW * 0.5) + 2
+  const W = Math.ceil(maxX - minX) + pad * 2
+  const H = Math.ceil(maxY - minY) + pad * 2
+  if (W <= 0 || H <= 0 || W > ISO_BUILDING_SPRITE_MAX_DIM || H > ISO_BUILDING_SPRITE_MAX_DIM) return null
+  const cv = document.createElement('canvas')
+  cv.width = W; cv.height = H
+  const cctx = cv.getContext('2d')
+  if (!cctx) return null
+  const ox = -minX + pad, oy = -minY + pad // offscreen pixel where the anchor (rel 0,0) lands
+  const localToScreen = (col: number, row: number): Pt => {
+    const s = toScreen(col, row)
+    return { x: s.x - ref.x + ox, y: s.y - ref.y + oy }
+  }
+  drawIsoBuildingTiles(cctx, b, localToScreen, cellElevation, heightStep, tileW, tileH, style, 1)
+  return { canvas: cv, ox, oy }
+}
+
+/** Draw an iso building via its cached offscreen sprite when it isn't fading, else live. Blits at an
+ *  exact integer anchor so occlusion + geometry match a direct drawIsoBuildingTiles. `elevVersion` (=
+ *  grid.groundVersion) keys the terrain elevation under the footprint so a height edit re-bakes. */
+export function drawIsoBuildingSprited(
+  ctx: CanvasRenderingContext2D,
+  b: GridBuilding,
+  toScreen: (col: number, row: number) => Pt,
+  cellElevation: (col: number, row: number) => number,
+  heightStep: number,
+  tileW: number,
+  tileH: number,
+  style: Style,
+  fade: number,
+  elevVersion: number,
+): void {
+  const win = typeof window !== 'undefined' ? (window as unknown as { __ISO_NOCACHE?: boolean; __ISO_NO_BUILDING_CACHE?: boolean }) : null
+  const noCache = !!win && (!!win.__ISO_NOCACHE || !!win.__ISO_NO_BUILDING_CACHE)
+  const desc = isoBuildingDescriptor(b, style)
+  // Fading (hero near) / headless / disabled / an image tile still decoding → LIVE draw. The fade must
+  // animate, so a fading building is never cached; only ONE building fades at a time (cheap).
+  if (fade < 1 || typeof document === 'undefined' || noCache || !isoBuildingImagesReady(desc)) {
+    drawIsoBuildingTiles(ctx, b, toScreen, cellElevation, heightStep, tileW, tileH, style, fade)
+    return
+  }
+  const key = `${style.id}|${Math.round(tileW)}|${Math.round(tileH)}|${elevVersion}|${SHOW_BUILDING_INTERIOR ? 1 : 0}`
+  let sprite = _isoBuildingSprites.get(b)
+  if (!sprite || sprite.key !== key) {
+    const baked = bakeIsoBuildingSprite(b, desc, toScreen, cellElevation, heightStep, tileW, tileH, style)
+    if (!baked) { drawIsoBuildingTiles(ctx, b, toScreen, cellElevation, heightStep, tileW, tileH, style, fade); return } // too big → live
+    sprite = { key, canvas: baked.canvas, ox: baked.ox, oy: baked.oy }
+    _isoBuildingSprites.set(b, sprite)
+  }
+  // Place the offscreen anchor pixel (ox,oy) back at the anchor cell's current screen point, rounded to
+  // an integer → no scaling, no resampling. fade === 1 here (fading buildings took the live path).
+  const ref = toScreen(b.col, b.row)
+  ctx.globalAlpha = 1
+  ctx.drawImage(sprite.canvas, Math.round(ref.x - sprite.ox), Math.round(ref.y - sprite.oy))
 }
 
 

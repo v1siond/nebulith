@@ -9,12 +9,38 @@
  *      has no collision behind it (the east/west walk-through-wall bug).
  */
 import { draw2DBuilding } from '@/engine/render/topdown'
-import { makeBuilding, buildingFootprintCells } from '@/engine/buildingEditor'
+import { makeBuilding, buildingFootprintCells, buildingDoorCell, buildingRect, resizeBuilding } from '@/engine/buildingEditor'
 import { IsometricGrid } from '@/engine/IsometricGrid'
 import type { Facing } from '@/engine/villageLayout'
 import { stampBuildingCells } from '@/game/runtime/buildings'
 
 const FACINGS: Facing[] = ['south', 'north', 'east', 'west']
+
+// #A — the 2D DRAWN door must land on the walkable/collision door cell. In the axis-aligned (south/north)
+// identity path, draw2DBuilding paints the facade's own 'door' column straight onto grid column b.col + i,
+// so the facade door column must equal doorCellFor's walkable column. This broke on EVEN frontages (the
+// facade door sat one column left of the walkable cell → "door not at the entrance, collision doesn't match").
+describe('#A — 2D drawn door column lands on the walkable door cell (both views agree)', () => {
+  for (const len of [4, 5, 6, 8]) { // include EVEN frontages (the bug was even-only)
+    for (const facing of ['south', 'north'] as Facing[]) {
+      test(`${facing} len=${len}: facade door column == walkable/collision door cell`, () => {
+        const b = resizeBuilding(makeBuilding('house', facing, 20, 20), len)
+        const bottom = b.cells[b.cells.length - 1]
+        const facadeDoorX = bottom.indexOf('door') // the column draw2DBuilding paints the door on (identity path)
+        const door = buildingDoorCell(b) // = doorCellFor = the walkable cell stampBuildingCells opens
+        const rect = buildingRect(b)
+        expect(facadeDoorX).toBeGreaterThanOrEqual(0)
+        expect(b.col + facadeDoorX).toBe(door.col) // drawn door column == walkable door column
+        expect(door.row).toBe(facing === 'south' ? rect.row + rect.h - 1 : rect.row) // on the road edge
+
+        // …and that cell is exactly the one the live stamp leaves walkable.
+        const grid = new IsometricGrid({ cols: 40, rows: 40, cellSize: 16, isoScale: 1 })
+        stampBuildingCells(grid, b, 'spring')
+        expect(grid.collision[door.row][door.col]).toBe(0)
+      })
+    }
+  }
+})
 
 describe('#82 A — grid-level: stamped wall cells block, the door stays walkable', () => {
   for (const facing of FACINGS) {

@@ -18,7 +18,7 @@ import { GridBuilding, IsometricGrid } from '@/engine/IsometricGrid'
 import { COMPOSITE_ASSETS, TILES } from '@/engine/Tileset'
 import { type AttackAnim, isAnimDone } from '@/engine/attackAnimations'
 import { type BuildingType } from '@/engine/buildingComposer'
-import { buildingFootprintCells, canPlaceBuilding, facadeLength, footprintContains, gridBuildingFacing, makeBuilding, moveBuilding, resizeBuilding, rotateBuilding } from '@/engine/buildingEditor'
+import { buildingFootprintCells, canPlaceBuilding, facadeLength, footprintContains, gridBuildingFacing, isRoadGround, makeBuilding, moveBuilding, resizeBuilding, rotateBuilding } from '@/engine/buildingEditor'
 import { type AnimFrame, type AnimPreset, CELL_ANIM_PRESETS, type Ease, makeCellAnimation, restFrame } from '@/engine/cellAnimation'
 import { scaleCompositeToRegion } from '@/engine/compositeFill'
 import { findTriggeredConnector, normalizeConnector } from '@/engine/connectors'
@@ -1894,17 +1894,6 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
     setGridSize({ cols, rows })
     // Reset player to valid spawn at center
     movePlayerToValidSpawn(Math.floor(cols / 2), Math.floor(rows / 2))
-  }
-
-  // Check if ground type is a road/path (buildings cannot be placed on these)
-  const isRoadGround = (groundType: string | undefined): boolean => {
-    if (!groundType) return false
-    // Include all road-like ground types including themed versions
-    const roadTypes = [
-      'road', 'road_center', 'road_edge', 'plaza', 'path_stone', 'path_dirt', 'bridge',
-      'snow_path', 'desert_road', 'wooden_planks', 'courtyard_stone'
-    ]
-    return roadTypes.includes(groundType)
   }
 
   // Place tile on selected cells

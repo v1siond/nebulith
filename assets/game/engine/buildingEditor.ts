@@ -159,17 +159,31 @@ export function canPlaceBuilding(env: PlacementEnv, b: GridBuilding): boolean {
   )
 }
 
-/** The one walkable ground a building footprint may NOT cover: a road. A building fronts a
- *  road from one cell away, so its footprint never sits on the road itself. Impassable
- *  terrain (water/lava/…) is already collision, so the collision check below handles that —
- *  only the *walkable* road needs a ground-level exclusion. */
+/** The primary paved road/driveway ground (what the settlement generator carves streets + driveways
+ *  as). Kept for callers that stamp/scan the canonical road tile. */
 export const ROAD_GROUND = 'path_stone'
+
+/** EVERY ground type that reads as a walkable ROAD/PATH a building's footprint may NOT cover. A building
+ *  fronts a road from one cell away, so its footprint never sits on the road itself; impassable terrain
+ *  (water/lava/…) is already collision, so only the *walkable* road types need a ground-level exclusion.
+ *  ONE definition, shared by the pure placement policy here AND the editor's placement guard — they used
+ *  to diverge (this module saw only 'path_stone', so `canPlaceBuilding` happily stamped a building onto a
+ *  generated 'road_center'/'road_edge' street: the "building still mixes with the road" bug). */
+export const ROAD_GROUNDS: ReadonlySet<string> = new Set([
+  'road', 'road_center', 'road_edge', 'plaza', 'path_stone', 'path_dirt', 'bridge',
+  'snow_path', 'desert_road', 'wooden_planks', 'courtyard_stone',
+])
+
+/** True iff a ground type reads as a road/path (buildings never sit on these). */
+export function isRoadGround(ground: string | undefined): boolean {
+  return ground != null && ROAD_GROUNDS.has(ground)
+}
 
 /**
  * Is a single grid cell unavailable to a building's footprint? A cell is taken only when it
  *   - already belongs to another building/asset footprint (`occupied`),
  *   - carries `collision` (trees, water, lava, features, or any *blocking* asset), or
- *   - is a road (`ground === ROAD_GROUND`).
+ *   - is a road/path of ANY kind (`isRoadGround` — road_center/road_edge/path_stone/…).
  * Everything else is free — bare grass, an interior floor, or a walkable cell that merely
  * holds non-blocking ground decor. Pure, so the manual-placement policy is testable on its
  * own and reads the same way the spec states it: not occupied, not collision, not a road.
@@ -183,7 +197,7 @@ export function buildingCellBlocked({
   collision: boolean
   ground: string
 }): boolean {
-  return occupied || collision || ground === ROAD_GROUND
+  return occupied || collision || isRoadGround(ground)
 }
 
 /** Move a building by (dCol,dRow). Pure — returns a new GridBuilding. */
