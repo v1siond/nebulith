@@ -7,7 +7,7 @@ import { isRespawned, DEFAULT_PLAYER_STATS } from '@/game/entities'
 import { isRanged, weaponReach } from '@/game/weapons'
 import { projectileArrived, resolveImpact, type Projectile } from '@/game/projectiles'
 import { nextEnemyAttack } from '@/game/patterns'
-import { abilityReady, ABILITY_TINT, type AbilityBinding } from '@/game/abilities'
+import { abilityReady, ABILITY_TINT, type AbilityBinding, type AbilityAnimation } from '@/game/abilities'
 import { weaponAnimKind, ATTACK_ANIM_MS, type AttackAnim, type AttackAnimKind } from '@/engine/attackAnimations'
 import { weaponPose } from '@/engine/entityArt'
 import { aimDelta, type PlayerState } from './player'
@@ -202,10 +202,10 @@ function prunePlayerStartedMarkers(markers: HitMarker[], now: number): void {
 function spawnAttackAnim(
   anims: AttackAnim[] | undefined,
   fromX: number, fromZ: number, toX: number, toZ: number,
-  kind: AttackAnimKind, now: number, glyph?: string, inHand?: boolean, tint?: string,
+  kind: AttackAnimKind, now: number, glyph?: string, inHand?: boolean, tint?: string, animation?: AbilityAnimation,
 ): void {
   if (!anims) return
-  anims.push({ kind, fromX, fromZ, toX, toZ, start: now, durationMs: ATTACK_ANIM_MS[kind], glyph, inHand, tint })
+  anims.push({ kind, fromX, fromZ, toX, toZ, start: now, durationMs: ATTACK_ANIM_MS[kind], glyph, inHand, tint, animation })
 }
 
 /** A triggered ability's contribution to this frame's player attack: its authored damage (applied
@@ -496,7 +496,9 @@ export function applyEnemyRetaliation(input: CombatStepInput & { playerCombat: C
     // The enemy's swing/bolt animates too — attacks trigger animations for EVERY attacker. The
     // attack's animation recolors it (a fire bite burns orange, a frost bolt glows blue).
     const tint = chosen.animation ? ABILITY_TINT[chosen.animation] : undefined
-    spawnAttackAnim(input.anims, entity.col * cellSize + cellSize / 2, entity.row * cellSize + cellSize / 2, player.x, player.z, ranged ? 'shot' : 'slash', now, undefined, false, tint)
+    // Pass the ability ANIMATION too (not just its tint) so the renderer can draw the ability's FX tile
+    // (fire-slash 🔥 / bolt 🔮 / …) under a reskin — the tint recolours it, exactly as it recoloured the glyph.
+    spawnAttackAnim(input.anims, entity.col * cellSize + cellSize / 2, entity.row * cellSize + cellSize / 2, player.x, player.z, ranged ? 'shot' : 'slash', now, undefined, false, tint, chosen.animation)
     playerCombat = { ...playerCombat, hp: result.defenderHpAfter }
     const pCol = Math.floor(player.x / cellSize)
     const pRow = Math.floor(player.z / cellSize)

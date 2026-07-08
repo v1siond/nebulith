@@ -20,7 +20,7 @@ import { EMOJI_TILESET } from '@/engine/tileset/emojiTileset'
 import { applyPose } from '@/engine/tileset/pose'
 import { resolveTileSize, resolveTilePose } from '@/engine/tileset/tileViewSettings'
 import { Connector } from '@/lib/api'
-import { ASCII_FONT, BUILDING_BADGES, COMBAT_RANGE, type DayNight, ENEMY_MOVE_MS, LAMP_GLOW, applyCellTransform, clampCameraAxis, assetCaptionByCell, terrainLabelAt, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawHoverRing, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, frameImage, getPlayerArt, grassShade, cellFill, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, assetOverride, treeCanopyLayers } from './shared'
+import { ASCII_FONT, BUILDING_BADGES, COMBAT_RANGE, type DayNight, ENEMY_MOVE_MS, LAMP_GLOW, applyCellTransform, clampCameraAxis, assetCaptionByCell, terrainLabelAt, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawHoverRing, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawConnectorMarker, drawAttackAnimFrame, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, frameImage, getPlayerArt, grassShade, cellFill, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, assetOverride, treeCanopyLayers } from './shared'
 import { resolveAssetDrawSize } from './assetDimensions'
 import { groundSizeFactors, groundDimsActive } from '@/engine/groundDims'
 import { ASCII_STYLE, assetKind, entityKind, entityStyleOverride, genderize, groundKind, personVariantTileId, type ElementKind, type Style } from '@/game/artStyle'
@@ -639,11 +639,11 @@ export function render2D(
       if (p.x < -tileW || p.x > w + tileW || p.y < -tileH || p.y > h + tileH) continue
       ctx.fillStyle = 'rgba(180, 80, 255, 0.6)'
       ctx.fillRect(p.x - tileW / 2, p.y - tileH / 2, tileW, tileH)
-      ctx.fillStyle = '#ffffff'
       ctx.font = `bold ${tileH * 0.6}px ${ASCII_FONT}`
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
-      ctx.fillText('◊', p.x, p.y)
+      // Portal marker is a TILE now: 🌀 under a reskin, ◊ under ASCII — over the purple cell backing.
+      drawConnectorMarker(ctx, style, p.x, p.y, tileH)
     }
   }
 
@@ -1071,16 +1071,10 @@ export function render2D(
       const f = animFrame(a, time)
       if (!f) continue
       const sp = toScreen(f.x / cellSize, f.z / cellSize)
-      ctx.fillStyle = f.color
-      if (f.angle != null) {
-        ctx.save()
-        ctx.translate(sp.x, sp.y - tileH)
-        ctx.rotate(f.angle)
-        ctx.fillText(f.char, 0, 0)
-        ctx.restore()
-      } else {
-        ctx.fillText(f.char, sp.x, sp.y - tileH * 0.6)
-      }
+      // Reskin → the ability FX TILE (🔥/⚡/…) recoloured to f.color, keeping the slash-arc rotation;
+      // ASCII → the \ | / ─ frame glyph.
+      const ay = f.angle != null ? sp.y - tileH : sp.y - tileH * 0.6
+      drawAttackAnimFrame(ctx, a, f, style, sp.x, ay, Math.max(12, tileH * 0.9))
     }
   }
 
@@ -1088,14 +1082,16 @@ export function render2D(
   if (projectiles.length > 0) {
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
-    ctx.font = `bold ${Math.max(12, tileH * 0.85)}px ${ASCII_FONT}`
+    const projPx = Math.max(12, tileH * 0.85)
+    ctx.font = `bold ${projPx}px ${ASCII_FONT}`
     ctx.fillStyle = '#ffe9a8'
     for (const pr of projectiles) {
       const pc = projectileCellAt(pr, time)
       const sp = toScreen(pc.col + 0.5, pc.row + 0.5)
       const from = toScreen(pr.fromCol + 0.5, pr.fromRow + 0.5)
       const to = toScreen(pr.toCol + 0.5, pr.toRow + 0.5)
-      drawProjectileGlyph(ctx, pr.glyph, sp.x, sp.y - tileH * 0.6, from.x, from.y, to.x, to.y)
+      // Reskin → the arrow/bullet/dart tile IMAGE (warm-tinted like the glyph); ASCII → the rotated glyph.
+      drawProjectileGlyph(ctx, pr.glyph, sp.x, sp.y - tileH * 0.6, from.x, from.y, to.x, to.y, style, projPx, '#ffe9a8')
     }
   }
 

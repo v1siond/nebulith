@@ -18,7 +18,7 @@ import { type CombatState, type Entity, type Quest } from '@/game/types'
 import { resolveGroundTile } from '@/engine/tileset/tileset'
 import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 import { Connector } from '@/lib/api'
-import { ASCII_FONT, BUILDING_BADGES, COMBAT_RANGE, type DayNight, type DrawVisual, ENEMY_MOVE_MS, LAMP_GLOW, LIGHT, applyCellTransform, isoCameraFocus, assetCaptionByCell, terrainLabelAt, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawHoverRing, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, frameImage, getPlayerArt, grassShade, cellFill, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, assetOverride, tileImage, tintedImage, tintedGlyphSprite, treeCanopyLayers } from './shared'
+import { ASCII_FONT, BUILDING_BADGES, COMBAT_RANGE, type DayNight, type DrawVisual, ENEMY_MOVE_MS, LAMP_GLOW, LIGHT, applyCellTransform, isoCameraFocus, assetCaptionByCell, terrainLabelAt, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawHoverRing, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawConnectorMarker, drawAttackAnimFrame, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, frameImage, getPlayerArt, grassShade, cellFill, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, assetOverride, tileImage, tintedImage, tintedGlyphSprite, treeCanopyLayers } from './shared'
 import { resolveAssetDrawSize } from './assetDimensions'
 import { type GroundCellDims, groundSizeFactors, groundDimsActive } from '@/engine/groundDims'
 import { isoBlockFaces, type BlockFace } from './isoBlock'
@@ -480,11 +480,11 @@ export function render(
       ctx.lineTo(p.x - tileW, drawY)
       ctx.closePath()
       ctx.fill()
-      ctx.fillStyle = '#ffffff'
       ctx.font = `bold ${tileH * 1.1}px ${ASCII_FONT}`
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
-      ctx.fillText('◊', p.x, drawY)
+      // Portal marker is a TILE now: 🌀 under a reskin, ◊ under ASCII — over the purple diamond backing.
+      drawConnectorMarker(ctx, style, p.x, drawY, tileH * 2)
     }
   }
 
@@ -586,17 +586,10 @@ export function render(
       const f = animFrame(a, now)
       if (!f) continue
       const sp = toScreen(f.x / cellSize, f.z / cellSize)
-      ctx.fillStyle = f.color
-      if (f.angle != null) {
-        // SLASH: swing the blade through its arc AT the attacker's hand (not a stick floating off the cell)
-        ctx.save()
-        ctx.translate(sp.x, sp.y - tileH * 1.25)
-        ctx.rotate(f.angle)
-        ctx.fillText(f.char, 0, 0)
-        ctx.restore()
-      } else {
-        ctx.fillText(f.char, sp.x, sp.y - tileH)
-      }
+      // Under a reskin this draws the ability's FX TILE (🔥/⚡/…) recoloured to f.color, keeping the slash-arc
+      // rotation; ASCII keeps the \ | / ─ frame glyph. Slash lifts a touch higher to swing at the hand.
+      const ay = f.angle != null ? sp.y - tileH * 1.25 : sp.y - tileH
+      drawAttackAnimFrame(ctx, a, f, style, sp.x, ay, Math.max(14, tileH * 1.7))
     }
   }
 
@@ -605,14 +598,17 @@ export function render(
   if (projectiles.length > 0) {
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
-    ctx.font = `bold ${Math.max(14, tileH * 1.6)}px ${ASCII_FONT}`
+    const projPx = Math.max(14, tileH * 1.6)
+    ctx.font = `bold ${projPx}px ${ASCII_FONT}`
     ctx.fillStyle = '#ffe9a8'
     for (const pr of projectiles) {
       const pc = projectileCellAt(pr, now)
       const sp = toScreen(pc.col + 0.5, pc.row + 0.5)
       const from = toScreen(pr.fromCol + 0.5, pr.fromRow + 0.5)
       const to = toScreen(pr.toCol + 0.5, pr.toRow + 0.5)
-      drawProjectileGlyph(ctx, pr.glyph, sp.x, sp.y - tileH, from.x, from.y, to.x, to.y)
+      // Under a reskin the glyph resolves to its arrow/bullet/dart tile IMAGE (warm-tinted like the glyph);
+      // ASCII keeps the rotated glyph.
+      drawProjectileGlyph(ctx, pr.glyph, sp.x, sp.y - tileH, from.x, from.y, to.x, to.y, style, projPx, '#ffe9a8')
     }
   }
 
@@ -1776,6 +1772,19 @@ export function drawIsoAssetAscii(
   // 3D half of the 2D+3D tileset: a tile (or the placed instance via GridAsset.height) with height≥1 extrudes
   // into an iso BLOCK instead of a flat billboard. Height 0 / ASCII passthrough (adv.char '') → the flat draw below.
   const blocks = resolveTileHeight(vt, asset)
+  // A well / fountain reads as a RAISED iso basin in ASCII (drawIsoWellFountain / drawIsoTownFountain).
+  // Under a reskin, KEEP that depth by extruding the RESOLVED TILE into an iso block (G3) instead of the
+  // flat billboard below — a flat well.png/⛲ would drop the 3D basin. Town fountains span their plaza, so
+  // the block scales to the footprint. A tile with its own authored height (blocks≥1) uses the generic path.
+  const reskinned = style.id !== ASCII_STYLE.id
+  if (reskinned && blocks < 1 && (asset.type === 'well' || asset.type === 'fountain') && (adv.image || adv.char)) {
+    const span = asset.footprint && asset.footprint > 1 ? asset.footprint : 1
+    const bw = span > 1 ? tileW * span * 0.6 : tileW
+    const bhScreen = span > 1 ? tileH * span * 0.6 : tileH
+    const basinH = tileH * (span > 1 ? span * 0.5 : 1.4) // raised basin height in px (≈ the ASCII bodyH)
+    drawIsoTileBlock(ctx, { x, y }, bw, bhScreen, basinH, 1, adv, asset.color)
+    return
+  }
   if (blocks >= 1 && (adv.image || adv.char)) {
     const bh = resolveAssetDrawSize(tileW * 0.9, asset, 'billboard').h // one block ≈ the cell's iso width; Height/Zoom stretch it
     drawIsoTileBlock(ctx, { x, y }, tileW, tileH, bh, blocks, adv, asset.color)
@@ -2003,12 +2012,12 @@ export function drawIsoAssetAscii(
     ctx.fillText('O', x, layerY)
 
   } else if (asset.type === 'fountain' && asset.footprint) {
-    // The town SQUARE centrepiece: ONE big animated park fountain spanning its plaza (basin + tiered
-    // column + jets), drawn from the centre cell — never N clustered mini-wells.
+    // ASCII ONLY (a reskin already drew the fountain TILE as an iso basin block above). The town SQUARE
+    // centrepiece: ONE big animated park fountain spanning its plaza (basin + tiered column + jets).
     drawIsoTownFountain(ctx, x, y, asset, tileW, tileH, time)
 
   } else if (asset.type === 'well' || asset.type === 'fountain') {
-    // Legacy single-cell well/fountain (manual editor placement): a raised 3D iso basin (#50).
+    // ASCII ONLY (the reskin path above owns the tile). Legacy single-cell well/fountain: a raised 3D basin (#50).
     drawIsoWellFountain(ctx, x, y, asset, tileW, tileH, time)
 
   } else {

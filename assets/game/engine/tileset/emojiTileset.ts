@@ -75,6 +75,28 @@ export let EMOJI_TILESET: Record<string, EmojiTile> = {
   enemy: { char: '👾', color: '#b45ac0' },
   npc: { char: '🧍', color: '#d9a066' },
   player: { char: '🧍', color: '#ffcf3a' },
+  // volcanic ground + lava/water edge crust + biome waterfall/lava spill (baked so they never tofu).
+  lava: { char: '🟥', color: '#ff5a1f', image: '/tiles/emoji/baked/lava.png' },
+  ember: { char: '🔥', color: '#d2691e', image: '/tiles/emoji/baked/ember.png' },
+  spill: { char: '💧', color: '#5bbcff', image: '/tiles/emoji/baked/spill.png' },
+  // arena boss anchor · village well · template portal marker.
+  boss: { char: '👹', color: '#c0392b', image: '/tiles/emoji/baked/boss.png' },
+  well: { char: '🪣', color: '#9bc4d8', image: '/tiles/emoji/baked/well.png' },
+  connector: { char: '🌀', color: '#8a7bd8', image: '/tiles/emoji/baked/connector.png' },
+  // projectiles — the char is the glyph the combat loop fires; the baked image draws it (glyph→image index).
+  arrow: { char: '➤', color: '#ffe9a8', image: '/tiles/emoji/baked/arrow.png' },
+  bullet: { char: '•', color: '#d8d8d8', image: '/tiles/emoji/baked/bullet.png' },
+  dart: { char: '→', color: '#ffe9a8', image: '/tiles/emoji/baked/dart.png' },
+  // ability animations — kind name == the AbilityAnimation string; colour mirrors ABILITY_TINT.
+  'fire-slash': { char: '🔥', color: '#ff7a2a', image: '/tiles/emoji/baked/fire-slash.png' },
+  'ice-slash': { char: '❄️', color: '#7fd0ff', image: '/tiles/emoji/baked/ice-slash.png' },
+  cleave: { char: '💥', color: '#e6ebf3', image: '/tiles/emoji/baked/cleave.png' },
+  bolt: { char: '🔮', color: '#ffe9a8', image: '/tiles/emoji/baked/bolt.png' },
+  'piercing-shot': { char: '🏹', color: '#cfd8e3', image: '/tiles/emoji/baked/piercing-shot.png' },
+  nova: { char: '💫', color: '#c08cff', image: '/tiles/emoji/baked/nova.png' },
+  lightning: { char: '⚡', color: '#7ad7ff', image: '/tiles/emoji/baked/lightning.png' },
+  'heal-glow': { char: '✨', color: '#8effa0', image: '/tiles/emoji/baked/heal-glow.png' },
+  'guard-flash': { char: '🛡️', color: '#9fd3ff', image: '/tiles/emoji/baked/guard-flash.png' },
 }
 // NOTE: weapons (sword/bow/…) and the bare-handed `fist` are NOT in this in-code default — they live only
 // in the DB-loaded tileset (emoji.json), exactly like the other combat tiles. Keeping them out of the

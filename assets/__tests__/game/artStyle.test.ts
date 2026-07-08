@@ -118,8 +118,9 @@ describe('kind classifiers', () => {
     expect(groundKind('plaza')).toBe('plaza')
     expect(groundKind('sand')).toBe('sand')
     expect(groundKind('sand_dune')).toBe('sand')
-    // exotic terrain not in the reskin set → 'ground' (passes through)
-    expect(groundKind('lava')).toBe('ground')
+    // a lava lake floor now has its OWN molten kind (was the 'ground' passthrough — the coverage bug)
+    expect(groundKind('lava')).toBe('lava')
+    // exotic terrain still not in the reskin set → 'ground' (passes through)
     expect(groundKind('crystal')).toBe('ground')
   })
 

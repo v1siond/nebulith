@@ -26,6 +26,7 @@ export const ASCII_FONT = '"JetBrains Mono", "Fira Code", "Consolas", monospace'
 // sentinel, so `resolveDraw` returns the caller's OWN default char+color unchanged —
 // the fillText that follows is byte-identical to the pre-style code.
 import { resolveVisual, type ElementKind, type ImageVisual, type Style } from '@/game/artStyle'
+import { type AttackAnim, type AnimFrame } from '@/engine/attackAnimations'
 
 export interface DrawVisual {
   /** the char to fillText (the caller's default when passing through / drawing an image). */
@@ -616,12 +617,59 @@ export function drawProjectileGlyph(
   fromY: number,
   toX: number,
   toY: number,
+  style?: Style,
+  size?: number,
+  tint?: string,
 ): void {
   const angle = Math.atan2(toY - fromY, toX - fromX)
   ctx.save()
   ctx.translate(drawX, drawY)
   ctx.rotate(angle)
-  ctx.fillText(glyph, 0, 0)
+  // Under a reskin the projectile GLYPH (➤/•/→) resolves to its baked arrow/bullet/dart tile IMAGE
+  // (Phase-1 char→image index), drawn rotated + warm-tinted just like the glyph. ASCII (no style / the
+  // image not yet decoded) → the plain rotated glyph, byte-identical to before.
+  const image = style && style.id !== 'ascii' ? glyphImageVisual(glyph) : undefined
+  if (image && tileImage(image.src)) drawStyledImage(ctx, image, 0, 0, size ?? 16, false, tint)
+  else ctx.fillText(glyph, 0, 0)
+  ctx.restore()
+}
+
+
+/** The portal/connector MARKER for the active style, centered at (cx, cy) sized `size`: the connector tile
+ *  IMAGE (🌀) under a reskin — or its glyph fallback before the PNG decodes — else the ASCII ◊. Shared by
+ *  all three views so a portal reads identically. The caller draws the purple cell backing + sets the font. */
+export function drawConnectorMarker(ctx: CanvasRenderingContext2D, style: Style, cx: number, cy: number, size: number): void {
+  const dv = resolveDraw('connector', style, undefined, '◊', '#ffffff')
+  if (dv.image && tileImage(dv.image.src)) { drawStyledImage(ctx, dv.image, cx, cy, size); return }
+  ctx.fillStyle = dv.color
+  ctx.fillText(dv.char, cx, cy) // 🌀 (emoji tile glyph) / ◊ (ascii passthrough)
+}
+
+
+/** Draw one attack-animation FRAME. Under a reskin whose style maps the ability `animation` (fire-slash,
+ *  bolt, nova, …) to a tile, draws that tile IMAGE — or its emoji glyph before the PNG decodes — recoloured
+ *  to the frame's ability tint, keeping the slash-arc rotation (frame.angle). ASCII, or a basic attack that
+ *  carries no ability animation, draws the frame's own glyph via fillText — byte-identical to before. The
+ *  caller has already set the font/align and computed the on-screen anchor (x, y); `size` is the tile px. */
+export function drawAttackAnimFrame(
+  ctx: CanvasRenderingContext2D,
+  anim: AttackAnim,
+  frame: AnimFrame,
+  style: Style,
+  x: number,
+  y: number,
+  size: number,
+): void {
+  const dv = anim.animation ? resolveDraw(anim.animation, style, undefined, frame.char, frame.color) : null
+  ctx.save()
+  ctx.translate(x, y)
+  if (frame.angle != null) ctx.rotate(frame.angle)
+  if (dv?.image && tileImage(dv.image.src)) {
+    drawStyledImage(ctx, dv.image, 0, 0, size, false, frame.color) // ability tile, recoloured to its tint
+  } else {
+    ctx.fillStyle = frame.color
+    ctx.fillText(dv?.char ?? frame.char, 0, 0) // 🔥/⚡… emoji tile glyph, or the ascii \ | / ─ frame glyph
+  }
   ctx.restore()
 }
 

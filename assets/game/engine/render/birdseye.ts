@@ -1,5 +1,7 @@
-import { GridAsset, IsometricGrid } from '@/engine/IsometricGrid'
+import { GridAsset, GridBuilding, IsometricGrid } from '@/engine/IsometricGrid'
 import { buildingRect, doorCellFor, gridBuildingFacing } from '@/engine/buildingEditor'
+import { buildingCellColor } from '@/engine/stageGenerator'
+import { type BuildingType } from '@/engine/buildingComposer'
 import { assetCellTransform } from '@/engine/cellAnimation'
 import { darkenColor, lightenColor, withAlpha } from '@/engine/colors'
 import { topRoleColor } from '@/engine/entityArt'
@@ -9,7 +11,7 @@ import { type PlayerState, barFraction, hpFraction } from '@/game/runtime/player
 import { type CombatState, type Entity, type Quest } from '@/game/types'
 import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 import { Connector } from '@/lib/api'
-import { ASCII_FONT, BUILDING_BADGES, type DayNight, LAMP_GLOW, applyCellTransform, clampCameraAxis, collectLampGlows, debugCellCaptions, debugLabelColors, drawHitMarker, drawHpBar, drawNightLighting, drawQuestMarker, drawStyledImage, fillTintedGlyph, grassShade, cellFill, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, assetOverride } from './shared'
+import { ASCII_FONT, BUILDING_BADGES, type DayNight, LAMP_GLOW, applyCellTransform, clampCameraAxis, collectLampGlows, debugCellCaptions, debugLabelColors, drawConnectorMarker, drawHitMarker, drawHpBar, drawNightLighting, drawQuestMarker, drawStyledImage, fillTintedGlyph, grassShade, cellFill, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, assetOverride, tileImage } from './shared'
 import { resolveAssetDrawSize } from './assetDimensions'
 import { EMOJI_TILESET } from '@/engine/tileset/emojiTileset'
 import { applyPose } from '@/engine/tileset/pose'
@@ -59,6 +61,132 @@ export function drawTopTownFountain(ctx: CanvasRenderingContext2D, cx: number, c
   }
   ring(radius * 0.26, lightenColor(stone, 0.04)) // central column boss
   ring(radius * 0.1, withAlpha('#eaf8ff', 0.95)) // jet crown
+}
+
+
+// The overhead ROOF palette used by the ASCII blueprint (a reskin uses the roof TILE recoloured to the
+// building's DATA roof colour instead — see drawTopBuildingRoof).
+const ROOF_TOP_COLORS: Record<string, { fill: string; ridge: string; edge: string }> = {
+  house: { fill: '#c0463c', ridge: '#e0786a', edge: '#7a2a24' },
+  'big-house': { fill: '#b0673a', ridge: '#d08f5a', edge: '#6e3f22' },
+  store: { fill: '#3a7ea5', ridge: '#5fa6cc', edge: '#234e66' },
+  hospital: { fill: '#3aa55a', ridge: '#5fcc80', edge: '#23663a' },
+}
+const roofTopPalette = (t: string) => ROOF_TOP_COLORS[t] ?? { fill: '#a0644a', ridge: '#c08a6a', edge: '#5e3a2a' }
+
+
+/** ONE building's roof in the TOP (overhead) view. Under a reskin it's a genuine ROOF TILE recoloured to
+ *  THIS building's data roof colour, tiled across the footprint (a reskinnable roof-from-above that agrees
+ *  with the 2D/iso recoloured-roof-tile); under ASCII it's the blueprint (filled roof + edge + gable ridge +
+ *  a door notch on the road-facing side). A STORE/HOSPITAL badge floats over both. `rx/ry/rw/rh` = the
+ *  building's footprint rect in screen px; `offsetX/offsetY` map a cell to screen for the door-notch centre. */
+export function drawTopBuildingRoof(
+  ctx: CanvasRenderingContext2D,
+  b: GridBuilding,
+  rx: number, ry: number, rw: number, rh: number,
+  offsetX: number, offsetY: number,
+  tileSize: number, fontSize: number,
+  style: Style,
+): void {
+  const roofC = buildingCellColor(b.type as BuildingType, 'roof', b.col)
+  const roofDV = resolveDraw('roof', style, undefined, '', roofC)
+  if (roofDV.image || roofDV.tint) {
+    // RESKIN: the roof is a TILE. Fill the footprint with the roof-colour base, then stamp the roof tile
+    // RECOLOURED to roofC over each footprint cell — a clean roof-from-above that stays reskinnable.
+    ctx.fillStyle = roofC
+    ctx.fillRect(rx, ry, rw, rh)
+    const cols = Math.max(1, Math.round(rw / tileSize))
+    const rows = Math.max(1, Math.round(rh / tileSize))
+    ctx.font = `bold ${tileSize * 1.02}px ${ASCII_FONT}`
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const cx = rx + (c + 0.5) * tileSize
+        const cy = ry + (r + 0.5) * tileSize
+        if (roofDV.image && tileImage(roofDV.image.src)) drawStyledImage(ctx, roofDV.image, cx, cy, tileSize, false, roofC)
+        else fillTintedGlyph(ctx, roofDV.char || '🟥', cx, cy, tileSize, roofC, 1)
+      }
+    }
+  } else {
+    // ASCII blueprint: filled roof + darker edge + gable ridge + a door notch on the road-facing edge.
+    const pal = roofTopPalette(b.type)
+    ctx.fillStyle = pal.fill
+    ctx.fillRect(rx, ry, rw, rh)
+    ctx.strokeStyle = pal.edge
+    ctx.lineWidth = Math.max(1, tileSize * 0.12)
+    ctx.strokeRect(rx + 0.5, ry + 0.5, rw - 1, rh - 1)
+    // ridge down the longer axis (gable read)
+    ctx.strokeStyle = pal.ridge
+    ctx.lineWidth = Math.max(1, tileSize * 0.16)
+    ctx.beginPath()
+    if (rw >= rh) {
+      const my = ry + rh / 2
+      ctx.moveTo(rx + tileSize * 0.25, my)
+      ctx.lineTo(rx + rw - tileSize * 0.25, my)
+    } else {
+      const mx = rx + rw / 2
+      ctx.moveTo(mx, ry + tileSize * 0.25)
+      ctx.lineTo(mx, ry + rh - tileSize * 0.25)
+    }
+    ctx.stroke()
+    // door notch (dark) centred on the actual walkable DOOR cell, on the road-facing edge.
+    const dn = Math.max(3, tileSize * 0.4)
+    const door = doorCellFor(gridBuildingFacing(b), buildingRect(b))
+    ctx.fillStyle = '#241308'
+    if ((b.facing ?? 0) === 0) {
+      const dcx = offsetX + (door.col + 0.5) * tileSize // centre of the door cell's column
+      const dy = b.facadeOnBack ? ry - dn * 0.25 : ry + rh - dn * 0.75
+      ctx.fillRect(dcx - dn / 2, dy, dn, dn * 0.5)
+    } else {
+      const dcy = offsetY + (door.row + 0.5) * tileSize // centre of the door cell's row
+      const dx = b.facadeOnBack ? rx - dn * 0.25 : rx + rw - dn * 0.75
+      ctx.fillRect(dx, dcy - dn / 2, dn * 0.5, dn)
+    }
+  }
+  // Type signage (STORE / HOSPITAL) on the roof — same badge the iso + 2D views show (both styles).
+  const badge = BUILDING_BADGES[b.type]
+  if (badge && tileSize > 8) {
+    const bf = Math.max(7, tileSize * (badge.text.length > 1 ? 0.34 : 0.7))
+    ctx.font = `bold ${bf}px ${ASCII_FONT}`
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    const bw = ctx.measureText(badge.text).width
+    const bx = rx + rw / 2
+    const by = ry + rh / 2
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)'
+    ctx.fillRect(bx - bw / 2 - 2, by - bf * 0.6, bw + 4, bf * 1.2)
+    ctx.fillStyle = badge.color
+    ctx.fillText(badge.text, bx, by)
+    ctx.font = `bold ${fontSize}px ${ASCII_FONT}` // restore the cell font for subsequent draws
+  }
+}
+
+
+/** The town-square fountain in the TOP view. Under a reskin it's the fountain TILE (⛲) drawn over the
+ *  basin footprint; under ASCII it's the procedural round basin (drawTopTownFountain). `cx/cy` = the
+ *  footprint centre in screen px; `f` = the basin side in cells; `tileSize` the per-cell px. */
+export function drawTopFountain(
+  ctx: CanvasRenderingContext2D,
+  cx: number, cy: number,
+  f: number,
+  tileSize: number,
+  style: Style,
+  color: string | undefined,
+  now: number,
+): void {
+  const dv = resolveDraw('fountain', style, undefined, '', color ?? '#4a90e2')
+  if (dv.image || dv.tint) {
+    // RESKIN: the fountain is its TILE, sized to span the plaza footprint (flat overhead read).
+    const size = f * tileSize * 0.94
+    if (dv.image && tileImage(dv.image.src)) { drawStyledImage(ctx, dv.image, cx, cy, size, false, color); return }
+    ctx.font = `bold ${size}px ${ASCII_FONT}`
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    fillTintedGlyph(ctx, dv.char || '⛲', cx, cy, size, color, 0.85)
+    return
+  }
+  drawTopTownFountain(ctx, cx, cy, f * tileSize * 0.5 * 0.94, now)
 }
 
 
@@ -261,13 +389,6 @@ export function renderTopView(
   // ── BUILDING ROOFS (top-down): each building drawn as a cohesive roof seen from above (like a
   //    neighborhood map) over its footprint — filled roof + edge + ridge line + a door notch on the
   //    road-facing side. Overlays the per-cell building tiles for a clean blueprint look.
-  const ROOF_TOP_COLORS: Record<string, { fill: string; ridge: string; edge: string }> = {
-    house: { fill: '#c0463c', ridge: '#e0786a', edge: '#7a2a24' },
-    'big-house': { fill: '#b0673a', ridge: '#d08f5a', edge: '#6e3f22' },
-    store: { fill: '#3a7ea5', ridge: '#5fa6cc', edge: '#234e66' },
-    hospital: { fill: '#3aa55a', ridge: '#5fcc80', edge: '#23663a' },
-  }
-  const roofPalette = (t: string) => ROOF_TOP_COLORS[t] ?? { fill: '#a0644a', ridge: '#c08a6a', edge: '#5e3a2a' }
   for (const b of grid.buildings ?? []) {
     const topRow = b.row - (b.height - 1)
     if (b.col + b.length <= startCol || b.col >= endCol || topRow + b.height <= startRow || topRow >= endRow) continue
@@ -275,58 +396,7 @@ export function renderTopView(
     const ry = offsetY + topRow * tileSize
     const rw = b.length * tileSize
     const rh = b.height * tileSize
-    const pal = roofPalette(b.type)
-    ctx.fillStyle = pal.fill
-    ctx.fillRect(rx, ry, rw, rh)
-    ctx.strokeStyle = pal.edge
-    ctx.lineWidth = Math.max(1, tileSize * 0.12)
-    ctx.strokeRect(rx + 0.5, ry + 0.5, rw - 1, rh - 1)
-    // ridge down the longer axis (gable read)
-    ctx.strokeStyle = pal.ridge
-    ctx.lineWidth = Math.max(1, tileSize * 0.16)
-    ctx.beginPath()
-    if (rw >= rh) {
-      const my = ry + rh / 2
-      ctx.moveTo(rx + tileSize * 0.25, my)
-      ctx.lineTo(rx + rw - tileSize * 0.25, my)
-    } else {
-      const mx = rx + rw / 2
-      ctx.moveTo(mx, ry + tileSize * 0.25)
-      ctx.lineTo(mx, ry + rh - tileSize * 0.25)
-    }
-    ctx.stroke()
-    // door notch (dark) centred on the actual walkable DOOR cell, on the road-facing edge: facing 0 =
-    // horizontal street, 1 = vertical road; facadeOnBack flips near/far so the notch sits toward the
-    // road. Centring on doorCellFor (not the roof mid-width) keeps even-length buildings aligned too.
-    const dn = Math.max(3, tileSize * 0.4)
-    const door = doorCellFor(gridBuildingFacing(b), buildingRect(b))
-    ctx.fillStyle = '#241308'
-    if ((b.facing ?? 0) === 0) {
-      const dcx = offsetX + (door.col + 0.5) * tileSize // centre of the door cell's column
-      const dy = b.facadeOnBack ? ry - dn * 0.25 : ry + rh - dn * 0.75
-      ctx.fillRect(dcx - dn / 2, dy, dn, dn * 0.5)
-    } else {
-      const dcy = offsetY + (door.row + 0.5) * tileSize // centre of the door cell's row
-      const dx = b.facadeOnBack ? rx - dn * 0.25 : rx + rw - dn * 0.75
-      ctx.fillRect(dx, dcy - dn / 2, dn * 0.5, dn)
-    }
-    // Type signage (STORE / HOSPITAL) on the roof — same badge the iso + 2D views show, so a shop /
-    // clinic reads at a glance on the top-down map too.
-    const badge = BUILDING_BADGES[b.type]
-    if (badge && tileSize > 8) {
-      const bf = Math.max(7, tileSize * (badge.text.length > 1 ? 0.34 : 0.7))
-      ctx.font = `bold ${bf}px ${ASCII_FONT}`
-      ctx.textAlign = 'center'
-      ctx.textBaseline = 'middle'
-      const bw = ctx.measureText(badge.text).width
-      const bx = rx + rw / 2
-      const by = ry + rh / 2
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.7)'
-      ctx.fillRect(bx - bw / 2 - 2, by - bf * 0.6, bw + 4, bf * 1.2)
-      ctx.fillStyle = badge.color
-      ctx.fillText(badge.text, bx, by)
-      ctx.font = `bold ${fontSize}px ${ASCII_FONT}` // restore the cell font for subsequent draws
-    }
+    drawTopBuildingRoof(ctx, b, rx, ry, rw, rh, offsetX, offsetY, tileSize, fontSize, style)
   }
 
   // Town-square fountain (top-down): a round blue basin spanning its footprint, drawn over the
@@ -337,7 +407,7 @@ export function renderTopView(
     if (a.col + f < startCol || a.col - f > endCol || a.row + f < startRow || a.row - f > endRow) continue
     const cx = offsetX + (a.col + 0.5) * tileSize
     const cy = offsetY + (a.row + 0.5) * tileSize
-    drawTopTownFountain(ctx, cx, cy, f * tileSize * 0.5 * 0.94, now)
+    drawTopFountain(ctx, cx, cy, f, tileSize, style, a.color, now)
   }
 
   // Collision overlay — drawn LAST (over the roofs + fountains) so it shows on BUILDING cells too; the
@@ -439,12 +509,11 @@ export function renderTopView(
       ctx.fillStyle = 'rgba(180, 80, 255, 0.6)'
       ctx.fillRect(cx, cy, tileSize - 1, tileSize - 1)
 
-      // Draw portal symbol
-      ctx.fillStyle = '#ffffff'
+      // Draw portal marker — a TILE now: 🌀 under a reskin, ◊ under ASCII.
       ctx.font = `bold ${tileSize * 0.6}px ${ASCII_FONT}`
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
-      ctx.fillText('◊', cx + tileSize / 2, cy + tileSize / 2)
+      drawConnectorMarker(ctx, style, cx + tileSize / 2, cy + tileSize / 2, tileSize)
 
       // Draw pulsing border in connector mode
       if (connectorMode) {

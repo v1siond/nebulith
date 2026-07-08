@@ -37,6 +37,13 @@ export type ElementKind =
   | 'pillar' | 'altar' | 'torch' | 'hazard' | 'key'          // temple / dungeon features
   | 'enemy' | 'npc' | 'player'                                // units
   | 'mountain'
+  | 'lava' | 'ember' | 'spill'                                 // volcanic ground + lava/water edge crust + waterfall spill
+  | 'boss' | 'well' | 'connector'                            // arena boss anchor · village well · template portal marker
+  | 'arrow' | 'bullet' | 'dart'                              // projectiles — drawn by their glyph → baked image
+  // ability animations — the AbilityAnimation string IS the kind name (identity), so the renderer
+  // phase routes an ability's `animation` straight through resolveVisual(animation, style).
+  | 'fire-slash' | 'ice-slash' | 'cleave' | 'bolt' | 'piercing-shot'
+  | 'nova' | 'lightning' | 'heal-glow' | 'guard-flash'
 
 export type TileCategory = 'terrain' | 'buildings' | 'units' | 'nature'
 
@@ -190,13 +197,17 @@ const SAND_GROUND = /sand|desert|dune/
 const SNOW_GROUND = /snow|ice|frost/
 // Polished temple/dungeon floors read as a paved plaza in the emoji reskin (⬜).
 const TEMPLE_FLOOR = /temple_floor|marble|gold_tile|ancient_stone|rune_floor/
-// Raw cavern floors → dark rock; damp moss/lichen accents → green. basalt/ash are the lava-cave floor.
-const CAVE_FLOOR = /cave_floor|basalt|^ash$/
+// Raw cavern floors → dark rock; damp moss/lichen accents → green. basalt/ash/rock are the lava-cave
+// floor (the lava zone's `rock` accent ground reads as cavern rock, not the passthrough 'ground').
+const CAVE_FLOOR = /cave_floor|basalt|^ash$|^rock$/
 const CAVE_MOSS = /moss/
+// Molten ground — a lava/magma lake floor gets its OWN kind (🌋-red), never the ASCII passthrough.
+const LAVA_GROUND = /^lava$|^magma$/
 
 /** Classify a ground TILE TYPE string (grass / path_stone / water_deep / …) into a kind.
  *  Unrecognized terrain → 'ground' (unmapped → passes through to ASCII, never mis-skinned). */
 export function groundKind(tileType: string): ElementKind {
+  if (LAVA_GROUND.test(tileType)) return 'lava' // before water: a lava lake floor is its own molten kind
   if (WATER_GROUND.test(tileType)) return 'water'
   if (PATH_GROUND.test(tileType)) return 'path'
   if (TEMPLE_FLOOR.test(tileType)) return 'plaza'
@@ -214,7 +225,10 @@ export function groundKind(tileType: string): ElementKind {
 // building parts map to themselves; biome features to 'mountain'.
 const LABEL_KIND: Readonly<Record<string, ElementKind>> = {
   roof_top: 'roof', roof: 'roof', wall: 'wall', door: 'door', window: 'window',
-  mountain: 'mountain', peak: 'mountain',
+  mountain: 'mountain', peak: 'mountain', spill: 'spill', // biome-feature waterfall/lava spill
+  // Multi-cell ASCII structures (stampAsset writes the asset id as the cell label) that read as
+  // their own thing — the generic ones fall through to TYPE_KIND['structure'] = 'wall' below.
+  big_tree: 'tree', big_rock: 'rock', statue: 'altar', well: 'well', fountain: 'fountain',
 }
 
 /** Kind for a placed asset OR a labeled cell — the classifier the asset draw sites use.
@@ -243,6 +257,11 @@ const TYPE_KIND: Readonly<Record<string, ElementKind>> = {
   // (a brazier reuses the torch flame); a placed door uses the door glyph.
   temple_wall: 'wall', pillar: 'pillar', altar: 'altar', torch: 'torch', brazier: 'torch',
   hazard: 'hazard', key: 'key', door: 'door',
+  // the last unmapped generated types — the 'ground' fallback used to send these to the ASCII
+  // passthrough. A biome-feature massif reads as mountain; auto ground litter as grass (its own
+  // per-cell tileOverride still wins at draw); a paved driveway as path; a multi-cell stamp as wall.
+  boss: 'boss', ember: 'ember', feature: 'mountain', ground_decor: 'grass',
+  path_stone: 'path', structure: 'wall', well: 'well',
 }
 
 /** Kind for an entity by its role. */
@@ -281,20 +300,29 @@ export interface TileDef {
 
 const CATEGORY_OF: Readonly<Record<ElementKind, TileCategory>> = {
   grass: 'terrain', water: 'terrain', path: 'terrain', plaza: 'terrain', sand: 'terrain', ground: 'terrain', mountain: 'terrain', snow: 'terrain', autumn: 'terrain', cavefloor: 'terrain', moss: 'terrain',
+  lava: 'terrain', ember: 'terrain', spill: 'terrain',
   wall: 'buildings', roof: 'buildings', door: 'buildings', window: 'buildings', fountain: 'buildings',
-  pillar: 'buildings', altar: 'buildings',
+  pillar: 'buildings', altar: 'buildings', well: 'buildings', connector: 'buildings',
   tree: 'nature', flower: 'nature', bush: 'nature', rock: 'nature', crate: 'nature', lamp: 'nature',
   crystal: 'nature', mushroom: 'nature', torch: 'nature', hazard: 'nature', key: 'nature',
-  enemy: 'units', npc: 'units', player: 'units',
+  enemy: 'units', npc: 'units', player: 'units', boss: 'units',
+  // projectiles + ability-animation FX — grouped under units (combat visuals) for the Library.
+  arrow: 'units', bullet: 'units', dart: 'units',
+  'fire-slash': 'units', 'ice-slash': 'units', cleave: 'units', bolt: 'units', 'piercing-shot': 'units',
+  nova: 'units', lightning: 'units', 'heal-glow': 'units', 'guard-flash': 'units',
 }
 
 const KIND_LABEL: Readonly<Record<ElementKind, string>> = {
   grass: 'Grass', water: 'Water', path: 'Path', plaza: 'Plaza', sand: 'Sand', ground: 'Ground', mountain: 'Mountain', snow: 'Snow', autumn: 'Autumn Ground', cavefloor: 'Cave Floor', moss: 'Moss',
+  lava: 'Lava', ember: 'Ember', spill: 'Spill',
   wall: 'Wall', roof: 'Roof', door: 'Door', window: 'Window', fountain: 'Fountain',
-  pillar: 'Pillar', altar: 'Altar',
+  pillar: 'Pillar', altar: 'Altar', well: 'Well', connector: 'Portal',
   tree: 'Tree', flower: 'Flower', bush: 'Bush', rock: 'Rock', crate: 'Crate', lamp: 'Lamp',
   crystal: 'Crystal', mushroom: 'Mushroom', torch: 'Torch', hazard: 'Hazard', key: 'Key',
-  enemy: 'Enemy', npc: 'NPC', player: 'Player',
+  enemy: 'Enemy', npc: 'NPC', player: 'Player', boss: 'Boss',
+  arrow: 'Arrow', bullet: 'Bullet', dart: 'Bolt',
+  'fire-slash': 'Fire Slash', 'ice-slash': 'Ice Slash', cleave: 'Cleave', bolt: 'Arcane Bolt', 'piercing-shot': 'Piercing Shot',
+  nova: 'Nova', lightning: 'Lightning', 'heal-glow': 'Heal Glow', 'guard-flash': 'Guard Flash',
 }
 
 // Explicit ASCII glyph tiles so the Library has content for the ASCII style too (its
@@ -354,12 +382,19 @@ export const EMOJI_TILES: TileDef[] = Object.entries(
 ).map(([slug, t]) => emojiTile(t.category, slug, t.label, t.char, t.color))
 
 /** Every catalog tile, flat (ASCII glyph tiles + each non-ASCII style's mapped tiles + the
- *  full curated emoji tileset above). */
-export const TILE_CATALOG: readonly TileDef[] = [
+ *  full curated emoji tileset above). Deduped by id keeping the FIRST occurrence: a style KIND and
+ *  a curated catalog tile can legitimately share a slug (e.g. `lava` — a mapped ground kind AND a
+ *  browsable catalog terrain), and the style's mapped tile is the canonical one. Keeps every id
+ *  globally unique so `visualForTileId` (a `tileOverride` lookup) is never ambiguous. */
+function dedupById(defs: TileDef[]): TileDef[] {
+  const seen = new Set<string>()
+  return defs.filter(d => (seen.has(d.id) ? false : (seen.add(d.id), true)))
+}
+export const TILE_CATALOG: readonly TileDef[] = dedupById([
   ...tilesForAscii(),
   ...BUILT_IN_STYLES.filter(s => s.id !== 'ascii').flatMap(tilesFromStyle),
   ...EMOJI_TILES,
-]
+])
 
 const TILE_BY_ID: Readonly<Record<string, TileDef>> = Object.fromEntries(TILE_CATALOG.map(t => [t.id, t]))
 

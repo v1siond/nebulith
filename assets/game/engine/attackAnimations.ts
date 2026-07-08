@@ -8,6 +8,7 @@
  */
 
 import { lerp } from '@/lib/math'
+import { type AbilityAnimation } from '@/game/abilities'
 
 export type AttackAnimKind = 'slash' | 'shot' | 'lightning' | 'block'
 
@@ -19,6 +20,10 @@ export interface AttackAnim {
   toZ: number
   start: number
   durationMs: number
+  /** The ABILITY this swing plays (fire-slash / bolt / nova / …), when it came from an ability. It IS the
+   *  tile kind: the renderer resolves resolveVisual(animation, style) to draw the ability's FX tile under a
+   *  reskin (keeping the tint). Absent for a basic weapon attack → the renderer draws the kind's glyph. */
+  animation?: AbilityAnimation
   /** The attacker's weapon glyph — a slash swings THIS (the actual sword) in-hand, instead of a
    *  generic floating stroke. Optional: falls back to the kind's default frame glyph. */
   glyph?: string
