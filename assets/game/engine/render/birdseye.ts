@@ -13,6 +13,7 @@ import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 import { Connector } from '@/lib/api'
 import { ASCII_FONT, BUILDING_BADGES, type DayNight, LAMP_GLOW, applyCellTransform, clampCameraAxis, collectLampGlows, debugCellCaptions, debugLabelColors, drawConnectorMarker, drawHitMarker, drawHpBar, drawNightLighting, drawQuestMarker, drawStyledImage, fillTintedGlyph, grassShade, cellFill, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, resolveAssetDraw, resolveEntityDraw, assetOverride, tileImage } from './shared'
 import { resolveAssetDrawSize } from './assetDimensions'
+import { getStack } from '@/engine/cellStack'
 import { EMOJI_TILESET } from '@/engine/tileset/emojiTileset'
 import { applyPose } from '@/engine/tileset/pose'
 import { resolveTileSize, resolveTilePose } from '@/engine/tileset/tileViewSettings'
@@ -274,6 +275,13 @@ export function renderTopView(
       const y = offsetY + row * tileSize
       const key = `${col},${row}`
       const asset = assetMap[key]
+      // Step 4c — a bare GROUND cell reads its FLOOR from tile index 0 of the cell's unified stack (mirrors
+      // 2D's 4a / iso's 4b). getStack projects the SAME ground slug/colour the direct grid.ground/groundColor
+      // reads gave, so the blueprint fill stays byte-identical — only the SOURCE moved onto the tile-in-cell
+      // adapter. birdseye's overhead floor never uses groundDims (the dims path is asset-only, via `asset ?? {}`
+      // below), so only slug + the colour override migrate. Props keep their assetMap path: asset cells skip
+      // the stack (a TileEntry is lossy for a prop, and the asset-takes-priority draw order must be preserved).
+      const floor = asset ? undefined : getStack(grid, col, row)[0]
 
       let char: string
       let fg: string
@@ -290,8 +298,8 @@ export function renderTopView(
         bg = TOP_ASSET_BACKDROP[asset.type] ?? '#141414'
         kind = assetKind(asset)
       } else {
-        // Ground tile
-        const tileType = grid.ground[row]?.[col] || 'grass'
+        // Ground tile — slug from the floor tile (stack index 0); `|| 'grass'` matches the old direct read.
+        const tileType = floor?.slug || 'grass'
         // Ground LOADS from the tileset's terrain data; the blueprint view uses the base variant (index 0).
         const colors = ASCII_TILESET.terrain[tileType] ?? ASCII_TILESET.terrain.grass
         char = colors.char[0]
@@ -310,8 +318,10 @@ export function renderTopView(
       // Draw cell — a reskin tints the blueprint cell at the tile hue (agrees with iso/2D), but grass
       // keeps its per-cell shade so a field isn't one flat green ("grass is just color"); ASCII → bg.
       // A per-cell FLOOR COLOUR override (Property panel) wins on a bare GROUND cell (asset cells keep the
-      // asset tint, matching the separate ground layer under props in 2D/iso).
-      const floorOverride = !asset ? grid.groundColor?.[row]?.[col] : null
+      // asset tint, matching the separate ground layer under props in 2D/iso). The override now rides the
+      // floor tile (getStack maps groundColor → color); byte-identical since null / a missing value both
+      // fall through the `?? cellFill` below exactly as the old direct read did.
+      const floorOverride = !asset ? floor?.color : null
       ctx.fillStyle = floorOverride ?? cellFill(dv.tint, bg, grassy, col, row)
       ctx.fillRect(x, y, tileSize - 1, tileSize - 1)
 
