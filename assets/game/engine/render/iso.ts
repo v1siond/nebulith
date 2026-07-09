@@ -22,6 +22,7 @@ import { Connector } from '@/lib/api'
 import { ASCII_FONT, BUILDING_BADGES, COMBAT_RANGE, type DayNight, type DrawVisual, ENEMY_MOVE_MS, LAMP_GLOW, LIGHT, applyCellTransform, isoCameraFocus, assetCaptionByCell, terrainLabelAt, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawHoverRing, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawConnectorMarker, drawAttackAnimFrame, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, frameImage, getPlayerArt, grassShade, cellFill, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, resolveAssetDraw, resolveEntityDraw, assetOverride, tileImage, tintedImage, tintedGlyphSprite, treeCanopyLayers, treeCellSet } from './shared'
 import { resolveAssetDrawSize } from './assetDimensions'
 import { type GroundCellDims, groundSizeFactors, groundDimsActive } from '@/engine/groundDims'
+import { getStack } from '@/engine/cellStack'
 import { isoBlockFaces, type BlockFace } from './isoBlock'
 import { resolveTileHeight } from '@/engine/tileset/tileHeight'
 import { EMOJI_TILESET } from '@/engine/tileset/emojiTileset'
@@ -196,7 +197,14 @@ export function drawIsoGroundLayer(ctx: CanvasRenderingContext2D, p: IsoGroundPa
       const py = h / 2 + (wx + wz) * isoScale * 0.36
       if (px < -tileW * 2 || px > w + tileW * 2 || py < -tileH * 2 || py > h + tileH * 2) continue
 
-      const tileType = grid.ground[row]?.[col] || 'grass'
+      // Step 4b — the FLOOR is read as tile index 0 of the cell's unified stack (mirrors 2D's Step 4a).
+      // getStack projects the SAME ground slug/colour/dims the direct grid.ground/groundColor/groundDims
+      // reads gave, so resolveGroundTile/cellFill + the dims path below stay byte-identical — only the
+      // SOURCE moved onto the one tile-in-cell adapter. (Props keep their flat getVisibleAssets path in
+      // render(): the TileEntry projection is lossy for a prop and per-cell iteration would reorder the
+      // depth-sorted stack, either of which would break the pixel-identical contract.)
+      const floor = getStack(grid, col, row)[0]
+      const tileType = floor.slug || 'grass'
       // Ground appearance now LOADS from the tileset (resolveGroundTile) instead of the hardcoded
       // GROUND_COLORS table — byte-identical selection (same noise variant). Grass keeps its per-cell shade.
       const gt = resolveGroundTile(ASCII_TILESET, tileType, col, row)
@@ -216,7 +224,7 @@ export function drawIsoGroundLayer(ctx: CanvasRenderingContext2D, p: IsoGroundPa
       // per-cell shade so the field/cavern isn't one flat sheet ("grass is just color"); ASCII → bg.
       // A per-cell FLOOR COLOUR override (Property panel) wins over the catalog colour (drives the diamond
       // top AND the darkened cube sides below, so a recoloured cell reads solid in iso).
-      const fillBg = grid.groundColor?.[row]?.[col] ?? cellFill(gdv.tint, bg, isGrass || gk === 'cavefloor', col, row)
+      const fillBg = floor.color ?? cellFill(gdv.tint, bg, isGrass || gk === 'cavefloor', col, row)
 
       const cellHeight = grid.getHeight(col, row)
       const heightOffset = cellHeight * heightStep
@@ -261,17 +269,24 @@ export function drawIsoGroundLayer(ctx: CanvasRenderingContext2D, p: IsoGroundPa
 
       const isWater = WATER_DEPTH_TILES.has(tileType)
 
+      // FLOOR COLOUR + DIMS also ride the floor tile (getStack maps groundColor → color and
+      // scaleX/scaleZ/scale/scaleY/pose → w/d/zoom/scaleY/pose). Reconstruct the SAME GroundCellDims the old
+      // grid.groundDims read gave — groundDimsActive/groundSizeFactors resolve identically (an all-unset
+      // floor → w:1,d:1 → inactive, {fx:1,fy:1}); floor.color ?? undefined == the old groundColor ?? undefined.
+      const floorTint = floor.color ?? undefined
+      const floorDims: GroundCellDims = { scaleX: floor.w, scaleY: floor.scaleY, scaleZ: floor.d, scale: floor.zoom, pose: floor.pose }
+
       if (bakeStatic) {
         // Static cache: skip the animated water surface (collected for the live pass);
         // bake the grass glyph at full alpha (the ≤1.5% flicker is render-only motion).
         if (isWater) { if (waterOut) waterOut.push({ col, row }); continue }
-        drawIsoGroundContent(ctx, gdv, px, drawY, tileW, tileH, isGrass, false, time, col, row, grid.groundColor?.[row]?.[col] ?? undefined, grid.groundDims?.[row]?.[col])
+        drawIsoGroundContent(ctx, gdv, px, drawY, tileW, tileH, isGrass, false, time, col, row, floorTint, floorDims)
         continue
       }
 
       // Direct / fallback path — byte-identical to the original inline loop for ASCII.
       if (isWater) drawIsoWaterDepth(ctx, px, drawY, tileW, tileH, fillBg, time, col, row)
-      drawIsoGroundContent(ctx, gdv, px, drawY, tileW, tileH, isGrass, true, time, col, row, grid.groundColor?.[row]?.[col] ?? undefined, grid.groundDims?.[row]?.[col])
+      drawIsoGroundContent(ctx, gdv, px, drawY, tileW, tileH, isGrass, true, time, col, row, floorTint, floorDims)
     }
   }
 }
@@ -291,7 +306,8 @@ export function drawIsoWaterCells(ctx: CanvasRenderingContext2D, p: IsoGroundPar
     const wz = row * cellSize - camZ
     const px = w / 2 + (wx - wz) * isoScale * 0.71
     const py = h / 2 + (wx + wz) * isoScale * 0.36
-    const tileType = grid.ground[row]?.[col] || 'grass'
+    const floor = getStack(grid, col, row)[0] // Step 4b — floor from the unified stack (byte-identical)
+    const tileType = floor.slug || 'grass'
     const gt = resolveGroundTile(ASCII_TILESET, tileType, col, row) // LOADS from the tileset (byte-identical)
     const char = gt.char
     const fg = gt.fg
@@ -300,7 +316,8 @@ export function drawIsoWaterCells(ctx: CanvasRenderingContext2D, p: IsoGroundPar
     const wdv = resolveDraw(groundKind(tileType), style, undefined, char, fg)
     const fillBg = wdv.tint ?? bg // reskin water → the tile's own colour (catalog data); ASCII → bg
     drawIsoWaterDepth(ctx, px, drawY, tileW, tileH, fillBg, time, col, row)
-    drawIsoGroundContent(ctx, wdv, px, drawY, tileW, tileH, false, true, time, col, row, grid.groundColor?.[row]?.[col] ?? undefined, grid.groundDims?.[row]?.[col])
+    const floorDims: GroundCellDims = { scaleX: floor.w, scaleY: floor.scaleY, scaleZ: floor.d, scale: floor.zoom, pose: floor.pose }
+    drawIsoGroundContent(ctx, wdv, px, drawY, tileW, tileH, false, true, time, col, row, floor.color ?? undefined, floorDims)
   }
 }
 
