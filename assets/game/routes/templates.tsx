@@ -52,7 +52,7 @@ import { type Trigger, type TriggerEffect, fireTriggers } from '@/game/runtime/t
 import { ASCII_STYLE, type Style, type TileDef, styleById, groundKind, assetKind, entityKind, genderize, resolveVisual, visualForTileId } from '@/game/artStyle'
 import { useRouter } from 'next/router'
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
-import { render, render2D, renderTopView, clampCameraAxis, isoCameraFocus, entityMotion, ENEMY_MOVE_MS, isDebugMode, setDebugMode, isShowCollisions, setShowCollisions as setCollisionsFlag, cellCaptionMap, type DayNight } from '@/engine/render'
+import { render, render2D, renderTopView, clampCameraAxis, isoCameraFocus, entityMotion, ENEMY_MOVE_MS, isDebugMode, setDebugMode, isShowCollisions, setShowCollisions as setCollisionsFlag, cellCaptionMap, pickIsoBlock, ISO_BLOCK_H_FRAC, type IsoPickBlock, type DayNight } from '@/engine/render'
 import { loadTilesetsFromBackend, saveTilesetToBackend } from '@/engine/tileset/tilesetLoader'
 import { EMOJI_TILESET, setTilePose } from '@/engine/tileset/emojiTileset'
 import { type TilePose } from '@/engine/tileset/pose'
@@ -71,7 +71,7 @@ import { AnimationEditor, ArtSection, Dropdown, FpsReadout, GenerateControls, Po
 import { useFps } from '@/components/useFps'
 import { commonValue, commonBool, cellsFromKeys } from '@/game/editor/selectionEdit'
 import { entityKindForUnitSlug, placementFor, tileSlug } from '@/game/editor/tilePlacement'
-import { placeGroundTile, removeTopAsset, stackAssetTile } from '@/game/editor/tileBrush'
+import { placeGroundTile, removeTopAsset, removeAssetAtLevel, stackAssetTile } from '@/game/editor/tileBrush'
 
 
 // View mode states (global for game loop access)
@@ -140,7 +140,7 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
   const [panStart, setPanStart] = useState<{ x: number; y: number } | null>(null)
   // Click-vs-drag in the play views: a clean click selects the entity under it, a drag pans.
   const dragMovedRef = useRef(false)
-  const downCellRef = useRef<{ col: number; row: number } | null>(null)
+  const downCellRef = useRef<{ col: number; row: number; level?: number } | null>(null)
   const downAltRef = useRef(false) // Alt held on mouse-DOWN — mouse-up reads it to select the CELL under a unit (instead of the unit)
   const [camOffset, setCamOffset] = useState({ x: 0, y: 0 })
   const camOffsetRef = useRef({ x: 0, y: 0 })
@@ -757,6 +757,50 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
     return null
   }
 
+  // Height-aware ISO block pick: a click on a RAISED stacked block resolves to THAT block's cell + level,
+  // not the flat ground cell under it. screenToCell inverts only the FLAT diamond projection, so on a stack
+  // it always lands on the bottom cell — "it only selects the 1 bottom cell, never lets you select the
+  // blocks". This mirrors the iso render's projection + isoStackLift (same clamped camera focus) and
+  // hit-tests the lifted blocks, nearest-camera-first. Iso view ONLY; returns null when the pointer misses
+  // every raised block (the caller then uses the unchanged flat screenToCell). 2D/top picking is untouched.
+  const pickIsoBlockAt = (clientX: number, clientY: number): { col: number; row: number; level: number } | null => {
+    const canvas = canvasRef.current
+    const grid = gridRef.current
+    if (!canvas || !grid) return null
+    if (topViewMode || viewTypeRef.current === '2d') return null
+
+    const rect = canvas.getBoundingClientRect()
+    const scaleX = rect.width ? canvas.width / rect.width : 1
+    const scaleY = rect.height ? canvas.height / rect.height : 1
+    const x = (clientX - rect.left) * scaleX
+    const y = (clientY - rect.top) * scaleY
+    const cs = grid.cellSize
+    const eff = grid.isoScale * isoZoomRef.current
+    // SAME clamped camera focus the iso render + screenToCell use (isoCameraFocus in play mode, raw in dev).
+    const S = eff * 0.71
+    const T = eff * 0.36
+    const pPad = canvas.width / (2 * cs * S)
+    const qPad = canvas.height / (2 * cs * T)
+    const rawFc = (playerRef.current.x - camOffsetRef.current.x) / cs
+    const rawFr = (playerRef.current.z - camOffsetRef.current.y) / cs
+    const { fc, fr } = playModeRef.current ? isoCameraFocus(rawFc, rawFr, pPad, qPad, grid.cols, grid.rows) : { fc: rawFc, fr: rawFr }
+
+    // Candidate raised blocks: every placed asset lifted at least one level, tagged with its cell's elevation
+    // (the render lifts a block by both terrain height and the stack lift — the pick must match).
+    const blocks: IsoPickBlock[] = []
+    for (const a of grid.assets) {
+      if ((a.heightLevel ?? 0) < 1) continue
+      blocks.push({ col: a.col, row: a.row, heightLevel: a.heightLevel ?? 0, terrainHeight: grid.getHeight(a.col, a.row) })
+    }
+    if (blocks.length === 0) return null
+    return pickIsoBlock(x, y, blocks, { w: canvas.width, h: canvas.height, cellSize: cs, isoScale: eff, camX: fc * cs, camZ: fr * cs })
+  }
+
+  // The cell a click SELECTS/edits: a raised iso block first (so a click on a stack picks the block, not its
+  // bottom cell), else the flat screenToCell — unchanged for empty cells, 2D and top.
+  const pickCellForSelect = (clientX: number, clientY: number): { col: number; row: number; level?: number } | null =>
+    pickIsoBlockAt(clientX, clientY) ?? screenToCell(clientX, clientY)
+
   // Grid cell → viewport screen coords (the FORWARD of screenToCell above). Used to
   // glue the on-canvas quick-action toolbar over the selected element for the ACTIVE
   // view. Returns the cell CENTRE (col+0.5, row+0.5) in viewport pixels, or null when
@@ -831,8 +875,10 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
     // top asset), on the current multi-cell selection when there is one, else on the single clicked cell.
     // SHIFT is left to the selection gesture below so a bulk selection can still be built while armed.
     if (e.button === 0 && armedTile && !e.shiftKey) {
-      const cell = screenToCell(e.clientX, e.clientY)
-      if (cell) applyArmedBrush(cell, e.altKey)
+      // Block-aware: place onto / ⌥Alt-remove the block you're POINTING at, so a stack no longer paints or
+      // erases the wrong bottom cell. Falls back to the flat cell on empty ground / 2D / top (unchanged).
+      const pick = pickCellForSelect(e.clientX, e.clientY)
+      if (pick) applyArmedBrush(pick, e.altKey)
       return
     }
 
@@ -841,8 +887,9 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
     // Plain left-drag pans, shift+drag selects — the SAME gesture everywhere (top view no longer
     // hijacks plain drag for select, which is why the screen wouldn't move). Middle/right-drag also pans.
     if (e.button === 0 && !entityTool && !buildingTool && !connectorMode && !e.shiftKey) {
-      // Defer the decision: clean click → select the entity here; drag → pan (mouse-up decides).
-      downCellRef.current = screenToCell(e.clientX, e.clientY)
+      // Defer the decision: clean click → select the entity here; drag → pan (mouse-up decides). Iso uses the
+      // block-aware pick so a click on a raised stacked block selects THAT block's cell, not the ground under it.
+      downCellRef.current = pickCellForSelect(e.clientX, e.clientY)
       downAltRef.current = e.altKey // Alt+left → resolve to the CELL under any unit (mouse-up reads this)
       dragMovedRef.current = false
       setIsPanning(true)
@@ -1532,8 +1579,47 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
       __setDebug?: (v: boolean) => void
       __cellLabels?: (col0: number, row0: number, col1: number, row1: number) => unknown
       __camOffset?: () => { x: number; y: number }
+      __stackAsset?: (col: number, row: number, n?: number) => number | null
+      __isoBlockScreen?: (col: number, row: number, level: number) => { x: number; y: number } | null
     }
     win.__camOffset = () => ({ ...camOffsetRef.current })
+    // ISO-STACK picking validation seams (same family as __entityScreens, which lands validation clicks via
+    // the real cellToScreen). __stackAsset pushes N boulders onto a cell so it becomes a real lifted stack;
+    // __isoBlockScreen returns the VIEWPORT pixel a given stack level is drawn at (mirroring the iso render's
+    // projection + isoStackLift) so a validation click can land dead-centre on the top block and prove the
+    // height-aware pick selects the STACKED cell, not the ground cell under it.
+    win.__stackAsset = (col: number, row: number, n = 1) => {
+      const g = gridRef.current
+      if (!g) return null
+      for (let k = 0; k < n; k++) {
+        const top = g.getAssetsAtCell(col, row).reduce((m, a) => Math.max(m, a.heightLevel ?? 0), -1)
+        g.placeAsset(['🪨'], col, row, { type: 'rock', blocking: true, color: '#8a8a8a', tileOverride: 'emoji:boulder', heightLevel: top + 1 })
+      }
+      return g.getAssetsAtCell(col, row).length
+    }
+    win.__isoBlockScreen = (col: number, row: number, level: number) => {
+      const canvas = canvasRef.current
+      const grid = gridRef.current
+      if (!canvas || !grid) return null
+      const cs = grid.cellSize
+      const eff = grid.isoScale * isoZoomRef.current
+      const S = eff * 0.71
+      const T = eff * 0.36
+      const pPad = canvas.width / (2 * cs * S)
+      const qPad = canvas.height / (2 * cs * T)
+      const rawFc = (playerRef.current.x - camOffsetRef.current.x) / cs
+      const rawFr = (playerRef.current.z - camOffsetRef.current.y) / cs
+      const { fc, fr } = playModeRef.current ? isoCameraFocus(rawFc, rawFr, pPad, qPad, grid.cols, grid.rows) : { fc: rawFc, fr: rawFr }
+      const wx = col * cs - fc * cs
+      const wz = row * cs - fr * cs
+      const px = canvas.width / 2 + (wx - wz) * S
+      const py = canvas.height / 2 + (wx + wz) * T
+      const cy = py - grid.getHeight(col, row) * (cs * eff * 0.4) - level * (cs * S) * ISO_BLOCK_H_FRAC
+      const rect = canvas.getBoundingClientRect()
+      const sx = canvas.width ? rect.width / canvas.width : 1
+      const sy = canvas.height ? rect.height / canvas.height : 1
+      return { x: rect.left + px * sx, y: rect.top + cy * sy }
+    }
     // Debug-overlay + tileset-label validation seams: toggle the label overlay, and DUMP the
     // `<TYPE> <POSITION>` label of every cell in a region (terrain autotile label overridden by an
     // asset caption) — so "every cell carries a consistent tileset label" is validated as DATA.
@@ -1656,7 +1742,7 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
       setSelectedCells(new Set([`${best.col},${best.row}`]))
       return best
     }
-    return () => { delete win.__setArtStyle; delete win.__selectFirstTreeCell; delete win.__setView; delete win.__gridKinds; delete win.__entityInfo; delete win.__entityScreens; delete win.__selectEntity; delete win.__setEntitySize; delete win.__scatter; delete win.__selectedEntityInfo; delete win.__placeBuilding; delete win.__selectBuilding; delete win.__resizeBuilding; delete win.__selectedBuildingLen; delete win.__cellSel; delete win.__selectCells; delete win.__applyCellTile; delete win.__clearRegion; delete win.__setDebug; delete win.__cellLabels }
+    return () => { delete win.__setArtStyle; delete win.__selectFirstTreeCell; delete win.__setView; delete win.__gridKinds; delete win.__entityInfo; delete win.__entityScreens; delete win.__selectEntity; delete win.__setEntitySize; delete win.__scatter; delete win.__selectedEntityInfo; delete win.__placeBuilding; delete win.__selectBuilding; delete win.__resizeBuilding; delete win.__selectedBuildingLen; delete win.__cellSel; delete win.__selectCells; delete win.__applyCellTile; delete win.__clearRegion; delete win.__setDebug; delete win.__cellLabels; delete win.__camOffset; delete win.__stackAsset; delete win.__isoBlockScreen }
   }, [])
 
   // ── Selected-entity inspector actions ─────────────────────────────
@@ -1949,22 +2035,28 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
     stackAssetTile(grid, col, row, armedTile, { opacity: placeOpacity < 1 ? placeOpacity : undefined })
   }
 
-  /** ⌥Alt-click → remove the top stacked asset on a cell (collision re-derived by the tileBrush module). */
-  const removeTopAssetAt = (col: number, row: number) => {
+  /** ⌥Alt-click removal for the armed brush. With a `level` (a single click that landed on a raised block)
+   *  → remove THAT block, not blindly the top; without one (a bulk selection) → remove the cell's top asset.
+   *  Collision is re-derived by the tileBrush module either way. */
+  const removeAssetAt = (col: number, row: number, level?: number) => {
     const grid = gridRef.current
-    if (grid) removeTopAsset(grid, col, row)
+    if (!grid) return
+    if (level !== undefined) removeAssetAtLevel(grid, col, row, level)
+    else removeTopAsset(grid, col, row)
   }
 
   /** The armed-brush action for a canvas click: apply to the whole multi-cell SELECTION when there is one
    *  (bulk — "select a tile, multi-select 4 cells → 4 trees"), else to the single clicked cell. Alt removes
    *  the top asset; otherwise it places. The brush STAYS armed (keep clicking); a bulk fill then clears the
    *  selection so the next single click paints just one cell. */
-  const applyArmedBrush = (cell: { col: number; row: number }, alt: boolean) => {
+  const applyArmedBrush = (cell: { col: number; row: number; level?: number }, alt: boolean) => {
     if (!armedTile) return
     const selected = cellsFromKeys(selectedCellsRef.current)
-    const targets = selected.length ? selected : [cell]
+    const targets: { col: number; row: number; level?: number }[] = selected.length ? selected : [cell]
     for (const t of targets) {
-      if (alt) removeTopAssetAt(t.col, t.row)
+      // A bulk selection has no per-cell level → removeAssetAt pops the top (unchanged); a single click on a
+      // raised block carries its level → that exact block is removed.
+      if (alt) removeAssetAt(t.col, t.row, t.level)
       else placeArmedTileAt(t.col, t.row)
     }
     if (selected.length) setSelectedCells(new Set())

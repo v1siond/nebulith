@@ -1161,6 +1161,80 @@ export function isoDepthCompare(
 }
 
 
+/** The camera/zoom/viewport the iso projection needs — the SAME numbers render() computes:
+ *  `isoScale` is already the zoom-scaled value (grid.isoScale * zoom); camX/camZ are the clamped
+ *  focus in world units (fc*cellSize, fr*cellSize). */
+export interface IsoPickCamera {
+  w: number
+  h: number
+  cellSize: number
+  isoScale: number
+  camX: number
+  camZ: number
+}
+
+/** One raised block to hit-test: its cell, its stack level, and the ELEVATION of its cell (grid.getHeight)
+ *  so the block's on-screen position matches the render, which lifts a stacked asset by BOTH the terrain
+ *  height and isoStackLift. */
+export interface IsoPickBlock {
+  col: number
+  row: number
+  heightLevel: number
+  terrainHeight: number
+}
+
+export interface IsoPickResult {
+  col: number
+  row: number
+  level: number
+}
+
+/** Screen → the RAISED block the pointer is on, or null. Fixes the iso selection ignoring stacked blocks:
+ *  `screenToCell` inverts the FLAT diamond projection, so a click on a block that the render LIFTED up
+ *  (isoStackLift) resolves to the ground cell under that pixel — the bottom — never the block. This mirrors
+ *  render()'s projection + lift to hit-test each block's on-screen footprint (its iso diamond at its lifted
+ *  height) and returns the FIRST one the point falls inside, NEAREST the camera first — the draw order
+ *  reversed (higher col+row, then higher level = drawn last / on top), so the block you SEE on top wins an
+ *  overlap. Only heightLevel ≥ 1 blocks are tested; a flat cell / lone level-0 asset returns null so the
+ *  caller's existing flat pick stays byte-identical (normal, unstacked selection is unchanged). Pure. */
+export function pickIsoBlock(
+  screenX: number,
+  screenY: number,
+  blocks: readonly IsoPickBlock[],
+  cam: IsoPickCamera,
+): IsoPickResult | null {
+  const { w, h, cellSize, isoScale, camX, camZ } = cam
+  const tileW = cellSize * isoScale * 0.71
+  const tileH = cellSize * isoScale * 0.36
+  const heightStep = cellSize * isoScale * 0.4
+  if (tileW <= 0 || tileH <= 0) return null
+  // Nearest-camera-first = the reverse of render's back-to-front sort (isoDepthCompare): a higher (col+row)
+  // is drawn later / on top, then a higher level within the same cell. Test in that order and take the first
+  // hit so the topmost visible block wins where lifted footprints overlap.
+  const ordered = blocks
+    .filter(b => (b.heightLevel ?? 0) >= 1)
+    .slice()
+    .sort((a, b) => {
+      const d = (b.col + b.row) - (a.col + a.row)
+      if (d !== 0) return d
+      return (b.heightLevel ?? 0) - (a.heightLevel ?? 0)
+    })
+  for (const b of ordered) {
+    const wx = b.col * cellSize - camX
+    const wz = b.row * cellSize - camZ
+    const px = w / 2 + (wx - wz) * isoScale * 0.71
+    const py = h / 2 + (wx + wz) * isoScale * 0.36
+    // Same y the render draws the block at: base diamond centre, up by the terrain elevation, up by the stack lift.
+    const cy = py - b.terrainHeight * heightStep - isoStackLift(tileW, b.heightLevel)
+    // Point-in-iso-diamond around that lifted top face (the quad render() strokes for the selection cube).
+    const dx = Math.abs(screenX - px)
+    const dy = Math.abs(screenY - cy)
+    if (dx / tileW + dy / tileH <= 1) return { col: b.col, row: b.row, level: b.heightLevel }
+  }
+  return null
+}
+
+
 /** Render a height≥1 tile/asset as an iso CUBE — the 3D half of the 2D+3D tileset model. The cell's
  *  flat diamond extrudes into `height` stacked blocks (isoBlockFaces); each block fills its two
  *  camera-visible side faces + the top face gets the final cap, and the tile is SHEARED onto every

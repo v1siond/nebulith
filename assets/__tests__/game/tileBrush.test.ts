@@ -6,7 +6,7 @@
  */
 import { IsometricGrid } from '@/engine/IsometricGrid'
 import { tilesForStyle, type TileDef } from '@/game/artStyle'
-import { placeGroundTile, removeTopAsset, stackAssetTile } from '@/game/editor/tileBrush'
+import { placeGroundTile, removeTopAsset, removeAssetAtLevel, stackAssetTile } from '@/game/editor/tileBrush'
 
 const EMOJI = tilesForStyle('emoji')
 const byId = (id: string): TileDef => {
@@ -116,5 +116,35 @@ describe('removeTopAsset — ⌥Alt remove + collision recompute', () => {
     removeTopAsset(g, 2, 2) // pop the house → nothing blocking left
     expect(g.isBlocked(2, 2)).toBe(false)
     expect(g.getAssetsAtCell(2, 2)).toHaveLength(0)
+  })
+})
+
+describe('removeAssetAtLevel — ⌥Alt removes the block you POINT at, not blindly the top', () => {
+  test('removes the asset at the given heightLevel, leaving the rest of the stack intact', () => {
+    const g = makeGrid()
+    stackAssetTile(g, 1, 1, byId('emoji:pine-tree')) // level 0
+    stackAssetTile(g, 1, 1, byId('emoji:oak-tree'))  // level 1
+    stackAssetTile(g, 1, 1, byId('emoji:boulder'))   // level 2 (top)
+    const removed = removeAssetAtLevel(g, 1, 1, 1)    // point at the MIDDLE block
+    expect(removed?.tileOverride).toBe('emoji:oak-tree')
+    // the top (boulder) and bottom (pine) survive — only the pointed block is gone
+    expect(g.getAssetsAtCell(1, 1).map(a => a.tileOverride)).toEqual(['emoji:pine-tree', 'emoji:boulder'])
+  })
+
+  test('re-derives collision: removing the only blocker unblocks the cell even if a non-blocker stays', () => {
+    const g = makeGrid()
+    stackAssetTile(g, 2, 2, byId('emoji:rose'))  // non-blocking flower (level 0)
+    stackAssetTile(g, 2, 2, byId('emoji:house')) // blocking building (level 1, top)
+    expect(g.isBlocked(2, 2)).toBe(true)
+    removeAssetAtLevel(g, 2, 2, 1) // remove the blocker specifically
+    expect(g.isBlocked(2, 2)).toBe(false)
+    expect(g.getAssetsAtCell(2, 2).map(a => a.tileOverride)).toEqual(['emoji:rose'])
+  })
+
+  test('returns null when no asset sits at that level (nothing removed)', () => {
+    const g = makeGrid()
+    stackAssetTile(g, 3, 3, byId('emoji:pine-tree')) // level 0 only
+    expect(removeAssetAtLevel(g, 3, 3, 2)).toBeNull()
+    expect(g.getAssetsAtCell(3, 3)).toHaveLength(1)
   })
 })

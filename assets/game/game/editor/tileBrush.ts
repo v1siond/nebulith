@@ -68,3 +68,14 @@ export function removeTopAsset(grid: IsometricGrid, col: number, row: number): G
   setTileCollision(grid, col, row, deriveCellCollision(getStack(grid, col, row)))
   return removed
 }
+
+/** ⌥Alt on a SPECIFIC block of a stack → remove the tile at that heightLevel (the block the pointer is on),
+ *  not blindly the top, then re-derive the cell's collision from whatever remains. Returns the removed asset,
+ *  or null when no asset sits at that level. */
+export function removeAssetAtLevel(grid: IsometricGrid, col: number, row: number, level: number): GridAsset | null {
+  const target = grid.getAssetsAtCell(col, row).find(a => (a.heightLevel ?? 0) === level)
+  if (!target) return null
+  grid.removeAssetsWhere(a => a === target)
+  setTileCollision(grid, col, row, deriveCellCollision(getStack(grid, col, row)))
+  return target
+}
