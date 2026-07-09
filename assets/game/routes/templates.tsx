@@ -61,7 +61,7 @@ import { seedCharacterAnimations } from '@/game/runtime/entityAnimation'
 import { buildingPlacementEnv, nearestRoadFacing, stampBuildingCells, unstampBuildingCells } from '@/game/runtime/buildings'
 import { type Cursor, type JumpState, JUMP_MS, JUMP_PEAK_PX, advanceEnemyMovement, beginJump, tickCannons } from '@/game/runtime/movement'
 import { playSwoosh } from '@/game/runtime/audio'
-import { Card, EntityToolButton, FrameStepper, ViewButton } from '@/components/game/controls'
+import { Card, EntityToolButton, ViewButton } from '@/components/game/controls'
 import { AbilityBar, CombatHud, QuestHud } from '@/components/game/hud'
 import { EquipmentPanel, InventoryCard, QuestAuthoringCard, QuestLogPanel } from '@/components/game/panels'
 import { EntityAttackBody, EntityIdentityStatsBody, EntityMovementBody, Modal, QuestGiveBody } from '@/components/game/modals'
@@ -1986,38 +1986,6 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
   }
 
   // ── Frame-based Animation Author handlers ──────────────────────────
-  const round2 = (v: number) => Math.round(v * 100) / 100
-
-  // "+ Add frame": append an offset frame, nudged a bit further right than the last so the new
-  // frame is visibly different (the author then tweaks it).
-  const addAuthorFrame = () => {
-    setAuthorFrames(prev => {
-      const last = prev[prev.length - 1] ?? restFrame()
-      return [...prev, { dx: round2((last.dx ?? 0) + 0.15), dy: last.dy ?? 0, rot: last.rot, scale: last.scale }]
-    })
-    setAuthorStatus('')
-  }
-
-  const updateAuthorFrame = (i: number, patch: Partial<AnimFrame>) => {
-    setAuthorFrames(prev => prev.map((f, idx) => (idx === i ? { ...f, ...patch } : f)))
-  }
-
-  // Frame 0 is the rest pose and can't be deleted or moved off the front.
-  const deleteAuthorFrame = (i: number) => {
-    if (i === 0) return
-    setAuthorFrames(prev => prev.filter((_, idx) => idx !== i))
-  }
-
-  const moveAuthorFrame = (i: number, dir: -1 | 1) => {
-    setAuthorFrames(prev => {
-      const j = i + dir
-      if (i <= 0 || j <= 0 || j >= prev.length) return prev
-      const next = [...prev]
-      ;[next[i], next[j]] = [next[j], next[i]]
-      return next
-    })
-  }
-
   // Load a starting template (the old presets, now ready-to-tweak frame sets).
   const loadAuthorPreset = (p: AnimPreset) => {
     setAuthorFrames(p.frames.map(f => ({ ...f })))
@@ -5000,107 +4968,6 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
                   armedId={armedTile?.id ?? null}
                   onArm={armTile}
                 />
-
-                {/* Animation Author — define an asset's motion as FRAMES, set timing, it loops. */}
-                <div className="border-t border-white/10 pt-3" data-testid="animation-author">
-                  <p className="mb-1 text-xs font-bold text-fuchsia-400">Animation Author — frames</p>
-                  <p className="mb-2 text-[9px] leading-tight text-gray-500">
-                    Define frames (frame 0 = rest), set a duration → it loops. Each later frame nudges the
-                    asset right/left/up/down + rotate; chain them for a wind sway. Select a cell, then Apply.
-                  </p>
-
-                  {/* Starting templates — the old presets, now ready-to-tweak frame sets. */}
-                  <p className="mb-1 text-[9px] uppercase tracking-wide text-gray-500">Start from a template</p>
-                  <div className="mb-3 flex flex-wrap gap-1">
-                    {CELL_ANIM_PRESETS.map(p => (
-                      <button
-                        key={p.id}
-                        onClick={() => loadAuthorPreset(p)}
-                        className="rounded bg-gray-800 px-2 py-1 text-[10px] text-gray-200 transition-colors hover:bg-fuchsia-800 hover:text-white"
-                      >
-                        {p.name}
-                      </button>
-                    ))}
-                  </div>
-
-                  {/* FRAME STRIP — frame 0 = rest; add/reorder/delete offset frames. */}
-                  <div className="mb-3">
-                    <div className="mb-1 flex items-center justify-between">
-                      <span className="text-[9px] uppercase tracking-wide text-gray-500">Frames ({authorFrames.length})</span>
-                      <button
-                        onClick={addAuthorFrame}
-                        className="rounded bg-fuchsia-700 px-2 py-0.5 text-[10px] font-bold text-white transition-all hover:opacity-80"
-                      >
-                        + Add frame
-                      </button>
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      {authorFrames.map((f, i) => (
-                        <div key={i} className="rounded bg-black/40 p-1.5 text-[9px]" data-testid={`anim-frame-${i}`}>
-                          <div className="mb-1 flex items-center justify-between">
-                            <span className="font-bold text-gray-300">{i === 0 ? 'Frame 0 · rest' : `Frame ${i}`}</span>
-                            <span className="flex gap-1">
-                              <button onClick={() => moveAuthorFrame(i, -1)} disabled={i <= 1} className="px-1 text-gray-400 hover:text-white disabled:opacity-30" aria-label="move earlier">◀</button>
-                              <button onClick={() => moveAuthorFrame(i, 1)} disabled={i === 0 || i === authorFrames.length - 1} className="px-1 text-gray-400 hover:text-white disabled:opacity-30" aria-label="move later">▶</button>
-                              <button onClick={() => deleteAuthorFrame(i)} disabled={i === 0} className="px-1 text-red-400 hover:text-red-300 disabled:opacity-30" aria-label="delete frame">✕</button>
-                            </span>
-                          </div>
-                          {i === 0 ? (
-                            <p className="text-gray-600">no offset — the asset's normal position</p>
-                          ) : (
-                            <div className="grid grid-cols-3 gap-1">
-                              <FrameStepper label="x" value={f.dx} step={0.05} onChange={v => updateAuthorFrame(i, { dx: v })} />
-                              <FrameStepper label="y" value={f.dy} step={0.05} onChange={v => updateAuthorFrame(i, { dy: v })} />
-                              <FrameStepper label="rot" value={f.rot ?? 0} step={0.05} onChange={v => updateAuthorFrame(i, { rot: v })} />
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* TIMING — duration to play frame 0 → last, delay before the loop, ease, loop. */}
-                  <div className="mb-2 grid grid-cols-2 gap-1.5 text-[10px] text-gray-300">
-                    <label className="flex flex-col gap-0.5">
-                      <span className="text-gray-500">Duration ms</span>
-                      <input type="number" min={0} value={authorDuration} onChange={e => setAuthorDuration(Math.max(0, Number(e.target.value)))} className="rounded bg-gray-800 p-1" />
-                    </label>
-                    <label className="flex flex-col gap-0.5">
-                      <span className="text-gray-500">Delay ms</span>
-                      <input type="number" min={0} value={authorDelay} onChange={e => setAuthorDelay(Math.max(0, Number(e.target.value)))} className="rounded bg-gray-800 p-1" />
-                    </label>
-                    <label className="flex flex-col gap-0.5">
-                      <span className="text-gray-500">Ease</span>
-                      <select value={authorEase} onChange={e => setAuthorEase(e.target.value as Ease)} className="rounded bg-gray-800 p-1">
-                        <option value="sine">sine (natural)</option>
-                        <option value="linear">linear</option>
-                      </select>
-                    </label>
-                    <label className="flex items-end gap-1 pb-1">
-                      <input type="checkbox" checked={authorLoop} onChange={e => setAuthorLoop(e.target.checked)} />
-                      <span>loop</span>
-                    </label>
-                  </div>
-
-                  {authorStatus && <p className="mb-1 text-[9px] text-amber-300">{authorStatus}</p>}
-
-                  <div className="flex gap-1">
-                    <button
-                      onClick={() => attachAuthorAnim(false)}
-                      disabled={selectedCells.size === 0 || authorFrames.length < 2}
-                      className="flex-1 rounded bg-gray-700 py-1 text-[10px] font-bold text-white transition-all hover:opacity-80 disabled:opacity-40"
-                    >
-                      Preview
-                    </button>
-                    <button
-                      onClick={() => attachAuthorAnim(true)}
-                      disabled={selectedCells.size === 0 || authorFrames.length < 2}
-                      className="flex-1 rounded bg-fuchsia-700 py-1 text-[10px] font-bold text-white transition-all hover:opacity-80 disabled:opacity-40"
-                    >
-                      {selectedCells.size === 0 ? 'Select a cell' : 'Apply'}
-                    </button>
-                  </div>
-                </div>
               </Card>
             )}
 
@@ -5734,7 +5601,7 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
                       </button>
                     </Card>
                     <Card title="Animation" accent="purple" defaultOpen={false} sectionId="animation" focus={sectionFocus}>
-                      <p className="mb-2 text-[10px] leading-tight text-gray-500">One-click a preset, then Apply it to an asset in the selected cell(s). The full frame builder lives in the Paint tool.</p>
+                      <p className="mb-2 text-[10px] leading-tight text-gray-500">One-click a preset, then Apply it to an asset in the selected cell(s).</p>
                       <div className="mb-2 flex flex-wrap gap-1">
                         {CELL_ANIM_PRESETS.map(p => (
                           <button key={p.id} onClick={() => loadAuthorPreset(p)} className="rounded bg-gray-800 px-2 py-1 text-[10px] text-gray-200 transition-colors hover:bg-fuchsia-800 hover:text-white">{p.name}</button>
