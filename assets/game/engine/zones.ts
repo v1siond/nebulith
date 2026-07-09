@@ -98,3 +98,42 @@ export const ZONE_DECOR_TILE: Record<ZoneId, string> = {
   beach: 'emoji:seashell', // 🐚
   lava: 'emoji:boulder', // 🪨 scorched stone
 }
+
+/** The flower a zone scatters — the palette's curated bloom, one per season. Only spring/summer
+ *  actually flower today (see FLOWERS_BY_ZONE in stageGenerator); the other zones map too so any
+ *  stray bloom still lands on a real catalog tile instead of the generic 🌸. Stamped as the flower's
+ *  tileOverride by the generator. */
+export const ZONE_FLOWER_TILE: Record<ZoneId, string> = {
+  spring: 'emoji:tulip', // 🌷
+  summer: 'emoji:sunflower', // 🌻
+  autumn: 'emoji:rose', // 🌹 deep red
+  winter: 'emoji:blossom', // 🌼 rare
+  desert: 'emoji:hibiscus', // 🌺
+  beach: 'emoji:hibiscus', // 🌺
+  lava: 'emoji:wilted-flower', // 🥀
+}
+
+// ── generated-prop skin dispatch ──────────────────────────────────────────
+/** Roles whose curated catalog tile is the SAME in every zone — a boulder is a boulder. */
+const CONSTANT_ROLE_TILE: Readonly<Record<string, string>> = {
+  rock: 'emoji:boulder', // 🪨
+  bush: 'emoji:shrub', // 🌿 (no generator prop emits type 'bush' today — wired for palette/brush parity + OCP)
+  mushroom: 'emoji:red-mushroom', // 🍄
+}
+
+/** Roles whose curated catalog tile varies by zone (season) — each points at a per-zone table above. */
+const ZONAL_ROLE_TILE: Readonly<Record<string, Record<ZoneId, string>>> = {
+  tree: ZONE_TREE_TILE,
+  flower: ZONE_FLOWER_TILE,
+  ground_decor: ZONE_DECOR_TILE,
+}
+
+/** The curated-catalog `tileOverride` a generated prop of `propType` wears in `zone` — so the map
+ *  RANDOMIZER pins the SAME Tile Library tiles the palette brush does (per zone/role) instead of the
+ *  ~40 generic per-kind EMOJI_TILESET fallbacks. Undefined for props with no curated role (buildings,
+ *  water, temple/cave furniture, biome features) — those keep their existing tile. Dispatch-table
+ *  lookup (OCP: add a role by adding a row, no branching). VISUAL-ONLY — collision/height are unchanged
+ *  by the override. Pure. */
+export function stagePropTileOverride(zone: ZoneId, propType: string): string | undefined {
+  return ZONAL_ROLE_TILE[propType]?.[zone] ?? CONSTANT_ROLE_TILE[propType]
+}

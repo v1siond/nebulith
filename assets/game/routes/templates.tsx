@@ -26,7 +26,7 @@ import { isoFacadeOnBack, isoFacingIndex } from '@/engine/isoBuilding'
 import { StageData, VariantId, generateStage, stagePaint } from '@/engine/stageGenerator'
 import { syncTilesetPropCollision } from '@/engine/tilesetCollision'
 import { type Action as TriggerAction, resolveAction } from '@/engine/triggers'
-import { ZONE_DECOR_TILE, ZoneId } from '@/engine/zones'
+import { stagePropTileOverride, ZoneId } from '@/engine/zones'
 import { type AbilityBinding, DEFAULT_ABILITY_LOADOUT } from '@/game/abilities'
 import { startingCombatState } from '@/game/combat'
 import { DEFAULT_PLAYER_STATS, byKind, canPlaceEntity, entityAt, entityAtClick, entityAtFootprint, entityCollisionCells, makeEnemy, makeNpc, makePlayer, mintEntityId, placeEntity, removeEntity, withPlayerCell } from '@/game/entities'
@@ -2796,12 +2796,15 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
     for (const g of paint.ground) {
       if (grid.ground[g.row]?.[g.col] !== undefined) grid.setGround(g.col, g.row, g.type)
     }
-    // TREES keep their 🌲 shape and are RECOLOURED to the season by the renderer (asset.color = the zone
-    // canopy shade), so autumn trees are amber, winter frosted — NOT replaced with a flower/leaf. Only the
-    // subtle floor-litter swaps to a season tile (was ugly ascii specks): 🍂 autumn, ❄️ winter, 🌾 desert.
-    const decorTile = ZONE_DECOR_TILE[stage.zone]
+    // Pin each generated prop to the SAME curated catalog tile the palette brush uses, per zone + role
+    // (trees, flowers, floor-litter, rocks, mushrooms) — instead of the generic per-kind EMOJI_TILESET
+    // fallback — so the RANDOMIZER's assets MATCH what the palette offers. VISUAL-ONLY: the override
+    // reskins the glyph; the prop's own collision/height are untouched.
+    // Trade-off: trees now wear the SEASON's curated species tile (🌸 spring / 🌳 summer / 🍁 autumn /
+    // 🪾 winter / 🌵 desert / 🌴 beach) rather than one 🌲 recoloured per season — so per-tree seasonal
+    // TONAL variety is dropped in favour of a distinct, palette-matching species per season.
     for (const a of paint.assets) {
-      const override = a.type === 'ground_decor' ? decorTile : undefined
+      const override = stagePropTileOverride(stage.zone, a.type)
       grid.placeAsset([a.char], a.col, a.row, { type: a.type, blocking: a.blocking, color: a.color, label: a.label, baseShadow: a.baseShadow, buildingType: a.buildingType, edge: a.edge, footprint: a.footprint, cellPart: a.label, tileOverride: override })
     }
     // Mirror the generator's authoritative collision into the grid so trees/water/

@@ -10,7 +10,7 @@
  */
 import { composeBuilding, ComposedBuilding, BuildingType } from './buildingComposer'
 import { planVillage, type VillageLayout, type Settlement, type Plot, type Facing, type PlazaRect } from './villageLayout'
-import { ZONE_PALETTES, ZoneId } from './zones'
+import { stagePropTileOverride, ZONE_PALETTES, ZoneId } from './zones'
 import { autotileLabel, isWalkable, TREE_MASS_FAMILY, type CellLabel } from './cellLabels'
 import { TREE_CANOPY_SHADES, groundDecor } from './cellTileset'
 import { resolveTile } from './tileset/tileset'
@@ -2470,6 +2470,9 @@ export function stageToTemplate(stage: StageData, name: string): StageTemplatePa
     height: 0,
     label: a.label,
     footprint: a.footprint,
+    // Keep the curated catalog skin the live grid stamps (applyStageToGrid) so a SAVED generated map
+    // reloads with the same palette tiles — same per-zone/role dispatch, so the two paths never diverge.
+    tileOverride: stagePropTileOverride(stage.zone, a.type),
   }))
 
   return {
