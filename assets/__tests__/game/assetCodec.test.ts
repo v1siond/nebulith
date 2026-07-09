@@ -39,6 +39,10 @@ describe('asset codec round-trips (entity / quest / building)', () => {
   it('quests serialize → deserialize back to the input', () => {
     expect(questsFromAssets(questsToAssets([quest]))).toEqual([quest])
   })
+  it('persists the blocksMovement toggle on a round-trip', () => {
+    const blocker: Entity = { ...npc, id: 'n2', blocksMovement: true }
+    expect(entitiesFromAssets(entitiesToAssets([blocker]))[0].blocksMovement).toBe(true)
+  })
   it('buildings serialize → deserialize back to the input', () => {
     expect(buildingsFromAssets(buildingsToAssets([building]))).toEqual([building])
   })

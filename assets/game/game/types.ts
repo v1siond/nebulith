@@ -248,6 +248,11 @@ export interface Entity {
   attack?: AttackPattern
   /** can this entity be attacked? defaults: enemy=true, npc/decoration=false. */
   hittable?: boolean
+  /** does this character obstruct movement? Defaults to false — characters are walk-through
+   *  (the player + patrols pass right through them) unless the author flips on the per-unit
+   *  "Blocks movement" toggle. Separate from terrain collision (grid.isBlocked / the cell
+   *  collision-paint tool) and from `hittable` (whether it can be attacked). */
+  blocksMovement?: boolean
   /** art-style override: a style-agnostic Tile Library id pinning THIS entity's visual
    *  regardless of the active global style. Absent → follows the active style. */
   tileOverride?: string

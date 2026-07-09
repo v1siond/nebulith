@@ -3802,13 +3802,13 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
       if (jumpDown && !jumpDownRef.current) beginJump(jump, time)
       jumpDownRef.current = jumpDown
 
-      // Entities block movement across their FULL footprint: NPCs + living enemies are
-      // solid, the player's own marker + dead enemies are not. Recomputed each frame so
-      // it follows patrols and clears the moment an enemy dies. Used by both the player
-      // collision below and the patrol stepper.
+      // Entities are WALK-THROUGH by default — only a character with `blocksMovement` on
+      // (the per-unit toggle) obstructs, across its feet row. The player's own marker and
+      // dead enemies never block. Recomputed each frame so it follows patrols and clears
+      // the moment an enemy dies. Used by both the player collision below and the patrol stepper.
       const entityBlocked = entityCollisionCells(
         entitiesRef.current,
-        e => e.kind === 'player' || (e.kind === 'enemy' && !isLivingEnemy(e, enemyRuntimeRef.current)),
+        e => e.kind === 'player' || !e.blocksMovement || (e.kind === 'enemy' && !isLivingEnemy(e, enemyRuntimeRef.current)),
       )
       const blockedCell = (x: number, z: number): boolean =>
         entityBlocked.has(`${Math.floor(x / grid.cellSize)},${Math.floor(z / grid.cellSize)}`)
@@ -5276,7 +5276,7 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
                     {/* Consolidated unit card — identity + stats + sprite + a compact animation section +
                         the inventory/quests entry points, all in ONE card (the old Identity / Animation /
                         Library cards folded together). */}
-                    <Card title={isPlayer ? 'Player' : isEnemy ? 'Enemy' : 'NPC'} accent="orange">
+                    <Card title="Unit" accent="orange">
                       <EntityIdentityStatsBody entity={selEntity} onPatch={patchSelectedEntity} />
                       {isPlayer && <div className="mt-3"><CombatHud hud={playerHud} /></div>}
                       {/* Sprite folded in from the old Art/Sprite card (#61): show the current sprite + picker. */}
@@ -5384,7 +5384,7 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
                       {(isPlayer || isNpc) && (
                         <div className="mt-3 space-y-1 border-t border-white/10 pt-3">
                           {isPlayer && <button className={libBtn} onClick={() => setEntityModal('inventory')}>🎒 Inventory &amp; abilities…</button>}
-                          {isNpc && <button className={libBtn} onClick={() => setEntityModal('quests')}>❒ Quests…</button>}
+                          {isNpc && <button className={libBtn} onClick={() => { if (selEntity.kind !== 'enemy') setQuestDraft(d => ({ ...d, giverId: selEntity.id })); setEntityModal('quests') }}>❒ Quests…</button>}
                         </div>
                       )}
                     </Card>
@@ -5635,31 +5635,36 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
                           const vals = cells.map(({ col, row }) => stackedAssetsAt(grid, col, row)[i]).filter((a): a is GridAsset => !!a).map(read)
                           return vals.length ? commonValue(vals) : 1
                         }
-                        // The floor is ALWAYS a tile (a height-0 tile): every cell has one, so its size
-                        // controls always show, labeled as the floor tile. The CELL itself has no size —
-                        // only collision. (Unified model: whatever is in a cell is a tile.)
+                        // The floor is a tile ONLY when it's authored — a non-default ground, a colour, a
+                        // dim/pose override, or something stacked on it. A BARE default grass cell has no
+                        // floor tile, so the panel shows only Collision (no Width/Height/Depth/Zoom). The
+                        // CELL itself has no size — only collision.
                         const groundSlug = grid.ground[fc.row]?.[fc.col] ?? 'grass'
                         const floorDimsFc = grid.groundDims?.[fc.row]?.[fc.col]
+                        const floorColorFc = grid.groundColor?.[fc.row]?.[fc.col] ?? null
+                        const floorIsTile = groundSlug !== 'grass' || floorColorFc !== null || !!floorDimsFc || stacked.length > 0
 
                         const tiles: TileControlModel[] = []
-                        tiles.push({
-                          key: 'floor',
-                          label: `floor · ${groundKind(groundSlug)}`,
-                          dims: {
-                            width: gdim(d => d?.scaleX ?? 1),
-                            height: gdim(d => d?.scaleY ?? 1),
-                            depth: gdim(d => d?.scaleZ ?? 1),
-                            zoom: gdim(d => d?.scale ?? 1),
-                          },
-                          color: commonValue(cells.map(({ col, row }) => grid.groundColor?.[row]?.[col] ?? null)),
-                          colorFallback: '#3a7d34',
-                          onDim: setGroundDim,
-                          onColor: setFloorColor,
-                          onClearColor: () => setFloorColor(null),
-                          pose: floorDimsFc?.pose,
-                          onPose: setGroundPose,
-                          onPoseReset: clearGroundPose,
-                        })
+                        if (floorIsTile) {
+                          tiles.push({
+                            key: 'floor',
+                            label: `floor · ${groundKind(groundSlug)}`,
+                            dims: {
+                              width: gdim(d => d?.scaleX ?? 1),
+                              height: gdim(d => d?.scaleY ?? 1),
+                              depth: gdim(d => d?.scaleZ ?? 1),
+                              zoom: gdim(d => d?.scale ?? 1),
+                            },
+                            color: commonValue(cells.map(({ col, row }) => grid.groundColor?.[row]?.[col] ?? null)),
+                            colorFallback: '#3a7d34',
+                            onDim: setGroundDim,
+                            onColor: setFloorColor,
+                            onClearColor: () => setFloorColor(null),
+                            pose: floorDimsFc?.pose,
+                            onPose: setGroundPose,
+                            onPoseReset: clearGroundPose,
+                          })
+                        }
                         stacked.forEach((t, i) => {
                           const a0 = stackedAssetsAt(grid, fc.col, fc.row)[i]
                           tiles.push({

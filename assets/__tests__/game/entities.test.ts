@@ -376,3 +376,11 @@ describe('entityCollisionCells — base-row only (walk around a tall enemy)', ()
     expect(cells.size).toBe(0)
   })
 })
+
+describe('characters default to non-blocking movement (the "Blocks movement" toggle)', () => {
+  it('freshly-made player / npc / enemy carry no blocksMovement flag (walk-through by default)', () => {
+    expect(makePlayer('p1', 1, 1).blocksMovement).toBeUndefined()
+    expect(makeNpc('n1', 2, 2, {}).blocksMovement).toBeUndefined()
+    expect(makeEnemy('e1', 3, 3, 'goblin').blocksMovement).toBeUndefined()
+  })
+})

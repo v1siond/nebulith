@@ -72,10 +72,6 @@ export function EntityIdentityStatsBody({ entity, onPatch }: {
   const hittable = entity.hittable ?? entity.kind === 'enemy'
   return (
     <div className="space-y-2 text-xs">
-      <div className="flex items-center justify-between">
-        <span className="font-bold uppercase tracking-wider text-orange-300">{entity.kind}</span>
-        <span className="text-gray-500">@ {entity.col},{entity.row}</span>
-      </div>
       <label className="block">
         <span className="mb-0.5 block text-[10px] text-gray-400">Name</span>
         <input value={entity.name ?? ''} onChange={e => onPatch({ name: e.target.value })} aria-label="Entity name" className="w-full rounded bg-gray-800 p-1 text-xs" />
@@ -112,6 +108,10 @@ export function EntityIdentityStatsBody({ entity, onPatch }: {
       <label className="flex items-center gap-2 text-gray-300">
         <input type="checkbox" checked={hittable} onChange={e => onPatch({ hittable: e.target.checked })} aria-label="Hittable" />
         Hittable (can be attacked)
+      </label>
+      <label className="flex items-center gap-2 text-gray-300">
+        <input type="checkbox" checked={entity.blocksMovement ?? false} onChange={e => onPatch({ blocksMovement: e.target.checked })} aria-label="Blocks movement" />
+        Blocks movement
       </label>
       {entity.kind === 'enemy' && (
         <label className="flex items-center gap-2 text-[10px] text-gray-400">
