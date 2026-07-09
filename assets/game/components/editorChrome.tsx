@@ -513,15 +513,16 @@ export interface ElementDims {
   zoom: number | null // shared scale (uniform), or null (mixed)
 }
 
-/** One uniform TILE control group in the Cell inspector. The heart of the tile-in-cell model: the floor
- *  (a height-0 tile) and every stacked prop/unit are the SAME atom — a tile — and get the SAME controls
- *  (Width/Height/Depth/Zoom + colour, plus a pose for tiles that carry one). The page pre-computes each
- *  shared value across a multi-cell selection (`null` per field = the tiles differ → "mixed") and each
- *  callback applies the edit to THIS tile across the whole selection. */
+/** The ONE selected tile in the Cell inspector, as a single consolidated control group. A cell is a fixed
+ *  slot; the ONE tile the user has selected in its stack (the floor is the height-0 tile, a wall/prop is a
+ *  stacked block) gets EVERY control in ONE group: which-tile + Open Tile Library (swap it), colour, the
+ *  Width/Height/Depth/Zoom scale axes, and the x/y/rotate/flip pose. NO separate FLOOR / POSE / colour
+ *  sections. The page pre-computes each shared value across a multi-cell selection (`null` = the tiles
+ *  differ → "mixed") and each callback writes the edit to THIS stack level across the whole selection. */
 export interface TileControlModel {
-  /** stable identity for the react key + section divider (e.g. 'floor', 'tile-0'). */
+  /** stable identity for the react key. */
   key: string
-  /** human label for this tile's section, e.g. "floor · grass" or "tree". */
+  /** what this tile IS, shown in the TILE section header, e.g. "grass" or "wall". */
   label: string
   /** shared Width/Height/Depth/Zoom (null per axis = mixed). */
   dims: ElementDims
@@ -533,23 +534,42 @@ export interface TileControlModel {
   onColor: (color: string) => void
   /** floor tiles can reset to the tileset colour; props may omit. */
   onClearColor?: () => void
-  /** per-cell pose — only tiles that carry one (the floor today; GridAsset has no pose field). */
+  /** the tile pinned to this stack level (GridAsset.tileOverride), or null = follows the global style. */
+  override?: string | null
+  /** the active global style name, shown in the "Change tile" affordance. */
+  styleName: string
+  /** open the Tile Library to SWAP this tile — the same "current sprite → Open Tile Library" flow the
+   *  entity inspector uses. */
+  onOpenLibrary: () => void
+  /** pose for this tile: the floor carries a real per-cell pose; a stacked asset routes to its tileset-kind
+   *  pose (GridAsset has no per-instance pose field). Absent = this tile is not posable. */
   pose?: TilePose
   onPose?: (pose: TilePose) => void
   onPoseReset?: () => void
+  /** weapon tiles get a muzzle row. */
+  isWeapon?: boolean
+  /** a tileset-kind pose (asset) can be persisted to the backend; the floor's per-cell pose saves with the map. */
+  onSavePose?: () => void
+  savingPose?: boolean
 }
 
-/** PROPERTY editor for the current cell selection. A CELL is a fixed slot — its only control is
- *  COLLISION (grid elevation stays a cell prop, edited with the terrain-height tool). EVERYTHING placed
- *  in the cell is a uniform TILE, driven off the cell-stack adapter: the floor is the height-0 tile and
- *  gets the SAME controls as any prop/unit. No cell-vs-element split, no card-in-card. */
+/** PROPERTY editor for the current cell selection — EXACTLY TWO sections. A CELL is a fixed slot, so the
+ *  CELL section carries only COLLISION (grid elevation stays a cell prop, edited with the terrain-height
+ *  tool). The TILE section shows the ONE SELECTED tile in the cell's stack as a single consolidated group,
+ *  with a level stepper to reach every block (including an occluded middle one). No per-tile-in-stack
+ *  sections, no separate FLOOR / POSE / colour split. */
 export interface PropertiesPanelProps {
   /** shared collision state across the selection, or null (mixed). */
   collision: boolean | null
   onCollision: (blocked: boolean) => void
-  /** ONE control group per TILE in the cell's stack (floor first, then stacked props/units). EMPTY = a
-   *  BARE cell (nothing placed) → only the Cell section (collision) shows, no size controls anywhere. */
-  tiles: TileControlModel[]
+  /** the ONE selected tile, or null when the cell holds no tile at all (→ only the CELL section shows). */
+  tile: TileControlModel | null
+  /** 1-based position of the selected tile in the stack (1 = floor). */
+  level: number
+  /** total tiles in the selected cell's stack (floor + stacked). >1 → the level stepper shows. */
+  levelCount: number
+  /** select a tile by 0-based stack index (0 = floor) — the ▲▼ stepper reaches every block. */
+  onLevel: (index0: number) => void
 }
 
 const mixedBadge = <span className="text-[9px] italic text-amber-300">mixed</span>
@@ -567,13 +587,20 @@ function DimRow({ label, axis, value, title, onDim }: { label: string; axis: Dim
   )
 }
 
-/** ONE uniform tile control group — reused verbatim for the floor AND every stacked prop/unit, so the
- *  floor (a height-0 tile) gets the EXACT SAME Width/Height/Depth/Zoom + colour (+ pose) controls as a
- *  wall or a tree. This is why there is no cell-vs-element split anymore. */
+/** The ONE consolidated TILE control group — the SELECTED tile's every control in a single flat block:
+ *  which-tile + Open Tile Library (swap it), colour, the Width/Height/Depth/Zoom scale axes, then the
+ *  x/y/rotate/flip pose. NO nested "Pose —" box, NO second colour, NO one-section-per-tile. The floor
+ *  (a height-0 tile) and a stacked wall/prop use the EXACT SAME group; only the writers differ (the page
+ *  routes floor→per-cell, asset→its tileset kind). */
 export function TileControls({ tile }: { tile: TileControlModel }) {
+  const pose = tile.pose
+  const setPose = tile.onPose ? (patch: Partial<TilePose>) => tile.onPose!({ ...pose, ...patch }) : null
+  const rotDeg = Math.round((pose?.rot ?? 0) * 180 / Math.PI)
   return (
     <div className="space-y-1.5">
-      <p className="mt-1 border-t border-white/10 pt-1.5 text-[9px] font-bold uppercase tracking-wider text-gray-500">— {tile.label} —</p>
+      {/* which tile it IS + swap it — the same "current sprite → Open Tile Library" affordance entities use */}
+      <ArtSection override={tile.override} styleName={tile.styleName} onOpen={tile.onOpenLibrary} />
+      {/* ONE colour for the tile (floor→groundColor, asset→asset.color) — no separate pose colour */}
       <div className="flex items-center gap-2">
         <span className="w-14 shrink-0 text-[10px] text-gray-400">Colour</span>
         <input type="color" value={tile.color ?? tile.colorFallback} onChange={e => tile.onColor(e.target.value)} aria-label={`${tile.label} colour`} className="h-6 w-10 rounded bg-gray-800" />
@@ -584,16 +611,37 @@ export function TileControls({ tile }: { tile: TileControlModel }) {
       <DimRow label="Height" axis="height" value={tile.dims.height} title="Height — grows UP from the base (iso + 2D views)" onDim={tile.onDim} />
       <DimRow label="Depth" axis="depth" value={tile.dims.depth} title="Depth — stretches the ground axis in the top view only" onDim={tile.onDim} />
       <DimRow label="Zoom" axis="zoom" value={tile.dims.zoom} title="Zoom — scales Width, Height and Depth together" onDim={tile.onDim} />
-      {tile.pose && tile.onPose && tile.onPoseReset && (
-        <PoseControls kind={tile.label} pose={tile.pose} isWeapon={false} onChange={tile.onPose} onReset={tile.onPoseReset} />
+      {/* x/y/rotate/flip live in the SAME group — there is NO separate POSE section */}
+      {setPose && (
+        <>
+          <PoseRow label="x" value={pose?.dx ?? 0} min={-1} max={1} step={0.01} onInput={v => setPose({ dx: v })} />
+          <PoseRow label="y" value={pose?.dy ?? 0} min={-1} max={1} step={0.01} onInput={v => setPose({ dy: v })} />
+          <PoseRow label="rotate" value={rotDeg} min={-180} max={180} step={1} suffix="°" onInput={v => setPose({ rot: v * Math.PI / 180 })} />
+          {tile.isWeapon && <PoseRow label="muzzle" value={pose?.muzzle ?? 0} min={0} max={1} step={0.05} onInput={v => setPose({ muzzle: v })} />}
+          <label className="flex items-center gap-2">
+            <input type="checkbox" checked={pose?.flip ?? false} onChange={e => setPose({ flip: e.target.checked })} aria-label="flip horizontally" className="accent-cyan-500" />
+            <span className="text-[10px] text-gray-400">flip horizontally</span>
+          </label>
+          {tile.onSavePose && (
+            <button onClick={tile.onSavePose} disabled={tile.savingPose} className="w-full rounded bg-emerald-700 px-2 py-1 text-[10px] font-bold text-white transition-colors hover:bg-emerald-600 disabled:opacity-40">
+              {tile.savingPose ? 'Saving…' : '⭳ Save poses to backend'}
+            </button>
+          )}
+          {tile.onPoseReset && (
+            <button onClick={tile.onPoseReset} className="w-full rounded bg-gray-700 px-2 py-1 text-[10px] font-bold text-white transition-colors hover:bg-gray-600">
+              ↺ Reset pose
+            </button>
+          )}
+        </>
       )}
     </div>
   )
 }
 
-/** The Cell inspector body. Renders INSIDE the consolidated "Cell" <Card> (no card-box / header of its
- *  own — that would be a card-in-card with a duplicate title). One Cell section (collision only — the
- *  cell's sole tunable prop) followed by one TileControls group PER TILE in the cell's stack. */
+/** The Cell inspector body — EXACTLY TWO sections. The CELL section (collision only — the cell's sole
+ *  tunable prop) then the TILE section: the ONE selected tile, its name in the header with a ▲▼ level
+ *  stepper to reach every block in the stack, and one consolidated {@link TileControls} group. No
+ *  per-tile-in-stack sections, no separate FLOOR / POSE / colour split. */
 export function PropertiesPanel(p: PropertiesPanelProps) {
   return (
     <div className="space-y-1.5 text-xs">
@@ -604,7 +652,21 @@ export function PropertiesPanel(p: PropertiesPanelProps) {
         <button onClick={() => p.onCollision(false)} aria-pressed={p.collision === false} className={`rounded px-2 py-0.5 text-[10px] font-bold ${p.collision === false ? 'bg-emerald-600 text-white' : 'bg-gray-700 hover:bg-gray-600'}`}>Walkable</button>
         {p.collision === null && mixedBadge}
       </div>
-      {p.tiles.map(t => <TileControls key={t.key} tile={t} />)}
+      {p.tile && (
+        <>
+          <div className="mt-1 flex items-center justify-between border-t border-white/10 pt-1.5">
+            <p className="text-[9px] font-bold uppercase tracking-wider text-gray-500">— tile · {p.tile.label} —</p>
+            {p.levelCount > 1 && (
+              <span className="flex items-center gap-1 text-[9px] text-gray-400" aria-label="Select stack level">
+                <button onClick={() => p.onLevel(p.level - 2)} disabled={p.level <= 1} aria-label="Lower tile" className="rounded bg-gray-700 px-1 leading-none hover:bg-gray-600 disabled:opacity-30">▼</button>
+                <span className="tabular-nums">level {p.level}/{p.levelCount}</span>
+                <button onClick={() => p.onLevel(p.level)} disabled={p.level >= p.levelCount} aria-label="Higher tile" className="rounded bg-gray-700 px-1 leading-none hover:bg-gray-600 disabled:opacity-30">▲</button>
+              </span>
+            )}
+          </div>
+          <TileControls tile={p.tile} />
+        </>
+      )}
     </div>
   )
 }

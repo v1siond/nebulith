@@ -132,6 +132,9 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
   const isoZoomRef = useRef(1.0) // mouse-wheel zoom for the isometric view
   const [gridSize, setGridSize] = useState({ cols: 40, rows: 40 })
   const [selectedCells, setSelectedCells] = useState<Set<string>>(new Set())
+  // Which tile in the selected cell's stack the inspector edits: a 0-based index into getStack (0 = floor,
+  // 1.. = stacked). Set from the iso block you click (its level) and moved by the TILE header's ▲▼ stepper.
+  const [selectedTileLevel, setSelectedTileLevel] = useState(0)
   const [isSelecting, setIsSelecting] = useState(false)
   const [selectionStart, setSelectionStart] = useState<{ col: number; row: number } | null>(null)
   const selectedCellsRef = useRef<Set<string>>(new Set())
@@ -801,6 +804,20 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
   const pickCellForSelect = (clientX: number, clientY: number): { col: number; row: number; level?: number } | null =>
     pickIsoBlockAt(clientX, clientY) ?? screenToCell(clientX, clientY)
 
+  // The stack index (0 = floor, 1.. = stacked) the TILE inspector should show for a click. A picked RAISED
+  // block maps to its stack position (its heightLevel → its slot in the sorted stack); a flat pick with no
+  // specific block defaults to the TOP tile — or the floor (0) when the cell is bare. Drives selectedTileLevel.
+  const levelForPickedCell = (c: { col: number; row: number; level?: number }): number => {
+    const grid = gridRef.current
+    if (!grid) return 0
+    const stacked = [...grid.getAssetsAtCell(c.col, c.row)].sort((a, b) => (a.heightLevel ?? 0) - (b.heightLevel ?? 0))
+    if (c.level !== undefined) {
+      const p = stacked.findIndex(a => (a.heightLevel ?? 0) === c.level)
+      return p >= 0 ? p + 1 : stacked.length
+    }
+    return stacked.length // TOP tile (floor = 0 for a bare cell)
+  }
+
   // Grid cell → viewport screen coords (the FORWARD of screenToCell above). Used to
   // glue the on-canvas quick-action toolbar over the selected element for the ACTIVE
   // view. Returns the cell CENTRE (col+0.5, row+0.5) in viewport pixels, or null when
@@ -1034,6 +1051,7 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
         // pick the cell so its floor-tile settings become editable. (Plain click below stays entity-first.)
         setSelectedEntityId(null)
         setSelectedCells(new Set([`${c.col},${c.row}`]))
+        setSelectedTileLevel(levelForPickedCell(c))
       } else {
         // Plain click (unchanged): select the EXACT cell under the pointer — no walk, so a click never grabs a
         // neighbouring cell or prop. A unit is picked only when its OWN footprint covers this cell (hit-tested
@@ -1044,6 +1062,7 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
         } else {
           setSelectedEntityId(null)
           setSelectedCells(new Set([`${c.col},${c.row}`]))
+          setSelectedTileLevel(levelForPickedCell(c))
         }
       }
     }
@@ -1489,7 +1508,13 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
     const grid = gridRef.current
     if (grid && selectedCells.size > 0) {
       const [c, r] = Array.from(selectedCells)[0].split(',').map(Number)
-      return grid.getAssetsAtCell(c, r)[0]?.tileOverride ?? null
+      // The pinned tile of the SELECTED stack level: a stacked asset carries its own tileOverride; the floor
+      // (level 0) follows the global style (no override).
+      if (selectedTileLevel >= 1) {
+        const stacked = [...grid.getAssetsAtCell(c, r)].sort((a, b) => (a.heightLevel ?? 0) - (b.heightLevel ?? 0))
+        return stacked[selectedTileLevel - 1]?.tileOverride ?? null
+      }
+      return null
     }
     return null
   })()
@@ -1506,6 +1531,13 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
     if (!grid || selectedCells.size === 0) return
     for (const key of selectedCells) {
       const [c, r] = key.split(',').map(Number)
+      if (selectedTileLevel >= 1) {
+        // Swap ONLY the SELECTED stack level's tile — the block the user picked (top/middle/bottom).
+        const stacked = [...grid.getAssetsAtCell(c, r)].sort((a, b) => (a.heightLevel ?? 0) - (b.heightLevel ?? 0))
+        const a = stacked[selectedTileLevel - 1]
+        if (a) a.tileOverride = tileId ?? undefined
+        continue
+      }
       const assets = grid.getAssetsAtCell(c, r)
       if (assets.length > 0) {
         for (const a of assets) a.tileOverride = tileId ?? undefined
@@ -5602,19 +5634,15 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
                 // Cell triggers attach to the FIRST selected cell (the one the label shows).
                 const trigCol = parseInt(first[0], 10)
                 const trigRow = parseInt(first[1], 10)
-                // The tile KIND under this cell (an asset pinned there wins, else the ground kind) — its
-                // POSE is what the editor retunes. Only kinds present in the emoji tileset are tunable.
-                const poseGrid = gridRef.current
-                const cellAsset = poseGrid?.getAssetsAtCell(trigCol, trigRow)[0]
-                const poseKind = cellAsset ? assetKind(cellAsset) : groundKind(poseGrid?.ground[trigRow]?.[trigCol] ?? 'grass')
                 return (
                   <>
                     <SelectionHeader kind="cell" label="cell" coords={cellLabel} />
-                    {/* ONE consolidated Cell card. A CELL is a fixed slot — its only tunable prop is collision
-                        (grid elevation stays a cell prop, painted with the terrain-height tool). EVERYTHING in
-                        the cell is a uniform TILE: the floor is the height-0 tile and gets the SAME controls as
-                        any prop/unit, so the panel is one Cell section + one control group per tile in the
-                        stack, then the tile-art override. No cell-vs-element split, no card-in-card. */}
+                    {/* ONE consolidated Cell card — EXACTLY TWO sections. A CELL is a fixed slot; its only
+                        tunable prop is collision (grid elevation stays a cell prop, painted with the terrain-
+                        height tool). The TILE section shows the ONE SELECTED tile in the cell's stack (the floor
+                        is the height-0 tile; a wall/prop is a stacked block) as a single group — name + Open Tile
+                        Library + colour + Width/Height/Depth/Zoom + x/y/rotate/flip — with a ▲▼ level stepper to
+                        reach every block. No per-tile-in-stack sections, no card-in-card. */}
                     <Card title="Cell" accent="cyan">
                       {(() => {
                         const grid = gridRef.current
@@ -5622,12 +5650,13 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
                         if (!grid || cells.length === 0) return null
                         void buildingVersion // re-read shared values after an edit (bumpBuildingVersion)
                         const fc = cells[0]
-                        // Drive the inspector off the cell-stack adapter: index 0 = the floor (a height-0
-                        // tile), 1.. = stacked props/units. The STRUCTURE (which tiles) comes from the first
-                        // cell; each VALUE is shared across the whole selection (null per field = mixed) and
-                        // every write applies to all selected cells.
+                        // Drive the inspector off the cell-stack adapter: index 0 = the floor (a height-0 tile),
+                        // 1.. = stacked props/units. The SELECTED level (selectedTileLevel, clamped to the live
+                        // stack) picks the ONE tile shown; each VALUE is shared across the whole selection (null
+                        // per field = mixed) and every write applies to all selected cells.
                         const stack = getStack(grid, fc.col, fc.row)
-                        const stacked = stack.slice(1)
+                        const levelCount = stack.length
+                        const lvl = Math.min(Math.max(selectedTileLevel, 0), levelCount - 1)
                         // Shared floor dim across the selection (grid.groundDims; unset→1; null = mixed).
                         const gdim = (read: (d: GroundCellDims | undefined) => number) => commonValue(cells.map(({ col, row }) => read(grid.groundDims?.[row]?.[col])))
                         // Shared value of the i-th stacked tile's field across the cells that HAVE it.
@@ -5635,20 +5664,15 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
                           const vals = cells.map(({ col, row }) => stackedAssetsAt(grid, col, row)[i]).filter((a): a is GridAsset => !!a).map(read)
                           return vals.length ? commonValue(vals) : 1
                         }
-                        // The floor is a tile ONLY when it's authored — a non-default ground, a colour, a
-                        // dim/pose override, or something stacked on it. A BARE default grass cell has no
-                        // floor tile, so the panel shows only Collision (no Width/Height/Depth/Zoom). The
-                        // CELL itself has no size — only collision.
-                        const groundSlug = grid.ground[fc.row]?.[fc.col] ?? 'grass'
-                        const floorDimsFc = grid.groundDims?.[fc.row]?.[fc.col]
-                        const floorColorFc = grid.groundColor?.[fc.row]?.[fc.col] ?? null
-                        const floorIsTile = groundSlug !== 'grass' || floorColorFc !== null || !!floorDimsFc || stacked.length > 0
 
-                        const tiles: TileControlModel[] = []
-                        if (floorIsTile) {
-                          tiles.push({
+                        let tile: TileControlModel
+                        if (lvl === 0) {
+                          // FLOOR (height-0 tile): per-cell dims/colour + a REAL per-cell pose.
+                          const groundSlug = grid.ground[fc.row]?.[fc.col] ?? 'grass'
+                          const floorDimsFc = grid.groundDims?.[fc.row]?.[fc.col]
+                          tile = {
                             key: 'floor',
-                            label: `floor · ${groundKind(groundSlug)}`,
+                            label: groundKind(groundSlug),
                             dims: {
                               width: gdim(d => d?.scaleX ?? 1),
                               height: gdim(d => d?.scaleY ?? 1),
@@ -5660,16 +5684,23 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
                             onDim: setGroundDim,
                             onColor: setFloorColor,
                             onClearColor: () => setFloorColor(null),
+                            override: selectedOverride,
+                            styleName: activeStyle.name,
+                            onOpenLibrary: () => setTileLibraryOpen(true),
                             pose: floorDimsFc?.pose,
                             onPose: setGroundPose,
                             onPoseReset: clearGroundPose,
-                          })
-                        }
-                        stacked.forEach((t, i) => {
+                          }
+                        } else {
+                          // STACKED tile: per-index dims/colour writers. GridAsset has no per-instance pose, so
+                          // x/y/rotate/flip route to this tile's tileset KIND pose (persisted via ⭳ Save poses).
+                          const i = lvl - 1
                           const a0 = stackedAssetsAt(grid, fc.col, fc.row)[i]
-                          tiles.push({
+                          const kind = a0 ? assetKind(a0) : (stack[lvl]?.slug || `tile ${lvl}`)
+                          const posable = !!(a0 && EMOJI_TILESET[kind])
+                          tile = {
                             key: `tile-${i}`,
-                            label: a0 ? assetKind(a0) : (t.slug || `tile ${i + 1}`),
+                            label: kind,
                             dims: {
                               width: adim(i, a => a.scaleX ?? 1),
                               height: adim(i, a => a.scaleY ?? 1),
@@ -5680,36 +5711,29 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
                             colorFallback: '#ffffff',
                             onDim: (axis, v) => setAssetDim(i, axis, v),
                             onColor: c => setAssetColor(i, c),
-                          })
-                        })
+                            override: selectedOverride,
+                            styleName: activeStyle.name,
+                            onOpenLibrary: () => setTileLibraryOpen(true),
+                            pose: posable ? EMOJI_TILESET[kind]?.pose : undefined,
+                            onPose: posable ? (p => writeTilePose(kind, p)) : undefined,
+                            onPoseReset: posable ? (() => writeTilePose(kind, undefined)) : undefined,
+                            isWeapon: WEAPON_KINDS.has(kind),
+                            onSavePose: posable ? saveEmojiPoses : undefined,
+                            savingPose: savingPoses,
+                          }
+                        }
+
                         return (
                           <PropertiesPanel
                             collision={commonBool(cells.map(({ col, row }) => grid.isBlocked(col, row)))}
                             onCollision={setCellCollision}
-                            tiles={tiles}
+                            tile={tile}
+                            level={lvl + 1}
+                            levelCount={levelCount}
+                            onLevel={setSelectedTileLevel}
                           />
                         )
                       })()}
-                      {/* Tile-art override (folded in from the old "Art / style override" card) — pin a specific
-                          Library tile to this cell + retune the tileset pose, saved to the backend. Part of the
-                          Tile subsection. */}
-                      <div className="mt-2 border-t border-white/10 pt-2">
-                        <ArtSection override={selectedOverride} styleName={activeStyle.name} onOpen={() => setTileLibraryOpen(true)} />
-                        {poseKind && EMOJI_TILESET[poseKind] && (
-                          <div className="mt-2">
-                            <PoseControls
-                              kind={poseKind}
-                              pose={EMOJI_TILESET[poseKind]?.pose}
-                              isWeapon={WEAPON_KINDS.has(poseKind)}
-                              onChange={p => writeTilePose(poseKind, p)}
-                              onReset={() => writeTilePose(poseKind, undefined)}
-                            />
-                            <button onClick={saveEmojiPoses} disabled={savingPoses} className="mt-1.5 w-full rounded bg-emerald-700 px-2 py-1 text-[10px] font-bold text-white transition-colors hover:bg-emerald-600 disabled:opacity-40">
-                              {savingPoses ? 'Saving…' : '⭳ Save poses to backend'}
-                            </button>
-                          </div>
-                        )}
-                      </div>
                       {/* Discoverable save right where you edit — persists floor colour, element colour & dims
                           with the template. Unnamed map → a toast, not a silent no-op (spec §4). */}
                       <button
