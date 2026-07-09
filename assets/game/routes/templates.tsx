@@ -4894,6 +4894,27 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
             )}
 
             {editorMode === 'paint' && (
+              <Card title="❔ How to build a house" accent="cyan" defaultOpen={false}>
+                <div data-testid="build-house-guide" className="space-y-2 text-[11px] leading-snug text-gray-400">
+                  <p>
+                    The block system: <span className="font-bold text-cyan-300">pick a tile, then left-click a cell to drop it.</span> Walls
+                    and props <span className="font-bold text-cyan-300">stack</span> — click the same cell again to add one on top.
+                  </p>
+                  <ol className="ml-4 list-decimal space-y-1">
+                    <li><span className="font-bold text-gray-200">Floor</span> — pick a <span className="text-cyan-300">Terrain</span> tile (Grass, Path…) and click the cells you want as the ground.</li>
+                    <li><span className="font-bold text-gray-200">Walls</span> — pick <span className="text-cyan-300">Wall</span> (Buildings) and click around the edge of the floor.</li>
+                    <li><span className="font-bold text-gray-200">Height</span> — click the same wall cell again to stack another block on top; repeat to go taller.</li>
+                    <li><span className="font-bold text-gray-200">Door</span> — pick <span className="text-cyan-300">Door</span> (Buildings) and click one front wall cell for the way in.</li>
+                    <li><span className="font-bold text-gray-200">Roof</span> — pick <span className="text-cyan-300">Roof</span> (Buildings) and click on top of the walls to cap it.</li>
+                  </ol>
+                  <p className="rounded bg-cyan-500/10 px-2 py-1 text-cyan-300">
+                    <span className="font-bold">⌥Alt-click</span> removes the top block. <span className="font-bold">⇧Shift-drag</span> selects many cells — then one click fills them all.
+                  </p>
+                </div>
+              </Card>
+            )}
+
+            {editorMode === 'paint' && (
               <Card title="Paint — tiles & ground" accent="cyan">
                 <p className="mb-2 text-[10px] text-gray-500">
                   Pick a tile below, then LEFT-click the map to place it (nature/props stack on what&apos;s there);
