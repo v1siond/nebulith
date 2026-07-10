@@ -5725,14 +5725,14 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
                 const trigRow = parseInt(first[1], 10)
                 return (
                   <>
-                    <SelectionHeader kind="cell" label="cell" coords={cellLabel} />
                     {/* ONE consolidated Cell card — EXACTLY TWO sections. A CELL is a fixed slot; its only
                         tunable prop is collision (grid elevation stays a cell prop, painted with the terrain-
                         height tool). The TILE section shows the ONE SELECTED tile in the cell's stack (the floor
                         is the height-0 tile; a wall/prop is a stacked block) as a single group — name + Open Tile
                         Library + colour + Width/Height/Depth/Zoom + x/y/rotate/flip — with a ▲▼ level stepper to
-                        reach every block. No per-tile-in-stack sections, no card-in-card. */}
-                    <Card title="Cell" accent="cyan">
+                        reach every block. The redundant `▸ CELL (coords)` header pill was removed; the coords now
+                        ride this card's title so there's ONE cell header, not two. */}
+                    <Card title={`Cell ${cellLabel}`} accent="cyan">
                       {(() => {
                         const grid = gridRef.current
                         const cells = cellsFromKeys(selectedCells)
