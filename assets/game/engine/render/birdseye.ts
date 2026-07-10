@@ -398,18 +398,10 @@ export function renderTopView(
     }
   }
 
-  // ── BUILDING ROOFS (top-down): each building drawn as a cohesive roof seen from above (like a
-  //    neighborhood map) over its footprint — filled roof + edge + ridge line + a door notch on the
-  //    road-facing side. Overlays the per-cell building tiles for a clean blueprint look.
-  for (const b of grid.buildings ?? []) {
-    const topRow = b.row - (b.height - 1)
-    if (b.col + b.length <= startCol || b.col >= endCol || topRow + b.height <= startRow || topRow >= endRow) continue
-    const rx = offsetX + b.col * tileSize
-    const ry = offsetY + topRow * tileSize
-    const rw = b.length * tileSize
-    const rh = b.height * tileSize
-    drawTopBuildingRoof(ctx, b, rx, ry, rw, rh, offsetX, offsetY, tileSize, fontSize, style)
-  }
+  // A BUILDING is just TILES: stampBuildingCells places one `type:'building'` asset per BLOCK, so the
+  // overhead view already draws them through the per-cell pass above — each footprint cell shows the TOP of
+  // its column, the ROOF tile (placed last, so it wins the cell in the assetMap), giving a per-cell roof
+  // read from above with no building-specific drawer. grid.buildings is now only the building's metadata.
 
   // Town-square fountain (top-down): a round blue basin spanning its footprint, drawn over the
   // paved plaza as ONE fountain (the centre prop carries the basin span). Overlays the per-cell pass.
@@ -422,9 +414,8 @@ export function renderTopView(
     drawTopFountain(ctx, cx, cy, f, tileSize, style, a.color, now)
   }
 
-  // Collision overlay — drawn LAST (over the roofs + fountains) so it shows on BUILDING cells too; the
-  // per-cell pass is painted before the roof blueprint, which would otherwise hide the tint on buildings.
-  // Debug overlay OR the lighter "show collisions" toggle.
+  // Collision overlay — drawn LAST (over the per-cell building tiles + fountains) so it shows on BUILDING
+  // cells too. Debug overlay OR the lighter "show collisions" toggle.
   if (isDebugMode() || isShowCollisions()) {
     for (let row = startRow; row < endRow; row++) {
       for (let col = startCol; col < endCol; col++) {

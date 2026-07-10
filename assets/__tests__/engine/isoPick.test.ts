@@ -83,4 +83,25 @@ describe('pickIsoBlock — a click on a raised block selects THAT block', () => 
     const lifted = centre(block(3, 3, 1))
     expect(flat.y - lifted.y).toBeCloseTo(tileW * ISO_BLOCK_H_FRAC)
   })
+
+  // The picker takes ONE code path over a uniform block list — it never branches on what a block IS. A
+  // building WALL block and a CHARACTER block are hit-tested exactly like a stacked prop, and their `source`
+  // rides straight through to the result so the caller routes the selection without re-testing geometry.
+  test('a building WALL block is hit like any stacked block and returns source "building"', () => {
+    const wall = { ...block(4, 4, 2), source: 'building' as const }
+    const at = centre(wall)
+    expect(pickIsoBlock(at.x, at.y, [wall], cam)).toEqual({ col: 4, row: 4, level: 2, source: 'building' })
+  })
+
+  test('a CHARACTER block returns source "entity", and nearest-camera-first still holds across sources', () => {
+    const character = { ...block(3, 3, 1), source: 'entity' as const }
+    const wallBehind = { ...block(2, 2, 1), source: 'building' as const }
+    const at = centre(character)
+    expect(pickIsoBlock(at.x, at.y, [character], cam)).toEqual({ col: 3, row: 3, level: 1, source: 'entity' })
+    // the nearer (higher col+row) block wins regardless of source or array order
+    const overlap = centre(wallBehind)
+    if (Math.abs(overlap.x - at.x) / tileW + Math.abs(overlap.y - at.y) / (cam.cellSize * cam.isoScale * 0.36) <= 1) {
+      expect(pickIsoBlock(overlap.x, overlap.y, [character, wallBehind], cam)?.source).toBe('entity')
+    }
+  })
 })

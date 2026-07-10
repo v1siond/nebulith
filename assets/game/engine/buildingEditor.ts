@@ -154,6 +154,45 @@ export function facadeToFootprint(b: GridBuilding): GridFootprintCell[] {
   return cells
 }
 
+/** ONE stacked TILE a building's footprint cell is composed of — a wall/window/door block up its floors,
+ *  or the roof cap on top. `level` is the STACK height level (1 = the first block above the floor, so it
+ *  lifts + hit-tests exactly like a brush-stacked asset; the roof caps at floors+1). No colour/art here —
+ *  the aggregator (cellStack) skins each part via the SAME buildingCellColor the iso renderer uses. */
+export interface BuildingCellTile {
+  part: 'wall' | 'window' | 'door' | 'roof'
+  level: number
+  blocking: boolean
+}
+
+/**
+ * The stacked TILES a building's footprint cell (col,row) decomposes into — the building-is-just-tiles
+ * model: perimeter/door cells rise `floors` wall/window blocks (the door cell opens a walkable door block
+ * at the ground level), and EVERY footprint cell is capped by a roof tile (the roof spans the whole box).
+ * Empty when (col,row) is outside b's footprint. Composed from the SAME facadeToFootprint + facade window
+ * rows the iso renderer (drawIsoBuildingTiles) draws, so a derived tile and the drawn block are the same
+ * thing. Pure — unit-tested; the block-level → screen-lift mapping matches isoStackLift (level k renders at
+ * the top of the k-th wall block). */
+export function buildingCellTiles(b: GridBuilding, col: number, row: number): BuildingCellTile[] {
+  const foot = facadeToFootprint(b)
+  const cell = foot.find(c => c.col === col && c.row === row)
+  if (!cell) return []
+  const floors = foot.reduce((m, c) => Math.max(m, c.height), 1) // wall height (facade body rows)
+  // Facade WINDOW rows → iso block LEVELS: facade row r sits at block k = H-1-r, mirroring the renderer.
+  const H = b.cells.length
+  const windowLevels = new Set<number>()
+  for (let r = 0; r < H; r++) if ((b.cells[r] ?? []).some(k => k === 'window')) windowLevels.add(H - 1 - r)
+  const tiles: BuildingCellTile[] = []
+  if (cell.kind === 'wall' || cell.kind === 'door') {
+    for (let k = 0; k < floors; k++) {
+      const isDoor = cell.kind === 'door' && k === 0 // door opens the ground block; upper blocks are wall
+      const part: BuildingCellTile['part'] = isDoor ? 'door' : windowLevels.has(k) ? 'window' : 'wall'
+      tiles.push({ part, level: k + 1, blocking: !isDoor }) // walls block; the door block stays walkable
+    }
+  }
+  tiles.push({ part: 'roof', level: floors + 1, blocking: false }) // roof caps the whole footprint
+  return tiles
+}
+
 /** True iff (col,row) lies on the building's footprint. */
 export function footprintContains(b: GridBuilding, col: number, row: number): boolean {
   const r = buildingRect(b)

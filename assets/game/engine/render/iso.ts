@@ -22,7 +22,7 @@ import { Connector } from '@/lib/api'
 import { ASCII_FONT, BUILDING_BADGES, COMBAT_RANGE, type DayNight, type DrawVisual, ENEMY_MOVE_MS, LAMP_GLOW, LIGHT, applyCellTransform, isoCameraFocus, assetCaptionByCell, terrainLabelAt, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawHoverRing, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawConnectorMarker, drawAttackAnimFrame, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, frameImage, getPlayerArt, grassShade, cellFill, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, resolveAssetDraw, resolveEntityDraw, assetOverride, tileImage, tintedImage, tintedGlyphSprite, treeCanopyLayers, treeCellSet } from './shared'
 import { resolveAssetDrawSize } from './assetDimensions'
 import { type GroundCellDims, groundSizeFactors, groundDimsActive } from '@/engine/groundDims'
-import { getStack } from '@/engine/cellStack'
+import { getStack, type TileSource } from '@/engine/cellStack'
 import { isoBlockFaces, type BlockFace } from './isoBlock'
 import { resolveTileHeight } from '@/engine/tileset/tileHeight'
 import { EMOJI_TILESET } from '@/engine/tileset/emojiTileset'
@@ -500,19 +500,12 @@ export function render(
   // assets/player and draw as glyphs on top of their cell.
   const pCol = player.x / cellSize
   const pRow = player.z / cellSize
-  // Buildings render as ONE upright unit (grid.buildings) — collect their footprint cells so we
-  // SKIP the per-cell building assets in iso (2D still draws them). Legacy █ buildings aren't
-  // grouped, so they fall through and render per-cell as before.
-  const buildingFootprint = new Set<string>()
-  for (const b of grid.buildings ?? []) {
-    const top = b.row - (b.height - 1)
-    for (let r = 0; r < b.height; r++) for (let c = 0; c < b.length; c++) buildingFootprint.add(`${b.col + c},${top + r}`)
-  }
-  const allObjects: { col: number; row: number; isPlayer?: boolean; asset?: GridAsset; entity?: Entity; moving?: boolean; inRange?: boolean; building?: GridBuilding }[] = [
-    ...visibleAssets
-      .filter(a => !(a.type === 'building' && buildingFootprint.has(`${a.col},${a.row}`)))
-      .map(a => ({ col: a.col, row: a.row, asset: a })),
-    ...(grid.buildings ?? []).map(b => ({ col: b.col + (b.length - 1) / 2, row: b.row, building: b })),
+  // A BUILDING is just TILES: stampBuildingCells places one `type:'building'` asset per BLOCK, so a
+  // building's walls/windows/door/roof flow into the draw list through the SAME `asset` path as any stacked
+  // tile — no building-specific collect/filter/drawer. grid.buildings stays as the building's metadata for
+  // whole-building ops (move/rotate/resize/delete via stamp/unstamp); it is no longer a render source.
+  const allObjects: { col: number; row: number; isPlayer?: boolean; asset?: GridAsset; entity?: Entity; moving?: boolean; inRange?: boolean }[] = [
+    ...visibleAssets.map(a => ({ col: a.col, row: a.row, asset: a })),
     // The player ENTITY is drawn as the live sprite below (isPlayer), so skip it here
     // to avoid a ghost double at the spawn cell. (Top view keeps it — see renderTopView.)
     ...entities.filter(e => e.kind !== 'player').map(e => {
@@ -548,16 +541,6 @@ export function render(
       const attackable = enemyInAttackReach(obj.entity, Math.floor(player.x / cellSize), Math.floor(player.z / cellSize), attackReach)
       const anchor = drawIsoEntity(ctx, p.x, p.y - heightOffset, obj.entity, tileH, combat, now, obj.moving ?? false, obj.inRange ?? false, attackable, style, obj.entity.id === targetId, obj.entity.id === hoverId)
       drawQuestMarker(ctx, entityQuestMarker(obj.entity, quests), anchor.x, anchor.y, Math.max(14, tileH * 1.6))
-    } else if (obj.building) {
-      // A building is drawn PURELY FROM TILES now — per-cell wall/roof/door blocks via drawIsoBuildingTiles,
-      // not the hardcoded facade box. Keep the wall-fade so the interior/door stay findable when the hero is near.
-      const b = obj.building
-      const forceFade = typeof window !== 'undefined' && !!(window as unknown as { __ISO_FADE_ALL?: boolean }).__ISO_FADE_ALL
-      const fade = forceFade ? BUILDING_MIN_ALPHA : buildingFadeAlpha(pCol, pRow, b, BUILDING_FADE_RADIUS, BUILDING_MIN_ALPHA)
-      // drawIsoBuildingSprited blits a cached offscreen sprite when the building isn't fading (fade===1),
-      // and falls back to a live drawIsoBuildingTiles (per-cell fade: walls more transparent, door more
-      // opaque) while it fades. grid.groundVersion keys the terrain elevation under the footprint.
-      drawIsoBuildingSprited(ctx, b, toScreen, (c, r) => grid.getHeight(c, r), heightStep, tileW, tileH, style, fade, grid.groundVersion)
     } else if (obj.asset) {
       const op = obj.asset.opacity ?? 1 // per-asset opacity for contrast/depth
       if (op < 1) ctx.globalAlpha = op
@@ -659,11 +642,17 @@ export function render(
   if (selectedCells.size > 0) {
     ctx.strokeStyle = '#ffff00'
     ctx.lineWidth = 2
-    const selH = tileW * 0.9 // cube height ≈ one tile block → the selector reads as a CUBE, not a flat diamond
+    const selH = tileW * ISO_BLOCK_H_FRAC // cube height = ONE stack level (matches isoStackLift) → the selector hugs a real block
     for (const key of selectedCells) {
-      const [col, row] = key.split(',').map(Number)
+      // A 3-part key "col,row,level" is a RAISED block (3D selection); a 2-part "col,row" is a flat cell.
+      const [col, row, lvl] = key.split(',').map(Number)
       const p = toScreen(col, row)
-      const gt = { x: p.x, y: p.y - tileH }, gr = { x: p.x + tileW, y: p.y }, gb = { x: p.x, y: p.y + tileH }, gl = { x: p.x - tileW, y: p.y }
+      // Lift the selector onto the block: the cell's elevation + the stack rise of the block BELOW it
+      // (level-1), the SAME lift render() draws the block with, so the cube spans exactly that block.
+      // A flat cell (no level / level 0) stays on the ground — byte-identical to the 2D highlight.
+      const raise = lvl >= 1 ? grid.getHeight(col, row) * heightStep + (lvl - 1) * selH : 0
+      const py = p.y - raise
+      const gt = { x: p.x, y: py - tileH }, gr = { x: p.x + tileW, y: py }, gb = { x: p.x, y: py + tileH }, gl = { x: p.x - tileW, y: py }
       // TOP diamond (raised) + GROUND diamond + the 4 vertical edges = an iso cube outline
       ctx.beginPath(); ctx.moveTo(gt.x, gt.y - selH); ctx.lineTo(gr.x, gr.y - selH); ctx.lineTo(gb.x, gb.y - selH); ctx.lineTo(gl.x, gl.y - selH); ctx.closePath(); ctx.stroke()
       ctx.beginPath(); ctx.moveTo(gt.x, gt.y); ctx.lineTo(gr.x, gr.y); ctx.lineTo(gb.x, gb.y); ctx.lineTo(gl.x, gl.y); ctx.closePath(); ctx.stroke()
@@ -1181,12 +1170,18 @@ export interface IsoPickBlock {
   row: number
   heightLevel: number
   terrainHeight: number
+  /** which store this block came from (floor/asset/building/entity) — carried straight through to the
+   *  result so the caller routes the hit to the right selection WITHOUT the picker ever branching on it.
+   *  Absent for the legacy asset-only callers, where the result is `{col,row,level}` exactly as before. */
+  source?: TileSource
 }
 
 export interface IsoPickResult {
   col: number
   row: number
   level: number
+  /** the hit block's store (from IsoPickBlock.source). Undefined for asset-only callers. */
+  source?: TileSource
 }
 
 /** Screen → the RAISED block the pointer is on, or null. Fixes the iso selection ignoring stacked blocks:
@@ -1229,7 +1224,7 @@ export function pickIsoBlock(
     // Point-in-iso-diamond around that lifted top face (the quad render() strokes for the selection cube).
     const dx = Math.abs(screenX - px)
     const dy = Math.abs(screenY - cy)
-    if (dx / tileW + dy / tileH <= 1) return { col: b.col, row: b.row, level: b.heightLevel }
+    if (dx / tileW + dy / tileH <= 1) return { col: b.col, row: b.row, level: b.heightLevel, source: b.source }
   }
   return null
 }

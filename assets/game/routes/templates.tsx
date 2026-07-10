@@ -15,10 +15,10 @@ import Head from 'next/head'
 import Link from 'next/link'
 import { useToast } from '@/components/Toast'
 import { GridBuilding, type GridAsset, IsometricGrid } from '@/engine/IsometricGrid'
-import { getStack } from '@/engine/cellStack'
+import { getStack, type TileEntry, type TileSource } from '@/engine/cellStack'
 import { type AttackAnim, isAnimDone } from '@/engine/attackAnimations'
 import { type BuildingType } from '@/engine/buildingComposer'
-import { buildingFootprintCells, canPlaceBuilding, facadeLength, footprintContains, gridBuildingFacing, isRoadGround, makeBuilding, moveBuilding, resizeBuilding, rotateBuilding } from '@/engine/buildingEditor'
+import { buildingDoorCell, buildingFootprintCells, canPlaceBuilding, facadeLength, facadeToFootprint, footprintContains, gridBuildingFacing, isRoadGround, makeBuilding, moveBuilding, resizeBuilding, rotateBuilding } from '@/engine/buildingEditor'
 import { type AnimFrame, type AnimPreset, CELL_ANIM_PRESETS, type Ease, makeCellAnimation, restFrame } from '@/engine/cellAnimation'
 import { findTriggeredConnector, normalizeConnector } from '@/engine/connectors'
 import { entityPalette, punchTile, weaponEmoji, weaponGlyph, weaponPose } from '@/engine/entityArt'
@@ -143,7 +143,7 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
   const [panStart, setPanStart] = useState<{ x: number; y: number } | null>(null)
   // Click-vs-drag in the play views: a clean click selects the entity under it, a drag pans.
   const dragMovedRef = useRef(false)
-  const downCellRef = useRef<{ col: number; row: number; level?: number } | null>(null)
+  const downCellRef = useRef<{ col: number; row: number; level?: number; source?: TileSource } | null>(null)
   const downAltRef = useRef(false) // Alt held on mouse-DOWN — mouse-up reads it to select the CELL under a unit (instead of the unit)
   const [camOffset, setCamOffset] = useState({ x: 0, y: 0 })
   const camOffsetRef = useRef({ x: 0, y: 0 })
@@ -766,7 +766,7 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
   // blocks". This mirrors the iso render's projection + isoStackLift (same clamped camera focus) and
   // hit-tests the lifted blocks, nearest-camera-first. Iso view ONLY; returns null when the pointer misses
   // every raised block (the caller then uses the unchanged flat screenToCell). 2D/top picking is untouched.
-  const pickIsoBlockAt = (clientX: number, clientY: number): { col: number; row: number; level: number } | null => {
+  const pickIsoBlockAt = (clientX: number, clientY: number): { col: number; row: number; level: number; source: TileSource } | null => {
     const canvas = canvasRef.current
     const grid = gridRef.current
     if (!canvas || !grid) return null
@@ -788,34 +788,78 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
     const rawFr = (playerRef.current.z - camOffsetRef.current.y) / cs
     const { fc, fr } = playModeRef.current ? isoCameraFocus(rawFc, rawFr, pPad, qPad, grid.cols, grid.rows) : { fc: rawFc, fr: rawFr }
 
-    // Candidate raised blocks: every placed asset lifted at least one level, tagged with its cell's elevation
-    // (the render lifts a block by both terrain height and the stack lift — the pick must match).
+    // Candidate raised blocks come from the ONE unified stack (getStack) — the SAME model select/edit read —
+    // so a building WALL block and a stacked TREE/prop are hit-tested the SAME way, with NO per-type branch
+    // here. Buildings are handed to getStack (they aren't grid fields); every stack entry that is a real BLOCK
+    // (heightLevel ≥ 1 — the floor / flat props stay on the flat pick) becomes an IsoPickBlock carrying its
+    // `source`, tagged with the cell's elevation so its lift matches the render. Only footprint + asset-stack
+    // cells are scanned, so this stays cheap on a click. CHARACTERS are uniform tiles too (getStack projects
+    // them, pickIsoBlock hit-tests an entity block — see isoPick tests), but a unit is a BILLBOARD drawn ABOVE
+    // its foot cell, so the editor keeps the billboard-aware entityAtFootprint (a superset of a flat-diamond
+    // test) as the character picker below; feeding a flat entity block here would mis-hit the figure.
+    const scope = { buildings: grid.buildings }
+    const candidates = new Set<string>()
+    for (const a of grid.assets) if ((a.heightLevel ?? 0) >= 1) candidates.add(`${a.col},${a.row}`)
+    for (const b of grid.buildings ?? []) for (const fc of buildingFootprintCells(b).cells) candidates.add(`${fc.col},${fc.row}`)
+    if (candidates.size === 0) return null
     const blocks: IsoPickBlock[] = []
-    for (const a of grid.assets) {
-      if ((a.heightLevel ?? 0) < 1) continue
-      blocks.push({ col: a.col, row: a.row, heightLevel: a.heightLevel ?? 0, terrainHeight: grid.getHeight(a.col, a.row) })
+    for (const key of candidates) {
+      const [col, row] = key.split(',').map(Number)
+      const terrainHeight = grid.getHeight(col, row)
+      for (const t of getStack(grid, col, row, scope)) {
+        if ((t.heightLevel ?? 0) < 1) continue
+        blocks.push({ col, row, heightLevel: t.heightLevel ?? 0, terrainHeight, source: t.source })
+      }
     }
     if (blocks.length === 0) return null
-    return pickIsoBlock(x, y, blocks, { w: canvas.width, h: canvas.height, cellSize: cs, isoScale: eff, camX: fc * cs, camZ: fr * cs })
+    const hit = pickIsoBlock(x, y, blocks, { w: canvas.width, h: canvas.height, cellSize: cs, isoScale: eff, camX: fc * cs, camZ: fr * cs })
+    return hit ? { col: hit.col, row: hit.row, level: hit.level, source: hit.source ?? 'asset' } : null
   }
 
   // The cell a click SELECTS/edits: a raised iso block first (so a click on a stack picks the block, not its
   // bottom cell), else the flat screenToCell — unchanged for empty cells, 2D and top.
-  const pickCellForSelect = (clientX: number, clientY: number): { col: number; row: number; level?: number } | null =>
-    pickIsoBlockAt(clientX, clientY) ?? screenToCell(clientX, clientY)
+  const pickCellForSelect = (clientX: number, clientY: number): { col: number; row: number; level?: number; source?: TileSource } | null => {
+    const block = pickIsoBlockAt(clientX, clientY)
+    if (block) return block
+    const flat = screenToCell(clientX, clientY)
+    return flat ? { col: flat.col, row: flat.row, source: 'floor' as const } : null
+  }
 
   // The stack index (0 = floor, 1.. = stacked) the TILE inspector should show for a click. A picked RAISED
   // block maps to its stack position (its heightLevel → its slot in the sorted stack); a flat pick with no
   // specific block defaults to the TOP tile — or the floor (0) when the cell is bare. Drives selectedTileLevel.
-  const levelForPickedCell = (c: { col: number; row: number; level?: number }): number => {
+  const levelForPickedCell = (c: { col: number; row: number; level?: number; source?: TileSource }): number => {
     const grid = gridRef.current
     if (!grid) return 0
-    const stacked = [...grid.getAssetsAtCell(c.col, c.row)].sort((a, b) => (a.heightLevel ?? 0) - (b.heightLevel ?? 0))
-    if (c.level !== undefined) {
-      const p = stacked.findIndex(a => (a.heightLevel ?? 0) === c.level)
-      return p >= 0 ? p + 1 : stacked.length
+    // Read the SAME unified stack the inspector shows, so a picked block maps 1:1 to its inspector slot.
+    const stack = getStack(grid, c.col, c.row, { buildings: grid.buildings, entities: entitiesRef.current })
+    // A picked BLOCK carries its store + heightLevel → its exact slot in the stack (wall/prop/character alike).
+    if (c.level !== undefined && c.source && c.source !== 'floor') {
+      const idx = stack.findIndex(t => t.source === c.source && (t.heightLevel ?? 0) === c.level)
+      if (idx >= 0) return idx
     }
-    return stacked.length // TOP tile (floor = 0 for a bare cell)
+    // Flat ground click → the TOP loose ASSET, or the floor (index 0) for a bare / building-ground cell: a
+    // plain ground click never auto-selects a building or character tile — click the raised block for that.
+    let top = 0
+    stack.forEach((t, i) => { if (t.source === 'asset') top = i })
+    return top
+  }
+
+  // The 3D selection keys for the COLUMN the pointer picked: every stacked block (heightLevel ≥ 1) at that
+  // cell, as "col,row,level" — so a click on a building corner / tree stack highlights the WHOLE column of
+  // blocks (the iso highlight raises each onto its real block), not the flat bottom cell. A bare / floor pick
+  // (no raised block) stays the single flat "col,row" key. ONE path: buildings, props and characters are all
+  // just stack entries here (getStack), no per-type branch — a wall column and a tree column resolve the same.
+  const columnKeysAt = (c: { col: number; row: number; level?: number; source?: TileSource }): Set<string> => {
+    const grid = gridRef.current
+    const flat = new Set([`${c.col},${c.row}`])
+    if (!grid || c.level === undefined || c.level < 1 || !c.source || c.source === 'floor') return flat
+    const keys = new Set<string>()
+    for (const t of getStack(grid, c.col, c.row, { buildings: grid.buildings })) {
+      const lvl = t.heightLevel ?? 0
+      if (lvl >= 1) keys.add(`${c.col},${c.row},${lvl}`)
+    }
+    return keys.size ? keys : flat
   }
 
   // Grid cell → viewport screen coords (the FORWARD of screenToCell above). Used to
@@ -1046,23 +1090,29 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
     // standing FIGURE (drawn above its foot cell) selects it, not only a click on the exact cell.
     if (isPanning && !dragMovedRef.current && downCellRef.current) {
       const c = downCellRef.current
-      if (downAltRef.current) {
-        // Alt+click ALWAYS reaches the CELL, even when a unit occupies it — drop any entity selection and
-        // pick the cell so its floor-tile settings become editable. (Plain click below stays entity-first.)
+      // Select the picked TILE as a cell + stack level — the unified Cell inspector then shows THAT tile
+      // (floor / prop / building wall) with the SAME controls, no matter what it is.
+      const selectCellTile = () => {
         setSelectedEntityId(null)
         setSelectedCells(new Set([`${c.col},${c.row}`]))
         setSelectedTileLevel(levelForPickedCell(c))
+      }
+      // ONE resolution, then a tiny route by the tile's STORE (never a geometry re-test — pickIsoBlock already
+      // did that uniformly over the stack):
+      //  • a picked BUILDING / PROP block → that tile in the Cell inspector (wins over an entity sharing the
+      //    cell — you clicked the raised block, not the figure at ground level);
+      //  • Alt → always the CELL under the pointer (edit the floor even under a unit);
+      //  • a plain flat click stays ENTITY-FIRST (a unit is a billboard drawn above its foot cell), else the cell.
+      if (c.source === 'building' || c.source === 'asset') {
+        selectCellTile()
+      } else if (downAltRef.current) {
+        selectCellTile()
       } else {
-        // Plain click (unchanged): select the EXACT cell under the pointer — no walk, so a click never grabs a
-        // neighbouring cell or prop. A unit is picked only when its OWN footprint covers this cell (hit-tested
-        // at its LIVE cell via withPlayerCell, since the entity's stored cell is frozen at spawn). ENTITY-FIRST.
         const hit = entityAtFootprint(withPlayerCell(entitiesRef.current, livePlayerCell()), c.col, c.row)
         if (hit) {
           setSelectedEntityId(hit.id)
         } else {
-          setSelectedEntityId(null)
-          setSelectedCells(new Set([`${c.col},${c.row}`]))
-          setSelectedTileLevel(levelForPickedCell(c))
+          selectCellTile()
         }
       }
     }
@@ -1613,6 +1663,9 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
       __camOffset?: () => { x: number; y: number }
       __stackAsset?: (col: number, row: number, n?: number) => number | null
       __isoBlockScreen?: (col: number, row: number, level: number) => { x: number; y: number } | null
+      __genVillage?: () => { buildings: number }
+      __buildings?: () => Array<{ i: number; type: string; col: number; row: number; length: number; height: number; floors: number; wall: { col: number; row: number } | null; door: { col: number; row: number } }>
+      __centerOn?: (col: number, row: number) => void
     }
     win.__camOffset = () => ({ ...camOffsetRef.current })
     // ISO-STACK picking validation seams (same family as __entityScreens, which lands validation clicks via
@@ -1651,6 +1704,31 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
       const sx = canvas.width ? rect.width / canvas.width : 1
       const sy = canvas.height ? rect.height / canvas.height : 1
       return { x: rect.left + px * sx, y: rect.top + cy * sy }
+    }
+    // UNIFIED-TILE picking validation seams: generate a REAL town (has buildings) and dump each building's
+    // footprint so a validation click can land on an actual WALL block / the door — proving the building's
+    // blocks pick as tiles through the SAME path as a prop, not a synthetic rock stack.
+    win.__genVillage = () => { generateStageInEditor('spring', 'town'); return { buildings: gridRef.current?.buildings.length ?? 0 } }
+    win.__buildings = () => {
+      const grid = gridRef.current
+      if (!grid) return []
+      return (grid.buildings ?? []).map((b, i) => {
+        const foot = facadeToFootprint(b)
+        const wall = foot.find(c => c.kind === 'wall') ?? null
+        const door = buildingDoorCell(b)
+        const floors = foot.reduce((m, c) => Math.max(m, c.height), 1)
+        return { i, type: b.type, col: b.col, row: b.row, length: b.length, height: b.height, floors, wall: wall ? { col: wall.col, row: wall.row } : null, door: { col: door.col, row: door.row } }
+      })
+    }
+    // Centre the iso camera on a cell so a validation click lands on-screen (the same camOffset the render +
+    // pick read); mirrors the raw dev-mode focus fc=(playerX-camOffsetX)/cs.
+    win.__centerOn = (col: number, row: number) => {
+      const grid = gridRef.current
+      if (!grid) return
+      const cs = grid.cellSize
+      const off = { x: playerRef.current.x - col * cs, y: playerRef.current.z - row * cs }
+      camOffsetRef.current = off
+      setCamOffset(off)
     }
     // Debug-overlay + tileset-label validation seams: toggle the label overlay, and DUMP the
     // `<TYPE> <POSITION>` label of every cell in a region (terrain autotile label overridden by an
@@ -1774,7 +1852,7 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
       setSelectedCells(new Set([`${best.col},${best.row}`]))
       return best
     }
-    return () => { delete win.__setArtStyle; delete win.__selectFirstTreeCell; delete win.__setView; delete win.__gridKinds; delete win.__entityInfo; delete win.__entityScreens; delete win.__selectEntity; delete win.__setEntitySize; delete win.__scatter; delete win.__selectedEntityInfo; delete win.__placeBuilding; delete win.__selectBuilding; delete win.__resizeBuilding; delete win.__selectedBuildingLen; delete win.__cellSel; delete win.__selectCells; delete win.__applyCellTile; delete win.__clearRegion; delete win.__setDebug; delete win.__cellLabels; delete win.__camOffset; delete win.__stackAsset; delete win.__isoBlockScreen }
+    return () => { delete win.__setArtStyle; delete win.__selectFirstTreeCell; delete win.__setView; delete win.__gridKinds; delete win.__entityInfo; delete win.__entityScreens; delete win.__selectEntity; delete win.__setEntitySize; delete win.__scatter; delete win.__selectedEntityInfo; delete win.__placeBuilding; delete win.__selectBuilding; delete win.__resizeBuilding; delete win.__selectedBuildingLen; delete win.__cellSel; delete win.__selectCells; delete win.__applyCellTile; delete win.__clearRegion; delete win.__setDebug; delete win.__cellLabels; delete win.__camOffset; delete win.__stackAsset; delete win.__isoBlockScreen; delete win.__genVillage; delete win.__buildings; delete win.__centerOn }
   }, [])
 
   // ── Selected-entity inspector actions ─────────────────────────────
@@ -2899,8 +2977,9 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
       }
     }
     grid.clearAssets()
-    // Group the facades for the ISO view (one upright unit per building). 2D keeps using the
-    // per-cell assets below; iso renders from grid.buildings and skips those per-cell draws.
+    // grid.buildings is the building METADATA (type, anchor, footprint, facing) — the source
+    // stampBuildingCells rebuilds each building's per-block tiles from below. It is no longer a render
+    // source: every view now draws a building through its per-block `type:'building'` assets.
     grid.buildings = stage.buildings.map(b => ({
       col: b.col,
       row: b.row,
@@ -2928,6 +3007,7 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
     // 🪾 winter / 🌵 desert / 🌴 beach) rather than one 🌲 recoloured per season — so per-tree seasonal
     // TONAL variety is dropped in favour of a distinct, palette-matching species per season.
     for (const a of paint.assets) {
+      if (a.type === 'building') continue // buildings are re-stamped as per-block tiles below (stampBuildingCells)
       const override = stagePropTileOverride(stage.zone, a.type)
       grid.placeAsset([a.char], a.col, a.row, { type: a.type, blocking: a.blocking, color: a.color, label: a.label, baseShadow: a.baseShadow, buildingType: a.buildingType, edge: a.edge, footprint: a.footprint, cellPart: a.label, tileOverride: override })
     }
@@ -2939,6 +3019,11 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
         if (stage.collision[r]?.[c] !== undefined) grid.setCollision(c, r, stage.collision[r][c])
       }
     }
+    // A BUILDING is just TILES: stamp each GENERATED building the SAME way a hand-placed one is
+    // (stampBuildingCells → one `type:'building'` asset PER BLOCK), so generated + placed buildings render
+    // through the identical per-block path in all three views. The generator's flat per-cell building props
+    // were skipped above; grid.buildings holds the metadata this rebuilds each column of blocks from.
+    for (const b of grid.buildings) stampBuildingCells(grid, b, stage.zone)
   }
 
   /** Promote the generators' decorative ☺ NPC assets into REAL npc entities: a generated town's
@@ -5650,11 +5735,12 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
                         if (!grid || cells.length === 0) return null
                         void buildingVersion // re-read shared values after an edit (bumpBuildingVersion)
                         const fc = cells[0]
-                        // Drive the inspector off the cell-stack adapter: index 0 = the floor (a height-0 tile),
-                        // 1.. = stacked props/units. The SELECTED level (selectedTileLevel, clamped to the live
-                        // stack) picks the ONE tile shown; each VALUE is shared across the whole selection (null
-                        // per field = mixed) and every write applies to all selected cells.
-                        const stack = getStack(grid, fc.col, fc.row)
+                        // Drive the inspector off the ONE unified stack: index 0 = the floor (a height-0 tile),
+                        // then loose props, then this cell's BUILDING blocks (wall/window/door/roof) and any
+                        // CHARACTER on it — the SAME model select/pick use, so a clicked wall or unit lands on a
+                        // real tile here with NO per-type branch. The SELECTED level (selectedTileLevel, clamped)
+                        // picks the ONE tile shown; floor/asset values stay shared across the whole selection.
+                        const stack = getStack(grid, fc.col, fc.row, { buildings: grid.buildings, entities })
                         const levelCount = stack.length
                         const lvl = Math.min(Math.max(selectedTileLevel, 0), levelCount - 1)
                         // Shared floor dim across the selection (grid.groundDims; unset→1; null = mixed).
@@ -5691,9 +5777,10 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
                             onPose: setGroundPose,
                             onPoseReset: clearGroundPose,
                           }
-                        } else {
-                          // STACKED tile: per-index dims/colour writers. GridAsset has no per-instance pose, so
-                          // x/y/rotate/flip route to this tile's tileset KIND pose (persisted via ⭳ Save poses).
+                        } else if (stack[lvl]?.source === 'asset') {
+                          // STACKED prop tile: per-index dims/colour writers. GridAsset has no per-instance pose,
+                          // so x/y/rotate/flip route to this tile's tileset KIND pose (persisted via ⭳ Save poses).
+                          // Assets occupy indices 1..A right after the floor, so the array slot is lvl-1.
                           const i = lvl - 1
                           const a0 = stackedAssetsAt(grid, fc.col, fc.row)[i]
                           const kind = a0 ? assetKind(a0) : (stack[lvl]?.slug || `tile ${lvl}`)
@@ -5720,6 +5807,31 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
                             isWeapon: WEAPON_KINDS.has(kind),
                             onSavePose: posable ? saveEmojiPoses : undefined,
                             savingPose: savingPoses,
+                          }
+                        } else {
+                          // A BUILDING block (wall / window / door / roof) or a CHARACTER on the cell — shown as a
+                          // TILE with the SAME group as a tree: its name, Open Tile Library, colour, W/H/D/Zoom.
+                          // DISPLAY-ONLY for now: a building's tiles live on the GridBuilding (walls = stacked wall
+                          // tiles up its floors) and a unit lives in the entities store, so writing size/colour BACK
+                          // to those stores is the next step — the dim/colour handlers are deliberately inert (not
+                          // faked) so selection + display are honest and no edit silently no-ops into the floor.
+                          const entry = stack[lvl] as TileEntry | undefined
+                          tile = {
+                            key: `${entry?.source ?? 'tile'}-${lvl}`,
+                            label: entry?.slug || `tile ${lvl}`,
+                            dims: {
+                              width: entry?.w ?? 1,
+                              height: entry?.scaleY ?? 1,
+                              depth: entry?.d ?? 1,
+                              zoom: entry?.zoom ?? 1,
+                            },
+                            color: entry?.color ?? null,
+                            colorFallback: entry?.color ?? '#8a8a8a',
+                            onDim: () => {}, // write-back to the GridBuilding / entity store → next step
+                            onColor: () => {}, // write-back to the GridBuilding / entity store → next step
+                            override: entry?.tileId ?? selectedOverride,
+                            styleName: activeStyle.name,
+                            onOpenLibrary: () => setTileLibraryOpen(true),
                           }
                         }
 

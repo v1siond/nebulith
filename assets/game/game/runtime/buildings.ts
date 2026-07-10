@@ -5,7 +5,7 @@
 // stay in engine/buildingEditor; this is the side-effecting stamp/unstamp + the
 // live placement reader. Moved out of the game-engine page (stage 5a).
 import { type BuildingType } from '@/engine/buildingComposer'
-import { type PlacementEnv, buildingCellBlocked, buildingDoorCells, buildingFootprintCells, buildingRect, isRoadGround } from '@/engine/buildingEditor'
+import { type PlacementEnv, buildingCellBlocked, buildingCellTiles, buildingDoorCells, buildingFootprintCells, isRoadGround } from '@/engine/buildingEditor'
 import { cellTile } from '@/engine/cellTileset'
 import type { GridBuilding, IsometricGrid } from '@/engine/IsometricGrid'
 import { buildingCellColor } from '@/engine/stageGenerator'
@@ -13,37 +13,45 @@ import { type Facing } from '@/engine/villageLayout'
 import { ZONE_PALETTES, ZoneId } from '@/engine/zones'
 
 /**
- * LIVE stamp: write a building's footprint onto the grid — a 'building' asset +
- * collision per cell (door walkable, every other cell blocking) + clean base
- * ground under it. Mirrors stageGenerator.stampFootprintCell. Does NOT touch
- * grid.buildings; the caller owns that array so indices stay stable across edits.
+ * LIVE stamp: write a building's footprint onto the grid as PER-BLOCK TILES — the building-is-just-tiles
+ * model. A BUILDING is not a special render unit: each footprint CELL decomposes (buildingCellTiles) into
+ * one TILE per BLOCK — wall/window/door blocks rising its floors, a roof cap on top — and we place ONE
+ * `type:'building'` asset per block. Those blocks then render through the SAME per-block asset path as any
+ * stacked tile in all three views (no building-specific drawer). Plus per-cell collision (the door run
+ * walkable, every other footprint cell blocking) + clean base ground under it. Does NOT touch
+ * grid.buildings; the caller owns that array (the building's metadata for whole-building ops) so indices
+ * stay stable across edits.
  */
 export function stampBuildingCells(grid: IsometricGrid, b: GridBuilding, zone: ZoneId): void {
   const { cells } = buildingFootprintCells(b)
-  const rect = buildingRect(b)
   const base = ZONE_PALETTES[zone]?.groundTypes[0] ?? 'grass'
   // The walkable entrance is the FULL door run (a hospital's 2-wide doorway, a cathedral's 3-wide one) —
-  // the SAME cells the generator opens + the facade/iso draw, so the drawn door always lands on walkable
-  // collision (no walkable-half/blocked-half wide door). A 1-wide door → the single doorCellFor cell.
+  // the SAME cells the generator opens, so the drawn door always lands on walkable collision (no
+  // walkable-half/blocked-half wide door). A 1-wide door → the single doorCellFor cell.
   const doorSet = new Set(buildingDoorCells(b).map(d => `${d.col},${d.row}`))
-  // Wall block height = the facade's body rows (mirrors the generator + facadeToFootprint).
-  const floors = Math.max(1, b.cells.filter(r => r.some(k => k === 'wall' || k === 'window' || k === 'door')).length)
   for (const c of cells) {
     if (c.col < 0 || c.row < 0 || c.col >= grid.cols || c.row >= grid.rows) continue
-    const isDoor = doorSet.has(`${c.col},${c.row}`)
-    const perimeter = c.col === rect.col || c.col === rect.col + rect.w - 1 || c.row === rect.row || c.row === rect.row + rect.h - 1
-    // Per-cell tile model: perimeter = WALL (rises `floors` blocks in iso), door = flat walkable, interior =
-    // flat ROOF cell. Collision UNCHANGED (whole footprint blocks except the door). Mirrors stampFootprintCell.
-    const label = isDoor ? 'door' : perimeter ? 'wall' : 'roof'
-    const tile = cellTile(zone, label)
-    const color = buildingCellColor(b.type as BuildingType, label, b.col)
-    const asset = grid.placeAsset([tile.char], c.col, c.row, { type: 'building', blocking: !isDoor, color })
-    // placeAsset's fixed option list doesn't carry these — set them on the returned asset (was the raw push).
-    asset.label = label
-    asset.buildingType = b.type
-    asset.height = label === 'wall' ? floors : 0
-    grid.setCollision(c.col, c.row, !isDoor) // door walkable, every other footprint cell blocks
-    grid.setGround(c.col, c.row, base)
+    grid.setGround(c.col, c.row, base) // clean base ground under the footprint (grass)
+    // ONE asset per BLOCK: the footprint cell's stacked wall/window/door blocks (level 1..floors) + the
+    // roof cap (floors+1). Each block is a height-1 tile lifted to its stack level — the SAME shape a
+    // brush-stacked tile has, so a building block extrudes into an iso cube (or a raised 2D/top tile) with
+    // zero per-type branches in the draw loop. buildingCellTiles is the shared decomposition.
+    for (const t of buildingCellTiles(b, c.col, c.row)) {
+      const { char } = cellTile(zone, t.part)
+      const color = buildingCellColor(b.type as BuildingType, t.part, b.col)
+      const asset = grid.placeAsset([char], c.col, c.row, { type: 'building', blocking: t.blocking, color, heightLevel: t.level })
+      // placeAsset's fixed option list doesn't carry these — set them on the returned asset.
+      asset.label = t.part
+      asset.buildingType = b.type
+      asset.height = 1 // ONE block tall per tile; the column's floors come from the stacked levels, not this
+    }
+    // Cell collision = the footprint-occupancy rule (whole box blocks, the door run stays walkable), the
+    // SAME collision the pre-per-block stamp produced. This increment is RENDER-ONLY, so collision must not
+    // change: a blocking wall block placed over the door cell (a lintel above the opening) can flip the cell
+    // blocked via placeAsset, so we open the door run LAST to keep the entrance walkable. Interior cells
+    // carry only a non-blocking roof block, so the OR-of-blocks alone would leave them walkable — the
+    // footprint rule blocks the solid box, unchanged.
+    grid.setCollision(c.col, c.row, !doorSet.has(`${c.col},${c.row}`))
   }
 }
 

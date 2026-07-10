@@ -762,37 +762,29 @@ export function render2D(
   const drawables: Array<{
     row: number
     col: number
-    type: 'asset' | 'player' | 'building'
+    type: 'asset' | 'player'
     asset?: GridAsset
-    building?: GridBuilding
   }> = []
 
-  // Buildings render as ONE front elevation (from grid.buildings) — collect their footprint cells
-  // so we SKIP the per-cell building assets (a roof from above), exactly like the iso view. Legacy
-  // █ buildings aren't grouped (grid.buildings empty), so they fall through and render per-cell.
+  // A BUILDING is just TILES: stampBuildingCells places one `type:'building'` asset per BLOCK, so a
+  // building's walls/windows/door/roof render through the SAME per-cell asset path as any stacked tile —
+  // no front-elevation drawer. grid.buildings stays only as the building's metadata (used by the DEBUG
+  // collision overlay below + whole-building ops); it is no longer a render source. The footprint set still
+  // feeds that debug overlay, which tints the raised facade instead of the grounded cells.
   const buildingFootprint2D = new Set<string>()
   for (const b of grid.buildings ?? []) {
     const top = b.row - (b.height - 1)
     for (let r = 0; r < b.height; r++) for (let c = 0; c < b.length; c++) buildingFootprint2D.add(`${b.col + c},${top + r}`)
   }
 
-  // Add assets (skip the per-cell building footprint cells — the elevation replaces them)
+  // Add assets — building blocks included, so they render per-block through the asset path below.
   const visibleAssets = grid.getVisibleAssets(
     Math.floor(camCol), Math.floor(camRow), tilesX, tilesY
   )
   const treeCells2D = treeCellSet(grid) // memoized (see shared.treeCellSet) — no per-frame assets rescan
   const isTreeCell2D = (c: number, r: number): boolean => treeCells2D.has(`${c},${r}`)
   for (const asset of visibleAssets) {
-    if (asset.type === 'building' && buildingFootprint2D.has(`${asset.col},${asset.row}`)) continue
     drawables.push({ row: asset.row, col: asset.col, type: 'asset', asset })
-  }
-
-  // Add buildings as front elevations, anchored at their front (bottom) row + footprint centre.
-  // The draw loop adds +0.5 (the cell-centre offset every drawable gets), so subtract it here:
-  // (b.col + length/2 - 0.5) + 0.5 = b.col + length/2 = the footprint's true centre grid-point,
-  // keeping the facade columns (and the door) over their own collision cells + driveway.
-  for (const b of grid.buildings ?? []) {
-    drawables.push({ row: b.row, col: b.col + b.length / 2 - 0.5, type: 'building', building: b })
   }
 
   // Add player
@@ -905,24 +897,6 @@ export function render2D(
         const nameSize = Math.max(9, fontSize)
         drawFigureVitals(ctx, p.x, figureTop, barWidth, 6, nameSize, barFraction(player.hp ?? player.maxHp, player.maxHp), playerDisplayName(player.name))
       }
-
-    } else if (obj.type === 'building' && obj.building) {
-      // ONE upright FRONT ELEVATION over the small footprint, oriented so the door faces the road,
-      // raised from the building's facade — the same grid.buildings the iso reads, so 2D + iso +
-      // collision agree on one model.
-      const b = obj.building
-      const flicker = Math.sin(time * 0.003 + b.col * 0.5 + b.row * 0.7) * 0.15 + 1
-      draw2DBuilding(ctx, b, p.x, p.y + tileH * 0.5, tileW, tileH, flicker, style)
-
-      // Subtle interactive-entrance marker on the door cell: a small warm chevron, so the player
-      // can tell which cell opens the building (the lone walkable footprint cell).
-      const door = doorCellFor(gridBuildingFacing(b), buildingRect(b))
-      const dp = toScreen(door.col + 0.5, door.row + 0.5)
-      ctx.fillStyle = `rgba(255, 198, 92, ${0.55 + 0.25 * flicker})`
-      ctx.font = `bold ${tileH * 0.62}px ${ASCII_FONT}`
-      ctx.textAlign = 'center'
-      ctx.textBaseline = 'middle'
-      ctx.fillText('▾', dp.x, dp.y)
 
     } else if (obj.asset) {
       const asset = obj.asset

@@ -16,13 +16,44 @@
  * (and back, via mutators that call the grid's existing setters). It changes NO existing behaviour and
  * touches no render/codec/collision path — later migration steps consume it. Pure + unit-tested.
  */
-import type { IsometricGrid, GridAsset } from './IsometricGrid'
+import type { IsometricGrid, GridAsset, GridBuilding } from './IsometricGrid'
 import type { GroundCellDims } from './groundDims'
 import type { TilePose } from './tileset/pose'
 import { resolveTileHeight } from './tileset/tileHeight'
 
-/** Which legacy layer a TileEntry projects from — lets a consumer/mutator route back to the right setter. */
-export type TileSource = 'floor' | 'asset'
+/** Which store a TileEntry projects from — lets a consumer/mutator route back to the right setter/store.
+ *  `building` = a wall/window/door/roof block derived from a GridBuilding footprint cell; `entity` = an
+ *  npc/enemy/player standing on the cell. Everything is a uniform tile — the source is only how you write
+ *  BACK, never a branch a picker/inspector takes to READ. */
+export type TileSource = 'floor' | 'asset' | 'building' | 'entity'
+
+/** Back-reference from a derived TileEntry to the store row it came from, so selection/edits know which
+ *  building block (building B, part, at level L) or which entity a picked tile IS. Floor/asset tiles carry
+ *  no ref — they round-trip through the grid's own setters (setFloor / the asset itself). */
+export type TileRef =
+  | { kind: 'building'; buildingIndex: number; part: 'wall' | 'window' | 'door' | 'roof'; col: number; row: number; level: number }
+  | { kind: 'entity'; entityId: string }
+
+/** The minimal shape getStack needs to derive a CHARACTER tile. Structural (not the game `Entity` type) so
+ *  the low-level engine layer never imports up into `game/` — the page passes its Entity[] straight in. */
+export interface EntityStackTile {
+  id: string
+  kind: string
+  col: number
+  row: number
+  tileOverride?: string
+  color?: string
+  blocksMovement?: boolean
+}
+
+/** What ELSE (beyond the grid's own ground/assets) is in view for this cell: the buildings whose footprints
+ *  may cover it and the entities standing on it. Both are OPT-IN: omit them and getStack returns exactly the
+ *  legacy floor+assets stack (byte-identical — the render hot path reads only the floor and must never pay a
+ *  per-cell buildings/entities scan). The pick + inspector pass them to get the FULL unified stack. */
+export interface StackScope {
+  buildings?: readonly GridBuilding[]
+  entities?: readonly EntityStackTile[]
+}
 
 /**
  * One uniform tile in a cell's stack. The target model's atom: everything in a cell — the floor and every
@@ -67,6 +98,9 @@ export interface TileEntry {
   type?: string
   /** carry-through of the asset's cell-part label (GridAsset.label) — floor tiles have none. */
   label?: string
+  /** back-reference to the store row a DERIVED tile came from (building block / entity). floor+asset
+   *  tiles omit it (they write back through the grid's own setters / the asset). */
+  ref?: TileRef
 }
 
 /** Legacy per-cell data (what the codec holds per cell). `migrateAssetsToStack` turns it into a stack. */
@@ -135,10 +169,15 @@ export function migrateAssetsToStack(cell: LegacyCell): TileEntry[] {
 }
 
 /**
- * The cell's tile stack, forward-projected over the CURRENT grid fields. Does NOT mutate the grid.
- * Delegates to `migrateAssetsToStack` so the two producers can never drift.
+ * The cell's tile stack: index 0 = the floor, then the loose assets sorted by heightLevel. A building's
+ * wall/window/door/roof blocks are now REAL `type:'building'` assets on the grid (stampBuildingCells places
+ * one asset per block), so they come through this SAME assets list — there is no separate building
+ * projection to fold in. `scope` is accepted for call-site compatibility but no longer used: projecting
+ * buildings here on top of their real assets would DOUBLE-COUNT every block (once as an asset, once as a
+ * projection) for the pick/inspector. ONE uniform TileEntry[] a picker/inspector iterates with NO branch on
+ * "is it a building / character / prop". Does NOT mutate the grid.
  */
-export function getStack(grid: IsometricGrid, col: number, row: number): TileEntry[] {
+export function getStack(grid: IsometricGrid, col: number, row: number, _scope: StackScope = {}): TileEntry[] {
   return migrateAssetsToStack({
     groundData: grid.ground[row]?.[col] ?? 'grass',
     groundColor: grid.groundColor[row]?.[col] ?? null,
