@@ -542,6 +542,9 @@ export function render(
       const anchor = drawIsoEntity(ctx, p.x, p.y - heightOffset, obj.entity, tileH, combat, now, obj.moving ?? false, obj.inRange ?? false, attackable, style, obj.entity.id === targetId, obj.entity.id === hoverId)
       drawQuestMarker(ctx, entityQuestMarker(obj.entity, quests), anchor.x, anchor.y, Math.max(14, tileH * 1.6))
     } else if (obj.asset) {
+      // A building's flat per-cell ROOF blocks are NOT drawn here — one peaked/box roof CAP is drawn over the
+      // whole footprint in the post-loop pass below (a real gable/box roof, not a grid of flat roof cubes).
+      if (obj.asset.type === 'building' && obj.asset.label === 'roof') continue
       const op = obj.asset.opacity ?? 1 // per-asset opacity for contrast/depth
       if (op < 1) ctx.globalAlpha = op
       // Brush STACK: lift this entry `heightLevel` cubes up so the pile climbs in iso (block-kinds extrude
@@ -556,6 +559,14 @@ export function render(
       if (ct) ctx.restore()
       if (op < 1) ctx.globalAlpha = 1
     }
+  }
+
+  // ─── BUILDING ROOFS — one peaked (gable) / box roof CAP per building, drawn over the per-block walls so a
+  //     building reads as a real house/store, not a flat grid of roof cubes. Post-loop so it caps the walls
+  //     (the flat per-cell roof blocks are skipped in the loop above). ───
+  ctx.globalAlpha = 1
+  for (const b of grid.buildings ?? []) {
+    drawBuildingRoof(ctx, b, toScreen, (c, r) => grid.getHeight(c, r), heightStep, tileW, tileH, style)
   }
 
   // Attack animations (slash / shot / lightning / block) in iso space. Read-only:
@@ -1380,6 +1391,30 @@ function drawIsoBoxRoof(ctx: CanvasRenderingContext2D, fbl: Pt, fbr: Pt, bbl: Pt
   face(leftShade, eave(fbl), eave(fbr), top(fbr), top(fbl))   // front-left wall of the box
   face(rightShade, eave(fbr), eave(bbr), top(bbr), top(fbr))  // front-right wall of the box
   face(roofC, top(fbl), top(fbr), top(bbr), top(bbl))         // TOP cap diamond (full roof colour), last
+}
+
+
+/** ONE peaked (gable) / box roof CAP over a whole building footprint — drawn in the render's post-loop pass
+ *  so it caps the per-block walls (the flat per-cell roof blocks are skipped in the main loop). Reuses the
+ *  memoized descriptor + the two roof drawers verbatim; `liftEave = floors·blockH` lands exactly on top of the
+ *  0-based wall stack (each wall block heightLevel L → base L·blockH, so the top wall reaches floors·blockH).
+ *  This is what gives a building a real house/store roof instead of a flat grid of roof cubes. */
+function drawBuildingRoof(ctx: CanvasRenderingContext2D, b: GridBuilding, toScreen: (col: number, row: number) => Pt, cellElevation: (col: number, row: number) => number, heightStep: number, tileW: number, tileH: number, style: Style): void {
+  const { roofC, roofTileDV, rect, floors, peaked } = isoBuildingDescriptor(b, style)
+  const blockH = tileW * 0.9
+  const roofRise = ROOF_ROWS * blockH
+  const corner = (col: number, row: number, offX: number, offY: number): Pt => {
+    const s = toScreen(col, row)
+    return { x: s.x + offX, y: s.y - cellElevation(col, row) * heightStep + offY }
+  }
+  const c0 = rect.col, c1 = rect.col + rect.w - 1, r0 = rect.row, r1 = rect.row + rect.h - 1
+  const fbl = corner(c0, r1, -tileW, 0) // SW ground vertex
+  const fbr = corner(c1, r1, 0, tileH)  // S ground vertex
+  const bbl = corner(c0, r0, 0, -tileH) // N ground vertex
+  const bbr = corner(c1, r0, tileW, 0)  // NE ground vertex
+  const liftEave = floors * blockH
+  if (peaked) drawIsoPeakedRoof(ctx, fbl, fbr, bbl, bbr, rect.w, liftEave, roofRise, roofC, roofTileDV)
+  else drawIsoBoxRoof(ctx, fbl, fbr, bbl, bbr, liftEave, roofRise, roofC, roofTileDV, tileW, tileH)
 }
 
 
