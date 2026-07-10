@@ -186,10 +186,13 @@ export function buildingCellTiles(b: GridBuilding, col: number, row: number): Bu
     for (let k = 0; k < floors; k++) {
       const isDoor = cell.kind === 'door' && k === 0 // door opens the ground block; upper blocks are wall
       const part: BuildingCellTile['part'] = isDoor ? 'door' : windowLevels.has(k) ? 'window' : 'wall'
-      tiles.push({ part, level: k + 1, blocking: !isDoor }) // walls block; the door block stays walkable
+      // 0-BASED stack levels — the SAME numbering hand-stacked blocks use (pushTile: first block = level 0,
+      // isoStackLift(0) = 0 → it sits ON the floor). Building blocks were 1-based, which lifted the whole
+      // building one block off the ground and dragged the door/entrance + selector up with it.
+      tiles.push({ part, level: k, blocking: !isDoor }) // walls block; the door block stays walkable
     }
   }
-  tiles.push({ part: 'roof', level: floors + 1, blocking: false }) // roof caps the whole footprint
+  tiles.push({ part: 'roof', level: floors, blocking: false }) // roof caps the whole footprint, ON TOP of the top wall
   return tiles
 }
 

@@ -104,4 +104,13 @@ describe('pickIsoBlock — a click on a raised block selects THAT block', () => 
       expect(pickIsoBlock(overlap.x, overlap.y, [character, wallBehind], cam)?.source).toBe('entity')
     }
   })
+
+  test('click the SIDE of an upper block (not its cap) picks THAT block, not the one below it', () => {
+    // A 3-tall wall column on (3,3). Click LOW on level 3's visible front face — the old top-face-only test
+    // fell through to level 2 here ("selected the wall, but it's the window above"); now it must stay on 3.
+    const stack = [block(3, 3, 1), block(3, 3, 2), block(3, 3, 3)]
+    const base3 = centre(block(3, 3, 3)) // isoStackLift → the BASE of level 3's cube
+    const sideY = base3.y - tileW * ISO_BLOCK_H_FRAC * 0.9 // up the visible front face, near the top cap
+    expect(pickIsoBlock(base3.x, sideY, stack, cam)).toEqual({ col: 3, row: 3, level: 3 })
+  })
 })

@@ -647,10 +647,11 @@ export function render(
       // A 3-part key "col,row,level" is a RAISED block (3D selection); a 2-part "col,row" is a flat cell.
       const [col, row, lvl] = key.split(',').map(Number)
       const p = toScreen(col, row)
-      // Lift the selector onto the block: the cell's elevation + the stack rise of the block BELOW it
-      // (level-1), the SAME lift render() draws the block with, so the cube spans exactly that block.
-      // A flat cell (no level / level 0) stays on the ground — byte-identical to the 2D highlight.
-      const raise = lvl >= 1 ? grid.getHeight(col, row) * heightStep + (lvl - 1) * selH : 0
+      // Lift the selector onto the block: the cell's elevation + the block's OWN stack lift (isoStackLift =
+      // heightLevel · selH), the EXACT y render() draws the block's base at (isoBlockFaces: center = the base
+      // diamond). So the outline's ground diamond sits on the block's base and its top cap on the block's top —
+      // it hugs THAT block, not the one below. A flat cell (no level / level 0) stays on the ground.
+      const raise = lvl >= 1 ? grid.getHeight(col, row) * heightStep + lvl * selH : 0
       const py = p.y - raise
       const gt = { x: p.x, y: py - tileH }, gr = { x: p.x + tileW, y: py }, gb = { x: p.x, y: py + tileH }, gl = { x: p.x - tileW, y: py }
       // TOP diamond (raised) + GROUND diamond + the 4 vertical edges = an iso cube outline
@@ -1219,12 +1220,17 @@ export function pickIsoBlock(
     const wz = b.row * cellSize - camZ
     const px = w / 2 + (wx - wz) * isoScale * 0.71
     const py = h / 2 + (wx + wz) * isoScale * 0.36
-    // Same y the render draws the block at: base diamond centre, up by the terrain elevation, up by the stack lift.
-    const cy = py - b.terrainHeight * heightStep - isoStackLift(tileW, b.heightLevel)
-    // Point-in-iso-diamond around that lifted top face (the quad render() strokes for the selection cube).
-    const dx = Math.abs(screenX - px)
-    const dy = Math.abs(screenY - cy)
-    if (dx / tileW + dy / tileH <= 1) return { col: b.col, row: b.row, level: b.heightLevel, source: b.source }
+    // isoBlockFaces: `center` is the block's BASE diamond and the cube extrudes UP. So hit-test the whole
+    // visible cube UPWARD from the base: the TOP CAP diamond (at yTop), OR the two FRONT wall faces running
+    // from the base (yBase, bottom) up to the top (yTop). Nearest-camera-first handles occlusion at the seam
+    // between stacked blocks (the block on top wins), so clicking a wall's side picks the block you point at.
+    const yBase = py - b.terrainHeight * heightStep - isoStackLift(tileW, b.heightLevel)
+    const blockH = tileW * ISO_BLOCK_H_FRAC // one block's on-screen height
+    const yTop = yBase - blockH
+    const dxAbs = Math.abs(screenX - px)
+    const hit = dxAbs / tileW + Math.abs(screenY - yTop) / tileH <= 1        // TOP cap diamond
+      || (screenY >= yTop && screenY <= yBase && dxAbs <= tileW)             // FRONT wall faces (base → top)
+    if (hit) return { col: b.col, row: b.row, level: b.heightLevel, source: b.source }
   }
   return null
 }
