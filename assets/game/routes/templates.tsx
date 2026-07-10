@@ -1094,7 +1094,11 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
       // (floor / prop / building wall) with the SAME controls, no matter what it is.
       const selectCellTile = () => {
         setSelectedEntityId(null)
-        setSelectedCells(new Set([`${c.col},${c.row}`]))
+        // Carry the picked BLOCK's level into the key ("col,row,level") so the yellow selector RAISES onto the
+        // block you clicked — the iso highlight lifts a 3-part key by that level. A flat / floor pick (no raised
+        // block) stays the 2-part "col,row" key at ground. Fixes the outline sitting at the base of the column.
+        const key = c.level !== undefined && c.level >= 1 ? `${c.col},${c.row},${c.level}` : `${c.col},${c.row}`
+        setSelectedCells(new Set([key]))
         setSelectedTileLevel(levelForPickedCell(c))
       }
       // ONE resolution, then a tiny route by the tile's STORE (never a geometry re-test — pickIsoBlock already

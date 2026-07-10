@@ -2115,8 +2115,14 @@ export function drawIsoAssetAscii(
     return
   }
   if (blocks >= 1 && (adv.image || adv.char)) {
-    const bh = resolveAssetDrawSize(tileW * 0.9, asset, 'billboard').h // one block ≈ the cell's iso width; Height/Zoom stretch it
-    drawIsoTileBlock(ctx, { x, y }, tileW, tileH, bh, blocks, adv, asset.color)
+    // A block scales on ALL THREE axes (was height-only): Width (scaleX) widens the diamond, Depth (scaleZ)
+    // deepens it, Height (scaleY) stretches it up, and Zoom (scale) multiplies every axis. This is what makes a
+    // tile able to SPAN MANY BLOCKS (a 1×2 wall, a wide roof) instead of only growing taller.
+    const zoom = asset.scale ?? 1
+    const bw = tileW * (asset.scaleX ?? 1) * zoom       // Width  — diamond half-width
+    const bd = tileH * (asset.scaleZ ?? 1) * zoom       // Depth  — diamond half-height (into-screen axis)
+    const bh = tileW * 0.9 * (asset.scaleY ?? 1) * zoom // Height — one block ≈ the cell's iso width, stretched up
+    drawIsoTileBlock(ctx, { x, y }, bw, bd, bh, blocks, adv, asset.color)
     return
   }
   // A per-asset colour override tints the baked sprite (an emoji ships its own colours, so an override
