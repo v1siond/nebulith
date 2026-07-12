@@ -177,11 +177,17 @@ export function buildingCellTiles(b: GridBuilding, col: number, row: number): Bu
   const foot = facadeToFootprint(b)
   const cell = foot.find(c => c.col === col && c.row === row)
   if (!cell) return []
-  const floors = foot.reduce((m, c) => Math.max(m, c.height), 1) // wall height (facade body rows)
-  // Facade WINDOW rows → iso block LEVELS: facade row r sits at block k = H-1-r, mirroring the renderer.
+  const rect = buildingRect(b)
+  // A building is NEVER taller than its base: total block height (floors + up-to-2 roof) ≤ base WIDTH + 1 —
+  // the base dimension drawn in 2D (the composer's own "capped at the grass base width" rule). So floors cap
+  // at width − 1. Fixes narrow buildings towering over their footprint (MIN_HEIGHT used to force them to 5).
+  // Both 2D and iso render THESE footprint tiles, so capping here fixes both views in lockstep.
+  const floors = Math.min(foot.reduce((m, c) => Math.max(m, c.height), 1), Math.max(1, rect.w - 1))
+  // Facade WINDOW rows → iso block LEVELS: facade row r sits at block k = H-1-r. Clamp to the capped floors so
+  // no window floats above the (now shorter) wall.
   const H = b.cells.length
   const windowLevels = new Set<number>()
-  for (let r = 0; r < H; r++) if ((b.cells[r] ?? []).some(k => k === 'window')) windowLevels.add(H - 1 - r)
+  for (let r = 0; r < H; r++) if ((b.cells[r] ?? []).some(k => k === 'window')) { const k = H - 1 - r; if (k < floors) windowLevels.add(k) }
   const tiles: BuildingCellTile[] = []
   if (cell.kind === 'wall' || cell.kind === 'door') {
     for (let k = 0; k < floors; k++) {
@@ -197,7 +203,6 @@ export function buildingCellTiles(b: GridBuilding, col: number, row: number): Bu
   // (tall at the ridge, 1 at the eaves), ON TOP of the walls (level = floors + k). Those same tiles project to a
   // triangle (2D front), a 3D gable (iso) and the footprint rectangle (top) — no special roof drawer.
   // gableRoofLevels is pure + unit-tested; buildingRect gives the footprint the gable spans (width = length).
-  const rect = buildingRect(b)
   const roofStack = gableRoofLevels(col, rect, ROOF_ROWS, ROOF_RIDGE_FRAC)
   for (let k = 0; k < roofStack; k++) tiles.push({ part: 'roof', level: floors + k, blocking: false })
   return tiles

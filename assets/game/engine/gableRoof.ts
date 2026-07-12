@@ -22,7 +22,7 @@ export function gableRoofLevels(col: number, rect: { col: number; w: number }, r
   return 1 + Math.max(0, Math.round(roofRows * t))
 }
 
-/** Gable RISE in blocks above the eave layer (mirrors the 2D facade's roof rows). */
-export const ROOF_ROWS = 2
+/** Gable RISE in blocks above the eave layer. 1 → the roof is at MOST 2 blocks tall (eave = 1, ridge = 2). */
+export const ROOF_ROWS = 1
 /** Flat-ridge width as a fraction of the footprint width (a wider fraction = a flatter, more box-like top). */
 export const ROOF_RIDGE_FRAC = 0.46
