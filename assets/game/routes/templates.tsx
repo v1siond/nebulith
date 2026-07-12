@@ -70,6 +70,7 @@ import { BUILDING_TOOL_TYPE, type BuildingTool, type EditorMode, type EntityTool
 import { AnimationEditor, ArtSection, Dropdown, FpsReadout, GenerateControls, PoseControls, PropertiesPanel, type TileControlModel, SelectionHeader, StylePicker, TileLibraryBody, TilePalette, ToolRail, TriggerEditor, WEAPON_KINDS } from '@/components/game/editorChrome'
 import { useFps } from '@/components/useFps'
 import { commonValue, commonBool, cellsFromKeys } from '@/game/editor/selectionEdit'
+import { applyRectSelection, applyCellSelection } from '@/game/editor/selection'
 import { entityKindForUnitSlug, placementFor, tileSlug } from '@/game/editor/tilePlacement'
 import { placeGroundTile, removeTopAsset, removeAssetAtLevel, stackAssetTile } from '@/game/editor/tileBrush'
 
@@ -137,6 +138,8 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
   const [selectedTileLevel, setSelectedTileLevel] = useState(0)
   const [isSelecting, setIsSelecting] = useState(false)
   const [selectionStart, setSelectionStart] = useState<{ col: number; row: number } | null>(null)
+  const selectionBaseRef = useRef<Set<string>>(new Set()) // selection at drag-start; a shift+drag MERGES the rectangle into THIS (additive, no restart)
+  const additiveSelectRef = useRef<boolean>(false)         // was shift held when the drag-select started
   const selectedCellsRef = useRef<Set<string>>(new Set())
   // Camera panning with mouse drag
   const [isPanning, setIsPanning] = useState(false)
@@ -271,7 +274,7 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
   const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null)
   const selectedEntityIdRef = useRef<string | null>(null) // live mirror for the game loop / debug seams
   const hoveredEntityIdRef = useRef<string | null>(null) // unit under the cursor — the RAF loop draws its hover reticle (no React state on mousemove)
-  const hoveredCellRef = useRef<{ col: number; row: number } | null>(null) // CELL under the cursor — RAF draws a dim hover outline on EVERY cell (in ADDITION to the unit reticle), so any cell is targetable even when a unit sits on it
+  const hoveredCellRef = useRef<{ col: number; row: number; level?: number } | null>(null) // CELL/BLOCK under the cursor (level = the stacked block in iso) — RAF draws a dim hover cube on EVERY cell, lifted onto the SAME block the click selects
   // Which Inspector section a quick-action asked to focus. `n` is a nonce so clicking
   // the same verb twice still re-opens + re-scrolls that section (see Card `focus`).
   const [sectionFocus, setSectionFocus] = useState<{ id: string; n: number } | null>(null)
@@ -807,6 +810,8 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
       const [col, row] = key.split(',').map(Number)
       const terrainHeight = grid.getHeight(col, row)
       for (const t of getStack(grid, col, row, scope)) {
+        // Hit-test the blocks the iso render draws as per-cell cubes: any raised tile (heightLevel ≥ 1). The
+        // roof is now per-cell stacked tiles too, so it's a normal pickable block — no special roof case.
         if ((t.heightLevel ?? 0) < 1) continue
         blocks.push({ col, row, heightLevel: t.heightLevel ?? 0, terrainHeight, source: t.source })
       }
@@ -1023,18 +1028,11 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
     setSelectedEntityId(null)
     setIsSelecting(true)
     setSelectionStart(cell)
-
-    if (e.shiftKey) {
-      // Add to selection
-      setSelectedCells(prev => {
-        const next = new Set(prev)
-        next.add(`${cell.col},${cell.row}`)
-        return next
-      })
-    } else {
-      // New selection
-      setSelectedCells(new Set([`${cell.col},${cell.row}`]))
-    }
+    // Capture the base selection + additive intent at drag-start so a shift+drag MERGES its rectangle into the
+    // existing selection (select 4, then 4 more → 8; no restart). Plain click = a fresh single-cell selection.
+    additiveSelectRef.current = e.shiftKey
+    selectionBaseRef.current = e.shiftKey ? new Set(selectedCellsRef.current) : new Set()
+    setSelectedCells(prev => applyCellSelection(prev, `${cell.col},${cell.row}`, e.shiftKey))
   }
 
   const handleCanvasMouseMove = (e: React.MouseEvent) => {
@@ -1046,10 +1044,11 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
     hoveredEntityIdRef.current = hoverCell
       ? (entityAtClick(withPlayerCell(entitiesRef.current, livePlayerCell()), hoverCell.col, hoverCell.row, hoverView)?.id ?? null)
       : null
-    // Cell-hover indicator (#—): track the cell under the cursor on EVERY move, UNCONDITIONALLY (before
-    // any pan/select early-return) so the dim outline follows the pointer even mid-idle — the RAF loop draws
-    // it on all cells IN ADDITION to the unit reticle, so a cell stays targetable even with a unit on it.
-    hoveredCellRef.current = hoverCell
+    // Cell/BLOCK-hover indicator: resolve the SAME cell/block the CLICK will select (pickCellForSelect —
+    // block-aware in iso, the flat cell in 2D/top), UNCONDITIONALLY on every move, so the dim hover cube
+    // previews the EXACT thing you'll select and rides onto a stacked block instead of the flat ground cell
+    // behind it (fixes the hover-vs-selection offset). RAF draws it on all cells, in addition to the unit reticle.
+    hoveredCellRef.current = pickCellForSelect(e.clientX, e.clientY)
 
     // Handle panning
     if (isPanning && panStart) {
@@ -1066,23 +1065,12 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
       return
     }
 
-    if (!isSelecting || !selectionStart) return // drag-select the cell rectangle (top view, or shift+drag in iso/2d)
+    if (!isSelecting || !selectionStart) return // drag-select the cell rectangle (shift+drag in every view)
     const cell = screenToCell(e.clientX, e.clientY)
     if (!cell) return
-
-    // Select rectangle from start to current
-    const minCol = Math.min(selectionStart.col, cell.col)
-    const maxCol = Math.max(selectionStart.col, cell.col)
-    const minRow = Math.min(selectionStart.row, cell.row)
-    const maxRow = Math.max(selectionStart.row, cell.row)
-
-    const newSelection = new Set<string>()
-    for (let r = minRow; r <= maxRow; r++) {
-      for (let c = minCol; c <= maxCol; c++) {
-        newSelection.add(`${c},${r}`)
-      }
-    }
-    setSelectedCells(newSelection)
+    // The drag rectangle, MERGED into the base captured at drag-start when additive (shift) — so extending a
+    // selection keeps what's already there (4 + 4 = 8). Non-additive drag replaces with the fresh rectangle.
+    setSelectedCells(applyRectSelection(selectionBaseRef.current, selectionStart, cell, additiveSelectRef.current))
   }
 
   const handleCanvasMouseUp = () => {

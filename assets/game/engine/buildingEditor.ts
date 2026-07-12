@@ -14,6 +14,7 @@
  */
 import type { GridBuilding } from './IsometricGrid'
 import type { Facing } from './villageLayout'
+import { gableRoofLevels, ROOF_ROWS, ROOF_RIDGE_FRAC } from './gableRoof'
 import { isoFacingIndex, isoFacadeOnBack } from './isoBuilding'
 import { composeBuilding, type BuildingType } from './buildingComposer'
 
@@ -192,7 +193,13 @@ export function buildingCellTiles(b: GridBuilding, col: number, row: number): Bu
       tiles.push({ part, level: k, blocking: !isDoor }) // walls block; the door block stays walkable
     }
   }
-  tiles.push({ part: 'roof', level: floors, blocking: false }) // roof caps the whole footprint, ON TOP of the top wall
+  // The roof is JUST stacked tiles: each footprint COLUMN gets a STACK of roof blocks forming a peaked gable
+  // (tall at the ridge, 1 at the eaves), ON TOP of the walls (level = floors + k). Those same tiles project to a
+  // triangle (2D front), a 3D gable (iso) and the footprint rectangle (top) — no special roof drawer.
+  // gableRoofLevels is pure + unit-tested; buildingRect gives the footprint the gable spans (width = length).
+  const rect = buildingRect(b)
+  const roofStack = gableRoofLevels(col, rect, ROOF_ROWS, ROOF_RIDGE_FRAC)
+  for (let k = 0; k < roofStack; k++) tiles.push({ part: 'roof', level: floors + k, blocking: false })
   return tiles
 }
 

@@ -346,7 +346,7 @@ export function render(
   targetId: string | null = null,
   hoverId: string | null = null,
   selectedCells: ReadonlySet<string> = new Set(),
-  hoveredCell: { col: number; row: number } | null = null,
+  hoveredCell: { col: number; row: number; level?: number } | null = null,
 ) {
   const __isoT0 = perfNow() // perf probe — rolling avg of render() ms, exposed on window.__isoRenderMs
   // Clear
@@ -542,9 +542,10 @@ export function render(
       const anchor = drawIsoEntity(ctx, p.x, p.y - heightOffset, obj.entity, tileH, combat, now, obj.moving ?? false, obj.inRange ?? false, attackable, style, obj.entity.id === targetId, obj.entity.id === hoverId)
       drawQuestMarker(ctx, entityQuestMarker(obj.entity, quests), anchor.x, anchor.y, Math.max(14, tileH * 1.6))
     } else if (obj.asset) {
-      // A building's flat per-cell ROOF blocks are NOT drawn here — one peaked/box roof CAP is drawn over the
-      // whole footprint in the post-loop pass below (a real gable/box roof, not a grid of flat roof cubes).
-      if (obj.asset.type === 'building' && obj.asset.label === 'roof') continue
+      // A BUILDING is JUST tiles: walls, windows, doors AND the roof all render per-cell through this one
+      // generic path. The roof is a STACK of roof blocks forming a peaked gable (buildingCellTiles →
+      // gableRoofLevels), so it needs no special cap drawer — the SAME stacked tiles project to a triangle
+      // (2D front), a 3D gable (iso), and the footprint rectangle (top), like any other stacked tile.
       const op = obj.asset.opacity ?? 1 // per-asset opacity for contrast/depth
       if (op < 1) ctx.globalAlpha = op
       // Brush STACK: lift this entry `heightLevel` cubes up so the pile climbs in iso (block-kinds extrude
@@ -561,13 +562,8 @@ export function render(
     }
   }
 
-  // ─── BUILDING ROOFS — one peaked (gable) / box roof CAP per building, drawn over the per-block walls so a
-  //     building reads as a real house/store, not a flat grid of roof cubes. Post-loop so it caps the walls
-  //     (the flat per-cell roof blocks are skipped in the loop above). ───
   ctx.globalAlpha = 1
-  for (const b of grid.buildings ?? []) {
-    drawBuildingRoof(ctx, b, toScreen, (c, r) => grid.getHeight(c, r), heightStep, tileW, tileH, style)
-  }
+  // (No post-loop roof CAP — the roof is per-cell stacked tiles drawn in the loop above, one system, all views.)
 
   // Attack animations (slash / shot / lightning / block) in iso space. Read-only:
   // the loop prunes finished ones (animFrame returns null past the duration).
@@ -635,9 +631,16 @@ export function render(
   if (hoveredCell) {
     ctx.strokeStyle = 'rgba(255,255,255,0.5)'
     ctx.lineWidth = 1.5
-    const selH = tileW * 0.9 // same cube height as the selection so hover + select read as the same block
-    const p = toScreen(hoveredCell.col, hoveredCell.row)
-    const gt = { x: p.x, y: p.y - tileH }, gr = { x: p.x + tileW, y: p.y }, gb = { x: p.x, y: p.y + tileH }, gl = { x: p.x - tileW, y: p.y }
+    const selH = tileW * ISO_BLOCK_H_FRAC // same cube height as the selection so hover + select read as the same block
+    const { col, row } = hoveredCell
+    const lvl = hoveredCell.level ?? 0
+    const p = toScreen(col, row)
+    // Lift the hover cube onto the SAME block the click will select — the EXACT raise the selection cube uses
+    // below — so the dim hover and the yellow selection align on a stack, instead of the hover floating on the
+    // flat ground cell BEHIND the block (the hover-vs-selection offset). A flat cell (level 0) stays on ground.
+    const raise = lvl >= 1 ? grid.getHeight(col, row) * heightStep + lvl * selH : 0
+    const py = p.y - raise
+    const gt = { x: p.x, y: py - tileH }, gr = { x: p.x + tileW, y: py }, gb = { x: p.x, y: py + tileH }, gl = { x: p.x - tileW, y: py }
     ctx.beginPath(); ctx.moveTo(gt.x, gt.y - selH); ctx.lineTo(gr.x, gr.y - selH); ctx.lineTo(gb.x, gb.y - selH); ctx.lineTo(gl.x, gl.y - selH); ctx.closePath(); ctx.stroke()
     ctx.beginPath(); ctx.moveTo(gt.x, gt.y); ctx.lineTo(gr.x, gr.y); ctx.lineTo(gb.x, gb.y); ctx.lineTo(gl.x, gl.y); ctx.closePath(); ctx.stroke()
     ctx.beginPath()
@@ -1159,6 +1162,16 @@ export function isoDepthCompare(
   if (d !== 0) return d
   if (a.asset && b.asset) return (a.asset.heightLevel ?? 0) - (b.asset.heightLevel ?? 0)
   return 0
+}
+
+
+/** The ONE fact both the iso render (what it skips) and the block picker (what it excludes) read: a building's
+ *  ROOF asset is drawn once as the whole-footprint CAP (drawBuildingRoof), never as a per-cell block. Sharing
+ *  this keeps pick == render — a click can't land on a roof block that isn't on screen (the "click the wall,
+ *  select the roof" bug). When roofs become per-cell tiles this predicate is deleted and roof tiles pick like
+ *  any block — no special case remains. */
+export function isRoofCapAsset(asset: { type?: string; label?: string }): boolean {
+  return asset.type === 'building' && asset.label === 'roof'
 }
 
 
