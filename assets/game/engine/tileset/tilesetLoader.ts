@@ -5,15 +5,13 @@
  *
  * Safe: on any failure (backend down, CORS, bad JSON) the bundled tilesets stay in place and the app
  * keeps working. Sets `window.__nebulithTilesets` and logs, so "the app is using the backend" is
- * verifiable (devtools console + a GET to :4001/api/tilesets in the network tab).
+ * verifiable (devtools console + a GET to `${NEBULITH_API}/tilesets` in the network tab).
  */
 import { ASCII_TILESET, setAsciiTileset } from './asciiTileset'
 import { EMOJI_TILESET, setEmojiTileset, type EmojiTile } from './emojiTileset'
 import { rebuildEmojiStyle } from '@/game/artStyle'
 import type { Tileset } from './tileset'
-
-// The nebulith Elixir API (dev). Later this becomes configurable / same-origin behind a proxy.
-const NEBULITH_API = 'http://localhost:4001/api'
+import { NEBULITH_API } from '@/lib/nebulithApi'
 
 interface ApiTileset { id?: number | string; key: string; name: string; data: unknown }
 

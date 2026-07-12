@@ -4,6 +4,7 @@
 
 import type { Action as TriggerAction } from '@/engine/triggers'
 import type { Entity, Quest } from '@/game/types'
+import { NEBULITH_API } from './nebulithApi'
 
 export interface Connector {
   // A connector owns a SET of cells — one connector can span many selected cells.
@@ -101,11 +102,10 @@ export interface CreateTemplateInput {
 // API Functions
 // ═══════════════════════════════════════════════════════════════════
 
-// Templates persist in the nebulith ELIXIR backend (like the tilesets at /api/tilesets)
-// Dev points straight at :4001; later this becomes configurable / same-origin behind a proxy (mirrors
-// src/engine/tileset/tilesetLoader.ts). The Elixir endpoint returns the SAME shapes this client expects
-// ({templates,total} list, bare object show/create/update, {success,id} delete), so only the base URL moves.
-const NEBULITH_API = 'http://localhost:4001/api'
+// Templates persist in the nebulith ELIXIR backend (like the tilesets at /api/tilesets). Base URL comes
+// from the shared, env-configurable NEBULITH_API (see src/lib/nebulithApi.ts). The Elixir endpoint returns
+// the SAME shapes this client expects ({templates,total} list, bare object show/create/update, {success,id}
+// delete), so only the base URL moves.
 const API_BASE = `${NEBULITH_API}/templates`
 
 export async function listTemplates(options: {
