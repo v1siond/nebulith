@@ -2,6 +2,8 @@ import { generateStage, buildingCellColor, stagePaint, footprintEdgeClass, footp
 import { composeBuilding } from '@/engine/buildingComposer'
 import { TREE_CANOPY_SHADES } from '@/engine/cellTileset'
 import { parseColor } from '@/engine/colors'
+import { resolveGroundTile } from '@/engine/tileset/tileset'
+import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 
 // The small GROUND footprint cells of a placed building: cols [col, col+length) × rows
 // [row-(height-1), row] (length = grid col-span, height = grid row-span — both small now).
@@ -22,12 +24,18 @@ describe('generateStage — town vertical slice', () => {
     expect(stage.rows).toBeGreaterThan(0)
   })
 
-  it('themes the ground with the zone palette (streets are dark-gray cavefloor)', () => {
-    const allowed = new Set(['autumn_ground', 'autumn_leaves', 'cavefloor', 'path_stone']) // roads = dark-gray cavefloor; plaza/driveway keep brown path_stone
+  it('carves streets as dark-gray ROAD tiles (not brown path, not the broken cavefloor)', () => {
+    const allowed = new Set(['autumn_ground', 'autumn_leaves', 'road', 'path_stone']) // roads = the dark-gray 'road' tile; plaza/driveway keep brown path_stone
     const allThemed = stage.ground.every(row => row.every(t => allowed.has(t)))
     expect(allThemed).toBe(true)
-    // and there ARE streets — a real settlement, not bare ground
-    expect(stage.ground.flat().filter(t => t === 'cavefloor').length).toBeGreaterThan(0)
+    // streets ARE carved, placed as the 'road' tile (not a hijacked ground string)
+    expect(stage.ground.flat().filter(t => t === 'road').length).toBeGreaterThan(0)
+    // the broken cavefloor hijack is gone
+    expect(stage.ground.flat().includes('cavefloor')).toBe(false)
+    // and the road tile RESOLVES dark-gray in ASCII — assert the COMPOSITION, not just the string
+    const bg = parseColor(resolveGroundTile(ASCII_TILESET, 'road', 0, 0).bg)!
+    expect(Math.max(bg.r, bg.g, bg.b) - Math.min(bg.r, bg.g, bg.b)).toBeLessThan(24) // neutral gray
+    expect((bg.r + bg.g + bg.b) / 3).toBeLessThan(110) // dark
   })
 
   it('places at least one legal building (facade >=2 long, >=5 tall, with a door)', () => {

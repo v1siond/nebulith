@@ -237,20 +237,22 @@ export const GROUND_COLORS: Record<string, { char: string[]; fg: string[]; bg: s
     fg: ['rgba(120, 200, 255, 0.9)', 'rgba(100, 185, 245, 0.85)'],
     bg: ['rgba(40, 90, 150, 0.95)', 'rgba(30, 75, 135, 0.92)'],
   },
+  // Town streets are DARK GRAY (a neutral asphalt), not brown — brown path_stone is freed for
+  // building bases / accents. All three road variants share the neutral gray family.
   road: {
     char: ['=', '='],
-    fg: ['rgba(194, 165, 92, 0.8)', 'rgba(180, 150, 80, 0.85)'],
-    bg: ['rgba(120, 100, 60, 0.9)', 'rgba(100, 80, 50, 0.85)'],
+    fg: ['rgba(120, 122, 130, 0.85)', 'rgba(108, 110, 118, 0.85)'],
+    bg: ['rgba(58, 60, 66, 0.95)', 'rgba(50, 52, 58, 0.95)'],
   },
   road_center: {
     char: ['=', '='],
-    fg: ['rgba(220, 200, 140, 0.85)', 'rgba(210, 190, 130, 0.8)'],
-    bg: ['rgba(150, 130, 90, 0.92)', 'rgba(140, 120, 80, 0.88)'],
+    fg: ['rgba(150, 152, 160, 0.85)', 'rgba(140, 142, 150, 0.8)'],
+    bg: ['rgba(74, 76, 82, 0.92)', 'rgba(66, 68, 74, 0.9)'],
   },
   road_edge: {
     char: ['-', '-'],
-    fg: ['rgba(140, 120, 70, 0.8)', 'rgba(130, 110, 60, 0.75)'],
-    bg: ['rgba(80, 65, 40, 0.92)', 'rgba(70, 55, 35, 0.88)'],
+    fg: ['rgba(96, 98, 106, 0.8)', 'rgba(86, 88, 96, 0.75)'],
+    bg: ['rgba(44, 46, 52, 0.92)', 'rgba(38, 40, 44, 0.9)'],
   },
   plaza: {
     char: ['#', '#'],

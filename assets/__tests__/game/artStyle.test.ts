@@ -16,6 +16,7 @@ import {
   type ImageVisual,
 } from '@/game/artStyle'
 import { resolveDraw } from '@/engine/render/shared'
+import { parseColor } from '@/engine/colors'
 
 describe('resolveVisual — the one style decision point', () => {
   it('ASCII style + no override → the passthrough sentinel for every kind (byte-identical gate)', () => {
@@ -112,9 +113,13 @@ describe('kind classifiers', () => {
     expect(groundKind('water')).toBe('water')
     expect(groundKind('water_deep')).toBe('water')
     expect(groundKind('oasis')).toBe('water')
-    expect(groundKind('path_stone')).toBe('path')
-    expect(groundKind('road')).toBe('path')
+    expect(groundKind('path_stone')).toBe('path') // paths stay brown (freed for building bases)
     expect(groundKind('bridge')).toBe('path')
+    // town roads are their OWN dark-gray kind now (was folded onto brown 'path')
+    expect(groundKind('road')).toBe('road')
+    expect(groundKind('road_center')).toBe('road')
+    expect(groundKind('road_edge')).toBe('road')
+    expect(groundKind('desert_road')).toBe('path') // only town roads go dark, not every "*road*"
     expect(groundKind('plaza')).toBe('plaza')
     expect(groundKind('sand')).toBe('sand')
     expect(groundKind('sand_dune')).toBe('sand')
@@ -122,6 +127,18 @@ describe('kind classifiers', () => {
     expect(groundKind('lava')).toBe('lava')
     // exotic terrain still not in the reskin set → 'ground' (passes through)
     expect(groundKind('crystal')).toBe('ground')
+  })
+
+  it('a town road reskins to its OWN dark-gray emoji tile, distinct from a brown path', () => {
+    const road = resolveVisual('road', EMOJI_STYLE) as GlyphVisual
+    const path = resolveVisual('path', EMOJI_STYLE) as GlyphVisual
+    expect(road.color).toMatch(/^#[0-9a-f]{3,8}$/i)
+    // roads are visually DISTINCT from paths (gray vs brown), not the same shared tile
+    expect(road.color).not.toBe(path.color)
+    // and a road is DARK GRAY: near-neutral (R≈G≈B) + dark
+    const c = parseColor(road.color)!
+    expect(Math.max(c.r, c.g, c.b) - Math.min(c.r, c.g, c.b)).toBeLessThan(24)
+    expect((c.r + c.g + c.b) / 3).toBeLessThan(96)
   })
 
   it('assetKind classifies placed assets and labeled cells', () => {

@@ -42,6 +42,7 @@ export let EMOJI_TILESET: Record<string, EmojiTile> = {
   grass: { char: '🍀', color: '#5faf4a' },
   water: { char: '🌊', color: '#4a90e2' },
   path: { char: '🟫', color: '#9c7b4d' },
+  road: { char: '⬛', color: '#3d3d44' }, // town street — dark gray, distinct from the brown path
   plaza: { char: '⬜', color: '#cabfa6' },
   sand: { char: '🟨', color: '#e2c86b' },
   snow: { char: '⬜', color: '#e2ecf5' },

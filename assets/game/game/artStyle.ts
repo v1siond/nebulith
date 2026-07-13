@@ -29,7 +29,7 @@ import EMOJI_CATALOG from '@/game/data/emojiCatalog.json'
 import type { EntityVariant } from '@/game/types'
 
 export type ElementKind =
-  | 'grass' | 'water' | 'path' | 'plaza' | 'sand' | 'ground' | 'snow' | 'autumn' // terrain (+ seasons)
+  | 'grass' | 'water' | 'path' | 'road' | 'plaza' | 'sand' | 'ground' | 'snow' | 'autumn' // terrain (+ seasons; road = dark-gray town street)
   | 'cavefloor' | 'moss'                                       // dungeon terrain (cavern floor + moss)
   | 'wall' | 'roof' | 'door' | 'window' | 'fountain'          // buildings
   | 'tree' | 'flower' | 'bush' | 'rock' | 'crate' | 'lamp'    // nature / props
@@ -193,6 +193,8 @@ export function styleById(id: string | null | undefined): Style {
 // ── kind derivation (pure classifiers the renderers call) ────────────────
 const WATER_GROUND = /water|oasis|koi_pond/
 const PATH_GROUND = /road|path|bridge|courtyard_stone/
+// A town road is its OWN dark-gray tile (checked BEFORE PATH so path_stone/driveways stay brown).
+const ROAD_GROUND = /^road(_center|_edge)?$/
 const SAND_GROUND = /sand|desert|dune/
 const SNOW_GROUND = /snow|ice|frost/
 // Polished temple/dungeon floors read as a paved plaza in the emoji reskin (⬜).
@@ -209,6 +211,7 @@ const LAVA_GROUND = /^lava$|^magma$/
 export function groundKind(tileType: string): ElementKind {
   if (LAVA_GROUND.test(tileType)) return 'lava' // before water: a lava lake floor is its own molten kind
   if (WATER_GROUND.test(tileType)) return 'water'
+  if (ROAD_GROUND.test(tileType)) return 'road' // town roads carve their own dark-gray tile
   if (PATH_GROUND.test(tileType)) return 'path'
   if (TEMPLE_FLOOR.test(tileType)) return 'plaza'
   if (tileType.startsWith('plaza')) return 'plaza'
@@ -299,7 +302,7 @@ export interface TileDef {
 }
 
 const CATEGORY_OF: Readonly<Record<ElementKind, TileCategory>> = {
-  grass: 'terrain', water: 'terrain', path: 'terrain', plaza: 'terrain', sand: 'terrain', ground: 'terrain', mountain: 'terrain', snow: 'terrain', autumn: 'terrain', cavefloor: 'terrain', moss: 'terrain',
+  grass: 'terrain', water: 'terrain', path: 'terrain', road: 'terrain', plaza: 'terrain', sand: 'terrain', ground: 'terrain', mountain: 'terrain', snow: 'terrain', autumn: 'terrain', cavefloor: 'terrain', moss: 'terrain',
   lava: 'terrain', ember: 'terrain', spill: 'terrain',
   wall: 'buildings', roof: 'buildings', door: 'buildings', window: 'buildings', fountain: 'buildings',
   pillar: 'buildings', altar: 'buildings', well: 'buildings', connector: 'buildings',
@@ -313,7 +316,7 @@ const CATEGORY_OF: Readonly<Record<ElementKind, TileCategory>> = {
 }
 
 const KIND_LABEL: Readonly<Record<ElementKind, string>> = {
-  grass: 'Grass', water: 'Water', path: 'Path', plaza: 'Plaza', sand: 'Sand', ground: 'Ground', mountain: 'Mountain', snow: 'Snow', autumn: 'Autumn Ground', cavefloor: 'Cave Floor', moss: 'Moss',
+  grass: 'Grass', water: 'Water', path: 'Path', road: 'Road', plaza: 'Plaza', sand: 'Sand', ground: 'Ground', mountain: 'Mountain', snow: 'Snow', autumn: 'Autumn Ground', cavefloor: 'Cave Floor', moss: 'Moss',
   lava: 'Lava', ember: 'Ember', spill: 'Spill',
   wall: 'Wall', roof: 'Roof', door: 'Door', window: 'Window', fountain: 'Fountain',
   pillar: 'Pillar', altar: 'Altar', well: 'Well', connector: 'Portal',
