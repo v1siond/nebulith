@@ -166,6 +166,9 @@ export function composeBuilding(spec: BuildingSpec = {}): ComposedBuilding {
       for (let col = 1; col < length; col += 2) cells[row][col] = 'window' // bays between pillars
       continue
     }
+    // A real building has a WINDOW ROW per storey with solid wall between — not glass on every cell. Band the
+    // windows onto every OTHER body row (starting at the top of the body) so they read as storeys, not a grid.
+    if ((row - ROOF_ROWS) % 2 !== 0) continue
     for (let col = 1; col < length / 2; col += 2) {
       cells[row][col] = 'window'
       cells[row][length - 1 - col] = 'window' // mirror
