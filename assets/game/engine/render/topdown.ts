@@ -762,9 +762,8 @@ export function render2D(
   const drawables: Array<{
     row: number
     col: number
-    type: 'asset' | 'player' | 'building'
+    type: 'asset' | 'player'
     asset?: GridAsset
-    building?: GridBuilding
   }> = []
 
   // A BUILDING is just TILES: stampBuildingCells places one `type:'building'` asset per BLOCK, so a
@@ -784,19 +783,8 @@ export function render2D(
   )
   const treeCells2D = treeCellSet(grid) // memoized (see shared.treeCellSet) — no per-frame assets rescan
   const isTreeCell2D = (c: number, r: number): boolean => treeCells2D.has(`${c},${r}`)
-  // A building renders as ONE upright FRONT ELEVATION (draw2DBuilding), so SKIP its per-cell footprint
-  // assets here — exactly like the iso view uses drawIsoBuildingTiles. The per-block tiles stay in the grid
-  // for per-block select/edit; the 2D VIEW just projects them as a W×H front elevation. (§6: the per-cell
-  // heightLevel path stacked the DEPTH rows upward, read the roof as a tall mass, and spilled off-grid.)
   for (const asset of visibleAssets) {
-    if (asset.type === 'building' && buildingFootprint2D.has(`${asset.col},${asset.row}`)) continue
     drawables.push({ row: asset.row, col: asset.col, type: 'asset', asset })
-  }
-  // Add each building as a front elevation, anchored at its FRONT (bottom) row + footprint centre so the
-  // facade columns (and the door) sit over their own collision cells + driveway. (b.col + length/2 - 0.5)
-  // + 0.5 = the footprint's true centre grid-point.
-  for (const b of grid.buildings ?? []) {
-    drawables.push({ row: b.row, col: b.col + b.length / 2 - 0.5, type: 'building', building: b })
   }
 
   // Add player
@@ -910,21 +898,6 @@ export function render2D(
         drawFigureVitals(ctx, p.x, figureTop, barWidth, 6, nameSize, barFraction(player.hp ?? player.maxHp, player.maxHp), playerDisplayName(player.name))
       }
 
-    } else if (obj.type === 'building' && obj.building) {
-      // ONE upright FRONT ELEVATION over the small footprint, oriented so the door faces the road, raised
-      // from the building's facade — the SAME grid.buildings the iso reads, so 2D + iso + collision agree.
-      const b = obj.building
-      const flicker = Math.sin(time * 0.003 + b.col * 0.5 + b.row * 0.7) * 0.15 + 1
-      draw2DBuilding(ctx, b, p.x, p.y + tileH * 0.5, tileW, tileH, flicker, style)
-      // Subtle interactive-entrance marker on the door cell: a small warm chevron so the player can tell
-      // which cell opens the building (the lone walkable footprint cell).
-      const door = doorCellFor(gridBuildingFacing(b), buildingRect(b))
-      const dp = toScreen(door.col + 0.5, door.row + 0.5)
-      ctx.fillStyle = `rgba(255, 198, 92, ${0.55 + 0.25 * flicker})`
-      ctx.font = `bold ${tileH * 0.62}px ${ASCII_FONT}`
-      ctx.textAlign = 'center'
-      ctx.textBaseline = 'middle'
-      ctx.fillText('▾', dp.x, dp.y)
     } else if (obj.asset) {
       const asset = obj.asset
 
