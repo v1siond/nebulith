@@ -772,9 +772,16 @@ export function render2D(
   // collision overlay below + whole-building ops); it is no longer a render source. The footprint set still
   // feeds that debug overlay, which tints the raised facade instead of the grounded cells.
   const buildingFootprint2D = new Set<string>()
+  // Footprint cell → the building's FRONT (bottom/max) row. A building is a FRONT ELEVATION in 2D: every one
+  // of its per-cell tiles projects onto this ONE row and stacks by heightLevel, so the depth rows collapse
+  // front-on instead of marching up the screen (§6). Same stamped tiles, regular tile path, no special drawer.
+  const buildingFrontRow2D = new Map<string, number>()
   for (const b of grid.buildings ?? []) {
     const top = b.row - (b.height - 1)
-    for (let r = 0; r < b.height; r++) for (let c = 0; c < b.length; c++) buildingFootprint2D.add(`${b.col + c},${top + r}`)
+    for (let r = 0; r < b.height; r++) for (let c = 0; c < b.length; c++) {
+      buildingFootprint2D.add(`${b.col + c},${top + r}`)
+      buildingFrontRow2D.set(`${b.col + c},${top + r}`, b.row) // b.row = the bottom/camera-facing front row
+    }
   }
 
   // Add assets — building blocks included, so they render per-block through the asset path below.
@@ -797,8 +804,12 @@ export function render2D(
 
   // Draw each object
   for (const obj of drawables) {
-    const p = toScreen(obj.col + 0.5, obj.row + 0.5)
-    const groundHeight = grid.getHeight(Math.floor(obj.col), Math.floor(obj.row))
+    // Building tiles project onto the building's FRONT row (front elevation, depth collapsed); every other
+    // tile projects at its own cell. The stacking-by-heightLevel below then builds the facade + gable over
+    // that one row instead of the depth rows spilling up the screen (§6) — regular path, no special drawer.
+    const projRow = (obj.asset?.type === 'building' ? buildingFrontRow2D.get(`${obj.col},${obj.row}`) : undefined) ?? obj.row
+    const p = toScreen(obj.col + 0.5, projRow + 0.5)
+    const groundHeight = grid.getHeight(Math.floor(obj.col), Math.floor(projRow))
     const elevOffset = groundHeight * heightScale
 
     if (obj.type === 'player') {
