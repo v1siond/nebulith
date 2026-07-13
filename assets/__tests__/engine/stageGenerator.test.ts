@@ -47,6 +47,15 @@ describe('generateStage — town vertical slice', () => {
     }
   })
 
+  it('never scatters nature onto road cells — nature belongs on grass, not streets (Image #12)', () => {
+    const roadCells = new Set<string>()
+    stage.ground.forEach((r, row) => r.forEach((t, col) => { if (t === 'road' || t === 'road_center' || t === 'road_edge') roadCells.add(`${col},${row}`) }))
+    expect(roadCells.size).toBeGreaterThan(0) // there ARE roads in a town
+    const nature = new Set(['ground_decor', 'flower', 'tree', 'bush'])
+    const natureOnRoad = stage.props.filter(p => nature.has(p.type) && roadCells.has(`${p.col},${p.row}`))
+    expect(natureOnRoad.map(p => `${p.type}@${p.col},${p.row}`)).toEqual([])
+  })
+
   it('places at least one legal building (facade >=2 long, >=5 tall, with a door)', () => {
     expect(stage.buildings.length).toBeGreaterThan(0)
     for (const b of stage.buildings) {

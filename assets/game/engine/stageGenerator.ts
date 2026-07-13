@@ -14,6 +14,7 @@ import { stagePropTileOverride, ZONE_PALETTES, ZoneId } from './zones'
 import { autotileLabel, isWalkable, TREE_MASS_FAMILY, type CellLabel } from './cellLabels'
 import { TREE_CANOPY_SHADES, groundDecor } from './cellTileset'
 import { resolveTile } from './tileset/tileset'
+import { isRoadGround } from './buildingEditor'
 import { ASCII_TILESET } from './tileset/asciiTileset'
 import { varyIntensity } from './colors'
 import type { Connector } from '@/lib/api'
@@ -366,7 +367,7 @@ function scatterGroundCover(ctx: ArchetypeContext, density = 0.18): void {
   forEachCell(cols, rows, (col, row) => {
     if (isEdge(col, row, cols, rows)) return
     if (collision[row][col]) return // walkable floor only
-    if (BUILT_FLOOR.has(ground[row][col])) return // keep paved/tiled floors clean
+    if (BUILT_FLOOR.has(ground[row][col]) || isRoadGround(ground[row][col])) return // keep paved floors + ROADS clean (no clover on streets)
     if (occupied.has(`${col},${row}`)) return // don't cover trees / buildings / decor
     if (Math.random() > density) return // breathing room
     fill.push(makeGroundDecor(zone, col, row))
