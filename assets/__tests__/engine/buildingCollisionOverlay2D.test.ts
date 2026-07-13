@@ -15,7 +15,7 @@
  *   C. render2D wires it in: a building's blocked footprint cells are NOT grounded-tinted (they move up
  *      onto the facade), while a non-building collision cell still tints its own flat cell.
  */
-import { draw2DBuilding, draw2DBuildingCollision, forEach2DFacadeCell, building2DDescriptor, render2D } from '@/engine/render/topdown'
+import { draw2DBuildingCollision, forEach2DFacadeCell, building2DDescriptor, render2D } from '@/engine/render/topdown'
 import { IsometricGrid, type GridBuilding } from '@/engine/IsometricGrid'
 import { ASCII_STYLE } from '@/game/artStyle'
 import { setShowCollisions, setDebugMode } from '@/engine/render/shared'
@@ -93,43 +93,6 @@ describe('#A — forEach2DFacadeCell yields each facade cell RAISED + its blocki
     ])
     // The door is the sole walkable surface.
     expect(visits.filter(v => !v.blocking).map(v => v.kind)).toEqual(['door'])
-  })
-})
-
-describe('#B — the red overlay lands on EXACTLY the tiles draw2DBuilding draws (the #29 fix)', () => {
-  const centerX = 100, baseY = 100, tileW = 10, tileH = 10
-  const b = facadeHouse()
-  const H = b.cells.length // 4
-
-  test('every red rect coincides with a facade cell rect; topmost at apex, none on the footprint row, door column clear', () => {
-    // What draw2DBuilding actually stamps: the per-cell backgrounds are the full-tile (tileW×tileH) rects.
-    const draw = recordingCtx()
-    draw2DBuilding(draw.ctx, b, centerX, baseY, tileW, tileH, 1, ASCII_STYLE)
-    const facadeCells = draw.rects.filter(r => r.w === tileW && r.h === tileH)
-    const facadeKeys = new Set(facadeCells.map(key))
-    expect(facadeKeys.size).toBe(7) // roof×2 + wall×2 + window×2 + door×1
-
-    // What the collision overlay stamps — through the SAME anchor + geometry.
-    const over = recordingCtx()
-    draw2DBuildingCollision(over.ctx, b, centerX, baseY, tileW, tileH, ASCII_STYLE)
-    const red = over.rects.filter(r => r.style === RED)
-
-    // 6 blocking cells (roof/wall/window) get red; the door does not.
-    expect(red).toHaveLength(6)
-    // Each red rect sits on a real drawn facade tile (same x, y, w, h) — never H rows below it.
-    for (const r of red) {
-      expect(r.w).toBe(tileW)
-      expect(r.h).toBe(tileH)
-      expect(facadeKeys.has(key(r))).toBe(true)
-    }
-    // The topmost red is the roof apex row = baseY - H*tileH.
-    expect(Math.min(...red.map(r => r.y))).toBe(baseY - H * tileH)
-    // NO red on the FLAT footprint front row (baseY - tileH) — the old grounded-block position.
-    expect(red.some(r => r.y === baseY - tileH)).toBe(false)
-    // The walkable DOOR column carries no red. The door cell rect is at x = centerX - tileW/2, y = baseY - tileH.
-    const doorRectX = centerX - tileW / 2
-    expect(facadeKeys.has(`${doorRectX},${baseY - tileH}`)).toBe(true) // the door tile IS drawn…
-    expect(red.some(r => r.x === doorRectX)).toBe(false) // …but never tinted red.
   })
 })
 

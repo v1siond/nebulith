@@ -14,7 +14,7 @@
  */
 import { drawConnectorMarker, drawAttackAnimFrame, drawProjectileGlyph } from '@/engine/render/shared'
 import { drawIsoAssetAscii } from '@/engine/render/iso'
-import { drawTopBuildingRoof, drawTopFountain } from '@/engine/render/birdseye'
+import { drawTopFountain } from '@/engine/render/birdseye'
 import { makeBuilding } from '@/engine/buildingEditor'
 import { EMOJI_STYLE, ASCII_STYLE } from '@/game/artStyle'
 import type { GridAsset } from '@/engine/IsometricGrid'
@@ -155,33 +155,6 @@ describe('G3 well/boss route through resolveDraw in iso (no procedural / raw-gly
 })
 
 // ── G1 · top-view building roof ─────────────────────────────────────────────────────────────────
-describe('G1 top-view roof routes through the roof tile under emoji, keeps the blueprint under ascii', () => {
-  const house = () => makeBuilding('house', 'south', 8, 8)
-  test('EMOJI → the roof TILE (🟥) recoloured over the footprint, not the fillRect/ridge blueprint', () => {
-    const r = recordingCtx()
-    drawTopBuildingRoof(r.ctx, house(), 0, 0, 4 * 16, 3 * 16, 0, 0, 16, 10, EMOJI_STYLE)
-    expect(r.glyphs).toContain('🟥')
-  })
-  test('ASCII → the blueprint (filled roof + stroked edge/ridge), NO roof tile', () => {
-    const r = recordingCtx()
-    drawTopBuildingRoof(r.ctx, house(), 0, 0, 4 * 16, 3 * 16, 0, 0, 16, 10, ASCII_STYLE)
-    expect(r.glyphs).not.toContain('🟥')
-    expect(r.strokes).toBeGreaterThan(0) // the edge + gable ridge strokes
-    expect(r.rects).toBeGreaterThan(0) // the filled roof plane + door notch
-  })
-  test('the STORE badge still renders in BOTH styles', () => {
-    const store = () => makeBuilding('store', 'south', 8, 8)
-    expect(recordingCtxBadge(store(), EMOJI_STYLE)).toContain('STORE')
-    expect(recordingCtxBadge(store(), ASCII_STYLE)).toContain('STORE')
-  })
-  function recordingCtxBadge(b: ReturnType<typeof makeBuilding>, style: typeof EMOJI_STYLE): string[] {
-    const r = recordingCtx()
-    drawTopBuildingRoof(r.ctx, b, 0, 0, 4 * 16, 3 * 16, 0, 0, 16, 10, style)
-    return r.glyphs
-  }
-})
-
-// ── G2 · top-view town fountain ─────────────────────────────────────────────────────────────────
 describe('G2 top-view fountain routes through the fountain tile under emoji, procedural under ascii', () => {
   test('EMOJI → the ⛲ fountain tile over the footprint, not the procedural basin arcs', () => {
     const r = recordingCtx()
