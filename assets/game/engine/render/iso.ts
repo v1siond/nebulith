@@ -1217,23 +1217,23 @@ export interface IsoPickResult {
  *  reversed (higher col+row, then higher level = drawn last / on top), so the block you SEE on top wins an
  *  overlap. Only heightLevel ≥ 1 blocks are tested; a flat cell / lone level-0 asset returns null so the
  *  caller's existing flat pick stays byte-identical (normal, unstacked selection is unchanged). Pure. */
-export function pickIsoBlock(
+export function pickIsoBlocksAll(
   screenX: number,
   screenY: number,
   blocks: readonly IsoPickBlock[],
   cam: IsoPickCamera,
-): IsoPickResult | null {
+): IsoPickResult[] {
   const { w, h, cellSize, isoScale, camX, camZ } = cam
   const tileW = cellSize * isoScale * 0.71
   const tileH = cellSize * isoScale * 0.36
   const heightStep = cellSize * isoScale * 0.4
-  if (tileW <= 0 || tileH <= 0) return null
+  if (tileW <= 0 || tileH <= 0) return []
   // Nearest-camera-first = the reverse of render's back-to-front sort (isoDepthCompare): a higher (col+row)
-  // is drawn later / on top, then a higher level within the same cell. Test in that order and take the first
-  // hit so the topmost visible block wins where lifted footprints overlap.
-  // Hit-test EVERY provided block, including level 0 — a ground-floor wall is a 0-based CUBE seated on the
-  // floor, and must be selectable. The CALLER decides what counts as a block (a flat floor tile is excluded
-  // upstream); this pure fn just projects + hit-tests whatever it's given.
+  // is drawn later / on top, then a higher level within the same cell. Collect hits IN that order, so the
+  // topmost VISIBLE block is first and the ones it occludes follow (front→back) — the order click-to-cycle
+  // walks to reach a hidden block. Hit-test EVERY provided block, including level 0 — a ground-floor wall is
+  // a 0-based CUBE seated on the floor and must be selectable. The CALLER decides what counts as a block (the
+  // flat floor is excluded upstream); this pure fn just projects + hit-tests whatever it's given.
   const ordered = blocks
     .slice()
     .sort((a, b) => {
@@ -1241,6 +1241,7 @@ export function pickIsoBlock(
       if (d !== 0) return d
       return (b.heightLevel ?? 0) - (a.heightLevel ?? 0)
     })
+  const hits: IsoPickResult[] = []
   for (const b of ordered) {
     const wx = b.col * cellSize - camX
     const wz = b.row * cellSize - camZ
@@ -1248,17 +1249,43 @@ export function pickIsoBlock(
     const py = h / 2 + (wx + wz) * isoScale * 0.36
     // isoBlockFaces: `center` is the block's BASE diamond and the cube extrudes UP. So hit-test the whole
     // visible cube UPWARD from the base: the TOP CAP diamond (at yTop), OR the two FRONT wall faces running
-    // from the base (yBase, bottom) up to the top (yTop). Nearest-camera-first handles occlusion at the seam
-    // between stacked blocks (the block on top wins), so clicking a wall's side picks the block you point at.
+    // from the base (yBase, bottom) up to the top (yTop).
     const yBase = py - b.terrainHeight * heightStep - isoStackLift(tileW, b.heightLevel)
     const blockH = tileW * ISO_BLOCK_H_FRAC // one block's on-screen height
     const yTop = yBase - blockH
     const dxAbs = Math.abs(screenX - px)
     const hit = dxAbs / tileW + Math.abs(screenY - yTop) / tileH <= 1        // TOP cap diamond
       || (screenY >= yTop && screenY <= yBase && dxAbs <= tileW)             // FRONT wall faces (base → top)
-    if (hit) return { col: b.col, row: b.row, level: b.heightLevel, source: b.source }
+    if (hit) hits.push({ col: b.col, row: b.row, level: b.heightLevel, source: b.source })
   }
-  return null
+  return hits
+}
+
+/** Screen → the frontmost RAISED block under the pointer (nearest-camera), or null — the block the render
+ *  draws ON TOP at that pixel. The first of pickIsoBlocksAll; the rest are occluded behind it (reach them
+ *  via click-to-cycle / nextPickIndex). Unchanged for every existing caller. */
+export function pickIsoBlock(
+  screenX: number,
+  screenY: number,
+  blocks: readonly IsoPickBlock[],
+  cam: IsoPickCamera,
+): IsoPickResult | null {
+  return pickIsoBlocksAll(screenX, screenY, blocks, cam)[0] ?? null
+}
+
+/** Click-to-cycle index for reaching an OCCLUDED block: repeated clicks on (nearly) the same pixel walk
+ *  front→back through the `count` overlapping candidates (wrapping); a click on a NEW pixel (beyond `tol`
+ *  px) resets to the frontmost (0). Pure — the caller holds the {x,y,index} of the previous pick. */
+export function nextPickIndex(
+  prev: { x: number; y: number; index: number } | null,
+  x: number,
+  y: number,
+  count: number,
+  tol: number,
+): number {
+  if (count <= 0) return 0
+  if (prev && Math.abs(x - prev.x) <= tol && Math.abs(y - prev.y) <= tol) return (prev.index + 1) % count
+  return 0
 }
 
 

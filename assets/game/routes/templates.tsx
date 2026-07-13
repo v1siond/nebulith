@@ -52,7 +52,7 @@ import { type Trigger, type TriggerEffect, fireTriggers } from '@/game/runtime/t
 import { ASCII_STYLE, type Style, type TileDef, styleById, groundKind, assetKind, entityKind, genderize, resolveVisual, visualForTileId } from '@/game/artStyle'
 import { useRouter } from 'next/router'
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
-import { render, render2D, renderTopView, clampCameraAxis, isoCameraFocus, entityMotion, ENEMY_MOVE_MS, isDebugMode, setDebugMode, isShowCollisions, setShowCollisions as setCollisionsFlag, cellCaptionMap, pickIsoBlock, ISO_BLOCK_H_FRAC, type IsoPickBlock, type DayNight } from '@/engine/render'
+import { render, render2D, renderTopView, clampCameraAxis, isoCameraFocus, entityMotion, ENEMY_MOVE_MS, isDebugMode, setDebugMode, isShowCollisions, setShowCollisions as setCollisionsFlag, cellCaptionMap, pickIsoBlocksAll, nextPickIndex, ISO_BLOCK_H_FRAC, type IsoPickBlock, type DayNight } from '@/engine/render'
 import { loadTilesetsFromBackend, saveTilesetToBackend } from '@/engine/tileset/tilesetLoader'
 import { EMOJI_TILESET, setTilePose } from '@/engine/tileset/emojiTileset'
 import { type TilePose } from '@/engine/tileset/pose'
@@ -769,7 +769,10 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
   // blocks". This mirrors the iso render's projection + isoStackLift (same clamped camera focus) and
   // hit-tests the lifted blocks, nearest-camera-first. Iso view ONLY; returns null when the pointer misses
   // every raised block (the caller then uses the unchanged flat screenToCell). 2D/top picking is untouched.
-  const pickIsoBlockAt = (clientX: number, clientY: number): { col: number; row: number; level: number; source: TileSource } | null => {
+  // ALL iso block candidates under a client point — front→back (nearest-camera first) — plus the canvas
+  // coords, or null. Shared by the frontmost pick (hover/preview) AND the cycle-aware SELECT. Same projection
+  // the iso render + screenToCell use (isoCameraFocus in play mode, raw in dev).
+  const isoBlocksUnder = (clientX: number, clientY: number) => {
     const canvas = canvasRef.current
     const grid = gridRef.current
     if (!canvas || !grid) return null
@@ -782,7 +785,6 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
     const y = (clientY - rect.top) * scaleY
     const cs = grid.cellSize
     const eff = grid.isoScale * isoZoomRef.current
-    // SAME clamped camera focus the iso render + screenToCell use (isoCameraFocus in play mode, raw in dev).
     const S = eff * 0.71
     const T = eff * 0.36
     const pPad = canvas.width / (2 * cs * S)
@@ -796,14 +798,11 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
     // here. Buildings are handed to getStack (they aren't grid fields); every stack entry that is a real BLOCK
     // (heightLevel ≥ 1 — the floor / flat props stay on the flat pick) becomes an IsoPickBlock carrying its
     // `source`, tagged with the cell's elevation so its lift matches the render. Only footprint + asset-stack
-    // cells are scanned, so this stays cheap on a click. CHARACTERS are uniform tiles too (getStack projects
-    // them, pickIsoBlock hit-tests an entity block — see isoPick tests), but a unit is a BILLBOARD drawn ABOVE
-    // its foot cell, so the editor keeps the billboard-aware entityAtFootprint (a superset of a flat-diamond
-    // test) as the character picker below; feeding a flat entity block here would mis-hit the figure.
+    // cells are scanned, so this stays cheap on a click.
     const scope = { buildings: grid.buildings }
     const candidates = new Set<string>()
     for (const a of grid.assets) if ((a.heightLevel ?? 0) >= 1 || (a.height ?? 0) >= 1) candidates.add(`${a.col},${a.row}`) // level-0 CUBES (ground-floor wall) count
-    for (const b of grid.buildings ?? []) for (const fc of buildingFootprintCells(b).cells) candidates.add(`${fc.col},${fc.row}`)
+    for (const b of grid.buildings ?? []) for (const bc of buildingFootprintCells(b).cells) candidates.add(`${bc.col},${bc.row}`)
     if (candidates.size === 0) return null
     const blocks: IsoPickBlock[] = []
     for (const key of candidates) {
@@ -811,15 +810,19 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
       const terrainHeight = grid.getHeight(col, row)
       for (const t of getStack(grid, col, row, scope)) {
         // Feed the blocks the iso render draws as per-cell CUBES: any raised tile (heightLevel ≥ 1) OR a
-        // level-0 cube (t.h ≥ 1) — a ground-floor wall is 0-based (seated on the floor) but IS a block, so it
-        // must be selectable ("select the first/bottom one"). The flat FLOOR (h 0) is the only heightLevel-0
-        // tile excluded. Roof blocks are normal pickable blocks now — no special roof case.
+        // level-0 cube (t.h ≥ 1). The flat FLOOR (h 0) is the only heightLevel-0 tile excluded.
         if ((t.heightLevel ?? 0) < 1 && (t.h ?? 0) < 1) continue
         blocks.push({ col, row, heightLevel: t.heightLevel ?? 0, terrainHeight, source: t.source })
       }
     }
     if (blocks.length === 0) return null
-    const hit = pickIsoBlock(x, y, blocks, { w: canvas.width, h: canvas.height, cellSize: cs, isoScale: eff, camX: fc * cs, camZ: fr * cs })
+    const cam = { w: canvas.width, h: canvas.height, cellSize: cs, isoScale: eff, camX: fc * cs, camZ: fr * cs }
+    return { blocks: pickIsoBlocksAll(x, y, blocks, cam), x, y }
+  }
+
+  // The frontmost raised iso block under a point (what hover previews + a first click selects), or null.
+  const pickIsoBlockAt = (clientX: number, clientY: number): { col: number; row: number; level: number; source: TileSource } | null => {
+    const hit = isoBlocksUnder(clientX, clientY)?.blocks[0]
     return hit ? { col: hit.col, row: hit.row, level: hit.level, source: hit.source ?? 'asset' } : null
   }
 
@@ -828,6 +831,25 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
   const pickCellForSelect = (clientX: number, clientY: number): { col: number; row: number; level?: number; source?: TileSource } | null => {
     const block = pickIsoBlockAt(clientX, clientY)
     if (block) return block
+    const flat = screenToCell(clientX, clientY)
+    return flat ? { col: flat.col, row: flat.row, source: 'floor' as const } : null
+  }
+
+  // Click-to-cycle: repeated clicks on the SAME spot walk front→back through the OVERLAPPING blocks there, so
+  // an OCCLUDED block is reachable without moving the camera (the dense-town selection "offset" is occlusion —
+  // the pick correctly returns the visible top block — not a geometry bug). ONLY call this from a discrete
+  // mousedown; hover must keep using pickCellForSelect (the frontmost), or it would advance the cycle.
+  const lastPickRef = useRef<{ x: number; y: number; index: number } | null>(null)
+  const PICK_CYCLE_TOL = 8 // canvas px — a click within this of the last one keeps cycling; farther resets to front
+  const pickCellForSelectCycling = (clientX: number, clientY: number): { col: number; row: number; level?: number; source?: TileSource } | null => {
+    const under = isoBlocksUnder(clientX, clientY)
+    if (under && under.blocks.length > 0) {
+      const idx = nextPickIndex(lastPickRef.current, under.x, under.y, under.blocks.length, PICK_CYCLE_TOL)
+      lastPickRef.current = { x: under.x, y: under.y, index: idx }
+      const hit = under.blocks[idx]
+      return { col: hit.col, row: hit.row, level: hit.level, source: hit.source ?? 'asset' }
+    }
+    lastPickRef.current = null // clicked off any block stack → reset the cycle
     const flat = screenToCell(clientX, clientY)
     return flat ? { col: flat.col, row: flat.row, source: 'floor' as const } : null
   }
@@ -957,7 +979,7 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
     if (e.button === 0 && !entityTool && !buildingTool && !connectorMode && !e.shiftKey) {
       // Defer the decision: clean click → select the entity here; drag → pan (mouse-up decides). Iso uses the
       // block-aware pick so a click on a raised stacked block selects THAT block's cell, not the ground under it.
-      downCellRef.current = pickCellForSelect(e.clientX, e.clientY)
+      downCellRef.current = pickCellForSelectCycling(e.clientX, e.clientY)
       downAltRef.current = e.altKey // Alt+left → resolve to the CELL under any unit (mouse-up reads this)
       dragMovedRef.current = false
       setIsPanning(true)

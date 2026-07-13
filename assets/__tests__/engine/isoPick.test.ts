@@ -7,7 +7,7 @@
  * pointer is on: {col,row,level}, nearest-camera-first, or null when no raised block is hit (the caller
  * then falls back to the unchanged flat pick).
  */
-import { pickIsoBlock, isoStackLift, ISO_BLOCK_H_FRAC, type IsoPickCamera, type IsoPickBlock } from '@/engine/render/iso'
+import { pickIsoBlock, pickIsoBlocksAll, nextPickIndex, isoStackLift, ISO_BLOCK_H_FRAC, type IsoPickCamera, type IsoPickBlock } from '@/engine/render/iso'
 
 // A round camera so the projected numbers are easy to reason about:
 //   tileW = cellSize*isoScale*0.71 = 71   tileH = cellSize*isoScale*0.36 = 36   heightStep = 40
@@ -111,5 +111,55 @@ describe('pickIsoBlock — a click on a raised block selects THAT block', () => 
     const base3 = centre(block(3, 3, 3)) // isoStackLift → the BASE of level 3's cube
     const sideY = base3.y - tileW * ISO_BLOCK_H_FRAC * 0.9 // up the visible front face, near the top cap
     expect(pickIsoBlock(base3.x, sideY, stack, cam)).toEqual({ col: 3, row: 3, level: 3 })
+  })
+})
+
+// The selection "offset" in dense towns is genuine OCCLUSION: a front block is drawn OVER the block you
+// aimed at, so the pick correctly returns the visible one. To reach the hidden block WITHOUT a math patch,
+// pickIsoBlocksAll surfaces EVERY block under the pixel (front→back) and repeated clicks cycle through them.
+const tileH = cam.cellSize * cam.isoScale * 0.36
+describe('pickIsoBlocksAll — every block under the pixel, front→back (for click-to-cycle)', () => {
+  test('an overlapping front + occluded block both come back, nearest-camera FIRST', () => {
+    const near = block(3, 3, 3) // col+row=6 → drawn on top / nearest
+    const far = block(2, 2, 2)  // col+row=4 → occluded behind
+    const at = centre(far)      // the far block's centre — inside BOTH diamonds (the occlusion pixel)
+    // sanity: the pixel really is inside the near block's footprint too
+    const nearC = centre(near)
+    expect(Math.abs(at.x - nearC.x) / tileW + Math.abs(at.y - nearC.y) / tileH).toBeLessThanOrEqual(1)
+    const all = pickIsoBlocksAll(at.x, at.y, [far, near], cam).map(b => ({ col: b.col, row: b.row, level: b.level }))
+    expect(all).toEqual([
+      { col: 3, row: 3, level: 3 }, // front (nearest-camera) first
+      { col: 2, row: 2, level: 2 }, // the occluded block behind it — now reachable
+    ])
+  })
+
+  test('a lone block → one-element list; an empty pixel → []', () => {
+    const at = centre(block(5, 5, 0))
+    expect(pickIsoBlocksAll(at.x, at.y, [block(5, 5, 0)], cam)).toHaveLength(1)
+    expect(pickIsoBlocksAll(10, 10, [block(5, 5, 0)], cam)).toEqual([])
+  })
+
+  test('pickIsoBlock (singular) stays the frontmost of pickIsoBlocksAll (backward compatible)', () => {
+    const near = block(3, 3, 3)
+    const far = block(2, 2, 2)
+    const at = centre(far)
+    expect(pickIsoBlock(at.x, at.y, [far, near], cam)).toEqual(pickIsoBlocksAll(at.x, at.y, [far, near], cam)[0])
+  })
+})
+
+describe('nextPickIndex — repeated clicks on the SAME pixel walk front→back through the overlap', () => {
+  test('same pixel (within tolerance) advances the index and wraps around', () => {
+    expect(nextPickIndex(null, 100, 100, 3, 4)).toBe(0) // first click → frontmost
+    expect(nextPickIndex({ x: 100, y: 100, index: 0 }, 101, 99, 3, 4)).toBe(1) // within tol → next (deeper)
+    expect(nextPickIndex({ x: 100, y: 100, index: 1 }, 100, 100, 3, 4)).toBe(2)
+    expect(nextPickIndex({ x: 100, y: 100, index: 2 }, 100, 100, 3, 4)).toBe(0) // wraps back to front
+  })
+
+  test('a click on a DIFFERENT pixel resets to the frontmost (index 0)', () => {
+    expect(nextPickIndex({ x: 100, y: 100, index: 1 }, 300, 300, 3, 4)).toBe(0)
+  })
+
+  test('no candidates under the pixel → 0 (nothing to cycle)', () => {
+    expect(nextPickIndex({ x: 100, y: 100, index: 0 }, 100, 100, 0, 4)).toBe(0)
   })
 })
