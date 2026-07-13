@@ -1165,14 +1165,6 @@ export function isoDepthCompare(
 }
 
 
-/** The ONE fact both the iso render (what it skips) and the block picker (what it excludes) read: a building's
- *  ROOF asset is drawn once as the whole-footprint CAP (drawBuildingRoof), never as a per-cell block. Sharing
- *  this keeps pick == render — a click can't land on a roof block that isn't on screen (the "click the wall,
- *  select the roof" bug). When roofs become per-cell tiles this predicate is deleted and roof tiles pick like
- *  any block — no special case remains. */
-export function isRoofCapAsset(asset: { type?: string; label?: string }): boolean {
-  return asset.type === 'building' && asset.label === 'roof'
-}
 
 
 /** The camera/zoom/viewport the iso projection needs — the SAME numbers render() computes:
@@ -1436,28 +1428,6 @@ function drawIsoBoxRoof(ctx: CanvasRenderingContext2D, fbl: Pt, fbr: Pt, bbl: Pt
 }
 
 
-/** ONE peaked (gable) / box roof CAP over a whole building footprint — drawn in the render's post-loop pass
- *  so it caps the per-block walls (the flat per-cell roof blocks are skipped in the main loop). Reuses the
- *  memoized descriptor + the two roof drawers verbatim; `liftEave = floors·blockH` lands exactly on top of the
- *  0-based wall stack (each wall block heightLevel L → base L·blockH, so the top wall reaches floors·blockH).
- *  This is what gives a building a real house/store roof instead of a flat grid of roof cubes. */
-function drawBuildingRoof(ctx: CanvasRenderingContext2D, b: GridBuilding, toScreen: (col: number, row: number) => Pt, cellElevation: (col: number, row: number) => number, heightStep: number, tileW: number, tileH: number, style: Style): void {
-  const { roofC, roofTileDV, rect, floors, peaked } = isoBuildingDescriptor(b, style)
-  const blockH = tileW * 0.9
-  const roofRise = ROOF_ROWS * blockH
-  const corner = (col: number, row: number, offX: number, offY: number): Pt => {
-    const s = toScreen(col, row)
-    return { x: s.x + offX, y: s.y - cellElevation(col, row) * heightStep + offY }
-  }
-  const c0 = rect.col, c1 = rect.col + rect.w - 1, r0 = rect.row, r1 = rect.row + rect.h - 1
-  const fbl = corner(c0, r1, -tileW, 0) // SW ground vertex
-  const fbr = corner(c1, r1, 0, tileH)  // S ground vertex
-  const bbl = corner(c0, r0, 0, -tileH) // N ground vertex
-  const bbr = corner(c1, r0, tileW, 0)  // NE ground vertex
-  const liftEave = floors * blockH
-  if (peaked) drawIsoPeakedRoof(ctx, fbl, fbr, bbl, bbr, rect.w, liftEave, roofRise, roofC, roofTileDV)
-  else drawIsoBoxRoof(ctx, fbl, fbr, bbl, bbr, liftEave, roofRise, roofC, roofTileDV, tileW, tileH)
-}
 
 
 /** The bottom edge (a→b) of a ground block's ENTRANCE-facing wall, for an iso cell centred at (px,by).
