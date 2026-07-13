@@ -554,7 +554,7 @@ function placeSettlement(ctx: ArchetypeContext, settlement: Settlement): void {
   // Carve the streets into the ground as walkable path_stone.
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
-      if (layout.roads[r][c]) ground[r][c] = 'path_stone'
+      if (layout.roads[r][c]) ground[r][c] = 'cavefloor' // roads are DARK GRAY (was brown path_stone); brown is freed for building bases / accents
     }
   }
   // 2. Stamp a building at each plot — each carries its TYPE + FACING. plot.row/plot.col are the

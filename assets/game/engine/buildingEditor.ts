@@ -251,6 +251,7 @@ export const ROAD_GROUND = 'path_stone'
 export const ROAD_GROUNDS: ReadonlySet<string> = new Set([
   'road', 'road_center', 'road_edge', 'plaza', 'path_stone', 'path_dirt', 'bridge',
   'snow_path', 'desert_road', 'wooden_planks', 'courtyard_stone',
+  'cavefloor', // dark-gray town roads (buildings must still avoid the road)
 ])
 
 /** True iff a ground type reads as a road/path (buildings never sit on these). */

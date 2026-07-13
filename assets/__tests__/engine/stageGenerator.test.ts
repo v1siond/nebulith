@@ -22,12 +22,12 @@ describe('generateStage — town vertical slice', () => {
     expect(stage.rows).toBeGreaterThan(0)
   })
 
-  it('themes the ground with the zone palette (streets are path_stone)', () => {
-    const allowed = new Set(['autumn_ground', 'autumn_leaves', 'path_stone']) // streets carve path_stone
+  it('themes the ground with the zone palette (streets are dark-gray cavefloor)', () => {
+    const allowed = new Set(['autumn_ground', 'autumn_leaves', 'cavefloor', 'path_stone']) // roads = dark-gray cavefloor; plaza/driveway keep brown path_stone
     const allThemed = stage.ground.every(row => row.every(t => allowed.has(t)))
     expect(allThemed).toBe(true)
     // and there ARE streets — a real settlement, not bare ground
-    expect(stage.ground.flat().filter(t => t === 'path_stone').length).toBeGreaterThan(0)
+    expect(stage.ground.flat().filter(t => t === 'cavefloor').length).toBeGreaterThan(0)
   })
 
   it('places at least one legal building (facade >=2 long, >=5 tall, with a door)', () => {
