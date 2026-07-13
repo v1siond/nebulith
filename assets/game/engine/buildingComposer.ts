@@ -116,6 +116,17 @@ function roofCellKind(col: number, row: number, apexX: number, peaked: boolean):
   return Math.abs(col - apexX) <= row ? 'roof' : 'empty'
 }
 
+/** The window COLUMNS for a facade of the given width: symmetric about the centre, each kept ≥1 wall from
+ *  the next AND from its mirror (never a glass grid, never a doubled centre), and NEVER empty for a real
+ *  facade — a narrow wall still gets one window (a real house always has windows). Pure + tested; the exact
+ *  count/spacing AESTHETIC is tuned against the real render later. */
+export function windowColumns(length: number): number[] {
+  const cols = new Set<number>()
+  for (let c = 1; length - 1 - 2 * c >= 2; c += 2) { cols.add(c); cols.add(length - 1 - c) } // symmetric spaced pairs
+  if (cols.size === 0 && length >= 3) cols.add(Math.floor(length / 2)) // too narrow for a pair → one window
+  return [...cols].sort((a, z) => a - z)
+}
+
 export function composeBuilding(spec: BuildingSpec = {}): ComposedBuilding {
   const type = spec.type ?? 'house'
   const ts = TYPE_SPECS[type] ?? TYPE_SPECS.house
@@ -166,19 +177,12 @@ export function composeBuilding(spec: BuildingSpec = {}): ComposedBuilding {
       for (let col = 1; col < length; col += 2) cells[row][col] = 'window' // bays between pillars
       continue
     }
-    // A real building has a WINDOW ROW per storey with solid wall between — not glass on every cell, and never
-    // a DOUBLED window where the mirrored pair meets in the middle (the "overusing windows" artifact, §1c).
-    // Band windows onto every OTHER body row as symmetric pairs stepping in from the edges, each pair kept ≥1
-    // wall from its mirror (length-1-2·col ≥ 2), so they read as intentional punched windows, not a grid.
-    if ((row - ROOF_ROWS) % 2 !== 0) continue
-    let placed = false
-    for (let col = 1; length - 1 - 2 * col >= 2; col += 2) {
-      cells[row][col] = 'window'
-      cells[row][length - 1 - col] = 'window' // mirror
-      placed = true
-    }
-    // A facade too narrow for a spaced pair (≤4 wide) still gets ONE window, centred over the entrance.
-    if (!placed && length >= 3) cells[row][Math.floor(length / 2)] = 'window'
+    // ONE window ROW per STOREY (a storey = FLOOR_BODY body rows; the top body row of each storey carries the
+    // windows). windowColumns gives symmetric, spaced, never-empty columns — so EVERY house has windows on
+    // every floor (fixes the no-window regression), never a glass grid. Since height ≥ MIN_HEIGHT there is
+    // always at least the row at ROOF_ROWS (offset 0), so a house can never end up windowless.
+    if ((row - ROOF_ROWS) % FLOOR_BODY !== 0) continue
+    for (const col of windowColumns(length)) cells[row][col] = 'window'
   }
 
   // Door: doorWidth x doorHeight, planted at the bottom and CENTRED on the walkable entrance COLUMN —

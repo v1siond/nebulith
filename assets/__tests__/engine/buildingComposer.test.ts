@@ -1,19 +1,30 @@
-import { composeBuilding, facadeLabel, facadeLabels, rotateCells, BuildingType } from '@/engine/buildingComposer'
+import { composeBuilding, facadeLabel, facadeLabels, rotateCells, windowColumns, BuildingType } from '@/engine/buildingComposer'
 import { isWalkable } from '@/engine/cellLabels'
 
-describe('composeBuilding — windows are aesthetic, not a glass grid (§1c)', () => {
-  it('windows are symmetric and spaced with wall between — never a doubled centre pair', () => {
-    for (const length of [5, 6, 8, 10]) {
-      const b = composeBuilding({ type: 'house', floors: 3, length })
-      for (const row of b.cells) {
-        const wins = row.map((k, i) => (k === 'window' ? i : -1)).filter(i => i >= 0)
-        for (let i = 1; i < wins.length; i++) {
-          expect(wins[i] - wins[i - 1]).toBeGreaterThanOrEqual(2) // ≥1 wall between windows
-        }
-        const mirror = wins.map(c => length - 1 - c).sort((a, z) => a - z)
-        expect(mirror).toEqual([...wins].sort((a, z) => a - z)) // symmetric about the centre
+describe('composeBuilding — windows are aesthetic AND never absent (§1c + no-window fix)', () => {
+  it('windowColumns: symmetric, spaced ≥2 apart, never empty for a real width (≥3)', () => {
+    for (let len = 3; len <= 12; len++) {
+      const cols = windowColumns(len)
+      expect(cols.length).toBeGreaterThanOrEqual(1) // never empty
+      for (let i = 1; i < cols.length; i++) expect(cols[i] - cols[i - 1]).toBeGreaterThanOrEqual(2) // ≥1 wall between, never adjacent
+      if (cols.length > 1) { // spaced pairs are symmetric (a lone narrow-width window may be off-centre)
+        const mirror = cols.map(c => len - 1 - c).sort((a, z) => a - z)
+        expect(mirror).toEqual([...cols].sort((a, z) => a - z))
       }
     }
+  })
+
+  it('EVERY generated house/building has at least one window — no windowless houses (Image #6 regression)', () => {
+    const windowless: string[] = []
+    for (const type of ['house', 'big-house', 'store', 'hospital'] as const) {
+      for (const floors of [1, 2, 3]) {
+        for (const length of [3, 4, 5, 6, 8]) {
+          const b = composeBuilding({ type, floors, length })
+          if (!b.cells.flat().some(k => k === 'window')) windowless.push(`${type} f${floors} l${length}`)
+        }
+      }
+    }
+    expect(windowless).toEqual([])
   })
 })
 
