@@ -1,6 +1,22 @@
 import { composeBuilding, facadeLabel, facadeLabels, rotateCells, BuildingType } from '@/engine/buildingComposer'
 import { isWalkable } from '@/engine/cellLabels'
 
+describe('composeBuilding — windows are aesthetic, not a glass grid (§1c)', () => {
+  it('windows are symmetric and spaced with wall between — never a doubled centre pair', () => {
+    for (const length of [5, 6, 8, 10]) {
+      const b = composeBuilding({ type: 'house', floors: 3, length })
+      for (const row of b.cells) {
+        const wins = row.map((k, i) => (k === 'window' ? i : -1)).filter(i => i >= 0)
+        for (let i = 1; i < wins.length; i++) {
+          expect(wins[i] - wins[i - 1]).toBeGreaterThanOrEqual(2) // ≥1 wall between windows
+        }
+        const mirror = wins.map(c => length - 1 - c).sort((a, z) => a - z)
+        expect(mirror).toEqual([...wins].sort((a, z) => a - z)) // symmetric about the centre
+      }
+    }
+  })
+})
+
 describe('composeBuilding — Nebulith building architecture spec', () => {
   it('builds the smallest legal house: 4 long × 5 tall (3 body + 2 roof)', () => {
     const b = composeBuilding({ type: 'house', floors: 1 })
