@@ -38,6 +38,15 @@ describe('generateStage — town vertical slice', () => {
     expect((bg.r + bg.g + bg.b) / 3).toBeLessThan(110) // dark
   })
 
+  it('sits each building on a brown path_stone BASE (brown freed from roads → building bases, ticket 2b)', () => {
+    expect(stage.buildings.length).toBeGreaterThan(0)
+    for (const b of stage.buildings) {
+      for (const cell of footprintCells(b)) {
+        expect(stage.ground[cell.row]?.[cell.col]).toBe('path_stone')
+      }
+    }
+  })
+
   it('places at least one legal building (facade >=2 long, >=5 tall, with a door)', () => {
     expect(stage.buildings.length).toBeGreaterThan(0)
     for (const b of stage.buildings) {

@@ -846,6 +846,7 @@ function placeBuilding(
   const floors = Math.max(1, facade.cells.filter(r => r.some(k => k === 'wall' || k === 'window' || k === 'door')).length)
   for (let row = rect.row; row < rect.row + rect.h; row++) {
     for (let col = rect.col; col < rect.col + rect.w; col++) {
+      ctx.ground[row][col] = 'path_stone' // brown stone BASE under the building — brown path_stone, freed from roads (§2b)
       stampFootprintCell(ctx, plot.type, col, row, isDoor.has(`${col},${row}`), rect.col, rect, floors)
     }
   }
