@@ -802,7 +802,7 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
     // test) as the character picker below; feeding a flat entity block here would mis-hit the figure.
     const scope = { buildings: grid.buildings }
     const candidates = new Set<string>()
-    for (const a of grid.assets) if ((a.heightLevel ?? 0) >= 1) candidates.add(`${a.col},${a.row}`)
+    for (const a of grid.assets) if ((a.heightLevel ?? 0) >= 1 || (a.height ?? 0) >= 1) candidates.add(`${a.col},${a.row}`) // level-0 CUBES (ground-floor wall) count
     for (const b of grid.buildings ?? []) for (const fc of buildingFootprintCells(b).cells) candidates.add(`${fc.col},${fc.row}`)
     if (candidates.size === 0) return null
     const blocks: IsoPickBlock[] = []
@@ -810,9 +810,11 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
       const [col, row] = key.split(',').map(Number)
       const terrainHeight = grid.getHeight(col, row)
       for (const t of getStack(grid, col, row, scope)) {
-        // Hit-test the blocks the iso render draws as per-cell cubes: any raised tile (heightLevel ≥ 1). The
-        // roof is now per-cell stacked tiles too, so it's a normal pickable block — no special roof case.
-        if ((t.heightLevel ?? 0) < 1) continue
+        // Feed the blocks the iso render draws as per-cell CUBES: any raised tile (heightLevel ≥ 1) OR a
+        // level-0 cube (t.h ≥ 1) — a ground-floor wall is 0-based (seated on the floor) but IS a block, so it
+        // must be selectable ("select the first/bottom one"). The flat FLOOR (h 0) is the only heightLevel-0
+        // tile excluded. Roof blocks are normal pickable blocks now — no special roof case.
+        if ((t.heightLevel ?? 0) < 1 && (t.h ?? 0) < 1) continue
         blocks.push({ col, row, heightLevel: t.heightLevel ?? 0, terrainHeight, source: t.source })
       }
     }

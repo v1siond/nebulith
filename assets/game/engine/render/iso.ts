@@ -1231,8 +1231,10 @@ export function pickIsoBlock(
   // Nearest-camera-first = the reverse of render's back-to-front sort (isoDepthCompare): a higher (col+row)
   // is drawn later / on top, then a higher level within the same cell. Test in that order and take the first
   // hit so the topmost visible block wins where lifted footprints overlap.
+  // Hit-test EVERY provided block, including level 0 — a ground-floor wall is a 0-based CUBE seated on the
+  // floor, and must be selectable. The CALLER decides what counts as a block (a flat floor tile is excluded
+  // upstream); this pure fn just projects + hit-tests whatever it's given.
   const ordered = blocks
-    .filter(b => (b.heightLevel ?? 0) >= 1)
     .slice()
     .sort((a, b) => {
       const d = (b.col + b.row) - (a.col + a.row)

@@ -47,10 +47,9 @@ describe('pickIsoBlock — a click on a raised block selects THAT block', () => 
     expect(pickIsoBlock(10, 10, stack, cam)).toBeNull()
   })
 
-  test('a lone level-0 asset is NOT a raised block → null (normal, unstacked selection stays unchanged)', () => {
-    const flatOnly = [block(5, 5, 0)]
+  test('a level-0 BLOCK is hit-tested too — a ground-floor wall (0-based, seated on the floor) is a CUBE and must be selectable; the CALLER excludes the flat floor, not this pure test', () => {
     const at = centre(block(5, 5, 0))
-    expect(pickIsoBlock(at.x, at.y, flatOnly, cam)).toBeNull()
+    expect(pickIsoBlock(at.x, at.y, [block(5, 5, 0)], cam)).toEqual({ col: 5, row: 5, level: 0 })
     // no candidates at all → null
     expect(pickIsoBlock(at.x, at.y, [], cam)).toBeNull()
   })
