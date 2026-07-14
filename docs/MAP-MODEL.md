@@ -114,6 +114,35 @@ flowchart LR
   GRID --> R3["render (iso)"] --> ISO[ISO view]
 ```
 
+## 8. Tileset source of truth — the DB + one seed pipeline
+
+Tiles are **DB data**, served by the nebulith backend (`:4000`, `tilesets` table, one row per style key —
+`ascii`, `emoji`). Each tile entry carries its **art** (`glyph`/`char` + optional `image` + `color`) plus
+optional **sidebar metadata**: `category` (terrain/buildings/units/nature) marks a tile BROWSEABLE and groups
+it; `title` is its display name. Entries with no `category` (wall pieces, tree corners, entity reskin tiles)
+render on the map but never surface in the sidebar.
+
+**The app reads ONLY the DB tilesets — the front end hardcodes no tile art.** `tilesetLoader` fetches the rows
+on load and installs them (`EMOJI_TILESET` / `ASCII_TILESET`). BOTH the **map render** and the **Tile Library
+sidebar** (`tilesForStyle` / `visualForTileId`) derive from those loaded tilesets — so the sidebar always
+matches the map (no parallel hardcoded catalog that can drift).
+
+**Seed pipeline (one source → DB → app):**
+
+```mermaid
+flowchart LR
+  SRC["seed data (game-website): tileKinds.json + emojiCatalog.json + entityTiles.json"]
+  SRC --> GEN["scripts/gen-tileset-seeds.mjs"]
+  GEN --> NJSON["nebulith/priv/repo/tilesets/{emoji,ascii}.json"]
+  GEN --> SNAP["src/game/data/tilesetSeed.json (jest snapshot)"]
+  NJSON --> SEED["mix run priv/repo/seeds.exs"] --> DB[("tilesets DB")]
+  DB --> LOADER["tilesetLoader (:4000)"] --> APP["map render + Tile Library sidebar"]
+```
+
+**To add or change a tile:** edit the seed source — `tileKinds.json` (a kind's category/label/ascii glyph)
+or `emojiCatalog.json` (a browseable emoji tile) — then run `node scripts/gen-tileset-seeds.mjs` and
+`mix run priv/repo/seeds.exs`. NEVER hand-edit tile art into a component or the renderer.
+
 ---
 
 ## Keeping this current
