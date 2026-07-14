@@ -57,7 +57,7 @@ import { loadTilesetsFromBackend, saveTilesetToBackend } from '@/engine/tileset/
 import { EMOJI_TILESET, setTilePose } from '@/engine/tileset/emojiTileset'
 import { type TilePose } from '@/engine/tileset/pose'
 import { type QuestDraft, emptyQuestDraft, questFromDraft } from '@/game/runtime/questDraft'
-import { seedCharacterAnimations } from '@/game/runtime/entityAnimation'
+import { seedCharacterAnimations, needsAnimationReseed } from '@/game/runtime/entityAnimation'
 import { buildingPlacementEnv, nearestRoadFacing, stampBuildingCells, unstampBuildingCells } from '@/game/runtime/buildings'
 import { type Cursor, type JumpState, JUMP_MS, JUMP_PEAK_PX, advanceEnemyMovement, beginJump, tickCannons } from '@/game/runtime/movement'
 import { playSwoosh } from '@/game/runtime/audio'
@@ -99,7 +99,7 @@ const EMPTY_KEYS: Record<string, boolean> = {}
  *  animation-seeding existed load with an empty list even though they play the default set). */
 function withSeededPersonAnimations(list: Entity[]): Entity[] {
   return list.map(e =>
-    (e.kind === 'player' || e.kind === 'npc') && !(e.animations && e.animations.length > 0)
+    (e.kind === 'player' || e.kind === 'npc') && needsAnimationReseed(e.animations)
       ? { ...e, animations: seedCharacterAnimations() }
       : e,
   )

@@ -133,24 +133,24 @@ export function activeFrame(anims: readonly EntityAnimation[] | undefined, base:
 }
 
 // ── the SEED: a person's default walk/run/idle, authored AS DATA ────────────────
-// Frame 0 is empty → the entity's own tile (🧍 under the emoji style). The moving frame is 🚶 (walk)
-// or 🏃 (run). A right-facing move reuses the left-facing emoji with flipX in the DATA — the renderer
-// only honors the flag. Replaced/extended per-entity once the Inspector authoring lands (Stage 2).
-const WALK = '🚶'
-const RUN = '🏃'
+// Frame 0 is empty → the entity's own DB tile (🧍 → player.png under emoji). The moving frame is the baked
+// walk (🚶 → emoji:walk) or run (🏃 → emoji:run) DB tile — the SAME consistent Noto font as every other
+// tile, never a raw OS glyph. A right-facing move reuses the tile with flipX in the DATA (the renderer only
+// honors the flag). Replaced/extended per-entity once the Inspector authoring lands (Stage 2).
+const WALK_TILE = 'emoji:walk'
+const RUN_TILE = 'emoji:run'
 const DIRS: Facing[] = ['up', 'down', 'left', 'right']
 
 function move(dir: Facing, running: boolean): EntityAnimation {
-  const motion = running ? RUN : WALK
+  const motionTile = running ? RUN_TILE : WALK_TILE
   return {
     id: `char-${running ? 'run' : 'walk'}-${dir}`,
     name: `${running ? 'run' : 'walk'} ${dir}`,
     trigger: { on: 'move', ...(running ? { whileRunning: true } : {}) },
     direction: dir,
-    // The walk cycle is the moving emoji then the SAME emoji MIRRORED — never back to the idle glyph
-    // (that flickered idle↔walk AND swapped shirt colour). Same char both frames → one consistent
-    // figure; the mirror gives the step motion.
-    frames: [{ char: motion }, { char: motion, flipX: true }],
+    // The walk cycle is the moving tile then the SAME tile MIRRORED — never back to the idle figure (that
+    // flickered idle↔walk). Same tile both frames → one consistent figure; the mirror gives the step motion.
+    frames: [{ tileId: motionTile }, { tileId: motionTile, flipX: true }],
     durationMs: running ? 300 : 440,
     loopDelayMs: 0,
     loop: true,
@@ -173,4 +173,17 @@ export function seedCharacterAnimations(): EntityAnimation[] {
     trigger: { ...a.trigger },
     frames: a.frames.map(f => ({ ...f })),
   }))
+}
+
+// The hardcoded pose glyphs the PRE-DB-tile seed used for walk/run. A saved person whose frames still
+// carry these is running the OUTDATED default (raw OS emoji, inconsistent font) → reseed it.
+const OUTDATED_SEED_CHARS: ReadonlySet<string> = new Set(['🚶', '🏃'])
+
+/** True when a person's animation set should be RESEEDED from the current default: it's empty (never
+ *  seeded), OR it's the outdated hardcoded-emoji default (a frame still carries a raw 🚶/🏃 instead of the
+ *  DB pose tile). A CUSTOM set — anything without those raw glyphs — is preserved untouched. This is how
+ *  persons saved with the old seed pick up the baked DB tiles on load ("remove old anims + reseed"). */
+export function needsAnimationReseed(anims: readonly EntityAnimation[] | undefined): boolean {
+  if (!anims || anims.length === 0) return true
+  return anims.some(a => a.frames.some(f => f.char !== undefined && OUTDATED_SEED_CHARS.has(f.char)))
 }
