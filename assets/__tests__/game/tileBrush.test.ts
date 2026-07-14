@@ -1,3 +1,4 @@
+import '@/__tests__/helpers/installTilesetSeed' // install the DB-equivalent tileset the runtime loads
 /**
  * TILE-BRUSH GRID SCENARIOS — the editor's pick-first brush against a real IsometricGrid. Validates the
  * user's model end-to-end at the primitive level: pick a tile → placing it changes the RIGHT thing

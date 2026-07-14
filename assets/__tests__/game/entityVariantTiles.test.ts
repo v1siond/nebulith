@@ -1,3 +1,4 @@
+import '@/__tests__/helpers/installTilesetSeed' // install the DB-equivalent tileset the runtime loads
 /**
  * Entities as IMAGES: typed enemies (goblin/wolf/…) and person VARIANTS (male/female + age/exotic)
  * now resolve to baked Noto PNGs, not live glyphs — so they render identically on every OS (no Segoe
@@ -32,7 +33,7 @@ describe('typed enemies resolve to baked images', () => {
     const v = resolveVisual('enemy', EMOJI_STYLE, enemyTileId(type, EMOJI_STYLE))
     expect(v.kind).toBe('image')
     const img = v as ImageVisual
-    expect(img.src).toMatch(/\/tiles\/emoji\/baked\/entities\/.*\.png$/)
+    expect(img.src).toMatch(/\/tiles\/emoji\/(baked|catalog)\/.*\.png$/) // a baked Noto PNG (entity or catalog dir — a slug can be both)
     expect(img.char).toBe(char) // source glyph kept as label + first-paint fallback
     expect(onDisk(img.src)).toBe(true)
   })

@@ -1,3 +1,4 @@
+import '@/__tests__/helpers/installTilesetSeed' // install the DB-equivalent tileset the runtime loads
 /**
  * "EVERYTHING RESKINS" for PLACED tiles — a placed catalog tile's `tileOverride` embeds the STYLE it was
  * picked in (`emoji:pine-tree`), which used to FREEZE it: switching the art style (🎨) left the placed

@@ -1,3 +1,4 @@
+import '@/__tests__/helpers/installTilesetSeed' // install the DB-equivalent tileset the runtime loads
 /**
  * "EVERYTHING RESKINS" for placed UNITS (Task B). A brush-placed unit carries a FROZEN `tileOverride`
  * (e.g. `emoji:goblin`) on a DIFFERENT path from placed assets: the 3 views used

@@ -1,3 +1,4 @@
+import '@/__tests__/helpers/installTilesetSeed' // install the DB-equivalent tileset the runtime loads
 /**
  * #91 Stage 2 — AUTHORING. The Inspector's AnimationEditor writes `entity.animations`; the engine
  * (Stage 1) plays them. These tests prove the authored DATA an author produces actually plays,

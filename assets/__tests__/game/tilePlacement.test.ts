@@ -1,3 +1,4 @@
+import '@/__tests__/helpers/installTilesetSeed' // install the DB-equivalent tileset the runtime loads
 /**
  * TILE-PLACEMENT ROUTING — the pure decision layer behind the editor's pick-first brush. These lock in
  * that an armed catalog tile is routed to the RIGHT placement primitive by its category, that a unit tile

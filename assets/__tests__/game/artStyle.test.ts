@@ -1,3 +1,4 @@
+import { useSeedTileset } from '@/__tests__/helpers/tilesetSeed'
 import {
   ASCII_STYLE,
   EMOJI_STYLE,
@@ -11,7 +12,6 @@ import {
   enemyTileId,
   tilesForStyle,
   visualForTileId,
-  TILE_CATALOG,
   type GlyphVisual,
   type ImageVisual,
 } from '@/game/artStyle'
@@ -19,6 +19,8 @@ import { resolveDraw } from '@/engine/render/shared'
 import { parseColor } from '@/engine/colors'
 
 describe('resolveVisual — the one style decision point', () => {
+  useSeedTileset() // override/reskin cases resolve against the loaded (DB) tileset (catalog + entities)
+
   it('ASCII style + no override → the passthrough sentinel for every kind (byte-identical gate)', () => {
     for (const kind of ['grass', 'water', 'tree', 'wall', 'enemy', 'player'] as const) {
       expect(resolveVisual(kind, ASCII_STYLE)).toEqual(ASCII_PASSTHROUGH)
@@ -26,14 +28,16 @@ describe('resolveVisual — the one style decision point', () => {
     }
   })
 
-  it('a mapped kind on the Emoji style → its glyph', () => {
-    expect(resolveVisual('tree', EMOJI_STYLE)).toMatchObject({ kind: 'glyph', char: '🌲' })
-    expect(resolveVisual('water', EMOJI_STYLE)).toMatchObject({ kind: 'glyph', char: '🌊' })
-    expect(resolveVisual('grass', EMOJI_STYLE)).toMatchObject({ kind: 'glyph', char: '🍀' })
-    expect(resolveVisual('enemy', EMOJI_STYLE)).toMatchObject({ kind: 'glyph', char: '👾' })
-    expect(resolveVisual('player', EMOJI_STYLE)).toMatchObject({ kind: 'glyph', char: '🧍' })
+  it('a mapped kind on the Emoji style → its emoji tile (glyph OR baked image, same source char)', () => {
+    // The loaded tileset bakes many kinds to Noto PNGs (image visuals) — either way the tile carries the
+    // source emoji as its `char` (label + first-paint fallback), so we assert on that, not on glyph-vs-image.
+    expect(resolveVisual('tree', EMOJI_STYLE)).toMatchObject({ char: '🌲' })
+    expect(resolveVisual('water', EMOJI_STYLE)).toMatchObject({ char: '🌊' })
+    expect(resolveVisual('grass', EMOJI_STYLE)).toMatchObject({ char: '🍀' })
+    expect(resolveVisual('enemy', EMOJI_STYLE)).toMatchObject({ char: '👾' })
+    expect(resolveVisual('player', EMOJI_STYLE)).toMatchObject({ char: '🧍' })
     // a fountain is its OWN kind now (⛲), not folded onto plain water 🌊 — "fountain translated wrong"
-    expect(resolveVisual('fountain', EMOJI_STYLE)).toMatchObject({ kind: 'glyph', char: '⛲' })
+    expect(resolveVisual('fountain', EMOJI_STYLE)).toMatchObject({ char: '⛲' })
     expect(assetKind({ type: 'fountain' })).toBe('fountain')
   })
 
@@ -67,8 +71,8 @@ describe('resolveVisual — the one style decision point', () => {
 
   it('a per-element override WINS over the active style — even ASCII', () => {
     // override an ASCII tree with the emoji water tile → the override tile (glyph + tint) draws
-    const v = resolveVisual('tree', ASCII_STYLE, 'emoji:water') as GlyphVisual
-    expect(v).toMatchObject({ kind: 'glyph', char: '🌊' })
+    const v = resolveVisual('tree', ASCII_STYLE, 'emoji:water') as GlyphVisual | ImageVisual
+    expect(v.char).toBe('🌊')
     expect(v.color).toMatch(/^#/)
   })
 
@@ -80,7 +84,7 @@ describe('resolveVisual — the one style decision point', () => {
   })
 
   it('an unknown override id falls through to the style (does not throw / blank)', () => {
-    expect(resolveVisual('tree', EMOJI_STYLE, 'nope:missing')).toMatchObject({ kind: 'glyph', char: '🌲' })
+    expect(resolveVisual('tree', EMOJI_STYLE, 'nope:missing')).toMatchObject({ char: '🌲' })
     expect(resolveVisual('tree', ASCII_STYLE, 'nope:missing')).toEqual(ASCII_PASSTHROUGH)
   })
 })
@@ -165,6 +169,8 @@ describe('kind classifiers', () => {
 })
 
 describe('style registry + tile library', () => {
+  useSeedTileset() // the tile-library tests read the loaded (DB) tileset; sibling describes keep the bundled default
+
   it('styleById resolves built-ins and defaults to ASCII for anything else', () => {
     expect(styleById('ascii')).toBe(ASCII_STYLE)
     expect(styleById('emoji')).toBe(EMOJI_STYLE)
@@ -187,8 +193,13 @@ describe('style registry + tile library', () => {
     expect(ascii.nature.length).toBeGreaterThan(0)
   })
 
-  it('every catalog tile id resolves back to its visual', () => {
-    for (const t of TILE_CATALOG) {
+  it('every browseable tile id resolves back to its visual (both styles, from the loaded tileset)', () => {
+    const tiles = [
+      ...Object.values(tilesForStyle('emoji')).flat(),
+      ...Object.values(tilesForStyle('ascii')).flat(),
+    ]
+    expect(tiles.length).toBeGreaterThan(0)
+    for (const t of tiles) {
       expect(visualForTileId(t.id)).toEqual(t.visual)
     }
     expect(visualForTileId('unknown:id')).toBeNull()

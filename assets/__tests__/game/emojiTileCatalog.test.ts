@@ -1,13 +1,15 @@
-import { tilesForStyle, TILE_CATALOG, EMOJI_TILES, type TileDef } from '@/game/artStyle'
+import '@/__tests__/helpers/installTilesetSeed' // install the DB-equivalent tileset the runtime loads
+import { tilesForStyle, type TileDef } from '@/game/artStyle'
 
 /**
- * The FULL emoji tileset browser (task #92): the Library must read like a real, categorized +
- * labeled tileset — all terrain, all trees/plants, all buildings, all characters. These assert
- * the coverage minimums, that every emoji tile is properly labeled with a drawable glyph, and
- * that ids stay globally unique across the WHOLE catalog (so overrides resolve unambiguously).
+ * The FULL emoji tileset browser: the Library must read like a real, categorized + labeled tileset — all
+ * terrain, all trees/plants, all buildings, all characters — read LIVE from the LOADED (DB) tileset, not a
+ * hardcoded frontend catalog. These assert the coverage minimums, that every browseable tile is properly
+ * labeled + drawable, and that ids stay globally unique (so per-element overrides resolve unambiguously).
  */
-describe('emoji tile catalog — full categorized + labeled tileset', () => {
+describe('emoji tile catalog — full categorized + labeled tileset (from the loaded tileset)', () => {
   const grouped = tilesForStyle('emoji')
+  const all: TileDef[] = [...grouped.terrain, ...grouped.nature, ...grouped.buildings, ...grouped.units]
 
   it('surfaces a rich, categorized set: ≥12 terrain, ≥20 nature, ≥15 buildings, ≥20 units', () => {
     expect(grouped.terrain.length).toBeGreaterThanOrEqual(12)
@@ -17,11 +19,8 @@ describe('emoji tile catalog — full categorized + labeled tileset', () => {
   })
 
   it('every emoji tile in the Library has a non-empty label and is drawable (glyph char OR image src)', () => {
-    const emojiTiles: TileDef[] = [
-      ...grouped.terrain, ...grouped.nature, ...grouped.buildings, ...grouped.units,
-    ]
-    expect(emojiTiles.length).toBeGreaterThan(0)
-    for (const t of emojiTiles) {
+    expect(all.length).toBeGreaterThan(0)
+    for (const t of all) {
       expect(t.styleId).toBe('emoji')
       expect(typeof t.label).toBe('string')
       expect(t.label.trim().length).toBeGreaterThan(0)
@@ -33,8 +32,8 @@ describe('emoji tile catalog — full categorized + labeled tileset', () => {
     }
   })
 
-  it('every curated EMOJI_TILES id is prefixed emoji: and carries a tint colour', () => {
-    for (const t of EMOJI_TILES) {
+  it('every browseable emoji tile id is prefixed emoji: and carries a tint colour', () => {
+    for (const t of all) {
       expect(t.id.startsWith('emoji:')).toBe(true)
       // A unit whose glyph was baked to a Noto PNG is an IMAGE tile (goblin/man/…); the rest stay glyphs.
       // Either way it carries the dominant-hue tint for the iso diamond/cube fill + the ASCII fallback.
@@ -44,12 +43,11 @@ describe('emoji tile catalog — full categorized + labeled tileset', () => {
     }
   })
 
-  it('all ids are unique across the WHOLE TILE_CATALOG (no override ambiguity)', () => {
-    const ids = TILE_CATALOG.map(t => t.id)
-    const seen = new Map<string, number>()
-    for (const id of ids) seen.set(id, (seen.get(id) ?? 0) + 1)
-    const dupes = [...seen.entries()].filter(([, n]) => n > 1).map(([id]) => id)
-    expect(dupes).toEqual([])
+  it('all ids are unique across BOTH styles (no override ambiguity)', () => {
+    const ids = [
+      ...Object.values(tilesForStyle('emoji')).flat(),
+      ...Object.values(tilesForStyle('ascii')).flat(),
+    ].map(t => t.id)
     expect(new Set(ids).size).toBe(ids.length)
   })
 })
