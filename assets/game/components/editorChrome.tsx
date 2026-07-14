@@ -349,7 +349,9 @@ function TileCategoryGrid({
                       on ? 'border-cyan-400 bg-cyan-900/40' : 'border-white/10 bg-black/40 hover:bg-white/10'
                     }`}
                   >
-                    <span className="text-lg leading-none">{t.visual.kind === 'glyph' ? t.visual.char : '🖼'}</span>
+                    {t.visual.kind === 'image'
+                      ? <img src={t.visual.src} alt={t.label} className="h-5 w-5 object-contain" />
+                      : <span className="text-lg leading-none">{t.visual.kind === 'glyph' ? t.visual.char : ''}</span>}
                     <span className="text-[9px] text-gray-400">{t.label}</span>
                   </button>
                 )
