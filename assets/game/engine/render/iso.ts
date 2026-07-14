@@ -1447,206 +1447,6 @@ export function drawIsoWaterDepth(
 }
 
 
-/** The TOWN-SQUARE fountain: ONE big animated park fountain spanning its reserved plaza — a round
- *  stone base PLATFORM, a blue water BASIN with a stone RIM, a central TIERED column of stacked bowls,
- *  and water JETS shooting up, arcing out, and cascading down into the basin, plus ripples — all
- *  animated. Drawn as a SINGLE structure from the centre cell (asset.footprint = the basin side in
- *  cells), never N clustered mini-wells. Matches the reference isometric park fountains. */
-export function drawIsoTownFountain(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  asset: GridAsset,
-  tileW: number,
-  tileH: number,
-  time: number,
-): void {
-  const f = Math.max(2, asset.footprint ?? 3)
-  const hw = tileW * f * 0.62 // basin platform half-width (screen px)
-  const hh = tileH * f * 0.62 // basin platform half-height
-  const baseY = y + tileH * 0.55 // platform base sits a touch toward the cell's front edge
-  const stone = '#bcb3a2'
-  const stoneLit = lightenColor(stone, 0.12)
-  const water = '#3fb2e6'
-  const waterDeep = darkenColor(water, 0.5)
-  const shimmer = 0.5 + 0.5 * Math.sin(time * 0.003)
-
-  // A round iso DRUM: a flat side-wall silhouette (a cylinder is full-width at every height) capped
-  // by a rounded top ellipse. Drawn UPWARD from `baseCy`; returns the new (raised) top centre y.
-  const drum = (baseCy: number, rx: number, ry: number, height: number, topFill: string, sideFill: string): number => {
-    const topCy = baseCy - height
-    ctx.fillStyle = sideFill
-    ctx.fillRect(x - rx, topCy, rx * 2, baseCy - topCy) // side wall (vertical cylinder silhouette)
-    ctx.fillStyle = withAlpha(lightenColor(sideFill, 0.12), 0.5)
-    ctx.fillRect(x - rx, topCy, rx * 0.5, baseCy - topCy) // soft left sheen → reads as round
-    ctx.fillStyle = topFill
-    ctx.beginPath()
-    ctx.ellipse(x, topCy, rx, ry, 0, 0, Math.PI * 2) // rounded top cap (hides the wall's flat top)
-    ctx.fill()
-    return topCy
-  }
-  const disc = (cy: number, rx: number, ry: number, fill: string): void => {
-    ctx.fillStyle = fill
-    ctx.beginPath()
-    ctx.ellipse(x, cy, rx, ry, 0, 0, Math.PI * 2)
-    ctx.fill()
-  }
-
-  // 1. stone base PLATFORM — a low wide drum (the steps around the basin).
-  const platTop = drum(baseY, hw, hh, tileH * 0.5, stoneLit, darkenColor(stone, 0.5))
-  // 2. the BASIN wall — a taller, slightly narrower drum that holds the water.
-  const rimRx = hw * 0.82
-  const rimRy = hh * 0.82
-  const rimTop = drum(platTop + tileH * 0.04, rimRx, rimRy, tileH * 0.85, stone, darkenColor(stone, 0.42))
-  // 3. the WATER pool inside the rim — stone lip, deep ring, shimmering surface, expanding ripples.
-  const waterRx = rimRx * 0.78
-  const waterRy = rimRy * 0.78
-  const waterCy = rimTop + tileH * 0.05
-  disc(waterCy, rimRx * 0.9, rimRy * 0.9, darkenColor(stone, 0.28)) // inner rim lip
-  disc(waterCy, waterRx, waterRy, waterDeep) // pool depth
-  disc(waterCy, waterRx * 0.95, waterRy * 0.95, withAlpha(lightenColor(water, 0.04 + 0.14 * shimmer), 0.96)) // surface
-  ctx.lineWidth = Math.max(1, tileW * 0.018)
-  for (let k = 0; k < 3; k++) {
-    const phase = (time * 0.0011 + k / 3) % 1
-    ctx.strokeStyle = withAlpha('#e2f5ff', (1 - phase) * 0.45)
-    ctx.beginPath()
-    ctx.ellipse(x, waterCy, waterRx * (0.2 + phase * 0.8), waterRy * (0.2 + phase * 0.8), 0, 0, Math.PI * 2)
-    ctx.stroke()
-  }
-
-  // 4. the central TIERED column — a pedestal + a wide lower bowl, a thin pedestal + a small bowl.
-  const pedTop = drum(waterCy - waterRy * 0.1, hw * 0.13, hh * 0.13, tileH * 1.05, stoneLit, darkenColor(stone, 0.5))
-  const bowl1Rx = hw * 0.46
-  const bowl1Ry = hh * 0.46
-  disc(pedTop, bowl1Rx, bowl1Ry, stone) // lower bowl rim
-  disc(pedTop - tileH * 0.04, bowl1Rx * 0.84, bowl1Ry * 0.84, waterDeep)
-  disc(pedTop - tileH * 0.06, bowl1Rx * 0.76, bowl1Ry * 0.76, withAlpha(lightenColor(water, 0.1 + 0.12 * shimmer), 0.96))
-  const ped2Top = drum(pedTop - tileH * 0.06, hw * 0.075, hh * 0.075, tileH * 0.8, stoneLit, darkenColor(stone, 0.5))
-  const bowl2Rx = hw * 0.22
-  const bowl2Ry = hh * 0.22
-  disc(ped2Top, bowl2Rx, bowl2Ry, stone) // upper bowl rim
-  disc(ped2Top - tileH * 0.03, bowl2Rx * 0.74, bowl2Ry * 0.74, withAlpha(lightenColor(water, 0.12 + 0.12 * shimmer), 0.96))
-
-  // 5. WATER JETS (all animated) — a central vertical jet, arcs from the spout into the lower bowl,
-  //    cascades from the lower bowl down into the basin, and falling droplets that splash in.
-  const spoutY = ped2Top - tileH * 0.08
-  const jetH = tileH * 2.0 * (0.82 + 0.18 * Math.sin(time * 0.006))
-  ctx.fillStyle = withAlpha('#eaf8ff', 0.9)
-  ctx.beginPath()
-  ctx.moveTo(x, spoutY - jetH)
-  ctx.lineTo(x + tileW * 0.05, spoutY)
-  ctx.lineTo(x - tileW * 0.05, spoutY)
-  ctx.closePath()
-  ctx.fill()
-  ctx.strokeStyle = withAlpha('#d4f0ff', 0.8)
-  ctx.lineWidth = Math.max(1.5, tileW * 0.024)
-  ctx.lineCap = 'round'
-  for (const dir of [-1, 1]) {
-    ctx.beginPath() // arc from spout out into the lower bowl
-    ctx.moveTo(x, spoutY - jetH * 0.5)
-    ctx.quadraticCurveTo(x + dir * bowl1Rx * 1.05, spoutY - jetH * 0.15, x + dir * bowl1Rx * 0.68, pedTop - tileH * 0.05)
-    ctx.stroke()
-    ctx.beginPath() // cascade from the lower bowl rim into the basin
-    ctx.moveTo(x + dir * bowl1Rx * 0.8, pedTop)
-    ctx.quadraticCurveTo(x + dir * rimRx * 0.82, (pedTop + waterCy) / 2, x + dir * rimRx * 0.72, waterCy - waterRy * 0.2)
-    ctx.stroke()
-  }
-  ctx.fillStyle = withAlpha('#eaf8ff', 0.85)
-  for (const dir of [-1, 1]) {
-    const dphase = (time * 0.004 + (dir > 0 ? 0.5 : 0)) % 1
-    const dy = pedTop + dphase * (waterCy - waterRy * 0.2 - pedTop)
-    ctx.beginPath()
-    ctx.arc(x + dir * rimRx * 0.72, dy, tileW * 0.03, 0, Math.PI * 2)
-    ctx.fill()
-  }
-}
-
-
-/** A well / fountain as a RAISED iso structure (#50): a stone basin prism with a recessed
- *  water pool on top, then a distinguishing topper — a fountain's animated water jet or a
- *  well's posted, peaked roof. Mirrors the building iso standard (a 3D volume, not a flat glyph). */
-export function drawIsoWellFountain(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  asset: GridAsset,
-  tileW: number,
-  tileH: number,
-  time: number,
-): void {
-  const isFountain = asset.type === 'fountain'
-  const hw = tileW * 0.62
-  const hh = tileH * 0.62
-  const bodyH = tileH * 1.8 // raised ~1-tile stone basin
-  const baseY = y + tileH * 0.45 // base sits toward the cell's front edge
-  const stone = '#a39b8c'
-  // stone basin body
-  drawIsoPrism(ctx, x, baseY, hw, hh, bodyH, lightenColor(stone, 0.18), darkenColor(stone, 0.5), darkenColor(stone, 0.72))
-  const topY = baseY - bodyH
-  // water pool recessed into the basin top, gently shimmering
-  const water = isFountain ? '#5fbce0' : '#3f78c0'
-  const shimmer = 0.5 + 0.5 * Math.sin(time * 0.004 + x * 0.05)
-  fillDiamond(ctx, x, topY + hh * 0.16, hw * 0.66, hh * 0.66, darkenColor(water, 0.55)) // pool depth
-  fillDiamond(ctx, x, topY + hh * 0.3, hw * 0.5, hh * 0.5, lightenColor(water, 0.08 + 0.16 * shimmer)) // surface
-
-  if (isFountain) {
-    // A TIERED park fountain: stacked stone pedestals each carrying a blue water BOWL, narrowing
-    // upward, with water arcing from the top spout down into the bowls + the pool (per the refs).
-    const tierStone = lightenColor(stone, 0.16)
-    const waterSurf = lightenColor(water, 0.12 + 0.16 * shimmer)
-    // tier 1 — a short pedestal rising from the pool carrying a wide bowl
-    const p1Y = topY + hh * 0.2
-    drawIsoPrism(ctx, x, p1Y, hw * 0.12, hh * 0.12, bodyH * 0.5, tierStone, darkenColor(stone, 0.5), darkenColor(stone, 0.72))
-    const b1Y = p1Y - bodyH * 0.5
-    fillDiamond(ctx, x, b1Y, hw * 0.44, hh * 0.44, lightenColor(stone, 0.08)) // bowl rim (stone)
-    fillDiamond(ctx, x, b1Y, hw * 0.34, hh * 0.34, darkenColor(water, 0.5)) // bowl depth
-    fillDiamond(ctx, x, b1Y - hh * 0.05, hw * 0.28, hh * 0.28, waterSurf) // bowl water
-    // tier 2 — a thinner pedestal + a small upper bowl
-    drawIsoPrism(ctx, x, b1Y - hh * 0.05, hw * 0.07, hh * 0.07, bodyH * 0.42, tierStone, darkenColor(stone, 0.5), darkenColor(stone, 0.72))
-    const b2Y = b1Y - hh * 0.05 - bodyH * 0.42
-    fillDiamond(ctx, x, b2Y, hw * 0.22, hh * 0.22, lightenColor(stone, 0.08))
-    fillDiamond(ctx, x, b2Y - hh * 0.03, hw * 0.15, hh * 0.15, waterSurf)
-    // water — a central jet + two arcs spraying out from the top spout down into the lower bowl
-    const sprayTop = b2Y - bodyH * 0.45
-    ctx.strokeStyle = withAlpha('#d4f0ff', 0.85)
-    ctx.lineWidth = Math.max(1.5, tileW * 0.03)
-    ctx.lineCap = 'round'
-    for (const dx of [-1, 1]) {
-      ctx.beginPath()
-      ctx.moveTo(x, sprayTop)
-      ctx.quadraticCurveTo(x + dx * hw * 0.55, sprayTop + hh * 0.1, x + dx * hw * 0.5, b1Y + hh * 0.05)
-      ctx.stroke()
-    }
-    ctx.fillStyle = withAlpha('#e6f6ff', 0.9) // central vertical jet
-    ctx.beginPath()
-    ctx.moveTo(x, sprayTop - hh * 0.3)
-    ctx.lineTo(x + tileW * 0.045, b2Y - hh * 0.05)
-    ctx.lineTo(x - tileW * 0.045, b2Y - hh * 0.05)
-    ctx.closePath()
-    ctx.fill()
-    const drop = Math.sin(time * 0.005) * 0.5 + 0.5 // animated falling droplets
-    for (const dx of [-0.45, 0.45]) {
-      ctx.beginPath()
-      ctx.arc(x + dx * hw, b1Y - drop * tileH * 0.4, tileW * 0.045, 0, Math.PI * 2)
-      ctx.fill()
-    }
-    return
-  }
-
-  // a well: two stone posts carrying a small peaked roof over the shaft
-  const postH = bodyH * 0.95
-  const roofY = topY - postH
-  drawIsoPrism(ctx, x - hw * 0.72, topY, hw * 0.1, hh * 0.1, postH, '#8a6a3a', '#5e4724', '#7a5c30')
-  drawIsoPrism(ctx, x + hw * 0.72, topY, hw * 0.1, hh * 0.1, postH, '#8a6a3a', '#5e4724', '#7a5c30')
-  fillDiamond(ctx, x, roofY + hh * 0.4, hw * 1.05, hh * 0.5, '#7a2f2a') // roof eave
-  ctx.fillStyle = '#a14038' // peaked roof
-  ctx.beginPath()
-  ctx.moveTo(x, roofY - hh * 0.9)
-  ctx.lineTo(x + hw * 1.05, roofY + hh * 0.4)
-  ctx.lineTo(x - hw * 1.05, roofY + hh * 0.4)
-  ctx.closePath()
-  ctx.fill()
-}
 
 
 export function drawIsoAssetAscii(
@@ -1679,10 +1479,10 @@ export function drawIsoAssetAscii(
   // 3D half of the 2D+3D tileset: a tile (or the placed instance via GridAsset.height) with height≥1 extrudes
   // into an iso BLOCK instead of a flat billboard. Height 0 / ASCII passthrough (adv.char '') → the flat draw below.
   const blocks = resolveTileHeight(vt, asset)
-  // A well / fountain reads as a RAISED iso basin in ASCII (drawIsoWellFountain / drawIsoTownFountain).
-  // Under a reskin, KEEP that depth by extruding the RESOLVED TILE into an iso block (G3) instead of the
-  // flat billboard below — a flat well.png/⛲ would drop the 3D basin. Town fountains span their plaza, so
-  // the block scales to the footprint. A tile with its own authored height (blocks≥1) uses the generic path.
+  // A well / fountain under a RESKIN (emoji) extrudes its RESOLVED TILE (⛲/🪣) into a raised iso basin block
+  // instead of a flat billboard — keeps the 3D depth from the DB tile; town fountains scale to their footprint.
+  // ASCII (passthrough) + a tile with its own height (blocks≥1) use the generic tile path below — the bespoke
+  // fountain/well drawers are gone.
   const reskinned = style.id !== ASCII_STYLE.id
   if (reskinned && blocks < 1 && (asset.type === 'well' || asset.type === 'fountain') && (adv.image || adv.char)) {
     const span = asset.footprint && asset.footprint > 1 ? asset.footprint : 1
@@ -1924,17 +1724,9 @@ export function drawIsoAssetAscii(
     ctx.fillStyle = '#999999'
     ctx.fillText('O', x, layerY)
 
-  } else if (asset.type === 'fountain' && asset.footprint) {
-    // ASCII ONLY (a reskin already drew the fountain TILE as an iso basin block above). The town SQUARE
-    // centrepiece: ONE big animated park fountain spanning its plaza (basin + tiered column + jets).
-    drawIsoTownFountain(ctx, x, y, asset, tileW, tileH, time)
-
-  } else if (asset.type === 'well' || asset.type === 'fountain') {
-    // ASCII ONLY (the reskin path above owns the tile). Legacy single-cell well/fountain: a raised 3D basin (#50).
-    drawIsoWellFountain(ctx, x, y, asset, tileW, tileH, time)
-
   } else {
-    // Default: show the asset's art character
+    // Default: show the asset's art character (fountain/well fall through here — they render as their TILE:
+    // the emoji reskin path above extrudes ⛲/🪣 into an iso basin, ASCII draws the asset glyph — no bespoke drawer)
     const char = asset.art[0] || '?'
     const layerY = y - lineHeight * 0.5
     ctx.font = `bold ${fontSize}px ${ASCII_FONT}`

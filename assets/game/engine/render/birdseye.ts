@@ -36,62 +36,6 @@ export function drawTopArrow(ctx: CanvasRenderingContext2D, x: number, y: number
 }
 
 
-/** The town-square fountain in the TOP-DOWN view: a round blue basin (stone rim → water → centre
- *  column boss) spanning its footprint, with expanding ripple rings. A blueprint read of one fountain. */
-export function drawTopTownFountain(ctx: CanvasRenderingContext2D, cx: number, cy: number, radius: number, time: number): void {
-  const stone = '#bcb3a2'
-  const water = '#3fb2e6'
-  const shimmer = 0.5 + 0.5 * Math.sin(time * 0.003)
-  const ring = (r: number, fill: string): void => {
-    ctx.fillStyle = fill
-    ctx.beginPath()
-    ctx.arc(cx, cy, r, 0, Math.PI * 2)
-    ctx.fill()
-  }
-  ring(radius, darkenColor(stone, 0.45)) // outer rim shadow
-  ring(radius * 0.92, lightenColor(stone, 0.06)) // stone rim
-  ring(radius * 0.78, darkenColor(water, 0.4)) // pool depth
-  ring(radius * 0.72, withAlpha(lightenColor(water, 0.05 + 0.14 * shimmer), 0.98)) // water surface
-  ctx.lineWidth = Math.max(1, radius * 0.06)
-  for (let k = 0; k < 3; k++) {
-    const ph = (time * 0.0011 + k / 3) % 1
-    ctx.strokeStyle = withAlpha('#e2f5ff', (1 - ph) * 0.5)
-    ctx.beginPath()
-    ctx.arc(cx, cy, radius * 0.72 * (0.15 + ph * 0.85), 0, Math.PI * 2)
-    ctx.stroke()
-  }
-  ring(radius * 0.26, lightenColor(stone, 0.04)) // central column boss
-  ring(radius * 0.1, withAlpha('#eaf8ff', 0.95)) // jet crown
-}
-
-
-
-
-/** The town-square fountain in the TOP view. Under a reskin it's the fountain TILE (⛲) drawn over the
- *  basin footprint; under ASCII it's the procedural round basin (drawTopTownFountain). `cx/cy` = the
- *  footprint centre in screen px; `f` = the basin side in cells; `tileSize` the per-cell px. */
-export function drawTopFountain(
-  ctx: CanvasRenderingContext2D,
-  cx: number, cy: number,
-  f: number,
-  tileSize: number,
-  style: Style,
-  color: string | undefined,
-  now: number,
-): void {
-  const dv = resolveDraw('fountain', style, undefined, '', color ?? '#4a90e2')
-  if (dv.image || dv.tint) {
-    // RESKIN: the fountain is its TILE, sized to span the plaza footprint (flat overhead read).
-    const size = f * tileSize * 0.94
-    if (dv.image && tileImage(dv.image.src)) { drawStyledImage(ctx, dv.image, cx, cy, size, false, color); return }
-    ctx.font = `bold ${size}px ${ASCII_FONT}`
-    ctx.textAlign = 'center'
-    ctx.textBaseline = 'middle'
-    fillTintedGlyph(ctx, dv.char || '⛲', cx, cy, size, color, 0.85)
-    return
-  }
-  drawTopTownFountain(ctx, cx, cy, f * tileSize * 0.5 * 0.94, now)
-}
 
 
 // Top-down 2D blueprint view - flat, no height, just positions
@@ -306,16 +250,6 @@ export function renderTopView(
   // its column, the ROOF tile (placed last, so it wins the cell in the assetMap), giving a per-cell roof
   // read from above with no building-specific drawer. grid.buildings is now only the building's metadata.
 
-  // Town-square fountain (top-down): a round blue basin spanning its footprint, drawn over the
-  // paved plaza as ONE fountain (the centre prop carries the basin span). Overlays the per-cell pass.
-  for (const a of grid.assets) {
-    if (a.type !== 'fountain' || !a.footprint) continue
-    const f = a.footprint
-    if (a.col + f < startCol || a.col - f > endCol || a.row + f < startRow || a.row - f > endRow) continue
-    const cx = offsetX + (a.col + 0.5) * tileSize
-    const cy = offsetY + (a.row + 0.5) * tileSize
-    drawTopFountain(ctx, cx, cy, f, tileSize, style, a.color, now)
-  }
 
   // Collision overlay — drawn LAST (over the per-cell building tiles + fountains) so it shows on BUILDING
   // cells too. Debug overlay OR the lighter "show collisions" toggle.

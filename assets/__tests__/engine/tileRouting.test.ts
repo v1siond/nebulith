@@ -14,7 +14,6 @@
  */
 import { drawConnectorMarker, drawAttackAnimFrame, drawProjectileGlyph } from '@/engine/render/shared'
 import { drawIsoAssetAscii } from '@/engine/render/iso'
-import { drawTopFountain } from '@/engine/render/birdseye'
 import { makeBuilding } from '@/engine/buildingEditor'
 import { EMOJI_STYLE, ASCII_STYLE } from '@/game/artStyle'
 import type { GridAsset } from '@/engine/IsometricGrid'
@@ -134,11 +133,11 @@ describe('G3 well/boss route through resolveDraw in iso (no procedural / raw-gly
     expect(r.images).toBeGreaterThanOrEqual(1) // the well.png sheared onto the block faces
     expect(r.fills).toBeGreaterThanOrEqual(3) // 3D depth: two side faces + a top cap
   })
-  test('ASCII well → the procedural raised basin (drawIsoWellFountain), no tile image', () => {
+  test('ASCII well → its TILE glyph (asset.art), NOT a bespoke procedural basin drawer', () => {
     const r = recordingCtx()
     drawIsoAssetAscii(r.ctx, 100, 100, asset({ type: 'well', art: ['O'] }), 22, 11, 0, false, 'day', ASCII_STYLE)
     expect(r.images).toBe(0)
-    expect(r.fills).toBeGreaterThan(0) // the drum/prism basin still fills polygons
+    expect(r.glyphs).toContain('O') // renders the asset's tile glyph via the generic path — no fountain/well drawer
   })
   test('EMOJI boss → its 👹 tile IMAGE (drawImage), not the raw art glyph', () => {
     const r = recordingCtx()
@@ -154,17 +153,5 @@ describe('G3 well/boss route through resolveDraw in iso (no procedural / raw-gly
   })
 })
 
-// ── G1 · top-view building roof ─────────────────────────────────────────────────────────────────
-describe('G2 top-view fountain routes through the fountain tile under emoji, procedural under ascii', () => {
-  test('EMOJI → the ⛲ fountain tile over the footprint, not the procedural basin arcs', () => {
-    const r = recordingCtx()
-    drawTopFountain(r.ctx, 100, 100, 3, 16, EMOJI_STYLE, undefined, 0)
-    expect(r.glyphs).toContain('⛲')
-  })
-  test('ASCII → the procedural basin (drawTopTownFountain fills rings), NO fountain tile glyph', () => {
-    const r = recordingCtx()
-    drawTopFountain(r.ctx, 100, 100, 3, 16, ASCII_STYLE, undefined, 0)
-    expect(r.glyphs).not.toContain('⛲')
-    expect(r.fills).toBeGreaterThan(0) // the stone/water rings
-  })
-})
+// (Top-view fountain no longer has a dedicated drawer — it renders as its tile via the generic per-cell
+//  pass in renderTopView, like every other asset. The bespoke drawTopFountain/drawTopTownFountain are gone.)

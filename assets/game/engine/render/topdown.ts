@@ -352,95 +352,6 @@ export function draw2DBuildingCollision(
  *  drawn facade rises tall — the height/footprint decoupling, in 2D. */
 
 
-/** The town-square fountain in the 2D (3/4) view: ONE front-facing animated park fountain spanning
- *  its plaza — a stone platform, a blue basin, a central tiered column, and water jets. `baseY` is the
- *  bottom of the centre cell; the structure spans `asset.footprint` cells wide and stacks upward. */
-export function draw2DTownFountain(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  baseY: number,
-  tileW: number,
-  tileH: number,
-  asset: GridAsset,
-  time: number,
-): void {
-  const f = Math.max(2, asset.footprint ?? 3)
-  const fw = tileW * f
-  const hwid = fw * 0.5
-  const stone = '#bcb3a2'
-  const water = '#3fb2e6'
-  const waterDeep = darkenColor(water, 0.45)
-  const shimmer = 0.5 + 0.5 * Math.sin(time * 0.003)
-  const ellipse = (cy: number, rx: number, ry: number, fill: string): void => {
-    ctx.fillStyle = fill
-    ctx.beginPath()
-    ctx.ellipse(x, cy, rx, ry, 0, 0, Math.PI * 2)
-    ctx.fill()
-  }
-
-  // base PLATFORM — a short stone wall under a wide rounded slab
-  const platRy = tileH * 0.5
-  const platCy = baseY - platRy * 0.5
-  ctx.fillStyle = darkenColor(stone, 0.5)
-  ctx.fillRect(x - hwid, platCy, hwid * 2, tileH * 0.45)
-  ellipse(platCy, hwid, platRy, lightenColor(stone, 0.08))
-
-  // BASIN — stone bowl + blue water + ripples
-  const basinHw = hwid * 0.8
-  const basinRy = platRy * 0.8
-  const basinCy = platCy - tileH * 0.5
-  ctx.fillStyle = darkenColor(stone, 0.4)
-  ctx.fillRect(x - basinHw, basinCy, basinHw * 2, tileH * 0.55)
-  ellipse(basinCy, basinHw, basinRy, stone)
-  ellipse(basinCy, basinHw * 0.82, basinRy * 0.82, waterDeep)
-  ellipse(basinCy, basinHw * 0.74, basinRy * 0.74, withAlpha(lightenColor(water, 0.05 + 0.12 * shimmer), 0.96))
-  ctx.lineWidth = Math.max(1, tileW * 0.02)
-  for (let k = 0; k < 2; k++) {
-    const ph = (time * 0.0012 + k / 2) % 1
-    ctx.strokeStyle = withAlpha('#e2f5ff', (1 - ph) * 0.4)
-    ctx.beginPath()
-    ctx.ellipse(x, basinCy, basinHw * 0.74 * (0.2 + ph * 0.8), basinRy * 0.74 * (0.2 + ph * 0.8), 0, 0, Math.PI * 2)
-    ctx.stroke()
-  }
-
-  // central TIERED column — pedestal + wide lower bowl, thin pedestal + small upper bowl
-  const lb = basinHw * 0.5
-  const lbY = basinCy - basinRy * 0.2 - tileH * 0.9
-  ctx.fillStyle = stone
-  ctx.fillRect(x - fw * 0.06, lbY, fw * 0.12, basinCy - basinRy * 0.2 - lbY)
-  ellipse(lbY, lb, lb * 0.4, stone)
-  ellipse(lbY - tileH * 0.05, lb * 0.7, lb * 0.28, withAlpha(lightenColor(water, 0.1 + 0.12 * shimmer), 0.96))
-  const ub = basinHw * 0.26
-  const ubY = lbY - tileH * 0.7
-  ctx.fillStyle = stone
-  ctx.fillRect(x - fw * 0.035, ubY, fw * 0.07, lbY - ubY)
-  ellipse(ubY, ub, ub * 0.42, stone)
-  ellipse(ubY - tileH * 0.04, ub * 0.66, ub * 0.3, withAlpha(lightenColor(water, 0.12 + 0.12 * shimmer), 0.96))
-
-  // JETS — central vertical jet + side arcs into the lower bowl + cascade into the basin (animated)
-  const spoutY = ubY - tileH * 0.1
-  const jetH = tileH * 1.6 * (0.82 + 0.18 * Math.sin(time * 0.006))
-  ctx.fillStyle = withAlpha('#eaf8ff', 0.9)
-  ctx.beginPath()
-  ctx.moveTo(x, spoutY - jetH)
-  ctx.lineTo(x + tileW * 0.06, spoutY)
-  ctx.lineTo(x - tileW * 0.06, spoutY)
-  ctx.closePath()
-  ctx.fill()
-  ctx.strokeStyle = withAlpha('#d4f0ff', 0.8)
-  ctx.lineWidth = Math.max(1.5, tileW * 0.03)
-  ctx.lineCap = 'round'
-  for (const dir of [-1, 1]) {
-    ctx.beginPath()
-    ctx.moveTo(x, spoutY - jetH * 0.5)
-    ctx.quadraticCurveTo(x + dir * lb * 1.4, spoutY - jetH * 0.1, x + dir * lb * 0.9, lbY)
-    ctx.stroke()
-    ctx.beginPath()
-    ctx.moveTo(x + dir * lb * 0.9, lbY)
-    ctx.quadraticCurveTo(x + dir * basinHw * 0.9, (lbY + basinCy) / 2, x + dir * basinHw * 0.8, basinCy - basinRy * 0.2)
-    ctx.stroke()
-  }
-}
 
 
 // 2D Render function - RPG-style 3/4 top-down view (like Pokemon/Zelda)
@@ -940,10 +851,6 @@ export function render2D(
         ctx.fillRect(p.x - tileW * 0.25, baseY - tileH * 2.4, tileW * 0.5, tileH * 0.5)
         ctx.fillStyle = `rgba(255, 200, 50, ${0.4 + 0.6 * glow})`
         ctx.fillText('o', p.x, baseY - tileH * 2.2)
-
-      } else if (asset.type === 'fountain' && asset.footprint) {
-        // The town SQUARE centrepiece: ONE big animated fountain spanning its plaza (not N glyphs).
-        draw2DTownFountain(ctx, p.x, baseY, tileW, tileH, asset, time)
 
       } else if (asset.type === 'npc') {
         // NPC - cleaner humanoid figure matching isometric style
