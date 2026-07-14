@@ -35,6 +35,12 @@ export interface EmojiTile {
    *  the editor's per-instance GridAsset.height overriding it) and extrudes the tile into a block through
    *  drawIsoTileBlock. Data-driven — the same field moves to the Ecto DB at migration. */
   height?: number
+  /** OPTIONAL sidebar metadata (served from the DB): `category` (terrain/buildings/units/nature) marks the
+   *  tile BROWSEABLE in the Tile Library and groups it; `title` is its human display name. Absent = an
+   *  internal/render-only kind that never appears in the sidebar. The Library reads THESE, so it needs
+   *  nothing hardcoded on the frontend. */
+  category?: string
+  title?: string
 }
 
 export let EMOJI_TILESET: Record<string, EmojiTile> = {

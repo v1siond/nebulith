@@ -1,0 +1,2986 @@
+{
+  "emoji": {
+    "grass": {
+      "char": "🍀",
+      "color": "#5faf4a",
+      "image": "/tiles/emoji/baked/grass.png",
+      "category": "terrain",
+      "title": "Grass"
+    },
+    "water": {
+      "char": "🌊",
+      "color": "#4a90e2",
+      "image": "/tiles/emoji/baked/water.png",
+      "category": "terrain",
+      "title": "Water"
+    },
+    "path": {
+      "char": "🟫",
+      "color": "#9c7b4d",
+      "image": "/tiles/emoji/baked/path.png",
+      "category": "terrain",
+      "title": "Path"
+    },
+    "plaza": {
+      "char": "⬜",
+      "color": "#cabfa6",
+      "image": "/tiles/emoji/baked/plaza.png",
+      "category": "terrain",
+      "title": "Plaza"
+    },
+    "sand": {
+      "char": "🟨",
+      "color": "#e2c86b",
+      "image": "/tiles/emoji/baked/sand.png",
+      "category": "terrain",
+      "title": "Sand"
+    },
+    "snow": {
+      "char": "⬜",
+      "color": "#e2ecf5",
+      "image": "/tiles/emoji/baked/snow.png",
+      "category": "terrain",
+      "title": "Snow"
+    },
+    "autumn": {
+      "char": "🍂",
+      "color": "#b5732f",
+      "image": "/tiles/emoji/baked/autumn.png",
+      "category": "terrain",
+      "title": "Autumn Ground"
+    },
+    "cavefloor": {
+      "char": "🪨",
+      "color": "#3f3a34",
+      "image": "/tiles/emoji/baked/cavefloor.png",
+      "category": "terrain",
+      "title": "Cave Floor"
+    },
+    "moss": {
+      "char": "🌿",
+      "color": "#4a6b3a",
+      "image": "/tiles/emoji/baked/moss.png",
+      "category": "terrain",
+      "title": "Moss"
+    },
+    "mountain": {
+      "char": "🗻",
+      "color": "#8d8d97",
+      "image": "/tiles/emoji/baked/mountain.png",
+      "category": "terrain",
+      "title": "Mountain"
+    },
+    "wall": {
+      "char": "🧱",
+      "color": "#b0603a",
+      "image": "/tiles/emoji/baked/wall.png",
+      "category": "buildings",
+      "title": "Wall"
+    },
+    "roof": {
+      "char": "🟥",
+      "color": "#c8443c",
+      "image": "/tiles/emoji/baked/roof.png",
+      "category": "buildings",
+      "title": "Roof"
+    },
+    "door": {
+      "char": "🚪",
+      "color": "#5a3a22",
+      "image": "/tiles/emoji/baked/door.png",
+      "category": "buildings",
+      "title": "Door"
+    },
+    "window": {
+      "char": "🪟",
+      "color": "#7fb4d8",
+      "image": "/tiles/emoji/baked/window.png",
+      "category": "buildings",
+      "title": "Window"
+    },
+    "fountain": {
+      "char": "⛲",
+      "color": "#4a90e2",
+      "image": "/tiles/emoji/baked/fountain.png",
+      "category": "buildings",
+      "title": "Fountain"
+    },
+    "tree": {
+      "char": "🌲",
+      "color": "#2f8f3f",
+      "image": "/tiles/emoji/baked/tree.png",
+      "category": "nature",
+      "title": "Tree"
+    },
+    "flower": {
+      "char": "🌸",
+      "color": "#e785b5",
+      "image": "/tiles/emoji/baked/flower.png",
+      "category": "nature",
+      "title": "Flower"
+    },
+    "bush": {
+      "char": "🌿",
+      "color": "#4fa03f",
+      "image": "/tiles/emoji/baked/bush.png",
+      "category": "nature",
+      "title": "Bush"
+    },
+    "rock": {
+      "char": "🪨",
+      "color": "#8a8a8a",
+      "image": "/tiles/emoji/baked/rock.png",
+      "category": "nature",
+      "title": "Rock"
+    },
+    "crate": {
+      "char": "📦",
+      "color": "#b5793a",
+      "image": "/tiles/emoji/baked/crate.png",
+      "category": "nature",
+      "title": "Crate"
+    },
+    "lamp": {
+      "char": "💡",
+      "color": "#ffd24a",
+      "image": "/tiles/emoji/baked/lamp.png",
+      "category": "nature",
+      "title": "Lamp"
+    },
+    "crystal": {
+      "char": "💎",
+      "color": "#b48cff",
+      "image": "/tiles/emoji/baked/crystal.png",
+      "category": "nature",
+      "title": "Crystal"
+    },
+    "mushroom": {
+      "char": "🍄",
+      "color": "#d24a4a",
+      "image": "/tiles/emoji/baked/mushroom.png",
+      "category": "nature",
+      "title": "Mushroom"
+    },
+    "pillar": {
+      "char": "🏛️",
+      "color": "#cbb68c",
+      "image": "/tiles/emoji/baked/pillar.png",
+      "category": "buildings",
+      "title": "Pillar"
+    },
+    "altar": {
+      "char": "🗿",
+      "color": "#ffe7a8",
+      "image": "/tiles/emoji/baked/altar.png",
+      "category": "buildings",
+      "title": "Altar"
+    },
+    "torch": {
+      "char": "🔥",
+      "color": "#ff8a3a",
+      "image": "/tiles/emoji/baked/torch.png",
+      "category": "nature",
+      "title": "Torch"
+    },
+    "hazard": {
+      "char": "🔺",
+      "color": "#d0402a",
+      "image": "/tiles/emoji/baked/hazard.png",
+      "category": "nature",
+      "title": "Hazard"
+    },
+    "key": {
+      "char": "🗝️",
+      "color": "#ffd24a",
+      "image": "/tiles/emoji/baked/key.png",
+      "category": "nature",
+      "title": "Key"
+    },
+    "enemy": {
+      "char": "👾",
+      "color": "#b45ac0",
+      "image": "/tiles/emoji/baked/enemy.png",
+      "category": "units",
+      "title": "Enemy"
+    },
+    "npc": {
+      "char": "🧍",
+      "color": "#d9a066",
+      "image": "/tiles/emoji/baked/npc.png",
+      "category": "units",
+      "title": "NPC"
+    },
+    "player": {
+      "char": "🧍",
+      "color": "#ffcf3a",
+      "image": "/tiles/emoji/baked/player.png",
+      "category": "units",
+      "title": "Player"
+    },
+    "sword": {
+      "char": "🗡️",
+      "color": "#d8d8d8",
+      "pose": {
+        "rot": 3.141592653589793,
+        "scale": 1.1
+      },
+      "image": "/tiles/emoji/baked/sword.png"
+    },
+    "bow": {
+      "char": "🏹",
+      "color": "#a9743a",
+      "pose": {
+        "scale": 1.1
+      },
+      "image": "/tiles/emoji/baked/bow.png"
+    },
+    "gun": {
+      "char": "🔫",
+      "color": "#5a6b70",
+      "pose": {
+        "flip": true,
+        "scale": 1.1
+      },
+      "image": "/tiles/emoji/baked/gun.png"
+    },
+    "axe": {
+      "char": "🪓",
+      "color": "#8a5a2a",
+      "pose": {
+        "flip": true,
+        "scale": 1.1
+      },
+      "image": "/tiles/emoji/baked/axe.png"
+    },
+    "staff": {
+      "char": "🪄",
+      "color": "#c9a0ff",
+      "pose": {
+        "scale": 1.1
+      },
+      "image": "/tiles/emoji/baked/staff.png"
+    },
+    "shield": {
+      "char": "🛡️",
+      "color": "#3f5f8f",
+      "image": "/tiles/emoji/baked/shield.png"
+    },
+    "fist": {
+      "char": "👊",
+      "color": "#f0b070",
+      "pose": {
+        "scale": 1.1
+      },
+      "image": "/tiles/emoji/baked/fist.png"
+    },
+    "lava": {
+      "char": "🟥",
+      "color": "#ff5a1f",
+      "image": "/tiles/emoji/baked/lava.png",
+      "category": "terrain",
+      "title": "Lava"
+    },
+    "ember": {
+      "char": "🔥",
+      "color": "#d2691e",
+      "image": "/tiles/emoji/baked/ember.png",
+      "category": "terrain",
+      "title": "Ember"
+    },
+    "spill": {
+      "char": "💧",
+      "color": "#5bbcff",
+      "image": "/tiles/emoji/baked/spill.png",
+      "category": "terrain",
+      "title": "Spill"
+    },
+    "boss": {
+      "char": "👹",
+      "color": "#c0392b",
+      "image": "/tiles/emoji/baked/boss.png",
+      "category": "units",
+      "title": "Boss"
+    },
+    "well": {
+      "char": "🪣",
+      "color": "#9bc4d8",
+      "image": "/tiles/emoji/baked/well.png",
+      "category": "buildings",
+      "title": "Well"
+    },
+    "connector": {
+      "char": "🌀",
+      "color": "#8a7bd8",
+      "image": "/tiles/emoji/baked/connector.png",
+      "category": "buildings",
+      "title": "Portal"
+    },
+    "arrow": {
+      "char": "➤",
+      "color": "#ffe9a8",
+      "image": "/tiles/emoji/baked/arrow.png",
+      "category": "units",
+      "title": "Arrow"
+    },
+    "bullet": {
+      "char": "•",
+      "color": "#d8d8d8",
+      "image": "/tiles/emoji/baked/bullet.png",
+      "category": "units",
+      "title": "Bullet"
+    },
+    "dart": {
+      "char": "→",
+      "color": "#ffe9a8",
+      "image": "/tiles/emoji/baked/dart.png",
+      "category": "units",
+      "title": "Bolt"
+    },
+    "fire-slash": {
+      "char": "🔥",
+      "color": "#ff7a2a",
+      "image": "/tiles/emoji/baked/fire-slash.png",
+      "category": "units",
+      "title": "Fire Slash"
+    },
+    "ice-slash": {
+      "char": "❄️",
+      "color": "#7fd0ff",
+      "image": "/tiles/emoji/baked/ice-slash.png",
+      "category": "units",
+      "title": "Ice Slash"
+    },
+    "cleave": {
+      "char": "💥",
+      "color": "#e6ebf3",
+      "image": "/tiles/emoji/baked/cleave.png",
+      "category": "units",
+      "title": "Cleave"
+    },
+    "bolt": {
+      "char": "🔮",
+      "color": "#ffe9a8",
+      "image": "/tiles/emoji/baked/bolt.png",
+      "category": "units",
+      "title": "Arcane Bolt"
+    },
+    "piercing-shot": {
+      "char": "🏹",
+      "color": "#cfd8e3",
+      "image": "/tiles/emoji/baked/piercing-shot.png",
+      "category": "units",
+      "title": "Piercing Shot"
+    },
+    "nova": {
+      "char": "💫",
+      "color": "#c08cff",
+      "image": "/tiles/emoji/baked/nova.png",
+      "category": "units",
+      "title": "Nova"
+    },
+    "lightning": {
+      "char": "⚡",
+      "color": "#7ad7ff",
+      "image": "/tiles/emoji/baked/lightning.png",
+      "category": "units",
+      "title": "Lightning"
+    },
+    "heal-glow": {
+      "char": "✨",
+      "color": "#8effa0",
+      "image": "/tiles/emoji/baked/heal-glow.png",
+      "category": "units",
+      "title": "Heal Glow"
+    },
+    "guard-flash": {
+      "char": "🛡️",
+      "color": "#9fd3ff",
+      "image": "/tiles/emoji/baked/guard-flash.png",
+      "category": "units",
+      "title": "Guard Flash"
+    },
+    "road": {
+      "char": "⬛",
+      "color": "#3d3d44",
+      "category": "terrain",
+      "title": "Road"
+    },
+    "grass-field": {
+      "char": "🍀",
+      "color": "#5faf4a",
+      "category": "terrain",
+      "title": "Grass",
+      "image": "/tiles/emoji/catalog/grass-field.png"
+    },
+    "dark-grass": {
+      "char": "🌿",
+      "color": "#3c7a2f",
+      "category": "terrain",
+      "title": "Dark Grass",
+      "image": "/tiles/emoji/catalog/dark-grass.png"
+    },
+    "shallow-water": {
+      "char": "🌊",
+      "color": "#4a90e2",
+      "category": "terrain",
+      "title": "Shallow Water",
+      "image": "/tiles/emoji/catalog/shallow-water.png"
+    },
+    "deep-water": {
+      "char": "🔵",
+      "color": "#1c5fa8",
+      "category": "terrain",
+      "title": "Deep Water",
+      "image": "/tiles/emoji/catalog/deep-water.png"
+    },
+    "beach-sand": {
+      "char": "🟨",
+      "color": "#e2c86b",
+      "category": "terrain",
+      "title": "Sand",
+      "image": "/tiles/emoji/catalog/beach-sand.png"
+    },
+    "desert": {
+      "char": "🏜️",
+      "color": "#d9b45f",
+      "category": "terrain",
+      "title": "Desert",
+      "image": "/tiles/emoji/catalog/desert.png"
+    },
+    "dirt-path": {
+      "char": "🟫",
+      "color": "#9c7b4d",
+      "category": "terrain",
+      "title": "Dirt Path",
+      "image": "/tiles/emoji/catalog/dirt-path.png"
+    },
+    "gravel": {
+      "char": "🟤",
+      "color": "#7c6a52",
+      "category": "terrain",
+      "title": "Gravel",
+      "image": "/tiles/emoji/catalog/gravel.png"
+    },
+    "cobblestone": {
+      "char": "⬜",
+      "color": "#b9b2a3",
+      "category": "terrain",
+      "title": "Cobblestone",
+      "image": "/tiles/emoji/catalog/cobblestone.png"
+    },
+    "snowflake": {
+      "char": "❄️",
+      "color": "#eaf4ff",
+      "category": "terrain",
+      "title": "Snowflake",
+      "image": "/tiles/emoji/catalog/snowflake.png"
+    },
+    "ice": {
+      "char": "🧊",
+      "color": "#a8d8f0",
+      "category": "terrain",
+      "title": "Ice",
+      "image": "/tiles/emoji/catalog/ice.png"
+    },
+    "volcano": {
+      "char": "🌋",
+      "color": "#b5372a",
+      "category": "terrain",
+      "title": "Volcano",
+      "image": "/tiles/emoji/catalog/volcano.png"
+    },
+    "mountain-slope": {
+      "char": "⛰️",
+      "color": "#8d8d97",
+      "category": "terrain",
+      "title": "Mountain",
+      "image": "/tiles/emoji/catalog/mountain-slope.png"
+    },
+    "snowy-peak": {
+      "char": "🏔️",
+      "color": "#cfd8e3",
+      "category": "terrain",
+      "title": "Snowy Peak",
+      "image": "/tiles/emoji/catalog/snowy-peak.png"
+    },
+    "pine-tree": {
+      "char": "🌲",
+      "color": "#2f8f3f",
+      "category": "nature",
+      "title": "Pine Tree",
+      "image": "/tiles/emoji/catalog/pine-tree.png"
+    },
+    "oak-tree": {
+      "char": "🌳",
+      "color": "#4caf50",
+      "category": "nature",
+      "title": "Oak Tree",
+      "image": "/tiles/emoji/catalog/oak-tree.png"
+    },
+    "palm-tree": {
+      "char": "🌴",
+      "color": "#4f9d5a",
+      "category": "nature",
+      "title": "Palm Tree",
+      "image": "/tiles/emoji/catalog/palm-tree.png"
+    },
+    "sapling": {
+      "char": "🌱",
+      "color": "#7cc36a",
+      "category": "nature",
+      "title": "Sapling",
+      "image": "/tiles/emoji/catalog/sapling.png"
+    },
+    "dead-tree": {
+      "char": "🪾",
+      "color": "#8a6f4a",
+      "category": "nature",
+      "title": "Dead Tree"
+    },
+    "cactus": {
+      "char": "🌵",
+      "color": "#4a8f3f",
+      "category": "nature",
+      "title": "Cactus",
+      "image": "/tiles/emoji/catalog/cactus.png"
+    },
+    "shrub": {
+      "char": "🌿",
+      "color": "#4fa03f",
+      "category": "nature",
+      "title": "Shrub",
+      "image": "/tiles/emoji/catalog/shrub.png"
+    },
+    "shamrock": {
+      "char": "☘️",
+      "color": "#3fa03f",
+      "category": "nature",
+      "title": "Shamrock",
+      "image": "/tiles/emoji/catalog/shamrock.png"
+    },
+    "clover": {
+      "char": "🍀",
+      "color": "#3c9a3a",
+      "category": "nature",
+      "title": "Four-Leaf Clover",
+      "image": "/tiles/emoji/catalog/clover.png"
+    },
+    "cherry-blossom": {
+      "char": "🌸",
+      "color": "#e785b5",
+      "category": "nature",
+      "title": "Cherry Blossom",
+      "image": "/tiles/emoji/catalog/cherry-blossom.png"
+    },
+    "tulip": {
+      "char": "🌷",
+      "color": "#e05a7a",
+      "category": "nature",
+      "title": "Tulip",
+      "image": "/tiles/emoji/catalog/tulip.png"
+    },
+    "rose": {
+      "char": "🌹",
+      "color": "#d13b3b",
+      "category": "nature",
+      "title": "Rose",
+      "image": "/tiles/emoji/catalog/rose.png"
+    },
+    "hibiscus": {
+      "char": "🌺",
+      "color": "#e5527a",
+      "category": "nature",
+      "title": "Hibiscus",
+      "image": "/tiles/emoji/catalog/hibiscus.png"
+    },
+    "sunflower": {
+      "char": "🌻",
+      "color": "#f2c33a",
+      "category": "nature",
+      "title": "Sunflower",
+      "image": "/tiles/emoji/catalog/sunflower.png"
+    },
+    "blossom": {
+      "char": "🌼",
+      "color": "#f2d84a",
+      "category": "nature",
+      "title": "Blossom",
+      "image": "/tiles/emoji/catalog/blossom.png"
+    },
+    "bouquet": {
+      "char": "💐",
+      "color": "#e57ba0",
+      "category": "nature",
+      "title": "Bouquet",
+      "image": "/tiles/emoji/catalog/bouquet.png"
+    },
+    "wilted-flower": {
+      "char": "🥀",
+      "color": "#9c6a7a",
+      "category": "nature",
+      "title": "Wilted Flower",
+      "image": "/tiles/emoji/catalog/wilted-flower.png"
+    },
+    "red-mushroom": {
+      "char": "🍄",
+      "color": "#d24a4a",
+      "category": "nature",
+      "title": "Red Mushroom",
+      "image": "/tiles/emoji/catalog/red-mushroom.png"
+    },
+    "boulder": {
+      "char": "🪨",
+      "color": "#8a8a8a",
+      "category": "nature",
+      "title": "Boulder",
+      "image": "/tiles/emoji/catalog/boulder.png",
+      "height": 1
+    },
+    "wood-log": {
+      "char": "🪵",
+      "color": "#a9793f",
+      "category": "nature",
+      "title": "Wood Log",
+      "image": "/tiles/emoji/catalog/wood-log.png"
+    },
+    "wheat": {
+      "char": "🌾",
+      "color": "#d9b25f",
+      "category": "nature",
+      "title": "Wheat",
+      "image": "/tiles/emoji/catalog/wheat.png"
+    },
+    "fallen-leaf": {
+      "char": "🍂",
+      "color": "#c8742f",
+      "category": "nature",
+      "title": "Fallen Leaf",
+      "image": "/tiles/emoji/catalog/fallen-leaf.png"
+    },
+    "maple-leaf": {
+      "char": "🍁",
+      "color": "#d0552a",
+      "category": "nature",
+      "title": "Maple Leaf",
+      "image": "/tiles/emoji/catalog/maple-leaf.png"
+    },
+    "coral": {
+      "char": "🪸",
+      "color": "#e06a5a",
+      "category": "nature",
+      "title": "Coral"
+    },
+    "seashell": {
+      "char": "🐚",
+      "color": "#f0c8a8",
+      "category": "nature",
+      "title": "Seashell",
+      "image": "/tiles/emoji/catalog/seashell.png"
+    },
+    "potted-plant": {
+      "char": "🪴",
+      "color": "#5a9a4a",
+      "category": "nature",
+      "title": "Potted Plant",
+      "image": "/tiles/emoji/catalog/potted-plant.png"
+    },
+    "cow": {
+      "char": "🐄",
+      "color": "#c9b8a8",
+      "category": "nature",
+      "title": "Cow",
+      "image": "/tiles/emoji/catalog/cow.png"
+    },
+    "sheep": {
+      "char": "🐑",
+      "color": "#e8e4dc",
+      "category": "nature",
+      "title": "Sheep",
+      "image": "/tiles/emoji/catalog/sheep.png"
+    },
+    "pig": {
+      "char": "🐖",
+      "color": "#e59ab0",
+      "category": "nature",
+      "title": "Pig",
+      "image": "/tiles/emoji/catalog/pig.png"
+    },
+    "goat": {
+      "char": "🐐",
+      "color": "#b8a888",
+      "category": "nature",
+      "title": "Goat",
+      "image": "/tiles/emoji/catalog/goat.png"
+    },
+    "horse": {
+      "char": "🐎",
+      "color": "#a9793f",
+      "category": "nature",
+      "title": "Horse",
+      "image": "/tiles/emoji/catalog/horse.png"
+    },
+    "chicken": {
+      "char": "🐓",
+      "color": "#d8663a",
+      "category": "nature",
+      "title": "Chicken",
+      "image": "/tiles/emoji/catalog/chicken.png"
+    },
+    "rabbit": {
+      "char": "🐇",
+      "color": "#d8cbb8",
+      "category": "nature",
+      "title": "Rabbit",
+      "image": "/tiles/emoji/catalog/rabbit.png"
+    },
+    "deer": {
+      "char": "🦌",
+      "color": "#a9763f",
+      "category": "nature",
+      "title": "Deer",
+      "image": "/tiles/emoji/catalog/deer.png"
+    },
+    "fox": {
+      "char": "🦊",
+      "color": "#e0863a",
+      "category": "nature",
+      "title": "Fox",
+      "image": "/tiles/emoji/catalog/fox.png"
+    },
+    "grey-wolf": {
+      "char": "🐺",
+      "color": "#8a8f9a",
+      "category": "nature",
+      "title": "Grey Wolf",
+      "image": "/tiles/emoji/catalog/grey-wolf.png"
+    },
+    "boar": {
+      "char": "🐗",
+      "color": "#7a6a5a",
+      "category": "nature",
+      "title": "Boar",
+      "image": "/tiles/emoji/catalog/boar.png"
+    },
+    "bear": {
+      "char": "🐻",
+      "color": "#8a5f3a",
+      "category": "nature",
+      "title": "Bear",
+      "image": "/tiles/emoji/catalog/bear.png"
+    },
+    "squirrel": {
+      "char": "🐿️",
+      "color": "#b5793a",
+      "category": "nature",
+      "title": "Squirrel",
+      "image": "/tiles/emoji/catalog/squirrel.png"
+    },
+    "hedgehog": {
+      "char": "🦔",
+      "color": "#a98f6a",
+      "category": "nature",
+      "title": "Hedgehog",
+      "image": "/tiles/emoji/catalog/hedgehog.png"
+    },
+    "turtle": {
+      "char": "🐢",
+      "color": "#4f8f5a",
+      "category": "nature",
+      "title": "Turtle",
+      "image": "/tiles/emoji/catalog/turtle.png"
+    },
+    "frog": {
+      "char": "🐸",
+      "color": "#5fa03f",
+      "category": "nature",
+      "title": "Frog",
+      "image": "/tiles/emoji/catalog/frog.png"
+    },
+    "snail": {
+      "char": "🐌",
+      "color": "#c8a06a",
+      "category": "nature",
+      "title": "Snail",
+      "image": "/tiles/emoji/catalog/snail.png"
+    },
+    "bird": {
+      "char": "🐦",
+      "color": "#5a8fc8",
+      "category": "nature",
+      "title": "Bird",
+      "image": "/tiles/emoji/catalog/bird.png"
+    },
+    "owl": {
+      "char": "🦉",
+      "color": "#a98f6a",
+      "category": "nature",
+      "title": "Owl",
+      "image": "/tiles/emoji/catalog/owl.png"
+    },
+    "duck": {
+      "char": "🦆",
+      "color": "#6a8f4a",
+      "category": "nature",
+      "title": "Duck",
+      "image": "/tiles/emoji/catalog/duck.png"
+    },
+    "dove": {
+      "char": "🕊️",
+      "color": "#e8e8e8",
+      "category": "nature",
+      "title": "Dove",
+      "image": "/tiles/emoji/catalog/dove.png"
+    },
+    "butterfly": {
+      "char": "🦋",
+      "color": "#6a9ad8",
+      "category": "nature",
+      "title": "Butterfly",
+      "image": "/tiles/emoji/catalog/butterfly.png"
+    },
+    "honeybee": {
+      "char": "🐝",
+      "color": "#e5b53a",
+      "category": "nature",
+      "title": "Honeybee",
+      "image": "/tiles/emoji/catalog/honeybee.png"
+    },
+    "ladybug": {
+      "char": "🐞",
+      "color": "#d13b3b",
+      "category": "nature",
+      "title": "Ladybug",
+      "image": "/tiles/emoji/catalog/ladybug.png"
+    },
+    "cat": {
+      "char": "🐈",
+      "color": "#c8964a",
+      "category": "nature",
+      "title": "Cat",
+      "image": "/tiles/emoji/catalog/cat.png"
+    },
+    "dog": {
+      "char": "🐕",
+      "color": "#b5854a",
+      "category": "nature",
+      "title": "Dog",
+      "image": "/tiles/emoji/catalog/dog.png"
+    },
+    "house": {
+      "char": "🏠",
+      "color": "#c8443c",
+      "category": "buildings",
+      "title": "House",
+      "image": "/tiles/emoji/catalog/house.png"
+    },
+    "house-garden": {
+      "char": "🏡",
+      "color": "#b5793a",
+      "category": "buildings",
+      "title": "House with Garden",
+      "image": "/tiles/emoji/catalog/house-garden.png"
+    },
+    "houses": {
+      "char": "🏘️",
+      "color": "#c86b4d",
+      "category": "buildings",
+      "title": "Houses",
+      "image": "/tiles/emoji/catalog/houses.png"
+    },
+    "derelict-house": {
+      "char": "🏚️",
+      "color": "#8a7a5f",
+      "category": "buildings",
+      "title": "Derelict House",
+      "image": "/tiles/emoji/catalog/derelict-house.png"
+    },
+    "office-building": {
+      "char": "🏢",
+      "color": "#7f8c9a",
+      "category": "buildings",
+      "title": "Office Building",
+      "image": "/tiles/emoji/catalog/office-building.png"
+    },
+    "department-store": {
+      "char": "🏬",
+      "color": "#b05a8a",
+      "category": "buildings",
+      "title": "Department Store",
+      "image": "/tiles/emoji/catalog/department-store.png"
+    },
+    "convenience-store": {
+      "char": "🏪",
+      "color": "#4a9ac8",
+      "category": "buildings",
+      "title": "Convenience Store",
+      "image": "/tiles/emoji/catalog/convenience-store.png"
+    },
+    "hospital": {
+      "char": "🏥",
+      "color": "#e05a5a",
+      "category": "buildings",
+      "title": "Hospital",
+      "image": "/tiles/emoji/catalog/hospital.png"
+    },
+    "bank": {
+      "char": "🏦",
+      "color": "#6a8f5a",
+      "category": "buildings",
+      "title": "Bank",
+      "image": "/tiles/emoji/catalog/bank.png"
+    },
+    "hotel": {
+      "char": "🏨",
+      "color": "#c89a4a",
+      "category": "buildings",
+      "title": "Hotel",
+      "image": "/tiles/emoji/catalog/hotel.png"
+    },
+    "school": {
+      "char": "🏫",
+      "color": "#d0a83a",
+      "category": "buildings",
+      "title": "School",
+      "image": "/tiles/emoji/catalog/school.png"
+    },
+    "classical-building": {
+      "char": "🏛️",
+      "color": "#cbb68c",
+      "category": "buildings",
+      "title": "Classical Building",
+      "image": "/tiles/emoji/catalog/classical-building.png"
+    },
+    "castle": {
+      "char": "🏰",
+      "color": "#9a8a7a",
+      "category": "buildings",
+      "title": "Castle",
+      "image": "/tiles/emoji/catalog/castle.png"
+    },
+    "japanese-castle": {
+      "char": "🏯",
+      "color": "#d9c8a8",
+      "category": "buildings",
+      "title": "Japanese Castle",
+      "image": "/tiles/emoji/catalog/japanese-castle.png"
+    },
+    "church": {
+      "char": "⛪",
+      "color": "#b0a89a",
+      "category": "buildings",
+      "title": "Church",
+      "image": "/tiles/emoji/catalog/church.png"
+    },
+    "mosque": {
+      "char": "🕌",
+      "color": "#8aa88a",
+      "category": "buildings",
+      "title": "Mosque",
+      "image": "/tiles/emoji/catalog/mosque.png"
+    },
+    "tower": {
+      "char": "🗼",
+      "color": "#d0553a",
+      "category": "buildings",
+      "title": "Tower",
+      "image": "/tiles/emoji/catalog/tower.png"
+    },
+    "torii-gate": {
+      "char": "⛩️",
+      "color": "#d0402a",
+      "category": "buildings",
+      "title": "Torii Gate",
+      "image": "/tiles/emoji/catalog/torii-gate.png"
+    },
+    "tent": {
+      "char": "⛺",
+      "color": "#7a9a5a",
+      "category": "buildings",
+      "title": "Tent",
+      "image": "/tiles/emoji/catalog/tent.png"
+    },
+    "factory": {
+      "char": "🏭",
+      "color": "#8a8a8a",
+      "category": "buildings",
+      "title": "Factory",
+      "image": "/tiles/emoji/catalog/factory.png"
+    },
+    "brick": {
+      "char": "🧱",
+      "color": "#b0603a",
+      "category": "buildings",
+      "title": "Brick",
+      "image": "/tiles/emoji/catalog/brick.png",
+      "height": 1
+    },
+    "wooden-door": {
+      "char": "🚪",
+      "color": "#5a3a22",
+      "category": "buildings",
+      "title": "Wooden Door",
+      "image": "/tiles/emoji/catalog/wooden-door.png"
+    },
+    "glass-window": {
+      "char": "🪟",
+      "color": "#7fb4d8",
+      "category": "buildings",
+      "title": "Glass Window",
+      "image": "/tiles/emoji/catalog/glass-window.png"
+    },
+    "stadium": {
+      "char": "🏟️",
+      "color": "#9a9a8a",
+      "category": "buildings",
+      "title": "Stadium",
+      "image": "/tiles/emoji/catalog/stadium.png"
+    },
+    "person": {
+      "char": "🧍",
+      "color": "#d9a066",
+      "category": "units",
+      "title": "Person",
+      "image": "/tiles/emoji/catalog/person.png"
+    },
+    "man": {
+      "char": "🧍‍♂️",
+      "color": "#6a8fd9",
+      "category": "units",
+      "title": "Man",
+      "image": "/tiles/emoji/catalog/man.png"
+    },
+    "woman": {
+      "char": "🧍‍♀️",
+      "color": "#d96a9a",
+      "category": "units",
+      "title": "Woman",
+      "image": "/tiles/emoji/catalog/woman.png"
+    },
+    "adult": {
+      "char": "🧑",
+      "color": "#d9a066",
+      "category": "units",
+      "title": "Adult",
+      "image": "/tiles/emoji/catalog/adult.png"
+    },
+    "boy": {
+      "char": "👦",
+      "color": "#e0b060",
+      "category": "units",
+      "title": "Boy",
+      "image": "/tiles/emoji/catalog/boy.png"
+    },
+    "girl": {
+      "char": "👧",
+      "color": "#e5a0b0",
+      "category": "units",
+      "title": "Girl",
+      "image": "/tiles/emoji/catalog/girl.png"
+    },
+    "old-man": {
+      "char": "👴",
+      "color": "#c8c8c8",
+      "category": "units",
+      "title": "Old Man",
+      "image": "/tiles/emoji/catalog/old-man.png"
+    },
+    "old-woman": {
+      "char": "👵",
+      "color": "#d0c0c8",
+      "category": "units",
+      "title": "Old Woman",
+      "image": "/tiles/emoji/catalog/old-woman.png"
+    },
+    "elder": {
+      "char": "🧓",
+      "color": "#cabfc0",
+      "category": "units",
+      "title": "Elder",
+      "image": "/tiles/emoji/catalog/elder.png"
+    },
+    "child": {
+      "char": "🧒",
+      "color": "#e5b878",
+      "category": "units",
+      "title": "Child",
+      "image": "/tiles/emoji/catalog/child.png"
+    },
+    "grey-alien": {
+      "char": "👽",
+      "color": "#8fd18a",
+      "category": "units",
+      "title": "Grey Alien",
+      "image": "/tiles/emoji/catalog/grey-alien.png"
+    },
+    "robot": {
+      "char": "🤖",
+      "color": "#9aa6b2",
+      "category": "units",
+      "title": "Robot",
+      "image": "/tiles/emoji/catalog/robot.png"
+    },
+    "mage": {
+      "char": "🧙",
+      "color": "#7a5ac0",
+      "category": "units",
+      "title": "Mage",
+      "image": "/tiles/emoji/catalog/mage.png"
+    },
+    "wizard": {
+      "char": "🧙‍♂️",
+      "color": "#6a4ab0",
+      "category": "units",
+      "title": "Wizard",
+      "image": "/tiles/emoji/catalog/wizard.png"
+    },
+    "witch": {
+      "char": "🧙‍♀️",
+      "color": "#9a5ac0",
+      "category": "units",
+      "title": "Witch",
+      "image": "/tiles/emoji/catalog/witch.png"
+    },
+    "elf": {
+      "char": "🧝",
+      "color": "#6ac07a",
+      "category": "units",
+      "title": "Elf",
+      "image": "/tiles/emoji/catalog/elf.png"
+    },
+    "ninja": {
+      "char": "🥷",
+      "color": "#3a3a4a",
+      "category": "units",
+      "title": "Ninja",
+      "image": "/tiles/emoji/catalog/ninja.png"
+    },
+    "guard": {
+      "char": "💂",
+      "color": "#c8443c",
+      "category": "units",
+      "title": "Guard",
+      "image": "/tiles/emoji/catalog/guard.png"
+    },
+    "prince": {
+      "char": "🤴",
+      "color": "#d0a83a",
+      "category": "units",
+      "title": "Prince",
+      "image": "/tiles/emoji/catalog/prince.png"
+    },
+    "princess": {
+      "char": "👸",
+      "color": "#e585b5",
+      "category": "units",
+      "title": "Princess",
+      "image": "/tiles/emoji/catalog/princess.png"
+    },
+    "police-officer": {
+      "char": "👮",
+      "color": "#4a6ac0",
+      "category": "units",
+      "title": "Police Officer",
+      "image": "/tiles/emoji/catalog/police-officer.png"
+    },
+    "construction-worker": {
+      "char": "👷",
+      "color": "#e5b03a",
+      "category": "units",
+      "title": "Construction Worker",
+      "image": "/tiles/emoji/catalog/construction-worker.png"
+    },
+    "vampire": {
+      "char": "🧛",
+      "color": "#8a4a6a",
+      "category": "units",
+      "title": "Vampire",
+      "image": "/tiles/emoji/catalog/vampire.png"
+    },
+    "zombie": {
+      "char": "🧟",
+      "color": "#6a8f5a",
+      "category": "units",
+      "title": "Zombie",
+      "image": "/tiles/emoji/catalog/zombie.png"
+    },
+    "troll": {
+      "char": "🧌",
+      "color": "#7a6a4a",
+      "category": "units",
+      "title": "Troll"
+    },
+    "guardian": {
+      "char": "🗿",
+      "color": "#8a8f80",
+      "category": "units",
+      "title": "Guardian",
+      "image": "/tiles/emoji/catalog/guardian.png"
+    },
+    "goblin": {
+      "char": "👺",
+      "color": "#c8443c",
+      "category": "units",
+      "title": "Goblin",
+      "image": "/tiles/emoji/catalog/goblin.png"
+    },
+    "ogre": {
+      "char": "👹",
+      "color": "#d0402a",
+      "category": "units",
+      "title": "Ogre",
+      "image": "/tiles/emoji/catalog/ogre.png"
+    },
+    "ghost": {
+      "char": "👻",
+      "color": "#e0e0f0",
+      "category": "units",
+      "title": "Ghost",
+      "image": "/tiles/emoji/catalog/ghost.png"
+    },
+    "skeleton": {
+      "char": "💀",
+      "color": "#e8e8e8",
+      "category": "units",
+      "title": "Skeleton",
+      "image": "/tiles/emoji/catalog/skeleton.png"
+    },
+    "skull": {
+      "char": "☠️",
+      "color": "#d8d8d8",
+      "category": "units",
+      "title": "Skull",
+      "image": "/tiles/emoji/catalog/skull.png"
+    },
+    "alien": {
+      "char": "👾",
+      "color": "#b45ac0",
+      "category": "units",
+      "title": "Alien",
+      "image": "/tiles/emoji/catalog/alien.png"
+    },
+    "pumpkin": {
+      "char": "🎃",
+      "color": "#e5842a",
+      "category": "units",
+      "title": "Jack-o-Lantern",
+      "image": "/tiles/emoji/catalog/pumpkin.png"
+    },
+    "dragon": {
+      "char": "🐉",
+      "color": "#4a9a5a",
+      "category": "units",
+      "title": "Dragon",
+      "image": "/tiles/emoji/catalog/dragon.png"
+    },
+    "wolf": {
+      "char": "🐺",
+      "color": "#8a8a9a",
+      "category": "units",
+      "title": "Wolf",
+      "image": "/tiles/emoji/catalog/wolf.png"
+    },
+    "bat": {
+      "char": "🦇",
+      "color": "#5a4a5a",
+      "category": "units",
+      "title": "Bat",
+      "image": "/tiles/emoji/catalog/bat.png"
+    },
+    "spider": {
+      "char": "🕷️",
+      "color": "#3a3a3a",
+      "category": "units",
+      "title": "Spider",
+      "image": "/tiles/emoji/catalog/spider.png"
+    }
+  },
+  "ascii": {
+    "id": "ascii",
+    "name": "ASCII",
+    "tiles": {
+      "tree_stem_bottom": {
+        "label": "tree_stem_bottom",
+        "glyph": "╨",
+        "position": "single",
+        "walkable": false,
+        "colorRole": "trunk"
+      },
+      "tree_stem": {
+        "label": "tree_stem",
+        "glyph": "│",
+        "position": "single",
+        "walkable": false,
+        "colorRole": "trunk"
+      },
+      "tree_leaf": {
+        "label": "tree_leaf",
+        "glyph": "@",
+        "position": "single",
+        "walkable": false,
+        "colorRole": "canopy"
+      },
+      "tree_crown": {
+        "label": "tree_crown",
+        "glyph": "♣",
+        "position": "single",
+        "walkable": false,
+        "colorRole": "canopy"
+      },
+      "tree_leaf_top": {
+        "label": "tree_leaf_top",
+        "glyph": "♣",
+        "position": "single",
+        "walkable": true,
+        "colorRole": "canopy"
+      },
+      "tree_snag": {
+        "label": "tree_snag",
+        "glyph": "Ψ",
+        "position": "single",
+        "walkable": false,
+        "colorRole": "trunk"
+      },
+      "tree_top_left": {
+        "label": "tree_top_left",
+        "glyph": "╔",
+        "position": "top_left",
+        "walkable": false,
+        "colorRole": "canopy"
+      },
+      "tree_top": {
+        "label": "tree_top",
+        "glyph": "╦",
+        "position": "top",
+        "walkable": false,
+        "colorRole": "canopy"
+      },
+      "tree_top_right": {
+        "label": "tree_top_right",
+        "glyph": "╗",
+        "position": "top_right",
+        "walkable": false,
+        "colorRole": "canopy"
+      },
+      "tree_edge_left": {
+        "label": "tree_edge_left",
+        "glyph": "╠",
+        "position": "left",
+        "walkable": false,
+        "colorRole": "canopy"
+      },
+      "tree_interior": {
+        "label": "tree_interior",
+        "glyph": "@",
+        "position": "center",
+        "walkable": false,
+        "colorRole": "canopy"
+      },
+      "tree_edge_right": {
+        "label": "tree_edge_right",
+        "glyph": "╣",
+        "position": "right",
+        "walkable": false,
+        "colorRole": "canopy"
+      },
+      "tree_bottom_left": {
+        "label": "tree_bottom_left",
+        "glyph": "╚",
+        "position": "bottom_left",
+        "walkable": false,
+        "colorRole": "canopy"
+      },
+      "tree_bottom": {
+        "label": "tree_bottom",
+        "glyph": "╩",
+        "position": "bottom",
+        "walkable": false,
+        "colorRole": "canopy"
+      },
+      "tree_bottom_right": {
+        "label": "tree_bottom_right",
+        "glyph": "╝",
+        "position": "bottom_right",
+        "walkable": false,
+        "colorRole": "canopy"
+      },
+      "roof_top": {
+        "label": "roof_top",
+        "glyph": "▔",
+        "position": "single",
+        "walkable": true,
+        "colorRole": "building.roof"
+      },
+      "roof": {
+        "label": "roof",
+        "glyph": "▀",
+        "position": "single",
+        "walkable": false,
+        "colorRole": "building.roof",
+        "category": "buildings",
+        "title": "Roof"
+      },
+      "wall": {
+        "label": "wall",
+        "glyph": "█",
+        "position": "single",
+        "walkable": false,
+        "colorRole": "building.wall",
+        "category": "buildings",
+        "title": "Wall"
+      },
+      "door": {
+        "label": "door",
+        "glyph": "╫",
+        "position": "single",
+        "walkable": false,
+        "colorRole": "building.door",
+        "category": "buildings",
+        "title": "Door"
+      },
+      "window": {
+        "label": "window",
+        "glyph": "▒",
+        "position": "single",
+        "walkable": false,
+        "colorRole": "building.window",
+        "category": "buildings",
+        "title": "Window"
+      },
+      "mountain": {
+        "label": "mountain",
+        "glyph": "▲",
+        "position": "single",
+        "walkable": false,
+        "colorRole": "feature.mountain",
+        "category": "terrain",
+        "title": "Mountain"
+      },
+      "peak": {
+        "label": "peak",
+        "glyph": "▲",
+        "position": "single",
+        "walkable": false,
+        "colorRole": "feature.peak"
+      },
+      "spill": {
+        "label": "spill",
+        "glyph": "‖",
+        "position": "single",
+        "walkable": false,
+        "colorRole": "feature.spill"
+      },
+      "sword": {
+        "label": "sword",
+        "glyph": "Ɨ",
+        "position": "single",
+        "walkable": false,
+        "colorRole": "weapon",
+        "pose": {
+          "rot": 3.141592653589793,
+          "flip": true,
+          "scale": 1.7,
+          "dy": 0.765
+        }
+      },
+      "bow": {
+        "label": "bow",
+        "glyph": "}",
+        "position": "single",
+        "walkable": false,
+        "colorRole": "weapon",
+        "pose": {
+          "rot": 3.141592653589793,
+          "flip": true,
+          "scale": 1.7,
+          "dy": 0.765
+        }
+      },
+      "gun": {
+        "label": "gun",
+        "glyph": "¬",
+        "position": "single",
+        "walkable": false,
+        "colorRole": "weapon",
+        "pose": {
+          "rot": 3.141592653589793,
+          "flip": true,
+          "scale": 1.7,
+          "dy": 0.765
+        }
+      },
+      "axe": {
+        "label": "axe",
+        "glyph": "T",
+        "position": "single",
+        "walkable": false,
+        "colorRole": "weapon",
+        "pose": {
+          "rot": 3.141592653589793,
+          "flip": true,
+          "scale": 1.7,
+          "dy": 0.765
+        }
+      },
+      "staff": {
+        "label": "staff",
+        "glyph": "i",
+        "position": "single",
+        "walkable": false,
+        "colorRole": "weapon",
+        "pose": {
+          "rot": 3.141592653589793,
+          "flip": true,
+          "scale": 1.7,
+          "dy": 0.765
+        }
+      },
+      "shield": {
+        "label": "shield",
+        "glyph": "O",
+        "position": "single",
+        "walkable": false,
+        "colorRole": "weapon",
+        "pose": {
+          "rot": 3.141592653589793,
+          "flip": true,
+          "scale": 1.7,
+          "dy": 0.765
+        }
+      },
+      "grass": {
+        "label": "grass",
+        "glyph": "\"",
+        "category": "terrain",
+        "title": "Grass",
+        "position": "single",
+        "walkable": true
+      },
+      "water": {
+        "label": "water",
+        "glyph": "≈",
+        "category": "terrain",
+        "title": "Water",
+        "position": "single",
+        "walkable": true
+      },
+      "path": {
+        "label": "path",
+        "glyph": "░",
+        "category": "terrain",
+        "title": "Path",
+        "position": "single",
+        "walkable": true
+      },
+      "plaza": {
+        "label": "plaza",
+        "glyph": "#",
+        "category": "terrain",
+        "title": "Plaza",
+        "position": "single",
+        "walkable": true
+      },
+      "sand": {
+        "label": "sand",
+        "glyph": "∴",
+        "category": "terrain",
+        "title": "Sand",
+        "position": "single",
+        "walkable": true
+      },
+      "cavefloor": {
+        "label": "cavefloor",
+        "glyph": ":",
+        "category": "terrain",
+        "title": "Cave Floor",
+        "position": "single",
+        "walkable": true
+      },
+      "moss": {
+        "label": "moss",
+        "glyph": ",",
+        "category": "terrain",
+        "title": "Moss",
+        "position": "single",
+        "walkable": true
+      },
+      "pillar": {
+        "label": "pillar",
+        "glyph": "║",
+        "category": "buildings",
+        "title": "Pillar",
+        "position": "single",
+        "walkable": true
+      },
+      "altar": {
+        "label": "altar",
+        "glyph": "‡",
+        "category": "buildings",
+        "title": "Altar",
+        "position": "single",
+        "walkable": true
+      },
+      "tree": {
+        "label": "tree",
+        "glyph": "♣",
+        "category": "nature",
+        "title": "Tree",
+        "position": "single",
+        "walkable": true
+      },
+      "flower": {
+        "label": "flower",
+        "glyph": "+",
+        "category": "nature",
+        "title": "Flower",
+        "position": "single",
+        "walkable": true
+      },
+      "bush": {
+        "label": "bush",
+        "glyph": "*",
+        "category": "nature",
+        "title": "Bush",
+        "position": "single",
+        "walkable": true
+      },
+      "rock": {
+        "label": "rock",
+        "glyph": "O",
+        "category": "nature",
+        "title": "Rock",
+        "position": "single",
+        "walkable": true
+      },
+      "crate": {
+        "label": "crate",
+        "glyph": "$",
+        "category": "nature",
+        "title": "Crate",
+        "position": "single",
+        "walkable": true
+      },
+      "lamp": {
+        "label": "lamp",
+        "glyph": "!",
+        "category": "nature",
+        "title": "Lamp",
+        "position": "single",
+        "walkable": true
+      },
+      "crystal": {
+        "label": "crystal",
+        "glyph": "◆",
+        "category": "nature",
+        "title": "Crystal",
+        "position": "single",
+        "walkable": true
+      },
+      "mushroom": {
+        "label": "mushroom",
+        "glyph": "♠",
+        "category": "nature",
+        "title": "Mushroom",
+        "position": "single",
+        "walkable": true
+      },
+      "torch": {
+        "label": "torch",
+        "glyph": "ϯ",
+        "category": "nature",
+        "title": "Torch",
+        "position": "single",
+        "walkable": true
+      },
+      "hazard": {
+        "label": "hazard",
+        "glyph": "▲",
+        "category": "nature",
+        "title": "Hazard",
+        "position": "single",
+        "walkable": true
+      },
+      "key": {
+        "label": "key",
+        "glyph": "⚷",
+        "category": "nature",
+        "title": "Key",
+        "position": "single",
+        "walkable": true
+      },
+      "enemy": {
+        "label": "enemy",
+        "glyph": "&",
+        "category": "units",
+        "title": "Enemy",
+        "position": "single",
+        "walkable": true
+      },
+      "npc": {
+        "label": "npc",
+        "glyph": "☺",
+        "category": "units",
+        "title": "NPC",
+        "position": "single",
+        "walkable": true
+      },
+      "player": {
+        "label": "player",
+        "glyph": "@",
+        "category": "units",
+        "title": "Player",
+        "position": "single",
+        "walkable": true
+      }
+    },
+    "palettes": {
+      "spring": {
+        "trunk": "#7a5a3a",
+        "canopy": [
+          "#7cc46a",
+          "#9ed87f",
+          "#5fae4f",
+          "#e79ec8"
+        ],
+        "building": {
+          "roof": "#c06a4a",
+          "wall": "#ddd0a8",
+          "door": "#6a4220",
+          "window": "#bfe0c8"
+        },
+        "feature": {
+          "mountain": "#8a8a8a",
+          "peak": "#eef4f8",
+          "spill": "#5bbcff"
+        }
+      },
+      "summer": {
+        "trunk": "#6b4a2b",
+        "canopy": [
+          "#2e8b2e",
+          "#1f6b1f",
+          "#3fb53f",
+          "#246b24"
+        ],
+        "building": {
+          "roof": "#8a4a30",
+          "wall": "#c8a878",
+          "door": "#5a3a1a",
+          "window": "#a8d0e8"
+        },
+        "feature": {
+          "mountain": "#7d7d7d",
+          "peak": "#e6edf2",
+          "spill": "#5bbcff"
+        }
+      },
+      "autumn": {
+        "trunk": "#5a3a20",
+        "canopy": [
+          "#d2691e",
+          "#c0531a",
+          "#e0a020",
+          "#9c4a1e"
+        ],
+        "building": {
+          "roof": "#9c4018",
+          "wall": "#b87e44",
+          "door": "#4a2a12",
+          "window": "#e8c060"
+        },
+        "feature": {
+          "mountain": "#8a7a6a",
+          "peak": "#e6dcc8",
+          "spill": "#5bbcff"
+        }
+      },
+      "winter": {
+        "trunk": "#8fa3b5",
+        "canopy": [
+          "#cfe0ea",
+          "#aac4d8",
+          "#e8f2fa",
+          "#9fbccb"
+        ],
+        "building": {
+          "roof": "#4a6a8a",
+          "wall": "#aac4d8",
+          "door": "#2a3a4a",
+          "window": "#dff0ff"
+        },
+        "feature": {
+          "mountain": "#8fa6b8",
+          "peak": "#eef6ff",
+          "spill": "#bfe8f5"
+        }
+      },
+      "desert": {
+        "trunk": "#a98a4f",
+        "canopy": [
+          "#9a8f5a",
+          "#b3a86b",
+          "#7d7448",
+          "#c7bd80"
+        ],
+        "building": {
+          "roof": "#c2914a",
+          "wall": "#d8c089",
+          "door": "#7a5a2a",
+          "window": "#a8d0e8"
+        },
+        "feature": {
+          "mountain": "#c2a35a",
+          "peak": "#e8d49a",
+          "spill": "#5bbcff"
+        }
+      },
+      "beach": {
+        "trunk": "#8a6a3a",
+        "canopy": [
+          "#4fae6a",
+          "#6fc888",
+          "#3c8f54",
+          "#86d49e"
+        ],
+        "building": {
+          "roof": "#c98a52",
+          "wall": "#e0cf9a",
+          "door": "#6a4a24",
+          "window": "#bfe8f5"
+        },
+        "feature": {
+          "mountain": "#b8a070",
+          "peak": "#efe4c2",
+          "spill": "#5bbcff"
+        }
+      },
+      "lava": {
+        "trunk": "#2b2420",
+        "canopy": [
+          "#3e3942",
+          "#4a4350",
+          "#2e2b33",
+          "#544754"
+        ],
+        "building": {
+          "roof": "#5a2a20",
+          "wall": "#4a4038",
+          "door": "#1a1410",
+          "window": "#ff8050"
+        },
+        "feature": {
+          "mountain": "#3a2a25",
+          "peak": "#ff5a1f",
+          "spill": "#ff8a30"
+        }
+      }
+    },
+    "terrain": {
+      "grass": {
+        "char": [
+          ";",
+          ","
+        ],
+        "fg": [
+          "rgba(154, 196, 84, 0.9)",
+          "rgba(146, 188, 78, 0.9)"
+        ],
+        "bg": [
+          "rgba(96, 134, 52, 0.95)",
+          "rgba(90, 126, 48, 0.95)"
+        ]
+      },
+      "grass_tall": {
+        "char": [
+          "\"",
+          "\""
+        ],
+        "fg": [
+          "rgba(120, 172, 60, 0.92)",
+          "rgba(112, 164, 56, 0.92)"
+        ],
+        "bg": [
+          "rgba(72, 108, 40, 0.95)",
+          "rgba(66, 100, 36, 0.95)"
+        ]
+      },
+      "rock": {
+        "char": [
+          "▓",
+          "▒"
+        ],
+        "fg": [
+          "rgba(140, 78, 56, 0.85)",
+          "rgba(120, 66, 48, 0.8)"
+        ],
+        "bg": [
+          "rgba(50, 30, 26, 0.96)",
+          "rgba(42, 26, 22, 0.93)"
+        ]
+      },
+      "basalt": {
+        "char": [
+          "#",
+          "▓"
+        ],
+        "fg": [
+          "rgba(110, 58, 48, 0.8)",
+          "rgba(90, 48, 40, 0.75)"
+        ],
+        "bg": [
+          "rgba(26, 16, 15, 0.97)",
+          "rgba(20, 12, 12, 0.96)"
+        ]
+      },
+      "frost": {
+        "char": [
+          "*",
+          "+"
+        ],
+        "fg": [
+          "rgba(210, 235, 255, 0.9)",
+          "rgba(195, 225, 250, 0.85)"
+        ],
+        "bg": [
+          "rgba(170, 200, 225, 0.92)",
+          "rgba(155, 188, 215, 0.9)"
+        ]
+      },
+      "ice_water": {
+        "char": [
+          "~",
+          "≈"
+        ],
+        "fg": [
+          "rgba(120, 200, 255, 0.9)",
+          "rgba(100, 185, 245, 0.85)"
+        ],
+        "bg": [
+          "rgba(40, 90, 150, 0.95)",
+          "rgba(30, 75, 135, 0.92)"
+        ]
+      },
+      "road": {
+        "char": [
+          "=",
+          "="
+        ],
+        "fg": [
+          "rgba(194, 165, 92, 0.8)",
+          "rgba(180, 150, 80, 0.85)"
+        ],
+        "bg": [
+          "rgba(120, 100, 60, 0.9)",
+          "rgba(100, 80, 50, 0.85)"
+        ]
+      },
+      "road_center": {
+        "char": [
+          "=",
+          "="
+        ],
+        "fg": [
+          "rgba(220, 200, 140, 0.85)",
+          "rgba(210, 190, 130, 0.8)"
+        ],
+        "bg": [
+          "rgba(150, 130, 90, 0.92)",
+          "rgba(140, 120, 80, 0.88)"
+        ]
+      },
+      "road_edge": {
+        "char": [
+          "-",
+          "-"
+        ],
+        "fg": [
+          "rgba(140, 120, 70, 0.8)",
+          "rgba(130, 110, 60, 0.75)"
+        ],
+        "bg": [
+          "rgba(80, 65, 40, 0.92)",
+          "rgba(70, 55, 35, 0.88)"
+        ]
+      },
+      "plaza": {
+        "char": [
+          "#",
+          "#"
+        ],
+        "fg": [
+          "rgba(252, 247, 241, 0.8)",
+          "rgba(240, 230, 210, 0.85)"
+        ],
+        "bg": [
+          "rgba(180, 150, 100, 0.9)",
+          "rgba(160, 130, 85, 0.85)"
+        ]
+      },
+      "water": {
+        "char": [
+          "~",
+          "~"
+        ],
+        "fg": [
+          "rgba(85, 187, 255, 0.9)",
+          "rgba(68, 170, 238, 0.85)"
+        ],
+        "bg": [
+          "rgba(17, 85, 170, 0.95)",
+          "rgba(0, 68, 136, 0.9)"
+        ]
+      },
+      "water_deep": {
+        "char": [
+          "≈",
+          "≈"
+        ],
+        "fg": [
+          "rgba(17, 68, 170, 0.9)",
+          "rgba(0, 51, 170, 0.85)"
+        ],
+        "bg": [
+          "rgba(10, 34, 85, 0.95)",
+          "rgba(8, 26, 68, 0.9)"
+        ]
+      },
+      "water_shallow": {
+        "char": [
+          "~",
+          "~"
+        ],
+        "fg": [
+          "rgba(68, 136, 221, 0.85)",
+          "rgba(85, 153, 238, 0.8)"
+        ],
+        "bg": [
+          "rgba(34, 102, 170, 0.9)",
+          "rgba(51, 119, 187, 0.85)"
+        ]
+      },
+      "bridge": {
+        "char": [
+          "=",
+          "|"
+        ],
+        "fg": [
+          "rgba(187, 136, 68, 0.9)",
+          "rgba(170, 119, 51, 0.85)"
+        ],
+        "bg": [
+          "rgba(102, 68, 34, 0.95)",
+          "rgba(85, 51, 17, 0.9)"
+        ]
+      },
+      "cliff": {
+        "char": [
+          "▀",
+          "▀"
+        ],
+        "fg": [
+          "rgba(255, 212, 58, 0.9)",
+          "rgba(243, 191, 54, 0.85)"
+        ],
+        "bg": [
+          "rgba(173, 134, 33, 0.95)",
+          "rgba(150, 110, 30, 0.9)"
+        ]
+      },
+      "cliff_face": {
+        "char": [
+          "█",
+          "▓"
+        ],
+        "fg": [
+          "rgba(139, 105, 20, 0.9)",
+          "rgba(120, 88, 16, 0.85)"
+        ],
+        "bg": [
+          "rgba(90, 69, 16, 0.95)",
+          "rgba(74, 53, 10, 0.9)"
+        ]
+      },
+      "stairs": {
+        "char": [
+          "≡",
+          "≡"
+        ],
+        "fg": [
+          "rgba(153, 136, 102, 0.85)",
+          "rgba(136, 119, 85, 0.8)"
+        ],
+        "bg": [
+          "rgba(85, 68, 51, 0.9)",
+          "rgba(68, 51, 34, 0.85)"
+        ]
+      },
+      "path_stone": {
+        "char": [
+          "░",
+          "▒"
+        ],
+        "fg": [
+          "rgba(204, 187, 170, 0.85)",
+          "rgba(187, 170, 153, 0.8)"
+        ],
+        "bg": [
+          "rgba(153, 136, 119, 0.9)",
+          "rgba(136, 119, 102, 0.85)"
+        ]
+      },
+      "path_dirt": {
+        "char": [
+          "·",
+          "·"
+        ],
+        "fg": [
+          "rgba(170, 153, 119, 0.85)",
+          "rgba(153, 136, 102, 0.8)"
+        ],
+        "bg": [
+          "rgba(119, 102, 85, 0.9)",
+          "rgba(102, 85, 68, 0.85)"
+        ]
+      },
+      "snow": {
+        "char": [
+          "*",
+          "·"
+        ],
+        "fg": [
+          "rgba(240, 248, 255, 0.95)",
+          "rgba(230, 240, 250, 0.90)"
+        ],
+        "bg": [
+          "rgba(200, 220, 240, 0.95)",
+          "rgba(190, 210, 235, 0.92)"
+        ]
+      },
+      "snow_deep": {
+        "char": [
+          "≋",
+          "≡"
+        ],
+        "fg": [
+          "rgba(255, 255, 255, 0.95)",
+          "rgba(245, 250, 255, 0.92)"
+        ],
+        "bg": [
+          "rgba(180, 200, 225, 0.95)",
+          "rgba(170, 195, 220, 0.92)"
+        ]
+      },
+      "ice": {
+        "char": [
+          "◊",
+          "◇"
+        ],
+        "fg": [
+          "rgba(150, 220, 255, 0.95)",
+          "rgba(130, 210, 250, 0.92)"
+        ],
+        "bg": [
+          "rgba(80, 160, 220, 0.95)",
+          "rgba(70, 150, 210, 0.92)"
+        ]
+      },
+      "ice_cracked": {
+        "char": [
+          "╳",
+          "╬"
+        ],
+        "fg": [
+          "rgba(180, 230, 255, 0.95)",
+          "rgba(160, 220, 250, 0.92)"
+        ],
+        "bg": [
+          "rgba(100, 170, 220, 0.95)",
+          "rgba(90, 160, 215, 0.92)"
+        ]
+      },
+      "frozen_water": {
+        "char": [
+          "~",
+          "≈"
+        ],
+        "fg": [
+          "rgba(160, 210, 250, 0.85)",
+          "rgba(140, 200, 245, 0.82)"
+        ],
+        "bg": [
+          "rgba(80, 140, 200, 0.95)",
+          "rgba(70, 130, 195, 0.92)"
+        ]
+      },
+      "snow_path": {
+        "char": [
+          ":",
+          ":"
+        ],
+        "fg": [
+          "rgba(210, 220, 235, 0.85)",
+          "rgba(200, 215, 230, 0.82)"
+        ],
+        "bg": [
+          "rgba(160, 175, 200, 0.95)",
+          "rgba(150, 170, 195, 0.92)"
+        ]
+      },
+      "sand": {
+        "char": [
+          ".",
+          "·"
+        ],
+        "fg": [
+          "rgba(255, 220, 150, 0.90)",
+          "rgba(250, 210, 140, 0.88)"
+        ],
+        "bg": [
+          "rgba(220, 180, 100, 0.95)",
+          "rgba(210, 170, 95, 0.92)"
+        ]
+      },
+      "sand_dune": {
+        "char": [
+          "~",
+          "∿"
+        ],
+        "fg": [
+          "rgba(255, 230, 170, 0.90)",
+          "rgba(250, 220, 160, 0.88)"
+        ],
+        "bg": [
+          "rgba(200, 160, 90, 0.95)",
+          "rgba(190, 150, 85, 0.92)"
+        ]
+      },
+      "sandstone": {
+        "char": [
+          "▓",
+          "▒"
+        ],
+        "fg": [
+          "rgba(230, 190, 130, 0.90)",
+          "rgba(220, 180, 120, 0.88)"
+        ],
+        "bg": [
+          "rgba(180, 140, 80, 0.95)",
+          "rgba(170, 130, 75, 0.92)"
+        ]
+      },
+      "oasis": {
+        "char": [
+          "~",
+          "≈"
+        ],
+        "fg": [
+          "rgba(50, 180, 200, 0.90)",
+          "rgba(40, 170, 190, 0.88)"
+        ],
+        "bg": [
+          "rgba(20, 120, 150, 0.95)",
+          "rgba(15, 110, 140, 0.92)"
+        ]
+      },
+      "desert_road": {
+        "char": [
+          "=",
+          "-"
+        ],
+        "fg": [
+          "rgba(200, 170, 120, 0.85)",
+          "rgba(190, 160, 110, 0.82)"
+        ],
+        "bg": [
+          "rgba(150, 120, 70, 0.95)",
+          "rgba(140, 110, 65, 0.92)"
+        ]
+      },
+      "lava": {
+        "char": [
+          "≈",
+          "∿"
+        ],
+        "fg": [
+          "rgba(255, 200, 50, 0.95)",
+          "rgba(255, 180, 30, 0.92)"
+        ],
+        "bg": [
+          "rgba(200, 80, 20, 0.98)",
+          "rgba(180, 60, 15, 0.95)"
+        ]
+      },
+      "magma": {
+        "char": [
+          "▓",
+          "█"
+        ],
+        "fg": [
+          "rgba(255, 150, 30, 0.95)",
+          "rgba(255, 130, 20, 0.92)"
+        ],
+        "bg": [
+          "rgba(150, 40, 10, 0.98)",
+          "rgba(130, 30, 5, 0.95)"
+        ]
+      },
+      "obsidian": {
+        "char": [
+          "■",
+          "▪"
+        ],
+        "fg": [
+          "rgba(80, 60, 80, 0.90)",
+          "rgba(70, 50, 70, 0.88)"
+        ],
+        "bg": [
+          "rgba(30, 20, 35, 0.98)",
+          "rgba(25, 15, 30, 0.95)"
+        ]
+      },
+      "volcanic_rock": {
+        "char": [
+          "▒",
+          "░"
+        ],
+        "fg": [
+          "rgba(100, 70, 50, 0.90)",
+          "rgba(90, 60, 45, 0.88)"
+        ],
+        "bg": [
+          "rgba(50, 35, 25, 0.98)",
+          "rgba(45, 30, 20, 0.95)"
+        ]
+      },
+      "ash": {
+        "char": [
+          "░",
+          "·"
+        ],
+        "fg": [
+          "rgba(150, 96, 74, 0.6)",
+          "rgba(128, 82, 64, 0.55)"
+        ],
+        "bg": [
+          "rgba(38, 28, 25, 0.97)",
+          "rgba(30, 22, 19, 0.96)"
+        ]
+      },
+      "autumn_ground": {
+        "char": [
+          "·",
+          "„"
+        ],
+        "fg": [
+          "rgba(176, 122, 70, 0.85)",
+          "rgba(156, 104, 58, 0.8)"
+        ],
+        "bg": [
+          "rgba(74, 50, 30, 0.95)",
+          "rgba(64, 42, 24, 0.92)"
+        ]
+      },
+      "autumn_leaves": {
+        "char": [
+          ";",
+          ","
+        ],
+        "fg": [
+          "rgba(210, 120, 45, 0.9)",
+          "rgba(190, 90, 40, 0.85)"
+        ],
+        "bg": [
+          "rgba(86, 52, 26, 0.95)",
+          "rgba(72, 44, 22, 0.92)"
+        ]
+      },
+      "cave_floor": {
+        "char": [
+          "░",
+          "▒"
+        ],
+        "fg": [
+          "rgba(130, 120, 110, 0.90)",
+          "rgba(120, 110, 100, 0.88)"
+        ],
+        "bg": [
+          "rgba(70, 65, 60, 0.95)",
+          "rgba(60, 55, 50, 0.92)"
+        ]
+      },
+      "cave_moss": {
+        "char": [
+          "~",
+          "≈"
+        ],
+        "fg": [
+          "rgba(80, 140, 70, 0.90)",
+          "rgba(70, 130, 60, 0.88)"
+        ],
+        "bg": [
+          "rgba(40, 80, 35, 0.95)",
+          "rgba(35, 70, 30, 0.92)"
+        ]
+      },
+      "crystal": {
+        "char": [
+          "◆",
+          "◇"
+        ],
+        "fg": [
+          "rgba(200, 150, 255, 0.95)",
+          "rgba(180, 130, 250, 0.92)"
+        ],
+        "bg": [
+          "rgba(100, 60, 150, 0.95)",
+          "rgba(90, 50, 140, 0.92)"
+        ]
+      },
+      "ancient_stone": {
+        "char": [
+          "▓",
+          "▒"
+        ],
+        "fg": [
+          "rgba(140, 130, 100, 0.90)",
+          "rgba(130, 120, 90, 0.88)"
+        ],
+        "bg": [
+          "rgba(80, 75, 60, 0.95)",
+          "rgba(70, 65, 50, 0.92)"
+        ]
+      },
+      "rune_floor": {
+        "char": [
+          "☆",
+          "✧"
+        ],
+        "fg": [
+          "rgba(100, 200, 255, 0.95)",
+          "rgba(80, 180, 250, 0.92)"
+        ],
+        "bg": [
+          "rgba(50, 50, 70, 0.95)",
+          "rgba(40, 40, 60, 0.92)"
+        ]
+      },
+      "temple_floor": {
+        "char": [
+          "▫",
+          "·"
+        ],
+        "fg": [
+          "rgba(206, 192, 158, 0.90)",
+          "rgba(194, 180, 146, 0.88)"
+        ],
+        "bg": [
+          "rgba(108, 100, 78, 0.95)",
+          "rgba(98, 90, 70, 0.92)"
+        ]
+      },
+      "sand_trap": {
+        "char": [
+          "≈",
+          "∴"
+        ],
+        "fg": [
+          "rgba(200, 168, 96, 0.90)",
+          "rgba(186, 154, 84, 0.88)"
+        ],
+        "bg": [
+          "rgba(150, 116, 56, 0.96)",
+          "rgba(134, 102, 48, 0.93)"
+        ]
+      },
+      "crypt_floor": {
+        "char": [
+          "▓",
+          "▒"
+        ],
+        "fg": [
+          "rgba(100, 95, 90, 0.90)",
+          "rgba(90, 85, 80, 0.88)"
+        ],
+        "bg": [
+          "rgba(50, 48, 45, 0.98)",
+          "rgba(45, 43, 40, 0.95)"
+        ]
+      },
+      "dead_grass": {
+        "char": [
+          ",",
+          ";"
+        ],
+        "fg": [
+          "rgba(140, 130, 90, 0.85)",
+          "rgba(130, 120, 80, 0.82)"
+        ],
+        "bg": [
+          "rgba(80, 75, 50, 0.95)",
+          "rgba(70, 65, 45, 0.92)"
+        ]
+      },
+      "grave_dirt": {
+        "char": [
+          "·",
+          "."
+        ],
+        "fg": [
+          "rgba(100, 85, 65, 0.85)",
+          "rgba(90, 75, 55, 0.82)"
+        ],
+        "bg": [
+          "rgba(55, 45, 35, 0.95)",
+          "rgba(50, 40, 30, 0.92)"
+        ]
+      },
+      "coral": {
+        "char": [
+          "※",
+          "❋"
+        ],
+        "fg": [
+          "rgba(255, 150, 180, 0.95)",
+          "rgba(255, 130, 160, 0.92)"
+        ],
+        "bg": [
+          "rgba(180, 80, 120, 0.95)",
+          "rgba(160, 70, 100, 0.92)"
+        ]
+      },
+      "seaweed": {
+        "char": [
+          "~",
+          "≋"
+        ],
+        "fg": [
+          "rgba(60, 180, 120, 0.90)",
+          "rgba(50, 170, 110, 0.88)"
+        ],
+        "bg": [
+          "rgba(30, 100, 70, 0.95)",
+          "rgba(25, 90, 60, 0.92)"
+        ]
+      },
+      "seafloor": {
+        "char": [
+          ".",
+          "·"
+        ],
+        "fg": [
+          "rgba(100, 150, 180, 0.85)",
+          "rgba(90, 140, 170, 0.82)"
+        ],
+        "bg": [
+          "rgba(40, 70, 100, 0.95)",
+          "rgba(35, 60, 90, 0.92)"
+        ]
+      },
+      "terracotta": {
+        "char": [
+          "▓",
+          "▒"
+        ],
+        "fg": [
+          "rgba(220, 140, 100, 0.90)",
+          "rgba(210, 130, 90, 0.88)"
+        ],
+        "bg": [
+          "rgba(180, 100, 60, 0.95)",
+          "rgba(170, 90, 55, 0.92)"
+        ]
+      },
+      "marble": {
+        "char": [
+          "░",
+          "▒"
+        ],
+        "fg": [
+          "rgba(250, 248, 245, 0.90)",
+          "rgba(245, 243, 240, 0.88)"
+        ],
+        "bg": [
+          "rgba(230, 225, 220, 0.95)",
+          "rgba(220, 215, 210, 0.92)"
+        ]
+      },
+      "olive_grove": {
+        "char": [
+          ";",
+          ","
+        ],
+        "fg": [
+          "rgba(80, 120, 50, 0.85)",
+          "rgba(70, 110, 45, 0.82)"
+        ],
+        "bg": [
+          "rgba(45, 75, 30, 0.95)",
+          "rgba(40, 70, 25, 0.92)"
+        ]
+      },
+      "red_lacquer": {
+        "char": [
+          "▓",
+          "▒"
+        ],
+        "fg": [
+          "rgba(220, 60, 50, 0.95)",
+          "rgba(200, 50, 40, 0.92)"
+        ],
+        "bg": [
+          "rgba(160, 30, 25, 0.98)",
+          "rgba(140, 25, 20, 0.95)"
+        ]
+      },
+      "gold_tile": {
+        "char": [
+          "◆",
+          "◇"
+        ],
+        "fg": [
+          "rgba(255, 220, 100, 0.95)",
+          "rgba(255, 210, 80, 0.92)"
+        ],
+        "bg": [
+          "rgba(200, 160, 50, 0.95)",
+          "rgba(180, 140, 40, 0.92)"
+        ]
+      },
+      "bamboo_floor": {
+        "char": [
+          "|",
+          "‖"
+        ],
+        "fg": [
+          "rgba(180, 200, 100, 0.90)",
+          "rgba(170, 190, 90, 0.88)"
+        ],
+        "bg": [
+          "rgba(120, 140, 60, 0.95)",
+          "rgba(110, 130, 55, 0.92)"
+        ]
+      },
+      "spanish_tile": {
+        "char": [
+          "▓",
+          "▒"
+        ],
+        "fg": [
+          "rgba(255, 200, 150, 0.90)",
+          "rgba(250, 190, 140, 0.88)"
+        ],
+        "bg": [
+          "rgba(200, 140, 80, 0.95)",
+          "rgba(190, 130, 75, 0.92)"
+        ]
+      },
+      "whitewash": {
+        "char": [
+          "░",
+          "▒"
+        ],
+        "fg": [
+          "rgba(255, 255, 250, 0.95)",
+          "rgba(250, 250, 245, 0.92)"
+        ],
+        "bg": [
+          "rgba(245, 242, 235, 0.98)",
+          "rgba(240, 237, 230, 0.95)"
+        ]
+      },
+      "courtyard_stone": {
+        "char": [
+          "▓",
+          "▒"
+        ],
+        "fg": [
+          "rgba(220, 210, 190, 0.90)",
+          "rgba(210, 200, 180, 0.88)"
+        ],
+        "bg": [
+          "rgba(170, 160, 140, 0.95)",
+          "rgba(160, 150, 130, 0.92)"
+        ]
+      },
+      "birch_forest": {
+        "char": [
+          ";",
+          ","
+        ],
+        "fg": [
+          "rgba(180, 200, 160, 0.90)",
+          "rgba(170, 190, 150, 0.88)"
+        ],
+        "bg": [
+          "rgba(100, 130, 80, 0.95)",
+          "rgba(90, 120, 70, 0.92)"
+        ]
+      },
+      "russian_red": {
+        "char": [
+          "▓",
+          "▒"
+        ],
+        "fg": [
+          "rgba(180, 50, 40, 0.95)",
+          "rgba(160, 40, 30, 0.92)"
+        ],
+        "bg": [
+          "rgba(120, 25, 20, 0.98)",
+          "rgba(100, 20, 15, 0.95)"
+        ]
+      },
+      "tatami": {
+        "char": [
+          "=",
+          "≡"
+        ],
+        "fg": [
+          "rgba(200, 190, 150, 0.90)",
+          "rgba(190, 180, 140, 0.88)"
+        ],
+        "bg": [
+          "rgba(160, 150, 100, 0.95)",
+          "rgba(150, 140, 95, 0.92)"
+        ]
+      },
+      "sakura_petals": {
+        "char": [
+          "❀",
+          "✿"
+        ],
+        "fg": [
+          "rgba(255, 200, 220, 0.95)",
+          "rgba(255, 180, 200, 0.92)"
+        ],
+        "bg": [
+          "rgba(255, 230, 240, 0.95)",
+          "rgba(250, 220, 235, 0.92)"
+        ]
+      },
+      "zen_garden": {
+        "char": [
+          "~",
+          "≈"
+        ],
+        "fg": [
+          "rgba(220, 215, 200, 0.90)",
+          "rgba(210, 205, 190, 0.88)"
+        ],
+        "bg": [
+          "rgba(180, 175, 160, 0.95)",
+          "rgba(170, 165, 150, 0.92)"
+        ]
+      },
+      "koi_pond": {
+        "char": [
+          "~",
+          "≈"
+        ],
+        "fg": [
+          "rgba(100, 180, 200, 0.90)",
+          "rgba(90, 170, 190, 0.88)"
+        ],
+        "bg": [
+          "rgba(50, 120, 140, 0.95)",
+          "rgba(45, 110, 130, 0.92)"
+        ]
+      },
+      "hieroglyph_floor": {
+        "char": [
+          "☥",
+          "𓂀"
+        ],
+        "fg": [
+          "rgba(255, 210, 100, 0.95)",
+          "rgba(250, 200, 90, 0.92)"
+        ],
+        "bg": [
+          "rgba(180, 140, 60, 0.95)",
+          "rgba(170, 130, 55, 0.92)"
+        ]
+      },
+      "pyramid_stone": {
+        "char": [
+          "▲",
+          "△"
+        ],
+        "fg": [
+          "rgba(230, 200, 150, 0.90)",
+          "rgba(220, 190, 140, 0.88)"
+        ],
+        "bg": [
+          "rgba(180, 150, 100, 0.95)",
+          "rgba(170, 140, 95, 0.92)"
+        ]
+      },
+      "savanna": {
+        "char": [
+          "\"",
+          "‟"
+        ],
+        "fg": [
+          "rgba(200, 180, 100, 0.90)",
+          "rgba(190, 170, 90, 0.88)"
+        ],
+        "bg": [
+          "rgba(150, 130, 60, 0.95)",
+          "rgba(140, 120, 55, 0.92)"
+        ]
+      },
+      "red_earth": {
+        "char": [
+          ".",
+          "·"
+        ],
+        "fg": [
+          "rgba(180, 100, 60, 0.90)",
+          "rgba(170, 90, 50, 0.88)"
+        ],
+        "bg": [
+          "rgba(140, 70, 40, 0.95)",
+          "rgba(130, 60, 35, 0.92)"
+        ]
+      },
+      "mud_hut": {
+        "char": [
+          "▓",
+          "▒"
+        ],
+        "fg": [
+          "rgba(160, 130, 90, 0.90)",
+          "rgba(150, 120, 80, 0.88)"
+        ],
+        "bg": [
+          "rgba(120, 90, 60, 0.95)",
+          "rgba(110, 80, 55, 0.92)"
+        ]
+      },
+      "tropical_grass": {
+        "char": [
+          ";",
+          ","
+        ],
+        "fg": [
+          "rgba(50, 200, 80, 0.90)",
+          "rgba(40, 190, 70, 0.88)"
+        ],
+        "bg": [
+          "rgba(20, 140, 50, 0.95)",
+          "rgba(15, 130, 45, 0.92)"
+        ]
+      },
+      "colorful_tile": {
+        "char": [
+          "◆",
+          "◇"
+        ],
+        "fg": [
+          "rgba(255, 200, 50, 0.95)",
+          "rgba(50, 200, 255, 0.92)"
+        ],
+        "bg": [
+          "rgba(255, 100, 100, 0.95)",
+          "rgba(100, 255, 150, 0.92)"
+        ]
+      },
+      "inca_stone": {
+        "char": [
+          "▓",
+          "▒"
+        ],
+        "fg": [
+          "rgba(160, 150, 130, 0.90)",
+          "rgba(150, 140, 120, 0.88)"
+        ],
+        "bg": [
+          "rgba(100, 95, 85, 0.95)",
+          "rgba(90, 85, 75, 0.92)"
+        ]
+      },
+      "pampas": {
+        "char": [
+          "\"",
+          "‟"
+        ],
+        "fg": [
+          "rgba(180, 200, 150, 0.90)",
+          "rgba(170, 190, 140, 0.88)"
+        ],
+        "bg": [
+          "rgba(130, 150, 100, 0.95)",
+          "rgba(120, 140, 95, 0.92)"
+        ]
+      },
+      "adobe": {
+        "char": [
+          "▓",
+          "▒"
+        ],
+        "fg": [
+          "rgba(200, 160, 120, 0.90)",
+          "rgba(190, 150, 110, 0.88)"
+        ],
+        "bg": [
+          "rgba(160, 120, 80, 0.95)",
+          "rgba(150, 110, 75, 0.92)"
+        ]
+      },
+      "prairie": {
+        "char": [
+          "\"",
+          "‟"
+        ],
+        "fg": [
+          "rgba(200, 190, 130, 0.90)",
+          "rgba(190, 180, 120, 0.88)"
+        ],
+        "bg": [
+          "rgba(150, 140, 90, 0.95)",
+          "rgba(140, 130, 85, 0.92)"
+        ]
+      },
+      "wooden_planks": {
+        "char": [
+          "=",
+          "≡"
+        ],
+        "fg": [
+          "rgba(170, 130, 80, 0.90)",
+          "rgba(160, 120, 70, 0.88)"
+        ],
+        "bg": [
+          "rgba(120, 90, 50, 0.95)",
+          "rgba(110, 80, 45, 0.92)"
+        ]
+      },
+      "outback_red": {
+        "char": [
+          ".",
+          "·"
+        ],
+        "fg": [
+          "rgba(220, 120, 60, 0.90)",
+          "rgba(210, 110, 50, 0.88)"
+        ],
+        "bg": [
+          "rgba(180, 80, 40, 0.95)",
+          "rgba(170, 70, 35, 0.92)"
+        ]
+      },
+      "eucalyptus": {
+        "char": [
+          ";",
+          ","
+        ],
+        "fg": [
+          "rgba(120, 160, 130, 0.90)",
+          "rgba(110, 150, 120, 0.88)"
+        ],
+        "bg": [
+          "rgba(70, 110, 80, 0.95)",
+          "rgba(60, 100, 70, 0.92)"
+        ]
+      }
+    }
+  }
+}

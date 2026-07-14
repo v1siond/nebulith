@@ -36,6 +36,11 @@ export interface TilesetTile {
   /** OPTIONAL per-view settings (size/pose/…) — the SAME deviations-only shape the emoji tiles carry;
    *  absent view/field falls back to the tile's shared value then the renderer's hardcoded default. */
   views?: Partial<Record<TileView, TileViewSettings>>
+  /** OPTIONAL sidebar metadata (served from the DB): `category` (terrain/buildings/units/nature) marks the
+   *  tile BROWSEABLE in the Tile Library; `title` is its human display name. Absent = an internal cell-label
+   *  (tree_top, wall corners…) that renders on the map but never shows in the sidebar. */
+  category?: string
+  title?: string
 }
 
 export interface ZonePalette {

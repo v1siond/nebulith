@@ -2,50 +2,6 @@
 // Card wrapper, view/tool toggle buttons, and the animation frame stepper.
 // Module-level, props-driven presentational components moved out of the page (stage 4).
 import { useEffect, useRef, useState } from 'react'
-import { TILES } from '@/engine/Tileset'
-
-// Tile swatch component for palette
-export function TileSwatch({
-  char,
-  name,
-  bg,
-  fg,
-  onClick,
-  selected,
-  zoom = 1.0
-}: {
-  char: string
-  name: string
-  bg: string
-  fg: string
-  onClick?: () => void
-  selected?: boolean
-  zoom?: number
-}) {
-  const baseSize = 56
-  const size = baseSize * zoom
-  const fontSize = 20 * zoom
-  const labelSize = 9 * zoom
-
-  return (
-    <button
-      onClick={onClick}
-      className={`rounded flex flex-col items-center justify-center transition-all flex-shrink-0 ${
-        selected ? 'ring-2 ring-yellow-400' : 'hover:ring-2 hover:ring-yellow-400/50'
-      }`}
-      style={{
-        backgroundColor: bg,
-        width: size,
-        height: size,
-        minWidth: size,
-      }}
-      title={name}
-    >
-      <span style={{ color: fg, fontSize }} className="font-bold leading-none">{char}</span>
-      <span style={{ fontSize: labelSize }} className="text-gray-300 leading-none mt-1">{name}</span>
-    </button>
-  )
-}
 
 /**
  * Editor sidebar card — a labelled, accent-bordered panel grouping one tool.
@@ -111,31 +67,6 @@ export function Card({
   )
 }
 
-/** A −/value/+ stepper for one transform field of an animation frame (x / y / rot). */
-export function FrameStepper({
-  label,
-  value,
-  step,
-  onChange,
-}: {
-  label: string
-  value: number
-  step: number
-  onChange: (v: number) => void
-}) {
-  const round2 = (v: number) => Math.round(v * 100) / 100
-  return (
-    <div className="flex flex-col items-center rounded bg-gray-800 p-0.5">
-      <span className="text-[8px] uppercase text-gray-500">{label}</span>
-      <div className="flex items-center gap-0.5">
-        <button onClick={() => onChange(round2(value - step))} className="px-1 text-fuchsia-300 hover:text-white" aria-label={`${label} minus`}>−</button>
-        <span className="w-8 text-center text-[9px] text-gray-200">{value > 0 ? '+' : ''}{round2(value)}</span>
-        <button onClick={() => onChange(round2(value + step))} className="px-1 text-fuchsia-300 hover:text-white" aria-label={`${label} plus`}>+</button>
-      </div>
-    </div>
-  )
-}
-
 /** A single view-mode button in the Views card. */
 export function ViewButton({
   label,
@@ -158,37 +89,6 @@ export function ViewButton({
     >
       {label}
     </button>
-  )
-}
-
-/** A collapsible labelled group of palette swatches inside the Assets card.
- *  Each section is its own dropdown — collapsed by default so the Assets card
- *  stays expanded but isn't a wall of swatches. */
-export function PaletteGroup({
-  label,
-  color,
-  children,
-  defaultOpen = false,
-}: {
-  label: string
-  color: string
-  children: React.ReactNode
-  defaultOpen?: boolean
-}) {
-  const [open, setOpen] = useState(defaultOpen)
-  return (
-    <div className="mb-2">
-      <button
-        type="button"
-        onClick={() => setOpen(o => !o)}
-        aria-expanded={open}
-        className={`mb-1 flex w-full items-center gap-1 text-xs font-bold ${color} hover:opacity-80`}
-      >
-        <span className="inline-block w-3 text-[10px] text-gray-400" aria-hidden>{open ? '▾' : '▸'}</span>
-        {label}
-      </button>
-      {open && <div className="flex flex-wrap gap-1">{children}</div>}
-    </div>
   )
 }
 
@@ -220,28 +120,3 @@ export function EntityToolButton({
   )
 }
 
-export type PlaceTileInfo = { char: string; type: 'ground' | 'asset'; groundType?: string; tileKey?: string }
-
-/** Swatch for a single-tile asset, resolving its glyph/colours from the tileset by key. */
-export function AssetTileSwatch({
-  tileKey,
-  selectedTile,
-  onPlace,
-}: {
-  tileKey: string
-  selectedTile: PlaceTileInfo | null
-  onPlace: (info: PlaceTileInfo) => void
-}) {
-  const tile = TILES[tileKey]
-  if (!tile) return null
-  return (
-    <TileSwatch
-      char={tile.char}
-      name={tile.name ?? tileKey}
-      bg={tile.bg}
-      fg={tile.fg}
-      onClick={() => onPlace({ char: tile.char, type: 'asset', tileKey })}
-      selected={selectedTile?.type === 'asset' && selectedTile?.tileKey === tileKey}
-    />
-  )
-}

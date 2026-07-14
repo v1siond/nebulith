@@ -1,0 +1,234 @@
+{
+  "grass": {
+    "category": "terrain",
+    "label": "Grass",
+    "ascii": "\""
+  },
+  "water": {
+    "category": "terrain",
+    "label": "Water",
+    "ascii": "≈"
+  },
+  "path": {
+    "category": "terrain",
+    "label": "Path",
+    "ascii": "░"
+  },
+  "road": {
+    "category": "terrain",
+    "label": "Road"
+  },
+  "plaza": {
+    "category": "terrain",
+    "label": "Plaza",
+    "ascii": "#"
+  },
+  "sand": {
+    "category": "terrain",
+    "label": "Sand",
+    "ascii": "∴"
+  },
+  "ground": {
+    "category": "terrain",
+    "label": "Ground"
+  },
+  "mountain": {
+    "category": "terrain",
+    "label": "Mountain",
+    "ascii": "▲"
+  },
+  "snow": {
+    "category": "terrain",
+    "label": "Snow"
+  },
+  "autumn": {
+    "category": "terrain",
+    "label": "Autumn Ground"
+  },
+  "cavefloor": {
+    "category": "terrain",
+    "label": "Cave Floor",
+    "ascii": ":"
+  },
+  "moss": {
+    "category": "terrain",
+    "label": "Moss",
+    "ascii": ","
+  },
+  "lava": {
+    "category": "terrain",
+    "label": "Lava"
+  },
+  "ember": {
+    "category": "terrain",
+    "label": "Ember"
+  },
+  "spill": {
+    "category": "terrain",
+    "label": "Spill"
+  },
+  "wall": {
+    "category": "buildings",
+    "label": "Wall",
+    "ascii": "█"
+  },
+  "roof": {
+    "category": "buildings",
+    "label": "Roof",
+    "ascii": "▀"
+  },
+  "door": {
+    "category": "buildings",
+    "label": "Door",
+    "ascii": "╫"
+  },
+  "window": {
+    "category": "buildings",
+    "label": "Window",
+    "ascii": "▒"
+  },
+  "fountain": {
+    "category": "buildings",
+    "label": "Fountain"
+  },
+  "pillar": {
+    "category": "buildings",
+    "label": "Pillar",
+    "ascii": "║"
+  },
+  "altar": {
+    "category": "buildings",
+    "label": "Altar",
+    "ascii": "‡"
+  },
+  "well": {
+    "category": "buildings",
+    "label": "Well"
+  },
+  "connector": {
+    "category": "buildings",
+    "label": "Portal"
+  },
+  "tree": {
+    "category": "nature",
+    "label": "Tree",
+    "ascii": "♣"
+  },
+  "flower": {
+    "category": "nature",
+    "label": "Flower",
+    "ascii": "+"
+  },
+  "bush": {
+    "category": "nature",
+    "label": "Bush",
+    "ascii": "*"
+  },
+  "rock": {
+    "category": "nature",
+    "label": "Rock",
+    "ascii": "O"
+  },
+  "crate": {
+    "category": "nature",
+    "label": "Crate",
+    "ascii": "$"
+  },
+  "lamp": {
+    "category": "nature",
+    "label": "Lamp",
+    "ascii": "!"
+  },
+  "crystal": {
+    "category": "nature",
+    "label": "Crystal",
+    "ascii": "◆"
+  },
+  "mushroom": {
+    "category": "nature",
+    "label": "Mushroom",
+    "ascii": "♠"
+  },
+  "torch": {
+    "category": "nature",
+    "label": "Torch",
+    "ascii": "ϯ"
+  },
+  "hazard": {
+    "category": "nature",
+    "label": "Hazard",
+    "ascii": "▲"
+  },
+  "key": {
+    "category": "nature",
+    "label": "Key",
+    "ascii": "⚷"
+  },
+  "enemy": {
+    "category": "units",
+    "label": "Enemy",
+    "ascii": "&"
+  },
+  "npc": {
+    "category": "units",
+    "label": "NPC",
+    "ascii": "☺"
+  },
+  "player": {
+    "category": "units",
+    "label": "Player",
+    "ascii": "@"
+  },
+  "boss": {
+    "category": "units",
+    "label": "Boss"
+  },
+  "arrow": {
+    "category": "units",
+    "label": "Arrow"
+  },
+  "bullet": {
+    "category": "units",
+    "label": "Bullet"
+  },
+  "dart": {
+    "category": "units",
+    "label": "Bolt"
+  },
+  "fire-slash": {
+    "category": "units",
+    "label": "Fire Slash"
+  },
+  "ice-slash": {
+    "category": "units",
+    "label": "Ice Slash"
+  },
+  "cleave": {
+    "category": "units",
+    "label": "Cleave"
+  },
+  "bolt": {
+    "category": "units",
+    "label": "Arcane Bolt"
+  },
+  "piercing-shot": {
+    "category": "units",
+    "label": "Piercing Shot"
+  },
+  "nova": {
+    "category": "units",
+    "label": "Nova"
+  },
+  "lightning": {
+    "category": "units",
+    "label": "Lightning"
+  },
+  "heal-glow": {
+    "category": "units",
+    "label": "Heal Glow"
+  },
+  "guard-flash": {
+    "category": "units",
+    "label": "Guard Flash"
+  }
+}

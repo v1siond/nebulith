@@ -21,11 +21,11 @@
 
 // ── element kinds (the vocabulary a Style maps) ──────────────────────────
 import { EMOJI_TILESET } from '@/engine/tileset/emojiTileset'
+import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 // The single source for the BAKED entity/person/enemy tiles (slug → glyph) + the resolution maps
 // (enemyType → slug, variant → slug). The bake script (scripts/bake-entity-tiles.mjs) reads the SAME
 // file, so the baked PNGs and the images wired here can never drift.
 import ENTITY_TILES from '@/game/data/entityTiles.json'
-import EMOJI_CATALOG from '@/game/data/emojiCatalog.json'
 import type { EntityVariant } from '@/game/types'
 
 export type ElementKind =
@@ -153,14 +153,6 @@ export function bakedEntityImage(slug: string): string | undefined {
   return slug in BAKED_ENTITY_SLUGS ? `${ENTITY_TILE_DIR}/${slug}.png` : undefined
 }
 
-// The full emoji CATALOG is baked to PNGs too (scripts/bake-catalog-tiles.mjs), driven by the SAME data
-// file so bake set and wiring never drift — so every placeable tile draws as an IMAGE, not a live glyph.
-const CATALOG_DIR: string = EMOJI_CATALOG.dir
-const BAKED_CATALOG_SLUGS = new Set(EMOJI_CATALOG.baked as readonly string[])
-/** A catalog slug with a baked PNG → its image path; else undefined (the few Noto can't ink stay glyphs). */
-export function bakedCatalogImage(slug: string): string | undefined {
-  return BAKED_CATALOG_SLUGS.has(slug) ? `${CATALOG_DIR}/${slug}.png` : undefined
-}
 
 /** The per-variant tile OVERRIDE for a PERSON (npc/player) under a reskin — male→🧍‍♂️ man, old→🧓 elder,
  *  robot→🤖 … each a baked image. Returns undefined for ASCII, for no variant, or for a variant with no
@@ -301,118 +293,43 @@ export interface TileDef {
   visual: Visual
 }
 
-const CATEGORY_OF: Readonly<Record<ElementKind, TileCategory>> = {
-  grass: 'terrain', water: 'terrain', path: 'terrain', road: 'terrain', plaza: 'terrain', sand: 'terrain', ground: 'terrain', mountain: 'terrain', snow: 'terrain', autumn: 'terrain', cavefloor: 'terrain', moss: 'terrain',
-  lava: 'terrain', ember: 'terrain', spill: 'terrain',
-  wall: 'buildings', roof: 'buildings', door: 'buildings', window: 'buildings', fountain: 'buildings',
-  pillar: 'buildings', altar: 'buildings', well: 'buildings', connector: 'buildings',
-  tree: 'nature', flower: 'nature', bush: 'nature', rock: 'nature', crate: 'nature', lamp: 'nature',
-  crystal: 'nature', mushroom: 'nature', torch: 'nature', hazard: 'nature', key: 'nature',
-  enemy: 'units', npc: 'units', player: 'units', boss: 'units',
-  // projectiles + ability-animation FX — grouped under units (combat visuals) for the Library.
-  arrow: 'units', bullet: 'units', dart: 'units',
-  'fire-slash': 'units', 'ice-slash': 'units', cleave: 'units', bolt: 'units', 'piercing-shot': 'units',
-  nova: 'units', lightning: 'units', 'heal-glow': 'units', 'guard-flash': 'units',
+// ── the Tile Library: read LIVE from the loaded (DB) tilesets ─────────────────────────────────────
+// The sidebar browses the SAME tilesets the MAP renders — the backend-loaded EMOJI_TILESET / ASCII_TILESET
+// (tilesetLoader swaps in the :4000 DB rows). NOTHING art-related is hardcoded here: a tile is BROWSEABLE
+// when its loaded entry carries a `category` (terrain/buildings/units/nature); its display name is the
+// entry's `title`, its art the entry's image/glyph. The per-kind seed metadata (category/label/glyph) lives
+// in src/game/data/tileKinds.json + the DB — consumed by scripts/gen-tileset-seeds.mjs, never by the app.
+
+const BROWSEABLE_CATEGORIES: ReadonlySet<string> = new Set<TileCategory>(['terrain', 'buildings', 'units', 'nature'])
+
+/** The Visual for one loaded EMOJI tile entry — its baked image if present, else its glyph. */
+function emojiEntryVisual(t: { char: string; color?: string; image?: string }): Visual {
+  return t.image ? { kind: 'image', src: t.image, color: t.color, char: t.char } : { kind: 'glyph', char: t.char, color: t.color }
 }
 
-const KIND_LABEL: Readonly<Record<ElementKind, string>> = {
-  grass: 'Grass', water: 'Water', path: 'Path', road: 'Road', plaza: 'Plaza', sand: 'Sand', ground: 'Ground', mountain: 'Mountain', snow: 'Snow', autumn: 'Autumn Ground', cavefloor: 'Cave Floor', moss: 'Moss',
-  lava: 'Lava', ember: 'Ember', spill: 'Spill',
-  wall: 'Wall', roof: 'Roof', door: 'Door', window: 'Window', fountain: 'Fountain',
-  pillar: 'Pillar', altar: 'Altar', well: 'Well', connector: 'Portal',
-  tree: 'Tree', flower: 'Flower', bush: 'Bush', rock: 'Rock', crate: 'Crate', lamp: 'Lamp',
-  crystal: 'Crystal', mushroom: 'Mushroom', torch: 'Torch', hazard: 'Hazard', key: 'Key',
-  enemy: 'Enemy', npc: 'NPC', player: 'Player', boss: 'Boss',
-  arrow: 'Arrow', bullet: 'Bullet', dart: 'Bolt',
-  'fire-slash': 'Fire Slash', 'ice-slash': 'Ice Slash', cleave: 'Cleave', bolt: 'Arcane Bolt', 'piercing-shot': 'Piercing Shot',
-  nova: 'Nova', lightning: 'Lightning', 'heal-glow': 'Heal Glow', 'guard-flash': 'Guard Flash',
-}
-
-// Explicit ASCII glyph tiles so the Library has content for the ASCII style too (its
-// `map` is intentionally empty for passthrough). These mirror the engine's own glyphs.
-const ASCII_TILE_GLYPHS: Partial<Record<ElementKind, string>> = {
-  grass: '"', water: '≈', path: '░', plaza: '#', sand: '∴', mountain: '▲', cavefloor: ':', moss: ',',
-  wall: '█', roof: '▀', door: '╫', window: '▒',
-  pillar: '║', altar: '‡', torch: 'ϯ', hazard: '▲', key: '⚷',
-  tree: '♣', flower: '+', bush: '*', rock: 'O', crate: '$', lamp: '!',
-  crystal: '◆', mushroom: '♠',
-  enemy: '&', npc: '☺', player: '@',
-}
-
-function tilesForAscii(): TileDef[] {
-  return (Object.keys(ASCII_TILE_GLYPHS) as ElementKind[]).map(kind => ({
-    id: `ascii:${kind}`,
-    label: KIND_LABEL[kind],
-    category: CATEGORY_OF[kind],
-    styleId: 'ascii',
-    visual: { kind: 'glyph', char: ASCII_TILE_GLYPHS[kind]! } as GlyphVisual,
-  }))
-}
-
-function tilesFromStyle(style: Style): TileDef[] {
-  return (Object.keys(style.map) as ElementKind[]).map(kind => ({
-    id: `${style.id}:${kind}`,
-    label: KIND_LABEL[kind],
-    category: CATEGORY_OF[kind],
-    styleId: style.id,
-    visual: style.map[kind]!,
-  }))
-}
-
-/** A curated emoji tile helper — one call per row keeps the big catalog below readable.
- *  `slug` is the id suffix (kept distinct from every EMOJI_STYLE kind name so the whole
- *  catalog stays id-unique); `color` is the dominant hue (the iso diamond/cube tint + ASCII
- *  fallback — an emoji glyph draws itself, but a sensible tint keeps the geometry on-hue). */
-function emojiTile(category: TileCategory, slug: string, label: string, char: string, color: string): TileDef {
-  // A slug with a baked PNG (people + typed enemies) renders as an IMAGE — identical on every OS, no
-  // Segoe tofu — carrying the source glyph + tint as label/fallback. Everything else stays a glyph.
-  const image = bakedEntityImage(slug) ?? bakedCatalogImage(slug)
-  const visual: Visual = image
-    ? { kind: 'image', src: image, color, char }
-    : { kind: 'glyph', char, color }
-  return { id: `emoji:${slug}`, label, category, styleId: 'emoji', visual }
-}
-
-/**
- * The FULL, categorized + labeled emoji tileset the Library browses — every tree, every
- * building, every terrain, every character, each with a clear human label. This is what makes
- * the Library read like a real tileset instead of the sparse one-per-kind starter map. These
- * are catalog/override tiles only (they don't touch EMOJI_STYLE.map, so render is unchanged);
- * they surface in `tilesForStyle('emoji')` and can be pinned per-element via `visualForTileId`.
- */
-export const EMOJI_TILES: TileDef[] = Object.entries(
-  EMOJI_CATALOG.tiles as Record<string, { category: TileCategory; label: string; char: string; color: string; height?: number }>,
-).map(([slug, t]) => emojiTile(t.category, slug, t.label, t.char, t.color))
-
-/** Every catalog tile, flat (ASCII glyph tiles + each non-ASCII style's mapped tiles + the
- *  full curated emoji tileset above). Deduped by id keeping the FIRST occurrence: a style KIND and
- *  a curated catalog tile can legitimately share a slug (e.g. `lava` — a mapped ground kind AND a
- *  browsable catalog terrain), and the style's mapped tile is the canonical one. Keeps every id
- *  globally unique so `visualForTileId` (a `tileOverride` lookup) is never ambiguous. */
-function dedupById(defs: TileDef[]): TileDef[] {
-  const seen = new Set<string>()
-  return defs.filter(d => (seen.has(d.id) ? false : (seen.add(d.id), true)))
-}
-export const TILE_CATALOG: readonly TileDef[] = dedupById([
-  ...tilesForAscii(),
-  ...BUILT_IN_STYLES.filter(s => s.id !== 'ascii').flatMap(tilesFromStyle),
-  ...EMOJI_TILES,
-])
-
-const TILE_BY_ID: Readonly<Record<string, TileDef>> = Object.fromEntries(TILE_CATALOG.map(t => [t.id, t]))
-
-/** The tiles the Library lists for a style, grouped by category (terrain/buildings/units/nature). */
+/** The tiles the Library lists for a style, grouped by category — read LIVE from the loaded tileset so the
+ *  sidebar ALWAYS matches the map. Only entries carrying a `category` are browseable (internal cell-labels
+ *  like wall pieces / tree corners render on the map but never surface in the sidebar). */
 export function tilesForStyle(styleId: string): Record<TileCategory, TileDef[]> {
   const out: Record<TileCategory, TileDef[]> = { terrain: [], buildings: [], units: [], nature: [] }
-  for (const t of TILE_CATALOG) {
-    if (t.styleId === styleId) out[t.category].push(t)
+  const push = (key: string, category: string | undefined, title: string | undefined, visual: Visual): void => {
+    if (!category || !BROWSEABLE_CATEGORIES.has(category)) return
+    out[category as TileCategory].push({ id: `${styleId}:${key}`, label: title ?? key, category: category as TileCategory, styleId, visual })
   }
+  if (styleId === 'emoji') for (const [key, t] of Object.entries(EMOJI_TILESET)) push(key, t.category, t.title, emojiEntryVisual(t))
+  else if (styleId === 'ascii') for (const [key, t] of Object.entries(ASCII_TILESET.tiles)) push(key, t.category, t.title, { kind: 'glyph', char: t.glyph })
   return out
 }
 
-/** Resolve a style-agnostic tile id to its Visual (null for an unknown id). */
+/** Resolve a style-agnostic tile id (`<styleId>:<key>`) to its Visual, LIVE from the loaded tileset (null
+ *  for an unknown id / a style that lacks that tile — the caller then falls back to the coarse kind). */
 export function visualForTileId(id: string): Visual | null {
-  return TILE_BY_ID[id]?.visual ?? null
+  const sep = id.indexOf(':')
+  if (sep < 0) return null
+  const styleId = id.slice(0, sep), key = id.slice(sep + 1)
+  if (styleId === 'emoji') { const t = EMOJI_TILESET[key]; return t ? emojiEntryVisual(t) : null }
+  if (styleId === 'ascii') { const t = ASCII_TILESET.tiles[key]; return t ? { kind: 'glyph', char: t.glyph } : null }
+  return null
 }
 
 // ── the one resolution point ──────────────────────────────────────────────
