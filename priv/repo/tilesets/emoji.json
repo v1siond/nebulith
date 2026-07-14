@@ -1291,5 +1291,15 @@
     "category": "units",
     "title": "Spider",
     "image": "/tiles/emoji/catalog/spider.png"
+  },
+  "walk": {
+    "char": "🚶",
+    "color": "#d9a066",
+    "image": "/tiles/emoji/baked/walk.png"
+  },
+  "run": {
+    "char": "🏃",
+    "color": "#d9a066",
+    "image": "/tiles/emoji/baked/run.png"
   }
 }
