@@ -6,7 +6,8 @@
 // live placement reader. Moved out of the game-engine page (stage 5a).
 import { type BuildingType } from '@/engine/buildingComposer'
 import { type PlacementEnv, buildingCellBlocked, buildingCellTiles, buildingDoorCells, buildingFootprintCells, isRoadGround } from '@/engine/buildingEditor'
-import { cellTile } from '@/engine/cellTileset'
+import { resolveTile } from '@/engine/tileset/tileset'
+import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 import type { GridBuilding, IsometricGrid } from '@/engine/IsometricGrid'
 import { buildingCellColor } from '@/engine/stageGenerator'
 import { type Facing } from '@/engine/villageLayout'
@@ -37,7 +38,7 @@ export function stampBuildingCells(grid: IsometricGrid, b: GridBuilding, zone: Z
     // brush-stacked tile has, so a building block extrudes into an iso cube (or a raised 2D/top tile) with
     // zero per-type branches in the draw loop. buildingCellTiles is the shared decomposition.
     for (const t of buildingCellTiles(b, c.col, c.row)) {
-      const { char } = cellTile(zone, t.part)
+      const { char } = resolveTile(ASCII_TILESET, zone, t.part) // LOADS the glyph from the DB tileset, not hardcoded cellTile
       const color = buildingCellColor(b.type as BuildingType, t.part, b.col)
       const asset = grid.placeAsset([char], c.col, c.row, { type: 'building', blocking: t.blocking, color, heightLevel: t.level })
       // placeAsset's fixed option list doesn't carry these — set them on the returned asset.

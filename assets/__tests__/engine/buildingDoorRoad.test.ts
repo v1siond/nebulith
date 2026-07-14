@@ -7,6 +7,7 @@ import { makeBuilding, buildingDoorCells, facadeToFootprint, buildingCellTiles }
 import { isoStackLift } from '@/engine/render/iso'
 import type { Facing } from '@/engine/villageLayout'
 import { stampBuildingCells } from '@/game/runtime/buildings'
+import { setAsciiTileset, ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 
 const mkGrid = () => new IsometricGrid({ cols: 24, rows: 24, cellSize: 16, isoScale: 1.4 })
 
@@ -41,5 +42,22 @@ describe('door tile vs walkable entrance (grid truth)', () => {
     const doorBlocks = grid.assets.filter(a => a.type === 'building' && a.label === 'door')
     expect(doorBlocks.length).toBeGreaterThan(0)
     expect(doorBlocks.every(a => (a.heightLevel ?? 0) === 0)).toBe(true)
+  })
+})
+
+describe('building tiles come from the LOADED ascii tileset, not hardcoded cellTile', () => {
+  const original = ASCII_TILESET
+  afterEach(() => setAsciiTileset(original))
+
+  test('a wall glyph swapped in the loaded DB tileset drives the stamped wall block', () => {
+    // swap the wall glyph in the loaded tileset — a stamp that read the frontend cellTile ('█') would ignore
+    // this; a stamp that reads the DB tileset picks it up. Proves the live stamp is DB-driven (MAP-MODEL §8).
+    setAsciiTileset({ ...original, tiles: { ...original.tiles, wall: { ...original.tiles.wall, glyph: '✚' } } })
+    const grid = mkGrid()
+    const b = makeBuilding('house', 'south', 10, 10)
+    stampBuildingCells(grid, b, 'spring')
+    const wall = grid.assets.find(a => a.type === 'building' && a.label === 'wall')
+    expect(wall).toBeDefined()
+    expect(wall!.art[0]).toBe('✚')
   })
 })
