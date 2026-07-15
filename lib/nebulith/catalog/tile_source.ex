@@ -47,6 +47,7 @@ defmodule Nebulith.Catalog.TileSource do
 
     seed_glyph_tiles(ascii["tiles"], ascii_id, ascii["palettes"])
     seed_terrain_tiles(ascii["terrain"], ascii_id)
+    seed_decor_tiles(ascii_id)
     seed_emoji_tiles(emoji, emoji_id)
     seed_compositions(ascii["compositions"])
     seed_new_compositions()
@@ -125,6 +126,67 @@ defmodule Nebulith.Catalog.TileSource do
             |> merge_behavior(label)
         })
     end
+  end
+
+  # ── Ascii ground-decor tiles ──────────────────────────────────────────────
+  # Non-blocking floor detail (grass blades, blossoms, pebbles, embers…) scattered
+  # across walkable cells so a stage reads dense, not blank. Each is JUST A TILE:
+  # its glyph is the decor char and its colour is a per-tile `settings.colors`
+  # setting keyed by zone — the presence of a zone key means the decor belongs to
+  # that zone. No `image_url` (rendered from the glyph, no baked PNG).
+
+  @doc """
+  Seeds ONLY the ascii ground-decor tiles into the ascii tileset.
+
+  Safe + idempotent (upsert by label) — touches nothing else (roads/terrain/glyph
+  rows are left untouched), so it can run on the shared dev DB without a full reseed.
+  """
+  def seed_decor do
+    ascii_id = ensure_tileset("ascii", "ASCII").id
+    seed_decor_tiles(ascii_id)
+    IO.puts("seeded #{length(decor_tiles())} ascii decor tiles")
+    :ok
+  end
+
+  defp seed_decor_tiles(tileset_id) do
+    for %{label: label, glyph: glyph, colors: colors} <- decor_tiles() do
+      {:ok, _} =
+        Catalog.upsert_tile(%{
+          tileset_id: tileset_id,
+          label: label,
+          glyph: glyph,
+          color_role: nil,
+          blocking: false,
+          height: 0,
+          category: "decor",
+          settings: %{"colors" => colors}
+        })
+    end
+  end
+
+  # The canonical decor set — one tile per unique glyph, its colour keyed by the
+  # zones that use it (ported faithfully from the frontend GROUND_DECOR data).
+  defp decor_tiles do
+    [
+      %{label: "decor_blossom", glyph: "✿", colors: %{"spring" => "#c4b061"}},
+      %{label: "decor_flower", glyph: "❀", colors: %{"spring" => "#c79bb4"}},
+      %{label: "decor_clover", glyph: "♣", colors: %{"summer" => "#2a722a"}},
+      %{
+        label: "decor_pebbles",
+        glyph: "∴",
+        colors: %{
+          "autumn" => "#9c6a2c",
+          "winter" => "#c8d6e2",
+          "desert" => "#b89a58",
+          "lava" => "#56382e"
+        }
+      },
+      %{label: "decor_dot", glyph: ".", colors: %{"autumn" => "#a06a2c"}},
+      %{label: "decor_spark", glyph: "*", colors: %{"winter" => "#ccdbe7", "lava" => "#e6661f"}},
+      %{label: "decor_grit", glyph: ":", colors: %{"desert" => "#bba360"}},
+      %{label: "decor_shell", glyph: "°", colors: %{"beach" => "#cfe6ee"}},
+      %{label: "decor_ripple", glyph: "~", colors: %{"beach" => "#bfe0ec"}}
+    ]
   end
 
   # ── Emoji tiles ───────────────────────────────────────────────────────────
