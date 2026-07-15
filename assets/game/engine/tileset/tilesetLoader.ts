@@ -108,6 +108,19 @@ function buildEmojiTileset(t: ApiTileset): Record<string, EmojiTile> {
   return tiles
 }
 
+/** Install a `/api/tilesets` payload's entries (one per style: ascii/emoji) into the live tileset
+ *  singletons — the same per-entry mapping `loadTilesetsFromBackend` uses, factored out so tests can
+ *  install a captured fixture without a network round-trip. Returns the style keys it installed. */
+export function installTilesetPayload(list: ApiTileset[]): string[] {
+  const loaded: string[] = []
+  for (const t of list) {
+    if (t.id != null) tilesetIdByKey.set(t.key, t.id) // remember the row id so a Save can PUT it back
+    if (t.key === 'ascii') { setAsciiTileset(buildAsciiTileset(t)); loaded.push('ascii') }
+    if (t.key === 'emoji') { setEmojiTileset(buildEmojiTileset(t)); rebuildEmojiStyle(); loaded.push('emoji') } // tileset (incl. image refs) comes straight from the backend DB
+  }
+  return loaded
+}
+
 export async function loadTilesetsFromBackend(): Promise<string[]> {
   try {
     const res = await fetch(`${NEBULITH_API}/tilesets`, { headers: { accept: 'application/json' } })
@@ -115,12 +128,7 @@ export async function loadTilesetsFromBackend(): Promise<string[]> {
     const body = (await res.json()) as { data?: ApiTileset[] } | ApiTileset[]
     const list = Array.isArray(body) ? body : (body.data ?? [])
 
-    const loaded: string[] = []
-    for (const t of list) {
-      if (t.id != null) tilesetIdByKey.set(t.key, t.id) // remember the row id so a Save can PUT it back
-      if (t.key === 'ascii') { setAsciiTileset(buildAsciiTileset(t)); loaded.push('ascii') }
-      if (t.key === 'emoji') { setEmojiTileset(buildEmojiTileset(t)); rebuildEmojiStyle(); loaded.push('emoji') } // tileset (incl. image refs) comes straight from the backend DB
-    }
+    const loaded = installTilesetPayload(list)
 
     if (typeof window !== 'undefined') (window as unknown as { __nebulithTilesets?: string[] }).__nebulithTilesets = loaded
     console.info(`[nebulith] tilesets loaded from the Elixir API (${NEBULITH_API}): ${loaded.join(', ') || 'none'}`)

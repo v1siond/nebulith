@@ -297,8 +297,8 @@ export interface TileDef {
 // The sidebar browses the SAME tilesets the MAP renders — the backend-loaded EMOJI_TILESET / ASCII_TILESET
 // (tilesetLoader swaps in the :4000 DB rows). NOTHING art-related is hardcoded here: a tile is BROWSEABLE
 // when its loaded entry carries a `category` (terrain/buildings/units/nature); its display name is the
-// entry's `title`, its art the entry's image/glyph. The per-kind seed metadata (category/label/glyph) lives
-// in src/game/data/tileKinds.json + the DB — consumed by scripts/gen-tileset-seeds.mjs, never by the app.
+// entry's `title`, its art the entry's image/glyph. The per-kind seed metadata (category/label/glyph)
+// lives in the backend DB now — the frontend never hardcodes it.
 
 const BROWSEABLE_CATEGORIES: ReadonlySet<string> = new Set<TileCategory>(['terrain', 'buildings', 'units', 'nature'])
 

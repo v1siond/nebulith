@@ -32,11 +32,11 @@ describe('activeStyleVisualForOverride — re-home a placed tile onto the active
     expect(back).toEqual(first)
   })
 
-  test('a slug present in BOTH styles reskins to EACH (rock → the emoji rock, then the ascii O)', () => {
+  test('a slug present in BOTH styles reskins to EACH (rock → the emoji rock, then the ascii glyph)', () => {
     const emojiRock = activeStyleVisualForOverride('emoji:rock', EMOJI_STYLE)
     const asciiRock = activeStyleVisualForOverride('emoji:rock', ASCII_STYLE)
     expect(emojiRock).not.toBeNull()
-    expect(asciiRock).toEqual({ kind: 'glyph', char: 'O' }) // the ascii:rock catalog glyph
+    expect(asciiRock).toEqual({ kind: 'glyph', char: '▓' }) // the ascii:rock catalog glyph
     expect(emojiRock).not.toEqual(asciiRock) // it genuinely changes with the style
     // and picking it under ascii round-trips back to the emoji rock under emoji
     expect(activeStyleVisualForOverride('ascii:rock', EMOJI_STYLE)).toEqual(emojiRock)

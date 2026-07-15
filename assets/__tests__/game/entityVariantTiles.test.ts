@@ -21,7 +21,9 @@ import {
 import type { EntityVariant } from '@/game/types'
 
 const PUBLIC_DIR = path.join(__dirname, '../../../public')
-const onDisk = (src: string): boolean => fs.existsSync(path.join(PUBLIC_DIR, src.replace(/^\//, '')))
+// The DB tileset's image_url is root-relative, absolutized against the backend origin by the loader
+// (tilesetLoader's `abs()`) — strip that origin back off before checking the static asset on disk.
+const onDisk = (src: string): boolean => fs.existsSync(path.join(PUBLIC_DIR, src.replace(/^https?:\/\/[^/]+/, '').replace(/^\//, '')))
 
 describe('typed enemies resolve to baked images', () => {
   // enemyType → the glyph the baked tile shows (spot-check the roster + a few aliases).

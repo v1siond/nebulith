@@ -1,5 +1,10 @@
 import '@/__tests__/helpers/installTilesetSeed' // the walk/run pose tiles live in the loaded DB tileset
 import { seedCharacterAnimations, resolveFrame, needsAnimationReseed, type EntityAnimation } from '@/game/runtime/entityAnimation'
+import { NEBULITH_API } from '@/lib/nebulithApi'
+
+// The DB tileset's image_url is root-relative — the loader absolutizes it against the backend origin
+// (same as tilesetLoader's `abs()`), so a baked image src carries that origin here too.
+const ORIGIN = NEBULITH_API.replace(/\/api\/?$/, '')
 
 /**
  * The default person animation SEED must reference DB tiles, not hardcoded emoji glyphs (Image #1: the
@@ -31,7 +36,7 @@ describe('default character animation seed uses DB tiles, not hardcoded emoji', 
   it('the walk tile resolves to the baked walk PNG (image, consistent font)', () => {
     const walk = anims.find(a => a.name === 'walk left')!
     const resolved = resolveFrame(walk.frames[0], { char: '🧍' })
-    expect(resolved.image?.src).toBe('/tiles/emoji/baked/walk.png')
+    expect(resolved.image?.src).toBe(`${ORIGIN}/tiles/emoji/baked/walk.png`)
   })
 
   it('frame 0 of idle stays the entity’s OWN tile (empty frame → base)', () => {
