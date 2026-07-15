@@ -36,34 +36,30 @@ defmodule Nebulith.TileSourceTest do
 
   test "ports the json-sourced + elixir-authored compositions, tree_small carrying 30 cells" do
     comps = Catalog.list_compositions()
-    assert length(comps) == 6
+    assert length(comps) == 4
 
     tree_small = Enum.find(comps, &(&1.name == "tree_small"))
     assert length(tree_small.cells) == 30
   end
 
-  test "ports the 4 new cube-canopy tree/bush compositions" do
+  test "ports the tree + bush compositions" do
     comps = Catalog.list_compositions()
 
-    big_tree_a = Enum.find(comps, &(&1.name == "big_tree_a"))
-    big_tree_b = Enum.find(comps, &(&1.name == "big_tree_b"))
-    bush_a = Enum.find(comps, &(&1.name == "bush_a"))
-    bush_b = Enum.find(comps, &(&1.name == "bush_b"))
+    tree = Enum.find(comps, &(&1.name == "tree"))
+    bush = Enum.find(comps, &(&1.name == "bush"))
 
-    for comp <- [big_tree_a, big_tree_b, bush_a, bush_b] do
-      assert comp.footprint_w == 3
-      assert comp.footprint_h == 3
-    end
+    assert tree.footprint_w == 3
+    assert tree.footprint_h == 1
+    assert bush.footprint_w == 3
+    assert bush.footprint_h == 1
 
-    assert length(big_tree_a.cells) == 13
-    assert length(big_tree_b.cells) == 21
-    assert length(bush_a.cells) == 10
-    assert length(bush_b.cells) == 18
+    assert length(tree.cells) == 5
+    assert length(bush.cells) == 4
 
-    assert Enum.any?(big_tree_a.cells, &(&1.label == "trunk_base" and &1.level == 0))
+    assert Enum.any?(tree.cells, &(&1.label == "trunk_base" and &1.level == 0))
+    refute Enum.any?(bush.cells, &(&1.label in ["trunk", "trunk_base"]))
 
-    refute Enum.any?(bush_a.cells, &(&1.label in ["trunk", "trunk_base"]))
-    refute Enum.any?(bush_b.cells, &(&1.label in ["trunk", "trunk_base"]))
+    refute Enum.any?(comps, &(&1.name in ["big_tree_a", "big_tree_b", "bush_a", "bush_b"]))
   end
 
   test "an ascii canopy tile carries its per-zone palette colors in settings" do

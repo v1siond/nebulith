@@ -156,11 +156,12 @@ defmodule Nebulith.Catalog.TileSource do
   end
 
   # ── Elixir-authored compositions ─────────────────────────────────────────
-  # Alexander's smaller cube-canopy trees + trunkless bushes. Unlike
-  # tree_small/tree_dead (which stay JSON-sourced, untouched), these are
-  # authored directly here per the tile-backend-migration doc's stated
-  # direction ("an Elixir data module holds the canonical composition
-  # definitions") — footprint 3x3, canopy is a literal 3x3xN cube per level.
+  # Alexander's simple crown+row tree + trunkless bush. Unlike tree_small/
+  # tree_dead (which stay JSON-sourced, untouched), these are authored
+  # directly here per the tile-backend-migration doc's stated direction ("an
+  # Elixir data module holds the canonical composition definitions") — a
+  # 3-wide, 1-deep footprint with a single-column trunk and a 3-cell leaf row
+  # topped by a crown cell.
 
   defp seed_new_compositions do
     for {name, %{footprint_w: w, footprint_h: h, cells: cells}} <- compositions() do
@@ -174,48 +175,29 @@ defmodule Nebulith.Catalog.TileSource do
 
   defp compositions do
     %{
-      "big_tree_a" => %{
+      "tree" => %{
         footprint_w: 3,
-        footprint_h: 3,
-        cells: trunk_column() ++ leaf_cube(3) ++ [crown(4)]
+        footprint_h: 1,
+        cells: [
+          %{dx: 0, dy: 0, level: 0, label: "trunk_base", walkable: false},
+          %{dx: -1, dy: 0, level: 1, label: "leaf_left", walkable: true},
+          %{dx: 0, dy: 0, level: 1, label: "leaf_center", walkable: true},
+          %{dx: 1, dy: 0, level: 1, label: "leaf_right", walkable: true},
+          %{dx: 0, dy: 0, level: 2, label: "leaf_top", walkable: true}
+        ]
       },
-      "big_tree_b" => %{
+      "bush" => %{
         footprint_w: 3,
-        footprint_h: 3,
-        cells: trunk_column() ++ leaf_cube(3) ++ leaf_cube(4)
-      },
-      "bush_a" => %{
-        footprint_w: 3,
-        footprint_h: 3,
-        cells: leaf_cube(0) ++ [crown(1)]
-      },
-      "bush_b" => %{
-        footprint_w: 3,
-        footprint_h: 3,
-        cells: leaf_cube(0) ++ leaf_cube(1)
+        footprint_h: 1,
+        cells: [
+          %{dx: -1, dy: 0, level: 0, label: "leaf_left", walkable: true},
+          %{dx: 0, dy: 0, level: 0, label: "leaf_center", walkable: true},
+          %{dx: 1, dy: 0, level: 0, label: "leaf_right", walkable: true},
+          %{dx: 0, dy: 0, level: 1, label: "leaf_top", walkable: true}
+        ]
       }
     }
   end
-
-  defp trunk_column do
-    [
-      %{dx: 0, dy: 0, level: 0, label: "trunk_base", walkable: false},
-      %{dx: 0, dy: 0, level: 1, label: "trunk", walkable: false},
-      %{dx: 0, dy: 0, level: 2, label: "trunk", walkable: false}
-    ]
-  end
-
-  defp leaf_cube(level) do
-    for dx <- -1..1,
-        dy <- -1..1,
-        do: %{dx: dx, dy: dy, level: level, label: leaf_label(dx), walkable: true}
-  end
-
-  defp leaf_label(-1), do: "leaf_left"
-  defp leaf_label(0), do: "leaf_center"
-  defp leaf_label(1), do: "leaf_right"
-
-  defp crown(level), do: %{dx: 0, dy: 0, level: level, label: "leaf_top", walkable: true}
 
   # ── Palette resolution ────────────────────────────────────────────────────
   # A tile's `colorRole` is a (possibly dotted) path into each zone's palette:
