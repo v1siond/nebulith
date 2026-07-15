@@ -170,19 +170,21 @@ defmodule Nebulith.Catalog do
       {:ok, comp} =
         %Composition{}
         |> Composition.changeset(comp_attrs)
-        |> Repo.insert(on_conflict: {:replace_all_except, [:id, :inserted_at]}, conflict_target: [:name])
+        |> Repo.insert(
+          on_conflict: {:replace_all_except, [:id, :inserted_at]},
+          conflict_target: [:name]
+        )
 
       Repo.delete_all(from c in CompositionCell, where: c.composition_id == ^comp.id)
 
       for attrs <- cell_attrs_list do
-        {:ok, _} = %CompositionCell{} |> CompositionCell.changeset(Map.put(attrs, :composition_id, comp.id)) |> Repo.insert()
+        {:ok, _} =
+          %CompositionCell{}
+          |> CompositionCell.changeset(Map.put(attrs, :composition_id, comp.id))
+          |> Repo.insert()
       end
 
       Repo.preload(comp, :cells)
     end)
-    |> case do
-      {:ok, comp} -> {:ok, comp}
-      other -> other
-    end
   end
 end
