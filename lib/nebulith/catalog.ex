@@ -8,6 +8,7 @@ defmodule Nebulith.Catalog do
 
   alias Nebulith.Catalog.Tileset
   alias Nebulith.Catalog.Template
+  alias Nebulith.Catalog.{Tile, Composition, CompositionCell}
 
   @doc """
   Returns the list of tilesets.
@@ -139,4 +140,49 @@ defmodule Nebulith.Catalog do
 
   @doc "Deletes a template."
   def delete_template(%Template{} = template), do: Repo.delete(template)
+
+  # ── Tiles + Compositions (backend-owned tile catalog) ─────────────────────
+
+  @doc "Lists tiles belonging to the tileset identified by its `key`."
+  def list_tiles_for(tileset_key) do
+    from(t in Tile, join: ts in Tileset, on: ts.id == t.tileset_id, where: ts.key == ^tileset_key)
+    |> Repo.all()
+  end
+
+  @doc "Inserts or updates a tile, keyed on (tileset_id, label)."
+  def upsert_tile(attrs) do
+    %Tile{}
+    |> Tile.changeset(attrs)
+    |> Repo.insert(
+      on_conflict: {:replace_all_except, [:id, :inserted_at]},
+      conflict_target: [:tileset_id, :label]
+    )
+  end
+
+  @doc "Lists all compositions with their cells preloaded."
+  def list_compositions do
+    Composition |> Repo.all() |> Repo.preload(:cells)
+  end
+
+  @doc "Upserts a composition and replaces its cells with the given list."
+  def upsert_composition_with_cells(comp_attrs, cell_attrs_list) do
+    Repo.transaction(fn ->
+      {:ok, comp} =
+        %Composition{}
+        |> Composition.changeset(comp_attrs)
+        |> Repo.insert(on_conflict: {:replace_all_except, [:id, :inserted_at]}, conflict_target: [:name])
+
+      Repo.delete_all(from c in CompositionCell, where: c.composition_id == ^comp.id)
+
+      for attrs <- cell_attrs_list do
+        {:ok, _} = %CompositionCell{} |> CompositionCell.changeset(Map.put(attrs, :composition_id, comp.id)) |> Repo.insert()
+      end
+
+      Repo.preload(comp, :cells)
+    end)
+    |> case do
+      {:ok, comp} -> {:ok, comp}
+      other -> other
+    end
+  end
 end
