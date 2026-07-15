@@ -1301,5 +1301,40 @@
     "char": "🏃",
     "color": "#d9a066",
     "image": "/tiles/emoji/baked/run.png"
+  },
+  "trunk": {
+    "char": "🟫",
+    "color": "#7a5a3a",
+    "colorRole": "trunk"
+  },
+  "trunk_base": {
+    "char": "🟫",
+    "color": "#7a5a3a",
+    "colorRole": "trunk"
+  },
+  "snag": {
+    "char": "🟫",
+    "color": "#7a5a3a",
+    "colorRole": "trunk"
+  },
+  "leaf_left": {
+    "char": "🍃",
+    "color": "#5fae4f",
+    "colorRole": "canopy"
+  },
+  "leaf_center": {
+    "char": "🌿",
+    "color": "#5fae4f",
+    "colorRole": "canopy"
+  },
+  "leaf_right": {
+    "char": "🍃",
+    "color": "#5fae4f",
+    "colorRole": "canopy"
+  },
+  "leaf_top": {
+    "char": "🌿",
+    "color": "#5fae4f",
+    "colorRole": "canopy"
   }
 }
