@@ -11,6 +11,7 @@
  */
 import type { TilePose } from './pose'
 import type { TileView, TileViewSettings } from './tileViewSettings'
+import type { ImageVisual } from '@/game/artStyle'
 
 // 9-piece autotile POSITION — the swap standard: all sides + corners. 'single' = a non-tiling tile.
 export type TilePosition =
@@ -41,6 +42,10 @@ export interface TilesetTile {
    *  (tree_top, wall corners…) that renders on the map but never shows in the sidebar. */
   category?: string
   title?: string
+  /** OPTIONAL portable image asset served by the backend (`image_url` on the API tile) — the same
+   *  "load different, behave the same" seam as the emoji tileset's `image`. When set, the renderer's
+   *  image path draws this instead of the glyph; absent = the ascii glyph stays the only visual. */
+  image?: ImageVisual
 }
 
 export interface ZonePalette {
