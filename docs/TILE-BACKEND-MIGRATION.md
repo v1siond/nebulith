@@ -116,6 +116,15 @@ future admin editing).
 + composition definitions and the seed inserts/upserts them into the tables (idempotent, like the
 current seeds). This is the "Data Modules + Ecto Tables" you asked for: modules author, tables store.
 
+**Model (per MAP-MODEL §4/§8 — everything is a tile):** EVERY tile is a `tiles` row, including
+terrain/ground (terrain is just another tile). A tile carries its art (`glyph`/`emoji` + optional
+`image_url` + a **color**) + `category`/`title`/`blocking`/`height`. There are **no** palettes or
+terrain tables and **no** residual blob — all the richer per-tile data lives in the tile's
+**`settings` jsonb**: the ascii per-zone/variant palette colors (a tile's color comes from its
+settings, not a shared palette), the autotile `position`, emoji `pose`/`views`, and the terrain
+`char/fg/bg` variants. So the ascii `tiles` + ascii `terrain` + emoji maps all become tile rows;
+`compositions` become rows; nothing tile-related stays in `tilesets.data`.
+
 **Dev note (shared-DB caveat).** The nebulith dev DB is **shared with the game-website Prisma DB**
 (`config/dev.exs`: `localhost/game_website`) — it holds saved templates/games. Do **not**
 `mix ecto.reset` (it `ecto.drop`s the whole shared DB and would destroy Prisma data). Reset tile
