@@ -35,6 +35,7 @@ defmodule Nebulith.Catalog.TileSource do
     seed_terrain_tiles(ascii["terrain"], ascii_id)
     seed_emoji_tiles(emoji, emoji_id)
     seed_compositions(ascii["compositions"])
+    seed_new_compositions()
 
     ascii_count = length(Catalog.list_tiles_for("ascii"))
     emoji_count = length(Catalog.list_tiles_for("emoji"))
@@ -153,6 +154,68 @@ defmodule Nebulith.Catalog.TileSource do
       walkable: cell["walkable"] || false
     }
   end
+
+  # ── Elixir-authored compositions ─────────────────────────────────────────
+  # Alexander's smaller cube-canopy trees + trunkless bushes. Unlike
+  # tree_small/tree_dead (which stay JSON-sourced, untouched), these are
+  # authored directly here per the tile-backend-migration doc's stated
+  # direction ("an Elixir data module holds the canonical composition
+  # definitions") — footprint 3x3, canopy is a literal 3x3xN cube per level.
+
+  defp seed_new_compositions do
+    for {name, %{footprint_w: w, footprint_h: h, cells: cells}} <- compositions() do
+      {:ok, _} =
+        Catalog.upsert_composition_with_cells(
+          %{name: name, footprint_w: w, footprint_h: h},
+          cells
+        )
+    end
+  end
+
+  defp compositions do
+    %{
+      "big_tree_a" => %{
+        footprint_w: 3,
+        footprint_h: 3,
+        cells: trunk_column() ++ leaf_cube(3) ++ [crown(4)]
+      },
+      "big_tree_b" => %{
+        footprint_w: 3,
+        footprint_h: 3,
+        cells: trunk_column() ++ leaf_cube(3) ++ leaf_cube(4)
+      },
+      "bush_a" => %{
+        footprint_w: 3,
+        footprint_h: 3,
+        cells: leaf_cube(0) ++ [crown(1)]
+      },
+      "bush_b" => %{
+        footprint_w: 3,
+        footprint_h: 3,
+        cells: leaf_cube(0) ++ leaf_cube(1)
+      }
+    }
+  end
+
+  defp trunk_column do
+    [
+      %{dx: 0, dy: 0, level: 0, label: "trunk_base", walkable: false},
+      %{dx: 0, dy: 0, level: 1, label: "trunk", walkable: false},
+      %{dx: 0, dy: 0, level: 2, label: "trunk", walkable: false}
+    ]
+  end
+
+  defp leaf_cube(level) do
+    for dx <- -1..1,
+        dy <- -1..1,
+        do: %{dx: dx, dy: dy, level: level, label: leaf_label(dx), walkable: true}
+  end
+
+  defp leaf_label(-1), do: "leaf_left"
+  defp leaf_label(0), do: "leaf_center"
+  defp leaf_label(1), do: "leaf_right"
+
+  defp crown(level), do: %{dx: 0, dy: 0, level: level, label: "leaf_top", walkable: true}
 
   # ── Palette resolution ────────────────────────────────────────────────────
   # A tile's `colorRole` is a (possibly dotted) path into each zone's palette:
