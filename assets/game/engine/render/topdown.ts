@@ -20,7 +20,7 @@ import { EMOJI_TILESET } from '@/engine/tileset/emojiTileset'
 import { applyPose } from '@/engine/tileset/pose'
 import { resolveTileSize, resolveTilePose } from '@/engine/tileset/tileViewSettings'
 import { Connector } from '@/lib/api'
-import { ASCII_FONT, BUILDING_BADGES, COMBAT_RANGE, type DayNight, ENEMY_MOVE_MS, LAMP_GLOW, applyCellTransform, clampCameraAxis, assetCaptionByCell, terrainLabelAt, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawHoverRing, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawConnectorMarker, drawAttackAnimFrame, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, frameImage, getPlayerArt, grassShade, cellFill, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, resolveAssetDraw, resolveEntityDraw, assetOverride, treeCanopyLayers, treeCellSet } from './shared'
+import { ASCII_FONT, BUILDING_BADGES, COMBAT_RANGE, type DayNight, ENEMY_MOVE_MS, LAMP_GLOW, applyCellTransform, clampCameraAxis, assetCaptionByCell, terrainLabelAt, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawHoverRing, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawConnectorMarker, drawAttackAnimFrame, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, frameImage, getPlayerArt, grassShade, cellFill, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, resolveAssetDraw, resolveEntityDraw, assetOverride, labelTileImage, labelTileRecolor, treeCanopyLayers, treeCellSet } from './shared'
 import { resolveAssetDrawSize } from './assetDimensions'
 import { groundSizeFactors, groundDimsActive, type GroundCellDims } from '@/engine/groundDims'
 import { getStack } from '@/engine/cellStack'
@@ -156,11 +156,20 @@ export function draw2DLabeledCell(
   // Paint the cell with the ACTIVE style's tile for its LABEL — the emoji in emoji mode, else the ascii glyph.
   // Never mix: a composition cell is emoji in emoji mode, ascii in ascii mode. Both come from the DB tileset.
   const char = (style.id === 'emoji' && asset.label ? EMOJI_TILESET[asset.label]?.char : undefined) ?? asset.art[0] ?? '?'
+  const tint = asset.color ?? '#cccccc'
   const cy = baseY - tileH * 0.5
   ctx.fillStyle = 'rgba(0, 0, 0, 0.45)'
   ctx.fillRect(x - tileW / 2, cy - tileH / 2, tileW, tileH)
+  // The label's backend IMAGE (ascii: a white tint-target, RECOLOURED to `tint`; emoji: an already-coloured
+  // PNG, NEVER recoloured) fills the same cell box the glyph would; a label with no image (most today)
+  // falls through to the glyph below, so the cell is never blank.
+  const image = asset.label ? labelTileImage(asset.label, style) : undefined
+  if (image) {
+    drawStyledImage(ctx, image, x, cy, tileW, false, labelTileRecolor(style, tint), tileH)
+    return
+  }
   ctx.font = `bold ${tileH * 0.8}px ${ASCII_FONT}`
-  ctx.fillStyle = asset.color ?? '#cccccc'
+  ctx.fillStyle = tint
   ctx.fillText(char, x, cy)
 }
 

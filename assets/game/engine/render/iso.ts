@@ -17,7 +17,7 @@ import { type CombatState, type Entity, type Quest } from '@/game/types'
 import { resolveGroundTile } from '@/engine/tileset/tileset'
 import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 import { Connector } from '@/lib/api'
-import { ASCII_FONT, BUILDING_BADGES, COMBAT_RANGE, type DayNight, type DrawVisual, ENEMY_MOVE_MS, LAMP_GLOW, LIGHT, applyCellTransform, isoCameraFocus, assetCaptionByCell, terrainLabelAt, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawHoverRing, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawConnectorMarker, drawAttackAnimFrame, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, frameImage, getPlayerArt, grassShade, cellFill, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, resolveAssetDraw, resolveEntityDraw, assetOverride, tileImage, tintedImage, tintedGlyphSprite, treeCanopyLayers, treeCellSet } from './shared'
+import { ASCII_FONT, BUILDING_BADGES, COMBAT_RANGE, type DayNight, type DrawVisual, ENEMY_MOVE_MS, LAMP_GLOW, LIGHT, applyCellTransform, isoCameraFocus, assetCaptionByCell, terrainLabelAt, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawHoverRing, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawConnectorMarker, drawAttackAnimFrame, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, frameImage, getPlayerArt, grassShade, cellFill, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, resolveAssetDraw, resolveEntityDraw, assetOverride, labelTileImage, labelTileRecolor, tileImage, tintedImage, tintedGlyphSprite, treeCanopyLayers, treeCellSet } from './shared'
 import { resolveAssetDrawSize } from './assetDimensions'
 import { type GroundCellDims, groundSizeFactors, groundDimsActive } from '@/engine/groundDims'
 import { getStack, type TileSource } from '@/engine/cellStack'
@@ -1592,7 +1592,13 @@ export function drawIsoAssetAscii(
     // under the same label (ascii + emoji, one path, no hardcoded frontend tile).
     const et = style.id === 'emoji' ? EMOJI_TILESET[asset.label] : undefined
     const glyph = et ? et.char : (asset.art[0] ?? '?') // emoji part tile in emoji mode, else the ascii glyph
-    drawIsoTileBlock(ctx, { x, y }, bw, bd, bh, 1, { char: glyph, color: tint, tint }, tint)
+    // The label's backend IMAGE (ascii: a white tint-target, RECOLOURED to the block's tint; emoji: an
+    // already-coloured Noto/baked PNG, NEVER recoloured) paints the block faces; a label with no image
+    // (most today) falls back to the glyph above via drawIsoTileBlock's own image-or-char face fill, so a
+    // cell is never blank.
+    const image = labelTileImage(asset.label, style)
+    const recolor = labelTileRecolor(style, tint)
+    drawIsoTileBlock(ctx, { x, y }, bw, bd, bh, 1, { char: glyph, color: tint, tint: recolor, image }, recolor)
     return
   }
 

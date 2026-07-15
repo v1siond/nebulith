@@ -11,7 +11,7 @@ import { type PlayerState, barFraction, hpFraction } from '@/game/runtime/player
 import { type CombatState, type Entity, type Quest } from '@/game/types'
 import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 import { Connector } from '@/lib/api'
-import { ASCII_FONT, BUILDING_BADGES, type DayNight, LAMP_GLOW, applyCellTransform, clampCameraAxis, collectLampGlows, debugCellCaptions, debugLabelColors, drawConnectorMarker, drawHitMarker, drawHpBar, drawNightLighting, drawQuestMarker, drawStyledImage, fillTintedGlyph, grassShade, cellFill, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, resolveAssetDraw, resolveEntityDraw, assetOverride, tileImage } from './shared'
+import { ASCII_FONT, BUILDING_BADGES, type DayNight, LAMP_GLOW, applyCellTransform, clampCameraAxis, collectLampGlows, debugCellCaptions, debugLabelColors, drawConnectorMarker, drawHitMarker, drawHpBar, drawNightLighting, drawQuestMarker, drawStyledImage, fillTintedGlyph, grassShade, cellFill, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, resolveAssetDraw, resolveEntityDraw, assetOverride, labelTileImage, labelTileRecolor, tileImage } from './shared'
 import { resolveAssetDrawSize } from './assetDimensions'
 import { getStack } from '@/engine/cellStack'
 import { EMOJI_TILESET } from '@/engine/tileset/emojiTileset'
@@ -177,17 +177,25 @@ export function renderTopView(
       const gx = x + tileSize / 2, gy = y + tileSize / 2
       const ctTop = asset ? assetCellTransform(asset.cellAnim, now) : null
       if (ctTop) applyCellTransform(ctx, gx, gy, ctTop, tileSize, tileSize)
-      if (dv.image) {
+      // A composition cell's LABEL resolves its OWN backend image directly (mirrors the char lookup
+      // above) — ascii: a tint-target, ALWAYS recoloured to the resolved tint; emoji: an already-coloured
+      // PNG, NEVER recoloured. Takes priority over the kind-driven `dv.image` (which already happens to
+      // agree for building parts, since their label IS their kind) so a label with backend art renders it
+      // even where kind-resolution can't (e.g. per-part tree labels collapse to the generic 'tree' kind).
+      const labelImage = asset?.label ? labelTileImage(asset.label, style) : undefined
+      const img = labelImage ?? dv.image
+      if (img) {
         // Per-view tile size (byte-identical when unset: old tileSize base), then per-element dims (#77/#78).
         const vt = style.id === 'emoji' && asset ? EMOJI_TILESET[assetKind(asset)] : undefined
         const d = resolveAssetDrawSize(tileSize * (resolveTileSize(vt, 'top') ?? 1), asset ?? {}, 'overhead')
         const pose = resolveTilePose(vt, 'top') // #1: props finally read a per-view pose (was unwired)
+        const recolor = labelImage ? labelTileRecolor(style, asset?.color ?? '#cccccc') : asset?.color
         if (pose) {
           ctx.save(); ctx.translate(gx, gy); applyPose(ctx, pose, 1, tileSize)
-          drawStyledImage(ctx, dv.image, 0, 0, d.w, false, asset?.color, d.h)
+          drawStyledImage(ctx, img, 0, 0, d.w, false, recolor, d.h)
           ctx.restore()
         } else {
-          drawStyledImage(ctx, dv.image, gx, gy, d.w, false, asset?.color, d.h) // #80 colour override tints the sprite
+          drawStyledImage(ctx, img, gx, gy, d.w, false, recolor, d.h) // #80 colour override tints the sprite
         }
       } else {
         // GLYPH tile (no image): honour the per-view tile size + per-element dims + the colour override,

@@ -8,6 +8,7 @@ import { type QuestMarker } from '@/engine/entityQuestMarker'
 import { motionPos } from '@/engine/movement'
 import { applyPose, type TilePose } from '@/engine/tileset/pose'
 import { EMOJI_TILESET } from '@/engine/tileset/emojiTileset'
+import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 import { edgeToSide, footprintRing, footprintSide, labelForCell, treeSubpart } from '@/engine/stageGenerator'
 import { terrainCaptions } from '@/engine/terrainLabels'
 import { isDead } from '@/game/combat'
@@ -132,6 +133,25 @@ export function resolveEntityDraw(
 export function assetOverride(asset: GridAsset, style: Style): string | null | undefined {
   if (asset.type === 'ground_decor' && style.id === 'ascii') return undefined // drop the auto emoji litter under ASCII
   return asset.tileOverride
+}
+
+/** The active-style backend IMAGE for a COMPOSITION cell's LABEL (a tree/building/feature part), shared
+ *  by every view (iso/2D/top) so a label resolves its picture identically everywhere. ascii images are
+ *  white tint-targets (recoloured by the caller via labelTileRecolor); emoji images are already-coloured
+ *  Noto/baked PNGs and must never be recoloured. Undefined when the label carries no image (most labels
+ *  today) — the caller then falls back to its glyph, never a blank cell/block. */
+export function labelTileImage(label: string, style: Style): ImageVisual | undefined {
+  if (style.id === 'emoji') {
+    const et = EMOJI_TILESET[label]
+    return et?.image ? { kind: 'image', src: et.image, char: et.char } : undefined
+  }
+  return ASCII_TILESET.tiles[label]?.image
+}
+
+/** The tint to pass alongside a labelTileImage: ascii RECOLOURS its tint-target image to the resolved
+ *  colour; emoji images are pre-coloured, so this is undefined and the caller must skip tinting. */
+export function labelTileRecolor(style: Style, tint: string): string | undefined {
+  return style.id === 'emoji' ? undefined : tint
 }
 
 // Image/atlas cache so a tile src is decoded once, not per frame. v1 ships no image
