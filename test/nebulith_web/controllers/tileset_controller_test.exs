@@ -84,6 +84,38 @@ defmodule NebulithWeb.TilesetControllerTest do
     end
   end
 
+  describe "index serves tiles + compositions" do
+    test "each tileset carries its tiles (with image_url) + compositions", %{conn: conn} do
+      {:ok, ts} = Nebulith.Catalog.create_tileset(%{key: "ascii", name: "ASCII", data: %{}})
+
+      {:ok, _} =
+        Nebulith.Catalog.upsert_tile(%{
+          tileset_id: ts.id,
+          label: "trunk",
+          image_url: "/tiles/ascii/trunk.png",
+          blocking: true,
+          height: 1,
+          settings: %{"colors" => %{"spring" => "#7a5a3a"}}
+        })
+
+      {:ok, _} =
+        Nebulith.Catalog.upsert_composition_with_cells(
+          %{name: "tree_small", footprint_w: 5, footprint_h: 3},
+          [%{dx: 0, dy: 0, level: 0, label: "trunk", walkable: false}]
+        )
+
+      conn = get(conn, ~p"/api/tilesets")
+      [t] = json_response(conn, 200)["data"]
+      assert t["key"] == "ascii"
+      # existing field preserved
+      assert t["data"] == %{}
+      assert t["tiles"]["trunk"]["image_url"] == "/tiles/ascii/trunk.png"
+      assert t["tiles"]["trunk"]["settings"]["colors"]["spring"] == "#7a5a3a"
+      assert t["compositions"]["tree_small"]["footprint"] == %{"w" => 5, "h" => 3}
+      assert [%{"label" => "trunk"}] = t["compositions"]["tree_small"]["cells"]
+    end
+  end
+
   defp create_tileset(_) do
     tileset = tileset_fixture()
 

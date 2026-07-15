@@ -7,8 +7,12 @@ defmodule NebulithWeb.TilesetController do
   action_fallback NebulithWeb.FallbackController
 
   def index(conn, _params) do
-    tilesets = Catalog.list_tilesets()
-    render(conn, :index, tilesets: tilesets)
+    tilesets =
+      Enum.map(Catalog.list_tilesets(), fn ts ->
+        %{tileset: ts, tiles: Catalog.list_tiles_for(ts.key)}
+      end)
+
+    render(conn, :index, tilesets: tilesets, compositions: Catalog.list_compositions())
   end
 
   def create(conn, %{"tileset" => tileset_params}) do
