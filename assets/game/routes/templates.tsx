@@ -70,7 +70,7 @@ import { FlowViewOverlay, GamesViewOverlay } from '@/components/game/games'
 import { BUILDING_TOOL_TYPE, type BuildingTool, type EditorMode, type EntityTool } from '@/components/game/editorConfig'
 import { AnimationEditor, ArtSection, Dropdown, FpsReadout, GenerateControls, PoseControls, PropertiesPanel, type TileControlModel, SelectionHeader, StylePicker, TileLibraryBody, TilePalette, ToolRail, TriggerEditor, WEAPON_KINDS } from '@/components/game/editorChrome'
 import { useFps } from '@/components/useFps'
-import { commonValue, commonBool, cellsFromKeys } from '@/game/editor/selectionEdit'
+import { commonValue, commonBool, cellsFromKeys, removeSelectedBlock } from '@/game/editor/selectionEdit'
 import { applyRectSelection, applyCellSelection } from '@/game/editor/selection'
 import { entityKindForUnitSlug, placementFor, tileSlug } from '@/game/editor/tilePlacement'
 import { placeGroundTile, removeTopAsset, removeAssetAtLevel, stackAssetTile } from '@/game/editor/tileBrush'
@@ -1641,6 +1641,16 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
     applyToSelectedCells((col, row, grid) => { const a = stackedAssetsAt(grid, col, row)[i]; if (a) a[DIM_FIELD[axis]] = v })
   const setAssetColor = (i: number, color: string) =>
     applyToSelectedCells((col, row, grid) => { const a = stackedAssetsAt(grid, col, row)[i]; if (a) a.color = color })
+  // Inspector "Remove tile" → delete the EXACT selected block (never the floor — removeSelectedBlock no-ops
+  // at level 0) from every selected cell, then step the level down so the panel doesn't point past the
+  // (now shorter) stack.
+  const removeSelectedTile = () => {
+    const grid = gridRef.current
+    if (!grid) return
+    removeSelectedBlock(grid, cellsFromKeys(selectedCells), selectedTileLevel)
+    bumpBuildingVersion()
+    setSelectedTileLevel(l => Math.max(0, l - 1))
+  }
   // Per-CELL floor dims + pose — the SAME Width/Height/Depth/Zoom, but written to grid.groundDims so they
   // size/pose THIS floor tile (every tile, not just props). setGroundDims merges + bumps groundVersion.
   const setGroundDim = (axis: keyof typeof DIM_FIELD, v: number) =>
@@ -5885,6 +5895,7 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
                             level={lvl + 1}
                             levelCount={levelCount}
                             onLevel={setSelectedTileLevel}
+                            onRemove={lvl >= 1 ? removeSelectedTile : undefined}
                           />
                         )
                       })()}

@@ -572,6 +572,9 @@ export interface PropertiesPanelProps {
   levelCount: number
   /** select a tile by 0-based stack index (0 = floor) — the ▲▼ stepper reaches every block. */
   onLevel: (index0: number) => void
+  /** remove the SELECTED tile from the grid (not the floor — the caller omits this for level 0). Shows a
+   *  "Remove tile" button in the tile section when provided; absent → no button (e.g. the floor). */
+  onRemove?: () => void
 }
 
 const mixedBadge = <span className="text-[9px] italic text-amber-300">mixed</span>
@@ -667,6 +670,11 @@ export function PropertiesPanel(p: PropertiesPanelProps) {
             )}
           </div>
           <TileControls tile={p.tile} />
+          {p.onRemove && (
+            <button onClick={p.onRemove} className="w-full rounded bg-red-700 px-2 py-1 text-[10px] font-bold text-white transition-colors hover:bg-red-600">
+              🗑 Remove tile
+            </button>
+          )}
         </>
       )}
     </div>
