@@ -76,4 +76,35 @@ defmodule Nebulith.TileSourceTest do
     assert grass.emoji
     assert grass.settings["color"]
   end
+
+  test "wall/window/door/roof_top tiles get fadeNear, roof gets cutawayRoof, in both styles" do
+    for style <- ["ascii", "emoji"] do
+      tiles = Catalog.list_tiles_for(style)
+      wall = Enum.find(tiles, &(&1.label == "wall"))
+
+      assert wall.settings["fadeNear"] == true, "#{style} wall missing fadeNear"
+
+      roof = Enum.find(tiles, &(&1.label == "roof"))
+      assert roof.settings["cutawayRoof"] == true, "#{style} roof missing cutawayRoof"
+      refute roof.settings["fadeNear"], "#{style} roof should not have fadeNear"
+    end
+  end
+
+  test "behavior settings don't clobber existing settings and stay scoped to building tiles" do
+    ascii_tiles = Catalog.list_tiles_for("ascii")
+
+    wall = Enum.find(ascii_tiles, &(&1.label == "wall"))
+    assert wall.settings["colors"]
+    assert wall.settings["fadeNear"] == true
+
+    canopy = Enum.find(ascii_tiles, &(&1.label == "leaf_center"))
+    assert canopy.settings["colors"]["spring"]
+    refute canopy.settings["fadeNear"]
+    refute canopy.settings["cutawayRoof"]
+
+    grass = Enum.find(Catalog.list_tiles_for("emoji"), &(&1.label == "grass"))
+    assert grass.settings["color"]
+    refute grass.settings["fadeNear"]
+    refute grass.settings["cutawayRoof"]
+  end
 end

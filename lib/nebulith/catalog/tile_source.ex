@@ -19,6 +19,20 @@ defmodule Nebulith.Catalog.TileSource do
   alias Nebulith.Catalog.Tileset
   alias Nebulith.Repo
 
+  # ── Behavior settings ─────────────────────────────────────────────────────
+  # Generic per-label BEHAVIOR flags merged into every tile's settings during
+  # the port below, regardless of style. These aren't a "buildings" special
+  # case — any label (a wall, a tree, whatever) can carry a behavior; today
+  # only wall/window/door/roof_top ease translucent as the player approaches
+  # (fadeNear), and roof lifts off / hides entirely (cutawayRoof).
+  @behavior_settings %{
+    "wall" => %{"fadeNear" => true},
+    "window" => %{"fadeNear" => true},
+    "door" => %{"fadeNear" => true},
+    "roof_top" => %{"fadeNear" => true},
+    "roof" => %{"cutawayRoof" => true}
+  }
+
   @doc """
   Seeds the ascii + emoji tilesets and all their tiles + compositions.
 
@@ -85,6 +99,7 @@ defmodule Nebulith.Catalog.TileSource do
               "colors" => per_zone_colors(tile["colorRole"], palettes)
             }
             |> maybe_put("pose", tile["pose"])
+            |> merge_behavior(label)
         })
     end
   end
@@ -105,7 +120,9 @@ defmodule Nebulith.Catalog.TileSource do
           height: 0,
           category: "terrain",
           image_url: "/tiles/ascii/#{label}.png",
-          settings: %{"variants" => %{"char" => char, "fg" => fg, "bg" => bg}}
+          settings:
+            %{"variants" => %{"char" => char, "fg" => fg, "bg" => bg}}
+            |> merge_behavior(label)
         })
     end
   end
@@ -129,6 +146,7 @@ defmodule Nebulith.Catalog.TileSource do
             %{"color" => t["color"]}
             |> maybe_put("pose", t["pose"])
             |> maybe_put("views", t["views"])
+            |> merge_behavior(label)
         })
     end
   end
@@ -222,6 +240,10 @@ defmodule Nebulith.Catalog.TileSource do
 
   defp maybe_put(map, _key, nil), do: map
   defp maybe_put(map, key, value), do: Map.put(map, key, value)
+
+  defp merge_behavior(settings, label) do
+    Map.merge(settings, Map.get(@behavior_settings, label, %{}))
+  end
 
   defp read_tileset(file) do
     :nebulith
