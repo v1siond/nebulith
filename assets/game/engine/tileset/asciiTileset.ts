@@ -56,6 +56,18 @@ const POSITION_BY_LABEL: Partial<Readonly<Record<CellLabel, TilePosition>>> = {
   tree_bottom_right: 'bottom_right',
 }
 
+// label → GENERIC render-behavior settings (the bundled twin of the backend `settings` blob, so proximity
+// fade/cutaway works offline + is unit-testable): a building's walls/windows/door/roof-apex ease translucent
+// near the hero (fadeNear); the roof lifts off entirely (cutawayRoof). Any tile could carry these — they're a
+// per-tile property, not a `type:'building'` special case. The backend serves the SAME keys via /api/tilesets.
+const SETTINGS_BY_LABEL: Partial<Readonly<Record<CellLabel, Record<string, unknown>>>> = {
+  wall: { fadeNear: true },
+  window: { fadeNear: true },
+  door: { fadeNear: true },
+  roof_top: { fadeNear: true },
+  roof: { cutawayRoof: true },
+}
+
 function buildTiles(): Record<string, TilesetTile> {
   const tiles: Record<string, TilesetTile> = {}
   for (const label of CELL_LABELS) {
@@ -65,6 +77,7 @@ function buildTiles(): Record<string, TilesetTile> {
       position: POSITION_BY_LABEL[label] ?? 'single',
       walkable: isWalkable(label),
       colorRole: COLOR_ROLE_BY_LABEL[label],
+      settings: SETTINGS_BY_LABEL[label],
     }
   }
   return tiles

@@ -46,6 +46,10 @@ export interface TilesetTile {
    *  "load different, behave the same" seam as the emoji tileset's `image`. When set, the renderer's
    *  image path draws this instead of the glyph; absent = the ascii glyph stays the only visual. */
   image?: ImageVisual
+  /** OPTIONAL backend `settings` blob (served on the API tile) — holds the GENERIC render-behavior keys
+   *  `fadeNear` / `cutawayRoof` a stamp copies onto the placed asset, plus style-specific extras. Any tile
+   *  can carry them, so proximity fade/cutaway is a per-tile property, not a building special case. */
+  settings?: Record<string, unknown>
 }
 
 export interface ZonePalette {
@@ -123,10 +127,26 @@ export function resolveGroundTile(tileset: Tileset, tileType: string, col: numbe
   }
 }
 
-export interface ResolvedTile { char: string; color: string }
+export interface ResolvedTile {
+  char: string
+  color: string
+  /** The tile's backend `settings` blob (carries the generic `fadeNear`/`cutawayRoof` behavior keys). */
+  settings?: Record<string, unknown>
+}
 
 // Unknown label → the same visible-but-neutral fallback the hardcoded path used (never blank/throw).
 export const FALLBACK_RESOLVED: ResolvedTile = { char: '?', color: '#cccccc' }
+
+/** The GENERIC render-behavior keys (`fadeNear`/`cutawayRoof`) a stamp copies from a resolved tile's
+ *  `settings` onto the placed asset. Returns undefined when the tile carries neither (the common case), so
+ *  a stamp only sets `asset.settings` on tiles that actually opt into a behavior. */
+export function tileRenderBehavior(settings?: Record<string, unknown>): { fadeNear?: boolean; cutawayRoof?: boolean } | undefined {
+  if (!settings) return undefined
+  const out: { fadeNear?: boolean; cutawayRoof?: boolean } = {}
+  if (settings.fadeNear) out.fadeNear = true
+  if (settings.cutawayRoof) out.cutawayRoof = true
+  return out.fadeNear || out.cutawayRoof ? out : undefined
+}
 
 // colour ROLE → the palette entry it reads (dispatch map, not an if/else chain). Canopy is the only
 // variant-aware role (a tree/cluster picks a tonal shade); the rest are single per-zone colours.
@@ -150,7 +170,7 @@ export function resolveTile(tileset: Tileset, zone: string, label: string, varia
   const palette = tileset.palettes[zone]
   if (!palette) return FALLBACK_RESOLVED
   const resolver = COLOR_RESOLVERS[tile.colorRole]
-  return { char: tile.glyph, color: resolver ? resolver(palette, variant) : FALLBACK_RESOLVED.color }
+  return { char: tile.glyph, color: resolver ? resolver(palette, variant) : FALLBACK_RESOLVED.color, settings: tile.settings }
 }
 
 /** The multi-cell COMPOSITION for an asset kind from a LOADED tileset (null if none). Pure — the caller

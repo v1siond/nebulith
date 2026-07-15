@@ -47,8 +47,8 @@ describe('lego model — everything on the grid is an editable block', () => {
     const b = makeBuilding('house', 'south', 6, 6)
     stampBuildingCells(grid, b, 'spring')
 
-    // A building is BLOCKS on the grid.
-    const buildingBlocks = grid.assets.filter(a => a.type === 'building')
+    // A building is BLOCKS on the grid — plain `type:'structure'` tiles, no special "building" type.
+    const buildingBlocks = grid.assets.filter(a => a.type === 'structure')
     expect(buildingBlocks.length).toBeGreaterThan(0)
 
     // Each block appears in its cell's UNIFORM stack (same shape as any other block).

@@ -41,6 +41,9 @@ export interface EmojiTile {
    *  nothing hardcoded on the frontend. */
   category?: string
   title?: string
+  /** OPTIONAL backend `settings` blob — the GENERIC render-behavior keys (`fadeNear`/`cutawayRoof`), the
+   *  SAME shape the ascii tile carries, so a reskin's tiles opt into proximity fade/cutaway too. */
+  settings?: Record<string, unknown>
 }
 
 export let EMOJI_TILESET: Record<string, EmojiTile> = {

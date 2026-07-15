@@ -17,7 +17,7 @@ import { type CombatState, type Entity, type Quest } from '@/game/types'
 import { resolveGroundTile } from '@/engine/tileset/tileset'
 import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 import { Connector } from '@/lib/api'
-import { ASCII_FONT, BUILDING_BADGES, COMBAT_RANGE, type DayNight, type DrawVisual, ENEMY_MOVE_MS, LAMP_GLOW, LIGHT, applyCellTransform, isoCameraFocus, assetCaptionByCell, terrainLabelAt, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawHoverRing, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawConnectorMarker, drawAttackAnimFrame, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, frameImage, getPlayerArt, grassShade, cellFill, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, resolveAssetDraw, resolveEntityDraw, assetOverride, labelTileImage, labelTileRecolor, tileImage, tintedImage, tintedGlyphSprite, treeCanopyLayers, treeCellSet } from './shared'
+import { ASCII_FONT, COMBAT_RANGE, type DayNight, type DrawVisual, ENEMY_MOVE_MS, LAMP_GLOW, LIGHT, applyCellTransform, isoCameraFocus, assetCaptionByCell, terrainLabelAt, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawHoverRing, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawConnectorMarker, drawAttackAnimFrame, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, frameImage, getPlayerArt, grassShade, cellFill, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, resolveAssetDraw, resolveEntityDraw, assetOverride, labelTileImage, labelTileRecolor, tileImage, tintedImage, tintedGlyphSprite, treeCanopyLayers, treeCellSet } from './shared'
 import { resolveAssetDrawSize } from './assetDimensions'
 import { type GroundCellDims, groundSizeFactors, groundDimsActive } from '@/engine/groundDims'
 import { getStack, type TileSource } from '@/engine/cellStack'
@@ -498,10 +498,10 @@ export function render(
   // assets/player and draw as glyphs on top of their cell.
   const pCol = player.x / cellSize
   const pRow = player.z / cellSize
-  // A BUILDING is just TILES: stampBuildingCells places one `type:'building'` asset per BLOCK, so a
-  // building's walls/windows/door/roof flow into the draw list through the SAME `asset` path as any stacked
-  // tile — no building-specific collect/filter/drawer. grid.buildings stays as the building's metadata for
-  // whole-building ops (move/rotate/resize/delete via stamp/unstamp); it is no longer a render source.
+  // A BUILDING is just TILES: stampBuildingCells places one plain `type:'structure'` asset per BLOCK (like a
+  // tree cell), so a building's walls/windows/door/roof flow into the draw list through the SAME `asset` path
+  // as any stacked tile — no building-specific collect/filter/drawer, and the render never reads grid.buildings.
+  // grid.buildings stays ONLY as the building's metadata for whole-building ops (move/rotate/resize/delete).
   const allObjects: { col: number; row: number; isPlayer?: boolean; asset?: GridAsset; entity?: Entity; moving?: boolean; inRange?: boolean }[] = [
     ...visibleAssets.map(a => ({ col: a.col, row: a.row, asset: a })),
     // The player ENTITY is drawn as the live sprite below (isPlayer), so skip it here
@@ -523,19 +523,10 @@ export function render(
   // Render each object with ASCII art style
   const playerIsTarget = !!targetId && entities.some(e => e.kind === 'player' && e.id === targetId)
   const playerIsHover = !!hoverId && entities.some(e => e.kind === 'player' && e.id === hoverId)
-  // Proximity reveal: as the hero closes in, a building's WALLS ease to translucent and its ROOF eases to fully
-  // invisible (lifting off SMOOTHLY, not popping) so the door + hollow interior + occupants read. Store the
-  // hero's distance to each near building's footprint cells; buildingWallAlpha / buildingRoofAlpha derive the
-  // eased opacity per block below. Empty when no building is near, so the common case is a no-op.
-  const buildingDist = new Map<string, number>()
-  for (const b of grid.buildings) {
-    const top = b.row - (b.height - 1)
-    const nearCol = Math.max(b.col, Math.min(pCol, b.col + b.length - 1))
-    const nearRow = Math.max(top, Math.min(pRow, b.row))
-    const dist = Math.hypot(pCol - nearCol, pRow - nearRow)
-    if (dist >= BUILDING_FADE_RADIUS) continue
-    for (let r = top; r <= b.row; r++) for (let c = b.col; c < b.col + b.length; c++) buildingDist.set(`${c},${r}`, dist)
-  }
+  // Proximity reveal is a GENERIC per-tile behavior now — NO building special case, NO grid.buildings read.
+  // Any asset whose tile opted into settings.fadeNear eases translucent as the hero closes in, and
+  // settings.cutawayRoof lifts the tile off entirely — each computed from the asset's OWN cell distance in the
+  // draw loop below (fadeNearAlpha / cutawayAlpha). So a tree-leaf tile carrying fadeNear fades exactly like a wall.
   for (const obj of allObjects) {
     const p = toScreen(obj.col, obj.row)
     const cellHeight = grid.getHeight(Math.floor(obj.col), Math.floor(obj.row))
@@ -558,14 +549,14 @@ export function render(
       // gableRoofLevels), so it needs no special cap drawer — the SAME stacked tiles project to a triangle
       // (2D front), a 3D gable (iso), and the footprint rectangle (top), like any other stacked tile.
       let op = obj.asset.opacity ?? 1 // per-asset opacity for contrast/depth
-      if (obj.asset.type === 'building') {
-        const dist = buildingDist.get(`${obj.asset.col},${obj.asset.row}`)
-        if (dist !== undefined) {
-          // Walls ease translucent, roof eases to invisible — SMOOTHLY as the hero closes in.
-          const alpha = obj.asset.label === 'roof' ? buildingRoofAlpha(dist) : buildingWallAlpha(dist)
-          if (alpha <= 0.03) continue // roof lifted off → skip drawing entirely
-          op = Math.min(op, alpha)
-        }
+      // GENERIC proximity behavior: ANY asset whose tile opted into fadeNear/cutawayRoof eases by its OWN
+      // distance to the hero — walls/leaves ease translucent (fadeNearAlpha), a roof lifts off (cutawayAlpha).
+      const fx = obj.asset.settings
+      if (fx && (fx.fadeNear || fx.cutawayRoof)) {
+        const dist = Math.hypot(pCol - obj.asset.col, pRow - obj.asset.row)
+        const alpha = fx.cutawayRoof ? cutawayAlpha(dist) : fadeNearAlpha(dist)
+        if (alpha <= 0.03) continue // a cutaway tile lifted off → skip drawing entirely
+        op = Math.min(op, alpha)
       }
       if (op < 1) ctx.globalAlpha = op
       // Brush STACK: lift this entry `heightLevel` cubes up so the pile climbs in iso (block-kinds extrude
@@ -873,9 +864,21 @@ export function drawIsoPlayer(
 }
 
 
-// Apex roof glyph by type: a house PEAKS (▲ = triangle roof); every other type keeps the flat
-// (squared) apex. Replaces the default roof_top glyph for that one cell.
-export const ROOF_APEX_GLYPH: Record<string, string> = { house: '▲' }
+/** Apex signage (a "STORE" marquee, a "HOSPITAL" word) drawn above a cell's apex at (x, apexY). GENERIC:
+ *  driven by the tile's own `settings.badge` ({text,color}), NOT a buildingType lookup — so any tile that
+ *  carries a badge shows one, through whichever draw path (cube or labeled cell) rendered the block. */
+export function drawApexBadge(ctx: CanvasRenderingContext2D, x: number, apexY: number, fontSize: number, badge: { text: string; color: string }): void {
+  const bf = fontSize * (badge.text.length > 1 ? 0.5 : 0.9)
+  ctx.font = `bold ${bf}px ${ASCII_FONT}`
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  const by = apexY - fontSize * 0.95
+  const bw = ctx.measureText(badge.text).width
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.72)'
+  ctx.fillRect(x - bw / 2 - 2, by - bf * 0.6, bw + 4, bf * 1.2)
+  ctx.fillStyle = badge.color
+  ctx.fillText(badge.text, x, by)
+}
 
 
 export function drawIsoLabeledCell(
@@ -899,32 +902,17 @@ export function drawIsoLabeledCell(
   // tile (a leaf '(@&@)') gets a backing that fits it, while a single glyph is unchanged. No per-cell
   // measureText() — the canvas-2D layout call that tanked iso FPS on dense (forest) stages.
   const w = char.length * fontSize * 0.6
-  // Building cells FILL with their own part color so a dark door + a glass/lit window read as
-  // solid coloured blocks (a dark glyph on a black backing was invisible). Trees keep the plain
-  // dark backing behind their canopy glyph.
+  // A cell carrying apex signage FILLS solid (its darkened tint) so the word reads over it; every other
+  // labeled cell keeps the plain dark backing behind its glyph. No `type:'building'` special case.
   const base = asset.color ?? '#cccccc'
-  ctx.fillStyle = asset.type === 'building' ? darkenColor(base, 0.28) : 'rgba(0, 0, 0, 0.5)'
+  ctx.fillStyle = asset.settings?.badge ? darkenColor(base, 0.28) : 'rgba(0, 0, 0, 0.5)'
   ctx.fillRect(x - w / 2 - 2, cy - fontSize * 0.55, w + 4, fontSize * 1.1)
-  // Roof shape by building type: houses peak (▲), squared "buildings" stay flat.
-  const glyph = asset.label === 'roof_top' ? (ROOF_APEX_GLYPH[asset.buildingType ?? ''] ?? char) : char
   ctx.fillStyle = base
-  ctx.fillText(glyph, x, cy)
+  ctx.fillText(char, x, cy)
 
-  // Type signage on the apex: a "STORE" marquee, a red hospital cross. Only the ONE
-  // roof_top cell per building hits this → the measureText here is rare, not per-cell.
-  if (asset.label === 'roof_top' && asset.buildingType) {
-    const badge = BUILDING_BADGES[asset.buildingType]
-    if (badge) {
-      const bf = fontSize * (badge.text.length > 1 ? 0.5 : 0.9)
-      ctx.font = `bold ${bf}px ${ASCII_FONT}`
-      const by = cy - fontSize * 0.95
-      const bw = ctx.measureText(badge.text).width
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.72)'
-      ctx.fillRect(x - bw / 2 - 2, by - bf * 0.6, bw + 4, bf * 1.2)
-      ctx.fillStyle = badge.color
-      ctx.fillText(badge.text, x, by)
-    }
-  }
+  // Apex signage — driven GENERICALLY by settings.badge (not buildingType). Only the one apex tile per
+  // building carries it → the measureText here is rare, not per-cell.
+  if (asset.settings?.badge) drawApexBadge(ctx, x, cy, fontSize, asset.settings.badge)
 }
 
 
@@ -1025,20 +1013,21 @@ export function drawIsoEntity(
 }
 
 
-// Proximity reveal (Zelda/PoE style): as the hero closes in, a building's WALLS ease to translucent and its
-// ROOF eases to fully invisible — SMOOTHLY (smoothstep), not a hard pop — so the door + hollow interior read.
-export const BUILDING_FADE_RADIUS = 4.5 // walls begin easing this far out — a wide, gentle onset
-export const BUILDING_MIN_ALPHA = 0.22  // walls ease to this (translucent but readable) when the hero is on top
-export const ROOF_GONE_DIST = 1.8       // the roof is fully invisible within this distance — lifted clean off
+// Proximity reveal (Zelda/PoE style), now a GENERIC per-tile behavior driven by settings.fadeNear /
+// settings.cutawayRoof — not building-only. A `fadeNear` tile eases to translucent as the hero closes in; a
+// `cutawayRoof` tile eases to fully invisible — SMOOTHLY (smoothstep), not a hard pop. Constants kept.
+export const BUILDING_FADE_RADIUS = 4.5 // fade begins easing this far out — a wide, gentle onset
+export const BUILDING_MIN_ALPHA = 0.22  // a fadeNear tile eases to this (translucent but readable) on top
+export const ROOF_GONE_DIST = 1.8       // a cutaway tile is fully invisible within this distance — lifted clean off
 
 const smoothstep = (t: number): number => { const c = Math.max(0, Math.min(1, t)); return c * c * (3 - 2 * c) }
-/** Wall opacity by the hero's distance to the building: 1 far, easing to BUILDING_MIN_ALPHA on top. */
-export function buildingWallAlpha(dist: number): number {
+/** fadeNear opacity by the hero's distance: 1 far, easing to BUILDING_MIN_ALPHA on top (walls, leaves, …). */
+export function fadeNearAlpha(dist: number): number {
   if (dist >= BUILDING_FADE_RADIUS) return 1
   return BUILDING_MIN_ALPHA + (1 - BUILDING_MIN_ALPHA) * smoothstep(dist / BUILDING_FADE_RADIUS)
 }
-/** Roof opacity by distance: 1 far, easing to 0 by ROOF_GONE_DIST — the roof lifts off smoothly, no pop. */
-export function buildingRoofAlpha(dist: number): number {
+/** cutawayRoof opacity by distance: 1 far, easing to 0 by ROOF_GONE_DIST — the tile lifts off smoothly, no pop. */
+export function cutawayAlpha(dist: number): number {
   if (dist >= BUILDING_FADE_RADIUS) return 1
   if (dist <= ROOF_GONE_DIST) return 0
   return smoothstep((dist - ROOF_GONE_DIST) / (BUILDING_FADE_RADIUS - ROOF_GONE_DIST))
@@ -1579,9 +1568,9 @@ export function drawIsoAssetAscii(
   // the EMOJI path uses — so ascii + emoji tiles are drawn IDENTICALLY (no special ascii drawer, no flat
   // billboard). A labeled tile with a real block height (a tree / fountain / lamp / prop CELL) extrudes into a
   // cube with its glyph painted (sheared) onto the faces; consecutive stack levels lift by isoStackLift, which
-  // uses the SAME tileW·ISO_BLOCK_H_FRAC as the cube height so a column stacks flush. Buildings fall through to
-  // drawIsoLabeledCell below for their roof-apex glyph + STORE/hospital signage.
-  if (asset.label && (asset.height ?? 0) >= 1 && asset.type !== 'building') {
+  // uses the SAME tileW·ISO_BLOCK_H_FRAC as the cube height so a column stacks flush. BUILDINGS ride this path
+  // too now (no `type:'building'` gate) — a wall/window/door/roof block is just a labeled cube like a tree cell.
+  if (asset.label && (asset.height ?? 0) >= 1) {
     const zoom = asset.scale ?? 1
     const bw = tileW * (asset.scaleX ?? 1) * zoom       // Width  — diamond half-width
     const bd = tileH * (asset.scaleZ ?? 1) * zoom       // Depth  — diamond half-height (into-screen axis)
@@ -1599,6 +1588,8 @@ export function drawIsoAssetAscii(
     const image = labelTileImage(asset.label, style)
     const recolor = labelTileRecolor(style, tint)
     drawIsoTileBlock(ctx, { x, y }, bw, bd, bh, 1, { char: glyph, color: tint, tint: recolor, image }, recolor)
+    // Apex signage rides ON TOP of the cube (the apex roof block carries settings.badge) — generic, no buildingType.
+    if (asset.settings?.badge) drawApexBadge(ctx, x, y - bh, fontSize, asset.settings.badge)
     return
   }
 
@@ -1656,45 +1647,6 @@ export function drawIsoAssetAscii(
       ctx.fillRect(x - textWidth / 2 - 2, layerY - lineHeight / 2, textWidth + 4, lineHeight)
 
       // Text
-      ctx.fillStyle = layer.color
-      ctx.fillText(layer.text, x, layerY)
-    }
-
-  } else if (asset.type === 'building') {
-    // Building: connected structure with walls, windows, and peaked roof
-    // Use consistent width and visual connection between layers
-    const buildingWidth = tileW * 2.2
-    const wallColor = '#b48441'
-    const wallDarkColor = '#8a6230'
-    const roofColor = '#cc4040'
-    const roofDarkColor = '#992020'
-
-    const layers = [
-      { text: '|==|', color: '#664422', bg: wallColor, width: 1.0 },          // Base/door
-      { text: '|[]|', color: `rgba(255, 220, 80, ${0.5 + 0.3 * flicker})`, bg: wallColor, width: 1.0 },   // Window floor 1
-      { text: '|[]|', color: `rgba(255, 200, 60, ${0.4 + 0.3 * flicker})`, bg: wallDarkColor, width: 1.0 }, // Window floor 2
-      { text: '/==\\', color: roofColor, bg: roofDarkColor, width: 1.1 },     // Roof eave
-      { text: '/\\', color: `rgba(255, 100, 80, ${0.8 + 0.2 * flicker})`, bg: roofColor, width: 0.7 },    // Roof peak
-    ]
-
-    for (let i = 0; i < layers.length; i++) {
-      const layer = layers[i]
-      const layerY = y - i * lineHeight - lineHeight * 0.5
-      const layerWidth = buildingWidth * layer.width
-
-      // Background - maintains visual connection
-      ctx.fillStyle = layer.bg
-      ctx.fillRect(x - layerWidth / 2, layerY - lineHeight / 2, layerWidth, lineHeight)
-
-      // Draw connecting side walls for wall sections
-      if (i < 3) {
-        ctx.fillStyle = wallDarkColor
-        ctx.fillRect(x - layerWidth / 2 - 2, layerY - lineHeight / 2, 3, lineHeight)
-        ctx.fillRect(x + layerWidth / 2 - 1, layerY - lineHeight / 2, 3, lineHeight)
-      }
-
-      // Character
-      ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
       ctx.fillStyle = layer.color
       ctx.fillText(layer.text, x, layerY)
     }

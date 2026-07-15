@@ -1,15 +1,11 @@
 import { player as playerSprite } from '@/assets/ascii'
-import { GridAsset, GridBuilding, IsometricGrid } from '@/engine/IsometricGrid'
+import { GridAsset, IsometricGrid } from '@/engine/IsometricGrid'
 import { type AttackAnim, animFrame } from '@/engine/attackAnimations'
-import { type BuildingType } from '@/engine/buildingComposer'
-import { buildingRect, doorCellFor, gridBuildingFacing } from '@/engine/buildingEditor'
 import { assetCellTransform } from '@/engine/cellAnimation'
 import { isGroundContact } from '@/engine/cellLabels'
-import { darkenColor, lightenColor, withAlpha } from '@/engine/colors'
+import { darkenColor } from '@/engine/colors'
 import { entityPalette } from '@/engine/entityArt'
 import { entityQuestMarker } from '@/engine/entityQuestMarker'
-import { isoFacadeOnBack } from '@/engine/isoBuilding'
-import { buildingCellColor, wallMaterialTile, wallMaterialImage } from '@/engine/stageGenerator'
 import { type Projectile, projectileCellAt } from '@/game/projectiles'
 import { type HitMarker } from '@/game/runtime/combat'
 import { type PlayerState, barFraction, hpFraction, playerDisplayName } from '@/game/runtime/player'
@@ -172,198 +168,6 @@ export function draw2DLabeledCell(
   ctx.fillStyle = tint
   ctx.fillText(char, x, cy)
 }
-
-
-/** One building FACADE cell rendered as a single tile, using the SAME tiles the layered
- *  house drew (|[]| windows, |==| door, /\ red roof). The cell's structural glyph picks which:
- *  ▀/▔ → red roof, ╫ → door, everything else (█ wall, ▒ window) → the gold |[]| body tile —
- *  so the body looks exactly like #16's dense windowed wall. Painting one tile per cell (not a
- *  whole house per cell) keeps the red roof to the facade's 2 top rows instead of a stack. */
-export function draw2DBuildingTile(
-  ctx: CanvasRenderingContext2D,
-  cx: number,
-  baseY: number,
-  tileW: number,
-  tileH: number,
-  asset: GridAsset,
-  flicker: number,
-): void {
-  // Same palette the layered house used.
-  const wallColor = 'rgba(180, 132, 65, 0.9)'
-  const wallDarkColor = 'rgba(138, 98, 48, 0.9)'
-  const roofColor = 'rgba(200, 64, 64, 0.95)'
-
-  const glyph = asset.art[0] ?? '█'
-  const isRoof = glyph === '▀' || glyph === '▔'
-  const isDoor = glyph === '╫'
-  const tile = isRoof
-    ? { text: '/\\', fg: `rgba(255, 100, 80, ${0.8 + 0.2 * flicker})`, bg: roofColor }
-    : isDoor
-    ? { text: '|==|', fg: '#664422', bg: wallColor }
-    : { text: '|[]|', fg: `rgba(255, 220, 80, ${0.5 + 0.3 * flicker})`, bg: wallColor } // wall + window → dense |[]| like #16
-
-  const top = baseY - tileH
-  ctx.fillStyle = tile.bg
-  ctx.fillRect(cx - tileW * 0.5, top, tileW, tileH)
-
-  // Side-wall seams on the gold body tiles (the "connected wall" look) — not on the roof.
-  if (!isRoof) {
-    ctx.fillStyle = wallDarkColor
-    ctx.fillRect(cx - tileW * 0.5 - 2, top, 3, tileH)
-    ctx.fillRect(cx + tileW * 0.5 - 1, top, 3, tileH)
-  }
-
-  ctx.font = `bold ${tileH * 0.85}px ${ASCII_FONT}`
-  ctx.textAlign = 'center'
-  ctx.textBaseline = 'middle'
-  ctx.fillStyle = tile.fg
-  ctx.fillText(tile.text, cx, top + tileH * 0.5)
-}
-
-
-/** Everything draw2DBuilding needs that is a PURE function of (building, style): the facade↔footprint
- *  column mapping, the per-building material tile, and the per-building cell colours. Only centerX/baseY/
- *  tileW/tileH/flicker vary per frame, so this is computed ONCE per (building, styleId) and reused —
- *  including the roof colour, which the per-cell loop used to recompute (buildingCellColor) on every roof
- *  cell. */
-export interface Building2DDescriptor {
-  showFront: boolean
-  H: number
-  N: number
-  identity: boolean
-  dFoot: number
-  srcCol: (i: number) => number
-  wallTile2D: string
-  wallImage2D: string | undefined
-  roofBg: string
-  roofGlyph: string
-  roofTint: string
-  wallBg: string
-  doorBg: string
-  windowBg: string
-  wallSeam: string
-}
-
-function computeBuilding2DDescriptor(b: GridBuilding): Building2DDescriptor {
-  const showFront = !isoFacadeOnBack(gridBuildingFacing(b))
-  const cells = b.cells
-  const H = cells.length
-  // Draw ONE elevation column per GROUND-footprint column (b.length), aligned to the footprint's
-  // own collision cells — so a drawn wall ALWAYS sits on a blocked cell (the #82 fix). A rotated
-  // (east/west) building's footprint col-span is its DEPTH, narrower than the facade length, so the
-  // old "draw a facade-length-wide elevation centred on the footprint" spilled a phantom wall column
-  // PAST the footprint with no collision behind it — you could walk straight through that drawn wall.
-  // We map the footprint's real road-edge door column to the facade's door column and fill the rest
-  // from wall columns. Axis-aligned (south/north) buildings have footprint width == facade length
-  // with the door already centred, so they take the identity path and render exactly as before.
-  const facing = gridBuildingFacing(b)
-  const rect = buildingRect(b)
-  const N = b.length // footprint column span == collision width
-  const identity = facing === 'south' || facing === 'north' // 1:1 facade↔footprint, render unchanged
-  const dFoot = doorCellFor(facing, rect).col - b.col // footprint-relative door column
-  const bottomRow = cells[H - 1] ?? []
-  const dFace = Math.max(0, bottomRow.findIndex(k => k === 'door')) // facade door column
-  const wallSrcCols = bottomRow.map((k, c) => (k === 'door' ? -1 : c)).filter(c => c >= 0)
-  // facade source column for footprint column i (its door column → the facade door; else a wall column)
-  const srcCol = (i: number): number =>
-    identity ? i : i === dFoot ? dFace : wallSrcCols.length ? wallSrcCols[i % wallSrcCols.length] : 0
-  // Each cell gets its OWN background so a door reads as a dark doorway and a window as glass — not a
-  // glyph on identical wall. Colors come from the shared per-building source (real-house wall tones,
-  // dark doors, glass windows; store=blue roof, hospital=green roof) so 2D matches the other views.
-  const t = b.type as BuildingType
-  const wallTile2D = wallMaterialTile(t, b.col) // this building's MATERIAL tile (🪵/🧱/🪨; '' = plaster)
-  const wallImage2D = wallMaterialImage(t, b.col) // wood/stone → a Noto image (their glyphs tofu); brick/plaster → undefined
-  const a = (col: string): string => withAlpha(col, 0.96)
-  // Resolve each per-building colour ONCE. roofColor also feeds the per-cell roof TILE tint (was
-  // buildingCellColor recomputed inside the loop for every roof cell) and wallColor feeds the seam.
-  const roofColor = buildingCellColor(t, 'roof', b.col)
-  const wallColor = buildingCellColor(t, 'wall', b.col)
-  const roofBg = a(roofColor)
-  const roofGlyph = a(darkenColor(roofColor, 0.58)) // the /\ as a darker roof tone, so it reads
-  const wallBg = a(wallColor)
-  const doorBg = a(buildingCellColor(t, 'door', b.col))
-  const windowBg = a(buildingCellColor(t, 'window', b.col))
-  const wallSeam = a(darkenColor(wallColor, 0.72))
-  return { showFront, H, N, identity, dFoot, srcCol, wallTile2D, wallImage2D, roofBg, roofGlyph, roofTint: roofColor, wallBg, doorBg, windowBg, wallSeam }
-}
-
-// Cache keyed on (building object → styleId). Mirrors the iso descriptor cache: a building EDIT
-// REPLACES the object (grid.buildings[idx] = next), so the WeakMap entry drops itself — no staleness,
-// no bookkeeping. (Verified: nothing mutates a building's fields in place.) The 2D descriptor's only
-// style dependency is via `t = b.type`; keeping the styleId key keeps it in lockstep with the iso cache
-// and future-proofs a per-style 2D value. Reused across frames until the building object changes.
-const _building2DDescriptors = new WeakMap<GridBuilding, Map<string, Building2DDescriptor>>()
-
-export function building2DDescriptor(b: GridBuilding, style: Style): Building2DDescriptor {
-  let byStyle = _building2DDescriptors.get(b)
-  if (!byStyle) { byStyle = new Map(); _building2DDescriptors.set(b, byStyle) }
-  let d = byStyle.get(style.id)
-  if (!d) { d = computeBuilding2DDescriptor(b); byStyle.set(style.id, d) }
-  return d
-}
-
-/** Visit every DRAWN facade cell of a 2D front elevation, in draw order, yielding each cell's screen `x`,
- *  its RAISED `cellTop` (the EXACT y draw2DBuilding stamps that tile at), the resolved `kind`
- *  (roof/wall/window/door — after the rotated-door→wall and back-wall→wall remaps), and whether it
- *  BLOCKS (everything except the walkable door). 'empty' cells draw nothing and are skipped. This is the
- *  ONE source of the facade's geometry, so the tile draw AND the red collision overlay run through the
- *  same loop and stay aligned BY CONSTRUCTION — the overlay can never drift H rows below the walls (#29). */
-export function forEach2DFacadeCell(
-  b: GridBuilding,
-  d: Building2DDescriptor,
-  centerX: number,
-  baseY: number,
-  tileW: number,
-  tileH: number,
-  visit: (x: number, cellTop: number, kind: string, blocking: boolean) => void,
-): void {
-  const { showFront, H, N, identity, dFoot, srcCol } = d
-  const cells = b.cells
-  for (let r = 0; r < H; r++) {
-    for (let i = 0; i < N; i++) {
-      const raw = cells[r]?.[srcCol(i)]
-      if (!raw || raw === 'empty') continue
-      // A door glyph mapped onto a non-door footprint column (rotated buildings) reverts to wall so
-      // the entrance stays single + on the real road edge. Identity (axis-aligned) keeps b.cells as-is.
-      const cellKind = !identity && raw === 'door' && i !== dFoot ? 'wall' : raw
-      // Back of the house → only the DOOR becomes wall (no entrance from behind); windows still show.
-      const kind = !showFront && cellKind === 'door' ? 'wall' : cellKind
-      const x = centerX + (i - (N - 1) / 2) * tileW
-      const cellTop = baseY - (H - r) * tileH // row r (0 = roof apex) stacks up from the front edge
-      visit(x, cellTop, kind, kind !== 'door') // door = the walkable entrance → not blocking
-    }
-  }
-}
-
-
-/** The 2D collision overlay for ONE building: a translucent red tint on every BLOCKING facade cell,
- *  painted through the SAME forEach2DFacadeCell geometry draw2DBuilding uses — so each red rect lands on
- *  exactly its wall/window/roof tile, never on the flat footprint H rows below (case-a fix for #29). The
- *  walkable door column carries no red. `centerX`/`baseY` are the SAME anchor render2D draws the facade at. */
-export function draw2DBuildingCollision(
-  ctx: CanvasRenderingContext2D,
-  b: GridBuilding,
-  centerX: number,
-  baseY: number,
-  tileW: number,
-  tileH: number,
-  style: Style = ASCII_STYLE,
-): void {
-  const d = building2DDescriptor(b, style)
-  forEach2DFacadeCell(b, d, centerX, baseY, tileW, tileH, (x, cellTop, _kind, blocking) => {
-    if (!blocking) return // the walkable door — no collision, no red
-    ctx.fillStyle = 'rgba(255, 50, 50, 0.4)'
-    ctx.fillRect(x - tileW / 2, cellTop, tileW, tileH)
-  })
-}
-
-
-/** 2D FRONT ELEVATION of a building: its facade (b.cells — door-down, windows, peaked/flat roof on
- *  top) drawn upright over the small footprint's front edge. `centerX` is the footprint centre, `baseY`
- *  the bottom of the front row. The ground footprint stays width×depth (collision matches); only the
- *  drawn facade rises tall — the height/footprint decoupling, in 2D. */
-
-
 
 
 // 2D Render function - RPG-style 3/4 top-down view (like Pokemon/Zelda)
@@ -592,23 +396,11 @@ export function render2D(
     asset?: GridAsset
   }> = []
 
-  // A BUILDING is just TILES: stampBuildingCells places one `type:'building'` asset per BLOCK, so a
-  // building's walls/windows/door/roof render through the SAME per-cell asset path as any stacked tile —
-  // no front-elevation drawer. grid.buildings stays only as the building's metadata (used by the DEBUG
-  // collision overlay below + whole-building ops); it is no longer a render source. The footprint set still
-  // feeds that debug overlay, which tints the raised facade instead of the grounded cells.
-  const buildingFootprint2D = new Set<string>()
-  // Footprint cell → the building's FRONT (bottom/max) row. A building is a FRONT ELEVATION in 2D: every one
-  // of its per-cell tiles projects onto this ONE row and stacks by heightLevel, so the depth rows collapse
-  // front-on instead of marching up the screen (§6). Same stamped tiles, regular tile path, no special drawer.
-  const buildingFrontRow2D = new Map<string, number>()
-  for (const b of grid.buildings ?? []) {
-    const top = b.row - (b.height - 1)
-    for (let r = 0; r < b.height; r++) for (let c = 0; c < b.length; c++) {
-      buildingFootprint2D.add(`${b.col + c},${top + r}`)
-      buildingFrontRow2D.set(`${b.col + c},${top + r}`, b.row) // b.row = the bottom/camera-facing front row
-    }
-  }
+  // A BUILDING is just TILES: stampBuildingCells places one plain `type:'structure'` asset per BLOCK, so a
+  // building's walls/windows/door/roof render through the SAME per-cell asset path (draw2DLabeledCell) as any
+  // stacked tile, at its OWN cell — no front-elevation projection, no special drawer, and NO grid.buildings read.
+  // A blocked building cell tints on its own grounded square like any collision cell. grid.buildings stays only
+  // as the building's metadata (whole-building ops).
 
   // Add assets — building blocks included, so they render per-block through the asset path below.
   const visibleAssets = grid.getVisibleAssets(
@@ -630,10 +422,9 @@ export function render2D(
 
   // Draw each object
   for (const obj of drawables) {
-    // Building tiles project onto the building's FRONT row (front elevation, depth collapsed); every other
-    // tile projects at its own cell. The stacking-by-heightLevel below then builds the facade + gable over
-    // that one row instead of the depth rows spilling up the screen (§6) — regular path, no special drawer.
-    const projRow = (obj.asset?.type === 'building' ? buildingFrontRow2D.get(`${obj.col},${obj.row}`) : undefined) ?? obj.row
+    // Every tile — building block or not — projects at its OWN cell and stacks by heightLevel (no building
+    // front-elevation collapse). A structure column stacks in place exactly like a tree's trunk+canopy.
+    const projRow = obj.row
     const p = toScreen(obj.col + 0.5, projRow + 0.5)
     const groundHeight = grid.getHeight(Math.floor(obj.col), Math.floor(projRow))
     const elevOffset = groundHeight * heightScale
@@ -738,10 +529,10 @@ export function render2D(
     } else if (obj.asset) {
       const asset = obj.asset
 
-      // Get proper height for 2D RPG view based on asset type
+      // Get proper height for 2D RPG view based on asset type (buildings derive theirs per-block from the
+      // stacked heightLevel + asset.height like any tile, not a `type:'building'` override).
       let heightTiles = 1
       if (asset.type === 'tree') heightTiles = 3
-      else if (asset.type === 'building') heightTiles = 4
       else if (asset.type === 'lamp') heightTiles = 2
 
       // Base at bottom of cell - tiles stack upward. A stacked asset (editor brush, heightLevel > 0)
@@ -845,12 +636,6 @@ export function render2D(
         }
         ctx.font = `bold ${tileH * 0.8}px ${ASCII_FONT}`
 
-      } else if (asset.type === 'building') {
-        // ONE tile per facade cell (red roof / gold |[]| body / |==| door, picked by the
-        // cell's glyph) — the SAME tiles as the old layered house, but not a whole house per
-        // cell. That keeps the red roof to the facade's 2 top rows: a compact house.
-        draw2DBuildingTile(ctx, p.x, baseY, tileW, tileH, asset, flicker)
-
       } else if (asset.type === 'lamp') {
         // Lamp post — STEADY bulb (ON at night, dim by day), no time-based pulse/flicker.
         const glow = dayNight === 'night' ? 1 : 0.2
@@ -910,10 +695,10 @@ export function render2D(
         const p = toScreen(col + 0.5, row + 0.5)
         const isCollision = grid.collision[row]?.[col]
 
-        // A building footprint cell is tinted on its RAISED facade below (draw2DBuildingCollision) — NOT
-        // grounded here, or the red would sit H rows below the drawn walls (#29). Non-building collision
-        // (trees/water/borders) still tints its own flat cell.
-        if (isCollision && !buildingFootprint2D.has(`${col},${row}`)) {
+        // EVERY blocked cell tints its own grounded square — a building's wall cell exactly like a tree/water
+        // cell (no raised-facade overlay, no grid.buildings read). The stamped HOLLOW footprint blocks only WALL
+        // cells, so the tint reads as the building's solid shell with the walkable door/interior left clear.
+        if (isCollision) {
           ctx.fillStyle = 'rgba(255, 50, 50, 0.4)'
           ctx.fillRect(p.x - tileW / 2, p.y - tileH / 2, tileW, tileH)
         }
@@ -927,13 +712,6 @@ export function render2D(
           ctx.fillText(String(cellHeight), p.x, p.y - tileH * 0.3)
         }
       }
-    }
-    // Building collision, painted on the RAISED facade instead of the grounded footprint above — through
-    // the SAME anchor + geometry draw2DBuilding uses (toScreen(centre) + tileH*0.5), so each red rect sits
-    // exactly on its wall/window/roof tile and the walkable door column stays clear (#29, case a).
-    for (const b of grid.buildings ?? []) {
-      const bp = toScreen(b.col + b.length / 2, b.row + 0.5)
-      draw2DBuildingCollision(ctx, b, bp.x, bp.y + tileH * 0.5, tileW, tileH, style)
     }
     ctx.globalAlpha = 1
   }

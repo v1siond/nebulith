@@ -35,6 +35,10 @@ interface ApiTile {
     color?: string
     pose?: TilePose
     views?: Partial<Record<TileView, TileViewSettings>>
+    // GENERIC per-tile render behavior served by the API — copied straight through onto the installed
+    // tile so a stamp can read it (walls/roof fade/cutaway near the hero); any tile may carry these.
+    fadeNear?: boolean
+    cutawayRoof?: boolean
   }
 }
 
@@ -69,6 +73,7 @@ function toAsciiTilesetTile(label: string, tile: ApiTile): TilesetTile {
     category: tile.category,
     title: tile.title,
     image: imageUrl ? { kind: 'image', src: imageUrl, char: tile.glyph } : undefined,
+    settings: tile.settings, // pass the backend blob through so the stamp reads fadeNear/cutawayRoof
   }
 }
 
@@ -98,6 +103,7 @@ function toEmojiTile(tile: ApiTile): EmojiTile {
     title: tile.title,
     pose: tile.settings?.pose,
     views: tile.settings?.views,
+    settings: tile.settings, // pass the backend blob through (same generic fadeNear/cutawayRoof keys)
   }
 }
 

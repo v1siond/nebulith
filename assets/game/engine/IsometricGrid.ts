@@ -11,6 +11,15 @@ import type { AnimationCycle } from './animationCycles'
 import type { CellAnimation } from './cellAnimation'
 import type { GroundCellDims } from './groundDims'
 
+/** GENERIC per-tile BEHAVIOR flags copied from the resolved tile's `settings` onto a placed asset, so ONE
+ *  render path drives them for ANY tile — a wall, a roof, or a tree leaf. No `type:'building'` special case:
+ *  a tree tile carrying `fadeNear` fades near the player exactly like a wall does. */
+export interface AssetSettings {
+  fadeNear?: boolean    // near the player this tile eases translucent (walls/windows/doors/roof_top)
+  cutawayRoof?: boolean // near the player this tile lifts off entirely (roof) — skipped when fully gone
+  badge?: { text: string; color: string } // apex signage (STORE/HOSPITAL) drawn generically, no buildingType
+}
+
 export interface GridAsset {
   art: string[]
   col: number
@@ -35,6 +44,7 @@ export interface GridAsset {
   cellAnim?: CellAnimation   // authored FRAME-BASED transform animation (sway/wind) — driven by cellAnimation
   baseShadow?: boolean  // generator-marked tree-base cell → always casts a ground shadow
   buildingType?: string // building cell's TYPE (store/hospital/…) → drives the apex signage badge
+  settings?: AssetSettings // GENERIC per-tile behavior (fade/cutaway/badge) copied from the tile — ONE render path reads it
   edge?: string         // building cell's corner/edge/interior class (nw/n/ne/w/interior/e/sw/s/se) → tileset mapping + debug overlay
   footprint?: number    // town-square fountain: the basin side (cells) this ONE prop spans → render one big fountain, not N
   cellPart?: string     // generated cell-part label (tree_stem/tree_top_left/…) surfaced for the DEBUG overlay only. Kept

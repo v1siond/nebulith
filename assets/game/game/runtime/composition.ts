@@ -4,7 +4,7 @@
 // collision from the cell's `walkable` flag, its stack from `level`. The three views then draw each cell
 // through the generic per-cell path (drawIsoLabeledCell / draw2DLabeledCell / the birdseye per-cell pass) —
 // NO per-type drawer. This is how "everything is a collection of ascii tiles from the backend" is enforced.
-import { resolveComposition, resolveTile } from '@/engine/tileset/tileset'
+import { resolveComposition, resolveTile, tileRenderBehavior } from '@/engine/tileset/tileset'
 import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 import type { IsometricGrid } from '@/engine/IsometricGrid'
 import type { ZoneId } from '@/engine/zones'
@@ -26,6 +26,10 @@ export function stampComposition(grid: IsometricGrid, kind: string, anchorCol: n
     const asset = grid.placeAsset([tile.char], col, row, { type: kind, blocking: !c.walkable, color: tile.color, heightLevel: c.level ?? 0, baseShadow: grounded })
     asset.label = c.label // the generic per-cell drawer keys off `label`; the glyph is asset.art[0] (resolved above)
     asset.height = 1
+    // Copy the tile's GENERIC behavior (fadeNear/cutawayRoof) so ANY composition cell — a leaf, a lamp —
+    // fades/cuts away near the hero exactly like a wall, driven by the ONE settings-reading render path.
+    const behavior = tileRenderBehavior(tile.settings)
+    if (behavior) asset.settings = behavior
     // Block ONLY for a non-walkable tile, and never UNblock: a cell can hold both a blocking trunk (low level)
     // and a walkable canopy tile (higher level) — the walkable one, placed later, must not clear the trunk's collision.
     if (!c.walkable) grid.setCollision(col, row, true)

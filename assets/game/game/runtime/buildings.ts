@@ -6,16 +6,22 @@
 // live placement reader. Moved out of the game-engine page (stage 5a).
 import { type BuildingType } from '@/engine/buildingComposer'
 import { type PlacementEnv, buildingCellBlocked, buildingCellTiles, buildingFootprintCells, isRoadGround } from '@/engine/buildingEditor'
-import { resolveTile } from '@/engine/tileset/tileset'
+import { resolveTile, tileRenderBehavior } from '@/engine/tileset/tileset'
 import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
-import type { GridBuilding, IsometricGrid } from '@/engine/IsometricGrid'
+import type { GridAsset, GridBuilding, IsometricGrid } from '@/engine/IsometricGrid'
 import { buildingCellColor } from '@/engine/stageGenerator'
+import { BUILDING_BADGES } from '@/engine/render/shared'
 import { type Facing } from '@/engine/villageLayout'
 import { ZONE_PALETTES, ZoneId } from '@/engine/zones'
 
 /** The distinct INDOOR floor stamped under a building's interior cells (backend terrain tile), so a revealed
  *  hollow interior reads as a room you can stand in — not the grass/path the building sits on. */
 const BUILDING_FLOOR = 'wooden_planks'
+
+/** The neutral GridAsset `type` a building BLOCK stamps as — a plain stacked tile, NOT a `type:'building'`
+ *  special case. Its behaviors (proximity fade, roof cutaway, apex signage) ride on GENERIC per-tile settings
+ *  the one render path reads, so a building block draws through the SAME code as a tree cell. */
+const STRUCTURE_TYPE = 'structure'
 
 /**
  * LIVE stamp: write a building's footprint onto the grid as PER-BLOCK TILES — the building-is-just-tiles
@@ -30,6 +36,9 @@ const BUILDING_FLOOR = 'wooden_planks'
 export function stampBuildingCells(grid: IsometricGrid, b: GridBuilding, zone: ZoneId): void {
   const { cells } = buildingFootprintCells(b)
   const base = ZONE_PALETTES[zone]?.groundTypes[0] ?? 'grass'
+  // The building's APEX block (the highest-stacked roof tile) carries the shop/hospital signage badge — one
+  // per building, tracked across cells so the badge lands once, on the topmost roof block.
+  let apex: { asset: GridAsset; level: number } | null = null
   for (const c of cells) {
     if (c.col < 0 || c.row < 0 || c.col >= grid.cols || c.row >= grid.rows) continue
     const cellTiles = buildingCellTiles(b, c.col, c.row)
@@ -37,21 +46,28 @@ export function stampBuildingCells(grid: IsometricGrid, b: GridBuilding, zone: Z
     // revealed interior reads as a room you can stand in; perimeter (wall/window/door) cells keep the zone base.
     const hasFacade = cellTiles.some(t => t.part === 'wall' || t.part === 'window' || t.part === 'door')
     grid.setGround(c.col, c.row, hasFacade ? base : BUILDING_FLOOR)
-    // ONE asset per BLOCK: the footprint cell's stacked wall/window/door blocks + the roof cap. Each block is a
-    // height-1 tile lifted to its stack level — the SAME shape a brush-stacked tile has (one generic draw path).
+    // ONE PLAIN asset per BLOCK: the footprint cell's stacked wall/window/door blocks + the roof cap. Each block
+    // is a `type:'structure'` height-1 tile lifted to its stack level — the SAME shape a tree cell / brush-stacked
+    // tile has (one generic draw path). Its fade/cutaway behavior is copied from the resolved tile's settings.
     for (const t of cellTiles) {
-      const { char } = resolveTile(ASCII_TILESET, zone, t.part) // LOADS the glyph from the DB tileset, not hardcoded
+      const resolved = resolveTile(ASCII_TILESET, zone, t.part) // LOADS the glyph + settings from the DB tileset
       const color = buildingCellColor(b.type as BuildingType, t.part, b.col)
-      const asset = grid.placeAsset([char], c.col, c.row, { type: 'building', blocking: t.blocking, color, heightLevel: t.level })
-      asset.label = t.part // placeAsset's fixed option list doesn't carry these — set them on the returned asset.
-      asset.buildingType = b.type
+      const asset = grid.placeAsset([resolved.char], c.col, c.row, { type: STRUCTURE_TYPE, blocking: t.blocking, color, heightLevel: t.level })
+      asset.label = t.part // the generic per-cell/cube drawer keys off `label`; the glyph is asset.art[0] (resolved above)
       asset.height = 1 // ONE block tall per tile; the column's floors come from the stacked levels, not this
+      const behavior = tileRenderBehavior(resolved.settings) // fadeNear (walls/windows/door) or cutawayRoof (roof)
+      if (behavior) asset.settings = behavior
+      if (t.part === 'roof' && (!apex || t.level > apex.level)) apex = { asset, level: t.level }
     }
     // HOLLOW collision: a cell blocks only if it has a GROUND-LEVEL (level 0) blocking block — i.e. a WALL. The
     // door (walkable level-0 block) and the INTERIOR (only a high, non-blocking roof cap) stay WALKABLE, so the
     // hero + units can stand INSIDE the building. (Was a solid footprint box; now the real hollow shell requested.)
     grid.setCollision(c.col, c.row, cellTiles.some(t => (t.level ?? 0) === 0 && t.blocking))
   }
+  // Shop/hospital signage — a GENERIC per-tile `settings.badge` on the apex block (was asset.buildingType + a
+  // BUILDING_BADGES lookup baked into the iso drawer). The render draws it above whichever cube the apex rode on.
+  const badge = BUILDING_BADGES[b.type]
+  if (apex && badge) apex.asset.settings = { ...apex.asset.settings, badge: { text: badge.text, color: badge.color } }
 }
 
 /**
@@ -63,7 +79,7 @@ export function unstampBuildingCells(grid: IsometricGrid, b: GridBuilding, zone:
   const { cells } = buildingFootprintCells(b)
   const base = ZONE_PALETTES[zone]?.groundTypes[0] ?? 'grass'
   const keys = new Set(cells.map(c => `${c.col},${c.row}`))
-  grid.removeAssetsWhere(a => a.type === 'building' && keys.has(`${a.col},${a.row}`))
+  grid.removeAssetsWhere(a => a.type === STRUCTURE_TYPE && keys.has(`${a.col},${a.row}`))
   for (const c of cells) {
     if (c.col < 0 || c.row < 0 || c.col >= grid.cols || c.row >= grid.rows) continue
     grid.setCollision(c.col, c.row, false)

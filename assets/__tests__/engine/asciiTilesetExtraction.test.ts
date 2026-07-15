@@ -26,7 +26,10 @@ describe('ASCII tileset extraction — loaded data reproduces hardcoded cellTile
     for (const zone of ZONES) {
       for (const label of CELL_LABELS) {
         for (let variant = 0; variant < 6; variant++) {
-          expect(resolveTile(ASCII_TILESET, zone, label, variant)).toEqual(cellTile(zone, label, variant))
+          // toMatchObject, not toEqual: resolveTile's glyph + colour stay byte-for-byte identical to
+          // cellTile(); it now ALSO carries the tile's orthogonal render-behavior `settings` (fadeNear/
+          // cutawayRoof) that cellTile never had — a new dimension, not a change to the visual contract.
+          expect(resolveTile(ASCII_TILESET, zone, label, variant)).toMatchObject(cellTile(zone, label, variant))
         }
       }
     }
@@ -67,7 +70,7 @@ describe('ASCII tileset extraction — loaded data reproduces hardcoded cellTile
 
   test('the tileset is JSON-serialisable (real DATA — ready to seed the DB / load from an API)', () => {
     const round = JSON.parse(JSON.stringify(ASCII_TILESET))
-    expect(resolveTile(round, 'autumn', 'tree_interior', 2)).toEqual(cellTile('autumn', 'tree_interior', 2))
+    expect(resolveTile(round, 'autumn', 'tree_interior', 2)).toMatchObject(cellTile('autumn', 'tree_interior', 2))
   })
 })
 
