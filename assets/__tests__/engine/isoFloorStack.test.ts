@@ -21,6 +21,7 @@
  * are 0 and every scanned cell is interior, so NO cube side-faces are drawn (leftOpen/rightOpen both
  * false) — the ONLY path-fill per cell is its diamond top, at (px, py - tileH), a closed form per cell.
  */
+import '@/__tests__/helpers/installTilesetSeed' // ground terrain comes from the loaded backend tileset now — install the captured fixture so resolveGroundTile isn't empty
 import { drawIsoGroundLayer, type IsoGroundParams } from '@/engine/render/iso'
 import { getStack } from '@/engine/cellStack'
 import { IsometricGrid } from '@/engine/IsometricGrid'

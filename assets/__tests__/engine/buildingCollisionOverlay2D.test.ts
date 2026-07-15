@@ -8,6 +8,7 @@
  *   A. every blocked footprint cell paints exactly ONE grounded red square (no facade raising, no doubling);
  *   B. a NON-building collision cell adds exactly one more red — buildings are not a special case.
  */
+import '@/__tests__/helpers/installTilesetSeed' // render2D paints ground from the loaded backend tileset's terrain — install the captured fixture so it isn't empty
 import { render2D } from '@/engine/render/topdown'
 import { IsometricGrid } from '@/engine/IsometricGrid'
 import { makeBuilding } from '@/engine/buildingEditor'

@@ -38,23 +38,8 @@ export function drawTopArrow(ctx: CanvasRenderingContext2D, x: number, y: number
 
 
 
-// Top-down 2D blueprint view - flat, no height, just positions
-// Dark, neutral-ish backing per asset type so each cell's OWN glyph + color (the
-// label glyph for generated cells, the zone tint for trees) reads clearly.
-export const TOP_ASSET_BACKDROP: Record<string, string> = {
-  building: '#2a1810',
-  tree: '#0a1f0a',
-  water: '#0a1c2e',
-  fountain: '#0a1c2e',
-  decoration: '#241a0e',
-  crate: '#241a0e',
-  lamp: '#241f08',
-  flower: '#1a0a12',
-  npc: '#1a1a0a',
-  rock: '#1a181c',
-  boss: '#2a0e0e',
-  column: '#1c1c1c',
-}
+// Top-down 2D blueprint view - flat, no height, just positions. An asset cell's backing is now the tile's
+// OWN colour (darkened for glyph legibility) — no per-type backdrop map; colour comes purely from tile data.
 
 
 export function renderTopView(
@@ -142,7 +127,9 @@ export function renderTopView(
         // resolveAssetDraw below falls back to THIS char since the composition kind has no emoji of its own.
         char = (style.id === 'emoji' && asset.label ? EMOJI_TILESET[asset.label]?.char : undefined) ?? asset.art[0] ?? '?'
         fg = asset.color ?? '#cccccc'
-        bg = TOP_ASSET_BACKDROP[asset.type] ?? '#141414'
+        // Back the footprint cell with the tile's OWN colour (darkened below so the glyph reads), not a
+        // per-type dark map — so Top shows the same colour ISO/2D do, driven purely by the tile's data.
+        bg = asset.color ?? '#141414'
         kind = assetKind(asset)
       } else {
         // Ground tile — slug from the floor tile (stack index 0); `|| 'grass'` matches the old direct read.
@@ -171,6 +158,12 @@ export function renderTopView(
       const floorOverride = !asset ? floor?.color : null
       ctx.fillStyle = floorOverride ?? cellFill(dv.tint, bg, grassy, col, row)
       ctx.fillRect(x, y, tileSize - 1, tileSize - 1)
+      // Darken an ASSET cell's tile-colour backing so its glyph (drawn below in the full tile colour) reads;
+      // ground cells keep their resolved fill. Matches the 2D labeled-cell backing.
+      if (asset) {
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.45)'
+        ctx.fillRect(x, y, tileSize - 1, tileSize - 1)
+      }
 
       ctx.fillStyle = dv.color
       // Authored frame animation moves the asset GLYPH (not its cell backing) around its centre.

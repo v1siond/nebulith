@@ -21,6 +21,7 @@
  * never clamps, so the ground rect for a cell lands at (offsetX+col·tileSize, offsetY+row·tileSize) with
  * side tileSize-1 — a closed form. Target cells avoid the player cell (drawn twice) and stay in range.
  */
+import '@/__tests__/helpers/installTilesetSeed' // ground terrain comes from the loaded backend tileset now — install the captured fixture so the terrain lookup isn't empty
 import { renderTopView } from '@/engine/render/birdseye'
 import { IsometricGrid } from '@/engine/IsometricGrid'
 import { getStack } from '@/engine/cellStack'

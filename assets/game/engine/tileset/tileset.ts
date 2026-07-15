@@ -113,11 +113,16 @@ export interface Tileset {
   compositions?: Readonly<Record<string, Composition>>
 }
 
+/** Ground drawn before the backend tileset loads — nothing. The app is backend-required (no bundled ground
+ *  colour), so an unresolved ground paints an empty, transparent cell rather than a stand-in colour. */
+const EMPTY_GROUND: ResolvedGround = { char: ' ', fg: 'transparent', bg: 'transparent' }
+
 /** Resolve a GROUND tile's glyph + fg + base fill from a LOADED tileset — the data-driven twin of the
  *  inline `GROUND_COLORS[type]` + noise-variant selection in drawIsoGroundLayer. Pure; deterministic
  *  per (type, col, row). Grass's per-cell shade is applied by the caller (unchanged), so bg is the base. */
 export function resolveGroundTile(tileset: Tileset, tileType: string, col: number, row: number): ResolvedGround {
   const g = tileset.terrain[tileType] ?? tileset.terrain.grass
+  if (!g) return EMPTY_GROUND // terrain not loaded yet (empty tileset) → draw nothing, don't crash on a missing tile
   const noiseVal = Math.sin(col * 0.3 + row * 0.5) * Math.cos(col * 0.7 - row * 0.2)
   const colorIdx = noiseVal > 0 ? 0 : 1
   return {
@@ -148,29 +153,61 @@ export function tileRenderBehavior(settings?: Record<string, unknown>): { fadeNe
   return out.fadeNear || out.cutawayRoof ? out : undefined
 }
 
-// colour ROLE → the palette entry it reads (dispatch map, not an if/else chain). Canopy is the only
-// variant-aware role (a tree/cluster picks a tonal shade); the rest are single per-zone colours.
-const COLOR_RESOLVERS: Readonly<Record<string, (pal: ZonePalette, variant: number) => string>> = {
-  canopy: (pal, variant) => pal.canopy[((variant % pal.canopy.length) + pal.canopy.length) % pal.canopy.length],
-  trunk: pal => pal.trunk,
-  'building.roof': pal => pal.building.roof,
-  'building.wall': pal => pal.building.wall,
-  'building.door': pal => pal.building.door,
-  'building.window': pal => pal.building.window,
-  'feature.mountain': pal => pal.feature.mountain,
-  'feature.peak': pal => pal.feature.peak,
-  'feature.spill': pal => pal.feature.spill,
+/** A tile's own per-zone colour map from its backend `settings.colors` (undefined when it carries none).
+ *  The single reader for "a tile's colour lives in its own settings" — used by colour resolution, the
+ *  canopy-shade count, and decor zone-membership, so none of them re-reach into `settings` by hand. */
+function tileColors(tile?: TilesetTile): Record<string, string | readonly string[]> | undefined {
+  return (tile?.settings as { colors?: Record<string, string | readonly string[]> } | undefined)?.colors
+}
+
+/** Resolve a tile's colour from its OWN backend `settings.colors` — per zone; canopy carries a per-zone
+ *  array of tonal shades and `variant` picks one (wrapping). Falls back to the neutral colour when the
+ *  tile has no colour for the zone. This is the "a tile's colour comes from its settings, not a shared
+ *  palette" rule — the frontend never reads a per-zone palette blob. */
+function resolveTileColor(tile: TilesetTile, zone: string, variant: number): string {
+  const c = tileColors(tile)?.[zone]
+  if (typeof c === 'string') return c
+  if (Array.isArray(c) && c.length > 0) return c[((variant % c.length) + c.length) % c.length]
+  return FALLBACK_RESOLVED.color
+}
+
+/** How many canopy tonal shades a zone has, read from the loaded tileset's `leaf_center` (fallback
+ *  `leaf_top`) tile's `settings.colors[zone]` array — the data-driven replacement for the deleted
+ *  frontend `TREE_CANOPY_SHADES[zone].length`. The generator picks a tree's canopy variant in
+ *  `[0, count)`. Safe: returns >= 1 even before the tileset loads (empty) or for an unknown zone, so
+ *  tree generation never divides by zero. */
+export function canopyCount(tileset: Tileset, zone: string): number {
+  const leaf = tileset.tiles['leaf_center'] ?? tileset.tiles['leaf_top']
+  const shades = tileColors(leaf)?.[zone]
+  return Array.isArray(shades) && shades.length > 0 ? shades.length : 1
+}
+
+/** The DECOR tiles that belong to a zone — a decor tile "belongs" to a zone when its own
+ *  `settings.colors` carries that zone (presence of the zone key = it is used there). Sorted by label
+ *  so per-cell selection is deterministic regardless of the backend's row order. Empty when the tileset
+ *  has not loaded. Replaces the deleted frontend `GROUND_DECOR` table. */
+export function decorTilesForZone(tileset: Tileset, zone: string): TilesetTile[] {
+  return Object.values(tileset.tiles)
+    .filter(t => t.category === 'decor' && tileColors(t)?.[zone] != null)
+    .sort((a, b) => (a.label < b.label ? -1 : a.label > b.label ? 1 : 0))
+}
+
+/** Pick a ground-decor tile for a cell and resolve its glyph + zone colour — the data-driven twin of the
+ *  deleted `groundDecor(zone, variant)`. Deterministic per `(col, row)` (the same hash the generator
+ *  used). Null when the zone has no decor tiles (unloaded tileset), so the caller simply skips the cell. */
+export function pickGroundDecor(tileset: Tileset, zone: string, col: number, row: number): ResolvedTile | null {
+  const decors = decorTilesForZone(tileset, zone)
+  if (decors.length === 0) return null
+  const tile = decors[Math.abs(col * 7 + row * 13) % decors.length]
+  return resolveTile(tileset, zone, tile.label)
 }
 
 /** Resolve one tile's glyph + colour from a LOADED tileset — the data-driven twin of `cellTile()`.
- *  `variant` picks a canopy tonal shade (ignored by non-canopy roles). Pure. */
+ *  `variant` picks a canopy tonal shade (ignored by single-colour tiles). Pure. */
 export function resolveTile(tileset: Tileset, zone: string, label: string, variant = 0): ResolvedTile {
   const tile = tileset.tiles[label]
   if (!tile) return FALLBACK_RESOLVED
-  const palette = tileset.palettes[zone]
-  if (!palette) return FALLBACK_RESOLVED
-  const resolver = COLOR_RESOLVERS[tile.colorRole]
-  return { char: tile.glyph, color: resolver ? resolver(palette, variant) : FALLBACK_RESOLVED.color, settings: tile.settings }
+  return { char: tile.glyph, color: resolveTileColor(tile, zone, variant), settings: tile.settings }
 }
 
 /** The multi-cell COMPOSITION for an asset kind from a LOADED tileset (null if none). Pure — the caller

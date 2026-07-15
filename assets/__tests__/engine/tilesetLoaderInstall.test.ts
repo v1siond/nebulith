@@ -52,10 +52,10 @@ describe('loadTilesetsFromBackend — installs the new /api/tilesets shape', () 
     expect(bush.image?.src.endsWith('/tiles/ascii/bush.png')).toBe(true)
   })
 
-  test('ascii bush tile is walkable (blocking: false) and palettes come from the stub data', async () => {
+  test('ascii bush tile is walkable (blocking: false); palettes are empty (colour is a per-tile setting, not a blob)', async () => {
     await loadTilesetsFromBackend()
     expect(ASCII_TILESET.tiles.bush.walkable).toBe(true)
-    expect(ASCII_TILESET.palettes).toEqual(ASCII_STUB.data.palettes)
+    expect(ASCII_TILESET.palettes).toEqual({}) // no palette blob — a tile's colour lives in its own settings.colors
   })
 
   test('emoji bear tile gets its absolute image + color installed', async () => {

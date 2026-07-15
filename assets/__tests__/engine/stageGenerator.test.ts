@@ -1,9 +1,14 @@
+import '@/__tests__/helpers/installTilesetSeed' // the generator reads ALL tile data (terrain/canopy/decor) from the loaded backend tileset now — install the captured /api/tilesets fixture file-wide
 import { generateStage, buildingCellColor, stagePaint, footprintEdgeClass, footprintSide, footprintRing, edgeToSide, treeSubpart, labelForCell } from '@/engine/stageGenerator'
 import { composeBuilding } from '@/engine/buildingComposer'
-import { TREE_CANOPY_SHADES } from '@/engine/cellTileset'
 import { parseColor } from '@/engine/colors'
-import { resolveGroundTile } from '@/engine/tileset/tileset'
+import { resolveGroundTile, canopyCount } from '@/engine/tileset/tileset'
 import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
+
+// The zone canopy shades now live on the loaded backend `leaf_center` tile (settings.colors[zone]) —
+// the data-driven replacement for the deleted frontend TREE_CANOPY_SHADES table.
+const canopyShades = (zone: string): string[] =>
+  ((ASCII_TILESET.tiles['leaf_center'].settings as { colors: Record<string, string[]> }).colors[zone]) ?? []
 
 // The small GROUND footprint cells of a placed building: cols [col, col+length) × rows
 // [row-(height-1), row] (length = grid col-span, height = grid row-span — both small now).
@@ -276,29 +281,22 @@ describe('generateStage — zone-tinted trees (varied canopy tones per zone)', (
     }
   })
 
-  it('keeps every anchor variant in range of its zone palette', () => {
+  it('keeps every anchor variant in range of its zone canopy count (from the loaded tile)', () => {
     const zone = 'summer'
     for (const v of variantsFor(zone)) {
       expect(v).toBeGreaterThanOrEqual(0)
-      expect(v).toBeLessThan(TREE_CANOPY_SHADES[zone].length)
+      expect(v).toBeLessThan(canopyCount(ASCII_TILESET, zone))
     }
   })
 
   it('keeps EVERY zone canopy palette disjoint (no shared tone across all 7 zones)', () => {
-    const all = [
-      ...TREE_CANOPY_SHADES.spring,
-      ...TREE_CANOPY_SHADES.summer,
-      ...TREE_CANOPY_SHADES.autumn,
-      ...TREE_CANOPY_SHADES.winter,
-      ...TREE_CANOPY_SHADES.desert,
-      ...TREE_CANOPY_SHADES.beach,
-      ...TREE_CANOPY_SHADES.lava,
-    ]
+    const all = ['spring', 'summer', 'autumn', 'winter', 'desert', 'beach', 'lava'].flatMap(canopyShades)
+    expect(all.length).toBeGreaterThan(0)
     expect(new Set(all).size).toBe(all.length) // every tone unique → biomes never blur together
   })
 
   it('keeps the verdant forest classic — a green canopy shade in the summer palette', () => {
-    expect(TREE_CANOPY_SHADES.summer).toContain('#2e8b2e')
+    expect(canopyShades('summer')).toContain('#2e8b2e')
   })
 })
 
@@ -328,7 +326,7 @@ describe('generateStage — trees are recorded as stacked-composition anchors (t
   it('records tree ANCHORS (not flat props) — each names a composition kind + canopy variant', () => {
     expect(stage.trees.length).toBeGreaterThan(0)
     expect(stage.props.filter(p => p.type === 'tree')).toHaveLength(0) // trees no longer bake flat props
-    expect(stage.trees.every(t => t.kind === 'tree_small' || t.kind === 'tree_dead')).toBe(true)
+    expect(stage.trees.every(t => t.kind === 'tree' || t.kind === 'tree_dead')).toBe(true)
     expect(stage.trees.every(t => Number.isInteger(t.variant) && t.variant >= 0)).toBe(true)
   })
 

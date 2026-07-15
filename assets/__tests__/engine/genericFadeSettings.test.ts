@@ -8,6 +8,7 @@
  * drives globalAlpha below ~0.85 through THIS fade path (the ground-flicker floor is ≈1.0), so a recorded
  * globalAlpha of fadeNearAlpha(0) = 0.22 is an unambiguous signal the fade fired.
  */
+import '@/__tests__/helpers/installTilesetSeed' // render() paints ground from the loaded backend tileset's terrain — install the captured fixture so it isn't empty
 import { render, fadeNearAlpha, cutawayAlpha, BUILDING_FADE_RADIUS, BUILDING_MIN_ALPHA, ROOF_GONE_DIST } from '@/engine/render/iso'
 import { IsometricGrid, type AssetSettings } from '@/engine/IsometricGrid'
 import type { PlayerState } from '@/game/runtime/player'

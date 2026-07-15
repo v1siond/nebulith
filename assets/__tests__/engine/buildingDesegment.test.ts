@@ -6,6 +6,7 @@
  *   - the apex roof block of a shop/hospital carries settings.badge (STORE/HOSPITAL signage), NOT buildingType.
  * No stamped asset is `type:'building'` and none carries `buildingType`.
  */
+import '@/__tests__/helpers/installTilesetSeed' // tile settings (fadeNear/cutawayRoof) come from the loaded backend tileset now — install the captured fixture
 import { IsometricGrid } from '@/engine/IsometricGrid'
 import { makeBuilding } from '@/engine/buildingEditor'
 import { stampBuildingCells } from '@/game/runtime/buildings'

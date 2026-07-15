@@ -1,3 +1,4 @@
+import '@/__tests__/helpers/installTilesetSeed' // the generator reads canopy/decor/feature colours from the loaded backend tileset now — install the captured fixture
 import { generateStage } from '@/engine/stageGenerator'
 import { scatterEntities, CAVE_ENEMY_TYPES } from '@/game/spawner'
 import type { ZoneId } from '@/engine/zones'

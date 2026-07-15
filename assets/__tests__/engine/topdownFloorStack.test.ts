@@ -17,6 +17,7 @@
  * The screen positions are deterministic: a 40×40 grid with the player central means the camera never
  * clamps, so toScreen(col+0.5,row+0.5) is a closed form and each cell's ground rect lands at a known xy.
  */
+import '@/__tests__/helpers/installTilesetSeed' // ground terrain comes from the loaded backend tileset now — install the captured fixture so resolveGroundTile isn't empty
 import { render2D } from '@/engine/render/topdown'
 import { IsometricGrid } from '@/engine/IsometricGrid'
 import { ASCII_STYLE, EMOJI_STYLE, groundKind } from '@/game/artStyle'

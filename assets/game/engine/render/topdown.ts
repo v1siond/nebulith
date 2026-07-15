@@ -154,6 +154,11 @@ export function draw2DLabeledCell(
   const char = (style.id === 'emoji' && asset.label ? EMOJI_TILESET[asset.label]?.char : undefined) ?? asset.art[0] ?? '?'
   const tint = asset.color ?? '#cccccc'
   const cy = baseY - tileH * 0.5
+  // Back the cell with the TILE'S OWN colour — not a neutral black box — so 2D shows the same colour ISO
+  // does (green trees, brown walls, the roof's red), driven purely by the tile's data. A translucent black
+  // pass darkens that backing so the glyph drawn on top (full tint) still reads clearly.
+  ctx.fillStyle = tint
+  ctx.fillRect(x - tileW / 2, cy - tileH / 2, tileW, tileH)
   ctx.fillStyle = 'rgba(0, 0, 0, 0.45)'
   ctx.fillRect(x - tileW / 2, cy - tileH / 2, tileW, tileH)
   // The label's backend IMAGE (ascii: a white tint-target, RECOLOURED to `tint`; emoji: an already-coloured

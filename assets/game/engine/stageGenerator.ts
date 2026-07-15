@@ -12,8 +12,7 @@ import { composeBuilding, ComposedBuilding, BuildingType } from './buildingCompo
 import { planVillage, type VillageLayout, type Settlement, type Plot, type Facing, type PlazaRect } from './villageLayout'
 import { stagePropTileOverride, ZONE_PALETTES, ZoneId } from './zones'
 import { isWalkable, type CellLabel } from './cellLabels'
-import { TREE_CANOPY_SHADES, groundDecor } from './cellTileset'
-import { resolveTile, resolveComposition } from './tileset/tileset'
+import { resolveTile, resolveComposition, canopyCount, pickGroundDecor } from './tileset/tileset'
 import { isRoadGround } from './buildingEditor'
 import { ASCII_TILESET } from './tileset/asciiTileset'
 import { varyIntensity } from './colors'
@@ -78,9 +77,10 @@ export interface PlacedBuilding {
 export interface TreeAnchor {
   col: number
   row: number
-  /** tree_small = the full reference tree (a canopy blob on a 2-block trunk — used for ALL living trees, glade
-   *  AND forest-mass, spaced so each reads as a tree not a boxy column); tree_dead = a leafless snag. */
-  kind: 'tree_small' | 'tree_dead'
+  /** tree = the simple crown+row backend composition — used for ALL living trees (glade AND forest-mass),
+   *  replacing the oversized 30-cell tree_small canopy blob. tree_dead = a leafless snag, UNCHANGED (kept
+   *  blocking so dead trees still obstruct — not swapped to the walkable `bush`, which would change collision). */
+  kind: 'tree' | 'tree_dead'
   variant: number
 }
 
@@ -338,9 +338,13 @@ const makeCaveWall = (col: number, row: number, shades: readonly string[]): Stag
   color: shades[Math.abs(col * 7 + row * 13) % shades.length],
 })
 
-// Non-blocking zone GROUND DECOR (grass/litter/pebbles/embers) — the density layer.
-const makeGroundDecor = (zone: ZoneId, col: number, row: number): StageProp => {
-  const d = groundDecor(zone, Math.abs(col * 7 + row * 13))
+// Non-blocking zone GROUND DECOR (grass/litter/pebbles/embers) — the density layer. Each decor variant
+// is a backend TILE (category 'decor', its own settings.colors per zone); pickGroundDecor selects one
+// deterministically from the loaded tileset and resolves its glyph + zone colour. Null when the tileset
+// carries no decor for the zone (e.g. before load) — the caller then skips the cell.
+const makeGroundDecor = (zone: ZoneId, col: number, row: number): StageProp | null => {
+  const d = pickGroundDecor(ASCII_TILESET, zone, col, row)
+  if (!d) return null
   return { col, row, type: 'ground_decor', char: d.char, blocking: false, color: d.color }
 }
 
@@ -362,7 +366,8 @@ function scatterGroundCover(ctx: ArchetypeContext, density = 0.18): void {
     if (BUILT_FLOOR.has(ground[row][col]) || isRoadGround(ground[row][col])) return // keep paved floors + ROADS clean (no clover on streets)
     if (occupied.has(`${col},${row}`)) return // don't cover trees / buildings / decor
     if (Math.random() > density) return // breathing room
-    fill.push(makeGroundDecor(zone, col, row))
+    const prop = makeGroundDecor(zone, col, row)
+    if (prop) fill.push(prop) // no decor tile for this zone (tileset not loaded) → leave the cell bare
   })
   props.push(...fill)
 }
@@ -1195,7 +1200,7 @@ function repairFloorConnectivity(ctx: ArchetypeContext): void {
     if (!isFloor(col, row)) return
     if (largest.has(`${col},${row}`)) return
     collision[row][col] = true
-    anchors.push({ col, row, kind: 'tree_small', variant: massVariant(col, row) % TREE_CANOPY_SHADES[zone].length }) // dead pocket → forest fills it
+    anchors.push({ col, row, kind: 'tree', variant: massVariant(col, row) % canopyCount(ASCII_TILESET, zone) }) // dead pocket → forest fills it
   })
 }
 
@@ -1428,8 +1433,8 @@ export function treeColumnClearsPaving(ground: string[][], col: number, baseRow:
  *  driven. The canopy is walkable overhead, so collision here blocks only the trunk cell — matching the stamp. */
 function stampTree(ctx: ArchetypeContext, baseCol: number, baseRow: number, dead = false): void {
   const { collision, zone, trees, cols, rows } = ctx
-  const variant = randInt(0, TREE_CANOPY_SHADES[zone].length - 1) // this tree's canopy tone
-  trees.push({ col: baseCol, row: baseRow, kind: dead ? 'tree_dead' : 'tree_small', variant })
+  const variant = randInt(0, canopyCount(ASCII_TILESET, zone) - 1) // this tree's canopy tone
+  trees.push({ col: baseCol, row: baseRow, kind: dead ? 'tree_dead' : 'tree', variant })
   if (inBounds(baseCol, baseRow, cols, rows)) collision[baseRow][baseCol] = true // only the trunk cell blocks
 }
 
@@ -1510,7 +1515,7 @@ function commitTrees(ctx: ArchetypeContext, trees: boolean[][]): void {
     // #2), not a 1-wide boxy column, and roughly HALF the cube count (lighter render). The layout's relative
     // density is preserved (a denser mass → proportionally more trees). Canopy walkable overhead; every tile selectable.
     if ((col + row) % 2 !== 0) return
-    anchors.push({ col, row, kind: 'tree_small', variant: massVariant(col, row) % TREE_CANOPY_SHADES[zone].length })
+    anchors.push({ col, row, kind: 'tree', variant: massVariant(col, row) % canopyCount(ASCII_TILESET, zone) })
     collision[row][col] = true
   })
 }

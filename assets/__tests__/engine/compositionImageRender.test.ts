@@ -16,6 +16,8 @@
  * image untouched. So "the drawn source !== the raw stub image" IS "a tint was applied", and
  * "drawn source === the raw stub image" IS "no tint was applied" — a genuine behavioural assertion.
  */
+import { installTilesetPayload } from '@/engine/tileset/tilesetLoader'
+import tilesetFixture from '@/__tests__/fixtures/tilesets.json'
 import { drawIsoAssetAscii } from '@/engine/render/iso'
 import { draw2DLabeledCell } from '@/engine/render/topdown'
 import { renderTopView } from '@/engine/render/birdseye'
@@ -53,6 +55,10 @@ beforeAll(() => {
   ;(HTMLCanvasElement.prototype as unknown as { getContext: (t: string) => unknown }).getContext = function (t: string) {
     return t === '2d' ? new FakeOffscreenCtx() : null
   }
+  // The render paints ground from the loaded backend tileset's terrain; install ONLY the ascii entry so
+  // ASCII_TILESET has terrain (no longer bundled). Emoji is left as the bundled default on purpose — this
+  // suite drives EMOJI_TILESET/EMOJI_STYLE manually, so it must not be rebuilt from the fixture.
+  installTilesetPayload((tilesetFixture.data as Parameters<typeof installTilesetPayload>[0]).filter(t => t.key === 'ascii'))
 })
 
 beforeEach(() => {

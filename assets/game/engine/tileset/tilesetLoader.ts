@@ -32,6 +32,9 @@ interface ApiTile {
   settings?: {
     position?: TilePosition
     colors?: Record<string, unknown>
+    /** Terrain tiles carry their char/fg/bg variants here (the data form of the old GROUND_COLORS row) —
+     *  read into the tileset's `terrain` map so ground colour comes from the tile, not a `data.terrain` blob. */
+    variants?: GroundTile
     color?: string
     pose?: TilePose
     views?: Partial<Record<TileView, TileViewSettings>>
@@ -77,17 +80,32 @@ function toAsciiTilesetTile(label: string, tile: ApiTile): TilesetTile {
   }
 }
 
-/** Build the full ASCII Tileset from a backend row — tiles mapped per-label; palettes/terrain still
- *  come from the OLD `data` blob; compositions pass through (default {} when absent). */
+/** Build the ground/terrain map from the TERRAIN TILE ROWS (category 'terrain', with char/fg/bg in
+ *  settings.variants) — "terrain is just another tile", so ground colour comes from each tile's own
+ *  settings, never a `data.terrain` blob. Tiles without variants are skipped (resolveGroundTile then
+ *  falls back to grass). */
+function buildAsciiTerrain(apiTiles: Record<string, ApiTile>): Record<string, GroundTile> {
+  const terrain: Record<string, GroundTile> = {}
+  for (const [label, tile] of Object.entries(apiTiles)) {
+    const v = tile.settings?.variants
+    if (tile.category === 'terrain' && v?.char?.length && v?.fg?.length && v?.bg?.length) terrain[label] = v
+  }
+  return terrain
+}
+
+/** Build the full ASCII Tileset from a backend row — tiles mapped per-label + terrain from the terrain
+ *  tile rows' settings.variants + compositions. NO `palettes`/`terrain` blob: every colour lives on its
+ *  own tile (a tile's colour comes from its settings, not a shared palette or a residual data blob). */
 function buildAsciiTileset(t: ApiTileset): Tileset {
+  const apiTiles = t.tiles ?? {}
   const tiles: Record<string, TilesetTile> = {}
-  for (const [label, tile] of Object.entries(t.tiles ?? {})) tiles[label] = toAsciiTilesetTile(label, tile)
+  for (const [label, tile] of Object.entries(apiTiles)) tiles[label] = toAsciiTilesetTile(label, tile)
   return {
     id: t.key,
     name: t.name,
     tiles,
-    palettes: t.data.palettes ?? {},
-    terrain: t.data.terrain ?? {},
+    palettes: {},
+    terrain: buildAsciiTerrain(apiTiles),
     compositions: t.compositions ?? {},
   }
 }
