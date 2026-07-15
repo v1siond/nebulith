@@ -137,10 +137,10 @@ export function renderTopView(
       let kind: ReturnType<typeof assetKind>
 
       if (asset) {
-        // Show the cell's OWN glyph + color — the label glyph for generated
-        // multi-cell assets (╨│@♣ trees, autotiled masses, roofs/doors) and the
-        // zone tint for trees — over a dark type-flavored backing for contrast.
-        char = asset.art[0] ?? '?'
+        // Show the cell's OWN tile for its LABEL — the emoji in emoji mode (a composition cell resolves its
+        // per-part emoji, never the kind's whole-tree image and never ascii-in-emoji), else the ascii glyph.
+        // resolveAssetDraw below falls back to THIS char since the composition kind has no emoji of its own.
+        char = (style.id === 'emoji' && asset.label ? EMOJI_TILESET[asset.label]?.char : undefined) ?? asset.art[0] ?? '?'
         fg = asset.color ?? '#cccccc'
         bg = TOP_ASSET_BACKDROP[asset.type] ?? '#141414'
         kind = assetKind(asset)

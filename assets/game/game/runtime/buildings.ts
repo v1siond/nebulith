@@ -5,13 +5,17 @@
 // stay in engine/buildingEditor; this is the side-effecting stamp/unstamp + the
 // live placement reader. Moved out of the game-engine page (stage 5a).
 import { type BuildingType } from '@/engine/buildingComposer'
-import { type PlacementEnv, buildingCellBlocked, buildingCellTiles, buildingDoorCells, buildingFootprintCells, isRoadGround } from '@/engine/buildingEditor'
+import { type PlacementEnv, buildingCellBlocked, buildingCellTiles, buildingFootprintCells, isRoadGround } from '@/engine/buildingEditor'
 import { resolveTile } from '@/engine/tileset/tileset'
 import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 import type { GridBuilding, IsometricGrid } from '@/engine/IsometricGrid'
 import { buildingCellColor } from '@/engine/stageGenerator'
 import { type Facing } from '@/engine/villageLayout'
 import { ZONE_PALETTES, ZoneId } from '@/engine/zones'
+
+/** The distinct INDOOR floor stamped under a building's interior cells (backend terrain tile), so a revealed
+ *  hollow interior reads as a room you can stand in — not the grass/path the building sits on. */
+const BUILDING_FLOOR = 'wooden_planks'
 
 /**
  * LIVE stamp: write a building's footprint onto the grid as PER-BLOCK TILES — the building-is-just-tiles
@@ -26,33 +30,27 @@ import { ZONE_PALETTES, ZoneId } from '@/engine/zones'
 export function stampBuildingCells(grid: IsometricGrid, b: GridBuilding, zone: ZoneId): void {
   const { cells } = buildingFootprintCells(b)
   const base = ZONE_PALETTES[zone]?.groundTypes[0] ?? 'grass'
-  // The walkable entrance is the FULL door run (a hospital's 2-wide doorway, a cathedral's 3-wide one) —
-  // the SAME cells the generator opens, so the drawn door always lands on walkable collision (no
-  // walkable-half/blocked-half wide door). A 1-wide door → the single doorCellFor cell.
-  const doorSet = new Set(buildingDoorCells(b).map(d => `${d.col},${d.row}`))
   for (const c of cells) {
     if (c.col < 0 || c.row < 0 || c.col >= grid.cols || c.row >= grid.rows) continue
-    grid.setGround(c.col, c.row, base) // clean base ground under the footprint (grass)
-    // ONE asset per BLOCK: the footprint cell's stacked wall/window/door blocks (level 1..floors) + the
-    // roof cap (floors+1). Each block is a height-1 tile lifted to its stack level — the SAME shape a
-    // brush-stacked tile has, so a building block extrudes into an iso cube (or a raised 2D/top tile) with
-    // zero per-type branches in the draw loop. buildingCellTiles is the shared decomposition.
-    for (const t of buildingCellTiles(b, c.col, c.row)) {
-      const { char } = resolveTile(ASCII_TILESET, zone, t.part) // LOADS the glyph from the DB tileset, not hardcoded cellTile
+    const cellTiles = buildingCellTiles(b, c.col, c.row)
+    // INTERIOR cells (no wall/window/door block — only a roof cap high above) get a distinct indoor FLOOR so a
+    // revealed interior reads as a room you can stand in; perimeter (wall/window/door) cells keep the zone base.
+    const hasFacade = cellTiles.some(t => t.part === 'wall' || t.part === 'window' || t.part === 'door')
+    grid.setGround(c.col, c.row, hasFacade ? base : BUILDING_FLOOR)
+    // ONE asset per BLOCK: the footprint cell's stacked wall/window/door blocks + the roof cap. Each block is a
+    // height-1 tile lifted to its stack level — the SAME shape a brush-stacked tile has (one generic draw path).
+    for (const t of cellTiles) {
+      const { char } = resolveTile(ASCII_TILESET, zone, t.part) // LOADS the glyph from the DB tileset, not hardcoded
       const color = buildingCellColor(b.type as BuildingType, t.part, b.col)
       const asset = grid.placeAsset([char], c.col, c.row, { type: 'building', blocking: t.blocking, color, heightLevel: t.level })
-      // placeAsset's fixed option list doesn't carry these — set them on the returned asset.
-      asset.label = t.part
+      asset.label = t.part // placeAsset's fixed option list doesn't carry these — set them on the returned asset.
       asset.buildingType = b.type
       asset.height = 1 // ONE block tall per tile; the column's floors come from the stacked levels, not this
     }
-    // Cell collision = the footprint-occupancy rule (whole box blocks, the door run stays walkable), the
-    // SAME collision the pre-per-block stamp produced. This increment is RENDER-ONLY, so collision must not
-    // change: a blocking wall block placed over the door cell (a lintel above the opening) can flip the cell
-    // blocked via placeAsset, so we open the door run LAST to keep the entrance walkable. Interior cells
-    // carry only a non-blocking roof block, so the OR-of-blocks alone would leave them walkable — the
-    // footprint rule blocks the solid box, unchanged.
-    grid.setCollision(c.col, c.row, !doorSet.has(`${c.col},${c.row}`))
+    // HOLLOW collision: a cell blocks only if it has a GROUND-LEVEL (level 0) blocking block — i.e. a WALL. The
+    // door (walkable level-0 block) and the INTERIOR (only a high, non-blocking roof cap) stay WALKABLE, so the
+    // hero + units can stand INSIDE the building. (Was a solid footprint box; now the real hollow shell requested.)
+    grid.setCollision(c.col, c.row, cellTiles.some(t => (t.level ?? 0) === 0 && t.blocking))
   }
 }
 

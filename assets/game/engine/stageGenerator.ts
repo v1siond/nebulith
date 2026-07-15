@@ -11,9 +11,9 @@
 import { composeBuilding, ComposedBuilding, BuildingType } from './buildingComposer'
 import { planVillage, type VillageLayout, type Settlement, type Plot, type Facing, type PlazaRect } from './villageLayout'
 import { stagePropTileOverride, ZONE_PALETTES, ZoneId } from './zones'
-import { autotileLabel, isWalkable, TREE_MASS_FAMILY, type CellLabel } from './cellLabels'
+import { isWalkable, type CellLabel } from './cellLabels'
 import { TREE_CANOPY_SHADES, groundDecor } from './cellTileset'
-import { resolveTile } from './tileset/tileset'
+import { resolveTile, resolveComposition } from './tileset/tileset'
 import { isRoadGround } from './buildingEditor'
 import { ASCII_TILESET } from './tileset/asciiTileset'
 import { varyIntensity } from './colors'
@@ -71,6 +71,19 @@ export interface PlacedBuilding {
   facade: ComposedBuilding
 }
 
+/** A TREE anchor — the trunk-base cell + which composition (tree_small / tree_dead) + its canopy shade. The
+ *  generator RECORDS these (it does not bake flat tree props); at load applyStageToGrid re-stamps each via
+ *  stampComposition into per-cell heightLevel-stacked DB tiles — the SAME model buildings use (PlacedBuilding →
+ *  stampBuildingCells). That is what makes every tree tile individually SELECTABLE and 100% backend-driven. */
+export interface TreeAnchor {
+  col: number
+  row: number
+  /** tree_small = the full reference tree (a canopy blob on a 2-block trunk — used for ALL living trees, glade
+   *  AND forest-mass, spaced so each reads as a tree not a boxy column); tree_dead = a leafless snag. */
+  kind: 'tree_small' | 'tree_dead'
+  variant: number
+}
+
 export interface StageData {
   zone: ZoneId
   variant: VariantId
@@ -80,6 +93,7 @@ export interface StageData {
   collision: boolean[][]
   buildings: PlacedBuilding[]
   props: StageProp[]
+  trees: TreeAnchor[]
   connectors: Connector[]
   spawn: { col: number; row: number }
 }
@@ -136,29 +150,7 @@ const shadeNoise = (seed: number): number => {
   return h - Math.floor(h)
 }
 
-// Tree parts that keep their bark/dead tone — only the CANOPY gets leaf-tone variety.
-const TRUNK_LABELS = new Set<string>(['tree_stem', 'tree_stem_bottom', 'tree_snag'])
-
-/** One labeled tree cell — label drives glyph + collision; `variant` picks the canopy
- *  tonal shade. Canopy leaves additionally get a per-TREE (per-column) intensity shift so a
- *  forest reads in many tones of one base color; seeding by `col` keeps every cell of a
- *  vertical glade tree one tone (so some trees read darker, some lighter — never noisy). */
-// Glade-tree column cells STACKED above the trunk base (crown / leaves / upper trunk): a
-// shadow under these would float at canopy height, so they cast none. EVERY other tree cell
-// — autotiled mass/thicket cells (each renders its own grounded tree), the trunk base, a
-// snag — sits on its own ground and casts a shadow, so no tree floats even when stacked.
-const NO_SHADOW_LABELS = new Set<string>(['tree_crown', 'tree_leaf', 'tree_leaf_top', 'tree_stem'])
-
-const makeTreeCell = (zone: ZoneId, col: number, row: number, label: CellLabel, variant = 0): StageProp => {
-  const cell = makeLabeledCell(zone, col, row, label, 'tree', variant)
-  const baseShadow = !NO_SHADOW_LABELS.has(label) || undefined
-  if (TRUNK_LABELS.has(label)) return { ...cell, baseShadow }
-  // Per-tree (per-column) leaf-tone shift only — NO opacity (translucent trees let entities
-  // show through + blur the scene); the canopy reads in many tones of one solid color.
-  return { ...cell, color: varyIntensity(cell.color, shadeNoise(col + 0.5)), baseShadow }
-}
-
-/** One labeled building cell — mirrors makeTreeCell; the LABEL drives walkability. */
+/** One labeled building cell — the LABEL drives walkability. */
 // ── per-type building colors — a distinct ROOF per type so a town reads at a glance, with
 //    dark doors + glassy windows so those ornaments stand out. cellTile's zone tint stays on
 //    the glyph; the COLOR comes from here.
@@ -485,6 +477,8 @@ interface ArchetypeContext {
   collision: boolean[][]
   buildings: PlacedBuilding[]
   props: StageProp[]
+  /** Tree anchors recorded during generation → stamped as compositions at load (see TreeAnchor). */
+  trees: TreeAnchor[]
   cols: number
   rows: number
   /** The user-steered forest layout; only placeForest reads it. */
@@ -511,8 +505,9 @@ export function generateStage(opts: GenerateOptions): StageData {
   const collision = makeGrid(cols, rows, () => false)
   const buildings: PlacedBuilding[] = []
   const props: StageProp[] = []
+  const trees: TreeAnchor[] = []
 
-  const ctx: ArchetypeContext = { zone, ground, collision, buildings, props, cols, rows, layout }
+  const ctx: ArchetypeContext = { zone, ground, collision, buildings, props, trees, cols, rows, layout }
   ARCHETYPES[variant]?.(ctx)
   addTerrainTransitions(ctx) // blended shorelines / lava banks over the painted ground
 
@@ -525,6 +520,7 @@ export function generateStage(opts: GenerateOptions): StageData {
     collision,
     buildings,
     props,
+    trees,
     connectors: [],
     spawn: chooseSpawn(buildings, collision, cols, rows),
   }
@@ -596,22 +592,12 @@ function fillVillageNature(ctx: ArchetypeContext, layout: VillageLayout, natureM
   const attempts = Math.floor(cols * rows * 0.5)
   for (let i = 0; i < attempts; i++) {
     const col = randInt(2, cols - 3)
-    const row = randInt(TREE_HEIGHT, rows - 3)
-    // The tree's WHOLE 4-cell column — canopy included, not just the trunk base — must clear PAVED floors
-    // (the stone plaza, driveways, roads). A tree planted on grass just south of the town square used to
-    // rise its canopy UP over the paved plaza + fountain (the "trees weirdly in the centre, not on grass"
-    // bug); checking every column cell keeps the whole tree off the square.
+    const row = randInt(2, rows - 3)
+    // The tree's trunk cell must clear PAVED floors (the stone plaza, driveways, roads) AND stay off
+    // buildings/roads — a door is walkable, so treeFits alone would happily plant a tree on it. The canopy is
+    // walkable overhead, so only the trunk cell is checked.
     if (!treeColumnClearsPaving(ground, col, row)) continue
-    // …and off buildings — a door is walkable, so a trunk could otherwise rise into it from BELOW.
-    let clearColumn = true
-    for (let h = 0; h < TREE_HEIGHT; h++) {
-      const rr = row - h
-      if (layout.roads[rr]?.[col] || nearBuilding.has(`${col},${rr}`)) {
-        clearColumn = false
-        break
-      }
-    }
-    if (!clearColumn) continue
+    if (layout.roads[row]?.[col] || nearBuilding.has(`${col},${row}`)) continue
     if (!treeFits(collision, col, row, cols, rows)) continue
     const sideDist = Math.min(col, cols - 1 - col) // distance from the LEFT/RIGHT edge
     const edgeDist = Math.min(sideDist, row, rows - 1 - row)
@@ -620,7 +606,7 @@ function fillVillageNature(ctx: ArchetypeContext, layout: VillageLayout, natureM
     const p = (sideDist < 5 ? 0.82 : edgeDist < 4 ? 0.66 : edgeDist < 9 ? 0.52 : 0.36) * natureMult
     if (Math.random() > p) continue
     if (placed.some(t => Math.abs(t.col - col) < minDist && Math.abs(t.row - row) < minDist)) continue
-    stampTree(ctx, col, row, Math.random() < DEAD_TREE_CHANCE[ctx.zone], Math.random() < 0.45)
+    stampTree(ctx, col, row, Math.random() < DEAD_TREE_CHANCE[ctx.zone])
     placed.push({ col, row })
   }
 }
@@ -1201,19 +1187,15 @@ function placeLakeFeature(ctx: ArchetypeContext, lake: Cell[]): void {
  *  largest connected floor region becomes tree mass, so the navigable floor is always
  *  ONE region. Canopy tops (tree_leaf_top) are a separate walkable layer — excluded. */
 function repairFloorConnectivity(ctx: ArchetypeContext): void {
-  const { collision, props, zone, cols, rows } = ctx
-  const canopyTop = new Set(
-    props.filter(p => p.label === 'tree_leaf_top').map(p => `${p.col},${p.row}`),
-  )
-  const isFloor = (col: number, row: number): boolean =>
-    inBounds(col, row, cols, rows) && !collision[row][col] && !canopyTop.has(`${col},${row}`)
+  const { collision, zone, cols, rows, trees: anchors } = ctx
+  const isFloor = (col: number, row: number): boolean => inBounds(col, row, cols, rows) && !collision[row][col]
 
   const largest = largestFloorRegion(isFloor, cols, rows)
   forEachCell(cols, rows, (col, row) => {
     if (!isFloor(col, row)) return
     if (largest.has(`${col},${row}`)) return
     collision[row][col] = true
-    props.push(makeTreeCell(zone, col, row, 'tree_interior', massVariant(col, row))) // dead pocket → forest fills it
+    anchors.push({ col, row, kind: 'tree_small', variant: massVariant(col, row) % TREE_CANOPY_SHADES[zone].length }) // dead pocket → forest fills it
   })
 }
 
@@ -1376,20 +1358,9 @@ function markGrassZones(ctx: ArchetypeContext, rooms: ForestRoom[]): void {
   })
 }
 
-// A standalone glade tree spans this many cells vertically: trunk base, trunk,
-// canopy, walkable canopy top (bottom → top). Each cell carries its own label so
-// the canopy occupies — and correctly blocks — the cells its art covers, instead
-// of a single base cell whose tall canopy used to overlap "free" cells above.
-// A standalone tree is fully SOLID: trunk → leaf → solid crown (no passable
-// cell). The whole column blocks, so you can't step "into" the leaves.
-/** Thick-trunk glyph for MATURE trees (matches Tileset.ts `trunk_thick`); young
- *  trees keep the thin `│` from the tree_stem label. */
-const TRUNK_BIG = '║'
-const TREE_COLUMN: readonly CellLabel[] = ['tree_stem_bottom', 'tree_stem', 'tree_leaf', 'tree_crown']
-// A dead/bare tree: a tall trunk topped by a leafless snag (no walkable canopy).
-// Same height as a living tree so placement (treeFits) is shared.
-const DEAD_TREE_COLUMN: readonly CellLabel[] = ['tree_stem_bottom', 'tree_stem', 'tree_stem', 'tree_snag']
-const TREE_HEIGHT = TREE_COLUMN.length
+// A tree is a stacked COMPOSITION (see TreeAnchor): the trunk sits at the anchor cell (levels 0-1) and the
+// canopy blob stacks ABOVE it (levels 2-3). The canopy is WALKABLE overhead (you walk under the tree), so a
+// tree occupies only its trunk cell for collision/placement — no ground footprint beyond the anchor.
 
 // Per-zone chance a scattered glade tree is a leafless snag — harsher zones have
 // more dead wood (charred lava, frost-killed frozen) than the lush verdant.
@@ -1427,67 +1398,39 @@ function scatterGladeTrees(ctx: ArchetypeContext, densityMul = 1): void {
   const attempts = Math.floor(cols * rows * 0.08 * FOREST_DENSITY[ctx.zone] * densityMul)
   for (let i = 0; i < attempts; i++) {
     const col = randInt(2, cols - 3)
-    const row = randInt(TREE_HEIGHT, rows - 3) // leave headroom above the base for the canopy
+    const row = randInt(2, rows - 3)
     if (!treeFits(collision, col, row, cols, rows)) continue
     if (placed.some(p => Math.abs(p.col - col) < minDist && Math.abs(p.row - row) < minDist)) continue
-    // ~45% of living trees are mature (thick trunk); the rest young (thin trunk).
-    stampTree(ctx, col, row, Math.random() < DEAD_TREE_CHANCE[ctx.zone], Math.random() < 0.45)
+    stampTree(ctx, col, row, Math.random() < DEAD_TREE_CHANCE[ctx.zone])
     placed.push({ col, row })
   }
 }
 
-/** A vertical tree fits when its WHOLE column is in-bounds and on currently-open
- *  ground — including the canopy top, so it never punches a walkable hole through
- *  the solid forest mass or stacks two props on one cell — AND the walkable top
- *  keeps an open lateral neighbour, so it never becomes an isolated pocket. */
+/** A tree fits when its trunk cell is in-bounds and on currently-open ground. The canopy is walkable overhead
+ *  (it occupies no ground), so only the anchor cell matters; isolated-pocket repair is handled by
+ *  repairFloorConnectivity. */
 function treeFits(collision: boolean[][], baseCol: number, baseRow: number, cols: number, rows: number): boolean {
-  const topRow = baseRow - (TREE_HEIGHT - 1)
-  if (!inBounds(baseCol, topRow, cols, rows)) return false
-  for (let i = 0; i < TREE_HEIGHT; i++) {
-    if (collision[baseRow - i][baseCol]) return false
-  }
-  return hasOpenLateralNeighbour(collision, baseCol, topRow, cols, rows)
+  return inBounds(baseCol, baseRow, cols, rows) && !collision[baseRow][baseCol]
 }
 
 /**
- * A tree's WHOLE vertical column (trunk base → canopy top) must stand on UNPAVED ground — not just its
- * trunk base. `treeFits` only guards collision; this guards the GROUND. A tree planted on grass just
- * south of the town square used to rise its canopy up over the paved plaza + fountain (the "trees weirdly
- * in the centre, not on grass, collision mixing with the fountain" bug) because only the anchor cell was
- * checked for paving. Rejecting a column with ANY paved cell keeps the whole tree off the square, roads,
- * and driveways. Pure — reads `ground` only.
+ * A tree's trunk cell must stand on UNPAVED ground — not the paved plaza, driveways, or roads. `treeFits` guards
+ * collision; this guards the GROUND, so a tree never lands on the town square. (The canopy is walkable overhead
+ * and occupies no ground, so only the trunk cell is checked.) Pure — reads `ground` only.
  */
 export function treeColumnClearsPaving(ground: string[][], col: number, baseRow: number): boolean {
-  for (let h = 0; h < TREE_HEIGHT; h++) {
-    if (BUILT_FLOOR.has(ground[baseRow - h]?.[col])) return false
-  }
-  return true
+  return !BUILT_FLOOR.has(ground[baseRow]?.[col])
 }
 
-/** True if the cell has an open (walkable) horizontal neighbour — keeps a stamped
- *  canopy top reachable from the surrounding clearing. */
-function hasOpenLateralNeighbour(collision: boolean[][], col: number, row: number, cols: number, rows: number): boolean {
-  const left = inBounds(col - 1, row, cols, rows) && !collision[row][col - 1]
-  const right = inBounds(col + 1, row, cols, rows) && !collision[row][col + 1]
-  return left || right
-}
-
-/** Stamp a multi-cell labeled tree upward from its base; per-label collision via
- *  isWalkable. A living tree's only walkable cell is its canopy top; a `dead`
- *  snag is solid all the way up. One canopy shade per tree (no intra-tree mess). */
-function stampTree(ctx: ArchetypeContext, baseCol: number, baseRow: number, dead = false, big = false): void {
-  const { props, collision, zone } = ctx
-  const column = dead ? DEAD_TREE_COLUMN : TREE_COLUMN
-  const variant = randInt(0, TREE_CANOPY_SHADES[zone].length - 1) // this tree's tone
-  column.forEach((label, i) => {
-    const row = baseRow - i
-    const cell = makeTreeCell(zone, baseCol, row, label, variant)
-    // Small vs BIG trunk actually shows now: a mature tree gets the thick trunk (║),
-    // a young/sapling tree keeps the thin (│). Label/collision stay the same.
-    if (big && label === 'tree_stem') cell.char = TRUNK_BIG
-    props.push(cell)
-    collision[row][baseCol] = !isWalkable(label)
-  })
+/** Record a TREE anchor (trunk-base cell + composition kind + canopy shade). The generator no longer bakes flat
+ *  tree cells; at load applyStageToGrid stamps the composition (stampComposition) into per-cell heightLevel-
+ *  stacked DB tiles — the SAME lego model buildings use, so every tree tile is selectable and 100% backend-
+ *  driven. The canopy is walkable overhead, so collision here blocks only the trunk cell — matching the stamp. */
+function stampTree(ctx: ArchetypeContext, baseCol: number, baseRow: number, dead = false): void {
+  const { collision, zone, trees, cols, rows } = ctx
+  const variant = randInt(0, TREE_CANOPY_SHADES[zone].length - 1) // this tree's canopy tone
+  trees.push({ col: baseCol, row: baseRow, kind: dead ? 'tree_dead' : 'tree_small', variant })
+  if (inBounds(baseCol, baseRow, cols, rows)) collision[baseRow][baseCol] = true // only the trunk cell blocks
 }
 
 /** Flood-fill the open cells, keep the single largest clearing, and fill the rest
@@ -1560,13 +1503,15 @@ function carveVertical(trees: boolean[][], col: number, fromRow: number, toRow: 
  *  edge/corner/interior label (8-neighbour, per docs/ALGORITHMS.md), then set
  *  collision from its label. Out-of-bounds counts as NOT tree (an edge). */
 function commitTrees(ctx: ArchetypeContext, trees: boolean[][]): void {
-  const { props, collision, zone, cols, rows } = ctx
-  const isTree = (col: number, row: number): boolean => inBounds(col, row, cols, rows) && trees[row][col]
+  const { collision, zone, cols, rows, trees: anchors } = ctx
   forEachCell(cols, rows, (col, row) => {
     if (!trees[row][col]) return
-    const label = autotileLabel(TREE_MASS_FAMILY, isTree, col, row)
-    props.push(makeTreeCell(zone, col, row, label, massVariant(col, row)))
-    collision[row][col] = !isWalkable(label)
+    // Place a FULL tree_small on every OTHER mass cell (a checker) — fuller trees that read individually (Image
+    // #2), not a 1-wide boxy column, and roughly HALF the cube count (lighter render). The layout's relative
+    // density is preserved (a denser mass → proportionally more trees). Canopy walkable overhead; every tile selectable.
+    if ((col + row) % 2 !== 0) return
+    anchors.push({ col, row, kind: 'tree_small', variant: massVariant(col, row) % TREE_CANOPY_SHADES[zone].length })
+    collision[row][col] = true
   })
 }
 
@@ -2462,7 +2407,7 @@ export function stageToTemplate(stage: StageData, name: string): StageTemplatePa
   paint.ground.forEach(g => {
     groundData[g.row][g.col] = g.type
   })
-  const assetsData = paint.assets.map(a => ({
+  const assetsData: Array<Record<string, unknown>> = paint.assets.map(a => ({
     art: [a.char],
     col: a.col,
     row: a.row,
@@ -2476,6 +2421,33 @@ export function stageToTemplate(stage: StageData, name: string): StageTemplatePa
     // reloads with the same palette tiles — same per-zone/role dispatch, so the two paths never diverge.
     tileOverride: stagePropTileOverride(stage.zone, a.type),
   }))
+
+  // Trees are recorded as ANCHORS (see TreeAnchor). Expand each into its stacked composition tiles here so a
+  // stage saved through this path carries the SAME per-cell heightLevel blocks the live grid stamps
+  // (stampComposition) — the forest's collision + rich tiles survive the round-trip, each tile still selectable.
+  for (const t of stage.trees) {
+    const comp = resolveComposition(ASCII_TILESET, t.kind)
+    if (!comp) continue
+    for (const c of comp.cells) {
+      const col = t.col + c.dx
+      const row = t.row + c.dy
+      if (col < 0 || row < 0 || col >= stage.cols || row >= stage.rows) continue
+      const tile = resolveTile(ASCII_TILESET, stage.zone, c.label, t.variant)
+      assetsData.push({
+        art: [tile.char],
+        col,
+        row,
+        type: t.kind,
+        blocking: !c.walkable,
+        color: tile.color,
+        height: 1, // one block tall per tile; the column's height comes from the stacked levels
+        heightLevel: c.level ?? 0,
+        label: c.label,
+        footprint: undefined,
+        tileOverride: undefined,
+      })
+    }
+  }
 
   return {
     name,

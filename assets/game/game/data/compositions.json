@@ -1,0 +1,68 @@
+{
+  "_doc": "ASCII-art COMPOSITIONS + their tiles — the source the seed generator (scripts/gen-tileset-seeds.mjs) pushes into the DB tileset (nebulith .../ascii.json). Every rich asset is a COMPOSITION: a group of stacked CELLS/BLOCKS (dx,dy footprint + level = height, minecraft-style) each PAINTED with one tile. Combined they form the art. ASCII tiles and emoji PNG tiles are the SAME thing at this level — both paint blocks — so they render through the ONE generic block path (drawIsoTileBlock): a cell at (dx,dy,level) becomes a real iso CUBE with its glyph on the faces, individually SELECTABLE (heightLevel>=1 || height>=1). trunk tiles block movement; leaf/canopy tiles are WALKABLE (overhead canopy — you walk under the tree), so a tree occupies only its trunk cell. See MAP-MODEL.md §4/§5/§8 + TILE-VOCABULARY-CONTRACT.",
+  "tiles": {
+    "trunk": { "glyph": "W", "emoji": "🟫", "colorRole": "trunk", "walkable": false },
+    "trunk_base": { "glyph": "0", "emoji": "🟫", "colorRole": "trunk", "walkable": false },
+    "snag": { "glyph": "Y", "emoji": "🍂", "colorRole": "trunk", "walkable": true },
+    "leaf_left": { "glyph": "(@&", "emoji": "🍃", "colorRole": "canopy", "walkable": true },
+    "leaf_center": { "glyph": "@&@", "emoji": "🌿", "colorRole": "canopy", "walkable": true },
+    "leaf_right": { "glyph": "&@)", "emoji": "🍃", "colorRole": "canopy", "walkable": true },
+    "leaf_top": { "glyph": "(&)", "emoji": "🌿", "colorRole": "canopy", "walkable": true }
+  },
+  "compositions": {
+    "tree_small": {
+      "_doc": "The reference tree — pure lego stacking, no shape logic. A 3-cell TRUNK at the anchor (levels 0-1-2, dy0) with a CANOPY that widens DOWN the levels (5 at L3, 3 at L4, 1 crown at L5) AND is 3 DEEP: the whole leaf section is repeated at dy -1, 0, +1 so the tree has depth in iso (3 leaf sections next to each other, one trunk), not a flat leaning triangle. Each cell is a block painted with a leaf/trunk tile (ascii glyph or emoji per active style); the canopy is walkable overhead, so the tree blocks only its trunk cell.",
+      "footprint": { "w": 5, "h": 3 },
+      "cells": [
+        { "dx": 0, "dy": 0, "level": 0, "label": "trunk_base" },
+        { "dx": 0, "dy": 0, "level": 1, "label": "trunk" },
+        { "dx": 0, "dy": 0, "level": 2, "label": "trunk" },
+
+        { "dx": -2, "dy": -1, "level": 3, "label": "leaf_left" },
+        { "dx": -1, "dy": -1, "level": 3, "label": "leaf_left" },
+        { "dx": 0, "dy": -1, "level": 3, "label": "leaf_center" },
+        { "dx": 1, "dy": -1, "level": 3, "label": "leaf_right" },
+        { "dx": 2, "dy": -1, "level": 3, "label": "leaf_right" },
+        { "dx": -2, "dy": 0, "level": 3, "label": "leaf_left" },
+        { "dx": -1, "dy": 0, "level": 3, "label": "leaf_left" },
+        { "dx": 0, "dy": 0, "level": 3, "label": "leaf_center" },
+        { "dx": 1, "dy": 0, "level": 3, "label": "leaf_right" },
+        { "dx": 2, "dy": 0, "level": 3, "label": "leaf_right" },
+        { "dx": -2, "dy": 1, "level": 3, "label": "leaf_left" },
+        { "dx": -1, "dy": 1, "level": 3, "label": "leaf_left" },
+        { "dx": 0, "dy": 1, "level": 3, "label": "leaf_center" },
+        { "dx": 1, "dy": 1, "level": 3, "label": "leaf_right" },
+        { "dx": 2, "dy": 1, "level": 3, "label": "leaf_right" },
+
+        { "dx": -1, "dy": -1, "level": 4, "label": "leaf_left" },
+        { "dx": 0, "dy": -1, "level": 4, "label": "leaf_center" },
+        { "dx": 1, "dy": -1, "level": 4, "label": "leaf_right" },
+        { "dx": -1, "dy": 0, "level": 4, "label": "leaf_left" },
+        { "dx": 0, "dy": 0, "level": 4, "label": "leaf_center" },
+        { "dx": 1, "dy": 0, "level": 4, "label": "leaf_right" },
+        { "dx": -1, "dy": 1, "level": 4, "label": "leaf_left" },
+        { "dx": 0, "dy": 1, "level": 4, "label": "leaf_center" },
+        { "dx": 1, "dy": 1, "level": 4, "label": "leaf_right" },
+
+        { "dx": 0, "dy": -1, "level": 5, "label": "leaf_top" },
+        { "dx": 0, "dy": 0, "level": 5, "label": "leaf_top" },
+        { "dx": 0, "dy": 1, "level": 5, "label": "leaf_top" }
+      ]
+    },
+    "tree_dead": {
+      "_doc": "A DEAD tree — same lego model as tree_small, but leafless: a 3-cell TRUNK (L0-1-2) topped by BARE BRANCHES (snag tiles spread at L3 across dx -1/0/1, plus a crown snag at L4). It reads as a bare-branched dead tree, NOT an empty trunk column. The snag branches are walkable overhead, so the dead tree blocks only its trunk cell. Used where DEAD_TREE_CHANCE fires (autumn/winter/lava dead wood).",
+      "footprint": { "w": 3, "h": 1 },
+      "cells": [
+        { "dx": 0, "dy": 0, "level": 0, "label": "trunk_base" },
+        { "dx": 0, "dy": 0, "level": 1, "label": "trunk" },
+        { "dx": 0, "dy": 0, "level": 2, "label": "trunk" },
+
+        { "dx": -1, "dy": 0, "level": 3, "label": "snag" },
+        { "dx": 0, "dy": 0, "level": 3, "label": "snag" },
+        { "dx": 1, "dy": 0, "level": 3, "label": "snag" },
+
+        { "dx": 0, "dy": 0, "level": 4, "label": "snag" }
+      ]
+    }
+  }
+}

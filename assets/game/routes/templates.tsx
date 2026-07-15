@@ -59,6 +59,7 @@ import { type TilePose } from '@/engine/tileset/pose'
 import { type QuestDraft, emptyQuestDraft, questFromDraft } from '@/game/runtime/questDraft'
 import { seedCharacterAnimations, needsAnimationReseed } from '@/game/runtime/entityAnimation'
 import { buildingPlacementEnv, nearestRoadFacing, stampBuildingCells, unstampBuildingCells } from '@/game/runtime/buildings'
+import { stampComposition } from '@/game/runtime/composition'
 import { type Cursor, type JumpState, JUMP_MS, JUMP_PEAK_PX, advanceEnemyMovement, beginJump, tickCannons } from '@/game/runtime/movement'
 import { playSwoosh } from '@/game/runtime/audio'
 import { Card, EntityToolButton, ViewButton } from '@/components/game/controls'
@@ -1667,6 +1668,7 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
       __scatter?: () => void
       __selectedEntityInfo?: () => unknown
       __placeBuilding?: (type: string, col: number, row: number) => void
+      __placeComposition?: (kind: string, col: number, row: number) => number
       __selectBuilding?: (i: number) => number | null
       __resizeBuilding?: (delta: number) => void
       __selectedBuildingLen?: () => number | null
@@ -1676,12 +1678,15 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
       __clearRegion?: (col0: number, row0: number, col1: number, row1: number) => void
       __setDebug?: (v: boolean) => void
       __cellLabels?: (col0: number, row0: number, col1: number, row1: number) => unknown
+      __stackAt?: (col: number, row: number) => Array<{ label: string; type: string; heightLevel: number; h: number; source: string }>
       __camOffset?: () => { x: number; y: number }
       __stackAsset?: (col: number, row: number, n?: number) => number | null
       __isoBlockScreen?: (col: number, row: number, level: number) => { x: number; y: number } | null
       __genVillage?: () => { buildings: number }
+      __genStage?: (zone: string, variant: string) => { buildings: number }
       __buildings?: () => Array<{ i: number; type: string; col: number; row: number; length: number; height: number; floors: number; wall: { col: number; row: number } | null; door: { col: number; row: number } }>
       __centerOn?: (col: number, row: number) => void
+      __setHero?: (col: number, row: number) => void
     }
     win.__camOffset = () => ({ ...camOffsetRef.current })
     // ISO-STACK picking validation seams (same family as __entityScreens, which lands validation clicks via
@@ -1725,6 +1730,7 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
     // footprint so a validation click can land on an actual WALL block / the door — proving the building's
     // blocks pick as tiles through the SAME path as a prop, not a synthetic rock stack.
     win.__genVillage = () => { generateStageInEditor('spring', 'town'); return { buildings: gridRef.current?.buildings.length ?? 0 } }
+    win.__genStage = (zone: string, variant: string) => { generateStageInEditor(zone as ZoneId, variant as VariantId); return { buildings: gridRef.current?.buildings.length ?? 0 } }
     win.__buildings = () => {
       const grid = gridRef.current
       if (!grid) return []
@@ -1746,6 +1752,13 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
       camOffsetRef.current = off
       setCamOffset(off)
     }
+    // Move the hero to a cell — validates proximity-driven render (building fade + roof cutaway) deterministically.
+    win.__setHero = (col: number, row: number) => {
+      const grid = gridRef.current
+      if (!grid) return
+      playerRef.current.x = col * grid.cellSize + grid.cellSize / 2
+      playerRef.current.z = row * grid.cellSize + grid.cellSize / 2
+    }
     // Debug-overlay + tileset-label validation seams: toggle the label overlay, and DUMP the
     // `<TYPE> <POSITION>` label of every cell in a region (terrain autotile label overridden by an
     // asset caption) — so "every cell carries a consistent tileset label" is validated as DATA.
@@ -1763,6 +1776,13 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
     }
     // Cell-editing validation seams: read the current cell selection, set it, and pin a tile to it — so
     // "select any cell + replace it" is validated deterministically (independent of click/drag timing).
+    // Dump a cell's tile STACK (getStack — the SAME projection select/edit read): label + heightLevel + block
+    // height per entry, so "is this tile a selectable BLOCK (heightLevel≥1 / h≥1) or a flat prop" is DATA, not a guess.
+    win.__stackAt = (col: number, row: number) => {
+      const grid = gridRef.current
+      if (!grid) return []
+      return getStack(grid, col, row, { buildings: grid.buildings }).map(t => ({ label: t.label ?? t.slug ?? '', type: t.type ?? String(t.source), heightLevel: t.heightLevel ?? 0, h: t.h ?? 0, source: String(t.source) }))
+    }
     win.__cellSel = () => ({ count: selectedCellsRef.current.size, first: Array.from(selectedCellsRef.current)[0] ?? null })
     win.__selectCells = (keys: string[]) => { setSelectedCells(new Set(keys)); setSelectedEntityId(null); return keys.length }
     win.__applyCellTile = (tileId: string | null) => setSelectionOverride(tileId)
@@ -1776,6 +1796,7 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
     // Building-tool validation seams: place a house, resize it, read its facade length — so house-sizing
     // ("make a house 4 or 6 cells long, iso re-extrudes") is validated in the real editor deterministically.
     win.__placeBuilding = (type: string, col: number, row: number) => placeNewBuilding(type as BuildingType, col, row)
+    win.__placeComposition = (kind: string, col: number, row: number) => { const g = gridRef.current; if (!g) return 0; const n = stampComposition(g, kind, col, row, genZoneRef.current); bumpBuildingVersion(); return n }
     win.__selectBuilding = (i: number) => {
       const g = gridRef.current
       if (!g || !g.buildings[i]) return null
@@ -1859,7 +1880,7 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
       let best: { col: number; row: number } | null = null
       let bestD = Infinity
       for (const a of grid.assets) {
-        if (a.type !== 'tree') continue
+        if (!a.type?.startsWith('tree')) continue // tree_small / tree_dead composition cells
         const d = (a.col - pc) ** 2 + (a.row - pr) ** 2
         if (d < bestD) { bestD = d; best = { col: a.col, row: a.row } }
       }
@@ -1868,7 +1889,7 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
       setSelectedCells(new Set([`${best.col},${best.row}`]))
       return best
     }
-    return () => { delete win.__setArtStyle; delete win.__selectFirstTreeCell; delete win.__setView; delete win.__gridKinds; delete win.__entityInfo; delete win.__entityScreens; delete win.__selectEntity; delete win.__setEntitySize; delete win.__scatter; delete win.__selectedEntityInfo; delete win.__placeBuilding; delete win.__selectBuilding; delete win.__resizeBuilding; delete win.__selectedBuildingLen; delete win.__cellSel; delete win.__selectCells; delete win.__applyCellTile; delete win.__clearRegion; delete win.__setDebug; delete win.__cellLabels; delete win.__camOffset; delete win.__stackAsset; delete win.__isoBlockScreen; delete win.__genVillage; delete win.__buildings; delete win.__centerOn }
+    return () => { delete win.__setArtStyle; delete win.__selectFirstTreeCell; delete win.__setView; delete win.__gridKinds; delete win.__entityInfo; delete win.__entityScreens; delete win.__selectEntity; delete win.__setEntitySize; delete win.__scatter; delete win.__selectedEntityInfo; delete win.__placeBuilding; delete win.__placeComposition; delete win.__selectBuilding; delete win.__resizeBuilding; delete win.__selectedBuildingLen; delete win.__cellSel; delete win.__selectCells; delete win.__applyCellTile; delete win.__clearRegion; delete win.__setDebug; delete win.__cellLabels; delete win.__stackAt; delete win.__camOffset; delete win.__stackAsset; delete win.__isoBlockScreen; delete win.__genVillage; delete win.__genStage; delete win.__buildings; delete win.__centerOn; delete win.__setHero }
   }, [])
 
   // ── Selected-entity inspector actions ─────────────────────────────
@@ -3040,6 +3061,11 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
     // through the identical per-block path in all three views. The generator's flat per-cell building props
     // were skipped above; grid.buildings holds the metadata this rebuilds each column of blocks from.
     for (const b of grid.buildings) stampBuildingCells(grid, b, stage.zone)
+    // A TREE is just TILES too: stamp each recorded tree ANCHOR as a rich stacked composition
+    // (stampComposition → one asset per cell+level of tree_small / tree_dead), the SAME per-block path
+    // buildings use — so every generated tree is 100% backend DB tiles AND each tile is individually
+    // selectable. The generator recorded anchors (stage.trees) instead of baking flat tree props (TreeAnchor).
+    for (const t of stage.trees ?? []) stampComposition(grid, t.kind, t.col, t.row, stage.zone, t.variant)
   }
 
   /** Promote the generators' decorative ☺ NPC assets into REAL npc entities: a generated town's

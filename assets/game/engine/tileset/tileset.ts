@@ -69,6 +69,27 @@ export interface ResolvedGround {
   bg: string
 }
 
+/** One cell of a multi-cell COMPOSITION — a tile placed at a footprint offset + stack level. Combined
+ *  across cells they form the rich ascii art (the tree's 2 trunk + 6 leaf tiles). */
+export interface CompositionCell {
+  /** Cell offset from the composition's anchor (grid col/row). */
+  dx: number
+  dy: number
+  /** Stack level (0 = ground; higher = a block up), so a tree's canopy floats above its trunk. Default 0. */
+  level?: number
+  /** The tile placed in this cell — a swap-key label resolved via resolveTile against the active tileset. */
+  label: string
+  /** Cell collision — false (blocking) by default; a walkable cell (an open doorway) sets true. */
+  walkable?: boolean
+}
+
+/** A multi-cell asset TEMPLATE: a footprint + one tile per cell. The data-driven replacement for the
+ *  frontend composeBuilding / make* factories — stored in the DB tileset, stamped by stampComposition. */
+export interface Composition {
+  footprint: { w: number; h: number }
+  cells: readonly CompositionCell[]
+}
+
 export interface Tileset {
   id: string
   name: string
@@ -78,6 +99,9 @@ export interface Tileset {
   palettes: Readonly<Record<string, ZonePalette>>
   /** Ground/terrain tiles keyed by ground type. */
   terrain: Readonly<Record<string, GroundTile>>
+  /** Optional multi-cell COMPOSITIONS keyed by asset kind (tree_small, house, fountain…) — a footprint of
+   *  cells each holding one tile. The stamp places one per-cell asset per cell (data-driven composeBuilding). */
+  compositions?: Readonly<Record<string, Composition>>
 }
 
 /** Resolve a GROUND tile's glyph + fg + base fill from a LOADED tileset — the data-driven twin of the
@@ -122,4 +146,10 @@ export function resolveTile(tileset: Tileset, zone: string, label: string, varia
   if (!palette) return FALLBACK_RESOLVED
   const resolver = COLOR_RESOLVERS[tile.colorRole]
   return { char: tile.glyph, color: resolver ? resolver(palette, variant) : FALLBACK_RESOLVED.color }
+}
+
+/** The multi-cell COMPOSITION for an asset kind from a LOADED tileset (null if none). Pure — the caller
+ *  (stampComposition) resolves each cell's tile via resolveTile + places it; no render logic here. */
+export function resolveComposition(tileset: Tileset, kind: string): Composition | null {
+  return tileset.compositions?.[kind] ?? null
 }

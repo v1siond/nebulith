@@ -10,7 +10,6 @@ import { isGroundContact } from '@/engine/cellLabels'
 import { darkenColor, lightenColor, withAlpha } from '@/engine/colors'
 import { entityPalette } from '@/engine/entityArt'
 import { entityQuestMarker } from '@/engine/entityQuestMarker'
-import { buildingFadeAlpha } from '@/engine/isoBuilding'
 import { type Projectile, projectileCellAt } from '@/game/projectiles'
 import { type HitMarker } from '@/game/runtime/combat'
 import { type PlayerState, barFraction, hpFraction, playerDisplayName } from '@/game/runtime/player'
@@ -524,6 +523,19 @@ export function render(
   // Render each object with ASCII art style
   const playerIsTarget = !!targetId && entities.some(e => e.kind === 'player' && e.id === targetId)
   const playerIsHover = !!hoverId && entities.some(e => e.kind === 'player' && e.id === hoverId)
+  // Proximity reveal: as the hero closes in, a building's WALLS ease to translucent and its ROOF eases to fully
+  // invisible (lifting off SMOOTHLY, not popping) so the door + hollow interior + occupants read. Store the
+  // hero's distance to each near building's footprint cells; buildingWallAlpha / buildingRoofAlpha derive the
+  // eased opacity per block below. Empty when no building is near, so the common case is a no-op.
+  const buildingDist = new Map<string, number>()
+  for (const b of grid.buildings) {
+    const top = b.row - (b.height - 1)
+    const nearCol = Math.max(b.col, Math.min(pCol, b.col + b.length - 1))
+    const nearRow = Math.max(top, Math.min(pRow, b.row))
+    const dist = Math.hypot(pCol - nearCol, pRow - nearRow)
+    if (dist >= BUILDING_FADE_RADIUS) continue
+    for (let r = top; r <= b.row; r++) for (let c = b.col; c < b.col + b.length; c++) buildingDist.set(`${c},${r}`, dist)
+  }
   for (const obj of allObjects) {
     const p = toScreen(obj.col, obj.row)
     const cellHeight = grid.getHeight(Math.floor(obj.col), Math.floor(obj.row))
@@ -545,7 +557,16 @@ export function render(
       // generic path. The roof is a STACK of roof blocks forming a peaked gable (buildingCellTiles →
       // gableRoofLevels), so it needs no special cap drawer — the SAME stacked tiles project to a triangle
       // (2D front), a 3D gable (iso), and the footprint rectangle (top), like any other stacked tile.
-      const op = obj.asset.opacity ?? 1 // per-asset opacity for contrast/depth
+      let op = obj.asset.opacity ?? 1 // per-asset opacity for contrast/depth
+      if (obj.asset.type === 'building') {
+        const dist = buildingDist.get(`${obj.asset.col},${obj.asset.row}`)
+        if (dist !== undefined) {
+          // Walls ease translucent, roof eases to invisible — SMOOTHLY as the hero closes in.
+          const alpha = obj.asset.label === 'roof' ? buildingRoofAlpha(dist) : buildingWallAlpha(dist)
+          if (alpha <= 0.03) continue // roof lifted off → skip drawing entirely
+          op = Math.min(op, alpha)
+        }
+      }
       if (op < 1) ctx.globalAlpha = op
       // Brush STACK: lift this entry `heightLevel` cubes up so the pile climbs in iso (block-kinds extrude
       // into stacked cubes, decorative sprites become a lifted billboard). No-op at heightLevel 0 — every
@@ -874,9 +895,10 @@ export function drawIsoLabeledCell(
   ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
-  // Monospace single glyph → advance ≈ 0.6em. Avoids a per-cell measureText(), the
-  // canvas-2D layout call that tanked iso FPS on dense (forest) stages.
-  const w = fontSize * 0.6
+  // Monospace advance ≈ 0.6em per char → width from the glyph's CHAR COUNT, so a multi-char composition
+  // tile (a leaf '(@&@)') gets a backing that fits it, while a single glyph is unchanged. No per-cell
+  // measureText() — the canvas-2D layout call that tanked iso FPS on dense (forest) stages.
+  const w = char.length * fontSize * 0.6
   // Building cells FILL with their own part color so a dark door + a glass/lit window read as
   // solid coloured blocks (a dark glyph on a black backing was invisible). Trees keep the plain
   // dark backing behind their canopy glyph.
@@ -1003,12 +1025,24 @@ export function drawIsoEntity(
 }
 
 
-// Diablo/PoE-style proximity fade: a building goes semi-transparent when the player is within
-// BUILDING_FADE_RADIUS cells, easing to BUILDING_MIN_ALPHA when standing on it, so an occluded
-// (back-facing) door is findable on approach.
-export const BUILDING_FADE_RADIUS = 3.5
+// Proximity reveal (Zelda/PoE style): as the hero closes in, a building's WALLS ease to translucent and its
+// ROOF eases to fully invisible — SMOOTHLY (smoothstep), not a hard pop — so the door + hollow interior read.
+export const BUILDING_FADE_RADIUS = 4.5 // walls begin easing this far out — a wide, gentle onset
+export const BUILDING_MIN_ALPHA = 0.22  // walls ease to this (translucent but readable) when the hero is on top
+export const ROOF_GONE_DIST = 1.8       // the roof is fully invisible within this distance — lifted clean off
 
-export const BUILDING_MIN_ALPHA = 0.35
+const smoothstep = (t: number): number => { const c = Math.max(0, Math.min(1, t)); return c * c * (3 - 2 * c) }
+/** Wall opacity by the hero's distance to the building: 1 far, easing to BUILDING_MIN_ALPHA on top. */
+export function buildingWallAlpha(dist: number): number {
+  if (dist >= BUILDING_FADE_RADIUS) return 1
+  return BUILDING_MIN_ALPHA + (1 - BUILDING_MIN_ALPHA) * smoothstep(dist / BUILDING_FADE_RADIUS)
+}
+/** Roof opacity by distance: 1 far, easing to 0 by ROOF_GONE_DIST — the roof lifts off smoothly, no pop. */
+export function buildingRoofAlpha(dist: number): number {
+  if (dist >= BUILDING_FADE_RADIUS) return 1
+  if (dist <= ROOF_GONE_DIST) return 0
+  return smoothstep((dist - ROOF_GONE_DIST) / (BUILDING_FADE_RADIUS - ROOF_GONE_DIST))
+}
 
 
 // ISO facing. Each building stands inside its plot RECT — cols [col, col+L] × the clear headroom
@@ -1538,6 +1572,27 @@ export function drawIsoAssetAscii(
     fillTintedGlyph(ctx, adv.char, 0, 0, d.h, asset.color, strength)
     ctx.restore()
     ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
+    return
+  }
+
+  // ── ASCII composition tile → a true iso CUBE (minecraft-style block), rendered by the SAME drawIsoTileBlock
+  // the EMOJI path uses — so ascii + emoji tiles are drawn IDENTICALLY (no special ascii drawer, no flat
+  // billboard). A labeled tile with a real block height (a tree / fountain / lamp / prop CELL) extrudes into a
+  // cube with its glyph painted (sheared) onto the faces; consecutive stack levels lift by isoStackLift, which
+  // uses the SAME tileW·ISO_BLOCK_H_FRAC as the cube height so a column stacks flush. Buildings fall through to
+  // drawIsoLabeledCell below for their roof-apex glyph + STORE/hospital signage.
+  if (asset.label && (asset.height ?? 0) >= 1 && asset.type !== 'building') {
+    const zoom = asset.scale ?? 1
+    const bw = tileW * (asset.scaleX ?? 1) * zoom       // Width  — diamond half-width
+    const bd = tileH * (asset.scaleZ ?? 1) * zoom       // Depth  — diamond half-height (into-screen axis)
+    const bh = tileW * ISO_BLOCK_H_FRAC * (asset.scaleY ?? 1) * zoom // Height — one block, flush with isoStackLift
+    const tint = asset.color ?? '#cccccc'
+    // The composition is style-agnostic STRUCTURE; the block is PAINTED with the ACTIVE style's tile for this
+    // cell's label — the emoji in emoji mode, the ascii glyph otherwise. Both come from the loaded DB tileset
+    // under the same label (ascii + emoji, one path, no hardcoded frontend tile).
+    const et = style.id === 'emoji' ? EMOJI_TILESET[asset.label] : undefined
+    const glyph = et ? et.char : (asset.art[0] ?? '?') // emoji part tile in emoji mode, else the ascii glyph
+    drawIsoTileBlock(ctx, { x, y }, bw, bd, bh, 1, { char: glyph, color: tint, tint }, tint)
     return
   }
 

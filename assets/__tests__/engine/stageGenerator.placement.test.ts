@@ -143,18 +143,16 @@ describe('settlement building placement (consumer matches planner contract)', ()
     }
   })
 
-  // A tree is a 4-cell vertical column (trunk → canopy). It used to be rejected only when its ANCHOR
-  // (trunk base) sat on paved ground, so a tree planted on grass just south of the stone plaza rose its
-  // canopy UP over the square + fountain — the "trees weirdly in the centre, not on grass" bug. The whole
-  // column must clear paving.
-  test('treeColumnClearsPaving rejects a column whose CANOPY (not just the trunk) rises over paving', () => {
+  // A tree occupies only its TRUNK cell (the canopy stacks in levels ABOVE it and is walkable overhead), so
+  // paving clearance checks just that one cell — a tree never lands its trunk on the stone plaza / a road, the
+  // "trees weirdly in the centre, not on grass" bug. A merely-adjacent paved cell is fine (canopy is overhead).
+  test('treeColumnClearsPaving rejects a trunk cell on paving (canopy is walkable overhead)', () => {
     const grass = (): string[][] => Array.from({ length: 6 }, () => ['grass', 'grass', 'grass'])
-    // base at (col 1, row 5): the 4-cell column covers rows 5,4,3,2.
-    expect(treeColumnClearsPaving(grass(), 1, 5)).toBe(true) // all grass → fits
-    const anchorPaved = grass(); anchorPaved[5][1] = 'path_stone'
-    expect(treeColumnClearsPaving(anchorPaved, 1, 5)).toBe(false) // trunk base on the plaza → rejected
-    const canopyPaved = grass(); canopyPaved[3][1] = 'path_stone' // a CANOPY cell over the plaza
-    expect(treeColumnClearsPaving(canopyPaved, 1, 5)).toBe(false) // anchor grass but canopy over paving → rejected
+    expect(treeColumnClearsPaving(grass(), 1, 5)).toBe(true) // grass → fits
+    const trunkPaved = grass(); trunkPaved[5][1] = 'path_stone'
+    expect(treeColumnClearsPaving(trunkPaved, 1, 5)).toBe(false) // trunk on the plaza → rejected
+    const neighborPaved = grass(); neighborPaved[5][2] = 'path_stone' // an ADJACENT cell paved (only overhead canopy reaches it)
+    expect(treeColumnClearsPaving(neighborPaved, 1, 5)).toBe(true) // trunk on grass, neighbour paved → still fits
   })
 
   // The DRAWN door is `door.width` cells wide (2 on even frontages, #49) but only 1 collision cell used to
@@ -183,13 +181,13 @@ describe('settlement building placement (consumer matches planner contract)', ()
     }
   })
 
-  test('town: every tree cell stands on GRASS — never on the paved plaza or roads', () => {
+  test('town: every tree anchor stands on GRASS — never on the paved plaza or roads', () => {
     const GRASS = new Set(['grass', 'grass_tall'])
     for (const seed of [12345, 777, 42, 1, 2, 3, 7, 99]) {
       const { stage } = genWithSeed('town', seed)
-      const treeCells = stage.props.filter(p => p.type === 'tree')
-      expect(treeCells.length).toBeGreaterThan(0) // a spring town is leafy
-      for (const t of treeCells) {
+      expect(stage.trees.length).toBeGreaterThan(0) // a spring town is leafy
+      for (const t of stage.trees) {
+        // the trunk stands on grass, and treeColumnClearsPaving kept the whole 3-wide footprint off the paving
         expect(GRASS.has(stage.ground[t.row][t.col])).toBe(true)
       }
     }

@@ -151,8 +151,11 @@ export function draw2DLabeledCell(
   tileW: number,
   tileH: number,
   asset: GridAsset,
+  style: Style,
 ): void {
-  const char = asset.art[0] ?? '?'
+  // Paint the cell with the ACTIVE style's tile for its LABEL — the emoji in emoji mode, else the ascii glyph.
+  // Never mix: a composition cell is emoji in emoji mode, ascii in ascii mode. Both come from the DB tileset.
+  const char = (style.id === 'emoji' && asset.label ? EMOJI_TILESET[asset.label]?.char : undefined) ?? asset.art[0] ?? '?'
   const cy = baseY - tileH * 0.5
   ctx.fillStyle = 'rgba(0, 0, 0, 0.45)'
   ctx.fillRect(x - tileW / 2, cy - tileH / 2, tileW, tileH)
@@ -793,7 +796,7 @@ export function render2D(
       } else if (asset.label) {
         // Generated multi-cell cell → one glyph in its zone/theme color (the cell
         // IS the tile), matching the iso + top views. No green multi-tile overdraw.
-        draw2DLabeledCell(ctx, p.x, baseY, tileW, tileH, asset)
+        draw2DLabeledCell(ctx, p.x, baseY, tileW, tileH, asset, style)
       } else if (asset.type === 'tree') {
         // Layered tree: bark trunk + canopy tinted to the asset's zone/theme color.
         const canopy = treeCanopyLayers(asset.color || '#2e8b2e', flicker)

@@ -77,9 +77,9 @@ interface TypeSpec {
 // exactly with the 1-cell walkable entrance + path_stone driveway (see doorX below). Grand
 // structures (cathedral/temple/castle) keep a wide ceremonial doorway.
 const TYPE_SPECS: Record<BuildingType, TypeSpec> = {
-  house: { baseLength: 4, floors: 1, doorWidth: 1, depth: 3 },
-  'big-house': { baseLength: 6, floors: 2, doorWidth: 1, depth: 4 },
-  store: { baseLength: 5, floors: 1, doorWidth: 1, depth: 4 },
+  house: { baseLength: 5, floors: 1, doorWidth: 1, depth: 4 },       // 5x4 → a 3x2 walkable interior (was 4x3 → 2x1)
+  'big-house': { baseLength: 7, floors: 2, doorWidth: 1, depth: 4 }, // 7x4 → a 5x2 interior
+  store: { baseLength: 6, floors: 1, doorWidth: 1, depth: 4 },       // 6x4 → a 4x2 interior
   // Hospitals are big, so their entrance is always at least 2×2 (2 wide × the 2-tall DOOR_HEIGHT) — a
   // wide civic doorway, not a single-cell house door.
   hospital: { baseLength: 6, floors: 2, doorWidth: 2, depth: 4 },

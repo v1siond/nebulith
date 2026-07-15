@@ -174,9 +174,8 @@ describe('generateStage — forest archetype (Viridian-Forest style)', () => {
   const stage = generateStage({ zone: 'summer', variant: 'forest', cols: 30, rows: 24 })
 
   it('fills the forest with trees and walkable flowers', () => {
-    const trees = stage.props.filter(p => p.type === 'tree')
     const flowers = stage.props.filter(p => p.type === 'flower')
-    expect(trees.length).toBeGreaterThan(20)
+    expect(stage.trees.length).toBeGreaterThan(20) // trees are recorded as anchors, stamped as compositions at load
     expect(flowers.length).toBeGreaterThan(0)
     expect(flowers.every(f => f.blocking === false)).toBe(true)
   })
@@ -263,42 +262,25 @@ describe('generateStage — temple archetype (INTERIOR dungeon)', () => {
   })
 })
 
-describe('generateStage — zone-tinted trees (tonal variation + bare trees)', () => {
-  // Trunk/dead-wood labels paint the single trunk color; every other tree cell
-  // (leaves + autotiled mass) paints a canopy SHADE from the zone's palette.
-  const STEM_LABELS = new Set(['tree_stem', 'tree_stem_bottom', 'tree_snag'])
-  const treeColors = (zone: 'summer' | 'winter' | 'autumn') => {
-    const stage = generateStage({ zone, variant: 'forest', cols: 40, rows: 30 })
-    const trees = stage.props.filter(p => p.type === 'tree')
-    const trunk = new Set(trees.filter(p => STEM_LABELS.has(p.label ?? '')).map(p => p.color))
-    const canopy = new Set(trees.filter(p => !STEM_LABELS.has(p.label ?? '')).map(p => p.color))
-    return { trunk, canopy }
-  }
+describe('generateStage — zone-tinted trees (varied canopy tones per zone)', () => {
+  // The generator records a per-tree canopy VARIANT (an index into the zone palette); a forest uses many
+  // variants so it reads in multiple tones, and a single anchor carries ONE variant → one tone per tree. The
+  // variant→colour RESOLUTION (trunk one tone, distinct canopy shades, glyph+colour loaded from the DB tile) is
+  // covered against the real tileset by treeComposition.test.ts — colour no longer lives on the generated props.
+  const variantsFor = (zone: 'summer' | 'winter' | 'autumn'): Set<number> =>
+    new Set(generateStage({ zone, variant: 'forest', cols: 40, rows: 30 }).trees.map(t => t.variant))
 
-  const verdant = treeColors('summer')
-  const frozen = treeColors('winter')
-  const lava = treeColors('autumn')
-
-  it('keeps ONE trunk color per zone, distinct across zones', () => {
-    for (const { trunk } of [verdant, frozen, lava]) expect(trunk.size).toBe(1)
-    const trunks = [...verdant.trunk, ...frozen.trunk, ...lava.trunk]
-    expect(new Set(trunks).size).toBe(3)
-  })
-
-  it('varies canopy tone for contrast — each zone uses MULTIPLE shades (not one flat tone)', () => {
-    for (const { canopy } of [verdant, frozen, lava]) {
-      expect(canopy.size).toBeGreaterThanOrEqual(2)
+  it('uses MULTIPLE canopy variants per zone (varied tones, not one flat shade)', () => {
+    for (const zone of ['summer', 'winter', 'autumn'] as const) {
+      expect(variantsFor(zone).size).toBeGreaterThanOrEqual(2)
     }
   })
 
-  it('intensity-varies canopy tones beyond the flat zone palette (richer leaf variety)', () => {
-    // varyIntensity shifts each tree's leaf tone (darker/lighter), so canopy colors are
-    // DERIVED from the zone palette but no longer limited to its exact entries — a forest of
-    // many leaf tones, not one flat shade per zone. Hue is preserved (still zone-appropriate).
-    const zones = [['summer', verdant], ['winter', frozen], ['autumn', lava]] as const
-    for (const [zone, { canopy }] of zones) {
-      const shifted = [...canopy].some(c => !TREE_CANOPY_SHADES[zone].includes(c))
-      expect(shifted).toBe(true)
+  it('keeps every anchor variant in range of its zone palette', () => {
+    const zone = 'summer'
+    for (const v of variantsFor(zone)) {
+      expect(v).toBeGreaterThanOrEqual(0)
+      expect(v).toBeLessThan(TREE_CANOPY_SHADES[zone].length)
     }
   })
 
@@ -315,78 +297,44 @@ describe('generateStage — zone-tinted trees (tonal variation + bare trees)', (
     expect(new Set(all).size).toBe(all.length) // every tone unique → biomes never blur together
   })
 
-  it('keeps the verdant forest classic — brown trunk, green canopy from the palette', () => {
-    expect([...verdant.trunk][0]).toBe('#6b4a2b')
-    expect([...verdant.canopy].every(c => c !== '#6b4a2b')).toBe(true)
+  it('keeps the verdant forest classic — a green canopy shade in the summer palette', () => {
     expect(TREE_CANOPY_SHADES.summer).toContain('#2e8b2e')
   })
 })
 
-describe('generateStage — a single tree is ONE tone (no intra-tree visual mess)', () => {
-  it('paints all canopy cells of a glade tree with the same shade', () => {
-    const stage = generateStage({ zone: 'summer', variant: 'forest', layout: 'open', cols: 40, rows: 30 })
-    const trees = stage.props.filter(p => p.type === 'tree')
-    const tops = trees.filter(p => p.label === 'tree_crown') // solid crown caps a glade tree
-    let checked = 0
-    for (const top of tops) {
-      const column = trees.filter(p => p.col === top.col && p.row >= top.row && p.row <= top.row + 3)
-      const canopyCells = column.filter(c => c.label === 'tree_leaf' || c.label === 'tree_crown')
-      if (canopyCells.length < 2) continue
-      expect(new Set(canopyCells.map(c => c.color)).size).toBe(1) // one tree → one tone
-      checked++
-    }
-    expect(checked).toBeGreaterThan(0)
-  })
-})
-
 describe('generateStage — bare/dead trees (snags)', () => {
-  it('scatters leafless snags in a lava forest (burnt stems), all blocking', () => {
+  it('scatters dead-tree anchors in a harsh-zone forest (burnt/frost-killed stems), all blocking', () => {
     // dead trees are a random fraction — sample several maps until one appears
     let snags = 0
     for (let i = 0; i < 8 && snags === 0; i++) {
       const stage = generateStage({ zone: 'autumn', variant: 'forest', layout: 'open', cols: 40, rows: 30 })
-      const dead = stage.props.filter(p => p.label === 'tree_snag')
+      const dead = stage.trees.filter(t => t.kind === 'tree_dead')
       if (dead.length > 0) {
         snags += dead.length
-        expect(dead.every(d => d.blocking === true)).toBe(true)
+        // a dead tree is solid — its trunk-base cell blocks, same as a living one
+        expect(dead.every(d => stage.collision[d.row][d.col] === true)).toBe(true)
       }
     }
     expect(snags).toBeGreaterThan(0)
   })
 })
 
-describe('generateStage — multi-cell labeled trees (the keystone)', () => {
+describe('generateStage — trees are recorded as stacked-composition anchors (the keystone)', () => {
+  // Trees are no longer baked as flat per-cell props; the generator RECORDS anchors and applyStageToGrid
+  // stamps each as a composition (per-cell heightLevel-stacked DB tiles) — the same model buildings use, so
+  // every tile is selectable. The stacked-block shape + glyph/colour are covered by treeComposition.test.ts.
   const stage = generateStage({ zone: 'summer', variant: 'forest', cols: 30, rows: 24 })
-  const treeProps = stage.props.filter(p => p.type === 'tree')
 
-  it('labels every tree cell (no bare, label-less tree props)', () => {
-    expect(treeProps.length).toBeGreaterThan(0)
-    expect(treeProps.every(p => typeof p.label === 'string' && p.label.length > 0)).toBe(true)
+  it('records tree ANCHORS (not flat props) — each names a composition kind + canopy variant', () => {
+    expect(stage.trees.length).toBeGreaterThan(0)
+    expect(stage.props.filter(p => p.type === 'tree')).toHaveLength(0) // trees no longer bake flat props
+    expect(stage.trees.every(t => t.kind === 'tree_small' || t.kind === 'tree_dead')).toBe(true)
+    expect(stage.trees.every(t => Number.isInteger(t.variant) && t.variant >= 0)).toBe(true)
   })
 
-  it('blocks EVERY tree cell — trees are fully solid (no passable cell to step into)', () => {
-    expect(treeProps.length).toBeGreaterThan(0)
-    for (const p of treeProps) {
-      expect(p.blocking).toBe(true)
-      expect(stage.collision[p.row][p.col]).toBe(true)
-    }
-  })
-
-  it('stamps standalone glade trees as MULTI-CELL solid columns (crown on top, all block)', () => {
-    // A glade tree: a solid tree_crown caps a tree_leaf above trunk cells —
-    // proving >1 cell of vertical extent, and the whole column blocks.
-    const crowns = treeProps.filter(p => p.label === 'tree_crown')
-    const gladeCrowns = crowns.filter(top =>
-      treeProps.some(p => p.label === 'tree_leaf' && p.col === top.col && p.row === top.row + 1),
-    )
-    expect(gladeCrowns.length).toBeGreaterThan(0)
-
-    for (const top of gladeCrowns) {
-      const column = treeProps.filter(p => p.col === top.col && p.row >= top.row && p.row <= top.row + 3)
-      expect(column.length).toBeGreaterThan(1) // multi-cell
-      expect(column.every(c => c.blocking === true)).toBe(true) // every cell blocks
-      expect(stage.collision[top.row][top.col]).toBe(true) // the crown blocks too
-    }
+  it('blocks EVERY tree anchor cell — trees are fully solid (no passable cell to step into)', () => {
+    expect(stage.trees.length).toBeGreaterThan(0)
+    for (const t of stage.trees) expect(stage.collision[t.row][t.col]).toBe(true)
   })
 
   it('keeps the forest FLOOR connected — every non-blocking cell reachable from spawn', () => {
@@ -403,7 +351,7 @@ describe('generateStage — multi-cell labeled trees (the keystone)', () => {
 const FOREST_SIZE = { cols: 30, rows: 24 } as const
 
 const countTrees = (opts: Parameters<typeof generateStage>[0]): number =>
-  generateStage(opts).props.filter(p => p.type === 'tree').length
+  generateStage(opts).trees.length
 
 const averageTrees = (opts: Parameters<typeof generateStage>[0], runs = 40): number => {
   let total = 0
@@ -661,33 +609,9 @@ describe('generateStage — forest layout: lake has organic (irregular) edges', 
   })
 })
 
-describe('generateStage — tree cells cast ground shadows (no floating trees)', () => {
-  const BASE_LABELS = new Set(['tree_stem_bottom', 'tree_bottom', 'tree_bottom_left', 'tree_bottom_right'])
-  // glade-tree upper-column cells whose shadow would float at canopy height
-  const NO_SHADOW = new Set(['tree_crown', 'tree_leaf', 'tree_leaf_top', 'tree_stem'])
-
-  it('casts on thicket + base cells, but NOT glade upper-column cells (would float)', () => {
-    const stage = generateStage({ zone: 'summer', variant: 'forest', layout: 'passages', cols: 40, rows: 30 })
-    const trees = stage.props.filter(p => p.type === 'tree')
-    // every tree cell EXCEPT the glade upper-column casts a ground shadow (each thicket
-    // cell renders its own grounded tree, so each needs a shadow)
-    const grounded = trees.filter(p => !NO_SHADOW.has(p.label ?? ''))
-    expect(grounded.length).toBeGreaterThan(0)
-    expect(grounded.every(p => p.baseShadow === true)).toBe(true)
-    // glade crown / leaf / upper-trunk never cast — their shadow would float
-    const floaty = trees.filter(p => NO_SHADOW.has(p.label ?? ''))
-    expect(floaty.every(p => !p.baseShadow)).toBe(true)
-  })
-
-  it('grounds bases even when another tree sits directly below (the bug we fixed)', () => {
-    const stage = generateStage({ zone: 'summer', variant: 'forest', layout: 'passages', cols: 40, rows: 30 })
-    const trees = stage.props.filter(p => p.type === 'tree')
-    const set = new Set(trees.map(p => `${p.col},${p.row}`))
-    const stackedBases = trees.filter(p => BASE_LABELS.has(p.label ?? '') && set.has(`${p.col},${p.row + 1}`))
-    // every stacked base still carries baseShadow (would have been shadowless under pure geometry)
-    expect(stackedBases.every(p => p.baseShadow === true)).toBe(true)
-  })
-})
+// Tree GROUNDING (a shadow under the trunk base so a tree never looks floaty) now lives on the stamped
+// composition — the level-0 tile carries baseShadow — not on generated props. It is covered against the grid
+// by treeComposition.test.ts ('the grounded trunk base casts a shadow').
 
 describe('buildingCellColor — distinct per-type roofs + visible ornaments', () => {
   it('gives each building type a distinct roof color', () => {
@@ -766,8 +690,8 @@ describe('generateStage — town & city both build legal stages', () => {
       const t = generateStage({ zone: 'summer', variant: 'town', cols: 50, rows: 44 })
       const c = generateStage({ zone: 'summer', variant: 'city', cols: 50, rows: 44 })
       tBuild += t.buildings.length; cBuild += c.buildings.length
-      tTrees += t.props.filter(p => p.type === 'tree').length
-      cTrees += c.props.filter(p => p.type === 'tree').length
+      tTrees += t.trees.length
+      cTrees += c.trees.length
     }
     expect(cBuild).toBeGreaterThan(tBuild) // cities have more buildings
     expect(tTrees).toBeGreaterThan(cTrees) // leafier towns have more nature

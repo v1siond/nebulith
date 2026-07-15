@@ -29,12 +29,12 @@ describe('composeBuilding — windows are aesthetic AND never absent (§1c + no-
 })
 
 describe('composeBuilding — Nebulith building architecture spec', () => {
-  it('builds the smallest legal house: 4 long × 5 tall (3 body + 2 roof)', () => {
+  it('builds the smallest legal house: 5 long × 5 tall (3 body + 2 roof)', () => {
     const b = composeBuilding({ type: 'house', floors: 1 })
-    expect(b.length).toBe(4)
+    expect(b.length).toBe(5) // house footprint bumped to 5x5 for a roomy 3x3 interior
     expect(b.height).toBe(5)
     expect(b.cells).toHaveLength(5) // 5 rows (top→bottom)
-    expect(b.cells[0]).toHaveLength(4) // 4 cols
+    expect(b.cells[0]).toHaveLength(5) // 5 cols
   })
 
   it('caps the roof-top at the grass-base WIDTH (length) — a building never towers over its base', () => {
@@ -42,7 +42,7 @@ describe('composeBuilding — Nebulith building architecture spec', () => {
     // base dimension drawn in 2D is the footprint WIDTH (length), so total facade height <= length.
     // Floors add height only until they hit that width cap — a tall building needs a WIDE base.
     expect(composeBuilding({ type: 'hospital' }).height).toBe(6) // 6 wide, 2 floors → 8 uncapped, capped to 6
-    expect(composeBuilding({ type: 'big-house' }).height).toBe(6) // 6 wide, 2 floors → 8 uncapped, capped to 6
+    expect(composeBuilding({ type: 'big-house' }).height).toBe(7) // 7 wide, 2 floors → 8 uncapped, capped to 7
     expect(composeBuilding({ type: 'cathedral' }).height).toBe(7) // 7 wide, 3 floors → 11 uncapped, capped to 7
     // floors DO add height when the footprint is wide enough to carry them (under the width cap):
     expect(composeBuilding({ type: 'house', floors: 3, length: 12 }).height).toBe(11) // 3*3+2, below the 12 cap
