@@ -77,6 +77,7 @@ defmodule Nebulith.Catalog.TileSource do
           height: 1,
           category: tile["category"],
           title: tile["title"],
+          image_url: "/tiles/ascii/#{label}.png",
           settings:
             %{
               "position" => tile["position"],
@@ -102,6 +103,7 @@ defmodule Nebulith.Catalog.TileSource do
           blocking: false,
           height: 0,
           category: "terrain",
+          image_url: "/tiles/ascii/#{label}.png",
           settings: %{"variants" => %{"char" => char, "fg" => fg, "bg" => bg}}
         })
     end
@@ -121,7 +123,7 @@ defmodule Nebulith.Catalog.TileSource do
           height: t["height"] || 0,
           category: t["category"],
           title: t["title"],
-          image_url: t["image"],
+          image_url: t["image"] || "/tiles/emoji/#{label}.png",
           settings:
             %{"color" => t["color"]}
             |> maybe_put("pose", t["pose"])

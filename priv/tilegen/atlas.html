@@ -1,0 +1,91 @@
+<!--
+  Tile atlas page for baking tile PNGs.
+
+  file:// fetch is CORS-blocked in headless chromium, so this page does not load
+  tiles.json itself; bake.mjs reads the JSON from disk and calls renderAtlas(tiles).
+  Each tile becomes a 128x128, transparent, centered cell with a stable id
+  "tile-<style>-<label>" that bake.mjs screenshots one by one.
+-->
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        background: transparent;
+      }
+      #atlas {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-start;
+      }
+      .tile {
+        width: 128px;
+        height: 128px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: transparent;
+        overflow: hidden;
+      }
+      .glyph {
+        color: #ffffff;
+        font-family: "DejaVu Sans Mono", Consolas, monospace;
+        line-height: 1;
+        white-space: nowrap;
+      }
+      .emoji {
+        font-family: "Noto Color Emoji", sans-serif;
+        line-height: 1;
+        font-size: 96px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="atlas"></div>
+    <script>
+      // Count Unicode code points (so a 3-char ascii glyph like "(@&" shrinks to fit).
+      function codePointCount(str) {
+        return [...str].length;
+      }
+
+      // Fit a monospace glyph inside ~120px of the 128px cell.
+      // DejaVu Sans Mono advance width is ~0.602em per char.
+      function glyphFontSize(glyph) {
+        const n = codePointCount(glyph);
+        if (n <= 1) return 72;
+        return Math.max(24, Math.min(72, Math.floor(118 / (n * 0.62))));
+      }
+
+      function makeCell(tile) {
+        const cell = document.createElement("div");
+        cell.className = "tile";
+        cell.id = "tile-" + tile.style + "-" + tile.label;
+
+        const inner = document.createElement("span");
+        if (tile.mode === "emoji") {
+          inner.className = "emoji";
+          inner.textContent = tile.emoji || "";
+        } else {
+          inner.className = "glyph";
+          inner.textContent = tile.glyph || "";
+          inner.style.fontSize = glyphFontSize(tile.glyph || "") + "px";
+        }
+        cell.appendChild(inner);
+        return cell;
+      }
+
+      window.renderAtlas = function (tiles) {
+        const atlas = document.getElementById("atlas");
+        atlas.textContent = "";
+        for (const tile of tiles) {
+          atlas.appendChild(makeCell(tile));
+        }
+        window.__renderedCount = tiles.length;
+        return tiles.length;
+      };
+    </script>
+  </body>
+</html>
