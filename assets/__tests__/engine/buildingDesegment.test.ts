@@ -1,32 +1,39 @@
 /**
- * DE-SEGMENTED BUILDINGS: stampBuildingCells stamps a building as PLAIN tiles (like a tree), not a special
- * `type:'building'` unit. Its behaviors ride on GENERIC per-tile settings the ONE render path reads:
+ * BUILDINGS ARE COMPOSITIONS: a pre-built building stamps as PLAIN per-cell tiles (like a tree), through the
+ * SAME stampComposition path — not a special `type:'building'` unit. Its behaviors ride on GENERIC per-tile
+ * settings the ONE render path reads:
  *   - walls / windows / doors carry settings.fadeNear  (ease translucent near the hero)
  *   - roof blocks carry        settings.cutawayRoof     (lift off entirely near the hero)
- *   - the apex roof block of a shop/hospital carries settings.badge (STORE/HOSPITAL signage), NOT buildingType.
- * No stamped asset is `type:'building'` and none carries `buildingType`.
+ * No stamped asset is `type:'building'` and none carries `buildingType`; the type is the composition KIND
+ * (house_4 / store_5 / …) and each cell carries its part label (wall/window/door/roof/roof_top).
  */
-import '@/__tests__/helpers/installTilesetSeed' // tile settings (fadeNear/cutawayRoof) come from the loaded backend tileset now — install the captured fixture
+import '@/__tests__/helpers/installTilesetSeed' // building compositions + tile settings come from the loaded backend tileset fixture
 import { IsometricGrid } from '@/engine/IsometricGrid'
-import { makeBuilding } from '@/engine/buildingEditor'
-import { stampBuildingCells } from '@/game/runtime/buildings'
+import { stampBuildingComposition } from '@/game/runtime/composition'
 
 const mkGrid = () => new IsometricGrid({ cols: 32, rows: 32, cellSize: 16, isoScale: 1.4 })
+// A cell label is a building PART when it is a base part OR a type-specific variant of one
+// (a store's `roof_store`, a house's `wall_house_b`, …) — each still a roof/wall/window/door/apex.
+const isBuildingPart = (label = '') => /^(roof_top|roof|wall|window|door)/.test(label)
 
-describe('stampBuildingCells → plain `type:"structure"` tiles carrying generic behavior settings', () => {
-  test('no stamped block is `type:"building"` or carries `buildingType`; all are `structure`', () => {
+describe('stampBuildingComposition → plain per-cell tiles carrying generic behavior settings', () => {
+  test('every stamped cell is a labeled tile — none is `type:"building"`, none carries `buildingType`', () => {
     const grid = mkGrid()
-    stampBuildingCells(grid, makeBuilding('house', 'south', 12, 12), 'spring')
-    expect(grid.assets.length).toBeGreaterThan(0)
+    const placed = stampBuildingComposition(grid, 'house', 4, 12, 12, 'spring', 'south')
+    expect(placed).toBeGreaterThan(0)
+    expect(grid.assets.length).toBe(placed)
     expect(grid.assets.some(a => a.type === 'building')).toBe(false)
     expect(grid.assets.some(a => a.buildingType != null)).toBe(false)
-    expect(grid.assets.every(a => a.type === 'structure')).toBe(true)
+    // The asset TYPE is the composition kind; every cell carries a building PART label (house_4's
+    // cells resolve to its type-specific tiles: wall_house_b / roof_house_b / roof_top_house_b).
+    expect(grid.assets.every(a => a.type === 'house_4')).toBe(true)
+    expect(grid.assets.every(a => isBuildingPart(a.label))).toBe(true)
   })
 
   test('walls / windows / doors carry settings.fadeNear (and NOT cutawayRoof)', () => {
     const grid = mkGrid()
-    stampBuildingCells(grid, makeBuilding('house', 'south', 12, 12), 'spring')
-    const facade = grid.assets.filter(a => a.label === 'wall' || a.label === 'window' || a.label === 'door')
+    stampBuildingComposition(grid, 'house', 4, 12, 12, 'spring', 'south')
+    const facade = grid.assets.filter(a => /^(wall|window|door)/.test(a.label ?? ''))
     expect(facade.length).toBeGreaterThan(0)
     expect(facade.every(a => a.settings?.fadeNear === true)).toBe(true)
     expect(facade.every(a => a.settings?.cutawayRoof == null)).toBe(true)
@@ -34,31 +41,26 @@ describe('stampBuildingCells → plain `type:"structure"` tiles carrying generic
 
   test('roof blocks carry settings.cutawayRoof', () => {
     const grid = mkGrid()
-    stampBuildingCells(grid, makeBuilding('house', 'south', 12, 12), 'spring')
-    const roofs = grid.assets.filter(a => a.label === 'roof')
+    stampBuildingComposition(grid, 'house', 4, 12, 12, 'spring', 'south')
+    // roof BODY cells (roof / roof_house_b …), not the roof_top apex (which fades, not cuts away).
+    const roofs = grid.assets.filter(a => (a.label ?? '').startsWith('roof') && !(a.label ?? '').startsWith('roof_top'))
     expect(roofs.length).toBeGreaterThan(0)
     expect(roofs.every(a => a.settings?.cutawayRoof === true)).toBe(true)
   })
 
-  test('a STORE puts its signage on the APEX roof block via a generic settings.badge — exactly one badge', () => {
+  test('a STORE stamps its own TYPE-SPECIFIC composition tiles (wall_store/roof_store + window/door)', () => {
     const grid = mkGrid()
-    stampBuildingCells(grid, makeBuilding('store', 'south', 12, 12), 'spring')
-
-    const badged = grid.assets.filter(a => a.settings?.badge != null)
-    expect(badged).toHaveLength(1) // one signage per building, on the apex
-
-    const roofs = grid.assets.filter(a => a.label === 'roof')
-    const apex = roofs.reduce((top, a) => ((a.heightLevel ?? 0) > (top.heightLevel ?? 0) ? a : top))
-    expect(badged[0]).toBe(apex) // the badge sits on the topmost (apex) roof block
-    expect(apex.settings?.badge?.text).toBe('STORE')
-    expect(apex.settings?.badge?.color).toBeTruthy()
-    // The apex is still a roof block, so it also keeps its cutaway behavior.
-    expect(apex.settings?.cutawayRoof).toBe(true)
+    const placed = stampBuildingComposition(grid, 'store', 5, 12, 12, 'spring', 'south')
+    expect(placed).toBeGreaterThan(0)
+    const labels = new Set(grid.assets.map(a => a.label))
+    // store cells reference the store's OWN tiles (blue roof, cream walls); door/window stay generic.
+    for (const part of ['wall_store', 'window', 'door', 'roof_store']) expect(labels.has(part)).toBe(true)
+    expect(grid.assets.every(a => a.type === 'store_5')).toBe(true)
   })
 
-  test('a plain HOUSE (no signage type) carries NO badge on any block', () => {
+  test('exactly ONE apex roof_top tile — the single roof apex', () => {
     const grid = mkGrid()
-    stampBuildingCells(grid, makeBuilding('house', 'south', 12, 12), 'spring')
-    expect(grid.assets.some(a => a.settings?.badge != null)).toBe(false)
+    stampBuildingComposition(grid, 'house', 4, 12, 12, 'spring', 'south')
+    expect(grid.assets.filter(a => (a.label ?? '').startsWith('roof_top'))).toHaveLength(1)
   })
 })

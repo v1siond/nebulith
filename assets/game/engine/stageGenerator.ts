@@ -8,12 +8,12 @@
  * Pure logic (no rendering, no IsometricGrid mutation) so it is unit-testable
  * and reusable by the editor, the template mapper, and the eventual AI generator.
  */
-import { composeBuilding, ComposedBuilding, BuildingType } from './buildingComposer'
+import { type BuildingType } from './buildingTypes'
+import { buildingCompositionKind, facingRotation, isRoadGround, rotateFootprintOffset } from './buildingCatalog'
 import { planVillage, type VillageLayout, type Settlement, type Plot, type Facing, type PlazaRect } from './villageLayout'
 import { stagePropTileOverride, ZONE_PALETTES, ZoneId } from './zones'
-import { isWalkable, type CellLabel } from './cellLabels'
+import { type CellLabel } from './cellLabels'
 import { resolveTile, resolveComposition, canopyCount, pickGroundDecor } from './tileset/tileset'
-import { isRoadGround } from './buildingEditor'
 import { ASCII_TILESET } from './tileset/asciiTileset'
 import { varyIntensity } from './colors'
 import type { Connector } from '@/lib/api'
@@ -64,16 +64,19 @@ export interface PlacedBuilding {
   /** Logical GROUND depth (perpendicular to the facade) — drives the iso box z-extrusion and is
    *  DECOUPLED from the facade's vertical elevation (`facade.height`). */
   depth: number
-  /** The planner's road-derived facing — the iso render orients the billboard by this. */
+  /** The planner's road-derived facing — the building composition is stamped rotated to face this road. */
   facing: Facing
   doorCells: { col: number; row: number }[]
-  facade: ComposedBuilding
+  /** The backend composition NAME (e.g. `house_4`, `store_5`) this plot stamps — the data-driven
+   *  replacement for the retired `facade: ComposedBuilding`. applyStageToGrid stamps it via
+   *  stampBuildingComposition, rotated to `facing`. */
+  kind: string
 }
 
-/** A TREE anchor — the trunk-base cell + which composition (tree_small / tree_dead) + its canopy shade. The
+/** A TREE anchor — the trunk-base cell + which composition (tree / tree_dead) + its canopy shade. The
  *  generator RECORDS these (it does not bake flat tree props); at load applyStageToGrid re-stamps each via
- *  stampComposition into per-cell heightLevel-stacked DB tiles — the SAME model buildings use (PlacedBuilding →
- *  stampBuildingCells). That is what makes every tree tile individually SELECTABLE and 100% backend-driven. */
+ *  stampComposition into per-cell heightLevel-stacked DB tiles — the SAME model buildings use (a PlacedBuilding
+ *  is stamped by stampBuildingComposition). That makes every tree tile individually SELECTABLE + backend-driven. */
 export interface TreeAnchor {
   col: number
   row: number
@@ -127,123 +130,11 @@ function forEachCell(cols: number, rows: number, visit: (col: number, row: numbe
   }
 }
 
-// A labeled cell's appearance (glyph + zone-tint) comes from the tileset; its
-// collision comes from the label. The tileset is the single authority for how a
-// (zone, label) pair looks — see cellTileset.ts. Trees and buildings differ only
-// by their StageProp `type` (used by the editor/renderer for grouping).
-const makeLabeledCell = (
-  zone: ZoneId,
-  col: number,
-  row: number,
-  label: CellLabel,
-  type: 'tree' | 'building',
-  variant = 0,
-): StageProp => {
-  const tile = resolveTile(ASCII_TILESET, zone, label, variant) // LOADS from the tileset, not hardcoded cellTile
-  return { col, row, type, char: tile.char, blocking: !isWalkable(label), color: tile.color, label }
-}
-
 // A deterministic [0,1) value from a seed — drives leaf/flower intensity variety WITHOUT
 // consuming the layout RNG, so generation stays reproducible. Coherent per seed.
 const shadeNoise = (seed: number): number => {
   const h = Math.abs(Math.sin(seed * 12.9898) * 43758.5453)
   return h - Math.floor(h)
-}
-
-/** One labeled building cell — the LABEL drives walkability. */
-// ── per-type building colors — a distinct ROOF per type so a town reads at a glance, with
-//    dark doors + glassy windows so those ornaments stand out. cellTile's zone tint stays on
-//    the glyph; the COLOR comes from here.
-interface BuildingPalette { roof: string; wall: string; door: string; window: string }
-// DARK, solid roof tones (real shingle/tile colors) — deep red, dark brown, charcoal-slate, dark
-// green, dark maroon. The roof glyph is drawn a shade darker still so it reads on these.
-const HOUSE_ROOFS = ['#6e2820', '#523322', '#33383f', '#2f4233', '#5a2a30']
-// Real-house exterior wall colors (warm + muted, like painted siding) so a street has variety.
-const HOUSE_WALLS = ['#e6d6b0', '#b9c4a6', '#d0b596', '#aebfcc', '#d9b48c', '#c9c0b2', '#cf9f8f']
-const HOUSE_DOORS = ['#3a2414', '#2a1810', '#23303f', '#2e2a1a', '#402028'] // dark wood / navy / green-black — always darker than the wall
-const BUILDING_PALETTES: Readonly<Record<BuildingType, BuildingPalette>> = {
-  house: { roof: '#6e2820', wall: '#d8c49a', door: '#241810', window: '#8fc4e6' },
-  'big-house': { roof: '#3f4d63', wall: '#cfc6b4', door: '#1e2630', window: '#a8d4ee' }, // squarer "building", dark cool roof
-  store: { roof: '#235a96', wall: '#e2dcc8', door: '#26414f', window: '#a8dcf2' }, // dark blue roof
-  hospital: { roof: '#2f7e50', wall: '#f0f0ea', door: '#2a3a2a', window: '#cfeede' }, // dark green roof, white walls
-  cathedral: { roof: '#7a5aa0', wall: '#d8d0c0', door: '#241828', window: '#c4a8ea' },
-  temple: { roof: '#b08a3a', wall: '#d8cca0', door: '#33240f', window: '#ecc868' },
-  castle: { roof: '#5f6068', wall: '#b6b2aa', door: '#15151a', window: '#9fb2cc' },
-}
-
-// ── wall MATERIALS — a building's walls are a real material, not all "wood". Each material is a TILE
-//    (the emoji ridden onto the wall faces under a reskin) + its own colour range. HOUSES roll a
-//    material per building (seeded, so a street MIXES wood/brick/stone/plaster); civic types keep an
-//    identity material. PLASTER has no texture tile, so its painted colour reads flat (like the roof).
-export type WallMaterial = 'wood' | 'brick' | 'stone' | 'plaster'
-
-interface MaterialDef { emoji: string; image?: string; walls: readonly string[] }
-export const WALL_MATERIALS: Readonly<Record<WallMaterial, MaterialDef>> = {
-  // wood 🪵 + stone 🪨 are Unicode-13 glyphs Segoe lacks (they tofu to [?]) → render them from a Noto
-  // image instead (the emoji stays as ASCII/label fallback). brick 🧱 renders fine → glyph. plaster = none.
-  wood: { emoji: '🟫', image: '/tiles/emoji/noto/emoji_u1f7eb.png', walls: ['#9c6b3f', '#8a5a34', '#a67a48', '#7d5330'] }, // 🟫 clean brown wall (🪵 log read as ugly); warm browns
-  brick: { emoji: '🧱', image: '/tiles/emoji/noto/emoji_u1f9f1.png', walls: ['#b0603a', '#a5542f', '#9c4e30', '#b56a44'] }, // Noto brick image (cleaner than the chunky Segoe glyph)
-  stone: { emoji: '🪨', image: '/tiles/emoji/noto/emoji_u1faa8.png', walls: ['#8f8a82', '#7c776f', '#9a958c', '#847e75'] }, // muted greys
-  plaster: { emoji: '', walls: HOUSE_WALLS }, // painted siding — colour only, no texture tile
-}
-
-// House rolls one of these per building; every other type maps to a fixed identity material.
-const HOUSE_MATERIALS: readonly WallMaterial[] = ['wood', 'brick', 'stone', 'plaster']
-const CIVIC_MATERIAL: Readonly<Record<Exclude<BuildingType, 'house'>, WallMaterial>> = {
-  'big-house': 'brick',
-  store: 'brick',
-  hospital: 'plaster', // white painted clinic
-  cathedral: 'stone',
-  temple: 'stone',
-  castle: 'stone',
-}
-
-/** The wall material for a building — deterministic. Houses vary per building (seeded on anchorSeed,
- *  so a street mixes materials); every other type has a fixed identity material. Pure. */
-export function buildingWallMaterial(type: BuildingType, anchorSeed: number): WallMaterial {
-  if (type !== 'house') return CIVIC_MATERIAL[type]
-  return HOUSE_MATERIALS[Math.floor(shadeNoise(anchorSeed + 0.9) * HOUSE_MATERIALS.length) % HOUSE_MATERIALS.length]
-}
-
-/** The wall TILE (emoji) for a building's material under a reskin — '' for plaster (no texture; the
- *  painted colour reads flat). The renderer rides this on the wall faces instead of one global brick. */
-export function wallMaterialTile(type: BuildingType, anchorSeed: number): string {
-  return WALL_MATERIALS[buildingWallMaterial(type, anchorSeed)].emoji
-}
-
-/** The wall IMAGE (a Noto png) for a building's material under a reskin — set for wood/stone (whose
- *  🪵/🪨 glyphs tofu on Segoe), undefined for brick (glyph renders fine) and plaster (colour only).
- *  The renderer draws this on the wall faces; the emoji is the ASCII/label fallback. Pure. */
-export function wallMaterialImage(type: BuildingType, anchorSeed: number): string | undefined {
-  return WALL_MATERIALS[buildingWallMaterial(type, anchorSeed)].image
-}
-
-/** Color for one facade cell by the building's TYPE + the cell's label. HOUSES vary per building
- *  (anchorSeed) so a street isn't monotone: a roof tone (red / brown / gray), a wall shade, and a
- *  dark door tone — the door always darker than + different from the wall. Store / hospital stay
- *  deterministic so their identity (white+blue / green+white) reads at a glance. Pure. */
-export function buildingCellColor(type: BuildingType, label: CellLabel, anchorSeed: number): string {
-  const pal = BUILDING_PALETTES[type] ?? BUILDING_PALETTES.house
-  const isHouse = type === 'house'
-  if (label === 'roof' || label === 'roof_top') {
-    if (!isHouse) return pal.roof
-    return HOUSE_ROOFS[Math.floor(shadeNoise(anchorSeed + 0.3) * HOUSE_ROOFS.length) % HOUSE_ROOFS.length]
-  }
-  if (label === 'door') {
-    if (!isHouse) return pal.door
-    return HOUSE_DOORS[Math.floor(shadeNoise(anchorSeed + 0.7) * HOUSE_DOORS.length) % HOUSE_DOORS.length]
-  }
-  if (label === 'window') return pal.window
-  // walls: a house takes its MATERIAL's colour range (wood browns / stone greys / brick reds / painted
-  // plaster) varied per building; every other type keeps its identity tone.
-  if (!isHouse) return pal.wall
-  const matWalls = WALL_MATERIALS[buildingWallMaterial(type, anchorSeed)].walls
-  return matWalls[Math.floor(shadeNoise(anchorSeed + 0.1) * matWalls.length) % matWalls.length]
-}
-
-const makeBuildingCell = (zone: ZoneId, col: number, row: number, label: CellLabel, color?: string): StageProp => {
-  const cell = makeLabeledCell(zone, col, row, label, 'building')
-  return color ? { ...cell, color } : cell
 }
 
 // A canopy tonal variant for a tree-MASS cell, derived from its position so the
@@ -563,13 +454,12 @@ function placeSettlement(ctx: ArchetypeContext, settlement: Settlement): void {
   //    MIN-ROW/MIN-COL (top-left) of the small `length × depth` footprint rect; placeBuilding blocks
   //    every footprint cell (a roof from above) EXCEPT the road-facing door cell (walkable).
   for (const plot of layout.plots) {
-    // Roll for a wide door — only "unlocks" inside composeBuilding for a >=3-floor even-width building.
-    // `seed` (the plot's stable position) drives the seeded peaked-vs-box roof roll for store/hospital, so a
-    // town shows a deterministic MIX of peaked + box for them (composeBuilding bakes the choice into cells).
-    const facade = composeBuilding({ type: plot.type, length: plot.length, wideDoor: Math.random() < 0.5, seed: plot.col + plot.row })
+    // The plot's TYPE + chosen facade LENGTH name a backend composition (house_4, store_5, …); the stamp
+    // (applyStageToGrid → stampBuildingComposition) rotates it to face the road. No frontend composer.
+    const kind = buildingCompositionKind(plot.type, plot.length)
     const rect = footprintRect(plot)
     if (!rectInBounds(rect, cols, rows)) continue // planner's rectClear guarantees this; stay safe
-    buildings.push(placeBuilding(ctx, facade, plot, rect))
+    buildings.push(placeBuilding(ctx, plot, rect, kind))
   }
   // 3. Plaza (well/fountain) + lamps; trees fill the rest, scaled by settlement (cities sparser).
   villageDecor(ctx, layout)
@@ -819,60 +709,34 @@ export function doorCells(facing: Facing, rect: FootRect, door: { x: number; wid
 }
 
 /**
- * Stamp a building's small GROUND FOOTPRINT (`rect`, width × depth): every cell BLOCKS (collision
- * true) and emits a building prop — a roof from above — EXCEPT the single road-facing DOOR cell,
- * which stays WALKABLE (collision false). This is the shared collision blueprint all three views
- * read: walls/roof block, the door is the way in. The facade's vertical elevation is NOT stamped on
- * the ground anymore — the iso/2D renders raise it from `facade` over this footprint.
+ * Reserve a building's small GROUND FOOTPRINT (`rect`, width × depth): pave a stone base and BLOCK every
+ * footprint cell (collision true) EXCEPT the single road-facing DOOR cell, which stays WALKABLE. This is
+ * the collision blueprint spawn/enemy placement reads BEFORE the stamp; the building's actual tiles are
+ * stamped from its composition at load (applyStageToGrid → stampBuildingComposition), so we emit NO
+ * per-cell building props here — the composition IS the tiles. Returns the placed building's metadata
+ * (kind + footprint + door + facing) the nature/decor passes and the load-time stamp use.
  */
 function placeBuilding(
   ctx: ArchetypeContext,
-  facade: ComposedBuilding,
   plot: Plot,
   rect: FootRect,
+  kind: string,
 ): PlacedBuilding {
-  const doors = doorCells(plot.facing, rect, facade.door)
+  const { ground, collision, cols, rows } = ctx
+  // Every baked composition has ONE door cell, centred on the facade at dx = floor(length/2) — so the
+  // walkable entrance + its driveway derive without loading the tileset (keeps generation pure/testable).
+  const doors = doorCells(plot.facing, rect, { x: Math.floor(plot.length / 2), width: 1 })
   const isDoor = new Set(doors.map(d => `${d.col},${d.row}`))
-  // Wall block height = the facade's BODY rows (rows carrying wall/window/door), mirroring
-  // facadeToFootprint so a generated building matches a hand-placed one.
-  const floors = Math.max(1, facade.cells.filter(r => r.some(k => k === 'wall' || k === 'window' || k === 'door')).length)
   for (let row = rect.row; row < rect.row + rect.h; row++) {
     for (let col = rect.col; col < rect.col + rect.w; col++) {
-      ctx.ground[row][col] = 'path_stone' // brown stone BASE under the building — brown path_stone, freed from roads (§2b)
-      stampFootprintCell(ctx, plot.type, col, row, isDoor.has(`${col},${row}`), rect.col, rect, floors)
+      if (!inBounds(col, row, cols, rows)) continue
+      ground[row][col] = 'path_stone' // brown stone BASE under the building (freed from roads, §2b)
+      collision[row][col] = !isDoor.has(`${col},${row}`) // walls/roof block, the door is the way in
     }
   }
-  // `row` = the rect's BOTTOM row; `length`/`height` = the rect's grid span (cols×rows), so the
-  // nature math + the iso/2D per-cell skip read the real small footprint regardless of facing.
-  return { type: plot.type, col: rect.col, row: rect.row + rect.h - 1, length: rect.w, height: rect.h, depth: plot.depth, facing: plot.facing, doorCells: doors, facade }
-}
-
-/** Emit one footprint building cell at (col,row) and set its collision: the door is walkable, every
- *  other cell blocks (a roof from above). The label drives the top-view glyph; collision is set
- *  explicitly here (the door is a deliberate walkable exception, unlike isWalkable's defaults). */
-function stampFootprintCell(
-  ctx: ArchetypeContext,
-  type: BuildingType,
-  col: number,
-  row: number,
-  isDoor: boolean,
-  anchorCol: number,
-  rect: FootRect,
-  floors: number,
-): void {
-  const { props, collision, zone, cols, rows } = ctx
-  if (!inBounds(col, row, cols, rows)) return
-  // Per-cell tile model (2D+3D tileset): the PERIMETER becomes WALL (rises `floors` blocks in iso) so the
-  // iso/2D render can build the box out of tiles; the road-facing cell stays the flat walkable DOOR; the
-  // INTERIOR stays a flat ROOF cell. Collision is UNCHANGED (whole footprint blocks except the door) — the
-  // design's walkable-floor interior is a separate, later step. Was: one filled roof-rect.
-  const perimeter = col === rect.col || col === rect.col + rect.w - 1 || row === rect.row || row === rect.row + rect.h - 1
-  const label: CellLabel = isDoor ? 'door' : perimeter ? 'wall' : 'roof'
-  const height = label === 'wall' ? floors : 0
-  const color = buildingCellColor(type, label, anchorCol)
-  const cell = makeBuildingCell(zone, col, row, label, color)
-  props.push({ ...cell, blocking: !isDoor, height, buildingType: type, edge: footprintEdgeClass(col, row, rect) })
-  collision[row][col] = !isDoor
+  // `row` = the rect's BOTTOM row; `length`/`height` = the rect's grid span (cols×rows), so the nature
+  // math + the load-time stamp read the real small footprint (and its TOP-LEFT) regardless of facing.
+  return { type: plot.type, col: rect.col, row: rect.row + rect.h - 1, length: rect.w, height: rect.h, depth: plot.depth, facing: plot.facing, doorCells: doors, kind }
 }
 
 // ── forest archetype (≈ Viridian Forest, per docs/ALGORITHMS.md): a fully-
@@ -2446,6 +2310,38 @@ export function stageToTemplate(stage: StageData, name: string): StageTemplatePa
         blocking: !c.walkable,
         color: tile.color,
         height: 1, // one block tall per tile; the column's height comes from the stacked levels
+        heightLevel: c.level ?? 0,
+        label: c.label,
+        footprint: undefined,
+        tileOverride: undefined,
+      })
+    }
+  }
+
+  // Buildings are recorded as composition anchors too (PlacedBuilding.kind + facing). Expand each into its
+  // stamped per-cell tiles here — rotated to face the road — so a saved generated town carries the SAME
+  // wall/window/door/roof blocks (and their collision) the live grid stamps (stampBuildingComposition).
+  for (const b of stage.buildings) {
+    const comp = resolveComposition(ASCII_TILESET, b.kind)
+    if (!comp) continue
+    const rotation = facingRotation(b.facing)
+    const anchorCol = b.col // footprint TOP-LEFT (b.row is the BOTTOM row → back off its height)
+    const anchorRow = b.row - (b.height - 1)
+    const { w, h } = comp.footprint
+    for (const c of comp.cells) {
+      const off = rotation ? rotateFootprintOffset(c.dx, c.dy, w, h, rotation) : { dx: c.dx, dy: c.dy }
+      const col = anchorCol + off.dx
+      const row = anchorRow + off.dy
+      if (col < 0 || row < 0 || col >= stage.cols || row >= stage.rows) continue
+      const tile = resolveTile(ASCII_TILESET, stage.zone, c.label)
+      assetsData.push({
+        art: [tile.char],
+        col,
+        row,
+        type: b.kind,
+        blocking: !c.walkable,
+        color: tile.color,
+        height: 1,
         heightLevel: c.level ?? 0,
         label: c.label,
         footprint: undefined,

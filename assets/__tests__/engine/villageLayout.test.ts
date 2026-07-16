@@ -1,5 +1,5 @@
 import { planVillage, planRoads, placePlots, buildingMix, type Rng, type Entrance, type Plot } from '@/engine/villageLayout'
-import { composeBuilding } from '@/engine/buildingComposer'
+import { BUILDING_DEPTH } from '@/engine/buildingCatalog'
 
 // A tiny deterministic LCG so layouts are reproducible in tests.
 function seededRng(seed: number): Rng {
@@ -136,13 +136,12 @@ describe('villageLayout — planVillage', () => {
     }
   })
 
-  it('footprint DEPTH equals composeBuilding(type).depth — small ground, NOT facade height', () => {
+  it('footprint DEPTH matches the baked composition depth — a small ground footprint', () => {
     const layout = planVillage(60, 44, seededRng(31))
     expect(layout.plots.length).toBeGreaterThan(0)
     for (const p of layout.plots) {
-      const composed = composeBuilding({ type: p.type, length: p.length })
-      expect(p.depth).toBe(composed.depth) // footprint depth is the composer's small ground depth…
-      expect(p.depth).toBeLessThan(composed.height) // …decoupled from (and smaller than) the facade elevation
+      expect(p.depth).toBe(BUILDING_DEPTH[p.type]) // footprint depth = the composition's south-facing footprint_h
+      expect(p.depth).toBeLessThanOrEqual(6) // small + roughly square — never a tall facade elevation
     }
   })
 

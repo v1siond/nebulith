@@ -1,18 +1,17 @@
 /**
  * De-segmented buildings: the 2D collision overlay is now GENERIC. A building's blocked cells tint on their
  * OWN grounded squares exactly like any collision cell (a rock/tree) — there is no raised-facade overlay and
- * render2D never reads grid.buildings. stampBuildingCells blocks only the WALL cells (a hollow shell), so the
- * tint reads as the building's shell with the walkable door + interior left clear.
+ * render2D never reads a grouped-building array. A stamped building composition blocks only the WALL cells (a
+ * hollow shell), so the tint reads as the building's shell with the walkable door + interior left clear.
  *
  * Proven here:
  *   A. every blocked footprint cell paints exactly ONE grounded red square (no facade raising, no doubling);
  *   B. a NON-building collision cell adds exactly one more red — buildings are not a special case.
  */
-import '@/__tests__/helpers/installTilesetSeed' // render2D paints ground from the loaded backend tileset's terrain — install the captured fixture so it isn't empty
+import '@/__tests__/helpers/installTilesetSeed' // render2D paints ground + building compositions from the loaded backend tileset fixture
 import { render2D } from '@/engine/render/topdown'
 import { IsometricGrid } from '@/engine/IsometricGrid'
-import { makeBuilding } from '@/engine/buildingEditor'
-import { stampBuildingCells } from '@/game/runtime/buildings'
+import { stampBuildingComposition } from '@/game/runtime/composition'
 import { setShowCollisions, setDebugMode } from '@/engine/render/shared'
 import type { PlayerState } from '@/game/runtime/player'
 
@@ -51,9 +50,8 @@ describe('2D collision overlay — a building tints like any grounded cell (no f
   // A real stamped house near the centre so its whole footprint is inside the (large) viewport.
   function scene(): { grid: IsometricGrid; player: PlayerState } {
     const grid = new IsometricGrid({ cols: 40, rows: 40, cellSize: 16, isoScale: 1 })
-    const b = makeBuilding('house', 'south', 18, 18)
-    stampBuildingCells(grid, b, 'spring')
-    const player = { x: 19 * 16, z: 20 * 16, moving: false } as PlayerState
+    stampBuildingComposition(grid, 'house', 4, 16, 16, 'spring', 'south') // footprint top-left (16,16), 4×4
+    const player = { x: 19 * 16, z: 24 * 16, moving: false } as PlayerState
     return { grid, player }
   }
 

@@ -16,15 +16,15 @@
  * (and back, via mutators that call the grid's existing setters). It changes NO existing behaviour and
  * touches no render/codec/collision path — later migration steps consume it. Pure + unit-tested.
  */
-import type { IsometricGrid, GridAsset, GridBuilding } from './IsometricGrid'
+import type { IsometricGrid, GridAsset } from './IsometricGrid'
 import type { GroundCellDims } from './groundDims'
 import type { TilePose } from './tileset/pose'
 import { resolveTileHeight } from './tileset/tileHeight'
 
 /** Which store a TileEntry projects from — lets a consumer/mutator route back to the right setter/store.
- *  `building` = a wall/window/door/roof block derived from a GridBuilding footprint cell; `entity` = an
- *  npc/enemy/player standing on the cell. Everything is a uniform tile — the source is only how you write
- *  BACK, never a branch a picker/inspector takes to READ. */
+ *  Buildings are plain stacked ASSETS now, so a wall/window/door/roof block projects as `asset`; `entity` =
+ *  an npc/enemy/player standing on the cell. Everything is a uniform tile — the source is only how you write
+ *  BACK, never a branch a picker/inspector takes to READ. (`building` is retained for legacy round-trips.) */
 export type TileSource = 'floor' | 'asset' | 'building' | 'entity'
 
 /** Back-reference from a derived TileEntry to the store row it came from, so selection/edits know which
@@ -46,12 +46,12 @@ export interface EntityStackTile {
   blocksMovement?: boolean
 }
 
-/** What ELSE (beyond the grid's own ground/assets) is in view for this cell: the buildings whose footprints
- *  may cover it and the entities standing on it. Both are OPT-IN: omit them and getStack returns exactly the
- *  legacy floor+assets stack (byte-identical — the render hot path reads only the floor and must never pay a
- *  per-cell buildings/entities scan). The pick + inspector pass them to get the FULL unified stack. */
+/** What ELSE (beyond the grid's own ground/assets) is in view for this cell: the entities standing on it.
+ *  OPT-IN — omit it and getStack returns exactly the floor+assets stack (byte-identical — the render hot
+ *  path reads only the floor and must never pay a per-cell entity scan). Buildings are just their stamped
+ *  assets now, so they already flow through the assets list; the pick + inspector pass entities in for the
+ *  FULL unified stack. */
 export interface StackScope {
-  buildings?: readonly GridBuilding[]
   entities?: readonly EntityStackTile[]
 }
 
@@ -170,12 +170,11 @@ export function migrateAssetsToStack(cell: LegacyCell): TileEntry[] {
 
 /**
  * The cell's tile stack: index 0 = the floor, then the loose assets sorted by heightLevel. A building's
- * wall/window/door/roof blocks are now REAL `type:'building'` assets on the grid (stampBuildingCells places
- * one asset per block), so they come through this SAME assets list — there is no separate building
- * projection to fold in. `scope` is accepted for call-site compatibility but no longer used: projecting
- * buildings here on top of their real assets would DOUBLE-COUNT every block (once as an asset, once as a
- * projection) for the pick/inspector. ONE uniform TileEntry[] a picker/inspector iterates with NO branch on
- * "is it a building / character / prop". Does NOT mutate the grid.
+ * wall/window/door/roof blocks are REAL per-cell assets on the grid (its composition stamps one asset per
+ * block), so they come through this SAME assets list — there is no separate building projection to fold in.
+ * `_scope` (entities) is accepted for call-site compatibility; buildings are never projected here (that
+ * would DOUBLE-COUNT every block for the pick/inspector). ONE uniform TileEntry[] a picker/inspector
+ * iterates with NO branch on "is it a building / character / prop". Does NOT mutate the grid.
  */
 export function getStack(grid: IsometricGrid, col: number, row: number, _scope: StackScope = {}): TileEntry[] {
   return migrateAssetsToStack({

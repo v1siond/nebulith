@@ -3,7 +3,7 @@
 // re-allocated on every render and the JSX stays a flat map instead of dozens of
 // near-identical hand-written swatches. No React here — just the unions, the
 // tool→type lookup, and the swatch/season data the editor cards render.
-import { type BuildingType } from '@/engine/buildingComposer'
+import { type BuildingType } from '@/engine/buildingTypes'
 import { type EntityKind } from '@/game/types'
 
 // ── editor tool state ────────────────────────────────────────────────
@@ -17,13 +17,13 @@ export type EditorMode = 'select' | 'paint' | 'unit' | 'building' | 'connector'
 /** Which tool the Entities card has armed. `erase` removes; `null` = off. */
 export type EntityTool = EntityKind | 'erase' | 'collision' | null
 
-/** Which building tool is armed. Place-<type> drops a fresh building; select picks
- *  one to move/rotate/delete; delete removes the one under the click; null = off. */
+/** Which building PLACE tool is armed. Place-<type> STAMPS a pre-built building composition (its cells,
+ *  like placing a tree); there is no whole-building select / move / rotate / delete. null = off. */
 export type BuildingTool =
-  | 'select' | 'place-house' | 'place-big-house' | 'place-store' | 'place-hospital'
-  | 'place-temple' | 'place-cathedral' | 'place-castle' | 'delete' | null
+  | 'place-house' | 'place-big-house' | 'place-store' | 'place-hospital'
+  | 'place-temple' | 'place-cathedral' | 'place-castle' | null
 
-/** Map a Place-<type> tool to the BuildingType it authors. */
+/** Map a Place-<type> tool to the BuildingType it stamps. */
 export const BUILDING_TOOL_TYPE: Partial<Record<NonNullable<BuildingTool>, BuildingType>> = {
   'place-house': 'house',
   'place-big-house': 'big-house',

@@ -5,10 +5,10 @@
  * isoPick.test.ts). If a building is a collection of editable blocks HERE, then the only things left are
  * rendering from those blocks and wiring the click — not "convert a building".
  */
+import '@/__tests__/helpers/installTilesetSeed' // the building composition (house_4) comes from the loaded backend tileset fixture
 import { IsometricGrid } from '@/engine/IsometricGrid'
 import { getStack, pushTile } from '@/engine/cellStack'
-import { makeBuilding } from '@/engine/buildingEditor'
-import { stampBuildingCells } from '@/game/runtime/buildings'
+import { stampBuildingComposition } from '@/game/runtime/composition'
 
 const mkGrid = () => new IsometricGrid({ cols: 12, rows: 12, cellSize: 16, isoScale: 1.4 })
 
@@ -44,12 +44,12 @@ describe('lego model — everything on the grid is an editable block', () => {
 
   test('a BUILDING on the grid is a collection of editable blocks — no special "building" needed', () => {
     const grid = mkGrid()
-    const b = makeBuilding('house', 'south', 6, 6)
-    stampBuildingCells(grid, b, 'spring')
+    stampBuildingComposition(grid, 'house', 4, 4, 4, 'spring', 'south') // footprint top-left (4,4), 4×4
 
-    // A building is BLOCKS on the grid — plain `type:'structure'` tiles, no special "building" type.
-    const buildingBlocks = grid.assets.filter(a => a.type === 'structure')
+    // A building is BLOCKS on the grid — plain per-cell tiles typed by the composition KIND, no "building" type.
+    const buildingBlocks = grid.assets.filter(a => a.type === 'house_4')
     expect(buildingBlocks.length).toBeGreaterThan(0)
+    expect(grid.assets.some(a => a.type === 'building')).toBe(false)
 
     // Each block appears in its cell's UNIFORM stack (same shape as any other block).
     const a0 = buildingBlocks[0]
@@ -62,7 +62,8 @@ describe('lego model — everything on the grid is an editable block', () => {
     expect(after?.color).toBe('#123456')
 
     // And a wall block must EXTRUDE (height >= 1) so it renders as a real lego cube, not flat.
-    const wallBlock = buildingBlocks.find(a => a.label === 'wall')
+    // house_4's walls resolve to its type-specific tile (wall_house_b), so match the wall FAMILY.
+    const wallBlock = buildingBlocks.find(a => (a.label ?? '').startsWith('wall'))
     expect(wallBlock).toBeDefined()
     expect((wallBlock!.height ?? 0)).toBeGreaterThanOrEqual(1)
   })

@@ -235,6 +235,10 @@ export function assetKind(asset: { type: string; label?: string }): ElementKind 
     if (label.startsWith('tree')) return 'tree'
     const byLabel = LABEL_KIND[label]
     if (byLabel) return byLabel
+    // Type-specific building tiles (roof_store / roof_top_hospital / wall_house_a …) map to their
+    // base part — the colour lives on the tile, the KIND is still roof/wall for art resolution.
+    if (label.startsWith('roof')) return 'roof' // covers roof_* and roof_top_*
+    if (label.startsWith('wall')) return 'wall'
   }
   return TYPE_KIND[asset.type] ?? 'ground'
 }

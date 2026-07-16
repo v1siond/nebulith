@@ -1,8 +1,9 @@
-import '@/__tests__/helpers/installTilesetSeed' // the generator reads ALL tile data (terrain/canopy/decor) from the loaded backend tileset now — install the captured /api/tilesets fixture file-wide
-import { generateStage, buildingCellColor, stagePaint, footprintEdgeClass, footprintSide, footprintRing, edgeToSide, treeSubpart, labelForCell } from '@/engine/stageGenerator'
-import { composeBuilding } from '@/engine/buildingComposer'
+import '@/__tests__/helpers/installTilesetSeed' // the generator reads ALL tile data (terrain/canopy/decor) + building compositions from the loaded backend tileset fixture
+import { installSeedTileset } from '@/__tests__/helpers/tilesetSeed'
+import { generateStage, stagePaint, footprintEdgeClass, footprintSide, footprintRing, edgeToSide, treeSubpart, labelForCell } from '@/engine/stageGenerator'
+import { BUILDING_DEPTH } from '@/engine/buildingCatalog'
 import { parseColor } from '@/engine/colors'
-import { resolveGroundTile, canopyCount } from '@/engine/tileset/tileset'
+import { resolveGroundTile, canopyCount, resolveComposition } from '@/engine/tileset/tileset'
 import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 
 // The zone canopy shades now live on the loaded backend `leaf_center` tile (settings.colors[zone]) —
@@ -61,23 +62,20 @@ describe('generateStage — town vertical slice', () => {
     expect(natureOnRoad.map(p => `${p.type}@${p.col},${p.row}`)).toEqual([])
   })
 
-  it('places at least one legal building (facade >=2 long, >=5 tall, with a door)', () => {
+  it('places at least one building — each names a backend composition + faces a road with a door', () => {
     expect(stage.buildings.length).toBeGreaterThan(0)
     for (const b of stage.buildings) {
-      // Legality is a property of the FACADE; col/row/length/height now describe the oriented
-      // footprint rect (length/height SWAP for east/west-facing buildings), so assert b.facade.
-      expect(b.facade.length).toBeGreaterThanOrEqual(2) // houses scale down to 2-wide cottages
-      expect(b.facade.height).toBeGreaterThanOrEqual(5) // 3 body + 2 roof minimum
-      expect(b.doorCells.length).toBeGreaterThan(0)
+      // A building is a COMPOSITION now: it names its kind (house_4 / store_5 / …) and its footprint DEPTH
+      // matches the composition's baked depth (small ground, not a tall facade).
+      expect(b.kind).toMatch(/^(house|big_house|store|hospital|temple|cathedral|castle)_\d+$/)
+      expect(b.depth).toBe(BUILDING_DEPTH[b.type])
+      expect(b.doorCells.length).toBe(1) // every baked composition has ONE walkable door
     }
   })
 
-  it('blocks the whole small footprint EXCEPT the walkable road-facing door (its full drawn width)', () => {
+  it('blocks the whole small footprint EXCEPT the single walkable road-facing door', () => {
     for (const b of stage.buildings) {
-      // The door opens its FULL drawn width: `door.width` cells on axis-aligned facades (2 on even
-      // frontages, #49), 1 cell on rotated ones (the 2D facade collapses those to a single edge cell).
-      const axis = b.facing === 'south' || b.facing === 'north'
-      expect(b.doorCells).toHaveLength(axis ? b.facade.door.width : 1)
+      expect(b.doorCells).toHaveLength(1)
       for (const door of b.doorCells) expect(stage.collision[door.row][door.col]).toBe(false) // the way in
 
       const cells = footprintCells(b)
@@ -88,7 +86,7 @@ describe('generateStage — town vertical slice', () => {
         else walkable++
       }
       expect(blocked).toBe(b.length * b.height - b.doorCells.length) // every footprint cell blocks…
-      expect(walkable).toBe(b.doorCells.length) // …except the door cell(s)
+      expect(walkable).toBe(b.doorCells.length) // …except the door cell
     }
   })
 
@@ -105,58 +103,25 @@ describe('generateStage — town vertical slice', () => {
   })
 })
 
-describe('generateStage — small-footprint labeled buildings (the shared collision blueprint)', () => {
-  // A building stamps only its small width×depth GROUND footprint as labeled cells — a roof from
-  // above plus ONE walkable door. The facade's vertical elevation is render-only (b.facade), never
-  // stamped flat on the ground (that was the old facade-as-footprint sprawl).
-  const collectBuildingCells = (stage: ReturnType<typeof generateStage>) =>
-    stage.props.filter(p => p.type === 'building')
-
-  it('emits ONE labeled building prop per footprint cell (small width×depth, NOT facade-deep)', () => {
+describe('generateStage — a building reserves a small width×depth footprint (the collision blueprint)', () => {
+  // A building no longer bakes flat per-cell props; it reserves its small width×depth GROUND footprint
+  // (blocked, minus the door) and is STAMPED as its composition's tiles at load. So there are no
+  // `type:'building'` props — the footprint reads purely from stage.buildings + stage.collision.
+  it('emits NO flat building props — the building is stamped from its composition at load', () => {
     const stage = generateStage({ zone: 'autumn', variant: 'town' })
-    const cells = collectBuildingCells(stage)
-    expect(cells.length).toBeGreaterThan(0)
-    expect(cells.every(c => typeof c.label === 'string' && c.label!.length > 0)).toBe(true)
+    expect(stage.buildings.length).toBeGreaterThan(0)
+    expect(stage.props.filter(p => p.type === 'building')).toHaveLength(0)
+  })
+
+  it('reserves each footprint as blocked collision, only the door walkable, DEPTH = the composition depth', () => {
+    const stage = generateStage({ zone: 'autumn', variant: 'town' })
     for (const b of stage.buildings) {
-      const own = cells.filter(
-        c => c.col >= b.col && c.col < b.col + b.length && c.row <= b.row && c.row > b.row - b.height,
-      )
-      expect(own.length).toBe(b.length * b.height) // EXACTLY the footprint — no facade-deep overdraw
-      // and the perpendicular extent is the composer's small DEPTH, decoupled from the facade height
-      const depth = composeBuilding({ type: b.type, length: b.facade.length }).depth
+      const doors = new Set(b.doorCells.map(d => `${d.col},${d.row}`))
       const horizontal = b.facing === 'south' || b.facing === 'north'
-      expect(horizontal ? b.height : b.length).toBe(depth)
-      expect(depth).toBeLessThan(b.facade.height)
-    }
-  })
-
-  it('blocks every footprint cell EXCEPT the single walkable door', () => {
-    const stage = generateStage({ zone: 'autumn', variant: 'town' })
-    for (const c of collectBuildingCells(stage)) {
-      const walkable = c.label === 'door'
-      expect(c.blocking).toBe(!walkable)
-      expect(stage.collision[c.row][c.col]).toBe(!walkable)
-    }
-  })
-
-  it('opens the full drawn door width as walkable door cells in each footprint', () => {
-    const stage = generateStage({ zone: 'autumn', variant: 'town' })
-    const cells = collectBuildingCells(stage)
-    for (const b of stage.buildings) {
-      const doors = cells.filter(
-        c =>
-          c.label === 'door' &&
-          c.col >= b.col &&
-          c.col < b.col + b.length &&
-          c.row <= b.row &&
-          c.row > b.row - b.height,
-      )
-      // axis-aligned facades draw (and open) the door at its full width; rotated collapse to 1 cell.
-      const axis = b.facing === 'south' || b.facing === 'north'
-      expect(doors).toHaveLength(axis ? b.facade.door.width : 1)
-      for (const d of doors) {
-        expect(d.blocking).toBe(false)
-        expect(stage.collision[d.row][d.col]).toBe(false)
+      expect(horizontal ? b.height : b.length).toBe(BUILDING_DEPTH[b.type]) // small ground depth
+      for (const { col, row } of footprintCells(b)) {
+        const walkable = doors.has(`${col},${row}`)
+        expect(stage.collision[row][col]).toBe(!walkable)
       }
     }
   })
@@ -611,64 +576,36 @@ describe('generateStage — forest layout: lake has organic (irregular) edges', 
 // composition — the level-0 tile carries baseShadow — not on generated props. It is covered against the grid
 // by treeComposition.test.ts ('the grounded trunk base casts a shadow').
 
-describe('buildingCellColor — distinct per-type roofs + visible ornaments', () => {
-  it('gives each building type a distinct roof color', () => {
-    expect(buildingCellColor('store', 'roof', 1)).toBe('#235a96') // dark blue store
-    expect(buildingCellColor('hospital', 'roof', 1)).toBe('#2f7e50') // dark green hospital
-    expect(buildingCellColor('store', 'roof', 1)).not.toBe(buildingCellColor('hospital', 'roof', 1))
-  })
+describe('generateStage — buildings are backend COMPOSITIONS (store + hospital guaranteed, cells labeled)', () => {
+  beforeAll(() => installSeedTileset()) // re-assert the fixture so resolveComposition is never seen empty (cross-file safety)
 
-  it('makes doors dark + windows glassy (distinct from walls)', () => {
-    expect(buildingCellColor('store', 'door', 1)).toBe('#26414f') // store door stays its identity tone
-    expect(buildingCellColor('house', 'window', 1)).toBe('#8fc4e6')
-    expect(buildingCellColor('house', 'window', 1)).not.toBe(buildingCellColor('house', 'wall', 1))
-  })
-
-  it('varies house roof tone (red/brown/gray) by anchor so a street is not monotone', () => {
-    const roofs = new Set([0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(s => buildingCellColor('house', 'roof', s)))
-    expect(roofs.size).toBeGreaterThan(1)
-  })
-})
-
-describe('generateStage — building cells carry their TYPE (top-view signage)', () => {
-  it('tags every footprint cell with buildingType; a settlement includes a store + hospital', () => {
+  it('a settlement guarantees a store + a hospital, and bakes NO flat building props', () => {
     const stage = generateStage({ zone: 'summer', variant: 'town' })
-    const buildingCells = stage.props.filter(p => p.type === 'building')
-    expect(buildingCells.length).toBeGreaterThan(0)
-    expect(buildingCells.every(c => typeof c.buildingType === 'string' && c.buildingType!.length > 0)).toBe(true)
-    const types = new Set(buildingCells.map(c => c.buildingType))
-    expect(types.has('store')).toBe(true) // the settlement guarantees a store…
-    expect(types.has('hospital')).toBe(true) // …and a hospital
+    expect(stage.buildings.some(b => b.type === 'store')).toBe(true) // the settlement guarantees a store…
+    expect(stage.buildings.some(b => b.type === 'hospital')).toBe(true) // …and a hospital
+    expect(stage.props.filter(p => p.type === 'building')).toHaveLength(0) // a building IS its composition
   })
-})
 
-describe('generateStage — windows live in the facade (render-only), not on the ground', () => {
-  it('keeps windows in the building facade but NEVER stamps them as ground props', () => {
+  it("each building's composition (from the loaded tileset) carries wall + door + roof cells that stack", () => {
     const stage = generateStage({ zone: 'summer', variant: 'town', cols: 50, rows: 40 })
     expect(stage.buildings.length).toBeGreaterThan(0)
-    // the facade (used by the 2D/iso renders) still carries windows…
-    const hasFacadeWindows = stage.buildings.some(b => b.facade.cells.some(row => row.some(k => k === 'window')))
-    expect(hasFacadeWindows).toBe(true)
-    // …but the small ground footprint is the per-cell tile model — perimeter WALL + interior ROOF + the
-    // single DOOR (windows stay in the facade, NEVER stamped as ground props).
-    const windowProps = stage.props.filter(p => p.type === 'building' && p.label === 'window')
-    expect(windowProps).toHaveLength(0)
-    const groundLabels = new Set(stage.props.filter(p => p.type === 'building').map(p => p.label))
-    expect([...groundLabels].sort()).toEqual(['door', 'roof', 'wall'])
+    for (const b of stage.buildings) {
+      const comp = resolveComposition(ASCII_TILESET, b.kind)
+      expect(comp).not.toBeNull()
+      const cellLabels = comp!.cells.map(c => c.label)
+      // Each building has wall/door/roof cells — matched by FAMILY since store/hospital/houses use
+      // type-specific tiles (roof_store / wall_house_b …) while big_house/temple/… keep the base labels.
+      for (const part of ['wall', 'door', 'roof']) expect(cellLabels.some(l => l.startsWith(part))).toBe(true)
+      // Walls rise MULTIPLE stack levels (the iso box is built from stacked wall blocks + a roof cap).
+      expect(Math.max(...comp!.cells.map(c => c.level ?? 0))).toBeGreaterThan(0)
+    }
   })
-})
 
-describe('generateStage — buildings stamp the 2D+3D tile model (perimeter WALL cells carry block height)', () => {
-  it('stamps the perimeter as WALL cells that rise ≥1 iso block; door/roof stay flat', () => {
-    const stage = generateStage({ zone: 'summer', variant: 'town', cols: 50, rows: 40 })
-    const buildingProps = stage.props.filter(p => p.type === 'building')
-    const walls = buildingProps.filter(p => p.label === 'wall')
-    // Perimeter is WALL now (not a filled roof-rect) — the iso render extrudes these into the box.
-    expect(walls.length).toBeGreaterThan(0)
-    expect(walls.every(w => (w.height ?? 0) >= 1)).toBe(true) // each wall rises `floors` blocks
-    // Flat cells (the interior roof cap + the door) stay height 0 — they don't extrude.
-    const flat = buildingProps.filter(p => p.label !== 'wall')
-    expect(flat.every(p => (p.height ?? 0) === 0)).toBe(true)
+  it('a store composition has WINDOW cells (a glassy facade) and exactly ONE walkable door', () => {
+    const comp = resolveComposition(ASCII_TILESET, 'store_5')
+    expect(comp).not.toBeNull()
+    expect(comp!.cells.some(c => c.label === 'window')).toBe(true)
+    expect(comp!.cells.filter(c => (c.level ?? 0) === 0 && c.label === 'door')).toHaveLength(1)
   })
 })
 
@@ -696,13 +633,6 @@ describe('generateStage — town & city both build legal stages', () => {
   })
 })
 
-// Luminance of any renderer color (hex or rgb()/rgba()), via the shared parser.
-const luminance = (color: string): number => {
-  const c = parseColor(color)
-  if (!c) throw new Error(`unparseable color: ${color}`)
-  return c.r + c.g + c.b
-}
-
 // Door + its driveway sit one step toward the road (mirrors stageGenerator.FACING_STEP).
 const FACING_STEP: Record<string, [number, number]> = {
   south: [0, 1],
@@ -711,45 +641,11 @@ const FACING_STEP: Record<string, [number, number]> = {
   west: [-1, 0],
 }
 
-describe('buildingCellColor — randomized per-house colors (street isn\'t monotone)', () => {
-  const SEEDS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 13, 17, 19, 23, 29]
-
-  it('varies the house WALL color across buildings (not all identical)', () => {
-    const walls = new Set(SEEDS.map(s => buildingCellColor('house', 'wall', s)))
-    expect(walls.size).toBeGreaterThan(1)
-  })
-
-  it('keeps every house DOOR strictly darker than + different from its wall', () => {
-    for (const s of SEEDS) {
-      const wall = buildingCellColor('house', 'wall', s)
-      const door = buildingCellColor('house', 'door', s)
-      expect(door).not.toBe(wall)
-      expect(luminance(door)).toBeLessThan(luminance(wall))
-    }
-  })
-
-  it('keeps store + hospital DETERMINISTIC (their identity must not wobble per building)', () => {
-    for (const type of ['store', 'hospital'] as const) {
-      for (const label of ['wall', 'door', 'roof'] as const) {
-        const a = buildingCellColor(type, label, 1)
-        const b = buildingCellColor(type, label, 42)
-        const c = buildingCellColor(type, label, 137)
-        expect(new Set([a, b, c]).size).toBe(1) // same color regardless of anchor
-      }
-    }
-  })
-})
-
-describe('generateStage — a settlement guarantees a store + a hospital with distinct palettes', () => {
+describe('generateStage — a settlement guarantees a store + a hospital', () => {
   it('places at least one store building and one hospital building', () => {
     const stage = generateStage({ zone: 'summer', variant: 'town' })
     expect(stage.buildings.some(b => b.type === 'store')).toBe(true)
     expect(stage.buildings.some(b => b.type === 'hospital')).toBe(true)
-  })
-
-  it('gives the store + hospital distinct identity palettes (blue store, green hospital)', () => {
-    expect(buildingCellColor('store', 'roof', 1)).not.toBe(buildingCellColor('hospital', 'roof', 1))
-    expect(buildingCellColor('store', 'wall', 1)).not.toBe(buildingCellColor('hospital', 'wall', 1))
   })
 })
 
@@ -780,19 +676,6 @@ describe('generateStage — lamps never block a door or its driveway', () => {
         expect(lamps.has(`${door.col + dc},${door.row + dr}`)).toBe(false) // never on the driveway
       }
     }
-  })
-})
-
-describe('generateStage — the door reads as a DARK marker on the grid', () => {
-  const brightness = (hex: string) => {
-    const n = parseInt(hex.slice(1), 16)
-    return ((n >> 16) & 255) + ((n >> 8) & 255) + (n & 255)
-  }
-  it('paints the door footprint cell DARK so the entrance reads from above', () => {
-    const stage = generateStage({ zone: 'summer', variant: 'town' })
-    const doors = stage.props.filter(p => p.type === 'building' && p.label === 'door')
-    expect(doors.length).toBeGreaterThan(0)
-    expect(doors.every(d => brightness(d.color) < 240)).toBe(true) // dark entrance
   })
 })
 
@@ -833,18 +716,6 @@ describe('footprintEdgeClass — corner/edge/interior tileset classification (#4
     expect(footprintEdgeClass(0, 0, { col: 0, row: 0, w: 1, h: 1 })).toBe('nw') // 1×1 → nw
   })
 
-  it('surfaces edge classes on generated building footprint cells (4 corners + interiors)', () => {
-    const stage = generateStage({ zone: 'autumn', variant: 'town' })
-    const buildingCells = stage.props.filter(p => p.type === 'building')
-    expect(buildingCells.length).toBeGreaterThan(0)
-    expect(buildingCells.every(c => c.edge !== undefined)).toBe(true)
-    // Across a town there is at least one of each corner among the footprints.
-    const edges = new Set(buildingCells.map(c => c.edge))
-    for (const corner of ['nw', 'ne', 'sw', 'se']) expect(edges.has(corner as never)).toBe(true)
-    // stagePaint carries the edge through to the render layer.
-    const painted = stagePaint(stage).assets.filter(a => a.type === 'building')
-    expect(painted.every(a => a.edge !== undefined)).toBe(true)
-  })
 })
 
 describe('labelForCell — ONE consistent debug-label standard across every element', () => {

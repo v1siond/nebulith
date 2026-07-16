@@ -1,7 +1,4 @@
-import { GridAsset, GridBuilding, IsometricGrid } from '@/engine/IsometricGrid'
-import { buildingRect, doorCellFor, gridBuildingFacing } from '@/engine/buildingEditor'
-import { buildingCellColor } from '@/engine/stageGenerator'
-import { type BuildingType } from '@/engine/buildingComposer'
+import { GridAsset, IsometricGrid } from '@/engine/IsometricGrid'
 import { assetCellTransform } from '@/engine/cellAnimation'
 import { darkenColor, lightenColor, withAlpha } from '@/engine/colors'
 import { topRoleColor } from '@/engine/entityArt'
@@ -11,7 +8,7 @@ import { type PlayerState, barFraction, hpFraction } from '@/game/runtime/player
 import { type CombatState, type Entity, type Quest } from '@/game/types'
 import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 import { Connector } from '@/lib/api'
-import { ASCII_FONT, BUILDING_BADGES, type DayNight, LAMP_GLOW, applyCellTransform, clampCameraAxis, collectLampGlows, debugCellCaptions, debugLabelColors, drawConnectorMarker, drawHitMarker, drawHpBar, drawNightLighting, drawQuestMarker, drawStyledImage, fillTintedGlyph, grassShade, cellFill, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, resolveAssetDraw, resolveEntityDraw, assetOverride, labelTileImage, labelTileRecolor, tileImage } from './shared'
+import { ASCII_FONT, type DayNight, LAMP_GLOW, applyCellTransform, clampCameraAxis, collectLampGlows, debugCellCaptions, debugLabelColors, drawConnectorMarker, drawHitMarker, drawHpBar, drawNightLighting, drawQuestMarker, drawStyledImage, fillTintedGlyph, grassShade, cellFill, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, resolveAssetDraw, resolveEntityDraw, assetOverride, labelTileImage, labelTileRecolor, tileImage } from './shared'
 import { resolveAssetDrawSize } from './assetDimensions'
 import { getStack } from '@/engine/cellStack'
 import { EMOJI_TILESET } from '@/engine/tileset/emojiTileset'
@@ -246,10 +243,10 @@ export function renderTopView(
     }
   }
 
-  // A BUILDING is just TILES: stampBuildingCells places one `type:'building'` asset per BLOCK, so the
+  // A BUILDING is just TILES: a pre-built building is stamped as its composition's per-cell assets, so the
   // overhead view already draws them through the per-cell pass above — each footprint cell shows the TOP of
   // its column, the ROOF tile (placed last, so it wins the cell in the assetMap), giving a per-cell roof
-  // read from above with no building-specific drawer. grid.buildings is now only the building's metadata.
+  // read from above with no building-specific drawer and no grouped-building array.
 
 
   // Collision overlay — drawn LAST (over the per-cell building tiles + fountains) so it shows on BUILDING

@@ -14,7 +14,6 @@
  */
 import { drawConnectorMarker, drawAttackAnimFrame, drawProjectileGlyph } from '@/engine/render/shared'
 import { drawIsoAssetAscii } from '@/engine/render/iso'
-import { makeBuilding } from '@/engine/buildingEditor'
 import { EMOJI_STYLE, ASCII_STYLE } from '@/game/artStyle'
 import type { GridAsset } from '@/engine/IsometricGrid'
 import type { AttackAnim, AnimFrame } from '@/engine/attackAnimations'

@@ -8,7 +8,7 @@
  * aren't re-allocated per render and stay unit-testable.
  */
 import type { Entity, EntityKind, Quest } from '@/game/types'
-import type { GridAsset, GridBuilding } from '@/engine/IsometricGrid'
+import type { GridAsset } from '@/engine/IsometricGrid'
 import { type GroundCellDims, groundDimsActive } from '@/engine/groundDims'
 import type { Trigger } from '@/game/runtime/trigger'
 
@@ -122,29 +122,10 @@ export const questsToAssets = questCodec.toAssets
 export const questsFromAssets = questCodec.fromAssets
 export const isQuestAsset = questCodec.isMarker
 
-// ── building persistence codec ───────────────────────────────────────
-// The GROUPED buildings (grid.buildings) drive the upright iso/2D/top render. The template schema
-// has no building field (api.ts is read-only here), so — exactly like entities + quests — each
-// building rides assetsData as one OFF-GRID marker record, split back out on load. Without this,
-// grid.buildings is empty after a load and every view falls back to the OLD per-cell building look.
-
-export const BUILDING_ASSET_TYPE = 'nebulith:building'
-const buildingCodec = makeAssetCodec<GridBuilding>(
-  BUILDING_ASSET_TYPE,
-  b => ({
-    art: [' '],
-    col: -1, // off-grid: never drawn by the tile/asset renderers
-    row: -1,
-    type: BUILDING_ASSET_TYPE,
-    blocking: false,
-    color: '#000000',
-    label: JSON.stringify(b), // the round-trip payload (cells, facing, depth, facadeOnBack, …)
-  }),
-  parsed => !!(Array.isArray(parsed?.cells) && typeof parsed.col === 'number' && typeof parsed.row === 'number'),
-)
-export const buildingsToAssets = buildingCodec.toAssets
-export const buildingsFromAssets = buildingCodec.fromAssets
-export const isBuildingAsset = buildingCodec.isMarker
+// Buildings are NOT persisted through a marker codec anymore: a pre-built building is stamped as its
+// composition's per-cell tiles (game/runtime/composition.ts), which are plain GridAssets, so they
+// serialize/deserialize with the rest of grid.assets — exactly like a stamped tree. There is no
+// grouped-building metadata to round-trip.
 
 // ── cell-trigger persistence codec ───────────────────────────────────
 // Cell triggers (on enter / on interact → action) belong to a CELL, but the

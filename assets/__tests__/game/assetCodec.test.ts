@@ -3,14 +3,13 @@ import {
   entitiesFromAssets,
   questsToAssets,
   questsFromAssets,
-  buildingsToAssets,
-  buildingsFromAssets,
 } from '@/lib/gridCodec'
 import type { Entity, Quest } from '@/game/types'
-import type { GridAsset, GridBuilding } from '@/engine/IsometricGrid'
+import type { GridAsset } from '@/engine/IsometricGrid'
 
 // One marked record per type rides inside assetsData and must round-trip byte-for-byte
-// through create/updateTemplate. These guard the shared makeAssetCodec factory.
+// through create/updateTemplate. These guard the shared makeAssetCodec factory. (Buildings are no longer
+// a codec — a pre-built building is stamped as plain GridAssets, so it serializes with the rest.)
 
 const enemy: Entity = {
   id: 'e1', kind: 'enemy', col: 5, row: 5, enemyType: 'goblin',
@@ -26,13 +25,8 @@ const quest: Quest = {
   objectives: [{ kind: 'kill', target: 'goblin', required: 3, current: 0, done: false, label: 'Slay goblin' }],
   rewards: [{ kind: 'xp', amount: 50 }], state: 'available',
 }
-const building: GridBuilding = {
-  col: 4, row: 9, length: 3, height: 2, depth: 2, type: 'store',
-  cells: [['roof', 'roof', 'roof'], ['wall', 'door', 'wall']],
-  facing: 1, facadeOnBack: true,
-}
 
-describe('asset codec round-trips (entity / quest / building)', () => {
+describe('asset codec round-trips (entity / quest)', () => {
   it('entities serialize → deserialize back to the input', () => {
     expect(entitiesFromAssets(entitiesToAssets([enemy, npc]))).toEqual([enemy, npc])
   })
@@ -43,32 +37,25 @@ describe('asset codec round-trips (entity / quest / building)', () => {
     const blocker: Entity = { ...npc, id: 'n2', blocksMovement: true }
     expect(entitiesFromAssets(entitiesToAssets([blocker]))[0].blocksMovement).toBe(true)
   })
-  it('buildings serialize → deserialize back to the input', () => {
-    expect(buildingsFromAssets(buildingsToAssets([building]))).toEqual([building])
-  })
 
   it('survives a JSON round-trip (what a JSON column does on save/load)', () => {
     const assets = [
       ...entitiesToAssets([enemy, npc]),
       ...questsToAssets([quest]),
-      ...buildingsToAssets([building]),
     ]
     const reloaded = JSON.parse(JSON.stringify(assets)) as GridAsset[]
     expect(entitiesFromAssets(reloaded)).toEqual([enemy, npc])
     expect(questsFromAssets(reloaded)).toEqual([quest])
-    expect(buildingsFromAssets(reloaded)).toEqual([building])
   })
 
   it('each codec only picks up its own marker, ignoring the others + real assets', () => {
     const mixed: GridAsset[] = [
       ...entitiesToAssets([enemy]),
       ...questsToAssets([quest]),
-      ...buildingsToAssets([building]),
-      { art: ['#'], col: 0, row: 0, type: 'building' }, // a real on-grid asset, NOT a marker
+      { art: ['#'], col: 0, row: 0, type: 'house_4' }, // a real on-grid building tile, NOT a marker
     ]
     expect(entitiesFromAssets(mixed)).toEqual([enemy])
     expect(questsFromAssets(mixed)).toEqual([quest])
-    expect(buildingsFromAssets(mixed)).toEqual([building])
   })
 
   it('drops malformed marker payloads instead of throwing', () => {
@@ -80,7 +67,7 @@ describe('asset codec round-trips (entity / quest / building)', () => {
     expect(questsFromAssets(broken)).toEqual([])
   })
 
-  it('encodes entities ON-GRID and quests/buildings OFF-GRID (marker shape)', () => {
+  it('encodes entities ON-GRID and quests OFF-GRID (marker shape)', () => {
     const [eAsset] = entitiesToAssets([enemy])
     expect(eAsset).toMatchObject({ type: 'nebulith:entity', col: 5, row: 5, blocking: false })
     expect(eAsset.label).toBe(JSON.stringify(enemy))
@@ -88,9 +75,5 @@ describe('asset codec round-trips (entity / quest / building)', () => {
     const [qAsset] = questsToAssets([quest])
     expect(qAsset).toMatchObject({ type: 'nebulith:quest', col: -1, row: -1, art: [' '], color: '#000000' })
     expect(qAsset.label).toBe(JSON.stringify(quest))
-
-    const [bAsset] = buildingsToAssets([building])
-    expect(bAsset).toMatchObject({ type: 'nebulith:building', col: -1, row: -1, art: [' '], color: '#000000' })
-    expect(bAsset.label).toBe(JSON.stringify(building))
   })
 })

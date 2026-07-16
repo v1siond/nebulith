@@ -779,11 +779,6 @@ export function drawAttackAnimFrame(
 // Draw asset as ASCII art in isometric view (matching 2D style)
 /** Draw a generated, labeled cell as a single glyph (its label char + zone color)
  *  on a subtle backing — one cell = one tile, matching the keystone model. */
-// Apex signage per building TYPE — makes a store / hospital read at a glance.
-export const BUILDING_BADGES: Record<string, { text: string; color: string }> = {
-  store: { text: 'STORE', color: '#ffe24a' }, // gold marquee on the blue store
-  hospital: { text: 'HOSPITAL', color: '#ffffff' }, // white word on the green hospital (green+white identity)
-}
 
 
 /** An enemy that's been killed and is waiting to respawn (no live combat state). */

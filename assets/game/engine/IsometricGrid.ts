@@ -59,21 +59,6 @@ export interface GridConfig {
   isoScale?: number  // Default 1.4
 }
 
-// A grouped building (the 2D facade + its plot anchor) so the ISO view can render it as ONE
-// upright unit — the same 2D facade tiles standing at the plot, plus a z-depth — instead of a
-// loose pile of per-cell assets. 2D still renders the per-cell assets; this is iso-only.
-export interface GridBuilding {
-  col: number          // anchor (left) column
-  row: number          // ground (front, bottom) row
-  length: number       // footprint GRID col-span
-  height: number       // footprint GRID row-span (NOT the facade elevation — see cells)
-  depth: number        // logical GROUND depth (perpendicular to the facade) — iso box z-extrusion
-  type: string
-  cells: string[][]    // facade kind grid [row][col]: 'roof' | 'wall' | 'window' | 'door' | 'empty'
-  facing?: number      // ISO-only facing index (which iso axis the facade runs along); 2D is always front
-  facadeOnBack?: boolean // ISO-only: door/facade is on the camera-far face (north/west houses); 2D unaffected
-}
-
 export class IsometricGrid {
   cols: number
   rows: number
@@ -99,11 +84,8 @@ export class IsometricGrid {
   // cached ground layers (2D static layer + iso offscreen cache) rebuild. Mirrors groundColor.
   groundDims: (GroundCellDims | undefined)[][]
 
-  // Placed assets
+  // Placed assets (buildings are just stamped per-cell tiles here — no separate grouped-building array)
   assets: GridAsset[]
-
-  // Grouped buildings for the ISO view (see GridBuilding). Empty for non-stage maps.
-  buildings: GridBuilding[]
 
   // Bumped on every ground/height edit so the 2D renderer can cache the static ground layer and rebuild
   // it ONLY when the terrain actually changed (see render2D's _groundLayer).
@@ -156,7 +138,6 @@ export class IsometricGrid {
     for (let r = 0; r < this.rows; r++) this.groundDims[r] = []
 
     this.assets = []
-    this.buildings = []
   }
 
   // Convert grid position to world position

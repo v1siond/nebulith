@@ -14,15 +14,14 @@
 import Head from 'next/head'
 import Link from 'next/link'
 import { useToast } from '@/components/Toast'
-import { GridBuilding, type GridAsset, IsometricGrid } from '@/engine/IsometricGrid'
+import { type GridAsset, IsometricGrid } from '@/engine/IsometricGrid'
 import { getStack, type TileEntry, type TileSource } from '@/engine/cellStack'
 import { type AttackAnim, isAnimDone } from '@/engine/attackAnimations'
-import { type BuildingType } from '@/engine/buildingComposer'
-import { buildingDoorCell, buildingFootprintCells, canPlaceBuilding, facadeLength, facadeToFootprint, footprintContains, gridBuildingFacing, isRoadGround, makeBuilding, moveBuilding, resizeBuilding, rotateBuilding } from '@/engine/buildingEditor'
+import { type BuildingType } from '@/engine/buildingTypes'
+import { BUILDING_PLACE_LENGTH, buildingCompositionKind, buildingFootprint, canPlaceBuildingComposition, isRoadGround, nearestRoadFacing } from '@/engine/buildingCatalog'
 import { type AnimFrame, type AnimPreset, CELL_ANIM_PRESETS, type Ease, makeCellAnimation, restFrame } from '@/engine/cellAnimation'
 import { findTriggeredConnector, normalizeConnector } from '@/engine/connectors'
 import { entityPalette, punchTile, weaponEmoji, weaponGlyph, weaponPose } from '@/engine/entityArt'
-import { isoFacadeOnBack, isoFacingIndex } from '@/engine/isoBuilding'
 import { StageData, VariantId, generateStage, stagePaint } from '@/engine/stageGenerator'
 import { syncTilesetPropCollision } from '@/engine/tilesetCollision'
 import { type Action as TriggerAction, resolveAction } from '@/engine/triggers'
@@ -46,7 +45,7 @@ import { type CombatState, type Entity, type EntityKind, type EntityVariant, typ
 import { weaponReach } from '@/game/weapons'
 import { VILLAGE_CONFIG } from '@/levels/village'
 import { Connector, TemplateListItem, createTemplate, deleteTemplate, deserializeToGrid, getTemplate, listTemplates, serializeGrid, updateTemplate, updateGame } from '@/lib/api'
-import { type CellTriggerGroup, ENTITY_GLYPH, buildingsFromAssets, buildingsToAssets, cellTriggersFromAssets, cellTriggersToAssets, entitiesFromAssets, entitiesToAssets, groundColorFromAssets, groundColorToAssets, groundDimsFromAssets, groundDimsToAssets, isBuildingAsset, isEntityAsset, isGroundColorAsset, isGroundDimsAsset, isQuestAsset, isStyleAsset, isTriggerAsset, questsFromAssets, questsToAssets, styleFromAssets, styleToAssets, triggersAtCell } from '@/lib/gridCodec'
+import { type CellTriggerGroup, ENTITY_GLYPH, cellTriggersFromAssets, cellTriggersToAssets, entitiesFromAssets, entitiesToAssets, groundColorFromAssets, groundColorToAssets, groundDimsFromAssets, groundDimsToAssets, isEntityAsset, isGroundColorAsset, isGroundDimsAsset, isQuestAsset, isStyleAsset, isTriggerAsset, questsFromAssets, questsToAssets, styleFromAssets, styleToAssets, triggersAtCell } from '@/lib/gridCodec'
 import type { GroundCellDims } from '@/engine/groundDims'
 import { type Trigger, type TriggerEffect, fireTriggers } from '@/game/runtime/trigger'
 import { ASCII_STYLE, type Style, type TileDef, styleById, groundKind, assetKind, entityKind, genderize, resolveVisual, visualForTileId } from '@/game/artStyle'
@@ -58,8 +57,7 @@ import { EMOJI_TILESET, setTilePose } from '@/engine/tileset/emojiTileset'
 import { type TilePose } from '@/engine/tileset/pose'
 import { type QuestDraft, emptyQuestDraft, questFromDraft } from '@/game/runtime/questDraft'
 import { seedCharacterAnimations, needsAnimationReseed } from '@/game/runtime/entityAnimation'
-import { buildingPlacementEnv, nearestRoadFacing, stampBuildingCells, unstampBuildingCells } from '@/game/runtime/buildings'
-import { stampComposition } from '@/game/runtime/composition'
+import { stampBuildingComposition, stampComposition } from '@/game/runtime/composition'
 import { type Cursor, type JumpState, JUMP_MS, JUMP_PEAK_PX, advanceEnemyMovement, beginJump, tickCannons } from '@/game/runtime/movement'
 import { playSwoosh } from '@/game/runtime/audio'
 import { Card, EntityToolButton, ViewButton } from '@/components/game/controls'
@@ -91,9 +89,6 @@ const ATTACK_LOOP_MS = 500
 
 /** Stable empty list passed to the renderers when entities are hidden (avoids per-frame alloc). */
 const EMPTY_ENTITIES: Entity[] = []
-// A frozen empty key map → the player ignores movement input (e.g. while a building
-// is selected for editing, when arrow keys drive the BUILDING instead).
-const EMPTY_KEYS: Record<string, boolean> = {}
 
 /** Forward-seed the default character animation set onto any person (player/npc) that has none, so the
  *  animation list follows the UNIT across templates and persists on save (#88 — persons saved before
@@ -299,15 +294,14 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
   const [npcName, setNpcName] = useState('')
   const entitiesRef = useRef<Entity[]>([])
 
-  // ── Manual building editor state ────────────────────────────────────
-  // The armed building tool + the index into grid.buildings of the selected
-  // building. `buildingVersion` is bumped after every live edit so the React
-  // inspector re-reads grid.buildings (the canvas itself is live via the loop).
+  // ── Building PLACE tool state ───────────────────────────────────────
+  // A building is NOT a unit: the tool just STAMPS a pre-built building COMPOSITION (house/store/hospital)
+  // as per-cell tiles, the SAME path trees use — there is no whole-building select / move / rotate /
+  // resize / delete. Individual cells/blocks are edited with the normal cell/tile selection + paint.
+  // `buildingVersion` is bumped after a stamp to nudge a React re-render (the canvas is live via the loop).
   const [buildingTool, setBuildingTool] = useState<BuildingTool>(null)
-  const [selectedBuildingIndex, setSelectedBuildingIndex] = useState<number | null>(null)
   const [buildingVersion, setBuildingVersion] = useState(0)
   const buildingToolRef = useRef<BuildingTool>(null)
-  const selectedBuildingIndexRef = useRef<number | null>(null)
   const genZoneRef = useRef<ZoneId>(genZone)
   const bumpBuildingVersion = () => setBuildingVersion(v => v + 1)
 
@@ -315,7 +309,7 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
   // a section opened on one element doesn't auto-open on the next. Done during render
   // (not a post-commit effect) so the freshly-mounted Inspector cards never see the stale
   // focus. Keyed by a value string — selectedCells is a fresh Set each update.
-  const selectionKey = `${selectedEntityId ?? ''}|${selectedBuildingIndex ?? ''}|${editingConnector ? `${editingConnector.col},${editingConnector.row}` : ''}|${Array.from(selectedCells).sort().join(';')}`
+  const selectionKey = `${selectedEntityId ?? ''}|${editingConnector ? `${editingConnector.col},${editingConnector.row}` : ''}|${Array.from(selectedCells).sort().join(';')}`
   const prevSelectionKeyRef = useRef(selectionKey)
   if (prevSelectionKeyRef.current !== selectionKey) {
     prevSelectionKeyRef.current = selectionKey
@@ -562,9 +556,8 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
     selectedCellsRef.current = selectedCells
   }, [selectedCells])
 
-  // Keep building-editor refs in sync (read by the once-mounted key handler + loop)
+  // Keep the building-tool ref in sync (read by the once-mounted click handler + loop)
   useEffect(() => { buildingToolRef.current = buildingTool }, [buildingTool])
-  useEffect(() => { selectedBuildingIndexRef.current = selectedBuildingIndex }, [selectedBuildingIndex])
   useEffect(() => { genZoneRef.current = genZone }, [genZone])
 
   // Flow view is a full-screen graph — flag it on <body> so the global FPS overlay (rendered
@@ -796,20 +789,18 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
 
     // Candidate raised blocks come from the ONE unified stack (getStack) — the SAME model select/edit read —
     // so a building WALL block and a stacked TREE/prop are hit-tested the SAME way, with NO per-type branch
-    // here. Buildings are handed to getStack (they aren't grid fields); every stack entry that is a real BLOCK
-    // (heightLevel ≥ 1 — the floor / flat props stay on the flat pick) becomes an IsoPickBlock carrying its
-    // `source`, tagged with the cell's elevation so its lift matches the render. Only footprint + asset-stack
-    // cells are scanned, so this stays cheap on a click.
-    const scope = { buildings: grid.buildings }
+    // here. A building is just its stamped per-cell assets now (no grouped-building array), so every raised
+    // block is already a real asset; each stack entry that is a real BLOCK (heightLevel ≥ 1 — the floor / flat props
+    // stay on the flat pick) becomes an IsoPickBlock carrying its `source`, tagged with the cell's elevation
+    // so its lift matches the render. Only asset-stack cells are scanned, so this stays cheap on a click.
     const candidates = new Set<string>()
     for (const a of grid.assets) if ((a.heightLevel ?? 0) >= 1 || (a.height ?? 0) >= 1) candidates.add(`${a.col},${a.row}`) // level-0 CUBES (ground-floor wall) count
-    for (const b of grid.buildings ?? []) for (const bc of buildingFootprintCells(b).cells) candidates.add(`${bc.col},${bc.row}`)
     if (candidates.size === 0) return null
     const blocks: IsoPickBlock[] = []
     for (const key of candidates) {
       const [col, row] = key.split(',').map(Number)
       const terrainHeight = grid.getHeight(col, row)
-      for (const t of getStack(grid, col, row, scope)) {
+      for (const t of getStack(grid, col, row)) {
         // Feed the blocks the iso render draws as per-cell CUBES: any raised tile (heightLevel ≥ 1) OR a
         // level-0 cube (t.h ≥ 1). The flat FLOOR (h 0) is the only heightLevel-0 tile excluded.
         if ((t.heightLevel ?? 0) < 1 && (t.h ?? 0) < 1) continue
@@ -862,7 +853,7 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
     const grid = gridRef.current
     if (!grid) return 0
     // Read the SAME unified stack the inspector shows, so a picked block maps 1:1 to its inspector slot.
-    const stack = getStack(grid, c.col, c.row, { buildings: grid.buildings, entities: entitiesRef.current })
+    const stack = getStack(grid, c.col, c.row, { entities: entitiesRef.current })
     // A picked BLOCK carries its store + heightLevel → its exact slot in the stack (wall/prop/character alike).
     if (c.level !== undefined && c.source && c.source !== 'floor') {
       const idx = stack.findIndex(t => t.source === c.source && (t.heightLevel ?? 0) === c.level)
@@ -885,7 +876,7 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
     const flat = new Set([`${c.col},${c.row}`])
     if (!grid || c.level === undefined || c.level < 1 || !c.source || c.source === 'floor') return flat
     const keys = new Set<string>()
-    for (const t of getStack(grid, c.col, c.row, { buildings: grid.buildings })) {
+    for (const t of getStack(grid, c.col, c.row)) {
       const lvl = t.heightLevel ?? 0
       if (lvl >= 1) keys.add(`${c.col},${c.row},${lvl}`)
     }
@@ -1299,31 +1290,17 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
     setEditingConnector(null)
     setSelectedCells(new Set())
     setBuildingTool(null)
-    deselectBuilding()
   }
 
-  // ── Manual building editor actions ──────────────────────────────────
-  /** Highlight a building's whole footprint via the shared selectedCells outline. */
-  const highlightBuilding = (b: GridBuilding) => {
-    setSelectedCells(new Set(buildingFootprintCells(b).cells.map(c => `${c.col},${c.row}`)))
-  }
-
-  /** Drop the building selection + its highlight. */
-  const deselectBuilding = () => {
-    selectedBuildingIndexRef.current = null
-    setSelectedBuildingIndex(null)
-    setSelectedCells(new Set())
-  }
-
-  /** Arm a building tool (re-clicking the active one disarms it). Mutually exclusive
-   *  with the entity / connector tools so clicks route to exactly one editor. */
+  // ── Building PLACE actions ──────────────────────────────────────────
+  /** Arm a building PLACE tool (re-clicking the active one disarms it). Mutually exclusive with the
+   *  entity / connector tools so a click routes to exactly one editor. */
   const toggleBuildingTool = (tool: Exclude<BuildingTool, null>) => {
     setBuildingTool(prev => (prev === tool ? null : tool))
     setPaintMode(false)
     setEntityTool(null)
     setConnectorMode(false)
     setEditingConnector(null)
-    deselectBuilding()
   }
 
   /** Clear any armed tile so a Select-mode click inspects instead of painting. */
@@ -1332,8 +1309,7 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
     setHeightEditMode(false)
   }
 
-  /** Switch the left tool-rail mode. Each mode arms the matching existing tool
-   *  state (so the canvas handlers behave exactly as before) and disarms the rest;
+  /** Switch the left tool-rail mode. Each mode arms the matching tool state and disarms the rest;
    *  unit/building arm a sensible default sub-tool, kept if one is already chosen. */
   const selectMode = (m: EditorMode) => {
     setEditingConnector(null)
@@ -1342,7 +1318,6 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
       setEntityTool(null)
       setBuildingTool(null)
       setConnectorMode(false)
-      deselectBuilding()
       clearPaintTile()
       return
     }
@@ -1351,14 +1326,12 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
       setEntityTool(null)
       setBuildingTool(null)
       setConnectorMode(false)
-      deselectBuilding()
       return
     }
     if (m === 'unit') {
       setPaintMode(false)
       setBuildingTool(null)
       setConnectorMode(false)
-      deselectBuilding()
       clearPaintTile()
       setEntityTool(prev => prev ?? 'enemy')
       return
@@ -1368,162 +1341,44 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
       setEntityTool(null)
       setConnectorMode(false)
       clearPaintTile()
-      setBuildingTool(prev => prev ?? 'select')
+      setBuildingTool(prev => prev ?? 'place-house')
       return
     }
     // connector
     setPaintMode(false)
     setEntityTool(null)
     setBuildingTool(null)
-    deselectBuilding()
     clearPaintTile()
     setConnectorMode(true)
   }
 
-  /** Re-stamp `idx` from `old`→`next` iff the new footprint is valid (in-bounds, clear
-   *  of roads/water/other buildings). Returns whether it moved. Keeps the array index
-   *  stable so the selection stays on the same building. */
-  const tryReplaceBuilding = (grid: IsometricGrid, idx: number, old: GridBuilding, next: GridBuilding): boolean => {
-    const zone = genZoneRef.current
-    const ignore = new Set(buildingFootprintCells(old).cells.map(c => `${c.col},${c.row}`))
-    if (!canPlaceBuilding(buildingPlacementEnv(grid, idx, ignore), next)) return false
-    unstampBuildingCells(grid, old, zone)
-    stampBuildingCells(grid, next, zone)
-    grid.buildings[idx] = next
-    highlightBuilding(next)
-    bumpBuildingVersion()
-    return true
-  }
-
-  /** Select the building whose footprint contains (col,row); clears selection if none. */
-  const selectBuildingAt = (col: number, row: number) => {
-    const grid = gridRef.current
-    if (!grid) return
-    const idx = grid.buildings.findIndex(b => footprintContains(b, col, row))
-    if (idx < 0) { deselectBuilding(); return }
-    setSelectedEntityId(null) // the building becomes the Inspector's subject
-    selectedBuildingIndexRef.current = idx
-    setSelectedBuildingIndex(idx)
-    highlightBuilding(grid.buildings[idx])
-    bumpBuildingVersion()
-  }
-
-  /** Place a fresh building of `type` centred on (col,row), facing the nearest road. */
+  /** Stamp a pre-built building of `type` at the clicked cell — its backend composition's per-cell tiles,
+   *  rotated to face the nearest road. A building is NOT a unit: this just paints its wall/window/door/roof
+   *  tiles (the SAME stamp trees/props use), and each cell is then editable with the normal cell/tile tools.
+   *  The click is treated as the footprint CENTRE. */
   const placeNewBuilding = (type: BuildingType, col: number, row: number) => {
     const grid = gridRef.current
     if (!grid) return
-    const b = makeBuilding(type, nearestRoadFacing(grid, col, row), col, row)
-    if (!canPlaceBuilding(buildingPlacementEnv(grid, -1, new Set()), b)) {
+    const length = BUILDING_PLACE_LENGTH[type]
+    const kind = buildingCompositionKind(type, length)
+    const facing = nearestRoadFacing(grid, col, row)
+    const fp = buildingFootprint(kind, facing)
+    if (!fp) { toast('Building tiles are still loading — try again in a moment', 'info'); return }
+    const anchorCol = col - Math.floor(fp.w / 2)
+    const anchorRow = row - Math.floor(fp.h / 2)
+    if (!canPlaceBuildingComposition(grid, kind, anchorCol, anchorRow, facing)) {
       toast('Cannot place a building here — blocked, on a road, or out of bounds', 'warning')
       return
     }
-    stampBuildingCells(grid, b, genZoneRef.current)
-    grid.buildings.push(b)
-    const idx = grid.buildings.length - 1
-    setSelectedEntityId(null) // the fresh building becomes the Inspector's subject
-    selectedBuildingIndexRef.current = idx
-    setSelectedBuildingIndex(idx)
-    setBuildingTool('select') // hand off to select so it can be tweaked immediately
-    highlightBuilding(b)
+    stampBuildingComposition(grid, type, length, anchorCol, anchorRow, genZoneRef.current, facing)
     bumpBuildingVersion()
   }
 
-  /** Remove the building at grid index `idx` (assets + collision + grid.buildings). */
-  const removeBuildingAt = (idx: number) => {
-    const grid = gridRef.current
-    if (!grid) return
-    const b = grid.buildings[idx]
-    if (!b) return
-    unstampBuildingCells(grid, b, genZoneRef.current)
-    grid.buildings.splice(idx, 1)
-    deselectBuilding()
-    bumpBuildingVersion()
-  }
-
-  /** Apply the armed building tool at (col,row): select / delete / place-<type>. */
+  /** Apply the armed building PLACE tool at (col,row): stamp its composition. */
   const applyBuildingTool = (col: number, row: number) => {
-    const tool = buildingTool
-    if (!tool) return
-    if (tool === 'select') { selectBuildingAt(col, row); return }
-    if (tool === 'delete') {
-      const grid = gridRef.current
-      if (!grid) return
-      const idx = grid.buildings.findIndex(b => footprintContains(b, col, row))
-      if (idx < 0) { toast('No building here to delete', 'info'); return }
-      removeBuildingAt(idx)
-      return
-    }
-    const type = BUILDING_TOOL_TYPE[tool]
+    const type = buildingTool ? BUILDING_TOOL_TYPE[buildingTool] : undefined
     if (type) placeNewBuilding(type, col, row)
   }
-
-  /** Move the selected building by a grid delta (arrow keys / re-anchor). */
-  const moveSelectedBuilding = (dCol: number, dRow: number) => {
-    const grid = gridRef.current
-    const idx = selectedBuildingIndexRef.current
-    if (!grid || idx == null) return
-    const old = grid.buildings[idx]
-    if (!old) return
-    if (!tryReplaceBuilding(grid, idx, old, moveBuilding(old, dCol, dRow))) {
-      toast('Cannot move there — blocked or out of bounds', 'warning')
-    }
-  }
-
-  /** Rotate the selected building's facing south→east→north→west, re-stamped in place. */
-  const rotateSelectedBuilding = () => {
-    const grid = gridRef.current
-    const idx = selectedBuildingIndexRef.current
-    if (!grid || idx == null) return
-    const old = grid.buildings[idx]
-    if (!old) return
-    if (!tryReplaceBuilding(grid, idx, old, rotateBuilding(old))) {
-      toast('Cannot rotate — no room for the rotated footprint here', 'warning')
-    }
-  }
-
-  /** Grow/shrink the selected building's FACADE LENGTH by `delta` cells (3–8), re-extruded in place —
-   *  "put a house tile and make it 4 or 6 cells long". Keeps the footprint centred; skips if blocked. */
-  const resizeSelectedBuilding = (delta: number) => {
-    const grid = gridRef.current
-    const idx = selectedBuildingIndexRef.current
-    if (!grid || idx == null) return
-    const old = grid.buildings[idx]
-    if (!old) return
-    const nextLen = Math.min(8, Math.max(3, facadeLength(old) + delta))
-    if (nextLen === facadeLength(old)) return
-    if (!tryReplaceBuilding(grid, idx, old, resizeBuilding(old, nextLen))) {
-      toast('Cannot resize — no room for the new footprint here', 'warning')
-    }
-  }
-
-  /** Delete the currently selected building. */
-  const deleteSelectedBuilding = () => {
-    const idx = selectedBuildingIndexRef.current
-    if (idx == null) return
-    removeBuildingAt(idx)
-  }
-
-  // Keyboard for the selected building (mounted once; reads refs + stable callbacks).
-  // Arrows nudge it a cell, R rotates, Delete removes, Esc deselects — only while the
-  // Select tool holds a building, and never while typing in a field.
-  useEffect(() => {
-    const ARROW_DELTA: Record<string, [number, number]> = {
-      ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0],
-    }
-    const onKey = (e: KeyboardEvent) => {
-      if (buildingToolRef.current !== 'select' || selectedBuildingIndexRef.current == null) return
-      const tag = (e.target as HTMLElement | null)?.tagName
-      if (tag === 'INPUT' || tag === 'TEXTAREA') return
-      const delta = ARROW_DELTA[e.key]
-      if (delta) { e.preventDefault(); moveSelectedBuilding(delta[0], delta[1]); return }
-      if (e.key === 'r' || e.key === 'R') { e.preventDefault(); rotateSelectedBuilding(); return }
-      if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); deleteSelectedBuilding(); return }
-      if (e.key === 'Escape') deselectBuilding()
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
 
   /** Place or erase an entity at (col,row) for the armed tool, via the pure module. */
   const applyEntityTool = (col: number, row: number) => {
@@ -1679,9 +1534,6 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
       __selectedEntityInfo?: () => unknown
       __placeBuilding?: (type: string, col: number, row: number) => void
       __placeComposition?: (kind: string, col: number, row: number) => number
-      __selectBuilding?: (i: number) => number | null
-      __resizeBuilding?: (delta: number) => void
-      __selectedBuildingLen?: () => number | null
       __cellSel?: () => { count: number; first: string | null }
       __selectCells?: (keys: string[]) => number
       __applyCellTile?: (tileId: string | null) => void
@@ -1694,7 +1546,6 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
       __isoBlockScreen?: (col: number, row: number, level: number) => { x: number; y: number } | null
       __genVillage?: () => { buildings: number }
       __genStage?: (zone: string, variant: string) => { buildings: number }
-      __buildings?: () => Array<{ i: number; type: string; col: number; row: number; length: number; height: number; floors: number; wall: { col: number; row: number } | null; door: { col: number; row: number } }>
       __centerOn?: (col: number, row: number) => void
       __setHero?: (col: number, row: number) => void
     }
@@ -1739,19 +1590,12 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
     // UNIFIED-TILE picking validation seams: generate a REAL town (has buildings) and dump each building's
     // footprint so a validation click can land on an actual WALL block / the door — proving the building's
     // blocks pick as tiles through the SAME path as a prop, not a synthetic rock stack.
-    win.__genVillage = () => { generateStageInEditor('spring', 'town'); return { buildings: gridRef.current?.buildings.length ?? 0 } }
-    win.__genStage = (zone: string, variant: string) => { generateStageInEditor(zone as ZoneId, variant as VariantId); return { buildings: gridRef.current?.buildings.length ?? 0 } }
-    win.__buildings = () => {
-      const grid = gridRef.current
-      if (!grid) return []
-      return (grid.buildings ?? []).map((b, i) => {
-        const foot = facadeToFootprint(b)
-        const wall = foot.find(c => c.kind === 'wall') ?? null
-        const door = buildingDoorCell(b)
-        const floors = foot.reduce((m, c) => Math.max(m, c.height), 1)
-        return { i, type: b.type, col: b.col, row: b.row, length: b.length, height: b.height, floors, wall: wall ? { col: wall.col, row: wall.row } : null, door: { col: door.col, row: door.row } }
-      })
-    }
+    // `buildings` counts the stamped building-composition TILES (a town stamps many) — buildings are plain
+    // tiles now, so this proves a town has them without a grouped-building metadata array.
+    const countBuildingTiles = (g: IsometricGrid | null): number =>
+      g ? g.assets.filter(a => /^(house|big_house|store|hospital|temple|cathedral|castle)_\d+$/.test(a.type)).length : 0
+    win.__genVillage = () => { generateStageInEditor('spring', 'town'); return { buildings: countBuildingTiles(gridRef.current) } }
+    win.__genStage = (zone: string, variant: string) => { generateStageInEditor(zone as ZoneId, variant as VariantId); return { buildings: countBuildingTiles(gridRef.current) } }
     // Centre the iso camera on a cell so a validation click lands on-screen (the same camOffset the render +
     // pick read); mirrors the raw dev-mode focus fc=(playerX-camOffsetX)/cs.
     win.__centerOn = (col: number, row: number) => {
@@ -1791,7 +1635,7 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
     win.__stackAt = (col: number, row: number) => {
       const grid = gridRef.current
       if (!grid) return []
-      return getStack(grid, col, row, { buildings: grid.buildings }).map(t => ({ label: t.label ?? t.slug ?? '', type: t.type ?? String(t.source), heightLevel: t.heightLevel ?? 0, h: t.h ?? 0, source: String(t.source) }))
+      return getStack(grid, col, row).map(t => ({ label: t.label ?? t.slug ?? '', type: t.type ?? String(t.source), heightLevel: t.heightLevel ?? 0, h: t.h ?? 0, source: String(t.source) }))
     }
     win.__cellSel = () => ({ count: selectedCellsRef.current.size, first: Array.from(selectedCellsRef.current)[0] ?? null })
     win.__selectCells = (keys: string[]) => { setSelectedCells(new Set(keys)); setSelectedEntityId(null); return keys.length }
@@ -1801,26 +1645,11 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
       if (!g) return
       for (let r = row0; r <= row1; r++) for (let c = col0; c <= col1; c++) { g.setGround(c, r, 'grass'); g.setCollision(c, r, false) }
       g.removeAssetsWhere(a => a.col >= col0 && a.col <= col1 && a.row >= row0 && a.row <= row1)
-      g.buildings = g.buildings.filter(bd => !(bd.col >= col0 - 4 && bd.col <= col1 && bd.row >= row0 - 4 && bd.row <= row1 + 4))
     }
-    // Building-tool validation seams: place a house, resize it, read its facade length — so house-sizing
-    // ("make a house 4 or 6 cells long, iso re-extrudes") is validated in the real editor deterministically.
+    // Building validation seams: stamp a pre-built building COMPOSITION (place tool) or any composition
+    // directly — so "add a pre-built building = stamp its cells like a tree" is validated in the real editor.
     win.__placeBuilding = (type: string, col: number, row: number) => placeNewBuilding(type as BuildingType, col, row)
     win.__placeComposition = (kind: string, col: number, row: number) => { const g = gridRef.current; if (!g) return 0; const n = stampComposition(g, kind, col, row, genZoneRef.current); bumpBuildingVersion(); return n }
-    win.__selectBuilding = (i: number) => {
-      const g = gridRef.current
-      if (!g || !g.buildings[i]) return null
-      setSelectedEntityId(null)
-      selectedBuildingIndexRef.current = i
-      setSelectedBuildingIndex(i)
-      return facadeLength(g.buildings[i])
-    }
-    win.__resizeBuilding = (delta: number) => resizeSelectedBuilding(delta)
-    win.__selectedBuildingLen = () => {
-      const g = gridRef.current
-      const i = selectedBuildingIndexRef.current
-      return g && i != null && g.buildings[i] ? facadeLength(g.buildings[i]) : null
-    }
     // Read the live entity roster's kind + variant — so we can VALIDATE that randomized npcs actually
     // carry male/female variants in the DATA (the female-units question), not just eyeball the render.
     win.__entityInfo = () => {
@@ -1899,7 +1728,7 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
       setSelectedCells(new Set([`${best.col},${best.row}`]))
       return best
     }
-    return () => { delete win.__setArtStyle; delete win.__selectFirstTreeCell; delete win.__setView; delete win.__gridKinds; delete win.__entityInfo; delete win.__entityScreens; delete win.__selectEntity; delete win.__setEntitySize; delete win.__scatter; delete win.__selectedEntityInfo; delete win.__placeBuilding; delete win.__placeComposition; delete win.__selectBuilding; delete win.__resizeBuilding; delete win.__selectedBuildingLen; delete win.__cellSel; delete win.__selectCells; delete win.__applyCellTile; delete win.__clearRegion; delete win.__setDebug; delete win.__cellLabels; delete win.__stackAt; delete win.__camOffset; delete win.__stackAsset; delete win.__isoBlockScreen; delete win.__genVillage; delete win.__genStage; delete win.__buildings; delete win.__centerOn; delete win.__setHero }
+    return () => { delete win.__setArtStyle; delete win.__selectFirstTreeCell; delete win.__setView; delete win.__gridKinds; delete win.__entityInfo; delete win.__entityScreens; delete win.__selectEntity; delete win.__setEntitySize; delete win.__scatter; delete win.__selectedEntityInfo; delete win.__placeBuilding; delete win.__placeComposition; delete win.__cellSel; delete win.__selectCells; delete win.__applyCellTile; delete win.__clearRegion; delete win.__setDebug; delete win.__cellLabels; delete win.__stackAt; delete win.__camOffset; delete win.__stackAsset; delete win.__isoBlockScreen; delete win.__genVillage; delete win.__genStage; delete win.__centerOn; delete win.__setHero }
   }, [])
 
   // ── Selected-entity inspector actions ─────────────────────────────
@@ -2313,7 +2142,6 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
       }
     }
     grid.clearAssets()
-    grid.buildings = [] // legacy template buildings are █ blocks, not grouped facades
 
     // Helper to place a building (3x3 with walls, elevated)
     const placeBuilding = (x: number, y: number, color: string = '#aa7755', height: number = 2) => {
@@ -3024,24 +2852,6 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
       }
     }
     grid.clearAssets()
-    // grid.buildings is the building METADATA (type, anchor, footprint, facing) — the source
-    // stampBuildingCells rebuilds each building's per-block tiles from below. It is no longer a render
-    // source: every view now draws a building through its per-block `type:'building'` assets.
-    grid.buildings = stage.buildings.map(b => ({
-      col: b.col,
-      row: b.row,
-      length: b.length,
-      height: b.height,
-      depth: b.depth,
-      type: b.type,
-      cells: b.facade.cells,
-      // Orient the iso billboard by the planner's REAL road-derived facing (door toward the road):
-      // horizontal-street houses run along +col (axis 0), vertical-road houses along -row (axis 1).
-      facing: isoFacingIndex(b.facing),
-      // North/west houses front a road on their camera-far side → draw the door on the back face
-      // so it never points at the near grass (revealed by proximity transparency on approach).
-      facadeOnBack: isoFacadeOnBack(b.facing),
-    }))
     const paint = stagePaint(stage)
     for (const g of paint.ground) {
       if (grid.ground[g.row]?.[g.col] !== undefined) grid.setGround(g.col, g.row, g.type)
@@ -3054,7 +2864,6 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
     // 🪾 winter / 🌵 desert / 🌴 beach) rather than one 🌲 recoloured per season — so per-tree seasonal
     // TONAL variety is dropped in favour of a distinct, palette-matching species per season.
     for (const a of paint.assets) {
-      if (a.type === 'building') continue // buildings are re-stamped as per-block tiles below (stampBuildingCells)
       const override = stagePropTileOverride(stage.zone, a.type)
       grid.placeAsset([a.char], a.col, a.row, { type: a.type, blocking: a.blocking, color: a.color, label: a.label, baseShadow: a.baseShadow, buildingType: a.buildingType, edge: a.edge, footprint: a.footprint, cellPart: a.label, tileOverride: override })
     }
@@ -3066,11 +2875,11 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
         if (stage.collision[r]?.[c] !== undefined) grid.setCollision(c, r, stage.collision[r][c])
       }
     }
-    // A BUILDING is just TILES: stamp each GENERATED building the SAME way a hand-placed one is
-    // (stampBuildingCells → one `type:'building'` asset PER BLOCK), so generated + placed buildings render
-    // through the identical per-block path in all three views. The generator's flat per-cell building props
-    // were skipped above; grid.buildings holds the metadata this rebuilds each column of blocks from.
-    for (const b of grid.buildings) stampBuildingCells(grid, b, stage.zone)
+    // A BUILDING is just TILES: stamp each GENERATED building as its backend COMPOSITION's per-cell tiles
+    // (stampBuildingComposition → one asset per cell+level of house_4 / store_5 / …), rotated to face its
+    // road — the SAME stamp trees use. b.col + b.row are the footprint TOP-LEFT-col and BOTTOM row, so back
+    // the row off its height to anchor the composition at the footprint top-left.
+    for (const b of stage.buildings) stampBuildingComposition(grid, b.type, b.length, b.col, b.row - (b.height - 1), stage.zone, b.facing)
     // A TREE is just TILES too: stamp each recorded tree ANCHOR as a rich stacked composition
     // (stampComposition → one asset per cell+level of tree_small / tree_dead), the SAME per-block path
     // buildings use — so every generated tree is 100% backend DB tiles AND each tile is individually
@@ -3132,7 +2941,6 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
     if (variant === 'cave') seedStageEnemies(grid, CAVE_ENEMY_TYPES, 'cave') // bats/spiders/skeletons
     if (variant === 'temple') seedStageEnemies(grid, TEMPLE_ENEMY_TYPES, 'temple') // skeletons/guardians/wraiths
     setSelectedCells(new Set())
-    deselectBuilding() // building indices were rebuilt → drop any stale selection
   }
 
   // Scatter archetype-appropriate enemies onto a freshly-generated dungeon floor (grouped by
@@ -3202,7 +3010,6 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
 
     // === STEP 1: Clear grid with natural ground formations ===
     grid.clearAssets()
-    grid.buildings = [] // rebuilt below as STRUCTURED buildings (walls+roof), populated in STEP 6
     const baseGround = getBaseGround()
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols; c++) {
@@ -3527,14 +3334,19 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
       for (let i = 0; i < numBuildings && validSpots.length > 0; i++) {
         const spotIdx = Math.floor(Math.random() * validSpots.length)
         const spot = validSpots.splice(spotIdx, 1)[0]
-        // A real STRUCTURED building (walls + roof + door), NOT a flat brick block: iso extrudes a 3D
-        // house and 2D draws a proper facade. The type sets the size; face the nearest road so the door
-        // fronts it. canPlaceBuilding rejects overlaps/roads/water/out-of-bounds (skip → fewer, never bad).
+        // Stamp a pre-built building COMPOSITION (its wall/window/door/roof tiles), rotated to face the
+        // nearest road — the SAME data-driven stamp trees + the town generator use, no procedural unit.
+        // canPlaceBuildingComposition rejects overlaps/roads/water/out-of-bounds (skip → fewer, never bad).
         const type = HOUSE_TYPES[Math.floor(Math.random() * HOUSE_TYPES.length)]
-        const b = makeBuilding(type, nearestRoadFacing(grid, spot.x, spot.y), spot.x, spot.y)
-        if (!canPlaceBuilding(buildingPlacementEnv(grid, -1, new Set()), b)) continue
-        stampBuildingCells(grid, b, genZoneRef.current)
-        grid.buildings.push(b)
+        const length = BUILDING_PLACE_LENGTH[type]
+        const kind = buildingCompositionKind(type, length)
+        const facing = nearestRoadFacing(grid, spot.x, spot.y)
+        const fp = buildingFootprint(kind, facing)
+        if (!fp) continue // composition not loaded yet
+        const anchorCol = spot.x - Math.floor(fp.w / 2)
+        const anchorRow = spot.y - Math.floor(fp.h / 2)
+        if (!canPlaceBuildingComposition(grid, kind, anchorCol, anchorRow, facing)) continue
+        stampBuildingComposition(grid, type, length, anchorCol, anchorRow, genZoneRef.current, facing)
       }
     }
 
@@ -4002,10 +3814,7 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
       let newX = player.x
       let newZ = player.z
 
-      // While the Select tool holds a building, arrow keys nudge the BUILDING (handled
-      // by its own key listener) — so the live player ignores movement input here.
-      const editingBuilding = buildingToolRef.current === 'select' && selectedBuildingIndexRef.current != null
-      const mkeys: Record<string, boolean> = editingBuilding ? EMPTY_KEYS : keys
+      const mkeys: Record<string, boolean> = keys
 
       if (use2DMovement) {
         // 2D/Top view: simple grid movement (up=north, down=south, etc.)
@@ -4389,7 +4198,6 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
         ...assetsData,
         ...entitiesToAssets(entities),
         ...questsToAssets(quests),
-        ...buildingsToAssets(grid.buildings), // grouped buildings ride along so load rebuilds the render
         ...styleToAssets(activeStyleId), // active art style rides as one off-grid marker (ASCII → none)
         ...cellTriggersToAssets(cellTriggers), // cell triggers (enter/interact) ride as off-grid markers
         ...groundColorToAssets(grid.groundColor), // per-cell floor colours ride as one off-grid marker
@@ -4476,13 +4284,12 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
       // animation list follows the UNIT consistently and persists on the next save.
       const loadedEntities = withSeededPersonAnimations(entitiesFromAssets(gridRef.current!.assets))
       const loadedQuests = questsFromAssets(gridRef.current!.assets)
-      const loadedBuildings = buildingsFromAssets(gridRef.current!.assets)
       const loadedStyle = styleFromAssets(gridRef.current!.assets) // active art style marker (null → ASCII)
       const loadedCellTriggers = cellTriggersFromAssets(gridRef.current!.assets) // cell triggers (enter/interact)
       const loadedGroundColor = groundColorFromAssets(gridRef.current!.assets) // per-cell floor colours
       const loadedGroundDims = groundDimsFromAssets(gridRef.current!.assets) // per-cell floor dims (W/H/D/Zoom + pose)
       gridRef.current!.removeAssetsWhere(
-        a => isEntityAsset(a) || isQuestAsset(a) || isBuildingAsset(a) || isStyleAsset(a) || isTriggerAsset(a) || isGroundColorAsset(a) || isGroundDimsAsset(a),
+        a => isEntityAsset(a) || isQuestAsset(a) || isStyleAsset(a) || isTriggerAsset(a) || isGroundColorAsset(a) || isGroundDimsAsset(a),
       )
       // Restore per-cell floor colours: clear any stale overrides (a reused grid keeps the last map),
       // then apply the saved ones. setGroundColor bumps groundVersion so the cached ground layer rebuilds.
@@ -4510,8 +4317,8 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
       }
       setActiveStyleId(styleById(loadedStyle).id) // restore the saved global skin (defaults to ASCII)
       setCellTriggers(loadedCellTriggers) // restore the authored cell triggers
-      // Restore the grouped buildings so iso/2D/top render the upright model, not the per-cell fallback.
-      gridRef.current!.buildings = loadedBuildings
+      // Buildings are just their stamped per-cell tiles now (regular assets, like trees), so they
+      // deserialize with the rest of grid.assets — no grouped-building marker to restore.
       setEntities(loadedEntities)
       setQuests(loadedQuests)
 
@@ -4845,7 +4652,7 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
         {/* Multi-select hint — plain drag pans, so bulk cell-select needs Shift. Shown only while idle in
             select mode (nothing picked yet) so it nudges without cluttering once you're working. */}
         {showSidebars && !playMode && !showFlowView && !showGamesView && editorMode === 'select'
-          && selectedCells.size === 0 && !selectedEntityId && selectedBuildingIndex == null && !editingConnector && (
+          && selectedCells.size === 0 && !selectedEntityId && !editingConnector && (
           <div className="pointer-events-none fixed bottom-6 left-1/2 z-20 -translate-x-1/2 rounded-full border border-white/10 bg-black/70 px-3 py-1.5 text-[11px] text-gray-300 shadow-lg shadow-black/40">
             <span className="font-bold text-yellow-300">⇧ Shift + drag</span> to select cells · plain drag pans
           </div>
@@ -5259,16 +5066,10 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
             {editorMode === 'building' && (
               <Card title="Buildings" accent="orange">
                 <p className="mb-2 text-[10px] text-gray-500">
-                  Select a building to move (arrow keys), rotate (R), or delete. Place a new one with a type tool.
+                  Pick a building and click the map to STAMP its tiles (like placing a tree/prop). It faces the
+                  nearest road. Edit its wall/roof/door cells with the normal cell + tile tools.
                 </p>
                 <div className="grid grid-cols-6 gap-1">
-                  <EntityToolButton
-                    label="Select"
-                    glyph="◎"
-                    active={buildingTool === 'select'}
-                    activeClass="bg-yellow-600 text-black"
-                    onClick={() => toggleBuildingTool('select')}
-                  />
                   <EntityToolButton
                     label="House"
                     glyph="⌂"
@@ -5318,26 +5119,12 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
                     activeClass="bg-stone-600"
                     onClick={() => toggleBuildingTool('place-castle')}
                   />
-                  <EntityToolButton
-                    label="Delete"
-                    glyph="✕"
-                    active={buildingTool === 'delete'}
-                    activeClass="bg-red-700"
-                    onClick={() => toggleBuildingTool('delete')}
-                  />
                 </div>
 
-                {/* A selected building's settings (rotate / delete / door side) now live in the
-                    right Inspector — the left panel keeps only the place/select/delete tools. */}
                 <p className="mt-3 border-t border-white/10 pt-2 text-[10px] leading-tight text-gray-500">
-                  {selectedBuildingIndex != null
-                    ? 'Selected — its settings are in the Inspector on the right.'
-                    : buildingTool === 'select' ? 'Click a building to select it — its settings open in the Inspector.' : 'No building selected.'}
+                  A building is just its cells — there is no whole-building move/rotate/resize/delete. To
+                  change one, edit its cells or clear them and stamp a new building.
                 </p>
-
-                <div className="mt-3 flex items-center justify-between border-t border-white/10 pt-2 text-[10px] text-gray-400">
-                  <span>{gridRef.current?.buildings.length ?? 0} buildings</span>
-                </div>
               </Card>
             )}
 
@@ -5416,11 +5203,11 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
 
             {(() => {
               // Stage B — the Inspector MORPHS to the current selection. Precedence:
-              // unit → building → connector → cell → nothing. Each branch renders the SAME
-              // edit bodies/handlers the old modals/left-cards used, now inline + collapsible.
-              // Nothing selected falls through to the stage settings below.
+              // unit → connector → cell → nothing. Each branch renders the SAME edit bodies/handlers the old
+              // modals/left-cards used, now inline + collapsible. A building is NOT a selectable unit — its
+              // individual cells are edited through the CELL inspector below. Nothing selected falls through
+              // to the stage settings.
               const selEntity = entities.find(e => e.id === selectedEntityId)
-              const selBuilding = selectedBuildingIndex != null ? gridRef.current?.buildings[selectedBuildingIndex] : undefined
 
               // ── UNIT (player / enemy / npc) ───────────────────────
               if (selEntity) {
@@ -5603,46 +5390,6 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
                 )
               }
 
-              // ── BUILDING ──────────────────────────────────────────
-              if (selBuilding) {
-                const facing = gridBuildingFacing(selBuilding)
-                const door = buildingFootprintCells(selBuilding).door
-                return (
-                  <div key={`bld-insp-${selectedBuildingIndex}-${buildingVersion}`} className="flex flex-col gap-3">
-                    <SelectionHeader kind="building" label={`${selBuilding.type} (building)`} coords={`facing ${facing}`} />
-                    <Card title="Type & door side" accent="orange">
-                      <div className="space-y-2 text-xs">
-                        <p className="text-[10px] text-gray-400">
-                          footprint {selBuilding.length}×{selBuilding.height} · facade {facadeLength(selBuilding)} · depth {selBuilding.depth} · door @ {door.col},{door.row}
-                        </p>
-                        <div className="flex items-center gap-1">
-                          <span className="text-[10px] text-gray-400">Length</span>
-                          <button onClick={() => resizeSelectedBuilding(-1)} disabled={facadeLength(selBuilding) <= 3} className="rounded bg-orange-700 px-2 py-1 text-xs font-bold enabled:hover:bg-orange-600 disabled:cursor-not-allowed disabled:bg-gray-800/60 disabled:text-gray-600" title="Make the house shorter (min 3 cells)">−</button>
-                          <span className="w-14 text-center text-xs font-bold tabular-nums">{facadeLength(selBuilding)} cells</span>
-                          <button onClick={() => resizeSelectedBuilding(1)} disabled={facadeLength(selBuilding) >= 8} className="rounded bg-orange-700 px-2 py-1 text-xs font-bold enabled:hover:bg-orange-600 disabled:cursor-not-allowed disabled:bg-gray-800/60 disabled:text-gray-600" title="Make the house longer (max 8 cells) — iso re-extrudes it">＋</button>
-                        </div>
-                        <div className="flex gap-1">
-                          <button onClick={rotateSelectedBuilding} className="flex-1 rounded bg-orange-700 px-2 py-1 text-xs font-bold hover:bg-orange-600" title="Rotate the door side south→east→north→west (R)">⟳ Rotate door</button>
-                          <button onClick={deleteSelectedBuilding} className="flex-1 rounded bg-red-800 px-2 py-1 text-xs font-bold hover:bg-red-700" title="Delete this building (Del)">Delete</button>
-                          <button onClick={deselectBuilding} className="rounded bg-gray-700 px-2 py-1 text-xs hover:bg-gray-600">Deselect</button>
-                        </div>
-                        <p className="text-[10px] text-gray-500">Arrow keys nudge it a cell · R rotates · −/＋ resize · Del removes.</p>
-                      </div>
-                    </Card>
-                    <Card title="Art (walls / roof)" accent="cyan" defaultOpen={false} sectionId="art" focus={sectionFocus}>
-                      <p className="text-[10px] leading-tight text-gray-500">
-                        Walls, roof, doors &amp; windows follow the global <span className="font-bold text-cyan-300">{activeStyle.name}</span> style
-                        (switch it in the top bar 🎨). Per-building tile overrides land in a later update.
-                      </p>
-                    </Card>
-                    <Card title="Animation" accent="cyan" defaultOpen={false} sectionId="animation" focus={sectionFocus}>
-                      <p className="text-[10px] leading-tight text-gray-500">
-                        Building animation presets ride in with the art system — coming in a later update.
-                      </p>
-                    </Card>
-                  </div>
-                )
-              }
 
               // ── CONNECTOR (migrated from the left panel form) ─────
               if (editingConnector) {
@@ -5792,7 +5539,7 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
                         // CHARACTER on it — the SAME model select/pick use, so a clicked wall or unit lands on a
                         // real tile here with NO per-type branch. The SELECTED level (selectedTileLevel, clamped)
                         // picks the ONE tile shown; floor/asset values stay shared across the whole selection.
-                        const stack = getStack(grid, fc.col, fc.row, { buildings: grid.buildings, entities })
+                        const stack = getStack(grid, fc.col, fc.row, { entities })
                         const levelCount = stack.length
                         const lvl = Math.min(Math.max(selectedTileLevel, 0), levelCount - 1)
                         // Shared floor dim across the selection (grid.groundDims; unset→1; null = mixed).
@@ -5863,10 +5610,10 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
                         } else {
                           // A BUILDING block (wall / window / door / roof) or a CHARACTER on the cell — shown as a
                           // TILE with the SAME group as a tree: its name, Open Tile Library, colour, W/H/D/Zoom.
-                          // DISPLAY-ONLY for now: a building's tiles live on the GridBuilding (walls = stacked wall
-                          // tiles up its floors) and a unit lives in the entities store, so writing size/colour BACK
-                          // to those stores is the next step — the dim/colour handlers are deliberately inert (not
-                          // faked) so selection + display are honest and no edit silently no-ops into the floor.
+                          // A building block is now a plain stacked ASSET (like a tree cell) and a unit lives in
+                          // the entities store; DISPLAY-ONLY for now — writing size/colour BACK to the asset/entity
+                          // is the next step, so the dim/colour handlers are deliberately inert (not faked) so
+                          // selection + display are honest and no edit silently no-ops into the floor.
                           const entry = stack[lvl] as TileEntry | undefined
                           tile = {
                             key: `${entry?.source ?? 'tile'}-${lvl}`,
@@ -5879,8 +5626,8 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
                             },
                             color: entry?.color ?? null,
                             colorFallback: entry?.color ?? '#8a8a8a',
-                            onDim: () => {}, // write-back to the GridBuilding / entity store → next step
-                            onColor: () => {}, // write-back to the GridBuilding / entity store → next step
+                            onDim: () => {}, // write-back to the asset / entity store → next step
+                            onColor: () => {}, // write-back to the asset / entity store → next step
                             override: entry?.tileId ?? selectedOverride,
                             styleName: activeStyle.name,
                             onOpenLibrary: () => setTileLibraryOpen(true),

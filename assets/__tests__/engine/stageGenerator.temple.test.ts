@@ -1,6 +1,9 @@
 import { generateStage } from '@/engine/stageGenerator'
 import { scatterEntities, TEMPLE_ENEMY_TYPES } from '@/game/spawner'
 import type { ZoneId } from '@/engine/zones'
+import { useSeedTileset } from '@/__tests__/helpers/tilesetSeed'
+import { resolveComposition } from '@/engine/tileset/tileset'
+import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 
 // 4-neighbour flood fill over walkable cells — proves the open floor is ONE region.
 function reachableCount(collision: boolean[][], start: { col: number; row: number }): number {
@@ -193,7 +196,9 @@ describe('generateStage — temple interior: seeded enemies land on floor cells'
   })
 })
 
-describe('generateStage — temple STRUCTURE: a grand settlement building', () => {
+describe('generateStage — temple STRUCTURE: a grand settlement building composition', () => {
+  useSeedTileset() // the temple_8 composition comes from the loaded backend tileset for this describe
+
   // The overworld temple is a BUILDING TYPE placed in settlements (like store/hospital). Generate
   // a few cities (ample room for its bigger footprint) and grab a temple building to verify it.
   const findTempleBuilding = () => {
@@ -205,20 +210,18 @@ describe('generateStage — temple STRUCTURE: a grand settlement building', () =
     return null
   }
 
-  it('stamps the temple footprint as collision, walkable only across its full drawn door width', () => {
+  it('stamps the temple footprint as collision, walkable only across its single door', () => {
     const found = findTempleBuilding()
     expect(found).not.toBeNull()
     const { stage, temple: b } = found!
+    expect(b.kind).toBe('temple_8')
     // footprint = cols [col, col+length) × rows [row-(height-1), row]
     const cells: { col: number; row: number }[] = []
     const top = b.row - (b.height - 1)
     for (let r = top; r <= b.row; r++) for (let c = b.col; c < b.col + b.length; c++) cells.push({ col: c, row: r })
-    // A temple's ceremonial door is WIDE (doorWidth 3). Axis-aligned facades open the door's full drawn
-    // width as walkable cells; rotated (east/west) 2D facades collapse the door to one edge cell.
-    const axis = b.facing === 'south' || b.facing === 'north'
-    expect(b.doorCells).toHaveLength(axis ? b.facade.door.width : 1)
+    expect(b.doorCells).toHaveLength(1) // one walkable door
     const doorSet = new Set(b.doorCells.map(d => `${d.col},${d.row}`))
-    for (const d of b.doorCells) expect(stage.collision[d.row][d.col]).toBe(false) // every door cell is a way in
+    for (const d of b.doorCells) expect(stage.collision[d.row][d.col]).toBe(false) // the door is a way in
     // every OTHER footprint cell blocks
     for (const c of cells) {
       const isDoor = doorSet.has(`${c.col},${c.row}`)
@@ -226,14 +229,16 @@ describe('generateStage — temple STRUCTURE: a grand settlement building', () =
     }
   })
 
-  it('reads as a grander, colonnaded structure (bigger than a house, with column bays)', () => {
+  it('reads as a grander, colonnaded structure (bigger footprint + many window bays in its composition)', () => {
     const found = findTempleBuilding()
     expect(found).not.toBeNull()
     const { temple: b } = found!
-    expect(b.facade.length).toBeGreaterThanOrEqual(8) // wide grand facade
-    expect(b.facade.height).toBeGreaterThanOrEqual(8) // tall (3 floors + roof)
-    // colonnade = open 'window' bays between wall pillars on the body rows
-    const hasBays = b.facade.cells.some(row => row.includes('window'))
-    expect(hasBays).toBe(true)
+    // the temple footprint's facade span is wide (8), far bigger than a house
+    const facadeSpan = b.facing === 'south' || b.facing === 'north' ? b.length : b.height
+    expect(facadeSpan).toBeGreaterThanOrEqual(8)
+    // colonnade = MANY open 'window' bays in the baked composition (a grand pillared facade)
+    const comp = resolveComposition(ASCII_TILESET, 'temple_8')
+    expect(comp).not.toBeNull()
+    expect(comp!.cells.filter(c => c.label === 'window').length).toBeGreaterThan(20)
   })
 })

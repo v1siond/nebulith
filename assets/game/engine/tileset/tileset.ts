@@ -92,11 +92,15 @@ export interface CompositionCell {
   walkable?: boolean
 }
 
-/** A multi-cell asset TEMPLATE: a footprint + one tile per cell. The data-driven replacement for the
- *  frontend composeBuilding / make* factories — stored in the DB tileset, stamped by stampComposition. */
+/** A multi-cell asset TEMPLATE: a footprint + one tile per cell. The data-driven replacement for the retired
+ *  frontend building/tree factories — stored in the DB tileset, stamped by stampComposition. */
 export interface Composition {
   footprint: { w: number; h: number }
   cells: readonly CompositionCell[]
+  /** OPTIONAL human NAME (served from the DB `compositions.title`) — a store's "Store", a hospital's
+   *  "Hospital". When set, the stamp badges the building's roof apex with it (apex signage). Absent for
+   *  houses/trees/others → no badge. */
+  title?: string
 }
 
 export interface Tileset {
@@ -108,8 +112,8 @@ export interface Tileset {
   palettes: Readonly<Record<string, ZonePalette>>
   /** Ground/terrain tiles keyed by ground type. */
   terrain: Readonly<Record<string, GroundTile>>
-  /** Optional multi-cell COMPOSITIONS keyed by asset kind (tree_small, house, fountain…) — a footprint of
-   *  cells each holding one tile. The stamp places one per-cell asset per cell (data-driven composeBuilding). */
+  /** Optional multi-cell COMPOSITIONS keyed by asset kind (tree, house_4, store_5…) — a footprint of cells
+   *  each holding one tile. The stamp places one per-cell asset per cell (a data-driven building/tree). */
   compositions?: Readonly<Record<string, Composition>>
 }
 

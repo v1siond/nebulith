@@ -12,7 +12,7 @@
  * distribution, facing, and no-overlap are all unit-testable. The stage generator carves the
  * roads, stamps each building ORIENTED by its facing, then fills nature around it.
  */
-import { type BuildingType, composeBuilding } from './buildingComposer'
+import { type BuildingType } from './buildingTypes'
 import { clamp, randIntWith as randInt } from '@/lib/math'
 
 export type Rng = () => number
@@ -28,11 +28,9 @@ export interface Plot {
   type: BuildingType
   /** Road-PARALLEL footprint width (the frontage span). */
   length: number
-  /** Ground footprint depth — perpendicular extent (away from the road). Small / square-ish,
-   *  DECOUPLED from `height`. The footprint is `length × depth`. */
+  /** Ground footprint depth — perpendicular extent (away from the road). Small / square-ish.
+   *  The footprint is `length × depth` (matches the baked composition's footprint). */
   depth: number
-  /** Facade vertical elevation (iso rise only; NOT the ground footprint). */
-  height: number
   facing: Facing
 }
 export interface Entrance {
@@ -90,9 +88,14 @@ const GRID: Record<Settlement, { h: number; v: number }> = {
 // instead of squeezing the fountain into leftovers. A city's square is bigger (grander fountain).
 const PLAZA_SIZE: Record<Settlement, number> = { town: 5, city: 7 }
 
-// MUST match buildingComposer TYPE_SPECS.baseLength so a plot reserves exactly the facade width.
+// MUST match the baked building composition sizes (Nebulith.Catalog.BuildingCompositions) so a plot
+// reserves exactly the footprint a stamp fills. `length` is the road-parallel facade span; `depth` is the
+// perpendicular footprint extent (= the composition's south-facing footprint_h). Houses roll a width in
+// HOUSE_WIDTHS (3/4/5), so house_3/4/5 must all exist; the rest use their single baked size.
 const BUILDING_LENGTH: Partial<Record<BuildingType, number>> = { house: 4, 'big-house': 6, store: 5, hospital: 6, temple: 8 }
 const lengthOf = (t: BuildingType): number => BUILDING_LENGTH[t] ?? 8
+const BUILDING_DEPTH: Partial<Record<BuildingType, number>> = { house: 4, 'big-house': 4, store: 4, hospital: 4, temple: 4, cathedral: 5, castle: 6 }
+const depthOf = (t: BuildingType): number => BUILDING_DEPTH[t] ?? 4
 
 // Realistic lot rules (subdivision design): a SETBACK (front-yard cells between the building and
 // the street) and a LOT_GAP (side-yard cells between neighbours). The door faces the road across
@@ -326,13 +329,13 @@ export function placePlots(roads: boolean[][], frontages: Frontage[], cols: numb
       let guard = 0
       while (pos + 2 <= topSouth.hi && guard++ < 1000) {
         const len = plotWidth(type, rng)
-        const composed = composeBuilding({ type, length: len })
-        const foot = footprint(topSouth, pos, len, composed.depth)
+        const depth = depthOf(type)
+        const foot = footprint(topSouth, pos, len, depth)
         const reserve = expandRect(foot, 1)
         if (!rectClear(reserve, occ, cols, rows)) { pos += 1; continue }
         for (let r = Math.max(0, reserve.r0); r < Math.min(rows, reserve.r0 + reserve.h); r++)
           for (let c = Math.max(0, reserve.c0); c < Math.min(cols, reserve.c0 + reserve.w); c++) occ[r][c] = true
-        plots.push({ col: foot.c0, row: foot.r0, type, length: len, depth: composed.depth, height: composed.height, facing: topSouth.facing })
+        plots.push({ col: foot.c0, row: foot.r0, type, length: len, depth, facing: topSouth.facing })
         pos += len + randInt(rng, gapLo, gapHi)
         const idx = pending.indexOf(type)
         if (idx >= 0) pending.splice(idx, 1) // placed up front → don't re-place in the fill loop
@@ -362,8 +365,8 @@ export function placePlots(roads: boolean[][], frontages: Frontage[], cols: numb
       let placed = false
       for (const type of tryTypes) {
         const len = plotWidth(type, rng)
-        const composed = composeBuilding({ type, length: len })
-        const foot = footprint(f, pos, len, composed.depth)
+        const depth = depthOf(type)
+        const foot = footprint(f, pos, len, depth)
         // Reserve the footprint + a 1-cell margin on every side (the road-side cell is the setback
         // yard, never the street; the other sides are the no-touch buffer trees fill) so no two
         // buildings ever abut.
@@ -371,7 +374,7 @@ export function placePlots(roads: boolean[][], frontages: Frontage[], cols: numb
         if (!rectClear(reserve, occ, cols, rows)) continue
         for (let r = Math.max(0, reserve.r0); r < Math.min(rows, reserve.r0 + reserve.h); r++)
           for (let c = Math.max(0, reserve.c0); c < Math.min(cols, reserve.c0 + reserve.w); c++) occ[r][c] = true
-        plots.push({ col: foot.c0, row: foot.r0, type, length: len, depth: composed.depth, height: composed.height, facing: f.facing })
+        plots.push({ col: foot.c0, row: foot.r0, type, length: len, depth, facing: f.facing })
         if (type === want) pending.shift()
         pos += len + randInt(rng, gapLo, gapHi)
         count++

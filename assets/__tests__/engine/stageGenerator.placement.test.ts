@@ -1,6 +1,6 @@
 import { generateStage, treeColumnClearsPaving, doorCells } from '@/engine/stageGenerator'
 import { planVillage, type Plot } from '@/engine/villageLayout'
-import { composeBuilding } from '@/engine/buildingComposer'
+import { BUILDING_DEPTH } from '@/engine/buildingCatalog'
 
 // A deterministic LCG so the same seed reproduces the SAME layout in both the generator (via the
 // Math.random stub) and the standalone planVillage call we assert against.
@@ -57,34 +57,34 @@ describe('settlement building placement (consumer matches planner contract)', ()
         }
       }
 
-      // (b) Every ACTUALLY-stamped building cell sits off the roads (the small footprint never
-      //     spills onto the street it fronts).
-      const buildingCells = stage.props.filter(p => p.type === 'building')
-      expect(buildingCells.length).toBeGreaterThan(0)
-      for (const cell of buildingCells) {
-        expect(cell.row).toBeGreaterThanOrEqual(0)
-        expect(cell.col).toBeGreaterThanOrEqual(0)
-        expect(cell.row).toBeLessThan(ROWS)
-        expect(cell.col).toBeLessThan(COLS)
-        expect(layout.roads[cell.row][cell.col]).toBe(false)
+      // (b) Every ACTUALLY-stamped building sits off the roads (the small footprint never spills onto the
+      //     street it fronts) — checked over the footprint rect from stage.buildings (no flat props now).
+      expect(stage.buildings.length).toBeGreaterThan(0)
+      for (const b of stage.buildings) {
+        const top = b.row - (b.height - 1)
+        for (let r = top; r <= b.row; r++) {
+          for (let c = b.col; c < b.col + b.length; c++) {
+            expect(r).toBeGreaterThanOrEqual(0)
+            expect(c).toBeGreaterThanOrEqual(0)
+            expect(r).toBeLessThan(ROWS)
+            expect(c).toBeLessThan(COLS)
+            expect(layout.roads[r][c]).toBe(false)
+          }
+        }
       }
 
-      // (c) STRONGER: collision == the small width×depth footprint. Every footprint cell BLOCKS
-      //     except the single walkable door, and the footprint depth is the composer's small depth.
+      // (c) STRONGER: collision == the small width×depth footprint. Every footprint cell BLOCKS except the
+      //     single walkable door, and the footprint depth is the composition's baked (small) depth.
       for (const b of stage.buildings) {
-        const depth = composeBuilding({ type: b.type, length: b.facade.length }).depth
         const horizontal = b.facing === 'south' || b.facing === 'north'
-        expect(horizontal ? b.height : b.length).toBe(depth) // grid row/col-span perpendicular = depth
+        expect(horizontal ? b.height : b.length).toBe(BUILDING_DEPTH[b.type]) // perpendicular span = depth
         const top = b.row - (b.height - 1)
         let blocked = 0
         for (let r = top; r <= b.row; r++) {
           for (let c = b.col; c < b.col + b.length; c++) if (stage.collision[r][c]) blocked++
         }
-        // south/north facades draw the door at its FULL width, so the walkable entrance is that wide;
-        // rotated (east/west) 2D facades collapse the door to 1 cell, so the opening stays 1 there.
-        const axis = b.facing === 'south' || b.facing === 'north'
-        expect(b.doorCells).toHaveLength(axis ? b.facade.door.width : 1)
-        for (const d of b.doorCells) expect(stage.collision[d.row][d.col]).toBe(false) // every door cell walkable
+        expect(b.doorCells).toHaveLength(1) // every baked composition has ONE door
+        for (const d of b.doorCells) expect(stage.collision[d.row][d.col]).toBe(false) // the door cell is walkable
         expect(blocked).toBe(b.length * b.height - b.doorCells.length) // every NON-door footprint cell blocks
       }
     })
@@ -169,14 +169,14 @@ describe('settlement building placement (consumer matches planner contract)', ()
     expect(doorCells('west', rect, { x: 2, width: 2 })).toEqual([{ col: 10, row: 22 }])
   })
 
-  test('an axis-aligned door opens its FULL drawn width — no walkable-half/blocked-half 2-wide door', () => {
+  test('every building opens exactly ONE walkable door on its road-facing edge', () => {
     for (const seed of [12345, 777, 42, 1, 2, 3]) {
       const { stage } = genWithSeed('town', seed)
       const axisBuildings = stage.buildings.filter(b => b.facing === 'south' || b.facing === 'north')
       expect(axisBuildings.length).toBeGreaterThan(0)
       for (const b of axisBuildings) {
-        expect(b.doorCells.length).toBe(b.facade.door.width) // walkable opening == the DRAWN door width
-        for (const d of b.doorCells) expect(stage.collision[d.row][d.col]).toBe(false) // all of it walkable
+        expect(b.doorCells).toHaveLength(1) // one door per baked composition
+        for (const d of b.doorCells) expect(stage.collision[d.row][d.col]).toBe(false) // the door is walkable
       }
     }
   })

@@ -16,7 +16,7 @@ import { EMOJI_TILESET } from '@/engine/tileset/emojiTileset'
 import { applyPose } from '@/engine/tileset/pose'
 import { resolveTileSize, resolveTilePose } from '@/engine/tileset/tileViewSettings'
 import { Connector } from '@/lib/api'
-import { ASCII_FONT, BUILDING_BADGES, COMBAT_RANGE, type DayNight, ENEMY_MOVE_MS, LAMP_GLOW, applyCellTransform, clampCameraAxis, assetCaptionByCell, terrainLabelAt, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawHoverRing, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawConnectorMarker, drawAttackAnimFrame, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, frameImage, getPlayerArt, grassShade, cellFill, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, resolveAssetDraw, resolveEntityDraw, assetOverride, labelTileImage, labelTileRecolor, treeCanopyLayers, treeCellSet } from './shared'
+import { ASCII_FONT, COMBAT_RANGE, type DayNight, ENEMY_MOVE_MS, LAMP_GLOW, applyCellTransform, clampCameraAxis, assetCaptionByCell, terrainLabelAt, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawHoverRing, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawConnectorMarker, drawAttackAnimFrame, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, frameImage, getPlayerArt, grassShade, cellFill, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, resolveAssetDraw, resolveEntityDraw, assetOverride, labelTileImage, labelTileRecolor, treeCanopyLayers, treeCellSet } from './shared'
 import { resolveAssetDrawSize } from './assetDimensions'
 import { groundSizeFactors, groundDimsActive, type GroundCellDims } from '@/engine/groundDims'
 import { getStack } from '@/engine/cellStack'
@@ -401,11 +401,10 @@ export function render2D(
     asset?: GridAsset
   }> = []
 
-  // A BUILDING is just TILES: stampBuildingCells places one plain `type:'structure'` asset per BLOCK, so a
-  // building's walls/windows/door/roof render through the SAME per-cell asset path (draw2DLabeledCell) as any
-  // stacked tile, at its OWN cell — no front-elevation projection, no special drawer, and NO grid.buildings read.
-  // A blocked building cell tints on its own grounded square like any collision cell. grid.buildings stays only
-  // as the building's metadata (whole-building ops).
+  // A BUILDING is just TILES: a pre-built building is stamped as its composition's per-cell assets, so its
+  // walls/windows/door/roof render through the SAME per-cell asset path (draw2DLabeledCell) as any stacked
+  // tile, at its OWN cell — no front-elevation projection, no special drawer, and no grouped-building array.
+  // A blocked building cell tints on its own grounded square like any collision cell.
 
   // Add assets — building blocks included, so they render per-block through the asset path below.
   const visibleAssets = grid.getVisibleAssets(
@@ -701,8 +700,8 @@ export function render2D(
         const isCollision = grid.collision[row]?.[col]
 
         // EVERY blocked cell tints its own grounded square — a building's wall cell exactly like a tree/water
-        // cell (no raised-facade overlay, no grid.buildings read). The stamped HOLLOW footprint blocks only WALL
-        // cells, so the tint reads as the building's solid shell with the walkable door/interior left clear.
+        // cell (no raised-facade overlay, no grouped-building read). The stamped HOLLOW footprint blocks only
+        // WALL cells, so the tint reads as the building's solid shell with the walkable door/interior clear.
         if (isCollision) {
           ctx.fillStyle = 'rgba(255, 50, 50, 0.4)'
           ctx.fillRect(p.x - tileW / 2, p.y - tileH / 2, tileW, tileH)

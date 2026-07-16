@@ -1,9 +1,7 @@
 import { player as playerSprite } from '@/assets/ascii'
-import { GridAsset, GridBuilding, IsometricGrid } from '@/engine/IsometricGrid'
+import { GridAsset, IsometricGrid } from '@/engine/IsometricGrid'
 import { assetAnimFrame, assetCycleFrame } from '@/engine/assetAnimations'
 import { type AttackAnim, animFrame } from '@/engine/attackAnimations'
-import { type BuildingType } from '@/engine/buildingComposer'
-import { facadeToFootprint, buildingRect, doorCellFor, gridBuildingFacing } from '@/engine/buildingEditor'
 import { type Facing } from '@/engine/villageLayout'
 import { assetCellTransform } from '@/engine/cellAnimation'
 import { isGroundContact } from '@/engine/cellLabels'
@@ -498,10 +496,9 @@ export function render(
   // assets/player and draw as glyphs on top of their cell.
   const pCol = player.x / cellSize
   const pRow = player.z / cellSize
-  // A BUILDING is just TILES: stampBuildingCells places one plain `type:'structure'` asset per BLOCK (like a
-  // tree cell), so a building's walls/windows/door/roof flow into the draw list through the SAME `asset` path
-  // as any stacked tile — no building-specific collect/filter/drawer, and the render never reads grid.buildings.
-  // grid.buildings stays ONLY as the building's metadata for whole-building ops (move/rotate/resize/delete).
+  // A BUILDING is just TILES: a pre-built building is stamped as its composition's per-cell assets (like a
+  // tree cell), so its walls/windows/door/roof flow into the draw list through the SAME `asset` path as any
+  // stacked tile — no building-specific collect/filter/drawer, and no grouped-building array to read.
   const allObjects: { col: number; row: number; isPlayer?: boolean; asset?: GridAsset; entity?: Entity; moving?: boolean; inRange?: boolean }[] = [
     ...visibleAssets.map(a => ({ col: a.col, row: a.row, asset: a })),
     // The player ENTITY is drawn as the live sprite below (isPlayer), so skip it here
@@ -523,7 +520,7 @@ export function render(
   // Render each object with ASCII art style
   const playerIsTarget = !!targetId && entities.some(e => e.kind === 'player' && e.id === targetId)
   const playerIsHover = !!hoverId && entities.some(e => e.kind === 'player' && e.id === hoverId)
-  // Proximity reveal is a GENERIC per-tile behavior now — NO building special case, NO grid.buildings read.
+  // Proximity reveal is a GENERIC per-tile behavior now — NO building special case, no grouped-building read.
   // Any asset whose tile opted into settings.fadeNear eases translucent as the hero closes in, and
   // settings.cutawayRoof lifts the tile off entirely — each computed from the asset's OWN cell distance in the
   // draw loop below (fadeNearAlpha / cutawayAlpha). So a tree-leaf tile carrying fadeNear fades exactly like a wall.
@@ -1365,7 +1362,7 @@ export function faceWindowCount(span: number): number {
  *  stamped at the centroid so the render still resolves a tile. */
 
 
-export const ROOF_ROWS = 2 // facade roof is always the top 2 rows (mirrors composeBuilding)
+export const ROOF_ROWS = 2 // facade roof is always the top 2 rows (matches the baked building roof)
 
 export const ROOF_OVERHANG = 0.3 // peaked-roof eaves stick out past the walls
 
