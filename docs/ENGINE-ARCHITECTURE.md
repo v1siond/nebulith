@@ -40,12 +40,14 @@ same full-window canvas.
 | `ground[row][col]` | `string` | the floor tile type per cell (e.g. `grass`, `road`, `path_stone`) |
 | `height[row][col]` | `number` | **cell elevation in blocks** (0 = ground; the renders raise cells + draw cliff faces). `setHeight`/`getHeight`. |
 | `collision[row][col]` | `boolean` | blocks movement or not — independent of the tile |
-| `assets[]` | `GridAsset[]` | placed tiles (trees, props, **building blocks** `type:'building'` w/ `heightLevel`, markers) |
-| `buildings[]` | `GridBuilding[]` | grouped-building **metadata** for whole-building ops (move/rotate/resize/delete) — **not** a render source |
+| `assets[]` | `GridAsset[]` | placed tiles (trees, props, **building blocks** `type:'<composition kind>'` w/ `heightLevel`, markers) |
 
-A building is **not** special: `stampBuildingCells` decomposes it into one `type:'building'` asset **per
-block** (walls stacking by `heightLevel`, roof = a gable tile stack), which then render through the same
-per-cell path as any tile in all three views.
+A building is **not** special and **not** a grouped unit — there is no `buildings[]` array. A pre-built
+building is a backend **composition template** stamped by `stampBuildingComposition` into one asset **per
+block** (walls stacking by `heightLevel`, roof = a gable tile stack topped by the walkable `roof_top` apex),
+which then render through the same per-cell path as any tile in all three views. The old facade composer,
+`GridBuilding` metadata, `stampBuildingCells`, and the whole-building move/rotate/resize/delete ops are
+retired — a building is just its cells.
 
 ## 3. Render pipeline (`src/engine/render/*`)
 

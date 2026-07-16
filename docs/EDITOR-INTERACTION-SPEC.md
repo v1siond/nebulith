@@ -47,7 +47,7 @@ Current editor has TOO MUCH vertical scrolling. Target:
 **Bug:** selecting N cells then clicking e.g. "Well" stamps a **fixed 4-cell** `COMPOSITE_ASSETS`
 shape (`placeCompositeAsset`), ignoring the selection — and it's not persisted to the template nor
 visible in iso/2D. **Requirement:** a composite/structure must **scale to the selected cells** (40
-selected → a 40-cell well), like buildings via `composeBuilding`, be added as real grid assets
+selected → a 40-cell well), like a building stamped from its backend composition, be added as real grid assets
 (labeled, per the keystone), persist in the template, and render in all three views.
 
 ## 7. Art styles

@@ -52,6 +52,7 @@ defmodule NebulithWeb.TilesetJSON do
   defp comp_data(c) do
     %{
       footprint: %{w: c.footprint_w, h: c.footprint_h},
+      title: c.title,
       cells:
         Enum.map(
           c.cells,

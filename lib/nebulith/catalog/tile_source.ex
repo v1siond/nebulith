@@ -16,6 +16,7 @@ defmodule Nebulith.Catalog.TileSource do
   """
 
   alias Nebulith.Catalog
+  alias Nebulith.Catalog.BuildingCompositions
   alias Nebulith.Catalog.Tileset
   alias Nebulith.Repo
 
@@ -48,9 +49,11 @@ defmodule Nebulith.Catalog.TileSource do
     seed_glyph_tiles(ascii["tiles"], ascii_id, ascii["palettes"])
     seed_terrain_tiles(ascii["terrain"], ascii_id)
     seed_decor_tiles(ascii_id)
+    seed_building_tiles(ascii_id)
     seed_emoji_tiles(emoji, emoji_id)
     seed_compositions(ascii["compositions"])
     seed_new_compositions()
+    seed_building_compositions()
 
     ascii_count = length(Catalog.list_tiles_for("ascii"))
     emoji_count = length(Catalog.list_tiles_for("emoji"))
@@ -189,6 +192,77 @@ defmodule Nebulith.Catalog.TileSource do
     ]
   end
 
+  # ── Type-specific building tiles ──────────────────────────────────────────
+  # Restore the per-building-TYPE identity colours lost when buildings became generic compositions:
+  # a store's blue roof, a hospital's green roof + white walls, and per-house roof/wall variety are
+  # now DISTINCT tiles — each carries its colour in `settings.colors`, referenced by the building
+  # compositions (@type_tiles). NOT a shared tile recoloured by a variant index ("the tile itself is
+  # a variant, we need tiles for everything"). Colours are ZONE-INDEPENDENT (the same across every
+  # zone), matching the old fixed BUILDING_PALETTES — a store roof reads blue in every season. Each
+  # reuses the base building PNG (a white tint-target the ascii renderer recolours) + glyph, so only
+  # the colour differs, and inherits the base label's fade/cutaway behavior.
+
+  @all_zones ~w(spring summer autumn winter desert beach lava)
+
+  # base glyph per building part (ported from ascii.json's roof/roof_top/wall tiles).
+  @base_glyph %{"roof" => "▀", "roof_top" => "▔", "wall" => "█"}
+
+  @doc """
+  Seeds ONLY the type-specific building tiles into the ascii tileset.
+
+  Safe + idempotent (upsert by label) — touches nothing else, so it can run on the shared dev DB
+  without a full reseed.
+  """
+  def seed_building_tiles do
+    ascii_id = ensure_tileset("ascii", "ASCII").id
+    seed_building_tiles(ascii_id)
+    IO.puts("seeded #{length(building_tiles())} type-specific building tiles")
+    :ok
+  end
+
+  defp seed_building_tiles(tileset_id) do
+    for %{label: label, base: base, color: color} <- building_tiles() do
+      {:ok, _} =
+        Catalog.upsert_tile(%{
+          tileset_id: tileset_id,
+          label: label,
+          glyph: @base_glyph[base],
+          color_role: nil,
+          blocking: base != "roof_top",
+          height: 1,
+          category: "buildings",
+          image_url: "/tiles/ascii/#{base}.png",
+          settings:
+            %{"colors" => Map.new(@all_zones, &{&1, color})}
+            |> merge_behavior(base)
+        })
+    end
+  end
+
+  # The type tiles: {label, base part it reskins, its recovered zone-independent colour}. Store =
+  # blue roof + cream walls; hospital = green roof + white walls; houses vary (a/b/c) across
+  # house_3/4/5. Colours come straight from the old frontend BUILDING_PALETTES / HOUSE_ROOFS /
+  # HOUSE_WALLS.
+  defp building_tiles do
+    [
+      %{label: "roof_store", base: "roof", color: "#235a96"},
+      %{label: "roof_top_store", base: "roof_top", color: "#235a96"},
+      %{label: "wall_store", base: "wall", color: "#e2dcc8"},
+      %{label: "roof_hospital", base: "roof", color: "#2f7e50"},
+      %{label: "roof_top_hospital", base: "roof_top", color: "#2f7e50"},
+      %{label: "wall_hospital", base: "wall", color: "#f0f0ea"},
+      %{label: "roof_house_a", base: "roof", color: "#6e2820"},
+      %{label: "roof_top_house_a", base: "roof_top", color: "#6e2820"},
+      %{label: "wall_house_a", base: "wall", color: "#e6d6b0"},
+      %{label: "roof_house_b", base: "roof", color: "#33383f"},
+      %{label: "roof_top_house_b", base: "roof_top", color: "#33383f"},
+      %{label: "wall_house_b", base: "wall", color: "#b9c4a6"},
+      %{label: "roof_house_c", base: "roof", color: "#2f4233"},
+      %{label: "roof_top_house_c", base: "roof_top", color: "#2f4233"},
+      %{label: "wall_house_c", base: "wall", color: "#aebfcc"}
+    ]
+  end
+
   # ── Emoji tiles ───────────────────────────────────────────────────────────
 
   defp seed_emoji_tiles(emoji, tileset_id) do
@@ -248,6 +322,24 @@ defmodule Nebulith.Catalog.TileSource do
       {:ok, _} =
         Catalog.upsert_composition_with_cells(
           %{name: name, footprint_w: w, footprint_h: h},
+          cells
+        )
+    end
+  end
+
+  # ── Building compositions ─────────────────────────────────────────────────
+  # A pre-built building (house/store/hospital/…) is a composition TEMPLATE stamped
+  # as per-cell tiles, the SAME path trees use — not a procedural unit (MAP-MODEL §5,
+  # TILE-BACKEND-MIGRATION §4). The baked set (footprint + stacked wall/window/door/
+  # roof/roof_top cells) lives in Nebulith.Catalog.BuildingCompositions; here we upsert
+  # each idempotently, exactly like seed_new_compositions.
+
+  defp seed_building_compositions do
+    for {name, %{footprint_w: w, footprint_h: h, cells: cells} = comp} <-
+          BuildingCompositions.all() do
+      {:ok, _} =
+        Catalog.upsert_composition_with_cells(
+          %{name: name, footprint_w: w, footprint_h: h, title: Map.get(comp, :title)},
           cells
         )
     end

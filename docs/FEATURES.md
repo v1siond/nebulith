@@ -29,26 +29,32 @@ flowchart LR
 DATA, map the type in `groundKind` — never a hardcoded render branch. Files: `src/levels/village.ts`,
 `src/engine/tileset/emojiTileset.ts`, `src/game/artStyle.ts`, `src/engine/tileset/tilesetLoader.ts`.
 
-## 2. Buildings as stacked tiles
+## 2. Buildings as composition tiles
 
-A building is **not** a special render unit — `stampBuildingCells` decomposes it into one `type:'building'`
-tile **per block** (perimeter walls rising `floors`, a gable **roof tile stack**), which render through the
-regular per-cell path in all three views.
+A building is **not** a special render unit and **not** a procedural building unit — a pre-built building
+(house/store/hospital/…) is a backend **composition template** (`compositions` + `composition_cells`, see
+[`TILE-BACKEND-MIGRATION.md`](./TILE-BACKEND-MIGRATION.md) §4). Adding it **stamps its cells** via the SAME
+`stampComposition` path trees use: one labeled `type:'<kind>'` tile **per block** (perimeter walls rising its
+floors, a gable **roof tile stack** topped by the walkable `roof_top` apex), which render through the regular
+per-cell path in all three views. There is **no** whole-building move/rotate/resize/delete — a building is
+just its cells, edited with the ordinary cell/tile tools.
 
 ```mermaid
 flowchart TD
-  COMPOSE["composeBuilding() → facade grid (wall/window/door/roof cells)"]
-  COMPOSE --> STAMP["stampBuildingCells() → one 'building' asset per BLOCK<br/>(heightLevel = level; gableRoofLevels for the roof)"]
+  BAKE["backend composition (footprint + per-cell wall/window/door/roof/roof_top cells, one per stacked block)"]
+  BAKE --> STAMP["stampBuildingComposition() → one asset per composition cell<br/>(heightLevel = level; rotated to face the road)"]
   STAMP --> GRID[grid.assets]
   GRID --> ISO["ISO: drawIsoAssetAscii → 3D block stack + gable"]
   GRID --> TWOD["2D: per-cell tiles projected to the front row (front elevation)"]
   GRID --> TOP["TOP: footprint rectangle"]
 ```
 
-Files: `src/engine/buildingComposer.ts`, `src/game/runtime/buildings.ts` (`stampBuildingCells`),
-`src/engine/gableRoof.ts` (roof stack), `src/engine/render/*`. The old per-view building drawers
-(`drawIsoBuildingTiles`, `draw2DBuilding`, `drawTopBuildingRoof`, roof-cap drawers) were **removed** — one
-system, no special renderer.
+Files: `nebulith/lib/nebulith/catalog/building_compositions.ex` (baked data) + `tile_source.ex`
+(`seed_building_compositions`), `src/game/runtime/composition.ts` (`stampComposition`,
+`stampBuildingComposition`), `src/engine/buildingCatalog.ts` (composition catalog + placement + road
+grounds), `src/engine/render/*`. The retired frontend building unit — the facade composer, the grouped
+`GridBuilding` metadata, `stampBuildingCells`, and the whole-building editor ops — was **removed**; buildings
+are ordinary stamped tiles now (one system, no special renderer).
 
 ## 3. The three views
 
@@ -87,7 +93,7 @@ flowchart LR
 ```
 
 Files: `src/engine/stageGenerator.ts`, `src/levels/village.ts`, `src/engine/tileset/emojiTileset.ts`,
-`src/game/artStyle.ts`, `src/engine/buildingEditor.ts` (`ROAD_GROUNDS`).
+`src/game/artStyle.ts`, `src/engine/buildingCatalog.ts` (`ROAD_GROUNDS`).
 
 ## 6. Town generation
 
