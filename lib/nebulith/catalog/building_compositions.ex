@@ -16,34 +16,25 @@ defmodule Nebulith.Catalog.BuildingCompositions do
   stamped composition matches what the three views drew before buildings became data.
   """
 
-  # Per-composition TYPE-SPECIFIC tiles. A store's blue roof, a hospital's green roof + white walls,
-  # and per-house roof/wall variety are DISTINCT tiles (each carries its own colour in settings.colors)
-  # — not a shared tile recoloured by a variant index. Only the labels listed here are remapped to a
-  # type tile; everything else (big_house/temple/cathedral/castle, plus every door/window) keeps the
-  # shared default tile, so those buildings stay unchanged. The type tiles are authored in
-  # Nebulith.Catalog.TileSource.seed_building_tiles.
+  # Per-composition TYPE-SPECIFIC tile remaps for the HAND-AUTHORED buildings (big_house/hospital/temple/
+  # cathedral/castle), which still list generic `wall`/`roof`/`roof_top` cells. We only SWAP their wall to a
+  # material CENTER piece + (for stone/masonry) their gable to slate — the shapes are untouched (spec). The
+  # box-BUILDERS (house/store/office/stone_building) emit their material pieces DIRECTLY from the facade, so
+  # they carry no wall remap here; store keeps only its blue apex-sign badge (roof_top_store) and hospital
+  # keeps its green roof. Everything unlisted keeps the shared default tile.
+  #   big_house = brick, red gable · hospital = plaster walls + green roof · temple/cathedral/castle = stone
+  #   walls + slate gable. Wall/roof material tiles are authored in Nebulith.Catalog.TileSource.
   @type_tiles %{
-    "store_5" => %{"roof" => "roof_store", "roof_top" => "roof_top_store", "wall" => "wall_store"},
+    "store_5" => %{"roof_top" => "roof_top_store"},
     "hospital_6" => %{
+      "wall" => "wall_plaster_c",
       "roof" => "roof_hospital",
-      "roof_top" => "roof_top_hospital",
-      "wall" => "wall_hospital"
+      "roof_top" => "roof_top_hospital"
     },
-    "house_3" => %{
-      "roof" => "roof_house_a",
-      "roof_top" => "roof_top_house_a",
-      "wall" => "wall_house_a"
-    },
-    "house_4" => %{
-      "roof" => "roof_house_b",
-      "roof_top" => "roof_top_house_b",
-      "wall" => "wall_house_b"
-    },
-    "house_5" => %{
-      "roof" => "roof_house_c",
-      "roof_top" => "roof_top_house_c",
-      "wall" => "wall_house_c"
-    }
+    "big_house_6" => %{"wall" => "wall_brick_c"},
+    "temple_8" => %{"wall" => "wall_stone_c", "roof" => "roof_slate", "roof_top" => "roof_top_slate"},
+    "cathedral_7" => %{"wall" => "wall_stone_c", "roof" => "roof_slate", "roof_top" => "roof_top_slate"},
+    "castle_12" => %{"wall" => "wall_stone_c", "roof" => "roof_slate", "roof_top" => "roof_top_slate"}
   }
 
   # A building's NAME → the apex badge the renderer draws (data for the signage). Only store/hospital
@@ -111,7 +102,8 @@ defmodule Nebulith.Catalog.BuildingCompositions do
   # A GABLE roof (houses): a triangular stack whose height per column falls off from the centre
   # (peak ≤3). Every column gets the eave course; inner columns rise to the ridge; the centre-back
   # apex is the `roof_top` cap. Perimeter roof caps block; the interior roof volume is walkable.
-  defp gable_roof(w, h, wall_top) do
+  # `roof`/`roof_top` name the roof MATERIAL — default red gable, or the slate pair for stone buildings.
+  defp gable_roof(w, h, wall_top, roof \\ "roof", roof_top \\ "roof_top") do
     center = (w - 1) / 2
     max_peak = min(3, div(w + 1, 2))
     eave = wall_top + 1
@@ -126,7 +118,7 @@ defmodule Nebulith.Catalog.BuildingCompositions do
         cells =
           for i <- 0..(levels - 1) do
             apex = i == levels - 1 and dx == apex_col and dy == 0
-            label = if apex, do: "roof_top", else: "roof"
+            label = if apex, do: roof_top, else: roof
             cell(dx, dy, eave + i, label, dx == door_col or not peri)
           end
 
@@ -152,33 +144,40 @@ defmodule Nebulith.Catalog.BuildingCompositions do
     deck ++ [cell(div(w - 1, 2), div(h - 1, 2), roof_level + 1, crown_label, false)]
   end
 
-  # HOUSE — 2 living floors + a gable roof. Windows sit on the upper course of each floor (levels 1 &
-  # 3) on even columns; a 1×2 centred door spans the ground floor; a wall course separates the floors.
-  defp house(w) do
+  # HOUSE — 2 living floors + a gable roof, in a WALL MATERIAL (brick/wood/stone, per definitions). Windows
+  # sit on the upper course of each floor (levels 1 & 3) on even columns; a 1×2 centred door spans the ground
+  # floor; a wall course separates the floors. The FRONT face is autotiled from the material's center/edge/
+  # corner pieces; back + sides are the plain center piece. `roof`/`roof_top` name the gable material (red
+  # by default; slate for the stone house).
+  defp house(w, mat, roof \\ "roof", roof_top \\ "roof_top") do
     h = 4
     wall_top = 3
     door_col = div(w, 2)
 
     facade = fn dx, dy, level ->
+      front = dy == h - 1
       front_or_back = dy == 0 or dy == h - 1
 
       cond do
         dx == door_col and dy == h - 1 and level in [0, 1] -> "door"
         front_or_back and window_col?(dx) and level in [1, 3] -> "window"
-        true -> "wall"
+        front -> material_piece(mat, dx, level, w, wall_top)
+        true -> "#{mat}_c"
       end
     end
 
-    assemble(w, h, wall_top, door_col, facade, gable_roof(w, h, wall_top))
+    assemble(w, h, wall_top, door_col, facade, gable_roof(w, h, wall_top, roof, roof_top))
   end
 
-  # STORE — 5×4, 2 floors, flat roof. Ground FRONT = a storefront: a wide display window + centred
-  # door + a striped awning band above it. Upper front = spaced windows. Back + sides are plain wall.
+  # STORE — 5×4, 2 floors, flat roof, in a BRICK wall material. Ground FRONT = a storefront: a wide display
+  # window + centred door + a striped awning band above it. Upper front = spaced windows. The remaining front
+  # wall is autotiled brick; back + sides are the plain brick center. Keeps its blue "Store" apex badge.
   defp store do
     w = 5
     h = 4
     wall_top = 3
     door_col = div(w, 2)
+    mat = "wall_brick"
 
     facade = fn dx, dy, level ->
       front = dy == h - 1
@@ -188,45 +187,108 @@ defmodule Nebulith.Catalog.BuildingCompositions do
         front and level == 0 -> "display_window"
         front and level == 1 -> "awning"
         front and level == 3 and window_col?(dx) -> "window"
-        true -> "wall"
+        front -> material_piece(mat, dx, level, w, wall_top)
+        true -> "#{mat}_c"
       end
     end
 
     assemble(w, h, wall_top, door_col, facade, flat_roof(w, h, wall_top, title: true))
   end
 
-  # OFFICE / APARTMENT — 5×5, 3 floors, flat roof. A regular spaced window GRID (even columns × every
-  # floor, aligned), a 1×2 centred door, a small rooftop unit. Taller than a house or store.
+  # OFFICE / APARTMENT — 5×5, 3 floors, flat roof, in a STONE wall material. A regular spaced window GRID
+  # (even columns × every floor, aligned), a 1×2 centred door, a small rooftop unit. Taller than a house or
+  # store. Front face autotiled stone; back + sides the plain stone center.
   defp office do
     w = 5
     h = 5
     wall_top = 5
     door_col = div(w, 2)
+    mat = "wall_stone"
 
     facade = fn dx, dy, level ->
+      front = dy == h - 1
       front_or_back = dy == 0 or dy == h - 1
 
       cond do
         dx == door_col and dy == h - 1 and level in [0, 1] -> "door"
         front_or_back and window_col?(dx) and level in [1, 3, 5] -> "window"
-        true -> "wall"
+        front -> material_piece(mat, dx, level, w, wall_top)
+        true -> "#{mat}_c"
       end
     end
 
     assemble(w, h, wall_top, door_col, facade, flat_roof(w, h, wall_top))
   end
 
+  # STONE BUILDING — the material+piece SAMPLE (TILESET-AUTHORING §3). A 5×4 box (matches the store
+  # footprint, so the generator can render its single store from this) whose wall field is the `wall_stone`
+  # MATERIAL — a DISTINCT tile from brick ("variety of walls = other tiles, not just brick"), its grey in
+  # `settings.colors` ("variety of colour = the tile's settings"). The FRONT face is autotiled from
+  # center/edge/corner stone pieces (`wall_stone_c/_t/_b/_l/_r/_tl/_tr/_bl/_br`); a SPACED window grid sits
+  # on the interior columns (so the edge columns stay clean stone edges), a 1×2 centred door, a gable roof
+  # (ridge/gable pieces via the shared gable_roof). Back + side faces stay plain `wall_stone_c`.
+  defp stone_building do
+    w = 5
+    h = 4
+    wall_top = 3
+    door_col = div(w, 2)
+    win_cols = [1, 3]
+
+    facade = fn dx, dy, level ->
+      front = dy == h - 1
+
+      cond do
+        front and dx == door_col and level in [0, 1] -> "door"
+        front and dx in win_cols and level in [1, 3] -> "window"
+        front -> material_piece("wall_stone", dx, level, w, wall_top)
+        true -> "wall_stone_c"
+      end
+    end
+
+    assemble(w, h, wall_top, door_col, facade, gable_roof(w, h, wall_top))
+  end
+
+  # The autotile piece for a FRONT-FACE cell of a wall MATERIAL — `dx` runs along the facade, `level` up the
+  # wall — the SAME 9-piece scheme the fountain rim uses, applied to the front-elevation rectangle (corners at
+  # its four corners, edges along each side, `<base>_c` inside). `base` is the material (`wall_stone`,
+  # `wall_brick`, `wall_wood`), so one function autotiles every material facade.
+  defp material_piece(base, dx, level, w, wall_top) do
+    left = dx == 0
+    right = dx == w - 1
+    bottom = level == 0
+    top = level == wall_top
+
+    suffix =
+      cond do
+        top and left -> "tl"
+        top and right -> "tr"
+        bottom and left -> "bl"
+        bottom and right -> "br"
+        top -> "t"
+        bottom -> "b"
+        left -> "l"
+        right -> "r"
+        true -> "c"
+      end
+
+    "#{base}_#{suffix}"
+  end
+
   defp definitions do
     Map.merge(large_buildings(), %{
-      "house_3" => house(3),
-      "house_4" => house(4),
-      "house_5" => house(5),
+      # Residential MATERIAL variety (spec mapping): brick / wood / stone houses; the stone house takes a
+      # slate gable, brick + wood keep the red gable.
+      "house_3" => house(3, "wall_brick"),
+      "house_4" => house(4, "wall_wood"),
+      "house_5" => house(5, "wall_stone", "roof_slate", "roof_top_slate"),
       "store_5" => store(),
-      "office_5" => office()
+      "office_5" => office(),
+      "stone_building" => stone_building()
     })
   end
 
-  # The larger civic buildings stay hand-authored (unchanged this pass).
+  # The larger civic buildings stay HAND-AUTHORED — their shapes are untouched. Only their materials swap via
+  # @type_tiles (big_house→brick, hospital→plaster + green roof, temple/cathedral/castle→stone + slate gable).
   defp large_buildings do
 %{
       "big_house_6" => %{
