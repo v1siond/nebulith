@@ -24,12 +24,15 @@ const doorOnEdge: Record<Facing, (col: number, row: number) => boolean> = {
 
 describe('a stamped building composition fronts its road (door on the facing edge, walkable, on the ground)', () => {
   for (const facing of ['south', 'north', 'east', 'west'] as Facing[]) {
-    test(`facing ${facing}: the single door tile sits on the road-facing edge, level 0, walkable`, () => {
+    test(`facing ${facing}: the door column sits on the road-facing edge, its ground cell level 0, walkable`, () => {
       const grid = mkGrid()
       stampBuildingComposition(grid, 'house', SIZE, ANCHOR, ANCHOR, 'spring', facing)
       const doorTiles = grid.assets.filter(a => a.label === 'door')
-      expect(doorTiles).toHaveLength(1) // every baked composition has ONE door cell
-      const door = doorTiles[0]
+      // The door is 1 wide × 2 tall (a 1×2 centred entrance) → TWO stacked door cells in ONE column.
+      expect(doorTiles.length).toBeGreaterThanOrEqual(1)
+      expect(new Set(doorTiles.map(d => `${d.col},${d.row}`)).size).toBe(1) // one door COLUMN
+      const door = doorTiles.find(d => (d.heightLevel ?? 0) === 0)! // the GROUND door (the entrance)
+      expect(door).toBeDefined()
       expect(doorOnEdge[facing](door.col, door.row)).toBe(true) // on the correct road-facing edge
       expect(door.heightLevel ?? 0).toBe(0) // seats on the ground so it meets the entrance
       expect(grid.collision[door.row]?.[door.col]).toBeFalsy() // the door cell stays WALKABLE (the way in)

@@ -87,6 +87,16 @@ export interface TreeAnchor {
   variant: number
 }
 
+/** A generic COMPOSITION anchor — a named backend composition (fountain / …) stamped at load, the SAME
+ *  path trees + buildings use (stampComposition). The generator RECORDS these instead of baking special
+ *  props, so a fountain is a stamped composition (rim + water + jets), not a `type:'fountain'` prop. */
+export interface CompositionAnchor {
+  kind: string
+  col: number
+  row: number
+  variant?: number
+}
+
 export interface StageData {
   zone: ZoneId
   variant: VariantId
@@ -97,6 +107,8 @@ export interface StageData {
   buildings: PlacedBuilding[]
   props: StageProp[]
   trees: TreeAnchor[]
+  /** Non-tree, non-building compositions (the plaza fountain today) — stamped at load. */
+  compositions: CompositionAnchor[]
   connectors: Connector[]
   spawn: { col: number; row: number }
 }
@@ -295,11 +307,10 @@ const makeKey = (col: number, row: number): StageProp => ({ col, row, type: 'key
 // A gateway/threshold prop marking the (narratively locked) boss door — WALKABLE (label
 // 'door'), so it reskins as 🚪 and the floor stays one connected region.
 const makeGateway = (col: number, row: number, color: string): StageProp => ({ col, row, type: 'door', char: '∏', blocking: false, color, label: 'door' })
-// The town-square centrepiece — ONE big fountain prop carrying its `footprint` (the basin spans
-// footprint×footprint cells, centred on this cell). The render draws a single tiered fountain over
-// the whole plaza; the other footprint cells are blocked directly in the collision grid (no prop), so
-// it never reads as N clustered mini-wells.
-const makeTownFountain = (col: number, row: number, footprint: number): StageProp => ({ col, row, type: 'fountain', char: '⊙', blocking: true, color: '#5fbce0', footprint })
+// The town-square centrepiece is the `fountain` COMPOSITION (rim + water + jets) stamped at load — no
+// special prop. Its footprint MUST match the backend composition (Nebulith fountain: 5w × 4d) so the
+// plaza reserve/centre matches what the stamp fills.
+const FOUNTAIN_FOOTPRINT = { w: 5, h: 4 } as const
 const makeLamp = (col: number, row: number): StageProp => ({ col, row, type: 'lamp', char: '†', blocking: true, color: '#ffd27a' })
 
 /** Place a prop iff the cell is in-bounds + not already blocked; set collision when blocking. */
@@ -375,6 +386,8 @@ interface ArchetypeContext {
   props: StageProp[]
   /** Tree anchors recorded during generation → stamped as compositions at load (see TreeAnchor). */
   trees: TreeAnchor[]
+  /** Non-tree/building composition anchors (the plaza fountain) → stamped at load. */
+  compositions: CompositionAnchor[]
   cols: number
   rows: number
   /** The user-steered forest layout; only placeForest reads it. */
@@ -402,8 +415,9 @@ export function generateStage(opts: GenerateOptions): StageData {
   const buildings: PlacedBuilding[] = []
   const props: StageProp[] = []
   const trees: TreeAnchor[] = []
+  const compositions: CompositionAnchor[] = []
 
-  const ctx: ArchetypeContext = { zone, ground, collision, buildings, props, trees, cols, rows, layout }
+  const ctx: ArchetypeContext = { zone, ground, collision, buildings, props, trees, compositions, cols, rows, layout }
   ARCHETYPES[variant]?.(ctx)
   addTerrainTransitions(ctx) // blended shorelines / lava banks over the painted ground
 
@@ -417,6 +431,7 @@ export function generateStage(opts: GenerateOptions): StageData {
     buildings,
     props,
     trees,
+    compositions,
     connectors: [],
     spawn: chooseSpawn(buildings, collision, cols, rows),
   }
@@ -556,21 +571,15 @@ function placeCentrepiece(ctx: ArchetypeContext, plaza: PlazaRect | null): void 
   for (let r = r0; r < r0 + size; r++)
     for (let c = c0; c < c0 + size; c++) if (inBounds(c, r, cols, rows)) ground[r][c] = 'path_stone'
 
-  // The basin is a centred ODD block (a clean centre cell) leaving a ≥1-cell paved ring to walk.
-  const basin = size >= 7 ? 5 : 3
-  const bc = c0 + Math.floor((size - basin) / 2)
-  const br = r0 + Math.floor((size - basin) / 2)
-  const centreCol = bc + Math.floor(basin / 2)
-  const centreRow = br + Math.floor(basin / 2)
-
-  // The basin BLOCKS (you walk the paved ring around it). The plain roofed well + the flat water pond
-  // are dropped — a real town square gets a real fountain (per the references), so the centrepiece is
-  // ALWAYS ONE fountain, never a cluster of mini-wells.
-  for (let r = br; r < br + basin; r++)
-    for (let c = bc; c < bc + basin; c++) if (inBounds(c, r, cols, rows)) collision[r][c] = true
-  // ONE fountain prop, centred, carrying the basin span so the render draws a SINGLE big fountain
-  // over the whole basin (a wide basin + tiered column + animated jets), not N per-cell structures.
-  ctx.props.push(makeTownFountain(centreCol, centreRow, basin))
+  // The fountain is a COMPOSITION (rim + water + jets), not a special prop: record its anchor centred in
+  // the square (footprint TOP-LEFT, the origin stampComposition places from). Pre-block its footprint so
+  // generation-time decor (lamps/trees) stays off it; the stamp re-derives collision from its cells at load.
+  const { w: fw, h: fh } = FOUNTAIN_FOOTPRINT
+  const fc0 = c0 + Math.floor((size - fw) / 2)
+  const fr0 = r0 + Math.floor((size - fh) / 2)
+  for (let r = fr0; r < fr0 + fh; r++)
+    for (let c = fc0; c < fc0 + fw; c++) if (inBounds(c, r, cols, rows)) collision[r][c] = true
+  ctx.compositions.push({ kind: 'fountain', col: fc0, row: fr0, variant: 0 })
 }
 
 /** Footprint rect type — the cells a building actually occupies on the grid. */

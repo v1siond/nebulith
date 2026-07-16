@@ -48,13 +48,15 @@ describe('stampBuildingComposition → plain per-cell tiles carrying generic beh
     expect(roofs.every(a => a.settings?.cutawayRoof === true)).toBe(true)
   })
 
-  test('a STORE stamps its own TYPE-SPECIFIC composition tiles (wall_store/roof_store + window/door)', () => {
+  test('a STORE stamps its own TYPE-SPECIFIC tiles + storefront (wall_store, flat roof, display_window, awning)', () => {
     const grid = mkGrid()
     const placed = stampBuildingComposition(grid, 'store', 5, 12, 12, 'spring', 'south')
     expect(placed).toBeGreaterThan(0)
     const labels = new Set(grid.assets.map(a => a.label))
-    // store cells reference the store's OWN tiles (blue roof, cream walls); door/window stay generic.
-    for (const part of ['wall_store', 'window', 'door', 'roof_store']) expect(labels.has(part)).toBe(true)
+    // The store references its OWN tiles (cream walls, a blue roof-top sign) + the storefront (a wide
+    // display window + striped awning) over a flat roof (parapet); door/upper-window stay generic.
+    for (const part of ['wall_store', 'window', 'door', 'display_window', 'awning', 'parapet', 'roof_top_store'])
+      expect(labels.has(part)).toBe(true)
     expect(grid.assets.every(a => a.type === 'store_5')).toBe(true)
   })
 

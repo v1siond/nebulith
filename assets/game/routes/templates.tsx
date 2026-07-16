@@ -23,7 +23,6 @@ import { type AnimFrame, type AnimPreset, CELL_ANIM_PRESETS, type Ease, makeCell
 import { findTriggeredConnector, normalizeConnector } from '@/engine/connectors'
 import { entityPalette, punchTile, weaponEmoji, weaponGlyph, weaponPose } from '@/engine/entityArt'
 import { StageData, VariantId, generateStage, stagePaint } from '@/engine/stageGenerator'
-import { syncTilesetPropCollision } from '@/engine/tilesetCollision'
 import { type Action as TriggerAction, resolveAction } from '@/engine/triggers'
 import { stagePropTileOverride, ZoneId } from '@/engine/zones'
 import { type AbilityBinding, DEFAULT_ABILITY_LOADOUT } from '@/game/abilities'
@@ -236,10 +235,6 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
   const [activeStyleId, setActiveStyleId] = useState<string>('ascii')
   const activeStyleRef = useRef<Style>(ASCII_STYLE)
   useEffect(() => { activeStyleRef.current = styleById(activeStyleId) }, [activeStyleId])
-  // Prop collision follows the tileset: on every Style switch (and on mount), resync multi-cell props —
-  // the town fountain is a big basin in ASCII but a single ⛲ cell in emoji, so its collision must match
-  // the tile it actually draws.
-  useEffect(() => { if (gridRef.current) syncTilesetPropCollision(gridRef.current, activeStyleId !== 'ascii') }, [activeStyleId])
   const activeStyle = styleById(activeStyleId)
   // Live POSE editing writes straight into the in-memory tileset (the RAF loop redraws from it, so the
   // element retunes in-scene); bumpPose then forces the Inspector's PoseControls to re-read the mutation
@@ -2885,6 +2880,9 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
     // buildings use — so every generated tree is 100% backend DB tiles AND each tile is individually
     // selectable. The generator recorded anchors (stage.trees) instead of baking flat tree props (TreeAnchor).
     for (const t of stage.trees ?? []) stampComposition(grid, t.kind, t.col, t.row, stage.zone, t.variant)
+    // A FOUNTAIN is just TILES too: stamp each recorded composition ANCHOR (the plaza fountain — rim +
+    // water + jets) through the SAME path, so it's per-cell backend tiles, not a special drawer/prop.
+    for (const c of stage.compositions ?? []) stampComposition(grid, c.kind, c.col, c.row, stage.zone, c.variant ?? 0)
   }
 
   /** Promote the generators' decorative ☺ NPC assets into REAL npc entities: a generated town's
@@ -2914,9 +2912,6 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
     if (!grid) return
     const stage = generateStage({ zone, variant, cols: grid.cols, rows: grid.rows })
     applyStageToGrid(stage, grid)
-    // The stage bakes ASCII (multi-cell) prop collision; shrink it to the active tileset (emoji = the
-    // single drawn cell). Also re-run on every Style switch (effect below).
-    syncTilesetPropCollision(grid, activeStyleRef.current.id !== 'ascii')
     movePlayerToValidSpawn(stage.spawn.col, stage.spawn.row)
     const live = livePlayerCell()
     syncPlayerEntity(live.col, live.row, true) // fresh stage → player entity follows the spawn

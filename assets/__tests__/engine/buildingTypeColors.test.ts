@@ -35,13 +35,21 @@ describe('per-type building colours come from the type-specific DB tile (not one
     expect(resolveTile(ASCII_TILESET, 'summer', 'roof').color).not.toBe(resolveTile(ASCII_TILESET, 'winter', 'roof').color)
   })
 
-  test('a stamped STORE paints its roof cells the store blue — end-to-end through the DB tile', () => {
+  test('a stamped STORE reads its own tiles — cream walls + a blue Store sign over a flat roof', () => {
     const grid = mkGrid()
     stampBuildingComposition(grid, 'store', 5, 12, 12, 'summer', 'south')
-    const roof = roofOf(grid, 'store_5')
-    expect(roof.label).toBe('roof_store') // references the store's OWN tile, not the shared `roof`
-    expect(roof.color).toBe(resolveTile(ASCII_TILESET, 'summer', 'roof_store').color) // colour comes from that tile
-    expect(roof.color).toBe('#235a96')
+    const labels = new Set(grid.assets.map(a => a.label))
+    // The store now has a FLAT roof (grey parapet + deck), so its blue moved to the roof-top SIGN — the
+    // realistic-store redesign (storefront + awning + flat roof), not a blue gable.
+    expect(labels.has('parapet')).toBe(true)
+    const sign = grid.assets.find(a => (a.label ?? '').startsWith('roof_top'))!
+    expect(sign.label).toBe('roof_top_store') // the store's OWN sign tile
+    expect(sign.color).toBe(resolveTile(ASCII_TILESET, 'summer', 'roof_top_store').color)
+    expect(sign.color).toBe('#235a96') // recovered store blue, now carried by the sign
+    // Cream store walls come from the store's own wall tile.
+    const wall = grid.assets.find(a => (a.label ?? '').startsWith('wall') && a.type === 'store_5')!
+    expect(wall.label).toBe('wall_store')
+    expect(wall.color).toBe('#e2dcc8')
   })
 
   test('a stamped HOSPITAL paints its roof green and its walls white — its own tiles', () => {

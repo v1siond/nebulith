@@ -75,6 +75,9 @@ export interface VillageLayout {
 // a denser street grid). The [min, max] count of each.
 const HOUSE_RANGE: Record<Settlement, [number, number]> = { town: [4, 6], city: [7, 11] }
 const BIG_RANGE: Record<Settlement, [number, number]> = { town: [1, 3], city: [3, 5] }
+// A few OFFICES/apartments per settlement so a street mixes flat-roof blocks in with the gabled houses
+// (a city packs in more). Guaranteed-essential store/hospital still come first in the fill.
+const OFFICE_RANGE: Record<Settlement, [number, number]> = { town: [1, 2], city: [3, 6] }
 // Street GRID per settlement: H horizontal × V vertical FULL-SPAN streets that cross into blocks
 // (a real neighborhood grid, not a couple of stubs). Clamped by map size in planRoads so each block
 // still fits a row of lots between streets. A city's grid is far denser than a town's → many more
@@ -92,9 +95,9 @@ const PLAZA_SIZE: Record<Settlement, number> = { town: 5, city: 7 }
 // reserves exactly the footprint a stamp fills. `length` is the road-parallel facade span; `depth` is the
 // perpendicular footprint extent (= the composition's south-facing footprint_h). Houses roll a width in
 // HOUSE_WIDTHS (3/4/5), so house_3/4/5 must all exist; the rest use their single baked size.
-const BUILDING_LENGTH: Partial<Record<BuildingType, number>> = { house: 4, 'big-house': 6, store: 5, hospital: 6, temple: 8 }
+const BUILDING_LENGTH: Partial<Record<BuildingType, number>> = { house: 4, 'big-house': 6, store: 5, office: 5, hospital: 6, temple: 8 }
 const lengthOf = (t: BuildingType): number => BUILDING_LENGTH[t] ?? 8
-const BUILDING_DEPTH: Partial<Record<BuildingType, number>> = { house: 4, 'big-house': 4, store: 4, hospital: 4, temple: 4, cathedral: 5, castle: 6 }
+const BUILDING_DEPTH: Partial<Record<BuildingType, number>> = { house: 4, 'big-house': 4, store: 4, office: 5, hospital: 4, temple: 4, cathedral: 5, castle: 6 }
 const depthOf = (t: BuildingType): number => BUILDING_DEPTH[t] ?? 4
 
 // Realistic lot rules (subdivision design): a SETBACK (front-yard cells between the building and
@@ -316,6 +319,7 @@ export function placePlots(roads: boolean[][], frontages: Frontage[], cols: numb
   // round-robin fill places the temple wherever its bigger footprint fits, else it stays pending).
   const pending: BuildingType[] = ['store', 'hospital', 'temple']
   for (let i = randInt(rng, ...BIG_RANGE[settlement]); i > 0; i--) pending.push('big-house')
+  for (let i = randInt(rng, ...OFFICE_RANGE[settlement]); i > 0; i--) pending.push('office')
 
   // Store + hospital ALWAYS go on the TOP horizontal street, facing FRONT (south = door toward the
   // viewer) — good civic practice and it guarantees their labeled fronts show in 2D. Place them there

@@ -18,6 +18,7 @@ import { resolveTileSize, resolveTilePose } from '@/engine/tileset/tileViewSetti
 import { Connector } from '@/lib/api'
 import { ASCII_FONT, COMBAT_RANGE, type DayNight, ENEMY_MOVE_MS, LAMP_GLOW, applyCellTransform, clampCameraAxis, assetCaptionByCell, terrainLabelAt, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawHoverRing, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawConnectorMarker, drawAttackAnimFrame, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, frameImage, getPlayerArt, grassShade, cellFill, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, resolveAssetDraw, resolveEntityDraw, assetOverride, labelTileImage, labelTileRecolor, treeCanopyLayers, treeCellSet } from './shared'
 import { resolveAssetDrawSize } from './assetDimensions'
+import { frontElevation, type FrontElevation } from './frontElevation'
 import { groundSizeFactors, groundDimsActive, type GroundCellDims } from '@/engine/groundDims'
 import { getStack } from '@/engine/cellStack'
 import { ASCII_STYLE, assetKind, entityKind, entityStyleOverride, genderize, groundKind, personVariantTileId, type ElementKind, type Style } from '@/game/artStyle'
@@ -393,42 +394,53 @@ export function render2D(
   }
 
   // ─── OBJECTS LAYER (sorted by row for depth) ─────────────────────
-  // Collect all drawable objects: assets + buildings + player
+  // Collect all drawable objects: assets + buildings + player. `sortRow` is the depth key (a front-
+  // elevation cell sorts at its anchored front row); `level` is its stack level (draw low→high so a roof
+  // lands ON TOP of the wall below it).
   const drawables: Array<{
     row: number
     col: number
     type: 'asset' | 'player'
     asset?: GridAsset
+    sortRow: number
+    level: number
   }> = []
 
   // A BUILDING is just TILES: a pre-built building is stamped as its composition's per-cell assets, so its
   // walls/windows/door/roof render through the SAME per-cell asset path (draw2DLabeledCell) as any stacked
-  // tile, at its OWN cell — no front-elevation projection, no special drawer, and no grouped-building array.
-  // A blocked building cell tints on its own grounded square like any collision cell.
-
-  // Add assets — building blocks included, so they render per-block through the asset path below.
+  // tile — no special building drawer. But the 2D view is a FRONT ELEVATION (Width × Height, depth hidden —
+  // MAP-MODEL §2-3): a stacked structure must read its TRUE height (level count), not pile its depth rows
+  // upward. `frontElevation` collapses depth generically — for each (col, level) only the FRONT-most cell is
+  // drawn (anchored at the structure's front row); cells behind it are hidden. A 1-deep tree / flat prop has
+  // no depth, so it passes through and draws at its own cell exactly as before.
   const visibleAssets = grid.getVisibleAssets(
     Math.floor(camCol), Math.floor(camRow), tilesX, tilesY
   )
+  const fe: FrontElevation = frontElevation(visibleAssets)
   const treeCells2D = treeCellSet(grid) // memoized (see shared.treeCellSet) — no per-frame assets rescan
   const isTreeCell2D = (c: number, r: number): boolean => treeCells2D.has(`${c},${r}`)
   for (const asset of visibleAssets) {
-    drawables.push({ row: asset.row, col: asset.col, type: 'asset', asset })
+    if (fe.hidden.has(asset)) continue // occluded behind a front-elevation face — depth collapsed away
+    const anchorRow = fe.draw.get(asset)?.anchorRow ?? asset.row
+    drawables.push({ row: asset.row, col: asset.col, type: 'asset', asset, sortRow: anchorRow, level: asset.heightLevel ?? 0 })
   }
 
   // Add player
   const playerCol = player.x / cellSize
   const playerRow = player.z / cellSize
-  drawables.push({ row: playerRow, col: playerCol, type: 'player' })
+  drawables.push({ row: playerRow, col: playerCol, type: 'player', sortRow: playerRow, level: 0 })
 
-  // Sort by row (things further up screen drawn first = behind)
-  drawables.sort((a, b) => a.row - b.row)
+  // Sort by (front-elevation) row so things further up screen draw first (= behind); a level tiebreak keeps
+  // a structure's higher tiles (roof) drawn after the walls below them.
+  drawables.sort((a, b) => a.sortRow - b.sortRow || a.level - b.level)
 
   // Draw each object
   for (const obj of drawables) {
-    // Every tile — building block or not — projects at its OWN cell and stacks by heightLevel (no building
-    // front-elevation collapse). A structure column stacks in place exactly like a tree's trunk+canopy.
-    const projRow = obj.row
+    // A front-elevation cell (part of a stacked structure with depth) projects at its ANCHORED front row so
+    // its column stacks as a flat facade — depth is collapsed (MAP-MODEL §2-3). Everything else (a flat
+    // prop, a 1-deep tree, the player) projects at its OWN cell.
+    const feCell = obj.type === 'asset' && obj.asset ? fe.draw.get(obj.asset) : undefined
+    const projRow = feCell ? feCell.anchorRow : obj.row
     const p = toScreen(obj.col + 0.5, projRow + 0.5)
     const groundHeight = grid.getHeight(Math.floor(obj.col), Math.floor(projRow))
     const elevOffset = groundHeight * heightScale
@@ -539,11 +551,13 @@ export function render2D(
       if (asset.type === 'tree') heightTiles = 3
       else if (asset.type === 'lamp') heightTiles = 2
 
-      // Base at bottom of cell - tiles stack upward. A stacked asset (editor brush, heightLevel > 0)
-      // is lifted ~0.9 cell per level so the pile reads as separate raised items instead of overlapping
-      // on one spot. heightLevel is absent (→ 0) on every generated/existing asset, so this is a no-op
-      // for anything but a deliberately stacked cell.
-      const baseY = p.y + tileH * 0.5 - elevOffset - (asset.heightLevel ?? 0) * tileH * 0.9
+      // Base at bottom of cell - tiles stack upward. A FRONT-ELEVATION cell (a building/structure block) is
+      // lifted a FULL cell per level, so a 5-level house reads exactly 5 cells tall (its true height, edge-to-
+      // edge — no depth added). A stacked prop that isn't part of a front elevation keeps the ~0.9 cell "pile"
+      // lift so brush-stacked items read as separate raised objects. heightLevel is absent (→ 0) on every
+      // generated/existing flat asset, so that path is a no-op for anything but a deliberately stacked cell.
+      const levelStep = feCell ? tileH : tileH * 0.9
+      const baseY = p.y + tileH * 0.5 - elevOffset - (asset.heightLevel ?? 0) * levelStep
 
       // Authored frame animation: offset/rotate/scale the asset around its ground point (sway/wind).
       const ct2d = assetCellTransform(asset.cellAnim, time)

@@ -593,9 +593,12 @@ describe('generateStage — buildings are backend COMPOSITIONS (store + hospital
       const comp = resolveComposition(ASCII_TILESET, b.kind)
       expect(comp).not.toBeNull()
       const cellLabels = comp!.cells.map(c => c.label)
-      // Each building has wall/door/roof cells — matched by FAMILY since store/hospital/houses use
-      // type-specific tiles (roof_store / wall_house_b …) while big_house/temple/… keep the base labels.
-      for (const part of ['wall', 'door', 'roof']) expect(cellLabels.some(l => l.startsWith(part))).toBe(true)
+      // Each building has wall + door cells + a ROOF CAP — matched by FAMILY since store/hospital/houses
+      // use type-specific tiles (roof_store / wall_house_b …) while big_house/temple/… keep the base
+      // labels. The cap is a gable `roof`/`roof_top` OR a flat `parapet`/`flat_roof` (store/office).
+      for (const part of ['wall', 'door']) expect(cellLabels.some(l => l.startsWith(part))).toBe(true)
+      const roofish = (l: string): boolean => l.startsWith('roof') || l.startsWith('parapet') || l.startsWith('flat_roof')
+      expect(cellLabels.some(roofish)).toBe(true)
       // Walls rise MULTIPLE stack levels (the iso box is built from stacked wall blocks + a roof cap).
       expect(Math.max(...comp!.cells.map(c => c.level ?? 0))).toBeGreaterThan(0)
     }

@@ -90,7 +90,7 @@ describe('settlement building placement (consumer matches planner contract)', ()
     })
   }
 
-  test('the town SQUARE is reserved CENTRALLY before houses, and is ONE fountain (never N props)', () => {
+  test('the town SQUARE is reserved CENTRALLY before houses, and is ONE fountain composition (never N props)', () => {
     for (const settlement of ['town', 'city'] as const) {
       let sawFountain = false
       for (const seed of [12345, 777, 42, 1, 2, 3, 7, 99]) {
@@ -116,27 +116,27 @@ describe('settlement building placement (consumer matches planner contract)', ()
           }
         }
 
-        // (c) the plain WELL is dropped, and the centrepiece is ONE structure — at most a single
-        //     fountain prop (never a cluster of N per-cell props).
-        const wells = stage.props.filter(p => p.type === 'well')
-        const fountains = stage.props.filter(p => p.type === 'fountain')
-        expect(wells).toHaveLength(0)
+        // (c) the plain WELL is dropped, NO fountain PROP is emitted anymore (the fountain is a
+        //     COMPOSITION now — rim + water + jets, stamped at load), and the centrepiece is ONE
+        //     fountain composition anchor (never a cluster of N per-cell props).
+        expect(stage.props.filter(p => p.type === 'well')).toHaveLength(0)
+        expect(stage.props.filter(p => p.type === 'fountain')).toHaveLength(0)
+        const fountains = stage.compositions.filter(c => c.kind === 'fountain')
         expect(fountains.length).toBeLessThanOrEqual(1)
 
-        // (d) when it's a fountain (the common case), it's ONE prop centred on the square, carrying
-        //     the basin span, and every basin cell BLOCKS (you walk the paved ring around it).
+        // (d) when it's a fountain (the common case), it's ONE composition anchored at the footprint
+        //     TOP-LEFT, centred in the square, and every footprint cell BLOCKS (walk the paved ring).
         if (fountains.length === 1) {
           sawFountain = true
           const fountain = fountains[0]
-          expect(fountain.footprint).toBeGreaterThanOrEqual(3)
-          const basin = plaza.size >= 7 ? 5 : 3
-          expect(fountain.footprint).toBe(basin)
-          const bc = plaza.c0 + Math.floor((plaza.size - basin) / 2)
-          const br = plaza.r0 + Math.floor((plaza.size - basin) / 2)
-          expect(fountain.col).toBe(bc + Math.floor(basin / 2))
-          expect(fountain.row).toBe(br + Math.floor(basin / 2))
-          for (let r = br; r < br + basin; r++)
-            for (let c = bc; c < bc + basin; c++) expect(stage.collision[r][c]).toBe(true)
+          const fw = 5 // FOUNTAIN_FOOTPRINT — must match the backend fountain composition (5w × 4d)
+          const fh = 4
+          const fc0 = plaza.c0 + Math.floor((plaza.size - fw) / 2)
+          const fr0 = plaza.r0 + Math.floor((plaza.size - fh) / 2)
+          expect(fountain.col).toBe(fc0)
+          expect(fountain.row).toBe(fr0)
+          for (let r = fr0; r < fr0 + fh; r++)
+            for (let c = fc0; c < fc0 + fw; c++) expect(stage.collision[r][c]).toBe(true)
         }
       }
       expect(sawFountain).toBe(true) // the fountain (not the rare pond) is the dominant centrepiece

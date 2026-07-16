@@ -56,9 +56,10 @@ describe('lego model — everything on the grid is an editable block', () => {
     const stack = getStack(grid, a0.col, a0.row)
     expect(stack.some(t => t.source === 'asset')).toBe(true)
 
-    // It's EDITABLE like any block — recolor it, the grid reflects.
+    // It's EDITABLE like any block — recolor it, the grid reflects. A building cell can stack several
+    // blocks (wall + window + roof), so read back the block at a0's OWN level, not just the first asset.
     a0.color = '#123456'
-    const after = getStack(grid, a0.col, a0.row).find(t => t.source === 'asset')
+    const after = getStack(grid, a0.col, a0.row).find(t => t.source === 'asset' && (t.heightLevel ?? 0) === (a0.heightLevel ?? 0))
     expect(after?.color).toBe('#123456')
 
     // And a wall block must EXTRUDE (height >= 1) so it renders as a real lego cube, not flat.
