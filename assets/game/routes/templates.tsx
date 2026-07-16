@@ -2874,7 +2874,13 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
     // (stampBuildingComposition → one asset per cell+level of house_4 / store_5 / …), rotated to face its
     // road — the SAME stamp trees use. b.col + b.row are the footprint TOP-LEFT-col and BOTTOM row, so back
     // the row off its height to anchor the composition at the footprint top-left.
-    for (const b of stage.buildings) stampBuildingComposition(grid, b.type, b.length, b.col, b.row - (b.height - 1), stage.zone, b.facing)
+    for (const b of stage.buildings) {
+      const anchorRow = b.row - (b.height - 1)
+      // Every building stamps its OWN backend composition, now that the material rollout gives each type its
+      // wall material + roof (houses = brick/wood/stone by length, store = brick storefront, office = stone,
+      // civic = stone/slate). No more hijacking the store into the sample `stone_building`.
+      stampBuildingComposition(grid, b.type, b.length, b.col, anchorRow, stage.zone, b.facing)
+    }
     // A TREE is just TILES too: stamp each recorded tree ANCHOR as a rich stacked composition
     // (stampComposition → one asset per cell+level of tree_small / tree_dead), the SAME per-block path
     // buildings use — so every generated tree is 100% backend DB tiles AND each tile is individually
@@ -3326,6 +3332,9 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
       // Weighted building types — mostly houses, a few bigger/civic — so a village reads as homes.
       // Mostly homes, then civic + a rare landmark (temple/cathedral/castle) so a town has variety.
       const HOUSE_TYPES: BuildingType[] = ['house', 'house', 'house', 'big-house', 'store', 'hospital', 'temple', 'cathedral', 'castle']
+      // A house rolls its LENGTH (3/4/5) so the town shows MATERIAL variety — house_3 brick, house_4 wood,
+      // house_5 stone — instead of every home being the single default length. Other types keep their size.
+      const HOUSE_LENGTHS = [3, 4, 5]
       for (let i = 0; i < numBuildings && validSpots.length > 0; i++) {
         const spotIdx = Math.floor(Math.random() * validSpots.length)
         const spot = validSpots.splice(spotIdx, 1)[0]
@@ -3333,7 +3342,7 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
         // nearest road — the SAME data-driven stamp trees + the town generator use, no procedural unit.
         // canPlaceBuildingComposition rejects overlaps/roads/water/out-of-bounds (skip → fewer, never bad).
         const type = HOUSE_TYPES[Math.floor(Math.random() * HOUSE_TYPES.length)]
-        const length = BUILDING_PLACE_LENGTH[type]
+        const length = type === 'house' ? HOUSE_LENGTHS[Math.floor(Math.random() * HOUSE_LENGTHS.length)] : BUILDING_PLACE_LENGTH[type]
         const kind = buildingCompositionKind(type, length)
         const facing = nearestRoadFacing(grid, spot.x, spot.y)
         const fp = buildingFootprint(kind, facing)

@@ -1,10 +1,10 @@
 /**
- * PER-TYPE BUILDING COLOURS + APEX NAME BADGE — restored as DATA (Alexander's model). When buildings
- * became generic compositions every building shared one per-zone wall/roof colour and the STORE/HOSPITAL
- * signage was lost. The restore: each type's distinctive colour is its OWN tile (a store's `roof_store`
- * is blue, a hospital's `roof_hospital` green, houses vary a/b/c) carrying the colour in settings.colors,
- * and the building NAME is composition DATA (`title`) the stamp badges the roof apex with. These assert
- * the resolved COLOUR + LABEL + TITLE end-to-end through the DB tileset + stamp — never a hardcoded glyph.
+ * PER-TYPE BUILDING MATERIALS/COLOURS + APEX NAME BADGE — DATA (Alexander's model). Each building type gets
+ * its own wall MATERIAL tile (house_3 brick, house_4 wood, house_5/office/civic stone, hospital plaster) +
+ * roof (red gable, grey slate for stone, blue store sign, green hospital) — each carrying its colour in
+ * settings.colors — and the building NAME is composition DATA (`title`) the stamp badges the roof apex with.
+ * These assert the resolved COLOUR + LABEL + TITLE end-to-end through the DB tileset + stamp — never a
+ * hardcoded glyph.
  */
 import '@/__tests__/helpers/installTilesetSeed' // type tiles + building compositions come from the loaded backend tileset fixture
 import { IsometricGrid } from '@/engine/IsometricGrid'
@@ -46,37 +46,42 @@ describe('per-type building colours come from the type-specific DB tile (not one
     expect(sign.label).toBe('roof_top_store') // the store's OWN sign tile
     expect(sign.color).toBe(resolveTile(ASCII_TILESET, 'summer', 'roof_top_store').color)
     expect(sign.color).toBe('#235a96') // recovered store blue, now carried by the sign
-    // Cream store walls come from the store's own wall tile.
+    // The store's walls are the BRICK material tile (a distinct tile, its brick tone in settings.colors).
     const wall = grid.assets.find(a => (a.label ?? '').startsWith('wall') && a.type === 'store_5')!
-    expect(wall.label).toBe('wall_store')
-    expect(wall.color).toBe('#e2dcc8')
+    expect(wall.label!.startsWith('wall_brick')).toBe(true)
+    expect(wall.color).toBe('#9e4b3b')
   })
 
-  test('a stamped HOSPITAL paints its roof green and its walls white — its own tiles', () => {
+  test('a stamped HOSPITAL paints its roof green and its walls plaster-white — its own tiles', () => {
     const grid = mkGrid()
     stampBuildingComposition(grid, 'hospital', 6, 12, 12, 'summer', 'south')
     expect(roofOf(grid, 'hospital_6').color).toBe('#2f7e50')
     const wall = grid.assets.find(a => (a.label ?? '').startsWith('wall') && a.type === 'hospital_6')!
-    expect(wall.label).toBe('wall_hospital')
-    expect(wall.color).toBe('#f0f0ea') // recovered white clinic walls
+    expect(wall.label).toBe('wall_plaster_c') // the plaster MATERIAL center piece
+    expect(wall.color).toBe('#f0f0ea') // white clinic walls
   })
 
-  test('houses VARY — house_3/4/5 stamp visibly different roof colours (per-type variety tiles)', () => {
-    const colours = [3, 4, 5].map(len => {
+  test('houses VARY BY MATERIAL — house_3/4/5 stamp visibly different WALL tiles (brick/wood/stone)', () => {
+    const wallOf = (grid: IsometricGrid, type: string) =>
+      grid.assets.find(a => (a.label ?? '').startsWith('wall') && a.type === type)!
+    const walls = [3, 4, 5].map(len => {
       const grid = mkGrid()
       stampBuildingComposition(grid, 'house', len, 12, 12, 'summer', 'south')
-      return roofOf(grid, `house_${len}`).color
+      return wallOf(grid, `house_${len}`).color
     })
-    expect(new Set(colours).size).toBe(3) // three distinct roof tones — a street reads with variety
-    expect(colours).toEqual(['#6e2820', '#33383f', '#2f4233']) // the recovered HOUSE_ROOFS shades
+    expect(new Set(walls).size).toBe(3) // three distinct wall MATERIALS — a street reads with variety
+    expect(walls).toEqual(['#9e4b3b', '#8a5a2b', '#8f8b82']) // brick / wood / stone material tones
   })
 
-  test('other buildings are UNCHANGED — a temple still uses the shared default roof/wall tiles', () => {
+  test('a temple uses STONE walls + a SLATE gable — its masonry materials', () => {
     const grid = mkGrid()
     stampBuildingComposition(grid, 'temple', 8, 12, 12, 'summer', 'south')
     const roof = roofOf(grid, 'temple_8')
-    expect(roof.label).toBe('roof') // still the shared tile → shared per-zone colour, no per-type override
-    expect(roof.color).toBe(resolveTile(ASCII_TILESET, 'summer', 'roof').color)
+    expect(roof.label).toBe('roof_slate') // stone/masonry buildings take the grey slate gable
+    expect(roof.color).toBe('#4a4f57')
+    const wall = grid.assets.find(a => (a.label ?? '').startsWith('wall') && a.type === 'temple_8')!
+    expect(wall.label).toBe('wall_stone_c') // the stone MATERIAL center piece
+    expect(wall.color).toBe('#8f8b82')
   })
 })
 

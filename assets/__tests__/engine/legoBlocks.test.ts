@@ -63,7 +63,7 @@ describe('lego model — everything on the grid is an editable block', () => {
     expect(after?.color).toBe('#123456')
 
     // And a wall block must EXTRUDE (height >= 1) so it renders as a real lego cube, not flat.
-    // house_4's walls resolve to its type-specific tile (wall_house_b), so match the wall FAMILY.
+    // house_4's walls resolve to its wood MATERIAL pieces (wall_wood_*), so match the wall FAMILY.
     const wallBlock = buildingBlocks.find(a => (a.label ?? '').startsWith('wall'))
     expect(wallBlock).toBeDefined()
     expect((wallBlock!.height ?? 0)).toBeGreaterThanOrEqual(1)

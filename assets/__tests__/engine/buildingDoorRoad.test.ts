@@ -47,11 +47,11 @@ describe('building tiles come from the LOADED ascii tileset, not a hardcoded gly
   test('a wall glyph swapped in the loaded DB tileset drives the stamped wall block', () => {
     // Swap the wall glyph in the loaded tileset — a stamp that read a frontend constant ('█') would ignore
     // this; a stamp that reads the DB tileset picks it up. Proves the live stamp is DB-driven (MAP-MODEL §8).
-    // house_4's walls resolve to its type-specific tile (wall_house_b) — swap THAT glyph.
-    setAsciiTileset({ ...original, tiles: { ...original.tiles, wall_house_b: { ...original.tiles.wall_house_b, glyph: '✚' } } })
+    // house_4's walls resolve to its wood MATERIAL center piece (wall_wood_c) — swap THAT glyph.
+    setAsciiTileset({ ...original, tiles: { ...original.tiles, wall_wood_c: { ...original.tiles.wall_wood_c, glyph: '✚' } } })
     const grid = mkGrid()
     stampBuildingComposition(grid, 'house', SIZE, ANCHOR, ANCHOR, 'spring', 'south')
-    const wall = grid.assets.find(a => a.label === 'wall_house_b')
+    const wall = grid.assets.find(a => a.label === 'wall_wood_c')
     expect(wall).toBeDefined()
     expect(wall!.art[0]).toBe('✚')
   })

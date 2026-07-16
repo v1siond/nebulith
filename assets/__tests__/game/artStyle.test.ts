@@ -148,12 +148,17 @@ describe('kind classifiers', () => {
   it('assetKind classifies placed assets and labeled cells', () => {
     expect(assetKind({ type: 'tree' })).toBe('tree')
     expect(assetKind({ type: 'x', label: 'tree_top_left' })).toBe('tree')
-    expect(assetKind({ type: 'x', label: 'roof' })).toBe('roof')
+    expect(assetKind({ type: 'x', label: 'roof' })).toBe('roof') // plain red gable stays coarse
     expect(assetKind({ type: 'x', label: 'roof_top' })).toBe('roof')
-    // type-specific building tiles classify by their base part (roof_store → roof, wall_house_a → wall)
-    expect(assetKind({ type: 'store_5', label: 'roof_store' })).toBe('roof')
-    expect(assetKind({ type: 'store_5', label: 'roof_top_store' })).toBe('roof')
-    expect(assetKind({ type: 'house_3', label: 'wall_house_a' })).toBe('wall')
+    // Coloured roofs + wall MATERIAL pieces render their OWN per-cell tile (route to 'ground'), so emoji
+    // shows hospital-green 🟩 / store-blue 🟦 / slate ⬛ / stone-material 🪨 — not the coarse red/brick.
+    expect(assetKind({ type: 'store_5', label: 'roof_store' })).toBe('ground')
+    expect(assetKind({ type: 'store_5', label: 'roof_top_store' })).toBe('ground')
+    expect(assetKind({ type: 'hospital_6', label: 'roof_hospital' })).toBe('ground')
+    expect(assetKind({ type: 'office_5', label: 'rooftop_unit' })).toBe('ground')
+    expect(assetKind({ type: 'house_5', label: 'roof_slate' })).toBe('ground')
+    expect(assetKind({ type: 'house_3', label: 'wall_brick_c' })).toBe('ground')
+    expect(assetKind({ type: 'x', label: 'wall' })).toBe('wall') // generic wall still coarse
     expect(assetKind({ type: 'x', label: 'door' })).toBe('door')
     expect(assetKind({ type: 'x', label: 'window' })).toBe('window')
     expect(assetKind({ type: 'x', label: 'peak' })).toBe('mountain')

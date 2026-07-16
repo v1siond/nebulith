@@ -226,6 +226,13 @@ const LABEL_KIND: Readonly<Record<string, ElementKind>> = {
   big_tree: 'tree', big_rock: 'rock', statue: 'altar', well: 'well', fountain: 'fountain',
 }
 
+// Autotile PIECE + MATERIAL labels that must render their OWN per-cell tile in EVERY style (not a coarse
+// base emoji): the wall MATERIAL pieces (wall_stone_* 🪨 / wall_brick_* 🧱 / wall_wood_* 🟫 / wall_plaster_* ⬜),
+// the coloured roofs (roof_slate/roof_top_slate ⬛ · roof_hospital 🟩 · roof_store/roof_top_store 🟦 · rooftop_unit
+// ⬛) which would otherwise fall to the coarse red 🟥 roof, and the fountain rim/water/jet pieces (fountain_*,
+// water_c, water_jet). See assetKind — they fall through to the per-label draw, the SAME path trees use.
+const PIECE_LABEL = /^(wall_stone|wall_brick|wall_wood|wall_plaster|roof_slate|roof_top_slate|roof_hospital|roof_top_hospital|roof_store|roof_top_store|rooftop_unit|fountain_|water_c$|water_jet$)/
+
 /** Kind for a placed asset OR a labeled cell — the classifier the asset draw sites use.
  *  A tree label/type → 'tree'; a building part label → its part; else the asset `type`
  *  when that is itself a known kind; otherwise 'ground' (passthrough). */
@@ -235,6 +242,12 @@ export function assetKind(asset: { type: string; label?: string }): ElementKind 
     if (label.startsWith('tree')) return 'tree'
     const byLabel = LABEL_KIND[label]
     if (byLabel) return byLabel
+    // Autotile PIECE + MATERIAL tiles are assembled per-cell from real DB tiles, so in emoji mode they must
+    // paint their OWN tile (🪨 stone / 🧱 brick / 🟫 wood / ⬜ plaster wall · ⬛ slate roof · 🟦 water / 💧 jet) —
+    // NOT the coarse whole-object wall(🧱)/roof/fountain(⛲) emoji. Returning the unmapped 'ground' routes ISO
+    // to the per-label cube (iso.ts) + keeps 2D per-label; ASCII is untouched (already passthrough). MUST
+    // precede the roof/wall prefix + fountain TYPE_KIND below.
+    if (PIECE_LABEL.test(label)) return 'ground'
     // Type-specific building tiles (roof_store / roof_top_hospital / wall_house_a …) map to their
     // base part — the colour lives on the tile, the KIND is still roof/wall for art resolution.
     if (label.startsWith('roof')) return 'roof' // covers roof_* and roof_top_*
