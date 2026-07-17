@@ -19,7 +19,7 @@ import { ASCII_FONT, COMBAT_RANGE, type DayNight, type DrawVisual, ENEMY_MOVE_MS
 import { resolveAssetDrawSize } from './assetDimensions'
 import { type GroundCellDims, groundSizeFactors, groundDimsActive } from '@/engine/groundDims'
 import { getStack, type TileSource } from '@/engine/cellStack'
-import { isoBlockFaces, isoDepthBox, depthFrontExtent, type BlockFace, type DepthDir } from './isoBlock'
+import { isoBlockFaces, isoDepthBox, depthFrontExtent, isoZOffset, type BlockFace, type DepthDir } from './isoBlock'
 import { resolveTileHeight } from '@/engine/tileset/tileHeight'
 import { EMOJI_TILESET } from '@/engine/tileset/emojiTileset'
 import { applyPose } from '@/engine/tileset/pose'
@@ -560,11 +560,13 @@ export function render(
       // into stacked cubes, decorative sprites become a lifted billboard). No-op at heightLevel 0 — every
       // generated/existing asset — so non-stacked maps are byte-identical. Mirrors the 2D raised stack.
       const stackLift = isoStackLift(tileW, obj.asset.heightLevel)
-      // "z position" (per-asset zOffset): lift the tile UP by N block-heights on top of its stack lift, so the
-      // vertical inspector axis moves it in 3D height. 0 (every generated/existing asset) → no-op.
-      const zLift = (obj.asset.zOffset ?? 0) * tileW * ISO_BLOCK_H_FRAC
+      // "z position" (per-asset zOffset): SLIDE the tile along an ISO DIAGONAL — NOT a vertical lift. zOffset is
+      // the magnitude in cells; zDir picks the diagonal (default right-up), so +z slides TOWARD it (right-up =
+      // up-right toward the back) and −z toward its opposite, landing on the neighbouring diamond exactly like
+      // z-width's per-cell step. 0 (every generated/existing asset) → no-op.
+      const zMove = isoZOffset(obj.asset.zOffset ?? 0, obj.asset.zDir ?? 'right-up', tileW, tileH)
       // Authored frame animation: offset/rotate/scale the asset around its cell (sway/wind).
-      const ax = p.x, ay = p.y - heightOffset - stackLift - zLift
+      const ax = p.x + zMove.dx, ay = p.y - heightOffset - stackLift + zMove.dy
       const ct = assetCellTransform(obj.asset.cellAnim, time)
       if (ct) applyCellTransform(ctx, ax, ay, ct, tileW, tileH)
       drawIsoAssetAscii(ctx, ax, ay, obj.asset, tileW, tileH, time, obj.asset.type === 'tree' && (!!obj.asset.baseShadow || isGroundContact(isTreeCell, obj.asset.col, obj.asset.row)), dayNight, style)

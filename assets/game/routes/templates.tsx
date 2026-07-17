@@ -1511,12 +1511,22 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     })
   const setAssetDepthDir = (i: number, dir: DepthDir) =>
     applyToSelectedCells((col, row, grid) => { const a = stackedAssetsAt(grid, col, row)[i]; if (a) a.depthDir = dir })
-  // PER-ASSET pose (x/y/rotate/flip) and "z position" (vertical zOffset lift) — written to THIS placed tile
-  // (persists with the map), not the shared tileset kind. The render reads asset.pose / asset.zOffset in every view.
+  // PER-ASSET pose (x/y/rotate/flip) and "z position" (ISO-DIAGONAL slide) — written to THIS placed tile
+  // (persists with the map), not the shared tileset kind. The render reads asset.pose / asset.zOffset / asset.zDir
+  // in every view.
   const setAssetPose = (i: number, pose: TilePose | undefined) =>
     applyToSelectedCells((col, row, grid) => { const a = stackedAssetsAt(grid, col, row)[i]; if (a) a.pose = pose })
+  // "z position": SLIDE the tile along an iso diagonal (NOT a vertical lift). Default the direction to 'right-up'
+  // ("right top", the user's +z = up-right) the first time z is set with none, so the slide has a direction to
+  // move along immediately — mirrors setAssetDepth defaulting depthDir when depth grows past 1.
   const setAssetZOffset = (i: number, v: number) =>
-    applyToSelectedCells((col, row, grid) => { const a = stackedAssetsAt(grid, col, row)[i]; if (a) a.zOffset = v })
+    applyToSelectedCells((col, row, grid) => {
+      const a = stackedAssetsAt(grid, col, row)[i]; if (!a) return
+      a.zOffset = v
+      if (v !== 0 && !a.zDir) a.zDir = 'right-up'
+    })
+  const setAssetZDir = (i: number, dir: DepthDir) =>
+    applyToSelectedCells((col, row, grid) => { const a = stackedAssetsAt(grid, col, row)[i]; if (a) a.zDir = dir })
   // PER-ASSET "z-index" (draw-priority, CSS z-index style) — a higher value draws on top / in front, overriding
   // the positional depth sort. Written to THIS placed tile (persists with the map); the render reads asset.zIndex.
   const setAssetZIndex = (i: number, v: number) =>
@@ -1574,6 +1584,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       __centerOn?: (col: number, row: number) => void
       __setHero?: (col: number, row: number) => void
       __setDepth?: (col: number, row: number, depth: number, dir: DepthDir) => { col: number; row: number; depth: number; depthDir: DepthDir; cells: { col: number; row: number }[] } | null
+      __setZPos?: (col: number, row: number, z: number, dir: DepthDir) => { col: number; row: number; zOffset: number; zDir: DepthDir } | null
     }
     win.__camOffset = () => ({ ...camOffsetRef.current })
     // ISO-STACK picking validation seams (same family as __entityScreens, which lands validation clicks via
@@ -1655,6 +1666,20 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       for (const c of cells) g.setCollision(c.col, c.row, true)
       bumpBuildingVersion()
       return { col, row, depth, depthDir: dir, cells }
+    }
+    // Z-POSITION validation seam: set `zOffset` (magnitude in cells) + `zDir` (which iso diagonal) on the TOPMOST
+    // block at (col,row) so it SLIDES along that diagonal (+z toward dir, −z opposite), then bump a redraw.
+    // Returns what it set so the render can be driven deterministically in all four directions. Same family as
+    // __setDepth (mutates the grid in place, then bumpBuildingVersion re-renders from it).
+    win.__setZPos = (col: number, row: number, z: number, dir: DepthDir) => {
+      const g = gridRef.current
+      if (!g) return null
+      const a = g.getAssetsAtCell(col, row).at(-1) // topmost stacked asset at the cell
+      if (!a) return null
+      a.zOffset = z
+      a.zDir = dir
+      bumpBuildingVersion()
+      return { col, row, zOffset: z, zDir: dir }
     }
     // Debug-overlay + tileset-label validation seams: toggle the label overlay, and DUMP the
     // `<TYPE> <POSITION>` label of every cell in a region (terrain autotile label overridden by an
@@ -5681,6 +5706,8 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                             onZDir: dir => setAssetDepthDir(i, dir),
                             zPos: adim(i, a => a.zOffset ?? 0),
                             onZPos: posable ? (v => setAssetZOffset(i, v)) : undefined,
+                            zPosDir: commonValue(cells.map(({ col, row }) => (stackedAssetsAt(grid, col, row)[i]?.zDir ?? null) as DepthDir | null)),
+                            onZPosDir: posable ? (dir => setAssetZDir(i, dir)) : undefined,
                             zIndex: adim(i, a => a.zIndex ?? 0),
                             onZIndex: posable ? (v => setAssetZIndex(i, v)) : undefined,
                             pose: posable ? a0?.pose : undefined,

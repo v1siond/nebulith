@@ -545,9 +545,14 @@ export interface TileControlModel {
   zDir?: DepthDir | null
   onZWidth?: (cells: number) => void
   onZDir?: (dir: DepthDir) => void
-  /** "z position": vertical lift in block-heights (asset.zOffset; null = mixed). Asset tiles only. */
+  /** "z position": ISO-DIAGONAL slide magnitude in cells (asset.zOffset; null = mixed). NOT a vertical lift —
+   *  the tile moves along zPosDir's diagonal. Asset tiles only. */
   zPos?: number | null
   onZPos?: (value: number) => void
+  /** "z position" DIRECTION: which iso diagonal the z slide moves along (asset.zDir; null = default/mixed).
+   *  Same 4 dirs + labels as Z Width; +z slides toward it, −z toward its opposite. Asset tiles only. */
+  zPosDir?: DepthDir | null
+  onZPosDir?: (dir: DepthDir) => void
   /** "z-index": DRAW-PRIORITY (CSS z-index style) — a higher value draws on top / in front of a lower one,
    *  overriding the positional depth sort (asset.zIndex; null = mixed). Asset tiles only. */
   zIndex?: number | null
@@ -650,6 +655,24 @@ function ZIndexRow({ zIndex, onZIndex }: { zIndex: number | null; onZIndex: (val
   )
 }
 
+/** Z POSITION — SLIDE the tile along an iso DIAGONAL (NOT a vertical lift): a magnitude (± cells) plus WHICH
+ *  diagonal it slides along, reusing the same 4 dirs + labels as Z Width. +z slides TOWARD the picked dir,
+ *  −z toward its opposite; default 'right-up' ("right top") → +z = up-right toward the back. The direction
+ *  buttons always show one highlighted (the effective default) so there's never a "no direction" limbo. */
+function ZPosRow({ zPos, zDir, onZPos, onZDir }: { zPos: number | null; zDir: DepthDir | null; onZPos: (value: number) => void; onZDir: (dir: DepthDir) => void }) {
+  const active = zDir ?? 'right-up' // z always has an effective direction (render defaults to right-up)
+  return (
+    <div className="space-y-1">
+      <PoseRow label="z" value={zPos ?? 0} min={-4} max={4} step={0.1} onInput={onZPos} />
+      <div className="grid grid-cols-2 gap-1 pl-16" role="group" aria-label="Z position direction">
+        {Z_WIDTH_DIRS.map(({ label, dir }) => (
+          <button key={dir} onClick={() => onZDir(dir)} aria-pressed={active === dir} className={`rounded px-1.5 py-0.5 text-[9px] font-bold ${active === dir ? 'bg-cyan-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}>{label}</button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 /** The ONE consolidated TILE control group — the SELECTED tile's every control in a single flat block:
  *  which-tile + Open Tile Library (swap it), colour, the Width/Height/Zoom scale axes (+ Z Width directional
  *  depth for asset tiles), then the x/y/z/rotate/flip transform. NO nested "Pose —" box, NO second colour,
@@ -684,8 +707,9 @@ export function TileControls({ tile }: { tile: TileControlModel }) {
         <>
           <PoseRow label="x" value={pose?.dx ?? 0} min={-1} max={1} step={0.01} onInput={v => setPose({ dx: v })} />
           <PoseRow label="y" value={pose?.dy ?? 0} min={-1} max={1} step={0.01} onInput={v => setPose({ dy: v })} />
-          {/* z = the VERTICAL axis (block-height lift), distinct from the screen-plane x/y offsets. Asset tiles only. */}
-          {tile.onZPos && <PoseRow label="z" value={tile.zPos ?? 0} min={-4} max={4} step={0.1} onInput={tile.onZPos} />}
+          {/* z = an ISO-DIAGONAL slide (NOT a vertical lift): magnitude + which of the 4 diagonals it moves
+              along, distinct from the screen-plane x/y offsets. Asset tiles only. */}
+          {tile.onZPos && <ZPosRow zPos={tile.zPos ?? 0} zDir={tile.zPosDir ?? null} onZPos={tile.onZPos} onZDir={tile.onZPosDir ?? (() => {})} />}
           <PoseRow label="rotate" value={rotDeg} min={-180} max={180} step={1} suffix="°" onInput={v => setPose({ rot: v * Math.PI / 180 })} />
           {tile.isWeapon && <PoseRow label="muzzle" value={pose?.muzzle ?? 0} min={0} max={1} step={0.05} onInput={v => setPose({ muzzle: v })} />}
           <label className="flex items-center gap-2">

@@ -10,6 +10,7 @@ import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 import { Connector } from '@/lib/api'
 import { ASCII_FONT, type DayNight, LAMP_GLOW, applyCellTransform, clampCameraAxis, collectLampGlows, debugCellCaptions, debugLabelColors, drawConnectorMarker, drawHitMarker, drawHpBar, drawNightLighting, drawQuestMarker, drawStyledImage, fillTintedGlyph, grassShade, cellFill, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, resolveAssetDraw, resolveEntityDraw, assetOverride, labelTileImage, labelTileRecolor, tileImage } from './shared'
 import { resolveAssetDrawSize } from './assetDimensions'
+import { DEPTH_CELL_STEP } from './isoBlock'
 import { getStack } from '@/engine/cellStack'
 import { EMOJI_TILESET } from '@/engine/tileset/emojiTileset'
 import { applyPose } from '@/engine/tileset/pose'
@@ -168,8 +169,13 @@ export function renderTopView(
       }
 
       ctx.fillStyle = dv.color
-      // Authored frame animation moves the asset GLYPH (not its cell backing) around its centre.
-      const gx = x + tileSize / 2, gy = y + tileSize / 2
+      // "z position" slides an asset along the iso diagonal; from ABOVE that projects to the ground-plane cell
+      // delta (zDir's DEPTH_CELL_STEP × the magnitude), so the tile ART slides in the footprint. The cell BACKING
+      // stays put (like iso/2D keep the ground cell under a slid prop). 0 / bare ground → no shift, unchanged.
+      const zStep = asset ? DEPTH_CELL_STEP[asset.zDir ?? 'right-up'] : null
+      const zAmt = asset?.zOffset ?? 0
+      const gx = x + tileSize / 2 + (zStep ? zAmt * zStep.dc * tileSize : 0)
+      const gy = y + tileSize / 2 + (zStep ? zAmt * zStep.dr * tileSize : 0)
       const ctTop = asset ? assetCellTransform(asset.cellAnim, now) : null
       if (ctTop) applyCellTransform(ctx, gx, gy, ctTop, tileSize, tileSize)
       // A composition cell's LABEL resolves its OWN backend image directly (mirrors the char lookup

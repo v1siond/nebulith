@@ -39,8 +39,11 @@ export interface GridAsset {
   pose?: TilePose       // PER-INSTANCE position/rotation/flip (x/y/rotate/flip inspector). Deviations-only; the
                         // render applies it through applyPose in every view. Distinct from the tileset-KIND pose
                         // (shared art tuning) — this moves THIS placed tile, not every tile of its kind.
-  zOffset?: number      // "z position" — vertical lift in block-height units (+ = up), the 3D height axis. The
-                        // iso + 2D renders lift the tile by this; the top view (no height) ignores it. Default 0.
+  zOffset?: number      // "z position" — ISO-DIAGONAL slide magnitude in cells (NOT a vertical lift). The tile
+                        // moves along zDir's iso diagonal: +z toward zDir, −z toward its opposite. Every view
+                        // shows the ground-plane slide (iso/2D/top). Default 0. (Field name kept for round-trip.)
+  zDir?: DepthDir       // Which iso diagonal the "z position" slides along (right-up/left-up/left-down/right-down).
+                        // Default right-up → +z = up-right (toward the back), −z = down-left. Same 4 dirs as depthDir.
   zIndex?: number       // DRAW-PRIORITY (CSS z-index style): the depth sort draws a HIGHER zIndex LATER (on top /
                         // in front), overriding the positional iso/2D/top key. So the fountain water (zIndex 10)
                         // renders in front of a wall behind it. Default 0 → sorts positionally, exactly as before.

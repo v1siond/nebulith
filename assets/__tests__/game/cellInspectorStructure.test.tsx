@@ -83,24 +83,52 @@ describe('Cell inspector — exactly two sections', () => {
     expect(screen.getByLabelText('flip horizontally')).toBeInTheDocument()
   })
 
-  it('an ASSET tile gets the Z Width directional-depth control (4 directions) + a z lift', () => {
+  it('an ASSET tile gets the Z Width directional-depth control (4 directions) + a z slide', () => {
     const onZWidth = jest.fn(), onZDir = jest.fn(), onZPos = jest.fn()
     const asset = floorTile({ key: 'tile-0', label: 'wall', zWidth: 1, zDir: null, onZWidth, onZDir, zPos: 0, onZPos })
     render(<PropertiesPanel collision={true} onCollision={jest.fn()} tile={asset} level={2} levelCount={2} onLevel={jest.fn()} />)
-    // Z Width slider (replaces "Depth") + the four USER-labelled directions + the vertical z axis.
+    // Z Width slider (replaces "Depth") + the four USER-labelled directions + the z axis.
     expect(screen.getByLabelText('Z Width')).toBeInTheDocument()
     expect(screen.queryByLabelText('Depth')).toBeNull()
+    // The Z Width buttons are its OWN direction group (the z-position picker below reuses the same labels),
+    // so scope the queries to that group to keep them unambiguous.
+    const zWidthGroup = within(screen.getByRole('group', { name: 'Z Width direction' }))
     for (const dir of ['right top', 'left top', 'bottom left', 'bottom right']) {
-      expect(screen.getByRole('button', { name: dir })).toBeInTheDocument()
+      expect(zWidthGroup.getByRole('button', { name: dir })).toBeInTheDocument()
     }
     expect(screen.getByLabelText('z')).toBeInTheDocument()
-    // the controls write through their callbacks
+    // the controls write through their callbacks — clicking a direction actually changes the extrusion dir
+    // (the buttons are NOT inert): each USER label maps to its DepthDir.
     fireEvent.change(screen.getByLabelText('Z Width'), { target: { value: '4' } })
     expect(onZWidth).toHaveBeenLastCalledWith(4)
-    fireEvent.click(screen.getByRole('button', { name: 'right top' }))
+    fireEvent.click(zWidthGroup.getByRole('button', { name: 'right top' }))
     expect(onZDir).toHaveBeenLastCalledWith('right-up')
-    fireEvent.click(screen.getByRole('button', { name: 'bottom left' }))
+    fireEvent.click(zWidthGroup.getByRole('button', { name: 'bottom left' }))
     expect(onZDir).toHaveBeenLastCalledWith('left-down')
+    fireEvent.click(zWidthGroup.getByRole('button', { name: 'left top' }))
+    expect(onZDir).toHaveBeenLastCalledWith('left-up')
+    fireEvent.click(zWidthGroup.getByRole('button', { name: 'bottom right' }))
+    expect(onZDir).toHaveBeenLastCalledWith('right-down')
+  })
+
+  it('an ASSET tile gets a z-POSITION direction picker (4 diagonals) wired to onZPosDir', () => {
+    const onZPos = jest.fn(), onZPosDir = jest.fn()
+    // zPosDir null → the picker highlights the effective default (right-up) but all four are clickable.
+    const asset = floorTile({ key: 'tile-0', label: 'wall', zPos: 0, onZPos, zPosDir: null, onZPosDir })
+    render(<PropertiesPanel collision={true} onCollision={jest.fn()} tile={asset} level={2} levelCount={2} onLevel={jest.fn()} />)
+    const zPosGroup = within(screen.getByRole('group', { name: 'Z position direction' }))
+    // Every USER-labelled diagonal maps to its DepthDir — proves the picker is wired, not inert.
+    fireEvent.click(zPosGroup.getByRole('button', { name: 'right top' }))
+    expect(onZPosDir).toHaveBeenLastCalledWith('right-up')
+    fireEvent.click(zPosGroup.getByRole('button', { name: 'bottom right' }))
+    expect(onZPosDir).toHaveBeenLastCalledWith('right-down')
+    fireEvent.click(zPosGroup.getByRole('button', { name: 'left top' }))
+    expect(onZPosDir).toHaveBeenLastCalledWith('left-up')
+    fireEvent.click(zPosGroup.getByRole('button', { name: 'bottom left' }))
+    expect(onZPosDir).toHaveBeenLastCalledWith('left-down')
+    // the z magnitude still writes through
+    fireEvent.change(screen.getByLabelText('z'), { target: { value: '2' } })
+    expect(onZPos).toHaveBeenLastCalledWith(2)
   })
 
   it('a cell with no tile shows ONLY the CELL section', () => {

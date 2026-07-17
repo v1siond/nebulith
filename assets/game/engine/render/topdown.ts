@@ -18,6 +18,7 @@ import { resolveTileSize, resolveTilePose } from '@/engine/tileset/tileViewSetti
 import { Connector } from '@/lib/api'
 import { ASCII_FONT, COMBAT_RANGE, type DayNight, ENEMY_MOVE_MS, LAMP_GLOW, applyCellTransform, clampCameraAxis, assetCaptionByCell, terrainLabelAt, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawHoverRing, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawConnectorMarker, drawAttackAnimFrame, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, frameImage, getPlayerArt, grassShade, cellFill, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, resolveAssetDraw, resolveEntityDraw, assetOverride, labelTileImage, labelTileRecolor, treeCanopyLayers, treeCellSet } from './shared'
 import { resolveAssetDrawSize } from './assetDimensions'
+import { DEPTH_CELL_STEP } from './isoBlock'
 import { frontElevation, type FrontElevation } from './frontElevation'
 import { groundSizeFactors, groundDimsActive, type GroundCellDims } from '@/engine/groundDims'
 import { getStack } from '@/engine/cellStack'
@@ -444,7 +445,13 @@ export function render2D(
     // prop, a 1-deep tree, the player) projects at its OWN cell.
     const feCell = obj.type === 'asset' && obj.asset ? fe.draw.get(obj.asset) : undefined
     const projRow = feCell ? feCell.anchorRow : obj.row
-    const p = toScreen(obj.col + 0.5, projRow + 0.5)
+    // "z position" slides an asset along the iso diagonal; the 2D orthographic (col,row)→(x,y) view projects
+    // that to the GROUND-PLANE cell delta (zDir's DEPTH_CELL_STEP × the magnitude), NOT a vertical lift. A
+    // non-asset object or z=0 (every generated/existing asset) → no shift, byte-identical to before.
+    const zAsset = obj.type === 'asset' ? obj.asset : undefined
+    const zStep = zAsset ? DEPTH_CELL_STEP[zAsset.zDir ?? 'right-up'] : null
+    const zAmt = zAsset?.zOffset ?? 0
+    const p = toScreen(obj.col + 0.5 + (zStep ? zAmt * zStep.dc : 0), projRow + 0.5 + (zStep ? zAmt * zStep.dr : 0))
     const groundHeight = grid.getHeight(Math.floor(obj.col), Math.floor(projRow))
     const elevOffset = groundHeight * heightScale
 
@@ -560,9 +567,9 @@ export function render2D(
       // lift so brush-stacked items read as separate raised objects. heightLevel is absent (→ 0) on every
       // generated/existing flat asset, so that path is a no-op for anything but a deliberately stacked cell.
       const levelStep = feCell ? tileH : tileH * 0.9
-      // "z position" (per-asset zOffset): the 2D front elevation shows height, so lift the tile the same way iso
-      // does (block-heights up). Keeps the views consistent; 0 → no-op.
-      const baseY = p.y + tileH * 0.5 - elevOffset - (asset.heightLevel ?? 0) * levelStep - (asset.zOffset ?? 0) * tileH * 0.9
+      // "z position" is NOT a vertical lift — it's an iso-diagonal ground slide, already folded into `p` above
+      // (the ground-plane cell delta), so baseY only carries elevation + the height-level stack, like before.
+      const baseY = p.y + tileH * 0.5 - elevOffset - (asset.heightLevel ?? 0) * levelStep
 
       // Authored frame animation: offset/rotate/scale the asset around its ground point (sway/wind).
       const ct2d = assetCellTransform(asset.cellAnim, time)

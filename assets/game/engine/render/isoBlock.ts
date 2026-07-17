@@ -93,6 +93,19 @@ export const DEPTH_CELL_STEP: Record<DepthDir, { dc: number; dr: number }> = {
   'right-down': { dc: +1, dr: 0 },
 }
 
+/**
+ * Z-POSITION — slide a tile along an ISO DIAGONAL (NOT a vertical lift). `z` is the magnitude in cells;
+ * `dir` picks one of the four iso diagonals (the SAME 4 dirs as directional depth / z-width). +z slides
+ * the tile TOWARD `dir`, −z toward its opposite. Returns the screen-space offset in the caller's tileW/tileH
+ * units (the iso half-diamond extents), so ±1 lands the tile on the neighbouring diamond exactly like the
+ * z-width per-cell step: right-up = (+tileW,−tileH) up-right, right-down = (+tileW,+tileH) down-right, etc.
+ * Pure — unit-tested.
+ */
+export function isoZOffset(z: number, dir: DepthDir, tileW: number, tileH: number): { dx: number; dy: number } {
+  const s = DEPTH_STEP[dir]
+  return { dx: z * s.sx * tileW, dy: z * s.sy * tileH }
+}
+
 /** The extruded long box: its top parallelogram + the two CAMERA-VISIBLE walls (one runs the full length,
  *  the other is a single-cell end cap), each tagged with which unit-cube shade it wears (leftShade for a
  *  +row/L→B face, rightShade for a +col/B→R face) so the draw path reuses the existing lighting untouched. */
