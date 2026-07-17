@@ -10881,7 +10881,7 @@
           "color_role": null,
           "emoji": null,
           "glyph": "▤",
-          "image_url": null
+          "image_url": "/tiles/ascii/wall_wood_c.png"
         },
         "tree_edge_right": {
           "title": null,
@@ -11086,7 +11086,7 @@
           "color_role": null,
           "emoji": null,
           "glyph": "▒",
-          "image_url": null
+          "image_url": "/tiles/ascii/wall_brick_c.png"
         },
         "wall_plaster_b": {
           "title": null,
@@ -11108,7 +11108,7 @@
           "color_role": null,
           "emoji": null,
           "glyph": "▄",
-          "image_url": null
+          "image_url": "/tiles/ascii/wall_plaster_b.png"
         },
         "wall_plaster_t": {
           "title": null,
@@ -11130,7 +11130,7 @@
           "color_role": null,
           "emoji": null,
           "glyph": "▀",
-          "image_url": null
+          "image_url": "/tiles/ascii/wall_plaster_t.png"
         },
         "window": {
           "title": "Window",
@@ -11238,7 +11238,7 @@
           "color_role": null,
           "emoji": null,
           "glyph": "▛",
-          "image_url": null
+          "image_url": "/tiles/ascii/wall_brick_tl.png"
         },
         "decor_spark": {
           "title": null,
@@ -11254,7 +11254,7 @@
           "color_role": null,
           "emoji": null,
           "glyph": "*",
-          "image_url": null
+          "image_url": "/tiles/ascii/decor_spark.png"
         },
         "leaf_center": {
           "title": null,
@@ -11443,7 +11443,7 @@
           "color_role": null,
           "emoji": null,
           "glyph": "▌",
-          "image_url": null
+          "image_url": "/tiles/ascii/wall_brick_l.png"
         },
         "fountain_tr": {
           "title": null,
@@ -11464,7 +11464,7 @@
           "color_role": null,
           "emoji": null,
           "glyph": "▜",
-          "image_url": null
+          "image_url": "/tiles/ascii/fountain_tr.png"
         },
         "wall_plaster_tr": {
           "title": null,
@@ -11486,7 +11486,7 @@
           "color_role": null,
           "emoji": null,
           "glyph": "▜",
-          "image_url": null
+          "image_url": "/tiles/ascii/wall_plaster_tr.png"
         },
         "parapet": {
           "title": null,
@@ -11508,7 +11508,7 @@
           "color_role": null,
           "emoji": null,
           "glyph": "▀",
-          "image_url": null
+          "image_url": "/tiles/ascii/parapet.png"
         },
         "wall_wood_b": {
           "title": null,
@@ -11530,7 +11530,7 @@
           "color_role": null,
           "emoji": null,
           "glyph": "▄",
-          "image_url": null
+          "image_url": "/tiles/ascii/wall_wood_b.png"
         },
         "frost": {
           "title": null,
@@ -11605,7 +11605,7 @@
           "color_role": null,
           "emoji": null,
           "glyph": "|",
-          "image_url": null
+          "image_url": "/tiles/ascii/water_jet.png"
         },
         "ancient_stone": {
           "title": null,
@@ -11776,7 +11776,7 @@
           "color_role": null,
           "emoji": null,
           "glyph": "◣",
-          "image_url": null
+          "image_url": "/tiles/ascii/roof_top_slate.png"
         },
         "courtyard_stone": {
           "title": null,
@@ -11823,7 +11823,7 @@
           "color_role": null,
           "emoji": null,
           "glyph": "▙",
-          "image_url": null
+          "image_url": "/tiles/ascii/fountain_bl.png"
         },
         "wall_brick_t": {
           "title": null,
@@ -11845,7 +11845,7 @@
           "color_role": null,
           "emoji": null,
           "glyph": "▀",
-          "image_url": null
+          "image_url": "/tiles/ascii/wall_brick_t.png"
         },
         "tree_edge_left": {
           "title": null,
@@ -11923,7 +11923,7 @@
           "color_role": null,
           "emoji": null,
           "glyph": "▛",
-          "image_url": null
+          "image_url": "/tiles/ascii/fountain_tl.png"
         },
         "grass_tall": {
           "title": null,
@@ -11993,7 +11993,7 @@
           "color_role": null,
           "emoji": null,
           "glyph": "▐",
-          "image_url": null
+          "image_url": "/tiles/ascii/wall_stone_r.png"
         },
         "wall_stone_br": {
           "title": null,
@@ -12015,7 +12015,7 @@
           "color_role": null,
           "emoji": null,
           "glyph": "▟",
-          "image_url": null
+          "image_url": "/tiles/ascii/wall_stone_br.png"
         },
         "russian_red": {
           "title": null,
@@ -12115,7 +12115,7 @@
           "color_role": null,
           "emoji": null,
           "glyph": "░",
-          "image_url": null
+          "image_url": "/tiles/ascii/wall_plaster_c.png"
         },
         "zen_garden": {
           "title": null,
@@ -12334,7 +12334,7 @@
           "color_role": null,
           "emoji": null,
           "glyph": "▟",
-          "image_url": null
+          "image_url": "/tiles/ascii/wall_plaster_br.png"
         },
         "magma": {
           "title": null,
@@ -12434,7 +12434,7 @@
           "color_role": null,
           "emoji": null,
           "glyph": "▙",
-          "image_url": null
+          "image_url": "/tiles/ascii/wall_brick_bl.png"
         },
         "wall_plaster_tl": {
           "title": null,
@@ -12456,7 +12456,7 @@
           "color_role": null,
           "emoji": null,
           "glyph": "▛",
-          "image_url": null
+          "image_url": "/tiles/ascii/wall_plaster_tl.png"
         },
         "marble": {
           "title": null,
@@ -12530,7 +12530,7 @@
           "color_role": null,
           "emoji": null,
           "glyph": "▐",
-          "image_url": null
+          "image_url": "/tiles/ascii/wall_plaster_r.png"
         },
         "coral": {
           "title": null,
@@ -12578,7 +12578,7 @@
           "color_role": null,
           "emoji": null,
           "glyph": "▀",
-          "image_url": null
+          "image_url": "/tiles/ascii/wall_wood_t.png"
         },
         "water_shallow": {
           "title": null,
@@ -12625,7 +12625,7 @@
           "color_role": null,
           "emoji": null,
           "glyph": "▟",
-          "image_url": null
+          "image_url": "/tiles/ascii/fountain_br.png"
         },
         "frozen_water": {
           "title": null,
@@ -12871,7 +12871,7 @@
           "color_role": null,
           "emoji": null,
           "glyph": "▄",
-          "image_url": null
+          "image_url": "/tiles/ascii/wall_stone_b.png"
         },
         "snow_path": {
           "title": null,
@@ -13048,7 +13048,7 @@
           "color_role": null,
           "emoji": null,
           "glyph": "▛",
-          "image_url": null
+          "image_url": "/tiles/ascii/wall_wood_tl.png"
         },
         "path_stone": {
           "title": null,
@@ -13096,7 +13096,7 @@
           "color_role": null,
           "emoji": null,
           "glyph": "▲",
-          "image_url": null
+          "image_url": "/tiles/ascii/roof_slate.png"
         },
         "roof_top": {
           "title": null,
@@ -13141,7 +13141,7 @@
           "color_role": null,
           "emoji": null,
           "glyph": "▟",
-          "image_url": null
+          "image_url": "/tiles/ascii/wall_brick_br.png"
         },
         "crypt_floor": {
           "title": null,
@@ -13214,7 +13214,7 @@
           "color_role": null,
           "emoji": null,
           "glyph": "▌",
-          "image_url": null
+          "image_url": "/tiles/ascii/fountain_l.png"
         },
         "tree_crown": {
           "title": null,
@@ -13286,7 +13286,7 @@
           "color_role": null,
           "emoji": null,
           "glyph": ":",
-          "image_url": null
+          "image_url": "/tiles/ascii/decor_grit.png"
         },
         "wall_stone_bl": {
           "title": null,
@@ -13308,7 +13308,7 @@
           "color_role": null,
           "emoji": null,
           "glyph": "▙",
-          "image_url": null
+          "image_url": "/tiles/ascii/wall_stone_bl.png"
         },
         "volcanic_rock": {
           "title": null,
@@ -13413,7 +13413,7 @@
           "color_role": null,
           "emoji": null,
           "glyph": "▓",
-          "image_url": null
+          "image_url": "/tiles/ascii/wall_stone_c.png"
         },
         "tree_top": {
           "title": null,
@@ -13535,7 +13535,7 @@
           "color_role": null,
           "emoji": null,
           "glyph": "▐",
-          "image_url": null
+          "image_url": "/tiles/ascii/fountain_r.png"
         },
         "snow": {
           "title": null,
@@ -13628,7 +13628,7 @@
           "color_role": null,
           "emoji": null,
           "glyph": ".",
-          "image_url": null
+          "image_url": "/tiles/ascii/decor_dot.png"
         },
         "roof_top_store": {
           "title": null,
@@ -13763,7 +13763,7 @@
           "color_role": null,
           "emoji": null,
           "glyph": "❀",
-          "image_url": null
+          "image_url": "/tiles/ascii/decor_flower.png"
         },
         "bow": {
           "title": null,
@@ -13903,7 +13903,7 @@
           "color_role": null,
           "emoji": null,
           "glyph": "▟",
-          "image_url": null
+          "image_url": "/tiles/ascii/wall_wood_br.png"
         },
         "sakura_petals": {
           "title": null,
@@ -13973,7 +13973,7 @@
           "color_role": null,
           "emoji": null,
           "glyph": "∴",
-          "image_url": null
+          "image_url": "/tiles/ascii/decor_pebbles.png"
         },
         "ice": {
           "title": null,
@@ -14072,7 +14072,7 @@
           "color_role": null,
           "emoji": null,
           "glyph": "≈",
-          "image_url": null
+          "image_url": "/tiles/ascii/water_c.png"
         },
         "dead_grass": {
           "title": null,
@@ -14113,7 +14113,7 @@
           "color_role": null,
           "emoji": null,
           "glyph": "✿",
-          "image_url": null
+          "image_url": "/tiles/ascii/decor_blossom.png"
         },
         "tropical_grass": {
           "title": null,
@@ -14161,7 +14161,7 @@
           "color_role": null,
           "emoji": null,
           "glyph": "▙",
-          "image_url": null
+          "image_url": "/tiles/ascii/wall_wood_bl.png"
         },
         "lava": {
           "title": null,
@@ -14321,7 +14321,7 @@
           "color_role": null,
           "emoji": null,
           "glyph": "♣",
-          "image_url": null
+          "image_url": "/tiles/ascii/decor_clover.png"
         },
         "leaf_top": {
           "title": null,
@@ -14426,7 +14426,7 @@
           "color_role": null,
           "emoji": null,
           "glyph": "▛",
-          "image_url": null
+          "image_url": "/tiles/ascii/wall_stone_tl.png"
         },
         "tree_bottom": {
           "title": null,
@@ -14597,7 +14597,7 @@
           "color_role": null,
           "emoji": null,
           "glyph": "▜",
-          "image_url": null
+          "image_url": "/tiles/ascii/wall_wood_tr.png"
         },
         "terracotta": {
           "title": null,
@@ -14671,7 +14671,7 @@
           "color_role": null,
           "emoji": null,
           "glyph": "▬",
-          "image_url": null
+          "image_url": "/tiles/ascii/flat_roof.png"
         },
         "wall_stone_t": {
           "title": null,
@@ -14693,7 +14693,7 @@
           "color_role": null,
           "emoji": null,
           "glyph": "▀",
-          "image_url": null
+          "image_url": "/tiles/ascii/wall_stone_t.png"
         },
         "wall_wood_r": {
           "title": null,
@@ -14715,7 +14715,7 @@
           "color_role": null,
           "emoji": null,
           "glyph": "▐",
-          "image_url": null
+          "image_url": "/tiles/ascii/wall_wood_r.png"
         },
         "wall_stone_tr": {
           "title": null,
@@ -14737,7 +14737,7 @@
           "color_role": null,
           "emoji": null,
           "glyph": "▜",
-          "image_url": null
+          "image_url": "/tiles/ascii/wall_stone_tr.png"
         },
         "trunk_base": {
           "title": null,
@@ -14827,7 +14827,7 @@
           "color_role": null,
           "emoji": null,
           "glyph": "▄",
-          "image_url": null
+          "image_url": "/tiles/ascii/wall_brick_b.png"
         },
         "awning": {
           "title": null,
@@ -14849,7 +14849,7 @@
           "color_role": null,
           "emoji": null,
           "glyph": "▨",
-          "image_url": null
+          "image_url": "/tiles/ascii/awning.png"
         },
         "decor_shell": {
           "title": null,
@@ -14864,7 +14864,7 @@
           "color_role": null,
           "emoji": null,
           "glyph": "°",
-          "image_url": null
+          "image_url": "/tiles/ascii/decor_shell.png"
         },
         "wall_plaster_bl": {
           "title": null,
@@ -14886,7 +14886,7 @@
           "color_role": null,
           "emoji": null,
           "glyph": "▙",
-          "image_url": null
+          "image_url": "/tiles/ascii/wall_plaster_bl.png"
         },
         "snow_deep": {
           "title": null,
@@ -14956,7 +14956,7 @@
           "color_role": null,
           "emoji": null,
           "glyph": "▦",
-          "image_url": null
+          "image_url": "/tiles/ascii/display_window.png"
         },
         "grass": {
           "title": null,
@@ -15004,7 +15004,7 @@
           "color_role": null,
           "emoji": null,
           "glyph": "▌",
-          "image_url": null
+          "image_url": "/tiles/ascii/wall_wood_l.png"
         },
         "autumn_ground": {
           "title": null,
@@ -15152,7 +15152,7 @@
           "color_role": null,
           "emoji": null,
           "glyph": "▀",
-          "image_url": null
+          "image_url": "/tiles/ascii/fountain_t.png"
         },
         "mushroom": {
           "title": "Mushroom",
@@ -15314,7 +15314,7 @@
           "color_role": null,
           "emoji": null,
           "glyph": "▪",
-          "image_url": null
+          "image_url": "/tiles/ascii/rooftop_unit.png"
         },
         "rune_floor": {
           "title": null,
@@ -15362,7 +15362,7 @@
           "color_role": null,
           "emoji": null,
           "glyph": "▜",
-          "image_url": null
+          "image_url": "/tiles/ascii/wall_brick_tr.png"
         },
         "decor_ripple": {
           "title": null,
@@ -15377,7 +15377,7 @@
           "color_role": null,
           "emoji": null,
           "glyph": "~",
-          "image_url": null
+          "image_url": "/tiles/ascii/decor_ripple.png"
         },
         "tree_bottom_right": {
           "title": null,
@@ -15518,7 +15518,7 @@
           "color_role": null,
           "emoji": null,
           "glyph": "▌",
-          "image_url": null
+          "image_url": "/tiles/ascii/wall_plaster_l.png"
         },
         "rock": {
           "title": null,
@@ -15580,7 +15580,7 @@
           "color_role": null,
           "emoji": null,
           "glyph": "▌",
-          "image_url": null
+          "image_url": "/tiles/ascii/wall_stone_l.png"
         },
         "leaf_left": {
           "title": null,
@@ -15735,7 +15735,7 @@
           "color_role": null,
           "emoji": null,
           "glyph": "▐",
-          "image_url": null
+          "image_url": "/tiles/ascii/wall_brick_r.png"
         },
         "fountain_b": {
           "title": null,
@@ -15756,7 +15756,7 @@
           "color_role": null,
           "emoji": null,
           "glyph": "▄",
-          "image_url": null
+          "image_url": "/tiles/ascii/fountain_b.png"
         },
         "spanish_tile": {
           "title": null,
