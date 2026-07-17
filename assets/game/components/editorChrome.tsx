@@ -8,6 +8,7 @@ import { BUILT_IN_STYLES, type TileCategory, type TileDef, genderize, tilesForSt
 import type { EntityVariant } from '@/game/types'
 import type { AnimDirection, AnimFrame, AnimTrigger, EntityAnimation } from '@/game/runtime/entityAnimation'
 import type { TilePose } from '@/engine/tileset/pose'
+import type { DepthDir } from '@/engine/render'
 import { DEFAULT_ACTION_PARAMS, makeTrigger, type Trigger, type TriggerActionType, type TriggerEvent } from '@/game/runtime/trigger'
 import { type EditorMode, SEASON_BTN, STAGE_VARIANTS, STAGE_ZONES } from './editorConfig'
 
@@ -518,7 +519,8 @@ export interface ElementDims {
 /** The ONE selected tile in the Cell inspector, as a single consolidated control group. A cell is a fixed
  *  slot; the ONE tile the user has selected in its stack (the floor is the height-0 tile, a wall/prop is a
  *  stacked block) gets EVERY control in ONE group: which-tile + Open Tile Library (swap it), colour, the
- *  Width/Height/Depth/Zoom scale axes, and the x/y/rotate/flip pose. NO separate FLOOR / POSE / colour
+ *  Width/Height/Zoom scale axes (+ Z Width directional depth for asset tiles), and the x/y/z/rotate/flip
+ *  transform. NO separate FLOOR / POSE / colour
  *  sections. The page pre-computes each shared value across a multi-cell selection (`null` = the tiles
  *  differ → "mixed") and each callback writes the edit to THIS stack level across the whole selection. */
 export interface TileControlModel {
@@ -536,6 +538,16 @@ export interface TileControlModel {
   onColor: (color: string) => void
   /** floor tiles can reset to the tileset colour; props may omit. */
   onClearColor?: () => void
+  /** DIRECTIONAL DEPTH ("Z Width"): how many cells this block extrudes into a long iso box (asset.depth;
+   *  null = mixed). Present only for asset tiles that support it — the floor omits it (no directional depth). */
+  zWidth?: number | null
+  /** which iso diagonal the Z Width grows along (asset.depthDir; null = none/mixed). */
+  zDir?: DepthDir | null
+  onZWidth?: (cells: number) => void
+  onZDir?: (dir: DepthDir) => void
+  /** "z position": vertical lift in block-heights (asset.zOffset; null = mixed). Asset tiles only. */
+  zPos?: number | null
+  onZPos?: (value: number) => void
   /** the tile pinned to this stack level (GridAsset.tileOverride), or null = follows the global style. */
   override?: string | null
   /** the active global style name, shown in the "Change tile" affordance. */
@@ -550,9 +562,6 @@ export interface TileControlModel {
   onPoseReset?: () => void
   /** weapon tiles get a muzzle row. */
   isWeapon?: boolean
-  /** a tileset-kind pose (asset) can be persisted to the backend; the floor's per-cell pose saves with the map. */
-  onSavePose?: () => void
-  savingPose?: boolean
 }
 
 /** PROPERTY editor for the current cell selection — EXACTLY TWO sections. A CELL is a fixed slot, so the
@@ -592,9 +601,41 @@ function DimRow({ label, axis, value, title, onDim }: { label: string; axis: Dim
   )
 }
 
+/** The four directional-depth options with the USER's exact labels, laid out 2×2 to match where the box grows
+ *  on screen (top row = up diagonals, bottom row = down diagonals; left = ←, right = →). Each maps to a
+ *  DepthDir (verified against the iso projection: right top = up-right, etc.). */
+const Z_WIDTH_DIRS: { label: string; dir: DepthDir }[] = [
+  { label: 'left top', dir: 'left-up' },
+  { label: 'right top', dir: 'right-up' },
+  { label: 'bottom left', dir: 'left-down' },
+  { label: 'bottom right', dir: 'right-down' },
+]
+
+/** Z WIDTH — directional depth: how many cells the selected BLOCK extrudes into a long iso box, plus WHICH
+ *  diagonal it grows along. Replaces the old symmetric "Depth" (scaleZ) stretch — the value is a cell count
+ *  (integer), and the render extrudes the long box via isoDepthBox in the chosen direction. */
+function ZWidthRow({ zWidth, zDir, onZWidth, onZDir }: { zWidth: number | null; zDir: DepthDir | null; onZWidth: (cells: number) => void; onZDir: (dir: DepthDir) => void }) {
+  return (
+    <div className="space-y-1">
+      <label className="flex items-center gap-2" title="Z Width — how many cells this block extrudes into a long iso box, along the chosen direction (iso view)">
+        <span className="w-14 shrink-0 text-[10px] text-gray-400">Z Width</span>
+        <input type="range" min={1} max={8} step={1} value={zWidth ?? 1} onChange={e => parseNum(e.target.value, onZWidth)} aria-label="Z Width" className="flex-1 accent-cyan-500" />
+        <input type="number" min={1} max={8} step={1} value={zWidth ?? 1} onChange={e => parseNum(e.target.value, onZWidth)} aria-label="Z Width value" className="w-14 rounded bg-gray-800 p-1 text-[10px] tabular-nums text-cyan-300" />
+        {zWidth === null && mixedBadge}
+      </label>
+      <div className="grid grid-cols-2 gap-1 pl-16" role="group" aria-label="Z Width direction">
+        {Z_WIDTH_DIRS.map(({ label, dir }) => (
+          <button key={dir} onClick={() => onZDir(dir)} aria-pressed={zDir === dir} className={`rounded px-1.5 py-0.5 text-[9px] font-bold ${zDir === dir ? 'bg-cyan-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}>{label}</button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 /** The ONE consolidated TILE control group — the SELECTED tile's every control in a single flat block:
- *  which-tile + Open Tile Library (swap it), colour, the Width/Height/Depth/Zoom scale axes, then the
- *  x/y/rotate/flip pose. NO nested "Pose —" box, NO second colour, NO one-section-per-tile. The floor
+ *  which-tile + Open Tile Library (swap it), colour, the Width/Height/Zoom scale axes (+ Z Width directional
+ *  depth for asset tiles), then the x/y/z/rotate/flip transform. NO nested "Pose —" box, NO second colour,
+ *  NO one-section-per-tile. The floor
  *  (a height-0 tile) and a stacked wall/prop use the EXACT SAME group; only the writers differ (the page
  *  routes floor→per-cell, asset→its tileset kind). */
 export function TileControls({ tile }: { tile: TileControlModel }) {
@@ -614,24 +655,23 @@ export function TileControls({ tile }: { tile: TileControlModel }) {
       </div>
       <DimRow label="Width" axis="width" value={tile.dims.width} title="Width — horizontal stretch (every view)" onDim={tile.onDim} />
       <DimRow label="Height" axis="height" value={tile.dims.height} title="Height — grows UP from the base (iso + 2D views)" onDim={tile.onDim} />
-      <DimRow label="Depth" axis="depth" value={tile.dims.depth} title="Depth — stretches the ground axis in the top view only" onDim={tile.onDim} />
-      <DimRow label="Zoom" axis="zoom" value={tile.dims.zoom} title="Zoom — scales Width, Height and Depth together" onDim={tile.onDim} />
+      {/* Z Width (directional depth): extrudes the block into a long iso box along a chosen diagonal. Replaces
+          the old symmetric "Depth" (scaleZ) stretch. Asset tiles only — the floor omits onZWidth. */}
+      {tile.onZWidth && <ZWidthRow zWidth={tile.zWidth ?? 1} zDir={tile.zDir ?? null} onZWidth={tile.onZWidth} onZDir={tile.onZDir ?? (() => {})} />}
+      <DimRow label="Zoom" axis="zoom" value={tile.dims.zoom} title="Zoom — scales Width, Height and Zoom together" onDim={tile.onDim} />
       {/* x/y/rotate/flip live in the SAME group — there is NO separate POSE section */}
       {setPose && (
         <>
           <PoseRow label="x" value={pose?.dx ?? 0} min={-1} max={1} step={0.01} onInput={v => setPose({ dx: v })} />
           <PoseRow label="y" value={pose?.dy ?? 0} min={-1} max={1} step={0.01} onInput={v => setPose({ dy: v })} />
+          {/* z = the VERTICAL axis (block-height lift), distinct from the screen-plane x/y offsets. Asset tiles only. */}
+          {tile.onZPos && <PoseRow label="z" value={tile.zPos ?? 0} min={-4} max={4} step={0.1} onInput={tile.onZPos} />}
           <PoseRow label="rotate" value={rotDeg} min={-180} max={180} step={1} suffix="°" onInput={v => setPose({ rot: v * Math.PI / 180 })} />
           {tile.isWeapon && <PoseRow label="muzzle" value={pose?.muzzle ?? 0} min={0} max={1} step={0.05} onInput={v => setPose({ muzzle: v })} />}
           <label className="flex items-center gap-2">
             <input type="checkbox" checked={pose?.flip ?? false} onChange={e => setPose({ flip: e.target.checked })} aria-label="flip horizontally" className="accent-cyan-500" />
             <span className="text-[10px] text-gray-400">flip horizontally</span>
           </label>
-          {tile.onSavePose && (
-            <button onClick={tile.onSavePose} disabled={tile.savingPose} className="w-full rounded bg-emerald-700 px-2 py-1 text-[10px] font-bold text-white transition-colors hover:bg-emerald-600 disabled:opacity-40">
-              {tile.savingPose ? 'Saving…' : '⭳ Save poses to backend'}
-            </button>
-          )}
           {tile.onPoseReset && (
             <button onClick={tile.onPoseReset} className="w-full rounded bg-gray-700 px-2 py-1 text-[10px] font-bold text-white transition-colors hover:bg-gray-600">
               ↺ Reset pose

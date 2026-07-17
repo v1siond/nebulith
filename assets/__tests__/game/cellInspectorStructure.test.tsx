@@ -2,7 +2,8 @@
  * CELL inspector STRUCTURE — the reworked PropertiesPanel must render EXACTLY TWO sections:
  *   1. CELL  — just the Collision toggle (a cell is a fixed slot).
  *   2. TILE  — the ONE selected tile as a SINGLE consolidated group: which-tile + Open Tile Library,
- *              Colour, Width/Height/Depth/Zoom, and x/y/rotate/flip — with a ▲▼ level stepper.
+ *              Colour, Width/Height/Zoom (+ Z Width directional depth + a z lift for asset tiles), and
+ *              x/y/rotate/flip — with a ▲▼ level stepper.
  *
  * These tests assert the SECTION LAYOUT (the ordered divider list), not just that a control exists — the
  * exact failure past passes missed: four overlapping sections (CELL + FLOOR + WALL + POSE) instead of two.
@@ -62,21 +63,44 @@ describe('Cell inspector — exactly two sections', () => {
     expect(screen.getByRole('button', { name: 'Walkable' })).toBeInTheDocument()
   })
 
-  it('the TILE section is ONE consolidated group: change-tile + colour + W/H/D/Zoom + x/y/rotate/flip', () => {
+  it('the TILE section is ONE consolidated group: change-tile + colour + W/H/Zoom + x/y/rotate/flip', () => {
     render(<PropertiesPanel collision={false} onCollision={jest.fn()} tile={floorTile()} level={1} levelCount={1} onLevel={jest.fn()} />)
     // which-tile + swap (the entity "Open Tile Library" affordance)
     expect(screen.getByRole('button', { name: /Open Tile Library/i })).toBeInTheDocument()
     // ONE colour (not two)
     expect(screen.getAllByLabelText(/colour/i).length).toBe(1)
-    // scale axes
-    for (const axis of ['Width', 'Height', 'Depth', 'Zoom']) {
+    // scale axes — the old symmetric "Depth" is renamed to a directional "Z Width" (asset tiles only), so a
+    // bare floor tile now shows Width/Height/Zoom with NO Depth.
+    for (const axis of ['Width', 'Height', 'Zoom']) {
       expect(screen.getByLabelText(axis)).toBeInTheDocument()
     }
+    expect(screen.queryByLabelText('Depth')).toBeNull()
+    expect(screen.queryByLabelText('Z Width')).toBeNull() // floor has no directional depth (no onZWidth)
     // pose axes live in the SAME group (no separate POSE divider)
     for (const axis of ['x', 'y', 'rotate']) {
       expect(screen.getByLabelText(axis)).toBeInTheDocument()
     }
     expect(screen.getByLabelText('flip horizontally')).toBeInTheDocument()
+  })
+
+  it('an ASSET tile gets the Z Width directional-depth control (4 directions) + a z lift', () => {
+    const onZWidth = jest.fn(), onZDir = jest.fn(), onZPos = jest.fn()
+    const asset = floorTile({ key: 'tile-0', label: 'wall', zWidth: 1, zDir: null, onZWidth, onZDir, zPos: 0, onZPos })
+    render(<PropertiesPanel collision={true} onCollision={jest.fn()} tile={asset} level={2} levelCount={2} onLevel={jest.fn()} />)
+    // Z Width slider (replaces "Depth") + the four USER-labelled directions + the vertical z axis.
+    expect(screen.getByLabelText('Z Width')).toBeInTheDocument()
+    expect(screen.queryByLabelText('Depth')).toBeNull()
+    for (const dir of ['right top', 'left top', 'bottom left', 'bottom right']) {
+      expect(screen.getByRole('button', { name: dir })).toBeInTheDocument()
+    }
+    expect(screen.getByLabelText('z')).toBeInTheDocument()
+    // the controls write through their callbacks
+    fireEvent.change(screen.getByLabelText('Z Width'), { target: { value: '4' } })
+    expect(onZWidth).toHaveBeenLastCalledWith(4)
+    fireEvent.click(screen.getByRole('button', { name: 'right top' }))
+    expect(onZDir).toHaveBeenLastCalledWith('right-up')
+    fireEvent.click(screen.getByRole('button', { name: 'bottom left' }))
+    expect(onZDir).toHaveBeenLastCalledWith('left-down')
   })
 
   it('a cell with no tile shows ONLY the CELL section', () => {

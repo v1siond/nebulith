@@ -178,7 +178,7 @@ export function renderTopView(
         // Per-view tile size (byte-identical when unset: old tileSize base), then per-element dims (#77/#78).
         const vt = style.id === 'emoji' && asset ? EMOJI_TILESET[assetKind(asset)] : undefined
         const d = resolveAssetDrawSize(tileSize * (resolveTileSize(vt, 'top') ?? 1), asset ?? {}, 'overhead')
-        const pose = resolveTilePose(vt, 'top') // #1: props finally read a per-view pose (was unwired)
+        const pose = asset?.pose ?? resolveTilePose(vt, 'top') // per-asset pose (inspector x/y/rotate) wins; else the tileset-kind pose
         const recolor = labelImage ? labelTileRecolor(style, asset?.color ?? '#cccccc') : asset?.color
         if (pose) {
           ctx.save(); ctx.translate(gx, gy); applyPose(ctx, pose, 1, tileSize)
@@ -194,7 +194,7 @@ export function renderTopView(
         // font size — byte-identical to before.
         const vt = style.id === 'emoji' && asset ? EMOJI_TILESET[assetKind(asset)] : undefined
         const d = resolveAssetDrawSize(fontSize * (resolveTileSize(vt, 'top') ?? 1), asset ?? {}, 'overhead')
-        const pose = resolveTilePose(vt, 'top')
+        const pose = asset?.pose ?? resolveTilePose(vt, 'top') // per-asset pose (inspector x/y/rotate) wins; else the tileset-kind pose
         const strength = asset?.color ? 0.85 : 0 // colour-emoji ignore fillStyle → wash the tint on
         ctx.font = `bold ${d.h}px ${ASCII_FONT}`
         ctx.save()

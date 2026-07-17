@@ -560,8 +560,11 @@ export function render(
       // into stacked cubes, decorative sprites become a lifted billboard). No-op at heightLevel 0 — every
       // generated/existing asset — so non-stacked maps are byte-identical. Mirrors the 2D raised stack.
       const stackLift = isoStackLift(tileW, obj.asset.heightLevel)
+      // "z position" (per-asset zOffset): lift the tile UP by N block-heights on top of its stack lift, so the
+      // vertical inspector axis moves it in 3D height. 0 (every generated/existing asset) → no-op.
+      const zLift = (obj.asset.zOffset ?? 0) * tileW * ISO_BLOCK_H_FRAC
       // Authored frame animation: offset/rotate/scale the asset around its cell (sway/wind).
-      const ax = p.x, ay = p.y - heightOffset - stackLift
+      const ax = p.x, ay = p.y - heightOffset - stackLift - zLift
       const ct = assetCellTransform(obj.asset.cellAnim, time)
       if (ct) applyCellTransform(ctx, ax, ay, ct, tileW, tileH)
       drawIsoAssetAscii(ctx, ax, ay, obj.asset, tileW, tileH, time, obj.asset.type === 'tree' && (!!obj.asset.baseShadow || isGroundContact(isTreeCell, obj.asset.col, obj.asset.row)), dayNight, style)
@@ -1598,7 +1601,17 @@ export function drawIsoAssetAscii(
     const glyph = et ? et.char : (asset.art[0] ?? '?')
     const image = labelTileImage(asset.label, style)
     const recolor = labelTileRecolor(style, tint)
-    drawIsoTileBlock(ctx, { x, y }, bw, bd, bh, 1, { char: glyph, color: tint, tint: recolor, image }, recolor, undefined, asset.depth, asset.depthDir)
+    const dvBlock = { char: glyph, color: tint, tint: recolor, image }
+    // Per-asset pose (x/y/rotate/flip) transforms this labeled block too — same applyPose wrap as the generic
+    // block/billboard paths, so a placed OR generated block moves/rotates. No pose → the byte-identical draw.
+    if (asset.pose) {
+      ctx.save(); ctx.translate(x, y); applyPose(ctx, asset.pose, 1, tileH)
+      drawIsoTileBlock(ctx, { x: 0, y: 0 }, bw, bd, bh, 1, dvBlock, recolor, undefined, asset.depth, asset.depthDir)
+      if (asset.settings?.badge) drawApexBadge(ctx, 0, -bh, fontSize, asset.settings.badge)
+      ctx.restore()
+      return
+    }
+    drawIsoTileBlock(ctx, { x, y }, bw, bd, bh, 1, dvBlock, recolor, undefined, asset.depth, asset.depthDir)
     if (asset.settings?.badge) drawApexBadge(ctx, x, y - bh, fontSize, asset.settings.badge)
     return
   }
@@ -1634,6 +1647,14 @@ export function drawIsoAssetAscii(
     const bw = tileW * (asset.scaleX ?? 1) * zoom       // Width  — diamond half-width
     const bd = tileH * (asset.scaleZ ?? 1) * zoom       // Depth  — diamond half-height (into-screen axis)
     const bh = tileW * 0.9 * (asset.scaleY ?? 1) * zoom // Height — one block ≈ the cell's iso width, stretched up
+    // Per-asset pose (x/y/rotate/flip) transforms the block around its base centre — the SAME applyPose the
+    // billboard/floor paths use, so moving/rotating a placed BLOCK works too. No pose → the byte-identical draw.
+    if (asset.pose) {
+      ctx.save(); ctx.translate(x, y); applyPose(ctx, asset.pose, 1, tileH)
+      drawIsoTileBlock(ctx, { x: 0, y: 0 }, bw, bd, bh, blocks, adv, asset.color, undefined, asset.depth, asset.depthDir)
+      ctx.restore()
+      return
+    }
     drawIsoTileBlock(ctx, { x, y }, bw, bd, bh, blocks, adv, asset.color, undefined, asset.depth, asset.depthDir)
     return
   }
@@ -1643,7 +1664,7 @@ export function drawIsoAssetAscii(
     // Per-view tile size (byte-identical when unset: falls back to the old 2.2 constant), then per-element dims (#77/#78).
     const d = resolveAssetDrawSize(tileH * (resolveTileSize(vt, 'iso') ?? 2.2), asset, 'billboard')
     const cx = x, cy = y - lineHeight * 0.6 - d.baseLift
-    const pose = resolveTilePose(vt, 'iso') // #1: props finally read a per-view pose (was unwired)
+    const pose = asset.pose ?? resolveTilePose(vt, 'iso') // per-asset pose (inspector x/y/rotate) wins; else the tileset-kind pose
     if (pose) {
       ctx.save(); ctx.translate(cx, cy); applyPose(ctx, pose, 1, tileH)
       drawStyledImage(ctx, adv.image, 0, 0, d.w, false, asset.color, d.h)
@@ -1659,7 +1680,7 @@ export function drawIsoAssetAscii(
     const base = fontSize * (isTree ? 2.7 : 1.7) * (resolveTileSize(vt, 'iso') ?? 1)
     const d = resolveAssetDrawSize(base, asset, 'billboard') // #universal: Width/Height/Zoom apply to glyphs too
     const gy = y - lineHeight * (isTree ? 1.15 : 0.6) - d.baseLift
-    const pose = resolveTilePose(vt, 'iso')
+    const pose = asset.pose ?? resolveTilePose(vt, 'iso') // per-asset pose (inspector x/y/rotate) wins; else the tileset-kind pose
     const strength = asset.color ? (isTree ? 0.55 : 0.85) : 0 // colour-emoji ignore fillStyle → wash the tint on
     ctx.font = `bold ${d.h}px ${ASCII_FONT}`
     ctx.textAlign = 'center'

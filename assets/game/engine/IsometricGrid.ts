@@ -11,6 +11,7 @@ import type { AnimationCycle } from './animationCycles'
 import type { CellAnimation } from './cellAnimation'
 import type { GroundCellDims } from './groundDims'
 import type { DepthDir } from './render/isoBlock'
+import type { TilePose } from './tileset/pose'
 
 /** GENERIC per-tile BEHAVIOR flags copied from the resolved tile's `settings` onto a placed asset, so ONE
  *  render path drives them for ANY tile — a wall, a roof, or a tree leaf. No `type:'building'` special case:
@@ -35,6 +36,11 @@ export interface GridAsset {
                         // box spanning `depth` cells along a diagonal, anchored at its base cell. Default 1
                         // (a unit cube). ISO view. Distinct from scaleZ (the flat top-view stretch).
   depthDir?: DepthDir   // Which iso diagonal the depth extrudes along: right-up/left-up/left-down/right-down.
+  pose?: TilePose       // PER-INSTANCE position/rotation/flip (x/y/rotate/flip inspector). Deviations-only; the
+                        // render applies it through applyPose in every view. Distinct from the tileset-KIND pose
+                        // (shared art tuning) — this moves THIS placed tile, not every tile of its kind.
+  zOffset?: number      // "z position" — vertical lift in block-height units (+ = up), the 3D height axis. The
+                        // iso + 2D renders lift the tile by this; the top view (no height) ignores it. Default 0.
   color?: string
   bgColor?: string
   height?: number       // Height in blocks (for buildings, towers, etc.)

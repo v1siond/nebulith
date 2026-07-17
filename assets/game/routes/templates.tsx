@@ -1491,6 +1491,23 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
     applyToSelectedCells((col, row, grid) => { const a = stackedAssetsAt(grid, col, row)[i]; if (a) a[DIM_FIELD[axis]] = v })
   const setAssetColor = (i: number, color: string) =>
     applyToSelectedCells((col, row, grid) => { const a = stackedAssetsAt(grid, col, row)[i]; if (a) a.color = color })
+  // "Z Width" (directional depth): the i-th stacked TILE spans `cells` blocks along asset.depthDir, extruded as
+  // a long iso box (isoDepthBox). A box needs a direction to grow — default to 'right-up' ("right top", the
+  // user's Image #28 arrow) when raising it past 1 with none set, so the extrusion shows immediately.
+  const setAssetDepth = (i: number, cells: number) =>
+    applyToSelectedCells((col, row, grid) => {
+      const a = stackedAssetsAt(grid, col, row)[i]; if (!a) return
+      a.depth = Math.max(1, Math.round(cells))
+      if (a.depth > 1 && !a.depthDir) a.depthDir = 'right-up'
+    })
+  const setAssetDepthDir = (i: number, dir: DepthDir) =>
+    applyToSelectedCells((col, row, grid) => { const a = stackedAssetsAt(grid, col, row)[i]; if (a) a.depthDir = dir })
+  // PER-ASSET pose (x/y/rotate/flip) and "z position" (vertical zOffset lift) — written to THIS placed tile
+  // (persists with the map), not the shared tileset kind. The render reads asset.pose / asset.zOffset in every view.
+  const setAssetPose = (i: number, pose: TilePose | undefined) =>
+    applyToSelectedCells((col, row, grid) => { const a = stackedAssetsAt(grid, col, row)[i]; if (a) a.pose = pose })
+  const setAssetZOffset = (i: number, v: number) =>
+    applyToSelectedCells((col, row, grid) => { const a = stackedAssetsAt(grid, col, row)[i]; if (a) a.zOffset = v })
   // Inspector "Remove tile" → delete the EXACT selected block (never the floor — removeSelectedBlock no-ops
   // at level 0) from every selected cell, then step the level down so the panel doesn't point past the
   // (now shorter) stack.
@@ -5621,13 +5638,14 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
                             onPoseReset: clearGroundPose,
                           }
                         } else if (stack[lvl]?.source === 'asset') {
-                          // STACKED prop tile: per-index dims/colour writers. GridAsset has no per-instance pose,
-                          // so x/y/rotate/flip route to this tile's tileset KIND pose (persisted via ⭳ Save poses).
-                          // Assets occupy indices 1..A right after the floor, so the array slot is lvl-1.
+                          // STACKED prop tile: per-index dims/colour writers, plus PER-ASSET transforms — Z Width
+                          // (directional depth), x/y/rotate/flip pose, and z (vertical lift) — all written to THIS
+                          // placed tile (persist with the map), NOT the shared tileset kind. The render reads them
+                          // back in every view. Assets occupy indices 1..A right after the floor, so the slot is lvl-1.
                           const i = lvl - 1
                           const a0 = stackedAssetsAt(grid, fc.col, fc.row)[i]
                           const kind = a0 ? assetKind(a0) : (stack[lvl]?.slug || `tile ${lvl}`)
-                          const posable = !!(a0 && EMOJI_TILESET[kind])
+                          const posable = !!a0
                           tile = {
                             key: `tile-${i}`,
                             label: kind,
@@ -5644,12 +5662,16 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
                             override: selectedOverride,
                             styleName: activeStyle.name,
                             onOpenLibrary: () => setTileLibraryOpen(true),
-                            pose: posable ? EMOJI_TILESET[kind]?.pose : undefined,
-                            onPose: posable ? (p => writeTilePose(kind, p)) : undefined,
-                            onPoseReset: posable ? (() => writeTilePose(kind, undefined)) : undefined,
+                            zWidth: adim(i, a => a.depth ?? 1),
+                            zDir: commonValue(cells.map(({ col, row }) => (stackedAssetsAt(grid, col, row)[i]?.depthDir ?? null) as DepthDir | null)),
+                            onZWidth: v => setAssetDepth(i, v),
+                            onZDir: dir => setAssetDepthDir(i, dir),
+                            zPos: adim(i, a => a.zOffset ?? 0),
+                            onZPos: posable ? (v => setAssetZOffset(i, v)) : undefined,
+                            pose: posable ? a0?.pose : undefined,
+                            onPose: posable ? (p => setAssetPose(i, p)) : undefined,
+                            onPoseReset: posable ? (() => setAssetPose(i, undefined)) : undefined,
                             isWeapon: WEAPON_KINDS.has(kind),
-                            onSavePose: posable ? saveEmojiPoses : undefined,
-                            savingPose: savingPoses,
                           }
                         } else {
                           // A BUILDING block (wall / window / door / roof) or a CHARACTER on the cell — shown as a

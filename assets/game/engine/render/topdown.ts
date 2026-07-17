@@ -557,7 +557,9 @@ export function render2D(
       // lift so brush-stacked items read as separate raised objects. heightLevel is absent (→ 0) on every
       // generated/existing flat asset, so that path is a no-op for anything but a deliberately stacked cell.
       const levelStep = feCell ? tileH : tileH * 0.9
-      const baseY = p.y + tileH * 0.5 - elevOffset - (asset.heightLevel ?? 0) * levelStep
+      // "z position" (per-asset zOffset): the 2D front elevation shows height, so lift the tile the same way iso
+      // does (block-heights up). Keeps the views consistent; 0 → no-op.
+      const baseY = p.y + tileH * 0.5 - elevOffset - (asset.heightLevel ?? 0) * levelStep - (asset.zOffset ?? 0) * tileH * 0.9
 
       // Authored frame animation: offset/rotate/scale the asset around its ground point (sway/wind).
       const ct2d = assetCellTransform(asset.cellAnim, time)
@@ -582,7 +584,7 @@ export function render2D(
         const vt = style.id === 'emoji' ? EMOJI_TILESET[assetKind(asset)] : undefined
         const d = resolveAssetDrawSize(tileH * (resolveTileSize(vt, '2d') ?? 1.5), asset, 'billboard')
         const cx = p.x, cy = baseY - tileH * 0.7 - d.baseLift
-        const pose = resolveTilePose(vt, '2d') // #1: props finally read a per-view pose (was unwired)
+        const pose = asset.pose ?? resolveTilePose(vt, '2d') // per-asset pose (inspector x/y/rotate) wins; else the tileset-kind pose
         if (pose) {
           ctx.save(); ctx.translate(cx, cy); applyPose(ctx, pose, 1, tileH)
           drawStyledImage(ctx, adv.image, 0, 0, d.w, false, asset.color, d.h)
@@ -602,7 +604,7 @@ export function render2D(
         ctx.textAlign = 'center'
         ctx.textBaseline = 'middle'
         ctx.fillStyle = asset.color ?? adv.color ?? '#ffffff' // ASCII glyphs / the no-override fillText path
-        const pose = resolveTilePose(vt, '2d')
+        const pose = asset.pose ?? resolveTilePose(vt, '2d') // per-asset pose (inspector x/y/rotate) wins; else the tileset-kind pose
         const strength = asset.color ? (isTree ? 0.55 : 0.85) : 0 // colour-emoji ignore fillStyle → wash the tint on
         // A tree keeps its 🌲 shape but is recoloured to its SEASON's canopy shade (asset.color).
         ctx.save()
