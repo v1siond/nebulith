@@ -10557,43 +10557,92 @@
           "title": null,
           "cells": [
             {
-              "label": "trunk_base",
+              "label": "trunk_top",
+              "level": 2,
+              "dx": 0,
+              "dy": 0,
+              "walkable": false
+            },
+            {
+              "label": "trunk_mid",
+              "level": 1,
+              "dx": 0,
+              "dy": 0,
+              "walkable": false
+            },
+            {
+              "label": "canopy_l",
+              "level": 3,
+              "dx": -1,
+              "dy": 0,
+              "walkable": true
+            },
+            {
+              "label": "canopy_br",
+              "level": 3,
+              "dx": 1,
+              "dy": 1,
+              "walkable": true
+            },
+            {
+              "label": "canopy_tr",
+              "level": 3,
+              "dx": 1,
+              "dy": -1,
+              "walkable": true
+            },
+            {
+              "label": "canopy_b",
+              "level": 3,
+              "dx": 0,
+              "dy": 1,
+              "walkable": true
+            },
+            {
+              "label": "canopy_bl",
+              "level": 3,
+              "dx": -1,
+              "dy": 1,
+              "walkable": true
+            },
+            {
+              "label": "trunk_bottom",
               "level": 0,
               "dx": 0,
               "dy": 0,
               "walkable": false
             },
             {
-              "label": "leaf_center",
-              "level": 1,
-              "dx": 0,
-              "dy": 0,
-              "walkable": true
-            },
-            {
-              "label": "leaf_left",
-              "level": 1,
-              "dx": -1,
-              "dy": 0,
-              "walkable": true
-            },
-            {
-              "label": "leaf_top",
-              "level": 2,
-              "dx": 0,
-              "dy": 0,
-              "walkable": true
-            },
-            {
-              "label": "leaf_right",
-              "level": 1,
+              "label": "canopy_r",
+              "level": 3,
               "dx": 1,
               "dy": 0,
+              "walkable": true
+            },
+            {
+              "label": "canopy_c",
+              "level": 3,
+              "dx": 0,
+              "dy": 0,
+              "walkable": true
+            },
+            {
+              "label": "canopy_t",
+              "level": 3,
+              "dx": 0,
+              "dy": -1,
+              "walkable": true
+            },
+            {
+              "label": "canopy_tl",
+              "level": 3,
+              "dx": -1,
+              "dy": -1,
               "walkable": true
             }
           ],
           "footprint": {
-            "h": 1,
+            "h": 3,
             "w": 3
           }
         },
@@ -15867,6 +15916,573 @@
           "emoji": null,
           "glyph": "\"",
           "image_url": "/tiles/ascii/pampas.png"
+        },
+        "trunk_bottom": {
+          "title": null,
+          "category": null,
+          "settings": {
+            "colors": {
+              "autumn": "#5a3a20",
+              "beach": "#8a6a3a",
+              "desert": "#a98a4f",
+              "lava": "#2b2420",
+              "spring": "#7a5a3a",
+              "summer": "#6b4a2b",
+              "winter": "#8fa3b5"
+            }
+          },
+          "height": 1,
+          "blocking": true,
+          "color_role": "trunk",
+          "emoji": null,
+          "glyph": "║",
+          "image_url": "/tiles/ascii/trunk_bottom.png"
+        },
+        "trunk_mid": {
+          "title": null,
+          "category": null,
+          "settings": {
+            "colors": {
+              "autumn": "#5a3a20",
+              "beach": "#8a6a3a",
+              "desert": "#a98a4f",
+              "lava": "#2b2420",
+              "spring": "#7a5a3a",
+              "summer": "#6b4a2b",
+              "winter": "#8fa3b5"
+            }
+          },
+          "height": 1,
+          "blocking": true,
+          "color_role": "trunk",
+          "emoji": null,
+          "glyph": "║",
+          "image_url": "/tiles/ascii/trunk_mid.png"
+        },
+        "trunk_top": {
+          "title": null,
+          "category": null,
+          "settings": {
+            "colors": {
+              "autumn": "#5a3a20",
+              "beach": "#8a6a3a",
+              "desert": "#a98a4f",
+              "lava": "#2b2420",
+              "spring": "#7a5a3a",
+              "summer": "#6b4a2b",
+              "winter": "#8fa3b5"
+            }
+          },
+          "height": 1,
+          "blocking": true,
+          "color_role": "trunk",
+          "emoji": null,
+          "glyph": "║",
+          "image_url": "/tiles/ascii/trunk_top.png"
+        },
+        "canopy_tl": {
+          "title": null,
+          "category": null,
+          "settings": {
+            "colors": {
+              "autumn": [
+                "#d2691e",
+                "#c0531a",
+                "#e0a020",
+                "#9c4a1e"
+              ],
+              "beach": [
+                "#4fae6a",
+                "#6fc888",
+                "#3c8f54",
+                "#86d49e"
+              ],
+              "desert": [
+                "#9a8f5a",
+                "#b3a86b",
+                "#7d7448",
+                "#c7bd80"
+              ],
+              "lava": [
+                "#3e3942",
+                "#4a4350",
+                "#2e2b33",
+                "#544754"
+              ],
+              "spring": [
+                "#7cc46a",
+                "#9ed87f",
+                "#5fae4f",
+                "#e79ec8"
+              ],
+              "summer": [
+                "#2e8b2e",
+                "#1f6b1f",
+                "#3fb53f",
+                "#246b24"
+              ],
+              "winter": [
+                "#cfe0ea",
+                "#aac4d8",
+                "#e8f2fa",
+                "#9fbccb"
+              ]
+            }
+          },
+          "height": 1,
+          "blocking": false,
+          "color_role": "canopy",
+          "emoji": null,
+          "glyph": "╭",
+          "image_url": "/tiles/ascii/canopy_tl.png"
+        },
+        "canopy_t": {
+          "title": null,
+          "category": null,
+          "settings": {
+            "colors": {
+              "autumn": [
+                "#d2691e",
+                "#c0531a",
+                "#e0a020",
+                "#9c4a1e"
+              ],
+              "beach": [
+                "#4fae6a",
+                "#6fc888",
+                "#3c8f54",
+                "#86d49e"
+              ],
+              "desert": [
+                "#9a8f5a",
+                "#b3a86b",
+                "#7d7448",
+                "#c7bd80"
+              ],
+              "lava": [
+                "#3e3942",
+                "#4a4350",
+                "#2e2b33",
+                "#544754"
+              ],
+              "spring": [
+                "#7cc46a",
+                "#9ed87f",
+                "#5fae4f",
+                "#e79ec8"
+              ],
+              "summer": [
+                "#2e8b2e",
+                "#1f6b1f",
+                "#3fb53f",
+                "#246b24"
+              ],
+              "winter": [
+                "#cfe0ea",
+                "#aac4d8",
+                "#e8f2fa",
+                "#9fbccb"
+              ]
+            }
+          },
+          "height": 1,
+          "blocking": false,
+          "color_role": "canopy",
+          "emoji": null,
+          "glyph": "♧",
+          "image_url": "/tiles/ascii/canopy_t.png"
+        },
+        "canopy_tr": {
+          "title": null,
+          "category": null,
+          "settings": {
+            "colors": {
+              "autumn": [
+                "#d2691e",
+                "#c0531a",
+                "#e0a020",
+                "#9c4a1e"
+              ],
+              "beach": [
+                "#4fae6a",
+                "#6fc888",
+                "#3c8f54",
+                "#86d49e"
+              ],
+              "desert": [
+                "#9a8f5a",
+                "#b3a86b",
+                "#7d7448",
+                "#c7bd80"
+              ],
+              "lava": [
+                "#3e3942",
+                "#4a4350",
+                "#2e2b33",
+                "#544754"
+              ],
+              "spring": [
+                "#7cc46a",
+                "#9ed87f",
+                "#5fae4f",
+                "#e79ec8"
+              ],
+              "summer": [
+                "#2e8b2e",
+                "#1f6b1f",
+                "#3fb53f",
+                "#246b24"
+              ],
+              "winter": [
+                "#cfe0ea",
+                "#aac4d8",
+                "#e8f2fa",
+                "#9fbccb"
+              ]
+            }
+          },
+          "height": 1,
+          "blocking": false,
+          "color_role": "canopy",
+          "emoji": null,
+          "glyph": "╮",
+          "image_url": "/tiles/ascii/canopy_tr.png"
+        },
+        "canopy_l": {
+          "title": null,
+          "category": null,
+          "settings": {
+            "colors": {
+              "autumn": [
+                "#d2691e",
+                "#c0531a",
+                "#e0a020",
+                "#9c4a1e"
+              ],
+              "beach": [
+                "#4fae6a",
+                "#6fc888",
+                "#3c8f54",
+                "#86d49e"
+              ],
+              "desert": [
+                "#9a8f5a",
+                "#b3a86b",
+                "#7d7448",
+                "#c7bd80"
+              ],
+              "lava": [
+                "#3e3942",
+                "#4a4350",
+                "#2e2b33",
+                "#544754"
+              ],
+              "spring": [
+                "#7cc46a",
+                "#9ed87f",
+                "#5fae4f",
+                "#e79ec8"
+              ],
+              "summer": [
+                "#2e8b2e",
+                "#1f6b1f",
+                "#3fb53f",
+                "#246b24"
+              ],
+              "winter": [
+                "#cfe0ea",
+                "#aac4d8",
+                "#e8f2fa",
+                "#9fbccb"
+              ]
+            }
+          },
+          "height": 1,
+          "blocking": false,
+          "color_role": "canopy",
+          "emoji": null,
+          "glyph": "♧",
+          "image_url": "/tiles/ascii/canopy_l.png"
+        },
+        "canopy_c": {
+          "title": null,
+          "category": null,
+          "settings": {
+            "colors": {
+              "autumn": [
+                "#d2691e",
+                "#c0531a",
+                "#e0a020",
+                "#9c4a1e"
+              ],
+              "beach": [
+                "#4fae6a",
+                "#6fc888",
+                "#3c8f54",
+                "#86d49e"
+              ],
+              "desert": [
+                "#9a8f5a",
+                "#b3a86b",
+                "#7d7448",
+                "#c7bd80"
+              ],
+              "lava": [
+                "#3e3942",
+                "#4a4350",
+                "#2e2b33",
+                "#544754"
+              ],
+              "spring": [
+                "#7cc46a",
+                "#9ed87f",
+                "#5fae4f",
+                "#e79ec8"
+              ],
+              "summer": [
+                "#2e8b2e",
+                "#1f6b1f",
+                "#3fb53f",
+                "#246b24"
+              ],
+              "winter": [
+                "#cfe0ea",
+                "#aac4d8",
+                "#e8f2fa",
+                "#9fbccb"
+              ]
+            }
+          },
+          "height": 1,
+          "blocking": false,
+          "color_role": "canopy",
+          "emoji": null,
+          "glyph": "♣",
+          "image_url": "/tiles/ascii/canopy_c.png"
+        },
+        "canopy_r": {
+          "title": null,
+          "category": null,
+          "settings": {
+            "colors": {
+              "autumn": [
+                "#d2691e",
+                "#c0531a",
+                "#e0a020",
+                "#9c4a1e"
+              ],
+              "beach": [
+                "#4fae6a",
+                "#6fc888",
+                "#3c8f54",
+                "#86d49e"
+              ],
+              "desert": [
+                "#9a8f5a",
+                "#b3a86b",
+                "#7d7448",
+                "#c7bd80"
+              ],
+              "lava": [
+                "#3e3942",
+                "#4a4350",
+                "#2e2b33",
+                "#544754"
+              ],
+              "spring": [
+                "#7cc46a",
+                "#9ed87f",
+                "#5fae4f",
+                "#e79ec8"
+              ],
+              "summer": [
+                "#2e8b2e",
+                "#1f6b1f",
+                "#3fb53f",
+                "#246b24"
+              ],
+              "winter": [
+                "#cfe0ea",
+                "#aac4d8",
+                "#e8f2fa",
+                "#9fbccb"
+              ]
+            }
+          },
+          "height": 1,
+          "blocking": false,
+          "color_role": "canopy",
+          "emoji": null,
+          "glyph": "♧",
+          "image_url": "/tiles/ascii/canopy_r.png"
+        },
+        "canopy_bl": {
+          "title": null,
+          "category": null,
+          "settings": {
+            "colors": {
+              "autumn": [
+                "#d2691e",
+                "#c0531a",
+                "#e0a020",
+                "#9c4a1e"
+              ],
+              "beach": [
+                "#4fae6a",
+                "#6fc888",
+                "#3c8f54",
+                "#86d49e"
+              ],
+              "desert": [
+                "#9a8f5a",
+                "#b3a86b",
+                "#7d7448",
+                "#c7bd80"
+              ],
+              "lava": [
+                "#3e3942",
+                "#4a4350",
+                "#2e2b33",
+                "#544754"
+              ],
+              "spring": [
+                "#7cc46a",
+                "#9ed87f",
+                "#5fae4f",
+                "#e79ec8"
+              ],
+              "summer": [
+                "#2e8b2e",
+                "#1f6b1f",
+                "#3fb53f",
+                "#246b24"
+              ],
+              "winter": [
+                "#cfe0ea",
+                "#aac4d8",
+                "#e8f2fa",
+                "#9fbccb"
+              ]
+            }
+          },
+          "height": 1,
+          "blocking": false,
+          "color_role": "canopy",
+          "emoji": null,
+          "glyph": "╰",
+          "image_url": "/tiles/ascii/canopy_bl.png"
+        },
+        "canopy_b": {
+          "title": null,
+          "category": null,
+          "settings": {
+            "colors": {
+              "autumn": [
+                "#d2691e",
+                "#c0531a",
+                "#e0a020",
+                "#9c4a1e"
+              ],
+              "beach": [
+                "#4fae6a",
+                "#6fc888",
+                "#3c8f54",
+                "#86d49e"
+              ],
+              "desert": [
+                "#9a8f5a",
+                "#b3a86b",
+                "#7d7448",
+                "#c7bd80"
+              ],
+              "lava": [
+                "#3e3942",
+                "#4a4350",
+                "#2e2b33",
+                "#544754"
+              ],
+              "spring": [
+                "#7cc46a",
+                "#9ed87f",
+                "#5fae4f",
+                "#e79ec8"
+              ],
+              "summer": [
+                "#2e8b2e",
+                "#1f6b1f",
+                "#3fb53f",
+                "#246b24"
+              ],
+              "winter": [
+                "#cfe0ea",
+                "#aac4d8",
+                "#e8f2fa",
+                "#9fbccb"
+              ]
+            }
+          },
+          "height": 1,
+          "blocking": false,
+          "color_role": "canopy",
+          "emoji": null,
+          "glyph": "♧",
+          "image_url": "/tiles/ascii/canopy_b.png"
+        },
+        "canopy_br": {
+          "title": null,
+          "category": null,
+          "settings": {
+            "colors": {
+              "autumn": [
+                "#d2691e",
+                "#c0531a",
+                "#e0a020",
+                "#9c4a1e"
+              ],
+              "beach": [
+                "#4fae6a",
+                "#6fc888",
+                "#3c8f54",
+                "#86d49e"
+              ],
+              "desert": [
+                "#9a8f5a",
+                "#b3a86b",
+                "#7d7448",
+                "#c7bd80"
+              ],
+              "lava": [
+                "#3e3942",
+                "#4a4350",
+                "#2e2b33",
+                "#544754"
+              ],
+              "spring": [
+                "#7cc46a",
+                "#9ed87f",
+                "#5fae4f",
+                "#e79ec8"
+              ],
+              "summer": [
+                "#2e8b2e",
+                "#1f6b1f",
+                "#3fb53f",
+                "#246b24"
+              ],
+              "winter": [
+                "#cfe0ea",
+                "#aac4d8",
+                "#e8f2fa",
+                "#9fbccb"
+              ]
+            }
+          },
+          "height": 1,
+          "blocking": false,
+          "color_role": "canopy",
+          "emoji": null,
+          "glyph": "╯",
+          "image_url": "/tiles/ascii/canopy_br.png"
         }
       }
     },
@@ -27766,43 +28382,92 @@
           "title": null,
           "cells": [
             {
-              "label": "trunk_base",
+              "label": "trunk_top",
+              "level": 2,
+              "dx": 0,
+              "dy": 0,
+              "walkable": false
+            },
+            {
+              "label": "trunk_mid",
+              "level": 1,
+              "dx": 0,
+              "dy": 0,
+              "walkable": false
+            },
+            {
+              "label": "canopy_l",
+              "level": 3,
+              "dx": -1,
+              "dy": 0,
+              "walkable": true
+            },
+            {
+              "label": "canopy_br",
+              "level": 3,
+              "dx": 1,
+              "dy": 1,
+              "walkable": true
+            },
+            {
+              "label": "canopy_tr",
+              "level": 3,
+              "dx": 1,
+              "dy": -1,
+              "walkable": true
+            },
+            {
+              "label": "canopy_b",
+              "level": 3,
+              "dx": 0,
+              "dy": 1,
+              "walkable": true
+            },
+            {
+              "label": "canopy_bl",
+              "level": 3,
+              "dx": -1,
+              "dy": 1,
+              "walkable": true
+            },
+            {
+              "label": "trunk_bottom",
               "level": 0,
               "dx": 0,
               "dy": 0,
               "walkable": false
             },
             {
-              "label": "leaf_center",
-              "level": 1,
-              "dx": 0,
-              "dy": 0,
-              "walkable": true
-            },
-            {
-              "label": "leaf_left",
-              "level": 1,
-              "dx": -1,
-              "dy": 0,
-              "walkable": true
-            },
-            {
-              "label": "leaf_top",
-              "level": 2,
-              "dx": 0,
-              "dy": 0,
-              "walkable": true
-            },
-            {
-              "label": "leaf_right",
-              "level": 1,
+              "label": "canopy_r",
+              "level": 3,
               "dx": 1,
               "dy": 0,
+              "walkable": true
+            },
+            {
+              "label": "canopy_c",
+              "level": 3,
+              "dx": 0,
+              "dy": 0,
+              "walkable": true
+            },
+            {
+              "label": "canopy_t",
+              "level": 3,
+              "dx": 0,
+              "dy": -1,
+              "walkable": true
+            },
+            {
+              "label": "canopy_tl",
+              "level": 3,
+              "dx": -1,
+              "dy": -1,
               "walkable": true
             }
           ],
           "footprint": {
-            "h": 1,
+            "h": 3,
             "w": 3
           }
         },
@@ -31350,6 +32015,162 @@
           "emoji": "👷",
           "glyph": null,
           "image_url": "/tiles/emoji/catalog/construction-worker.png"
+        },
+        "trunk_bottom": {
+          "title": null,
+          "category": null,
+          "settings": {
+            "color": "#7a5a3a"
+          },
+          "height": 1,
+          "blocking": true,
+          "color_role": "trunk",
+          "emoji": "🟫",
+          "glyph": null,
+          "image_url": "/tiles/emoji/trunk_bottom.png"
+        },
+        "trunk_mid": {
+          "title": null,
+          "category": null,
+          "settings": {
+            "color": "#7a5a3a"
+          },
+          "height": 1,
+          "blocking": true,
+          "color_role": "trunk",
+          "emoji": "🟫",
+          "glyph": null,
+          "image_url": "/tiles/emoji/trunk_mid.png"
+        },
+        "trunk_top": {
+          "title": null,
+          "category": null,
+          "settings": {
+            "color": "#7a5a3a"
+          },
+          "height": 1,
+          "blocking": true,
+          "color_role": "trunk",
+          "emoji": "🟫",
+          "glyph": null,
+          "image_url": "/tiles/emoji/trunk_top.png"
+        },
+        "canopy_tl": {
+          "title": null,
+          "category": null,
+          "settings": {
+            "color": "#5fae4f"
+          },
+          "height": 1,
+          "blocking": false,
+          "color_role": "canopy",
+          "emoji": "🍃",
+          "glyph": null,
+          "image_url": "/tiles/emoji/canopy_tl.png"
+        },
+        "canopy_t": {
+          "title": null,
+          "category": null,
+          "settings": {
+            "color": "#5fae4f"
+          },
+          "height": 1,
+          "blocking": false,
+          "color_role": "canopy",
+          "emoji": "🍃",
+          "glyph": null,
+          "image_url": "/tiles/emoji/canopy_t.png"
+        },
+        "canopy_tr": {
+          "title": null,
+          "category": null,
+          "settings": {
+            "color": "#5fae4f"
+          },
+          "height": 1,
+          "blocking": false,
+          "color_role": "canopy",
+          "emoji": "🍃",
+          "glyph": null,
+          "image_url": "/tiles/emoji/canopy_tr.png"
+        },
+        "canopy_l": {
+          "title": null,
+          "category": null,
+          "settings": {
+            "color": "#5fae4f"
+          },
+          "height": 1,
+          "blocking": false,
+          "color_role": "canopy",
+          "emoji": "🍃",
+          "glyph": null,
+          "image_url": "/tiles/emoji/canopy_l.png"
+        },
+        "canopy_c": {
+          "title": null,
+          "category": null,
+          "settings": {
+            "color": "#5fae4f"
+          },
+          "height": 1,
+          "blocking": false,
+          "color_role": "canopy",
+          "emoji": "🍃",
+          "glyph": null,
+          "image_url": "/tiles/emoji/canopy_c.png"
+        },
+        "canopy_r": {
+          "title": null,
+          "category": null,
+          "settings": {
+            "color": "#5fae4f"
+          },
+          "height": 1,
+          "blocking": false,
+          "color_role": "canopy",
+          "emoji": "🍃",
+          "glyph": null,
+          "image_url": "/tiles/emoji/canopy_r.png"
+        },
+        "canopy_bl": {
+          "title": null,
+          "category": null,
+          "settings": {
+            "color": "#5fae4f"
+          },
+          "height": 1,
+          "blocking": false,
+          "color_role": "canopy",
+          "emoji": "🍃",
+          "glyph": null,
+          "image_url": "/tiles/emoji/canopy_bl.png"
+        },
+        "canopy_b": {
+          "title": null,
+          "category": null,
+          "settings": {
+            "color": "#5fae4f"
+          },
+          "height": 1,
+          "blocking": false,
+          "color_role": "canopy",
+          "emoji": "🍃",
+          "glyph": null,
+          "image_url": "/tiles/emoji/canopy_b.png"
+        },
+        "canopy_br": {
+          "title": null,
+          "category": null,
+          "settings": {
+            "color": "#5fae4f"
+          },
+          "height": 1,
+          "blocking": false,
+          "color_role": "canopy",
+          "emoji": "🍃",
+          "glyph": null,
+          "image_url": "/tiles/emoji/canopy_br.png"
         }
       }
     }

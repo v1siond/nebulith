@@ -164,14 +164,23 @@ describe('sample compositions — realistic building/fountain/tree DATA from the
     expect(assetKind({ type: 'fountain', label: 'fountain' })).toBe('fountain')
   })
 
-  test('tree: a distinct brown trunk at the base (level 0) with the canopy stacked above', () => {
+  test('tree: a 3-segment brown trunk (L0–2) with a 9-slice leaf canopy stacked above', () => {
     const cells = comp('tree').cells as Cell[]
     const base = cells.filter(x => x.level === 0)
     expect(base.length).toBeGreaterThanOrEqual(1)
     expect(base.every(x => x.label.startsWith('trunk'))).toBe(true) // the base is a TRUNK, not a leaf
-    const canopy = cells.filter(x => x.level >= 1)
-    expect(canopy.length).toBeGreaterThan(0)
-    expect(canopy.every(x => x.label.startsWith('leaf'))).toBe(true) // leaves stack ABOVE the trunk
+    // a 3-SEGMENT trunk climbs the centre column (levels 0/1/2, single column)
+    const trunk = cells.filter(x => x.label.startsWith('trunk'))
+    expect(trunk.map(x => x.level).sort((a, b) => a - b)).toEqual([0, 1, 2])
+    expect(trunk.every(x => x.dx === 0 && x.dy === 0)).toBe(true)
+    // a 9-SLICE leaf canopy sits ABOVE the trunk — autotiled centre + 4 edges + 4 corners
+    const trunkTop = Math.max(...trunk.map(x => x.level))
+    const canopy = cells.filter(x => x.label.startsWith('canopy'))
+    expect(canopy.length).toBe(9)
+    expect(canopy.every(x => x.level > trunkTop)).toBe(true) // leaves stack ABOVE the trunk
+    expect(new Set(canopy.map(x => x.label.replace('canopy_', '')))).toEqual(
+      new Set(['c', 't', 'b', 'l', 'r', 'tl', 'tr', 'bl', 'br']),
+    )
     // The bush, by contrast, is trunkless (a low leaf mound) — trunks are a TREE thing.
     expect((comp('bush').cells as Cell[]).some(x => x.label.startsWith('trunk'))).toBe(false)
   })
@@ -253,19 +262,19 @@ describe('material + roof rollout — every material/piece resolves and every bu
     expect(labelsOf('store_5').has('parapet')).toBe(true) // still a flat storefront roof
   })
 
-  test('tree: brown trunk (🟫) + leaf canopy (🍃) resolve in BOTH styles — never a whole 🌲', () => {
+  test('tree: brown trunk (🟫) + 9-slice leaf canopy (🍃) resolve in BOTH styles — never a whole 🌲', () => {
     const labels = [...labelsOf('tree')]
     const trunk = labels.filter(l => l.startsWith('trunk'))
-    const leaves = labels.filter(l => l.startsWith('leaf'))
+    const canopy = labels.filter(l => l.startsWith('canopy'))
     expect(trunk.length).toBeGreaterThanOrEqual(1)
-    expect(leaves.length).toBeGreaterThanOrEqual(1)
+    expect(canopy.length).toBeGreaterThanOrEqual(1)
     // both parts carry an ascii glyph AND an emoji char
-    for (const l of [...trunk, ...leaves]) {
+    for (const l of [...trunk, ...canopy]) {
       expect(ASCII_TILESET.tiles[l]?.glyph).toBeTruthy()
       expect(EMOJI_TILESET[l]?.char).toBeTruthy()
     }
     for (const l of trunk) expect(EMOJI_TILESET[l].char).toBe('🟫') // brown trunk block
-    for (const l of leaves) expect(EMOJI_TILESET[l].char).toBe('🍃') // leaf — not a whole tree, not an herb
+    for (const l of canopy) expect(EMOJI_TILESET[l].char).toBe('🍃') // leaf — not a whole tree, not an herb
     expect(labels.some(l => EMOJI_TILESET[l]?.char === '🌲')).toBe(false) // never the whole-object tree
   })
 
