@@ -26,6 +26,16 @@ defmodule Nebulith.Catalog.TileSource do
   # case — any label (a wall, a tree, whatever) can carry a behavior; today
   # only wall/window/door/roof_top ease translucent as the player approaches
   # (fadeNear), and roof lifts off / hides entirely (cutawayRoof).
+  #
+  # `display` is the same kind of per-tile render SETTING and rides this same
+  # path (the API serves `settings` verbatim; the frontend reads it via
+  # `tileRenderBehavior`). It picks WHERE the baked tile is painted on its
+  # block: "all-faces" (DEFAULT, absent == this) paints the tile on the block's
+  # top + two visible faces; "single" shows ONE centered tile INSIDE the block
+  # volume (a single water droplet floating in the block). It is intentionally
+  # UNSET on every tile here — the default is "all-faces", so a normal town is
+  # byte-identical — and is authored per tile only when a tile should default to
+  # a single inside-the-block instance, e.g. `"water" => %{"display" => "single"}`.
   @behavior_settings %{
     "wall" => %{"fadeNear" => true},
     "window" => %{"fadeNear" => true},
