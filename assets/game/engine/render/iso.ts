@@ -1582,6 +1582,27 @@ export function drawIsoAssetAscii(
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
 
+  // MODEL (TILE-BACKEND-MIGRATION §7 — "resolve label→image", the migration's whole point): a labeled
+  // composition cell IS its label's tile. Resolve the per-LABEL baked image for the ACTIVE style, paint it
+  // on the cube faces + composite the cell's colour, and RETURN — BEFORE any kind-based art below. This is
+  // why a tree's canopy/trunk cells draw their OWN leaf/trunk tile instead of the 'tree' KIND emoji, and why
+  // a cell's colour setting filters the WHOLE tile (the image is recoloured — no kind emoji, no glyph that
+  // would ignore the tint). Same path for every style (ascii/emoji/…) — the label is the only input.
+  if (asset.label && (asset.height ?? 0) >= 1) {
+    const zoom = asset.scale ?? 1
+    const bw = tileW * (asset.scaleX ?? 1) * zoom       // Width  — diamond half-width
+    const bd = tileH * (asset.scaleZ ?? 1) * zoom       // Depth  — diamond half-height (into-screen axis)
+    const bh = tileW * ISO_BLOCK_H_FRAC * (asset.scaleY ?? 1) * zoom // Height — one block, flush with isoStackLift
+    const tint = asset.color ?? '#cccccc'
+    const et = style.id === 'emoji' ? EMOJI_TILESET[asset.label] : undefined
+    const glyph = et ? et.char : (asset.art[0] ?? '?')
+    const image = labelTileImage(asset.label, style)
+    const recolor = labelTileRecolor(style, tint)
+    drawIsoTileBlock(ctx, { x, y }, bw, bd, bh, 1, { char: glyph, color: tint, tint: recolor, image }, recolor, undefined, asset.depth, asset.depthDir)
+    if (asset.settings?.badge) drawApexBadge(ctx, x, y - bh, fontSize, asset.settings.badge)
+    return
+  }
+
   // Active art style: a mapped kind (or a per-element override) replaces ALL of the per-type
   // art below (labeled cells, trees, legacy buildings, props) with ONE tile. A PLACED tile's
   // override re-homes onto the active style so it RESKINS (resolveAssetDraw), never freezing to
@@ -1654,34 +1675,7 @@ export function drawIsoAssetAscii(
     return
   }
 
-  // ── ASCII composition tile → a true iso CUBE (minecraft-style block), rendered by the SAME drawIsoTileBlock
-  // the EMOJI path uses — so ascii + emoji tiles are drawn IDENTICALLY (no special ascii drawer, no flat
-  // billboard). A labeled tile with a real block height (a tree / fountain / lamp / prop CELL) extrudes into a
-  // cube with its glyph painted (sheared) onto the faces; consecutive stack levels lift by isoStackLift, which
-  // uses the SAME tileW·ISO_BLOCK_H_FRAC as the cube height so a column stacks flush. BUILDINGS ride this path
-  // too now (no `type:'building'` gate) — a wall/window/door/roof block is just a labeled cube like a tree cell.
-  if (asset.label && (asset.height ?? 0) >= 1) {
-    const zoom = asset.scale ?? 1
-    const bw = tileW * (asset.scaleX ?? 1) * zoom       // Width  — diamond half-width
-    const bd = tileH * (asset.scaleZ ?? 1) * zoom       // Depth  — diamond half-height (into-screen axis)
-    const bh = tileW * ISO_BLOCK_H_FRAC * (asset.scaleY ?? 1) * zoom // Height — one block, flush with isoStackLift
-    const tint = asset.color ?? '#cccccc'
-    // The composition is style-agnostic STRUCTURE; the block is PAINTED with the ACTIVE style's tile for this
-    // cell's label — the emoji in emoji mode, the ascii glyph otherwise. Both come from the loaded DB tileset
-    // under the same label (ascii + emoji, one path, no hardcoded frontend tile).
-    const et = style.id === 'emoji' ? EMOJI_TILESET[asset.label] : undefined
-    const glyph = et ? et.char : (asset.art[0] ?? '?') // emoji part tile in emoji mode, else the ascii glyph
-    // The label's backend IMAGE (ascii: a white tint-target, RECOLOURED to the block's tint; emoji: an
-    // already-coloured Noto/baked PNG, NEVER recoloured) paints the block faces; a label with no image
-    // (most today) falls back to the glyph above via drawIsoTileBlock's own image-or-char face fill, so a
-    // cell is never blank.
-    const image = labelTileImage(asset.label, style)
-    const recolor = labelTileRecolor(style, tint)
-    drawIsoTileBlock(ctx, { x, y }, bw, bd, bh, 1, { char: glyph, color: tint, tint: recolor, image }, recolor, undefined, asset.depth, asset.depthDir)
-    // Apex signage rides ON TOP of the cube (the apex roof block carries settings.badge) — generic, no buildingType.
-    if (asset.settings?.badge) drawApexBadge(ctx, x, y - bh, fontSize, asset.settings.badge)
-    return
-  }
+  // (a labeled composition cell was already drawn at the TOP of this function — per-label baked image + colour.)
 
   // Generated multi-cell assets carry a cell-part label → draw each cell as ONE
   // glyph (the cell IS the tile). The layered art below is for legacy single-cell,
