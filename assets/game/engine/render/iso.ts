@@ -1089,13 +1089,13 @@ export function fillIsoFaceWithTile(
   const ch = S / rows
   ctx.save()
   ctx.transform(eA.x / S, eA.y / S, eB.x / S, eB.y / S, origin.x, origin.y)
-  ctx.beginPath()
-  ctx.rect(0, 0, S, S)
-  ctx.clip()
   // Image tile if its raster is ready; otherwise fall back to the glyph so the face is NEVER blank —
   // covers the split second before a Noto PNG decodes AND a failed/missing image (graceful degradation).
   const img = tv.image ? tileImage(tv.image.src) : null
   if (img) {
+    // PERF: an image scaled to (0,0,S,S) fills the sheared box EXACTLY — i.e. this face — so it can never
+    // spill past it. The per-face ctx.clip() (a real hotspot at ~thousands of building-cube faces/frame) is
+    // therefore redundant for the image path and is skipped; only the overfilling GLYPH path still clips.
     const drawSrc = tint ? tintedImage(img, tv.image!.src, tint) : img
     const sx = tv.image!.sx ?? 0
     const sy = tv.image!.sy ?? 0
@@ -1103,6 +1103,9 @@ export function fillIsoFaceWithTile(
     const sh = tv.image!.sh ?? img.naturalHeight
     for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) ctx.drawImage(drawSrc, sx, sy, sw, sh, i * cw, j * ch, cw, ch)
   } else if (tv.char) {
+    ctx.beginPath()
+    ctx.rect(0, 0, S, S)
+    ctx.clip()
     // A colour-emoji ignores fillStyle, so a per-building roof colour can't be applied with fillText — when
     // `tintTo` is set (the roof), shear a RECOLOURED sprite instead so the roof 🟥 reads the roof's own hue.
     const sprite = tv.tintTo ? tintedGlyphSprite(tv.char, Math.max(cw, ch), tv.tintTo) : null
@@ -1309,7 +1312,7 @@ export function nextPickIndex(
  *  recolours the whole cube (the colour-as-data rule). Impure canvas glue; the corner math is the pure,
  *  unit-tested isoBlockFaces. `dv.char`/`dv.image` come from resolveDraw — ASCII passthrough never
  *  reaches here (its assets stay flat), only a styled/emoji tile block does. */
-export function drawIsoTileBlock(
+function drawIsoTileBlockLive(
   ctx: CanvasRenderingContext2D,
   center: Pt,
   tileW: number,
@@ -1343,6 +1346,63 @@ export function drawIsoTileBlock(
   const top = isoBlockFaces(center, tileW, tileH, blockH, n - 1).top
   if (topDv) fillFace(top, topDv.tint ?? topDv.color ?? faceColor, topDv) // a ROOF tile capping a wall block
   else fillFace(top, faceColor, dv, tint)
+}
+
+// ── Single-block cube SPRITE CACHE (the building-cell hotspot) ────────────────────────────────────────
+// A building cell is a height-1 image cube (drawIsoTileBlock(..., 1, ...)). It is pixel-identical for every
+// cell of the same (tile image, face colour, tint, top-cap, dims) — a city has THOUSANDS (every wall / roof /
+// window cell). Bake that cube ONCE to an offscreen canvas and blit it per cell, exactly like the ground
+// sprite cache — instead of re-drawing 3 faces (each a fillQuad + a save/transform/drawImage) per cell/frame.
+const _cubeSpriteCache = new Map<string, { canvas: HTMLCanvasElement; ox: number; oy: number } | null>()
+
+function cubeBlockSprite(dv: DrawVisual, tileW: number, tileH: number, blockH: number, tint?: string, topDv?: DrawVisual) {
+  if (typeof document === 'undefined') return null
+  // Don't bake until the image raster(s) decoded — else the sprite would freeze the glyph fallback.
+  if (dv.image && !tileImage(dv.image.src)) return null
+  if (topDv?.image && !tileImage(topDv.image.src)) return null
+  const faceColor = tint ?? dv.tint ?? dv.color
+  const key = `${dv.image?.src ?? dv.char}|${faceColor}|${tint ?? ''}|${topDv?.image?.src ?? ''}|${topDv?.tint ?? topDv?.color ?? ''}|${Math.round(tileW)}|${Math.round(tileH)}|${Math.round(blockH)}`
+  const hit = _cubeSpriteCache.get(key)
+  if (hit !== undefined) return hit
+  const m = 1 // 1px margin so edge anti-aliasing never clips
+  const ox = tileW + m // local centre-x
+  const oy = blockH + tileH + m // local centre-y: room above for the block top diamond, below for the base
+  const cv = document.createElement('canvas')
+  cv.width = Math.ceil(2 * tileW + 2 * m)
+  cv.height = Math.ceil(blockH + 2 * tileH + 2 * m)
+  const c = cv.getContext('2d')
+  if (!c) {
+    _cubeSpriteCache.set(key, null)
+    return null
+  }
+  drawIsoTileBlockLive(c, { x: ox, y: oy }, tileW, tileH, blockH, 1, dv, tint, topDv)
+  const sprite = { canvas: cv, ox, oy }
+  _cubeSpriteCache.set(key, sprite)
+  return sprite
+}
+
+/** Draw a stacked iso cube. A single-block, full-opacity IMAGE cube blits a CACHED sprite (the building-cell
+ *  fast path — the big city hotspot); taller stacks, fading/cutaway cubes (globalAlpha < 1) and glyph-only
+ *  ASCII draw live. Skipping the cache at globalAlpha < 1 keeps proximity fade compositing exactly as before. */
+export function drawIsoTileBlock(
+  ctx: CanvasRenderingContext2D,
+  center: Pt,
+  tileW: number,
+  tileH: number,
+  blockH: number,
+  height: number,
+  dv: DrawVisual,
+  tint?: string,
+  topDv?: DrawVisual,
+): void {
+  if (Math.floor(height) === 1 && ctx.globalAlpha === 1 && dv.image) {
+    const spr = cubeBlockSprite(dv, tileW, tileH, blockH, tint, topDv)
+    if (spr) {
+      ctx.drawImage(spr.canvas, center.x - spr.ox, center.y - spr.oy)
+      return
+    }
+  }
+  drawIsoTileBlockLive(ctx, center, tileW, tileH, blockH, height, dv, tint, topDv)
 }
 
 // Buildings always render as an empty shell (HOLLOW) so the DOOR and the wall-fade read — you can see IN
