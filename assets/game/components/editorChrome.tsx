@@ -8,6 +8,7 @@ import { BUILT_IN_STYLES, type TileCategory, type TileDef, genderize, tilesForSt
 import type { EntityVariant } from '@/game/types'
 import type { AnimDirection, AnimFrame, AnimTrigger, EntityAnimation } from '@/game/runtime/entityAnimation'
 import type { TilePose } from '@/engine/tileset/pose'
+import type { TileDisplay } from '@/engine/tileset/tileset'
 import type { DepthDir } from '@/engine/render'
 import { DEFAULT_ACTION_PARAMS, makeTrigger, type Trigger, type TriggerActionType, type TriggerEvent } from '@/game/runtime/trigger'
 import { type EditorMode, SEASON_BTN, STAGE_VARIANTS, STAGE_ZONES } from './editorConfig'
@@ -557,6 +558,11 @@ export interface TileControlModel {
    *  overriding the positional depth sort (asset.zIndex; null = mixed). Asset tiles only. */
   zIndex?: number | null
   onZIndex?: (value: number) => void
+  /** DISPLAY mode — how the tile is painted on its block: 'all-faces' (paint on every visible face) vs
+   *  'single' (ONE centered tile inside the block). Reads asset.settings.display; null = mixed. Asset tiles
+   *  only — the floor omits onDisplay (a flat cell has no block volume to sit a single tile inside). */
+  display?: TileDisplay | null
+  onDisplay?: (mode: TileDisplay) => void
   /** the tile pinned to this stack level (GridAsset.tileOverride), or null = follows the global style. */
   override?: string | null
   /** the active global style name, shown in the "Change tile" affordance. */
@@ -655,6 +661,21 @@ function ZIndexRow({ zIndex, onZIndex }: { zIndex: number | null; onZIndex: (val
   )
 }
 
+/** DISPLAY — how the tile is PAINTED on its block: "all faces" paints the baked tile on the block's top + two
+ *  visible faces (the default); "single" shows ONE centered tile INSIDE the block volume (a single water
+ *  droplet floating in the block — the fountain case). A two-button toggle mirroring the collision toggle.
+ *  Asset tiles only. */
+function DisplayModeRow({ display, onDisplay }: { display: TileDisplay | null; onDisplay: (mode: TileDisplay) => void }) {
+  return (
+    <label className="flex items-center gap-2" title="Display — paint the tile on ALL faces of the block, or show ONE tile inside the block">
+      <span className="w-14 shrink-0 text-[10px] text-gray-400">Display</span>
+      <button onClick={() => onDisplay('all-faces')} aria-pressed={display === 'all-faces'} className={`rounded px-2 py-0.5 text-[10px] font-bold ${display === 'all-faces' ? 'bg-cyan-600 text-white' : 'bg-gray-700 hover:bg-gray-600'}`}>All faces</button>
+      <button onClick={() => onDisplay('single')} aria-pressed={display === 'single'} className={`rounded px-2 py-0.5 text-[10px] font-bold ${display === 'single' ? 'bg-cyan-600 text-white' : 'bg-gray-700 hover:bg-gray-600'}`}>Single</button>
+      {display === null && mixedBadge}
+    </label>
+  )
+}
+
 /** Z POSITION — SLIDE the tile along an iso DIAGONAL (NOT a vertical lift): a magnitude (± cells) plus WHICH
  *  diagonal it slides along, reusing the same 4 dirs + labels as Z Width. +z slides TOWARD the picked dir,
  *  −z toward its opposite; default 'right-up' ("right top") → +z = up-right toward the back. The direction
@@ -701,6 +722,8 @@ export function TileControls({ tile }: { tile: TileControlModel }) {
       {tile.onZWidth && <ZWidthRow zWidth={tile.zWidth ?? 1} zDir={tile.zDir ?? null} onZWidth={tile.onZWidth} onZDir={tile.onZDir ?? (() => {})} />}
       {/* Z-Index (draw priority): a higher value draws on top / in front, overriding the depth sort. Asset tiles only. */}
       {tile.onZIndex && <ZIndexRow zIndex={tile.zIndex ?? 0} onZIndex={tile.onZIndex} />}
+      {/* Display mode: paint the tile on ALL faces, or ONE tile inside the block. Asset tiles only. */}
+      {tile.onDisplay && <DisplayModeRow display={tile.display ?? 'all-faces'} onDisplay={tile.onDisplay} />}
       <DimRow label="Zoom" axis="zoom" value={tile.dims.zoom} title="Zoom — scales Width, Height and Zoom together" onDim={tile.onDim} />
       {/* x/y/rotate/flip live in the SAME group — there is NO separate POSE section */}
       {setPose && (

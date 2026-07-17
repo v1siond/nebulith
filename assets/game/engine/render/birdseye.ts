@@ -8,7 +8,7 @@ import { type PlayerState, barFraction, hpFraction } from '@/game/runtime/player
 import { type CombatState, type Entity, type Quest } from '@/game/types'
 import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 import { Connector } from '@/lib/api'
-import { ASCII_FONT, type DayNight, LAMP_GLOW, applyCellTransform, clampCameraAxis, collectLampGlows, debugCellCaptions, debugLabelColors, drawConnectorMarker, drawHitMarker, drawHpBar, drawNightLighting, drawQuestMarker, drawStyledImage, fillTintedGlyph, grassShade, cellFill, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, resolveAssetDraw, resolveEntityDraw, assetOverride, labelTileImage, labelTileRecolor, tileImage } from './shared'
+import { ASCII_FONT, type DayNight, LAMP_GLOW, applyCellTransform, clampCameraAxis, collectLampGlows, debugCellCaptions, debugLabelColors, drawConnectorMarker, drawHitMarker, drawHpBar, drawNightLighting, drawQuestMarker, drawStyledImage, SINGLE_TILE_FRAC, fillTintedGlyph, grassShade, cellFill, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, resolveAssetDraw, resolveEntityDraw, assetOverride, labelTileImage, labelTileRecolor, tileImage } from './shared'
 import { resolveAssetDrawSize } from './assetDimensions'
 import { DEPTH_CELL_STEP } from './isoBlock'
 import { getStack } from '@/engine/cellStack'
@@ -191,12 +191,15 @@ export function renderTopView(
         const d = resolveAssetDrawSize(tileSize * (resolveTileSize(vt, 'top') ?? 1), asset ?? {}, 'overhead')
         const pose = asset?.pose ?? resolveTilePose(vt, 'top') // per-asset pose (inspector x/y/rotate) wins; else the tileset-kind pose
         const recolor = labelImage ? labelTileRecolor(style, asset?.color ?? '#cccccc') : asset?.color
+        // DISPLAY = "single": draw ONE smaller centered tile inside the plain cell (the cell backing already
+        // painted above shows around it), matching the iso/2D "single tile inside the block" look. Absent → 1×.
+        const frac = asset?.settings?.display === 'single' ? SINGLE_TILE_FRAC : 1
         if (pose) {
           ctx.save(); ctx.translate(gx, gy); applyPose(ctx, pose, 1, tileSize)
-          drawStyledImage(ctx, img, 0, 0, d.w, false, recolor, d.h)
+          drawStyledImage(ctx, img, 0, 0, d.w * frac, false, recolor, d.h * frac)
           ctx.restore()
         } else {
-          drawStyledImage(ctx, img, gx, gy, d.w, false, recolor, d.h) // #80 colour override tints the sprite
+          drawStyledImage(ctx, img, gx, gy, d.w * frac, false, recolor, d.h * frac) // #80 colour override tints the sprite
         }
       } else {
         // GLYPH tile (no image): honour the per-view tile size + per-element dims + the colour override,

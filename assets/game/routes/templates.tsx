@@ -55,6 +55,7 @@ import { render, render2D, renderTopView, clampCameraAxis, isoCameraFocus, entit
 import { loadTilesetsFromBackend, saveTilesetToBackend } from '@/engine/tileset/tilesetLoader'
 import { EMOJI_TILESET, setTilePose } from '@/engine/tileset/emojiTileset'
 import { type TilePose } from '@/engine/tileset/pose'
+import { type TileDisplay } from '@/engine/tileset/tileset'
 import { type QuestDraft, emptyQuestDraft, questFromDraft } from '@/game/runtime/questDraft'
 import { seedCharacterAnimations, needsAnimationReseed } from '@/game/runtime/entityAnimation'
 import { stampBuildingComposition, stampComposition } from '@/game/runtime/composition'
@@ -1531,6 +1532,17 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   // the positional depth sort. Written to THIS placed tile (persists with the map); the render reads asset.zIndex.
   const setAssetZIndex = (i: number, v: number) =>
     applyToSelectedCells((col, row, grid) => { const a = stackedAssetsAt(grid, col, row)[i]; if (a) a.zIndex = Math.round(v) })
+  // PER-ASSET "display" mode (all-faces / single) — how the tile is painted on its block. Written into THIS
+  // placed tile's `settings` (persists with the map via the full-asset serialize) alongside the generic
+  // fade/cutaway keys; the render reads asset.settings.display. 'all-faces' clears the key so a reset stays
+  // byte-identical to a tile that never opted in.
+  const setAssetDisplay = (i: number, mode: TileDisplay) =>
+    applyToSelectedCells((col, row, grid) => {
+      const a = stackedAssetsAt(grid, col, row)[i]; if (!a) return
+      const rest = { ...(a.settings ?? {}) }
+      if (mode === 'single') a.settings = { ...rest, display: 'single' }
+      else { delete rest.display; a.settings = rest }
+    })
   // Inspector "Remove tile" → delete the EXACT selected block (never the floor — removeSelectedBlock no-ops
   // at level 0) from every selected cell, then step the level down so the panel doesn't point past the
   // (now shorter) stack.
@@ -5710,6 +5722,8 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                             onZPosDir: posable ? (dir => setAssetZDir(i, dir)) : undefined,
                             zIndex: adim(i, a => a.zIndex ?? 0),
                             onZIndex: posable ? (v => setAssetZIndex(i, v)) : undefined,
+                            display: commonValue(cells.map(({ col, row }) => (stackedAssetsAt(grid, col, row)[i]?.settings?.display ?? 'all-faces') as TileDisplay)),
+                            onDisplay: posable ? (mode => setAssetDisplay(i, mode)) : undefined,
                             pose: posable ? a0?.pose : undefined,
                             onPose: posable ? (p => setAssetPose(i, p)) : undefined,
                             onPoseReset: posable ? (() => setAssetPose(i, undefined)) : undefined,

@@ -20,6 +20,16 @@ export type TilePosition =
   | 'bottom_left' | 'bottom' | 'bottom_right'
   | 'single'
 
+/** DISPLAY MODE — how a tile is PAINTED onto its block. A per-tile render SETTING (lives in the tile's
+ *  `settings` jsonb, mirrored as a per-ASSET override from the editor):
+ *    • 'all-faces' (DEFAULT, current behaviour) — the baked tile image is painted on the block's top + the
+ *      two camera-visible side faces (drawIsoTileBlock / fillIsoFaceWithTile).
+ *    • 'single' — ONE instance of the tile is shown INSIDE the block volume (a single centered billboard at
+ *      the block centre) over a plain, shaded block shell — e.g. a single water droplet floating in the block.
+ *  Absent → 'all-faces' (byte-identical to before). This changes WHERE / HOW MANY TIMES the SAME baked image
+ *  is drawn on the block — it never introduces a glyph. */
+export type TileDisplay = 'all-faces' | 'single'
+
 export interface TilesetTile {
   /** The swap key — same across every tileset, so re-skin is a label match. */
   label: string
@@ -155,15 +165,18 @@ export interface ResolvedTile {
 // Unknown label → the same visible-but-neutral fallback the hardcoded path used (never blank/throw).
 export const FALLBACK_RESOLVED: ResolvedTile = { char: '?', color: '#cccccc' }
 
-/** The GENERIC render-behavior keys (`fadeNear`/`cutawayRoof`) a stamp copies from a resolved tile's
- *  `settings` onto the placed asset. Returns undefined when the tile carries neither (the common case), so
- *  a stamp only sets `asset.settings` on tiles that actually opt into a behavior. */
-export function tileRenderBehavior(settings?: Record<string, unknown>): { fadeNear?: boolean; cutawayRoof?: boolean } | undefined {
+/** The GENERIC render-behavior keys (`fadeNear`/`cutawayRoof`/`display`) a stamp copies from a resolved
+ *  tile's `settings` onto the placed asset. Returns undefined when the tile carries none (the common case),
+ *  so a stamp only sets `asset.settings` on tiles that actually opt into a behavior. `display` follows the
+ *  SAME data path: only the non-default `'single'` rides through — `'all-faces'` / absent carries nothing,
+ *  leaving `asset.settings` unset so a default tile renders byte-identically to before. */
+export function tileRenderBehavior(settings?: Record<string, unknown>): { fadeNear?: boolean; cutawayRoof?: boolean; display?: TileDisplay } | undefined {
   if (!settings) return undefined
-  const out: { fadeNear?: boolean; cutawayRoof?: boolean } = {}
+  const out: { fadeNear?: boolean; cutawayRoof?: boolean; display?: TileDisplay } = {}
   if (settings.fadeNear) out.fadeNear = true
   if (settings.cutawayRoof) out.cutawayRoof = true
-  return out.fadeNear || out.cutawayRoof ? out : undefined
+  if (settings.display === 'single') out.display = 'single'
+  return out.fadeNear || out.cutawayRoof || out.display ? out : undefined
 }
 
 /** A tile's own per-zone colour map from its backend `settings.colors` (undefined when it carries none).

@@ -15,7 +15,7 @@ import { type CombatState, type Entity, type Quest } from '@/game/types'
 import { resolveGroundTile } from '@/engine/tileset/tileset'
 import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 import { Connector } from '@/lib/api'
-import { ASCII_FONT, COMBAT_RANGE, type DayNight, type DrawVisual, ENEMY_MOVE_MS, LAMP_GLOW, LIGHT, applyCellTransform, isoCameraFocus, assetCaptionByCell, terrainLabelAt, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawHoverRing, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawConnectorMarker, drawAttackAnimFrame, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, frameImage, getPlayerArt, grassShade, cellFill, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, resolveAssetDraw, resolveEntityDraw, assetOverride, labelTileImage, labelTileRecolor, tileImage, tintedImage, tintedGlyphSprite, treeCanopyLayers, treeCellSet } from './shared'
+import { ASCII_FONT, COMBAT_RANGE, type DayNight, type DrawVisual, ENEMY_MOVE_MS, LAMP_GLOW, LIGHT, applyCellTransform, isoCameraFocus, assetCaptionByCell, terrainLabelAt, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawHoverRing, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawConnectorMarker, drawAttackAnimFrame, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, SINGLE_TILE_FRAC, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, frameImage, getPlayerArt, grassShade, cellFill, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, resolveAssetDraw, resolveEntityDraw, assetOverride, labelTileImage, labelTileRecolor, tileImage, tintedImage, tintedGlyphSprite, treeCanopyLayers, treeCellSet } from './shared'
 import { resolveAssetDrawSize } from './assetDimensions'
 import { type GroundCellDims, groundSizeFactors, groundDimsActive } from '@/engine/groundDims'
 import { getStack, type TileSource } from '@/engine/cellStack'
@@ -1449,6 +1449,50 @@ export function drawIsoTileBlock(
   drawIsoTileBlockLive(ctx, center, tileW, tileH, blockH, height, dv, tint, topDv, depth, depthDir)
 }
 
+/** DISPLAY = "single" (per-tile `settings.display`): draw the block as a PLAIN, shaded SHELL — the SAME cube
+ *  geometry as drawIsoTileBlock, but a dv with NO tile image/char, so the faces are just the block's colour,
+ *  shaded per face — then draw ONE centered instance of the tile INSIDE the block volume: a billboard at the
+ *  block's screen-space centre, colour-composited the SAME way the faces would be (tintedImage, via
+ *  drawStyledImage). This is the per-tile alternative to the 3-face paint — one water droplet floating inside
+ *  the block, not the tile repeated on every face. The shell keeps the block readable as a 3D volume; the
+ *  single tile is inset (SINGLE_TILE_FRAC) so the shell shows around it. `height` blocks tall; `tint`
+ *  recolours BOTH the shell and the single tile. */
+export function drawIsoSingleTileBlock(
+  ctx: CanvasRenderingContext2D,
+  center: Pt,
+  tileW: number,
+  tileH: number,
+  blockH: number,
+  height: number,
+  dv: DrawVisual,
+  tint?: string,
+  depth = 1,
+  depthDir?: DepthDir,
+): void {
+  // 1) The plain block SHELL — same cube, but no image/char on the faces (fillFace only fills the shaded quad).
+  drawIsoTileBlock(ctx, center, tileW, tileH, blockH, height, { char: '', color: dv.color, tint: dv.tint }, tint, undefined, depth, depthDir)
+  // 2) ONE centered tile INSIDE the block. `center` is the base diamond centre; the stack rises `total` px, so
+  //    the volume's vertical mid-point is total/2 above it. The tile is drawn at SINGLE_TILE_FRAC of the block
+  //    width so the shell stays visible around it.
+  const total = Math.max(1, Math.floor(height)) * blockH
+  const cx = center.x
+  const cy = center.y - total / 2
+  const size = tileW * 2 * SINGLE_TILE_FRAC
+  if (dv.image) {
+    drawStyledImage(ctx, dv.image, cx, cy, size, false, tint, size) // colour FILTERS the image, same as the faces
+    return
+  }
+  // No baked image (a raw ascii glyph) → draw the glyph ONCE at the centre, tinted, so 'single' still shows one tile.
+  if (dv.char) {
+    ctx.save()
+    ctx.font = `bold ${size}px ${ASCII_FONT}`
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    fillTintedGlyph(ctx, dv.char, cx, cy, size, tint, tint ? 0.85 : 0)
+    ctx.restore()
+  }
+}
+
 // Buildings always render as an empty shell (HOLLOW) so the DOOR and the wall-fade read — you can see IN
 // when the hero is near. Interior decorations come later as real tiles, not a fill toggle.
 
@@ -1610,16 +1654,20 @@ export function drawIsoAssetAscii(
     const image = labelTileImage(asset.label, style)
     const recolor = labelTileRecolor(style, tint)
     const dvBlock = { char: glyph, color: tint, tint: recolor, image }
+    // DISPLAY = "single" (per-tile setting): draw ONE centered tile INSIDE the block instead of on all faces.
+    const single = asset.settings?.display === 'single'
     // Per-asset pose (x/y/rotate/flip) transforms this labeled block too — same applyPose wrap as the generic
     // block/billboard paths, so a placed OR generated block moves/rotates. No pose → the byte-identical draw.
     if (asset.pose) {
       ctx.save(); ctx.translate(x, y); applyPose(ctx, asset.pose, 1, tileH)
-      drawIsoTileBlock(ctx, { x: 0, y: 0 }, bw, bd, bh, 1, dvBlock, recolor, undefined, asset.depth, asset.depthDir)
+      if (single) drawIsoSingleTileBlock(ctx, { x: 0, y: 0 }, bw, bd, bh, 1, dvBlock, recolor, asset.depth, asset.depthDir)
+      else drawIsoTileBlock(ctx, { x: 0, y: 0 }, bw, bd, bh, 1, dvBlock, recolor, undefined, asset.depth, asset.depthDir)
       if (asset.settings?.badge) drawApexBadge(ctx, 0, -bh, fontSize, asset.settings.badge)
       ctx.restore()
       return
     }
-    drawIsoTileBlock(ctx, { x, y }, bw, bd, bh, 1, dvBlock, recolor, undefined, asset.depth, asset.depthDir)
+    if (single) drawIsoSingleTileBlock(ctx, { x, y }, bw, bd, bh, 1, dvBlock, recolor, asset.depth, asset.depthDir)
+    else drawIsoTileBlock(ctx, { x, y }, bw, bd, bh, 1, dvBlock, recolor, undefined, asset.depth, asset.depthDir)
     if (asset.settings?.badge) drawApexBadge(ctx, x, y - bh, fontSize, asset.settings.badge)
     return
   }
@@ -1655,15 +1703,19 @@ export function drawIsoAssetAscii(
     const bw = tileW * (asset.scaleX ?? 1) * zoom       // Width  — diamond half-width
     const bd = tileH * (asset.scaleZ ?? 1) * zoom       // Depth  — diamond half-height (into-screen axis)
     const bh = tileW * 0.9 * (asset.scaleY ?? 1) * zoom // Height — one block ≈ the cell's iso width, stretched up
+    // DISPLAY = "single" (per-tile setting): draw ONE centered tile INSIDE the block instead of on all faces.
+    const single = asset.settings?.display === 'single'
     // Per-asset pose (x/y/rotate/flip) transforms the block around its base centre — the SAME applyPose the
     // billboard/floor paths use, so moving/rotating a placed BLOCK works too. No pose → the byte-identical draw.
     if (asset.pose) {
       ctx.save(); ctx.translate(x, y); applyPose(ctx, asset.pose, 1, tileH)
-      drawIsoTileBlock(ctx, { x: 0, y: 0 }, bw, bd, bh, blocks, adv, asset.color, undefined, asset.depth, asset.depthDir)
+      if (single) drawIsoSingleTileBlock(ctx, { x: 0, y: 0 }, bw, bd, bh, blocks, adv, asset.color, asset.depth, asset.depthDir)
+      else drawIsoTileBlock(ctx, { x: 0, y: 0 }, bw, bd, bh, blocks, adv, asset.color, undefined, asset.depth, asset.depthDir)
       ctx.restore()
       return
     }
-    drawIsoTileBlock(ctx, { x, y }, bw, bd, bh, blocks, adv, asset.color, undefined, asset.depth, asset.depthDir)
+    if (single) drawIsoSingleTileBlock(ctx, { x, y }, bw, bd, bh, blocks, adv, asset.color, asset.depth, asset.depthDir)
+    else drawIsoTileBlock(ctx, { x, y }, bw, bd, bh, blocks, adv, asset.color, undefined, asset.depth, asset.depthDir)
     return
   }
   // A per-asset colour override tints the baked sprite (an emoji ships its own colours, so an override

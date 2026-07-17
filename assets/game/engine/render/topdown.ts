@@ -16,7 +16,7 @@ import { EMOJI_TILESET } from '@/engine/tileset/emojiTileset'
 import { applyPose } from '@/engine/tileset/pose'
 import { resolveTileSize, resolveTilePose } from '@/engine/tileset/tileViewSettings'
 import { Connector } from '@/lib/api'
-import { ASCII_FONT, COMBAT_RANGE, type DayNight, ENEMY_MOVE_MS, LAMP_GLOW, applyCellTransform, clampCameraAxis, assetCaptionByCell, terrainLabelAt, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawHoverRing, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawConnectorMarker, drawAttackAnimFrame, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, frameImage, getPlayerArt, grassShade, cellFill, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, resolveAssetDraw, resolveEntityDraw, assetOverride, labelTileImage, labelTileRecolor, treeCanopyLayers, treeCellSet } from './shared'
+import { ASCII_FONT, COMBAT_RANGE, type DayNight, ENEMY_MOVE_MS, LAMP_GLOW, applyCellTransform, clampCameraAxis, assetCaptionByCell, terrainLabelAt, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawHoverRing, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawConnectorMarker, drawAttackAnimFrame, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, SINGLE_TILE_FRAC, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, frameImage, getPlayerArt, grassShade, cellFill, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, resolveAssetDraw, resolveEntityDraw, assetOverride, labelTileImage, labelTileRecolor, treeCanopyLayers, treeCellSet } from './shared'
 import { resolveAssetDrawSize } from './assetDimensions'
 import { DEPTH_CELL_STEP } from './isoBlock'
 import { frontElevation, type FrontElevation } from './frontElevation'
@@ -163,15 +163,20 @@ export function draw2DLabeledCell(
   ctx.fillRect(x - tileW / 2, cy - tileH / 2, tileW, tileH)
   ctx.fillStyle = 'rgba(0, 0, 0, 0.45)'
   ctx.fillRect(x - tileW / 2, cy - tileH / 2, tileW, tileH)
+  // DISPLAY = "single" (per-tile setting): draw ONE smaller centered tile INSIDE the plain colour cell instead
+  // of filling the whole front face, mirroring the iso "single tile inside the block" look. Absent/'all-faces'
+  // → the tile fills the cell exactly as before.
+  const single = asset.settings?.display === 'single'
+  const frac = single ? SINGLE_TILE_FRAC : 1
   // The label's backend IMAGE (ascii: a white tint-target, RECOLOURED to `tint`; emoji: an already-coloured
   // PNG, NEVER recoloured) fills the same cell box the glyph would; a label with no image (most today)
   // falls through to the glyph below, so the cell is never blank.
   const image = asset.label ? labelTileImage(asset.label, style) : undefined
   if (image) {
-    drawStyledImage(ctx, image, x, cy, tileW, false, labelTileRecolor(style, tint), tileH)
+    drawStyledImage(ctx, image, x, cy, tileW * frac, false, labelTileRecolor(style, tint), tileH * frac)
     return
   }
-  ctx.font = `bold ${tileH * 0.8}px ${ASCII_FONT}`
+  ctx.font = `bold ${tileH * 0.8 * frac}px ${ASCII_FONT}`
   ctx.fillStyle = tint
   ctx.fillText(char, x, cy)
 }

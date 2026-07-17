@@ -269,6 +269,12 @@ export function tintedImage(img: HTMLImageElement, src: string, tint: string): C
   return off
 }
 
+/** DISPLAY = "single": the fraction of a block's footprint the ONE centered tile occupies when a tile's
+ *  display mode is 'single' (a billboard drawn INSIDE the block volume). < 1 so the plain, shaded block shell
+ *  stays visible AROUND the tile — the "single tile inside the block" look (the fountain-droplet case). Shared
+ *  by all three views so 'single' reads consistently in iso / 2D / top. */
+export const SINGLE_TILE_FRAC = 0.6
+
 /** Draw an image tile centered at (cx, cy) filling a `size`×`size` box (optional atlas sub-rect).
  *  `flipX` mirrors it horizontally about cx — a DATA property of an animation frame (a right-facing
  *  walk reuses the left-facing tile flipped), so the baked-image figure animates like the glyph one.

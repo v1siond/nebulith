@@ -12,6 +12,7 @@ import type { CellAnimation } from './cellAnimation'
 import type { GroundCellDims } from './groundDims'
 import type { DepthDir } from './render/isoBlock'
 import type { TilePose } from './tileset/pose'
+import type { TileDisplay } from './tileset/tileset'
 
 /** GENERIC per-tile BEHAVIOR flags copied from the resolved tile's `settings` onto a placed asset, so ONE
  *  render path drives them for ANY tile — a wall, a roof, or a tree leaf. No `type:'building'` special case:
@@ -20,6 +21,8 @@ export interface AssetSettings {
   fadeNear?: boolean    // near the player this tile eases translucent (walls/windows/doors/roof_top)
   cutawayRoof?: boolean // near the player this tile lifts off entirely (roof) — skipped when fully gone
   badge?: { text: string; color: string } // apex signage (STORE/HOSPITAL) drawn generically, no buildingType
+  display?: TileDisplay // 'single' → ONE centered tile drawn INSIDE the block (billboard at the block centre)
+                        // over a plain shell; absent/'all-faces' → the tile is painted on all visible faces.
 }
 
 export interface GridAsset {
