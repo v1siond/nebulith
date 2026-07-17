@@ -56,7 +56,7 @@ defmodule NebulithWeb.TilesetJSON do
       cells:
         Enum.map(
           c.cells,
-          &%{dx: &1.dx, dy: &1.dy, level: &1.level, label: &1.label, walkable: &1.walkable}
+          &%{dx: &1.dx, dy: &1.dy, level: &1.level, label: &1.label, walkable: &1.walkable, scale: &1.scale}
         )
     }
   end

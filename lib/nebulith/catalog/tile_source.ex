@@ -663,10 +663,11 @@ defmodule Nebulith.Catalog.TileSource do
     :ok
   end
 
-  # Correct the two canopy leaf emoji (🌿 → 🍃) so EVERY leaf cell of the generator's tree reads as a leaf,
-  # matching leaf_left/leaf_right (already 🍃). SURGICAL: upserts just these two emoji rows from emoji.json —
-  # never a full emoji reseed (which would clobber editor-tuned poses). Renders the char directly (image_url
-  # nil), like the autotile pieces, so it never points at a missing baked PNG.
+  # Seed the two emoji leaf tiles (🍃) the tree/bush use, each pointing at its BAKED PNG so the render draws a
+  # tintable image (not a raw char that can't take the per-tree canopy tint, and shows ?? on a font-less
+  # machine). SURGICAL: upserts just these two emoji rows from emoji.json — never a full emoji reseed (which
+  # would clobber editor-tuned poses). `leaf_center` is the tree's whole (2×) canopy; both are baked by
+  # priv/tilegen (tiles.json → bake.mjs). image_url MUST be non-nil (MAP-MODEL §8 / TILE-BACKEND-MIGRATION §5).
   defp seed_tree_leaves(emoji_id) do
     emoji = read_tileset("emoji.json")
 
@@ -681,7 +682,7 @@ defmodule Nebulith.Catalog.TileSource do
           height: t["height"] || 0,
           category: t["category"],
           title: t["title"],
-          image_url: nil,
+          image_url: "/tiles/emoji/#{label}.png",
           settings: %{"color" => t["color"]}
         })
     end
@@ -717,21 +718,21 @@ defmodule Nebulith.Catalog.TileSource do
 
   defp compositions do
     %{
-      # The living tree (#23): a 3-SEGMENT trunk in the centre column (trunk_bottom L0 / trunk_mid L1 /
-      # trunk_top L2, all blocking) topped by a 9-SLICE leaf CANOPY — a single 3×3 crown one level up (L3),
-      # autotiled with the SAME edge/corner scheme as the fountain rim (canopy_c centre, canopy_t/b/l/r
-      # edges, canopy_tl/tr/bl/br corners — TILESET-AUTHORING §3). 12 cells, footprint 3×3: a tight, upright
-      # tree, deliberately NOT the retired 30-cell dome. Only the trunk cell blocks; the canopy is walkable
-      # overhead (you walk under the tree).
+      # The living tree — just 3 STACKED cells in one column (Alexander: "make them just 3 stacked cells …
+      # that'll reduce trees from 12 tiles to just 3"): a 2-segment brown TRUNK (trunk_bottom L0 / trunk_mid
+      # L1, both blocking) topped by ONE leaf cell (leaf_center L2) drawn at scale 2.0 — a 2×2 crown ("zoom
+      # the top tile 2"). The 2× is DATA on the cell (composition_cells.scale); the render reads it as its
+      # uniform zoom. The leaf's colour is its own per-zone canopy SHADE setting, so a per-tree variant tints
+      # it green / pink / brown (leaf_center carries the canopy shade array). Only the trunk cell blocks; the
+      # leaf is walkable overhead. Replaces the retired 12-cell trunk+9-slice-canopy tree.
       "tree" => %{
-        footprint_w: 3,
-        footprint_h: 3,
-        cells:
-          [
-            %{dx: 0, dy: 0, level: 0, label: "trunk_bottom", walkable: false},
-            %{dx: 0, dy: 0, level: 1, label: "trunk_mid", walkable: false},
-            %{dx: 0, dy: 0, level: 2, label: "trunk_top", walkable: false}
-          ] ++ canopy_cells(3)
+        footprint_w: 1,
+        footprint_h: 1,
+        cells: [
+          %{dx: 0, dy: 0, level: 0, label: "trunk_bottom", walkable: false},
+          %{dx: 0, dy: 0, level: 1, label: "trunk_mid", walkable: false},
+          %{dx: 0, dy: 0, level: 2, label: "leaf_center", walkable: true, scale: 2.0}
+        ]
       },
       "bush" => %{
         footprint_w: 3,
@@ -774,17 +775,6 @@ defmodule Nebulith.Catalog.TileSource do
     ]
 
     rim ++ water ++ jets
-  end
-
-  # The living tree's 9-SLICE leaf crown at `level`, centred on the trunk column. A 3×3 grid autotiled with
-  # the SAME edge/corner scheme as the fountain rim (edge_piece): the interior is `canopy_c` (full leaf), the
-  # perimeter is the right EDGE/CORNER piece (`canopy_t/b/l/r` sides + `canopy_tl/tr/bl/br` corners round the
-  # crown). Offsets are centred (dx,dy ∈ -1..1) so the crown sits over the trunk at (0,0). Walkable overhead.
-  defp canopy_cells(level) do
-    for gy <- 0..2, gx <- 0..2 do
-      label = if edge_cell?(gx, gy, 3, 3), do: edge_piece("canopy", gx, gy, 3, 3), else: "canopy_c"
-      %{dx: gx - 1, dy: gy - 1, level: level, label: label, walkable: true}
-    end
   end
 
   # True for a perimeter cell of a `w`×`h` rectangle (where the rim/edge pieces go).
