@@ -90,6 +90,10 @@ export interface CompositionCell {
   label: string
   /** Cell collision — false (blocking) by default; a walkable cell (an open doorway) sets true. */
   walkable?: boolean
+  /** Uniform draw ZOOM for this cell's tile (backend `composition_cells.scale`) — the render multiplies every
+   *  axis by it (iso `zoom = asset.scale`), so a cell can hold a tile bigger than one block. The tree's canopy
+   *  is ONE leaf cell at scale 2 (a 2×2 crown). Absent/1 → the tile draws at one block, unchanged. */
+  scale?: number
 }
 
 /** A multi-cell asset TEMPLATE: a footprint + one tile per cell. The data-driven replacement for the retired

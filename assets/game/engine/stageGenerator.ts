@@ -2320,6 +2320,9 @@ export function stageToTemplate(stage: StageData, name: string): StageTemplatePa
         color: tile.color,
         height: 1, // one block tall per tile; the column's height comes from the stacked levels
         heightLevel: c.level ?? 0,
+        // Carry the cell's draw ZOOM so a SAVED generated stage keeps the 2× canopy on reload (the tree's
+        // leaf cell is scale 2). deserializeToGrid restores it onto the GridAsset, so live + saved match.
+        scale: c.scale ?? 1,
         label: c.label,
         footprint: undefined,
         tileOverride: undefined,

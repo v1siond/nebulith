@@ -86,7 +86,7 @@ function stampRun(
   grid: IsometricGrid,
   comp: NonNullable<ReturnType<typeof resolveComposition>>,
   kind: string,
-  c: { dx: number; dy: number; level?: number; label: string; walkable?: boolean },
+  c: { dx: number; dy: number; level?: number; label: string; walkable?: boolean; scale?: number },
   span: number,
   anchorCol: number,
   anchorRow: number,
@@ -109,7 +109,9 @@ function stampRun(
   // those cells; every other cell (and any absent override) keeps the tile's own colour.
   const color = isRoofLabel(label) && roofColor ? roofColor : isWallLabel(label) && wallColor ? wallColor : tile.color
   const grounded = (c.level ?? 0) === 0 || undefined
-  const asset = grid.placeAsset([tile.char], col, row, { type: kind, blocking: !c.walkable, color, heightLevel: c.level ?? 0, baseShadow: grounded })
+  // The cell's uniform draw ZOOM (backend `composition_cells.scale`) — the render reads asset.scale as its
+  // zoom, so a cell can hold a tile bigger than one block (the tree's canopy = one leaf cell at scale 2).
+  const asset = grid.placeAsset([tile.char], col, row, { type: kind, blocking: !c.walkable, color, heightLevel: c.level ?? 0, baseShadow: grounded, scale: c.scale })
   asset.label = label
   asset.height = 1
   // The collapsed vertical run → ONE block `span` tall (scaleY grows UP from the base level; ISO + 2D).

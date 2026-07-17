@@ -102,4 +102,38 @@ describe('tree composition — every ascii asset is a collection of selectable D
     const col = getStack(grid, 7, 7).filter(t => t.source === 'asset')
     expect(col.map(t => t.label)).toEqual(['trunk_base', 'trunk', 'snag'])
   })
+
+  // ── The redesigned living `tree` — JUST 3 stacked cells (2 trunk + 1 leaf at 2×) ──────────────────────
+  test('the NEW tree stamps JUST 3 stacked cells — trunk L0/L1 + leaf L2, the leaf drawn at 2× (scale on the asset)', () => {
+    const grid = mkGrid()
+    const placed = stampComposition(grid, 'tree', 7, 7, 'spring', 0)
+    expect(placed).toBe(3) // down from 12 — 2 trunk + 1 leaf, one column
+
+    const col = getStack(grid, 7, 7).filter(t => t.source === 'asset')
+    expect(col.map(t => t.heightLevel)).toEqual([0, 1, 2])
+    expect(col.map(t => t.label)).toEqual(['trunk_bottom', 'trunk_mid', 'leaf_center'])
+
+    // the 2× is DATA carried on the cell (composition_cells.scale) → the placed asset's uniform zoom (asset.scale)
+    const leaf = grid.assets.find(a => a.label === 'leaf_center')!
+    expect(leaf.scale).toBe(2)
+    for (const l of ['trunk_bottom', 'trunk_mid']) expect(grid.assets.find(a => a.label === l)!.scale ?? 1).toBe(1) // trunks draw at 1×
+  })
+
+  test('the NEW tree: only the trunk cell blocks — the 2× leaf is walkable overhead', () => {
+    const grid = mkGrid()
+    stampComposition(grid, 'tree', 7, 7, 'spring', 0)
+    expect(grid.isBlocked(7, 7)).toBe(true) // the trunk column blocks its cell
+    const leaf = grid.assets.find(a => a.label === 'leaf_center')!
+    expect(leaf.blocking).toBeFalsy() // the leaf itself is walkable overhead (canopy)
+  })
+
+  test('the NEW tree: a per-tree variant tints the leaf a different canopy SHADE (spring green → pink)', () => {
+    const g0 = mkGrid(); stampComposition(g0, 'tree', 7, 7, 'spring', 0)
+    const g3 = mkGrid(); stampComposition(g3, 'tree', 7, 7, 'spring', 3)
+    const c0 = g0.assets.find(a => a.label === 'leaf_center')!.color
+    const c3 = g3.assets.find(a => a.label === 'leaf_center')!.color
+    expect(c0).toBe('#7cc46a') // spring canopy shade 0 — a green
+    expect(c3).toBe('#e79ec8') // spring canopy shade 3 — the PINK tree; colour is the per-tree SETTING, not the label
+    expect(c0).not.toBe(c3)
+  })
 })

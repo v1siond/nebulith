@@ -10557,93 +10557,33 @@
           "title": null,
           "cells": [
             {
-              "label": "trunk_top",
-              "level": 2,
+              "label": "trunk_bottom",
+              "level": 0,
               "dx": 0,
               "dy": 0,
-              "walkable": false
+              "walkable": false,
+              "scale": 1.0
             },
             {
               "label": "trunk_mid",
               "level": 1,
               "dx": 0,
               "dy": 0,
-              "walkable": false
+              "walkable": false,
+              "scale": 1.0
             },
             {
-              "label": "canopy_l",
-              "level": 3,
-              "dx": -1,
-              "dy": 0,
-              "walkable": true
-            },
-            {
-              "label": "canopy_br",
-              "level": 3,
-              "dx": 1,
-              "dy": 1,
-              "walkable": true
-            },
-            {
-              "label": "canopy_tr",
-              "level": 3,
-              "dx": 1,
-              "dy": -1,
-              "walkable": true
-            },
-            {
-              "label": "canopy_b",
-              "level": 3,
-              "dx": 0,
-              "dy": 1,
-              "walkable": true
-            },
-            {
-              "label": "canopy_bl",
-              "level": 3,
-              "dx": -1,
-              "dy": 1,
-              "walkable": true
-            },
-            {
-              "label": "trunk_bottom",
-              "level": 0,
+              "label": "leaf_center",
+              "level": 2,
               "dx": 0,
               "dy": 0,
-              "walkable": false
-            },
-            {
-              "label": "canopy_r",
-              "level": 3,
-              "dx": 1,
-              "dy": 0,
-              "walkable": true
-            },
-            {
-              "label": "canopy_c",
-              "level": 3,
-              "dx": 0,
-              "dy": 0,
-              "walkable": true
-            },
-            {
-              "label": "canopy_t",
-              "level": 3,
-              "dx": 0,
-              "dy": -1,
-              "walkable": true
-            },
-            {
-              "label": "canopy_tl",
-              "level": 3,
-              "dx": -1,
-              "dy": -1,
-              "walkable": true
+              "walkable": true,
+              "scale": 2.0
             }
           ],
           "footprint": {
-            "h": 3,
-            "w": 3
+            "w": 1,
+            "h": 1
           }
         },
         "tree_dead": {
@@ -28382,93 +28322,33 @@
           "title": null,
           "cells": [
             {
-              "label": "trunk_top",
-              "level": 2,
+              "label": "trunk_bottom",
+              "level": 0,
               "dx": 0,
               "dy": 0,
-              "walkable": false
+              "walkable": false,
+              "scale": 1.0
             },
             {
               "label": "trunk_mid",
               "level": 1,
               "dx": 0,
               "dy": 0,
-              "walkable": false
+              "walkable": false,
+              "scale": 1.0
             },
             {
-              "label": "canopy_l",
-              "level": 3,
-              "dx": -1,
-              "dy": 0,
-              "walkable": true
-            },
-            {
-              "label": "canopy_br",
-              "level": 3,
-              "dx": 1,
-              "dy": 1,
-              "walkable": true
-            },
-            {
-              "label": "canopy_tr",
-              "level": 3,
-              "dx": 1,
-              "dy": -1,
-              "walkable": true
-            },
-            {
-              "label": "canopy_b",
-              "level": 3,
-              "dx": 0,
-              "dy": 1,
-              "walkable": true
-            },
-            {
-              "label": "canopy_bl",
-              "level": 3,
-              "dx": -1,
-              "dy": 1,
-              "walkable": true
-            },
-            {
-              "label": "trunk_bottom",
-              "level": 0,
+              "label": "leaf_center",
+              "level": 2,
               "dx": 0,
               "dy": 0,
-              "walkable": false
-            },
-            {
-              "label": "canopy_r",
-              "level": 3,
-              "dx": 1,
-              "dy": 0,
-              "walkable": true
-            },
-            {
-              "label": "canopy_c",
-              "level": 3,
-              "dx": 0,
-              "dy": 0,
-              "walkable": true
-            },
-            {
-              "label": "canopy_t",
-              "level": 3,
-              "dx": 0,
-              "dy": -1,
-              "walkable": true
-            },
-            {
-              "label": "canopy_tl",
-              "level": 3,
-              "dx": -1,
-              "dy": -1,
-              "walkable": true
+              "walkable": true,
+              "scale": 2.0
             }
           ],
           "footprint": {
-            "h": 3,
-            "w": 3
+            "w": 1,
+            "h": 1
           }
         },
         "tree_dead": {
@@ -29065,7 +28945,7 @@
           "color_role": null,
           "emoji": "🍃",
           "glyph": null,
-          "image_url": null
+          "image_url": "/tiles/emoji/leaf_center.png"
         },
         "well": {
           "title": "Well",
@@ -31029,7 +30909,7 @@
           "color_role": null,
           "emoji": "🍃",
           "glyph": null,
-          "image_url": null
+          "image_url": "/tiles/emoji/leaf_top.png"
         },
         "wall_stone_tl": {
           "title": null,
