@@ -1149,13 +1149,13 @@
     "label": "roof_hospital",
     "mode": "emoji",
     "style": "emoji",
-    "emoji": "🟥"
+    "emoji": "🟩"
   },
   {
     "label": "roof_top_hospital",
     "mode": "emoji",
     "style": "emoji",
-    "emoji": "🟥"
+    "emoji": "🟩"
   },
   {
     "label": "rooftop_unit",

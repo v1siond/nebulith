@@ -272,12 +272,13 @@ defmodule Nebulith.Catalog.TileSource do
   # are retired (see @type_tiles).
   defp building_tiles do
     [
-      # FIXED store/hospital colours from the canonical tile catalog (emoji.json 🏪 #4a9ac8 / 🏥 red cross):
-      # a store's blue roof-sign, a hospital's red roof-sign. Stores/hospitals never randomize their material.
-      %{label: "roof_store", base: "roof", color: "#4a9ac8", emoji: "🟦"},
-      %{label: "roof_top_store", base: "roof_top", color: "#4a9ac8", emoji: "🟦"},
-      %{label: "roof_hospital", base: "roof", color: "#e05a5a", emoji: "🟥"},
-      %{label: "roof_top_hospital", base: "roof_top", color: "#e05a5a", emoji: "🟥"}
+      # FIXED store/hospital roof colours PER THE DOCS (building-material-rollout-spec + handoff: "blue store /
+      # green hospital"): a store's blue roof-sign, a hospital's green roof-sign. Stores/hospitals never
+      # randomize their material.
+      %{label: "roof_store", base: "roof", color: "#235a96", emoji: "🟦"},
+      %{label: "roof_top_store", base: "roof_top", color: "#235a96", emoji: "🟦"},
+      %{label: "roof_hospital", base: "roof", color: "#2f7e50", emoji: "🟩"},
+      %{label: "roof_top_hospital", base: "roof_top", color: "#2f7e50", emoji: "🟩"}
     ]
   end
 
