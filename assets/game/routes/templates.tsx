@@ -2879,13 +2879,29 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
     // their FIXED identity material. The pick is derived from the footprint position so a re-stamp of the same
     // stage is stable (no per-frame flicker) while neighbours still differ.
     const HOUSE_MATERIALS = ['wall_brick', 'wall_wood', 'wall_stone']
+    // Colour is a per-tile SETTING that FILTERS the baked tile (composition.ts / render tintedImage), so we
+    // recolour buildings by their colour value — no new tiles. ROOF colour randomizes for every type EXCEPT
+    // the two FIXED-identity buildings; WALL colour randomizes for RESIDENTIAL only (others keep their
+    // material's own tone). store/hospital get FIXED colours so they stay identifiable. Every roll is derived
+    // from the footprint position (like the material roll) so a re-stamp of the same stage is stable, while
+    // neighbours differ — and roof/wall use DIFFERENT hashes so a house's roof and walls vary independently.
+    const ROOF_COLORS = ['#b5533a', '#5a636b', '#5c4433', '#4a6a7a'] // terracotta, slate-grey, brown, blue-grey
+    const WALL_COLORS = ['#9e4b3b', '#c9a66b', '#e8dcc0', '#8a8580', '#a89f7a'] // brick, sandstone, cream, warm-grey, olive-beige
+    const STORE_ROOF = '#235a96', HOSPITAL_ROOF = '#2f7e50', FIXED_WALL = '#f0f0ea' // store blue / hospital green / white walls
+    const pick = (arr: string[], seed: number): string => arr[(((seed % arr.length) + arr.length) % arr.length)]
     for (const b of stage.buildings) {
       const anchorRow = b.row - (b.height - 1)
       const residential = b.type === 'house' || b.type === 'big-house'
-      const material = residential
-        ? HOUSE_MATERIALS[(((b.col * 31 + b.row * 17) % HOUSE_MATERIALS.length) + HOUSE_MATERIALS.length) % HOUSE_MATERIALS.length]
-        : undefined
-      stampBuildingComposition(grid, b.type, b.length, b.col, anchorRow, stage.zone, b.facing, material)
+      const material = residential ? pick(HOUSE_MATERIALS, b.col * 31 + b.row * 17) : undefined
+      let roofColor: string | undefined
+      let wallColor: string | undefined
+      if (b.type === 'store') { roofColor = STORE_ROOF; wallColor = FIXED_WALL }
+      else if (b.type === 'hospital') { roofColor = HOSPITAL_ROOF; wallColor = FIXED_WALL }
+      else {
+        roofColor = pick(ROOF_COLORS, b.col * 13 + b.row * 7)
+        wallColor = residential ? pick(WALL_COLORS, b.col * 23 + b.row * 29) : undefined
+      }
+      stampBuildingComposition(grid, b.type, b.length, b.col, anchorRow, stage.zone, b.facing, material, roofColor, wallColor)
     }
     // A TREE is just TILES too: stamp each recorded tree ANCHOR as a rich stacked composition
     // (stampComposition → one asset per cell+level of tree_small / tree_dead), the SAME per-block path

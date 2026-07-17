@@ -29,7 +29,17 @@ const BADGE_COLOR = '#ffffff'
 // wall base like "wall_stone"; absent → the composition's authored material stands (store/hospital/civic).
 const WALL_MAT = /^wall_(stone|brick|wood|plaster)_/
 
-export function stampComposition(grid: IsometricGrid, kind: string, anchorCol: number, anchorRow: number, zone: ZoneId, variant = 0, rotation = 0, material?: string): number {
+// A cell's COLOUR is a per-tile SETTING (TILESET-AUTHORING §1, TILE-BACKEND-MIGRATION §5) — the engine
+// FILTERS the baked tile to it at draw time (render/shared.ts tintedImage, luminance-mapped). The generator
+// can therefore override a building's ROOF / WALL colour without touching the composition SHAPE. A ROOF cell
+// is the whole roof volume: the gable body/cap (`roof*` — also catches `rooftop_unit`), plus the flat-roof
+// deck (`flat_roof`) and its parapet lip (`parapet`), which don't start with "roof". A WALL cell is any
+// `wall_*` material piece. Windows / doors / awnings / storefront glass keep their OWN colour. An absent
+// override → the tile's authored colour stands, so a colour-less stamp is byte-identical to before.
+const isRoofLabel = (label: string): boolean => label.startsWith('roof') || label === 'flat_roof' || label === 'parapet'
+const isWallLabel = (label: string): boolean => label.startsWith('wall_')
+
+export function stampComposition(grid: IsometricGrid, kind: string, anchorCol: number, anchorRow: number, zone: ZoneId, variant = 0, rotation = 0, material?: string, roofColor?: string, wallColor?: string): number {
   const comp = resolveComposition(ASCII_TILESET, kind)
   if (!comp) return 0
   const { w, h } = comp.footprint
@@ -62,7 +72,7 @@ export function stampComposition(grid: IsometricGrid, kind: string, anchorCol: n
         cells[j + 1].walkable === cells[i].walkable
       )
         j++
-      if (stampRun(grid, comp, kind, cells[i], j - i + 1, anchorCol, anchorRow, w, h, rotation, zone, variant, material)) placed += j - i + 1
+      if (stampRun(grid, comp, kind, cells[i], j - i + 1, anchorCol, anchorRow, w, h, rotation, zone, variant, material, roofColor, wallColor)) placed += j - i + 1
       i = j + 1
     }
   }
@@ -86,6 +96,8 @@ function stampRun(
   zone: ZoneId,
   variant: number,
   material: string | undefined,
+  roofColor: string | undefined,
+  wallColor: string | undefined,
 ): boolean {
   const off = rotation ? rotateFootprintOffset(c.dx, c.dy, w, h, rotation) : { dx: c.dx, dy: c.dy }
   const col = anchorCol + off.dx
@@ -93,8 +105,11 @@ function stampRun(
   if (col < 0 || row < 0 || col >= grid.cols || row >= grid.rows) return false
   const label = material ? c.label.replace(WALL_MAT, `${material}_`) : c.label
   const tile = resolveTile(ASCII_TILESET, zone, label, variant)
+  // Colour SETTING = the filter the renderer tints the baked tile to. A roof/wall override recolours just
+  // those cells; every other cell (and any absent override) keeps the tile's own colour.
+  const color = isRoofLabel(label) && roofColor ? roofColor : isWallLabel(label) && wallColor ? wallColor : tile.color
   const grounded = (c.level ?? 0) === 0 || undefined
-  const asset = grid.placeAsset([tile.char], col, row, { type: kind, blocking: !c.walkable, color: tile.color, heightLevel: c.level ?? 0, baseShadow: grounded })
+  const asset = grid.placeAsset([tile.char], col, row, { type: kind, blocking: !c.walkable, color, heightLevel: c.level ?? 0, baseShadow: grounded })
   asset.label = label
   asset.height = 1
   // The collapsed vertical run → ONE block `span` tall (scaleY grows UP from the base level; ISO + 2D).
@@ -113,6 +128,6 @@ function stampRun(
  *  footprint TOP-LEFT (anchorCol,anchorRow), rotated so its door faces `facing`'s road — the SAME stamp
  *  trees use, no special building drawer. Returns the number of cells placed (0 if the composition for the
  *  (type,length) isn't in the loaded tileset). */
-export function stampBuildingComposition(grid: IsometricGrid, type: BuildingType, length: number, anchorCol: number, anchorRow: number, zone: ZoneId, facing: Facing, material?: string): number {
-  return stampComposition(grid, buildingCompositionKind(type, length), anchorCol, anchorRow, zone, 0, facingRotation(facing), material)
+export function stampBuildingComposition(grid: IsometricGrid, type: BuildingType, length: number, anchorCol: number, anchorRow: number, zone: ZoneId, facing: Facing, material?: string, roofColor?: string, wallColor?: string): number {
+  return stampComposition(grid, buildingCompositionKind(type, length), anchorCol, anchorRow, zone, 0, facingRotation(facing), material, roofColor, wallColor)
 }

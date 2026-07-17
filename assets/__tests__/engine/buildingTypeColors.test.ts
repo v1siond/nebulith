@@ -109,3 +109,68 @@ describe('the apex NAME badge comes from composition DATA (title), not a hardcod
     expect(grid.assets.some(a => a.settings?.badge != null)).toBe(false)
   })
 })
+
+describe('a COLOUR override FILTERS just a building\'s roof + wall cells — colour is a per-tile setting', () => {
+  // Mirrors composition.ts isRoofLabel/isWallLabel: a roof cell is the whole roof volume (gable `roof*` +
+  // office `rooftop_unit`, plus the flat-roof `flat_roof` deck and its `parapet` lip); a wall cell is any
+  // `wall_*` material piece. Windows / doors / awnings keep their own colour.
+  const isRoof = (l = ''): boolean => l.startsWith('roof') || l === 'flat_roof' || l === 'parapet'
+  const isWall = (l = ''): boolean => l.startsWith('wall_')
+
+  test('roofColor + wallColor recolour ONLY roof + wall cells; a door keeps its OWN tile colour', () => {
+    const grid = mkGrid()
+    // house_4 authors wood walls + a red gable; override to a terracotta roof + sandstone walls.
+    stampBuildingComposition(grid, 'house', 4, 12, 12, 'summer', 'south', 'wall_wood', '#b5533a', '#c9a66b')
+    const roofs = grid.assets.filter(a => isRoof(a.label))
+    const walls = grid.assets.filter(a => isWall(a.label))
+    expect(roofs.length).toBeGreaterThan(0)
+    expect(walls.length).toBeGreaterThan(0)
+    expect(roofs.every(a => a.color === '#b5533a')).toBe(true) // every roof cell filters to the roof colour
+    expect(walls.every(a => a.color === '#c9a66b')).toBe(true) // every wall cell filters to the wall colour
+    // the door is NEITHER roof nor wall → the override never touches it; it keeps the tile's authored colour
+    const door = grid.assets.find(a => a.label === 'door')!
+    expect(door.color).toBe(resolveTile(ASCII_TILESET, 'summer', 'door').color)
+    expect(door.color).not.toBe('#b5533a')
+    expect(door.color).not.toBe('#c9a66b')
+  })
+
+  test('the wall override is INDEPENDENT of the material — a re-materialed wall still filters to wallColor', () => {
+    const grid = mkGrid()
+    // material rewrites house_4's wood walls to STONE tiles; the colour setting still recolours them.
+    stampBuildingComposition(grid, 'house', 4, 12, 12, 'summer', 'south', 'wall_stone', '#5a636b', '#e8dcc0')
+    const walls = grid.assets.filter(a => isWall(a.label))
+    expect(walls.length).toBeGreaterThan(0)
+    expect(walls.every(a => a.label!.startsWith('wall_stone'))).toBe(true) // the MATERIAL (tile) is stone
+    expect(walls.every(a => a.color === '#e8dcc0')).toBe(true) // the COLOUR (setting) is cream — independent
+  })
+
+  test('an ABSENT override leaves every cell on its authored tile colour (backward compatible)', () => {
+    const grid = mkGrid()
+    stampBuildingComposition(grid, 'house', 4, 12, 12, 'summer', 'south', 'wall_wood') // no roof/wall colour
+    const wall = grid.assets.find(a => isWall(a.label))!
+    expect(wall.color).toBe(resolveTile(ASCII_TILESET, 'summer', wall.label!).color) // unchanged from the tile
+  })
+
+  test('STORE fixed identity — a BLUE roof over the WHOLE flat-roof deck + WHITE walls', () => {
+    const grid = mkGrid()
+    stampBuildingComposition(grid, 'store', 5, 12, 12, 'summer', 'south', undefined, '#235a96', '#f0f0ea')
+    const roofs = grid.assets.filter(a => isRoof(a.label))
+    // the deck (flat_roof), its parapet lip, AND the roof-top sign ALL read the store blue now (not grey deck)
+    expect(roofs.map(a => a.label)).toEqual(expect.arrayContaining(['flat_roof', 'parapet', 'roof_top_store']))
+    expect(roofs.every(a => a.color === '#235a96')).toBe(true)
+    const walls = grid.assets.filter(a => isWall(a.label))
+    expect(walls.length).toBeGreaterThan(0)
+    expect(walls.every(a => a.color === '#f0f0ea')).toBe(true) // white walls, filtered from the brick tile
+  })
+
+  test('HOSPITAL fixed identity — a GREEN gable roof + WHITE walls', () => {
+    const grid = mkGrid()
+    stampBuildingComposition(grid, 'hospital', 6, 12, 12, 'summer', 'south', undefined, '#2f7e50', '#f0f0ea')
+    const roofs = grid.assets.filter(a => isRoof(a.label))
+    expect(roofs.length).toBeGreaterThan(0)
+    expect(roofs.every(a => a.color === '#2f7e50')).toBe(true) // whole gable filters green
+    const walls = grid.assets.filter(a => isWall(a.label))
+    expect(walls.length).toBeGreaterThan(0)
+    expect(walls.every(a => a.color === '#f0f0ea')).toBe(true)
+  })
+})

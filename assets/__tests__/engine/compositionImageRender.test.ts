@@ -5,9 +5,12 @@
  * image. This proves it now draws the image — mirroring emojiImageTiles.test.ts's setup and
  * tileRouting.test.ts's recordingCtx render-test pattern.
  *
- * The core rule under test:
- *   - ascii tile images are white, TRANSPARENT TINT-TARGETS → the engine must recolour them.
- *   - emoji tile images are ALREADY COLOURED (Noto/baked PNGs) → they must NOT be recoloured.
+ * The core rule under test (COLOUR is a per-tile SETTING that FILTERS the baked tile — Alexander:
+ * "the tiles themselves are irrelevant … select the brick tile and apply white"):
+ *   - ascii tile images are white, TRANSPARENT TINT-TARGETS → recoloured to the tile's colour.
+ *   - emoji tile images are baked near-monochrome part-tiles → luminance-FILTERED to the tile's colour
+ *     TOO (a brick 🧱 → white, a roof 🟥 → slate), shading kept. BOTH styles recolour now — the old
+ *     "emoji is pre-coloured, never recolour" rule broke colour-as-a-setting for emoji buildings.
  *   - no image on the label → falls back to the glyph, never a blank cell/block.
  *
  * Recolour is proven by IDENTITY, not by inspecting pixels: tintedImage(img, src, tint) returns a
@@ -110,12 +113,12 @@ describe('composition tiles paint their backend IMAGE (tint ascii, never emoji) 
     expect(r.images.every((src) => src !== rawImg)).toBe(true) // every face drew the TINTED sprite, not the raw white image
   })
 
-  test('emoji: the label image is drawn but NOT recoloured', () => {
+  test('emoji: the label image is drawn AND recoloured (colour filters the baked tile)', () => {
     const rawImg = tileImage(EMOJI_SRC)
     const r = recordingCtx()
     drawIsoAssetAscii(r.ctx, 100, 100, asset({ color: '#ff00ff' }), 22, 11, 0, false, 'day', EMOJI_STYLE)
     expect(r.images.length).toBeGreaterThan(0)
-    expect(r.images.every((src) => src === rawImg)).toBe(true) // untouched — a colour-emoji PNG is never recoloured
+    expect(r.images.every((src) => src !== rawImg)).toBe(true) // every face drew the FILTERED sprite — colour is a per-tile setting
   })
 
   test('a label with no image still draws its glyph (never blank)', () => {
@@ -140,12 +143,12 @@ describe('composition tiles paint their backend IMAGE (tint ascii, never emoji) 
     expect(r.images.every((src) => src !== rawImg)).toBe(true)
   })
 
-  test('emoji: untinted image', () => {
+  test('emoji: recoloured image (colour filters the baked tile)', () => {
     const rawImg = tileImage(EMOJI_SRC)
     const r = recordingCtx()
     draw2DLabeledCell(r.ctx, 100, 100, 20, 20, asset({ color: '#00ff88' }), EMOJI_STYLE)
     expect(r.images.length).toBeGreaterThan(0)
-    expect(r.images.every((src) => src === rawImg)).toBe(true)
+    expect(r.images.every((src) => src !== rawImg)).toBe(true)
   })
 
   test('no image → glyph fallback', () => {
@@ -174,12 +177,12 @@ describe('composition tiles paint their backend IMAGE (tint ascii, never emoji) 
     expect(r.images.every((src) => src !== rawImg)).toBe(true)
   })
 
-  test('emoji: untinted image', () => {
+  test('emoji: recoloured image (colour filters the baked tile)', () => {
     const rawImg = tileImage(EMOJI_SRC)
     const r = recordingCtx()
     run(r.ctx, gridWith(LABEL, '#00ff88'), EMOJI_STYLE)
     expect(r.images.length).toBeGreaterThan(0)
-    expect(r.images.every((src) => src === rawImg)).toBe(true)
+    expect(r.images.every((src) => src !== rawImg)).toBe(true)
   })
 
   test('no image → glyph fallback', () => {

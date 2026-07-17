@@ -148,10 +148,16 @@ export function labelTileImage(label: string, style: Style): ImageVisual | undef
   return ASCII_TILESET.tiles[label]?.image
 }
 
-/** The tint to pass alongside a labelTileImage: ascii RECOLOURS its tint-target image to the resolved
- *  colour; emoji images are pre-coloured, so this is undefined and the caller must skip tinting. */
-export function labelTileRecolor(style: Style, tint: string): string | undefined {
-  return style.id === 'emoji' ? undefined : tint
+/** The tint to pass alongside a labelTileImage. COLOUR IS A PER-TILE SETTING that FILTERS the baked tile
+ *  (Alexander: "the tiles themselves are irrelevant, we should be able to change their color with the
+ *  settings — select the brick tile and apply white") — so the resolved colour recolours the tile image in
+ *  EVERY style via tintedImage (luminance-mapped, so shading is kept). ascii images are white tint-targets;
+ *  emoji part-tiles bake near-monochrome (🟦 water, 🧱 brick, 🍃 leaf — TILESET-AUTHORING §4), so filtering
+ *  them to their own colour is ≈ identity, and to an OVERRIDE (a house roof → slate, a store wall → white)
+ *  recolours cleanly. Previously emoji returned undefined ("pre-coloured, never recolour"), which BROKE the
+ *  colour-as-a-setting rule for emoji buildings; now colour filters uniformly. */
+export function labelTileRecolor(_style: Style, tint: string): string {
+  return tint
 }
 
 // Image/atlas cache so a tile src is decoded once, not per frame. v1 ships no image
