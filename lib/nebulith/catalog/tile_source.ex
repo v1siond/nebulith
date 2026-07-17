@@ -60,6 +60,7 @@ defmodule Nebulith.Catalog.TileSource do
     seed_extra_tiles(ascii_id, emoji_id)
     seed_emoji_tiles(emoji, emoji_id)
     seed_autotile_pieces(ascii_id, emoji_id)
+    seed_tree_pieces(ascii_id, emoji_id, ascii["palettes"])
     seed_compositions(ascii["compositions"])
     seed_new_compositions()
     seed_building_compositions()
@@ -499,6 +500,95 @@ defmodule Nebulith.Catalog.TileSource do
     end
   end
 
+  # ── Living-tree pieces (3-segment trunk + 9-slice leaf canopy) ────────────
+  # The upgraded living `tree` (#23): a 3-segment TRUNK (bottom/mid/top) + a 9-SLICE leaf CANOPY autotiled
+  # like the fountain rim (center `_c`, edges `_t/_b/_l/_r`, corners `_tl/_tr/_bl/_br` — TILESET-AUTHORING §3).
+  # Every piece is a REAL BAKED tile in BOTH styles (never a raw glyph → no ?? on a machine missing the font):
+  # ascii draws a woody ║ trunk + a rounded ♣/♧/╭╮╰╯ leaf crown, emoji a 🟫 trunk block + 🍃 leaf (never a whole
+  # 🌲 — §4). Trunk colour = the per-zone `trunk` tone; canopy colour = the per-zone `canopy` SHADE ARRAY, so a
+  # per-tree `variant` picks a tone (tonal variety by SETTING, not a tile per shade). Render-only pieces (no
+  # sidebar category — MAP-MODEL §8); the browseable unit is the `tree` composition itself.
+  @doc """
+  Seeds ONLY the living-tree pieces (3-segment trunk + 9-slice leaf canopy) into BOTH tilesets.
+
+  Safe + idempotent (upsert by [tileset_id, label]) — touches nothing else, so it runs on the shared dev DB
+  without a full reseed. Resolves each piece's per-zone trunk tone / canopy shade array from ascii.json's
+  palettes.
+  """
+  def seed_tree_pieces do
+    ascii_id = ensure_tileset("ascii", "ASCII").id
+    emoji_id = ensure_tileset("emoji", "Emoji").id
+    palettes = read_tileset("ascii.json")["palettes"]
+    seed_tree_pieces(ascii_id, emoji_id, palettes)
+    IO.puts("seeded #{length(tree_piece_tiles())} living-tree pieces (ascii + emoji)")
+    :ok
+  end
+
+  defp seed_tree_pieces(ascii_id, emoji_id, palettes) do
+    for piece <- tree_piece_tiles() do
+      common = %{
+        label: piece.label,
+        color_role: piece.role,
+        blocking: piece.blocking,
+        height: 1,
+        category: nil
+      }
+
+      # ASCII keeps the per-zone `colors` map (canopy = the shade ARRAY) so the composition stamp picks a
+      # per-tree tonal `variant` at draw time (resolveTileColor). EMOJI carries a single `color` — the one
+      # tint emojiStyleMap surfaces as each tile's backing fill (tilesetLoader reads settings.color), matching
+      # every other Elixir-authored emoji tile (no per-zone tonal variety in the emoji set, like today's leaf).
+      {:ok, _} =
+        common
+        |> Map.merge(%{
+          tileset_id: ascii_id,
+          glyph: piece.glyph,
+          image_url: "/tiles/ascii/#{piece.label}.png",
+          settings: %{"colors" => per_zone_colors(piece.role, palettes)}
+        })
+        |> Catalog.upsert_tile()
+
+      {:ok, _} =
+        common
+        |> Map.merge(%{
+          tileset_id: emoji_id,
+          emoji: piece.emoji,
+          image_url: "/tiles/emoji/#{piece.label}.png",
+          settings: %{"color" => piece.emoji_color}
+        })
+        |> Catalog.upsert_tile()
+    end
+  end
+
+  # Each tree piece: {label, ascii glyph, emoji, colour ROLE (per-zone palette path), blocking, emoji_color}. The
+  # trunk is a woody ║ / 🟫 column (blocks); the canopy is a rounded leaf crown — dense ♣ centre, ♧ leafy edges,
+  # ╭╮╰╯ rounded corners in ascii / 🍃 in emoji (walkable overhead). ASCII colour is a per-zone SETTING (trunk →
+  # one woody tone, canopy → the 4-shade array so a per-tree variant picks a tone); `emoji_color` is the single
+  # emoji backing tint (the canonical trunk brown / leaf green from emoji.json). Baked by priv/tilegen (both).
+  defp tree_piece_tiles do
+    trunk =
+      for label <- ~w(trunk_bottom trunk_mid trunk_top),
+        do: %{label: label, glyph: "║", emoji: "🟫", role: "trunk", blocking: true, emoji_color: "#7a5a3a"}
+
+    canopy_glyphs = %{
+      "canopy_tl" => "╭",
+      "canopy_t" => "♧",
+      "canopy_tr" => "╮",
+      "canopy_l" => "♧",
+      "canopy_c" => "♣",
+      "canopy_r" => "♧",
+      "canopy_bl" => "╰",
+      "canopy_b" => "♧",
+      "canopy_br" => "╯"
+    }
+
+    canopy =
+      for {label, glyph} <- canopy_glyphs,
+        do: %{label: label, glyph: glyph, emoji: "🍃", role: "canopy", blocking: false, emoji_color: "#5fae4f"}
+
+    trunk ++ canopy
+  end
+
   # ── Emoji tiles ───────────────────────────────────────────────────────────
 
   defp seed_emoji_tiles(emoji, tileset_id) do
@@ -546,12 +636,11 @@ defmodule Nebulith.Catalog.TileSource do
   end
 
   # ── Elixir-authored compositions ─────────────────────────────────────────
-  # Alexander's simple crown+row tree + trunkless bush. Unlike tree_small/
-  # tree_dead (which stay JSON-sourced, untouched), these are authored
-  # directly here per the tile-backend-migration doc's stated direction ("an
-  # Elixir data module holds the canonical composition definitions") — a
-  # 3-wide, 1-deep footprint with a single-column trunk and a 3-cell leaf row
-  # topped by a crown cell.
+  # The living tree (3-segment trunk + 9-slice leaf canopy) + trunkless bush. Unlike tree_small/
+  # tree_dead (which stay JSON-sourced, untouched), these are authored directly here per the
+  # tile-backend-migration doc's stated direction ("an Elixir data module holds the canonical
+  # composition definitions"). The tree's pieces (trunk_bottom/mid/top + canopy_* 9-slice) are baked
+  # in BOTH styles by seed_tree_pieces; the bush reuses the existing leaf_* tiles.
 
   @doc """
   Reseeds ONLY the code-authored compositions — the tree/bush/fountain (seed_new_compositions) and
@@ -562,9 +651,11 @@ defmodule Nebulith.Catalog.TileSource do
   def seed_sample do
     ascii_id = ensure_tileset("ascii", "ASCII").id
     emoji_id = ensure_tileset("emoji", "Emoji").id
+    palettes = read_tileset("ascii.json")["palettes"]
     seed_building_tiles(ascii_id, emoji_id)
     seed_extra_tiles(ascii_id, emoji_id)
     seed_autotile_pieces(ascii_id, emoji_id)
+    seed_tree_pieces(ascii_id, emoji_id, palettes)
     seed_tree_leaves(emoji_id)
     seed_new_compositions()
     seed_building_compositions()
@@ -626,16 +717,21 @@ defmodule Nebulith.Catalog.TileSource do
 
   defp compositions do
     %{
+      # The living tree (#23): a 3-SEGMENT trunk in the centre column (trunk_bottom L0 / trunk_mid L1 /
+      # trunk_top L2, all blocking) topped by a 9-SLICE leaf CANOPY — a single 3×3 crown one level up (L3),
+      # autotiled with the SAME edge/corner scheme as the fountain rim (canopy_c centre, canopy_t/b/l/r
+      # edges, canopy_tl/tr/bl/br corners — TILESET-AUTHORING §3). 12 cells, footprint 3×3: a tight, upright
+      # tree, deliberately NOT the retired 30-cell dome. Only the trunk cell blocks; the canopy is walkable
+      # overhead (you walk under the tree).
       "tree" => %{
         footprint_w: 3,
-        footprint_h: 1,
-        cells: [
-          %{dx: 0, dy: 0, level: 0, label: "trunk_base", walkable: false},
-          %{dx: -1, dy: 0, level: 1, label: "leaf_left", walkable: true},
-          %{dx: 0, dy: 0, level: 1, label: "leaf_center", walkable: true},
-          %{dx: 1, dy: 0, level: 1, label: "leaf_right", walkable: true},
-          %{dx: 0, dy: 0, level: 2, label: "leaf_top", walkable: true}
-        ]
+        footprint_h: 3,
+        cells:
+          [
+            %{dx: 0, dy: 0, level: 0, label: "trunk_bottom", walkable: false},
+            %{dx: 0, dy: 0, level: 1, label: "trunk_mid", walkable: false},
+            %{dx: 0, dy: 0, level: 2, label: "trunk_top", walkable: false}
+          ] ++ canopy_cells(3)
       },
       "bush" => %{
         footprint_w: 3,
@@ -678,6 +774,17 @@ defmodule Nebulith.Catalog.TileSource do
     ]
 
     rim ++ water ++ jets
+  end
+
+  # The living tree's 9-SLICE leaf crown at `level`, centred on the trunk column. A 3×3 grid autotiled with
+  # the SAME edge/corner scheme as the fountain rim (edge_piece): the interior is `canopy_c` (full leaf), the
+  # perimeter is the right EDGE/CORNER piece (`canopy_t/b/l/r` sides + `canopy_tl/tr/bl/br` corners round the
+  # crown). Offsets are centred (dx,dy ∈ -1..1) so the crown sits over the trunk at (0,0). Walkable overhead.
+  defp canopy_cells(level) do
+    for gy <- 0..2, gx <- 0..2 do
+      label = if edge_cell?(gx, gy, 3, 3), do: edge_piece("canopy", gx, gy, 3, 3), else: "canopy_c"
+      %{dx: gx - 1, dy: gy - 1, level: level, label: label, walkable: true}
+    end
   end
 
   # True for a perimeter cell of a `w`×`h` rectangle (where the rim/edge pieces go).

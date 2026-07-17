@@ -1186,5 +1186,149 @@
     "mode": "emoji",
     "style": "emoji",
     "emoji": "💧"
+  },
+  {
+    "label": "trunk_bottom",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "║"
+  },
+  {
+    "label": "trunk_mid",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "║"
+  },
+  {
+    "label": "trunk_top",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "║"
+  },
+  {
+    "label": "canopy_tl",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "╭"
+  },
+  {
+    "label": "canopy_t",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "♧"
+  },
+  {
+    "label": "canopy_tr",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "╮"
+  },
+  {
+    "label": "canopy_l",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "♧"
+  },
+  {
+    "label": "canopy_c",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "♣"
+  },
+  {
+    "label": "canopy_r",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "♧"
+  },
+  {
+    "label": "canopy_bl",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "╰"
+  },
+  {
+    "label": "canopy_b",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "♧"
+  },
+  {
+    "label": "canopy_br",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "╯"
+  },
+  {
+    "label": "trunk_bottom",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "🟫"
+  },
+  {
+    "label": "trunk_mid",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "🟫"
+  },
+  {
+    "label": "trunk_top",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "🟫"
+  },
+  {
+    "label": "canopy_tl",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "🍃"
+  },
+  {
+    "label": "canopy_t",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "🍃"
+  },
+  {
+    "label": "canopy_tr",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "🍃"
+  },
+  {
+    "label": "canopy_l",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "🍃"
+  },
+  {
+    "label": "canopy_c",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "🍃"
+  },
+  {
+    "label": "canopy_r",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "🍃"
+  },
+  {
+    "label": "canopy_bl",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "🍃"
+  },
+  {
+    "label": "canopy_b",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "🍃"
+  },
+  {
+    "label": "canopy_br",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "🍃"
   }
 ]
