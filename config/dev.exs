@@ -5,7 +5,8 @@ import Config
 # tiles/tilesets tables (+ Ecto's schema_migrations); it never alters the Prisma-owned tables.
 # The URL comes from the env (game-website/.env's DATABASE_URL, ?schema stripped) — never committed.
 config :nebulith, Nebulith.Repo,
-  url: System.get_env("NEBULITH_DATABASE_URL") || "ecto://postgres:postgres@localhost/game_website",
+  url:
+    System.get_env("NEBULITH_DATABASE_URL") || "ecto://postgres:postgres@localhost/game_website",
   stacktrace: true,
   show_sensitive_data_on_connection_error: true,
   pool_size: 10

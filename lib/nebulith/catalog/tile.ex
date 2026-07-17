@@ -21,7 +21,19 @@ defmodule Nebulith.Catalog.Tile do
   @doc false
   def changeset(tile, attrs) do
     tile
-    |> cast(attrs, [:tileset_id, :label, :glyph, :emoji, :color_role, :blocking, :height, :category, :title, :image_url, :settings])
+    |> cast(attrs, [
+      :tileset_id,
+      :label,
+      :glyph,
+      :emoji,
+      :color_role,
+      :blocking,
+      :height,
+      :category,
+      :title,
+      :image_url,
+      :settings
+    ])
     |> validate_required([:tileset_id, :label])
     |> unique_constraint([:tileset_id, :label], name: :tiles_tileset_id_label_index)
   end

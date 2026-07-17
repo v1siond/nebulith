@@ -1323,7 +1323,7 @@
     "colorRole": "canopy"
   },
   "leaf_center": {
-    "char": "🌿",
+    "char": "🍃",
     "color": "#5fae4f",
     "colorRole": "canopy"
   },
@@ -1333,7 +1333,7 @@
     "colorRole": "canopy"
   },
   "leaf_top": {
-    "char": "🌿",
+    "char": "🍃",
     "color": "#5fae4f",
     "colorRole": "canopy"
   }

@@ -15,7 +15,8 @@ defmodule Nebulith.Games.SeedFromFlows do
     if Repo.aggregate(Game, :count, :id) > 0 do
       {:skipped, :games_already_exist}
     else
-      templates = Repo.all(from(t in Template, select: %{id: t.id, name: t.name, connectors: t.connectors}))
+      templates =
+        Repo.all(from(t in Template, select: %{id: t.id, name: t.name, connectors: t.connectors}))
 
       created =
         templates

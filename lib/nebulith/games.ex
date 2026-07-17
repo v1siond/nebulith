@@ -17,7 +17,9 @@ defmodule Nebulith.Games do
   def get_game!(id), do: Repo.get!(Game, id) |> preload_ordered()
 
   @doc "Ordered template ids of a (loaded) game."
-  def template_ids(%Game{game_templates: gts}) when is_list(gts), do: Enum.map(gts, & &1.template_id)
+  def template_ids(%Game{game_templates: gts}) when is_list(gts),
+    do: Enum.map(gts, & &1.template_id)
+
   def template_ids(_), do: []
 
   def create_game(attrs) do
@@ -70,7 +72,10 @@ defmodule Nebulith.Games do
 
   @doc "Remove a template from a game."
   def remove_template(%Game{} = game, template_id) do
-    Repo.delete_all(from(gt in GameTemplate, where: gt.game_id == ^game.id and gt.template_id == ^template_id))
+    Repo.delete_all(
+      from(gt in GameTemplate, where: gt.game_id == ^game.id and gt.template_id == ^template_id)
+    )
+
     get_game!(game.id)
   end
 
