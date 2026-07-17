@@ -1517,6 +1517,10 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     applyToSelectedCells((col, row, grid) => { const a = stackedAssetsAt(grid, col, row)[i]; if (a) a.pose = pose })
   const setAssetZOffset = (i: number, v: number) =>
     applyToSelectedCells((col, row, grid) => { const a = stackedAssetsAt(grid, col, row)[i]; if (a) a.zOffset = v })
+  // PER-ASSET "z-index" (draw-priority, CSS z-index style) — a higher value draws on top / in front, overriding
+  // the positional depth sort. Written to THIS placed tile (persists with the map); the render reads asset.zIndex.
+  const setAssetZIndex = (i: number, v: number) =>
+    applyToSelectedCells((col, row, grid) => { const a = stackedAssetsAt(grid, col, row)[i]; if (a) a.zIndex = Math.round(v) })
   // Inspector "Remove tile" → delete the EXACT selected block (never the floor — removeSelectedBlock no-ops
   // at level 0) from every selected cell, then step the level down so the panel doesn't point past the
   // (now shorter) stack.
@@ -5677,6 +5681,8 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                             onZDir: dir => setAssetDepthDir(i, dir),
                             zPos: adim(i, a => a.zOffset ?? 0),
                             onZPos: posable ? (v => setAssetZOffset(i, v)) : undefined,
+                            zIndex: adim(i, a => a.zIndex ?? 0),
+                            onZIndex: posable ? (v => setAssetZIndex(i, v)) : undefined,
                             pose: posable ? a0?.pose : undefined,
                             onPose: posable ? (p => setAssetPose(i, p)) : undefined,
                             onPoseReset: posable ? (() => setAssetPose(i, undefined)) : undefined,

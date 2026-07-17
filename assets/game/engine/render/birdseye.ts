@@ -91,10 +91,15 @@ export function renderTopView(
   const startRow = Math.max(0, Math.floor(-offsetY / tileSize) - 1)
   const endRow = Math.min(grid.rows, Math.ceil((h - offsetY) / tileSize) + 1)
 
-  // Build a map of assets by position for quick lookup
+  // Build a map of ONE asset per cell for quick lookup — the tile shown from above. DRAW-PRIORITY (CSS z-index)
+  // decides the winner: a HIGHER zIndex takes the cell (draws on top). `>=` keeps the LAST-placed asset winning
+  // when priorities tie — so with every zIndex at the default 0 this is byte-identical to the old unconditional
+  // "last write wins" (the roof, placed last, still wins its footprint cell).
   const assetMap: Record<string, GridAsset> = {}
   for (const asset of grid.assets) {
-    assetMap[`${asset.col},${asset.row}`] = asset
+    const key = `${asset.col},${asset.row}`
+    const cur = assetMap[key]
+    if (!cur || (asset.zIndex ?? 0) >= (cur.zIndex ?? 0)) assetMap[key] = asset
   }
 
   // Draw each cell - show ground OR asset (asset takes priority)

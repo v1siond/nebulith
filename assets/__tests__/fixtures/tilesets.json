@@ -4719,21 +4719,24 @@
               "level": 0,
               "dx": 3,
               "dy": 1,
-              "walkable": false
+              "walkable": false,
+              "zIndex": 10
             },
             {
               "label": "water_c",
               "level": 0,
               "dx": 2,
               "dy": 1,
-              "walkable": false
+              "walkable": false,
+              "zIndex": 10
             },
             {
               "label": "water_c",
               "level": 0,
               "dx": 1,
               "dy": 1,
-              "walkable": false
+              "walkable": false,
+              "zIndex": 10
             },
             {
               "label": "fountain_br",
@@ -4775,7 +4778,8 @@
               "level": 1,
               "dx": 1,
               "dy": 2,
-              "walkable": false
+              "walkable": false,
+              "zIndex": 10
             },
             {
               "label": "fountain_r",
@@ -4845,42 +4849,48 @@
               "level": 2,
               "dx": 2,
               "dy": 1,
-              "walkable": false
+              "walkable": false,
+              "zIndex": 10
             },
             {
               "label": "water_jet",
               "level": 1,
               "dx": 2,
               "dy": 1,
-              "walkable": false
+              "walkable": false,
+              "zIndex": 10
             },
             {
               "label": "water_c",
               "level": 0,
               "dx": 3,
               "dy": 2,
-              "walkable": false
+              "walkable": false,
+              "zIndex": 10
             },
             {
               "label": "water_c",
               "level": 0,
               "dx": 2,
               "dy": 2,
-              "walkable": false
+              "walkable": false,
+              "zIndex": 10
             },
             {
               "label": "water_c",
               "level": 0,
               "dx": 1,
               "dy": 2,
-              "walkable": false
+              "walkable": false,
+              "zIndex": 10
             },
             {
               "label": "water_jet",
               "level": 1,
               "dx": 3,
               "dy": 2,
-              "walkable": false
+              "walkable": false,
+              "zIndex": 10
             }
           ],
           "footprint": {
@@ -22484,21 +22494,24 @@
               "level": 0,
               "dx": 3,
               "dy": 1,
-              "walkable": false
+              "walkable": false,
+              "zIndex": 10
             },
             {
               "label": "water_c",
               "level": 0,
               "dx": 2,
               "dy": 1,
-              "walkable": false
+              "walkable": false,
+              "zIndex": 10
             },
             {
               "label": "water_c",
               "level": 0,
               "dx": 1,
               "dy": 1,
-              "walkable": false
+              "walkable": false,
+              "zIndex": 10
             },
             {
               "label": "fountain_br",
@@ -22540,7 +22553,8 @@
               "level": 1,
               "dx": 1,
               "dy": 2,
-              "walkable": false
+              "walkable": false,
+              "zIndex": 10
             },
             {
               "label": "fountain_r",
@@ -22610,42 +22624,48 @@
               "level": 2,
               "dx": 2,
               "dy": 1,
-              "walkable": false
+              "walkable": false,
+              "zIndex": 10
             },
             {
               "label": "water_jet",
               "level": 1,
               "dx": 2,
               "dy": 1,
-              "walkable": false
+              "walkable": false,
+              "zIndex": 10
             },
             {
               "label": "water_c",
               "level": 0,
               "dx": 3,
               "dy": 2,
-              "walkable": false
+              "walkable": false,
+              "zIndex": 10
             },
             {
               "label": "water_c",
               "level": 0,
               "dx": 2,
               "dy": 2,
-              "walkable": false
+              "walkable": false,
+              "zIndex": 10
             },
             {
               "label": "water_c",
               "level": 0,
               "dx": 1,
               "dy": 2,
-              "walkable": false
+              "walkable": false,
+              "zIndex": 10
             },
             {
               "label": "water_jet",
               "level": 1,
               "dx": 3,
               "dy": 2,
-              "walkable": false
+              "walkable": false,
+              "zIndex": 10
             }
           ],
           "footprint": {

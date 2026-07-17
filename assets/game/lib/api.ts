@@ -57,6 +57,7 @@ export interface TemplateData {
     blocking?: boolean
     color?: string
     scale?: number   // uniform Zoom (#77/#78)
+    zIndex?: number  // draw-priority (CSS z-index): a higher value draws on top / in front, overriding the depth sort
     scaleX?: number  // Width — horizontal sprite scale (#77/#78)
     scaleY?: number  // Height — vertical sprite scale, grows up (#77/#78)
     scaleZ?: number  // Depth — overhead-view vertical scale (#77/#78)

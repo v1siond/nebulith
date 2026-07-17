@@ -548,6 +548,10 @@ export interface TileControlModel {
   /** "z position": vertical lift in block-heights (asset.zOffset; null = mixed). Asset tiles only. */
   zPos?: number | null
   onZPos?: (value: number) => void
+  /** "z-index": DRAW-PRIORITY (CSS z-index style) — a higher value draws on top / in front of a lower one,
+   *  overriding the positional depth sort (asset.zIndex; null = mixed). Asset tiles only. */
+  zIndex?: number | null
+  onZIndex?: (value: number) => void
   /** the tile pinned to this stack level (GridAsset.tileOverride), or null = follows the global style. */
   override?: string | null
   /** the active global style name, shown in the "Change tile" affordance. */
@@ -632,6 +636,20 @@ function ZWidthRow({ zWidth, zDir, onZWidth, onZDir }: { zWidth: number | null; 
   )
 }
 
+/** Z-INDEX — draw-PRIORITY (CSS z-index style): a HIGHER value draws on top / in front of a lower one,
+ *  overriding the positional depth sort in every view. An integer (default 0); the fountain water sits at a
+ *  high value so it renders in front of a wall behind it. Asset tiles only — the floor omits onZIndex. */
+function ZIndexRow({ zIndex, onZIndex }: { zIndex: number | null; onZIndex: (value: number) => void }) {
+  return (
+    <label className="flex items-center gap-2" title="Z-Index — draw priority (like CSS z-index): a higher value draws on top / in front, overriding the depth sort (every view)">
+      <span className="w-14 shrink-0 text-[10px] text-gray-400">Z-Index</span>
+      <input type="range" min={0} max={100} step={1} value={zIndex ?? 0} onChange={e => parseNum(e.target.value, v => onZIndex(Math.round(v)))} aria-label="Z-Index" className="flex-1 accent-cyan-500" />
+      <input type="number" step={1} value={zIndex ?? 0} onChange={e => parseNum(e.target.value, v => onZIndex(Math.round(v)))} aria-label="Z-Index value" className="w-14 rounded bg-gray-800 p-1 text-[10px] tabular-nums text-cyan-300" />
+      {zIndex === null && mixedBadge}
+    </label>
+  )
+}
+
 /** The ONE consolidated TILE control group — the SELECTED tile's every control in a single flat block:
  *  which-tile + Open Tile Library (swap it), colour, the Width/Height/Zoom scale axes (+ Z Width directional
  *  depth for asset tiles), then the x/y/z/rotate/flip transform. NO nested "Pose —" box, NO second colour,
@@ -658,6 +676,8 @@ export function TileControls({ tile }: { tile: TileControlModel }) {
       {/* Z Width (directional depth): extrudes the block into a long iso box along a chosen diagonal. Replaces
           the old symmetric "Depth" (scaleZ) stretch. Asset tiles only — the floor omits onZWidth. */}
       {tile.onZWidth && <ZWidthRow zWidth={tile.zWidth ?? 1} zDir={tile.zDir ?? null} onZWidth={tile.onZWidth} onZDir={tile.onZDir ?? (() => {})} />}
+      {/* Z-Index (draw priority): a higher value draws on top / in front, overriding the depth sort. Asset tiles only. */}
+      {tile.onZIndex && <ZIndexRow zIndex={tile.zIndex ?? 0} onZIndex={tile.onZIndex} />}
       <DimRow label="Zoom" axis="zoom" value={tile.dims.zoom} title="Zoom — scales Width, Height and Zoom together" onDim={tile.onDim} />
       {/* x/y/rotate/flip live in the SAME group — there is NO separate POSE section */}
       {setPose && (

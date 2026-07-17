@@ -404,6 +404,7 @@ export function render2D(
     asset?: GridAsset
     sortRow: number
     level: number
+    zIndex: number
   }> = []
 
   // A BUILDING is just TILES: a pre-built building is stamped as its composition's per-cell assets, so its
@@ -422,17 +423,19 @@ export function render2D(
   for (const asset of visibleAssets) {
     if (fe.hidden.has(asset)) continue // occluded behind a front-elevation face — depth collapsed away
     const anchorRow = fe.draw.get(asset)?.anchorRow ?? asset.row
-    drawables.push({ row: asset.row, col: asset.col, type: 'asset', asset, sortRow: anchorRow, level: asset.heightLevel ?? 0 })
+    drawables.push({ row: asset.row, col: asset.col, type: 'asset', asset, sortRow: anchorRow, level: asset.heightLevel ?? 0, zIndex: asset.zIndex ?? 0 })
   }
 
   // Add player
   const playerCol = player.x / cellSize
   const playerRow = player.z / cellSize
-  drawables.push({ row: playerRow, col: playerCol, type: 'player', sortRow: playerRow, level: 0 })
+  drawables.push({ row: playerRow, col: playerCol, type: 'player', sortRow: playerRow, level: 0, zIndex: 0 })
 
-  // Sort by (front-elevation) row so things further up screen draw first (= behind); a level tiebreak keeps
-  // a structure's higher tiles (roof) drawn after the walls below them.
-  drawables.sort((a, b) => a.sortRow - b.sortRow || a.level - b.level)
+  // DRAW-PRIORITY first (CSS z-index): a higher zIndex draws LATER (on top / in front) regardless of position —
+  // the fountain water (zIndex 10) sits in front of the wall behind it. Then the existing keys: (front-elevation)
+  // row so things further up screen draw first (= behind); a level tiebreak keeps a structure's higher tiles
+  // (roof) drawn after the walls below them. All zIndex default 0 → the first term is 0 and the order is unchanged.
+  drawables.sort((a, b) => a.zIndex - b.zIndex || a.sortRow - b.sortRow || a.level - b.level)
 
   // Draw each object
   for (const obj of drawables) {

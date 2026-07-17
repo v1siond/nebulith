@@ -86,7 +86,7 @@ function stampRun(
   grid: IsometricGrid,
   comp: NonNullable<ReturnType<typeof resolveComposition>>,
   kind: string,
-  c: { dx: number; dy: number; level?: number; label: string; walkable?: boolean; scale?: number },
+  c: { dx: number; dy: number; level?: number; label: string; walkable?: boolean; scale?: number; zIndex?: number },
   span: number,
   anchorCol: number,
   anchorRow: number,
@@ -111,7 +111,9 @@ function stampRun(
   const grounded = (c.level ?? 0) === 0 || undefined
   // The cell's uniform draw ZOOM (backend `composition_cells.scale`) — the render reads asset.scale as its
   // zoom, so a cell can hold a tile bigger than one block (the tree's canopy = one leaf cell at scale 2).
-  const asset = grid.placeAsset([tile.char], col, row, { type: kind, blocking: !c.walkable, color, heightLevel: c.level ?? 0, baseShadow: grounded, scale: c.scale })
+  // `zIndex` (backend `composition_cells.z_index`) is the cell's draw-PRIORITY — the depth sort draws a higher
+  // one later (on top), so the fountain water reads in front of the wall behind it.
+  const asset = grid.placeAsset([tile.char], col, row, { type: kind, blocking: !c.walkable, color, heightLevel: c.level ?? 0, baseShadow: grounded, scale: c.scale, zIndex: c.zIndex })
   asset.label = label
   asset.height = 1
   // The collapsed vertical run → ONE block `span` tall (scaleY grows UP from the base level; ISO + 2D).

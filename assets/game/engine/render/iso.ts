@@ -1180,9 +1180,15 @@ export function isoStackLift(tileW: number, heightLevel: number | undefined): nu
  *  keep the array's stable insertion order, so nothing but same-cell asset stacks is reordered — the
  *  no-stack case is byte-identical to the old `(a.col+a.row)-(b.col+b.row)` sort. */
 export function isoDepthCompare(
-  a: { col: number; row: number; asset?: { heightLevel?: number; depth?: number; depthDir?: DepthDir } },
-  b: { col: number; row: number; asset?: { heightLevel?: number; depth?: number; depthDir?: DepthDir } },
+  a: { col: number; row: number; asset?: { heightLevel?: number; depth?: number; depthDir?: DepthDir; zIndex?: number } },
+  b: { col: number; row: number; asset?: { heightLevel?: number; depth?: number; depthDir?: DepthDir; zIndex?: number } },
 ): number {
+  // DRAW-PRIORITY first (CSS z-index): a HIGHER zIndex draws LATER (on top / in front), overriding the
+  // positional key below — so the fountain water (zIndex 10) sits in front of a wall behind it no matter where
+  // the wall is. Both default 0, so `0 - 0 = 0` falls straight through to the positional sort → every existing
+  // map (all zIndex 0) orders BYTE-IDENTICALLY to before.
+  const dz = (a.asset?.zIndex ?? 0) - (b.asset?.zIndex ?? 0)
+  if (dz !== 0) return dz
   // A directional-depth box reaches `depthFrontExtent` cells toward the camera past its anchor, so it sorts by
   // its FRONTMOST covered cell — a box extending toward the camera draws in front of what it overlaps. A
   // depth-less asset (every existing tile) adds 0, so the no-depth case is byte-identical to (col+row).

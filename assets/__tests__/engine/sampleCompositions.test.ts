@@ -118,6 +118,32 @@ describe('sample compositions — realistic building/fountain/tree DATA from the
     expect(jets.every(j => j.level >= 1)).toBe(true)
   })
 
+  test('fountain WATER carries a draw-PRIORITY zIndex (renders in front of the wall behind it); the rim stays 0', () => {
+    // The bug fix (Images #34/#36): the water cells (basin surface `water_c` + the raised `water_jet`s) carry a
+    // z-index > 0 so the depth sort draws them IN FRONT of a wall/block behind the fountain. The rim/edge pieces
+    // (the basin's own border) keep the default 0 and sort positionally. Pure DATA on the cell, served by the API.
+    const cells = comp('fountain').cells as Array<Cell & { zIndex?: number }>
+    const water = cells.filter(c => c.label === 'water_c' || c.label === 'water_jet')
+    const rim = cells.filter(c => c.label.startsWith('fountain_'))
+    expect(water.length).toBeGreaterThanOrEqual(6) // 6 basin cells + jets
+    expect(water.every(c => (c.zIndex ?? 0) > 0)).toBe(true) // every water cell has priority
+    expect(new Set(water.map(c => c.zIndex)).size).toBe(1) // one consistent water layer
+    expect(rim.length).toBeGreaterThanOrEqual(8)
+    expect(rim.every(c => (c.zIndex ?? 0) === 0)).toBe(true) // rim sorts positionally, unchanged
+  })
+
+  test('z-index is a FOUNTAIN-WATER-only override — every other composition cell keeps the default 0', () => {
+    // Guards the "default 0 → no regression" contract at the DATA level: across every seeded composition
+    // (trees, bushes, all buildings) NO cell carries a non-zero zIndex except the fountain's water.
+    const names = ['tree', 'bush', 'house_3', 'house_4', 'house_5', 'store_5', 'office_5', 'stone_building', 'hospital_6', 'big_house_6', 'temple_8', 'cathedral_7', 'castle_12']
+    for (const name of names) {
+      const c = resolveComposition(ASCII_TILESET, name)
+      if (!c) continue
+      const cells = c.cells as Array<Cell & { zIndex?: number }>
+      expect(cells.every(cell => (cell.zIndex ?? 0) === 0)).toBe(true)
+    }
+  })
+
   test('stone_building: a wall_stone MATERIAL box, front face autotiled from center/edge/corner pieces + spaced windows + door + gable roof', () => {
     const c = comp('stone_building')
     const cells = c.cells as Cell[]

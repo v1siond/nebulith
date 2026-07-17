@@ -41,6 +41,9 @@ export interface GridAsset {
                         // (shared art tuning) — this moves THIS placed tile, not every tile of its kind.
   zOffset?: number      // "z position" — vertical lift in block-height units (+ = up), the 3D height axis. The
                         // iso + 2D renders lift the tile by this; the top view (no height) ignores it. Default 0.
+  zIndex?: number       // DRAW-PRIORITY (CSS z-index style): the depth sort draws a HIGHER zIndex LATER (on top /
+                        // in front), overriding the positional iso/2D/top key. So the fountain water (zIndex 10)
+                        // renders in front of a wall behind it. Default 0 → sorts positionally, exactly as before.
   color?: string
   bgColor?: string
   height?: number       // Height in blocks (for buildings, towers, etc.)
@@ -267,6 +270,7 @@ export class IsometricGrid {
       type: options.type ?? 'decoration',
       blocking: options.blocking ?? false,
       scale: options.scale ?? 1.0,
+      zIndex: options.zIndex,   // draw-priority (CSS z-index) — undefined ⇒ the sort treats it as 0 (positional)
       color: options.color ?? '#ffffff',
       bgColor: options.bgColor,
       opacity: options.opacity,

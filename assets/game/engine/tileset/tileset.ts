@@ -94,6 +94,11 @@ export interface CompositionCell {
    *  axis by it (iso `zoom = asset.scale`), so a cell can hold a tile bigger than one block. The tree's canopy
    *  is ONE leaf cell at scale 2 (a 2×2 crown). Absent/1 → the tile draws at one block, unchanged. */
   scale?: number
+  /** Draw-PRIORITY (CSS z-index style) for this cell's tile (backend `composition_cells.z_index`). A higher
+   *  value renders LATER (on top / in front), overriding the positional depth sort in every view — so the
+   *  fountain's water reads IN FRONT of a wall behind it. Absent/0 → the sort falls through to the positional
+   *  key, so the tile orders exactly as before. */
+  zIndex?: number
 }
 
 /** A multi-cell asset TEMPLATE: a footprint + one tile per cell. The data-driven replacement for the retired
