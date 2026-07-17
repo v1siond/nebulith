@@ -16,20 +16,13 @@ defmodule Nebulith.Catalog.BuildingCompositions do
   stamped composition matches what the three views drew before buildings became data.
   """
 
-  # Per-composition TYPE-SPECIFIC tile remaps for the buildings that still list generic `wall`/`roof`/
-  # `roof_top` cells — today only hospital (the last HAND-AUTHORED building) and store's apex badge. We SWAP
-  # those generic labels to the building's own material/roof pieces; the shapes are untouched. The box-BUILDERS
-  # (house/store/office/stone_building/civic) emit their material pieces DIRECTLY from the facade, so they carry
-  # NO wall remap here — that includes big_house/temple/cathedral/castle now that they're box-built (brick+red
-  # gable / stone+slate gable straight from the builder). store keeps only its blue apex-sign badge
-  # (roof_top_store); hospital keeps its plaster walls + green roof. Everything unlisted keeps the default tile.
+  # Per-composition TYPE-SPECIFIC tile remaps — today ONLY store's apex badge. Every building is now box-BUILT
+  # (house/store/office/stone_building/civic), so each emits its material + roof pieces DIRECTLY from the facade
+  # and carries NO wall/roof remap here — that includes hospital (plaster walls + green gable passed straight to
+  # `house/3`) and big_house/temple/cathedral/castle. store keeps only its blue apex-sign badge: `flat_roof`
+  # emits a generic `roof_top` crown, which we SWAP to `roof_top_store`. Everything unlisted keeps its tile.
   @type_tiles %{
-    "store_5" => %{"roof_top" => "roof_top_store"},
-    "hospital_6" => %{
-      "wall" => "wall_plaster_c",
-      "roof" => "roof_hospital",
-      "roof_top" => "roof_top_hospital"
-    }
+    "store_5" => %{"roof_top" => "roof_top_store"}
   }
 
   # A building's NAME → the apex badge the renderer draws (data for the signage). Only store/hospital
@@ -68,8 +61,8 @@ defmodule Nebulith.Catalog.BuildingCompositions do
   # FRONT/BACK faces carry the door + a SPACED WINDOW GRID — window, wall, window … on EVEN columns,
   # vertically aligned across floors (never a solid band, never every cell — TILESET-AUTHORING §25) — capped
   # by a roof (gable or flat). Interior columns hold only the roof VOLUME so ISO reads a solid roof; 2D
-  # collapses depth onto the front face (MAP-MODEL §2-3). Only hospital stays hand-authored below (its
-  # plaster + green-roof identity is handled via @type_tiles).
+  # collapses depth onto the front face (MAP-MODEL §2-3). EVERY building — hospital included — is box-built
+  # this way now; identity (plaster + green roof, slate gable, …) rides in as the builder's material args.
 
   defp cell(dx, dy, level, label, walkable),
     do: %{dx: dx, dy: dy, level: level, label: label, walkable: walkable}
@@ -164,9 +157,11 @@ defmodule Nebulith.Catalog.BuildingCompositions do
     assemble(w, h, wall_top, door_col, facade, gable_roof(w, h, wall_top, roof, roof_top))
   end
 
-  # STORE — 5×4, 2 floors, flat roof, in a BRICK wall material. Ground FRONT = a storefront: a wide display
-  # window + centred door + a striped awning band above it. Upper front = spaced windows. The remaining front
-  # wall is autotiled brick; back + sides are the plain brick center. Keeps its blue "Store" apex badge.
+  # STORE — 5×4, 2 floors, flat roof, in a BRICK wall material. Ground FRONT = a BOUNDED storefront centred on
+  # the 1×2 door: a `display_window` on the two columns flanking the door (never a full-width band) with a
+  # striped `awning` course directly above them — only over that storefront width, not the whole row. The rest
+  # of the ground-floor front stays autotiled brick; the upper floor is a §25 spaced window grid (even columns,
+  # aligned). Back + sides are the plain brick center. Keeps its blue "Store" apex badge (flat_roof title).
   defp store do
     w = 5
     h = 4
@@ -176,11 +171,13 @@ defmodule Nebulith.Catalog.BuildingCompositions do
 
     facade = fn dx, dy, level ->
       front = dy == h - 1
+      # storefront = the door column + the columns immediately flanking it (3 cells centred on the door).
+      storefront = front and abs(dx - door_col) <= 1
 
       cond do
         front and dx == door_col and level in [0, 1] -> "door"
-        front and level == 0 -> "display_window"
-        front and level == 1 -> "awning"
+        storefront and level == 0 -> "display_window"
+        storefront and level == 1 -> "awning"
         front and level == 3 and window_col?(dx) -> "window"
         front -> material_piece(mat, dx, level, w, wall_top)
         true -> "#{mat}_c"
@@ -295,7 +292,7 @@ defmodule Nebulith.Catalog.BuildingCompositions do
   end
 
   defp definitions do
-    Map.merge(large_buildings(), %{
+    %{
       # Residential MATERIAL variety (spec mapping): brick / wood / stone houses; the stone house takes a
       # slate gable, brick + wood keep the red gable.
       "house_3" => house(3, "wall_brick"),
@@ -304,6 +301,11 @@ defmodule Nebulith.Catalog.BuildingCompositions do
       "store_5" => store(),
       "office_5" => office(),
       "stone_building" => stone_building(),
+      # Hospital — box-built like the houses (6-wide, h=4, 2 floors + gable), so its windows are a §25 spaced
+      # grid (even columns, aligned on levels 1 & 3) instead of the old solid level-3 band. Its identity rides
+      # in as builder args: plaster walls + a green gable (roof_hospital / roof_top_hospital); the "Hospital"
+      # apex badge stays via @titles.
+      "hospital_6" => house(6, "wall_plaster", "roof_hospital", "roof_top_hospital"),
       # Big civic buildings — box-built like the houses so their windows are a §25 spaced grid (even columns,
       # aligned across floors), not the old solid band. WIDTH from the name; h/wall_top preserve each one's
       # authored footprint + height. big_house = brick + red gable; temple/cathedral/castle = stone + slate.
@@ -311,124 +313,6 @@ defmodule Nebulith.Catalog.BuildingCompositions do
       "temple_8" => civic(8, 4, 5, "wall_stone", [1, 3, 5], "roof_slate", "roof_top_slate"),
       "cathedral_7" => civic(7, 5, 4, "wall_stone", [1, 3], "roof_slate", "roof_top_slate"),
       "castle_12" => civic(12, 6, 8, "wall_stone", [1, 3, 5, 7], "roof_slate", "roof_top_slate")
-    })
-  end
-
-  # Only hospital stays HAND-AUTHORED now (big_house/temple/cathedral/castle became box-built in definitions/0,
-  # so their windows are a §25 spaced grid). Its shape is untouched; its plaster walls + green roof swap in via
-  # @type_tiles (wall→wall_plaster_c, roof→roof_hospital, roof_top→roof_top_hospital).
-  defp large_buildings do
-%{
-      "hospital_6" => %{
-        footprint_w: 6,
-        footprint_h: 4,
-        cells: [
-          %{dx: 0, dy: 0, level: 0, label: "wall", walkable: false},
-          %{dx: 0, dy: 0, level: 1, label: "wall", walkable: false},
-          %{dx: 0, dy: 0, level: 2, label: "wall", walkable: false},
-          %{dx: 0, dy: 0, level: 3, label: "window", walkable: false},
-          %{dx: 0, dy: 0, level: 4, label: "roof", walkable: false},
-          %{dx: 1, dy: 0, level: 0, label: "wall", walkable: false},
-          %{dx: 1, dy: 0, level: 1, label: "wall", walkable: false},
-          %{dx: 1, dy: 0, level: 2, label: "wall", walkable: false},
-          %{dx: 1, dy: 0, level: 3, label: "window", walkable: false},
-          %{dx: 1, dy: 0, level: 4, label: "roof", walkable: false},
-          %{dx: 1, dy: 0, level: 5, label: "roof", walkable: false},
-          %{dx: 2, dy: 0, level: 0, label: "wall", walkable: false},
-          %{dx: 2, dy: 0, level: 1, label: "wall", walkable: false},
-          %{dx: 2, dy: 0, level: 2, label: "wall", walkable: false},
-          %{dx: 2, dy: 0, level: 3, label: "window", walkable: false},
-          %{dx: 2, dy: 0, level: 4, label: "roof", walkable: false},
-          %{dx: 2, dy: 0, level: 5, label: "roof_top", walkable: false},
-          %{dx: 3, dy: 0, level: 0, label: "wall", walkable: false},
-          %{dx: 3, dy: 0, level: 1, label: "wall", walkable: false},
-          %{dx: 3, dy: 0, level: 2, label: "wall", walkable: false},
-          %{dx: 3, dy: 0, level: 3, label: "window", walkable: false},
-          %{dx: 3, dy: 0, level: 4, label: "roof", walkable: false},
-          %{dx: 3, dy: 0, level: 5, label: "roof", walkable: false},
-          %{dx: 4, dy: 0, level: 0, label: "wall", walkable: false},
-          %{dx: 4, dy: 0, level: 1, label: "wall", walkable: false},
-          %{dx: 4, dy: 0, level: 2, label: "wall", walkable: false},
-          %{dx: 4, dy: 0, level: 3, label: "window", walkable: false},
-          %{dx: 4, dy: 0, level: 4, label: "roof", walkable: false},
-          %{dx: 4, dy: 0, level: 5, label: "roof", walkable: false},
-          %{dx: 5, dy: 0, level: 0, label: "wall", walkable: false},
-          %{dx: 5, dy: 0, level: 1, label: "wall", walkable: false},
-          %{dx: 5, dy: 0, level: 2, label: "wall", walkable: false},
-          %{dx: 5, dy: 0, level: 3, label: "window", walkable: false},
-          %{dx: 5, dy: 0, level: 4, label: "roof", walkable: false},
-          %{dx: 0, dy: 1, level: 0, label: "wall", walkable: false},
-          %{dx: 0, dy: 1, level: 1, label: "wall", walkable: false},
-          %{dx: 0, dy: 1, level: 2, label: "wall", walkable: false},
-          %{dx: 0, dy: 1, level: 3, label: "window", walkable: false},
-          %{dx: 0, dy: 1, level: 4, label: "roof", walkable: false},
-          %{dx: 1, dy: 1, level: 4, label: "roof", walkable: true},
-          %{dx: 1, dy: 1, level: 5, label: "roof", walkable: true},
-          %{dx: 2, dy: 1, level: 4, label: "roof", walkable: true},
-          %{dx: 2, dy: 1, level: 5, label: "roof", walkable: true},
-          %{dx: 3, dy: 1, level: 4, label: "roof", walkable: true},
-          %{dx: 3, dy: 1, level: 5, label: "roof", walkable: true},
-          %{dx: 4, dy: 1, level: 4, label: "roof", walkable: true},
-          %{dx: 4, dy: 1, level: 5, label: "roof", walkable: true},
-          %{dx: 5, dy: 1, level: 0, label: "wall", walkable: false},
-          %{dx: 5, dy: 1, level: 1, label: "wall", walkable: false},
-          %{dx: 5, dy: 1, level: 2, label: "wall", walkable: false},
-          %{dx: 5, dy: 1, level: 3, label: "window", walkable: false},
-          %{dx: 5, dy: 1, level: 4, label: "roof", walkable: false},
-          %{dx: 0, dy: 2, level: 0, label: "wall", walkable: false},
-          %{dx: 0, dy: 2, level: 1, label: "wall", walkable: false},
-          %{dx: 0, dy: 2, level: 2, label: "wall", walkable: false},
-          %{dx: 0, dy: 2, level: 3, label: "window", walkable: false},
-          %{dx: 0, dy: 2, level: 4, label: "roof", walkable: false},
-          %{dx: 1, dy: 2, level: 4, label: "roof", walkable: true},
-          %{dx: 1, dy: 2, level: 5, label: "roof", walkable: true},
-          %{dx: 2, dy: 2, level: 4, label: "roof", walkable: true},
-          %{dx: 2, dy: 2, level: 5, label: "roof", walkable: true},
-          %{dx: 3, dy: 2, level: 4, label: "roof", walkable: true},
-          %{dx: 3, dy: 2, level: 5, label: "roof", walkable: true},
-          %{dx: 4, dy: 2, level: 4, label: "roof", walkable: true},
-          %{dx: 4, dy: 2, level: 5, label: "roof", walkable: true},
-          %{dx: 5, dy: 2, level: 0, label: "wall", walkable: false},
-          %{dx: 5, dy: 2, level: 1, label: "wall", walkable: false},
-          %{dx: 5, dy: 2, level: 2, label: "wall", walkable: false},
-          %{dx: 5, dy: 2, level: 3, label: "window", walkable: false},
-          %{dx: 5, dy: 2, level: 4, label: "roof", walkable: false},
-          %{dx: 0, dy: 3, level: 0, label: "wall", walkable: false},
-          %{dx: 0, dy: 3, level: 1, label: "wall", walkable: false},
-          %{dx: 0, dy: 3, level: 2, label: "wall", walkable: false},
-          %{dx: 0, dy: 3, level: 3, label: "window", walkable: false},
-          %{dx: 0, dy: 3, level: 4, label: "roof", walkable: false},
-          %{dx: 1, dy: 3, level: 0, label: "wall", walkable: false},
-          %{dx: 1, dy: 3, level: 1, label: "wall", walkable: false},
-          %{dx: 1, dy: 3, level: 2, label: "wall", walkable: false},
-          %{dx: 1, dy: 3, level: 3, label: "window", walkable: false},
-          %{dx: 1, dy: 3, level: 4, label: "roof", walkable: false},
-          %{dx: 1, dy: 3, level: 5, label: "roof", walkable: false},
-          %{dx: 2, dy: 3, level: 0, label: "wall", walkable: false},
-          %{dx: 2, dy: 3, level: 1, label: "wall", walkable: false},
-          %{dx: 2, dy: 3, level: 2, label: "wall", walkable: false},
-          %{dx: 2, dy: 3, level: 3, label: "window", walkable: false},
-          %{dx: 2, dy: 3, level: 4, label: "roof", walkable: false},
-          %{dx: 2, dy: 3, level: 5, label: "roof", walkable: false},
-          %{dx: 3, dy: 3, level: 0, label: "door", walkable: true},
-          %{dx: 3, dy: 3, level: 1, label: "wall", walkable: true},
-          %{dx: 3, dy: 3, level: 2, label: "wall", walkable: true},
-          %{dx: 3, dy: 3, level: 3, label: "window", walkable: true},
-          %{dx: 3, dy: 3, level: 4, label: "roof", walkable: true},
-          %{dx: 3, dy: 3, level: 5, label: "roof", walkable: true},
-          %{dx: 4, dy: 3, level: 0, label: "wall", walkable: false},
-          %{dx: 4, dy: 3, level: 1, label: "wall", walkable: false},
-          %{dx: 4, dy: 3, level: 2, label: "wall", walkable: false},
-          %{dx: 4, dy: 3, level: 3, label: "window", walkable: false},
-          %{dx: 4, dy: 3, level: 4, label: "roof", walkable: false},
-          %{dx: 4, dy: 3, level: 5, label: "roof", walkable: false},
-          %{dx: 5, dy: 3, level: 0, label: "wall", walkable: false},
-          %{dx: 5, dy: 3, level: 1, label: "wall", walkable: false},
-          %{dx: 5, dy: 3, level: 2, label: "wall", walkable: false},
-          %{dx: 5, dy: 3, level: 3, label: "window", walkable: false},
-          %{dx: 5, dy: 3, level: 4, label: "roof", walkable: false}
-        ]
-      }
     }
   end
 end
