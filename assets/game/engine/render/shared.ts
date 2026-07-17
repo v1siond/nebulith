@@ -1,7 +1,7 @@
 import { player as playerSprite } from '@/assets/ascii'
 import { GridAsset, IsometricGrid } from '@/engine/IsometricGrid'
 import { type AnimTransform } from '@/engine/cellAnimation'
-import { darkenColor, lightenColor, luminanceTint, parseColor, varyIntensity, withAlpha } from '@/engine/colors'
+import { darkenColor, lightenColor, parseColor, varyIntensity, withAlpha } from '@/engine/colors'
 import { entityAnimState, entityFrameIndex } from '@/engine/entityAnim'
 import { entityArtFrame, entityFootprint } from '@/engine/entityArt'
 import { type QuestMarker } from '@/engine/entityQuestMarker'
@@ -228,17 +228,27 @@ export function drawFacingGlyph(ctx: CanvasRenderingContext2D, char: string, x: 
   ctx.restore()
 }
 
-// A baked emoji tile ships with its own colours, so an editor colour override can't just change a fill —
-// it has to RECOLOUR the sprite. We do it once per (src, colour) into an offscreen canvas and cache it:
-// draw the sprite, blend the colour with `'color'` (keeps the sprite's shading/luminance, takes the
-// override's hue+saturation), then `'destination-in'` re-masks to the sprite's alpha so transparent
-// pixels stay transparent. Keyed by src+colour at natural resolution, so it's size-independent.
+// A baked tile ships with its own colours, so an editor colour SETTING can't just change the cell fill —
+// it has to RECOLOUR the tile IMAGE (the model: colour FILTERS the baked tile, luminance-mapped, one path
+// for every style). We do it once per (src, colour) into a cached offscreen canvas.
+//
+// This is done with CANVAS BLEND MODES and NO getImageData, on purpose: the baked tile PNGs are served by
+// the backend on a DIFFERENT origin (CORS-less static), so drawing one onto a canvas TAINTS it and any
+// getImageData throws SecurityError. The previous per-pixel implementation swallowed that error and left
+// the tile UNtinted — so a colour recoloured only the cell fill and NOT the tile image (a green leaf on a
+// pink cube). Compositing needs no pixel read-back, so it recolours the image on a tainted canvas too.
+//
+// Pipeline (equivalent to `tint × luminance(sprite)`): draw the sprite → 'saturation' with a neutral grey
+// desaturates it to its own luminance → 'multiply' the tint scales that luminance by the colour
+// (WHITE→full colour, mids→mid, darks→dark, so the sprite's shading is kept) → 'destination-in' re-masks
+// to the sprite's alpha so transparent pixels stay transparent. Keyed by src+colour at natural resolution.
 const _tintCache = new Map<string, HTMLCanvasElement>()
 export function tintedImage(img: HTMLImageElement, src: string, tint: string): CanvasImageSource {
   if (typeof document === 'undefined') return img // SSR / tests: no canvas → draw untinted
   const key = `${src}|${tint}`
   const cached = _tintCache.get(key)
   if (cached) return cached
+  if (!parseColor(tint)) return img // unparseable colour → don't tint (canvas would silently ignore the fill)
   const w = img.naturalWidth || 64, h = img.naturalHeight || 64
   const off = document.createElement('canvas')
   off.width = w
@@ -246,24 +256,15 @@ export function tintedImage(img: HTMLImageElement, src: string, tint: string): C
   const octx = off.getContext('2d')
   if (!octx) return img
   octx.drawImage(img, 0, 0, w, h)
-  // Luminance-mapped colorize (see colors.luminanceTint): recolour each pixel to `tint` scaled by its
-  // own luminance, so WHITE→the full colour, darks→dark, and shading is kept. The old 'color' composite
-  // blend PRESERVED luminance, so white sprites (a daisy) stayed white and couldn't be recoloured. Alpha
-  // is untouched (silhouette preserved). Cached per src+colour → this per-pixel pass runs once. Guarded:
-  // a tainted (cross-origin) canvas can't be read back, so we leave the sprite untinted instead of throwing.
-  const rgb = parseColor(tint)
-  if (rgb) {
-    try {
-      const id = octx.getImageData(0, 0, w, h)
-      const px = id.data
-      for (let i = 0; i < px.length; i += 4) {
-        if (px[i + 3] === 0) continue // transparent → skip (keep the silhouette)
-        const o = luminanceTint(px[i], px[i + 1], px[i + 2], rgb)
-        px[i] = o.r; px[i + 1] = o.g; px[i + 2] = o.b
-      }
-      octx.putImageData(id, 0, 0)
-    } catch { /* tainted canvas — leave the sprite untinted */ }
-  }
+  octx.globalCompositeOperation = 'saturation'
+  octx.fillStyle = 'hsl(0, 0%, 50%)' // 0 saturation → collapse the sprite to its own luminance
+  octx.fillRect(0, 0, w, h)
+  octx.globalCompositeOperation = 'multiply'
+  octx.fillStyle = tint // luminance × colour: WHITE→full colour, darks→dark; shading kept
+  octx.fillRect(0, 0, w, h)
+  octx.globalCompositeOperation = 'destination-in'
+  octx.drawImage(img, 0, 0, w, h) // re-mask to the sprite's alpha (keep the silhouette)
+  octx.globalCompositeOperation = 'source-over'
   _tintCache.set(key, off)
   return off
 }

@@ -49,7 +49,10 @@ beforeAll(() => {
   // draw/getImageData/putImageData sequence actually completes and hands back a genuinely DISTINCT
   // canvas object — the signal this file uses to prove a tint was (or wasn't) applied.
   class FakeOffscreenCtx {
+    globalCompositeOperation = 'source-over'
+    fillStyle = '#000'
     drawImage(): void {}
+    fillRect(): void {}
     getImageData(_x: number, _y: number, w: number, h: number) {
       return { data: new Uint8ClampedArray(Math.max(4, w * h * 4)) }
     }
