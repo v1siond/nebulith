@@ -14,6 +14,7 @@
 import Head from 'next/head'
 import Link from 'next/link'
 import { useToast } from '@/components/Toast'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { type GridAsset, IsometricGrid } from '@/engine/IsometricGrid'
 import { getStack, type TileEntry, type TileSource } from '@/engine/cellStack'
 import { type AttackAnim, isAnimDone } from '@/engine/attackAnimations'
@@ -112,7 +113,7 @@ export interface EditorGameContext {
   play: boolean
 }
 
-export default function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {}) {
+function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {}) {
   const router = useRouter()
   const { toast } = useToast()
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -424,9 +425,17 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
   const playModeRef = useRef(false) // live playMode for the raf render loop (mirrors activeStyleRef)
   useEffect(() => { playModeRef.current = playMode }, [playMode])
   const fps = useFps() // #86 — one sampler feeds the nav readout (edit/show) + the play-mode floating box
-  // Load tilesets from the nebulith Elixir backend on mount — replaces the bundled defaults (same shape,
-  // so render + generation transparently use the DB-served data); falls back to bundled if the API is down.
-  useEffect(() => { void loadTilesetsFromBackend() }, [])
+  // Load tilesets from the nebulith Elixir backend on mount — fills the (empty) holders with the DB-served
+  // data. If the backend is down / returns nothing (loaded === 0) or the fetch rejects, we keep the default
+  // (empty) builder and tell the user with a toast instead of failing silently. The render already draws a
+  // neutral placeholder for a missing tile (TILE-BACKEND-MIGRATION §10), so the editor stays usable.
+  useEffect(() => {
+    loadTilesetsFromBackend()
+      .then((loaded) => {
+        if (loaded.length === 0) toast("Couldn't load tiles from the server — showing the default builder.", 'error')
+      })
+      .catch(() => toast("Couldn't load tiles from the server — showing the default builder.", 'error'))
+  }, [toast])
   const [isMobile, setIsMobile] = useState(false)
 
   // Detect mobile
@@ -5918,6 +5927,42 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
         })()}
       </main>
     </>
+  )
+}
+
+/** The error-boundary fallback for the editor: a friendly card (never a blank white screen) + a one-shot
+ *  toast, shown only if the editor throws while rendering. A render crash means we can't re-show the live
+ *  builder, so we offer a reload — the data-load failures (tileset/game down) degrade to the usable default
+ *  builder instead and never reach here. */
+function EditorErrorFallback() {
+  const { toast } = useToast()
+  useEffect(() => {
+    toast('The builder hit an unexpected error — reload to try again.', 'error')
+  }, [toast])
+  return (
+    <div className="min-h-screen bg-gray-900 text-white font-mono flex flex-col items-center justify-center gap-4 p-6 text-center">
+      <p className="text-xl">Something went wrong loading the builder.</p>
+      <p className="max-w-md text-sm text-gray-400">The editor hit an unexpected error. Your saved maps are safe — reload to try again.</p>
+      <button
+        onClick={() => window.location.reload()}
+        className="rounded bg-gray-700 px-4 py-2 hover:bg-gray-600"
+      >
+        Reload
+      </button>
+    </div>
+  )
+}
+
+/**
+ * The page's real default export — the editor wrapped in an error boundary so a render-time crash from
+ * missing/bad backend data shows the fallback + notification instead of an uncaught JS error / white screen.
+ * `games/[id]` imports this default too, so the game view is covered by the same net.
+ */
+export default function TemplateEditorPage(props: { gameContext?: EditorGameContext } = {}) {
+  return (
+    <ErrorBoundary fallback={<EditorErrorFallback />}>
+      <TemplateEditor {...props} />
+    </ErrorBoundary>
   )
 }
 
