@@ -56,7 +56,9 @@ defmodule NebulithWeb.TilesetJSON do
       cells:
         Enum.map(
           c.cells,
-          &%{dx: &1.dx, dy: &1.dy, level: &1.level, label: &1.label, walkable: &1.walkable, scale: &1.scale}
+          # `zIndex` (camelCase) so the frontend loader maps it straight onto CompositionCell.zIndex — the same
+          # pass-through `scale` uses. The DB column is `z_index`; the JSON key the renderer reads is `zIndex`.
+          &%{dx: &1.dx, dy: &1.dy, level: &1.level, label: &1.label, walkable: &1.walkable, scale: &1.scale, zIndex: &1.z_index}
         )
     }
   end

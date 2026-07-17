@@ -113,6 +113,28 @@ defmodule NebulithWeb.TilesetControllerTest do
       assert t["tiles"]["trunk"]["settings"]["colors"]["spring"] == "#7a5a3a"
       assert t["compositions"]["tree_small"]["footprint"] == %{"w" => 5, "h" => 3}
       assert [%{"label" => "trunk"}] = t["compositions"]["tree_small"]["cells"]
+      # every cell carries its draw-priority `zIndex` (camelCase) — 0 here since the cell set none.
+      assert [%{"zIndex" => 0}] = t["compositions"]["tree_small"]["cells"]
+    end
+
+    test "a cell's z_index is served as `zIndex` (draw priority) in the API", %{conn: conn} do
+      # a tileset must exist so the index returns a `data` entry to hang the (style-agnostic) compositions on.
+      {:ok, _ts} = Nebulith.Catalog.create_tileset(%{key: "ascii", name: "ASCII", data: %{}})
+
+      {:ok, _} =
+        Nebulith.Catalog.upsert_composition_with_cells(
+          %{name: "prio", footprint_w: 1, footprint_h: 1},
+          [
+            %{dx: 0, dy: 0, level: 0, label: "water_c", walkable: false, z_index: 10},
+            %{dx: 0, dy: 0, level: 0, label: "fountain_b", walkable: false}
+          ]
+        )
+
+      conn = get(conn, ~p"/api/tilesets")
+      [t] = json_response(conn, 200)["data"]
+      by_label = Map.new(t["compositions"]["prio"]["cells"], &{&1["label"], &1["zIndex"]})
+      assert by_label["water_c"] == 10
+      assert by_label["fountain_b"] == 0
     end
   end
 

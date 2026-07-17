@@ -753,6 +753,14 @@ defmodule Nebulith.Catalog.TileSource do
     }
   end
 
+  # The fountain WATER's draw-PRIORITY (CSS z-index style). The water (basin surface + jets) carries a high
+  # `z_index` so it renders IN FRONT of whatever sits behind it in the iso/2D depth sort — a wall/building
+  # block behind the fountain that gets extra height or z-width no longer draws OVER the water (Images
+  # #34/#36). 10 is comfortably above the default 0 every wall/rim/other tile carries (CSS semantics: a higher
+  # z-index wins globally), leaving headroom for future intermediate layers. The RIM stays 0 — it's the basin's
+  # own edge and sorts positionally with the water. Pure DATA on the cell; NOT a render special-case.
+  @water_z_index 10
+
   # 5×4 fountain from pieces: the perimeter is the correct rim EDGE/CORNER piece, the interior is `water_c`,
   # and jets rise from a few interior points (a tall centre jet + two lower side jets). Pure data.
   defp fountain_cells do
@@ -765,13 +773,13 @@ defmodule Nebulith.Catalog.TileSource do
 
     water =
       for dy <- 1..(h - 2), dx <- 1..(w - 2),
-        do: %{dx: dx, dy: dy, level: 0, label: "water_c", walkable: false}
+        do: %{dx: dx, dy: dy, level: 0, label: "water_c", walkable: false, z_index: @water_z_index}
 
     jets = [
-      %{dx: 2, dy: 1, level: 1, label: "water_jet", walkable: false},
-      %{dx: 2, dy: 1, level: 2, label: "water_jet", walkable: false},
-      %{dx: 1, dy: 2, level: 1, label: "water_jet", walkable: false},
-      %{dx: 3, dy: 2, level: 1, label: "water_jet", walkable: false}
+      %{dx: 2, dy: 1, level: 1, label: "water_jet", walkable: false, z_index: @water_z_index},
+      %{dx: 2, dy: 1, level: 2, label: "water_jet", walkable: false, z_index: @water_z_index},
+      %{dx: 1, dy: 2, level: 1, label: "water_jet", walkable: false, z_index: @water_z_index},
+      %{dx: 3, dy: 2, level: 1, label: "water_jet", walkable: false, z_index: @water_z_index}
     ]
 
     rim ++ water ++ jets

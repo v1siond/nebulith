@@ -62,6 +62,24 @@ defmodule Nebulith.TileSourceTest do
     refute Enum.any?(comps, &(&1.name in ["big_tree_a", "big_tree_b", "bush_a", "bush_b"]))
   end
 
+  test "the fountain's water cells carry a draw-priority z_index; the rim/edge pieces stay 0" do
+    # The bug fix (Images #34/#36): the water (basin `water_c` + raised `water_jet`) gets a high z_index so the
+    # depth sort draws it IN FRONT of a wall behind the fountain. The rim keeps the default 0. Pure DATA on the cell.
+    fountain = Enum.find(Catalog.list_compositions(), &(&1.name == "fountain"))
+    {water, rim} = Enum.split_with(fountain.cells, &(&1.label in ["water_c", "water_jet"]))
+
+    assert length(water) >= 6
+    assert Enum.all?(water, &(&1.z_index == 10))
+    assert rim != []
+    assert Enum.all?(rim, &(&1.z_index == 0))
+  end
+
+  test "z_index defaults to 0 on every non-fountain-water cell (no regression to the depth sort)" do
+    comps = Catalog.list_compositions()
+    non_water = Enum.flat_map(comps, fn c -> Enum.reject(c.cells, &(&1.label in ["water_c", "water_jet"])) end)
+    assert Enum.all?(non_water, &(&1.z_index == 0))
+  end
+
   test "an ascii canopy tile carries its per-zone palette colors in settings" do
     canopy = Enum.find(Catalog.list_tiles_for("ascii"), &(&1.label == "leaf_center"))
 
