@@ -10,6 +10,7 @@
 import type { AnimationCycle } from './animationCycles'
 import type { CellAnimation } from './cellAnimation'
 import type { GroundCellDims } from './groundDims'
+import type { DepthDir } from './render/isoBlock'
 
 /** GENERIC per-tile BEHAVIOR flags copied from the resolved tile's `settings` onto a placed asset, so ONE
  *  render path drives them for ANY tile — a wall, a roof, or a tree leaf. No `type:'building'` special case:
@@ -30,6 +31,10 @@ export interface GridAsset {
   scaleX?: number       // Width — horizontal sprite stretch, every view (#77/#78). Default 1.
   scaleY?: number       // Height — vertical stretch, grows UP from the base; iso/2D views (#77/#78). Default 1.
   scaleZ?: number       // Depth — vertical stretch in the overhead/top view only (#77/#78). Default 1.
+  depth?: number        // Directional DEPTH (blocks): >1 (with depthDir) extrudes this block into a long iso
+                        // box spanning `depth` cells along a diagonal, anchored at its base cell. Default 1
+                        // (a unit cube). ISO view. Distinct from scaleZ (the flat top-view stretch).
+  depthDir?: DepthDir   // Which iso diagonal the depth extrudes along: right-up/left-up/left-down/right-down.
   color?: string
   bgColor?: string
   height?: number       // Height in blocks (for buildings, towers, etc.)

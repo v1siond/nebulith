@@ -50,7 +50,7 @@ import { type Trigger, type TriggerEffect, fireTriggers } from '@/game/runtime/t
 import { ASCII_STYLE, type Style, type TileDef, styleById, groundKind, assetKind, entityKind, genderize, resolveVisual, visualForTileId } from '@/game/artStyle'
 import { useRouter } from 'next/router'
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
-import { render, render2D, renderTopView, clampCameraAxis, isoCameraFocus, entityMotion, ENEMY_MOVE_MS, isDebugMode, setDebugMode, isShowCollisions, setShowCollisions as setCollisionsFlag, cellCaptionMap, pickIsoBlocksAll, nextPickIndex, ISO_BLOCK_H_FRAC, type IsoPickBlock, type DayNight } from '@/engine/render'
+import { render, render2D, renderTopView, clampCameraAxis, isoCameraFocus, entityMotion, ENEMY_MOVE_MS, isDebugMode, setDebugMode, isShowCollisions, setShowCollisions as setCollisionsFlag, cellCaptionMap, pickIsoBlocksAll, nextPickIndex, ISO_BLOCK_H_FRAC, depthCells, type IsoPickBlock, type DayNight, type DepthDir } from '@/engine/render'
 import { loadTilesetsFromBackend, saveTilesetToBackend } from '@/engine/tileset/tilesetLoader'
 import { EMOJI_TILESET, setTilePose } from '@/engine/tileset/emojiTileset'
 import { type TilePose } from '@/engine/tileset/pose'
@@ -1543,6 +1543,7 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
       __genStage?: (zone: string, variant: string) => { buildings: number }
       __centerOn?: (col: number, row: number) => void
       __setHero?: (col: number, row: number) => void
+      __setDepth?: (col: number, row: number, depth: number, dir: DepthDir) => { col: number; row: number; depth: number; depthDir: DepthDir; cells: { col: number; row: number }[] } | null
     }
     win.__camOffset = () => ({ ...camOffsetRef.current })
     // ISO-STACK picking validation seams (same family as __entityScreens, which lands validation clicks via
@@ -1607,6 +1608,23 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
       if (!grid) return
       playerRef.current.x = col * grid.cellSize + grid.cellSize / 2
       playerRef.current.z = row * grid.cellSize + grid.cellSize / 2
+    }
+    // DIRECTIONAL-DEPTH validation seam: set `depth` + `depthDir` on the TOPMOST block at (col,row) so it
+    // extrudes into a long iso box along one of the four diagonals, mark collision on every covered cell
+    // (walk into any = blocked; anchor stays the base cell), and bump a redraw. Returns what it set + the
+    // covered cells, so the render can be driven deterministically in all four directions. Same family as
+    // __stackAsset / __setHero (mutates the grid in place, then bumpBuildingVersion re-renders from it).
+    win.__setDepth = (col: number, row: number, depth: number, dir: DepthDir) => {
+      const g = gridRef.current
+      if (!g) return null
+      const a = g.getAssetsAtCell(col, row).at(-1) // topmost stacked asset at the cell
+      if (!a) return null
+      a.depth = depth
+      a.depthDir = dir
+      const cells = depthCells(col, row, depth, dir)
+      for (const c of cells) g.setCollision(c.col, c.row, true)
+      bumpBuildingVersion()
+      return { col, row, depth, depthDir: dir, cells }
     }
     // Debug-overlay + tileset-label validation seams: toggle the label overlay, and DUMP the
     // `<TYPE> <POSITION>` label of every cell in a region (terrain autotile label overridden by an

@@ -65,3 +65,133 @@ export function isoBlockFaces(center: Pt, tileW: number, tileH: number, blockH: 
     },
   }
 }
+
+/**
+ * DIRECTIONAL DEPTH — a block extruded into a long iso box.
+ *
+ * A block with `depth = D` and one of the four diagonal `DepthDir`s renders as ONE long box spanning D
+ * cells along that diagonal, anchored at its base cell — NOT D separate cubes and NOT a symmetric widening.
+ * The direction is a screen-space step (in the SAME tileW/tileH units isoBlockFaces uses), derived from the
+ * iso projection (Kx per unit of col−row, Ky per unit of col+row): +col = (+tileW,+tileH) = right-down,
+ * +row = (−tileW,+tileH) = left-down, −col = (−tileW,−tileH) = left-up, −row = (+tileW,−tileH) = right-up.
+ */
+export type DepthDir = 'right-up' | 'left-up' | 'left-down' | 'right-down'
+
+/** Screen-space per-cell step for each direction, in tileW/tileH units (see the mapping above). */
+export const DEPTH_STEP: Record<DepthDir, { sx: number; sy: number }> = {
+  'right-up': { sx: +1, sy: -1 }, // −row
+  'left-up': { sx: -1, sy: -1 }, // −col
+  'left-down': { sx: -1, sy: +1 }, // +row
+  'right-down': { sx: +1, sy: +1 }, // +col
+}
+
+/** GRID per-cell step (which cells the box covers) for each direction — the collision + depth-sort axis. */
+export const DEPTH_CELL_STEP: Record<DepthDir, { dc: number; dr: number }> = {
+  'right-up': { dc: 0, dr: -1 },
+  'left-up': { dc: -1, dr: 0 },
+  'left-down': { dc: 0, dr: +1 },
+  'right-down': { dc: +1, dr: 0 },
+}
+
+/** The extruded long box: its top parallelogram + the two CAMERA-VISIBLE walls (one runs the full length,
+ *  the other is a single-cell end cap), each tagged with which unit-cube shade it wears (leftShade for a
+ *  +row/L→B face, rightShade for a +col/B→R face) so the draw path reuses the existing lighting untouched. */
+export interface DepthBoxFaces {
+  top: BlockFace
+  long: BlockFace
+  cap: BlockFace
+  longShade: 'left' | 'right'
+  capShade: 'left' | 'right'
+}
+
+/** The D grid cells a depth box covers: anchor (col,row) then D−1 steps along the direction's grid axis.
+ *  Anchor stays the base cell. Pure — used for collision-adapt and depth-sort. depth≤1 → just the anchor. */
+export function depthCells(col: number, row: number, depth: number, dir: DepthDir): { col: number; row: number }[] {
+  const n = Math.max(1, Math.floor(depth))
+  const { dc, dr } = DEPTH_CELL_STEP[dir]
+  const out: { col: number; row: number }[] = []
+  for (let k = 0; k < n; k++) out.push({ col: col + k * dc, row: row + k * dr })
+  return out
+}
+
+/** How much a depth box reaches TOWARD the camera (in col+row units) past its anchor — the FRONTMOST covered
+ *  cell's (col+row) minus the anchor's. Approaching dirs (+col/+row) reach (D−1) closer; receding dirs
+ *  (−col/−row) reach 0 (the anchor stays the frontmost). Added to the iso depth-sort key so a box that
+ *  extends toward the camera sorts in FRONT of what it overlaps, and receding boxes stay byte-identical. */
+export function depthFrontExtent(depth: number, dir: DepthDir): number {
+  const n = Math.max(1, Math.floor(depth))
+  const { dc, dr } = DEPTH_CELL_STEP[dir]
+  return dc + dr > 0 ? n - 1 : 0
+}
+
+/**
+ * The extruded-hull faces of a depth-D box at stacking `level` — the outer hull only (no internal seams).
+ * The unit block is swept `(D−1)` steps along `dir`: its TOP diamond becomes a long parallelogram (the two
+ * LEADING corners pushed by the sweep vector, the two trailing corners anchored), one front wall runs the
+ * full length, and the other front wall stays a single-cell end cap. Same conventions as isoBlockFaces so
+ * fillIsoFaceWithTile shears a tile onto every face exactly like a unit cube. Pure, unit-tested.
+ */
+export function isoDepthBox(
+  center: Pt,
+  tileW: number,
+  tileH: number,
+  blockH: number,
+  depth: number,
+  dir: DepthDir,
+  level = 0,
+): DepthBoxFaces {
+  const px = center.x
+  const by = center.y - level * blockH // base diamond centre-y
+  const ty = by - blockH // top diamond centre-y
+  const n = Math.max(1, Math.floor(depth))
+  const s = DEPTH_STEP[dir]
+  const ox = (n - 1) * s.sx * tileW
+  const oy = (n - 1) * s.sy * tileH
+  const o = (p: Pt): Pt => ({ x: p.x + ox, y: p.y + oy }) // push a corner to the FAR end of the sweep
+
+  // Unit-cube diamond corners: top-level (y = ty) and base-level (L/R at by, B at by+tileH).
+  const L = { x: px - tileW, y: ty }
+  const T = { x: px, y: ty - tileH }
+  const R = { x: px + tileW, y: ty }
+  const B = { x: px, y: ty + tileH }
+  const Lb = { x: px - tileW, y: by }
+  const Rb = { x: px + tileW, y: by }
+  const Bb = { x: px, y: by + tileH }
+
+  // Per-direction hull. The LONG wall + CAP are always the two front (+col/+row) walls of the unit cube; the
+  // sweep turns one into a length-spanning parallelogram and translates/keeps the other as the visible cap.
+  switch (dir) {
+    case 'right-up': // −row: RIGHT wall runs long, LEFT wall is the NEAR cap (unmodified)
+      return {
+        top: { a: L, b: o(T), c: o(R), d: B },
+        long: { a: Bb, b: o(Rb), c: o(R), d: B }, // B→R+off, +col face
+        cap: { a: Lb, b: Bb, c: B, d: L }, // unit LEFT, +row face
+        longShade: 'right',
+        capShade: 'left',
+      }
+    case 'left-down': // +row: RIGHT wall runs long, LEFT wall is the FAR cap (translated)
+      return {
+        top: { a: T, b: R, c: o(B), d: o(L) },
+        long: { a: Rb, b: o(Bb), c: o(B), d: R }, // R→B+off, +col face
+        cap: { a: o(Lb), b: o(Bb), c: o(B), d: o(L) }, // unit LEFT + off, +row face
+        longShade: 'right',
+        capShade: 'left',
+      }
+    case 'left-up': // −col: LEFT wall runs long, RIGHT wall is the NEAR cap (unmodified)
+      return {
+        top: { a: R, b: B, c: o(L), d: o(T) },
+        long: { a: o(Lb), b: Bb, c: B, d: o(L) }, // B→L+off, +row face
+        cap: { a: Bb, b: Rb, c: R, d: B }, // unit RIGHT, +col face
+        longShade: 'left',
+        capShade: 'right',
+      }
+    case 'right-down': // +col: LEFT wall runs long, RIGHT wall is the FAR cap (translated)
+      return {
+        top: { a: L, b: T, c: o(R), d: o(B) },
+        long: { a: Lb, b: o(Bb), c: o(B), d: L }, // L→B+off, +row face
+        cap: { a: o(Bb), b: o(Rb), c: o(R), d: o(B) }, // unit RIGHT + off, +col face
+        longShade: 'left',
+        capShade: 'right',
+      }
+  }
+}

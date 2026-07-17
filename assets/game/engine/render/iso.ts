@@ -19,7 +19,7 @@ import { ASCII_FONT, COMBAT_RANGE, type DayNight, type DrawVisual, ENEMY_MOVE_MS
 import { resolveAssetDrawSize } from './assetDimensions'
 import { type GroundCellDims, groundSizeFactors, groundDimsActive } from '@/engine/groundDims'
 import { getStack, type TileSource } from '@/engine/cellStack'
-import { isoBlockFaces, type BlockFace } from './isoBlock'
+import { isoBlockFaces, isoDepthBox, depthFrontExtent, type BlockFace, type DepthDir } from './isoBlock'
 import { resolveTileHeight } from '@/engine/tileset/tileHeight'
 import { EMOJI_TILESET } from '@/engine/tileset/emojiTileset'
 import { applyPose } from '@/engine/tileset/pose'
@@ -1177,10 +1177,18 @@ export function isoStackLift(tileW: number, heightLevel: number | undefined): nu
  *  keep the array's stable insertion order, so nothing but same-cell asset stacks is reordered — the
  *  no-stack case is byte-identical to the old `(a.col+a.row)-(b.col+b.row)` sort. */
 export function isoDepthCompare(
-  a: { col: number; row: number; asset?: { heightLevel?: number } },
-  b: { col: number; row: number; asset?: { heightLevel?: number } },
+  a: { col: number; row: number; asset?: { heightLevel?: number; depth?: number; depthDir?: DepthDir } },
+  b: { col: number; row: number; asset?: { heightLevel?: number; depth?: number; depthDir?: DepthDir } },
 ): number {
-  const d = (a.col + a.row) - (b.col + b.row)
+  // A directional-depth box reaches `depthFrontExtent` cells toward the camera past its anchor, so it sorts by
+  // its FRONTMOST covered cell — a box extending toward the camera draws in front of what it overlaps. A
+  // depth-less asset (every existing tile) adds 0, so the no-depth case is byte-identical to (col+row).
+  const key = (o: { col: number; row: number; asset?: { depth?: number; depthDir?: DepthDir } }): number => {
+    const dep = o.asset?.depth
+    const dir = o.asset?.depthDir
+    return o.col + o.row + (dir && dep && Math.floor(dep) > 1 ? depthFrontExtent(dep, dir) : 0)
+  }
+  const d = key(a) - key(b)
   if (d !== 0) return d
   if (a.asset && b.asset) return (a.asset.heightLevel ?? 0) - (b.asset.heightLevel ?? 0)
   return 0
@@ -1322,6 +1330,8 @@ function drawIsoTileBlockLive(
   dv: DrawVisual,
   tint?: string,
   topDv?: DrawVisual, // optional DIFFERENT tile for the TOP face (e.g. a ROOF cap on a WALL block)
+  depth = 1, // directional-depth: >1 (with depthDir) extrudes into a long iso box spanning `depth` cells
+  depthDir?: DepthDir,
 ): void {
   const n = Math.max(1, Math.floor(height))
   const faceColor = tint ?? dv.tint ?? dv.color
@@ -1337,6 +1347,23 @@ function drawIsoTileBlockLive(
       fillIsoFaceWithTile(ctx, f.a, { x: f.b.x - f.a.x, y: f.b.y - f.a.y }, { x: f.d.x - f.a.x, y: f.d.y - f.a.y }, { char: fdv.char, color: fdv.color, image: fdv.image }, 1, 1, ftint)
     }
   }
+
+  // DIRECTIONAL-DEPTH path (depth>1 + a direction): draw the extruded long-box HULL instead of a unit cube.
+  // Guarded so a depth-less block (every existing tree/wall/terrain) never reaches here → byte-identical render.
+  if (depthDir && Math.floor(depth) > 1) {
+    const shade = (role: 'left' | 'right') => (role === 'left' ? leftShade : rightShade)
+    // Stack bottom→top exactly like the cube path; each level is one long box, higher levels composite over lower.
+    for (let k = 0; k < n; k++) {
+      const box = isoDepthBox(center, tileW, tileH, blockH, depth, depthDir, k)
+      fillFace(box.long, shade(box.longShade), dv, tint)
+      fillFace(box.cap, shade(box.capShade), dv, tint)
+    }
+    const boxTop = isoDepthBox(center, tileW, tileH, blockH, depth, depthDir, n - 1).top
+    if (topDv) fillFace(boxTop, topDv.tint ?? topDv.color ?? faceColor, topDv)
+    else fillFace(boxTop, faceColor, dv, tint)
+    return
+  }
+
   // Stack bottom→top so higher blocks composite over lower ones; the TOP face is capped last (full-bright).
   for (let k = 0; k < n; k++) {
     const faces = isoBlockFaces(center, tileW, tileH, blockH, k)
@@ -1396,15 +1423,19 @@ export function drawIsoTileBlock(
   dv: DrawVisual,
   tint?: string,
   topDv?: DrawVisual,
+  depth = 1, // directional-depth (with depthDir) → a long iso box; default 1 = the unmodified cube
+  depthDir?: DepthDir,
 ): void {
-  if (Math.floor(height) === 1 && ctx.globalAlpha === 1 && dv.image) {
+  const isDepthBox = !!depthDir && Math.floor(depth) > 1
+  // The cube-sprite cache bakes a UNIT cube — never a directional box; skip it so a depth box always draws live.
+  if (!isDepthBox && Math.floor(height) === 1 && ctx.globalAlpha === 1 && dv.image) {
     const spr = cubeBlockSprite(dv, tileW, tileH, blockH, tint, topDv)
     if (spr) {
       ctx.drawImage(spr.canvas, center.x - spr.ox, center.y - spr.oy)
       return
     }
   }
-  drawIsoTileBlockLive(ctx, center, tileW, tileH, blockH, height, dv, tint, topDv)
+  drawIsoTileBlockLive(ctx, center, tileW, tileH, blockH, height, dv, tint, topDv, depth, depthDir)
 }
 
 // Buildings always render as an empty shell (HOLLOW) so the DOOR and the wall-fade read — you can see IN
@@ -1582,7 +1613,7 @@ export function drawIsoAssetAscii(
     const bw = tileW * (asset.scaleX ?? 1) * zoom       // Width  — diamond half-width
     const bd = tileH * (asset.scaleZ ?? 1) * zoom       // Depth  — diamond half-height (into-screen axis)
     const bh = tileW * 0.9 * (asset.scaleY ?? 1) * zoom // Height — one block ≈ the cell's iso width, stretched up
-    drawIsoTileBlock(ctx, { x, y }, bw, bd, bh, blocks, adv, asset.color)
+    drawIsoTileBlock(ctx, { x, y }, bw, bd, bh, blocks, adv, asset.color, undefined, asset.depth, asset.depthDir)
     return
   }
   // A per-asset colour override tints the baked sprite (an emoji ships its own colours, so an override
@@ -1646,7 +1677,7 @@ export function drawIsoAssetAscii(
     // cell is never blank.
     const image = labelTileImage(asset.label, style)
     const recolor = labelTileRecolor(style, tint)
-    drawIsoTileBlock(ctx, { x, y }, bw, bd, bh, 1, { char: glyph, color: tint, tint: recolor, image }, recolor)
+    drawIsoTileBlock(ctx, { x, y }, bw, bd, bh, 1, { char: glyph, color: tint, tint: recolor, image }, recolor, undefined, asset.depth, asset.depthDir)
     // Apex signage rides ON TOP of the cube (the apex roof block carries settings.badge) — generic, no buildingType.
     if (asset.settings?.badge) drawApexBadge(ctx, x, y - bh, fontSize, asset.settings.badge)
     return
