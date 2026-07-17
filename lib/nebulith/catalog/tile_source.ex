@@ -156,7 +156,9 @@ defmodule Nebulith.Catalog.TileSource do
   # across walkable cells so a stage reads dense, not blank. Each is JUST A TILE:
   # its glyph is the decor char and its colour is a per-tile `settings.colors`
   # setting keyed by zone — the presence of a zone key means the decor belongs to
-  # that zone. No `image_url` (rendered from the glyph, no baked PNG).
+  # that zone. Its baked ascii PNG (`/tiles/ascii/<label>.png`) is a tintable white
+  # mask the ascii renderer recolours per zone — no tile falls back to a raw glyph
+  # (MAP-MODEL §8 / TILE-BACKEND-MIGRATION §5).
 
   @doc """
   Seeds ONLY the ascii ground-decor tiles into the ascii tileset.
@@ -182,6 +184,7 @@ defmodule Nebulith.Catalog.TileSource do
           blocking: false,
           height: 0,
           category: "decor",
+          image_url: "/tiles/ascii/#{label}.png",
           settings: %{"colors" => colors}
         })
     end
@@ -325,6 +328,7 @@ defmodule Nebulith.Catalog.TileSource do
           blocking: blocking,
           height: 1,
           category: category,
+          image_url: "/tiles/ascii/#{label}.png",
           settings:
             %{"colors" => Map.new(@all_zones, &{&1, color})}
             |> merge_behavior(label)
@@ -369,8 +373,9 @@ defmodule Nebulith.Catalog.TileSource do
   # `_tl/_tr/_bl/_br`), per the `<base>_<edge>` naming in TILE-VOCABULARY-CONTRACT §2.1. Each piece is a
   # real DB tile carrying BOTH an ascii `glyph` AND an `emoji` (part-emojis that COMBINE — 🪨 stone / 🧱 brick
   # / 🟫 wood / ⬜ plaster wall, ⬜ fountain rim, 🟦 water, 💧 jet, ⬛ slate roof — never a whole-object ⛲) + its
-  # colour in `settings.colors`. Authored ONCE and seeded into BOTH tilesets: the ascii row keeps the glyph,
-  # the emoji row keeps the emoji (image_url nil so the emoji renders the char, not a missing PNG). "Variety
+  # colour in `settings.colors`. Authored ONCE and seeded into BOTH tilesets, and BAKED in both: the ascii row
+  # points at its tintable white-mask PNG (`/tiles/ascii/<label>.png`), the emoji row at its emoji PNG — no piece
+  # falls back to a raw glyph on a font-less machine (MAP-MODEL §8 / TILE-BACKEND-MIGRATION §5). "Variety
   # of material = a different tile" (`wall_stone` vs `wall_brick` vs `wall_wood` vs `wall_plaster`); "variety
   # of colour = the tile's `settings.colors`".
   @doc """
@@ -398,18 +403,19 @@ defmodule Nebulith.Catalog.TileSource do
         color_role: nil,
         blocking: piece.blocking,
         height: 1,
-        category: piece[:category],
-        # nil image_url → the ascii renderer draws the glyph, the emoji renderer draws the char (abs(nil)
-        # is undefined), so a piece never points at a non-existent baked PNG.
-        image_url: nil
+        category: piece[:category]
       }
 
+      # Both styles draw a BAKED PNG, never a raw glyph: the ascii row bakes the block-border glyph as a
+      # tintable white mask (priv/tilegen/bake.mjs) that the ascii renderer recolours per zone, so no piece
+      # falls back to a glyph on a font-less machine (MAP-MODEL §8 / TILE-BACKEND-MIGRATION §5).
       {:ok, _} =
         common
         |> Map.merge(%{
           tileset_id: ascii_id,
           glyph: piece.glyph,
           title: piece[:title],
+          image_url: "/tiles/ascii/#{piece.label}.png",
           settings: %{"colors" => colors} |> merge_behavior(behavior_base)
         })
         |> Catalog.upsert_tile()

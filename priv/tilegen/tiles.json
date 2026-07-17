@@ -1330,5 +1330,377 @@
     "mode": "emoji",
     "style": "emoji",
     "emoji": "🍃"
+  },
+  {
+    "label": "awning",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▨"
+  },
+  {
+    "label": "decor_blossom",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "✿"
+  },
+  {
+    "label": "decor_clover",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "♣"
+  },
+  {
+    "label": "decor_dot",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "."
+  },
+  {
+    "label": "decor_flower",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "❀"
+  },
+  {
+    "label": "decor_grit",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": ":"
+  },
+  {
+    "label": "decor_pebbles",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "∴"
+  },
+  {
+    "label": "decor_ripple",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "~"
+  },
+  {
+    "label": "decor_shell",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "°"
+  },
+  {
+    "label": "decor_spark",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "*"
+  },
+  {
+    "label": "display_window",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▦"
+  },
+  {
+    "label": "flat_roof",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▬"
+  },
+  {
+    "label": "fountain_b",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▄"
+  },
+  {
+    "label": "fountain_bl",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▙"
+  },
+  {
+    "label": "fountain_br",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▟"
+  },
+  {
+    "label": "fountain_l",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▌"
+  },
+  {
+    "label": "fountain_r",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▐"
+  },
+  {
+    "label": "fountain_t",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▀"
+  },
+  {
+    "label": "fountain_tl",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▛"
+  },
+  {
+    "label": "fountain_tr",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▜"
+  },
+  {
+    "label": "parapet",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▀"
+  },
+  {
+    "label": "roof_slate",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▲"
+  },
+  {
+    "label": "roof_top_slate",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "◣"
+  },
+  {
+    "label": "rooftop_unit",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▪"
+  },
+  {
+    "label": "wall_brick_b",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▄"
+  },
+  {
+    "label": "wall_brick_bl",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▙"
+  },
+  {
+    "label": "wall_brick_br",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▟"
+  },
+  {
+    "label": "wall_brick_c",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▒"
+  },
+  {
+    "label": "wall_brick_l",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▌"
+  },
+  {
+    "label": "wall_brick_r",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▐"
+  },
+  {
+    "label": "wall_brick_t",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▀"
+  },
+  {
+    "label": "wall_brick_tl",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▛"
+  },
+  {
+    "label": "wall_brick_tr",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▜"
+  },
+  {
+    "label": "wall_plaster_b",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▄"
+  },
+  {
+    "label": "wall_plaster_bl",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▙"
+  },
+  {
+    "label": "wall_plaster_br",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▟"
+  },
+  {
+    "label": "wall_plaster_c",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "░"
+  },
+  {
+    "label": "wall_plaster_l",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▌"
+  },
+  {
+    "label": "wall_plaster_r",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▐"
+  },
+  {
+    "label": "wall_plaster_t",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▀"
+  },
+  {
+    "label": "wall_plaster_tl",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▛"
+  },
+  {
+    "label": "wall_plaster_tr",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▜"
+  },
+  {
+    "label": "wall_stone_b",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▄"
+  },
+  {
+    "label": "wall_stone_bl",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▙"
+  },
+  {
+    "label": "wall_stone_br",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▟"
+  },
+  {
+    "label": "wall_stone_c",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▓"
+  },
+  {
+    "label": "wall_stone_l",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▌"
+  },
+  {
+    "label": "wall_stone_r",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▐"
+  },
+  {
+    "label": "wall_stone_t",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▀"
+  },
+  {
+    "label": "wall_stone_tl",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▛"
+  },
+  {
+    "label": "wall_stone_tr",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▜"
+  },
+  {
+    "label": "wall_wood_b",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▄"
+  },
+  {
+    "label": "wall_wood_bl",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▙"
+  },
+  {
+    "label": "wall_wood_br",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▟"
+  },
+  {
+    "label": "wall_wood_c",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▤"
+  },
+  {
+    "label": "wall_wood_l",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▌"
+  },
+  {
+    "label": "wall_wood_r",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▐"
+  },
+  {
+    "label": "wall_wood_t",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▀"
+  },
+  {
+    "label": "wall_wood_tl",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▛"
+  },
+  {
+    "label": "wall_wood_tr",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▜"
+  },
+  {
+    "label": "water_c",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "≈"
+  },
+  {
+    "label": "water_jet",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "|"
   }
 ]
