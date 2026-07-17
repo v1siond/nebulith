@@ -22,7 +22,10 @@ describe('stampBuildingComposition → plain per-cell tiles carrying generic beh
     const grid = mkGrid()
     const placed = stampBuildingComposition(grid, 'house', 4, 12, 12, 'spring', 'south')
     expect(placed).toBeGreaterThan(0)
-    expect(grid.assets.length).toBe(placed)
+    // `placed` counts the composition CELLS; contiguous same-tile vertical runs collapse into ONE sized
+    // (scaleY) block, so there are FEWER assets than cells (the perf "intelligent building" reduction).
+    expect(grid.assets.length).toBeGreaterThan(0)
+    expect(grid.assets.length).toBeLessThanOrEqual(placed)
     expect(grid.assets.some(a => a.type === 'building')).toBe(false)
     expect(grid.assets.some(a => a.buildingType != null)).toBe(false)
     // The asset TYPE is the composition kind; every cell carries a building PART label (house_4's

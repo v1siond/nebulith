@@ -33,37 +33,80 @@ export function stampComposition(grid: IsometricGrid, kind: string, anchorCol: n
   const comp = resolveComposition(ASCII_TILESET, kind)
   if (!comp) return 0
   const { w, h } = comp.footprint
-  let placed = 0
+  // PERF + "intelligent building" (Alexander): collapse each vertical RUN of the SAME tile at a footprint cell
+  // into ONE block sized `scaleY = run length`, instead of N stacked unit cubes — a wall column of 4 becomes 1
+  // block (fewer draws + no hidden-interior overdraw). Windows / doors / roof caps have their own label so they
+  // break the run and stay their own block. Reuses the composition data as-is; scaleY renders identically
+  // (ISO + 2D) to the old stack, so the look is unchanged.
+  type Cell = (typeof comp.cells)[number]
+  const columns = new Map<string, Cell[]>()
   for (const c of comp.cells) {
-    const off = rotation ? rotateFootprintOffset(c.dx, c.dy, w, h, rotation) : { dx: c.dx, dy: c.dy }
-    const col = anchorCol + off.dx
-    const row = anchorRow + off.dy
-    if (col < 0 || row < 0 || col >= grid.cols || row >= grid.rows) continue
-    const label = material ? c.label.replace(WALL_MAT, `${material}_`) : c.label
-    const tile = resolveTile(ASCII_TILESET, zone, label, variant)
-    // Only the LEVEL-0 tile sits on the ground, so only it casts a base shadow — a shadow under a lifted
-    // canopy/roof tile would float at that height (the same rule the old glade-tree stamper used).
-    const grounded = (c.level ?? 0) === 0 || undefined
-    const asset = grid.placeAsset([tile.char], col, row, { type: kind, blocking: !c.walkable, color: tile.color, heightLevel: c.level ?? 0, baseShadow: grounded })
-    asset.label = label // the generic per-cell drawer keys off `label`; the glyph is asset.art[0] (resolved above)
-    asset.height = 1
-    // Copy the tile's GENERIC behavior (fadeNear/cutawayRoof) so ANY composition cell — a leaf, a wall, a
-    // roof — fades/cuts away near the hero exactly the same, driven by the ONE settings-reading render path.
-    const behavior = tileRenderBehavior(tile.settings)
-    if (behavior) asset.settings = behavior
-    // Apex signage: a titled composition (a store / hospital carries its NAME as data) badges its ONE
-    // roof-apex cell with that name — attached to the SAME generic `settings.badge` the renderer already
-    // reads, so there is no per-type lookup. Houses/others carry no title → no badge.
-    if (comp.title && c.label.startsWith('roof_top')) {
-      asset.settings = { ...(asset.settings ?? {}), badge: { text: comp.title, color: BADGE_COLOR } }
+    const key = `${c.dx},${c.dy}`
+    const run = columns.get(key)
+    if (run) run.push(c)
+    else columns.set(key, [c])
+  }
+  // Trees keep every cell an independently selectable block (the picker + the 3-segment tree work rely on
+  // it); only BUILDINGS/fountain/etc. collapse. Their own dedicated sizing comes with the tree ticket.
+  const canCollapse = !kind.startsWith('tree')
+  let placed = 0
+  for (const cells of columns.values()) {
+    cells.sort((a: Cell, b: Cell) => (a.level ?? 0) - (b.level ?? 0))
+    for (let i = 0; i < cells.length; ) {
+      let j = i
+      while (
+        canCollapse &&
+        j + 1 < cells.length &&
+        (cells[j + 1].level ?? 0) === (cells[j].level ?? 0) + 1 &&
+        cells[j + 1].label === cells[i].label &&
+        cells[j + 1].walkable === cells[i].walkable
+      )
+        j++
+      if (stampRun(grid, comp, kind, cells[i], j - i + 1, anchorCol, anchorRow, w, h, rotation, zone, variant, material)) placed += j - i + 1
+      i = j + 1
     }
-    // Block ONLY for a non-walkable tile, and never UNblock: a cell can hold both a blocking low tile
-    // (trunk / wall) and a walkable higher tile (canopy / roof) — the walkable one, placed later, must not
-    // clear the low tile's collision.
-    if (!c.walkable) grid.setCollision(col, row, true)
-    placed++
   }
   return placed
+}
+
+/** Place ONE run of a composition column at its base level, sized `scaleY = span` so a vertical run of the
+ *  same tile renders as a single taller block (1 draw) instead of `span` stacked unit cubes. Returns whether
+ *  it landed on the grid. */
+function stampRun(
+  grid: IsometricGrid,
+  comp: NonNullable<ReturnType<typeof resolveComposition>>,
+  kind: string,
+  c: { dx: number; dy: number; level?: number; label: string; walkable?: boolean },
+  span: number,
+  anchorCol: number,
+  anchorRow: number,
+  w: number,
+  h: number,
+  rotation: number,
+  zone: ZoneId,
+  variant: number,
+  material: string | undefined,
+): boolean {
+  const off = rotation ? rotateFootprintOffset(c.dx, c.dy, w, h, rotation) : { dx: c.dx, dy: c.dy }
+  const col = anchorCol + off.dx
+  const row = anchorRow + off.dy
+  if (col < 0 || row < 0 || col >= grid.cols || row >= grid.rows) return false
+  const label = material ? c.label.replace(WALL_MAT, `${material}_`) : c.label
+  const tile = resolveTile(ASCII_TILESET, zone, label, variant)
+  const grounded = (c.level ?? 0) === 0 || undefined
+  const asset = grid.placeAsset([tile.char], col, row, { type: kind, blocking: !c.walkable, color: tile.color, heightLevel: c.level ?? 0, baseShadow: grounded })
+  asset.label = label
+  asset.height = 1
+  // The collapsed vertical run → ONE block `span` tall (scaleY grows UP from the base level; ISO + 2D).
+  if (span > 1) asset.scaleY = span
+  const behavior = tileRenderBehavior(tile.settings)
+  if (behavior) asset.settings = behavior
+  // Apex signage: a titled composition (store/hospital) badges its ONE roof-apex cell with its NAME.
+  if (comp.title && c.label.startsWith('roof_top')) {
+    asset.settings = { ...(asset.settings ?? {}), badge: { text: comp.title, color: BADGE_COLOR } }
+  }
+  if (!c.walkable) grid.setCollision(col, row, true)
+  return true
 }
 
 /** Stamp a pre-built BUILDING (house/store/hospital/…) as its composition's per-cell tiles at the
