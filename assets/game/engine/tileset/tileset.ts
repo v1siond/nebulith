@@ -218,14 +218,16 @@ export function decorTilesForZone(tileset: Tileset, zone: string): TilesetTile[]
     .sort((a, b) => (a.label < b.label ? -1 : a.label > b.label ? 1 : 0))
 }
 
-/** Pick a ground-decor tile for a cell and resolve its glyph + zone colour — the data-driven twin of the
- *  deleted `groundDecor(zone, variant)`. Deterministic per `(col, row)` (the same hash the generator
- *  used). Null when the zone has no decor tiles (unloaded tileset), so the caller simply skips the cell. */
-export function pickGroundDecor(tileset: Tileset, zone: string, col: number, row: number): ResolvedTile | null {
+/** Pick a ground-decor tile for a cell and resolve its glyph + zone colour + its swap-LABEL — the
+ *  data-driven twin of the deleted `groundDecor(zone, variant)`. Deterministic per `(col, row)` (the same
+ *  hash the generator used). The `label` is threaded onto the placed decor so the render resolves the
+ *  tile's BAKED image by label per active style (labelTileImage), exactly like every other tile — decor is
+ *  an image, not a glyph. Null when the zone has no decor tiles (unloaded tileset), so the caller skips the cell. */
+export function pickGroundDecor(tileset: Tileset, zone: string, col: number, row: number): (ResolvedTile & { label: string }) | null {
   const decors = decorTilesForZone(tileset, zone)
   if (decors.length === 0) return null
   const tile = decors[Math.abs(col * 7 + row * 13) % decors.length]
-  return resolveTile(tileset, zone, tile.label)
+  return { ...resolveTile(tileset, zone, tile.label), label: tile.label }
 }
 
 /** Resolve one tile's glyph + colour from a LOADED tileset — the data-driven twin of `cellTile()`.

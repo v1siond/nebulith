@@ -16,7 +16,7 @@ import { EMOJI_TILESET } from '@/engine/tileset/emojiTileset'
 import { applyPose } from '@/engine/tileset/pose'
 import { resolveTileSize, resolveTilePose } from '@/engine/tileset/tileViewSettings'
 import { Connector } from '@/lib/api'
-import { ASCII_FONT, COMBAT_RANGE, type DayNight, ENEMY_MOVE_MS, LAMP_GLOW, applyCellTransform, clampCameraAxis, assetCaptionByCell, terrainLabelAt, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawHoverRing, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawConnectorMarker, drawAttackAnimFrame, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, SINGLE_TILE_FRAC, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, frameImage, getPlayerArt, grassShade, cellFill, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, resolveAssetDraw, resolveEntityDraw, assetOverride, labelTileImage, labelTileRecolor, treeCanopyLayers, treeCellSet } from './shared'
+import { ASCII_FONT, COMBAT_RANGE, type DayNight, ENEMY_MOVE_MS, LAMP_GLOW, applyCellTransform, clampCameraAxis, assetCaptionByCell, terrainLabelAt, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawHoverRing, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawConnectorMarker, drawAttackAnimFrame, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, SINGLE_TILE_FRAC, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, frameImage, getPlayerArt, grassShade, cellFill, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, resolveAssetDraw, resolveEntityDraw, assetOverride, labelTileImage, labelTileRecolor, groundDecorImage, treeCanopyLayers, treeCellSet } from './shared'
 import { resolveAssetDrawSize } from './assetDimensions'
 import { DEPTH_CELL_STEP } from './isoBlock'
 import { frontElevation, type FrontElevation } from './frontElevation'
@@ -593,7 +593,14 @@ export function render2D(
       // style so it RESKINS (resolveAssetDraw), never freezing to the style it was picked in.
       // ASCII + no override → adv.char '' → falls through to the byte-identical per-type branches.
       const adv = resolveAssetDraw(assetKind(asset), style, assetOverride(asset, style), '', '')
-      if (adv.image) {
+      // GROUND DECOR draws its BAKED tile image (resolved by LABEL for the active style) flat on the floor —
+      // just the image (transparent surround = subtle litter, no solid cell backing), colour-composited, never
+      // a glyph. No baked decor tile for this style (backend gap) → fall through to the paths below (e.g. the
+      // emoji curated litter tile via adv.image), still an image.
+      const decorImg = asset.type === 'ground_decor' ? groundDecorImage(asset, style) : undefined
+      if (decorImg) {
+        drawStyledImage(ctx, decorImg, p.x, baseY - tileH * 0.5, tileW, false, asset.color, tileH)
+      } else if (adv.image) {
         // A per-asset colour override recolours the baked sprite (#80); undefined → drawn untinted.
         // Per-view tile size (byte-identical when unset: old 1.5 constant), then per-element dims (#77/#78).
         const vt = style.id === 'emoji' ? EMOJI_TILESET[assetKind(asset)] : undefined

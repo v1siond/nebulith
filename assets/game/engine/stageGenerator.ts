@@ -245,10 +245,12 @@ const makeCaveWall = (col: number, row: number, shades: readonly string[]): Stag
 // is a backend TILE (category 'decor', its own settings.colors per zone); pickGroundDecor selects one
 // deterministically from the loaded tileset and resolves its glyph + zone colour. Null when the tileset
 // carries no decor for the zone (e.g. before load) — the caller then skips the cell.
-const makeGroundDecor = (zone: ZoneId, col: number, row: number): StageProp | null => {
+export const makeGroundDecor = (zone: ZoneId, col: number, row: number): StageProp | null => {
   const d = pickGroundDecor(ASCII_TILESET, zone, col, row)
   if (!d) return null
-  return { col, row, type: 'ground_decor', char: d.char, blocking: false, color: d.color }
+  // Carry the decor tile's LABEL so the render resolves its BAKED image (labelTileImage) per active style —
+  // decor draws its own tile image, colour-composited, NOT a glyph (see render/shared.groundDecorImage).
+  return { col, row, type: 'ground_decor', char: d.char, blocking: false, color: d.color, label: d.label }
 }
 
 /** Fill most empty, walkable, non-edge cells with non-blocking zone ground decor so a

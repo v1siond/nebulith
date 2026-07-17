@@ -125,11 +125,13 @@ export function resolveEntityDraw(
   return resolveDraw(kind, style, styleOverride, defChar, defColor)
 }
 
-/** The effective per-cell tile override for an asset under a style. Auto-generated ground_decor litter
- *  gets a STYLE-SPECIFIC emoji override baked at generation (e.g. 🌼 blossom); that must NOT leak into
- *  ASCII, so under ASCII we drop it and the decor draws its own dingbat (✿). Manual pins on OTHER assets
- *  are untouched (they intentionally win over the active style, even ASCII). Resolved at RENDER time so a
- *  Style toggle updates the decor without regenerating the stage. */
+/** The effective per-cell tile override for an asset under a style. Ground decor now draws its OWN baked
+ *  decor tile image by LABEL (groundDecorImage), resolved before this override — so under ASCII (where the
+ *  decor label is always baked) decor never reaches here. The curated emoji litter override (🌼 blossom) is
+ *  kept only as the EMOJI fall-through for a label the emoji tileset has no baked decor tile for yet, and it
+ *  must never leak into ASCII, so under ASCII we still drop it. Manual pins on OTHER assets are untouched
+ *  (they intentionally win over the active style, even ASCII). Resolved at RENDER time so a Style toggle
+ *  updates the decor without regenerating the stage. */
 export function assetOverride(asset: GridAsset, style: Style): string | null | undefined {
   if (asset.type === 'ground_decor' && style.id === 'ascii') return undefined // drop the auto emoji litter under ASCII
   return asset.tileOverride
@@ -158,6 +160,17 @@ export function labelTileImage(label: string, style: Style): ImageVisual | undef
  *  colour-as-a-setting rule for emoji buildings; now colour filters uniformly. */
 export function labelTileRecolor(_style: Style, tint: string): string {
   return tint
+}
+
+/** The BAKED tile image for a GROUND-DECOR asset (flowers/clover/pebbles/…) — resolved by its LABEL for the
+ *  ACTIVE style (labelTileImage, the SAME per-label path every other tile uses), so decor draws its own tile
+ *  IMAGE, colour-composited, NEVER a glyph. The decor flat-overlay draw in every view (iso/2D/top) funnels
+ *  through this. Undefined when the asset isn't ground decor, carries no label, or the active style has no
+ *  baked decor tile for that label — a backend data gap the caller surfaces by falling through (it never
+ *  substitutes a glyph). */
+export function groundDecorImage(asset: GridAsset, style: Style): ImageVisual | undefined {
+  if (asset.type !== 'ground_decor' || !asset.label) return undefined
+  return labelTileImage(asset.label, style)
 }
 
 // Image/atlas cache so a tile src is decoded once, not per frame. v1 ships no image

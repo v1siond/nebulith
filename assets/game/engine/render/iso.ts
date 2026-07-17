@@ -15,7 +15,7 @@ import { type CombatState, type Entity, type Quest } from '@/game/types'
 import { resolveGroundTile } from '@/engine/tileset/tileset'
 import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 import { Connector } from '@/lib/api'
-import { ASCII_FONT, COMBAT_RANGE, type DayNight, type DrawVisual, ENEMY_MOVE_MS, LAMP_GLOW, LIGHT, applyCellTransform, isoCameraFocus, assetCaptionByCell, terrainLabelAt, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawHoverRing, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawConnectorMarker, drawAttackAnimFrame, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, SINGLE_TILE_FRAC, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, frameImage, getPlayerArt, grassShade, cellFill, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, resolveAssetDraw, resolveEntityDraw, assetOverride, labelTileImage, labelTileRecolor, tileImage, tintedImage, tintedGlyphSprite, treeCanopyLayers, treeCellSet } from './shared'
+import { ASCII_FONT, COMBAT_RANGE, type DayNight, type DrawVisual, ENEMY_MOVE_MS, LAMP_GLOW, LIGHT, applyCellTransform, isoCameraFocus, assetCaptionByCell, terrainLabelAt, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawHoverRing, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawConnectorMarker, drawAttackAnimFrame, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, SINGLE_TILE_FRAC, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, frameImage, getPlayerArt, grassShade, cellFill, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, resolveAssetDraw, resolveEntityDraw, assetOverride, labelTileImage, labelTileRecolor, groundDecorImage, tileImage, tintedImage, tintedGlyphSprite, treeCanopyLayers, treeCellSet } from './shared'
 import { resolveAssetDrawSize } from './assetDimensions'
 import { type GroundCellDims, groundSizeFactors, groundDimsActive } from '@/engine/groundDims'
 import { getStack, type TileSource } from '@/engine/cellStack'
@@ -1636,6 +1636,20 @@ export function drawIsoAssetAscii(
   ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
+
+  // GROUND DECOR is a flat overlay tile (flowers/clover/pebbles): draw its BAKED tile image — resolved by
+  // its LABEL for the ACTIVE style (groundDecorImage → labelTileImage) — SHEARED flat onto the cell's ground
+  // DIAMOND (the same geometry the ground layer uses; (x,y) IS the cell's ground centre) and colour-composited
+  // (tint = asset.color). `char: ''` so a not-yet-decoded PNG paints NOTHING — never the dingbat. No baked decor
+  // tile for this style (a backend data gap) → fall through to the existing path (e.g. emoji's curated litter
+  // tile via resolveAssetDraw), which is still an image, never a glyph.
+  if (asset.type === 'ground_decor') {
+    const decorImage = groundDecorImage(asset, style)
+    if (decorImage) {
+      fillIsoFaceWithTile(ctx, { x: x - tileW, y }, { x: tileW, y: -tileH }, { x: tileW, y: tileH }, { char: '', color: asset.color ?? '#ffffff', image: decorImage }, 1, 1, asset.color)
+      return
+    }
+  }
 
   // MODEL (TILE-BACKEND-MIGRATION §7 — "resolve label→image", the migration's whole point): a labeled
   // composition cell IS its label's tile. Resolve the per-LABEL baked image for the ACTIVE style, paint it
