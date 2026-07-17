@@ -127,21 +127,25 @@ on load and installs them (`EMOJI_TILESET` / `ASCII_TILESET`). BOTH the **map re
 sidebar** (`tilesForStyle` / `visualForTileId`) derive from those loaded tilesets — so the sidebar always
 matches the map (no parallel hardcoded catalog that can drift).
 
-**Seed pipeline (one source → DB → app):**
+**Tile pipeline (Elixir backend → baked image → DB → app).** All tile DATA lives in the nebulith backend.
+The game-website FRONTEND JSON (`tileKinds.json`/`emojiCatalog.json` + `gen-tileset-seeds.mjs`) was the
+ONE-TIME frontend→backend migration import and is now DEAD — do not author tiles there.
 
 ```mermaid
 flowchart LR
-  SRC["seed data (game-website): tileKinds.json + emojiCatalog.json + entityTiles.json"]
-  SRC --> GEN["scripts/gen-tileset-seeds.mjs"]
-  GEN --> NJSON["nebulith/priv/repo/tilesets/{emoji,ascii}.json"]
-  GEN --> SNAP["src/game/data/tilesetSeed.json (jest snapshot)"]
-  NJSON --> SEED["mix run priv/repo/seeds.exs"] --> DB[("tilesets DB")]
-  DB --> LOADER["tilesetLoader (:4000)"] --> APP["map render + Tile Library sidebar"]
+  SRC["Nebulith.Catalog.TileSource (Elixir) — label, glyph, emoji, colour, image_url"]
+  SRC --> BAKE["priv/tilegen/tiles.json + bake.mjs (Noto/DejaVu → PNG)"]
+  BAKE --> PNG["priv/static/tiles/&lt;style&gt;/&lt;label&gt;.png (Phoenix-served image)"]
+  SRC --> SEED["seed (idempotent upsert)"] --> DB[("tiles / compositions DB")]
+  DB --> API["GET /api/tilesets (:4000)"] --> APP["map render draws image_url + Tile Library"]
 ```
 
-**To add or change a tile:** edit the seed source — `tileKinds.json` (a kind's category/label/ascii glyph)
-or `emojiCatalog.json` (a browseable emoji tile) — then run `node scripts/gen-tileset-seeds.mjs` and
-`mix run priv/repo/seeds.exs`. NEVER hand-edit tile art into a component or the renderer.
+**To add or change a tile:** (1) author it in `Nebulith.Catalog.TileSource` (Elixir) with
+`image_url: "/tiles/<style>/<label>.png"` — `glyph`/`emoji` are BAKE INPUTS only; (2) add a bake entry to
+`priv/tilegen/tiles.json` `{label, mode, style, glyph|emoji}` and run `node priv/tilegen/bake.mjs`
+(→ a baked PNG in `priv/static/tiles/`); (3) seed. NEVER `image_url: nil` + a raw glyph (renders `??` on a
+machine whose font lacks the emoji), and NEVER hand-edit tile art into a component or the renderer. Seeds are
+FINE (Elixir → DB); only the frontend JSON is dead.
 
 ---
 
