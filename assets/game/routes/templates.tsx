@@ -2874,12 +2874,18 @@ export default function TemplateEditor({ gameContext }: { gameContext?: EditorGa
     // (stampBuildingComposition → one asset per cell+level of house_4 / store_5 / …), rotated to face its
     // road — the SAME stamp trees use. b.col + b.row are the footprint TOP-LEFT-col and BOTTOM row, so back
     // the row off its height to anchor the composition at the footprint top-left.
+    // A building uses ONE wall material — variety is BETWEEN buildings, not within one. A RESIDENTIAL building
+    // (house / big-house) picks its material at generation from the palette; store/hospital/office/civic keep
+    // their FIXED identity material. The pick is derived from the footprint position so a re-stamp of the same
+    // stage is stable (no per-frame flicker) while neighbours still differ.
+    const HOUSE_MATERIALS = ['wall_brick', 'wall_wood', 'wall_stone']
     for (const b of stage.buildings) {
       const anchorRow = b.row - (b.height - 1)
-      // Every building stamps its OWN backend composition, now that the material rollout gives each type its
-      // wall material + roof (houses = brick/wood/stone by length, store = brick storefront, office = stone,
-      // civic = stone/slate). No more hijacking the store into the sample `stone_building`.
-      stampBuildingComposition(grid, b.type, b.length, b.col, anchorRow, stage.zone, b.facing)
+      const residential = b.type === 'house' || b.type === 'big-house'
+      const material = residential
+        ? HOUSE_MATERIALS[(((b.col * 31 + b.row * 17) % HOUSE_MATERIALS.length) + HOUSE_MATERIALS.length) % HOUSE_MATERIALS.length]
+        : undefined
+      stampBuildingComposition(grid, b.type, b.length, b.col, anchorRow, stage.zone, b.facing, material)
     }
     // A TREE is just TILES too: stamp each recorded tree ANCHOR as a rich stacked composition
     // (stampComposition → one asset per cell+level of tree_small / tree_dead), the SAME per-block path

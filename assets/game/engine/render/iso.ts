@@ -1371,7 +1371,9 @@ function cubeBlockSprite(dv: DrawVisual, tileW: number, tileH: number, blockH: n
   cv.width = Math.ceil(2 * tileW + 2 * m)
   cv.height = Math.ceil(blockH + 2 * tileH + 2 * m)
   const c = cv.getContext('2d')
-  if (!c) {
+  // A real browser ctx supports the full path API; jsdom's stub canvas (jest) does not — fall through to the
+  // LIVE draw there instead of throwing in fillQuad.
+  if (!c || typeof c.beginPath !== 'function') {
     _cubeSpriteCache.set(key, null)
     return null
   }

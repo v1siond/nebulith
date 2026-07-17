@@ -23,7 +23,13 @@ const BADGE_COLOR = '#ffffff'
  *  composition in the loaded tileset). `variant` picks the per-cell canopy shade (a tree's green/brown tone).
  *  `rotation` (CW quarter-turns) rotates the footprint around its anchor so a building can face its road;
  *  trees/props leave it 0 (unrotated). The anchor stays the footprint's origin/top-left after rotation. */
-export function stampComposition(grid: IsometricGrid, kind: string, anchorCol: number, anchorRow: number, zone: ZoneId, variant = 0, rotation = 0): number {
+// One wall MATERIAL is chosen per BUILDING at generation and rewritten onto its wall pieces here, so the
+// composition stays SHAPE-only (a building never mixes materials; variety is BETWEEN buildings). Rewrites
+// ONLY `wall_<material>_<pos>` cells — roofs/windows/doors/signage keep their own labels. `material` is a
+// wall base like "wall_stone"; absent → the composition's authored material stands (store/hospital/civic).
+const WALL_MAT = /^wall_(stone|brick|wood|plaster)_/
+
+export function stampComposition(grid: IsometricGrid, kind: string, anchorCol: number, anchorRow: number, zone: ZoneId, variant = 0, rotation = 0, material?: string): number {
   const comp = resolveComposition(ASCII_TILESET, kind)
   if (!comp) return 0
   const { w, h } = comp.footprint
@@ -33,12 +39,13 @@ export function stampComposition(grid: IsometricGrid, kind: string, anchorCol: n
     const col = anchorCol + off.dx
     const row = anchorRow + off.dy
     if (col < 0 || row < 0 || col >= grid.cols || row >= grid.rows) continue
-    const tile = resolveTile(ASCII_TILESET, zone, c.label, variant)
+    const label = material ? c.label.replace(WALL_MAT, `${material}_`) : c.label
+    const tile = resolveTile(ASCII_TILESET, zone, label, variant)
     // Only the LEVEL-0 tile sits on the ground, so only it casts a base shadow — a shadow under a lifted
     // canopy/roof tile would float at that height (the same rule the old glade-tree stamper used).
     const grounded = (c.level ?? 0) === 0 || undefined
     const asset = grid.placeAsset([tile.char], col, row, { type: kind, blocking: !c.walkable, color: tile.color, heightLevel: c.level ?? 0, baseShadow: grounded })
-    asset.label = c.label // the generic per-cell drawer keys off `label`; the glyph is asset.art[0] (resolved above)
+    asset.label = label // the generic per-cell drawer keys off `label`; the glyph is asset.art[0] (resolved above)
     asset.height = 1
     // Copy the tile's GENERIC behavior (fadeNear/cutawayRoof) so ANY composition cell — a leaf, a wall, a
     // roof — fades/cuts away near the hero exactly the same, driven by the ONE settings-reading render path.
@@ -63,6 +70,6 @@ export function stampComposition(grid: IsometricGrid, kind: string, anchorCol: n
  *  footprint TOP-LEFT (anchorCol,anchorRow), rotated so its door faces `facing`'s road — the SAME stamp
  *  trees use, no special building drawer. Returns the number of cells placed (0 if the composition for the
  *  (type,length) isn't in the loaded tileset). */
-export function stampBuildingComposition(grid: IsometricGrid, type: BuildingType, length: number, anchorCol: number, anchorRow: number, zone: ZoneId, facing: Facing): number {
-  return stampComposition(grid, buildingCompositionKind(type, length), anchorCol, anchorRow, zone, 0, facingRotation(facing))
+export function stampBuildingComposition(grid: IsometricGrid, type: BuildingType, length: number, anchorCol: number, anchorRow: number, zone: ZoneId, facing: Facing, material?: string): number {
+  return stampComposition(grid, buildingCompositionKind(type, length), anchorCol, anchorRow, zone, 0, facingRotation(facing), material)
 }
