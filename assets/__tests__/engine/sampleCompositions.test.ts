@@ -92,17 +92,18 @@ describe('sample compositions — realistic building/fountain/tree DATA from the
     expect(labels.has('roof')).toBe(false) // flat, not gable
   })
 
-  test('fountain: assembled from AUTOTILE PIECES — water CENTER, rim EDGES + CORNERS, raised jets (not one fill)', () => {
+  test('fountain: assembled from AUTOTILE PIECES — all-water CENTER, rim EDGES + CORNERS (not one fill, no drops)', () => {
     const c = comp('fountain')
-    const cells = c.cells as Cell[]
+    const cells = c.cells as Array<Cell & { scale?: number; animations?: Array<{ id: string; yoyo?: boolean; tracks: Array<{ setting: string; from: number; to: number }> }> }>
     const { w, h } = c.footprint
     expect([w, h]).toEqual([5, 4])
     const edge = (dx: number, dy: number) => dx === 0 || dx === w - 1 || dy === 0 || dy === h - 1
     const labels = new Set(cells.map(x => x.label))
     const groundAt = (dx: number, dy: number) => cells.find(x => x.level === 0 && x.dx === dx && x.dy === dy)!.label
 
-    // CENTER — every interior floor cell is the water CENTER piece.
-    for (const cell of cells.filter(x => x.level === 0 && !edge(x.dx, x.dy))) expect(cell.label).toBe('water_c')
+    // CENTER — every interior floor cell is the water CENTER piece (blue water).
+    const interior = cells.filter(x => x.level === 0 && !edge(x.dx, x.dy))
+    for (const cell of interior) expect(cell.label).toBe('water_c')
     // CORNERS — the four corner pieces sit at the four corners.
     expect(groundAt(0, 0)).toBe('fountain_tl')
     expect(groundAt(w - 1, 0)).toBe('fountain_tr')
@@ -112,20 +113,28 @@ describe('sample compositions — realistic building/fountain/tree DATA from the
     for (const e of ['fountain_t', 'fountain_b', 'fountain_l', 'fountain_r']) expect(labels.has(e)).toBe(true)
     expect([...labels].filter(l => l.startsWith('fountain_')).length).toBeGreaterThanOrEqual(8) // 4 edges + 4 corners
     expect(labels.has('stone_rim')).toBe(false) // the old single-fill rim is gone
-    // JETS raised above the water floor.
-    const jets = cells.filter(x => x.label === 'water_jet')
-    expect(jets.length).toBeGreaterThanOrEqual(1)
-    expect(jets.every(j => j.level >= 1)).toBe(true)
+    // NO DROPS — the `water_jet` drops are gone; the interior is ALL blue water, a bit bigger (scale 1.15).
+    expect(labels.has('water_jet')).toBe(false)
+    expect(interior.length).toBeGreaterThanOrEqual(6)
+    for (const cell of interior) expect(cell.scale).toBeCloseTo(1.15)
+    // GROW — every water cell carries the single yoyo HEIGHT-grow animation (1→4 blocks, back on loop).
+    for (const cell of interior) {
+      expect(cell.animations?.length).toBe(1)
+      const grow = cell.animations![0]
+      expect(grow.id).toBe('fountain_water_grow')
+      expect(grow.yoyo).toBe(true)
+      expect(grow.tracks).toEqual([{ setting: 'height', from: 1, to: 4 }])
+    }
   })
 
   test('fountain WATER carries a draw-PRIORITY zIndex (renders in front of the wall behind it); the rim stays 0', () => {
-    // The bug fix (Images #34/#36): the water cells (basin surface `water_c` + the raised `water_jet`s) carry a
-    // z-index > 0 so the depth sort draws them IN FRONT of a wall/block behind the fountain. The rim/edge pieces
-    // (the basin's own border) keep the default 0 and sort positionally. Pure DATA on the cell, served by the API.
+    // The bug fix (Images #34/#36): the basin `water_c` cells carry a z-index > 0 so the depth sort draws them
+    // IN FRONT of a wall/block behind the fountain. The rim/edge pieces (the basin's own border) keep the
+    // default 0 and sort positionally. Pure DATA on the cell, served by the API.
     const cells = comp('fountain').cells as Array<Cell & { zIndex?: number }>
-    const water = cells.filter(c => c.label === 'water_c' || c.label === 'water_jet')
+    const water = cells.filter(c => c.label === 'water_c')
     const rim = cells.filter(c => c.label.startsWith('fountain_'))
-    expect(water.length).toBeGreaterThanOrEqual(6) // 6 basin cells + jets
+    expect(water.length).toBeGreaterThanOrEqual(6) // 6 basin water cells
     expect(water.every(c => (c.zIndex ?? 0) > 0)).toBe(true) // every water cell has priority
     expect(new Set(water.map(c => c.zIndex)).size).toBe(1) // one consistent water layer
     expect(rim.length).toBeGreaterThanOrEqual(8)

@@ -1,12 +1,12 @@
 /**
  * Phase 3 — the FOUNTAIN COMPOSITION ships its water animated BY DEFAULT.
  *
- * The animation is BACKEND DATA: nebulith's fountain composition authors the water cells (water_c +
- * water_jet) with a default `animations` array (two chained looping settings tweens — a "rise" that fades
- * IN + lifts 3 blocks, and a "fade" out at the top). It's served on each composition cell (camelCase),
- * carried verbatim onto `CompositionCell.animations` by the loader, and `stampComposition` copies it onto
- * the placed asset (+ sets `placedAt`). So a generated town's fountain water animates with no per-instance
- * authoring, while every other cell (the rim, other buildings) stays un-animated.
+ * The animation is BACKEND DATA: nebulith's fountain composition authors its interior `water_c` (blue water)
+ * cells with a default `animations` array — ONE looping YOYO settings animation that grows the water column's
+ * HEIGHT 1→4 blocks and back (no more `water_jet` drops, no opacity fade). It's served on each composition
+ * cell (camelCase), carried verbatim onto `CompositionCell.animations` by the loader, and `stampComposition`
+ * copies it onto the placed asset (+ sets `placedAt`). So a generated town's fountain water animates with no
+ * per-instance authoring, while every other cell (the rim, other buildings) stays un-animated.
  *
  * This drives the REAL seeded fixture (the captured /api/tilesets response), so it verifies the actual
  * backend default, not a hand-built stand-in.
@@ -17,10 +17,8 @@ import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 import { useSeedTileset } from '@/__tests__/helpers/tilesetSeed'
 import type { SettingsAnimation } from '@/engine/animation/tileAnimation'
 
-const WATER = new Set(['water_c', 'water_jet'])
-
-describe('fountain composition — water cells ship the rise/fade animation as a backend default', () => {
-  useSeedTileset() // install the captured backend tileset (fountain water cells carry the 2 animations)
+describe('fountain composition — water cells ship the height-grow animation as a backend default', () => {
+  useSeedTileset() // install the captured backend tileset (fountain water cells carry the grow animation)
 
   function stampFountain() {
     const grid = new IsometricGrid({ cols: 10, rows: 10, cellSize: 32, isoScale: 1.4 })
@@ -28,13 +26,16 @@ describe('fountain composition — water cells ship the rise/fade animation as a
     return { grid, placed }
   }
 
-  test('the seeded fountain composition exists and carries animations on ONLY its water cells', () => {
+  test('the fountain interior is all water_c (no water_jet drops) and only the water carries animations', () => {
     const comp = ASCII_TILESET.compositions?.['fountain']
     expect(comp).toBeTruthy()
+    // the drops are gone — the interior is blue water only
+    expect(comp!.cells.some(c => c.label === 'water_jet')).toBe(false)
+    expect(comp!.cells.some(c => c.label === 'water_c')).toBe(true)
+    // every animated cell is water_c; every rim cell (fountain_*) has none
     const withAnims = comp!.cells.filter(c => c.animations && c.animations.length > 0)
-    // every animated cell is water; every rim cell (fountain_*) has none
     expect(withAnims.length).toBeGreaterThan(0)
-    expect(withAnims.every(c => WATER.has(c.label))).toBe(true)
+    expect(withAnims.every(c => c.label === 'water_c')).toBe(true)
     expect(comp!.cells.some(c => c.label.startsWith('fountain_') && c.animations)).toBe(false)
   })
 
@@ -42,13 +43,13 @@ describe('fountain composition — water cells ship the rise/fade animation as a
     const { grid, placed } = stampFountain()
     expect(placed).toBeGreaterThan(0)
 
-    const water = grid.assets.filter(a => a.label && WATER.has(a.label))
+    const water = grid.assets.filter(a => a.label === 'water_c')
     const rim = grid.assets.filter(a => a.label?.startsWith('fountain_'))
     expect(water.length).toBeGreaterThan(0)
     expect(rim.length).toBeGreaterThan(0)
 
     for (const a of water) {
-      expect(a.animations?.length).toBe(2)
+      expect(a.animations?.length).toBe(1)
       expect(a.placedAt).toBe(0) // render-clock origin → the LOAD loop plays immediately / stays in sync
     }
     // the rim (and thus a non-water tile) is untouched — no animation, byte-identical to before
@@ -58,29 +59,23 @@ describe('fountain composition — water cells ship the rise/fade animation as a
     }
   })
 
-  test('the two chained animations are the exact rise (opacity 0→1, y 0→3) + fade (opacity 1→0) spec', () => {
+  test('the single grow animation is the exact yoyo height 1→4 spec (no levitation, no opacity fade)', () => {
     const { grid } = stampFountain()
     const water = grid.assets.find(a => a.label === 'water_c')
     const anims = water?.animations as SettingsAnimation[] | undefined
-    expect(anims?.length).toBe(2)
+    expect(anims?.length).toBe(1)
 
-    const rise = anims!.find(x => x.id === 'fountain_water_rise')!
-    const fade = anims!.find(x => x.id === 'fountain_water_fade')!
-    expect(rise.kind).toBe('settings')
-    expect(rise.loop).toBe(true)
-    expect(rise.durationMs).toBe(1200)
-    expect(rise.startDelayMs).toBe(0)
-    expect(rise.tracks).toEqual([
-      { setting: 'opacity', from: 0, to: 1 },
-      { setting: 'y', from: 0, to: 3 },
-    ])
-
-    expect(fade.loop).toBe(true)
-    expect(fade.durationMs).toBe(600)
-    expect(fade.startDelayMs).toBe(1200) // fades AFTER the rise, at the top
-    expect(fade.tracks).toEqual([{ setting: 'opacity', from: 1, to: 0 }])
-
-    // shared cycle period so they stay in sync every loop: 1200+600 === 600+1200 === 1800
-    expect(rise.durationMs + (rise.loopDelayMs ?? 0)).toBe(fade.durationMs + (fade.loopDelayMs ?? 0))
+    const grow = anims![0]
+    expect(grow.id).toBe('fountain_water_grow')
+    expect(grow.kind).toBe('settings')
+    expect(grow.loop).toBe(true)
+    expect(grow.yoyo).toBe(true) // ping-pong: grow then auto-reverse back, no chaining
+    expect(grow.durationMs).toBe(1400)
+    expect(grow.startDelayMs).toBe(0)
+    expect(grow.ease).toBe('sine')
+    // ONE track: the block HEIGHT (scaleY) grows from 1 block to 4 — up from the base, no y-lift, no opacity
+    expect(grow.tracks).toEqual([{ setting: 'height', from: 1, to: 4 }])
+    expect(grow.tracks.some(t => t.setting === 'opacity')).toBe(false)
+    expect(grow.tracks.some(t => t.setting === 'y')).toBe(false)
   })
 })

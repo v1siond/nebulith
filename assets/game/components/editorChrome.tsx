@@ -1413,6 +1413,7 @@ function TileAnimationRow({ anim, onAnim, onRemove }: { anim: SettingsAnimation;
         <label className="flex items-center gap-1">start<input type="number" min={0} value={anim.startDelayMs ?? 0} onChange={e => patch({ startDelayMs: numOr(e.target.value, 0) })} aria-label="start delay" className="w-16 rounded bg-gray-800 p-1 text-xs text-gray-100" />ms</label>
         <label className="flex items-center gap-1">loop gap<input type="number" min={0} value={anim.loopDelayMs ?? 0} onChange={e => patch({ loopDelayMs: numOr(e.target.value, 0) })} aria-label="loop delay" className="w-16 rounded bg-gray-800 p-1 text-xs text-gray-100" />ms</label>
         <label className="flex items-center gap-1"><input type="checkbox" checked={!!anim.loop} onChange={e => patch({ loop: e.target.checked })} aria-label="loop" className="accent-fuchsia-500" />loop</label>
+        <label className="flex items-center gap-1" title="Ping-pong: play from→to then auto-reverse to→from each loop (e.g. grow then shrink)"><input type="checkbox" checked={!!anim.yoyo} onChange={e => patch({ yoyo: e.target.checked })} aria-label="yoyo" className="accent-fuchsia-500" />yoyo</label>
         <label className="flex items-center gap-1">ease
           <select value={anim.ease ?? 'linear'} onChange={e => patch({ ease: e.target.value as AnimEase })} aria-label="ease" className="rounded bg-gray-800 p-1 text-xs text-gray-100">
             {ANIM_EASES.map(e => <option key={e} value={e}>{e}</option>)}

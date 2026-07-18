@@ -7,9 +7,11 @@
  *
  * We drive the REAL render2D with a stamped house_4 through a recording ctx. Each facade cell (walls/
  * windows/door/roof) is drawn by draw2DLabeledCell, which stamps a unique translucent-black overlay rect
- * ('rgba(0, 0, 0, 0.45)') — a clean, ground-free marker for the drawn facade cells. We assert their
- * GEOMETRY (not pixels): the facade's vertical extent equals the building's LEVEL height (5 cells), NOT
- * level + depth (~9); and the number of drawn facade cells equals the depth-collapsed projection.
+ * ('rgba(0, 0, 0, 0.45)') — a clean, ground-free marker for the drawn facade cells. Its WIDTH is one TILE;
+ * its HEIGHT is `scaleY` TILEs (a collapsed vertical run of span N draws ONE rect N cells tall — 2D now
+ * honours scaleY exactly like iso, per the composition.ts collapse contract). We assert their GEOMETRY
+ * (not pixels): the facade's vertical extent equals the building's LEVEL height, NOT level + depth (~9);
+ * and the number of drawn facade cells equals the depth-collapsed projection.
  */
 import '@/__tests__/helpers/installTilesetSeed' // house_4 composition + tiles come from the loaded backend tileset fixture
 import { render2D } from '@/engine/render/topdown'
@@ -59,7 +61,7 @@ describe('render2D — a stamped building renders as a front elevation (depth co
     const { ctx, rects } = recordingCtx()
     render2D(ctx, W, H, grid, player(), 0)
 
-    const facade = rects.filter(r => r.style === FACADE_OVERLAY && r.w === TILE && r.h === TILE)
+    const facade = rects.filter(r => r.style === FACADE_OVERLAY && r.w === TILE && r.h % TILE === 0)
     expect(facade.length).toBeGreaterThan(0)
 
     // GEOMETRY: the facade's total vertical span == (maxLevel + 1) cells = its true height.
@@ -83,7 +85,7 @@ describe('render2D — a stamped building renders as a front elevation (depth co
 
     const { ctx, rects } = recordingCtx()
     render2D(ctx, W, H, grid, player(), 0)
-    const facade = rects.filter(r => r.style === FACADE_OVERLAY && r.w === TILE && r.h === TILE)
+    const facade = rects.filter(r => r.style === FACADE_OVERLAY && r.w === TILE && r.h % TILE === 0)
 
     // Building spans columns [ANCHOR, ANCHOR+3]. Every facade cell's centre-x must fall inside that band.
     const minCol = ANCHOR, maxCol = ANCHOR + 3

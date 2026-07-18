@@ -91,6 +91,50 @@ describe('animationValue — a single settings animation', () => {
     expect(animationValue(anim, 1500, 0).opacity).toBe(0) // new cycle → back to from
     expect(animationValue(anim, 1750, 0).opacity).toBeCloseTo(0.25)
   })
+
+  test('yoyo (ping-pong) grows from→to then auto-reverses to→from within one period, resting at `from`', () => {
+    // The fountain water column: height 1→4 over 1000ms (up leg), auto-reverse 4→1 over the next 1000ms
+    // (down leg), then a 400ms loopDelay tail rests at the base (1). Period = 2·1000 + 400 = 2400ms.
+    const anim = settingsAnim({
+      tracks: [{ setting: 'height', from: 1, to: 4 }],
+      durationMs: 1000,
+      loopDelayMs: 400,
+      loop: true,
+      yoyo: true,
+    })
+    const h = (t: number) => animationValue(anim, t, 0).height as number
+    // UP leg 0→1000ms: 1 → 4 (linear, no ease here)
+    expect(h(0)).toBeCloseTo(1) // base
+    expect(h(500)).toBeCloseTo(2.5) // halfway up
+    expect(h(1000)).toBeCloseTo(4) // peak (top of the arc)
+    // DOWN leg 1000→2000ms: 4 → 1 (auto-reversed, continuous at the peak)
+    expect(h(1500)).toBeCloseTo(2.5) // halfway back down
+    expect(h(2000)).toBeCloseTo(1) // returned to base
+    // loopDelay tail 2000→2400ms: RESTS at the base (from), not the peak
+    expect(h(2200)).toBeCloseTo(1)
+    expect(h(2399)).toBeCloseTo(1)
+    // next cycle wraps: 2400 == a fresh base, 2900 == halfway up again
+    expect(h(2400)).toBeCloseTo(1)
+    expect(h(2900)).toBeCloseTo(2.5)
+    // it NEVER exceeds the peak or drops below the base (a bounded oscillation)
+    for (let t = 0; t <= 2400; t += 50) {
+      expect(h(t)).toBeGreaterThanOrEqual(1 - 1e-9)
+      expect(h(t)).toBeLessThanOrEqual(4 + 1e-9)
+    }
+  })
+
+  test('yoyo with no loopDelay is a seamless continuous up/down oscillation', () => {
+    const anim = settingsAnim({
+      tracks: [{ setting: 'height', from: 1, to: 4 }],
+      durationMs: 1000,
+      loop: true,
+      yoyo: true,
+    })
+    const h = (t: number) => animationValue(anim, t, 0).height as number
+    expect(h(1000)).toBeCloseTo(4) // peak
+    expect(h(2000)).toBeCloseTo(1) // back to base
+    expect(h(3000)).toBeCloseTo(4) // peak again (period = 2000ms)
+  })
 })
 
 describe('animationValue — colour, display, ease', () => {

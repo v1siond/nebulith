@@ -4715,672 +4715,328 @@
           "title": null,
           "cells": [
             {
+              "label": "fountain_t",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 3,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "fountain_t",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 2,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "fountain_l",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 0,
+              "dy": 1,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
               "label": "water_c",
               "level": 0,
+              "scale": 1.15,
+              "dx": 3,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 10,
+              "animations": [
+                {
+                  "durationMs": 1400,
+                  "ease": "sine",
+                  "id": "fountain_water_grow",
+                  "kind": "settings",
+                  "loop": true,
+                  "loopDelayMs": 400,
+                  "name": "grow",
+                  "priority": 1,
+                  "startDelayMs": 0,
+                  "tracks": [
+                    {
+                      "from": 1,
+                      "setting": "height",
+                      "to": 4
+                    }
+                  ],
+                  "trigger": {
+                    "on": "load"
+                  },
+                  "yoyo": true
+                }
+              ]
+            },
+            {
+              "label": "water_c",
+              "level": 0,
+              "scale": 1.15,
+              "dx": 2,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 10,
+              "animations": [
+                {
+                  "durationMs": 1400,
+                  "ease": "sine",
+                  "id": "fountain_water_grow",
+                  "kind": "settings",
+                  "loop": true,
+                  "loopDelayMs": 400,
+                  "name": "grow",
+                  "priority": 1,
+                  "startDelayMs": 0,
+                  "tracks": [
+                    {
+                      "from": 1,
+                      "setting": "height",
+                      "to": 4
+                    }
+                  ],
+                  "trigger": {
+                    "on": "load"
+                  },
+                  "yoyo": true
+                }
+              ]
+            },
+            {
+              "label": "water_c",
+              "level": 0,
+              "scale": 1.15,
+              "dx": 1,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 10,
+              "animations": [
+                {
+                  "durationMs": 1400,
+                  "ease": "sine",
+                  "id": "fountain_water_grow",
+                  "kind": "settings",
+                  "loop": true,
+                  "loopDelayMs": 400,
+                  "name": "grow",
+                  "priority": 1,
+                  "startDelayMs": 0,
+                  "tracks": [
+                    {
+                      "from": 1,
+                      "setting": "height",
+                      "to": 4
+                    }
+                  ],
+                  "trigger": {
+                    "on": "load"
+                  },
+                  "yoyo": true
+                }
+              ]
+            },
+            {
+              "label": "water_c",
+              "level": 0,
+              "scale": 1.15,
               "dx": 3,
               "dy": 1,
               "walkable": false,
               "zIndex": 10,
               "animations": [
                 {
-                  "durationMs": 1200,
+                  "durationMs": 1400,
                   "ease": "sine",
-                  "id": "fountain_water_rise",
+                  "id": "fountain_water_grow",
                   "kind": "settings",
                   "loop": true,
-                  "loopDelayMs": 600,
-                  "name": "rise",
+                  "loopDelayMs": 400,
+                  "name": "grow",
                   "priority": 1,
                   "startDelayMs": 0,
                   "tracks": [
                     {
-                      "from": 0,
-                      "setting": "opacity",
-                      "to": 1
-                    },
-                    {
-                      "from": 0,
-                      "setting": "y",
-                      "to": 3
-                    }
-                  ],
-                  "trigger": {
-                    "on": "load"
-                  }
-                },
-                {
-                  "durationMs": 600,
-                  "ease": "sine",
-                  "id": "fountain_water_fade",
-                  "kind": "settings",
-                  "loop": true,
-                  "loopDelayMs": 1200,
-                  "name": "fade",
-                  "priority": 0,
-                  "startDelayMs": 1200,
-                  "tracks": [
-                    {
                       "from": 1,
-                      "setting": "opacity",
-                      "to": 0
+                      "setting": "height",
+                      "to": 4
                     }
                   ],
                   "trigger": {
                     "on": "load"
-                  }
+                  },
+                  "yoyo": true
                 }
               ]
             },
             {
               "label": "water_c",
               "level": 0,
+              "scale": 1.15,
               "dx": 2,
               "dy": 1,
               "walkable": false,
               "zIndex": 10,
               "animations": [
                 {
-                  "durationMs": 1200,
+                  "durationMs": 1400,
                   "ease": "sine",
-                  "id": "fountain_water_rise",
+                  "id": "fountain_water_grow",
                   "kind": "settings",
                   "loop": true,
-                  "loopDelayMs": 600,
-                  "name": "rise",
+                  "loopDelayMs": 400,
+                  "name": "grow",
                   "priority": 1,
                   "startDelayMs": 0,
                   "tracks": [
                     {
-                      "from": 0,
-                      "setting": "opacity",
-                      "to": 1
-                    },
-                    {
-                      "from": 0,
-                      "setting": "y",
-                      "to": 3
-                    }
-                  ],
-                  "trigger": {
-                    "on": "load"
-                  }
-                },
-                {
-                  "durationMs": 600,
-                  "ease": "sine",
-                  "id": "fountain_water_fade",
-                  "kind": "settings",
-                  "loop": true,
-                  "loopDelayMs": 1200,
-                  "name": "fade",
-                  "priority": 0,
-                  "startDelayMs": 1200,
-                  "tracks": [
-                    {
                       "from": 1,
-                      "setting": "opacity",
-                      "to": 0
+                      "setting": "height",
+                      "to": 4
                     }
                   ],
                   "trigger": {
                     "on": "load"
-                  }
+                  },
+                  "yoyo": true
                 }
               ]
             },
             {
               "label": "water_c",
               "level": 0,
+              "scale": 1.15,
               "dx": 1,
               "dy": 1,
               "walkable": false,
               "zIndex": 10,
               "animations": [
                 {
-                  "durationMs": 1200,
+                  "durationMs": 1400,
                   "ease": "sine",
-                  "id": "fountain_water_rise",
+                  "id": "fountain_water_grow",
                   "kind": "settings",
                   "loop": true,
-                  "loopDelayMs": 600,
-                  "name": "rise",
+                  "loopDelayMs": 400,
+                  "name": "grow",
                   "priority": 1,
                   "startDelayMs": 0,
                   "tracks": [
                     {
-                      "from": 0,
-                      "setting": "opacity",
-                      "to": 1
-                    },
-                    {
-                      "from": 0,
-                      "setting": "y",
-                      "to": 3
-                    }
-                  ],
-                  "trigger": {
-                    "on": "load"
-                  }
-                },
-                {
-                  "durationMs": 600,
-                  "ease": "sine",
-                  "id": "fountain_water_fade",
-                  "kind": "settings",
-                  "loop": true,
-                  "loopDelayMs": 1200,
-                  "name": "fade",
-                  "priority": 0,
-                  "startDelayMs": 1200,
-                  "tracks": [
-                    {
                       "from": 1,
-                      "setting": "opacity",
-                      "to": 0
+                      "setting": "height",
+                      "to": 4
                     }
                   ],
                   "trigger": {
                     "on": "load"
-                  }
+                  },
+                  "yoyo": true
                 }
               ]
             },
             {
               "label": "fountain_br",
               "level": 0,
+              "scale": 1.0,
               "dx": 4,
               "dy": 3,
-              "walkable": false
+              "walkable": false,
+              "zIndex": 0
             },
             {
               "label": "fountain_b",
               "level": 0,
+              "scale": 1.0,
               "dx": 3,
               "dy": 3,
-              "walkable": false
+              "walkable": false,
+              "zIndex": 0
             },
             {
               "label": "fountain_b",
               "level": 0,
+              "scale": 1.0,
               "dx": 2,
               "dy": 3,
-              "walkable": false
+              "walkable": false,
+              "zIndex": 0
             },
             {
               "label": "fountain_b",
               "level": 0,
+              "scale": 1.0,
               "dx": 1,
               "dy": 3,
-              "walkable": false
+              "walkable": false,
+              "zIndex": 0
             },
             {
               "label": "fountain_bl",
               "level": 0,
+              "scale": 1.0,
               "dx": 0,
               "dy": 3,
-              "walkable": false
+              "walkable": false,
+              "zIndex": 0
             },
             {
-              "label": "water_jet",
-              "level": 1,
-              "dx": 1,
+              "label": "fountain_r",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 4,
               "dy": 2,
               "walkable": false,
-              "zIndex": 10,
-              "animations": [
-                {
-                  "durationMs": 1200,
-                  "ease": "sine",
-                  "id": "fountain_water_rise",
-                  "kind": "settings",
-                  "loop": true,
-                  "loopDelayMs": 600,
-                  "name": "rise",
-                  "priority": 1,
-                  "startDelayMs": 0,
-                  "tracks": [
-                    {
-                      "from": 0,
-                      "setting": "opacity",
-                      "to": 1
-                    },
-                    {
-                      "from": 0,
-                      "setting": "y",
-                      "to": 3
-                    }
-                  ],
-                  "trigger": {
-                    "on": "load"
-                  }
-                },
-                {
-                  "durationMs": 600,
-                  "ease": "sine",
-                  "id": "fountain_water_fade",
-                  "kind": "settings",
-                  "loop": true,
-                  "loopDelayMs": 1200,
-                  "name": "fade",
-                  "priority": 0,
-                  "startDelayMs": 1200,
-                  "tracks": [
-                    {
-                      "from": 1,
-                      "setting": "opacity",
-                      "to": 0
-                    }
-                  ],
-                  "trigger": {
-                    "on": "load"
-                  }
-                }
-              ]
-            },
-            {
-              "label": "fountain_r",
-              "level": 0,
-              "dx": 4,
-              "dy": 2,
-              "walkable": false
-            },
-            {
-              "label": "fountain_l",
-              "level": 0,
-              "dx": 0,
-              "dy": 2,
-              "walkable": false
-            },
-            {
-              "label": "fountain_r",
-              "level": 0,
-              "dx": 4,
-              "dy": 1,
-              "walkable": false
-            },
-            {
-              "label": "fountain_l",
-              "level": 0,
-              "dx": 0,
-              "dy": 1,
-              "walkable": false
-            },
-            {
-              "label": "fountain_tr",
-              "level": 0,
-              "dx": 4,
-              "dy": 0,
-              "walkable": false
+              "zIndex": 0
             },
             {
               "label": "fountain_t",
               "level": 0,
-              "dx": 3,
-              "dy": 0,
-              "walkable": false
-            },
-            {
-              "label": "fountain_t",
-              "level": 0,
-              "dx": 2,
-              "dy": 0,
-              "walkable": false
-            },
-            {
-              "label": "fountain_t",
-              "level": 0,
+              "scale": 1.0,
               "dx": 1,
               "dy": 0,
-              "walkable": false
+              "walkable": false,
+              "zIndex": 0
             },
             {
               "label": "fountain_tl",
               "level": 0,
+              "scale": 1.0,
               "dx": 0,
               "dy": 0,
-              "walkable": false
+              "walkable": false,
+              "zIndex": 0
             },
             {
-              "label": "water_jet",
-              "level": 2,
-              "dx": 2,
+              "label": "fountain_tr",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 4,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "fountain_l",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 0,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "fountain_r",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 4,
               "dy": 1,
               "walkable": false,
-              "zIndex": 10,
-              "animations": [
-                {
-                  "durationMs": 1200,
-                  "ease": "sine",
-                  "id": "fountain_water_rise",
-                  "kind": "settings",
-                  "loop": true,
-                  "loopDelayMs": 600,
-                  "name": "rise",
-                  "priority": 1,
-                  "startDelayMs": 0,
-                  "tracks": [
-                    {
-                      "from": 0,
-                      "setting": "opacity",
-                      "to": 1
-                    },
-                    {
-                      "from": 0,
-                      "setting": "y",
-                      "to": 3
-                    }
-                  ],
-                  "trigger": {
-                    "on": "load"
-                  }
-                },
-                {
-                  "durationMs": 600,
-                  "ease": "sine",
-                  "id": "fountain_water_fade",
-                  "kind": "settings",
-                  "loop": true,
-                  "loopDelayMs": 1200,
-                  "name": "fade",
-                  "priority": 0,
-                  "startDelayMs": 1200,
-                  "tracks": [
-                    {
-                      "from": 1,
-                      "setting": "opacity",
-                      "to": 0
-                    }
-                  ],
-                  "trigger": {
-                    "on": "load"
-                  }
-                }
-              ]
-            },
-            {
-              "label": "water_jet",
-              "level": 1,
-              "dx": 2,
-              "dy": 1,
-              "walkable": false,
-              "zIndex": 10,
-              "animations": [
-                {
-                  "durationMs": 1200,
-                  "ease": "sine",
-                  "id": "fountain_water_rise",
-                  "kind": "settings",
-                  "loop": true,
-                  "loopDelayMs": 600,
-                  "name": "rise",
-                  "priority": 1,
-                  "startDelayMs": 0,
-                  "tracks": [
-                    {
-                      "from": 0,
-                      "setting": "opacity",
-                      "to": 1
-                    },
-                    {
-                      "from": 0,
-                      "setting": "y",
-                      "to": 3
-                    }
-                  ],
-                  "trigger": {
-                    "on": "load"
-                  }
-                },
-                {
-                  "durationMs": 600,
-                  "ease": "sine",
-                  "id": "fountain_water_fade",
-                  "kind": "settings",
-                  "loop": true,
-                  "loopDelayMs": 1200,
-                  "name": "fade",
-                  "priority": 0,
-                  "startDelayMs": 1200,
-                  "tracks": [
-                    {
-                      "from": 1,
-                      "setting": "opacity",
-                      "to": 0
-                    }
-                  ],
-                  "trigger": {
-                    "on": "load"
-                  }
-                }
-              ]
-            },
-            {
-              "label": "water_c",
-              "level": 0,
-              "dx": 3,
-              "dy": 2,
-              "walkable": false,
-              "zIndex": 10,
-              "animations": [
-                {
-                  "durationMs": 1200,
-                  "ease": "sine",
-                  "id": "fountain_water_rise",
-                  "kind": "settings",
-                  "loop": true,
-                  "loopDelayMs": 600,
-                  "name": "rise",
-                  "priority": 1,
-                  "startDelayMs": 0,
-                  "tracks": [
-                    {
-                      "from": 0,
-                      "setting": "opacity",
-                      "to": 1
-                    },
-                    {
-                      "from": 0,
-                      "setting": "y",
-                      "to": 3
-                    }
-                  ],
-                  "trigger": {
-                    "on": "load"
-                  }
-                },
-                {
-                  "durationMs": 600,
-                  "ease": "sine",
-                  "id": "fountain_water_fade",
-                  "kind": "settings",
-                  "loop": true,
-                  "loopDelayMs": 1200,
-                  "name": "fade",
-                  "priority": 0,
-                  "startDelayMs": 1200,
-                  "tracks": [
-                    {
-                      "from": 1,
-                      "setting": "opacity",
-                      "to": 0
-                    }
-                  ],
-                  "trigger": {
-                    "on": "load"
-                  }
-                }
-              ]
-            },
-            {
-              "label": "water_c",
-              "level": 0,
-              "dx": 2,
-              "dy": 2,
-              "walkable": false,
-              "zIndex": 10,
-              "animations": [
-                {
-                  "durationMs": 1200,
-                  "ease": "sine",
-                  "id": "fountain_water_rise",
-                  "kind": "settings",
-                  "loop": true,
-                  "loopDelayMs": 600,
-                  "name": "rise",
-                  "priority": 1,
-                  "startDelayMs": 0,
-                  "tracks": [
-                    {
-                      "from": 0,
-                      "setting": "opacity",
-                      "to": 1
-                    },
-                    {
-                      "from": 0,
-                      "setting": "y",
-                      "to": 3
-                    }
-                  ],
-                  "trigger": {
-                    "on": "load"
-                  }
-                },
-                {
-                  "durationMs": 600,
-                  "ease": "sine",
-                  "id": "fountain_water_fade",
-                  "kind": "settings",
-                  "loop": true,
-                  "loopDelayMs": 1200,
-                  "name": "fade",
-                  "priority": 0,
-                  "startDelayMs": 1200,
-                  "tracks": [
-                    {
-                      "from": 1,
-                      "setting": "opacity",
-                      "to": 0
-                    }
-                  ],
-                  "trigger": {
-                    "on": "load"
-                  }
-                }
-              ]
-            },
-            {
-              "label": "water_c",
-              "level": 0,
-              "dx": 1,
-              "dy": 2,
-              "walkable": false,
-              "zIndex": 10,
-              "animations": [
-                {
-                  "durationMs": 1200,
-                  "ease": "sine",
-                  "id": "fountain_water_rise",
-                  "kind": "settings",
-                  "loop": true,
-                  "loopDelayMs": 600,
-                  "name": "rise",
-                  "priority": 1,
-                  "startDelayMs": 0,
-                  "tracks": [
-                    {
-                      "from": 0,
-                      "setting": "opacity",
-                      "to": 1
-                    },
-                    {
-                      "from": 0,
-                      "setting": "y",
-                      "to": 3
-                    }
-                  ],
-                  "trigger": {
-                    "on": "load"
-                  }
-                },
-                {
-                  "durationMs": 600,
-                  "ease": "sine",
-                  "id": "fountain_water_fade",
-                  "kind": "settings",
-                  "loop": true,
-                  "loopDelayMs": 1200,
-                  "name": "fade",
-                  "priority": 0,
-                  "startDelayMs": 1200,
-                  "tracks": [
-                    {
-                      "from": 1,
-                      "setting": "opacity",
-                      "to": 0
-                    }
-                  ],
-                  "trigger": {
-                    "on": "load"
-                  }
-                }
-              ]
-            },
-            {
-              "label": "water_jet",
-              "level": 1,
-              "dx": 3,
-              "dy": 2,
-              "walkable": false,
-              "zIndex": 10,
-              "animations": [
-                {
-                  "durationMs": 1200,
-                  "ease": "sine",
-                  "id": "fountain_water_rise",
-                  "kind": "settings",
-                  "loop": true,
-                  "loopDelayMs": 600,
-                  "name": "rise",
-                  "priority": 1,
-                  "startDelayMs": 0,
-                  "tracks": [
-                    {
-                      "from": 0,
-                      "setting": "opacity",
-                      "to": 1
-                    },
-                    {
-                      "from": 0,
-                      "setting": "y",
-                      "to": 3
-                    }
-                  ],
-                  "trigger": {
-                    "on": "load"
-                  }
-                },
-                {
-                  "durationMs": 600,
-                  "ease": "sine",
-                  "id": "fountain_water_fade",
-                  "kind": "settings",
-                  "loop": true,
-                  "loopDelayMs": 1200,
-                  "name": "fade",
-                  "priority": 0,
-                  "startDelayMs": 1200,
-                  "tracks": [
-                    {
-                      "from": 1,
-                      "setting": "opacity",
-                      "to": 0
-                    }
-                  ],
-                  "trigger": {
-                    "on": "load"
-                  }
-                }
-              ]
+              "zIndex": 0
             }
           ],
           "footprint": {
@@ -22980,672 +22636,328 @@
           "title": null,
           "cells": [
             {
+              "label": "fountain_t",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 3,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "fountain_t",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 2,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "fountain_l",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 0,
+              "dy": 1,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
               "label": "water_c",
               "level": 0,
+              "scale": 1.15,
+              "dx": 3,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 10,
+              "animations": [
+                {
+                  "durationMs": 1400,
+                  "ease": "sine",
+                  "id": "fountain_water_grow",
+                  "kind": "settings",
+                  "loop": true,
+                  "loopDelayMs": 400,
+                  "name": "grow",
+                  "priority": 1,
+                  "startDelayMs": 0,
+                  "tracks": [
+                    {
+                      "from": 1,
+                      "setting": "height",
+                      "to": 4
+                    }
+                  ],
+                  "trigger": {
+                    "on": "load"
+                  },
+                  "yoyo": true
+                }
+              ]
+            },
+            {
+              "label": "water_c",
+              "level": 0,
+              "scale": 1.15,
+              "dx": 2,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 10,
+              "animations": [
+                {
+                  "durationMs": 1400,
+                  "ease": "sine",
+                  "id": "fountain_water_grow",
+                  "kind": "settings",
+                  "loop": true,
+                  "loopDelayMs": 400,
+                  "name": "grow",
+                  "priority": 1,
+                  "startDelayMs": 0,
+                  "tracks": [
+                    {
+                      "from": 1,
+                      "setting": "height",
+                      "to": 4
+                    }
+                  ],
+                  "trigger": {
+                    "on": "load"
+                  },
+                  "yoyo": true
+                }
+              ]
+            },
+            {
+              "label": "water_c",
+              "level": 0,
+              "scale": 1.15,
+              "dx": 1,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 10,
+              "animations": [
+                {
+                  "durationMs": 1400,
+                  "ease": "sine",
+                  "id": "fountain_water_grow",
+                  "kind": "settings",
+                  "loop": true,
+                  "loopDelayMs": 400,
+                  "name": "grow",
+                  "priority": 1,
+                  "startDelayMs": 0,
+                  "tracks": [
+                    {
+                      "from": 1,
+                      "setting": "height",
+                      "to": 4
+                    }
+                  ],
+                  "trigger": {
+                    "on": "load"
+                  },
+                  "yoyo": true
+                }
+              ]
+            },
+            {
+              "label": "water_c",
+              "level": 0,
+              "scale": 1.15,
               "dx": 3,
               "dy": 1,
               "walkable": false,
               "zIndex": 10,
               "animations": [
                 {
-                  "durationMs": 1200,
+                  "durationMs": 1400,
                   "ease": "sine",
-                  "id": "fountain_water_rise",
+                  "id": "fountain_water_grow",
                   "kind": "settings",
                   "loop": true,
-                  "loopDelayMs": 600,
-                  "name": "rise",
+                  "loopDelayMs": 400,
+                  "name": "grow",
                   "priority": 1,
                   "startDelayMs": 0,
                   "tracks": [
                     {
-                      "from": 0,
-                      "setting": "opacity",
-                      "to": 1
-                    },
-                    {
-                      "from": 0,
-                      "setting": "y",
-                      "to": 3
-                    }
-                  ],
-                  "trigger": {
-                    "on": "load"
-                  }
-                },
-                {
-                  "durationMs": 600,
-                  "ease": "sine",
-                  "id": "fountain_water_fade",
-                  "kind": "settings",
-                  "loop": true,
-                  "loopDelayMs": 1200,
-                  "name": "fade",
-                  "priority": 0,
-                  "startDelayMs": 1200,
-                  "tracks": [
-                    {
                       "from": 1,
-                      "setting": "opacity",
-                      "to": 0
+                      "setting": "height",
+                      "to": 4
                     }
                   ],
                   "trigger": {
                     "on": "load"
-                  }
+                  },
+                  "yoyo": true
                 }
               ]
             },
             {
               "label": "water_c",
               "level": 0,
+              "scale": 1.15,
               "dx": 2,
               "dy": 1,
               "walkable": false,
               "zIndex": 10,
               "animations": [
                 {
-                  "durationMs": 1200,
+                  "durationMs": 1400,
                   "ease": "sine",
-                  "id": "fountain_water_rise",
+                  "id": "fountain_water_grow",
                   "kind": "settings",
                   "loop": true,
-                  "loopDelayMs": 600,
-                  "name": "rise",
+                  "loopDelayMs": 400,
+                  "name": "grow",
                   "priority": 1,
                   "startDelayMs": 0,
                   "tracks": [
                     {
-                      "from": 0,
-                      "setting": "opacity",
-                      "to": 1
-                    },
-                    {
-                      "from": 0,
-                      "setting": "y",
-                      "to": 3
-                    }
-                  ],
-                  "trigger": {
-                    "on": "load"
-                  }
-                },
-                {
-                  "durationMs": 600,
-                  "ease": "sine",
-                  "id": "fountain_water_fade",
-                  "kind": "settings",
-                  "loop": true,
-                  "loopDelayMs": 1200,
-                  "name": "fade",
-                  "priority": 0,
-                  "startDelayMs": 1200,
-                  "tracks": [
-                    {
                       "from": 1,
-                      "setting": "opacity",
-                      "to": 0
+                      "setting": "height",
+                      "to": 4
                     }
                   ],
                   "trigger": {
                     "on": "load"
-                  }
+                  },
+                  "yoyo": true
                 }
               ]
             },
             {
               "label": "water_c",
               "level": 0,
+              "scale": 1.15,
               "dx": 1,
               "dy": 1,
               "walkable": false,
               "zIndex": 10,
               "animations": [
                 {
-                  "durationMs": 1200,
+                  "durationMs": 1400,
                   "ease": "sine",
-                  "id": "fountain_water_rise",
+                  "id": "fountain_water_grow",
                   "kind": "settings",
                   "loop": true,
-                  "loopDelayMs": 600,
-                  "name": "rise",
+                  "loopDelayMs": 400,
+                  "name": "grow",
                   "priority": 1,
                   "startDelayMs": 0,
                   "tracks": [
                     {
-                      "from": 0,
-                      "setting": "opacity",
-                      "to": 1
-                    },
-                    {
-                      "from": 0,
-                      "setting": "y",
-                      "to": 3
-                    }
-                  ],
-                  "trigger": {
-                    "on": "load"
-                  }
-                },
-                {
-                  "durationMs": 600,
-                  "ease": "sine",
-                  "id": "fountain_water_fade",
-                  "kind": "settings",
-                  "loop": true,
-                  "loopDelayMs": 1200,
-                  "name": "fade",
-                  "priority": 0,
-                  "startDelayMs": 1200,
-                  "tracks": [
-                    {
                       "from": 1,
-                      "setting": "opacity",
-                      "to": 0
+                      "setting": "height",
+                      "to": 4
                     }
                   ],
                   "trigger": {
                     "on": "load"
-                  }
+                  },
+                  "yoyo": true
                 }
               ]
             },
             {
               "label": "fountain_br",
               "level": 0,
+              "scale": 1.0,
               "dx": 4,
               "dy": 3,
-              "walkable": false
+              "walkable": false,
+              "zIndex": 0
             },
             {
               "label": "fountain_b",
               "level": 0,
+              "scale": 1.0,
               "dx": 3,
               "dy": 3,
-              "walkable": false
+              "walkable": false,
+              "zIndex": 0
             },
             {
               "label": "fountain_b",
               "level": 0,
+              "scale": 1.0,
               "dx": 2,
               "dy": 3,
-              "walkable": false
+              "walkable": false,
+              "zIndex": 0
             },
             {
               "label": "fountain_b",
               "level": 0,
+              "scale": 1.0,
               "dx": 1,
               "dy": 3,
-              "walkable": false
+              "walkable": false,
+              "zIndex": 0
             },
             {
               "label": "fountain_bl",
               "level": 0,
+              "scale": 1.0,
               "dx": 0,
               "dy": 3,
-              "walkable": false
+              "walkable": false,
+              "zIndex": 0
             },
             {
-              "label": "water_jet",
-              "level": 1,
-              "dx": 1,
+              "label": "fountain_r",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 4,
               "dy": 2,
               "walkable": false,
-              "zIndex": 10,
-              "animations": [
-                {
-                  "durationMs": 1200,
-                  "ease": "sine",
-                  "id": "fountain_water_rise",
-                  "kind": "settings",
-                  "loop": true,
-                  "loopDelayMs": 600,
-                  "name": "rise",
-                  "priority": 1,
-                  "startDelayMs": 0,
-                  "tracks": [
-                    {
-                      "from": 0,
-                      "setting": "opacity",
-                      "to": 1
-                    },
-                    {
-                      "from": 0,
-                      "setting": "y",
-                      "to": 3
-                    }
-                  ],
-                  "trigger": {
-                    "on": "load"
-                  }
-                },
-                {
-                  "durationMs": 600,
-                  "ease": "sine",
-                  "id": "fountain_water_fade",
-                  "kind": "settings",
-                  "loop": true,
-                  "loopDelayMs": 1200,
-                  "name": "fade",
-                  "priority": 0,
-                  "startDelayMs": 1200,
-                  "tracks": [
-                    {
-                      "from": 1,
-                      "setting": "opacity",
-                      "to": 0
-                    }
-                  ],
-                  "trigger": {
-                    "on": "load"
-                  }
-                }
-              ]
-            },
-            {
-              "label": "fountain_r",
-              "level": 0,
-              "dx": 4,
-              "dy": 2,
-              "walkable": false
-            },
-            {
-              "label": "fountain_l",
-              "level": 0,
-              "dx": 0,
-              "dy": 2,
-              "walkable": false
-            },
-            {
-              "label": "fountain_r",
-              "level": 0,
-              "dx": 4,
-              "dy": 1,
-              "walkable": false
-            },
-            {
-              "label": "fountain_l",
-              "level": 0,
-              "dx": 0,
-              "dy": 1,
-              "walkable": false
-            },
-            {
-              "label": "fountain_tr",
-              "level": 0,
-              "dx": 4,
-              "dy": 0,
-              "walkable": false
+              "zIndex": 0
             },
             {
               "label": "fountain_t",
               "level": 0,
-              "dx": 3,
-              "dy": 0,
-              "walkable": false
-            },
-            {
-              "label": "fountain_t",
-              "level": 0,
-              "dx": 2,
-              "dy": 0,
-              "walkable": false
-            },
-            {
-              "label": "fountain_t",
-              "level": 0,
+              "scale": 1.0,
               "dx": 1,
               "dy": 0,
-              "walkable": false
+              "walkable": false,
+              "zIndex": 0
             },
             {
               "label": "fountain_tl",
               "level": 0,
+              "scale": 1.0,
               "dx": 0,
               "dy": 0,
-              "walkable": false
+              "walkable": false,
+              "zIndex": 0
             },
             {
-              "label": "water_jet",
-              "level": 2,
-              "dx": 2,
+              "label": "fountain_tr",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 4,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "fountain_l",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 0,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "fountain_r",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 4,
               "dy": 1,
               "walkable": false,
-              "zIndex": 10,
-              "animations": [
-                {
-                  "durationMs": 1200,
-                  "ease": "sine",
-                  "id": "fountain_water_rise",
-                  "kind": "settings",
-                  "loop": true,
-                  "loopDelayMs": 600,
-                  "name": "rise",
-                  "priority": 1,
-                  "startDelayMs": 0,
-                  "tracks": [
-                    {
-                      "from": 0,
-                      "setting": "opacity",
-                      "to": 1
-                    },
-                    {
-                      "from": 0,
-                      "setting": "y",
-                      "to": 3
-                    }
-                  ],
-                  "trigger": {
-                    "on": "load"
-                  }
-                },
-                {
-                  "durationMs": 600,
-                  "ease": "sine",
-                  "id": "fountain_water_fade",
-                  "kind": "settings",
-                  "loop": true,
-                  "loopDelayMs": 1200,
-                  "name": "fade",
-                  "priority": 0,
-                  "startDelayMs": 1200,
-                  "tracks": [
-                    {
-                      "from": 1,
-                      "setting": "opacity",
-                      "to": 0
-                    }
-                  ],
-                  "trigger": {
-                    "on": "load"
-                  }
-                }
-              ]
-            },
-            {
-              "label": "water_jet",
-              "level": 1,
-              "dx": 2,
-              "dy": 1,
-              "walkable": false,
-              "zIndex": 10,
-              "animations": [
-                {
-                  "durationMs": 1200,
-                  "ease": "sine",
-                  "id": "fountain_water_rise",
-                  "kind": "settings",
-                  "loop": true,
-                  "loopDelayMs": 600,
-                  "name": "rise",
-                  "priority": 1,
-                  "startDelayMs": 0,
-                  "tracks": [
-                    {
-                      "from": 0,
-                      "setting": "opacity",
-                      "to": 1
-                    },
-                    {
-                      "from": 0,
-                      "setting": "y",
-                      "to": 3
-                    }
-                  ],
-                  "trigger": {
-                    "on": "load"
-                  }
-                },
-                {
-                  "durationMs": 600,
-                  "ease": "sine",
-                  "id": "fountain_water_fade",
-                  "kind": "settings",
-                  "loop": true,
-                  "loopDelayMs": 1200,
-                  "name": "fade",
-                  "priority": 0,
-                  "startDelayMs": 1200,
-                  "tracks": [
-                    {
-                      "from": 1,
-                      "setting": "opacity",
-                      "to": 0
-                    }
-                  ],
-                  "trigger": {
-                    "on": "load"
-                  }
-                }
-              ]
-            },
-            {
-              "label": "water_c",
-              "level": 0,
-              "dx": 3,
-              "dy": 2,
-              "walkable": false,
-              "zIndex": 10,
-              "animations": [
-                {
-                  "durationMs": 1200,
-                  "ease": "sine",
-                  "id": "fountain_water_rise",
-                  "kind": "settings",
-                  "loop": true,
-                  "loopDelayMs": 600,
-                  "name": "rise",
-                  "priority": 1,
-                  "startDelayMs": 0,
-                  "tracks": [
-                    {
-                      "from": 0,
-                      "setting": "opacity",
-                      "to": 1
-                    },
-                    {
-                      "from": 0,
-                      "setting": "y",
-                      "to": 3
-                    }
-                  ],
-                  "trigger": {
-                    "on": "load"
-                  }
-                },
-                {
-                  "durationMs": 600,
-                  "ease": "sine",
-                  "id": "fountain_water_fade",
-                  "kind": "settings",
-                  "loop": true,
-                  "loopDelayMs": 1200,
-                  "name": "fade",
-                  "priority": 0,
-                  "startDelayMs": 1200,
-                  "tracks": [
-                    {
-                      "from": 1,
-                      "setting": "opacity",
-                      "to": 0
-                    }
-                  ],
-                  "trigger": {
-                    "on": "load"
-                  }
-                }
-              ]
-            },
-            {
-              "label": "water_c",
-              "level": 0,
-              "dx": 2,
-              "dy": 2,
-              "walkable": false,
-              "zIndex": 10,
-              "animations": [
-                {
-                  "durationMs": 1200,
-                  "ease": "sine",
-                  "id": "fountain_water_rise",
-                  "kind": "settings",
-                  "loop": true,
-                  "loopDelayMs": 600,
-                  "name": "rise",
-                  "priority": 1,
-                  "startDelayMs": 0,
-                  "tracks": [
-                    {
-                      "from": 0,
-                      "setting": "opacity",
-                      "to": 1
-                    },
-                    {
-                      "from": 0,
-                      "setting": "y",
-                      "to": 3
-                    }
-                  ],
-                  "trigger": {
-                    "on": "load"
-                  }
-                },
-                {
-                  "durationMs": 600,
-                  "ease": "sine",
-                  "id": "fountain_water_fade",
-                  "kind": "settings",
-                  "loop": true,
-                  "loopDelayMs": 1200,
-                  "name": "fade",
-                  "priority": 0,
-                  "startDelayMs": 1200,
-                  "tracks": [
-                    {
-                      "from": 1,
-                      "setting": "opacity",
-                      "to": 0
-                    }
-                  ],
-                  "trigger": {
-                    "on": "load"
-                  }
-                }
-              ]
-            },
-            {
-              "label": "water_c",
-              "level": 0,
-              "dx": 1,
-              "dy": 2,
-              "walkable": false,
-              "zIndex": 10,
-              "animations": [
-                {
-                  "durationMs": 1200,
-                  "ease": "sine",
-                  "id": "fountain_water_rise",
-                  "kind": "settings",
-                  "loop": true,
-                  "loopDelayMs": 600,
-                  "name": "rise",
-                  "priority": 1,
-                  "startDelayMs": 0,
-                  "tracks": [
-                    {
-                      "from": 0,
-                      "setting": "opacity",
-                      "to": 1
-                    },
-                    {
-                      "from": 0,
-                      "setting": "y",
-                      "to": 3
-                    }
-                  ],
-                  "trigger": {
-                    "on": "load"
-                  }
-                },
-                {
-                  "durationMs": 600,
-                  "ease": "sine",
-                  "id": "fountain_water_fade",
-                  "kind": "settings",
-                  "loop": true,
-                  "loopDelayMs": 1200,
-                  "name": "fade",
-                  "priority": 0,
-                  "startDelayMs": 1200,
-                  "tracks": [
-                    {
-                      "from": 1,
-                      "setting": "opacity",
-                      "to": 0
-                    }
-                  ],
-                  "trigger": {
-                    "on": "load"
-                  }
-                }
-              ]
-            },
-            {
-              "label": "water_jet",
-              "level": 1,
-              "dx": 3,
-              "dy": 2,
-              "walkable": false,
-              "zIndex": 10,
-              "animations": [
-                {
-                  "durationMs": 1200,
-                  "ease": "sine",
-                  "id": "fountain_water_rise",
-                  "kind": "settings",
-                  "loop": true,
-                  "loopDelayMs": 600,
-                  "name": "rise",
-                  "priority": 1,
-                  "startDelayMs": 0,
-                  "tracks": [
-                    {
-                      "from": 0,
-                      "setting": "opacity",
-                      "to": 1
-                    },
-                    {
-                      "from": 0,
-                      "setting": "y",
-                      "to": 3
-                    }
-                  ],
-                  "trigger": {
-                    "on": "load"
-                  }
-                },
-                {
-                  "durationMs": 600,
-                  "ease": "sine",
-                  "id": "fountain_water_fade",
-                  "kind": "settings",
-                  "loop": true,
-                  "loopDelayMs": 1200,
-                  "name": "fade",
-                  "priority": 0,
-                  "startDelayMs": 1200,
-                  "tracks": [
-                    {
-                      "from": 1,
-                      "setting": "opacity",
-                      "to": 0
-                    }
-                  ],
-                  "trigger": {
-                    "on": "load"
-                  }
-                }
-              ]
+              "zIndex": 0
             }
           ],
           "footprint": {

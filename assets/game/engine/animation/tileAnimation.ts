@@ -85,9 +85,21 @@ interface AnimationBase {
   durationMs: number
   /** dead time before the animation begins, ms (anchored at the tile's `placedAtMs`). Default 0. */
   startDelayMs?: number
-  /** rest time between loops, ms — HOLDS the end (`to`) value, then snaps back to `from`. Default 0. */
+  /**
+   * rest time between loops, ms. Default 0.
+   *   - normal loop → HOLDS the end (`to`) value during the tail, then snaps back to `from`.
+   *   - yoyo loop   → HOLDS the base (`from`) value during the tail (the down-leg already returned there).
+   */
   loopDelayMs?: number
   loop?: boolean
+  /**
+   * YOYO (ping-pong) loop. Only meaningful with `loop`. When set, one cycle is `from→to` over `durationMs`
+   * (up leg) IMMEDIATELY followed by an auto-reversed `to→from` over another `durationMs` (down leg), then the
+   * `loopDelayMs` tail rests at `from` before the next cycle. So a single animation oscillates up-and-back with
+   * no chaining (the fountain water column grows 1→4→1 blocks and repeats). Default false → the plain
+   * `from→to`, rest-at-`to`, snap-back loop.
+   */
+  yoyo?: boolean
   ease?: Ease
   /**
    * When two animations write the SAME setting, the higher `priority` wins; on a tie the one later in
@@ -133,6 +145,9 @@ export function easeAnim(kind: Ease | undefined, t: number): number {
  *   - non-loop, at/after the duration → 1 (hold `to` forever).
  *   - loop: each period = duration + loopDelay; the duration window runs 0→1, then the loopDelay tail
  *     RESTS at 1 (holds `to`, matching `cellAnimation`'s "hold the last frame") before snapping back to 0.
+ *   - yoyo loop (ping-pong): a cycle is the up leg 0→1 over `duration` then the down leg 1→0 over another
+ *     `duration` (auto-reverse, continuous at the peak), then the loopDelay tail RESTS at 0 (`from`, where the
+ *     down leg landed) before the next up leg. Period = 2·duration + loopDelay.
  */
 function rawProgress(anim: Animation, nowMs: number, placedAtMs: number): number {
   const duration = anim.durationMs
@@ -145,6 +160,14 @@ function rawProgress(anim: Animation, nowMs: number, placedAtMs: number): number
   if (!anim.loop) return elapsed >= duration ? 1 : elapsed / duration
 
   const loopDelay = Math.max(0, anim.loopDelayMs ?? 0)
+
+  if (anim.yoyo) {
+    const upDown = 2 * duration
+    const cyc = elapsed % (upDown + loopDelay)
+    if (cyc >= upDown) return 0 // loopDelay tail rests at `from` (the down leg already returned there)
+    return cyc <= duration ? cyc / duration : 1 - (cyc - duration) / duration // up leg, then auto-reversed down leg
+  }
+
   const period = duration + loopDelay
   const cyc = elapsed % period
   return cyc >= duration ? 1 : cyc / duration // loopDelay tail rests at `to`

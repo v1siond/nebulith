@@ -156,14 +156,22 @@ export function draw2DLabeledCell(
   // Never mix: a composition cell is emoji in emoji mode, ascii in ascii mode. Both come from the DB tileset.
   const char = (style.id === 'emoji' && asset.label ? EMOJI_TILESET[asset.label]?.char : undefined) ?? asset.art[0] ?? '?'
   const tint = asset.color ?? '#cccccc'
-  const cy = baseY - tileH * 0.5
+  // Width/Height/Zoom (scaleX/scaleY/scale) stretch the cell; HEIGHT (scaleY) grows the box UP from its base
+  // — the bottom edge stays planted at `baseY` while the top rises — so a labeled tile whose height is
+  // animated (the fountain water column) grows in place in 2D exactly like the iso block does, NOT centered
+  // and NOT levitating. All axes default to 1 → drawW/drawH == tileW/tileH and `cy` == the old value, so an
+  // un-scaled labeled cell is byte-identical to before.
+  const zoom = asset.scale ?? 1
+  const drawW = tileW * (asset.scaleX ?? 1) * zoom
+  const drawH = tileH * (asset.scaleY ?? 1) * zoom
+  const cy = baseY - drawH * 0.5
   // Back the cell with the TILE'S OWN colour — not a neutral black box — so 2D shows the same colour ISO
   // does (green trees, brown walls, the roof's red), driven purely by the tile's data. A translucent black
   // pass darkens that backing so the glyph drawn on top (full tint) still reads clearly.
   ctx.fillStyle = tint
-  ctx.fillRect(x - tileW / 2, cy - tileH / 2, tileW, tileH)
+  ctx.fillRect(x - drawW / 2, baseY - drawH, drawW, drawH)
   ctx.fillStyle = 'rgba(0, 0, 0, 0.45)'
-  ctx.fillRect(x - tileW / 2, cy - tileH / 2, tileW, tileH)
+  ctx.fillRect(x - drawW / 2, baseY - drawH, drawW, drawH)
   // DISPLAY = "single" (per-tile setting): draw ONE smaller centered tile INSIDE the plain colour cell instead
   // of filling the whole front face, mirroring the iso "single tile inside the block" look. Absent/'all-faces'
   // → the tile fills the cell exactly as before.
@@ -174,10 +182,10 @@ export function draw2DLabeledCell(
   // falls through to the glyph below, so the cell is never blank.
   const image = asset.label ? labelTileImage(asset.label, style) : undefined
   if (image) {
-    drawStyledImage(ctx, image, x, cy, tileW * frac, false, labelTileRecolor(style, tint), tileH * frac)
+    drawStyledImage(ctx, image, x, cy, drawW * frac, false, labelTileRecolor(style, tint), drawH * frac)
     return
   }
-  ctx.font = `bold ${tileH * 0.8 * frac}px ${ASCII_FONT}`
+  ctx.font = `bold ${drawH * 0.8 * frac}px ${ASCII_FONT}`
   ctx.fillStyle = tint
   ctx.fillText(char, x, cy)
 }

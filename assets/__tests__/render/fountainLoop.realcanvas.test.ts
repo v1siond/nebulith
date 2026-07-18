@@ -1,20 +1,21 @@
 /**
  * REAL-CANVAS fountain-loop evidence (Phase 5 E2E) — drives the ACTUAL view render functions with the EXACT
- * fountain animation chain served by the backend (`/api/tilesets`, fountain water cells), over a FULL 1800 ms
- * loop, in EMOJI and ASCII, and measures the drawn tile's opacity (magenta mass) + vertical position (centroid
- * row) at each phase. Baked tiles are OS-independent, so this real render IS authoritative for the visible
- * behaviour (the live browser runs this same render code every frame; only the WSL2 headless *surface capture*
- * is frozen, which this bypasses by rendering to a controlled canvas at a controlled clock).
+ * fountain animation served by the backend (`/api/tilesets`, fountain water cells), over a FULL loop, in
+ * EMOJI and ASCII, and measures the drawn water tile's rendered HEIGHT (vertical magenta extent) + its BASE
+ * (bottom row) at each phase. Baked tiles are OS-independent, so this real render IS authoritative for the
+ * visible behaviour (the live browser runs this same render code every frame; only the WSL2 headless *surface
+ * capture* is frozen, which this bypasses by rendering to a controlled canvas at a controlled clock).
  *
- * The chain (verbatim from tile_source.ex / the live API):
- *   A "rise": opacity 0→1 + y 0→3, dur 1200, delay 0, loopGap 600, ease sine, priority 1, loop
- *   B "fade": opacity 1→0,        dur 600,  delay 1200, loopGap 1200, ease sine, priority 0, loop
- * Period both = 1800 ms. Winner-takes-all resolver → A (priority 1) owns opacity whenever active.
+ * The new water animation (verbatim from tile_source.ex / the live API):
+ *   "grow": height (scaleY) 1→4, dur 1400, loopGap 400, ease sine, YOYO, priority 1, loop
+ * Yoyo period = 2·1400 + 400 = 3200 ms. ONE animation writes ONE setting (height) → no winner-takes-all.
+ *
+ * What we assert (the evidence the user asked for): the water COLUMN grows its height 1→~4→1 and loops, its
+ * BASE stays planted (grows UP, does NOT levitate), and it NEVER fades to invisible (no opacity animation).
  */
 import { installRealCanvas, type RealCanvasHarness } from '@/__tests__/helpers/realCanvas'
 import { render as renderIso } from '@/engine/render/iso'
 import { render2D } from '@/engine/render/topdown'
-import { renderTopView } from '@/engine/render/birdseye'
 import { IsometricGrid, type GridAsset } from '@/engine/IsometricGrid'
 import { EMOJI_STYLE, ASCII_STYLE, type Style } from '@/game/artStyle'
 import { EMOJI_TILESET } from '@/engine/tileset/emojiTileset'
@@ -28,34 +29,53 @@ const MAGENTA = '#ff00ff'
 const LABEL = '__fountain_probe_tile__'
 const SRC = '/tiles/emoji/__fountain_probe.png'
 const PLAYER: PlayerState = { x: 40, z: 40, facing: 'down', moving: false, frame: 0 } as PlayerState
-const PLACED_AT = 100_000
 
-// EXACT backend fountain chain (from GET /api/tilesets fountain water cells).
+// EXACT backend fountain animation (from GET /api/tilesets fountain water_c cells): a single yoyo HEIGHT grow.
+const GROW = 1400, GAP = 400, PERIOD = 2 * GROW + GAP // 3200 ms
 const FOUNTAIN_ANIMS: Animation[] = [
-  { id: 'fountain_water_rise', name: 'rise', kind: 'settings', durationMs: 1200, startDelayMs: 0, loopDelayMs: 600, loop: true, ease: 'sine', priority: 1, trigger: { on: 'load' }, tracks: [{ setting: 'opacity', from: 0, to: 1 }, { setting: 'y', from: 0, to: 3 }] },
-  { id: 'fountain_water_fade', name: 'fade', kind: 'settings', durationMs: 600, startDelayMs: 1200, loopDelayMs: 1200, loop: true, ease: 'sine', priority: 0, trigger: { on: 'load' }, tracks: [{ setting: 'opacity', from: 1, to: 0 }] },
+  { id: 'fountain_water_grow', name: 'grow', kind: 'settings', durationMs: GROW, startDelayMs: 0, loopDelayMs: GAP, loop: true, yoyo: true, ease: 'sine', priority: 1, trigger: { on: 'load' }, tracks: [{ setting: 'height', from: 1, to: 4 }] },
 ]
 
 function makeGrid(): IsometricGrid {
   const grid = new IsometricGrid({ cols: 6, rows: 6, cellSize: 40 })
-  grid.assets.push({ art: ['?'], col: 3, row: 3, type: 'water_c', label: LABEL, color: MAGENTA, height: 1, scale: 3, placedAt: PLACED_AT, animations: FOUNTAIN_ANIMS } as GridAsset)
+  // scale 1.15 = the backend's "a bit bigger" base zoom; height:1 marks it a block; placedAt 0 = clock origin.
+  grid.assets.push({ art: ['?'], col: 3, row: 3, type: 'water_c', label: LABEL, color: MAGENTA, height: 1, scale: 1.15, placedAt: 0, animations: FOUNTAIN_ANIMS } as GridAsset)
   return grid
 }
 
-const W = 480, HH = 480
+const W = 520, HH = 720
 const isoCanvas = (g: IsometricGrid, clock: number, s: Style): Canvas => { const cv = H.makeCanvas(W, HH); const ctx = cv.getContext('2d') as unknown as CanvasRenderingContext2D; renderIso(ctx, W, HH, g, PLAYER, clock, { x: 0, y: 0 }, [], new Map(), [], clock, 1, [], [], [], [], 'day', 1, s); return cv }
 const twoDCanvas = (g: IsometricGrid, clock: number, s: Style): Canvas => { const cv = H.makeCanvas(W, HH); const ctx = cv.getContext('2d') as unknown as CanvasRenderingContext2D; render2D(ctx, W, HH, g, PLAYER, clock, 2, { x: 0, y: 0 }, [], new Map(), [], [], 'day', [], [], [], 1, s); return cv }
-const topCanvas = (g: IsometricGrid, clock: number, s: Style): Canvas => { const cv = H.makeCanvas(W, HH); const ctx = cv.getContext('2d') as unknown as CanvasRenderingContext2D; renderTopView(ctx, W, HH, g, PLAYER, 4, new Set(), [], false, { x: 0, y: 0 }, [], new Map(), [], clock, [], 'day', s); return cv }
 
 const magentaWeight = (r: number, g: number, b: number): number => Math.max(0, Math.min(r - g, b - g))
-function magentaMass(cv: Canvas): number { const { data } = cv.getContext('2d').getImageData(0, 0, cv.width, cv.height); let m = 0; for (let i = 0; i < data.length; i += 4) { if (data[i + 3] < 128) continue; m += magentaWeight(data[i], data[i + 1], data[i + 2]) } return m }
-function magentaCentroidRow(cv: Canvas): number { const { data, width } = cv.getContext('2d').getImageData(0, 0, cv.width, cv.height); let s = 0, wr = 0; for (let i = 0; i < data.length; i += 4) { if (data[i + 3] < 128) continue; const w = magentaWeight(data[i], data[i + 1], data[i + 2]); if (!w) continue; s += w; wr += w * Math.floor(i / 4 / width) } return s === 0 ? -1 : wr / s }
+/** Vertical extent (block HEIGHT proxy), bottom row (BASE), and total mass of the drawn magenta water. */
+function magentaMetrics(cv: Canvas): { extent: number; bottom: number; top: number; mass: number } {
+  const { data, width } = cv.getContext('2d').getImageData(0, 0, cv.width, cv.height)
+  let minRow = Infinity, maxRow = -Infinity, mass = 0
+  for (let i = 0; i < data.length; i += 4) {
+    if (data[i + 3] < 128) continue
+    const w = magentaWeight(data[i], data[i + 1], data[i + 2])
+    if (w < 40) continue // ignore faint anti-alias fringe so the extent is the solid column
+    mass += w
+    const row = Math.floor(i / 4 / width)
+    if (row < minRow) minRow = row
+    if (row > maxRow) maxRow = row
+  }
+  if (maxRow < 0) return { extent: 0, bottom: -1, top: -1, mass: 0 }
+  return { extent: maxRow - minRow, bottom: maxRow, top: minRow, mass: Math.round(mass) }
+}
 
-// Expected composited value from the pure engine model (A wins opacity; only A writes y).
+// Expected scaleY (block-height multiplier) from the pure yoyo + sine model — the curve the render must show.
 const easeSine = (t: number): number => (1 - Math.cos(Math.PI * t)) / 2
-function expected(phase: number): { opacity: number; y: number } { const p = ((phase % 1800) + 1800) % 1800; const raw = p >= 1200 ? 1 : p / 1200; const e = easeSine(raw); return { opacity: +e.toFixed(3), y: +(3 * e).toFixed(3) } }
+function expectedHeight(phase: number): number {
+  const cyc = ((phase % PERIOD) + PERIOD) % PERIOD
+  const raw = cyc >= 2 * GROW ? 0 : cyc <= GROW ? cyc / GROW : 1 - (cyc - GROW) / GROW
+  return +(1 + 3 * easeSine(raw)).toFixed(2) // lerp(1,4,eased)
+}
 
-const PHASES = [0, 150, 300, 450, 600, 750, 900, 1050, 1200, 1350, 1500, 1650, 1800, 1950]
+// phases across ONE full yoyo period: base → grow → PEAK(1400) → shrink → base(2800) → rest → loop(3200)
+const PHASES = [0, 350, 700, 1050, 1400, 1750, 2100, 2450, 2800, 3000, 3200]
+const PEAK = 1400, BACK = 2800
 
 const hadGrass = '__had_grass_fl__'
 beforeAll(async () => {
@@ -68,44 +88,70 @@ beforeAll(async () => {
 afterAll(() => { delete EMOJI_TILESET[LABEL]; if ((ASCII_TILESET.terrain as Record<string, unknown>)[hadGrass] === false) { delete (ASCII_TILESET.terrain as Record<string, unknown>).grass; delete (ASCII_TILESET.terrain as Record<string, unknown>)[hadGrass] } })
 
 function sampleLoop(make: (g: IsometricGrid, t: number, s: Style) => Canvas, style: Style) {
-  return PHASES.map(p => { const cv = make(makeGrid(), PLACED_AT + p, style); return { phase: p, mass: Math.round(magentaMass(cv)), row: +magentaCentroidRow(cv).toFixed(1), exp: expected(p) } })
+  return PHASES.map(p => ({ phase: p, ...magentaMetrics(make(makeGrid(), p, style)), exp: expectedHeight(p) }))
 }
 
-describe('fountain water rises + fades-in + holds + loops — REAL render, both styles, ISO', () => {
+function assertGrowLoop(rows: ReturnType<typeof sampleLoop>, label: string) {
+  // eslint-disable-next-line no-console
+  console.log(`\n=== ${label} water HEIGHT loop (extent=vertical magenta px, bottom=base row; base fixed = grows UP) ===\n` +
+    rows.map(r => `phase ${String(r.phase).padStart(4)}ms  extent ${String(r.extent).padStart(4)}px  bottom ${String(r.bottom).padStart(4)}  mass ${String(r.mass).padStart(7)}  | expScaleY ${r.exp.toFixed(2)}`).join('\n'))
+  const at = (p: number) => rows.find(r => r.phase === p)!
+  const base = at(0), peak = at(PEAK), back = at(BACK)
+
+  // ALWAYS VISIBLE — no opacity fade: every phase renders a solid magenta column (the old fade went invisible).
+  for (const r of rows) expect(r.mass).toBeGreaterThan(0)
+  expect(base.mass).toBeGreaterThan(0)
+
+  // GROWS: the column is much TALLER at the peak (scaleY 4) than at the base (scaleY 1).
+  expect(peak.extent).toBeGreaterThan(base.extent * 1.7)
+  expect(peak.extent).toBeGreaterThan(base.extent + 40)
+  // monotone up on the grow leg, monotone down on the shrink leg (a clean 1→4→1 arc).
+  expect(at(700).extent).toBeGreaterThan(base.extent)
+  expect(peak.extent).toBeGreaterThan(at(700).extent)
+  expect(at(2100).extent).toBeLessThan(peak.extent)
+  expect(back.extent).toBeLessThan(at(2100).extent)
+
+  // LOOPS + RETURNS to base: end-of-shrink (2800) is back near the base height, and the next period (3200) too.
+  expect(Math.abs(back.extent - base.extent)).toBeLessThan(peak.extent * 0.3)
+  expect(Math.abs(at(3200).extent - base.extent)).toBeLessThan(peak.extent * 0.3)
+
+  // GROWS UP FROM THE BASE — NOT levitating: the BOTTOM (base) row barely moves while the height quadruples.
+  // (A levitating tile would lift its base; here the base is planted and only the top rises.)
+  expect(peak.bottom).toBeGreaterThan(0)
+  expect(Math.abs(peak.bottom - base.bottom)).toBeLessThan(12)
+  expect(Math.abs(back.bottom - base.bottom)).toBeLessThan(12)
+  // the growth is upward: the TOP rises well above the base's top at the peak.
+  expect(peak.top).toBeLessThan(base.top - 40)
+}
+
+describe('fountain water GROWS its height 1→~4→1 and loops — REAL render, both styles, ISO', () => {
   for (const [name, style] of [['EMOJI', EMOJI_STYLE], ['ASCII', ASCII_STYLE]] as const) {
-    test(`${name}: opacity mass swings low→high→low and the tile rises over one loop`, () => {
-      const rows = sampleLoop(isoCanvas, style)
+    test(`${name}: the water column height oscillates up then back, base planted`, () => {
+      assertGrowLoop(sampleLoop(isoCanvas, style), `ISO / ${name}`)
+    })
+  }
+})
+
+describe('the same grow animates in 2D too (height drives scaleY, grows up from the base)', () => {
+  for (const [name, style] of [['EMOJI', EMOJI_STYLE], ['ASCII', ASCII_STYLE]] as const) {
+    test(`${name}: 2D water column grows taller at the peak than at the base`, () => {
+      const rows = sampleLoop(twoDCanvas, style)
       // eslint-disable-next-line no-console
-      console.log(`\n=== ISO / ${name} fountain loop (mass=opacity·area, row=screen-Y; smaller row = higher) ===\n` +
-        rows.map(r => `phase ${String(r.phase).padStart(4)}ms  mass ${String(r.mass).padStart(6)}  row ${String(r.row).padStart(6)}  | expOpacity ${r.exp.opacity.toFixed(3)} expY ${r.exp.y.toFixed(2)}`).join('\n'))
+      console.log(`\n=== 2D / ${name} water HEIGHT loop ===\n` +
+        rows.map(r => `phase ${String(r.phase).padStart(4)}ms  extent ${String(r.extent).padStart(4)}px  bottom ${String(r.bottom).padStart(4)}  | expScaleY ${r.exp.toFixed(2)}`).join('\n'))
       const at = (p: number) => rows.find(r => r.phase === p)!
-      const masses = rows.map(r => r.mass)
-      const maxMass = Math.max(...masses)
-      // fade-IN: near-invisible at phase 0, climbing by mid-rise, plateau (full) by 1200
-      expect(at(0).mass).toBeLessThan(maxMass * 0.15)              // starts ~invisible (opacity 0)
-      expect(at(600).mass).toBeGreaterThan(at(0).mass + 200)      // climbing
-      expect(at(1200).mass).toBeGreaterThan(maxMass * 0.9)         // full by end of rise
-      // HOLD at top through the 600ms loop-gap tail (A rests at opacity 1)
-      expect(at(1500).mass).toBeGreaterThan(maxMass * 0.9)
-      expect(at(1650).mass).toBeGreaterThan(maxMass * 0.9)
-      // LOOP: the next cycle's phase-0 sample (1800) is back to ~invisible → it snaps and repeats
-      expect(at(1800).mass).toBeLessThan(maxMass * 0.15)
-      // RISE: the tile is clearly HIGHER on screen at the top of the arc than at the base of the arc.
-      // Reference the base at phase 600 (opacity ~0.5, a solid magenta mass — NOT phase 150/300 whose
-      // near-zero opacity leaves only edge-noise pixels, giving an unreliable centroid).
-      const baseRow = at(600).row, topRow = at(1200).row
-      expect(baseRow).toBeGreaterThan(0)
-      expect(topRow).toBeGreaterThan(0)
-      expect(topRow).toBeLessThan(baseRow - 15)                    // risen up the screen (screen-Y decreased)
-      // MASKED-FADE finding: during B's window [1200,1800] opacity does NOT gradually fall (A wins, rests at 1)
-      expect(at(1650).mass).toBeGreaterThan(at(1200).mass * 0.9)   // still full at 1650 (no gradual fade-out)
+      const base = at(0), peak = at(PEAK), back = at(BACK)
+      for (const r of rows) expect(r.mass).toBeGreaterThan(0)      // always visible (no fade)
+      expect(peak.extent).toBeGreaterThan(base.extent * 1.5)       // clearly taller at the peak
+      expect(back.extent).toBeLessThan(peak.extent)                // shrinks back
+      expect(Math.abs(back.extent - base.extent)).toBeLessThan(peak.extent * 0.35)
+      expect(Math.abs(peak.bottom - base.bottom)).toBeLessThan(12) // base planted (grows up, not levitating)
     })
   }
 })
 
 // Evidence emitter (env-gated) — writes the REAL rendered frames to PNG at each loop phase, so there are
-// actual screenshots-over-time of the water arc (the live browser runs this same render code; only the WSL2
-// headless surface CAPTURE is frozen, which rendering to our own canvas bypasses). Off unless EVIDENCE_DIR set.
+// actual screenshots-over-time of the water column growing. Off unless EVIDENCE_DIR set.
 ;(process.env.EVIDENCE_DIR ? describe : describe.skip)('EVIDENCE: write per-phase frames', () => {
   // eslint-disable-next-line @typescript-eslint/no-var-requires
   const fs = require('fs') as typeof import('fs')
@@ -114,24 +160,10 @@ describe('fountain water rises + fades-in + holds + loops — REAL render, both 
     test(`${name} iso frames`, () => {
       fs.mkdirSync(`${dir}/${name}`, { recursive: true })
       for (const p of PHASES) {
-        const cv = isoCanvas(makeGrid(), PLACED_AT + p, style)
+        const cv = isoCanvas(makeGrid(), p, style)
         fs.writeFileSync(`${dir}/${name}/iso_phase_${String(p).padStart(4, '0')}.png`, (cv as unknown as { toBuffer(m: string): Buffer }).toBuffer('image/png'))
       }
       expect(fs.readdirSync(`${dir}/${name}`).length).toBe(PHASES.length)
-    })
-  }
-})
-
-describe('the same chain animates in 2D and TOP too (all three projections)', () => {
-  for (const [name, make] of [['2D', twoDCanvas], ['TOP', topCanvas]] as const) {
-    test(`${name} EMOJI: mass swings and the tile rises`, () => {
-      const rows = sampleLoop(make, EMOJI_STYLE)
-      const maxMass = Math.max(...rows.map(r => r.mass))
-      const at = (p: number) => rows.find(r => r.phase === p)!
-      expect(maxMass).toBeGreaterThan(300)
-      expect(at(0).mass).toBeLessThan(maxMass * 0.25)
-      expect(at(1200).mass).toBeGreaterThan(maxMass * 0.7)
-      expect(at(1200).row).toBeLessThan(at(300).row - 8)          // risen
     })
   }
 })
