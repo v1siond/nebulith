@@ -23,6 +23,13 @@ defmodule Nebulith.Catalog.CompositionCell do
     # placed asset at stamp time so a generated town's fountain animates BY DEFAULT. Nil on every other cell →
     # the API omits the key, so a non-animated cell serves EXACTLY as before.
     field :animations, {:array, :map}
+    # TUNED per-cell tile settings (jsonb) — the display overrides that shape a cell's tile into a realistic
+    # form, beyond the scalar Zoom (`scale`) + draw-priority (`z_index`) columns. Mirrors the way a TILE carries
+    # `settings.display`/`settings.pose`, so a cell overrides them per placement: the lamp POST cell stretches
+    # tall+thin (`scaleY`) and the lamp BULB cell is a SINGLE-display billboard lifted onto the post's top
+    # (`display` + `pose{dy}`). Keys are camelCase (served verbatim, applied straight onto the placed GridAsset).
+    # Nil on every untuned cell → the API omits the key, so those cells serve EXACTLY as before.
+    field :settings, :map
     belongs_to :composition, Nebulith.Catalog.Composition
 
     timestamps(type: :utc_datetime)
@@ -31,7 +38,7 @@ defmodule Nebulith.Catalog.CompositionCell do
   @doc false
   def changeset(cell, attrs) do
     cell
-    |> cast(attrs, [:composition_id, :dx, :dy, :level, :label, :walkable, :scale, :z_index, :animations])
+    |> cast(attrs, [:composition_id, :dx, :dy, :level, :label, :walkable, :scale, :z_index, :animations, :settings])
     |> validate_required([:composition_id, :dx, :dy, :level, :label])
   end
 end

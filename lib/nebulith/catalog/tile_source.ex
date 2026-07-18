@@ -925,16 +925,31 @@ defmodule Nebulith.Catalog.TileSource do
       "fountain" => %{footprint_w: 5, footprint_h: 5, cells: fountain_cells()},
       # A LIGHT POST — a composition, NOT a single lamp tile (Alexander: "light posts should be a composition
       # of a post/base tile + the lamp on top … the composition of maps is exactly the same between art styles,
-      # only the tile changes"). ONE 1×1 column: the `post` base at level 0 (blocks — you can't walk through the
-      # pole) with the `lamp` on top at level 1 (walkable overhead, like a tree canopy). Used by BOTH styles;
-      # each supplies its own baked `post` + `lamp` art, so emoji renders a post + 💡 (not a lonely 💡) and ascii
-      # a pole + lamp. The generator stamps THIS composition wherever it used to drop a single lamp prop.
+      # only the tile changes"). ONE 1×1 column of TWO cells, each shaped by its OWN tuned settings so it reads
+      # like a REAL post (Alexander's built reference, Images #45/#46 — "copy the settings of the post"):
+      #   • POST (level 0, blocks) — ONE cell drawn as a tall, THIN pole: Height `scaleY` 7 (a ~7-block tall
+      #     column) at Zoom `scale` 0.3 (thin). All-faces display (the default). NOT two plain stacked cubes.
+      #   • BULB (level 1, walkable overhead) — a SINGLE-display billboard (`display: single` → one centered
+      #     bulb, not tiled on the block faces), Zoom `scale` 0.6, lifted by `pose.dy` -1.8 (up 1.8 tile units)
+      #     so it sits ON TOP of the tall post.
+      # The STRUCTURE (both cells, all offsets/levels) is style-agnostic — only the baked `post` + `lamp` ART
+      # differs — so emoji renders a post + 💡 and ascii a pole + lamp, IDENTICAL shape. `scaleY`/`display`/`pose`
+      # ride in the cell's `settings` jsonb (camelCase, applied onto the placed asset by stampComposition); `scale`
+      # uses the existing per-cell Zoom column. The generator stamps THIS wherever it used to drop a lamp prop.
       "lamp_post" => %{
         footprint_w: 1,
         footprint_h: 1,
         cells: [
-          %{dx: 0, dy: 0, level: 0, label: "post", walkable: false},
-          %{dx: 0, dy: 0, level: 1, label: "lamp", walkable: true}
+          %{dx: 0, dy: 0, level: 0, label: "post", walkable: false, scale: 0.3, settings: %{"scaleY" => 7.0}},
+          %{
+            dx: 0,
+            dy: 0,
+            level: 1,
+            label: "lamp",
+            walkable: true,
+            scale: 0.6,
+            settings: %{"display" => "single", "pose" => %{"dy" => -1.8}}
+          }
         ]
       }
     }

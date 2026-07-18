@@ -125,6 +125,29 @@ defmodule Nebulith.TileSourceTest do
     assert lamp.walkable, "the lamp sits overhead (walkable)"
   end
 
+  test "the lamp_post cells carry the tuned tile settings — a tall thin post + a single bulb lifted on top" do
+    # Alexander built the reference (Images #45/#46, "copy the settings of the post … like a real post"): the
+    # POST is ONE cell shaped into a tall, thin pole by its OWN settings (Height ~7 = scaleY, Zoom ~0.3 = scale),
+    # and the BULB is a SINGLE-display billboard zoomed down + lifted to sit ON TOP of the post (Zoom ~0.6 =
+    # scale, y ~-1.8 = pose.dy). The composition STRUCTURE is style-agnostic — ONE global `compositions` row
+    # serves BOTH the ascii + emoji tileset entries — so these per-cell settings hold for both styles by
+    # construction; only the post/lamp ART differs.
+    lamp_post = Enum.find(Catalog.list_compositions(), &(&1.name == "lamp_post"))
+    post = Enum.find(lamp_post.cells, &(&1.label == "post"))
+    lamp = Enum.find(lamp_post.cells, &(&1.label == "lamp"))
+
+    # POST (level 0) — a tall, thin pole shaped by its settings.
+    assert post.level == 0
+    assert_in_delta post.scale, 0.3, 0.001
+    assert_in_delta post.settings["scaleY"], 7.0, 0.001
+
+    # BULB (level 1) — a single centered billboard, zoomed down + lifted onto the post's top.
+    assert lamp.level == 1
+    assert lamp.settings["display"] == "single"
+    assert_in_delta lamp.scale, 0.6, 0.001
+    assert_in_delta lamp.settings["pose"]["dy"], -1.8, 0.001
+  end
+
   test "the light-post pieces (post + lamp) are real baked tiles in BOTH styles — no nil image_url" do
     for style <- ["ascii", "emoji"], label <- ["post", "lamp"] do
       tile = Enum.find(Catalog.list_tiles_for(style), &(&1.label == label))

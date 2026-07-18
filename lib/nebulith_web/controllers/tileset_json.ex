@@ -63,10 +63,19 @@ defmodule NebulithWeb.TilesetJSON do
   # non-animated cell serves byte-identically to before (only the fountain's water cells gain the key).
   defp cell_data(cell) do
     base = %{dx: cell.dx, dy: cell.dy, level: cell.level, label: cell.label, walkable: cell.walkable, scale: cell.scale, zIndex: cell.z_index}
-    maybe_put_animations(base, cell.animations)
+
+    base
+    |> maybe_put_animations(cell.animations)
+    |> maybe_put_settings(cell.settings)
   end
 
   defp maybe_put_animations(base, nil), do: base
   defp maybe_put_animations(base, []), do: base
   defp maybe_put_animations(base, animations), do: Map.put(base, :animations, animations)
+
+  # The cell's TUNED tile settings (camelCase keys authored in TileSource — `scaleY`/`display`/`pose`) ride
+  # through VERBATIM, added ONLY when the cell carries some, so every untuned cell serves byte-identically to
+  # before (only the lamp_post's post + bulb cells gain the key). stampComposition applies them onto the asset.
+  defp maybe_put_settings(base, nil), do: base
+  defp maybe_put_settings(base, settings), do: Map.put(base, :settings, settings)
 end
