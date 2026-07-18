@@ -7,6 +7,7 @@
 // face its road), not a special building unit — that is how "everything is a collection of backend tiles"
 // is enforced.
 import { resolveComposition, resolveTile, tileRenderBehavior } from '@/engine/tileset/tileset'
+import type { CompositionCellSettings } from '@/engine/tileset/tileset'
 import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 import type { IsometricGrid } from '@/engine/IsometricGrid'
 import type { ZoneId } from '@/engine/zones'
@@ -87,7 +88,7 @@ function stampRun(
   grid: IsometricGrid,
   comp: NonNullable<ReturnType<typeof resolveComposition>>,
   kind: string,
-  c: { dx: number; dy: number; level?: number; label: string; walkable?: boolean; scale?: number; zIndex?: number; animations?: Animation[] },
+  c: { dx: number; dy: number; level?: number; label: string; walkable?: boolean; scale?: number; zIndex?: number; animations?: Animation[]; settings?: CompositionCellSettings },
   span: number,
   anchorCol: number,
   anchorRow: number,
@@ -117,8 +118,16 @@ function stampRun(
   const asset = grid.placeAsset([tile.char], col, row, { type: kind, blocking: !c.walkable, color, heightLevel: c.level ?? 0, baseShadow: grounded, scale: c.scale, zIndex: c.zIndex })
   asset.label = label
   asset.height = 1
-  // The collapsed vertical run → ONE block `span` tall (scaleY grows UP from the base level; ISO + 2D).
-  if (span > 1) asset.scaleY = span
+  // TUNED per-cell settings (backend `composition_cells.settings`) shape the tile into a realistic form — the
+  // "compositions use tuned tile settings for realistic shapes" path (the lamp post; trees to come). `pose`
+  // nudges the placed tile (the bulb's dy lift onto the post top); `scaleY`/`display` are applied just below.
+  const cs = c.settings
+  if (cs?.pose) asset.pose = cs.pose
+  // HEIGHT: an AUTHORED per-cell `scaleY` (the lamp POST = one cell drawn ~7 blocks tall) wins; otherwise a
+  // collapsed vertical RUN sizes scaleY = span (a wall column of 4 → one block 4 tall). A single authored cell
+  // is never part of a run, so the two never collide.
+  if (cs?.scaleY != null) asset.scaleY = cs.scaleY
+  else if (span > 1) asset.scaleY = span
   // A composition cell can ship DEFAULT animations (the fountain water's rise/fade loop) — copy them onto the
   // placed asset so the tile animates without any per-instance authoring, anchored at placedAt 0 (the render
   // clock's origin — iso/2D/top drive the animation off `performance.now`, so a LOAD-triggered loop plays
@@ -129,6 +138,10 @@ function stampRun(
   }
   const behavior = tileRenderBehavior(tile.settings)
   if (behavior) asset.settings = behavior
+  // A cell can PIN `display: 'single'` (ONE centered billboard — the lamp BULB sits as a single bulb on top of
+  // the post, not tiled across the block faces) regardless of the tile's own display. Merge AFTER the tile
+  // behavior so it rides alongside any fade/cutaway (and the badge below) without clobbering them.
+  if (cs?.display) asset.settings = { ...(asset.settings ?? {}), display: cs.display }
   // Apex signage: a titled composition (store/hospital) badges its ONE roof-apex cell with its NAME.
   if (comp.title && c.label.startsWith('roof_top')) {
     asset.settings = { ...(asset.settings ?? {}), badge: { text: comp.title, color: BADGE_COLOR } }

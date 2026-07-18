@@ -11186,7 +11186,10 @@
             {
               "label": "post",
               "level": 0,
-              "scale": 1.0,
+              "scale": 0.3,
+              "settings": {
+                "scaleY": 7
+              },
               "dx": 0,
               "dy": 0,
               "walkable": false,
@@ -11195,7 +11198,13 @@
             {
               "label": "lamp",
               "level": 1,
-              "scale": 1.0,
+              "scale": 0.6,
+              "settings": {
+                "display": "single",
+                "pose": {
+                  "dy": -1.8
+                }
+              },
               "dx": 0,
               "dy": 0,
               "walkable": true,
@@ -29344,7 +29353,10 @@
             {
               "label": "post",
               "level": 0,
-              "scale": 1.0,
+              "scale": 0.3,
+              "settings": {
+                "scaleY": 7
+              },
               "dx": 0,
               "dy": 0,
               "walkable": false,
@@ -29353,7 +29365,13 @@
             {
               "label": "lamp",
               "level": 1,
-              "scale": 1.0,
+              "scale": 0.6,
+              "settings": {
+                "display": "single",
+                "pose": {
+                  "dy": -1.8
+                }
+              },
               "dx": 0,
               "dy": 0,
               "walkable": true,

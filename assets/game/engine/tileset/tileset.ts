@@ -115,6 +115,21 @@ export interface CompositionCell {
    *  `animations` (and sets `placedAt`), so a composition ships animated BY DEFAULT (the fountain's water_c +
    *  water_jet cells carry the rise/fade loop). Absent → the cell places an un-animated tile, unchanged. */
   animations?: Animation[]
+  /** TUNED per-cell tile settings (backend `composition_cells.settings` jsonb, camelCase on the wire) — the
+   *  display overrides that shape a cell's tile into a realistic form, beyond the Zoom `scale` + `zIndex`
+   *  siblings. `scaleY` stretches the block's HEIGHT (the lamp POST = one cell drawn ~7 blocks tall); `display`
+   *  'single' draws ONE centered billboard instead of tiling the faces (the lamp BULB); `pose` nudges the
+   *  placed tile (the bulb's `dy` lift onto the post top). stampComposition applies each onto the placed asset.
+   *  Absent → the cell places its tile at one block, unposed, all-faces — unchanged. */
+  settings?: CompositionCellSettings
+}
+
+/** The tuned per-cell tile settings a composition cell can carry (backend jsonb) — applied onto the placed
+ *  GridAsset by stampComposition. A small, extensible bag: today `scaleY` (Height), `display`, `pose`. */
+export interface CompositionCellSettings {
+  scaleY?: number
+  display?: TileDisplay
+  pose?: TilePose
 }
 
 /** A multi-cell asset TEMPLATE: a footprint + one tile per cell. The data-driven replacement for the retired
