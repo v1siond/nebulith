@@ -359,11 +359,32 @@ defmodule Nebulith.Catalog.TileSource do
   # season). Storefront/roof parts read as buildings.
   defp extra_tiles do
     [
-      %{label: "display_window", glyph: "▦", color: "#86bcd6", blocking: true, category: "buildings", emoji: "🪟"},
-      %{label: "awning", glyph: "▨", color: "#b64a34", blocking: true, category: "buildings", emoji: "🟧"},
+      %{
+        label: "display_window",
+        glyph: "▦",
+        color: "#86bcd6",
+        blocking: true,
+        category: "buildings",
+        emoji: "🪟"
+      },
+      %{
+        label: "awning",
+        glyph: "▨",
+        color: "#b64a34",
+        blocking: true,
+        category: "buildings",
+        emoji: "🟧"
+      },
       %{label: "flat_roof", glyph: "▬", color: "#8b9098", blocking: false, category: "buildings"},
       %{label: "parapet", glyph: "▀", color: "#70757c", blocking: true, category: "buildings"},
-      %{label: "rooftop_unit", glyph: "▪", color: "#616870", blocking: true, category: "buildings", emoji: "⬛"}
+      %{
+        label: "rooftop_unit",
+        glyph: "▪",
+        color: "#616870",
+        blocking: true,
+        category: "buildings",
+        emoji: "⬛"
+      }
     ]
   end
 
@@ -454,8 +475,22 @@ defmodule Nebulith.Catalog.TileSource do
 
     fountain =
       [
-        %{label: "water_c", glyph: "≈", emoji: "🟦", color: water, category: "nature", title: "Fountain Water"},
-        %{label: "water_jet", glyph: "|", emoji: "💧", color: jet, category: "nature", title: "Water Jet"}
+        %{
+          label: "water_c",
+          glyph: "≈",
+          emoji: "🟦",
+          color: water,
+          category: "nature",
+          title: "Fountain Water"
+        },
+        %{
+          label: "water_jet",
+          glyph: "|",
+          emoji: "💧",
+          color: jet,
+          category: "nature",
+          title: "Water Jet"
+        }
       ] ++ rim_or_wall_pieces("fountain", "", rim)
 
     # The wall MATERIALS — one autotile set per material (center anchor + 8 edge/corner pieces). Stone forces
@@ -469,8 +504,23 @@ defmodule Nebulith.Catalog.TileSource do
     # A grey SLATE gable roof for stone/masonry buildings — a dark ⬛ block distinct from the red 🟥 gable.
     # `roof_slate` is the browseable roof body (cutawayRoof); `roof_top_slate` its walkable apex cap (fadeNear).
     roofs = [
-      %{label: "roof_slate", glyph: "▲", emoji: "⬛", color: slate, category: "buildings", title: "Slate Roof", blocking: true},
-      %{label: "roof_top_slate", glyph: "◣", emoji: "⬛", color: slate, category: nil, blocking: false}
+      %{
+        label: "roof_slate",
+        glyph: "▲",
+        emoji: "⬛",
+        color: slate,
+        category: "buildings",
+        title: "Slate Roof",
+        blocking: true
+      },
+      %{
+        label: "roof_top_slate",
+        glyph: "◣",
+        emoji: "⬛",
+        color: slate,
+        category: nil,
+        blocking: false
+      }
     ]
 
     Enum.map(fountain ++ walls ++ roofs, fn t -> Map.put_new(t, :blocking, true) end)
@@ -480,7 +530,16 @@ defmodule Nebulith.Catalog.TileSource do
   # plus its 8 render-only edge/corner pieces. Every material mirrors `wall_stone` — a DIFFERENT tile per
   # material, its colour in `settings.colors`.
   defp material_pieces(base, center_glyph, part_emoji, color, title) do
-    [%{label: "#{base}_c", glyph: center_glyph, emoji: part_emoji, color: color, category: "buildings", title: title}] ++
+    [
+      %{
+        label: "#{base}_c",
+        glyph: center_glyph,
+        emoji: part_emoji,
+        color: color,
+        category: "buildings",
+        title: title
+      }
+    ] ++
       rim_or_wall_pieces(base, part_emoji, color)
   end
 
@@ -584,7 +643,14 @@ defmodule Nebulith.Catalog.TileSource do
   defp tree_piece_tiles do
     trunk =
       for label <- ~w(trunk_bottom trunk_mid trunk_top),
-        do: %{label: label, glyph: "║", emoji: "🟫", role: "trunk", blocking: true, emoji_color: "#7a5a3a"}
+          do: %{
+            label: label,
+            glyph: "║",
+            emoji: "🟫",
+            role: "trunk",
+            blocking: true,
+            emoji_color: "#7a5a3a"
+          }
 
     canopy_glyphs = %{
       "canopy_tl" => "╭",
@@ -600,7 +666,14 @@ defmodule Nebulith.Catalog.TileSource do
 
     canopy =
       for {label, glyph} <- canopy_glyphs,
-        do: %{label: label, glyph: glyph, emoji: "🍃", role: "canopy", blocking: false, emoji_color: "#5fae4f"}
+          do: %{
+            label: label,
+            glyph: glyph,
+            emoji: "🍃",
+            role: "canopy",
+            blocking: false,
+            emoji_color: "#5fae4f"
+          }
 
     trunk ++ canopy
   end
@@ -760,13 +833,18 @@ defmodule Nebulith.Catalog.TileSource do
           %{dx: 0, dy: 0, level: 1, label: "leaf_top", walkable: true}
         ]
       },
-      # The town-square fountain — a COMPOSITION assembled from AUTOTILE PIECES (TILESET-AUTHORING §3), not
-      # one fill: a 5×4 basin whose interior is all `water_c` (blue water), whose rim is the RIGHT edge/corner
-      # piece per cell (`fountain_tl/tr/bl/br` corners + `fountain_t/b/l/r` sides). The interior water cells
-      # each carry the height-GROW animation (grow the column 1→4 blocks then back, on loop) — no separate
-      # `water_jet` drop tiles. Every cell blocks (you stroll the paved ring around it); the generator stamps
-      # it centred on the plaza (stampComposition).
-      "fountain" => %{footprint_w: 5, footprint_h: 4, cells: fountain_cells()}
+      # TWO water variants of the town-square basin, both COMPOSITIONS assembled from AUTOTILE PIECES
+      # (TILESET-AUTHORING §3), not one fill: a rim of the RIGHT edge/corner piece per cell (`fountain_tl/tr/
+      # bl/br` corners + `fountain_t/b/l/r` sides) around a `water_c` (blue water) interior. Every cell blocks
+      # (you stroll the paved ring around it); the generator stamps one centred on the plaza (stampComposition).
+      #
+      # `well` — the SMALL variant (Alexander: "current design but removing 3 blocks of water, just leaving 3"):
+      #   a 5×3 basin whose interior is a 1×3 LINE of 3 `water_c` cells, ALL 3 animated (desynced height-grow).
+      # `fountain` — the LARGE variant (Alexander: "one that has 9 blocks of water"): a 5×5 basin whose interior
+      #   is a 3×3 GRID of 9 `water_c` cells; only the CENTER ROW of 3 animates (Alexander: "in the 9 blocks
+      #   version, the 3 in the center are the ones to animate"), the other 6 are STATIC blue water.
+      "well" => %{footprint_w: 5, footprint_h: 3, cells: well_cells()},
+      "fountain" => %{footprint_w: 5, footprint_h: 5, cells: fountain_cells()}
     }
   end
 
@@ -778,57 +856,121 @@ defmodule Nebulith.Catalog.TileSource do
   # and sorts positionally with the water. Pure DATA on the cell; NOT a render special-case.
   @water_z_index 10
 
-  # The fountain WATER's DEFAULT ANIMATION (Alexander, verbatim: "remove the water drops … animate the water
-  # to grow its height 3-4 blocks, then go back to 1 block in loop, that'll make it more realistic"). ONE
-  # looping `settings` animation with a YOYO (ping-pong) loop — the exact `Animation` envelope the frontend
-  # engine reads (camelCase keys, served verbatim; the tileset loader passes composition cells through
-  # untouched, and stampRun copies this onto the placed asset's `animations`):
+  # The fountain/well WATER's DEFAULT ANIMATION — the height-GROW yoyo (Alexander: "animate the water to grow
+  # its height 3-4 blocks, then go back to 1 block in loop … more realistic"), now DESYNCED per column so the
+  # water does NOT pulse in unison (Alexander: "the blocks should have different duration and delays, to
+  # actually look like realistic fountain water"). EXACTLY 3 water columns animate in every variant — all 3 in
+  # the small `well`, the CENTER ROW of 3 in the large `fountain` (Alexander: "in all cases only 3 blocks are
+  # animated. in the 9 blocks version, the 3 in the center are the ones to animate"). Each of the 3 carries the
+  # SAME 1→4 sine-yoyo grow but with a DISTINCT durationMs + startDelayMs, so their yoyo PERIODS differ (no two
+  # ever share a phase) and they surge out of sync:
   #
-  #   "grow" — the water COLUMN grows UP: height (scaleY) 1→4 blocks over 1400ms (grow leg), then the yoyo
-  #     auto-reverses back 4→1 over the next 1400ms (shrink leg), then the 400ms loopDelay tail RESTS at the
-  #     base (`from` = 1 block) before the next surge. sine ease-in-out on each leg → a smooth breathing pulse.
-  #     `height` maps to scaleY, which stretches the block UP from its base (iso + 2D) — the water grows in
-  #     place, it does NOT levitate and it does NOT opacity-fade (that was the old rise/fade look).
+  #   column 0 → dur 1000ms, delay   0ms   (period 2·1000+400 = 2400ms)
+  #   column 1 → dur 1400ms, delay 800ms   (period 2·1400+400 = 3200ms)
+  #   column 2 → dur 1800ms, delay 400ms   (period 2·1800+400 = 4000ms)
   #
-  # yoyo is a first-class field on the `Animation` envelope: over `durationMs` the phase runs `from→to`, then
-  # auto-reverses `to→from` over another `durationMs`, then the loopDelay tail rests at `from`. ONE animation
-  # writes ONE setting (height), so there's no winner-takes-all conflict — the value is exactly the tween.
-  @fountain_water_grow [
-    %{
-      "id" => "fountain_water_grow",
-      "name" => "grow",
-      "kind" => "settings",
-      "durationMs" => 1400,
-      "startDelayMs" => 0,
-      "loopDelayMs" => 400,
-      "loop" => true,
-      "yoyo" => true,
-      "ease" => "sine",
-      "priority" => 1,
-      "trigger" => %{"on" => "load"},
-      "tracks" => [
-        %{"setting" => "height", "from" => 1, "to" => 4}
-      ]
-    }
-  ]
+  # Distinct durations → distinct periods → the columns drift permanently out of phase; the distinct delays add
+  # an immediate visual offset at t=0. Each "grow" leg: height (scaleY) 1→4 blocks over `durationMs`, then the
+  # yoyo auto-reverses 4→1 over another `durationMs`, then the 400ms loopDelay tail RESTS at the base (1 block)
+  # before the next surge; sine ease-in-out. `height` maps to scaleY → the column grows UP in place (no
+  # levitation, no opacity fade). ONE track / ONE setting (height) → no winner-takes-all conflict. loopDelay
+  # (400) + the 1→4 sine yoyo are shared; only duration+delay desync. The exact `Animation` envelope the
+  # frontend reads (camelCase, served verbatim; stampRun copies it onto the placed asset's `animations`).
+  @water_grow_durations {1000, 1400, 1800}
+  @water_grow_delays {0, 800, 400}
 
-  # 5×4 fountain from pieces: the perimeter is the correct rim EDGE/CORNER piece, the interior is all `water_c`
-  # (blue water) — no `water_jet` drops. Each interior water cell is drawn a bit bigger (scale 1.15) and ships
-  # WITH @fountain_water_grow, so the fountain's water animates by default: every water column grows its height
-  # 1→4 blocks then back, on loop. The rim carries no animation. Pure data.
+  # The height-grow animation for animated water COLUMN `i` (0..2) — the shared 1→4 sine yoyo with column `i`'s
+  # DISTINCT duration + start delay (the desync spread above). Returned as a one-element list (the cell's
+  # `animations`).
+  defp water_grow_anim(i) do
+    [
+      %{
+        "id" => "fountain_water_grow",
+        "name" => "grow",
+        "kind" => "settings",
+        "durationMs" => elem(@water_grow_durations, i),
+        "startDelayMs" => elem(@water_grow_delays, i),
+        "loopDelayMs" => 400,
+        "loop" => true,
+        "yoyo" => true,
+        "ease" => "sine",
+        "priority" => 1,
+        "trigger" => %{"on" => "load"},
+        "tracks" => [
+          %{"setting" => "height", "from" => 1, "to" => 4}
+        ]
+      }
+    ]
+  end
+
+  # ── Fountain / well basins (autotile rim + water_c interior) ──────────────
+  # Both variants: the perimeter is the correct rim EDGE/CORNER piece (`basin_rim`), the interior is `water_c`
+  # (blue water) drawn a bit bigger (scale 1.15) — no `water_jet` drops. EXACTLY 3 water columns animate (the
+  # desynced height-grow, `water_grow_anim`); the rim never animates. Pure data.
+
+  # The SMALL well: a 5×3 basin with a 1×3 LINE of 3 water cells (dy 1, dx 1..3), ALL animated (desynced by
+  # column index dx-1 = 0..2).
+  defp well_cells do
+    w = 5
+    h = 3
+    basin_rim(w, h) ++ for dx <- 1..(w - 2), do: water_cell(dx, 1, dx - 1)
+  end
+
+  # The LARGE fountain: a 5×5 basin with a 3×3 GRID of 9 water cells (dx,dy 1..3). Only the CENTER ROW (dy 2)
+  # animates (desynced by column index dx-1 = 0..2); the other 6 cells are STATIC blue water.
   defp fountain_cells do
     w = 5
-    h = 4
-
-    rim =
-      for dy <- 0..(h - 1), dx <- 0..(w - 1), edge_cell?(dx, dy, w, h),
-        do: %{dx: dx, dy: dy, level: 0, label: edge_piece("fountain", dx, dy, w, h), walkable: false}
+    h = 5
 
     water =
-      for dy <- 1..(h - 2), dx <- 1..(w - 2),
-        do: %{dx: dx, dy: dy, level: 0, label: "water_c", walkable: false, scale: 1.15, z_index: @water_z_index, animations: @fountain_water_grow}
+      for dy <- 1..(h - 2), dx <- 1..(w - 2) do
+        if dy == 2, do: water_cell(dx, dy, dx - 1), else: static_water_cell(dx, dy)
+      end
 
-    rim ++ water
+    basin_rim(w, h) ++ water
+  end
+
+  # The rim EDGE/CORNER pieces around a w×h basin — the `fountain_*` autotile border, reused by both variants.
+  defp basin_rim(w, h) do
+    for dy <- 0..(h - 1),
+        dx <- 0..(w - 1),
+        edge_cell?(dx, dy, w, h),
+        do: %{
+          dx: dx,
+          dy: dy,
+          level: 0,
+          label: edge_piece("fountain", dx, dy, w, h),
+          walkable: false
+        }
+  end
+
+  # An ANIMATED interior water cell (blue `water_c`, scale 1.15, high z-index so it reads in front of a wall
+  # behind it) carrying animated column `i`'s desynced height-grow.
+  defp water_cell(dx, dy, i) do
+    %{
+      dx: dx,
+      dy: dy,
+      level: 0,
+      label: "water_c",
+      walkable: false,
+      scale: 1.15,
+      z_index: @water_z_index,
+      animations: water_grow_anim(i)
+    }
+  end
+
+  # A STATIC interior water cell — same blue `water_c` look (scale 1.15, high z-index) but NO animation (the 6
+  # non-centre cells of the large fountain). Its height stays 1 block.
+  defp static_water_cell(dx, dy) do
+    %{
+      dx: dx,
+      dy: dy,
+      level: 0,
+      label: "water_c",
+      walkable: false,
+      scale: 1.15,
+      z_index: @water_z_index
+    }
   end
 
   # True for a perimeter cell of a `w`×`h` rectangle (where the rim/edge pieces go).
