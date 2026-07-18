@@ -823,7 +823,7 @@ defmodule Nebulith.Catalog.TileSource do
     seed_prop_tiles(ascii_id, emoji_id)
     seed_autotile_pieces(ascii_id, emoji_id)
     seed_tree_pieces(ascii_id, emoji_id, palettes)
-    seed_tree_leaves(emoji_id)
+    seed_tree_leaves(emoji_id, palettes)
     seed_new_compositions()
     seed_building_compositions()
     IO.puts("reseeded sample tiles + compositions")
@@ -835,8 +835,12 @@ defmodule Nebulith.Catalog.TileSource do
   # machine). SURGICAL: upserts just these two emoji rows from emoji.json — never a full emoji reseed (which
   # would clobber editor-tuned poses). `leaf_center` is the tree's whole (2×) canopy; both are baked by
   # priv/tilegen (tiles.json → bake.mjs). image_url MUST be non-nil (MAP-MODEL §8 / TILE-BACKEND-MIGRATION §5).
-  defp seed_tree_leaves(emoji_id) do
+  defp seed_tree_leaves(emoji_id, palettes) do
     emoji = read_tileset("emoji.json")
+    # The canopy SHADE array per zone (green…pink for spring) — the SAME data ascii's leaf carries, so an emoji
+    # tree's per-tree `variant` picks a tone (green vs pink) exactly like ascii (Alexander: "one green, one
+    # pink"). `color` stays for the emoji sidebar/backing fill; `colors` drives the composition's variant tint.
+    canopy_colors = per_zone_colors("canopy", palettes)
 
     for label <- ["leaf_center", "leaf_top"], t = emoji[label] do
       {:ok, _} =
@@ -850,7 +854,7 @@ defmodule Nebulith.Catalog.TileSource do
           category: t["category"],
           title: t["title"],
           image_url: "/tiles/emoji/#{label}.png",
-          settings: %{"color" => t["color"]}
+          settings: %{"color" => t["color"], "colors" => canopy_colors}
         })
     end
   end
@@ -883,34 +887,79 @@ defmodule Nebulith.Catalog.TileSource do
     end
   end
 
+  # Build a 2-tile TREE composition from the user's editor settings — one thin tall TRUNK cell + one bigger
+  # LEAF cell on top. `trunk_h`/`leaf_h` are Height (scaleY), `trunk_zoom`/`leaf_zoom` are Zoom (the per-cell
+  # `scale` column), `trunk_w` is Width (scaleX, only emitted when ≠ 1 so a default trunk stays byte-clean),
+  # `shape` (nil | "circle") gives the canopy a round form. The leaf's LEVEL is derived from the trunk's
+  # rendered height (scaleY × zoom, in block units — one level = one block) so the canopy sits ON the trunk
+  # top for any height, never floating or buried. DIMENSION-SANITY GUARD (Alexander: "you don't want a trunk
+  # bigger than the top leafs"): the trunk's effective width AND its zoom must be strictly SMALLER than the
+  # leaves' — a violating variant RAISES at build time, so no unbelievable tree can ship.
+  defp tree_comp(opts) do
+    trunk_w = Map.get(opts, :trunk_w, 1.0)
+    leaf_w = Map.get(opts, :leaf_w, 1.0)
+    assert_tree_dimensions!(trunk_w * opts.trunk_zoom, leaf_w * opts.leaf_zoom, opts.trunk_zoom, opts.leaf_zoom, opts)
+    leaf_level = round(opts.trunk_h * opts.trunk_zoom)
+
+    %{
+      footprint_w: 1,
+      footprint_h: 1,
+      cells: [
+        %{dx: 0, dy: 0, level: 0, label: "trunk_mid", walkable: false, scale: opts.trunk_zoom, settings: trunk_settings(opts.trunk_h, trunk_w)},
+        leaf_cell(leaf_level, opts.leaf_h, opts.leaf_zoom, Map.get(opts, :shape), true)
+      ]
+    }
+  end
+
+  # A BUSH is the trunkless tree variant (Alexander: "a variant without trunk to simulate bushes") — a SINGLE
+  # leaf cell sitting on the ground (level 0), blocking (a ground-level shrub obstructs, unlike a tree's
+  # walkable overhead canopy). One tile — the leanest asset in the set.
+  defp bush_comp(opts) do
+    %{footprint_w: 1, footprint_h: 1, cells: [leaf_cell(0, opts.leaf_h, opts.leaf_zoom, Map.get(opts, :shape), false)]}
+  end
+
+  defp leaf_cell(level, leaf_h, leaf_zoom, shape, walkable) do
+    settings = %{"scaleY" => leaf_h}
+    settings = if shape, do: Map.put(settings, "shape", shape), else: settings
+    %{dx: 0, dy: 0, level: level, label: "leaf_center", walkable: walkable, scale: leaf_zoom, settings: settings}
+  end
+
+  # Width (scaleX) rides the settings jsonb like Height (scaleY); a default-width trunk omits it so the cell
+  # serialises exactly as an unsized one.
+  defp trunk_settings(trunk_h, 1.0), do: %{"scaleY" => trunk_h}
+  defp trunk_settings(trunk_h, trunk_w), do: %{"scaleY" => trunk_h, "scaleX" => trunk_w}
+
+  defp assert_tree_dimensions!(trunk_eff_w, leaf_eff_w, trunk_zoom, leaf_zoom, opts) do
+    if trunk_zoom < leaf_zoom and trunk_eff_w < leaf_eff_w do
+      :ok
+    else
+      raise ArgumentError,
+            "tree #{inspect(opts)} violates dimension sanity: the trunk must be thinner AND less zoomed than " <>
+              "the leaves (trunk_eff_w=#{trunk_eff_w} vs leaf_eff_w=#{leaf_eff_w}, trunk_zoom=#{trunk_zoom} vs leaf_zoom=#{leaf_zoom})"
+    end
+  end
+
   defp compositions do
     %{
-      # The living tree — just 3 STACKED cells in one column (Alexander: "make them just 3 stacked cells …
-      # that'll reduce trees from 12 tiles to just 3"): a 2-segment brown TRUNK (trunk_bottom L0 / trunk_mid
-      # L1, both blocking) topped by ONE leaf cell (leaf_center L2) drawn at scale 2.0 — a 2×2 crown ("zoom
-      # the top tile 2"). The 2× is DATA on the cell (composition_cells.scale); the render reads it as its
-      # uniform zoom. The leaf's colour is its own per-zone canopy SHADE setting, so a per-tree variant tints
-      # it green / pink / brown (leaf_center carries the canopy shade array). Only the trunk cell blocks; the
-      # leaf is walkable overhead. Replaces the retired 12-cell trunk+9-slice-canopy tree.
-      "tree" => %{
-        footprint_w: 1,
-        footprint_h: 1,
-        cells: [
-          %{dx: 0, dy: 0, level: 0, label: "trunk_bottom", walkable: false},
-          %{dx: 0, dy: 0, level: 1, label: "trunk_mid", walkable: false},
-          %{dx: 0, dy: 0, level: 2, label: "leaf_center", walkable: true, scale: 2.0}
-        ]
-      },
-      "bush" => %{
-        footprint_w: 3,
-        footprint_h: 1,
-        cells: [
-          %{dx: -1, dy: 0, level: 0, label: "leaf_left", walkable: true},
-          %{dx: 0, dy: 0, level: 0, label: "leaf_center", walkable: true},
-          %{dx: 1, dy: 0, level: 0, label: "leaf_right", walkable: true},
-          %{dx: 0, dy: 0, level: 1, label: "leaf_top", walkable: true}
-        ]
-      },
+      # A tree is EXACTLY TWO tiles — ONE thin tall TRUNK + ONE bigger LEAF cube on top (Alexander's tuned
+      # reference: "the ones in my example use just two tiles, one for trunk another for leafs"). Same technique
+      # as the lamp post: the trunk is a single `trunk_mid` cell drawn as a thin tall pole (Height `scaleY` +
+      # Zoom `scale`, Width `scaleX` when a variant wants it skinnier/thicker); the leaf is a single `leaf_center`
+      # cell zoomed UP into a fat cube and lifted onto the trunk top. Colour is a per-tree SETTING (variant picks
+      # a canopy shade — green…pink — from leaf_center's per-zone array, in BOTH styles). Every variant is built
+      # by `tree_comp/1`, which DERIVES the leaf's level from the trunk height (canopy sits on the trunk, never
+      # floats) and ENFORCES the dimension-sanity rule (Alexander: "you don't want a trunk bigger than the top
+      # leafs") — the trunk must be thinner + less zoomed than the leaves or the build raises. The user's
+      # hand-tuned green tree (trunk H3.15/zoom0.6, leaf H2/zoom1.35) is the CENTER; the variants spread a
+      # believable range: tall/small trunks, skinny/thick trunks, ROUND canopies (shape: circle), and trunkless
+      # BUSHES (leaf only). Down from 3 cells to 2 (bush: 1) — the optimization the ticket asked for.
+      "tree" => tree_comp(%{trunk_h: 3.15, trunk_zoom: 0.6, trunk_w: 1.0, leaf_h: 2.0, leaf_zoom: 1.35}),
+      "tree_tall" => tree_comp(%{trunk_h: 4.4, trunk_zoom: 0.6, trunk_w: 0.85, leaf_h: 2.0, leaf_zoom: 1.35}),
+      "tree_stub" => tree_comp(%{trunk_h: 1.7, trunk_zoom: 0.6, trunk_w: 1.2, leaf_h: 1.0, leaf_zoom: 1.35}),
+      "tree_round" =>
+        tree_comp(%{trunk_h: 3.15, trunk_zoom: 0.6, trunk_w: 1.0, leaf_h: 2.0, leaf_zoom: 1.35, shape: "circle"}),
+      "bush" => bush_comp(%{leaf_h: 1.2, leaf_zoom: 1.35}),
+      "bush_round" => bush_comp(%{leaf_h: 1.2, leaf_zoom: 1.35, shape: "circle"}),
       # TWO water variants of the town-square basin, both COMPOSITIONS assembled from AUTOTILE PIECES
       # (TILESET-AUTHORING §3), not one fill: a rim of the RIGHT edge/corner piece per cell (`fountain_tl/tr/
       # bl/br` corners + `fountain_t/b/l/r` sides) around a `water_c` (blue water) interior. Every cell blocks

@@ -29,37 +29,78 @@ defmodule Nebulith.TileSourceTest do
     %{ascii: ascii, emoji: emoji, expected_ascii: expected_ascii, expected_emoji: map_size(emoji)}
   end
 
-  test "ports every distinct ascii + emoji tile into its tileset", ctx do
-    assert length(Catalog.list_tiles_for("ascii")) == ctx.expected_ascii
-    assert length(Catalog.list_tiles_for("emoji")) == ctx.expected_emoji
+  test "ports every distinct ascii + emoji tile into its tileset (the DB is a SUPERSET of the JSON)", ctx do
+    ascii_labels = MapSet.new(Catalog.list_tiles_for("ascii"), & &1.label)
+    emoji_labels = MapSet.new(Catalog.list_tiles_for("emoji"), & &1.label)
+
+    json_ascii =
+      ctx.ascii["tiles"] |> Map.keys() |> MapSet.new() |> MapSet.union(MapSet.new(Map.keys(ctx.ascii["terrain"])))
+
+    # every JSON-sourced tile is ported; seed ALSO authors extra pieces in Elixir (trunk/leaf/canopy/building),
+    # so the DB is a SUPERSET — asserting an exact count would be stale the moment a piece is added.
+    assert MapSet.subset?(json_ascii, ascii_labels)
+    assert MapSet.subset?(MapSet.new(Map.keys(ctx.emoji)), emoji_labels)
+    assert MapSet.size(ascii_labels) >= ctx.expected_ascii
+    assert MapSet.size(emoji_labels) >= ctx.expected_emoji
   end
 
   test "ports the json-sourced + elixir-authored compositions, tree_small carrying 30 cells" do
     comps = Catalog.list_compositions()
-    assert length(comps) == 4
+    names = MapSet.new(comps, & &1.name)
+
+    # the legacy JSON comps + the elixir-authored family are all present (a plain total count would be brittle
+    # the moment a building or tree variant is added).
+    assert MapSet.subset?(MapSet.new(~w(tree_small tree_dead tree bush well fountain)), names)
 
     tree_small = Enum.find(comps, &(&1.name == "tree_small"))
     assert length(tree_small.cells) == 30
   end
 
-  test "ports the tree + bush compositions" do
+  test "the tree is EXACTLY 2 tiles — a thin tall trunk + a bigger leaf; the bush is trunkless (1 tile)" do
     comps = Catalog.list_compositions()
-
     tree = Enum.find(comps, &(&1.name == "tree"))
     bush = Enum.find(comps, &(&1.name == "bush"))
 
-    assert tree.footprint_w == 3
-    assert tree.footprint_h == 1
-    assert bush.footprint_w == 3
-    assert bush.footprint_h == 1
+    assert tree.footprint_w == 1 and tree.footprint_h == 1
+    assert bush.footprint_w == 1 and bush.footprint_h == 1
 
-    assert length(tree.cells) == 5
-    assert length(bush.cells) == 4
+    assert length(tree.cells) == 2, "the optimized tree is one trunk + one leaf"
+    assert length(bush.cells) == 1, "the bush is a single leaf mound (no trunk)"
 
-    assert Enum.any?(tree.cells, &(&1.label == "trunk_base" and &1.level == 0))
-    refute Enum.any?(bush.cells, &(&1.label in ["trunk", "trunk_base"]))
+    trunk = Enum.find(tree.cells, &(&1.label == "trunk_mid"))
+    leaf = Enum.find(tree.cells, &(&1.label == "leaf_center"))
+
+    # the user's hand-tuned settings: trunk = Zoom(scale) 0.6 / Height(scaleY) 3.15 (a thin tall post); leaf =
+    # Zoom 1.35 / Height 2 (a bigger cube), lifted to level 2 so it sits ON the trunk top.
+    assert trunk.level == 0 and trunk.scale == 0.6 and trunk.settings["scaleY"] == 3.15
+    assert leaf.level == 2 and leaf.scale == 1.35 and leaf.settings["scaleY"] == 2.0
+
+    # DIMENSION SANITY: the trunk is thinner + less zoomed than the leaves.
+    assert trunk.scale < leaf.scale
+
+    # the bush's one cell is a leaf on the ground — no trunk anywhere.
+    assert hd(bush.cells).label == "leaf_center" and hd(bush.cells).level == 0
+    refute Enum.any?(bush.cells, &(&1.label in ["trunk", "trunk_mid", "trunk_base"]))
 
     refute Enum.any?(comps, &(&1.name in ["big_tree_a", "big_tree_b", "bush_a", "bush_b"]))
+  end
+
+  test "the round variant ships a CIRCLE canopy (shape on the leaf cell); the square tree carries none" do
+    comps = Catalog.list_compositions()
+    round_leaf = Enum.find(comps, &(&1.name == "tree_round")).cells |> Enum.find(&(&1.label == "leaf_center"))
+    square_leaf = Enum.find(comps, &(&1.name == "tree")).cells |> Enum.find(&(&1.label == "leaf_center"))
+
+    assert round_leaf.settings["shape"] == "circle"
+    refute Map.has_key?(square_leaf.settings, "shape")
+
+    # skinny/thick TRUNK width is a per-variant setting (Alexander: "trunk width is a variable"): tall = 0.85
+    # (skinnier), stub = 1.2 (thicker); the standard trunk omits Width entirely (default 1).
+    tall_trunk = Enum.find(comps, &(&1.name == "tree_tall")).cells |> Enum.find(&(&1.label == "trunk_mid"))
+    stub_trunk = Enum.find(comps, &(&1.name == "tree_stub")).cells |> Enum.find(&(&1.label == "trunk_mid"))
+    std_trunk = Enum.find(comps, &(&1.name == "tree")).cells |> Enum.find(&(&1.label == "trunk_mid"))
+    assert tall_trunk.settings["scaleX"] == 0.85
+    assert stub_trunk.settings["scaleX"] == 1.2
+    refute Map.has_key?(std_trunk.settings, "scaleX")
   end
 
   test "the fountain/well basin rim and water default to z_index 0 (draw priority is a capability, not a default)" do
