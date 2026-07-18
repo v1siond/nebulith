@@ -20,7 +20,6 @@ import { getStack, type TileEntry, type TileSource } from '@/engine/cellStack'
 import { type AttackAnim, isAnimDone } from '@/engine/attackAnimations'
 import { type BuildingType } from '@/engine/buildingTypes'
 import { BUILDING_PLACE_LENGTH, buildingCompositionKind, buildingFootprint, canPlaceBuildingComposition, isRoadGround, nearestRoadFacing } from '@/engine/buildingCatalog'
-import { type AnimFrame, type AnimPreset, CELL_ANIM_PRESETS, type Ease, makeCellAnimation, restFrame } from '@/engine/cellAnimation'
 import { findTriggeredConnector, normalizeConnector } from '@/engine/connectors'
 import { entityPalette, punchTile, weaponEmoji, weaponGlyph, weaponPose } from '@/engine/entityArt'
 import { StageData, VariantId, generateStage, stagePaint } from '@/engine/stageGenerator'
@@ -156,14 +155,6 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   useEffect(() => { armedTileRef.current = armedTile }, [armedTile])
   // Render opacity (0.15–1) applied to tiles placed from the palette — play with contrast / depth.
   const [placeOpacity, setPlaceOpacity] = useState(1)
-  // Animation Author panel — the frames + timing the user defines, then attaches to selected cells.
-  // Frame 0 is always the rest pose; later frames are offset nudges (dx/dy/rot/scale).
-  const [authorFrames, setAuthorFrames] = useState<AnimFrame[]>([restFrame()])
-  const [authorDuration, setAuthorDuration] = useState(1200)
-  const [authorDelay, setAuthorDelay] = useState(400)
-  const [authorLoop, setAuthorLoop] = useState(true)
-  const [authorEase, setAuthorEase] = useState<Ease>('sine')
-  const [authorStatus, setAuthorStatus] = useState('')
   const [selectedHeight, setSelectedHeight] = useState(0)
   const [heightEditMode, setHeightEditMode] = useState(false)
   const [hideEntities, setHideEntities] = useState(false)
@@ -2155,50 +2146,6 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     })
     grid.removeAssetsWhere(a => selectedCells.has(`${a.col},${a.row}`))
     setSelectedCells(new Set())
-  }
-
-  // ── Frame-based Animation Author handlers ──────────────────────────
-  // Load a starting template (the old presets, now ready-to-tweak frame sets).
-  const loadAuthorPreset = (p: AnimPreset) => {
-    setAuthorFrames(p.frames.map(f => ({ ...f })))
-    setAuthorDuration(p.durationMs)
-    setAuthorDelay(p.delayMs)
-    setAuthorEase(p.ease)
-    setAuthorLoop(true)
-    setAuthorStatus(`loaded "${p.name}" — tweak the frames, then Apply`)
-  }
-
-  // Attach the authored animation to the selected cells' assets. It plays live immediately because
-  // the render loop reads asset.cellAnim every frame, so Preview and Apply share this path.
-  const attachAuthorAnim = (commit: boolean) => {
-    const grid = gridRef.current
-    if (!grid || selectedCells.size === 0) return
-    const cells = Array.from(selectedCells).map(key => {
-      const [col, row] = key.split(',').map(Number)
-      return { col, row }
-    })
-    const anim = makeCellAnimation(cells, authorFrames, {
-      id: `cellanim-${Date.now()}`,
-      durationMs: authorDuration,
-      delayMs: authorDelay,
-      loop: authorLoop,
-      ease: authorEase,
-      trigger: 'always',
-    })
-    let hit = 0
-    selectedCells.forEach(key => {
-      const [col, row] = key.split(',').map(Number)
-      const asset = grid.assets.find(a => a.col === col && a.row === row)
-      if (asset) {
-        asset.cellAnim = anim
-        hit++
-      }
-    })
-    setAuthorStatus(
-      hit === 0
-        ? 'no asset in the selected cell(s) — place one first'
-        : `${commit ? 'applied' : 'previewing'} on ${hit} cell${hit === 1 ? '' : 's'} — it plays live`,
-    )
   }
 
   // Place height on selected cells
@@ -5643,7 +5590,6 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
               if (selectedCells.size > 0) {
                 const first = Array.from(selectedCells)[0].split(',')
                 const cellLabel = selectedCells.size > 1 ? `${selectedCells.size} cells` : `(${first[0]}, ${first[1]})`
-                const animReady = authorFrames.length >= 2
                 // Cell triggers attach to the FIRST selected cell (the one the label shows).
                 const trigCol = parseInt(first[0], 10)
                 const trigRow = parseInt(first[1], 10)
@@ -5817,19 +5763,6 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                       >
                         {isSaving ? 'Saving…' : '💾 Save map'}
                       </button>
-                    </Card>
-                    <Card title="Animation" accent="purple" defaultOpen={false} sectionId="animation" focus={sectionFocus}>
-                      <p className="mb-2 text-[10px] leading-tight text-gray-500">One-click a preset, then Apply it to an asset in the selected cell(s).</p>
-                      <div className="mb-2 flex flex-wrap gap-1">
-                        {CELL_ANIM_PRESETS.map(p => (
-                          <button key={p.id} onClick={() => loadAuthorPreset(p)} className="rounded bg-gray-800 px-2 py-1 text-[10px] text-gray-200 transition-colors hover:bg-fuchsia-800 hover:text-white">{p.name}</button>
-                        ))}
-                      </div>
-                      <div className="flex gap-1">
-                        <button onClick={() => attachAuthorAnim(false)} disabled={!animReady} className="flex-1 rounded bg-gray-700 py-1 text-[10px] font-bold text-white transition-all hover:opacity-80 disabled:opacity-40">Preview</button>
-                        <button onClick={() => attachAuthorAnim(true)} disabled={!animReady} className="flex-1 rounded bg-fuchsia-700 py-1 text-[10px] font-bold text-white transition-all hover:opacity-80 disabled:opacity-40">Apply</button>
-                      </div>
-                      {authorStatus && <p className="mt-1 text-[9px] text-amber-300">{authorStatus}</p>}
                     </Card>
                     <Card title="Trigger" accent="yellow" defaultOpen={false} sectionId="trigger" focus={sectionFocus}>
                       <TriggerEditor
