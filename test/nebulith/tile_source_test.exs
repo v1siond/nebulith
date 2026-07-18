@@ -62,34 +62,38 @@ defmodule Nebulith.TileSourceTest do
     refute Enum.any?(comps, &(&1.name in ["big_tree_a", "big_tree_b", "bush_a", "bush_b"]))
   end
 
-  test "the basin RIM outranks the water it contains (container z_index > contents), water outranks external tiles" do
-    # The container/contents rule (Image #41): the rim is the water's CONTAINER, so it draws IN FRONT of the
-    # water. Ordering, low→high: external(0) < water(10) < rim(20). water 10 > 0 still keeps the water in front
-    # of a wall behind the fountain (Images #34/#36); rim 20 > 10 keeps the water contained by its own basin.
+  test "the fountain/well basin rim and water default to z_index 0 (draw priority is a capability, not a default)" do
+    # Reverted (Alexander: "just leave everything on 0 by default for now, it'll work fine; we'll only need
+    # specific z-index once we start working composition optimization"). The z_index CAPABILITY stays (the
+    # column + the depth-sort override + the editor Z-Index control), but nothing carries a non-zero draw
+    # priority by default — the rim and its water both sort positionally at 0.
     for name <- ["fountain", "well"] do
       comp = Enum.find(Catalog.list_compositions(), &(&1.name == name))
       {water, rim} = Enum.split_with(comp.cells, &(&1.label == "water_c"))
 
       assert length(water) >= 3, "#{name} should have water cells"
-      assert Enum.all?(water, &(&1.z_index == 10)), "#{name} water should sit at z_index 10"
       assert rim != []
-      assert Enum.all?(rim, &(&1.z_index == 20)), "#{name} rim should OUTRANK the water at z_index 20"
-      # the ordering holds by construction: max water z_index < min rim z_index
-      assert Enum.max(Enum.map(water, & &1.z_index)) < Enum.min(Enum.map(rim, & &1.z_index))
+      assert Enum.all?(water, &(&1.z_index == 0)), "#{name} water defaults to z_index 0"
+      assert Enum.all?(rim, &(&1.z_index == 0)), "#{name} rim defaults to z_index 0"
     end
   end
 
-  test "the fountain interior is all blue water (no water_jet drops), a bit bigger, with the yoyo height-grow animation" do
+  test "the fountain interior is all blue water (no water_jet drops), a bit bigger; only the center row of 3 carries the yoyo height-grow" do
     fountain = Enum.find(Catalog.list_compositions(), &(&1.name == "fountain"))
     water = Enum.filter(fountain.cells, &(&1.label == "water_c"))
 
-    # the drops are gone — the interior is water only
+    # the drops are gone — the interior is a 3×3 grid of blue water only, drawn a bit bigger (scale ~1.15)
     refute Enum.any?(fountain.cells, &(&1.label == "water_jet"))
-    assert length(water) >= 6
-    # drawn a bit bigger (scale ~1.15) and every water cell ships the single grow animation
+    assert length(water) == 9
     assert Enum.all?(water, &(&1.scale == 1.15))
 
-    for cell <- water do
+    # Only the CENTER ROW of 3 animates (Alexander: "in the 9 blocks version, the 3 in the center are the ones
+    # to animate"); the other 6 are STATIC blue water (no animation).
+    animated = Enum.filter(water, & &1.animations)
+    assert length(animated) == 3
+    assert length(water) - length(animated) == 6
+
+    for cell <- animated do
       assert [grow] = cell.animations
       assert grow["id"] == "fountain_water_grow"
       assert grow["yoyo"] == true
@@ -98,16 +102,12 @@ defmodule Nebulith.TileSourceTest do
     end
   end
 
-  test "z_index defaults to 0 on every cell that is not fountain water or basin rim (no regression to the depth sort)" do
-    comps = Catalog.list_compositions()
-    # Only the fountain/well water (10) and their basin rim pieces (20) carry a non-zero draw priority; every
-    # other cell (trees, bushes, all buildings, the light post) stays at the default 0 and sorts positionally.
-    plain =
-      Enum.flat_map(comps, fn c ->
-        Enum.reject(c.cells, &(&1.label == "water_c" or String.starts_with?(&1.label, "fountain")))
-      end)
-
-    assert Enum.all?(plain, &(&1.z_index == 0))
+  test "z_index defaults to 0 on EVERY composition cell (nothing carries a non-zero draw priority by default)" do
+    # After the revert, no cell is seeded with a non-zero draw priority — trees, bushes, all buildings, the
+    # light post, AND the fountain/well rim + water all sort positionally at the column default 0.
+    cells = Enum.flat_map(Catalog.list_compositions(), & &1.cells)
+    assert cells != []
+    assert Enum.all?(cells, &(&1.z_index == 0))
   end
 
   test "the light post is a composition — a `post` base at level 0 + the `lamp` on top at level 1" do

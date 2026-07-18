@@ -940,23 +940,14 @@ defmodule Nebulith.Catalog.TileSource do
     }
   end
 
-  # The fountain draw-PRIORITY layering (CSS z-index style) — a CONTAINER always outranks its CONTENTS.
-  # A fountain is a rim/basin (the container) holding water (the contents), so the ordering, low→high, is:
-  #
-  #     external walls/ground (0)  <  water (10)  <  rim/basin (20)
-  #
-  # • water 10 > external 0 — the water still reads IN FRONT of a wall/building block that sits BEHIND the
-  #   fountain and gets extra height or z-width (Images #34/#36); it no longer draws OVER the water.
-  # • rim 20 > water 10 — the basin RIM (its own container) draws IN FRONT of the water it holds, so the
-  #   water is visually CONTAINED by the rim instead of spilling over its front edge (Image #41). Previously
-  #   the rim sat at the default 0 — level with external walls and BEHIND the water — which made the water
-  #   draw over its own basin and look wrong.
-  #
-  # General principle (see ANIMATION-SYSTEM.md §The container/contents z-order rule): whenever one tile
-  # VISUALLY CONTAINS another (a rim around water, a pot around a plant), the container gets the HIGHER
-  # z_index so its front edge occludes the contents. Pure DATA on the cell; NOT a render special-case.
-  @water_z_index 10
-  @rim_z_index 20
+  # DRAW-PRIORITY (`z_index`, CSS style) is a per-cell CAPABILITY, not a default. `composition_cells.z_index`
+  # (served as `zIndex`) lets a cell draw LATER (on top / in front), overriding the positional depth sort in
+  # every view (iso `isoDepthCompare`, 2D, top), and is authored as DATA on the cell via the editor's Z-Index
+  # control. It's kept for the upcoming COMPOSITION-OPTIMIZATION work (e.g. a basin rim occluding the water it
+  # contains — see ANIMATION-SYSTEM.md → "z-index draw priority (a capability for composition optimization)").
+  # But NOTHING carries a non-zero z_index by DEFAULT right now: every cell keeps the column default 0 and
+  # sorts positionally (Alexander: "just leave everything on 0 by default for now, it'll work fine; we'll only
+  # need specific z-index once we start working composition optimization").
 
   # The fountain/well WATER's DEFAULT ANIMATION — the height-GROW yoyo (Alexander: "animate the water to grow
   # its height 3-4 blocks, then go back to 1 block in loop … more realistic"), now DESYNCED per column so the
@@ -1033,8 +1024,7 @@ defmodule Nebulith.Catalog.TileSource do
   end
 
   # The rim EDGE/CORNER pieces around a w×h basin — the `fountain_*` autotile border, reused by both variants.
-  # The rim is the basin's CONTAINER, so it carries the HIGHER `@rim_z_index` (20 > the water's 10): its front
-  # edge draws IN FRONT of the water it holds, so the water reads contained instead of spilling over (Image #41).
+  # The rim keeps the default draw priority (z_index 0), sorting positionally like every other cell.
   defp basin_rim(w, h) do
     for dy <- 0..(h - 1),
         dx <- 0..(w - 1),
@@ -1044,13 +1034,12 @@ defmodule Nebulith.Catalog.TileSource do
           dy: dy,
           level: 0,
           label: edge_piece("fountain", dx, dy, w, h),
-          walkable: false,
-          z_index: @rim_z_index
+          walkable: false
         }
   end
 
-  # An ANIMATED interior water cell (blue `water_c`, scale 1.15, high z-index so it reads in front of a wall
-  # behind it) carrying animated column `i`'s desynced height-grow.
+  # An ANIMATED interior water cell (blue `water_c`, scale 1.15) carrying animated column `i`'s desynced
+  # height-grow. Draw priority stays at the default 0 (sorts positionally).
   defp water_cell(dx, dy, i) do
     %{
       dx: dx,
@@ -1059,13 +1048,12 @@ defmodule Nebulith.Catalog.TileSource do
       label: "water_c",
       walkable: false,
       scale: 1.15,
-      z_index: @water_z_index,
       animations: water_grow_anim(i)
     }
   end
 
-  # A STATIC interior water cell — same blue `water_c` look (scale 1.15, high z-index) but NO animation (the 6
-  # non-centre cells of the large fountain). Its height stays 1 block.
+  # A STATIC interior water cell — same blue `water_c` look (scale 1.15) but NO animation (the 6 non-centre
+  # cells of the large fountain). Its height stays 1 block. Draw priority stays at the default 0.
   defp static_water_cell(dx, dy) do
     %{
       dx: dx,
@@ -1073,8 +1061,7 @@ defmodule Nebulith.Catalog.TileSource do
       level: 0,
       label: "water_c",
       walkable: false,
-      scale: 1.15,
-      z_index: @water_z_index
+      scale: 1.15
     }
   end
 

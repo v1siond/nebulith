@@ -184,28 +184,31 @@ ties → later in the list) and a looping animation rests at its `to`/`from` out
 fountain no longer relies on that (single animation, single setting), but the rule stands for any multi-animation
 tile that writes the same setting from two envelopes.
 
-### The container/contents z-order rule
+### z-index draw priority (a capability for composition optimization)
 
-**A container's `z_index` is always HIGHER than its contents'** — the container's front edge must occlude what it
-holds. `z_index` (backend `composition_cells.z_index`, served as `zIndex`) is a CSS-style draw priority: a higher
-value draws LATER (on top / in front), overriding the positional depth sort in every view (iso/2D/top). Author it
-as DATA on the cell, never as a render special-case.
+`z_index` (backend `composition_cells.z_index`, served as `zIndex`) is a CSS-style draw priority: a higher value
+draws LATER (on top / in front), overriding the positional depth sort in every view (iso `isoDepthCompare`, 2D,
+top). It's authored as DATA on the cell — the editor's Z-Index control or a seeded composition-cell default —
+never as a render special-case.
 
-The fountain/well basin is the reference case. Low→high, the layering is:
+**Right now every cell defaults to 0** (Alexander: "just leave everything on 0 by default for now, it'll work
+fine; we'll only need specific z-index once we start working composition optimization"). Nothing — including the
+fountain/well rim and water — carries a non-zero draw priority; the positional sort handles the current maps and
+they render correctly. The capability stays wired end-to-end — the column, the depth-sort override
+(`isoDepthCompare` / the 2D + top sorts), and the editor Z-Index control — so the composition-optimization pass
+can reach for it later WITHOUT re-plumbing.
+
+The intended future use is a CONTAINER occluding its CONTENTS. When one tile visually contains another (a basin
+rim around water, a pot around a plant, a frame around glass), give the container a higher `z_index` than its
+contents so its front edge draws in front of what it holds. For the fountain basin that would order, low→high:
 
 ```
-external walls/ground (0)  <  water (10)  <  rim/basin (20)
+external walls/ground  <  water  <  rim/basin
 ```
 
-- **water 10 > external 0** — the water reads IN FRONT of a wall/building block that sits BEHIND the fountain and
-  gets extra height or z-width (Images #34/#36); it no longer draws over the water.
-- **rim 20 > water 10** — the basin RIM (the container) draws IN FRONT of the water it holds, so the water looks
-  CONTAINED instead of spilling over the rim's front edge (Image #41). A rim left at the default 0 sits level with
-  external walls and BEHIND the water — the bug that made the water draw over its own basin.
-
-Generalize it to any nesting (a pot around a plant, a planter around soil, a frame around glass): give the
-**container** the higher `z_index` so its front edge occludes the **contents**. Authored in `TileSource`
-(`@water_z_index` 10 / `@rim_z_index` 20); also noted in `MAP-MODEL.md`.
+so the rim reads as CONTAINING the water while the water still reads in front of a wall behind it. That is a
+tuning choice for the composition-optimization pass, NOT a current default — until then the fountain sits at 0
+everywhere and looks right (verified real render, both styles). Also noted in `MAP-MODEL.md`.
 
 ## 7. Authoring
 
