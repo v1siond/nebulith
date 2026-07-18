@@ -911,21 +911,32 @@ export function drawQuestMarker(
 export const VITALS_NAME_COLOR = '#ffe8c2'
 
 
-/** HP bar + name label floating above a figure — shared by enemies AND the player so the two
- *  read identically. `x` is the figure centre, `figureTop` the y of the figure's top edge.
+/** The HP bar's BOTTOM edge floats this many px above the figure's head — a small, fixed screen-space
+ *  gap so the vitals HUG the unit (the ASCII-art look) in every view + style, instead of floating cells
+ *  above it. Fixed px (not a cell fraction) on purpose: the bar + name are a screen-space UI overlay, so a
+ *  constant gap keeps them equally tight at any zoom, and the head anchor already scales with the figure. */
+export const VITALS_HEAD_GAP_PX = 3
+
+
+/** HP bar + name label floating just above a figure's HEAD — shared by enemies AND the player so the two
+ *  read identically. `x` is the figure centre, `headY` the y of the drawn figure's TOP edge (its head).
+ *  The bar's bottom sits VITALS_HEAD_GAP_PX above `headY`; the name sits above the bar. This is why the
+ *  caller must pass the ACTUAL drawn-sprite top (which differs between the ascii block figure and the emoji
+ *  billboard), NOT a fixed lift off the feet — a fixed lift is what floated the bar cells above the emoji.
  *  Returns the anchor just above the name (where an above-figure quest marker sits). */
 export function drawFigureVitals(
   ctx: CanvasRenderingContext2D,
   x: number,
-  figureTop: number,
+  headY: number,
   barWidth: number,
   barHeight: number,
   nameSize: number,
   fraction: number,
   label: string,
 ): { x: number; y: number } {
-  drawHpBar(ctx, x, figureTop, barWidth, barHeight, fraction)
-  const nameY = figureTop - nameSize * 0.85
+  const barTop = headY - VITALS_HEAD_GAP_PX - barHeight
+  drawHpBar(ctx, x, barTop, barWidth, barHeight, fraction)
+  const nameY = barTop - nameSize * 0.85
   drawShadowText(ctx, label, x, nameY, VITALS_NAME_COLOR, `bold ${nameSize}px ${ASCII_FONT}`)
   return { x, y: nameY - nameSize * 0.9 }
 }

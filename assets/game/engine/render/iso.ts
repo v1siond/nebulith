@@ -815,21 +815,33 @@ export function drawIsoPlayer(
   // hardcoded. The frame resolves to a baked image (the base tile or an override tile) OR a glyph, honouring
   // its flipX, so the authored walk/idle actually PLAYS instead of freezing on the static base image. ASCII
   // (no image, empty char) keeps its block-figure sprite below (which animates via getPlayerArt).
+  // The drawn figure's HEAD (top edge in screen y) — set by whichever branch draws, so the vitals bar hugs
+  // the REAL sprite top (emoji billboard vs ascii block figure differ) instead of a phantom ascii-height lift.
+  let headY: number
   if (pdv.image || pdv.char) {
     const pf = activeFrame(player.animations ?? DEFAULT_CHARACTER_ANIMATIONS, { char: pdv.char }, { moving: player.moving, facing: player.facing, running: player.running ?? false }, time)
     const pfImg = frameImage(pf, pdv.char, pdv.image)
     if (pfImg) {
-      drawStyledImage(ctx, pfImg, x, groundY - (tileH * 2.6) * 0.42 - breathe, tileH * 2.6, pf.flipX)
+      const imgPx = tileH * 2.6
+      const cy = groundY - imgPx * 0.42 - breathe
+      drawStyledImage(ctx, pfImg, x, cy, imgPx, pf.flipX)
+      headY = cy - imgPx * 0.5
     } else {
-      ctx.font = `bold ${fontSize * 1.8}px ${ASCII_FONT}`
+      const glyphPx = fontSize * 1.8
+      const cy = groundY - glyphPx * 0.42 - breathe
+      ctx.font = `bold ${glyphPx}px ${ASCII_FONT}`
       ctx.textAlign = 'center'
       ctx.fillStyle = pdv.color
-      drawFacingGlyph(ctx, genderize(pf.char ?? pdv.char, player.variant), x, groundY - (fontSize * 1.8) * 0.42 - breathe, pf.flipX)
+      drawFacingGlyph(ctx, genderize(pf.char ?? pdv.char, player.variant), x, cy, pf.flipX)
       ctx.textAlign = 'left'
       ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
+      headY = cy - glyphPx * 0.5
     }
   } else {
     drawBlockFigure(ctx, figArt, x - pHalf, baseY - breathe, lineHeight, charW, bodyColor, bodyBg)
+    // Block figure stacks rows UP from baseY; the top row's centre sits (len-1) rows up, its top edge a half
+    // row higher — that edge is the head the bar hugs (matching the emoji billboard's top).
+    headY = baseY - breathe - (playerArt.length - 1) * lineHeight - lineHeight * 0.5
   }
 
   // The held weapon + the shield, both at the ARM row. The weapon sits on the FACING hand; the
@@ -868,10 +880,9 @@ export function drawIsoPlayer(
   // Life bar + name above the head — the SAME treatment enemies get (drawFigureVitals), so the
   // player reads identically. Drawn only once HP is mirrored onto the struct (see the game loop).
   if (player.maxHp != null) {
-    const figureTop = baseY - breathe - playerArt.length * lineHeight // above the head, off the same anchor
     const barWidth = Math.max(28, tileH * 2.2)
     const nameSize = Math.max(9, tileH * 0.95)
-    drawFigureVitals(ctx, x, figureTop, barWidth, 7, nameSize, barFraction(player.hp ?? player.maxHp, player.maxHp), playerDisplayName(player.name))
+    drawFigureVitals(ctx, x, headY, barWidth, 7, nameSize, barFraction(player.hp ?? player.maxHp, player.maxHp), playerDisplayName(player.name))
   }
 }
 
@@ -986,30 +997,37 @@ export function drawIsoEntity(
   // OR a glyph — honouring flipX — so a moving person actually animates instead of freezing on the base
   // image. ASCII (no image, empty char) keeps its block-figure sprite below.
   const anims = entity.animations ?? (isEnemy ? undefined : DEFAULT_CHARACTER_ANIMATIONS)
+  // The drawn figure's HEAD (top edge in screen y) — set by whichever branch draws, so the vitals bar +
+  // quest marker hug the REAL sprite top (emoji billboard vs ascii block figure differ) instead of the
+  // phantom ascii-height lift that floated the bar cells above the emoji.
+  let figureTop: number
   if (edv.image || edv.char) {
     const ef = activeFrame(anims, { char: edv.char }, { moving, facing: 'down', running: false }, now)
     const efImg = frameImage(ef, edv.char, edv.image)
     if (efImg) {
       const baseImgPx = tileH * (isEnemy ? 1.9 : 2.4)
       const imgPx = baseImgPx * size
-      drawStyledImage(ctx, efImg, x, groundY - baseImgPx * 0.42 - (imgPx - baseImgPx) * 0.5, imgPx, ef.flipX)
+      const cy = groundY - baseImgPx * 0.42 - (imgPx - baseImgPx) * 0.5
+      drawStyledImage(ctx, efImg, x, cy, imgPx, ef.flipX)
+      figureTop = cy - imgPx * 0.5
     } else {
       // Enemies read a touch smaller than people so a mob doesn't tower over the hero.
       const baseEmojiPx = fontSize * (isEnemy ? 1.35 : 1.7)
       const emojiPx = baseEmojiPx * size
+      const cy = groundY - baseEmojiPx * 0.42 - (emojiPx - baseEmojiPx) * 0.5
       ctx.font = `bold ${emojiPx}px ${ASCII_FONT}`
       ctx.textAlign = 'center'
       ctx.fillStyle = edv.color
-      drawFacingGlyph(ctx, genderize(ef.char ?? edv.char, entity.variant), x, groundY - baseEmojiPx * 0.42 - (emojiPx - baseEmojiPx) * 0.5, ef.flipX)
+      drawFacingGlyph(ctx, genderize(ef.char ?? edv.char, entity.variant), x, cy, ef.flipX)
       ctx.textAlign = 'left'
       ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
+      figureTop = cy - emojiPx * 0.5
     }
   } else {
     drawBlockFigure(ctx, art, leftX, baseY, lineHeight, charW, pal.fg, pal.bg)
+    // Block figure stacks rows UP from baseY; the top row's top edge (a half row above its centre) is the head.
+    figureTop = baseY - (art.length - 1) * lineHeight - lineHeight * 0.5
   }
-
-  // Top of the figure — where above-entity overlays (quest marker) anchor.
-  const figureTop = baseY - art.length * lineHeight
   if (entity.kind !== 'enemy') return { x, y: figureTop - lineHeight * 0.5 }
 
   // Enemy vitals (HP bar + name) drew for EVERY enemy, so a mob-heavy cave/temple became a wall of

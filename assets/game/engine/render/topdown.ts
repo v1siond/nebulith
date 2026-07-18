@@ -88,23 +88,31 @@ export function drawTopEntity(
   // — so a moving person animates instead of freezing on the base image. ASCII (no image, empty char) keeps
   // its multi-row sprite below.
   const anims = entity.animations ?? (isEnemy ? undefined : DEFAULT_CHARACTER_ANIMATIONS)
+  // The drawn figure's HEAD (top edge in screen y) — set by whichever branch draws, so the vitals bar +
+  // quest marker hug the REAL sprite top (emoji billboard vs ascii multi-row figure differ) instead of a
+  // fixed lift off the footprint that floated the bar above the emoji.
+  let figureTop: number
   if (edv.image || edv.char) {
     const ef = activeFrame(anims, { char: edv.char }, { moving, facing: 'down', running: false }, now)
     const efImg = frameImage(ef, edv.char, edv.image)
     if (efImg) {
       const baseImgPx = spanH * 0.9
       const imgPx = baseImgPx * size
-      drawStyledImage(ctx, efImg, cx, footY - baseImgPx * 0.42 - (imgPx - baseImgPx) * 0.5, imgPx, ef.flipX)
+      const cy = footY - baseImgPx * 0.42 - (imgPx - baseImgPx) * 0.5
+      drawStyledImage(ctx, efImg, cx, cy, imgPx, ef.flipX)
+      figureTop = cy - imgPx * 0.5
     } else {
       // One emoji replaces the multi-row figure. FIXED cell-multiple size, grounded by its BOTTOM at the
       // shadow (footY) so a smaller enemy doesn't float.
       const baseEmojiPx = tileSize * (isEnemy ? 1.35 : 1.7)
       const emojiPx = baseEmojiPx * size
+      const cy = footY - baseEmojiPx * 0.42 - (emojiPx - baseEmojiPx) * 0.5
       ctx.font = `bold ${emojiPx}px ${ASCII_FONT}`
       ctx.textAlign = 'center'
       ctx.fillStyle = edv.color
-      drawFacingGlyph(ctx, genderize(ef.char ?? edv.char, entity.variant), cx, footY - baseEmojiPx * 0.42 - (emojiPx - baseEmojiPx) * 0.5, ef.flipX)
+      drawFacingGlyph(ctx, genderize(ef.char ?? edv.char, entity.variant), cx, cy, ef.flipX)
       ctx.textAlign = 'left'
+      figureTop = cy - emojiPx * 0.5
     }
   } else {
     for (let i = 0; i < art.length; i++) {
@@ -121,10 +129,9 @@ export function drawTopEntity(
       ctx.fillStyle = pal.fg
       ctx.fillText(line, textLeft, ly)
     }
+    // Multi-row figure: the TOP row is drawn at startY (middle baseline); its top edge is a half row higher.
+    figureTop = startY - fontSize * 0.5
   }
-
-  // Top of the figure — where above-entity overlays (quest marker) anchor.
-  const figureTop = topY - 4
   if (entity.kind !== 'enemy') return { x: cx, y: figureTop - fontSize * 0.6 }
 
   // Enemy vitals (HP bar + name) drew for EVERY enemy, so a mob-heavy cave/temple became a wall of
@@ -504,15 +511,23 @@ export function render2D(
       // The active animation frame drives what's drawn (idle/walk/run) — a baked image or a glyph, honouring
       // flipX — so the hero ANIMATES when moving instead of freezing on the static base image. ASCII keeps
       // its multi-row sprite below.
+      // The drawn figure's HEAD (top edge in screen y) — set by whichever branch draws, so the vitals bar
+      // hugs the REAL sprite top (emoji billboard vs ascii multi-row figure differ) instead of the phantom
+      // ascii-height lift that floated the bar above the emoji hero.
+      let headY: number
       if (pdv.image || pdv.char) {
         const pf = activeFrame(player.animations ?? DEFAULT_CHARACTER_ANIMATIONS, { char: pdv.char }, { moving: player.moving, facing: player.facing, running: player.running ?? false }, time)
         const pfImg = frameImage(pf, pdv.char, pdv.image)
         if (pfImg) {
-          drawStyledImage(ctx, pfImg, p.x, baseY - personImgPx * 0.42, personImgPx, pf.flipX)
+          const cy = baseY - personImgPx * 0.42
+          drawStyledImage(ctx, pfImg, p.x, cy, personImgPx, pf.flipX)
+          headY = cy - personImgPx * 0.5
         } else {
+          const cy = baseY - personGlyphPx * 0.42
           ctx.font = `bold ${personGlyphPx}px ${ASCII_FONT}` // character height, matching npcs
-          drawFacingGlyph(ctx, genderize(pf.char ?? pdv.char, player.variant), p.x, baseY - personGlyphPx * 0.42, pf.flipX)
+          drawFacingGlyph(ctx, genderize(pf.char ?? pdv.char, player.variant), p.x, cy, pf.flipX)
           ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
+          headY = cy - personGlyphPx * 0.5
         }
       } else {
         for (let i = 0; i < figArt2.length; i++) {
@@ -521,6 +536,8 @@ export function render2D(
           ctx.fillStyle = bodyColor
           ctx.fillText(line, p.x, lineY)
         }
+        // Top row centre is (figArt2.length - 0.5) rows up; its top edge a half row higher is the head.
+        headY = baseY - figArt2.length * lineHeight
       }
       // Held weapon — the SAME single blade, swung in-hand when a melee attack is mid-flight
       // (mirrors drawIsoPlayer): at rest it points up; an attack sweeps it through the arc, and an
@@ -561,10 +578,9 @@ export function render2D(
 
       // Life bar + name above the head — the SAME treatment enemies get (drawFigureVitals).
       if (player.maxHp != null) {
-        const figureTop = baseY - figArt2.length * lineHeight
         const barWidth = Math.max(28, tileH * 2.2)
         const nameSize = Math.max(9, fontSize)
-        drawFigureVitals(ctx, p.x, figureTop, barWidth, 6, nameSize, barFraction(player.hp ?? player.maxHp, player.maxHp), playerDisplayName(player.name))
+        drawFigureVitals(ctx, p.x, headY, barWidth, 6, nameSize, barFraction(player.hp ?? player.maxHp, player.maxHp), playerDisplayName(player.name))
       }
 
     } else if (obj.asset) {
