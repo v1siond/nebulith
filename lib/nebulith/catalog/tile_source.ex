@@ -761,77 +761,61 @@ defmodule Nebulith.Catalog.TileSource do
         ]
       },
       # The town-square fountain — a COMPOSITION assembled from AUTOTILE PIECES (TILESET-AUTHORING §3), not
-      # one fill: a 5×4 basin whose interior is `water_c`, whose rim is the RIGHT edge/corner piece per cell
-      # (`fountain_tl/tr/bl/br` corners + `fountain_t/b/l/r` sides), with a few `water_jet` rising 1–2 blocks
-      # on the interior water. Every cell blocks (you stroll the paved ring around it); the generator stamps
+      # one fill: a 5×4 basin whose interior is all `water_c` (blue water), whose rim is the RIGHT edge/corner
+      # piece per cell (`fountain_tl/tr/bl/br` corners + `fountain_t/b/l/r` sides). The interior water cells
+      # each carry the height-GROW animation (grow the column 1→4 blocks then back, on loop) — no separate
+      # `water_jet` drop tiles. Every cell blocks (you stroll the paved ring around it); the generator stamps
       # it centred on the plaza (stampComposition).
       "fountain" => %{footprint_w: 5, footprint_h: 4, cells: fountain_cells()}
     }
   end
 
-  # The fountain WATER's draw-PRIORITY (CSS z-index style). The water (basin surface + jets) carries a high
-  # `z_index` so it renders IN FRONT of whatever sits behind it in the iso/2D depth sort — a wall/building
-  # block behind the fountain that gets extra height or z-width no longer draws OVER the water (Images
-  # #34/#36). 10 is comfortably above the default 0 every wall/rim/other tile carries (CSS semantics: a higher
-  # z-index wins globally), leaving headroom for future intermediate layers. The RIM stays 0 — it's the basin's
-  # own edge and sorts positionally with the water. Pure DATA on the cell; NOT a render special-case.
+  # The fountain WATER's draw-PRIORITY (CSS z-index style). The basin water carries a high `z_index` so it
+  # renders IN FRONT of whatever sits behind it in the iso/2D depth sort — a wall/building block behind the
+  # fountain that gets extra height or z-width no longer draws OVER the water (Images #34/#36). 10 is
+  # comfortably above the default 0 every wall/rim/other tile carries (CSS semantics: a higher z-index wins
+  # globally), leaving headroom for future intermediate layers. The RIM stays 0 — it's the basin's own edge
+  # and sorts positionally with the water. Pure DATA on the cell; NOT a render special-case.
   @water_z_index 10
 
-  # The fountain WATER's DEFAULT ANIMATION (Alexander, verbatim: the water tile "fades in goes 3 blocks up,
-  # and fades away", then loops). TWO chained looping `settings` animations sharing ONE 1800ms cycle period
-  # so they stay in sync every loop — the exact `Animation` envelope the frontend engine reads (camelCase
-  # keys, served verbatim; the tileset loader passes composition cells through untouched, and stampRun copies
-  # this onto the placed asset's `animations`):
+  # The fountain WATER's DEFAULT ANIMATION (Alexander, verbatim: "remove the water drops … animate the water
+  # to grow its height 3-4 blocks, then go back to 1 block in loop, that'll make it more realistic"). ONE
+  # looping `settings` animation with a YOYO (ping-pong) loop — the exact `Animation` envelope the frontend
+  # engine reads (camelCase keys, served verbatim; the tileset loader passes composition cells through
+  # untouched, and stampRun copies this onto the placed asset's `animations`):
   #
-  #   A "rise" — fade IN + lift: opacity 0→1 and y 0→3 blocks over 1200ms, then rests at the top for the
-  #     600ms loopDelay tail before snapping back and repeating. Higher priority (1) so it OWNS opacity while
-  #     the water is rising, and its `y` (only A writes y) lifts the tile 3 block-heights in every view.
-  #   B "fade" — fade AWAY at the top: opacity 1→0 over 600ms, starting AFTER A's rise (startDelayMs = A's
-  #     1200ms duration) with a 1200ms loopDelay so its period is also 1800ms.
+  #   "grow" — the water COLUMN grows UP: height (scaleY) 1→4 blocks over 1400ms (grow leg), then the yoyo
+  #     auto-reverses back 4→1 over the next 1400ms (shrink leg), then the 400ms loopDelay tail RESTS at the
+  #     base (`from` = 1 block) before the next surge. sine ease-in-out on each leg → a smooth breathing pulse.
+  #     `height` maps to scaleY, which stretches the block UP from its base (iso + 2D) — the water grows in
+  #     place, it does NOT levitate and it does NOT opacity-fade (that was the old rise/fade look).
   #
-  # NOTE (winner-takes-all resolver): `resolveAnimatedSettings` keeps ONE value per setting (highest priority,
-  # ties → later in the list) and a looping animation RESTS at its `to` outside its active window — so two
-  # overlapping opacity arcs can't each win only their own half. With A at the higher priority the RENDER is a
-  # clean loop (rise + fade-in, hold at top, snap out), and B is carried as data for a later resolver that
-  # composites opacity (min/over) so the smooth fade-out also shows. y stays fully correct (A alone writes it).
-  @fountain_water_animations [
+  # yoyo is a first-class field on the `Animation` envelope: over `durationMs` the phase runs `from→to`, then
+  # auto-reverses `to→from` over another `durationMs`, then the loopDelay tail rests at `from`. ONE animation
+  # writes ONE setting (height), so there's no winner-takes-all conflict — the value is exactly the tween.
+  @fountain_water_grow [
     %{
-      "id" => "fountain_water_rise",
-      "name" => "rise",
+      "id" => "fountain_water_grow",
+      "name" => "grow",
       "kind" => "settings",
-      "durationMs" => 1200,
+      "durationMs" => 1400,
       "startDelayMs" => 0,
-      "loopDelayMs" => 600,
+      "loopDelayMs" => 400,
       "loop" => true,
+      "yoyo" => true,
       "ease" => "sine",
       "priority" => 1,
       "trigger" => %{"on" => "load"},
       "tracks" => [
-        %{"setting" => "opacity", "from" => 0, "to" => 1},
-        %{"setting" => "y", "from" => 0, "to" => 3}
-      ]
-    },
-    %{
-      "id" => "fountain_water_fade",
-      "name" => "fade",
-      "kind" => "settings",
-      "durationMs" => 600,
-      "startDelayMs" => 1200,
-      "loopDelayMs" => 1200,
-      "loop" => true,
-      "ease" => "sine",
-      "priority" => 0,
-      "trigger" => %{"on" => "load"},
-      "tracks" => [
-        %{"setting" => "opacity", "from" => 1, "to" => 0}
+        %{"setting" => "height", "from" => 1, "to" => 4}
       ]
     }
   ]
 
-  # 5×4 fountain from pieces: the perimeter is the correct rim EDGE/CORNER piece, the interior is `water_c`,
-  # and jets rise from a few interior points (a tall centre jet + two lower side jets). The water cells
-  # (water_c + water_jet) ship WITH @fountain_water_animations so the fountain animates by default; the rim
-  # carries none. Pure data.
+  # 5×4 fountain from pieces: the perimeter is the correct rim EDGE/CORNER piece, the interior is all `water_c`
+  # (blue water) — no `water_jet` drops. Each interior water cell is drawn a bit bigger (scale 1.15) and ships
+  # WITH @fountain_water_grow, so the fountain's water animates by default: every water column grows its height
+  # 1→4 blocks then back, on loop. The rim carries no animation. Pure data.
   defp fountain_cells do
     w = 5
     h = 4
@@ -842,16 +826,9 @@ defmodule Nebulith.Catalog.TileSource do
 
     water =
       for dy <- 1..(h - 2), dx <- 1..(w - 2),
-        do: %{dx: dx, dy: dy, level: 0, label: "water_c", walkable: false, z_index: @water_z_index, animations: @fountain_water_animations}
+        do: %{dx: dx, dy: dy, level: 0, label: "water_c", walkable: false, scale: 1.15, z_index: @water_z_index, animations: @fountain_water_grow}
 
-    jets = [
-      %{dx: 2, dy: 1, level: 1, label: "water_jet", walkable: false, z_index: @water_z_index, animations: @fountain_water_animations},
-      %{dx: 2, dy: 1, level: 2, label: "water_jet", walkable: false, z_index: @water_z_index, animations: @fountain_water_animations},
-      %{dx: 1, dy: 2, level: 1, label: "water_jet", walkable: false, z_index: @water_z_index, animations: @fountain_water_animations},
-      %{dx: 3, dy: 2, level: 1, label: "water_jet", walkable: false, z_index: @water_z_index, animations: @fountain_water_animations}
-    ]
-
-    rim ++ water ++ jets
+    rim ++ water
   end
 
   # True for a perimeter cell of a `w`×`h` rectangle (where the rim/edge pieces go).

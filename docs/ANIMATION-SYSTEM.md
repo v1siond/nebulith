@@ -46,13 +46,18 @@ type TriggerEvent = 'load' | 'attack' | 'interact' | 'proximity'
 interface AnimationTrack { setting: SettingKey; from: number|string; to: number|string }   // many per animation
 interface Animation {      // kind:'settings' fully implemented; kind:'sprite' type-only (playback stubbed)
   id: string; name?: string; kind: 'settings' | 'sprite'
-  durationMs: number; startDelayMs?: number; loopDelayMs?: number; loop?: boolean; ease?: Ease; priority?: number
+  durationMs: number; startDelayMs?: number; loopDelayMs?: number; loop?: boolean; yoyo?: boolean; ease?: Ease; priority?: number
   trigger?: { on: TriggerEvent; radiusCells?: number }         // proximity → distance from the hero
   scope?:   { styles?: ('ascii'|'emoji')[]; views?: ('iso'|'2d'|'top')[] }   // absent/empty = all
   tracks:   AnimationTrack[]                                   // settings kind
   // frames: string[]                                          // sprite kind (baked frame labels)
 }
 ```
+
+- **`yoyo` (ping-pong loop).** Only meaningful with `loop`. A yoyo cycle runs `from`→`to` over `durationMs`
+  (up leg) then AUTO-REVERSES `to`→`from` over another `durationMs` (down leg), then the `loopDelayMs` tail
+  rests at `from`. So ONE animation oscillates up-and-back with **no chaining** — the fountain water grows its
+  height 1→4→1 blocks from a single envelope. Default false → the plain `from`→`to`, rest-at-`to`, snap-back loop.
 
 - **Per-instance:** `GridAsset.animations: Animation[]` + `GridAsset.placedAt` (the ms anchor). A LIST so
   animations **chain** — list order = chain order; each one's `startDelayMs` offsets it, so A→B→C sequences fall
@@ -71,7 +76,9 @@ interface Animation {      // kind:'settings' fully implemented; kind:'sprite' t
 - **Phase:** `elapsed = now − placedAt − startDelay`. Before the start delay → hold `from`. Non-loop past the
   duration → hold `to`. **Loop** period = `durationMs + loopDelayMs`; the duration window runs `0→1`, then the
   `loopDelay` tail **RESTS at `to`** (matches `cellAnimation`'s "hold the last frame") before snapping back to
-  `from`.
+  `from`. **Yoyo loop** period = `2·durationMs + loopDelayMs`; the up leg runs `0→1` over `durationMs`, the down
+  leg auto-reverses `1→0` over the next `durationMs` (continuous at the peak), then the `loopDelay` tail
+  **RESTS at `from`** (the down leg already returned there) before the next up leg.
 - **Per-track value:** numeric settings (incl. `opacity`, `y`, `zIndex`) = eased numeric lerp; `color` = per-channel
   RGB lerp → `rgb(r,g,b)` (fail-safe step if unparseable); `display` = **step at the temporal midpoint** (raw ≥ 0.5
   → `to`), never eased.
@@ -91,7 +98,10 @@ Per-frame split of concerns:
 - **opacity** → a multiplier onto the tile's base alpha (canvas `globalAlpha`) — fades in every view.
 - **x / y** → a screen shift in tile fractions; **`y` positive = a RISE** (screen-space up → the caller subtracts it).
 - **colour / zoom / width / height** → overlaid onto a shallow-cloned `asset` (`color`/`scale`/`scaleX`/`scaleY`)
-  so the existing draw code reads them unchanged.
+  so the existing draw code reads them unchanged. **`height`→`scaleY` grows the block UP from its base** in BOTH
+  iso (the extruded block gets taller) AND 2D (`draw2DLabeledCell` now sizes the cell by `scaleY`/`scaleX`/`scale`,
+  bottom edge planted at the base row — the SAME collapse contract iso already honoured). So the fountain water
+  column grows in place; it does not levitate.
 
 Wired into `iso.ts` (asset branch, clock `time`), `topdown.ts` (2D, `time`), `birdseye.ts` (top, `now`) — each
 using that view's existing `cellAnim` clock, so the animation shares the render's continuous RAF loop.
@@ -114,34 +124,37 @@ await a semantics decision before wiring.
 
 ## 6. The fountain default (the reference case)
 
-Authored on the `fountain` composition's `water_c` + `water_jet` cells (`TileSource` `@fountain_water_animations`),
-served on every fountain instance. Two chained looping `settings` animations sharing ONE **1800 ms** cycle:
+Authored on the `fountain` composition's interior `water_c` cells (`TileSource` `@fountain_water_grow`), served
+on every fountain instance. The interior is ALL blue water (no `water_jet` drops) drawn a bit bigger (`scale`
+1.15), and each water cell carries ONE looping **yoyo** `settings` animation:
 
-| id | tracks | dur | startDelay | loopGap | ease | priority |
-|----|--------|-----|-----------|---------|------|----------|
-| `fountain_water_rise` | opacity 0→1, **y 0→3** | 1200 | 0 | 600 | sine | **1** |
-| `fountain_water_fade` | opacity 1→0 | 600 | 1200 | 1200 | sine | 0 |
+| id | tracks | dur | startDelay | loopGap | yoyo | ease | priority |
+|----|--------|-----|-----------|---------|------|------|----------|
+| `fountain_water_grow` | **height 1→4** | 1400 | 0 | 400 | **true** | sine | 1 |
 
-Period both = `1200+600 = 600+1200 = 1800 ms`. The water tile **fades in while rising 3 blocks** over 1.2 s,
-**holds at the top** for 0.6 s, then the loop restarts.
+Period = `2·1400 + 400 = 3200 ms`. The water **column grows its height 1→4 blocks** over 1.4 s (up leg), then the
+yoyo **auto-reverses 4→1** over the next 1.4 s (down leg), then **rests at the base (1 block)** for 0.4 s, and the
+loop restarts. `height` maps to `scaleY`, which stretches the block UP from its base in every view — the water
+grows **in place**: it does NOT levitate and it does NOT opacity-fade (that was the retired rise/fade look).
 
-**Known semantic finding (winner-takes-all).** `resolveAnimatedSettings` is winner-takes-all and a looping
-animation **rests at `to`** outside its active window. Animation **A** (priority 1) is a `load` loop, so it owns
-`opacity` at all times and rests at `1` through `[1200,1800]`. Therefore **B's smooth fade-out is masked** — the
-composited opacity is **fade-in (1.2 s) → hold at 1 (0.6 s) → snap to 0 at the loop boundary (a POP, not a gradual
-fade)**. `y` is fully correct (only A writes it). Verified frame-by-frame (real render, both styles):
+ONE animation writes ONE setting (`height`), so there is **no winner-takes-all conflict** — the composited value
+is exactly the tween. Verified frame-by-frame (real render, both styles, iso + 2D — `fountainLoop.realcanvas.test.ts`):
+the drawn column's vertical extent grows `1→~4→1` while its **base row stays fixed** (planted, not levitating),
+and it is never invisible (no opacity track):
 
 ```
-phase   0ms  opacity ~0.00  (invisible, at base)
-phase 600ms  opacity ~0.50  (rising, half-faded-in)
-phase1200ms  opacity  1.00  (full, at +3 blocks)   ← end of rise
-phase1650ms  opacity  1.00  (still full — B's fade is masked)  ← hold
-phase1800ms  opacity ~0.00  (snaps out, loops)     ← POP, not a smooth fade
+phase    0ms  scaleY 1.00  (base — a 1-block column, base planted)
+phase  700ms  scaleY 2.50  (growing up)
+phase 1400ms  scaleY 4.00  (peak — a 4-block column)        ← top of the arc
+phase 2100ms  scaleY 2.50  (shrinking back)
+phase 2800ms  scaleY 1.00  (back at base)                    ← end of down leg
+phase 3200ms  scaleY 1.00  (rested at base, loops)
 ```
 
-To make B's smooth fade-out visible, the resolver would need opacity **compositing** (multiply/over) instead of
-winner-takes-all — a Phase-1 engine-contract change, intentionally NOT made. The shipped default is
-**fade-in + rise + hold + pop-loop**; confirm whether the smooth fade-out is wanted before changing the contract.
+Older resolver note (still true): `resolveAnimatedSettings` is winner-takes-all per setting (higher `priority`,
+ties → later in the list) and a looping animation rests at its `to`/`from` outside its active window. The
+fountain no longer relies on that (single animation, single setting), but the rule stands for any multi-animation
+tile that writes the same setting from two envelopes.
 
 ## 7. Authoring
 
@@ -149,8 +162,9 @@ winner-takes-all — a Phase-1 engine-contract change, intentionally NOT made. T
   `Nebulith.Catalog.TileSource`, migrate/seed. Served verbatim; stamped onto every placed instance.
 - **Per-instance (editor):** select the tile → **✦ Animate…** → the `TileAnimationEditor` modal
   (`src/components/game/editorChrome.tsx`). Add a settings animation, check the settings to tween (each adds a
-  from/to track), set timing/trigger/scope. Writes flow immutably through `setAssetAnimations` onto the selected
-  tile of every selected cell (`placedAt = 0`). A live preview plays the composed chain through the real engine.
+  from/to track — e.g. **height** for a grow), set timing / **loop** / **yoyo** / trigger / scope. Writes flow
+  immutably through `setAssetAnimations` onto the selected tile of every selected cell (`placedAt = 0`). A live
+  preview plays the composed chain (including the yoyo grow) through the real engine.
 
 ## 8. Files
 
@@ -159,7 +173,7 @@ winner-takes-all — a Phase-1 engine-contract change, intentionally NOT made. T
 - Grid fields: `game-website/src/engine/IsometricGrid.ts` (`GridAsset.animations`, `placedAt`)
 - Composition stamp: `game-website/src/game/runtime/composition.ts`; loader: `…/engine/tileset/tileset.ts`
 - Authoring modal: `game-website/src/components/game/editorChrome.tsx` (`TileAnimationEditor`)
-- Backend data: `nebulith/lib/nebulith/catalog/tile_source.ex` (`@fountain_water_animations`),
+- Backend data: `nebulith/lib/nebulith/catalog/tile_source.ex` (`@fountain_water_grow`),
   `…/catalog/composition_cell.ex`, `…/controllers/tileset_json.ex`,
   migration `priv/repo/migrations/20260719120000_add_animations_to_composition_cells.exs`
 - Tests: `tileAnimation.test.ts`, `assetAnimation.test.ts`, `tileAnimation.realcanvas.test.ts`,

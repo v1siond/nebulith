@@ -63,15 +63,34 @@ defmodule Nebulith.TileSourceTest do
   end
 
   test "the fountain's water cells carry a draw-priority z_index; the rim/edge pieces stay 0" do
-    # The bug fix (Images #34/#36): the water (basin `water_c` + raised `water_jet`) gets a high z_index so the
-    # depth sort draws it IN FRONT of a wall behind the fountain. The rim keeps the default 0. Pure DATA on the cell.
+    # The bug fix (Images #34/#36): the basin `water_c` cells get a high z_index so the depth sort draws them
+    # IN FRONT of a wall behind the fountain. The rim keeps the default 0. Pure DATA on the cell.
     fountain = Enum.find(Catalog.list_compositions(), &(&1.name == "fountain"))
-    {water, rim} = Enum.split_with(fountain.cells, &(&1.label in ["water_c", "water_jet"]))
+    {water, rim} = Enum.split_with(fountain.cells, &(&1.label == "water_c"))
 
     assert length(water) >= 6
     assert Enum.all?(water, &(&1.z_index == 10))
     assert rim != []
     assert Enum.all?(rim, &(&1.z_index == 0))
+  end
+
+  test "the fountain interior is all blue water (no water_jet drops), a bit bigger, with the yoyo height-grow animation" do
+    fountain = Enum.find(Catalog.list_compositions(), &(&1.name == "fountain"))
+    water = Enum.filter(fountain.cells, &(&1.label == "water_c"))
+
+    # the drops are gone — the interior is water only
+    refute Enum.any?(fountain.cells, &(&1.label == "water_jet"))
+    assert length(water) >= 6
+    # drawn a bit bigger (scale ~1.15) and every water cell ships the single grow animation
+    assert Enum.all?(water, &(&1.scale == 1.15))
+
+    for cell <- water do
+      assert [grow] = cell.animations
+      assert grow["id"] == "fountain_water_grow"
+      assert grow["yoyo"] == true
+      assert grow["loop"] == true
+      assert grow["tracks"] == [%{"setting" => "height", "from" => 1, "to" => 4}]
+    end
   end
 
   test "z_index defaults to 0 on every non-fountain-water cell (no regression to the depth sort)" do

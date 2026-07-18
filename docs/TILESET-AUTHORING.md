@@ -20,7 +20,7 @@ Common layouts: **9-piece / 3×3 minimal** (16 combos), **full bitmask** (47 til
 
 ## 3. Building compositions FROM pieces
 Author a composition (`compositions` + `composition_cells`: `{dx,dy,level,label,walkable}`) that places the correct **piece** per cell:
-- **Fountain** (per Alexander's ref): interior = `water_c`; the rim = **edge/corner pieces** — `fountain_t/b/l/r` (sides) + `fountain_tl/tr/bl/br` (corners); **jets** = `water_jet` tiles raised on top of some water cells. Not one `stone_rim` fill.
+- **Fountain** (per Alexander's ref): interior = **all `water_c`** (blue water, drawn a bit bigger at `scale` 1.15); the rim = **edge/corner pieces** — `fountain_t/b/l/r` (sides) + `fountain_tl/tr/bl/br` (corners). Not one `stone_rim` fill. The water animates BY DEFAULT — each interior cell ships the yoyo **height-grow** animation (`fountain_water_grow`: grow the column 1→4 blocks then back, on loop; see `ANIMATION-SYSTEM.md` §6). No `water_jet` drop tiles (the drops levitated — retired).
 - **Building facade**: a **wall material** field (`wall_brick_c` / `wall_stone_c` / …) with **edge/corner** pieces where the wall meets air, **windows** (`window`, spaced grid — see below) and a **door** (`door`, sized per building) placed into the field, and a **roof** (`roof_*` with a ridge / gable pieces or a flat parapet). Different buildings use different wall **materials** (variety by tile) + colours (variety by setting).
 - **Windows** (realistic, architecture-correct): a spaced GRID — window columns separated by wall, vertically aligned across floors, wall course between floors. Never a solid band.
 - **Tree**: a **trunk** piece (brown) at the base + **leaf** pieces (canopy) above — combined, in BOTH ascii and emoji (emoji must NOT collapse to one 🌲).
