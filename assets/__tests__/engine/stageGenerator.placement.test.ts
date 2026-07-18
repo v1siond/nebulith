@@ -25,12 +25,12 @@ const ROWS = 48
 
 // Run the generator with a seeded Math.random, then reproduce the EXACT layout the generator used
 // (planVillage is the first Math.random consumer in generateStage and is pure given its rng).
-function genWithSeed(settlement: 'town' | 'city', seed: number) {
+function genWithSeed(settlement: 'town' | 'city', seed: number, dim = COLS) {
   const realRandom = Math.random
   Math.random = seeded(seed)
   try {
-    const stage = generateStage({ zone: 'spring', variant: settlement, cols: COLS, rows: ROWS })
-    const layout = planVillage(COLS, ROWS, seeded(seed), settlement)
+    const stage = generateStage({ zone: 'spring', variant: settlement, cols: dim, rows: dim })
+    const layout = planVillage(dim, dim, seeded(seed), settlement)
     return { stage, layout }
   } finally {
     Math.random = realRandom
@@ -90,11 +90,15 @@ describe('settlement building placement (consumer matches planner contract)', ()
     })
   }
 
-  test('the town SQUARE is reserved CENTRALLY before houses, and is ONE fountain composition (never N props)', () => {
+  test('the town SQUARE is reserved CENTRALLY before houses, and is ONE water composition (well OR fountain by size, never N props)', () => {
+    // Generate on a bigger map so a CITY square reaches its grand size (PLAZA_SIZE.city = 7 ⇒ the `fountain`
+    // variant), while a TOWN square stays 5 (⇒ the `well`) — exercising BOTH branches of the size-based choice.
+    const DIM = 64
     for (const settlement of ['town', 'city'] as const) {
+      let sawWell = false
       let sawFountain = false
       for (const seed of [12345, 777, 42, 1, 2, 3, 7, 99]) {
-        const { stage, layout } = genWithSeed(settlement, seed)
+        const { stage, layout } = genWithSeed(settlement, seed, DIM)
         const plaza = layout.plaza
         expect(plaza).not.toBeNull()
         if (!plaza) continue
@@ -102,8 +106,8 @@ describe('settlement building placement (consumer matches planner contract)', ()
         // (a) reserved CENTRALLY — the square sits near the map centre (a town square, not wherever-fits).
         const pcx = plaza.c0 + plaza.size / 2
         const pcy = plaza.r0 + plaza.size / 2
-        expect(Math.abs(pcx - COLS / 2)).toBeLessThanOrEqual(COLS * 0.3)
-        expect(Math.abs(pcy - ROWS / 2)).toBeLessThanOrEqual(ROWS * 0.3)
+        expect(Math.abs(pcx - DIM / 2)).toBeLessThanOrEqual(DIM * 0.3)
+        expect(Math.abs(pcy - DIM / 2)).toBeLessThanOrEqual(DIM * 0.3)
 
         // (b) NO building footprint cell lands on the reserved square (houses built AROUND it).
         for (const b of stage.buildings) {
@@ -116,30 +120,33 @@ describe('settlement building placement (consumer matches planner contract)', ()
           }
         }
 
-        // (c) the plain WELL is dropped, NO fountain PROP is emitted anymore (the fountain is a
-        //     COMPOSITION now — rim + water + jets, stamped at load), and the centrepiece is ONE
-        //     fountain composition anchor (never a cluster of N per-cell props).
+        // (c) NO fountain/well PROP is emitted anymore (both are COMPOSITIONS now — rim + water, stamped at
+        //     load), and the centrepiece is EXACTLY ONE water composition anchor (never a cluster of N props).
         expect(stage.props.filter(p => p.type === 'well')).toHaveLength(0)
         expect(stage.props.filter(p => p.type === 'fountain')).toHaveLength(0)
-        const fountains = stage.compositions.filter(c => c.kind === 'fountain')
-        expect(fountains.length).toBeLessThanOrEqual(1)
+        const centrepieces = stage.compositions.filter(c => c.kind === 'well' || c.kind === 'fountain')
+        expect(centrepieces).toHaveLength(1)
 
-        // (d) when it's a fountain (the common case), it's ONE composition anchored at the footprint
-        //     TOP-LEFT, centred in the square, and every footprint cell BLOCKS (walk the paved ring).
-        if (fountains.length === 1) {
-          sawFountain = true
-          const fountain = fountains[0]
-          const fw = 5 // FOUNTAIN_FOOTPRINT — must match the backend fountain composition (5w × 4d)
-          const fh = 4
-          const fc0 = plaza.c0 + Math.floor((plaza.size - fw) / 2)
-          const fr0 = plaza.r0 + Math.floor((plaza.size - fh) / 2)
-          expect(fountain.col).toBe(fc0)
-          expect(fountain.row).toBe(fr0)
-          for (let r = fr0; r < fr0 + fh; r++)
-            for (let c = fc0; c < fc0 + fw; c++) expect(stage.collision[r][c]).toBe(true)
-        }
+        // (d) the variant is chosen by settlement SIZE: a small (size<6) square gets the `well` (5×3), a grand
+        //     (size≥6) square gets the `fountain` (5×5). ONE composition anchored at the footprint TOP-LEFT,
+        //     centred in the square, every footprint cell BLOCKS (walk the paved ring).
+        const centrepiece = centrepieces[0]
+        const expectFountain = plaza.size >= 6
+        expect(centrepiece.kind).toBe(expectFountain ? 'fountain' : 'well')
+        if (centrepiece.kind === 'fountain') sawFountain = true
+        else sawWell = true
+        const fw = 5
+        const fh = expectFountain ? 5 : 3
+        const fc0 = plaza.c0 + Math.floor((plaza.size - fw) / 2)
+        const fr0 = plaza.r0 + Math.floor((plaza.size - fh) / 2)
+        expect(centrepiece.col).toBe(fc0)
+        expect(centrepiece.row).toBe(fr0)
+        for (let r = fr0; r < fr0 + fh; r++)
+          for (let c = fc0; c < fc0 + fw; c++) expect(stage.collision[r][c]).toBe(true)
       }
-      expect(sawFountain).toBe(true) // the fountain (not the rare pond) is the dominant centrepiece
+      // The dominant centrepiece per settlement: a town square (plaza size 5) is a well, a city square (7) a fountain.
+      if (settlement === 'town') expect(sawWell).toBe(true)
+      else expect(sawFountain).toBe(true)
     }
   })
 

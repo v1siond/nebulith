@@ -4715,33 +4715,6 @@
           "title": null,
           "cells": [
             {
-              "label": "fountain_t",
-              "level": 0,
-              "scale": 1.0,
-              "dx": 3,
-              "dy": 0,
-              "walkable": false,
-              "zIndex": 0
-            },
-            {
-              "label": "fountain_t",
-              "level": 0,
-              "scale": 1.0,
-              "dx": 2,
-              "dy": 0,
-              "walkable": false,
-              "zIndex": 0
-            },
-            {
-              "label": "fountain_l",
-              "level": 0,
-              "scale": 1.0,
-              "dx": 0,
-              "dy": 1,
-              "walkable": false,
-              "zIndex": 0
-            },
-            {
               "label": "water_c",
               "level": 0,
               "scale": 1.15,
@@ -4751,7 +4724,7 @@
               "zIndex": 10,
               "animations": [
                 {
-                  "durationMs": 1400,
+                  "durationMs": 1800,
                   "ease": "sine",
                   "id": "fountain_water_grow",
                   "kind": "settings",
@@ -4759,7 +4732,7 @@
                   "loopDelayMs": 400,
                   "name": "grow",
                   "priority": 1,
-                  "startDelayMs": 0,
+                  "startDelayMs": 400,
                   "tracks": [
                     {
                       "from": 1,
@@ -4792,7 +4765,7 @@
                   "loopDelayMs": 400,
                   "name": "grow",
                   "priority": 1,
-                  "startDelayMs": 0,
+                  "startDelayMs": 800,
                   "tracks": [
                     {
                       "from": 1,
@@ -4817,7 +4790,7 @@
               "zIndex": 10,
               "animations": [
                 {
-                  "durationMs": 1400,
+                  "durationMs": 1000,
                   "ease": "sine",
                   "id": "fountain_water_grow",
                   "kind": "settings",
@@ -4847,31 +4820,7 @@
               "dx": 3,
               "dy": 1,
               "walkable": false,
-              "zIndex": 10,
-              "animations": [
-                {
-                  "durationMs": 1400,
-                  "ease": "sine",
-                  "id": "fountain_water_grow",
-                  "kind": "settings",
-                  "loop": true,
-                  "loopDelayMs": 400,
-                  "name": "grow",
-                  "priority": 1,
-                  "startDelayMs": 0,
-                  "tracks": [
-                    {
-                      "from": 1,
-                      "setting": "height",
-                      "to": 4
-                    }
-                  ],
-                  "trigger": {
-                    "on": "load"
-                  },
-                  "yoyo": true
-                }
-              ]
+              "zIndex": 10
             },
             {
               "label": "water_c",
@@ -4880,31 +4829,7 @@
               "dx": 2,
               "dy": 1,
               "walkable": false,
-              "zIndex": 10,
-              "animations": [
-                {
-                  "durationMs": 1400,
-                  "ease": "sine",
-                  "id": "fountain_water_grow",
-                  "kind": "settings",
-                  "loop": true,
-                  "loopDelayMs": 400,
-                  "name": "grow",
-                  "priority": 1,
-                  "startDelayMs": 0,
-                  "tracks": [
-                    {
-                      "from": 1,
-                      "setting": "height",
-                      "to": 4
-                    }
-                  ],
-                  "trigger": {
-                    "on": "load"
-                  },
-                  "yoyo": true
-                }
-              ]
+              "zIndex": 10
             },
             {
               "label": "water_c",
@@ -4913,34 +4838,55 @@
               "dx": 1,
               "dy": 1,
               "walkable": false,
-              "zIndex": 10,
-              "animations": [
-                {
-                  "durationMs": 1400,
-                  "ease": "sine",
-                  "id": "fountain_water_grow",
-                  "kind": "settings",
-                  "loop": true,
-                  "loopDelayMs": 400,
-                  "name": "grow",
-                  "priority": 1,
-                  "startDelayMs": 0,
-                  "tracks": [
-                    {
-                      "from": 1,
-                      "setting": "height",
-                      "to": 4
-                    }
-                  ],
-                  "trigger": {
-                    "on": "load"
-                  },
-                  "yoyo": true
-                }
-              ]
+              "zIndex": 10
             },
             {
               "label": "fountain_br",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 4,
+              "dy": 4,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "fountain_b",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 3,
+              "dy": 4,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "fountain_b",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 2,
+              "dy": 4,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "fountain_b",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 1,
+              "dy": 4,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "fountain_bl",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 0,
+              "dy": 4,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "fountain_r",
               "level": 0,
               "scale": 1.0,
               "dx": 4,
@@ -4949,34 +4895,7 @@
               "zIndex": 0
             },
             {
-              "label": "fountain_b",
-              "level": 0,
-              "scale": 1.0,
-              "dx": 3,
-              "dy": 3,
-              "walkable": false,
-              "zIndex": 0
-            },
-            {
-              "label": "fountain_b",
-              "level": 0,
-              "scale": 1.0,
-              "dx": 2,
-              "dy": 3,
-              "walkable": false,
-              "zIndex": 0
-            },
-            {
-              "label": "fountain_b",
-              "level": 0,
-              "scale": 1.0,
-              "dx": 1,
-              "dy": 3,
-              "walkable": false,
-              "zIndex": 0
-            },
-            {
-              "label": "fountain_bl",
+              "label": "fountain_l",
               "level": 0,
               "scale": 1.0,
               "dx": 0,
@@ -4990,6 +4909,60 @@
               "scale": 1.0,
               "dx": 4,
               "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "fountain_l",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 0,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "fountain_r",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 4,
+              "dy": 1,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "fountain_l",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 0,
+              "dy": 1,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "fountain_tr",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 4,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "fountain_t",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 3,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "fountain_t",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 2,
+              "dy": 0,
               "walkable": false,
               "zIndex": 0
             },
@@ -5012,35 +4985,35 @@
               "zIndex": 0
             },
             {
-              "label": "fountain_tr",
+              "label": "water_c",
               "level": 0,
-              "scale": 1.0,
-              "dx": 4,
-              "dy": 0,
+              "scale": 1.15,
+              "dx": 3,
+              "dy": 3,
               "walkable": false,
-              "zIndex": 0
+              "zIndex": 10
             },
             {
-              "label": "fountain_l",
+              "label": "water_c",
               "level": 0,
-              "scale": 1.0,
-              "dx": 0,
-              "dy": 2,
+              "scale": 1.15,
+              "dx": 2,
+              "dy": 3,
               "walkable": false,
-              "zIndex": 0
+              "zIndex": 10
             },
             {
-              "label": "fountain_r",
+              "label": "water_c",
               "level": 0,
-              "scale": 1.0,
-              "dx": 4,
-              "dy": 1,
+              "scale": 1.15,
+              "dx": 1,
+              "dy": 3,
               "walkable": false,
-              "zIndex": 0
+              "zIndex": 10
             }
           ],
           "footprint": {
-            "h": 4,
+            "h": 5,
             "w": 5
           }
         },
@@ -10984,6 +10957,222 @@
               "dx": 0,
               "dy": 0,
               "walkable": true
+            }
+          ],
+          "footprint": {
+            "h": 3,
+            "w": 5
+          }
+        },
+        "well": {
+          "title": null,
+          "cells": [
+            {
+              "label": "water_c",
+              "level": 0,
+              "scale": 1.15,
+              "dx": 3,
+              "dy": 1,
+              "walkable": false,
+              "zIndex": 10,
+              "animations": [
+                {
+                  "durationMs": 1800,
+                  "ease": "sine",
+                  "id": "fountain_water_grow",
+                  "kind": "settings",
+                  "loop": true,
+                  "loopDelayMs": 400,
+                  "name": "grow",
+                  "priority": 1,
+                  "startDelayMs": 400,
+                  "tracks": [
+                    {
+                      "from": 1,
+                      "setting": "height",
+                      "to": 4
+                    }
+                  ],
+                  "trigger": {
+                    "on": "load"
+                  },
+                  "yoyo": true
+                }
+              ]
+            },
+            {
+              "label": "water_c",
+              "level": 0,
+              "scale": 1.15,
+              "dx": 2,
+              "dy": 1,
+              "walkable": false,
+              "zIndex": 10,
+              "animations": [
+                {
+                  "durationMs": 1400,
+                  "ease": "sine",
+                  "id": "fountain_water_grow",
+                  "kind": "settings",
+                  "loop": true,
+                  "loopDelayMs": 400,
+                  "name": "grow",
+                  "priority": 1,
+                  "startDelayMs": 800,
+                  "tracks": [
+                    {
+                      "from": 1,
+                      "setting": "height",
+                      "to": 4
+                    }
+                  ],
+                  "trigger": {
+                    "on": "load"
+                  },
+                  "yoyo": true
+                }
+              ]
+            },
+            {
+              "label": "water_c",
+              "level": 0,
+              "scale": 1.15,
+              "dx": 1,
+              "dy": 1,
+              "walkable": false,
+              "zIndex": 10,
+              "animations": [
+                {
+                  "durationMs": 1000,
+                  "ease": "sine",
+                  "id": "fountain_water_grow",
+                  "kind": "settings",
+                  "loop": true,
+                  "loopDelayMs": 400,
+                  "name": "grow",
+                  "priority": 1,
+                  "startDelayMs": 0,
+                  "tracks": [
+                    {
+                      "from": 1,
+                      "setting": "height",
+                      "to": 4
+                    }
+                  ],
+                  "trigger": {
+                    "on": "load"
+                  },
+                  "yoyo": true
+                }
+              ]
+            },
+            {
+              "label": "fountain_br",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 4,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "fountain_b",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 3,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "fountain_b",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 2,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "fountain_b",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 1,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "fountain_bl",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 0,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "fountain_r",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 4,
+              "dy": 1,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "fountain_l",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 0,
+              "dy": 1,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "fountain_tr",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 4,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "fountain_t",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 3,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "fountain_t",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 2,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "fountain_t",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 1,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "fountain_tl",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 0,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
             }
           ],
           "footprint": {
@@ -22636,33 +22825,6 @@
           "title": null,
           "cells": [
             {
-              "label": "fountain_t",
-              "level": 0,
-              "scale": 1.0,
-              "dx": 3,
-              "dy": 0,
-              "walkable": false,
-              "zIndex": 0
-            },
-            {
-              "label": "fountain_t",
-              "level": 0,
-              "scale": 1.0,
-              "dx": 2,
-              "dy": 0,
-              "walkable": false,
-              "zIndex": 0
-            },
-            {
-              "label": "fountain_l",
-              "level": 0,
-              "scale": 1.0,
-              "dx": 0,
-              "dy": 1,
-              "walkable": false,
-              "zIndex": 0
-            },
-            {
               "label": "water_c",
               "level": 0,
               "scale": 1.15,
@@ -22672,7 +22834,7 @@
               "zIndex": 10,
               "animations": [
                 {
-                  "durationMs": 1400,
+                  "durationMs": 1800,
                   "ease": "sine",
                   "id": "fountain_water_grow",
                   "kind": "settings",
@@ -22680,7 +22842,7 @@
                   "loopDelayMs": 400,
                   "name": "grow",
                   "priority": 1,
-                  "startDelayMs": 0,
+                  "startDelayMs": 400,
                   "tracks": [
                     {
                       "from": 1,
@@ -22713,7 +22875,7 @@
                   "loopDelayMs": 400,
                   "name": "grow",
                   "priority": 1,
-                  "startDelayMs": 0,
+                  "startDelayMs": 800,
                   "tracks": [
                     {
                       "from": 1,
@@ -22738,7 +22900,7 @@
               "zIndex": 10,
               "animations": [
                 {
-                  "durationMs": 1400,
+                  "durationMs": 1000,
                   "ease": "sine",
                   "id": "fountain_water_grow",
                   "kind": "settings",
@@ -22768,31 +22930,7 @@
               "dx": 3,
               "dy": 1,
               "walkable": false,
-              "zIndex": 10,
-              "animations": [
-                {
-                  "durationMs": 1400,
-                  "ease": "sine",
-                  "id": "fountain_water_grow",
-                  "kind": "settings",
-                  "loop": true,
-                  "loopDelayMs": 400,
-                  "name": "grow",
-                  "priority": 1,
-                  "startDelayMs": 0,
-                  "tracks": [
-                    {
-                      "from": 1,
-                      "setting": "height",
-                      "to": 4
-                    }
-                  ],
-                  "trigger": {
-                    "on": "load"
-                  },
-                  "yoyo": true
-                }
-              ]
+              "zIndex": 10
             },
             {
               "label": "water_c",
@@ -22801,31 +22939,7 @@
               "dx": 2,
               "dy": 1,
               "walkable": false,
-              "zIndex": 10,
-              "animations": [
-                {
-                  "durationMs": 1400,
-                  "ease": "sine",
-                  "id": "fountain_water_grow",
-                  "kind": "settings",
-                  "loop": true,
-                  "loopDelayMs": 400,
-                  "name": "grow",
-                  "priority": 1,
-                  "startDelayMs": 0,
-                  "tracks": [
-                    {
-                      "from": 1,
-                      "setting": "height",
-                      "to": 4
-                    }
-                  ],
-                  "trigger": {
-                    "on": "load"
-                  },
-                  "yoyo": true
-                }
-              ]
+              "zIndex": 10
             },
             {
               "label": "water_c",
@@ -22834,34 +22948,55 @@
               "dx": 1,
               "dy": 1,
               "walkable": false,
-              "zIndex": 10,
-              "animations": [
-                {
-                  "durationMs": 1400,
-                  "ease": "sine",
-                  "id": "fountain_water_grow",
-                  "kind": "settings",
-                  "loop": true,
-                  "loopDelayMs": 400,
-                  "name": "grow",
-                  "priority": 1,
-                  "startDelayMs": 0,
-                  "tracks": [
-                    {
-                      "from": 1,
-                      "setting": "height",
-                      "to": 4
-                    }
-                  ],
-                  "trigger": {
-                    "on": "load"
-                  },
-                  "yoyo": true
-                }
-              ]
+              "zIndex": 10
             },
             {
               "label": "fountain_br",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 4,
+              "dy": 4,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "fountain_b",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 3,
+              "dy": 4,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "fountain_b",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 2,
+              "dy": 4,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "fountain_b",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 1,
+              "dy": 4,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "fountain_bl",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 0,
+              "dy": 4,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "fountain_r",
               "level": 0,
               "scale": 1.0,
               "dx": 4,
@@ -22870,34 +23005,7 @@
               "zIndex": 0
             },
             {
-              "label": "fountain_b",
-              "level": 0,
-              "scale": 1.0,
-              "dx": 3,
-              "dy": 3,
-              "walkable": false,
-              "zIndex": 0
-            },
-            {
-              "label": "fountain_b",
-              "level": 0,
-              "scale": 1.0,
-              "dx": 2,
-              "dy": 3,
-              "walkable": false,
-              "zIndex": 0
-            },
-            {
-              "label": "fountain_b",
-              "level": 0,
-              "scale": 1.0,
-              "dx": 1,
-              "dy": 3,
-              "walkable": false,
-              "zIndex": 0
-            },
-            {
-              "label": "fountain_bl",
+              "label": "fountain_l",
               "level": 0,
               "scale": 1.0,
               "dx": 0,
@@ -22911,6 +23019,60 @@
               "scale": 1.0,
               "dx": 4,
               "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "fountain_l",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 0,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "fountain_r",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 4,
+              "dy": 1,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "fountain_l",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 0,
+              "dy": 1,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "fountain_tr",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 4,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "fountain_t",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 3,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "fountain_t",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 2,
+              "dy": 0,
               "walkable": false,
               "zIndex": 0
             },
@@ -22933,35 +23095,35 @@
               "zIndex": 0
             },
             {
-              "label": "fountain_tr",
+              "label": "water_c",
               "level": 0,
-              "scale": 1.0,
-              "dx": 4,
-              "dy": 0,
+              "scale": 1.15,
+              "dx": 3,
+              "dy": 3,
               "walkable": false,
-              "zIndex": 0
+              "zIndex": 10
             },
             {
-              "label": "fountain_l",
+              "label": "water_c",
               "level": 0,
-              "scale": 1.0,
-              "dx": 0,
-              "dy": 2,
+              "scale": 1.15,
+              "dx": 2,
+              "dy": 3,
               "walkable": false,
-              "zIndex": 0
+              "zIndex": 10
             },
             {
-              "label": "fountain_r",
+              "label": "water_c",
               "level": 0,
-              "scale": 1.0,
-              "dx": 4,
-              "dy": 1,
+              "scale": 1.15,
+              "dx": 1,
+              "dy": 3,
               "walkable": false,
-              "zIndex": 0
+              "zIndex": 10
             }
           ],
           "footprint": {
-            "h": 4,
+            "h": 5,
             "w": 5
           }
         },
@@ -28905,6 +29067,222 @@
               "dx": 0,
               "dy": 0,
               "walkable": true
+            }
+          ],
+          "footprint": {
+            "h": 3,
+            "w": 5
+          }
+        },
+        "well": {
+          "title": null,
+          "cells": [
+            {
+              "label": "water_c",
+              "level": 0,
+              "scale": 1.15,
+              "dx": 3,
+              "dy": 1,
+              "walkable": false,
+              "zIndex": 10,
+              "animations": [
+                {
+                  "durationMs": 1800,
+                  "ease": "sine",
+                  "id": "fountain_water_grow",
+                  "kind": "settings",
+                  "loop": true,
+                  "loopDelayMs": 400,
+                  "name": "grow",
+                  "priority": 1,
+                  "startDelayMs": 400,
+                  "tracks": [
+                    {
+                      "from": 1,
+                      "setting": "height",
+                      "to": 4
+                    }
+                  ],
+                  "trigger": {
+                    "on": "load"
+                  },
+                  "yoyo": true
+                }
+              ]
+            },
+            {
+              "label": "water_c",
+              "level": 0,
+              "scale": 1.15,
+              "dx": 2,
+              "dy": 1,
+              "walkable": false,
+              "zIndex": 10,
+              "animations": [
+                {
+                  "durationMs": 1400,
+                  "ease": "sine",
+                  "id": "fountain_water_grow",
+                  "kind": "settings",
+                  "loop": true,
+                  "loopDelayMs": 400,
+                  "name": "grow",
+                  "priority": 1,
+                  "startDelayMs": 800,
+                  "tracks": [
+                    {
+                      "from": 1,
+                      "setting": "height",
+                      "to": 4
+                    }
+                  ],
+                  "trigger": {
+                    "on": "load"
+                  },
+                  "yoyo": true
+                }
+              ]
+            },
+            {
+              "label": "water_c",
+              "level": 0,
+              "scale": 1.15,
+              "dx": 1,
+              "dy": 1,
+              "walkable": false,
+              "zIndex": 10,
+              "animations": [
+                {
+                  "durationMs": 1000,
+                  "ease": "sine",
+                  "id": "fountain_water_grow",
+                  "kind": "settings",
+                  "loop": true,
+                  "loopDelayMs": 400,
+                  "name": "grow",
+                  "priority": 1,
+                  "startDelayMs": 0,
+                  "tracks": [
+                    {
+                      "from": 1,
+                      "setting": "height",
+                      "to": 4
+                    }
+                  ],
+                  "trigger": {
+                    "on": "load"
+                  },
+                  "yoyo": true
+                }
+              ]
+            },
+            {
+              "label": "fountain_br",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 4,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "fountain_b",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 3,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "fountain_b",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 2,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "fountain_b",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 1,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "fountain_bl",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 0,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "fountain_r",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 4,
+              "dy": 1,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "fountain_l",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 0,
+              "dy": 1,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "fountain_tr",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 4,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "fountain_t",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 3,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "fountain_t",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 2,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "fountain_t",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 1,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "fountain_tl",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 0,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
             }
           ],
           "footprint": {

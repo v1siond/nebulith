@@ -92,39 +92,84 @@ describe('sample compositions — realistic building/fountain/tree DATA from the
     expect(labels.has('roof')).toBe(false) // flat, not gable
   })
 
-  test('fountain: assembled from AUTOTILE PIECES — all-water CENTER, rim EDGES + CORNERS (not one fill, no drops)', () => {
-    const c = comp('fountain')
-    const cells = c.cells as Array<Cell & { scale?: number; animations?: Array<{ id: string; yoyo?: boolean; tracks: Array<{ setting: string; from: number; to: number }> }> }>
-    const { w, h } = c.footprint
-    expect([w, h]).toEqual([5, 4])
-    const edge = (dx: number, dy: number) => dx === 0 || dx === w - 1 || dy === 0 || dy === h - 1
-    const labels = new Set(cells.map(x => x.label))
-    const groundAt = (dx: number, dy: number) => cells.find(x => x.level === 0 && x.dx === dx && x.dy === dy)!.label
+  // A water cell as the backend serves it — the interior `water_c`, with the optional default grow animation.
+  type WaterCell = Cell & {
+    scale?: number
+    zIndex?: number
+    animations?: Array<{ id: string; yoyo?: boolean; loop?: boolean; ease?: string; durationMs: number; startDelayMs: number; tracks: Array<{ setting: string; from: number; to: number }> }>
+  }
 
-    // CENTER — every interior floor cell is the water CENTER piece (blue water).
-    const interior = cells.filter(x => x.level === 0 && !edge(x.dx, x.dy))
-    for (const cell of interior) expect(cell.label).toBe('water_c')
-    // CORNERS — the four corner pieces sit at the four corners.
-    expect(groundAt(0, 0)).toBe('fountain_tl')
-    expect(groundAt(w - 1, 0)).toBe('fountain_tr')
-    expect(groundAt(0, h - 1)).toBe('fountain_bl')
-    expect(groundAt(w - 1, h - 1)).toBe('fountain_br')
-    // EDGES — all four side pieces present. This is a RIM of pieces, NOT a single stone_rim fill.
-    for (const e of ['fountain_t', 'fountain_b', 'fountain_l', 'fountain_r']) expect(labels.has(e)).toBe(true)
-    expect([...labels].filter(l => l.startsWith('fountain_')).length).toBeGreaterThanOrEqual(8) // 4 edges + 4 corners
-    expect(labels.has('stone_rim')).toBe(false) // the old single-fill rim is gone
-    // NO DROPS — the `water_jet` drops are gone; the interior is ALL blue water, a bit bigger (scale 1.15).
-    expect(labels.has('water_jet')).toBe(false)
-    expect(interior.length).toBeGreaterThanOrEqual(6)
-    for (const cell of interior) expect(cell.scale).toBeCloseTo(1.15)
-    // GROW — every water cell carries the single yoyo HEIGHT-grow animation (1→4 blocks, back on loop).
-    for (const cell of interior) {
+  // EXACTLY 3 water columns animate in BOTH variants (Alexander: "in all cases only 3 blocks are animated"),
+  // each the SAME 1→4 sine-yoyo grow but with a DISTINCT durationMs + startDelayMs so they pulse OUT of sync
+  // (Alexander: "different duration and delays … realistic fountain water"). This is the desync evidence at the
+  // DATA level — it would fail if the three shared one timing.
+  function assertDesyncedGrow(animated: WaterCell[]): void {
+    expect(animated).toHaveLength(3)
+    for (const cell of animated) {
       expect(cell.animations?.length).toBe(1)
       const grow = cell.animations![0]
       expect(grow.id).toBe('fountain_water_grow')
       expect(grow.yoyo).toBe(true)
-      expect(grow.tracks).toEqual([{ setting: 'height', from: 1, to: 4 }])
+      expect(grow.loop).toBe(true)
+      expect(grow.ease).toBe('sine')
+      expect(grow.tracks).toEqual([{ setting: 'height', from: 1, to: 4 }]) // grow the HEIGHT 1→4, no y-lift/opacity
+      expect(grow.durationMs).toBeGreaterThanOrEqual(1000)
+      expect(grow.durationMs).toBeLessThanOrEqual(1800)
+      expect(grow.startDelayMs).toBeGreaterThanOrEqual(0)
+      expect(grow.startDelayMs).toBeLessThanOrEqual(800)
     }
+    // DESYNCED — the three durations are all distinct AND the three start delays are all distinct, so no two
+    // columns share a yoyo period/phase (distinct durations ⇒ distinct periods ⇒ they drift permanently apart).
+    const durations = animated.map(c => c.animations![0].durationMs)
+    const delays = animated.map(c => c.animations![0].startDelayMs)
+    expect(new Set(durations).size).toBe(3)
+    expect(new Set(delays).size).toBe(3)
+  }
+
+  // Shared basin checks: a rim of the correct EDGE/CORNER pieces around an all-`water_c` interior (scale 1.15),
+  // no single-fill rim, no `water_jet` drops. Returns the interior water cells + the subset that animate.
+  function assertBasin(name: string, fw: number, fh: number): { interior: WaterCell[]; animated: WaterCell[] } {
+    const c = comp(name)
+    const cells = c.cells as WaterCell[]
+    const { w, h } = c.footprint
+    expect([w, h]).toEqual([fw, fh])
+    const edge = (dx: number, dy: number) => dx === 0 || dx === w - 1 || dy === 0 || dy === h - 1
+    const labels = new Set(cells.map(x => x.label))
+    const groundAt = (dx: number, dy: number) => cells.find(x => x.level === 0 && x.dx === dx && x.dy === dy)!.label
+
+    // CENTER — every interior floor cell is the water CENTER piece (blue water), a bit bigger (scale 1.15).
+    const interior = cells.filter(x => x.level === 0 && !edge(x.dx, x.dy))
+    for (const cell of interior) {
+      expect(cell.label).toBe('water_c')
+      expect(cell.scale).toBeCloseTo(1.15)
+    }
+    // CORNERS + EDGES — the rim is autotile pieces, NOT a single stone_rim fill; no `water_jet` drops.
+    expect(groundAt(0, 0)).toBe('fountain_tl')
+    expect(groundAt(w - 1, 0)).toBe('fountain_tr')
+    expect(groundAt(0, h - 1)).toBe('fountain_bl')
+    expect(groundAt(w - 1, h - 1)).toBe('fountain_br')
+    for (const e of ['fountain_t', 'fountain_b', 'fountain_l', 'fountain_r']) expect(labels.has(e)).toBe(true)
+    expect([...labels].filter(l => l.startsWith('fountain_')).length).toBeGreaterThanOrEqual(8) // 4 edges + 4 corners
+    expect(labels.has('stone_rim')).toBe(false)
+    expect(labels.has('water_jet')).toBe(false)
+    return { interior, animated: interior.filter(cell => cell.animations && cell.animations.length > 0) }
+  }
+
+  test('well (SMALL variant): a 5×3 basin with a 1×3 water LINE, all 3 columns animated + DESYNCED', () => {
+    const { interior, animated } = assertBasin('well', 5, 3)
+    expect(interior).toHaveLength(3) // a 1×3 line of water
+    assertDesyncedGrow(animated) // all 3 animate, out of sync
+  })
+
+  test('fountain (LARGE variant): a 5×5 basin with a 3×3 water GRID, only the CENTER ROW of 3 animated + DESYNCED', () => {
+    const { interior, animated } = assertBasin('fountain', 5, 5)
+    expect(interior).toHaveLength(9) // a 3×3 grid of water (Alexander: "9 blocks of water")
+    // Only the 3 CENTRE cells animate; the other 6 are STATIC blue water (no animations at all).
+    const staticCells = interior.filter(cell => !cell.animations || cell.animations.length === 0)
+    expect(staticCells).toHaveLength(6)
+    // The animated cells are the central LINE of 3 (all share one dy — the middle row through the centre).
+    expect(new Set(animated.map(c => c.dy)).size).toBe(1)
+    assertDesyncedGrow(animated)
   })
 
   test('fountain WATER carries a draw-PRIORITY zIndex (renders in front of the wall behind it); the rim stays 0', () => {
@@ -134,8 +179,8 @@ describe('sample compositions — realistic building/fountain/tree DATA from the
     const cells = comp('fountain').cells as Array<Cell & { zIndex?: number }>
     const water = cells.filter(c => c.label === 'water_c')
     const rim = cells.filter(c => c.label.startsWith('fountain_'))
-    expect(water.length).toBeGreaterThanOrEqual(6) // 6 basin water cells
-    expect(water.every(c => (c.zIndex ?? 0) > 0)).toBe(true) // every water cell has priority
+    expect(water.length).toBe(9) // a 3×3 grid of basin water cells
+    expect(water.every(c => (c.zIndex ?? 0) > 0)).toBe(true) // every water cell has priority (animated AND static)
     expect(new Set(water.map(c => c.zIndex)).size).toBe(1) // one consistent water layer
     expect(rim.length).toBeGreaterThanOrEqual(8)
     expect(rim.every(c => (c.zIndex ?? 0) === 0)).toBe(true) // rim sorts positionally, unchanged

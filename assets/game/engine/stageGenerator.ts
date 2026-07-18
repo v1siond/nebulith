@@ -309,10 +309,15 @@ const makeKey = (col: number, row: number): StageProp => ({ col, row, type: 'key
 // A gateway/threshold prop marking the (narratively locked) boss door — WALKABLE (label
 // 'door'), so it reskins as 🚪 and the floor stays one connected region.
 const makeGateway = (col: number, row: number, color: string): StageProp => ({ col, row, type: 'door', char: '∏', blocking: false, color, label: 'door' })
-// The town-square centrepiece is the `fountain` COMPOSITION (rim + water + jets) stamped at load — no
-// special prop. Its footprint MUST match the backend composition (Nebulith fountain: 5w × 4d) so the
-// plaza reserve/centre matches what the stamp fills.
-const FOUNTAIN_FOOTPRINT = { w: 5, h: 4 } as const
+// The two town-square WATER VARIANTS, each a backend COMPOSITION (rim + water) stamped at load — no special
+// prop. Each footprint MUST match its Nebulith composition so the plaza reserve/centre matches what the stamp
+// fills: the small `well` (5w × 3d, a 1×3 water line) vs the grand `fountain` (5w × 5d, a 3×3 water grid).
+const CENTREPIECE_FOOTPRINT = { well: { w: 5, h: 3 }, fountain: { w: 5, h: 5 } } as const
+type Centrepiece = keyof typeof CENTREPIECE_FOOTPRINT
+// Pick the water variant by settlement SIZE (kept simple): a small town square gets the modest `well` (3
+// animated water columns), a grand city square gets the big `fountain` (a 3×3 basin, its centre 3 animated).
+// The plaza side is the settlement tell — PLAZA_SIZE is town 5 / city 7 (villageLayout), so ≥6 ⇒ city.
+const pickCentrepiece = (plazaSize: number): Centrepiece => (plazaSize >= 6 ? 'fountain' : 'well')
 const makeLamp = (col: number, row: number): StageProp => ({ col, row, type: 'lamp', char: '†', blocking: true, color: '#ffd27a' })
 
 /** Place a prop iff the cell is in-bounds + not already blocked; set collision when blocking. */
@@ -569,19 +574,21 @@ function placeCentrepiece(ctx: ArchetypeContext, plaza: PlazaRect | null): void 
   if (!plaza) return
   const { cols, rows, ground, collision } = ctx
   const { c0, r0, size } = plaza
-  // Pave the whole square as a walkable stone plaza (the ring you stroll around the fountain).
+  // Pave the whole square as a walkable stone plaza (the ring you stroll around the basin).
   for (let r = r0; r < r0 + size; r++)
     for (let c = c0; c < c0 + size; c++) if (inBounds(c, r, cols, rows)) ground[r][c] = 'path_stone'
 
-  // The fountain is a COMPOSITION (rim + water + jets), not a special prop: record its anchor centred in
-  // the square (footprint TOP-LEFT, the origin stampComposition places from). Pre-block its footprint so
-  // generation-time decor (lamps/trees) stays off it; the stamp re-derives collision from its cells at load.
-  const { w: fw, h: fh } = FOUNTAIN_FOOTPRINT
+  // The centrepiece is a COMPOSITION (rim + water), not a special prop: pick the variant by settlement size,
+  // record its anchor centred in the square (footprint TOP-LEFT, the origin stampComposition places from).
+  // Pre-block its footprint so generation-time decor (lamps/trees) stays off it; the stamp re-derives
+  // collision from its cells at load.
+  const kind = pickCentrepiece(size)
+  const { w: fw, h: fh } = CENTREPIECE_FOOTPRINT[kind]
   const fc0 = c0 + Math.floor((size - fw) / 2)
   const fr0 = r0 + Math.floor((size - fh) / 2)
   for (let r = fr0; r < fr0 + fh; r++)
     for (let c = fc0; c < fc0 + fw; c++) if (inBounds(c, r, cols, rows)) collision[r][c] = true
-  ctx.compositions.push({ kind: 'fountain', col: fc0, row: fr0, variant: 0 })
+  ctx.compositions.push({ kind, col: fc0, row: fr0, variant: 0 })
 }
 
 /** Footprint rect type — the cells a building actually occupies on the grid. */
