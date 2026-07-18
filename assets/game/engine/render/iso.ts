@@ -24,6 +24,7 @@ import { isoBlockFaces, isoDepthBox, depthFrontExtent, isoZOffset, type BlockFac
 import { resolveTileHeight } from '@/engine/tileset/tileHeight'
 import { EMOJI_TILESET } from '@/engine/tileset/emojiTileset'
 import { applyPose } from '@/engine/tileset/pose'
+import { cubeGeom, depthBoxGeom, billboardGeom, diamondGeom, pointInTileGeom, outlineSegments, poseMapper, type TileGeom } from './tileHit'
 import { resolveTileSize, resolveTilePose } from '@/engine/tileset/tileViewSettings'
 import { ASCII_STYLE, assetKind, entityKind, entityStyleOverride, genderize, groundKind, personVariantTileId, type ElementKind, type ImageVisual, type Style } from '@/game/artStyle'
 import { DEFAULT_CHARACTER_ANIMATIONS, activeFrame } from '@/game/runtime/entityAnimation'
@@ -35,6 +36,65 @@ export function faceLight(nx: number, ny: number): number {
   const len = Math.hypot(nx, ny) || 1
   const d = (nx / len) * LIGHT.dir.x + (ny / len) * LIGHT.dir.y // -1 (away) .. 1 (toward)
   return 0.6 + 0.4 * (d * 0.5 + 0.5)
+}
+
+
+// ════════════════════════════════════════════════════════════════════════════
+// INVERTED TILE PICK — record the geometry of every drawn tile, then hit-test IT
+// The selector picks the TILE the user visually points at (transform-aware) and cascades to its cell —
+// NOT the flat ground cell. render() RECORDS each drawn asset's real screen silhouette (tileHit geoms,
+// computed at the draw site so they can NEVER drift from the draw) into this per-frame list, in draw order
+// (back→front). The picker walks it front→back (topmost first) so the tile you SEE on top wins an overlap.
+// ════════════════════════════════════════════════════════════════════════════
+
+/** One recorded rendered tile: its cell/stack level + the store it came from + its transform-aware screen
+ *  silhouette. Populated by render(); read by the pick + the selection/hover highlight. */
+export interface TileHit {
+  col: number
+  row: number
+  level: number
+  source: TileSource
+  geom: TileGeom
+}
+
+// The tiles drawn by the LAST render(), in draw order. The RAF loop refreshes this every frame, so a pick on
+// mousemove/mousedown reads current geometry. Reset at the top of the asset loop.
+let isoTileHits: TileHit[] = []
+
+/** EVERY recorded tile whose silhouette contains (x,y), TOPMOST (last-drawn) FIRST — the frontmost is the
+ *  pick; the rest are occluded behind it (click-to-cycle reaches them). Canvas-internal pixels. */
+export function pickIsoTilesAt(x: number, y: number): TileHit[] {
+  const hits: TileHit[] = []
+  for (let i = isoTileHits.length - 1; i >= 0; i--) {
+    if (pointInTileGeom(x, y, isoTileHits[i].geom)) hits.push(isoTileHits[i])
+  }
+  return hits
+}
+
+/** The frontmost recorded tile under (x,y), or null (the caller then falls back to the flat ground cell). */
+export function pickIsoTileAt(x: number, y: number): TileHit | null {
+  return pickIsoTilesAt(x, y)[0] ?? null
+}
+
+/** The recorded silhouette of the tile at (col,row,level) drawn this frame, TOPMOST first — so the highlight
+ *  outlines the ACTUAL rendered tile (its transformed cube/billboard), not the flat cell. null = not drawn. */
+export function isoRecordedGeom(col: number, row: number, level: number): TileGeom | null {
+  for (let i = isoTileHits.length - 1; i >= 0; i--) {
+    const t = isoTileHits[i]
+    if (t.col === col && t.row === row && t.level === level) return t.geom
+  }
+  return null
+}
+
+/** Stroke a tile's outline so the highlight HUGS the tile (cube = base+top rings + verticals; poly = ring). */
+function strokeTileOutline(ctx: CanvasRenderingContext2D, geom: TileGeom): void {
+  for (const seg of outlineSegments(geom)) {
+    if (seg.length === 0) continue
+    ctx.beginPath()
+    ctx.moveTo(seg[0].x, seg[0].y)
+    for (let i = 1; i < seg.length; i++) ctx.lineTo(seg[i].x, seg[i].y)
+    ctx.stroke()
+  }
 }
 
 
@@ -525,6 +585,7 @@ export function render(
   // Any asset whose tile opted into settings.fadeNear eases translucent as the hero closes in, and
   // settings.cutawayRoof lifts the tile off entirely — each computed from the asset's OWN cell distance in the
   // draw loop below (fadeNearAlpha / cutawayAlpha). So a tree-leaf tile carrying fadeNear fades exactly like a wall.
+  isoTileHits = [] // fresh per-frame record of every drawn tile's silhouette — the inverted picker reads it
   for (const obj of allObjects) {
     const p = toScreen(obj.col, obj.row)
     const cellHeight = grid.getHeight(Math.floor(obj.col), Math.floor(obj.row))
@@ -579,9 +640,12 @@ export function render(
       const ax = p.x + zMove.dx + animShiftX, ay = p.y - heightOffset - stackLift + zMove.dy - animShiftY
       const ct = assetCellTransform(obj.asset.cellAnim, time)
       if (ct) applyCellTransform(ctx, ax, ay, ct, tileW, tileH)
-      drawIsoAssetAscii(ctx, ax, ay, drawAsset, tileW, tileH, time, obj.asset.type === 'tree' && (!!obj.asset.baseShadow || isGroundContact(isTreeCell, obj.asset.col, obj.asset.row)), dayNight, style)
+      const geom = drawIsoAssetAscii(ctx, ax, ay, drawAsset, tileW, tileH, time, obj.asset.type === 'tree' && (!!obj.asset.baseShadow || isGroundContact(isTreeCell, obj.asset.col, obj.asset.row)), dayNight, style)
       if (ct) ctx.restore()
       if (op < 1) ctx.globalAlpha = 1
+      // Record this tile's ACTUAL rendered silhouette so the inverted picker + the highlight hit-test IT, not
+      // the flat ground cell. Uses the real asset's cell/level (the anim overlay never moves the cell).
+      if (geom) isoTileHits.push({ col: obj.asset.col, row: obj.asset.row, level: obj.asset.heightLevel ?? 0, source: 'asset', geom })
     }
   }
 
@@ -648,20 +712,16 @@ export function render(
     renderDebugOverlays(ctx, w, h, grid, player, (wx, wz) => toScreen(wx / cellSize, wz / cellSize), cellSize, false, tileW, tileH)
   }
 
-  // ─── Cell-hover outline — a DIM/translucent iso cube around the cell under the cursor, mirroring the
-  //     selection cube below but drawn UNDER it (so it never hides the solid-yellow selection). Shows on
-  //     EVERY cell, even one a unit stands on, in addition to the unit hover reticle. ──────────────────
-  if (hoveredCell) {
-    ctx.strokeStyle = 'rgba(255,255,255,0.5)'
-    ctx.lineWidth = 1.5
-    const selH = tileW * ISO_BLOCK_H_FRAC // same cube height as the selection so hover + select read as the same block
-    const { col, row } = hoveredCell
-    const lvl = hoveredCell.level ?? 0
+  // ─── Hover + selection HIGHLIGHT — INVERTED: outline the ACTUAL rendered TILE (its transformed cube /
+  //     billboard, from the frame's recorded geometry) so the ring hugs what the user points at, never the
+  //     flat ground cell. A bare floor cell (or a tile not drawn this frame) falls back to the flat cell cube.
+  const strokeCellOrTile = (col: number, row: number, lvl: number | undefined): void => {
+    const geom = lvl !== undefined ? isoRecordedGeom(col, row, lvl) : null
+    if (geom) { strokeTileOutline(ctx, geom); return } // the real tile silhouette (scaleY/pose/zOffset/depth-aware)
+    // Fallback: the old flat cell cube at this level (bare floor / off-screen tile).
+    const selH = tileW * ISO_BLOCK_H_FRAC
     const p = toScreen(col, row)
-    // Lift the hover cube onto the SAME block the click will select — the EXACT raise the selection cube uses
-    // below — so the dim hover and the yellow selection align on a stack, instead of the hover floating on the
-    // flat ground cell BEHIND the block (the hover-vs-selection offset). A flat cell (level 0) stays on ground.
-    const raise = lvl >= 1 ? grid.getHeight(col, row) * heightStep + lvl * selH : 0
+    const raise = (lvl ?? 0) >= 1 ? grid.getHeight(col, row) * heightStep + (lvl ?? 0) * selH : 0
     const py = p.y - raise
     const gt = { x: p.x, y: py - tileH }, gr = { x: p.x + tileW, y: py }, gb = { x: p.x, y: py + tileH }, gl = { x: p.x - tileW, y: py }
     ctx.beginPath(); ctx.moveTo(gt.x, gt.y - selH); ctx.lineTo(gr.x, gr.y - selH); ctx.lineTo(gb.x, gb.y - selH); ctx.lineTo(gl.x, gl.y - selH); ctx.closePath(); ctx.stroke()
@@ -674,32 +734,21 @@ export function render(
     ctx.stroke()
   }
 
-  // ─── Selection outline (property-editor multi-select) — a yellow diamond around each
-  //     selected cell's ground footprint, drawn over the world like the 2D/top views. ──
+  // Cell/tile-hover outline — a DIM ring on the tile under the cursor, drawn UNDER the yellow selection.
+  if (hoveredCell) {
+    ctx.strokeStyle = 'rgba(255,255,255,0.5)'
+    ctx.lineWidth = 1.5
+    strokeCellOrTile(hoveredCell.col, hoveredCell.row, hoveredCell.level)
+  }
+
+  // Selection outline (property-editor multi-select) — a yellow ring hugging each selected tile/cell.
   if (selectedCells.size > 0) {
     ctx.strokeStyle = '#ffff00'
     ctx.lineWidth = 2
-    const selH = tileW * ISO_BLOCK_H_FRAC // cube height = ONE stack level (matches isoStackLift) → the selector hugs a real block
     for (const key of selectedCells) {
-      // A 3-part key "col,row,level" is a RAISED block (3D selection); a 2-part "col,row" is a flat cell.
+      // "col,row,level" = a raised/recorded TILE; "col,row" = a flat cell (lvl undefined → flat fallback).
       const [col, row, lvl] = key.split(',').map(Number)
-      const p = toScreen(col, row)
-      // Lift the selector onto the block: the cell's elevation + the block's OWN stack lift (isoStackLift =
-      // heightLevel · selH), the EXACT y render() draws the block's base at (isoBlockFaces: center = the base
-      // diamond). So the outline's ground diamond sits on the block's base and its top cap on the block's top —
-      // it hugs THAT block, not the one below. A flat cell (no level / level 0) stays on the ground.
-      const raise = lvl >= 1 ? grid.getHeight(col, row) * heightStep + lvl * selH : 0
-      const py = p.y - raise
-      const gt = { x: p.x, y: py - tileH }, gr = { x: p.x + tileW, y: py }, gb = { x: p.x, y: py + tileH }, gl = { x: p.x - tileW, y: py }
-      // TOP diamond (raised) + GROUND diamond + the 4 vertical edges = an iso cube outline
-      ctx.beginPath(); ctx.moveTo(gt.x, gt.y - selH); ctx.lineTo(gr.x, gr.y - selH); ctx.lineTo(gb.x, gb.y - selH); ctx.lineTo(gl.x, gl.y - selH); ctx.closePath(); ctx.stroke()
-      ctx.beginPath(); ctx.moveTo(gt.x, gt.y); ctx.lineTo(gr.x, gr.y); ctx.lineTo(gb.x, gb.y); ctx.lineTo(gl.x, gl.y); ctx.closePath(); ctx.stroke()
-      ctx.beginPath()
-      ctx.moveTo(gl.x, gl.y); ctx.lineTo(gl.x, gl.y - selH)
-      ctx.moveTo(gr.x, gr.y); ctx.lineTo(gr.x, gr.y - selH)
-      ctx.moveTo(gb.x, gb.y); ctx.lineTo(gb.x, gb.y - selH)
-      ctx.moveTo(gt.x, gt.y); ctx.lineTo(gt.x, gt.y - selH)
-      ctx.stroke()
+      strokeCellOrTile(col, row, lvl)
     }
   }
 
@@ -1645,6 +1694,30 @@ export function drawIsoWaterDepth(
 
 
 
+/** The screen silhouette of a drawn iso BLOCK/column: a directional-depth box when the asset extrudes along a
+ *  diagonal (depth>1 + depthDir), else the plain stacked cube. Pose (x/y/rotate/flip) is folded in through
+ *  poseMapper exactly as the draw applies it, so the geom matches whether or not the block is posed. */
+function blockGeom(x: number, y: number, halfW: number, halfD: number, blockH: number, blocks: number, asset: GridAsset, unit: number): TileGeom {
+  const xf = poseMapper({ x, y }, asset.pose, unit)
+  if (asset.depthDir && (asset.depth ?? 1) > 1) return depthBoxGeom(halfW, halfD, blockH, blocks, asset.depth ?? 1, asset.depthDir, xf)
+  return cubeGeom(halfW, halfD, blockH, blocks, xf)
+}
+
+/** Half-width + layer count of a per-type ASCII sprite (tree/lamp/npc/…), which draws a STACK of glyph layers
+ *  rising from the cell. Drives the recorded pick silhouette so a click hugs the visible sprite, not the cell. */
+function perTypeStackBounds(type: string, tileW: number): [halfW: number, layers: number] {
+  switch (type) {
+    case 'tree': return [tileW * 1.1, 5]
+    case 'lamp': case 'lantern': return [tileW * 0.5, 3]
+    case 'npc': return [tileW * 0.55, 3]
+    case 'bush': return [tileW * 0.6, 2]
+    default: return [tileW * 0.6, 1]
+  }
+}
+
+/** Draw a placed tile in iso AND return its transform-aware screen silhouette (TileGeom) so the inverted
+ *  picker + the selection/hover highlight hit-test the ACTUAL rendered tile, never the flat ground cell.
+ *  The geom is built from the SAME dims/pose the draw uses, at the draw site, so it can't drift. */
 export function drawIsoAssetAscii(
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -1656,7 +1729,7 @@ export function drawIsoAssetAscii(
   groundContact = false,
   dayNight: DayNight = 'day',
   style: Style = ASCII_STYLE,
-) {
+): TileGeom | null {
   const lineHeight = tileH * 1.3
   const fontSize = tileH * 1.1
   const flicker = Math.sin(time * 0.003 + x * 0.01 + y * 0.02) * 0.15 + 1
@@ -1675,7 +1748,7 @@ export function drawIsoAssetAscii(
     const decorImage = groundDecorImage(asset, style)
     if (decorImage) {
       fillIsoFaceWithTile(ctx, { x: x - tileW, y }, { x: tileW, y: -tileH }, { x: tileW, y: tileH }, { char: '', color: asset.color ?? '#ffffff', image: decorImage }, 1, 1, asset.color)
-      return
+      return diamondGeom(tileW, tileH, poseMapper({ x, y }, undefined, tileH)) // flat ground diamond
     }
   }
 
@@ -1698,6 +1771,7 @@ export function drawIsoAssetAscii(
     const dvBlock = { char: glyph, color: tint, tint: recolor, image }
     // DISPLAY = "single" (per-tile setting): draw ONE centered tile INSIDE the block instead of on all faces.
     const single = asset.settings?.display === 'single'
+    const geom = blockGeom(x, y, bw, bd, bh, 1, asset, tileH) // the shell cube (single) / cube column — SAME dims
     // Per-asset pose (x/y/rotate/flip) transforms this labeled block too — same applyPose wrap as the generic
     // block/billboard paths, so a placed OR generated block moves/rotates. No pose → the byte-identical draw.
     if (asset.pose) {
@@ -1706,12 +1780,12 @@ export function drawIsoAssetAscii(
       else drawIsoTileBlock(ctx, { x: 0, y: 0 }, bw, bd, bh, 1, dvBlock, recolor, undefined, asset.depth, asset.depthDir)
       if (asset.settings?.badge) drawApexBadge(ctx, 0, -bh, fontSize, asset.settings.badge)
       ctx.restore()
-      return
+      return geom
     }
     if (single) drawIsoSingleTileBlock(ctx, { x, y }, bw, bd, bh, 1, dvBlock, recolor, asset.depth, asset.depthDir)
     else drawIsoTileBlock(ctx, { x, y }, bw, bd, bh, 1, dvBlock, recolor, undefined, asset.depth, asset.depthDir)
     if (asset.settings?.badge) drawApexBadge(ctx, x, y - bh, fontSize, asset.settings.badge)
-    return
+    return geom
   }
 
   // Active art style: a mapped kind (or a per-element override) replaces ALL of the per-type
@@ -1735,7 +1809,7 @@ export function drawIsoAssetAscii(
     const bhScreen = span > 1 ? tileH * span * 0.6 : tileH
     const basinH = tileH * (span > 1 ? span * 0.5 : 1.4) // raised basin height in px (≈ the ASCII bodyH)
     drawIsoTileBlock(ctx, { x, y }, bw, bhScreen, basinH, 1, adv, asset.color)
-    return
+    return cubeGeom(bw, bhScreen, basinH, 1, poseMapper({ x, y }, undefined, tileH))
   }
   if (blocks >= 1 && (adv.image || adv.char)) {
     // A block scales on ALL THREE axes (was height-only): Width (scaleX) widens the diamond, Depth (scaleZ)
@@ -1747,6 +1821,7 @@ export function drawIsoAssetAscii(
     const bh = tileW * 0.9 * (asset.scaleY ?? 1) * zoom // Height — one block ≈ the cell's iso width, stretched up
     // DISPLAY = "single" (per-tile setting): draw ONE centered tile INSIDE the block instead of on all faces.
     const single = asset.settings?.display === 'single'
+    const geom = blockGeom(x, y, bw, bd, bh, blocks, asset, tileH)
     // Per-asset pose (x/y/rotate/flip) transforms the block around its base centre — the SAME applyPose the
     // billboard/floor paths use, so moving/rotating a placed BLOCK works too. No pose → the byte-identical draw.
     if (asset.pose) {
@@ -1754,11 +1829,11 @@ export function drawIsoAssetAscii(
       if (single) drawIsoSingleTileBlock(ctx, { x: 0, y: 0 }, bw, bd, bh, blocks, adv, asset.color, asset.depth, asset.depthDir)
       else drawIsoTileBlock(ctx, { x: 0, y: 0 }, bw, bd, bh, blocks, adv, asset.color, undefined, asset.depth, asset.depthDir)
       ctx.restore()
-      return
+      return geom
     }
     if (single) drawIsoSingleTileBlock(ctx, { x, y }, bw, bd, bh, blocks, adv, asset.color, asset.depth, asset.depthDir)
     else drawIsoTileBlock(ctx, { x, y }, bw, bd, bh, blocks, adv, asset.color, undefined, asset.depth, asset.depthDir)
-    return
+    return geom
   }
   // A per-asset colour override tints the baked sprite (an emoji ships its own colours, so an override
   // has to recolour the image, not a fill) — #80. Undefined colour → drawn untinted.
@@ -1774,7 +1849,7 @@ export function drawIsoAssetAscii(
     } else {
       drawStyledImage(ctx, adv.image, cx, cy, d.w, false, asset.color, d.h)
     }
-    return
+    return billboardGeom(d.w, d.h, poseMapper({ x: cx, y: cy }, pose, tileH))
   }
   if (adv.char) {
     // Trees tower (~3 cells, like the ASCII tree) instead of a tiny one-cell 🌲, anchored at the base.
@@ -1795,7 +1870,7 @@ export function drawIsoAssetAscii(
     fillTintedGlyph(ctx, adv.char, 0, 0, d.h, asset.color, strength)
     ctx.restore()
     ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
-    return
+    return billboardGeom(d.w, d.h, poseMapper({ x, y: gy }, pose, tileH))
   }
 
   // (a labeled composition cell was already drawn at the TOP of this function — per-label baked image + colour.)
@@ -1805,7 +1880,7 @@ export function drawIsoAssetAscii(
   // manually-placed assets only.
   if (asset.label) {
     drawIsoLabeledCell(ctx, x, y, asset, tileH)
-    return
+    return diamondGeom(tileW, tileH, poseMapper({ x, y }, undefined, tileH)) // one glyph on the cell diamond
   }
 
   // Authored animation cycles (author panel) OVERRIDE static type rendering with the live
@@ -1816,7 +1891,7 @@ export function drawIsoAssetAscii(
     const layerY = y - lineHeight * 0.5
     ctx.fillStyle = asset.color || '#ffffff'
     ctx.fillText(cycleArt[0] ?? '?', x, layerY)
-    return
+    return billboardGeom(tileW, lineHeight, poseMapper({ x, y: layerY }, undefined, tileH))
   }
 
   if (asset.type === 'tree') {
@@ -1956,6 +2031,12 @@ export function drawIsoAssetAscii(
     ctx.fillStyle = asset.color || '#ffffff'
     ctx.fillText(char, x, layerY)
   }
+
+  // Per-type ASCII sprites (tree/lamp/bush/npc/flower/rock/default) draw a STACK of glyph layers rising from
+  // the cell. Record a billboard covering that stacked art so the picker + highlight hug the visible sprite,
+  // not the flat ground cell under it — the same inversion the block/billboard branches above return.
+  const [halfW, layers] = perTypeStackBounds(asset.type, tileW)
+  return billboardGeom(halfW * 2, layers * lineHeight, poseMapper({ x, y: y - (layers * lineHeight) / 2 }, undefined, tileH))
 }
 
 

@@ -50,7 +50,7 @@ import { type Trigger, type TriggerEffect, fireTriggers } from '@/game/runtime/t
 import { ASCII_STYLE, type Style, type TileDef, styleById, groundKind, assetKind, entityKind, genderize, resolveVisual, visualForTileId } from '@/game/artStyle'
 import { useRouter } from 'next/router'
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
-import { render, render2D, renderTopView, clampCameraAxis, isoCameraFocus, entityMotion, ENEMY_MOVE_MS, isDebugMode, setDebugMode, isShowCollisions, setShowCollisions as setCollisionsFlag, cellCaptionMap, pickIsoBlocksAll, nextPickIndex, ISO_BLOCK_H_FRAC, depthCells, type IsoPickBlock, type DayNight, type DepthDir } from '@/engine/render'
+import { render, render2D, renderTopView, clampCameraAxis, isoCameraFocus, entityMotion, ENEMY_MOVE_MS, isDebugMode, setDebugMode, isShowCollisions, setShowCollisions as setCollisionsFlag, cellCaptionMap, pickIsoTilesAt, pickTwoDTilesAt, isoRecordedGeom, twoDRecordedGeom, nextPickIndex, ISO_BLOCK_H_FRAC, depthCells, type DayNight, type DepthDir } from '@/engine/render'
 import { loadTilesetsFromBackend, saveTilesetToBackend } from '@/engine/tileset/tilesetLoader'
 import { EMOJI_TILESET, setTilePose } from '@/engine/tileset/emojiTileset'
 import { type TilePose } from '@/engine/tileset/pose'
@@ -756,91 +756,57 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     return null
   }
 
-  // Height-aware ISO block pick: a click on a RAISED stacked block resolves to THAT block's cell + level,
-  // not the flat ground cell under it. screenToCell inverts only the FLAT diamond projection, so on a stack
-  // it always lands on the bottom cell — "it only selects the 1 bottom cell, never lets you select the
-  // blocks". This mirrors the iso render's projection + isoStackLift (same clamped camera focus) and
-  // hit-tests the lifted blocks, nearest-camera-first. Iso view ONLY; returns null when the pointer misses
-  // every raised block (the caller then uses the unchanged flat screenToCell). 2D/top picking is untouched.
-  // ALL iso block candidates under a client point — front→back (nearest-camera first) — plus the canvas
-  // coords, or null. Shared by the frontmost pick (hover/preview) AND the cycle-aware SELECT. Same projection
-  // the iso render + screenToCell use (isoCameraFocus in play mode, raw in dev).
-  const isoBlocksUnder = (clientX: number, clientY: number) => {
+  // INVERTED TILE PICK: hit-test the ACTUAL rendered TILE the user points at (its transform-aware silhouette,
+  // recorded by the renderer as it drew — honouring scaleY/zoom/pose/zOffset/depth/single-display/heightLevel)
+  // and cascade to its cell. This replaces the old "cursor → cell → topmost tile" resolution: we pick the tile
+  // you SEE and derive its cell, so the pick + highlight match the visual even for a tall / slid / lifted tile.
+  // ISO and 2D both use their own frame record (top = footprint, the flat cell already matches — untouched).
+  // Returns null (→ the caller falls back to the flat screenToCell) when no tile is under the pointer. Reads the
+  // LAST frame's record (the RAF loop re-renders every frame). Converts client → canvas-internal pixels.
+  const renderedTilesUnder = (clientX: number, clientY: number) => {
     const canvas = canvasRef.current
-    const grid = gridRef.current
-    if (!canvas || !grid) return null
-    if (topViewMode || viewTypeRef.current === '2d') return null
-
+    if (!canvas) return null
+    if (topViewMode) return null
     const rect = canvas.getBoundingClientRect()
     const scaleX = rect.width ? canvas.width / rect.width : 1
     const scaleY = rect.height ? canvas.height / rect.height : 1
     const x = (clientX - rect.left) * scaleX
     const y = (clientY - rect.top) * scaleY
-    const cs = grid.cellSize
-    const eff = grid.isoScale * isoZoomRef.current
-    const S = eff * 0.71
-    const T = eff * 0.36
-    const pPad = canvas.width / (2 * cs * S)
-    const qPad = canvas.height / (2 * cs * T)
-    const rawFc = (playerRef.current.x - camOffsetRef.current.x) / cs
-    const rawFr = (playerRef.current.z - camOffsetRef.current.y) / cs
-    const { fc, fr } = playModeRef.current ? isoCameraFocus(rawFc, rawFr, pPad, qPad, grid.cols, grid.rows) : { fc: rawFc, fr: rawFr }
-
-    // Candidate raised blocks come from the ONE unified stack (getStack) — the SAME model select/edit read —
-    // so a building WALL block and a stacked TREE/prop are hit-tested the SAME way, with NO per-type branch
-    // here. A building is just its stamped per-cell assets now (no grouped-building array), so every raised
-    // block is already a real asset; each stack entry that is a real BLOCK (heightLevel ≥ 1 — the floor / flat props
-    // stay on the flat pick) becomes an IsoPickBlock carrying its `source`, tagged with the cell's elevation
-    // so its lift matches the render. Only asset-stack cells are scanned, so this stays cheap on a click.
-    const candidates = new Set<string>()
-    for (const a of grid.assets) if ((a.heightLevel ?? 0) >= 1 || (a.height ?? 0) >= 1) candidates.add(`${a.col},${a.row}`) // level-0 CUBES (ground-floor wall) count
-    if (candidates.size === 0) return null
-    const blocks: IsoPickBlock[] = []
-    for (const key of candidates) {
-      const [col, row] = key.split(',').map(Number)
-      const terrainHeight = grid.getHeight(col, row)
-      for (const t of getStack(grid, col, row)) {
-        // Feed the blocks the iso render draws as per-cell CUBES: any raised tile (heightLevel ≥ 1) OR a
-        // level-0 cube (t.h ≥ 1). The flat FLOOR (h 0) is the only heightLevel-0 tile excluded.
-        if ((t.heightLevel ?? 0) < 1 && (t.h ?? 0) < 1) continue
-        blocks.push({ col, row, heightLevel: t.heightLevel ?? 0, terrainHeight, source: t.source })
-      }
-    }
-    if (blocks.length === 0) return null
-    const cam = { w: canvas.width, h: canvas.height, cellSize: cs, isoScale: eff, camX: fc * cs, camZ: fr * cs }
-    return { blocks: pickIsoBlocksAll(x, y, blocks, cam), x, y }
+    const tiles = viewTypeRef.current === '2d' ? pickTwoDTilesAt(x, y) : pickIsoTilesAt(x, y) // topmost (front) first
+    return { tiles, x, y }
   }
 
-  // The frontmost raised iso block under a point (what hover previews + a first click selects), or null.
+  // The frontmost rendered tile under a point (what hover previews + a first click selects), or null. Its cell
+  // + stack level cascade from the picked tile so the inspector still edits the correct backend cell/asset.
   const pickIsoBlockAt = (clientX: number, clientY: number): { col: number; row: number; level: number; source: TileSource } | null => {
-    const hit = isoBlocksUnder(clientX, clientY)?.blocks[0]
-    return hit ? { col: hit.col, row: hit.row, level: hit.level, source: hit.source ?? 'asset' } : null
+    const hit = renderedTilesUnder(clientX, clientY)?.tiles[0]
+    return hit ? { col: hit.col, row: hit.row, level: hit.level, source: hit.source } : null
   }
 
-  // The cell a click SELECTS/edits: a raised iso block first (so a click on a stack picks the block, not its
-  // bottom cell), else the flat screenToCell — unchanged for empty cells, 2D and top.
+  // The cell a click SELECTS/edits: the rendered tile under the pointer first (so a click on a tall/lifted tile
+  // picks THAT tile, not the ground under it), else the flat screenToCell — unchanged for empty cells, 2D, top.
   const pickCellForSelect = (clientX: number, clientY: number): { col: number; row: number; level?: number; source?: TileSource } | null => {
-    const block = pickIsoBlockAt(clientX, clientY)
-    if (block) return block
+    const tile = pickIsoBlockAt(clientX, clientY)
+    if (tile) return tile
     const flat = screenToCell(clientX, clientY)
     return flat ? { col: flat.col, row: flat.row, source: 'floor' as const } : null
   }
 
-  // Click-to-cycle: repeated clicks on the SAME spot walk front→back through the OVERLAPPING blocks there, so
-  // an OCCLUDED block is reachable without moving the camera (the dense-town selection "offset" is occlusion —
-  // the pick correctly returns the visible top block — not a geometry bug). ONLY call this from a discrete
-  // mousedown; hover must keep using pickCellForSelect (the frontmost), or it would advance the cycle.
+  // Click-to-cycle: repeated clicks on the SAME spot walk front→back through the OVERLAPPING tiles there, so an
+  // OCCLUDED tile is reachable without moving the camera (the pick correctly returns the visible top tile — not
+  // a geometry bug). ONLY call this from a discrete mousedown; hover must keep using pickCellForSelect (the
+  // frontmost), or it would advance the cycle.
   const lastPickRef = useRef<{ x: number; y: number; index: number } | null>(null)
   const PICK_CYCLE_TOL = 8 // canvas px — a click within this of the last one keeps cycling; farther resets to front
   const pickCellForSelectCycling = (clientX: number, clientY: number): { col: number; row: number; level?: number; source?: TileSource } | null => {
-    const under = isoBlocksUnder(clientX, clientY)
-    if (under && under.blocks.length > 0) {
-      const idx = nextPickIndex(lastPickRef.current, under.x, under.y, under.blocks.length, PICK_CYCLE_TOL)
+    const under = renderedTilesUnder(clientX, clientY)
+    if (under && under.tiles.length > 0) {
+      const idx = nextPickIndex(lastPickRef.current, under.x, under.y, under.tiles.length, PICK_CYCLE_TOL)
       lastPickRef.current = { x: under.x, y: under.y, index: idx }
-      const hit = under.blocks[idx]
-      return { col: hit.col, row: hit.row, level: hit.level, source: hit.source ?? 'asset' }
+      const hit = under.tiles[idx]
+      return { col: hit.col, row: hit.row, level: hit.level, source: hit.source }
     }
-    lastPickRef.current = null // clicked off any block stack → reset the cycle
+    lastPickRef.current = null // clicked off any tile → reset the cycle
     const flat = screenToCell(clientX, clientY)
     return flat ? { col: flat.col, row: flat.row, source: 'floor' as const } : null
   }
@@ -1097,10 +1063,10 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       // (floor / prop / building wall) with the SAME controls, no matter what it is.
       const selectCellTile = () => {
         setSelectedEntityId(null)
-        // Carry the picked BLOCK's level into the key ("col,row,level") so the yellow selector RAISES onto the
-        // block you clicked — the iso highlight lifts a 3-part key by that level. A flat / floor pick (no raised
-        // block) stays the 2-part "col,row" key at ground. Fixes the outline sitting at the base of the column.
-        const key = c.level !== undefined && c.level >= 1 ? `${c.col},${c.row},${c.level}` : `${c.col},${c.row}`
+        // Carry the picked TILE's level into the key ("col,row,level") — INCLUDING level 0 for a flat tile — so
+        // the highlight looks up that tile's ACTUAL recorded silhouette and hugs it (scaleY/pose/zOffset/depth
+        // aware), instead of the flat ground cell. A floor pick (no tile) stays the 2-part "col,row" ground key.
+        const key = c.source && c.source !== 'floor' && c.level !== undefined ? `${c.col},${c.row},${c.level}` : `${c.col},${c.row}`
         setSelectedCells(new Set([key]))
         setSelectedTileLevel(levelForPickedCell(c))
       }
@@ -1602,6 +1568,9 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       __setHero?: (col: number, row: number) => void
       __setDepth?: (col: number, row: number, depth: number, dir: DepthDir) => { col: number; row: number; depth: number; depthDir: DepthDir; cells: { col: number; row: number }[] } | null
       __setZPos?: (col: number, row: number, z: number, dir: DepthDir) => { col: number; row: number; zOffset: number; zDir: DepthDir } | null
+      __pickTileAt?: (clientX: number, clientY: number) => { col: number; row: number; level: number | null; source: string | null } | null
+      __cellScreen?: (col: number, row: number, level?: number) => { x: number; y: number } | null
+      __tileCentroid?: (col: number, row: number, level?: number) => { x: number; y: number } | null
     }
     win.__camOffset = () => ({ ...camOffsetRef.current })
     // ISO-STACK picking validation seams (same family as __entityScreens, which lands validation clicks via
@@ -1640,6 +1609,38 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       const sx = canvas.width ? rect.width / canvas.width : 1
       const sy = canvas.height ? rect.height / canvas.height : 1
       return { x: rect.left + px * sx, y: rect.top + cy * sy }
+    }
+    // INVERTED-PICK validation seams: `__pickTileAt` resolves a client pixel to the TILE the pick returns (the
+    // SAME pickCellForSelect a click uses — the transform-aware recorded silhouette), so a validation click can
+    // prove pixel→tile in ANY view. `__cellScreen` returns the on-screen pixel of a tile's body at (col,row,level)
+    // in the ACTIVE view (iso reuses __isoBlockScreen; 2D lifts the cell centre by the level stack) so a click
+    // can be aimed at a raised tile in either view.
+    win.__pickTileAt = (clientX: number, clientY: number) => {
+      const r = pickCellForSelect(clientX, clientY)
+      return r ? { col: r.col, row: r.row, level: r.level ?? null, source: r.source ?? null } : null
+    }
+    win.__cellScreen = (col: number, row: number, level = 0) => {
+      if (!topViewMode && viewTypeRef.current !== '2d') return win.__isoBlockScreen!(col, row, level) // iso
+      const base = cellToScreen(col, row)
+      if (!base) return null
+      if (viewTypeRef.current === '2d') return { x: base.x, y: base.y - level * (24 * zoomRef.current * 0.9) } // lift onto the stacked tile body
+      return base
+    }
+    // The EXACT screen centre (client coords) of the tile RENDERED at (col,row,level) this frame — the centroid
+    // of its recorded silhouette. Guarantees a validation click lands dead-on the tile (iso or 2D), regardless of
+    // its transform. null when the tile wasn't drawn (off-screen / wrong view).
+    win.__tileCentroid = (col: number, row: number, level = 0) => {
+      const canvas = canvasRef.current
+      if (!canvas || topViewMode) return null
+      const geom = viewTypeRef.current === '2d' ? twoDRecordedGeom(col, row, level) : isoRecordedGeom(col, row, level)
+      if (!geom) return null
+      const pts = geom.kind === 'cube' ? [...geom.base, ...geom.top] : geom.pts
+      const cx = pts.reduce((s, p) => s + p.x, 0) / pts.length
+      const cy = pts.reduce((s, p) => s + p.y, 0) / pts.length
+      const rect = canvas.getBoundingClientRect()
+      const sx = canvas.width ? rect.width / canvas.width : 1
+      const sy = canvas.height ? rect.height / canvas.height : 1
+      return { x: rect.left + cx * sx, y: rect.top + cy * sy }
     }
     // UNIFIED-TILE picking validation seams: generate a REAL town (has buildings) and dump each building's
     // footprint so a validation click can land on an actual WALL block / the door — proving the building's
@@ -1813,7 +1814,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       setSelectedCells(new Set([`${best.col},${best.row}`]))
       return best
     }
-    return () => { delete win.__setArtStyle; delete win.__selectFirstTreeCell; delete win.__setView; delete win.__gridKinds; delete win.__entityInfo; delete win.__entityScreens; delete win.__selectEntity; delete win.__setEntitySize; delete win.__scatter; delete win.__selectedEntityInfo; delete win.__placeBuilding; delete win.__placeComposition; delete win.__cellSel; delete win.__selectCells; delete win.__applyCellTile; delete win.__clearRegion; delete win.__setDebug; delete win.__cellLabels; delete win.__stackAt; delete win.__camOffset; delete win.__stackAsset; delete win.__isoBlockScreen; delete win.__genVillage; delete win.__genStage; delete win.__centerOn; delete win.__setHero }
+    return () => { delete win.__setArtStyle; delete win.__selectFirstTreeCell; delete win.__setView; delete win.__gridKinds; delete win.__entityInfo; delete win.__entityScreens; delete win.__selectEntity; delete win.__setEntitySize; delete win.__scatter; delete win.__selectedEntityInfo; delete win.__placeBuilding; delete win.__placeComposition; delete win.__cellSel; delete win.__selectCells; delete win.__applyCellTile; delete win.__clearRegion; delete win.__setDebug; delete win.__cellLabels; delete win.__stackAt; delete win.__camOffset; delete win.__stackAsset; delete win.__isoBlockScreen; delete win.__genVillage; delete win.__genStage; delete win.__centerOn; delete win.__setHero; delete win.__pickTileAt; delete win.__cellScreen; delete win.__tileCentroid }
   }, [])
 
   // ── Selected-entity inspector actions ─────────────────────────────

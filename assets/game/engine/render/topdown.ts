@@ -20,6 +20,8 @@ import { ASCII_FONT, COMBAT_RANGE, type DayNight, ENEMY_MOVE_MS, LAMP_GLOW, appl
 import { resolveAssetDrawSize } from './assetDimensions'
 import { resolveAssetAnimation } from './assetAnimation'
 import { DEPTH_CELL_STEP } from './isoBlock'
+import { billboardGeom, pointInTileGeom, outlineSegments, poseMapper, type TileGeom } from './tileHit'
+import type { TileSource } from '@/engine/cellStack'
 import { frontElevation, type FrontElevation } from './frontElevation'
 import { groundSizeFactors, groundDimsActive, type GroundCellDims } from '@/engine/groundDims'
 import { getStack } from '@/engine/cellStack'
@@ -211,6 +213,47 @@ let _groundLayer: { cv: HTMLCanvasElement; ctx: CanvasRenderingContext2D; key: s
 let _groundPendingKey = '' // the ground key seen LAST frame; we only bake once it repeats (camera held still),
 // so actively scrolling draws direct with no extra bake+blit penalty, and only a stationary scene caches.
 
+// ── INVERTED 2D TILE PICK — same model as iso: record each drawn tile's screen silhouette, hit-test IT ──
+// render2D records every drawn asset's real screen rect (honouring scaleY/heightLevel lift/zOffset ground-slide
+// /pose/zoom) so the picker + highlight resolve the TILE the user sees (e.g. a tall lamp's lifted bulb), not
+// the flat ground cell. Refreshed every frame; read on mousemove/mousedown. Canvas-internal pixels.
+interface TileHit2D { col: number; row: number; level: number; source: TileSource; geom: TileGeom }
+let twoDTileHits: TileHit2D[] = []
+
+/** Every recorded 2D tile whose rect contains (x,y), TOPMOST (last-drawn) first — the frontmost is the pick. */
+export function pickTwoDTilesAt(x: number, y: number): TileHit2D[] {
+  const hits: TileHit2D[] = []
+  for (let i = twoDTileHits.length - 1; i >= 0; i--) {
+    if (pointInTileGeom(x, y, twoDTileHits[i].geom)) hits.push(twoDTileHits[i])
+  }
+  return hits
+}
+
+/** The frontmost recorded 2D tile under (x,y), or null (→ the caller falls back to the flat cell). */
+export function pickTwoDTileAt(x: number, y: number): TileHit2D | null {
+  return pickTwoDTilesAt(x, y)[0] ?? null
+}
+
+/** The recorded 2D silhouette of the tile at (col,row,level) drawn this frame (topmost), or null. */
+export function twoDRecordedGeom(col: number, row: number, level: number): TileGeom | null {
+  for (let i = twoDTileHits.length - 1; i >= 0; i--) {
+    const t = twoDTileHits[i]
+    if (t.col === col && t.row === row && t.level === level) return t.geom
+  }
+  return null
+}
+
+/** Stroke a recorded 2D tile outline (its rect ring) so the highlight hugs the tile, not the flat cell. */
+function stroke2DTileOutline(ctx: CanvasRenderingContext2D, geom: TileGeom): void {
+  for (const seg of outlineSegments(geom)) {
+    if (seg.length === 0) continue
+    ctx.beginPath()
+    ctx.moveTo(seg[0].x, seg[0].y)
+    for (let i = 1; i < seg.length; i++) ctx.lineTo(seg[i].x, seg[i].y)
+    ctx.stroke()
+  }
+}
+
 export function render2D(
   ctx: CanvasRenderingContext2D,
   w: number,
@@ -233,7 +276,7 @@ export function render2D(
   targetId: string | null = null,
   hoverId: string | null = null,
   selectedCells: ReadonlySet<string> = new Set(),
-  hoveredCell: { col: number; row: number } | null = null,
+  hoveredCell: { col: number; row: number; level?: number } | null = null,
 ) {
   const __t0 = typeof performance !== 'undefined' ? performance.now() : 0
   const playerIsTarget = !!targetId && entities.some(e => e.kind === 'player' && e.id === targetId)
@@ -461,6 +504,7 @@ export function render2D(
   drawables.sort((a, b) => a.zIndex - b.zIndex || a.sortRow - b.sortRow || a.level - b.level)
 
   // Draw each object
+  twoDTileHits = [] // fresh per-frame record of every drawn 2D tile's silhouette — the inverted picker reads it
   for (const obj of drawables) {
     // A front-elevation cell (part of a stacked structure with depth) projects at its ANCHORED front row so
     // its column stacks as a flat facade — depth is collapsed (MAP-MODEL §2-3). Everything else (a flat
@@ -605,6 +649,9 @@ export function render2D(
       // "z position" is NOT a vertical lift — it's an iso-diagonal ground slide, already folded into `p` above
       // (the ground-plane cell delta), so baseY only carries elevation + the height-level stack, like before.
       const baseY = p.y + tileH * 0.5 - elevOffset - (asset.heightLevel ?? 0) * levelStep
+      // The tile's rendered 2D silhouette (rect), recorded below per branch so the inverted picker + highlight
+      // hit-test the TILE the user sees (its scaleY/heightLevel-lift/zOffset-slide/pose extent), not the cell.
+      let hit2D: TileGeom | null = null
 
       // Animated screen shift (tile fractions; `y` LIFTS up = −screenY) + opacity fade, wrapped around the WHOLE
       // tile draw so every branch below inherits them. Skipped entirely when not animated → byte-identical.
@@ -641,6 +688,7 @@ export function render2D(
       const decorImg = asset.type === 'ground_decor' ? groundDecorImage(asset, style) : undefined
       if (decorImg) {
         drawStyledImage(ctx, decorImg, p.x, baseY - tileH * 0.5, tileW, false, asset.color, tileH)
+        hit2D = billboardGeom(tileW, tileH, poseMapper({ x: p.x, y: baseY - tileH * 0.5 }, undefined, tileH))
       } else if (adv.image) {
         // A per-asset colour override recolours the baked sprite (#80); undefined → drawn untinted.
         // Per-view tile size (byte-identical when unset: old 1.5 constant), then per-element dims (#77/#78).
@@ -655,6 +703,7 @@ export function render2D(
         } else {
           drawStyledImage(ctx, adv.image, cx, cy, d.w, false, asset.color, d.h)
         }
+        hit2D = billboardGeom(d.w, d.h, poseMapper({ x: cx, y: cy }, pose, tileH))
       } else if (adv.char) {
         // Trees are drawn TALLER (a 🌲 in one cell reads tiny) — roughly the 3-cell height the ASCII
         // tree gets — anchored at the base so the trunk sits on its cell and the canopy rises.
@@ -676,10 +725,14 @@ export function render2D(
         if (d.w !== d.h) ctx.scale(d.w / d.h, 1) // non-uniform Width vs Height, like the image branch
         fillTintedGlyph(ctx, adv.char, 0, 0, d.h, asset.color, strength)
         ctx.restore()
+        hit2D = billboardGeom(d.w, d.h, poseMapper({ x: p.x, y: baseY - lift }, pose, tileH))
       } else if (asset.label) {
         // Generated multi-cell cell → one glyph in its zone/theme color (the cell
         // IS the tile), matching the iso + top views. No green multi-tile overdraw.
         draw2DLabeledCell(ctx, p.x, baseY, tileW, tileH, asset, style)
+        // Match draw2DLabeledCell's rect: Width/Height/Zoom stretch the cell, grown UP from baseY.
+        const z = asset.scale ?? 1, dw = tileW * (asset.scaleX ?? 1) * z, dh = tileH * (asset.scaleY ?? 1) * z
+        hit2D = billboardGeom(dw, dh, poseMapper({ x: p.x, y: baseY - dh / 2 }, undefined, tileH))
       } else if (asset.type === 'tree') {
         // Layered tree: bark trunk + canopy tinted to the asset's zone/theme color.
         const canopy = treeCanopyLayers(asset.color || '#2e8b2e', flicker)
@@ -718,6 +771,7 @@ export function render2D(
           ctx.fillText(layer.chars, p.x, tileTop + tileH * 0.5)
         }
         ctx.font = `bold ${tileH * 0.8}px ${ASCII_FONT}`
+        hit2D = billboardGeom(tileW * 2, tileH * 6, poseMapper({ x: p.x, y: baseY - tileH * 3 }, undefined, tileH))
 
       } else if (asset.type === 'lamp') {
         // Lamp post — STEADY bulb (ON at night, dim by day), no time-based pulse/flicker.
@@ -731,6 +785,7 @@ export function render2D(
         ctx.fillRect(p.x - tileW * 0.25, baseY - tileH * 2.4, tileW * 0.5, tileH * 0.5)
         ctx.fillStyle = `rgba(255, 200, 50, ${0.4 + 0.6 * glow})`
         ctx.fillText('o', p.x, baseY - tileH * 2.2)
+        hit2D = billboardGeom(tileW * 0.6, tileH * 2.7, poseMapper({ x: p.x, y: baseY - tileH * 1.35 }, undefined, tileH))
 
       } else if (asset.type === 'npc') {
         // NPC - cleaner humanoid figure matching isometric style
@@ -749,6 +804,7 @@ export function render2D(
           ctx.fillStyle = layer.fg
           ctx.fillText(layer.text, p.x, tileTop + tileH * 0.5)
         }
+        hit2D = billboardGeom(tileW * 0.9, tileH * 3, poseMapper({ x: p.x, y: baseY - tileH * 1.5 }, undefined, tileH))
 
       } else {
         // Default - still use vibrant colors with animation
@@ -759,10 +815,13 @@ export function render2D(
         ctx.fillRect(p.x - tileW * 0.5, baseY - tileH, tileW, tileH)
         ctx.fillStyle = tileFg
         ctx.fillText(char, p.x, baseY - tileH * 0.5)
+        hit2D = billboardGeom(tileW, tileH, poseMapper({ x: p.x, y: baseY - tileH * 0.5 }, undefined, tileH))
       }
 
       if (ct2d) ctx.restore() // pop the cell-animation transform
       if (animWrap) ctx.restore() // pop the tile-animation shift/opacity wrap
+      // Record this tile's 2D silhouette so the inverted picker + highlight hit-test IT, not the flat cell.
+      if (hit2D) twoDTileHits.push({ col: obj.asset.col, row: obj.asset.row, level: obj.asset.heightLevel ?? 0, source: 'asset', geom: hit2D })
     }
   }
 
@@ -900,25 +959,30 @@ export function render2D(
     drawNightLighting(ctx, w, h, lamps)
   }
 
-  // ─── Cell-hover outline — a DIM/translucent square on the cell under the cursor, drawn UNDER the
-  //     solid-yellow selection below so it never hides it. Shows on EVERY cell (even one a unit sits on),
-  //     in addition to the unit hover reticle, so any floor tile stays targetable. ──────────────────
-  if (hoveredCell) {
-    ctx.strokeStyle = 'rgba(255,255,255,0.5)'
-    ctx.lineWidth = 1.5
-    const p = toScreen(hoveredCell.col, hoveredCell.row)
+  // ─── Hover + selection HIGHLIGHT — INVERTED: outline the ACTUAL rendered TILE (its recorded 2D rect,
+  //     scaleY/heightLevel-lift/zOffset/pose aware) so the ring hugs what the user sees, not the flat cell.
+  //     A bare floor cell (or a tile not drawn this frame) falls back to the flat cell square. ──────────
+  const strokeCellOrTile2D = (col: number, row: number, lvl: number | undefined): void => {
+    const geom = lvl !== undefined ? twoDRecordedGeom(col, row, lvl) : null
+    if (geom) { stroke2DTileOutline(ctx, geom); return } // the real tile rect (tall/lifted/slid aware)
+    const p = toScreen(col, row) // fallback: the flat cell square
     ctx.strokeRect(p.x + 1, p.y + 1, tileW - 2, tileH - 2)
   }
 
-  // ─── Selection outline (property-editor multi-select) — drawn over the world so
-  //     the yellow ring shows on top of tiles/props, mirroring the top view. ────────
+  // Cell/tile-hover outline — a DIM ring on the tile under the cursor, drawn UNDER the yellow selection.
+  if (hoveredCell) {
+    ctx.strokeStyle = 'rgba(255,255,255,0.5)'
+    ctx.lineWidth = 1.5
+    strokeCellOrTile2D(hoveredCell.col, hoveredCell.row, hoveredCell.level)
+  }
+
+  // Selection outline (property-editor multi-select) — a yellow ring hugging each selected tile/cell.
   if (selectedCells.size > 0) {
     ctx.strokeStyle = '#ffff00'
     ctx.lineWidth = 2
     for (const key of selectedCells) {
-      const [col, row] = key.split(',').map(Number)
-      const p = toScreen(col, row)
-      ctx.strokeRect(p.x + 1, p.y + 1, tileW - 2, tileH - 2)
+      const [col, row, lvl] = key.split(',').map(Number) // "col,row,level" = a recorded TILE; "col,row" = flat cell
+      strokeCellOrTile2D(col, row, lvl)
     }
   }
 
