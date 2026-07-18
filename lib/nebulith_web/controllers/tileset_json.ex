@@ -53,13 +53,20 @@ defmodule NebulithWeb.TilesetJSON do
     %{
       footprint: %{w: c.footprint_w, h: c.footprint_h},
       title: c.title,
-      cells:
-        Enum.map(
-          c.cells,
-          # `zIndex` (camelCase) so the frontend loader maps it straight onto CompositionCell.zIndex — the same
-          # pass-through `scale` uses. The DB column is `z_index`; the JSON key the renderer reads is `zIndex`.
-          &%{dx: &1.dx, dy: &1.dy, level: &1.level, label: &1.label, walkable: &1.walkable, scale: &1.scale, zIndex: &1.z_index}
-        )
+      cells: Enum.map(c.cells, &cell_data/1)
     }
   end
+
+  # `zIndex` (camelCase) so the frontend loader maps it straight onto CompositionCell.zIndex — the same
+  # pass-through `scale` uses. The DB column is `z_index`; the JSON key the renderer reads is `zIndex`.
+  # `animations` (the cell's default `Animation[]`) is added ONLY when the cell carries some — so every
+  # non-animated cell serves byte-identically to before (only the fountain's water cells gain the key).
+  defp cell_data(cell) do
+    base = %{dx: cell.dx, dy: cell.dy, level: cell.level, label: cell.label, walkable: cell.walkable, scale: cell.scale, zIndex: cell.z_index}
+    maybe_put_animations(base, cell.animations)
+  end
+
+  defp maybe_put_animations(base, nil), do: base
+  defp maybe_put_animations(base, []), do: base
+  defp maybe_put_animations(base, animations), do: Map.put(base, :animations, animations)
 end

@@ -777,8 +777,61 @@ defmodule Nebulith.Catalog.TileSource do
   # own edge and sorts positionally with the water. Pure DATA on the cell; NOT a render special-case.
   @water_z_index 10
 
+  # The fountain WATER's DEFAULT ANIMATION (Alexander, verbatim: the water tile "fades in goes 3 blocks up,
+  # and fades away", then loops). TWO chained looping `settings` animations sharing ONE 1800ms cycle period
+  # so they stay in sync every loop — the exact `Animation` envelope the frontend engine reads (camelCase
+  # keys, served verbatim; the tileset loader passes composition cells through untouched, and stampRun copies
+  # this onto the placed asset's `animations`):
+  #
+  #   A "rise" — fade IN + lift: opacity 0→1 and y 0→3 blocks over 1200ms, then rests at the top for the
+  #     600ms loopDelay tail before snapping back and repeating. Higher priority (1) so it OWNS opacity while
+  #     the water is rising, and its `y` (only A writes y) lifts the tile 3 block-heights in every view.
+  #   B "fade" — fade AWAY at the top: opacity 1→0 over 600ms, starting AFTER A's rise (startDelayMs = A's
+  #     1200ms duration) with a 1200ms loopDelay so its period is also 1800ms.
+  #
+  # NOTE (winner-takes-all resolver): `resolveAnimatedSettings` keeps ONE value per setting (highest priority,
+  # ties → later in the list) and a looping animation RESTS at its `to` outside its active window — so two
+  # overlapping opacity arcs can't each win only their own half. With A at the higher priority the RENDER is a
+  # clean loop (rise + fade-in, hold at top, snap out), and B is carried as data for a later resolver that
+  # composites opacity (min/over) so the smooth fade-out also shows. y stays fully correct (A alone writes it).
+  @fountain_water_animations [
+    %{
+      "id" => "fountain_water_rise",
+      "name" => "rise",
+      "kind" => "settings",
+      "durationMs" => 1200,
+      "startDelayMs" => 0,
+      "loopDelayMs" => 600,
+      "loop" => true,
+      "ease" => "sine",
+      "priority" => 1,
+      "trigger" => %{"on" => "load"},
+      "tracks" => [
+        %{"setting" => "opacity", "from" => 0, "to" => 1},
+        %{"setting" => "y", "from" => 0, "to" => 3}
+      ]
+    },
+    %{
+      "id" => "fountain_water_fade",
+      "name" => "fade",
+      "kind" => "settings",
+      "durationMs" => 600,
+      "startDelayMs" => 1200,
+      "loopDelayMs" => 1200,
+      "loop" => true,
+      "ease" => "sine",
+      "priority" => 0,
+      "trigger" => %{"on" => "load"},
+      "tracks" => [
+        %{"setting" => "opacity", "from" => 1, "to" => 0}
+      ]
+    }
+  ]
+
   # 5×4 fountain from pieces: the perimeter is the correct rim EDGE/CORNER piece, the interior is `water_c`,
-  # and jets rise from a few interior points (a tall centre jet + two lower side jets). Pure data.
+  # and jets rise from a few interior points (a tall centre jet + two lower side jets). The water cells
+  # (water_c + water_jet) ship WITH @fountain_water_animations so the fountain animates by default; the rim
+  # carries none. Pure data.
   defp fountain_cells do
     w = 5
     h = 4
@@ -789,13 +842,13 @@ defmodule Nebulith.Catalog.TileSource do
 
     water =
       for dy <- 1..(h - 2), dx <- 1..(w - 2),
-        do: %{dx: dx, dy: dy, level: 0, label: "water_c", walkable: false, z_index: @water_z_index}
+        do: %{dx: dx, dy: dy, level: 0, label: "water_c", walkable: false, z_index: @water_z_index, animations: @fountain_water_animations}
 
     jets = [
-      %{dx: 2, dy: 1, level: 1, label: "water_jet", walkable: false, z_index: @water_z_index},
-      %{dx: 2, dy: 1, level: 2, label: "water_jet", walkable: false, z_index: @water_z_index},
-      %{dx: 1, dy: 2, level: 1, label: "water_jet", walkable: false, z_index: @water_z_index},
-      %{dx: 3, dy: 2, level: 1, label: "water_jet", walkable: false, z_index: @water_z_index}
+      %{dx: 2, dy: 1, level: 1, label: "water_jet", walkable: false, z_index: @water_z_index, animations: @fountain_water_animations},
+      %{dx: 2, dy: 1, level: 2, label: "water_jet", walkable: false, z_index: @water_z_index, animations: @fountain_water_animations},
+      %{dx: 1, dy: 2, level: 1, label: "water_jet", walkable: false, z_index: @water_z_index, animations: @fountain_water_animations},
+      %{dx: 3, dy: 2, level: 1, label: "water_jet", walkable: false, z_index: @water_z_index, animations: @fountain_water_animations}
     ]
 
     rim ++ water ++ jets
