@@ -50,7 +50,7 @@ import { type Trigger, type TriggerEffect, fireTriggers } from '@/game/runtime/t
 import { ASCII_STYLE, type Style, type TileDef, styleById, groundKind, assetKind, entityKind, genderize, resolveVisual, visualForTileId } from '@/game/artStyle'
 import { useRouter } from 'next/router'
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
-import { render, render2D, renderTopView, clampCameraAxis, isoCameraFocus, entityMotion, ENEMY_MOVE_MS, isDebugMode, setDebugMode, isShowCollisions, setShowCollisions as setCollisionsFlag, cellCaptionMap, pickIsoTilesAt, pickTwoDTilesAt, isoRecordedGeom, twoDRecordedGeom, nextPickIndex, ISO_BLOCK_H_FRAC, depthCells, type DayNight, type DepthDir } from '@/engine/render'
+import { render, render2D, renderTopView, clampCameraAxis, isoCameraFocus, entityMotion, ENEMY_MOVE_MS, isDebugMode, setDebugMode, isShowCollisions, setShowCollisions as setCollisionsFlag, cellCaptionMap, pickIsoTilesAt, pickTwoDTilesAt, isoRecordedGeom, twoDRecordedGeom, nextPickIndex, ISO_BLOCK_H_FRAC, depthCells, tileGeomPolygon, tileHandlePoints, handleAtPoint, dragOutwardPx, scaleFromDrag, depthFromDrag, drawTileHandles, polyBBox, HANDLE_HIT_RADIUS, type TileHandle, type HandleId, type DayNight, type DepthDir } from '@/engine/render'
 import { loadTilesetsFromBackend, saveTilesetToBackend } from '@/engine/tileset/tilesetLoader'
 import { EMOJI_TILESET, setTilePose } from '@/engine/tileset/emojiTileset'
 import { type TilePose } from '@/engine/tileset/pose'
@@ -133,6 +133,17 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   // Which tile in the selected cell's stack the inspector edits: a 0-based index into getStack (0 = floor,
   // 1.. = stacked). Set from the iso block you click (its level) and moved by the TILE header's ▲▼ stepper.
   const [selectedTileLevel, setSelectedTileLevel] = useState(0)
+  const selectedTileLevelRef = useRef(0)
+  // An in-progress canvas resize-handle drag on the selected tile (Task: "control its size with mouse").
+  // Captured at grab time so the drag stays stable while the tile repaints under it each frame.
+  const handleDragRef = useRef<{
+    id: HandleId
+    i: number
+    startCx: number; startCy: number // grab point, canvas-internal px
+    sx: number; sy: number           // client→canvas scale at grab time
+    startScaleX: number; startScaleY: number; startDepth: number
+    baseHalfWpx: number; baseHalfHpx: number // px per 1.0 of scaleX / scaleY (silhouette-derived)
+  } | null>(null)
   const [isSelecting, setIsSelecting] = useState(false)
   const [selectionStart, setSelectionStart] = useState<{ col: number; row: number } | null>(null)
   const selectionBaseRef = useRef<Set<string>>(new Set()) // selection at drag-start; a shift+drag MERGES the rectangle into THIS (additive, no restart)
@@ -558,6 +569,12 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     selectedCellsRef.current = selectedCells
   }, [selectedCells])
 
+  // Keep the selected stack-level ref in sync so the RAF loop + the mouse handlers can find which tile shows
+  // resize handles without a stale closure.
+  useEffect(() => {
+    selectedTileLevelRef.current = selectedTileLevel
+  }, [selectedTileLevel])
+
   // Keep the building-tool ref in sync (read by the once-mounted click handler + loop)
   useEffect(() => { buildingToolRef.current = buildingTool }, [buildingTool])
   useEffect(() => { genZoneRef.current = genZone }, [genZone])
@@ -921,6 +938,13 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       return
     }
 
+    // RESIZE HANDLE grab (left button, no placement tool): if the pointer is on a grip of the selected tile,
+    // start resizing it — takes priority over pan/select so the drag never pans the camera.
+    if (e.button === 0 && !entityTool && !buildingTool && !connectorMode && tryStartHandleDrag(e.clientX, e.clientY)) {
+      e.preventDefault()
+      return
+    }
+
     // ARMED BRUSH (Paint mode): a palette tile is picked → LEFT-click PLACES it (⌥Alt-click removes the
     // top asset), on the current multi-cell selection when there is one, else on the single clicked cell.
     // SHIFT is left to the selection gesture below so a bulk selection can still be built while armed.
@@ -1020,6 +1044,11 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   }
 
   const handleCanvasMouseMove = (e: React.MouseEvent) => {
+    // An in-progress resize-handle drag owns the pointer: map it to the tile's new size and skip hover/pan.
+    if (handleDragRef.current) {
+      applyHandleDrag(e.clientX, e.clientY)
+      return
+    }
     // Hover targeting (#24): hit-test the unit under the cursor — view-aware, the SAME test the click-select
     // uses (withPlayerCell so the walked hero is hittable) — and stash its id in a REF. The RAF loop reads
     // it to draw a dim white hover reticle. A ref (not state) so a mousemove never triggers a React render.
@@ -1058,6 +1087,13 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   }
 
   const handleCanvasMouseUp = () => {
+    // End any resize-handle drag first (it owned the gesture — no pan/select to finalise).
+    if (handleDragRef.current) {
+      handleDragRef.current = null
+      setIsPanning(false)
+      setPanStart(null)
+      return
+    }
     // A no-drag click in a play view (iso/2d) selects the unit under it — view-aware so clicking the
     // standing FIGURE (drawn above its foot cell) selects it, not only a click on the exact cell.
     if (isPanning && !dragMovedRef.current && downCellRef.current) {
@@ -1527,6 +1563,96 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     bumpBuildingVersion()
     setSelectedTileLevel(l => Math.max(0, l - 1))
   }
+
+  // ── CANVAS RESIZE HANDLES (Task: "control its size with mouse") ──────────────────────────────────────
+  // Drag small grips on the SELECTED tile to resize it directly on the canvas: width→scaleX, height→scaleY,
+  // and (iso only) z-width→depth. The grips ride the tile's real recorded silhouette, and every writer here
+  // is the SAME one the modal sliders call (setAssetDim / setAssetDepth) — one source of truth, so a drag and
+  // the sliders stay in sync live.
+  const DIM_DRAG_RANGE = { min: 0.25, max: 5 } as const // matches DimRow's slider (Width/Height)
+  const ZWIDTH_DRAG_RANGE = { min: 1, max: 8 } as const // matches ZWidthRow's slider
+  const ZWIDTH_PX_PER_CELL = 28 // drag ~28px to add one cell of directional depth
+
+  // The ONE selected ASSET tile that shows resize handles: the focus cell of the selection, at the selected
+  // stack level. Handles are for placed asset tiles only (the floor / building blocks / entities size elsewhere)
+  // and only in the iso + 2D play views (top view has no recorded silhouette). null → no handles.
+  const resizeHandleTarget = (): { col: number; row: number; i: number; asset: GridAsset; heightLevel: number } | null => {
+    const grid = gridRef.current
+    if (!grid || topViewMode) return null
+    const firstKey = selectedCellsRef.current.values().next().value as string | undefined
+    if (!firstKey) return null
+    const [col, row] = firstKey.split(',').map(Number)
+    const stack = getStack(grid, col, row, { entities: entitiesRef.current })
+    const lvl = Math.min(Math.max(selectedTileLevelRef.current, 0), stack.length - 1)
+    if (lvl < 1 || stack[lvl]?.source !== 'asset') return null
+    const i = lvl - 1
+    const asset = stackedAssetsAt(grid, col, row)[i]
+    if (!asset) return null
+    return { col, row, i, asset, heightLevel: asset.heightLevel ?? 0 }
+  }
+
+  // The selected tile's handle grips (canvas-internal px) this frame, or null. Reuses the recorded silhouette
+  // (tileGeomPolygon) so a grip can never drift from the drawn tile. Read by the RAF draw + the grab hit-test.
+  const selectedTileHandles = (): { handles: TileHandle[]; poly: ReturnType<typeof tileGeomPolygon> } | null => {
+    const target = resizeHandleTarget()
+    if (!target) return null
+    const iso = viewTypeRef.current !== '2d'
+    const geom = iso ? isoRecordedGeom(target.col, target.row, target.heightLevel) : twoDRecordedGeom(target.col, target.row, target.heightLevel)
+    if (!geom) return null
+    const poly = tileGeomPolygon(geom)
+    return { handles: tileHandlePoints(poly, { zWidth: iso }), poly }
+  }
+
+  // Try to GRAB a resize handle at the pointer. On a hit, capture the drag origin + the tile's current scales
+  // and its silhouette half-extents (px per 1.0 of scale, so the dragged edge tracks the cursor) and return
+  // true — the caller then suppresses pan/select for this gesture.
+  const tryStartHandleDrag = (clientX: number, clientY: number): boolean => {
+    const canvas = canvasRef.current
+    if (!canvas) return false
+    const found = selectedTileHandles()
+    const target = resizeHandleTarget()
+    if (!found || !target) return false
+    const rect = canvas.getBoundingClientRect()
+    const sx = rect.width ? canvas.width / rect.width : 1
+    const sy = rect.height ? canvas.height / rect.height : 1
+    const cx = (clientX - rect.left) * sx
+    const cy = (clientY - rect.top) * sy
+    const hit = handleAtPoint(found.handles, cx, cy, HANDLE_HIT_RADIUS)
+    if (!hit) return false
+    const b = polyBBox(found.poly)
+    const scaleX = target.asset.scaleX ?? 1
+    const scaleY = target.asset.scaleY ?? 1
+    handleDragRef.current = {
+      id: hit.id, i: target.i,
+      startCx: cx, startCy: cy, sx, sy,
+      startScaleX: scaleX, startScaleY: scaleY, startDepth: target.asset.depth ?? 1,
+      baseHalfWpx: Math.max(1, (b.width / 2) / scaleX),
+      baseHalfHpx: Math.max(1, (b.height / 2) / scaleY),
+    }
+    return true
+  }
+
+  // Apply an in-progress handle drag: map the pointer delta to the new dimension and write it through the SAME
+  // setters the sliders use, so the tile repaints live and the panel reflects it.
+  const applyHandleDrag = (clientX: number, clientY: number): void => {
+    const d = handleDragRef.current
+    const canvas = canvasRef.current
+    if (!d || !canvas) return
+    const rect = canvas.getBoundingClientRect()
+    const cx = (clientX - rect.left) * d.sx
+    const cy = (clientY - rect.top) * d.sy
+    const outward = dragOutwardPx(d.id, cx - d.startCx, cy - d.startCy)
+    if (d.id === 'width') setAssetDim(d.i, 'width', scaleFromDrag(d.baseHalfWpx, d.startScaleX, outward, DIM_DRAG_RANGE))
+    else if (d.id === 'height') setAssetDim(d.i, 'height', scaleFromDrag(d.baseHalfHpx, d.startScaleY, outward, DIM_DRAG_RANGE))
+    else setAssetDepth(d.i, depthFromDrag(ZWIDTH_PX_PER_CELL, d.startDepth, outward, ZWIDTH_DRAG_RANGE))
+  }
+
+  // Draw the selected tile's resize grips on top of the frame (called right after render/render2D). No-op when
+  // nothing resizable is selected.
+  const drawSelectedTileHandles = (ctx: CanvasRenderingContext2D): void => {
+    const found = selectedTileHandles()
+    if (found) drawTileHandles(ctx, found.handles)
+  }
   // Per-CELL floor dims + pose — the SAME Width/Height/Depth/Zoom, but written to grid.groundDims so they
   // size/pose THIS floor tile (every tile, not just props). setGroundDims merges + bumps groundVersion.
   const setGroundDim = (axis: keyof typeof DIM_FIELD, v: number) =>
@@ -1574,6 +1700,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       __pickTileAt?: (clientX: number, clientY: number) => { col: number; row: number; level: number | null; source: string | null } | null
       __cellScreen?: (col: number, row: number, level?: number) => { x: number; y: number } | null
       __tileCentroid?: (col: number, row: number, level?: number) => { x: number; y: number } | null
+      __tileHandles?: (col: number, row: number, level?: number) => { id: HandleId; x: number; y: number }[] | null
     }
     win.__camOffset = () => ({ ...camOffsetRef.current })
     // ISO-STACK picking validation seams (same family as __entityScreens, which lands validation clicks via
@@ -1644,6 +1771,20 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       const sx = canvas.width ? rect.width / canvas.width : 1
       const sy = canvas.height ? rect.height / canvas.height : 1
       return { x: rect.left + cx * sx, y: rect.top + cy * sy }
+    }
+    // RESIZE-HANDLE validation seam: the CLIENT-coord grip points on the tile at (col,row,level) this frame —
+    // the SAME points the RAF draws + the mouse grab hit-tests (from the recorded silhouette). Lets a
+    // validation drag grab a handle dead-on and prove the drag→size mapping. null when the tile isn't drawn.
+    win.__tileHandles = (col: number, row: number, level = 0) => {
+      const canvas = canvasRef.current
+      if (!canvas || topViewMode) return null
+      const iso = viewTypeRef.current !== '2d'
+      const geom = iso ? isoRecordedGeom(col, row, level) : twoDRecordedGeom(col, row, level)
+      if (!geom) return null
+      const rect = canvas.getBoundingClientRect()
+      const sx = canvas.width ? rect.width / canvas.width : 1
+      const sy = canvas.height ? rect.height / canvas.height : 1
+      return tileHandlePoints(tileGeomPolygon(geom), { zWidth: iso }).map(h => ({ id: h.id, x: rect.left + h.x * sx, y: rect.top + h.y * sy }))
     }
     // UNIFIED-TILE picking validation seams: generate a REAL town (has buildings) and dump each building's
     // footprint so a validation click can land on an actual WALL block / the door — proving the building's
@@ -1817,7 +1958,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       setSelectedCells(new Set([`${best.col},${best.row}`]))
       return best
     }
-    return () => { delete win.__setArtStyle; delete win.__selectFirstTreeCell; delete win.__setView; delete win.__gridKinds; delete win.__entityInfo; delete win.__entityScreens; delete win.__selectEntity; delete win.__setEntitySize; delete win.__scatter; delete win.__selectedEntityInfo; delete win.__placeBuilding; delete win.__placeComposition; delete win.__cellSel; delete win.__selectCells; delete win.__applyCellTile; delete win.__clearRegion; delete win.__setDebug; delete win.__cellLabels; delete win.__stackAt; delete win.__camOffset; delete win.__stackAsset; delete win.__isoBlockScreen; delete win.__genVillage; delete win.__genStage; delete win.__centerOn; delete win.__setHero; delete win.__pickTileAt; delete win.__cellScreen; delete win.__tileCentroid }
+    return () => { delete win.__setArtStyle; delete win.__selectFirstTreeCell; delete win.__setView; delete win.__gridKinds; delete win.__entityInfo; delete win.__entityScreens; delete win.__selectEntity; delete win.__setEntitySize; delete win.__scatter; delete win.__selectedEntityInfo; delete win.__placeBuilding; delete win.__placeComposition; delete win.__cellSel; delete win.__selectCells; delete win.__applyCellTile; delete win.__clearRegion; delete win.__setDebug; delete win.__cellLabels; delete win.__stackAt; delete win.__camOffset; delete win.__stackAsset; delete win.__isoBlockScreen; delete win.__genVillage; delete win.__genStage; delete win.__centerOn; delete win.__setHero; delete win.__pickTileAt; delete win.__cellScreen; delete win.__tileCentroid; delete win.__tileHandles }
   }, [])
 
   // ── Selected-entity inspector actions ─────────────────────────────
@@ -4165,8 +4306,10 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
         renderTopView(ctx, canvas.width, canvas.height, grid, player, zoomRef.current, selectedCellsRef.current, connectorsRef.current, connectorModeRef.current, camOffsetRef.current, renderEntities, runtime.combat, hitMarkersRef.current, time, questsRef.current, dayNightRef.current, activeStyleRef.current, hoveredCellRef.current)
       } else if (viewTypeRef.current === '2d') {
         render2D(ctx, canvas.width, canvas.height, grid, player, time, zoomRef.current, camOffsetRef.current, renderEntities, runtime.combat, connectorsRef.current, questsRef.current, dayNightRef.current, attackAnimsRef.current, hitMarkersRef.current, projectilesRef.current, weaponReach(playerWeaponRef.current), activeStyleRef.current, selectedEntityIdRef.current, hoveredEntityIdRef.current, selectedCellsRef.current, hoveredCellRef.current)
+        drawSelectedTileHandles(ctx) // resize grips on the selected tile (reads the frame's recorded silhouette)
       } else {
         render(ctx, canvas.width, canvas.height, grid, player, time, camOffsetRef.current, renderEntities, runtime.combat, hitMarkersRef.current, time, isoZoomRef.current, attackAnimsRef.current, connectorsRef.current, questsRef.current, projectilesRef.current, dayNightRef.current, weaponReach(playerWeaponRef.current), activeStyleRef.current, playModeRef.current, selectedEntityIdRef.current, hoveredEntityIdRef.current, selectedCellsRef.current, hoveredCellRef.current)
+        drawSelectedTileHandles(ctx) // resize grips on the selected tile (reads the frame's recorded silhouette)
       }
       // Drop finished attack animations (kept tiny — a few in flight at once).
       if (attackAnimsRef.current.length > 0) {
