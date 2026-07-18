@@ -474,6 +474,42 @@ export function ArtSection({ override, styleName, onOpen }: { override?: string 
 /** The tile kinds that are WEAPONS (get a muzzle control) — matches the seeded weapon tileset entries. */
 export const WEAPON_KINDS = new Set(['sword', 'bow', 'gun', 'axe', 'staff', 'shield'])
 
+/** A FREE-FORM numeric field — the typeable half of every slider row. Unlike a bounded `<input type=number>`
+ *  it (1) can hold an EMPTY string, a lone "-", or a trailing "." WHILE editing, so select-all + delete +
+ *  retype never snaps back mid-edit, and (2) has NO min/max, so a value BELOW the slider's min or ABOVE its
+ *  max is honored — the typed number is written through as-is. It commits every time the draft parses to a
+ *  finite number (live, so the scene updates as you type) and holds an un-committable draft (empty / "-" /
+ *  "abc") WITHOUT writing. On blur it drops the draft so the display re-syncs to the committed `value`, which
+ *  means an emptied field reverts to the last value (treated as "unchanged"). A text input — not `number` —
+ *  because a controlled `number` input cannot hold those intermediate strings (it reports them as ""). */
+function NumberField({ value, onCommit, ariaLabel, className }: {
+  value: number
+  onCommit: (v: number) => void
+  ariaLabel: string
+  className?: string
+}) {
+  const [draft, setDraft] = useState<string | null>(null) // null = mirror `value`; a string = mid-edit
+  const onChange = (raw: string) => {
+    setDraft(raw)
+    const trimmed = raw.trim()
+    if (trimmed === '') return // empty → unchanged; keep the empty draft on screen
+    const n = Number(trimmed)
+    if (Number.isFinite(n)) onCommit(n) // out-of-range honored; "-" / "1e" / "abc" → NaN → held, not written
+  }
+  return (
+    <input
+      type="text"
+      inputMode="decimal"
+      value={draft ?? String(value)}
+      onChange={e => onChange(e.target.value)}
+      onBlur={() => setDraft(null)}
+      onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
+      aria-label={ariaLabel}
+      className={className}
+    />
+  )
+}
+
 /** One labeled row of the pose editor: a range slider paired with a typeable number input (same units).
  *  Unit-agnostic — the caller converts (e.g. degrees→radians for rotation) so this stays a dumb control. */
 function PoseRow({ label, value, min, max, step, suffix, onInput }: { label: string; value: number; min: number; max: number; step: number; suffix?: string; onInput: (v: number) => void }) {
@@ -482,7 +518,7 @@ function PoseRow({ label, value, min, max, step, suffix, onInput }: { label: str
     <label className="flex items-center gap-2">
       <span className="w-12 shrink-0 text-[10px] text-gray-400">{label}</span>
       <input type="range" min={min} max={max} step={step} value={value} onChange={e => emit(e.target.value)} aria-label={label} className="flex-1 accent-cyan-500" />
-      <input type="number" min={min} max={max} step={step} value={value} onChange={e => emit(e.target.value)} aria-label={`${label} value`} className="w-14 rounded bg-gray-800 p-1 text-[10px] tabular-nums text-cyan-300" />
+      <NumberField value={value} onCommit={onInput} ariaLabel={`${label} value`} className="w-14 rounded bg-gray-800 p-1 text-[10px] tabular-nums text-cyan-300" />
       {suffix && <span className="text-[10px] text-gray-400">{suffix}</span>}
     </label>
   )
@@ -597,9 +633,10 @@ export interface TileControlModel {
 
 /** PROPERTY editor for the current cell selection — EXACTLY TWO sections. A CELL is a fixed slot, so the
  *  CELL section carries only COLLISION (grid elevation stays a cell prop, edited with the terrain-height
- *  tool). The TILE section shows the ONE SELECTED tile in the cell's stack as a single consolidated group,
- *  with a level stepper to reach every block (including an occluded middle one). No per-tile-in-stack
- *  sections, no separate FLOOR / POSE / colour split. */
+ *  tool). The TILE section is a COMPACT SUMMARY of the ONE SELECTED tile: swap-tile (Open Tile Library), a
+ *  colour swatch, and the buttons — "Edit settings…" (opens the full settings MODAL), Animate, Remove — with
+ *  a level stepper to reach every block. The heavy per-axis controls live in the modal ({@link TileControls}),
+ *  not inline. No per-tile-in-stack sections, no separate FLOOR / POSE split. */
 export interface PropertiesPanelProps {
   /** shared collision state across the selection, or null (mixed). */
   collision: boolean | null
@@ -612,6 +649,8 @@ export interface PropertiesPanelProps {
   levelCount: number
   /** select a tile by 0-based stack index (0 = floor) — the ▲▼ stepper reaches every block. */
   onLevel: (index0: number) => void
+  /** open the tile-settings MODAL (the {@link TileControls} body) — the "Edit settings…" button. */
+  onOpenSettings: () => void
   /** remove the SELECTED tile from the grid (not the floor — the caller omits this for level 0). Shows a
    *  "Remove tile" button in the tile section when provided; absent → no button (e.g. the floor). */
   onRemove?: () => void
@@ -626,7 +665,7 @@ function DimRow({ label, axis, value, title, onDim }: { label: string; axis: Dim
     <label className="flex items-center gap-2" title={title}>
       <span className="w-14 shrink-0 text-[10px] text-gray-400">{label}</span>
       <input type="range" min={0.25} max={5} step={0.05} value={value ?? 1} onChange={e => parseNum(e.target.value, v => onDim(axis, v))} aria-label={label} className="flex-1 accent-cyan-500" />
-      <input type="number" min={0.25} max={5} step={0.05} value={value ?? 1} onChange={e => parseNum(e.target.value, v => onDim(axis, v))} aria-label={`${label} value`} className="w-14 rounded bg-gray-800 p-1 text-[10px] tabular-nums text-cyan-300" />
+      <NumberField value={value ?? 1} onCommit={v => onDim(axis, v)} ariaLabel={`${label} value`} className="w-14 rounded bg-gray-800 p-1 text-[10px] tabular-nums text-cyan-300" />
       {value === null && mixedBadge}
     </label>
   )
@@ -651,7 +690,7 @@ function ZWidthRow({ zWidth, zDir, onZWidth, onZDir }: { zWidth: number | null; 
       <label className="flex items-center gap-2" title="Z Width — how many cells this block extrudes into a long iso box, along the chosen direction (iso view)">
         <span className="w-14 shrink-0 text-[10px] text-gray-400">Z Width</span>
         <input type="range" min={1} max={8} step={1} value={zWidth ?? 1} onChange={e => parseNum(e.target.value, onZWidth)} aria-label="Z Width" className="flex-1 accent-cyan-500" />
-        <input type="number" min={1} max={8} step={1} value={zWidth ?? 1} onChange={e => parseNum(e.target.value, onZWidth)} aria-label="Z Width value" className="w-14 rounded bg-gray-800 p-1 text-[10px] tabular-nums text-cyan-300" />
+        <NumberField value={zWidth ?? 1} onCommit={onZWidth} ariaLabel="Z Width value" className="w-14 rounded bg-gray-800 p-1 text-[10px] tabular-nums text-cyan-300" />
         {zWidth === null && mixedBadge}
       </label>
       <div className="grid grid-cols-2 gap-1 pl-16" role="group" aria-label="Z Width direction">
@@ -671,7 +710,7 @@ function ZIndexRow({ zIndex, onZIndex }: { zIndex: number | null; onZIndex: (val
     <label className="flex items-center gap-2" title="Z-Index — draw priority (like CSS z-index): a higher value draws on top / in front, overriding the depth sort (every view)">
       <span className="w-14 shrink-0 text-[10px] text-gray-400">Z-Index</span>
       <input type="range" min={0} max={100} step={1} value={zIndex ?? 0} onChange={e => parseNum(e.target.value, v => onZIndex(Math.round(v)))} aria-label="Z-Index" className="flex-1 accent-cyan-500" />
-      <input type="number" step={1} value={zIndex ?? 0} onChange={e => parseNum(e.target.value, v => onZIndex(Math.round(v)))} aria-label="Z-Index value" className="w-14 rounded bg-gray-800 p-1 text-[10px] tabular-nums text-cyan-300" />
+      <NumberField value={zIndex ?? 0} onCommit={v => onZIndex(Math.round(v))} ariaLabel="Z-Index value" className="w-14 rounded bg-gray-800 p-1 text-[10px] tabular-nums text-cyan-300" />
       {zIndex === null && mixedBadge}
     </label>
   )
@@ -710,20 +749,18 @@ function ZPosRow({ zPos, zDir, onZPos, onZDir }: { zPos: number | null; zDir: De
   )
 }
 
-/** The ONE consolidated TILE control group — the SELECTED tile's every control in a single flat block:
- *  which-tile + Open Tile Library (swap it), colour, the Width/Height/Zoom scale axes (+ Z Width directional
- *  depth for asset tiles), then the x/y/z/rotate/flip transform. NO nested "Pose —" box, NO second colour,
- *  NO one-section-per-tile. The floor
- *  (a height-0 tile) and a stacked wall/prop use the EXACT SAME group; only the writers differ (the page
- *  routes floor→per-cell, asset→its tileset kind). */
+/** The SETTINGS body for the SELECTED tile — every tunable control in one flat block: colour, the
+ *  Width/Height/Zoom scale axes (+ Z Width directional depth for asset tiles), then the x/y/z/rotate/flip
+ *  transform, Z-Index and Display. This is the body the "Edit settings…" modal hosts (mirroring the
+ *  tile-animation modal); the swap-tile (Open Tile Library) + Animate + Remove affordances live in the
+ *  compact inspector summary, NOT here. The floor (a height-0 tile) and a stacked wall/prop use the EXACT
+ *  SAME body; only the writers differ (the page routes floor→per-cell, asset→its tileset kind). */
 export function TileControls({ tile }: { tile: TileControlModel }) {
   const pose = tile.pose
   const setPose = tile.onPose ? (patch: Partial<TilePose>) => tile.onPose!({ ...pose, ...patch }) : null
   const rotDeg = Math.round((pose?.rot ?? 0) * 180 / Math.PI)
   return (
     <div className="space-y-1.5">
-      {/* which tile it IS + swap it — the same "current sprite → Open Tile Library" affordance entities use */}
-      <ArtSection override={tile.override} styleName={tile.styleName} onOpen={tile.onOpenLibrary} />
       {/* ONE colour for the tile (floor→groundColor, asset→asset.color) — no separate pose colour */}
       <div className="flex items-center gap-2">
         <span className="w-14 shrink-0 text-[10px] text-gray-400">Colour</span>
@@ -762,21 +799,16 @@ export function TileControls({ tile }: { tile: TileControlModel }) {
           )}
         </>
       )}
-      {/* Open the dedicated tile-animation modal (Phase 4). Asset tiles only — the floor omits onOpenAnimator. */}
-      {tile.onOpenAnimator && (
-        <button onClick={tile.onOpenAnimator} aria-label="Animate tile" className="w-full rounded bg-fuchsia-800 px-2 py-1 text-[10px] font-bold text-white transition-colors hover:bg-fuchsia-700">
-          ✦ Animate…{tile.animations?.length ? ` (${tile.animations.length})` : ''}
-        </button>
-      )}
     </div>
   )
 }
 
 /** The Cell inspector body — EXACTLY TWO sections. The CELL section (collision only — the cell's sole
- *  tunable prop) then the TILE section: the ONE selected tile, its name in the header with a ▲▼ level
- *  stepper to reach every block in the stack, and one consolidated {@link TileControls} group. No
- *  per-tile-in-stack sections, no separate FLOOR / POSE / colour split. */
+ *  tunable prop) then the TILE section: a COMPACT SUMMARY of the ONE selected tile — its name in the header
+ *  with a ▲▼ level stepper, swap-tile (Open Tile Library), a colour swatch, and the buttons. The full
+ *  per-axis controls open in the settings MODAL via "Edit settings…". No per-tile-in-stack sections. */
 export function PropertiesPanel(p: PropertiesPanelProps) {
+  const t = p.tile
   return (
     <div className="space-y-1.5 text-xs">
       <p className="text-[9px] font-bold uppercase tracking-wider text-gray-500">— cell —</p>
@@ -786,10 +818,10 @@ export function PropertiesPanel(p: PropertiesPanelProps) {
         <button onClick={() => p.onCollision(false)} aria-pressed={p.collision === false} className={`rounded px-2 py-0.5 text-[10px] font-bold ${p.collision === false ? 'bg-emerald-600 text-white' : 'bg-gray-700 hover:bg-gray-600'}`}>Walkable</button>
         {p.collision === null && mixedBadge}
       </div>
-      {p.tile && (
+      {t && (
         <>
           <div className="mt-1 flex items-center justify-between border-t border-white/10 pt-1.5">
-            <p className="text-[9px] font-bold uppercase tracking-wider text-gray-500">— tile · {p.tile.label} —</p>
+            <p className="text-[9px] font-bold uppercase tracking-wider text-gray-500">— tile · {t.label} —</p>
             {p.levelCount > 1 && (
               <span className="flex items-center gap-1 text-[9px] text-gray-400" aria-label="Select stack level">
                 <button onClick={() => p.onLevel(p.level - 2)} disabled={p.level <= 1} aria-label="Lower tile" className="rounded bg-gray-700 px-1 leading-none hover:bg-gray-600 disabled:opacity-30">▼</button>
@@ -798,7 +830,24 @@ export function PropertiesPanel(p: PropertiesPanelProps) {
               </span>
             )}
           </div>
-          <TileControls tile={p.tile} />
+          {/* swap-tile — kept accessible in the summary (does NOT live in the settings modal) */}
+          <ArtSection override={t.override} styleName={t.styleName} onOpen={t.onOpenLibrary} />
+          {/* quick colour swatch — the one setting worth tweaking without opening the modal */}
+          <div className="flex items-center gap-2">
+            <span className="w-14 shrink-0 text-[10px] text-gray-400">Colour</span>
+            <input type="color" value={t.color ?? t.colorFallback} onChange={e => t.onColor(e.target.value)} aria-label={`${t.label} colour`} className="h-6 w-10 rounded bg-gray-800" />
+            {t.color === null && mixedBadge}
+          </div>
+          {/* open the full settings — colour, W/H/Z Width, Zoom, x/y/z, rotate, flip, Z-Index, Display */}
+          <button onClick={p.onOpenSettings} aria-label="Edit settings" className="w-full rounded bg-cyan-800 px-2 py-1.5 text-xs font-bold text-white transition-colors hover:bg-cyan-700">
+            ⚙ Edit settings…
+          </button>
+          {/* Animate — opens its OWN modal (Phase 4). Asset tiles only. */}
+          {t.onOpenAnimator && (
+            <button onClick={t.onOpenAnimator} aria-label="Animate tile" className="w-full rounded bg-fuchsia-800 px-2 py-1 text-[10px] font-bold text-white transition-colors hover:bg-fuchsia-700">
+              ✦ Animate…{t.animations?.length ? ` (${t.animations.length})` : ''}
+            </button>
+          )}
           {p.onRemove && (
             <button onClick={p.onRemove} className="w-full rounded bg-red-700 px-2 py-1 text-[10px] font-bold text-white transition-colors hover:bg-red-600">
               🗑 Remove tile

@@ -66,7 +66,7 @@ import { EquipmentPanel, InventoryCard, QuestAuthoringCard, QuestLogPanel } from
 import { EntityAttackBody, EntityIdentityStatsBody, EntityMovementBody, Modal, QuestGiveBody } from '@/components/game/modals'
 import { FlowViewOverlay, GamesViewOverlay } from '@/components/game/games'
 import { BUILDING_TOOL_TYPE, type BuildingTool, type EditorMode, type EntityTool } from '@/components/game/editorConfig'
-import { AnimationEditor, ArtSection, Dropdown, FpsReadout, GenerateControls, PoseControls, PropertiesPanel, type TileControlModel, SelectionHeader, StylePicker, TileAnimationEditor, TileLibraryBody, TilePalette, ToolRail, TriggerEditor, WEAPON_KINDS } from '@/components/game/editorChrome'
+import { AnimationEditor, ArtSection, Dropdown, FpsReadout, GenerateControls, PoseControls, PropertiesPanel, type TileControlModel, SelectionHeader, StylePicker, TileAnimationEditor, TileControls, TileLibraryBody, TilePalette, ToolRail, TriggerEditor, WEAPON_KINDS } from '@/components/game/editorChrome'
 import type { Animation as TileAnim } from '@/engine/animation/tileAnimation'
 import { useFps } from '@/components/useFps'
 import { commonValue, commonBool, cellsFromKeys, removeSelectedBlock } from '@/game/editor/selectionEdit'
@@ -273,6 +273,9 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   const [animEditorOpen, setAnimEditorOpen] = useState(false)
   // The TILE animation modal (Phase 4) — authors GridAsset.animations for the selected asset tile.
   const [tileAnimatorOpen, setTileAnimatorOpen] = useState(false)
+  // The TILE settings modal — hosts the full TileControls body (colour/size/pose/z…) so the inspector stays
+  // a compact summary. Same open/close pattern as the animation modal above.
+  const [tileSettingsOpen, setTileSettingsOpen] = useState(false)
   // Disarm waypoint authoring + close any entity modal whenever the selection changes,
   // so clicks on a new entity select it (not drop a stray waypoint / show stale modal).
   useEffect(() => {
@@ -5736,8 +5739,17 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                               level={lvl + 1}
                               levelCount={levelCount}
                               onLevel={setSelectedTileLevel}
+                              onOpenSettings={() => setTileSettingsOpen(true)}
                               onRemove={lvl >= 1 ? removeSelectedTile : undefined}
                             />
+                            {/* Tile-settings modal — the full TileControls body (colour/size/pose/z/display),
+                                opened from the inspector's "Edit settings…". The writers already fan out to
+                                the i-th stacked tile of every selected cell (setAssetDim/Pose/…). */}
+                            {tileSettingsOpen && (
+                              <Modal title={`${tile.label} — Settings`} accent="cyan" wide onClose={() => setTileSettingsOpen(false)}>
+                                <TileControls tile={tile} />
+                              </Modal>
+                            )}
                             {/* Phase-4 tile-animation modal — authors THIS asset tile's GridAsset.animations
                                 (e.g. the fountain water). Only opens for an asset tile; writes fan out to the
                                 i-th stacked tile of every selected cell via setAssetAnimations. */}
