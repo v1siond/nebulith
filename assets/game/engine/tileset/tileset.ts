@@ -12,6 +12,7 @@
 import type { TilePose } from './pose'
 import type { TileView, TileViewSettings } from './tileViewSettings'
 import type { ImageVisual } from '@/game/artStyle'
+import type { Animation } from '@/engine/animation/tileAnimation'
 
 // 9-piece autotile POSITION — the swap standard: all sides + corners. 'single' = a non-tiling tile.
 export type TilePosition =
@@ -109,6 +110,11 @@ export interface CompositionCell {
    *  fountain's water reads IN FRONT of a wall behind it. Absent/0 → the sort falls through to the positional
    *  key, so the tile orders exactly as before. */
   zIndex?: number
+  /** DEFAULT tile animations authored on this composition cell (backend `composition_cells.animations` jsonb,
+   *  camelCase on the wire) — a LIST of settings/sprite tweens the stamp copies onto the placed asset's
+   *  `animations` (and sets `placedAt`), so a composition ships animated BY DEFAULT (the fountain's water_c +
+   *  water_jet cells carry the rise/fade loop). Absent → the cell places an un-animated tile, unchanged. */
+  animations?: Animation[]
 }
 
 /** A multi-cell asset TEMPLATE: a footprint + one tile per cell. The data-driven replacement for the retired

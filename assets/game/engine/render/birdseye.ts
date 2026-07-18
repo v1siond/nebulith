@@ -10,6 +10,7 @@ import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 import { Connector } from '@/lib/api'
 import { ASCII_FONT, type DayNight, LAMP_GLOW, applyCellTransform, clampCameraAxis, collectLampGlows, debugCellCaptions, debugLabelColors, drawConnectorMarker, drawHitMarker, drawHpBar, drawNightLighting, drawQuestMarker, drawStyledImage, SINGLE_TILE_FRAC, fillTintedGlyph, grassShade, cellFill, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, resolveAssetDraw, resolveEntityDraw, assetOverride, labelTileImage, labelTileRecolor, tileImage } from './shared'
 import { resolveAssetDrawSize } from './assetDimensions'
+import { resolveAssetAnimation } from './assetAnimation'
 import { DEPTH_CELL_STEP } from './isoBlock'
 import { getStack } from '@/engine/cellStack'
 import { EMOJI_TILESET } from '@/engine/tileset/emojiTileset'
@@ -176,6 +177,19 @@ export function renderTopView(
       const zAmt = asset?.zOffset ?? 0
       const gx = x + tileSize / 2 + (zStep ? zAmt * zStep.dc * tileSize : 0)
       const gy = y + tileSize / 2 + (zStep ? zAmt * zStep.dr * tileSize : 0)
+      // Live TILE ANIMATION overrides for THIS frame, scoped to the top view + active style. null → the effective
+      // asset IS `asset` and no shift/opacity change (byte-identical). `dAsset` carries the animated colour/zoom/
+      // width/height so the draw reads them; the shift + opacity wrap the tile draw (not the cell backing above).
+      const assetAnim = asset ? resolveAssetAnimation(asset, now, style, 'top') : null
+      const dAsset = assetAnim ? assetAnim.asset : asset
+      const animShiftX = assetAnim ? assetAnim.x * tileSize : 0
+      const animShiftY = assetAnim ? assetAnim.y * tileSize : 0
+      const animWrap = !!assetAnim && (animShiftX !== 0 || animShiftY !== 0 || assetAnim.opacity < 1)
+      if (animWrap) {
+        ctx.save()
+        ctx.translate(animShiftX, -animShiftY)
+        if (assetAnim!.opacity < 1) ctx.globalAlpha *= assetAnim!.opacity
+      }
       const ctTop = asset ? assetCellTransform(asset.cellAnim, now) : null
       if (ctTop) applyCellTransform(ctx, gx, gy, ctTop, tileSize, tileSize)
       // A composition cell's LABEL resolves its OWN backend image directly (mirrors the char lookup
@@ -188,9 +202,9 @@ export function renderTopView(
       if (img) {
         // Per-view tile size (byte-identical when unset: old tileSize base), then per-element dims (#77/#78).
         const vt = style.id === 'emoji' && asset ? EMOJI_TILESET[assetKind(asset)] : undefined
-        const d = resolveAssetDrawSize(tileSize * (resolveTileSize(vt, 'top') ?? 1), asset ?? {}, 'overhead')
+        const d = resolveAssetDrawSize(tileSize * (resolveTileSize(vt, 'top') ?? 1), dAsset ?? {}, 'overhead')
         const pose = asset?.pose ?? resolveTilePose(vt, 'top') // per-asset pose (inspector x/y/rotate) wins; else the tileset-kind pose
-        const recolor = labelImage ? labelTileRecolor(style, asset?.color ?? '#cccccc') : asset?.color
+        const recolor = labelImage ? labelTileRecolor(style, dAsset?.color ?? '#cccccc') : dAsset?.color
         // DISPLAY = "single": draw ONE smaller centered tile inside the plain cell (the cell backing already
         // painted above shows around it), matching the iso/2D "single tile inside the block" look. Absent → 1×.
         const frac = asset?.settings?.display === 'single' ? SINGLE_TILE_FRAC : 1
@@ -207,19 +221,20 @@ export function renderTopView(
         // (no asset, dims 1, no tint) falls through fillTintedGlyph to a plain centred fillText at the old
         // font size — byte-identical to before.
         const vt = style.id === 'emoji' && asset ? EMOJI_TILESET[assetKind(asset)] : undefined
-        const d = resolveAssetDrawSize(fontSize * (resolveTileSize(vt, 'top') ?? 1), asset ?? {}, 'overhead')
+        const d = resolveAssetDrawSize(fontSize * (resolveTileSize(vt, 'top') ?? 1), dAsset ?? {}, 'overhead')
         const pose = asset?.pose ?? resolveTilePose(vt, 'top') // per-asset pose (inspector x/y/rotate) wins; else the tileset-kind pose
-        const strength = asset?.color ? 0.85 : 0 // colour-emoji ignore fillStyle → wash the tint on
+        const strength = dAsset?.color ? 0.85 : 0 // colour-emoji ignore fillStyle → wash the tint on
         ctx.font = `bold ${d.h}px ${ASCII_FONT}`
         ctx.save()
         ctx.translate(gx, gy)
         if (pose) applyPose(ctx, pose, 1, tileSize)
         if (d.w !== d.h) ctx.scale(d.w / d.h, 1) // non-uniform Width vs Depth, like the image branch
-        fillTintedGlyph(ctx, dv.char, 0, 0, d.h, asset?.color, strength)
+        fillTintedGlyph(ctx, dv.char, 0, 0, d.h, dAsset?.color, strength)
         ctx.restore()
         ctx.font = `bold ${fontSize}px ${ASCII_FONT}` // restore the loop's shared font for the next cell
       }
       if (ctTop) ctx.restore()
+      if (animWrap) ctx.restore() // pop the tile-animation shift/opacity wrap
 
       // Height indicator (show in corner if height > 0)
       const cellHeight = grid.getHeight(col, row)

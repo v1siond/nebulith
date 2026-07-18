@@ -34,4 +34,22 @@ describe('deserializeToGrid preserves every saved asset field (#72)', () => {
     const grid2 = deserializeToGrid(tmpl(ser.assetsData as unknown[]))
     expect(grid2.assets.find(a => a.type === 'fountain')?.footprint).toBe(5)
   })
+
+  // Phase 3: a per-instance tile ANIMATION list + its placedAt anchor must survive save/load exactly like
+  // cellAnim — through serializeGrid → the JSON wire (backend store) → deserializeToGrid. placedAt 0 is the
+  // fountain default AND the tricky falsy case (must not be dropped/defaulted away).
+  it('round-trips per-instance tile animations + placedAt through the JSON wire', () => {
+    const anims = [
+      { id: 'rise', kind: 'settings', durationMs: 1200, startDelayMs: 0, loopDelayMs: 600, loop: true, ease: 'sine', priority: 1,
+        tracks: [{ setting: 'opacity', from: 0, to: 1 }, { setting: 'y', from: 0, to: 3 }] },
+      { id: 'fade', kind: 'settings', durationMs: 600, startDelayMs: 1200, loopDelayMs: 1200, loop: true, ease: 'sine', priority: 0,
+        tracks: [{ setting: 'opacity', from: 1, to: 0 }] },
+    ]
+    const g = new IsometricGrid({ cols: 4, rows: 4, cellSize: 32, isoScale: 1.4 })
+    g.assets = [{ art: ['~'], col: 1, row: 1, type: 'fountain', label: 'water_c', animations: anims, placedAt: 0 } as never]
+    const wire = JSON.parse(JSON.stringify(serializeGrid(g).assetsData)) // backend store + reload
+    const a = deserializeToGrid(tmpl(wire)).assets.find(x => x.label === 'water_c')
+    expect(a?.animations).toEqual(anims)
+    expect(a?.placedAt).toBe(0)
+  })
 })

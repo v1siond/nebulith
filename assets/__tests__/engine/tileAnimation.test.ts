@@ -1,0 +1,220 @@
+/**
+ * Tile Animation ENGINE — pure interpolator unit tests (Phase 1).
+ *
+ * Exercises the clock-derived value engine directly (no canvas): opacity 0→1 over a duration, a vertical
+ * `y` rise, start-delay deferral, loop wrapping, loop-delay rest, colour RGB lerp, display step, ease
+ * curves, priority/list-order stacking, scope gating, and the sprite stub. The headline case is TWO chained
+ * animations (A rise + B delayed fade) composed through `resolveAnimatedSettings`, sampled across time.
+ */
+
+import {
+  animationValue,
+  resolveAnimatedSettings,
+  animationMatchesScope,
+  spriteFrameIndex,
+  easeAnim,
+  type SettingsAnimation,
+  type SpriteAnimation,
+} from '@/engine/animation/tileAnimation'
+
+/** Build a settings animation from partial fields (id/kind/duration/tracks always present). */
+function settingsAnim(over: Partial<SettingsAnimation> & Pick<SettingsAnimation, 'tracks'>): SettingsAnimation {
+  return {
+    id: over.id ?? 'anim',
+    kind: 'settings',
+    durationMs: over.durationMs ?? 1000,
+    tracks: over.tracks,
+    ...over,
+  }
+}
+
+describe('animationValue — a single settings animation', () => {
+  test('opacity 0→1 tweens linearly across the duration, then HOLDS at 1 (non-loop)', () => {
+    const anim = settingsAnim({ tracks: [{ setting: 'opacity', from: 0, to: 1 }], durationMs: 1000 })
+    expect(animationValue(anim, 0, 0).opacity).toBe(0) // start = from
+    expect(animationValue(anim, 250, 0).opacity).toBeCloseTo(0.25)
+    expect(animationValue(anim, 500, 0).opacity).toBeCloseTo(0.5)
+    expect(animationValue(anim, 1000, 0).opacity).toBeCloseTo(1) // end = to
+    expect(animationValue(anim, 5000, 0).opacity).toBe(1) // past the end holds `to`
+  })
+
+  test('a vertical y RISE (10 → 0) reads the tweened offset at each sample', () => {
+    const anim = settingsAnim({ tracks: [{ setting: 'y', from: 10, to: 0 }], durationMs: 1000 })
+    expect(animationValue(anim, 0, 0).y).toBe(10)
+    expect(animationValue(anim, 250, 0).y).toBeCloseTo(7.5)
+    expect(animationValue(anim, 1000, 0).y).toBeCloseTo(0)
+  })
+
+  test('startDelayMs DEFERS the tween — the value stays at `from` until the delay elapses', () => {
+    const anim = settingsAnim({
+      tracks: [{ setting: 'opacity', from: 0, to: 1 }],
+      durationMs: 1000,
+      startDelayMs: 300,
+    })
+    expect(animationValue(anim, 0, 0).opacity).toBe(0) // deferred
+    expect(animationValue(anim, 200, 0).opacity).toBe(0) // still inside the delay
+    expect(animationValue(anim, 300, 0).opacity).toBe(0) // exactly at the delay → begins
+    expect(animationValue(anim, 800, 0).opacity).toBeCloseTo(0.5) // (800-300)/1000
+  })
+
+  test('the placedAt anchor shifts the whole timeline', () => {
+    const anim = settingsAnim({ tracks: [{ setting: 'opacity', from: 0, to: 1 }], durationMs: 1000 })
+    // placed at t=5000 → half done at t=5500, done at t=6000.
+    expect(animationValue(anim, 5000, 5000).opacity).toBe(0)
+    expect(animationValue(anim, 5500, 5000).opacity).toBeCloseTo(0.5)
+    expect(animationValue(anim, 6000, 5000).opacity).toBeCloseTo(1)
+    expect(animationValue(anim, 4000, 5000).opacity).toBe(0) // before it is placed → from
+  })
+
+  test('loop WRAPS on the duration (no loop delay)', () => {
+    const anim = settingsAnim({
+      tracks: [{ setting: 'opacity', from: 0, to: 1 }],
+      durationMs: 1000,
+      loop: true,
+    })
+    expect(animationValue(anim, 1000, 0).opacity).toBe(0) // wrapped back to from
+    expect(animationValue(anim, 1500, 0).opacity).toBeCloseTo(0.5) // second cycle midpoint
+    expect(animationValue(anim, 2250, 0).opacity).toBeCloseTo(0.25) // third cycle quarter
+  })
+
+  test('loopDelayMs RESTS at the end value between loops, then snaps back to `from`', () => {
+    const anim = settingsAnim({
+      tracks: [{ setting: 'opacity', from: 0, to: 1 }],
+      durationMs: 1000,
+      loopDelayMs: 500,
+      loop: true,
+    })
+    // period = 1500: [0,1000) tween, [1000,1500) rest at 1, then wrap.
+    expect(animationValue(anim, 1000, 0).opacity).toBe(1) // rest begins, holds `to`
+    expect(animationValue(anim, 1200, 0).opacity).toBe(1) // still resting
+    expect(animationValue(anim, 1499, 0).opacity).toBe(1) // rest end
+    expect(animationValue(anim, 1500, 0).opacity).toBe(0) // new cycle → back to from
+    expect(animationValue(anim, 1750, 0).opacity).toBeCloseTo(0.25)
+  })
+})
+
+describe('animationValue — colour, display, ease', () => {
+  test('color tween is an RGB lerp emitting rgb(r, g, b)', () => {
+    const anim = settingsAnim({
+      tracks: [{ setting: 'color', from: '#000000', to: '#ffffff' }],
+      durationMs: 1000,
+    })
+    expect(animationValue(anim, 0, 0).color).toBe('rgb(0, 0, 0)')
+    expect(animationValue(anim, 500, 0).color).toBe('rgb(128, 128, 128)')
+    expect(animationValue(anim, 1000, 0).color).toBe('rgb(255, 255, 255)')
+  })
+
+  test('color lerp interpolates each channel independently', () => {
+    const anim = settingsAnim({
+      tracks: [{ setting: 'color', from: '#ff0000', to: '#0000ff' }],
+      durationMs: 1000,
+    })
+    expect(animationValue(anim, 500, 0).color).toBe('rgb(128, 0, 128)')
+  })
+
+  test('display STEPS at the temporal midpoint (no tween)', () => {
+    const anim = settingsAnim({
+      tracks: [{ setting: 'display', from: 'block', to: 'none' }],
+      durationMs: 1000,
+    })
+    expect(animationValue(anim, 0, 0).display).toBe('block')
+    expect(animationValue(anim, 400, 0).display).toBe('block') // before midpoint
+    expect(animationValue(anim, 500, 0).display).toBe('none') // at/after midpoint
+    expect(animationValue(anim, 900, 0).display).toBe('none')
+  })
+
+  test('sine ease is symmetric with a 0.5 midpoint and eases the ends', () => {
+    const anim = settingsAnim({
+      tracks: [{ setting: 'opacity', from: 0, to: 1 }],
+      durationMs: 1000,
+      ease: 'sine',
+    })
+    expect(animationValue(anim, 500, 0).opacity).toBeCloseTo(0.5) // symmetric midpoint
+    expect(animationValue(anim, 250, 0).opacity).toBeCloseTo(easeAnim('sine', 0.25))
+    expect(animationValue(anim, 250, 0).opacity as number).toBeLessThan(0.25) // eased-in slower than linear
+  })
+})
+
+describe('resolveAnimatedSettings — composing a LIST', () => {
+  test('two chained animations (A y-rise + B delayed opacity-fade) stack to the expected values over time', () => {
+    const riseY = settingsAnim({
+      id: 'A-rise',
+      tracks: [{ setting: 'y', from: 10, to: 0 }],
+      durationMs: 1000,
+    })
+    const fade = settingsAnim({
+      id: 'B-fade',
+      tracks: [{ setting: 'opacity', from: 1, to: 0 }],
+      durationMs: 1000,
+      startDelayMs: 1000, // starts as A finishes → a chain
+    })
+    const chain = [riseY, fade]
+
+    // t=0: A at start (y=10), B deferred (opacity=1, its `from`).
+    expect(resolveAnimatedSettings(chain, 0, 0)).toEqual({ y: 10, opacity: 1 })
+    // t=500: A halfway up (y=5), B still deferred (opacity=1).
+    expect(resolveAnimatedSettings(chain, 500, 0)).toEqual({ y: 5, opacity: 1 })
+    // t=1000: A done (y=0, held), B just begins (opacity=1).
+    expect(resolveAnimatedSettings(chain, 1000, 0)).toEqual({ y: 0, opacity: 1 })
+    // t=1500: A held at 0, B halfway faded (opacity=0.5).
+    const mid = resolveAnimatedSettings(chain, 1500, 0)
+    expect(mid.y).toBeCloseTo(0)
+    expect(mid.opacity).toBeCloseTo(0.5)
+    // t=2000: A held at 0, B fully faded (opacity=0).
+    const end = resolveAnimatedSettings(chain, 2000, 0)
+    expect(end.y).toBeCloseTo(0)
+    expect(end.opacity).toBeCloseTo(0)
+  })
+
+  test('higher priority wins when two animations write the same setting', () => {
+    const low = settingsAnim({ id: 'low', tracks: [{ setting: 'opacity', from: 0.2, to: 0.2 }], priority: 0 })
+    const high = settingsAnim({ id: 'high', tracks: [{ setting: 'opacity', from: 0.9, to: 0.9 }], priority: 5 })
+    // Order puts `high` FIRST to prove priority — not order — decides.
+    expect(resolveAnimatedSettings([high, low], 500, 0).opacity).toBe(0.9)
+    expect(resolveAnimatedSettings([low, high], 500, 0).opacity).toBe(0.9)
+  })
+
+  test('on a priority tie, the animation LATER in the list wins', () => {
+    const first = settingsAnim({ id: 'first', tracks: [{ setting: 'opacity', from: 0.3, to: 0.3 }] })
+    const second = settingsAnim({ id: 'second', tracks: [{ setting: 'opacity', from: 0.7, to: 0.7 }] })
+    expect(resolveAnimatedSettings([first, second], 500, 0).opacity).toBe(0.7)
+    expect(resolveAnimatedSettings([second, first], 500, 0).opacity).toBe(0.3)
+  })
+
+  test('non-overlapping settings simply stack; sprite animations contribute nothing', () => {
+    const move = settingsAnim({ id: 'm', tracks: [{ setting: 'x', from: 0, to: 4 }], durationMs: 1000 })
+    const sprite: SpriteAnimation = {
+      id: 's',
+      kind: 'sprite',
+      durationMs: 1000,
+      frames: ['water_0', 'water_1'],
+    }
+    const out = resolveAnimatedSettings([move, sprite], 500, 0)
+    expect(out).toEqual({ x: 2 }) // sprite adds no setting keys
+  })
+
+  test('an empty list yields no overrides', () => {
+    expect(resolveAnimatedSettings([], 500, 0)).toEqual({})
+  })
+})
+
+describe('scope + sprite stub', () => {
+  test('scope gates by view and style; absent/empty lists mean all', () => {
+    const isoOnly = settingsAnim({ tracks: [{ setting: 'opacity', from: 0, to: 1 }], scope: { views: ['iso'] } })
+    expect(animationMatchesScope(isoOnly, 'emoji', 'iso')).toBe(true)
+    expect(animationMatchesScope(isoOnly, 'emoji', '2d')).toBe(false)
+
+    const asciiOnly = settingsAnim({ tracks: [{ setting: 'opacity', from: 0, to: 1 }], scope: { styles: ['ascii'] } })
+    expect(animationMatchesScope(asciiOnly, 'ascii', 'top')).toBe(true)
+    expect(animationMatchesScope(asciiOnly, 'emoji', 'top')).toBe(false)
+
+    const unscoped = settingsAnim({ tracks: [{ setting: 'opacity', from: 0, to: 1 }] })
+    expect(animationMatchesScope(unscoped, 'emoji', 'top')).toBe(true)
+  })
+
+  test('a sprite animation yields no settings and stubs to frame 0', () => {
+    const sprite: SpriteAnimation = { id: 's', kind: 'sprite', durationMs: 1000, frames: ['a', 'b', 'c'] }
+    expect(animationValue(sprite, 500, 0)).toEqual({})
+    expect(spriteFrameIndex(sprite, 500, 0)).toBe(0)
+  })
+})

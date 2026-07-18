@@ -17,6 +17,7 @@ import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 import { Connector } from '@/lib/api'
 import { ASCII_FONT, COMBAT_RANGE, type DayNight, type DrawVisual, ENEMY_MOVE_MS, LAMP_GLOW, LIGHT, applyCellTransform, isoCameraFocus, assetCaptionByCell, terrainLabelAt, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawHoverRing, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawConnectorMarker, drawAttackAnimFrame, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, SINGLE_TILE_FRAC, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, frameImage, getPlayerArt, grassShade, cellFill, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, resolveAssetDraw, resolveEntityDraw, assetOverride, labelTileImage, labelTileRecolor, groundDecorImage, tileImage, tintedImage, tintedGlyphSprite, treeCanopyLayers, treeCellSet } from './shared'
 import { resolveAssetDrawSize } from './assetDimensions'
+import { resolveAssetAnimation } from './assetAnimation'
 import { type GroundCellDims, groundSizeFactors, groundDimsActive } from '@/engine/groundDims'
 import { getStack, type TileSource } from '@/engine/cellStack'
 import { isoBlockFaces, isoDepthBox, depthFrontExtent, isoZOffset, type BlockFace, type DepthDir } from './isoBlock'
@@ -545,6 +546,10 @@ export function render(
       // generic path. The roof is a STACK of roof blocks forming a peaked gable (buildingCellTiles →
       // gableRoofLevels), so it needs no special cap drawer — the SAME stacked tiles project to a triangle
       // (2D front), a 3D gable (iso), and the footprint rectangle (top), like any other stacked tile.
+      // Live TILE ANIMATION overrides for THIS frame (settings tweens), scoped to the iso view + active style.
+      // null when the asset has no animations / none in scope → the effective asset IS obj.asset (byte-identical).
+      const anim = resolveAssetAnimation(obj.asset, time, style, 'iso')
+      const drawAsset = anim ? anim.asset : obj.asset // colour/zoom/width/height overlaid onto the draw
       let op = obj.asset.opacity ?? 1 // per-asset opacity for contrast/depth
       // GENERIC proximity behavior: ANY asset whose tile opted into fadeNear/cutawayRoof eases by its OWN
       // distance to the hero — walls/leaves ease translucent (fadeNearAlpha), a roof lifts off (cutawayAlpha).
@@ -555,6 +560,7 @@ export function render(
         if (alpha <= 0.03) continue // a cutaway tile lifted off → skip drawing entirely
         op = Math.min(op, alpha)
       }
+      if (anim) op *= anim.opacity // animated opacity fades the drawn tile (multiplies base + proximity alpha)
       if (op < 1) ctx.globalAlpha = op
       // Brush STACK: lift this entry `heightLevel` cubes up so the pile climbs in iso (block-kinds extrude
       // into stacked cubes, decorative sprites become a lifted billboard). No-op at heightLevel 0 — every
@@ -565,11 +571,15 @@ export function render(
       // up-right toward the back) and −z toward its opposite, landing on the neighbouring diamond exactly like
       // z-width's per-cell step. 0 (every generated/existing asset) → no-op.
       const zMove = isoZOffset(obj.asset.zOffset ?? 0, obj.asset.zDir ?? 'right-up', tileW, tileH)
+      // Animated screen shift: `x` slides right, `y` LIFTS up (screen-space up is −Y), in tile fractions. 0 when
+      // not animated → the anchor is unchanged.
+      const animShiftX = anim ? anim.x * tileW : 0
+      const animShiftY = anim ? anim.y * tileH : 0
       // Authored frame animation: offset/rotate/scale the asset around its cell (sway/wind).
-      const ax = p.x + zMove.dx, ay = p.y - heightOffset - stackLift + zMove.dy
+      const ax = p.x + zMove.dx + animShiftX, ay = p.y - heightOffset - stackLift + zMove.dy - animShiftY
       const ct = assetCellTransform(obj.asset.cellAnim, time)
       if (ct) applyCellTransform(ctx, ax, ay, ct, tileW, tileH)
-      drawIsoAssetAscii(ctx, ax, ay, obj.asset, tileW, tileH, time, obj.asset.type === 'tree' && (!!obj.asset.baseShadow || isGroundContact(isTreeCell, obj.asset.col, obj.asset.row)), dayNight, style)
+      drawIsoAssetAscii(ctx, ax, ay, drawAsset, tileW, tileH, time, obj.asset.type === 'tree' && (!!obj.asset.baseShadow || isGroundContact(isTreeCell, obj.asset.col, obj.asset.row)), dayNight, style)
       if (ct) ctx.restore()
       if (op < 1) ctx.globalAlpha = 1
     }

@@ -67,7 +67,8 @@ import { EquipmentPanel, InventoryCard, QuestAuthoringCard, QuestLogPanel } from
 import { EntityAttackBody, EntityIdentityStatsBody, EntityMovementBody, Modal, QuestGiveBody } from '@/components/game/modals'
 import { FlowViewOverlay, GamesViewOverlay } from '@/components/game/games'
 import { BUILDING_TOOL_TYPE, type BuildingTool, type EditorMode, type EntityTool } from '@/components/game/editorConfig'
-import { AnimationEditor, ArtSection, Dropdown, FpsReadout, GenerateControls, PoseControls, PropertiesPanel, type TileControlModel, SelectionHeader, StylePicker, TileLibraryBody, TilePalette, ToolRail, TriggerEditor, WEAPON_KINDS } from '@/components/game/editorChrome'
+import { AnimationEditor, ArtSection, Dropdown, FpsReadout, GenerateControls, PoseControls, PropertiesPanel, type TileControlModel, SelectionHeader, StylePicker, TileAnimationEditor, TileLibraryBody, TilePalette, ToolRail, TriggerEditor, WEAPON_KINDS } from '@/components/game/editorChrome'
+import type { Animation as TileAnim } from '@/engine/animation/tileAnimation'
 import { useFps } from '@/components/useFps'
 import { commonValue, commonBool, cellsFromKeys, removeSelectedBlock } from '@/game/editor/selectionEdit'
 import { applyRectSelection, applyCellSelection } from '@/game/editor/selection'
@@ -279,6 +280,8 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   // The unit card shows a COMPACT animation summary + a "See more…" that opens the full
   // AnimationEditor in this modal (keeps the sidebar card short — no frame pickers inline).
   const [animEditorOpen, setAnimEditorOpen] = useState(false)
+  // The TILE animation modal (Phase 4) — authors GridAsset.animations for the selected asset tile.
+  const [tileAnimatorOpen, setTileAnimatorOpen] = useState(false)
   // Disarm waypoint authoring + close any entity modal whenever the selection changes,
   // so clicks on a new entity select it (not drop a stray waypoint / show stale modal).
   useEffect(() => {
@@ -1542,6 +1545,17 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       const rest = { ...(a.settings ?? {}) }
       if (mode === 'single') a.settings = { ...rest, display: 'single' }
       else { delete rest.display; a.settings = rest }
+    })
+  // PER-ASSET tile ANIMATIONS (Phase 4) — the LIST authored in the animation modal, written to THIS placed
+  // tile (persists with the map via the full-asset serialize, like cellAnim). Anchor start/loop delays at
+  // placedAt=0 so a load-triggered loop plays from the clock origin (performance.now() = ms-since-load), the
+  // same anchor the composition-default fountain uses. An empty list clears the key so a reset stays
+  // byte-identical to a tile that never opted in.
+  const setAssetAnimations = (i: number, animations: TileAnim[]) =>
+    applyToSelectedCells((col, row, grid) => {
+      const a = stackedAssetsAt(grid, col, row)[i]; if (!a) return
+      if (animations.length) { a.animations = animations; if (a.placedAt == null) a.placedAt = 0 }
+      else { delete a.animations }
     })
   // Inspector "Remove tile" → delete the EXACT selected block (never the floor — removeSelectedBlock no-ops
   // at level 0) from every selected cell, then step the level down so the panel doesn't point past the
@@ -5662,6 +5676,9 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                         }
 
                         let tile: TileControlModel
+                        // Context for the Phase-4 tile-animation modal — set only for an asset tile (the sole
+                        // tile that owns GridAsset.animations). Read at the return so the modal can render in scope.
+                        let animatorCtx: { i: number; label: string; animations: TileAnim[] } | null = null
                         if (lvl === 0) {
                           // FLOOR (height-0 tile): per-cell dims/colour + a REAL per-cell pose.
                           const groundSlug = grid.ground[fc.row]?.[fc.col] ?? 'grass'
@@ -5728,7 +5745,10 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                             onPose: posable ? (p => setAssetPose(i, p)) : undefined,
                             onPoseReset: posable ? (() => setAssetPose(i, undefined)) : undefined,
                             isWeapon: WEAPON_KINDS.has(kind),
+                            animations: a0?.animations,
+                            onOpenAnimator: posable ? (() => setTileAnimatorOpen(true)) : undefined,
                           }
+                          if (posable) animatorCtx = { i, label: kind, animations: a0?.animations ?? [] }
                         } else {
                           // A BUILDING block (wall / window / door / roof) or a CHARACTER on the cell — shown as a
                           // TILE with the SAME group as a tree: its name, Open Tile Library, colour, W/H/D/Zoom.
@@ -5757,15 +5777,30 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                         }
 
                         return (
-                          <PropertiesPanel
-                            collision={commonBool(cells.map(({ col, row }) => grid.isBlocked(col, row)))}
-                            onCollision={setCellCollision}
-                            tile={tile}
-                            level={lvl + 1}
-                            levelCount={levelCount}
-                            onLevel={setSelectedTileLevel}
-                            onRemove={lvl >= 1 ? removeSelectedTile : undefined}
-                          />
+                          <>
+                            <PropertiesPanel
+                              collision={commonBool(cells.map(({ col, row }) => grid.isBlocked(col, row)))}
+                              onCollision={setCellCollision}
+                              tile={tile}
+                              level={lvl + 1}
+                              levelCount={levelCount}
+                              onLevel={setSelectedTileLevel}
+                              onRemove={lvl >= 1 ? removeSelectedTile : undefined}
+                            />
+                            {/* Phase-4 tile-animation modal — authors THIS asset tile's GridAsset.animations
+                                (e.g. the fountain water). Only opens for an asset tile; writes fan out to the
+                                i-th stacked tile of every selected cell via setAssetAnimations. */}
+                            {tileAnimatorOpen && animatorCtx && (
+                              <Modal title={`${animatorCtx.label} — Animation`} accent="purple" wide onClose={() => setTileAnimatorOpen(false)}>
+                                <TileAnimationEditor
+                                  animations={animatorCtx.animations}
+                                  elementType="Tile"
+                                  elementLabel={animatorCtx.label}
+                                  onChange={next => setAssetAnimations(animatorCtx!.i, next)}
+                                />
+                              </Modal>
+                            )}
+                          </>
                         )
                       })()}
                       {/* Discoverable save right where you edit — persists floor colour, element colour & dims

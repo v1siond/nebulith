@@ -11,6 +11,17 @@ import type { TilePose } from '@/engine/tileset/pose'
 import type { TileDisplay } from '@/engine/tileset/tileset'
 import type { DepthDir } from '@/engine/render'
 import { DEFAULT_ACTION_PARAMS, makeTrigger, type Trigger, type TriggerActionType, type TriggerEvent } from '@/game/runtime/trigger'
+import {
+  resolveAnimatedSettings,
+  type Animation as TileAnim,
+  type SettingsAnimation,
+  type AnimationTrack,
+  type SettingKey,
+  type Ease as AnimEase,
+  type TriggerEvent as AnimTriggerEvent,
+  type TileStyle,
+  type TileView,
+} from '@/engine/animation/tileAnimation'
 import { type EditorMode, SEASON_BTN, STAGE_VARIANTS, STAGE_ZONES } from './editorConfig'
 
 // ── Tool-rail (left, slim icon strip) ────────────────────────────────
@@ -577,6 +588,11 @@ export interface TileControlModel {
   onPoseReset?: () => void
   /** weapon tiles get a muzzle row. */
   isWeapon?: boolean
+  /** the TILE ANIMATIONS authored on this placed tile (Phase 4) — surfaced as a count on the Animate button.
+   *  Present only for asset tiles (the floor omits onOpenAnimator). */
+  animations?: TileAnim[]
+  /** open the dedicated animation modal for this tile. Present only for asset tiles. */
+  onOpenAnimator?: () => void
 }
 
 /** PROPERTY editor for the current cell selection — EXACTLY TWO sections. A CELL is a fixed slot, so the
@@ -745,6 +761,12 @@ export function TileControls({ tile }: { tile: TileControlModel }) {
             </button>
           )}
         </>
+      )}
+      {/* Open the dedicated tile-animation modal (Phase 4). Asset tiles only — the floor omits onOpenAnimator. */}
+      {tile.onOpenAnimator && (
+        <button onClick={tile.onOpenAnimator} aria-label="Animate tile" className="w-full rounded bg-fuchsia-800 px-2 py-1 text-[10px] font-bold text-white transition-colors hover:bg-fuchsia-700">
+          ✦ Animate…{tile.animations?.length ? ` (${tile.animations.length})` : ''}
+        </button>
       )}
     </div>
   )
@@ -1236,6 +1258,284 @@ export function AnimationEditor({ animations, category, styleId, baseGlyph, vari
       <button onClick={add} className="w-full rounded bg-cyan-800 px-2 py-1 text-[11px] font-bold text-white transition-colors hover:bg-cyan-700">
         ✦ Add animation
       </button>
+    </div>
+  )
+}
+
+// ── ✦ TILE animation editor (Phase 4) — author DATA-DRIVEN per-tile SETTINGS animations ────
+// The dedicated modal body that authors `GridAsset.animations` (a LIST → chaining) for the ONE selected
+// tile/asset. Each animation is a `settings` envelope that tweens many render settings (opacity, y-rise,
+// colour, zoom…) from `from → to` over one duration, with start/loop delays, looping, ease, a trigger,
+// and per-(style,view) scope — exactly the shape the pure engine (`tileAnimation`) plays. Pure &
+// props-driven like AnimationEditor: every edit flows up through `onChange` immutably; the only stateful
+// bit is the live PREVIEW's RAF clock. `sprite` is defined in the type but its authoring is a labeled STUB
+// this phase (playback is stubbed in the engine too).
+
+/** Every render setting a tile animation can drive, in picker order (opacity/y first — the fountain case). */
+const ANIM_SETTING_KEYS: ReadonlyArray<{ key: SettingKey; label: string }> = [
+  { key: 'opacity', label: 'opacity' },
+  { key: 'y', label: 'y' },
+  { key: 'x', label: 'x' },
+  { key: 'zoom', label: 'zoom' },
+  { key: 'width', label: 'width' },
+  { key: 'height', label: 'height' },
+  { key: 'rotate', label: 'rotate' },
+  { key: 'zWidth', label: 'zWidth' },
+  { key: 'zPos', label: 'zPos' },
+  { key: 'heightLevel', label: 'heightLevel' },
+  { key: 'color', label: 'color' },
+  { key: 'zIndex', label: 'zIndex' },
+  { key: 'display', label: 'display' },
+]
+const ANIM_EASES: readonly AnimEase[] = ['linear', 'sine', 'ease']
+const ANIM_TILE_TRIGGERS: ReadonlyArray<{ id: AnimTriggerEvent; label: string }> = [
+  { id: 'load', label: 'on load (ambient)' },
+  { id: 'proximity', label: 'near hero' },
+  { id: 'attack', label: 'on attack' },
+  { id: 'interact', label: 'on interact' },
+]
+const ANIM_STYLES: readonly TileStyle[] = ['ascii', 'emoji']
+const ANIM_VIEWS: readonly TileView[] = ['iso', '2d', 'top']
+
+/** Parse a number field, falling back to `fb` on empty/invalid so the input never writes NaN. */
+const numOr = (raw: string, fb: number): number => { const n = parseFloat(raw); return Number.isNaN(n) ? fb : n }
+
+/** A fresh track for a newly-checked setting: colour/display carry string endpoints, everything else 0→1. */
+function defaultTrack(setting: SettingKey): AnimationTrack {
+  if (setting === 'color') return { setting, from: '#ffffff', to: '#38bdf8' }
+  if (setting === 'display') return { setting, from: 'all-faces', to: 'single' }
+  return { setting, from: 0, to: 1 }
+}
+
+/** A blank settings animation for "Add" — ambient load loop, no tracks yet (the multi-picker adds them). */
+function makeDefaultSettingsAnim(index: number): SettingsAnimation {
+  return {
+    id: `tileanim-${index}-${Date.now().toString(36)}`,
+    name: 'new animation',
+    kind: 'settings',
+    tracks: [],
+    durationMs: 1000,
+    startDelayMs: 0,
+    loopDelayMs: 0,
+    loop: true,
+    ease: 'sine',
+    priority: 0,
+    trigger: { on: 'load' },
+  }
+}
+
+/** ONE track's from/to editor — colour pickers for `color`, an all-faces/single toggle for `display`,
+ *  numeric fields otherwise. Labels are `<setting> from` / `<setting> to` so each is uniquely addressable. */
+function TrackRow({ track, onChange }: { track: AnimationTrack; onChange: (patch: Partial<AnimationTrack>) => void }) {
+  const s = track.setting
+  const field = (which: 'from' | 'to', value: number | string) => {
+    if (s === 'color') {
+      return <input type="color" value={String(value || '#ffffff')} onChange={e => onChange({ [which]: e.target.value })} aria-label={`${s} ${which}`} className="h-6 w-9 rounded bg-gray-800" />
+    }
+    if (s === 'display') {
+      return (
+        <select value={String(value)} onChange={e => onChange({ [which]: e.target.value })} aria-label={`${s} ${which}`} className="rounded bg-gray-800 p-1 text-[10px] text-gray-100">
+          <option value="all-faces">all-faces</option>
+          <option value="single">single</option>
+        </select>
+      )
+    }
+    return <input type="number" step={0.1} value={Number(value)} onChange={e => onChange({ [which]: numOr(e.target.value, 0) })} aria-label={`${s} ${which}`} className="w-16 rounded bg-gray-800 p-1 text-[10px] tabular-nums text-cyan-300" />
+  }
+  return (
+    <div className="flex items-center gap-1.5 pl-1 text-[10px] text-gray-300">
+      <span className="w-16 shrink-0 font-bold text-cyan-300">{s}</span>
+      {field('from', track.from)}
+      <span aria-hidden className="text-gray-500">→</span>
+      {field('to', track.to)}
+    </div>
+  )
+}
+
+/** One toggle chip (scope styles/views). Empty scope list = "all", so a lit chip LIMITS to that token. */
+function Chip({ label, on, onToggle }: { label: string; on: boolean; onToggle: () => void }) {
+  return (
+    <button onClick={onToggle} aria-pressed={on} aria-label={`scope ${label}`} className={`rounded px-1.5 py-0.5 text-[9px] font-bold ${on ? 'bg-cyan-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}>{label}</button>
+  )
+}
+
+/** One settings animation's full editing block: name, the settings MULTI-PICKER (checkbox per SettingKey →
+ *  a from/to track), timing (duration / start delay / loop delay / loop / ease / priority), the trigger
+ *  (+radius for proximity), and the style/view scope chips. Every edit patches this animation immutably. */
+function TileAnimationRow({ anim, onAnim, onRemove }: { anim: SettingsAnimation; onAnim: (next: SettingsAnimation) => void; onRemove: () => void }) {
+  const patch = (p: Partial<SettingsAnimation>) => onAnim({ ...anim, ...p })
+  const hasTrack = (s: SettingKey) => anim.tracks.some(t => t.setting === s)
+  const toggleTrack = (s: SettingKey) =>
+    patch({ tracks: hasTrack(s) ? anim.tracks.filter(t => t.setting !== s) : [...anim.tracks, defaultTrack(s)] })
+  const patchTrack = (s: SettingKey, p: Partial<AnimationTrack>) =>
+    patch({ tracks: anim.tracks.map(t => (t.setting === s ? { ...t, ...p } : t)) })
+  const trigOn = anim.trigger?.on ?? 'load'
+  const patchTrigger = (p: Partial<{ on: AnimTriggerEvent; radiusCells: number }>) =>
+    patch({ trigger: { on: trigOn, ...anim.trigger, ...p } })
+  // Scope: an empty (or absent) list means "all". Toggling the last member off drops the key back to "all".
+  const toggleScope = (dim: 'styles' | 'views', token: TileStyle | TileView) => {
+    const cur = (anim.scope?.[dim] ?? []) as string[]
+    const next = cur.includes(token) ? cur.filter(x => x !== token) : [...cur, token]
+    const scope = { ...anim.scope, [dim]: next.length ? next : undefined }
+    if (!scope.styles && !scope.views) { patch({ scope: undefined }); return }
+    patch({ scope })
+  }
+
+  return (
+    <div className="space-y-1.5 rounded border border-fuchsia-500/25 bg-black/40 p-2">
+      <div className="flex items-center gap-1">
+        <input value={anim.name ?? ''} onChange={e => patch({ name: e.target.value })} aria-label="Animation name" placeholder="name" className={INPUT_CLS} />
+        <span className="shrink-0 rounded bg-fuchsia-900/60 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-fuchsia-200">settings</span>
+        <button onClick={onRemove} aria-label="Delete animation" title="Delete animation" className="shrink-0 rounded bg-red-900/70 px-1.5 py-1 text-[10px] font-bold text-red-200 hover:bg-red-800">✕</button>
+      </div>
+
+      {/* Settings MULTI-PICKER — check a setting to add its from/to track. */}
+      <div>
+        <p className="mb-1 text-[9px] uppercase tracking-wide text-gray-500">Animate settings</p>
+        <div className="flex flex-wrap gap-x-2 gap-y-0.5">
+          {ANIM_SETTING_KEYS.map(({ key, label }) => (
+            <label key={key} className="flex items-center gap-1 text-[10px] text-gray-300">
+              <input type="checkbox" checked={hasTrack(key)} onChange={() => toggleTrack(key)} aria-label={`animate ${key}`} className="accent-fuchsia-500" />
+              {label}
+            </label>
+          ))}
+        </div>
+        {anim.tracks.length > 0 && (
+          <div className="mt-1.5 space-y-1">
+            {anim.tracks.map(t => <TrackRow key={t.setting} track={t} onChange={p => patchTrack(t.setting, p)} />)}
+          </div>
+        )}
+      </div>
+
+      {/* Timing. */}
+      <div className="flex flex-wrap items-center gap-2 border-t border-white/5 pt-1.5 text-[10px] text-gray-300">
+        <label className="flex items-center gap-1">dur<input type="number" min={0} value={anim.durationMs} onChange={e => patch({ durationMs: numOr(e.target.value, 0) })} aria-label="duration" className="w-16 rounded bg-gray-800 p-1 text-xs text-gray-100" />ms</label>
+        <label className="flex items-center gap-1">start<input type="number" min={0} value={anim.startDelayMs ?? 0} onChange={e => patch({ startDelayMs: numOr(e.target.value, 0) })} aria-label="start delay" className="w-16 rounded bg-gray-800 p-1 text-xs text-gray-100" />ms</label>
+        <label className="flex items-center gap-1">loop gap<input type="number" min={0} value={anim.loopDelayMs ?? 0} onChange={e => patch({ loopDelayMs: numOr(e.target.value, 0) })} aria-label="loop delay" className="w-16 rounded bg-gray-800 p-1 text-xs text-gray-100" />ms</label>
+        <label className="flex items-center gap-1"><input type="checkbox" checked={!!anim.loop} onChange={e => patch({ loop: e.target.checked })} aria-label="loop" className="accent-fuchsia-500" />loop</label>
+        <label className="flex items-center gap-1">ease
+          <select value={anim.ease ?? 'linear'} onChange={e => patch({ ease: e.target.value as AnimEase })} aria-label="ease" className="rounded bg-gray-800 p-1 text-xs text-gray-100">
+            {ANIM_EASES.map(e => <option key={e} value={e}>{e}</option>)}
+          </select>
+        </label>
+        <label className="flex items-center gap-1">priority<input type="number" step={1} value={anim.priority ?? 0} onChange={e => patch({ priority: Math.round(numOr(e.target.value, 0)) })} aria-label="priority" className="w-12 rounded bg-gray-800 p-1 text-xs text-gray-100" /></label>
+      </div>
+
+      {/* Trigger (+ radius when proximity). */}
+      <div className="flex flex-wrap items-center gap-2 text-[10px] text-gray-300">
+        <span className="font-bold text-cyan-300">When</span>
+        <select value={trigOn} onChange={e => patchTrigger({ on: e.target.value as AnimTriggerEvent })} aria-label="trigger" className={SELECT_CLS}>
+          {ANIM_TILE_TRIGGERS.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
+        </select>
+        {trigOn === 'proximity' && (
+          <label className="flex items-center gap-1">radius<input type="number" min={0} value={anim.trigger?.radiusCells ?? 3} onChange={e => patchTrigger({ radiusCells: numOr(e.target.value, 0) })} aria-label="proximity radius" className="w-14 rounded bg-gray-800 p-1 text-xs text-gray-100" />cells</label>
+        )}
+      </div>
+
+      {/* Scope — which styles/views this plays in (none lit = all). */}
+      <div className="flex flex-wrap items-center gap-2 text-[10px] text-gray-400">
+        <span className="font-bold text-gray-500">Style</span>
+        {ANIM_STYLES.map(s => <Chip key={s} label={s} on={!!anim.scope?.styles?.includes(s)} onToggle={() => toggleScope('styles', s)} />)}
+        <span className="ml-1 font-bold text-gray-500">View</span>
+        {ANIM_VIEWS.map(v => <Chip key={v} label={v} on={!!anim.scope?.views?.includes(v)} onToggle={() => toggleScope('views', v)} />)}
+      </div>
+    </div>
+  )
+}
+
+/** A sprite animation loaded from data — authoring is a labeled STUB this phase (engine playback is stubbed
+ *  too). Shows the frame count read-only + a delete, so a sprite entry is never silently lost. */
+function SpriteAnimationStub({ frames, onRemove }: { frames: string[]; onRemove: () => void }) {
+  return (
+    <div className="flex items-center justify-between rounded border border-dashed border-white/15 bg-black/40 p-2 text-[10px] text-gray-400">
+      <span><span className="font-bold text-amber-300">sprite</span> · {frames.length} frame{frames.length === 1 ? '' : 's'} · authoring coming in a later phase</span>
+      <button onClick={onRemove} aria-label="Delete animation" className="rounded bg-red-900/70 px-1.5 py-1 text-[10px] font-bold text-red-200 hover:bg-red-800">✕</button>
+    </div>
+  )
+}
+
+/** The live PREVIEW — one swatch driven by the WHOLE chain (`resolveAnimatedSettings`) on a RAF clock, so
+ *  the author sees the composed result (opacity fade + y-rise + colour + zoom…) exactly as the engine plays
+ *  it. Scope is ignored here (it composes every animation) so any authored track is visible while tuning. */
+function TileAnimationPreview({ animations }: { animations: readonly TileAnim[] }) {
+  const [nowMs, setNowMs] = useState(0)
+  useEffect(() => {
+    if (typeof requestAnimationFrame !== 'function') return
+    let raf = 0
+    const clock = () => (typeof performance !== 'undefined' ? performance.now() : Date.now())
+    const start = clock()
+    const loop = () => { setNowMs(clock() - start); raf = requestAnimationFrame(loop) }
+    raf = requestAnimationFrame(loop)
+    return () => cancelAnimationFrame(raf)
+  }, [])
+  const v = resolveAnimatedSettings(animations, nowMs, 0)
+  const num = (key: SettingKey, fb: number) => (typeof v[key] === 'number' ? (v[key] as number) : fb)
+  const opacity = num('opacity', 1)
+  const x = num('x', 0), y = num('y', 0), rot = num('rotate', 0)
+  const zoom = num('zoom', 1), width = num('width', 1), height = num('height', 1)
+  const color = typeof v.color === 'string' ? v.color : '#38bdf8'
+  const UNIT = 20 // px per tile-fraction/block unit in the little preview stage
+  return (
+    <div className="relative h-24 overflow-hidden rounded border border-white/10 bg-gradient-to-b from-slate-800 to-slate-900" aria-label="Animation preview" role="img">
+      <span className="absolute left-1 top-1 text-[8px] uppercase tracking-wide text-gray-500">preview</span>
+      <div className="absolute left-1/2 top-1/2 h-6 w-6 -translate-x-1/2 -translate-y-1/2 rounded-sm"
+        style={{
+          background: color,
+          opacity,
+          transform: `translate(${x * UNIT}px, ${-y * UNIT}px) rotate(${rot}rad) scale(${zoom * width}, ${zoom * height})`,
+        }}
+      />
+    </div>
+  )
+}
+
+export interface TileAnimationEditorProps {
+  /** the tile's authored animations (a LIST → chain order). */
+  animations: TileAnim[]
+  /** what the animated element IS — surfaced in the header so it's unmistakable ('Tile' vs 'Character'). */
+  elementType: 'Tile' | 'Character'
+  /** the element's name, e.g. 'water_c' — shown beside the type. */
+  elementLabel: string
+  onChange: (next: TileAnim[]) => void
+}
+
+/** Author the DATA-DRIVEN settings animations that ride on ONE placed tile/asset — the manual path that
+ *  builds e.g. the fountain water (an opacity+y chain) by hand. Add/edit/remove animations; each has a
+ *  settings multi-picker, timing, a trigger, and scope, with a live preview of the composed chain. */
+export function TileAnimationEditor({ animations, elementType, elementLabel, onChange }: TileAnimationEditorProps) {
+  const replace = (i: number, next: TileAnim) => onChange(animations.map((a, j) => (j === i ? next : a)))
+  const remove = (i: number) => onChange(animations.filter((_, j) => j !== i))
+  const addSettings = () => onChange([...animations, makeDefaultSettingsAnim(animations.length)])
+
+  return (
+    <div className="space-y-2 text-xs">
+      <div className="flex items-center justify-between rounded border border-white/10 bg-black/50 px-2 py-1.5">
+        <span className="text-[11px] font-bold uppercase tracking-wider text-fuchsia-300">✦ {elementType} animation</span>
+        <span className="text-[10px] text-gray-400">{elementLabel}</span>
+      </div>
+
+      <TileAnimationPreview animations={animations} />
+
+      {animations.length === 0 && (
+        <p className="text-[10px] leading-tight text-gray-500">
+          No animations yet — add one to make this {elementType.toLowerCase()} move. Each animation tweens the settings you check (opacity, y-rise, colour…) from a start to an end value; chain several for a sequence.
+        </p>
+      )}
+
+      {animations.map((a, i) =>
+        a.kind === 'settings'
+          ? <TileAnimationRow key={a.id} anim={a} onAnim={next => replace(i, next)} onRemove={() => remove(i)} />
+          : <SpriteAnimationStub key={a.id} frames={a.frames} onRemove={() => remove(i)} />,
+      )}
+
+      <div className="flex gap-1">
+        <button onClick={addSettings} className="flex-1 rounded bg-fuchsia-800 px-2 py-1 text-[11px] font-bold text-white transition-colors hover:bg-fuchsia-700">
+          ✦ Add settings animation
+        </button>
+        <button disabled title="Sprite animations arrive in a later phase" aria-label="Add sprite animation" className="cursor-not-allowed rounded bg-gray-800 px-2 py-1 text-[11px] font-bold text-gray-500">
+          Sprite (soon)
+        </button>
+      </div>
     </div>
   )
 }

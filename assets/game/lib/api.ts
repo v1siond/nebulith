@@ -4,6 +4,7 @@
 
 import type { Action as TriggerAction } from '@/engine/triggers'
 import type { Entity, Quest } from '@/game/types'
+import type { Animation } from '@/engine/animation/tileAnimation'
 import { NEBULITH_API } from './nebulithApi'
 
 export interface Connector {
@@ -66,6 +67,9 @@ export interface TemplateData {
     heightLevel?: number
     tileKey?: string
     label?: string
+    animations?: Animation[]  // authored TILE ANIMATIONS (settings tweens) — round-trips like cellAnim; the
+                              // fountain's water cells ship the rise/fade loop as a composition default
+    placedAt?: number         // clock anchor (ms) a tile animation's start/loop delays are measured from
   }>
   connectors: Connector[]
   // Placed entities (enemies / npcs / player) and authored quests for this room.

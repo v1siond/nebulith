@@ -7,6 +7,7 @@
  *   grid.placeAsset(asset, col, row)
  *   grid.render(ctx, cameraX, cameraZ)
  */
+import type { Animation } from './animation/tileAnimation'
 import type { AnimationCycle } from './animationCycles'
 import type { CellAnimation } from './cellAnimation'
 import type { GroundCellDims } from './groundDims'
@@ -62,6 +63,11 @@ export interface GridAsset {
   brightness?: number   // render brightness multiplier (default 1) — dim or pop an element
   cycles?: AnimationCycle[]  // authored glyph-swap cycles — driven by animationCycles
   cellAnim?: CellAnimation   // authored FRAME-BASED transform animation (sway/wind) — driven by cellAnimation
+  animations?: Animation[]   // authored TILE ANIMATIONS (settings tweens) — a LIST so they chain; the render
+                             // resolves their live per-frame overrides via resolveAnimatedSettings, scoped by
+                             // each animation's scope{styles,views}. Round-trips in Template.assetsData like cellAnim.
+  placedAt?: number          // clock timestamp (ms) this tile was placed — the anchor a tile animation's
+                             // start/loop delays are measured from. Absent → 0 (treated as placed at the origin).
   baseShadow?: boolean  // generator-marked tree-base cell → always casts a ground shadow
   buildingType?: string // building cell's TYPE (store/hospital/…) → drives the apex signage badge
   settings?: AssetSettings // GENERIC per-tile behavior (fade/cutaway/badge) copied from the tile — ONE render path reads it

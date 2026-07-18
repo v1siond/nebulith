@@ -13,6 +13,7 @@ import type { ZoneId } from '@/engine/zones'
 import type { BuildingType } from '@/engine/buildingTypes'
 import type { Facing } from '@/engine/villageLayout'
 import { buildingCompositionKind, facingRotation, rotateFootprintOffset } from '@/engine/buildingCatalog'
+import type { Animation } from '@/engine/animation/tileAnimation'
 
 // Apex-signage colour for a titled building — a single readable signage tone drawn on drawApexBadge's
 // dark backing. The building NAME is the DATA (the composition's `title`); the colour is a fixed render
@@ -86,7 +87,7 @@ function stampRun(
   grid: IsometricGrid,
   comp: NonNullable<ReturnType<typeof resolveComposition>>,
   kind: string,
-  c: { dx: number; dy: number; level?: number; label: string; walkable?: boolean; scale?: number; zIndex?: number },
+  c: { dx: number; dy: number; level?: number; label: string; walkable?: boolean; scale?: number; zIndex?: number; animations?: Animation[] },
   span: number,
   anchorCol: number,
   anchorRow: number,
@@ -118,6 +119,14 @@ function stampRun(
   asset.height = 1
   // The collapsed vertical run → ONE block `span` tall (scaleY grows UP from the base level; ISO + 2D).
   if (span > 1) asset.scaleY = span
+  // A composition cell can ship DEFAULT animations (the fountain water's rise/fade loop) — copy them onto the
+  // placed asset so the tile animates without any per-instance authoring, anchored at placedAt 0 (the render
+  // clock's origin — iso/2D/top drive the animation off `performance.now`, so a LOAD-triggered loop plays
+  // immediately and every fountain stays in sync; an epoch timestamp would read as "far future" → never start).
+  if (c.animations && c.animations.length > 0) {
+    asset.animations = c.animations
+    asset.placedAt = 0
+  }
   const behavior = tileRenderBehavior(tile.settings)
   if (behavior) asset.settings = behavior
   // Apex signage: a titled composition (store/hospital) badges its ONE roof-apex cell with its NAME.

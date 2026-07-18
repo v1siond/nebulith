@@ -18,6 +18,7 @@ import { resolveTileSize, resolveTilePose } from '@/engine/tileset/tileViewSetti
 import { Connector } from '@/lib/api'
 import { ASCII_FONT, COMBAT_RANGE, type DayNight, ENEMY_MOVE_MS, LAMP_GLOW, applyCellTransform, clampCameraAxis, assetCaptionByCell, terrainLabelAt, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawHoverRing, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawConnectorMarker, drawAttackAnimFrame, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, SINGLE_TILE_FRAC, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, frameImage, getPlayerArt, grassShade, cellFill, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, resolveAssetDraw, resolveEntityDraw, assetOverride, labelTileImage, labelTileRecolor, groundDecorImage, treeCanopyLayers, treeCellSet } from './shared'
 import { resolveAssetDrawSize } from './assetDimensions'
+import { resolveAssetAnimation } from './assetAnimation'
 import { DEPTH_CELL_STEP } from './isoBlock'
 import { frontElevation, type FrontElevation } from './frontElevation'
 import { groundSizeFactors, groundDimsActive, type GroundCellDims } from '@/engine/groundDims'
@@ -558,7 +559,11 @@ export function render2D(
       }
 
     } else if (obj.asset) {
-      const asset = obj.asset
+      // Live TILE ANIMATION overrides for THIS frame (settings tweens), scoped to the 2D view + active style.
+      // null when the asset has no animations / none in scope → the effective asset IS obj.asset (byte-identical);
+      // the overlaid asset carries the animated colour/zoom/width/height so every branch below reads them as-is.
+      const assetAnim = resolveAssetAnimation(obj.asset, time, style, '2d')
+      const asset = assetAnim ? assetAnim.asset : obj.asset
 
       // Get proper height for 2D RPG view based on asset type (buildings derive theirs per-block from the
       // stacked heightLevel + asset.height like any tile, not a `type:'building'` override).
@@ -575,6 +580,17 @@ export function render2D(
       // "z position" is NOT a vertical lift — it's an iso-diagonal ground slide, already folded into `p` above
       // (the ground-plane cell delta), so baseY only carries elevation + the height-level stack, like before.
       const baseY = p.y + tileH * 0.5 - elevOffset - (asset.heightLevel ?? 0) * levelStep
+
+      // Animated screen shift (tile fractions; `y` LIFTS up = −screenY) + opacity fade, wrapped around the WHOLE
+      // tile draw so every branch below inherits them. Skipped entirely when not animated → byte-identical.
+      const animShiftX = assetAnim ? assetAnim.x * tileW : 0
+      const animShiftY = assetAnim ? assetAnim.y * tileH : 0
+      const animWrap = !!assetAnim && (animShiftX !== 0 || animShiftY !== 0 || assetAnim.opacity < 1)
+      if (animWrap) {
+        ctx.save()
+        ctx.translate(animShiftX, -animShiftY)
+        if (assetAnim!.opacity < 1) ctx.globalAlpha *= assetAnim!.opacity
+      }
 
       // Authored frame animation: offset/rotate/scale the asset around its ground point (sway/wind).
       const ct2d = assetCellTransform(asset.cellAnim, time)
@@ -721,6 +737,7 @@ export function render2D(
       }
 
       if (ct2d) ctx.restore() // pop the cell-animation transform
+      if (animWrap) ctx.restore() // pop the tile-animation shift/opacity wrap
     }
   }
 
