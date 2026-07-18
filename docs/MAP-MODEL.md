@@ -68,6 +68,12 @@ flowchart LR
 - **TOP grid = cells** from above — elevation is not shown.
 - A **cell/block has collision or not** — it blocks movement or it doesn't. Collision is a property of the
   cell/block, **independent of the tile** it holds.
+- A cell/block can carry a **draw priority** (`z_index`, CSS-style) — a higher value draws LATER (on top / in
+  front), overriding the positional depth sort in every view. **Rule: a CONTAINER outranks its CONTENTS** — give
+  the container the higher `z_index` so its front edge occludes what it holds. The fountain basin is the
+  reference: external walls (0) < water (10) < rim/basin (20), so the rim visually CONTAINS the water while the
+  water still reads in front of a wall behind it. It's DATA on the cell, not a render special-case (full worked
+  example in `ANIMATION-SYSTEM.md` → "The container/contents z-order rule").
 - A **TILE** is the art inside a cell/block — an ascii glyph, an emoji, or an image, coming from the **DB
   tileset**. Ascii and emoji are just **two tilesets** of the same tile (same label, different art). The
   front end renders; the tile data comes from the DB — the front end hardcodes nothing.

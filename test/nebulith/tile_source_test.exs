@@ -62,16 +62,21 @@ defmodule Nebulith.TileSourceTest do
     refute Enum.any?(comps, &(&1.name in ["big_tree_a", "big_tree_b", "bush_a", "bush_b"]))
   end
 
-  test "the fountain's water cells carry a draw-priority z_index; the rim/edge pieces stay 0" do
-    # The bug fix (Images #34/#36): the basin `water_c` cells get a high z_index so the depth sort draws them
-    # IN FRONT of a wall behind the fountain. The rim keeps the default 0. Pure DATA on the cell.
-    fountain = Enum.find(Catalog.list_compositions(), &(&1.name == "fountain"))
-    {water, rim} = Enum.split_with(fountain.cells, &(&1.label == "water_c"))
+  test "the basin RIM outranks the water it contains (container z_index > contents), water outranks external tiles" do
+    # The container/contents rule (Image #41): the rim is the water's CONTAINER, so it draws IN FRONT of the
+    # water. Ordering, low→high: external(0) < water(10) < rim(20). water 10 > 0 still keeps the water in front
+    # of a wall behind the fountain (Images #34/#36); rim 20 > 10 keeps the water contained by its own basin.
+    for name <- ["fountain", "well"] do
+      comp = Enum.find(Catalog.list_compositions(), &(&1.name == name))
+      {water, rim} = Enum.split_with(comp.cells, &(&1.label == "water_c"))
 
-    assert length(water) >= 6
-    assert Enum.all?(water, &(&1.z_index == 10))
-    assert rim != []
-    assert Enum.all?(rim, &(&1.z_index == 0))
+      assert length(water) >= 3, "#{name} should have water cells"
+      assert Enum.all?(water, &(&1.z_index == 10)), "#{name} water should sit at z_index 10"
+      assert rim != []
+      assert Enum.all?(rim, &(&1.z_index == 20)), "#{name} rim should OUTRANK the water at z_index 20"
+      # the ordering holds by construction: max water z_index < min rim z_index
+      assert Enum.max(Enum.map(water, & &1.z_index)) < Enum.min(Enum.map(rim, & &1.z_index))
+    end
   end
 
   test "the fountain interior is all blue water (no water_jet drops), a bit bigger, with the yoyo height-grow animation" do
@@ -93,10 +98,47 @@ defmodule Nebulith.TileSourceTest do
     end
   end
 
-  test "z_index defaults to 0 on every non-fountain-water cell (no regression to the depth sort)" do
+  test "z_index defaults to 0 on every cell that is not fountain water or basin rim (no regression to the depth sort)" do
     comps = Catalog.list_compositions()
-    non_water = Enum.flat_map(comps, fn c -> Enum.reject(c.cells, &(&1.label in ["water_c", "water_jet"])) end)
-    assert Enum.all?(non_water, &(&1.z_index == 0))
+    # Only the fountain/well water (10) and their basin rim pieces (20) carry a non-zero draw priority; every
+    # other cell (trees, bushes, all buildings, the light post) stays at the default 0 and sorts positionally.
+    plain =
+      Enum.flat_map(comps, fn c ->
+        Enum.reject(c.cells, &(&1.label == "water_c" or String.starts_with?(&1.label, "fountain")))
+      end)
+
+    assert Enum.all?(plain, &(&1.z_index == 0))
+  end
+
+  test "the light post is a composition — a `post` base at level 0 + the `lamp` on top at level 1" do
+    lamp_post = Enum.find(Catalog.list_compositions(), &(&1.name == "lamp_post"))
+    assert lamp_post, "lamp_post composition missing"
+    assert lamp_post.footprint_w == 1 and lamp_post.footprint_h == 1
+
+    cells = Enum.sort_by(lamp_post.cells, & &1.level)
+    assert Enum.map(cells, & &1.label) == ["post", "lamp"]
+    assert Enum.map(cells, & &1.level) == [0, 1]
+
+    post = Enum.find(cells, &(&1.label == "post"))
+    lamp = Enum.find(cells, &(&1.label == "lamp"))
+    refute post.walkable, "the post base blocks movement"
+    assert lamp.walkable, "the lamp sits overhead (walkable)"
+  end
+
+  test "the light-post pieces (post + lamp) are real baked tiles in BOTH styles — no nil image_url" do
+    for style <- ["ascii", "emoji"], label <- ["post", "lamp"] do
+      tile = Enum.find(Catalog.list_tiles_for(style), &(&1.label == label))
+      assert tile, "#{style} missing #{label} tile"
+      assert tile.image_url not in [nil, ""], "#{style} #{label} must carry a baked image_url"
+    end
+  end
+
+  test "the generic roof_top apex cap has an emoji twin (cross-style parity fix)" do
+    emoji_roof_top = Enum.find(Catalog.list_tiles_for("emoji"), &(&1.label == "roof_top"))
+    assert emoji_roof_top, "emoji roof_top parity twin missing"
+    assert emoji_roof_top.image_url == "/tiles/emoji/roof_top.png"
+    # walkable apex cap that eases translucent near the hero (inherits roof_top's fadeNear)
+    assert emoji_roof_top.settings["fadeNear"] == true
   end
 
   test "an ascii canopy tile carries its per-zone palette colors in settings" do

@@ -84,21 +84,49 @@ interface Animation {      // kind:'settings' fully implemented; kind:'sprite' t
   → `to`), never eased.
 - **Stacking (`resolveAnimatedSettings`):** every animation contributes its tracks' current values. On the SAME
   setting, the **higher `priority` wins; ties → later in the list**. Unwritten settings are absent (renderer keeps
-  the base). Winner-takes-all per setting (see §6 for the fountain consequence).
+  the base). Winner-takes-all per setting (see §6 for the fountain consequence). The winning value is then
+  **composed onto the tile's base** at the render bridge (see §3.5) — stacking picks the value, composition
+  layers it on the base slider.
+
+### 3.5 Composition — an animation LAYERS on the base setting, it does NOT mask it
+
+The tile's **base** render settings (the inspector sliders — `scaleY`/height, `scale`/zoom, `scaleX`/width, …)
+are the value the animation builds ON TOP OF. An animated setting is a **change relative to its own `from`**,
+applied to the base, so the base slider stays **live and editable while the animation plays**:
+
+| class | settings | rendered value | example |
+|-------|----------|----------------|---------|
+| **ADDITIVE** | `height` (scaleY), `x`, `y`, `zPos`, `heightLevel` | `base + (value − from)` | base height **3** + a track `1→4` (delta 0→3) → **3→6** |
+| **MULTIPLICATIVE** | `zoom` (scale), `width` (scaleX) | `base × (value / from)` | base zoom **2** + a track `1→3` (ratio ×1→×3) → **2→6** |
+| **last-wins** | `color`, `zIndex`, `display` | the animated value (no base to compose) | — |
+| **multiplier** | `opacity` | `base_alpha × value` (the caller composites it) | a 1→0 fade dims the base alpha |
+
+Consequences: the fountain water (**base height 1** + track `1→4`) renders `1 + (v − 1)` = **1→4** — unchanged,
+because its base is the additive identity. But a tile with **base height 3** and the same `1→4` grow renders
+**3→6**, and dragging the base height slider to 2 shifts the whole animation to **2→5**. Zoom (a base
+`scale`) still scales the column while the height animation grows it — the pre-fix bug (Image #40) was the
+animation OVERWRITING `scaleY`, which masked the base slider (only zoom appeared to apply). Composition lives
+in the pure engine (`composeAnimatedSetting`) and is driven by the render bridge, which reads the winning
+track's `from` via `resolveAnimatedSettingsDetailed`; `MULTIPLICATIVE` guards a `from` of 0 (no ratio) by
+falling back to the absolute value. Evidence: `tileAnimationCompose.realcanvas.test.ts` (real render, both styles).
 
 ## 4. Render bridge (one place, all three views)
 
 `src/engine/render/assetAnimation.ts` — `resolveAssetAnimation(asset, nowMs, style, view)`:
 1. filters `asset.animations` to those whose `scope` matches `(style, view)` (`animationMatchesScope`),
-2. composes the live values (`resolveAnimatedSettings`),
+2. composes the live values (`resolveAnimatedSettingsDetailed` — value + the winning track's `from`), then
+   **layers each onto the tile's base** per §3.5 (`composeAnimatedSetting`),
 3. returns `{ opacity, x, y, asset }` — or **`null`** (the fast path) when there are no animations, none in scope,
    or only a `sprite` animation is active. `null` keeps an un-animated tile **byte-identical** to before.
 
 Per-frame split of concerns:
 - **opacity** → a multiplier onto the tile's base alpha (canvas `globalAlpha`) — fades in every view.
-- **x / y** → a screen shift in tile fractions; **`y` positive = a RISE** (screen-space up → the caller subtracts it).
-- **colour / zoom / width / height** → overlaid onto a shallow-cloned `asset` (`color`/`scale`/`scaleX`/`scaleY`)
-  so the existing draw code reads them unchanged. **`height`→`scaleY` grows the block UP from its base** in BOTH
+- **x / y** → a screen shift in tile fractions, ADDITIVE over a base of 0 (`value − from`); **`y` positive = a RISE**
+  (screen-space up → the caller subtracts it).
+- **colour / zoom / width / height** → **composed onto** a shallow-cloned `asset` (`color`/`scale`/`scaleX`/`scaleY`)
+  so the existing draw code reads them unchanged — colour is last-wins, zoom/width MULTIPLY the base, height ADDS
+  its delta (§3.5), so the base sliders stay editable under an animation. **`height`→`scaleY` grows the block UP
+  from its base** in BOTH
   iso (the extruded block gets taller) AND 2D (`draw2DLabeledCell` now sizes the cell by `scaleY`/`scaleX`/`scale`,
   bottom edge planted at the base row — the SAME collapse contract iso already honoured). So the fountain water
   column grows in place; it does not levitate.
@@ -156,6 +184,29 @@ ties → later in the list) and a looping animation rests at its `to`/`from` out
 fountain no longer relies on that (single animation, single setting), but the rule stands for any multi-animation
 tile that writes the same setting from two envelopes.
 
+### The container/contents z-order rule
+
+**A container's `z_index` is always HIGHER than its contents'** — the container's front edge must occlude what it
+holds. `z_index` (backend `composition_cells.z_index`, served as `zIndex`) is a CSS-style draw priority: a higher
+value draws LATER (on top / in front), overriding the positional depth sort in every view (iso/2D/top). Author it
+as DATA on the cell, never as a render special-case.
+
+The fountain/well basin is the reference case. Low→high, the layering is:
+
+```
+external walls/ground (0)  <  water (10)  <  rim/basin (20)
+```
+
+- **water 10 > external 0** — the water reads IN FRONT of a wall/building block that sits BEHIND the fountain and
+  gets extra height or z-width (Images #34/#36); it no longer draws over the water.
+- **rim 20 > water 10** — the basin RIM (the container) draws IN FRONT of the water it holds, so the water looks
+  CONTAINED instead of spilling over the rim's front edge (Image #41). A rim left at the default 0 sits level with
+  external walls and BEHIND the water — the bug that made the water draw over its own basin.
+
+Generalize it to any nesting (a pot around a plant, a planter around soil, a frame around glass): give the
+**container** the higher `z_index` so its front edge occludes the **contents**. Authored in `TileSource`
+(`@water_z_index` 10 / `@rim_z_index` 20); also noted in `MAP-MODEL.md`.
+
 ## 7. Authoring
 
 - **Composition default (backend):** add an `animations` array to the composition cell in
@@ -177,8 +228,8 @@ tile that writes the same setting from two envelopes.
   `…/catalog/composition_cell.ex`, `…/controllers/tileset_json.ex`,
   migration `priv/repo/migrations/20260719120000_add_animations_to_composition_cells.exs`
 - Tests: `tileAnimation.test.ts`, `assetAnimation.test.ts`, `tileAnimation.realcanvas.test.ts`,
-  `fountainLoop.realcanvas.test.ts`, `fountainAnimationDefault.test.ts`, `api.assetRoundtrip.test.ts`,
-  `tileAnimationEditorStructure.test.tsx`
+  `tileAnimationCompose.realcanvas.test.ts` (base+animation composition, §3.5), `fountainLoop.realcanvas.test.ts`,
+  `fountainAnimationDefault.test.ts`, `api.assetRoundtrip.test.ts`, `tileAnimationEditorStructure.test.tsx`
 
 ---
 

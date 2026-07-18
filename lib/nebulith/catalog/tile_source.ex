@@ -68,6 +68,7 @@ defmodule Nebulith.Catalog.TileSource do
     seed_decor_tiles(ascii_id)
     seed_building_tiles(ascii_id, emoji_id)
     seed_extra_tiles(ascii_id, emoji_id)
+    seed_prop_tiles(ascii_id, emoji_id)
     seed_emoji_tiles(emoji, emoji_id)
     seed_autotile_pieces(ascii_id, emoji_id)
     seed_tree_pieces(ascii_id, emoji_id, ascii["palettes"])
@@ -386,6 +387,82 @@ defmodule Nebulith.Catalog.TileSource do
         emoji: "⬛"
       }
     ]
+  end
+
+  # ── Light-post + cross-style parity tiles ─────────────────────────────────
+  # A light post is a COMPOSITION — a `post` base at level 0 + the `lamp` on top at level 1 (see the
+  # `lamp_post` composition below) — authored ONCE and used by BOTH styles, so ascii and emoji stamp the
+  # IDENTICAL structure and only the ART differs (MAP-MODEL §5, the model's core rule). The `lamp` tile
+  # already exists in both styles; this seeds the missing `post` base in BOTH (a dark metal pole glyph in
+  # ascii, a dark post block in emoji), BAKED in both (priv/tilegen), so no piece falls back to a raw glyph or
+  # a single lamp emoji (Images #43/#44).
+  #
+  # It ALSO closes a cross-style parity gap the audit found: the generic `roof_top` apex cap had an ascii tile
+  # but NO emoji twin, so a plain house's ridge cap fell back to the coarse red roof kind in emoji. Seeding an
+  # emoji `roof_top` = 🟥 (matching the emoji roof body) makes that cap paint its OWN per-cell tile in emoji,
+  # exactly like ascii — same structure, only the art differs.
+  @doc """
+  Seeds the light-post `post` base (ascii + emoji) and the emoji `roof_top` parity twin.
+
+  Safe + idempotent (upsert by [tileset_id, label]) — touches nothing else, so it runs on the shared dev DB
+  without a full reseed.
+  """
+  def seed_prop_tiles do
+    ascii_id = ensure_tileset("ascii", "ASCII").id
+    emoji_id = ensure_tileset("emoji", "Emoji").id
+    seed_prop_tiles(ascii_id, emoji_id)
+    IO.puts("seeded light-post base + roof_top parity twin (ascii + emoji)")
+    :ok
+  end
+
+  # The light-post BASE colour (dark iron) — zone-independent, like the other structural piece tiles.
+  @post_color "#43474d"
+
+  defp seed_prop_tiles(ascii_id, emoji_id) do
+    # `post` — the light-post base pole. Blocks (you can't walk through the pole). Baked in BOTH styles.
+    # Render-only piece (no sidebar category — the browseable unit is the `lamp_post` composition); the ascii
+    # glyph is a heavy vertical bar, the emoji a dark post block. Its colour is a per-tile setting.
+    {:ok, _} =
+      Catalog.upsert_tile(%{
+        tileset_id: ascii_id,
+        label: "post",
+        glyph: "║",
+        color_role: nil,
+        blocking: true,
+        height: 1,
+        category: nil,
+        image_url: "/tiles/ascii/post.png",
+        settings: %{"colors" => Map.new(@all_zones, &{&1, @post_color})}
+      })
+
+    {:ok, _} =
+      Catalog.upsert_tile(%{
+        tileset_id: emoji_id,
+        label: "post",
+        emoji: "⬛",
+        color_role: nil,
+        blocking: true,
+        height: 1,
+        category: nil,
+        image_url: "/tiles/emoji/post.png",
+        settings: %{"color" => @post_color}
+      })
+
+    # Parity twin: the emoji generic `roof_top` apex cap (🟥, matching the emoji roof body #c8443c). Walkable
+    # cap that eases translucent near the hero (inherits roof_top's fadeNear). ascii `roof_top` already exists
+    # (ascii.json); this only adds the missing emoji row so both styles paint the cap's OWN tile.
+    {:ok, _} =
+      Catalog.upsert_tile(%{
+        tileset_id: emoji_id,
+        label: "roof_top",
+        emoji: "🟥",
+        color_role: nil,
+        blocking: false,
+        height: 1,
+        category: nil,
+        image_url: "/tiles/emoji/roof_top.png",
+        settings: %{"color" => "#c8443c"} |> merge_behavior("roof_top")
+      })
   end
 
   # ── Autotile PIECE tiles (fountain rim + wall materials + slate roof) ──────
@@ -743,6 +820,7 @@ defmodule Nebulith.Catalog.TileSource do
     palettes = read_tileset("ascii.json")["palettes"]
     seed_building_tiles(ascii_id, emoji_id)
     seed_extra_tiles(ascii_id, emoji_id)
+    seed_prop_tiles(ascii_id, emoji_id)
     seed_autotile_pieces(ascii_id, emoji_id)
     seed_tree_pieces(ascii_id, emoji_id, palettes)
     seed_tree_leaves(emoji_id)
@@ -844,17 +922,41 @@ defmodule Nebulith.Catalog.TileSource do
       #   is a 3×3 GRID of 9 `water_c` cells; only the CENTER ROW of 3 animates (Alexander: "in the 9 blocks
       #   version, the 3 in the center are the ones to animate"), the other 6 are STATIC blue water.
       "well" => %{footprint_w: 5, footprint_h: 3, cells: well_cells()},
-      "fountain" => %{footprint_w: 5, footprint_h: 5, cells: fountain_cells()}
+      "fountain" => %{footprint_w: 5, footprint_h: 5, cells: fountain_cells()},
+      # A LIGHT POST — a composition, NOT a single lamp tile (Alexander: "light posts should be a composition
+      # of a post/base tile + the lamp on top … the composition of maps is exactly the same between art styles,
+      # only the tile changes"). ONE 1×1 column: the `post` base at level 0 (blocks — you can't walk through the
+      # pole) with the `lamp` on top at level 1 (walkable overhead, like a tree canopy). Used by BOTH styles;
+      # each supplies its own baked `post` + `lamp` art, so emoji renders a post + 💡 (not a lonely 💡) and ascii
+      # a pole + lamp. The generator stamps THIS composition wherever it used to drop a single lamp prop.
+      "lamp_post" => %{
+        footprint_w: 1,
+        footprint_h: 1,
+        cells: [
+          %{dx: 0, dy: 0, level: 0, label: "post", walkable: false},
+          %{dx: 0, dy: 0, level: 1, label: "lamp", walkable: true}
+        ]
+      }
     }
   end
 
-  # The fountain WATER's draw-PRIORITY (CSS z-index style). The basin water carries a high `z_index` so it
-  # renders IN FRONT of whatever sits behind it in the iso/2D depth sort — a wall/building block behind the
-  # fountain that gets extra height or z-width no longer draws OVER the water (Images #34/#36). 10 is
-  # comfortably above the default 0 every wall/rim/other tile carries (CSS semantics: a higher z-index wins
-  # globally), leaving headroom for future intermediate layers. The RIM stays 0 — it's the basin's own edge
-  # and sorts positionally with the water. Pure DATA on the cell; NOT a render special-case.
+  # The fountain draw-PRIORITY layering (CSS z-index style) — a CONTAINER always outranks its CONTENTS.
+  # A fountain is a rim/basin (the container) holding water (the contents), so the ordering, low→high, is:
+  #
+  #     external walls/ground (0)  <  water (10)  <  rim/basin (20)
+  #
+  # • water 10 > external 0 — the water still reads IN FRONT of a wall/building block that sits BEHIND the
+  #   fountain and gets extra height or z-width (Images #34/#36); it no longer draws OVER the water.
+  # • rim 20 > water 10 — the basin RIM (its own container) draws IN FRONT of the water it holds, so the
+  #   water is visually CONTAINED by the rim instead of spilling over its front edge (Image #41). Previously
+  #   the rim sat at the default 0 — level with external walls and BEHIND the water — which made the water
+  #   draw over its own basin and look wrong.
+  #
+  # General principle (see ANIMATION-SYSTEM.md §The container/contents z-order rule): whenever one tile
+  # VISUALLY CONTAINS another (a rim around water, a pot around a plant), the container gets the HIGHER
+  # z_index so its front edge occludes the contents. Pure DATA on the cell; NOT a render special-case.
   @water_z_index 10
+  @rim_z_index 20
 
   # The fountain/well WATER's DEFAULT ANIMATION — the height-GROW yoyo (Alexander: "animate the water to grow
   # its height 3-4 blocks, then go back to 1 block in loop … more realistic"), now DESYNCED per column so the
@@ -931,6 +1033,8 @@ defmodule Nebulith.Catalog.TileSource do
   end
 
   # The rim EDGE/CORNER pieces around a w×h basin — the `fountain_*` autotile border, reused by both variants.
+  # The rim is the basin's CONTAINER, so it carries the HIGHER `@rim_z_index` (20 > the water's 10): its front
+  # edge draws IN FRONT of the water it holds, so the water reads contained instead of spilling over (Image #41).
   defp basin_rim(w, h) do
     for dy <- 0..(h - 1),
         dx <- 0..(w - 1),
@@ -940,7 +1044,8 @@ defmodule Nebulith.Catalog.TileSource do
           dy: dy,
           level: 0,
           label: edge_piece("fountain", dx, dy, w, h),
-          walkable: false
+          walkable: false,
+          z_index: @rim_z_index
         }
   end
 

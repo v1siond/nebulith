@@ -14,7 +14,12 @@ This is the spec we build the stage generator + building composer toward. See
 ## 1. Building dimensions — LOCKED base rules
 
 A building is a **multi-cell structure**, not a single tile. Two measures:
-- **Length** = horizontal footprint along the facade (cells).
+- **Length** = horizontal footprint along the facade (cells). The **facade length NAMES the composition**
+  (`hospital_6`, `store_5`, `house_4`) — so the load-time stamp must use the plot's **facade** length, never
+  the footprint's grid col-span. For an **east/west-facing** plot the grid col-span is the *depth*, not the
+  facade length; deriving the composition kind from it asks for a non-existent composition (`hospital_4`) and
+  stamps 0 cells, leaving a **foundation with no building** (the Image #42 orphan). Stamp a generated building
+  by its recorded authoritative `PlacedBuilding.kind`, not by re-deriving from its col-span.
 - **Height** = vertical extent of the drawn structure (cells): floors' body + roof.
 
 **House — minimums (the base unit):**

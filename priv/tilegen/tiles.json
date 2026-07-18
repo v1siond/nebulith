@@ -306,6 +306,12 @@
     "glyph": "!"
   },
   {
+    "label": "post",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "║"
+  },
+  {
     "label": "ancient_stone",
     "mode": "ascii",
     "style": "ascii",
@@ -1126,6 +1132,18 @@
     "mode": "emoji",
     "style": "emoji",
     "emoji": "⬛"
+  },
+  {
+    "label": "post",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "⬛"
+  },
+  {
+    "label": "roof_top",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "🟥"
   },
   {
     "label": "roof_top_slate",
