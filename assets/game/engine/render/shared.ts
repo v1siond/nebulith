@@ -388,7 +388,10 @@ export function drawNightLighting(
 
 /** Screen-space centres + radii of every lamp/lantern on the grid that lands on-screen — the
  *  anchors for the night light pools. `cellCenter` maps a cell to its screen centre (each view
- *  projects differently); `lift` raises the pool to the lamp head. Shared by all views. */
+ *  projects differently); `lift` raises the pool to the lamp head. Shared by all views.
+ *  Matches both the legacy single-lamp prop (`type === 'lamp'`) AND the lamp cell of the
+ *  `lamp_post` composition (`label === 'lamp'`) — the composition stamps assets of type
+ *  'lamp_post', so keying on type alone lost the night pool when lamps became compositions. */
 export function collectLampGlows(
   grid: IsometricGrid,
   cellCenter: (col: number, row: number) => { x: number; y: number },
@@ -399,7 +402,8 @@ export function collectLampGlows(
 ): { x: number; y: number; r: number }[] {
   const out: { x: number; y: number; r: number }[] = []
   for (const a of grid.assets) {
-    if (a.type !== 'lamp' && a.type !== 'lantern') continue
+    const isLamp = a.type === 'lamp' || a.type === 'lantern' || a.label === 'lamp' || a.label === 'lantern'
+    if (!isLamp) continue
     const p = cellCenter(a.col, a.row)
     const y = p.y - lift
     if (p.x < -radiusPx || p.x > w + radiusPx || y < -radiusPx || y > h + radiusPx) continue
