@@ -54,7 +54,7 @@ import { render, render2D, renderTopView, clampCameraAxis, isoCameraFocus, entit
 import { loadTilesetsFromBackend, saveTilesetToBackend } from '@/engine/tileset/tilesetLoader'
 import { EMOJI_TILESET, setTilePose } from '@/engine/tileset/emojiTileset'
 import { type TilePose } from '@/engine/tileset/pose'
-import { type TileDisplay } from '@/engine/tileset/tileset'
+import { type TileDisplay, type TileShape } from '@/engine/tileset/tileset'
 import { type QuestDraft, emptyQuestDraft, questFromDraft } from '@/game/runtime/questDraft'
 import { seedCharacterAnimations, needsAnimationReseed } from '@/game/runtime/entityAnimation'
 import { stampBuildingComposition, stampBuildingKind, stampComposition } from '@/game/runtime/composition'
@@ -1542,6 +1542,15 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       if (mode === 'single') a.settings = { ...rest, display: 'single' }
       else { delete rest.display; a.settings = rest }
     })
+  // PER-ASSET render SHAPE ('square' cube / 'circle' ball) — written to THIS placed tile (persists with the map
+  // via the full-asset serialize, like scaleX/pose). The render dispatches on asset.shape in every view.
+  // 'square' clears the field so a reset stays byte-identical to a tile that never opted in (like Display).
+  const setAssetShape = (i: number, shape: TileShape) =>
+    applyToSelectedCells((col, row, grid) => {
+      const a = stackedAssetsAt(grid, col, row)[i]; if (!a) return
+      if (shape === 'square') delete a.shape
+      else a.shape = shape
+    })
   // PER-ASSET tile ANIMATIONS (Phase 4) — the LIST authored in the animation modal, written to THIS placed
   // tile (persists with the map via the full-asset serialize, like cellAnim). Anchor start/loop delays at
   // placedAt=0 so a load-triggered loop plays from the clock origin (performance.now() = ms-since-load), the
@@ -1697,6 +1706,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       __setHero?: (col: number, row: number) => void
       __setDepth?: (col: number, row: number, depth: number, dir: DepthDir) => { col: number; row: number; depth: number; depthDir: DepthDir; cells: { col: number; row: number }[] } | null
       __setZPos?: (col: number, row: number, z: number, dir: DepthDir) => { col: number; row: number; zOffset: number; zDir: DepthDir } | null
+      __setShape?: (col: number, row: number, shape: TileShape) => { col: number; row: number; shape: TileShape } | null
       __pickTileAt?: (clientX: number, clientY: number) => { col: number; row: number; level: number | null; source: string | null } | null
       __cellScreen?: (col: number, row: number, level?: number) => { x: number; y: number } | null
       __tileCentroid?: (col: number, row: number, level?: number) => { x: number; y: number } | null
@@ -1843,6 +1853,19 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       bumpBuildingVersion()
       return { col, row, zOffset: z, zDir: dir }
     }
+    // SHAPE validation seam: set `shape` on the TOPMOST block at (col,row) so it renders as a ball ('circle')
+    // instead of a cube, then bump a redraw — the deterministic hook the shape-render validation drives. Same
+    // family as __setDepth/__setZPos (mutates the grid in place, then bumpBuildingVersion re-renders from it).
+    win.__setShape = (col: number, row: number, shape: TileShape) => {
+      const g = gridRef.current
+      if (!g) return null
+      const a = g.getAssetsAtCell(col, row).at(-1) // topmost stacked asset at the cell
+      if (!a) return null
+      if (shape === 'square') delete a.shape
+      else a.shape = shape
+      bumpBuildingVersion()
+      return { col, row, shape }
+    }
     // Debug-overlay + tileset-label validation seams: toggle the label overlay, and DUMP the
     // `<TYPE> <POSITION>` label of every cell in a region (terrain autotile label overridden by an
     // asset caption) — so "every cell carries a consistent tileset label" is validated as DATA.
@@ -1958,7 +1981,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       setSelectedCells(new Set([`${best.col},${best.row}`]))
       return best
     }
-    return () => { delete win.__setArtStyle; delete win.__selectFirstTreeCell; delete win.__setView; delete win.__gridKinds; delete win.__entityInfo; delete win.__entityScreens; delete win.__selectEntity; delete win.__setEntitySize; delete win.__scatter; delete win.__selectedEntityInfo; delete win.__placeBuilding; delete win.__placeComposition; delete win.__cellSel; delete win.__selectCells; delete win.__applyCellTile; delete win.__clearRegion; delete win.__setDebug; delete win.__cellLabels; delete win.__stackAt; delete win.__camOffset; delete win.__stackAsset; delete win.__isoBlockScreen; delete win.__genVillage; delete win.__genStage; delete win.__centerOn; delete win.__setHero; delete win.__pickTileAt; delete win.__cellScreen; delete win.__tileCentroid; delete win.__tileHandles }
+    return () => { delete win.__setArtStyle; delete win.__selectFirstTreeCell; delete win.__setView; delete win.__gridKinds; delete win.__entityInfo; delete win.__entityScreens; delete win.__selectEntity; delete win.__setEntitySize; delete win.__scatter; delete win.__selectedEntityInfo; delete win.__placeBuilding; delete win.__placeComposition; delete win.__cellSel; delete win.__selectCells; delete win.__applyCellTile; delete win.__clearRegion; delete win.__setDebug; delete win.__cellLabels; delete win.__stackAt; delete win.__camOffset; delete win.__stackAsset; delete win.__isoBlockScreen; delete win.__genVillage; delete win.__genStage; delete win.__centerOn; delete win.__setHero; delete win.__pickTileAt; delete win.__cellScreen; delete win.__tileCentroid; delete win.__tileHandles; delete win.__setShape }
   }, [])
 
   // ── Selected-entity inspector actions ─────────────────────────────
@@ -5838,6 +5861,8 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                             onZIndex: posable ? (v => setAssetZIndex(i, v)) : undefined,
                             display: commonValue(cells.map(({ col, row }) => (stackedAssetsAt(grid, col, row)[i]?.settings?.display ?? 'all-faces') as TileDisplay)),
                             onDisplay: posable ? (mode => setAssetDisplay(i, mode)) : undefined,
+                            shape: commonValue(cells.map(({ col, row }) => (stackedAssetsAt(grid, col, row)[i]?.shape ?? 'square') as TileShape)),
+                            onShape: posable ? (shape => setAssetShape(i, shape)) : undefined,
                             pose: posable ? a0?.pose : undefined,
                             onPose: posable ? (p => setAssetPose(i, p)) : undefined,
                             onPoseReset: posable ? (() => setAssetPose(i, undefined)) : undefined,

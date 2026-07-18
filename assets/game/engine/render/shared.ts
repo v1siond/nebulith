@@ -288,6 +288,31 @@ export function tintedImage(img: HTMLImageElement, src: string, tint: string): C
  *  by all three views so 'single' reads consistently in iso / 2D / top. */
 export const SINGLE_TILE_FRAC = 0.6
 
+/** Draw a SHADED BALL — the `shape: 'circle'` primitive shared by all three views. An ellipse of radii
+ *  (rx, ry) centred at (cx, cy), filled with a radial gradient (a bright highlight up-and-left, the tile's
+ *  own `color` at the equator, a dark rim) so a flat tile colour reads as a 3D sphere — the same "colour is
+ *  a per-tile SETTING that shades the solid" rule the cube's faces follow. The light sits upper-left, matching
+ *  the scene light the cube faces are shaded by, so a ball and a cube in the same scene agree. Falls back to a
+ *  flat ellipse where a context has no `createRadialGradient` (a jsdom stub) so it never throws. */
+export function drawShadedBall(ctx: CanvasRenderingContext2D, cx: number, cy: number, rx: number, ry: number, color: string): void {
+  ctx.save()
+  ctx.beginPath()
+  ctx.ellipse(cx, cy, Math.max(0.5, rx), Math.max(0.5, ry), 0, 0, Math.PI * 2)
+  if (typeof ctx.createRadialGradient === 'function') {
+    const hx = cx - rx * 0.35 // highlight offset up-and-left (toward the light)
+    const hy = cy - ry * 0.4
+    const g = ctx.createRadialGradient(hx, hy, Math.min(rx, ry) * 0.08, cx, cy, Math.max(rx, ry) * 1.05)
+    g.addColorStop(0, lightenColor(color, 0.55))
+    g.addColorStop(0.55, color)
+    g.addColorStop(1, darkenColor(color, 0.55))
+    ctx.fillStyle = g
+  } else {
+    ctx.fillStyle = color
+  }
+  ctx.fill()
+  ctx.restore()
+}
+
 /** Draw an image tile centered at (cx, cy) filling a `size`×`size` box (optional atlas sub-rect).
  *  `flipX` mirrors it horizontally about cx — a DATA property of an animation frame (a right-facing
  *  walk reuses the left-facing tile flipped), so the baked-image figure animates like the glyph one.

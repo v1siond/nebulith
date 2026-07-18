@@ -8,7 +8,7 @@ import { type PlayerState, barFraction, hpFraction } from '@/game/runtime/player
 import { type CombatState, type Entity, type Quest } from '@/game/types'
 import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 import { Connector } from '@/lib/api'
-import { ASCII_FONT, type DayNight, LAMP_GLOW, applyCellTransform, clampCameraAxis, collectLampGlows, debugCellCaptions, debugLabelColors, drawConnectorMarker, drawHitMarker, drawHpBar, drawNightLighting, drawQuestMarker, drawStyledImage, SINGLE_TILE_FRAC, fillTintedGlyph, grassShade, cellFill, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, resolveAssetDraw, resolveEntityDraw, assetOverride, labelTileImage, labelTileRecolor, tileImage } from './shared'
+import { ASCII_FONT, type DayNight, LAMP_GLOW, applyCellTransform, clampCameraAxis, collectLampGlows, debugCellCaptions, debugLabelColors, drawConnectorMarker, drawHitMarker, drawHpBar, drawNightLighting, drawQuestMarker, drawStyledImage, drawShadedBall, SINGLE_TILE_FRAC, fillTintedGlyph, grassShade, cellFill, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, resolveAssetDraw, resolveEntityDraw, assetOverride, labelTileImage, labelTileRecolor, tileImage } from './shared'
 import { resolveAssetDrawSize } from './assetDimensions'
 import { resolveAssetAnimation } from './assetAnimation'
 import { DEPTH_CELL_STEP } from './isoBlock'
@@ -199,7 +199,12 @@ export function renderTopView(
       // even where kind-resolution can't (e.g. per-part tree labels collapse to the generic 'tree' kind).
       const labelImage = asset?.label ? labelTileImage(asset.label, style) : undefined
       const img = labelImage ?? dv.image
-      if (img) {
+      // SHAPE = "circle": the Top (footprint) view shows a shaded BALL in the cell instead of the square tile —
+      // the overhead analogue of the iso ball. The square cell backing already painted above frames it.
+      if (asset?.shape === 'circle') {
+        const r = tileSize * 0.42
+        drawShadedBall(ctx, gx, gy, r, r, dAsset?.color ?? asset.color ?? dv.tint ?? dv.color ?? '#cccccc')
+      } else if (img) {
         // Per-view tile size (byte-identical when unset: old tileSize base), then per-element dims (#77/#78).
         const vt = style.id === 'emoji' && asset ? EMOJI_TILESET[assetKind(asset)] : undefined
         const d = resolveAssetDrawSize(tileSize * (resolveTileSize(vt, 'top') ?? 1), dAsset ?? {}, 'overhead')

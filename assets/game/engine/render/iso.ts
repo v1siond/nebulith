@@ -12,10 +12,10 @@ import { type Projectile, projectileCellAt } from '@/game/projectiles'
 import { type HitMarker } from '@/game/runtime/combat'
 import { type PlayerState, barFraction, hpFraction, playerDisplayName } from '@/game/runtime/player'
 import { type CombatState, type Entity, type Quest } from '@/game/types'
-import { resolveGroundTile } from '@/engine/tileset/tileset'
+import { resolveGroundTile, type TileShape } from '@/engine/tileset/tileset'
 import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 import { Connector } from '@/lib/api'
-import { ASCII_FONT, COMBAT_RANGE, type DayNight, type DrawVisual, ENEMY_MOVE_MS, LAMP_GLOW, LIGHT, applyCellTransform, isoCameraFocus, assetCaptionByCell, terrainLabelAt, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawHoverRing, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawConnectorMarker, drawAttackAnimFrame, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, SINGLE_TILE_FRAC, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, frameImage, getPlayerArt, grassShade, cellFill, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, resolveAssetDraw, resolveEntityDraw, assetOverride, labelTileImage, labelTileRecolor, groundDecorImage, tileImage, tintedImage, tintedGlyphSprite, treeCanopyLayers, treeCellSet } from './shared'
+import { ASCII_FONT, COMBAT_RANGE, type DayNight, type DrawVisual, ENEMY_MOVE_MS, LAMP_GLOW, LIGHT, applyCellTransform, isoCameraFocus, assetCaptionByCell, terrainLabelAt, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawHoverRing, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawConnectorMarker, drawAttackAnimFrame, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, drawShadedBall, SINGLE_TILE_FRAC, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, frameImage, getPlayerArt, grassShade, cellFill, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, resolveAssetDraw, resolveEntityDraw, assetOverride, labelTileImage, labelTileRecolor, groundDecorImage, tileImage, tintedImage, tintedGlyphSprite, treeCanopyLayers, treeCellSet } from './shared'
 import { resolveAssetDrawSize } from './assetDimensions'
 import { resolveAssetAnimation } from './assetAnimation'
 import { type GroundCellDims, groundSizeFactors, groundDimsActive } from '@/engine/groundDims'
@@ -1570,6 +1570,66 @@ export function drawIsoSingleTileBlock(
   }
 }
 
+/** SHAPE = "circle" (per-tile `settings`/`shape`): the renderer BUILDS A BALL instead of extruding the cube.
+ *  Just as the cube fills the block volume, the ball is inscribed in that SAME volume — a sphere whose
+ *  horizontal radius is the block's half-width and whose vertical radius spans the stack height + the base
+ *  diamond, centred at the volume's mid-height. So a shape=circle tile occupies the tile's footprint + height
+ *  exactly like the cube it replaces (a unit block → a round ball; a stretched/`scaleY` block → an ellipsoid).
+ *  The ball is TINTED by the tile's colour (`tint ?? dv.tint ?? dv.color` — the SAME faceColor the cube shades
+ *  its faces with), so it honours the colour setting identically. A soft ground shadow keeps it seated. The
+ *  baked image is NOT painted on the ball (that would be a flat masked disc) — the ball is a shaded solid, one
+ *  code path for every tile + style. `depth`/`depthDir` don't apply to a ball (no directional extrusion). */
+export function drawIsoBall(
+  ctx: CanvasRenderingContext2D,
+  center: Pt,
+  tileW: number,
+  tileH: number,
+  blockH: number,
+  height: number,
+  dv: DrawVisual,
+  tint?: string,
+): void {
+  const n = Math.max(1, Math.floor(height))
+  const color = tint ?? dv.tint ?? dv.color ?? '#cccccc'
+  const rx = tileW                       // footprint half-width (honours scaleX/zoom via the caller's bw)
+  const ry = (n * blockH) / 2 + tileH    // half the cube's vertical span (stack height + base-diamond depth)
+  const cy = center.y - (n * blockH) / 2 // the block volume's vertical mid-point
+  // Soft ground shadow at the base diamond so the ball reads seated on its cell, like the cube's base edge.
+  ctx.save()
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.28)'
+  ctx.beginPath()
+  ctx.ellipse(center.x, center.y + tileH * 0.35, rx * 0.82, tileH * 0.5, 0, 0, Math.PI * 2)
+  ctx.fill()
+  ctx.restore()
+  drawShadedBall(ctx, center.x, cy, rx, ry, color)
+}
+
+/** ONE dispatch for "how to draw a placed tile's SOLID", keyed by its `shape` (default 'square'). The
+ *  'square' drawer keeps the existing cube / single-billboard split (display setting); 'circle' builds a ball.
+ *  A new shape ('oval', …) adds ONE entry here — never a new `if` at the call sites (SOLID/OCP). */
+type IsoShapeDrawer = (
+  ctx: CanvasRenderingContext2D, center: Pt, bw: number, bd: number, bh: number, blocks: number,
+  dv: DrawVisual, tint: string | undefined, asset: GridAsset,
+) => void
+
+const ISO_SHAPE_DRAWERS: Record<TileShape, IsoShapeDrawer> = {
+  square: (ctx, center, bw, bd, bh, blocks, dv, tint, asset) => {
+    // DISPLAY = "single" draws ONE centered tile inside the shell; else the tile paints on all faces.
+    if (asset.settings?.display === 'single') drawIsoSingleTileBlock(ctx, center, bw, bd, bh, blocks, dv, tint, asset.depth, asset.depthDir)
+    else drawIsoTileBlock(ctx, center, bw, bd, bh, blocks, dv, tint, undefined, asset.depth, asset.depthDir)
+  },
+  circle: (ctx, center, bw, bd, bh, blocks, dv, tint) => drawIsoBall(ctx, center, bw, bd, bh, blocks, dv, tint),
+}
+
+/** Draw a placed tile's block as the SOLID its `shape` selects — the single call the asset draw sites use in
+ *  place of branching on display/shape themselves. Unknown/absent shape → the square (cube) drawer. */
+export function drawIsoTileForShape(
+  ctx: CanvasRenderingContext2D, center: Pt, bw: number, bd: number, bh: number, blocks: number,
+  dv: DrawVisual, tint: string | undefined, asset: GridAsset,
+): void {
+  (ISO_SHAPE_DRAWERS[asset.shape ?? 'square'] ?? ISO_SHAPE_DRAWERS.square)(ctx, center, bw, bd, bh, blocks, dv, tint, asset)
+}
+
 // Buildings always render as an empty shell (HOLLOW) so the DOOR and the wall-fade read — you can see IN
 // when the hero is near. Interior decorations come later as real tiles, not a fill toggle.
 
@@ -1769,21 +1829,19 @@ export function drawIsoAssetAscii(
     const image = labelTileImage(asset.label, style)
     const recolor = labelTileRecolor(style, tint)
     const dvBlock = { char: glyph, color: tint, tint: recolor, image }
-    // DISPLAY = "single" (per-tile setting): draw ONE centered tile INSIDE the block instead of on all faces.
-    const single = asset.settings?.display === 'single'
+    // SHAPE + DISPLAY (per-tile settings): drawIsoTileForShape picks the solid — cube (all-faces / single) or
+    // ball — so a labeled cell can render as a shaded ball just like a placed prop.
     const geom = blockGeom(x, y, bw, bd, bh, 1, asset, tileH) // the shell cube (single) / cube column — SAME dims
     // Per-asset pose (x/y/rotate/flip) transforms this labeled block too — same applyPose wrap as the generic
     // block/billboard paths, so a placed OR generated block moves/rotates. No pose → the byte-identical draw.
     if (asset.pose) {
       ctx.save(); ctx.translate(x, y); applyPose(ctx, asset.pose, 1, tileH)
-      if (single) drawIsoSingleTileBlock(ctx, { x: 0, y: 0 }, bw, bd, bh, 1, dvBlock, recolor, asset.depth, asset.depthDir)
-      else drawIsoTileBlock(ctx, { x: 0, y: 0 }, bw, bd, bh, 1, dvBlock, recolor, undefined, asset.depth, asset.depthDir)
+      drawIsoTileForShape(ctx, { x: 0, y: 0 }, bw, bd, bh, 1, dvBlock, recolor, asset)
       if (asset.settings?.badge) drawApexBadge(ctx, 0, -bh, fontSize, asset.settings.badge)
       ctx.restore()
       return geom
     }
-    if (single) drawIsoSingleTileBlock(ctx, { x, y }, bw, bd, bh, 1, dvBlock, recolor, asset.depth, asset.depthDir)
-    else drawIsoTileBlock(ctx, { x, y }, bw, bd, bh, 1, dvBlock, recolor, undefined, asset.depth, asset.depthDir)
+    drawIsoTileForShape(ctx, { x, y }, bw, bd, bh, 1, dvBlock, recolor, asset)
     if (asset.settings?.badge) drawApexBadge(ctx, x, y - bh, fontSize, asset.settings.badge)
     return geom
   }
@@ -1819,20 +1877,17 @@ export function drawIsoAssetAscii(
     const bw = tileW * (asset.scaleX ?? 1) * zoom       // Width  — diamond half-width
     const bd = tileH * (asset.scaleZ ?? 1) * zoom       // Depth  — diamond half-height (into-screen axis)
     const bh = tileW * 0.9 * (asset.scaleY ?? 1) * zoom // Height — one block ≈ the cell's iso width, stretched up
-    // DISPLAY = "single" (per-tile setting): draw ONE centered tile INSIDE the block instead of on all faces.
-    const single = asset.settings?.display === 'single'
+    // SHAPE + DISPLAY (per-tile settings): drawIsoTileForShape picks the solid — cube (all-faces / single) or ball.
     const geom = blockGeom(x, y, bw, bd, bh, blocks, asset, tileH)
     // Per-asset pose (x/y/rotate/flip) transforms the block around its base centre — the SAME applyPose the
     // billboard/floor paths use, so moving/rotating a placed BLOCK works too. No pose → the byte-identical draw.
     if (asset.pose) {
       ctx.save(); ctx.translate(x, y); applyPose(ctx, asset.pose, 1, tileH)
-      if (single) drawIsoSingleTileBlock(ctx, { x: 0, y: 0 }, bw, bd, bh, blocks, adv, asset.color, asset.depth, asset.depthDir)
-      else drawIsoTileBlock(ctx, { x: 0, y: 0 }, bw, bd, bh, blocks, adv, asset.color, undefined, asset.depth, asset.depthDir)
+      drawIsoTileForShape(ctx, { x: 0, y: 0 }, bw, bd, bh, blocks, adv, asset.color, asset)
       ctx.restore()
       return geom
     }
-    if (single) drawIsoSingleTileBlock(ctx, { x, y }, bw, bd, bh, blocks, adv, asset.color, asset.depth, asset.depthDir)
-    else drawIsoTileBlock(ctx, { x, y }, bw, bd, bh, blocks, adv, asset.color, undefined, asset.depth, asset.depthDir)
+    drawIsoTileForShape(ctx, { x, y }, bw, bd, bh, blocks, adv, asset.color, asset)
     return geom
   }
   // A per-asset colour override tints the baked sprite (an emoji ships its own colours, so an override

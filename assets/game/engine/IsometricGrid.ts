@@ -13,7 +13,7 @@ import type { CellAnimation } from './cellAnimation'
 import type { GroundCellDims } from './groundDims'
 import type { DepthDir } from './render/isoBlock'
 import type { TilePose } from './tileset/pose'
-import type { TileDisplay } from './tileset/tileset'
+import type { TileDisplay, TileShape } from './tileset/tileset'
 
 /** GENERIC per-tile BEHAVIOR flags copied from the resolved tile's `settings` onto a placed asset, so ONE
  *  render path drives them for ANY tile — a wall, a roof, or a tree leaf. No `type:'building'` special case:
@@ -72,6 +72,10 @@ export interface GridAsset {
   baseShadow?: boolean  // generator-marked tree-base cell → always casts a ground shadow
   buildingType?: string // building cell's TYPE (store/hospital/…) → drives the apex signage badge
   settings?: AssetSettings // GENERIC per-tile behavior (fade/cutaway/badge) copied from the tile — ONE render path reads it
+  shape?: TileShape     // PER-INSTANCE render SHAPE: 'square' (default cube) | 'circle' (shaded ball). Absent/'square'
+                        // → the existing cube render, byte-identical. 'circle' → the renderer builds a ball in the
+                        // SAME volume, tinted by `color`. Round-trips in Template.assetsData like scaleX/pose/display.
+                        // Extensible via a render dispatch map keyed by this value ('oval', … add one drawer, no if).
   edge?: string         // building cell's corner/edge/interior class (nw/n/ne/w/interior/e/sw/s/se) → tileset mapping + debug overlay
   footprint?: number    // town-square fountain: the basin side (cells) this ONE prop spans → render one big fountain, not N
   cellPart?: string     // generated cell-part label (tree_stem/tree_top_left/…) surfaced for the DEBUG overlay only. Kept

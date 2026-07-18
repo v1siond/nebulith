@@ -67,6 +67,8 @@ export interface TemplateData {
     heightLevel?: number
     tileKey?: string
     label?: string
+    shape?: string            // per-instance render SHAPE ('square' cube default | 'circle' ball) — round-trips
+                              // via the shallow clone in deserializeToGrid, like scaleX/pose/display
     animations?: Animation[]  // authored TILE ANIMATIONS (settings tweens) — round-trips like cellAnim; the
                               // fountain's water cells ship the rise/fade loop as a composition default
     placedAt?: number         // clock anchor (ms) a tile animation's start/loop delays are measured from

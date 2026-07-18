@@ -31,6 +31,16 @@ export type TilePosition =
  *  is drawn on the block — it never introduces a glyph. */
 export type TileDisplay = 'all-faces' | 'single'
 
+/** SHAPE — the SOLID a tile's block is rendered as. A per-tile render SETTING (lives in the tile's `settings`
+ *  jsonb / a per-ASSET override from the editor), the sibling of `display`:
+ *    • 'square' (DEFAULT, current behaviour) — the tile extrudes into an iso CUBE (drawIsoTileBlock), a front
+ *      rect in 2D, a footprint square in Top.
+ *    • 'circle' — the renderer builds a shaded BALL (a sphere tinted by the tile's colour setting) in the SAME
+ *      volume the cube would occupy; 2D/Top show a shaded disc in the same footprint.
+ *  Absent → 'square' (byte-identical to before). Designed to grow ('oval', …) via a dispatch map keyed by this
+ *  value, NOT hardcoded branches — a new shape adds one drawer, never a new `if`. */
+export type TileShape = 'square' | 'circle'
+
 export interface TilesetTile {
   /** The swap key — same across every tileset, so re-skin is a label match. */
   label: string
@@ -129,6 +139,9 @@ export interface CompositionCell {
 export interface CompositionCellSettings {
   scaleY?: number
   display?: TileDisplay
+  /** the SOLID this cell's tile renders as ('square' cube default, 'circle' ball) — stampComposition copies it
+   *  onto the placed asset's `shape`, so a composition can ship a default shape (a lamp globe = a circle cell). */
+  shape?: TileShape
   pose?: TilePose
 }
 

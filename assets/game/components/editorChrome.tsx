@@ -8,7 +8,7 @@ import { BUILT_IN_STYLES, type TileCategory, type TileDef, genderize, tilesForSt
 import type { EntityVariant } from '@/game/types'
 import type { AnimDirection, AnimFrame, AnimTrigger, EntityAnimation } from '@/game/runtime/entityAnimation'
 import type { TilePose } from '@/engine/tileset/pose'
-import type { TileDisplay } from '@/engine/tileset/tileset'
+import type { TileDisplay, TileShape } from '@/engine/tileset/tileset'
 import type { DepthDir } from '@/engine/render'
 import { DEFAULT_ACTION_PARAMS, makeTrigger, type Trigger, type TriggerActionType, type TriggerEvent } from '@/game/runtime/trigger'
 import {
@@ -610,6 +610,10 @@ export interface TileControlModel {
    *  only — the floor omits onDisplay (a flat cell has no block volume to sit a single tile inside). */
   display?: TileDisplay | null
   onDisplay?: (mode: TileDisplay) => void
+  /** SHAPE — the solid the tile renders as: 'square' (cube, default) vs 'circle' (a shaded ball). Reads
+   *  asset.shape; null = mixed. Asset tiles only (mirrors Display — the floor has no block to reshape). */
+  shape?: TileShape | null
+  onShape?: (shape: TileShape) => void
   /** the tile pinned to this stack level (GridAsset.tileOverride), or null = follows the global style. */
   override?: string | null
   /** the active global style name, shown in the "Change tile" affordance. */
@@ -731,6 +735,20 @@ function DisplayModeRow({ display, onDisplay }: { display: TileDisplay | null; o
   )
 }
 
+/** SHAPE — the SOLID the tile's block renders as: "Square" (the default cube) or "Circle" (a shaded ball). A
+ *  two-button toggle mirroring the Display toggle. Asset tiles only. Designed to grow (Oval, …) — add a button
+ *  + a render drawer, no new branch. */
+function ShapeModeRow({ shape, onShape }: { shape: TileShape | null; onShape: (shape: TileShape) => void }) {
+  return (
+    <label className="flex items-center gap-2" title="Shape — render the tile as a cube (square) or a ball (circle)">
+      <span className="w-14 shrink-0 text-[10px] text-gray-400">Shape</span>
+      <button onClick={() => onShape('square')} aria-pressed={shape === 'square'} className={`rounded px-2 py-0.5 text-[10px] font-bold ${shape === 'square' ? 'bg-cyan-600 text-white' : 'bg-gray-700 hover:bg-gray-600'}`}>Square</button>
+      <button onClick={() => onShape('circle')} aria-pressed={shape === 'circle'} className={`rounded px-2 py-0.5 text-[10px] font-bold ${shape === 'circle' ? 'bg-cyan-600 text-white' : 'bg-gray-700 hover:bg-gray-600'}`}>Circle</button>
+      {shape === null && mixedBadge}
+    </label>
+  )
+}
+
 /** Z POSITION — SLIDE the tile along an iso DIAGONAL (NOT a vertical lift): a magnitude (± cells) plus WHICH
  *  diagonal it slides along, reusing the same 4 dirs + labels as Z Width. +z slides TOWARD the picked dir,
  *  −z toward its opposite; default 'right-up' ("right top") → +z = up-right toward the back. The direction
@@ -777,6 +795,8 @@ export function TileControls({ tile }: { tile: TileControlModel }) {
       {tile.onZIndex && <ZIndexRow zIndex={tile.zIndex ?? 0} onZIndex={tile.onZIndex} />}
       {/* Display mode: paint the tile on ALL faces, or ONE tile inside the block. Asset tiles only. */}
       {tile.onDisplay && <DisplayModeRow display={tile.display ?? 'all-faces'} onDisplay={tile.onDisplay} />}
+      {/* Shape: render the tile's block as a cube (square) or a ball (circle). Asset tiles only. */}
+      {tile.onShape && <ShapeModeRow shape={tile.shape ?? 'square'} onShape={tile.onShape} />}
       <DimRow label="Zoom" axis="zoom" value={tile.dims.zoom} title="Zoom — scales Width, Height and Zoom together" onDim={tile.onDim} />
       {/* x/y/rotate/flip live in the SAME group — there is NO separate POSE section */}
       {setPose && (

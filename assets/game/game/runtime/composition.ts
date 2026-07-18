@@ -142,6 +142,9 @@ function stampRun(
   // the post, not tiled across the block faces) regardless of the tile's own display. Merge AFTER the tile
   // behavior so it rides alongside any fade/cutaway (and the badge below) without clobbering them.
   if (cs?.display) asset.settings = { ...(asset.settings ?? {}), display: cs.display }
+  // A cell can also PIN a render SHAPE (`circle` → a shaded ball instead of a cube — a lamp globe, a berry).
+  // Copied straight onto the placed asset; absent → the tile stays a square (cube), unchanged.
+  if (cs?.shape) asset.shape = cs.shape
   // Apex signage: a titled composition (store/hospital) badges its ONE roof-apex cell with its NAME.
   if (comp.title && c.label.startsWith('roof_top')) {
     asset.settings = { ...(asset.settings ?? {}), badge: { text: comp.title, color: BADGE_COLOR } }
