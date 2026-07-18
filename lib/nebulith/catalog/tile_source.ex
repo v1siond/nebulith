@@ -948,7 +948,11 @@ defmodule Nebulith.Catalog.TileSource do
             label: "lamp",
             walkable: true,
             scale: 0.6,
-            settings: %{"display" => "single", "pose" => %{"dy" => -1.8}}
+            settings: %{"display" => "single", "pose" => %{"dy" => -1.8}},
+            # The bulb GLOWS + FLICKERS by default (Stage 1 of restoring the night light) — a warm colour
+            # breathe + a fast opacity dip, stamped onto the placed asset like the fountain water. See
+            # lamp_glow_anim/0 and ANIMATION-SYSTEM.md.
+            animations: lamp_glow_anim()
           }
         ]
       }
@@ -1006,6 +1010,54 @@ defmodule Nebulith.Catalog.TileSource do
         "trigger" => %{"on" => "load"},
         "tracks" => [
           %{"setting" => "height", "from" => 1, "to" => 4}
+        ]
+      }
+    ]
+  end
+
+  # The lamp BULB's DEFAULT ANIMATIONS — Stage 1 of restoring the night light (Alexander: "we lost the light on
+  # nightmode … use color animations to simulate light on off or even failing"). When the lamp became a
+  # post+bulb COMPOSITION its cells stamp as `type: "lamp_post"` assets, so the old night light pool (drawn by
+  # collectLampGlows/drawNightLighting for `type: "lamp"` props) stopped firing. This puts a LIT, flickering
+  # bulb back through the EXISTING animation engine — the SAME cell-default path the fountain water uses — with
+  # TWO envelopes on DIFFERENT settings so neither wins-takes-all over the other:
+  #   • lamp_glow    — the warm COLOUR breathe (amber ↔ bright warm), a slow yoyo → a steady lit filament.
+  #   • lamp_flicker — a fast, subtle OPACITY dip (1 → 0.72) → the "on/off, even failing" flicker.
+  # Distinct periods (glow 1300ms vs flicker 260ms yoyo) → the two drift permanently out of phase, so the lamp
+  # reads as a live/unstable street light rather than a clean unison pulse. Both are unconditional `load` loops:
+  # the animation engine has NO night trigger yet, so this plays day AND night (a gentle warm bulb reads fine in
+  # both). NIGHT-GATING + the radial ground light POOL are Stage 2 (a dedicated `light` effect). Pure DATA —
+  # tune the colours/timings on the cell, no render special-casing.
+  defp lamp_glow_anim do
+    [
+      %{
+        "id" => "lamp_glow",
+        "name" => "glow",
+        "kind" => "settings",
+        "durationMs" => 1300,
+        "loopDelayMs" => 0,
+        "loop" => true,
+        "yoyo" => true,
+        "ease" => "sine",
+        "priority" => 1,
+        "trigger" => %{"on" => "load"},
+        "tracks" => [
+          %{"setting" => "color", "from" => "#ffcf6b", "to" => "#fff2c4"}
+        ]
+      },
+      %{
+        "id" => "lamp_flicker",
+        "name" => "flicker",
+        "kind" => "settings",
+        "durationMs" => 260,
+        "loopDelayMs" => 90,
+        "loop" => true,
+        "yoyo" => true,
+        "ease" => "sine",
+        "priority" => 1,
+        "trigger" => %{"on" => "load"},
+        "tracks" => [
+          %{"setting" => "opacity", "from" => 1, "to" => 0.72}
         ]
       }
     ]

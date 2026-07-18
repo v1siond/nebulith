@@ -102,6 +102,46 @@ defmodule Nebulith.TileSourceTest do
     end
   end
 
+  test "the lamp bulb glows + flickers by default — a colour breathe + opacity flicker restore the lost night light" do
+    # Alexander: "we lost the light on nightmode … use color animations to simulate light on off or even failing".
+    # Stage 1 puts a LIT/flickering bulb back by stamping the animation engine's cell-default animations onto the
+    # `lamp` cell — the SAME path the fountain water uses — a warm COLOUR breathe + a faster OPACITY flicker. Two
+    # envelopes on DIFFERENT settings (colour vs opacity) so neither wins-takes-all over the other, on DISTINCT
+    # periods so they drift and the lamp reads as a live, slightly failing street light. Unconditional `load`
+    # loops — the engine has no night trigger yet (that gating is the Stage 2 dedicated `light` effect).
+    lamp_post = Enum.find(Catalog.list_compositions(), &(&1.name == "lamp_post"))
+    lamp = Enum.find(lamp_post.cells, &(&1.label == "lamp"))
+    post = Enum.find(lamp_post.cells, &(&1.label == "post"))
+
+    # only the bulb carries the light — the post base never animates
+    refute post.animations
+
+    anims = lamp.animations
+    assert is_list(anims), "the lamp bulb must carry default animations"
+    assert length(anims) == 2
+
+    glow = Enum.find(anims, &(&1["id"] == "lamp_glow"))
+    flicker = Enum.find(anims, &(&1["id"] == "lamp_flicker"))
+    assert glow, "the lamp carries a colour-breathe glow animation"
+    assert flicker, "the lamp carries an opacity flicker animation"
+
+    # the GLOW breathes the bulb's COLOUR (warm amber ↔ bright warm), looping yoyo
+    assert glow["kind"] == "settings"
+    assert glow["loop"] == true and glow["yoyo"] == true
+    assert [%{"setting" => "color"} = track] = glow["tracks"]
+    assert is_binary(track["from"]) and is_binary(track["to"])
+
+    # the FLICKER pulses OPACITY (a fast, subtle on/off dip), looping yoyo
+    assert flicker["kind"] == "settings"
+    assert flicker["loop"] == true and flicker["yoyo"] == true
+    assert [%{"setting" => "opacity", "from" => 1, "to" => to}] = flicker["tracks"]
+    assert to < 1
+
+    # DISTINCT periods → the two drift permanently out of phase → the lamp reads as live / failing, never a clean
+    # unison pulse (the fountain-desync philosophy applied to one bulb via two settings).
+    refute flicker["durationMs"] == glow["durationMs"]
+  end
+
   test "z_index defaults to 0 on EVERY composition cell (nothing carries a non-zero draw priority by default)" do
     # After the revert, no cell is seeded with a non-zero draw priority — trees, bushes, all buildings, the
     # light post, AND the fountain/well rim + water all sort positionally at the column default 0.
