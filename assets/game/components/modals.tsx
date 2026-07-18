@@ -1,7 +1,7 @@
 // Reusable modal + entity-inspector modal bodies (identity/stats, movement,
 // attacks) and the quest-offer body. Moved out of the page (stage 4);
 // props-driven presentational components.
-import { useEffect } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ABILITY_REGISTRY, ABILITY_TINT, type AbilityAnimation } from '@/game/abilities'
 import { ENEMY_ATTACK_PRESETS, addEnemyAttack, addMovementStep, buildAttackPattern, buildStepList, clearWaypoints, defaultEnemyAttack, enemyAttackFromAbility, normalizeAttackPattern, removeEnemyAttack, removeMovementStep, setAttackPatternMode, setMovementMode, setStepDelay, updateEnemyAttack, updateMovementStep } from '@/game/patterns'
 import { rewardSummary } from '@/game/runtime/quest'
@@ -11,10 +11,24 @@ import { QuestObjectives } from '@/components/game/hud'
 /** Right-sidebar inspector for a clicked entity: edit its name / enemy-type, toggle
  *  whether it's hittable (a non-hittable enemy becomes passive scenery), see its
  *  stats + patrol, and delete it. Presentational — actions bubble to the editor. */
+/** The accent name every panel (Modal + FloatingPanel) shares — one place so a new colour is added once. */
+export type PanelAccent = 'orange' | 'cyan' | 'purple' | 'blue' | 'yellow' | 'red'
+
+/** Accent → border ring class. Shared by the centered Modal and the floating panel so they read as one family. */
+const ACCENT_RING: Record<PanelAccent, string> = {
+  orange: 'border-orange-500/40', cyan: 'border-cyan-500/40', purple: 'border-purple-500/40',
+  blue: 'border-blue-500/40', yellow: 'border-yellow-500/40', red: 'border-red-500/40',
+}
+/** Accent → header text class. */
+const ACCENT_HEAD: Record<PanelAccent, string> = {
+  orange: 'text-orange-300', cyan: 'text-cyan-300', purple: 'text-purple-300',
+  blue: 'text-blue-300', yellow: 'text-yellow-300', red: 'text-red-300',
+}
+
 /** Reusable modal — dark gaming panel; click the backdrop or press Esc to close. */
 export function Modal({ title, accent = 'orange', onClose, children, wide, anchor }: {
   title: string
-  accent?: 'orange' | 'cyan' | 'purple' | 'blue' | 'yellow' | 'red'
+  accent?: PanelAccent
   onClose: () => void
   children: React.ReactNode
   wide?: boolean
@@ -27,14 +41,8 @@ export function Modal({ title, accent = 'orange', onClose, children, wide, ancho
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
-  const ring = {
-    orange: 'border-orange-500/40', cyan: 'border-cyan-500/40', purple: 'border-purple-500/40',
-    blue: 'border-blue-500/40', yellow: 'border-yellow-500/40', red: 'border-red-500/40',
-  }[accent]
-  const head = {
-    orange: 'text-orange-300', cyan: 'text-cyan-300', purple: 'text-purple-300',
-    blue: 'text-blue-300', yellow: 'text-yellow-300', red: 'text-red-300',
-  }[accent]
+  const ring = ACCENT_RING[accent]
+  const head = ACCENT_HEAD[accent]
   // Anchored: float the panel above the world point (translate up + center on x);
   // otherwise fall back to the centered flex layout.
   const panelPos = anchor
@@ -60,6 +68,116 @@ export function Modal({ title, accent = 'orange', onClose, children, wide, ancho
         </header>
         <div className="overflow-y-auto p-4">{children}</div>
       </div>
+    </div>
+  )
+}
+
+/** A screen point / size (px). */
+interface XY { x: number; y: number }
+interface WH { w: number; h: number }
+
+const FLOATING_MIN: WH = { w: 260, h: 200 } // small enough to tuck aside, big enough to grab
+
+/** Keep at least the header grabbable: clamp so the panel can never be dragged fully off-screen. */
+function clampToViewport(pos: XY, size: WH): XY {
+  if (typeof window === 'undefined') return pos
+  const maxX = window.innerWidth - 80 // leave a sliver + the ✕ reachable
+  const maxY = window.innerHeight - 40
+  return { x: Math.max(8 - (size.w - 80), Math.min(pos.x, maxX)), y: Math.max(8, Math.min(pos.y, maxY)) }
+}
+
+/**
+ * FLOATING PANEL — a NON-BLOCKING sibling of {@link Modal} for settings you edit while watching the thing
+ * change: it has NO full-screen backdrop (so the canvas behind stays pannable and the edited tile stays
+ * visible + clickable), you DRAG it aside by its header, and RESIZE it from the bottom-right grip. Same dark
+ * accent chrome + Esc-to-close as Modal, but positioned `fixed` at an (x,y) the user can move. Live-updating
+ * is inherent: the body is just children (e.g. TileControls) whose writers already fan out to the selection,
+ * and because the panel never covers the whole screen the edit's effect is visible immediately.
+ *
+ * `role="dialog"` WITHOUT `aria-modal` — it is deliberately non-modal (the rest of the page stays live).
+ */
+export function FloatingPanel({ title, accent = 'cyan', onClose, children, initialPos, initialSize }: {
+  title: string
+  accent?: PanelAccent
+  onClose: () => void
+  children: React.ReactNode
+  /** where the panel first appears; defaults to the top-right so it doesn't cover the centred selection. */
+  initialPos?: XY
+  initialSize?: WH
+}) {
+  const [size, setSize] = useState<WH>(() => initialSize ?? { w: 340, h: 440 })
+  const [pos, setPos] = useState<XY>(() => {
+    if (initialPos) return initialPos
+    if (typeof window === 'undefined') return { x: 24, y: 96 }
+    return { x: window.innerWidth - (initialSize?.w ?? 340) - 24, y: 96 }
+  })
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
+
+  // Drag by the header: capture the grab origin, then follow the pointer on WINDOW listeners (not the panel's
+  // own) so the drag keeps tracking even when the cursor races out over the canvas. Removed on mouse-up.
+  const startDrag = (e: React.MouseEvent) => {
+    e.preventDefault()
+    const origin = { mx: e.clientX, my: e.clientY, x: pos.x, y: pos.y }
+    const onMove = (ev: MouseEvent) =>
+      setPos(clampToViewport({ x: origin.x + (ev.clientX - origin.mx), y: origin.y + (ev.clientY - origin.my) }, size))
+    const onUp = () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp) }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+  }
+
+  // Resize from the bottom-right grip — same window-listener pattern; clamp to a sane minimum so it can't
+  // collapse to nothing.
+  const startResize = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    const origin = { mx: e.clientX, my: e.clientY, w: size.w, h: size.h }
+    const onMove = (ev: MouseEvent) =>
+      setSize({
+        w: Math.max(FLOATING_MIN.w, origin.w + (ev.clientX - origin.mx)),
+        h: Math.max(FLOATING_MIN.h, origin.h + (ev.clientY - origin.my)),
+      })
+    const onUp = () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp) }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+  }
+
+  return (
+    <div
+      className={`fixed z-50 flex flex-col overflow-hidden rounded-xl border ${ACCENT_RING[accent]} bg-gray-950 font-mono text-white shadow-2xl shadow-black/60`}
+      style={{ left: pos.x, top: pos.y, width: size.w, height: size.h }}
+      role="dialog"
+      aria-label={title}
+    >
+      <header
+        onMouseDown={startDrag}
+        data-drag-handle
+        className="flex shrink-0 cursor-move select-none items-center justify-between border-b border-white/10 bg-black/40 px-4 py-3"
+      >
+        <h3 className={`text-sm font-bold uppercase tracking-widest ${ACCENT_HEAD[accent]}`}>{title}</h3>
+        <button
+          onMouseDown={e => e.stopPropagation()}
+          onClick={onClose}
+          aria-label="Close"
+          className="rounded px-2 py-1 text-gray-400 hover:bg-white/10 hover:text-white"
+        >
+          ✕
+        </button>
+      </header>
+      <div className="min-h-0 flex-1 overflow-y-auto p-4">{children}</div>
+      {/* bottom-right resize grip */}
+      <div
+        onMouseDown={startResize}
+        data-resize-handle
+        aria-label="Resize panel"
+        role="separator"
+        className="absolute bottom-0 right-0 h-4 w-4 cursor-nwse-resize"
+        style={{ background: 'linear-gradient(135deg, transparent 50%, rgba(255,255,255,0.35) 50%)' }}
+      />
     </div>
   )
 }

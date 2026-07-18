@@ -63,7 +63,7 @@ import { playSwoosh } from '@/game/runtime/audio'
 import { Card, EntityToolButton, ViewButton } from '@/components/game/controls'
 import { AbilityBar, CombatHud, QuestHud } from '@/components/game/hud'
 import { EquipmentPanel, InventoryCard, QuestAuthoringCard, QuestLogPanel } from '@/components/game/panels'
-import { EntityAttackBody, EntityIdentityStatsBody, EntityMovementBody, Modal, QuestGiveBody } from '@/components/game/modals'
+import { EntityAttackBody, EntityIdentityStatsBody, EntityMovementBody, FloatingPanel, Modal, QuestGiveBody } from '@/components/game/modals'
 import { FlowViewOverlay, GamesViewOverlay } from '@/components/game/games'
 import { BUILDING_TOOL_TYPE, type BuildingTool, type EditorMode, type EntityTool } from '@/components/game/editorConfig'
 import { AnimationEditor, ArtSection, Dropdown, FpsReadout, GenerateControls, PoseControls, PropertiesPanel, type TileControlModel, SelectionHeader, StylePicker, TileAnimationEditor, TileControls, TileLibraryBody, TilePalette, ToolRail, TriggerEditor, WEAPON_KINDS } from '@/components/game/editorChrome'
@@ -5742,13 +5742,14 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                               onOpenSettings={() => setTileSettingsOpen(true)}
                               onRemove={lvl >= 1 ? removeSelectedTile : undefined}
                             />
-                            {/* Tile-settings modal — the full TileControls body (colour/size/pose/z/display),
-                                opened from the inspector's "Edit settings…". The writers already fan out to
-                                the i-th stacked tile of every selected cell (setAssetDim/Pose/…). */}
+                            {/* Tile-settings panel — the full TileControls body (colour/size/pose/z/display),
+                                opened from the inspector's "Edit settings…". A FLOATING panel (not a modal): no
+                                backdrop, so you drag it aside and WATCH the tile repaint as you edit. The writers
+                                already fan out to the i-th stacked tile of every selected cell (setAssetDim/Pose/…). */}
                             {tileSettingsOpen && (
-                              <Modal title={`${tile.label} — Settings`} accent="cyan" wide onClose={() => setTileSettingsOpen(false)}>
+                              <FloatingPanel title={`${tile.label} — Settings`} accent="cyan" onClose={() => setTileSettingsOpen(false)}>
                                 <TileControls tile={tile} />
-                              </Modal>
+                              </FloatingPanel>
                             )}
                             {/* Phase-4 tile-animation modal — authors THIS asset tile's GridAsset.animations
                                 (e.g. the fountain water). Only opens for an asset tile; writes fan out to the
