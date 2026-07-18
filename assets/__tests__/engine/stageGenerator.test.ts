@@ -1,6 +1,6 @@
 import '@/__tests__/helpers/installTilesetSeed' // the generator reads ALL tile data (terrain/canopy/decor) + building compositions from the loaded backend tileset fixture
 import { installSeedTileset } from '@/__tests__/helpers/tilesetSeed'
-import { generateStage, stagePaint, footprintEdgeClass, footprintSide, footprintRing, edgeToSide, treeSubpart, labelForCell } from '@/engine/stageGenerator'
+import { generateStage, stagePaint, footprintEdgeClass, footprintSide, footprintRing, edgeToSide, treeSubpart, labelForCell, pickLivingTree } from '@/engine/stageGenerator'
 import { BUILDING_DEPTH } from '@/engine/buildingCatalog'
 import { parseColor } from '@/engine/colors'
 import { resolveGroundTile, canopyCount, resolveComposition } from '@/engine/tileset/tileset'
@@ -288,11 +288,18 @@ describe('generateStage — trees are recorded as stacked-composition anchors (t
   // every tile is selectable. The stacked-block shape + glyph/colour are covered by treeComposition.test.ts.
   const stage = generateStage({ zone: 'summer', variant: 'forest', cols: 30, rows: 24 })
 
-  it('records tree ANCHORS (not flat props) — each names a composition kind + canopy variant', () => {
+  const TREE_KINDS = new Set(['tree', 'tree_tall', 'tree_stub', 'tree_round', 'bush', 'bush_round', 'tree_dead'])
+
+  it('records tree ANCHORS (not flat props) — each names a living-tree composition kind + canopy variant', () => {
     expect(stage.trees.length).toBeGreaterThan(0)
     expect(stage.props.filter(p => p.type === 'tree')).toHaveLength(0) // trees no longer bake flat props
-    expect(stage.trees.every(t => t.kind === 'tree' || t.kind === 'tree_dead')).toBe(true)
+    expect(stage.trees.every(t => TREE_KINDS.has(t.kind))).toBe(true)
     expect(stage.trees.every(t => Number.isInteger(t.variant) && t.variant >= 0)).toBe(true)
+  })
+
+  it('RANDOMIZES the tree shapes — a forest shows MULTIPLE variants, not one repeated shape', () => {
+    const kinds = new Set(stage.trees.map(t => t.kind))
+    expect(kinds.size).toBeGreaterThanOrEqual(3) // standard + several of tall/small/round/bush appear
   })
 
   it('blocks EVERY tree anchor cell — trees are fully solid (no passable cell to step into)', () => {
@@ -812,5 +819,19 @@ describe('labelForCell — ONE consistent debug-label standard across every elem
     }
     expect(labelForCell('building', 'TOP-RIGHT')).toBe('BUILDING TOP-RIGHT')
     expect(labelForCell('tree', 'CANOPY TOP-RIGHT')).toBe('TREE CANOPY TOP-RIGHT')
+  })
+})
+
+describe('pickLivingTree — weighted random tree-shape variety', () => {
+  it('spans the FULL variant set across the [0,1) roll range (no shape is unreachable)', () => {
+    const seen = new Set<string>()
+    for (let i = 0; i < 1000; i++) seen.add(pickLivingTree(i / 1000))
+    expect(seen).toEqual(new Set(['tree', 'tree_tall', 'tree_round', 'tree_stub', 'bush', 'bush_round']))
+  })
+
+  it('is deterministic for a given roll and stays in-bounds at the edges', () => {
+    expect(pickLivingTree(0)).toBe('tree') // the dominant standard tree leads the table
+    expect(pickLivingTree(0)).toBe(pickLivingTree(0)) // pure
+    expect(pickLivingTree(0.9999)).toBe('bush_round') // last slice → the final variant, never out of range
   })
 })

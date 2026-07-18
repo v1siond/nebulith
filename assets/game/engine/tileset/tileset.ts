@@ -135,9 +135,13 @@ export interface CompositionCell {
 }
 
 /** The tuned per-cell tile settings a composition cell can carry (backend jsonb) — applied onto the placed
- *  GridAsset by stampComposition. A small, extensible bag: today `scaleY` (Height), `display`, `pose`. */
+ *  GridAsset by stampComposition. A small, extensible bag: `scaleX`/`scaleY` (Width/Height), `display`, `pose`,
+ *  `shape`. Width (scaleX) + Depth (scaleZ) ride here like Height so a composition can ship a THIN trunk (a
+ *  tree's skinny/thick trunk is a per-variant width) without touching the uniform Zoom (`scale`) column. */
 export interface CompositionCellSettings {
+  scaleX?: number
   scaleY?: number
+  scaleZ?: number
   display?: TileDisplay
   /** the SOLID this cell's tile renders as ('square' cube default, 'circle' ball) — stampComposition copies it
    *  onto the placed asset's `shape`, so a composition can ship a default shape (a lamp globe = a circle cell). */

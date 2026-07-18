@@ -262,28 +262,34 @@ describe('sample compositions — realistic building/fountain/tree DATA from the
     expect(assetKind({ type: 'fountain', label: 'fountain' })).toBe('fountain')
   })
 
-  test('tree: JUST 3 stacked cells — a 2-segment brown trunk (L0–1) topped by ONE 2× leaf canopy cell', () => {
+  test('tree: EXACTLY 2 tiles — one thin tall trunk (L0) + one bigger leaf cube lifted onto its top', () => {
     const c = comp('tree')
-    const cells = c.cells as Array<Cell & { scale?: number }>
-    expect(cells.length).toBe(3) // 3 stacked cells (2 trunk + 1 leaf) — down from the retired 12
-    expect(c.footprint).toEqual({ w: 1, h: 1 }) // a single column, not a 3×3 canopy footprint
-    // a 2-SEGMENT trunk climbs the centre column (levels 0/1), single column, and the BASE is a trunk
+    const cells = c.cells as Array<Cell & { scale?: number; settings?: { scaleX?: number; scaleY?: number } }>
+    expect(cells.length).toBe(2) // the optimized model — one trunk, one leaf (Alexander: "just two tiles")
+    expect(c.footprint).toEqual({ w: 1, h: 1 }) // a single column, not a canopy footprint
+    // ONE trunk cell on the ground (L0): a thin tall post — Zoom(scale) 0.6, Height(settings.scaleY) 3.15.
     const trunk = cells.filter(x => x.label.startsWith('trunk'))
-    expect(trunk.map(x => x.level).sort((a, b) => a - b)).toEqual([0, 1])
-    expect(trunk.every(x => x.dx === 0 && x.dy === 0)).toBe(true)
-    expect(cells.filter(x => x.level === 0).every(x => x.label.startsWith('trunk'))).toBe(true) // base is a TRUNK, not a leaf
-    // ONE leaf cell tops the trunk (level 2), in the SAME column, drawn at 2× (a 2×2 crown — the "zoom the top tile 2")
+    expect(trunk.length).toBe(1)
+    expect([trunk[0].dx, trunk[0].dy, trunk[0].level]).toEqual([0, 0, 0]) // base is a TRUNK on the ground
+    expect(trunk[0].scale).toBe(0.6)
+    expect(trunk[0].settings?.scaleY).toBe(3.15)
+    // ONE leaf cell tops the trunk (level 2), same column, zoomed UP into a bigger cube (Zoom 1.35, Height 2).
     const leaves = cells.filter(x => x.label.startsWith('leaf'))
     expect(leaves.length).toBe(1)
     const leaf = leaves[0]
     expect(leaf.label).toBe('leaf_center')
     expect([leaf.dx, leaf.dy, leaf.level]).toEqual([0, 0, 2])
-    expect(leaf.level).toBeGreaterThan(Math.max(...trunk.map(x => x.level))) // the leaf sits ABOVE the trunk
-    expect(leaf.scale).toBe(2) // the 2× is DATA on the cell (composition_cells.scale), not a frontend heuristic
+    expect(leaf.level).toBeGreaterThan(trunk[0].level) // the leaf sits ABOVE the trunk
+    expect(leaf.scale).toBe(1.35)
+    expect(leaf.settings?.scaleY).toBe(2)
+    // DIMENSION SANITY: the trunk is thinner + less zoomed than the leaves (never a top-heavy-inverted tree).
+    expect((trunk[0].scale ?? 1)).toBeLessThan(leaf.scale ?? 1)
     // the retired 9-slice canopy is gone
     expect(cells.some(x => x.label.startsWith('canopy'))).toBe(false)
-    // The bush, by contrast, is trunkless (a low leaf mound) — trunks are a TREE thing.
-    expect((comp('bush').cells as Cell[]).some(x => x.label.startsWith('trunk'))).toBe(false)
+    // The bush, by contrast, is trunkless — a SINGLE leaf tile, no trunk.
+    const bush = comp('bush').cells as Cell[]
+    expect(bush.length).toBe(1)
+    expect(bush.some(x => x.label.startsWith('trunk'))).toBe(false)
   })
 })
 

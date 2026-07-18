@@ -103,37 +103,87 @@ describe('tree composition — every ascii asset is a collection of selectable D
     expect(col.map(t => t.label)).toEqual(['trunk_base', 'trunk', 'snag'])
   })
 
-  // ── The redesigned living `tree` — JUST 3 stacked cells (2 trunk + 1 leaf at 2×) ──────────────────────
-  test('the NEW tree stamps JUST 3 stacked cells — trunk L0/L1 + leaf L2, the leaf drawn at 2× (scale on the asset)', () => {
+  // ── The optimized living `tree` — EXACTLY 2 tiles (thin tall trunk + bigger leaf cube on top) ──────────
+  test('the tree stamps EXACTLY 2 cells — a thin tall trunk (L0) + a bigger leaf cube lifted onto its top', () => {
     const grid = mkGrid()
     const placed = stampComposition(grid, 'tree', 7, 7, 'spring', 0)
-    expect(placed).toBe(3) // down from 12 — 2 trunk + 1 leaf, one column
+    expect(placed).toBe(2) // Alexander's optimized reference: "just two tiles, one trunk, one leafs" (down from 3)
 
     const col = getStack(grid, 7, 7).filter(t => t.source === 'asset')
-    expect(col.map(t => t.heightLevel)).toEqual([0, 1, 2])
-    expect(col.map(t => t.label)).toEqual(['trunk_bottom', 'trunk_mid', 'leaf_center'])
+    expect(col.map(t => t.label)).toEqual(['trunk_mid', 'leaf_center'])
+    expect(col.map(t => t.heightLevel)).toEqual([0, 2]) // trunk on the ground; leaf lifted to the trunk top
 
-    // the 2× is DATA carried on the cell (composition_cells.scale) → the placed asset's uniform zoom (asset.scale)
+    // The user's hand-tuned settings ride the cell: trunk = Height(scaleY) 3.15 at Zoom(scale) 0.6 (thin tall
+    // post); leaf = Height(scaleY) 2 at Zoom(scale) 1.35 (a bigger cube). All DATA — nothing hardcoded.
+    const trunk = grid.assets.find(a => a.label === 'trunk_mid')!
     const leaf = grid.assets.find(a => a.label === 'leaf_center')!
-    expect(leaf.scale).toBe(2)
-    for (const l of ['trunk_bottom', 'trunk_mid']) expect(grid.assets.find(a => a.label === l)!.scale ?? 1).toBe(1) // trunks draw at 1×
+    expect(trunk.scale).toBe(0.6)
+    expect(trunk.scaleY).toBe(3.15)
+    expect(leaf.scale).toBe(1.35)
+    expect(leaf.scaleY).toBe(2)
   })
 
-  test('the NEW tree: only the trunk cell blocks — the 2× leaf is walkable overhead', () => {
+  test('the tree: only the trunk cell blocks — the leaf cube is walkable overhead', () => {
     const grid = mkGrid()
     stampComposition(grid, 'tree', 7, 7, 'spring', 0)
     expect(grid.isBlocked(7, 7)).toBe(true) // the trunk column blocks its cell
-    const leaf = grid.assets.find(a => a.label === 'leaf_center')!
-    expect(leaf.blocking).toBeFalsy() // the leaf itself is walkable overhead (canopy)
+    expect(grid.assets.find(a => a.label === 'leaf_center')!.blocking).toBeFalsy() // canopy walkable overhead
   })
 
-  test('the NEW tree: a per-tree variant tints the leaf a different canopy SHADE (spring green → pink)', () => {
+  test('a per-tree variant tints the leaf a different canopy SHADE (spring green → pink) — colour is a SETTING', () => {
     const g0 = mkGrid(); stampComposition(g0, 'tree', 7, 7, 'spring', 0)
     const g3 = mkGrid(); stampComposition(g3, 'tree', 7, 7, 'spring', 3)
     const c0 = g0.assets.find(a => a.label === 'leaf_center')!.color
     const c3 = g3.assets.find(a => a.label === 'leaf_center')!.color
-    expect(c0).toBe('#7cc46a') // spring canopy shade 0 — a green
-    expect(c3).toBe('#e79ec8') // spring canopy shade 3 — the PINK tree; colour is the per-tree SETTING, not the label
-    expect(c0).not.toBe(c3)
+    expect(c0).toBe('#7cc46a') // spring canopy shade 0 — the GREEN tree
+    expect(c3).toBe('#e79ec8') // spring canopy shade 3 — the PINK tree; same label, colour is the per-tree SETTING
+  })
+
+  // ── The variant SET — small / tall / round, and the trunkless bush ────────────────────────────────────
+  const TREE_VARIANTS = ['tree', 'tree_tall', 'tree_stub', 'tree_round'] as const
+
+  test('every tree variant is EXACTLY 2 tiles — a trunk + a leaf (optimization: fewest tiles possible)', () => {
+    for (const kind of TREE_VARIANTS) {
+      const grid = mkGrid()
+      const placed = stampComposition(grid, kind, 7, 7, 'spring', 0)
+      expect(placed).toBe(2)
+      const labels = grid.assets.filter(a => a.type === kind).map(a => a.label).sort()
+      expect(labels).toEqual(['leaf_center', 'trunk_mid'])
+    }
+  })
+
+  test('a bush is the trunkless variant — a SINGLE leaf tile, no trunk cell', () => {
+    for (const kind of ['bush', 'bush_round']) {
+      const grid = mkGrid()
+      const placed = stampComposition(grid, kind, 7, 7, 'spring', 0)
+      expect(placed).toBe(1) // one tile — the leanest asset
+      const cells = grid.assets.filter(a => a.type === kind)
+      expect(cells.map(a => a.label)).toEqual(['leaf_center'])
+      expect(cells.some(a => a.label!.startsWith('trunk'))).toBe(false) // NO trunk
+    }
+  })
+
+  test('the round variants render a CIRCLE canopy — shape ships on the leaf cell (square by default)', () => {
+    const round = mkGrid(); stampComposition(round, 'tree_round', 7, 7, 'spring', 0)
+    expect(round.assets.find(a => a.label === 'leaf_center')!.shape).toBe('circle')
+    const square = mkGrid(); stampComposition(square, 'tree', 7, 7, 'spring', 0)
+    expect(square.assets.find(a => a.label === 'leaf_center')!.shape ?? 'square').toBe('square')
+  })
+
+  // ── DIMENSION-SANITY: the trunk is never bigger than the leaves (Alexander's rule) ─────────────────────
+  test('DIMENSION SANITY: for every tree variant the trunk is thinner + less zoomed than the leaves, and sits BELOW them', () => {
+    for (const kind of TREE_VARIANTS) {
+      const grid = mkGrid()
+      stampComposition(grid, kind, 7, 7, 'spring', 0)
+      const trunk = grid.assets.find(a => a.label === 'trunk_mid')!
+      const leaf = grid.assets.find(a => a.label === 'leaf_center')!
+      const trunkZoom = trunk.scale ?? 1
+      const leafZoom = leaf.scale ?? 1
+      const trunkWidth = (trunk.scaleX ?? 1) * trunkZoom // effective footprint width
+      const leafWidth = (leaf.scaleX ?? 1) * leafZoom
+      expect(trunkZoom).toBeLessThan(leafZoom) // never zoomed larger than the canopy
+      expect(trunkWidth).toBeLessThan(leafWidth) // never wider than the canopy
+      expect(leaf.heightLevel).toBeGreaterThan(trunk.heightLevel!) // leaves sit ABOVE the trunk
+    }
   })
 })

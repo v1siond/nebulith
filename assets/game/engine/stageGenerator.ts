@@ -80,10 +80,10 @@ export interface PlacedBuilding {
 export interface TreeAnchor {
   col: number
   row: number
-  /** tree = the simple crown+row backend composition — used for ALL living trees (glade AND forest-mass),
-   *  replacing the oversized 30-cell tree_small canopy blob. tree_dead = a leafless snag, UNCHANGED (kept
-   *  blocking so dead trees still obstruct — not swapped to the walkable `bush`, which would change collision). */
-  kind: 'tree' | 'tree_dead'
+  /** A living-tree SHAPE variant (2-tile trunk+leaf composition: standard / tall / small / round, or a
+   *  trunkless bush) picked by pickLivingTree so a stand shows variety — used for ALL living trees (glade AND
+   *  forest-mass). tree_dead = a leafless snag, UNCHANGED (kept blocking so dead trees still obstruct). */
+  kind: LivingTreeKind | 'tree_dead'
   variant: number
 }
 
@@ -153,6 +153,36 @@ const shadeNoise = (seed: number): number => {
 // canopy varies in coherent ~2×2 patches (contrast without per-cell noise).
 const massVariant = (col: number, row: number): number =>
   Math.floor(col / 2) * 7 + Math.floor(row / 2) * 13
+
+// The living-tree SHAPE variants the generator scatters (Alexander: "randomize trees composition … small
+// trees, long trees … circle forms … a variant without trunk to simulate bushes"). Each is a backend
+// COMPOSITION (2 tiles; a bush is 1); the per-tree COLOUR is the separate `variant` (canopy shade). Weighted
+// so standard trees dominate and the rarer forms (tall/round/stub/bush) accent — a believable mixed stand,
+// never a monoculture. Adding a shape = one row here, no dispatcher edits.
+export type LivingTreeKind = 'tree' | 'tree_tall' | 'tree_stub' | 'tree_round' | 'bush' | 'bush_round'
+
+const LIVING_TREE_VARIANTS: ReadonlyArray<{ kind: LivingTreeKind; weight: number }> = [
+  { kind: 'tree', weight: 32 },
+  { kind: 'tree_tall', weight: 22 },
+  { kind: 'tree_round', weight: 20 },
+  { kind: 'tree_stub', weight: 12 },
+  { kind: 'bush', weight: 8 },
+  { kind: 'bush_round', weight: 6 },
+]
+const LIVING_TREE_WEIGHT = LIVING_TREE_VARIANTS.reduce((sum, v) => sum + v.weight, 0)
+
+/** Pick a living-tree composition kind by WEIGHT from a [0,1) roll — `Math.random()` for the glade/town
+ *  scatter, a position hash for the coherent forest mass. This is the randomization the ticket asks for:
+ *  a stand shows standard / tall / small / round trees + bushes instead of one repeated shape. Pure +
+ *  injectable (tests pass explicit rolls to prove the full spread). */
+export function pickLivingTree(rand: number): LivingTreeKind {
+  let roll = rand * LIVING_TREE_WEIGHT
+  for (const v of LIVING_TREE_VARIANTS) {
+    if (roll < v.weight) return v.kind
+    roll -= v.weight
+  }
+  return LIVING_TREE_VARIANTS[0].kind
+}
 
 /** One blocking biome-feature cell (mountain / peak / spill) — appearance from
  *  the tileset's per-zone feature palette (ember crater in lava, snowcap + blue
@@ -1093,7 +1123,7 @@ function repairFloorConnectivity(ctx: ArchetypeContext): void {
     if (!isFloor(col, row)) return
     if (largest.has(`${col},${row}`)) return
     collision[row][col] = true
-    anchors.push({ col, row, kind: 'tree', variant: massVariant(col, row) % canopyCount(ASCII_TILESET, zone) }) // dead pocket → forest fills it
+    anchors.push({ col, row, kind: pickLivingTree(shadeNoise(col * 17 + row * 43)), variant: massVariant(col, row) % canopyCount(ASCII_TILESET, zone) }) // dead pocket → forest fills it
   })
 }
 
@@ -1326,8 +1356,9 @@ export function treeColumnClearsPaving(ground: string[][], col: number, baseRow:
  *  driven. The canopy is walkable overhead, so collision here blocks only the trunk cell — matching the stamp. */
 function stampTree(ctx: ArchetypeContext, baseCol: number, baseRow: number, dead = false): void {
   const { collision, zone, trees, cols, rows } = ctx
-  const variant = randInt(0, canopyCount(ASCII_TILESET, zone) - 1) // this tree's canopy tone
-  trees.push({ col: baseCol, row: baseRow, kind: dead ? 'tree_dead' : 'tree', variant })
+  const variant = randInt(0, canopyCount(ASCII_TILESET, zone) - 1) // this tree's canopy tone (green…pink)
+  const kind = dead ? 'tree_dead' : pickLivingTree(Math.random()) // random shape variant (standard/tall/small/round/bush)
+  trees.push({ col: baseCol, row: baseRow, kind, variant })
   if (inBounds(baseCol, baseRow, cols, rows)) collision[baseRow][baseCol] = true // only the trunk cell blocks
 }
 
@@ -1408,7 +1439,7 @@ function commitTrees(ctx: ArchetypeContext, trees: boolean[][]): void {
     // #2), not a 1-wide boxy column, and roughly HALF the cube count (lighter render). The layout's relative
     // density is preserved (a denser mass → proportionally more trees). Canopy walkable overhead; every tile selectable.
     if ((col + row) % 2 !== 0) return
-    anchors.push({ col, row, kind: 'tree', variant: massVariant(col, row) % canopyCount(ASCII_TILESET, zone) })
+    anchors.push({ col, row, kind: pickLivingTree(shadeNoise(col * 31 + row * 57)), variant: massVariant(col, row) % canopyCount(ASCII_TILESET, zone) })
     collision[row][col] = true
   })
 }

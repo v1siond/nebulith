@@ -128,6 +128,11 @@ function stampRun(
   // is never part of a run, so the two never collide.
   if (cs?.scaleY != null) asset.scaleY = cs.scaleY
   else if (span > 1) asset.scaleY = span
+  // WIDTH (scaleX) + DEPTH (scaleZ): a cell can ship a THIN or WIDE tile independent of the uniform Zoom — a
+  // tree's skinny/thick TRUNK is a per-variant width (Alexander: "trunk width is a variable"). Absent → the
+  // axis stays 1, byte-identical to before.
+  if (cs?.scaleX != null) asset.scaleX = cs.scaleX
+  if (cs?.scaleZ != null) asset.scaleZ = cs.scaleZ
   // A composition cell can ship DEFAULT animations (the fountain water's rise/fade loop) — copy them onto the
   // placed asset so the tile animates without any per-instance authoring, anchored at placedAt 0 (the render
   // clock's origin — iso/2D/top drive the animation off `performance.now`, so a LOAD-triggered loop plays

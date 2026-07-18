@@ -803,37 +803,21 @@
           "title": null,
           "cells": [
             {
-              "label": "leaf_right",
-              "level": 0,
-              "dx": 1,
-              "dy": 0,
-              "walkable": true
-            },
-            {
-              "label": "leaf_top",
-              "level": 1,
-              "dx": 0,
-              "dy": 0,
-              "walkable": true
-            },
-            {
               "label": "leaf_center",
               "level": 0,
+              "scale": 1.35,
+              "settings": {
+                "scaleY": 1.2
+              },
               "dx": 0,
               "dy": 0,
-              "walkable": true
-            },
-            {
-              "label": "leaf_left",
-              "level": 0,
-              "dx": -1,
-              "dy": 0,
-              "walkable": true
+              "walkable": false,
+              "zIndex": 0
             }
           ],
           "footprint": {
             "h": 1,
-            "w": 3
+            "w": 1
           }
         },
         "castle_12": {
@@ -10686,33 +10670,33 @@
           "title": null,
           "cells": [
             {
-              "label": "trunk_bottom",
-              "level": 0,
-              "dx": 0,
-              "dy": 0,
-              "walkable": false,
-              "scale": 1.0
-            },
-            {
-              "label": "trunk_mid",
-              "level": 1,
-              "dx": 0,
-              "dy": 0,
-              "walkable": false,
-              "scale": 1.0
-            },
-            {
               "label": "leaf_center",
               "level": 2,
+              "scale": 1.35,
+              "settings": {
+                "scaleY": 2.0
+              },
               "dx": 0,
               "dy": 0,
               "walkable": true,
-              "scale": 2.0
+              "zIndex": 0
+            },
+            {
+              "label": "trunk_mid",
+              "level": 0,
+              "scale": 0.6,
+              "settings": {
+                "scaleY": 3.15
+              },
+              "dx": 0,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
             }
           ],
           "footprint": {
-            "w": 1,
-            "h": 1
+            "h": 1,
+            "w": 1
           }
         },
         "tree_dead": {
@@ -11208,6 +11192,130 @@
               "dx": 0,
               "dy": 0,
               "walkable": true,
+              "zIndex": 0
+            }
+          ],
+          "footprint": {
+            "h": 1,
+            "w": 1
+          }
+        },
+        "tree_tall": {
+          "title": null,
+          "cells": [
+            {
+              "label": "leaf_center",
+              "level": 3,
+              "scale": 1.35,
+              "settings": {
+                "scaleY": 2.0
+              },
+              "dx": 0,
+              "dy": 0,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "trunk_mid",
+              "level": 0,
+              "scale": 0.6,
+              "settings": {
+                "scaleX": 0.85,
+                "scaleY": 4.4
+              },
+              "dx": 0,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            }
+          ],
+          "footprint": {
+            "h": 1,
+            "w": 1
+          }
+        },
+        "tree_stub": {
+          "title": null,
+          "cells": [
+            {
+              "label": "leaf_center",
+              "level": 1,
+              "scale": 1.35,
+              "settings": {
+                "scaleY": 1.0
+              },
+              "dx": 0,
+              "dy": 0,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "trunk_mid",
+              "level": 0,
+              "scale": 0.6,
+              "settings": {
+                "scaleX": 1.2,
+                "scaleY": 1.7
+              },
+              "dx": 0,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            }
+          ],
+          "footprint": {
+            "h": 1,
+            "w": 1
+          }
+        },
+        "tree_round": {
+          "title": null,
+          "cells": [
+            {
+              "label": "leaf_center",
+              "level": 2,
+              "scale": 1.35,
+              "settings": {
+                "scaleY": 2.0,
+                "shape": "circle"
+              },
+              "dx": 0,
+              "dy": 0,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "trunk_mid",
+              "level": 0,
+              "scale": 0.6,
+              "settings": {
+                "scaleY": 3.15
+              },
+              "dx": 0,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            }
+          ],
+          "footprint": {
+            "h": 1,
+            "w": 1
+          }
+        },
+        "bush_round": {
+          "title": null,
+          "cells": [
+            {
+              "label": "leaf_center",
+              "level": 0,
+              "scale": 1.35,
+              "settings": {
+                "scaleY": 1.2,
+                "shape": "circle"
+              },
+              "dx": 0,
+              "dy": 0,
+              "walkable": false,
               "zIndex": 0
             }
           ],
@@ -18970,37 +19078,21 @@
           "title": null,
           "cells": [
             {
-              "label": "leaf_right",
-              "level": 0,
-              "dx": 1,
-              "dy": 0,
-              "walkable": true
-            },
-            {
-              "label": "leaf_top",
-              "level": 1,
-              "dx": 0,
-              "dy": 0,
-              "walkable": true
-            },
-            {
               "label": "leaf_center",
               "level": 0,
+              "scale": 1.35,
+              "settings": {
+                "scaleY": 1.2
+              },
               "dx": 0,
               "dy": 0,
-              "walkable": true
-            },
-            {
-              "label": "leaf_left",
-              "level": 0,
-              "dx": -1,
-              "dy": 0,
-              "walkable": true
+              "walkable": false,
+              "zIndex": 0
             }
           ],
           "footprint": {
             "h": 1,
-            "w": 3
+            "w": 1
           }
         },
         "castle_12": {
@@ -28853,33 +28945,33 @@
           "title": null,
           "cells": [
             {
-              "label": "trunk_bottom",
-              "level": 0,
-              "dx": 0,
-              "dy": 0,
-              "walkable": false,
-              "scale": 1.0
-            },
-            {
-              "label": "trunk_mid",
-              "level": 1,
-              "dx": 0,
-              "dy": 0,
-              "walkable": false,
-              "scale": 1.0
-            },
-            {
               "label": "leaf_center",
               "level": 2,
+              "scale": 1.35,
+              "settings": {
+                "scaleY": 2.0
+              },
               "dx": 0,
               "dy": 0,
               "walkable": true,
-              "scale": 2.0
+              "zIndex": 0
+            },
+            {
+              "label": "trunk_mid",
+              "level": 0,
+              "scale": 0.6,
+              "settings": {
+                "scaleY": 3.15
+              },
+              "dx": 0,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
             }
           ],
           "footprint": {
-            "w": 1,
-            "h": 1
+            "h": 1,
+            "w": 1
           }
         },
         "tree_dead": {
@@ -29382,6 +29474,130 @@
             "h": 1,
             "w": 1
           }
+        },
+        "tree_tall": {
+          "title": null,
+          "cells": [
+            {
+              "label": "leaf_center",
+              "level": 3,
+              "scale": 1.35,
+              "settings": {
+                "scaleY": 2.0
+              },
+              "dx": 0,
+              "dy": 0,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "trunk_mid",
+              "level": 0,
+              "scale": 0.6,
+              "settings": {
+                "scaleX": 0.85,
+                "scaleY": 4.4
+              },
+              "dx": 0,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            }
+          ],
+          "footprint": {
+            "h": 1,
+            "w": 1
+          }
+        },
+        "tree_stub": {
+          "title": null,
+          "cells": [
+            {
+              "label": "leaf_center",
+              "level": 1,
+              "scale": 1.35,
+              "settings": {
+                "scaleY": 1.0
+              },
+              "dx": 0,
+              "dy": 0,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "trunk_mid",
+              "level": 0,
+              "scale": 0.6,
+              "settings": {
+                "scaleX": 1.2,
+                "scaleY": 1.7
+              },
+              "dx": 0,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            }
+          ],
+          "footprint": {
+            "h": 1,
+            "w": 1
+          }
+        },
+        "tree_round": {
+          "title": null,
+          "cells": [
+            {
+              "label": "leaf_center",
+              "level": 2,
+              "scale": 1.35,
+              "settings": {
+                "scaleY": 2.0,
+                "shape": "circle"
+              },
+              "dx": 0,
+              "dy": 0,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "trunk_mid",
+              "level": 0,
+              "scale": 0.6,
+              "settings": {
+                "scaleY": 3.15
+              },
+              "dx": 0,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            }
+          ],
+          "footprint": {
+            "h": 1,
+            "w": 1
+          }
+        },
+        "bush_round": {
+          "title": null,
+          "cells": [
+            {
+              "label": "leaf_center",
+              "level": 0,
+              "scale": 1.35,
+              "settings": {
+                "scaleY": 1.2,
+                "shape": "circle"
+              },
+              "dx": 0,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            }
+          ],
+          "footprint": {
+            "h": 1,
+            "w": 1
+          }
         }
       },
       "tiles": {
@@ -29721,7 +29937,51 @@
           "title": null,
           "category": null,
           "settings": {
-            "color": "#5fae4f"
+            "color": "#5fae4f",
+            "colors": {
+              "autumn": [
+                "#d2691e",
+                "#c0531a",
+                "#e0a020",
+                "#9c4a1e"
+              ],
+              "beach": [
+                "#4fae6a",
+                "#6fc888",
+                "#3c8f54",
+                "#86d49e"
+              ],
+              "desert": [
+                "#9a8f5a",
+                "#b3a86b",
+                "#7d7448",
+                "#c7bd80"
+              ],
+              "lava": [
+                "#3e3942",
+                "#4a4350",
+                "#2e2b33",
+                "#544754"
+              ],
+              "spring": [
+                "#7cc46a",
+                "#9ed87f",
+                "#5fae4f",
+                "#e79ec8"
+              ],
+              "summer": [
+                "#2e8b2e",
+                "#1f6b1f",
+                "#3fb53f",
+                "#246b24"
+              ],
+              "winter": [
+                "#cfe0ea",
+                "#aac4d8",
+                "#e8f2fa",
+                "#9fbccb"
+              ]
+            }
           },
           "height": 0,
           "blocking": false,
