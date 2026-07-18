@@ -128,10 +128,40 @@ export type Animation = SettingsAnimation | SpriteAnimation
 /** The live per-setting override values the engine produces for a moment in time. */
 export type AnimatedValues = Partial<Record<SettingKey, number | string>>
 
+/**
+ * A resolved setting AND the `from` baseline of the winning track — so the render bridge can COMPOSE the
+ * animation ON TOP of the tile's base value instead of MASKING it (the Image #40 fix). Carried by
+ * `resolveAnimatedSettingsDetailed`; `resolveAnimatedSettings` strips it back to plain values.
+ */
+export interface AnimatedSetting {
+  value: number | string
+  /** the winning track's `from` — the start the animation's delta / ratio is measured against. */
+  from: number | string
+}
+export type AnimatedSettingsDetailed = Partial<Record<SettingKey, AnimatedSetting>>
+
 /** Settings whose value STEPS (no tween) — `display` flips at the temporal midpoint. */
 const STEP_SETTINGS: ReadonlySet<SettingKey> = new Set<SettingKey>(['display'])
 /** Settings interpolated as RGB colours rather than plain numbers. */
 const COLOR_SETTINGS: ReadonlySet<SettingKey> = new Set<SettingKey>(['color'])
+
+/**
+ * COMPOSITION CLASSES — how an animated setting COMBINES with the tile's BASE value in the render bridge.
+ * The animation is a change layered ON TOP of the base slider (it never masks it): a base height 3 with a
+ * `1→4` grow renders 3→6, and editing the base height shifts the whole animated range.
+ *   - ADDITIVE       → rendered = base + (value − from)   (the animation's DELTA-from-start rides the base)
+ *   - MULTIPLICATIVE → rendered = base × (value / from)   (the animation's RATIO-from-start scales the base)
+ * `color`/`zIndex`/`display` are last-wins (no base to compose) and `opacity` is a base-alpha MULTIPLIER —
+ * none route through the delta/ratio composition below.
+ */
+export const ADDITIVE_SETTINGS: ReadonlySet<SettingKey> = new Set<SettingKey>([
+  'height',
+  'x',
+  'y',
+  'zPos',
+  'heightLevel',
+])
+export const MULTIPLICATIVE_SETTINGS: ReadonlySet<SettingKey> = new Set<SettingKey>(['zoom', 'width'])
 
 /** Eased 0→1 parameter. `sine`/`ease` = ease-in-out; `linear` (default) = identity. PURE. */
 export function easeAnim(kind: Ease | undefined, t: number): number {
@@ -201,23 +231,39 @@ function trackValue(track: AnimationTrack, raw: number, eased: number): number |
  * which animations are playing.
  */
 export function animationValue(anim: Animation, nowMs: number, placedAtMs: number): AnimatedValues {
+  const detailed = animationValueDetailed(anim, nowMs, placedAtMs)
+  const out: AnimatedValues = {}
+  for (const key of Object.keys(detailed) as SettingKey[]) out[key] = detailed[key]!.value
+  return out
+}
+
+/**
+ * Like {@link animationValue}, but each entry also carries the track's `from` baseline — the extra datum the
+ * render bridge needs to COMPOSE the animation onto the tile's base value (base + delta / base × ratio)
+ * rather than override it. `settings` kind → one entry per track; `sprite` kind → `{}` (playback stubbed). PURE.
+ */
+export function animationValueDetailed(
+  anim: Animation,
+  nowMs: number,
+  placedAtMs: number,
+): AnimatedSettingsDetailed {
   if (anim.kind !== 'settings') return {} // sprite playback stubbed for Phase 1
   const raw = rawProgress(anim, nowMs, placedAtMs)
   const eased = easeAnim(anim.ease, raw)
-  const out: AnimatedValues = {}
-  for (const track of anim.tracks) out[track.setting] = trackValue(track, raw, eased)
+  const out: AnimatedSettingsDetailed = {}
+  for (const track of anim.tracks) out[track.setting] = { value: trackValue(track, raw, eased), from: track.from }
   return out
 }
 
 interface SettingClaim {
-  value: number | string
+  setting: AnimatedSetting
   priority: number
   order: number
 }
 
 /**
- * Compose a LIST of animations into the live setting overrides at `nowMs` for a tile placed at
- * `placedAtMs`. PURE.
+ * Compose a LIST of animations into the live setting overrides (value + the winning track's `from`) at
+ * `nowMs` for a tile placed at `placedAtMs`. PURE.
  *
  * Stacking rule (defined): every animation contributes the current value of each of its tracks; when two
  * animations write the SAME setting, the winner is the one with the higher `priority`, and on a tie the
@@ -225,30 +271,57 @@ interface SettingClaim {
  * no animation writes are simply absent (the renderer keeps the tile's base value).
  *
  * All animations share the tile's `placedAtMs` anchor, so per-animation `startDelayMs` yields A→B→C chains.
- * The caller passes the animations that should be playing (trigger + scope filtering happens upstream).
+ * The caller passes the animations that should be playing (trigger + scope filtering happens upstream). The
+ * `from` in each entry lets the render bridge layer the animation ON TOP of the base (see `composeAnimatedSetting`).
+ */
+export function resolveAnimatedSettingsDetailed(
+  animations: readonly Animation[],
+  nowMs: number,
+  placedAtMs: number,
+): AnimatedSettingsDetailed {
+  const claims = new Map<SettingKey, SettingClaim>()
+  animations.forEach((anim, order) => {
+    const priority = anim.priority ?? 0
+    const values = animationValueDetailed(anim, nowMs, placedAtMs)
+    for (const key of Object.keys(values) as SettingKey[]) {
+      const cur = claims.get(key)
+      if (cur && priority < cur.priority) continue
+      if (cur && priority === cur.priority && order < cur.order) continue
+      claims.set(key, { setting: values[key]!, priority, order })
+    }
+  })
+
+  const out: AnimatedSettingsDetailed = {}
+  claims.forEach((claim, key) => {
+    out[key] = claim.setting
+  })
+  return out
+}
+
+/**
+ * The composed live setting VALUES (the `from` baseline stripped) — the simple view used by the authoring
+ * preview and the pure unit tests. Winner selection is identical to `resolveAnimatedSettingsDetailed`. PURE.
  */
 export function resolveAnimatedSettings(
   animations: readonly Animation[],
   nowMs: number,
   placedAtMs: number,
 ): AnimatedValues {
-  const claims = new Map<SettingKey, SettingClaim>()
-  animations.forEach((anim, order) => {
-    const priority = anim.priority ?? 0
-    const values = animationValue(anim, nowMs, placedAtMs)
-    for (const key of Object.keys(values) as SettingKey[]) {
-      const cur = claims.get(key)
-      if (cur && priority < cur.priority) continue
-      if (cur && priority === cur.priority && order < cur.order) continue
-      claims.set(key, { value: values[key] as number | string, priority, order })
-    }
-  })
-
+  const detailed = resolveAnimatedSettingsDetailed(animations, nowMs, placedAtMs)
   const out: AnimatedValues = {}
-  claims.forEach((claim, key) => {
-    out[key] = claim.value
-  })
+  for (const key of Object.keys(detailed) as SettingKey[]) out[key] = detailed[key]!.value
   return out
+}
+
+/**
+ * COMPOSE an animated numeric value onto the tile's BASE setting so the base slider stays live under an
+ * animation (Image #40). ADDITIVE → base + (value − from); MULTIPLICATIVE → base × (value / from), guarding a
+ * `from` of 0 (no ratio possible) by falling back to the absolute value. Settings that are last-wins
+ * (colour/zIndex/display) or a multiplier (opacity) never route here. PURE.
+ */
+export function composeAnimatedSetting(setting: SettingKey, base: number, value: number, from: number): number {
+  if (MULTIPLICATIVE_SETTINGS.has(setting)) return from === 0 ? value : base * (value / from)
+  return base + (value - from) // additive — the default for the delta-composed numeric settings
 }
 
 /**

@@ -137,10 +137,21 @@ function stampRun(
   return true
 }
 
-/** Stamp a pre-built BUILDING (house/store/hospital/…) as its composition's per-cell tiles at the
- *  footprint TOP-LEFT (anchorCol,anchorRow), rotated so its door faces `facing`'s road — the SAME stamp
- *  trees use, no special building drawer. Returns the number of cells placed (0 if the composition for the
- *  (type,length) isn't in the loaded tileset). */
+/** Stamp a pre-built BUILDING by its explicit composition KIND (`house_4`, `store_5`, `hospital_6`, …) at the
+ *  footprint TOP-LEFT (anchorCol,anchorRow), rotated so its door faces `facing`'s road — the SAME stamp trees
+ *  use, no special building drawer. Returns the number of cells placed (0 if `kind` isn't in the loaded
+ *  tileset). Use this for a GENERATED building: pass its recorded `PlacedBuilding.kind`, which is derived from
+ *  the FACADE length at plan time. Re-deriving the kind from a building's grid col-span instead is wrong for an
+ *  east/west-facing plot (whose col-span is the DEPTH, not the facade length) and asks for a non-existent
+ *  composition (`hospital_4`), stamping 0 cells → a foundation with NO building (the Image #42 orphan). */
+export function stampBuildingKind(grid: IsometricGrid, kind: string, anchorCol: number, anchorRow: number, zone: ZoneId, facing: Facing, material?: string, roofColor?: string, wallColor?: string): number {
+  return stampComposition(grid, kind, anchorCol, anchorRow, zone, 0, facingRotation(facing), material, roofColor, wallColor)
+}
+
+/** Stamp a building selected by (type, length) — the MANUAL/editor path where `length` IS the facade length
+ *  the user picked. For a GENERATED building use {@link stampBuildingKind} with its authoritative `kind` (see
+ *  the orphan-foundation note above). Returns the number of cells placed (0 if the (type,length) composition
+ *  isn't in the loaded tileset). */
 export function stampBuildingComposition(grid: IsometricGrid, type: BuildingType, length: number, anchorCol: number, anchorRow: number, zone: ZoneId, facing: Facing, material?: string, roofColor?: string, wallColor?: string): number {
-  return stampComposition(grid, buildingCompositionKind(type, length), anchorCol, anchorRow, zone, 0, facingRotation(facing), material, roofColor, wallColor)
+  return stampBuildingKind(grid, buildingCompositionKind(type, length), anchorCol, anchorRow, zone, facing, material, roofColor, wallColor)
 }

@@ -103,6 +103,50 @@ describe('resolveAssetAnimation — field overlay (colour/zoom/width/height) ont
   })
 })
 
+describe('resolveAssetAnimation — animation COMPOSES with the base setting, it does not mask it (Image #40)', () => {
+  test('ADDITIVE height: base scaleY 3 + a height track 1→4 renders 3→6 (base + delta), base stays editable', () => {
+    const mk = (base: number) => baseAsset({
+      scaleY: base,
+      animations: [anim({ ease: 'linear', tracks: [{ setting: 'height', from: 1, to: 4 }] })],
+    })
+    // base 3: at the track start (t=0) → 3 + (1−1) = 3; at the end (t=DUR) → 3 + (4−1) = 6.
+    expect(resolveAssetAnimation(mk(3), 0, EMOJI_STYLE, 'iso')!.asset.scaleY).toBeCloseTo(3)
+    expect(resolveAssetAnimation(mk(3), 1000, EMOJI_STYLE, 'iso')!.asset.scaleY).toBeCloseTo(6)
+    // editing the base to 2 shifts the whole range → 2→5 (the base slider is live under the animation).
+    expect(resolveAssetAnimation(mk(2), 0, EMOJI_STYLE, 'iso')!.asset.scaleY).toBeCloseTo(2)
+    expect(resolveAssetAnimation(mk(2), 1000, EMOJI_STYLE, 'iso')!.asset.scaleY).toBeCloseTo(5)
+    // the fountain's base (height 1) is the additive identity → an unchanged 1→4.
+    expect(resolveAssetAnimation(mk(1), 0, EMOJI_STYLE, 'iso')!.asset.scaleY).toBeCloseTo(1)
+    expect(resolveAssetAnimation(mk(1), 1000, EMOJI_STYLE, 'iso')!.asset.scaleY).toBeCloseTo(4)
+  })
+
+  test('MULTIPLICATIVE zoom/width: base scale 2 × a zoom ratio 1→3 renders 2→6; a from of 0 falls back to the value', () => {
+    const a = baseAsset({
+      scale: 2, scaleX: 3,
+      animations: [anim({ ease: 'linear', tracks: [
+        { setting: 'zoom', from: 1, to: 3 },   // ratio ×1 → ×3
+        { setting: 'width', from: 1, to: 2 },  // ratio ×1 → ×2
+      ] })],
+    })
+    const end = resolveAssetAnimation(a, 1000, EMOJI_STYLE, 'iso')!.asset
+    expect(end.scale).toBeCloseTo(6)  // base 2 × (3/1)
+    expect(end.scaleX).toBeCloseTo(6) // base 3 × (2/1)
+    // guard: a MULTIPLICATIVE track whose `from` is 0 has no ratio → fall back to the absolute value.
+    const z0 = baseAsset({ scale: 2, animations: [anim({ ease: 'linear', tracks: [{ setting: 'zoom', from: 0, to: 4 }] })] })
+    expect(resolveAssetAnimation(z0, 1000, EMOJI_STYLE, 'iso')!.asset.scale).toBeCloseTo(4)
+  })
+
+  test('base ZOOM still applies while HEIGHT animates (the "only zoom applied" report) — both compose', () => {
+    const a = baseAsset({
+      scale: 0.5, scaleY: 3, // reduced zoom + raised height, together
+      animations: [anim({ ease: 'linear', tracks: [{ setting: 'height', from: 1, to: 4 }] })],
+    })
+    const end = resolveAssetAnimation(a, 1000, EMOJI_STYLE, 'iso')!.asset
+    expect(end.scaleY).toBeCloseTo(6) // height composed (3 + 3) — NOT masked by the animation
+    expect(end.scale).toBeCloseTo(0.5) // base zoom preserved alongside the active height animation
+  })
+})
+
 describe('resolveAssetAnimation — chaining via start delays over one shared placedAt anchor', () => {
   test('a delayed second animation holds its `from` until its start delay elapses', () => {
     // A: y-rise 0→2 over 1000ms; B: opacity 1→0 starting after a 1000ms delay. Sampled at t=500 (only A moving).

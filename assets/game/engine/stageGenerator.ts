@@ -318,7 +318,16 @@ type Centrepiece = keyof typeof CENTREPIECE_FOOTPRINT
 // animated water columns), a grand city square gets the big `fountain` (a 3×3 basin, its centre 3 animated).
 // The plaza side is the settlement tell — PLAZA_SIZE is town 5 / city 7 (villageLayout), so ≥6 ⇒ city.
 const pickCentrepiece = (plazaSize: number): Centrepiece => (plazaSize >= 6 ? 'fountain' : 'well')
-const makeLamp = (col: number, row: number): StageProp => ({ col, row, type: 'lamp', char: '†', blocking: true, color: '#ffd27a' })
+/** Record a LIGHT POST at (col,row) as a composition anchor — a `post` base (level 0) + the `lamp` on top
+ *  (level 1) — and pre-block its 1×1 cell so generation-time decor (trees) stays off it, exactly like
+ *  placeCentrepiece pre-blocks the fountain. applyStageToGrid stamps it via stampComposition, the SAME data
+ *  path the fountain uses, so ascii and emoji render the IDENTICAL post+lamp structure (only the tile art
+ *  differs) — replacing the old single-lamp prop that collapsed to one tile in both styles. */
+function placeLampPost(ctx: ArchetypeContext, col: number, row: number): void {
+  if (!inBounds(col, row, ctx.cols, ctx.rows) || ctx.collision[row][col]) return
+  ctx.compositions.push({ kind: 'lamp_post', col, row })
+  ctx.collision[row][col] = true
+}
 
 /** Place a prop iff the cell is in-bounds + not already blocked; set collision when blocking. */
 function placeProp(ctx: ArchetypeContext, prop: StageProp): void {
@@ -557,11 +566,13 @@ function villageDecor(ctx: ArchetypeContext, layout: VillageLayout): void {
   // The town SQUARE: ONE big fountain (rarely a pond) on the plaza the planner reserved dead-centre
   // BEFORE the houses — the settlement's focal landmark, not a leftover-space afterthought.
   placeCentrepiece(ctx, layout.plaza)
-  // Lamp posts every ~6 cells along each street's frontage gaps (never on a road or building).
+  // Lamp posts every ~6 cells along each street's frontage gaps (never on a road or building). Each is a
+  // COMPOSITION (post base + lamp on top) stamped at load — NOT a single lamp prop — so both art styles render
+  // the same post+lamp structure.
   for (const sr of streetRows) {
     const frontage = sr - 1
     for (let c = 5; c < cols - 4; c += 6) {
-      if (decorFree(c, frontage)) placeProp(ctx, makeLamp(c, frontage))
+      if (decorFree(c, frontage)) placeLampPost(ctx, c, frontage)
     }
   }
 }

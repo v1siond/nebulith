@@ -58,7 +58,7 @@ import { type TilePose } from '@/engine/tileset/pose'
 import { type TileDisplay } from '@/engine/tileset/tileset'
 import { type QuestDraft, emptyQuestDraft, questFromDraft } from '@/game/runtime/questDraft'
 import { seedCharacterAnimations, needsAnimationReseed } from '@/game/runtime/entityAnimation'
-import { stampBuildingComposition, stampComposition } from '@/game/runtime/composition'
+import { stampBuildingComposition, stampBuildingKind, stampComposition } from '@/game/runtime/composition'
 import { type Cursor, type JumpState, JUMP_MS, JUMP_PEAK_PX, advanceEnemyMovement, beginJump, tickCannons } from '@/game/runtime/movement'
 import { playSwoosh } from '@/game/runtime/audio'
 import { Card, EntityToolButton, ViewButton } from '@/components/game/controls'
@@ -3000,7 +3000,11 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
         roofColor = pick(ROOF_COLORS, b.col * 13 + b.row * 7)
         wallColor = residential ? pick(WALL_COLORS, b.col * 23 + b.row * 29) : undefined
       }
-      stampBuildingComposition(grid, b.type, b.length, b.col, anchorRow, stage.zone, b.facing, material, roofColor, wallColor)
+      // Stamp by the building's AUTHORITATIVE composition kind (derived from the facade length at plan time),
+      // NOT re-derived from b.length: b.length is the grid COL-SPAN, which for an east/west-facing plot is the
+      // DEPTH, not the facade length — deriving the kind from it asks for a non-existent composition
+      // (hospital_4 / big_house_4 / temple_4) → 0 cells stamped → a foundation with NO building (Image #42).
+      stampBuildingKind(grid, b.kind, b.col, anchorRow, stage.zone, b.facing, material, roofColor, wallColor)
     }
     // A TREE is just TILES too: stamp each recorded tree ANCHOR as a rich stacked composition
     // (stampComposition → one asset per cell+level of tree_small / tree_dead), the SAME per-block path

@@ -13,13 +13,19 @@
  * (`x`/`y`, in tile fractions — `y` positive = a RISE / lift UP) are applied by the caller at the canvas
  * level (globalAlpha + translate), because they must work uniformly in every view's own coordinate space.
  * The remaining live settings that map 1:1 onto plain `GridAsset` fields (colour, zoom, width, height) are
- * overlaid onto a shallow-cloned `asset` (`fx.asset`), so the existing draw code reads them with no changes.
+ * COMPOSED onto the tile's BASE value on a shallow-cloned `asset` (`fx.asset`) — an animation LAYERS on top of
+ * the base slider, it does not mask it (Image #40): height ADDS its delta-from-start onto `scaleY`, zoom/width
+ * MULTIPLY the base by their ratio-from-start, colour is last-wins. So the base height/zoom sliders stay live
+ * and editable while an animation plays, and the existing draw code reads the composed fields with no changes.
  */
 import type { GridAsset } from '@/engine/IsometricGrid'
 import {
   animationMatchesScope,
-  resolveAnimatedSettings,
-  type AnimatedValues,
+  composeAnimatedSetting,
+  resolveAnimatedSettingsDetailed,
+  type AnimatedSetting,
+  type AnimatedSettingsDetailed,
+  type SettingKey,
   type TileStyle,
   type TileView,
 } from '@/engine/animation/tileAnimation'
@@ -44,27 +50,40 @@ function styleToken(style: Style): TileStyle {
   return style.id === 'emoji' ? 'emoji' : 'ascii'
 }
 
-/** A number override, or the fallback when the setting isn't a live number this frame. */
-function numeric(value: number | string | undefined, fallback: number): number {
-  return typeof value === 'number' ? value : fallback
+/** A resolved setting's numeric VALUE (opacity multiplier / colour handled elsewhere), or the fallback. */
+function numericValue(claim: AnimatedSetting | undefined, fallback: number): number {
+  return claim && typeof claim.value === 'number' ? claim.value : fallback
+}
+
+/** A screen-shift override (`x`/`y`) composed onto a base of 0 → the additive DELTA (value − from). 0 when
+ *  absent, so a track authored `2→5` slides 0→3 (not a jump to the absolute value). */
+function shift(setting: SettingKey, claim: AnimatedSetting | undefined): number {
+  if (!claim || typeof claim.value !== 'number' || typeof claim.from !== 'number') return 0
+  return composeAnimatedSetting(setting, 0, claim.value, claim.from)
 }
 
 /**
  * Overlay the animated live values that map 1:1 onto plain `GridAsset` fields (the draw code already reads
- * these): colour → `color`, zoom → `scale`, width → `scaleX`, height → `scaleY`. Returns the SAME asset when
- * none of those are animated this frame (no clone), else a shallow copy with only the written fields replaced.
+ * these). Colour is last-wins (`color`). Zoom/width/height COMPOSE onto the tile's BASE slider so the base
+ * stays editable under an animation (Image #40): height ADDS its delta onto `scaleY` (base 3 + a 1→4 grow ⇒
+ * 3→6), zoom/width MULTIPLY the base by their ratio (`scale`/`scaleX`). Returns the SAME asset when none of
+ * those are animated this frame (no clone), else a shallow copy with only the composed fields replaced.
  */
-function withAnimatedFields(asset: GridAsset, values: AnimatedValues): GridAsset {
-  const hasColor = typeof values.color === 'string'
-  const hasZoom = typeof values.zoom === 'number'
-  const hasWidth = typeof values.width === 'number'
-  const hasHeight = typeof values.height === 'number'
+function withAnimatedFields(asset: GridAsset, values: AnimatedSettingsDetailed): GridAsset {
+  const color = values.color
+  const zoom = values.zoom
+  const width = values.width
+  const height = values.height
+  const hasColor = !!color && typeof color.value === 'string'
+  const hasZoom = !!zoom && typeof zoom.value === 'number'
+  const hasWidth = !!width && typeof width.value === 'number'
+  const hasHeight = !!height && typeof height.value === 'number'
   if (!hasColor && !hasZoom && !hasWidth && !hasHeight) return asset
   const out: GridAsset = { ...asset }
-  if (hasColor) out.color = values.color as string
-  if (hasZoom) out.scale = values.zoom as number
-  if (hasWidth) out.scaleX = values.width as number
-  if (hasHeight) out.scaleY = values.height as number
+  if (hasColor) out.color = color!.value as string
+  if (hasZoom) out.scale = composeAnimatedSetting('zoom', asset.scale ?? 1, zoom!.value as number, Number(zoom!.from))
+  if (hasWidth) out.scaleX = composeAnimatedSetting('width', asset.scaleX ?? 1, width!.value as number, Number(width!.from))
+  if (hasHeight) out.scaleY = composeAnimatedSetting('height', asset.scaleY ?? 1, height!.value as number, Number(height!.from))
   return out
 }
 
@@ -85,13 +104,13 @@ export function resolveAssetAnimation(
   const token = styleToken(style)
   const active = animations.filter(anim => animationMatchesScope(anim, token, view))
   if (active.length === 0) return null
-  const values = resolveAnimatedSettings(active, nowMs, asset.placedAt ?? 0)
+  const values = resolveAnimatedSettingsDetailed(active, nowMs, asset.placedAt ?? 0)
   // Only `sprite` animations in scope → no settings written → treat as no-op (playback stubbed in Phase 1).
   if (Object.keys(values).length === 0) return null
   return {
-    opacity: numeric(values.opacity, 1),
-    x: numeric(values.x, 0),
-    y: numeric(values.y, 0),
+    opacity: numericValue(values.opacity, 1), // opacity is a base-alpha MULTIPLIER (not delta-composed)
+    x: shift('x', values.x),
+    y: shift('y', values.y),
     asset: withAnimatedFields(asset, values),
   }
 }

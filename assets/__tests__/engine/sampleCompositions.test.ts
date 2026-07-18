@@ -172,23 +172,25 @@ describe('sample compositions — realistic building/fountain/tree DATA from the
     assertDesyncedGrow(animated)
   })
 
-  test('fountain WATER carries a draw-PRIORITY zIndex (renders in front of the wall behind it); the rim stays 0', () => {
-    // The bug fix (Images #34/#36): the basin `water_c` cells carry a z-index > 0 so the depth sort draws them
-    // IN FRONT of a wall/block behind the fountain. The rim/edge pieces (the basin's own border) keep the
-    // default 0 and sort positionally. Pure DATA on the cell, served by the API.
+  test('the basin RIM outranks the water it contains (container zIndex > contents), water outranks external tiles', () => {
+    // The container/contents rule (Image #41): the rim is the water's CONTAINER, so it draws IN FRONT of the
+    // water — external(0) < water(10) < rim(20). water 10 > 0 keeps it in front of a wall behind the fountain
+    // (Images #34/#36); rim 20 > 10 keeps the water visually contained by its own basin. Pure DATA, from the API.
     const cells = comp('fountain').cells as Array<Cell & { zIndex?: number }>
     const water = cells.filter(c => c.label === 'water_c')
     const rim = cells.filter(c => c.label.startsWith('fountain_'))
     expect(water.length).toBe(9) // a 3×3 grid of basin water cells
-    expect(water.every(c => (c.zIndex ?? 0) > 0)).toBe(true) // every water cell has priority (animated AND static)
-    expect(new Set(water.map(c => c.zIndex)).size).toBe(1) // one consistent water layer
+    expect(water.every(c => (c.zIndex ?? 0) === 10)).toBe(true) // one consistent water layer at 10
     expect(rim.length).toBeGreaterThanOrEqual(8)
-    expect(rim.every(c => (c.zIndex ?? 0) === 0)).toBe(true) // rim sorts positionally, unchanged
+    expect(rim.every(c => (c.zIndex ?? 0) === 20)).toBe(true) // the container rim outranks the water
+    // the ordering holds by construction: max water zIndex < min rim zIndex
+    expect(Math.max(...water.map(c => c.zIndex ?? 0))).toBeLessThan(Math.min(...rim.map(c => c.zIndex ?? 0)))
   })
 
-  test('z-index is a FOUNTAIN-WATER-only override — every other composition cell keeps the default 0', () => {
+  test('z-index is a FOUNTAIN/WELL-basin-only override — every other composition cell keeps the default 0', () => {
     // Guards the "default 0 → no regression" contract at the DATA level: across every seeded composition
-    // (trees, bushes, all buildings) NO cell carries a non-zero zIndex except the fountain's water.
+    // (trees, bushes, all buildings) NO cell carries a non-zero zIndex — only the fountain/well water (10) and
+    // basin rim (20) do.
     const names = ['tree', 'bush', 'house_3', 'house_4', 'house_5', 'store_5', 'office_5', 'stone_building', 'hospital_6', 'big_house_6', 'temple_8', 'cathedral_7', 'castle_12']
     for (const name of names) {
       const c = resolveComposition(ASCII_TILESET, name)
@@ -232,6 +234,22 @@ describe('sample compositions — realistic building/fountain/tree DATA from the
     expect(pieces.size).toBeGreaterThanOrEqual(18) // water_c + water_jet + 8 fountain rim + 9 wall_stone pieces used
     expect([...pieces].filter(l => !ASCII_TILESET.tiles[l]?.glyph)).toEqual([]) // ascii glyph gaps
     expect([...pieces].filter(l => !EMOJI_TILESET[l]?.char)).toEqual([]) // emoji char gaps
+  })
+
+  test('the LIGHT POST is a post+lamp composition — identical structure in both styles, each piece a real tile in both', () => {
+    // BUG #4 (Images #43/#44): a light post is a COMPOSITION (a `post` base at level 0 + the `lamp` on top at
+    // level 1), NOT a single lamp tile. The composition is style-agnostic (stamped for both styles); only the
+    // ART differs per style. Both pieces must resolve to a real per-cell tile in BOTH tilesets, so emoji renders
+    // a post + 💡 (not a lonely 💡) and ascii a pole + lamp.
+    const lp = comp('lamp_post')
+    expect(lp.footprint).toEqual({ w: 1, h: 1 })
+    const byLevel = (lp.cells as Cell[]).slice().sort((a, b) => a.level - b.level)
+    expect(byLevel.map(c => [c.label, c.level])).toEqual([['post', 0], ['lamp', 1]])
+    // no single-tile collapse: each piece carries its OWN ascii glyph AND emoji char
+    for (const label of ['post', 'lamp']) {
+      expect(ASCII_TILESET.tiles[label]?.glyph).toBeTruthy()
+      expect(EMOJI_TILESET[label]?.char).toBeTruthy()
+    }
   })
 
   test('autotile PIECE cells route to their OWN per-cell tile (not the coarse wall/fountain emoji) in ISO', () => {
