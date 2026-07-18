@@ -4721,7 +4721,7 @@
               "dx": 3,
               "dy": 2,
               "walkable": false,
-              "zIndex": 10,
+              "zIndex": 0,
               "animations": [
                 {
                   "durationMs": 1800,
@@ -4754,7 +4754,7 @@
               "dx": 2,
               "dy": 2,
               "walkable": false,
-              "zIndex": 10,
+              "zIndex": 0,
               "animations": [
                 {
                   "durationMs": 1400,
@@ -4787,7 +4787,7 @@
               "dx": 1,
               "dy": 2,
               "walkable": false,
-              "zIndex": 10,
+              "zIndex": 0,
               "animations": [
                 {
                   "durationMs": 1000,
@@ -4820,7 +4820,7 @@
               "dx": 3,
               "dy": 1,
               "walkable": false,
-              "zIndex": 10
+              "zIndex": 0
             },
             {
               "label": "water_c",
@@ -4829,7 +4829,7 @@
               "dx": 2,
               "dy": 1,
               "walkable": false,
-              "zIndex": 10
+              "zIndex": 0
             },
             {
               "label": "water_c",
@@ -4838,7 +4838,7 @@
               "dx": 1,
               "dy": 1,
               "walkable": false,
-              "zIndex": 10
+              "zIndex": 0
             },
             {
               "label": "fountain_br",
@@ -4847,7 +4847,7 @@
               "dx": 4,
               "dy": 4,
               "walkable": false,
-              "zIndex": 20
+              "zIndex": 0
             },
             {
               "label": "fountain_b",
@@ -4856,7 +4856,7 @@
               "dx": 3,
               "dy": 4,
               "walkable": false,
-              "zIndex": 20
+              "zIndex": 0
             },
             {
               "label": "fountain_b",
@@ -4865,7 +4865,7 @@
               "dx": 2,
               "dy": 4,
               "walkable": false,
-              "zIndex": 20
+              "zIndex": 0
             },
             {
               "label": "fountain_b",
@@ -4874,7 +4874,7 @@
               "dx": 1,
               "dy": 4,
               "walkable": false,
-              "zIndex": 20
+              "zIndex": 0
             },
             {
               "label": "fountain_bl",
@@ -4883,7 +4883,7 @@
               "dx": 0,
               "dy": 4,
               "walkable": false,
-              "zIndex": 20
+              "zIndex": 0
             },
             {
               "label": "fountain_r",
@@ -4892,7 +4892,7 @@
               "dx": 4,
               "dy": 3,
               "walkable": false,
-              "zIndex": 20
+              "zIndex": 0
             },
             {
               "label": "fountain_l",
@@ -4901,7 +4901,7 @@
               "dx": 0,
               "dy": 3,
               "walkable": false,
-              "zIndex": 20
+              "zIndex": 0
             },
             {
               "label": "fountain_r",
@@ -4910,7 +4910,7 @@
               "dx": 4,
               "dy": 2,
               "walkable": false,
-              "zIndex": 20
+              "zIndex": 0
             },
             {
               "label": "fountain_l",
@@ -4919,7 +4919,7 @@
               "dx": 0,
               "dy": 2,
               "walkable": false,
-              "zIndex": 20
+              "zIndex": 0
             },
             {
               "label": "fountain_r",
@@ -4928,7 +4928,7 @@
               "dx": 4,
               "dy": 1,
               "walkable": false,
-              "zIndex": 20
+              "zIndex": 0
             },
             {
               "label": "fountain_l",
@@ -4937,7 +4937,7 @@
               "dx": 0,
               "dy": 1,
               "walkable": false,
-              "zIndex": 20
+              "zIndex": 0
             },
             {
               "label": "fountain_tr",
@@ -4946,7 +4946,7 @@
               "dx": 4,
               "dy": 0,
               "walkable": false,
-              "zIndex": 20
+              "zIndex": 0
             },
             {
               "label": "fountain_t",
@@ -4955,7 +4955,7 @@
               "dx": 3,
               "dy": 0,
               "walkable": false,
-              "zIndex": 20
+              "zIndex": 0
             },
             {
               "label": "fountain_t",
@@ -4964,7 +4964,7 @@
               "dx": 2,
               "dy": 0,
               "walkable": false,
-              "zIndex": 20
+              "zIndex": 0
             },
             {
               "label": "fountain_t",
@@ -4973,7 +4973,7 @@
               "dx": 1,
               "dy": 0,
               "walkable": false,
-              "zIndex": 20
+              "zIndex": 0
             },
             {
               "label": "fountain_tl",
@@ -4982,7 +4982,7 @@
               "dx": 0,
               "dy": 0,
               "walkable": false,
-              "zIndex": 20
+              "zIndex": 0
             },
             {
               "label": "water_c",
@@ -4991,7 +4991,7 @@
               "dx": 3,
               "dy": 3,
               "walkable": false,
-              "zIndex": 10
+              "zIndex": 0
             },
             {
               "label": "water_c",
@@ -5000,7 +5000,7 @@
               "dx": 2,
               "dy": 3,
               "walkable": false,
-              "zIndex": 10
+              "zIndex": 0
             },
             {
               "label": "water_c",
@@ -5009,7 +5009,7 @@
               "dx": 1,
               "dy": 3,
               "walkable": false,
-              "zIndex": 10
+              "zIndex": 0
             }
           ],
           "footprint": {
@@ -10974,7 +10974,7 @@
               "dx": 3,
               "dy": 1,
               "walkable": false,
-              "zIndex": 10,
+              "zIndex": 0,
               "animations": [
                 {
                   "durationMs": 1800,
@@ -11007,7 +11007,7 @@
               "dx": 2,
               "dy": 1,
               "walkable": false,
-              "zIndex": 10,
+              "zIndex": 0,
               "animations": [
                 {
                   "durationMs": 1400,
@@ -11040,7 +11040,7 @@
               "dx": 1,
               "dy": 1,
               "walkable": false,
-              "zIndex": 10,
+              "zIndex": 0,
               "animations": [
                 {
                   "durationMs": 1000,
@@ -11073,7 +11073,7 @@
               "dx": 4,
               "dy": 2,
               "walkable": false,
-              "zIndex": 20
+              "zIndex": 0
             },
             {
               "label": "fountain_b",
@@ -11082,7 +11082,7 @@
               "dx": 3,
               "dy": 2,
               "walkable": false,
-              "zIndex": 20
+              "zIndex": 0
             },
             {
               "label": "fountain_b",
@@ -11091,7 +11091,7 @@
               "dx": 2,
               "dy": 2,
               "walkable": false,
-              "zIndex": 20
+              "zIndex": 0
             },
             {
               "label": "fountain_b",
@@ -11100,7 +11100,7 @@
               "dx": 1,
               "dy": 2,
               "walkable": false,
-              "zIndex": 20
+              "zIndex": 0
             },
             {
               "label": "fountain_bl",
@@ -11109,7 +11109,7 @@
               "dx": 0,
               "dy": 2,
               "walkable": false,
-              "zIndex": 20
+              "zIndex": 0
             },
             {
               "label": "fountain_r",
@@ -11118,7 +11118,7 @@
               "dx": 4,
               "dy": 1,
               "walkable": false,
-              "zIndex": 20
+              "zIndex": 0
             },
             {
               "label": "fountain_l",
@@ -11127,7 +11127,7 @@
               "dx": 0,
               "dy": 1,
               "walkable": false,
-              "zIndex": 20
+              "zIndex": 0
             },
             {
               "label": "fountain_tr",
@@ -11136,7 +11136,7 @@
               "dx": 4,
               "dy": 0,
               "walkable": false,
-              "zIndex": 20
+              "zIndex": 0
             },
             {
               "label": "fountain_t",
@@ -11145,7 +11145,7 @@
               "dx": 3,
               "dy": 0,
               "walkable": false,
-              "zIndex": 20
+              "zIndex": 0
             },
             {
               "label": "fountain_t",
@@ -11154,7 +11154,7 @@
               "dx": 2,
               "dy": 0,
               "walkable": false,
-              "zIndex": 20
+              "zIndex": 0
             },
             {
               "label": "fountain_t",
@@ -11163,7 +11163,7 @@
               "dx": 1,
               "dy": 0,
               "walkable": false,
-              "zIndex": 20
+              "zIndex": 0
             },
             {
               "label": "fountain_tl",
@@ -11172,7 +11172,7 @@
               "dx": 0,
               "dy": 0,
               "walkable": false,
-              "zIndex": 20
+              "zIndex": 0
             }
           ],
           "footprint": {
@@ -22879,7 +22879,7 @@
               "dx": 3,
               "dy": 2,
               "walkable": false,
-              "zIndex": 10,
+              "zIndex": 0,
               "animations": [
                 {
                   "durationMs": 1800,
@@ -22912,7 +22912,7 @@
               "dx": 2,
               "dy": 2,
               "walkable": false,
-              "zIndex": 10,
+              "zIndex": 0,
               "animations": [
                 {
                   "durationMs": 1400,
@@ -22945,7 +22945,7 @@
               "dx": 1,
               "dy": 2,
               "walkable": false,
-              "zIndex": 10,
+              "zIndex": 0,
               "animations": [
                 {
                   "durationMs": 1000,
@@ -22978,7 +22978,7 @@
               "dx": 3,
               "dy": 1,
               "walkable": false,
-              "zIndex": 10
+              "zIndex": 0
             },
             {
               "label": "water_c",
@@ -22987,7 +22987,7 @@
               "dx": 2,
               "dy": 1,
               "walkable": false,
-              "zIndex": 10
+              "zIndex": 0
             },
             {
               "label": "water_c",
@@ -22996,7 +22996,7 @@
               "dx": 1,
               "dy": 1,
               "walkable": false,
-              "zIndex": 10
+              "zIndex": 0
             },
             {
               "label": "fountain_br",
@@ -23005,7 +23005,7 @@
               "dx": 4,
               "dy": 4,
               "walkable": false,
-              "zIndex": 20
+              "zIndex": 0
             },
             {
               "label": "fountain_b",
@@ -23014,7 +23014,7 @@
               "dx": 3,
               "dy": 4,
               "walkable": false,
-              "zIndex": 20
+              "zIndex": 0
             },
             {
               "label": "fountain_b",
@@ -23023,7 +23023,7 @@
               "dx": 2,
               "dy": 4,
               "walkable": false,
-              "zIndex": 20
+              "zIndex": 0
             },
             {
               "label": "fountain_b",
@@ -23032,7 +23032,7 @@
               "dx": 1,
               "dy": 4,
               "walkable": false,
-              "zIndex": 20
+              "zIndex": 0
             },
             {
               "label": "fountain_bl",
@@ -23041,7 +23041,7 @@
               "dx": 0,
               "dy": 4,
               "walkable": false,
-              "zIndex": 20
+              "zIndex": 0
             },
             {
               "label": "fountain_r",
@@ -23050,7 +23050,7 @@
               "dx": 4,
               "dy": 3,
               "walkable": false,
-              "zIndex": 20
+              "zIndex": 0
             },
             {
               "label": "fountain_l",
@@ -23059,7 +23059,7 @@
               "dx": 0,
               "dy": 3,
               "walkable": false,
-              "zIndex": 20
+              "zIndex": 0
             },
             {
               "label": "fountain_r",
@@ -23068,7 +23068,7 @@
               "dx": 4,
               "dy": 2,
               "walkable": false,
-              "zIndex": 20
+              "zIndex": 0
             },
             {
               "label": "fountain_l",
@@ -23077,7 +23077,7 @@
               "dx": 0,
               "dy": 2,
               "walkable": false,
-              "zIndex": 20
+              "zIndex": 0
             },
             {
               "label": "fountain_r",
@@ -23086,7 +23086,7 @@
               "dx": 4,
               "dy": 1,
               "walkable": false,
-              "zIndex": 20
+              "zIndex": 0
             },
             {
               "label": "fountain_l",
@@ -23095,7 +23095,7 @@
               "dx": 0,
               "dy": 1,
               "walkable": false,
-              "zIndex": 20
+              "zIndex": 0
             },
             {
               "label": "fountain_tr",
@@ -23104,7 +23104,7 @@
               "dx": 4,
               "dy": 0,
               "walkable": false,
-              "zIndex": 20
+              "zIndex": 0
             },
             {
               "label": "fountain_t",
@@ -23113,7 +23113,7 @@
               "dx": 3,
               "dy": 0,
               "walkable": false,
-              "zIndex": 20
+              "zIndex": 0
             },
             {
               "label": "fountain_t",
@@ -23122,7 +23122,7 @@
               "dx": 2,
               "dy": 0,
               "walkable": false,
-              "zIndex": 20
+              "zIndex": 0
             },
             {
               "label": "fountain_t",
@@ -23131,7 +23131,7 @@
               "dx": 1,
               "dy": 0,
               "walkable": false,
-              "zIndex": 20
+              "zIndex": 0
             },
             {
               "label": "fountain_tl",
@@ -23140,7 +23140,7 @@
               "dx": 0,
               "dy": 0,
               "walkable": false,
-              "zIndex": 20
+              "zIndex": 0
             },
             {
               "label": "water_c",
@@ -23149,7 +23149,7 @@
               "dx": 3,
               "dy": 3,
               "walkable": false,
-              "zIndex": 10
+              "zIndex": 0
             },
             {
               "label": "water_c",
@@ -23158,7 +23158,7 @@
               "dx": 2,
               "dy": 3,
               "walkable": false,
-              "zIndex": 10
+              "zIndex": 0
             },
             {
               "label": "water_c",
@@ -23167,7 +23167,7 @@
               "dx": 1,
               "dy": 3,
               "walkable": false,
-              "zIndex": 10
+              "zIndex": 0
             }
           ],
           "footprint": {
@@ -29132,7 +29132,7 @@
               "dx": 3,
               "dy": 1,
               "walkable": false,
-              "zIndex": 10,
+              "zIndex": 0,
               "animations": [
                 {
                   "durationMs": 1800,
@@ -29165,7 +29165,7 @@
               "dx": 2,
               "dy": 1,
               "walkable": false,
-              "zIndex": 10,
+              "zIndex": 0,
               "animations": [
                 {
                   "durationMs": 1400,
@@ -29198,7 +29198,7 @@
               "dx": 1,
               "dy": 1,
               "walkable": false,
-              "zIndex": 10,
+              "zIndex": 0,
               "animations": [
                 {
                   "durationMs": 1000,
@@ -29231,7 +29231,7 @@
               "dx": 4,
               "dy": 2,
               "walkable": false,
-              "zIndex": 20
+              "zIndex": 0
             },
             {
               "label": "fountain_b",
@@ -29240,7 +29240,7 @@
               "dx": 3,
               "dy": 2,
               "walkable": false,
-              "zIndex": 20
+              "zIndex": 0
             },
             {
               "label": "fountain_b",
@@ -29249,7 +29249,7 @@
               "dx": 2,
               "dy": 2,
               "walkable": false,
-              "zIndex": 20
+              "zIndex": 0
             },
             {
               "label": "fountain_b",
@@ -29258,7 +29258,7 @@
               "dx": 1,
               "dy": 2,
               "walkable": false,
-              "zIndex": 20
+              "zIndex": 0
             },
             {
               "label": "fountain_bl",
@@ -29267,7 +29267,7 @@
               "dx": 0,
               "dy": 2,
               "walkable": false,
-              "zIndex": 20
+              "zIndex": 0
             },
             {
               "label": "fountain_r",
@@ -29276,7 +29276,7 @@
               "dx": 4,
               "dy": 1,
               "walkable": false,
-              "zIndex": 20
+              "zIndex": 0
             },
             {
               "label": "fountain_l",
@@ -29285,7 +29285,7 @@
               "dx": 0,
               "dy": 1,
               "walkable": false,
-              "zIndex": 20
+              "zIndex": 0
             },
             {
               "label": "fountain_tr",
@@ -29294,7 +29294,7 @@
               "dx": 4,
               "dy": 0,
               "walkable": false,
-              "zIndex": 20
+              "zIndex": 0
             },
             {
               "label": "fountain_t",
@@ -29303,7 +29303,7 @@
               "dx": 3,
               "dy": 0,
               "walkable": false,
-              "zIndex": 20
+              "zIndex": 0
             },
             {
               "label": "fountain_t",
@@ -29312,7 +29312,7 @@
               "dx": 2,
               "dy": 0,
               "walkable": false,
-              "zIndex": 20
+              "zIndex": 0
             },
             {
               "label": "fountain_t",
@@ -29321,7 +29321,7 @@
               "dx": 1,
               "dy": 0,
               "walkable": false,
-              "zIndex": 20
+              "zIndex": 0
             },
             {
               "label": "fountain_tl",
@@ -29330,7 +29330,7 @@
               "dx": 0,
               "dy": 0,
               "walkable": false,
-              "zIndex": 20
+              "zIndex": 0
             }
           ],
           "footprint": {

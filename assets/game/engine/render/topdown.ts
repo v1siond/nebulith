@@ -447,9 +447,10 @@ export function render2D(
   drawables.push({ row: playerRow, col: playerCol, type: 'player', sortRow: playerRow, level: 0, zIndex: 0 })
 
   // DRAW-PRIORITY first (CSS z-index): a higher zIndex draws LATER (on top / in front) regardless of position —
-  // the fountain water (zIndex 10) sits in front of the wall behind it. Then the existing keys: (front-elevation)
-  // row so things further up screen draw first (= behind); a level tiebreak keeps a structure's higher tiles
-  // (roof) drawn after the walls below them. All zIndex default 0 → the first term is 0 and the order is unchanged.
+  // a cell authored with a higher zIndex sits in front of one behind it (a capability for composition
+  // optimization). Then the existing keys: (front-elevation) row so things further up screen draw first (=
+  // behind); a level tiebreak keeps a structure's higher tiles (roof) drawn after the walls below them. All
+  // zIndex default 0 → the first term is 0 and the order is unchanged.
   drawables.sort((a, b) => a.zIndex - b.zIndex || a.sortRow - b.sortRow || a.level - b.level)
 
   // Draw each object

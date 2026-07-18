@@ -2969,10 +2969,10 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
         if (stage.collision[r]?.[c] !== undefined) grid.setCollision(c, r, stage.collision[r][c])
       }
     }
-    // A BUILDING is just TILES: stamp each GENERATED building as its backend COMPOSITION's per-cell tiles
-    // (stampBuildingComposition → one asset per cell+level of house_4 / store_5 / …), rotated to face its
-    // road — the SAME stamp trees use. b.col + b.row are the footprint TOP-LEFT-col and BOTTOM row, so back
-    // the row off its height to anchor the composition at the footprint top-left.
+    // A BUILDING is just TILES: stamp each GENERATED building as its backend COMPOSITION's per-cell tiles by
+    // its authoritative kind (stampBuildingKind → one asset per cell+level of house_4 / store_5 / …), rotated
+    // to face its road — the SAME stamp trees use. b.col + b.row are the footprint TOP-LEFT-col and BOTTOM row,
+    // so back the row off its height to anchor the composition at the footprint top-left.
     // A building uses ONE wall material — variety is BETWEEN buildings, not within one. A RESIDENTIAL building
     // (house / big-house) picks its material at generation from the palette; store/hospital/office/civic keep
     // their FIXED identity material. The pick is derived from the footprint position so a re-stamp of the same

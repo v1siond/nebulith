@@ -49,8 +49,9 @@ export interface GridAsset {
   zDir?: DepthDir       // Which iso diagonal the "z position" slides along (right-up/left-up/left-down/right-down).
                         // Default right-up → +z = up-right (toward the back), −z = down-left. Same 4 dirs as depthDir.
   zIndex?: number       // DRAW-PRIORITY (CSS z-index style): the depth sort draws a HIGHER zIndex LATER (on top /
-                        // in front), overriding the positional iso/2D/top key. So the fountain water (zIndex 10)
-                        // renders in front of a wall behind it. Default 0 → sorts positionally, exactly as before.
+                        // in front), overriding the positional iso/2D/top key — e.g. a cell authored with a higher
+                        // zIndex renders in front of one behind it. A capability for composition optimization;
+                        // every cell defaults to 0 → sorts positionally, exactly as before.
   color?: string
   bgColor?: string
   height?: number       // Height in blocks (for buildings, towers, etc.)

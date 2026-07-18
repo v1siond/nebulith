@@ -1196,9 +1196,9 @@ export function isoDepthCompare(
   b: { col: number; row: number; asset?: { heightLevel?: number; depth?: number; depthDir?: DepthDir; zIndex?: number } },
 ): number {
   // DRAW-PRIORITY first (CSS z-index): a HIGHER zIndex draws LATER (on top / in front), overriding the
-  // positional key below — so the fountain water (zIndex 10) sits in front of a wall behind it no matter where
-  // the wall is. Both default 0, so `0 - 0 = 0` falls straight through to the positional sort → every existing
-  // map (all zIndex 0) orders BYTE-IDENTICALLY to before.
+  // positional key below — a cell authored with a higher zIndex sits in front of one behind it no matter where
+  // it is (a capability for composition optimization). Every cell currently defaults to 0, so `0 - 0 = 0` falls
+  // straight through to the positional sort → every map (all zIndex 0) orders BYTE-IDENTICALLY to before.
   const dz = (a.asset?.zIndex ?? 0) - (b.asset?.zIndex ?? 0)
   if (dz !== 0) return dz
   // A directional-depth box reaches `depthFrontExtent` cells toward the camera past its anchor, so it sorts by

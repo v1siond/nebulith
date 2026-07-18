@@ -172,26 +172,26 @@ describe('sample compositions — realistic building/fountain/tree DATA from the
     assertDesyncedGrow(animated)
   })
 
-  test('the basin RIM outranks the water it contains (container zIndex > contents), water outranks external tiles', () => {
-    // The container/contents rule (Image #41): the rim is the water's CONTAINER, so it draws IN FRONT of the
-    // water — external(0) < water(10) < rim(20). water 10 > 0 keeps it in front of a wall behind the fountain
-    // (Images #34/#36); rim 20 > 10 keeps the water visually contained by its own basin. Pure DATA, from the API.
-    const cells = comp('fountain').cells as Array<Cell & { zIndex?: number }>
-    const water = cells.filter(c => c.label === 'water_c')
-    const rim = cells.filter(c => c.label.startsWith('fountain_'))
-    expect(water.length).toBe(9) // a 3×3 grid of basin water cells
-    expect(water.every(c => (c.zIndex ?? 0) === 10)).toBe(true) // one consistent water layer at 10
-    expect(rim.length).toBeGreaterThanOrEqual(8)
-    expect(rim.every(c => (c.zIndex ?? 0) === 20)).toBe(true) // the container rim outranks the water
-    // the ordering holds by construction: max water zIndex < min rim zIndex
-    expect(Math.max(...water.map(c => c.zIndex ?? 0))).toBeLessThan(Math.min(...rim.map(c => c.zIndex ?? 0)))
+  test('the fountain/well basin rim and water default to zIndex 0 (draw priority is a capability, not a default)', () => {
+    // Reverted: nothing carries a non-zero draw priority by DEFAULT (Alexander: "just leave everything on 0 by
+    // default for now … we'll only need specific z-index once we start working composition optimization"). The
+    // zIndex CAPABILITY stays wired — isoDepthCompare still honours it (isoDepthZIndex.test.ts) — but the served
+    // fountain/well data is 0 for both the water and its rim. Pure DATA, from the API.
+    for (const name of ['fountain', 'well']) {
+      const cells = comp(name).cells as Array<Cell & { zIndex?: number }>
+      const water = cells.filter(c => c.label === 'water_c')
+      const rim = cells.filter(c => c.label.startsWith('fountain_'))
+      expect(water.length).toBeGreaterThanOrEqual(3)
+      expect(rim.length).toBeGreaterThanOrEqual(8)
+      expect(water.every(c => (c.zIndex ?? 0) === 0)).toBe(true)
+      expect(rim.every(c => (c.zIndex ?? 0) === 0)).toBe(true)
+    }
   })
 
-  test('z-index is a FOUNTAIN/WELL-basin-only override — every other composition cell keeps the default 0', () => {
+  test('every composition cell keeps the default zIndex 0 — nothing carries a non-zero draw priority', () => {
     // Guards the "default 0 → no regression" contract at the DATA level: across every seeded composition
-    // (trees, bushes, all buildings) NO cell carries a non-zero zIndex — only the fountain/well water (10) and
-    // basin rim (20) do.
-    const names = ['tree', 'bush', 'house_3', 'house_4', 'house_5', 'store_5', 'office_5', 'stone_building', 'hospital_6', 'big_house_6', 'temple_8', 'cathedral_7', 'castle_12']
+    // (trees, bushes, all buildings, AND the fountain/well basin) NO cell carries a non-zero zIndex.
+    const names = ['tree', 'bush', 'fountain', 'well', 'house_3', 'house_4', 'house_5', 'store_5', 'office_5', 'stone_building', 'hospital_6', 'big_house_6', 'temple_8', 'cathedral_7', 'castle_12']
     for (const name of names) {
       const c = resolveComposition(ASCII_TILESET, name)
       if (!c) continue
