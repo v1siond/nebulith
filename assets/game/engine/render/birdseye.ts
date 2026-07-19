@@ -8,7 +8,7 @@ import { type PlayerState, barFraction, hpFraction } from '@/game/runtime/player
 import { type CombatState, type Entity, type Quest } from '@/game/types'
 import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 import { Connector } from '@/lib/api'
-import { ASCII_FONT, type DayNight, LAMP_GLOW, applyCellTransform, clampCameraAxis, collectLampGlows, debugCellCaptions, debugLabelColors, drawConnectorMarker, drawHitMarker, drawHpBar, drawNightLighting, drawQuestMarker, drawStyledImage, drawShadedBall, SINGLE_TILE_FRAC, fillTintedGlyph, grassShade, cellFill, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, resolveAssetDraw, resolveEntityDraw, assetOverride, labelTileImage, labelTileRecolor, tileImage } from './shared'
+import { ASCII_FONT, type DayNight, applyCellTransform, clampCameraAxis, collectLampGlows, debugCellCaptions, debugLabelColors, drawConnectorMarker, drawHitMarker, drawHpBar, drawNightLighting, drawQuestMarker, drawStyledImage, drawShadedBall, SINGLE_TILE_FRAC, fillTintedGlyph, grassShade, cellFill, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, resolveAssetDraw, resolveEntityDraw, assetOverride, labelTileImage, labelTileRecolor, tileImage } from './shared'
 import { resolveAssetDrawSize } from './assetDimensions'
 import { resolveAssetAnimation } from './assetAnimation'
 import { DEPTH_CELL_STEP } from './isoBlock'
@@ -180,7 +180,7 @@ export function renderTopView(
       // Live TILE ANIMATION overrides for THIS frame, scoped to the top view + active style. null → the effective
       // asset IS `asset` and no shift/opacity change (byte-identical). `dAsset` carries the animated colour/zoom/
       // width/height so the draw reads them; the shift + opacity wrap the tile draw (not the cell backing above).
-      const assetAnim = asset ? resolveAssetAnimation(asset, now, style, 'top') : null
+      const assetAnim = asset ? resolveAssetAnimation(asset, now, style, 'top', dayNight) : null
       const dAsset = assetAnim ? assetAnim.asset : asset
       const animShiftX = assetAnim ? assetAnim.x * tileSize : 0
       const animShiftY = assetAnim ? assetAnim.y * tileSize : 0
@@ -449,7 +449,7 @@ export function renderTopView(
     const lamps = collectLampGlows(
       grid,
       (c, r) => ({ x: offsetX + (c + 0.5) * tileSize, y: offsetY + (r + 0.5) * tileSize }),
-      tileSize * LAMP_GLOW.radiusTiles,
+      tileSize,
       0,
       w,
       h,

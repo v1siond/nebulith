@@ -381,17 +381,50 @@ export const LIGHT = {
   night: { overlay: 'rgba(10, 14, 38, 0.5)' }, // deep-navy veil laid over the whole scene
 }
 
-export const LAMP_GLOW = { rgb: '255, 217, 138', radiusTiles: 3.2 } // warm night light pool
+// The DEFAULT warm glow pool — the light a lamp casts when it carries NO explicit `light` setting (a bare
+// lamp/lantern prop, or a lamp_post seeded before the light default). `intensity` 1 reproduces the pre-setting
+// pool exactly; `radiusTiles` is the pool radius in cells. A tile's own `light` setting overrides all of these.
+export const LAMP_GLOW = { rgb: '255, 217, 138', radiusTiles: 3.2, intensity: 1 }
+
+/** A resolved light pool anchor in SCREEN space: centre + pixel radius + warm `rgb` ("r, g, b") + `intensity`
+ *  (0..1 strength). `drawNightLighting` paints one radial pool per entry. */
+export interface LampGlow { x: number; y: number; r: number; rgb: string; intensity: number }
+
+/** Parse a light `color` ("#rrggbb") to the "r, g, b" triple `drawNightLighting` builds its `rgba()` stops
+ *  from. Absent/unparseable → the default warm LAMP_GLOW rgb, so a light without a colour still glows warm. */
+function lightRgb(color: string | undefined): string {
+  if (!color) return LAMP_GLOW.rgb
+  const c = parseColor(color)
+  return c ? `${c.r}, ${c.g}, ${c.b}` : LAMP_GLOW.rgb
+}
+
+/** The effective LIGHT an asset casts as a night ground pool, or `null` when it casts none. An explicit
+ *  `light` SETTING wins — its `distance` sizes the pool (cells), `intensity`/`color` its strength/hue — unless
+ *  `on === false` (a switched-off lamp → no pool). A lamp/lantern with NO explicit light falls back to the
+ *  default warm LAMP_GLOW so seeded/legacy lamps still light. Anything else → null. This is the ONE place the
+ *  "any asset carrying a light casts a pool, lamp is just the default" rule lives; the renderers read it. */
+export function assetLight(asset: GridAsset): { rgb: string; radiusTiles: number; intensity: number } | null {
+  const light = asset.light
+  if (light) {
+    if (light.on === false) return null
+    const radiusTiles = light.distance > 0 ? light.distance : LAMP_GLOW.radiusTiles
+    const intensity = Math.max(0, Math.min(1, light.intensity ?? LAMP_GLOW.intensity))
+    return { rgb: lightRgb(light.color), radiusTiles, intensity }
+  }
+  const isLamp = asset.type === 'lamp' || asset.type === 'lantern' || asset.label === 'lamp' || asset.label === 'lantern'
+  return isLamp ? { rgb: LAMP_GLOW.rgb, radiusTiles: LAMP_GLOW.radiusTiles, intensity: LAMP_GLOW.intensity } : null
+}
 
 
-/** Night pass: darken the whole canvas with a navy veil, then punch warm radial light pools through
- *  it at each lamp (additive 'lighter' blend). Steady — never a flicker. `lamps` are screen-space
- *  centres + pixel radii. */
+/** Night pass: darken the whole canvas with a navy veil, then punch warm radial light pools through it at each
+ *  lamp (additive 'lighter' blend). Steady — never a flicker (a lamp flicker is a NIGHT-triggered tile
+ *  animation, separate from this pool). Each `LampGlow` carries its OWN colour + intensity, so a per-tile
+ *  `light` setting tints/strengthens its pool; the alpha stops scale by `intensity`. */
 export function drawNightLighting(
   ctx: CanvasRenderingContext2D,
   w: number,
   h: number,
-  lamps: readonly { x: number; y: number; r: number }[],
+  lamps: readonly LampGlow[],
 ): void {
   ctx.save()
   ctx.fillStyle = LIGHT.night.overlay
@@ -399,9 +432,9 @@ export function drawNightLighting(
   ctx.globalCompositeOperation = 'lighter'
   for (const l of lamps) {
     const g = ctx.createRadialGradient(l.x, l.y, 0, l.x, l.y, l.r)
-    g.addColorStop(0, `rgba(${LAMP_GLOW.rgb}, 0.55)`)
-    g.addColorStop(0.45, `rgba(${LAMP_GLOW.rgb}, 0.2)`)
-    g.addColorStop(1, `rgba(${LAMP_GLOW.rgb}, 0)`)
+    g.addColorStop(0, `rgba(${l.rgb}, ${0.55 * l.intensity})`)
+    g.addColorStop(0.45, `rgba(${l.rgb}, ${0.2 * l.intensity})`)
+    g.addColorStop(1, `rgba(${l.rgb}, 0)`)
     ctx.fillStyle = g
     ctx.beginPath()
     ctx.arc(l.x, l.y, l.r, 0, Math.PI * 2)
@@ -411,28 +444,28 @@ export function drawNightLighting(
 }
 
 
-/** Screen-space centres + radii of every lamp/lantern on the grid that lands on-screen — the
- *  anchors for the night light pools. `cellCenter` maps a cell to its screen centre (each view
- *  projects differently); `lift` raises the pool to the lamp head. Shared by all views.
- *  Matches both the legacy single-lamp prop (`type === 'lamp'`) AND the lamp cell of the
- *  `lamp_post` composition (`label === 'lamp'`) — the composition stamps assets of type
- *  'lamp_post', so keying on type alone lost the night pool when lamps became compositions. */
+/** Screen-space light pools for every asset on the grid that casts a `light` and lands on-screen — the anchors
+ *  the night pass paints. `cellCenter` maps a cell to its screen centre (each view projects differently);
+ *  `tilePx` is the per-cell pixel unit for THIS view, so a light's `distance` (cells) becomes `distance·tilePx`
+ *  pixels — the SETTING drives the pool size. `lift` raises the pool to the lamp head. Driven by `assetLight`,
+ *  so ANY tile carrying a light casts a pool (a lamp with none uses the default); shared by all three views. */
 export function collectLampGlows(
   grid: IsometricGrid,
   cellCenter: (col: number, row: number) => { x: number; y: number },
-  radiusPx: number,
+  tilePx: number,
   lift: number,
   w: number,
   h: number,
-): { x: number; y: number; r: number }[] {
-  const out: { x: number; y: number; r: number }[] = []
+): LampGlow[] {
+  const out: LampGlow[] = []
   for (const a of grid.assets) {
-    const isLamp = a.type === 'lamp' || a.type === 'lantern' || a.label === 'lamp' || a.label === 'lantern'
-    if (!isLamp) continue
+    const light = assetLight(a)
+    if (!light) continue
+    const r = light.radiusTiles * tilePx
     const p = cellCenter(a.col, a.row)
     const y = p.y - lift
-    if (p.x < -radiusPx || p.x > w + radiusPx || y < -radiusPx || y > h + radiusPx) continue
-    out.push({ x: p.x, y, r: radiusPx })
+    if (p.x < -r || p.x > w + r || y < -r || y > h + r) continue
+    out.push({ x: p.x, y, r, rgb: light.rgb, intensity: light.intensity })
   }
   return out
 }

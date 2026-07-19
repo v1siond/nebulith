@@ -54,7 +54,7 @@ import { render, render2D, renderTopView, clampCameraAxis, isoCameraFocus, entit
 import { loadTilesetsFromBackend, saveTilesetToBackend } from '@/engine/tileset/tilesetLoader'
 import { EMOJI_TILESET, setTilePose } from '@/engine/tileset/emojiTileset'
 import { type TilePose } from '@/engine/tileset/pose'
-import { type TileDisplay, type TileShape } from '@/engine/tileset/tileset'
+import { type AssetLight, type TileDisplay, type TileShape } from '@/engine/tileset/tileset'
 import { type QuestDraft, emptyQuestDraft, questFromDraft } from '@/game/runtime/questDraft'
 import { seedCharacterAnimations, needsAnimationReseed } from '@/game/runtime/entityAnimation'
 import { stampBuildingComposition, stampBuildingKind, stampComposition } from '@/game/runtime/composition'
@@ -1551,6 +1551,15 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       if (shape === 'square') delete a.shape
       else a.shape = shape
     })
+  // PER-ASSET LIGHT setting (intensity/distance/colour/on) — the warm night ground GLOW POOL this tile casts,
+  // written to THIS placed tile (persists with the map via the full-asset serialize, like shape). Fans out to
+  // the i-th stacked tile of every selected cell. Passing `undefined` clears the setting (back to no pool).
+  const setAssetLight = (i: number, light: AssetLight | undefined) =>
+    applyToSelectedCells((col, row, grid) => {
+      const a = stackedAssetsAt(grid, col, row)[i]; if (!a) return
+      if (light) a.light = light
+      else delete a.light
+    })
   // PER-ASSET tile ANIMATIONS (Phase 4) — the LIST authored in the animation modal, written to THIS placed
   // tile (persists with the map via the full-asset serialize, like cellAnim). Anchor start/loop delays at
   // placedAt=0 so a load-triggered loop plays from the clock origin (performance.now() = ms-since-load), the
@@ -1707,6 +1716,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       __setDepth?: (col: number, row: number, depth: number, dir: DepthDir) => { col: number; row: number; depth: number; depthDir: DepthDir; cells: { col: number; row: number }[] } | null
       __setZPos?: (col: number, row: number, z: number, dir: DepthDir) => { col: number; row: number; zOffset: number; zDir: DepthDir } | null
       __setShape?: (col: number, row: number, shape: TileShape) => { col: number; row: number; shape: TileShape } | null
+      __setLight?: (col: number, row: number, light: AssetLight | null) => { col: number; row: number; light: AssetLight | null } | null
       __pickTileAt?: (clientX: number, clientY: number) => { col: number; row: number; level: number | null; source: string | null } | null
       __cellScreen?: (col: number, row: number, level?: number) => { x: number; y: number } | null
       __tileCentroid?: (col: number, row: number, level?: number) => { x: number; y: number } | null
@@ -1866,6 +1876,18 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       bumpBuildingVersion()
       return { col, row, shape }
     }
+    // Per-instance LIGHT validation seam (sibling of __setShape): set/clear the topmost asset's night glow
+    // pool light so a headless render can prove distance/intensity drive the pool. Mirrors setAssetLight.
+    win.__setLight = (col: number, row: number, light: AssetLight | null) => {
+      const g = gridRef.current
+      if (!g) return null
+      const a = g.getAssetsAtCell(col, row).at(-1)
+      if (!a) return null
+      if (light) a.light = light
+      else delete a.light
+      bumpBuildingVersion()
+      return { col, row, light }
+    }
     // Debug-overlay + tileset-label validation seams: toggle the label overlay, and DUMP the
     // `<TYPE> <POSITION>` label of every cell in a region (terrain autotile label overridden by an
     // asset caption) — so "every cell carries a consistent tileset label" is validated as DATA.
@@ -1981,7 +2003,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       setSelectedCells(new Set([`${best.col},${best.row}`]))
       return best
     }
-    return () => { delete win.__setArtStyle; delete win.__selectFirstTreeCell; delete win.__setView; delete win.__gridKinds; delete win.__entityInfo; delete win.__entityScreens; delete win.__selectEntity; delete win.__setEntitySize; delete win.__scatter; delete win.__selectedEntityInfo; delete win.__placeBuilding; delete win.__placeComposition; delete win.__cellSel; delete win.__selectCells; delete win.__applyCellTile; delete win.__clearRegion; delete win.__setDebug; delete win.__cellLabels; delete win.__stackAt; delete win.__camOffset; delete win.__stackAsset; delete win.__isoBlockScreen; delete win.__genVillage; delete win.__genStage; delete win.__centerOn; delete win.__setHero; delete win.__pickTileAt; delete win.__cellScreen; delete win.__tileCentroid; delete win.__tileHandles; delete win.__setShape }
+    return () => { delete win.__setArtStyle; delete win.__selectFirstTreeCell; delete win.__setView; delete win.__gridKinds; delete win.__entityInfo; delete win.__entityScreens; delete win.__selectEntity; delete win.__setEntitySize; delete win.__scatter; delete win.__selectedEntityInfo; delete win.__placeBuilding; delete win.__placeComposition; delete win.__cellSel; delete win.__selectCells; delete win.__applyCellTile; delete win.__clearRegion; delete win.__setDebug; delete win.__cellLabels; delete win.__stackAt; delete win.__camOffset; delete win.__stackAsset; delete win.__isoBlockScreen; delete win.__genVillage; delete win.__genStage; delete win.__centerOn; delete win.__setHero; delete win.__pickTileAt; delete win.__cellScreen; delete win.__tileCentroid; delete win.__tileHandles; delete win.__setShape; delete win.__setLight }
   }, [])
 
   // ── Selected-entity inspector actions ─────────────────────────────
@@ -5863,6 +5885,8 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                             onDisplay: posable ? (mode => setAssetDisplay(i, mode)) : undefined,
                             shape: commonValue(cells.map(({ col, row }) => (stackedAssetsAt(grid, col, row)[i]?.shape ?? 'square') as TileShape)),
                             onShape: posable ? (shape => setAssetShape(i, shape)) : undefined,
+                            light: a0?.light,
+                            onLight: posable ? (l => setAssetLight(i, l)) : undefined,
                             pose: posable ? a0?.pose : undefined,
                             onPose: posable ? (p => setAssetPose(i, p)) : undefined,
                             onPoseReset: posable ? (() => setAssetPose(i, undefined)) : undefined,

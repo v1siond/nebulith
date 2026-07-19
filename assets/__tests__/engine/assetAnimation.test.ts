@@ -147,6 +147,44 @@ describe('resolveAssetAnimation — animation COMPOSES with the base setting, it
   })
 })
 
+describe('resolveAssetAnimation — the `night` trigger gates playback to night mode', () => {
+  // A night-triggered flicker (opacity 1→0) — the lamp default: OFF in day, ON at night.
+  const nightAnim = () => anim({ trigger: { on: 'night' }, tracks: [{ setting: 'opacity', from: 1, to: 0 }] })
+
+  test('a night-trigger animation is INERT in day mode (null → byte-identical, no flicker)', () => {
+    const a = baseAsset({ placedAt: 0, animations: [nightAnim()] })
+    // explicit day, and the DEFAULT (omitted dayNight) must both be inert.
+    expect(resolveAssetAnimation(a, 500, EMOJI_STYLE, 'iso', 'day')).toBeNull()
+    expect(resolveAssetAnimation(a, 500, EMOJI_STYLE, 'iso')).toBeNull()
+  })
+
+  test('a night-trigger animation is ACTIVE at night (the flicker plays)', () => {
+    const a = baseAsset({ placedAt: 0, animations: [nightAnim()] })
+    const fx = resolveAssetAnimation(a, 500, EMOJI_STYLE, 'iso', 'night')
+    expect(fx).not.toBeNull()
+    expect(fx!.opacity).toBeCloseTo(0.5) // halfway through the 1→0 fade → the bulb is dimming
+  })
+
+  test('a NON-night animation (load/default) plays regardless of day or night', () => {
+    const a = baseAsset({ placedAt: 0, animations: [anim({ trigger: { on: 'load' } })] })
+    expect(resolveAssetAnimation(a, 500, EMOJI_STYLE, 'iso', 'day')).not.toBeNull()
+    expect(resolveAssetAnimation(a, 500, EMOJI_STYLE, 'iso', 'night')).not.toBeNull()
+  })
+
+  test('with a night + a load animation, day drops ONLY the night one', () => {
+    // load: opacity 1→0 (halves at t=500); night: height 1→4 — at day only the load contributes.
+    const a = baseAsset({ placedAt: 0, animations: [
+      anim({ id: 'load', trigger: { on: 'load' } }),
+      anim({ id: 'night', trigger: { on: 'night' }, ease: 'linear', tracks: [{ setting: 'height', from: 1, to: 4 }] }),
+    ] })
+    const day = resolveAssetAnimation(a, 500, EMOJI_STYLE, 'iso', 'day')!
+    expect(day.opacity).toBeCloseTo(0.5)          // the load fade still plays
+    expect(day.asset.scaleY ?? 1).toBeCloseTo(1)   // the night height track is gated out → base height
+    const night = resolveAssetAnimation(a, 500, EMOJI_STYLE, 'iso', 'night')!
+    expect(night.asset.scaleY).toBeGreaterThan(1)  // at night the height grow contributes
+  })
+})
+
 describe('resolveAssetAnimation — chaining via start delays over one shared placedAt anchor', () => {
   test('a delayed second animation holds its `from` until its start delay elapses', () => {
     // A: y-rise 0→2 over 1000ms; B: opacity 1→0 starting after a 1000ms delay. Sampled at t=500 (only A moving).

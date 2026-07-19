@@ -52,4 +52,16 @@ describe('deserializeToGrid preserves every saved asset field (#72)', () => {
     expect(a?.animations).toEqual(anims)
     expect(a?.placedAt).toBe(0)
   })
+
+  // The per-instance LIGHT setting (night ground glow pool) must survive save/load exactly like shape —
+  // through serializeGrid → the JSON wire → deserializeToGrid — so a lamp keeps its authored intensity/
+  // distance/colour/on across a reload.
+  it('round-trips the per-instance light setting through the JSON wire', () => {
+    const light = { intensity: 0.7, distance: 4.5, color: '#ffcc00', on: true }
+    const g = new IsometricGrid({ cols: 4, rows: 4, cellSize: 32, isoScale: 1.4 })
+    g.assets = [{ art: ['o'], col: 1, row: 1, type: 'lamp_post', label: 'lamp', light } as never]
+    const wire = JSON.parse(JSON.stringify(serializeGrid(g).assetsData)) // backend store + reload
+    const a = deserializeToGrid(tmpl(wire)).assets.find(x => x.label === 'lamp')
+    expect(a?.light).toEqual(light)
+  })
 })

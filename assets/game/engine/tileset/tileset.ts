@@ -147,6 +147,25 @@ export interface CompositionCellSettings {
    *  onto the placed asset's `shape`, so a composition can ship a default shape (a lamp globe = a circle cell). */
   shape?: TileShape
   pose?: TilePose
+  /** the LIGHT this cell casts (a warm ground GLOW POOL at night) — stampComposition copies it onto the placed
+   *  asset's `light`, so the lamp_post BULB cell ships a lit-by-default lamp. See {@link AssetLight}. */
+  light?: AssetLight
+}
+
+/** A per-tile LIGHT setting: the tile casts a warm radial GROUND GLOW POOL (drawn only at night by
+ *  `drawNightLighting`). A real, controllable SETTING (Alexander: "a regular setting that allows me to control
+ *  the light intensity and distance") authored on a composition cell (backend `settings.light`) or per-instance
+ *  in the editor's Light control group, round-tripping onto `GridAsset.light`. The renderer sizes the pool from
+ *  `distance` and strengths/tints it from `intensity`/`color`; `on:false` casts none. */
+export interface AssetLight {
+  /** pool STRENGTH, 0..1 — multiplies the pool's warm alpha (1 = today's default lamp brightness). */
+  intensity: number
+  /** pool RADIUS in cells/blocks — the glow reaches this many cells out (today's default lamp = 3.2). */
+  distance: number
+  /** pool COLOUR ("#rrggbb"); absent → the default warm lamp glow. */
+  color?: string
+  /** false → this tile casts NO pool (a switched-off lamp); absent/true → it lights. */
+  on?: boolean
 }
 
 /** A multi-cell asset TEMPLATE: a footprint + one tile per cell. The data-driven replacement for the retired

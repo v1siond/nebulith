@@ -16,7 +16,7 @@ import { EMOJI_TILESET } from '@/engine/tileset/emojiTileset'
 import { applyPose } from '@/engine/tileset/pose'
 import { resolveTileSize, resolveTilePose } from '@/engine/tileset/tileViewSettings'
 import { Connector } from '@/lib/api'
-import { ASCII_FONT, COMBAT_RANGE, type DayNight, ENEMY_MOVE_MS, LAMP_GLOW, applyCellTransform, clampCameraAxis, assetCaptionByCell, terrainLabelAt, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawHoverRing, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawConnectorMarker, drawAttackAnimFrame, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, drawShadedBall, SINGLE_TILE_FRAC, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, frameImage, getPlayerArt, grassShade, cellFill, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, resolveAssetDraw, resolveEntityDraw, assetOverride, labelTileImage, labelTileRecolor, groundDecorImage, treeCanopyLayers, treeCellSet } from './shared'
+import { ASCII_FONT, COMBAT_RANGE, type DayNight, ENEMY_MOVE_MS, applyCellTransform, clampCameraAxis, assetCaptionByCell, terrainLabelAt, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawHoverRing, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawConnectorMarker, drawAttackAnimFrame, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, drawShadedBall, SINGLE_TILE_FRAC, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, frameImage, getPlayerArt, grassShade, cellFill, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, resolveAssetDraw, resolveEntityDraw, assetOverride, labelTileImage, labelTileRecolor, groundDecorImage, treeCanopyLayers, treeCellSet } from './shared'
 import { resolveAssetDrawSize } from './assetDimensions'
 import { resolveAssetAnimation } from './assetAnimation'
 import { DEPTH_CELL_STEP } from './isoBlock'
@@ -637,7 +637,7 @@ export function render2D(
       // Live TILE ANIMATION overrides for THIS frame (settings tweens), scoped to the 2D view + active style.
       // null when the asset has no animations / none in scope → the effective asset IS obj.asset (byte-identical);
       // the overlaid asset carries the animated colour/zoom/width/height so every branch below reads them as-is.
-      const assetAnim = resolveAssetAnimation(obj.asset, time, style, '2d')
+      const assetAnim = resolveAssetAnimation(obj.asset, time, style, '2d', dayNight)
       const asset = assetAnim ? assetAnim.asset : obj.asset
 
       // Get proper height for 2D RPG view based on asset type (buildings derive theirs per-block from the
@@ -780,8 +780,10 @@ export function render2D(
         hit2D = billboardGeom(tileW * 2, tileH * 6, poseMapper({ x: p.x, y: baseY - tileH * 3 }, undefined, tileH))
 
       } else if (asset.type === 'lamp') {
-        // Lamp post — STEADY bulb (ON at night, dim by day), no time-based pulse/flicker.
-        const glow = dayNight === 'night' ? 1 : 0.2
+        // Legacy single-lamp prop — a STEADY lit bulb. The day/night ambience is now the warm ground GLOW POOL
+        // (drawNightLighting), driven by the tile's `light` SETTING and gated to night; this branch just draws
+        // the bulb and no longer reads dayNight.
+        const glow = 1
         ctx.fillStyle = '#333333'
         ctx.fillRect(p.x - tileW * 0.12, baseY - tileH * 2, tileW * 0.24, tileH * 2)
         ctx.fillStyle = '#555555'
@@ -961,7 +963,7 @@ export function render2D(
 
   // ─── NIGHT LIGHTING ─────────────────────────────────────────────────
   if (dayNight === 'night') {
-    const lamps = collectLampGlows(grid, (c, r) => toScreen(c + 0.5, r + 0.5), tileW * LAMP_GLOW.radiusTiles, tileH * 2.2, w, h)
+    const lamps = collectLampGlows(grid, (c, r) => toScreen(c + 0.5, r + 0.5), tileW, tileH * 2.2, w, h)
     drawNightLighting(ctx, w, h, lamps)
   }
 

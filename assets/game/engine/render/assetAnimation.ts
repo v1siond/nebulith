@@ -30,6 +30,7 @@ import {
   type TileView,
 } from '@/engine/animation/tileAnimation'
 import type { Style } from '@/game/artStyle'
+import type { DayNight } from './shared'
 
 /** The live animation effect applied to ONE placed asset for ONE frame in ONE view. */
 export interface AssetAnimationFx {
@@ -48,6 +49,16 @@ export interface AssetAnimationFx {
 /** Map a render `Style` to the pure engine's scope token — only ascii/emoji exist as tile styles. */
 function styleToken(style: Style): TileStyle {
   return style.id === 'emoji' ? 'emoji' : 'ascii'
+}
+
+/** A `night`-triggered animation is a CONDITION, not a one-shot: it plays ONLY while the scene is in night
+ *  mode (the lamp flicker rests in day, comes alive at night — Alexander: "the lamp post animation should be
+ *  off on daytime and on on night time"). Every OTHER trigger plays regardless of day/night. Gated HERE in the
+ *  render bridge (the pure engine ignores triggers), so a filtered-out night animation neither advances nor
+ *  renders while it's day. */
+function animationPlaysAtDayNight(anim: { trigger?: { on: string } }, dayNight: DayNight): boolean {
+  if (anim.trigger?.on === 'night') return dayNight === 'night'
+  return true
 }
 
 /** A resolved setting's numeric VALUE (opacity multiplier / colour handled elsewhere), or the fallback. */
@@ -88,21 +99,23 @@ function withAnimatedFields(asset: GridAsset, values: AnimatedSettingsDetailed):
 }
 
 /**
- * Resolve the live animation effect for `asset` at clock time `nowMs`, rendered under `style` in `view`.
- * Filters the asset's animations to those whose scope matches (style, view), composes their live settings
- * (higher priority / later-in-list wins per setting), and returns the caller-ready effect — or `null` when
- * nothing applies (no animations / none in scope / no settings produced), so the caller keeps the fast path.
+ * Resolve the live animation effect for `asset` at clock time `nowMs`, rendered under `style` in `view` with
+ * the scene in `dayNight`. Filters the asset's animations to those whose scope matches (style, view) AND whose
+ * day/night gate passes (a `night`-triggered animation only when `dayNight === 'night'`), composes their live
+ * settings (higher priority / later-in-list wins per setting), and returns the caller-ready effect — or `null`
+ * when nothing applies (no animations / none in scope / gated out / no settings produced), keeping the fast path.
  */
 export function resolveAssetAnimation(
   asset: GridAsset,
   nowMs: number,
   style: Style,
   view: TileView,
+  dayNight: DayNight = 'day',
 ): AssetAnimationFx | null {
   const animations = asset.animations
   if (!animations || animations.length === 0) return null
   const token = styleToken(style)
-  const active = animations.filter(anim => animationMatchesScope(anim, token, view))
+  const active = animations.filter(anim => animationMatchesScope(anim, token, view) && animationPlaysAtDayNight(anim, dayNight))
   if (active.length === 0) return null
   const values = resolveAnimatedSettingsDetailed(active, nowMs, asset.placedAt ?? 0)
   // Only `sprite` animations in scope → no settings written → treat as no-op (playback stubbed in Phase 1).

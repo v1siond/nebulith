@@ -50,8 +50,11 @@ export type AnimationKind = 'settings' | 'sprite'
 /** Interpolation curve. `sine`/`ease` = ease-in-out (matches `cellAnimation.easeT`); `linear` = default. */
 export type Ease = 'linear' | 'sine' | 'ease'
 
-/** How an animation fires. `load` = plays immediately; `proximity` uses `radiusCells` from the hero. */
-export type TriggerEvent = 'load' | 'attack' | 'interact' | 'proximity'
+/** How an animation fires. `load` = plays immediately; `proximity` uses `radiusCells` from the hero;
+ *  `night` is a CONDITION (not a one-shot) — the animation plays ONLY while the scene is in night mode, so
+ *  a lamp flicker rests in day and comes alive at night. The pure interpolator ignores it; the render bridge
+ *  (`resolveAssetAnimation`, gated by the view's `dayNight`) drops a `night` animation while it's day. */
+export type TriggerEvent = 'load' | 'attack' | 'interact' | 'proximity' | 'night'
 
 export type TileStyle = 'ascii' | 'emoji'
 export type TileView = 'iso' | '2d' | 'top'

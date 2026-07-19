@@ -150,6 +150,10 @@ function stampRun(
   // A cell can also PIN a render SHAPE (`circle` → a shaded ball instead of a cube — a lamp globe, a berry).
   // Copied straight onto the placed asset; absent → the tile stays a square (cube), unchanged.
   if (cs?.shape) asset.shape = cs.shape
+  // A cell can ship a default LIGHT (the lamp_post bulb casts a warm night ground pool) — copied straight onto
+  // the placed asset's `light`, so the lamp lights by default without any per-instance authoring. Absent → no
+  // pool (the night lighting still falls back to the default glow for a bare lamp). Round-trips like `shape`.
+  if (cs?.light) asset.light = cs.light
   // Apex signage: a titled composition (store/hospital) badges its ONE roof-apex cell with its NAME.
   if (comp.title && c.label.startsWith('roof_top')) {
     asset.settings = { ...(asset.settings ?? {}), badge: { text: comp.title, color: BADGE_COLOR } }

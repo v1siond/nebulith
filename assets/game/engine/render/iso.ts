@@ -15,7 +15,7 @@ import { type CombatState, type Entity, type Quest } from '@/game/types'
 import { resolveGroundTile, type TileShape } from '@/engine/tileset/tileset'
 import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 import { Connector } from '@/lib/api'
-import { ASCII_FONT, COMBAT_RANGE, type DayNight, type DrawVisual, ENEMY_MOVE_MS, LAMP_GLOW, LIGHT, applyCellTransform, isoCameraFocus, assetCaptionByCell, terrainLabelAt, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawHoverRing, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawConnectorMarker, drawAttackAnimFrame, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, drawShadedBall, SINGLE_TILE_FRAC, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, frameImage, getPlayerArt, grassShade, cellFill, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, resolveAssetDraw, resolveEntityDraw, assetOverride, labelTileImage, labelTileRecolor, groundDecorImage, tileImage, tintedImage, tintedGlyphSprite, treeCanopyLayers, treeCellSet } from './shared'
+import { ASCII_FONT, COMBAT_RANGE, type DayNight, type DrawVisual, ENEMY_MOVE_MS, LIGHT, applyCellTransform, isoCameraFocus, assetCaptionByCell, terrainLabelAt, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawHoverRing, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawConnectorMarker, drawAttackAnimFrame, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, drawShadedBall, SINGLE_TILE_FRAC, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, frameImage, getPlayerArt, grassShade, cellFill, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, resolveAssetDraw, resolveEntityDraw, assetOverride, labelTileImage, labelTileRecolor, groundDecorImage, tileImage, tintedImage, tintedGlyphSprite, treeCanopyLayers, treeCellSet } from './shared'
 import { resolveAssetDrawSize } from './assetDimensions'
 import { resolveAssetAnimation } from './assetAnimation'
 import { type GroundCellDims, groundSizeFactors, groundDimsActive } from '@/engine/groundDims'
@@ -609,7 +609,7 @@ export function render(
       // (2D front), a 3D gable (iso), and the footprint rectangle (top), like any other stacked tile.
       // Live TILE ANIMATION overrides for THIS frame (settings tweens), scoped to the iso view + active style.
       // null when the asset has no animations / none in scope → the effective asset IS obj.asset (byte-identical).
-      const anim = resolveAssetAnimation(obj.asset, time, style, 'iso')
+      const anim = resolveAssetAnimation(obj.asset, time, style, 'iso', dayNight)
       const drawAsset = anim ? anim.asset : obj.asset // colour/zoom/width/height overlaid onto the draw
       let op = obj.asset.opacity ?? 1 // per-asset opacity for contrast/depth
       // GENERIC proximity behavior: ANY asset whose tile opted into fadeNear/cutawayRoof eases by its OWN
@@ -698,7 +698,7 @@ export function render(
   // ─── NIGHT LIGHTING ─────────────────────────────────────────────────
   // After the scene draws: a navy veil over everything, then steady warm pools at each lamp head.
   if (dayNight === 'night') {
-    const lamps = collectLampGlows(grid, (c, r) => toScreen(c, r), tileW * LAMP_GLOW.radiusTiles, tileH * 1.5, w, h)
+    const lamps = collectLampGlows(grid, (c, r) => toScreen(c, r), tileW, tileH * 1.5, w, h)
     drawNightLighting(ctx, w, h, lamps)
   }
 
@@ -1989,10 +1989,10 @@ export function drawIsoAssetAscii(
     }
 
   } else if (asset.type === 'lamp' || asset.type === 'lantern') {
-    // Lamp post. STEADY light — ON (constant warm bulb) at night, OFF (dim, unlit bulb) by day.
-    // The old lampPulse faded the bulb in/out every cycle, which read as a broken flicker; the
-    // night ambience now comes from the warm light pool in drawNightLighting, not a pulsing glyph.
-    const glow = dayNight === 'night' ? 1 : 0.18
+    // Legacy single-lamp prop — a STEADY lit bulb glyph. The day/night AMBIENCE is no longer faked here: it's
+    // the warm ground GLOW POOL (drawNightLighting), driven by the tile's `light` SETTING and gated to night,
+    // and a night-triggered flicker animation. So this branch just draws the bulb; it no longer reads dayNight.
+    const glow = 1
     const layers = [
       { text: '|', color: '#666666', bg: '#333333' },
       { text: '|', color: '#777777', bg: '#444444' },

@@ -5,6 +5,7 @@
 import type { Action as TriggerAction } from '@/engine/triggers'
 import type { Entity, Quest } from '@/game/types'
 import type { Animation } from '@/engine/animation/tileAnimation'
+import type { AssetLight } from '@/engine/tileset/tileset'
 import { NEBULITH_API } from './nebulithApi'
 
 export interface Connector {
@@ -69,6 +70,8 @@ export interface TemplateData {
     label?: string
     shape?: string            // per-instance render SHAPE ('square' cube default | 'circle' ball) — round-trips
                               // via the shallow clone in deserializeToGrid, like scaleX/pose/display
+    light?: AssetLight        // per-instance LIGHT setting (night ground glow pool) — round-trips via the shallow
+                              // clone, like shape; the lamp_post bulb ships one as a composition default
     animations?: Animation[]  // authored TILE ANIMATIONS (settings tweens) — round-trips like cellAnim; the
                               // fountain's water cells ship the rise/fade loop as a composition default
     placedAt?: number         // clock anchor (ms) a tile animation's start/loop delays are measured from

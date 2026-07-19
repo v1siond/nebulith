@@ -8,7 +8,7 @@ import { BUILT_IN_STYLES, type TileCategory, type TileDef, genderize, tilesForSt
 import type { EntityVariant } from '@/game/types'
 import type { AnimDirection, AnimFrame, AnimTrigger, EntityAnimation } from '@/game/runtime/entityAnimation'
 import type { TilePose } from '@/engine/tileset/pose'
-import type { TileDisplay, TileShape } from '@/engine/tileset/tileset'
+import type { AssetLight, TileDisplay, TileShape } from '@/engine/tileset/tileset'
 import type { DepthDir } from '@/engine/render'
 import { DEFAULT_ACTION_PARAMS, makeTrigger, type Trigger, type TriggerActionType, type TriggerEvent } from '@/game/runtime/trigger'
 import {
@@ -614,6 +614,11 @@ export interface TileControlModel {
    *  asset.shape; null = mixed. Asset tiles only (mirrors Display — the floor has no block to reshape). */
   shape?: TileShape | null
   onShape?: (shape: TileShape) => void
+  /** LIGHT — the warm night ground GLOW POOL this tile casts (GridAsset.light): intensity (strength), distance
+   *  (radius in cells), colour, and an on/off toggle. Reads the first selected tile's light (undefined = none).
+   *  Asset tiles only. `onLight(undefined)` clears the setting. */
+  light?: AssetLight
+  onLight?: (light: AssetLight | undefined) => void
   /** the tile pinned to this stack level (GridAsset.tileOverride), or null = follows the global style. */
   override?: string | null
   /** the active global style name, shown in the "Change tile" affordance. */
@@ -749,6 +754,45 @@ function ShapeModeRow({ shape, onShape }: { shape: TileShape | null; onShape: (s
   )
 }
 
+/** The default LIGHT a tile takes when the user first turns its light ON — matches the seeded lamp default
+ *  (today's warm LAMP_GLOW: intensity 1, radius 3.2 cells, #ffd98a). */
+const DEFAULT_LIGHT: AssetLight = { intensity: 1, distance: 3.2, color: '#ffd98a', on: true }
+
+/** LIGHT — a real, controllable SETTING (Alexander: "a regular setting that allows me to control the light
+ *  intensity and distance"): the tile casts a warm ground GLOW POOL at night. An On/Off toggle plus an
+ *  intensity slider (pool strength 0–1), a distance slider (pool radius in cells), and a colour picker. Editing
+ *  any control materialises the light (turning it On); Off keeps the values but casts no pool. Asset tiles only. */
+function LightControls({ light, onLight }: { light: AssetLight | undefined; onLight: (light: AssetLight | undefined) => void }) {
+  const cur = light ?? DEFAULT_LIGHT
+  const isOn = !!light && light.on !== false
+  const isOff = !!light && light.on === false
+  const patch = (p: Partial<AssetLight>) => onLight({ ...cur, ...p, on: true }) // editing a value turns the light On
+  return (
+    <div className="space-y-1 rounded border border-gray-700 p-1.5">
+      <div className="flex items-center gap-2" title="Light — cast a warm ground glow pool at night from this tile">
+        <span className="w-14 shrink-0 text-[10px] font-bold text-amber-300">Light</span>
+        <button onClick={() => onLight({ ...cur, on: true })} aria-pressed={isOn} className={`rounded px-2 py-0.5 text-[10px] font-bold ${isOn ? 'bg-amber-600 text-white' : 'bg-gray-700 hover:bg-gray-600'}`}>On</button>
+        <button onClick={() => onLight({ ...cur, on: false })} aria-pressed={isOff} className={`rounded px-2 py-0.5 text-[10px] font-bold ${isOff ? 'bg-amber-600 text-white' : 'bg-gray-700 hover:bg-gray-600'}`}>Off</button>
+        {!light && <span className="text-[9px] italic text-gray-500">none</span>}
+      </div>
+      <label className="flex items-center gap-2" title="Intensity — how strong the light pool is (0–1)">
+        <span className="w-14 shrink-0 text-[10px] text-gray-400">Intensity</span>
+        <input type="range" min={0} max={1} step={0.05} value={cur.intensity} onChange={e => parseNum(e.target.value, v => patch({ intensity: v }))} aria-label="Light intensity" className="flex-1 accent-amber-500" />
+        <NumberField value={cur.intensity} onCommit={v => patch({ intensity: v })} ariaLabel="Light intensity value" className="w-14 rounded bg-gray-800 p-1 text-[10px] tabular-nums text-amber-300" />
+      </label>
+      <label className="flex items-center gap-2" title="Distance — how far the light pool reaches, in cells">
+        <span className="w-14 shrink-0 text-[10px] text-gray-400">Distance</span>
+        <input type="range" min={0} max={12} step={0.1} value={cur.distance} onChange={e => parseNum(e.target.value, v => patch({ distance: v }))} aria-label="Light distance" className="flex-1 accent-amber-500" />
+        <NumberField value={cur.distance} onCommit={v => patch({ distance: v })} ariaLabel="Light distance value" className="w-14 rounded bg-gray-800 p-1 text-[10px] tabular-nums text-amber-300" />
+      </label>
+      <label className="flex items-center gap-2" title="Colour — the hue of the light pool">
+        <span className="w-14 shrink-0 text-[10px] text-gray-400">Colour</span>
+        <input type="color" value={cur.color ?? '#ffd98a'} onChange={e => patch({ color: e.target.value })} aria-label="Light colour" className="h-6 w-10 rounded bg-gray-800" />
+      </label>
+    </div>
+  )
+}
+
 /** Z POSITION — SLIDE the tile along an iso DIAGONAL (NOT a vertical lift): a magnitude (± cells) plus WHICH
  *  diagonal it slides along, reusing the same 4 dirs + labels as Z Width. +z slides TOWARD the picked dir,
  *  −z toward its opposite; default 'right-up' ("right top") → +z = up-right toward the back. The direction
@@ -797,6 +841,8 @@ export function TileControls({ tile }: { tile: TileControlModel }) {
       {tile.onDisplay && <DisplayModeRow display={tile.display ?? 'all-faces'} onDisplay={tile.onDisplay} />}
       {/* Shape: render the tile's block as a cube (square) or a ball (circle). Asset tiles only. */}
       {tile.onShape && <ShapeModeRow shape={tile.shape ?? 'square'} onShape={tile.onShape} />}
+      {/* Light: cast a warm ground glow pool at night, with intensity/distance/colour + on-off. Asset tiles only. */}
+      {tile.onLight && <LightControls light={tile.light} onLight={tile.onLight} />}
       <DimRow label="Zoom" axis="zoom" value={tile.dims.zoom} title="Zoom — scales Width, Height and Zoom together" onDim={tile.onDim} />
       {/* x/y/rotate/flip live in the SAME group — there is NO separate POSE section */}
       {setPose && (
