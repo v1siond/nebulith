@@ -66,6 +66,7 @@ import { EquipmentPanel, InventoryCard, QuestAuthoringCard, QuestLogPanel } from
 import { EntityAttackBody, FloatingPanel, Modal, QuestGiveBody, SettingsPanelBody, UnitSettingsSection } from '@/components/game/modals'
 import { FlowViewOverlay, GamesViewOverlay } from '@/components/game/games'
 import { BUILDING_TOOL_TYPE, type BuildingTool, type EditorMode, type EntityTool } from '@/components/game/editorConfig'
+import { useDayNight, useIsMobile } from '@/components/game/editorHooks'
 import { Dropdown, FpsReadout, GenerateControls, PoseControls, PropertiesPanel, type TileControlModel, SelectionHeader, StylePicker, TileAnimationEditor, TileLibraryBody, TilePalette, ToolRail, TriggerEditor, WEAPON_KINDS } from '@/components/game/editorChrome'
 import type { Animation as TileAnim } from '@/engine/animation/tileAnimation'
 import { useFps } from '@/components/useFps'
@@ -174,11 +175,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     hideEntitiesRef.current = hideEntities
   }, [hideEntities])
   // Day/Night: the render loop reads the ref each frame; default day.
-  const [dayNight, setDayNight] = useState<DayNight>('day')
-  const dayNightRef = useRef<DayNight>('day')
-  useEffect(() => {
-    dayNightRef.current = dayNight
-  }, [dayNight])
+  const { dayNight, setDayNight, dayNightRef } = useDayNight('day')
   const [initialized, setInitialized] = useState(false)
 
   // Template limits
@@ -473,15 +470,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       })
       .catch(() => toast("Couldn't load tiles from the server — showing the default builder.", 'error'))
   }, [toast])
-  const [isMobile, setIsMobile] = useState(false)
-
-  // Detect mobile
-  useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth < 768)
-    checkMobile()
-    window.addEventListener('resize', checkMobile)
-    return () => window.removeEventListener('resize', checkMobile)
-  }, [])
+  const isMobile = useIsMobile()
 
   // Load view state from localStorage on mount
   useEffect(() => {
