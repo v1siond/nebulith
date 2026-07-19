@@ -31,12 +31,16 @@ export type TilePosition =
  *  is drawn on the block — it never introduces a glyph. */
 export type TileDisplay = 'all-faces' | 'single'
 
-/** SHAPE — the SOLID a tile's block is rendered as. A per-tile render SETTING (lives in the tile's `settings`
- *  jsonb / a per-ASSET override from the editor), the sibling of `display`:
+/** SHAPE — a FORM modifier for a tile's block: it rounds the silhouette WITHOUT touching the tile's painting.
+ *  A per-tile render SETTING (lives in the tile's `settings` jsonb / a per-ASSET override from the editor), the
+ *  sibling of `display`:
  *    • 'square' (DEFAULT, current behaviour) — the tile extrudes into an iso CUBE (drawIsoTileBlock), a front
  *      rect in 2D, a footprint square in Top.
- *    • 'circle' — the renderer builds a shaded BALL (a sphere tinted by the tile's colour setting) in the SAME
- *      volume the cube would occupy; 2D/Top show a shaded disc in the same footprint.
+ *    • 'circle' — the SAME cube/cell is drawn (its baked art, colour filter and every other setting intact) but
+ *      CLIPPED to a ball inscribed in that volume, plus a soft sphere-shade overlay — so the tile reads as a
+ *      ball while showing EXACTLY what the cube shows. It is NOT a solid-colour ball and NOT a flat disc (the
+ *      earlier solid fill threw the tile's art away — the bug this design fixes). 2D/Top round the footprint the
+ *      same way.
  *  Absent → 'square' (byte-identical to before). Designed to grow ('oval', …) via a dispatch map keyed by this
  *  value, NOT hardcoded branches — a new shape adds one drawer, never a new `if`. */
 export type TileShape = 'square' | 'circle'

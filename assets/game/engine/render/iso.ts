@@ -15,7 +15,7 @@ import { type CombatState, type Entity, type Quest } from '@/game/types'
 import { resolveGroundTile, type TileShape } from '@/engine/tileset/tileset'
 import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 import { Connector } from '@/lib/api'
-import { ASCII_FONT, COMBAT_RANGE, type DayNight, type DrawVisual, ENEMY_MOVE_MS, LIGHT, applyCellTransform, isoCameraFocus, assetCaptionByCell, terrainLabelAt, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawHoverRing, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawConnectorMarker, drawAttackAnimFrame, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, drawShadedBall, SINGLE_TILE_FRAC, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, frameImage, getPlayerArt, grassShade, cellFill, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, resolveAssetDraw, resolveEntityDraw, assetOverride, labelTileImage, labelTileRecolor, groundDecorImage, tileImage, tintedImage, tintedGlyphSprite, treeCanopyLayers, treeCellSet } from './shared'
+import { ASCII_FONT, COMBAT_RANGE, type DayNight, type DrawVisual, ENEMY_MOVE_MS, LIGHT, applyCellTransform, isoCameraFocus, assetCaptionByCell, terrainLabelAt, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawHoverRing, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawConnectorMarker, drawAttackAnimFrame, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, clipToBall, sphericalShade, SINGLE_TILE_FRAC, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, frameImage, getPlayerArt, grassShade, cellFill, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, resolveAssetDraw, resolveEntityDraw, assetOverride, labelTileImage, labelTileRecolor, groundDecorImage, tileImage, tintedImage, tintedGlyphSprite, treeCanopyLayers, treeCellSet } from './shared'
 import { resolveAssetDrawSize } from './assetDimensions'
 import { resolveAssetAnimation } from './assetAnimation'
 import { type GroundCellDims, groundSizeFactors, groundDimsActive } from '@/engine/groundDims'
@@ -1570,15 +1570,15 @@ export function drawIsoSingleTileBlock(
   }
 }
 
-/** SHAPE = "circle" (per-tile `settings`/`shape`): the renderer BUILDS A BALL instead of extruding the cube.
- *  Just as the cube fills the block volume, the ball is inscribed in that SAME volume — a sphere whose
- *  horizontal radius is the block's half-width and whose vertical radius spans the stack height + the base
- *  diamond, centred at the volume's mid-height. So a shape=circle tile occupies the tile's footprint + height
- *  exactly like the cube it replaces (a unit block → a round ball; a stretched/`scaleY` block → an ellipsoid).
- *  The ball is TINTED by the tile's colour (`tint ?? dv.tint ?? dv.color` — the SAME faceColor the cube shades
- *  its faces with), so it honours the colour setting identically. A soft ground shadow keeps it seated. The
- *  baked image is NOT painted on the ball (that would be a flat masked disc) — the ball is a shaded solid, one
- *  code path for every tile + style. `depth`/`depthDir` don't apply to a ball (no directional extrusion). */
+/** SHAPE = "circle" (per-tile `settings`/`shape`) is a FORM modifier, NOT a repaint: it ROUNDS the cube's
+ *  silhouette while keeping the tile's own painting. So it draws the tile's NORMAL cube — the SAME
+ *  drawIsoTileBlock path with its baked art, colour filter and shaded faces (the earlier bug replaced this
+ *  with a solid-colour ball, which threw the art away) — then CLIPS it to a ball inscribed in that SAME block
+ *  volume (horizontal radius = the block half-width, vertical radius = the stack height + base diamond, centred
+ *  at the volume's mid-height). The clip cuts the angular cube shoulders/corners down to a round outline; a soft
+ *  sphericalShade overlay then bends the still-visible art into a ball. So a shape=circle tile shows EXACTLY what
+ *  the cube shows, just rounded — a unit block → a round ball, a stretched/`scaleY` block → an ellipsoid. A soft
+ *  ground shadow keeps it seated. `asset` carries depth/depthDir so a directional-depth block rounds too. */
 export function drawIsoBall(
   ctx: CanvasRenderingContext2D,
   center: Pt,
@@ -1588,9 +1588,9 @@ export function drawIsoBall(
   height: number,
   dv: DrawVisual,
   tint?: string,
+  asset?: GridAsset,
 ): void {
   const n = Math.max(1, Math.floor(height))
-  const color = tint ?? dv.tint ?? dv.color ?? '#cccccc'
   const rx = tileW                       // footprint half-width (honours scaleX/zoom via the caller's bw)
   const ry = (n * blockH) / 2 + tileH    // half the cube's vertical span (stack height + base-diamond depth)
   const cy = center.y - (n * blockH) / 2 // the block volume's vertical mid-point
@@ -1601,7 +1601,13 @@ export function drawIsoBall(
   ctx.ellipse(center.x, center.y + tileH * 0.35, rx * 0.82, tileH * 0.5, 0, 0, Math.PI * 2)
   ctx.fill()
   ctx.restore()
-  drawShadedBall(ctx, center.x, cy, rx, ry, color)
+  // Clip the NORMAL cube to the ball silhouette (keeps the tile's painting; only the form rounds), then overlay
+  // a soft sphere shade so the arted, still-visible tile reads as a ball.
+  ctx.save()
+  clipToBall(ctx, center.x, cy, rx, ry)
+  drawIsoTileBlock(ctx, center, tileW, tileH, blockH, n, dv, tint, undefined, asset?.depth, asset?.depthDir)
+  sphericalShade(ctx, center.x, cy, rx, ry)
+  ctx.restore()
 }
 
 /** ONE dispatch for "how to draw a placed tile's SOLID", keyed by its `shape` (default 'square'). The
@@ -1618,7 +1624,7 @@ const ISO_SHAPE_DRAWERS: Record<TileShape, IsoShapeDrawer> = {
     if (asset.settings?.display === 'single') drawIsoSingleTileBlock(ctx, center, bw, bd, bh, blocks, dv, tint, asset.depth, asset.depthDir)
     else drawIsoTileBlock(ctx, center, bw, bd, bh, blocks, dv, tint, undefined, asset.depth, asset.depthDir)
   },
-  circle: (ctx, center, bw, bd, bh, blocks, dv, tint) => drawIsoBall(ctx, center, bw, bd, bh, blocks, dv, tint),
+  circle: (ctx, center, bw, bd, bh, blocks, dv, tint, asset) => drawIsoBall(ctx, center, bw, bd, bh, blocks, dv, tint, asset),
 }
 
 /** Draw a placed tile's block as the SOLID its `shape` selects — the single call the asset draw sites use in

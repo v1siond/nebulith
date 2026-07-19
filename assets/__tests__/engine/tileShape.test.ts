@@ -1,12 +1,15 @@
 /**
- * Per-tile SHAPE ('square' cube default | 'circle' ball) — the DATA PATH (round-trip + composition passthrough)
- * and the render ROUTING, proven in jsdom (no real raster needed).
+ * Per-tile SHAPE ('square' cube default | 'circle' rounded form) — the DATA PATH (round-trip + composition
+ * passthrough) and the render ROUTING, proven in jsdom (no real raster needed).
  *
  * `shape` is a per-INSTANCE render SETTING on GridAsset, the sibling of `display`. It:
  *   1. round-trips in Template.assetsData like scaleX/pose (the deserialize shallow-clone carries it).
  *   2. can ship as a composition-CELL default (composition_cells.settings.shape → stampComposition → asset.shape).
- *   3. ROUTES the render: 'circle' builds a shaded BALL (fill + ellipse, NO tile image) instead of the cube's
- *      3-face image paint — counted here via a recording context (circle → 0 drawImage, square → 3).
+ *   3. ROUTES the render: 'circle' is a FORM modifier, NOT a repaint. It draws the SAME cube — so the tile's
+ *      baked ART is still painted on all 3 faces (circle → 3 drawImage, IDENTICAL to square) — but CLIPS it to a
+ *      ball (an ellipse clip the square path never uses). Counted here via a recording context: circle keeps the
+ *      3 image draws AND adds the rounding clip; square draws the 3 images with no clip. (The old behaviour drew
+ *      0 images for a circle — a solid ball that threw the tile's painting away; this is the bug that was fixed.)
  */
 import { stampComposition } from '@/game/runtime/composition'
 import { drawIsoAssetAscii } from '@/engine/render/iso'
@@ -71,21 +74,23 @@ describe('stampComposition — a composition CELL can ship a default shape (sett
   })
 })
 
-// ── Render ROUTING: drawIsoAssetAscii builds a BALL (no tile image) for circle vs a 3-face cube for square ──
-interface Rec { ctx: CanvasRenderingContext2D; images: unknown[] }
+// ── Render ROUTING: drawIsoAssetAscii keeps the 3-face cube ART for BOTH shapes, and adds a rounding clip for
+//    circle. The recording ctx counts drawImage (the painted tile faces) AND clip/ellipse (the rounding mask). ──
+interface Rec { ctx: CanvasRenderingContext2D; images: unknown[]; clips: number; ellipses: number }
 function recordingCtx(): Rec {
   const images: unknown[] = []
+  const counts = { clips: 0, ellipses: 0 }
   const ctx = {
     fillStyle: '#000', strokeStyle: '#000', font: '', lineWidth: 1, lineCap: '', globalAlpha: 1,
     textAlign: '' as CanvasTextAlign, textBaseline: '' as CanvasTextBaseline,
     save() {}, restore() {}, beginPath() {}, closePath() {}, moveTo() {}, lineTo() {},
-    rect() {}, clip() {}, ellipse() {}, arc() {}, translate() {}, rotate() {}, scale() {}, transform() {},
+    rect() {}, clip() { counts.clips++ }, ellipse() { counts.ellipses++ }, arc() {}, translate() {}, rotate() {}, scale() {}, transform() {},
     createLinearGradient() { return { addColorStop() {} } }, createRadialGradient() { return { addColorStop() {} } },
     stroke() {}, fill() {}, fillRect() {}, strokeRect() {}, strokeText() {}, fillText() {},
     drawImage(src: unknown) { images.push(src) },
     measureText() { return { width: 10 } as TextMetrics },
   }
-  return { ctx: ctx as unknown as CanvasRenderingContext2D, images }
+  return { ctx: ctx as unknown as CanvasRenderingContext2D, images, get clips() { return counts.clips }, get ellipses() { return counts.ellipses } }
 }
 
 describe('drawIsoAssetAscii ROUTES on asset.shape (end-to-end)', () => {
@@ -109,21 +114,32 @@ describe('drawIsoAssetAscii ROUTES on asset.shape (end-to-end)', () => {
   })
   afterAll(() => { delete EMOJI_TILESET[LABEL] })
 
-  test('default (square) → the tile image is painted on THREE faces (3 image draws)', () => {
+  test('default (square) → the tile image is painted on THREE faces (3 image draws) and NO rounding clip', () => {
     const r = recordingCtx()
     drawIsoAssetAscii(r.ctx, 100, 120, asset({}), 22, 11, 0, false, 'day', EMOJI_STYLE)
     expect(r.images.length).toBe(3)
+    expect(r.clips).toBe(0) // a plain cube — nothing is clipped
   })
 
-  test('shape "square" is identical to the default (3 image draws — the cube path)', () => {
+  test('shape "square" is identical to the default (3 image draws, no clip — the cube path)', () => {
     const r = recordingCtx()
     drawIsoAssetAscii(r.ctx, 100, 120, asset({ shape: 'square' }), 22, 11, 0, false, 'day', EMOJI_STYLE)
     expect(r.images.length).toBe(3)
+    expect(r.clips).toBe(0)
   })
 
-  test('shape "circle" → the renderer builds a shaded BALL: NO tile image is painted (0 image draws)', () => {
+  test('shape "circle" → the SAME 3-face tile ART is still painted (form modifier, not a repaint)', () => {
     const r = recordingCtx()
     drawIsoAssetAscii(r.ctx, 100, 120, asset({ shape: 'circle' }), 22, 11, 0, false, 'day', EMOJI_STYLE)
-    expect(r.images.length).toBe(0) // a solid sphere fill, not the tiled image — one path for every tile/style
+    // The tile's painting is preserved: circle paints the cube's 3 faces exactly like square — NOT 0 (the old
+    // solid-ball bug painted no tile image and lost the art).
+    expect(r.images.length).toBe(3)
+  })
+
+  test('shape "circle" ROUNDS the form: it clips the cube to an ellipse the square path never uses', () => {
+    const r = recordingCtx()
+    drawIsoAssetAscii(r.ctx, 100, 120, asset({ shape: 'circle' }), 22, 11, 0, false, 'day', EMOJI_STYLE)
+    expect(r.clips).toBeGreaterThanOrEqual(1)     // the rounding mask (clipToBall)
+    expect(r.ellipses).toBeGreaterThanOrEqual(1)  // the ball silhouette + shade overlay are elliptical
   })
 })

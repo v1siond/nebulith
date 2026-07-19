@@ -16,7 +16,7 @@ import { EMOJI_TILESET } from '@/engine/tileset/emojiTileset'
 import { applyPose } from '@/engine/tileset/pose'
 import { resolveTileSize, resolveTilePose } from '@/engine/tileset/tileViewSettings'
 import { Connector } from '@/lib/api'
-import { ASCII_FONT, COMBAT_RANGE, type DayNight, ENEMY_MOVE_MS, applyCellTransform, clampCameraAxis, assetCaptionByCell, terrainLabelAt, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawHoverRing, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawConnectorMarker, drawAttackAnimFrame, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, drawShadedBall, SINGLE_TILE_FRAC, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, frameImage, getPlayerArt, grassShade, cellFill, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, resolveAssetDraw, resolveEntityDraw, assetOverride, labelTileImage, labelTileRecolor, groundDecorImage, treeCanopyLayers, treeCellSet } from './shared'
+import { ASCII_FONT, COMBAT_RANGE, type DayNight, ENEMY_MOVE_MS, applyCellTransform, clampCameraAxis, assetCaptionByCell, terrainLabelAt, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawHoverRing, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawConnectorMarker, drawAttackAnimFrame, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, clipToBall, sphericalShade, SINGLE_TILE_FRAC, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, frameImage, getPlayerArt, grassShade, cellFill, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, resolveAssetDraw, resolveEntityDraw, assetOverride, labelTileImage, labelTileRecolor, groundDecorImage, treeCanopyLayers, treeCellSet } from './shared'
 import { resolveAssetDrawSize } from './assetDimensions'
 import { resolveAssetAnimation } from './assetAnimation'
 import { DEPTH_CELL_STEP } from './isoBlock'
@@ -174,35 +174,47 @@ export function draw2DLabeledCell(
   const drawW = tileW * (asset.scaleX ?? 1) * zoom
   const drawH = tileH * (asset.scaleY ?? 1) * zoom
   const cy = baseY - drawH * 0.5
-  // SHAPE = "circle": the 2D front elevation shows a shaded BALL in the cell's footprint instead of the square
-  // face (the flat analogue of the iso ball), tinted by the tile's colour. Absent/'square' → the cube face below.
+  // The tile's NORMAL 2D front face — its own-colour backing + the label image (or glyph). Shared by the plain
+  // square path and the circle path so a rounded tile shows the SAME painting, only its form changes.
+  const drawFace = (): void => {
+    // Back the cell with the TILE'S OWN colour — not a neutral black box — so 2D shows the same colour ISO
+    // does (green trees, brown walls, the roof's red), driven purely by the tile's data. A translucent black
+    // pass darkens that backing so the glyph drawn on top (full tint) still reads clearly.
+    ctx.fillStyle = tint
+    ctx.fillRect(x - drawW / 2, baseY - drawH, drawW, drawH)
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.45)'
+    ctx.fillRect(x - drawW / 2, baseY - drawH, drawW, drawH)
+    // DISPLAY = "single" (per-tile setting): draw ONE smaller centered tile INSIDE the plain colour cell instead
+    // of filling the whole front face, mirroring the iso "single tile inside the block" look. Absent/'all-faces'
+    // → the tile fills the cell exactly as before.
+    const single = asset.settings?.display === 'single'
+    const frac = single ? SINGLE_TILE_FRAC : 1
+    // The label's backend IMAGE (ascii: a white tint-target, RECOLOURED to `tint`; emoji: an already-coloured
+    // PNG, NEVER recoloured) fills the same cell box the glyph would; a label with no image (most today)
+    // falls through to the glyph below, so the cell is never blank.
+    const image = asset.label ? labelTileImage(asset.label, style) : undefined
+    if (image) {
+      drawStyledImage(ctx, image, x, cy, drawW * frac, false, labelTileRecolor(style, tint), drawH * frac)
+      return
+    }
+    ctx.font = `bold ${drawH * 0.8 * frac}px ${ASCII_FONT}`
+    ctx.fillStyle = tint
+    ctx.fillText(char, x, cy)
+  }
+
+  // SHAPE = "circle" is a FORM modifier, not a repaint (the flat analogue of the iso ball): draw the SAME front
+  // face but CLIP it to an ellipse so the tile's painting stays and only the silhouette rounds, then overlay a
+  // soft sphere shade. Absent/'square' → the plain rectangular face. (The old path drew a solid tinted ball,
+  // which lost the tile's art — the bug this fixes.)
   if (asset.shape === 'circle') {
-    drawShadedBall(ctx, x, cy, drawW * 0.5, drawH * 0.5, tint)
+    ctx.save()
+    clipToBall(ctx, x, cy, drawW * 0.5, drawH * 0.5)
+    drawFace()
+    sphericalShade(ctx, x, cy, drawW * 0.5, drawH * 0.5)
+    ctx.restore()
     return
   }
-  // Back the cell with the TILE'S OWN colour — not a neutral black box — so 2D shows the same colour ISO
-  // does (green trees, brown walls, the roof's red), driven purely by the tile's data. A translucent black
-  // pass darkens that backing so the glyph drawn on top (full tint) still reads clearly.
-  ctx.fillStyle = tint
-  ctx.fillRect(x - drawW / 2, baseY - drawH, drawW, drawH)
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.45)'
-  ctx.fillRect(x - drawW / 2, baseY - drawH, drawW, drawH)
-  // DISPLAY = "single" (per-tile setting): draw ONE smaller centered tile INSIDE the plain colour cell instead
-  // of filling the whole front face, mirroring the iso "single tile inside the block" look. Absent/'all-faces'
-  // → the tile fills the cell exactly as before.
-  const single = asset.settings?.display === 'single'
-  const frac = single ? SINGLE_TILE_FRAC : 1
-  // The label's backend IMAGE (ascii: a white tint-target, RECOLOURED to `tint`; emoji: an already-coloured
-  // PNG, NEVER recoloured) fills the same cell box the glyph would; a label with no image (most today)
-  // falls through to the glyph below, so the cell is never blank.
-  const image = asset.label ? labelTileImage(asset.label, style) : undefined
-  if (image) {
-    drawStyledImage(ctx, image, x, cy, drawW * frac, false, labelTileRecolor(style, tint), drawH * frac)
-    return
-  }
-  ctx.font = `bold ${drawH * 0.8 * frac}px ${ASCII_FONT}`
-  ctx.fillStyle = tint
-  ctx.fillText(char, x, cy)
+  drawFace()
 }
 
 

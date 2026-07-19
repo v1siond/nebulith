@@ -8,7 +8,7 @@ import { type PlayerState, barFraction, hpFraction } from '@/game/runtime/player
 import { type CombatState, type Entity, type Quest } from '@/game/types'
 import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 import { Connector } from '@/lib/api'
-import { ASCII_FONT, type DayNight, applyCellTransform, clampCameraAxis, collectLampGlows, debugCellCaptions, debugLabelColors, drawConnectorMarker, drawHitMarker, drawHpBar, drawNightLighting, drawQuestMarker, drawStyledImage, drawShadedBall, SINGLE_TILE_FRAC, fillTintedGlyph, grassShade, cellFill, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, resolveAssetDraw, resolveEntityDraw, assetOverride, labelTileImage, labelTileRecolor, tileImage } from './shared'
+import { ASCII_FONT, type DayNight, applyCellTransform, clampCameraAxis, collectLampGlows, debugCellCaptions, debugLabelColors, drawConnectorMarker, drawHitMarker, drawHpBar, drawNightLighting, drawQuestMarker, drawStyledImage, clipToBall, sphericalShade, SINGLE_TILE_FRAC, fillTintedGlyph, grassShade, cellFill, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, resolveAssetDraw, resolveEntityDraw, assetOverride, labelTileImage, labelTileRecolor, tileImage } from './shared'
 import { resolveAssetDrawSize } from './assetDimensions'
 import { resolveAssetAnimation } from './assetAnimation'
 import { DEPTH_CELL_STEP } from './isoBlock'
@@ -199,28 +199,27 @@ export function renderTopView(
       // even where kind-resolution can't (e.g. per-part tree labels collapse to the generic 'tree' kind).
       const labelImage = asset?.label ? labelTileImage(asset.label, style) : undefined
       const img = labelImage ?? dv.image
-      // SHAPE = "circle": the Top (footprint) view shows a shaded BALL in the cell instead of the square tile —
-      // the overhead analogue of the iso ball. The square cell backing already painted above frames it.
-      if (asset?.shape === 'circle') {
-        const r = tileSize * 0.42
-        drawShadedBall(ctx, gx, gy, r, r, dAsset?.color ?? asset.color ?? dv.tint ?? dv.color ?? '#cccccc')
-      } else if (img) {
-        // Per-view tile size (byte-identical when unset: old tileSize base), then per-element dims (#77/#78).
-        const vt = style.id === 'emoji' && asset ? EMOJI_TILESET[assetKind(asset)] : undefined
-        const d = resolveAssetDrawSize(tileSize * (resolveTileSize(vt, 'top') ?? 1), dAsset ?? {}, 'overhead')
-        const pose = asset?.pose ?? resolveTilePose(vt, 'top') // per-asset pose (inspector x/y/rotate) wins; else the tileset-kind pose
-        const recolor = labelImage ? labelTileRecolor(style, dAsset?.color ?? '#cccccc') : dAsset?.color
-        // DISPLAY = "single": draw ONE smaller centered tile inside the plain cell (the cell backing already
-        // painted above shows around it), matching the iso/2D "single tile inside the block" look. Absent → 1×.
-        const frac = asset?.settings?.display === 'single' ? SINGLE_TILE_FRAC : 1
-        if (pose) {
-          ctx.save(); ctx.translate(gx, gy); applyPose(ctx, pose, 1, tileSize)
-          drawStyledImage(ctx, img, 0, 0, d.w * frac, false, recolor, d.h * frac)
-          ctx.restore()
-        } else {
-          drawStyledImage(ctx, img, gx, gy, d.w * frac, false, recolor, d.h * frac) // #80 colour override tints the sprite
+      // The tile's NORMAL overhead draw — the label/kind image, or the glyph. Shared by the plain square path
+      // and the circle path so a rounded footprint shows the SAME painting; only its form changes.
+      const drawTopTile = (): void => {
+        if (img) {
+          // Per-view tile size (byte-identical when unset: old tileSize base), then per-element dims (#77/#78).
+          const vt = style.id === 'emoji' && asset ? EMOJI_TILESET[assetKind(asset)] : undefined
+          const d = resolveAssetDrawSize(tileSize * (resolveTileSize(vt, 'top') ?? 1), dAsset ?? {}, 'overhead')
+          const pose = asset?.pose ?? resolveTilePose(vt, 'top') // per-asset pose (inspector x/y/rotate) wins; else the tileset-kind pose
+          const recolor = labelImage ? labelTileRecolor(style, dAsset?.color ?? '#cccccc') : dAsset?.color
+          // DISPLAY = "single": draw ONE smaller centered tile inside the plain cell (the cell backing already
+          // painted above shows around it), matching the iso/2D "single tile inside the block" look. Absent → 1×.
+          const frac = asset?.settings?.display === 'single' ? SINGLE_TILE_FRAC : 1
+          if (pose) {
+            ctx.save(); ctx.translate(gx, gy); applyPose(ctx, pose, 1, tileSize)
+            drawStyledImage(ctx, img, 0, 0, d.w * frac, false, recolor, d.h * frac)
+            ctx.restore()
+          } else {
+            drawStyledImage(ctx, img, gx, gy, d.w * frac, false, recolor, d.h * frac) // #80 colour override tints the sprite
+          }
+          return
         }
-      } else {
         // GLYPH tile (no image): honour the per-view tile size + per-element dims + the colour override,
         // mirroring topdown's 2D glyph path (here the overhead view → Width × Depth). A bare ground glyph
         // (no asset, dims 1, no tint) falls through fillTintedGlyph to a plain centred fillText at the old
@@ -237,6 +236,21 @@ export function renderTopView(
         fillTintedGlyph(ctx, dv.char, 0, 0, d.h, dAsset?.color, strength)
         ctx.restore()
         ctx.font = `bold ${fontSize}px ${ASCII_FONT}` // restore the loop's shared font for the next cell
+      }
+
+      // SHAPE = "circle" is a FORM modifier, not a repaint (the overhead analogue of the iso ball): draw the SAME
+      // tile but CLIP it to a circle so its painting stays and only the footprint silhouette rounds, then overlay
+      // a soft sphere shade. The square cell backing painted above frames it. (The old path drew a solid tinted
+      // disc, which lost the tile's art — the bug this fixes.)
+      if (asset?.shape === 'circle') {
+        const r = tileSize * 0.5
+        ctx.save()
+        clipToBall(ctx, gx, gy, r, r)
+        drawTopTile()
+        sphericalShade(ctx, gx, gy, r, r)
+        ctx.restore()
+      } else {
+        drawTopTile()
       }
       if (ctTop) ctx.restore()
       if (animWrap) ctx.restore() // pop the tile-animation shift/opacity wrap
