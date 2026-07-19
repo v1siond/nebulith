@@ -160,6 +160,18 @@ defmodule Nebulith.Catalog do
     |> Repo.update_all(set: [height: height, updated_at: DateTime.truncate(DateTime.utc_now(), :second)])
   end
 
+  @doc """
+  Sets ONLY the `category` column of the (tileset_id, label) tile, leaving settings/pose/height untouched.
+
+  Same pose-safe path as `set_tile_height`: a full upsert would `replace_all` and clobber editor-tuned poses,
+  so recategorizing a tile (e.g. an animal that belongs in `units`, not `nature`) walks the category column
+  alone. Returns `{updated_count, nil}`.
+  """
+  def set_tile_category(tileset_id, label, category) do
+    from(t in Tile, where: t.tileset_id == ^tileset_id and t.label == ^label)
+    |> Repo.update_all(set: [category: category, updated_at: DateTime.truncate(DateTime.utc_now(), :second)])
+  end
+
   @doc "Inserts or updates a tile, keyed on (tileset_id, label)."
   def upsert_tile(attrs) do
     %Tile{}

@@ -324,69 +324,79 @@ defmodule Nebulith.TileSourceTest do
     end
   end
 
-  test "whole-object building tiles are 3D BLOCKS (height >= 1); terrain + facade parts stay FLAT (0)" do
-    # THE PAINTER BUG: a painted wall/house/castle came in FLAT because its DB block height had drifted to 0.
-    # Whole-object buildings must extrude into an all-faces iso cube by default; a floor/facade must not.
+  test "EVERY paintable asset tile is a UNIFORM 3D block (height 1) — no flat-vs-standing split; terrain is the floor (0)" do
+    # The user's hard rule: "all tiles behave and are inserted the same in the map, regardless of type or art
+    # style." The old flat-vs-standing split is GONE — a flower, a leaf, a door, a fountain, a tree, a building
+    # all carry the SAME uniform block height (1). The only per-tile difference comes from the sidebar settings,
+    # never a category rule. seed() reconciles buildings+nature to the uniform block; terrain stays the floor.
     emoji = Catalog.list_tiles_for("emoji")
     by = fn label -> Enum.find(emoji, &(&1.label == label)) end
 
-    for label <- ~w(wall house castle brick tower bank altar pillar tent stadium torii-gate) do
-      assert by.(label).height >= 1, "#{label} must be a 3D block (height >= 1)"
+    # whole-object buildings, thin facade parts (door/window), AND water features — ALL uniform blocks now.
+    building_uniform = ~w(wall house castle brick tower bank door window glass-window wooden-door fountain well roof)
+    # standing nature AND the former "flat overlays" (flower/rose/leaf/clover/coral) — ALL uniform blocks now.
+    nature_uniform = ~w(tree palm-tree rock boulder mushroom bush cactus potted-plant flower rose tulip sunflower fallen-leaf maple-leaf clover coral seashell wheat)
+
+    for label <- building_uniform ++ nature_uniform do
+      assert by.(label).height == 1, "#{label} must insert as the SAME uniform block (height 1), no exception"
     end
 
-    # a floor is NOT a block: terrain + thin facade parts + water features stay flat.
-    for label <- ~w(grass water path road sand door window glass-window wooden-door fountain well roof) do
-      assert by.(label).height == 0, "#{label} must stay flat (height 0)"
+    # terrain is the FLOOR primitive (painted onto the ground, never a stacked block), so it is intentionally
+    # not extruded — this is the floor-vs-stack boundary, NOT a per-category height distinction among tiles.
+    for label <- ~w(grass water path road sand) do
+      assert by.(label).height == 0, "#{label} is terrain (the floor), not a stacked block"
     end
   end
 
-  test "reconcile_building_heights restores a drifted block height, leaving the tile's settings untouched" do
-    # Proves the surgical, pose-safe fix: reconcile touches ONLY the height column, so editor-tuned poses
-    # (which live in `settings`) survive — unlike a full upsert, which would replace_all and clobber them.
-    wall = Enum.find(Catalog.list_tiles_for("emoji"), &(&1.label == "wall"))
-    assert wall.settings["fadeNear"] == true # the tile's own behaviour/pose lives in settings
+  test "reconcile_tile_heights normalises a DRIFTED asset height back to the uniform block (1), settings untouched" do
+    # Pose-safe fix: reconcile touches ONLY the height column, so editor-tuned poses (in `settings`) survive.
+    # Proves the inversion of the old model — a FLOWER (a former flat overlay) is now a uniform block too, and a
+    # drifted height snaps back to 1, not to a per-category value.
+    rose = Enum.find(Catalog.list_tiles_for("emoji"), &(&1.label == "rose"))
+    assert rose.height == 1, "a flower is a uniform block by default (no more flat exception)"
+    settings_before = rose.settings
 
-    # simulate the DB DRIFT that caused the painter bug: the block height silently fell to 0.
-    {1, _} = Catalog.set_tile_height(wall.tileset_id, "wall", 0)
-    assert Enum.find(Catalog.list_tiles_for("emoji"), &(&1.label == "wall")).height == 0
+    # simulate DB drift on both a former-flat tile and a building tile.
+    {1, _} = Catalog.set_tile_height(rose.tileset_id, "rose", 0)
+    {1, _} = Catalog.set_tile_height(rose.tileset_id, "wall", 5)
+    assert Enum.find(Catalog.list_tiles_for("emoji"), &(&1.label == "rose")).height == 0
 
-    # reconcile pulls the height back from emoji.json — height COLUMN only.
-    :ok = TileSource.reconcile_building_heights()
-    fixed = Enum.find(Catalog.list_tiles_for("emoji"), &(&1.label == "wall"))
-    assert fixed.height >= 1, "reconcile restores the intended block height"
-    assert fixed.settings["fadeNear"] == true, "settings (behaviour/pose) survive the height-only fix"
+    :ok = TileSource.reconcile_tile_heights()
+    fixed = Catalog.list_tiles_for("emoji")
+    by = fn label -> Enum.find(fixed, &(&1.label == label)) end
+    assert by.("rose").height == 1, "reconcile restores the UNIFORM block height (1) for every asset tile"
+    assert by.("wall").height == 1, "a drifted building height snaps back to the same uniform 1"
+    assert by.("rose").settings == settings_before, "settings (colour/pose) survive the height-only fix"
   end
 
-  test "standing NATURE tiles are 3D BLOCKS (height >= 1); flat ground overlays stay FLAT (0)" do
-    # User (Image #60): a painted palm tree / plant came in FLAT while buildings painted as blocks — the SAME
-    # height-drift class. Standing nature objects (trees/rocks/crates/lamps/mushrooms/animals) must extrude;
-    # flat ground overlays (flowers/leaves/floor items) must stay decals.
+  test "animals are UNITS/enemies, not nature; genuine nature (trees/rocks/plants) stays nature" do
+    # User: "we have a bunch of enemy or unit tiles on the nature category, like bears, wolf — animals aren't
+    # nature." seed() reads the category straight from emoji.json, so the recategorised animals land in `units`.
     emoji = Catalog.list_tiles_for("emoji")
-    by = fn label -> Enum.find(emoji, &(&1.label == label)) end
+    cat = fn label -> Enum.find(emoji, &(&1.label == label)).category end
 
-    for label <- ~w(tree palm-tree pine-tree oak-tree rock boulder crate lamp mushroom bush cactus potted-plant cow) do
-      assert by.(label).height >= 1, "#{label} (a standing object) must be a 3D block (height >= 1)"
+    for label <- ~w(bear grey-wolf fox cow sheep horse rabbit deer owl butterfly cat dog) do
+      assert cat.(label) == "units", "#{label} is an animal → belongs in units, not nature"
     end
 
-    for label <- ~w(flower rose tulip sunflower fallen-leaf maple-leaf clover hazard key) do
-      assert by.(label).height == 0, "#{label} (a flat ground overlay) must stay flat (height 0)"
+    for label <- ~w(tree oak-tree rock boulder flower rose mushroom bush cactus potted-plant) do
+      assert cat.(label) == "nature", "#{label} is genuine nature → stays in nature"
     end
   end
 
-  test "reconcile_nature_heights restores a drifted standing-nature height, leaving settings untouched" do
-    # Same surgical, pose-safe fix as buildings — height COLUMN only, so a tile's settings survive.
-    palm = Enum.find(Catalog.list_tiles_for("emoji"), &(&1.label == "palm-tree"))
-    settings_before = palm.settings
+  test "reconcile_tile_categories moves a DRIFTED category back to emoji.json's, settings untouched" do
+    # Pose-safe category sync (category COLUMN only) — the same class of fix as the height reconcile. A tile
+    # whose DB bucket drifted from emoji.json snaps back without a full reseed clobbering its poses.
+    bear = Enum.find(Catalog.list_tiles_for("emoji"), &(&1.label == "bear"))
+    settings_before = bear.settings
 
-    {1, _} = Catalog.set_tile_height(palm.tileset_id, "palm-tree", 0)
-    assert Enum.find(Catalog.list_tiles_for("emoji"), &(&1.label == "palm-tree")).height == 0
+    {1, _} = Catalog.set_tile_category(bear.tileset_id, "bear", "nature")
+    assert Enum.find(Catalog.list_tiles_for("emoji"), &(&1.label == "bear")).category == "nature"
 
-    :ok = TileSource.reconcile_nature_heights()
-    fixed = Enum.find(Catalog.list_tiles_for("emoji"), &(&1.label == "palm-tree"))
-    assert fixed.height >= 1, "reconcile restores the intended standing-nature block height"
-    assert fixed.settings == settings_before, "settings (colour/pose) survive the height-only fix"
-    # a flat overlay is NOT wrongly extruded by the reconcile
-    assert Enum.find(Catalog.list_tiles_for("emoji"), &(&1.label == "flower")).height == 0
+    :ok = TileSource.reconcile_tile_categories()
+    fixed = Enum.find(Catalog.list_tiles_for("emoji"), &(&1.label == "bear"))
+    assert fixed.category == "units", "reconcile restores the emoji.json category (units)"
+    assert fixed.settings == settings_before, "settings survive the category-only fix"
   end
 
   test "behavior settings don't clobber existing settings and stay scoped to building tiles" do

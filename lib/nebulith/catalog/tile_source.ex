@@ -75,6 +75,10 @@ defmodule Nebulith.Catalog.TileSource do
     seed_compositions(ascii["compositions"])
     seed_new_compositions()
     seed_building_compositions()
+    # UNIFORM insertion: every paintable asset tile is a block (height 1), no flat-vs-standing split. seed_emoji_tiles
+    # writes the raw per-tile height; this normalises buildings+nature to the uniform block so a fresh full seed agrees
+    # with seed_sample (which reconciles pose-safely).
+    reconcile_tile_heights()
 
     ascii_count = length(Catalog.list_tiles_for("ascii"))
     emoji_count = length(Catalog.list_tiles_for("emoji"))
@@ -826,52 +830,64 @@ defmodule Nebulith.Catalog.TileSource do
     seed_tree_leaves(emoji_id, palettes)
     seed_new_compositions()
     seed_building_compositions()
-    reconcile_building_heights()
-    reconcile_nature_heights()
+    reconcile_tile_heights()
+    reconcile_tile_categories()
     IO.puts("reseeded sample tiles + compositions")
     :ok
   end
 
   @doc """
-  Reconciles the `height` COLUMN of the emoji BUILDING tiles from emoji.json.
+  Reconciles the `height` COLUMN of every paintable emoji ASSET tile (categories `buildings` + `nature`) to a
+  UNIFORM block height of 1.
 
-  Whole-object building tiles (wall/house/castle/…) must paint as 3D BLOCKS, not flat billboards. Their
-  DB `height` had DRIFTED to 0 while the seed intends >= 1 — so a painted wall came in flat and only
-  extruded once the user hand-raised Z-Width (the painter bug). This walks every `category: "buildings"`
-  tile in emoji.json and writes its `height` onto the matching DB row, touching ONLY the height column so
-  editor-tuned poses in `settings` survive (a full `seed_emoji_tiles` would `replace_all` them — which is
-  why `seed_sample` never calls it). Facade parts (door/window) + water features (fountain/well) carry no
-  height in emoji.json, so they stay flat (0). Idempotent.
+  The user's hard rule: "all tiles behave and are inserted the same in the map, regardless of type or art
+  style." There is NO per-category flat-vs-standing split anymore — a flower, a tree, a building, a rock all
+  paint as the SAME full all-faces block (height 1), matching the GENERATOR (every composition cell is forced
+  to `asset.height = 1`) and the editor brush (`stackAssetTile` seeds a uniform `h = 1`). The ONLY source of a
+  per-tile difference is the right-sidebar SETTINGS the user edits on an individual tile, never its type or
+  category. `t["height"] || 1` means a tile with no explicit height defaults to a block, so there is no way to
+  reintroduce the old flat-vs-standing distinction. Touches ONLY the height column (set_tile_height), so
+  editor-tuned poses in `settings` survive (a full `seed_emoji_tiles` would `replace_all` them — which is why
+  `seed_sample` never calls it). Terrain is the floor primitive (painted onto the ground, never a stacked
+  block) and is intentionally left untouched. Idempotent.
   """
-  def reconcile_building_heights, do: reconcile_category_heights("buildings")
-
-  @doc """
-  Reconciles the `height` COLUMN of the emoji NATURE tiles from emoji.json.
-
-  Same DRIFT class as the buildings (reconcile_building_heights): a standing nature object (tree/palm/
-  rock/crate/lamp/mushroom/animal/…) must paint as a 3D BLOCK, but its DB `height` sat at 0 while emoji.json
-  intends 1 — so a PAINTED palm-tree/plant came in as a flat single-face billboard on the floor while the
-  GENERATOR's version (a composition cell, forced to height 1 in composition.ex/ts) stood up. Flat ground
-  overlays (flowers/leaves/floor items) carry no height in emoji.json, so they STAY flat (0). Height-only,
-  so editor-tuned poses in `settings` survive. Idempotent.
-  """
-  def reconcile_nature_heights, do: reconcile_category_heights("nature")
-
-  # Walk every emoji.json tile of `category` and write its `height` onto the matching DB row, touching ONLY
-  # the height column (set_tile_height) so editor-tuned poses survive — the SAME pose-safe path the building
-  # reconcile uses. `height` absent in emoji.json → 0 (flat).
-  defp reconcile_category_heights(category) do
+  def reconcile_tile_heights do
     emoji_id = ensure_tileset("emoji", "Emoji").id
     emoji = read_tileset("emoji.json")
 
     updated =
-      for {label, t} <- emoji, t["category"] == category, reduce: 0 do
+      for {label, t} <- emoji, t["category"] in ["buildings", "nature"], reduce: 0 do
         acc ->
-          {n, _} = Catalog.set_tile_height(emoji_id, label, t["height"] || 0)
+          {n, _} = Catalog.set_tile_height(emoji_id, label, t["height"] || 1)
           acc + n
       end
 
-    IO.puts("reconciled #{updated} emoji #{category}-tile heights")
+    IO.puts("reconciled #{updated} emoji asset-tile heights to a uniform block (1)")
+    :ok
+  end
+
+  @doc """
+  Reconciles the `category` COLUMN of every emoji tile from emoji.json (the source of truth for a tile's
+  bucket).
+
+  emoji.json owns which sidebar bucket a tile lives in (terrain/buildings/units/nature). When a tile is
+  recategorized there — e.g. the animals (bear/wolf/fox/…) that are enemies/units, NOT nature — the DB must
+  follow, or the sidebar + the top-nav Unit flow keep reading the stale bucket. A full `seed_emoji_tiles`
+  would land the category but `replace_all` the editor-tuned poses in `settings`, so this walks the category
+  column alone (the SAME pose-safe path `reconcile_tile_heights` uses). Idempotent.
+  """
+  def reconcile_tile_categories do
+    emoji_id = ensure_tileset("emoji", "Emoji").id
+    emoji = read_tileset("emoji.json")
+
+    updated =
+      for {label, t} <- emoji, is_binary(t["category"]), reduce: 0 do
+        acc ->
+          {n, _} = Catalog.set_tile_category(emoji_id, label, t["category"])
+          acc + n
+      end
+
+    IO.puts("reconciled #{updated} emoji tile categories")
     :ok
   end
 

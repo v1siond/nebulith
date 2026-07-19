@@ -77,6 +77,16 @@ flowchart LR
 - A **TILE** is the art inside a cell/block — an ascii glyph, an emoji, or an image, coming from the **DB
   tileset**. Ascii and emoji are just **two tilesets** of the same tile (same label, different art). The
   front end renders; the tile data comes from the DB — the front end hardcodes nothing.
+- **Every tile is INSERTED UNIFORMLY.** Painting or generating ANY tile places it with the SAME default: a full
+  all-faces block one level tall (`height = 1`) — the SAME height the generator forces on every composition cell
+  (`stampComposition`: `asset.height = 1`) and the editor brush seeds (`stackAssetTile`: `h = 1`). There is **NO
+  branch by tile type, category, label, or art style** anywhere in the insertion path — a flower, a tree, a
+  building, a rock, an animal-shaped decoration all land as structurally identical blocks (the user's hard rule:
+  *"all tiles behave and are inserted the same in the map, regardless of type or art style"*). The **ONLY**
+  source of a per-tile difference — flatten it, round it (`shape`), resize it, recolour it — is the **SETTINGS**
+  on that individual cell/block, edited in the right sidebar, **never** the tile's type/category. (Terrain is
+  the one exception, because it is the **FLOOR** — painted onto the ground via `placeGroundTile`, not stacked as
+  a block.)
 - A cell/block CAN carry a **`shape`** render setting (`square` default | `circle`) — DATA on the cell
   (`composition_cells.settings.shape` or a per-instance editor setting), never a render special-case.
   **`shape: circle` takes the SAME cuboid and BENDS ITS CORNERS ROUND**, NOT a repainted sphere (Alexander:
