@@ -11,7 +11,27 @@
 import { type BuildingType } from './buildingTypes'
 import { buildingCompositionKind, facingRotation, isRoadGround, rotateFootprintOffset } from './buildingCatalog'
 import { planVillage, type VillageLayout, type Settlement, type Plot, type Facing, type PlazaRect } from './villageLayout'
-import { stagePropTileOverride, ZONE_PALETTES, ZoneId } from './zones'
+import {
+  stagePropTileOverride,
+  ZONE_PALETTES,
+  ZoneId,
+  ZONE_FLOWERS,
+  DEFAULT_FLOWERS,
+  type FlowerKind,
+  type LivingTreeKind,
+  LIVING_TREE_VARIANTS,
+  LIVING_TREE_WEIGHT,
+  ROCK_SHADES,
+  CAVE_DECOR,
+  MUSHROOM_TONES,
+  PROP_ART,
+  type TemplePalette,
+  TEMPLE_PALETTES,
+  type CavePalette,
+  CAVE_PALETTES,
+} from './zones'
+// Re-exported so the generator keeps its public tree-shape type (backend palette data now owns it).
+export type { LivingTreeKind } from './zones'
 import { type CellLabel } from './cellLabels'
 import { resolveTile, resolveComposition, canopyCount, pickGroundDecor } from './tileset/tileset'
 import { ASCII_TILESET } from './tileset/asciiTileset'
@@ -154,23 +174,6 @@ const shadeNoise = (seed: number): number => {
 const massVariant = (col: number, row: number): number =>
   Math.floor(col / 2) * 7 + Math.floor(row / 2) * 13
 
-// The living-tree SHAPE variants the generator scatters (Alexander: "randomize trees composition … small
-// trees, long trees … circle forms … a variant without trunk to simulate bushes"). Each is a backend
-// COMPOSITION (2 tiles; a bush is 1); the per-tree COLOUR is the separate `variant` (canopy shade). Weighted
-// so standard trees dominate and the rarer forms (tall/round/stub/bush) accent — a believable mixed stand,
-// never a monoculture. Adding a shape = one row here, no dispatcher edits.
-export type LivingTreeKind = 'tree' | 'tree_tall' | 'tree_stub' | 'tree_round' | 'bush' | 'bush_round'
-
-const LIVING_TREE_VARIANTS: ReadonlyArray<{ kind: LivingTreeKind; weight: number }> = [
-  { kind: 'tree', weight: 32 },
-  { kind: 'tree_tall', weight: 22 },
-  { kind: 'tree_round', weight: 20 },
-  { kind: 'tree_stub', weight: 12 },
-  { kind: 'bush', weight: 8 },
-  { kind: 'bush_round', weight: 6 },
-]
-const LIVING_TREE_WEIGHT = LIVING_TREE_VARIANTS.reduce((sum, v) => sum + v.weight, 0)
-
 /** Pick a living-tree composition kind by WEIGHT from a [0,1) roll — `Math.random()` for the glade/town
  *  scatter, a position hash for the coherent forest mass. This is the randomization the ticket asks for:
  *  a stand shows standard / tall / small / round trees + bushes instead of one repeated shape. Pure +
@@ -192,36 +195,16 @@ const makeFeatureCell = (zone: ZoneId, col: number, row: number, label: CellLabe
   return { col, row, type: 'feature', char: tile.char, blocking: true, color: tile.color, label }
 }
 
-// Walkable flower variants. SPRING bursts into many shapes + colors (a meadow in
-// bloom); SUMMER keeps a smaller, deeper-toned set. Zones absent here don't flower.
-type FlowerKind = { char: string; color: string }
-const SPRING_FLOWERS: ReadonlyArray<FlowerKind> = [
-  { char: '✿', color: '#ff8fc8' }, // pink bloom
-  { char: '❀', color: '#ffd24a' }, // buttercup
-  { char: '✾', color: '#c89bff' }, // lilac
-  { char: '❁', color: '#ff7a7a' }, // poppy
-  { char: '✽', color: '#ffffff' }, // daisy
-  { char: '❋', color: '#7ad0ff' }, // bluebell
-]
-const SUMMER_FLOWERS: ReadonlyArray<FlowerKind> = [
-  { char: '*', color: '#ff88cc' },
-  { char: '✿', color: '#ffd24a' },
-]
-const FLOWERS_BY_ZONE: Partial<Record<ZoneId, ReadonlyArray<FlowerKind>>> = {
-  spring: SPRING_FLOWERS,
-  summer: SUMMER_FLOWERS,
-}
-
+// Walkable flowers read from the zone's curated bloom set (ZONE_FLOWERS in zones.ts).
 const makeFlower = (zone: ZoneId, col: number, row: number): StageProp => {
-  const set = FLOWERS_BY_ZONE[zone] ?? SUMMER_FLOWERS
-  const pick = set[randInt(0, set.length - 1)]
+  const set = ZONE_FLOWERS[zone] ?? DEFAULT_FLOWERS
+  const pick: FlowerKind = set[randInt(0, set.length - 1)]
   // Each flower gets its own intensity tone (per-cell) for a naturally varied meadow — tone only, no opacity.
   return { col, row, type: 'flower', char: pick.char, blocking: false, color: varyIntensity(pick.color, shadeNoise(col * 2.7 + row * 3.1)) }
 }
 
-// Tonal rock shades (+ a little char texture) so cave/arena walls aren't one flat
-// grey — the same idea as TREE_CANOPY_SHADES for the forest.
-const ROCK_SHADES = ['#3a3340', '#332e3a', '#443b50', '#2c2832', '#3d3543'] as const
+// Deterministic per-cell pick from the zone-data ROCK_SHADES palette (zones.ts) so cave/arena
+// walls read tonal, not one flat grey.
 const rockShade = (col: number, row: number): string => ROCK_SHADES[Math.abs(col * 7 + row * 13) % ROCK_SHADES.length]
 
 const makeRock = (col: number, row: number): StageProp => ({
@@ -237,7 +220,6 @@ const makeRock = (col: number, row: number): StageProp => ({
 //    an emoji tint (see game/artStyle.ts): wall/rubble → 🪨, crystal → 💎, mushroom → 🍄.
 // Non-blocking cave-floor DECOR: stalagmites + rubble + pebbles, tinted from the
 // season's rock tone so they read as living rock against the cavern walls.
-const CAVE_DECOR: ReadonlyArray<string> = ['ʌ', '∧', '∴', '·'] // stalagmite / slim / rubble / pebbles
 const makeCaveDecor = (col: number, row: number, tone: string): StageProp => ({
   col, row, type: 'cave_decor',
   char: CAVE_DECOR[Math.abs(col * 5 + row * 7) % CAVE_DECOR.length],
@@ -255,7 +237,7 @@ const makeCrystal = (col: number, row: number, tint: string): StageProp => ({
 })
 
 // A cave mushroom (damp seasons only) — a red/tan toadstool on the floor. Non-blocking.
-const MUSHROOM_TONES = ['#d24a4a', '#c98a52', '#e0a0c0'] as const
+// Cap tone from the zone-data MUSHROOM_TONES palette (zones.ts).
 const makeMushroom = (col: number, row: number): StageProp => ({
   col, row, type: 'mushroom', char: '♠', blocking: false,
   color: MUSHROOM_TONES[Math.abs(col * 3 + row * 5) % MUSHROOM_TONES.length],
@@ -307,10 +289,11 @@ function scatterGroundCover(ctx: ArchetypeContext, density = 0.18): void {
   props.push(...fill)
 }
 
-// Structural decor for temple / boss arena / village (readable single-glyph props).
-const makePillar = (col: number, row: number, color = '#cbb68c'): StageProp => ({ col, row, type: 'pillar', char: '║', blocking: true, color })
-const makeBrazier = (col: number, row: number): StageProp => ({ col, row, type: 'brazier', char: 'Φ', blocking: true, color: '#ff8a3a' })
-const makeAltar = (col: number, row: number, color = '#ffe7a8'): StageProp => ({ col, row, type: 'altar', char: '‡', blocking: true, color })
+// Structural decor for temple / boss arena / village (readable single-glyph props). Glyph + fallback
+// colour come from the zone-data PROP_ART table (zones.ts); a caller passes the zone's tint to override.
+const makePillar = (col: number, row: number, color = PROP_ART.pillar.color): StageProp => ({ col, row, type: 'pillar', char: PROP_ART.pillar.char, blocking: true, color })
+const makeBrazier = (col: number, row: number): StageProp => ({ col, row, type: 'brazier', char: PROP_ART.brazier.char, blocking: true, color: PROP_ART.brazier.color })
+const makeAltar = (col: number, row: number, color = PROP_ART.altar.color): StageProp => ({ col, row, type: 'altar', char: PROP_ART.altar.char, blocking: true, color })
 
 // ── temple-interior feature cells (all SEASONAL) — every KIND maps to an ASCII glyph+color
 //    AND an emoji tint (see game/artStyle.ts): temple_wall → 🧱, pillar → 🏛️, altar → 🗿,
@@ -327,7 +310,7 @@ const makeTempleWall = (col: number, row: number, shades: readonly string[]): St
 
 // A wall TORCH — a mounted flame lighting the halls. Non-blocking (a sconce you pass under),
 // so it can never pinch off the walkable floor.
-const makeTorch = (col: number, row: number, color: string): StageProp => ({ col, row, type: 'torch', char: 'ϯ', blocking: false, color })
+const makeTorch = (col: number, row: number, color: string): StageProp => ({ col, row, type: 'torch', char: PROP_ART.torch.char, blocking: false, color })
 
 // A floor HAZARD — spike/pit trap tile. Non-blocking (you CAN step on it — it would deal
 // damage in play), so hazards never disconnect the dungeon floor. Season-tinted.
@@ -1476,7 +1459,7 @@ function touchesOpen(trees: boolean[][], col: number, row: number): boolean {
 function scatterClearingCover(ctx: ArchetypeContext): void {
   const { ground, collision, props, zone, cols, rows } = ctx
   const accent = ZONE_PALETTES[zone].groundTypes[1]
-  const flowersAllowed = FLOWERS_BY_ZONE[zone] !== undefined // only the flowering zones bloom
+  const flowersAllowed = ZONE_FLOWERS[zone] !== undefined // only the flowering zones bloom
   forEachCell(cols, rows, (col, row) => {
     if (isEdge(col, row, cols, rows)) return
     if (collision[row][col]) return
@@ -1499,39 +1482,7 @@ function scatterClearingCover(ctx: ArchetypeContext): void {
 // The SEASON drives the whole look: floor + wall tone, hazard terrain, torch/altar
 // glow. Every feature KIND maps to an ASCII glyph+colour AND an emoji tint (temple_wall
 // → 🧱, pillar → 🏛️, altar → 🗿, torch → 🔥, hazard → 🔺, key → 🗝️; see game/artStyle.ts).
-interface TemplePalette {
-  /** main paved dungeon floor tile. */
-  floor: string
-  /** checker-inlay accent tile (the ornate tiled look). */
-  accent: string
-  /** tonal wall colours — the stone boundary + inner walls, varied per cell (disjoint per season). */
-  wall: readonly string[]
-  /** colonnade pillar colour. */
-  pillar: string
-  /** wall-torch flame colour. */
-  torch: string
-  /** boss-altar glow colour. */
-  altar: string
-  /** seasonal hazard-pool terrain (water / walkable ice / molten lava / desert sand-trap). */
-  pool: string
-  /** water/lava/sand-trap block; frozen ice is walkable. */
-  poolBlocks: boolean
-  /** spike-trap glyph + colour (a non-blocking floor hazard). */
-  spikeChar: string
-  spikeColor: string
-}
-
-// Open/Closed: add a season → add a row. Each season has a DISTINCT floor tile + wall
-// palette + hazard, so ≥3 seasons always render as clearly different temples.
-const TEMPLE_PALETTES: Readonly<Record<ZoneId, TemplePalette>> = {
-  spring: { floor: 'temple_floor', accent: 'cave_moss', wall: ['#5b6a52', '#53614b', '#4c5945', '#616e58'], pillar: '#b9c6a6', torch: '#ffb24a', altar: '#d8f0b0', pool: 'water', poolBlocks: true, spikeChar: '▲', spikeColor: '#6a9f4a' },
-  summer: { floor: 'ancient_stone', accent: 'marble', wall: ['#7a736a', '#6f6860', '#847c72', '#655f57'], pillar: '#e6ddc8', torch: '#ff9a3a', altar: '#ffe7a8', pool: 'water', poolBlocks: true, spikeChar: '▲', spikeColor: '#c0402a' },
-  autumn: { floor: 'ancient_stone', accent: 'gold_tile', wall: ['#6a5540', '#5f4c3a', '#74604a', '#544433'], pillar: '#d8c090', torch: '#ff8a3a', altar: '#ffcf8a', pool: 'water', poolBlocks: true, spikeChar: '▲', spikeColor: '#b5602a' },
-  winter: { floor: 'frost', accent: 'ice', wall: ['#5a6a7a', '#647486', '#516070', '#6d7d8e'], pillar: '#bcd6e6', torch: '#8fd0ff', altar: '#dff0ff', pool: 'ice_water', poolBlocks: false, spikeChar: '❆', spikeColor: '#bfe8f5' },
-  desert: { floor: 'sandstone', accent: 'sand', wall: ['#b08a52', '#c2975c', '#9c7a46', '#b89060'], pillar: '#e2c88a', torch: '#ffc24a', altar: '#ffe6a0', pool: 'sand_trap', poolBlocks: true, spikeChar: '▲', spikeColor: '#c99a52' },
-  beach: { floor: 'sandstone', accent: 'temple_floor', wall: ['#9a8a6a', '#a89a78', '#8a7c5e', '#b0a284'], pillar: '#d8c9a4', torch: '#ffb86a', altar: '#ffe6c0', pool: 'water', poolBlocks: true, spikeChar: '▲', spikeColor: '#a8926a' },
-  lava: { floor: 'basalt', accent: 'obsidian', wall: ['#2e2824', '#3a322c', '#241f1c', '#332b26'], pillar: '#8a6a52', torch: '#ff5a1f', altar: '#ff9a5a', pool: 'lava', poolBlocks: true, spikeChar: '▲', spikeColor: '#ff6a2a' },
-}
+// TemplePalette + TEMPLE_PALETTES now live in zones.ts (single source of truth for palette data).
 
 /** A dungeon room: a carved rectangle with a role. entrance = south spawn hall; boss = the
  *  grand north altar chamber; hall = a pillared side room. */
@@ -1833,36 +1784,7 @@ function placeLockedDoorAndKey(ctx: ArchetypeContext, boss: TempleRoom, entrance
 const CAVE_FILL = 0.45 // initial random rock probability (40-50% range)
 const CAVE_ITERATIONS = 5 // smoothing passes (4-5 gives crisp caverns)
 
-interface CavePalette {
-  /** base cave-floor ground tile (a GROUND_COLORS key that renders in the live engine). */
-  floor: string
-  /** patchy floor accent (moss / fallen leaves / dune / ash). */
-  accent: string
-  /** fraction of floor cells that take the accent — how mossy/leafy the cave reads. */
-  accentChance: number
-  /** tonal wall colours — the rock boundary + internal formations, varied per cell. */
-  wall: readonly string[]
-  /** the season's pool terrain (water / walkable ice / molten lava). */
-  pool: string
-  /** water + lava block; frozen ice is walkable. */
-  poolBlocks: boolean
-  /** crystal-cluster tint. */
-  crystal: string
-  /** damp seasons grow a fungi patch; arid/frozen/molten ones don't. */
-  mushrooms: boolean
-}
-
-// Open/Closed: add a season → add a row. Each season has a DISTINCT floor tile + wall
-// palette + pool + crystal, so ≥3 seasons always render as clearly different caves.
-const CAVE_PALETTES: Readonly<Record<ZoneId, CavePalette>> = {
-  spring: { floor: 'cave_floor', accent: 'cave_moss', accentChance: 0.14, wall: ['#4c4a44', '#565248', '#42403a', '#514d46'], pool: 'water', poolBlocks: true, crystal: '#e79ec8', mushrooms: true },
-  summer: { floor: 'cave_floor', accent: 'cave_moss', accentChance: 0.24, wall: ['#46493f', '#3f463a', '#4e5145', '#3a3f36'], pool: 'water', poolBlocks: true, crystal: '#5fd0e0', mushrooms: true },
-  autumn: { floor: 'cave_floor', accent: 'autumn_leaves', accentChance: 0.16, wall: ['#5a4a38', '#6a5540', '#4e4030', '#5f4c3a'], pool: 'water', poolBlocks: true, crystal: '#e0a020', mushrooms: true },
-  winter: { floor: 'frost', accent: 'ice', accentChance: 0.2, wall: ['#5a6a7a', '#647486', '#516070', '#6d7d8e'], pool: 'ice_water', poolBlocks: false, crystal: '#bfe8f5', mushrooms: false },
-  desert: { floor: 'sand', accent: 'sandstone', accentChance: 0.2, wall: ['#b08a52', '#c2975c', '#9c7a46', '#b89060'], pool: 'water', poolBlocks: true, crystal: '#e8c060', mushrooms: false },
-  beach: { floor: 'sand', accent: 'cave_floor', accentChance: 0.16, wall: ['#9a8a6a', '#a89a78', '#8a7c5e', '#b0a284'], pool: 'water', poolBlocks: true, crystal: '#7fd0c0', mushrooms: false },
-  lava: { floor: 'basalt', accent: 'ash', accentChance: 0.22, wall: ['#2e2824', '#3a322c', '#241f1c', '#332b26'], pool: 'lava', poolBlocks: true, crystal: '#ff7a30', mushrooms: false },
-}
+// CavePalette + CAVE_PALETTES now live in zones.ts (single source of truth for palette data).
 
 // The south ENTRANCE — a guaranteed clear starting chamber joined to the cavern.
 const ENTRANCE_HALF = 3 // → a 7-wide chamber

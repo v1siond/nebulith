@@ -137,3 +137,145 @@ const ZONAL_ROLE_TILE: Readonly<Record<string, Record<ZoneId, string>>> = {
 export function stagePropTileOverride(zone: ZoneId, propType: string): string | undefined {
   return ZONAL_ROLE_TILE[propType]?.[zone] ?? CONSTANT_ROLE_TILE[propType]
 }
+
+// ── generated-STAGE palette + prop DATA (single source of truth) ─────────────
+// The generator (stageGenerator.ts) READS every table below instead of baking hex /
+// glyph literals inline. All the scattered colour/prop tables it used to hold live here
+// now — one place per zone — so a zone's look is edited in ONE file. (The true model
+// end-state is these palettes living in the Nebulith backend; see docs.)
+
+/** A walkable FLOWER variant — its glyph + base colour (the generator tints each per-cell). */
+export interface FlowerKind {
+  char: string
+  color: string
+}
+
+// SPRING bursts into many shapes + colours (a meadow in bloom); SUMMER keeps a smaller,
+// deeper-toned set. Zones absent from ZONE_FLOWERS don't flower.
+const SPRING_FLOWERS: ReadonlyArray<FlowerKind> = [
+  { char: '✿', color: '#ff8fc8' }, // pink bloom
+  { char: '❀', color: '#ffd24a' }, // buttercup
+  { char: '✾', color: '#c89bff' }, // lilac
+  { char: '❁', color: '#ff7a7a' }, // poppy
+  { char: '✽', color: '#ffffff' }, // daisy
+  { char: '❋', color: '#7ad0ff' }, // bluebell
+]
+const SUMMER_FLOWERS: ReadonlyArray<FlowerKind> = [
+  { char: '*', color: '#ff88cc' },
+  { char: '✿', color: '#ffd24a' },
+]
+/** Fallback bloom set for a zone with no curated list — a stray bloom still lands on a real variant. */
+export const DEFAULT_FLOWERS: ReadonlyArray<FlowerKind> = SUMMER_FLOWERS
+/** The flower variants a zone scatters. Only spring/summer flower today; others fall back to DEFAULT_FLOWERS. */
+export const ZONE_FLOWERS: Partial<Record<ZoneId, ReadonlyArray<FlowerKind>>> = {
+  spring: SPRING_FLOWERS,
+  summer: SUMMER_FLOWERS,
+}
+
+// The living-tree SHAPE variants the generator scatters (Alexander: "randomize trees composition … small
+// trees, long trees … circle forms … a variant without trunk to simulate bushes"). Each is a backend
+// COMPOSITION (2 tiles; a bush is 1); the per-tree COLOUR is a separate canopy shade. Weighted so standard
+// trees dominate and the rarer forms (tall/round/stub/bush) accent — a believable mixed stand, never a
+// monoculture. Adding a shape = one row here.
+export type LivingTreeKind = 'tree' | 'tree_tall' | 'tree_stub' | 'tree_round' | 'bush' | 'bush_round'
+
+export const LIVING_TREE_VARIANTS: ReadonlyArray<{ kind: LivingTreeKind; weight: number }> = [
+  { kind: 'tree', weight: 32 },
+  { kind: 'tree_tall', weight: 22 },
+  { kind: 'tree_round', weight: 20 },
+  { kind: 'tree_stub', weight: 12 },
+  { kind: 'bush', weight: 8 },
+  { kind: 'bush_round', weight: 6 },
+]
+export const LIVING_TREE_WEIGHT = LIVING_TREE_VARIANTS.reduce((sum, v) => sum + v.weight, 0)
+
+/** Tonal rock shades (+ a little char texture at the call site) so cave/arena walls aren't one flat grey. */
+export const ROCK_SHADES: ReadonlyArray<string> = ['#3a3340', '#332e3a', '#443b50', '#2c2832', '#3d3543']
+
+/** Non-blocking cave-floor decor glyphs — stalagmite / slim / rubble / pebbles. */
+export const CAVE_DECOR: ReadonlyArray<string> = ['ʌ', '∧', '∴', '·']
+
+/** Cave mushroom cap tones (red / tan / pink toadstools). */
+export const MUSHROOM_TONES: ReadonlyArray<string> = ['#d24a4a', '#c98a52', '#e0a0c0']
+
+/** Structural-prop art (glyph + default colour) for the temple / arena furniture makers. Per-zone tints
+ *  (pillar / altar / torch) come from TEMPLE_PALETTES; the colour here is the fallback a maker uses when no
+ *  zone tint is passed (the season-neutral arena). */
+export type StructuralProp = 'pillar' | 'brazier' | 'altar' | 'torch'
+export interface PropArt {
+  char: string
+  color: string
+}
+export const PROP_ART: Readonly<Record<StructuralProp, PropArt>> = {
+  pillar: { char: '║', color: '#cbb68c' },
+  brazier: { char: 'Φ', color: '#ff8a3a' },
+  altar: { char: '‡', color: '#ffe7a8' },
+  torch: { char: 'ϯ', color: '#ff9a3a' }, // colour always overridden by the zone temple palette's torch tint
+}
+
+// ── temple (a real SEASONAL DUNGEON) palette ─────────────────────────────────
+export interface TemplePalette {
+  /** main paved dungeon floor tile. */
+  floor: string
+  /** checker-inlay accent tile (the ornate tiled look). */
+  accent: string
+  /** tonal wall colours — the stone boundary + inner walls, varied per cell (disjoint per season). */
+  wall: readonly string[]
+  /** colonnade pillar colour. */
+  pillar: string
+  /** wall-torch flame colour. */
+  torch: string
+  /** boss-altar glow colour. */
+  altar: string
+  /** seasonal hazard-pool terrain (water / walkable ice / molten lava / desert sand-trap). */
+  pool: string
+  /** water/lava/sand-trap block; frozen ice is walkable. */
+  poolBlocks: boolean
+  /** spike-trap glyph + colour (a non-blocking floor hazard). */
+  spikeChar: string
+  spikeColor: string
+}
+
+// Open/Closed: add a season → add a row. Each season has a DISTINCT floor tile + wall
+// palette + hazard, so ≥3 seasons always render as clearly different temples.
+export const TEMPLE_PALETTES: Readonly<Record<ZoneId, TemplePalette>> = {
+  spring: { floor: 'temple_floor', accent: 'cave_moss', wall: ['#5b6a52', '#53614b', '#4c5945', '#616e58'], pillar: '#b9c6a6', torch: '#ffb24a', altar: '#d8f0b0', pool: 'water', poolBlocks: true, spikeChar: '▲', spikeColor: '#6a9f4a' },
+  summer: { floor: 'ancient_stone', accent: 'marble', wall: ['#7a736a', '#6f6860', '#847c72', '#655f57'], pillar: '#e6ddc8', torch: '#ff9a3a', altar: '#ffe7a8', pool: 'water', poolBlocks: true, spikeChar: '▲', spikeColor: '#c0402a' },
+  autumn: { floor: 'ancient_stone', accent: 'gold_tile', wall: ['#6a5540', '#5f4c3a', '#74604a', '#544433'], pillar: '#d8c090', torch: '#ff8a3a', altar: '#ffcf8a', pool: 'water', poolBlocks: true, spikeChar: '▲', spikeColor: '#b5602a' },
+  winter: { floor: 'frost', accent: 'ice', wall: ['#5a6a7a', '#647486', '#516070', '#6d7d8e'], pillar: '#bcd6e6', torch: '#8fd0ff', altar: '#dff0ff', pool: 'ice_water', poolBlocks: false, spikeChar: '❆', spikeColor: '#bfe8f5' },
+  desert: { floor: 'sandstone', accent: 'sand', wall: ['#b08a52', '#c2975c', '#9c7a46', '#b89060'], pillar: '#e2c88a', torch: '#ffc24a', altar: '#ffe6a0', pool: 'sand_trap', poolBlocks: true, spikeChar: '▲', spikeColor: '#c99a52' },
+  beach: { floor: 'sandstone', accent: 'temple_floor', wall: ['#9a8a6a', '#a89a78', '#8a7c5e', '#b0a284'], pillar: '#d8c9a4', torch: '#ffb86a', altar: '#ffe6c0', pool: 'water', poolBlocks: true, spikeChar: '▲', spikeColor: '#a8926a' },
+  lava: { floor: 'basalt', accent: 'obsidian', wall: ['#2e2824', '#3a322c', '#241f1c', '#332b26'], pillar: '#8a6a52', torch: '#ff5a1f', altar: '#ff9a5a', pool: 'lava', poolBlocks: true, spikeChar: '▲', spikeColor: '#ff6a2a' },
+}
+
+// ── cave (a real SEASONAL cavern) palette ────────────────────────────────────
+export interface CavePalette {
+  /** base cave-floor ground tile (a GROUND_COLORS key that renders in the live engine). */
+  floor: string
+  /** patchy floor accent (moss / fallen leaves / dune / ash). */
+  accent: string
+  /** fraction of floor cells that take the accent — how mossy/leafy the cave reads. */
+  accentChance: number
+  /** tonal wall colours — the rock boundary + internal formations, varied per cell. */
+  wall: readonly string[]
+  /** the season's pool terrain (water / walkable ice / molten lava). */
+  pool: string
+  /** water + lava block; frozen ice is walkable. */
+  poolBlocks: boolean
+  /** crystal-cluster tint. */
+  crystal: string
+  /** damp seasons grow a fungi patch; arid/frozen/molten ones don't. */
+  mushrooms: boolean
+}
+
+// Open/Closed: add a season → add a row. Each season has a DISTINCT floor tile + wall
+// palette + pool + crystal, so ≥3 seasons always render as clearly different caves.
+export const CAVE_PALETTES: Readonly<Record<ZoneId, CavePalette>> = {
+  spring: { floor: 'cave_floor', accent: 'cave_moss', accentChance: 0.14, wall: ['#4c4a44', '#565248', '#42403a', '#514d46'], pool: 'water', poolBlocks: true, crystal: '#e79ec8', mushrooms: true },
+  summer: { floor: 'cave_floor', accent: 'cave_moss', accentChance: 0.24, wall: ['#46493f', '#3f463a', '#4e5145', '#3a3f36'], pool: 'water', poolBlocks: true, crystal: '#5fd0e0', mushrooms: true },
+  autumn: { floor: 'cave_floor', accent: 'autumn_leaves', accentChance: 0.16, wall: ['#5a4a38', '#6a5540', '#4e4030', '#5f4c3a'], pool: 'water', poolBlocks: true, crystal: '#e0a020', mushrooms: true },
+  winter: { floor: 'frost', accent: 'ice', accentChance: 0.2, wall: ['#5a6a7a', '#647486', '#516070', '#6d7d8e'], pool: 'ice_water', poolBlocks: false, crystal: '#bfe8f5', mushrooms: false },
+  desert: { floor: 'sand', accent: 'sandstone', accentChance: 0.2, wall: ['#b08a52', '#c2975c', '#9c7a46', '#b89060'], pool: 'water', poolBlocks: true, crystal: '#e8c060', mushrooms: false },
+  beach: { floor: 'sand', accent: 'cave_floor', accentChance: 0.16, wall: ['#9a8a6a', '#a89a78', '#8a7c5e', '#b0a284'], pool: 'water', poolBlocks: true, crystal: '#7fd0c0', mushrooms: false },
+  lava: { floor: 'basalt', accent: 'ash', accentChance: 0.22, wall: ['#2e2824', '#3a322c', '#241f1c', '#332b26'], pool: 'lava', poolBlocks: true, crystal: '#ff7a30', mushrooms: false },
+}
