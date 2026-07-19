@@ -640,12 +640,13 @@ export interface TileControlModel {
   onOpenAnimator?: () => void
 }
 
-/** PROPERTY editor for the current cell selection — EXACTLY TWO sections. A CELL is a fixed slot, so the
- *  CELL section carries only COLLISION (grid elevation stays a cell prop, edited with the terrain-height
- *  tool). The TILE section is a COMPACT SUMMARY of the ONE SELECTED tile: swap-tile (Open Tile Library), a
- *  colour swatch, and the buttons — "Edit settings…" (opens the full settings MODAL), Animate, Remove — with
- *  a level stepper to reach every block. The heavy per-axis controls live in the modal ({@link TileControls}),
- *  not inline. No per-tile-in-stack sections, no separate FLOOR / POSE split. */
+/** The ONE inspector card a CELL and a UNIT both use. For a CELL: a COLLISION row (its sole tunable prop) +
+ *  a COMPACT SUMMARY of the ONE selected tile — swap-tile (Open Tile Library), a colour swatch, and the
+ *  buttons "Edit settings…" (opens the full settings MODAL {@link TileControls}), Animate, Remove — with a
+ *  level stepper to reach every block. For a UNIT: the caller passes `unitSection`, which HIDES the collision
+ *  row (a unit isn't a cell) and folds the unit's identity/vitals/inventory UNDER the same tile summary — so a
+ *  unit is configured on the SAME card as a tile, not a parallel sidebar. Both get a "Triggers…" button
+ *  (`onOpenTriggers`) that opens the trigger-authoring modal. The heavy per-axis controls stay in the modal. */
 export interface PropertiesPanelProps {
   /** shared collision state across the selection, or null (mixed). */
   collision: boolean | null
@@ -663,6 +664,15 @@ export interface PropertiesPanelProps {
   /** remove the SELECTED tile from the grid (not the floor — the caller omits this for level 0). Shows a
    *  "Remove tile" button in the tile section when provided; absent → no button (e.g. the floor). */
   onRemove?: () => void
+  /** open the triggers-management MODAL (the "⚑ Triggers…" button) — for a CELL and a UNIT alike. Replaces
+   *  the old inline trigger expando: authoring now lives in a floating panel, opened from this button. */
+  onOpenTriggers?: () => void
+  /** how many triggers the selected cell/unit currently has — surfaced as a count on the Triggers button. */
+  triggerCount?: number
+  /** the UNIT-only extras section (identity/vitals/inventory/quests/attacks), composed by the page. When
+   *  present, THIS card is a unit: the cell-collision row is hidden (a unit isn't a cell) and the section
+   *  renders under the shared tile summary — the ONE card a tile and a unit both use. Absent → a plain cell. */
+  unitSection?: React.ReactNode
 }
 
 const mixedBadge = <span className="text-[9px] italic text-amber-300">mixed</span>
@@ -875,18 +885,26 @@ export function TileControls({ tile }: { tile: TileControlModel }) {
  *  per-axis controls open in the settings MODAL via "Edit settings…". No per-tile-in-stack sections. */
 export function PropertiesPanel(p: PropertiesPanelProps) {
   const t = p.tile
+  // A UNIT card passes `unitSection`: it hides the cell-collision row (a unit isn't a cell) and appends the
+  // unit-only extras under the SAME tile summary — one card serves a tile and a unit, no parallel sidebar.
+  const isUnit = !!p.unitSection
   return (
     <div className="space-y-1.5 text-xs">
-      <p className="text-[9px] font-bold uppercase tracking-wider text-gray-500">— cell —</p>
-      <div className="flex items-center gap-2">
-        <span className="w-14 shrink-0 text-[10px] text-gray-400">Collision</span>
-        <button onClick={() => p.onCollision(true)} aria-pressed={p.collision === true} className={`rounded px-2 py-0.5 text-[10px] font-bold ${p.collision === true ? 'bg-red-600 text-white' : 'bg-gray-700 hover:bg-gray-600'}`}>Blocked</button>
-        <button onClick={() => p.onCollision(false)} aria-pressed={p.collision === false} className={`rounded px-2 py-0.5 text-[10px] font-bold ${p.collision === false ? 'bg-emerald-600 text-white' : 'bg-gray-700 hover:bg-gray-600'}`}>Walkable</button>
-        {p.collision === null && mixedBadge}
-      </div>
+      {!isUnit && (
+        <>
+          <p className="text-[9px] font-bold uppercase tracking-wider text-gray-500">— cell —</p>
+          <div className="flex items-center gap-2">
+            <span className="w-14 shrink-0 text-[10px] text-gray-400">Collision</span>
+            <button onClick={() => p.onCollision(true)} aria-pressed={p.collision === true} className={`rounded px-2 py-0.5 text-[10px] font-bold ${p.collision === true ? 'bg-red-600 text-white' : 'bg-gray-700 hover:bg-gray-600'}`}>Blocked</button>
+            <button onClick={() => p.onCollision(false)} aria-pressed={p.collision === false} className={`rounded px-2 py-0.5 text-[10px] font-bold ${p.collision === false ? 'bg-emerald-600 text-white' : 'bg-gray-700 hover:bg-gray-600'}`}>Walkable</button>
+            {p.collision === null && mixedBadge}
+          </div>
+        </>
+      )}
       {t && (
         <>
-          <div className="mt-1 flex items-center justify-between border-t border-white/10 pt-1.5">
+          <div className={`flex items-center justify-between ${isUnit ? '' : 'mt-1 border-t border-white/10 pt-1.5'}`}>
+            {/* "everything is a tile": a unit's sprite is shown as its tile, same header shape a cell tile uses */}
             <p className="text-[9px] font-bold uppercase tracking-wider text-gray-500">— tile · {t.label} —</p>
             {p.levelCount > 1 && (
               <span className="flex items-center gap-1 text-[9px] text-gray-400" aria-label="Select stack level">
@@ -908,7 +926,8 @@ export function PropertiesPanel(p: PropertiesPanelProps) {
           <button onClick={p.onOpenSettings} aria-label="Edit settings" className="w-full rounded bg-cyan-800 px-2 py-1.5 text-xs font-bold text-white transition-colors hover:bg-cyan-700">
             ⚙ Edit settings…
           </button>
-          {/* Animate — opens its OWN modal (Phase 4). Asset tiles only. */}
+          {/* Animate — opens its OWN modal. A tile authors GridAsset settings tweens; a unit authors its
+              frame-by-frame character animations. Present whenever the model wires onOpenAnimator. */}
           {t.onOpenAnimator && (
             <button onClick={t.onOpenAnimator} aria-label="Animate tile" className="w-full rounded bg-fuchsia-800 px-2 py-1 text-[10px] font-bold text-white transition-colors hover:bg-fuchsia-700">
               ✦ Animate…{t.animations?.length ? ` (${t.animations.length})` : ''}
@@ -920,6 +939,15 @@ export function PropertiesPanel(p: PropertiesPanelProps) {
             </button>
           )}
         </>
+      )}
+      {/* Unit-only extras (identity/vitals/inventory/quests/attacks) — folded INTO this one card for a unit. */}
+      {p.unitSection && <div className="border-t border-white/10 pt-2">{p.unitSection}</div>}
+      {/* Triggers — a BUTTON that opens the triggers-management modal (cell: enter/interact; unit: on defeat).
+          Replaces the old inline expando; present for a bare cell too (a cell can trigger without a tile). */}
+      {p.onOpenTriggers && (
+        <button onClick={p.onOpenTriggers} aria-label="Edit triggers" className="w-full rounded bg-yellow-700/90 px-2 py-1 text-[10px] font-bold text-white transition-colors hover:bg-yellow-600">
+          ⚑ Triggers…{p.triggerCount ? ` (${p.triggerCount})` : ''}
+        </button>
       )}
     </div>
   )

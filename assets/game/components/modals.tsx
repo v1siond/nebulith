@@ -3,9 +3,9 @@
 // props-driven presentational components.
 import { useEffect, useRef, useState } from 'react'
 import { ABILITY_REGISTRY, ABILITY_TINT, type AbilityAnimation } from '@/game/abilities'
-import { ENEMY_ATTACK_PRESETS, addEnemyAttack, addMovementStep, buildAttackPattern, buildStepList, clearWaypoints, defaultEnemyAttack, enemyAttackFromAbility, normalizeAttackPattern, removeEnemyAttack, removeMovementStep, setAttackPatternMode, setMovementMode, setStepDelay, updateEnemyAttack, updateMovementStep } from '@/game/patterns'
+import { ENEMY_ATTACK_PRESETS, addEnemyAttack, buildAttackPattern, defaultEnemyAttack, enemyAttackFromAbility, normalizeAttackPattern, removeEnemyAttack, setAttackPatternMode, updateEnemyAttack } from '@/game/patterns'
 import { rewardSummary } from '@/game/runtime/quest'
-import { type AttackMode, type AttackPattern, type AttackPatternMode, type Direction, type EnemyAttack, type Entity, type MovementPattern, type Quest } from '@/game/types'
+import { type AttackMode, type AttackPattern, type AttackPatternMode, type EnemyAttack, type Entity, type EntityVariant, type Quest } from '@/game/types'
 import { QuestObjectives } from '@/components/game/hud'
 import { TileControls, type TileControlModel } from '@/components/game/editorChrome'
 
@@ -97,7 +97,7 @@ function clampToViewport(pos: XY, size: WH): XY {
  *
  * `role="dialog"` WITHOUT `aria-modal` — it is deliberately non-modal (the rest of the page stays live).
  */
-export function FloatingPanel({ title, accent = 'cyan', onClose, children, initialPos, initialSize }: {
+export function FloatingPanel({ title, accent = 'cyan', onClose, children, initialPos, initialSize, onGeometryChange }: {
   title: string
   accent?: PanelAccent
   onClose: () => void
@@ -105,6 +105,9 @@ export function FloatingPanel({ title, accent = 'cyan', onClose, children, initi
   /** where the panel first appears; defaults to the top-right so it doesn't cover the centred selection. */
   initialPos?: XY
   initialSize?: WH
+  /** Fired once at the END of a drag or resize with the final `{x,y,w,h}` — the page persists it as a
+   *  backend editor setting (debounced), so the panel reopens where the user left it. */
+  onGeometryChange?: (geometry: { x: number; y: number; w: number; h: number }) => void
 }) {
   const [size, setSize] = useState<WH>(() => initialSize ?? { w: 340, h: 440 })
   const [pos, setPos] = useState<XY>(() => {
@@ -120,29 +123,44 @@ export function FloatingPanel({ title, accent = 'cyan', onClose, children, initi
   }, [onClose])
 
   // Drag by the header: capture the grab origin, then follow the pointer on WINDOW listeners (not the panel's
-  // own) so the drag keeps tracking even when the cursor races out over the canvas. Removed on mouse-up.
+  // own) so the drag keeps tracking even when the cursor races out over the canvas. Removed on mouse-up, which
+  // also reports the FINAL geometry so the page can persist it (the gesture tracks `latest` to avoid stale state).
   const startDrag = (e: React.MouseEvent) => {
     e.preventDefault()
     const origin = { mx: e.clientX, my: e.clientY, x: pos.x, y: pos.y }
-    const onMove = (ev: MouseEvent) =>
-      setPos(clampToViewport({ x: origin.x + (ev.clientX - origin.mx), y: origin.y + (ev.clientY - origin.my) }, size))
-    const onUp = () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp) }
+    let latest = pos
+    const onMove = (ev: MouseEvent) => {
+      latest = clampToViewport({ x: origin.x + (ev.clientX - origin.mx), y: origin.y + (ev.clientY - origin.my) }, size)
+      setPos(latest)
+    }
+    const onUp = () => {
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+      onGeometryChange?.({ x: latest.x, y: latest.y, w: size.w, h: size.h })
+    }
     window.addEventListener('mousemove', onMove)
     window.addEventListener('mouseup', onUp)
   }
 
   // Resize from the bottom-right grip — same window-listener pattern; clamp to a sane minimum so it can't
-  // collapse to nothing.
+  // collapse to nothing. Reports the FINAL geometry on release, mirroring the drag path.
   const startResize = (e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
     const origin = { mx: e.clientX, my: e.clientY, w: size.w, h: size.h }
-    const onMove = (ev: MouseEvent) =>
-      setSize({
+    let latest = size
+    const onMove = (ev: MouseEvent) => {
+      latest = {
         w: Math.max(FLOATING_MIN.w, origin.w + (ev.clientX - origin.mx)),
         h: Math.max(FLOATING_MIN.h, origin.h + (ev.clientY - origin.my)),
-      })
-    const onUp = () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp) }
+      }
+      setSize(latest)
+    }
+    const onUp = () => {
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+      onGeometryChange?.({ x: pos.x, y: pos.y, w: latest.w, h: latest.h })
+    }
     window.addEventListener('mousemove', onMove)
     window.addEventListener('mouseup', onUp)
   }
@@ -256,25 +274,77 @@ export function EntityIdentityStatsBody({ entity, onPatch }: {
 export interface UnitControlModel {
   entity: Entity
   onPatch: (patch: Partial<Entity>) => void
+  /** the discrete SIZE preset (1×/2×/3× — a boss scales its stats too, not just the figure). Absent → the
+   *  size row hides (the raw scale is still editable via the settings sliders). */
+  onSize?: (size: number) => void
   /** open the unit's inventory & abilities (the player carries one) — absent → no button. */
   onOpenInventory?: () => void
   /** open the NPC's quest authoring — absent → no button. */
   onOpenQuests?: () => void
+  /** open the enemy's attacks / abilities editor — absent → no button. */
+  onOpenAttacks?: () => void
 }
 
-/** The unit-only section of the settings panel — identity/vitals (shared with the sidebar body) + the
- *  inventory/quests entry points. Rendered ONLY for a unit; a tile passes no unit model so this never shows. */
+/** The unit's appearance presets folded up from the old animation card — the FIGURE variant (gendered/robot/…)
+ *  and, for scalable units, the SIZE preset (a boss is bigger + tougher). Not "animation": these are identity,
+ *  which is why they survive the animation-section removal on the shared card. */
+const UNIT_VARIANTS: readonly (EntityVariant | '')[] = ['', 'male', 'female', 'old', 'child', 'alien', 'robot']
+
+function UnitAppearanceRow({ entity, onPatch, onSize }: { entity: Entity; onPatch: (patch: Partial<Entity>) => void; onSize?: (size: number) => void }) {
+  const chip = (on: boolean) => `rounded px-2 py-0.5 font-bold transition-colors ${on ? 'bg-cyan-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap items-center gap-1 text-[11px]">
+        <span className="w-12 shrink-0 text-gray-400">Figure</span>
+        {UNIT_VARIANTS.map(v => (
+          <button
+            key={v || 'neutral'}
+            type="button"
+            onClick={() => onPatch({ variant: (v || undefined) as EntityVariant | undefined })}
+            aria-pressed={(entity.variant ?? '') === v}
+            className={chip((entity.variant ?? '') === v)}
+          >
+            {v || 'neutral'}
+          </button>
+        ))}
+      </div>
+      {onSize && (
+        <div className="flex items-center gap-1 text-[11px]">
+          <span className="w-12 shrink-0 text-gray-400">Size</span>
+          {[1, 2, 3].map(sz => (
+            <button
+              key={sz}
+              type="button"
+              onClick={() => onSize(sz)}
+              title={sz > 1 ? `${sz}× — a boss: bigger figure + ~${sz}× stats` : 'normal size'}
+              aria-pressed={(entity.size ?? 1) === sz}
+              className={chip((entity.size ?? 1) === sz)}
+            >
+              {sz}×
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/** The unit-only section of the shared card — appearance (figure/size) + identity/vitals + the entry-point
+ *  buttons a tile never has: inventory (player), quests (NPC), attacks (enemy). Rendered ONLY for a unit; a
+ *  tile passes no unit model so this never shows. */
 export function UnitSettingsSection({ unit }: { unit: UnitControlModel }) {
-  const { entity, onPatch, onOpenInventory, onOpenQuests } = unit
+  const { entity, onPatch, onSize, onOpenInventory, onOpenQuests, onOpenAttacks } = unit
   const btn = 'w-full rounded bg-gray-700 px-2 py-1.5 text-left text-xs font-bold transition-colors hover:bg-gray-600'
   return (
     <div className="space-y-2">
       <p className="text-[9px] font-bold uppercase tracking-wider text-gray-500">— unit · {entity.kind} —</p>
+      <UnitAppearanceRow entity={entity} onPatch={onPatch} onSize={onSize} />
       <EntityIdentityStatsBody entity={entity} onPatch={onPatch} />
-      {(onOpenInventory || onOpenQuests) && (
+      {(onOpenInventory || onOpenQuests || onOpenAttacks) && (
         <div className="space-y-1 border-t border-white/10 pt-2">
           {onOpenInventory && <button type="button" className={btn} onClick={onOpenInventory}>🎒 Inventory &amp; abilities…</button>}
           {onOpenQuests && <button type="button" className={btn} onClick={onOpenQuests}>❒ Quests…</button>}
+          {onOpenAttacks && <button type="button" className={btn} onClick={onOpenAttacks}>⚔ Attacks / abilities…</button>}
         </div>
       )}
     </div>
@@ -292,118 +362,6 @@ export function SettingsPanelBody({ tile, unit }: { tile: TileControlModel; unit
       {unit && (
         <div className="border-t border-white/10 pt-3">
           <UnitSettingsSection unit={unit} />
-        </div>
-      )}
-    </div>
-  )
-}
-
-/** Step-list movement editor (Movement modal body). */
-export function EntityMovementBody({ entity, onPatch, waypointMode, onToggleWaypointMode }: {
-  entity: Entity
-  onPatch: (patch: Partial<Entity>) => void
-  waypointMode: boolean
-  onToggleWaypointMode: () => void
-}) {
-  return (
-    <div className="text-xs">
-      <span className="mb-0.5 block text-[10px] text-gray-400">Movement pattern</span>
-      <select
-        value={entity.movement ? entity.movement.mode : 'none'}
-        onChange={e => {
-          const mode = e.target.value
-          if (mode === 'none') {
-            onPatch({ movement: undefined })
-            return
-          }
-          const next = entity.movement
-            ? setMovementMode(entity.movement, mode as MovementPattern['mode'])
-            : buildStepList(mode as MovementPattern['mode'])
-          onPatch({ movement: next })
-        }}
-        aria-label="Movement mode"
-        className="w-full rounded bg-gray-800 p-1 text-xs"
-      >
-        <option value="none">Stationary</option>
-        <option value="sequential">Sequential (run steps in order)</option>
-        <option value="random">Random (pick a step each cycle)</option>
-      </select>
-      {entity.movement && (
-        <div className="mt-1 space-y-1">
-          {(entity.movement.steps ?? []).map((s, i) => (
-            <div key={i} className="flex items-center gap-1">
-              <select
-                value={s.dir}
-                onChange={e => onPatch({ movement: updateMovementStep(entity.movement!, i, { dir: e.target.value as Direction }) })}
-                aria-label={`Step ${i + 1} direction`}
-                className="rounded bg-gray-800 p-1 text-[11px]"
-              >
-                <option value="up">↑ up</option>
-                <option value="down">↓ down</option>
-                <option value="left">← left</option>
-                <option value="right">→ right</option>
-              </select>
-              <input
-                type="number"
-                min={1}
-                value={s.cells}
-                onChange={e => onPatch({ movement: updateMovementStep(entity.movement!, i, { cells: Number(e.target.value) }) })}
-                aria-label={`Step ${i + 1} cells`}
-                className="w-14 rounded bg-gray-800 p-1 text-[11px]"
-              />
-              <span className="text-[10px] text-gray-500">cells</span>
-              <button
-                onClick={() => onPatch({ movement: removeMovementStep(entity.movement!, i) })}
-                aria-label={`Remove step ${i + 1}`}
-                className="ml-auto rounded bg-gray-700 px-2 text-[11px] hover:bg-red-700"
-              >
-                ×
-              </button>
-            </div>
-          ))}
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => onPatch({ movement: addMovementStep(entity.movement!) })}
-              className="flex-1 rounded bg-gray-700 px-2 py-1 text-[10px] hover:bg-gray-600"
-            >
-              + Add step
-            </button>
-            <label className="flex items-center gap-1 text-[10px] text-gray-400">
-              <span className="shrink-0">delay ms</span>
-              <input
-                type="number"
-                min={0}
-                value={entity.movement.delayMs ?? 1200}
-                onChange={e => onPatch({ movement: setStepDelay(entity.movement!, Number(e.target.value)) })}
-                aria-label="Step delay ms"
-                className="w-16 rounded bg-gray-800 p-1 text-[11px]"
-              />
-            </label>
-          </div>
-          <p className="text-[10px] text-gray-500">
-            {(entity.movement.steps ?? []).length} steps · {entity.movement.mode} · a wall stops a run early
-          </p>
-          <div className="mt-1 flex gap-1">
-            <button
-              onClick={onToggleWaypointMode}
-              aria-pressed={waypointMode}
-              className={`flex-1 rounded px-2 py-1 text-[10px] ${waypointMode ? 'bg-cyan-600 text-white' : 'bg-gray-700 hover:bg-gray-600'}`}
-            >
-              {waypointMode ? 'Click cells… (done)' : 'Advanced: click-path'}
-            </button>
-            <button
-              onClick={() => onPatch({ movement: clearWaypoints(entity.movement) })}
-              className="rounded bg-gray-700 px-2 py-1 text-[10px] hover:bg-gray-600"
-            >
-              Clear path
-            </button>
-          </div>
-          {(entity.movement.waypoints?.length ?? 0) >= 2 && (
-            <p className="mt-0.5 text-[10px] text-amber-400">A click-path ({entity.movement.waypoints.length} pts) is set — it overrides the steps above.</p>
-          )}
-          {waypointMode && (
-            <p className="mt-0.5 text-[10px] text-cyan-400">Click cells in Top view to add waypoints.</p>
-          )}
         </div>
       )}
     </div>

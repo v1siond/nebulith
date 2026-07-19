@@ -31,7 +31,6 @@ import { DEFAULT_PLAYER_STATS, byKind, canPlaceEntity, entityAt, entityAtClick, 
 import { cycleSelection, unitsInRange } from '@/game/unitSelection'
 import { addItem, equipArmor, equipWeapon, itemFromReward, mintItemId, starterInventory, useConsumable } from '@/game/inventory'
 import { createLoadout, loadoutBonuses, seededPlayerLoadout, setSpecial } from '@/game/loadout'
-import { appendWaypoint } from '@/game/patterns'
 import { TEMPLATE_PRESETS, type TemplateTheme } from '@/game/presets'
 import { type Projectile } from '@/game/projectiles'
 import { type QuestEvent, acceptQuest, recordEvent, turnIn } from '@/game/quests'
@@ -40,10 +39,11 @@ import { type PlayerState, aimFromKeys, facingFromKeys, playerDisplayName, resol
 import { activeQuest, applyQuestEvent, questAnchorScreenPos, questForGiver, reachableQuestGiver, rewardSummary, upsertQuest } from '@/game/runtime/quest'
 import { type EnemyRuntime, isLivingEnemy, makeEnemyRuntime, RANGED_RANGE } from '@/game/runtime/targeting'
 import { ENEMY_TYPES, CAVE_ENEMY_TYPES, TEMPLE_ENEMY_TYPES, archetypeForEnemyType, scatterEntities } from '@/game/spawner'
-import { type CombatState, type Entity, type EntityKind, type EntityVariant, type Inventory, type Item, type Loadout, type Quest, type Reward, type Stats, type TalentPath, type Weapon } from '@/game/types'
+import { type CombatState, type Entity, type EntityKind, type Inventory, type Item, type Loadout, type Quest, type Reward, type Stats, type TalentPath, type Weapon } from '@/game/types'
 import { weaponReach } from '@/game/weapons'
 import { VILLAGE_CONFIG } from '@/levels/village'
 import { Connector, TemplateListItem, createTemplate, deleteTemplate, deserializeToGrid, getTemplate, listTemplates, serializeGrid, updateTemplate, updateGame } from '@/lib/api'
+import { getEditorSettings, saveEditorSetting, type EditorSettings, type PanelGeometry } from '@/lib/editorSettings'
 import { type CellTriggerGroup, ENTITY_GLYPH, cellTriggersFromAssets, cellTriggersToAssets, entitiesFromAssets, entitiesToAssets, groundColorFromAssets, groundColorToAssets, groundDimsFromAssets, groundDimsToAssets, isEntityAsset, isGroundColorAsset, isGroundDimsAsset, isQuestAsset, isStyleAsset, isTriggerAsset, questsFromAssets, questsToAssets, styleFromAssets, styleToAssets, triggersAtCell } from '@/lib/gridCodec'
 import type { GroundCellDims } from '@/engine/groundDims'
 import { type Trigger, type TriggerEffect, fireTriggers } from '@/game/runtime/trigger'
@@ -63,10 +63,10 @@ import { playSwoosh } from '@/game/runtime/audio'
 import { Card, EntityToolButton, ViewButton } from '@/components/game/controls'
 import { AbilityBar, CombatHud, QuestHud } from '@/components/game/hud'
 import { EquipmentPanel, InventoryCard, QuestAuthoringCard, QuestLogPanel } from '@/components/game/panels'
-import { EntityAttackBody, EntityIdentityStatsBody, EntityMovementBody, FloatingPanel, Modal, QuestGiveBody, SettingsPanelBody } from '@/components/game/modals'
+import { EntityAttackBody, FloatingPanel, Modal, QuestGiveBody, SettingsPanelBody, UnitSettingsSection } from '@/components/game/modals'
 import { FlowViewOverlay, GamesViewOverlay } from '@/components/game/games'
 import { BUILDING_TOOL_TYPE, type BuildingTool, type EditorMode, type EntityTool } from '@/components/game/editorConfig'
-import { AnimationEditor, ArtSection, Dropdown, FpsReadout, GenerateControls, PoseControls, PropertiesPanel, type TileControlModel, SelectionHeader, StylePicker, TileAnimationEditor, TileLibraryBody, TilePalette, ToolRail, TriggerEditor, WEAPON_KINDS } from '@/components/game/editorChrome'
+import { AnimationEditor, Dropdown, FpsReadout, GenerateControls, PoseControls, PropertiesPanel, type TileControlModel, SelectionHeader, StylePicker, TileAnimationEditor, TileLibraryBody, TilePalette, ToolRail, TriggerEditor, WEAPON_KINDS } from '@/components/game/editorChrome'
 import type { Animation as TileAnim } from '@/engine/animation/tileAnimation'
 import { useFps } from '@/components/useFps'
 import { commonValue, commonBool, cellsFromKeys, removeSelectedBlock } from '@/game/editor/selectionEdit'
@@ -274,10 +274,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   // Which Inspector section a quick-action asked to focus. `n` is a nonce so clicking
   // the same verb twice still re-opens + re-scrolls that section (see Card `focus`).
   const [sectionFocus, setSectionFocus] = useState<{ id: string; n: number } | null>(null)
-  // When on, a Top-view click appends a waypoint to the selected entity's patrol path
-  // (author your own movement route instead of the default box patrol).
-  const [waypointMode, setWaypointMode] = useState(false)
-  // Which entity-action modal is open (Stats / Inventory / Movement / Quests / Attacks).
+  // Which entity-action modal is open (Inventory / Quests).
   const [entityModal, setEntityModal] = useState<'inventory' | 'quests' | null>(null)
   // The unit card shows a COMPACT animation summary + a "See more…" that opens the full
   // AnimationEditor in this modal (keeps the sidebar card short — no frame pickers inline).
@@ -288,17 +285,43 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   // a compact summary. Same open/close pattern as the animation modal above.
   const [tileSettingsOpen, setTileSettingsOpen] = useState(false)
   // The UNIT settings panel — hosts the SAME FloatingPanel + shared settings body a tile uses (colour/scale/
-  // pose) plus the unit-only section (identity/vitals/inventory). Same open/close pattern as tileSettingsOpen.
+  // pose). The unit's identity/vitals/inventory live on the CARD now, so this modal is tile-only for a unit.
   const [unitSettingsOpen, setUnitSettingsOpen] = useState(false)
-  // Disarm waypoint authoring + close any entity modal whenever the selection changes,
-  // so clicks on a new entity select it (not drop a stray waypoint / show stale modal).
+  // The TRIGGERS modal — a floating panel (like settings) to manage the selected cell's or unit's triggers.
+  const [triggersOpen, setTriggersOpen] = useState(false)
+  // The enemy ATTACKS modal — the attack/ability pattern editor, folded off the card into a floating panel.
+  const [unitAttacksOpen, setUnitAttacksOpen] = useState(false)
+  // Close any entity modal whenever the selection changes, so clicks on a new entity select it
+  // (not show a stale modal for the previous one).
   useEffect(() => {
     selectedEntityIdRef.current = selectedEntityId
-    setWaypointMode(false)
     setEntityModal(null)
     setAnimEditorOpen(false)
     setUnitSettingsOpen(false)
+    setTriggersOpen(false)
+    setUnitAttacksOpen(false)
   }, [selectedEntityId])
+  // ── Floating-panel geometry (backend-owned editor settings) ─────────
+  // Each movable/resizable modal (settings / animation / triggers / attacks / tileAnimation) remembers its
+  // position + size in nebulith. Load the whole map once on mount; on every move/resize END, upsert the one
+  // key (debounced). The backend owns this, so panel geometry is never hardcoded in the frontend.
+  const [panelGeo, setPanelGeo] = useState<EditorSettings>({})
+  const panelGeoTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
+  useEffect(() => { getEditorSettings().then(setPanelGeo).catch(() => {}) }, [])
+  const savePanelGeo = useCallback((key: string, geometry: PanelGeometry) => {
+    setPanelGeo(prev => ({ ...prev, [key]: geometry }))
+    clearTimeout(panelGeoTimers.current[key])
+    panelGeoTimers.current[key] = setTimeout(() => { void saveEditorSetting(key, geometry).catch(() => {}) }, 350)
+  }, [])
+  /** FloatingPanel props for a modal id: restore its saved geometry (else `def`) + persist on move/resize end. */
+  const floatingProps = useCallback((key: string, def?: { w: number; h: number }) => {
+    const g = panelGeo[key]
+    return {
+      initialPos: g ? { x: g.x, y: g.y } : undefined,
+      initialSize: g ? { w: g.w, h: g.h } : def,
+      onGeometryChange: (geometry: PanelGeometry) => savePanelGeo(key, geometry),
+    }
+  }, [panelGeo, savePanelGeo])
   const [enemyType, setEnemyType] = useState('goblin')
   const [npcName, setNpcName] = useState('')
   const entitiesRef = useRef<Entity[]>([])
@@ -977,19 +1000,6 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
 
     const cell = screenToCell(e.clientX, e.clientY)
     if (!cell) return
-
-    // Waypoint authoring: with "Set waypoints" armed, each click appends a cell to the
-    // selected entity's patrol path (data-only — see game/patterns.ts appendWaypoint).
-    if (waypointMode && selectedEntityId) {
-      setEntities(prev =>
-        prev.map(ent =>
-          ent.id === selectedEntityId
-            ? { ...ent, movement: appendWaypoint(ent.movement, cell, ent.movement?.mode ?? 'sequential') }
-            : ent,
-        ),
-      )
-      return
-    }
 
     // In connector mode, open the connector editor. ONE connector owns a SET of
     // cells: clicking a cell that belongs to an existing connector loads that whole
@@ -5497,14 +5507,13 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                 // "base" frame AS this, and gendered char frames, so the preview matches what renders.
                 const selFigVisual = resolveVisual(entityKind(selEntity.kind), activeStyle, selEntity.tileOverride)
                 const selFigure = genderize(selFigVisual.kind === 'glyph' ? selFigVisual.char : (isEnemy ? '👾' : '🧍'), selEntity.variant)
-                const libBtn = 'w-full rounded bg-gray-700 px-2 py-1.5 text-left text-xs font-bold transition-colors hover:bg-gray-600'
-                // SHARED settings model for the unit — the SAME TileControlModel a tile feeds TileControls, so
-                // the unit's settings panel (colour / scale / pose) looks + works identically. A unit has ONE
-                // uniform scale (`size`), so all three scale axes drive it; colour → entity.color (both are
-                // render-honored today). x/y/rotate/flip ride entity.pose (persisted via the codec) — the unit
-                // renderer HONORING that pose is the broader render-parity work (#35). Asset-only controls
+                // SHARED settings model for the unit — the SAME TileControlModel a tile feeds TileControls /
+                // PropertiesPanel, so the unit's card + settings panel (colour / scale / pose) look + work
+                // identically. A unit has ONE uniform scale (`size`), so all three scale axes drive it; colour →
+                // entity.color. x/y/rotate/flip ride entity.pose (persisted via the codec). Asset-only controls
                 // (Z Width, Z-Index, Display, Shape, Light, z-slide) get NO writer, so TileControls hides each of
-                // those rows for a unit — same conditional split a floor tile already uses.
+                // those rows for a unit — same conditional split a floor tile already uses. onOpenAnimator wires
+                // the card's "✦ Animate…" button to the frame-by-frame character editor (a floating panel now).
                 const unitScale = selEntity.size ?? 1
                 const unitTileModel: TileControlModel = {
                   key: `unit-${selEntity.id}`,
@@ -5521,162 +5530,74 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                   pose: selEntity.pose,
                   onPose: p => patchSelectedEntity({ pose: p }),
                   onPoseReset: () => patchSelectedEntity({ pose: undefined }),
+                  onOpenAnimator: () => setAnimEditorOpen(true),
                 }
                 return (
                   <>
                     <SelectionHeader kind={selEntity.kind} label={`${selEntity.name || selEntity.kind} (${selEntity.kind})`} coords={`@ ${selEntity.col},${selEntity.row}`} />
-                    {/* Same affordance a tile has (PropertiesPanel's "Edit settings…") — opens the SAME floating
-                        settings panel, so editing a unit matches editing a tile. */}
-                    <button onClick={() => setUnitSettingsOpen(true)} aria-label="Edit settings" className="w-full rounded bg-cyan-800 px-2 py-1.5 text-xs font-bold text-white transition-colors hover:bg-cyan-700">
-                      ⚙ Edit settings…
-                    </button>
-                    {/* Consolidated unit card — identity + stats + sprite + a compact animation section +
-                        the inventory/quests entry points, all in ONE card (the old Identity / Animation /
-                        Library cards folded together). */}
-                    <Card title="Unit" accent="orange">
-                      <EntityIdentityStatsBody entity={selEntity} onPatch={patchSelectedEntity} />
-                      {isPlayer && <div className="mt-3"><CombatHud hud={playerHud} /></div>}
-                      {/* Sprite folded in from the old Art/Sprite card (#61): show the current sprite + picker. */}
-                      <div className="mt-3 border-t border-white/10 pt-3">
-                        <div className="mb-2 flex items-center gap-2">
-                          <span aria-hidden className="text-2xl leading-none">{selFigure}</span>
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Current sprite</span>
-                        </div>
-                        <ArtSection override={selEntity.tileOverride} styleName={activeStyle.name} onOpen={() => setTileLibraryOpen(true)} />
-                      {heldWeaponKind && EMOJI_TILESET[heldWeaponKind] && (
-                        <div className="mt-2">
-                          <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-amber-300">
-                            🗡️ Held weapon — {heldWeaponKind} <span className="font-normal text-gray-500">(drag to retune it live in-hand)</span>
-                          </p>
-                          <PoseControls
-                            kind={heldWeaponKind}
-                            pose={EMOJI_TILESET[heldWeaponKind]?.pose}
-                            isWeapon={WEAPON_KINDS.has(heldWeaponKind)}
-                            onChange={p => writeTilePose(heldWeaponKind, p)}
-                            onReset={() => writeTilePose(heldWeaponKind, undefined)}
-                          />
-                          <button onClick={saveEmojiPoses} disabled={savingPoses} className="mt-1.5 w-full rounded bg-emerald-700 px-2 py-1 text-[10px] font-bold text-white transition-colors hover:bg-emerald-600 disabled:opacity-40">
-                            {savingPoses ? 'Saving…' : '⭳ Save poses to backend'}
-                          </button>
-                        </div>
-                      )}
-                      {isPlayer && activeStyleId === 'ascii' && playerWeaponRef.current?.kind && playerWeaponRef.current.kind !== 'unarmed' && (
-                        <p className="mt-2 text-[10px] text-gray-500">Weapon pose tuning lives in the Emoji style — ASCII weapons draw their own glyph and aren&apos;t pose-driven yet.</p>
-                      )}
-                      </div>
-                      {/* ── Animation (compact) — figure / size / colour + a read-only state summary, folded
-                          in from the old standalone Animation card. The full frame editor opens in a modal
-                          via "See more…" — NO sprite/frame pickers inline (keeps the sidebar card short). */}
-                      <div className="mt-3 border-t border-white/10 pt-3">
-                      <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-cyan-300">Animation</p>
-                      <div className="mb-3 flex items-center gap-2 text-[11px]">
-                        <span className="text-gray-400">Figure</span>
-                        {(['', 'male', 'female', 'old', 'child', 'alien', 'robot'] as const).map(v => (
-                          <button
-                            key={v || 'neutral'}
-                            type="button"
-                            onClick={() => patchSelectedEntity({ variant: (v || undefined) as EntityVariant | undefined })}
-                            className={`rounded px-2 py-0.5 font-bold transition-colors ${
-                              (selEntity.variant ?? '') === v ? 'bg-cyan-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                            }`}
-                          >
-                            {v || 'neutral'}
-                          </button>
-                        ))}
-                      </div>
-                      <div className="mb-3 flex items-center gap-2 text-[11px]">
-                        <span className="text-gray-400">Size</span>
-                        {[1, 2, 3].map(sz => (
-                          <button
-                            key={sz}
-                            type="button"
-                            onClick={() => setSelectedEntitySize(sz)}
-                            title={sz > 1 ? `${sz}× — a boss: bigger figure + ~${sz}× stats` : 'normal size'}
-                            className={`rounded px-2 py-0.5 font-bold transition-colors ${
-                              (selEntity.size ?? 1) === sz ? 'bg-cyan-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                            }`}
-                          >
-                            {sz}×
-                          </button>
-                        ))}
-                      </div>
-                      <div className="mb-3 flex items-center gap-2 text-[11px]">
-                        <span className="text-gray-400">Colour</span>
-                        <input
-                          type="color"
-                          aria-label="Unit colour"
-                          value={selEntity.color ?? '#ffffff'}
-                          onChange={e => patchSelectedEntity({ color: e.target.value })}
-                          className="h-6 w-10 rounded bg-gray-700"
-                        />
-                        {selEntity.color && (
-                          <button
-                            type="button"
-                            onClick={() => patchSelectedEntity({ color: undefined })}
-                            title="Back to the default role colour"
-                            className="rounded bg-gray-700 px-2 py-0.5 text-gray-300 hover:bg-gray-600"
-                          >
-                            default
-                          </button>
-                        )}
-                      </div>
-                      {(selEntity.animations ?? []).length === 0 ? (
-                        <p className="text-[10px] leading-tight text-gray-500">No custom animations — plays the default character set.</p>
-                      ) : (
-                        <ul className="space-y-0.5">
-                          {(selEntity.animations ?? []).map(a => (
-                            <li key={a.id} className="flex items-center gap-2 text-[10px] text-gray-300">
-                              <span className="font-bold text-cyan-300">{a.name || 'unnamed'}</span>
-                              <span className="text-gray-500">{a.trigger.on} · {a.direction} · {a.frames.length}f</span>
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                      <button onClick={() => setAnimEditorOpen(true)} className="mt-2 w-full rounded bg-cyan-800 px-2 py-1 text-[10px] font-bold text-white transition-colors hover:bg-cyan-700">
-                        ✦ See more… (animation editor)
-                      </button>
-                      </div>
-                      {/* ── Library entry points — folded in from the old Library card. Small buttons that open
-                          the inventory / quests modals; the manage UI lives inside those modals. */}
-                      {(isPlayer || isNpc) && (
-                        <div className="mt-3 space-y-1 border-t border-white/10 pt-3">
-                          {isPlayer && <button className={libBtn} onClick={() => setEntityModal('inventory')}>🎒 Inventory &amp; abilities…</button>}
-                          {isNpc && <button className={libBtn} onClick={() => { if (selEntity.kind !== 'enemy') setQuestDraft(d => ({ ...d, giverId: selEntity.id })); setEntityModal('quests') }}>❒ Quests…</button>}
-                        </div>
-                      )}
-                    </Card>
-                    {isEnemy && (
-                      <Card title="Attacks / abilities" accent="orange" defaultOpen={false}>
-                        <EntityAttackBody entity={selEntity} onPatch={patchSelectedEntity} />
-                      </Card>
-                    )}
-                    {(isEnemy || isNpc) && (
-                      <Card title="Movement pattern" accent="cyan" defaultOpen={false}>
-                        <EntityMovementBody
-                          entity={selEntity}
-                          onPatch={patchSelectedEntity}
-                          waypointMode={waypointMode}
-                          onToggleWaypointMode={() => setWaypointMode(v => !v)}
-                        />
-                      </Card>
-                    )}
-                    <Card title="Trigger" accent="yellow" defaultOpen={false} sectionId="trigger" focus={sectionFocus}>
-                      <TriggerEditor
-                        triggers={selEntity.triggers ?? []}
-                        events={['defeat']}
-                        templates={gotoTargets}
-                        enemyTypes={ENEMY_TYPES}
-                        onChange={next => setTriggersForEntity(selEntity.id, next)}
+                    {/* ONE card — the SAME PropertiesPanel a tile uses, with the unit's data folded IN via
+                        `unitSection`. No parallel unit sidebar: identity/vitals/inventory/quests/attacks live
+                        UNDER the shared tile summary; Animate + Triggers are buttons that open floating modals;
+                        the settings sliders open from "Edit settings…" exactly like a tile. */}
+                    <Card title={`Unit — ${selEntity.name || selEntity.kind}`} accent="orange">
+                      <PropertiesPanel
+                        collision={null}
+                        onCollision={() => {}}
+                        tile={unitTileModel}
+                        level={1}
+                        levelCount={1}
+                        onLevel={() => {}}
+                        onOpenSettings={() => setUnitSettingsOpen(true)}
+                        onOpenTriggers={() => setTriggersOpen(true)}
+                        triggerCount={selEntity.triggers?.length ?? 0}
+                        unitSection={
+                          <div className="space-y-3">
+                            {/* appearance (figure/size) + identity/vitals + inventory (player) / quests (NPC) /
+                                attacks (enemy) — the extras a tile never has, folded onto the shared card. */}
+                            <UnitSettingsSection
+                              unit={{
+                                entity: selEntity,
+                                onPatch: patchSelectedEntity,
+                                onSize: setSelectedEntitySize,
+                                onOpenInventory: isPlayer ? () => setEntityModal('inventory') : undefined,
+                                onOpenQuests: isNpc ? () => { if (selEntity.kind !== 'enemy') setQuestDraft(d => ({ ...d, giverId: selEntity.id })); setEntityModal('quests') } : undefined,
+                                onOpenAttacks: isEnemy ? () => setUnitAttacksOpen(true) : undefined,
+                              }}
+                            />
+                            {isPlayer && <CombatHud hud={playerHud} />}
+                            {heldWeaponKind && EMOJI_TILESET[heldWeaponKind] && (
+                              <div className="border-t border-white/10 pt-3">
+                                <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-amber-300">
+                                  🗡️ Held weapon — {heldWeaponKind} <span className="font-normal text-gray-500">(drag to retune it live in-hand)</span>
+                                </p>
+                                <PoseControls
+                                  kind={heldWeaponKind}
+                                  pose={EMOJI_TILESET[heldWeaponKind]?.pose}
+                                  isWeapon={WEAPON_KINDS.has(heldWeaponKind)}
+                                  onChange={p => writeTilePose(heldWeaponKind, p)}
+                                  onReset={() => writeTilePose(heldWeaponKind, undefined)}
+                                />
+                                <button onClick={saveEmojiPoses} disabled={savingPoses} className="mt-1.5 w-full rounded bg-emerald-700 px-2 py-1 text-[10px] font-bold text-white transition-colors hover:bg-emerald-600 disabled:opacity-40">
+                                  {savingPoses ? 'Saving…' : '⭳ Save poses to backend'}
+                                </button>
+                              </div>
+                            )}
+                            {isPlayer && activeStyleId === 'ascii' && playerWeaponRef.current?.kind && playerWeaponRef.current.kind !== 'unarmed' && (
+                              <p className="text-[10px] text-gray-500">Weapon pose tuning lives in the Emoji style — ASCII weapons draw their own glyph and aren&apos;t pose-driven yet.</p>
+                            )}
+                          </div>
+                        }
                       />
                     </Card>
                     <div className="flex gap-1">
                       <button onClick={deleteSelectedEntity} className="flex-1 rounded bg-red-800 px-2 py-1.5 text-xs font-bold hover:bg-red-700">Delete</button>
-                      <button onClick={() => { setWaypointMode(false); setSelectedEntityId(null) }} className="rounded bg-gray-700 px-2 py-1.5 text-xs hover:bg-gray-600">Deselect</button>
+                      <button onClick={() => setSelectedEntityId(null)} className="rounded bg-gray-700 px-2 py-1.5 text-xs hover:bg-gray-600">Deselect</button>
                     </div>
-                    {/* The full frame-by-frame AnimationEditor (opened from the card's "See more…") — the
-                        same editor that used to sit inline in the Animation card, now in a modal. */}
+                    {/* Animate — the frame-by-frame character AnimationEditor, now a movable/resizable FLOATING
+                        panel (like the settings panel), opened by the card's "✦ Animate…" button; its geometry
+                        persists in the backend under id "animation". */}
                     {animEditorOpen && (
-                      <Modal title={`${selEntity.name || selEntity.kind} — Animation`} accent="cyan" wide onClose={() => setAnimEditorOpen(false)}>
+                      <FloatingPanel title={`${selEntity.name || selEntity.kind} — Animation`} accent="cyan" onClose={() => setAnimEditorOpen(false)} {...floatingProps('animation', { w: 380, h: 520 })}>
                         <AnimationEditor
                           animations={selEntity.animations ?? []}
                           category="units"
@@ -5685,23 +5606,31 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                           variant={selEntity.variant}
                           onChange={next => patchSelectedEntity({ animations: next })}
                         />
-                      </Modal>
+                      </FloatingPanel>
                     )}
-                    {/* Unit settings — the SAME FloatingPanel + shared settings body a tile opens from its
-                        inspector, so a unit is configured identically; `unit` appends the unit-only section
-                        (identity/vitals + the inventory the user asked for). Inventory is the player's; NPCs get
-                        quests instead. The writers fan out to the selected unit via patchSelectedEntity. */}
+                    {/* Unit settings — the SAME floating panel + shared body a tile opens. Tile-only here: the
+                        unit's identity/inventory live on the CARD now, not in this modal. Geometry id "settings". */}
                     {unitSettingsOpen && (
-                      <FloatingPanel title={`${selEntity.name || selEntity.kind} — Settings`} accent="cyan" onClose={() => setUnitSettingsOpen(false)}>
-                        <SettingsPanelBody
-                          tile={unitTileModel}
-                          unit={{
-                            entity: selEntity,
-                            onPatch: patchSelectedEntity,
-                            onOpenInventory: isPlayer ? () => setEntityModal('inventory') : undefined,
-                            onOpenQuests: isNpc ? () => { if (selEntity.kind !== 'enemy') setQuestDraft(d => ({ ...d, giverId: selEntity.id })); setEntityModal('quests') } : undefined,
-                          }}
+                      <FloatingPanel title={`${selEntity.name || selEntity.kind} — Settings`} accent="cyan" onClose={() => setUnitSettingsOpen(false)} {...floatingProps('settings')}>
+                        <SettingsPanelBody tile={unitTileModel} />
+                      </FloatingPanel>
+                    )}
+                    {/* Triggers — a floating modal (like settings) to manage this unit's on-defeat triggers. */}
+                    {triggersOpen && (
+                      <FloatingPanel title={`${selEntity.name || selEntity.kind} — Triggers`} accent="yellow" onClose={() => setTriggersOpen(false)} {...floatingProps('triggers', { w: 360, h: 380 })}>
+                        <TriggerEditor
+                          triggers={selEntity.triggers ?? []}
+                          events={['defeat']}
+                          templates={gotoTargets}
+                          enemyTypes={ENEMY_TYPES}
+                          onChange={next => setTriggersForEntity(selEntity.id, next)}
                         />
+                      </FloatingPanel>
+                    )}
+                    {/* Attacks — folded off the card into a floating modal (enemies only). */}
+                    {isEnemy && unitAttacksOpen && (
+                      <FloatingPanel title={`${selEntity.name || selEntity.kind} — Attacks`} accent="orange" onClose={() => setUnitAttacksOpen(false)} {...floatingProps('attacks', { w: 340, h: 420 })}>
+                        <EntityAttackBody entity={selEntity} onPatch={patchSelectedEntity} />
                       </FloatingPanel>
                     )}
                   </>
@@ -5982,30 +5911,47 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                               levelCount={levelCount}
                               onLevel={setSelectedTileLevel}
                               onOpenSettings={() => setTileSettingsOpen(true)}
+                              onOpenTriggers={() => setTriggersOpen(true)}
+                              triggerCount={triggersAtCell(cellTriggers, trigCol, trigRow).length}
                               onRemove={lvl >= 1 ? removeSelectedTile : undefined}
                             />
                             {/* Tile-settings panel — the full TileControls body (colour/size/pose/z/display),
                                 opened from the inspector's "Edit settings…". A FLOATING panel (not a modal): no
                                 backdrop, so you drag it aside and WATCH the tile repaint as you edit. The writers
-                                already fan out to the i-th stacked tile of every selected cell (setAssetDim/Pose/…). */}
+                                already fan out to the i-th stacked tile of every selected cell (setAssetDim/Pose/…).
+                                Geometry persists in the backend under id "settings". */}
                             {tileSettingsOpen && (
-                              <FloatingPanel title={`${tile.label} — Settings`} accent="cyan" onClose={() => setTileSettingsOpen(false)}>
+                              <FloatingPanel title={`${tile.label} — Settings`} accent="cyan" onClose={() => setTileSettingsOpen(false)} {...floatingProps('settings')}>
                                 {/* SAME shared body a unit uses (no `unit` → no unit section), so tile + unit settings are one component. */}
                                 <SettingsPanelBody tile={tile} />
                               </FloatingPanel>
                             )}
-                            {/* Phase-4 tile-animation modal — authors THIS asset tile's GridAsset.animations
-                                (e.g. the fountain water). Only opens for an asset tile; writes fan out to the
-                                i-th stacked tile of every selected cell via setAssetAnimations. */}
+                            {/* Phase-4 tile-animation panel — authors THIS asset tile's GridAsset.animations
+                                (e.g. the fountain water). A movable/resizable FLOATING panel like the settings one;
+                                geometry persists under id "tileAnimation". Writes fan out to the i-th stacked tile
+                                of every selected cell via setAssetAnimations. */}
                             {tileAnimatorOpen && animatorCtx && (
-                              <Modal title={`${animatorCtx.label} — Animation`} accent="purple" wide onClose={() => setTileAnimatorOpen(false)}>
+                              <FloatingPanel title={`${animatorCtx.label} — Animation`} accent="purple" onClose={() => setTileAnimatorOpen(false)} {...floatingProps('tileAnimation', { w: 460, h: 560 })}>
                                 <TileAnimationEditor
                                   animations={animatorCtx.animations}
                                   elementType="Tile"
                                   elementLabel={animatorCtx.label}
                                   onChange={next => setAssetAnimations(animatorCtx!.i, next)}
                                 />
-                              </Modal>
+                              </FloatingPanel>
+                            )}
+                            {/* Triggers — the cell's enter/interact triggers, managed in a floating modal (like
+                                settings), opened by the card's "⚑ Triggers…" button. Geometry id "triggers". */}
+                            {triggersOpen && (
+                              <FloatingPanel title={`Cell ${cellLabel} — Triggers`} accent="yellow" onClose={() => setTriggersOpen(false)} {...floatingProps('triggers', { w: 360, h: 380 })}>
+                                <TriggerEditor
+                                  triggers={triggersAtCell(cellTriggers, trigCol, trigRow)}
+                                  events={['enter', 'interact']}
+                                  templates={gotoTargets}
+                                  enemyTypes={ENEMY_TYPES}
+                                  onChange={next => setTriggersForCell(trigCol, trigRow, next)}
+                                />
+                              </FloatingPanel>
                             )}
                           </>
                         )
@@ -6020,15 +5966,6 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                       >
                         {isSaving ? 'Saving…' : '💾 Save map'}
                       </button>
-                    </Card>
-                    <Card title="Trigger" accent="yellow" defaultOpen={false} sectionId="trigger" focus={sectionFocus}>
-                      <TriggerEditor
-                        triggers={triggersAtCell(cellTriggers, trigCol, trigRow)}
-                        events={['enter', 'interact']}
-                        templates={gotoTargets}
-                        enemyTypes={ENEMY_TYPES}
-                        onChange={next => setTriggersForCell(trigCol, trigRow, next)}
-                      />
                     </Card>
                     <button onClick={() => setSelectedCells(new Set())} className="rounded bg-gray-700 px-2 py-1.5 text-xs hover:bg-gray-600">Clear selection</button>
                   </>
