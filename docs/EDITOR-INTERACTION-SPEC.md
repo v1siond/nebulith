@@ -84,6 +84,32 @@ and units … but on units we'd might have a few extra things here and there, li
   **name** label; `size`/`color` are honored for enemies/NPCs but NOT the player (the player draws through a
   separate hero path); `pose` and the other shared settings are not yet read on a unit. Those are follow-ups.
 
+## 9. The Paint palette + painted tiles (tileset painter — one source of truth)
+The left **Paint** tool's tile list ("TERRAIN / TILES & GROUND / …") and a painted tile must be the SAME
+system the GENERATOR and the RENDERER use — never a separate or hardcoded list.
+
+- **Palette source = the DB tileset.** The palette is `tilesForStyle(styleId)`, which reads LIVE from the
+  backend-loaded `EMOJI_TILESET` / `ASCII_TILESET` (installed by `tilesetLoader` from `:4000` `/api/tilesets`).
+  A tile is browseable when its DB entry carries a `category` (terrain/buildings/units/nature); its name is the
+  DB `title`, its art the DB image/glyph. There is NO parallel hardcoded catalog — the palette always matches
+  the map. (The same tileset the generator's `resolveTile`/`resolveComposition` and the label→image renderer
+  resolve from.)
+- **A palette tile FULLY describes its DB tile.** `TileDef` carries the tile's DB **block height** and
+  **settings** (the generic `fadeNear`/`cutawayRoof`/`display` blob), not just its art — so the brush can seed
+  a painted asset that is byte-identical to a generated one.
+- **A painted tile IS a normal, editable tile.** The brush (`stackAssetTile`) stamps a real `GridAsset` pinned
+  to the exact tile (`tileOverride`) and **seeded from the DB tile**: its **height** (so a block tile — a
+  boulder, a stone wall — paints as a real extruded BLOCK, not a flat single-face billboard; a flat tile stays
+  flat), and its **settings** via the SAME `tileRenderBehavior` seam `stampComposition` uses. It is selectable,
+  changeable (colour/shape/size/pose/display via the Inspector), and NEVER forced to a single flat default —
+  exactly like a generated tile.
+- **Apply a tile to ONE or MANY cells.** With a tile armed, a plain click paints the clicked cell; **shift-drag
+  selects a rectangle of cells, then one click fills them all** (`applyArmedBrush` fans out over the selection,
+  else the single clicked cell). ⌥Alt-click removes the top tile.
+- **Apply settings to MANY selected tiles.** With multiple cells selected, editing a setting in the Inspector
+  fans out to the i-th stacked tile of EVERY selected cell (`applyToSelectedCells` → the `setAsset*` writers) —
+  one edit changes all selected tiles.
+
 ## Build order (after the current quest/inventory wiring)
 1. Composite asset scaling + persistence/render (§6) — concrete bug.
 2. UI reorg (§5) — top nav + expandable assets + right-side connectors/entities/selection.
