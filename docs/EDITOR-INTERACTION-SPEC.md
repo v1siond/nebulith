@@ -61,6 +61,29 @@ selected → a 40-cell well), like a building stamped from its backend compositi
 - **Zone decorations:** **volcanoes** for lava, **mountains** for frozen — large multi-cell labeled
   decorations (render per-cell via the keystone path; emit from the generator + a label set).
 
+## 8. Shared settings panel — a tile and a unit configure the SAME way
+A selected TILE and a selected UNIT open the **same** floating settings panel, so configuring a unit
+looks and works exactly like configuring a tile (Alexander: "have the same UX/UI for both, regular tiles
+and units … but on units we'd might have a few extra things here and there, like the inventory").
+- **One component.** The panel body is a single shared `SettingsPanelBody` = the tile `TileControls`
+  (colour · width/height/zoom · x/y/z · rotate · flip) plus, for a unit only, a `UnitSettingsSection`
+  appended underneath. A tile passes no unit model, so the extras never show; there is no forked copy.
+- **The unit's shared settings.** A unit maps its own fields into the same control model: colour →
+  `entity.color`, the scale axes → the unit's uniform `size`, and x/y/rotate/flip → a new `entity.pose`
+  (same `TilePose` shape a tile carries; round-trips through the entity codec). All writers fan out to the
+  selected unit via the same `patchSelectedEntity` path the sidebar uses — one source of truth.
+- **Clean split, no tangle.** Asset-only controls that make no sense on a unit (Z Width, Z-Index, Display,
+  Shape, Light, the z-slide) are simply not wired for a unit, so `TileControls` hides each of those rows —
+  exactly the conditional a floor tile already relies on. Tile-only controls stay out of the unit view and
+  vice-versa.
+- **Unit-only extras** (`UnitSettingsSection`): the unit's identity + vitals (name, type/role, HP + combat
+  stats, hittable / blocks-movement) and the entry points a tile never has — the **inventory** (player) and
+  **quests** (NPC). These open the existing inventory / quest modals.
+- **Render-parity is separate (#35).** The editor writes + persists every shared setting. Whether the unit
+  RENDERER honors each one is the broader unit/tile render-parity work: today the on-canvas figure honors the
+  **name** label; `size`/`color` are honored for enemies/NPCs but NOT the player (the player draws through a
+  separate hero path); `pose` and the other shared settings are not yet read on a unit. Those are follow-ups.
+
 ## Build order (after the current quest/inventory wiring)
 1. Composite asset scaling + persistence/render (§6) — concrete bug.
 2. UI reorg (§5) — top nav + expandable assets + right-side connectors/entities/selection.
