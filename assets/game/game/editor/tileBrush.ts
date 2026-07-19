@@ -19,12 +19,15 @@ import { deriveCellCollision, getStack, popTile, pushTile, setFloor, setTileColl
 import { tileRenderBehavior } from '@/engine/tileset/tileset'
 import { assetTypeForTile, tileIsBlocking, tileSlug } from './tilePlacement'
 
-/** The char a tile draws as (glyph char, image's source glyph, or '?' for the ascii passthrough). */
+/** The glyph a painted tile PINS as its art fallback — its own glyph (glyph tile) or the image's source glyph
+ *  (image tile). NEVER a '?' dingbat: the tile is resolved by LABEL→IMAGE via its tileOverride, so an image
+ *  tile with no source glyph, or the ascii passthrough, pins '' (draw nothing / resolve by image) rather than
+ *  stamping a literal '?' into asset.art that would render on the user's machine. */
 function tileChar(tile: TileDef): string {
   const v = tile.visual
   if (v.kind === 'glyph') return v.char
-  if (v.kind === 'image') return v.char ?? '?'
-  return '?'
+  if (v.kind === 'image') return v.char ?? ''
+  return ''
 }
 
 /** terrain → set (replace) the cell's FLOOR to the tile's slug. Routed through the cellStack floor op: we

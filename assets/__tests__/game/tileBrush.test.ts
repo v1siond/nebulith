@@ -42,6 +42,19 @@ describe('stackAssetTile — nature/buildings stack as cell assets', () => {
     expect(stack[0].type).toBe('tree')
   })
 
+  test('a painted tile NEVER pins a "?" dingbat into its art (resolved by label→image, not a glyph)', () => {
+    const g = makeGrid()
+    // Every browseable stackable tile (nature + buildings) — its pinned art fallback is a real glyph or ''
+    // (image tiles resolve via tileOverride), never the '?' the old tileChar stamped for an image/ascii tile.
+    const stackable = [...EMOJI.nature, ...EMOJI.buildings]
+    expect(stackable.length).toBeGreaterThan(10)
+    let c = 0
+    for (const tile of stackable) {
+      stackAssetTile(g, c % 6, Math.floor(c / 6) % 6, tile); c++ // wrap into the 6×6 grid (stacking is fine here)
+    }
+    for (const a of g.assets) for (const ch of a.art) expect(ch).not.toBe('?')
+  })
+
   test('repeated places STACK — each one level higher, all kept, in order', () => {
     const g = makeGrid()
     stackAssetTile(g, 1, 1, byId('emoji:pine-tree'))
