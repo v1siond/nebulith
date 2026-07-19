@@ -128,6 +128,18 @@ system the GENERATOR and the RENDERER use — never a separate or hardcoded list
   flat), and its **settings** via the SAME `tileRenderBehavior` seam `stampComposition` uses. It is selectable,
   changeable (colour/shape/size/pose/display via the Inspector), and NEVER forced to a single flat default —
   exactly like a generated tile.
+- **Z-Width is a 3D block operation — the iso render honours it even on a base-flat tile.** A placed tile
+  extrudes into a real iso BLOCK when it has a base **height ≥ 1** OR the user sets **Z-Width** (directional
+  depth > 1). Z-Width declares "this tile is a block extruded N cells along a diagonal", so the iso renderer
+  routes it through the block path (`drawIsoTileForShape` → `drawIsoTileBlock`) and extrudes it — a Z-Width tile
+  stands at least one block tall. There is **no 2D logic on the isometric side**: the old flat-billboard path
+  silently dropped `depth`/`depthDir` + `display`, so a painted wall set to Z-Width 3 still drew a flat 2D face
+  — that path is now bypassed once any 3D intent (height or Z-Width) is present, and **Display (all-faces /
+  single) then applies to the extruded block**. A genuinely-flat tile (base height 0, no Z-Width, e.g. a
+  flower or a decal) stays a billboard. NOTE: a tile's DEFAULT flatness is its DB `height` — the coarse
+  whole-object emoji tiles (`wall`/`house`/`castle` = height 0) paint flat until extruded; the material block
+  tiles (`brick`/`wall_brick_c`/`boulder` = height 1) paint as blocks. Making a coarse tile a block by default
+  is a backend `height` reseed, never a frontend override.
 - **Apply a tile to ONE or MANY cells.** With a tile armed, a plain click paints the clicked cell; **shift-drag
   selects a rectangle of cells, then one click fills them all** (`applyArmedBrush` fans out over the selection,
   else the single clicked cell). ⌥Alt-click removes the top tile.
