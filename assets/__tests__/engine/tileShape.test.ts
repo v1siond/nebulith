@@ -77,21 +77,22 @@ describe('stampComposition — a composition CELL can ship a default shape (sett
 
 // ── Render ROUTING: drawIsoAssetAscii keeps the 3-face cube ART for BOTH shapes, and adds a rounding clip for
 //    circle. The recording ctx counts drawImage (the painted tile faces) AND clip/ellipse (the rounding mask). ──
-interface Rec { ctx: CanvasRenderingContext2D; images: unknown[]; clips: number; ellipses: number }
+interface Rec { ctx: CanvasRenderingContext2D; images: unknown[]; clips: number; ellipses: number; curves: number }
 function recordingCtx(): Rec {
   const images: unknown[] = []
-  const counts = { clips: 0, ellipses: 0 }
+  const counts = { clips: 0, ellipses: 0, curves: 0 }
   const ctx = {
     fillStyle: '#000', strokeStyle: '#000', font: '', lineWidth: 1, lineCap: '', globalAlpha: 1,
     textAlign: '' as CanvasTextAlign, textBaseline: '' as CanvasTextBaseline,
     save() {}, restore() {}, beginPath() {}, closePath() {}, moveTo() {}, lineTo() {},
+    quadraticCurveTo() { counts.curves++ }, // the top-front bevel arc — round the last (interior) corner
     rect() {}, clip() { counts.clips++ }, ellipse() { counts.ellipses++ }, arc() {}, translate() {}, rotate() {}, scale() {}, transform() {},
     createLinearGradient() { return { addColorStop() {} } }, createRadialGradient() { return { addColorStop() {} } },
     stroke() {}, fill() {}, fillRect() {}, strokeRect() {}, strokeText() {}, fillText() {},
     drawImage(src: unknown) { images.push(src) },
     measureText() { return { width: 10 } as TextMetrics },
   }
-  return { ctx: ctx as unknown as CanvasRenderingContext2D, images, get clips() { return counts.clips }, get ellipses() { return counts.ellipses } }
+  return { ctx: ctx as unknown as CanvasRenderingContext2D, images, get clips() { return counts.clips }, get ellipses() { return counts.ellipses }, get curves() { return counts.curves } }
 }
 
 describe('drawIsoAssetAscii ROUTES on asset.shape (end-to-end)', () => {
@@ -142,6 +143,19 @@ describe('drawIsoAssetAscii ROUTES on asset.shape (end-to-end)', () => {
     drawIsoAssetAscii(r.ctx, 100, 120, asset({ shape: 'circle' }), 22, 11, 0, false, 'day', EMOJI_STYLE)
     expect(r.clips).toBeGreaterThanOrEqual(1)     // the rounding mask (clipToBall) — bends the cuboid's corners away
     expect(r.ellipses).toBeGreaterThanOrEqual(1)  // that silhouette is an ellipse of the block's own extent
+  })
+
+  test('shape "circle" BEVELS the top-front vertex (Image #61): a rounded arc the square path never draws', () => {
+    // The outer ellipse clip only rounds the SILHOUETTE; the top face's front point (where the bright top diamond
+    // meets the two front walls) is an INTERIOR seam. roundIsoTopFrontCorner overpaints that sharp tip up to a
+    // rounded arc (a quadraticCurveTo), so the last angular corner is bent too. The cube path draws no such arc.
+    const sq = recordingCtx()
+    drawIsoAssetAscii(sq.ctx, 100, 120, asset({ shape: 'square' }), 22, 11, 0, false, 'day', EMOJI_STYLE)
+    expect(sq.curves).toBe(0) // a plain cube keeps its sharp top-front vertex — no bevel arc
+
+    const ci = recordingCtx()
+    drawIsoAssetAscii(ci.ctx, 100, 120, asset({ shape: 'circle' }), 22, 11, 0, false, 'day', EMOJI_STYLE)
+    expect(ci.curves).toBeGreaterThanOrEqual(1) // circle rounds the front vertex with a curved bevel
   })
 })
 

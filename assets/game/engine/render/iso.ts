@@ -1627,15 +1627,47 @@ export function roundedBlockEllipse(
   return { cx: center.x, cy: center.y - stack / 2, rx, ry }       // centred at the cuboid's vertical mid-point
 }
 
+/** Round the ONE corner the outer ellipse can't: the top face's FRONT vertex. The inscribed ellipse only bends
+ *  the outer SILHOUETTE — but where the bright top diamond's front point meets the two front walls is an INTERIOR
+ *  colour seam (a sharp downward V), so no outer clip reaches it (Image #61: the last angular corner). We overpaint
+ *  that sharp tip with the front-wall shades up to a smooth arc, so the bright top RECEDES to a rounded front edge
+ *  instead of a point — left half → leftShade, right half → rightShade, matching the walls beneath so the bevel
+ *  reads as the top surface curving down into the front faces. `faceColor` is the block's fill (same base the
+ *  walls shade from). ISO-only: the 2D/top circle draws ONE ellipse-clipped face and has no such seam. */
+function roundIsoTopFrontCorner(
+  ctx: CanvasRenderingContext2D,
+  center: Pt,
+  tileW: number,
+  tileH: number,
+  blockH: number,
+  height: number,
+  faceColor: string,
+): void {
+  const stack = Math.max(1, Math.floor(height)) * blockH
+  const ty = center.y - stack // top diamond centre-y
+  const fx = center.x, fy = ty + tileH // F — the top face's front vertex (where its two front edges meet)
+  const bevel = 0.5 // how far up the two front edges the round reaches, as a fraction of the top-diamond edge
+  const plx = fx - bevel * tileW, prx = fx + bevel * tileW, py = fy - bevel * tileH // bevel ends on the front edges
+  const leftShade = darkenColor(faceColor, faceLight(-tileH, tileW))
+  const rightShade = darkenColor(faceColor, faceLight(tileH, tileW))
+  // The sharp bright tip = the lens between the front edges (PL→F→PR) and a curve bulging toward F: overpaint it
+  // with wall shading so the top's front boundary becomes that curve. Split at the front vertical seam (x = fx)
+  // so each half wears its own wall shade, seamless with the walls below.
+  const lens = () => { ctx.beginPath(); ctx.moveTo(plx, py); ctx.quadraticCurveTo(fx, fy, prx, py); ctx.lineTo(fx, fy); ctx.closePath() }
+  ctx.save(); ctx.beginPath(); ctx.rect(fx - tileW, py - 1, tileW, tileH + 2); ctx.clip(); ctx.fillStyle = leftShade; lens(); ctx.fill(); ctx.restore()
+  ctx.save(); ctx.beginPath(); ctx.rect(fx, py - 1, tileW, tileH + 2); ctx.clip(); ctx.fillStyle = rightShade; lens(); ctx.fill(); ctx.restore()
+}
+
 /** SHAPE = "circle": take the SAME cuboid — same footprint, height, painted faces and per-face shading as
  *  drawIsoTileBlock — and BEND ITS CORNERS into a smooth rounded silhouette (Alexander: "ALL I WANT WITH THE
  *  SHAPE IS TO MANIPULATE THE SIDES OF THE CUBOID, selecting circle shape should bend the corners OF THE CUBOID
  *  to form a circle … the cube/cuboid is just a tile, painted on all sides of the block/cell"). We draw the block
- *  exactly as the cube path does, then CLIP it to the INSCRIBED ellipse (`roundedBlockEllipse`) so EVERY corner —
- *  the top apex, the mid-side vertices, and the bottom — is bent away and no straight-edge/arc kink remains. The
- *  three shaded faces and the tile's painted art all stay: it is the cuboid with its corners rounded away, NOT a
- *  repainted sphere. There is no spherical relight and no single flat surface — those were the rejected "ball"
- *  attempts; here the ONLY change from the cube is the rounding clip. */
+ *  exactly as the cube path does, then CLIP it to the INSCRIBED ellipse (`roundedBlockEllipse`) so every SILHOUETTE
+ *  corner — the top apex, the mid-side vertices, and the bottom — is bent away and no straight-edge/arc kink remains.
+ *  The outer clip can't reach the top face's FRONT vertex (an interior top→wall colour seam), so roundIsoTopFrontCorner
+ *  bevels that last sharp point too — now EVERY corner is bent. The three shaded faces and the tile's painted art all
+ *  stay: it is the cuboid with its corners rounded away, NOT a repainted sphere. There is no spherical relight and no
+ *  single flat surface — those were the rejected "ball" attempts; here the ONLY change from the cube is the rounding. */
 export function drawIsoRoundedBlock(
   ctx: CanvasRenderingContext2D,
   center: Pt,
@@ -1652,6 +1684,8 @@ export function drawIsoRoundedBlock(
   clipToBall(ctx, cx, cy, rx, ry)
   // The SAME cuboid — three shaded faces + painted art — drawn normally; only the clip above rounds it.
   drawIsoTileBlock(ctx, center, tileW, tileH, blockH, Math.max(1, Math.floor(height)), dv, tint)
+  // Bevel the one corner the silhouette clip can't reach — the top face's interior front vertex (Image #61).
+  roundIsoTopFrontCorner(ctx, center, tileW, tileH, blockH, height, tint ?? dv.tint ?? dv.color)
   ctx.restore()
 }
 
