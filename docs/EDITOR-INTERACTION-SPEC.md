@@ -61,30 +61,55 @@ selected → a 40-cell well), like a building stamped from its backend compositi
 - **Zone decorations:** **volcanoes** for lava, **mountains** for frozen — large multi-cell labeled
   decorations (render per-cell via the keystone path; emit from the generator + a label set).
 
-## 8. Shared settings panel — a tile and a unit configure the SAME way
-A selected TILE and a selected UNIT open the **same** floating settings panel, so configuring a unit
-looks and works exactly like configuring a tile (Alexander: "have the same UX/UI for both, regular tiles
-and units … but on units we'd might have a few extra things here and there, like the inventory").
-- **One component.** The panel body is a single shared `SettingsPanelBody` = the tile `TileControls`
-  (colour · width/height/zoom · x/y/z · rotate · flip) plus, for a unit only, a `UnitSettingsSection`
-  appended underneath. A tile passes no unit model, so the extras never show; there is no forked copy.
-- **The unit's shared settings.** A unit maps its own fields into the same control model: colour →
-  `entity.color`, the scale axes → the unit's uniform `size`, and x/y/rotate/flip → a new `entity.pose`
-  (same `TilePose` shape a tile carries; round-trips through the entity codec). All writers fan out to the
-  selected unit via the same `patchSelectedEntity` path the sidebar uses — one source of truth.
-- **Clean split, no tangle.** Asset-only controls that make no sense on a unit (Z Width, Z-Index, Display,
-  Shape, Light, the z-slide) are simply not wired for a unit, so `TileControls` hides each of those rows —
-  exactly the conditional a floor tile already relies on. Tile-only controls stay out of the unit view and
-  vice-versa.
-- **Unit-only extras** (`UnitSettingsSection`): the unit's identity + vitals (name, type/role, HP + combat
-  stats, hittable / blocks-movement) and the entry points a tile never has — the **inventory** (player) and
-  **quests** (NPC). These open the existing inventory / quest modals.
-- **Render-parity is separate (#35).** The editor writes + persists every shared setting. Whether the unit
-  RENDERER honors each one is the broader unit/tile render-parity work: today the on-canvas figure honors the
-  **name** label; `size`/`color` are honored for enemies/NPCs but NOT the player (the player draws through a
-  separate hero path); `pose` and the other shared settings are not yet read on a unit. Those are follow-ups.
+## 8. ONE unified inspector card — a tile and a unit share the SAME card
+A selected TILE and a selected UNIT render the **same** right-sidebar card (`PropertiesPanel`), so a unit is
+configured exactly like a tile — NOT a separate parallel unit sidebar (Alexander: "one single right sidebar,
+I want the same we use for tiles, with the extra unit options added … the unit data can be merged in to the
+general tile card").
+- **One card component.** `PropertiesPanel` is the single card. For a CELL it shows a collision row + the
+  compact tile summary. For a UNIT the page passes `unitSection`, which HIDES the collision row (a unit isn't
+  a cell) and folds the unit's data UNDER the same tile summary. The unit's sprite IS its tile ("everything is
+  a tile"): colour swatch, Open Tile Library, and "Edit settings…" all come from the shared tile summary.
+- **The unit's shared settings.** A unit maps its own fields into the same `TileControlModel`: colour →
+  `entity.color`, the scale axes → the unit's uniform `size`, x/y/rotate/flip → `entity.pose` (same `TilePose`
+  a tile carries; round-trips through the entity codec). Writers fan out via `patchSelectedEntity` — one
+  source of truth. "Edit settings…" opens the SAME floating `SettingsPanelBody` (tile-only body: colour ·
+  width/height/zoom · x/y/z · rotate · flip) a tile opens — asset-only rows (Z Width, Z-Index, Display, Shape,
+  Light, z-slide) stay hidden for a unit exactly as they do for a floor tile.
+- **Unit-only extras** (`UnitSettingsSection`, folded INTO the card): appearance (figure variant + size
+  preset), the unit's identity + vitals (name, type/role, HP + combat stats, hittable / blocks-movement), and
+  the entry-point buttons a tile never has — **inventory** (player), **quests** (NPC), **attacks** (enemy) —
+  which open their own modals.
+- **Animate is a button, not a section.** The old inline unit "Animation" section (figure/size/colour +
+  frame-list summary + "See more…") is REMOVED. The card's "✦ Animate…" button opens the frame-by-frame
+  character `AnimationEditor` in a floating modal — the same button pattern a tile uses.
+- **Movement pattern is removed (dead code).** The unit "Movement pattern" authoring section + `EntityMovementBody`
+  + the waypoint-authoring plumbing (`waypointMode`, `appendWaypoint`) are deleted. Enemy patrol still runs at
+  play time from `entity.movement` (spawner default / `advanceEnemyMovement`); only the unused authoring UI is gone.
+- **Render-parity is separate (#35).** The editor writes + persists every shared setting; whether the unit
+  RENDERER honors each is the broader render-parity work (name honored; `size`/`color` for enemies/NPCs but not
+  the player's hero path; `pose` not yet read on a unit). Those are follow-ups.
 
-## 9. The Paint palette + painted tiles (tileset painter — one source of truth)
+## 9. Triggers — a button + a modal (not an inline expando)
+Both the cell card and the unit card carry a **"⚑ Triggers…"** button (with a count badge). It opens a
+trigger-authoring **floating modal** (`TriggerEditor` in a `FloatingPanel`, like the settings panel), NOT an
+inline expando. It edits the SAME trigger data as before — a cell's `enter`/`interact` triggers
+(`setTriggersForCell`) or a unit's `defeat` triggers (`setTriggersForEntity`).
+
+## 10. Movable, resizable modals with backend-persisted geometry
+Every editor modal that hosts a settings-style body is a draggable + resizable **non-blocking** `FloatingPanel`
+(Alexander: "move and resize them at will and I want to save the position, size, as settings for the editor in
+the elixir backend"). This now covers: **settings** (tile + unit), **animation** (unit frame editor),
+**tileAnimation** (per-tile settings tweens), **triggers**, and **attacks** (enemy).
+- **Backend owns the geometry.** nebulith exposes a small key→value editor-settings store — `GET
+  /api/editor_settings` returns `{editorSettings: {<modalId>: {x,y,w,h}}}`, `PUT /api/editor_settings/:key`
+  upserts one modal's geometry. `key` is the modal id (`settings`/`animation`/`triggers`/`attacks`/
+  `tileAnimation`); `value` is the panel's `{x,y,w,h}`. A single global record per key (no per-user auth).
+- **Frontend never hardcodes geometry.** The editor loads the whole map once on mount (`getEditorSettings`),
+  restores each panel's saved position/size on open, and on every drag/resize END upserts the one key
+  (`saveEditorSetting`, debounced). `FloatingPanel` emits the final geometry via `onGeometryChange`.
+
+## 11. The Paint palette + painted tiles (tileset painter — one source of truth)
 The left **Paint** tool's tile list ("TERRAIN / TILES & GROUND / …") and a painted tile must be the SAME
 system the GENERATOR and the RENDERER use — never a separate or hardcoded list.
 

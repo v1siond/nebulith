@@ -36,6 +36,9 @@ defmodule NebulithWeb.Router do
     resources "/tilesets", TilesetController, except: [:new, :edit]
     resources "/templates", TemplateController, except: [:new, :edit]
     resources "/games", GameController, except: [:new, :edit]
+    # Editor UI settings — a key→value store for editor chrome geometry (per modal id).
+    get "/editor_settings", EditorSettingController, :index
+    put "/editor_settings/:key", EditorSettingController, :update
     get "/cv", CVController, :index
   end
 
