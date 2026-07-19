@@ -7,6 +7,7 @@ import { ENEMY_ATTACK_PRESETS, addEnemyAttack, addMovementStep, buildAttackPatte
 import { rewardSummary } from '@/game/runtime/quest'
 import { type AttackMode, type AttackPattern, type AttackPatternMode, type Direction, type EnemyAttack, type Entity, type MovementPattern, type Quest } from '@/game/types'
 import { QuestObjectives } from '@/components/game/hud'
+import { TileControls, type TileControlModel } from '@/components/game/editorChrome'
 
 /** Right-sidebar inspector for a clicked entity: edit its name / enemy-type, toggle
  *  whether it's hittable (a non-hittable enemy becomes passive scenery), see its
@@ -243,6 +244,55 @@ export function EntityIdentityStatsBody({ entity, onPatch }: {
             className="w-full rounded bg-gray-800 p-1 text-xs"
           />
         </label>
+      )}
+    </div>
+  )
+}
+
+/** The unit-only EXTRAS that sit beneath the shared tile settings in a unit's settings panel: the unit's
+ *  own identity + vitals (reusing {@link EntityIdentityStatsBody}) plus entry points a tile never has — the
+ *  INVENTORY (the user's named example) and, for an NPC, its quests. Driven by the selected entity + the SAME
+ *  patch writer the sidebar uses, so an edit here and an edit in the sidebar stay in step. */
+export interface UnitControlModel {
+  entity: Entity
+  onPatch: (patch: Partial<Entity>) => void
+  /** open the unit's inventory & abilities (the player carries one) — absent → no button. */
+  onOpenInventory?: () => void
+  /** open the NPC's quest authoring — absent → no button. */
+  onOpenQuests?: () => void
+}
+
+/** The unit-only section of the settings panel — identity/vitals (shared with the sidebar body) + the
+ *  inventory/quests entry points. Rendered ONLY for a unit; a tile passes no unit model so this never shows. */
+export function UnitSettingsSection({ unit }: { unit: UnitControlModel }) {
+  const { entity, onPatch, onOpenInventory, onOpenQuests } = unit
+  const btn = 'w-full rounded bg-gray-700 px-2 py-1.5 text-left text-xs font-bold transition-colors hover:bg-gray-600'
+  return (
+    <div className="space-y-2">
+      <p className="text-[9px] font-bold uppercase tracking-wider text-gray-500">— unit · {entity.kind} —</p>
+      <EntityIdentityStatsBody entity={entity} onPatch={onPatch} />
+      {(onOpenInventory || onOpenQuests) && (
+        <div className="space-y-1 border-t border-white/10 pt-2">
+          {onOpenInventory && <button type="button" className={btn} onClick={onOpenInventory}>🎒 Inventory &amp; abilities…</button>}
+          {onOpenQuests && <button type="button" className={btn} onClick={onOpenQuests}>❒ Quests…</button>}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/** The ONE settings-panel body the FloatingPanel hosts for BOTH a tile and a unit. The SAME
+ *  {@link TileControls} (colour / scale / pose) drives the top, so a unit's settings look + work exactly like
+ *  a tile's; a unit ALSO passes `unit`, appending the unit-only extras (identity, vitals, inventory). A tile
+ *  passes no `unit`, so those never show. One shared component — no forked parallel copy. */
+export function SettingsPanelBody({ tile, unit }: { tile: TileControlModel; unit?: UnitControlModel }) {
+  return (
+    <div className="space-y-3">
+      <TileControls tile={tile} />
+      {unit && (
+        <div className="border-t border-white/10 pt-3">
+          <UnitSettingsSection unit={unit} />
+        </div>
       )}
     </div>
   )

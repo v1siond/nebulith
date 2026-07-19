@@ -63,10 +63,10 @@ import { playSwoosh } from '@/game/runtime/audio'
 import { Card, EntityToolButton, ViewButton } from '@/components/game/controls'
 import { AbilityBar, CombatHud, QuestHud } from '@/components/game/hud'
 import { EquipmentPanel, InventoryCard, QuestAuthoringCard, QuestLogPanel } from '@/components/game/panels'
-import { EntityAttackBody, EntityIdentityStatsBody, EntityMovementBody, FloatingPanel, Modal, QuestGiveBody } from '@/components/game/modals'
+import { EntityAttackBody, EntityIdentityStatsBody, EntityMovementBody, FloatingPanel, Modal, QuestGiveBody, SettingsPanelBody } from '@/components/game/modals'
 import { FlowViewOverlay, GamesViewOverlay } from '@/components/game/games'
 import { BUILDING_TOOL_TYPE, type BuildingTool, type EditorMode, type EntityTool } from '@/components/game/editorConfig'
-import { AnimationEditor, ArtSection, Dropdown, FpsReadout, GenerateControls, PoseControls, PropertiesPanel, type TileControlModel, SelectionHeader, StylePicker, TileAnimationEditor, TileControls, TileLibraryBody, TilePalette, ToolRail, TriggerEditor, WEAPON_KINDS } from '@/components/game/editorChrome'
+import { AnimationEditor, ArtSection, Dropdown, FpsReadout, GenerateControls, PoseControls, PropertiesPanel, type TileControlModel, SelectionHeader, StylePicker, TileAnimationEditor, TileLibraryBody, TilePalette, ToolRail, TriggerEditor, WEAPON_KINDS } from '@/components/game/editorChrome'
 import type { Animation as TileAnim } from '@/engine/animation/tileAnimation'
 import { useFps } from '@/components/useFps'
 import { commonValue, commonBool, cellsFromKeys, removeSelectedBlock } from '@/game/editor/selectionEdit'
@@ -287,6 +287,9 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   // The TILE settings modal — hosts the full TileControls body (colour/size/pose/z…) so the inspector stays
   // a compact summary. Same open/close pattern as the animation modal above.
   const [tileSettingsOpen, setTileSettingsOpen] = useState(false)
+  // The UNIT settings panel — hosts the SAME FloatingPanel + shared settings body a tile uses (colour/scale/
+  // pose) plus the unit-only section (identity/vitals/inventory). Same open/close pattern as tileSettingsOpen.
+  const [unitSettingsOpen, setUnitSettingsOpen] = useState(false)
   // Disarm waypoint authoring + close any entity modal whenever the selection changes,
   // so clicks on a new entity select it (not drop a stray waypoint / show stale modal).
   useEffect(() => {
@@ -294,6 +297,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     setWaypointMode(false)
     setEntityModal(null)
     setAnimEditorOpen(false)
+    setUnitSettingsOpen(false)
   }, [selectedEntityId])
   const [enemyType, setEnemyType] = useState('goblin')
   const [npcName, setNpcName] = useState('')
@@ -5494,9 +5498,38 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                 const selFigVisual = resolveVisual(entityKind(selEntity.kind), activeStyle, selEntity.tileOverride)
                 const selFigure = genderize(selFigVisual.kind === 'glyph' ? selFigVisual.char : (isEnemy ? '👾' : '🧍'), selEntity.variant)
                 const libBtn = 'w-full rounded bg-gray-700 px-2 py-1.5 text-left text-xs font-bold transition-colors hover:bg-gray-600'
+                // SHARED settings model for the unit — the SAME TileControlModel a tile feeds TileControls, so
+                // the unit's settings panel (colour / scale / pose) looks + works identically. A unit has ONE
+                // uniform scale (`size`), so all three scale axes drive it; colour → entity.color (both are
+                // render-honored today). x/y/rotate/flip ride entity.pose (persisted via the codec) — the unit
+                // renderer HONORING that pose is the broader render-parity work (#35). Asset-only controls
+                // (Z Width, Z-Index, Display, Shape, Light, z-slide) get NO writer, so TileControls hides each of
+                // those rows for a unit — same conditional split a floor tile already uses.
+                const unitScale = selEntity.size ?? 1
+                const unitTileModel: TileControlModel = {
+                  key: `unit-${selEntity.id}`,
+                  label: selEntity.name || selEntity.kind,
+                  dims: { width: unitScale, height: unitScale, depth: unitScale, zoom: unitScale },
+                  color: selEntity.color ?? null,
+                  colorFallback: '#ffffff',
+                  onDim: (_axis, v) => patchSelectedEntity({ size: v > 1 ? v : undefined }), // size 1 drops the field
+                  onColor: c => patchSelectedEntity({ color: c }),
+                  onClearColor: () => patchSelectedEntity({ color: undefined }),
+                  override: selEntity.tileOverride ?? null,
+                  styleName: activeStyle.name,
+                  onOpenLibrary: () => setTileLibraryOpen(true),
+                  pose: selEntity.pose,
+                  onPose: p => patchSelectedEntity({ pose: p }),
+                  onPoseReset: () => patchSelectedEntity({ pose: undefined }),
+                }
                 return (
                   <>
                     <SelectionHeader kind={selEntity.kind} label={`${selEntity.name || selEntity.kind} (${selEntity.kind})`} coords={`@ ${selEntity.col},${selEntity.row}`} />
+                    {/* Same affordance a tile has (PropertiesPanel's "Edit settings…") — opens the SAME floating
+                        settings panel, so editing a unit matches editing a tile. */}
+                    <button onClick={() => setUnitSettingsOpen(true)} aria-label="Edit settings" className="w-full rounded bg-cyan-800 px-2 py-1.5 text-xs font-bold text-white transition-colors hover:bg-cyan-700">
+                      ⚙ Edit settings…
+                    </button>
                     {/* Consolidated unit card — identity + stats + sprite + a compact animation section +
                         the inventory/quests entry points, all in ONE card (the old Identity / Animation /
                         Library cards folded together). */}
@@ -5653,6 +5686,23 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                           onChange={next => patchSelectedEntity({ animations: next })}
                         />
                       </Modal>
+                    )}
+                    {/* Unit settings — the SAME FloatingPanel + shared settings body a tile opens from its
+                        inspector, so a unit is configured identically; `unit` appends the unit-only section
+                        (identity/vitals + the inventory the user asked for). Inventory is the player's; NPCs get
+                        quests instead. The writers fan out to the selected unit via patchSelectedEntity. */}
+                    {unitSettingsOpen && (
+                      <FloatingPanel title={`${selEntity.name || selEntity.kind} — Settings`} accent="cyan" onClose={() => setUnitSettingsOpen(false)}>
+                        <SettingsPanelBody
+                          tile={unitTileModel}
+                          unit={{
+                            entity: selEntity,
+                            onPatch: patchSelectedEntity,
+                            onOpenInventory: isPlayer ? () => setEntityModal('inventory') : undefined,
+                            onOpenQuests: isNpc ? () => { if (selEntity.kind !== 'enemy') setQuestDraft(d => ({ ...d, giverId: selEntity.id })); setEntityModal('quests') } : undefined,
+                          }}
+                        />
+                      </FloatingPanel>
                     )}
                   </>
                 )
@@ -5940,7 +5990,8 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                                 already fan out to the i-th stacked tile of every selected cell (setAssetDim/Pose/…). */}
                             {tileSettingsOpen && (
                               <FloatingPanel title={`${tile.label} — Settings`} accent="cyan" onClose={() => setTileSettingsOpen(false)}>
-                                <TileControls tile={tile} />
+                                {/* SAME shared body a unit uses (no `unit` → no unit section), so tile + unit settings are one component. */}
+                                <SettingsPanelBody tile={tile} />
                               </FloatingPanel>
                             )}
                             {/* Phase-4 tile-animation modal — authors THIS asset tile's GridAsset.animations

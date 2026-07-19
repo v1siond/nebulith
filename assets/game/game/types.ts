@@ -9,6 +9,7 @@
 import type { AbilityAnimation } from './abilities'
 import type { EntityAnimation } from './runtime/entityAnimation'
 import type { Trigger } from './runtime/trigger'
+import type { TilePose } from '@/engine/tileset/pose'
 
 // ── stats & runtime combat state ────────────────────────────────────
 export interface Stats {
@@ -269,6 +270,10 @@ export interface Entity {
   size?: number
   /** editor colour override for the figure glyph. Absent → the kind/role default palette. */
   color?: string
+  /** shared settings-panel pose — x/y offset, rotation, flip (same shape a tile carries). Authored in the
+   *  unit's settings panel like a tile's; round-trips via the entity codec. NOTE: the unit RENDERER does not
+   *  read this yet — pose-honoring on units is the broader unit/tile render-parity work (#35). */
+  pose?: TilePose
 }
 
 // ── quests / missions ───────────────────────────────────────────────
