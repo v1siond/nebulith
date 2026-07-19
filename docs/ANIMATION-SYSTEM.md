@@ -13,11 +13,13 @@
 
 ## 1. The model in one sentence
 
-A **tile** (a placed `GridAsset`) can carry a LIST of **animations**; each animation tweens the tile's live
-render **settings** (`opacity`, screen `x`/`y`, `zoom`, `width`, `height`, `color`, …) from a `from` value to a
-`to` value over one `durationMs`, with start/loop delays, looping, easing, a **trigger**, and a per-`(style,view)`
-**scope**. Playback is **pure + clock-derived** — no per-frame state — so the same map animates identically on
-every machine. The animation is **DATA**: authored either as a **composition/kind default** in the backend
+A **tile** (a placed `GridAsset`) **or a unit** can carry a LIST of **animations**; each is one of two kinds. A
+**settings** animation tweens live render **settings** (`opacity`, screen `x`/`y`, `zoom`, `width`, `height`,
+`color`, …) from a `from` value to a `to` value over one `durationMs`, with start/loop delays, looping, easing,
+a **trigger**, and a per-`(style,view)` **scope**. A **sprite** animation swaps baked frame IMAGES (a walk /
+idle / attack cycle) — the SAME model a unit uses, so a unit's frame-swap animation IS a sprite animation and
+tiles can carry one too (see §2). Playback is **pure + clock-derived** — no per-frame state — so the same map
+animates identically on every machine. The animation is **DATA**: authored either as a **composition/kind default** in the backend
 (`TileSource`) or **per-instance** in `Template.assetsData`. The frontend only renders it.
 
 ```mermaid
@@ -44,15 +46,36 @@ type Ease         = 'linear' | 'sine' | 'ease' | 'flicker'     // sine/ease = ea
 type TriggerEvent = 'load' | 'attack' | 'interact' | 'proximity' | 'night'
 
 interface AnimationTrack { setting: SettingKey; from: number|string; to: number|string }   // many per animation
-interface Animation {      // kind:'settings' fully implemented; kind:'sprite' type-only (playback stubbed)
+type AnimFrame  = { tileId?: string; char?: string; flipX?: boolean }   // one frame — a tile label→baked image (or a glyph), optionally mirrored
+interface AnimationBase {  // both kinds share the envelope + timing
   id: string; name?: string; kind: 'settings' | 'sprite'
   durationMs: number; startDelayMs?: number; loopDelayMs?: number; loop?: boolean; yoyo?: boolean; ease?: Ease; priority?: number
-  trigger?: { on: TriggerEvent; radiusCells?: number }         // proximity → distance from the hero
+  trigger?: { on: TriggerEvent; radiusCells?: number }         // settings kind — proximity → distance from the hero
   scope?:   { styles?: ('ascii'|'emoji')[]; views?: ('iso'|'2d'|'top')[] }   // absent/empty = all
-  tracks:   AnimationTrack[]                                   // settings kind
-  // frames: string[]                                          // sprite kind (baked frame labels)
 }
+interface SettingsAnimation extends AnimationBase { kind: 'settings'; tracks: AnimationTrack[] }
+interface SpriteAnimation   extends AnimationBase { kind: 'sprite'
+  frames: AnimFrame[]                                          // frame-swap frames — each a baked tile IMAGE resolved by label (never a raw glyph)
+  spriteTrigger?: { on: 'idle'|'move'|'attack'|'interact'|'key'; whileRunning?: boolean; key?: string; mode?: 'tap'|'hold' }  // the ENTITY event model
+  direction?: 'up'|'down'|'left'|'right'|'any'                 // the facing this variant plays for
+}
+type Animation = SettingsAnimation | SpriteAnimation
 ```
+
+### The `sprite` kind — frame-swap, shared by tiles AND units
+
+Both kinds are **real**. `settings` tweens render settings (below); `sprite` swaps baked frame IMAGES — a
+walk / idle / attack cycle. The sprite kind **reuses the unit frame model** (`AnimFrame`, the entity
+`AnimTrigger`, `AnimDirection`) rather than forking it, so **a unit's frame-swap animation IS a sprite
+`Animation`** and a tile can carry one too. A unit still STORES `EntityAnimation[]` (the renderer plays it via
+`entityAnimation.activeFrame`, unchanged); the shared authoring modal edits the SPRITE VIEW of each animation
+and writes the entity shape back — the pure bridge `spriteFromEntity` ⇄ `entityFromSprite`
+(`entityAnimation.ts`) is a lossless mapping. Playback: `spriteFrameIndex(anim, now, placedAt)` derives the
+live frame index — clock-derived + pure, the SAME semantics as `entityAnimation.loopFrameIndex` (frames spread
+evenly across `durationMs`; the `loopDelay` tail rests on frame 0; non-loop holds the last frame), extended
+with the envelope's `startDelayMs`/`placedAtMs` anchor. A sprite animation writes **no render settings**
+(`animationValue`/`resolveAnimatedSettings` return `{}` for it) — the renderer draws the resolved frame's
+image instead.
 
 - **`yoyo` (ping-pong loop).** Only meaningful with `loop`. A yoyo cycle runs `from`→`to` over `durationMs`
   (up leg) then AUTO-REVERSES `to`→`from` over another `durationMs` (down leg), then the `loopDelayMs` tail
@@ -144,8 +167,9 @@ using that view's existing `cellAnim` clock, so the animation shares the render'
 Threaded this phase: `opacity`, `x`, `y`, `color`, `zoom`, `width`, `height`. NOT yet consumed by the render
 (pre-draw or semantically ambiguous): `zPos`/`zWidth` (folded into position/extrusion before the draw),
 `heightLevel` (needs a per-frame depth re-sort), `zIndex` (sort runs before the draw loop), `rotate` (pose-merge
-semantics), `display` (visibility vs render-mode). `sprite` playback is stubbed. These are carried as data and
-await a semantics decision before wiring.
+semantics), `display` (visibility vs render-mode). These are carried as data and await a semantics decision
+before wiring. `sprite` playback is `spriteFrameIndex` (§2) — a sprite writes no settings, so it is not one of
+these deferred setting keys; the renderer draws its resolved frame image.
 
 ## 5. Triggers & scope
 
@@ -230,25 +254,38 @@ everywhere and looks right (verified real render, both styles). Also noted in `M
 
 - **Composition default (backend):** add an `animations` array to the composition cell in
   `Nebulith.Catalog.TileSource`, migrate/seed. Served verbatim; stamped onto every placed instance.
-- **Per-instance (editor):** select the tile → **✦ Animate…** → the `TileAnimationEditor` modal
-  (`src/components/game/editorChrome.tsx`). Add a settings animation, check the settings to tween (each adds a
-  from/to track — e.g. **height** for a grow), set timing / **loop** / **yoyo** / trigger / scope. Writes flow
-  immutably through `setAssetAnimations` onto the selected tile of every selected cell (`placedAt = 0`). A live
-  preview plays the composed chain (including the yoyo grow) through the real engine.
+- **Per-instance (editor):** select the tile OR unit → **✦ Animate…** → the ONE shared `TileAnimationEditor`
+  modal (`src/components/game/editorChrome.tsx`). It authors BOTH kinds:
+  - **settings** — "Add settings animation", check the settings to tween (each adds a from/to track — e.g.
+    **height** for a grow), set timing / **loop** / **yoyo** / trigger / scope. A live preview plays the
+    composed chain (including the yoyo grow) through the real engine.
+  - **sprite** — "Add sprite animation", author a frame-swap cycle: a frame strip with a category-constrained
+    baked-tile picker (each frame thumbnail is the tile's **baked image**, resolved label→image — never a raw
+    glyph), an entity trigger (idle / move / attack / interact / key) + direction, timing + loop. This is the
+    former character animation editor, folded in as the sprite kind.
+  - A **tile** offers both kinds; a **unit** offers sprite only (it stores `EntityAnimation[]`, which maps only
+    to the sprite kind) — its stored set is bridged in via `spriteFromEntity` and written back via
+    `entityFromSprite`. Tile writes flow immutably through `setAssetAnimations` onto the selected tile of every
+    selected cell (`placedAt = 0`); unit writes flow through `patchSelectedEntity({ animations })`.
 
 ## 8. Files
 
-- Engine (pure): `game-website/src/engine/animation/tileAnimation.ts`
+- Engine (pure): `game-website/src/engine/animation/tileAnimation.ts` (settings interpolator + `spriteFrameIndex`)
+- Sprite⇄unit bridge (pure): `game-website/src/game/runtime/entityAnimation.ts` (`spriteFromEntity` / `entityFromSprite`; the unit frame model `AnimFrame`/`AnimTrigger` the sprite kind reuses)
 - Render bridge: `game-website/src/engine/render/assetAnimation.ts` (+ iso/topdown/birdseye asset branches)
 - Grid fields: `game-website/src/engine/IsometricGrid.ts` (`GridAsset.animations`, `placedAt`)
 - Composition stamp: `game-website/src/game/runtime/composition.ts`; loader: `…/engine/tileset/tileset.ts`
-- Authoring modal: `game-website/src/components/game/editorChrome.tsx` (`TileAnimationEditor`)
+- Authoring modal: `game-website/src/components/game/editorChrome.tsx` (`TileAnimationEditor` — both kinds;
+  `SpriteAnimationRow` reuses `AnimationRow`; `FrameThumb` draws the baked frame image); wired for tiles + units
+  in `templates.tsx`
 - Backend data: `nebulith/lib/nebulith/catalog/tile_source.ex` (`@fountain_water_grow`),
   `…/catalog/composition_cell.ex`, `…/controllers/tileset_json.ex`,
   migration `priv/repo/migrations/20260719120000_add_animations_to_composition_cells.exs`
-- Tests: `tileAnimation.test.ts`, `assetAnimation.test.ts`, `tileAnimation.realcanvas.test.ts`,
-  `tileAnimationCompose.realcanvas.test.ts` (base+animation composition, §3.5), `fountainLoop.realcanvas.test.ts`,
-  `fountainAnimationDefault.test.ts`, `api.assetRoundtrip.test.ts`, `tileAnimationEditorStructure.test.tsx`
+- Tests: `tileAnimation.test.ts` (incl. real `spriteFrameIndex` playback), `assetAnimation.test.ts`,
+  `tileAnimation.realcanvas.test.ts`, `tileAnimationCompose.realcanvas.test.ts` (base+animation composition,
+  §3.5), `fountainLoop.realcanvas.test.ts`, `fountainAnimationDefault.test.ts`, `api.assetRoundtrip.test.ts`,
+  `tileAnimationEditorStructure.test.tsx`, `spriteAnimationSharedModal.test.tsx` (sprite kind for tiles+units +
+  the baked-image frame fix + the sprite⇄unit bridge round-trip), `entityAnimation.test.ts`
 
 ---
 
