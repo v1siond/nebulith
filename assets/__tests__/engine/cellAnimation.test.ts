@@ -5,8 +5,6 @@ import {
   makeCellAnimation,
   restFrame,
   REST,
-  WIND_SWAY,
-  CELL_ANIM_PRESETS,
   type CellAnimation,
   type AnimFrame,
 } from '@/engine/cellAnimation'
@@ -138,25 +136,4 @@ describe('cellAnimation — pure frame clock + interpolation', () => {
     })
   })
 
-  describe('built-in presets', () => {
-    it('ships a wind/sway preset (the doc 4-frame leaf example) so wind works out of the box', () => {
-      expect(WIND_SWAY.frames).toHaveLength(4)
-      expect(WIND_SWAY.frames[0]).toEqual({ dx: 0, dy: 0 }) // frame 0 = rest
-      expect(WIND_SWAY.frames[1].dx).toBeGreaterThan(0) // right
-      expect(WIND_SWAY.frames[2].dx).toBeLessThan(0) // left
-      // a built preset actually animates through assetCellTransform
-      const anim = makeCellAnimation([{ col: 0, row: 0 }], WIND_SWAY.frames, WIND_SWAY)
-      expect(assetCellTransform(anim, WIND_SWAY.durationMs / 3)?.dx).toBeCloseTo(WIND_SWAY.frames[1].dx, 1)
-    })
-
-    it('every preset has a rest frame 0 and at least 3 frames', () => {
-      for (const p of CELL_ANIM_PRESETS) {
-        // frame 0 = rest: no positional/rotational offset (an explicit scale:1 is fine).
-        expect(p.frames[0].dx).toBe(0)
-        expect(p.frames[0].dy).toBe(0)
-        expect(p.frames[0].rot ?? 0).toBe(0)
-        expect(p.frames.length).toBeGreaterThanOrEqual(3)
-      }
-    })
-  })
 })

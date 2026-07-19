@@ -1667,34 +1667,6 @@ function drawIsoTileForShape(
   (ISO_SHAPE_DRAWERS[asset.shape ?? 'square'] ?? ISO_SHAPE_DRAWERS.square)(ctx, center, bw, bd, bh, blocks, dv, tint, asset)
 }
 
-// Buildings always render as an empty shell (HOLLOW) so the DOOR and the wall-fade read — you can see IN
-// when the hero is near. Interior decorations come later as real tiles, not a fill toggle.
-
-/** One wall of an iso building footprint: its bottom-left ground corner `base`, the `axis` vector
- *  along the wall's whole bottom edge, and the `span` in cells (drives the window count). */
-export interface IsoWall { base: Pt; axis: Pt; span: number }
-
-/** The TWO camera-NEAR walls of an iso box, from its four ground corners + footprint size. A wall is
- *  "near" (its outward face points toward the viewer) when its bottom-edge midpoint sits BELOW — larger
- *  screen-y — the footprint centre. Exactly two of the four qualify, and WHICH two flips with the
- *  building's orientation (colVec/depthVec signs). Windows draw ONLY on these, never the two far/hidden
- *  walls — so a faded (translucent) building never bleeds hidden-wall windows through onto the roof
- *  (#32: they used to, because the "roof drawn last occludes them" trick only holds while opaque).
- *  Pure geometry → unit-tested. */
-export function cameraNearWalls(fbl: Pt, fbr: Pt, bbl: Pt, bbr: Pt, length: number, depth: number): IsoWall[] {
-  const cy = (fbl.y + fbr.y + bbl.y + bbr.y) / 4 // footprint centre screen-y
-  const midY = (base: Pt, axis: Pt): number => base.y + axis.y / 2 // bottom-edge midpoint y
-  const walls: IsoWall[] = [
-    { base: fbl, axis: { x: fbr.x - fbl.x, y: fbr.y - fbl.y }, span: length }, // front (south edge)
-    { base: bbl, axis: { x: bbr.x - bbl.x, y: bbr.y - bbl.y }, span: length }, // back  (north edge)
-    { base: fbl, axis: { x: bbl.x - fbl.x, y: bbl.y - fbl.y }, span: depth }, // left  (west edge)
-    { base: fbr, axis: { x: bbr.x - fbr.x, y: bbr.y - fbr.y }, span: depth }, // right (east edge)
-  ]
-  return walls.filter(w => midY(w.base, w.axis) > cy)
-}
-
-
-
 // ── shared iso solids (raised structures + water depth) ──────────────────
 // Ground tiles that get an iso DEPTH treatment (a sunken basin) instead of a flat diamond.
 export const WATER_DEPTH_TILES: ReadonlySet<string> = new Set(['water', 'ice_water', 'oasis', 'koi'])
