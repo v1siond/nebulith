@@ -307,11 +307,11 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   // key (debounced). The backend owns this, so panel geometry is never hardcoded in the frontend.
   const [panelGeo, setPanelGeo] = useState<EditorSettings>({})
   const panelGeoTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
-  useEffect(() => { getEditorSettings().then(setPanelGeo).catch(() => {}) }, [])
+  useEffect(() => { getEditorSettings().then(setPanelGeo).catch(err => console.warn('Failed to load editor settings', err)) }, [])
   const savePanelGeo = useCallback((key: string, geometry: PanelGeometry) => {
     setPanelGeo(prev => ({ ...prev, [key]: geometry }))
     clearTimeout(panelGeoTimers.current[key])
-    panelGeoTimers.current[key] = setTimeout(() => { void saveEditorSetting(key, geometry).catch(() => {}) }, 350)
+    panelGeoTimers.current[key] = setTimeout(() => { void saveEditorSetting(key, geometry).catch(err => console.warn('Failed to save editor setting', key, err)) }, 350)
   }, [])
   /** FloatingPanel props for a modal id: restore its saved geometry (else `def`) + persist on move/resize end. */
   const floatingProps = useCallback((key: string, def?: { w: number; h: number }) => {
@@ -4415,7 +4415,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     if (additions.length === 0) return
     const next = [...gameTemplateIds, ...additions]
     setGameTemplateIds(next)
-    await updateGame(gameContext.gameId, { templateIds: next }).catch(() => {})
+    await updateGame(gameContext.gameId, { templateIds: next }).catch(err => console.warn('Failed to link templates to game', err))
   }
 
   // Create a fresh, blank template (same dimensions as the current map) so a connection can target it.
