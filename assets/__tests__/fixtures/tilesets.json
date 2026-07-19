@@ -29603,7 +29603,7 @@
       "tiles": {
         "bear": {
           "title": "Bear",
-          "category": "nature",
+          "category": "units",
           "settings": {
             "color": "#8a5f3a"
           },
@@ -29616,7 +29616,7 @@
         },
         "dove": {
           "title": "Dove",
-          "category": "nature",
+          "category": "units",
           "settings": {
             "color": "#e8e8e8"
           },
@@ -29642,7 +29642,7 @@
         },
         "chicken": {
           "title": "Chicken",
-          "category": "nature",
+          "category": "units",
           "settings": {
             "color": "#d8663a"
           },
@@ -29815,7 +29815,7 @@
         },
         "turtle": {
           "title": "Turtle",
-          "category": "nature",
+          "category": "units",
           "settings": {
             "color": "#4f8f5a"
           },
@@ -30190,7 +30190,7 @@
         },
         "deer": {
           "title": "Deer",
-          "category": "nature",
+          "category": "units",
           "settings": {
             "color": "#a9763f"
           },
@@ -30308,7 +30308,7 @@
         },
         "honeybee": {
           "title": "Honeybee",
-          "category": "nature",
+          "category": "units",
           "settings": {
             "color": "#e5b53a"
           },
@@ -30387,7 +30387,7 @@
         },
         "frog": {
           "title": "Frog",
-          "category": "nature",
+          "category": "units",
           "settings": {
             "color": "#5fa03f"
           },
@@ -30585,7 +30585,7 @@
         },
         "sheep": {
           "title": "Sheep",
-          "category": "nature",
+          "category": "units",
           "settings": {
             "color": "#e8e4dc"
           },
@@ -30782,7 +30782,7 @@
         },
         "owl": {
           "title": "Owl",
-          "category": "nature",
+          "category": "units",
           "settings": {
             "color": "#a98f6a"
           },
@@ -30795,7 +30795,7 @@
         },
         "dog": {
           "title": "Dog",
-          "category": "nature",
+          "category": "units",
           "settings": {
             "color": "#b5854a"
           },
@@ -30956,7 +30956,7 @@
         },
         "grey-wolf": {
           "title": "Grey Wolf",
-          "category": "nature",
+          "category": "units",
           "settings": {
             "color": "#8a8f9a"
           },
@@ -31009,7 +31009,7 @@
         },
         "duck": {
           "title": "Duck",
-          "category": "nature",
+          "category": "units",
           "settings": {
             "color": "#6a8f4a"
           },
@@ -31100,7 +31100,7 @@
         },
         "butterfly": {
           "title": "Butterfly",
-          "category": "nature",
+          "category": "units",
           "settings": {
             "color": "#6a9ad8"
           },
@@ -31154,7 +31154,7 @@
         },
         "boar": {
           "title": "Boar",
-          "category": "nature",
+          "category": "units",
           "settings": {
             "color": "#7a6a5a"
           },
@@ -31206,7 +31206,7 @@
         },
         "hedgehog": {
           "title": "Hedgehog",
-          "category": "nature",
+          "category": "units",
           "settings": {
             "color": "#a98f6a"
           },
@@ -31249,7 +31249,7 @@
         },
         "cat": {
           "title": "Cat",
-          "category": "nature",
+          "category": "units",
           "settings": {
             "color": "#c8964a"
           },
@@ -31396,7 +31396,7 @@
         },
         "cow": {
           "title": "Cow",
-          "category": "nature",
+          "category": "units",
           "settings": {
             "color": "#c9b8a8"
           },
@@ -31554,7 +31554,7 @@
         },
         "squirrel": {
           "title": "Squirrel",
-          "category": "nature",
+          "category": "units",
           "settings": {
             "color": "#b5793a"
           },
@@ -31783,7 +31783,7 @@
         },
         "pig": {
           "title": "Pig",
-          "category": "nature",
+          "category": "units",
           "settings": {
             "color": "#e59ab0"
           },
@@ -31862,7 +31862,7 @@
         },
         "snail": {
           "title": "Snail",
-          "category": "nature",
+          "category": "units",
           "settings": {
             "color": "#c8a06a"
           },
@@ -31930,7 +31930,7 @@
         },
         "goat": {
           "title": "Goat",
-          "category": "nature",
+          "category": "units",
           "settings": {
             "color": "#b8a888"
           },
@@ -32009,7 +32009,7 @@
         },
         "rabbit": {
           "title": "Rabbit",
-          "category": "nature",
+          "category": "units",
           "settings": {
             "color": "#d8cbb8"
           },
@@ -32091,7 +32091,7 @@
         },
         "bird": {
           "title": "Bird",
-          "category": "nature",
+          "category": "units",
           "settings": {
             "color": "#5a8fc8"
           },
@@ -32212,7 +32212,7 @@
         },
         "fox": {
           "title": "Fox",
-          "category": "nature",
+          "category": "units",
           "settings": {
             "color": "#e0863a"
           },
@@ -32596,7 +32596,7 @@
         },
         "ladybug": {
           "title": "Ladybug",
-          "category": "nature",
+          "category": "units",
           "settings": {
             "color": "#d13b3b"
           },
@@ -32756,7 +32756,7 @@
         },
         "horse": {
           "title": "Horse",
-          "category": "nature",
+          "category": "units",
           "settings": {
             "color": "#a9793f"
           },

@@ -48,6 +48,37 @@ describe('placementFor — category → placement primitive', () => {
     expect(placementFor({ category: 'units', id: 'emoji:arrow' })).toBe('asset')
     expect(placementFor({ category: 'units', id: 'emoji:fire-slash' })).toBe('asset')
   })
+  test('an animal (now a unit, not nature) routes to an entity', () => {
+    for (const id of ['emoji:bear', 'emoji:grey-wolf', 'emoji:fox', 'emoji:cow']) {
+      expect(placementFor(byId(id))).toBe('entity')
+    }
+  })
+})
+
+// DELIVERABLE 2 — animals are enemies/units, NOT nature (user: "we have a bunch of enemy or unit tiles on the
+// nature category, like bears, wolf — animals aren't nature"). The recategorization lives in the tile DATA
+// (emoji.json / the seed), so it shows up here against the REAL catalog: animals are in `units` and become
+// enemies, while genuine nature (trees/rocks/plants/flowers/mushrooms) stays in `nature`.
+describe('animals are units/enemies, not nature (recategorized)', () => {
+  test('every animal is catalogued under units, not nature', () => {
+    const natureIds = new Set(EMOJI.nature.map(t => t.id))
+    const unitIds = new Set(EMOJI.units.map(t => t.id))
+    for (const id of ['emoji:bear', 'emoji:grey-wolf', 'emoji:fox', 'emoji:cow', 'emoji:owl', 'emoji:cat', 'emoji:dog', 'emoji:butterfly']) {
+      expect(unitIds.has(id)).toBe(true)
+      expect(natureIds.has(id)).toBe(false)
+    }
+  })
+  test('genuine nature (trees, rocks, plants, flowers, mushrooms) stays in nature', () => {
+    const natureIds = new Set(EMOJI.nature.map(t => t.id))
+    for (const id of ['emoji:tree', 'emoji:oak-tree', 'emoji:rock', 'emoji:boulder', 'emoji:flower', 'emoji:rose', 'emoji:mushroom', 'emoji:potted-plant']) {
+      expect(natureIds.has(id)).toBe(true)
+    }
+  })
+  test('an animal placed as a unit becomes an ENEMY (not player, not npc)', () => {
+    for (const slug of ['bear', 'grey-wolf', 'fox', 'cow', 'owl', 'cat', 'dog']) {
+      expect(entityKindForUnitSlug(slug)).toBe('enemy')
+    }
+  })
 })
 
 describe('entityKindForUnitSlug', () => {
