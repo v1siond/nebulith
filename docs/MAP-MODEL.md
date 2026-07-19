@@ -79,18 +79,22 @@ flowchart LR
   front end renders; the tile data comes from the DB — the front end hardcodes nothing.
 - A cell/block CAN carry a **`shape`** render setting (`square` default | `circle`) — DATA on the cell
   (`composition_cells.settings.shape` or a per-instance editor setting), never a render special-case.
-  **`shape: circle` renders a REAL isometric SPHERE**, not a rounded cube (Alexander: *"literally just make
-  the tile cube a sphere … the actual shape changes, not simulated"*): the renderer clips to the true round
-  silhouette inscribed in the block's extent, then paints the tile **EXACTLY like the cube face** — a
-  **background COLOUR FILL first** (the tile's resolved `tint ?? color`, so the sphere never loses the tile's
-  base colour where its art is transparent), then the tile's **art on top** as **ONE smooth surface** (a single
-  image, NOT the three cube faces — so there are no face seams), then radial-shades it into a 3D ball. So a
-  circle tile shows the SAME colour + art the cube does, only shaped round (Alexander: *"we lost the background
-  color … just take the tile block/square and make it a circle/sphere, that's it"*). Only the FORM becomes a
-  sphere (a unit block → a ball, a `scaleY` block → an ellipsoid). `square` is the plain cube. All three views
-  route their `circle`/`square` through ONE shared shape dispatch (iso `ISO_SHAPE_DRAWERS`, 2D/top
-  `drawFlatTileForShape`) — no per-view `if (shape === 'circle')` — so a new shape adds one map entry, never a
-  branch (SOLID/OCP).
+  **`shape: circle` takes the SAME cuboid and BENDS ITS CORNERS ROUND**, NOT a repainted sphere (Alexander:
+  *"ALL I WANT WITH THE SHAPE IS TO MANIPULATE THE SIDES OF THE CUBOID … bend the corners OF THE CUBOID to form
+  a circle"*): the renderer draws the block's **normal cube — the tile painted on all three shaded faces, its
+  background colour fill + art + per-face shading all kept — then CLIPS it to an ELLIPSE** so the silhouette
+  rounds. The clip is the block's **INSCRIBED ellipse** (`roundedBlockEllipse`): `rx = footprint half-width`,
+  `ry = √((stack/2)² + stack·tileH)` centred at the cuboid's mid-height — **tangent to the four slanted faces**,
+  so **EVERY corner is bent away** (the top apex, the mid-side vertices, and the bottom) and there is **no
+  straight-edge/arc kink**. The earlier `ry = stack/2 + tileH` passed through the apex + bottom and cut across
+  the faces, leaving those three corners angular (Alexander circled the top point, a mid-right side corner, and
+  the bottom) — the inscribe fixes all three. It stays **PROPORTIONAL** — a tall block → a tall oval (an egg
+  standing up), a unit cube → a rounder blob — and is **NOT a sphere**: no single flat surface, no radial
+  relight, the three faces + their seams still show; only the OUTLINE rounds. `square` is the plain cube. All
+  three views route their `circle`/`square` through ONE shared shape dispatch (iso `ISO_SHAPE_DRAWERS`, 2D/top
+  `drawFlatTileForShape`, whose face is a rectangle so its own inscribed-ellipse clip already rounds all four
+  corners) — no per-view `if (shape === 'circle')` — so a new shape adds one map entry, never a branch
+  (SOLID/OCP).
 
 **Terminology — never interchange:**
 - **CELL** = a 2D grid square `(col, row)`.
