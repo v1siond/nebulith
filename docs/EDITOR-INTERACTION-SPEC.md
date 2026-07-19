@@ -144,10 +144,18 @@ system the GENERATOR and the RENDERER use — never a separate or hardcoded list
   silently dropped `depth`/`depthDir` + `display`, so a painted wall set to Z-Width 3 still drew a flat 2D face
   — that path is now bypassed once any 3D intent (height or Z-Width) is present, and **Display (all-faces /
   single) then applies to the extruded block**. A genuinely-flat tile (base height 0, no Z-Width, e.g. a
-  flower or a decal) stays a billboard. NOTE: a tile's DEFAULT flatness is its DB `height` — the coarse
-  whole-object emoji tiles (`wall`/`house`/`castle` = height 0) paint flat until extruded; the material block
-  tiles (`brick`/`wall_brick_c`/`boulder` = height 1) paint as blocks. Making a coarse tile a block by default
-  is a backend `height` reseed, never a frontend override.
+  flower or a decal) stays a billboard.
+- **Coarse whole-object BUILDING tiles paint as all-faces 3D blocks by DEFAULT — no Z-Width needed.** A tile's
+  default flatness is its DB `height`. The whole-object building emoji tiles (`wall`, `house`, `castle`, `bank`,
+  `tower`, `tent`, `stadium`, `torii-gate`, … — every coarse building) carry **height ≥ 1**, so painting one
+  seeds `GridAsset.height ≥ 1` and it renders as a full iso CUBE the moment it lands, painted on **all faces**
+  (Display defaults to `all-faces`; nothing is ever forced to `single`). This corrects a **DB DRIFT**: those
+  heights had fallen to `0`, so a painted wall came in as a flat billboard and only became a block once the user
+  hand-raised Z-Width. Genuinely-flat tiles stay flat by the same rule: terrain (`grass`/`water`/`path`/`road`/
+  `sand` = 0) and thin **facade parts** (`door`/`window`/`glass-window`/`wooden-door`/`roof` = 0) are NOT blocks
+  — a floor is not a cube. Making a coarse tile a block-by-default is a **backend `height` reseed**
+  (`emoji.json` → `TileSource.seed_sample` reconciles the height column, poses preserved), never a frontend
+  override.
 - **Apply a tile to ONE or MANY cells.** With a tile armed, a plain click paints the clicked cell; **shift-drag
   selects a rectangle of cells, then one click fills them all** (`applyArmedBrush` fans out over the selection,
   else the single clicked cell). ⌥Alt-click removes the top tile.

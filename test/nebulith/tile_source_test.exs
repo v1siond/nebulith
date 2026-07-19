@@ -324,6 +324,39 @@ defmodule Nebulith.TileSourceTest do
     end
   end
 
+  test "whole-object building tiles are 3D BLOCKS (height >= 1); terrain + facade parts stay FLAT (0)" do
+    # THE PAINTER BUG: a painted wall/house/castle came in FLAT because its DB block height had drifted to 0.
+    # Whole-object buildings must extrude into an all-faces iso cube by default; a floor/facade must not.
+    emoji = Catalog.list_tiles_for("emoji")
+    by = fn label -> Enum.find(emoji, &(&1.label == label)) end
+
+    for label <- ~w(wall house castle brick tower bank altar pillar tent stadium torii-gate) do
+      assert by.(label).height >= 1, "#{label} must be a 3D block (height >= 1)"
+    end
+
+    # a floor is NOT a block: terrain + thin facade parts + water features stay flat.
+    for label <- ~w(grass water path road sand door window glass-window wooden-door fountain well roof) do
+      assert by.(label).height == 0, "#{label} must stay flat (height 0)"
+    end
+  end
+
+  test "reconcile_building_heights restores a drifted block height, leaving the tile's settings untouched" do
+    # Proves the surgical, pose-safe fix: reconcile touches ONLY the height column, so editor-tuned poses
+    # (which live in `settings`) survive — unlike a full upsert, which would replace_all and clobber them.
+    wall = Enum.find(Catalog.list_tiles_for("emoji"), &(&1.label == "wall"))
+    assert wall.settings["fadeNear"] == true # the tile's own behaviour/pose lives in settings
+
+    # simulate the DB DRIFT that caused the painter bug: the block height silently fell to 0.
+    {1, _} = Catalog.set_tile_height(wall.tileset_id, "wall", 0)
+    assert Enum.find(Catalog.list_tiles_for("emoji"), &(&1.label == "wall")).height == 0
+
+    # reconcile pulls the height back from emoji.json — height COLUMN only.
+    :ok = TileSource.reconcile_building_heights()
+    fixed = Enum.find(Catalog.list_tiles_for("emoji"), &(&1.label == "wall"))
+    assert fixed.height >= 1, "reconcile restores the intended block height"
+    assert fixed.settings["fadeNear"] == true, "settings (behaviour/pose) survive the height-only fix"
+  end
+
   test "behavior settings don't clobber existing settings and stay scoped to building tiles" do
     ascii_tiles = Catalog.list_tiles_for("ascii")
 

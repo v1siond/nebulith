@@ -826,7 +826,34 @@ defmodule Nebulith.Catalog.TileSource do
     seed_tree_leaves(emoji_id, palettes)
     seed_new_compositions()
     seed_building_compositions()
+    reconcile_building_heights()
     IO.puts("reseeded sample tiles + compositions")
+    :ok
+  end
+
+  @doc """
+  Reconciles the `height` COLUMN of the emoji BUILDING tiles from emoji.json.
+
+  Whole-object building tiles (wall/house/castle/…) must paint as 3D BLOCKS, not flat billboards. Their
+  DB `height` had DRIFTED to 0 while the seed intends >= 1 — so a painted wall came in flat and only
+  extruded once the user hand-raised Z-Width (the painter bug). This walks every `category: "buildings"`
+  tile in emoji.json and writes its `height` onto the matching DB row, touching ONLY the height column so
+  editor-tuned poses in `settings` survive (a full `seed_emoji_tiles` would `replace_all` them — which is
+  why `seed_sample` never calls it). Facade parts (door/window) + water features (fountain/well) carry no
+  height in emoji.json, so they stay flat (0). Idempotent.
+  """
+  def reconcile_building_heights do
+    emoji_id = ensure_tileset("emoji", "Emoji").id
+    emoji = read_tileset("emoji.json")
+
+    updated =
+      for {label, t} <- emoji, t["category"] == "buildings", reduce: 0 do
+        acc ->
+          {n, _} = Catalog.set_tile_height(emoji_id, label, t["height"] || 0)
+          acc + n
+      end
+
+    IO.puts("reconciled #{updated} emoji building-tile heights")
     :ok
   end
 

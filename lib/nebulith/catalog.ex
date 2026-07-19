@@ -149,6 +149,17 @@ defmodule Nebulith.Catalog do
     |> Repo.all()
   end
 
+  @doc """
+  Sets ONLY the `height` column of the (tileset_id, label) tile, leaving settings/pose untouched.
+
+  Used to reconcile drifted block heights without a full upsert (which would `replace_all` the
+  settings and clobber editor-tuned poses). Returns `{updated_count, nil}`.
+  """
+  def set_tile_height(tileset_id, label, height) do
+    from(t in Tile, where: t.tileset_id == ^tileset_id and t.label == ^label)
+    |> Repo.update_all(set: [height: height, updated_at: DateTime.truncate(DateTime.utc_now(), :second)])
+  end
+
   @doc "Inserts or updates a tile, keyed on (tileset_id, label)."
   def upsert_tile(attrs) do
     %Tile{}

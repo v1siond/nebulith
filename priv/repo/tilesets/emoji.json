@@ -70,6 +70,7 @@
     "title": "Mountain"
   },
   "wall": {
+    "height": 1,
     "char": "🧱",
     "color": "#b0603a",
     "image": "/tiles/emoji/baked/wall.png",
@@ -161,6 +162,7 @@
     "title": "Mushroom"
   },
   "pillar": {
+    "height": 1,
     "char": "🏛️",
     "color": "#cbb68c",
     "image": "/tiles/emoji/baked/pillar.png",
@@ -168,6 +170,7 @@
     "title": "Pillar"
   },
   "altar": {
+    "height": 1,
     "char": "🗿",
     "color": "#ffe7a8",
     "image": "/tiles/emoji/baked/altar.png",
@@ -866,6 +869,7 @@
     "image": "/tiles/emoji/catalog/dog.png"
   },
   "house": {
+    "height": 1,
     "char": "🏠",
     "color": "#c8443c",
     "category": "buildings",
@@ -873,6 +877,7 @@
     "image": "/tiles/emoji/catalog/house.png"
   },
   "house-garden": {
+    "height": 1,
     "char": "🏡",
     "color": "#b5793a",
     "category": "buildings",
@@ -880,6 +885,7 @@
     "image": "/tiles/emoji/catalog/house-garden.png"
   },
   "houses": {
+    "height": 1,
     "char": "🏘️",
     "color": "#c86b4d",
     "category": "buildings",
@@ -887,6 +893,7 @@
     "image": "/tiles/emoji/catalog/houses.png"
   },
   "derelict-house": {
+    "height": 1,
     "char": "🏚️",
     "color": "#8a7a5f",
     "category": "buildings",
@@ -894,6 +901,7 @@
     "image": "/tiles/emoji/catalog/derelict-house.png"
   },
   "office-building": {
+    "height": 1,
     "char": "🏢",
     "color": "#7f8c9a",
     "category": "buildings",
@@ -901,6 +909,7 @@
     "image": "/tiles/emoji/catalog/office-building.png"
   },
   "department-store": {
+    "height": 1,
     "char": "🏬",
     "color": "#b05a8a",
     "category": "buildings",
@@ -908,6 +917,7 @@
     "image": "/tiles/emoji/catalog/department-store.png"
   },
   "convenience-store": {
+    "height": 1,
     "char": "🏪",
     "color": "#4a9ac8",
     "category": "buildings",
@@ -915,6 +925,7 @@
     "image": "/tiles/emoji/catalog/convenience-store.png"
   },
   "hospital": {
+    "height": 1,
     "char": "🏥",
     "color": "#e05a5a",
     "category": "buildings",
@@ -922,6 +933,7 @@
     "image": "/tiles/emoji/catalog/hospital.png"
   },
   "bank": {
+    "height": 1,
     "char": "🏦",
     "color": "#6a8f5a",
     "category": "buildings",
@@ -929,6 +941,7 @@
     "image": "/tiles/emoji/catalog/bank.png"
   },
   "hotel": {
+    "height": 1,
     "char": "🏨",
     "color": "#c89a4a",
     "category": "buildings",
@@ -936,6 +949,7 @@
     "image": "/tiles/emoji/catalog/hotel.png"
   },
   "school": {
+    "height": 1,
     "char": "🏫",
     "color": "#d0a83a",
     "category": "buildings",
@@ -943,6 +957,7 @@
     "image": "/tiles/emoji/catalog/school.png"
   },
   "classical-building": {
+    "height": 1,
     "char": "🏛️",
     "color": "#cbb68c",
     "category": "buildings",
@@ -950,6 +965,7 @@
     "image": "/tiles/emoji/catalog/classical-building.png"
   },
   "castle": {
+    "height": 1,
     "char": "🏰",
     "color": "#9a8a7a",
     "category": "buildings",
@@ -957,6 +973,7 @@
     "image": "/tiles/emoji/catalog/castle.png"
   },
   "japanese-castle": {
+    "height": 1,
     "char": "🏯",
     "color": "#d9c8a8",
     "category": "buildings",
@@ -964,6 +981,7 @@
     "image": "/tiles/emoji/catalog/japanese-castle.png"
   },
   "church": {
+    "height": 1,
     "char": "⛪",
     "color": "#b0a89a",
     "category": "buildings",
@@ -971,6 +989,7 @@
     "image": "/tiles/emoji/catalog/church.png"
   },
   "mosque": {
+    "height": 1,
     "char": "🕌",
     "color": "#8aa88a",
     "category": "buildings",
@@ -978,6 +997,7 @@
     "image": "/tiles/emoji/catalog/mosque.png"
   },
   "tower": {
+    "height": 1,
     "char": "🗼",
     "color": "#d0553a",
     "category": "buildings",
@@ -985,6 +1005,7 @@
     "image": "/tiles/emoji/catalog/tower.png"
   },
   "torii-gate": {
+    "height": 1,
     "char": "⛩️",
     "color": "#d0402a",
     "category": "buildings",
@@ -992,6 +1013,7 @@
     "image": "/tiles/emoji/catalog/torii-gate.png"
   },
   "tent": {
+    "height": 1,
     "char": "⛺",
     "color": "#7a9a5a",
     "category": "buildings",
@@ -999,6 +1021,7 @@
     "image": "/tiles/emoji/catalog/tent.png"
   },
   "factory": {
+    "height": 1,
     "char": "🏭",
     "color": "#8a8a8a",
     "category": "buildings",
@@ -1028,6 +1051,7 @@
     "image": "/tiles/emoji/catalog/glass-window.png"
   },
   "stadium": {
+    "height": 1,
     "char": "🏟️",
     "color": "#9a9a8a",
     "category": "buildings",
