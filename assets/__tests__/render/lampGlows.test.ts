@@ -1,4 +1,7 @@
 import { assetLight, collectLampGlows, LAMP_GLOW } from '../../engine/render/shared'
+import { resolveAssetAnimation } from '../../engine/render/assetAnimation'
+import { flickerEase, type Animation } from '../../engine/animation/tileAnimation'
+import { EMOJI_STYLE } from '../../game/artStyle'
 import type { IsometricGrid } from '../../engine/IsometricGrid'
 import type { GridAsset } from '../../engine/IsometricGrid'
 
@@ -7,6 +10,12 @@ const gridWith = (assets: unknown[]) => ({ assets } as unknown as IsometricGrid)
 const center = (col: number, row: number) => ({ x: col * 10, y: row * 10 })
 // 3rd arg is now the per-cell PIXEL unit (tilePx): a light's `distance` (cells) → distance·tilePx px radius.
 const TILE_PX = 32
+
+// The failing lamp's night flicker (the backend `lamp_flicker_anim` shape): ONE irregular opacity dip.
+const flickerAnim = (): Animation => ({
+  id: 'lamp_flicker', kind: 'settings', durationMs: 2600, loopDelayMs: 0, loop: true, yoyo: false,
+  ease: 'flicker', priority: 1, trigger: { on: 'night' }, tracks: [{ setting: 'opacity', from: 1, to: 0.12 }],
+})
 
 describe('assetLight — the ONE resolver for a tile\'s night glow pool', () => {
   test('an explicit `light` SETTING drives radius (distance) + strength (intensity) + hue (color)', () => {
@@ -86,5 +95,49 @@ describe('collectLampGlows — night pool anchors, sized by each asset\'s light'
   test('drops lamps whose pool is fully off-screen', () => {
     const g = gridWith([{ col: 500, row: 500, type: 'lamp_post', label: 'lamp' }])
     expect(collectLampGlows(g, center, TILE_PX, 5, 800, 600)).toHaveLength(0)
+  })
+})
+
+describe('collectLampGlows — a FAILING lamp\'s pool dims in SYNC with its bulb flicker (Alexander: "same rhythm")', () => {
+  const anim = { time: 0, style: EMOJI_STYLE, view: 'iso' as const }
+  const failingLamp = (light: { intensity: number; distance: number }) =>
+    ({ col: 2, row: 2, type: 'lamp_post', label: 'lamp', placedAt: 0, light, animations: [flickerAnim()] }) as unknown as GridAsset
+
+  test('the pool intensity = base intensity × the bulb\'s live animated opacity, at EVERY sampled time', () => {
+    const base = 0.8
+    const g = gridWith([failingLamp({ intensity: base, distance: 3 })])
+    for (const time of [0, 300, 650, 1000, 1400, 1900, 2300, 2599]) {
+      const bulbOpacity = resolveAssetAnimation(g.assets[0] as GridAsset, time, EMOJI_STYLE, 'iso', 'night')?.opacity ?? 1
+      const out = collectLampGlows(g, center, TILE_PX, 0, 800, 600, { ...anim, time })
+      // the pool follows the bulb EXACTLY — bulb-dark ⇒ pool-dark, on the same beat
+      expect(out[0].intensity).toBeCloseTo(base * bulbOpacity, 5)
+    }
+  })
+
+  test('over the loop the pool is FULL at lit beats and clearly DIMMED at fault beats (the flicker actually moves it)', () => {
+    const base = 0.8
+    const g = gridWith([failingLamp({ intensity: base, distance: 3 })])
+    // scan the loop; use flickerEase to know which beats are lit (0) vs dips (>0)
+    let sawFull = false, sawDim = false
+    for (let time = 0; time < 2600; time += 20) {
+      const dip = flickerEase((time % 2600) / 2600)
+      const intensity = collectLampGlows(g, center, TILE_PX, 0, 800, 600, { ...anim, time })[0].intensity
+      if (dip === 0) { sawFull = true; expect(intensity).toBeCloseTo(base, 5) }      // fully lit → full pool
+      if (dip > 0.5) { sawDim = true; expect(intensity).toBeLessThan(base * 0.9) }   // a fault → the pool cuts
+    }
+    expect(sawFull).toBe(true) // the bulb IS lit for most of the loop
+    expect(sawDim).toBe(true)  // and it DOES fault — the pool dims with it
+  })
+
+  test('a STEADY lamp (no animation) keeps a constant pool — only the failing ones flicker', () => {
+    const steady = gridWith([{ col: 2, row: 2, type: 'lamp_post', label: 'lamp', light: { intensity: 0.7, distance: 3 } }])
+    for (const time of [0, 500, 1300, 2100]) {
+      expect(collectLampGlows(steady, center, TILE_PX, 0, 800, 600, { ...anim, time })[0].intensity).toBeCloseTo(0.7, 5)
+    }
+  })
+
+  test('with NO anim context the pool is steady (byte-identical) even for a failing lamp — backward compatible', () => {
+    const g = gridWith([failingLamp({ intensity: 0.8, distance: 3 })])
+    expect(collectLampGlows(g, center, TILE_PX, 0, 800, 600)[0].intensity).toBeCloseTo(0.8, 5)
   })
 })

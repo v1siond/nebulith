@@ -348,14 +348,23 @@ type Centrepiece = keyof typeof CENTREPIECE_FOOTPRINT
 // animated water columns), a grand city square gets the big `fountain` (a 3×3 basin, its centre 3 animated).
 // The plaza side is the settlement tell — PLAZA_SIZE is town 5 / city 7 (villageLayout), so ≥6 ⇒ city.
 const pickCentrepiece = (plazaSize: number): Centrepiece => (plazaSize >= 6 ? 'fountain' : 'well')
+/** ~18% of lamps are FAILING bulbs — a deterministic per-cell hash so the SAME map always fails the SAME lamps
+ *  (stable across reloads; independent of the generator RNG so it can't shift other placements). Alexander: "the
+ *  flicker animation can be applied to a few, but not all" — so a MINORITY flickers, the rest are steady. */
+function lampIsFailing(col: number, row: number): boolean {
+  const s = Math.sin(col * 12.9898 + row * 78.233) * 43758.5453
+  return s - Math.floor(s) < 0.18
+}
+
 /** Record a LIGHT POST at (col,row) as a composition anchor — a `post` base (level 0) + the `lamp` on top
  *  (level 1) — and pre-block its 1×1 cell so generation-time decor (trees) stays off it, exactly like
  *  placeCentrepiece pre-blocks the fountain. applyStageToGrid stamps it via stampComposition, the SAME data
  *  path the fountain uses, so ascii and emoji render the IDENTICAL post+lamp structure (only the tile art
- *  differs) — replacing the old single-lamp prop that collapsed to one tile in both styles. */
+ *  differs). A MINORITY (lampIsFailing) stamps the `lamp_post_failing` variant (an irregular night flicker); the
+ *  rest are the steady `lamp_post` — the DATA-driven "only a few lamps flicker" mechanism (backend variant). */
 function placeLampPost(ctx: ArchetypeContext, col: number, row: number): void {
   if (!inBounds(col, row, ctx.cols, ctx.rows) || ctx.collision[row][col]) return
-  ctx.compositions.push({ kind: 'lamp_post', col, row })
+  ctx.compositions.push({ kind: lampIsFailing(col, row) ? 'lamp_post_failing' : 'lamp_post', col, row })
   ctx.collision[row][col] = true
 }
 

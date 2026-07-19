@@ -13,6 +13,7 @@ import {
   animationMatchesScope,
   spriteFrameIndex,
   easeAnim,
+  flickerEase,
   type SettingsAnimation,
   type SpriteAnimation,
 } from '@/engine/animation/tileAnimation'
@@ -260,5 +261,49 @@ describe('scope + sprite stub', () => {
     const sprite: SpriteAnimation = { id: 's', kind: 'sprite', durationMs: 1000, frames: ['a', 'b', 'c'] }
     expect(animationValue(sprite, 500, 0)).toEqual({})
     expect(spriteFrameIndex(sprite, 500, 0)).toBe(0)
+  })
+})
+
+// The FAILING-bulb envelope (Alexander: "more irregular … a failing bulb"). Sampled across the phase [0,1),
+// it must be a MINORITY of dips over a mostly-ON baseline, STEPPED (abrupt jumps — never a smooth sine), and
+// deterministic. easeAnim routes `ease:'flicker'` to it, so an opacity flicker animation reads erratic, not sine.
+describe('flickerEase — the irregular, stepped failing-bulb envelope (NOT a sine yoyo)', () => {
+  const N = 400
+  const samples = Array.from({ length: N }, (_, i) => flickerEase(i / N))
+
+  test('deterministic + bounded to [0,1]', () => {
+    expect(flickerEase(0.37)).toBe(flickerEase(0.37))
+    for (const v of samples) { expect(v).toBeGreaterThanOrEqual(0); expect(v).toBeLessThanOrEqual(1) }
+  })
+
+  test('mostly ON: the MAJORITY of the loop is fully lit (envelope 0) — the dips are the minority', () => {
+    const lit = samples.filter(v => v === 0).length
+    expect(lit / N).toBeGreaterThan(0.5) // a normal-looking lamp that occasionally faults, not a strobe
+  })
+
+  test('STEPPED, not smooth: adjacent samples take a large JUMP somewhere (a sine yoyo never does)', () => {
+    let maxStep = 0
+    for (let i = 1; i < samples.length; i++) maxStep = Math.max(maxStep, Math.abs(samples[i] - samples[i - 1]))
+    expect(maxStep).toBeGreaterThanOrEqual(0.4) // an abrupt on↔off edge — the failing-bulb signature
+    // contrast: a sine ease over the same fine sampling is smooth — every adjacent step is tiny
+    let sineMax = 0
+    for (let i = 1; i < N; i++) sineMax = Math.max(sineMax, Math.abs(easeAnim('sine', i / N) - easeAnim('sine', (i - 1) / N)))
+    expect(sineMax).toBeLessThan(0.05)
+  })
+
+  test('IRREGULAR amplitude: the dips are NOT all the same depth (varying fault severity)', () => {
+    const dips = new Set(samples.filter(v => v > 0).map(v => v.toFixed(3)))
+    expect(dips.size).toBeGreaterThanOrEqual(2) // multiple distinct dip depths → erratic, not one uniform pulse
+  })
+
+  test('easeAnim routes `flicker` to flickerEase, and an opacity flicker reads erratic (not a sine tween)', () => {
+    expect(easeAnim('flicker', 0.42)).toBe(flickerEase(0.42))
+    // an opacity 1→0.12 flicker animation, sampled over its loop, is mostly 1 (on) with abrupt dips — not a curve
+    const flick = settingsAnim({ durationMs: 2600, loop: true, ease: 'flicker', tracks: [{ setting: 'opacity', from: 1, to: 0.12 }] })
+    const op = Array.from({ length: 130 }, (_, i) => Number(animationValue(flick, i * 20, 0).opacity))
+    expect(op.filter(v => v > 0.99).length / op.length).toBeGreaterThan(0.5) // mostly fully-on
+    let maxStep = 0
+    for (let i = 1; i < op.length; i++) maxStep = Math.max(maxStep, Math.abs(op[i] - op[i - 1]))
+    expect(maxStep).toBeGreaterThan(0.3) // abrupt opacity dips — a failing bulb, not a smooth breathe
   })
 })

@@ -47,8 +47,9 @@ export type SettingKey =
 
 export type AnimationKind = 'settings' | 'sprite'
 
-/** Interpolation curve. `sine`/`ease` = ease-in-out (matches `cellAnimation.easeT`); `linear` = default. */
-export type Ease = 'linear' | 'sine' | 'ease'
+/** Interpolation curve. `sine`/`ease` = ease-in-out (matches `cellAnimation.easeT`); `linear` = default;
+ *  `flicker` = an irregular, STEPPED envelope for a FAILING bulb (not a smooth curve — see `flickerEase`). */
+export type Ease = 'linear' | 'sine' | 'ease' | 'flicker'
 
 /** How an animation fires. `load` = plays immediately; `proximity` uses `radiusCells` from the hero;
  *  `night` is a CONDITION (not a one-shot) — the animation plays ONLY while the scene is in night mode, so
@@ -166,9 +167,34 @@ export const ADDITIVE_SETTINGS: ReadonlySet<SettingKey> = new Set<SettingKey>([
 ])
 export const MULTIPLICATIVE_SETTINGS: ReadonlySet<SettingKey> = new Set<SettingKey>(['zoom', 'width'])
 
-/** Eased 0→1 parameter. `sine`/`ease` = ease-in-out; `linear` (default) = identity. PURE. */
+/**
+ * FLICKER envelope — a FAILING bulb, NOT a smooth curve (Alexander: "more irregular, it's supposed to
+ * represent a failing bulb"). Deterministic pseudo-noise over the phase `t` (∈[0,1]): the bulb is fully ON
+ * (envelope 0) for the MAJORITY of the loop (~72% of slots), punctuated by brief, ERRATIC dips of varying depth
+ * at IRREGULAR times. The phase is quantized into fine slots; a per-slot hash GATES whether that slot faults,
+ * and a second hash picks the fault DEPTH — a full-off blink or a partial dip — giving a non-uniform, STEPPED
+ * on/off pattern, never a sine yoyo. PURE + repeatable.
+ *   0        → bulb fully lit (most of the loop)
+ *   1        → a full-off blink (the darkest fault)
+ *   0<v<1    → a partial dip (erratic amplitude)
+ */
+export function flickerEase(t: number): number {
+  const x = t < 0 ? 0 : t > 1 ? 1 : t
+  const hash = (n: number): number => {
+    const s = Math.sin(n * 91.7) * 43758.5453
+    return s - Math.floor(s) // 0..1, deterministic
+  }
+  const slot = Math.floor(x * 37) // 37 fine slots across the loop → a stepped, low-variance mostly-ON baseline
+  if (hash(slot + 1) < 0.7) return 0 // ~72% of slots stay fully ON — the dips are the minority (a faulting lamp)
+  const depth = hash(slot * 1.7 + 5) // an erratic per-slot fault depth (varying severity)
+  return depth > 0.6 ? 1 : 0.4 + 0.55 * depth // a full-off blink, or a partial dip (0.4..~0.73) — irregular
+}
+
+/** Eased 0→1 parameter. `sine`/`ease` = ease-in-out; `flicker` = the irregular failing-bulb envelope;
+ *  `linear` (default) = identity. PURE. */
 export function easeAnim(kind: Ease | undefined, t: number): number {
   if (kind === 'sine' || kind === 'ease') return (1 - Math.cos(Math.PI * t)) / 2
+  if (kind === 'flicker') return flickerEase(t)
   return t
 }
 

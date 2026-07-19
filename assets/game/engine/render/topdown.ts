@@ -975,7 +975,7 @@ export function render2D(
 
   // ─── NIGHT LIGHTING ─────────────────────────────────────────────────
   if (dayNight === 'night') {
-    const lamps = collectLampGlows(grid, (c, r) => toScreen(c + 0.5, r + 0.5), tileW, tileH * 2.2, w, h)
+    const lamps = collectLampGlows(grid, (c, r) => toScreen(c + 0.5, r + 0.5), tileW, tileH * 2.2, w, h, { time, style, view: '2d' })
     drawNightLighting(ctx, w, h, lamps)
   }
 

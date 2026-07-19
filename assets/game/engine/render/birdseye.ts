@@ -467,6 +467,7 @@ export function renderTopView(
       0,
       w,
       h,
+      { time: now, style, view: 'top' },
     )
     drawNightLighting(ctx, w, h, lamps)
   }

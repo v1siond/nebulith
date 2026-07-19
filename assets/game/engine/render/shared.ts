@@ -29,6 +29,8 @@ export const ASCII_FONT = '"JetBrains Mono", "Fira Code", "Consolas", monospace'
 import { resolveVisual, visualForTileId, type ElementKind, type ImageVisual, type Style, type Visual } from '@/game/artStyle'
 import { tileSlug } from '@/game/editor/tilePlacement'
 import { type AttackAnim, type AnimFrame } from '@/engine/attackAnimations'
+import { type TileView } from '@/engine/animation/tileAnimation'
+import { resolveAssetAnimation } from './assetAnimation'
 
 export interface DrawVisual {
   /** the char to fillText (the caller's default when passing through / drawing an image). */
@@ -429,9 +431,10 @@ export function assetLight(asset: GridAsset): { rgb: string; radiusTiles: number
 
 
 /** Night pass: darken the whole canvas with a navy veil, then punch warm radial light pools through it at each
- *  lamp (additive 'lighter' blend). Steady — never a flicker (a lamp flicker is a NIGHT-triggered tile
- *  animation, separate from this pool). Each `LampGlow` carries its OWN colour + intensity, so a per-tile
- *  `light` setting tints/strengthens its pool; the alpha stops scale by `intensity`. */
+ *  lamp (additive 'lighter' blend). Each `LampGlow` carries its OWN colour + intensity, so a per-tile `light`
+ *  setting tints/strengthens its pool; the alpha stops scale by `intensity`. A FAILING lamp's pool tracks its
+ *  bulb: collectLampGlows folds the bulb's live animated opacity into that lamp's `intensity`, so the pool dims
+ *  on the SAME beat as the flickering bulb (a steady lamp's intensity is unchanged → its pool stays steady). */
 export function drawNightLighting(
   ctx: CanvasRenderingContext2D,
   w: number,
@@ -460,7 +463,13 @@ export function drawNightLighting(
  *  the night pass paints. `cellCenter` maps a cell to its screen centre (each view projects differently);
  *  `tilePx` is the per-cell pixel unit for THIS view, so a light's `distance` (cells) becomes `distance·tilePx`
  *  pixels — the SETTING drives the pool size. `lift` raises the pool to the lamp head. Driven by `assetLight`,
- *  so ANY tile carrying a light casts a pool (a lamp with none uses the default); shared by all three views. */
+ *  so ANY tile carrying a light casts a pool (a lamp with none uses the default); shared by all three views.
+ *
+ *  `anim` (optional {time, style, view}) makes the POOL FOLLOW THE BULB: for each light-casting asset we
+ *  resolve its live animation opacity (night-gated) and MULTIPLY it into the pool `intensity`, so a FAILING
+ *  lamp's ground pool dims/cuts on the exact beat its bulb flickers (Alexander: "when it fails the light area
+ *  should fail at the same rhythm of the flick"). A steady lamp has no animation → opacity 1 → its pool is
+ *  unchanged. Absent `anim` (jsdom / a caller that doesn't animate) → every pool is steady, byte-identical. */
 export function collectLampGlows(
   grid: IsometricGrid,
   cellCenter: (col: number, row: number) => { x: number; y: number },
@@ -468,6 +477,7 @@ export function collectLampGlows(
   lift: number,
   w: number,
   h: number,
+  anim?: { time: number; style: Style; view: TileView },
 ): LampGlow[] {
   const out: LampGlow[] = []
   for (const a of grid.assets) {
@@ -477,7 +487,10 @@ export function collectLampGlows(
     const p = cellCenter(a.col, a.row)
     const y = p.y - lift
     if (p.x < -r || p.x > w + r || y < -r || y > h + r) continue
-    out.push({ x: p.x, y, r, rgb: light.rgb, intensity: light.intensity })
+    // The bulb's live flicker (its animated opacity) rides the pool intensity so a failing lamp's pool fails in
+    // sync with its bulb; a steady lamp resolves no animation → factor 1 (pool steady). Night-gated at source.
+    const flick = anim ? resolveAssetAnimation(a, anim.time, anim.style, anim.view, 'night')?.opacity ?? 1 : 1
+    out.push({ x: p.x, y, r, rgb: light.rgb, intensity: light.intensity * flick })
   }
   return out
 }
