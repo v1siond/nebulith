@@ -67,10 +67,13 @@ type Animation = SettingsAnimation | SpriteAnimation
 Both kinds are **real**. `settings` tweens render settings (below); `sprite` swaps baked frame IMAGES — a
 walk / idle / attack cycle. The sprite kind **reuses the unit frame model** (`AnimFrame`, the entity
 `AnimTrigger`, `AnimDirection`) rather than forking it, so **a unit's frame-swap animation IS a sprite
-`Animation`** and a tile can carry one too. A unit still STORES `EntityAnimation[]` (the renderer plays it via
-`entityAnimation.activeFrame`, unchanged); the shared authoring modal edits the SPRITE VIEW of each animation
-and writes the entity shape back — the pure bridge `spriteFromEntity` ⇄ `entityFromSprite`
-(`entityAnimation.ts`) is a lossless mapping. Playback: `spriteFrameIndex(anim, now, placedAt)` derives the
+`Animation`** and a tile can carry one too. A **unit now STORES the unified `Animation[]`** (settings-kind AND
+sprite-kind) in `Entity.unitAnimations` — the SAME model a tile's `GridAsset.animations` uses — so its modal is
+IDENTICAL to a tile's. The renderer + `PlayerState` still read the frame-swap list as `EntityAnimation[]` via
+`entityAnimation.activeFrame` (unchanged), so `Entity.animations` stays that RENDER PROJECTION, kept in sync from
+the sprite subset of `unitAnimations` by the pure bridge `entityAnimationsFromUnit` (project → render) /
+`unitAnimationsFromEntity` (lift a legacy sprite-only unit). Each sprite rides the per-animation
+`spriteFromEntity` ⇄ `entityFromSprite` mapping (`entityAnimation.ts`), lossless both ways. Playback: `spriteFrameIndex(anim, now, placedAt)` derives the
 live frame index — clock-derived + pure, the SAME semantics as `entityAnimation.loopFrameIndex` (frames spread
 evenly across `durationMs`; the `loopDelay` tail rests on frame 0; non-loop holds the last frame), extended
 with the envelope's `startDelayMs`/`placedAtMs` anchor. A sprite animation writes **no render settings**
@@ -82,9 +85,15 @@ image instead.
   rests at `from`. So ONE animation oscillates up-and-back with **no chaining** — the fountain water grows its
   height 1→4→1 blocks from a single envelope. Default false → the plain `from`→`to`, rest-at-`to`, snap-back loop.
 
-- **Per-instance:** `GridAsset.animations: Animation[]` + `GridAsset.placedAt` (the ms anchor). A LIST so
+- **Per-instance (tile):** `GridAsset.animations: Animation[]` + `GridAsset.placedAt` (the ms anchor). A LIST so
   animations **chain** — list order = chain order; each one's `startDelayMs` offsets it, so A→B→C sequences fall
   out of the delays. Round-trips in `assetsData` exactly like `cellAnim` (shallow-cloned on deserialize).
+- **Per-instance (unit):** `Entity.unitAnimations: Animation[]` — the unified authored list (settings + sprite),
+  the modal's source of truth. `Entity.animations: EntityAnimation[]` is the DERIVED render projection (the
+  sprite subset), so the renderer/`PlayerState` frame player stays unchanged. Both ride the entity's
+  `JSON.stringify` round-trip in `assetsData` (the entity codec), so a unit's settings + sprite animations
+  persist through save/load. A unit anchors its sprite playback at the render clock like the seeded default (no
+  per-entity `placedAt` — the frame player is `now`-derived).
 - **Composition default:** a `composition_cells.animations` array served verbatim by `tileset_json.ex`; the
   frontend tileset loader carries it onto `CompositionCell.animations`; `stampComposition` copies it onto the
   placed asset and sets `placedAt = 0`.
@@ -263,17 +272,24 @@ everywhere and looks right (verified real render, both styles). Also noted in `M
     baked-tile picker (each frame thumbnail is the tile's **baked image**, resolved label→image — never a raw
     glyph), an entity trigger (idle / move / attack / interact / key) + direction, timing + loop. This is the
     former character animation editor, folded in as the sprite kind.
-  - A **tile** offers both kinds; a **unit** offers sprite only (it stores `EntityAnimation[]`, which maps only
-    to the sprite kind) — its stored set is bridged in via `spriteFromEntity` and written back via
-    `entityFromSprite`. Tile writes flow immutably through `setAssetAnimations` onto the selected tile of every
-    selected cell (`placedAt = 0`); unit writes flow through `patchSelectedEntity({ animations })`.
+  - **Tiles AND units offer BOTH kinds — the IDENTICAL modal** (the user: *"both unit and tiles should use the
+    same animations modal... which is the one used by settings animation on tile"*). A tile authors
+    `GridAsset.animations`; a unit authors the SAME unified `Animation[]` in `Entity.unitAnimations`. Tile writes
+    flow through `setAssetAnimations` onto the selected tile of every selected cell (`placedAt = 0`); unit writes
+    flow through `patchSelectedEntity({ unitAnimations, animations })` — the render projection `Entity.animations`
+    (`EntityAnimation[]`) is recomputed from the sprite subset (`entityAnimationsFromUnit`) each change so the
+    frame renderer stays untouched, while a unit with no `unitAnimations` yet reads its bridged legacy set
+    (`unitAnimationsFromEntity`). **Render-parity follow-up:** a settings-kind envelope on a UNIT persists and is
+    authorable (parity with a tile), but the ENTITY renderer (iso.ts/topdown.ts) does not consume settings
+    envelopes yet — it reads only the sprite frames — so a unit's settings animation is DATA that awaits an
+    entity render-bridge pass; sprite-kind playback is fully wired (unchanged).
 
 ## 8. Files
 
 - Engine (pure): `game-website/src/engine/animation/tileAnimation.ts` (settings interpolator + `spriteFrameIndex`)
-- Sprite⇄unit bridge (pure): `game-website/src/game/runtime/entityAnimation.ts` (`spriteFromEntity` / `entityFromSprite`; the unit frame model `AnimFrame`/`AnimTrigger` the sprite kind reuses)
-- Render bridge: `game-website/src/engine/render/assetAnimation.ts` (+ iso/topdown/birdseye asset branches)
-- Grid fields: `game-website/src/engine/IsometricGrid.ts` (`GridAsset.animations`, `placedAt`)
+- Sprite⇄unit bridge (pure): `game-website/src/game/runtime/entityAnimation.ts` — per-animation `spriteFromEntity` / `entityFromSprite`, plus the unified-storage bridge `entityAnimationsFromUnit` (unit `Animation[]` → render `EntityAnimation[]`) / `unitAnimationsFromEntity` (lift a legacy sprite-only unit); the unit frame model `AnimFrame`/`AnimTrigger` the sprite kind reuses
+- Render bridge (tiles): `game-website/src/engine/render/assetAnimation.ts` (+ iso/topdown/birdseye asset branches). Units render the sprite frames via `entityAnimation.activeFrame` (iso/topdown); the ENTITY settings render-bridge is the open follow-up.
+- Grid + unit fields: `game-website/src/engine/IsometricGrid.ts` (`GridAsset.animations`, `placedAt`); `game-website/src/game/types.ts` (`Entity.unitAnimations` — unified authored `Animation[]`; `Entity.animations` — the derived render projection)
 - Composition stamp: `game-website/src/game/runtime/composition.ts`; loader: `…/engine/tileset/tileset.ts`
 - Authoring modal: `game-website/src/components/game/editorChrome.tsx` (`TileAnimationEditor` — both kinds;
   `SpriteAnimationRow` reuses `AnimationRow`; `FrameThumb` draws the baked frame image); wired for tiles + units
@@ -284,8 +300,9 @@ everywhere and looks right (verified real render, both styles). Also noted in `M
 - Tests: `tileAnimation.test.ts` (incl. real `spriteFrameIndex` playback), `assetAnimation.test.ts`,
   `tileAnimation.realcanvas.test.ts`, `tileAnimationCompose.realcanvas.test.ts` (base+animation composition,
   §3.5), `fountainLoop.realcanvas.test.ts`, `fountainAnimationDefault.test.ts`, `api.assetRoundtrip.test.ts`,
-  `tileAnimationEditorStructure.test.tsx`, `spriteAnimationSharedModal.test.tsx` (sprite kind for tiles+units +
-  the baked-image frame fix + the sprite⇄unit bridge round-trip), `entityAnimation.test.ts`
+  `tileAnimationEditorStructure.test.tsx`, `spriteAnimationSharedModal.test.tsx` (the IDENTICAL modal for
+  tiles+units — BOTH settings + sprite add-buttons on a unit + the baked-image frame fix + the unified
+  unit-storage bridge round-trip), `entityAnimation.test.ts`
 
 ---
 

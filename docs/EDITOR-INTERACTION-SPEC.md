@@ -80,15 +80,23 @@ general tile card").
   preset), the unit's identity + vitals (name, type/role, HP + combat stats, hittable / blocks-movement), and
   the entry-point buttons a tile never has — **inventory** (player), **quests** (NPC), **attacks** (enemy) —
   which open their own modals.
-- **Animate is a button, not a section.** The old inline unit "Animation" section (figure/size/colour +
-  frame-list summary + "See more…") is REMOVED. The card's "✦ Animate…" button opens the frame-by-frame
-  character `AnimationEditor` in a floating modal — the same button pattern a tile uses.
+- **Animate is a button opening the IDENTICAL modal a tile uses.** The old inline unit "Animation" section
+  (figure/size/colour + frame-list summary + "See more…") is REMOVED. The card's "✦ Animate…" button opens the
+  ONE shared `TileAnimationEditor` in a floating modal — the SAME modal a tile opens, with **BOTH** add-buttons:
+  **"✦ Add settings animation"** (position/scale/colour/opacity envelopes, exactly like a tile) AND **"✦ Add
+  sprite animation"** (the frame-swap walk/idle/attack cycle). The user: *"both unit and tiles should use the
+  same animations modal... which is the one used by settings animation on tile."* A unit stores the same unified
+  `Animation[]` a tile does in `Entity.unitAnimations`; its frame-swap render list (`Entity.animations`) is the
+  derived sprite subset the untouched frame renderer plays. **Render-parity follow-up:** a unit's settings-kind
+  envelope persists + authors but the entity renderer doesn't apply it yet (see §render-parity below).
 - **Movement pattern is removed (dead code).** The unit "Movement pattern" authoring section + `EntityMovementBody`
   + the waypoint-authoring plumbing (`waypointMode`, `appendWaypoint`) are deleted. Enemy patrol still runs at
   play time from `entity.movement` (spawner default / `advanceEnemyMovement`); only the unused authoring UI is gone.
 - **Render-parity is separate (#35).** The editor writes + persists every shared setting; whether the unit
   RENDERER honors each is the broader render-parity work (name honored; `size`/`color` for enemies/NPCs but not
-  the player's hero path; `pose` not yet read on a unit). Those are follow-ups.
+  the player's hero path; `pose` not yet read on a unit; a unit's **settings-kind animation** persists + authors
+  in the shared modal but the entity renderer doesn't apply the envelope yet — sprite frames do render). Those
+  are follow-ups.
 
 ## 9. Triggers — a button + a modal (not an inline expando)
 Both the cell card and the unit card carry a **"⚑ Triggers…"** button (with a count badge). It opens a
@@ -99,7 +107,7 @@ inline expando. It edits the SAME trigger data as before — a cell's `enter`/`i
 ## 10. Movable, resizable modals with backend-persisted geometry
 Every editor modal that hosts a settings-style body is a draggable + resizable **non-blocking** `FloatingPanel`
 (Alexander: "move and resize them at will and I want to save the position, size, as settings for the editor in
-the elixir backend"). This now covers: **settings** (tile + unit), **animation** (unit frame editor),
+the elixir backend"). This now covers: **settings** (tile + unit), **animation** (unit — the shared tile-animation modal, both kinds),
 **tileAnimation** (per-tile settings tweens), **triggers**, and **attacks** (enemy).
 - **Backend owns the geometry.** nebulith exposes a small key→value editor-settings store — `GET
   /api/editor_settings` returns `{editorSettings: {<modalId>: {x,y,w,h}}}`, `PUT /api/editor_settings/:key`
