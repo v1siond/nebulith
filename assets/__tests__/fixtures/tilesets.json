@@ -29699,7 +29699,7 @@
           "settings": {
             "color": "#8a8a8a"
           },
-          "height": 0,
+          "height": 1,
           "blocking": false,
           "color_role": null,
           "emoji": "🏭",
@@ -29725,7 +29725,7 @@
           "settings": {
             "color": "#7a9a5a"
           },
-          "height": 0,
+          "height": 1,
           "blocking": false,
           "color_role": null,
           "emoji": "⛺",
@@ -29859,7 +29859,7 @@
           "settings": {
             "color": "#9a9a8a"
           },
-          "height": 0,
+          "height": 1,
           "blocking": false,
           "color_role": null,
           "emoji": "🏟️",
@@ -30299,7 +30299,7 @@
           "settings": {
             "color": "#d9c8a8"
           },
-          "height": 0,
+          "height": 1,
           "blocking": false,
           "color_role": null,
           "emoji": "🏯",
@@ -30443,7 +30443,7 @@
           "settings": {
             "color": "#b5793a"
           },
-          "height": 0,
+          "height": 1,
           "blocking": false,
           "color_role": null,
           "emoji": "🏡",
@@ -30523,7 +30523,7 @@
           "settings": {
             "color": "#d0553a"
           },
-          "height": 0,
+          "height": 1,
           "blocking": false,
           "color_role": null,
           "emoji": "🗼",
@@ -30549,7 +30549,7 @@
           "settings": {
             "color": "#e05a5a"
           },
-          "height": 0,
+          "height": 1,
           "blocking": false,
           "color_role": null,
           "emoji": "🏥",
@@ -30865,7 +30865,7 @@
           "settings": {
             "color": "#d0a83a"
           },
-          "height": 0,
+          "height": 1,
           "blocking": false,
           "color_role": null,
           "emoji": "🏫",
@@ -30878,7 +30878,7 @@
           "settings": {
             "color": "#6a8f5a"
           },
-          "height": 0,
+          "height": 1,
           "blocking": false,
           "color_role": null,
           "emoji": "🏦",
@@ -31000,7 +31000,7 @@
           "settings": {
             "color": "#b0a89a"
           },
-          "height": 0,
+          "height": 1,
           "blocking": false,
           "color_role": null,
           "emoji": "⛪",
@@ -31026,7 +31026,7 @@
           "settings": {
             "color": "#8aa88a"
           },
-          "height": 0,
+          "height": 1,
           "blocking": false,
           "color_role": null,
           "emoji": "🕌",
@@ -31266,7 +31266,7 @@
           "settings": {
             "color": "#d0402a"
           },
-          "height": 0,
+          "height": 1,
           "blocking": false,
           "color_role": null,
           "emoji": "⛩️",
@@ -31334,7 +31334,7 @@
           "settings": {
             "color": "#8a7a5f"
           },
-          "height": 0,
+          "height": 1,
           "blocking": false,
           "color_role": null,
           "emoji": "🏚️",
@@ -31774,7 +31774,7 @@
           "settings": {
             "color": "#b05a8a"
           },
-          "height": 0,
+          "height": 1,
           "blocking": false,
           "color_role": null,
           "emoji": "🏬",
@@ -31853,7 +31853,7 @@
           "settings": {
             "color": "#ffe7a8"
           },
-          "height": 0,
+          "height": 1,
           "blocking": false,
           "color_role": null,
           "emoji": "🗿",
@@ -31892,7 +31892,7 @@
           "settings": {
             "color": "#cbb68c"
           },
-          "height": 0,
+          "height": 1,
           "blocking": false,
           "color_role": null,
           "emoji": "🏛️",
@@ -31987,7 +31987,7 @@
           "settings": {
             "color": "#c86b4d"
           },
-          "height": 0,
+          "height": 1,
           "blocking": false,
           "color_role": null,
           "emoji": "🏘️",
@@ -32203,7 +32203,7 @@
           "settings": {
             "color": "#4a9ac8"
           },
-          "height": 0,
+          "height": 1,
           "blocking": false,
           "color_role": null,
           "emoji": "🏪",
@@ -32310,7 +32310,7 @@
           "settings": {
             "color": "#cbb68c"
           },
-          "height": 0,
+          "height": 1,
           "blocking": false,
           "color_role": null,
           "emoji": "🏛️",
@@ -32416,7 +32416,7 @@
           "settings": {
             "color": "#c8443c"
           },
-          "height": 0,
+          "height": 1,
           "blocking": false,
           "color_role": null,
           "emoji": "🏠",
@@ -32443,7 +32443,7 @@
             "color": "#b0603a",
             "fadeNear": true
           },
-          "height": 0,
+          "height": 1,
           "blocking": false,
           "color_role": null,
           "emoji": "🧱",
@@ -32547,7 +32547,7 @@
           "settings": {
             "color": "#c89a4a"
           },
-          "height": 0,
+          "height": 1,
           "blocking": false,
           "color_role": null,
           "emoji": "🏨",
@@ -32640,7 +32640,7 @@
           "settings": {
             "color": "#7f8c9a"
           },
-          "height": 0,
+          "height": 1,
           "blocking": false,
           "color_role": null,
           "emoji": "🏢",
@@ -32919,7 +32919,7 @@
           "settings": {
             "color": "#9a8a7a"
           },
-          "height": 0,
+          "height": 1,
           "blocking": false,
           "color_role": null,
           "emoji": "🏰",

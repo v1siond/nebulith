@@ -50,6 +50,21 @@ function regionGreen(canvas: Canvas, x: number, y: number, w: number, h: number)
   }
   return green
 }
+
+/** Bounding box of GREEN pixels over the whole canvas: total count + vertical extent (maxY-minY). The
+ *  vertical extent is the tile's SILHOUETTE HEIGHT — a real extruded block is measurably TALLER than a
+ *  flat face. */
+function greenBBox(canvas: Canvas): { count: number; vExtent: number } {
+  const { width, height } = canvas
+  const { data } = canvas.getContext('2d').getImageData(0, 0, width, height)
+  let count = 0, minY = height, maxY = -1
+  for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
+    const i = (y * width + x) * 4
+    if (data[i + 3] < 128) continue
+    if (data[i + 1] > data[i] + 40 && data[i + 1] > data[i + 2] + 40) { count++; if (y < minY) minY = y; if (y > maxY) maxY = y }
+  }
+  return { count, vExtent: maxY < 0 ? 0 : maxY - minY }
+}
 const draw = (asset: GridAsset): Canvas => {
   const cv = H.makeCanvas(360, 320)
   drawIsoAssetAscii(cv.getContext('2d') as unknown as CanvasRenderingContext2D, CX, CY, asset, TW, TH, 0, false, 'day', EMOJI_STYLE)
@@ -87,5 +102,29 @@ describe('a painted base-height-0 tile honours Z-Width by extruding into a real 
     const flat = draw(paintedWall({}))
     const belowBase = regionGreen(flat, CX - TW, CY + TH + 10, 2 * TW, 40)
     expect(belowBase).toBe(0)
+  })
+})
+
+// THE FIX for the painter bug: the whole-object building tiles (wall/house/castle) carry a DB block height >= 1
+// again (the height had DRIFTED to 0). So a PAINTED wall is an all-faces 3D block the moment it lands — with
+// NO Z-Width and NO manual height edit. These render a height-1 painted wall (depth unset) and prove it is a
+// taller, higher-coverage BLOCK than the genuinely-flat height-0 face.
+describe('a painted tile with DB block height >= 1 renders as an all-faces BLOCK without any Z-Width', () => {
+  test('height 1 (no z-width) is a TALLER, higher-coverage cube than the flat height-0 face', () => {
+    const flat = greenBBox(draw(paintedWall({ height: 0 })))       // genuinely-flat tile → billboard
+    const block = greenBBox(draw(paintedWall({ height: 1 })))      // DB block tile → extruded cube, NO depth
+
+    expect(block.vExtent).toBeGreaterThan(flat.vExtent)            // the cube silhouette is measurably taller
+    expect(block.count).toBeGreaterThan(flat.count * 1.3)          // top + two side faces cover far more than one flat face
+  })
+
+  test('the block paints a side-face COLUMN the flat billboard never does (all-faces, not a single face)', () => {
+    // Directly under-left of the base diamond is the cube's LEFT side face — filled by the extruded block,
+    // empty for the flat billboard (which is a single upright sprite with no side faces).
+    const SIDE = { x: CX - TW, y: CY - TH, w: TW, h: TH + 24 }
+    const flatSide = regionGreen(draw(paintedWall({ height: 0 })), SIDE.x, SIDE.y, SIDE.w, SIDE.h)
+    const blockSide = regionGreen(draw(paintedWall({ height: 1 })), SIDE.x, SIDE.y, SIDE.w, SIDE.h)
+    expect(blockSide).toBeGreaterThan(0)  // the cube has a visible side face
+    expect(blockSide).toBeGreaterThan(flatSide)
   })
 })

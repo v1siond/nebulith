@@ -178,6 +178,42 @@ describe('painted tile === generated tile — DB height + settings seed onto the
   })
 })
 
+// THE PAINTER BUG (user: "painter … only applies the cube/block on iso when I increase the z-width, it's
+// still inserted on the map as single and not as all faces on iso"). Root cause: the whole-object building
+// emoji tiles (wall/house/castle) had DB height 0 (drift from the intended >= 1), so a painted wall came in
+// as a FLAT billboard and only extruded once the user hand-raised Z-Width. With the DB heights corrected, a
+// painted building seeds asset.height >= 1 → it's an all-faces 3D BLOCK immediately, NO z-width, and NOTHING
+// is forced to display:single.
+describe('painted building tiles insert as all-faces 3D blocks by default (the painter bug)', () => {
+  test.each(['emoji:wall', 'emoji:house', 'emoji:castle'])('%s paints as a height>=1 block, all-faces, no z-width', (id) => {
+    const g = makeGrid()
+    const tile = byId(id)
+    expect(tile.height ?? 0).toBeGreaterThanOrEqual(1) // the DB tile is a block (single source of truth)
+    stackAssetTile(g, 1, 1, tile)
+    const a = g.getAssetsAtCell(1, 1)[0]
+    expect(a.height).toBeGreaterThanOrEqual(1)  // a real block, not a flat billboard
+    expect(a.settings?.display).toBeUndefined() // absent == all-faces (never forced to single)
+    expect(a.depth ?? 1).toBe(1)                // it's a block with NO Z-Width applied
+    expect(a.blocking).toBe(true)               // a building blocks the cell
+  })
+
+  test('a wall keeps its own render behaviour (fadeNear) while still defaulting to all-faces', () => {
+    const g = makeGrid()
+    stackAssetTile(g, 2, 2, byId('emoji:wall'))
+    const a = g.getAssetsAtCell(2, 2)[0]
+    expect(a.settings?.fadeNear).toBe(true)     // the DB tile's own behaviour rides along
+    expect(a.settings?.display).toBeUndefined() // but display stays default (all-faces)
+  })
+
+  test('a facade part (door) and terrain (grass) stay FLAT — only whole-object buildings extrude', () => {
+    const g = makeGrid()
+    stackAssetTile(g, 3, 3, byId('emoji:door'))
+    expect(g.getAssetsAtCell(3, 3)[0].height).toBeUndefined() // a door is a flat facade tile, not a block
+    placeGroundTile(g, 4, 4, byId('emoji:grass'))
+    expect(g.getAssetsAtCell(4, 4)).toHaveLength(0)           // terrain is the cell floor, never a stacked block
+  })
+})
+
 describe('removeTopAsset — ⌥Alt remove + collision recompute', () => {
   test('removes the highest-level asset, leaving the rest of the stack', () => {
     const g = makeGrid()
