@@ -213,3 +213,43 @@ describe('TileAnimationEditor — manual authoring writes the right asset.animat
     expect(readState()).toHaveLength(0)
   })
 })
+
+// ── UX: the add buttons sit ABOVE the list (a long list can't push them off), and rows show NEWEST-FIRST — while
+//    the underlying DATA order (chaining/priority) is untouched, so edit/remove still hit the right entry. ──
+describe('TileAnimationEditor — add buttons on top, newest-first list', () => {
+  const settingsAnim = (id: string, name: string): Animation => ({
+    id, name, kind: 'settings', tracks: [], durationMs: 1000, startDelayMs: 0, loopDelayMs: 0,
+    loop: true, ease: 'sine', priority: 0, trigger: { on: 'load' },
+  })
+  const names = () => (screen.getAllByLabelText('Animation name') as HTMLInputElement[]).map(n => n.value)
+
+  it('the add buttons render ABOVE the animation rows (a long list never pushes them off the bottom)', () => {
+    render(<Harness initial={[settingsAnim('a', 'alpha')]} />)
+    const addBtn = screen.getByRole('button', { name: /Add settings animation/i })
+    const firstRowName = screen.getByLabelText('Animation name')
+    // the add button precedes the first row in document order (DOCUMENT_POSITION_FOLLOWING = firstRowName is after addBtn)
+    expect(addBtn.compareDocumentPosition(firstRowName) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('rows render NEWEST-FIRST: the most recently added (last in data) shows on top', () => {
+    render(<Harness initial={[settingsAnim('a', 'alpha'), settingsAnim('b', 'beta')]} />)
+    expect(names()).toEqual(['beta', 'alpha']) // newest (last in data) on top
+  })
+
+  it('clicking "Add" shows the new row on top, but appends to DATA (chaining order preserved)', () => {
+    render(<Harness initial={[settingsAnim('a', 'alpha')]} />)
+    fireEvent.click(screen.getByRole('button', { name: /Add settings animation/i }))
+    expect(names()).toEqual(['new animation', 'alpha']) // the just-added row is on top
+    expect(readState().map(a => a.name)).toEqual(['alpha', 'new animation']) // DATA still appends (index order intact)
+  })
+
+  it('editing the TOP (newest) row targets the RIGHT data entry despite the reversed display', () => {
+    render(<Harness initial={[settingsAnim('a', 'alpha'), settingsAnim('b', 'beta')]} />)
+    const topRow = (screen.getAllByLabelText('Animation name') as HTMLInputElement[])[0]
+    expect(topRow.value).toBe('beta') // top row is the newest
+    fireEvent.change(topRow, { target: { value: 'BETA!' } })
+    const state = readState()
+    expect(state.find(a => a.id === 'b')!.name).toBe('BETA!') // the newest entry updated
+    expect(state.find(a => a.id === 'a')!.name).toBe('alpha') // the other left untouched
+  })
+})

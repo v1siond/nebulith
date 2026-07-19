@@ -558,18 +558,8 @@ export function TileAnimationEditor({ animations, elementType, elementLabel, spr
 
       <TileAnimationPreview animations={animations} />
 
-      {animations.length === 0 && (
-        <p className="text-[10px] leading-tight text-gray-500">
-          No animations yet — add one to make this {elementType.toLowerCase()} move. A settings animation tweens values (opacity, y-rise, colour…); a sprite animation swaps baked tile frames (walk / idle / attack). Chain several for a sequence.
-        </p>
-      )}
-
-      {animations.map((a, i) =>
-        a.kind === 'settings'
-          ? <TileAnimationRow key={a.id} anim={a} onAnim={next => replace(i, next)} onRemove={() => remove(i)} />
-          : <SpriteAnimationRow key={a.id} anim={a} ctx={spriteContext} onAnim={next => replace(i, next)} onRemove={() => remove(i)} />,
-      )}
-
+      {/* Add buttons pinned ABOVE the list so they stay reachable however many animations exist — a long list
+          no longer pushes them off the bottom (Alexander: "have the buttons up"). */}
       <div className="flex gap-1">
         {kinds.includes('settings') && (
           <button onClick={addSettings} className="flex-1 rounded bg-fuchsia-800 px-2 py-1 text-[11px] font-bold text-white transition-colors hover:bg-fuchsia-700">
@@ -582,6 +572,22 @@ export function TileAnimationEditor({ animations, elementType, elementLabel, spr
           </button>
         )}
       </div>
+
+      {animations.length === 0 && (
+        <p className="text-[10px] leading-tight text-gray-500">
+          No animations yet — add one to make this {elementType.toLowerCase()} move. A settings animation tweens values (opacity, y-rise, colour…); a sprite animation swaps baked tile frames (walk / idle / attack). Chain several for a sequence.
+        </p>
+      )}
+
+      {/* Rows render NEWEST-FIRST (most recently added on top) so a new animation is immediately visible under the
+          buttons. Only the RENDER order is reversed — the underlying `animations` data order is untouched, so
+          chaining/priority still read it in author order; each row keeps its ORIGINAL index so replace/remove hit
+          the right entry. */}
+      {animations.map((a, i) => ({ a, i })).reverse().map(({ a, i }) =>
+        a.kind === 'settings'
+          ? <TileAnimationRow key={a.id} anim={a} onAnim={next => replace(i, next)} onRemove={() => remove(i)} />
+          : <SpriteAnimationRow key={a.id} anim={a} ctx={spriteContext} onAnim={next => replace(i, next)} onRemove={() => remove(i)} />,
+      )}
     </div>
   )
 }
