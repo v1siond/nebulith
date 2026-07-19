@@ -16,6 +16,7 @@
 import type { GridAsset, IsometricGrid } from '@/engine/IsometricGrid'
 import type { TileDef } from '@/game/artStyle'
 import { deriveCellCollision, getStack, popTile, pushTile, setFloor, setTileCollision } from '@/engine/cellStack'
+import { tileRenderBehavior } from '@/engine/tileset/tileset'
 import { assetTypeForTile, tileIsBlocking, tileSlug } from './tilePlacement'
 
 /** The char a tile draws as (glyph char, image's source glyph, or '?' for the ascii passthrough). */
@@ -36,8 +37,15 @@ export function placeGroundTile(grid: IsometricGrid, col: number, row: number, t
 
 /** nature / buildings → PUSH a tile onto the cell's stack (pushTile lands it one level above the tallest,
  *  0 on an empty cell). tileOverride pins the exact tile and blocking follows the asset type so a stacked
- *  wall/tree/rock makes the cell collision. w/d/h are intentionally omitted so the placed instance keeps
- *  the tile's catalog size/height — identical to the pre-adapter placeAsset call. */
+ *  wall/tree/rock makes the cell collision.
+ *
+ *  The placed asset is seeded from the DB tile so a PAINTED tile === a GENERATED one (same GridAsset shape):
+ *   - `h` = the tile's DB BLOCK height, so a block tile (a boulder, a stone wall) paints as a real extruded
+ *     block — not a flat single-face billboard. A flat tile (a flower) omits h and stays flat. This ALSO
+ *     makes a block tile directly pickable (a raised block picks as its own tile, not the floor under it).
+ *   - `settings` = the tile's OWN generic render behaviour (fadeNear/cutawayRoof/display) via tileRenderBehavior
+ *     — the SAME seam stampComposition uses — so the tile fades/cutaways/single-displays like the stamped one
+ *     and its settings are the tile's own, never a forced flat default. */
 export function stackAssetTile(
   grid: IsometricGrid,
   col: number,
@@ -47,7 +55,7 @@ export function stackAssetTile(
 ): void {
   const type = assetTypeForTile(tile)
   const color = tile.visual.kind === 'ascii' ? undefined : tile.visual.color
-  pushTile(grid, col, row, {
+  const placed = pushTile(grid, col, row, {
     source: 'asset',
     slug: tileSlug(tile.id),
     type,
@@ -56,7 +64,10 @@ export function stackAssetTile(
     color,
     opacity: opts.opacity,
     collision: tileIsBlocking(type),
+    h: tile.height && tile.height > 0 ? tile.height : undefined,
   })
+  const behavior = tileRenderBehavior(tile.settings)
+  if (behavior) placed.settings = behavior
 }
 
 /** ⌥Alt → pop the TOP tile off the cell's stack (highest heightLevel), then re-derive the cell's collision

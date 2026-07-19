@@ -308,6 +308,14 @@ export interface TileDef {
   /** which style this tile belongs to in the Library UI. */
   styleId: string
   visual: Visual
+  /** DEFAULT iso BLOCK height from the DB tile (0/undefined = a flat ground square, ≥1 = an extruded block).
+   *  A painted tile SEEDS its GridAsset height from this, so a block tile (a boulder, a stone wall) paints as
+   *  a BLOCK — byte-identical to a generated one — instead of a flat single-face billboard. */
+  height?: number
+  /** The DB tile's `settings` blob (the generic render-behavior keys fadeNear/cutawayRoof/display + colour).
+   *  A painted tile carries the tile's OWN settings (via tileRenderBehavior) — the SAME seam stampComposition
+   *  uses — so it is never forced to a flat single default and behaves exactly like the generator's version. */
+  settings?: Record<string, unknown>
 }
 
 // ── the Tile Library: read LIVE from the loaded (DB) tilesets ─────────────────────────────────────
@@ -329,12 +337,14 @@ function emojiEntryVisual(t: { char: string; color?: string; image?: string }): 
  *  like wall pieces / tree corners render on the map but never surface in the sidebar). */
 export function tilesForStyle(styleId: string): Record<TileCategory, TileDef[]> {
   const out: Record<TileCategory, TileDef[]> = { terrain: [], buildings: [], units: [], nature: [] }
-  const push = (key: string, category: string | undefined, title: string | undefined, visual: Visual): void => {
+  // `extra` carries the DB tile's BLOCK height + settings so the palette tile FULLY describes the DB tile —
+  // the brush then seeds a painted asset from it and a painted tile matches the generator's version.
+  const push = (key: string, category: string | undefined, title: string | undefined, visual: Visual, extra: Pick<TileDef, 'height' | 'settings'> = {}): void => {
     if (!category || !BROWSEABLE_CATEGORIES.has(category)) return
-    out[category as TileCategory].push({ id: `${styleId}:${key}`, label: title ?? key, category: category as TileCategory, styleId, visual })
+    out[category as TileCategory].push({ id: `${styleId}:${key}`, label: title ?? key, category: category as TileCategory, styleId, visual, ...extra })
   }
-  if (styleId === 'emoji') for (const [key, t] of Object.entries(EMOJI_TILESET)) push(key, t.category, t.title, emojiEntryVisual(t))
-  else if (styleId === 'ascii') for (const [key, t] of Object.entries(ASCII_TILESET.tiles)) push(key, t.category, t.title, { kind: 'glyph', char: t.glyph })
+  if (styleId === 'emoji') for (const [key, t] of Object.entries(EMOJI_TILESET)) push(key, t.category, t.title, emojiEntryVisual(t), { height: t.height, settings: t.settings })
+  else if (styleId === 'ascii') for (const [key, t] of Object.entries(ASCII_TILESET.tiles)) push(key, t.category, t.title, { kind: 'glyph', char: t.glyph }, { settings: t.settings })
   return out
 }
 

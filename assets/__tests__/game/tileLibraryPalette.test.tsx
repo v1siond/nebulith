@@ -65,4 +65,23 @@ describe('Tile Library sidebar reads ONLY the backend-loaded tileset (G3/G4)', (
     // internal cell-labels (no category) are excluded from the sidebar
     expect(all.find(t => t.id === 'ascii:tree_top')).toBeUndefined()
   })
+
+  // The palette tile must FULLY describe the DB tile — its BLOCK height and render settings ride along, not
+  // just the art — so the brush can seed a painted asset that matches the generator (#52 single source of truth).
+  it('the palette tile carries the DB block height + settings (so a painted tile === a generated one)', () => {
+    setEmojiTileset({
+      boulder: { char: '🪨', color: '#8a8a8a', image: '/tiles/emoji/catalog/boulder.png', category: 'nature', title: 'Boulder', height: 1, settings: { color: '#8a8a8a' } },
+      stone_wall: { char: '🧱', color: '#8f8b82', image: '/tiles/emoji/catalog/stone_wall.png', category: 'buildings', title: 'Stone Wall', height: 1, settings: { color: '#8f8b82', fadeNear: true } },
+      grass: { char: '🍀', color: '#5faf4a', category: 'terrain', title: 'Grass' }, // flat, no settings
+    })
+    rebuildEmojiStyle()
+    const all = Object.values(tilesForStyle('emoji')).flat()
+    const boulder = all.find(t => t.id === 'emoji:boulder')
+    expect(boulder!.height).toBe(1)
+    const wall = all.find(t => t.id === 'emoji:stone_wall')
+    expect(wall!.height).toBe(1)
+    expect(wall!.settings?.fadeNear).toBe(true)
+    // a flat terrain tile has no forced block height
+    expect(all.find(t => t.id === 'emoji:grass')!.height ?? 0).toBe(0)
+  })
 })

@@ -5,7 +5,7 @@ import '@/__tests__/helpers/installTilesetSeed' // install the DB-equivalent til
  * (terrain replaces ground, nature/buildings STACK as cell assets), placing on several cells is bulk,
  * ⌥Alt removes the TOP of a stack, and collision follows the stack (a blocking asset in the pile blocks).
  */
-import { IsometricGrid } from '@/engine/IsometricGrid'
+import { IsometricGrid, type GridAsset } from '@/engine/IsometricGrid'
 import { tilesForStyle, type TileDef } from '@/game/artStyle'
 import { placeGroundTile, removeTopAsset, removeAssetAtLevel, stackAssetTile } from '@/game/editor/tileBrush'
 
@@ -84,6 +84,84 @@ describe('bulk placement — the same armed tile on several cells', () => {
       expect(s[0].tileOverride).toBe('emoji:pine-tree')
     }
     expect(g.assets).toHaveLength(4)
+  })
+})
+
+// A PAINTED tile must behave EXACTLY like a GENERATED one (#52): a normal, editable asset that inherits the
+// DB tile's BLOCK height + settings — so a block tile paints as a block (not a flat single-face billboard),
+// its own render behaviour rides along, and NOTHING is forced to a single flat default.
+describe('painted tile === generated tile — DB height + settings seed onto the asset', () => {
+  const stackedAt = (g: IsometricGrid, col: number, row: number): GridAsset[] =>
+    [...g.getAssetsAtCell(col, row)].sort((a, b) => (a.heightLevel ?? 0) - (b.heightLevel ?? 0))
+
+  test('a DB BLOCK tile (boulder, height 1) paints as a real BLOCK — asset.height = 1, not flat', () => {
+    const g = makeGrid()
+    const boulder = byId('emoji:boulder')
+    expect(boulder.height).toBe(1) // the palette tile carries the DB block height (single source of truth)
+    stackAssetTile(g, 2, 2, boulder)
+    expect(g.getAssetsAtCell(2, 2)[0].height).toBe(1)
+  })
+
+  test('a DB block wall carries its OWN render behaviour (fadeNear) — the SAME settings a stamped wall gets', () => {
+    const g = makeGrid()
+    stackAssetTile(g, 1, 1, byId('emoji:wall_stone_c'))
+    const a = g.getAssetsAtCell(1, 1)[0]
+    expect(a.height).toBe(1)
+    expect(a.settings?.fadeNear).toBe(true)
+  })
+
+  test('a roof tile carries cutawayRoof from its DB settings', () => {
+    const g = makeGrid()
+    stackAssetTile(g, 1, 1, byId('emoji:roof'))
+    expect(g.getAssetsAtCell(1, 1)[0].settings?.cutawayRoof).toBe(true)
+  })
+
+  test('a FLAT tile (a flower) is NOT forced to a block NOR to display:single — it stays the tile the DB defines', () => {
+    const g = makeGrid()
+    const rose = byId('emoji:rose')
+    expect(rose.height ?? 0).toBe(0)
+    stackAssetTile(g, 3, 3, rose)
+    const a = g.getAssetsAtCell(3, 3)[0]
+    expect(a.height).toBeUndefined()           // no fake block height forced onto a flat tile
+    expect(a.settings?.display).toBeUndefined() // NOT forced single — the user's "always single type" complaint
+  })
+
+  test('every painted tile is a normal EDITABLE asset — its per-instance settings (shape/colour) are writable', () => {
+    const g = makeGrid()
+    stackAssetTile(g, 2, 2, byId('emoji:boulder'))
+    const a = g.getAssetsAtCell(2, 2)[0]
+    // the SAME writes the inspector's setAssetShape / setAssetColor perform on the selected tile
+    a.shape = 'circle'
+    a.color = '#123456'
+    expect(a.shape).toBe('circle')
+    expect(a.color).toBe('#123456')
+  })
+
+  // #52/#53 requirement 3 (paint a tile onto MULTIPLE cells) + 4 (edit settings across MANY selected tiles):
+  // painting fans out per cell and a single settings edit reaches every selected tile.
+  test('multi-cell paint: each of N cells gets its own editable BLOCK asset (DB height carried per cell)', () => {
+    const g = makeGrid()
+    const boulder = byId('emoji:boulder')
+    const cells: Array<[number, number]> = [[0, 0], [1, 1], [2, 2], [3, 3]]
+    for (const [c, r] of cells) stackAssetTile(g, c, r, boulder) // the page loops the multi-cell selection like this
+    for (const [c, r] of cells) expect(g.getAssetsAtCell(c, r)[0].height).toBe(1)
+    expect(g.assets).toHaveLength(4)
+  })
+
+  test('multi-tile settings edit FANS OUT to every selected tile (the inspector writer pattern)', () => {
+    const g = makeGrid()
+    const cells: Array<[number, number]> = [[0, 0], [1, 1], [2, 2]]
+    for (const [c, r] of cells) stackAssetTile(g, c, r, byId('emoji:boulder'))
+    // Mirror setAssetColor(i): apply to the i-th stacked tile of EVERY selected cell (applyToSelectedCells).
+    const applyToSelection = (i: number, fn: (a: GridAsset) => void): void => {
+      for (const [c, r] of cells) { const a = stackedAt(g, c, r)[i]; if (a) fn(a) }
+    }
+    applyToSelection(0, a => { a.color = '#ff8800'; a.shape = 'circle' })
+    for (const [c, r] of cells) {
+      const a = g.getAssetsAtCell(c, r)[0]
+      expect(a.color).toBe('#ff8800')
+      expect(a.shape).toBe('circle')
+    }
   })
 })
 
