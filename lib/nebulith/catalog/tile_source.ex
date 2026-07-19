@@ -997,10 +997,21 @@ defmodule Nebulith.Catalog.TileSource do
             label: "lamp",
             walkable: true,
             scale: 0.6,
-            settings: %{"display" => "single", "pose" => %{"dy" => -1.8}},
-            # The bulb GLOWS + FLICKERS by default (Stage 1 of restoring the night light) — a warm colour
-            # breathe + a fast opacity dip, stamped onto the placed asset like the fountain water. See
-            # lamp_glow_anim/0 and ANIMATION-SYSTEM.md.
+            # `light` is a real, controllable SETTING (Alexander: "a regular setting that allows me to control
+            # the light intensity and distance"): the bulb casts a warm ground GLOW POOL at night, sized by
+            # `distance` (cells) and strengthened/tinted by `intensity`/`color`. The defaults reproduce the old
+            # hardcoded LAMP_GLOW (rgb 255,217,138 = #ffd98a, radius 3.2 cells) so lamps light by default; the
+            # editor's Light control group edits these per placement. Served verbatim, copied onto the placed
+            # asset's `light` by stampComposition (like `shape`).
+            settings: %{
+              "display" => "single",
+              "pose" => %{"dy" => -1.8},
+              "light" => %{"intensity" => 1.0, "distance" => 3.2, "color" => "#ffd98a", "on" => true}
+            },
+            # The bulb GLOWS + FLICKERS only at NIGHT — both envelopes trigger `night` (Alexander: "the lamp
+            # post animation should be off on daytime and on on night time"), so they rest in day mode and come
+            # alive in night mode. Stamped onto the placed asset like the fountain water. See lamp_glow_anim/0
+            # and ANIMATION-SYSTEM.md (the `night` trigger).
             animations: lamp_glow_anim()
           }
         ]
@@ -1073,10 +1084,11 @@ defmodule Nebulith.Catalog.TileSource do
   #   • lamp_glow    — the warm COLOUR breathe (amber ↔ bright warm), a slow yoyo → a steady lit filament.
   #   • lamp_flicker — a fast, subtle OPACITY dip (1 → 0.72) → the "on/off, even failing" flicker.
   # Distinct periods (glow 1300ms vs flicker 260ms yoyo) → the two drift permanently out of phase, so the lamp
-  # reads as a live/unstable street light rather than a clean unison pulse. Both are unconditional `load` loops:
-  # the animation engine has NO night trigger yet, so this plays day AND night (a gentle warm bulb reads fine in
-  # both). NIGHT-GATING + the radial ground light POOL are Stage 2 (a dedicated `light` effect). Pure DATA —
-  # tune the colours/timings on the cell, no render special-casing.
+  # reads as a live/unstable street light rather than a clean unison pulse. BOTH trigger `night` (Alexander:
+  # "the lamp post animation should be off on daytime and on on night time"): the render bridge
+  # (resolveAssetAnimation) gates a `night` animation to night mode, so the bulb rests static in day and comes
+  # alive at night — paired with the radial ground light POOL (the `light` setting, also night-only). Pure DATA
+  # — tune the colours/timings/trigger on the cell, no render special-casing.
   defp lamp_glow_anim do
     [
       %{
@@ -1089,7 +1101,7 @@ defmodule Nebulith.Catalog.TileSource do
         "yoyo" => true,
         "ease" => "sine",
         "priority" => 1,
-        "trigger" => %{"on" => "load"},
+        "trigger" => %{"on" => "night"},
         "tracks" => [
           %{"setting" => "color", "from" => "#ffcf6b", "to" => "#fff2c4"}
         ]
@@ -1104,7 +1116,7 @@ defmodule Nebulith.Catalog.TileSource do
         "yoyo" => true,
         "ease" => "sine",
         "priority" => 1,
-        "trigger" => %{"on" => "load"},
+        "trigger" => %{"on" => "night"},
         "tracks" => [
           %{"setting" => "opacity", "from" => 1, "to" => 0.72}
         ]

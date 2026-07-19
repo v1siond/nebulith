@@ -41,7 +41,7 @@ Frontend type: `src/engine/animation/tileAnimation.ts`. Backend authoring: `Nebu
 ```ts
 type SettingKey = 'x'|'y'|'rotate'|'zoom'|'width'|'height'|'zWidth'|'zPos'|'heightLevel'|'opacity'|'color'|'zIndex'|'display'
 type Ease         = 'linear' | 'sine' | 'ease'                 // sine/ease = ease-in-out (1-cos(πt))/2
-type TriggerEvent = 'load' | 'attack' | 'interact' | 'proximity'
+type TriggerEvent = 'load' | 'attack' | 'interact' | 'proximity' | 'night'
 
 interface AnimationTrack { setting: SettingKey; from: number|string; to: number|string }   // many per animation
 interface Animation {      // kind:'settings' fully implemented; kind:'sprite' type-only (playback stubbed)
@@ -112,8 +112,9 @@ falling back to the absolute value. Evidence: `tileAnimationCompose.realcanvas.t
 
 ## 4. Render bridge (one place, all three views)
 
-`src/engine/render/assetAnimation.ts` — `resolveAssetAnimation(asset, nowMs, style, view)`:
-1. filters `asset.animations` to those whose `scope` matches `(style, view)` (`animationMatchesScope`),
+`src/engine/render/assetAnimation.ts` — `resolveAssetAnimation(asset, nowMs, style, view, dayNight)`:
+1. filters `asset.animations` to those whose `scope` matches `(style, view)` (`animationMatchesScope`) **and** whose
+   day/night gate passes (`animationPlaysAtDayNight` — a `night`-trigger animation only when `dayNight === 'night'`),
 2. composes the live values (`resolveAnimatedSettingsDetailed` — value + the winning track's `from`), then
    **layers each onto the tile's base** per §3.5 (`composeAnimatedSetting`),
 3. returns `{ opacity, x, y, asset }` — or **`null`** (the fast path) when there are no animations, none in scope,
@@ -144,6 +145,12 @@ await a semantics decision before wiring.
 ## 5. Triggers & scope
 
 - `load` — plays immediately (ambient loops, e.g. fountain water). **Fully wired.**
+- `night` — a **CONDITION**, not a one-shot: plays ONLY while the scene is in night mode (`dayNight === 'night'`),
+  and rests (neither advances nor renders) in day. **Fully wired** — the lamp bulb's glow + flicker carry it, so
+  the lamp is static in day and comes alive at night (paired with the night-only ground glow POOL; see `LIGHTING.md`).
+  Gated in the render bridge (`resolveAssetAnimation(asset, now, style, view, dayNight)` → `animationPlaysAtDayNight`);
+  the pure interpolator ignores it, exactly like scope. Alexander: "the lamp post animation should be off on daytime
+  and on on night time".
 - `proximity` — plays while the hero is within `radiusCells` (reuse the iso `fadeNear` distance-to-hero math).
 - `attack` / `interact` — fire on that action hitting the tile's cell (the `TRIGGERS-SPEC` event path).
 - **Scope** gates playback per active `(style, view)`; an absent/empty list means "all". The pure interpolator

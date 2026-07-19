@@ -143,13 +143,12 @@ defmodule Nebulith.TileSourceTest do
     end
   end
 
-  test "the lamp bulb glows + flickers by default — a colour breathe + opacity flicker restore the lost night light" do
-    # Alexander: "we lost the light on nightmode … use color animations to simulate light on off or even failing".
-    # Stage 1 puts a LIT/flickering bulb back by stamping the animation engine's cell-default animations onto the
-    # `lamp` cell — the SAME path the fountain water uses — a warm COLOUR breathe + a faster OPACITY flicker. Two
-    # envelopes on DIFFERENT settings (colour vs opacity) so neither wins-takes-all over the other, on DISTINCT
-    # periods so they drift and the lamp reads as a live, slightly failing street light. Unconditional `load`
-    # loops — the engine has no night trigger yet (that gating is the Stage 2 dedicated `light` effect).
+  test "the lamp bulb glows + flickers ONLY at night — both default animations trigger `night`" do
+    # Alexander: "the lamp post animation should be off on daytime and on on night time (i mean mode)". The bulb
+    # carries a warm COLOUR breathe + a faster OPACITY flicker (two envelopes on DIFFERENT settings so neither
+    # wins-takes-all, on DISTINCT periods so they drift and the lamp reads as a live, slightly failing street
+    # light). BOTH trigger `night` → the render bridge (resolveAssetAnimation) gates them to night mode, so the
+    # bulb rests static in day and comes alive at night, paired with the night-only radial ground light POOL.
     lamp_post = Enum.find(Catalog.list_compositions(), &(&1.name == "lamp_post"))
     lamp = Enum.find(lamp_post.cells, &(&1.label == "lamp"))
     post = Enum.find(lamp_post.cells, &(&1.label == "post"))
@@ -166,6 +165,10 @@ defmodule Nebulith.TileSourceTest do
     assert glow, "the lamp carries a colour-breathe glow animation"
     assert flicker, "the lamp carries an opacity flicker animation"
 
+    # BOTH envelopes are NIGHT-gated — off in day, on at night (the core of this change).
+    assert glow["trigger"] == %{"on" => "night"}
+    assert flicker["trigger"] == %{"on" => "night"}
+
     # the GLOW breathes the bulb's COLOUR (warm amber ↔ bright warm), looping yoyo
     assert glow["kind"] == "settings"
     assert glow["loop"] == true and glow["yoyo"] == true
@@ -181,6 +184,26 @@ defmodule Nebulith.TileSourceTest do
     # DISTINCT periods → the two drift permanently out of phase → the lamp reads as live / failing, never a clean
     # unison pulse (the fountain-desync philosophy applied to one bulb via two settings).
     refute flicker["durationMs"] == glow["durationMs"]
+  end
+
+  test "the lamp bulb carries a default LIGHT setting — a warm night ground glow pool (intensity + distance)" do
+    # Alexander: "a regular setting that allows me to control the light intensity and distance". The lamp cell
+    # ships a `light` in its settings jsonb — served verbatim, copied onto the placed asset by stampComposition —
+    # so lamps light by DEFAULT. The defaults reproduce the old hardcoded LAMP_GLOW (radius 3.2 cells, warm hue),
+    # and the editor's Light control edits them per placement. The post base never lights.
+    lamp_post = Enum.find(Catalog.list_compositions(), &(&1.name == "lamp_post"))
+    lamp = Enum.find(lamp_post.cells, &(&1.label == "lamp"))
+    post = Enum.find(lamp_post.cells, &(&1.label == "post"))
+
+    light = lamp.settings["light"]
+    assert is_map(light), "the lamp bulb must ship a default light setting"
+    assert_in_delta light["intensity"], 1.0, 0.001
+    assert_in_delta light["distance"], 3.2, 0.001
+    assert light["color"] == "#ffd98a"
+    assert light["on"] == true
+
+    # the POST base is not a light source — no light setting on it.
+    refute post.settings && Map.has_key?(post.settings, "light")
   end
 
   test "z_index defaults to 0 on EVERY composition cell (nothing carries a non-zero draw priority by default)" do
