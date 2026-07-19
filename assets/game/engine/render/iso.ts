@@ -698,7 +698,7 @@ export function render(
   // ─── NIGHT LIGHTING ─────────────────────────────────────────────────
   // After the scene draws: a navy veil over everything, then steady warm pools at each lamp head.
   if (dayNight === 'night') {
-    const lamps = collectLampGlows(grid, (c, r) => toScreen(c, r), tileW, tileH * 1.5, w, h)
+    const lamps = collectLampGlows(grid, (c, r) => toScreen(c, r), tileW, tileH * 1.5, w, h, { time, style, view: 'iso' })
     drawNightLighting(ctx, w, h, lamps)
   }
 
@@ -1570,15 +1570,45 @@ export function drawIsoSingleTileBlock(
   }
 }
 
-/** SHAPE = "circle" (per-tile `settings`/`shape`) is a FORM modifier, NOT a repaint: it ROUNDS the cube's
- *  silhouette while keeping the tile's own painting. So it draws the tile's NORMAL cube — the SAME
- *  drawIsoTileBlock path with its baked art, colour filter and shaded faces (the earlier bug replaced this
- *  with a solid-colour ball, which threw the art away) — then CLIPS it to a ball inscribed in that SAME block
- *  volume (horizontal radius = the block half-width, vertical radius = the stack height + base diamond, centred
- *  at the volume's mid-height). The clip cuts the angular cube shoulders/corners down to a round outline; a soft
- *  sphericalShade overlay then bends the still-visible art into a ball. So a shape=circle tile shows EXACTLY what
- *  the cube shows, just rounded — a unit block → a round ball, a stretched/`scaleY` block → an ellipsoid. A soft
- *  ground shadow keeps it seated. `asset` carries depth/depthDir so a directional-depth block rounds too. */
+/** Paint a circle tile's ball SURFACE: the tile's own art as ONE smooth image filling the ball's bounding box
+ *  (recoloured by the colour setting), NOT the three cube faces — so nothing seams under the round clip. This is
+ *  the load-bearing difference vs the old attempt (which clipped the 3 cube faces, leaving the seams visible so
+ *  it read as a rounded cube): exactly ONE surface, no cube edges. No baked image (ascii glyph, or the PNG still
+ *  decoding) → a solid colour ball carrying the glyph, so the tile's art/colour still reads (never a blank ball).
+ *  The caller has already set the circular clip; the draw fills the [cx±rx, cy±ry] box the clip rounds. */
+function fillBallSurface(ctx: CanvasRenderingContext2D, cx: number, cy: number, rx: number, ry: number, dv: DrawVisual, tint?: string): void {
+  const recolor = tint ?? dv.tint
+  const iv = dv.image
+  const img = iv ? tileImage(iv.src) : null
+  if (img && iv) {
+    const src = recolor ? tintedImage(img, iv.src, recolor) : img // colour FILTERS the art (luminance-mapped)
+    ctx.drawImage(src, cx - rx, cy - ry, rx * 2, ry * 2) // ONE surface across the whole ball — no faces, no seams
+    return
+  }
+  // No baked raster: a colour ball + its glyph so the painting still reads (ascii / a not-yet-decoded emoji PNG).
+  ctx.fillStyle = recolor ?? dv.color
+  ctx.beginPath()
+  ctx.ellipse(cx, cy, Math.max(0.5, rx), Math.max(0.5, ry), 0, 0, Math.PI * 2)
+  ctx.fill()
+  if (dv.char) {
+    const gp = Math.min(rx, ry) * 1.3
+    ctx.save()
+    ctx.font = `bold ${gp}px ${ASCII_FONT}`
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    fillTintedGlyph(ctx, dv.char, cx, cy, gp, tint, tint ? 0.85 : 0)
+    ctx.restore()
+  }
+}
+
+/** SHAPE = "circle" renders a REAL isometric SPHERE (Alexander: "literally just make the tile cube a sphere …
+ *  the actual shape changes, not simulated"). It is NOT the old clipped-cube: instead of drawing the three cube
+ *  faces and clipping them (which left the face seams visible → a rounded cube), it clips to the TRUE circular
+ *  silhouette inscribed in the block's projected extent (horizontal radius = block half-width, vertical radius =
+ *  stack height + base diamond, centred at the volume's mid-height), paints the tile's art as ONE smooth surface
+ *  inside it (fillBallSurface — a single image, no faces/seams), then radial-shades it into a 3D ball
+ *  (sphericalShade). So the tile's painting/colour is kept but the FORM is a genuine sphere: a unit block → a
+ *  round ball, a stretched/`scaleY` block → an ellipsoid. A soft ground shadow keeps it seated. */
 export function drawIsoBall(
   ctx: CanvasRenderingContext2D,
   center: Pt,
@@ -1588,7 +1618,6 @@ export function drawIsoBall(
   height: number,
   dv: DrawVisual,
   tint?: string,
-  asset?: GridAsset,
 ): void {
   const n = Math.max(1, Math.floor(height))
   const rx = tileW                       // footprint half-width (honours scaleX/zoom via the caller's bw)
@@ -1601,11 +1630,10 @@ export function drawIsoBall(
   ctx.ellipse(center.x, center.y + tileH * 0.35, rx * 0.82, tileH * 0.5, 0, 0, Math.PI * 2)
   ctx.fill()
   ctx.restore()
-  // Clip the NORMAL cube to the ball silhouette (keeps the tile's painting; only the form rounds), then overlay
-  // a soft sphere shade so the arted, still-visible tile reads as a ball.
+  // ONE smooth sphere: round clip → the tile's art as a single surface (no cube faces) → radial sphere shade.
   ctx.save()
   clipToBall(ctx, center.x, cy, rx, ry)
-  drawIsoTileBlock(ctx, center, tileW, tileH, blockH, n, dv, tint, undefined, asset?.depth, asset?.depthDir)
+  fillBallSurface(ctx, center.x, cy, rx, ry, dv, tint)
   sphericalShade(ctx, center.x, cy, rx, ry)
   ctx.restore()
 }
@@ -1624,7 +1652,7 @@ const ISO_SHAPE_DRAWERS: Record<TileShape, IsoShapeDrawer> = {
     if (asset.settings?.display === 'single') drawIsoSingleTileBlock(ctx, center, bw, bd, bh, blocks, dv, tint, asset.depth, asset.depthDir)
     else drawIsoTileBlock(ctx, center, bw, bd, bh, blocks, dv, tint, undefined, asset.depth, asset.depthDir)
   },
-  circle: (ctx, center, bw, bd, bh, blocks, dv, tint, asset) => drawIsoBall(ctx, center, bw, bd, bh, blocks, dv, tint, asset),
+  circle: (ctx, center, bw, bd, bh, blocks, dv, tint) => drawIsoBall(ctx, center, bw, bd, bh, blocks, dv, tint),
 }
 
 /** Draw a placed tile's block as the SOLID its `shape` selects — the single call the asset draw sites use in

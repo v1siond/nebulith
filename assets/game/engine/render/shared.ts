@@ -288,33 +288,35 @@ export function tintedImage(img: HTMLImageElement, src: string, tint: string): C
  *  by all three views so 'single' reads consistently in iso / 2D / top. */
 export const SINGLE_TILE_FRAC = 0.6
 
-/** SHAPE = 'circle' is a FORM modifier, not a repaint: it rounds a tile's silhouette while keeping the tile's
- *  own painting. clipToBall sets an elliptical clip of radii (rx, ry) centred at (cx, cy); the caller then draws
- *  the tile's NORMAL cube/cell (its baked art, colour filter and every other setting) INSIDE that clip, so the
- *  angular cube outline is cut down to a ball. Only the FORM changes — the appearance is untouched. The caller
- *  owns the surrounding save/restore. */
+/** SHAPE = 'circle' renders a REAL isometric SPHERE, not a rounded cube (Alexander: "literally just make the
+ *  tile cube a sphere … the actual shape changes, not simulated"). clipToBall sets an elliptical clip of radii
+ *  (rx, ry) centred at (cx, cy) = the true circular silhouette inscribed in the block's projected extent; the
+ *  caller then paints the tile's art as ONE smooth surface (a single image, NOT the three cube faces) inside
+ *  that clip, so there are NO cube edges or face seams — the earlier attempt clipped the 3 cube faces, which
+ *  left visible seams and read as a rounded cube. Only the FORM is a ball; the tile's painting/colour is kept.
+ *  The caller owns the surrounding save/restore. */
 export function clipToBall(ctx: CanvasRenderingContext2D, cx: number, cy: number, rx: number, ry: number): void {
   ctx.beginPath()
   ctx.ellipse(cx, cy, Math.max(0.5, rx), Math.max(0.5, ry), 0, 0, Math.PI * 2)
   ctx.clip()
 }
 
-/** Overlay a soft SPHERE shade over an arted tile that's been clipped to a ball (clipToBall), so it reads round
- *  while its painting still shows through. A TRANSPARENT radial gradient: a bright highlight up-and-left (toward
- *  the same upper-left scene light the cube faces are shaded by), a CLEAR middle so the tile's baked art/colour
- *  stays visible, and a dark rim that bends the flat outline into a sphere. It only shapes the light — it never
- *  fills the tile with a solid colour (that solid fill was the old bug: it threw the tile's painting away). No-op
+/** Shade a ball surface (the tile art already painted + clipped to the round silhouette by clipToBall) into a
+ *  real 3D SPHERE. A radial gradient with the light offset up-and-left (the same upper-left scene light): a
+ *  bright specular highlight, a CLEAR body so the tile's baked art/colour still shows through the middle, and a
+ *  deepening dark rim that curves the flat disc into a sphere. It only shapes LIGHT over the art — it never
+ *  fills the tile with a solid colour (that solid fill was the old bug that threw the painting away). No-op
  *  where a context has no `createRadialGradient` (a jsdom stub) so it never throws. */
 export function sphericalShade(ctx: CanvasRenderingContext2D, cx: number, cy: number, rx: number, ry: number): void {
   if (typeof ctx.createRadialGradient !== 'function') return
-  const hx = cx - rx * 0.35 // highlight up-and-left (toward the light)
+  const hx = cx - rx * 0.34 // highlight up-and-left (toward the light)
   const hy = cy - ry * 0.4
-  const g = ctx.createRadialGradient(hx, hy, Math.min(rx, ry) * 0.05, cx, cy, Math.max(rx, ry) * 1.08)
-  g.addColorStop(0, 'rgba(255, 255, 255, 0.38)') // specular highlight
-  g.addColorStop(0.4, 'rgba(255, 255, 255, 0.06)')
-  g.addColorStop(0.62, 'rgba(0, 0, 0, 0)')        // clear body — the tile's painting shows here
-  g.addColorStop(0.85, 'rgba(0, 0, 0, 0.18)')
-  g.addColorStop(1, 'rgba(0, 0, 0, 0.5)')         // dark rim — turns the outline round
+  const g = ctx.createRadialGradient(hx, hy, Math.min(rx, ry) * 0.05, cx, cy, Math.max(rx, ry) * 1.06)
+  g.addColorStop(0, 'rgba(255, 255, 255, 0.5)')   // specular highlight (up-left)
+  g.addColorStop(0.32, 'rgba(255, 255, 255, 0.1)')
+  g.addColorStop(0.55, 'rgba(0, 0, 0, 0)')        // clear body — the tile's painting shows here
+  g.addColorStop(0.8, 'rgba(0, 0, 0, 0.28)')
+  g.addColorStop(1, 'rgba(0, 0, 0, 0.62)')        // dark rim — curves the disc into a sphere
   ctx.save()
   ctx.beginPath()
   ctx.ellipse(cx, cy, Math.max(0.5, rx), Math.max(0.5, ry), 0, 0, Math.PI * 2)

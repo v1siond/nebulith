@@ -1,14 +1,18 @@
 /**
- * REAL-CANVAS tests for the per-tile SHAPE setting (`shape: 'square' | 'circle'`) — the "round the cube's
- * silhouette but KEEP the tile's painting" approach (the fix for the bug where a circle lost its art).
+ * REAL-CANVAS tests for the per-tile SHAPE setting (`shape: 'square' | 'circle'`) — `circle` renders a REAL
+ * isometric SPHERE (Alexander: "literally just make the tile cube a sphere … the actual shape changes, not
+ * simulated"), while KEEPING the tile's painting.
  *
- * MODEL: `shape: 'circle'` is a FORM modifier, NOT a repaint. The renderer draws the tile's NORMAL cube (its
- * baked art, colour filter and shaded faces) and CLIPS it to a ball inscribed in the same volume, then overlays
- * a soft sphere shade. So a circle tile shows EXACTLY what the cube shows, only rounded — it is NOT a flat
- * solid-colour ball and NOT a flat disc. These render to a real rasteriser (@napi-rs/canvas) and read the PIXELS:
+ * MODEL: `shape: 'circle'` clips to the TRUE round silhouette and paints the tile's art as ONE smooth surface
+ * (a single image, NOT the three cube faces — so there are no face seams), then radial-shades it into a 3D ball.
+ * So a circle tile shows the tile's art on a genuine sphere — NOT a flat solid ball, NOT a flat disc, and NOT
+ * the old clipped-cube (whose face seams read as a rounded cube). These render to a real rasteriser
+ * (@napi-rs/canvas) and read the PIXELS:
  *   • the form is ROUND (its bounding-box corners are transparent; a rect would fill them) and its centre is filled;
  *   • the tile's ART survives — a TWO-BAND tile (green top, blue bottom) drawn as a circle still shows BOTH bands
  *     in the ball body (the old solid ball showed neither — it was one flat colour);
+ *   • NO cube seams — the two-band art reads as ONE horizontally-split surface (top green + bottom blue on BOTH
+ *     the left and right of the ball), which three sheared cube faces (a vertical centre seam) never produce;
  *   • the ball is SHADED (a bright highlight up-left, a dark rim — a 3D sphere, not a flat disc);
  *   • the colour SETTING still FILTERS the tile (a magenta colour → a magenta ball; a green baked image is
  *     recoloured, never left green), in BOTH emoji + ascii styles, positive + negative.
@@ -62,6 +66,22 @@ function regionMeanLum(canvas: Canvas, x: number, y: number, w: number, h: numbe
   }
   return n ? sum / n : 0
 }
+/** The DOMINANT band colour in a sub-rect: 'green' / 'blue' / 'none' — the "which two-band half is here" probe. */
+function regionBand(canvas: Canvas, x: number, y: number, w: number, h: number): 'green' | 'blue' | 'none' {
+  const { data } = canvas.getContext('2d').getImageData(x, y, w, h)
+  let g = 0, b = 0, n = 0
+  for (let i = 0; i < data.length; i += 4) {
+    if (data[i + 3] < 128) continue
+    n++
+    const r = data[i], gg = data[i + 1], bb = data[i + 2]
+    if (gg > r + 40 && gg > bb + 40) g++
+    if (bb > r + 40 && bb > gg + 40) b++
+  }
+  if (n === 0) return 'none'
+  if (g > b && g > n * 0.3) return 'green'
+  if (b > g && b > n * 0.3) return 'blue'
+  return 'none'
+}
 
 describe('shape = circle: ROUNDS the form (bounding-box corners cut) but keeps the tile filled', () => {
   test('the centre is filled but every bounding-box CORNER is transparent — a round form, not a rectangle', () => {
@@ -110,6 +130,19 @@ describe('shape = circle KEEPS the tile painting — the fix for "we lose the ti
     expect(s.opaque).toBeGreaterThan(300) // the round form is drawn
     expect(s.greenish).toBeGreaterThan(0) // the tile's TOP band shows — a solid ball would show neither
     expect(s.blueish).toBeGreaterThan(0)  // and its BOTTOM band shows — the painting is intact under the round clip
+  })
+
+  test('NO cube seams — the two-band art reads as ONE horizontally-split surface (not three sheared faces)', () => {
+    const cv = H.makeCanvas(300, 280)
+    drawIsoBall(cv.getContext('2d') as unknown as CanvasRenderingContext2D, { x: CX, y: CY }, TW, TH, BH, 1, bandsDv(), undefined)
+    const topY = Math.round(BCY - RY * 0.35), botY = Math.round(BCY + RY * 0.35)
+    const lx = Math.round(BCX - RX * 0.5), rx = Math.round(BCX + RX * 0.5)
+    // At a fixed height, the LEFT and RIGHT of the ball show the SAME band → one flat surface. A clipped CUBE
+    // would split left/right into two differently-shaded FACES (a vertical centre seam), never clean H-bands.
+    expect(regionBand(cv, lx - 4, topY - 4, 8, 8)).toBe('green') // top band, left
+    expect(regionBand(cv, rx - 4, topY - 4, 8, 8)).toBe('green') // top band, right — SAME band as the left
+    expect(regionBand(cv, lx - 4, botY - 4, 8, 8)).toBe('blue')  // bottom band, left
+    expect(regionBand(cv, rx - 4, botY - 4, 8, 8)).toBe('blue')  // bottom band, right — SAME band as the left
   })
 })
 

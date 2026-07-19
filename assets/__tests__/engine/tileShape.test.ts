@@ -5,11 +5,11 @@
  * `shape` is a per-INSTANCE render SETTING on GridAsset, the sibling of `display`. It:
  *   1. round-trips in Template.assetsData like scaleX/pose (the deserialize shallow-clone carries it).
  *   2. can ship as a composition-CELL default (composition_cells.settings.shape → stampComposition → asset.shape).
- *   3. ROUTES the render: 'circle' is a FORM modifier, NOT a repaint. It draws the SAME cube — so the tile's
- *      baked ART is still painted on all 3 faces (circle → 3 drawImage, IDENTICAL to square) — but CLIPS it to a
- *      ball (an ellipse clip the square path never uses). Counted here via a recording context: circle keeps the
- *      3 image draws AND adds the rounding clip; square draws the 3 images with no clip. (The old behaviour drew
- *      0 images for a circle — a solid ball that threw the tile's painting away; this is the bug that was fixed.)
+ *   3. ROUTES the render: 'circle' renders a REAL sphere. It keeps the tile's ART but paints it as ONE smooth
+ *      surface (a single image over the round silhouette), NOT the three cube faces — so there are no face seams
+ *      (the clipped-cube's seams read as a rounded cube; the older solid-ball drew 0 images and lost the art).
+ *      Counted here via a recording context: circle → exactly 1 image draw + a rounding clip/ellipse; square →
+ *      3 image draws (the cube faces) with no clip. So image-count discriminates a sphere (1) from a cube (3).
  */
 import { stampComposition } from '@/game/runtime/composition'
 import { drawIsoAssetAscii } from '@/engine/render/iso'
@@ -128,15 +128,15 @@ describe('drawIsoAssetAscii ROUTES on asset.shape (end-to-end)', () => {
     expect(r.clips).toBe(0)
   })
 
-  test('shape "circle" → the SAME 3-face tile ART is still painted (form modifier, not a repaint)', () => {
+  test('shape "circle" → the tile ART is painted as ONE smooth surface (a real sphere), NOT the 3 cube faces', () => {
     const r = recordingCtx()
     drawIsoAssetAscii(r.ctx, 100, 120, asset({ shape: 'circle' }), 22, 11, 0, false, 'day', EMOJI_STYLE)
-    // The tile's painting is preserved: circle paints the cube's 3 faces exactly like square — NOT 0 (the old
-    // solid-ball bug painted no tile image and lost the art).
-    expect(r.images.length).toBe(3)
+    // A sphere is ONE image across the round silhouette — NOT 3 (the clipped-cube's face seams, which read as a
+    // rounded cube) and NOT 0 (the older solid-ball bug that lost the tile's art). Exactly one surface.
+    expect(r.images.length).toBe(1)
   })
 
-  test('shape "circle" ROUNDS the form: it clips the cube to an ellipse the square path never uses', () => {
+  test('shape "circle" ROUNDS the form: it clips to an ellipse the square (cube) path never uses', () => {
     const r = recordingCtx()
     drawIsoAssetAscii(r.ctx, 100, 120, asset({ shape: 'circle' }), 22, 11, 0, false, 'day', EMOJI_STYLE)
     expect(r.clips).toBeGreaterThanOrEqual(1)     // the rounding mask (clipToBall)
