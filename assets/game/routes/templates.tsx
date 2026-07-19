@@ -5934,12 +5934,12 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                 )
               }
 
+              // Nothing selected — a compact hint (the redundant STYLE card is gone; style lives in the top-nav
+              // 🎨 Style dropdown). Click an element and this Inspector morphs to its controls.
               return (
-                <>
-                  <Card title="Style" accent="cyan">
-                    <StylePicker activeId={activeStyleId} onPick={setActiveStyleId} />
-                  </Card>
-                </>
+                <p className="rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-[11px] leading-tight text-gray-500">
+                  Nothing selected — click an element on the canvas to edit it here.
+                </p>
               )
             })()}
           </aside>
