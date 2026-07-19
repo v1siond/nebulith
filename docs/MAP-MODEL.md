@@ -81,10 +81,16 @@ flowchart LR
   (`composition_cells.settings.shape` or a per-instance editor setting), never a render special-case.
   **`shape: circle` renders a REAL isometric SPHERE**, not a rounded cube (Alexander: *"literally just make
   the tile cube a sphere … the actual shape changes, not simulated"*): the renderer clips to the true round
-  silhouette inscribed in the block's extent and paints the tile's art as **ONE smooth surface** (a single
-  image, NOT the three cube faces — so there are no face seams), then radial-shades it into a 3D ball. The
-  tile's painting + colour are kept — only the FORM becomes a sphere (a unit block → a ball, a `scaleY` block →
-  an ellipsoid). `square` is the plain cube. Same routing in all three views (iso primary, 2D + top round too).
+  silhouette inscribed in the block's extent, then paints the tile **EXACTLY like the cube face** — a
+  **background COLOUR FILL first** (the tile's resolved `tint ?? color`, so the sphere never loses the tile's
+  base colour where its art is transparent), then the tile's **art on top** as **ONE smooth surface** (a single
+  image, NOT the three cube faces — so there are no face seams), then radial-shades it into a 3D ball. So a
+  circle tile shows the SAME colour + art the cube does, only shaped round (Alexander: *"we lost the background
+  color … just take the tile block/square and make it a circle/sphere, that's it"*). Only the FORM becomes a
+  sphere (a unit block → a ball, a `scaleY` block → an ellipsoid). `square` is the plain cube. All three views
+  route their `circle`/`square` through ONE shared shape dispatch (iso `ISO_SHAPE_DRAWERS`, 2D/top
+  `drawFlatTileForShape`) — no per-view `if (shape === 'circle')` — so a new shape adds one map entry, never a
+  branch (SOLID/OCP).
 
 **Terminology — never interchange:**
 - **CELL** = a 2D grid square `(col, row)`.
