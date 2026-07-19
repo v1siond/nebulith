@@ -77,6 +77,14 @@ flowchart LR
 - A **TILE** is the art inside a cell/block — an ascii glyph, an emoji, or an image, coming from the **DB
   tileset**. Ascii and emoji are just **two tilesets** of the same tile (same label, different art). The
   front end renders; the tile data comes from the DB — the front end hardcodes nothing.
+- A cell/block CAN carry a **`shape`** render setting (`square` default | `circle`) — DATA on the cell
+  (`composition_cells.settings.shape` or a per-instance editor setting), never a render special-case.
+  **`shape: circle` renders a REAL isometric SPHERE**, not a rounded cube (Alexander: *"literally just make
+  the tile cube a sphere … the actual shape changes, not simulated"*): the renderer clips to the true round
+  silhouette inscribed in the block's extent and paints the tile's art as **ONE smooth surface** (a single
+  image, NOT the three cube faces — so there are no face seams), then radial-shades it into a 3D ball. The
+  tile's painting + colour are kept — only the FORM becomes a sphere (a unit block → a ball, a `scaleY` block →
+  an ellipsoid). `square` is the plain cube. Same routing in all three views (iso primary, 2D + top round too).
 
 **Terminology — never interchange:**
 - **CELL** = a 2D grid square `(col, row)`.

@@ -51,24 +51,38 @@ interface AssetLight {
 - `assetLight(asset)` is the ONE resolver: an explicit `light` setting wins (unless `on === false` → no pool);
   a lamp/lantern with **no** explicit light falls back to the default warm `LAMP_GLOW`
   (`{ rgb: '255,217,138', radiusTiles: 3.2, intensity: 1 }`); anything else casts nothing.
-- `collectLampGlows(grid, cellCenter, tilePx, lift, w, h)` walks `grid.assets`, resolves each via `assetLight`,
-  and emits a `LampGlow { x, y, r, rgb, intensity }` per on-screen light (`r = distance × tilePx`).
+- `collectLampGlows(grid, cellCenter, tilePx, lift, w, h, anim?)` walks `grid.assets`, resolves each via
+  `assetLight`, and emits a `LampGlow { x, y, r, rgb, intensity }` per on-screen light (`r = distance × tilePx`).
+  When `anim = {time, style, view}` is passed (the live views do), it MULTIPLIES each light's `intensity` by that
+  asset's live animated opacity (`resolveAssetAnimation`, night-gated) — so a **failing lamp's pool follows its
+  bulb flicker** (§4). A steady lamp resolves no animation → factor 1 → unchanged.
 - `drawNightLighting(ctx, w, h, lamps)` lays a navy veil over the scene, then paints ONE additive (`lighter`)
   radial pool per light — the alpha stops scale by `intensity`, the hue by `rgb`.
 - **Night-gated (unchanged):** each view (`iso.ts` / `topdown.ts` / `birdseye.ts`) calls this only when
   `dayNight === 'night'`. The old hardcoded per-lamp radius/colour is gone — the pool now reads each tile's
   `light`; the legacy `type === 'lamp'` bulb branches no longer fake a day/night glow (the pool is the ambience).
 
-## 4. The lamp default + the night flicker
+## 4. The lamp default (steady) + the FAILING-lamp flicker
 
-The `lamp_post` composition's **bulb** cell (`TileSource`) ships:
-- a **`light`** default (`intensity 1.0`, `distance 3.2`, `color #ffd98a`, `on true`) — reproduces the old
-  `LAMP_GLOW`, so lamps light by default; the editor tunes it per placement.
-- two **`night`-triggered** animations (`lamp_glow` colour breathe + `lamp_flicker` opacity dip) — OFF in day,
-  ON at night (see `ANIMATION-SYSTEM.md` → the `night` trigger). So a lamp is a static post in day and a live,
-  softly-flickering warm light at night.
+There are **two** light-post composition variants (`TileSource.lamp_post_composition/1`), sharing one structure —
+only the **bulb**'s night animation differs (Alexander: *"the lamp should just be 'on' on night mode, the flicker
+animation can be applied to a few, but not all"*):
 
-`post` (the pole) carries neither — only the bulb is a light source.
+- **`lamp_post`** (the DEFAULT — the MAJORITY of lamps) — the bulb ships a **`light`** default (`intensity 1.0`,
+  `distance 3.2`, `color #ffd98a`, `on true`, reproducing the old `LAMP_GLOW`) and **NO animation**. So a normal
+  lamp is simply **STEADY-ON** at night — a constant warm pool, no flicker.
+- **`lamp_post_failing`** (a MINORITY — the frontend generator tags ~18% of lamps) — the SAME bulb + `light`,
+  PLUS ONE **`night`-triggered** `lamp_flicker` animation: a single **`opacity` 1 → 0.12** track with
+  **`ease: "flicker"`** — the frontend's irregular, STEPPED failing-bulb envelope (mostly ON with brief, erratic
+  dips / full-off blinks at irregular times), NOT a smooth sine yoyo (see `ANIMATION-SYSTEM.md` → the `flicker`
+  ease + the `night` trigger). So a failing lamp reads as a dying street light: mostly lit, erratically cutting out.
+
+**The pool follows the bulb.** For a failing lamp, `collectLampGlows` folds the bulb's **live animated opacity**
+into that lamp's pool `intensity`, so the ground pool dims/cuts on the **exact same beat** the bulb flickers
+(Alexander: *"when it fails the light area should fail at the same rhythm of the flick"*). A steady lamp has no
+animation → opacity 1 → its pool stays constant.
+
+`post` (the pole) carries neither light nor animation — only the bulb is a light source.
 
 ## 5. Verified (real running game, emoji, iso)
 

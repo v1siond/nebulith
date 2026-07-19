@@ -40,7 +40,7 @@ Frontend type: `src/engine/animation/tileAnimation.ts`. Backend authoring: `Nebu
 
 ```ts
 type SettingKey = 'x'|'y'|'rotate'|'zoom'|'width'|'height'|'zWidth'|'zPos'|'heightLevel'|'opacity'|'color'|'zIndex'|'display'
-type Ease         = 'linear' | 'sine' | 'ease'                 // sine/ease = ease-in-out (1-cos(πt))/2
+type Ease         = 'linear' | 'sine' | 'ease' | 'flicker'     // sine/ease = ease-in-out (1-cos(πt))/2; flicker = irregular failing-bulb envelope
 type TriggerEvent = 'load' | 'attack' | 'interact' | 'proximity' | 'night'
 
 interface AnimationTrack { setting: SettingKey; from: number|string; to: number|string }   // many per animation
@@ -82,6 +82,11 @@ interface Animation {      // kind:'settings' fully implemented; kind:'sprite' t
 - **Per-track value:** numeric settings (incl. `opacity`, `y`, `zIndex`) = eased numeric lerp; `color` = per-channel
   RGB lerp → `rgb(r,g,b)` (fail-safe step if unparseable); `display` = **step at the temporal midpoint** (raw ≥ 0.5
   → `to`), never eased.
+- **`ease: "flicker"`** — an IRREGULAR, STEPPED envelope (not a smooth curve) for a **FAILING bulb**
+  (`flickerEase`): over the phase it is fully at `from` for the MAJORITY of the loop (~72%), punctuated by brief,
+  erratic dips of varying depth + occasional full-off blinks at irregular times. Deterministic pseudo-noise (pure).
+  Used by the `lamp_post_failing` bulb's `opacity 1→0.12` flicker with `loop:true, yoyo:false` (the ease supplies
+  the erratic shape — a yoyo would smooth it back into a pulse). See `LIGHTING.md` §4.
 - **Stacking (`resolveAnimatedSettings`):** every animation contributes its tracks' current values. On the SAME
   setting, the **higher `priority` wins; ties → later in the list**. Unwritten settings are absent (renderer keeps
   the base). Winner-takes-all per setting (see §6 for the fountain consequence). The winning value is then
@@ -146,8 +151,9 @@ await a semantics decision before wiring.
 
 - `load` — plays immediately (ambient loops, e.g. fountain water). **Fully wired.**
 - `night` — a **CONDITION**, not a one-shot: plays ONLY while the scene is in night mode (`dayNight === 'night'`),
-  and rests (neither advances nor renders) in day. **Fully wired** — the lamp bulb's glow + flicker carry it, so
-  the lamp is static in day and comes alive at night (paired with the night-only ground glow POOL; see `LIGHTING.md`).
+  and rests (neither advances nor renders) in day. **Fully wired** — the **failing** lamp bulb's `flicker` carries
+  it (the DEFAULT lamp has NO animation — it is just steady-on at night), so a failing lamp is static in day and
+  erratically flickers at night, and its ground glow POOL dims on the same beat (see `LIGHTING.md` §4).
   Gated in the render bridge (`resolveAssetAnimation(asset, now, style, view, dayNight)` → `animationPlaysAtDayNight`);
   the pure interpolator ignores it, exactly like scope. Alexander: "the lamp post animation should be off on daytime
   and on on night time".

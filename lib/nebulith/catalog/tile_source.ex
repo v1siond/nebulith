@@ -972,50 +972,61 @@ defmodule Nebulith.Catalog.TileSource do
       #   version, the 3 in the center are the ones to animate"), the other 6 are STATIC blue water.
       "well" => %{footprint_w: 5, footprint_h: 3, cells: well_cells()},
       "fountain" => %{footprint_w: 5, footprint_h: 5, cells: fountain_cells()},
-      # A LIGHT POST — a composition, NOT a single lamp tile (Alexander: "light posts should be a composition
-      # of a post/base tile + the lamp on top … the composition of maps is exactly the same between art styles,
-      # only the tile changes"). ONE 1×1 column of TWO cells, each shaped by its OWN tuned settings so it reads
-      # like a REAL post (Alexander's built reference, Images #45/#46 — "copy the settings of the post"):
-      #   • POST (level 0, blocks) — ONE cell drawn as a tall, THIN pole: Height `scaleY` 7 (a ~7-block tall
-      #     column) at Zoom `scale` 0.3 (thin). All-faces display (the default). NOT two plain stacked cubes.
-      #   • BULB (level 1, walkable overhead) — a SINGLE-display billboard (`display: single` → one centered
-      #     bulb, not tiled on the block faces), Zoom `scale` 0.6, lifted by `pose.dy` -1.8 (up 1.8 tile units)
-      #     so it sits ON TOP of the tall post.
-      # The STRUCTURE (both cells, all offsets/levels) is style-agnostic — only the baked `post` + `lamp` ART
-      # differs — so emoji renders a post + 💡 and ascii a pole + lamp, IDENTICAL shape. `scaleY`/`display`/`pose`
-      # ride in the cell's `settings` jsonb (camelCase, applied onto the placed asset by stampComposition); `scale`
-      # uses the existing per-cell Zoom column. The generator stamps THIS wherever it used to drop a lamp prop.
-      "lamp_post" => %{
-        footprint_w: 1,
-        footprint_h: 1,
-        cells: [
-          %{dx: 0, dy: 0, level: 0, label: "post", walkable: false, scale: 0.3, settings: %{"scaleY" => 7.0}},
-          %{
-            dx: 0,
-            dy: 0,
-            level: 1,
-            label: "lamp",
-            walkable: true,
-            scale: 0.6,
-            # `light` is a real, controllable SETTING (Alexander: "a regular setting that allows me to control
-            # the light intensity and distance"): the bulb casts a warm ground GLOW POOL at night, sized by
-            # `distance` (cells) and strengthened/tinted by `intensity`/`color`. The defaults reproduce the old
-            # hardcoded LAMP_GLOW (rgb 255,217,138 = #ffd98a, radius 3.2 cells) so lamps light by default; the
-            # editor's Light control group edits these per placement. Served verbatim, copied onto the placed
-            # asset's `light` by stampComposition (like `shape`).
-            settings: %{
-              "display" => "single",
-              "pose" => %{"dy" => -1.8},
-              "light" => %{"intensity" => 1.0, "distance" => 3.2, "color" => "#ffd98a", "on" => true}
-            },
-            # The bulb GLOWS + FLICKERS only at NIGHT — both envelopes trigger `night` (Alexander: "the lamp
-            # post animation should be off on daytime and on on night time"), so they rest in day mode and come
-            # alive in night mode. Stamped onto the placed asset like the fountain water. See lamp_glow_anim/0
-            # and ANIMATION-SYSTEM.md (the `night` trigger).
-            animations: lamp_glow_anim()
-          }
-        ]
+      # LIGHT POSTS — a composition, NOT a single lamp tile (Alexander: "light posts should be a composition of a
+      # post/base tile + the lamp on top … the composition of maps is exactly the same between art styles, only
+      # the tile changes"). ONE 1×1 column of TWO cells, each shaped by its OWN tuned settings so it reads like a
+      # REAL post (Alexander's built reference, Images #45/#46 — "copy the settings of the post"):
+      #   • POST (level 0, blocks) — ONE cell drawn as a tall, THIN pole: Height `scaleY` 7 at Zoom `scale` 0.3.
+      #   • BULB (level 1, walkable overhead) — a SINGLE-display billboard (one centered bulb), Zoom `scale` 0.6,
+      #     lifted by `pose.dy` -1.8 so it sits ON TOP of the tall post, carrying the night `light` glow POOL.
+      # TWO variants share this whole structure (lamp_post_composition/1) — only the bulb's night ANIMATION
+      # differs (Alexander: "the lamp should just be 'on' on night mode, the flicker animation can be applied to a
+      # few, but not all"):
+      #   • `lamp_post`         → the DEFAULT: a STEADY bulb, just lit at night (NO animation). The generator
+      #     places this for the MAJORITY of lamps.
+      #   • `lamp_post_failing` → a FAILING bulb: the bulb carries the irregular `lamp_flicker_anim` (a stepped,
+      #     erratic opacity dip — a dying bulb, NOT a smooth pulse). The generator tags a MINORITY (~18%) of lamps
+      #     with this. Its ground pool dims in SYNC with the flicker (the frontend folds the bulb's live opacity
+      #     into the pool intensity — see LIGHTING.md, Alexander: "the light area should fail at the same rhythm").
+      "lamp_post" => lamp_post_composition(nil),
+      "lamp_post_failing" => lamp_post_composition(lamp_flicker_anim())
+    }
+  end
+
+  # A light-post composition (post base + bulb on top), shared by the steady + failing variants. `bulb_animations`
+  # is the bulb cell's default animation list: `nil` → a STEADY bulb (just lit at night, no animation — the normal
+  # lamp); a list → the bulb's night animation (the failing variant's irregular flicker). Everything else —
+  # structure, the tuned post/bulb settings, the `light` glow pool — is IDENTICAL, so a failing lamp is a normal
+  # lamp whose bulb flickers. The STRUCTURE is style-agnostic (only the baked `post`/`lamp` ART differs per style).
+  defp lamp_post_composition(bulb_animations) do
+    # `light` is a real, controllable SETTING (Alexander: "control the light intensity and distance"): the bulb
+    # casts a warm ground GLOW POOL at night, sized by `distance` (cells), strengthened/tinted by `intensity`/
+    # `color`. Defaults reproduce the old hardcoded LAMP_GLOW (#ffd98a, radius 3.2) so lamps light by default.
+    bulb =
+      %{
+        dx: 0,
+        dy: 0,
+        level: 1,
+        label: "lamp",
+        walkable: true,
+        scale: 0.6,
+        settings: %{
+          "display" => "single",
+          "pose" => %{"dy" => -1.8},
+          "light" => %{"intensity" => 1.0, "distance" => 3.2, "color" => "#ffd98a", "on" => true}
+        }
       }
+
+    # A steady bulb carries NO animation key at all; only the failing variant attaches the flicker.
+    bulb = if bulb_animations, do: Map.put(bulb, :animations, bulb_animations), else: bulb
+
+    %{
+      footprint_w: 1,
+      footprint_h: 1,
+      cells: [
+        %{dx: 0, dy: 0, level: 0, label: "post", walkable: false, scale: 0.3, settings: %{"scaleY" => 7.0}},
+        bulb
+      ]
     }
   end
 
@@ -1075,50 +1086,34 @@ defmodule Nebulith.Catalog.TileSource do
     ]
   end
 
-  # The lamp BULB's DEFAULT ANIMATIONS — Stage 1 of restoring the night light (Alexander: "we lost the light on
-  # nightmode … use color animations to simulate light on off or even failing"). When the lamp became a
-  # post+bulb COMPOSITION its cells stamp as `type: "lamp_post"` assets, so the old night light pool (drawn by
-  # collectLampGlows/drawNightLighting for `type: "lamp"` props) stopped firing. This puts a LIT, flickering
-  # bulb back through the EXISTING animation engine — the SAME cell-default path the fountain water uses — with
-  # TWO envelopes on DIFFERENT settings so neither wins-takes-all over the other:
-  #   • lamp_glow    — the warm COLOUR breathe (amber ↔ bright warm), a slow yoyo → a steady lit filament.
-  #   • lamp_flicker — a fast, subtle OPACITY dip (1 → 0.72) → the "on/off, even failing" flicker.
-  # Distinct periods (glow 1300ms vs flicker 260ms yoyo) → the two drift permanently out of phase, so the lamp
-  # reads as a live/unstable street light rather than a clean unison pulse. BOTH trigger `night` (Alexander:
-  # "the lamp post animation should be off on daytime and on on night time"): the render bridge
-  # (resolveAssetAnimation) gates a `night` animation to night mode, so the bulb rests static in day and comes
-  # alive at night — paired with the radial ground light POOL (the `light` setting, also night-only). Pure DATA
-  # — tune the colours/timings/trigger on the cell, no render special-casing.
-  defp lamp_glow_anim do
+  # The FAILING lamp bulb's DEFAULT ANIMATION — a single irregular OPACITY flicker (Alexander: "it should be more
+  # irregular, it's supposed to represent a failing bulb"). ONLY the `lamp_post_failing` variant carries this; the
+  # default `lamp_post` bulb has NO animation and is just STEADY-ON at night. It runs through the EXISTING
+  # animation engine (the SAME cell-default path the fountain water uses):
+  #   • ONE opacity track 1 → 0.12 with `ease: "flicker"` — the frontend's irregular, STEPPED failing-bulb
+  #     envelope (`tileAnimation.flickerEase`), NOT a smooth sine yoyo: mostly ON with brief, erratic dips of
+  #     varying depth + occasional full-off blinks at irregular times. `loop: true`, `yoyo: false` (the flicker
+  #     ease supplies the erratic shape; a yoyo would just smooth it back out).
+  # `night`-triggered (Alexander: "the lamp post animation should be off on daytime and on on night time"): the
+  # render bridge (resolveAssetAnimation) gates it to night mode, so the bulb rests static in day and flickers at
+  # night. The ground light POOL follows it — the frontend folds this bulb's live opacity into the pool intensity
+  # so the pool dims on the SAME beat (Alexander: "the light area should fail at the same rhythm of the flick").
+  # Pure DATA — tune the timing/depth/trigger on the cell, no render special-casing.
+  defp lamp_flicker_anim do
     [
       %{
-        "id" => "lamp_glow",
-        "name" => "glow",
+        "id" => "lamp_flicker",
+        "name" => "failing bulb",
         "kind" => "settings",
-        "durationMs" => 1300,
+        "durationMs" => 2600,
         "loopDelayMs" => 0,
         "loop" => true,
-        "yoyo" => true,
-        "ease" => "sine",
+        "yoyo" => false,
+        "ease" => "flicker",
         "priority" => 1,
         "trigger" => %{"on" => "night"},
         "tracks" => [
-          %{"setting" => "color", "from" => "#ffcf6b", "to" => "#fff2c4"}
-        ]
-      },
-      %{
-        "id" => "lamp_flicker",
-        "name" => "flicker",
-        "kind" => "settings",
-        "durationMs" => 260,
-        "loopDelayMs" => 90,
-        "loop" => true,
-        "yoyo" => true,
-        "ease" => "sine",
-        "priority" => 1,
-        "trigger" => %{"on" => "night"},
-        "tracks" => [
-          %{"setting" => "opacity", "from" => 1, "to" => 0.72}
+          %{"setting" => "opacity", "from" => 1, "to" => 0.12}
         ]
       }
     ]
