@@ -34,21 +34,6 @@ export const BUILDING_TOOL_TYPE: Partial<Record<NonNullable<BuildingTool>, Build
   'place-castle': 'castle',
 }
 
-// ── asset palette data (drives the Assets card) ──────────────────────
-export type GroundSwatch = { char: string; name: string; bg: string; fg: string; groundType: string }
-
-export const GROUND_SWATCHES: readonly GroundSwatch[] = [
-  { char: '.', name: 'Grass', bg: '#1a5522', fg: '#33aa33', groundType: 'grass' },
-  { char: '~', name: 'Water', bg: '#1155aa', fg: '#55bbff', groundType: 'water' },
-  { char: '=', name: 'Road', bg: '#7a6644', fg: '#ccbb88', groundType: 'road' },
-  { char: '#', name: 'Plaza', bg: '#aa9966', fg: '#eeddbb', groundType: 'plaza' },
-  { char: '|', name: 'Bridge', bg: '#664422', fg: '#bb8844', groundType: 'bridge' },
-]
-
-export const NATURE_TILE_KEYS: readonly string[] = [
-  'trunk', 'trunk_thick', 'foliage', 'foliage_light', 'foliage_dark', 'stump',
-]
-
 // ── stage generator menu (zone × variant) ────────────────────────────
 // Forest-only engine: 5 seasons, beach + lava removed.
 export const STAGE_ZONES = ['spring', 'summer', 'autumn', 'winter', 'desert'] as const
