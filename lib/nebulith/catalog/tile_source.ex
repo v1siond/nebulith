@@ -898,7 +898,7 @@ defmodule Nebulith.Catalog.TileSource do
   defp tree_comp(opts) do
     trunk_w = Map.get(opts, :trunk_w, 1.0)
     leaf_w = Map.get(opts, :leaf_w, 1.0)
-    assert_tree_dimensions!(trunk_w * opts.trunk_zoom, leaf_w * opts.leaf_zoom, opts.trunk_zoom, opts.leaf_zoom, opts)
+    assert_tree_dimensions!(trunk_w, leaf_w, opts)
     leaf_level = round(opts.trunk_h * opts.trunk_zoom)
 
     %{
@@ -929,14 +929,17 @@ defmodule Nebulith.Catalog.TileSource do
   defp trunk_settings(trunk_h, 1.0), do: %{"scaleY" => trunk_h}
   defp trunk_settings(trunk_h, trunk_w), do: %{"scaleY" => trunk_h, "scaleX" => trunk_w}
 
-  defp assert_tree_dimensions!(trunk_eff_w, leaf_eff_w, trunk_zoom, leaf_zoom, opts) do
-    if trunk_zoom < leaf_zoom and trunk_eff_w < leaf_eff_w do
-      :ok
-    else
+  defp assert_tree_dimensions!(trunk_w, leaf_w, opts) do
+    trunk_eff_w = trunk_w * opts.trunk_zoom
+    leaf_eff_w = leaf_w * opts.leaf_zoom
+
+    unless opts.trunk_zoom < opts.leaf_zoom and trunk_eff_w < leaf_eff_w do
       raise ArgumentError,
             "tree #{inspect(opts)} violates dimension sanity: the trunk must be thinner AND less zoomed than " <>
-              "the leaves (trunk_eff_w=#{trunk_eff_w} vs leaf_eff_w=#{leaf_eff_w}, trunk_zoom=#{trunk_zoom} vs leaf_zoom=#{leaf_zoom})"
+              "the leaves (trunk_eff_w=#{trunk_eff_w} vs leaf_eff_w=#{leaf_eff_w}, trunk_zoom=#{opts.trunk_zoom} vs leaf_zoom=#{opts.leaf_zoom})"
     end
+
+    :ok
   end
 
   defp compositions do
