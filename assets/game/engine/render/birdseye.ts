@@ -8,7 +8,7 @@ import { type PlayerState, barFraction, hpFraction } from '@/game/runtime/player
 import { type CombatState, type Entity, type Quest } from '@/game/types'
 import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 import { Connector } from '@/lib/api'
-import { ASCII_FONT, type DayNight, applyCellTransform, clampCameraAxis, collectLampGlows, debugCellCaptions, debugLabelColors, drawConnectorMarker, drawHitMarker, drawHpBar, drawNightLighting, drawQuestMarker, drawStyledImage, clipToBall, sphericalShade, SINGLE_TILE_FRAC, fillTintedGlyph, grassShade, cellFill, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, resolveAssetDraw, resolveEntityDraw, assetOverride, labelTileImage, labelTileRecolor, tileImage } from './shared'
+import { ASCII_FONT, type DayNight, applyCellTransform, clampCameraAxis, collectLampGlows, debugCellCaptions, debugLabelColors, drawConnectorMarker, drawHitMarker, drawHpBar, drawNightLighting, drawQuestMarker, drawStyledImage, drawFlatTileForShape, SINGLE_TILE_FRAC, fillTintedGlyph, grassShade, cellFill, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, resolveAssetDraw, resolveEntityDraw, assetOverride, labelTileImage, labelTileRecolor, tileImage } from './shared'
 import { resolveAssetDrawSize } from './assetDimensions'
 import { resolveAssetAnimation } from './assetAnimation'
 import { DEPTH_CELL_STEP } from './isoBlock'
@@ -238,20 +238,11 @@ export function renderTopView(
         ctx.font = `bold ${fontSize}px ${ASCII_FONT}` // restore the loop's shared font for the next cell
       }
 
-      // SHAPE = "circle" is a FORM modifier, not a repaint (the overhead analogue of the iso ball): draw the SAME
-      // tile but CLIP it to a circle so its painting stays and only the footprint silhouette rounds, then overlay
-      // a soft sphere shade. The square cell backing painted above frames it. (The old path drew a solid tinted
-      // disc, which lost the tile's art — the bug this fixes.)
-      if (asset?.shape === 'circle') {
-        const r = tileSize * 0.5
-        ctx.save()
-        clipToBall(ctx, gx, gy, r, r)
-        drawTopTile()
-        sphericalShade(ctx, gx, gy, r, r)
-        ctx.restore()
-      } else {
-        drawTopTile()
-      }
+      // SHAPE = "circle" is a FORM modifier, not a repaint (the overhead analogue of the iso ball): CLIP the SAME
+      // tile to a circle so its painting stays and only the footprint silhouette rounds, then overlay a soft
+      // sphere shade (the square cell backing painted above frames it). Routed through the shared shape dispatch
+      // (drawFlatTileForShape) — the SAME map iso uses — so 2D/Top never branch on shape; absent/'square' → plain.
+      drawFlatTileForShape(ctx, asset?.shape, drawTopTile, gx, gy, tileSize * 0.5, tileSize * 0.5)
       if (ctTop) ctx.restore()
       if (animWrap) ctx.restore() // pop the tile-animation shift/opacity wrap
 

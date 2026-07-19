@@ -16,7 +16,7 @@ import { EMOJI_TILESET } from '@/engine/tileset/emojiTileset'
 import { applyPose } from '@/engine/tileset/pose'
 import { resolveTileSize, resolveTilePose } from '@/engine/tileset/tileViewSettings'
 import { Connector } from '@/lib/api'
-import { ASCII_FONT, COMBAT_RANGE, type DayNight, ENEMY_MOVE_MS, applyCellTransform, clampCameraAxis, assetCaptionByCell, terrainLabelAt, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawHoverRing, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawConnectorMarker, drawAttackAnimFrame, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, clipToBall, sphericalShade, SINGLE_TILE_FRAC, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, frameImage, getPlayerArt, grassShade, cellFill, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, resolveAssetDraw, resolveEntityDraw, assetOverride, labelTileImage, labelTileRecolor, groundDecorImage, treeCanopyLayers, treeCellSet } from './shared'
+import { ASCII_FONT, COMBAT_RANGE, type DayNight, ENEMY_MOVE_MS, applyCellTransform, clampCameraAxis, assetCaptionByCell, terrainLabelAt, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawHoverRing, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawConnectorMarker, drawAttackAnimFrame, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, drawFlatTileForShape, SINGLE_TILE_FRAC, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, frameImage, getPlayerArt, grassShade, cellFill, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, resolveAssetDraw, resolveEntityDraw, assetOverride, labelTileImage, labelTileRecolor, groundDecorImage, treeCanopyLayers, treeCellSet } from './shared'
 import { resolveAssetDrawSize } from './assetDimensions'
 import { resolveAssetAnimation } from './assetAnimation'
 import { DEPTH_CELL_STEP } from './isoBlock'
@@ -202,19 +202,11 @@ export function draw2DLabeledCell(
     ctx.fillText(char, x, cy)
   }
 
-  // SHAPE = "circle" is a FORM modifier, not a repaint (the flat analogue of the iso ball): draw the SAME front
-  // face but CLIP it to an ellipse so the tile's painting stays and only the silhouette rounds, then overlay a
-  // soft sphere shade. Absent/'square' → the plain rectangular face. (The old path drew a solid tinted ball,
-  // which lost the tile's art — the bug this fixes.)
-  if (asset.shape === 'circle') {
-    ctx.save()
-    clipToBall(ctx, x, cy, drawW * 0.5, drawH * 0.5)
-    drawFace()
-    sphericalShade(ctx, x, cy, drawW * 0.5, drawH * 0.5)
-    ctx.restore()
-    return
-  }
-  drawFace()
+  // SHAPE = "circle" is a FORM modifier, not a repaint (the flat analogue of the iso ball): CLIP the SAME front
+  // face to an ellipse so the tile's painting stays and only the silhouette rounds, then overlay a soft sphere
+  // shade. Routed through the shared shape dispatch (drawFlatTileForShape) — the SAME map iso uses — so 2D/Top
+  // never branch on shape themselves; absent/'square' → the plain rectangular face.
+  drawFlatTileForShape(ctx, asset.shape, drawFace, x, cy, drawW * 0.5, drawH * 0.5)
 }
 
 

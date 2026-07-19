@@ -9,6 +9,7 @@ import { motionPos } from '@/engine/movement'
 import { applyPose, type TilePose } from '@/engine/tileset/pose'
 import { EMOJI_TILESET } from '@/engine/tileset/emojiTileset'
 import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
+import { type TileShape } from '@/engine/tileset/tileset'
 import { edgeToSide, footprintRing, footprintSide, labelForCell, treeSubpart } from '@/engine/stageGenerator'
 import { terrainCaptions } from '@/engine/terrainLabels'
 import { isDead } from '@/game/combat'
@@ -325,6 +326,35 @@ export function sphericalShade(ctx: CanvasRenderingContext2D, cx: number, cy: nu
   ctx.fillStyle = g
   ctx.fill()
   ctx.restore()
+}
+
+/** How a FLAT (2D / overhead) tile's front face renders for a given `shape` — the flat analogue of iso's
+ *  `ISO_SHAPE_DRAWERS`. Each drawer gets the already-built face painter (`drawFace`) plus the tile's centre +
+ *  radii, so a new shape adds ONE entry here, never an `if` at the 2D/Top call sites (SOLID/OCP). 'square' just
+ *  paints the plain face; 'circle' clips it to an ellipse (the painting stays, only the silhouette rounds) then
+ *  overlays the sphere shade — the same round/shade the iso ball uses, so all three views route through a map. */
+type FlatShapeDrawer = (
+  ctx: CanvasRenderingContext2D, drawFace: () => void, cx: number, cy: number, rx: number, ry: number,
+) => void
+
+const FLAT_SHAPE_DRAWERS: Record<TileShape, FlatShapeDrawer> = {
+  square: (_ctx, drawFace) => drawFace(),
+  circle: (ctx, drawFace, cx, cy, rx, ry) => {
+    ctx.save()
+    clipToBall(ctx, cx, cy, rx, ry)
+    drawFace()
+    sphericalShade(ctx, cx, cy, rx, ry)
+    ctx.restore()
+  },
+}
+
+/** Draw a flat tile's front face as the SOLID its `shape` selects — the single call the 2D/overhead draw sites
+ *  use in place of branching on shape themselves. Unknown/absent shape → the square (plain face) drawer. */
+export function drawFlatTileForShape(
+  ctx: CanvasRenderingContext2D, shape: TileShape | undefined, drawFace: () => void,
+  cx: number, cy: number, rx: number, ry: number,
+): void {
+  (FLAT_SHAPE_DRAWERS[shape ?? 'square'] ?? FLAT_SHAPE_DRAWERS.square)(ctx, drawFace, cx, cy, rx, ry)
 }
 
 /** Draw an image tile centered at (cx, cy) filling a `size`×`size` box (optional atlas sub-rect).
