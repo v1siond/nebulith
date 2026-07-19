@@ -4405,7 +4405,22 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
         ctx.fillStyle = '#0a0a12'
         ctx.fillRect(0, 0, canvas.width, canvas.height)
       } else if (topViewMode) {
-        renderTopView(ctx, canvas.width, canvas.height, grid, player, zoomRef.current, selectedCellsRef.current, connectorsRef.current, connectorModeRef.current, camOffsetRef.current, renderEntities, runtime.combat, hitMarkersRef.current, time, questsRef.current, dayNightRef.current, activeStyleRef.current, hoveredCellRef.current)
+        renderTopView({
+          ctx, w: canvas.width, h: canvas.height, grid, player,
+          zoom: zoomRef.current,
+          selectedCells: selectedCellsRef.current,
+          connectors: connectorsRef.current,
+          connectorMode: connectorModeRef.current,
+          camOffset: camOffsetRef.current,
+          entities: renderEntities,
+          enemyCombat: runtime.combat,
+          hitMarkers: hitMarkersRef.current,
+          now: time,
+          quests: questsRef.current,
+          dayNight: dayNightRef.current,
+          style: activeStyleRef.current,
+          hoveredCell: hoveredCellRef.current,
+        })
       } else if (viewTypeRef.current === '2d') {
         render2D({
           ctx, w: canvas.width, h: canvas.height, grid, player, time,

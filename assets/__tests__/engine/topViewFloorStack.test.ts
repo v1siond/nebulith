@@ -77,7 +77,7 @@ const legacyFill = (grid: IsometricGrid, col: number, row: number): string => {
 }
 
 const render = (grid: IsometricGrid, ctx: CanvasRenderingContext2D) =>
-  renderTopView(ctx, W, H, grid, player(), ZOOM)
+  renderTopView({ ctx, w: W, h: H, grid, player: player(), zoom: ZOOM })
 
 describe('Step 4c — renderTopView floor reads the unified stack (index 0), pixel-identical to the direct read', () => {
   test('A — a bare GRASS cell paints its exact legacy grassShade fill at the cell rect', () => {

@@ -170,7 +170,7 @@ describe('composition tiles paint their backend IMAGE (tint ascii, never emoji) 
     return grid
   }
   const run = (ctx: CanvasRenderingContext2D, grid: IsometricGrid, style: Style) =>
-    renderTopView(ctx, 480, 480, grid, player(), 1, new Set(), [], false, { x: 0, y: 0 }, [], new Map(), [], 0, [], 'day', style)
+    renderTopView({ ctx, w: 480, h: 480, grid, player: player(), zoom: 1, selectedCells: new Set(), connectors: [], connectorMode: false, camOffset: { x: 0, y: 0 }, entities: [], enemyCombat: new Map(), hitMarkers: [], now: 0, quests: [], dayNight: 'day', style })
 
   test('ascii: recoloured image', () => {
     const rawImg = tileImage(ASCII_SRC)

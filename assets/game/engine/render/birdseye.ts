@@ -41,26 +41,47 @@ function drawTopArrow(ctx: CanvasRenderingContext2D, x: number, y: number, tileS
 // OWN colour (darkened for glyph legibility) — no per-type backdrop map; colour comes purely from tile data.
 
 
-export function renderTopView(
-  ctx: CanvasRenderingContext2D,
-  w: number,
-  h: number,
-  grid: IsometricGrid,
-  player: PlayerState,
-  zoom: number = 1.0,
-  selectedCells: Set<string> = new Set(),
-  connectors: Connector[] = [],
-  connectorMode: boolean = false,
-  camOffset: { x: number; y: number } = { x: 0, y: 0 },
-  entities: readonly Entity[] = [],
-  enemyCombat: ReadonlyMap<string, CombatState> = new Map(),
-  hitMarkers: readonly HitMarker[] = [],
-  now: number = 0,
-  quests: readonly Quest[] = [],
-  dayNight: DayNight = 'day',
-  style: Style = ASCII_STYLE,
-  hoveredCell: { col: number; row: number } | null = null,
-) {
+/** Everything renderTopView() needs to draw one bird's-eye (footprint) frame. Required: the ctx, the
+ *  viewport (w, h), the grid, and the player; everything else defaults to empty/neutral. One struct
+ *  instead of 18 positional args so the call site reads by name. */
+export interface RenderTopViewParams {
+  ctx: CanvasRenderingContext2D
+  w: number
+  h: number
+  grid: IsometricGrid
+  player: PlayerState
+  zoom?: number
+  selectedCells?: Set<string>
+  connectors?: Connector[]
+  connectorMode?: boolean
+  camOffset?: { x: number; y: number }
+  entities?: readonly Entity[]
+  enemyCombat?: ReadonlyMap<string, CombatState>
+  hitMarkers?: readonly HitMarker[]
+  now?: number
+  quests?: readonly Quest[]
+  dayNight?: DayNight
+  style?: Style
+  hoveredCell?: { col: number; row: number } | null
+}
+
+export function renderTopView(params: RenderTopViewParams) {
+  const {
+    ctx, w, h, grid, player,
+    zoom = 1.0,
+    selectedCells = new Set<string>(),
+    connectors = [],
+    connectorMode = false,
+    camOffset = { x: 0, y: 0 },
+    entities = [],
+    enemyCombat = new Map<string, CombatState>(),
+    hitMarkers = [],
+    now = 0,
+    quests = [],
+    dayNight = 'day',
+    style = ASCII_STYLE,
+    hoveredCell = null,
+  } = params
   // Clear
   ctx.fillStyle = '#0a0a10'
   ctx.fillRect(0, 0, w, h)
