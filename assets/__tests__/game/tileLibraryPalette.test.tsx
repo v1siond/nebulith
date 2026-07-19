@@ -10,7 +10,7 @@
  *                    hardcoded copy like the old ASCII_TILE_GLYPHS / emojiCatalog.json).
  */
 import { render, screen } from '@testing-library/react'
-import { TilePalette } from '@/components/game/editorChrome'
+import { TilePalette, TileLibraryBody } from '@/components/game/editorChrome'
 import { tilesForStyle, visualForTileId, rebuildEmojiStyle } from '@/game/artStyle'
 import { EMOJI_TILESET, setEmojiTileset } from '@/engine/tileset/emojiTileset'
 import { ASCII_TILESET, setAsciiTileset } from '@/engine/tileset/asciiTileset'
@@ -46,6 +46,41 @@ describe('Tile Library sidebar reads ONLY the backend-loaded tileset (G3/G4)', (
     expect(screen.queryAllByText('🖼')).toHaveLength(0)
     const btn = screen.getByTitle('Grass (emoji:grass)')
     expect(btn.querySelector('img')?.getAttribute('src')).toBe('/tiles/emoji/baked/grass.png')
+  })
+
+  // User: "we have 'enemy' tiles, outside of the 'units' option from the top nav … the paint should work for
+  // regular tiles." The PAINT palette must list REGULAR tiles ONLY (terrain / buildings / nature) — units
+  // (player / enemies / NPCs) are placed via the top-nav ◈ Unit flow, never armed as a paint brush.
+  it('the Paint palette lists REGULAR tiles only — no unit/enemy tiles (units come from the top-nav)', () => {
+    setEmojiTileset({
+      grass: { char: '🍀', color: '#5faf4a', image: '/tiles/emoji/baked/grass.png', category: 'terrain', title: 'Grass' },
+      pine_tree: { char: '🌲', color: '#2f7d3a', category: 'nature', title: 'Pine Tree', height: 1 },
+      goblin: { char: '👺', color: '#c0392b', category: 'units', title: 'Goblin' },
+      npc: { char: '🧍', color: '#4aa3df', category: 'units', title: 'NPC' },
+    })
+    rebuildEmojiStyle()
+
+    render(<TilePalette styleId="emoji" styleName="Emoji" armedId={null} onArm={() => {}} />)
+    // regular tiles ARE offered
+    expect(screen.getByTitle('Grass (emoji:grass)')).toBeInTheDocument()
+    expect(screen.getByTitle('Pine Tree (emoji:pine_tree)')).toBeInTheDocument()
+    // unit/enemy tiles are NOT — and the "units" category header never renders in the paint palette
+    expect(screen.queryByTitle('Goblin (emoji:goblin)')).toBeNull()
+    expect(screen.queryByTitle('NPC (emoji:npc)')).toBeNull()
+    expect(screen.queryByText('units')).toBeNull()
+  })
+
+  // The Tile LIBRARY (pin a tile as an element override) is a DIFFERENT surface — it still browses every
+  // category, units included; only the Paint palette drops units. Proves the filter is scoped to paint.
+  it('the Tile Library still lists units (only the Paint palette drops them)', () => {
+    setEmojiTileset({
+      grass: { char: '🍀', color: '#5faf4a', category: 'terrain', title: 'Grass' },
+      goblin: { char: '👺', color: '#c0392b', category: 'units', title: 'Goblin' },
+    })
+    rebuildEmojiStyle()
+    render(<TileLibraryBody styleId="emoji" styleName="Emoji" override={null} onPick={() => {}} />)
+    expect(screen.getByTitle('Goblin (emoji:goblin)')).toBeInTheDocument()
+    expect(screen.getByText('units')).toBeInTheDocument()
   })
 
   it('ascii sidebar derives from the loaded ascii tileset (glyph + title from the DB, not a hardcoded map)', () => {

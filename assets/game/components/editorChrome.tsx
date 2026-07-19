@@ -413,7 +413,10 @@ export function TilePalette({
   armedId: string | null
   onArm: (tile: TileDef | null) => void
 }) {
-  const groups = tilesForStyle(styleId)
+  // The Paint palette lists REGULAR tiles only (terrain / buildings / nature). Units (player / enemies /
+  // NPCs) are placed through the top-nav ◈ Unit flow, NOT the paint brush — so drop the `units` group here
+  // (a painted unit would spawn an entity, a separate concern the user asked to keep out of paint).
+  const groups: Record<TileCategory, TileDef[]> = { ...tilesForStyle(styleId), units: [] }
   const armed = armedId ? (Object.values(groups).flat() as TileDef[]).find(t => t.id === armedId) ?? null : null
   return (
     <div className="space-y-3" data-testid="tile-palette">
