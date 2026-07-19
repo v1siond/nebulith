@@ -46,3 +46,7 @@ export const SEASON_BTN: Record<(typeof STAGE_ZONES)[number], string> = {
   desert: 'bg-yellow-700 ring-1 ring-yellow-300',
 }
 export const STAGE_VARIANTS = ['forest', 'town', 'city', 'cave', 'temple'] as const // forest, seasonal settlements (town → ~4× city), a seasonal cavern, + a seasonal temple dungeon
+
+// Shared field styling for the small editor form controls (triggers + animation editors).
+export const SELECT_CLS = 'flex-1 rounded bg-gray-800 p-1 text-xs text-gray-100'
+export const INPUT_CLS = 'w-full rounded bg-gray-800 p-1 text-xs text-gray-100'
