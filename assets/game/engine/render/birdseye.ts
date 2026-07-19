@@ -8,7 +8,7 @@ import { type PlayerState, barFraction, hpFraction } from '@/game/runtime/player
 import { type CombatState, type Entity, type Quest } from '@/game/types'
 import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 import { Connector } from '@/lib/api'
-import { ASCII_FONT, type DayNight, applyCellTransform, clampCameraAxis, collectLampGlows, debugCellCaptions, debugLabelColors, drawConnectorMarker, drawHitMarker, drawHpBar, drawNightLighting, drawQuestMarker, drawStyledImage, drawFlatTileForShape, SINGLE_TILE_FRAC, fillTintedGlyph, grassShade, cellFill, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, resolveAssetDraw, resolveEntityDraw, assetOverride, labelTileImage, labelTileRecolor, tileImage } from './shared'
+import { ASCII_FONT, type CompositionGhost, type DayNight, applyCellTransform, clampCameraAxis, collectLampGlows, drawCompositionGhostFlat, debugCellCaptions, debugLabelColors, drawConnectorMarker, drawHitMarker, drawHpBar, drawNightLighting, drawQuestMarker, drawStyledImage, drawFlatTileForShape, SINGLE_TILE_FRAC, fillTintedGlyph, grassShade, cellFill, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, resolveAssetDraw, resolveEntityDraw, assetOverride, labelTileImage, labelTileRecolor, tileImage } from './shared'
 import { resolveAssetDrawSize } from './assetDimensions'
 import { resolveAssetAnimation } from './assetAnimation'
 import { DEPTH_CELL_STEP } from './isoBlock'
@@ -63,6 +63,8 @@ export interface RenderTopViewParams {
   dayNight?: DayNight
   style?: Style
   hoveredCell?: { col: number; row: number } | null
+  /** Armed Tile-composition placement ghost — a translucent footprint at the hover cell before the click. */
+  ghost?: CompositionGhost | null
 }
 
 export function renderTopView(params: RenderTopViewParams) {
@@ -81,6 +83,7 @@ export function renderTopView(params: RenderTopViewParams) {
     dayNight = 'day',
     style = ASCII_STYLE,
     hoveredCell = null,
+    ghost = null,
   } = params
   // Clear
   ctx.fillStyle = '#0a0a10'
@@ -462,6 +465,9 @@ export function renderTopView(params: RenderTopViewParams) {
     const hy = offsetY + hoveredCell.row * tileSize
     ctx.strokeRect(hx + 1, hy + 1, tileSize - 3, tileSize - 3)
   }
+
+  // Armed-composition GHOST — the translucent footprint the click will stamp, in flat top-down cells.
+  if (ghost) drawCompositionGhostFlat(ctx, ghost, (col, row) => ({ x: offsetX + col * tileSize, y: offsetY + row * tileSize }), tileSize)
 
   // Floating "+dmg" hit markers (cell-centred in top space).
   for (const marker of hitMarkers) {

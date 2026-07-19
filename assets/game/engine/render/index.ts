@@ -4,4 +4,4 @@ export { render2D, pickTwoDTilesAt, pickTwoDTileAt, twoDRecordedGeom } from './t
 export { tileGeomPolygon, tileGeomCentroid, type Pt } from './tileHit'
 export { polyBBox, tileHandlePoints, handleAtPoint, dragOutwardPx, scaleFromDrag, depthFromDrag, drawTileHandles, HANDLE_HIT_RADIUS, HANDLE_SIZE, type TileHandle, type HandleId } from './tileHandles'
 export { renderTopView } from './birdseye'
-export { clampCameraAxis, isoCameraFocus, entityMotion, ENEMY_MOVE_MS, isDebugMode, setDebugMode, isShowCollisions, setShowCollisions, cellCaptionMap, type DayNight } from './shared'
+export { clampCameraAxis, isoCameraFocus, entityMotion, ENEMY_MOVE_MS, isDebugMode, setDebugMode, isShowCollisions, setShowCollisions, cellCaptionMap, compositionGhostColors, drawCompositionGhostFlat, type CompositionGhost, type DayNight } from './shared'

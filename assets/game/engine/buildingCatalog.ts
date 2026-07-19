@@ -9,6 +9,7 @@
 import type { BuildingType } from './buildingTypes'
 import type { Facing } from './villageLayout'
 import type { IsometricGrid } from './IsometricGrid'
+import type { Composition } from './tileset/tileset'
 import { resolveComposition } from './tileset/tileset'
 import { ASCII_TILESET } from './tileset/asciiTileset'
 
@@ -143,4 +144,95 @@ export function canPlaceBuildingComposition(grid: IsometricGrid, kind: string, a
     }
   }
   return true
+}
+
+// ── generic composition placement (buildings AND props/trees) ────────────────
+// Buildings are one kind of composition; fountains, wells, lamp posts and trees are others. The editor's
+// Tile-composition tool arms ANY of them, so placement here is composition-generic — the SAME plan the ghost
+// preview draws and the click stamps, so what you see is exactly what lands (no building-only special case).
+
+/** True iff a composition reads as a BUILDING — it has a ground-level `door` cell. Data-driven: a building
+ *  fronts a road (rotate its door to face it), while a fountain / well / lamp post / tree has no door and
+ *  never rotates. This is the single signal that separates "faces the road" from "drops as-is". Pure. */
+export function compositionFacesRoad(comp: Composition): boolean {
+  return comp.cells.some(c => (c.level ?? 0) === 0 && c.label === 'door')
+}
+
+/** How many blocks TALL a composition stands — its highest cell level + 1 (a flat fountain = 1, a 6-storey
+ *  building = 7). Used by the ghost preview to extrude a translucent volume so you sense the massing. Pure. */
+export function compositionHeight(comp: Composition): number {
+  let max = 0
+  for (const c of comp.cells) max = Math.max(max, c.level ?? 0)
+  return max + 1
+}
+
+/** The distinct GRID CELLS a composition occupies when stamped with its footprint TOP-LEFT at
+ *  (anchorCol,anchorRow), rotated `rotation` quarter-turns — deduped across stack levels (a wall column →
+ *  one cell). Reuses the SAME `rotateFootprintOffset` the stamp applies, so the previewed footprint is
+ *  byte-accurate to what gets placed. Pure — the geometry the ghost preview + validity check both read. */
+export function compositionFootprintCells(comp: Composition, anchorCol: number, anchorRow: number, rotation: number): { col: number; row: number }[] {
+  const { w, h } = comp.footprint
+  const seen = new Set<string>()
+  const cells: { col: number; row: number }[] = []
+  for (const c of comp.cells) {
+    const off = rotation ? rotateFootprintOffset(c.dx, c.dy, w, h, rotation) : { dx: c.dx, dy: c.dy }
+    const col = anchorCol + off.dx
+    const row = anchorRow + off.dy
+    const key = `${col},${row}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    cells.push({ col, row })
+  }
+  return cells
+}
+
+/** True iff EVERY cell fits on the grid: in-bounds, not blocked (tree/water/another building), and — for a
+ *  building (`excludeRoads`) — not on a road/path. Reads the ACTUAL occupied cells (not the bounding rect),
+ *  so an L-shaped or basin composition is judged on the cells it truly fills. Pure. */
+export function canPlaceComposition(grid: IsometricGrid, cells: readonly { col: number; row: number }[], excludeRoads: boolean): boolean {
+  for (const { col, row } of cells) {
+    if (col < 0 || row < 0 || col >= grid.cols || row >= grid.rows) return false
+    if (grid.collision[row]?.[col] === 1) return false
+    if (excludeRoads && isRoadGround(grid.ground[row]?.[col])) return false
+  }
+  return true
+}
+
+/** A resolved placement of a composition at a hovered cell: where it lands, how it's rotated, the exact cells
+ *  it fills, and whether it fits. ONE source of truth shared by the click (stamp) and the ghost preview (draw),
+ *  so the shadow you see is precisely what the click places. */
+export interface CompositionPlan {
+  kind: string
+  comp: Composition
+  facing: Facing
+  /** CW quarter-turns applied to the footprint (buildings rotate to face the road; props/trees stay 0). */
+  rotation: number
+  anchorCol: number
+  anchorRow: number
+  /** the rotated, on-grid footprint rect (w×h). */
+  footprint: { w: number; h: number }
+  /** the distinct grid cells the composition occupies (deduped across levels). */
+  cells: { col: number; row: number }[]
+  /** blocks tall (max level + 1) — the ghost's extrusion height. */
+  height: number
+  /** true when every occupied cell fits (in-bounds, unblocked, off-road for buildings). */
+  valid: boolean
+}
+
+/** Plan where composition `kind` would land if placed with the CLICKED cell as its footprint CENTRE — the
+ *  generic replacement for the building-only placeNewBuilding math. Buildings rotate to face the nearest road;
+ *  props/trees drop unrotated. Returns null only when the composition isn't in the loaded tileset yet. */
+export function planComposition(grid: IsometricGrid, kind: string, col: number, row: number): CompositionPlan | null {
+  const comp = resolveComposition(ASCII_TILESET, kind)
+  if (!comp) return null
+  const facesRoad = compositionFacesRoad(comp)
+  const facing: Facing = facesRoad ? nearestRoadFacing(grid, col, row) : 'south'
+  const rotation = facesRoad ? facingRotation(facing) : 0
+  const swap = facing === 'east' || facing === 'west'
+  const footprint = swap ? { w: comp.footprint.h, h: comp.footprint.w } : { w: comp.footprint.w, h: comp.footprint.h }
+  const anchorCol = col - Math.floor(footprint.w / 2)
+  const anchorRow = row - Math.floor(footprint.h / 2)
+  const cells = compositionFootprintCells(comp, anchorCol, anchorRow, rotation)
+  const valid = canPlaceComposition(grid, cells, facesRoad)
+  return { kind, comp, facing, rotation, anchorCol, anchorRow, footprint, cells, height: compositionHeight(comp), valid }
 }

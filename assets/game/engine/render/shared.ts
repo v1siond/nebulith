@@ -1110,6 +1110,49 @@ export function drawHoverRing(ctx: CanvasRenderingContext2D, cx: number, footY: 
   ctx.restore()
 }
 
+// ── Composition placement GHOST ─────────────────────────────────────────────
+// A translucent shadow of the armed Tile-composition, drawn at the hovered cell BEFORE the click, so you see
+// its footprint (how many cells/blocks) and roughly how it looks. The RAF loop computes it (planComposition)
+// and hands the renderer the exact cells + validity + height — the SAME cells the click stamps.
+
+/** The armed composition's footprint at the hover cell: the cells it fills, whether it fits there, and how
+ *  many blocks tall it stands (the iso extrusion height). Shared by every view's ghost pass. */
+export interface CompositionGhost {
+  cells: readonly { col: number; row: number }[]
+  valid: boolean
+  height: number
+}
+
+/** Ghost tint by validity: a soft GREEN when it fits, RED when it's blocked/out-of-bounds/on a road — the
+ *  at-a-glance "can I drop it here?" read. `edge` is the crisp outline, `edgeDim` the faded raised-volume lines. */
+export function compositionGhostColors(valid: boolean): { fill: string; edge: string; edgeDim: string } {
+  return valid
+    ? { fill: 'rgba(90, 220, 140, 0.22)', edge: 'rgba(150, 255, 190, 0.95)', edgeDim: 'rgba(150, 255, 190, 0.45)' }
+    : { fill: 'rgba(240, 90, 90, 0.22)', edge: 'rgba(255, 150, 150, 0.95)', edgeDim: 'rgba(255, 150, 150, 0.45)' }
+}
+
+/** Draw the ghost footprint in a FLAT (top-down) view: a translucent tinted square per occupied cell. `cellTL`
+ *  maps a cell to its screen TOP-LEFT; `tileSize` is the cell edge in px. Clearly shows the cell count. */
+export function drawCompositionGhostFlat(
+  ctx: CanvasRenderingContext2D,
+  ghost: CompositionGhost,
+  cellTL: (col: number, row: number) => { x: number; y: number },
+  tileSize: number,
+): void {
+  if (ghost.cells.length === 0) return
+  const { fill, edge } = compositionGhostColors(ghost.valid)
+  ctx.save()
+  ctx.lineWidth = 1.5
+  ctx.fillStyle = fill
+  ctx.strokeStyle = edge
+  for (const { col, row } of ghost.cells) {
+    const p = cellTL(col, row)
+    ctx.fillRect(p.x + 1, p.y + 1, tileSize - 2, tileSize - 2)
+    ctx.strokeRect(p.x + 1, p.y + 1, tileSize - 2, tileSize - 2)
+  }
+  ctx.restore()
+}
+
 /** The entity's animation frame, gated on movement: idle HOLDS a static pose (no leg/arm
  *  swap over time), walk swaps the base/alt art (frame 0/1) only while the entity is moving,
  *  and combat swaps when an enemy is in range. Pure selection lives in engine/entityAnim. */

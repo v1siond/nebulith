@@ -15,7 +15,7 @@ import { type CombatState, type Entity, type Quest } from '@/game/types'
 import { resolveGroundTile, type TileShape } from '@/engine/tileset/tileset'
 import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 import { Connector } from '@/lib/api'
-import { ASCII_FONT, COMBAT_RANGE, type DayNight, type DrawVisual, ENEMY_MOVE_MS, LIGHT, applyCellTransform, isoCameraFocus, assetCaptionByCell, terrainLabelAt, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawHoverRing, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawConnectorMarker, drawAttackAnimFrame, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, clipToBall, SINGLE_TILE_FRAC, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, frameImage, getPlayerArt, grassShade, cellFill, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, resolveAssetDraw, resolveEntityDraw, assetOverride, labelTileImage, labelTileRecolor, groundDecorImage, tileImage, tintedImage, tintedGlyphSprite, treeCanopyLayers, treeCellSet } from './shared'
+import { ASCII_FONT, COMBAT_RANGE, type DayNight, type DrawVisual, ENEMY_MOVE_MS, LIGHT, applyCellTransform, isoCameraFocus, assetCaptionByCell, terrainLabelAt, collectLampGlows, type CompositionGhost, compositionGhostColors, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawHoverRing, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawConnectorMarker, drawAttackAnimFrame, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, clipToBall, SINGLE_TILE_FRAC, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, frameImage, getPlayerArt, grassShade, cellFill, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, resolveAssetDraw, resolveEntityDraw, assetOverride, labelTileImage, labelTileRecolor, groundDecorImage, tileImage, tintedImage, tintedGlyphSprite, treeCanopyLayers, treeCellSet } from './shared'
 import { resolveAssetDrawSize } from './assetDimensions'
 import { resolveAssetAnimation } from './assetAnimation'
 import { type GroundCellDims, groundSizeFactors, groundDimsActive } from '@/engine/groundDims'
@@ -408,6 +408,45 @@ export interface IsoRenderParams {
   hoverId?: string | null
   selectedCells?: ReadonlySet<string>
   hoveredCell?: { col: number; row: number; level?: number } | null
+  /** Armed Tile-composition placement ghost — a translucent footprint drawn at the hover cell before the click. */
+  ghost?: CompositionGhost | null
+}
+
+/** Draw the composition-placement GHOST in ISO: each occupied cell gets a translucent tinted diamond on the
+ *  ground (the footprint = "how many blocks"), a faded top diamond raised by the composition's height, and
+ *  the vertical edges between them — a see-through massing box so you sense the volume before you click.
+ *  Green when it fits, red when blocked. `toScreen`/`tileW`/`tileH`/`heightStep` come from the live render. */
+export function drawCompositionGhostIso(
+  ctx: CanvasRenderingContext2D,
+  ghost: CompositionGhost,
+  toScreen: (col: number, row: number) => { x: number; y: number },
+  tileW: number,
+  tileH: number,
+  heightStep: number,
+): void {
+  if (ghost.cells.length === 0) return
+  const { fill, edge, edgeDim } = compositionGhostColors(ghost.valid)
+  const rise = Math.min(ghost.height, 12) * heightStep // cap so a tall castle preview stays on screen
+  ctx.save()
+  ctx.lineWidth = 1.5
+  for (const { col, row } of ghost.cells) {
+    const p = toScreen(col, row)
+    const gt = { x: p.x, y: p.y - tileH }, gr = { x: p.x + tileW, y: p.y }, gb = { x: p.x, y: p.y + tileH }, gl = { x: p.x - tileW, y: p.y }
+    // Ground footprint diamond — filled + crisp outline (the primary "these cells" read).
+    ctx.fillStyle = fill
+    ctx.strokeStyle = edge
+    ctx.beginPath(); ctx.moveTo(gt.x, gt.y); ctx.lineTo(gr.x, gr.y); ctx.lineTo(gb.x, gb.y); ctx.lineTo(gl.x, gl.y); ctx.closePath(); ctx.fill(); ctx.stroke()
+    // Raised top diamond + vertical edges — a faded wireframe volume so you sense the massing/height.
+    ctx.strokeStyle = edgeDim
+    ctx.beginPath(); ctx.moveTo(gt.x, gt.y - rise); ctx.lineTo(gr.x, gr.y - rise); ctx.lineTo(gb.x, gb.y - rise); ctx.lineTo(gl.x, gl.y - rise); ctx.closePath(); ctx.stroke()
+    ctx.beginPath()
+    ctx.moveTo(gt.x, gt.y); ctx.lineTo(gt.x, gt.y - rise)
+    ctx.moveTo(gr.x, gr.y); ctx.lineTo(gr.x, gr.y - rise)
+    ctx.moveTo(gb.x, gb.y); ctx.lineTo(gb.x, gb.y - rise)
+    ctx.moveTo(gl.x, gl.y); ctx.lineTo(gl.x, gl.y - rise)
+    ctx.stroke()
+  }
+  ctx.restore()
 }
 
 export function render(params: IsoRenderParams) {
@@ -431,6 +470,7 @@ export function render(params: IsoRenderParams) {
     hoverId = null,
     selectedCells = new Set<string>(),
     hoveredCell = null,
+    ghost = null,
   } = params
   const __isoT0 = perfNow() // perf probe — rolling avg of render() ms, exposed on window.__isoRenderMs
   // Clear
@@ -785,6 +825,9 @@ export function render(params: IsoRenderParams) {
       strokeCellOrTile(col, row, lvl)
     }
   }
+
+  // Armed-composition GHOST — a translucent footprint at the hover cell (drawn last so it reads over the scene).
+  if (ghost) drawCompositionGhostIso(ctx, ghost, toScreen, tileW, tileH, heightStep)
 
   // ─── UI ───────────────────────────────────────────────────────────
 
