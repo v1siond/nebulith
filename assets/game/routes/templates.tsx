@@ -39,7 +39,7 @@ import { type PlayerState, aimFromKeys, facingFromKeys, playerDisplayName, resol
 import { activeQuest, applyQuestEvent, questAnchorScreenPos, questForGiver, reachableQuestGiver, rewardSummary, upsertQuest } from '@/game/runtime/quest'
 import { type EnemyRuntime, isLivingEnemy, makeEnemyRuntime, RANGED_RANGE } from '@/game/runtime/targeting'
 import { ENEMY_TYPES, CAVE_ENEMY_TYPES, TEMPLE_ENEMY_TYPES, archetypeForEnemyType, scatterEntities } from '@/game/spawner'
-import { type CombatState, type Entity, type EntityKind, type Inventory, type Item, type Loadout, type Quest, type Reward, type Stats, type TalentPath, type Weapon } from '@/game/types'
+import { type CombatState, type Entity, type EntityKind, type Inventory, type Item, type Loadout, type MovementPattern, type Quest, type Reward, type Stats, type TalentPath, type Weapon } from '@/game/types'
 import { weaponReach } from '@/game/weapons'
 import { VILLAGE_CONFIG } from '@/levels/village'
 import { Connector, TemplateListItem, createTemplate, deleteTemplate, deserializeToGrid, getTemplate, listTemplates, serializeGrid, updateTemplate, updateGame } from '@/lib/api'
@@ -55,7 +55,7 @@ import { EMOJI_TILESET, setTilePose } from '@/engine/tileset/emojiTileset'
 import { type TilePose } from '@/engine/tileset/pose'
 import { type AssetLight, type TileDisplay, type TileShape } from '@/engine/tileset/tileset'
 import { type QuestDraft, emptyQuestDraft, questFromDraft } from '@/game/runtime/questDraft'
-import { seedCharacterAnimations, needsAnimationReseed, entityAnimationsFromUnit, unitAnimationsFromEntity } from '@/game/runtime/entityAnimation'
+import { seedCharacterAnimations, needsAnimationReseed, entityAnimationsFromUnit, unitAnimationsFromEntity, randomMovementAnimation } from '@/game/runtime/entityAnimation'
 import { stampBuildingComposition, stampBuildingKind, stampComposition } from '@/game/runtime/composition'
 import { type Cursor, type JumpState, JUMP_MS, JUMP_PEAK_PX, advanceEnemyMovement, beginJump, tickCannons } from '@/game/runtime/movement'
 import { playSwoosh } from '@/game/runtime/audio'
@@ -66,7 +66,7 @@ import { EntityAttackBody, FloatingPanel, Modal, QuestGiveBody, SettingsPanelBod
 import { FlowViewOverlay, GamesViewOverlay } from '@/components/game/games'
 import { BUILDING_TOOL_TYPE, type BuildingTool, type EditorMode, type EntityTool } from '@/components/game/editorConfig'
 import { useDayNight, useFloatingPanels, useIsMobile } from '@/components/game/editorHooks'
-import { Dropdown, FpsReadout, GenerateControls, PoseControls, PropertiesPanel, type TileControlModel, SelectionHeader, StylePicker, TileAnimationEditor, TileLibraryBody, TilePalette, ToolRail, TriggerEditor, WEAPON_KINDS } from '@/components/game/editorChrome'
+import { Dropdown, FpsReadout, GenerateControls, PoseControls, PropertiesPanel, type TileControlModel, SelectionHeader, StylePicker, TileAnimationEditor, TileLibraryBody, TilePalette, ToolRail, TriggerEditor, UnitPicker, WEAPON_KINDS } from '@/components/game/editorChrome'
 import type { Animation as TileAnim } from '@/engine/animation/tileAnimation'
 import { useFps } from '@/components/useFps'
 import { commonValue, commonBool, cellsFromKeys, removeSelectedBlock } from '@/game/editor/selectionEdit'
@@ -164,10 +164,12 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   const [armedTile, setArmedTile] = useState<TileDef | null>(null)
   const armedTileRef = useRef<TileDef | null>(null) // live mirror for the mounted-once keydown handler (Esc disarms)
   useEffect(() => { armedTileRef.current = armedTile }, [armedTile])
-  // Render opacity (0.15–1) applied to tiles placed from the palette — play with contrast / depth.
-  const [placeOpacity, setPlaceOpacity] = useState(1)
-  const [selectedHeight, setSelectedHeight] = useState(0)
-  const [heightEditMode, setHeightEditMode] = useState(false)
+  // ◈ Unit placement (top-nav): the picked creature tile, whether we ADD (click) or SCATTER (randomize), and
+  // whether a placed unit is STATIC or wandering with a randomized movement animation. Height/opacity used to
+  // live in the Paint sidebar — they're Inspector-only now (per-tile), so the paint brush places at full size.
+  const [unitTile, setUnitTile] = useState<TileDef | null>(null)
+  const [unitPlaceMode, setUnitPlaceMode] = useState<'add' | 'scatter'>('add')
+  const [unitAnimated, setUnitAnimated] = useState(false)
   const [hideEntities, setHideEntities] = useState(false)
   const hideEntitiesRef = useRef(false)
   useEffect(() => {
@@ -304,7 +306,6 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   // key (debounced). The backend owns this, so panel geometry is never hardcoded in the frontend.
   // FloatingPanel props for a modal id: restore its saved geometry (else `def`) + persist on move/resize end.
   const floatingProps = useFloatingPanels()
-  const [enemyType, setEnemyType] = useState('goblin')
   const [npcName, setNpcName] = useState('')
   const entitiesRef = useRef<Entity[]>([])
 
@@ -1256,6 +1257,32 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   }
 
   // ── Entity placement ───────────────────────────────────────────────
+  // A random patrol around a spawn (mirrors spawner.makePatrol, which isn't exported): 3–4 jittered ±2-cell
+  // waypoints, keeping only walkable in-bounds cells. Used by the ◈ Unit "Animated" placement so the unit
+  // actually wanders (the visible half of "animated"; the walk cycle is the other half).
+  const randomPatrol = (col: number, row: number): MovementPattern => {
+    const grid = gridRef.current
+    const waypoints: { col: number; row: number }[] = [{ col, row }]
+    const extra = 3 + Math.floor(Math.random() * 2)
+    for (let k = 0; k < extra; k++) {
+      const c = col + (Math.floor(Math.random() * 5) - 2)
+      const r = row + (Math.floor(Math.random() * 5) - 2)
+      if (grid && c >= 0 && r >= 0 && c < grid.cols && r < grid.rows && !grid.isBlocked(c, r)) waypoints.push({ col: c, row: r })
+    }
+    return { mode: 'random', waypoints }
+  }
+
+  /** Pin a placed unit STILL: a stationary single-waypoint pattern (a no-op in the stepper) so it never
+   *  inherits the runtime's default wander. The STATIC half of the ◈ Unit motion toggle. */
+  const withStaticMotion = <T extends Entity>(ent: T): T => ({ ...ent, movement: { mode: 'sequential', waypoints: [{ col: ent.col, row: ent.row }] } })
+
+  /** Place a unit ANIMATED: a random wandering patrol PLUS a randomized movement animation (authored as
+   *  DATA in `unitAnimations`, projected to the render list `animations`) — the ANIMATED half of the toggle. */
+  const withRandomMotion = <T extends Entity>(ent: T): T => {
+    const anim = randomMovementAnimation()
+    return { ...ent, movement: randomPatrol(ent.col, ent.row), animations: [anim], unitAnimations: unitAnimationsFromEntity([anim]) }
+  }
+
   // One builder per placeable kind (dispatch map, not a switch). Each returns a
   // fresh Entity from the pure factory; the orchestrator below guards placement.
   const ENTITY_BUILDERS: Record<EntityKind, (col: number, row: number) => Entity> = {
@@ -1263,16 +1290,10 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     // A MANUALLY-placed enemy is STATIC by default — NO auto movement/animation ("added with animation by
     // default" should ONLY happen when SCATTERING). An enemy with NO movement inherits the runtime's
     // DEFAULT_ENEMY_PATROL (advanceEnemyMovement) and wanders — so to keep a hand-placed enemy STILL we pin
-    // an explicit STATIONARY pattern (a single waypoint = its own cell → the stepper no-ops). Scatter
-    // (spawner.buildEnemy) attaches a real makePatrol, so scattered enemies still move; the user authors this
-    // one's movement/animation in the Inspector. The typed enemy type still picks a combat archetype
-    // (stats + attack pattern) so a placed goblin/wolf/bandit/skeleton differs.
-    enemy: (col, row) => ({
-      ...makeEnemy(mintEntityId('enemy'), col, row, enemyType.trim() || 'enemy', {
-        archetype: archetypeForEnemyType(enemyType.trim()),
-      }),
-      movement: { mode: 'sequential', waypoints: [{ col, row }] },
-    }),
+    // an explicit STATIONARY pattern (a single waypoint = its own cell → the stepper no-ops). The concrete
+    // creature (goblin/wolf/…) + its combat archetype now come from the picked ◈ Unit tile (placeUnitTile);
+    // this bare builder is the fallback (rail-armed Unit with no pick) → a plain, still 'enemy'.
+    enemy: (col, row) => withStaticMotion(makeEnemy(mintEntityId('enemy'), col, row, 'enemy')),
     npc: (col, row) => makeNpc(mintEntityId('npc'), col, row, { name: npcName.trim() || undefined }),
   }
 
@@ -1280,6 +1301,21 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
    *  selection + connector + building modes so placement and selection never fight. */
   const toggleEntityTool = (tool: Exclude<EntityTool, null>) => {
     setEntityTool(prev => (prev === tool ? null : tool))
+    setUnitTile(null) // a plain tool (player/npc/erase/collision) drops any picked creature tile
+    setPaintMode(false)
+    setConnectorMode(false)
+    setEditingConnector(null)
+    setSelectedCells(new Set())
+    setBuildingTool(null)
+  }
+
+  /** Pick WHICH creature the ◈ Unit flow places (re-picking the same tile disarms). The tile's slug decides
+   *  the entity KIND (person → npc, monster → enemy, player → player) so one picker serves them all; a canvas
+   *  click then places THAT exact figure via placeUnitTile. Clears the other tools so a click routes to one. */
+  const pickUnitTile = (tile: TileDef | null) => {
+    const next = tile && unitTile?.id === tile.id ? null : tile
+    setUnitTile(next)
+    setEntityTool(next ? entityKindForUnitSlug(tileSlug(next.id)) : null)
     setPaintMode(false)
     setConnectorMode(false)
     setEditingConnector(null)
@@ -1390,6 +1426,16 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     // Collision paint: toggle a cell blocked/walkable directly (easy manual control).
     if (entityTool === 'collision') {
       grid.setCollision(col, row, !grid.isBlocked(col, row))
+      return
+    }
+
+    // A picked ◈ Unit tile places THAT exact figure — kind derived from the slug (person→npc, monster→enemy,
+    // player→player). placeUnitTile guards + pins the art (tileOverride); the motion toggle picks static vs
+    // a randomized wandering animation. This supersedes the generic player/builder path when a tile is armed.
+    if (unitTile) {
+      if (!placeUnitTile(col, row, unitTile, { animated: unitAnimated })) {
+        toast('Cell is blocked, out of bounds, or already occupied', 'warning')
+      }
       return
     }
 
@@ -2100,6 +2146,32 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     })
   }
 
+  // ◈ Unit → Scatter: randomize several of the PICKED creature into the free space (each with the picked art
+  // pinned + a real patrol from the spawner, so they wander). No pick → the mixed enemies+NPCs scatter above.
+  const scatterUnits = () => {
+    const grid = gridRef.current
+    if (!grid) return
+    if (!unitTile) { randomizeEntities(); return }
+    const slug = tileSlug(unitTile.id)
+    const kind = entityKindForUnitSlug(slug)
+    if (kind === 'player') { toast('Only one player — use Add to place the hero', 'warning'); return }
+    const collision = Array.from({ length: grid.rows }, (_, r) =>
+      Array.from({ length: grid.cols }, (_, c) => grid.isBlocked(c, r)),
+    )
+    setEntities(prev => {
+      const occupied = prev.map(e => ({ col: e.col, row: e.row }))
+      const spawned = scatterEntities({
+        collision,
+        occupied,
+        count: 8,
+        kinds: kind === 'npc' ? ['npc'] : ['enemy'],
+        enemyTypes: kind === 'npc' ? undefined : [slug], // a single home zone of the picked enemy type
+        idPrefix: `scatter-${slug}-${prev.length}`,
+      }).map(e => ({ ...e, tileOverride: unitTile.id })) // pin the picked figure's exact art
+      return [...prev, ...spawned]
+    })
+  }
+
   // ── Quest authoring + runtime (spec §10) ───────────────────────────
   // Save the drafted quest against the chosen NPC: mint the Quest, store it, and
   // link the giver's questId so interacting with that NPC offers it. Pure module
@@ -2306,14 +2378,15 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       movePlayerToValidSpawn(col, row)
       return true
     }
+    const motion = <T extends Entity>(ent: T): T => (opts?.animated ? withRandomMotion(ent) : withStaticMotion(ent))
     let placed = false
     setEntities(prev => {
       if (!canPlaceEntity(prev, col, row, grid.cols, grid.rows, collisionFn)) return prev
-      const ent: Entity = kind === 'enemy'
+      const base: Entity = kind === 'enemy'
         ? { ...makeEnemy(mintEntityId('enemy'), col, row, slug, { archetype: archetypeForEnemyType(slug) }), tileOverride: tile.id }
         : { ...makeNpc(mintEntityId('npc'), col, row, {}), tileOverride: tile.id }
       placed = true
-      return placeEntity(prev, ent)
+      return placeEntity(prev, motion(base))
     })
     return placed
   }
@@ -5089,54 +5162,57 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
           <Dropdown label={<>🎨 Style: {activeStyle.name}</>} title="Art style" panelClass="w-56">
             {close => <StylePicker activeId={activeStyleId} onPick={setActiveStyleId} onClose={close} />}
           </Dropdown>
-          {/* ◈ Unit — place units (player / enemies / NPCs). Moved off the left tool-rail into the top nav
-              (same pattern as ⚙ Stage / 🎨 Style). Arming a tool derives editorMode → 'unit', so canvas
-              clicks place exactly as before; the button highlights while a tool is armed. */}
+          {/* ◈ Unit — place units. The enemy/creature PICKER lives here now (the paint palette no longer lists
+              units): pick WHICH creature from the DB `units` tiles, choose Add (click to place) or Scatter, and
+              place it static or with a randomized movement animation. Player/NPC/Erase/Collision stay as utility
+              tools. Arming derives editorMode → 'unit', so canvas clicks place exactly as before. */}
           <Dropdown
             label={<>◈ Unit</>}
-            title="Place units — player, enemies, NPCs"
-            btnClass={entityTool ? 'bg-orange-600 text-black' : 'bg-gray-700 hover:bg-gray-600'}
+            title="Place units — pick a creature, then Add or Scatter"
+            btnClass={entityTool || unitTile ? 'bg-orange-600 text-black' : 'bg-gray-700 hover:bg-gray-600'}
             panelClass="w-64"
           >
-            {() => (
-              <div>
-                <p className="mb-2 text-[10px] text-gray-500">
-                  Pick a tool, then click a cell in Top view to place. Only one player.
-                </p>
-                <div className="grid grid-cols-4 gap-1">
-                  <EntityToolButton label="Player" glyph={ENTITY_GLYPH.player} active={entityTool === 'player'} activeClass="bg-yellow-600 text-black" onClick={() => toggleEntityTool('player')} />
-                  <EntityToolButton label="Enemy" glyph={ENTITY_GLYPH.enemy} active={entityTool === 'enemy'} activeClass="bg-red-600" onClick={() => toggleEntityTool('enemy')} />
-                  <EntityToolButton label="NPC" glyph={ENTITY_GLYPH.npc} active={entityTool === 'npc'} activeClass="bg-cyan-600 text-black" onClick={() => toggleEntityTool('npc')} />
-                  <EntityToolButton label="Erase" glyph="✕" active={entityTool === 'erase'} activeClass="bg-gray-500" onClick={() => toggleEntityTool('erase')} />
-                  <EntityToolButton label="Collision" glyph="▦" active={entityTool === 'collision'} activeClass="bg-red-700" onClick={() => toggleEntityTool('collision')} />
-                </div>
-                <button
-                  onClick={randomizeEntities}
-                  className="mt-2 w-full rounded bg-purple-700 px-2 py-1.5 text-xs font-bold transition-colors hover:bg-purple-600"
-                  title="Scatter enemies + an NPC into the free space, each with stats + a movement pattern"
-                >
-                  ⤳ Scatter entities
-                </button>
-                {entityTool === 'enemy' && (
-                  <label className="mt-2 block">
-                    <span className="mb-1 block text-xs font-bold text-red-400">Enemy type</span>
-                    <input type="text" value={enemyType} onChange={e => setEnemyType(e.target.value)} placeholder="goblin" aria-label="Enemy type" className="w-full rounded bg-gray-800 p-1.5 text-xs" />
-                  </label>
-                )}
-                {entityTool === 'npc' && (
-                  <label className="mt-2 block">
-                    <span className="mb-1 block text-xs font-bold text-cyan-400">NPC name (optional)</span>
-                    <input type="text" value={npcName} onChange={e => setNpcName(e.target.value)} placeholder="Villager" aria-label="NPC name" className="w-full rounded bg-gray-800 p-1.5 text-xs" />
-                  </label>
-                )}
-                <div className="mt-3 flex items-center justify-between border-t border-white/10 pt-2 text-[10px] text-gray-400">
-                  <span>{entities.length} placed</span>
-                  {entities.length > 0 && (
-                    <button onClick={() => setEntities([])} className="rounded bg-red-900 px-2 py-1 font-bold text-red-200 hover:bg-red-800">Clear all</button>
+            {() => {
+              // Placeable figures only — FX/projectile `units` tiles (arrows, bolts…) resolve to assets, not entities.
+              const unitTiles = tilesForStyle(activeStyleId).units.filter(t => placementFor(t) === 'entity')
+              return (
+                <div className="space-y-2">
+                  {/* utility tools — default player/npc figures + erase/collision. The Enemy tool is gone: the
+                      picker below replaces it (pick the exact creature tile). */}
+                  <div className="grid grid-cols-4 gap-1">
+                    <EntityToolButton label="Player" glyph={ENTITY_GLYPH.player} active={entityTool === 'player' && !unitTile} activeClass="bg-yellow-600 text-black" onClick={() => toggleEntityTool('player')} />
+                    <EntityToolButton label="NPC" glyph={ENTITY_GLYPH.npc} active={entityTool === 'npc' && !unitTile} activeClass="bg-cyan-600 text-black" onClick={() => toggleEntityTool('npc')} />
+                    <EntityToolButton label="Erase" glyph="✕" active={entityTool === 'erase'} activeClass="bg-gray-500" onClick={() => toggleEntityTool('erase')} />
+                    <EntityToolButton label="Collision" glyph="▦" active={entityTool === 'collision'} activeClass="bg-red-700" onClick={() => toggleEntityTool('collision')} />
+                  </div>
+                  {entityTool === 'npc' && !unitTile && (
+                    <label className="block">
+                      <span className="mb-1 block text-xs font-bold text-cyan-400">NPC name (optional)</span>
+                      <input type="text" value={npcName} onChange={e => setNpcName(e.target.value)} placeholder="Villager" aria-label="NPC name" className="w-full rounded bg-gray-800 p-1.5 text-xs" />
+                    </label>
                   )}
+                  {/* the enemy/creature picker + place modes + motion toggle */}
+                  <div className="border-t border-white/10 pt-2">
+                    <UnitPicker
+                      units={unitTiles}
+                      pickedId={unitTile?.id ?? null}
+                      onPick={pickUnitTile}
+                      mode={unitPlaceMode}
+                      onMode={setUnitPlaceMode}
+                      animated={unitAnimated}
+                      onAnimated={setUnitAnimated}
+                      onScatter={scatterUnits}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between border-t border-white/10 pt-2 text-[10px] text-gray-400">
+                    <span>{entities.length} placed</span>
+                    {entities.length > 0 && (
+                      <button onClick={() => setEntities([])} className="rounded bg-red-900 px-2 py-1 font-bold text-red-200 hover:bg-red-800">Clear all</button>
+                    )}
+                  </div>
                 </div>
-              </div>
-            )}
+              )
+            }}
           </Dropdown>
           {/* ⚙ Stage — grid size + view toggles (night / debug / collisions / hide entities). Lives in the
               top nav so it's ALWAYS reachable, even with an element selected (it used to hide in the sidebar). */}

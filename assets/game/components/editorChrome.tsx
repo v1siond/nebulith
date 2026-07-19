@@ -441,6 +441,109 @@ export function TilePalette({
   )
 }
 
+// ── ◈ Unit — the enemy / creature picker + placement modes (top-nav) ─────
+/** One segmented-toggle button (place mode / motion) — orange when active, mirroring the Unit accent. */
+function ModeButton({ label, on, onClick, title }: { label: string; on: boolean; onClick: () => void; title?: string }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={on}
+      title={title}
+      className={`flex-1 rounded px-2 py-1 text-[11px] font-bold transition-colors ${on ? 'bg-orange-600 text-black' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
+    >
+      {label}
+    </button>
+  )
+}
+
+export interface UnitPickerProps {
+  /** the placeable `units`-category tiles (figures only — FX/projectiles filtered out by the page). */
+  units: TileDef[]
+  /** the currently-picked tile id, or null (nothing armed → clicks select). */
+  pickedId: string | null
+  /** pick a tile to place (or null to disarm). */
+  onPick: (tile: TileDef | null) => void
+  /** Add = click the map to place one (like painting); Scatter = randomize several. */
+  mode: 'add' | 'scatter'
+  onMode: (mode: 'add' | 'scatter') => void
+  /** in Add mode: place the unit STILL, or wandering with a randomized movement animation. */
+  animated: boolean
+  onAnimated: (animated: boolean) => void
+  /** run the scatter (scatters the picked creature, or a mix when nothing is picked). */
+  onScatter: () => void
+}
+
+/** ◈ Unit → pick WHICH enemy/creature to add, then place it. Reads the `units` category tiles (the data
+ *  agent folds animals in here too) so you can SEE + pick a figure — the thing the paint palette no longer
+ *  offers. Two modes: ADD (pick one, click the map, like painting) or SCATTER (randomize several); plus a
+ *  STATIC / ANIMATED toggle so a placed unit is either still or wandering with a randomized movement
+ *  animation. Pure & props-driven — the page owns the tileset, the pick, and the place/scatter handlers. */
+export function UnitPicker({ units, pickedId, onPick, mode, onMode, animated, onAnimated, onScatter }: UnitPickerProps) {
+  const picked = pickedId ? units.find(u => u.id === pickedId) ?? null : null
+  return (
+    <div className="space-y-2" data-testid="unit-picker">
+      <div className="flex gap-1" role="group" aria-label="Placement mode">
+        <ModeButton label="＋ Add" on={mode === 'add'} onClick={() => onMode('add')} title="Pick a creature, then click the map to place it — one at a time, like painting" />
+        <ModeButton label="⤳ Scatter" on={mode === 'scatter'} onClick={() => onMode('scatter')} title="Randomly scatter several across the free space" />
+      </div>
+      {/* Motion only bites in Add mode — a scatter always attaches a patrol, so it's inherently animated. */}
+      {mode === 'add' && (
+        <div className="flex gap-1" role="group" aria-label="Placement motion">
+          <ModeButton label="● Static" on={!animated} onClick={() => onAnimated(false)} title="Place it still — author movement later in the Inspector" />
+          <ModeButton label="✦ Animated" on={animated} onClick={() => onAnimated(true)} title="Place it wandering, with a randomized movement animation" />
+        </div>
+      )}
+      <div>
+        <p className="mb-1 flex items-center justify-between text-[10px] uppercase tracking-wide text-gray-500">
+          <span>Creatures</span>
+          {picked && <span className="normal-case text-cyan-300">{picked.label}</span>}
+        </p>
+        {units.length === 0 ? (
+          <p className="text-[10px] text-gray-500">No unit tiles in this style yet.</p>
+        ) : (
+          <div className="grid grid-cols-4 gap-1">
+            {units.map(t => {
+              const on = pickedId === t.id
+              return (
+                <button
+                  key={t.id}
+                  onClick={() => onPick(on ? null : t)}
+                  title={`${t.label} (${t.id})`}
+                  aria-pressed={on}
+                  className={`flex flex-col items-center gap-0.5 rounded border px-1 py-1.5 transition-colors ${
+                    on ? 'border-orange-400 bg-orange-900/40' : 'border-white/10 bg-black/40 hover:bg-white/10'
+                  }`}
+                >
+                  {t.visual.kind === 'image'
+                    ? <img src={t.visual.src} alt={t.label} className="h-5 w-5 object-contain" />
+                    : <span className="text-lg leading-none">{t.visual.kind === 'glyph' ? t.visual.char : ''}</span>}
+                  <span className="w-full truncate text-center text-[9px] text-gray-400">{t.label}</span>
+                </button>
+              )
+            })}
+          </div>
+        )}
+      </div>
+      {mode === 'scatter' ? (
+        <button
+          onClick={onScatter}
+          className="w-full rounded bg-purple-700 px-2 py-1.5 text-xs font-bold transition-colors hover:bg-purple-600"
+          title={picked ? `Scatter several ${picked.label} into the free space` : 'Scatter a mix of enemies + NPCs into the free space'}
+        >
+          ⤳ Scatter {picked ? picked.label : 'a mix'}
+        </button>
+      ) : (
+        <p className="text-[10px] leading-tight text-gray-500">
+          {picked
+            ? <>Click the map to place a <span className="text-cyan-300">{picked.label}</span>. Use <span className="font-bold">Erase</span> to remove.</>
+            : 'Pick a creature above, then click the map to place it.'}
+        </p>
+      )}
+    </div>
+  )
+}
+
 // Inspector controls (◰ Art section, pose editor, per-tile property panel) live in editorInspector.tsx.
 export { ArtSection, WEAPON_KINDS, PoseControls, TileControls, PropertiesPanel, type DimAxis, type ElementDims, type TileControlModel, type PropertiesPanelProps } from './editorInspector'
 

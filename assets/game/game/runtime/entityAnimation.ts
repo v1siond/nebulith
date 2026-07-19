@@ -179,6 +179,26 @@ export function seedCharacterAnimations(): EntityAnimation[] {
   }))
 }
 
+/** A RANDOMIZED movement animation, authored AS DATA — the one-off the editor drops on a unit for the
+ *  top-nav "Animated" placement, and the same thing the Animate modal's 🎲 button appends. It swaps the
+ *  unit's OWN tile (frame 0) with its MIRROR (a visible step), fires on `move` in ANY direction so it shows
+ *  however the unit wanders, and randomizes only the step cadence — a different feel every roll, no tile
+ *  picker needed. Editable like any other animation once it lands (name/frames/direction all patchable). */
+export function randomMovementAnimation(rng: () => number = Math.random): EntityAnimation {
+  const durationMs = 260 + Math.floor(rng() * 260) // 260–520ms: a brisk-to-lazy step
+  const suffix = Math.floor(rng() * 1e9).toString(36)
+  return {
+    id: `rand-move-${suffix}`,
+    name: 'wander',
+    trigger: { on: 'move' },
+    direction: 'any',
+    frames: [{}, { flipX: true }], // the unit's own tile, then mirrored → a step
+    durationMs,
+    loopDelayMs: 0,
+    loop: true,
+  }
+}
+
 // The hardcoded pose glyphs the PRE-DB-tile seed used for walk/run. A saved person whose frames still
 // carry these is running the OUTDATED default (raw OS emoji, inconsistent font) → reseed it.
 const OUTDATED_SEED_CHARS: ReadonlySet<string> = new Set(['🚶', '🏃'])

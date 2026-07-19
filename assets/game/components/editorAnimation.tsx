@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react'
 import { type TileCategory, type Visual, genderize, tilesForStyle, visualForTileId } from '@/game/artStyle'
 import type { EntityVariant } from '@/game/types'
 import type { AnimDirection, AnimFrame, AnimTrigger, EntityAnimation } from '@/game/runtime/entityAnimation'
-import { spriteFromEntity, entityFromSprite } from '@/game/runtime/entityAnimation'
+import { spriteFromEntity, entityFromSprite, randomMovementAnimation } from '@/game/runtime/entityAnimation'
 import {
   resolveAnimatedSettings,
   type Animation as TileAnim,
@@ -548,6 +548,10 @@ export function TileAnimationEditor({ animations, elementType, elementLabel, spr
   const remove = (i: number) => onChange(animations.filter((_, j) => j !== i))
   const addSettings = () => onChange([...animations, makeDefaultSettingsAnim(animations.length)])
   const addSprite = () => onChange([...animations, makeDefaultSpriteAnim(animations.length)])
+  // 🎲 Random: append a RANDOMIZED movement animation (the user: "click animate and add a random animation
+  // (movement) or build one manually"). It's a sprite-kind walk cycle (the unit's own tile → mirrored), so it
+  // rides the same bridge a hand-built sprite does and is editable afterwards like any other row.
+  const addRandom = () => onChange([...animations, spriteFromEntity(randomMovementAnimation())])
 
   return (
     <div className="space-y-2 text-xs">
@@ -560,7 +564,7 @@ export function TileAnimationEditor({ animations, elementType, elementLabel, spr
 
       {/* Add buttons pinned ABOVE the list so they stay reachable however many animations exist — a long list
           no longer pushes them off the bottom (Alexander: "have the buttons up"). */}
-      <div className="flex gap-1">
+      <div className="flex flex-wrap gap-1">
         {kinds.includes('settings') && (
           <button onClick={addSettings} className="flex-1 rounded bg-fuchsia-800 px-2 py-1 text-[11px] font-bold text-white transition-colors hover:bg-fuchsia-700">
             ✦ Add settings animation
@@ -569,6 +573,11 @@ export function TileAnimationEditor({ animations, elementType, elementLabel, spr
         {kinds.includes('sprite') && (
           <button onClick={addSprite} aria-label="Add sprite animation" className="flex-1 rounded bg-cyan-800 px-2 py-1 text-[11px] font-bold text-white transition-colors hover:bg-cyan-700">
             ✦ Add sprite animation
+          </button>
+        )}
+        {kinds.includes('sprite') && (
+          <button onClick={addRandom} aria-label="Add random animation" title="Drop in a randomized movement animation you can then tweak" className="flex-1 rounded bg-emerald-800 px-2 py-1 text-[11px] font-bold text-white transition-colors hover:bg-emerald-700">
+            🎲 Random move
           </button>
         )}
       </div>
