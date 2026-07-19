@@ -39,16 +39,23 @@ export function placeGroundTile(grid: IsometricGrid, col: number, row: number, t
 }
 
 /** nature / buildings → PUSH a tile onto the cell's stack (pushTile lands it one level above the tallest,
- *  0 on an empty cell). tileOverride pins the exact tile and blocking follows the asset type so a stacked
- *  wall/tree/rock makes the cell collision.
+ *  0 on an empty cell). tileOverride pins the exact tile.
  *
- *  The placed asset is seeded from the DB tile so a PAINTED tile === a GENERATED one (same GridAsset shape):
- *   - `h` = the tile's DB BLOCK height, so a block tile (a boulder, a stone wall) paints as a real extruded
- *     block — not a flat single-face billboard. A flat tile (a flower) omits h and stays flat. This ALSO
- *     makes a block tile directly pickable (a raised block picks as its own tile, not the floor under it).
+ *  UNIFORM INSERTION — the user's hard rule: "all tiles behave and are inserted the same in the map,
+ *  regardless of type or art style." EVERY painted tile — flower, tree, building, rock, animal — seeds the
+ *  IDENTICAL default `h = 1` (a full, all-faces block one level tall). This is the SAME uniform height the
+ *  GENERATOR forces on every composition cell (composition.ts stampRun: `asset.height = 1`), so a PAINTED
+ *  tile is structurally identical to a GENERATED one. We deliberately do NOT read the tile's per-category DB
+ *  `height` here: that read WAS the flat-vs-standing split (flowers/leaves/floor-items came in flat while
+ *  trees/buildings stood up as blocks) the user was furious about. The ONLY source of a per-tile difference
+ *  is the right-sidebar SETTINGS the user edits on an individual tile — never its type / category / label /
+ *  art style.
  *   - `settings` = the tile's OWN generic render behaviour (fadeNear/cutawayRoof/display) via tileRenderBehavior
- *     — the SAME seam stampComposition uses — so the tile fades/cutaways/single-displays like the stamped one
- *     and its settings are the tile's own, never a forced flat default. */
+ *     — the SAME seam stampComposition uses — so an authored behaviour rides along; nothing is forced to a flat
+ *     default and nothing is forced to display:single.
+ *   - `collision` follows the asset type: a stacked wall/tree/rock blocks the cell. This is a GAMEPLAY flag,
+ *     not the insertion geometry — the block/height every tile inserts with is identical; only whether it
+ *     obstructs movement differs, and the user can override that per-tile via settings. */
 export function stackAssetTile(
   grid: IsometricGrid,
   col: number,
@@ -67,7 +74,7 @@ export function stackAssetTile(
     color,
     opacity: opts.opacity,
     collision: tileIsBlocking(type),
-    h: tile.height && tile.height > 0 ? tile.height : undefined,
+    h: 1, // uniform block for EVERY tile — no per-tile/category height read (matches composition.ts stampRun)
   })
   const behavior = tileRenderBehavior(tile.settings)
   if (behavior) placed.settings = behavior
