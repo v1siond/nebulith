@@ -56,6 +56,10 @@ export interface RealCanvasHarness {
   registerSolid(src: string, color: string, size?: number): void
   /** Make a two-band PNG (top half `top`, bottom half `bottom`) and register it — a non-monochrome tile. */
   registerBands(src: string, top: string, bottom: string, size?: number): void
+  /** Make a mostly-TRANSPARENT PNG with only a small opaque `color` square in the CENTRE — an emoji-like tile
+   *  whose art fills only part of the cell (the rest is clear). Proves a shape fills the tile's BACKGROUND
+   *  colour where the art is transparent (the cube face does; the sphere must too). */
+  registerCentered(src: string, color: string, size?: number): void
   /** Prime `tileImage`'s cache with fully-decoded rasters for these srcs. MUST await before rendering. */
   warm(srcs: string[]): Promise<void>
   /** A real drawable canvas to render into. */
@@ -98,6 +102,18 @@ function encodeBands(top: string, bottom: string, size: number): Buffer {
   return c.toBuffer('image/png')
 }
 
+/** A CLEAR field with a small opaque `color` square in the middle (half the tile) — the rest is transparent,
+ *  like an emoji whose art covers only part of the cell. */
+function encodeCentered(color: string, size: number): Buffer {
+  const c = createCanvas(size, size)
+  const ctx = c.getContext('2d')
+  ctx.clearRect(0, 0, size, size) // fully transparent field
+  const q = Math.floor(size / 4)
+  ctx.fillStyle = color
+  ctx.fillRect(q, q, size - 2 * q, size - 2 * q) // centred opaque mark (the "art")
+  return c.toBuffer('image/png')
+}
+
 /** Install the real-canvas globals. Call in `beforeAll`; call the returned `restore` in `afterAll`. */
 export function installRealCanvas(): { harness: RealCanvasHarness; restore: () => void } {
   if (!installed) {
@@ -114,6 +130,7 @@ export function installRealCanvas(): { harness: RealCanvasHarness; restore: () =
   const harness: RealCanvasHarness = {
     registerSolid(src, color, size = 64) { registry.set(src, encodeSolid(color, size)) },
     registerBands(src, top, bottom, size = 64) { registry.set(src, encodeBands(top, bottom, size)) },
+    registerCentered(src, color, size = 64) { registry.set(src, encodeCentered(color, size)) },
     async warm(srcs) {
       for (const s of srcs) tileImage(s) // create + kick off the native decode, cache the Image
       await new Promise((r) => setTimeout(r, 60)) // let the async decode finish so the raster is drawable

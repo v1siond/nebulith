@@ -18,7 +18,8 @@
  *     recoloured, never left green), in BOTH emoji + ascii styles, positive + negative.
  */
 import { installRealCanvas, type RealCanvasHarness } from '@/__tests__/helpers/realCanvas'
-import { drawIsoBall, drawIsoAssetAscii } from '@/engine/render/iso'
+import { drawIsoBall, drawIsoTileBlock, drawIsoAssetAscii } from '@/engine/render/iso'
+import { drawFlatTileForShape } from '@/engine/render/shared'
 import { draw2DLabeledCell } from '@/engine/render/topdown'
 import { EMOJI_STYLE, ASCII_STYLE } from '@/game/artStyle'
 import { EMOJI_TILESET } from '@/engine/tileset/emojiTileset'
@@ -226,5 +227,95 @@ describe('2D: shape = circle rounds the cell face but keeps its painting', () =>
     // a square cell paints the whole rect — its corners are opaque (the circle cut them)
     expect(regionOpaque(cv, boxX, boxTop, 8, 8)).toBeGreaterThan(50)
     expect(regionOpaque(cv, boxX + TW - 8, boxTop + TH - 8, 8, 8)).toBeGreaterThan(50)
+  })
+})
+
+// ── DELIVERABLE 1: the sphere KEEPS THE BACKGROUND COLOUR. The cube face fills the tile's colour THEN paints the
+//    art on top, so the whole face reads the colour even where the (emoji) art is transparent. The sphere lost
+//    that fill — an emoji tile's transparent gaps showed the dark scene through the ball ("we lost the background
+//    color"). It must now fill colour + art like the cube, only shaped round. ──
+describe('shape = circle KEEPS THE BACKGROUND COLOUR where the art is transparent (the cube-parity fix)', () => {
+  const CENTER = '/tiles/emoji/__shape_centered.png'
+  // A tile whose ART is a GREEN square in the MIDDLE on an otherwise TRANSPARENT field — like an emoji that
+  // covers only part of its cell. The transparent border is exactly where "the background colour" must show.
+  beforeAll(async () => {
+    H.registerCentered(CENTER, GREEN)
+    await H.warm([CENTER])
+  })
+  // NO tint → the fill colour is dv.color and the art stays its own GREEN, so the two are DISTINGUISHABLE in the
+  // pixels: the ball BODY must read the fill colour, the CENTRE the green art. (In real use tint == the colour;
+  // splitting them here is what lets the test prove the fill is actually painted, not just the tinted art.)
+  const centeredDv = (fill: string): { char: string; color: string; image: ImageVisual } =>
+    ({ char: '', color: fill, image: { kind: 'image', src: CENTER } })
+
+  test('the sphere BODY is filled with the tile colour where the art is transparent — NOT dark/transparent', () => {
+    const cv = H.makeCanvas(300, 280)
+    drawIsoBall(cv.getContext('2d') as unknown as CanvasRenderingContext2D, { x: CX, y: CY }, TW, TH, BH, 1, centeredDv(BLUE), undefined)
+    // CENTRE → the green art survives ON TOP of the fill (art is still drawn).
+    expect(regionBand(cv, BCX - 4, BCY - 4, 8, 8)).toBe('green')
+    // A BODY point between the centre art and the rim — where the SOURCE image is TRANSPARENT — must be the
+    // tile's BLUE background colour. Before the fix this was empty (the sphere lost the fill). rx=40 → +28 is
+    // inside the ball but outside the centred art square.
+    const bx = Math.round(BCX + RX * 0.7)
+    expect(regionOpaque(cv, bx - 3, BCY - 3, 6, 6)).toBeGreaterThan(20) // filled, not transparent
+    expect(regionBand(cv, bx - 3, BCY - 3, 6, 6)).toBe('blue')          // and it is the tile's background colour
+  })
+
+  test('sphere ≙ cube: BOTH show the colour fill (blue) AND the art (green) for the SAME tile', () => {
+    // The cube face: colour fill + art on top — the reference the sphere must match.
+    const cubeCv = H.makeCanvas(300, 280)
+    drawIsoTileBlock(cubeCv.getContext('2d') as unknown as CanvasRenderingContext2D, { x: CX, y: CY }, TW, TH, BH, 1, centeredDv(BLUE), undefined)
+    const cube = H.scan(cubeCv)
+    expect(cube.blueish).toBeGreaterThan(0) // background colour fill
+    expect(cube.greenish).toBeGreaterThan(0) // art on top
+
+    const ballCv = H.makeCanvas(300, 280)
+    drawIsoBall(ballCv.getContext('2d') as unknown as CanvasRenderingContext2D, { x: CX, y: CY }, TW, TH, BH, 1, centeredDv(BLUE), undefined)
+    const ball = H.scan(ballCv)
+    expect(ball.blueish).toBeGreaterThan(0) // the sphere carries the SAME background colour as the cube
+    expect(ball.greenish).toBeGreaterThan(0) // and the SAME art
+  })
+
+  test('the colour SETTING (tint) still fills the ball — a magenta-set centred-art tile → a magenta body', () => {
+    const cv = H.makeCanvas(300, 280)
+    // With a tint the whole tile (fill + art) recolours to magenta, exactly like the cube — no green survives.
+    drawIsoBall(cv.getContext('2d') as unknown as CanvasRenderingContext2D, { x: CX, y: CY }, TW, TH, BH, 1, centeredDv('#888888'), MAGENTA)
+    const s = H.scan(cv)
+    expect(s.magentaish).toBeGreaterThan(0)
+    expect(s.greenish).toBe(0) // the green art is recoloured to the setting, never left green
+    // and the body between art and rim is filled (the magenta background), not transparent.
+    const bx = Math.round(BCX + RX * 0.7)
+    expect(regionOpaque(cv, bx - 3, BCY - 3, 6, 6)).toBeGreaterThan(20)
+  })
+})
+
+// ── DELIVERABLE 3: 2D/Top route their circle/square through the SAME shared dispatch (drawFlatTileForShape) iso
+//    uses — no per-view `if (shape === 'circle')`. This tests the SEAM directly: given a face painter, the map
+//    either paints it plain (square/undefined) or clips it round + shades (circle). ──
+describe('shape dispatch (drawFlatTileForShape): the shared flat shape seam for 2D + Top', () => {
+  const DCX = 150, DCY = 130, DRX = 60, DRY = 60
+  const paintFace = (ctx: CanvasRenderingContext2D): void => {
+    ctx.fillStyle = MAGENTA
+    ctx.fillRect(DCX - DRX, DCY - DRY, DRX * 2, DRY * 2) // a full rect — the drawer decides if its corners survive
+  }
+
+  test("'circle' clips the face ROUND — centre kept, bounding-box corners cut", () => {
+    const cv = H.makeCanvas(320, 260)
+    const ctx = cv.getContext('2d') as unknown as CanvasRenderingContext2D
+    drawFlatTileForShape(ctx, 'circle', () => paintFace(ctx), DCX, DCY, DRX, DRY)
+    expect(regionOpaque(cv, DCX - 4, DCY - 4, 8, 8)).toBeGreaterThan(50) // centre painted
+    expect(regionOpaque(cv, DCX - DRX, DCY - DRY, 8, 8)).toBe(0)          // top-left corner cut by the round clip
+    expect(regionOpaque(cv, DCX + DRX - 8, DCY + DRY - 8, 8, 8)).toBe(0)  // bottom-right corner cut
+  })
+
+  test("'square' and undefined both paint the PLAIN face — corners FILLED (the same default drawer)", () => {
+    for (const shape of ['square', undefined] as const) {
+      const cv = H.makeCanvas(320, 260)
+      const ctx = cv.getContext('2d') as unknown as CanvasRenderingContext2D
+      drawFlatTileForShape(ctx, shape, () => paintFace(ctx), DCX, DCY, DRX, DRY)
+      expect(regionOpaque(cv, DCX - 4, DCY - 4, 8, 8)).toBeGreaterThan(50)       // centre painted
+      expect(regionOpaque(cv, DCX - DRX, DCY - DRY, 8, 8)).toBeGreaterThan(50)   // corner FILLED — no round clip
+      expect(regionOpaque(cv, DCX + DRX - 8, DCY + DRY - 8, 8, 8)).toBeGreaterThan(50)
+    }
   })
 })

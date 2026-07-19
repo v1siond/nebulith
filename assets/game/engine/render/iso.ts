@@ -1566,26 +1566,33 @@ export function drawIsoSingleTileBlock(
   }
 }
 
-/** Paint a circle tile's ball SURFACE: the tile's own art as ONE smooth image filling the ball's bounding box
- *  (recoloured by the colour setting), NOT the three cube faces — so nothing seams under the round clip. This is
- *  the load-bearing difference vs the old attempt (which clipped the 3 cube faces, leaving the seams visible so
- *  it read as a rounded cube): exactly ONE surface, no cube edges. No baked image (ascii glyph, or the PNG still
- *  decoding) → a solid colour ball carrying the glyph, so the tile's art/colour still reads (never a blank ball).
- *  The caller has already set the circular clip; the draw fills the [cx±rx, cy±ry] box the clip rounds. */
+/** Paint a circle tile's ball SURFACE, IDENTICAL to what the cube face shows — a COLOUR FILL then the tile's
+ *  ART on top — only shaped round (Alexander: "take the tile block/square and make it a circle/sphere, that's
+ *  it … we lost the background color"). The cube's fillFace lays down `tint ?? dv.tint ?? dv.color` and paints
+ *  its tile OVER that fill, so the whole face reads the tile's colour even where the art is transparent (an
+ *  emoji is mostly clear). The ball must do the SAME, or an emoji tile's transparent gaps show through to the
+ *  dark scene and the tile's background colour is lost — the bug this fixes. So: (1) fill the ball's silhouette
+ *  with the tile's resolved colour, (2) draw the baked art on top (colour-filtered), then the caller shades it.
+ *  Still ONE smooth surface (a single image, NOT the three cube faces) so nothing seams under the round clip.
+ *  The caller has already set the circular clip; the draws fill the [cx±rx, cy±ry] box the clip rounds. */
 function fillBallSurface(ctx: CanvasRenderingContext2D, cx: number, cy: number, rx: number, ry: number, dv: DrawVisual, tint?: string): void {
   const recolor = tint ?? dv.tint
-  const iv = dv.image
-  const img = iv ? tileImage(iv.src) : null
-  if (img && iv) {
-    const src = recolor ? tintedImage(img, iv.src, recolor) : img // colour FILTERS the art (luminance-mapped)
-    ctx.drawImage(src, cx - rx, cy - ry, rx * 2, ry * 2) // ONE surface across the whole ball — no faces, no seams
-    return
-  }
-  // No baked raster: a colour ball + its glyph so the painting still reads (ascii / a not-yet-decoded emoji PNG).
+  // 1) BACKGROUND COLOUR first — the EXACT fill the cube face uses (`tint ?? dv.tint ?? dv.color`), so the
+  //    sphere never loses the tile's base colour where its art is transparent. Already clipped round → fills the ball.
   ctx.fillStyle = recolor ?? dv.color
   ctx.beginPath()
   ctx.ellipse(cx, cy, Math.max(0.5, rx), Math.max(0.5, ry), 0, 0, Math.PI * 2)
   ctx.fill()
+  // 2) The tile's baked ART on top (colour-filtered, luminance-mapped) — exactly like the cube paints its tile
+  //    OVER the face fill. ONE surface across the whole ball — no cube faces, no seams.
+  const iv = dv.image
+  const img = iv ? tileImage(iv.src) : null
+  if (img && iv) {
+    const src = recolor ? tintedImage(img, iv.src, recolor) : img
+    ctx.drawImage(src, cx - rx, cy - ry, rx * 2, ry * 2)
+    return
+  }
+  // No baked raster (ascii glyph / a not-yet-decoded emoji PNG) → the glyph over the colour fill already painted.
   if (dv.char) {
     const gp = Math.min(rx, ry) * 1.3
     ctx.save()
