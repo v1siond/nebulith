@@ -619,7 +619,7 @@ export function clampCameraAxis(focus: number, halfSpan: number, total: number):
 /** Clamp a focus coord into [lo, hi] keeping `pad` units of viewport each side; if that span
  *  is narrower than the viewport, centre it. The general form of clampCameraAxis (which is just
  *  this with lo = 0, hi = total). */
-export function clampCameraSpan(focus: number, pad: number, lo: number, hi: number): number {
+function clampCameraSpan(focus: number, pad: number, lo: number, hi: number): number {
   // Map SMALLER than the viewport (span ≤ 2·pad) → re-centre it. Otherwise clamp the focus to the
   // MAP EXTENT [lo, hi] so ANY cell (incl. the corners) can be dragged to centre — free pan. The old
   // `[lo+pad, hi-pad]` kept the whole viewport inside the map, which for a viewport ~as big as the map
@@ -903,7 +903,7 @@ export function isDeadEnemy(entity: Entity, combat: CombatState | undefined): bo
 
 
 /** Color the HP bar fill green→amber→red as the enemy is whittled down. */
-export function hpBarColor(fraction: number): string {
+function hpBarColor(fraction: number): string {
   if (fraction > 0.5) return '#4ade80'
   if (fraction > 0.25) return '#facc15'
   return '#f87171'
@@ -959,7 +959,7 @@ export const QUEST_TARGET_COLOR = '#ff9f1c'
 
 
 /** Draw centred text with a 1px black drop-shadow then a bright fill — legible over any map tile. */
-export function drawShadowText(
+function drawShadowText(
   ctx: CanvasRenderingContext2D,
   text: string,
   x: number,
@@ -1151,7 +1151,7 @@ export function getPlayerArt(player: PlayerState): string[] {
 /** The POSITION token for a SINGLE placed asset cell: footprint side for a building cell
  *  (asset.edge), trunk/canopy for a tree (asset.label), '' for any single-cell element. The
  *  fountain's multi-cell basin is expanded separately in debugCellCaptions. */
-export function assetCaptionPos(asset: GridAsset): string {
+function assetCaptionPos(asset: GridAsset): string {
   if (asset.type === 'tree') return treeSubpart(asset.cellPart)
   if (asset.edge) return edgeToSide(asset.edge)
   return ''

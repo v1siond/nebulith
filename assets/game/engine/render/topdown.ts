@@ -652,12 +652,6 @@ export function render2D(
       const assetAnim = resolveAssetAnimation(obj.asset, time, style, '2d', dayNight)
       const asset = assetAnim ? assetAnim.asset : obj.asset
 
-      // Get proper height for 2D RPG view based on asset type (buildings derive theirs per-block from the
-      // stacked heightLevel + asset.height like any tile, not a `type:'building'` override).
-      let heightTiles = 1
-      if (asset.type === 'tree') heightTiles = 3
-      else if (asset.type === 'lamp') heightTiles = 2
-
       // Base at bottom of cell - tiles stack upward. A FRONT-ELEVATION cell (a building/structure block) is
       // lifted a FULL cell per level, so a 5-level house reads exactly 5 cells tall (its true height, edge-to-
       // edge — no depth added). A stacked prop that isn't part of a front elevation keeps the ~0.9 cell "pile"
@@ -795,15 +789,14 @@ export function render2D(
         // Legacy single-lamp prop — a STEADY lit bulb. The day/night ambience is now the warm ground GLOW POOL
         // (drawNightLighting), driven by the tile's `light` SETTING and gated to night; this branch just draws
         // the bulb and no longer reads dayNight.
-        const glow = 1
         ctx.fillStyle = '#333333'
         ctx.fillRect(p.x - tileW * 0.12, baseY - tileH * 2, tileW * 0.24, tileH * 2)
         ctx.fillStyle = '#555555'
         ctx.fillText('|', p.x, baseY - tileH * 0.5)
         // Bulb
-        ctx.fillStyle = `rgba(255, 255, 0, ${0.4 + 0.6 * glow})`
+        ctx.fillStyle = 'rgba(255, 255, 0, 1)'
         ctx.fillRect(p.x - tileW * 0.25, baseY - tileH * 2.4, tileW * 0.5, tileH * 0.5)
-        ctx.fillStyle = `rgba(255, 200, 50, ${0.4 + 0.6 * glow})`
+        ctx.fillStyle = 'rgba(255, 200, 50, 1)'
         ctx.fillText('o', p.x, baseY - tileH * 2.2)
         hit2D = billboardGeom(tileW * 0.6, tileH * 2.7, poseMapper({ x: p.x, y: baseY - tileH * 1.35 }, undefined, tileH))
 

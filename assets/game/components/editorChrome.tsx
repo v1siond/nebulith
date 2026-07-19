@@ -980,22 +980,6 @@ const SELECTION_KIND_COLOR: Record<string, string> = {
   connector: 'text-purple-300',
 }
 
-/** Shown in the right Inspector when something is selected. Stage A keeps the
- *  existing quick actions beneath it (passed as children); stage B replaces this
- *  with the full per-selection morphing panel. */
-export function InspectorPlaceholder({ kind, label }: { kind: string; label?: string }) {
-  return (
-    <div className="rounded-lg border border-dashed border-white/15 bg-black/40 p-3">
-      <p className={`text-xs font-bold uppercase tracking-wider ${SELECTION_KIND_COLOR[kind] ?? 'text-orange-300'}`}>
-        ▸ {label || kind} selected
-      </p>
-      <p className="mt-1 text-[10px] leading-tight text-gray-500">
-        Inline settings land in the next update — quick actions below for now.
-      </p>
-    </div>
-  )
-}
-
 // ── Morphing-Inspector selection header + not-yet-built section stubs ─
 /** Compact identity header at the top of a morphed selection (kind + coordinates). */
 export function SelectionHeader({ kind, label, coords }: { kind: string; label: string; coords?: string }) {

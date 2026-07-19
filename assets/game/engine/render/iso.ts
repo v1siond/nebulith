@@ -127,14 +127,14 @@ export let isoRenderMsEMA = 0
 export const ISO_CACHE_MAX_DIM = 8192
 
 
-export function perfNow(): number {
+function perfNow(): number {
   return typeof performance !== 'undefined' ? performance.now() : Date.now()
 }
 
 
 /** Lazily create / resize the shared offscreen cache canvas. Null when there's no
  *  DOM (SSR / tests) — callers then fall back to a direct draw. */
-export function ensureIsoCacheCanvas(w: number, h: number): { canvas: HTMLCanvasElement; ctx: CanvasRenderingContext2D } | null {
+function ensureIsoCacheCanvas(w: number, h: number): { canvas: HTMLCanvasElement; ctx: CanvasRenderingContext2D } | null {
   if (typeof document === 'undefined') return null
   if (!isoCacheCanvas) isoCacheCanvas = document.createElement('canvas')
   if (isoCacheCanvas.width !== w) isoCacheCanvas.width = w
@@ -352,7 +352,7 @@ export function drawIsoGroundLayer(ctx: CanvasRenderingContext2D, p: IsoGroundPa
 /** Redraw the animated water cells (recessed shimmer surface + glyph) on top of the
  *  blitted static cache — the one ground element that must stay live each frame.
  *  Matches the original per-water-cell draw order: water depth, then the glyph. */
-export function drawIsoWaterCells(ctx: CanvasRenderingContext2D, p: IsoGroundParams, cells: { col: number; row: number }[]): void {
+function drawIsoWaterCells(ctx: CanvasRenderingContext2D, p: IsoGroundParams, cells: { col: number; row: number }[]): void {
   const { grid, w, h, time, camX, camZ, isoScale, cellSize, tileW, tileH, heightStep, groundFontSize, style } = p
   ctx.font = `bold ${groundFontSize}px ${ASCII_FONT}`
   ctx.textAlign = 'center'
@@ -776,7 +776,7 @@ export function render(
  *  bottom-to-top from `baseY`, left-aligned at `leftX` (monospace advance = `charW`). Shared
  *  by entities + the player so the whole cast reads as ROBUST sprites, not thin line-art.
  *  Caller sets ctx.font + textAlign 'left' + textBaseline 'middle'. */
-export function drawBlockFigure(
+function drawBlockFigure(
   ctx: CanvasRenderingContext2D,
   art: readonly string[],
   leftX: number,
@@ -1127,11 +1127,7 @@ export const ISO_FACINGS: { len: [number, number]; dep: [number, number]; baseCo
 
 export type Pt = { x: number; y: number }
 
-export const ptAdd = (p: Pt, v: Pt): Pt => ({ x: p.x + v.x, y: p.y + v.y })
-
-export const ptScale = (v: Pt, k: number): Pt => ({ x: v.x * k, y: v.y * k })
-
-export const fillQuad = (ctx: CanvasRenderingContext2D, a: Pt, b: Pt, c: Pt, d: Pt): void => {
+const fillQuad = (ctx: CanvasRenderingContext2D, a: Pt, b: Pt, c: Pt, d: Pt): void => {
   ctx.beginPath()
   ctx.moveTo(a.x, a.y)
   ctx.lineTo(b.x, b.y)
@@ -1657,7 +1653,7 @@ const ISO_SHAPE_DRAWERS: Record<TileShape, IsoShapeDrawer> = {
 
 /** Draw a placed tile's block as the SOLID its `shape` selects — the single call the asset draw sites use in
  *  place of branching on display/shape themselves. Unknown/absent shape → the square (cube) drawer. */
-export function drawIsoTileForShape(
+function drawIsoTileForShape(
   ctx: CanvasRenderingContext2D, center: Pt, bw: number, bd: number, bh: number, blocks: number,
   dv: DrawVisual, tint: string | undefined, asset: GridAsset,
 ): void {
@@ -1666,27 +1662,6 @@ export function drawIsoTileForShape(
 
 // Buildings always render as an empty shell (HOLLOW) so the DOOR and the wall-fade read — you can see IN
 // when the hero is near. Interior decorations come later as real tiles, not a fill toggle.
-
-/** Windows per wall FACE — ~one per two cells, clamped [2,4] — matching the 2D elevation's spacing so a
- *  street reads uniform. Shared by the iso render + its test (single source of truth). */
-export function faceWindowCount(span: number): number {
-  return Math.max(2, Math.min(4, Math.round(span / 2)))
-}
-
-
-/** Overlay the roof TILE onto ONE peaked-roof face (an arbitrary quad), CLIPPED to that quad so it can
- *  never spill past the face, and RECOLOURED to the face's own `shade`. The caller already fillQuad'd the
- *  shade underneath, so this is purely the tile LAYER that makes the face genuinely tile-based (like 2D)
- *  without changing the look. ASCII (no tile char/image) → no-op. Headless (no offscreen) → the glyph is
- *  stamped at the centroid so the render still resolves a tile. */
-
-
-export const ROOF_ROWS = 2 // facade roof is always the top 2 rows (matches the baked building roof)
-
-export const ROOF_OVERHANG = 0.3 // peaked-roof eaves stick out past the walls
-
-export const ROOF_RIDGE_FRAC = 0.46 // peaked-roof flat-top width as a fraction of length
-
 
 /** One wall of an iso building footprint: its bottom-left ground corner `base`, the `axis` vector
  *  along the wall's whole bottom edge, and the `span` in cells (drives the window count). */
@@ -1719,7 +1694,7 @@ export const WATER_DEPTH_TILES: ReadonlySet<string> = new Set(['water', 'ice_wat
 
 
 /** Fill one iso diamond centred at (cx,cy) with half-extents (hw,hh). */
-export function fillDiamond(ctx: CanvasRenderingContext2D, cx: number, cy: number, hw: number, hh: number, fill: string): void {
+function fillDiamond(ctx: CanvasRenderingContext2D, cx: number, cy: number, hw: number, hh: number, fill: string): void {
   ctx.fillStyle = fill
   ctx.beginPath()
   ctx.moveTo(cx, cy - hh)
@@ -1731,44 +1706,10 @@ export function fillDiamond(ctx: CanvasRenderingContext2D, cx: number, cy: numbe
 }
 
 
-/** A raised iso PRISM: a `height`-tall box whose BASE diamond is centred at (cx, baseY).
- *  Draws the two camera-facing side faces (left/right shaded) + the top diamond. */
-export function drawIsoPrism(
-  ctx: CanvasRenderingContext2D,
-  cx: number,
-  baseY: number,
-  hw: number,
-  hh: number,
-  height: number,
-  top: string,
-  left: string,
-  right: string,
-): void {
-  const topY = baseY - height
-  ctx.fillStyle = left
-  ctx.beginPath()
-  ctx.moveTo(cx - hw, topY)
-  ctx.lineTo(cx, topY + hh)
-  ctx.lineTo(cx, baseY + hh)
-  ctx.lineTo(cx - hw, baseY)
-  ctx.closePath()
-  ctx.fill()
-  ctx.fillStyle = right
-  ctx.beginPath()
-  ctx.moveTo(cx + hw, topY)
-  ctx.lineTo(cx, topY + hh)
-  ctx.lineTo(cx, baseY + hh)
-  ctx.lineTo(cx + hw, baseY)
-  ctx.closePath()
-  ctx.fill()
-  fillDiamond(ctx, cx, topY, hw, hh, top)
-}
-
-
 /** Give a water ground cell ISO DEPTH (#50): a darker sunken bank rim + a recessed,
  *  gently-shimmering surface dropped below the lip — so a pond reads as a basin with
  *  depth, not a flat blue diamond. Render-only; (cx,cy) is the tile's top-face centre. */
-export function drawIsoWaterDepth(
+function drawIsoWaterDepth(
   ctx: CanvasRenderingContext2D,
   cx: number,
   cy: number,
@@ -2026,11 +1967,10 @@ export function drawIsoAssetAscii(
     // Legacy single-lamp prop — a STEADY lit bulb glyph. The day/night AMBIENCE is no longer faked here: it's
     // the warm ground GLOW POOL (drawNightLighting), driven by the tile's `light` SETTING and gated to night,
     // and a night-triggered flicker animation. So this branch just draws the bulb; it no longer reads dayNight.
-    const glow = 1
     const layers = [
       { text: '|', color: '#666666', bg: '#333333' },
       { text: '|', color: '#777777', bg: '#444444' },
-      { text: 'o', color: `rgba(255, 220, 50, ${glow})`, bg: `rgba(100, 80, 0, ${glow})` },
+      { text: 'o', color: 'rgba(255, 220, 50, 1)', bg: 'rgba(100, 80, 0, 1)' },
     ]
     for (let i = 0; i < layers.length; i++) {
       const layer = layers[i]

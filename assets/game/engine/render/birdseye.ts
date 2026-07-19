@@ -22,7 +22,7 @@ import { ASCII_STYLE, assetKind, entityKind, entityStyleOverride, genderize, gro
 /** TOP (blueprint) view: an entity is a single `>` glyph colored by role — yellow player,
  *  red enemy, and NPCs blue / green (offers a quest) / purple (quest in progress). The
  *  glyph is style-resolved (emoji reskin swaps `>` for 👾/🧑/…); ASCII keeps `>`. */
-export function drawTopArrow(ctx: CanvasRenderingContext2D, x: number, y: number, tileSize: number, color: string, glyph: string = '>'): void {
+function drawTopArrow(ctx: CanvasRenderingContext2D, x: number, y: number, tileSize: number, color: string, glyph: string = '>'): void {
   const cx = x + tileSize / 2
   const cy = y + tileSize / 2
   ctx.font = `bold ${tileSize * 0.95}px ${ASCII_FONT}`
