@@ -56,7 +56,7 @@ import { EMOJI_TILESET, setTilePose } from '@/engine/tileset/emojiTileset'
 import { type TilePose } from '@/engine/tileset/pose'
 import { type AssetLight, type TileDisplay, type TileShape } from '@/engine/tileset/tileset'
 import { type QuestDraft, emptyQuestDraft, questFromDraft } from '@/game/runtime/questDraft'
-import { seedCharacterAnimations, needsAnimationReseed, spriteFromEntity, entityFromSprite } from '@/game/runtime/entityAnimation'
+import { seedCharacterAnimations, needsAnimationReseed, entityAnimationsFromUnit, unitAnimationsFromEntity } from '@/game/runtime/entityAnimation'
 import { stampBuildingComposition, stampBuildingKind, stampComposition } from '@/game/runtime/composition'
 import { type Cursor, type JumpState, JUMP_MS, JUMP_PEAK_PX, advanceEnemyMovement, beginJump, tickCannons } from '@/game/runtime/movement'
 import { playSwoosh } from '@/game/runtime/audio'
@@ -67,7 +67,7 @@ import { EntityAttackBody, FloatingPanel, Modal, QuestGiveBody, SettingsPanelBod
 import { FlowViewOverlay, GamesViewOverlay } from '@/components/game/games'
 import { BUILDING_TOOL_TYPE, type BuildingTool, type EditorMode, type EntityTool } from '@/components/game/editorConfig'
 import { Dropdown, FpsReadout, GenerateControls, PoseControls, PropertiesPanel, type TileControlModel, SelectionHeader, StylePicker, TileAnimationEditor, TileLibraryBody, TilePalette, ToolRail, TriggerEditor, WEAPON_KINDS } from '@/components/game/editorChrome'
-import type { Animation as TileAnim, SpriteAnimation } from '@/engine/animation/tileAnimation'
+import type { Animation as TileAnim } from '@/engine/animation/tileAnimation'
 import { useFps } from '@/components/useFps'
 import { commonValue, commonBool, cellsFromKeys, removeSelectedBlock } from '@/game/editor/selectionEdit'
 import { applyRectSelection, applyCellSelection } from '@/game/editor/selection'
@@ -276,9 +276,9 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   const [sectionFocus, setSectionFocus] = useState<{ id: string; n: number } | null>(null)
   // Which entity-action modal is open (Inventory / Quests).
   const [entityModal, setEntityModal] = useState<'inventory' | 'quests' | null>(null)
-  // The unit's ✦ Animate… opens the SHARED TileAnimationEditor modal (sprite kind) — the same one a tile
-  // opens; the unit's EntityAnimation[] is bridged to/from the sprite envelope. Kept off the card (no inline
-  // frame pickers) so the sidebar stays short.
+  // The unit's ✦ Animate… opens the SAME TileAnimationEditor modal a tile opens — BOTH the settings AND sprite
+  // kinds. A unit stores the unified `Animation[]` in `unitAnimations`; the render projection `animations`
+  // (EntityAnimation[]) is kept in sync from its sprite subset. Kept off the card so the sidebar stays short.
   const [animEditorOpen, setAnimEditorOpen] = useState(false)
   // The TILE animation modal (Phase 4) — authors GridAsset.animations for the selected asset tile.
   const [tileAnimatorOpen, setTileAnimatorOpen] = useState(false)
@@ -2001,7 +2001,13 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       const id = selectedEntityIdRef.current
       const e = entitiesRef.current.find(x => x.id === id)
       if (!e) return { selectedId: id, found: false }
-      return { selectedId: id, found: true, kind: e.kind, variant: e.variant ?? null, name: e.name, animations: (e.animations ?? []).map(a => ({ name: a.name, frames: a.frames.map(f => f.char ?? f.tileId ?? '(base)') })) }
+      // `animations` is the render projection (sprite subset); `unitAnimations` is the unified authored list a
+      // unit now stores (settings + sprite kinds) — reported so validation can confirm a settings anim persisted.
+      return {
+        selectedId: id, found: true, kind: e.kind, variant: e.variant ?? null, name: e.name,
+        animations: (e.animations ?? []).map(a => ({ name: a.name, frames: a.frames.map(f => f.char ?? f.tileId ?? '(base)') })),
+        unitAnimations: (e.unitAnimations ?? []).map(a => ({ name: a.name, kind: a.kind })),
+      }
     }
     win.__setArtStyle = (id: string) => setActiveStyleId(id)
     // Flip the active VIEW without the toolbar — for validation screenshots across iso/2d/top.
@@ -5638,20 +5644,21 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                       <button onClick={deleteSelectedEntity} className="flex-1 rounded bg-red-800 px-2 py-1.5 text-xs font-bold hover:bg-red-700">Delete</button>
                       <button onClick={() => setSelectedEntityId(null)} className="rounded bg-gray-700 px-2 py-1.5 text-xs hover:bg-gray-600">Deselect</button>
                     </div>
-                    {/* Animate — the SHARED tile-animation modal (the same one a tile opens), opened by the
-                        card's "✦ Animate…" button; geometry persists under id "animation". A unit's frame-swap
-                        animations ARE the modal's `sprite` kind: its stored EntityAnimation[] is bridged to the
-                        sprite envelope for editing (spriteFromEntity) and mapped back on change (entityFromSprite).
-                        Sprite-only (a unit can't store a settings envelope), so no settings row is lost. */}
+                    {/* Animate — the IDENTICAL shared modal a tile opens (the user: "both unit and tiles should
+                        use the same animations modal"), opened by the card's "✦ Animate…" button; geometry persists
+                        under id "animation". A unit carries the SAME unified `Animation[]` a tile does in
+                        `unitAnimations` (settings-kind AND sprite-kind), so the modal offers BOTH the settings and
+                        sprite add-buttons. Source of truth is `unitAnimations` (bridged live from the legacy
+                        `animations` when a unit predates the field); on change we write `unitAnimations` AND keep the
+                        render projection `animations` (its sprite subset) in sync for the untouched frame renderer. */}
                     {animEditorOpen && (
                       <FloatingPanel title={`${selEntity.name || selEntity.kind} — Animation`} accent="cyan" onClose={() => setAnimEditorOpen(false)} {...floatingProps('animation', { w: 380, h: 520 })}>
                         <TileAnimationEditor
-                          animations={(selEntity.animations ?? []).map(spriteFromEntity)}
+                          animations={selEntity.unitAnimations ?? unitAnimationsFromEntity(selEntity.animations)}
                           elementType="Character"
                           elementLabel={selEntity.name || selEntity.kind}
                           spriteContext={{ category: 'units', styleId: activeStyleId, baseVisual: selBaseVisual, variant: selEntity.variant }}
-                          kinds={['sprite']}
-                          onChange={next => patchSelectedEntity({ animations: next.filter((a): a is SpriteAnimation => a.kind === 'sprite').map(entityFromSprite) })}
+                          onChange={next => patchSelectedEntity({ unitAnimations: next, animations: entityAnimationsFromUnit(next) })}
                         />
                       </FloatingPanel>
                     )}

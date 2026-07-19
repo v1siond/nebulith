@@ -8,6 +8,7 @@
  */
 import type { AbilityAnimation } from './abilities'
 import type { EntityAnimation } from './runtime/entityAnimation'
+import type { Animation } from '@/engine/animation/tileAnimation'
 import type { Trigger } from './runtime/trigger'
 import type { TilePose } from '@/engine/tileset/pose'
 
@@ -260,9 +261,18 @@ export interface Entity {
   /** on-defeat triggers: fire when THIS entity is killed (spawn/give/win/message/…).
    *  Rides the `entities` field on save; the play loop fires them on death. Additive. */
   triggers?: Trigger[]
-  /** authored, data-driven animations (#91): the game plays frames by trigger + direction; frame 0
-   *  seeds from this entity's own tile. Absent → the default character set (person walk/idle). */
+  /** the RENDER PROJECTION of the unit's frame-swap animations (#91): the game plays frames by trigger +
+   *  direction; frame 0 seeds from this entity's own tile. Absent → the default character set (person
+   *  walk/idle). This is the sprite subset of `unitAnimations`, kept in sync by the shared modal so the
+   *  renderer/PlayerState keep reading `EntityAnimation[]` unchanged (entityAnimation.entityAnimationsFromUnit). */
   animations?: EntityAnimation[]
+  /** the UNIFIED authored animation list a unit carries — the SAME `Animation[]` model a tile's
+   *  `GridAsset.animations` uses (settings-kind envelopes AND sprite-kind frame swaps). The shared
+   *  `TileAnimationEditor` reads/writes THIS (source of truth) so a unit offers the IDENTICAL settings + sprite
+   *  buttons a tile does; `animations` above is derived from its sprite subset. Absent → bridged live from
+   *  `animations` (a unit minted before this field). Settings-kind entries persist + author but the entity
+   *  RENDERER doesn't consume them yet (render-parity follow-up). */
+  unitAnimations?: Animation[]
   /** person variant → which baked figure renders (male/female + age/exotic; see EntityVariant). */
   variant?: EntityVariant
   /** render + stat SCALE (1 = normal). A boss at size 2 draws twice as big and derives beefier

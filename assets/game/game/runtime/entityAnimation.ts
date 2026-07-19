@@ -19,7 +19,7 @@ import { visualForTileId, type ImageVisual } from '@/game/artStyle'
 // The shared animation modal authors every animation as a tileAnimation `Animation`; a unit's frame-swap set
 // maps 1:1 onto the `sprite` kind. Type-only import (erased at compile → no runtime cycle, though
 // tileAnimation.ts imports our frame types back). See spriteFromEntity / entityFromSprite below.
-import type { SpriteAnimation } from '@/engine/animation/tileAnimation'
+import type { Animation, SpriteAnimation } from '@/engine/animation/tileAnimation'
 
 export type AnimDirection = 'up' | 'down' | 'left' | 'right' | 'any'
 /** Concrete facing (never 'any') — what the live input reports. */
@@ -228,4 +228,28 @@ export function entityFromSprite(anim: SpriteAnimation): EntityAnimation {
     loopDelayMs: anim.loopDelayMs,
     loop: anim.loop ?? true,
   }
+}
+
+// ── the unified UNIT storage bridge: `Entity.unitAnimations: Animation[]` ⇄ render `EntityAnimation[]` ──────
+// The user: units and tiles must use the IDENTICAL modal — BOTH the settings AND the sprite add-buttons. That
+// means a unit STORES the same unified `Animation[]` a tile does (settings-kind + sprite-kind), authored in
+// `Entity.unitAnimations`. But the RENDERER (iso/topdown) + `PlayerState` still read the frame-swap list as
+// `EntityAnimation[]` via `activeFrame`, unchanged — so `Entity.animations` stays that render projection, kept
+// in sync from the sprite subset of `unitAnimations`. These two pure helpers ARE that lossless bridge.
+
+/** Project a unit's unified authored list to the `EntityAnimation[]` the renderer/runtime plays. Only the
+ *  sprite kind maps to a playable frame set; settings-kind envelopes drive render settings the ENTITY renderer
+ *  doesn't consume yet (render-parity follow-up) so they are dropped from the frame projection but PRESERVED in
+ *  `unitAnimations`. Lossless for every sprite animation (`entityFromSprite`). PURE. */
+export function entityAnimationsFromUnit(anims: readonly Animation[] | undefined): EntityAnimation[] {
+  if (!anims) return []
+  return anims.filter((a): a is SpriteAnimation => a.kind === 'sprite').map(entityFromSprite)
+}
+
+/** Lift a legacy sprite-only `EntityAnimation[]` (a unit minted before `unitAnimations` existed) to the unified
+ *  `Animation[]` the shared modal authors — every EntityAnimation is a sprite Animation (`spriteFromEntity`).
+ *  The fallback read when a unit has no `unitAnimations` yet, so its seeded walk/idle still shows in the modal. PURE. */
+export function unitAnimationsFromEntity(anims: readonly EntityAnimation[] | undefined): Animation[] {
+  if (!anims) return []
+  return anims.map(spriteFromEntity)
 }
