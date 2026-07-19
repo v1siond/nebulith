@@ -3,7 +3,7 @@
  *
  * Exercises the clock-derived value engine directly (no canvas): opacity 0→1 over a duration, a vertical
  * `y` rise, start-delay deferral, loop wrapping, loop-delay rest, colour RGB lerp, display step, ease
- * curves, priority/list-order stacking, scope gating, and the sprite stub. The headline case is TWO chained
+ * curves, priority/list-order stacking, scope gating, and real sprite frame playback. The headline case is TWO chained
  * animations (A rise + B delayed fade) composed through `resolveAnimatedSettings`, sampled across time.
  */
 
@@ -232,10 +232,10 @@ describe('resolveAnimatedSettings — composing a LIST', () => {
       id: 's',
       kind: 'sprite',
       durationMs: 1000,
-      frames: ['water_0', 'water_1'],
+      frames: [{ tileId: 'emoji:water_c' }, { tileId: 'emoji:water_c', flipX: true }],
     }
     const out = resolveAnimatedSettings([move, sprite], 500, 0)
-    expect(out).toEqual({ x: 2 }) // sprite adds no setting keys
+    expect(out).toEqual({ x: 2 }) // sprite writes NO render settings — its live frame comes from spriteFrameIndex
   })
 
   test('an empty list yields no overrides', () => {
@@ -243,7 +243,7 @@ describe('resolveAnimatedSettings — composing a LIST', () => {
   })
 })
 
-describe('scope + sprite stub', () => {
+describe('scope + sprite frame playback', () => {
   test('scope gates by view and style; absent/empty lists mean all', () => {
     const isoOnly = settingsAnim({ tracks: [{ setting: 'opacity', from: 0, to: 1 }], scope: { views: ['iso'] } })
     expect(animationMatchesScope(isoOnly, 'emoji', 'iso')).toBe(true)
@@ -257,10 +257,33 @@ describe('scope + sprite stub', () => {
     expect(animationMatchesScope(unscoped, 'emoji', 'top')).toBe(true)
   })
 
-  test('a sprite animation yields no settings and stubs to frame 0', () => {
-    const sprite: SpriteAnimation = { id: 's', kind: 'sprite', durationMs: 1000, frames: ['a', 'b', 'c'] }
+  test('a sprite animation writes NO render settings (its frame comes from spriteFrameIndex)', () => {
+    const sprite: SpriteAnimation = { id: 's', kind: 'sprite', durationMs: 900, loop: true, frames: [{ char: 'a' }, { char: 'b' }, { char: 'c' }] }
     expect(animationValue(sprite, 500, 0)).toEqual({})
-    expect(spriteFrameIndex(sprite, 500, 0)).toBe(0)
+  })
+
+  test('spriteFrameIndex is REAL clock-derived playback — frames spread evenly, loopDelay + delay honored', () => {
+    // 3 frames across 900ms → 300ms/frame; a looping cycle with a 300ms tail that rests on frame 0.
+    const sprite: SpriteAnimation = { id: 's', kind: 'sprite', durationMs: 900, loopDelayMs: 300, loop: true, frames: [{ char: 'a' }, { char: 'b' }, { char: 'c' }] }
+    expect(spriteFrameIndex(sprite, 0, 0)).toBe(0)
+    expect(spriteFrameIndex(sprite, 350, 0)).toBe(1)
+    expect(spriteFrameIndex(sprite, 650, 0)).toBe(2)
+    expect(spriteFrameIndex(sprite, 1000, 0)).toBe(0) // 1000 ∈ [900,1200) loopDelay tail → rest on frame 0
+    expect(spriteFrameIndex(sprite, 1200, 0)).toBe(0) // next cycle begins → frame 0 again
+    expect(spriteFrameIndex(sprite, 1550, 0)).toBe(1) // 1550 % 1200 = 350 → frame 1
+
+    // startDelay + placedAt anchor: nothing plays until now ≥ placedAt + startDelay.
+    const delayed: SpriteAnimation = { ...sprite, startDelayMs: 200 }
+    expect(spriteFrameIndex(delayed, 100, 0)).toBe(0)   // inside the start delay → base frame
+    expect(spriteFrameIndex(delayed, 550, 0)).toBe(1)   // elapsed 350 → frame 1
+    expect(spriteFrameIndex(sprite, 350, 100)).toBe(0)  // placed at 100 → elapsed 250 → frame 0
+
+    // a single-frame animation is always frame 0.
+    expect(spriteFrameIndex({ ...sprite, frames: [{ char: 'a' }] }, 999, 0)).toBe(0)
+
+    // non-loop HOLDS the last frame after the duration.
+    const oneShot: SpriteAnimation = { id: 'o', kind: 'sprite', durationMs: 900, loop: false, frames: [{ char: 'a' }, { char: 'b' }, { char: 'c' }] }
+    expect(spriteFrameIndex(oneShot, 2000, 0)).toBe(2)
   })
 })
 

@@ -1,6 +1,6 @@
 import '@/__tests__/helpers/installTilesetSeed' // install the DB-equivalent tileset the runtime loads
 /**
- * #91 Stage 2 — AUTHORING. The Inspector's AnimationEditor writes `entity.animations`; the engine
+ * #91 Stage 2 — AUTHORING. The Inspector's shared animation modal (sprite kind) writes `entity.animations`; the engine
  * (Stage 1) plays them. These tests prove the authored DATA an author produces actually plays,
  * that the frame picker is constrained to the entity's own category (characters, not buildings),
  * and that authored animations survive a save→load round-trip. The player IS an entity, so the same

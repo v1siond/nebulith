@@ -47,7 +47,7 @@ import { getEditorSettings, saveEditorSetting, type EditorSettings, type PanelGe
 import { type CellTriggerGroup, ENTITY_GLYPH, cellTriggersFromAssets, cellTriggersToAssets, entitiesFromAssets, entitiesToAssets, groundColorFromAssets, groundColorToAssets, groundDimsFromAssets, groundDimsToAssets, isEntityAsset, isGroundColorAsset, isGroundDimsAsset, isQuestAsset, isStyleAsset, isTriggerAsset, questsFromAssets, questsToAssets, styleFromAssets, styleToAssets, triggersAtCell } from '@/lib/gridCodec'
 import type { GroundCellDims } from '@/engine/groundDims'
 import { type Trigger, type TriggerEffect, fireTriggers } from '@/game/runtime/trigger'
-import { ASCII_STYLE, type Style, type TileDef, styleById, groundKind, assetKind, entityKind, genderize, resolveVisual, visualForTileId, tilesForStyle } from '@/game/artStyle'
+import { ASCII_STYLE, type Style, type TileCategory, type TileDef, type Visual, styleById, groundKind, assetKind, entityKind, entityStyleOverride, genderize, resolveVisual, visualForTileId, tilesForStyle } from '@/game/artStyle'
 import { useRouter } from 'next/router'
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
 import { render, render2D, renderTopView, clampCameraAxis, isoCameraFocus, entityMotion, ENEMY_MOVE_MS, isDebugMode, setDebugMode, isShowCollisions, setShowCollisions as setCollisionsFlag, cellCaptionMap, pickIsoTilesAt, pickTwoDTilesAt, isoRecordedGeom, twoDRecordedGeom, nextPickIndex, ISO_BLOCK_H_FRAC, depthCells, tileGeomPolygon, tileHandlePoints, handleAtPoint, dragOutwardPx, scaleFromDrag, depthFromDrag, drawTileHandles, polyBBox, HANDLE_HIT_RADIUS, type TileHandle, type HandleId, type DayNight, type DepthDir } from '@/engine/render'
@@ -56,7 +56,7 @@ import { EMOJI_TILESET, setTilePose } from '@/engine/tileset/emojiTileset'
 import { type TilePose } from '@/engine/tileset/pose'
 import { type AssetLight, type TileDisplay, type TileShape } from '@/engine/tileset/tileset'
 import { type QuestDraft, emptyQuestDraft, questFromDraft } from '@/game/runtime/questDraft'
-import { seedCharacterAnimations, needsAnimationReseed } from '@/game/runtime/entityAnimation'
+import { seedCharacterAnimations, needsAnimationReseed, spriteFromEntity, entityFromSprite } from '@/game/runtime/entityAnimation'
 import { stampBuildingComposition, stampBuildingKind, stampComposition } from '@/game/runtime/composition'
 import { type Cursor, type JumpState, JUMP_MS, JUMP_PEAK_PX, advanceEnemyMovement, beginJump, tickCannons } from '@/game/runtime/movement'
 import { playSwoosh } from '@/game/runtime/audio'
@@ -66,8 +66,8 @@ import { EquipmentPanel, InventoryCard, QuestAuthoringCard, QuestLogPanel } from
 import { EntityAttackBody, FloatingPanel, Modal, QuestGiveBody, SettingsPanelBody, UnitSettingsSection } from '@/components/game/modals'
 import { FlowViewOverlay, GamesViewOverlay } from '@/components/game/games'
 import { BUILDING_TOOL_TYPE, type BuildingTool, type EditorMode, type EntityTool } from '@/components/game/editorConfig'
-import { AnimationEditor, Dropdown, FpsReadout, GenerateControls, PoseControls, PropertiesPanel, type TileControlModel, SelectionHeader, StylePicker, TileAnimationEditor, TileLibraryBody, TilePalette, ToolRail, TriggerEditor, WEAPON_KINDS } from '@/components/game/editorChrome'
-import type { Animation as TileAnim } from '@/engine/animation/tileAnimation'
+import { Dropdown, FpsReadout, GenerateControls, PoseControls, PropertiesPanel, type TileControlModel, SelectionHeader, StylePicker, TileAnimationEditor, TileLibraryBody, TilePalette, ToolRail, TriggerEditor, WEAPON_KINDS } from '@/components/game/editorChrome'
+import type { Animation as TileAnim, SpriteAnimation } from '@/engine/animation/tileAnimation'
 import { useFps } from '@/components/useFps'
 import { commonValue, commonBool, cellsFromKeys, removeSelectedBlock } from '@/game/editor/selectionEdit'
 import { applyRectSelection, applyCellSelection } from '@/game/editor/selection'
@@ -276,8 +276,9 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   const [sectionFocus, setSectionFocus] = useState<{ id: string; n: number } | null>(null)
   // Which entity-action modal is open (Inventory / Quests).
   const [entityModal, setEntityModal] = useState<'inventory' | 'quests' | null>(null)
-  // The unit card shows a COMPACT animation summary + a "See more…" that opens the full
-  // AnimationEditor in this modal (keeps the sidebar card short — no frame pickers inline).
+  // The unit's ✦ Animate… opens the SHARED TileAnimationEditor modal (sprite kind) — the same one a tile
+  // opens; the unit's EntityAnimation[] is bridged to/from the sprite envelope. Kept off the card (no inline
+  // frame pickers) so the sidebar stays short.
   const [animEditorOpen, setAnimEditorOpen] = useState(false)
   // The TILE animation modal (Phase 4) — authors GridAsset.animations for the selected asset tile.
   const [tileAnimatorOpen, setTileAnimatorOpen] = useState(false)
@@ -5545,6 +5546,12 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                 // "base" frame AS this, and gendered char frames, so the preview matches what renders.
                 const selFigVisual = resolveVisual(entityKind(selEntity.kind), activeStyle, selEntity.tileOverride)
                 const selFigure = genderize(selFigVisual.kind === 'glyph' ? selFigVisual.char : (isEnemy ? '👾' : '🧍'), selEntity.variant)
+                // The base VISUAL for the animation modal's empty "base" frame (frame 0 = the unit as-is): the
+                // unit's own baked tile (its override / per-variant / per-enemy image, the SAME the renderer
+                // draws) so it previews as an IMAGE, not a glyph. Falls back to the resolved figure, then a glyph.
+                const selBaseTileId = selEntity.tileOverride ?? entityStyleOverride(selEntity, activeStyle)
+                const selBaseVisual: Visual = (selBaseTileId && visualForTileId(selBaseTileId))
+                  || (selFigVisual.kind !== 'ascii' ? selFigVisual : { kind: 'glyph', char: selFigure })
                 // SHARED settings model for the unit — the SAME TileControlModel a tile feeds TileControls /
                 // PropertiesPanel, so the unit's card + settings panel (colour / scale / pose) look + work
                 // identically. A unit has ONE uniform scale (`size`), so all three scale axes drive it; colour →
@@ -5631,18 +5638,20 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                       <button onClick={deleteSelectedEntity} className="flex-1 rounded bg-red-800 px-2 py-1.5 text-xs font-bold hover:bg-red-700">Delete</button>
                       <button onClick={() => setSelectedEntityId(null)} className="rounded bg-gray-700 px-2 py-1.5 text-xs hover:bg-gray-600">Deselect</button>
                     </div>
-                    {/* Animate — the frame-by-frame character AnimationEditor, now a movable/resizable FLOATING
-                        panel (like the settings panel), opened by the card's "✦ Animate…" button; its geometry
-                        persists in the backend under id "animation". */}
+                    {/* Animate — the SHARED tile-animation modal (the same one a tile opens), opened by the
+                        card's "✦ Animate…" button; geometry persists under id "animation". A unit's frame-swap
+                        animations ARE the modal's `sprite` kind: its stored EntityAnimation[] is bridged to the
+                        sprite envelope for editing (spriteFromEntity) and mapped back on change (entityFromSprite).
+                        Sprite-only (a unit can't store a settings envelope), so no settings row is lost. */}
                     {animEditorOpen && (
                       <FloatingPanel title={`${selEntity.name || selEntity.kind} — Animation`} accent="cyan" onClose={() => setAnimEditorOpen(false)} {...floatingProps('animation', { w: 380, h: 520 })}>
-                        <AnimationEditor
-                          animations={selEntity.animations ?? []}
-                          category="units"
-                          styleId={activeStyleId}
-                          baseGlyph={selFigure}
-                          variant={selEntity.variant}
-                          onChange={next => patchSelectedEntity({ animations: next })}
+                        <TileAnimationEditor
+                          animations={(selEntity.animations ?? []).map(spriteFromEntity)}
+                          elementType="Character"
+                          elementLabel={selEntity.name || selEntity.kind}
+                          spriteContext={{ category: 'units', styleId: activeStyleId, baseVisual: selBaseVisual, variant: selEntity.variant }}
+                          kinds={['sprite']}
+                          onChange={next => patchSelectedEntity({ animations: next.filter((a): a is SpriteAnimation => a.kind === 'sprite').map(entityFromSprite) })}
                         />
                       </FloatingPanel>
                     )}
@@ -5837,7 +5846,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                         let tile: TileControlModel
                         // Context for the Phase-4 tile-animation modal — set only for an asset tile (the sole
                         // tile that owns GridAsset.animations). Read at the return so the modal can render in scope.
-                        let animatorCtx: { i: number; label: string; animations: TileAnim[] } | null = null
+                        let animatorCtx: { i: number; label: string; animations: TileAnim[]; category: TileCategory; baseVisual: Visual } | null = null
                         if (lvl === 0) {
                           // FLOOR (height-0 tile): per-cell dims/colour + a REAL per-cell pose.
                           const groundSlug = grid.ground[fc.row]?.[fc.col] ?? 'grass'
@@ -5911,7 +5920,17 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                             animations: a0?.animations,
                             onOpenAnimator: posable ? (() => setTileAnimatorOpen(true)) : undefined,
                           }
-                          if (posable) animatorCtx = { i, label: kind, animations: a0?.animations ?? [] }
+                          if (posable) {
+                            // Sprite-frame picker context for THIS tile: its own tileset category (so a lamp's
+                            // frames come from nature tiles, a wall's from buildings — fallback nature) and its
+                            // own baked visual for the empty "base" frame. Emoji is the authored style; ascii
+                            // frames stay glyphs anyway.
+                            const slug = stack[lvl]?.slug ?? ''
+                            const tileCat = (EMOJI_TILESET[slug]?.category as TileCategory | undefined) ?? 'nature'
+                            const baseV = visualForTileId(`${activeStyleId}:${slug}`) ?? resolveVisual(assetKind(a0!), activeStyle, a0!.tileOverride)
+                            const baseVisual: Visual = baseV.kind === 'ascii' ? { kind: 'glyph', char: '·' } : baseV
+                            animatorCtx = { i, label: kind, animations: a0?.animations ?? [], category: tileCat, baseVisual }
+                          }
                         } else {
                           // A BUILDING block (wall / window / door / roof) or a CHARACTER on the cell — shown as a
                           // TILE with the SAME group as a tree: its name, Open Tile Library, colour, W/H/D/Zoom.
@@ -5974,6 +5993,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                                   animations={animatorCtx.animations}
                                   elementType="Tile"
                                   elementLabel={animatorCtx.label}
+                                  spriteContext={{ category: animatorCtx.category, styleId: activeStyleId, baseVisual: animatorCtx.baseVisual }}
                                   onChange={next => setAssetAnimations(animatorCtx!.i, next)}
                                 />
                               </FloatingPanel>

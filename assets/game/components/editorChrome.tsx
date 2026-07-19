@@ -4,9 +4,10 @@
 // props-driven — all gameplay state/handlers live in the page; this is layout only.
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { ZoneId } from '@/engine/zones'
-import { BUILT_IN_STYLES, type TileCategory, type TileDef, genderize, tilesForStyle, visualForTileId } from '@/game/artStyle'
+import { BUILT_IN_STYLES, type TileCategory, type TileDef, type Visual, genderize, tilesForStyle, visualForTileId } from '@/game/artStyle'
 import type { EntityVariant } from '@/game/types'
 import type { AnimDirection, AnimFrame, AnimTrigger, EntityAnimation } from '@/game/runtime/entityAnimation'
+import { spriteFromEntity, entityFromSprite } from '@/game/runtime/entityAnimation'
 import type { TilePose } from '@/engine/tileset/pose'
 import type { AssetLight, TileDisplay, TileShape } from '@/engine/tileset/tileset'
 import type { DepthDir } from '@/engine/render'
@@ -14,7 +15,9 @@ import { DEFAULT_ACTION_PARAMS, makeTrigger, type Trigger, type TriggerActionTyp
 import {
   resolveAnimatedSettings,
   type Animation as TileAnim,
+  type AnimationKind,
   type SettingsAnimation,
+  type SpriteAnimation,
   type AnimationTrack,
   type SettingKey,
   type Ease as AnimEase,
@@ -1129,31 +1132,42 @@ const ANIM_TRIGGERS: ReadonlyArray<{ id: AnimTrigger['on']; label: string }> = [
 
 const ANIM_DIRECTIONS: readonly AnimDirection[] = ['up', 'down', 'left', 'right', 'any']
 
-/** The emoji/glyph a frame slot shows — the SAME image the renderer draws, so the preview matches play:
- *  an empty frame shows the entity's OWN figure (frame 0 = the entity as-is), a `char`/tile is gendered
- *  to the entity's variant (so a walk 🚶 previews as 🚶‍♀️ for a female, matching the idle 🧍‍♀️), and an
- *  image tile shows 🖼. `baseGlyph` is the entity's resolved figure; falls back to '·' if unknown. */
-function frameGlyph(frame: AnimFrame, baseGlyph = '', variant?: EntityVariant): string {
-  if (frame.char) return genderize(frame.char, variant)
+/** The VISUAL a frame slot renders — resolved the SAME way the canvas resolves a tile (label→baked image via
+ *  `visualForTileId`), so the preview matches play: a `char` frame is a glyph gendered to the entity's variant;
+ *  a `tileId` frame is that tile's baked IMAGE (or its glyph in ASCII); an empty frame is the element's OWN
+ *  base visual (frame 0 = the element as-is). This is the #55 fix — a frame that references a baked tile shows
+ *  that tile's IMAGE, never a raw glyph / a generic 🖼 placeholder. */
+function frameVisual(frame: AnimFrame, base: Visual, variant?: EntityVariant): Visual {
+  if (frame.char) return { kind: 'glyph', char: genderize(frame.char, variant) }
   if (frame.tileId) {
     const v = visualForTileId(frame.tileId)
-    if (v?.kind === 'glyph') return genderize(v.char, variant)
-    if (v?.kind === 'image') return '🖼'
+    if (v) return v.kind === 'glyph' ? { kind: 'glyph', char: genderize(v.char, variant), color: v.color } : v
   }
-  return baseGlyph || '·'
+  return base
 }
 
-/** One frame slot: the resolved glyph (mirrored when flipped) + a flip toggle. Clicking the tile
+/** Draw a frame's resolved visual: a baked tile IMAGE via <img> (the same art the renderer draws), or the
+ *  glyph char for an ASCII/glyph tile. NEVER a raw glyph where a baked image belongs (#55). `flipX` mirrors
+ *  the thumbnail, matching the DATA flag the renderer honors. */
+function FrameThumb({ visual, flipX }: { visual: Visual; flipX?: boolean }) {
+  const mirror = flipX ? { display: 'inline-block', transform: 'scaleX(-1)' } : undefined
+  if (visual.kind === 'image') {
+    return <img src={visual.src} alt="" draggable={false} style={{ height: '1.5rem', width: '1.5rem', objectFit: 'contain', imageRendering: 'pixelated', ...mirror }} />
+  }
+  return <span style={mirror}>{visual.kind === 'glyph' ? visual.char : '·'}</span>
+}
+
+/** One frame slot: the resolved baked IMAGE/glyph (mirrored when flipped) + a flip toggle. Clicking the tile
  *  opens the picker for this frame; ⇄ mirrors the frame (a DATA property the renderer honors). */
 function FrameSlot({
-  frame, index, active, onOpen, onToggleFlip, baseGlyph, variant,
+  frame, index, active, onOpen, onToggleFlip, baseVisual, variant,
 }: {
   frame: AnimFrame
   index: number
   active: boolean
   onOpen: () => void
   onToggleFlip: () => void
-  baseGlyph: string
+  baseVisual: Visual
   variant?: EntityVariant
 }) {
   return (
@@ -1166,7 +1180,7 @@ function FrameSlot({
           active ? 'border-cyan-400 bg-cyan-900/40' : 'border-white/15 bg-black/40 hover:bg-white/10'
         }`}
       >
-        <span style={frame.flipX ? { display: 'inline-block', transform: 'scaleX(-1)' } : undefined}>{frameGlyph(frame, baseGlyph, variant)}</span>
+        <FrameThumb visual={frameVisual(frame, baseVisual, variant)} flipX={frame.flipX} />
       </button>
       <button
         onClick={onToggleFlip}
@@ -1217,7 +1231,7 @@ function FramePicker({
             title={`${t.label} (${t.id})`}
             className="flex flex-col items-center gap-0.5 rounded border border-white/10 bg-black/40 px-1 py-1 hover:bg-white/10"
           >
-            <span className="text-base leading-none">{t.visual.kind === 'glyph' ? t.visual.char : '🖼'}</span>
+            <FrameThumb visual={t.visual} />
             <span className="w-full truncate text-center text-[8px] text-gray-400">{t.label}</span>
           </button>
         ))}
@@ -1230,14 +1244,14 @@ function FramePicker({
  *  loop, the frame strip + picker, and a delete. Every edit patches this animation immutably up
  *  through `onAnim`. */
 function AnimationRow({
-  anim, category, styleId, onAnim, onRemove, baseGlyph, variant,
+  anim, category, styleId, onAnim, onRemove, baseVisual, variant,
 }: {
   anim: EntityAnimation
   category: TileCategory
   styleId: string
   onAnim: (next: EntityAnimation) => void
   onRemove: () => void
-  baseGlyph: string
+  baseVisual: Visual
   variant?: EntityVariant
 }) {
   const [pickerFrame, setPickerFrame] = useState<number | null>(null)
@@ -1314,7 +1328,7 @@ function AnimationRow({
               active={pickerFrame === fi}
               onOpen={() => setPickerFrame(p => (p === fi ? null : fi))}
               onToggleFlip={() => patchFrame(fi, { flipX: !f.flipX })}
-              baseGlyph={baseGlyph}
+              baseVisual={baseVisual}
               variant={variant}
             />
           ))}
@@ -1336,67 +1350,19 @@ function AnimationRow({
   )
 }
 
-export interface AnimationEditorProps {
-  /** the entity's authored animations (empty → it plays the default character set). */
-  animations: EntityAnimation[]
-  /** the entity's tile category — 'units' for any character (player/npc/enemy); constrains the picker. */
-  category: TileCategory
-  /** the active art style whose tiles the frame picker offers. */
-  styleId: string
-  /** the entity's OWN resolved figure (already gendered) — what an empty "base" frame previews as. */
-  baseGlyph: string
-  /** the entity's variant, so char/tile frames preview gendered (matching the render). */
-  variant?: EntityVariant
-  onChange: (next: EntityAnimation[]) => void
-}
+// `AnimationRow` (above) is the reusable frame-swap editor; the standalone character `AnimationEditor` that
+// wrapped it is GONE — units now author their frame-swap animations as the `sprite` KIND inside the shared
+// `TileAnimationEditor` below (the character animation merged into the tile settings modal, per the user).
 
-/** Author the data-driven animations that ride on an entity — the player included (the player IS an
- *  entity, so this authors the live hero). Add/edit/remove animations; each has a trigger, direction,
- *  timing, loop, and a frame strip with a category-constrained tile picker. */
-export function AnimationEditor({ animations, category, styleId, baseGlyph, variant, onChange }: AnimationEditorProps) {
-  const replace = (i: number, next: EntityAnimation) => onChange(animations.map((a, j) => (j === i ? next : a)))
-  const remove = (i: number) => onChange(animations.filter((_, j) => j !== i))
-  const add = () =>
-    onChange([
-      ...animations,
-      {
-        // stable-ish id: index + a base-36 timestamp so two adds in the same session never collide.
-        id: `anim-${animations.length}-${Date.now().toString(36)}`,
-        name: 'new animation',
-        trigger: { on: 'move' },
-        direction: 'down',
-        frames: [{}, {}],
-        durationMs: 300,
-        loopDelayMs: 0,
-        loop: true,
-      },
-    ])
-
-  return (
-    <div className="space-y-2 text-xs">
-      {animations.length === 0 && (
-        <p className="text-[10px] leading-tight text-gray-500">
-          No animations yet — this entity plays the default character set. Add one to author a custom walk / idle / attack…
-        </p>
-      )}
-      {animations.map((a, i) => (
-        <AnimationRow key={a.id} anim={a} category={category} styleId={styleId} baseGlyph={baseGlyph} variant={variant} onAnim={next => replace(i, next)} onRemove={() => remove(i)} />
-      ))}
-      <button onClick={add} className="w-full rounded bg-cyan-800 px-2 py-1 text-[11px] font-bold text-white transition-colors hover:bg-cyan-700">
-        ✦ Add animation
-      </button>
-    </div>
-  )
-}
-
-// ── ✦ TILE animation editor (Phase 4) — author DATA-DRIVEN per-tile SETTINGS animations ────
-// The dedicated modal body that authors `GridAsset.animations` (a LIST → chaining) for the ONE selected
-// tile/asset. Each animation is a `settings` envelope that tweens many render settings (opacity, y-rise,
-// colour, zoom…) from `from → to` over one duration, with start/loop delays, looping, ease, a trigger,
-// and per-(style,view) scope — exactly the shape the pure engine (`tileAnimation`) plays. Pure &
-// props-driven like AnimationEditor: every edit flows up through `onChange` immutably; the only stateful
-// bit is the live PREVIEW's RAF clock. `sprite` is defined in the type but its authoring is a labeled STUB
-// this phase (playback is stubbed in the engine too).
+// ── ✦ TILE + UNIT animation editor — the ONE shared modal (settings AND sprite kinds) ────
+// The dedicated modal body that authors an animation LIST (→ chaining) for the ONE selected tile OR unit.
+// Two kinds share it:
+//   - `settings` — tweens render settings (opacity, y-rise, colour, zoom…) `from → to` over one duration, with
+//     start/loop delays, looping, ease, a trigger, and per-(style,view) scope — the pure `tileAnimation` engine.
+//   - `sprite`   — a frame-swap cycle (walk/idle/attack) authored with the SAME `AnimationRow` a unit uses; it
+//     reuses the entity frame model, so a unit edits its animations here and a tile can carry one too.
+// Pure & props-driven: every edit flows up through `onChange` immutably; the only stateful bit is the live
+// PREVIEW's RAF clock (which reflects the settings kind — sprite writes no render settings).
 
 /** Every render setting a tile animation can drive, in picker order (opacity/y first — the fountain case). */
 const ANIM_SETTING_KEYS: ReadonlyArray<{ key: SettingKey; label: string }> = [
@@ -1449,6 +1415,32 @@ function makeDefaultSettingsAnim(index: number): SettingsAnimation {
     priority: 0,
     trigger: { on: 'load' },
   }
+}
+
+/** A blank sprite (frame-swap) animation for "Add" — a 2-frame looping move cycle, the SAME default the old
+ *  character editor seeded. Frame 0 is the element's own tile (empty); the author swaps in tiles per frame. */
+function makeDefaultSpriteAnim(index: number): SpriteAnimation {
+  return {
+    id: `spriteanim-${index}-${Date.now().toString(36)}`,
+    name: 'new animation',
+    kind: 'sprite',
+    frames: [{}, {}],
+    spriteTrigger: { on: 'move' },
+    direction: 'down',
+    durationMs: 300,
+    loopDelayMs: 0,
+    loop: true,
+  }
+}
+
+/** The context a `sprite` row needs to render its frame strip + category-constrained picker (the same inputs
+ *  the old character editor took): the element's tile category, the active style, its own base visual (the
+ *  empty "base" frame preview), and its variant (so glyph frames preview gendered). */
+export interface SpriteAnimationContext {
+  category: TileCategory
+  styleId: string
+  baseVisual: Visual
+  variant?: EntityVariant
 }
 
 /** ONE track's from/to editor — colour pickers for `color`, an all-faces/single toggle for `display`,
@@ -1571,14 +1563,27 @@ function TileAnimationRow({ anim, onAnim, onRemove }: { anim: SettingsAnimation;
   )
 }
 
-/** A sprite animation loaded from data — authoring is a labeled STUB this phase (engine playback is stubbed
- *  too). Shows the frame count read-only + a delete, so a sprite entry is never silently lost. */
-function SpriteAnimationStub({ frames, onRemove }: { frames: string[]; onRemove: () => void }) {
+/** A `sprite` (frame-swap) animation row — the REAL editor. It reuses the SAME `AnimationRow` a unit's
+ *  frame-swap uses by viewing the sprite envelope through the entity model (`entityFromSprite`) and mapping
+ *  edits back (`spriteFromEntity`); the spread preserves any settings-only envelope extras (startDelay /
+ *  priority / scope) the frame UI doesn't touch. This is how the character animation lives INSIDE the shared
+ *  modal as the sprite kind. */
+function SpriteAnimationRow({ anim, ctx, onAnim, onRemove }: {
+  anim: SpriteAnimation
+  ctx: SpriteAnimationContext
+  onAnim: (next: SpriteAnimation) => void
+  onRemove: () => void
+}) {
   return (
-    <div className="flex items-center justify-between rounded border border-dashed border-white/15 bg-black/40 p-2 text-[10px] text-gray-400">
-      <span><span className="font-bold text-amber-300">sprite</span> · {frames.length} frame{frames.length === 1 ? '' : 's'} · authoring coming in a later phase</span>
-      <button onClick={onRemove} aria-label="Delete animation" className="rounded bg-red-900/70 px-1.5 py-1 text-[10px] font-bold text-red-200 hover:bg-red-800">✕</button>
-    </div>
+    <AnimationRow
+      anim={entityFromSprite(anim)}
+      category={ctx.category}
+      styleId={ctx.styleId}
+      baseVisual={ctx.baseVisual}
+      variant={ctx.variant}
+      onAnim={next => onAnim({ ...anim, ...spriteFromEntity(next) })}
+      onRemove={onRemove}
+    />
   )
 }
 
@@ -1618,22 +1623,31 @@ function TileAnimationPreview({ animations }: { animations: readonly TileAnim[] 
 }
 
 export interface TileAnimationEditorProps {
-  /** the tile's authored animations (a LIST → chain order). */
+  /** the element's authored animations (a LIST → chain order), mixing `settings` + `sprite` kinds. */
   animations: TileAnim[]
   /** what the animated element IS — surfaced in the header so it's unmistakable ('Tile' vs 'Character'). */
   elementType: 'Tile' | 'Character'
   /** the element's name, e.g. 'water_c' — shown beside the type. */
   elementLabel: string
+  /** the context a `sprite` row + the "Add sprite animation" button need (frame picker category, style,
+   *  base visual, variant). Required — every selected tile/unit can author a frame-swap animation. */
+  spriteContext: SpriteAnimationContext
+  /** which kinds this element may ADD. A tile authors both; a unit stores `EntityAnimation[]`, which only maps
+   *  to the sprite kind, so its modal offers `['sprite']` (no settings add → nothing lost on the bridge back).
+   *  Default both. Existing rows of any kind still render + delete regardless. */
+  kinds?: readonly AnimationKind[]
   onChange: (next: TileAnim[]) => void
 }
 
-/** Author the DATA-DRIVEN settings animations that ride on ONE placed tile/asset — the manual path that
- *  builds e.g. the fountain water (an opacity+y chain) by hand. Add/edit/remove animations; each has a
- *  settings multi-picker, timing, a trigger, and scope, with a live preview of the composed chain. */
-export function TileAnimationEditor({ animations, elementType, elementLabel, onChange }: TileAnimationEditorProps) {
+/** Author the DATA-DRIVEN animations that ride on ONE selected tile/asset OR unit — the ONE shared modal.
+ *  `settings` rows tween render settings (the fountain opacity+height chain); `sprite` rows author frame-swap
+ *  cycles (a unit's walk/idle, or a tile's flicker) with the reused character frame editor. Add/edit/remove;
+ *  the live preview reflects the settings chain (sprite writes no render settings). */
+export function TileAnimationEditor({ animations, elementType, elementLabel, spriteContext, kinds = ['settings', 'sprite'], onChange }: TileAnimationEditorProps) {
   const replace = (i: number, next: TileAnim) => onChange(animations.map((a, j) => (j === i ? next : a)))
   const remove = (i: number) => onChange(animations.filter((_, j) => j !== i))
   const addSettings = () => onChange([...animations, makeDefaultSettingsAnim(animations.length)])
+  const addSprite = () => onChange([...animations, makeDefaultSpriteAnim(animations.length)])
 
   return (
     <div className="space-y-2 text-xs">
@@ -1646,23 +1660,27 @@ export function TileAnimationEditor({ animations, elementType, elementLabel, onC
 
       {animations.length === 0 && (
         <p className="text-[10px] leading-tight text-gray-500">
-          No animations yet — add one to make this {elementType.toLowerCase()} move. Each animation tweens the settings you check (opacity, y-rise, colour…) from a start to an end value; chain several for a sequence.
+          No animations yet — add one to make this {elementType.toLowerCase()} move. A settings animation tweens values (opacity, y-rise, colour…); a sprite animation swaps baked tile frames (walk / idle / attack). Chain several for a sequence.
         </p>
       )}
 
       {animations.map((a, i) =>
         a.kind === 'settings'
           ? <TileAnimationRow key={a.id} anim={a} onAnim={next => replace(i, next)} onRemove={() => remove(i)} />
-          : <SpriteAnimationStub key={a.id} frames={a.frames} onRemove={() => remove(i)} />,
+          : <SpriteAnimationRow key={a.id} anim={a} ctx={spriteContext} onAnim={next => replace(i, next)} onRemove={() => remove(i)} />,
       )}
 
       <div className="flex gap-1">
-        <button onClick={addSettings} className="flex-1 rounded bg-fuchsia-800 px-2 py-1 text-[11px] font-bold text-white transition-colors hover:bg-fuchsia-700">
-          ✦ Add settings animation
-        </button>
-        <button disabled title="Sprite animations arrive in a later phase" aria-label="Add sprite animation" className="cursor-not-allowed rounded bg-gray-800 px-2 py-1 text-[11px] font-bold text-gray-500">
-          Sprite (soon)
-        </button>
+        {kinds.includes('settings') && (
+          <button onClick={addSettings} className="flex-1 rounded bg-fuchsia-800 px-2 py-1 text-[11px] font-bold text-white transition-colors hover:bg-fuchsia-700">
+            ✦ Add settings animation
+          </button>
+        )}
+        {kinds.includes('sprite') && (
+          <button onClick={addSprite} aria-label="Add sprite animation" className="flex-1 rounded bg-cyan-800 px-2 py-1 text-[11px] font-bold text-white transition-colors hover:bg-cyan-700">
+            ✦ Add sprite animation
+          </button>
+        )}
       </div>
     </div>
   )

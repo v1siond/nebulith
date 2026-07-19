@@ -1,12 +1,16 @@
 /**
  * Tile Animation — the shared, pure animation ENGINE (Phase 1).
  *
- * ONE envelope for every animated tile. An `Animation` has a `kind`:
+ * ONE envelope for every animated tile OR unit. An `Animation` has a `kind`:
  *   - `'settings'` — tweens a tile's live render SETTINGS (position, zoom, size, colour, opacity, …)
  *     from a `from` value to a `to` value over one `durationMs`. Many settings move together (`tracks[]`).
- *     Fully implemented here.
- *   - `'sprite'` — swaps baked frame images. Its TYPE is defined so later phases can attach it; its
- *     PLAYBACK is stubbed for Phase 1 (`spriteFrameIndex` → frame 0, `animationValue` → no settings).
+ *   - `'sprite'` — swaps baked frame IMAGES (a walk/idle/attack cycle). It carries the SAME frame model a
+ *     unit uses (`AnimFrame` — a tile label + optional flip, resolved label→baked image), an entity-style
+ *     `spriteTrigger` (idle/move/attack/interact/key) and a `direction`, so a UNIT's frame-swap animation IS
+ *     a sprite Animation and TILES can carry one too. `spriteFrameIndex` derives the live frame from the
+ *     clock; it writes no render settings (so `animationValue` returns `{}` for it — the renderer draws the
+ *     resolved frame's image instead). See `entityAnimation.spriteFromEntity` / `entityFromSprite` (the bridge
+ *     the shared authoring modal uses so a unit edits its animations as sprite kinds without changing storage).
  *
  * PURE + clock-derived (no per-instance state, no canvas): the value at time `nowMs` for a tile placed
  * at `placedAtMs` is a deterministic function of the envelope + the two timestamps — the renderer reads
@@ -23,6 +27,10 @@
 
 import { lerp } from '@/lib/math'
 import { parseColor } from '@/engine/colors'
+// The sprite kind REUSES the unit frame model (don't fork it): a frame is a tile label + flip, its trigger is
+// the entity event model (idle/move/attack/…), its direction the entity facing. Type-only import — erased at
+// compile, so there is no runtime cycle even though entityAnimation.ts imports SpriteAnimation back for its bridge.
+import type { AnimFrame, AnimTrigger, AnimDirection } from '@/game/runtime/entityAnimation'
 
 /**
  * A render setting an animation track can drive. Numeric unless noted:
@@ -120,11 +128,22 @@ export interface SettingsAnimation extends AnimationBase {
   tracks: AnimationTrack[]
 }
 
-/** The sprite kind — swaps baked frame images. Type only in Phase 1; playback is stubbed. */
+/**
+ * The sprite kind — a frame-swap animation (walk/idle/attack), the SAME model a unit carries. Shared by tiles
+ * and units: a unit's authored animations ARE sprite Animations (via the entityAnimation bridge); a tile can
+ * carry one too. `spriteFrameIndex` derives the live frame from the clock; it writes no render settings.
+ */
 export interface SpriteAnimation extends AnimationBase {
   kind: 'sprite'
-  /** baked frame image labels/urls, resolved by the backend tileset; drawn in order. */
-  frames: string[]
+  /** the frames to swap through — the unit frame model (a tile label + optional flip), each resolved
+   *  label→baked IMAGE by the renderer/authoring preview (never a raw glyph). Drawn in order, spread evenly
+   *  across `durationMs`; an empty frame is the element's own base tile. */
+  frames: AnimFrame[]
+  /** what makes this variant play — the ENTITY event model (idle/move/attack/interact/key). Absent = ambient
+   *  (plays like a `load` loop). Distinct from the settings-kind `trigger` (load/proximity/night). */
+  spriteTrigger?: AnimTrigger
+  /** the facing this variant plays for (a walk-left vs walk-right pair); 'any'/absent = every facing. */
+  direction?: AnimDirection
 }
 
 export type Animation = SettingsAnimation | SpriteAnimation
@@ -276,7 +295,7 @@ export function animationValueDetailed(
   nowMs: number,
   placedAtMs: number,
 ): AnimatedSettingsDetailed {
-  if (anim.kind !== 'settings') return {} // sprite playback stubbed for Phase 1
+  if (anim.kind !== 'settings') return {} // sprite writes no render settings — its live frame comes from spriteFrameIndex
   const raw = rawProgress(anim, nowMs, placedAtMs)
   const eased = easeAnim(anim.ease, raw)
   const out: AnimatedSettingsDetailed = {}
@@ -366,9 +385,31 @@ export function animationMatchesScope(anim: Animation, style: TileStyle, view: T
 }
 
 /**
- * Sprite-kind playback STUB — Phase 1 defines the shape only. Returns the frame index a later phase will
- * draw; today it always resolves frame 0 so callers can wire the type without behaviour. PURE.
+ * The live frame index of a sprite animation at `nowMs` for an element placed at `placedAtMs`. PURE +
+ * clock-derived, exactly like the settings interpolator — no per-frame state. Semantics mirror the unit
+ * player (`entityAnimation.loopFrameIndex`) so a unit's animation plays identically whether the renderer
+ * reads it here or there, extended with the envelope's `startDelayMs`/`placedAtMs` anchor:
+ *   - before it is placed or still inside the start delay → frame 0 (deferred, holds the base frame).
+ *   - frames spread EVENLY across `durationMs` (`Math.floor(t / (durationMs / n))`, capped at the last).
+ *   - loop: period = `durationMs + loopDelayMs`; the `loopDelay` tail RESTS on frame 0 between loops.
+ *   - non-loop: after the duration, HOLDS the last frame (a one-shot settles on its end pose).
+ * A single-frame (or zero-duration) animation is always frame 0.
  */
-export function spriteFrameIndex(_anim: SpriteAnimation, _nowMs: number, _placedAtMs: number): number {
-  return 0
+export function spriteFrameIndex(anim: SpriteAnimation, nowMs: number, placedAtMs: number): number {
+  const n = anim.frames.length
+  if (n <= 1) return 0
+  const duration = anim.durationMs
+  if (duration <= 0) return 0
+
+  const startDelay = Math.max(0, anim.startDelayMs ?? 0)
+  const elapsed = nowMs - placedAtMs - startDelay
+  if (elapsed <= 0) return 0 // not placed yet, or still inside the start delay → the base frame
+
+  const per = duration / n
+  if (!anim.loop) return elapsed >= duration ? n - 1 : Math.min(n - 1, Math.floor(elapsed / per))
+
+  const loopDelay = Math.max(0, anim.loopDelayMs ?? 0)
+  const t = elapsed % (duration + loopDelay)
+  if (t >= duration) return 0 // loopDelay tail rests on frame 0 (matches loopFrameIndex's "resting between loops")
+  return Math.min(n - 1, Math.floor(t / per))
 }

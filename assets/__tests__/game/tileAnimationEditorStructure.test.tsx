@@ -18,11 +18,18 @@ import { TileAnimationEditor } from '@/components/game/editorChrome'
 import type { Animation } from '@/engine/animation/tileAnimation'
 
 /** A controlled consumer: holds the animation list + mirrors it as JSON so a test can read the written shape. */
-function Harness({ initial = [], elementType = 'Tile' as const }: { initial?: Animation[]; elementType?: 'Tile' | 'Character' }) {
+function Harness({ initial = [], elementType = 'Tile' as const, kinds }: { initial?: Animation[]; elementType?: 'Tile' | 'Character'; kinds?: readonly ('settings' | 'sprite')[] }) {
   const [anims, setAnims] = useState<Animation[]>(initial)
   return (
     <>
-      <TileAnimationEditor animations={anims} elementType={elementType} elementLabel="water_c" onChange={setAnims} />
+      <TileAnimationEditor
+        animations={anims}
+        elementType={elementType}
+        elementLabel="water_c"
+        spriteContext={{ category: 'nature', styleId: 'emoji', baseVisual: { kind: 'glyph', char: '~' } }}
+        kinds={kinds}
+        onChange={setAnims}
+      />
       <pre data-testid="state">{JSON.stringify(anims)}</pre>
     </>
   )
@@ -80,11 +87,25 @@ describe('TileAnimationEditor — add / kind', () => {
     expect(state[0].trigger).toEqual({ on: 'load' })
   })
 
-  it('the Sprite path is a LABELED stub (present but disabled — not authorable this phase)', () => {
+  it('"Add sprite animation" is REAL — appends a kind:sprite frame-swap envelope (frames + entity trigger)', () => {
     render(<Harness />)
     const sprite = screen.getByRole('button', { name: /Add sprite animation/i })
-    expect(sprite).toBeDisabled()
-    expect(sprite).toHaveTextContent(/soon/i)
+    expect(sprite).not.toBeDisabled()
+    fireEvent.click(sprite)
+    const state = readState()
+    expect(state).toHaveLength(1)
+    expect(state[0].kind).toBe('sprite')
+    const s = state[0] as Extract<Animation, { kind: 'sprite' }>
+    // it carries the entity frame model: a frame LIST (not string[]) + a frame-swap trigger like idle/walk/attack.
+    expect(Array.isArray(s.frames)).toBe(true)
+    expect(s.frames.length).toBeGreaterThanOrEqual(2)
+    expect(s.spriteTrigger?.on).toBe('move')
+  })
+
+  it('a UNIT modal (kinds=[sprite]) offers ONLY the sprite add — a unit stores no settings envelope', () => {
+    render(<Harness elementType="Character" kinds={['sprite']} />)
+    expect(screen.getByRole('button', { name: /Add sprite animation/i })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Add settings animation/i })).toBeNull()
   })
 })
 

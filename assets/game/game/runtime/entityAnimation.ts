@@ -16,6 +16,10 @@
  * `activeFrame(...)` chains all three. Pure — unit-tested; no DOM/grid access.
  */
 import { visualForTileId, type ImageVisual } from '@/game/artStyle'
+// The shared animation modal authors every animation as a tileAnimation `Animation`; a unit's frame-swap set
+// maps 1:1 onto the `sprite` kind. Type-only import (erased at compile → no runtime cycle, though
+// tileAnimation.ts imports our frame types back). See spriteFromEntity / entityFromSprite below.
+import type { SpriteAnimation } from '@/engine/animation/tileAnimation'
 
 export type AnimDirection = 'up' | 'down' | 'left' | 'right' | 'any'
 /** Concrete facing (never 'any') — what the live input reports. */
@@ -186,4 +190,42 @@ const OUTDATED_SEED_CHARS: ReadonlySet<string> = new Set(['🚶', '🏃'])
 export function needsAnimationReseed(anims: readonly EntityAnimation[] | undefined): boolean {
   if (!anims || anims.length === 0) return true
   return anims.some(a => a.frames.some(f => f.char !== undefined && OUTDATED_SEED_CHARS.has(f.char)))
+}
+
+// ── the bridge: a unit's frame-swap animation ⇄ the shared modal's `sprite` kind ─────────────────────
+// The tile settings modal authors every animation as a tileAnimation `Animation`; the user asked for the
+// character animation to BE the sprite kind inside that one modal. A unit still STORES EntityAnimation[]
+// (the renderer plays it via activeFrame — unchanged), so the modal edits the SPRITE VIEW of each animation
+// and writes the plain entity shape back. The mapping is lossless: every EntityAnimation field has a home on
+// the sprite envelope (id/name/durationMs/loopDelayMs/loop on the base; trigger→spriteTrigger; direction; frames).
+
+/** A unit's EntityAnimation as the shared modal's `sprite` Animation (a deep, editable copy). */
+export function spriteFromEntity(anim: EntityAnimation): SpriteAnimation {
+  return {
+    id: anim.id,
+    name: anim.name,
+    kind: 'sprite',
+    frames: anim.frames.map(f => ({ ...f })),
+    spriteTrigger: { ...anim.trigger },
+    direction: anim.direction,
+    durationMs: anim.durationMs,
+    loopDelayMs: anim.loopDelayMs,
+    loop: anim.loop,
+  }
+}
+
+/** A `sprite` Animation edited in the shared modal back to the stored EntityAnimation shape (a deep copy).
+ *  Fills the entity defaults (idle trigger / 'any' facing / looping) for the fields the sprite envelope leaves
+ *  optional, so a round-trip through the modal always yields a valid, playable unit animation. */
+export function entityFromSprite(anim: SpriteAnimation): EntityAnimation {
+  return {
+    id: anim.id,
+    name: anim.name ?? '',
+    trigger: anim.spriteTrigger ? { ...anim.spriteTrigger } : { on: 'idle' },
+    direction: anim.direction ?? 'any',
+    frames: (anim.frames ?? []).map(f => ({ ...f })),
+    durationMs: anim.durationMs,
+    loopDelayMs: anim.loopDelayMs,
+    loop: anim.loop ?? true,
+  }
 }
