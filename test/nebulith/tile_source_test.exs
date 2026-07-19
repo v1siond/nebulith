@@ -357,6 +357,38 @@ defmodule Nebulith.TileSourceTest do
     assert fixed.settings["fadeNear"] == true, "settings (behaviour/pose) survive the height-only fix"
   end
 
+  test "standing NATURE tiles are 3D BLOCKS (height >= 1); flat ground overlays stay FLAT (0)" do
+    # User (Image #60): a painted palm tree / plant came in FLAT while buildings painted as blocks — the SAME
+    # height-drift class. Standing nature objects (trees/rocks/crates/lamps/mushrooms/animals) must extrude;
+    # flat ground overlays (flowers/leaves/floor items) must stay decals.
+    emoji = Catalog.list_tiles_for("emoji")
+    by = fn label -> Enum.find(emoji, &(&1.label == label)) end
+
+    for label <- ~w(tree palm-tree pine-tree oak-tree rock boulder crate lamp mushroom bush cactus potted-plant cow) do
+      assert by.(label).height >= 1, "#{label} (a standing object) must be a 3D block (height >= 1)"
+    end
+
+    for label <- ~w(flower rose tulip sunflower fallen-leaf maple-leaf clover hazard key) do
+      assert by.(label).height == 0, "#{label} (a flat ground overlay) must stay flat (height 0)"
+    end
+  end
+
+  test "reconcile_nature_heights restores a drifted standing-nature height, leaving settings untouched" do
+    # Same surgical, pose-safe fix as buildings — height COLUMN only, so a tile's settings survive.
+    palm = Enum.find(Catalog.list_tiles_for("emoji"), &(&1.label == "palm-tree"))
+    settings_before = palm.settings
+
+    {1, _} = Catalog.set_tile_height(palm.tileset_id, "palm-tree", 0)
+    assert Enum.find(Catalog.list_tiles_for("emoji"), &(&1.label == "palm-tree")).height == 0
+
+    :ok = TileSource.reconcile_nature_heights()
+    fixed = Enum.find(Catalog.list_tiles_for("emoji"), &(&1.label == "palm-tree"))
+    assert fixed.height >= 1, "reconcile restores the intended standing-nature block height"
+    assert fixed.settings == settings_before, "settings (colour/pose) survive the height-only fix"
+    # a flat overlay is NOT wrongly extruded by the reconcile
+    assert Enum.find(Catalog.list_tiles_for("emoji"), &(&1.label == "flower")).height == 0
+  end
+
   test "behavior settings don't clobber existing settings and stay scoped to building tiles" do
     ascii_tiles = Catalog.list_tiles_for("ascii")
 

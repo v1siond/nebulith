@@ -827,6 +827,7 @@ defmodule Nebulith.Catalog.TileSource do
     seed_new_compositions()
     seed_building_compositions()
     reconcile_building_heights()
+    reconcile_nature_heights()
     IO.puts("reseeded sample tiles + compositions")
     :ok
   end
@@ -842,18 +843,35 @@ defmodule Nebulith.Catalog.TileSource do
   why `seed_sample` never calls it). Facade parts (door/window) + water features (fountain/well) carry no
   height in emoji.json, so they stay flat (0). Idempotent.
   """
-  def reconcile_building_heights do
+  def reconcile_building_heights, do: reconcile_category_heights("buildings")
+
+  @doc """
+  Reconciles the `height` COLUMN of the emoji NATURE tiles from emoji.json.
+
+  Same DRIFT class as the buildings (reconcile_building_heights): a standing nature object (tree/palm/
+  rock/crate/lamp/mushroom/animal/…) must paint as a 3D BLOCK, but its DB `height` sat at 0 while emoji.json
+  intends 1 — so a PAINTED palm-tree/plant came in as a flat single-face billboard on the floor while the
+  GENERATOR's version (a composition cell, forced to height 1 in composition.ex/ts) stood up. Flat ground
+  overlays (flowers/leaves/floor items) carry no height in emoji.json, so they STAY flat (0). Height-only,
+  so editor-tuned poses in `settings` survive. Idempotent.
+  """
+  def reconcile_nature_heights, do: reconcile_category_heights("nature")
+
+  # Walk every emoji.json tile of `category` and write its `height` onto the matching DB row, touching ONLY
+  # the height column (set_tile_height) so editor-tuned poses survive — the SAME pose-safe path the building
+  # reconcile uses. `height` absent in emoji.json → 0 (flat).
+  defp reconcile_category_heights(category) do
     emoji_id = ensure_tileset("emoji", "Emoji").id
     emoji = read_tileset("emoji.json")
 
     updated =
-      for {label, t} <- emoji, t["category"] == "buildings", reduce: 0 do
+      for {label, t} <- emoji, t["category"] == category, reduce: 0 do
         acc ->
           {n, _} = Catalog.set_tile_height(emoji_id, label, t["height"] || 0)
           acc + n
       end
 
-    IO.puts("reconciled #{updated} emoji building-tile heights")
+    IO.puts("reconciled #{updated} emoji #{category}-tile heights")
     :ok
   end
 

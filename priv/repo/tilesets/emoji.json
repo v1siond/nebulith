@@ -110,7 +110,8 @@
     "color": "#2f8f3f",
     "image": "/tiles/emoji/baked/tree.png",
     "category": "nature",
-    "title": "Tree"
+    "title": "Tree",
+    "height": 1
   },
   "flower": {
     "char": "🌸",
@@ -124,42 +125,48 @@
     "color": "#4fa03f",
     "image": "/tiles/emoji/baked/bush.png",
     "category": "nature",
-    "title": "Bush"
+    "title": "Bush",
+    "height": 1
   },
   "rock": {
     "char": "🪨",
     "color": "#8a8a8a",
     "image": "/tiles/emoji/baked/rock.png",
     "category": "nature",
-    "title": "Rock"
+    "title": "Rock",
+    "height": 1
   },
   "crate": {
     "char": "📦",
     "color": "#b5793a",
     "image": "/tiles/emoji/baked/crate.png",
     "category": "nature",
-    "title": "Crate"
+    "title": "Crate",
+    "height": 1
   },
   "lamp": {
     "char": "💡",
     "color": "#ffd24a",
     "image": "/tiles/emoji/baked/lamp.png",
     "category": "nature",
-    "title": "Lamp"
+    "title": "Lamp",
+    "height": 1
   },
   "crystal": {
     "char": "💎",
     "color": "#b48cff",
     "image": "/tiles/emoji/baked/crystal.png",
     "category": "nature",
-    "title": "Crystal"
+    "title": "Crystal",
+    "height": 1
   },
   "mushroom": {
     "char": "🍄",
     "color": "#d24a4a",
     "image": "/tiles/emoji/baked/mushroom.png",
     "category": "nature",
-    "title": "Mushroom"
+    "title": "Mushroom",
+    "height": 1
   },
   "pillar": {
     "height": 1,
@@ -182,7 +189,8 @@
     "color": "#ff8a3a",
     "image": "/tiles/emoji/baked/torch.png",
     "category": "nature",
-    "title": "Torch"
+    "title": "Torch",
+    "height": 1
   },
   "hazard": {
     "char": "🔺",
@@ -510,48 +518,55 @@
     "color": "#2f8f3f",
     "category": "nature",
     "title": "Pine Tree",
-    "image": "/tiles/emoji/catalog/pine-tree.png"
+    "image": "/tiles/emoji/catalog/pine-tree.png",
+    "height": 1
   },
   "oak-tree": {
     "char": "🌳",
     "color": "#4caf50",
     "category": "nature",
     "title": "Oak Tree",
-    "image": "/tiles/emoji/catalog/oak-tree.png"
+    "image": "/tiles/emoji/catalog/oak-tree.png",
+    "height": 1
   },
   "palm-tree": {
     "char": "🌴",
     "color": "#4f9d5a",
     "category": "nature",
     "title": "Palm Tree",
-    "image": "/tiles/emoji/catalog/palm-tree.png"
+    "image": "/tiles/emoji/catalog/palm-tree.png",
+    "height": 1
   },
   "sapling": {
     "char": "🌱",
     "color": "#7cc36a",
     "category": "nature",
     "title": "Sapling",
-    "image": "/tiles/emoji/catalog/sapling.png"
+    "image": "/tiles/emoji/catalog/sapling.png",
+    "height": 1
   },
   "dead-tree": {
     "char": "🪾",
     "color": "#8a6f4a",
     "category": "nature",
-    "title": "Dead Tree"
+    "title": "Dead Tree",
+    "height": 1
   },
   "cactus": {
     "char": "🌵",
     "color": "#4a8f3f",
     "category": "nature",
     "title": "Cactus",
-    "image": "/tiles/emoji/catalog/cactus.png"
+    "image": "/tiles/emoji/catalog/cactus.png",
+    "height": 1
   },
   "shrub": {
     "char": "🌿",
     "color": "#4fa03f",
     "category": "nature",
     "title": "Shrub",
-    "image": "/tiles/emoji/catalog/shrub.png"
+    "image": "/tiles/emoji/catalog/shrub.png",
+    "height": 1
   },
   "shamrock": {
     "char": "☘️",
@@ -628,7 +643,8 @@
     "color": "#d24a4a",
     "category": "nature",
     "title": "Red Mushroom",
-    "image": "/tiles/emoji/catalog/red-mushroom.png"
+    "image": "/tiles/emoji/catalog/red-mushroom.png",
+    "height": 1
   },
   "boulder": {
     "char": "🪨",
@@ -643,7 +659,8 @@
     "color": "#a9793f",
     "category": "nature",
     "title": "Wood Log",
-    "image": "/tiles/emoji/catalog/wood-log.png"
+    "image": "/tiles/emoji/catalog/wood-log.png",
+    "height": 1
   },
   "wheat": {
     "char": "🌾",
@@ -684,189 +701,216 @@
     "color": "#5a9a4a",
     "category": "nature",
     "title": "Potted Plant",
-    "image": "/tiles/emoji/catalog/potted-plant.png"
+    "image": "/tiles/emoji/catalog/potted-plant.png",
+    "height": 1
   },
   "cow": {
     "char": "🐄",
     "color": "#c9b8a8",
     "category": "nature",
     "title": "Cow",
-    "image": "/tiles/emoji/catalog/cow.png"
+    "image": "/tiles/emoji/catalog/cow.png",
+    "height": 1
   },
   "sheep": {
     "char": "🐑",
     "color": "#e8e4dc",
     "category": "nature",
     "title": "Sheep",
-    "image": "/tiles/emoji/catalog/sheep.png"
+    "image": "/tiles/emoji/catalog/sheep.png",
+    "height": 1
   },
   "pig": {
     "char": "🐖",
     "color": "#e59ab0",
     "category": "nature",
     "title": "Pig",
-    "image": "/tiles/emoji/catalog/pig.png"
+    "image": "/tiles/emoji/catalog/pig.png",
+    "height": 1
   },
   "goat": {
     "char": "🐐",
     "color": "#b8a888",
     "category": "nature",
     "title": "Goat",
-    "image": "/tiles/emoji/catalog/goat.png"
+    "image": "/tiles/emoji/catalog/goat.png",
+    "height": 1
   },
   "horse": {
     "char": "🐎",
     "color": "#a9793f",
     "category": "nature",
     "title": "Horse",
-    "image": "/tiles/emoji/catalog/horse.png"
+    "image": "/tiles/emoji/catalog/horse.png",
+    "height": 1
   },
   "chicken": {
     "char": "🐓",
     "color": "#d8663a",
     "category": "nature",
     "title": "Chicken",
-    "image": "/tiles/emoji/catalog/chicken.png"
+    "image": "/tiles/emoji/catalog/chicken.png",
+    "height": 1
   },
   "rabbit": {
     "char": "🐇",
     "color": "#d8cbb8",
     "category": "nature",
     "title": "Rabbit",
-    "image": "/tiles/emoji/catalog/rabbit.png"
+    "image": "/tiles/emoji/catalog/rabbit.png",
+    "height": 1
   },
   "deer": {
     "char": "🦌",
     "color": "#a9763f",
     "category": "nature",
     "title": "Deer",
-    "image": "/tiles/emoji/catalog/deer.png"
+    "image": "/tiles/emoji/catalog/deer.png",
+    "height": 1
   },
   "fox": {
     "char": "🦊",
     "color": "#e0863a",
     "category": "nature",
     "title": "Fox",
-    "image": "/tiles/emoji/catalog/fox.png"
+    "image": "/tiles/emoji/catalog/fox.png",
+    "height": 1
   },
   "grey-wolf": {
     "char": "🐺",
     "color": "#8a8f9a",
     "category": "nature",
     "title": "Grey Wolf",
-    "image": "/tiles/emoji/catalog/grey-wolf.png"
+    "image": "/tiles/emoji/catalog/grey-wolf.png",
+    "height": 1
   },
   "boar": {
     "char": "🐗",
     "color": "#7a6a5a",
     "category": "nature",
     "title": "Boar",
-    "image": "/tiles/emoji/catalog/boar.png"
+    "image": "/tiles/emoji/catalog/boar.png",
+    "height": 1
   },
   "bear": {
     "char": "🐻",
     "color": "#8a5f3a",
     "category": "nature",
     "title": "Bear",
-    "image": "/tiles/emoji/catalog/bear.png"
+    "image": "/tiles/emoji/catalog/bear.png",
+    "height": 1
   },
   "squirrel": {
     "char": "🐿️",
     "color": "#b5793a",
     "category": "nature",
     "title": "Squirrel",
-    "image": "/tiles/emoji/catalog/squirrel.png"
+    "image": "/tiles/emoji/catalog/squirrel.png",
+    "height": 1
   },
   "hedgehog": {
     "char": "🦔",
     "color": "#a98f6a",
     "category": "nature",
     "title": "Hedgehog",
-    "image": "/tiles/emoji/catalog/hedgehog.png"
+    "image": "/tiles/emoji/catalog/hedgehog.png",
+    "height": 1
   },
   "turtle": {
     "char": "🐢",
     "color": "#4f8f5a",
     "category": "nature",
     "title": "Turtle",
-    "image": "/tiles/emoji/catalog/turtle.png"
+    "image": "/tiles/emoji/catalog/turtle.png",
+    "height": 1
   },
   "frog": {
     "char": "🐸",
     "color": "#5fa03f",
     "category": "nature",
     "title": "Frog",
-    "image": "/tiles/emoji/catalog/frog.png"
+    "image": "/tiles/emoji/catalog/frog.png",
+    "height": 1
   },
   "snail": {
     "char": "🐌",
     "color": "#c8a06a",
     "category": "nature",
     "title": "Snail",
-    "image": "/tiles/emoji/catalog/snail.png"
+    "image": "/tiles/emoji/catalog/snail.png",
+    "height": 1
   },
   "bird": {
     "char": "🐦",
     "color": "#5a8fc8",
     "category": "nature",
     "title": "Bird",
-    "image": "/tiles/emoji/catalog/bird.png"
+    "image": "/tiles/emoji/catalog/bird.png",
+    "height": 1
   },
   "owl": {
     "char": "🦉",
     "color": "#a98f6a",
     "category": "nature",
     "title": "Owl",
-    "image": "/tiles/emoji/catalog/owl.png"
+    "image": "/tiles/emoji/catalog/owl.png",
+    "height": 1
   },
   "duck": {
     "char": "🦆",
     "color": "#6a8f4a",
     "category": "nature",
     "title": "Duck",
-    "image": "/tiles/emoji/catalog/duck.png"
+    "image": "/tiles/emoji/catalog/duck.png",
+    "height": 1
   },
   "dove": {
     "char": "🕊️",
     "color": "#e8e8e8",
     "category": "nature",
     "title": "Dove",
-    "image": "/tiles/emoji/catalog/dove.png"
+    "image": "/tiles/emoji/catalog/dove.png",
+    "height": 1
   },
   "butterfly": {
     "char": "🦋",
     "color": "#6a9ad8",
     "category": "nature",
     "title": "Butterfly",
-    "image": "/tiles/emoji/catalog/butterfly.png"
+    "image": "/tiles/emoji/catalog/butterfly.png",
+    "height": 1
   },
   "honeybee": {
     "char": "🐝",
     "color": "#e5b53a",
     "category": "nature",
     "title": "Honeybee",
-    "image": "/tiles/emoji/catalog/honeybee.png"
+    "image": "/tiles/emoji/catalog/honeybee.png",
+    "height": 1
   },
   "ladybug": {
     "char": "🐞",
     "color": "#d13b3b",
     "category": "nature",
     "title": "Ladybug",
-    "image": "/tiles/emoji/catalog/ladybug.png"
+    "image": "/tiles/emoji/catalog/ladybug.png",
+    "height": 1
   },
   "cat": {
     "char": "🐈",
     "color": "#c8964a",
     "category": "nature",
     "title": "Cat",
-    "image": "/tiles/emoji/catalog/cat.png"
+    "image": "/tiles/emoji/catalog/cat.png",
+    "height": 1
   },
   "dog": {
     "char": "🐕",
     "color": "#b5854a",
     "category": "nature",
     "title": "Dog",
-    "image": "/tiles/emoji/catalog/dog.png"
+    "image": "/tiles/emoji/catalog/dog.png",
+    "height": 1
   },
   "house": {
     "height": 1,
