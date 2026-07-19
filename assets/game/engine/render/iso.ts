@@ -1566,17 +1566,42 @@ export function drawIsoSingleTileBlock(
   }
 }
 
+/** The rounding-clip ellipse for a circle-shape block — the INSCRIBED ellipse of the block's projected
+ *  hexagon silhouette. A stacked iso block draws as a 6-vertex hexagon: the top-diamond apex, the two upper
+ *  side vertices, the two mid (base-diamond) side vertices, and the bottom apex. The OLD ellipse
+ *  (`ry = stack/2 + tileH`) passed exactly THROUGH the apex + bottom and CUT ACROSS the slanted top/bottom
+ *  faces, so three things stayed angular: the top point poked out sharp, the bottom point poked out sharp, and
+ *  where the straight slant edge met the ellipse arc there was a visible KINK (the mid-right corner Alexander
+ *  circled). To bend EVERY corner we shrink `ry` just enough that the ellipse is TANGENT to the four slanted
+ *  faces (and to the vertical sides at `rx = tileW`) — i.e. fully INSCRIBED. Tangency to the slant edge
+ *  (slope tileH/tileW through the apex) solves to `ry² = (stack/2)² + stack·tileH`, a hair below the old
+ *  `stack/2 + tileH` (they differ only by the `tileH²` term). Now every hexagon vertex sits OUTSIDE the
+ *  ellipse (so the clip rounds it away) and the ellipse never crosses an edge (so there is no straight-edge/arc
+ *  kink): the whole outline is one smooth oval. Still PROPORTIONAL — a tall block → a tall oval, a unit cube →
+ *  a rounder blob — with the top/bottom domes at radius-of-curvature `rx²/ry` (visibly bent, not a point) and
+ *  the sides gently curved. Pure geometry → unit-tested directly. */
+export function roundedBlockEllipse(
+  center: Pt,
+  tileW: number,
+  tileH: number,
+  blockH: number,
+  height: number,
+): { cx: number; cy: number; rx: number; ry: number } {
+  const stack = Math.max(1, Math.floor(height)) * blockH // the extruded height in px (top diamond centre lifts this)
+  const rx = tileW                                       // footprint half-width (honours scaleX/zoom via the caller's bw)
+  const ry = Math.sqrt((stack / 2) * (stack / 2) + stack * tileH) // tangent to the slanted faces → inscribes the hexagon
+  return { cx: center.x, cy: center.y - stack / 2, rx, ry }       // centred at the cuboid's vertical mid-point
+}
+
 /** SHAPE = "circle": take the SAME cuboid — same footprint, height, painted faces and per-face shading as
  *  drawIsoTileBlock — and BEND ITS CORNERS into a smooth rounded silhouette (Alexander: "ALL I WANT WITH THE
  *  SHAPE IS TO MANIPULATE THE SIDES OF THE CUBOID, selecting circle shape should bend the corners OF THE CUBOID
  *  to form a circle … the cube/cuboid is just a tile, painted on all sides of the block/cell"). We draw the block
- *  exactly as the cube path does, then CLIP it to an ELLIPSE built from the block's OWN projected extent:
- *  horizontal radius = the footprint half-width (`tileW`), vertical radius = half the full vertical silhouette
- *  (the stack height + the base/top diamond depth), centred at the volume's mid-height. So the outline is rounded
- *  but PROPORTIONAL to the block — a tall block → a tall OVAL (an egg standing up), a unit cube → a rounder blob.
- *  The three shaded faces and the tile's painted art all stay: it is the cuboid with its corners rounded away,
- *  NOT a repainted sphere. There is no spherical relight and no single flat surface — those were the rejected
- *  "ball" attempts; here the ONLY change from the cube is the rounding clip. */
+ *  exactly as the cube path does, then CLIP it to the INSCRIBED ellipse (`roundedBlockEllipse`) so EVERY corner —
+ *  the top apex, the mid-side vertices, and the bottom — is bent away and no straight-edge/arc kink remains. The
+ *  three shaded faces and the tile's painted art all stay: it is the cuboid with its corners rounded away, NOT a
+ *  repainted sphere. There is no spherical relight and no single flat surface — those were the rejected "ball"
+ *  attempts; here the ONLY change from the cube is the rounding clip. */
 export function drawIsoRoundedBlock(
   ctx: CanvasRenderingContext2D,
   center: Pt,
@@ -1587,15 +1612,12 @@ export function drawIsoRoundedBlock(
   dv: DrawVisual,
   tint?: string,
 ): void {
-  const n = Math.max(1, Math.floor(height))
-  const rx = tileW                       // footprint half-width (honours scaleX/zoom via the caller's bw)
-  const ry = (n * blockH) / 2 + tileH    // half the cuboid's full vertical silhouette (stack + base/top diamond)
-  const cy = center.y - (n * blockH) / 2 // the cuboid's vertical mid-point → the ellipse follows the block's shape
+  const { cx, cy, rx, ry } = roundedBlockEllipse(center, tileW, tileH, blockH, height)
   ctx.save()
-  // The rounded silhouette: an ellipse of the block's OWN extent, so corners bend away and proportions are kept.
-  clipToBall(ctx, center.x, cy, rx, ry)
+  // The rounded silhouette: the block's INSCRIBED ellipse, so every corner bends away and proportions are kept.
+  clipToBall(ctx, cx, cy, rx, ry)
   // The SAME cuboid — three shaded faces + painted art — drawn normally; only the clip above rounds it.
-  drawIsoTileBlock(ctx, center, tileW, tileH, blockH, n, dv, tint)
+  drawIsoTileBlock(ctx, center, tileW, tileH, blockH, Math.max(1, Math.floor(height)), dv, tint)
   ctx.restore()
 }
 

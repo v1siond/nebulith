@@ -20,7 +20,7 @@
  *     recoloured, never left green), in BOTH emoji + ascii styles, positive + negative.
  */
 import { installRealCanvas, type RealCanvasHarness } from '@/__tests__/helpers/realCanvas'
-import { drawIsoRoundedBlock, drawIsoTileBlock, drawIsoAssetAscii } from '@/engine/render/iso'
+import { drawIsoRoundedBlock, drawIsoTileBlock, drawIsoAssetAscii, roundedBlockEllipse } from '@/engine/render/iso'
 import { drawFlatTileForShape } from '@/engine/render/shared'
 import { draw2DLabeledCell } from '@/engine/render/topdown'
 import { EMOJI_STYLE, ASCII_STYLE } from '@/game/artStyle'
@@ -36,12 +36,13 @@ const GREEN = '#00c800'
 const BLUE = '#1030ff'
 
 // Rounded-block geometry — the SAME dims the display-mode cube test uses. drawIsoRoundedBlock clips the cube to
-// an ellipse of the block's own extent: rx = TW, ry = BH/2 + TH, centred at (CX, CY - BH/2). So:
+// the block's INSCRIBED ellipse (roundedBlockEllipse: rx = TW, ry = √((stack/2)² + stack·TH), centred at the
+// cuboid mid-height) — tangent to the slanted faces so EVERY corner is bent away. Read its geometry straight
+// from the implementation so the bounding-box probes track it (n=1 here → rx 40, ry ≈ 36.9, centre 140,168).
 const TW = 40, TH = 20, BH = 44, CX = 140, CY = 190
-const RX = TW, RY = BH / 2 + TH        // 40, 42
-const BCX = CX, BCY = CY - BH / 2      // 140, 168
+const { cx: BCX, cy: BCY, rx: RX, ry: RY } = roundedBlockEllipse({ x: CX, y: CY }, TW, TH, BH, 1)
 // The rounded block's tight bounding box.
-const BB = { x: BCX - RX, y: BCY - RY, w: 2 * RX, h: 2 * RY } // {100,126,80,84}
+const BB = { x: BCX - RX, y: BCY - RY, w: 2 * RX, h: 2 * RY }
 
 const BANDS = '/tiles/emoji/__shape_bands.png'
 const bandsDv = (): { char: string; color: string; image: ImageVisual } => ({ char: '?', color: '#ffffff', image: { kind: 'image', src: BANDS } })
@@ -118,11 +119,11 @@ describe('shape = circle: ROUNDS the cuboid (bounding-box corners cut) but keeps
 
 describe('shape = circle is PROPORTIONAL to the block — the rounded silhouette follows the cuboid, never a fixed 1:1', () => {
   test('a TALL (height-3) block rounds to a TALL OVAL; a UNIT (height-1) block to a roughly-square blob', () => {
-    // TALL: n=3 → ry = 3*BH/2 + TH = 86, rx = 40 → the silhouette bbox is ~80 wide × ~172 tall (an egg standing up).
+    // TALL: n=3 → ry = √(66² + 132·20) ≈ 84, rx = 40 → the silhouette bbox is ~80 wide × ~167 tall (an egg standing up).
     const tallCv = H.makeCanvas(300, 280)
     drawIsoRoundedBlock(tallCv.getContext('2d') as unknown as CanvasRenderingContext2D, { x: CX, y: CY }, TW, TH, BH, 3, { char: 'o', color: MAGENTA }, MAGENTA)
     const tall = opaqueBounds(tallCv, 90, 30, 110, 200)
-    // UNIT: n=1 → ry = 42, rx = 40 → the silhouette bbox is ~80 × ~84 (roughly square).
+    // UNIT: n=1 → ry ≈ 37, rx = 40 → the silhouette bbox is ~80 × ~74 (roughly square).
     const unitCv = H.makeCanvas(300, 280)
     drawIsoRoundedBlock(unitCv.getContext('2d') as unknown as CanvasRenderingContext2D, { x: CX, y: CY }, TW, TH, BH, 1, { char: 'o', color: MAGENTA }, MAGENTA)
     const unit = opaqueBounds(unitCv, 90, 110, 110, 120)

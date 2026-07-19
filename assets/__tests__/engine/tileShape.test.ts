@@ -12,7 +12,8 @@
  *      clip discriminates a rounded cuboid from a plain one — both keep the 3 painted faces.
  */
 import { stampComposition } from '@/game/runtime/composition'
-import { drawIsoAssetAscii } from '@/engine/render/iso'
+import { drawIsoAssetAscii, roundedBlockEllipse } from '@/engine/render/iso'
+import { pointInPolygon } from '@/engine/render/tileHit'
 import { serializeGrid, deserializeToGrid } from '@/lib/api'
 import { IsometricGrid, type GridAsset } from '@/engine/IsometricGrid'
 import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
@@ -141,5 +142,72 @@ describe('drawIsoAssetAscii ROUTES on asset.shape (end-to-end)', () => {
     drawIsoAssetAscii(r.ctx, 100, 120, asset({ shape: 'circle' }), 22, 11, 0, false, 'day', EMOJI_STYLE)
     expect(r.clips).toBeGreaterThanOrEqual(1)     // the rounding mask (clipToBall) — bends the cuboid's corners away
     expect(r.ellipses).toBeGreaterThanOrEqual(1)  // that silhouette is an ellipse of the block's own extent
+  })
+})
+
+// ── The rounding clip must round EVERY corner (Alexander: the top point, a mid-right side corner, and the bottom
+//    were "still sharp"). roundedBlockEllipse must INSCRIBE the block's projected hexagon: every one of the 6
+//    silhouette vertices sits OUTSIDE the ellipse (so the clip bends it away — no vertex pokes through), AND the
+//    ellipse never crosses an edge (so the whole outline is one smooth oval — no straight-edge/arc kink). ──
+describe('roundedBlockEllipse — the clip inscribes the block hexagon so NO corner stays sharp', () => {
+  const TW = 40, TH = 20, BH = 44
+  const center = { x: 0, y: 0 }
+
+  // The 6-vertex screen silhouette of an n-block iso cuboid (base diamond centred at center.y).
+  const hexagon = (n: number) => {
+    const stack = n * BH
+    return [
+      { x: center.x, y: center.y - stack - TH },     // TOP apex (the point Alexander circled)
+      { x: center.x + TW, y: center.y - stack },      // upper-right
+      { x: center.x + TW, y: center.y },              // MID-RIGHT (the side corner)
+      { x: center.x, y: center.y + TH },              // BOTTOM apex
+      { x: center.x - TW, y: center.y },              // mid-left
+      { x: center.x - TW, y: center.y - stack },      // upper-left
+    ]
+  }
+  const onEllipse = (v: { x: number; y: number }, e: { cx: number; cy: number; rx: number; ry: number }) =>
+    ((v.x - e.cx) / e.rx) ** 2 + ((v.y - e.cy) / e.ry) ** 2
+
+  test.each([1, 2, 3, 5])('height %i: every hexagon vertex is OUTSIDE the clip ellipse → each corner is rounded away', (n) => {
+    const e = roundedBlockEllipse(center, TW, TH, BH, n)
+    for (const v of hexagon(n)) {
+      // ratio ≥ 1 ⇒ the vertex lies on/outside the ellipse, so the clip removes it (rounds the corner). The OLD
+      // ellipse (ry = stack/2 + TH) put the apex + bottom EXACTLY on it (ratio 1, a sharp point); inscribing
+      // pushes them strictly outside.
+      expect(onEllipse(v, e)).toBeGreaterThan(1)
+    }
+  })
+
+  test.each([1, 2, 3, 5])('height %i: the ellipse stays INSIDE the hexagon → the outline is a smooth oval (no straight-edge kink)', (n) => {
+    const e = roundedBlockEllipse(center, TW, TH, BH, n)
+    const poly = hexagon(n)
+    // Walk the ellipse boundary; every point must fall inside the hexagon. If the ellipse poked past a slanted
+    // face (the old kink), some boundary point would land OUTSIDE — the sharp mid-right corner.
+    for (let i = 0; i < 720; i++) {
+      const t = (i / 720) * Math.PI * 2
+      const p = { x: e.cx + e.rx * Math.cos(t) * 0.999, y: e.cy + e.ry * Math.sin(t) * 0.999 }
+      expect(pointInPolygon(p.x, p.y, poly)).toBe(true)
+    }
+  })
+
+  test('the OLD ellipse (ry = stack/2 + tileH) POKED past the slanted face — proving the inscribe fix is load-bearing', () => {
+    const n = 4, stack = n * BH
+    const oldEllipse = { cx: center.x, cy: center.y - stack / 2, rx: TW, ry: stack / 2 + TH }
+    const poly = hexagon(n)
+    let poked = 0
+    for (let i = 0; i < 720; i++) {
+      const t = (i / 720) * Math.PI * 2
+      const p = { x: oldEllipse.cx + oldEllipse.rx * Math.cos(t), y: oldEllipse.cy + oldEllipse.ry * Math.sin(t) }
+      if (!pointInPolygon(p.x, p.y, poly)) poked++
+    }
+    expect(poked).toBeGreaterThan(0) // the old clip cut across the faces (the kink) — the new inscribed one does not
+  })
+
+  test('proportional: taller block → taller oval; the width stays the footprint (rx = tileW), never a fixed circle', () => {
+    const unit = roundedBlockEllipse(center, TW, TH, BH, 1)
+    const tall = roundedBlockEllipse(center, TW, TH, BH, 4)
+    expect(unit.rx).toBe(TW)
+    expect(tall.rx).toBe(TW)                  // same footprint → same width
+    expect(tall.ry).toBeGreaterThan(unit.ry * 1.5) // clearly taller — the oval follows the block height
   })
 })
