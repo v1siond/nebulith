@@ -5289,10 +5289,6 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
 
             {editorMode === 'building' && (
               <Card title="Buildings" accent="orange">
-                <p className="mb-2 text-[10px] text-gray-500">
-                  Pick a building and click the map to STAMP its tiles (like placing a tree/prop). It faces the
-                  nearest road. Edit its wall/roof/door cells with the normal cell + tile tools.
-                </p>
                 <div className="grid grid-cols-6 gap-1">
                   <EntityToolButton
                     label="House"
@@ -5344,11 +5340,6 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                     onClick={() => toggleBuildingTool('place-castle')}
                   />
                 </div>
-
-                <p className="mt-3 border-t border-white/10 pt-2 text-[10px] leading-tight text-gray-500">
-                  A building is just its cells — there is no whole-building move/rotate/resize/delete. To
-                  change one, edit its cells or clear them and stamp a new building.
-                </p>
               </Card>
             )}
 

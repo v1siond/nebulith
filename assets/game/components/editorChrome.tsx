@@ -404,12 +404,12 @@ export function TileLibraryBody({
  *  (terrain → ground, nature/buildings → stacked asset, units → entity). */
 export function TilePalette({
   styleId,
-  styleName,
   armedId,
   onArm,
 }: {
   styleId: string
-  styleName: string
+  /** kept for call-site parity; the palette header no longer prints the style name (tutorial prose removed). */
+  styleName?: string
   armedId: string | null
   onArm: (tile: TileDef | null) => void
 }) {
@@ -423,8 +423,8 @@ export function TilePalette({
       <div className="flex items-center justify-between gap-2">
         <p className="text-[11px] leading-tight text-gray-400">
           {armed
-            ? <>Brush: <span className="font-bold text-cyan-300">{armed.label}</span> — click cells to place, ⌥Alt-click to remove.</>
-            : <><span className="text-cyan-300">{styleName}</span> tiles — pick one, then click the map to place it.</>}
+            ? <>Brush: <span className="font-bold text-cyan-300">{armed.label}</span> <span className="text-gray-500">· ⌥Alt-click removes</span></>
+            : <span className="text-gray-500">Pick a tile to place.</span>}
         </p>
         <button
           onClick={() => onArm(null)}
