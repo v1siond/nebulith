@@ -66,6 +66,14 @@ receives" principle from [`../README.md`](../README.md).
 
 ### 3.1 MVP preset matrix — zone × variant (START HERE)
 
+> **Status (observed 2026-07 — the code is newer than this section).** The shipped editor's zone
+> selector now speaks **seasons**: `spring · summer · autumn · winter · desert`
+> (`game-website/src/components/game/editorConfig.ts` `STAGE_ZONES`; palettes in
+> `src/engine/zones.ts`), with variants `forest · town · city · cave · temple` (`STAGE_VARIANTS`).
+> `lava` and `beach` still exist as `ZoneId` values but are off the UI menu; `frozen`/`verdant` are
+> gone. The lava/frozen matrix below is the earlier design and does NOT describe the current build —
+> reconcile it (and §7 of `EDITOR-INTERACTION-SPEC.md`) with the seasonal model before building to it.
+
 Replace today's ~30 messy presets (many dead cultural themes) with a small, manageable matrix:
 - **Zone** = elemental theme → palette + prop set. MVP: **lava** and **frozen** ONLY.
 - **Variant** = place archetype → layout. MVP: **village, forest, cave, temple, boss-stage**.
