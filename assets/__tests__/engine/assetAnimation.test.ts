@@ -183,6 +183,35 @@ describe('resolveAssetAnimation — the `night` trigger gates playback to night 
     const night = resolveAssetAnimation(a, 500, EMOJI_STYLE, 'iso', 'night')!
     expect(night.asset.scaleY).toBeGreaterThan(1)  // at night the height grow contributes
   })
+
+  test('the lamp night-LIT glow: a STEADY night colour (from==to) lights the bulb at night, unlit in day', () => {
+    // The DEFAULT lamp bulb behaviour (Alexander: "the bulb should change appearance when night mode = true").
+    // A night-triggered `color` track that HOLDS a warm value (from == to) → a steady LIT look, NOT a flicker.
+    const lit = anim({
+      id: 'lamp_night_lit', trigger: { on: 'night' }, ease: 'linear',
+      tracks: [{ setting: 'color', from: '#ffe9a0', to: '#ffe9a0' }],
+    })
+    const bulb = baseAsset({ placedAt: 0, color: '#cccccc', animations: [lit] })
+    // DAY: the night animation is gated out → no override → the bulb keeps its base (unlit) colour.
+    expect(resolveAssetAnimation(bulb, 500, EMOJI_STYLE, 'iso', 'day')).toBeNull()
+    // NIGHT: the colour last-wins-tints the bulb warm, and STEADILY (same value early + mid-loop → no flicker).
+    const early = resolveAssetAnimation(bulb, 0, EMOJI_STYLE, 'iso', 'night')!
+    const mid = resolveAssetAnimation(bulb, 500, EMOJI_STYLE, 'iso', 'night')!
+    expect(early.asset.color).toBe(mid.asset.color) // steady — the colour never changes across the loop
+    expect(mid.asset.color).not.toBe('#cccccc')      // and it is CHANGED from the base/day colour (lit up)
+    const rgb = /rgb\((\d+), (\d+), (\d+)\)/.exec(String(mid.asset.color))!
+    expect(Number(rgb[1])).toBeGreaterThan(Number(rgb[3])) // warm glow — red channel above blue
+  })
+
+  test('a lit + flickering failing bulb: the night colour AND the opacity flicker both apply (different settings)', () => {
+    // The failing variant carries BOTH — they compose because they write DIFFERENT settings (colour vs opacity).
+    const lit = anim({ id: 'lamp_night_lit', trigger: { on: 'night' }, ease: 'linear', tracks: [{ setting: 'color', from: '#ffe9a0', to: '#ffe9a0' }] })
+    const flick = anim({ id: 'lamp_flicker', trigger: { on: 'night' }, tracks: [{ setting: 'opacity', from: 1, to: 0 }] })
+    const bulb = baseAsset({ placedAt: 0, color: '#cccccc', animations: [lit, flick] })
+    const fx = resolveAssetAnimation(bulb, 500, EMOJI_STYLE, 'iso', 'night')!
+    expect(fx.asset.color).not.toBe('#cccccc') // lit (colour applied)
+    expect(fx.opacity).toBeCloseTo(0.5)         // AND flickering (opacity dipping) — both at once
+  })
 })
 
 describe('resolveAssetAnimation — chaining via start delays over one shared placedAt anchor', () => {
