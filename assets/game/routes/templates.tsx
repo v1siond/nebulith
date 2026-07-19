@@ -47,7 +47,7 @@ import { getEditorSettings, saveEditorSetting, type EditorSettings, type PanelGe
 import { type CellTriggerGroup, ENTITY_GLYPH, cellTriggersFromAssets, cellTriggersToAssets, entitiesFromAssets, entitiesToAssets, groundColorFromAssets, groundColorToAssets, groundDimsFromAssets, groundDimsToAssets, isEntityAsset, isGroundColorAsset, isGroundDimsAsset, isQuestAsset, isStyleAsset, isTriggerAsset, questsFromAssets, questsToAssets, styleFromAssets, styleToAssets, triggersAtCell } from '@/lib/gridCodec'
 import type { GroundCellDims } from '@/engine/groundDims'
 import { type Trigger, type TriggerEffect, fireTriggers } from '@/game/runtime/trigger'
-import { ASCII_STYLE, type Style, type TileDef, styleById, groundKind, assetKind, entityKind, genderize, resolveVisual, visualForTileId } from '@/game/artStyle'
+import { ASCII_STYLE, type Style, type TileDef, styleById, groundKind, assetKind, entityKind, genderize, resolveVisual, visualForTileId, tilesForStyle } from '@/game/artStyle'
 import { useRouter } from 'next/router'
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
 import { render, render2D, renderTopView, clampCameraAxis, isoCameraFocus, entityMotion, ENEMY_MOVE_MS, isDebugMode, setDebugMode, isShowCollisions, setShowCollisions as setCollisionsFlag, cellCaptionMap, pickIsoTilesAt, pickTwoDTilesAt, isoRecordedGeom, twoDRecordedGeom, nextPickIndex, ISO_BLOCK_H_FRAC, depthCells, tileGeomPolygon, tileHandlePoints, handleAtPoint, dragOutwardPx, scaleFromDrag, depthFromDrag, drawTileHandles, polyBBox, HANDLE_HIT_RADIUS, type TileHandle, type HandleId, type DayNight, type DepthDir } from '@/engine/render'
@@ -1722,6 +1722,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       __stackAt?: (col: number, row: number) => Array<{ label: string; type: string; heightLevel: number; h: number; source: string }>
       __camOffset?: () => { x: number; y: number }
       __stackAsset?: (col: number, row: number, n?: number) => number | null
+      __paintTile?: (tileId: string, col: number, row: number) => unknown
       __isoBlockScreen?: (col: number, row: number, level: number) => { x: number; y: number } | null
       __genVillage?: () => { buildings: number }
       __genStage?: (zone: string, variant: string) => { buildings: number }
@@ -1730,6 +1731,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       __setDepth?: (col: number, row: number, depth: number, dir: DepthDir) => { col: number; row: number; depth: number; depthDir: DepthDir; cells: { col: number; row: number }[] } | null
       __setZPos?: (col: number, row: number, z: number, dir: DepthDir) => { col: number; row: number; zOffset: number; zDir: DepthDir } | null
       __setShape?: (col: number, row: number, shape: TileShape) => { col: number; row: number; shape: TileShape } | null
+      __setDisplay?: (col: number, row: number, mode: TileDisplay) => { col: number; row: number; mode: TileDisplay } | null
       __setLight?: (col: number, row: number, light: AssetLight | null) => { col: number; row: number; light: AssetLight | null } | null
       __pickTileAt?: (clientX: number, clientY: number) => { col: number; row: number; level: number | null; source: string | null } | null
       __cellScreen?: (col: number, row: number, level?: number) => { x: number; y: number } | null
@@ -1750,6 +1752,29 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
         g.placeAsset(['🪨'], col, row, { type: 'rock', blocking: true, color: '#8a8a8a', tileOverride: 'emoji:boulder', heightLevel: top + 1 })
       }
       return g.getAssetsAtCell(col, row).length
+    }
+    // PAINT validation seam: place a palette tile (by id) through the SAME brush the armed click uses
+    // (placementFor → placeGroundTile / stackAssetTile), so "a painted tile is a real editable block" is
+    // proved deterministically without a flaky headless canvas click. Returns the topmost placed asset's
+    // render-relevant fields (height/type/tileOverride/settings/depth) for a data assertion.
+    win.__paintTile = (tileId: string, col: number, row: number) => {
+      const g = gridRef.current
+      if (!g) return null
+      const style = activeStyleRef.current
+      const groups = tilesForStyle(style.id)
+      const tile = ([] as TileDef[]).concat(groups.terrain, groups.buildings, groups.units, groups.nature).find(t => t.id === tileId)
+      if (!tile) return { error: `no palette tile ${tileId} in ${style.id}` }
+      const route = placementFor(tile)
+      if (route === 'terrain') placeGroundTile(g, col, row, tile)
+      else if (route === 'asset') stackAssetTile(g, col, row, tile)
+      bumpBuildingVersion()
+      const a = g.getAssetsAtCell(col, row).at(-1)
+      return {
+        route,
+        tileHeight: tile.height ?? null,
+        tileSettings: tile.settings ?? null,
+        asset: a ? { type: a.type, label: a.label ?? null, height: a.height ?? null, tileOverride: a.tileOverride ?? null, depth: a.depth ?? null, depthDir: a.depthDir ?? null, settings: a.settings ?? null, blocking: a.blocking ?? false } : null,
+      }
     }
     win.__isoBlockScreen = (col: number, row: number, level: number) => {
       const canvas = canvasRef.current
@@ -1890,6 +1915,19 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       bumpBuildingVersion()
       return { col, row, shape }
     }
+    // Per-instance DISPLAY validation seam (sibling of __setShape): set the topmost asset's Display mode
+    // (all-faces vs single) so a headless render can prove Display actually applies to a painted block.
+    win.__setDisplay = (col: number, row: number, mode: TileDisplay) => {
+      const g = gridRef.current
+      if (!g) return null
+      const a = g.getAssetsAtCell(col, row).at(-1)
+      if (!a) return null
+      const rest = { ...(a.settings ?? {}) }
+      if (mode === 'single') a.settings = { ...rest, display: 'single' }
+      else { delete rest.display; a.settings = Object.keys(rest).length ? rest : undefined }
+      bumpBuildingVersion()
+      return { col, row, mode }
+    }
     // Per-instance LIGHT validation seam (sibling of __setShape): set/clear the topmost asset's night glow
     // pool light so a headless render can prove distance/intensity drive the pool. Mirrors setAssetLight.
     win.__setLight = (col: number, row: number, light: AssetLight | null) => {
@@ -2017,7 +2055,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       setSelectedCells(new Set([`${best.col},${best.row}`]))
       return best
     }
-    return () => { delete win.__setArtStyle; delete win.__selectFirstTreeCell; delete win.__setView; delete win.__gridKinds; delete win.__entityInfo; delete win.__entityScreens; delete win.__selectEntity; delete win.__setEntitySize; delete win.__scatter; delete win.__selectedEntityInfo; delete win.__placeBuilding; delete win.__placeComposition; delete win.__cellSel; delete win.__selectCells; delete win.__applyCellTile; delete win.__clearRegion; delete win.__setDebug; delete win.__cellLabels; delete win.__stackAt; delete win.__camOffset; delete win.__stackAsset; delete win.__isoBlockScreen; delete win.__genVillage; delete win.__genStage; delete win.__centerOn; delete win.__setHero; delete win.__pickTileAt; delete win.__cellScreen; delete win.__tileCentroid; delete win.__tileHandles; delete win.__setShape; delete win.__setLight }
+    return () => { delete win.__setArtStyle; delete win.__selectFirstTreeCell; delete win.__setView; delete win.__gridKinds; delete win.__entityInfo; delete win.__entityScreens; delete win.__selectEntity; delete win.__setEntitySize; delete win.__scatter; delete win.__selectedEntityInfo; delete win.__placeBuilding; delete win.__placeComposition; delete win.__cellSel; delete win.__selectCells; delete win.__applyCellTile; delete win.__clearRegion; delete win.__setDebug; delete win.__cellLabels; delete win.__stackAt; delete win.__camOffset; delete win.__stackAsset; delete win.__paintTile; delete win.__isoBlockScreen; delete win.__genVillage; delete win.__genStage; delete win.__centerOn; delete win.__setHero; delete win.__pickTileAt; delete win.__cellScreen; delete win.__tileCentroid; delete win.__tileHandles; delete win.__setShape; delete win.__setDisplay; delete win.__setLight }
   }, [])
 
   // ── Selected-entity inspector actions ─────────────────────────────

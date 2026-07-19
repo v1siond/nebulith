@@ -1838,12 +1838,20 @@ export function drawIsoAssetAscii(
   // 3D half of the 2D+3D tileset: a tile (or the placed instance via GridAsset.height) with height≥1 extrudes
   // into an iso BLOCK instead of a flat billboard. Height 0 / ASCII passthrough (adv.char '') → the flat draw below.
   const blocks = resolveTileHeight(vt, asset)
+  // Z-WIDTH (directional depth) is a 3D BLOCK operation: once the user SETS it, the tile has declared it's a
+  // block extruded N cells along a diagonal, so the iso render MUST extrude it — even when the tile's base
+  // height is 0. The old flat billboard path silently DROPPED depth/depthDir + display (the painter bug: a
+  // painted wall set to Z-Width 3 still drew a flat 2D face). So a placed tile is a block when it has HEIGHT or
+  // Z-WIDTH; a Z-Width-only tile stands one block tall (max with its own height). No z-width + height 0 → the
+  // flat billboard below stays byte-identical.
+  const hasZWidth = (asset.depth ?? 1) > 1
+  const blockCount = blocks >= 1 ? blocks : (hasZWidth ? 1 : 0)
   // A well / fountain under a RESKIN (emoji) extrudes its RESOLVED TILE (⛲/🪣) into a raised iso basin block
   // instead of a flat billboard — keeps the 3D depth from the DB tile; town fountains scale to their footprint.
   // ASCII (passthrough) + a tile with its own height (blocks≥1) use the generic tile path below — the bespoke
-  // fountain/well drawers are gone.
+  // fountain/well drawers are gone. A Z-Width well flows to the generic block path (which honours depthDir).
   const reskinned = style.id !== ASCII_STYLE.id
-  if (reskinned && blocks < 1 && (asset.type === 'well' || asset.type === 'fountain') && (adv.image || adv.char)) {
+  if (reskinned && blockCount < 1 && (asset.type === 'well' || asset.type === 'fountain') && (adv.image || adv.char)) {
     const span = asset.footprint && asset.footprint > 1 ? asset.footprint : 1
     const bw = span > 1 ? tileW * span * 0.6 : tileW
     const bhScreen = span > 1 ? tileH * span * 0.6 : tileH
@@ -1851,7 +1859,7 @@ export function drawIsoAssetAscii(
     drawIsoTileBlock(ctx, { x, y }, bw, bhScreen, basinH, 1, adv, asset.color)
     return cubeGeom(bw, bhScreen, basinH, 1, poseMapper({ x, y }, undefined, tileH))
   }
-  if (blocks >= 1 && (adv.image || adv.char)) {
+  if (blockCount >= 1 && (adv.image || adv.char)) {
     // A block scales on ALL THREE axes (was height-only): Width (scaleX) widens the diamond, Depth (scaleZ)
     // deepens it, Height (scaleY) stretches it up, and Zoom (scale) multiplies every axis. This is what makes a
     // tile able to SPAN MANY BLOCKS (a 1×2 wall, a wide roof) instead of only growing taller.
@@ -1860,16 +1868,16 @@ export function drawIsoAssetAscii(
     const bd = tileH * (asset.scaleZ ?? 1) * zoom       // Depth  — diamond half-height (into-screen axis)
     const bh = tileW * 0.9 * (asset.scaleY ?? 1) * zoom // Height — one block ≈ the cell's iso width, stretched up
     // SHAPE + DISPLAY (per-tile settings): drawIsoTileForShape picks the solid — cube (all-faces / single) or ball.
-    const geom = blockGeom(x, y, bw, bd, bh, blocks, asset, tileH)
+    const geom = blockGeom(x, y, bw, bd, bh, blockCount, asset, tileH)
     // Per-asset pose (x/y/rotate/flip) transforms the block around its base centre — the SAME applyPose the
     // billboard/floor paths use, so moving/rotating a placed BLOCK works too. No pose → the byte-identical draw.
     if (asset.pose) {
       ctx.save(); ctx.translate(x, y); applyPose(ctx, asset.pose, 1, tileH)
-      drawIsoTileForShape(ctx, { x: 0, y: 0 }, bw, bd, bh, blocks, adv, asset.color, asset)
+      drawIsoTileForShape(ctx, { x: 0, y: 0 }, bw, bd, bh, blockCount, adv, asset.color, asset)
       ctx.restore()
       return geom
     }
-    drawIsoTileForShape(ctx, { x, y }, bw, bd, bh, blocks, adv, asset.color, asset)
+    drawIsoTileForShape(ctx, { x, y }, bw, bd, bh, blockCount, adv, asset.color, asset)
     return geom
   }
   // A per-asset colour override tints the baked sprite (an emoji ships its own colours, so an override
