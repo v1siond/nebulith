@@ -143,27 +143,43 @@ defmodule Nebulith.TileSourceTest do
     end
   end
 
-  test "the DEFAULT lamp_post bulb is STEADY at night — no animation (just 'on')" do
-    # Alexander: "the lamp should just be 'on' on night mode, the flicker animation can be applied to a few, but
-    # not all". So the DEFAULT lamp carries NO animation — it is simply lit at night by its `light` glow pool. The
-    # flicker lives ONLY on the `lamp_post_failing` variant (below). The post base never animates either.
+  test "the DEFAULT lamp_post bulb LIGHTS UP at night — a steady night-triggered color glow, no flicker" do
+    # Alexander: "the bulb should change appearance when night mode = true, but it doesn't". The DEFAULT lamp bulb
+    # now carries EXACTLY ONE animation — a `night`-triggered `color` glow that HOLDS a constant warm value
+    # (`from` == `to`, so it's steady, NOT a tween and NOT a flicker). In day the render bridge drops the night
+    # animation → the plain unlit bulb; at night the colour tints the bulb art warm → a lit, glowing bulb. The
+    # flicker lives ONLY on the `lamp_post_failing` variant (below). The post base never animates.
     lamp_post = Enum.find(Catalog.list_compositions(), &(&1.name == "lamp_post"))
     lamp = Enum.find(lamp_post.cells, &(&1.label == "lamp"))
     post = Enum.find(lamp_post.cells, &(&1.label == "post"))
 
-    refute lamp.animations, "the default lamp bulb is steady-on at night — it must NOT carry a flicker animation"
     refute post.animations, "the post base never animates"
 
-    # …but the bulb still ships its night `light` glow pool (steady) so a normal lamp is LIT at night.
+    anims = lamp.animations
+    assert is_list(anims) and length(anims) == 1, "the default bulb carries exactly the steady night-lit glow"
+
+    [lit] = anims
+    assert lit["id"] == "lamp_night_lit"
+    assert lit["trigger"] == %{"on" => "night"}, "night-gated — off (unlit) in day, on (lit) at night"
+    assert lit["kind"] == "settings"
+
+    # STEADY: a single `color` track whose `from` == `to` (a held value, not a tween), so the bulb reads a
+    # constant warm glow at night with NO flicker — the failing variant is the only one that dips.
+    assert [%{"setting" => "color", "from" => from, "to" => to}] = lit["tracks"]
+    assert from == to, "steady glow — the colour holds constant (not a tween)"
+    refute lit["ease"] == "flicker", "the DEFAULT bulb is steady-lit, never a flicker"
+
+    # …and the bulb still ships its night `light` glow POOL so a normal lamp lights its cell too.
     assert is_map(lamp.settings["light"])
     assert lamp.settings["light"]["on"] == true
   end
 
-  test "the lamp_post_failing bulb carries ONE IRREGULAR night flicker — a failing bulb, not a smooth pulse" do
+  test "the lamp_post_failing bulb is night-LIT and ALSO carries ONE irregular flicker — a dying street light" do
     # Alexander: "it should be more irregular, it's supposed to represent a failing bulb". Only a MINORITY of lamps
-    # get this variant (the generator tags ~18%). Its bulb carries a SINGLE opacity flicker with `ease: "flicker"`
-    # — the frontend's irregular, STEPPED failing-bulb envelope — NOT a smooth sine yoyo. Night-gated like every
-    # lamp animation, so it rests in day and flickers at night; the ground pool follows it (see LIGHTING.md).
+    # get this variant (the generator tags ~18%). Its bulb shares the DEFAULT night-lit `color` glow AND adds a
+    # SINGLE opacity flicker with `ease: "flicker"` — the frontend's irregular, STEPPED failing-bulb envelope, NOT
+    # a smooth sine yoyo. Both are night-gated, so the bulb rests in day and is lit-but-flickering at night; the
+    # ground pool follows the flicker (see LIGHTING.md).
     failing = Enum.find(Catalog.list_compositions(), &(&1.name == "lamp_post_failing"))
     assert failing, "lamp_post_failing composition missing"
 
@@ -175,14 +191,19 @@ defmodule Nebulith.TileSourceTest do
     assert is_map(lamp.settings["light"]) and lamp.settings["light"]["on"] == true
 
     anims = lamp.animations
-    assert is_list(anims), "the failing lamp bulb must carry a flicker animation"
-    assert length(anims) == 1, "exactly ONE flicker envelope (a failing bulb, not two overlapping pulses)"
+    assert is_list(anims), "the failing lamp bulb must carry its animations"
+    assert length(anims) == 2, "the shared night-lit glow PLUS the flicker (lit AND failing)"
 
-    [flicker] = anims
-    assert flicker["id"] == "lamp_flicker"
+    # it carries the SAME steady night-lit glow the default bulb does…
+    lit = Enum.find(anims, &(&1["id"] == "lamp_night_lit"))
+    assert lit, "the failing bulb is still LIT at night — it shares the default night glow"
+    assert [%{"setting" => "color", "from" => from, "to" => to}] = lit["tracks"]
+    assert from == to
+
+    # …plus the flicker (a DIFFERENT setting — opacity — so the two compose: lit and flickering).
+    flicker = Enum.find(anims, &(&1["id"] == "lamp_flicker"))
+    assert flicker, "the failing bulb flickers"
     assert flicker["trigger"] == %{"on" => "night"}, "night-gated — off in day, on at night"
-
-    # IRREGULAR, not a smooth sine yoyo: the `flicker` ease supplies the erratic shape, so it does NOT yoyo.
     assert flicker["kind"] == "settings"
     assert flicker["ease"] == "flicker", "irregular/stepped failing-bulb envelope, not sine"
     assert flicker["loop"] == true

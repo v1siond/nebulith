@@ -151,12 +151,15 @@ await a semantics decision before wiring.
 
 - `load` — plays immediately (ambient loops, e.g. fountain water). **Fully wired.**
 - `night` — a **CONDITION**, not a one-shot: plays ONLY while the scene is in night mode (`dayNight === 'night'`),
-  and rests (neither advances nor renders) in day. **Fully wired** — the **failing** lamp bulb's `flicker` carries
-  it (the DEFAULT lamp has NO animation — it is just steady-on at night), so a failing lamp is static in day and
-  erratically flickers at night, and its ground glow POOL dims on the same beat (see `LIGHTING.md` §4).
-  Gated in the render bridge (`resolveAssetAnimation(asset, now, style, view, dayNight)` → `animationPlaysAtDayNight`);
-  the pure interpolator ignores it, exactly like scope. Alexander: "the lamp post animation should be off on daytime
-  and on on night time".
+  and rests (neither advances nor renders) in day. **Fully wired** — EVERY lamp bulb carries a `night`-triggered
+  `lamp_night_lit` `color` animation (a steady warm value, `from` == `to`) so the **bulb itself lights up** at
+  night and is unlit in day (Alexander: *"the bulb should change appearance when night mode = true"*); the
+  **failing** variant ALSO carries the `opacity` `flicker`, so it is lit AND erratically cutting out, its ground
+  glow POOL dimming on the same beat (see `LIGHTING.md` §4). A steady `color` animation whose `from` == `to`
+  holds a constant tint while the trigger condition (night) holds — the standard way to author a settings-driven
+  appearance change that only applies under a condition. Gated in the render bridge (`resolveAssetAnimation(asset,
+  now, style, view, dayNight)` → `animationPlaysAtDayNight`); the pure interpolator ignores it, exactly like
+  scope. Alexander: "the lamp post animation should be off on daytime and on on night time".
 - `proximity` — plays while the hero is within `radiusCells` (reuse the iso `fadeNear` distance-to-hero math).
 - `attack` / `interact` — fire on that action hitting the tile's cell (the `TRIGGERS-SPEC` event path).
 - **Scope** gates playback per active `(style, view)`; an absent/empty list means "all". The pure interpolator

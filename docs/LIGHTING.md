@@ -62,36 +62,43 @@ interface AssetLight {
   `dayNight === 'night'`. The old hardcoded per-lamp radius/colour is gone — the pool now reads each tile's
   `light`; the legacy `type === 'lamp'` bulb branches no longer fake a day/night glow (the pool is the ambience).
 
-## 4. The lamp default (steady) + the FAILING-lamp flicker
+## 4. The bulb LIGHTS UP at night (default) + the FAILING-lamp flicker
 
-There are **two** light-post composition variants (`TileSource.lamp_post_composition/1`), sharing one structure —
-only the **bulb**'s night animation differs (Alexander: *"the lamp should just be 'on' on night mode, the flicker
-animation can be applied to a few, but not all"*):
+There are **two** light-post composition variants (`TileSource.lamp_post_composition/1`), sharing one structure.
+The **bulb ALWAYS changes appearance at night** (Alexander: *"the bulb should change appearance when night mode =
+true, but it doesn't"*) — that is the default lamp behaviour; only the **failing** variant adds a flicker on top
+(Alexander: *"the lamp should just be 'on' on night mode, the flicker animation can be applied to a few, but not
+all"*):
 
 - **`lamp_post`** (the DEFAULT — the MAJORITY of lamps) — the bulb ships a **`light`** default (`intensity 1.0`,
-  `distance 3.2`, `color #ffd98a`, `on true`, reproducing the old `LAMP_GLOW`) and **NO animation**. So a normal
-  lamp is simply **STEADY-ON** at night — a constant warm pool, no flicker.
-- **`lamp_post_failing`** (a MINORITY — the frontend generator tags ~18% of lamps) — the SAME bulb + `light`,
-  PLUS ONE **`night`-triggered** `lamp_flicker` animation: a single **`opacity` 1 → 0.12** track with
+  `distance 3.2`, `color #ffd98a`, `on true`, reproducing the old `LAMP_GLOW`) **and ONE `night`-triggered
+  `lamp_night_lit` animation** — a single **`color` track holding `#ffe9a0` (`from` == `to`, a steady value, NOT
+  a tween)**. In **day** the render bridge drops the night animation → the bulb shows its plain **unlit** art; at
+  **night** the colour last-wins-tints the bulb art warm (luminance-mapped) → a **lit, glowing bulb**, STEADY (no
+  flicker). So the bulb itself visibly lights up, not just the ground pool.
+- **`lamp_post_failing`** (a MINORITY — the frontend generator tags ~18% of lamps) — the SAME night-lit `color`
+  glow, PLUS ONE **`night`-triggered** `lamp_flicker` animation: a single **`opacity` 1 → 0.12** track with
   **`ease: "flicker"`** — the frontend's irregular, STEPPED failing-bulb envelope (mostly ON with brief, erratic
   dips / full-off blinks at irregular times), NOT a smooth sine yoyo (see `ANIMATION-SYSTEM.md` → the `flicker`
-  ease + the `night` trigger). So a failing lamp reads as a dying street light: mostly lit, erratically cutting out.
+  ease + the `night` trigger). `color` and `opacity` are DIFFERENT settings, so the two compose: the failing bulb
+  is **lit AND flickering** — a dying street light, mostly lit but erratically cutting out.
 
 **The pool follows the bulb.** For a failing lamp, `collectLampGlows` folds the bulb's **live animated opacity**
 into that lamp's pool `intensity`, so the ground pool dims/cuts on the **exact same beat** the bulb flickers
-(Alexander: *"when it fails the light area should fail at the same rhythm of the flick"*). A steady lamp has no
-animation → opacity 1 → its pool stays constant.
+(Alexander: *"when it fails the light area should fail at the same rhythm of the flick"*). A steady lamp's bulb
+animates only `color` (not opacity) → opacity 1 → its pool stays constant.
 
 `post` (the pole) carries neither light nor animation — only the bulb is a light source.
 
 ## 5. Verified (real running game, emoji, iso)
 
-Headless pixel probe (`.claude-workspace`/job `lamp2`): DAY the bulb centroid is constant and there is no warm
-pool; toggling **⚙ Stage → Night mode** brings a warm pool at the lamp (head luminance ≈131, warm +41) against
-the dark veil (far ≈58), and the bulb centroid's luminance + warmth oscillate (the flicker). Changing the
-`light` **distance** grows the pool (mid-ring luminance 70→102 as distance 1.5→7), **intensity** scales its
-strength (head 41→131 as intensity 0.15→1.0), and **`on:false`** removes it (head 131→25). The USER validates
-on `:3000`.
+Headless pixel probe (`.claude-workspace`/job `lamp4`, cleared plaza + one placed `lamp_post` + one
+`lamp_post_failing`, `__tileCentroid` bulb crops): toggling **⚙ Stage → Night mode** makes BOTH bulbs go from a
+grey/silver DAY bulb to a **warm/golden lit bulb** (normal bulb warmth R−B **+29.6**, failing **+39** vs day).
+The **normal** bulb's luminance trace over a 64-frame burst is **dead flat** (flicker COV **0.000** — steady lit),
+while the **failing** bulb's trace swings erratically (149 → 79, COV **0.19** — the irregular flicker), and its
+pool dims on the same beat. Earlier probes (`lamp2`): the `light` **distance** grows the pool, **intensity**
+scales its strength, **`on:false`** removes it. The USER validates on `:3000`.
 
 ---
 

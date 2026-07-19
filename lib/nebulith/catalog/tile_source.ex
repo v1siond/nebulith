@@ -982,25 +982,27 @@ defmodule Nebulith.Catalog.TileSource do
       #   • POST (level 0, blocks) — ONE cell drawn as a tall, THIN pole: Height `scaleY` 7 at Zoom `scale` 0.3.
       #   • BULB (level 1, walkable overhead) — a SINGLE-display billboard (one centered bulb), Zoom `scale` 0.6,
       #     lifted by `pose.dy` -1.8 so it sits ON TOP of the tall post, carrying the night `light` glow POOL.
-      # TWO variants share this whole structure (lamp_post_composition/1) — only the bulb's night ANIMATION
-      # differs (Alexander: "the lamp should just be 'on' on night mode, the flicker animation can be applied to a
-      # few, but not all"):
-      #   • `lamp_post`         → the DEFAULT: a STEADY bulb, just lit at night (NO animation). The generator
-      #     places this for the MAJORITY of lamps.
-      #   • `lamp_post_failing` → a FAILING bulb: the bulb carries the irregular `lamp_flicker_anim` (a stepped,
-      #     erratic opacity dip — a dying bulb, NOT a smooth pulse). The generator tags a MINORITY (~18%) of lamps
-      #     with this. Its ground pool dims in SYNC with the flicker (the frontend folds the bulb's live opacity
-      #     into the pool intensity — see LIGHTING.md, Alexander: "the light area should fail at the same rhythm").
-      "lamp_post" => lamp_post_composition(nil),
-      "lamp_post_failing" => lamp_post_composition(lamp_flicker_anim())
+      # TWO variants share this whole structure (lamp_post_composition/1) — the bulb ALWAYS carries the
+      # night-LIT appearance change (Alexander: "the bulb should change appearance when night mode = true");
+      # only the FAILING variant adds a flicker on top (Alexander: "the lamp should just be 'on' on night mode,
+      # the flicker animation can be applied to a few, but not all"):
+      #   • `lamp_post`         → the DEFAULT (MAJORITY of lamps): the bulb LIGHTS UP at night — a STEADY warm
+      #     glow via ONE `night`-triggered `color` animation (day = the plain unlit bulb, night = lit), NO flicker.
+      #   • `lamp_post_failing` → a FAILING bulb (MINORITY, ~18%): the SAME night-lit glow PLUS the irregular
+      #     `lamp_flicker_anim` (a stepped, erratic opacity dip — a dying bulb, NOT a smooth pulse). Its ground
+      #     pool dims in SYNC with the flicker (the frontend folds the bulb's live opacity into the pool
+      #     intensity — see LIGHTING.md, Alexander: "the light area should fail at the same rhythm").
+      "lamp_post" => lamp_post_composition([bulb_night_lit_anim()]),
+      "lamp_post_failing" => lamp_post_composition([bulb_night_lit_anim(), lamp_flicker_anim()])
     }
   end
 
   # A light-post composition (post base + bulb on top), shared by the steady + failing variants. `bulb_animations`
-  # is the bulb cell's default animation list: `nil` → a STEADY bulb (just lit at night, no animation — the normal
-  # lamp); a list → the bulb's night animation (the failing variant's irregular flicker). Everything else —
-  # structure, the tuned post/bulb settings, the `light` glow pool — is IDENTICAL, so a failing lamp is a normal
-  # lamp whose bulb flickers. The STRUCTURE is style-agnostic (only the baked `post`/`lamp` ART differs per style).
+  # is the bulb cell's `night`-triggered animation list: BOTH variants pass `[bulb_night_lit_anim()]` (the steady
+  # night glow — the default lamp), and the failing variant appends `lamp_flicker_anim()` (the irregular dip) on
+  # top. `nil` → no animation (kept for callers that want a plain bulb). Everything else — structure, the tuned
+  # post/bulb settings, the `light` glow pool — is IDENTICAL, so a failing lamp is a lit lamp whose bulb flickers.
+  # The STRUCTURE is style-agnostic (only the baked `post`/`lamp` ART differs per style).
   defp lamp_post_composition(bulb_animations) do
     # `light` is a real, controllable SETTING (Alexander: "control the light intensity and distance"): the bulb
     # casts a warm ground GLOW POOL at night, sized by `distance` (cells), strengthened/tinted by `intensity`/
@@ -1089,37 +1091,61 @@ defmodule Nebulith.Catalog.TileSource do
     ]
   end
 
-  # The FAILING lamp bulb's DEFAULT ANIMATION — a single irregular OPACITY flicker (Alexander: "it should be more
-  # irregular, it's supposed to represent a failing bulb"). ONLY the `lamp_post_failing` variant carries this; the
-  # default `lamp_post` bulb has NO animation and is just STEADY-ON at night. It runs through the EXISTING
-  # animation engine (the SAME cell-default path the fountain water uses):
+  # The lamp bulb's DEFAULT night-LIT appearance change (Alexander: "the bulb should change appearance when night
+  # mode = true, but it doesn't"). BOTH lamp variants carry this — it's the normal lamp behaviour: at night the
+  # bulb visibly LIGHTS UP, STEADY (not flickering); in day it's the plain unlit bulb. Settings-driven, NOT a
+  # render special-case — ONE `night`-triggered `color` animation that HOLDS a warm glow (`from` == `to`, so it's
+  # a constant value, not a tween). The render bridge (resolveAssetAnimation) gates `night` triggers to night
+  # mode, so in DAY the animation is dropped → the bulb shows its base (unlit) art, and at NIGHT the `color`
+  # last-wins-tints the bulb art warm (luminance-mapped) → a lit, glowing bulb. `#ffe9a0` = a warm lamp glow.
+  # Pure DATA — tune the colour/trigger on the cell, no render special-casing.
+  defp bulb_night_lit_anim do
+    %{
+      "id" => "lamp_night_lit",
+      "name" => "lit at night",
+      "kind" => "settings",
+      "durationMs" => 1000,
+      "loop" => true,
+      "yoyo" => false,
+      "ease" => "linear",
+      "priority" => 0,
+      "trigger" => %{"on" => "night"},
+      "tracks" => [
+        %{"setting" => "color", "from" => "#ffe9a0", "to" => "#ffe9a0"}
+      ]
+    }
+  end
+
+  # The FAILING lamp bulb's ADDITIONAL animation — a single irregular OPACITY flicker (Alexander: "it should be
+  # more irregular, it's supposed to represent a failing bulb"). ONLY the `lamp_post_failing` variant carries this
+  # (on TOP of the shared night-lit glow); the default `lamp_post` bulb is STEADY-lit at night, no flicker. It
+  # runs through the EXISTING animation engine (the SAME cell-default path the fountain water uses):
   #   • ONE opacity track 1 → 0.12 with `ease: "flicker"` — the frontend's irregular, STEPPED failing-bulb
   #     envelope (`tileAnimation.flickerEase`), NOT a smooth sine yoyo: mostly ON with brief, erratic dips of
   #     varying depth + occasional full-off blinks at irregular times. `loop: true`, `yoyo: false` (the flicker
-  #     ease supplies the erratic shape; a yoyo would just smooth it back out).
+  #     ease supplies the erratic shape; a yoyo would just smooth it back out). `opacity` and the night-lit
+  #     `color` are DIFFERENT settings, so the two animations compose — the failing bulb is lit AND flickering.
   # `night`-triggered (Alexander: "the lamp post animation should be off on daytime and on on night time"): the
   # render bridge (resolveAssetAnimation) gates it to night mode, so the bulb rests static in day and flickers at
   # night. The ground light POOL follows it — the frontend folds this bulb's live opacity into the pool intensity
   # so the pool dims on the SAME beat (Alexander: "the light area should fail at the same rhythm of the flick").
   # Pure DATA — tune the timing/depth/trigger on the cell, no render special-casing.
   defp lamp_flicker_anim do
-    [
-      %{
-        "id" => "lamp_flicker",
-        "name" => "failing bulb",
-        "kind" => "settings",
-        "durationMs" => 2600,
-        "loopDelayMs" => 0,
-        "loop" => true,
-        "yoyo" => false,
-        "ease" => "flicker",
-        "priority" => 1,
-        "trigger" => %{"on" => "night"},
-        "tracks" => [
-          %{"setting" => "opacity", "from" => 1, "to" => 0.12}
-        ]
-      }
-    ]
+    %{
+      "id" => "lamp_flicker",
+      "name" => "failing bulb",
+      "kind" => "settings",
+      "durationMs" => 2600,
+      "loopDelayMs" => 0,
+      "loop" => true,
+      "yoyo" => false,
+      "ease" => "flicker",
+      "priority" => 1,
+      "trigger" => %{"on" => "night"},
+      "tracks" => [
+        %{"setting" => "opacity", "from" => 1, "to" => 0.12}
+      ]
+    }
   end
 
   # ── Fountain / well basins (autotile rim + water_c interior) ──────────────
