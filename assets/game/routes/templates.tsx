@@ -1301,7 +1301,6 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   /** Clear any armed tile so a Select-mode click inspects instead of painting. */
   const clearPaintTile = () => {
     setArmedTile(null)
-    setHeightEditMode(false)
   }
 
   /** Switch the left tool-rail mode. Each mode arms the matching tool state and disarms the rest;
@@ -2285,20 +2284,21 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   // `tileOverride = tile.id` on the placed asset/entity (terrain resolves via its slug's groundKind).
 
   /** Arm a palette tile as the placement brush; clicking the SAME tile again (or Disarm / Esc) clears it.
-   *  One brush at a time — arming drops the height-paint sub-tool so clicks route to placement. */
+   *  One brush at a time. */
   const armTile = (tile: TileDef | null) => {
     setArmedTile(prev => (tile && prev?.id === tile.id ? null : tile))
-    setHeightEditMode(false)
   }
 
   /** units → place an ENTITY (player / npc / enemy by slug), pinning the exact figure via tileOverride.
-   *  Reuses the entity factories + the canPlaceEntity guard. Returns whether it actually placed. */
-  const placeUnitTile = (col: number, row: number, tile: TileDef): boolean => {
+   *  Reuses the entity factories + the canPlaceEntity guard. `animated` places it wandering with a randomized
+   *  movement animation; otherwise it's pinned STILL (the ◈ Unit motion toggle). Returns whether it placed. */
+  const placeUnitTile = (col: number, row: number, tile: TileDef, opts?: { animated?: boolean }): boolean => {
     const grid = gridRef.current
     if (!grid) return false
     const slug = tileSlug(tile.id)
     const kind = entityKindForUnitSlug(slug)
     const collisionFn = (c: number, r: number) => !!grid.collision[r]?.[c]
+    // The hero is the controlled character — motion is authored, not randomized — so the toggle is ignored here.
     if (kind === 'player') {
       const base = entitiesRef.current.filter(e => e.kind !== 'player')
       if (!canPlaceEntity(base, col, row, grid.cols, grid.rows, collisionFn)) return false
@@ -2326,7 +2326,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     const route = placementFor(armedTile)
     if (route === 'terrain') { placeGroundTile(grid, col, row, armedTile); return }
     if (route === 'entity') { placeUnitTile(col, row, armedTile); return }
-    stackAssetTile(grid, col, row, armedTile, { opacity: placeOpacity < 1 ? placeOpacity : undefined })
+    stackAssetTile(grid, col, row, armedTile)
   }
 
   /** ⌥Alt-click removal for the armed brush. With a `level` (a single click that landed on a raised block)
@@ -2354,37 +2354,6 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       else placeArmedTileAt(t.col, t.row)
     }
     if (selected.length) setSelectedCells(new Set())
-  }
-
-  /** Bulk-CLEAR the selected cells: reset ground to grass, drop any assets, flatten height — an easy
-   *  eraser over a rectangle selection (there was no way to bulk-clean the grid before). */
-  const clearSelectedCells = () => {
-    const grid = gridRef.current
-    if (!grid || selectedCells.size === 0) return
-    selectedCells.forEach(key => {
-      const [col, row] = key.split(',').map(Number)
-      grid.setGround(col, row, 'grass')
-      grid.setHeight(col, row, 0)
-      grid.setCollision(col, row, false)
-    })
-    grid.removeAssetsWhere(a => selectedCells.has(`${a.col},${a.row}`))
-    setSelectedCells(new Set())
-  }
-
-  // Place height on selected cells
-  const placeHeight = (h: number) => {
-    const grid = gridRef.current
-    if (!grid || selectedCells.size === 0) {
-      setSelectedHeight(h)
-      setHeightEditMode(true)
-      return
-    }
-
-    selectedCells.forEach(key => {
-      const [col, row] = key.split(',').map(Number)
-      grid.setHeight(col, row, h)
-    })
-    setSelectedCells(new Set())
   }
 
   // Layout templates - complete with buildings, trees, NPCs
@@ -5304,107 +5273,8 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
             }`}
             aria-label="Tool panel"
           >
-            {editorMode === 'select' && (
-              <Card title="Select" accent="yellow">
-                <p className="text-[11px] leading-tight text-gray-400">
-                  Click an element on the canvas to select it — its settings appear in the Inspector on the right.
-                </p>
-                <p className="mt-2 rounded bg-yellow-500/10 px-2 py-1 text-[11px] leading-tight text-yellow-300">
-                  <span className="font-bold">⇧ Shift + drag</span> to select many cells at once. Plain drag pans the map.
-                </p>
-                <p className="mt-2 text-[10px] leading-tight text-gray-500">
-                  Pick a tool on the left rail to paint tiles, place units or buildings, or draw connectors. Stage settings (Generate, grid, day/night) live in the Inspector.
-                </p>
-              </Card>
-            )}
-
-            {editorMode === 'paint' && (
-              <Card title="❔ How to build a house" accent="cyan" defaultOpen={false}>
-                <div data-testid="build-house-guide" className="space-y-2 text-[11px] leading-snug text-gray-400">
-                  <p>
-                    The block system: <span className="font-bold text-cyan-300">pick a tile, then left-click a cell to drop it.</span> Walls
-                    and props <span className="font-bold text-cyan-300">stack</span> — click the same cell again to add one on top.
-                  </p>
-                  <ol className="ml-4 list-decimal space-y-1">
-                    <li><span className="font-bold text-gray-200">Floor</span> — pick a <span className="text-cyan-300">Terrain</span> tile (Grass, Path…) and click the cells you want as the ground.</li>
-                    <li><span className="font-bold text-gray-200">Walls</span> — pick <span className="text-cyan-300">Wall</span> (Buildings) and click around the edge of the floor.</li>
-                    <li><span className="font-bold text-gray-200">Height</span> — click the same wall cell again to stack another block on top; repeat to go taller.</li>
-                    <li><span className="font-bold text-gray-200">Door</span> — pick <span className="text-cyan-300">Door</span> (Buildings) and click one front wall cell for the way in.</li>
-                    <li><span className="font-bold text-gray-200">Roof</span> — pick <span className="text-cyan-300">Roof</span> (Buildings) and click on top of the walls to cap it.</li>
-                  </ol>
-                  <p className="rounded bg-cyan-500/10 px-2 py-1 text-cyan-300">
-                    <span className="font-bold">⌥Alt-click</span> removes the top block. <span className="font-bold">⇧Shift-drag</span> selects many cells — then one click fills them all.
-                  </p>
-                </div>
-              </Card>
-            )}
-
             {editorMode === 'paint' && (
               <Card title="Paint — tiles & ground" accent="cyan">
-                <p className="mb-2 text-[10px] text-gray-500">
-                  Pick a tile below, then LEFT-click the map to place it (nature/props stack on what&apos;s there);
-                  ⌥Alt-click removes the top. Shift-drag to select cells first, then a click fills them all.
-                </p>
-
-                {/* Height tool */}
-                <div className={`mb-3 rounded p-2 ${heightEditMode ? 'bg-cyan-900/50 ring-1 ring-cyan-500' : 'bg-gray-800'}`}>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-cyan-400">Height</span>
-                    <button
-                      onClick={() => placeHeight(Math.max(0, selectedHeight - 1))}
-                      className="h-6 w-6 rounded bg-gray-700 text-xs font-bold hover:bg-gray-600"
-                      aria-label="Lower height"
-                    >−</button>
-                    <div className="flex gap-0.5">
-                      {[0, 1, 2, 3, 4, 5].map(h => (
-                        <button
-                          key={h}
-                          onClick={() => placeHeight(h)}
-                          className={`h-6 w-6 rounded text-xs font-bold ${
-                            selectedHeight === h && heightEditMode
-                              ? 'bg-cyan-500 text-white'
-                              : 'bg-gray-700 hover:bg-gray-600'
-                          }`}
-                        >
-                          {h}
-                        </button>
-                      ))}
-                    </div>
-                    <button
-                      onClick={() => placeHeight(Math.min(9, selectedHeight + 1))}
-                      className="h-6 w-6 rounded bg-gray-700 text-xs font-bold hover:bg-gray-600"
-                      aria-label="Raise height"
-                    >+</button>
-                  </div>
-                </div>
-
-                {/* Tile FX — place tiles at reduced opacity to play with contrast / depth. */}
-                <div className="mb-2">
-                  <label className="mb-1 flex items-center justify-between text-xs font-bold text-cyan-300">
-                    <span>Opacity</span>
-                    <span className="text-[10px] text-gray-400">{Math.round(placeOpacity * 100)}%</span>
-                  </label>
-                  <input
-                    type="range"
-                    min={15}
-                    max={100}
-                    value={Math.round(placeOpacity * 100)}
-                    onChange={e => setPlaceOpacity(Number(e.target.value) / 100)}
-                    aria-label="Tile placement opacity"
-                    className="w-full"
-                  />
-                </div>
-
-                {/* Bulk clear the current selection back to grass */}
-                <button
-                  onClick={clearSelectedCells}
-                  disabled={selectedCells.size === 0}
-                  className="mb-2 w-full rounded bg-red-800 px-2 py-1.5 text-xs font-bold transition-colors enabled:hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-gray-800/60 disabled:text-gray-600"
-                  title="Reset the selected cells to grass and remove assets/height"
-                >
-                  ⌫ Clear selected cells ({selectedCells.size})
-                </button>
-
                 {/* DB tile catalog — the FULL tileset (terrain / buildings / units / nature) for the active
                     art style, straight from tilesForStyle. Pick one to ARM it as the brush, then click the
                     map to place; the exact tile is pinned per-cell so it survives a style switch too. */}
