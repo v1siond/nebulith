@@ -7,6 +7,7 @@ import type { ZoneId } from '@/engine/zones'
 import { BUILT_IN_STYLES, type TileCategory, type TileDef, tilesForStyle } from '@/game/artStyle'
 import { DEFAULT_ACTION_PARAMS, makeTrigger, type Trigger, type TriggerActionType, type TriggerEvent } from '@/game/runtime/trigger'
 import { type EditorMode, SEASON_BTN, STAGE_VARIANTS, STAGE_ZONES, SELECT_CLS, INPUT_CLS } from './editorConfig'
+import { type CompositionPaletteGroup } from '@/engine/compositionCatalog'
 
 // ── Tool-rail (left, slim icon strip) ────────────────────────────────
 type RailDef = { mode: EditorMode; glyph: string; label: string; hint: string }
@@ -16,7 +17,7 @@ type RailDef = { mode: EditorMode; glyph: string; label: string; hint: string }
 export const RAIL_MODES: readonly RailDef[] = [
   { mode: 'select', glyph: '↖', label: 'Select', hint: 'Select & inspect — click an element to edit it' },
   { mode: 'paint', glyph: '▢', label: 'Paint', hint: 'Paint tiles & ground onto selected cells' },
-  { mode: 'building', glyph: '⌂', label: 'Building', hint: 'Place, move & rotate buildings' },
+  { mode: 'building', glyph: '⧉', label: 'Compose', hint: 'Tile composition — stamp buildings, trees, fountains, lamp posts & more' },
   { mode: 'connector', glyph: '↗', label: 'Connector', hint: 'Link cells to other levels & actions' },
 ]
 
@@ -48,6 +49,58 @@ function RailButton({ def, active, onClick }: { def: RailDef; active: boolean; o
       <span className="pointer-events-none absolute left-full top-1/2 z-40 ml-2 hidden -translate-y-1/2 whitespace-nowrap rounded bg-black/95 px-2 py-1 text-[10px] text-gray-200 shadow-lg group-hover:block">
         {def.hint}
       </span>
+    </div>
+  )
+}
+
+/**
+ * The Tile-composition PALETTE — the "Building" card, generalised. Lists EVERY composition the backend
+ * serves (the same set the world randomizer stamps: buildings, trees/bushes, fountains, wells, lamp posts…),
+ * grouped and labelled by {@link buildCompositionPalette}. Each button shows the composition's footprint size
+ * (w×h) so you know how many cells it takes before you even hover, and arms it as the stamp brush on click.
+ * Fully data-driven — no hardcoded building list — so a new backend composition shows up here automatically.
+ */
+export function CompositionPalette({
+  catalog,
+  armedKind,
+  onArm,
+}: {
+  catalog: readonly CompositionPaletteGroup[]
+  armedKind: string | null
+  onArm: (kind: string) => void
+}) {
+  if (catalog.length === 0) {
+    return <p className="text-xs text-gray-400">Loading compositions from the server…</p>
+  }
+  return (
+    <div className="space-y-3">
+      {catalog.map(section => (
+        <div key={section.group}>
+          <h4 className="mb-1 text-[10px] font-bold uppercase tracking-wide text-gray-400">{section.group}</h4>
+          <div className="grid grid-cols-2 gap-1">
+            {section.items.map(item => {
+              const active = armedKind === item.kind
+              return (
+                <button
+                  key={item.kind}
+                  type="button"
+                  onClick={() => onArm(item.kind)}
+                  aria-pressed={active}
+                  title={`${item.label} — ${item.footprint.w}×${item.footprint.h} cells`}
+                  className={`flex items-center justify-between gap-1 rounded px-2 py-1.5 text-left text-xs font-bold transition-colors ${
+                    active ? 'bg-amber-600 text-black' : 'bg-gray-700 hover:bg-gray-600'
+                  }`}
+                >
+                  <span className="truncate">{item.label}</span>
+                  <span className={`shrink-0 font-mono text-[9px] ${active ? 'text-black/70' : 'text-gray-400'}`}>
+                    {item.footprint.w}×{item.footprint.h}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      ))}
     </div>
   )
 }

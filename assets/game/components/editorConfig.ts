@@ -3,7 +3,6 @@
 // re-allocated on every render and the JSX stays a flat map instead of dozens of
 // near-identical hand-written swatches. No React here — just the unions, the
 // tool→type lookup, and the swatch/season data the editor cards render.
-import { type BuildingType } from '@/engine/buildingTypes'
 import { type EntityKind } from '@/game/types'
 
 // ── editor tool state ────────────────────────────────────────────────
@@ -11,28 +10,20 @@ import { type EntityKind } from '@/game/types'
 /** The five editor MODES the left tool-rail switches between. Each maps onto the
  *  existing fine-grained tool state — `select` arms nothing (click to inspect),
  *  `paint` reveals the tile palette, and `unit`/`building`/`connector` arm their
- *  respective placement tools. */
+ *  respective placement tools. The `building` mode is user-labelled "Tile
+ *  composition" now that it stamps ANY backend composition (buildings, trees,
+ *  fountains, lamp posts…), not only buildings — the id stays `building` to avoid
+ *  churning the unrelated `type:'building'` asset tag it has nothing to do with. */
 export type EditorMode = 'select' | 'paint' | 'unit' | 'building' | 'connector'
 
 /** Which tool the Entities card has armed. `erase` removes; `null` = off. */
 export type EntityTool = EntityKind | 'erase' | 'collision' | null
 
-/** Which building PLACE tool is armed. Place-<type> STAMPS a pre-built building composition (its cells,
- *  like placing a tree); there is no whole-building select / move / rotate / delete. null = off. */
-export type BuildingTool =
-  | 'place-house' | 'place-big-house' | 'place-store' | 'place-hospital'
-  | 'place-temple' | 'place-cathedral' | 'place-castle' | null
-
-/** Map a Place-<type> tool to the BuildingType it stamps. */
-export const BUILDING_TOOL_TYPE: Partial<Record<NonNullable<BuildingTool>, BuildingType>> = {
-  'place-house': 'house',
-  'place-big-house': 'big-house',
-  'place-store': 'store',
-  'place-hospital': 'hospital',
-  'place-temple': 'temple',
-  'place-cathedral': 'cathedral',
-  'place-castle': 'castle',
-}
+/** The armed Tile-composition tool: the backend composition KIND to stamp (`house_4`, `fountain`,
+ *  `lamp_post`, `tree_tall`…), or null when nothing is armed. Clicking the map STAMPS that composition's
+ *  cells (the SAME path a tree/building uses) — there is no whole-composition select / move / rotate. It
+ *  holds an arbitrary kind so the palette can arm EVERY composition the backend serves, not a fixed list. */
+export type BuildingTool = string | null
 
 // ── stage generator menu (zone × variant) ────────────────────────────
 // Forest-only engine: 5 seasons, beach + lava removed.

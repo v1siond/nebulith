@@ -19,7 +19,8 @@ import { type GridAsset, IsometricGrid } from '@/engine/IsometricGrid'
 import { getStack, type TileEntry, type TileSource } from '@/engine/cellStack'
 import { type AttackAnim, isAnimDone } from '@/engine/attackAnimations'
 import { type BuildingType } from '@/engine/buildingTypes'
-import { BUILDING_PLACE_LENGTH, buildingCompositionKind, buildingFootprint, canPlaceBuildingComposition, isRoadGround, nearestRoadFacing } from '@/engine/buildingCatalog'
+import { BUILDING_PLACE_LENGTH, buildingCompositionKind, buildingFootprint, canPlaceBuildingComposition, isRoadGround, nearestRoadFacing, planComposition } from '@/engine/buildingCatalog'
+import { buildCompositionPalette, type CompositionPaletteGroup } from '@/engine/compositionCatalog'
 import { findTriggeredConnector, normalizeConnector } from '@/engine/connectors'
 import { entityPalette, punchTile, weaponEmoji, weaponGlyph, weaponPose } from '@/engine/entityArt'
 import { StageData, VariantId, generateStage, stagePaint } from '@/engine/stageGenerator'
@@ -49,8 +50,9 @@ import { type Trigger, type TriggerEffect, fireTriggers } from '@/game/runtime/t
 import { ASCII_STYLE, type Style, type TileCategory, type TileDef, type Visual, styleById, groundKind, assetKind, entityKind, entityStyleOverride, genderize, resolveVisual, visualForTileId, tilesForStyle } from '@/game/artStyle'
 import { useRouter } from 'next/router'
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
-import { render, render2D, renderTopView, clampCameraAxis, isoCameraFocus, entityMotion, ENEMY_MOVE_MS, isDebugMode, setDebugMode, isShowCollisions, setShowCollisions as setCollisionsFlag, cellCaptionMap, pickIsoTilesAt, pickTwoDTilesAt, isoRecordedGeom, twoDRecordedGeom, nextPickIndex, ISO_BLOCK_H_FRAC, depthCells, tileGeomPolygon, tileGeomCentroid, tileHandlePoints, handleAtPoint, dragOutwardPx, scaleFromDrag, depthFromDrag, drawTileHandles, polyBBox, HANDLE_HIT_RADIUS, type TileHandle, type HandleId, type DayNight, type DepthDir } from '@/engine/render'
+import { render, render2D, renderTopView, clampCameraAxis, isoCameraFocus, entityMotion, ENEMY_MOVE_MS, isDebugMode, setDebugMode, isShowCollisions, setShowCollisions as setCollisionsFlag, cellCaptionMap, pickIsoTilesAt, pickTwoDTilesAt, isoRecordedGeom, twoDRecordedGeom, nextPickIndex, ISO_BLOCK_H_FRAC, depthCells, tileGeomPolygon, tileGeomCentroid, tileHandlePoints, handleAtPoint, dragOutwardPx, scaleFromDrag, depthFromDrag, drawTileHandles, polyBBox, HANDLE_HIT_RADIUS, type TileHandle, type HandleId, type CompositionGhost, type DayNight, type DepthDir } from '@/engine/render'
 import { loadTilesetsFromBackend, saveTilesetToBackend } from '@/engine/tileset/tilesetLoader'
+import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 import { EMOJI_TILESET, setTilePose } from '@/engine/tileset/emojiTileset'
 import { type TilePose } from '@/engine/tileset/pose'
 import { type AssetLight, type TileDisplay, type TileShape } from '@/engine/tileset/tileset'
@@ -64,9 +66,9 @@ import { AbilityBar, CombatHud, QuestHud } from '@/components/game/hud'
 import { EquipmentPanel, InventoryCard, QuestAuthoringCard, QuestLogPanel } from '@/components/game/panels'
 import { EntityAttackBody, FloatingPanel, Modal, QuestGiveBody, SettingsPanelBody, UnitSettingsSection } from '@/components/game/modals'
 import { FlowViewOverlay, GamesViewOverlay } from '@/components/game/games'
-import { BUILDING_TOOL_TYPE, type BuildingTool, type EditorMode, type EntityTool } from '@/components/game/editorConfig'
+import { type BuildingTool, type EditorMode, type EntityTool } from '@/components/game/editorConfig'
 import { useDayNight, useFloatingPanels, useIsMobile } from '@/components/game/editorHooks'
-import { Dropdown, FpsReadout, GenerateControls, PoseControls, PropertiesPanel, type TileControlModel, SelectionHeader, StylePicker, TileAnimationEditor, TileLibraryBody, TilePalette, ToolRail, TriggerEditor, UnitPicker, WEAPON_KINDS } from '@/components/game/editorChrome'
+import { CompositionPalette, Dropdown, FpsReadout, GenerateControls, PoseControls, PropertiesPanel, type TileControlModel, SelectionHeader, StylePicker, TileAnimationEditor, TileLibraryBody, TilePalette, ToolRail, TriggerEditor, UnitPicker, WEAPON_KINDS } from '@/components/game/editorChrome'
 import type { Animation as TileAnim } from '@/engine/animation/tileAnimation'
 import { useFps } from '@/components/useFps'
 import { commonValue, commonBool, cellsFromKeys, removeSelectedBlock } from '@/game/editor/selectionEdit'
@@ -309,16 +311,25 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   const [npcName, setNpcName] = useState('')
   const entitiesRef = useRef<Entity[]>([])
 
-  // ── Building PLACE tool state ───────────────────────────────────────
-  // A building is NOT a unit: the tool just STAMPS a pre-built building COMPOSITION (house/store/hospital)
-  // as per-cell tiles, the SAME path trees use — there is no whole-building select / move / rotate /
-  // resize / delete. Individual cells/blocks are edited with the normal cell/tile selection + paint.
-  // `buildingVersion` is bumped after a stamp to nudge a React re-render (the canvas is live via the loop).
+  // ── Tile-composition PLACE tool state ───────────────────────────────
+  // The tool STAMPS a backend COMPOSITION (building / tree / fountain / lamp post / …) as per-cell tiles, the
+  // SAME path trees use — there is no whole-composition select / move / rotate / resize / delete. Individual
+  // cells/blocks are edited with the normal cell/tile selection + paint. `buildingTool` holds the armed
+  // composition KIND (a string like `house_4`, `fountain`, `lamp_post`), or null. `buildingVersion` is bumped
+  // after a stamp to nudge a React re-render (the canvas is live via the loop).
   const [buildingTool, setBuildingTool] = useState<BuildingTool>(null)
   const [buildingVersion, setBuildingVersion] = useState(0)
   const buildingToolRef = useRef<BuildingTool>(null)
   const genZoneRef = useRef<ZoneId>(genZone)
   const bumpBuildingVersion = () => setBuildingVersion(v => v + 1)
+  // The grouped list of EVERY backend composition (buildings + trees + props) the palette lists — filled once
+  // the tileset loads from the server (compositions arrive with it). Empty until then → the palette shows a
+  // "loading" note. Data-driven, so the palette is never a hardcoded building-only subset.
+  const [compositionPalette, setCompositionPalette] = useState<CompositionPaletteGroup[]>([])
+  // The armed composition's placement GHOST — a translucent footprint drawn at the hovered cell BEFORE the
+  // click. Recomputed on mouse-move (not every frame → cheap) from the SAME planComposition the click stamps,
+  // stashed in a ref so the RAF render loop reads it without a React re-render. Null when nothing is armed.
+  const ghostRef = useRef<CompositionGhost | null>(null)
 
   // Clear a pending quick-action section focus whenever the SELECTION itself changes, so
   // a section opened on one element doesn't auto-open on the next. Done during render
@@ -452,6 +463,10 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     loadTilesetsFromBackend()
       .then((loaded) => {
         if (loaded.length === 0) toast("Couldn't load tiles from the server — showing the default builder.", 'error')
+        // Build the Tile-composition palette from the just-loaded tileset — EVERY composition the backend
+        // serves (buildings + trees + fountains + lamp posts…), grouped for the panel. Data-driven, so a new
+        // backend composition appears in the palette with no frontend change.
+        else setCompositionPalette(buildCompositionPalette(ASCII_TILESET))
       })
       .catch(() => toast("Couldn't load tiles from the server — showing the default builder.", 'error'))
   }, [toast])
@@ -1052,6 +1067,19 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     // behind it (fixes the hover-vs-selection offset). RAF draws it on all cells, in addition to the unit reticle.
     hoveredCellRef.current = pickCellForSelect(e.clientX, e.clientY)
 
+    // Composition placement GHOST: when a Tile-composition is armed, PLAN where it would land at the FLAT hover
+    // cell (the SAME cell the click stamps from) and stash its footprint + validity so the RAF loop draws a
+    // translucent shadow before the click. Computed only on move (not every frame) → cheap; cleared when nothing
+    // is armed or the pointer is off-grid.
+    const armedKind = buildingToolRef.current
+    const grid = gridRef.current
+    if (armedKind && hoverCell && grid) {
+      const plan = planComposition(grid, armedKind, hoverCell.col, hoverCell.row)
+      ghostRef.current = plan ? { cells: plan.cells, valid: plan.valid, height: plan.height } : null
+    } else {
+      ghostRef.current = null
+    }
+
     // Handle panning
     if (isPanning && panStart) {
       const dx = e.clientX - panStart.x
@@ -1323,11 +1351,16 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     setBuildingTool(null)
   }
 
-  // ── Building PLACE actions ──────────────────────────────────────────
-  /** Arm a building PLACE tool (re-clicking the active one disarms it). Mutually exclusive with the
-   *  entity / connector tools so a click routes to exactly one editor. */
-  const toggleBuildingTool = (tool: Exclude<BuildingTool, null>) => {
-    setBuildingTool(prev => (prev === tool ? null : tool))
+  // ── Tile-composition PLACE actions ──────────────────────────────────
+  /** Arm a composition PLACE tool by KIND (`house_4`, `fountain`, `lamp_post`… — re-clicking the active one
+   *  disarms it). Mutually exclusive with the entity / connector tools so a click routes to exactly one
+   *  editor. Clears the placement ghost immediately on disarm so no stale shadow lingers. */
+  const toggleBuildingTool = (kind: string) => {
+    setBuildingTool(prev => {
+      const next = prev === kind ? null : kind
+      if (!next) ghostRef.current = null
+      return next
+    })
     setPaintMode(false)
     setEntityTool(null)
     setConnectorMode(false)
@@ -1343,6 +1376,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
    *  unit/building arm a sensible default sub-tool, kept if one is already chosen. */
   const selectMode = (m: EditorMode) => {
     setEditingConnector(null)
+    ghostRef.current = null // drop any placement ghost on a mode switch (recomputed on the next hover if re-armed)
     if (m === 'select') {
       setPaintMode(false)
       setEntityTool(null)
@@ -1371,7 +1405,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       setEntityTool(null)
       setConnectorMode(false)
       clearPaintTile()
-      setBuildingTool(prev => prev ?? 'place-house')
+      setBuildingTool(prev => prev ?? 'house_4') // default-arm a house composition; keep the chosen one if any
       return
     }
     // connector
@@ -1404,10 +1438,26 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     bumpBuildingVersion()
   }
 
-  /** Apply the armed building PLACE tool at (col,row): stamp its composition. */
+  /** Stamp composition `kind` with the clicked cell as its footprint CENTRE — the generic path for ANY
+   *  composition (building / tree / fountain / lamp post…). Uses the SAME planComposition the ghost preview
+   *  draws, so what you saw is exactly what lands: buildings rotate to face the nearest road, props/trees drop
+   *  as-is, and each stamped cell is then editable with the normal cell/tile tools. */
+  const placeComposition = (kind: string, col: number, row: number) => {
+    const grid = gridRef.current
+    if (!grid) return
+    const plan = planComposition(grid, kind, col, row)
+    if (!plan) { toast('Composition tiles are still loading — try again in a moment', 'info'); return }
+    if (!plan.valid) {
+      toast('Cannot place here — blocked, on a road, or out of bounds', 'warning')
+      return
+    }
+    stampComposition(grid, kind, plan.anchorCol, plan.anchorRow, genZoneRef.current, 0, plan.rotation)
+    bumpBuildingVersion()
+  }
+
+  /** Apply the armed Tile-composition tool at (col,row): stamp the armed composition's cells. */
   const applyBuildingTool = (col: number, row: number) => {
-    const type = buildingTool ? BUILDING_TOOL_TYPE[buildingTool] : undefined
-    if (type) placeNewBuilding(type, col, row)
+    if (buildingTool) placeComposition(buildingTool, col, row)
   }
 
   /** Place or erase an entity at (col,row) for the armed tool, via the pure module. */
@@ -1735,6 +1785,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       __selectedEntityInfo?: () => unknown
       __placeBuilding?: (type: string, col: number, row: number) => void
       __placeComposition?: (kind: string, col: number, row: number) => number
+      __armComposition?: (kind: string | null) => void
       __cellSel?: () => { count: number; first: string | null }
       __selectCells?: (keys: string[]) => number
       __applyCellTile?: (tileId: string | null) => void
@@ -1997,6 +2048,9 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     // directly — so "add a pre-built building = stamp its cells like a tree" is validated in the real editor.
     win.__placeBuilding = (type: string, col: number, row: number) => placeNewBuilding(type as BuildingType, col, row)
     win.__placeComposition = (kind: string, col: number, row: number) => { const g = gridRef.current; if (!g) return 0; const n = stampComposition(g, kind, col, row, genZoneRef.current); bumpBuildingVersion(); return n }
+    // Arm (or disarm) the Tile-composition tool by KIND — switches into the composition mode (editorMode derives
+    // from a truthy buildingTool) so the palette shows + the ghost previews on hover. For the demo/validation.
+    win.__armComposition = (kind: string | null) => { setPaintMode(false); setEntityTool(null); setConnectorMode(false); setBuildingTool(kind); if (!kind) ghostRef.current = null }
     // Read the live entity roster's kind + variant — so we can VALIDATE that randomized npcs actually
     // carry male/female variants in the DATA (the female-units question), not just eyeball the render.
     win.__entityInfo = () => {
@@ -2081,7 +2135,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       setSelectedCells(new Set([`${best.col},${best.row}`]))
       return best
     }
-    return () => { delete win.__setArtStyle; delete win.__selectFirstTreeCell; delete win.__setView; delete win.__gridKinds; delete win.__entityInfo; delete win.__entityScreens; delete win.__selectEntity; delete win.__setEntitySize; delete win.__scatter; delete win.__selectedEntityInfo; delete win.__placeBuilding; delete win.__placeComposition; delete win.__cellSel; delete win.__selectCells; delete win.__applyCellTile; delete win.__clearRegion; delete win.__setDebug; delete win.__cellLabels; delete win.__stackAt; delete win.__camOffset; delete win.__stackAsset; delete win.__paintTile; delete win.__isoBlockScreen; delete win.__genVillage; delete win.__genStage; delete win.__centerOn; delete win.__setHero; delete win.__pickTileAt; delete win.__cellScreen; delete win.__tileCentroid; delete win.__tileHandles; delete win.__setShape; delete win.__setDisplay; delete win.__setLight }
+    return () => { delete win.__setArtStyle; delete win.__selectFirstTreeCell; delete win.__setView; delete win.__gridKinds; delete win.__entityInfo; delete win.__entityScreens; delete win.__selectEntity; delete win.__setEntitySize; delete win.__scatter; delete win.__selectedEntityInfo; delete win.__placeBuilding; delete win.__placeComposition; delete win.__armComposition; delete win.__cellSel; delete win.__selectCells; delete win.__applyCellTile; delete win.__clearRegion; delete win.__setDebug; delete win.__cellLabels; delete win.__stackAt; delete win.__camOffset; delete win.__stackAsset; delete win.__paintTile; delete win.__isoBlockScreen; delete win.__genVillage; delete win.__genStage; delete win.__centerOn; delete win.__setHero; delete win.__pickTileAt; delete win.__cellScreen; delete win.__tileCentroid; delete win.__tileHandles; delete win.__setShape; delete win.__setDisplay; delete win.__setLight }
   }, [])
 
   // ── Selected-entity inspector actions ─────────────────────────────
@@ -4438,6 +4492,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
           dayNight: dayNightRef.current,
           style: activeStyleRef.current,
           hoveredCell: hoveredCellRef.current,
+          ghost: ghostRef.current, // armed-composition placement shadow (top-down footprint)
         })
       } else if (viewTypeRef.current === '2d') {
         render2D({
@@ -4481,6 +4536,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
           hoverId: hoveredEntityIdRef.current,
           selectedCells: selectedCellsRef.current,
           hoveredCell: hoveredCellRef.current,
+          ghost: ghostRef.current, // armed-composition placement shadow (iso footprint + massing)
         })
         drawSelectedTileHandles(ctx) // resize grips on the selected tile (reads the frame's recorded silhouette)
       }
@@ -5037,7 +5093,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
           onMouseDown={handleCanvasMouseDown}
           onMouseMove={handleCanvasMouseMove}
           onMouseUp={handleCanvasMouseUp}
-          onMouseLeave={() => { hoveredEntityIdRef.current = null; hoveredCellRef.current = null; handleCanvasMouseUp() }}
+          onMouseLeave={() => { hoveredEntityIdRef.current = null; hoveredCellRef.current = null; ghostRef.current = null; handleCanvasMouseUp() }}
           onContextMenu={handleContextMenu}
           style={{ cursor: isPanning ? 'grabbing' : topViewMode ? 'default' : 'grab' }}
         />
@@ -5364,58 +5420,19 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
             )}
 
             {editorMode === 'building' && (
-              <Card title="Buildings" accent="orange">
-                <div className="grid grid-cols-6 gap-1">
-                  <EntityToolButton
-                    label="House"
-                    glyph="⌂"
-                    active={buildingTool === 'place-house'}
-                    activeClass="bg-amber-700"
-                    onClick={() => toggleBuildingTool('place-house')}
-                  />
-                  <EntityToolButton
-                    label="Store"
-                    glyph="$"
-                    active={buildingTool === 'place-store'}
-                    activeClass="bg-blue-600"
-                    onClick={() => toggleBuildingTool('place-store')}
-                  />
-                  <EntityToolButton
-                    label="Hosp."
-                    glyph="✚"
-                    active={buildingTool === 'place-hospital'}
-                    activeClass="bg-green-600 text-black"
-                    onClick={() => toggleBuildingTool('place-hospital')}
-                  />
-                  <EntityToolButton
-                    label="Temple"
-                    glyph="🏛"
-                    active={buildingTool === 'place-temple'}
-                    activeClass="bg-amber-600 text-black"
-                    onClick={() => toggleBuildingTool('place-temple')}
-                  />
-                  <EntityToolButton
-                    label="Manor"
-                    glyph="⌂"
-                    active={buildingTool === 'place-big-house'}
-                    activeClass="bg-amber-800"
-                    onClick={() => toggleBuildingTool('place-big-house')}
-                  />
-                  <EntityToolButton
-                    label="Cathedral"
-                    glyph="⛪"
-                    active={buildingTool === 'place-cathedral'}
-                    activeClass="bg-purple-700"
-                    onClick={() => toggleBuildingTool('place-cathedral')}
-                  />
-                  <EntityToolButton
-                    label="Castle"
-                    glyph="🏰"
-                    active={buildingTool === 'place-castle'}
-                    activeClass="bg-stone-600"
-                    onClick={() => toggleBuildingTool('place-castle')}
-                  />
-                </div>
+              <Card title="Tile compositions" accent="orange">
+                {/* EVERY composition the backend serves — the same set the world randomizer stamps (buildings,
+                    trees/bushes, fountains, wells, lamp posts…), grouped + labelled with their footprint size.
+                    Pick one to ARM it, then move over the map to see a ghost footprint, and click to stamp its
+                    cells. Data-driven from the loaded tileset — never a hardcoded building-only list. */}
+                <p className="mb-2 text-[10px] leading-tight text-gray-400">
+                  Pick a composition, then hover the map to preview its footprint and click to place it.
+                </p>
+                <CompositionPalette
+                  catalog={compositionPalette}
+                  armedKind={buildingTool}
+                  onArm={toggleBuildingTool}
+                />
               </Card>
             )}
 
