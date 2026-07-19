@@ -92,6 +92,15 @@ general tile card").
 - **Movement pattern is removed (dead code).** The unit "Movement pattern" authoring section + `EntityMovementBody`
   + the waypoint-authoring plumbing (`waypointMode`, `appendWaypoint`) are deleted. Enemy patrol still runs at
   play time from `entity.movement` (spawner default / `advanceEnemyMovement`); only the unused authoring UI is gone.
+- **A MANUALLY-added enemy is STATIC — auto-patrol is a SCATTER-only default.** An enemy with no authored
+  `movement` inherits the runtime `DEFAULT_ENEMY_PATROL` (`advanceEnemyMovement`) and wanders. That auto-liveliness
+  should happen only when SCATTERING, not when you place a single enemy by hand (Alexander: *"when I add enemies,
+  they're added with animation by default, which should only happen when 'scattering'"* — an enemy carries no
+  frame-animation, so the visible "animation" IS the patrol movement). So the top-nav **◈ Unit → Enemy** builder
+  pins a **stationary single-waypoint pattern** (`{ mode:'sequential', waypoints:[{col,row}] }` → a no-op in the
+  stepper) — the placed enemy stays put until the user authors movement in the Inspector. **Scatter** (⤳ Scatter /
+  `spawner.buildEnemy`) still attaches a real `makePatrol`, and trigger-spawned waves still use the default patrol,
+  so both keep moving.
 - **Render-parity is separate (#35).** The editor writes + persists every shared setting; whether the unit
   RENDERER honors each is the broader render-parity work (name honored; `size`/`color` for enemies/NPCs but not
   the player's hero path; `pose` not yet read on a unit; a unit's **settings-kind animation** persists + authors
@@ -127,6 +136,12 @@ system the GENERATOR and the RENDERER use — never a separate or hardcoded list
   DB `title`, its art the DB image/glyph. There is NO parallel hardcoded catalog — the palette always matches
   the map. (The same tileset the generator's `resolveTile`/`resolveComposition` and the label→image renderer
   resolve from.)
+- **The Paint palette lists REGULAR tiles only — no units.** Terrain / buildings / nature are paintable; the
+  **`units` category (player / enemies / NPCs) is dropped from the Paint palette** (`TilePalette` empties the
+  `units` group). Units are placed through the top-nav **◈ Unit** flow, NOT armed as a paint brush (Alexander:
+  *"we have 'enemy' tiles, outside of the 'units' option from the top nav … the paint should work for regular
+  tiles"*). The **Tile Library** (pin a tile as an element override) still browses all four categories — only
+  the paint brush omits units.
 - **A palette tile FULLY describes its DB tile.** `TileDef` carries the tile's DB **block height** and
   **settings** (the generic `fadeNear`/`cutawayRoof`/`display` blob), not just its art — so the brush can seed
   a painted asset that is byte-identical to a generated one.
@@ -145,17 +160,22 @@ system the GENERATOR and the RENDERER use — never a separate or hardcoded list
   — that path is now bypassed once any 3D intent (height or Z-Width) is present, and **Display (all-faces /
   single) then applies to the extruded block**. A genuinely-flat tile (base height 0, no Z-Width, e.g. a
   flower or a decal) stays a billboard.
-- **Coarse whole-object BUILDING tiles paint as all-faces 3D blocks by DEFAULT — no Z-Width needed.** A tile's
-  default flatness is its DB `height`. The whole-object building emoji tiles (`wall`, `house`, `castle`, `bank`,
-  `tower`, `tent`, `stadium`, `torii-gate`, … — every coarse building) carry **height ≥ 1**, so painting one
-  seeds `GridAsset.height ≥ 1` and it renders as a full iso CUBE the moment it lands, painted on **all faces**
-  (Display defaults to `all-faces`; nothing is ever forced to `single`). This corrects a **DB DRIFT**: those
-  heights had fallen to `0`, so a painted wall came in as a flat billboard and only became a block once the user
-  hand-raised Z-Width. Genuinely-flat tiles stay flat by the same rule: terrain (`grass`/`water`/`path`/`road`/
-  `sand` = 0) and thin **facade parts** (`door`/`window`/`glass-window`/`wooden-door`/`roof` = 0) are NOT blocks
-  — a floor is not a cube. Making a coarse tile a block-by-default is a **backend `height` reseed**
-  (`emoji.json` → `TileSource.seed_sample` reconciles the height column, poses preserved), never a frontend
-  override.
+- **Standing whole-object tiles (BUILDINGS *and* NATURE) paint as all-faces 3D blocks by DEFAULT — no Z-Width
+  needed.** A tile's default flatness is its DB `height`. Whole-object building tiles (`wall`, `house`, `castle`,
+  `bank`, `tower`, `tent`, `stadium`, `torii-gate`, …) AND standing nature objects (`tree`/`palm-tree`/
+  `pine-tree`/`oak-tree`/`cactus`, `rock`/`boulder`, `bush`/`shrub`, `crate`, `lamp`, `mushroom`, `crystal`,
+  `potted-plant`, `wood-log`, the animals, …) carry **height ≥ 1**, so painting one seeds `GridAsset.height ≥ 1`
+  and it renders as a full iso CUBE the moment it lands, painted on **all faces** — IDENTICAL to how the
+  generator stamps the same object (a generated tree/lamp is a composition whose cells are forced to height 1).
+  This corrects a **DB DRIFT** that hit BOTH categories the same way: the heights had fallen to `0`, so a painted
+  wall — and every painted tree/plant/rock — came in as a flat single-face billboard lying on the floor while the
+  building fix was applied (the user: *"the painting … only works for the building tiles. all tiles work the
+  same, so all should work the same on isometric."*). Genuinely-flat tiles stay flat by the same rule: terrain
+  (`grass`/`water`/`path`/`road`/`sand` = 0), thin **facade parts** (`door`/`window`/`glass-window`/`wooden-door`/
+  `roof` = 0), and flat **ground overlays** (flowers, `fallen-leaf`/`maple-leaf`, `clover`, floor `hazard`/`key`
+  = 0) — a floor/flower is not a cube. Making a tile a block-by-default is a **backend `height` reseed**
+  (`emoji.json` → `TileSource.seed_sample` runs `reconcile_building_heights` + `reconcile_nature_heights`, which
+  set only the height column so editor-tuned poses survive), never a frontend override.
 - **Apply a tile to ONE or MANY cells.** With a tile armed, a plain click paints the clicked cell; **shift-drag
   selects a rectangle of cells, then one click fills them all** (`applyArmedBrush` fans out over the selection,
   else the single clicked cell). ⌥Alt-click removes the top tile.
