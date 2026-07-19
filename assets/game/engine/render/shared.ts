@@ -401,9 +401,11 @@ export const LIGHT = {
 }
 
 // The DEFAULT warm glow pool — the light a lamp casts when it carries NO explicit `light` setting (a bare
-// lamp/lantern prop, or a lamp_post seeded before the light default). `intensity` 1 reproduces the pre-setting
-// pool exactly; `radiusTiles` is the pool radius in cells. A tile's own `light` setting overrides all of these.
-export const LAMP_GLOW = { rgb: '255, 217, 138', radiusTiles: 3.2, intensity: 1 }
+// lamp/lantern prop, or a lamp_post seeded before the light default). `rgb` is a SATURATED warm gold (#ffc24d)
+// so the pool reads as a real LIT lamp, not a pale wash (Alexander: "needs more saturation … doesn't look
+// 'on' yet"); it matches the bulb's seeded `light.color`. `intensity` 1 is full strength; `radiusTiles` is the
+// pool radius in cells. A tile's own `light` setting overrides all of these.
+export const LAMP_GLOW = { rgb: '255, 194, 77', radiusTiles: 3.2, intensity: 1 }
 
 /** A resolved light pool anchor in SCREEN space: centre + pixel radius + warm `rgb` ("r, g, b") + `intensity`
  *  (0..1 strength). `drawNightLighting` paints one radial pool per entry. */
@@ -452,8 +454,10 @@ export function drawNightLighting(
   ctx.globalCompositeOperation = 'lighter'
   for (const l of lamps) {
     const g = ctx.createRadialGradient(l.x, l.y, 0, l.x, l.y, l.r)
-    g.addColorStop(0, `rgba(${l.rgb}, ${0.55 * l.intensity})`)
-    g.addColorStop(0.45, `rgba(${l.rgb}, ${0.2 * l.intensity})`)
+    // Brighter, punchier additive stops so a lit lamp clearly reads as ON (Alexander: "a bit opaque … doesn't
+    // look 'on' yet"): a strong warm CORE (0.9) that stays warm through the mid pool (0.36) before it fades out.
+    g.addColorStop(0, `rgba(${l.rgb}, ${0.9 * l.intensity})`)
+    g.addColorStop(0.4, `rgba(${l.rgb}, ${0.36 * l.intensity})`)
     g.addColorStop(1, `rgba(${l.rgb}, 0)`)
     ctx.fillStyle = g
     ctx.beginPath()
@@ -474,7 +478,15 @@ export function drawNightLighting(
  *  resolve its live animation opacity (night-gated) and MULTIPLY it into the pool `intensity`, so a FAILING
  *  lamp's ground pool dims/cuts on the exact beat its bulb flickers (Alexander: "when it fails the light area
  *  should fail at the same rhythm of the flick"). A steady lamp has no animation → opacity 1 → its pool is
- *  unchanged. Absent `anim` (jsdom / a caller that doesn't animate) → every pool is steady, byte-identical. */
+ *  unchanged. Absent `anim` (jsdom / a caller that doesn't animate) → every pool is steady, byte-identical.
+ *
+ *  `anchorFor` (optional) CENTRES THE POOL ON THE BULB. A lamp is a COMPOSITION — the light-casting cell is the
+ *  BULB, drawn high up on the post (its own heightLevel + pose), NOT at the ground cell centre. `cellCenter + lift`
+ *  only ever reached a fixed height off the ground, so the pool sat well BELOW the bulb (Alexander: "the pool is
+ *  offset from the bulb"). When the caller passes `anchorFor` (iso/2D use the bulb's own recorded silhouette
+ *  centroid) we anchor the pool THERE — on the actual bulb — instead of `cellCenter(col,row) - lift`. Returns
+ *  null when the bulb wasn't drawn this frame (off-screen) → we fall back to `cellCenter - lift`, byte-identical.
+ *  Absent `anchorFor` (top view — no vertical perspective) → the old cellCenter+lift anchor, unchanged. */
 export function collectLampGlows(
   grid: IsometricGrid,
   cellCenter: (col: number, row: number) => { x: number; y: number },
@@ -483,19 +495,24 @@ export function collectLampGlows(
   w: number,
   h: number,
   anim?: { time: number; style: Style; view: TileView },
+  anchorFor?: (asset: GridAsset) => { x: number; y: number } | null,
 ): LampGlow[] {
   const out: LampGlow[] = []
   for (const a of grid.assets) {
     const light = assetLight(a)
     if (!light) continue
     const r = light.radiusTiles * tilePx
-    const p = cellCenter(a.col, a.row)
-    const y = p.y - lift
-    if (p.x < -r || p.x > w + r || y < -r || y > h + r) continue
+    // Prefer the bulb's OWN drawn position (its recorded centroid) so the pool sits ON the glowing bulb; fall
+    // back to the ground cell centre lifted by `lift` (the old anchor) when the caller gives no anchor / the
+    // bulb wasn't drawn this frame.
+    const anchor = anchorFor?.(a) ?? null
+    const x = anchor ? anchor.x : cellCenter(a.col, a.row).x
+    const y = anchor ? anchor.y : cellCenter(a.col, a.row).y - lift
+    if (x < -r || x > w + r || y < -r || y > h + r) continue
     // The bulb's live flicker (its animated opacity) rides the pool intensity so a failing lamp's pool fails in
     // sync with its bulb; a steady lamp resolves no animation → factor 1 (pool steady). Night-gated at source.
     const flick = anim ? resolveAssetAnimation(a, anim.time, anim.style, anim.view, 'night')?.opacity ?? 1 : 1
-    out.push({ x: p.x, y, r, rgb: light.rgb, intensity: light.intensity * flick })
+    out.push({ x, y, r, rgb: light.rgb, intensity: light.intensity * flick })
   }
   return out
 }

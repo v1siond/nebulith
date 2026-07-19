@@ -180,6 +180,16 @@ export function pointInTileGeom(x: number, y: number, g: TileGeom): boolean {
   return pointInPolygon(x, y, tileGeomPolygon(g))
 }
 
+/** The screen CENTRE of a drawn tile — the mean of its silhouette corners (cube = base+top ring, poly = its
+ *  points). The one place this average lives, so the render (lamp glow anchor) and the validation seam
+ *  (__tileCentroid) agree on where a tile's centre is. */
+export function tileGeomCentroid(g: TileGeom): Pt {
+  const pts = g.kind === 'cube' ? [...g.base, ...g.top] : g.pts
+  let sx = 0, sy = 0
+  for (const p of pts) { sx += p.x; sy += p.y }
+  return { x: sx / pts.length, y: sy / pts.length }
+}
+
 /** The line SEGMENTS to stroke for a highlight that HUGS the tile: a cube draws its base ring + top ring + the
  *  4 verticals (reads as a 3D block); any poly draws its ring. Each segment is a polyline of points. */
 export function outlineSegments(g: TileGeom): Pt[][] {

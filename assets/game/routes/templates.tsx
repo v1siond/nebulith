@@ -50,7 +50,7 @@ import { type Trigger, type TriggerEffect, fireTriggers } from '@/game/runtime/t
 import { ASCII_STYLE, type Style, type TileCategory, type TileDef, type Visual, styleById, groundKind, assetKind, entityKind, entityStyleOverride, genderize, resolveVisual, visualForTileId, tilesForStyle } from '@/game/artStyle'
 import { useRouter } from 'next/router'
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
-import { render, render2D, renderTopView, clampCameraAxis, isoCameraFocus, entityMotion, ENEMY_MOVE_MS, isDebugMode, setDebugMode, isShowCollisions, setShowCollisions as setCollisionsFlag, cellCaptionMap, pickIsoTilesAt, pickTwoDTilesAt, isoRecordedGeom, twoDRecordedGeom, nextPickIndex, ISO_BLOCK_H_FRAC, depthCells, tileGeomPolygon, tileHandlePoints, handleAtPoint, dragOutwardPx, scaleFromDrag, depthFromDrag, drawTileHandles, polyBBox, HANDLE_HIT_RADIUS, type TileHandle, type HandleId, type DayNight, type DepthDir } from '@/engine/render'
+import { render, render2D, renderTopView, clampCameraAxis, isoCameraFocus, entityMotion, ENEMY_MOVE_MS, isDebugMode, setDebugMode, isShowCollisions, setShowCollisions as setCollisionsFlag, cellCaptionMap, pickIsoTilesAt, pickTwoDTilesAt, isoRecordedGeom, twoDRecordedGeom, nextPickIndex, ISO_BLOCK_H_FRAC, depthCells, tileGeomPolygon, tileGeomCentroid, tileHandlePoints, handleAtPoint, dragOutwardPx, scaleFromDrag, depthFromDrag, drawTileHandles, polyBBox, HANDLE_HIT_RADIUS, type TileHandle, type HandleId, type DayNight, type DepthDir } from '@/engine/render'
 import { loadTilesetsFromBackend, saveTilesetToBackend } from '@/engine/tileset/tilesetLoader'
 import { EMOJI_TILESET, setTilePose } from '@/engine/tileset/emojiTileset'
 import { type TilePose } from '@/engine/tileset/pose'
@@ -1824,9 +1824,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       if (!canvas || topViewMode) return null
       const geom = viewTypeRef.current === '2d' ? twoDRecordedGeom(col, row, level) : isoRecordedGeom(col, row, level)
       if (!geom) return null
-      const pts = geom.kind === 'cube' ? [...geom.base, ...geom.top] : geom.pts
-      const cx = pts.reduce((s, p) => s + p.x, 0) / pts.length
-      const cy = pts.reduce((s, p) => s + p.y, 0) / pts.length
+      const { x: cx, y: cy } = tileGeomCentroid(geom) // the SAME centre the lamp-glow anchor uses (one source of truth)
       const rect = canvas.getBoundingClientRect()
       const sx = canvas.width ? rect.width / canvas.width : 1
       const sy = canvas.height ? rect.height / canvas.height : 1

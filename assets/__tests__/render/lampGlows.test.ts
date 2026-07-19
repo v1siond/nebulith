@@ -1,4 +1,4 @@
-import { assetLight, collectLampGlows, LAMP_GLOW } from '../../engine/render/shared'
+import { assetLight, collectLampGlows, drawNightLighting, LAMP_GLOW } from '../../engine/render/shared'
 import { resolveAssetAnimation } from '../../engine/render/assetAnimation'
 import { flickerEase, type Animation } from '../../engine/animation/tileAnimation'
 import { EMOJI_STYLE } from '../../game/artStyle'
@@ -139,5 +139,65 @@ describe('collectLampGlows — a FAILING lamp\'s pool dims in SYNC with its bulb
   test('with NO anim context the pool is steady (byte-identical) even for a failing lamp — backward compatible', () => {
     const g = gridWith([failingLamp({ intensity: 0.8, distance: 3 })])
     expect(collectLampGlows(g, center, TILE_PX, 0, 800, 600)[0].intensity).toBeCloseTo(0.8, 5)
+  })
+})
+
+describe('collectLampGlows — the pool CENTRES ON THE BULB (anchorFor), not the ground cell', () => {
+  // A lamp is a composition; the light-casting cell is the BULB, drawn high on the post — so the anchor must be
+  // the bulb's own screen position, not `cellCenter(col,row) - lift` (which sat well BELOW the bulb).
+  const lamp = gridWith([{ col: 2, row: 3, type: 'lamp_post', label: 'lamp', heightLevel: 1 }])
+
+  test('with anchorFor the pool sits ON the bulb anchor — the lift is bypassed', () => {
+    const bulb = { x: 640, y: 329 }
+    // lift 999 would put the old anchor way off-screen; the bulb anchor wins, so the pool is on the bulb.
+    const out = collectLampGlows(lamp, center, TILE_PX, 999, 1280, 800, undefined, () => bulb)
+    expect(out).toHaveLength(1)
+    expect(out[0]).toMatchObject({ x: 640, y: 329 }) // the bulb, NOT center(2,3)=(20,30) - 999
+  })
+
+  test('anchorFor returns null (bulb off-screen / not drawn this frame) → falls back to cellCenter - lift', () => {
+    const out = collectLampGlows(lamp, center, TILE_PX, 5, 1280, 800, undefined, () => null)
+    expect(out[0]).toMatchObject({ x: 20, y: 30 - 5 }) // center(2,3)=(20,30), lifted by 5 — the old anchor
+  })
+
+  test('no anchorFor at all (top view) → the old cellCenter - lift anchor, byte-identical', () => {
+    const out = collectLampGlows(lamp, center, TILE_PX, 5, 1280, 800)
+    expect(out[0]).toMatchObject({ x: 20, y: 25 })
+  })
+})
+
+describe('drawNightLighting — a brighter, more saturated warm pool (Alexander: "doesn\'t look on yet … more saturation")', () => {
+  // A recording ctx that captures the radial-gradient colour stops the night pass builds.
+  function recordingNightCtx() {
+    const stops: { off: number; col: string }[] = []
+    const ctx = {
+      fillStyle: '' as string | CanvasGradient, globalCompositeOperation: 'source-over' as GlobalCompositeOperation,
+      save() {}, restore() {}, fillRect() {}, beginPath() {}, arc() {}, fill() {},
+      createRadialGradient() { return { addColorStop(off: number, col: string) { stops.push({ off, col }) } } },
+    }
+    return { ctx: ctx as unknown as CanvasRenderingContext2D, stops }
+  }
+  const lamp = (intensity: number) => ({ x: 50, y: 50, r: 40, rgb: LAMP_GLOW.rgb, intensity })
+
+  test('the CORE stop is a strong warm alpha (0.9 at full intensity) — brighter than the old 0.55 wash', () => {
+    const r = recordingNightCtx()
+    drawNightLighting(r.ctx, 100, 100, [lamp(1)])
+    const core = r.stops.find(s => s.off === 0)!
+    expect(core.col).toBe(`rgba(${LAMP_GLOW.rgb}, 0.9)`)
+    const alpha = parseFloat(core.col.match(/,\s*([\d.]+)\)$/)![1])
+    expect(alpha).toBeGreaterThan(0.55) // the pre-fix core was 0.55 — the lit pool is now clearly punchier
+  })
+
+  test('the pool alpha still SCALES with intensity (a dimmed/failing lamp reads dimmer)', () => {
+    const r = recordingNightCtx()
+    drawNightLighting(r.ctx, 100, 100, [lamp(0.5)])
+    expect(r.stops.find(s => s.off === 0)!.col).toBe(`rgba(${LAMP_GLOW.rgb}, 0.45)`) // 0.9 × 0.5
+  })
+
+  test('the default pool colour is the SATURATED warm gold (more saturated than the old #ffd98a wash)', () => {
+    // saturation = (max-min)/max of the rgb channels; the new default must be clearly more saturated.
+    const sat = (rgb: string) => { const [r, g, b] = rgb.split(',').map(n => +n); const mx = Math.max(r, g, b), mn = Math.min(r, g, b); return (mx - mn) / mx }
+    expect(LAMP_GLOW.rgb).toBe('255, 194, 77')
+    expect(sat('255, 194, 77')).toBeGreaterThan(sat('255, 217, 138')) // new gold vs the old pale warm
   })
 })

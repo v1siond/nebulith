@@ -20,7 +20,7 @@ import { ASCII_FONT, COMBAT_RANGE, type DayNight, ENEMY_MOVE_MS, applyCellTransf
 import { resolveAssetDrawSize } from './assetDimensions'
 import { resolveAssetAnimation } from './assetAnimation'
 import { DEPTH_CELL_STEP } from './isoBlock'
-import { billboardGeom, pointInTileGeom, outlineSegments, poseMapper, type TileGeom } from './tileHit'
+import { billboardGeom, pointInTileGeom, outlineSegments, poseMapper, tileGeomCentroid, type TileGeom } from './tileHit'
 import type { TileSource } from '@/engine/cellStack'
 import { frontElevation, type FrontElevation } from './frontElevation'
 import { groundSizeFactors, groundDimsActive, type GroundCellDims } from '@/engine/groundDims'
@@ -997,7 +997,13 @@ export function render2D(
 
   // ─── NIGHT LIGHTING ─────────────────────────────────────────────────
   if (dayNight === 'night') {
-    const lamps = collectLampGlows(grid, (c, r) => toScreen(c + 0.5, r + 0.5), tileW, tileH * 2.2, w, h, { time, style, view: '2d' })
+    // Anchor each pool on the BULB (its own recorded 2D silhouette centroid — the tall lamp's lifted bulb), not
+    // the ground cell + a fixed `tileH*2.2` lift, so the pool sits ON the glowing bulb. Not drawn → old anchor.
+    const bulbAnchor = (a: GridAsset) => {
+      const g = twoDRecordedGeom(a.col, a.row, a.heightLevel ?? 0)
+      return g ? tileGeomCentroid(g) : null
+    }
+    const lamps = collectLampGlows(grid, (c, r) => toScreen(c + 0.5, r + 0.5), tileW, tileH * 2.2, w, h, { time, style, view: '2d' }, bulbAnchor)
     drawNightLighting(ctx, w, h, lamps)
   }
 

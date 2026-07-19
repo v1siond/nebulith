@@ -24,7 +24,7 @@ import { isoBlockFaces, isoDepthBox, depthFrontExtent, isoZOffset, type BlockFac
 import { resolveTileHeight } from '@/engine/tileset/tileHeight'
 import { EMOJI_TILESET } from '@/engine/tileset/emojiTileset'
 import { applyPose } from '@/engine/tileset/pose'
-import { cubeGeom, depthBoxGeom, billboardGeom, diamondGeom, pointInTileGeom, outlineSegments, poseMapper, type TileGeom } from './tileHit'
+import { cubeGeom, depthBoxGeom, billboardGeom, diamondGeom, pointInTileGeom, outlineSegments, poseMapper, tileGeomCentroid, type TileGeom } from './tileHit'
 import { resolveTileSize, resolveTilePose } from '@/engine/tileset/tileViewSettings'
 import { ASCII_STYLE, assetKind, entityKind, entityStyleOverride, genderize, groundKind, personVariantTileId, type ElementKind, type ImageVisual, type Style } from '@/game/artStyle'
 import { DEFAULT_CHARACTER_ANIMATIONS, activeFrame } from '@/game/runtime/entityAnimation'
@@ -698,7 +698,14 @@ export function render(
   // ─── NIGHT LIGHTING ─────────────────────────────────────────────────
   // After the scene draws: a navy veil over everything, then steady warm pools at each lamp head.
   if (dayNight === 'night') {
-    const lamps = collectLampGlows(grid, (c, r) => toScreen(c, r), tileW, tileH * 1.5, w, h, { time, style, view: 'iso' })
+    // Anchor each pool on the BULB, not the ground cell: the bulb is a composition cell drawn high on the post,
+    // so use its OWN recorded silhouette centroid (this frame's draw) — the pool then sits ON the glowing bulb
+    // instead of `tileH*1.5` off the ground. Off-screen / not-drawn bulb → null → the old cellCenter-lift anchor.
+    const bulbAnchor = (a: GridAsset) => {
+      const g = isoRecordedGeom(a.col, a.row, a.heightLevel ?? 0)
+      return g ? tileGeomCentroid(g) : null
+    }
+    const lamps = collectLampGlows(grid, (c, r) => toScreen(c, r), tileW, tileH * 1.5, w, h, { time, style, view: 'iso' }, bulbAnchor)
     drawNightLighting(ctx, w, h, lamps)
   }
 
