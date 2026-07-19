@@ -214,6 +214,44 @@ describe('painted building tiles insert as all-faces 3D blocks by default (the p
   })
 })
 
+// User (Image #60): "the painting … only works for the building tiles. all tiles work the same, so all
+// should work the same on isometric." Painted NATURE (a palm tree, a plant) came in FLAT/broken while
+// buildings painted as proper blocks. Root cause = the SAME DB-height drift the buildings had: standing
+// nature objects sat at height 0, so a painted tree/rock/plant seeded a flat single-face billboard instead
+// of the height≥1 BLOCK the generator stamps (composition height is forced to 1). With the nature heights
+// reconciled, a painted standing-nature tile is a proper iso block — IDENTICAL treatment to buildings.
+describe('painted NATURE tiles paint as their proper standing iso block (not flat) — per category', () => {
+  test.each([
+    ['emoji:tree', 'tree'],
+    ['emoji:palm-tree', 'tree'],
+    ['emoji:pine-tree', 'tree'],
+    ['emoji:rock', 'rock'],
+    ['emoji:bush', 'bush'],
+    ['emoji:mushroom', 'mushroom'],
+    ['emoji:crate', 'decoration'],
+    ['emoji:lamp', 'decoration'],
+    ['emoji:potted-plant', 'decoration'],
+  ])('%s paints as a height>=1 block (type %s), like a building — never a flat billboard', (id, type) => {
+    const g = makeGrid()
+    const tile = byId(id)
+    expect(tile.height ?? 0).toBeGreaterThanOrEqual(1) // the DB tile is a standing object (single source of truth)
+    stackAssetTile(g, 1, 1, tile)
+    const a = g.getAssetsAtCell(1, 1)[0]
+    expect(a.height).toBeGreaterThanOrEqual(1) // a real block, not a flat single-face billboard
+    expect(a.type).toBe(type)
+    expect(a.tileOverride).toBe(id) // the exact palette tile is pinned, so it renders as its own art
+  })
+
+  // FLAT ground overlays (flowers, fallen leaves) stay flat — they are decals on the floor, NOT standing
+  // objects — so terrain-like nature never wrongly extrudes into a cube.
+  test.each(['emoji:flower', 'emoji:rose', 'emoji:fallen-leaf'])('%s stays FLAT (a ground overlay, not a block)', (id) => {
+    const g = makeGrid()
+    expect(byId(id).height ?? 0).toBe(0)
+    stackAssetTile(g, 2, 2, byId(id))
+    expect(g.getAssetsAtCell(2, 2)[0].height).toBeUndefined()
+  })
+})
+
 describe('removeTopAsset — ⌥Alt remove + collision recompute', () => {
   test('removes the highest-level asset, leaving the rest of the stack', () => {
     const g = makeGrid()
