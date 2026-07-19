@@ -1,6 +1,9 @@
-import { scatterEntities, ENEMY_TYPES } from '@/game/spawner'
+import { scatterEntities, ENEMY_TYPES, archetypeForEnemyType } from '@/game/spawner'
+import { makeEnemy, mintEntityId } from '@/game/entities'
+import { advanceEnemyMovement } from '@/game/runtime/movement'
+import { IsometricGrid } from '@/engine/IsometricGrid'
 import { RESPAWN_MS_BY_RARITY, respawnMsForRarity } from '@/game/types'
-import type { Entity } from '@/game/types'
+import type { Entity, MovementPattern } from '@/game/types'
 
 // open [row][col] grid, all walkable
 const openGrid = (cols: number, rows: number): boolean[][] =>
@@ -51,6 +54,45 @@ describe('scatterEntities — scatter into free cells', () => {
       expect(e.movement!.waypoints.length).toBeGreaterThanOrEqual(1)
       expect(e.hittable).toBe(true)
     }
+  })
+
+  // User: "when I add enemies, they're added with animation by default, which should only happen when
+  // 'scattering'." An enemy's out-of-the-box liveliness is its PATROL MOVEMENT (enemies carry no
+  // frame-animations — the renderer draws them static — so the auto-walk IS the movement). An enemy with NO
+  // movement inherits the runtime DEFAULT_ENEMY_PATROL and wanders; so a MANUALLY-placed enemy (top-nav ◈
+  // Unit → Enemy) pins a STATIONARY single-waypoint pattern to STAY PUT, while a SCATTERED enemy carries a
+  // real makePatrol and moves. This drives them BOTH through the real advanceEnemyMovement runtime path.
+  describe('manually-added enemies stay STATIC; only scattered/patrolling enemies move (via advanceEnemyMovement)', () => {
+    const advanceOnce = (enemy: Entity): { col: number; row: number } => {
+      const grid = new IsometricGrid({ cols: 12, rows: 12, cellSize: 32, isoScale: 1.4 })
+      const cursors = new Map()
+      const player = { x: -999, z: -999 } // player far away so it never blocks the enemy's step
+      const before = [enemy]
+      // enough ticks to clear any patrol delay and take a step if the pattern moves
+      let out = before as readonly Entity[]
+      for (let i = 0; i < 8; i++) out = advanceEnemyMovement(grid, out, player, cursors, new Set<string>())
+      const e = out.find(x => x.id === enemy.id)!
+      return { col: e.col, row: e.row }
+    }
+    const baseEnemy = () => makeEnemy(mintEntityId('enemy'), 4, 4, 'goblin', { archetype: archetypeForEnemyType('goblin') })
+
+    it('the STATIONARY single-waypoint pattern the top-nav pins keeps a hand-placed enemy PUT', () => {
+      const manual: Entity = { ...baseEnemy(), movement: { mode: 'sequential', waypoints: [{ col: 4, row: 4 }] } }
+      expect(advanceOnce(manual)).toEqual({ col: 4, row: 4 }) // never wanders off its cell
+    })
+
+    it('a real patrol pattern (what SCATTER attaches) DOES move the enemy', () => {
+      const patrol: MovementPattern = { mode: 'sequential', waypoints: [{ col: 4, row: 4 }, { col: 9, row: 4 }] }
+      const moving: Entity = { ...baseEnemy(), movement: patrol }
+      const to = advanceOnce(moving)
+      expect(to).not.toEqual({ col: 4, row: 4 }) // steps toward the second waypoint
+    })
+
+    it('every SCATTERED enemy carries a movement pattern (so scattered mobs come alive)', () => {
+      const scattered = scatterEntities({ collision: openGrid(12, 12), count: 4, rng: seeded(7) })
+      expect(scattered.length).toBeGreaterThan(0)
+      expect(scattered.every(e => e.movement !== undefined)).toBe(true)
+    })
   })
 
   it('is reproducible under a fixed seed', () => {

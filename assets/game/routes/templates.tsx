@@ -1260,15 +1260,18 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   // fresh Entity from the pure factory; the orchestrator below guards placement.
   const ENTITY_BUILDERS: Record<EntityKind, (col: number, row: number) => Entity> = {
     player: (col, row) => makePlayer(mintEntityId('player'), col, row),
+    // A MANUALLY-placed enemy is STATIC by default — NO auto movement/animation ("added with animation by
+    // default" should ONLY happen when SCATTERING). An enemy with NO movement inherits the runtime's
+    // DEFAULT_ENEMY_PATROL (advanceEnemyMovement) and wanders — so to keep a hand-placed enemy STILL we pin
+    // an explicit STATIONARY pattern (a single waypoint = its own cell → the stepper no-ops). Scatter
+    // (spawner.buildEnemy) attaches a real makePatrol, so scattered enemies still move; the user authors this
+    // one's movement/animation in the Inspector. The typed enemy type still picks a combat archetype
+    // (stats + attack pattern) so a placed goblin/wolf/bandit/skeleton differs.
     enemy: (col, row) => ({
-      // Placed enemies get a default left-right patrol so they MOVE out of the box
-      // (the mover waits when a waypoint is blocked/off-map); custom waypoint
-      // authoring is a follow-up. The typed enemy type also picks a combat archetype
-      // (stats + attack pattern) so a placed goblin/wolf/bandit/skeleton differs.
       ...makeEnemy(mintEntityId('enemy'), col, row, enemyType.trim() || 'enemy', {
         archetype: archetypeForEnemyType(enemyType.trim()),
       }),
-      movement: { mode: 'sequential', waypoints: [{ col, row }, { col: col + 3, row }] },
+      movement: { mode: 'sequential', waypoints: [{ col, row }] },
     }),
     npc: (col, row) => makeNpc(mintEntityId('npc'), col, row, { name: npcName.trim() || undefined }),
   }
