@@ -264,6 +264,120 @@ function stroke2DTileOutline(ctx: CanvasRenderingContext2D, geom: TileGeom): voi
   }
 }
 
+// ── Legacy per-type 2D (top-view) ASCII prop art (tree/lamp/npc/…) ────────────────────────────────────────
+// The 2D twin of iso's ISO_ASCII_DRAWERS: FALLBACK glyph art drawn ONLY when no baked tile resolves (the ASCII
+// style — emoji resolves a tile in the `adv.image` branch above and never reaches here). Each drawer returns
+// the tile's 2D silhouette (hit2D) so the picker/highlight hug the sprite, not the cell. Only tree/lamp/npc are
+// bespoke; every other type (bush/flower/rock/lantern/decoration/…) uses the default art-glyph plate — same as
+// the old else-branch. De-hardcoding a type needs its backend ASCII tile (→ tiles.json → bake → seed) upstream.
+
+/** Inputs every per-type 2D ASCII drawer reads — all derived from the render2D asset loop. */
+interface TopAsciiParams {
+  x: number
+  baseY: number
+  tileW: number
+  tileH: number
+  flicker: number
+  groundContact: boolean
+}
+
+type TopAsciiDrawer = (ctx: CanvasRenderingContext2D, asset: GridAsset, p: TopAsciiParams) => TileGeom
+
+/** Layered tree: bark trunk + a canopy pyramid tinted to the asset's zone/theme colour. Ground shadow on the
+ *  base cell. Wide base drawn first (lowest), narrow apex on top. Restores the base font before returning. */
+function drawTopTreeAscii(ctx: CanvasRenderingContext2D, asset: GridAsset, p: TopAsciiParams): TileGeom {
+  const { x, baseY, tileW, tileH, flicker, groundContact } = p
+  const canopy = treeCanopyLayers(asset.color || '#2e8b2e', flicker)
+  if (groundContact) {
+    ctx.save()
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.25)'
+    ctx.beginPath()
+    ctx.ellipse(x, baseY, tileW * 0.5, tileH * 0.45, 0, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.restore()
+  }
+  const trunkChars = ['W', '0', 'W']
+  for (let h = 0; h < 2; h++) {
+    const tileTop = baseY - (h + 1) * tileH
+    ctx.fillStyle = `rgba(173, 134, 33, 0.96)` // golden brown
+    ctx.fillRect(x - tileW * 0.35, tileTop, tileW * 0.7, tileH)
+    ctx.fillStyle = `rgba(243, 191, 54, ${0.7 + 0.3 * flicker})` // bright gold
+    ctx.fillText(trunkChars[h] || '0', x, tileTop + tileH * 0.5)
+  }
+  const layers = [
+    { chars: '(@&@&@)', width: 2.0, bg: canopy[0].bg, fg: canopy[0].fg }, // wide base
+    { chars: '(@&@)', width: 1.6, bg: canopy[1].bg, fg: canopy[1].fg },   // mid
+    { chars: '(&)', width: 1.2, bg: canopy[2].bg, fg: canopy[2].fg },     // apex
+  ]
+  for (let h = 0; h < layers.length; h++) {
+    const layer = layers[h]
+    const tileTop = baseY - (h + 3) * tileH
+    ctx.fillStyle = layer.bg
+    ctx.fillRect(x - tileW * layer.width * 0.5, tileTop, tileW * layer.width, tileH)
+    ctx.fillStyle = layer.fg
+    ctx.font = `bold ${tileH * 0.65}px ${ASCII_FONT}`
+    ctx.fillText(layer.chars, x, tileTop + tileH * 0.5)
+  }
+  ctx.font = `bold ${tileH * 0.8}px ${ASCII_FONT}`
+  return billboardGeom(tileW * 2, tileH * 6, poseMapper({ x, y: baseY - tileH * 3 }, undefined, tileH))
+}
+
+/** Legacy single-lamp prop — a STEADY lit bulb on a post. Day/night ambience is the warm ground GLOW POOL
+ *  (drawNightLighting) gated to night, not faked here, so this ignores dayNight. */
+function drawTopLampAscii(ctx: CanvasRenderingContext2D, _asset: GridAsset, p: TopAsciiParams): TileGeom {
+  const { x, baseY, tileW, tileH } = p
+  ctx.fillStyle = '#333333'
+  ctx.fillRect(x - tileW * 0.12, baseY - tileH * 2, tileW * 0.24, tileH * 2)
+  ctx.fillStyle = '#555555'
+  ctx.fillText('|', x, baseY - tileH * 0.5)
+  ctx.fillStyle = 'rgba(255, 255, 0, 1)'
+  ctx.fillRect(x - tileW * 0.25, baseY - tileH * 2.4, tileW * 0.5, tileH * 0.5)
+  ctx.fillStyle = 'rgba(255, 200, 50, 1)'
+  ctx.fillText('o', x, baseY - tileH * 2.2)
+  return billboardGeom(tileW * 0.6, tileH * 2.7, poseMapper({ x, y: baseY - tileH * 1.35 }, undefined, tileH))
+}
+
+/** NPC — a humanoid figure (legs / body / head) as fillRect layers with a narrower head. */
+function drawTopNpcAscii(ctx: CanvasRenderingContext2D, _asset: GridAsset, p: TopAsciiParams): TileGeom {
+  const { x, baseY, tileW, tileH } = p
+  const layers = [
+    { text: '/\\', fg: '#3355aa', bg: '#1a2a55' }, // legs
+    { text: '[=]', fg: '#4466cc', bg: '#223366' }, // body
+    { text: '(o)', fg: '#ffccaa', bg: '#996644' }, // head
+  ]
+  for (let h = 0; h < layers.length; h++) {
+    const layer = layers[h]
+    const tileTop = baseY - (h + 1) * tileH
+    const layerWidth = h === 2 ? 0.7 : 0.8
+    ctx.fillStyle = layer.bg
+    ctx.fillRect(x - tileW * layerWidth * 0.5, tileTop, tileW * layerWidth, tileH)
+    ctx.fillStyle = layer.fg
+    ctx.fillText(layer.text, x, tileTop + tileH * 0.5)
+  }
+  return billboardGeom(tileW * 0.9, tileH * 3, poseMapper({ x, y: baseY - tileH * 1.5 }, undefined, tileH))
+}
+
+/** Default prop — the asset's own art glyph on a darkened (or bgColor) plate the width of the cell. */
+function drawTopDefaultAscii(ctx: CanvasRenderingContext2D, asset: GridAsset, p: TopAsciiParams): TileGeom {
+  const { x, baseY, tileW, tileH } = p
+  const tileFg = asset.color || '#ffffff'
+  const tileBg = asset.bgColor || darkenColor(tileFg, 0.3)
+  const char = asset.art[0] || '?'
+  ctx.fillStyle = tileBg
+  ctx.fillRect(x - tileW * 0.5, baseY - tileH, tileW, tileH)
+  ctx.fillStyle = tileFg
+  ctx.fillText(char, x, baseY - tileH * 0.5)
+  return billboardGeom(tileW, tileH, poseMapper({ x, y: baseY - tileH * 0.5 }, undefined, tileH))
+}
+
+/** Legacy per-type 2D ASCII prop drawers, keyed by asset.type. Unmapped types → drawTopDefaultAscii. Only
+ *  tree/lamp/npc are bespoke in the top view — everything else has always fallen through to the default. */
+const TOP_ASCII_DRAWERS: Readonly<Record<string, TopAsciiDrawer>> = {
+  tree: drawTopTreeAscii,
+  lamp: drawTopLampAscii,
+  npc: drawTopNpcAscii,
+}
+
 export function render2D(
   ctx: CanvasRenderingContext2D,
   w: number,
@@ -737,90 +851,13 @@ export function render2D(
         // Match draw2DLabeledCell's rect: Width/Height/Zoom stretch the cell, grown UP from baseY.
         const z = asset.scale ?? 1, dw = tileW * (asset.scaleX ?? 1) * z, dh = tileH * (asset.scaleY ?? 1) * z
         hit2D = billboardGeom(dw, dh, poseMapper({ x: p.x, y: baseY - dh / 2 }, undefined, tileH))
-      } else if (asset.type === 'tree') {
-        // Layered tree: bark trunk + canopy tinted to the asset's zone/theme color.
-        const canopy = treeCanopyLayers(asset.color || '#2e8b2e', flicker)
-        // Ground shadow on the tree's base: a generator-marked base cell (always, even when
-        // stacked on another tree) or any bottom (ground-contact) cell.
-        if (asset.baseShadow || isGroundContact(isTreeCell2D, asset.col, asset.row)) {
-          ctx.save()
-          ctx.fillStyle = 'rgba(0, 0, 0, 0.25)'
-          ctx.beginPath()
-          ctx.ellipse(p.x, baseY, tileW * 0.5, tileH * 0.45, 0, 0, Math.PI * 2)
-          ctx.fill()
-          ctx.restore()
-        }
-        const trunkChars = ['W', '0', 'W']
-        for (let h = 0; h < 2; h++) {
-          const tileTop = baseY - (h + 1) * tileH
-          ctx.fillStyle = `rgba(173, 134, 33, 0.96)` // Golden brown
-          ctx.fillRect(p.x - tileW * 0.35, tileTop, tileW * 0.7, tileH)
-          ctx.fillStyle = `rgba(243, 191, 54, ${0.7 + 0.3 * flicker})` // Bright gold
-          ctx.fillText(trunkChars[h] || '0', p.x, tileTop + tileH * 0.5)
-        }
-        // Layered canopy - tinted to the asset's zone/theme color
-        // Upright pyramid: wide base above the trunk (drawn first/lowest), narrow apex on top.
-        const layers = [
-          { chars: '(@&@&@)', width: 2.0, bg: canopy[0].bg, fg: canopy[0].fg }, // wide base
-          { chars: '(@&@)', width: 1.6, bg: canopy[1].bg, fg: canopy[1].fg },   // mid
-          { chars: '(&)', width: 1.2, bg: canopy[2].bg, fg: canopy[2].fg },     // apex
-        ]
-        for (let h = 0; h < layers.length; h++) {
-          const layer = layers[h]
-          const tileTop = baseY - (h + 3) * tileH
-          ctx.fillStyle = layer.bg
-          ctx.fillRect(p.x - tileW * layer.width * 0.5, tileTop, tileW * layer.width, tileH)
-          ctx.fillStyle = layer.fg
-          ctx.font = `bold ${tileH * 0.65}px ${ASCII_FONT}`
-          ctx.fillText(layer.chars, p.x, tileTop + tileH * 0.5)
-        }
-        ctx.font = `bold ${tileH * 0.8}px ${ASCII_FONT}`
-        hit2D = billboardGeom(tileW * 2, tileH * 6, poseMapper({ x: p.x, y: baseY - tileH * 3 }, undefined, tileH))
-
-      } else if (asset.type === 'lamp') {
-        // Legacy single-lamp prop — a STEADY lit bulb. The day/night ambience is now the warm ground GLOW POOL
-        // (drawNightLighting), driven by the tile's `light` SETTING and gated to night; this branch just draws
-        // the bulb and no longer reads dayNight.
-        ctx.fillStyle = '#333333'
-        ctx.fillRect(p.x - tileW * 0.12, baseY - tileH * 2, tileW * 0.24, tileH * 2)
-        ctx.fillStyle = '#555555'
-        ctx.fillText('|', p.x, baseY - tileH * 0.5)
-        // Bulb
-        ctx.fillStyle = 'rgba(255, 255, 0, 1)'
-        ctx.fillRect(p.x - tileW * 0.25, baseY - tileH * 2.4, tileW * 0.5, tileH * 0.5)
-        ctx.fillStyle = 'rgba(255, 200, 50, 1)'
-        ctx.fillText('o', p.x, baseY - tileH * 2.2)
-        hit2D = billboardGeom(tileW * 0.6, tileH * 2.7, poseMapper({ x: p.x, y: baseY - tileH * 1.35 }, undefined, tileH))
-
-      } else if (asset.type === 'npc') {
-        // NPC - cleaner humanoid figure matching isometric style
-        const layers = [
-          { text: '/\\', fg: '#3355aa', bg: '#1a2a55' },     // Legs
-          { text: '[=]', fg: '#4466cc', bg: '#223366' },    // Body
-          { text: '(o)', fg: '#ffccaa', bg: '#996644' },    // Head
-        ]
-        for (let h = 0; h < layers.length; h++) {
-          const layer = layers[h]
-          const tileTop = baseY - (h + 1) * tileH
-          const layerWidth = h === 2 ? 0.7 : 0.8
-
-          ctx.fillStyle = layer.bg
-          ctx.fillRect(p.x - tileW * layerWidth * 0.5, tileTop, tileW * layerWidth, tileH)
-          ctx.fillStyle = layer.fg
-          ctx.fillText(layer.text, p.x, tileTop + tileH * 0.5)
-        }
-        hit2D = billboardGeom(tileW * 0.9, tileH * 3, poseMapper({ x: p.x, y: baseY - tileH * 1.5 }, undefined, tileH))
-
       } else {
-        // Default - still use vibrant colors with animation
-        const tileFg = asset.color || '#ffffff'
-        const tileBg = asset.bgColor || darkenColor(tileFg, 0.3)
-        const char = asset.art[0] || '?'
-        ctx.fillStyle = tileBg
-        ctx.fillRect(p.x - tileW * 0.5, baseY - tileH, tileW, tileH)
-        ctx.fillStyle = tileFg
-        ctx.fillText(char, p.x, baseY - tileH * 0.5)
-        hit2D = billboardGeom(tileW, tileH, poseMapper({ x: p.x, y: baseY - tileH * 0.5 }, undefined, tileH))
+        // Legacy per-type 2D ASCII prop art (tree/lamp/npc → bespoke; everything else → the default glyph plate).
+        // Tree's base shadow is a generator-marked base cell OR any ground-contact cell; computed here so the
+        // drawer stays pure (other drawers ignore it). Fires only under ASCII — emoji resolved a tile above.
+        const treeShadow = !!asset.baseShadow || isGroundContact(isTreeCell2D, asset.col, asset.row)
+        const drawAscii = TOP_ASCII_DRAWERS[asset.type] ?? drawTopDefaultAscii
+        hit2D = drawAscii(ctx, asset, { x: p.x, baseY, tileW, tileH, flicker, groundContact: treeShadow })
       }
 
       if (ct2d) ctx.restore() // pop the cell-animation transform

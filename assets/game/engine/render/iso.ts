@@ -1717,16 +1717,167 @@ function blockGeom(x: number, y: number, halfW: number, halfD: number, blockH: n
   return cubeGeom(halfW, halfD, blockH, blocks, xf)
 }
 
+/** Per-type ASCII sprite silhouette: [half-width as a MULTIPLE of tileW, layer count]. A prop with no entry
+ *  is a one-layer sprite 0.6·tileW wide. Keyed lookup (not a switch) so a type maps to its bounds directly. */
+const ISO_ASCII_STACK: Readonly<Record<string, readonly [halfWMul: number, layers: number]>> = {
+  tree: [1.1, 5],
+  lamp: [0.5, 3],
+  lantern: [0.5, 3],
+  npc: [0.55, 3],
+  bush: [0.6, 2],
+}
+
 /** Half-width + layer count of a per-type ASCII sprite (tree/lamp/npc/…), which draws a STACK of glyph layers
  *  rising from the cell. Drives the recorded pick silhouette so a click hugs the visible sprite, not the cell. */
 function perTypeStackBounds(type: string, tileW: number): [halfW: number, layers: number] {
-  switch (type) {
-    case 'tree': return [tileW * 1.1, 5]
-    case 'lamp': case 'lantern': return [tileW * 0.5, 3]
-    case 'npc': return [tileW * 0.55, 3]
-    case 'bush': return [tileW * 0.6, 2]
-    default: return [tileW * 0.6, 1]
+  const [mul, layers] = ISO_ASCII_STACK[type] ?? [0.6, 1]
+  return [tileW * mul, layers]
+}
+
+// ── Legacy per-type ASCII prop art (tree/lamp/bush/npc/flower/rock/…) ─────────────────────────────────────
+// FALLBACK glyph art invented in the frontend, drawn ONLY when NO baked tile resolves for the asset's kind —
+// i.e. the ASCII style, whose kind catalog has no prop tiles (public/tiles has emoji/ only). Under emoji every
+// one of these types resolves a baked tile in drawIsoAssetAscii's `adv.image` branch and never reaches here.
+// To DE-HARDCODE a type, add its backend ASCII TileSource (→ tiles.json → bake → seed) so the image path
+// catches it upstream; until then these drawers keep the exact legacy pixels. Routed by a dispatch map, not an
+// `if type===` chain, so each type is one small, named, testable unit.
+
+/** Inputs every per-type ASCII drawer reads — all derived from the drawIsoAssetAscii call. */
+interface IsoAsciiParams {
+  x: number
+  y: number
+  tileW: number
+  tileH: number
+  fontSize: number
+  lineHeight: number
+  time: number
+  flicker: number
+  groundContact: boolean
+}
+
+type IsoAsciiDrawer = (ctx: CanvasRenderingContext2D, asset: GridAsset, p: IsoAsciiParams) => void
+
+/** One glyph layer of a stacked ASCII prop: coloured text over a bg plate so it reads on any ground. */
+interface AsciiStackLayer { text: string; color: string; bg: string }
+
+/** Draw a bottom-up STACK of glyph layers rising from (x,y): layer i sits i line-heights up, each on its own
+ *  measured bg plate. `fontFor` sizes layer i (uniform, or tapering for a tree/head); `shadow` drops a 1px
+ *  black offset behind the glyph (the npc figure). The shared body of the tree/lamp/bush/npc sprites. */
+function drawIsoGlyphStack(
+  ctx: CanvasRenderingContext2D, x: number, y: number, layers: readonly AsciiStackLayer[],
+  lineHeight: number, fontFor: (i: number) => number, shadow = false,
+): void {
+  for (let i = 0; i < layers.length; i++) {
+    const layer = layers[i]
+    const layerY = y - i * lineHeight - lineHeight * 0.5
+    ctx.font = `bold ${fontFor(i)}px ${ASCII_FONT}`
+    const textWidth = ctx.measureText(layer.text).width
+    ctx.fillStyle = layer.bg
+    ctx.fillRect(x - textWidth / 2 - 2, layerY - lineHeight / 2, textWidth + 4, lineHeight)
+    if (shadow) { ctx.fillStyle = '#000000'; ctx.fillText(layer.text, x + 1, layerY + 1) }
+    ctx.fillStyle = layer.color
+    ctx.fillText(layer.text, x, layerY)
   }
+}
+
+/** Tree: bark trunk + a canopy pyramid tinted to the asset's zone/theme colour (never hardcoded green); the
+ *  trunk stays bark. Ground shadow only on the ground-contact cell. Wide base drawn first, apex on top. */
+function drawIsoTreeAscii(ctx: CanvasRenderingContext2D, asset: GridAsset, p: IsoAsciiParams): void {
+  const { x, y, tileW, tileH, fontSize, lineHeight, flicker, groundContact } = p
+  const canopy = treeCanopyLayers(asset.color || '#2e8b2e', flicker)
+  if (groundContact) {
+    ctx.save()
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.3)'
+    ctx.beginPath()
+    ctx.ellipse(x, y, tileW * 0.55, tileH * 0.5, 0, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.restore()
+  }
+  const layers: AsciiStackLayer[] = [
+    { text: '0', color: '#ad8621', bg: '#5a4510' },              // trunk bottom
+    { text: 'W', color: '#c9a030', bg: '#6a5520' },              // trunk top
+    { text: '(@&@&@)', color: canopy[0].fg, bg: canopy[0].bg },  // wide base
+    { text: '(@&@)', color: canopy[1].fg, bg: canopy[1].bg },    // mid
+    { text: '(&)', color: canopy[2].fg, bg: canopy[2].bg },      // narrow apex
+  ]
+  // Bigger font at the wide base, smaller toward the apex → a crisp upright pyramid.
+  drawIsoGlyphStack(ctx, x, y, layers, lineHeight, i => (i < 2 ? fontSize * 0.9 : fontSize * (0.85 - (i - 2) * 0.05)))
+}
+
+/** Legacy single-lamp/lantern prop — a STEADY lit bulb glyph. Day/night ambience is the warm ground GLOW POOL
+ *  (drawNightLighting) + a night-triggered flicker animation, NOT faked here, so this ignores dayNight. */
+function drawIsoLampAscii(ctx: CanvasRenderingContext2D, _asset: GridAsset, p: IsoAsciiParams): void {
+  const layers: AsciiStackLayer[] = [
+    { text: '|', color: '#666666', bg: '#333333' },
+    { text: '|', color: '#777777', bg: '#444444' },
+    { text: 'o', color: 'rgba(255, 220, 50, 1)', bg: 'rgba(100, 80, 0, 1)' },
+  ]
+  drawIsoGlyphStack(ctx, p.x, p.y, layers, p.lineHeight, () => p.fontSize)
+}
+
+/** Small bush — two leafy layers that shimmer with the ambient flicker. */
+function drawIsoBushAscii(ctx: CanvasRenderingContext2D, _asset: GridAsset, p: IsoAsciiParams): void {
+  const { flicker } = p
+  const layers: AsciiStackLayer[] = [
+    { text: '*', color: `rgba(80, 200, 80, ${0.8 + 0.2 * flicker})`, bg: 'rgba(0, 100, 0, 0.85)' },
+    { text: '**', color: `rgba(60, 180, 60, ${0.85 + 0.15 * flicker})`, bg: 'rgba(0, 90, 0, 0.8)' },
+  ]
+  drawIsoGlyphStack(ctx, p.x, p.y, layers, p.lineHeight, () => p.fontSize * 0.9)
+}
+
+/** NPC — a humanoid figure (legs / torso / head) with a 1px shadow and a slightly smaller head. */
+function drawIsoNpcAscii(ctx: CanvasRenderingContext2D, _asset: GridAsset, p: IsoAsciiParams): void {
+  const layers: AsciiStackLayer[] = [
+    { text: '/\\', color: '#3355aa', bg: '#1a2a55' },   // legs (pants)
+    { text: '[=]', color: '#4466cc', bg: '#223366' },   // body/torso
+    { text: '(o)', color: '#ffccaa', bg: '#996644' },   // head with simple face
+  ]
+  drawIsoGlyphStack(ctx, p.x, p.y, layers, p.lineHeight, i => (i === 2 ? p.fontSize * 0.95 : p.fontSize), true)
+}
+
+/** Small flower — a single glyph swaying via the ambient animation engine (assetAnimFrame). */
+function drawIsoFlowerAscii(ctx: CanvasRenderingContext2D, asset: GridAsset, p: IsoAsciiParams): void {
+  ctx.font = `bold ${p.fontSize * 0.8}px ${ASCII_FONT}`
+  const layerY = p.y - p.lineHeight * 0.3
+  ctx.fillStyle = asset.color || '#ff88cc'
+  ctx.fillText(assetAnimFrame('flower', p.time)?.[0] ?? '+', p.x, layerY)
+}
+
+/** Rock / decoration — a grey 'O' pebble on a plate the width of the cell. Fixed greys (ignores asset colour). */
+function drawIsoRockAscii(ctx: CanvasRenderingContext2D, _asset: GridAsset, p: IsoAsciiParams): void {
+  const { x, y, tileW, fontSize, lineHeight } = p
+  ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
+  const layerY = y - lineHeight * 0.5
+  ctx.fillStyle = '#555555'
+  ctx.fillRect(x - tileW / 2, layerY - lineHeight / 2, tileW, lineHeight)
+  ctx.fillStyle = '#999999'
+  ctx.fillText('O', x, layerY)
+}
+
+/** Default prop — the asset's own art glyph on a darkened plate. Fountain/well fall through here under ASCII
+ *  (their bespoke drawers are gone; the emoji reskin extrudes ⛲/🪣 into an iso basin upstream). */
+function drawIsoDefaultAscii(ctx: CanvasRenderingContext2D, asset: GridAsset, p: IsoAsciiParams): void {
+  const { x, y, tileW, fontSize, lineHeight } = p
+  const char = asset.art[0] || '?'
+  const layerY = y - lineHeight * 0.5
+  ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
+  ctx.fillStyle = darkenColor(asset.color || '#888888', 0.4)
+  const textWidth = ctx.measureText(char).width
+  ctx.fillRect(x - textWidth / 2 - 2, layerY - lineHeight / 2, textWidth + 4, lineHeight)
+  ctx.fillStyle = asset.color || '#ffffff'
+  ctx.fillText(char, x, layerY)
+}
+
+/** Legacy per-type ASCII prop drawers, keyed by asset.type. Unmapped types → drawIsoDefaultAscii. */
+const ISO_ASCII_DRAWERS: Readonly<Record<string, IsoAsciiDrawer>> = {
+  tree: drawIsoTreeAscii,
+  lamp: drawIsoLampAscii,
+  lantern: drawIsoLampAscii,
+  bush: drawIsoBushAscii,
+  npc: drawIsoNpcAscii,
+  flower: drawIsoFlowerAscii,
+  rock: drawIsoRockAscii,
+  decoration: drawIsoRockAscii,
 }
 
 /** Draw a placed tile in iso AND return its transform-aware screen silhouette (TileGeom) so the inverted
@@ -1911,142 +2062,10 @@ export function drawIsoAssetAscii(
     return billboardGeom(tileW, lineHeight, poseMapper({ x, y: layerY }, undefined, tileH))
   }
 
-  if (asset.type === 'tree') {
-    // Tree: bark trunk + layered canopy. The canopy tints to the asset's
-    // zone/theme color (never hardcoded green); the trunk stays bark.
-    const canopy = treeCanopyLayers(asset.color || '#2e8b2e', flicker)
-    // Canopy is an UPRIGHT pyramid: widest just above the trunk, narrowing to the apex
-    // at the top. (Layer i rises up the screen as i grows, so wide base = drawn first.)
-    const layers = [
-      { text: '0', color: '#ad8621', bg: '#5a4510' },  // Trunk bottom
-      { text: 'W', color: '#c9a030', bg: '#6a5520' },  // Trunk top
-      { text: '(@&@&@)', color: canopy[0].fg, bg: canopy[0].bg }, // wide base
-      { text: '(@&@)', color: canopy[1].fg, bg: canopy[1].bg },   // mid
-      { text: '(&)', color: canopy[2].fg, bg: canopy[2].bg },     // narrow apex
-    ]
-    // Ground shadow ONLY on the tree's bottom (ground-contact) cell — never every cell.
-    if (groundContact) {
-      ctx.save()
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.3)'
-      ctx.beginPath()
-      ctx.ellipse(x, y, tileW * 0.55, tileH * 0.5, 0, 0, Math.PI * 2)
-      ctx.fill()
-      ctx.restore()
-    }
-    for (let i = 0; i < layers.length; i++) {
-      const layer = layers[i]
-      const layerY = y - i * lineHeight - lineHeight * 0.5
-      // Bigger font at the wide base, smaller toward the apex → a crisp upright pyramid.
-      const layerFontSize = i < 2 ? fontSize * 0.9 : fontSize * (0.85 - (i - 2) * 0.05)
-      ctx.font = `bold ${layerFontSize}px ${ASCII_FONT}`
-
-      // Background shape
-      const textWidth = ctx.measureText(layer.text).width
-      ctx.fillStyle = layer.bg
-      ctx.fillRect(x - textWidth / 2 - 2, layerY - lineHeight / 2, textWidth + 4, lineHeight)
-
-      // Text
-      ctx.fillStyle = layer.color
-      ctx.fillText(layer.text, x, layerY)
-    }
-
-  } else if (asset.type === 'lamp' || asset.type === 'lantern') {
-    // Legacy single-lamp prop — a STEADY lit bulb glyph. The day/night AMBIENCE is no longer faked here: it's
-    // the warm ground GLOW POOL (drawNightLighting), driven by the tile's `light` SETTING and gated to night,
-    // and a night-triggered flicker animation. So this branch just draws the bulb; it no longer reads dayNight.
-    const layers = [
-      { text: '|', color: '#666666', bg: '#333333' },
-      { text: '|', color: '#777777', bg: '#444444' },
-      { text: 'o', color: 'rgba(255, 220, 50, 1)', bg: 'rgba(100, 80, 0, 1)' },
-    ]
-    for (let i = 0; i < layers.length; i++) {
-      const layer = layers[i]
-      const layerY = y - i * lineHeight - lineHeight * 0.5
-
-      ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
-      ctx.fillStyle = layer.bg
-      const textWidth = ctx.measureText(layer.text).width
-      ctx.fillRect(x - textWidth / 2 - 2, layerY - lineHeight / 2, textWidth + 4, lineHeight)
-
-      ctx.fillStyle = layer.color
-      ctx.fillText(layer.text, x, layerY)
-    }
-
-  } else if (asset.type === 'bush') {
-    // Small bush
-    const layers = [
-      { text: '*', color: `rgba(80, 200, 80, ${0.8 + 0.2 * flicker})`, bg: 'rgba(0, 100, 0, 0.85)' },
-      { text: '**', color: `rgba(60, 180, 60, ${0.85 + 0.15 * flicker})`, bg: 'rgba(0, 90, 0, 0.8)' },
-    ]
-    for (let i = 0; i < layers.length; i++) {
-      const layer = layers[i]
-      const layerY = y - i * lineHeight - lineHeight * 0.5
-
-      ctx.font = `bold ${fontSize * 0.9}px ${ASCII_FONT}`
-      ctx.fillStyle = layer.bg
-      const textWidth = ctx.measureText(layer.text).width
-      ctx.fillRect(x - textWidth / 2 - 2, layerY - lineHeight / 2, textWidth + 4, lineHeight)
-
-      ctx.fillStyle = layer.color
-      ctx.fillText(layer.text, x, layerY)
-    }
-
-  } else if (asset.type === 'npc') {
-    // NPC character - cleaner humanoid figure
-    // Stack: legs, body/arms, head with face
-    const layers = [
-      { text: '/\\', color: '#3355aa', bg: '#1a2a55' },     // Legs (pants)
-      { text: '[=]', color: '#4466cc', bg: '#223366' },    // Body/torso
-      { text: '(o)', color: '#ffccaa', bg: '#996644' },    // Head with simple face
-    ]
-    for (let i = 0; i < layers.length; i++) {
-      const layer = layers[i]
-      const layerY = y - i * lineHeight - lineHeight * 0.5
-      const layerFontSize = i === 2 ? fontSize * 0.95 : fontSize  // Slightly smaller head
-
-      ctx.font = `bold ${layerFontSize}px ${ASCII_FONT}`
-
-      // Background for visibility
-      const textWidth = ctx.measureText(layer.text).width
-      ctx.fillStyle = layer.bg
-      ctx.fillRect(x - textWidth / 2 - 2, layerY - lineHeight / 2, textWidth + 4, lineHeight)
-
-      // Shadow
-      ctx.fillStyle = '#000000'
-      ctx.fillText(layer.text, x + 1, layerY + 1)
-      // Character
-      ctx.fillStyle = layer.color
-      ctx.fillText(layer.text, x, layerY)
-    }
-
-  } else if (asset.type === 'flower') {
-    // Small flower — ambient sway driven by the animation engine (assetAnimFrame).
-    ctx.font = `bold ${fontSize * 0.8}px ${ASCII_FONT}`
-    const layerY = y - lineHeight * 0.3
-    ctx.fillStyle = asset.color || '#ff88cc'
-    ctx.fillText(assetAnimFrame('flower', time)?.[0] ?? '+', x, layerY)
-
-  } else if (asset.type === 'rock' || asset.type === 'decoration') {
-    // Rock/decoration
-    ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
-    const layerY = y - lineHeight * 0.5
-    ctx.fillStyle = '#555555'
-    ctx.fillRect(x - tileW / 2, layerY - lineHeight / 2, tileW, lineHeight)
-    ctx.fillStyle = '#999999'
-    ctx.fillText('O', x, layerY)
-
-  } else {
-    // Default: show the asset's art character (fountain/well fall through here — they render as their TILE:
-    // the emoji reskin path above extrudes ⛲/🪣 into an iso basin, ASCII draws the asset glyph — no bespoke drawer)
-    const char = asset.art[0] || '?'
-    const layerY = y - lineHeight * 0.5
-    ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
-    ctx.fillStyle = darkenColor(asset.color || '#888888', 0.4)
-    const textWidth = ctx.measureText(char).width
-    ctx.fillRect(x - textWidth / 2 - 2, layerY - lineHeight / 2, textWidth + 4, lineHeight)
-    ctx.fillStyle = asset.color || '#ffffff'
-    ctx.fillText(char, x, layerY)
-  }
+  // Legacy per-type ASCII prop art: pick the drawer for this type (default → the art-glyph plate). Fires only
+  // under ASCII / a kind with no baked tile — emoji resolved a tile in the `adv.image` branch above.
+  const drawAscii = ISO_ASCII_DRAWERS[asset.type] ?? drawIsoDefaultAscii
+  drawAscii(ctx, asset, { x, y, tileW, tileH, fontSize, lineHeight, time, flicker, groundContact })
 
   // Per-type ASCII sprites (tree/lamp/bush/npc/flower/rock/default) draw a STACK of glyph layers rising from
   // the cell. Record a billboard covering that stacked art so the picker + highlight hug the visible sprite,
