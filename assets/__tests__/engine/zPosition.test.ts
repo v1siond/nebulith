@@ -149,7 +149,7 @@ describe('C. render2D — z projects to the ground-plane delta, never a vertical
   }
   const assetRect = (zOffset: number, zDir?: DepthDir): Rect => {
     const { ctx, rects } = recordingCtx()
-    render2D(ctx, W, H, assetGrid(zOffset, zDir), player(), 0)
+    render2D({ ctx, w: W, h: H, grid: assetGrid(zOffset, zDir), player: player(), time: 0 })
     const r = rects.find(r => r.style === UNIQUE && r.w === TILE && r.h === TILE)
     if (!r) throw new Error('asset rect not drawn')
     return r

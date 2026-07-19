@@ -62,7 +62,7 @@ describe('2D collision overlay — a building tints like any grounded cell (no f
     expect(blocked).toBeGreaterThan(0) // the stamped hollow shell blocks its wall cells
 
     const { ctx, rects } = recordingCtx()
-    render2D(ctx, 800, 800, grid, player, 0)
+    render2D({ ctx, w: 800, h: 800, grid, player, time: 0 })
 
     const red = rects.filter(r => r.style === RED)
     // One grounded red per blocked cell — NOT raised H rows onto a facade, NOT doubled. Buildings are just tiles.
@@ -74,12 +74,12 @@ describe('2D collision overlay — a building tints like any grounded cell (no f
     const { grid, player } = scene()
 
     const before = recordingCtx()
-    render2D(before.ctx, 800, 800, grid, player, 0)
+    render2D({ ctx: before.ctx, w: 800, h: 800, grid, player, time: 0 })
     const redBefore = before.rects.filter(r => r.style === RED).length
 
     grid.setCollision(19, 12, true) // a lone rock, NOT part of the building's footprint
     const after = recordingCtx()
-    render2D(after.ctx, 800, 800, grid, player, 0)
+    render2D({ ctx: after.ctx, w: 800, h: 800, grid, player, time: 0 })
     const redAfter = after.rects.filter(r => r.style === RED).length
 
     // The rock tints its own flat cell exactly like a wall cell does → +1, no building-only carve-out.

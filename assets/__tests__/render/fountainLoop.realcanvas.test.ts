@@ -65,7 +65,7 @@ function makeGrid(dur: number, delay: number): IsometricGrid {
 
 const W = 520, HH = 720
 const isoCanvas = (g: IsometricGrid, clock: number, s: Style): Canvas => { const cv = H.makeCanvas(W, HH); const ctx = cv.getContext('2d') as unknown as CanvasRenderingContext2D; renderIso({ ctx, w: W, h: HH, grid: g, player: PLAYER, time: clock, camOffset: { x: 0, y: 0 }, entities: [], enemyCombat: new Map(), hitMarkers: [], now: clock, zoom: 1, attackAnims: [], connectors: [], quests: [], projectiles: [], dayNight: 'day', attackReach: 1, style: s }); return cv }
-const twoDCanvas = (g: IsometricGrid, clock: number, s: Style): Canvas => { const cv = H.makeCanvas(W, HH); const ctx = cv.getContext('2d') as unknown as CanvasRenderingContext2D; render2D(ctx, W, HH, g, PLAYER, clock, 2, { x: 0, y: 0 }, [], new Map(), [], [], 'day', [], [], [], 1, s); return cv }
+const twoDCanvas = (g: IsometricGrid, clock: number, s: Style): Canvas => { const cv = H.makeCanvas(W, HH); const ctx = cv.getContext('2d') as unknown as CanvasRenderingContext2D; render2D({ ctx, w: W, h: HH, grid: g, player: PLAYER, time: clock, zoom: 2, camOffset: { x: 0, y: 0 }, entities: [], enemyCombat: new Map(), connectors: [], quests: [], dayNight: 'day', attackAnims: [], hitMarkers: [], projectiles: [], attackReach: 1, style: s }); return cv }
 
 const magentaWeight = (r: number, g: number, b: number): number => Math.max(0, Math.min(r - g, b - g))
 /** Vertical extent (block HEIGHT proxy), bottom row (BASE), top row, and total mass of the drawn magenta water. */

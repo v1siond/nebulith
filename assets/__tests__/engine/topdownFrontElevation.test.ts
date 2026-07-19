@@ -59,7 +59,7 @@ describe('render2D — a stamped building renders as a front elevation (depth co
     expect(maxLevel).toBe(5) // sanity: the stamped house really is 6 levels tall (gable ridge at L5)
 
     const { ctx, rects } = recordingCtx()
-    render2D(ctx, W, H, grid, player(), 0)
+    render2D({ ctx, w: W, h: H, grid, player: player(), time: 0 })
 
     const facade = rects.filter(r => r.style === FACADE_OVERLAY && r.w === TILE && r.h % TILE === 0)
     expect(facade.length).toBeGreaterThan(0)
@@ -84,7 +84,7 @@ describe('render2D — a stamped building renders as a front elevation (depth co
     stampBuildingComposition(grid, 'house', 4, ANCHOR, ANCHOR, 'spring', 'south')
 
     const { ctx, rects } = recordingCtx()
-    render2D(ctx, W, H, grid, player(), 0)
+    render2D({ ctx, w: W, h: H, grid, player: player(), time: 0 })
     const facade = rects.filter(r => r.style === FACADE_OVERLAY && r.w === TILE && r.h % TILE === 0)
 
     // Building spans columns [ANCHOR, ANCHOR+3]. Every facade cell's centre-x must fall inside that band.

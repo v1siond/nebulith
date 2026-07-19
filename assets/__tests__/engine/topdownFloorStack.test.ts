@@ -82,7 +82,7 @@ describe('Step 4a — render2D floor reads the unified stack (index 0), pixel-id
   test('A — a bare GRASS cell paints its exact legacy grassShade fill at the cell rect', () => {
     const grid = grid40()
     const { ctx, rects } = recordingCtx()
-    render2D(ctx, W, H, grid, player(), 0)
+    render2D({ ctx, w: W, h: H, grid, player: player(), time: 0 })
 
     const r = at(rects, groundRect(PCOL, PROW))
     expect(r).toBeDefined()
@@ -96,7 +96,7 @@ describe('Step 4a — render2D floor reads the unified stack (index 0), pixel-id
     const OVERRIDE = '#abcdef'
     grid.setGroundColor(PCOL + 1, PROW, OVERRIDE) // one cell to the right of centre
     const { ctx, rects } = recordingCtx()
-    render2D(ctx, W, H, grid, player(), 0)
+    render2D({ ctx, w: W, h: H, grid, player: player(), time: 0 })
 
     expect(at(rects, groundRect(PCOL + 1, PROW))!.style).toBe(OVERRIDE)
     expect(at(rects, groundRect(PCOL + 1, PROW))!.style).toBe(legacyFill(grid, PCOL + 1, PROW))
@@ -108,7 +108,7 @@ describe('Step 4a — render2D floor reads the unified stack (index 0), pixel-id
     const grid = grid40()
     grid.setGround(PCOL, PROW - 2, 'water')
     const { ctx, rects } = recordingCtx()
-    render2D(ctx, W, H, grid, player(), 0)
+    render2D({ ctx, w: W, h: H, grid, player: player(), time: 0 })
 
     const r = at(rects, groundRect(PCOL, PROW - 2))
     const rawBg = resolveGroundTile(ASCII_TILESET, 'water', PCOL, PROW - 2).bg
@@ -122,7 +122,7 @@ describe('Step 4a — render2D floor reads the unified stack (index 0), pixel-id
     const grid = grid40()
     grid.setGroundDims(PCOL, PROW, { scaleX: 2 }) // a "dimmed" (scaled) floor
     const { ctx, rects, scales } = recordingCtx()
-    render2D(ctx, W, H, grid, player(), 0)
+    render2D({ ctx, w: W, h: H, grid, player: player(), time: 0 })
 
     // ASCII draws the floor as a plain full-cell rect regardless of dims, and never scales the ground.
     expect(at(rects, groundRect(PCOL, PROW))).toBeDefined()
@@ -133,7 +133,7 @@ describe('Step 4a — render2D floor reads the unified stack (index 0), pixel-id
     const grid = grid40()
     grid.setGroundDims(PCOL, PROW, { scaleX: 2 }) // Width×Zoom = 2 on x, Depth×Zoom = 1 on y
     const { ctx, scales } = recordingCtx()
-    render2D(ctx, W, H, grid, player(), 0, 1, { x: 0, y: 0 }, [], new Map(), [], [], 'day', [], [], [], 1, EMOJI_STYLE)
+    render2D({ ctx, w: W, h: H, grid, player: player(), time: 0, zoom: 1, camOffset: { x: 0, y: 0 }, entities: [], enemyCombat: new Map(), connectors: [], quests: [], dayNight: 'day', attackAnims: [], hitMarkers: [], projectiles: [], attackReach: 1, style: EMOJI_STYLE })
 
     // Exactly the dims cell scales the ground; groundSizeFactors({scaleX:2}) = { fx: 2, fy: 1 }.
     expect(scales.some(s => s.x === 2 && s.y === 1)).toBe(true)
@@ -146,7 +146,7 @@ describe('Step 4a — render2D floor reads the unified stack (index 0), pixel-id
     grid.placeAsset(['#'], PCOL, PROW + 2, { type: 'crate', bgColor: BG, heightLevel: 0 })
     grid.placeAsset(['#'], PCOL + 1, PROW + 2, { type: 'crate', bgColor: BG, heightLevel: 2 })
     const { ctx, rects } = recordingCtx()
-    render2D(ctx, W, H, grid, player(), 0)
+    render2D({ ctx, w: W, h: H, grid, player: player(), time: 0 })
 
     const props = rects.filter(r => r.style === BG && r.w === TILE && r.h === TILE)
     expect(props).toHaveLength(2)

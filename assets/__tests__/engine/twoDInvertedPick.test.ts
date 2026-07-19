@@ -35,7 +35,7 @@ function mockCtx(): CanvasRenderingContext2D {
 const render2DGrid = (asset: GridAsset): void => {
   const grid = new IsometricGrid({ cols: 40, rows: 40, cellSize: CELL })
   grid.setAssets([asset])
-  render2D(mockCtx(), W, H, grid, player(), 0, 1, { x: 0, y: 0 }, [], new Map(), [], [], 'day', [], [], [], 1, ASCII_STYLE)
+  render2D({ ctx: mockCtx(), w: W, h: H, grid, player: player(), time: 0, zoom: 1, camOffset: { x: 0, y: 0 }, entities: [], enemyCombat: new Map(), connectors: [], quests: [], dayNight: 'day', attackAnims: [], hitMarkers: [], projectiles: [], attackReach: 1, style: ASCII_STYLE })
 }
 
 // The recorded rect's bounds (min/max screen coords + centre) — the geometry the pick tests against.

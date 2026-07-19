@@ -378,30 +378,54 @@ const TOP_ASCII_DRAWERS: Readonly<Record<string, TopAsciiDrawer>> = {
   npc: drawTopNpcAscii,
 }
 
-export function render2D(
-  ctx: CanvasRenderingContext2D,
-  w: number,
-  h: number,
-  grid: IsometricGrid,
-  player: PlayerState,
-  time: number,
-  zoom: number = 1.0,
-  camOffset: { x: number; y: number } = { x: 0, y: 0 },
-  entities: readonly Entity[] = [],
-  enemyCombat: ReadonlyMap<string, CombatState> = new Map(),
-  connectors: Connector[] = [],
-  quests: readonly Quest[] = [],
-  dayNight: DayNight = 'day',
-  attackAnims: readonly AttackAnim[] = [],
-  hitMarkers: readonly HitMarker[] = [],
-  projectiles: readonly Projectile[] = [],
-  attackReach: number = 1,
-  style: Style = ASCII_STYLE,
-  targetId: string | null = null,
-  hoverId: string | null = null,
-  selectedCells: ReadonlySet<string> = new Set(),
-  hoveredCell: { col: number; row: number; level?: number } | null = null,
-) {
+/** Everything render2D() needs to draw one top-down (front-elevation) frame. Required: the ctx, the
+ *  viewport (w, h), the grid, the player, and the clock; everything else defaults to empty/neutral.
+ *  One struct instead of 22 positional args so the call site reads by name. */
+export interface Render2DParams {
+  ctx: CanvasRenderingContext2D
+  w: number
+  h: number
+  grid: IsometricGrid
+  player: PlayerState
+  time: number
+  zoom?: number
+  camOffset?: { x: number; y: number }
+  entities?: readonly Entity[]
+  enemyCombat?: ReadonlyMap<string, CombatState>
+  connectors?: Connector[]
+  quests?: readonly Quest[]
+  dayNight?: DayNight
+  attackAnims?: readonly AttackAnim[]
+  hitMarkers?: readonly HitMarker[]
+  projectiles?: readonly Projectile[]
+  attackReach?: number
+  style?: Style
+  targetId?: string | null
+  hoverId?: string | null
+  selectedCells?: ReadonlySet<string>
+  hoveredCell?: { col: number; row: number; level?: number } | null
+}
+
+export function render2D(params: Render2DParams) {
+  const {
+    ctx, w, h, grid, player, time,
+    zoom = 1.0,
+    camOffset = { x: 0, y: 0 },
+    entities = [],
+    enemyCombat = new Map<string, CombatState>(),
+    connectors = [],
+    quests = [],
+    dayNight = 'day',
+    attackAnims = [],
+    hitMarkers = [],
+    projectiles = [],
+    attackReach = 1,
+    style = ASCII_STYLE,
+    targetId = null,
+    hoverId = null,
+    selectedCells = new Set<string>(),
+    hoveredCell = null,
+  } = params
   const __t0 = typeof performance !== 'undefined' ? performance.now() : 0
   const playerIsTarget = !!targetId && entities.some(e => e.kind === 'player' && e.id === targetId)
   const playerIsHover = !!hoverId && entities.some(e => e.kind === 'player' && e.id === hoverId)

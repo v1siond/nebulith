@@ -4407,7 +4407,25 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       } else if (topViewMode) {
         renderTopView(ctx, canvas.width, canvas.height, grid, player, zoomRef.current, selectedCellsRef.current, connectorsRef.current, connectorModeRef.current, camOffsetRef.current, renderEntities, runtime.combat, hitMarkersRef.current, time, questsRef.current, dayNightRef.current, activeStyleRef.current, hoveredCellRef.current)
       } else if (viewTypeRef.current === '2d') {
-        render2D(ctx, canvas.width, canvas.height, grid, player, time, zoomRef.current, camOffsetRef.current, renderEntities, runtime.combat, connectorsRef.current, questsRef.current, dayNightRef.current, attackAnimsRef.current, hitMarkersRef.current, projectilesRef.current, weaponReach(playerWeaponRef.current), activeStyleRef.current, selectedEntityIdRef.current, hoveredEntityIdRef.current, selectedCellsRef.current, hoveredCellRef.current)
+        render2D({
+          ctx, w: canvas.width, h: canvas.height, grid, player, time,
+          zoom: zoomRef.current,
+          camOffset: camOffsetRef.current,
+          entities: renderEntities,
+          enemyCombat: runtime.combat,
+          connectors: connectorsRef.current,
+          quests: questsRef.current,
+          dayNight: dayNightRef.current,
+          attackAnims: attackAnimsRef.current,
+          hitMarkers: hitMarkersRef.current,
+          projectiles: projectilesRef.current,
+          attackReach: weaponReach(playerWeaponRef.current),
+          style: activeStyleRef.current,
+          targetId: selectedEntityIdRef.current,
+          hoverId: hoveredEntityIdRef.current,
+          selectedCells: selectedCellsRef.current,
+          hoveredCell: hoveredCellRef.current,
+        })
         drawSelectedTileHandles(ctx) // resize grips on the selected tile (reads the frame's recorded silhouette)
       } else {
         render({
