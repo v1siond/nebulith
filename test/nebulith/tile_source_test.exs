@@ -217,7 +217,7 @@ defmodule Nebulith.TileSourceTest do
   test "the lamp bulb carries a default LIGHT setting — a warm night ground glow pool (intensity + distance)" do
     # Alexander: "a regular setting that allows me to control the light intensity and distance". The lamp cell
     # ships a `light` in its settings jsonb — served verbatim, copied onto the placed asset by stampComposition —
-    # so lamps light by DEFAULT. The defaults reproduce the old hardcoded LAMP_GLOW (radius 3.2 cells, warm hue),
+    # so lamps light by DEFAULT (radius 3.2 cells; a SATURATED warm gold #ffc24d so the pool reads as clearly "on"),
     # and the editor's Light control edits them per placement. The post base never lights.
     lamp_post = Enum.find(Catalog.list_compositions(), &(&1.name == "lamp_post"))
     lamp = Enum.find(lamp_post.cells, &(&1.label == "lamp"))
@@ -227,7 +227,7 @@ defmodule Nebulith.TileSourceTest do
     assert is_map(light), "the lamp bulb must ship a default light setting"
     assert_in_delta light["intensity"], 1.0, 0.001
     assert_in_delta light["distance"], 3.2, 0.001
-    assert light["color"] == "#ffd98a"
+    assert light["color"] == "#ffc24d"
     assert light["on"] == true
 
     # the POST base is not a light source — no light setting on it.

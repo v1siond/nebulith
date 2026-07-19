@@ -34,7 +34,7 @@ flowchart LR
 interface AssetLight {
   intensity: number   // pool STRENGTH, 0..1 — multiplies the pool's warm alpha (1 = the old default lamp brightness)
   distance: number    // pool RADIUS in cells/blocks — the glow reaches this many cells out (default lamp = 3.2)
-  color?: string      // pool COLOUR "#rrggbb"; absent → the default warm lamp glow (#ffd98a)
+  color?: string      // pool COLOUR "#rrggbb"; absent → the default SATURATED warm gold (#ffc24d)
   on?: boolean         // false → casts NO pool (a switched-off lamp); absent/true → it lights
 }
 ```
@@ -50,14 +50,24 @@ interface AssetLight {
 
 - `assetLight(asset)` is the ONE resolver: an explicit `light` setting wins (unless `on === false` → no pool);
   a lamp/lantern with **no** explicit light falls back to the default warm `LAMP_GLOW`
-  (`{ rgb: '255,217,138', radiusTiles: 3.2, intensity: 1 }`); anything else casts nothing.
-- `collectLampGlows(grid, cellCenter, tilePx, lift, w, h, anim?)` walks `grid.assets`, resolves each via
-  `assetLight`, and emits a `LampGlow { x, y, r, rgb, intensity }` per on-screen light (`r = distance × tilePx`).
+  (`{ rgb: '255, 194, 77', radiusTiles: 3.2, intensity: 1 }` — a SATURATED warm gold so a lit lamp reads clearly
+  "on", not a pale wash); anything else casts nothing.
+- `collectLampGlows(grid, cellCenter, tilePx, lift, w, h, anim?, anchorFor?)` walks `grid.assets`, resolves each
+  via `assetLight`, and emits a `LampGlow { x, y, r, rgb, intensity }` per on-screen light (`r = distance × tilePx`).
   When `anim = {time, style, view}` is passed (the live views do), it MULTIPLIES each light's `intensity` by that
   asset's live animated opacity (`resolveAssetAnimation`, night-gated) — so a **failing lamp's pool follows its
   bulb flicker** (§4). A steady lamp resolves no animation → factor 1 → unchanged.
+- **The pool is CENTRED ON THE BULB.** A lamp is a composition — the light-casting cell is the BULB, drawn high
+  on the post, NOT at the ground cell centre. `cellCenter + lift` only reached a fixed height off the ground, so
+  the pool sat well BELOW the bulb (Alexander: *"the pool is offset from the bulb"*). The iso/2D callers now pass
+  `anchorFor` — the bulb's OWN recorded silhouette centroid (`tileGeomCentroid(isoRecordedGeom | twoDRecordedGeom
+  at the bulb's cell+heightLevel)`) — so `collectLampGlows` anchors the pool THERE, on the glowing bulb. Off-screen
+  / not-drawn bulb → `anchorFor` returns null → falls back to `cellCenter - lift` (byte-identical); top view passes
+  no `anchorFor` (no vertical perspective).
 - `drawNightLighting(ctx, w, h, lamps)` lays a navy veil over the scene, then paints ONE additive (`lighter`)
-  radial pool per light — the alpha stops scale by `intensity`, the hue by `rgb`.
+  radial pool per light — a **strong warm CORE (alpha 0.9 × intensity)** through the mid pool (0.36) before it
+  fades out, so a lit lamp is clearly ON (Alexander: *"a bit opaque … doesn't look 'on' yet"* — the old core was
+  0.55). The alpha stops scale by `intensity`, the hue by `rgb`.
 - **Night-gated (unchanged):** each view (`iso.ts` / `topdown.ts` / `birdseye.ts`) calls this only when
   `dayNight === 'night'`. The old hardcoded per-lamp radius/colour is gone — the pool now reads each tile's
   `light`; the legacy `type === 'lamp'` bulb branches no longer fake a day/night glow (the pool is the ambience).
@@ -71,11 +81,13 @@ true, but it doesn't"*) — that is the default lamp behaviour; only the **faili
 all"*):
 
 - **`lamp_post`** (the DEFAULT — the MAJORITY of lamps) — the bulb ships a **`light`** default (`intensity 1.0`,
-  `distance 3.2`, `color #ffd98a`, `on true`, reproducing the old `LAMP_GLOW`) **and ONE `night`-triggered
-  `lamp_night_lit` animation** — a single **`color` track holding `#ffe9a0` (`from` == `to`, a steady value, NOT
-  a tween)**. In **day** the render bridge drops the night animation → the bulb shows its plain **unlit** art; at
-  **night** the colour last-wins-tints the bulb art warm (luminance-mapped) → a **lit, glowing bulb**, STEADY (no
-  flicker). So the bulb itself visibly lights up, not just the ground pool.
+  `distance 3.2`, `color #ffc24d` — a saturated warm gold, `on true`) **and ONE `night`-triggered
+  `lamp_night_lit` animation** — a single **`color` track holding `#ffd257` (`from` == `to`, a steady value, NOT
+  a tween)**, a SATURATED warm gold so the lit bulb POPS as clearly "on" (Alexander: *"doesn't look 'on' yet …
+  needs more saturation"*), not the pale wash the earlier `#ffe9a0` gave. In **day** the render bridge drops the
+  night animation → the bulb shows its plain **unlit** art; at **night** the colour last-wins-tints the bulb art
+  warm (luminance-mapped) → a **lit, glowing bulb**, STEADY (no flicker). So the bulb itself visibly lights up,
+  not just the ground pool.
 - **`lamp_post_failing`** (a MINORITY — the frontend generator tags ~18% of lamps) — the SAME night-lit `color`
   glow, PLUS ONE **`night`-triggered** `lamp_flicker` animation: a single **`opacity` 1 → 0.12** track with
   **`ease: "flicker"`** — the frontend's irregular, STEPPED failing-bulb envelope (mostly ON with brief, erratic
@@ -92,13 +104,14 @@ animates only `color` (not opacity) → opacity 1 → its pool stays constant.
 
 ## 5. Verified (real running game, emoji, iso)
 
-Headless pixel probe (`.claude-workspace`/job `lamp4`, cleared plaza + one placed `lamp_post` + one
-`lamp_post_failing`, `__tileCentroid` bulb crops): toggling **⚙ Stage → Night mode** makes BOTH bulbs go from a
-grey/silver DAY bulb to a **warm/golden lit bulb** (normal bulb warmth R−B **+29.6**, failing **+39** vs day).
-The **normal** bulb's luminance trace over a 64-frame burst is **dead flat** (flicker COV **0.000** — steady lit),
-while the **failing** bulb's trace swings erratically (149 → 79, COV **0.19** — the irregular flicker), and its
-pool dims on the same beat. Earlier probes (`lamp2`): the `light` **distance** grows the pool, **intensity**
-scales its strength, **`on:false`** removes it. The USER validates on `:3000`.
+Headless pixel probe (`.claude-workspace`/job `lamp5`, cleared plaza + one placed `lamp_post`, night, same
+camera before/after): **the pool now CENTRES on the bulb** — its warm-weighted centroid moved from **37.8px BELOW**
+the bulb (the old `tileH*1.5` ground anchor) to **1.4px** from the bulb centroid (`anchorFor` = the bulb's recorded
+silhouette). And the **lit bulb is far brighter + more saturated** — bulb warmth R−B **+87** and luminance **+83**
+vs the old wash, so it reads clearly "on" (before/after crop `lamp-before-after.png`). Earlier: toggling **⚙ Stage
+→ Night mode** makes BOTH bulbs go grey→golden; the **normal** bulb's burst is dead flat (flicker COV **0.000** —
+steady lit) while the **failing** bulb swings (COV **0.19**) and its pool dims on the same beat; `distance` grows
+the pool, `intensity` scales it, `on:false` removes it. The USER validates on `:3000`.
 
 ---
 

@@ -1033,7 +1033,8 @@ defmodule Nebulith.Catalog.TileSource do
   defp lamp_post_composition(bulb_animations) do
     # `light` is a real, controllable SETTING (Alexander: "control the light intensity and distance"): the bulb
     # casts a warm ground GLOW POOL at night, sized by `distance` (cells), strengthened/tinted by `intensity`/
-    # `color`. Defaults reproduce the old hardcoded LAMP_GLOW (#ffd98a, radius 3.2) so lamps light by default.
+    # `color`. `color` is a SATURATED warm gold (#ffc24d) so the pool reads as a real LIT lamp, not a pale wash
+    # (Alexander: "needs more saturation … doesn't look 'on' yet"); it matches the frontend LAMP_GLOW default.
     bulb =
       %{
         dx: 0,
@@ -1045,7 +1046,7 @@ defmodule Nebulith.Catalog.TileSource do
         settings: %{
           "display" => "single",
           "pose" => %{"dy" => -1.8},
-          "light" => %{"intensity" => 1.0, "distance" => 3.2, "color" => "#ffd98a", "on" => true}
+          "light" => %{"intensity" => 1.0, "distance" => 3.2, "color" => "#ffc24d", "on" => true}
         }
       }
 
@@ -1124,8 +1125,10 @@ defmodule Nebulith.Catalog.TileSource do
   # render special-case — ONE `night`-triggered `color` animation that HOLDS a warm glow (`from` == `to`, so it's
   # a constant value, not a tween). The render bridge (resolveAssetAnimation) gates `night` triggers to night
   # mode, so in DAY the animation is dropped → the bulb shows its base (unlit) art, and at NIGHT the `color`
-  # last-wins-tints the bulb art warm (luminance-mapped) → a lit, glowing bulb. `#ffe9a0` = a warm lamp glow.
-  # Pure DATA — tune the colour/trigger on the cell, no render special-casing.
+  # last-wins-tints the bulb art warm (luminance-mapped) → a lit, glowing bulb. `#ffd257` = a SATURATED warm
+  # gold so the lit bulb POPS as clearly "on" (Alexander: "doesn't look 'on' yet … needs more saturation"),
+  # not the pale wash the earlier `#ffe9a0` gave. Pure DATA — tune the colour/trigger on the cell, no render
+  # special-casing.
   defp bulb_night_lit_anim do
     %{
       "id" => "lamp_night_lit",
@@ -1138,7 +1141,7 @@ defmodule Nebulith.Catalog.TileSource do
       "priority" => 0,
       "trigger" => %{"on" => "night"},
       "tracks" => [
-        %{"setting" => "color", "from" => "#ffe9a0", "to" => "#ffe9a0"}
+        %{"setting" => "color", "from" => "#ffd257", "to" => "#ffd257"}
       ]
     }
   end
