@@ -379,32 +379,59 @@ function drawIsoWaterCells(ctx: CanvasRenderingContext2D, p: IsoGroundParams, ce
 }
 
 
-export function render(
-  ctx: CanvasRenderingContext2D,
-  w: number,
-  h: number,
-  grid: IsometricGrid,
-  player: PlayerState,
-  time: number,
-  camOffset: { x: number; y: number } = { x: 0, y: 0 },
-  entities: readonly Entity[] = [],
-  enemyCombat: ReadonlyMap<string, CombatState> = new Map(),
-  hitMarkers: readonly HitMarker[] = [],
-  now: number = time,
-  zoom: number = 1,
-  attackAnims: readonly AttackAnim[] = [],
-  connectors: Connector[] = [],
-  quests: readonly Quest[] = [],
-  projectiles: readonly Projectile[] = [],
-  dayNight: DayNight = 'day',
-  attackReach: number = 1,
-  style: Style = ASCII_STYLE,
-  clampCamera: boolean = true,
-  targetId: string | null = null,
-  hoverId: string | null = null,
-  selectedCells: ReadonlySet<string> = new Set(),
-  hoveredCell: { col: number; row: number; level?: number } | null = null,
-) {
+/** Everything render() needs to draw one iso frame. Required: the ctx, the viewport (w, h), the grid,
+ *  the player, and the clock. Everything else is optional and defaults to an empty/neutral value — a bare
+ *  render({ ctx, w, h, grid, player, time }) draws just the map. Kept as ONE struct (not 24 positional
+ *  args) so every call site reads by name and can't silently transpose two same-typed arguments. */
+export interface IsoRenderParams {
+  ctx: CanvasRenderingContext2D
+  w: number
+  h: number
+  grid: IsometricGrid
+  player: PlayerState
+  time: number
+  camOffset?: { x: number; y: number }
+  entities?: readonly Entity[]
+  enemyCombat?: ReadonlyMap<string, CombatState>
+  hitMarkers?: readonly HitMarker[]
+  now?: number
+  zoom?: number
+  attackAnims?: readonly AttackAnim[]
+  connectors?: Connector[]
+  quests?: readonly Quest[]
+  projectiles?: readonly Projectile[]
+  dayNight?: DayNight
+  attackReach?: number
+  style?: Style
+  clampCamera?: boolean
+  targetId?: string | null
+  hoverId?: string | null
+  selectedCells?: ReadonlySet<string>
+  hoveredCell?: { col: number; row: number; level?: number } | null
+}
+
+export function render(params: IsoRenderParams) {
+  const {
+    ctx, w, h, grid, player, time,
+    camOffset = { x: 0, y: 0 },
+    entities = [],
+    enemyCombat = new Map<string, CombatState>(),
+    hitMarkers = [],
+    now = time,
+    zoom = 1,
+    attackAnims = [],
+    connectors = [],
+    quests = [],
+    projectiles = [],
+    dayNight = 'day',
+    attackReach = 1,
+    style = ASCII_STYLE,
+    clampCamera = true,
+    targetId = null,
+    hoverId = null,
+    selectedCells = new Set<string>(),
+    hoveredCell = null,
+  } = params
   const __isoT0 = perfNow() // perf probe — rolling avg of render() ms, exposed on window.__isoRenderMs
   // Clear
   ctx.fillStyle = '#1a1a2e'

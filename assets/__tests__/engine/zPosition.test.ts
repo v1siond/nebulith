@@ -106,7 +106,7 @@ describe('B. ISO render — the asset SLIDES along the diagonal (drawn origin mo
   const renderIso = (grid: IsometricGrid) => {
     const { ctx, translates } = recordingCtx()
     // …, dayNight 'day', attackReach 1, ASCII_STYLE, clampCamera FALSE (camX=player.x, deterministic origin).
-    render(ctx, W, H, grid, player(), 0, { x: 0, y: 0 }, [], new Map(), [], 0, 1, [], [], [], [], 'day', 1, ASCII_STYLE, false)
+    render({ ctx, w: W, h: H, grid, player: player(), time: 0, camOffset: { x: 0, y: 0 }, entities: [], enemyCombat: new Map(), hitMarkers: [], now: 0, zoom: 1, attackAnims: [], connectors: [], quests: [], projectiles: [], dayNight: 'day', attackReach: 1, style: ASCII_STYLE, clampCamera: false })
     return translates
   }
   const near = (pts: XY[], x: number, y: number): boolean =>

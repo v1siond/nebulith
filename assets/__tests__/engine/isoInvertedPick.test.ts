@@ -55,7 +55,7 @@ const gridWith = (asset: GridAsset): IsometricGrid => {
 
 // Render iso once so isoTileHits is populated for the pick to read (clampCamera FALSE → deterministic camera).
 const renderIso = (grid: IsometricGrid): void => {
-  render(mockCtx(), W, H, grid, player(), 0, { x: 0, y: 0 }, [], new Map(), [], 0, 1, [], [], [], [], 'day', 1, ASCII_STYLE, false)
+  render({ ctx: mockCtx(), w: W, h: H, grid, player: player(), time: 0, camOffset: { x: 0, y: 0 }, entities: [], enemyCombat: new Map(), hitMarkers: [], now: 0, zoom: 1, attackAnims: [], connectors: [], quests: [], projectiles: [], dayNight: 'day', attackReach: 1, style: ASCII_STYLE, clampCamera: false })
 }
 
 describe('a TALL (scaleY) block — picked at its lifted top, not the ground below', () => {

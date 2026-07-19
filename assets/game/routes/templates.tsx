@@ -4410,7 +4410,27 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
         render2D(ctx, canvas.width, canvas.height, grid, player, time, zoomRef.current, camOffsetRef.current, renderEntities, runtime.combat, connectorsRef.current, questsRef.current, dayNightRef.current, attackAnimsRef.current, hitMarkersRef.current, projectilesRef.current, weaponReach(playerWeaponRef.current), activeStyleRef.current, selectedEntityIdRef.current, hoveredEntityIdRef.current, selectedCellsRef.current, hoveredCellRef.current)
         drawSelectedTileHandles(ctx) // resize grips on the selected tile (reads the frame's recorded silhouette)
       } else {
-        render(ctx, canvas.width, canvas.height, grid, player, time, camOffsetRef.current, renderEntities, runtime.combat, hitMarkersRef.current, time, isoZoomRef.current, attackAnimsRef.current, connectorsRef.current, questsRef.current, projectilesRef.current, dayNightRef.current, weaponReach(playerWeaponRef.current), activeStyleRef.current, playModeRef.current, selectedEntityIdRef.current, hoveredEntityIdRef.current, selectedCellsRef.current, hoveredCellRef.current)
+        render({
+          ctx, w: canvas.width, h: canvas.height, grid, player, time,
+          camOffset: camOffsetRef.current,
+          entities: renderEntities,
+          enemyCombat: runtime.combat,
+          hitMarkers: hitMarkersRef.current,
+          now: time,
+          zoom: isoZoomRef.current,
+          attackAnims: attackAnimsRef.current,
+          connectors: connectorsRef.current,
+          quests: questsRef.current,
+          projectiles: projectilesRef.current,
+          dayNight: dayNightRef.current,
+          attackReach: weaponReach(playerWeaponRef.current),
+          style: activeStyleRef.current,
+          clampCamera: playModeRef.current,
+          targetId: selectedEntityIdRef.current,
+          hoverId: hoveredEntityIdRef.current,
+          selectedCells: selectedCellsRef.current,
+          hoveredCell: hoveredCellRef.current,
+        })
         drawSelectedTileHandles(ctx) // resize grips on the selected tile (reads the frame's recorded silhouette)
       }
       // Drop finished attack animations (kept tiny — a few in flight at once).

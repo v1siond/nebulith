@@ -56,7 +56,7 @@ const W = 640, HH = 1100
 function isoCanvas(grid: IsometricGrid, clock: number, s: Style): Canvas {
   const cv = H.makeCanvas(W, HH)
   const ctx = cv.getContext('2d') as unknown as CanvasRenderingContext2D
-  renderIso(ctx, W, HH, grid, PLAYER, clock, { x: 0, y: 0 }, [], new Map(), [], clock, 1, [], [], [], [], 'day', 1, s)
+  renderIso({ ctx, w: W, h: HH, grid, player: PLAYER, time: clock, camOffset: { x: 0, y: 0 }, entities: [], enemyCombat: new Map(), hitMarkers: [], now: clock, zoom: 1, attackAnims: [], connectors: [], quests: [], projectiles: [], dayNight: 'day', attackReach: 1, style: s })
   return cv
 }
 

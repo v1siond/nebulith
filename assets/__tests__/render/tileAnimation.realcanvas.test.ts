@@ -63,7 +63,7 @@ const W = 480, H2 = 480
 function isoCanvas(grid: IsometricGrid, clock: number, style: Style): Canvas {
   const cv = H.makeCanvas(W, H2)
   const ctx = cv.getContext('2d') as unknown as CanvasRenderingContext2D
-  renderIso(ctx, W, H2, grid, PLAYER, clock, { x: 0, y: 0 }, [], new Map(), [], clock, 1, [], [], [], [], 'day', 1, style)
+  renderIso({ ctx, w: W, h: H2, grid, player: PLAYER, time: clock, camOffset: { x: 0, y: 0 }, entities: [], enemyCombat: new Map(), hitMarkers: [], now: clock, zoom: 1, attackAnims: [], connectors: [], quests: [], projectiles: [], dayNight: 'day', attackReach: 1, style })
   return cv
 }
 function twoDCanvas(grid: IsometricGrid, clock: number, style: Style): Canvas {

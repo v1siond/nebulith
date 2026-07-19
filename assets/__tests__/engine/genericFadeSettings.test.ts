@@ -52,7 +52,7 @@ function renderLeafAlphas(col: number, row: number, settings?: AssetSettings): n
   if (settings) leaf.settings = settings
   const player = { x: 20 * 16, z: 20 * 16 } as PlayerState
   const { ctx, alphas } = isoRecordingCtx()
-  render(ctx, 1200, 1200, grid, player, 0)
+  render({ ctx, w: 1200, h: 1200, grid, player, time: 0 })
   return alphas
 }
 
