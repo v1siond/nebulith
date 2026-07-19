@@ -43,7 +43,6 @@ import { type CombatState, type Entity, type EntityKind, type Inventory, type It
 import { weaponReach } from '@/game/weapons'
 import { VILLAGE_CONFIG } from '@/levels/village'
 import { Connector, TemplateListItem, createTemplate, deleteTemplate, deserializeToGrid, getTemplate, listTemplates, serializeGrid, updateTemplate, updateGame } from '@/lib/api'
-import { getEditorSettings, saveEditorSetting, type EditorSettings, type PanelGeometry } from '@/lib/editorSettings'
 import { type CellTriggerGroup, ENTITY_GLYPH, cellTriggersFromAssets, cellTriggersToAssets, entitiesFromAssets, entitiesToAssets, groundColorFromAssets, groundColorToAssets, groundDimsFromAssets, groundDimsToAssets, isEntityAsset, isGroundColorAsset, isGroundDimsAsset, isQuestAsset, isStyleAsset, isTriggerAsset, questsFromAssets, questsToAssets, styleFromAssets, styleToAssets, triggersAtCell } from '@/lib/gridCodec'
 import type { GroundCellDims } from '@/engine/groundDims'
 import { type Trigger, type TriggerEffect, fireTriggers } from '@/game/runtime/trigger'
@@ -66,7 +65,7 @@ import { EquipmentPanel, InventoryCard, QuestAuthoringCard, QuestLogPanel } from
 import { EntityAttackBody, FloatingPanel, Modal, QuestGiveBody, SettingsPanelBody, UnitSettingsSection } from '@/components/game/modals'
 import { FlowViewOverlay, GamesViewOverlay } from '@/components/game/games'
 import { BUILDING_TOOL_TYPE, type BuildingTool, type EditorMode, type EntityTool } from '@/components/game/editorConfig'
-import { useDayNight, useIsMobile } from '@/components/game/editorHooks'
+import { useDayNight, useFloatingPanels, useIsMobile } from '@/components/game/editorHooks'
 import { Dropdown, FpsReadout, GenerateControls, PoseControls, PropertiesPanel, type TileControlModel, SelectionHeader, StylePicker, TileAnimationEditor, TileLibraryBody, TilePalette, ToolRail, TriggerEditor, WEAPON_KINDS } from '@/components/game/editorChrome'
 import type { Animation as TileAnim } from '@/engine/animation/tileAnimation'
 import { useFps } from '@/components/useFps'
@@ -303,23 +302,8 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   // Each movable/resizable modal (settings / animation / triggers / attacks / tileAnimation) remembers its
   // position + size in nebulith. Load the whole map once on mount; on every move/resize END, upsert the one
   // key (debounced). The backend owns this, so panel geometry is never hardcoded in the frontend.
-  const [panelGeo, setPanelGeo] = useState<EditorSettings>({})
-  const panelGeoTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
-  useEffect(() => { getEditorSettings().then(setPanelGeo).catch(err => console.warn('Failed to load editor settings', err)) }, [])
-  const savePanelGeo = useCallback((key: string, geometry: PanelGeometry) => {
-    setPanelGeo(prev => ({ ...prev, [key]: geometry }))
-    clearTimeout(panelGeoTimers.current[key])
-    panelGeoTimers.current[key] = setTimeout(() => { void saveEditorSetting(key, geometry).catch(err => console.warn('Failed to save editor setting', key, err)) }, 350)
-  }, [])
-  /** FloatingPanel props for a modal id: restore its saved geometry (else `def`) + persist on move/resize end. */
-  const floatingProps = useCallback((key: string, def?: { w: number; h: number }) => {
-    const g = panelGeo[key]
-    return {
-      initialPos: g ? { x: g.x, y: g.y } : undefined,
-      initialSize: g ? { w: g.w, h: g.h } : def,
-      onGeometryChange: (geometry: PanelGeometry) => savePanelGeo(key, geometry),
-    }
-  }, [panelGeo, savePanelGeo])
+  // FloatingPanel props for a modal id: restore its saved geometry (else `def`) + persist on move/resize end.
+  const floatingProps = useFloatingPanels()
   const [enemyType, setEnemyType] = useState('goblin')
   const [npcName, setNpcName] = useState('')
   const entitiesRef = useRef<Entity[]>([])
