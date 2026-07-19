@@ -202,10 +202,10 @@ export function draw2DLabeledCell(
     ctx.fillText(char, x, cy)
   }
 
-  // SHAPE = "circle" is a FORM modifier, not a repaint (the flat analogue of the iso ball): CLIP the SAME front
-  // face to an ellipse so the tile's painting stays and only the silhouette rounds, then overlay a soft sphere
-  // shade. Routed through the shared shape dispatch (drawFlatTileForShape) — the SAME map iso uses — so 2D/Top
-  // never branch on shape themselves; absent/'square' → the plain rectangular face.
+  // SHAPE = "circle" is a FORM modifier, not a repaint (the flat analogue of the iso rounded block): CLIP the
+  // SAME front face to an ellipse of its own extent so the tile's painting/shading stays and only the silhouette
+  // rounds (its corners bent away) — no relight. Routed through the shared shape dispatch (drawFlatTileForShape) —
+  // the SAME map iso uses — so 2D/Top never branch on shape themselves; absent/'square' → the plain rect face.
   drawFlatTileForShape(ctx, asset.shape, drawFace, x, cy, drawW * 0.5, drawH * 0.5)
 }
 

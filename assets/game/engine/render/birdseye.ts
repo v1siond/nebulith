@@ -238,10 +238,10 @@ export function renderTopView(
         ctx.font = `bold ${fontSize}px ${ASCII_FONT}` // restore the loop's shared font for the next cell
       }
 
-      // SHAPE = "circle" is a FORM modifier, not a repaint (the overhead analogue of the iso ball): CLIP the SAME
-      // tile to a circle so its painting stays and only the footprint silhouette rounds, then overlay a soft
-      // sphere shade (the square cell backing painted above frames it). Routed through the shared shape dispatch
-      // (drawFlatTileForShape) — the SAME map iso uses — so 2D/Top never branch on shape; absent/'square' → plain.
+      // SHAPE = "circle" is a FORM modifier, not a repaint (the overhead analogue of the iso rounded block): CLIP
+      // the SAME tile to a circle so its painting/shading stays and only the footprint silhouette rounds (its
+      // corners bent away) — no relight (the square cell backing painted above frames it). Routed through the
+      // shared shape dispatch (drawFlatTileForShape) — the SAME map iso uses — so 2D/Top never branch on shape.
       drawFlatTileForShape(ctx, asset?.shape, drawTopTile, gx, gy, tileSize * 0.5, tileSize * 0.5)
       if (ctTop) ctx.restore()
       if (animWrap) ctx.restore() // pop the tile-animation shift/opacity wrap

@@ -291,48 +291,24 @@ export function tintedImage(img: HTMLImageElement, src: string, tint: string): C
  *  by all three views so 'single' reads consistently in iso / 2D / top. */
 export const SINGLE_TILE_FRAC = 0.6
 
-/** SHAPE = 'circle' renders a REAL isometric SPHERE, not a rounded cube (Alexander: "literally just make the
- *  tile cube a sphere … the actual shape changes, not simulated"). clipToBall sets an elliptical clip of radii
- *  (rx, ry) centred at (cx, cy) = the true circular silhouette inscribed in the block's projected extent; the
- *  caller then paints the tile's art as ONE smooth surface (a single image, NOT the three cube faces) inside
- *  that clip, so there are NO cube edges or face seams — the earlier attempt clipped the 3 cube faces, which
- *  left visible seams and read as a rounded cube. Only the FORM is a ball; the tile's painting/colour is kept.
- *  The caller owns the surrounding save/restore. */
+/** SHAPE = 'circle' ROUNDS a tile's silhouette; it never repaints the tile (Alexander: "bend the corners OF THE
+ *  CUBOID to form a circle"). clipToBall sets an ELLIPTICAL clip of radii (rx, ry) centred at (cx, cy) = the
+ *  block's OWN projected extent, so the caller draws the tile's normal cube/face inside it and the clip bends the
+ *  corners away into a smooth oval — PROPORTIONAL to the block (a tall block → a tall oval), never a fixed circle.
+ *  The painted art + per-face shading are kept; only the corners are rounded. The caller owns the surrounding
+ *  save/restore. */
 export function clipToBall(ctx: CanvasRenderingContext2D, cx: number, cy: number, rx: number, ry: number): void {
   ctx.beginPath()
   ctx.ellipse(cx, cy, Math.max(0.5, rx), Math.max(0.5, ry), 0, 0, Math.PI * 2)
   ctx.clip()
 }
 
-/** Shade a ball surface (the tile art already painted + clipped to the round silhouette by clipToBall) into a
- *  real 3D SPHERE. A radial gradient with the light offset up-and-left (the same upper-left scene light): a
- *  bright specular highlight, a CLEAR body so the tile's baked art/colour still shows through the middle, and a
- *  deepening dark rim that curves the flat disc into a sphere. It only shapes LIGHT over the art — it never
- *  fills the tile with a solid colour (that solid fill was the old bug that threw the painting away). No-op
- *  where a context has no `createRadialGradient` (a jsdom stub) so it never throws. */
-export function sphericalShade(ctx: CanvasRenderingContext2D, cx: number, cy: number, rx: number, ry: number): void {
-  if (typeof ctx.createRadialGradient !== 'function') return
-  const hx = cx - rx * 0.34 // highlight up-and-left (toward the light)
-  const hy = cy - ry * 0.4
-  const g = ctx.createRadialGradient(hx, hy, Math.min(rx, ry) * 0.05, cx, cy, Math.max(rx, ry) * 1.06)
-  g.addColorStop(0, 'rgba(255, 255, 255, 0.5)')   // specular highlight (up-left)
-  g.addColorStop(0.32, 'rgba(255, 255, 255, 0.1)')
-  g.addColorStop(0.55, 'rgba(0, 0, 0, 0)')        // clear body — the tile's painting shows here
-  g.addColorStop(0.8, 'rgba(0, 0, 0, 0.28)')
-  g.addColorStop(1, 'rgba(0, 0, 0, 0.62)')        // dark rim — curves the disc into a sphere
-  ctx.save()
-  ctx.beginPath()
-  ctx.ellipse(cx, cy, Math.max(0.5, rx), Math.max(0.5, ry), 0, 0, Math.PI * 2)
-  ctx.fillStyle = g
-  ctx.fill()
-  ctx.restore()
-}
-
 /** How a FLAT (2D / overhead) tile's front face renders for a given `shape` — the flat analogue of iso's
  *  `ISO_SHAPE_DRAWERS`. Each drawer gets the already-built face painter (`drawFace`) plus the tile's centre +
  *  radii, so a new shape adds ONE entry here, never an `if` at the 2D/Top call sites (SOLID/OCP). 'square' just
- *  paints the plain face; 'circle' clips it to an ellipse (the painting stays, only the silhouette rounds) then
- *  overlays the sphere shade — the same round/shade the iso ball uses, so all three views route through a map. */
+ *  paints the plain face; 'circle' clips it to an ellipse of the tile's own extent so the painting/shading stays
+ *  and only the silhouette rounds (its corners bent away) — the SAME rounding iso uses, so all three views route
+ *  through one map, with no spherical relight. */
 type FlatShapeDrawer = (
   ctx: CanvasRenderingContext2D, drawFace: () => void, cx: number, cy: number, rx: number, ry: number,
 ) => void
@@ -341,9 +317,8 @@ const FLAT_SHAPE_DRAWERS: Record<TileShape, FlatShapeDrawer> = {
   square: (_ctx, drawFace) => drawFace(),
   circle: (ctx, drawFace, cx, cy, rx, ry) => {
     ctx.save()
-    clipToBall(ctx, cx, cy, rx, ry)
+    clipToBall(ctx, cx, cy, rx, ry) // round the silhouette; the face keeps its own painting + shading
     drawFace()
-    sphericalShade(ctx, cx, cy, rx, ry)
     ctx.restore()
   },
 }

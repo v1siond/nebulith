@@ -15,7 +15,7 @@ import { type CombatState, type Entity, type Quest } from '@/game/types'
 import { resolveGroundTile, type TileShape } from '@/engine/tileset/tileset'
 import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 import { Connector } from '@/lib/api'
-import { ASCII_FONT, COMBAT_RANGE, type DayNight, type DrawVisual, ENEMY_MOVE_MS, LIGHT, applyCellTransform, isoCameraFocus, assetCaptionByCell, terrainLabelAt, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawHoverRing, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawConnectorMarker, drawAttackAnimFrame, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, clipToBall, sphericalShade, SINGLE_TILE_FRAC, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, frameImage, getPlayerArt, grassShade, cellFill, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, resolveAssetDraw, resolveEntityDraw, assetOverride, labelTileImage, labelTileRecolor, groundDecorImage, tileImage, tintedImage, tintedGlyphSprite, treeCanopyLayers, treeCellSet } from './shared'
+import { ASCII_FONT, COMBAT_RANGE, type DayNight, type DrawVisual, ENEMY_MOVE_MS, LIGHT, applyCellTransform, isoCameraFocus, assetCaptionByCell, terrainLabelAt, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawHoverRing, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawConnectorMarker, drawAttackAnimFrame, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, clipToBall, SINGLE_TILE_FRAC, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, frameImage, getPlayerArt, grassShade, cellFill, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, resolveAssetDraw, resolveEntityDraw, assetOverride, labelTileImage, labelTileRecolor, groundDecorImage, tileImage, tintedImage, tintedGlyphSprite, treeCanopyLayers, treeCellSet } from './shared'
 import { resolveAssetDrawSize } from './assetDimensions'
 import { resolveAssetAnimation } from './assetAnimation'
 import { type GroundCellDims, groundSizeFactors, groundDimsActive } from '@/engine/groundDims'
@@ -1566,53 +1566,18 @@ export function drawIsoSingleTileBlock(
   }
 }
 
-/** Paint a circle tile's ball SURFACE, IDENTICAL to what the cube face shows — a COLOUR FILL then the tile's
- *  ART on top — only shaped round (Alexander: "take the tile block/square and make it a circle/sphere, that's
- *  it … we lost the background color"). The cube's fillFace lays down `tint ?? dv.tint ?? dv.color` and paints
- *  its tile OVER that fill, so the whole face reads the tile's colour even where the art is transparent (an
- *  emoji is mostly clear). The ball must do the SAME, or an emoji tile's transparent gaps show through to the
- *  dark scene and the tile's background colour is lost — the bug this fixes. So: (1) fill the ball's silhouette
- *  with the tile's resolved colour, (2) draw the baked art on top (colour-filtered), then the caller shades it.
- *  Still ONE smooth surface (a single image, NOT the three cube faces) so nothing seams under the round clip.
- *  The caller has already set the circular clip; the draws fill the [cx±rx, cy±ry] box the clip rounds. */
-function fillBallSurface(ctx: CanvasRenderingContext2D, cx: number, cy: number, rx: number, ry: number, dv: DrawVisual, tint?: string): void {
-  const recolor = tint ?? dv.tint
-  // 1) BACKGROUND COLOUR first — the EXACT fill the cube face uses (`tint ?? dv.tint ?? dv.color`), so the
-  //    sphere never loses the tile's base colour where its art is transparent. Already clipped round → fills the ball.
-  ctx.fillStyle = recolor ?? dv.color
-  ctx.beginPath()
-  ctx.ellipse(cx, cy, Math.max(0.5, rx), Math.max(0.5, ry), 0, 0, Math.PI * 2)
-  ctx.fill()
-  // 2) The tile's baked ART on top (colour-filtered, luminance-mapped) — exactly like the cube paints its tile
-  //    OVER the face fill. ONE surface across the whole ball — no cube faces, no seams.
-  const iv = dv.image
-  const img = iv ? tileImage(iv.src) : null
-  if (img && iv) {
-    const src = recolor ? tintedImage(img, iv.src, recolor) : img
-    ctx.drawImage(src, cx - rx, cy - ry, rx * 2, ry * 2)
-    return
-  }
-  // No baked raster (ascii glyph / a not-yet-decoded emoji PNG) → the glyph over the colour fill already painted.
-  if (dv.char) {
-    const gp = Math.min(rx, ry) * 1.3
-    ctx.save()
-    ctx.font = `bold ${gp}px ${ASCII_FONT}`
-    ctx.textAlign = 'center'
-    ctx.textBaseline = 'middle'
-    fillTintedGlyph(ctx, dv.char, cx, cy, gp, tint, tint ? 0.85 : 0)
-    ctx.restore()
-  }
-}
-
-/** SHAPE = "circle" renders a REAL isometric SPHERE (Alexander: "literally just make the tile cube a sphere …
- *  the actual shape changes, not simulated"). It is NOT the old clipped-cube: instead of drawing the three cube
- *  faces and clipping them (which left the face seams visible → a rounded cube), it clips to the TRUE circular
- *  silhouette inscribed in the block's projected extent (horizontal radius = block half-width, vertical radius =
- *  stack height + base diamond, centred at the volume's mid-height), paints the tile's art as ONE smooth surface
- *  inside it (fillBallSurface — a single image, no faces/seams), then radial-shades it into a 3D ball
- *  (sphericalShade). So the tile's painting/colour is kept but the FORM is a genuine sphere: a unit block → a
- *  round ball, a stretched/`scaleY` block → an ellipsoid. A soft ground shadow keeps it seated. */
-export function drawIsoBall(
+/** SHAPE = "circle": take the SAME cuboid — same footprint, height, painted faces and per-face shading as
+ *  drawIsoTileBlock — and BEND ITS CORNERS into a smooth rounded silhouette (Alexander: "ALL I WANT WITH THE
+ *  SHAPE IS TO MANIPULATE THE SIDES OF THE CUBOID, selecting circle shape should bend the corners OF THE CUBOID
+ *  to form a circle … the cube/cuboid is just a tile, painted on all sides of the block/cell"). We draw the block
+ *  exactly as the cube path does, then CLIP it to an ELLIPSE built from the block's OWN projected extent:
+ *  horizontal radius = the footprint half-width (`tileW`), vertical radius = half the full vertical silhouette
+ *  (the stack height + the base/top diamond depth), centred at the volume's mid-height. So the outline is rounded
+ *  but PROPORTIONAL to the block — a tall block → a tall OVAL (an egg standing up), a unit cube → a rounder blob.
+ *  The three shaded faces and the tile's painted art all stay: it is the cuboid with its corners rounded away,
+ *  NOT a repainted sphere. There is no spherical relight and no single flat surface — those were the rejected
+ *  "ball" attempts; here the ONLY change from the cube is the rounding clip. */
+export function drawIsoRoundedBlock(
   ctx: CanvasRenderingContext2D,
   center: Pt,
   tileW: number,
@@ -1624,20 +1589,13 @@ export function drawIsoBall(
 ): void {
   const n = Math.max(1, Math.floor(height))
   const rx = tileW                       // footprint half-width (honours scaleX/zoom via the caller's bw)
-  const ry = (n * blockH) / 2 + tileH    // half the cube's vertical span (stack height + base-diamond depth)
-  const cy = center.y - (n * blockH) / 2 // the block volume's vertical mid-point
-  // Soft ground shadow at the base diamond so the ball reads seated on its cell, like the cube's base edge.
+  const ry = (n * blockH) / 2 + tileH    // half the cuboid's full vertical silhouette (stack + base/top diamond)
+  const cy = center.y - (n * blockH) / 2 // the cuboid's vertical mid-point → the ellipse follows the block's shape
   ctx.save()
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.28)'
-  ctx.beginPath()
-  ctx.ellipse(center.x, center.y + tileH * 0.35, rx * 0.82, tileH * 0.5, 0, 0, Math.PI * 2)
-  ctx.fill()
-  ctx.restore()
-  // ONE smooth sphere: round clip → the tile's art as a single surface (no cube faces) → radial sphere shade.
-  ctx.save()
+  // The rounded silhouette: an ellipse of the block's OWN extent, so corners bend away and proportions are kept.
   clipToBall(ctx, center.x, cy, rx, ry)
-  fillBallSurface(ctx, center.x, cy, rx, ry, dv, tint)
-  sphericalShade(ctx, center.x, cy, rx, ry)
+  // The SAME cuboid — three shaded faces + painted art — drawn normally; only the clip above rounds it.
+  drawIsoTileBlock(ctx, center, tileW, tileH, blockH, n, dv, tint)
   ctx.restore()
 }
 
@@ -1655,7 +1613,7 @@ const ISO_SHAPE_DRAWERS: Record<TileShape, IsoShapeDrawer> = {
     if (asset.settings?.display === 'single') drawIsoSingleTileBlock(ctx, center, bw, bd, bh, blocks, dv, tint, asset.depth, asset.depthDir)
     else drawIsoTileBlock(ctx, center, bw, bd, bh, blocks, dv, tint, undefined, asset.depth, asset.depthDir)
   },
-  circle: (ctx, center, bw, bd, bh, blocks, dv, tint) => drawIsoBall(ctx, center, bw, bd, bh, blocks, dv, tint),
+  circle: (ctx, center, bw, bd, bh, blocks, dv, tint) => drawIsoRoundedBlock(ctx, center, bw, bd, bh, blocks, dv, tint),
 }
 
 /** Draw a placed tile's block as the SOLID its `shape` selects — the single call the asset draw sites use in

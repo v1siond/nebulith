@@ -36,11 +36,11 @@ export type TileDisplay = 'all-faces' | 'single'
  *  sibling of `display`:
  *    • 'square' (DEFAULT, current behaviour) — the tile extrudes into an iso CUBE (drawIsoTileBlock), a front
  *      rect in 2D, a footprint square in Top.
- *    • 'circle' — the SAME cube/cell is drawn (its baked art, colour filter and every other setting intact) but
- *      CLIPPED to a ball inscribed in that volume, plus a soft sphere-shade overlay — so the tile reads as a
- *      ball while showing EXACTLY what the cube shows. It is NOT a solid-colour ball and NOT a flat disc (the
- *      earlier solid fill threw the tile's art away — the bug this design fixes). 2D/Top round the footprint the
- *      same way.
+ *    • 'circle' — the SAME cube/cell is drawn (its baked art, colour filter, per-face shading and every other
+ *      setting intact) but CLIPPED to an ELLIPSE of the block's OWN extent, so the cuboid's corners are bent away
+ *      into a smooth OVAL — PROPORTIONAL to the block (a tall block → a tall oval, a cube → a rounder blob). It
+ *      shows EXACTLY what the cube shows, only rounded — NO spherical relight, NO single flat surface, NO fixed
+ *      circle (those were rejected "ball" attempts). 2D/Top round the footprint the same way.
  *  Absent → 'square' (byte-identical to before). Designed to grow ('oval', …) via a dispatch map keyed by this
  *  value, NOT hardcoded branches — a new shape adds one drawer, never a new `if`. */
 export type TileShape = 'square' | 'circle'
