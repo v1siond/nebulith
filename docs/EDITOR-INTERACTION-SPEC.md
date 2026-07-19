@@ -184,6 +184,35 @@ system the GENERATOR and the RENDERER use — never a separate or hardcoded list
   fans out to the i-th stacked tile of EVERY selected cell (`applyToSelectedCells` → the `setAsset*` writers) —
   one edit changes all selected tiles.
 
+## 12. The Tile-composition tool + placement preview (stamp ANY composition, see it first)
+The left tool-rail's **Tile composition** tool (formerly "Building") stamps a whole **backend composition** —
+its per-cell tiles — with one click, the SAME path the generator uses (`stampComposition`), NOT a special
+building unit. It was renamed + generalised because the old card hardcoded a building-only list; a composition
+is any multi-cell template the DB serves, and the tool now places **every one the randomizer uses**.
+
+- **The palette lists EVERY backend composition, grouped — never a hardcoded subset.** The card
+  ("Tile compositions") is built by `buildCompositionPalette(ASCII_TILESET)` from the loaded tileset's
+  `compositions` map (served by `/api/tilesets`), so it lists the full set the world generator stamps:
+  **Buildings** (house/store/hospital/temple/manor/cathedral/castle/office/…), **Nature** (tree + its
+  tall/round/stub variants, bushes), and **Props** (fountain, well, lamp post). Grouping is data-driven:
+  a composition with a ground-level **`door` cell** (`compositionFacesRoad`) is a *Building*; a `tree*`/`bush*`
+  kind is *Nature*; everything else is a *Prop*. Each button shows the composition's **footprint size (w×h)** so
+  you know how many cells it takes before placing. A new backend composition appears here automatically — no
+  frontend list to edit.
+- **Placement is composition-generic (`planComposition`).** The clicked cell is the footprint **CENTRE**.
+  A *Building* (has a door) rotates to face the **nearest road** (`nearestRoadFacing` → `facingRotation`, the
+  footprint axes swapping for east/west); a *Prop/Nature* composition drops **unrotated**. A stamp is refused
+  when a footprint cell is out of bounds, blocked (tree/water/another building), or — for a building only — on a
+  road/path. This is the SAME `planComposition` the ghost preview draws, so *what you see is exactly what lands*.
+- **A placement GHOST previews the footprint on hover, BEFORE the click.** While a composition is armed and the
+  cursor is over the map, a translucent **shadow** is drawn at the hovered cell: each occupied cell's footprint,
+  plus (in iso) a faded raised box for the massing/height, tinted **green when it fits / red when it's blocked**.
+  It follows the cursor and clears on disarm / mode-switch / pointer-leave. The footprint cells come from the
+  composition's OWN cell data (`compositionFootprintCells`, deduped across stack levels, rotation-aware), so the
+  shadow is byte-accurate to the stamp. It's computed only on mouse-move (not every frame) and only when armed
+  → cheap. Drawn in the iso view (`drawCompositionGhostIso`) and the top-down view (`drawCompositionGhostFlat`);
+  the 2D front-elevation view omits it (a col/row footprint doesn't map onto a side elevation).
+
 ## Build order (after the current quest/inventory wiring)
 1. Composite asset scaling + persistence/render (§6) — concrete bug.
 2. UI reorg (§5) — top nav + expandable assets + right-side connectors/entities/selection.
