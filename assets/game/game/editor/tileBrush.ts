@@ -40,6 +40,20 @@ export function placeGroundTile(grid: IsometricGrid, col: number, row: number, t
   setFloor(grid, col, row, { ...floor, slug: tileSlug(tile.id) })
 }
 
+/** The BARE/default floor slug every freshly-initialised cell starts on (the IsometricGrid ctor fills the
+ *  whole ground with it, and getStack falls back to it) — what a cleared cell returns to. */
+export const DEFAULT_GROUND_SLUG = 'grass'
+
+/** CLEAR a cell's FLOOR back to bare: the default ground slug, no colour override, no dims. A road, terrain
+ *  or plaza is JUST a floor tile (all painted via placeGroundTile), so this clears ANY of them the SAME way —
+ *  there is NO branch on the tile's type / category / height / style. Pairs with removeTopAsset (which drops
+ *  the stacked assets) so "Clear tiles" can EMPTY the whole cell, not just the stack. */
+export function clearGroundTile(grid: IsometricGrid, col: number, row: number): void {
+  grid.setGround(col, row, DEFAULT_GROUND_SLUG)
+  grid.setGroundColor(col, row, null)
+  grid.clearGroundDims(col, row)
+}
+
 /** nature / buildings → PUSH a tile onto the cell's stack (pushTile lands it one level above the tallest,
  *  0 on an empty cell). tileOverride pins the exact tile.
  *

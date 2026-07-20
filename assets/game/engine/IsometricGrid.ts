@@ -237,6 +237,17 @@ export class IsometricGrid {
     }
   }
 
+  // Clear a cell's FLOOR DIMS override entirely (back to none = undefined) — the bare state a freshly-
+  // initialised cell has. setGroundDims only MERGES, so it can't undefine a dims blob; this is the reset
+  // counterpart (used when clearing a cell back to bare). Bumps groundVersion so the cached ground layers
+  // rebuild and the edit shows at once.
+  clearGroundDims(col: number, row: number) {
+    if (col >= 0 && col < this.cols && row >= 0 && row < this.rows) {
+      if (this.groundDims[row]) this.groundDims[row][col] = undefined
+      this.groundVersion++
+    }
+  }
+
   // Fill rectangle of ground
   fillGround(col: number, row: number, width: number, height: number, type: string) {
     for (let r = 0; r < height; r++) {

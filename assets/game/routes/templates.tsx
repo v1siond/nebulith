@@ -75,7 +75,7 @@ import { useFps } from '@/components/useFps'
 import { commonValue, commonBool, cellsFromKeys, removeSelectedBlock } from '@/game/editor/selectionEdit'
 import { applyRectSelection, applyCellSelection } from '@/game/editor/selection'
 import { entityKindForUnitSlug, placementFor, tileSlug } from '@/game/editor/tilePlacement'
-import { placeGroundTile, removeTopAsset, removeAssetAtLevel, stackAssetTile } from '@/game/editor/tileBrush'
+import { clearGroundTile, placeGroundTile, removeTopAsset, removeAssetAtLevel, stackAssetTile } from '@/game/editor/tileBrush'
 import { useEditorHistory } from '@/game/editor/useEditorHistory'
 
 
@@ -2518,15 +2518,22 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     bumpBuildingVersion()
   }
 
-  /** Deliverable #1 — CLEAR every tile off the selected cell(s): pop each stacked asset via the SAME erase
-   *  primitive ⌥Alt-click uses (`removeTopAsset`, which re-derives collision), leaving the floor. Snapshots
-   *  history so Ctrl+Z restores the cleared tiles. */
+  /** Deliverable #1 — CLEAR every tile off the selected cell(s) so they go BARE: pop each stacked asset via
+   *  the SAME erase primitive ⌥Alt-click uses (`removeTopAsset`, which re-derives collision) AND clear the
+   *  cell's GROUND/floor tile (a road/terrain/plaza is a floor tile too — `clearGroundTile` resets it to the
+   *  bare default, uniformly, with NO branch on tile type). Then reset collision to walkable, so the cell is
+   *  the same bare state a freshly-initialised one has (mirrors __clearRegion). Snapshots history first, so
+   *  Ctrl+Z restores BOTH the stacked tiles and the cleared road. */
   const clearTilesOnSelection = () => {
     const grid = gridRef.current
     const cells = cellsFromKeys(selectedCells)
     if (!grid || cells.length === 0) return
     checkpointHistory()
-    for (const { col, row } of cells) { while (removeTopAsset(grid, col, row)) { /* pop until the cell is bare */ } }
+    for (const { col, row } of cells) {
+      while (removeTopAsset(grid, col, row)) { /* pop the stacked assets until none remain */ }
+      clearGroundTile(grid, col, row) // clear the road/ground tile too, so the cell is truly EMPTY
+      grid.setCollision(col, row, false) // a bare cell is walkable
+    }
     bumpBuildingVersion()
     setSelectedTileLevel(0)
   }

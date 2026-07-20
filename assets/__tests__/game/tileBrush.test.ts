@@ -7,8 +7,9 @@ import '@/__tests__/helpers/installTilesetSeed' // install the DB-equivalent til
  */
 import { IsometricGrid, type GridAsset } from '@/engine/IsometricGrid'
 import { tilesForStyle, type TileDef } from '@/game/artStyle'
-import { placeGroundTile, removeTopAsset, removeAssetAtLevel, stackAssetTile } from '@/game/editor/tileBrush'
+import { clearGroundTile, placeGroundTile, removeTopAsset, removeAssetAtLevel, stackAssetTile } from '@/game/editor/tileBrush'
 import { tileSlug } from '@/game/editor/tilePlacement'
+import { captureMapSnapshot, restoreMapSnapshot } from '@/game/editor/mapSnapshot'
 
 const EMOJI = tilesForStyle('emoji')
 const byId = (id: string): TileDef => {
@@ -351,6 +352,73 @@ describe('removeTopAsset — ⌥Alt remove + collision recompute', () => {
     removeTopAsset(g, 2, 2) // pop the blocking asset → nothing blocking left
     expect(g.isBlocked(2, 2)).toBe(false)
     expect(g.getAssetsAtCell(2, 2)).toHaveLength(0)
+  })
+})
+
+// CLEAR TILES must EMPTY the whole cell (user: "I was expecting to clear the road tiles, but didn't"). A road /
+// terrain / plaza is a floor tile painted via placeGroundTile, so clearing a cell has to reset the GROUND too,
+// not just pop the stacked assets. clearGroundTile does that BARE reset uniformly — no branch on tile type.
+describe('clearGroundTile — reset a cell FLOOR back to bare (the road/ground goes too)', () => {
+  test('a painted ground tile (road/terrain) is reset to the bare default grass', () => {
+    const g = makeGrid()
+    placeGroundTile(g, 2, 2, byId('emoji:desert')) // stand-in for a painted road/terrain/plaza floor tile
+    expect(g.ground[2][2]).toBe('desert')
+    clearGroundTile(g, 2, 2)
+    expect(g.ground[2][2]).toBe('grass') // the road/ground is gone — the cell is bare
+  })
+
+  test('clears the floor COLOUR override and DIMS too, so the cell is truly bare (not a re-tinted grass)', () => {
+    const g = makeGrid()
+    placeGroundTile(g, 1, 1, byId('emoji:desert'))
+    g.setGroundColor(1, 1, '#804000')                 // a styled/tinted road
+    g.setGroundDims(1, 1, { scaleX: 2, pose: { rot: Math.PI / 2 } })
+    clearGroundTile(g, 1, 1)
+    expect(g.ground[1][1]).toBe('grass')
+    expect(g.groundColor[1][1]).toBeNull()            // colour override cleared
+    expect(g.groundDims[1][1]).toBeUndefined()        // dims cleared (setGroundDims only merges — clearGroundDims undefines)
+  })
+
+  test('the SAME reset for ANY ground tile — road, water, plaza all clear identically (no type branch)', () => {
+    const g = makeGrid()
+    for (const [id, cell] of [['emoji:desert', [0, 0]], ['emoji:deep-water', [1, 0]], ['emoji:grass', [2, 0]]] as const) {
+      placeGroundTile(g, cell[0], cell[1], byId(id))
+      clearGroundTile(g, cell[0], cell[1])
+      expect(g.ground[cell[1]][cell[0]]).toBe('grass') // every one ends bare, the same way
+    }
+  })
+})
+
+// The FULL "Clear tiles" flow the page runs on a selection: pop every stacked asset AND clear the ground tile,
+// captured by a history checkpoint so Ctrl+Z restores BOTH the assets AND the cleared road.
+describe('Clear tiles on a selection — empties assets + ground, and undo restores the road', () => {
+  // Mirror clearTilesOnSelection's per-cell body (the page loops the selection like this).
+  const clearCell = (g: IsometricGrid, col: number, row: number): void => {
+    while (removeTopAsset(g, col, row)) { /* pop the stacked assets until none remain */ }
+    clearGroundTile(g, col, row)
+    g.setCollision(col, row, false)
+  }
+
+  test('a cell with a road floor + a stacked tree goes fully bare', () => {
+    const g = makeGrid()
+    placeGroundTile(g, 2, 2, byId('emoji:desert')) // the road/ground
+    stackAssetTile(g, 2, 2, byId('emoji:pine-tree')) // a stacked asset on top
+    clearCell(g, 2, 2)
+    expect(g.getAssetsAtCell(2, 2)).toHaveLength(0) // stacked asset gone
+    expect(g.ground[2][2]).toBe('grass')            // road gone — the cell is bare
+    expect(g.isBlocked(2, 2)).toBe(false)           // walkable, like a freshly-initialised cell
+  })
+
+  test('undo (a captured snapshot) restores BOTH the stacked tile AND the cleared road', () => {
+    const g = makeGrid()
+    placeGroundTile(g, 3, 3, byId('emoji:desert'))
+    stackAssetTile(g, 3, 3, byId('emoji:pine-tree'))
+    const before = captureMapSnapshot(g, []) // the page checkpoints BEFORE the clear
+    clearCell(g, 3, 3)
+    expect(g.ground[3][3]).toBe('grass')
+    expect(g.getAssetsAtCell(3, 3)).toHaveLength(0)
+    restoreMapSnapshot(g, before) // Ctrl+Z
+    expect(g.ground[3][3]).toBe('desert')                                 // the road is back
+    expect(g.getAssetsAtCell(3, 3).map(a => a.tileOverride)).toEqual(['emoji:pine-tree']) // and the tree
   })
 })
 
