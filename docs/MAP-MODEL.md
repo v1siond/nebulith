@@ -189,9 +189,17 @@ sidebar always matches the map (no parallel hardcoded catalog that can drift).
 
 **The holders start EMPTY and a loader gates the render — there is NO fallback.** Both `EMOJI_TILESET` and
 `ASCII_TILESET` are empty until `/api/tilesets` installs the DB rows; there is no bundled default tileset. The
-editor shows a **LOADING TILES loader** (and the RAF loop paints only a plain background) until a tileset is
-installed, and an **error/retry** state if the load fails. Nothing is ever drawn from frontend tile data — so a
-fresh load goes straight from loader → the correct DB style, with no wrong-style flash in between.
+editor shows a **LOADING TILES loader** (and the RAF loop paints only a plain background) until the tiles are
+ready, and an **error/retry** state if the load fails. **"Ready" means the baked PNG IMAGES are DECODED, not
+just the JSON installed** — `loadTilesetsFromBackend` preloads + decodes every installed tile image
+(`preloadTileImages`, into the same cache the render reads) *before* it resolves and the gate opens. This is
+what killed the last flash (Image #70): opening on the JSON alone let the first frames paint the tile's GLYPH
+fallback (the wall's brick emoji tiled across the cube faces — a repeated "S" / brown-crate building, an
+un-drawn hero) for the ~1s the rasters were still decoding. The glyph is now ONLY the after-load neutral render
+for a genuinely image-less / unknown label — never a pre-load placeholder — and the RAF hard-gate blocks even
+the saved map from painting until ready. Nothing is ever drawn from frontend tile data — so a fresh load
+(including an auto-loaded saved map) goes straight from loader → the correct DB style, with no wrong-style
+flash at any point.
 
 **Entity resolution is backend data too (a unit is just a tile).** How an entity resolves to a baked tile — an
 enemy's `enemyType` → slug, a person's `variant` → slug, and the baked-slug set — used to be the last frontend

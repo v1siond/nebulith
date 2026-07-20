@@ -233,12 +233,25 @@ Playwright and confirm the look on his server — never self-certify a headless 
 
 ## 10. Risks
 
-- **First-frame flash** — **SOLVED (2026-07-20) by a loader gate, not a fallback.** The frontend ships no
-  bundled tile data, so there is nothing to paint before `/api/tilesets` installs. The editor renders a
-  **LOADING TILES loader** (RAF paints only a plain background) until a tileset is installed, then draws the
-  DB style directly; a failed load shows an **error/retry** state — never frontend tiles. Result: loader →
-  correct DB style, with no wrong-style frame in between. (Per-image decode is still covered by the neutral
-  placeholder in the render path; that is separate from the tileset-load gate.)
+- **First-frame flash** — **SOLVED (2026-07-20) by a loader gate that waits for DECODED IMAGES, not a
+  fallback.** The frontend ships no bundled tile data, so there is nothing to paint before `/api/tilesets`
+  installs. The editor renders a **LOADING TILES loader** (RAF paints only a plain background) until the
+  tiles are ready, then draws the DB style directly; a failed load shows an **error/retry** state — never
+  frontend tiles. **"Ready" means the baked PNG IMAGES are decoded, not merely the JSON installed.** The
+  earlier version opened the gate on the JSON alone and left per-image decode to a *neutral placeholder in
+  the render path* — and THAT was the residual flash (Image #70): the image cache (`tileImage`) loads
+  lazily on first draw, so the first frames after the gate opened found every raster still undecoded and
+  every draw site fell back to the tile's GLYPH — `fillIsoFaceWithTile` tiling the wall's brick emoji across
+  the cube faces (a repeated "S" / brown-crate building), an un-drawn hero, off trees — for ~1s until the
+  PNGs decoded. The fix: `loadTilesetsFromBackend` now **preloads + decodes every installed tile image**
+  (shared.ts `preloadTileImages`, keyed into the SAME `tileImage` cache; covers tiles, compositions,
+  weapons, and entities — an entity is just a `units` tile) **before it resolves**, so the render gate only
+  opens once the first painted frame can take the image path everywhere. The saved map (grid) can't paint
+  early either — the RAF hard-gate (`if (!tilesetReadyRef.current) return`) blocks ALL paint until ready.
+  The glyph is NO LONGER a pre-load placeholder — it is only the after-load neutral render for a genuinely
+  image-less / unknown label. Result: loader → correct DB style, with **no wrong-style frame at any point**.
+  (Proven per-frame on the running editor with `/api/tilesets` + the tile PNGs delayed: 0 flash frames,
+  loader → correct emoji map.)
 - **Ascii legibility as a flat tile** (a single glyph on a square can look sparse vs. the current
   face-drawn glyph) → tune atlas cell size / glyph scale in the bake; it's a bake-tuning knob, not
   an architecture change.
