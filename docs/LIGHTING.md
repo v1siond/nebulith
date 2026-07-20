@@ -88,12 +88,21 @@ all"*):
   night animation → the bulb shows its plain **unlit** art; at **night** the colour last-wins-tints the bulb art
   warm (luminance-mapped) → a **lit, glowing bulb**, STEADY (no flicker). So the bulb itself visibly lights up,
   not just the ground pool.
-- **`lamp_post_failing`** (a MINORITY — the frontend generator tags ~18% of lamps) — the SAME night-lit `color`
+- **`lamp_post_failing`** (a TINY minority — see below) — the SAME night-lit `color`
   glow, PLUS ONE **`night`-triggered** `lamp_flicker` animation: a single **`opacity` 1 → 0.12** track with
   **`ease: "flicker"`** — the frontend's irregular, STEPPED failing-bulb envelope (mostly ON with brief, erratic
   dips / full-off blinks at irregular times), NOT a smooth sine yoyo (see `ANIMATION-SYSTEM.md` → the `flicker`
   ease + the `night` trigger). `color` and `opacity` are DIFFERENT settings, so the two compose: the failing bulb
   is **lit AND flickering** — a dying street light, mostly lit but erratically cutting out.
+
+**How many lamps flicker — a SMALL ABSOLUTE count, not a ratio.** Alexander: *"the flicker should be a random
+thing that only 1 or 2 lamps get and it's not even 100% of the time … rest should be either all the time ON
+during night time or OFF during day time."* The frontend generator (`stageGenerator.ts` `markFailingLamps`)
+places every lamp STEADY, then flips a **tiny random subset — usually 1, sometimes 2, occasionally 0** — to the
+`lamp_post_failing` variant, drawn from the **decor** rng so a decor re-roll re-picks that tiny set. It is an
+ABSOLUTE count, NOT a fraction of the lamps: a 6-lamp town AND a 20-lamp city both get ≤ 2 flickering. (The old
+per-cell ratio hash tagged ~a quarter of every map's lamps — a town got 2–3, a city 3–4 — which read as "all of
+them flicker"; that was the bug.)
 
 **The pool follows the bulb.** For a failing lamp, `collectLampGlows` folds the bulb's **live animated opacity**
 into that lamp's pool `intensity`, so the ground pool dims/cuts on the **exact same beat** the bulb flickers
@@ -112,6 +121,13 @@ vs the old wash, so it reads clearly "on" (before/after crop `lamp-before-after.
 → Night mode** makes BOTH bulbs go grey→golden; the **normal** bulb's burst is dead flat (flicker COV **0.000** —
 steady lit) while the **failing** bulb swings (COV **0.19**) and its pool dims on the same beat; `distance` grows
 the pool, `intensity` scales it, `on:false` removes it. The USER validates on `:3000`.
+
+**Flicker COUNT verified (job `lampflicker`, generated town, emoji, iso, night):** measuring every auto-placed
+lamp's per-bulb night luminance COV vs its own day COV (day = the fountain/npc confound floor, subtracted),
+across a **generate + 6 decor re-rolls** the flickering count was **{1, 0, 1, 2, 0, 1, 0}** — MAX **2**, never
+"all". The steady lamps are bright-LIT at night (nightMean ≈ 229) and dead-flat (COV **0**); the one failing lamp
+is lit (nightMean ≈ 215) but swings night-ONLY (nightCOV **0.18**, dayCOV **0**). Proves *only 1–2 flicker* while
+the majority stay steady-lit at night / dark in day.
 
 ---
 

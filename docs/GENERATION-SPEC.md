@@ -174,10 +174,14 @@ buildings, nature, decor, units for the *menu*; the settlement *executes* decor 
 
 ### 5.4 Honest scope (what has real generator randomness)
 
-Only **layout** and **nature** carry stochastic generator RNG today. **buildings** and **decor** are
+Only **layout** and **nature** carry stochastic generator RNG today. **buildings** are
 deterministic from the layout (a building's kind comes from its plot; the plaza variant from
 settlement size) — their visible re-roll is an **appearance** re-roll (material / roof / wall colour)
-performed at load in the editor's `applyStageToGrid`, not new generator geometry. **units** are an
-editor entity concern. The non-settlement archetypes (forest / cave / temple / boss) remain
+performed at load in the editor's `applyStageToGrid`, not new generator geometry. **decor** is
+deterministic in its GEOMETRY (the plaza centrepiece + the lamp POSITIONS come from the layout), but
+it does carry ONE small stochastic pick from the **decor** rng: `markFailingLamps` flips a tiny random
+subset of the placed lamps (usually 1, sometimes 2, occasionally 0) to the flickering
+`lamp_post_failing` variant, so a decor re-roll re-picks WHICH lamps flicker while the rest stay steady
+(see `LIGHTING.md` §4 — "only 1 or 2 lamps flicker"). **units** are an editor entity concern. The non-settlement archetypes (forest / cave / temple / boss) remain
 single whole-map generators reading `ctx.rand` (seeded via the layout rng); they are not decomposed
 into these layers.

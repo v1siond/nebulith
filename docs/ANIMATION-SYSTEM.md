@@ -115,10 +115,11 @@ image instead.
   RGB lerp → `rgb(r,g,b)` (fail-safe step if unparseable); `display` = **step at the temporal midpoint** (raw ≥ 0.5
   → `to`), never eased.
 - **`ease: "flicker"`** — an IRREGULAR, STEPPED envelope (not a smooth curve) for a **FAILING bulb**
-  (`flickerEase`): over the phase it is fully at `from` for the MAJORITY of the loop (~72%), punctuated by brief,
-  erratic dips of varying depth + occasional full-off blinks at irregular times. Deterministic pseudo-noise (pure).
-  Used by the `lamp_post_failing` bulb's `opacity 1→0.12` flicker with `loop:true, yoyo:false` (the ease supplies
-  the erratic shape — a yoyo would smooth it back into a pulse). See `LIGHTING.md` §4.
+  (`flickerEase`): over the phase it is fully at `from` for the VAST MAJORITY of the loop (~85% of slots — a
+  normal-looking lamp that only OCCASIONALLY faults, Alexander: *"it's not even 100% of the time"*), punctuated by
+  brief, erratic dips of varying depth + occasional full-off blinks at irregular times. Deterministic pseudo-noise
+  (pure). Used by the `lamp_post_failing` bulb's `opacity 1→0.12` flicker with `loop:true, yoyo:false` (the ease
+  supplies the erratic shape — a yoyo would smooth it back into a pulse). See `LIGHTING.md` §4.
 - **Stacking (`resolveAnimatedSettings`):** every animation contributes its tracks' current values. On the SAME
   setting, the **higher `priority` wins; ties → later in the list**. Unwritten settings are absent (renderer keeps
   the base). Winner-takes-all per setting (see §6 for the fountain consequence). The winning value is then
