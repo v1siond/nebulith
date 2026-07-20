@@ -25,7 +25,8 @@ import { findTriggeredConnector, normalizeConnector } from '@/engine/connectors'
 import { entityPalette, punchTile, weaponEmoji, weaponGlyph, weaponPose } from '@/engine/entityArt'
 import { StageData, VariantId, type LayerId, generateStage, stagePaint } from '@/engine/stageGenerator'
 import { type Action as TriggerAction, resolveAction } from '@/engine/triggers'
-import { stagePropTileOverride, ZoneId } from '@/engine/zones'
+import { stagePropTileOverride, ZoneId, ROCK_SHADES, MUSHROOM_TONES, ZONE_FLOWERS, DEFAULT_FLOWERS } from '@/engine/zones'
+import { varyIntensity } from '@/engine/colors'
 import { type AbilityBinding, DEFAULT_ABILITY_LOADOUT } from '@/game/abilities'
 import { startingCombatState } from '@/game/combat'
 import { DEFAULT_PLAYER_STATS, byKind, canPlaceEntity, entityAt, entityAtClick, entityAtFootprint, entityCollisionCells, makeEnemy, makeNpc, makePlayer, mintEntityId, placeEntity, removeEntity, withPlayerCell } from '@/game/entities'
@@ -1800,6 +1801,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       __genVillage?: () => { buildings: number }
       __genStage?: (zone: string, variant: string) => { buildings: number }
       __randomizeLayer?: (layer: string) => { buildings: number }
+      __randomizeSelected?: () => boolean
       __centerOn?: (col: number, row: number) => void
       __setHero?: (col: number, row: number) => void
       __setDepth?: (col: number, row: number, depth: number, dir: DepthDir) => { col: number; row: number; depth: number; depthDir: DepthDir; cells: { col: number; row: number }[] } | null
@@ -1929,6 +1931,8 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     // Re-roll ONE generation layer over the current map (the Generate menu's scoped randomize) — a
     // validation seam mirroring the menu buttons: layout / buildings / nature / decor / units.
     win.__randomizeLayer = (layer: string) => { randomizeLayerInEditor(layer as LayerId); return { buildings: countBuildingTiles(gridRef.current) } }
+    // Re-roll the current SELECTION's random attributes (Stage 3 micro-randomize) — validation seam.
+    win.__randomizeSelected = () => { randomizeSelected(); return true }
     // Centre the iso camera on a cell so a validation click lands on-screen (the same camOffset the render +
     // pick read); mirrors the raw dev-mode focus fc=(playerX-camOffsetX)/cs.
     win.__centerOn = (col: number, row: number) => {
@@ -2139,7 +2143,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       setSelectedCells(new Set([`${best.col},${best.row}`]))
       return best
     }
-    return () => { delete win.__setArtStyle; delete win.__selectFirstTreeCell; delete win.__setView; delete win.__gridKinds; delete win.__entityInfo; delete win.__entityScreens; delete win.__selectEntity; delete win.__setEntitySize; delete win.__scatter; delete win.__selectedEntityInfo; delete win.__placeBuilding; delete win.__placeComposition; delete win.__armComposition; delete win.__cellSel; delete win.__selectCells; delete win.__applyCellTile; delete win.__clearRegion; delete win.__setDebug; delete win.__cellLabels; delete win.__stackAt; delete win.__camOffset; delete win.__stackAsset; delete win.__paintTile; delete win.__isoBlockScreen; delete win.__genVillage; delete win.__genStage; delete win.__randomizeLayer; delete win.__centerOn; delete win.__setHero; delete win.__pickTileAt; delete win.__cellScreen; delete win.__tileCentroid; delete win.__tileHandles; delete win.__setShape; delete win.__setDisplay; delete win.__setLight }
+    return () => { delete win.__setArtStyle; delete win.__selectFirstTreeCell; delete win.__setView; delete win.__gridKinds; delete win.__entityInfo; delete win.__entityScreens; delete win.__selectEntity; delete win.__setEntitySize; delete win.__scatter; delete win.__selectedEntityInfo; delete win.__placeBuilding; delete win.__placeComposition; delete win.__armComposition; delete win.__cellSel; delete win.__selectCells; delete win.__applyCellTile; delete win.__clearRegion; delete win.__setDebug; delete win.__cellLabels; delete win.__stackAt; delete win.__camOffset; delete win.__stackAsset; delete win.__paintTile; delete win.__isoBlockScreen; delete win.__genVillage; delete win.__genStage; delete win.__randomizeLayer; delete win.__randomizeSelected; delete win.__centerOn; delete win.__setHero; delete win.__pickTileAt; delete win.__cellScreen; delete win.__tileCentroid; delete win.__tileHandles; delete win.__setShape; delete win.__setDisplay; delete win.__setLight }
   }, [])
 
   // ── Selected-entity inspector actions ─────────────────────────────
@@ -3380,6 +3384,59 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     bumpBuildingVersion()
   }
 
+  // ── micro RANDOMIZE: re-roll the random attributes of the SELECTION (Stage 3) ──────
+  // The person-figure variants a unit can wear (EntityVariant); a re-roll picks a DIFFERENT one.
+  const PERSON_VARIANTS = ['male', 'female', 'old', 'child', 'alien', 'robot'] as const
+  /** A new colour for a placed tile drawn from ITS OWN role palette (never an arbitrary colour): rock
+   *  shades, mushroom tones, the zone's flowers; anything else gets a coherent tonal variant of its
+   *  current colour (the same per-cell tinting the generator uses). Null → leave the colour alone. */
+  const rerollTileColor = (asset: GridAsset, zone: ZoneId, rand: () => number): string | null => {
+    const pickFrom = (arr: readonly string[]): string => arr[Math.floor(rand() * arr.length)]
+    const t = asset.type ?? ''
+    if (t === 'rock') return pickFrom(ROCK_SHADES)
+    if (t === 'mushroom') return pickFrom(MUSHROOM_TONES)
+    if (t === 'flower') return pickFrom((ZONE_FLOWERS[zone] ?? DEFAULT_FLOWERS).map(f => f.color))
+    return asset.color ? varyIntensity(asset.color, rand()) : null // a tonal variant of the tile's own tone
+  }
+
+  /** Re-roll a UNIT's random attributes: a different person variant (NPCs) + a fresh wander animation
+   *  (reuses randomMovementAnimation). The player is left alone (its figure/animation are hero-driven). */
+  const randomizeSelectedUnit = (id: string, rand: () => number) => {
+    setEntities(prev => prev.map(e => {
+      if (e.id !== id || e.kind === 'player') return e
+      const anim = randomMovementAnimation()
+      const others = PERSON_VARIANTS.filter(v => v !== e.variant)
+      const variant = e.kind === 'npc' ? others[Math.floor(rand() * others.length)] : e.variant
+      return { ...e, variant, animations: [anim], unitAnimations: unitAnimationsFromEntity([anim]) }
+    }))
+  }
+
+  /** Re-roll each SELECTED cell's active tile: a new palette colour + a chance to flip its render shape
+   *  (cube ↔ ball). Reads the live selection ref (safe from a stale keydown closure). */
+  const randomizeSelectedTiles = (rand: () => number) => {
+    const grid = gridRef.current
+    if (!grid) return
+    const zone = lastGenRef.current?.zone ?? genZone
+    for (const { col, row } of cellsFromKeys(selectedCellsRef.current)) {
+      const stack = stackedAssetsAt(grid, col, row)
+      const a = stack[selectedTileLevelRef.current] ?? stack[stack.length - 1] // the active-level tile
+      if (!a) continue
+      const color = rerollTileColor(a, zone, rand)
+      if (color) a.color = color
+      if (rand() < 0.5) { if (a.shape === 'circle') delete a.shape; else a.shape = 'circle' }
+    }
+    bumpBuildingVersion()
+  }
+
+  /** THE selection re-roll: a unit if one is selected, else every selected tile. Works for 1 or many. */
+  const randomizeSelected = () => {
+    const rand = Math.random
+    const entId = selectedEntityIdRef.current
+    if (entId) { randomizeSelectedUnit(entId, rand); return }
+    if (selectedCellsRef.current.size === 0) return
+    randomizeSelectedTiles(rand)
+  }
+
   const generateStageInEditor = (zone: ZoneId, variant: VariantId) => {
     // A city is a big settlement — give it a markedly larger grid (~1.7× town linear) so it READS
     // bigger on screen, on top of the denser street grid + ~4× building cap in villageLayout. Town,
@@ -4176,6 +4233,13 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       // Q toggles the quest log (same guard).
       if ((e.key === 'q' || e.key === 'Q') && tag !== 'INPUT' && tag !== 'TEXTAREA') {
         setQuestLogOpen(o => !o)
+        return
+      }
+      // R re-rolls the SELECTION's random attributes (Stage 3) — the selected unit, or every selected
+      // tile — only when there IS a selection and we're not typing.
+      if ((e.key === 'r' || e.key === 'R') && tag !== 'INPUT' && tag !== 'TEXTAREA' && (selectedEntityIdRef.current || selectedCellsRef.current.size > 0)) {
+        e.preventDefault()
+        randomizeSelected()
         return
       }
       // Tab cycles the target through the ENEMIES CLOSE to the player (living enemies within RANGED_RANGE),
@@ -5656,6 +5720,15 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                 return (
                   <>
                     <SelectionHeader kind={selEntity.kind} label={`${selEntity.name || selEntity.kind} (${selEntity.kind})`} coords={`@ ${selEntity.col},${selEntity.row}`} />
+                    {selEntity.kind !== 'player' && (
+                      <button
+                        onClick={randomizeSelected}
+                        title="Re-roll this unit's random attributes — a new figure variant + a fresh wander animation (hotkey R)"
+                        className="w-full rounded bg-indigo-700 px-2 py-1.5 text-xs font-semibold transition-colors hover:bg-indigo-600"
+                      >
+                        🎲 Randomize unit
+                      </button>
+                    )}
                     {/* ONE card — the SAME PropertiesPanel a tile uses, with the unit's data folded IN via
                         `unitSection`. No parallel unit sidebar: identity/vitals/inventory/quests/attacks live
                         UNDER the shared tile summary; Animate + Triggers are buttons that open floating modals;
@@ -5897,6 +5970,13 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                         Library + colour + Width/Height/Depth/Zoom + x/y/rotate/flip — with a ▲▼ level stepper to
                         reach every block. The redundant `▸ CELL (coords)` header pill was removed; the coords now
                         ride this card's title so there's ONE cell header, not two. */}
+                    <button
+                      onClick={randomizeSelected}
+                      title="Re-roll the random attributes (palette colour / cube↔ball shape) of the selected tile(s) — hotkey R"
+                      className="mb-2 w-full rounded bg-indigo-700 px-2 py-1.5 text-xs font-semibold transition-colors hover:bg-indigo-600"
+                    >
+                      🎲 Randomize selected {selectedCells.size > 1 ? `(${selectedCells.size})` : ''}
+                    </button>
                     <Card title={`Cell ${cellLabel}`} accent="cyan">
                       {(() => {
                         const grid = gridRef.current
