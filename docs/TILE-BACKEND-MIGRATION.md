@@ -173,6 +173,9 @@ data change (rewrite the column to bucket URLs), not a code change — the reaso
 - The **bundled default art** in `src/engine/tileset/asciiTileset.ts` + `emojiTileset.ts`
   (`CELL_GLYPHS`, `COLOR_ROLE_BY_LABEL`, `POSITION_BY_LABEL`, zone palettes, and any emoji defaults).
   Keep only the in-memory holder + setter; **holders start empty** and are filled by the API.
+  **DONE (2026-07-20):** `emojiTileset.ts` now initialises `EMOJI_TILESET = {}` (its ~60-entry bundled
+  default is deleted), matching the already-empty `ASCII_TILESET`. There is no bundled tile data left in the
+  frontend and no fallback — see §10 for the loader gate that replaced the "first-frame flash" risk.
 
 **Renderer swap (art → image, geometry stays):**
 - `drawIsoTileBlock` (`render/iso.ts`): stop drawing a glyph; draw the tile's `image_url` on the
@@ -216,7 +219,9 @@ Engine tests currently import the frontend `tilesetSeed.json` fixture (via
 4. **Frontend render swap** — loader adapts to the new shape; renderer draws images + tint;
    preloader added. App still runs off the (now image-backed) backend.
 5. **Delete frontend tile data/art** — remove the JSON files, the generator, and the bundled
-   defaults; holders start empty.
+   defaults; holders start empty. **DONE (2026-07-20):** the last bundled default (`EMOJI_TILESET`) is
+   removed and the editor now loader-gates the render (see §10). `game/data/entityTiles.json` (baked
+   entity/enemy resolution — no DB source yet) is the one remaining frontend data file, deferred.
 6. **Tests** — repoint to the API fixture; add backend ExUnit tests. Full suite green.
 
 Validation is against Alexander's running instance (per project rule): drive the real game with
@@ -224,7 +229,12 @@ Playwright and confirm the look on his server — never self-certify a headless 
 
 ## 10. Risks
 
-- **First-frame flash** before images preload → neutral placeholder rect until resolved.
+- **First-frame flash** — **SOLVED (2026-07-20) by a loader gate, not a fallback.** The frontend ships no
+  bundled tile data, so there is nothing to paint before `/api/tilesets` installs. The editor renders a
+  **LOADING TILES loader** (RAF paints only a plain background) until a tileset is installed, then draws the
+  DB style directly; a failed load shows an **error/retry** state — never frontend tiles. Result: loader →
+  correct DB style, with no wrong-style frame in between. (Per-image decode is still covered by the neutral
+  placeholder in the render path; that is separate from the tileset-load gate.)
 - **Ascii legibility as a flat tile** (a single glyph on a square can look sparse vs. the current
   face-drawn glyph) → tune atlas cell size / glyph scale in the bake; it's a bake-tuning knob, not
   an architecture change.

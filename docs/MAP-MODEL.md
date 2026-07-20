@@ -182,10 +182,16 @@ optional **sidebar metadata**: `category` (terrain/buildings/units/nature) marks
 it; `title` is its display name. Entries with no `category` (wall pieces, tree corners, entity reskin tiles)
 render on the map but never surface in the sidebar.
 
-**The app reads ONLY the DB tilesets — the front end hardcodes no tile art.** `tilesetLoader` fetches the rows
-on load and installs them (`EMOJI_TILESET` / `ASCII_TILESET`). BOTH the **map render** and the **Tile Library
-sidebar** (`tilesForStyle` / `visualForTileId`) derive from those loaded tilesets — so the sidebar always
-matches the map (no parallel hardcoded catalog that can drift).
+**The app reads ONLY the DB tilesets — the front end hardcodes no tile art AND no tile data.** `tilesetLoader`
+fetches the rows on load and installs them (`EMOJI_TILESET` / `ASCII_TILESET`). BOTH the **map render** and the
+**Tile Library sidebar** (`tilesForStyle` / `visualForTileId`) derive from those loaded tilesets — so the
+sidebar always matches the map (no parallel hardcoded catalog that can drift).
+
+**The holders start EMPTY and a loader gates the render — there is NO fallback.** Both `EMOJI_TILESET` and
+`ASCII_TILESET` are empty until `/api/tilesets` installs the DB rows; there is no bundled default tileset. The
+editor shows a **LOADING TILES loader** (and the RAF loop paints only a plain background) until a tileset is
+installed, and an **error/retry** state if the load fails. Nothing is ever drawn from frontend tile data — so a
+fresh load goes straight from loader → the correct DB style, with no wrong-style flash in between.
 
 **Tile pipeline (Elixir backend → baked image → DB → app).** All tile DATA lives in the nebulith backend.
 The game-website FRONTEND JSON (`tileKinds.json`/`emojiCatalog.json` + `gen-tileset-seeds.mjs`) was the
