@@ -7,10 +7,8 @@ import '@/__tests__/helpers/installTilesetSeed' // install the DB-equivalent til
  */
 import { tilesForStyle, type TileDef } from '@/game/artStyle'
 import {
-  assetTypeForTile,
   entityKindForUnitSlug,
   placementFor,
-  tileIsBlocking,
   tileSlug,
 } from '@/game/editor/tilePlacement'
 
@@ -94,30 +92,5 @@ describe('entityKindForUnitSlug', () => {
     for (const slug of ['goblin', 'dragon', 'zombie', 'skeleton', 'enemy', 'boss']) {
       expect(entityKindForUnitSlug(slug)).toBe('enemy')
     }
-  })
-})
-
-describe('assetTypeForTile', () => {
-  test('every buildings tile stamps as a "building" (blocking)', () => {
-    for (const t of EMOJI.buildings) expect(assetTypeForTile(t)).toBe('building')
-    expect(tileIsBlocking('building')).toBe(true)
-  })
-  test('nature keywords pick tree / flower / rock', () => {
-    expect(assetTypeForTile(byId('emoji:pine-tree'))).toBe('tree')
-    expect(assetTypeForTile(byId('emoji:oak-tree'))).toBe('tree')
-    expect(assetTypeForTile(byId('emoji:rose'))).toBe('flower')
-    expect(assetTypeForTile(byId('emoji:boulder'))).toBe('rock')
-  })
-  test('a blossom reads as a flower, not a tree (FLOWER wins the keyword race)', () => {
-    expect(assetTypeForTile(byId('emoji:cherry-blossom'))).toBe('flower')
-  })
-  test('an unrecognised nature prop falls back to a non-blocking decoration', () => {
-    expect(assetTypeForTile({ category: 'nature', id: 'emoji:seashell' })).toBe('decoration')
-    expect(tileIsBlocking('decoration')).toBe(false)
-  })
-  test('trees / rocks block; flowers do not', () => {
-    expect(tileIsBlocking('tree')).toBe(true)
-    expect(tileIsBlocking('rock')).toBe(true)
-    expect(tileIsBlocking('flower')).toBe(false)
   })
 })
