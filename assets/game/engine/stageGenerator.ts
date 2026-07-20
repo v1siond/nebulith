@@ -37,9 +37,27 @@ import { resolveTile, resolveComposition, canopyCount, pickGroundDecor } from '.
 import { ASCII_TILESET } from './tileset/asciiTileset'
 import { varyIntensity } from './colors'
 import type { Connector } from '@/lib/api'
-import { clamp, randInt, manhattan } from '@/lib/math'
+import { clamp, randInt, randIntWith, manhattan, makeRng, type Rng } from '@/lib/math'
 
 export type VariantId = 'town' | 'city' | 'forest' | 'cave' | 'temple' | 'boss-stage'
+
+/**
+ * The independent GENERATION LAYERS a stage is built from — the "macro" randomize scopes the user
+ * steers (whole map vs just this layer). Each maps to a seedable pass over the current grid:
+ *   layout    — terrain/ground distribution + roads/plots (the "map without structures nor nature"),
+ *   buildings — the compositions stamped on the layout's plots,
+ *   nature    — trees / bushes / flowers / ground cover,
+ *   decor     — small props (plaza centrepiece, lamp posts),
+ *   units     — enemy/npc scatter (owned by the editor's entity store, not the generator).
+ * A given layer re-rolls in isolation by handing it a fresh seed while the others keep theirs.
+ */
+export type LayerId = 'layout' | 'buildings' | 'nature' | 'decor' | 'units'
+export const LAYER_IDS: readonly LayerId[] = ['layout', 'buildings', 'nature', 'decor', 'units']
+
+/** The engine-owned layers (units are scattered by the editor). Each settlement pass draws from its
+ *  own seedable rng so one layer re-rolls without disturbing the others. */
+export type EngineLayerId = Exclude<LayerId, 'units'>
+type LayerRngs = Record<EngineLayerId, Rng>
 
 /** General forest LAYOUT the user steers; the generator randomizes the rest.
  *  'passages' = the default multi-passage forest (today's behavior). */
@@ -141,6 +159,11 @@ export interface GenerateOptions {
   /** Steer the general forest layout; the rest is randomized. Default 'passages'
    *  reproduces today's multi-passage forest. Only the forest variant reads it. */
   layout?: ForestLayout
+  /** Per-layer SEED. A layer given a seed draws from a reproducible `makeRng(seed)` stream; a layer
+   *  left out draws from the global `Math.random` (today's behaviour). This is the macro-randomize
+   *  seam: re-roll one layer by changing only its seed and regenerating — the other layers, fed the
+   *  SAME seeds, reproduce identically. Omitting `seeds` entirely = a plain, unchanged generate. */
+  seeds?: Partial<Record<EngineLayerId, number>>
 }
 
 type Cell = { col: number; row: number }
@@ -282,7 +305,7 @@ function scatterGroundCover(ctx: ArchetypeContext, density = 0.18): void {
     if (collision[row][col]) return // walkable floor only
     if (BUILT_FLOOR.has(ground[row][col]) || isRoadGround(ground[row][col])) return // keep paved floors + ROADS clean (no clover on streets)
     if (occupied.has(`${col},${row}`)) return // don't cover trees / buildings / decor
-    if (Math.random() > density) return // breathing room
+    if (ctx.rand() > density) return // breathing room
     const prop = makeGroundDecor(zone, col, row)
     if (prop) fill.push(prop) // no decor tile for this zone (tileset not loaded) → leave the cell bare
   })
@@ -430,15 +453,30 @@ interface ArchetypeContext {
   rows: number
   /** The user-steered forest layout; only placeForest reads it. */
   layout: ForestLayout
+  /** The active pass's random source. Defaults to `Math.random`; a seeded layer swaps in its own
+   *  `makeRng(seed)` stream so the pass reproduces. EVERY stochastic helper draws from this, never
+   *  from `Math.random` directly, so a pass is pure given its rng. */
+  rand: Rng
 }
 
-const ARCHETYPES: Partial<Record<VariantId, (ctx: ArchetypeContext) => void>> = {
+/** A ctx viewing the same grid through a DIFFERENT random source — the one seam that lets each
+ *  settlement pass run on its own seed while sharing the grid it mutates. */
+const withRand = (ctx: ArchetypeContext, rand: Rng): ArchetypeContext => ({ ...ctx, rand })
+
+const ARCHETYPES: Partial<Record<VariantId, (ctx: ArchetypeContext, rngs: LayerRngs) => void>> = {
   town: placeTown,
   city: placeCity,
   forest: placeForest,
   temple: placeTemple,
   cave: placeCave,
   'boss-stage': placeBossStage,
+}
+
+/** A layer's random source: its own reproducible `makeRng(seed)` when a seed is given, else the
+ *  global `Math.random` (today's behaviour, so a plain generate is unchanged). */
+const layerRng = (seeds: GenerateOptions['seeds'], layer: EngineLayerId): Rng => {
+  const seed = seeds?.[layer]
+  return seed === undefined ? Math.random : makeRng(seed)
 }
 
 export function generateStage(opts: GenerateOptions): StageData {
@@ -455,8 +493,17 @@ export function generateStage(opts: GenerateOptions): StageData {
   const trees: TreeAnchor[] = []
   const compositions: CompositionAnchor[] = []
 
-  const ctx: ArchetypeContext = { zone, ground, collision, buildings, props, trees, compositions, cols, rows, layout }
-  ARCHETYPES[variant]?.(ctx)
+  // One rng per engine layer. When no seeds are supplied they all alias `Math.random`, so the pass
+  // order draws the exact same sequence as before the split — the behaviour-preservation guarantee.
+  const rngs: LayerRngs = {
+    layout: layerRng(opts.seeds, 'layout'),
+    buildings: layerRng(opts.seeds, 'buildings'),
+    nature: layerRng(opts.seeds, 'nature'),
+    decor: layerRng(opts.seeds, 'decor'),
+  }
+  // Single-pass archetypes (forest/cave/temple/boss) read `ctx.rand`; the layout rng is their source.
+  const ctx: ArchetypeContext = { zone, ground, collision, buildings, props, trees, compositions, cols, rows, layout, rand: rngs.layout }
+  ARCHETYPES[variant]?.(ctx, rngs)
   addTerrainTransitions(ctx) // blended shorelines / lava banks over the painted ground
 
   return {
@@ -481,41 +528,71 @@ export function generateStage(opts: GenerateOptions): StageData {
 const NATURE_MULT: Record<Settlement, number> = { town: 1.15, city: 0.4 }
 
 // Hoisted function decls (not const arrows) so ARCHETYPES above can reference them.
-function placeTown(ctx: ArchetypeContext): void {
-  placeSettlement(ctx, 'town')
+function placeTown(ctx: ArchetypeContext, rngs: LayerRngs): void {
+  placeSettlement(ctx, 'town', rngs)
 }
-function placeCity(ctx: ArchetypeContext): void {
-  placeSettlement(ctx, 'city')
+function placeCity(ctx: ArchetypeContext, rngs: LayerRngs): void {
+  placeSettlement(ctx, 'city', rngs)
 }
 
 /**
- * Stamp a settlement from its planned layout: carve the streets, place the typed buildings,
- * add the plaza + lamps, fill nature around. The SAME logic for village/town/city — only the
- * layout scale (roads/buildings) + the nature density differ, both driven by `settlement`.
+ * Compose a settlement from independent, SEEDABLE layer passes (GENERATION-SPEC §"layer passes"):
+ * the layout skeleton → buildings on its plots → decor → nature. Each pass runs on its own rng
+ * (`rngs.<layer>`), so a single layer re-rolls in isolation; run together with aliased `Math.random`
+ * rngs they reproduce today's town exactly. Order is load-bearing: layout carves roads BEFORE
+ * buildings reserve plots, and decor paves the plaza BEFORE nature plants, so no tree lands on the
+ * square — the same order this generator always ran, just named + separable now.
  */
-function placeSettlement(ctx: ArchetypeContext, settlement: Settlement): void {
-  const { buildings, ground, cols, rows } = ctx
-  // 1. PLAN a logical layout (roads + typed plots), then STAMP it (villageLayout.planVillage).
-  const layout = planVillage(cols, rows, Math.random, settlement)
-  // Carve the streets into the ground as walkable path_stone.
+function placeSettlement(ctx: ArchetypeContext, settlement: Settlement, rngs: LayerRngs): void {
+  const layout = layoutPass(withRand(ctx, rngs.layout), settlement)
+  buildingsPass(withRand(ctx, rngs.buildings), layout)
+  decorPass(withRand(ctx, rngs.decor), layout)
+  naturePass(withRand(ctx, rngs.nature), layout, settlement)
+}
+
+/**
+ * LAYOUT pass — the "map without structures nor nature": plan a logical road/plot skeleton + a
+ * central plaza (villageLayout.planVillage) and carve the streets into the ground as the dark-gray
+ * ROAD tile. Returns the plan the later passes build on. This is the layer a "randomize layout only"
+ * re-rolls; the caller then clears buildings + nature so only roads/plots/ground remain.
+ */
+export function layoutPass(ctx: ArchetypeContext, settlement: Settlement): VillageLayout {
+  const { ground, cols, rows } = ctx
+  const layout = planVillage(cols, rows, ctx.rand, settlement)
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
-      if (layout.roads[r][c]) ground[r][c] = 'road' // place the dark-gray ROAD tile (was brown path_stone); brown path_stone is freed for building bases / accents
+      if (layout.roads[r][c]) ground[r][c] = 'road' // dark-gray ROAD tile; brown path_stone freed for building bases / accents
     }
   }
-  // 2. Stamp a building at each plot — each carries its TYPE + FACING. plot.row/plot.col are the
-  //    MIN-ROW/MIN-COL (top-left) of the small `length × depth` footprint rect; placeBuilding blocks
-  //    every footprint cell (a roof from above) EXCEPT the road-facing door cell (walkable).
+  return layout
+}
+
+/**
+ * BUILDINGS pass — stamp one typed composition on each plot the layout reserved. plot.row/plot.col
+ * are the MIN-ROW/MIN-COL of the small `length × depth` footprint rect; placeBuilding blocks every
+ * footprint cell (a roof from above) EXCEPT the road-facing door. The composition KIND is a plot
+ * decision (its type + facade length name house_4 / store_5 …); per-building appearance variety
+ * (material / roof / wall colour) is rolled at load (applyStageToGrid), which is what a
+ * "randomize buildings only" re-rolls.
+ */
+export function buildingsPass(ctx: ArchetypeContext, layout: VillageLayout): void {
+  const { buildings, cols, rows } = ctx
   for (const plot of layout.plots) {
-    // The plot's TYPE + chosen facade LENGTH name a backend composition (house_4, store_5, …); the stamp
-    // (applyStageToGrid → stampBuildingComposition) rotates it to face the road. No frontend composer.
     const kind = buildingCompositionKind(plot.type, plot.length)
     const rect = footprintRect(plot)
     if (!rectInBounds(rect, cols, rows)) continue // planner's rectClear guarantees this; stay safe
     buildings.push(placeBuilding(ctx, plot, rect, kind))
   }
-  // 3. Plaza (well/fountain) + lamps; trees fill the rest, scaled by settlement (cities sparser).
+}
+
+/** DECOR pass — the town SQUARE (well/fountain) + street lamps along the frontages. */
+export function decorPass(ctx: ArchetypeContext, layout: VillageLayout): void {
   villageDecor(ctx, layout)
+}
+
+/** NATURE pass — trees ringing the lots (denser toward the edges) + a light scatter of grass /
+ *  flowers over the open floor. This is the layer a "randomize trees / nature only" re-rolls. */
+export function naturePass(ctx: ArchetypeContext, layout: VillageLayout, settlement: Settlement): void {
   fillVillageNature(ctx, layout, NATURE_MULT[settlement])
   scatterGroundCover(ctx, 0.12) // light grass/flowers; skips paved streets
 }
@@ -539,8 +616,8 @@ function fillVillageNature(ctx: ArchetypeContext, layout: VillageLayout, natureM
   const minDist = 3
   const attempts = Math.floor(cols * rows * 0.5)
   for (let i = 0; i < attempts; i++) {
-    const col = randInt(2, cols - 3)
-    const row = randInt(2, rows - 3)
+    const col = randIntWith(ctx.rand, 2, cols - 3)
+    const row = randIntWith(ctx.rand, 2, rows - 3)
     // The tree's trunk cell must clear PAVED floors (the stone plaza, driveways, roads) AND stay off
     // buildings/roads — a door is walkable, so treeFits alone would happily plant a tree on it. The canopy is
     // walkable overhead, so only the trunk cell is checked.
@@ -552,9 +629,9 @@ function fillVillageNature(ctx: ArchetypeContext, layout: VillageLayout, natureM
     // Denser toward the SIDES — the village sits in a clearing framed by forest left & right — but
     // the INTERIOR stays leafy too (a Pokémon-style town nestled in trees, not bare lots).
     const p = (sideDist < 5 ? 0.82 : edgeDist < 4 ? 0.66 : edgeDist < 9 ? 0.52 : 0.36) * natureMult
-    if (Math.random() > p) continue
+    if (ctx.rand() > p) continue
     if (placed.some(t => Math.abs(t.col - col) < minDist && Math.abs(t.row - row) < minDist)) continue
-    stampTree(ctx, col, row, Math.random() < DEAD_TREE_CHANCE[ctx.zone])
+    stampTree(ctx, col, row, ctx.rand() < DEAD_TREE_CHANCE[ctx.zone])
     placed.push({ col, row })
   }
 }
@@ -1348,8 +1425,8 @@ export function treeColumnClearsPaving(ground: string[][], col: number, baseRow:
  *  driven. The canopy is walkable overhead, so collision here blocks only the trunk cell — matching the stamp. */
 function stampTree(ctx: ArchetypeContext, baseCol: number, baseRow: number, dead = false): void {
   const { collision, zone, trees, cols, rows } = ctx
-  const variant = randInt(0, canopyCount(ASCII_TILESET, zone) - 1) // this tree's canopy tone (green…pink)
-  const kind = dead ? 'tree_dead' : pickLivingTree(Math.random()) // random shape variant (standard/tall/small/round/bush)
+  const variant = randIntWith(ctx.rand, 0, canopyCount(ASCII_TILESET, zone) - 1) // this tree's canopy tone (green…pink)
+  const kind = dead ? 'tree_dead' : pickLivingTree(ctx.rand()) // random shape variant (standard/tall/small/round/bush)
   trees.push({ col: baseCol, row: baseRow, kind, variant })
   if (inBounds(baseCol, baseRow, cols, rows)) collision[baseRow][baseCol] = true // only the trunk cell blocks
 }

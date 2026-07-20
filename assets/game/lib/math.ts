@@ -4,6 +4,23 @@
  * reads the global `Math.random`; `randIntWith` stays pure given a seeded `rng`.
  */
 
+/** A pseudo-random source in `[0, 1)` — the injectable stand-in for the global `Math.random`.
+ *  Passing a SEEDED one (see `makeRng`) makes any consumer reproducible. */
+export type Rng = () => number
+
+/** A deterministic `[0, 1)` generator seeded from one 32-bit integer (mulberry32). The SAME seed
+ *  always yields the SAME stream, so a stage layer re-rolls independently and reproducibly: give a
+ *  layer its own seed and it regenerates identically until that one seed changes. Pure factory. */
+export const makeRng = (seed: number): Rng => {
+  let s = seed >>> 0
+  return () => {
+    s = (s + 0x6d2b79f5) | 0
+    let t = Math.imul(s ^ (s >>> 15), 1 | s)
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
+}
+
 /** Linear interpolation between `a` and `b`: t=0 → a, t=1 → b. */
 export const lerp = (a: number, b: number, t: number): number => a + (b - a) * t
 
