@@ -831,6 +831,18 @@ export function render2D(params: Render2DParams) {
       if (decorImg) {
         drawStyledImage(ctx, decorImg, p.x, baseY - tileH * 0.5, tileW, false, asset.color, tileH)
         hit2D = billboardGeom(tileW, tileH, poseMapper({ x: p.x, y: baseY - tileH * 0.5 }, undefined, tileH))
+      } else if (asset.label && (asset.height ?? 0) >= 1) {
+        // COMPOSITION CELL (tree trunk/canopy, wall, roof, fountain jet, lamp bulb …) — draw its OWN per-label
+        // tile, mirroring iso's label-FIRST seam (iso.ts drawIsoAssetAscii). A composition cell carries a
+        // `label` and `height >= 1` (stampComposition/stampRun); without this branch it resolves the generic
+        // KIND emoji via adv.image (a tree cell → 🌲, since assetKind collapses every tree_* label to 'tree')
+        // and EVERY stacked cell of the composition paints a full element over the one below it — the
+        // "tree on tree" doubling. Keyed on the cell's DATA (label + height), NOT on the tile type, so ANY
+        // composition (tree/building/fountain/lamp) translates into the 2D front elevation exactly like iso —
+        // each cell drawn at its own heightLevel-lifted baseY, composing into one coherent object.
+        draw2DLabeledCell(ctx, p.x, baseY, tileW, tileH, asset, style)
+        const z = asset.scale ?? 1, dw = tileW * (asset.scaleX ?? 1) * z, dh = tileH * (asset.scaleY ?? 1) * z
+        hit2D = billboardGeom(dw, dh, poseMapper({ x: p.x, y: baseY - dh / 2 }, undefined, tileH))
       } else if (adv.image) {
         // A per-asset colour override recolours the baked sprite (#80); undefined → drawn untinted.
         // Per-view tile size (byte-identical when unset: old 1.5 constant), then per-element dims (#77/#78).
