@@ -66,11 +66,16 @@ flowchart LR
 - **ISO grid = BLOCKS** — 3D containers `(col, row, level)`. Stack as many as you want for height/depth.
 - **2D grid = CELLS** — `(col, row)`; **stack cells** to simulate elevation (height). Depth is collapsed.
 - **TOP grid = cells** from above — elevation is not shown.
-- A **cell/block has collision or not** — it blocks movement or it doesn't. Collision **DERIVES from height,
-  uniformly**: a tile that occupies height **> 0 (above ground)** defaults to **blocked**; a tile at height
-  **0 (on the ground/floor)** defaults to **walkable**. Same rule for every tile, art style and composition —
-  there is **no per-type blocking list**. The default is **overridable per cell/block** (the inspector's
-  Blocked/Walkable toggle → `grid.setCollision`), and that override wins.
+- A **cell/block has collision or not** — it blocks movement or it doesn't. **Collision is a per-cell SETTING,
+  NOT derived from anything.** It is **NOT** computed from height (or type, category, label, or art style) —
+  a **4-block-tall projection can be fully walkable**, a **4-block cave entrance** walkable, a **2-block open
+  door** walkable. The user drives it directly via the inspector's **Blocked/Walkable** toggle
+  (`setCellCollision` → `grid.setCollision`) — that setting is the **source of truth** for a cell's collision.
+  When a tile is **painted**, it lands with **ONE uniform default for every tile**: **walkable** (non-blocking).
+  Same default for every tile, height, art style and category — there is **no per-type blocking list and no
+  height→collision rule** anywhere in the paint/insert path. **Height and collision are fully independent:** any
+  height can carry any collision. (A generated/composition cell may carry its **own** authored `walkable` DATA —
+  that is per-cell DATA on the block, not a code branch, so the generator path is unaffected.)
 - A cell/block CAN carry a **draw priority** (`z_index`, CSS-style) — a higher value draws LATER (on top / in
   front), overriding the positional depth sort in every view. It's DATA on the cell (the editor's Z-Index control
   or a seeded default), not a render special-case. **Currently every cell defaults to 0** and sorts positionally —
@@ -86,14 +91,16 @@ flowchart LR
   collision path. The MECHANISM is identical for every tile (*"all tiles behave and are inserted the same in the
   map, regardless of type or art style"*); only the **DATA** each tile carries differs:
   - a **GROUND/FLAT** tile — terrain, a **flower**, a fallen leaf, floor decor, a facade piece — has height
-    **0/min**: in iso it shows on the **floor face** of the block only (no extrusion), and it is **walkable**.
+    **0/min**: in iso it shows on the **floor face** of the block only (no extrusion).
   - a **STANDING** tile — a tree, a rock, a mushroom, a cactus, a crate, a lamp, a building, a prop — has height
-    **≥ 1**: it extrudes into a 3D **block** and **blocks** movement.
-  This is DATA per tile, **not** a category code branch — a data drift on one tile can never reopen a per-type
-  split, because there is no per-type code. A tile's height (and its height-derived collision) can be
-  **overridden per cell/block** in the right sidebar; nothing else — its type/category/style — changes how it
-  inserts. (Terrain is just the height-0 case painted onto the **FLOOR** via `placeGroundTile` rather than
-  stacked, so it shows on the floor face — the same "height 0 = floor face" rule as any other flat tile.)
+    **≥ 1**: it extrudes into a 3D **block**.
+  Height affects only the **extrusion**; it does **NOT** affect collision (see the collision setting above — a
+  tall block is walkable by default just like a flat tile). This is DATA per tile, **not** a category code branch
+  — a data drift on one tile can never reopen a per-type split, because there is no per-type code. A tile's
+  height can be **overridden per cell/block** in the right sidebar, and collision is set independently there via
+  the Blocked/Walkable toggle; nothing else — its type/category/style — changes how it inserts. (Terrain is just
+  the height-0 case painted onto the **FLOOR** via `placeGroundTile` rather than stacked, so it shows on the
+  floor face — the same "height 0 = floor face" rule as any other flat tile.)
 - A cell/block CAN carry a **`shape`** render setting (`square` default | `circle`) — DATA on the cell
   (`composition_cells.settings.shape` or a per-instance editor setting), never a render special-case.
   **`shape: circle` takes the SAME cuboid and BENDS ITS CORNERS ROUND**, NOT a repainted sphere (Alexander:
