@@ -10,53 +10,62 @@ import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 import { EMOJI_TILESET } from '@/engine/tileset/emojiTileset'
 import { assetKind } from '@/game/artStyle'
 
-type Cell = { dx: number; dy: number; level: number; label: string }
+type Cell = { dx: number; dy: number; level: number; label: string; settings?: { scaleY?: number } }
 const comp = (name: string) => resolveComposition(ASCII_TILESET, name)!
 
-// The FRONT face (max-dy row wins) label at each (dx, level) — what the 2D front elevation reads.
-function frontLabel(cells: Cell[], dx: number, level: number): string | null {
-  const at = cells.filter(c => c.dx === dx && c.level === level)
-  if (at.length === 0) return null
-  return at.reduce((a, b) => (b.dy > a.dy ? b : a)).label
+// A minimal-cell (#30) building authors a same-tile vertical RUN as ONE cell sized settings.scaleY = span,
+// so a cell at `level` with scaleY = n covers levels level..level+n-1. Expand so a per-level read still works.
+function levelsOf(c: Cell): number[] {
+  const span = Math.max(1, Math.trunc(c.settings?.scaleY ?? 1))
+  return Array.from({ length: span }, (_, i) => c.level + i)
 }
+// The label on a FACE (front = max-dy, back = min-dy) at (dx, level), scaleY-span aware, or null.
+function faceLabel(cells: Cell[], face: 'front' | 'back', dx: number, level: number): string | null {
+  const at = cells.filter(c => c.dx === dx && levelsOf(c).includes(level))
+  if (at.length === 0) return null
+  return at.reduce((a, b) => ((face === 'front' ? b.dy > a.dy : b.dy < a.dy) ? b : a)).label
+}
+// The FRONT face label — what the 2D front elevation reads (kept for the storefront/roof assertions below).
+const frontLabel = (cells: Cell[], dx: number, level: number) => faceLabel(cells, 'front', dx, level)
 const isWindow = (l: string | null) => l != null && l.startsWith('window')
 const isWall = (l: string | null) => l != null && l.startsWith('wall')
+// A window shows at (dx, level) if EITHER face carries one — some buildings window the front only, others
+// front+back; the centred door only ever suppresses the middle columns, so the union stays symmetric.
+const windowAt = (cells: Cell[], dx: number, level: number) =>
+  isWindow(faceLabel(cells, 'front', dx, level)) || isWindow(faceLabel(cells, 'back', dx, level))
 
 describe('sample compositions — realistic building/fountain/tree DATA from the backend', () => {
-  describe('THE window-grid rule: windows are SPACED + vertically aligned, never a solid band', () => {
-    for (const name of ['house_3', 'house_4', 'house_5', 'office_5']) {
-      test(`${name}: window columns are spaced (no two adjacent) and aligned across floors`, () => {
+  describe('THE window-grid rule (#31): windows are BILATERALLY SYMMETRIC, edge-walled, aligned across floors', () => {
+    for (const name of ['house_3', 'house_4', 'house_5', 'office_5', 'hospital_6', 'big_house_6', 'temple_8', 'cathedral_7', 'castle_12', 'stone_building']) {
+      test(`${name}: windows mirror across the centreline, never at the bare edge, aligned across floors`, () => {
         const c = comp(name)
         const w = c.footprint.w
         const cells = c.cells as Cell[]
-        const levels = [...new Set(cells.map(x => x.level))].sort((a, b) => a - b)
-
-        // The window LEVELS (floors that carry any front window).
-        const windowLevels = levels.filter(lv => Array.from({ length: w }, (_, dx) => frontLabel(cells, dx, lv)).some(isWindow))
+        const maxLevel = Math.max(...cells.flatMap(levelsOf))
+        const windowColsAt = (lv: number) => Array.from({ length: w }, (_, dx) => dx).filter(dx => windowAt(cells, dx, lv))
+        const windowLevels = Array.from({ length: maxLevel + 1 }, (_, lv) => lv).filter(lv => windowColsAt(lv).length > 0)
         expect(windowLevels.length).toBeGreaterThanOrEqual(2) // multiple floors have windows
 
-        const windowColsAt = (lv: number) =>
-          Array.from({ length: w }, (_, dx) => dx).filter(dx => isWindow(frontLabel(cells, dx, lv)))
+        const topCols = windowColsAt(windowLevels[windowLevels.length - 1])
+        expect(topCols.length).toBeGreaterThanOrEqual(1)
 
         for (const lv of windowLevels) {
           const cols = windowColsAt(lv)
-          // NOT a solid band — at least one non-window column sits between windows on this floor.
-          expect(cols.length).toBeLessThan(w)
-          // SPACED — no two window columns are adjacent (a wall pier separates them).
-          for (let i = 1; i < cols.length; i++) expect(cols[i] - cols[i - 1]).toBeGreaterThanOrEqual(2)
+          // BILATERAL SYMMETRY — every window column is mirrored by w-1-dx across the centreline.
+          for (const dx of cols) expect(cols).toContain(w - 1 - dx)
+          // EDGES ARE WALLS — a window is never at the bare edge (min unit is wall·window·wall).
+          expect(cols).not.toContain(0)
+          expect(cols).not.toContain(w - 1)
+          expect(isWall(faceLabel(cells, 'back', 0, lv))).toBe(true)
+          expect(isWall(faceLabel(cells, 'back', w - 1, lv))).toBe(true)
+          // ALIGNED — every window column stacks (subset of the top floor's set), never a wandering column.
+          expect(cols.every(dx => topCols.includes(dx))).toBe(true)
         }
 
-        // ALIGNED — every window sits in the SAME vertical columns (a window above a window). The
-        // topmost floor carries the full set; lower floors are a subset (the ground floor's centred
-        // door replaces the window in the door column), never a window in a NEW/wandering column.
-        const topCols = windowColsAt(windowLevels[windowLevels.length - 1])
-        expect(topCols.length).toBeGreaterThanOrEqual(1)
-        for (const lv of windowLevels) expect(windowColsAt(lv).every(dx => topCols.includes(dx))).toBe(true)
-
-        // WALL BETWEEN FLOORS — between two window floors there is a level with walls in those columns.
+        // WALL COURSE BETWEEN FLOORS — between two window floors there is a level with walls in those columns.
         for (let i = 1; i < windowLevels.length; i++) {
           const between = windowLevels[i - 1] + 1
-          expect(topCols.every(dx => isWall(frontLabel(cells, dx, between)))).toBe(true)
+          if (between < windowLevels[i]) expect(topCols.every(dx => isWall(faceLabel(cells, 'back', dx, between)))).toBe(true)
         }
       })
     }
@@ -211,13 +220,15 @@ describe('sample compositions — realistic building/fountain/tree DATA from the
     // PIECES — all four edges + all four corners present (autotiled front face, not one fill).
     for (const p of ['wall_stone_t', 'wall_stone_b', 'wall_stone_l', 'wall_stone_r', 'wall_stone_tl', 'wall_stone_tr', 'wall_stone_bl', 'wall_stone_br'])
       expect(labels.has(p)).toBe(true)
-    // A spaced window GRID (never a solid band), a door, and a GABLE roof (ridge/apex piece).
-    const front = (dx: number, level: number) => frontLabel(cells, dx, level)
-    const winLevels = [...new Set(cells.map(x => x.level))].filter(lv => Array.from({ length: 5 }, (_, dx) => front(dx, lv)).some(isWindow))
+    // A SYMMETRIC window GRID (#31 — mirror across the centreline, edges walls), a door, and a GABLE roof.
+    const maxLevel = Math.max(...cells.flatMap(levelsOf))
+    const winLevels = Array.from({ length: maxLevel + 1 }, (_, lv) => lv).filter(lv => Array.from({ length: 5 }, (_, dx) => dx).some(dx => windowAt(cells, dx, lv)))
     expect(winLevels.length).toBeGreaterThanOrEqual(1)
     for (const lv of winLevels) {
-      const cols = Array.from({ length: 5 }, (_, dx) => dx).filter(dx => isWindow(front(dx, lv)))
-      for (let i = 1; i < cols.length; i++) expect(cols[i] - cols[i - 1]).toBeGreaterThanOrEqual(2) // spaced
+      const cols = Array.from({ length: 5 }, (_, dx) => dx).filter(dx => windowAt(cells, dx, lv))
+      for (const dx of cols) expect(cols).toContain(5 - 1 - dx) // bilaterally symmetric
+      expect(cols).not.toContain(0) // edge is a wall
+      expect(cols).not.toContain(4)
     }
     expect(labels.has('door')).toBe(true)
     expect(labels.has('roof')).toBe(true)

@@ -28,14 +28,17 @@ describe('a stamped building composition fronts its road (door on the facing edg
       const grid = mkGrid()
       stampBuildingComposition(grid, 'house', SIZE, ANCHOR, ANCHOR, 'spring', facing)
       const doorTiles = grid.assets.filter(a => a.label === 'door')
-      // The door is 1 wide × 2 tall (a 1×2 centred entrance) → TWO stacked door cells in ONE column.
+      // house_4 is EVEN-width → a centred 2-WIDE door (2 columns). Each 2-tall column is ONE collapsed
+      // scaleY block seated on the ground (heightLevel 0) — the minimal-cell rebuild (#30).
       expect(doorTiles.length).toBeGreaterThanOrEqual(1)
-      expect(new Set(doorTiles.map(d => `${d.col},${d.row}`)).size).toBe(1) // one door COLUMN
-      const door = doorTiles.find(d => (d.heightLevel ?? 0) === 0)! // the GROUND door (the entrance)
-      expect(door).toBeDefined()
-      expect(doorOnEdge[facing](door.col, door.row)).toBe(true) // on the correct road-facing edge
-      expect(door.heightLevel ?? 0).toBe(0) // seats on the ground so it meets the entrance
-      expect(grid.collision[door.row]?.[door.col]).toBeFalsy() // the door cell stays WALKABLE (the way in)
+      expect(doorTiles.every(d => (d.heightLevel ?? 0) === 0)).toBe(true) // every door column is one ground block
+      const cols = new Set(doorTiles.map(d => `${d.col},${d.row}`))
+      expect(cols.size).toBeGreaterThanOrEqual(1)
+      expect(cols.size).toBeLessThanOrEqual(2) // 1 (odd width) or 2 (even width, centred) door columns
+      for (const door of doorTiles) {
+        expect(doorOnEdge[facing](door.col, door.row)).toBe(true) // on the correct road-facing edge
+        expect(grid.collision[door.row]?.[door.col]).toBeFalsy() // the door cell stays WALKABLE (the way in)
+      }
     })
   }
 })
