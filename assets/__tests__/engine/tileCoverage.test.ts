@@ -14,7 +14,7 @@
  * the gaps into a list and asserts it is empty, so a RED run prints the full authoritative gap set.
  *
  * Enumerations are pulled from the real sources (CELL_LABELS, ZONE_PALETTES, MULTI_CELL_ASSETS,
- * ABILITY_TINT, entityTiles.json, ENEMY_TILE_BY_TYPE) — not a guessed subset. The handful that
+ * ABILITY_TINT, the backend entity resolution, enemyTileId) — not a guessed subset. The handful that
  * cannot be imported (inline `type:` string literals in stageGenerator, the projectile glyphs that
  * are private to combat.ts) are listed verbatim with a source citation.
  */
@@ -29,18 +29,21 @@ import {
   entityKind,
   enemyTileId,
   personVariantTileId,
-  ENEMY_TILE_BY_TYPE,
   type ElementKind,
 } from '@/game/artStyle'
 import { EMOJI_TILESET, setEmojiTileset, type EmojiTile } from '@/engine/tileset/emojiTileset'
 import { rebuildEmojiStyle } from '@/game/artStyle'
+import { installEntityPayload } from '@/engine/entity/entityLoader'
+import { getEntityResolution } from '@/engine/entity/entityResolution'
 import { glyphImageVisual } from '@/engine/render/shared'
 
 import { CELL_LABELS } from '@/engine/cellLabels'
 import { ZONE_PALETTES } from '@/engine/zones'
 import { MULTI_CELL_ASSETS } from '@/engine/multiCellAssets'
 import { ABILITY_TINT } from '@/game/abilities'
-import ENTITY_TILES from '@/game/data/entityTiles.json'
+// The entity resolution the runtime installs from `/api/entities` — a captured fixture of that endpoint's
+// payload (the shape EntitySource serves), installed the SAME way the loader installs it.
+import ENTITIES_FIXTURE from '@/__tests__/fixtures/entities.json'
 import type { EntityVariant } from '@/game/types'
 
 // ── load the SEED the running game loads from the DB (emoji row) ──────────────────────────────
@@ -58,6 +61,7 @@ function loadSeed(): Record<string, EmojiTile> {
 beforeAll(() => {
   setEmojiTileset(loadSeed())
   rebuildEmojiStyle()
+  installEntityPayload(ENTITIES_FIXTURE.data) // install the backend-served entity resolution
 })
 
 // ── helpers ───────────────────────────────────────────────────────────────────────────────────
@@ -93,8 +97,8 @@ const GROUND_TYPES: string[] = Array.from(new Set([
   'lava',
 ]))
 
-const ENEMY_TYPES: string[] = Object.keys(ENTITY_TILES.enemyTypeSlug)
-const PERSON_VARIANTS: string[] = Object.keys(ENTITY_TILES.variantSlug)
+const ENEMY_TYPES: string[] = Object.keys(ENTITIES_FIXTURE.data.enemyTypeSlug)
+const PERSON_VARIANTS: string[] = Object.keys(ENTITIES_FIXTURE.data.variantSlug)
 
 // The weapon tiles the seed carries (drawn in-hand via drawPoseGlyph → glyphTileImage by CHAR).
 const WEAPON_KINDS: string[] = ['sword', 'axe', 'bow', 'gun', 'staff', 'shield', 'fist']
@@ -148,8 +152,8 @@ describe('tile coverage guardrail — every world identifier resolves to an IMAG
       return !id || resolveVisual('enemy', EMOJI_STYLE, id).kind !== 'image'
     })
     expect(gaps).toEqual([])
-    // and the map itself is populated
-    expect(Object.keys(ENEMY_TILE_BY_TYPE).length).toBeGreaterThan(0)
+    // and the installed resolution map itself is populated (came from the backend, not bundled)
+    expect(Object.keys(getEntityResolution().enemyTypeSlug).length).toBeGreaterThan(0)
   })
 
   it('every PERSON VARIANT resolves to an image tile', () => {

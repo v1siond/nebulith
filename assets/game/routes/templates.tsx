@@ -53,6 +53,7 @@ import { useRouter } from 'next/router'
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
 import { render, render2D, renderTopView, clampCameraAxis, isoCameraFocus, entityMotion, ENEMY_MOVE_MS, isDebugMode, setDebugMode, isShowCollisions, setShowCollisions as setCollisionsFlag, cellCaptionMap, pickIsoTilesAt, pickTwoDTilesAt, isoRecordedGeom, twoDRecordedGeom, nextPickIndex, ISO_BLOCK_H_FRAC, depthCells, tileGeomPolygon, tileGeomCentroid, tileHandlePoints, handleAtPoint, dragOutwardPx, scaleFromDrag, depthFromDrag, drawTileHandles, polyBBox, HANDLE_HIT_RADIUS, type TileHandle, type HandleId, type CompositionGhost, type DayNight, type DepthDir } from '@/engine/render'
 import { loadTilesetsFromBackend, saveTilesetToBackend } from '@/engine/tileset/tilesetLoader'
+import { loadEntitiesFromBackend } from '@/engine/entity/entityLoader'
 import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 import { EMOJI_TILESET, setTilePose } from '@/engine/tileset/emojiTileset'
 import { type TilePose } from '@/engine/tileset/pose'
@@ -480,14 +481,16 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   const tilesetReadyRef = useRef(false) // live flag the gameLoop reads each frame (mirrors tilesetReady)
   useEffect(() => { tilesetReadyRef.current = tilesetReady }, [tilesetReady])
 
-  // Fetch + install the tilesets from the nebulith Elixir backend — the ONLY source of runtime tiles. On
-  // success (>=1 style installed) we open the gate; on an empty/failed load we surface the error state (a
-  // retry) and keep the render gated. We NEVER fall back to frontend tiles.
+  // Fetch + install the backend DATA the render needs — the tilesets (the ONLY source of runtime tiles)
+  // AND the entity resolution (enemyType/variant → baked slug). BOTH must install before the gate opens:
+  // the render resolves entities in the same pass, so opening on tiles alone would flash enemies with no
+  // per-type figure. On an empty/failed load of EITHER we surface the error state (a retry) and keep the
+  // render gated. We NEVER fall back to frontend data.
   const loadTiles = useCallback(() => {
     setTilesetError(false)
-    loadTilesetsFromBackend()
-      .then((loaded) => {
-        if (loaded.length === 0) { setTilesetError(true); return }
+    Promise.all([loadTilesetsFromBackend(), loadEntitiesFromBackend()])
+      .then(([loaded, entitiesLoaded]) => {
+        if (loaded.length === 0 || !entitiesLoaded) { setTilesetError(true); return }
         // Build the Tile-composition palette from the just-loaded tileset — EVERY composition the backend
         // serves (buildings + trees + fountains + lamp posts…), grouped for the panel. Data-driven, so a new
         // backend composition appears in the palette with no frontend change.

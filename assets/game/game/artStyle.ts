@@ -22,10 +22,11 @@
 // ── element kinds (the vocabulary a Style maps) ──────────────────────────
 import { EMOJI_TILESET } from '@/engine/tileset/emojiTileset'
 import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
-// The single source for the BAKED entity/person/enemy tiles (slug → glyph) + the resolution maps
-// (enemyType → slug, variant → slug). The bake script (scripts/bake-entity-tiles.mjs) reads the SAME
-// file, so the baked PNGs and the images wired here can never drift.
-import ENTITY_TILES from '@/game/data/entityTiles.json'
+// The BAKED entity/person/enemy resolution (which baked slug an enemyType / variant draws) is backend
+// DATA fetched from `GET /api/entities` and installed into this holder — the frontend holds none of it.
+// Read LIVE at call time so the resolvers below see the installed map (empty pre-load → the entity falls
+// back to its base figure; the render is gated on the install, so that empty state never paints).
+import { getEntityResolution } from '@/engine/entity/entityResolution'
 import type { EntityVariant } from '@/game/types'
 
 export type ElementKind =
@@ -140,17 +141,15 @@ export function genderize(char: string, variant?: EntityVariant): string {
 }
 
 // ── baked entity/variant tiles (people + typed enemies as IMAGES) ──────────
-// The baked slug set + the resolution maps come from ONE data file (entityTiles.json), shared with the
-// bake script so a slug can never be wired to a PNG that wasn't baked.
-const ENTITY_TILE_DIR: string = ENTITY_TILES.dir
-const BAKED_ENTITY_SLUGS = ENTITY_TILES.tiles as Readonly<Record<string, string>>
-const VARIANT_SLUG = ENTITY_TILES.variantSlug as Readonly<Record<string, string>>
+// The baked slug set + the resolution maps are BACKEND DATA (getEntityResolution) installed from
+// `/api/entities`, so a slug can never be wired to a PNG the backend didn't declare baked.
 
 /** The baked PNG for an entity slug (goblin / man / robot …), or undefined when nothing was baked for
  *  it — so a catalog tile whose glyph the font couldn't rasterise stays a glyph instead of pointing at
- *  a missing image. A path under /public, so it's static, always-served data (no DB needed). */
+ *  a missing image. The `dir` prefix is served by the backend alongside the slug set. */
 export function bakedEntityImage(slug: string): string | undefined {
-  return slug in BAKED_ENTITY_SLUGS ? `${ENTITY_TILE_DIR}/${slug}.png` : undefined
+  const { dir, tiles } = getEntityResolution()
+  return slug in tiles ? `${dir}/${slug}.png` : undefined
 }
 
 
@@ -159,7 +158,7 @@ export function bakedEntityImage(slug: string): string | undefined {
  *  baked tile — all of which fall back to the BASE figure (never a raw glyph). Mirrors enemyTileId. */
 export function personVariantTileId(variant: EntityVariant | undefined, style: Style): string | undefined {
   if (style.id === 'ascii' || !variant) return undefined
-  const slug = VARIANT_SLUG[variant]
+  const slug = getEntityResolution().variantSlug[variant]
   return slug && bakedEntityImage(slug) ? `emoji:${slug}` : undefined
 }
 
@@ -283,20 +282,14 @@ export function entityKind(kind: string): ElementKind {
   return 'enemy'
 }
 
-/** enemyType → catalog tile id, so a wolf draws 🐺 and a skeleton 💀 instead of every enemy sharing the
- *  generic 👾. Derived from entityTiles.json's enemyType→slug map (the same data the bake reads), so the
- *  id always points at a baked tile. Keyed on the lowercase enemyType tag; unmapped types fall back to 👾. */
-export const ENEMY_TILE_BY_TYPE: Readonly<Record<string, string>> = Object.fromEntries(
-  Object.entries(ENTITY_TILES.enemyTypeSlug as Readonly<Record<string, string>>).map(
-    ([type, slug]) => [type, `emoji:${slug}`],
-  ),
-)
-
-/** The per-type tile OVERRIDE for an enemy under a reskin style — so goblin→👺, wolf→🐺, etc. Returns
- *  undefined for ASCII (its enemies stay block-figures) and for unmapped/blank types (→ the base 👾). */
+/** The per-type tile OVERRIDE for an enemy under a reskin style — so goblin→👺, wolf→🐺, etc. Reads the
+ *  backend-served enemyType→slug map (getEntityResolution) so the id always points at a baked tile, keyed
+ *  on the lowercase enemyType tag. Returns undefined for ASCII (its enemies stay block-figures) and for
+ *  unmapped/blank types (→ the base 👾). */
 export function enemyTileId(enemyType: string | undefined, style: Style): string | undefined {
   if (style.id === 'ascii' || !enemyType) return undefined
-  return ENEMY_TILE_BY_TYPE[enemyType.toLowerCase()]
+  const slug = getEntityResolution().enemyTypeSlug[enemyType.toLowerCase()]
+  return slug ? `emoji:${slug}` : undefined
 }
 
 // ── the Tile Library catalog (what the modal lists + what an override points at) ──
