@@ -132,3 +132,52 @@ the 4 inputs. Expand archetypes/themes incrementally; make robust over time.
 
 Depends on a usable editor (the UI rebuild) to author/preview, and feeds the AI generator later
 (the generator produces art for these same labeled structures).
+
+---
+
+## 5. Layer-pass architecture (the macro/micro randomize foundation) — SHIPPED 2026-07
+
+The stage generator is built from independent, **seedable LAYER passes** rather than one monolithic
+pass, so the user can randomize the whole map OR just one layer ("randomize the map… only trees…
+only buildings… just the MAP which contains the distribution of things without actual structures").
+This is the foundation for the editor's scoped **Generate ▾** randomize (macro) and the selection
+re-roll (micro).
+
+### 5.1 The layers (`stageGenerator.ts` `LayerId` / `LAYER_IDS`)
+
+| Layer | Pass | What it owns |
+|-------|------|--------------|
+| **layout** | `layoutPass(ctx, settlement) → VillageLayout` | terrain/ground distribution + roads + plots + plaza — the "map without structures nor nature" |
+| **buildings** | `buildingsPass(ctx, layout)` | one typed composition stamped per plot (kind is a plot decision; appearance variety is rolled at load) |
+| **nature** | `naturePass(ctx, layout, settlement)` | trees / bushes / flowers / ground cover |
+| **decor** | `decorPass(ctx, layout)` | plaza centrepiece (well/fountain) + street lamps |
+| **units** | *(editor)* | enemy/npc scatter — owned by the editor's entity store, not the generator |
+
+### 5.2 Seeding contract (`makeRng`, `GenerateOptions.seeds`)
+
+- Every stochastic helper draws from **`ctx.rand`** (a `Rng = () => number`), never `Math.random`
+  directly, so a pass is **pure given its rng**.
+- `generateStage({ …, seeds })` takes an optional **per-layer seed**. A layer with a seed draws from
+  a reproducible `makeRng(seed)` (mulberry32) stream; a layer left out draws from the global
+  `Math.random`. **Omitting `seeds` entirely reproduces the pre-split generator byte-for-byte** — the
+  behaviour-preservation guarantee (locked by `stageGenerator.layers.test.ts`'s seeded digest
+  baselines).
+- **Re-roll one layer** = change only that layer's seed and regenerate: the other layers, fed the same
+  seeds, reproduce identically, so only the re-rolled layer changes.
+
+### 5.3 Order is load-bearing
+
+`placeSettlement` composes the passes **layout → buildings → decor → nature** (the same order the
+generator always ran): layout carves roads before buildings reserve plots, and **decor paves the
+plaza before nature plants** so no tree lands on the square. The `LayerId` list orders layout,
+buildings, nature, decor, units for the *menu*; the settlement *executes* decor before nature.
+
+### 5.4 Honest scope (what has real generator randomness)
+
+Only **layout** and **nature** carry stochastic generator RNG today. **buildings** and **decor** are
+deterministic from the layout (a building's kind comes from its plot; the plaza variant from
+settlement size) — their visible re-roll is an **appearance** re-roll (material / roof / wall colour)
+performed at load in the editor's `applyStageToGrid`, not new generator geometry. **units** are an
+editor entity concern. The non-settlement archetypes (forest / cave / temple / boss) remain
+single whole-map generators reading `ctx.rand` (seeded via the layout rng); they are not decomposed
+into these layers.

@@ -213,6 +213,41 @@ is any multi-cell template the DB serves, and the tool now places **every one th
   → cheap. Drawn in the iso view (`drawCompositionGhostIso`) and the top-down view (`drawCompositionGhostFlat`);
   the 2D front-elevation view omits it (a col/row footprint doesn't map onto a side elevation).
 
+## Randomize — macro (per-layer) + micro (selection) — SHIPPED 2026-07
+
+The randomizer is scoped, not all-or-nothing (user: "randomize every stage… only trees… only buildings…
+just the MAP without structures nor nature… single/set of units/tiles/compositions… randomize the
+animation for a unit"). It has two slices, both built on the generator's seedable **layer passes**
+(see `GENERATION-SPEC.md` §5).
+
+### Macro — the `⚡ Generate ▾` menu (`GenerateControls`)
+Below the whole-map variant buttons, a **"Randomize just one layer — keeps the rest of the map"** row:
+**Layout only · Buildings · Trees / Nature · Decor · Units**. Every full generate captures a per-layer
+**seed set** (`lastGenRef`); clicking a layer re-rolls ONLY that layer's seed and regenerates — the
+untouched layers, fed the same seeds, reproduce, so visually only the picked layer moves:
+- **Layout only** — new streets + plots, structures and nature stripped (`stripToLayout`): the bare map.
+- **Trees / Nature only** — new trees/flowers, buildings + roads untouched.
+- **Buildings** — repaint the buildings in place (fresh materials + roof/wall tones via an
+  `applyStageToGrid` salt); geometry is a plot decision, so it stays put. *Visible in ISO/2D, not in the
+  flat top view (top shows the roof cap).*
+- **Units** — re-scatter the enemies/townsfolk; the map is untouched.
+- **Decor** — re-roll the plaza + lamps.
+
+Non-settlement archetypes (forest/cave/temple/boss) aren't decomposed into layers, so any scope there
+re-rolls the whole archetype via its layout rng. Debug seam: `window.__randomizeLayer(layer)`.
+
+### Micro — "🎲 Randomize selected" (Inspector button + `R` hotkey)
+With a selection, re-roll ONLY the selection's random attributes (`randomizeSelected`); nothing else on
+the map moves (proven: 0 pixels change outside the selection). Works for one or many.
+- **Tile(s)** → a new colour from the tile's OWN role palette (rock shades / mushroom tones / the zone's
+  flowers, else a tonal variant of its own tone) + a chance to flip the render shape (cube ↔ ball). Never
+  an arbitrary value — only attributes the backend data legitimises.
+- **Unit** → a different figure variant (npcs) + a fresh wander animation (`randomMovementAnimation`); the
+  player is left alone.
+
+The button sits at the top of the cell inspector ("Randomize selected (N)") and the unit inspector
+("Randomize unit"). Debug seam: `window.__randomizeSelected()`.
+
 ## Build order (after the current quest/inventory wiring)
 1. Composite asset scaling + persistence/render (§6) — concrete bug.
 2. UI reorg (§5) — top nav + expandable assets + right-side connectors/entities/selection.
