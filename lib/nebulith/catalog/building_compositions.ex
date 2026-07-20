@@ -5,15 +5,28 @@ defmodule Nebulith.Catalog.BuildingCompositions do
   TILE-BACKEND-MIGRATION §4). NOT a procedural unit.
 
   Each entry is a footprint (`footprint_w` × `footprint_h`, south-facing) + one
-  `composition_cells` row per stacked tile: `{dx, dy, level, label, walkable}`.
+  `composition_cells` row per tile: `{dx, dy, level, label, walkable, settings}`.
   Labels are wall/window/door/roof/roof_top. A cell's collision follows its ground
   block (a wall blocks; a door/interior is walkable), so every tile in a cell shares
   its walkability. Rotation to face a road happens at STAMP time (frontend), so only
   the south facing is stored.
 
-  GENERATED, do not hand-edit: produced by baking the frontend render pipeline
-  (composeBuilding → buildingCellTiles) once per (type,length) generation uses, so a
-  stamped composition matches what the three views drew before buildings became data.
+  ## Two authoring rules (tickets #30 + #31)
+
+  **Symmetric facades (#31).** Windows are a BILATERALLY SYMMETRIC grid — `window?/2`
+  places a window only where the distance to the nearer facade edge is ODD, so the two
+  edge columns are ALWAYS walls (a window is never at the bare edge), the pattern mirrors
+  across the centreline, and the smallest window-bearing facade is `wall·window·wall`.
+  Windows sit on the same columns on every floor (vertically aligned). The DOOR is centred
+  (`door_cols/1` — one column for odd widths, a 2-wide centred opening for even widths). The
+  ROOF is one consistent colour (`roof`/`roof_top` share it, or the slate pair for masonry).
+
+  **Minimal cells (#30).** Each vertical RUN of the same tile in a column is authored as ONE
+  cell sized `settings.scaleY = span` (a 4-tall wall pier → 1 cell, not 4 stacked). This is
+  render-IDENTICAL to the old per-level stack — the frontend already draws a collapsed run as a
+  single `scaleY` block (MAP-MODEL §4, height is per-tile DATA read uniformly) — so authoring it
+  pre-collapsed only shrinks the stored cell count, never the look. A window/door breaks the run
+  (its own label) and stays its own block, so the spaced grid is preserved.
   """
 
   # Per-composition TYPE-SPECIFIC tile remaps — today ONLY store's apex badge. Every building is now box-BUILT
@@ -55,117 +68,158 @@ defmodule Nebulith.Catalog.BuildingCompositions do
     end
   end
 
-  # ── Composition BUILDER (spaced-window realism) ────────────────────────────
+  # ── Facade GRAMMAR (symmetric windows + centred door) ──────────────────────
   # house/store/office/civic are AUTHORED from a compact facade spec, not a hand-listed cell dump, so the
-  # realism rule is explicit in code. Every building is the SAME shape: a perimeter WALL box whose
-  # FRONT/BACK faces carry the door + a SPACED WINDOW GRID — window, wall, window … on EVEN columns,
-  # vertically aligned across floors (never a solid band, never every cell — TILESET-AUTHORING §25) — capped
-  # by a roof (gable or flat). Interior columns hold only the roof VOLUME so ISO reads a solid roof; 2D
-  # collapses depth onto the front face (MAP-MODEL §2-3). EVERY building — hospital included — is box-built
-  # this way now; identity (plaster + green roof, slate gable, …) rides in as the builder's material args.
+  # symmetric-realism rule is explicit in code. Every building is the SAME shape: a perimeter WALL box whose
+  # FRONT/BACK faces carry a BILATERALLY SYMMETRIC window grid (`window?`), a CENTRED door on the front
+  # (`door_cols`), capped by a roof (gable or flat). Interior columns hold only the roof VOLUME so ISO reads a
+  # solid roof; 2D collapses depth onto the front face (MAP-MODEL §2-3). EVERY building — hospital included —
+  # is box-built this way; identity (plaster + green roof, slate gable, …) rides in as the builder's material
+  # args.
 
   defp cell(dx, dy, level, label, walkable),
     do: %{dx: dx, dy: dy, level: level, label: label, walkable: walkable}
 
-  # EVEN columns (0, 2, 4 …) are window columns → the spaced grid.
-  defp window_col?(dx), do: rem(dx, 2) == 0
+  # A FACADE WINDOW column (#31): bilaterally symmetric about the centreline, edges ALWAYS walls. A window sits
+  # where the distance to the nearer edge is ODD — so col 0 / w-1 (distance 0) stay walls, a window at col `dx`
+  # is mirrored by one at `w-1-dx` (their edge-distances are equal), and the smallest window-bearing facade is
+  # `wall·window·wall` (w=3). Widths whose two centre columns share an odd edge-distance carry a centred
+  # `window·window` pair (the blessed symmetric double, TILESET-AUTHORING §25); the rest alternate window/wall.
+  defp window?(dx, w), do: dx > 0 and dx < w - 1 and rem(min(dx, w - 1 - dx), 2) == 1
+
+  # The DOOR is CENTRED on the facade (#31): a single centre column for odd widths, a centred 2-wide opening
+  # for even widths (so an even facade reads symmetric AND the entrance meets the ≥2-wide door rule,
+  # GENERATION-SPEC §1). Returned as the set of door columns.
+  defp door_cols(w) when rem(w, 2) == 1, do: [div(w, 2)]
+  defp door_cols(w), do: [div(w, 2) - 1, div(w, 2)]
 
   defp perimeter?(dx, dy, w, h), do: dx == 0 or dx == w - 1 or dy == 0 or dy == h - 1
 
-  # Build the wall box: for every PERIMETER cell, stack levels 0..wall_top labelled by `facade_fun`.
-  # The door column is walkable end-to-end (you pass through the doorway); every other facade cell
-  # blocks. Roof cells come from `roof_cells`.
-  defp assemble(w, h, wall_top, door_col, facade_fun, roof_cells) do
+  # Build the wall box: for every PERIMETER column, collapse levels 0..wall_top (labelled by `facade_fun`) into
+  # the FEWEST cells (`wall_column`). The door column is walkable end-to-end (you pass through the doorway);
+  # every other facade column blocks. Roof cells come from `roof_cells`.
+  defp assemble(w, h, wall_top, doors, facade_fun, roof_cells) do
     walls =
-      for dy <- 0..(h - 1),
-          dx <- 0..(w - 1),
-          perimeter?(dx, dy, w, h),
-          level <- 0..wall_top do
-        cell(dx, dy, level, facade_fun.(dx, dy, level), dx == door_col)
+      for dy <- 0..(h - 1), dx <- 0..(w - 1), perimeter?(dx, dy, w, h) do
+        wall_column(dx, dy, wall_top, dx in doors, facade_fun)
       end
 
-    %{footprint_w: w, footprint_h: h, cells: walls ++ roof_cells}
+    %{footprint_w: w, footprint_h: h, cells: List.flatten(walls) ++ roof_cells}
   end
 
-  # A GABLE roof (houses): a triangular stack whose height per column falls off from the centre
-  # (peak ≤3). Every column gets the eave course; inner columns rise to the ridge; the centre-back
-  # apex is the `roof_top` cap. Perimeter roof caps block; the interior roof volume is walkable.
-  # `roof`/`roof_top` name the roof MATERIAL — default red gable, or the slate pair for stone buildings.
+  # ONE perimeter column, MINIMAL-CELL (#30): walk levels 0..wall_top labelling each with `facade_fun`, then
+  # group each RUN of the same tile into a single `scaleY`-sized cell. A window/door has its own label, so it
+  # breaks the run and stays its own block — the spaced window grid survives the collapse.
+  defp wall_column(dx, dy, wall_top, walkable, facade_fun) do
+    0..wall_top
+    |> Enum.map(fn level -> {level, facade_fun.(dx, dy, level)} end)
+    |> collapse_runs(dx, dy, walkable)
+  end
+
+  # Group consecutive same-label levels into runs → one cell per run at the run's base level, `scaleY` = span.
+  defp collapse_runs(levels, dx, dy, walkable) do
+    levels
+    |> Enum.chunk_by(fn {_level, label} -> label end)
+    |> Enum.map(fn chunk ->
+      {base_level, label} = hd(chunk)
+      stacked_cell(dx, dy, base_level, label, walkable, length(chunk))
+    end)
+  end
+
+  # A cell sized to its vertical run: a 1-tall run is a plain cell; a taller run carries `settings.scaleY`
+  # (Height), so ONE block renders the whole run instead of `span` stacked unit cubes. `scaleY` is the exact
+  # setting the frontend already applies to a collapsed run, so the render is unchanged (MAP-MODEL §4).
+  defp stacked_cell(dx, dy, level, label, walkable, 1),
+    do: cell(dx, dy, level, label, walkable)
+
+  defp stacked_cell(dx, dy, level, label, walkable, span),
+    do: cell(dx, dy, level, label, walkable) |> Map.put(:settings, %{"scaleY" => span})
+
+  # A GABLE roof (houses): a triangular stack whose height per column falls off from the centre (peak ≤3).
+  # Each column's roof VOLUME is authored as ONE `scaleY` cell (minimal-cell #30); the centre-back apex is the
+  # `roof_top` cap on its own cell. Perimeter roof caps block; the interior roof volume is walkable.
+  # `roof`/`roof_top` name the roof MATERIAL — ONE colour (#31): default red gable, or the slate pair for stone
+  # buildings — never mixed.
   defp gable_roof(w, h, wall_top, roof \\ "roof", roof_top \\ "roof_top") do
     center = (w - 1) / 2
     max_peak = min(3, div(w + 1, 2))
     eave = wall_top + 1
-    door_col = div(w, 2)
+    doors = door_cols(w)
     apex_col = div(w - 1, 2)
 
     for dy <- 0..(h - 1), dx <- 0..(w - 1), reduce: [] do
       acc ->
         levels = max(1, max_peak - trunc(Float.floor(abs(dx - center))))
         peri = perimeter?(dx, dy, w, h)
+        walkable = dx in doors or not peri
+        # The centre-back column caps its top level with the `roof_top` apex; its body run is one level shorter.
+        apex? = dx == apex_col and dy == 0
+        body_span = if apex?, do: levels - 1, else: levels
 
-        cells =
-          for i <- 0..(levels - 1) do
-            apex = i == levels - 1 and dx == apex_col and dy == 0
-            label = if apex, do: roof_top, else: roof
-            cell(dx, dy, eave + i, label, dx == door_col or not peri)
-          end
+        body =
+          if body_span > 0,
+            do: [stacked_cell(dx, dy, eave, roof, walkable, body_span)],
+            else: []
 
-        acc ++ cells
+        apex = if apex?, do: [cell(dx, dy, eave + levels - 1, roof_top, walkable)], else: []
+
+        acc ++ body ++ apex
     end
   end
 
-  # A FLAT roof (store/office): a parapet lip around the edge, a walkable deck inside, and one raised
-  # detail block at the centre — the `roof_top` SIGN (badge anchor) for a titled shop, else a plain
-  # `rooftop_unit` AC/vent block.
+  # A FLAT roof (store/office): a parapet lip around the edge, a walkable deck inside (one level → already
+  # minimal), and one raised detail block at the centre — the `roof_top` SIGN (badge anchor) for a titled shop,
+  # else a plain `rooftop_unit` AC/vent block.
   defp flat_roof(w, h, wall_top, opts \\ []) do
     roof_level = wall_top + 1
-    door_col = div(w, 2)
+    doors = door_cols(w)
 
     deck =
       for dy <- 0..(h - 1), dx <- 0..(w - 1) do
         peri = perimeter?(dx, dy, w, h)
         label = if peri, do: "parapet", else: "flat_roof"
-        cell(dx, dy, roof_level, label, dx == door_col or not peri)
+        cell(dx, dy, roof_level, label, dx in doors or not peri)
       end
 
     crown_label = if opts[:title], do: "roof_top", else: "rooftop_unit"
     deck ++ [cell(div(w - 1, 2), div(h - 1, 2), roof_level + 1, crown_label, false)]
   end
 
-  # HOUSE — 2 living floors + a gable roof, in a WALL MATERIAL (brick/wood/stone, per definitions). Windows
-  # sit on the upper course of each floor (levels 1 & 3) on even columns; a 1×2 centred door spans the ground
-  # floor; a wall course separates the floors. The FRONT face is autotiled from the material's center/edge/
-  # corner pieces; back + sides are the plain center piece. `roof`/`roof_top` name the gable material (red
-  # by default; slate for the stone house).
+  # HOUSE — 2 living floors + a gable roof, in a WALL MATERIAL (brick/wood/stone, per definitions). Windows sit
+  # on the upper course of each floor (levels 1 & 3) on the SYMMETRIC window columns; a centred door spans the
+  # ground floor; a wall course separates the floors. The FRONT face is autotiled from the material's
+  # center/edge/corner pieces; back + sides are the plain center piece. `roof`/`roof_top` name the gable
+  # material (red by default; slate for the stone house).
   defp house(w, mat, roof \\ "roof", roof_top \\ "roof_top") do
     h = 4
     wall_top = 3
-    door_col = div(w, 2)
+    doors = door_cols(w)
 
     facade = fn dx, dy, level ->
       front = dy == h - 1
       front_or_back = dy == 0 or dy == h - 1
 
       cond do
-        dx == door_col and dy == h - 1 and level in [0, 1] -> "door"
-        front_or_back and window_col?(dx) and level in [1, 3] -> "window"
+        front and dx in doors and level in [0, 1] -> "door"
+        front_or_back and window?(dx, w) and level in [1, 3] -> "window"
         front -> material_piece(mat, dx, level, w, wall_top)
         true -> "#{mat}_c"
       end
     end
 
-    assemble(w, h, wall_top, door_col, facade, gable_roof(w, h, wall_top, roof, roof_top))
+    assemble(w, h, wall_top, doors, facade, gable_roof(w, h, wall_top, roof, roof_top))
   end
 
   # STORE — 5×4, 2 floors, flat roof, in a BRICK wall material. Ground FRONT = a BOUNDED storefront centred on
-  # the 1×2 door: a `display_window` on the two columns flanking the door (never a full-width band) with a
-  # striped `awning` course directly above them — only over that storefront width, not the whole row. The rest
-  # of the ground-floor front stays autotiled brick; the upper floor is a §25 spaced window grid (even columns,
-  # aligned). Back + sides are the plain brick center. Keeps its blue "Store" apex badge (flat_roof title).
+  # the door: a `display_window` on the two columns flanking the door (never a full-width band) with a striped
+  # `awning` course directly above them — only over that storefront width. The rest of the ground-floor front
+  # stays autotiled brick; the upper floor is a SYMMETRIC window grid (`window?`). Back + sides are the plain
+  # brick center. Keeps its blue "Store" apex badge (flat_roof title).
   defp store do
     w = 5
     h = 4
     wall_top = 3
+    doors = door_cols(w)
     door_col = div(w, 2)
     mat = "wall_brick"
 
@@ -178,23 +232,23 @@ defmodule Nebulith.Catalog.BuildingCompositions do
         front and dx == door_col and level in [0, 1] -> "door"
         storefront and level == 0 -> "display_window"
         storefront and level == 1 -> "awning"
-        front and level == 3 and window_col?(dx) -> "window"
+        front and level == 3 and window?(dx, w) -> "window"
         front -> material_piece(mat, dx, level, w, wall_top)
         true -> "#{mat}_c"
       end
     end
 
-    assemble(w, h, wall_top, door_col, facade, flat_roof(w, h, wall_top, title: true))
+    assemble(w, h, wall_top, doors, facade, flat_roof(w, h, wall_top, title: true))
   end
 
-  # OFFICE / APARTMENT — 5×5, 3 floors, flat roof, in a STONE wall material. A regular spaced window GRID
-  # (even columns × every floor, aligned), a 1×2 centred door, a small rooftop unit. Taller than a house or
-  # store. Front face autotiled stone; back + sides the plain stone center.
+  # OFFICE / APARTMENT — 5×5, 3 floors, flat roof, in a STONE wall material. A regular SYMMETRIC window grid
+  # (aligned every floor), a centred door, a small rooftop unit. Taller than a house or store. Front face
+  # autotiled stone; back + sides the plain stone center.
   defp office do
     w = 5
     h = 5
     wall_top = 5
-    door_col = div(w, 2)
+    doors = door_cols(w)
     mat = "wall_stone"
 
     facade = fn dx, dy, level ->
@@ -202,67 +256,63 @@ defmodule Nebulith.Catalog.BuildingCompositions do
       front_or_back = dy == 0 or dy == h - 1
 
       cond do
-        dx == door_col and dy == h - 1 and level in [0, 1] -> "door"
-        front_or_back and window_col?(dx) and level in [1, 3, 5] -> "window"
+        front and dx in doors and level in [0, 1] -> "door"
+        front_or_back and window?(dx, w) and level in [1, 3, 5] -> "window"
         front -> material_piece(mat, dx, level, w, wall_top)
         true -> "#{mat}_c"
       end
     end
 
-    assemble(w, h, wall_top, door_col, facade, flat_roof(w, h, wall_top))
+    assemble(w, h, wall_top, doors, facade, flat_roof(w, h, wall_top))
   end
 
   # CIVIC (big civic buildings: temple / cathedral / castle) — a taller masonry box, built EXACTLY like a
-  # house/office: a perimeter wall box in a `mat` MATERIAL whose FRONT + BACK faces carry a SPACED window GRID
-  # (window, wall, window … on EVEN columns, at the aligned `win_levels` odd courses so a wall course sits
-  # between floors — never a solid band, TILESET-AUTHORING §25), a 1×2 centred door on the ground floor, and a
-  # gable roof (`roof`/`roof_top` name its material — red default, slate for stone). `w`/`h`/`wall_top` come
-  # from each building's own footprint + height so the box keeps its authored size. Front face autotiled from
-  # the material's center/edge/corner pieces; back + sides are the plain center piece.
+  # house/office: a perimeter wall box in a `mat` MATERIAL whose FRONT + BACK faces carry a SYMMETRIC window
+  # grid (`window?`, at the aligned `win_levels` odd courses so a wall course sits between floors), a centred
+  # door on the ground floor, and a gable roof (`roof`/`roof_top` name its ONE colour — red default, slate for
+  # stone). `w`/`h`/`wall_top` come from each building's own footprint + height. Front face autotiled; back +
+  # sides the plain center piece.
   defp civic(w, h, wall_top, mat, win_levels, roof, roof_top) do
-    door_col = div(w, 2)
+    doors = door_cols(w)
 
     facade = fn dx, dy, level ->
       front = dy == h - 1
       front_or_back = dy == 0 or dy == h - 1
 
       cond do
-        dx == door_col and dy == h - 1 and level in [0, 1] -> "door"
-        front_or_back and window_col?(dx) and level in win_levels -> "window"
+        front and dx in doors and level in [0, 1] -> "door"
+        front_or_back and window?(dx, w) and level in win_levels -> "window"
         front -> material_piece(mat, dx, level, w, wall_top)
         true -> "#{mat}_c"
       end
     end
 
-    assemble(w, h, wall_top, door_col, facade, gable_roof(w, h, wall_top, roof, roof_top))
+    assemble(w, h, wall_top, doors, facade, gable_roof(w, h, wall_top, roof, roof_top))
   end
 
-  # STONE BUILDING — the material+piece SAMPLE (TILESET-AUTHORING §3). A 5×4 box (matches the store
-  # footprint, so the generator can render its single store from this) whose wall field is the `wall_stone`
-  # MATERIAL — a DISTINCT tile from brick ("variety of walls = other tiles, not just brick"), its grey in
-  # `settings.colors` ("variety of colour = the tile's settings"). The FRONT face is autotiled from
-  # center/edge/corner stone pieces (`wall_stone_c/_t/_b/_l/_r/_tl/_tr/_bl/_br`); a SPACED window grid sits
-  # on the interior columns (so the edge columns stay clean stone edges), a 1×2 centred door, a gable roof
-  # (ridge/gable pieces via the shared gable_roof). Back + side faces stay plain `wall_stone_c`.
+  # STONE BUILDING — the material+piece SAMPLE (TILESET-AUTHORING §3). A 5×4 box (matches the store footprint,
+  # so the generator can render its single store from this) whose wall field is the `wall_stone` MATERIAL — a
+  # DISTINCT tile from brick, its grey in `settings.colors`. The FRONT face is autotiled from center/edge/corner
+  # stone pieces; a SYMMETRIC window grid (`window?`) sits on the interior columns, a centred door, a gable roof
+  # (via the shared gable_roof). Back + side faces stay plain `wall_stone_c`.
   defp stone_building do
     w = 5
     h = 4
     wall_top = 3
-    door_col = div(w, 2)
-    win_cols = [1, 3]
+    doors = door_cols(w)
 
     facade = fn dx, dy, level ->
       front = dy == h - 1
 
       cond do
-        front and dx == door_col and level in [0, 1] -> "door"
-        front and dx in win_cols and level in [1, 3] -> "window"
+        front and dx in doors and level in [0, 1] -> "door"
+        front and window?(dx, w) and level in [1, 3] -> "window"
         front -> material_piece("wall_stone", dx, level, w, wall_top)
         true -> "wall_stone_c"
       end
     end
 
-    assemble(w, h, wall_top, door_col, facade, gable_roof(w, h, wall_top))
+    assemble(w, h, wall_top, doors, facade, gable_roof(w, h, wall_top))
   end
 
   # The autotile piece for a FRONT-FACE cell of a wall MATERIAL — `dx` runs along the facade, `level` up the
@@ -301,14 +351,13 @@ defmodule Nebulith.Catalog.BuildingCompositions do
       "store_5" => store(),
       "office_5" => office(),
       "stone_building" => stone_building(),
-      # Hospital — box-built like the houses (6-wide, h=4, 2 floors + gable), so its windows are a §25 spaced
-      # grid (even columns, aligned on levels 1 & 3) instead of the old solid level-3 band. Its identity rides
-      # in as builder args: plaster walls + a green gable (roof_hospital / roof_top_hospital); the "Hospital"
-      # apex badge stays via @titles.
+      # Hospital — box-built like the houses (6-wide, h=4, 2 floors + gable), so its windows are a symmetric
+      # spaced grid instead of a solid band. Its identity rides in as builder args: plaster walls + a green
+      # gable (roof_hospital / roof_top_hospital); the "Hospital" apex badge stays via @titles.
       "hospital_6" => house(6, "wall_plaster", "roof_hospital", "roof_top_hospital"),
-      # Big civic buildings — box-built like the houses so their windows are a §25 spaced grid (even columns,
-      # aligned across floors), not the old solid band. WIDTH from the name; h/wall_top preserve each one's
-      # authored footprint + height. big_house = brick + red gable; temple/cathedral/castle = stone + slate.
+      # Big civic buildings — box-built like the houses so their windows are a symmetric spaced grid.
+      # WIDTH from the name; h/wall_top preserve each one's authored footprint + height. big_house = brick +
+      # red gable; temple/cathedral/castle = stone + slate.
       "big_house_6" => house(6, "wall_brick"),
       "temple_8" => civic(8, 4, 5, "wall_stone", [1, 3, 5], "roof_slate", "roof_top_slate"),
       "cathedral_7" => civic(7, 5, 4, "wall_stone", [1, 3], "roof_slate", "roof_top_slate"),
@@ -316,4 +365,3 @@ defmodule Nebulith.Catalog.BuildingCompositions do
     }
   end
 end
-

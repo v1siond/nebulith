@@ -53,7 +53,11 @@ defmodule NebulithWeb.TilesetJSON do
     %{
       footprint: %{w: c.footprint_w, h: c.footprint_h},
       title: c.title,
-      cells: Enum.map(c.cells, &cell_data/1)
+      # DETERMINISTIC cell order: the DB heap order is unstable (a reseed's delete+insert reuses tuple slots),
+      # which would make the served list — and any fixture captured from it — reorder run to run. Sort by grid
+      # position (dx, dy, level, label) so the payload is reproducible; the render is order-independent (every
+      # cell carries its own dx/dy/level and the views depth-sort), so this only stabilises the data, not the look.
+      cells: c.cells |> Enum.sort_by(&{&1.dx, &1.dy, &1.level, &1.label}) |> Enum.map(&cell_data/1)
     }
   end
 
