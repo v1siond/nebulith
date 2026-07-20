@@ -1,13 +1,14 @@
 /**
- * The EMOJI art style, EXTRACTED into plain tileset data — "the same approach as ASCII, plain JSON".
+ * The active EMOJI tileset holder — MINIMAL and EMPTY by design (the twin of `ASCII_TILESET`).
  *
- * Each entry is `kind → { char (emoji glyph), color (fill tint) }` — verbatim the values that used to
- * be hardcoded inline in `EMOJI_STYLE.map`. `artStyle.ts` now BUILDS `EMOJI_STYLE` from this data, so
- * the emoji tileset is loadable plain JSON (like `ASCII_TILESET`), ready to move to the Ecto DB at
- * migration with no render change. (The `[?]` tofu on unsupported Segoe glyphs is unchanged and
- * accepted for now — it dies later when tiles become rasterised image assets.)
+ * The frontend holds NO tile art and NO tile data (per TILE-BACKEND-MIGRATION §7 and MAP-MODEL §8):
+ * every emoji tile — its glyph, colour, image, height, category and pose — comes from the nebulith
+ * backend. On mount, `loadTilesetsFromBackend` (tilesetLoader) fetches `/api/tilesets` and calls
+ * `setEmojiTileset` to fill this holder with the DB-served tiles; the editor renders NOTHING until then
+ * (a loader gates the canvas). There is deliberately NO bundled default: an empty holder can never flash
+ * a different, frontend-authored style before the DB tileset installs.
  *
- * Pure data: no imports, JSON-serialisable. The one place the emoji glyph+colour for a kind lives.
+ * This file keeps only the `EmojiTile` shape + the setters — the DATA lives in the backend.
  */
 import type { TilePose } from '@/engine/tileset/pose'
 import type { TileView, TileViewSettings } from '@/engine/tileset/tileViewSettings'
@@ -21,10 +22,9 @@ export interface EmojiTile {
    *  Deviations-only: absent = identity, so an unposed tile renders byte-identically. Weapons carry the
    *  orientation/size that used to be the hardcoded WEAPON_ORIENT/emojiWeaponSize table. */
   pose?: TilePose
-  /** OPTIONAL portable image asset (a Noto PNG). When set, the tile renders as an IMAGE via the wired
-   *  drawImage path instead of the `char` — so Unicode-13 glyphs Segoe lacks (🪨/🪟/…) stop tofu-ing to
-   *  `[?]`. A path under /public (e.g. `/tiles/emoji/noto/emoji_u1faa8.png`), so it's DB-servable data,
-   *  not a hardcoded glyph. `char` stays as the ASCII/label fallback + the catalog preview. */
+  /** OPTIONAL portable image asset (a baked PNG served by the backend). When set, the tile renders as an
+   *  IMAGE via the wired drawImage path instead of the `char`. `char` stays as the label + first-paint
+   *  fallback (before the PNG decodes) + the catalog preview. */
   image?: string
   /** OPTIONAL per-view settings (size/pose/…) — deviations-only; an absent view/field falls back to the
    *  tile's shared value then the renderer's hardcoded default, so an unset tile renders byte-identically.
@@ -33,7 +33,7 @@ export interface EmojiTile {
   /** OPTIONAL default iso BLOCK height (the 3D half of the 2D+3D model): 0/absent = a flat ground square,
    *  1 = one cube, N = N tall. In 2D/top a tile is ALWAYS a flat square; iso reads this (via resolveTileHeight,
    *  the editor's per-instance GridAsset.height overriding it) and extrudes the tile into a block through
-   *  drawIsoTileBlock. Data-driven — the same field moves to the Ecto DB at migration. */
+   *  drawIsoTileBlock. Data-driven — served from the Ecto DB. */
   height?: number
   /** OPTIONAL sidebar metadata (served from the DB): `category` (terrain/buildings/units/nature) marks the
    *  tile BROWSEABLE in the Tile Library and groups it; `title` is its human display name. Absent = an
@@ -46,72 +46,8 @@ export interface EmojiTile {
   settings?: Record<string, unknown>
 }
 
-export let EMOJI_TILESET: Record<string, EmojiTile> = {
-  // terrain — `color` is the FILL hue (harmonised with the ASCII GROUND_COLORS); the emoji rides on top.
-  grass: { char: '🍀', color: '#5faf4a' },
-  water: { char: '🌊', color: '#4a90e2' },
-  path: { char: '🟫', color: '#9c7b4d' },
-  road: { char: '⬛', color: '#3d3d44' }, // town street — dark gray, distinct from the brown path
-  plaza: { char: '⬜', color: '#cabfa6' },
-  sand: { char: '🟨', color: '#e2c86b' },
-  snow: { char: '⬜', color: '#e2ecf5' },
-  autumn: { char: '🍂', color: '#b5732f' },
-  cavefloor: { char: '🪨', color: '#3f3a34', image: '/tiles/emoji/noto/emoji_u1faa8.png' }, // 🪨 tofus on Segoe → Noto
-  moss: { char: '🌿', color: '#4a6b3a' },
-  mountain: { char: '🗻', color: '#8d8d97' },
-  // buildings — `color` tints the cube face; the facade door/window fill at their own hue.
-  wall: { char: '🧱', color: '#b0603a', height: 1 }, // a wall is one cube tall by default (buildings raise it to `floors`)
-  roof: { char: '🟥', color: '#c8443c' },
-  door: { char: '🚪', color: '#5a3a22' },
-  window: { char: '🪟', color: '#7fb4d8', image: '/tiles/emoji/noto/emoji_u1fa9f.png' }, // 🪟 tofus on Segoe → Noto
-  fountain: { char: '⛲', color: '#4a90e2' },
-  // nature / props — upright billboards; `color` fills the glyph.
-  tree: { char: '🌲', color: '#2f8f3f' },
-  flower: { char: '🌸', color: '#e785b5' },
-  bush: { char: '🌿', color: '#4fa03f' },
-  rock: { char: '🪨', color: '#8a8a8a', image: '/tiles/emoji/noto/emoji_u1faa8.png', height: 1 }, // 🪨 tofus on Segoe → Noto; a boulder is a block
-  crate: { char: '📦', color: '#b5793a', height: 1 }, // a crate is a one-cube block
-  lamp: { char: '💡', color: '#ffd24a' },
-  // cave features.
-  crystal: { char: '💎', color: '#b48cff' },
-  mushroom: { char: '🍄', color: '#d24a4a' },
-  // temple / dungeon features.
-  pillar: { char: '🏛️', color: '#cbb68c' },
-  altar: { char: '🗿', color: '#ffe7a8' },
-  torch: { char: '🔥', color: '#ff8a3a' },
-  hazard: { char: '🔺', color: '#d0402a' },
-  key: { char: '🗝️', color: '#ffd24a' },
-  // units — upright billboards. Every PERSON uses the standing figure; enemies get the monster glyph.
-  enemy: { char: '👾', color: '#b45ac0' },
-  npc: { char: '🧍', color: '#d9a066' },
-  player: { char: '🧍', color: '#ffcf3a' },
-  // volcanic ground + lava/water edge crust + biome waterfall/lava spill (baked so they never tofu).
-  lava: { char: '🟥', color: '#ff5a1f', image: '/tiles/emoji/baked/lava.png' },
-  ember: { char: '🔥', color: '#d2691e', image: '/tiles/emoji/baked/ember.png' },
-  spill: { char: '💧', color: '#5bbcff', image: '/tiles/emoji/baked/spill.png' },
-  // arena boss anchor · village well · template portal marker.
-  boss: { char: '👹', color: '#c0392b', image: '/tiles/emoji/baked/boss.png' },
-  well: { char: '🪣', color: '#9bc4d8', image: '/tiles/emoji/baked/well.png' },
-  connector: { char: '🌀', color: '#8a7bd8', image: '/tiles/emoji/baked/connector.png' },
-  // projectiles — the char is the glyph the combat loop fires; the baked image draws it (glyph→image index).
-  arrow: { char: '➤', color: '#ffe9a8', image: '/tiles/emoji/baked/arrow.png' },
-  bullet: { char: '•', color: '#d8d8d8', image: '/tiles/emoji/baked/bullet.png' },
-  dart: { char: '→', color: '#ffe9a8', image: '/tiles/emoji/baked/dart.png' },
-  // ability animations — kind name == the AbilityAnimation string; colour mirrors ABILITY_TINT.
-  'fire-slash': { char: '🔥', color: '#ff7a2a', image: '/tiles/emoji/baked/fire-slash.png' },
-  'ice-slash': { char: '❄️', color: '#7fd0ff', image: '/tiles/emoji/baked/ice-slash.png' },
-  cleave: { char: '💥', color: '#e6ebf3', image: '/tiles/emoji/baked/cleave.png' },
-  bolt: { char: '🔮', color: '#ffe9a8', image: '/tiles/emoji/baked/bolt.png' },
-  'piercing-shot': { char: '🏹', color: '#cfd8e3', image: '/tiles/emoji/baked/piercing-shot.png' },
-  nova: { char: '💫', color: '#c08cff', image: '/tiles/emoji/baked/nova.png' },
-  lightning: { char: '⚡', color: '#7ad7ff', image: '/tiles/emoji/baked/lightning.png' },
-  'heal-glow': { char: '✨', color: '#8effa0', image: '/tiles/emoji/baked/heal-glow.png' },
-  'guard-flash': { char: '🛡️', color: '#9fd3ff', image: '/tiles/emoji/baked/guard-flash.png' },
-}
-// NOTE: weapons (sword/bow/…) and the bare-handed `fist` are NOT in this in-code default — they live only
-// in the DB-loaded tileset (emoji.json), exactly like the other combat tiles. Keeping them out of the
-// default keeps them out of the browseable TILE_CATALOG (which is derived from this default at import),
-// so `punchTile`/`weaponPose` read them from the loaded tileset when the backend is up.
+/** The active emoji tiles — EMPTY until the backend load fills it (setEmojiTileset). No bundled default. */
+export let EMOJI_TILESET: Record<string, EmojiTile> = {}
 
 /** Swap the active emoji tileset (the DB-loaded emoji tiles). Call artStyle.rebuildEmojiStyle() after,
  *  so the derived EMOJI_STYLE.map picks up the new data. */

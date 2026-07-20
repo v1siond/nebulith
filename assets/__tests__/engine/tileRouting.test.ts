@@ -12,6 +12,7 @@
  * Image (complete + naturalWidth) so an IMAGE tile genuinely reaches ctx.drawImage — and force offscreen
  * 2D contexts to null so the tint/recolour helpers fall back cleanly to that same drawImage / plain glyph.
  */
+import '@/__tests__/helpers/installTilesetSeed' // routes resolve against the loaded backend tileset fixture (baked images); no bundled default
 import { drawConnectorMarker, drawAttackAnimFrame, drawProjectileGlyph } from '@/engine/render/shared'
 import { drawIsoAssetAscii } from '@/engine/render/iso'
 import { EMOJI_STYLE, ASCII_STYLE } from '@/game/artStyle'

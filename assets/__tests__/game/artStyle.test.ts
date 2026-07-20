@@ -90,6 +90,7 @@ describe('resolveVisual — the one style decision point', () => {
 })
 
 describe('resolveDraw — surfaces the tint the geometry sites fill with', () => {
+  useSeedTileset() // the emoji tint/char cases resolve against the loaded (DB) tileset — no bundled default
   it('ASCII passthrough returns the caller default char+color and NO tint (byte-identical gate)', () => {
     const d = resolveDraw('grass', ASCII_STYLE, undefined, ';', '#9ac454')
     expect(d).toEqual({ char: ';', color: '#9ac454' })
@@ -111,6 +112,7 @@ describe('resolveDraw — surfaces the tint the geometry sites fill with', () =>
 })
 
 describe('kind classifiers', () => {
+  useSeedTileset() // the road/path emoji-tile colour checks read the loaded (DB) tileset — no bundled default
   it('groundKind maps the ground vocabulary to terrain kinds', () => {
     expect(groundKind('grass')).toBe('grass')
     expect(groundKind('grass_tall')).toBe('grass')

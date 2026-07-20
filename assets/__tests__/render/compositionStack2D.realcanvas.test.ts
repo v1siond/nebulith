@@ -65,6 +65,10 @@ beforeAll(async () => {
   EMOJI_TILESET.tree = { char: '🌲', color: '#3aaa3a', image: KIND_SRC }
   EMOJI_TILESET.tree_trunk = { char: '▮', color: '#8a5a2a', image: TRUNK_SRC, height: 1 }
   EMOJI_TILESET.tree_canopy = { char: '●', color: '#2fbf2f', image: CANOPY_SRC, height: 1 }
+  // The parked hero must render as a SHORT emoji billboard (gold 🧍), not a tall ASCII figure — a tall
+  // figure would occlude the top of the magenta canopy and skew the centroid scan. The frontend ships no
+  // bundled default now, so seed the person tile here alongside the tree tiles.
+  EMOJI_TILESET.player = { char: '🧍', color: '#ffcf3a' }
   rebuildEmojiStyle() // install the KIND tile into EMOJI_STYLE.map so resolveAssetDraw('tree') sees its image
   await H.warm([KIND_SRC, TRUNK_SRC, CANOPY_SRC])
   // render2D/iso paint ground from the loaded tileset terrain (DB-seeded, `{}` in tests) — seed grass so the
@@ -80,6 +84,7 @@ afterAll(() => {
   delete EMOJI_TILESET.tree
   delete EMOJI_TILESET.tree_trunk
   delete EMOJI_TILESET.tree_canopy
+  delete EMOJI_TILESET.player
   rebuildEmojiStyle()
   if ((ASCII_TILESET.terrain as Record<string, unknown>)[hadGrass] === false) {
     delete (ASCII_TILESET.terrain as Record<string, unknown>).grass

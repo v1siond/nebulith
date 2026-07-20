@@ -17,9 +17,12 @@ const A = DEFAULT_CHARACTER_ANIMATIONS
 const ORIGIN = NEBULITH_API.replace(/\/api\/?$/, '')
 
 describe('#89 — every person uses the player-style standing figure (not the 🧑 face)', () => {
-  test('npc + player both map to 🧍', () => {
-    expect(EMOJI_STYLE.map.npc).toMatchObject({ kind: 'glyph', char: '🧍' })
-    expect(EMOJI_STYLE.map.player).toMatchObject({ kind: 'glyph', char: '🧍' })
+  useSeedTileset() // person tiles come from the loaded (DB) tileset — no bundled default
+  test('npc + player both use the 🧍 standing figure', () => {
+    // The DB bakes people as images; the 🧍 char rides along as the label + first-paint fallback, so both
+    // still resolve to the SAME standing figure (never the 🧑 face) regardless of glyph-vs-image.
+    expect(EMOJI_STYLE.map.npc).toMatchObject({ char: '🧍' })
+    expect(EMOJI_STYLE.map.player).toMatchObject({ char: '🧍' })
   })
 })
 

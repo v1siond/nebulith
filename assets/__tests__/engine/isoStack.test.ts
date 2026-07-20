@@ -12,8 +12,24 @@
  * the effective screen y of the cube vertices / billboard glyph is observable per stack level.
  */
 import { isoStackLift, isoDepthCompare, ISO_BLOCK_H_FRAC, drawIsoAssetAscii } from '@/engine/render/iso'
-import { EMOJI_STYLE } from '@/game/artStyle'
+import { EMOJI_STYLE, rebuildEmojiStyle } from '@/game/artStyle'
+import { EMOJI_TILESET } from '@/engine/tileset/emojiTileset'
 import type { GridAsset } from '@/engine/IsometricGrid'
+
+// This is a MECHANISM test for the stack lift + the block-vs-decorative split, so it seeds exactly the two
+// tiles it needs (the frontend ships no bundled default): a SOLID rock (tileset height ≥ 1 → extrudes into
+// a cube) and a DECORATIVE tree (no tileset height → stays a lifted billboard). Kept out of the fixture so
+// the two kinds are unambiguous regardless of the DB's per-tile height choices.
+beforeAll(() => {
+  EMOJI_TILESET.rock = { char: '🪨', color: '#8a8a8a', height: 1 }
+  EMOJI_TILESET.tree = { char: '🌲', color: '#2f8f3f' } // no height → decorative billboard
+  rebuildEmojiStyle()
+})
+afterAll(() => {
+  delete EMOJI_TILESET.rock
+  delete EMOJI_TILESET.tree
+  rebuildEmojiStyle()
+})
 
 // Records solid face fills (cube detection), the effective y of every path vertex (cube geometry) and of
 // every glyph (billboard geometry) — tracking translate()/save()/restore() so a translated glyph draw

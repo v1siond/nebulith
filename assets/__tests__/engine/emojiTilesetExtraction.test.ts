@@ -1,14 +1,21 @@
 /**
- * The emoji art style, extracted into plain tileset data (EMOJI_TILESET) — "the same approach as ASCII,
- * plain JSON". EMOJI_STYLE is now DERIVED from EMOJI_TILESET. This proves the derivation is faithful
- * (every kind maps to a glyph Visual with the tileset's char+colour) and pins the values as a
- * transcription guard. Behaviour unchanged (the `[?]` tofu on unsupported Segoe glyphs is unchanged —
- * accepted; it dies later when tiles become rasterised assets).
+ * EMOJI_STYLE is DERIVED from the loaded emoji tileset (emojiStyleMap / rebuildEmojiStyle) — this proves
+ * the derivation is faithful: every kind maps to a Visual matching its tile (an image tile → ImageVisual,
+ * a glyph-only tile → GlyphVisual), and the style's keys track the tileset's exactly.
+ *
+ * The frontend ships NO bundled tile data, so we install the DB-equivalent fixture (the captured
+ * `/api/tilesets` response) and assert the derivation over THAT — the same data the runtime loads from the
+ * backend. There is no verbatim value pin any more: the tile values live in the backend, not the frontend.
  */
+import '@/__tests__/helpers/installTilesetSeed' // fill the (empty) emoji holder with the DB-equivalent fixture
 import { EMOJI_TILESET } from '@/engine/tileset/emojiTileset'
 import { EMOJI_STYLE, resolveVisual, type GlyphVisual, type ImageVisual } from '@/game/artStyle'
 
-describe('emoji tileset extraction — EMOJI_STYLE is a faithful view over EMOJI_TILESET', () => {
+describe('emoji tileset extraction — EMOJI_STYLE is a faithful view over the loaded tileset', () => {
+  test('the loaded tileset is non-empty (the fixture installed)', () => {
+    expect(Object.keys(EMOJI_TILESET).length).toBeGreaterThan(0)
+  })
+
   test('every kind becomes a Visual matching its tile — image tiles → ImageVisual, else GlyphVisual', () => {
     for (const kind of Object.keys(EMOJI_TILESET)) {
       const tile = EMOJI_TILESET[kind]
@@ -36,21 +43,5 @@ describe('emoji tileset extraction — EMOJI_STYLE is a faithful view over EMOJI
 
   test('EMOJI_STYLE.map has exactly the tileset’s kinds (no drift either way)', () => {
     expect(Object.keys(EMOJI_STYLE.map).sort()).toEqual(Object.keys(EMOJI_TILESET).sort())
-  })
-
-  test('the tileset is JSON-serialisable plain data (DB-seed ready)', () => {
-    const round = JSON.parse(JSON.stringify(EMOJI_TILESET))
-    expect(round).toEqual(EMOJI_TILESET)
-    expect(round.wall).toEqual({ char: '🧱', color: '#b0603a', height: 1 }) // wall carries its default iso block height
-  })
-
-  test('transcription guard — key values pinned verbatim', () => {
-    expect(EMOJI_TILESET.wall).toEqual({ char: '🧱', color: '#b0603a', height: 1 }) // 3D half: one cube tall by default
-    expect(EMOJI_TILESET.roof).toEqual({ char: '🟥', color: '#c8443c' })
-    expect(EMOJI_TILESET.path).toEqual({ char: '🟫', color: '#9c7b4d' })
-    expect(EMOJI_TILESET.mountain).toEqual({ char: '🗻', color: '#8d8d97' })
-    expect(EMOJI_TILESET.lamp).toEqual({ char: '💡', color: '#ffd24a' })
-    expect(EMOJI_TILESET.player).toEqual({ char: '🧍', color: '#ffcf3a' })
-    expect(EMOJI_TILESET.enemy).toEqual({ char: '👾', color: '#b45ac0' })
   })
 })

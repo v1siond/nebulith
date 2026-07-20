@@ -1,14 +1,14 @@
 /**
- * Load the tilesets from the nebulith Elixir backend and install them, replacing the bundled defaults.
- * `/api/tilesets` now serves the NEW per-tile shape (tiles: label => {image_url, blocking, height,
- * category, title, glyph, emoji, color_role, settings}, compositions: name => {footprint, cells}) —
- * this loader maps that shape onto the Tileset / EmojiTile types the renderer already reads, so every
- * tile carries its backend `image`. `data` (the OLD blob) still holds `palettes`/`terrain` for ascii —
- * kept as-is for those, per this migration step.
+ * Load the tilesets from the nebulith Elixir backend and install them into the (EMPTY) holders.
+ * `/api/tilesets` serves the per-tile shape (tiles: label => {image_url, blocking, height, category,
+ * title, glyph, emoji, color_role, settings}, compositions: name => {footprint, cells}) — this loader
+ * maps that shape onto the Tileset / EmojiTile types the renderer reads, so every tile carries its
+ * backend `image`. This is the SOLE runtime source of tiles: the frontend ships NO bundled tile data.
  *
- * Safe: on any failure (backend down, CORS, bad JSON) the bundled tilesets stay in place and the app
- * keeps working. Sets `window.__nebulithTilesets` and logs, so "the app is using the backend" is
- * verifiable (devtools console + a GET to `${NEBULITH_API}/tilesets` in the network tab).
+ * There is NO fallback. On any failure (backend down, CORS, bad JSON) NOTHING is installed and the
+ * function returns an empty list — the caller shows a loader/error state and never paints frontend
+ * tiles (a wrong-style flash). Sets `window.__nebulithTilesets` and logs, so "the app is using the
+ * backend" is verifiable (devtools console + a GET to `${NEBULITH_API}/tilesets` in the network tab).
  */
 import { ASCII_TILESET, setAsciiTileset } from './asciiTileset'
 import { EMOJI_TILESET, setEmojiTileset, type EmojiTile } from './emojiTileset'
@@ -158,7 +158,7 @@ export async function loadTilesetsFromBackend(): Promise<string[]> {
     console.info(`[nebulith] tilesets loaded from the Elixir API (${NEBULITH_API}): ${loaded.join(', ') || 'none'}`)
     return loaded
   } catch (e) {
-    console.warn(`[nebulith] tileset load from ${NEBULITH_API} failed — using bundled tilesets. (${(e as Error).message})`)
+    console.warn(`[nebulith] tileset load from ${NEBULITH_API} failed — the editor stays on the loader/error state (no bundled fallback). (${(e as Error).message})`)
     return []
   }
 }

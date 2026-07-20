@@ -4,6 +4,7 @@
  * 3D form. Locks in that block-like tiles extrude and flat terrain stays flat, so a reseed can't
  * silently drop the defaults.
  */
+import '@/__tests__/helpers/installTilesetSeed' // tile heights come from the loaded backend tileset fixture; the frontend ships no bundled default
 import { EMOJI_TILESET } from '@/engine/tileset/emojiTileset'
 import { resolveTileHeight } from '@/engine/tileset/tileHeight'
 
