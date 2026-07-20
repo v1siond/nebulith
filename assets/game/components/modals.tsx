@@ -1,7 +1,8 @@
 // Reusable modal + entity-inspector modal bodies (identity/stats, movement,
 // attacks) and the quest-offer body. Moved out of the page (stage 4);
 // props-driven presentational components.
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react'
+import type { Connector } from '@/lib/api'
 import { ABILITY_REGISTRY, ABILITY_TINT, type AbilityAnimation } from '@/game/abilities'
 import { ENEMY_ATTACK_PRESETS, addEnemyAttack, buildAttackPattern, defaultEnemyAttack, enemyAttackFromAbility, normalizeAttackPattern, removeEnemyAttack, setAttackPatternMode, updateEnemyAttack } from '@/game/patterns'
 import { rewardSummary } from '@/game/runtime/quest'
@@ -588,6 +589,190 @@ export function QuestGiveBody({ quest, onAccept, onReject }: {
           Reject
         </button>
       </div>
+    </div>
+  )
+}
+
+/**
+ * CONNECTORS authoring flow — hosted in a draggable {@link FloatingPanel} opened from a right-sidebar button
+ * (its entry moved OFF the left tool-rail; user: "move the connectors to a button in the right sidebar, which
+ * would open a connectors draggable/movable modal like the settings one"). The controls are IDENTICAL to the
+ * old left-card + right-inspector form — an Edit/Exit toggle for click-to-add mode, the list of saved
+ * connectors, and (when one is being edited) its target / when / spawn-cell form + Save/Delete. Presentational:
+ * every edit flows up through the page's handlers, so the connector data + behaviour are unchanged.
+ */
+export interface ConnectorsPanelProps {
+  /** click-to-add authoring is armed (canvas clicks add/edit connectors). */
+  connectorMode: boolean
+  /** toggle authoring on/off without closing the panel (the old card's Edit/Exit). */
+  onToggleMode: () => void
+  /** the connector being edited (its keystone cell), or null. */
+  editing: { col: number; row: number } | null
+  /** human label for the edited connector (a coord, or "N cells"). */
+  editingLabel: string
+  form: Partial<Connector>
+  setForm: Dispatch<SetStateAction<Partial<Connector>>>
+  /** teleport targets (already excludes the current template). */
+  templates: ReadonlyArray<{ id: string; name: string }>
+  onNewTarget: () => void
+  onSave: () => void
+  onDelete: () => void
+  onCancel: () => void
+  connectors: readonly Connector[]
+  /** load a saved connector into the editor. */
+  onSelectConnector: (c: Connector) => void
+}
+
+export function ConnectorsPanelBody(p: ConnectorsPanelProps) {
+  const actionType = p.form.action?.type ?? 'teleport'
+  const label = 'mb-1 mt-2 text-[10px] font-bold uppercase tracking-wide text-purple-300'
+  const input = 'w-full rounded bg-gray-800 p-1 text-xs'
+  const saveDisabled = !p.form.targetTemplateId && !p.form.action
+  return (
+    <div className="space-y-2 text-xs">
+      <button
+        onClick={p.onToggleMode}
+        aria-pressed={p.connectorMode}
+        className={`w-full rounded px-2 py-1.5 text-xs font-bold transition-colors ${p.connectorMode ? 'bg-purple-600 text-white' : 'bg-gray-700 hover:bg-gray-600'}`}
+      >
+        {p.connectorMode ? '● Authoring on — Exit' : 'Edit connectors'}
+      </button>
+
+      {p.editing ? (
+        <div className="space-y-1 rounded border border-purple-500/20 bg-black/40 p-2">
+          <p className="text-[10px] font-bold text-purple-300">Editing {p.editingLabel}</p>
+          <p className={label}>Target</p>
+          <select
+            value={actionType}
+            onChange={e => {
+              const t = e.target.value
+              p.setForm(f => ({
+                ...f,
+                action:
+                  t === 'teleport' ? undefined
+                  : t === 'collect' ? { type: 'collect', itemId: '', qty: 1 }
+                  : t === 'content' ? { type: 'content', sectionId: '' }
+                  : { type: 'goto_region', col: f.spawnCol ?? 0, row: f.spawnRow ?? 0 },
+              }))
+            }}
+            aria-label="Trigger action"
+            className={input}
+          >
+            <option value="teleport">Go to template (teleport)</option>
+            <option value="goto_region">Move within stage (uses Arrive-at)</option>
+            <option value="collect">Collect item</option>
+            <option value="content">Reveal content</option>
+          </select>
+          {p.form.action?.type === 'collect' && (
+            <input
+              type="text"
+              placeholder="Item id to grant"
+              aria-label="Item id to collect"
+              value={p.form.action.itemId}
+              onChange={e => p.setForm(f => ({ ...f, action: { type: 'collect', itemId: e.target.value, qty: 1 } }))}
+              className={input}
+            />
+          )}
+          {p.form.action?.type === 'content' && (
+            <input
+              type="text"
+              placeholder="Section id to reveal"
+              aria-label="Section id to reveal"
+              value={p.form.action.sectionId}
+              onChange={e => p.setForm(f => ({ ...f, action: { type: 'content', sectionId: e.target.value } }))}
+              className={input}
+            />
+          )}
+          {actionType === 'teleport' && (
+            <div className="flex items-center gap-1">
+              <select
+                value={p.form.targetTemplateId || ''}
+                onChange={e => p.setForm(f => ({ ...f, targetTemplateId: e.target.value }))}
+                aria-label="Target template"
+                className="flex-1 rounded bg-gray-800 p-1 text-xs"
+              >
+                <option value="">Target template…</option>
+                {p.templates.map(t => (
+                  <option key={t.id} value={t.id}>{t.name}</option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={p.onNewTarget}
+                title="Create a new template to connect to"
+                className="whitespace-nowrap rounded bg-blue-700 px-2 py-1 text-xs font-bold hover:bg-blue-600"
+              >
+                ＋ New
+              </button>
+            </div>
+          )}
+
+          <p className={label}>When</p>
+          <select
+            value={p.form.interaction || 'walk'}
+            onChange={e => p.setForm(f => ({ ...f, interaction: e.target.value as Connector['interaction'] }))}
+            aria-label="How the player triggers this connector"
+            className={input}
+          >
+            <option value="walk">Walk onto it</option>
+            <option value="interact">Press E on it</option>
+            <option value="auto">Auto on enter</option>
+          </select>
+
+          <p className={label}>Spawn cell</p>
+          <div className="flex items-center gap-1">
+            <span className="whitespace-nowrap text-gray-400">Arrive at</span>
+            <input
+              type="number"
+              min={0}
+              aria-label="Spawn column in target template"
+              value={p.form.spawnCol ?? 0}
+              onChange={e => p.setForm(f => ({ ...f, spawnCol: Math.max(0, parseInt(e.target.value, 10) || 0) }))}
+              className="w-14 rounded bg-gray-800 p-1 text-xs"
+            />
+            <span className="text-gray-500">,</span>
+            <input
+              type="number"
+              min={0}
+              aria-label="Spawn row in target template"
+              value={p.form.spawnRow ?? 0}
+              onChange={e => p.setForm(f => ({ ...f, spawnRow: Math.max(0, parseInt(e.target.value, 10) || 0) }))}
+              className="w-14 rounded bg-gray-800 p-1 text-xs"
+            />
+            <span className="whitespace-nowrap text-gray-400">in target</span>
+          </div>
+
+          <div className="flex gap-1 pt-1">
+            <button onClick={p.onSave} disabled={saveDisabled} className="flex-1 rounded bg-green-700 px-2 py-1.5 text-xs font-bold hover:bg-green-600 disabled:bg-gray-700">Save</button>
+            <button onClick={p.onDelete} className="rounded bg-red-800 px-2 py-1.5 text-xs hover:bg-red-700">Del</button>
+            <button onClick={p.onCancel} className="rounded bg-gray-700 px-2 py-1.5 text-xs hover:bg-gray-600">Cancel</button>
+          </div>
+        </div>
+      ) : (
+        <p className="text-[10px] leading-tight text-gray-500">
+          {p.connectorMode ? 'Click a cell in Top view to start a connector.' : 'Turn on Edit, then click a cell in Top view to add one.'}
+        </p>
+      )}
+
+      {p.connectors.length > 0 && (
+        <div className="space-y-1">
+          <p className={label}>Saved connectors</p>
+          <div className="max-h-64 space-y-1 overflow-y-auto">
+            {p.connectors.map((c, i) => (
+              <button
+                key={`${c.cells[0]?.col},${c.cells[0]?.row},${i}`}
+                type="button"
+                className="flex w-full items-center justify-between rounded bg-gray-800 p-1 text-left text-xs hover:bg-gray-700"
+                onClick={() => p.onSelectConnector(c)}
+              >
+                <span>({c.cells[0]?.col},{c.cells[0]?.row}){c.cells.length > 1 ? ` +${c.cells.length - 1}` : ''}→{c.targetTemplateName?.slice(0, 8) || '?'}</span>
+                <span className="text-purple-400">{c.interaction}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      {p.connectors.length === 0 && !p.editing && <p className="text-[10px] text-gray-500">No connectors yet.</p>}
     </div>
   )
 }

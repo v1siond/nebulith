@@ -65,7 +65,7 @@ import { playSwoosh } from '@/game/runtime/audio'
 import { Card, EntityToolButton, ViewButton } from '@/components/game/controls'
 import { AbilityBar, CombatHud, QuestHud } from '@/components/game/hud'
 import { EquipmentPanel, InventoryCard, QuestAuthoringCard, QuestLogPanel } from '@/components/game/panels'
-import { EntityAttackBody, FloatingPanel, Modal, QuestGiveBody, SettingsPanelBody, UnitSettingsSection } from '@/components/game/modals'
+import { ConnectorsPanelBody, EntityAttackBody, FloatingPanel, Modal, QuestGiveBody, SettingsPanelBody, UnitSettingsSection } from '@/components/game/modals'
 import { FlowViewOverlay, GamesViewOverlay } from '@/components/game/games'
 import { type BuildingTool, type EditorMode, type EntityTool } from '@/components/game/editorConfig'
 import { useDayNight, useFloatingPanels, useIsMobile } from '@/components/game/editorHooks'
@@ -207,6 +207,9 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   // Connector state
   const [connectors, setConnectors] = useState<Connector[]>([])
   const [connectorMode, setConnectorMode] = useState(false)
+  // The Connectors flow now lives in a draggable FloatingPanel opened from a RIGHT-SIDEBAR button (its entry
+  // moved off the left tool-rail). Opening it arms authoring; closing it disarms + drops the edited connector.
+  const [connectorPanelOpen, setConnectorPanelOpen] = useState(false)
   const [editingConnector, setEditingConnector] = useState<{ col: number; row: number } | null>(null)
   const [connectorForm, setConnectorForm] = useState<Partial<Connector>>({
     interaction: 'walk',
@@ -522,6 +525,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     // bleed into play and silently freeze triggers/combat (the dead walk-in bug).
     connectorModeRef.current = false
     setConnectorMode(false)
+    setConnectorPanelOpen(false)
     setEditingConnector(null)
   }
   const selectIsoView = () => {
@@ -1295,6 +1299,26 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     }
   }
 
+  /** Open the right-sidebar Connectors panel: arm click-to-add authoring and drop the other exclusive tools so
+   *  a canvas click routes to exactly one editor (mirrors the old rail Connector mode, minus the rail entry). */
+  const openConnectorPanel = () => {
+    setSelectedEntityId(null)
+    setConnectorPanelOpen(true)
+    setConnectorMode(true)
+    setPaintMode(false)
+    setEntityTool(null)
+    setBuildingTool(null)
+    setArmedTile(null)
+  }
+
+  /** Close it: disarm authoring and drop the edited connector. */
+  const closeConnectorPanel = () => {
+    setConnectorPanelOpen(false)
+    setConnectorMode(false)
+    setConnectorPanelOpen(false)
+    setEditingConnector(null)
+  }
+
   // ── Entity placement ───────────────────────────────────────────────
   // A random patrol around a spawn (mirrors spawner.makePatrol, which isn't exported): 3–4 jittered ±2-cell
   // waypoints, keeping only walkable in-bounds cells. Used by the ◈ Unit "Animated" placement so the unit
@@ -1343,6 +1367,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     setUnitTile(null) // a plain tool (player/npc/erase/collision) drops any picked creature tile
     setPaintMode(false)
     setConnectorMode(false)
+    setConnectorPanelOpen(false)
     setEditingConnector(null)
     setSelectedCells(new Set())
     setBuildingTool(null)
@@ -1357,6 +1382,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     setEntityTool(next ? entityKindForUnitSlug(tileSlug(next.id)) : null)
     setPaintMode(false)
     setConnectorMode(false)
+    setConnectorPanelOpen(false)
     setEditingConnector(null)
     setSelectedCells(new Set())
     setBuildingTool(null)
@@ -1375,6 +1401,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     setPaintMode(false)
     setEntityTool(null)
     setConnectorMode(false)
+    setConnectorPanelOpen(false)
     setEditingConnector(null)
   }
 
@@ -1387,6 +1414,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
    *  unit/building arm a sensible default sub-tool, kept if one is already chosen. */
   const selectMode = (m: EditorMode) => {
     setEditingConnector(null)
+    setConnectorPanelOpen(false) // switching to a rail tool closes the (right-sidebar) Connectors panel
     ghostRef.current = null // drop any placement ghost on a mode switch (recomputed on the next hover if re-armed)
     if (m === 'select') {
       setPaintMode(false)
@@ -5602,61 +5630,8 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
               </Card>
             )}
 
-            {editorMode === 'connector' && (
-              <Card
-                title="Connectors"
-                accent="purple"
-                action={
-                  <button
-                    onClick={() => { setConnectorMode(!connectorMode); setEditingConnector(null) }}
-                    aria-pressed={connectorMode}
-                    className={`rounded px-2 py-1 text-xs ${connectorMode ? 'bg-purple-600' : 'bg-gray-700 hover:bg-gray-600'}`}
-                  >
-                    {connectorMode ? 'Exit' : 'Edit'}
-                  </button>
-                }
-              >
-                {connectorMode && (
-                  <p className="mb-2 text-xs text-gray-400">Click a cell in Top view to add a connector.</p>
-                )}
-
-                {/* The connector FORM (target / when / spawn cell) now lives in the right
-                    Inspector — click a cell (or a saved connector below) to open it there. */}
-                {editingConnector && (
-                  <p className="mb-2 rounded bg-gray-800 p-2 text-[10px] leading-tight text-yellow-400">
-                    {selectedCells.size > 1 ? `${selectedCells.size} cells selected` : `(${editingConnector.col}, ${editingConnector.row})`} — edit its target, when &amp; spawn cell in the Inspector on the right.
-                  </p>
-                )}
-
-                {connectors.length > 0 && (
-                  // Fill most of the panel height — most templates have a few connectors, so a tight
-                  // scroll box was overkill (#82). Still scrolls if a template has a lot of them.
-                  <div className="max-h-[calc(100vh-13rem)] space-y-1 overflow-y-auto">
-                    {connectors.map((c, i) => (
-                      <button
-                        key={`${c.cells[0]?.col},${c.cells[0]?.row},${i}`}
-                        type="button"
-                        className="flex w-full items-center justify-between rounded bg-gray-800 p-1 text-left text-xs hover:bg-gray-700"
-                        onClick={() => {
-                          setSelectedEntityId(null)
-                          setConnectorForm(c)
-                          setEditingConnector({ col: c.cells[0].col, row: c.cells[0].row })
-                          setSelectedCells(new Set(c.cells.map(p => `${p.col},${p.row}`)))
-                          setConnectorMode(true)
-                        }}
-                      >
-                        <span>({c.cells[0]?.col},{c.cells[0]?.row}){c.cells.length > 1 ? ` +${c.cells.length - 1}` : ''}→{c.targetTemplateName?.slice(0, 8) || '?'}</span>
-                        <span className="text-purple-400">{c.interaction}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                {connectors.length === 0 && !editingConnector && (
-                  <p className="text-[10px] text-gray-500">No connectors yet.</p>
-                )}
-              </Card>
-            )}
+            {/* The Connectors tool moved OFF the left rail — its entry is a button in the RIGHT sidebar that
+                opens a draggable Connectors modal (see the Inspector). */}
           </aside>
         )}
 
@@ -5674,6 +5649,17 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
               <h2 className="text-sm font-bold uppercase tracking-widest text-yellow-400">Inspector</h2>
               <p className="text-[10px] text-gray-500">{templateName || 'New Template'}</p>
             </div>
+
+            {/* ↗ Connectors — the tool's entry, moved off the left rail. Opens a draggable/resizable modal
+                (like the settings one) hosting the whole connector flow. Highlights while it's open. */}
+            <button
+              onClick={() => (connectorPanelOpen ? closeConnectorPanel() : openConnectorPanel())}
+              aria-pressed={connectorPanelOpen}
+              title="Connectors — link cells to other levels & actions"
+              className={`w-full rounded-lg px-3 py-2 text-xs font-bold shadow transition-colors ${connectorPanelOpen ? 'bg-purple-600 text-white' : 'bg-purple-800/80 text-purple-100 hover:bg-purple-700'}`}
+            >
+              ↗ Connectors{connectors.length ? ` (${connectors.length})` : ''}
+            </button>
 
             {(() => {
               // Stage B — the Inspector MORPHS to the current selection. Precedence:
@@ -5848,121 +5834,18 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
               }
 
 
-              // ── CONNECTOR (migrated from the left panel form) ─────
+              // ── CONNECTOR ─────────────────────────────────────────
+              // Editing a connector: the authoring form now lives in the draggable Connectors panel (opened
+              // from the ↗ Connectors button above), so the Inspector just points there instead of morphing —
+              // this keeps the connector selection distinct from a plain cell selection.
               if (editingConnector) {
                 const coordLabel = selectedCells.size > 1 ? `${selectedCells.size} cells` : `(${editingConnector.col}, ${editingConnector.row})`
-                const actionType = connectorForm.action?.type ?? 'teleport'
                 return (
                   <>
                     <SelectionHeader kind="connector" label="connector" coords={coordLabel} />
-                    <Card title="Target level" accent="purple" sectionId="connect" focus={sectionFocus}>
-                      <div className="space-y-1 text-xs">
-                        <select
-                          value={actionType}
-                          onChange={e => {
-                            const t = e.target.value
-                            setConnectorForm(f => ({
-                              ...f,
-                              action:
-                                t === 'teleport' ? undefined
-                                : t === 'collect' ? { type: 'collect', itemId: '', qty: 1 }
-                                : t === 'content' ? { type: 'content', sectionId: '' }
-                                : { type: 'goto_region', col: f.spawnCol ?? 0, row: f.spawnRow ?? 0 },
-                            }))
-                          }}
-                          aria-label="Trigger action"
-                          className="w-full rounded bg-gray-800 p-1 text-xs"
-                        >
-                          <option value="teleport">Go to template (teleport)</option>
-                          <option value="goto_region">Move within stage (uses Arrive-at)</option>
-                          <option value="collect">Collect item</option>
-                          <option value="content">Reveal content</option>
-                        </select>
-                        {connectorForm.action?.type === 'collect' && (
-                          <input
-                            type="text"
-                            placeholder="Item id to grant"
-                            aria-label="Item id to collect"
-                            value={connectorForm.action.itemId}
-                            onChange={e => setConnectorForm(f => ({ ...f, action: { type: 'collect', itemId: e.target.value, qty: 1 } }))}
-                            className="w-full rounded bg-gray-800 p-1 text-xs"
-                          />
-                        )}
-                        {connectorForm.action?.type === 'content' && (
-                          <input
-                            type="text"
-                            placeholder="Section id to reveal"
-                            aria-label="Section id to reveal"
-                            value={connectorForm.action.sectionId}
-                            onChange={e => setConnectorForm(f => ({ ...f, action: { type: 'content', sectionId: e.target.value } }))}
-                            className="w-full rounded bg-gray-800 p-1 text-xs"
-                          />
-                        )}
-                        {actionType === 'teleport' && (
-                          <div className="flex items-center gap-1">
-                            <select
-                              value={connectorForm.targetTemplateId || ''}
-                              onChange={e => setConnectorForm(f => ({ ...f, targetTemplateId: e.target.value }))}
-                              aria-label="Target template"
-                              className="flex-1 rounded bg-gray-800 p-1 text-xs"
-                            >
-                              <option value="">Target template…</option>
-                              {savedTemplates.filter(t => t.id !== currentTemplateId).map(t => (
-                                <option key={t.id} value={t.id}>{t.name}</option>
-                              ))}
-                            </select>
-                            <button
-                              type="button"
-                              onClick={handleNewConnectorTarget}
-                              title="Create a new template to connect to"
-                              className="whitespace-nowrap rounded bg-blue-700 px-2 py-1 text-xs font-bold hover:bg-blue-600"
-                            >
-                              ＋ New
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    </Card>
-                    <Card title="When" accent="purple" sectionId="when" focus={sectionFocus}>
-                      <select
-                        value={connectorForm.interaction || 'walk'}
-                        onChange={e => setConnectorForm(f => ({ ...f, interaction: e.target.value as Connector['interaction'] }))}
-                        aria-label="How the player triggers this connector"
-                        className="w-full rounded bg-gray-800 p-1 text-xs"
-                      >
-                        <option value="walk">Walk onto it</option>
-                        <option value="interact">Press E on it</option>
-                        <option value="auto">Auto on enter</option>
-                      </select>
-                    </Card>
-                    <Card title="Spawn cell" accent="purple">
-                      <div className="flex items-center gap-1 text-xs">
-                        <span className="whitespace-nowrap text-gray-400">Arrive at</span>
-                        <input
-                          type="number"
-                          min={0}
-                          aria-label="Spawn column in target template"
-                          value={connectorForm.spawnCol ?? 0}
-                          onChange={e => setConnectorForm(f => ({ ...f, spawnCol: Math.max(0, parseInt(e.target.value, 10) || 0) }))}
-                          className="w-14 rounded bg-gray-800 p-1 text-xs"
-                        />
-                        <span className="text-gray-500">,</span>
-                        <input
-                          type="number"
-                          min={0}
-                          aria-label="Spawn row in target template"
-                          value={connectorForm.spawnRow ?? 0}
-                          onChange={e => setConnectorForm(f => ({ ...f, spawnRow: Math.max(0, parseInt(e.target.value, 10) || 0) }))}
-                          className="w-14 rounded bg-gray-800 p-1 text-xs"
-                        />
-                        <span className="whitespace-nowrap text-gray-400">in target</span>
-                      </div>
-                    </Card>
-                    <div className="flex gap-1">
-                      <button onClick={saveConnector} disabled={!connectorForm.targetTemplateId && !connectorForm.action} className="flex-1 rounded bg-green-700 px-2 py-1.5 text-xs font-bold hover:bg-green-600 disabled:bg-gray-700">Save</button>
-                      <button onClick={() => deleteConnector(editingConnector.col, editingConnector.row)} className="rounded bg-red-800 px-2 py-1.5 text-xs hover:bg-red-700">Del</button>
-                      <button onClick={() => setEditingConnector(null)} className="rounded bg-gray-700 px-2 py-1.5 text-xs hover:bg-gray-600">Cancel</button>
-                    </div>
+                    <p className="rounded-lg border border-purple-500/20 bg-black/40 px-3 py-2 text-[11px] leading-tight text-gray-400">
+                      Editing this connector in the <span className="font-bold text-purple-300">↗ Connectors</span> panel — set its target, when &amp; spawn cell there.
+                    </p>
                   </>
                 )
               }

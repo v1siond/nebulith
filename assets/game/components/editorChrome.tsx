@@ -12,13 +12,13 @@ import { type CompositionPaletteGroup } from '@/engine/compositionCatalog'
 // ── Tool-rail (left, slim icon strip) ────────────────────────────────
 type RailDef = { mode: EditorMode; glyph: string; label: string; hint: string }
 
-/** The rail modes, top→bottom. Glyphs mirror the approved design mockup. The Unit tool
- *  lives in the TOP NAV now (a dropdown, like ⚙ Stage / 🎨 Style), so it's off the rail. */
+/** The rail modes, top→bottom. Glyphs mirror the approved design mockup. The Unit tool lives in the TOP NAV
+ *  now (a dropdown, like ⚙ Stage / 🎨 Style), and the Connector tool moved to a RIGHT-SIDEBAR button that
+ *  opens a draggable modal — so both are off the rail. */
 export const RAIL_MODES: readonly RailDef[] = [
   { mode: 'select', glyph: '↖', label: 'Select', hint: 'Select & inspect — click an element to edit it' },
   { mode: 'paint', glyph: '▢', label: 'Paint', hint: 'Paint tiles & ground onto selected cells' },
   { mode: 'building', glyph: '⧉', label: 'Compose', hint: 'Tile composition — stamp buildings, trees, fountains, lamp posts & more' },
-  { mode: 'connector', glyph: '↗', label: 'Connector', hint: 'Link cells to other levels & actions' },
 ]
 
 const RAIL_ACTIVE: Record<EditorMode, string> = {
