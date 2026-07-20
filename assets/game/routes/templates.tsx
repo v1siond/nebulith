@@ -482,10 +482,13 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   useEffect(() => { tilesetReadyRef.current = tilesetReady }, [tilesetReady])
 
   // Fetch + install the backend DATA the render needs — the tilesets (the ONLY source of runtime tiles)
-  // AND the entity resolution (enemyType/variant → baked slug). BOTH must install before the gate opens:
+  // AND the entity resolution (enemyType/variant → baked slug). BOTH must be ready before the gate opens:
   // the render resolves entities in the same pass, so opening on tiles alone would flash enemies with no
-  // per-type figure. On an empty/failed load of EITHER we surface the error state (a retry) and keep the
-  // render gated. We NEVER fall back to frontend data.
+  // per-type figure. "Ready" for the tilesets means the baked PNG IMAGES are DECODED too, not just the JSON
+  // installed — loadTilesetsFromBackend awaits preloadTileImages before it resolves, so the first painted
+  // frame draws every tile as its image (no brick-glyph / crate-hero flash while rasters decode). On an
+  // empty/failed load of EITHER we surface the error state (a retry) and keep the render gated. We NEVER
+  // fall back to frontend data.
   const loadTiles = useCallback(() => {
     setTilesetError(false)
     Promise.all([loadTilesetsFromBackend(), loadEntitiesFromBackend()])

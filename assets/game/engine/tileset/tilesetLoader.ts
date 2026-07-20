@@ -17,6 +17,7 @@ import type { Tileset, TilesetTile, TilePosition, ZonePalette, GroundTile, Compo
 import type { TilePose } from './pose'
 import type { TileView, TileViewSettings } from './tileViewSettings'
 import { NEBULITH_API } from '@/lib/nebulithApi'
+import { preloadTileImages } from '@/engine/render/shared'
 
 // One backend tile row — the new per-tile shape served by /api/tilesets (ascii uses glyph, emoji uses
 // emoji; settings holds style-specific extras: ascii's position/colors, emoji's color/pose/views).
@@ -145,6 +146,17 @@ export function installTilesetPayload(list: ApiTileset[]): string[] {
   return loaded
 }
 
+/** Every baked-image src the CURRENTLY installed tilesets reference — the exact `tileImage` cache keys the
+ *  render will draw. It covers the whole render surface: plain tiles, composition part-labels, held weapons
+ *  and PLACED ENTITIES all resolve their picture through an EMOJI_TILESET / ASCII_TILESET row's `image`
+ *  (an entity is just a `units` tile), so decoding this set decodes everything a first frame can paint. */
+function collectInstalledImageSrcs(): string[] {
+  const srcs = new Set<string>()
+  for (const t of Object.values(EMOJI_TILESET)) if (t.image) srcs.add(t.image)
+  for (const t of Object.values(ASCII_TILESET.tiles)) if (t.image?.src) srcs.add(t.image.src)
+  return [...srcs]
+}
+
 export async function loadTilesetsFromBackend(): Promise<string[]> {
   try {
     const res = await fetch(`${NEBULITH_API}/tilesets`, { headers: { accept: 'application/json' } })
@@ -153,6 +165,12 @@ export async function loadTilesetsFromBackend(): Promise<string[]> {
     const list = Array.isArray(body) ? body : (body.data ?? [])
 
     const loaded = installTilesetPayload(list)
+
+    // Hold the load "done" (and therefore the render gate) until the baked PNGs are DECODED, not just until
+    // the JSON installed. Otherwise the gate opens on JSON alone, the first frame finds every tileImage()
+    // still undecoded, and the render flashes the glyph fallback (brick faces / crate-hero) for ~1s until
+    // the rasters arrive. Preloading here makes "tileset loaded" mean "tiles AND their images are ready".
+    await preloadTileImages(collectInstalledImageSrcs())
 
     if (typeof window !== 'undefined') (window as unknown as { __nebulithTilesets?: string[] }).__nebulithTilesets = loaded
     console.info(`[nebulith] tilesets loaded from the Elixir API (${NEBULITH_API}): ${loaded.join(', ') || 'none'}`)

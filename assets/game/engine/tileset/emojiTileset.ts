@@ -23,8 +23,10 @@ export interface EmojiTile {
    *  orientation/size that used to be the hardcoded WEAPON_ORIENT/emojiWeaponSize table. */
   pose?: TilePose
   /** OPTIONAL portable image asset (a baked PNG served by the backend). When set, the tile renders as an
-   *  IMAGE via the wired drawImage path instead of the `char`. `char` stays as the label + first-paint
-   *  fallback (before the PNG decodes) + the catalog preview. */
+   *  IMAGE via the wired drawImage path instead of the `char`. `char` is NOT a pre-load placeholder — the
+   *  loader decodes every baked image BEFORE the render gate opens (see tilesetLoader → preloadTileImages),
+   *  so a ready tile always paints its image; `char` is only the catalog preview + the after-load fallback
+   *  for a genuinely image-less / unknown label. */
   image?: string
   /** OPTIONAL per-view settings (size/pose/…) — deviations-only; an absent view/field falls back to the
    *  tile's shared value then the renderer's hardcoded default, so an unset tile renders byte-identically.

@@ -1244,8 +1244,10 @@ export function fillIsoFaceWithTile(
   const ch = S / rows
   ctx.save()
   ctx.transform(eA.x / S, eA.y / S, eB.x / S, eB.y / S, origin.x, origin.y)
-  // Image tile if its raster is ready; otherwise fall back to the glyph so the face is NEVER blank —
-  // covers the split second before a Noto PNG decodes AND a failed/missing image (graceful degradation).
+  // Image tile if its raster is ready; otherwise fall back to the glyph so the face is NEVER blank. This is
+  // NO LONGER a pre-load placeholder — the loader gate decodes every baked image before the first frame
+  // (tilesetLoader → preloadTileImages), so on a fresh load this always takes the image path; the glyph only
+  // covers a genuinely failed/missing raster AFTER load (graceful degradation, a backend data gap).
   const img = tv.image ? tileImage(tv.image.src) : null
   if (img) {
     // PERF: an image scaled to (0,0,S,S) fills the sheared box EXACTLY — i.e. this face — so it can never

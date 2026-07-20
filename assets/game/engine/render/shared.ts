@@ -67,7 +67,8 @@ export function resolveDraw(
  *  A styled glyph/image also reports its `tint` so the geometry-preserving sites fill the diamond/cube. */
 export function drawFromVisual(v: Visual, defChar: string, defColor: string): DrawVisual {
   if (v.kind === 'glyph') return { char: v.char, color: v.color ?? defColor, tint: v.color }
-  // An image tile keeps its source glyph as the char (label + first-paint fallback before the PNG decodes).
+  // An image tile keeps its source glyph as the char — NOT a pre-decode placeholder (the loader gate
+  // preloads every baked image before the first frame), only the after-load fallback for a missing raster.
   if (v.kind === 'image') return { char: v.char ?? defChar, color: v.color ?? defColor, image: v, tint: v.color }
   return { char: defChar, color: defColor } // ascii passthrough — identical to the old path
 }
@@ -184,6 +185,36 @@ export function tileImage(src: string): HTMLImageElement | null {
   let img = _imgCache.get(src)
   if (!img) { img = new Image(); img.src = src; _imgCache.set(src, img) }
   return img.complete && img.naturalWidth > 0 ? img : null
+}
+
+/**
+ * Preload + DECODE a set of baked tile image srcs into the SAME cache `tileImage` reads, resolving only
+ * once every one is decoded (or has failed). This is the seam the render gate waits on: installing the
+ * tileset JSON is NOT enough — until each PNG's raster is decoded, `tileImage(src)` returns null and every
+ * draw site falls back to the tile's glyph. THAT is the wrong-style flash the loader must prevent: a fresh
+ * load whose gate opened on JSON alone painted building faces with the tiled brick glyph (a repeated
+ * S-like mark → "a stack of brown crates"), an un-drawn hero, and off-looking trees for the ~1s the PNGs
+ * were still decoding. Decoding here, BEFORE the gate opens, guarantees the first painted frame takes the
+ * image path everywhere — no glyph placeholder ever shows.
+ *
+ * Robust by construction: a missing/broken PNG (404, decode error) is swallowed per-image, so one bad tile
+ * can never wedge the gate shut; SSR / jsdom (no `Image`) resolves immediately (tests never block on it).
+ */
+export async function preloadTileImages(srcs: Iterable<string>): Promise<void> {
+  if (typeof Image === 'undefined') return
+  const jobs: Promise<unknown>[] = []
+  for (const src of srcs) {
+    if (!src) continue
+    let img = _imgCache.get(src)
+    if (!img) { img = new Image(); img.src = src; _imgCache.set(src, img) }
+    if (img.complete && img.naturalWidth > 0) continue // already decoded — nothing to wait on
+    const el = img
+    const done = typeof el.decode === 'function'
+      ? el.decode().catch(() => {}) // decode() rejects on a failed/missing raster — swallow, never wedge the gate
+      : new Promise<void>((res) => { el.onload = () => res(); el.onerror = () => res() }) // environments without decode()
+    jobs.push(done)
+  }
+  await Promise.all(jobs)
 }
 
 /** Index a tileset by emoji CHAR → baked image src. A weapon/shield/fist is drawn through drawPoseGlyph,

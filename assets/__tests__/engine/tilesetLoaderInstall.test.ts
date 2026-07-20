@@ -10,6 +10,15 @@ import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 import { EMOJI_TILESET } from '@/engine/tileset/emojiTileset'
 import { resolveComposition } from '@/engine/tileset/tileset'
 
+// The loader now DECODES every baked image before it resolves (the render gate waits on decoded images —
+// tilesetLoader → preloadTileImages). jsdom never loads/decodes a real Image, so stand in a synchronously
+// "decoded" one (complete + naturalWidth) — preloadTileImages then skips the wait and the load resolves,
+// exactly as it does in the browser once the PNGs are ready.
+const RealImage = (global as { Image: unknown }).Image
+class DecodedImage { complete = true; naturalWidth = 64; naturalHeight = 64; src = ''; decode() { return Promise.resolve() } }
+beforeAll(() => { (global as { Image: unknown }).Image = DecodedImage })
+afterAll(() => { (global as { Image: unknown }).Image = RealImage })
+
 const ASCII_STUB = {
   id: 1,
   key: 'ascii',

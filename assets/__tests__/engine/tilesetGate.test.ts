@@ -12,6 +12,16 @@ import { EMOJI_TILESET, setEmojiTileset } from '@/engine/tileset/emojiTileset'
 import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 
 const realFetch = global.fetch
+const RealImage = (global as { Image: unknown }).Image
+
+// The loader now DECODES every baked image before it resolves (the render gate waits on decoded images,
+// not just the JSON — see tilesetLoader → preloadTileImages). jsdom never loads/decodes a real Image, so
+// a real `<img>` would hang the success case forever. Stand in a synchronously-"decoded" Image (complete +
+// naturalWidth) so preloadTileImages skips the wait — the load resolves, exactly as it does in the browser
+// once the PNGs are ready.
+class DecodedImage { complete = true; naturalWidth = 64; naturalHeight = 64; src = ''; decode() { return Promise.resolve() } }
+beforeAll(() => { (global as { Image: unknown }).Image = DecodedImage })
+afterAll(() => { (global as { Image: unknown }).Image = RealImage })
 
 // Restore fetch AND reset the emoji holder to empty after each case — the success case installs a tileset,
 // so we return the module to its pristine (empty) resting state so nothing leaks to a sibling test.
