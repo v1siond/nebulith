@@ -7,7 +7,8 @@
  *   - placeGroundTile → terrain: replace the cell's FLOOR tile slug, preserving its colour/dims.
  *   - stackAssetTile  → nature/buildings: PUSH a tile onto the cell's stack (one level above the tallest),
  *                       pinning the exact tile via tileOverride; it inserts at the tile's OWN height (DATA)
- *                       and its collision DERIVES from that height (above-ground blocks, ground walkable).
+ *                       and paints with ONE uniform walkable collision default — collision is a per-cell
+ *                       SETTING the user controls, NEVER derived from height (or type/category/style).
  *   - removeTopAsset  → ⌥Alt: pop the top tile off the cell's stack and re-derive collision from what remains.
  *
  * This is BEHAVIOUR-IDENTICAL to the old direct-setter path — the adapter ops resolve to the same grid
@@ -47,17 +48,19 @@ export function placeGroundTile(grid: IsometricGrid, col: number, row: number, t
  *  style branch. The MECHANISM is identical for every tile ("all tiles behave the same"); the only difference
  *  is the DATA each tile carries:
  *   - a GROUND/FLAT tile (terrain, flower, fallen leaf, floor decor — DB height 0/min) inserts FLAT: it shows
- *     on the floor face only in iso and is WALKABLE.
- *   - a STANDING tile (tree, rock, building, prop, lamp, mushroom — DB height ≥1) inserts as an extruded BLOCK
- *     and BLOCKS movement.
+ *     on the floor face only in iso.
+ *   - a STANDING tile (tree, rock, building, prop, lamp, mushroom — DB height ≥1) inserts as an extruded BLOCK.
  *  The exact same line reads every tile's height; a data drift on ONE tile can never reopen a per-category
  *  code split, because there is no category code here.
  *   - `h` = the tile's OWN DB height (0 = flat floor face, ≥1 = N blocks tall). Read, never forced.
- *   - `collision` is DERIVED from that height, uniformly: a tile occupying height > 0 (above ground) blocks
- *     by default; height 0 (on the ground/floor) is walkable. There is NO per-type blocking list. The user
- *     can override Blocked/Walkable per-tile afterwards (the inspector's cell-collision toggle) — that wins.
+ *   - `collision` is INDEPENDENT of height (and of type/category/style): every painted tile lands with the
+ *     SAME uniform walkable default — a 4-block projection paints walkable, a 2-block open door paints
+ *     walkable, a flat flower paints walkable. Collision is a per-cell SETTING the user drives via the
+ *     inspector's Blocked/Walkable toggle (grid.setCollision) — that is the source of truth. Height and
+ *     collision are fully decoupled: any height can carry any collision. There is NO per-type blocking list
+ *     and NO height→collision rule anywhere in this path.
  *   - `type` is the tile's OWN slug (its identity), not a classified category — the visual is pinned via
- *     tileOverride and height/collision come from the height above, so `type` only labels the placed asset.
+ *     tileOverride and the height above is per-tile DATA, so `type` only labels the placed asset.
  *   - `settings` = the tile's OWN generic render behaviour (fadeNear/cutawayRoof/display) via tileRenderBehavior
  *     — the SAME seam stampComposition uses — so an authored behaviour rides along, nothing is forced. */
 export function stackAssetTile(
@@ -78,8 +81,9 @@ export function stackAssetTile(
     tileId: tile.id,
     color,
     opacity: opts.opacity,
-    collision: height > 0, // above-ground blocks, ground is walkable — derived from height, uniform + overridable
-    h: height, // the tile's own height: 0 = flat (floor face only in iso), ≥1 = extruded block
+    collision: false, // UNIFORM walkable default for EVERY tile — collision is a per-cell SETTING the user drives
+                      // via the inspector (grid.setCollision), NEVER derived from height/type/category/style
+    h: height, // the tile's own height: 0 = flat (floor face only in iso), ≥1 = extruded block — decoupled from collision
   })
   const behavior = tileRenderBehavior(tile.settings)
   if (behavior) placed.settings = behavior

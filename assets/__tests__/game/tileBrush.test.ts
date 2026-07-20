@@ -75,14 +75,18 @@ describe('stackAssetTile — nature/buildings stack as cell assets', () => {
     expect(stack[stack.length - 1].heightLevel).toBe(1)
   })
 
-  test('a blocking tile (building) marks the cell collision; a flower does not', () => {
+  test('painting is UNIFORMLY walkable by default — a tall building and a flat flower both land walkable (no type branch)', () => {
     const g = makeGrid()
     expect(g.isBlocked(3, 3)).toBe(false)
-    stackAssetTile(g, 3, 3, byId('emoji:house')) // building → blocking
-    expect(g.isBlocked(3, 3)).toBe(true)
+    stackAssetTile(g, 3, 3, byId('emoji:house')) // a tall building paints WALKABLE by default — no type/height rule
+    expect(g.isBlocked(3, 3)).toBe(false)
 
-    stackAssetTile(g, 4, 4, byId('emoji:rose')) // flower → non-blocking
+    stackAssetTile(g, 4, 4, byId('emoji:rose')) // a flat flower paints WALKABLE too — the SAME uniform default
     expect(g.isBlocked(4, 4)).toBe(false)
+
+    // collision is a per-cell SETTING: the inspector's Blocked toggle blocks the cell regardless of the tile
+    g.setCollision(3, 3, true)
+    expect(g.isBlocked(3, 3)).toBe(true)
   })
 })
 
@@ -190,7 +194,7 @@ describe('painted building tiles insert as all-faces 3D blocks by default (the p
     expect(a.height).toBeGreaterThanOrEqual(1)  // a real extruded block, not a flat billboard
     expect(a.settings?.display).toBeUndefined() // absent == all-faces (never forced to single)
     expect(a.depth ?? 1).toBe(1)                // it's a block with NO Z-Width applied
-    expect(a.blocking).toBe(true)               // above-ground → blocks the cell
+    expect(a.blocking).toBe(false)              // WALKABLE by default — height NEVER forces collision (a per-cell setting)
   })
 
   test('a wall keeps its own render behaviour (fadeNear) while still defaulting to all-faces', () => {
@@ -221,26 +225,27 @@ describe('painted NATURE tiles read their own height through the SAME path as bu
     stackAssetTile(g, 1, 1, byId(id))
     const a = g.getAssetsAtCell(1, 1)[0]
     expect(a.height).toBeGreaterThanOrEqual(1) // its own DB height ≥1 → a real block
-    expect(a.blocking).toBe(true)              // above-ground → blocks
+    expect(a.blocking).toBe(false)             // WALKABLE by default — height does not force collision
     expect(a.type).toBe(tileSlug(id))          // the tile's OWN slug — no classified category
     expect(a.tileOverride).toBe(id)            // the exact palette tile is pinned, so it renders as its own art
   })
 
-  // Ground overlays (flowers, fallen leaves) carry DB height 0 → they insert FLAT (floor face) and WALKABLE,
-  // through the SAME code path a tree takes. If the user wants one to stand, that is a per-tile height edit.
+  // Ground overlays (flowers, fallen leaves) carry DB height 0 → they insert FLAT (floor face), through the
+  // SAME code path a tree takes. If the user wants one to stand, that is a per-tile height edit.
   test.each(['emoji:flower', 'emoji:rose', 'emoji:fallen-leaf'])('%s (DB height 0) inserts FLAT + walkable', (id) => {
     const g = makeGrid()
     stackAssetTile(g, 2, 2, byId(id))
     const a = g.getAssetsAtCell(2, 2)[0]
-    expect(a.height).toBe(0)      // flat — its own ground-level height
-    expect(a.blocking).toBe(false) // ground → walkable
+    expect(a.height).toBe(0)       // flat — its own ground-level height
+    expect(a.blocking).toBe(false) // WALKABLE by the uniform default (same as every tile — not because height is 0)
   })
 })
 
 // THE definitive model — height is per-tile DATA read through ONE uniform mechanism, with NO type/category/
-// art-style branch. Two tiles differ ONLY by the height value they carry: a ground tile inserts flat + walkable,
-// a standing tile inserts as a block + blocked. A synthetic tile with height 0 / 2 / 5 inserts at EXACTLY that
-// height — proving the brush reads the tile's own height and never forces a constant.
+// art-style branch. Two tiles differ ONLY by the height value they carry: a ground tile inserts flat, a
+// standing tile inserts as a block — but BOTH paint with the identical uniform WALKABLE collision default
+// (collision is a per-cell setting, decoupled from height). A synthetic tile with height 0 / 2 / 5 inserts at
+// EXACTLY that height — proving the brush reads the tile's own height and never forces a constant.
 describe('per-tile height, read uniformly — no type/category/style distinction in the mechanism', () => {
   const paintFresh = (tile: TileDef): GridAsset => {
     const g = makeGrid()
@@ -251,10 +256,11 @@ describe('per-tile height, read uniformly — no type/category/style distinction
   test('a flower (height 0) and a building (height ≥1) run the SAME mechanism but carry different height DATA', () => {
     const flower = paintFresh(byId('emoji:rose'))     // ground overlay
     const building = paintFresh(byId('emoji:house'))  // standing block
-    expect(flower.height).toBe(0)                     // flat, walkable
+    expect(flower.height).toBe(0)                     // flat
+    expect(building.height).toBeGreaterThanOrEqual(1) // block
+    // collision is the SAME uniform walkable default for BOTH — height does not change it (fully decoupled)
     expect(flower.blocking).toBe(false)
-    expect(building.height).toBeGreaterThanOrEqual(1) // block, blocked
-    expect(building.blocking).toBe(true)
+    expect(building.blocking).toBe(false)
     // same display default (both all-faces) — the mechanism is identical, only the height DATA differs
     expect(flower.settings?.display).toBe(building.settings?.display)
   })
@@ -269,27 +275,47 @@ describe('per-tile height, read uniformly — no type/category/style distinction
     expect(paintFresh({ ...base, height: undefined }).height).toBe(0) // no height DATA → flat
   })
 
-  test('collision derives from height uniformly — height > 0 blocks, height 0 is walkable', () => {
+  // COLLISION IS NOT DERIVED FROM HEIGHT (the user's rule: "collision is a setting … a 4 blocks tall
+  // projection which is all walkable"). Every painted tile — height 0, 1, 3 or 4 — lands with the SAME
+  // uniform walkable default. Height and collision are fully decoupled.
+  test('collision does NOT depend on height — every painted tile is walkable by default (height 0 / 1 / 3 / 4)', () => {
     const base = byId('emoji:rose')
     expect(paintFresh({ ...base, height: 0 }).blocking).toBe(false)
-    expect(paintFresh({ ...base, height: 1 }).blocking).toBe(true)
-    expect(paintFresh({ ...base, height: 3 }).blocking).toBe(true)
+    expect(paintFresh({ ...base, height: 1 }).blocking).toBe(false)
+    expect(paintFresh({ ...base, height: 3 }).blocking).toBe(false)
+    expect(paintFresh({ ...base, height: 4 }).blocking).toBe(false) // a 4-block-tall projection is WALKABLE
   })
 
-  // The per-tile Blocked/Walkable OVERRIDE (the inspector's cell-collision toggle → grid.setCollision) WINS
-  // over the height-derived default, in BOTH directions.
-  test('the per-tile collision OVERRIDE wins over the height-derived default (both directions)', () => {
+  // The INSERT PATH has NO type/category/height branch for collision: paint a building, a standing nature
+  // block and a flat flower — all different type, category AND height — and every one gets the byte-identical
+  // walkable default. If any branch existed, one of these would differ.
+  test('the insert path has NO type/category/height branch for collision — every tile gets the identical default', () => {
+    const building = paintFresh(byId('emoji:house'))     // building category, height ≥1
+    const nature = paintFresh(byId('emoji:pine-tree'))   // nature category, height ≥1
+    const flower = paintFresh(byId('emoji:rose'))        // nature overlay, height 0
+    expect(building.blocking).toBe(false)
+    expect(nature.blocking).toBe(false)
+    expect(flower.blocking).toBe(false)
+    expect(new Set([building.blocking, nature.blocking, flower.blocking]).size).toBe(1) // one uniform default
+  })
+
+  // Collision is a per-cell SETTING the user drives (inspector Blocked/Walkable → grid.setCollision), fully
+  // decoupled from height: a TALL painted tile is walkable until the user blocks it, a FLAT tile can be blocked
+  // too, and a blocked cell can go back to walkable — height neither forces nor prevents any of it.
+  test('the Blocked/Walkable SETTING drives collision regardless of height (both directions)', () => {
     const g = makeGrid()
-    // a flat flower defaults walkable → override it to Blocked
-    stackAssetTile(g, 1, 1, byId('emoji:rose'))
-    expect(g.isBlocked(1, 1)).toBe(false)
-    g.setCollision(1, 1, true) // the inspector's Blocked override
+    // a 4-block-tall painted projection defaults WALKABLE, then the user sets it Blocked, then Walkable again
+    stackAssetTile(g, 1, 1, { ...byId('emoji:rose'), height: 4 })
+    expect(g.isBlocked(1, 1)).toBe(false) // tall, but walkable by default — no height→collision
+    g.setCollision(1, 1, true)            // the inspector's Blocked toggle
     expect(g.isBlocked(1, 1)).toBe(true)
-    // a standing tree defaults blocked → override it to Walkable
-    stackAssetTile(g, 2, 2, byId('emoji:pine-tree'))
-    expect(g.isBlocked(2, 2)).toBe(true)
-    g.setCollision(2, 2, false) // the inspector's Walkable override
+    g.setCollision(1, 1, false)           // and back to Walkable
+    expect(g.isBlocked(1, 1)).toBe(false)
+    // a FLAT (height 0) painted tile can be set Blocked all the same — collision is not tied to height
+    stackAssetTile(g, 2, 2, { ...byId('emoji:rose'), height: 0 })
     expect(g.isBlocked(2, 2)).toBe(false)
+    g.setCollision(2, 2, true)
+    expect(g.isBlocked(2, 2)).toBe(true)
   })
 })
 
@@ -311,16 +337,18 @@ describe('removeTopAsset — ⌥Alt remove + collision recompute', () => {
     expect(g.assets).toHaveLength(0)
   })
 
-  test('a cell stays blocked while a blocker remains, unblocks once the last blocker is popped', () => {
+  test('a cell stays blocked while a blocking (authored) asset remains, unblocks once it is popped', () => {
     const g = makeGrid()
-    stackAssetTile(g, 2, 2, byId('emoji:house')) // blocking building (level 0)
-    stackAssetTile(g, 2, 2, byId('emoji:rose'))  // non-blocking flower on top (level 1)
+    // Painted tiles are always walkable; a BLOCKING asset only ever comes from authored per-cell DATA (a
+    // stamped composition cell), so we place it directly the way stampComposition does — blocking is DATA.
+    g.placeAsset(['🧱'], 2, 2, { type: 'wall', blocking: true, heightLevel: 0 })
+    stackAssetTile(g, 2, 2, byId('emoji:rose')) // a painted (walkable) tile on top (level 1)
     expect(g.isBlocked(2, 2)).toBe(true)
 
-    removeTopAsset(g, 2, 2) // pop the flower → the blocking house still there
+    removeTopAsset(g, 2, 2) // pop the walkable tile → the blocking asset still there
     expect(g.isBlocked(2, 2)).toBe(true)
 
-    removeTopAsset(g, 2, 2) // pop the house → nothing blocking left
+    removeTopAsset(g, 2, 2) // pop the blocking asset → nothing blocking left
     expect(g.isBlocked(2, 2)).toBe(false)
     expect(g.getAssetsAtCell(2, 2)).toHaveLength(0)
   })
@@ -338,10 +366,10 @@ describe('removeAssetAtLevel — ⌥Alt removes the block you POINT at, not blin
     expect(g.getAssetsAtCell(1, 1).map(a => a.tileOverride)).toEqual(['emoji:pine-tree', 'emoji:boulder'])
   })
 
-  test('re-derives collision: removing the only blocker unblocks the cell even if a non-blocker stays', () => {
+  test('re-derives collision: removing the only blocking (authored) asset unblocks the cell even if a walkable tile stays', () => {
     const g = makeGrid()
-    stackAssetTile(g, 2, 2, byId('emoji:rose'))  // non-blocking flower (level 0)
-    stackAssetTile(g, 2, 2, byId('emoji:house')) // blocking building (level 1, top)
+    stackAssetTile(g, 2, 2, byId('emoji:rose'))                                   // painted, walkable (level 0)
+    g.placeAsset(['🧱'], 2, 2, { type: 'wall', blocking: true, heightLevel: 1 })  // authored blocker (level 1, top)
     expect(g.isBlocked(2, 2)).toBe(true)
     removeAssetAtLevel(g, 2, 2, 1) // remove the blocker specifically
     expect(g.isBlocked(2, 2)).toBe(false)

@@ -7,8 +7,9 @@
  *   2. entityKindForUnitSlug   → which entity kind a `units` tile becomes (player/npc/enemy).
  *
  * There is deliberately NO type/category classifier for a stacked asset: a nature/building tile's
- * insertion HEIGHT and COLLISION derive from the tile's OWN height DATA (see stackAssetTile), not
- * from a per-type list — so every tile inserts through the same uniform path. The tile's VISUAL is
+ * insertion HEIGHT is the tile's OWN height DATA (see stackAssetTile) and its COLLISION is one uniform
+ * walkable default (a per-cell SETTING the user drives, never derived from height/type/category/style),
+ * not a per-type list — so every tile inserts through the same uniform path. The tile's VISUAL is
  * pinned via `tileOverride = tile.id`, so the exact catalog tile always renders. Kept pure + here
  * so the routing is unit-testable without the React page.
  */
