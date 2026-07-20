@@ -34,6 +34,9 @@ defmodule NebulithWeb.Router do
     pipe_through :api
 
     resources "/tilesets", TilesetController, except: [:new, :edit]
+    # Entity → baked-tile resolution DATA (enemyType/variant → slug). Read-only; the
+    # frontend fetches it at load time (it holds no bundled entity data).
+    get "/entities", EntityController, :index
     resources "/templates", TemplateController, except: [:new, :edit]
     resources "/games", GameController, except: [:new, :edit]
     # Editor UI settings — a key→value store for editor chrome geometry (per modal id).

@@ -193,6 +193,13 @@ editor shows a **LOADING TILES loader** (and the RAF loop paints only a plain ba
 installed, and an **error/retry** state if the load fails. Nothing is ever drawn from frontend tile data — so a
 fresh load goes straight from loader → the correct DB style, with no wrong-style flash in between.
 
+**Entity resolution is backend data too (a unit is just a tile).** How an entity resolves to a baked tile — an
+enemy's `enemyType` → slug, a person's `variant` → slug, and the baked-slug set — used to be the last frontend
+data file (`game/data/entityTiles.json`). It now lives in the backend (`Nebulith.Catalog.EntitySource`) and is
+served by **`GET /api/entities`**; the frontend installs it into an EMPTY holder via `entityLoader` and the
+render gate waits for it **alongside** the tilesets (no fallback). The frontend now holds **no** tile OR entity
+data. See TILE-BACKEND-MIGRATION §11.
+
 **Tile pipeline (Elixir backend → baked image → DB → app).** All tile DATA lives in the nebulith backend.
 The game-website FRONTEND JSON (`tileKinds.json`/`emojiCatalog.json` + `gen-tileset-seeds.mjs`) was the
 ONE-TIME frontend→backend migration import and is now DEAD — do not author tiles there.

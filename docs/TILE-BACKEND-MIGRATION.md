@@ -168,7 +168,9 @@ data change (rewrite the column to bucket URLs), not a code change — the reaso
 
 **Delete (tile art/data — must all go):**
 - `src/game/data/compositions.json`, `tileKinds.json`, `emojiCatalog.json`, `entityTiles.json`,
-  `tilesetSeed.json`
+  `tilesetSeed.json` — **ALL DONE (2026-07-20):** `entityTiles.json` was the last of these; its data
+  now lives in the backend (`EntitySource`) and is served by `GET /api/entities` (see §11). `src/game/data/`
+  is empty.
 - `scripts/gen-tileset-seeds.mjs`
 - The **bundled default art** in `src/engine/tileset/asciiTileset.ts` + `emojiTileset.ts`
   (`CELL_GLYPHS`, `COLOR_ROLE_BY_LABEL`, `POSITION_BY_LABEL`, zone palettes, and any emoji defaults).
@@ -220,8 +222,10 @@ Engine tests currently import the frontend `tilesetSeed.json` fixture (via
    preloader added. App still runs off the (now image-backed) backend.
 5. **Delete frontend tile data/art** — remove the JSON files, the generator, and the bundled
    defaults; holders start empty. **DONE (2026-07-20):** the last bundled default (`EMOJI_TILESET`) is
-   removed and the editor now loader-gates the render (see §10). `game/data/entityTiles.json` (baked
-   entity/enemy resolution — no DB source yet) is the one remaining frontend data file, deferred.
+   removed and the editor now loader-gates the render (see §10). The LAST remaining frontend data file,
+   `game/data/entityTiles.json` (baked entity/enemy resolution), is now **also removed** — its data moved
+   to the backend and is served by `GET /api/entities` (see §11). The frontend now holds **no** tile or
+   entity data.
 6. **Tests** — repoint to the API fixture; add backend ExUnit tests. Full suite green.
 
 Validation is against Alexander's running instance (per project rule): drive the real game with
@@ -242,3 +246,29 @@ Playwright and confirm the look on his server — never self-certify a headless 
   add a backend test asserting the shape, so drift fails loudly.
 - **Two-repo coordination** (schema + API + frontend shape must land together) → the phased order
   above keeps each step runnable; the shape cutover (steps 3–4) is the one lockstep change.
+
+## 11. Entity resolution (backend-served) — `GET /api/entities`
+
+The final frontend data file, `src/game/data/entityTiles.json`, held how a game entity resolves to a
+baked tile: an enemy's `enemyType` → slug (bandit → ninja), a person's `variant` → slug (male → man),
+and the set of baked entity slugs. Since *a unit is just a tile* and the entity ART already lives in the
+emoji tileset (the `units`-category rows), only that small **resolution map** was still frontend-owned.
+It now lives in the backend and is fetched at load time, so the frontend holds **no** entity data.
+
+- **Backend:** `Nebulith.Catalog.EntitySource` — a code data module (like `BuildingCompositions`; no DB
+  table, since it is static resolution DATA, not per-row tiles). It exposes `resolution/0`
+  (`dir`, `tiles` slug→emoji, `enemy_type_slug`, `variant_slug`). `NebulithWeb.EntityController` +
+  `EntityJSON` serve it at `GET /api/entities` under `data`, emitting camelCase keys
+  (`enemyTypeSlug`/`variantSlug`) the loader installs verbatim.
+- **Frontend:** an EMPTY holder (`engine/entity/entityResolution.ts`) filled ONLY by
+  `engine/entity/entityLoader.ts` (`loadEntitiesFromBackend`). `artStyle.ts`'s `enemyTileId` /
+  `personVariantTileId` / `bakedEntityImage` read the holder LIVE (no bundled map). There is **no
+  fallback** — a failed fetch installs nothing and returns false.
+- **Loader gate:** the render gate (`tilesetReady`) now waits for BOTH the tilesets AND the entity
+  resolution (`Promise.all([loadTilesetsFromBackend(), loadEntitiesFromBackend()])`), so a fresh load
+  shows the LOADING TILES loader → the map WITH entities, never a frame of map-without-entities (no
+  flash, no missing enemies). Validated on the running editor (Playwright, entities delayed to prove the
+  gate holds).
+- **Tests:** ExUnit `entity_controller_test.exs` pins the served shape + that every mapped slug is baked;
+  the frontend loader/gate/no-fallback + a captured `fixtures/entities.json` cover the install; a
+  grep-proof guard asserts no runtime module imports `entityTiles.json`.
