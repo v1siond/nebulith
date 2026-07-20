@@ -75,9 +75,9 @@ defmodule Nebulith.Catalog.TileSource do
     seed_compositions(ascii["compositions"])
     seed_new_compositions()
     seed_building_compositions()
-    # UNIFORM insertion: every paintable asset tile is a block (height 1), no flat-vs-standing split. seed_emoji_tiles
-    # writes the raw per-tile height; this normalises buildings+nature to the uniform block so a fresh full seed agrees
-    # with seed_sample (which reconciles pose-safely).
+    # PER-TILE height DATA: each asset tile keeps its OWN height (ground/flat = 0, standing ≥ 1), read uniformly
+    # with no per-category code branch. seed_emoji_tiles already writes the raw per-tile height; this re-applies it
+    # pose-safely so a fresh full seed agrees with seed_sample.
     reconcile_tile_heights()
 
     ascii_count = length(Catalog.list_tiles_for("ascii"))
@@ -837,19 +837,24 @@ defmodule Nebulith.Catalog.TileSource do
   end
 
   @doc """
-  Reconciles the `height` COLUMN of every paintable emoji ASSET tile (categories `buildings` + `nature`) to a
-  UNIFORM block height of 1.
+  Reconciles the `height` COLUMN of every paintable emoji ASSET tile (categories `buildings` + `nature`) to the
+  tile's OWN height from emoji.json — the per-tile DATA, read uniformly.
 
-  The user's hard rule: "all tiles behave and are inserted the same in the map, regardless of type or art
-  style." There is NO per-category flat-vs-standing split anymore — a flower, a tree, a building, a rock all
-  paint as the SAME full all-faces block (height 1), matching the GENERATOR (every composition cell is forced
-  to `asset.height = 1`) and the editor brush (`stackAssetTile` seeds a uniform `h = 1`). The ONLY source of a
-  per-tile difference is the right-sidebar SETTINGS the user edits on an individual tile, never its type or
-  category. `t["height"] || 1` means a tile with no explicit height defaults to a block, so there is no way to
-  reintroduce the old flat-vs-standing distinction. Touches ONLY the height column (set_tile_height), so
-  editor-tuned poses in `settings` survive (a full `seed_emoji_tiles` would `replace_all` them — which is why
-  `seed_sample` never calls it). Terrain is the floor primitive (painted onto the ground, never a stacked
-  block) and is intentionally left untouched. Idempotent.
+  The user's model (MAP-MODEL / EDITOR-INTERACTION-SPEC): height is per-tile DATA read through ONE uniform path,
+  with NO type/category/art-style code branch. A tile carries its own height and every consumer reads it the
+  same way — the mechanism is identical for every tile, only the DATA differs:
+
+    * a GROUND/FLAT tile (terrain, flower, fallen leaf, floor decor, facade piece) has height 0/min → it shows
+      on the floor face only in iso and is WALKABLE;
+    * a STANDING tile (tree, rock, mushroom, cactus, crate, lamp, building, prop) has height ≥ 1 → an extruded
+      block that BLOCKS movement.
+
+  `t["height"] || 0` writes exactly the tile's authored height: a tile with no explicit height in emoji.json is
+  a ground/flat tile (0). This is NOT a category rule — the same line runs for every asset tile; it just reads a
+  different value per tile (collision then DERIVES from that height on the client, no per-type list). Touches
+  ONLY the height column (set_tile_height), so editor-tuned poses in `settings` survive (a full
+  `seed_emoji_tiles` would `replace_all` them — which is why `seed_sample` never calls it). Terrain is the floor
+  primitive (painted onto the ground, height 0 by definition) and is intentionally left untouched. Idempotent.
   """
   def reconcile_tile_heights do
     emoji_id = ensure_tileset("emoji", "Emoji").id
@@ -858,11 +863,11 @@ defmodule Nebulith.Catalog.TileSource do
     updated =
       for {label, t} <- emoji, t["category"] in ["buildings", "nature"], reduce: 0 do
         acc ->
-          {n, _} = Catalog.set_tile_height(emoji_id, label, t["height"] || 1)
+          {n, _} = Catalog.set_tile_height(emoji_id, label, t["height"] || 0)
           acc + n
       end
 
-    IO.puts("reconciled #{updated} emoji asset-tile heights to a uniform block (1)")
+    IO.puts("reconciled #{updated} emoji asset-tile heights from per-tile DATA (ground = 0, standing ≥ 1)")
     :ok
   end
 

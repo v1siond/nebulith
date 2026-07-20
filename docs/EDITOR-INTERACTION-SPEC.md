@@ -146,37 +146,37 @@ system the GENERATOR and the RENDERER use — never a separate or hardcoded list
   they are enemies placed through the Unit flow (`entityKindForUnitSlug` → `enemy`), so genuine nature (trees,
   rocks, plants, flowers, mushrooms) is all that remains paintable under `nature`.
 - **A palette tile FULLY describes its DB tile.** `TileDef` carries the tile's DB `category`, `title`, art, and
-  **settings** (the generic `fadeNear`/`cutawayRoof`/`display` blob). It also carries the tile's default block
-  `height`, but the PAINT brush deliberately does NOT read it (see the next bullet) — height is metadata the
-  renderer's fallback + Tile Library use, never a per-tile paint rule.
-- **A painted tile IS a normal, editable tile — and EVERY tile is inserted IDENTICALLY.** The brush
-  (`stackAssetTile`) stamps a real `GridAsset` pinned to the exact tile (`tileOverride`) with a **single UNIFORM
-  default: a full all-faces block, `height = 1`** — the SAME height the generator forces on every composition
-  cell (`stampComposition`/`stampRun`: `asset.height = 1`). A flower, a tree, a building, a rock, a floor-leaf
-  all insert as structurally identical blocks: **there is NO branch by tile type, category, label or art style
-  anywhere in the paint/placement path.** The user's hard rule, repeated in caps: *"THERE'S NO DISTINCTION —
-  all tiles behave and are inserted the same in the map, regardless of type or art style."* The tile's own
-  authored `settings` still ride along via the SAME `tileRenderBehavior` seam `stampComposition` uses, and the
-  asset is selectable + changeable (colour/shape/size/pose/display/height via the Inspector). **The ONLY source
-  of a per-tile difference is the right-sidebar SETTINGS the user edits on an individual tile** — never a
-  type/category rule. If a tile should be flat (a terrain-like decal), the user flattens THAT tile via its
-  settings; the editor never re-introduces a category exception.
-- **Z-Width is a 3D block operation.** Every painted tile already lands as a height-1 iso BLOCK, so **Display
+  **settings** (the generic `fadeNear`/`cutawayRoof`/`display` blob), plus the tile's own block `height`. The
+  paint brush READS that height (see the next bullet) — height is the tile's DATA, read the same way everywhere.
+- **A painted tile IS a normal, editable tile — and EVERY tile is inserted through the SAME uniform path, reading
+  its OWN height.** The brush (`stackAssetTile`) stamps a real `GridAsset` pinned to the exact tile
+  (`tileOverride`) and reads **the tile's own DB `height`** through ONE line — `h = tile.height ?? 0`. There is
+  **NO branch by tile type, category, label or art style** anywhere in the paint/placement path; the mechanism is
+  identical for every tile, only the height DATA differs:
+  - a **GROUND/FLAT** tile (a **flower**, a fallen leaf, floor decor, a facade piece — DB height `0`) inserts
+    **flat**: in iso it shows on the **floor face** only, and it is **walkable**.
+  - a **STANDING** tile (a tree, a rock, a building, a prop, a lamp, a mushroom — DB height `≥ 1`) inserts as an
+    extruded **block** and **blocks** movement.
+  The user's rule, repeated in caps: *"all tiles behave and are inserted the same in the map, regardless of type
+  or art style"* — the **mechanism** is uniform; the height is per-tile DATA. **Collision DERIVES from that
+  height** (`collision = height > 0`): above-ground blocks, ground is walkable — no per-type blocking list. The
+  tile's own authored `settings` ride along via the SAME `tileRenderBehavior` seam `stampComposition` uses, and
+  the asset is selectable + changeable (colour/shape/size/pose/display/height/**collision** via the Inspector).
+  The height-derived collision default is **overridable per cell** (the Inspector's Blocked/Walkable toggle →
+  `grid.setCollision`), and that override wins.
+- **Z-Width is a 3D block operation.** A STANDING painted tile (height ≥ 1) lands as an iso BLOCK, so **Display
   (all-faces / single) applies to it by default**; **Z-Width** extrudes it FURTHER along a diagonal (directional
-  depth > 1) through the block path (`drawIsoTileForShape` → `drawIsoTileBlock`). There is **no 2D logic on the
-  isometric side** — the old flat-billboard path that silently dropped `depth`/`depthDir` + `display` is gone;
-  a painted tile is a real block the moment it lands, and Z-Width only changes how far it extrudes.
-- **NO per-category height distinction — the flat-vs-standing split is GONE.** Previously the DB `height`
-  decided flatness per tile (buildings + standing nature = block; flowers/leaves/facade parts = flat),
-  reconciled per category by `reconcile_building_heights` + `reconcile_nature_heights`. That split WAS exactly
-  the *"some tiles insert flat, others as blocks"* the user rejected (*"the painting only works for the building
-  tiles … all tiles work the same, so all should work the same"*). Now **every paintable asset tile (buildings
-  + nature) is a uniform block**: `TileSource.seed`/`seed_sample` runs **`reconcile_tile_heights`**, which sets
-  the height column to `1` for all buildings+nature tiles (pose-safe — height column only, so editor-tuned poses
-  survive; `emoji.json` → reseed, never a frontend override). Terrain is the **FLOOR primitive** (painted onto
-  the ground via `placeGroundTile`, never a stacked block) — the floor-vs-stack boundary `placementFor` is built
-  on, NOT a per-tile height exception. If terrain-as-a-block or a standing flower ever looks wrong, that is a
-  per-tile SETTINGS choice, never a category rule.
+  depth > 1) through the block path (`drawIsoTileForShape` → `drawIsoTileBlock`). Even a height-0 tile becomes a
+  block the moment Z-Width is set (the old flat-billboard path that silently dropped `depth`/`depthDir` +
+  `display` is gone) — Z-Width only changes how far a block extrudes.
+- **Height is per-tile DATA (no per-category code branch).** A tile's flatness is decided by **its own** DB
+  `height` (ground/flat = `0`, standing = `≥ 1`), read uniformly — NOT by a per-category rule. `TileSource.seed`/
+  `seed_sample` runs **`reconcile_tile_heights`**, which writes each buildings+nature tile's OWN `emoji.json`
+  height onto the DB height column (`t["height"] || 0`), pose-safe — height column only, so editor-tuned poses
+  survive; `emoji.json` → reseed, never a frontend override. Terrain is just the height-0 case painted onto the
+  **FLOOR** via `placeGroundTile` (the floor-vs-stack boundary `placementFor` is built on) — the same "height 0 =
+  floor face" rule as any other flat tile. If a flower should stand or a prop should lie flat, that is a per-tile
+  **height** edit on THAT tile — never a category rule.
 - **Apply a tile to ONE or MANY cells.** With a tile armed, a plain click paints the clicked cell; **shift-drag
   selects a rectangle of cells, then one click fills them all** (`applyArmedBrush` fans out over the selection,
   else the single clicked cell). ⌥Alt-click removes the top tile.
