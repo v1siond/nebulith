@@ -8,6 +8,7 @@ import '@/__tests__/helpers/installTilesetSeed' // install the DB-equivalent til
 import { IsometricGrid, type GridAsset } from '@/engine/IsometricGrid'
 import { tilesForStyle, type TileDef } from '@/game/artStyle'
 import { placeGroundTile, removeTopAsset, removeAssetAtLevel, stackAssetTile } from '@/game/editor/tileBrush'
+import { tileSlug } from '@/game/editor/tilePlacement'
 
 const EMOJI = tilesForStyle('emoji')
 const byId = (id: string): TileDef => {
@@ -39,7 +40,7 @@ describe('stackAssetTile — nature/buildings stack as cell assets', () => {
     expect(stack).toHaveLength(1)
     expect(stack[0].heightLevel).toBe(0)
     expect(stack[0].tileOverride).toBe('emoji:pine-tree')
-    expect(stack[0].type).toBe('tree')
+    expect(stack[0].type).toBe('pine-tree') // the tile's OWN slug, not a classified category
   })
 
   test('a painted tile NEVER pins a "?" dingbat into its art (resolved by label→image, not a glyph)', () => {
@@ -100,15 +101,15 @@ describe('bulk placement — the same armed tile on several cells', () => {
   })
 })
 
-// A PAINTED tile must behave EXACTLY like a GENERATED one: a normal, editable asset inserted with the SAME
-// uniform block (height 1) the generator forces on every composition cell — regardless of the tile's type,
-// category or art style. Its own authored render behaviour (settings) rides along, and NOTHING is forced to a
-// single flat default. The ONLY per-tile difference comes from the sidebar settings the user edits.
-describe('painted tile === generated tile — uniform block + settings seed onto the asset', () => {
+// A PAINTED tile carries its OWN block height as DATA and the brush reads it through ONE uniform path — no
+// type/category/art-style branch. A STANDING tile (DB height ≥1) paints as an extruded 3D block; a GROUND/FLAT
+// tile (DB height 0 — flower, leaf, facade piece) paints FLAT (floor face only in iso). Its own authored
+// render behaviour (settings) rides along, and NOTHING is forced. The user can override any of it per-tile.
+describe('painted tile — its OWN height + settings seed onto the asset (uniform read, no type branch)', () => {
   const stackedAt = (g: IsometricGrid, col: number, row: number): GridAsset[] =>
     [...g.getAssetsAtCell(col, row)].sort((a, b) => (a.heightLevel ?? 0) - (b.heightLevel ?? 0))
 
-  test('a boulder paints as a real BLOCK — asset.height = 1 (the uniform default)', () => {
+  test('a boulder paints as a real BLOCK — asset.height = its own DB height (1)', () => {
     const g = makeGrid()
     stackAssetTile(g, 2, 2, byId('emoji:boulder'))
     expect(g.getAssetsAtCell(2, 2)[0].height).toBe(1)
@@ -122,18 +123,19 @@ describe('painted tile === generated tile — uniform block + settings seed onto
     expect(a.settings?.fadeNear).toBe(true)
   })
 
-  test('a roof tile carries cutawayRoof from its DB settings', () => {
+  test('a roof tile carries cutawayRoof from its DB settings (and inserts flat — its DB height is 0)', () => {
     const g = makeGrid()
     stackAssetTile(g, 1, 1, byId('emoji:roof'))
-    expect(g.getAssetsAtCell(1, 1)[0].settings?.cutawayRoof).toBe(true)
+    const a = g.getAssetsAtCell(1, 1)[0]
+    expect(a.settings?.cutawayRoof).toBe(true)
+    expect(a.height).toBe(0) // a facade piece is flat (floor face) — its own DB height, not a forced block
   })
 
-  test('a flower inserts as the SAME uniform block (height 1) as everything else — never flat, never forced to display:single', () => {
+  test('a flower inserts FLAT (its own DB height 0 — floor face only in iso) and never forced to display:single', () => {
     const g = makeGrid()
-    // the palette tile's own DB height is irrelevant to insertion — the brush uses a single uniform default.
     stackAssetTile(g, 3, 3, byId('emoji:rose'))
     const a = g.getAssetsAtCell(3, 3)[0]
-    expect(a.height).toBe(1)                    // identical block to a building/tree — no flat exception
+    expect(a.height).toBe(0)                    // ground/flat tile — its own height, walkable, no extrusion
     expect(a.settings?.display).toBeUndefined() // NOT forced single — the user's "always single type" complaint
   })
 
@@ -177,19 +179,18 @@ describe('painted tile === generated tile — uniform block + settings seed onto
 })
 
 // THE PAINTER BUG (user: "painter … only applies the cube/block on iso when I increase the z-width, it's
-// still inserted on the map as single and not as all faces on iso"). A painted building now inserts with the
-// SAME uniform block height (1) as every other tile — an all-faces 3D BLOCK immediately, NO z-width, and
-// NOTHING forced to display:single. The brush no longer reads any per-tile DB height, so there is no drift
-// that can send it back to a flat billboard.
+// still inserted on the map as single and not as all faces on iso"). A STANDING building tile (DB height ≥1)
+// inserts as an all-faces 3D BLOCK immediately — NO z-width needed, NOTHING forced to display:single. Its
+// block height is read straight from the tile's own DB height, so there is no drift back to a flat billboard.
 describe('painted building tiles insert as all-faces 3D blocks by default (the painter bug)', () => {
-  test.each(['emoji:wall', 'emoji:house', 'emoji:castle'])('%s paints as a height-1 block, all-faces, no z-width', (id) => {
+  test.each(['emoji:wall', 'emoji:house', 'emoji:castle'])('%s paints as a block (its own DB height ≥1), all-faces, no z-width', (id) => {
     const g = makeGrid()
     stackAssetTile(g, 1, 1, byId(id))
     const a = g.getAssetsAtCell(1, 1)[0]
-    expect(a.height).toBe(1)                    // the uniform block, not a flat billboard
+    expect(a.height).toBeGreaterThanOrEqual(1)  // a real extruded block, not a flat billboard
     expect(a.settings?.display).toBeUndefined() // absent == all-faces (never forced to single)
     expect(a.depth ?? 1).toBe(1)                // it's a block with NO Z-Width applied
-    expect(a.blocking).toBe(true)               // a building blocks the cell
+    expect(a.blocking).toBe(true)               // above-ground → blocks the cell
   })
 
   test('a wall keeps its own render behaviour (fadeNear) while still defaulting to all-faces', () => {
@@ -200,82 +201,95 @@ describe('painted building tiles insert as all-faces 3D blocks by default (the p
     expect(a.settings?.display).toBeUndefined() // but display stays default (all-faces)
   })
 
-  test('a door inserts as the SAME uniform block as a wall (no facade exception); terrain is the floor, not a stacked block', () => {
+  test('terrain routes to the floor (placeGroundTile), never a stacked block', () => {
     const g = makeGrid()
-    stackAssetTile(g, 3, 3, byId('emoji:door'))
-    expect(g.getAssetsAtCell(3, 3)[0].height).toBe(1)         // a door inserts identically — no flat facade exception
     placeGroundTile(g, 4, 4, byId('emoji:grass'))
-    expect(g.getAssetsAtCell(4, 4)).toHaveLength(0)           // terrain routes to the floor (placeGroundTile), never a stacked block
+    expect(g.getAssetsAtCell(4, 4)).toHaveLength(0)
   })
 })
 
-// User (Image #60): "the painting … only works for the building tiles. all tiles work the same, so all
-// should work the same on isometric." Every NATURE tile — a tree, a rock, a plant, AND a flower or a fallen
-// leaf — now inserts as the SAME uniform iso block (height 1) a building does. There is NO per-category
-// flat-vs-standing split: the ground overlays are no longer a special flat case.
-describe('painted NATURE tiles insert as the SAME uniform iso block as buildings (no per-category split)', () => {
+// User (Image #60): "the painting … only works for the building tiles. all tiles work the same." Every tile
+// inserts through the SAME uniform path — a standing NATURE tile (tree/rock/plant, DB height ≥1) paints as a
+// 3D block exactly like a building, while a ground overlay (flower/leaf, DB height 0) paints flat. The split
+// is DATA (the tile's own height), never a per-category code branch — and `type` is the tile's own slug.
+describe('painted NATURE tiles read their own height through the SAME path as buildings', () => {
   test.each([
-    ['emoji:tree', 'tree'],
-    ['emoji:palm-tree', 'tree'],
-    ['emoji:pine-tree', 'tree'],
-    ['emoji:rock', 'rock'],
-    ['emoji:bush', 'bush'],
-    ['emoji:mushroom', 'mushroom'],
-    ['emoji:crate', 'decoration'],
-    ['emoji:lamp', 'decoration'],
-    ['emoji:potted-plant', 'decoration'],
-  ])('%s paints as a uniform height-1 block (type %s), like a building — never a flat billboard', (id, type) => {
+    'emoji:tree', 'emoji:palm-tree', 'emoji:pine-tree', 'emoji:rock', 'emoji:bush',
+    'emoji:mushroom', 'emoji:crate', 'emoji:lamp', 'emoji:potted-plant',
+  ])('%s (a standing nature tile, DB height ≥1) paints as a 3D block, like a building', (id) => {
     const g = makeGrid()
     stackAssetTile(g, 1, 1, byId(id))
     const a = g.getAssetsAtCell(1, 1)[0]
-    expect(a.height).toBe(1)        // the SAME uniform block as everything else
-    expect(a.type).toBe(type)       // type still drives collision + the 2D fallback, NOT the insertion height
-    expect(a.tileOverride).toBe(id) // the exact palette tile is pinned, so it renders as its own art
+    expect(a.height).toBeGreaterThanOrEqual(1) // its own DB height ≥1 → a real block
+    expect(a.blocking).toBe(true)              // above-ground → blocks
+    expect(a.type).toBe(tileSlug(id))          // the tile's OWN slug — no classified category
+    expect(a.tileOverride).toBe(id)            // the exact palette tile is pinned, so it renders as its own art
   })
 
-  // The former "flat ground overlays" (flowers, fallen leaves) are no longer a special flat case — they insert
-  // as the SAME uniform block as a tree. If the user wants one flat, that is a per-tile SETTINGS edit, never a
-  // category rule.
-  test.each(['emoji:flower', 'emoji:rose', 'emoji:fallen-leaf'])('%s inserts as the SAME uniform block (height 1) — no flat exception', (id) => {
+  // Ground overlays (flowers, fallen leaves) carry DB height 0 → they insert FLAT (floor face) and WALKABLE,
+  // through the SAME code path a tree takes. If the user wants one to stand, that is a per-tile height edit.
+  test.each(['emoji:flower', 'emoji:rose', 'emoji:fallen-leaf'])('%s (DB height 0) inserts FLAT + walkable', (id) => {
     const g = makeGrid()
     stackAssetTile(g, 2, 2, byId(id))
-    expect(g.getAssetsAtCell(2, 2)[0].height).toBe(1)
+    const a = g.getAssetsAtCell(2, 2)[0]
+    expect(a.height).toBe(0)      // flat — its own ground-level height
+    expect(a.blocking).toBe(false) // ground → walkable
   })
 })
 
-// THE definitive uniform-insertion guarantee — the user, in caps, repeatedly: "THERE'S NO DISTINCTION, ALL
-// TILES BEHAVE AND ARE INSERTED THE SAME IN THE MAP" / "all tiles should behave exactly the same regardless
-// of type or art style." Painting any two tiles from any two categories at the same cell must yield
-// STRUCTURALLY IDENTICAL assets (same height + same display default), and the brush must IGNORE the tile's own
-// DB height — one uniform default drives every insertion, with no type/category/art-style branch.
-describe('uniform insertion — every tile inserts identically, no type/category/style distinction', () => {
+// THE definitive model — height is per-tile DATA read through ONE uniform mechanism, with NO type/category/
+// art-style branch. Two tiles differ ONLY by the height value they carry: a ground tile inserts flat + walkable,
+// a standing tile inserts as a block + blocked. A synthetic tile with height 0 / 2 / 5 inserts at EXACTLY that
+// height — proving the brush reads the tile's own height and never forces a constant.
+describe('per-tile height, read uniformly — no type/category/style distinction in the mechanism', () => {
   const paintFresh = (tile: TileDef): GridAsset => {
     const g = makeGrid()
     stackAssetTile(g, 0, 0, tile)
     return g.getAssetsAtCell(0, 0)[0]
   }
 
-  test('a flower and a building painted at the same cell produce structurally identical height + display', () => {
-    const flower = paintFresh(byId('emoji:rose'))    // a "flat overlay" in the old model
-    const building = paintFresh(byId('emoji:house'))  // a "standing block" in the old model
-    expect(flower.height).toBe(building.height)                       // same block height
-    expect(flower.height).toBe(1)
-    expect(flower.settings?.display).toBe(building.settings?.display) // same display default (both all-faces)
+  test('a flower (height 0) and a building (height ≥1) run the SAME mechanism but carry different height DATA', () => {
+    const flower = paintFresh(byId('emoji:rose'))     // ground overlay
+    const building = paintFresh(byId('emoji:house'))  // standing block
+    expect(flower.height).toBe(0)                     // flat, walkable
+    expect(flower.blocking).toBe(false)
+    expect(building.height).toBeGreaterThanOrEqual(1) // block, blocked
+    expect(building.blocking).toBe(true)
+    // same display default (both all-faces) — the mechanism is identical, only the height DATA differs
+    expect(flower.settings?.display).toBe(building.settings?.display)
   })
 
-  test('a flower, a tree, a rock, a building and a decoration all insert with the SAME uniform height', () => {
-    for (const id of ['emoji:rose', 'emoji:pine-tree', 'emoji:boulder', 'emoji:castle', 'emoji:crate']) {
-      expect(paintFresh(byId(id)).height).toBe(1)
-    }
-  })
-
-  test('the brush IGNORES the tile’s own DB height — a synthetic tile with height 5, 0 or undefined all insert as height 1', () => {
-    // Proves there is NO per-tile height read in the paint path: the uniform default wins regardless of the
-    // catalog tile’s height, so a data drift on one tile can never re-open the flat-vs-standing split.
+  test('the brush READS the tile’s own height — a synthetic tile with height 0 / 2 / 5 inserts at exactly that height', () => {
+    // Proves there is a single uniform height read (no forced constant, no type branch): the placed block
+    // count is exactly the catalog tile's height, whatever it is.
     const base = byId('emoji:rose')
-    for (const h of [undefined, 0, 5] as const) {
-      expect(paintFresh({ ...base, height: h }).height).toBe(1)
-    }
+    expect(paintFresh({ ...base, height: 0 }).height).toBe(0)
+    expect(paintFresh({ ...base, height: 2 }).height).toBe(2)
+    expect(paintFresh({ ...base, height: 5 }).height).toBe(5)
+    expect(paintFresh({ ...base, height: undefined }).height).toBe(0) // no height DATA → flat
+  })
+
+  test('collision derives from height uniformly — height > 0 blocks, height 0 is walkable', () => {
+    const base = byId('emoji:rose')
+    expect(paintFresh({ ...base, height: 0 }).blocking).toBe(false)
+    expect(paintFresh({ ...base, height: 1 }).blocking).toBe(true)
+    expect(paintFresh({ ...base, height: 3 }).blocking).toBe(true)
+  })
+
+  // The per-tile Blocked/Walkable OVERRIDE (the inspector's cell-collision toggle → grid.setCollision) WINS
+  // over the height-derived default, in BOTH directions.
+  test('the per-tile collision OVERRIDE wins over the height-derived default (both directions)', () => {
+    const g = makeGrid()
+    // a flat flower defaults walkable → override it to Blocked
+    stackAssetTile(g, 1, 1, byId('emoji:rose'))
+    expect(g.isBlocked(1, 1)).toBe(false)
+    g.setCollision(1, 1, true) // the inspector's Blocked override
+    expect(g.isBlocked(1, 1)).toBe(true)
+    // a standing tree defaults blocked → override it to Walkable
+    stackAssetTile(g, 2, 2, byId('emoji:pine-tree'))
+    expect(g.isBlocked(2, 2)).toBe(true)
+    g.setCollision(2, 2, false) // the inspector's Walkable override
+    expect(g.isBlocked(2, 2)).toBe(false)
   })
 })
 

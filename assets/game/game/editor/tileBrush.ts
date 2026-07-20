@@ -6,7 +6,8 @@
  *
  *   - placeGroundTile → terrain: replace the cell's FLOOR tile slug, preserving its colour/dims.
  *   - stackAssetTile  → nature/buildings: PUSH a tile onto the cell's stack (one level above the tallest),
- *                       pinning the exact tile via tileOverride; a blocking type makes the cell collision.
+ *                       pinning the exact tile via tileOverride; it inserts at the tile's OWN height (DATA)
+ *                       and its collision DERIVES from that height (above-ground blocks, ground walkable).
  *   - removeTopAsset  → ⌥Alt: pop the top tile off the cell's stack and re-derive collision from what remains.
  *
  * This is BEHAVIOUR-IDENTICAL to the old direct-setter path — the adapter ops resolve to the same grid
@@ -17,7 +18,7 @@ import type { GridAsset, IsometricGrid } from '@/engine/IsometricGrid'
 import type { TileDef } from '@/game/artStyle'
 import { deriveCellCollision, getStack, popTile, pushTile, setFloor, setTileCollision } from '@/engine/cellStack'
 import { tileRenderBehavior } from '@/engine/tileset/tileset'
-import { assetTypeForTile, tileIsBlocking, tileSlug } from './tilePlacement'
+import { tileSlug } from './tilePlacement'
 
 /** The glyph a painted tile PINS as its art fallback — its own glyph (glyph tile) or the image's source glyph
  *  (image tile). NEVER a '?' dingbat: the tile is resolved by LABEL→IMAGE via its tileOverride, so an image
@@ -41,21 +42,24 @@ export function placeGroundTile(grid: IsometricGrid, col: number, row: number, t
 /** nature / buildings → PUSH a tile onto the cell's stack (pushTile lands it one level above the tallest,
  *  0 on an empty cell). tileOverride pins the exact tile.
  *
- *  UNIFORM INSERTION — the user's hard rule: "all tiles behave and are inserted the same in the map,
- *  regardless of type or art style." EVERY painted tile — flower, tree, building, rock, animal — seeds the
- *  IDENTICAL default `h = 1` (a full, all-faces block one level tall). This is the SAME uniform height the
- *  GENERATOR forces on every composition cell (composition.ts stampRun: `asset.height = 1`), so a PAINTED
- *  tile is structurally identical to a GENERATED one. We deliberately do NOT read the tile's per-category DB
- *  `height` here: that read WAS the flat-vs-standing split (flowers/leaves/floor-items came in flat while
- *  trees/buildings stood up as blocks) the user was furious about. The ONLY source of a per-tile difference
- *  is the right-sidebar SETTINGS the user edits on an individual tile — never its type / category / label /
- *  art style.
+ *  PER-TILE HEIGHT, READ UNIFORMLY (MAP-MODEL / EDITOR-INTERACTION-SPEC — the user's model): a tile carries
+ *  its OWN block height as DATA, and the brush reads it through ONE uniform path — NO type / category / art-
+ *  style branch. The MECHANISM is identical for every tile ("all tiles behave the same"); the only difference
+ *  is the DATA each tile carries:
+ *   - a GROUND/FLAT tile (terrain, flower, fallen leaf, floor decor — DB height 0/min) inserts FLAT: it shows
+ *     on the floor face only in iso and is WALKABLE.
+ *   - a STANDING tile (tree, rock, building, prop, lamp, mushroom — DB height ≥1) inserts as an extruded BLOCK
+ *     and BLOCKS movement.
+ *  The exact same line reads every tile's height; a data drift on ONE tile can never reopen a per-category
+ *  code split, because there is no category code here.
+ *   - `h` = the tile's OWN DB height (0 = flat floor face, ≥1 = N blocks tall). Read, never forced.
+ *   - `collision` is DERIVED from that height, uniformly: a tile occupying height > 0 (above ground) blocks
+ *     by default; height 0 (on the ground/floor) is walkable. There is NO per-type blocking list. The user
+ *     can override Blocked/Walkable per-tile afterwards (the inspector's cell-collision toggle) — that wins.
+ *   - `type` is the tile's OWN slug (its identity), not a classified category — the visual is pinned via
+ *     tileOverride and height/collision come from the height above, so `type` only labels the placed asset.
  *   - `settings` = the tile's OWN generic render behaviour (fadeNear/cutawayRoof/display) via tileRenderBehavior
- *     — the SAME seam stampComposition uses — so an authored behaviour rides along; nothing is forced to a flat
- *     default and nothing is forced to display:single.
- *   - `collision` follows the asset type: a stacked wall/tree/rock blocks the cell. This is a GAMEPLAY flag,
- *     not the insertion geometry — the block/height every tile inserts with is identical; only whether it
- *     obstructs movement differs, and the user can override that per-tile via settings. */
+ *     — the SAME seam stampComposition uses — so an authored behaviour rides along, nothing is forced. */
 export function stackAssetTile(
   grid: IsometricGrid,
   col: number,
@@ -63,18 +67,19 @@ export function stackAssetTile(
   tile: TileDef,
   opts: { opacity?: number } = {},
 ): void {
-  const type = assetTypeForTile(tile)
+  const height = tile.height ?? 0 // the tile's OWN block height (DATA) — one read for every tile, no type branch
+  const slug = tileSlug(tile.id)
   const color = tile.visual.kind === 'ascii' ? undefined : tile.visual.color
   const placed = pushTile(grid, col, row, {
     source: 'asset',
-    slug: tileSlug(tile.id),
-    type,
+    slug,
+    type: slug, // the tile's own identity, not a classified category — no type/category branch
     art: [tileChar(tile)],
     tileId: tile.id,
     color,
     opacity: opts.opacity,
-    collision: tileIsBlocking(type),
-    h: 1, // uniform block for EVERY tile — no per-tile/category height read (matches composition.ts stampRun)
+    collision: height > 0, // above-ground blocks, ground is walkable — derived from height, uniform + overridable
+    h: height, // the tile's own height: 0 = flat (floor face only in iso), ≥1 = extruded block
   })
   const behavior = tileRenderBehavior(tile.settings)
   if (behavior) placed.settings = behavior
