@@ -76,6 +76,7 @@ import { commonValue, commonBool, cellsFromKeys, removeSelectedBlock } from '@/g
 import { applyRectSelection, applyCellSelection } from '@/game/editor/selection'
 import { entityKindForUnitSlug, placementFor, tileSlug } from '@/game/editor/tilePlacement'
 import { placeGroundTile, removeTopAsset, removeAssetAtLevel, stackAssetTile } from '@/game/editor/tileBrush'
+import { useEditorHistory } from '@/game/editor/useEditorHistory'
 
 
 // View mode states (global for game loop access)
@@ -322,7 +323,16 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   const [buildingVersion, setBuildingVersion] = useState(0)
   const buildingToolRef = useRef<BuildingTool>(null)
   const genZoneRef = useRef<ZoneId>(genZone)
-  const bumpBuildingVersion = () => setBuildingVersion(v => v + 1)
+  const bumpBuildingVersion = useCallback(() => setBuildingVersion(v => v + 1), [])
+  // Undo / redo (Ctrl+Z / Ctrl+Y): a BOUNDED snapshot ring of the MAP (grid + entities). checkpointHistory()
+  // is called at the START of each map-mutating edit (before it mutates); the hook binds the keys and restores
+  // exactly. resetHistory() clears it when the whole map is replaced (stage gen / template load).
+  const { checkpoint: checkpointHistory, reset: resetHistory } = useEditorHistory({
+    gridRef,
+    entitiesRef,
+    setEntities,
+    onRestore: bumpBuildingVersion,
+  })
   // The grouped list of EVERY backend composition (buildings + trees + props) the palette lists — filled once
   // the tileset loads from the server (compositions arrive with it). Empty until then → the palette shows a
   // "loading" note. Data-driven, so the palette is never a hardcoded building-only subset.
@@ -1440,6 +1450,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       toast('Not enough room here — the composition runs off the map', 'warning')
       return 0
     }
+    checkpointHistory() // snapshot the pre-edit map so Ctrl+Z restores it exactly
     // REPLACE: a composition overwrites whatever it lands on (Alexander: "replace anything if I want to … if
     // there's a building in a place and I want to put another in the same place, I should be able to"). Clear
     // every footprint cell first so no stray stacked remnant survives under the new stamp, then stamp clean.
@@ -1458,6 +1469,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   const applyEntityTool = (col: number, row: number) => {
     const grid = gridRef.current
     if (!grid || !entityTool) return
+    checkpointHistory() // placing / erasing a unit or toggling collision is a map edit → snapshot for Ctrl+Z
 
     if (entityTool === 'erase') {
       setEntities(prev => {
@@ -2042,8 +2054,10 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     win.__clearRegion = (col0: number, row0: number, col1: number, row1: number) => {
       const g = gridRef.current
       if (!g) return
+      checkpointHistory() // clearing a region is a map edit → snapshot so Ctrl+Z brings it back
       for (let r = row0; r <= row1; r++) for (let c = col0; c <= col1; c++) { g.setGround(c, r, 'grass'); g.setCollision(c, r, false) }
       g.removeAssetsWhere(a => a.col >= col0 && a.col <= col1 && a.row >= row0 && a.row <= row1)
+      bumpBuildingVersion()
     }
     // Building validation seams: stamp a pre-built building COMPOSITION (place tool) or any composition
     // directly — so "add a pre-built building = stamp its cells like a tree" is validated in the real editor.
@@ -2208,13 +2222,14 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   const scatterUnits = () => {
     const grid = gridRef.current
     if (!grid) return
-    if (!unitTile) { randomizeEntities(); return }
+    if (!unitTile) { checkpointHistory(); randomizeEntities(); return }
     const slug = tileSlug(unitTile.id)
     const kind = entityKindForUnitSlug(slug)
     if (kind === 'player') { toast('Only one player — use Add to place the hero', 'warning'); return }
     const collision = Array.from({ length: grid.rows }, (_, r) =>
       Array.from({ length: grid.cols }, (_, c) => grid.isBlocked(c, r)),
     )
+    checkpointHistory() // a scatter adds many units at once → snapshot so one Ctrl+Z removes the whole batch
     setEntities(prev => {
       const occupied = prev.map(e => ({ col: e.col, row: e.row }))
       const spawned = scatterEntities({
@@ -2475,6 +2490,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
    *  selection so the next single click paints just one cell. */
   const applyArmedBrush = (cell: { col: number; row: number; level?: number }, alt: boolean) => {
     if (!armedTile) return
+    checkpointHistory() // paint / stack / alt-erase is a map edit → snapshot so Ctrl+Z reverts the stroke
     const selected = cellsFromKeys(selectedCellsRef.current)
     const targets: { col: number; row: number; level?: number }[] = selected.length ? selected : [cell]
     for (const t of targets) {
@@ -3433,6 +3449,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   }
 
   const generateStageInEditor = (zone: ZoneId, variant: VariantId) => {
+    resetHistory() // a freshly generated stage replaces the whole map → start its undo history clean
     // A city is a big settlement — give it a markedly larger grid (~1.7× town linear) so it READS
     // bigger on screen, on top of the denser street grid + ~4× building cap in villageLayout. Town,
     // forest and the rest stay on the modest default grid.
@@ -4920,6 +4937,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       // deserialize with the rest of grid.assets — no grouped-building marker to restore.
       setEntities(loadedEntities)
       setQuests(loadedQuests)
+      resetHistory() // fresh map loaded → drop undo history so Ctrl+Z can't drag back the previous map
 
       // Move player to valid spawn. Priority: a connector teleport override, else the
       // placed PLAYER entity's cell (player=entity: the placed player defines the spawn),
@@ -5411,7 +5429,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                   <div className="flex items-center justify-between border-t border-white/10 pt-2 text-[10px] text-gray-400">
                     <span>{entities.length} placed</span>
                     {entities.length > 0 && (
-                      <button onClick={() => setEntities([])} className="rounded bg-red-900 px-2 py-1 font-bold text-red-200 hover:bg-red-800">Clear all</button>
+                      <button onClick={() => { checkpointHistory(); setEntities([]) }} className="rounded bg-red-900 px-2 py-1 font-bold text-red-200 hover:bg-red-800">Clear all</button>
                     )}
                   </div>
                 </div>
