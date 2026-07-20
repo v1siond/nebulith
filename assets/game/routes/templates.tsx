@@ -6224,32 +6224,73 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
           )
         })()}
 
-        {/* ◰ TILE LIBRARY (stage D) — lists the active style's tiles by category; picking one pins
-            it to the selected element (a per-element override). Reachable from the Inspector ◰ Art
-            section AND the on-canvas ◰ Style quick-action. */}
+        {/* ↗ CONNECTORS — the whole connector flow in a DRAGGABLE/RESIZABLE floating panel (geometry persisted
+            under id "connectors"), opened from the right-sidebar ↗ Connectors button. Same controls as before
+            (Edit/Exit authoring, the saved list, and the target/when/spawn form) — just relocated. */}
+        {connectorPanelOpen && !playMode && !showGamesView && (
+          <FloatingPanel title="Connectors" accent="purple" onClose={closeConnectorPanel} {...floatingProps('connectors', { w: 320, h: 440 })}>
+            <ConnectorsPanelBody
+              connectorMode={connectorMode}
+              onToggleMode={() => { setConnectorMode(m => !m); setEditingConnector(null) }}
+              editing={editingConnector}
+              editingLabel={editingConnector ? (selectedCells.size > 1 ? `${selectedCells.size} cells` : `(${editingConnector.col}, ${editingConnector.row})`) : ''}
+              form={connectorForm}
+              setForm={setConnectorForm}
+              templates={savedTemplates.filter(t => t.id !== currentTemplateId)}
+              onNewTarget={handleNewConnectorTarget}
+              onSave={saveConnector}
+              onDelete={() => { if (editingConnector) deleteConnector(editingConnector.col, editingConnector.row) }}
+              onCancel={() => setEditingConnector(null)}
+              connectors={connectors}
+              onSelectConnector={c => {
+                setSelectedEntityId(null)
+                setConnectorForm(c)
+                setEditingConnector({ col: c.cells[0].col, row: c.cells[0].row })
+                setSelectedCells(new Set(c.cells.map(p => `${p.col},${p.row}`)))
+                setConnectorMode(true)
+              }}
+            />
+          </FloatingPanel>
+        )}
+
+        {/* ◰ TILE LIBRARY — lists the active style's tiles by category. A DRAGGABLE/RESIZABLE floating panel
+            (geometry persisted under id "tileLibrary"), opened from the Inspector's "Add tile / Replace tile"
+            button (which sits below Colour). For a UNIT it PINS the picked tile as a figure override; for a
+            CELL selection it PAINTS the picked tile onto the selection via the SAME path as the left Paint
+            tool (paintTileOnSelection). */}
         {tileLibraryOpen && (() => {
           const close = () => setTileLibraryOpen(false)
-          const scope = selectedEntityId
+          const isUnit = !!selectedEntityId
+          const cellPaint = !isUnit && selectedCells.size > 0
+          const scope = isUnit
             ? 'unit'
-            : selectedCells.size > 0
+            : cellPaint
             ? (selectedCells.size > 1 ? `${selectedCells.size} cells` : 'cell')
             : null
+          // For a cell selection, picking a tile PAINTS it (resolve the TileDef by id, then reuse the left
+          // paint path); for a unit it pins the figure override.
+          const paintFromLibrary = (tileId: string | null) => {
+            if (!tileId) return
+            const picked = (Object.values(tilesForStyle(activeStyleId)).flat() as TileDef[]).find(t => t.id === tileId)
+            if (picked) paintTileOnSelection(picked)
+          }
           return (
-            <Modal title={`Tile Library — ${activeStyle.name}${scope ? ` · ${scope}` : ''}`} accent="cyan" wide onClose={close}>
+            <FloatingPanel title={`Tile Library — ${activeStyle.name}${scope ? ` · ${scope}` : ''}`} accent="cyan" onClose={close} {...floatingProps('tileLibrary', { w: 420, h: 520 })}>
               {scope ? (
                 <TileLibraryBody
                   styleId={activeStyleId}
                   styleName={activeStyle.name}
                   override={selectedOverride}
-                  onPick={setSelectionOverride}
+                  paint={cellPaint}
+                  onPick={cellPaint ? paintFromLibrary : setSelectionOverride}
                 />
               ) : (
                 <p className="text-xs leading-relaxed text-gray-400">
-                  Select a unit or a cell first (↖ Select tool), then reopen the Library to pin a tile to it.
+                  Select a unit or a cell first (↖ Select tool), then reopen the Library to add / replace a tile.
                   The global style switch lives in the top bar 🎨.
                 </p>
               )}
-            </Modal>
+            </FloatingPanel>
           )
         })()}
 

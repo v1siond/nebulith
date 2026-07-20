@@ -502,14 +502,16 @@ export function PropertiesPanel(p: PropertiesPanelProps) {
               </span>
             )}
           </div>
-          {/* swap-tile — kept accessible in the summary (does NOT live in the settings modal) */}
-          <ArtSection override={t.override} styleName={t.styleName} onOpen={t.onOpenLibrary} />
           {/* quick colour swatch — the one setting worth tweaking without opening the modal */}
           <div className="flex items-center gap-2">
             <span className="w-14 shrink-0 text-[10px] text-gray-400">Colour</span>
             <input type="color" value={t.color ?? t.colorFallback} onChange={e => t.onColor(e.target.value)} aria-label={`${t.label} colour`} className="h-6 w-10 rounded bg-gray-800" />
             {t.color === null && mixedBadge}
           </div>
+          {/* Tile Library — the tile-add action, moved BELOW colour (the user's ask). Its label reads
+              "Add tile" / "Replace tile" by cell status for a cell; a unit keeps the default. Opens the
+              draggable/resizable Tile Library modal. */}
+          <ArtSection override={t.override} styleName={t.styleName} onOpen={t.onOpenLibrary} label={t.libraryLabel} />
           {/* open the full settings — colour, W/H/Z Width, Zoom, x/y/z, rotate, flip, Z-Index, Display */}
           <button onClick={p.onOpenSettings} aria-label="Edit settings" className="w-full rounded bg-cyan-800 px-2 py-1.5 text-xs font-bold text-white transition-colors hover:bg-cyan-700">
             ⚙ Edit settings…
