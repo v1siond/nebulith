@@ -220,16 +220,26 @@ editor-settings) and the left Paint tool's placement path — with NO fork and N
 
 - **See the selected tile + Clear tiles (Image #67).** The cell card shows a **thumbnail of the selected tile's
   baked art** (`TilePreview`, a sibling of the divider text so it never pollutes the header) and a **prominent
-  "🧹 Clear tiles"** action in the CELL section. Clear tiles drops EVERY stacked tile off the selected cell(s)
-  via the SAME erase primitive ⌥Alt-click uses (`removeTopAsset`, popping until bare + re-deriving collision),
-  leaving the floor — captured by undo/redo (`checkpointHistory`). It's a CELL action, so it shows even when the
-  selected tile is the floor, and is hidden for a unit (a unit isn't a cell).
+  "🧹 Clear tiles"** action in the CELL section. Clear tiles **EMPTIES the whole cell** so it goes BARE: it pops
+  EVERY stacked tile via the SAME erase primitive ⌥Alt-click uses (`removeTopAsset`, popping until bare + re-
+  deriving collision) **AND clears the cell's GROUND/floor tile** — a **road / terrain / plaza is a floor tile
+  too**, so `clearGroundTile` resets it to the bare default (`grass`, no colour override, no dims) and collision
+  goes walkable. This is **uniform — NO branch on the tile's type/category/height/style**; a road, water and
+  plaza all clear the exact same way. Captured by undo/redo (`checkpointHistory` snapshots the ground before the
+  clear, so Ctrl+Z restores BOTH the stacked tiles AND the cleared road). It's a CELL action, so it shows even
+  when the selected tile is the floor, and is hidden for a unit (a unit isn't a cell).
 - **Connectors — a right-sidebar button + a draggable modal.** The Connector tool is **off the left tool-rail**
   (`RAIL_MODES` drops it); its entry is a **"↗ Connectors" button in the right sidebar** that opens a draggable
   `FloatingPanel` (`ConnectorsPanelBody`, geometry id `connectors`) hosting the WHOLE flow — the Edit/Exit
   authoring toggle, the saved-connector list, and (while editing) the target / when / spawn-cell form + Save /
   Delete. The connector DATA + behaviour are unchanged; only the entry + host moved. Opening the panel arms
   click-to-add authoring (and drops the other exclusive tools); closing it disarms + drops the edited connector.
+  **Opening with an active cell SELECTION lands STRAIGHT in the editing VIEW** (the target/when/spawn form) for
+  that selection — **one click, no second click** (user: *"if I have multi select and click connectors I expect
+  to see the editing view, but instead I have to click again"*). `openConnectorPanel` calls
+  `connectorEditFromSelection` (pure): a saved connector overlapping the selection loads (its whole cell set),
+  otherwise the selection itself becomes a fresh connector; with NO selection the panel just stays armed, ready
+  to draw. Same routing as a canvas connector click — no fork.
 - **Tile Library moves BELOW Colour + opens a draggable/resizable modal.** In the cell card the tile-add button
   sits **below the Colour swatch** (`ArtSection` rendered after colour) and opens the Tile Library as a
   draggable/resizable `FloatingPanel` (geometry id `tileLibrary`), NOT the old centred `Modal`.
