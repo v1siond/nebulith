@@ -1421,39 +1421,32 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
    *  rotated to face the nearest road. A building is NOT a unit: this just paints its wall/window/door/roof
    *  tiles (the SAME stamp trees/props use), and each cell is then editable with the normal cell/tile tools.
    *  The click is treated as the footprint CENTRE. */
-  const placeNewBuilding = (type: BuildingType, col: number, row: number) => {
-    const grid = gridRef.current
-    if (!grid) return
-    const length = BUILDING_PLACE_LENGTH[type]
-    const kind = buildingCompositionKind(type, length)
-    const facing = nearestRoadFacing(grid, col, row)
-    const fp = buildingFootprint(kind, facing)
-    if (!fp) { toast('Building tiles are still loading — try again in a moment', 'info'); return }
-    const anchorCol = col - Math.floor(fp.w / 2)
-    const anchorRow = row - Math.floor(fp.h / 2)
-    if (!canPlaceBuildingComposition(grid, kind, anchorCol, anchorRow, facing)) {
-      toast('Cannot place a building here — blocked, on a road, or out of bounds', 'warning')
-      return
-    }
-    stampBuildingComposition(grid, type, length, anchorCol, anchorRow, genZoneRef.current, facing)
-    bumpBuildingVersion()
-  }
+  const placeNewBuilding = (type: BuildingType, col: number, row: number): number =>
+    // A building IS a composition — route it through the SAME replace-anything path (rotate to the road, clear
+    // the footprint, stamp), so hand-placing a building overwrites whatever's there just like any composition.
+    placeComposition(buildingCompositionKind(type, BUILDING_PLACE_LENGTH[type]), col, row)
 
   /** Stamp composition `kind` with the clicked cell as its footprint CENTRE — the generic path for ANY
    *  composition (building / tree / fountain / lamp post…). Uses the SAME planComposition the ghost preview
    *  draws, so what you saw is exactly what lands: buildings rotate to face the nearest road, props/trees drop
    *  as-is, and each stamped cell is then editable with the normal cell/tile tools. */
-  const placeComposition = (kind: string, col: number, row: number) => {
+  const placeComposition = (kind: string, col: number, row: number): number => {
     const grid = gridRef.current
-    if (!grid) return
+    if (!grid) return 0
     const plan = planComposition(grid, kind, col, row)
-    if (!plan) { toast('Composition tiles are still loading — try again in a moment', 'info'); return }
+    if (!plan) { toast('Composition tiles are still loading — try again in a moment', 'info'); return 0 }
     if (!plan.valid) {
-      toast('Cannot place here — blocked, on a road, or out of bounds', 'warning')
-      return
+      // Red ONLY when it doesn't fit — the footprint runs off the map (not enough cells/blocks).
+      toast('Not enough room here — the composition runs off the map', 'warning')
+      return 0
     }
-    stampComposition(grid, kind, plan.anchorCol, plan.anchorRow, genZoneRef.current, 0, plan.rotation)
+    // REPLACE: a composition overwrites whatever it lands on (Alexander: "replace anything if I want to … if
+    // there's a building in a place and I want to put another in the same place, I should be able to"). Clear
+    // every footprint cell first so no stray stacked remnant survives under the new stamp, then stamp clean.
+    for (const { col: c, row: r } of plan.cells) grid.clearAssetsAtCell(c, r)
+    const placed = stampComposition(grid, kind, plan.anchorCol, plan.anchorRow, genZoneRef.current, 0, plan.rotation)
     bumpBuildingVersion()
+    return placed
   }
 
   /** Apply the armed Tile-composition tool at (col,row): stamp the armed composition's cells. */
@@ -2055,7 +2048,9 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     // Building validation seams: stamp a pre-built building COMPOSITION (place tool) or any composition
     // directly — so "add a pre-built building = stamp its cells like a tree" is validated in the real editor.
     win.__placeBuilding = (type: string, col: number, row: number) => placeNewBuilding(type as BuildingType, col, row)
-    win.__placeComposition = (kind: string, col: number, row: number) => { const g = gridRef.current; if (!g) return 0; const n = stampComposition(g, kind, col, row, genZoneRef.current); bumpBuildingVersion(); return n }
+    // Route the validation hook through the REAL place path (clicked cell = footprint CENTRE, replace-anything,
+    // history checkpoint) so the demo exercises exactly what a user click does — not a raw anchor-stamp.
+    win.__placeComposition = (kind: string, col: number, row: number) => placeComposition(kind, col, row)
     // Arm (or disarm) the Tile-composition tool by KIND — switches into the composition mode (editorMode derives
     // from a truthy buildingTool) so the palette shows + the ghost previews on hover. For the demo/validation.
     win.__armComposition = (kind: string | null) => { setPaintMode(false); setEntityTool(null); setConnectorMode(false); setBuildingTool(kind); if (!kind) ghostRef.current = null }

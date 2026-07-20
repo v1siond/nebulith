@@ -186,14 +186,15 @@ export function compositionFootprintCells(comp: Composition, anchorCol: number, 
   return cells
 }
 
-/** True iff EVERY cell fits on the grid: in-bounds, not blocked (tree/water/another building), and — for a
- *  building (`excludeRoads`) — not on a road/path. Reads the ACTUAL occupied cells (not the bounding rect),
- *  so an L-shaped or basin composition is judged on the cells it truly fills. Pure. */
-export function canPlaceComposition(grid: IsometricGrid, cells: readonly { col: number; row: number }[], excludeRoads: boolean): boolean {
+/** True iff EVERY occupied cell is IN BOUNDS — the ONLY thing that blocks a composition placement. A
+ *  composition REPLACES whatever it lands on (Alexander: "replace anything if I want to … it's only red when
+ *  there's not enough cells or blocks in the area I want to put the composition"), so occupied cells and roads
+ *  are FINE — the stamp clears the footprint first. Invalid means the footprint runs OFF the map (not enough
+ *  room), nothing else. Reads the ACTUAL occupied cells (not the bounding rect), so an L-shaped or basin
+ *  composition is judged on the cells it truly fills. Pure. */
+export function compositionFits(grid: IsometricGrid, cells: readonly { col: number; row: number }[]): boolean {
   for (const { col, row } of cells) {
     if (col < 0 || row < 0 || col >= grid.cols || row >= grid.rows) return false
-    if (grid.collision[row]?.[col] === 1) return false
-    if (excludeRoads && isRoadGround(grid.ground[row]?.[col])) return false
   }
   return true
 }
@@ -215,7 +216,8 @@ export interface CompositionPlan {
   cells: { col: number; row: number }[]
   /** blocks tall (max level + 1) — the ghost's extrusion height. */
   height: number
-  /** true when every occupied cell fits (in-bounds, unblocked, off-road for buildings). */
+  /** true when the footprint fits IN BOUNDS. Occupied cells and roads are fine — the stamp REPLACES them —
+   *  so red (invalid) means only "not enough room / runs off the map". */
   valid: boolean
 }
 
@@ -233,6 +235,6 @@ export function planComposition(grid: IsometricGrid, kind: string, col: number, 
   const anchorCol = col - Math.floor(footprint.w / 2)
   const anchorRow = row - Math.floor(footprint.h / 2)
   const cells = compositionFootprintCells(comp, anchorCol, anchorRow, rotation)
-  const valid = canPlaceComposition(grid, cells, facesRoad)
+  const valid = compositionFits(grid, cells) // red ONLY when it runs off the map; a stamp replaces whatever it covers
   return { kind, comp, facing, rotation, anchorCol, anchorRow, footprint, cells, height: compositionHeight(comp), valid }
 }

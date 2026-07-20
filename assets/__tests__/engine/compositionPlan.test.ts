@@ -9,12 +9,13 @@ import { IsometricGrid } from '@/engine/IsometricGrid'
 import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 import { resolveComposition } from '@/engine/tileset/tileset'
 import type { Composition } from '@/engine/tileset/tileset'
+import { stampComposition } from '@/game/runtime/composition'
 import {
   planComposition,
   compositionFootprintCells,
   compositionFacesRoad,
   compositionHeight,
-  canPlaceComposition,
+  compositionFits,
 } from '@/engine/buildingCatalog'
 
 const mkGrid = () => new IsometricGrid({ cols: 40, rows: 40, cellSize: 16, isoScale: 1.4 })
@@ -99,27 +100,27 @@ describe('planComposition — the clicked cell is the footprint CENTRE; props dr
   })
 })
 
-describe('planComposition — validity: out of bounds, blocked cells, and roads (buildings only)', () => {
-  test('off the grid edge → invalid (a footprint cell falls out of bounds)', () => {
+describe('planComposition — validity is REPLACE-anything: red ONLY when it runs off the map', () => {
+  test('off the grid edge → invalid (a footprint cell falls out of bounds — not enough room)', () => {
     const plan = planComposition(mkGrid(), 'fountain', 1, 1)! // anchor (-1,-1) → cells out of bounds
     expect(plan.valid).toBe(false)
   })
 
-  test('a blocked (collision) footprint cell → invalid', () => {
+  test('an OCCUPIED (collision) footprint cell → VALID (a composition replaces whatever it lands on)', () => {
     const grid = mkGrid()
-    grid.setCollision(10, 10, true) // right at the fountain centre
-    expect(planComposition(grid, 'fountain', 10, 10)!.valid).toBe(false)
+    grid.setCollision(10, 10, true) // right at the fountain centre — a building/tree is already here
+    expect(planComposition(grid, 'fountain', 10, 10)!.valid).toBe(true)
   })
 
-  test('a BUILDING may not sit on a road; a PROP may — same cell, different rule', () => {
+  test('a BUILDING or a PROP may sit on a road now — roads no longer block placement', () => {
     const grid = mkGrid()
     // paint a patch of road under where the footprint centre lands
     for (let r = 6; r <= 14; r++) for (let c = 6; c <= 14; c++) grid.ground[r][c] = 'path_stone'
-    expect(planComposition(grid, 'house_4', 10, 10)!.valid).toBe(false) // building blocked by the road
-    expect(planComposition(grid, 'fountain', 10, 10)!.valid).toBe(true) // a prop is fine on the plaza/road
+    expect(planComposition(grid, 'house_4', 10, 10)!.valid).toBe(true) // a building on a road is fine now
+    expect(planComposition(grid, 'fountain', 10, 10)!.valid).toBe(true) // a prop on the plaza/road is fine too
   })
 
-  test('a building rotates to FACE the nearest road (footprint axes swap for east/west)', () => {
+  test('a building STILL rotates to FACE the nearest road (facing/rotation unchanged by the validity rule)', () => {
     const grid = mkGrid()
     grid.ground[10][20] = 'path_stone' // a road due EAST of a hover at (10,10)
     const plan = planComposition(grid, 'hospital_6', 10, 10)! // south footprint 6×4
@@ -129,17 +130,59 @@ describe('planComposition — validity: out of bounds, blocked cells, and roads 
   })
 })
 
-describe('canPlaceComposition — the raw cell check the plan builds on', () => {
-  test('true when every cell fits; false on the first out-of-bounds / blocked / road cell', () => {
+describe('compositionFits — the raw BOUNDS check the plan builds on (occupied/road are fine)', () => {
+  test('true when every cell is in bounds; false ONLY on an out-of-bounds cell', () => {
     const grid = mkGrid()
     const cells = [{ col: 2, row: 2 }, { col: 3, row: 2 }]
-    expect(canPlaceComposition(grid, cells, false)).toBe(true)
-    expect(canPlaceComposition(grid, [{ col: -1, row: 2 }], false)).toBe(false)
-    grid.setCollision(3, 2, true)
-    expect(canPlaceComposition(grid, cells, false)).toBe(false)
-    const roadGrid = mkGrid()
-    roadGrid.ground[2][3] = 'path_stone'
-    expect(canPlaceComposition(roadGrid, cells, true)).toBe(false)  // excludeRoads → blocked
-    expect(canPlaceComposition(roadGrid, cells, false)).toBe(true)  // props ignore roads
+    expect(compositionFits(grid, cells)).toBe(true)
+    expect(compositionFits(grid, [{ col: -1, row: 2 }])).toBe(false)         // off the left edge
+    expect(compositionFits(grid, [{ col: grid.cols, row: 2 }])).toBe(false)  // off the right edge
+    expect(compositionFits(grid, [{ col: 2, row: grid.rows }])).toBe(false)  // off the bottom edge
+  })
+
+  test('an OCCUPIED or ROAD cell does NOT make it unfit — a stamp replaces whatever is there', () => {
+    const grid = mkGrid()
+    const cells = [{ col: 2, row: 2 }, { col: 3, row: 2 }]
+    grid.setCollision(3, 2, true)    // an existing building/tree occupies a footprint cell
+    grid.ground[2][2] = 'path_stone' // and the other cell is a road
+    expect(compositionFits(grid, cells)).toBe(true)
+  })
+})
+
+describe('placement REPLACES — clearing the footprint then stamping leaves no mixed remnant', () => {
+  // The two-step the editor's placeComposition runs: clear every footprint cell, then stamp on the clean cells.
+  const stampPlan = (grid: IsometricGrid, kind: string, col: number, row: number) => {
+    const plan = planComposition(grid, kind, col, row)!
+    stampComposition(grid, kind, plan.anchorCol, plan.anchorRow, 'spring', 0, plan.rotation)
+    return plan
+  }
+
+  test('dropping a store over a house leaves ONLY store tiles in the store’s footprint (house is cleared)', () => {
+    const grid = mkGrid()
+    stampPlan(grid, 'house_4', 10, 10) // building A
+    expect(grid.assets.some(a => a.type === 'house_4')).toBe(true)
+
+    // building B dropped on the same spot — REPLACE: clear B's footprint first, then stamp B.
+    const bPlan = planComposition(grid, 'store_5', 10, 10)!
+    for (const { col, row } of bPlan.cells) grid.clearAssetsAtCell(col, row)
+    stampComposition(grid, 'store_5', bPlan.anchorCol, bPlan.anchorRow, 'spring', 0, bPlan.rotation)
+
+    const footprint = new Set(bPlan.cells.map(c => `${c.col},${c.row}`))
+    const houseLeftInFootprint = grid.assets.filter(a => a.type === 'house_4' && footprint.has(`${a.col},${a.row}`))
+    expect(houseLeftInFootprint).toEqual([]) // no house remnant survives under the store
+    expect(grid.assets.some(a => a.type === 'store_5')).toBe(true)
+  })
+
+  test('re-stamping the SAME composition after a clear does not stack (no doubled cell count)', () => {
+    const grid = mkGrid()
+    stampPlan(grid, 'lamp_post', 5, 5)
+    const first = grid.getAssetsAtCell(5, 5).length
+    expect(first).toBeGreaterThan(0)
+
+    const plan = planComposition(grid, 'lamp_post', 5, 5)!
+    for (const { col, row } of plan.cells) grid.clearAssetsAtCell(col, row)
+    expect(grid.getAssetsAtCell(5, 5).length).toBe(0) // cleared clean, no remnant
+    stampComposition(grid, 'lamp_post', plan.anchorCol, plan.anchorRow, 'spring', 0, plan.rotation)
+    expect(grid.getAssetsAtCell(5, 5).length).toBe(first) // exactly one composition, not stacked
   })
 })
