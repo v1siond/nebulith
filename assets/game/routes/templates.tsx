@@ -2491,15 +2491,44 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     return placed
   }
 
-  /** Place the armed tile on ONE cell, routed by its category via placementFor. Terrain + asset stacking
-   *  delegate to the pure tileBrush module (reuses the grid primitives); units place an entity here. */
-  const placeArmedTileAt = (col: number, row: number) => {
+  /** Place a tile on ONE cell, routed by its category via placementFor. Terrain + asset stacking delegate to
+   *  the pure tileBrush module (reuses the grid primitives); units place an entity here. Defaults to the armed
+   *  brush tile (the left Paint tool), but takes an explicit `tile` so the right-sidebar "paint the selection"
+   *  flow lands through the EXACT SAME path — no fork. */
+  const placeArmedTileAt = (col: number, row: number, tile: TileDef | null = armedTile) => {
     const grid = gridRef.current
-    if (!grid || !armedTile) return
-    const route = placementFor(armedTile)
-    if (route === 'terrain') { placeGroundTile(grid, col, row, armedTile); return }
-    if (route === 'entity') { placeUnitTile(col, row, armedTile); return }
-    stackAssetTile(grid, col, row, armedTile)
+    if (!grid || !tile) return
+    const route = placementFor(tile)
+    if (route === 'terrain') { placeGroundTile(grid, col, row, tile); return }
+    if (route === 'entity') { placeUnitTile(col, row, tile); return }
+    stackAssetTile(grid, col, row, tile)
+  }
+
+  /** Deliverable #4 — PAINT a chosen tile onto the whole selected area from the right sidebar. Reuses the
+   *  SAME per-cell placement the left Paint tool runs (`placeArmedTileAt`), so the two coexist and behave
+   *  identically; only the ENTRY differs (a Tile Library pick vs. an armed-brush click). Snapshots history so
+   *  Ctrl+Z reverts the whole fill, and keeps the selection so the button relabels Add→Replace and you can
+   *  keep painting. */
+  const paintTileOnSelection = (tile: TileDef) => {
+    const grid = gridRef.current
+    const cells = cellsFromKeys(selectedCells)
+    if (!grid || cells.length === 0) return
+    checkpointHistory()
+    for (const { col, row } of cells) placeArmedTileAt(col, row, tile)
+    bumpBuildingVersion()
+  }
+
+  /** Deliverable #1 — CLEAR every tile off the selected cell(s): pop each stacked asset via the SAME erase
+   *  primitive ⌥Alt-click uses (`removeTopAsset`, which re-derives collision), leaving the floor. Snapshots
+   *  history so Ctrl+Z restores the cleared tiles. */
+  const clearTilesOnSelection = () => {
+    const grid = gridRef.current
+    const cells = cellsFromKeys(selectedCells)
+    if (!grid || cells.length === 0) return
+    checkpointHistory()
+    for (const { col, row } of cells) { while (removeTopAsset(grid, col, row)) { /* pop until the cell is bare */ } }
+    bumpBuildingVersion()
+    setSelectedTileLevel(0)
   }
 
   /** ⌥Alt-click removal for the armed brush. With a `level` (a single click that landed on a raised block)
@@ -6024,6 +6053,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                               onOpenTriggers={() => setTriggersOpen(true)}
                               triggerCount={triggersAtCell(cellTriggers, trigCol, trigRow).length}
                               onRemove={lvl >= 1 ? removeSelectedTile : undefined}
+                              onClearTiles={clearTilesOnSelection}
                             />
                             {/* Tile-settings panel — the full TileControls body (colour/size/pose/z/display),
                                 opened from the inspector's "Edit settings…". A FLOATING panel (not a modal): no

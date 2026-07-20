@@ -6,10 +6,23 @@ import type { DepthDir } from '@/engine/render'
 import type { TilePose } from '@/engine/tileset/pose'
 import type { AssetLight, TileDisplay, TileShape } from '@/engine/tileset/tileset'
 import type { Animation as TileAnim } from '@/engine/animation/tileAnimation'
+import type { Visual } from '@/game/artStyle'
+
+/** A small thumbnail of a tile's baked art — an <img> for an image tile, else its glyph. Lets the Inspector
+ *  SHOW the currently-selected tile at a glance (Image #67: "see the current selected tile"). An ASCII
+ *  passthrough has no art of its own, so it renders a neutral dot. */
+export function TilePreview({ visual, label }: { visual?: Visual; label: string }) {
+  const box = 'flex h-7 w-7 shrink-0 items-center justify-center rounded border border-white/10 bg-black/50'
+  if (visual?.kind === 'image') return <span className={box}><img src={visual.src} alt={label} className="h-5 w-5 object-contain" /></span>
+  const char = visual?.kind === 'glyph' ? visual.char : '·'
+  return <span className={box}><span aria-hidden className="text-lg leading-none">{char}</span></span>
+}
 
 /** Inspector ◰ Art section — shows whether this element follows the global style or a pinned
- *  tile, and opens the Tile Library modal to change it. */
-export function ArtSection({ override, styleName, onOpen }: { override?: string | null; styleName: string; onOpen: () => void }) {
+ *  tile, and opens the Tile Library modal to change it. The button `label` is caller-driven: a cell
+ *  reads "Add tile" / "Replace tile" by its occupancy (the tile-add action names itself by cell STATE,
+ *  no tile-type branch); a unit keeps the default "Open Tile Library…". */
+export function ArtSection({ override, styleName, onOpen, label = '◰ Open Tile Library…' }: { override?: string | null; styleName: string; onOpen: () => void; label?: string }) {
   return (
     <div className="space-y-1.5 text-xs">
       <p className="text-[10px] leading-tight text-gray-400">
@@ -214,6 +227,10 @@ export interface PropertiesPanelProps {
   onLevel: (index0: number) => void
   /** open the tile-settings MODAL (the {@link TileControls} body) — the "Edit settings…" button. */
   onOpenSettings: () => void
+  /** CLEAR every tile off the selected cell(s) — drops the stacked assets, like an erase over the selection
+   *  (Image #67). A CELL-level action, so it shows even when the selected tile is the floor; absent for a unit
+   *  (a unit isn't a cell). Wired to the existing erase path, captured by undo/redo. */
+  onClearTiles?: () => void
   /** remove the SELECTED tile from the grid (not the floor — the caller omits this for level 0). Shows a
    *  "Remove tile" button in the tile section when provided; absent → no button (e.g. the floor). */
   onRemove?: () => void
@@ -452,13 +469,25 @@ export function PropertiesPanel(p: PropertiesPanelProps) {
             <button onClick={() => p.onCollision(false)} aria-pressed={p.collision === false} className={`rounded px-2 py-0.5 text-[10px] font-bold ${p.collision === false ? 'bg-emerald-600 text-white' : 'bg-gray-700 hover:bg-gray-600'}`}>Walkable</button>
             {p.collision === null && mixedBadge}
           </div>
+          {/* Clear tiles — a PROMINENT cell-level erase: drops every stacked tile off the selected cell(s).
+              Shown for a cell even when the floor is selected (it's a cell action, not a tile action). */}
+          {p.onClearTiles && (
+            <button onClick={p.onClearTiles} aria-label="Clear tiles" className="w-full rounded bg-red-800 px-2 py-1.5 text-xs font-bold text-white transition-colors hover:bg-red-700">
+              🧹 Clear tiles
+            </button>
+          )}
         </>
       )}
       {t && (
         <>
           <div className={`flex items-center justify-between ${isUnit ? '' : 'mt-1 border-t border-white/10 pt-1.5'}`}>
-            {/* "everything is a tile": a unit's sprite is shown as its tile, same header shape a cell tile uses */}
-            <p className="text-[9px] font-bold uppercase tracking-wider text-gray-500">— tile · {t.label} —</p>
+            {/* "everything is a tile": a unit's sprite is shown as its tile, same header shape a cell tile uses.
+                A thumbnail of the tile's baked art (a SIBLING of the divider text, not inside it) SHOWS the
+                currently-selected tile at a glance (Image #67). */}
+            <span className="flex items-center gap-1.5">
+              <TilePreview visual={t.preview} label={t.label} />
+              <p className="text-[9px] font-bold uppercase tracking-wider text-gray-500">— tile · {t.label} —</p>
+            </span>
             {p.levelCount > 1 && (
               <span className="flex items-center gap-1 text-[9px] text-gray-400" aria-label="Select stack level">
                 <button onClick={() => p.onLevel(p.level - 2)} disabled={p.level <= 1} aria-label="Lower tile" className="rounded bg-gray-700 px-1 leading-none hover:bg-gray-600 disabled:opacity-30">▼</button>
