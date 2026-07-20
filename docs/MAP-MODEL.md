@@ -136,6 +136,18 @@ shows the footprint.
 The roof is the clearest example: it is a **stack of roof tiles** (a gable). The SAME roof tiles project to a
 **triangle** (2D front), a **3D gable** (ISO), and the **footprint rectangle** (TOP).
 
+**A composition cell resolves by its own LABEL, in every view.** A tree is two stacked cells — a `tree_trunk`
+cell at level 0 and a `tree_canopy` cell above it — each carrying its OWN part label but the SAME composition
+`type` ('tree'). Every renderer resolves a stacked cell (one that carries a `label` and `height ≥ 1`) by that
+**label** — its own trunk/leaf/wall/roof tile — **before** the coarse whole-object KIND art is ever consulted
+(`assetKind` collapses `tree_*` to the `tree` kind, whose emoji is the whole 🌲). So the trunk cell draws the
+trunk tile and the canopy cell draws the leaf tile, each at its own stacked position, composing into ONE
+coherent tree — identically in ISO (label cube per cell), 2D (label cell per level), and TOP (the top-of-stack
+label per footprint cell). This label-first rule is what stops the 2D view from painting the whole-tree KIND
+tile once per stacked cell — the "tree on tree" doubling — so **ANY** composition (tree, building, fountain,
+lamp) translates consistently across the three views. It is DATA-driven (label + height), never a per-type
+branch.
+
 ```mermaid
 flowchart TD
   STAMP["a building is stamped as per-cell TILES (walls stack by level, roof = gable tile stack)"]
