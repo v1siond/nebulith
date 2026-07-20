@@ -470,21 +470,33 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   const playModeRef = useRef(false) // live playMode for the raf render loop (mirrors activeStyleRef)
   useEffect(() => { playModeRef.current = playMode }, [playMode])
   const fps = useFps() // #86 — one sampler feeds the nav readout (edit/show) + the play-mode floating box
-  // Load tilesets from the nebulith Elixir backend on mount — fills the (empty) holders with the DB-served
-  // data. If the backend is down / returns nothing (loaded === 0) or the fetch rejects, we keep the default
-  // (empty) builder and tell the user with a toast instead of failing silently. The render already draws a
-  // neutral placeholder for a missing tile (TILE-BACKEND-MIGRATION §10), so the editor stays usable.
-  useEffect(() => {
+  // TILESET LOADING GATE — the frontend ships NO bundled tile data, so the map cannot be drawn until the
+  // backend tileset is installed. `tilesetReady` gates the RAF render (via tilesetReadyRef) AND the canvas
+  // overlay below: until it flips true we show a loader (never a frontend-tile flash); on an empty/failed
+  // load `tilesetError` shows a retry state. This is the "loader → correct DB style, nothing in between"
+  // the user asked for — there is deliberately no fallback to frontend tiles.
+  const [tilesetReady, setTilesetReady] = useState(false)
+  const [tilesetError, setTilesetError] = useState(false)
+  const tilesetReadyRef = useRef(false) // live flag the gameLoop reads each frame (mirrors tilesetReady)
+  useEffect(() => { tilesetReadyRef.current = tilesetReady }, [tilesetReady])
+
+  // Fetch + install the tilesets from the nebulith Elixir backend — the ONLY source of runtime tiles. On
+  // success (>=1 style installed) we open the gate; on an empty/failed load we surface the error state (a
+  // retry) and keep the render gated. We NEVER fall back to frontend tiles.
+  const loadTiles = useCallback(() => {
+    setTilesetError(false)
     loadTilesetsFromBackend()
       .then((loaded) => {
-        if (loaded.length === 0) toast("Couldn't load tiles from the server — showing the default builder.", 'error')
+        if (loaded.length === 0) { setTilesetError(true); return }
         // Build the Tile-composition palette from the just-loaded tileset — EVERY composition the backend
         // serves (buildings + trees + fountains + lamp posts…), grouped for the panel. Data-driven, so a new
         // backend composition appears in the palette with no frontend change.
-        else setCompositionPalette(buildCompositionPalette(ASCII_TILESET))
+        setCompositionPalette(buildCompositionPalette(ASCII_TILESET))
+        setTilesetReady(true)
       })
-      .catch(() => toast("Couldn't load tiles from the server — showing the default builder.", 'error'))
-  }, [toast])
+      .catch(() => setTilesetError(true))
+  }, [])
+  useEffect(() => { loadTiles() }, [loadTiles])
   const isMobile = useIsMobile()
 
   // Load view state from localStorage on mount
@@ -4401,6 +4413,16 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
 
       if (!grid) return
 
+      // TILESET GATE — until the backend tileset is installed, paint a clean loading background and skip ALL
+      // simulation + render, so no frontend/default tile can ever flash before the DB style loads. The React
+      // loader overlay sits on top of this; together they guarantee loader → correct DB style, nothing between.
+      if (!tilesetReadyRef.current) {
+        ctx.fillStyle = '#0a0a12'
+        ctx.fillRect(0, 0, canvas.width, canvas.height)
+        animFrame = requestAnimationFrame(gameLoop)
+        return
+      }
+
       const use2DMovement = topViewMode || viewTypeRef.current === '2d'
       const jump = jumpRef.current
 
@@ -5342,6 +5364,35 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
           onContextMenu={handleContextMenu}
           style={{ cursor: isPanning ? 'grabbing' : topViewMode ? 'default' : 'grab' }}
         />
+
+        {/* TILESET LOADER GATE — the map is NEVER painted until the backend tileset installs (the RAF loop
+            paints only a dark background until then), so on a fresh load this overlay is the ONLY thing
+            visible: a spinner while fetching, a retry on failure. No frontend-tile / wrong-style flash can
+            slip through, because there is no bundled frontend tile data to draw. */}
+        {!tilesetReady && (
+          <div className="fixed inset-0 z-[60] flex flex-col items-center justify-center gap-4 bg-[#0a0a12] font-mono text-white">
+            {!tilesetError ? (
+              <>
+                <div className="h-10 w-10 animate-spin rounded-full border-2 border-white/20 border-t-yellow-400" />
+                <p className="text-sm tracking-widest text-gray-300">LOADING TILES…</p>
+              </>
+            ) : (
+              <>
+                <p className="text-lg font-bold text-red-400">Couldn&apos;t load the tileset</p>
+                <p className="max-w-xs text-center text-xs text-gray-400">
+                  The tile server didn&apos;t respond. The editor renders only backend tiles — nothing is drawn
+                  from the frontend — so it waits here until the tileset loads.
+                </p>
+                <button
+                  onClick={loadTiles}
+                  className="rounded bg-yellow-600 px-4 py-2 text-sm font-bold text-black hover:bg-yellow-500"
+                >
+                  ↻ Retry
+                </button>
+              </>
+            )}
+          </div>
+        )}
 
         {/* (Removed the on-canvas floating quick-actions toolbar — Style/Animate/Trigger live in the
             right-sidebar Inspector cards now, so the game view stays uncluttered.) */}
