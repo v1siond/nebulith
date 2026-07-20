@@ -354,24 +354,44 @@ type Centrepiece = keyof typeof CENTREPIECE_FOOTPRINT
 // animated water columns), a grand city square gets the big `fountain` (a 3×3 basin, its centre 3 animated).
 // The plaza side is the settlement tell — PLAZA_SIZE is town 5 / city 7 (villageLayout), so ≥6 ⇒ city.
 const pickCentrepiece = (plazaSize: number): Centrepiece => (plazaSize >= 6 ? 'fountain' : 'well')
-/** ~18% of lamps are FAILING bulbs — a deterministic per-cell hash so the SAME map always fails the SAME lamps
- *  (stable across reloads; independent of the generator RNG so it can't shift other placements). Alexander: "the
- *  flicker animation can be applied to a few, but not all" — so a MINORITY flickers, the rest are steady. */
-function lampIsFailing(col: number, row: number): boolean {
-  const s = Math.sin(col * 12.9898 + row * 78.233) * 43758.5453
-  return s - Math.floor(s) < 0.18
+/** How many of a settlement's lamps are FAILING (flickering) bulbs — a SMALL, RANDOM *absolute* count, NEVER a
+ *  fraction of the lamp count (Alexander: "the flicker should be a random thing that only 1 or 2 lamps get and
+ *  it's not even 100% of the time"). Usually 1, sometimes 2, occasionally 0 — so it stays "only 1 or 2" whether
+ *  the settlement has 6 lamps or 20. The old per-cell ratio hash tagged ~a quarter of every map's lamps (a town
+ *  got 2–3, a city 3–4 flickering — reading as "all of them"). Drawn from the DECOR rng, so a decor re-roll
+ *  picks a different tiny set. */
+function failingLampTarget(rand: Rng): number {
+  const r = rand()
+  if (r < 0.25) return 0
+  return r < 0.8 ? 1 : 2
 }
 
-/** Record a LIGHT POST at (col,row) as a composition anchor — a `post` base (level 0) + the `lamp` on top
+/** Flip a tiny RANDOM subset of the placed lamps to the flickering `lamp_post_failing` variant, leaving the rest
+ *  the steady `lamp_post` (lit at night, dark in day). The subset is an ABSOLUTE count (failingLampTarget, ≤ 2),
+ *  chosen with a partial Fisher–Yates over the decor rng — independent of how many lamps exist, so the flicker
+ *  stays a rare minority on a town AND a city, and re-rolls with the decor layer. */
+function markFailingLamps(rand: Rng, lamps: CompositionAnchor[]): void {
+  const target = Math.min(lamps.length, failingLampTarget(rand))
+  const order = lamps.map((_, i) => i)
+  for (let i = 0; i < target; i++) {
+    const j = i + Math.floor(rand() * (order.length - i))
+    ;[order[i], order[j]] = [order[j], order[i]]
+    lamps[order[i]].kind = 'lamp_post_failing'
+  }
+}
+
+/** Record a STEADY LIGHT POST at (col,row) as a composition anchor — a `post` base (level 0) + the `lamp` on top
  *  (level 1) — and pre-block its 1×1 cell so generation-time decor (trees) stays off it, exactly like
- *  placeCentrepiece pre-blocks the fountain. applyStageToGrid stamps it via stampComposition, the SAME data
- *  path the fountain uses, so ascii and emoji render the IDENTICAL post+lamp structure (only the tile art
- *  differs). A MINORITY (lampIsFailing) stamps the `lamp_post_failing` variant (an irregular night flicker); the
- *  rest are the steady `lamp_post` — the DATA-driven "only a few lamps flicker" mechanism (backend variant). */
-function placeLampPost(ctx: ArchetypeContext, col: number, row: number): void {
-  if (!inBounds(col, row, ctx.cols, ctx.rows) || ctx.collision[row][col]) return
-  ctx.compositions.push({ kind: lampIsFailing(col, row) ? 'lamp_post_failing' : 'lamp_post', col, row })
+ *  placeCentrepiece pre-blocks the fountain. Returns the recorded anchor (or null if it didn't fit) so the
+ *  caller can flip a tiny random subset to the failing variant afterwards (markFailingLamps). applyStageToGrid
+ *  stamps it via stampComposition, the SAME data path the fountain uses, so ascii and emoji render the IDENTICAL
+ *  post+lamp structure (only the tile art differs). */
+function placeLampPost(ctx: ArchetypeContext, col: number, row: number): CompositionAnchor | null {
+  if (!inBounds(col, row, ctx.cols, ctx.rows) || ctx.collision[row][col]) return null
+  const anchor: CompositionAnchor = { kind: 'lamp_post', col, row }
+  ctx.compositions.push(anchor)
   ctx.collision[row][col] = true
+  return anchor
 }
 
 /** Place a prop iff the cell is in-bounds + not already blocked; set collision when blocking. */
@@ -667,13 +687,18 @@ function villageDecor(ctx: ArchetypeContext, layout: VillageLayout): void {
   placeCentrepiece(ctx, layout.plaza)
   // Lamp posts every ~6 cells along each street's frontage gaps (never on a road or building). Each is a
   // COMPOSITION (post base + lamp on top) stamped at load — NOT a single lamp prop — so both art styles render
-  // the same post+lamp structure.
+  // the same post+lamp structure. Every lamp is placed STEADY; AFTER placement a tiny random subset (≤2) is
+  // flipped to the flickering variant, so "only 1 or 2 lamps" flicker no matter how many the settlement has.
+  const lamps: CompositionAnchor[] = []
   for (const sr of streetRows) {
     const frontage = sr - 1
     for (let c = 5; c < cols - 4; c += 6) {
-      if (decorFree(c, frontage)) placeLampPost(ctx, c, frontage)
+      if (!decorFree(c, frontage)) continue
+      const anchor = placeLampPost(ctx, c, frontage)
+      if (anchor) lamps.push(anchor)
     }
   }
+  markFailingLamps(ctx.rand, lamps)
 }
 
 /** Stamp the town SQUARE the planner reserved dead-centre BEFORE the houses: pave the whole block

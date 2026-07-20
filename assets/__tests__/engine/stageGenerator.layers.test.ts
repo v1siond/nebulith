@@ -47,10 +47,14 @@ function genSeeded(opts: Parameters<typeof generateStage>[0], seed: number): Sta
 // refactor MUST keep a plain `generateStage` (no per-layer seeds) drawing from Math.random in the
 // SAME order, so these digests are unchanged. If a refactor legitimately changes generation, these
 // are regenerated deliberately — never loosened to "any value".
+// Settlement digests were regenerated 2026-07-20 when the failing-lamp selection changed from a per-cell ratio
+// hash to a small ABSOLUTE random pick (markFailingLamps, drawn from the decor rng) — a deliberate generation
+// change (see stageGenerator.lamps.test.ts). Only town/city move (they run the decor pass); the non-settlement
+// archetypes below are untouched.
 const BASELINE: Record<string, string> = {
-  'town|autumn|40x40|1': 'f03b6e91',
-  'town|summer|50x40|7': 'bc66654d',
-  'city|summer|56x44|3': '9445a2fa',
+  'town|autumn|40x40|1': '80de66d8',
+  'town|summer|50x40|7': 'ade8f497',
+  'city|summer|56x44|3': 'e548bd05',
   'forest|summer|30x24|42': 'a4369e55',
   'cave|autumn|40x30|99': '4eff2d41',
   'temple|winter|36x30|5': '7b1712d1',
