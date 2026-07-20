@@ -288,14 +288,28 @@ export function Dropdown({
 // ── ⚡ Generate (zone × variant) ──────────────────────────────────────
 /** The stage-preset controls (zone picker + variant generate buttons). Shared by
  *  the top-bar Generate dropdown and the Inspector's nothing-selected stage panel. */
+// The per-layer randomize scopes — re-roll ONE layer of the current map, keeping the rest (macro
+// randomize, GENERATION-SPEC §5). Order matches the generator's layer list; labels are user-facing.
+const RANDOMIZE_LAYERS: ReadonlyArray<readonly [string, string]> = [
+  ['layout', 'Layout only'],
+  ['buildings', 'Buildings'],
+  ['nature', 'Trees / nature'],
+  ['decor', 'Decor'],
+  ['units', 'Units'],
+]
+
 export function GenerateControls({
   zone,
   onZone,
   onGenerate,
+  onRandomizeLayer,
 }: {
   zone: ZoneId
   onZone: (z: ZoneId) => void
   onGenerate: (zone: ZoneId, variant: (typeof STAGE_VARIANTS)[number]) => void
+  /** When provided, shows a "randomize just one layer" row that re-rolls a single layer of the
+   *  current map (leaving the others intact). Omitted where there is no current map to scope. */
+  onRandomizeLayer?: (layer: string) => void
 }) {
   return (
     <div>
@@ -330,6 +344,26 @@ export function GenerateControls({
       <p className="mt-2 text-[10px] text-gray-500">
         Pick a variant to generate a randomized {zone} stage — forest, town, a much larger city, a cavern, or a temple dungeon.
       </p>
+      {onRandomizeLayer && (
+        <>
+          <p className="mb-1 mt-3 border-t border-gray-700 pt-2 text-xs text-gray-400">Randomize just one layer — keeps the rest of the map</p>
+          <div className="grid grid-cols-3 gap-1">
+            {RANDOMIZE_LAYERS.map(([id, label]) => (
+              <button
+                key={id}
+                onClick={() => onRandomizeLayer(id)}
+                className="rounded bg-indigo-700 px-2 py-1.5 text-xs capitalize transition-colors hover:bg-indigo-600"
+                title={`Re-roll only the ${label.toLowerCase()} of the current map`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <p className="mt-1 text-[10px] text-gray-500">
+            Generate a map first, then re-roll one layer at a time — e.g. new trees without touching the buildings, or the bare street/plot layout with no structures.
+          </p>
+        </>
+      )}
     </div>
   )
 }

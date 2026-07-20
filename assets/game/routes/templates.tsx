@@ -23,7 +23,7 @@ import { BUILDING_PLACE_LENGTH, buildingCompositionKind, buildingFootprint, canP
 import { buildCompositionPalette, type CompositionPaletteGroup } from '@/engine/compositionCatalog'
 import { findTriggeredConnector, normalizeConnector } from '@/engine/connectors'
 import { entityPalette, punchTile, weaponEmoji, weaponGlyph, weaponPose } from '@/engine/entityArt'
-import { StageData, VariantId, generateStage, stagePaint } from '@/engine/stageGenerator'
+import { StageData, VariantId, type LayerId, generateStage, stagePaint } from '@/engine/stageGenerator'
 import { type Action as TriggerAction, resolveAction } from '@/engine/triggers'
 import { stagePropTileOverride, ZoneId } from '@/engine/zones'
 import { type AbilityBinding, DEFAULT_ABILITY_LOADOUT } from '@/game/abilities'
@@ -1799,6 +1799,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       __isoBlockScreen?: (col: number, row: number, level: number) => { x: number; y: number } | null
       __genVillage?: () => { buildings: number }
       __genStage?: (zone: string, variant: string) => { buildings: number }
+      __randomizeLayer?: (layer: string) => { buildings: number }
       __centerOn?: (col: number, row: number) => void
       __setHero?: (col: number, row: number) => void
       __setDepth?: (col: number, row: number, depth: number, dir: DepthDir) => { col: number; row: number; depth: number; depthDir: DepthDir; cells: { col: number; row: number }[] } | null
@@ -1925,6 +1926,9 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       g ? g.assets.filter(a => /^(house|big_house|store|hospital|temple|cathedral|castle)_\d+$/.test(a.type)).length : 0
     win.__genVillage = () => { generateStageInEditor('spring', 'town'); return { buildings: countBuildingTiles(gridRef.current) } }
     win.__genStage = (zone: string, variant: string) => { generateStageInEditor(zone as ZoneId, variant as VariantId); return { buildings: countBuildingTiles(gridRef.current) } }
+    // Re-roll ONE generation layer over the current map (the Generate menu's scoped randomize) — a
+    // validation seam mirroring the menu buttons: layout / buildings / nature / decor / units.
+    win.__randomizeLayer = (layer: string) => { randomizeLayerInEditor(layer as LayerId); return { buildings: countBuildingTiles(gridRef.current) } }
     // Centre the iso camera on a cell so a validation click lands on-screen (the same camOffset the render +
     // pick read); mirrors the raw dev-mode focus fc=(playerX-camOffsetX)/cs.
     win.__centerOn = (col: number, row: number) => {
@@ -2135,7 +2139,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       setSelectedCells(new Set([`${best.col},${best.row}`]))
       return best
     }
-    return () => { delete win.__setArtStyle; delete win.__selectFirstTreeCell; delete win.__setView; delete win.__gridKinds; delete win.__entityInfo; delete win.__entityScreens; delete win.__selectEntity; delete win.__setEntitySize; delete win.__scatter; delete win.__selectedEntityInfo; delete win.__placeBuilding; delete win.__placeComposition; delete win.__armComposition; delete win.__cellSel; delete win.__selectCells; delete win.__applyCellTile; delete win.__clearRegion; delete win.__setDebug; delete win.__cellLabels; delete win.__stackAt; delete win.__camOffset; delete win.__stackAsset; delete win.__paintTile; delete win.__isoBlockScreen; delete win.__genVillage; delete win.__genStage; delete win.__centerOn; delete win.__setHero; delete win.__pickTileAt; delete win.__cellScreen; delete win.__tileCentroid; delete win.__tileHandles; delete win.__setShape; delete win.__setDisplay; delete win.__setLight }
+    return () => { delete win.__setArtStyle; delete win.__selectFirstTreeCell; delete win.__setView; delete win.__gridKinds; delete win.__entityInfo; delete win.__entityScreens; delete win.__selectEntity; delete win.__setEntitySize; delete win.__scatter; delete win.__selectedEntityInfo; delete win.__placeBuilding; delete win.__placeComposition; delete win.__armComposition; delete win.__cellSel; delete win.__selectCells; delete win.__applyCellTile; delete win.__clearRegion; delete win.__setDebug; delete win.__cellLabels; delete win.__stackAt; delete win.__camOffset; delete win.__stackAsset; delete win.__paintTile; delete win.__isoBlockScreen; delete win.__genVillage; delete win.__genStage; delete win.__randomizeLayer; delete win.__centerOn; delete win.__setHero; delete win.__pickTileAt; delete win.__cellScreen; delete win.__tileCentroid; delete win.__tileHandles; delete win.__setShape; delete win.__setDisplay; delete win.__setLight }
   }, [])
 
   // ── Selected-entity inspector actions ─────────────────────────────
@@ -3203,7 +3207,10 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   // Random map generator using TEMPLATE_PRESETS system
   // Pipeline: grid → roads → buildings around roads → nature → collisions → NPCs
   // ── Stage generation (zone × variant) — randomized on click ──
-  const applyStageToGrid = (stage: StageData, grid: IsometricGrid) => {
+  // `buildingSalt` shifts the per-footprint material/roof/wall-colour hash so a "randomize buildings
+  // only" re-roll repaints the town's buildings (new materials + roof/wall tones) while the geometry
+  // — a plot decision — stays put. 0 (the default) reproduces the un-salted look.
+  const applyStageToGrid = (stage: StageData, grid: IsometricGrid, buildingSalt = 0) => {
     for (let r = 0; r < grid.rows; r++) {
       for (let c = 0; c < grid.cols; c++) {
         grid.setGround(c, r, stage.ground[r]?.[c] ?? 'ash')
@@ -3257,14 +3264,14 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     for (const b of stage.buildings) {
       const anchorRow = b.row - (b.height - 1)
       const residential = b.type === 'house' || b.type === 'big-house'
-      const material = residential ? pick(HOUSE_MATERIALS, b.col * 31 + b.row * 17) : undefined
+      const material = residential ? pick(HOUSE_MATERIALS, b.col * 31 + b.row * 17 + buildingSalt) : undefined
       let roofColor: string | undefined
       let wallColor: string | undefined
       if (b.type === 'store') { roofColor = STORE_ROOF; wallColor = FIXED_WALL }
       else if (b.type === 'hospital') { roofColor = HOSPITAL_ROOF; wallColor = FIXED_WALL }
       else {
-        roofColor = pick(ROOF_COLORS, b.col * 13 + b.row * 7)
-        wallColor = residential ? pick(WALL_COLORS, b.col * 23 + b.row * 29) : undefined
+        roofColor = pick(ROOF_COLORS, b.col * 13 + b.row * 7 + buildingSalt)
+        wallColor = residential ? pick(WALL_COLORS, b.col * 23 + b.row * 29 + buildingSalt) : undefined
       }
       // Stamp by the building's AUTHORITATIVE composition kind (derived from the facade length at plan time),
       // NOT re-derived from b.length: b.length is the grid COL-SPAN, which for an east/west-facing plot is the
@@ -3297,6 +3304,82 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     }))
   }
 
+  // ── macro RANDOMIZE: whole map + per-layer scopes (GENERATION-SPEC §5) ──────
+  // The recipe of the last full generate — zone/variant/size + the per-layer SEEDS. Re-rolling one
+  // layer changes only that layer's seed and regenerates: the rest, fed the same seeds, reproduce.
+  const lastGenRef = useRef<{ zone: ZoneId; variant: VariantId; cols: number; rows: number; seeds: Record<'layout' | 'buildings' | 'nature' | 'decor', number> } | null>(null)
+  // Salts the per-building material/roof/wall-colour hash so "randomize buildings only" repaints.
+  const buildingSaltRef = useRef(0)
+  const randSeed = (): number => (Math.random() * 0x7fffffff) | 0
+
+  /** Strip a full stage down to just its LAYOUT — roads + reserved plots — dropping every structure
+   *  and all nature, and rebuilding collision to block ONLY the plot footprints. This is the user's
+   *  "randomize just the MAP which contains the distribution of things without actual structures nor
+   *  nature": you see the streets + the plots the buildings would sit on, nothing stamped on them. */
+  const stripToLayout = (stage: StageData): StageData => {
+    const collision = stage.collision.map(row => row.map(() => false))
+    for (const b of stage.buildings) {
+      const top = b.row - (b.height - 1)
+      const doors = new Set(b.doorCells.map(d => `${d.col},${d.row}`))
+      for (let r = top; r <= b.row; r++) {
+        for (let c = b.col; c < b.col + b.length; c++) {
+          if (r >= 0 && r < stage.rows && c >= 0 && c < stage.cols && !doors.has(`${c},${r}`)) collision[r][c] = true
+        }
+      }
+    }
+    return { ...stage, collision, buildings: [], trees: [], compositions: [], props: [] }
+  }
+
+  /** Re-scatter ONLY the units layer over the current map: drop the previous enemies/townsfolk (keep
+   *  the player), then re-seed the archetype-appropriate roster — the "randomize units only" scope. */
+  const reseedUnits = (grid: IsometricGrid, variant: VariantId) => {
+    const settled = variant !== 'cave' && variant !== 'temple'
+    const townCount = variant === 'city' ? 14 : variant === 'town' ? 8 : 5
+    const collision = Array.from({ length: grid.rows }, (_, r) =>
+      Array.from({ length: grid.cols }, (_, c) => grid.isBlocked(c, r)),
+    )
+    setEntities(prev => {
+      const kept = byKind(prev, 'player')
+      const townsfolk = settled
+        ? scatterEntities({ collision, occupied: kept.map(e => ({ col: e.col, row: e.row })), count: townCount, kinds: ['npc'], idPrefix: `town-${Date.now()}` })
+        : []
+      return [...kept, ...townsfolk]
+    })
+    if (variant === 'cave') seedStageEnemies(grid, CAVE_ENEMY_TYPES, 'cave')
+    if (variant === 'temple') seedStageEnemies(grid, TEMPLE_ENEMY_TYPES, 'temple')
+  }
+
+  /**
+   * Re-roll ONE generation layer over the current map, leaving the others intact (the Generate ▾
+   * scoped randomize). Only the requested layer's seed changes; the untouched layers, fed the same
+   * seeds, regenerate identically, so visually only that layer moves. `units` re-scatters entities
+   * without regenerating the map. Non-settlement archetypes (forest/cave/temple/boss) aren't
+   * decomposed into layers, so any scope there re-rolls the whole archetype via its layout rng.
+   */
+  const randomizeLayerInEditor = (layer: LayerId) => {
+    const grid = gridRef.current
+    const recipe = lastGenRef.current
+    if (!grid) return
+    if (!recipe) { generateStageInEditor(genZone, 'town'); return } // nothing generated yet → a full town
+    if (layer === 'units') { reseedUnits(grid, recipe.variant); bumpBuildingVersion(); return }
+
+    const isSettlement = recipe.variant === 'town' || recipe.variant === 'city'
+    // Non-settlement archetypes read only the layout rng, so route every scope through it there.
+    const engineLayer = isSettlement ? layer : 'layout'
+    const seeds = { ...recipe.seeds, [engineLayer]: randSeed() }
+    lastGenRef.current = { ...recipe, seeds }
+    if (layer === 'buildings' && isSettlement) buildingSaltRef.current = randSeed() // repaint the buildings
+
+    const full = generateStage({ zone: recipe.zone, variant: recipe.variant, cols: recipe.cols, rows: recipe.rows, seeds })
+    const stage = layer === 'layout' && isSettlement ? stripToLayout(full) : full
+    applyStageToGrid(stage, grid, buildingSaltRef.current)
+    // Keep the player on walkable ground (new trees/plots may sit where they stood); entities stay put.
+    const here = livePlayerCell()
+    movePlayerToValidSpawn(here.col, here.row)
+    setSelectedCells(new Set())
+    bumpBuildingVersion()
+  }
+
   const generateStageInEditor = (zone: ZoneId, variant: VariantId) => {
     // A city is a big settlement — give it a markedly larger grid (~1.7× town linear) so it READS
     // bigger on screen, on top of the denser street grid + ~4× building cap in villageLayout. Town,
@@ -3307,8 +3390,13 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     resizeGrid(cols, rows)
     const grid = gridRef.current
     if (!grid) return
-    const stage = generateStage({ zone, variant, cols: grid.cols, rows: grid.rows })
-    applyStageToGrid(stage, grid)
+    // Capture a per-layer SEED set so the Generate menu can later re-roll a SINGLE layer (buildings /
+    // trees / decor / layout) while the rest — fed these same seeds — reproduce identically.
+    const seeds = { layout: randSeed(), buildings: randSeed(), nature: randSeed(), decor: randSeed() }
+    lastGenRef.current = { zone, variant, cols: grid.cols, rows: grid.rows, seeds }
+    buildingSaltRef.current = randSeed()
+    const stage = generateStage({ zone, variant, cols: grid.cols, rows: grid.rows, seeds })
+    applyStageToGrid(stage, grid, buildingSaltRef.current)
     movePlayerToValidSpawn(stage.spawn.col, stage.spawn.row)
     const live = livePlayerCell()
     syncPlayerEntity(live.col, live.row, true) // fresh stage → player entity follows the spawn
@@ -5211,6 +5299,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                 zone={genZone}
                 onZone={setGenZone}
                 onGenerate={(z, v) => { generateStageInEditor(z, v); close() }}
+                onRandomizeLayer={layer => { randomizeLayerInEditor(layer as LayerId); close() }}
               />
             )}
           </Dropdown>
