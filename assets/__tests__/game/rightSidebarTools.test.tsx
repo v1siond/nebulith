@@ -19,6 +19,7 @@ import { IsometricGrid } from '@/engine/IsometricGrid'
 import { tilesForStyle, type TileDef } from '@/game/artStyle'
 import { placeGroundTile, stackAssetTile } from '@/game/editor/tileBrush'
 import { placementFor } from '@/game/editor/tilePlacement'
+import { connectorEditFromSelection } from '@/game/editor/connectors'
 import type { Connector } from '@/lib/api'
 
 const EMOJI = tilesForStyle('emoji')
@@ -268,5 +269,40 @@ describe('#2 Connectors — ConnectorsPanelBody hosts the whole flow', () => {
     const dialog = screen.getByRole('dialog', { name: 'Connectors' })
     expect(dialog).toBeInTheDocument()
     expect(dialog.querySelector('[data-drag-handle]')).toBeInTheDocument()
+  })
+})
+
+// The Connectors button must open STRAIGHT into the editing view on the FIRST click (user: "if I have multi
+// select and click connectors I expect to see the editing view, but instead I have to click again"). The
+// editing FORM shows iff editingConnector is set; connectorEditFromSelection is what openConnectorPanel uses
+// to arm it from the active selection — so a non-null result == the form shows on that first click.
+describe('#2 Connectors — opening lands in the editing view (no second click)', () => {
+  it('no selection → null (nothing to edit; the panel just stays armed, ready to draw)', () => {
+    expect(connectorEditFromSelection([], [])).toBeNull()
+  })
+
+  it('a MULTI-cell selection arms editing immediately — keystone + fresh form + the whole selection', () => {
+    const selection = [{ col: 4, row: 5 }, { col: 4, row: 6 }, { col: 5, row: 5 }]
+    const start = connectorEditFromSelection(selection, [])
+    expect(start).not.toBeNull()
+    expect(start!.editing).toEqual({ col: 4, row: 5 })       // a keystone cell of the selection → the form shows
+    expect(start!.cells).toEqual(selection)                  // the whole multi-select becomes the connector's cells
+    expect(start!.form.interaction).toBe('walk')             // a fresh default form (nothing saved yet)
+    expect(start!.form.targetTemplateId).toBe('')
+  })
+
+  it('a single-cell selection also opens straight into the form', () => {
+    const start = connectorEditFromSelection([{ col: 7, row: 2 }], [])
+    expect(start!.editing).toEqual({ col: 7, row: 2 })
+    expect(start!.cells).toEqual([{ col: 7, row: 2 }])
+  })
+
+  it('a selection overlapping a SAVED connector LOADS it — its full cell set + its saved form', () => {
+    const saved = connector({ cells: [{ col: 2, row: 3 }, { col: 2, row: 4 }], targetTemplateId: 't9', interaction: 'interact' })
+    const start = connectorEditFromSelection([{ col: 2, row: 4 }], [saved]) // click one of its cells
+    expect(start!.editing).toEqual({ col: 2, row: 3 })          // keystone = the connector's first cell
+    expect(start!.cells).toEqual(saved.cells)                   // the connector's WHOLE cell set, not just the clicked one
+    expect(start!.form.targetTemplateId).toBe('t9')             // its saved form loads for editing
+    expect(start!.form.interaction).toBe('interact')
   })
 })

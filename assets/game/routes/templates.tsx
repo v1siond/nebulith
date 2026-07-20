@@ -76,6 +76,7 @@ import { commonValue, commonBool, cellsFromKeys, removeSelectedBlock } from '@/g
 import { applyRectSelection, applyCellSelection } from '@/game/editor/selection'
 import { entityKindForUnitSlug, placementFor, tileSlug } from '@/game/editor/tilePlacement'
 import { clearGroundTile, placeGroundTile, removeTopAsset, removeAssetAtLevel, stackAssetTile } from '@/game/editor/tileBrush'
+import { connectorEditFromSelection } from '@/game/editor/connectors'
 import { useEditorHistory } from '@/game/editor/useEditorHistory'
 
 
@@ -1299,8 +1300,22 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     }
   }
 
+  /** Enter the connector editing view for the ACTIVE selection so opening the panel lands straight in the
+   *  authoring FORM — no second click. Reuses the SAME routing as a canvas connector click
+   *  (`connectorEditFromSelection`): a saved connector overlapping the selection loads, otherwise the
+   *  selection itself becomes a fresh connector. No-op with no selection (the panel just stays armed). */
+  const beginConnectorForSelection = () => {
+    const start = connectorEditFromSelection(cellsFromKeys(selectedCellsRef.current), connectors)
+    if (!start) return
+    setConnectorForm(start.form)
+    setSelectedCells(new Set(start.cells.map(p => `${p.col},${p.row}`)))
+    setEditingConnector(start.editing)
+  }
+
   /** Open the right-sidebar Connectors panel: arm click-to-add authoring and drop the other exclusive tools so
-   *  a canvas click routes to exactly one editor (mirrors the old rail Connector mode, minus the rail entry). */
+   *  a canvas click routes to exactly one editor (mirrors the old rail Connector mode, minus the rail entry).
+   *  With a selection active it opens straight into the editing view (`beginConnectorForSelection`) — the user
+   *  expects one click, especially with a multi-select, not a second click to reach the form. */
   const openConnectorPanel = () => {
     setSelectedEntityId(null)
     setConnectorPanelOpen(true)
@@ -1309,6 +1324,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     setEntityTool(null)
     setBuildingTool(null)
     setArmedTile(null)
+    beginConnectorForSelection()
   }
 
   /** Close it: disarm authoring and drop the edited connector. */
