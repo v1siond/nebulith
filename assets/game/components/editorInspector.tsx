@@ -31,7 +31,7 @@ export function ArtSection({ override, styleName, onOpen, label = '◰ Open Tile
           : <>Following the <span className="font-bold text-cyan-300">{styleName}</span> style.</>}
       </p>
       <button onClick={onOpen} className="w-full rounded bg-cyan-800 px-2 py-1.5 text-xs font-bold text-white transition-colors hover:bg-cyan-700">
-        ◰ Open Tile Library…
+        {label}
       </button>
     </div>
   )
@@ -189,6 +189,12 @@ export interface TileControlModel {
   override?: string | null
   /** the active global style name, shown in the "Change tile" affordance. */
   styleName: string
+  /** the tile's baked art, so the Inspector can SHOW the currently-selected tile (Image #67). Absent → a
+   *  neutral placeholder. */
+  preview?: Visual
+  /** the tile-add button's label, driven by CELL STATE (not tile type): "Add tile" on an empty cell,
+   *  "Replace tile" on a filled one. Absent → the default "Open Tile Library…" (a unit keeps that). */
+  libraryLabel?: string
   /** open the Tile Library to SWAP this tile — the same "current sprite → Open Tile Library" flow the
    *  entity inspector uses. */
   onOpenLibrary: () => void

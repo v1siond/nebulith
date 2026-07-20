@@ -5917,6 +5917,13 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                         const stack = getStack(grid, fc.col, fc.row, { entities })
                         const levelCount = stack.length
                         const lvl = Math.min(Math.max(selectedTileLevel, 0), levelCount - 1)
+                        // The tile-add button names itself by CELL STATE (no tile-type branch): a bare cell (floor
+                        // only) reads "Add tile", a cell that already holds a stacked tile reads "Replace tile".
+                        const libraryLabel = levelCount > 1 ? 'Replace tile' : 'Add tile'
+                        // A tile's baked art for the Inspector thumbnail — pinned override first, else the style's
+                        // tile for that slug. Undefined (ascii/none) → the preview shows a neutral placeholder.
+                        const previewFor = (id: string | null | undefined, slug: string): Visual | undefined =>
+                          (id ? visualForTileId(id) : undefined) ?? visualForTileId(`${activeStyleId}:${slug}`) ?? undefined
                         // Shared floor dim across the selection (grid.groundDims; unset→1; null = mixed).
                         const gdim = (read: (d: GroundCellDims | undefined) => number) => commonValue(cells.map(({ col, row }) => read(grid.groundDims?.[row]?.[col])))
                         // Shared value of the i-th stacked tile's field across the cells that HAVE it.
@@ -5949,6 +5956,8 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                             onClearColor: () => setFloorColor(null),
                             override: selectedOverride,
                             styleName: activeStyle.name,
+                            preview: previewFor(selectedOverride, groundSlug),
+                            libraryLabel,
                             onOpenLibrary: () => setTileLibraryOpen(true),
                             pose: floorDimsFc?.pose,
                             onPose: setGroundPose,
@@ -5978,6 +5987,8 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                             onColor: c => setAssetColor(i, c),
                             override: selectedOverride,
                             styleName: activeStyle.name,
+                            preview: previewFor(a0?.tileOverride ?? selectedOverride, stack[lvl]?.slug ?? kind),
+                            libraryLabel,
                             onOpenLibrary: () => setTileLibraryOpen(true),
                             zWidth: adim(i, a => a.depth ?? 1),
                             zDir: commonValue(cells.map(({ col, row }) => (stackedAssetsAt(grid, col, row)[i]?.depthDir ?? null) as DepthDir | null)),
@@ -6036,6 +6047,8 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                             onColor: () => {}, // write-back to the asset / entity store → next step
                             override: entry?.tileId ?? selectedOverride,
                             styleName: activeStyle.name,
+                            preview: previewFor(entry?.tileId ?? selectedOverride, entry?.slug ?? ''),
+                            libraryLabel,
                             onOpenLibrary: () => setTileLibraryOpen(true),
                           }
                         }

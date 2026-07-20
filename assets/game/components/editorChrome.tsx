@@ -456,30 +456,37 @@ export function TileLibraryBody({
   styleName,
   override,
   onPick,
+  paint = false,
 }: {
   styleId: string
   styleName: string
   override?: string | null
   onPick: (tileId: string | null) => void
+  /** PAINT mode (a CELL selection) — picking a tile PAINTS it onto the selected area via the same path the
+   *  left Paint tool uses, instead of pinning a per-element override. Swaps the prose + hides "Follow style"
+   *  (there's no override to clear). Default (a UNIT) keeps the pin-override behaviour. */
+  paint?: boolean
 }) {
   const groups = tilesForStyle(styleId)
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-2">
         <p className="text-[11px] text-gray-400">
-          <span className="text-cyan-300">{styleName}</span> tiles — pick one to pin it to this element.
+          <span className="text-cyan-300">{styleName}</span> tiles — pick one to {paint ? 'paint it onto the selected cells' : 'pin it to this element'}.
         </p>
-        <button
-          onClick={() => onPick(null)}
-          disabled={!override}
-          className={`shrink-0 rounded px-2 py-1 text-[10px] font-bold transition-colors ${
-            override ? 'bg-gray-700 text-gray-100 hover:bg-gray-600' : 'cursor-not-allowed bg-gray-800/50 text-gray-600'
-          }`}
-        >
-          Follow style
-        </button>
+        {!paint && (
+          <button
+            onClick={() => onPick(null)}
+            disabled={!override}
+            className={`shrink-0 rounded px-2 py-1 text-[10px] font-bold transition-colors ${
+              override ? 'bg-gray-700 text-gray-100 hover:bg-gray-600' : 'cursor-not-allowed bg-gray-800/50 text-gray-600'
+            }`}
+          >
+            Follow style
+          </button>
+        )}
       </div>
-      <TileCategoryGrid groups={groups} isOn={t => override === t.id} onPick={t => onPick(t.id)} />
+      <TileCategoryGrid groups={groups} isOn={t => !paint && override === t.id} onPick={t => onPick(t.id)} />
     </div>
   )
 }
