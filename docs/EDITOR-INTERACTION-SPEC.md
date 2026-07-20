@@ -213,6 +213,37 @@ is any multi-cell template the DB serves, and the tool now places **every one th
   → cheap. Drawn in the iso view (`drawCompositionGhostIso`) and the top-down view (`drawCompositionGhostFlat`);
   the 2D front-elevation view omits it (a col/row footprint doesn't map onto a side elevation).
 
+## 13. Right-sidebar inspector tools (clear / connectors / add-replace tile) — SHIPPED 2026-07
+Four right-sidebar reworks so the Inspector is where you SEE and change what's on a cell, without hunting the
+left rail. All reuse the existing seams — the `FloatingPanel` (draggable/resizable, geometry persisted in
+editor-settings) and the left Paint tool's placement path — with NO fork and NO tile-type branch.
+
+- **See the selected tile + Clear tiles (Image #67).** The cell card shows a **thumbnail of the selected tile's
+  baked art** (`TilePreview`, a sibling of the divider text so it never pollutes the header) and a **prominent
+  "🧹 Clear tiles"** action in the CELL section. Clear tiles drops EVERY stacked tile off the selected cell(s)
+  via the SAME erase primitive ⌥Alt-click uses (`removeTopAsset`, popping until bare + re-deriving collision),
+  leaving the floor — captured by undo/redo (`checkpointHistory`). It's a CELL action, so it shows even when the
+  selected tile is the floor, and is hidden for a unit (a unit isn't a cell).
+- **Connectors — a right-sidebar button + a draggable modal.** The Connector tool is **off the left tool-rail**
+  (`RAIL_MODES` drops it); its entry is a **"↗ Connectors" button in the right sidebar** that opens a draggable
+  `FloatingPanel` (`ConnectorsPanelBody`, geometry id `connectors`) hosting the WHOLE flow — the Edit/Exit
+  authoring toggle, the saved-connector list, and (while editing) the target / when / spawn-cell form + Save /
+  Delete. The connector DATA + behaviour are unchanged; only the entry + host moved. Opening the panel arms
+  click-to-add authoring (and drops the other exclusive tools); closing it disarms + drops the edited connector.
+- **Tile Library moves BELOW Colour + opens a draggable/resizable modal.** In the cell card the tile-add button
+  sits **below the Colour swatch** (`ArtSection` rendered after colour) and opens the Tile Library as a
+  draggable/resizable `FloatingPanel` (geometry id `tileLibrary`), NOT the old centred `Modal`.
+- **"Add tile" / "Replace tile" by cell status + paint the selection (same path as the left Paint tool).** The
+  tile-add button NAMES itself by CELL STATE (no tile-type branch): **"Add tile"** on a bare cell (floor only),
+  **"Replace tile"** once the cell holds a stacked tile (`levelCount > 1`). Picking a tile in the Library:
+  - for a **CELL selection** → PAINTS it onto the whole selection through the SAME per-cell placement the left
+    Paint tool runs (`paintTileOnSelection` → `placeArmedTileAt` → `placementFor` + `placeGroundTile` /
+    `stackAssetTile`), so a terrain tile replaces the floor and a standing tile stacks — identical to the left
+    brush. The selection is kept so you can keep painting and the label flips Add→Replace. `TileLibraryBody`
+    runs in `paint` mode (prose "paint it onto the selected cells", no "Follow style").
+  - for a **UNIT** → still PINS the picked tile as a figure override (`setSelectionOverride`), unchanged.
+  The left Paint tool and this right-sidebar paint COEXIST and land the exact same tiles — one placement path.
+
 ## Randomize — macro (per-layer) + micro (selection) — SHIPPED 2026-07
 
 The randomizer is scoped, not all-or-nothing (user: "randomize every stage… only trees… only buildings…
