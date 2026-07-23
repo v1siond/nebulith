@@ -8,7 +8,7 @@ defmodule Nebulith.Catalog.Tile do
     field :emoji, :string
     field :color_role, :string
     field :blocking, :boolean, default: false
-    field :height, :integer, default: 0
+    field :height, :float, default: 0.0
     field :category, :string
     field :title, :string
     field :image_url, :string
