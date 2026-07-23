@@ -14,6 +14,7 @@ import type { ZoneId } from '@/engine/zones'
 import type { BuildingType } from '@/engine/buildingTypes'
 import type { Facing } from '@/engine/villageLayout'
 import { buildingCompositionKind, facingRotation, rotateFootprintOffset } from '@/engine/buildingCatalog'
+import { rotateDepthDir } from '@/engine/render/isoBlock'
 import type { Animation } from '@/engine/animation/tileAnimation'
 
 // Apex-signage colour for a titled building — a single readable signage tone drawn on drawApexBadge's
@@ -105,6 +106,10 @@ function stampRun(
   const col = anchorCol + off.dx
   const row = anchorRow + off.dy
   if (col < 0 || row < 0 || col >= grid.cols || row >= grid.rows) return false
+  // STACK, don't replace (MAP-MODEL §4 "a cell holds an ORDERED stack ... stacked like legos"): a composition
+  // just PLACES its cells; the grass/road floor already in the cell STAYS beneath as its own stacked tile. A
+  // LEVEL-0 wall/trunk/rim tile coexists with the floor at level 0 (the floor is a thin ground slab, the wall a
+  // block on it); higher levels (roof, upper wall) stack above. The floor is only removed by an explicit CLEAR.
   const label = material ? c.label.replace(WALL_MAT, `${material}_`) : c.label
   const tile = resolveTile(ASCII_TILESET, zone, label, variant)
   // Colour SETTING = the filter the renderer tints the baked tile to. A roof/wall override recolours just
@@ -133,6 +138,12 @@ function stampRun(
   // axis stays 1, byte-identical to before.
   if (cs?.scaleX != null) asset.scaleX = cs.scaleX
   if (cs?.scaleZ != null) asset.scaleZ = cs.scaleZ
+  // Directional DEPTH (roof-z-width): a roof column is ONE block that spans the footprint DEPTH along a
+  // diagonal. `depthDir` is authored south-facing (+row) — ROTATE it by the building's rotation (the SAME
+  // quarter-turns rotateFootprintOffset applied to this cell's offset) so an east/west/north building's roof
+  // spans the right grid axis instead of sideways. Absent → the asset stays a unit cube, byte-identical.
+  if (cs?.depth != null) asset.depth = cs.depth
+  if (cs?.depthDir) asset.depthDir = rotateDepthDir(cs.depthDir, rotation)
   // A composition cell can ship DEFAULT animations (the fountain water's rise/fade loop) — copy them onto the
   // placed asset so the tile animates without any per-instance authoring, anchored at placedAt 0 (the render
   // clock's origin — iso/2D/top drive the animation off `performance.now`, so a LOAD-triggered loop plays

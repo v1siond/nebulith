@@ -193,10 +193,10 @@ describe('style registry + tile library', () => {
     expect(BUILT_IN_STYLES[0]).toBe(ASCII_STYLE)
   })
 
-  it('tilesForStyle groups tiles into the four categories with content', () => {
+  it('tilesForStyle groups tiles into the taxonomy buckets with content', () => {
     const emoji = tilesForStyle('emoji')
     expect(emoji.terrain.length).toBeGreaterThan(0)
-    expect(emoji.buildings.length).toBeGreaterThan(0)
+    expect(emoji.walls.length).toBeGreaterThan(0) // the old `buildings` bucket split into walls/roofs/…; walls carries content
     expect(emoji.units.length).toBeGreaterThan(0)
     expect(emoji.nature.length).toBeGreaterThan(0)
     // the ASCII style also has library content (explicit glyph tiles)

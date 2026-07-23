@@ -6,7 +6,7 @@ import type { Connector } from '@/lib/api'
 import { ABILITY_REGISTRY, ABILITY_TINT, type AbilityAnimation } from '@/game/abilities'
 import { ENEMY_ATTACK_PRESETS, addEnemyAttack, buildAttackPattern, defaultEnemyAttack, enemyAttackFromAbility, normalizeAttackPattern, removeEnemyAttack, setAttackPatternMode, updateEnemyAttack } from '@/game/patterns'
 import { rewardSummary } from '@/game/runtime/quest'
-import { type AttackMode, type AttackPattern, type AttackPatternMode, type EnemyAttack, type Entity, type EntityVariant, type Quest } from '@/game/types'
+import { type AttackMode, type AttackPattern, type AttackPatternMode, type EnemyAttack, type Entity, type Quest } from '@/game/types'
 import { QuestObjectives } from '@/components/game/hud'
 import { TileControls, type TileControlModel } from '@/components/game/editorChrome'
 
@@ -202,19 +202,34 @@ export function FloatingPanel({ title, accent = 'cyan', onClose, children, initi
   )
 }
 
-/** Identity + editable stats for the selected entity (Stats modal body). */
-export function EntityIdentityStatsBody({ entity, onPatch }: {
+/** The five combat stats every unit carries, in display order — a table, so a new stat is one row here. */
+const UNIT_STATS: ReadonlyArray<readonly ['maxHp' | 'defense' | 'strength' | 'intelligence' | 'dodge', string]> = [
+  ['maxHp', 'HP'],
+  ['defense', 'DEF'],
+  ['strength', 'STR'],
+  ['intelligence', 'INT'],
+  ['dodge', 'DODGE%'],
+]
+
+/**
+ * The unit's STATS body — the contents of the card's "⛊ Stats…" button, hosted in a draggable/resizable
+ * FloatingPanel (Alexander: "stats would be a button that shows a draggable, movable, resizable modal where
+ * we control all those extra unit settings").
+ *
+ * What is deliberately NOT here: **Name** and **Size** stay as rows on the tile card (identity you retune
+ * inline), and **"Blocks movement" is gone** — a unit's collision is the card's ONE `Blocked / Walkable`
+ * toggle, the same control every tile uses. Everything else a unit uniquely owns lives here: the enemy's
+ * kill-quest tag, the five combat stats, hittable, and the respawn timer.
+ */
+export function UnitStatsBody({ entity, onPatch }: {
   entity: Entity
   onPatch: (patch: Partial<Entity>) => void
 }) {
   const hittable = entity.hittable ?? entity.kind === 'enemy'
+  const isEnemy = entity.kind === 'enemy'
   return (
     <div className="space-y-2 text-xs">
-      <label className="block">
-        <span className="mb-0.5 block text-[10px] text-gray-400">Name</span>
-        <input value={entity.name ?? ''} onChange={e => onPatch({ name: e.target.value })} aria-label="Entity name" className="w-full rounded bg-gray-800 p-1 text-xs" />
-      </label>
-      {entity.kind === 'enemy' && (
+      {isEnemy && (
         <label className="block">
           <span className="mb-0.5 block text-[10px] text-gray-400">Enemy type (kill-quest tag)</span>
           <input value={entity.enemyType ?? ''} onChange={e => onPatch({ enemyType: e.target.value })} aria-label="Enemy type" className="w-full rounded bg-gray-800 p-1 text-xs" />
@@ -223,13 +238,7 @@ export function EntityIdentityStatsBody({ entity, onPatch }: {
       <div>
         <span className="mb-0.5 block text-[10px] text-gray-400">Stats (editable)</span>
         <div className="grid grid-cols-2 gap-1">
-          {([
-            ['maxHp', 'HP'],
-            ['defense', 'DEF'],
-            ['strength', 'STR'],
-            ['intelligence', 'INT'],
-            ['dodge', 'DODGE%'],
-          ] as const).map(([stat, label]) => (
+          {UNIT_STATS.map(([stat, label]) => (
             <label key={stat} className="flex items-center gap-1 text-[10px] text-gray-400">
               <span className="w-12 shrink-0">{label}</span>
               <input
@@ -247,11 +256,7 @@ export function EntityIdentityStatsBody({ entity, onPatch }: {
         <input type="checkbox" checked={hittable} onChange={e => onPatch({ hittable: e.target.checked })} aria-label="Hittable" />
         Hittable (can be attacked)
       </label>
-      <label className="flex items-center gap-2 text-gray-300">
-        <input type="checkbox" checked={entity.blocksMovement ?? false} onChange={e => onPatch({ blocksMovement: e.target.checked })} aria-label="Blocks movement" />
-        Blocks movement
-      </label>
-      {entity.kind === 'enemy' && (
+      {isEnemy && (
         <label className="flex items-center gap-2 text-[10px] text-gray-400">
           <span className="w-28 shrink-0">Respawn (s · 0 = never)</span>
           <input
@@ -268,16 +273,18 @@ export function EntityIdentityStatsBody({ entity, onPatch }: {
   )
 }
 
-/** The unit-only EXTRAS that sit beneath the shared tile settings in a unit's settings panel: the unit's
- *  own identity + vitals (reusing {@link EntityIdentityStatsBody}) plus entry points a tile never has — the
- *  INVENTORY (the user's named example) and, for an NPC, its quests. Driven by the selected entity + the SAME
- *  patch writer the sidebar uses, so an edit here and an edit in the sidebar stay in step. */
+/** The unit-only EXTRAS folded into the ONE shared tile card: the two identity ROWS a unit keeps inline
+ *  (name + size) plus the entry-point buttons a tile never has — STATS (the draggable modal), the INVENTORY
+ *  (player), quests (NPC) and attacks (enemy). Driven by the selected entity + the SAME patch writer the rest
+ *  of the card uses, so every edit lands on one source of truth. */
 export interface UnitControlModel {
   entity: Entity
   onPatch: (patch: Partial<Entity>) => void
   /** the discrete SIZE preset (1×/2×/3× — a boss scales its stats too, not just the figure). Absent → the
    *  size row hides (the raw scale is still editable via the settings sliders). */
   onSize?: (size: number) => void
+  /** open the unit's STATS modal (HP/DEF/STR/INT/DODGE% + hittable + respawn) — absent → no button. */
+  onOpenStats?: () => void
   /** open the unit's inventory & abilities (the player carries one) — absent → no button. */
   onOpenInventory?: () => void
   /** open the NPC's quest authoring — absent → no button. */
@@ -286,29 +293,17 @@ export interface UnitControlModel {
   onOpenAttacks?: () => void
 }
 
-/** The unit's appearance presets folded up from the old animation card — the FIGURE variant (gendered/robot/…)
- *  and, for scalable units, the SIZE preset (a boss is bigger + tougher). Not "animation": these are identity,
- *  which is why they survive the animation-section removal on the shared card. */
-const UNIT_VARIANTS: readonly (EntityVariant | '')[] = ['', 'male', 'female', 'old', 'child', 'alien', 'robot']
-
-function UnitAppearanceRow({ entity, onPatch, onSize }: { entity: Entity; onPatch: (patch: Partial<Entity>) => void; onSize?: (size: number) => void }) {
-  const chip = (on: boolean) => `rounded px-2 py-0.5 font-bold transition-colors ${on ? 'bg-cyan-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`
+/** The two identity ROWS that stay INLINE on the card — the unit's NAME and its discrete SIZE preset (a boss
+ *  is bigger AND tougher; `resizeEntityById` rescales the stat block by the same ratio). The old FIGURE
+ *  (neutral/male/female/old/child/alien/robot) row is GONE: a unit is a tile, so its art is swapped with the
+ *  card's regular "Replace tile" button, which lists the character tiles like any other tile. */
+function UnitIdentityRows({ entity, onPatch, onSize }: { entity: Entity; onPatch: (patch: Partial<Entity>) => void; onSize?: (size: number) => void }) {
   return (
-    <div className="space-y-2">
-      <div className="flex flex-wrap items-center gap-1 text-[11px]">
-        <span className="w-12 shrink-0 text-gray-400">Figure</span>
-        {UNIT_VARIANTS.map(v => (
-          <button
-            key={v || 'neutral'}
-            type="button"
-            onClick={() => onPatch({ variant: (v || undefined) as EntityVariant | undefined })}
-            aria-pressed={(entity.variant ?? '') === v}
-            className={chip((entity.variant ?? '') === v)}
-          >
-            {v || 'neutral'}
-          </button>
-        ))}
-      </div>
+    <div className="space-y-1.5">
+      <label className="flex items-center gap-2 text-[11px]">
+        <span className="w-12 shrink-0 text-gray-400">Name</span>
+        <input value={entity.name ?? ''} onChange={e => onPatch({ name: e.target.value })} aria-label="Entity name" className="min-w-0 flex-1 rounded bg-gray-800 p-1 text-xs" />
+      </label>
       {onSize && (
         <div className="flex items-center gap-1 text-[11px]">
           <span className="w-12 shrink-0 text-gray-400">Size</span>
@@ -319,7 +314,7 @@ function UnitAppearanceRow({ entity, onPatch, onSize }: { entity: Entity; onPatc
               onClick={() => onSize(sz)}
               title={sz > 1 ? `${sz}× — a boss: bigger figure + ~${sz}× stats` : 'normal size'}
               aria-pressed={(entity.size ?? 1) === sz}
-              className={chip((entity.size ?? 1) === sz)}
+              className={`rounded px-2 py-0.5 font-bold transition-colors ${(entity.size ?? 1) === sz ? 'bg-cyan-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
             >
               {sz}×
             </button>
@@ -330,19 +325,20 @@ function UnitAppearanceRow({ entity, onPatch, onSize }: { entity: Entity; onPatc
   )
 }
 
-/** The unit-only section of the shared card — appearance (figure/size) + identity/vitals + the entry-point
- *  buttons a tile never has: inventory (player), quests (NPC), attacks (enemy). Rendered ONLY for a unit; a
- *  tile passes no unit model so this never shows. */
+/** The unit-only section of the shared card — the name/size rows + the entry-point buttons a tile never has:
+ *  stats (every unit), inventory (player), quests (NPC), attacks (enemy). Each button opens its own draggable
+ *  modal. Rendered ONLY for a unit; a tile passes no unit model so this never shows. */
 export function UnitSettingsSection({ unit }: { unit: UnitControlModel }) {
-  const { entity, onPatch, onSize, onOpenInventory, onOpenQuests, onOpenAttacks } = unit
+  const { entity, onPatch, onSize, onOpenStats, onOpenInventory, onOpenQuests, onOpenAttacks } = unit
   const btn = 'w-full rounded bg-gray-700 px-2 py-1.5 text-left text-xs font-bold transition-colors hover:bg-gray-600'
+  const hasEntries = onOpenStats || onOpenInventory || onOpenQuests || onOpenAttacks
   return (
     <div className="space-y-2">
       <p className="text-[9px] font-bold uppercase tracking-wider text-gray-500">— unit · {entity.kind} —</p>
-      <UnitAppearanceRow entity={entity} onPatch={onPatch} onSize={onSize} />
-      <EntityIdentityStatsBody entity={entity} onPatch={onPatch} />
-      {(onOpenInventory || onOpenQuests || onOpenAttacks) && (
+      <UnitIdentityRows entity={entity} onPatch={onPatch} onSize={onSize} />
+      {hasEntries && (
         <div className="space-y-1 border-t border-white/10 pt-2">
+          {onOpenStats && <button type="button" className={btn} onClick={onOpenStats}>⛊ Stats…</button>}
           {onOpenInventory && <button type="button" className={btn} onClick={onOpenInventory}>🎒 Inventory &amp; abilities…</button>}
           {onOpenQuests && <button type="button" className={btn} onClick={onOpenQuests}>❒ Quests…</button>}
           {onOpenAttacks && <button type="button" className={btn} onClick={onOpenAttacks}>⚔ Attacks / abilities…</button>}
@@ -354,7 +350,7 @@ export function UnitSettingsSection({ unit }: { unit: UnitControlModel }) {
 
 /** The ONE settings-panel body the FloatingPanel hosts for BOTH a tile and a unit. The SAME
  *  {@link TileControls} (colour / scale / pose) drives the top, so a unit's settings look + work exactly like
- *  a tile's; a unit ALSO passes `unit`, appending the unit-only extras (identity, vitals, inventory). A tile
+ *  a tile's; a unit ALSO passes `unit`, appending the unit-only extras (name/size + its modal buttons). A tile
  *  passes no `unit`, so those never show. One shared component — no forked parallel copy. */
 export function SettingsPanelBody({ tile, unit }: { tile: TileControlModel; unit?: UnitControlModel }) {
   return (

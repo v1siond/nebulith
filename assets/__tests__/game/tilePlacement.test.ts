@@ -30,11 +30,13 @@ describe('tileSlug', () => {
 })
 
 describe('placementFor — category → placement primitive', () => {
-  test('terrain tiles route to ground', () => {
-    for (const t of EMOJI.terrain) expect(placementFor(t)).toBe('terrain')
+  test('ground tiles (terrain / roads / floors) route to ground', () => {
+    for (const t of [...EMOJI.terrain, ...EMOJI.roads, ...EMOJI.floors]) expect(placementFor(t)).toBe('terrain')
   })
-  test('nature + buildings tiles route to a (stacked) asset', () => {
-    for (const t of [...EMOJI.nature, ...EMOJI.buildings]) expect(placementFor(t)).toBe('asset')
+  test('nature + structural pieces (walls/windows/doors/roofs) + props route to a (stacked) asset', () => {
+    for (const t of [...EMOJI.nature, ...EMOJI.walls, ...EMOJI.windows, ...EMOJI.doors, ...EMOJI.roofs, ...EMOJI.props]) {
+      expect(placementFor(t)).toBe('asset')
+    }
   })
   test('a person / creature unit routes to an entity', () => {
     expect(placementFor(byId('emoji:person'))).toBe('entity')

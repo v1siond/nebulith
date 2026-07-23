@@ -1,5 +1,5 @@
 import { player as playerSprite } from '@/assets/ascii'
-import { GridAsset, IsometricGrid } from '@/engine/IsometricGrid'
+import { GridAsset, IsometricGrid, FLOOR_TYPE } from '@/engine/IsometricGrid'
 import { type AttackAnim, animFrame } from '@/engine/attackAnimations'
 import { assetCellTransform } from '@/engine/cellAnimation'
 import { isGroundContact } from '@/engine/cellLabels'
@@ -15,16 +15,16 @@ import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 import { EMOJI_TILESET } from '@/engine/tileset/emojiTileset'
 import { applyPose } from '@/engine/tileset/pose'
 import { resolveTileSize, resolveTilePose } from '@/engine/tileset/tileViewSettings'
+import { resolveTileHeight, partialBlockScale } from '@/engine/tileset/tileHeight'
 import { Connector } from '@/lib/api'
-import { ASCII_FONT, COMBAT_RANGE, type DayNight, ENEMY_MOVE_MS, applyCellTransform, clampCameraAxis, assetCaptionByCell, terrainLabelAt, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawHoverRing, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawConnectorMarker, drawAttackAnimFrame, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, drawFlatTileForShape, SINGLE_TILE_FRAC, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, frameImage, getPlayerArt, grassShade, cellFill, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, resolveAssetDraw, resolveEntityDraw, assetOverride, labelTileImage, labelTileRecolor, groundDecorImage, treeCanopyLayers, treeCellSet } from './shared'
+import { ASCII_FONT, COMBAT_RANGE, type DayNight, ENEMY_MOVE_MS, applyCellTransform, clampCameraAxis, assetCaptionByCell, terrainLabelAt, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawHoverRing, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawConnectorMarker, drawAttackAnimFrame, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, drawFlatTileForShape, SINGLE_TILE_FRAC, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, frameImage, getPlayerArt, grassShade, cellFill, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, resolveAssetDraw, resolveEntityDraw, assetOverride, labelTileImage, labelTileRecolor, groundDecorImage, treeCanopyLayers, treeCellSet, type DrawVisual } from './shared'
 import { resolveAssetDrawSize } from './assetDimensions'
 import { resolveAssetAnimation } from './assetAnimation'
 import { DEPTH_CELL_STEP } from './isoBlock'
-import { billboardGeom, pointInTileGeom, outlineSegments, poseMapper, tileGeomCentroid, type TileGeom } from './tileHit'
+import { billboardGeom, pointInTileGeom, outlineSegments, poseMapper, tileGeomCentroid, tilesInScreenRect, type TileGeom } from './tileHit'
 import type { TileSource } from '@/engine/cellStack'
 import { frontElevation, type FrontElevation } from './frontElevation'
-import { groundSizeFactors, groundDimsActive, type GroundCellDims } from '@/engine/groundDims'
-import { getStack } from '@/engine/cellStack'
+import { getStack, assetStackIndexer } from '@/engine/cellStack'
 import { ASCII_STYLE, assetKind, entityKind, entityStyleOverride, genderize, groundKind, personVariantTileId, type ElementKind, type Style } from '@/game/artStyle'
 import { DEFAULT_CHARACTER_ANIMATIONS, activeFrame } from '@/game/runtime/entityAnimation'
 
@@ -160,10 +160,15 @@ export function draw2DLabeledCell(
   tileH: number,
   asset: GridAsset,
   style: Style,
+  // A pre-resolved DrawVisual (resolveAssetDraw) for a LABEL-LESS painted tile (a flat flower/decor): supplies
+  // its baked image + glyph so a painted flat tile renders through this SAME flat-cell drawer as a composition
+  // cell — honouring shape/display/colour/scale — instead of a settings-dropping billboard. A composition cell
+  // (has a label) omits it and resolves label-FIRST, byte-identical to before.
+  dv?: DrawVisual,
 ): void {
   // Paint the cell with the ACTIVE style's tile for its LABEL — the emoji in emoji mode, else the ascii glyph.
   // Never mix: a composition cell is emoji in emoji mode, ascii in ascii mode. Both come from the DB tileset.
-  const char = (style.id === 'emoji' && asset.label ? EMOJI_TILESET[asset.label]?.char : undefined) ?? asset.art[0] ?? '?'
+  const char = (style.id === 'emoji' && asset.label ? EMOJI_TILESET[asset.label]?.char : undefined) ?? dv?.char ?? asset.art[0] ?? '?'
   const tint = asset.color ?? '#cccccc'
   // Width/Height/Zoom (scaleX/scaleY/scale) stretch the cell; HEIGHT (scaleY) grows the box UP from its base
   // — the bottom edge stays planted at `baseY` while the top rises — so a labeled tile whose height is
@@ -172,7 +177,10 @@ export function draw2DLabeledCell(
   // un-scaled labeled cell is byte-identical to before.
   const zoom = asset.scale ?? 1
   const drawW = tileW * (asset.scaleX ?? 1) * zoom
-  const drawH = tileH * (asset.scaleY ?? 1) * zoom
+  // HEIGHT — the SAME reading iso uses: the tile's OWN DB block-height (partialBlockScale) × the per-instance
+  // Height multiplier (scaleY). A sub-block (flat 0.1) cell is a thin slab, a standing cell a full box —
+  // identically in 2D and iso because both read the tile's real height DATA. Nothing invented.
+  const drawH = tileH * (asset.scaleY ?? 1) * partialBlockScale(resolveTileHeight(undefined, asset)) * zoom
   const cy = baseY - drawH * 0.5
   // The tile's NORMAL 2D front face — its own-colour backing + the label image (or glyph). Shared by the plain
   // square path and the circle path so a rounded tile shows the SAME painting, only its form changes.
@@ -192,7 +200,7 @@ export function draw2DLabeledCell(
     // The label's backend IMAGE (ascii: a white tint-target, RECOLOURED to `tint`; emoji: an already-coloured
     // PNG, NEVER recoloured) fills the same cell box the glyph would; a label with no image (most today)
     // falls through to the glyph below, so the cell is never blank.
-    const image = asset.label ? labelTileImage(asset.label, style) : undefined
+    const image = (asset.label ? labelTileImage(asset.label, style) : undefined) ?? dv?.image
     if (image) {
       drawStyledImage(ctx, image, x, cy, drawW * frac, false, labelTileRecolor(style, tint), drawH * frac)
       return
@@ -227,7 +235,7 @@ let _groundPendingKey = '' // the ground key seen LAST frame; we only bake once 
 // render2D records every drawn asset's real screen rect (honouring scaleY/heightLevel lift/zOffset ground-slide
 // /pose/zoom) so the picker + highlight resolve the TILE the user sees (e.g. a tall lamp's lifted bulb), not
 // the flat ground cell. Refreshed every frame; read on mousemove/mousedown. Canvas-internal pixels.
-interface TileHit2D { col: number; row: number; level: number; source: TileSource; geom: TileGeom }
+interface TileHit2D { col: number; row: number; level: number; stackIndex: number; source: TileSource; geom: TileGeom; entityId?: string }
 let twoDTileHits: TileHit2D[] = []
 
 /** Every recorded 2D tile whose rect contains (x,y), TOPMOST (last-drawn) first — the frontmost is the pick. */
@@ -244,11 +252,29 @@ export function pickTwoDTileAt(x: number, y: number): TileHit2D | null {
   return pickTwoDTilesAt(x, y)[0] ?? null
 }
 
-/** The recorded 2D silhouette of the tile at (col,row,level) drawn this frame (topmost), or null. */
+/** Every recorded 2D tile whose silhouette centroid is inside the screen rect — the block-aware MARQUEE query,
+ *  de-duped, topmost first. 2D lifts stacked blocks UP, so this keeps the raised block the box covers (its own
+ *  col,row,level), not the flat cell. Canvas-internal pixels, like pickTwoDTilesAt. */
+export function renderedTwoDTilesInRect(x0: number, y0: number, x1: number, y1: number): TileHit2D[] {
+  return tilesInScreenRect(twoDTileHits, x0, y0, x1, y1)
+}
+
+/** The recorded 2D silhouette of the tile at (col,row,level) drawn this frame (topmost), or null — used by the
+ *  internal lamp-glow anchor (by heightLevel). */
 export function twoDRecordedGeom(col: number, row: number, level: number): TileGeom | null {
   for (let i = twoDTileHits.length - 1; i >= 0; i--) {
     const t = twoDTileHits[i]
     if (t.col === col && t.row === row && t.level === level) return t.geom
+  }
+  return null
+}
+
+/** The recorded 2D silhouette of the tile at (col,row) sitting at STACK INDEX `stackIndex` — the SELECTION
+ *  highlight's per-tile lookup, so same-level tiles hug their OWN rects. null = that slot wasn't drawn. */
+export function twoDRecordedTileGeom(col: number, row: number, stackIndex: number): TileGeom | null {
+  for (let i = twoDTileHits.length - 1; i >= 0; i--) {
+    const t = twoDTileHits[i]
+    if (t.col === col && t.row === row && t.stackIndex === stackIndex) return t.geom
   }
   return null
 }
@@ -403,7 +429,7 @@ export interface Render2DParams {
   targetId?: string | null
   hoverId?: string | null
   selectedCells?: ReadonlySet<string>
-  hoveredCell?: { col: number; row: number; level?: number } | null
+  hoveredCell?: { col: number; row: number; stackIndex?: number } | null
 }
 
 export function render2D(params: Render2DParams) {
@@ -457,138 +483,45 @@ export function render2D(params: Render2DParams) {
   const startCol = Math.floor(camCol) - Math.floor(tilesX / 2)
   const startRow = Math.floor(camRow) - Math.floor(tilesY / 2)
 
-  // ─── GROUND LAYER (cached for reskins — see _groundLayer) ─────────
-  // Paint every visible ground cell into `tctx`. For a reskin this is a pure function of (ground data,
-  // heights, camera, zoom, style, size) — no per-frame term — so it's cacheable; ASCII keeps a live grass
-  // flicker so it always paints direct.
-  const paintGround = (tctx: CanvasRenderingContext2D): void => {
-    for (let row = startRow; row < startRow + tilesY; row++) {
-      for (let col = startCol; col < startCol + tilesX; col++) {
-        if (col < 0 || col >= grid.cols || row < 0 || row >= grid.rows) continue
-
-        const p = toScreen(col + 0.5, row + 0.5)
-        if (p.x < -tileW || p.x > w + tileW || p.y < -tileH || p.y > h + tileH) continue
-
-        // Step 4a — the FLOOR is read as tile index 0 of the cell's unified stack. getStack projects the
-        // SAME ground slug/colour/dims the direct grid.ground/groundColor/groundDims reads produced, so
-        // resolveGroundTile/cellFill + the dims path below stay byte-identical — only the SOURCE moved onto
-        // the one tile-in-cell adapter. (Props still come from getVisibleAssets below: the TileEntry
-        // projection is lossy for a prop — no footprint/cellAnim/baseShadow/bgColor/back-ref — and per-cell
-        // iteration would reorder same-row props, either of which would break the pixel-identical contract.)
-        const floor = getStack(grid, col, row)[0]
-        const tileType = floor.slug || 'grass'
-        // Ground LOADS from the tileset (byte-identical noise selection); grass keeps its per-cell shade.
-        const gt = resolveGroundTile(ASCII_TILESET, tileType, col, row)
-        const char = gt.char
-        const fg = gt.fg
-        const bg = tileType.includes('grass') ? grassShade(gt.bg, col, row) : gt.bg
-        // Active art style (ASCII passthrough → the char+fg above, byte-identical). A reskin tints the
-        // flat cell at the tile hue, VARIED per cell (same deterministic noise ASCII grass uses) so an
-        // emoji field isn't flat-uniform; ASCII → bg (identical).
-        const gk = groundKind(tileType)
-        const gdv = resolveDraw(gk, style, undefined, char, fg)
-        // Cell fill: a reskin uses the tile's OWN colour (from the catalog DATA), but grass AND the rocky
-        // cave floor keep their per-cell shade so it isn't one flat sheet ("grass is just color"); ASCII → bg.
-        // Per-cell FLOOR COLOUR override (from the Property panel) wins over the catalog colour; else the catalog fill.
-        const fillBg = floor.color ?? cellFill(gdv.tint, bg, tileType.includes('grass') || gk === 'cavefloor', col, row)
-        tctx.textAlign = 'center'
-        tctx.textBaseline = 'middle'
-        tctx.fillStyle = fillBg
-        tctx.fillRect(p.x - tileW / 2, p.y - tileH / 2, tileW, tileH)
-        if (gdv.tint || gdv.image) {
-          // RESKIN: draw the DATA tile FULL-CELL (no 'grid view'). The char + colour come from the tile
-          // data — NOT invented in JS; ground variety comes from the map's ground data / the catalog.
-          const cell = Math.max(tileW, tileH)
-          // The tile's optional POSE (from the emoji tileset entry), applied at the CELL CENTRE. Absent for
-          // ~every ground tile → we draw at (p.x,p.y) exactly as before, so the cached ground stays identical.
-          const tilePose = style.id === 'emoji' ? EMOJI_TILESET[gk]?.pose : undefined
-          // Per-cell FLOOR DIMS override (Width/Height/Depth/Zoom + a per-cell pose) — the SAME settings a
-          // prop carries, on THIS one floor tile. Overhead: Width×Zoom scales x, Depth×Zoom scales y (Height
-          // has no axis looking down). Unset → the byte-identical direct draws in the final two branches.
-          // FLOOR DIMS also ride the floor tile — the SAME GroundCellDims the old `grid.groundDims` read
-          // gave (getStack maps scaleX/scaleZ/scale/scaleY/pose → w/d/zoom/scaleY/pose). groundDimsActive
-          // + groundSizeFactors resolve identically (an all-unset floor → w:1,d:1 → inactive, {fx:1,fy:1}).
-          const gdims: GroundCellDims = { scaleX: floor.w, scaleY: floor.scaleY, scaleZ: floor.d, scale: floor.zoom, pose: floor.pose }
-          const dimsOn = groundDimsActive(gdims)
-          const cellPose = dimsOn ? gdims.pose : undefined
-          if (tilePose || cellPose || dimsOn) {
-            const { fx, fy } = groundSizeFactors(gdims)
-            tctx.save()
-            tctx.translate(p.x, p.y)
-            if (tilePose) applyPose(tctx, tilePose, 1, cell)
-            if (cellPose) applyPose(tctx, cellPose, 1, cell)
-            if (dimsOn) tctx.scale(fx, fy) // overhead: Width×Zoom on x, Depth×Zoom on y
-            if (gdv.image) drawStyledImage(tctx, gdv.image, 0, 0, cell * 1.02)
-            else { tctx.font = `${cell * 1.04}px ${ASCII_FONT}`; tctx.fillText(gdv.char, 0, 0) }
-            tctx.restore()
-          } else if (gdv.image) {
-            drawStyledImage(tctx, gdv.image, p.x, p.y, cell * 1.02)
-          } else {
-            tctx.font = `${cell * 1.04}px ${ASCII_FONT}`; tctx.fillText(gdv.char, p.x, p.y)
-          }
-        } else {
-          // ASCII passthrough — byte-identical to before.
-          const grassFlicker = tileType.includes('grass') ? Math.sin(time * 0.001 + col * 0.3 + row * 0.4) * 0.1 + 1 : 1
-          tctx.fillStyle = gdv.color
-          tctx.globalAlpha = 0.85 + 0.15 * grassFlicker
-          tctx.font = `bold ${tileH * 0.7}px ${ASCII_FONT}`
-          tctx.fillText(gdv.char, p.x, p.y)
-          tctx.globalAlpha = 1
-        }
-
-        // Height creates elevated platforms - draw "front face" if height > 0
-        const cellHeight = grid.getHeight(col, row)
-        if (cellHeight > 0) {
-          const elevH = cellHeight * heightScale
-          // Top surface (slightly brighter)
-          tctx.fillStyle = fillBg
-          tctx.fillRect(p.x - tileW / 2, p.y - tileH / 2 - elevH, tileW, tileH)
-          tctx.fillStyle = gdv.color
-          if (gdv.image) drawStyledImage(tctx, gdv.image, p.x, p.y - elevH, tileH)
-          else tctx.fillText(gdv.char, p.x, p.y - elevH)
-          // Front face (darker)
-          tctx.fillStyle = darkenColor(fillBg, 0.6)
-          tctx.fillRect(p.x - tileW / 2, p.y + tileH / 2 - elevH, tileW, elevH)
-        }
+  // ─── GROUND FILL ───────────────────────────────────────────────────
+  // The 2D view is a FRONT ELEVATION (a stacked tile draws as a facade of its height). A floor is a thin
+  // slab, which through that path would draw as a sliver — so the floor is NOT drawn via the objects loop
+  // here; instead each cell paints its FLOOR ASSET as a filled top-down ground tile (the ground plane). This
+  // is NOT a separate ground STORE — it reads the floor ASSET (grid.floorAt, the single source of truth); a
+  // CLEARED cell has no floor asset → it paints nothing (empty). No offscreen cache.
+  for (let row = startRow; row < startRow + tilesY; row++) {
+    for (let col = startCol; col < startCol + tilesX; col++) {
+      if (col < 0 || col >= grid.cols || row < 0 || row >= grid.rows) continue
+      const floor = grid.floorAt(col, row)
+      if (!floor) continue // empty (cleared) cell → void
+      const p = toScreen(col + 0.5, row + 0.5)
+      if (p.x < -tileW || p.x > w + tileW || p.y < -tileH || p.y > h + tileH) continue
+      const tileType = floor.tileKey || 'grass'
+      const gt = resolveGroundTile(ASCII_TILESET, tileType, col, row)
+      const gk = groundKind(tileType)
+      const grassy = tileType.includes('grass') || gk === 'cavefloor'
+      const bg = grassy ? grassShade(gt.bg, col, row) : gt.bg
+      const gdv = resolveDraw(gk, style, undefined, gt.char, gt.fg)
+      const fillBg = floor.color ?? cellFill(gdv.tint, bg, grassy, col, row) // per-cell FLOOR colour wins
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.fillStyle = fillBg
+      ctx.fillRect(p.x - tileW / 2, p.y - tileH / 2, tileW, tileH)
+      const cell = Math.max(tileW, tileH)
+      if (gdv.image) drawStyledImage(ctx, gdv.image, p.x, p.y, cell * 1.02)
+      else if (gdv.tint) { ctx.font = `${cell * 1.04}px ${ASCII_FONT}`; ctx.fillStyle = gdv.color; ctx.fillText(gdv.char, p.x, p.y) }
+      else { ctx.fillStyle = gdv.color; ctx.font = `bold ${tileH * 0.7}px ${ASCII_FONT}`; ctx.fillText(gdv.char, p.x, p.y) }
+      // Elevated terrain: a raised front face so height reads (matches the old ground layer).
+      const cellHeight = grid.getHeight(col, row)
+      if (cellHeight > 0) {
+        const elevH = cellHeight * heightScale
+        ctx.fillStyle = fillBg
+        ctx.fillRect(p.x - tileW / 2, p.y - tileH / 2 - elevH, tileW, tileH)
+        if (gdv.image) drawStyledImage(ctx, gdv.image, p.x, p.y - elevH, cell * 1.02)
+        ctx.fillStyle = darkenColor(fillBg, 0.6)
+        ctx.fillRect(p.x - tileW / 2, p.y + tileH / 2 - elevH, tileW, elevH)
       }
     }
-  }
-
-  // For a reskin the ground is static, so bake it once and blit — rebuild ONLY when the terrain
-  // (grid.groundVersion), camera, zoom, style or canvas size changes. This is the idle-cost fix: standing
-  // still (watching a video) no longer re-rasterizes the whole map every frame. ASCII paints live.
-  const canCacheGround = style.id !== ASCII_STYLE.id && typeof document !== 'undefined'
-  if (!canCacheGround) {
-    paintGround(ctx)
-  } else {
-    const key = `${grid.groundVersion}|${Math.round(camCol * 1000)}|${Math.round(camRow * 1000)}|${Math.round(zoom * 1000)}|${style.id}|${w}|${h}`
-    if (_groundLayer && _groundLayer.key === key && _groundLayer.grid === grid) {
-      ctx.drawImage(_groundLayer.cv, 0, 0) // HIT — the whole static ground in one blit
-    } else if (_groundPendingKey === key) {
-      // The camera has held this position for a frame → bake the ground now; from here it's a blit.
-      let layer = _groundLayer
-      if (!layer || layer.cv.width !== w || layer.cv.height !== h) {
-        const cv = document.createElement('canvas')
-        cv.width = w
-        cv.height = h
-        const lctx = cv.getContext('2d')
-        layer = lctx ? { cv, ctx: lctx, key: '', grid } : null
-      }
-      if (!layer) {
-        paintGround(ctx)
-      } else {
-        layer.ctx.clearRect(0, 0, w, h)
-        paintGround(layer.ctx)
-        layer.key = key
-        layer.grid = grid
-        _groundLayer = layer
-        ctx.drawImage(layer.cv, 0, 0)
-      }
-    } else {
-      // Moving (or first frame at this key) → draw straight to the screen, NO extra bake+blit cost.
-      paintGround(ctx)
-    }
-    _groundPendingKey = key
   }
 
   // ─── CONNECTOR MARKERS (one per owned cell, same purple ◊ as top view) ──
@@ -634,6 +567,7 @@ export function render2D(params: Render2DParams) {
   const treeCells2D = treeCellSet(grid) // memoized (see shared.treeCellSet) — no per-frame assets rescan
   const isTreeCell2D = (c: number, r: number): boolean => treeCells2D.has(`${c},${r}`)
   for (const asset of visibleAssets) {
+    if (asset.type === FLOOR_TYPE) continue // floors are the ground plane, painted as filled tiles above — not facades
     if (fe.hidden.has(asset)) continue // occluded behind a front-elevation face — depth collapsed away
     const anchorRow = fe.draw.get(asset)?.anchorRow ?? asset.row
     drawables.push({ row: asset.row, col: asset.col, type: 'asset', asset, sortRow: anchorRow, level: asset.heightLevel ?? 0, zIndex: asset.zIndex ?? 0 })
@@ -653,6 +587,7 @@ export function render2D(params: Render2DParams) {
 
   // Draw each object
   twoDTileHits = [] // fresh per-frame record of every drawn 2D tile's silhouette — the inverted picker reads it
+  const stackIndexOf = assetStackIndexer(grid) // per-frame memo: an asset → its slot in its cell's stack (0 = base/floor)
   for (const obj of drawables) {
     // A front-elevation cell (part of a stacked structure with depth) projects at its ANCHORED front row so
     // its column stacks as a flat facade — depth is collapsed (MAP-MODEL §2-3). Everything else (a flat
@@ -843,6 +778,17 @@ export function render2D(params: Render2DParams) {
         draw2DLabeledCell(ctx, p.x, baseY, tileW, tileH, asset, style)
         const z = asset.scale ?? 1, dw = tileW * (asset.scaleX ?? 1) * z, dh = tileH * (asset.scaleY ?? 1) * z
         hit2D = billboardGeom(dw, dh, poseMapper({ x: p.x, y: baseY - dh / 2 }, undefined, tileH))
+      } else if ((adv.image || adv.char) && resolveTileHeight(style.id === 'emoji' ? EMOJI_TILESET[assetKind(asset)] : undefined, asset) < 1) {
+        // FLAT tile (its OWN DB height is 0: a flower, a fallen leaf, floor decor) → a flat front-elevation CELL
+        // through the SAME drawer a composition cell uses (draw2DLabeledCell), fed its resolved image/glyph.
+        // Honours shape/display/colour/scale — the SAME settings iso's thin slab honours — instead of the
+        // settings-dropping billboard below (MAP-MODEL §4, EDITOR-INTERACTION §11). A STANDING tile (height ≥ 1)
+        // keeps its upright front-elevation sprite in the branches below.
+        draw2DLabeledCell(ctx, p.x, baseY, tileW, tileH, asset, style, adv)
+        // Pick box matches the drawn slab — the tile's own DB height (partialBlockScale), not a full-height rect.
+        const z = asset.scale ?? 1, dw = tileW * (asset.scaleX ?? 1) * z
+        const dh = tileH * (asset.scaleY ?? 1) * partialBlockScale(resolveTileHeight(undefined, asset)) * z
+        hit2D = billboardGeom(dw, dh, poseMapper({ x: p.x, y: baseY - dh / 2 }, undefined, tileH))
       } else if (adv.image) {
         // A per-asset colour override recolours the baked sprite (#80); undefined → drawn untinted.
         // Per-view tile size (byte-identical when unset: old 1.5 constant), then per-element dims (#77/#78).
@@ -899,7 +845,7 @@ export function render2D(params: Render2DParams) {
       if (ct2d) ctx.restore() // pop the cell-animation transform
       if (animWrap) ctx.restore() // pop the tile-animation shift/opacity wrap
       // Record this tile's 2D silhouette so the inverted picker + highlight hit-test IT, not the flat cell.
-      if (hit2D) twoDTileHits.push({ col: obj.asset.col, row: obj.asset.row, level: obj.asset.heightLevel ?? 0, source: 'asset', geom: hit2D })
+      if (hit2D) twoDTileHits.push({ col: obj.asset.col, row: obj.asset.row, level: obj.asset.heightLevel ?? 0, stackIndex: stackIndexOf(obj.asset), source: 'asset', geom: hit2D })
     }
   }
 
@@ -956,7 +902,7 @@ export function render2D(params: Render2DParams) {
         ctx.fillStyle = grid.collision[row]?.[col] ? 'rgba(255,150,150,0.75)' : 'rgba(150,255,150,0.6)'
         ctx.fillText(`${col},${row}`, p.x - tileW / 2 + 2, p.y - tileH / 2 + 1)
         const ac = assetCaps.get(`${col},${row}`)
-        const text = ac?.text ?? terrainLabelAt(grid.ground, col, row)
+        const text = ac?.text ?? terrainLabelAt(grid.groundSlugs(), col, row)
         const lc = debugLabelColors(ac?.type ?? 'terrain')
         drawCellLabel(ctx, text, p.x, p.y + tileH * 0.12, tileW - 3, lc.fg, lc.bg)
       }
@@ -1046,10 +992,10 @@ export function render2D(params: Render2DParams) {
   // ─── Hover + selection HIGHLIGHT — INVERTED: outline the ACTUAL rendered TILE (its recorded 2D rect,
   //     scaleY/heightLevel-lift/zOffset/pose aware) so the ring hugs what the user sees, not the flat cell.
   //     A bare floor cell (or a tile not drawn this frame) falls back to the flat cell square. ──────────
-  const strokeCellOrTile2D = (col: number, row: number, lvl: number | undefined): void => {
-    const geom = lvl !== undefined ? twoDRecordedGeom(col, row, lvl) : null
-    if (geom) { stroke2DTileOutline(ctx, geom); return } // the real tile rect (tall/lifted/slid aware)
-    const p = toScreen(col, row) // fallback: the flat cell square
+  const strokeCellOrTile2D = (col: number, row: number, stackIndex: number | undefined): void => {
+    const geom = stackIndex !== undefined ? twoDRecordedTileGeom(col, row, stackIndex) : null
+    if (geom) { stroke2DTileOutline(ctx, geom); return } // the real tile rect (tall/lifted/slid aware), by stack slot
+    const p = toScreen(col, row) // fallback: the flat cell square (a bare cell region, or a tile not drawn)
     ctx.strokeRect(p.x + 1, p.y + 1, tileW - 2, tileH - 2)
   }
 
@@ -1057,7 +1003,7 @@ export function render2D(params: Render2DParams) {
   if (hoveredCell) {
     ctx.strokeStyle = 'rgba(255,255,255,0.5)'
     ctx.lineWidth = 1.5
-    strokeCellOrTile2D(hoveredCell.col, hoveredCell.row, hoveredCell.level)
+    strokeCellOrTile2D(hoveredCell.col, hoveredCell.row, hoveredCell.stackIndex)
   }
 
   // Selection outline (property-editor multi-select) — a yellow ring hugging each selected tile/cell.
@@ -1065,8 +1011,8 @@ export function render2D(params: Render2DParams) {
     ctx.strokeStyle = '#ffff00'
     ctx.lineWidth = 2
     for (const key of selectedCells) {
-      const [col, row, lvl] = key.split(',').map(Number) // "col,row,level" = a recorded TILE; "col,row" = flat cell
-      strokeCellOrTile2D(col, row, lvl)
+      const [col, row, stackIndex] = key.split(',').map(Number) // "col,row,stackIndex" = a TILE; "col,row" = bare cell
+      strokeCellOrTile2D(col, row, Number.isFinite(stackIndex) ? stackIndex : undefined)
     }
   }
 

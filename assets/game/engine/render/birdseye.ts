@@ -1,4 +1,4 @@
-import { GridAsset, IsometricGrid } from '@/engine/IsometricGrid'
+import { GridAsset, IsometricGrid, FLOOR_TYPE } from '@/engine/IsometricGrid'
 import { assetCellTransform } from '@/engine/cellAnimation'
 import { darkenColor, lightenColor, withAlpha } from '@/engine/colors'
 import { topRoleColor } from '@/engine/entityArt'
@@ -11,7 +11,7 @@ import { Connector } from '@/lib/api'
 import { ASCII_FONT, type CompositionGhost, type DayNight, applyCellTransform, clampCameraAxis, collectLampGlows, drawCompositionGhostFlat, debugCellCaptions, debugLabelColors, drawConnectorMarker, drawHitMarker, drawHpBar, drawNightLighting, drawQuestMarker, drawStyledImage, drawFlatTileForShape, SINGLE_TILE_FRAC, fillTintedGlyph, grassShade, cellFill, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, resolveAssetDraw, resolveEntityDraw, assetOverride, labelTileImage, labelTileRecolor, tileImage } from './shared'
 import { resolveAssetDrawSize } from './assetDimensions'
 import { resolveAssetAnimation } from './assetAnimation'
-import { DEPTH_CELL_STEP } from './isoBlock'
+import { DEPTH_CELL_STEP, depthCells } from './isoBlock'
 import { getStack } from '@/engine/cellStack'
 import { EMOJI_TILESET } from '@/engine/tileset/emojiTileset'
 import { applyPose } from '@/engine/tileset/pose'
@@ -123,9 +123,18 @@ export function renderTopView(params: RenderTopViewParams) {
   // "last write wins" (the roof, placed last, still wins its footprint cell).
   const assetMap: Record<string, GridAsset> = {}
   for (const asset of grid.assets) {
-    const key = `${asset.col},${asset.row}`
-    const cur = assetMap[key]
-    if (!cur || (asset.zIndex ?? 0) >= (cur.zIndex ?? 0)) assetMap[key] = asset
+    // A depth-spanned asset (a roof column — `depthDir` + `depth` > 1) covers EVERY cell along its diagonal, so
+    // the overhead view paints its tile across the whole footprint span, not just the anchor cell (which would
+    // leave the rest of the roof reading as bare ground). A plain asset covers only its own (col,row). The
+    // zIndex tie-break is unchanged (a higher/last-placed asset still wins each cell).
+    const cells = asset.depthDir && (asset.depth ?? 1) > 1
+      ? depthCells(asset.col, asset.row, asset.depth!, asset.depthDir)
+      : [{ col: asset.col, row: asset.row }]
+    for (const { col, row } of cells) {
+      const key = `${col},${row}`
+      const cur = assetMap[key]
+      if (!cur || (asset.zIndex ?? 0) >= (cur.zIndex ?? 0)) assetMap[key] = asset
+    }
   }
 
   // Draw each cell - show ground OR asset (asset takes priority)
@@ -135,42 +144,20 @@ export function renderTopView(params: RenderTopViewParams) {
       const y = offsetY + row * tileSize
       const key = `${col},${row}`
       const asset = assetMap[key]
-      // Step 4c — a bare GROUND cell reads its FLOOR from tile index 0 of the cell's unified stack (mirrors
-      // 2D's 4a / iso's 4b). getStack projects the SAME ground slug/colour the direct grid.ground/groundColor
-      // reads gave, so the blueprint fill stays byte-identical — only the SOURCE moved onto the tile-in-cell
-      // adapter. birdseye's overhead floor never uses groundDims (the dims path is asset-only, via `asset ?? {}`
-      // below), so only slug + the colour override migrate. Props keep their assetMap path: asset cells skip
-      // the stack (a TileEntry is lossy for a prop, and the asset-takes-priority draw order must be preserved).
-      const floor = asset ? undefined : getStack(grid, col, row)[0]
+      // The FLOOR is an ordinary asset now (it rides assetMap like every tile), so a cell with NO asset is an
+      // EMPTY (cleared) cell → draw nothing. There is no separate overhead ground layer; a bare grass/road
+      // floor is just a floor ASSET whose art KIND resolves to its ground kind (assetKind→groundKind).
+      if (!asset) continue
 
-      let char: string
-      let fg: string
-      let bg: string
-      let grassy = false
-      let kind: ReturnType<typeof assetKind>
-
-      if (asset) {
-        // Show the cell's OWN tile for its LABEL — the emoji in emoji mode (a composition cell resolves its
-        // per-part emoji, never the kind's whole-tree image and never ascii-in-emoji), else the ascii glyph.
-        // resolveAssetDraw below falls back to THIS char since the composition kind has no emoji of its own.
-        char = (style.id === 'emoji' && asset.label ? EMOJI_TILESET[asset.label]?.char : undefined) ?? asset.art[0] ?? '?'
-        fg = asset.color ?? '#cccccc'
-        // Back the footprint cell with the tile's OWN colour (darkened below so the glyph reads), not a
-        // per-type dark map — so Top shows the same colour ISO/2D do, driven purely by the tile's data.
-        bg = asset.color ?? '#141414'
-        kind = assetKind(asset)
-      } else {
-        // Ground tile — slug from the floor tile (stack index 0); `|| 'grass'` matches the old direct read.
-        const tileType = floor?.slug || 'grass'
-        // Ground LOADS from the tileset's terrain data; the blueprint view uses the base variant (index 0).
-        const colors = ASCII_TILESET.terrain[tileType] ?? ASCII_TILESET.terrain.grass
-        char = colors.char[0]
-        fg = colors.fg[0]
-        kind = groundKind(tileType)
-        // Grass AND the rocky cave floor vary per-cell into natural tones (deterministic hash); flat else.
-        grassy = tileType.includes('grass') || kind === 'cavefloor'
-        bg = grassy ? grassShade(colors.bg[0], col, row) : colors.bg[0]
-      }
+      // Show the cell's OWN tile for its LABEL — the emoji in emoji mode (a composition cell resolves its
+      // per-part emoji), else the ascii glyph. A floor tile has no label → its ground image/colour resolves
+      // via assetKind→groundKind below; cellFill picks up that tint so a bare grass/road floor paints correctly.
+      const char = (style.id === 'emoji' && asset.label ? EMOJI_TILESET[asset.label]?.char : undefined) ?? asset.art[0] ?? '?'
+      const fg = asset.color ?? '#cccccc'
+      // Grass floors keep their per-cell shade (grassShade via cellFill) so a field isn't one flat sheet.
+      const grassy = asset.type === FLOOR_TYPE && (asset.tileKey ?? '').includes('grass')
+      const bg = asset.color ?? '#141414'
+      const kind = assetKind(asset)
 
       // Resolve the active art style (ASCII passthrough → the defaults above, unchanged). A PLACED
       // tile's override re-homes onto the active style so it RESKINS (resolveAssetDraw); a bare ground
@@ -183,12 +170,14 @@ export function renderTopView(params: RenderTopViewParams) {
       // asset tint, matching the separate ground layer under props in 2D/iso). The override now rides the
       // floor tile (getStack maps groundColor → color); byte-identical since null / a missing value both
       // fall through the `?? cellFill` below exactly as the old direct read did.
-      const floorOverride = !asset ? floor?.color : null
+      // A FLOOR tile's per-cell colour override wins; a bare grass/road floor falls to cellFill(dv.tint) so it
+      // paints its ground colour. A wall/prop keeps the asset tint via cellFill too.
+      const floorOverride = asset.type === FLOOR_TYPE ? (asset.color ?? null) : null
       ctx.fillStyle = floorOverride ?? cellFill(dv.tint, bg, grassy, col, row)
       ctx.fillRect(x, y, tileSize - 1, tileSize - 1)
-      // Darken an ASSET cell's tile-colour backing so its glyph (drawn below in the full tile colour) reads;
-      // ground cells keep their resolved fill. Matches the 2D labeled-cell backing.
-      if (asset) {
+      // Darken a PROP/WALL cell's tile-colour backing so its glyph reads; a FLOOR keeps its resolved ground
+      // fill (no dark overlay — it IS the ground).
+      if (asset.type !== FLOOR_TYPE) {
         ctx.fillStyle = 'rgba(0, 0, 0, 0.45)'
         ctx.fillRect(x, y, tileSize - 1, tileSize - 1)
       }

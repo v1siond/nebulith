@@ -1,5 +1,5 @@
 import { render, screen, fireEvent } from '@testing-library/react'
-import { FloatingPanel, SettingsPanelBody, UnitSettingsSection, type UnitControlModel } from '@/components/game/modals'
+import { FloatingPanel, SettingsPanelBody, UnitSettingsSection, UnitStatsBody, type UnitControlModel } from '@/components/game/modals'
 import { type TileControlModel } from '@/components/game/editorChrome'
 import { type Entity } from '@/game/types'
 
@@ -90,10 +90,12 @@ describe('SettingsPanelBody — a unit uses the SAME settings UX as a tile', () 
     expect(screen.queryByRole('button', { name: 'Square' })).toBeNull()
   })
 
-  it('renders the unit-only section a tile never gets: identity, vitals, inventory', () => {
+  // The VITALS moved into the "⛊ Stats…" modal (UnitStatsBody) with the unified-card work — only the unit's
+  // identity rows + entry buttons stay in the section itself.
+  it('renders the unit-only section a tile never gets: identity + inventory (vitals live in the Stats modal)', () => {
     render(<SettingsPanelBody tile={makeUnitTile()} unit={makeUnit()} />)
     expect(screen.getByLabelText('Entity name')).toBeInTheDocument()
-    expect(screen.getByLabelText('player HP')).toBeInTheDocument()
+    expect(screen.queryByLabelText('player HP')).toBeNull()
     expect(screen.getByRole('button', { name: /Inventory/ })).toBeInTheDocument()
   })
 
@@ -140,9 +142,9 @@ describe('SettingsPanelBody — edits fan out to the selected unit (one source o
     expect(onPatch).toHaveBeenCalledWith({ name: 'Aria' })
   })
 
-  it('editing a vital (HP) fans out to the entity patch writer', () => {
+  it('editing a vital (HP) in the Stats body fans out to the SAME entity patch writer', () => {
     const onPatch = jest.fn()
-    render(<SettingsPanelBody tile={makeUnitTile()} unit={makeUnit({ onPatch })} />)
+    render(<UnitStatsBody entity={makeEntity()} onPatch={onPatch} />)
     fireEvent.change(screen.getByLabelText('player HP'), { target: { value: '99' } })
     expect(onPatch).toHaveBeenCalledWith({ baseStats: expect.objectContaining({ maxHp: 99 }) })
   })

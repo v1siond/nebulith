@@ -15,7 +15,7 @@ import Head from 'next/head'
 import Link from 'next/link'
 import { useToast } from '@/components/Toast'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
-import { type GridAsset, IsometricGrid } from '@/engine/IsometricGrid'
+import { type GridAsset, IsometricGrid, FLOOR_TYPE } from '@/engine/IsometricGrid'
 import { getStack, type TileEntry, type TileSource } from '@/engine/cellStack'
 import { type AttackAnim, isAnimDone } from '@/engine/attackAnimations'
 import { type BuildingType } from '@/engine/buildingTypes'
@@ -23,7 +23,7 @@ import { BUILDING_PLACE_LENGTH, buildingCompositionKind, buildingFootprint, canP
 import { buildCompositionPalette, type CompositionPaletteGroup } from '@/engine/compositionCatalog'
 import { findTriggeredConnector, normalizeConnector } from '@/engine/connectors'
 import { entityPalette, punchTile, weaponEmoji, weaponGlyph, weaponPose } from '@/engine/entityArt'
-import { StageData, VariantId, type LayerId, generateStage, stagePaint } from '@/engine/stageGenerator'
+import { StageData, VariantId, type LayerId, generateStage, stagePaint, generatedPropRender } from '@/engine/stageGenerator'
 import { type Action as TriggerAction, resolveAction } from '@/engine/triggers'
 import { stagePropTileOverride, ZoneId, ROCK_SHADES, MUSHROOM_TONES, ZONE_FLOWERS, DEFAULT_FLOWERS } from '@/engine/zones'
 import { varyIntensity } from '@/engine/colors'
@@ -45,17 +45,20 @@ import { type CombatState, type Entity, type EntityKind, type Inventory, type It
 import { weaponReach } from '@/game/weapons'
 import { VILLAGE_CONFIG } from '@/levels/village'
 import { Connector, TemplateListItem, createTemplate, deleteTemplate, deserializeToGrid, getTemplate, listTemplates, serializeGrid, updateTemplate, updateGame } from '@/lib/api'
-import { type CellTriggerGroup, ENTITY_GLYPH, cellTriggersFromAssets, cellTriggersToAssets, entitiesFromAssets, entitiesToAssets, groundColorFromAssets, groundColorToAssets, groundDimsFromAssets, groundDimsToAssets, isEntityAsset, isGroundColorAsset, isGroundDimsAsset, isQuestAsset, isStyleAsset, isTriggerAsset, questsFromAssets, questsToAssets, styleFromAssets, styleToAssets, triggersAtCell } from '@/lib/gridCodec'
-import type { GroundCellDims } from '@/engine/groundDims'
+import { type CellTriggerGroup, ENTITY_GLYPH, cellTriggersFromAssets, cellTriggersToAssets, entitiesFromAssets, entitiesToAssets, isEntityAsset, isQuestAsset, isStyleAsset, isTriggerAsset, questsFromAssets, questsToAssets, styleFromAssets, styleToAssets, triggersAtCell } from '@/lib/gridCodec'
 import { type Trigger, type TriggerEffect, fireTriggers } from '@/game/runtime/trigger'
 import { ASCII_STYLE, type Style, type TileCategory, type TileDef, type Visual, styleById, groundKind, assetKind, entityKind, entityStyleOverride, genderize, resolveVisual, visualForTileId, tilesForStyle } from '@/game/artStyle'
 import { useRouter } from 'next/router'
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
-import { render, render2D, renderTopView, clampCameraAxis, isoCameraFocus, entityMotion, ENEMY_MOVE_MS, isDebugMode, setDebugMode, isShowCollisions, setShowCollisions as setCollisionsFlag, cellCaptionMap, pickIsoTilesAt, pickTwoDTilesAt, isoRecordedGeom, twoDRecordedGeom, nextPickIndex, ISO_BLOCK_H_FRAC, depthCells, tileGeomPolygon, tileGeomCentroid, tileHandlePoints, handleAtPoint, dragOutwardPx, scaleFromDrag, depthFromDrag, drawTileHandles, polyBBox, HANDLE_HIT_RADIUS, type TileHandle, type HandleId, type CompositionGhost, type DayNight, type DepthDir } from '@/engine/render'
+import { render, render2D, renderTopView, clampCameraAxis, entityMotion, ENEMY_MOVE_MS, isDebugMode, setDebugMode, isShowCollisions, setShowCollisions as setCollisionsFlag, cellCaptionMap, pickIsoTilesAt, pickTwoDTilesAt, renderedTilesInRect, renderedTwoDTilesInRect, isoRecordedGeom, twoDRecordedGeom, nextPickIndex, ISO_BLOCK_H_FRAC, depthCells, tileGeomPolygon, tileGeomCentroid, tileHandlePoints, handleAtPoint, dragOutwardPx, scaleFromDrag, depthFromDrag, drawTileHandles, polyBBox, HANDLE_HIT_RADIUS, type TileHandle, type HandleId, type CompositionGhost, type DayNight, type DepthDir } from '@/engine/render'
+import { isoWorldCellToScreen, setIsoCameraFacing } from '@/engine/render/iso'
+import { type Orientation } from '@/engine/render/isoOrientation'
+import { isoEditorCamera, isoEditorCellAt, isoEditorCellAnchor, type IsoEditorView } from '@/game/editor/isoEditorCamera'
 import { loadTilesetsFromBackend, saveTilesetToBackend } from '@/engine/tileset/tilesetLoader'
 import { loadEntitiesFromBackend } from '@/engine/entity/entityLoader'
 import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 import { EMOJI_TILESET, setTilePose } from '@/engine/tileset/emojiTileset'
+import { resolveTileHeight } from '@/engine/tileset/tileHeight'
 import { type TilePose } from '@/engine/tileset/pose'
 import { type AssetLight, type TileDisplay, type TileShape } from '@/engine/tileset/tileset'
 import { type QuestDraft, emptyQuestDraft, questFromDraft } from '@/game/runtime/questDraft'
@@ -64,17 +67,20 @@ import { stampBuildingComposition, stampBuildingKind, stampComposition } from '@
 import { type Cursor, type JumpState, JUMP_MS, JUMP_PEAK_PX, advanceEnemyMovement, beginJump, tickCannons } from '@/game/runtime/movement'
 import { playSwoosh } from '@/game/runtime/audio'
 import { Card, EntityToolButton, ViewButton } from '@/components/game/controls'
+import { CameraRotateButton } from '@/components/game/cameraControls'
 import { AbilityBar, CombatHud, QuestHud } from '@/components/game/hud'
 import { EquipmentPanel, InventoryCard, QuestAuthoringCard, QuestLogPanel } from '@/components/game/panels'
-import { ConnectorsPanelBody, EntityAttackBody, FloatingPanel, Modal, QuestGiveBody, SettingsPanelBody, UnitSettingsSection } from '@/components/game/modals'
+import { ConnectorsPanelBody, EntityAttackBody, FloatingPanel, Modal, QuestGiveBody, SettingsPanelBody, UnitSettingsSection, UnitStatsBody } from '@/components/game/modals'
 import { FlowViewOverlay, GamesViewOverlay } from '@/components/game/games'
 import { type BuildingTool, type EditorMode, type EntityTool } from '@/components/game/editorConfig'
 import { useDayNight, useFloatingPanels, useIsMobile } from '@/components/game/editorHooks'
 import { CompositionPalette, Dropdown, FpsReadout, GenerateControls, PoseControls, PropertiesPanel, type TileControlModel, SelectionHeader, StylePicker, TileAnimationEditor, TileLibraryBody, TilePalette, ToolRail, TriggerEditor, UnitPicker, WEAPON_KINDS } from '@/components/game/editorChrome'
 import type { Animation as TileAnim } from '@/engine/animation/tileAnimation'
-import { useFps } from '@/components/useFps'
+import { useFps, useRenderMs } from '@/components/useFps'
 import { commonValue, commonBool, cellsFromKeys, removeSelectedBlock } from '@/game/editor/selectionEdit'
-import { applyRectSelection, applyCellSelection } from '@/game/editor/selection'
+import { editMap } from '@/game/editor/mapEdit'
+import { applyRectSelection, applyCellSelection, blockKeyForPick } from '@/game/editor/selection'
+import { copyTiles, pasteTiles, type TileClip } from '@/game/editor/clipboard'
 import { entityKindForUnitSlug, placementFor, tileSlug } from '@/game/editor/tilePlacement'
 import { clearGroundTile, placeGroundTile, removeTopAsset, removeAssetAtLevel, stackAssetTile } from '@/game/editor/tileBrush'
 import { connectorEditFromSelection } from '@/game/editor/connectors'
@@ -154,13 +160,15 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   const [selectionStart, setSelectionStart] = useState<{ col: number; row: number } | null>(null)
   const selectionBaseRef = useRef<Set<string>>(new Set()) // selection at drag-start; a shift+drag MERGES the rectangle into THIS (additive, no restart)
   const additiveSelectRef = useRef<boolean>(false)         // was shift held when the drag-select started
+  const selectionStartPtRef = useRef<{ x: number; y: number } | null>(null) // drag-start CLIENT point — the screen-rect marquee's fixed corner (iso/2d block-aware select)
+  const clipboardRef = useRef<TileClip | null>(null)       // Ctrl+C payload — the captured tiles re-stamped by Ctrl+V at the hovered cell
   const selectedCellsRef = useRef<Set<string>>(new Set())
   // Camera panning with mouse drag
   const [isPanning, setIsPanning] = useState(false)
   const [panStart, setPanStart] = useState<{ x: number; y: number } | null>(null)
   // Click-vs-drag in the play views: a clean click selects the entity under it, a drag pans.
   const dragMovedRef = useRef(false)
-  const downCellRef = useRef<{ col: number; row: number; level?: number; source?: TileSource } | null>(null)
+  const downCellRef = useRef<{ col: number; row: number; stackIndex?: number; source?: TileSource; entityId?: string } | null>(null)
   const downAltRef = useRef(false) // Alt held on mouse-DOWN — mouse-up reads it to select the CELL under a unit (instead of the unit)
   const [camOffset, setCamOffset] = useState({ x: 0, y: 0 })
   const camOffsetRef = useRef({ x: 0, y: 0 })
@@ -202,6 +210,14 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
 
   // Template view type (isometric or 2d)
   const [viewType, setViewType] = useState<'isometric' | '2d'>('isometric')
+
+  // ISO CAMERA FACING (#75) — which of the map's 4 corners the camera looks from, quarter-turns CW.
+  // Alexander: "the rotate button or action … just rotates the map horizontally, changing the front perspective
+  // of the map and showing a different side of it" / "4 corners, 4 rotation options, all faces of the map are
+  // visible". React owns it (the nav button reads it, the render + every click projection take it); a ref
+  // carries it into the once-mounted RAF loop. Only ISO rotates — 2D/Top have no rotation.
+  const [cameraFacing, setCameraFacing] = useState<Orientation>(0)
+  const cameraFacingRef = useRef<Orientation>(0)
 
   // Stage generator: selected zone (the variant is chosen per click)
   const [genZone, setGenZone] = useState<ZoneId>('spring')
@@ -277,7 +293,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null)
   const selectedEntityIdRef = useRef<string | null>(null) // live mirror for the game loop / debug seams
   const hoveredEntityIdRef = useRef<string | null>(null) // unit under the cursor — the RAF loop draws its hover reticle (no React state on mousemove)
-  const hoveredCellRef = useRef<{ col: number; row: number; level?: number } | null>(null) // CELL/BLOCK under the cursor (level = the stacked block in iso) — RAF draws a dim hover cube on EVERY cell, lifted onto the SAME block the click selects
+  const hoveredCellRef = useRef<{ col: number; row: number; stackIndex?: number } | null>(null) // TILE under the cursor (stackIndex = its slot in the cell's stack) — RAF draws a dim hover ring on the SAME tile the click selects
   // Which Inspector section a quick-action asked to focus. `n` is a nonce so clicking
   // the same verb twice still re-opens + re-scrolls that section (see Card `focus`).
   const [sectionFocus, setSectionFocus] = useState<{ id: string; n: number } | null>(null)
@@ -295,6 +311,9 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   // The UNIT settings panel — hosts the SAME FloatingPanel + shared settings body a tile uses (colour/scale/
   // pose). The unit's identity/vitals/inventory live on the CARD now, so this modal is tile-only for a unit.
   const [unitSettingsOpen, setUnitSettingsOpen] = useState(false)
+  // The UNIT stats panel — the "⛊ Stats…" button's draggable/resizable modal (HP/DEF/STR/INT/DODGE% +
+  // hittable + respawn). Name/size stay as rows on the card; collision is the card's Blocked/Walkable toggle.
+  const [unitStatsOpen, setUnitStatsOpen] = useState(false)
   // The TRIGGERS modal — a floating panel (like settings) to manage the selected cell's or unit's triggers.
   const [triggersOpen, setTriggersOpen] = useState(false)
   // The enemy ATTACKS modal — the attack/ability pattern editor, folded off the card into a floating panel.
@@ -306,6 +325,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     setEntityModal(null)
     setAnimEditorOpen(false)
     setUnitSettingsOpen(false)
+    setUnitStatsOpen(false)
     setTriggersOpen(false)
     setUnitAttacksOpen(false)
   }, [selectedEntityId])
@@ -461,6 +481,13 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     viewTypeRef.current = viewType
   }, [viewType])
 
+  // Keep the camera facing in sync with BOTH consumers: the RAF loop's ref and the engine's module seam, so
+  // `window.__cameraFacing()` and a param-less render() report the facing the UI is actually showing.
+  useEffect(() => {
+    cameraFacingRef.current = cameraFacing
+    setIsoCameraFacing(cameraFacing)
+  }, [cameraFacing])
+
   // UI panels — sidebars are collapsible on mobile to free up canvas space
   const [showSidebars, setShowSidebars] = useState(true)
   // PLAY MODE — the clean play view: hides ALL editor chrome (nav + both sidebars +
@@ -471,6 +498,9 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   const playModeRef = useRef(false) // live playMode for the raf render loop (mirrors activeStyleRef)
   useEffect(() => { playModeRef.current = playMode }, [playMode])
   const fps = useFps() // #86 — one sampler feeds the nav readout (edit/show) + the play-mode floating box
+  // rAF (and therefore `fps`) is capped by the display refresh — 60 on a 60Hz screen no matter how much
+  // headroom the engine has. The active view's per-frame COST is the number that shows real performance.
+  const renderMs = useRenderMs(viewType === '2d' ? '__2dRenderMs' : '__isoRenderMs')
   // TILESET LOADING GATE — the frontend ships NO bundled tile data, so the map cannot be drawn until the
   // backend tileset is installed. `tilesetReady` gates the RAF render (via tilesetReadyRef) AND the canvas
   // overlay below: until it flips true we show a loader (never a frontend-tile flash); on an empty/failed
@@ -757,6 +787,24 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     questsRef.current = quests
   }, [quests])
 
+  // The live ISO camera the click/overlay projections read — built from the SAME refs the RAF loop hands
+  // render(), INCLUDING the facing, so a rotated map picks and highlights the cell you actually see. One seam
+  // (isoEditorCamera) owns the diamond math for both directions; nothing here re-derives it.
+  const isoEditorView = (canvas: HTMLCanvasElement, grid: IsometricGrid): IsoEditorView => ({
+    canvasW: canvas.width,
+    canvasH: canvas.height,
+    cellSize: grid.cellSize,
+    isoScale: grid.isoScale * isoZoomRef.current,
+    playerX: playerRef.current.x,
+    playerZ: playerRef.current.z,
+    camOffsetX: camOffsetRef.current.x,
+    camOffsetY: camOffsetRef.current.y,
+    cols: grid.cols,
+    rows: grid.rows,
+    facing: cameraFacingRef.current,
+    clampCamera: playModeRef.current, // the iso render clamps ONLY in play mode; dev mode pans freely
+  })
+
   // Convert screen position to grid cell (for top view)
   // Screen → grid cell for the ACTIVE view. Top view is the easy default, but iso and
   // 2D work too (each just inverts its own projection) — placement isn't top-only.
@@ -799,26 +847,12 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       col = Math.floor(camCol + (x - canvas.width / 2) / tileW)
       row = Math.floor(camRow + (y - canvas.height / 2) / tileW)
     } else {
-      // Isometric: invert the diamond projection, with the SAME clamped focus the render uses — the
-      // col/row edge clamp (#70), so clicks track the camera near the edges.
-      const eff = grid.isoScale * isoZoomRef.current
-      const S = eff * 0.71
-      const T = eff * 0.36
-      const pPad = canvas.width / (2 * cs * S)
-      const qPad = canvas.height / (2 * cs * T)
-      // Use the SAME camera focus the iso render uses (isoCameraFocus, the #38/#70 edge clamp) — the
-      // old clampCameraAxis here disagreed with the render, so clicks landed 3–4 cells off and units
-      // (incl. the player) couldn't be selected in iso.
-      const rawFc = (px - cam.x) / cs
-      const rawFr = (pz - cam.y) / cs
-      // Match the iso render's camera EXACTLY: it clamps ONLY in play mode (render's clampCamera). In dev
-      // mode the render uses the RAW focus (so drag pans freely), so this MUST too — otherwise clicks and
-      // the toolbar desync from what's drawn and nothing selects.
-      const { fc, fr } = playModeRef.current ? isoCameraFocus(rawFc, rawFr, pPad, qPad, grid.cols, grid.rows) : { fc: rawFc, fr: rawFr }
-      const a = (x - canvas.width / 2) / S
-      const b = (y - canvas.height / 2) / T
-      col = Math.floor(((a + b) / 2 + fc * cs) / cs)
-      row = Math.floor(((b - a) / 2 + fr * cs) / cs)
+      // Isometric: ONE seam inverts the diamond with the SAME facing-aware camera the render draws with — the
+      // #38/#70 edge clamp (play mode only) AND the #75 rotation. Re-deriving it here is what used to let
+      // clicks land 3–4 cells off; under rotation it would have picked the un-rotated mirror cell.
+      const c = isoEditorCellAt(x, y, isoEditorView(canvas, grid))
+      col = c.col
+      row = c.row
     }
 
     if (col >= 0 && col < grid.cols && row >= 0 && row < grid.rows) {
@@ -849,18 +883,18 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
 
   // The frontmost rendered tile under a point (what hover previews + a first click selects), or null. Its cell
   // + stack level cascade from the picked tile so the inspector still edits the correct backend cell/asset.
-  const pickIsoBlockAt = (clientX: number, clientY: number): { col: number; row: number; level: number; source: TileSource } | null => {
+  const pickIsoBlockAt = (clientX: number, clientY: number): { col: number; row: number; stackIndex: number; source: TileSource; entityId?: string } | null => {
     const hit = renderedTilesUnder(clientX, clientY)?.tiles[0]
-    return hit ? { col: hit.col, row: hit.row, level: hit.level, source: hit.source } : null
+    return hit ? { col: hit.col, row: hit.row, stackIndex: hit.stackIndex, source: hit.source, entityId: hit.entityId } : null
   }
 
   // The cell a click SELECTS/edits: the rendered tile under the pointer first (so a click on a tall/lifted tile
   // picks THAT tile, not the ground under it), else the flat screenToCell — unchanged for empty cells, 2D, top.
-  const pickCellForSelect = (clientX: number, clientY: number): { col: number; row: number; level?: number; source?: TileSource } | null => {
+  const pickCellForSelect = (clientX: number, clientY: number): { col: number; row: number; stackIndex?: number; source?: TileSource; entityId?: string } | null => {
     const tile = pickIsoBlockAt(clientX, clientY)
     if (tile) return tile
     const flat = screenToCell(clientX, clientY)
-    return flat ? { col: flat.col, row: flat.row, source: 'floor' as const } : null
+    return flat ? { col: flat.col, row: flat.row } : null // a bare-cell pick — no tile slot, no tile source
   }
 
   // Click-to-cycle: repeated clicks on the SAME spot walk front→back through the OVERLAPPING tiles there, so an
@@ -869,54 +903,35 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   // frontmost), or it would advance the cycle.
   const lastPickRef = useRef<{ x: number; y: number; index: number } | null>(null)
   const PICK_CYCLE_TOL = 8 // canvas px — a click within this of the last one keeps cycling; farther resets to front
-  const pickCellForSelectCycling = (clientX: number, clientY: number): { col: number; row: number; level?: number; source?: TileSource } | null => {
+  const pickCellForSelectCycling = (clientX: number, clientY: number): { col: number; row: number; stackIndex?: number; source?: TileSource; entityId?: string } | null => {
     const under = renderedTilesUnder(clientX, clientY)
     if (under && under.tiles.length > 0) {
       const idx = nextPickIndex(lastPickRef.current, under.x, under.y, under.tiles.length, PICK_CYCLE_TOL)
       lastPickRef.current = { x: under.x, y: under.y, index: idx }
       const hit = under.tiles[idx]
-      return { col: hit.col, row: hit.row, level: hit.level, source: hit.source }
+      return { col: hit.col, row: hit.row, stackIndex: hit.stackIndex, source: hit.source, entityId: hit.entityId }
     }
     lastPickRef.current = null // clicked off any tile → reset the cycle
     const flat = screenToCell(clientX, clientY)
-    return flat ? { col: flat.col, row: flat.row, source: 'floor' as const } : null
+    return flat ? { col: flat.col, row: flat.row } : null // a bare-cell pick — no tile slot, no tile source
   }
 
   // The stack index (0 = floor, 1.. = stacked) the TILE inspector should show for a click. A picked RAISED
   // block maps to its stack position (its heightLevel → its slot in the sorted stack); a flat pick with no
   // specific block defaults to the TOP tile — or the floor (0) when the cell is bare. Drives selectedTileLevel.
-  const levelForPickedCell = (c: { col: number; row: number; level?: number; source?: TileSource }): number => {
+  const levelForPickedCell = (c: { col: number; row: number; stackIndex?: number; source?: TileSource }): number => {
+    // A picked TILE carries its own STACK INDEX (its slot in the cell's ordered stack) — the exact slot the
+    // inspector edits. Grass/road/wall/roof/decor all resolve the SAME way: their stack slot IS the answer, so
+    // two tiles at the same level no longer collapse to one (the "clicking the column selected the grass" fix).
+    if (c.stackIndex !== undefined && c.stackIndex >= 0) return c.stackIndex // -1 = a unit pick → fall to the base logic
     const grid = gridRef.current
     if (!grid) return 0
-    // Read the SAME unified stack the inspector shows, so a picked block maps 1:1 to its inspector slot.
-    const stack = getStack(grid, c.col, c.row, { entities: entitiesRef.current })
-    // A picked BLOCK carries its store + heightLevel → its exact slot in the stack (wall/prop/character alike).
-    if (c.level !== undefined && c.source && c.source !== 'floor') {
-      const idx = stack.findIndex(t => t.source === c.source && (t.heightLevel ?? 0) === c.level)
-      if (idx >= 0) return idx
-    }
-    // Flat ground click → the TOP loose ASSET, or the floor (index 0) for a bare / building-ground cell: a
-    // plain ground click never auto-selects a building or character tile — click the raised block for that.
+    // A flat/bare pick (no tile under the pointer) → default the inspector to the TOP loose ASSET, or the base
+    // (index 0) on a bare/floor-only cell — a plain ground click never auto-selects a raised block.
+    const stack = getStack(grid, c.col, c.row)
     let top = 0
     stack.forEach((t, i) => { if (t.source === 'asset') top = i })
     return top
-  }
-
-  // The 3D selection keys for the COLUMN the pointer picked: every stacked block (heightLevel ≥ 1) at that
-  // cell, as "col,row,level" — so a click on a building corner / tree stack highlights the WHOLE column of
-  // blocks (the iso highlight raises each onto its real block), not the flat bottom cell. A bare / floor pick
-  // (no raised block) stays the single flat "col,row" key. ONE path: buildings, props and characters are all
-  // just stack entries here (getStack), no per-type branch — a wall column and a tree column resolve the same.
-  const columnKeysAt = (c: { col: number; row: number; level?: number; source?: TileSource }): Set<string> => {
-    const grid = gridRef.current
-    const flat = new Set([`${c.col},${c.row}`])
-    if (!grid || c.level === undefined || c.level < 1 || !c.source || c.source === 'floor') return flat
-    const keys = new Set<string>()
-    for (const t of getStack(grid, c.col, c.row)) {
-      const lvl = t.heightLevel ?? 0
-      if (lvl >= 1) keys.add(`${c.col},${c.row},${lvl}`)
-    }
-    return keys.size ? keys : flat
   }
 
   // Grid cell → viewport screen coords (the FORWARD of screenToCell above). Used to
@@ -924,12 +939,16 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   // view. Returns the cell CENTRE (col+0.5, row+0.5) in viewport pixels, or null when
   // there's no canvas/grid yet. Kept in lockstep with screenToCell's clamped camera so
   // the toolbar sits exactly where the selection highlight draws.
-  const cellToScreen = (col: number, row: number): { x: number; y: number } | null => {
+  // Grid cell CENTRE → CANVAS-INTERNAL pixels (the backing-store space the render registry records tile
+  // silhouettes in). This is the CORE projection cellToScreen wraps — cellToScreen just adds the canvas
+  // rect offset/scale to reach CLIENT pixels. The block-aware marquee compares cell centres against recorded
+  // silhouettes (both canvas-internal), so it reads THIS directly — ONE projection, no drift between the
+  // quick-action toolbar (cellToScreen) and the marquee's ground-cell coverage test.
+  const cellToCanvas = (col: number, row: number): { x: number; y: number } | null => {
     const canvas = canvasRef.current
     const grid = gridRef.current
     if (!canvas || !grid) return null
 
-    const rect = canvas.getBoundingClientRect()
     const cs = grid.cellSize
     const px = playerRef.current.x
     const pz = playerRef.current.z
@@ -937,46 +956,78 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     const cc = col + 0.5
     const rr = row + 0.5
 
-    let x: number
-    let y: number
-
     if (topViewMode) {
       const tileSize = 16 * zoomRef.current
       const fCol = clampCameraAxis(px / cs - cam.x / tileSize, canvas.width / tileSize / 2, grid.cols)
       const fRow = clampCameraAxis(pz / cs - cam.y / tileSize, canvas.height / tileSize / 2, grid.rows)
-      x = cc * tileSize + (canvas.width / 2 - fCol * tileSize)
-      y = rr * tileSize + (canvas.height / 2 - fRow * tileSize)
-    } else if (viewTypeRef.current === '2d') {
+      return { x: cc * tileSize + (canvas.width / 2 - fCol * tileSize), y: rr * tileSize + (canvas.height / 2 - fRow * tileSize) }
+    }
+    if (viewTypeRef.current === '2d') {
       const tileW = 24 * zoomRef.current
       const camCol = clampCameraAxis(px / cs - cam.x / tileW, canvas.width / tileW / 2, grid.cols)
       const camRow = clampCameraAxis(pz / cs - cam.y / tileW, canvas.height / tileW / 2, grid.rows)
-      x = canvas.width / 2 + (cc - camCol) * tileW
-      y = canvas.height / 2 + (rr - camRow) * tileW
-    } else {
-      const eff = grid.isoScale * isoZoomRef.current
-      const S = eff * 0.71
-      const T = eff * 0.36
-      const pPad = canvas.width / (2 * cs * S)
-      const qPad = canvas.height / (2 * cs * T)
-      // Same iso focus as the render + screenToCell (isoCameraFocus, not the stale clampCameraAxis) so
-      // the quick-action toolbar sits exactly over the selected element.
-      const rawFc = (px - cam.x) / cs
-      const rawFr = (pz - cam.y) / cs
-      // Match the iso render's camera EXACTLY: it clamps ONLY in play mode (render's clampCamera). In dev
-      // mode the render uses the RAW focus (so drag pans freely), so this MUST too — otherwise clicks and
-      // the toolbar desync from what's drawn and nothing selects.
-      const { fc, fr } = playModeRef.current ? isoCameraFocus(rawFc, rawFr, pPad, qPad, grid.cols, grid.rows) : { fc: rawFc, fr: rawFr }
-      const a = ((cc - fc) - (rr - fr)) * cs
-      const b = ((cc - fc) + (rr - fr)) * cs
-      x = a * S + canvas.width / 2
-      y = b * T + canvas.height / 2
+      return { x: canvas.width / 2 + (cc - camCol) * tileW, y: canvas.height / 2 + (rr - camRow) * tileW }
     }
+    // Same seam, same camera as screenToCell — so the quick-action toolbar and the marquee's coverage test sit
+    // exactly over the selected element, at any facing. The anchor keeps the historical (col+0.5, row+0.5)
+    // convention (the halves cancel in x and add one tile-height in y); isoEditorCellAnchor owns that.
+    return isoEditorCellAnchor(col, row, isoEditorView(canvas, grid))
+  }
 
+  const cellToScreen = (col: number, row: number): { x: number; y: number } | null => {
+    const canvas = canvasRef.current
+    const p = cellToCanvas(col, row)
+    if (!canvas || !p) return null
     // canvas backing store == CSS size (both = window inner size), so scale is ~1, but
     // account for it + the canvas offset anyway to stay correct if the layout changes.
+    const rect = canvas.getBoundingClientRect()
     const scaleX = canvas.width ? rect.width / canvas.width : 1
     const scaleY = canvas.height ? rect.height / canvas.height : 1
-    return { x: rect.left + x * scaleX, y: rect.top + y * scaleY }
+    return { x: rect.left + p.x * scaleX, y: rect.top + p.y * scaleY }
+  }
+
+  // BLOCK-AWARE MARQUEE (shift+drag in iso / 2D): the selection keys for every tile the screen rectangle
+  // between the drag-start point and the current point VISUALLY covers. Two parts, unioned:
+  //  1) RAISED blocks — from the render registry (renderedTilesInRect): each tile whose recorded silhouette
+  //     centroid falls in the box → its OWN "col,row,level" key. THE FIX: a roof/wall block whose flat ground
+  //     cell sits behind the building is grabbed by what's DRAWN, so the yellow cage hugs the roof instead of
+  //     floating on the offset ground cell a screenToCell-corner rectangle wrongly picked.
+  //  2) flat FLOOR cells — a cell whose CENTRE is in the box AND that is NOT occluded by another cell's tile
+  //     drawn in front of it (so a ground cell hidden behind a building never re-adds a floating cage). A cell
+  //     already carrying a raised block (part 1) is skipped — its block key owns it (no double-count).
+  // Top view has no registry / no iso offset, so the caller keeps the flat-rectangle path there. Coords are
+  // CANVAS-INTERNAL (the space the registry + cellToCanvas share).
+  const marqueeSelectionKeys = (startX: number, startY: number, curX: number, curY: number): Set<string> => {
+    const canvas = canvasRef.current
+    const grid = gridRef.current
+    if (!canvas || !grid) return new Set()
+    const rect = canvas.getBoundingClientRect()
+    const scaleX = rect.width ? canvas.width / rect.width : 1
+    const scaleY = rect.height ? canvas.height / rect.height : 1
+    const x0 = (startX - rect.left) * scaleX, y0 = (startY - rect.top) * scaleY
+    const x1 = (curX - rect.left) * scaleX, y1 = (curY - rect.top) * scaleY
+    const minX = Math.min(x0, x1), maxX = Math.max(x0, x1)
+    const minY = Math.min(y0, y1), maxY = Math.max(y0, y1)
+    const iso = viewTypeRef.current !== '2d' // top view never reaches here
+    const keys = new Set<string>()
+    const blockedCells = new Set<string>() // "col,row" of cells that already contributed a TILE key → skip their bare-cell fallback
+    for (const t of iso ? renderedTilesInRect(x0, y0, x1, y1) : renderedTwoDTilesInRect(x0, y0, x1, y1)) {
+      keys.add(blockKeyForPick({ col: t.col, row: t.row, stackIndex: t.stackIndex, source: t.source }))
+      blockedCells.add(`${t.col},${t.row}`) // its own tile(s) own this cell — don't ALSO add a bare "col,row" key
+    }
+    // Occlusion-aware flat ground: add ONLY the VISIBLE bare-ground cells under the box (their own tile on top,
+    // or nothing there) — a cell hidden behind another cell's rendered tile is never selected.
+    for (let r = 0; r < grid.rows; r++) {
+      for (let c = 0; c < grid.cols; c++) {
+        if (blockedCells.has(`${c},${r}`)) continue
+        const p = cellToCanvas(c, r)
+        if (!p || p.x < minX || p.x > maxX || p.y < minY || p.y > maxY) continue
+        const top = iso ? pickIsoTilesAt(p.x, p.y)[0] : pickTwoDTilesAt(p.x, p.y)[0]
+        if (top && !(top.col === c && top.row === r)) continue // occluded by another cell's tile → hidden, skip
+        keys.add(`${c},${r}`)
+      }
+    }
+    return keys
   }
 
   // Mouse handlers for cell selection and panning
@@ -1074,11 +1125,19 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     setSelectedEntityId(null)
     setIsSelecting(true)
     setSelectionStart(cell)
+    selectionStartPtRef.current = { x: e.clientX, y: e.clientY } // the screen-rect marquee's fixed corner (iso/2D)
     // Capture the base selection + additive intent at drag-start so a shift+drag MERGES its rectangle into the
     // existing selection (select 4, then 4 more → 8; no restart). Plain click = a fresh single-cell selection.
     additiveSelectRef.current = e.shiftKey
     selectionBaseRef.current = e.shiftKey ? new Set(selectedCellsRef.current) : new Set()
-    setSelectedCells(prev => applyCellSelection(prev, `${cell.col},${cell.row}`, e.shiftKey))
+    // Block-aware single ADD: resolve the BLOCK under the cursor with the SAME pick the single-click uses
+    // (pickCellForSelectCycling), and add ITS key ("col,row,level" for a raised block, "col,row" for bare
+    // ground) via the SAME blockKeyForPick derivation — so a shift+click on a stacked block hits THAT block's
+    // key (matching the highlight), not the flat ground cell offset up-and-left of it in iso. A shift+DRAG
+    // replaces this with its ground-cell rectangle on the first move (applyRectSelection in mousemove).
+    const pick = pickCellForSelectCycling(e.clientX, e.clientY)
+    const key = pick ? blockKeyForPick(pick) : `${cell.col},${cell.row}`
+    setSelectedCells(prev => applyCellSelection(prev, key, e.shiftKey))
   }
 
   const handleCanvasMouseMove = (e: React.MouseEvent) => {
@@ -1129,12 +1188,22 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       return
     }
 
-    if (!isSelecting || !selectionStart) return // drag-select the cell rectangle (shift+drag in every view)
-    const cell = screenToCell(e.clientX, e.clientY)
-    if (!cell) return
-    // The drag rectangle, MERGED into the base captured at drag-start when additive (shift) — so extending a
-    // selection keeps what's already there (4 + 4 = 8). Non-additive drag replaces with the fresh rectangle.
-    setSelectedCells(applyRectSelection(selectionBaseRef.current, selectionStart, cell, additiveSelectRef.current))
+    if (!isSelecting || !selectionStart) return // drag-select (shift+drag in every view)
+    // TOP view has no per-tile registry and no iso projection offset, so keep the flat cell-rectangle path
+    // there (screenToCell corners → rectangle) — unchanged, and correct since top view has no offset.
+    if (topViewMode) {
+      const cell = screenToCell(e.clientX, e.clientY)
+      if (!cell) return
+      setSelectedCells(applyRectSelection(selectionBaseRef.current, selectionStart, cell, additiveSelectRef.current))
+      return
+    }
+    // ISO / 2D: BLOCK-AWARE screen-rect marquee — select the TILES the box visually covers (from the render
+    // registry), not the offset flat ground cells a screenToCell-corner rectangle grabbed (the floating-cage
+    // bug). MERGED into the base captured at drag-start when additive (shift) — extending keeps 4 + 4 = 8.
+    const start = selectionStartPtRef.current
+    if (!start) return
+    const marquee = marqueeSelectionKeys(start.x, start.y, e.clientX, e.clientY)
+    setSelectedCells(additiveSelectRef.current ? new Set([...selectionBaseRef.current, ...marquee]) : marquee)
   }
 
   const handleCanvasMouseUp = () => {
@@ -1156,8 +1225,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
         // Carry the picked TILE's level into the key ("col,row,level") — INCLUDING level 0 for a flat tile — so
         // the highlight looks up that tile's ACTUAL recorded silhouette and hugs it (scaleY/pose/zOffset/depth
         // aware), instead of the flat ground cell. A floor pick (no tile) stays the 2-part "col,row" ground key.
-        const key = c.source && c.source !== 'floor' && c.level !== undefined ? `${c.col},${c.row},${c.level}` : `${c.col},${c.row}`
-        setSelectedCells(new Set([key]))
+        setSelectedCells(new Set([blockKeyForPick(c)]))
         setSelectedTileLevel(levelForPickedCell(c))
       }
       // ONE resolution, then a tiny route by the tile's STORE (never a geometry re-test — pickIsoBlock already
@@ -1166,7 +1234,14 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       //    cell — you clicked the raised block, not the figure at ground level);
       //  • Alt → always the CELL under the pointer (edit the floor even under a unit);
       //  • a plain flat click stays ENTITY-FIRST (a unit is a billboard drawn above its foot cell), else the cell.
-      if (c.source === 'building' || c.source === 'asset') {
+      // A UNIT is a tile the picker returns: its billboard silhouette is recorded like any tile, so a click on
+      // the figure resolves to source 'entity' and selects the unit — no longer swallowed by the floor under it.
+      // Alt still bypasses to edit the CELL/floor beneath the unit (via selectCellTile — the -1 stackIndex keys
+      // as the bare cell).
+      if (c.source === 'entity' && !downAltRef.current) {
+        if (c.entityId) setSelectedEntityId(c.entityId)
+        else selectCellTile()
+      } else if (c.source === 'building' || c.source === 'asset') {
         selectCellTile()
       } else if (downAltRef.current) {
         selectCellTile()
@@ -1230,7 +1305,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     if (col < 0 || col >= grid.cols || row < 0 || row >= grid.rows) return false
 
     // Check ground type - water is not walkable
-    const groundType = grid.ground[row]?.[col]
+    const groundType = grid.groundAt(col, row)
     if (groundType === 'water') return false
 
     // Check collision grid
@@ -1513,10 +1588,11 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       return 0
     }
     checkpointHistory() // snapshot the pre-edit map so Ctrl+Z restores it exactly
-    // REPLACE: a composition overwrites whatever it lands on (Alexander: "replace anything if I want to … if
-    // there's a building in a place and I want to put another in the same place, I should be able to"). Clear
-    // every footprint cell first so no stray stacked remnant survives under the new stamp, then stamp clean.
-    for (const { col: c, row: r } of plan.cells) grid.clearAssetsAtCell(c, r)
+    // STACK, never replace (MAP-MODEL §4 "stacked like legos" + EDITOR-INTERACTION-SPEC §12 "the SAME path the
+    // generator uses"): a composition stamps its tiles ON TOP of whatever is already in the cell — the floor slab
+    // and any existing tiles stay. The old blanket `clearAssetsAtCell` deleted the floor asset too, which is why
+    // a placed tree / lamp / building wiped the grass beneath it. (Footprint FIT for a multi-cell composition —
+    // it must land on an even/free footprint — is enforced in planComposition, not by wiping the cells here.)
     const placed = stampComposition(grid, kind, plan.anchorCol, plan.anchorRow, genZoneRef.current, 0, plan.rotation)
     bumpBuildingVersion()
     return placed
@@ -1588,13 +1664,10 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     const grid = gridRef.current
     if (grid && selectedCells.size > 0) {
       const [c, r] = Array.from(selectedCells)[0].split(',').map(Number)
-      // The pinned tile of the SELECTED stack level: a stacked asset carries its own tileOverride; the floor
-      // (level 0) follows the global style (no override).
-      if (selectedTileLevel >= 1) {
-        const stacked = [...grid.getAssetsAtCell(c, r)].sort((a, b) => (a.heightLevel ?? 0) - (b.heightLevel ?? 0))
-        return stacked[selectedTileLevel - 1]?.tileOverride ?? null
-      }
-      return null
+      // The pinned tile of the SELECTED stack level. Every tile — the floor included — is a plain asset carrying
+      // its own tileOverride, so this reads stackedAssetsAt[selectedTileLevel] uniformly (no floor special case).
+      const stacked = [...grid.getAssetsAtCell(c, r)].sort((a, b) => (a.heightLevel ?? 0) - (b.heightLevel ?? 0))
+      return stacked[selectedTileLevel]?.tileOverride ?? null
     }
     return null
   })()
@@ -1604,26 +1677,25 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
    *  so it saves + reloads with the template. Buildings reskin via the global style only. */
   const setSelectionOverride = (tileId: string | null) => {
     if (selectedEntityId) {
-      setEntities(prev => prev.map(e => (e.id === selectedEntityId ? { ...e, tileOverride: tileId ?? undefined } : e)))
+      // Swapping a unit's tile is REPLACING a tile → undoable like any other structural edit.
+      editMap(checkpointHistory, () => {
+        setEntities(prev => prev.map(e => (e.id === selectedEntityId ? { ...e, tileOverride: tileId ?? undefined } : e)))
+      })
       return
     }
     const grid = gridRef.current
     if (!grid || selectedCells.size === 0) return
+    checkpointHistory() // replacing the selected level's tile is a structural edit → Ctrl+Z restores the old one
     for (const key of selectedCells) {
       const [c, r] = key.split(',').map(Number)
-      if (selectedTileLevel >= 1) {
-        // Swap ONLY the SELECTED stack level's tile — the block the user picked (top/middle/bottom).
-        const stacked = [...grid.getAssetsAtCell(c, r)].sort((a, b) => (a.heightLevel ?? 0) - (b.heightLevel ?? 0))
-        const a = stacked[selectedTileLevel - 1]
-        if (a) a.tileOverride = tileId ?? undefined
-        continue
-      }
-      const assets = grid.getAssetsAtCell(c, r)
-      if (assets.length > 0) {
-        for (const a of assets) a.tileOverride = tileId ?? undefined
-      } else if (tileId) {
-        // A BARE ground cell (no asset to pin) → drop a decoration asset locked to the chosen tile, so
-        // you can replace ANY cell with any tile, not just cells that already hold a tree/prop.
+      // Swap the SELECTED stack level's tile — the exact tile the user picked (floor/base, middle, or top),
+      // pinned via tileOverride. Every tile is a plain asset, so this is ONE uniform write with no floor branch.
+      const stacked = [...grid.getAssetsAtCell(c, r)].sort((a, b) => (a.heightLevel ?? 0) - (b.heightLevel ?? 0))
+      const a = stacked[selectedTileLevel]
+      if (a) { a.tileOverride = tileId ?? undefined; continue }
+      // A cleared/empty cell (no tile at this level) → drop a decoration asset locked to the chosen tile, so
+      // you can replace ANY cell with any tile, not just cells that already hold a tree/prop.
+      if (tileId) {
         const v = visualForTileId(tileId)
         grid.placeAsset([v?.kind === 'glyph' ? v.char : '?'], c, r, { type: 'decoration', tileOverride: tileId })
       }
@@ -1640,7 +1712,6 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     for (const { col, row } of cellsFromKeys(selectedCells)) fn(col, row, grid)
     bumpBuildingVersion()
   }
-  const setFloorColor = (color: string | null) => applyToSelectedCells((col, row, grid) => grid.setGroundColor(col, row, color))
   const setCellCollision = (blocked: boolean) => applyToSelectedCells((col, row, grid) => grid.setCollision(col, row, blocked))
   // A cell's stacked tiles in the SAME order the cell-stack adapter (getStack) projects them — sorted by
   // heightLevel — so the inspector's per-tile index maps to the right asset on both read and write.
@@ -1650,10 +1721,28 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   // axis to the asset field it writes; the renderers read these back per view (assetDimensions.ts).
   const DIM_FIELD = { width: 'scaleX', height: 'scaleY', depth: 'scaleZ', zoom: 'scale' } as const
   // Write the i-th stacked TILE of every selected cell (per-tile, not "all assets in the cell at once").
+  // The tile's BLOCK-HEIGHT (data): its DB height × any per-instance scaleY. This is the ONE "Height" number the
+  // inspector shows/edits — a flat tile reads 0.1, a wall 1, a scaleY-collapsed composition column its full span.
+  // Read from the active style's DB tile, so height is DATA, never invented.
+  const blockHeightOf = (a: GridAsset): number => {
+    const kind = assetKind(a)
+    const dbTile = activeStyleId === ASCII_STYLE.id ? ASCII_TILESET.tiles[kind] : EMOJI_TILESET[kind]
+    return resolveTileHeight(dbTile, a) * (a.scaleY ?? 1)
+  }
   const setAssetDim = (i: number, axis: keyof typeof DIM_FIELD, v: number) =>
-    applyToSelectedCells((col, row, grid) => { const a = stackedAssetsAt(grid, col, row)[i]; if (a) a[DIM_FIELD[axis]] = v })
+    applyToSelectedCells((col, row, grid) => {
+      const a = stackedAssetsAt(grid, col, row)[i]; if (!a) return
+      // "Height" edits the tile's BLOCK-HEIGHT (asset.height) directly and resets the scaleY multiplier to 1 —
+      // one number, the data. Width/Depth/Zoom keep their own scale fields.
+      if (axis === 'height') { a.height = v; a.scaleY = undefined }
+      else a[DIM_FIELD[axis]] = v
+    })
   const setAssetColor = (i: number, color: string) =>
     applyToSelectedCells((col, row, grid) => { const a = stackedAssetsAt(grid, col, row)[i]; if (a) a.color = color })
+  // Clear the i-th stacked tile's colour override → fall back to the tile's own resolved colour. The "↺ reset"
+  // affordance the base/floor tile shows; the floor is a plain asset, so it clears like any other tile.
+  const clearAssetColor = (i: number) =>
+    applyToSelectedCells((col, row, grid) => { const a = stackedAssetsAt(grid, col, row)[i]; if (a) a.color = undefined })
   // "Z Width" (directional depth): the i-th stacked TILE spans `cells` blocks along asset.depthDir, extruded as
   // a long iso box (isoDepthBox). A box needs a direction to grow — default to 'right-up' ("right top", the
   // user's Image #28 arrow) when raising it past 1 with none set, so the extrusion shows immediately.
@@ -1696,6 +1785,17 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       if (mode === 'single') a.settings = { ...rest, display: 'single' }
       else { delete rest.display; a.settings = rest }
     })
+  // PER-ASSET "transparent" block — drop the block SHELL so only the tile's content shows (with display:single,
+  // just the centered billboard, in its own colour): "style the flower without colouring the whole block".
+  // Written to THIS placed tile's `settings` (persists via the full-asset serialize); off clears the key so a
+  // reset stays byte-identical to a tile that never opted in.
+  const setAssetTransparent = (i: number, on: boolean) =>
+    applyToSelectedCells((col, row, grid) => {
+      const a = stackedAssetsAt(grid, col, row)[i]; if (!a) return
+      const rest = { ...(a.settings ?? {}) }
+      if (on) a.settings = { ...rest, transparent: true }
+      else { delete rest.transparent; a.settings = rest }
+    })
   // PER-ASSET render SHAPE ('square' cube / 'circle' ball) — written to THIS placed tile (persists with the map
   // via the full-asset serialize, like scaleX/pose). The render dispatches on asset.shape in every view.
   // 'square' clears the field so a reset stays byte-identical to a tile that never opted in (like Display).
@@ -1725,14 +1825,15 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       if (animations.length) { a.animations = animations; if (a.placedAt == null) a.placedAt = 0 }
       else { delete a.animations }
     })
-  // Inspector "Remove tile" → delete the EXACT selected block (never the floor — removeSelectedBlock no-ops
-  // at level 0) from every selected cell, then step the level down so the panel doesn't point past the
-  // (now shorter) stack.
+  // Inspector "Remove tile" → delete the EXACT selected tile(s) — one per selection KEY, each key carrying its
+  // own stack slot (never the floor: the floor slot is floor-safe). A multi-tile selection removes ALL of them.
+  // Then step the level down so the panel doesn't point past the (now shorter) stack.
   const removeSelectedTile = () => {
     const grid = gridRef.current
     if (!grid) return
-    removeSelectedBlock(grid, cellsFromKeys(selectedCells), selectedTileLevel)
-    bumpBuildingVersion()
+    // Structural edit → through the map-edit boundary, so Ctrl+Z restores the removed tile (it used to
+    // mutate without snapshotting, which is why "I removed a tile, then hit ctrl + z and the tile didn't return").
+    editMap(checkpointHistory, () => removeSelectedBlock(grid, selectedCells), bumpBuildingVersion)
     setSelectedTileLevel(l => Math.max(0, l - 1))
   }
 
@@ -1754,12 +1855,13 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     const firstKey = selectedCellsRef.current.values().next().value as string | undefined
     if (!firstKey) return null
     const [col, row] = firstKey.split(',').map(Number)
-    const stack = getStack(grid, col, row, { entities: entitiesRef.current })
-    const lvl = Math.min(Math.max(selectedTileLevelRef.current, 0), stack.length - 1)
-    if (lvl < 1 || stack[lvl]?.source !== 'asset') return null
-    const i = lvl - 1
+    const stack = getStack(grid, col, row)
+    // `i` is the SELECTED tile's STACK INDEX — the SAME index the inspector's setAsset* writers use
+    // (stackedAssetsAt[i]), so a canvas drag and the modal sliders resize the exact same tile. The FLOOR slab is
+    // skipped (it sizes elsewhere); any other placed tile — including a base tile on a floorless cell — resizes.
+    const i = Math.min(Math.max(selectedTileLevelRef.current, 0), stack.length - 1)
     const asset = stackedAssetsAt(grid, col, row)[i]
-    if (!asset) return null
+    if (!asset || asset.type === FLOOR_TYPE) return null
     return { col, row, i, asset, heightLevel: asset.heightLevel ?? 0 }
   }
 
@@ -1793,13 +1895,13 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     if (!hit) return false
     const b = polyBBox(found.poly)
     const scaleX = target.asset.scaleX ?? 1
-    const scaleY = target.asset.scaleY ?? 1
+    const heightBase = blockHeightOf(target.asset) // the Height handle drags the tile's BLOCK-HEIGHT, not scaleY
     handleDragRef.current = {
       id: hit.id, i: target.i,
       startCx: cx, startCy: cy, sx, sy,
-      startScaleX: scaleX, startScaleY: scaleY, startDepth: target.asset.depth ?? 1,
+      startScaleX: scaleX, startScaleY: heightBase, startDepth: target.asset.depth ?? 1,
       baseHalfWpx: Math.max(1, (b.width / 2) / scaleX),
-      baseHalfHpx: Math.max(1, (b.height / 2) / scaleY),
+      baseHalfHpx: Math.max(1, (b.height / 2) / heightBase),
     }
     return true
   }
@@ -1825,15 +1927,6 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     const found = selectedTileHandles()
     if (found) drawTileHandles(ctx, found.handles)
   }
-  // Per-CELL floor dims + pose — the SAME Width/Height/Depth/Zoom, but written to grid.groundDims so they
-  // size/pose THIS floor tile (every tile, not just props). setGroundDims merges + bumps groundVersion.
-  const setGroundDim = (axis: keyof typeof DIM_FIELD, v: number) =>
-    applyToSelectedCells((col, row, grid) => grid.setGroundDims(col, row, { [DIM_FIELD[axis]]: v } as Partial<GroundCellDims>))
-  const setGroundPose = (pose: TilePose) =>
-    applyToSelectedCells((col, row, grid) => grid.setGroundDims(col, row, { pose }))
-  const clearGroundPose = () =>
-    applyToSelectedCells((col, row, grid) => grid.setGroundDims(col, row, { pose: undefined }))
-
   // Editor debug/validation hooks on window (same family as __ISO_NOCACHE / __isoRenderMs):
   //  __setArtStyle(id)      → flip the active global style without the dropdown
   //  __selectFirstTreeCell()→ select the first tree's cell (returns {col,row}) so the real
@@ -1855,6 +1948,9 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       __placeComposition?: (kind: string, col: number, row: number) => number
       __armComposition?: (kind: string | null) => void
       __cellSel?: () => { count: number; first: string | null }
+      __selKeys?: () => string[]
+      __marqueeKeys?: (x0: number, y0: number, x1: number, y1: number) => string[]
+      __hoverCell?: () => { col: number; row: number; level?: number; source?: string } | null
       __selectCells?: (keys: string[]) => number
       __applyCellTile?: (tileId: string | null) => void
       __clearRegion?: (col0: number, row0: number, col1: number, row1: number) => void
@@ -1863,6 +1959,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       __stackAt?: (col: number, row: number) => Array<{ label: string; type: string; heightLevel: number; h: number; source: string }>
       __camOffset?: () => { x: number; y: number }
       __stackAsset?: (col: number, row: number, n?: number) => number | null
+      __paletteTiles?: (category?: string) => Array<{ id: string; label: string; category: string; height: number | null }>
       __paintTile?: (tileId: string, col: number, row: number) => unknown
       __isoBlockScreen?: (col: number, row: number, level: number) => { x: number; y: number } | null
       __genVillage?: () => { buildings: number }
@@ -1876,10 +1973,11 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       __setShape?: (col: number, row: number, shape: TileShape) => { col: number; row: number; shape: TileShape } | null
       __setDisplay?: (col: number, row: number, mode: TileDisplay) => { col: number; row: number; mode: TileDisplay } | null
       __setLight?: (col: number, row: number, light: AssetLight | null) => { col: number; row: number; light: AssetLight | null } | null
-      __pickTileAt?: (clientX: number, clientY: number) => { col: number; row: number; level: number | null; source: string | null } | null
+      __pickTileAt?: (clientX: number, clientY: number) => { col: number; row: number; stackIndex: number | null; source: string | null } | null
       __cellScreen?: (col: number, row: number, level?: number) => { x: number; y: number } | null
       __tileCentroid?: (col: number, row: number, level?: number) => { x: number; y: number } | null
       __tileHandles?: (col: number, row: number, level?: number) => { id: HandleId; x: number; y: number }[] | null
+      __recordedGeom?: (col: number, row: number, level?: number) => { kind: string; extrudePx: number | null; bboxW: number; bboxH: number } | null
     }
     win.__camOffset = () => ({ ...camOffsetRef.current })
     // ISO-STACK picking validation seams (same family as __entityScreens, which lands validation clicks via
@@ -1900,12 +1998,19 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     // (placementFor → placeGroundTile / stackAssetTile), so "a painted tile is a real editable block" is
     // proved deterministically without a flaky headless canvas click. Returns the topmost placed asset's
     // render-relevant fields (height/type/tileOverride/settings/depth) for a data assertion.
+    // PALETTE-ENUMERATION seam: list the browseable tiles for the active style (optionally one category), so a
+    // validation run can drive EVERY nature/decor tile straight from the loaded DB tileset (never a hardcoded list).
+    win.__paletteTiles = (category?: string) => {
+      const style = activeStyleRef.current
+      const all = Object.values(tilesForStyle(style.id)).flat() as TileDef[]
+      return all.filter(t => !category || t.category === category).map(t => ({ id: t.id, label: t.label, category: t.category, height: t.height ?? null }))
+    }
     win.__paintTile = (tileId: string, col: number, row: number) => {
       const g = gridRef.current
       if (!g) return null
       const style = activeStyleRef.current
       const groups = tilesForStyle(style.id)
-      const tile = ([] as TileDef[]).concat(groups.terrain, groups.buildings, groups.units, groups.nature).find(t => t.id === tileId)
+      const tile = Object.values(groups).flat().find(t => t.id === tileId)
       if (!tile) return { error: `no palette tile ${tileId} in ${style.id}` }
       const route = placementFor(tile)
       if (route === 'terrain') placeGroundTile(g, col, row, tile)
@@ -1925,18 +2030,11 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       if (!canvas || !grid) return null
       const cs = grid.cellSize
       const eff = grid.isoScale * isoZoomRef.current
-      const S = eff * 0.71
-      const T = eff * 0.36
-      const pPad = canvas.width / (2 * cs * S)
-      const qPad = canvas.height / (2 * cs * T)
-      const rawFc = (playerRef.current.x - camOffsetRef.current.x) / cs
-      const rawFr = (playerRef.current.z - camOffsetRef.current.y) / cs
-      const { fc, fr } = playModeRef.current ? isoCameraFocus(rawFc, rawFr, pPad, qPad, grid.cols, grid.rows) : { fc: rawFc, fr: rawFr }
-      const wx = col * cs - fc * cs
-      const wz = row * cs - fr * cs
-      const px = canvas.width / 2 + (wx - wz) * S
-      const py = canvas.height / 2 + (wx + wz) * T
-      const cy = py - grid.getHeight(col, row) * (cs * eff * 0.4) - level * (cs * S) * ISO_BLOCK_H_FRAC
+      // The SAME facing-aware camera the click projections + the render use, so a validation click aimed here
+      // still lands on the block after the map is rotated.
+      const view = isoEditorView(canvas, grid)
+      const { x: px, y: py } = isoWorldCellToScreen(col, row, isoEditorCamera(view), grid.cols, grid.rows, view.facing)
+      const cy = py - grid.getHeight(col, row) * (cs * eff * 0.4) - level * (cs * eff * 0.71) * ISO_BLOCK_H_FRAC
       const rect = canvas.getBoundingClientRect()
       const sx = canvas.width ? rect.width / canvas.width : 1
       const sy = canvas.height ? rect.height / canvas.height : 1
@@ -1949,7 +2047,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     // can be aimed at a raised tile in either view.
     win.__pickTileAt = (clientX: number, clientY: number) => {
       const r = pickCellForSelect(clientX, clientY)
-      return r ? { col: r.col, row: r.row, level: r.level ?? null, source: r.source ?? null } : null
+      return r ? { col: r.col, row: r.row, stackIndex: r.stackIndex ?? null, source: r.source ?? null } : null
     }
     win.__cellScreen = (col: number, row: number, level = 0) => {
       if (!topViewMode && viewTypeRef.current !== '2d') return win.__isoBlockScreen!(col, row, level) // iso
@@ -1971,6 +2069,20 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       const sx = canvas.width ? rect.width / canvas.width : 1
       const sy = canvas.height ? rect.height / canvas.height : 1
       return { x: rect.left + cx * sx, y: rect.top + cy * sy }
+    }
+    // RENDER-PATH validation seam: the RECORDED silhouette KIND of the tile drawn at (col,row,level) this frame.
+    // 'cube' = it went through the block/slab path (a flat tile is a thin slab → cube geom); 'poly' = a billboard
+    // (a UNIT, or an image-less glyph) or a directional-depth box. `extrudePx` = the cube's on-screen extruded
+    // height (base-back.y − top-back.y): tiny for a flat SLAB, large for a tall block. null when not drawn.
+    win.__recordedGeom = (col: number, row: number, level = 0) => {
+      const geom = viewTypeRef.current === '2d' ? twoDRecordedGeom(col, row, level) : isoRecordedGeom(col, row, level)
+      if (!geom) return null
+      const extrudePx = geom.kind === 'cube' ? geom.base[1].y - geom.top[1].y : null
+      const poly = tileGeomPolygon(geom)
+      const xs = poly.map(p => p.x), ys = poly.map(p => p.y)
+      const bboxW = xs.length ? Math.max(...xs) - Math.min(...xs) : 0
+      const bboxH = ys.length ? Math.max(...ys) - Math.min(...ys) : 0
+      return { kind: geom.kind, extrudePx, bboxW, bboxH }
     }
     // RESIZE-HANDLE validation seam: the CLIENT-coord grip points on the tile at (col,row,level) this frame —
     // the SAME points the RAF draws + the mouse grab hit-tests (from the recorded silhouette). Lets a
@@ -2093,7 +2205,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     win.__cellLabels = (col0: number, row0: number, col1: number, row1: number) => {
       const grid = gridRef.current
       if (!grid) return null
-      const caps = cellCaptionMap(grid.ground, grid.assets)
+      const caps = cellCaptionMap(grid.groundSlugs(), grid.assets)
       const out: { col: number; row: number; label: string; type: string; blocked: boolean }[] = []
       for (let r = row0; r <= row1; r++) for (let c = col0; c <= col1; c++) {
         const cap = caps.get(`${c},${r}`)
@@ -2111,6 +2223,14 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       return getStack(grid, col, row).map(t => ({ label: t.label ?? t.slug ?? '', type: t.type ?? String(t.source), heightLevel: t.heightLevel ?? 0, h: t.h ?? 0, source: String(t.source) }))
     }
     win.__cellSel = () => ({ count: selectedCellsRef.current.size, first: Array.from(selectedCellsRef.current)[0] ?? null })
+    win.__selKeys = () => Array.from(selectedCellsRef.current) // full selection-key list (block "col,row,level" / flat "col,row") for validation
+    // Block-aware MARQUEE validation seam: the keys a shift+drag box (CLIENT coords) selects, computed through
+    // the SAME marqueeSelectionKeys the mousemove uses — a deterministic check of the block-aware coverage,
+    // independent of React's isSelecting state-commit timing that a simulated drag races.
+    win.__marqueeKeys = (x0, y0, x1, y1) => Array.from(marqueeSelectionKeys(x0, y0, x1, y1))
+    // The live hovered cell/block (what a Ctrl+V paste anchors at) — so validation can confirm the anchor the
+    // real mouse actually set, independent of a direct pick call.
+    win.__hoverCell = () => (hoveredCellRef.current ? { ...hoveredCellRef.current } : null)
     win.__selectCells = (keys: string[]) => { setSelectedCells(new Set(keys)); setSelectedEntityId(null); return keys.length }
     win.__applyCellTile = (tileId: string | null) => setSelectionOverride(tileId)
     win.__clearRegion = (col0: number, row0: number, col1: number, row1: number) => {
@@ -2185,7 +2305,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       }
       for (let r = 0; r < grid.rows; r++) {
         for (let c = 0; c < grid.cols; c++) {
-          const t = grid.ground[r]?.[c] || 'grass'
+          const t = grid.groundAt(c, r)
           const k = groundKind(t)
           tally(resolveVisual(k, style).kind === 'ascii', `ground:${t}→${k}`)
         }
@@ -2214,7 +2334,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       setSelectedCells(new Set([`${best.col},${best.row}`]))
       return best
     }
-    return () => { delete win.__setArtStyle; delete win.__selectFirstTreeCell; delete win.__setView; delete win.__gridKinds; delete win.__entityInfo; delete win.__entityScreens; delete win.__selectEntity; delete win.__setEntitySize; delete win.__scatter; delete win.__selectedEntityInfo; delete win.__placeBuilding; delete win.__placeComposition; delete win.__armComposition; delete win.__cellSel; delete win.__selectCells; delete win.__applyCellTile; delete win.__clearRegion; delete win.__setDebug; delete win.__cellLabels; delete win.__stackAt; delete win.__camOffset; delete win.__stackAsset; delete win.__paintTile; delete win.__isoBlockScreen; delete win.__genVillage; delete win.__genStage; delete win.__randomizeLayer; delete win.__randomizeSelected; delete win.__centerOn; delete win.__setHero; delete win.__pickTileAt; delete win.__cellScreen; delete win.__tileCentroid; delete win.__tileHandles; delete win.__setShape; delete win.__setDisplay; delete win.__setLight }
+    return () => { delete win.__setArtStyle; delete win.__selectFirstTreeCell; delete win.__setView; delete win.__gridKinds; delete win.__entityInfo; delete win.__entityScreens; delete win.__selectEntity; delete win.__setEntitySize; delete win.__scatter; delete win.__selectedEntityInfo; delete win.__placeBuilding; delete win.__placeComposition; delete win.__armComposition; delete win.__cellSel; delete win.__selKeys; delete win.__marqueeKeys; delete win.__hoverCell; delete win.__selectCells; delete win.__applyCellTile; delete win.__clearRegion; delete win.__setDebug; delete win.__cellLabels; delete win.__stackAt; delete win.__camOffset; delete win.__stackAsset; delete win.__paletteTiles; delete win.__paintTile; delete win.__isoBlockScreen; delete win.__genVillage; delete win.__genStage; delete win.__randomizeLayer; delete win.__randomizeSelected; delete win.__centerOn; delete win.__setHero; delete win.__pickTileAt; delete win.__cellScreen; delete win.__tileCentroid; delete win.__tileHandles; delete win.__setShape; delete win.__setDisplay; delete win.__setLight; delete win.__recordedGeom }
   }, [])
 
   // ── Selected-entity inspector actions ─────────────────────────────
@@ -2248,7 +2368,8 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   }
   const deleteSelectedEntity = () => {
     if (!selectedEntityId) return
-    setEntities(prev => removeEntity(prev, selectedEntityId))
+    // A unit IS a tile — deleting one is removing a tile, so it snapshots like every other structural edit.
+    editMap(checkpointHistory, () => setEntities(prev => removeEntity(prev, selectedEntityId)))
     setSelectedEntityId(null)
   }
   /** Rename the player — patches the player entity's name, which persists via the entities codec
@@ -2558,9 +2679,8 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
    *  bare default, uniformly, with NO branch on tile type). Then reset collision to walkable, so the cell is
    *  the same bare state a freshly-initialised one has (mirrors __clearRegion). Snapshots history first, so
    *  Ctrl+Z restores BOTH the stacked tiles and the cleared road. */
-  const clearTilesOnSelection = () => {
+  const clearTilesAt = (cells: readonly { col: number; row: number }[]) => {
     const grid = gridRef.current
-    const cells = cellsFromKeys(selectedCells)
     if (!grid || cells.length === 0) return
     checkpointHistory()
     for (const { col, row } of cells) {
@@ -2571,6 +2691,9 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     bumpBuildingVersion()
     setSelectedTileLevel(0)
   }
+  /** The cell-selection entry point for {@link clearTilesAt}. A selected UNIT clears the ONE cell it stands
+   *  on through the SAME primitive — same card, same action, no fork. */
+  const clearTilesOnSelection = () => clearTilesAt(cellsFromKeys(selectedCells))
 
   /** ⌥Alt-click removal for the armed brush. With a `level` (a single click that landed on a raised block)
    *  → remove THAT block, not blindly the top; without one (a bulk selection) → remove the cell's top asset.
@@ -2651,7 +2774,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       for (let dy = 0; dy < h; dy++) {
         for (let dx = 0; dx < w; dx++) {
           if (Math.random() < density && x + dx < cols && y + dy < rows) {
-            const cell = grid.ground[y + dy]?.[x + dx]
+            const cell = grid.groundAt(x + dx, y + dy)
             if (cell === 'grass') {
               grid.placeAsset(['@'], x + dx, y + dy, { type: 'tree', blocking: true, color: '#33cc33', height: 3 })
             }
@@ -2750,7 +2873,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
         for (let i = 0; i < 20; i++) {
           const x = Math.floor(Math.random() * cols)
           const y = Math.floor(Math.random() * rows)
-          if (grid.ground[y]?.[x] === 'grass') {
+          if (grid.groundAt(x, y) === 'grass') {
             grid.placeAsset(['+'], x, y, { type: 'flower', color: Math.random() > 0.5 ? '#ff88cc' : '#ffaa44' })
           }
         }
@@ -3334,7 +3457,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     grid.clearAssets()
     const paint = stagePaint(stage)
     for (const g of paint.ground) {
-      if (grid.ground[g.row]?.[g.col] !== undefined) grid.setGround(g.col, g.row, g.type)
+      if (g.col >= 0 && g.col < grid.cols && g.row >= 0 && g.row < grid.rows) grid.setGround(g.col, g.row, g.type)
     }
     // Pin each generated prop to the SAME curated catalog tile the palette brush uses, per zone + role
     // (trees, flowers, floor-litter, rocks, mushrooms) — instead of the generic per-kind EMOJI_TILESET
@@ -3345,7 +3468,9 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     // TONAL variety is dropped in favour of a distinct, palette-matching species per season.
     for (const a of paint.assets) {
       const override = stagePropTileOverride(stage.zone, a.type)
-      grid.placeAsset([a.char], a.col, a.row, { type: a.type, blocking: a.blocking, color: a.color, label: a.label, baseShadow: a.baseShadow, buildingType: a.buildingType, edge: a.edge, footprint: a.footprint, cellPart: a.label, tileOverride: override })
+      // Per-instance render for standing props (a flower = single billboard, height 1) — the SAME override the
+      // SAVE path (stageToTemplate) writes, so live + saved/loaded match. Spreads height + settings.display.
+      grid.placeAsset([a.char], a.col, a.row, { type: a.type, blocking: a.blocking, color: a.color, label: a.label, baseShadow: a.baseShadow, buildingType: a.buildingType, edge: a.edge, footprint: a.footprint, cellPart: a.label, tileOverride: override, ...generatedPropRender(a.type) })
     }
     // Mirror the generator's authoritative collision into the grid so trees/water/
     // features are truly blocked — enemies (manual placement + scatter) only land on
@@ -3400,6 +3525,9 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     // A FOUNTAIN is just TILES too: stamp each recorded composition ANCHOR (the plaza fountain — rim +
     // water + jets) through the SAME path, so it's per-cell backend tiles, not a special drawer/prop.
     for (const c of stage.compositions ?? []) stampComposition(grid, c.kind, c.col, c.row, stage.zone, c.variant ?? 0)
+    // PERF: merge the per-cell grass/road ground into z-width RUN tiles (the same depth-spanned trick roofs
+    // use) — cuts ~1300 ground cells to a handful of run tiles, the biggest per-frame draw+sort cost.
+    grid.compressGround()
   }
 
   /** Promote the generators' decorative ☺ NPC assets into REAL npc entities: a generated town's
@@ -3760,7 +3888,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     // w is the offset from the road start, totalWidth is the road width
     const setRoadTile = (col: number, row: number, w: number, totalWidth: number) => {
       if (col < 0 || col >= cols || row < 0 || row >= rows) return
-      if (grid.ground[row]?.[col] === 'water') return
+      if (grid.groundAt(col, row) === 'water') return
 
       // Determine if this is an edge or center tile
       // For width 3: edges are 0 and 2, center is 1
@@ -3871,10 +3999,10 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       // Add bridges over water crossings
       for (let r = 0; r < rows; r++) {
         for (let c = 0; c < cols; c++) {
-          if (grid.ground[r]?.[c] === 'water') {
+          if (grid.groundAt(c, r) === 'water') {
             const adjRoad = [-1, 0, 1].some(dr =>
               [-1, 0, 1].some(dc => {
-                const g = grid.ground[r + dr]?.[c + dc]
+                const g = grid.groundAt(c + dc, r + dr)
                 return g === 'road' || g === 'road_center' || g === 'road_edge'
               })
             )
@@ -3946,12 +4074,12 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
             const checkC = c + jitterX
             const checkR = r + jitterY
 
-            const ground = grid.ground[checkR]?.[checkC]
+            const ground = grid.groundAt(checkC, checkR)
             if (!isRoadGround(ground) && ground !== 'water' && ground !== 'plaza') {
               // Check if near a road
               const nearRoad = [-4, -3, -2, -1, 0, 1, 2, 3, 4].some(dr =>
                 [-4, -3, -2, -1, 0, 1, 2, 3, 4].some(dc =>
-                  isRoadGround(grid.ground[checkR + dr]?.[checkC + dc])
+                  isRoadGround(grid.groundAt(checkC + dc, checkR + dr))
                 )
               )
               if (nearRoad) {
@@ -3966,7 +4094,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       for (let i = 0; i < 30; i++) {
         const x = 5 + Math.floor(Math.random() * (cols - 12))
         const y = 5 + Math.floor(Math.random() * (rows - 12))
-        const ground = grid.ground[y]?.[x]
+        const ground = grid.groundAt(x, y)
         // Check for any water-like or plaza-like ground (including themed versions)
         const isWater = ground?.includes('water') || ground?.includes('lava') || ground?.includes('frozen') || ground?.includes('oasis') || ground?.includes('koi')
         const isPlaza = ground?.includes('plaza') || ground?.includes('tile') || ground?.includes('floor') || ground?.includes('lacquer') || ground?.includes('tatami')
@@ -4005,7 +4133,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
 
     for (let r = 2; r < rows - 2; r++) {
       for (let c = 2; c < cols - 2; c++) {
-        const ground = grid.ground[r]?.[c]
+        const ground = grid.groundAt(c, r)
         // Skip water-like and plaza-like ground (including themed versions)
         const isWater = ground?.includes('water') || ground?.includes('lava') || ground?.includes('frozen') || ground?.includes('oasis') || ground?.includes('koi')
         const isPlaza = ground?.includes('plaza') || ground?.includes('tile') || ground?.includes('floor') || ground?.includes('lacquer') || ground?.includes('tatami')
@@ -4024,7 +4152,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
         if (preset.roads.enabled) {
           const tooCloseToRoad = [-2, -1, 0, 1, 2].some(dr =>
             [-2, -1, 0, 1, 2].some(dc =>
-              isRoadGround(grid.ground[r + dr]?.[c + dc])
+              isRoadGround(grid.groundAt(c + dc, r + dr))
             )
           )
           if (tooCloseToRoad && Math.random() > 0.3) continue
@@ -4062,7 +4190,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
         if (rockDensity > 0 && Math.random() < rockDensity * 0.08) {
           const nearWater = [-1, 0, 1].some(dy =>
             [-1, 0, 1].some(dx => {
-              const g = grid.ground[r + dy]?.[c + dx]
+              const g = grid.groundAt(c + dx, r + dy)
               return g?.includes('water') || g?.includes('lava') || g?.includes('frozen') || g?.includes('oasis') || g?.includes('koi')
             })
           )
@@ -4077,7 +4205,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     // === STEP 8: Set collisions for all blocking elements ===
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols; c++) {
-        const ground = grid.ground[r]?.[c]
+        const ground = grid.groundAt(c, r)
         // Water-like elements are blocking (including themed versions)
         const isWaterLike = ground?.includes('water') || ground?.includes('lava') || ground?.includes('frozen') || ground?.includes('oasis') || ground?.includes('koi') || ground?.includes('magma')
         if (isWaterLike) {
@@ -4097,7 +4225,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
         for (let attempts = 0; attempts < 20 && npcsPlaced < npcCount; attempts++) {
           const nx = townX + 2 + Math.floor(Math.random() * 8)
           const ny = townY + 2 + Math.floor(Math.random() * 8)
-          const ground = grid.ground[ny]?.[nx]
+          const ground = grid.groundAt(nx, ny)
           const hasAsset = grid.assets.some(a => a.col === nx && a.row === ny)
 
           if ((ground === 'plaza' || ground === 'road') && !hasAsset) {
@@ -4111,7 +4239,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       for (let attempts = 0; attempts < 50 && npcsPlaced < npcCount; attempts++) {
         const nx = 4 + Math.floor(Math.random() * (cols - 8))
         const ny = 4 + Math.floor(Math.random() * (rows - 8))
-        const ground = grid.ground[ny]?.[nx]
+        const ground = grid.groundAt(nx, ny)
         const hasAsset = grid.assets.some(a => a.col === nx && a.row === ny)
         const isCollision = grid.collision[ny]?.[nx]
 
@@ -4152,7 +4280,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       groundLayer[r] = []
       groundTypes[r] = []
       for (let c = 0; c < cols; c++) {
-        const type = grid.ground[r]?.[c] || 'grass'
+        const type = grid.groundAt(c, r)
         groundTypes[r][c] = type
         // Map ground type to character
         const charMap: Record<string, string> = {
@@ -4176,7 +4304,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     for (let r = 0; r < rows; r++) {
       collisionLayer[r] = []
       for (let c = 0; c < cols; c++) {
-        const groundType = grid.ground[r]?.[c]
+        const groundType = grid.groundAt(c, r)
         const blocked = groundType === 'water' || grid.isBlocked(c, r) ? 1 : 0
         collisionLayer[r][c] = blocked
       }
@@ -4317,7 +4445,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
           const c = spawnCol + dx
           const r = spawnRow + dy
           if (c >= 0 && c < grid.cols && r >= 0 && r < grid.rows) {
-            const groundType = grid.ground[r]?.[c]
+            const groundType = grid.groundAt(c, r)
             if (groundType !== 'water' && !grid.isBlocked(c, r)) {
               validCol = c
               validRow = r
@@ -4336,6 +4464,36 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     const handleKeyDown = (e: KeyboardEvent) => {
       // I toggles the inventory panel — but not while typing in a field.
       const tag = (e.target as HTMLElement | null)?.tagName
+      // Ctrl/Cmd+C copy · Ctrl/Cmd+V paste the tile SELECTION. Guarded exactly like undo/redo: ignored while
+      // typing in a field (INPUT/TEXTAREA/contentEditable) and never with Alt held. Copy captures the selected
+      // tiles into the clipboard ref; paste re-stamps them at the HOVERED cell (the selection's min corner lands
+      // there — follow-cursor, corner-anchored), behind an undo checkpoint. No-op when there's nothing to do.
+      if ((e.ctrlKey || e.metaKey) && !e.altKey && tag !== 'INPUT' && tag !== 'TEXTAREA' && !(e.target as HTMLElement | null)?.isContentEditable) {
+        const k = e.key.toLowerCase()
+        if (k === 'c') {
+          const grid = gridRef.current
+          if (grid && selectedCellsRef.current.size > 0) {
+            e.preventDefault()
+            const clip = copyTiles(grid, selectedCellsRef.current)
+            clipboardRef.current = clip
+            toast(`Copied ${clip.tiles.length} tile${clip.tiles.length === 1 ? '' : 's'}`, 'success')
+          }
+          return
+        }
+        if (k === 'v') {
+          const grid = gridRef.current
+          const clip = clipboardRef.current
+          const hover = hoveredCellRef.current
+          if (grid && hover && clip && clip.tiles.length > 0) {
+            e.preventDefault()
+            checkpointHistory() // paste is a map edit → snapshot so one Ctrl+Z reverts the whole paste
+            const n = pasteTiles(grid, clip, hover.col, hover.row)
+            bumpBuildingVersion() // re-render after the in-place grid mutation
+            toast(`Pasted ${n} tile${n === 1 ? '' : 's'}`, 'success')
+          }
+          return
+        }
+      }
       if ((e.key === 'i' || e.key === 'I') && tag !== 'INPUT' && tag !== 'TEXTAREA') {
         setInventoryOpen(o => !o)
         return
@@ -4809,6 +4967,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
           selectedCells: selectedCellsRef.current,
           hoveredCell: hoveredCellRef.current,
           ghost: ghostRef.current, // armed-composition placement shadow (iso footprint + massing)
+          cameraFacing: cameraFacingRef.current, // #75 — the corner the nav's ↻ Rotate button turned to
         })
         drawSelectedTileHandles(ctx) // resize grips on the selected tile (reads the frame's recorded silhouette)
       }
@@ -4899,6 +5058,16 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     await linkTemplatesToGame([id])
   }
 
+  /** The Inspector's discoverable "💾 Save map" action — the SAME handler behind the cell card's and the unit
+   *  card's button, so both save identically. An unnamed map warns instead of silently no-opping (spec §4). */
+  const saveMapFromInspector = () => {
+    if (!templateName.trim()) {
+      toast('Name your map in the top bar to save', 'warning')
+      return
+    }
+    void saveCurrentTemplate()
+  }
+
   // Save current map as template
   const saveCurrentTemplate = async () => {
     const grid = gridRef.current
@@ -4924,8 +5093,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
         ...questsToAssets(quests),
         ...styleToAssets(activeStyleId), // active art style rides as one off-grid marker (ASCII → none)
         ...cellTriggersToAssets(cellTriggers), // cell triggers (enter/interact) ride as off-grid markers
-        ...groundColorToAssets(grid.groundColor), // per-cell floor colours ride as one off-grid marker
-        ...groundDimsToAssets(grid.groundDims), // per-cell floor dims (W/H/D/Zoom + pose) ride as one off-grid marker
+        // Floor colour + dims now ride the FLOOR ASSET itself (it's in assetsData), so no separate markers.
       ]
 
       let savedTemplateId = currentTemplateId
@@ -5010,35 +5178,11 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       const loadedQuests = questsFromAssets(gridRef.current!.assets)
       const loadedStyle = styleFromAssets(gridRef.current!.assets) // active art style marker (null → ASCII)
       const loadedCellTriggers = cellTriggersFromAssets(gridRef.current!.assets) // cell triggers (enter/interact)
-      const loadedGroundColor = groundColorFromAssets(gridRef.current!.assets) // per-cell floor colours
-      const loadedGroundDims = groundDimsFromAssets(gridRef.current!.assets) // per-cell floor dims (W/H/D/Zoom + pose)
+      // Floor colour + dims ride the FLOOR ASSET now (restored by deserializeToGrid → setAssets), so there is
+      // nothing to reapply here — the floor is a plain level-0 asset that round-trips like every tile.
       gridRef.current!.removeAssetsWhere(
-        a => isEntityAsset(a) || isQuestAsset(a) || isStyleAsset(a) || isTriggerAsset(a) || isGroundColorAsset(a) || isGroundDimsAsset(a),
+        a => isEntityAsset(a) || isQuestAsset(a) || isStyleAsset(a) || isTriggerAsset(a),
       )
-      // Restore per-cell floor colours: clear any stale overrides (a reused grid keeps the last map),
-      // then apply the saved ones. setGroundColor bumps groundVersion so the cached ground layer rebuilds.
-      {
-        const g = gridRef.current!
-        for (let r = 0; r < g.rows; r++)
-          for (let c = 0; c < g.cols; c++) if (g.groundColor[r]?.[c]) g.setGroundColor(c, r, null)
-        for (const [key, color] of Object.entries(loadedGroundColor)) {
-          const [c, r] = key.split(',').map(Number)
-          g.setGroundColor(c, r, color)
-        }
-      }
-      // Restore per-cell floor dims the same way: clear the stale sparse map, then apply the saved one.
-      // setGroundDims bumps groundVersion so the 2D + iso ground caches rebuild with the loaded dims; if the
-      // loaded map has NO dims but the reused grid did, the clear itself bumps so the caches drop them too.
-      {
-        const g = gridRef.current!
-        let cleared = false
-        for (let r = 0; r < g.rows; r++) if (g.groundDims[r]?.length) { g.groundDims[r] = []; cleared = true }
-        if (cleared) g.groundVersion++
-        for (const [key, dims] of Object.entries(loadedGroundDims)) {
-          const [c, r] = key.split(',').map(Number)
-          g.setGroundDims(c, r, dims)
-        }
-      }
       setActiveStyleId(styleById(loadedStyle).id) // restore the saved global skin (defaults to ASCII)
       setCellTriggers(loadedCellTriggers) // restore the authored cell triggers
       // Buildings are just their stamped per-cell tiles now (regular assets, like trees), so they
@@ -5500,6 +5644,9 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
             <ViewButton label="Top" active={activeView === 'top'} activeClass="bg-blue-600" onClick={selectTopView} />
             <ViewButton label="Flow" active={activeView === 'flow'} activeClass="bg-purple-600" onClick={toggleFlowView} />
           </div>
+          {/* ↻ Rotate — swing the iso camera one quarter-turn so a different side of the map faces you. ISO
+              only: 2D (front elevation) and Top (footprint) have no camera to rotate. */}
+          {activeView === 'iso' && <CameraRotateButton facing={cameraFacing} onFacing={setCameraFacing} />}
           <span className="mx-1 h-5 w-px shrink-0 bg-white/15" />
           {/* ⚡ Generate — the stage-preset zone/variant controls as a dropdown */}
           <Dropdown
@@ -5595,7 +5742,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
               </div>
             )}
           </Dropdown>
-          <FpsReadout fps={fps} variant="nav" />
+          <FpsReadout fps={fps} renderMs={renderMs} variant="nav" />
           <div className="flex-1" />
           {/* ▶ Play — enter the clean play view */}
           <button
@@ -5659,6 +5806,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
           <Dropdown label={<>⋯ More</>} align="right" panelClass="w-52">
             {close => (
               <div className="space-y-1 text-xs">
+                <button onClick={() => { setShowSidebars(false); close() }} className="block w-full rounded bg-purple-700 px-2 py-1.5 text-left font-bold hover:bg-purple-600">▣ Preview (hide UI)</button>
                 <button onClick={() => { openGamesView(); close() }} className="block w-full rounded bg-indigo-700 px-2 py-1.5 text-left font-bold hover:bg-indigo-600">Games</button>
                 <button onClick={() => { exportLayers(); close() }} className="block w-full rounded bg-orange-700 px-2 py-1.5 text-left font-bold hover:bg-orange-600">Export</button>
                 <Link href="/personal-projects/game-engine" onClick={close} className="block w-full rounded bg-gray-700 px-2 py-1.5 text-left hover:bg-gray-600">← Templates</Link>
@@ -5670,16 +5818,16 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
         </nav>
         )}
 
-        {/* Bottom-right floating control: Preview toggle in the editor (hides the
-            sidebars for a clean look), Exit Game while playing. Execute Game (top nav)
-            enters the full clean PLAY VIEW; this is how you leave it. */}
-        {!playMode && !showGamesView && (
+        {/* Bottom-right floating control: the way BACK from preview. Entering preview lives in the top-nav
+            "⋯ More" menu, but hiding the UI hides that nav too — so this restore button is the only route
+            back and renders ONLY while the UI is hidden. */}
+        {!showSidebars && !playMode && !showGamesView && (
           <button
-            onClick={() => setShowSidebars(s => !s)}
-            aria-pressed={!showSidebars}
+            onClick={() => setShowSidebars(true)}
+            aria-pressed
             className="fixed bottom-4 right-4 z-30 rounded-full bg-purple-700 px-4 py-2 font-mono text-xs font-bold text-white shadow-lg hover:bg-purple-600"
           >
-            {showSidebars ? '▣ Preview (hide UI)' : '✎ Edit (show UI)'}
+            ✎ Edit (show UI)
           </button>
         )}
         {playMode && (
@@ -5691,7 +5839,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
             ⨯ Exit Game
           </button>
         )}
-        {playMode && <FpsReadout fps={fps} variant="floating" />}
+        {playMode && <FpsReadout fps={fps} renderMs={renderMs} variant="floating" />}
 
         {/* LEFT — tool-rail: the editor modes (Select / Paint / Unit / Building / Connector) */}
         {showSidebars && !showGamesView && !playMode && (
@@ -5819,6 +5967,11 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                   onClearColor: () => patchSelectedEntity({ color: undefined }),
                   override: selEntity.tileOverride ?? null,
                   styleName: activeStyle.name,
+                  preview: selBaseVisual, // the tile chip shows the unit's own baked art, like any other tile
+                  // A unit ALWAYS carries art, so the tile-add button reads "Replace tile" — the SAME button a
+                  // cell uses. Its library lists the character tiles (the `units` category), which is how a
+                  // unit's figure is changed now that the Figure variant row is gone.
+                  libraryLabel: 'Replace tile',
                   onOpenLibrary: () => setTileLibraryOpen(true),
                   pose: selEntity.pose,
                   onPose: p => patchSelectedEntity({ pose: p }),
@@ -5827,7 +5980,6 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                 }
                 return (
                   <>
-                    <SelectionHeader kind={selEntity.kind} label={`${selEntity.name || selEntity.kind} (${selEntity.kind})`} coords={`@ ${selEntity.col},${selEntity.row}`} />
                     {selEntity.kind !== 'player' && (
                       <button
                         onClick={randomizeSelected}
@@ -5837,14 +5989,19 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                         🎲 Randomize unit
                       </button>
                     )}
-                    {/* ONE card — the SAME PropertiesPanel a tile uses, with the unit's data folded IN via
-                        `unitSection`. No parallel unit sidebar: identity/vitals/inventory/quests/attacks live
-                        UNDER the shared tile summary; Animate + Triggers are buttons that open floating modals;
-                        the settings sliders open from "Edit settings…" exactly like a tile. */}
-                    <Card title={`Unit — ${selEntity.name || selEntity.kind}`} accent="orange">
+                    {/* ONE card — literally the SAME PropertiesPanel a tile uses, with the unit's extras folded
+                        IN via `unitSection`. There is no unit menu any more: collision (the unit's "blocks
+                        movement"), Clear tiles, the tile chip + colour, Add/Replace tile, Edit settings…,
+                        Animate…, Remove tile, Triggers… and Save map are the tile card's own controls; the unit
+                        only ADDS its name/size rows and the Stats / Inventory / Quests / Attacks buttons. */}
+                    {/* The coords ride the card title exactly as the cell card's do (`Cell (3, 4)`) — the old
+                        `▸ PLAYER (PLAYER) @ 32,10` header pill is gone, so there is ONE unit header, not two. */}
+                    <Card title={`Unit — ${selEntity.name || selEntity.kind} (${selEntity.col}, ${selEntity.row})`} accent="orange">
                       <PropertiesPanel
-                        collision={null}
-                        onCollision={() => {}}
+                        // ONE collision control for everything: for a unit the toggle IS `blocksMovement`
+                        // (the old standalone "Blocks movement" checkbox is gone).
+                        collision={selEntity.blocksMovement ?? false}
+                        onCollision={blocked => patchSelectedEntity({ blocksMovement: blocked })}
                         tile={unitTileModel}
                         level={1}
                         levelCount={1}
@@ -5852,15 +6009,20 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                         onOpenSettings={() => setUnitSettingsOpen(true)}
                         onOpenTriggers={() => setTriggersOpen(true)}
                         triggerCount={selEntity.triggers?.length ?? 0}
+                        // Clear tiles targets the cell the unit STANDS on, through the same primitive a cell
+                        // selection uses; Remove tile deletes the unit — a unit IS a tile, so no bespoke Delete.
+                        onClearTiles={() => clearTilesAt([{ col: selEntity.col, row: selEntity.row }])}
+                        onRemove={deleteSelectedEntity}
                         unitSection={
                           <div className="space-y-3">
-                            {/* appearance (figure/size) + identity/vitals + inventory (player) / quests (NPC) /
-                                attacks (enemy) — the extras a tile never has, folded onto the shared card. */}
+                            {/* name + size rows and the entry buttons a tile never has: stats, inventory
+                                (player), quests (NPC), attacks (enemy) — each opens its own draggable modal. */}
                             <UnitSettingsSection
                               unit={{
                                 entity: selEntity,
                                 onPatch: patchSelectedEntity,
                                 onSize: setSelectedEntitySize,
+                                onOpenStats: () => setUnitStatsOpen(true),
                                 onOpenInventory: isPlayer ? () => setEntityModal('inventory') : undefined,
                                 onOpenQuests: isNpc ? () => { if (selEntity.kind !== 'enemy') setQuestDraft(d => ({ ...d, giverId: selEntity.id })); setEntityModal('quests') } : undefined,
                                 onOpenAttacks: isEnemy ? () => setUnitAttacksOpen(true) : undefined,
@@ -5890,11 +6052,9 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                           </div>
                         }
                       />
+                      {/* the SAME discoverable save the cell card carries — one component, one behaviour */}
+                      <SaveMapButton saving={isSaving} onSave={saveMapFromInspector} />
                     </Card>
-                    <div className="flex gap-1">
-                      <button onClick={deleteSelectedEntity} className="flex-1 rounded bg-red-800 px-2 py-1.5 text-xs font-bold hover:bg-red-700">Delete</button>
-                      <button onClick={() => setSelectedEntityId(null)} className="rounded bg-gray-700 px-2 py-1.5 text-xs hover:bg-gray-600">Deselect</button>
-                    </div>
                     {/* Animate — the IDENTICAL shared modal a tile opens (the user: "both unit and tiles should
                         use the same animations modal"), opened by the card's "✦ Animate…" button; geometry persists
                         under id "animation". A unit carries the SAME unified `Animation[]` a tile does in
@@ -5918,6 +6078,14 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                     {unitSettingsOpen && (
                       <FloatingPanel title={`${selEntity.name || selEntity.kind} — Settings`} accent="cyan" onClose={() => setUnitSettingsOpen(false)} {...floatingProps('settings')}>
                         <SettingsPanelBody tile={unitTileModel} />
+                      </FloatingPanel>
+                    )}
+                    {/* Stats — the "⛊ Stats…" button's draggable/resizable modal: the extra unit settings that
+                        are NOT tile settings (HP/DEF/STR/INT/DODGE%, hittable, the enemy's kill-quest tag +
+                        respawn). Geometry persists in the backend under id "stats", like every other panel. */}
+                    {unitStatsOpen && (
+                      <FloatingPanel title={`${selEntity.name || selEntity.kind} — Stats`} accent="orange" onClose={() => setUnitStatsOpen(false)} {...floatingProps('stats', { w: 320, h: 400 })}>
+                        <UnitStatsBody entity={selEntity} onPatch={patchSelectedEntity} />
                       </FloatingPanel>
                     )}
                     {/* Triggers — a floating modal (like settings) to manage this unit's on-defeat triggers. */}
@@ -6004,8 +6172,6 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                         // tile for that slug. Undefined (ascii/none) → the preview shows a neutral placeholder.
                         const previewFor = (id: string | null | undefined, slug: string): Visual | undefined =>
                           (id ? visualForTileId(id) : undefined) ?? visualForTileId(`${activeStyleId}:${slug}`) ?? undefined
-                        // Shared floor dim across the selection (grid.groundDims; unset→1; null = mixed).
-                        const gdim = (read: (d: GroundCellDims | undefined) => number) => commonValue(cells.map(({ col, row }) => read(grid.groundDims?.[row]?.[col])))
                         // Shared value of the i-th stacked tile's field across the cells that HAVE it.
                         const adim = (i: number, read: (a: GridAsset) => number) => {
                           const vals = cells.map(({ col, row }) => stackedAssetsAt(grid, col, row)[i]).filter((a): a is GridAsset => !!a).map(read)
@@ -6016,55 +6182,32 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                         // Context for the Phase-4 tile-animation modal — set only for an asset tile (the sole
                         // tile that owns GridAsset.animations). Read at the return so the modal can render in scope.
                         let animatorCtx: { i: number; label: string; animations: TileAnim[]; category: TileCategory; baseVisual: Visual } | null = null
-                        if (lvl === 0) {
-                          // FLOOR (height-0 tile): per-cell dims/colour + a REAL per-cell pose.
-                          const groundSlug = grid.ground[fc.row]?.[fc.col] ?? 'grass'
-                          const floorDimsFc = grid.groundDims?.[fc.row]?.[fc.col]
-                          tile = {
-                            key: 'floor',
-                            label: groundKind(groundSlug),
-                            dims: {
-                              width: gdim(d => d?.scaleX ?? 1),
-                              height: gdim(d => d?.scaleY ?? 1),
-                              depth: gdim(d => d?.scaleZ ?? 1),
-                              zoom: gdim(d => d?.scale ?? 1),
-                            },
-                            color: commonValue(cells.map(({ col, row }) => grid.groundColor?.[row]?.[col] ?? null)),
-                            colorFallback: '#3a7d34',
-                            onDim: setGroundDim,
-                            onColor: setFloorColor,
-                            onClearColor: () => setFloorColor(null),
-                            override: selectedOverride,
-                            styleName: activeStyle.name,
-                            preview: previewFor(selectedOverride, groundSlug),
-                            libraryLabel,
-                            onOpenLibrary: () => setTileLibraryOpen(true),
-                            pose: floorDimsFc?.pose,
-                            onPose: setGroundPose,
-                            onPoseReset: clearGroundPose,
-                          }
-                        } else if (stack[lvl]?.source === 'asset') {
-                          // STACKED prop tile: per-index dims/colour writers, plus PER-ASSET transforms — Z Width
-                          // (directional depth), x/y/rotate/flip pose, and z (vertical lift) — all written to THIS
-                          // placed tile (persist with the map), NOT the shared tileset kind. The render reads them
-                          // back in every view. Assets occupy indices 1..A right after the floor, so the slot is lvl-1.
-                          const i = lvl - 1
+                        if (stack[lvl]?.source === 'asset') {
+                          // EVERY tile in the cell — the FLOOR (a level-0 slab) AND every stacked prop/wall/roof — is
+                          // a plain GridAsset, so ONE branch drives them all through the SAME per-index writers with
+                          // NO floor special case: the tile maps 1:1 to stackedAssetsAt by its stack index (i = lvl),
+                          // and the floor gets the IDENTICAL uniform panel a wall shows (colour, dims, pose, Z Width,
+                          // display, shape, light, …). Per-instance transforms persist with the map; the render reads
+                          // them back in every view.
+                          const i = lvl
                           const a0 = stackedAssetsAt(grid, fc.col, fc.row)[i]
                           const kind = a0 ? assetKind(a0) : (stack[lvl]?.slug || `tile ${lvl}`)
                           const posable = !!a0
+                          const isFloorTile = a0?.type === FLOOR_TYPE
                           tile = {
                             key: `tile-${i}`,
                             label: kind,
                             dims: {
                               width: adim(i, a => a.scaleX ?? 1),
-                              height: adim(i, a => a.scaleY ?? 1),
+                              height: adim(i, a => blockHeightOf(a)), // the tile's real BLOCK-HEIGHT (0.1 flat, 1 wall, …), not the scaleY multiplier
                               depth: adim(i, a => a.scaleZ ?? 1),
                               zoom: adim(i, a => a.scale ?? 1),
                             },
-                            color: commonValue(cells.map(({ col, row }) => stackedAssetsAt(grid, col, row)[i]?.color ?? '#ffffff')),
-                            colorFallback: '#ffffff',
+                            color: commonValue(cells.map(({ col, row }) => stackedAssetsAt(grid, col, row)[i]?.color ?? null)),
+                            colorFallback: isFloorTile ? '#3a7d34' : '#ffffff',
                             onDim: (axis, v) => setAssetDim(i, axis, v),
                             onColor: c => setAssetColor(i, c),
+                            onClearColor: posable ? (() => clearAssetColor(i)) : undefined,
                             override: selectedOverride,
                             styleName: activeStyle.name,
                             preview: previewFor(a0?.tileOverride ?? selectedOverride, stack[lvl]?.slug ?? kind),
@@ -6072,8 +6215,8 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                             onOpenLibrary: () => setTileLibraryOpen(true),
                             zWidth: adim(i, a => a.depth ?? 1),
                             zDir: commonValue(cells.map(({ col, row }) => (stackedAssetsAt(grid, col, row)[i]?.depthDir ?? null) as DepthDir | null)),
-                            onZWidth: v => setAssetDepth(i, v),
-                            onZDir: dir => setAssetDepthDir(i, dir),
+                            onZWidth: posable ? (v => setAssetDepth(i, v)) : undefined,
+                            onZDir: posable ? (dir => setAssetDepthDir(i, dir)) : undefined,
                             zPos: adim(i, a => a.zOffset ?? 0),
                             onZPos: posable ? (v => setAssetZOffset(i, v)) : undefined,
                             zPosDir: commonValue(cells.map(({ col, row }) => (stackedAssetsAt(grid, col, row)[i]?.zDir ?? null) as DepthDir | null)),
@@ -6082,6 +6225,8 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                             onZIndex: posable ? (v => setAssetZIndex(i, v)) : undefined,
                             display: commonValue(cells.map(({ col, row }) => (stackedAssetsAt(grid, col, row)[i]?.settings?.display ?? 'all-faces') as TileDisplay)),
                             onDisplay: posable ? (mode => setAssetDisplay(i, mode)) : undefined,
+                            transparent: commonValue(cells.map(({ col, row }) => stackedAssetsAt(grid, col, row)[i]?.settings?.transparent ?? false)),
+                            onTransparent: posable ? (on => setAssetTransparent(i, on)) : undefined,
                             shape: commonValue(cells.map(({ col, row }) => (stackedAssetsAt(grid, col, row)[i]?.shape ?? 'square') as TileShape)),
                             onShape: posable ? (shape => setAssetShape(i, shape)) : undefined,
                             light: a0?.light,
@@ -6117,7 +6262,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                             label: entry?.slug || `tile ${lvl}`,
                             dims: {
                               width: entry?.w ?? 1,
-                              height: entry?.scaleY ?? 1,
+                              height: (entry?.h ?? 1) * (entry?.scaleY ?? 1), // block-height (data), not the scaleY multiplier
                               depth: entry?.d ?? 1,
                               zoom: entry?.zoom ?? 1,
                             },
@@ -6145,7 +6290,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                               onOpenSettings={() => setTileSettingsOpen(true)}
                               onOpenTriggers={() => setTriggersOpen(true)}
                               triggerCount={triggersAtCell(cellTriggers, trigCol, trigRow).length}
-                              onRemove={lvl >= 1 ? removeSelectedTile : undefined}
+                              onRemove={removeSelectedTile}
                               onClearTiles={clearTilesOnSelection}
                             />
                             {/* Tile-settings panel — the full TileControls body (colour/size/pose/z/display),
@@ -6192,14 +6337,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                       })()}
                       {/* Discoverable save right where you edit — persists floor colour, element colour & dims
                           with the template. Unnamed map → a toast, not a silent no-op (spec §4). */}
-                      <button
-                        onClick={() => { if (!templateName.trim()) { toast('Name your map in the top bar to save', 'warning'); return } void saveCurrentTemplate() }}
-                        disabled={isSaving}
-                        aria-label="Save map"
-                        className="mt-2 w-full rounded bg-green-700 px-2 py-1.5 text-xs font-bold text-white transition-colors hover:bg-green-600 disabled:opacity-40"
-                      >
-                        {isSaving ? 'Saving…' : '💾 Save map'}
-                      </button>
+                      <SaveMapButton saving={isSaving} onSave={saveMapFromInspector} />
                     </Card>
                     <button onClick={() => setSelectedCells(new Set())} className="rounded bg-gray-700 px-2 py-1.5 text-xs hover:bg-gray-600">Clear selection</button>
                   </>
@@ -6415,6 +6553,21 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
         })()}
       </main>
     </>
+  )
+}
+
+/** The Inspector's "💾 Save map" action — ONE component so the cell card and the unit card carry the exact
+ *  same button in the same place ("all tiles behave the same"), instead of two copies drifting apart. */
+function SaveMapButton({ saving, onSave }: { saving: boolean; onSave: () => void }) {
+  return (
+    <button
+      onClick={onSave}
+      disabled={saving}
+      aria-label="Save map"
+      className="mt-2 w-full rounded bg-green-700 px-2 py-1.5 text-xs font-bold text-white transition-colors hover:bg-green-600 disabled:opacity-40"
+    >
+      {saving ? 'Saving…' : '💾 Save map'}
+    </button>
   )
 }
 

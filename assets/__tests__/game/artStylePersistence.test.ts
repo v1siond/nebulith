@@ -28,7 +28,7 @@ describe('art-style persistence — override + active style survive the codec', 
     grid.assets[grid.assets.length - 1].tileOverride = 'emoji:tree'
 
     const back = roundTripGrid(grid)
-    const tree = back.assets.find(a => a.col === 2 && a.row === 3)
+    const tree = back.assets.find(a => a.col === 2 && a.row === 3 && a.type !== 'floor')
     expect(tree).toBeDefined()
     expect(tree!.tileOverride).toBe('emoji:tree')
   })
@@ -37,7 +37,7 @@ describe('art-style persistence — override + active style survive the codec', 
     const grid = new IsometricGrid({ cols: 4, rows: 4, cellSize: 40, isoScale: 1 })
     grid.placeAsset(['@'], 1, 1, { type: 'tree' })
     const back = roundTripGrid(grid)
-    expect(back.assets[0].tileOverride).toBeUndefined()
+    expect(back.assets.find(a => a.type !== 'floor')!.tileOverride).toBeUndefined()
   })
 
   it('an entity tileOverride round-trips through the entity marker codec', () => {

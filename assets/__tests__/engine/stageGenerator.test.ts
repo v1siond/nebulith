@@ -1,7 +1,7 @@
 import '@/__tests__/helpers/installTilesetSeed' // the generator reads ALL tile data (terrain/canopy/decor) + building compositions from the loaded backend tileset fixture
 import { installSeedTileset } from '@/__tests__/helpers/tilesetSeed'
 import { generateStage, stagePaint, footprintEdgeClass, footprintSide, footprintRing, edgeToSide, treeSubpart, labelForCell, pickLivingTree } from '@/engine/stageGenerator'
-import { BUILDING_DEPTH } from '@/engine/buildingCatalog'
+import { BUILDING_DEPTH, buildingDoorOffset } from '@/engine/buildingCatalog'
 import { parseColor } from '@/engine/colors'
 import { resolveGroundTile, canopyCount, resolveComposition } from '@/engine/tileset/tileset'
 import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
@@ -69,13 +69,15 @@ describe('generateStage — town vertical slice', () => {
       // matches the composition's baked depth (small ground, not a tall facade).
       expect(b.kind).toMatch(/^(house|big_house|store|hospital|temple|cathedral|castle)_\d+$/)
       expect(b.depth).toBe(BUILDING_DEPTH[b.type])
-      expect(b.doorCells.length).toBe(1) // every baked composition has ONE walkable door
+      // The opening matches the composition's OWN door span (G7) — an odd facade bakes 1 door column, an
+      // even one a centred 2-wide doorway — so it is read, never assumed to be 1.
+      expect(b.doorCells).toHaveLength(buildingDoorOffset(b.kind)?.width ?? 0)
     }
   })
 
-  it('blocks the whole small footprint EXCEPT the single walkable road-facing door', () => {
+  it('blocks the whole small footprint EXCEPT the walkable road-facing door cells', () => {
     for (const b of stage.buildings) {
-      expect(b.doorCells).toHaveLength(1)
+      expect(b.doorCells).toHaveLength(buildingDoorOffset(b.kind)?.width ?? 0)
       for (const door of b.doorCells) expect(stage.collision[door.row][door.col]).toBe(false) // the way in
 
       const cells = footprintCells(b)
@@ -86,7 +88,7 @@ describe('generateStage — town vertical slice', () => {
         else walkable++
       }
       expect(blocked).toBe(b.length * b.height - b.doorCells.length) // every footprint cell blocks…
-      expect(walkable).toBe(b.doorCells.length) // …except the door cell
+      expect(walkable).toBe(b.doorCells.length) // …except the door cells
     }
   })
 

@@ -8,8 +8,9 @@
  * draw order regresses. We assert the ACTUAL sorted draw order, not a value read-back.
  */
 import { isoDepthCompare } from '@/engine/render/iso'
+import type { DepthDir } from '@/engine/render/isoBlock'
 
-type Item = { id: string; col: number; row: number; asset?: { heightLevel?: number; zIndex?: number; depth?: number } }
+type Item = { id: string; col: number; row: number; asset?: { heightLevel?: number; zIndex?: number; depth?: number; depthDir?: DepthDir } }
 
 // Draw order = the array after the SAME sort the render runs. First element = drawn first (furthest back);
 // last element = drawn last (on top / in front).
@@ -75,5 +76,37 @@ describe('isoDepthCompare — z-index draw priority', () => {
     const low: Item = { id: 'low', col: 2, row: 2, asset: { heightLevel: 0 } }
     const high: Item = { id: 'high', col: 2, row: 2, asset: { heightLevel: 1 } }
     expect(drawOrder([high, low])).toEqual(['low', 'high'])
+  })
+})
+
+describe('isoDepthCompare — a FLAT z-width run stays behind standing tiles (road-over-house fix)', () => {
+  // A flat grass/road RUN compressed with z-width: heightLevel 0, spanning `depth` cells toward the camera. Its
+  // anchor (2,5) is its BACKMOST cell; the run covers col 2..6 (depth 5, right-down). A house sits at (4,5) — IN
+  // FRONT of the run's back (2,5) but behind its front (6,5). A flat run occludes nothing, so it must NOT borrow
+  // the roof "front-extent" (which would push its key out to the front cell col 6 → drawn OVER the house). It
+  // sorts by its anchor → drawn FIRST, behind every standing tile along its span. (Reproduces Image #96.)
+  const runFloor: Item = { id: 'road', col: 2, row: 5, asset: { heightLevel: 0, depth: 5, depthDir: 'right-down' } }
+  const house: Item = { id: 'house', col: 4, row: 5, asset: { heightLevel: 1 } }
+
+  test('a flat run sorts by its BACK cell → stays behind a house that sits along its span', () => {
+    expect(drawOrder([house, runFloor])).toEqual(['road', 'house']) // road drawn first (behind), house on top
+    expect(isoDepthCompare(runFloor, house)).toBeLessThan(0)
+    expect(isoDepthCompare(house, runFloor)).toBeGreaterThan(0)
+  })
+
+  test('the front-extent is NOT flipped by depthDir — left-up (the proposed alt) also stays behind', () => {
+    // Confirms the finding: `depthDir` is not the lever. The SAME flat run keyed with left-up (depthFrontExtent 0
+    // by construction) also sorts behind the house — because for a FLAT run the extent is gated OFF by height,
+    // not by direction. So neither right-down nor left-up ever lifts a flat run over a standing tile.
+    const leftUp: Item = { id: 'road', col: 2, row: 5, asset: { heightLevel: 0, depth: 5, depthDir: 'left-up' } }
+    expect(isoDepthCompare(leftUp, house)).toBeLessThan(0)
+  })
+
+  test('an ELEVATED depth box (a roof, heightLevel ≥ 1) KEEPS the front-extent — roofs unchanged', () => {
+    // Same geometry but heightLevel 2 (a roof that overhangs): it DOES occlude what it covers, so it still sorts
+    // by its FRONTMOST cell (col 2 + depthFrontExtent 4 = 6) and draws AFTER (over) the house at col 4.
+    const roof: Item = { id: 'roof', col: 2, row: 5, asset: { heightLevel: 2, depth: 5, depthDir: 'right-down' } }
+    expect(drawOrder([roof, house])).toEqual(['house', 'roof']) // roof front-extends → drawn last (over house)
+    expect(isoDepthCompare(roof, house)).toBeGreaterThan(0)
   })
 })

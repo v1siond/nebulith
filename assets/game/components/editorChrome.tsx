@@ -4,10 +4,11 @@
 // props-driven — all gameplay state/handlers live in the page; this is layout only.
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { ZoneId } from '@/engine/zones'
-import { BUILT_IN_STYLES, type TileCategory, type TileDef, tilesForStyle } from '@/game/artStyle'
+import { BUILT_IN_STYLES, TILE_CATEGORIES, type TileCategory, type TileDef, tilesForStyle } from '@/game/artStyle'
 import { DEFAULT_ACTION_PARAMS, makeTrigger, type Trigger, type TriggerActionType, type TriggerEvent } from '@/game/runtime/trigger'
 import { type EditorMode, SEASON_BTN, STAGE_VARIANTS, STAGE_ZONES, SELECT_CLS, INPUT_CLS } from './editorConfig'
 import { type CompositionPaletteGroup } from '@/engine/compositionCatalog'
+import { headroomFps } from '@/components/useFps'
 
 // ── Tool-rail (left, slim icon strip) ────────────────────────────────
 type RailDef = { mode: EditorMode; glyph: string; label: string; hint: string }
@@ -399,7 +400,13 @@ export function StylePicker({ activeId, onPick, onClose }: { activeId: string; o
 }
 
 // ── ◰ Tile Library (stage D) — per-element override picker ───────────
-const LIBRARY_CATEGORIES: readonly TileCategory[] = ['terrain', 'buildings', 'units', 'nature']
+// Sidebar section order = the canonical taxonomy order. The DATA category is a lowercase string; the
+// sidebar shows a prettier heading via CATEGORY_LABELS.
+const LIBRARY_CATEGORIES: readonly TileCategory[] = TILE_CATEGORIES
+const CATEGORY_LABELS: Record<TileCategory, string> = {
+  terrain: 'Terrain', roads: 'Roads/Paths', floors: 'Floors', walls: 'Walls', windows: 'Windows',
+  doors: 'Doors', roofs: 'Roofs', nature: 'Nature', props: 'Props/Furniture', decor: 'Decor', units: 'Units',
+}
 
 /** The shared categorized tile GRID: every tile of a style's `groups`, grouped by category, 4-per-row.
  *  Each tile is a button that highlights when `isOn(tile)` and calls `onPick(tile)`. Reused by the Tile
@@ -419,7 +426,7 @@ function TileCategoryGrid({
       {LIBRARY_CATEGORIES.map(cat =>
         groups[cat].length === 0 ? null : (
           <div key={cat}>
-            <p className="mb-1 text-[10px] uppercase tracking-wide text-gray-500">{cat}</p>
+            <p className="mb-1 text-[10px] uppercase tracking-wide text-gray-500">{CATEGORY_LABELS[cat]}</p>
             <div className="grid grid-cols-4 gap-1">
               {groups[cat].map(t => {
                 const on = isOn(t)
@@ -645,11 +652,23 @@ const fpsColor = (v: number) => (v >= 55 ? '#22c55e' : v >= 45 ? '#eab308' : v >
 
 /** Compact FPS readout (#86). `variant='nav'` = an inline pill for the editor top bar (edit/show);
  *  `variant='floating'` = a fixed corner box for play mode. One upstream `useFps()` feeds both. */
-export function FpsReadout({ fps, variant }: { fps: number; variant: 'nav' | 'floating' }) {
+export function FpsReadout({ fps, renderMs = 0, variant }: { fps: number; renderMs?: number; variant: 'nav' | 'floating' }) {
+  // The frame rate is CAPPED by the monitor (rAF = display refresh), so it flatlines at 60 on a 60Hz screen
+  // and hides whether the engine has room to spare. The per-frame cost does not lie — show it, and the rate
+  // it implies, so a fast engine reads as fast and a slow frame is visible immediately.
+  const headroom = headroomFps(renderMs)
   const body = (
-    <span className="font-mono text-xs" title="Frames per second">
+    <span className="font-mono text-xs" title="Frames per second (capped by your display refresh) · render cost per frame · the rate that cost allows">
       <span className="text-gray-400">FPS </span>
       <span style={{ color: fpsColor(fps), fontWeight: 700 }}>{fps || '—'}</span>
+      {headroom > 0 && (
+        <>
+          <span className="text-gray-600"> · </span>
+          <span className="text-gray-400">{renderMs.toFixed(1)}ms</span>
+          <span className="text-gray-600"> · </span>
+          <span style={{ color: fpsColor(headroom), fontWeight: 700 }}>≈{headroom}</span>
+        </>
+      )}
     </span>
   )
   if (variant === 'floating') {

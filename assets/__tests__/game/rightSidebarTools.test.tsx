@@ -3,7 +3,7 @@ import '@/__tests__/helpers/installTilesetSeed' // install the DB-equivalent til
  * RIGHT-SIDEBAR / INSPECTOR tools (the four UI deliverables). These are the seams behind the user's asks:
  *
  *   #1 Clear tiles + SEE the selected tile — the Inspector shows a thumbnail of the selected tile and a
- *      PROMINENT "Clear tiles" action (a CELL action, hidden for a unit).
+ *      PROMINENT "Clear tiles" action (on the ONE shared card, so a unit gets it too).
  *   #2 Connectors — the flow lives in a draggable FloatingPanel opened from a right-sidebar button (off the
  *      left rail). ConnectorsPanelBody hosts the identical controls (Edit/Exit, the list, the target/when/
  *      spawn form).
@@ -83,9 +83,13 @@ describe('#1 Inspector shows the selected tile + a Clear-tiles action', () => {
     expect(onClearTiles).toHaveBeenCalledTimes(1)
   })
 
-  it('does NOT show Clear tiles for a UNIT (a unit isn\'t a cell)', () => {
-    renderPanel({ onClearTiles: jest.fn(), unitSection: <div>unit extras</div> })
-    expect(screen.queryByRole('button', { name: 'Clear tiles' })).toBeNull()
+  // Updated with the unified-card work: a UNIT gets the SAME card as a tile, so it carries Clear tiles too
+  // (the page targets the cell the unit stands on). One card, one control set — see unitTileCardParity.
+  it('shows Clear tiles for a UNIT as well (the ONE shared card)', () => {
+    const onClearTiles = jest.fn()
+    renderPanel({ onClearTiles, unitSection: <div>unit extras</div> })
+    fireEvent.click(screen.getByRole('button', { name: 'Clear tiles' }))
+    expect(onClearTiles).toHaveBeenCalledTimes(1)
   })
 })
 
@@ -172,7 +176,8 @@ describe('#4 TileLibraryBody PAINT mode (right-sidebar paint the selection)', ()
     const selection = [{ col: 1, row: 1 }, { col: 2, row: 1 }, { col: 3, row: 1 }]
     for (const { col, row } of selection) stackAssetTile(grid, col, row, tree)
     for (const { col, row } of selection) {
-      const stack = grid.getAssetsAtCell(col, row)
+      // The pine STACKS on top of the grass floor (which stays as slot 0) — so read the stacked (non-floor) tile.
+      const stack = grid.getAssetsAtCell(col, row).filter(a => a.type !== 'floor')
       expect(stack).toHaveLength(1)
       expect(stack[0].tileOverride).toBe('emoji:pine-tree') // a real, editable, pinned tile per cell
     }
@@ -180,7 +185,7 @@ describe('#4 TileLibraryBody PAINT mode (right-sidebar paint the selection)', ()
     const water = byId('emoji:deep-water')
     expect(placementFor(water)).toBe('terrain') // a terrain tile replaces the floor (same as the left brush)
     placeGroundTile(grid, 4, 4, water)
-    expect(grid.ground[4][4]).toBe('deep-water')
+    expect(grid.groundAt(4, 4)).toBe('deep-water')
   })
 })
 

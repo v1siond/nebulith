@@ -3,9 +3,12 @@
  * Minecraft-style placement. A cell can hold a STACK of brush-placed assets, each carrying a
  * `heightLevel` (0,1,2,…). The iso render must lift each stack entry `heightLevel` cubes up so the pile
  * CLIMBS (mirroring the 2D raised stack in topdown.ts), with a per-kind split:
+ * EVERY placed tile extrudes through the block path (MAP-MODEL §4, EDITOR-INTERACTION §11: "the old flat
+ * billboard path ... is gone") — only the block HEIGHT differs, and only as DATA:
  *   · SOLID/block-like kinds (wall/rock/crate — the tileset gives them height ≥ 1) extrude into a real
  *     iso CUBE via drawIsoTileBlock, so a stack reads as stacked cubes;
- *   · decorative kinds (tree/flower/bush/… — no tileset height) stay a billboard, just LIFTED.
+ *   · height-0 decorative kinds (tree/flower/bush/… — no tileset height) extrude into a THIN slab (the same
+ *     drawIsoTileBlock face fills, minimal height), NEVER a flat billboard. They still LIFT/climb per level.
  * heightLevel 0 (every generated/existing asset) → 0 lift → byte-identical to before.
  *
  * Verified through a recording ctx (the isoTileBlock.test.ts technique) that also tracks translation, so
@@ -16,13 +19,13 @@ import { EMOJI_STYLE, rebuildEmojiStyle } from '@/game/artStyle'
 import { EMOJI_TILESET } from '@/engine/tileset/emojiTileset'
 import type { GridAsset } from '@/engine/IsometricGrid'
 
-// This is a MECHANISM test for the stack lift + the block-vs-decorative split, so it seeds exactly the two
-// tiles it needs (the frontend ships no bundled default): a SOLID rock (tileset height ≥ 1 → extrudes into
-// a cube) and a DECORATIVE tree (no tileset height → stays a lifted billboard). Kept out of the fixture so
-// the two kinds are unambiguous regardless of the DB's per-tile height choices.
+// This is a MECHANISM test for the stack lift + the tall-cube-vs-thin-slab height split, so it seeds exactly
+// the two tiles it needs (the frontend ships no bundled default): a SOLID rock (tileset height ≥ 1 → extrudes
+// into a full cube) and a height-0 DECORATIVE tree (no tileset height → a lifted THIN SLAB, still a block).
+// Kept out of the fixture so the two kinds are unambiguous regardless of the DB's per-tile height choices.
 beforeAll(() => {
   EMOJI_TILESET.rock = { char: '🪨', color: '#8a8a8a', height: 1 }
-  EMOJI_TILESET.tree = { char: '🌲', color: '#2f8f3f' } // no height → decorative billboard
+  EMOJI_TILESET.tree = { char: '🌲', color: '#2f8f3f' } // no height → a height-0 thin-slab block (never a billboard)
   rebuildEmojiStyle()
 })
 afterAll(() => {
@@ -131,19 +134,22 @@ describe('drawIsoAssetAscii — a brush stack CLIMBS in iso (Task A)', () => {
     expect(tops[1] - tops[2]).toBeCloseTo(tileW * ISO_BLOCK_H_FRAC)
   })
 
-  test('a 3-tall DECORATIVE stack (tree) draws 3 LIFTED billboards at rising y (no cube extrude)', () => {
-    const glyphYs: number[] = []
+  test('a 3-tall height-0 DECORATIVE stack (tree) draws 3 LIFTED thin-slab BLOCKS at rising y (never a billboard)', () => {
+    // The retired model billboarded a height-0 decorative tile; the current uniform model (MAP-MODEL §4,
+    // EDITOR-INTERACTION §11: "the old flat billboard path ... is gone") routes EVERY placed tile through the
+    // block path — a height-0 tile as a THIN slab (drawIsoTileBlock face fills), NEVER a lifted billboard. The
+    // load-bearing behaviour is unchanged: the stack still CLIMBS one cube-height per level.
+    const tops: number[] = []
     for (const level of [0, 1, 2]) {
-      const { ctx, fills, textYs } = recordingCtx()
+      const { ctx, fills, quadYs } = recordingCtx()
       const y = baseY - isoStackLift(tileW, level)
       drawIsoAssetAscii(ctx, 300, y, treeAt(level), tileW, tileH, 0, false, 'day', EMOJI_STYLE)
-      expect(fills).toHaveLength(0) // a decorative kind is NOT extruded into a cube
-      expect(textYs.length).toBeGreaterThan(0) // it draws its billboard glyph
-      glyphYs.push(Math.min(...textYs))
+      expect(fills.length).toBeGreaterThan(0) // a thin slab is a REAL block (face fills) — not a 0-fill billboard
+      tops.push(Math.min(...quadYs)) // top-most vertex of the slab
     }
-    expect(glyphYs[1]).toBeLessThan(glyphYs[0]) // each tree in the pile is lifted higher than the last
-    expect(glyphYs[2]).toBeLessThan(glyphYs[1])
-    expect(glyphYs[0] - glyphYs[1]).toBeCloseTo(tileW * ISO_BLOCK_H_FRAC)
+    expect(tops[1]).toBeLessThan(tops[0]) // each tile in the pile is lifted higher than the last
+    expect(tops[2]).toBeLessThan(tops[1])
+    expect(tops[0] - tops[1]).toBeCloseTo(tileW * ISO_BLOCK_H_FRAC)
   })
 
   test('a single tile at heightLevel 0 renders IDENTICALLY to no stack (no regression)', () => {

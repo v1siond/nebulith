@@ -190,6 +190,35 @@ export function tileGeomCentroid(g: TileGeom): Pt {
   return { x: sx / pts.length, y: sy / pts.length }
 }
 
+/** The recorded tiles whose silhouette CENTROID falls inside the screen rect [x0,y0]-[x1,y1] (corner order-
+ *  independent), DE-DUPED by (col,row,level), TOPMOST (last-drawn) first — the block-aware MARQUEE query. The
+ *  drag box selects the tiles it VISUALLY covers: a raised roof/wall block whose flat ground cell sits behind
+ *  the building is kept by its ON-SCREEN silhouette, not the flat cell it would project from (which is what a
+ *  screenToCell-corner rectangle wrongly grabbed → the floating iso cage). Pure: give it a frame's recorded
+ *  tiles + a rect; the renderer feeds its live per-frame registry (isoTileHits / twoDTileHits). */
+export function tilesInScreenRect<T extends { col: number; row: number; stackIndex: number; geom: TileGeom }>(
+  tiles: readonly T[],
+  x0: number,
+  y0: number,
+  x1: number,
+  y1: number,
+): T[] {
+  const minX = Math.min(x0, x1), maxX = Math.max(x0, x1)
+  const minY = Math.min(y0, y1), maxY = Math.max(y0, y1)
+  const seen = new Set<string>()
+  const out: T[] = []
+  for (let i = tiles.length - 1; i >= 0; i--) {
+    const t = tiles[i]
+    const c = tileGeomCentroid(t.geom)
+    if (c.x < minX || c.x > maxX || c.y < minY || c.y > maxY) continue
+    const key = `${t.col},${t.row},${t.stackIndex}` // per-TILE identity (its stack slot), so same-level tiles stay distinct
+    if (seen.has(key)) continue // the same tile redrawn (a stack redraw) counts ONCE — no double-select
+    seen.add(key)
+    out.push(t)
+  }
+  return out
+}
+
 /** The line SEGMENTS to stroke for a highlight that HUGS the tile: a cube draws its base ring + top ring + the
  *  4 verticals (reads as a 3D block); any poly draws its ring. Each segment is a polyline of points. */
 export function outlineSegments(g: TileGeom): Pt[][] {

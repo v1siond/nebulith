@@ -49,8 +49,9 @@ describe('Tile Library sidebar reads ONLY the backend-loaded tileset (G3/G4)', (
   })
 
   // User: "we have 'enemy' tiles, outside of the 'units' option from the top nav … the paint should work for
-  // regular tiles." The PAINT palette must list REGULAR tiles ONLY (terrain / buildings / nature) — units
-  // (player / enemies / NPCs) are placed via the top-nav ◈ Unit flow, never armed as a paint brush.
+  // regular tiles." The PAINT palette must list REGULAR tiles ONLY (every browseable bucket EXCEPT units —
+  // terrain / roads / floors / walls / … / nature / props) — units (player / enemies / NPCs) are placed via
+  // the top-nav ◈ Unit flow, never armed as a paint brush.
   it('the Paint palette lists REGULAR tiles only — no unit/enemy tiles (units come from the top-nav)', () => {
     setEmojiTileset({
       grass: { char: '🍀', color: '#5faf4a', image: '/tiles/emoji/baked/grass.png', category: 'terrain', title: 'Grass' },
@@ -67,7 +68,7 @@ describe('Tile Library sidebar reads ONLY the backend-loaded tileset (G3/G4)', (
     // unit/enemy tiles are NOT — and the "units" category header never renders in the paint palette
     expect(screen.queryByTitle('Goblin (emoji:goblin)')).toBeNull()
     expect(screen.queryByTitle('NPC (emoji:npc)')).toBeNull()
-    expect(screen.queryByText('units')).toBeNull()
+    expect(screen.queryByText('Units')).toBeNull()
   })
 
   // The Tile LIBRARY (pin a tile as an element override) is a DIFFERENT surface — it still browses every
@@ -80,7 +81,7 @@ describe('Tile Library sidebar reads ONLY the backend-loaded tileset (G3/G4)', (
     rebuildEmojiStyle()
     render(<TileLibraryBody styleId="emoji" styleName="Emoji" override={null} onPick={() => {}} />)
     expect(screen.getByTitle('Goblin (emoji:goblin)')).toBeInTheDocument()
-    expect(screen.getByText('units')).toBeInTheDocument()
+    expect(screen.getByText('Units')).toBeInTheDocument()
   })
 
   it('ascii sidebar derives from the loaded ascii tileset (glyph + title from the DB, not a hardcoded map)', () => {
@@ -106,7 +107,7 @@ describe('Tile Library sidebar reads ONLY the backend-loaded tileset (G3/G4)', (
   it('the palette tile carries the DB block height + settings (so a painted tile === a generated one)', () => {
     setEmojiTileset({
       boulder: { char: '🪨', color: '#8a8a8a', image: '/tiles/emoji/catalog/boulder.png', category: 'nature', title: 'Boulder', height: 1, settings: { color: '#8a8a8a' } },
-      stone_wall: { char: '🧱', color: '#8f8b82', image: '/tiles/emoji/catalog/stone_wall.png', category: 'buildings', title: 'Stone Wall', height: 1, settings: { color: '#8f8b82', fadeNear: true } },
+      stone_wall: { char: '🧱', color: '#8f8b82', image: '/tiles/emoji/catalog/stone_wall.png', category: 'walls', title: 'Stone Wall', height: 1, settings: { color: '#8f8b82', fadeNear: true } },
       grass: { char: '🍀', color: '#5faf4a', category: 'terrain', title: 'Grass' }, // flat, no settings
     })
     rebuildEmojiStyle()

@@ -39,7 +39,7 @@ describe('IsometricGrid — placeAsset carries opacity/brightness (contrast cont
   it('round-trips opacity + brightness onto the stored asset', () => {
     const grid = mkGrid()
     grid.placeAsset(['@'], 2, 3, { type: 'tree', color: '#3fa63f', opacity: 0.4, brightness: 1.3 })
-    const a = grid.assets.find(x => x.col === 2 && x.row === 3)
+    const a = grid.assets.find(x => x.col === 2 && x.row === 3 && x.type !== 'floor')
     expect(a?.opacity).toBe(0.4)
     expect(a?.brightness).toBe(1.3)
   })
@@ -47,7 +47,7 @@ describe('IsometricGrid — placeAsset carries opacity/brightness (contrast cont
   it('leaves opacity/brightness undefined when not given (default = full)', () => {
     const grid = mkGrid()
     grid.placeAsset(['@'], 1, 1, { type: 'tree' })
-    const a = grid.assets.find(x => x.col === 1 && x.row === 1)
+    const a = grid.assets.find(x => x.col === 1 && x.row === 1 && x.type !== 'floor')
     expect(a?.opacity).toBeUndefined()
     expect(a?.brightness).toBeUndefined()
   })
@@ -58,6 +58,6 @@ describe('IsometricGrid — placeAsset carries opacity/brightness (contrast cont
       { id: 'c1', animations: ['flower-sway'], mode: 'sequential' as const, delayMs: 0, trigger: { kind: 'always' as const } },
     ]
     grid.placeAsset(['*'], 4, 4, { type: 'flower', cycles })
-    expect(grid.assets.find(a => a.col === 4 && a.row === 4)?.cycles).toEqual(cycles)
+    expect(grid.assets.find(a => a.col === 4 && a.row === 4 && a.type !== 'floor')?.cycles).toEqual(cycles)
   })
 })

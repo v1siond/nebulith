@@ -15,9 +15,10 @@ describe('emoji tileset — data-driven default iso block height', () => {
     }
   })
 
-  test('flat terrain/ground tiles stay flat (height 0)', () => {
+  test('flat terrain/ground tiles are a thin slab (DB height 0.1), not a full block', () => {
+    // The minimal flat height (0.1) is DATA in the DB (nebulith data migration), read here — never invented.
     for (const kind of ['grass', 'water', 'path', 'sand', 'plaza'] as const) {
-      expect(resolveTileHeight(EMOJI_TILESET[kind], undefined)).toBe(0)
+      expect(resolveTileHeight(EMOJI_TILESET[kind], undefined)).toBe(0.1)
     }
   })
 

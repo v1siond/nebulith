@@ -51,10 +51,18 @@ function genSeeded(opts: Parameters<typeof generateStage>[0], seed: number): Sta
 // hash to a small ABSOLUTE random pick (markFailingLamps, drawn from the decor rng) — a deliberate generation
 // change (see stageGenerator.lamps.test.ts). Only town/city move (they run the decor pass); the non-settlement
 // archetypes below are untouched.
+// Regenerated again 2026-07-22 when naturePass gained scatterFlowers — a light scatter of STANDING blooms over
+// the town's open grass (single billboards, height 1). Only the FLOWERING zones bloom, so only the two SUMMER
+// settlements move; autumn town + the non-flowering archetypes are byte-identical.
+// Regenerated again 2026-07-23 for G7 — the walkable ENTRANCE now spans the composition's REAL door span
+// (buildingDoorOffset) instead of a hardcoded 1 cell, so an EVEN-facade building (house_4 / big_house_6 /
+// hospital_6 / temple_8 / castle_12, all baked with a centred 2-wide doorway) opens BOTH door cells. That
+// moves `doorCells` + the collision grid, hence the digest. Only the three SETTLEMENTS have buildings; the
+// forest/cave/temple/boss archetypes are byte-identical.
 const BASELINE: Record<string, string> = {
-  'town|autumn|40x40|1': '80de66d8',
-  'town|summer|50x40|7': 'ade8f497',
-  'city|summer|56x44|3': 'e548bd05',
+  'town|autumn|40x40|1': '295bac7b',
+  'town|summer|50x40|7': '5b623ba6',
+  'city|summer|56x44|3': 'bc464240',
   'forest|summer|30x24|42': 'a4369e55',
   'cave|autumn|40x30|99': '4eff2d41',
   'temple|winter|36x30|5': '7b1712d1',

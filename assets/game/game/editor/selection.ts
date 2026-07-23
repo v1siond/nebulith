@@ -35,3 +35,20 @@ export function applyCellSelection(base: ReadonlySet<string>, key: string, addit
   next.add(key)
   return next
 }
+
+/** The selection KEY for a picked TILE — its cell + its STACK INDEX (the tile's slot in the cell's ordered
+ *  stack, `getAssetsAtCell` order: 0 = base/floor slab, then up). Two tiles at the SAME level (a grass slab and
+ *  a wall block, both level 0) are DIFFERENT stack slots, so this keys them APART — which is what lets the user
+ *  select each as its own tile (the "clicking the column selected the grass below" fix). A pick with NO tile (a
+ *  bare/empty cell region, or a shift-drag over empty ground) has no stackIndex → the flat "col,row" cell key.
+ *  There is NO tile-kind branch: the stack index drives the key for grass, road, wall, roof and decor alike.
+ *  ONE derivation shared by BOTH single-click and shift-click, so the two gestures land on the SAME key for the
+ *  SAME tile. The 3rd component is the STACK INDEX (matching the inspector's `selectedTileLevel`), NOT the
+ *  heightLevel. */
+export function blockKeyForPick(pick: { col: number; row: number; stackIndex?: number; source?: string }): string {
+  // A UNIT pick carries stackIndex -1 (it is not a cell-stack slot); key it as the bare cell so an Alt-click
+  // that edits the floor UNDER a unit resolves the ground, not a bogus "-1" slot.
+  return pick.stackIndex !== undefined && pick.stackIndex >= 0
+    ? `${pick.col},${pick.row},${pick.stackIndex}`
+    : `${pick.col},${pick.row}`
+}

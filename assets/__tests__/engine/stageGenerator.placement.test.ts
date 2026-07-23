@@ -1,6 +1,7 @@
+import '@/__tests__/helpers/installTilesetSeed' // the walkable opening is READ from the loaded composition's door span
 import { generateStage, treeColumnClearsPaving, doorCells } from '@/engine/stageGenerator'
 import { planVillage, type Plot } from '@/engine/villageLayout'
-import { BUILDING_DEPTH } from '@/engine/buildingCatalog'
+import { BUILDING_DEPTH, buildingDoorOffset } from '@/engine/buildingCatalog'
 
 // A deterministic LCG so the same seed reproduces the SAME layout in both the generator (via the
 // Math.random stub) and the standalone planVillage call we assert against.
@@ -83,8 +84,8 @@ describe('settlement building placement (consumer matches planner contract)', ()
         for (let r = top; r <= b.row; r++) {
           for (let c = b.col; c < b.col + b.length; c++) if (stage.collision[r][c]) blocked++
         }
-        expect(b.doorCells).toHaveLength(1) // every baked composition has ONE door
-        for (const d of b.doorCells) expect(stage.collision[d.row][d.col]).toBe(false) // the door cell is walkable
+        expect(b.doorCells).toHaveLength(buildingDoorOffset(b.kind)?.width ?? 0) // opening == the baked door span
+        for (const d of b.doorCells) expect(stage.collision[d.row][d.col]).toBe(false) // every door cell is walkable
         expect(blocked).toBe(b.length * b.height - b.doorCells.length) // every NON-door footprint cell blocks
       }
     })
@@ -164,26 +165,26 @@ describe('settlement building placement (consumer matches planner contract)', ()
 
   // The DRAWN door is `door.width` cells wide (2 on even frontages, #49) but only 1 collision cell used to
   // open — so a 2-wide door had a walkable half and a blocked half: you could "walk between two tiles" but
-  // not stand on the actual entrance. The walkable opening must match the drawn door.
-  test('doorCells: an axis-aligned entrance spans the full door width; a rotated one stays 1 cell', () => {
+  // not stand on the actual entrance. The walkable opening must match the drawn door, on EVERY facing.
+  test('doorCells: the entrance spans the full door width on every facing (rotated included)', () => {
     const rect = { col: 10, row: 20, w: 6, h: 4 }
     // south: door at facade x=2, width=2 → the two middle cells of the bottom edge (row 23), cols 12 & 13.
     expect(doorCells('south', rect, { x: 2, width: 2 })).toEqual([{ col: 12, row: 23 }, { col: 13, row: 23 }])
-    // north: same span on the TOP edge (row 20).
-    expect(doorCells('north', rect, { x: 2, width: 2 })).toEqual([{ col: 12, row: 20 }, { col: 13, row: 20 }])
-    // east/west (rotated): the 2D facade collapses the door to ONE edge cell, so the opening stays 1 cell.
-    expect(doorCells('east', rect, { x: 2, width: 2 })).toEqual([{ col: 15, row: 22 }])
-    expect(doorCells('west', rect, { x: 2, width: 2 })).toEqual([{ col: 10, row: 22 }])
+    // north: same span on the TOP edge (row 20) — the 180° turn mirrors the offsets, same two cells.
+    expect(doorCells('north', rect, { x: 2, width: 2 })).toEqual([{ col: 13, row: 20 }, { col: 12, row: 20 }])
+    // east/west (rotated): the facade runs down the ROWS, so the same 2-wide door opens two rows on the edge.
+    expect(doorCells('east', rect, { x: 2, width: 2 })).toEqual([{ col: 15, row: 21 }, { col: 15, row: 20 }])
+    expect(doorCells('west', rect, { x: 2, width: 2 })).toEqual([{ col: 10, row: 22 }, { col: 10, row: 23 }])
   })
 
-  test('every building opens exactly ONE walkable door on its road-facing edge', () => {
+  test('every building opens a walkable door AS WIDE AS its composition bakes, on its road-facing edge', () => {
     for (const seed of [12345, 777, 42, 1, 2, 3]) {
       const { stage } = genWithSeed('town', seed)
       const axisBuildings = stage.buildings.filter(b => b.facing === 'south' || b.facing === 'north')
       expect(axisBuildings.length).toBeGreaterThan(0)
       for (const b of axisBuildings) {
-        expect(b.doorCells).toHaveLength(1) // one door per baked composition
-        for (const d of b.doorCells) expect(stage.collision[d.row][d.col]).toBe(false) // the door is walkable
+        expect(b.doorCells).toHaveLength(buildingDoorOffset(b.kind)?.width ?? 0) // read, never assumed
+        for (const d of b.doorCells) expect(stage.collision[d.row][d.col]).toBe(false) // every door is walkable
       }
     }
   })

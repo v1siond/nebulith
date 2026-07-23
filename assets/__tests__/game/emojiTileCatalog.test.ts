@@ -9,12 +9,14 @@ import { tilesForStyle, type TileDef } from '@/game/artStyle'
  */
 describe('emoji tile catalog — full categorized + labeled tileset (from the loaded tileset)', () => {
   const grouped = tilesForStyle('emoji')
-  const all: TileDef[] = [...grouped.terrain, ...grouped.nature, ...grouped.buildings, ...grouped.units]
+  const all: TileDef[] = Object.values(grouped).flat()
+  // the old `buildings` bucket now spreads across walls/windows/doors/roofs/props (structural pieces + anchors).
+  const buildingPieces = [...grouped.walls, ...grouped.windows, ...grouped.doors, ...grouped.roofs, ...grouped.props]
 
-  it('surfaces a rich, categorized set: ≥12 terrain, ≥20 nature, ≥15 buildings, ≥20 units', () => {
+  it('surfaces a rich, categorized set: ≥12 terrain, ≥20 nature, ≥15 building pieces, ≥20 units', () => {
     expect(grouped.terrain.length).toBeGreaterThanOrEqual(12)
     expect(grouped.nature.length).toBeGreaterThanOrEqual(20)
-    expect(grouped.buildings.length).toBeGreaterThanOrEqual(15)
+    expect(buildingPieces.length).toBeGreaterThanOrEqual(15)
     expect(grouped.units.length).toBeGreaterThanOrEqual(20)
   })
 

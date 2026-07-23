@@ -28,10 +28,10 @@ describe('mapSnapshot — capture/restore the exact map (grid + entities)', () =
 
     const restored = restoreMapSnapshot(grid, snap)
     expect(restored).not.toBeNull()
-    expect(grid.ground[1][1]).toBe('water')
+    expect(grid.groundAt(1, 1)).toBe('water')
     expect(grid.height[2][2]).toBe(3)
     expect(grid.collision[0][0]).toBe(1)
-    expect(grid.assets.map(a => a.type)).toEqual(['house']) // the 'tree' edit is gone
+    expect(grid.assets.filter(a => a.type !== 'floor').map(a => a.type)).toEqual(['house']) // the 'tree' edit is gone
     expect(restored!.map(e => e.id)).toEqual(['e1'])
   })
 
@@ -47,8 +47,8 @@ describe('mapSnapshot — capture/restore the exact map (grid + entities)', () =
     // a SECOND restore of the same snapshot still yields the pristine original → the snapshot wasn't aliased
     const again = restoreMapSnapshot(grid, snap)
     expect(again).not.toBeNull()
-    expect(grid.assets.map(a => a.type)).toEqual(['house'])
-    expect(grid.ground[0][0]).toBe('grass')
+    expect(grid.assets.filter(a => a.type !== 'floor').map(a => a.type)).toEqual(['house'])
+    expect(grid.groundAt(0, 0)).toBe('grass')
   })
 
   test('entities in a snapshot are cloned — editing a restored entity does not change the snapshot', () => {
@@ -66,6 +66,6 @@ describe('mapSnapshot — capture/restore the exact map (grid + entities)', () =
     const big = new IsometricGrid({ cols: 8, rows: 8, cellSize: 16 })
     big.placeAsset(['X'], 0, 0, { type: 'wall' })
     expect(restoreMapSnapshot(big, snap)).toBeNull()
-    expect(big.assets.map(a => a.type)).toEqual(['wall']) // left untouched
+    expect(big.assets.filter(a => a.type !== 'floor').map(a => a.type)).toEqual(['wall']) // left untouched
   })
 })

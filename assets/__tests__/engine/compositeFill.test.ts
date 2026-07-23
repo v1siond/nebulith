@@ -28,7 +28,7 @@ describe('compositeFill — tile a composite across a multi-cell selection', () 
       expect(grid.assets.some(a => a.col === c && a.row === r)).toBe(true)
       expect(grid.isBlocked(c, r)).toBe(true)
     }
-    expect(grid.assets.length).toBe(12) // exactly the selection, nothing outside
+    expect(grid.assets.filter(a => a.type !== 'floor').length).toBe(12) // exactly the selection, nothing outside
   })
 
   it('leaves a cell empty where a NON-rectangular pattern has no tile at that offset', () => {
@@ -37,16 +37,16 @@ describe('compositeFill — tile a composite across a multi-cell selection', () 
     const lShape: CompositeTile[] = WELL.filter(t => !(t.dx === 1 && t.dy === 1))
     const grid = newGrid()
     fillSelectionWithComposite(grid, lShape, region(0, 0, 2, 2))
-    expect(grid.assets.length).toBe(3) // the (1,1) offset cell is skipped
+    expect(grid.assets.filter(a => a.type !== 'floor').length).toBe(3) // the (1,1) offset cell is skipped
   })
 
   it('does nothing for an empty pattern or empty selection', () => {
     const a = newGrid()
     fillSelectionWithComposite(a, [], region(0, 0, 3, 3))
-    expect(a.assets.length).toBe(0)
+    expect(a.assets.filter(a => a.type !== 'floor').length).toBe(0)
     const b = newGrid()
     fillSelectionWithComposite(b, WELL, new Set())
-    expect(b.assets.length).toBe(0)
+    expect(b.assets.filter(a => a.type !== 'floor').length).toBe(0)
   })
 })
 
@@ -62,8 +62,8 @@ describe('compositeFill — scale ONE composite to span the selection', () => {
   it('a 2×2 over a 4×4 region → 16 cells, ONE scaled instance (each quadrant a 2×2 block)', () => {
     const grid = newGrid()
     scaleCompositeToRegion(grid, QUAD, region(0, 0, 4, 4))
-    expect(grid.assets.length).toBe(16) // fills the whole bounding box, one instance
-    const charAt = (c: number, r: number) => grid.assets.find(a => a.col === c && a.row === r)?.art[0]
+    expect(grid.assets.filter(a => a.type !== 'floor').length).toBe(16) // fills the whole bounding box, one instance
+    const charAt = (c: number, r: number) => grid.assets.find(a => a.col === c && a.row === r && a.type !== 'floor')?.art[0]
     expect(charAt(0, 0)).toBe('A')
     expect(charAt(1, 1)).toBe('A') // top-left quadrant
     expect(charAt(2, 0)).toBe('B')
@@ -75,8 +75,8 @@ describe('compositeFill — scale ONE composite to span the selection', () => {
   it('does nothing for an empty pattern or selection', () => {
     const g = newGrid()
     scaleCompositeToRegion(g, [], region(0, 0, 3, 3))
-    expect(g.assets.length).toBe(0)
+    expect(g.assets.filter(a => a.type !== 'floor').length).toBe(0)
     scaleCompositeToRegion(g, QUAD, new Set())
-    expect(g.assets.length).toBe(0)
+    expect(g.assets.filter(a => a.type !== 'floor').length).toBe(0)
   })
 })

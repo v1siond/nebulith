@@ -21,3 +21,14 @@ export function resolveTileHeight(tile: HasTileHeight | undefined, asset: HasAss
   const h = asset?.height ?? tile?.height ?? 0
   return h > 0 ? h : 0
 }
+
+/** Render-geometry ONLY (no invented value): how tall to draw a tile's SINGLE base layer, given its DB
+ *  block-height. A standing tile (≥ 1 block) stacks whole layers, so its base layer is a full block (1) and
+ *  the COUNT carries the height. A sub-block tile (a flat 0.1-block floor/road/flower) is ONE partial layer
+ *  drawn at that fraction — so a tile whose DB height is 0.1 draws a 0.1 slab. The number comes from the DATA
+ *  (`blocks` = the tile's DB height, read via resolveTileHeight); this only decides how the renderer expresses
+ *  it as pixels. Negative/zero clamps to 0 (nothing to draw). */
+export function partialBlockScale(blocks: number): number {
+  if (blocks >= 1) return 1
+  return blocks > 0 ? blocks : 0
+}

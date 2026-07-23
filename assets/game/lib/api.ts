@@ -265,7 +265,7 @@ export async function deleteGame(id: string): Promise<void> {
 // Grid Serialization Helpers
 // ═══════════════════════════════════════════════════════════════════
 
-import { IsometricGrid, GridAsset } from '@/engine/IsometricGrid'
+import { IsometricGrid, GridAsset, FLOOR_TYPE } from '@/engine/IsometricGrid'
 
 export function serializeGrid(grid: IsometricGrid): {
   groundData: string[][]
@@ -273,7 +273,10 @@ export function serializeGrid(grid: IsometricGrid): {
   assetsData: GridAsset[]
 } {
   return {
-    groundData: grid.ground,
+    // The authoritative floor data lives in `assetsData` (floors are level-0 assets). `groundData` is kept in
+    // the wire format only for backward compatibility — derived from the floor assets on the way out, and read
+    // back only by the legacy fallback in deserializeToGrid (saves that predate floors-as-assets).
+    groundData: grid.groundSlugs(),
     heightData: grid.height,
     assetsData: grid.assets,
   }
@@ -290,13 +293,6 @@ export function deserializeToGrid(
     isoScale: data.isoScale,
   })
 
-  // Load ground data
-  for (let r = 0; r < data.rows && r < data.groundData.length; r++) {
-    for (let c = 0; c < data.cols && c < data.groundData[r].length; c++) {
-      grid.setGround(c, r, data.groundData[r][c])
-    }
-  }
-
   // Load height data
   for (let r = 0; r < data.rows && r < data.heightData.length; r++) {
     for (let c = 0; c < data.cols && c < data.heightData[r].length; c++) {
@@ -308,8 +304,21 @@ export function deserializeToGrid(
   // metadata that the renderers key on: `footprint` (the town-square fountain reverted to a single
   // cell on load — #72), `cellAnim`/`cycles` (authored animations), `edge`/`cellPart` (debug labels),
   // `baseShadow`, `buildingType`. serializeGrid saves the full GridAsset, so a shallow clone round-
-  // trips them all; new GridAsset fields are carried automatically.
+  // trips them all; new GridAsset fields are carried automatically. THE FLOOR is a normal asset now, so
+  // it rides here too — including CLEARED cells, which simply have no floor asset (grass-for-empty in
+  // the legacy groundData channel could never represent that).
   grid.setAssets(data.assetsData.map(a => ({ ...a }) as unknown as GridAsset))
+
+  // LEGACY fallback: templates saved BEFORE floors were assets carry the terrain only in `groundData`.
+  // Synthesize floor assets from it, but ONLY when the saved assets contain none (a new save is
+  // self-describing via its floor assets, and replaying groundData would resurrect its cleared cells).
+  if (!grid.assets.some(a => a.type === FLOOR_TYPE)) {
+    for (let r = 0; r < data.rows && r < data.groundData.length; r++) {
+      for (let c = 0; c < data.cols && c < data.groundData[r].length; c++) {
+        grid.setGround(c, r, data.groundData[r][c])
+      }
+    }
+  }
 
   // Rebuild collision grid from assets. Blocks are collision regardless of any
   // visual height level — a blocking asset always blocks its cell.

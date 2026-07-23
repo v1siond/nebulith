@@ -115,14 +115,14 @@ describe('planComposition — validity is REPLACE-anything: red ONLY when it run
   test('a BUILDING or a PROP may sit on a road now — roads no longer block placement', () => {
     const grid = mkGrid()
     // paint a patch of road under where the footprint centre lands
-    for (let r = 6; r <= 14; r++) for (let c = 6; c <= 14; c++) grid.ground[r][c] = 'path_stone'
+    for (let r = 6; r <= 14; r++) for (let c = 6; c <= 14; c++) grid.setGround(c, r, 'path_stone')
     expect(planComposition(grid, 'house_4', 10, 10)!.valid).toBe(true) // a building on a road is fine now
     expect(planComposition(grid, 'fountain', 10, 10)!.valid).toBe(true) // a prop on the plaza/road is fine too
   })
 
   test('a building STILL rotates to FACE the nearest road (facing/rotation unchanged by the validity rule)', () => {
     const grid = mkGrid()
-    grid.ground[10][20] = 'path_stone' // a road due EAST of a hover at (10,10)
+    grid.setGround(20, 10, 'path_stone') // a road due EAST of a hover at (10,10)
     const plan = planComposition(grid, 'hospital_6', 10, 10)! // south footprint 6×4
     expect(plan.facing).toBe('east')
     expect(plan.rotation).toBe(3)               // FACING_ROTATION.east
@@ -144,7 +144,7 @@ describe('compositionFits — the raw BOUNDS check the plan builds on (occupied/
     const grid = mkGrid()
     const cells = [{ col: 2, row: 2 }, { col: 3, row: 2 }]
     grid.setCollision(3, 2, true)    // an existing building/tree occupies a footprint cell
-    grid.ground[2][2] = 'path_stone' // and the other cell is a road
+    grid.setGround(2, 2, 'path_stone') // and the other cell is a road
     expect(compositionFits(grid, cells)).toBe(true)
   })
 })
@@ -175,14 +175,17 @@ describe('placement REPLACES — clearing the footprint then stamping leaves no 
 
   test('re-stamping the SAME composition after a clear does not stack (no doubled cell count)', () => {
     const grid = mkGrid()
+    // Count only the composition's OWN (non-floor) tiles: the grass floor stays beneath a stamp now, and the
+    // clear removes it too, so comparing the stamped-tile count is what proves "not stacked / not doubled".
+    const stampedAt = (col: number, row: number) => grid.getAssetsAtCell(col, row).filter(a => a.type !== 'floor').length
     stampPlan(grid, 'lamp_post', 5, 5)
-    const first = grid.getAssetsAtCell(5, 5).length
+    const first = stampedAt(5, 5)
     expect(first).toBeGreaterThan(0)
 
     const plan = planComposition(grid, 'lamp_post', 5, 5)!
     for (const { col, row } of plan.cells) grid.clearAssetsAtCell(col, row)
-    expect(grid.getAssetsAtCell(5, 5).length).toBe(0) // cleared clean, no remnant
+    expect(grid.getAssetsAtCell(5, 5).length).toBe(0) // cleared clean, no remnant (floor included)
     stampComposition(grid, 'lamp_post', plan.anchorCol, plan.anchorRow, 'spring', 0, plan.rotation)
-    expect(grid.getAssetsAtCell(5, 5).length).toBe(first) // exactly one composition, not stacked
+    expect(stampedAt(5, 5)).toBe(first) // exactly one composition's tiles, not stacked/doubled
   })
 })

@@ -10,7 +10,6 @@
 import type { Animation } from './animation/tileAnimation'
 import type { AnimationCycle } from './animationCycles'
 import type { CellAnimation } from './cellAnimation'
-import type { GroundCellDims } from './groundDims'
 import type { DepthDir } from './render/isoBlock'
 import type { TilePose } from './tileset/pose'
 import type { AssetLight, TileDisplay, TileShape } from './tileset/tileset'
@@ -24,6 +23,8 @@ export interface AssetSettings {
   badge?: { text: string; color: string } // apex signage (STORE/HOSPITAL) drawn generically, no buildingType
   display?: TileDisplay // 'single' → ONE centered tile drawn INSIDE the block (billboard at the block centre)
                         // over a plain shell; absent/'all-faces' → the tile is painted on all visible faces.
+  transparent?: boolean // the block SHELL is not drawn — only the tile's content shows (with 'single', just the
+                        // centered billboard, in its own colour). Lets a flower show WITHOUT colouring its block.
 }
 
 export interface GridAsset {
@@ -87,6 +88,14 @@ export interface GridAsset {
                         // here would silently flip world rendering — this field never touches the renderers.
 }
 
+/** A floor is a regular GridAsset carrying this type — the discriminator setGround/clear/getStack use to find
+ *  "the floor" among a cell's level-0 assets. It is NOT a render mode: the floor renders through the same
+ *  per-asset block path as every tile; `type:'floor'` only routes its art KIND to groundKind (see assetKind). */
+export const FLOOR_TYPE = 'floor'
+
+/** The default terrain slug a fresh grid / a repaint with no explicit type uses. */
+export const DEFAULT_FLOOR_SLUG = 'grass'
+
 export interface GridConfig {
   cols: number
   rows: number
@@ -100,30 +109,35 @@ export class IsometricGrid {
   cellSize: number
   isoScale: number
 
-  // Ground tiles - what type each cell is
-  ground: string[][]
-
   // Height grid - elevation in blocks (0 = ground level, negative = water/pit)
   height: number[][]
 
   // Collision grid - 0 = walkable, 1 = blocked
   collision: number[][]
 
-  // Per-cell FLOOR COLOUR override (null = use the tile catalog colour). Set from the Property panel,
-  // serialized with the template. A colour edit bumps groundVersion so the cached ground layer rebuilds.
-  groundColor: (string | null)[][]
-
-  // Per-cell FLOOR DIMS override (per-tile Width/Height/Depth/Zoom + a per-cell pose) — the SAME settings
-  // props carry, now on EVERY floor tile. undefined = the default (byte-identical) render. Sparse; set
-  // from the Property panel and serialized with the template. A dims edit bumps groundVersion so the
-  // cached ground layers (2D static layer + iso offscreen cache) rebuild. Mirrors groundColor.
-  groundDims: (GroundCellDims | undefined)[][]
-
-  // Placed assets (buildings are just stamped per-cell tiles here — no separate grouped-building array)
+  // Placed assets (buildings are just stamped per-cell tiles here — no separate grouped-building array).
+  // THE FLOOR IS AN ASSET: a floor is a plain GridAsset with type 'floor' at heightLevel 0 — a regular tile
+  // that carries NO hardcoded height; the renderer reads its ground tile's OWN DB block-height (a flat tile is
+  // 0.1) and draws a thin slab, just like a flower/decor. It rides this same list and renders through the SAME per-asset tile path as every wall/prop, so
+  // there is NO separate ground store and NO separate ground renderer. `floorIndex` is a per-cell O(1) lookup
+  // accelerator over that ONE source of truth (the asset), not a parallel store.
   assets: GridAsset[]
 
-  // Bumped on every ground/height edit so the 2D renderer can cache the static ground layer and rebuild
-  // it ONLY when the terrain actually changed (see render2D's _groundLayer).
+  // O(1) "which floor asset is at this cell" index, keyed `${col},${row}`. Kept in sync by the floor
+  // mutators (setGround/…) + rebuilt on a wholesale asset swap (setAssets/clearAssets/removeAssetsWhere).
+  private floorIndex = new Map<string, GridAsset>()
+
+  // O(1) "assets at this cell" index, keyed `${col},${row}` → that cell's assets in the SAME order
+  // getAssetsAtCell used to produce by filtering + sorting the WHOLE list every call (floor first, then by
+  // heightLevel). Rebuilt LAZILY on the next read after any asset mutation (invalidated → null below), so a
+  // frame that draws N cells over M assets costs ONE O(M) rebuild instead of O(N·M) full-list filters — the
+  // per-frame N+1. Safe to share the cached array: no tile ever changes cell in place, and every caller only
+  // READS it (verified). null = must rebuild.
+  private cellIndex: Map<string, GridAsset[]> | null = null
+
+  // Bumped on every floor/height edit — a cheap dirty counter cold-path callers (the debug terrain-label
+  // overlay) can memo against. There is NO parallel ground/groundColor/groundDims store: the floor assets in
+  // `assets` are the ONE source of truth, read per-cell via floorAt()/groundAt().
   groundVersion = 0
 
   constructor(config: GridConfig) {
@@ -131,15 +145,6 @@ export class IsometricGrid {
     this.rows = config.rows
     this.cellSize = config.cellSize
     this.isoScale = config.isoScale ?? 1.4
-
-    // Initialize ground as grass
-    this.ground = []
-    for (let r = 0; r < this.rows; r++) {
-      this.ground[r] = []
-      for (let c = 0; c < this.cols; c++) {
-        this.ground[r][c] = 'grass'
-      }
-    }
 
     // Initialize height as 0 (ground level)
     this.height = []
@@ -159,20 +164,140 @@ export class IsometricGrid {
       }
     }
 
-    // Initialize floor-colour overrides as none (null → the tile's own catalog colour shows)
-    this.groundColor = []
+    this.assets = []
+
+    // Default terrain: a grass floor asset in every cell (the old all-'grass' ground default). The generators
+    // then repaint via setGround; CLEARING a cell removes its floor (→ empty), which is the new bare state.
+    this.fillGround(0, 0, this.cols, this.rows, DEFAULT_FLOOR_SLUG)
+  }
+
+  // ── FLOOR-AS-ASSET helpers ────────────────────────────────────────────────────────────────────────
+  private floorKey(col: number, row: number): string { return `${col},${row}` }
+
+  /** The floor asset at a cell (type 'floor', heightLevel 0), or undefined for a bare/cleared cell. */
+  floorAt(col: number, row: number): GridAsset | undefined {
+    return this.floorIndex.get(this.floorKey(col, row))
+  }
+
+  /** The floor slug at a cell (e.g. 'grass'/'road') — the O(1) replacement for the old `ground[row][col]`.
+   *  A cleared/empty cell has no floor → falls back to the default slug so callers never read undefined. */
+  groundAt(col: number, row: number): string {
+    return this.floorAt(col, row)?.tileKey ?? DEFAULT_FLOOR_SLUG
+  }
+
+  /** The grid cells a floor covers. A plain floor is its one cell; a Z-WIDTH RUN floor (depth>1 + depthDir —
+   *  the "same as roofs" merge) covers `depth` cells stepping along its diagonal, so every covered cell maps
+   *  back to the ONE run tile (groundAt / 2D / stack still resolve per-cell). */
+  floorCoveredCells(f: GridAsset): { col: number; row: number }[] {
+    const n = Math.max(1, Math.floor(f.depth ?? 1))
+    if (n <= 1 || !f.depthDir) return [{ col: f.col, row: f.row }]
+    const S = { 'right-up': { dc: 0, dr: -1 }, 'left-up': { dc: -1, dr: 0 }, 'left-down': { dc: 0, dr: 1 }, 'right-down': { dc: 1, dr: 0 } }[f.depthDir]
+    const out: { col: number; row: number }[] = []
+    for (let k = 0; k < n; k++) out.push({ col: f.col + k * S.dc, row: f.row + k * S.dr })
+    return out
+  }
+
+  /** Rebuild the floorIndex from the current asset list (after a wholesale swap / load). A Z-WIDTH run floor
+   *  is indexed at EVERY cell it covers, so floorAt/groundAt resolve per-cell even though it is one tile. */
+  private rebuildFloorIndex(): void {
+    this.floorIndex.clear()
+    for (const a of this.assets) if (a.type === FLOOR_TYPE) for (const { col, row } of this.floorCoveredCells(a)) this.floorIndex.set(this.floorKey(col, row), a)
+  }
+
+  /** Merge contiguous same-floor cells (same tileKey + colour) into ONE Z-WIDTH floor tile — the SAME
+   *  depth-spanned-block trick roofs use (settings.depth + depthDir), applied to grass/road so the map draws a
+   *  handful of run tiles instead of one per cell. Each seed run is measured in BOTH directions and merged along
+   *  the LONGER one, so a run spans ALONG its road: a grid-ROW road runs `\` (depthDir 'right-down' = +col), a
+   *  grid-COLUMN road runs `/` (depthDir 'left-down' = +row). The run anchors at its BACKMOST cell (min col / min
+   *  row) so the flat-run depth sort keeps it behind standing tiles. Data stays TILES (no new model); the rest of
+   *  a run are dropped + re-indexed to the anchor. Call after the ground is bulk-set (generation / load). Editing
+   *  a covered cell decompresses its run first (decompressGroundAt), so per-cell edits keep working. */
+  compressGround(): void {
+    const remove = new Set<GridAsset>()
+    const used = new Set<GridAsset>() // floors already merged into a run (anchor or consumed member)
+    // A neighbour joins the seed run only if it's an UNCLAIMED, un-merged floor of the SAME tile + colour.
+    const joins = (g: GridAsset | undefined, seed: GridAsset): g is GridAsset =>
+      !!g && !used.has(g) && (g.depth ?? 1) <= 1 && g.tileKey === seed.tileKey && (g.color ?? '') === (seed.color ?? '')
     for (let r = 0; r < this.rows; r++) {
-      this.groundColor[r] = []
-      for (let c = 0; c < this.cols; c++) {
-        this.groundColor[r][c] = null
+      let c = 0
+      while (c < this.cols) {
+        const f = this.floorAt(c, r)
+        if (!f || (f.depth ?? 1) > 1 || used.has(f)) { c++; continue } // no floor, already a run, or claimed
+        // How far the same floor runs RIGHT (along the row, +col) vs DOWN (along the column, +row) from here.
+        let hEnd = c; while (hEnd + 1 < this.cols && joins(this.floorAt(hEnd + 1, r), f)) hEnd++
+        let vEnd = r; while (vEnd + 1 < this.rows && joins(this.floorAt(c, vEnd + 1), f)) vEnd++
+        const hLen = hEnd - c + 1, vLen = vEnd - r + 1
+        if (hLen < 2 && vLen < 2) { used.add(f); c++; continue } // lone cell — nothing to merge
+        if (hLen >= vLen) { // ROW run → `\`
+          for (let cc = c; cc <= hEnd; cc++) { const g = this.floorAt(cc, r); if (g) { used.add(g); if (g !== f) remove.add(g) } }
+          f.depth = hLen; f.depthDir = 'right-down'
+          c = hEnd + 1
+        } else { // COLUMN run → `/` (anchor stays at min row, the backmost cell)
+          for (let rr = r; rr <= vEnd; rr++) { const g = this.floorAt(c, rr); if (g) { used.add(g); if (g !== f) remove.add(g) } }
+          f.depth = vLen; f.depthDir = 'left-down'
+          c++
+        }
       }
     }
+    if (remove.size) this.assets = this.assets.filter(a => !remove.has(a))
+    this.rebuildFloorIndex()
+    this.cellIndex = null
+    this.groundVersion++
+  }
 
-    // Initialize floor-dims overrides as none (sparse — a cell stays undefined until it's edited)
-    this.groundDims = []
-    for (let r = 0; r < this.rows; r++) this.groundDims[r] = []
+  /** If (col,row) sits in a Z-WIDTH run floor, split that run back into plain per-cell floors so an edit can
+   *  change just this cell ("cut it to put another tile"). No-op for a plain floor / bare cell. */
+  private decompressGroundAt(col: number, row: number): void {
+    const run = this.floorAt(col, row)
+    if (!run || (run.depth ?? 1) <= 1) return
+    const cells = this.floorCoveredCells(run)
+    this.assets = this.assets.filter(a => a !== run)
+    for (const { col: cc, row: rr } of cells) {
+      const cell = this.makeFloorAsset(cc, rr, run.tileKey ?? DEFAULT_FLOOR_SLUG)
+      if (run.color) cell.color = run.color
+      this.assets.push(cell)
+      this.floorIndex.set(this.floorKey(cc, rr), cell)
+    }
+    this.cellIndex = null
+  }
 
-    this.assets = []
+  /** Rebuild the per-cell asset index in ONE O(assets) pass — grouped by cell, then each cell sorted (floor
+   *  first, then heightLevel), matching the old getAssetsAtCell result. Called lazily by getAssetsAtCell when
+   *  the index is null (invalidated by a mutation). */
+  private rebuildCellIndex(): void {
+    const idx = new Map<string, GridAsset[]>()
+    for (const a of this.assets) {
+      // A Z-WIDTH run FLOOR belongs to EVERY cell it covers (so a prop's stack + a per-cell pick see the ground
+      // beneath); every other tile is its single cell.
+      const cells = (a.type === FLOOR_TYPE && (a.depth ?? 1) > 1) ? this.floorCoveredCells(a) : [{ col: a.col, row: a.row }]
+      for (const { col, row } of cells) {
+        const key = this.floorKey(col, row)
+        const arr = idx.get(key)
+        if (arr) arr.push(a)
+        else idx.set(key, [a])
+      }
+    }
+    for (const arr of idx.values()) {
+      arr.sort((a, b) => (a.heightLevel ?? 0) - (b.heightLevel ?? 0) || (a.type === FLOOR_TYPE ? -1 : 0) - (b.type === FLOOR_TYPE ? -1 : 0))
+    }
+    this.cellIndex = idx
+  }
+
+  private _slugSnap: string[][] = []
+  private _slugSnapVer = -1
+  /** A [row][col] slug grid derived from the floor assets — for the DEV terrain-label overlay only (its
+   *  autotiling needs neighbour lookups). NOT a source of truth: the floor assets are; this is a snapshot
+   *  memoized against groundVersion so the debug pass's per-cell reads stay O(1). */
+  groundSlugs(): string[][] {
+    if (this._slugSnapVer === this.groundVersion) return this._slugSnap
+    const out: string[][] = []
+    for (let r = 0; r < this.rows; r++) {
+      out[r] = []
+      for (let c = 0; c < this.cols; c++) out[r][c] = this.groundAt(c, r)
+    }
+    this._slugSnap = out
+    this._slugSnapVer = this.groundVersion
+    return out
   }
 
   // Convert grid position to world position
@@ -201,50 +326,48 @@ export class IsometricGrid {
     }
   }
 
-  // Set ground tile type
+  /** Build a bare floor asset for a cell — a regular tile that carries NO hardcoded height: the renderer reads
+   *  the floor tile's OWN block-height from the DB (its ground tile, resolved via groundKind(tileKey)) and draws
+   *  it as a thin slab (a flat tile is 0.1 blocks tall in the DB). Height is DATA, never invented here. No
+   *  `color` so the render resolves the ground colour from groundKind(tileKey); a per-cell override rides `color`. */
+  private makeFloorAsset(col: number, row: number, slug: string): GridAsset {
+    return { art: [''], col, row, type: FLOOR_TYPE, tileKey: slug, heightLevel: 0, blocking: false }
+  }
+
+  // Set the floor tile TYPE of a cell — place/replace its level-0 floor asset (the slug rides `tileKey`,
+  // which the renderer maps to groundKind for the tile's art). A per-cell colour/dims override on an
+  // existing floor is preserved (only the slug changes), matching the old setGround semantics.
   setGround(col: number, row: number, type: string) {
-    if (col >= 0 && col < this.cols && row >= 0 && row < this.rows) {
-      if (this.ground[row][col] !== type) this.groundVersion++
-      this.ground[row][col] = type
+    if (col < 0 || col >= this.cols || row < 0 || row >= this.rows) return
+    this.decompressGroundAt(col, row) // if this cell is inside a z-width run, cut the run so only THIS cell changes
+    const existing = this.floorAt(col, row)
+    if (existing) {
+      if (existing.tileKey !== type) { existing.tileKey = type; this.groundVersion++ }
+      return
     }
+    const floor = this.makeFloorAsset(col, row, type)
+    this.assets.push(floor)
+    this.floorIndex.set(this.floorKey(col, row), floor)
+    this.cellIndex = null
+    this.groundVersion++
+  }
+
+  /** Remove a cell's floor entirely (→ EMPTY cell, not grass) — the bare state after a Clear. */
+  removeFloor(col: number, row: number) {
+    this.decompressGroundAt(col, row) // clear just THIS cell, not the whole z-width run it may belong to
+    const key = this.floorKey(col, row)
+    const floor = this.floorIndex.get(key)
+    if (!floor) return
+    this.floorIndex.delete(key)
+    this.assets = this.assets.filter(a => a !== floor)
+    this.cellIndex = null
+    this.groundVersion++
   }
 
   // Set collision
   setCollision(col: number, row: number, blocked: boolean) {
     if (col >= 0 && col < this.cols && row >= 0 && row < this.rows) {
       this.collision[row][col] = blocked ? 1 : 0
-    }
-  }
-
-  // Set (or clear, with null) a per-cell FLOOR COLOUR override. Bumps groundVersion so the cached
-  // ground layer rebuilds and the edit shows immediately.
-  setGroundColor(col: number, row: number, color: string | null) {
-    if (col >= 0 && col < this.cols && row >= 0 && row < this.rows) {
-      if (!this.groundColor[row]) this.groundColor[row] = []
-      this.groundColor[row][col] = color
-      this.groundVersion++
-    }
-  }
-
-  // Merge a per-cell FLOOR DIMS override (per-tile Width/Height/Depth/Zoom + pose). The partial merges
-  // onto the cell's existing entry (set one axis at a time from the panel); pass { pose: undefined } to
-  // clear the pose. Bumps groundVersion so the cached ground layers rebuild and the edit shows at once.
-  setGroundDims(col: number, row: number, partial: Partial<GroundCellDims>) {
-    if (col >= 0 && col < this.cols && row >= 0 && row < this.rows) {
-      if (!this.groundDims[row]) this.groundDims[row] = []
-      this.groundDims[row][col] = { ...this.groundDims[row][col], ...partial }
-      this.groundVersion++
-    }
-  }
-
-  // Clear a cell's FLOOR DIMS override entirely (back to none = undefined) — the bare state a freshly-
-  // initialised cell has. setGroundDims only MERGES, so it can't undefine a dims blob; this is the reset
-  // counterpart (used when clearing a cell back to bare). Bumps groundVersion so the cached ground layers
-  // rebuild and the edit shows at once.
-  clearGroundDims(col: number, row: number) {
-    if (col >= 0 && col < this.cols && row >= 0 && row < this.rows) {
-      if (this.groundDims[row]) this.groundDims[row][col] = undefined
-      this.groundVersion++
     }
   }
 
@@ -266,18 +389,22 @@ export class IsometricGrid {
     }
   }
 
-  // Set height at position
+  // Set height at position. `col`/`row` address a CELL: a caller holding a CONTINUOUS position (a unit's
+  // `player.x / cellSize`, an interpolated walk) means "the cell it stands in", so the index is floored here.
+  // A range check alone lets a fraction through and `height[8.34]` is undefined — the crash this guards.
   setHeight(col: number, row: number, h: number) {
-    if (col >= 0 && col < this.cols && row >= 0 && row < this.rows) {
-      if (this.height[row][col] !== h) this.groundVersion++
-      this.height[row][col] = h
+    const c = Math.floor(col), r = Math.floor(row)
+    if (c >= 0 && c < this.cols && r >= 0 && r < this.rows) {
+      if (this.height[r][c] !== h) this.groundVersion++
+      this.height[r][c] = h
     }
   }
 
-  // Get height at position
+  // Get height at position — the CELL a coordinate falls inside (see setHeight).
   getHeight(col: number, row: number): number {
-    if (col >= 0 && col < this.cols && row >= 0 && row < this.rows) {
-      return this.height[row][col]
+    const c = Math.floor(col), r = Math.floor(row)
+    if (c >= 0 && c < this.cols && r >= 0 && r < this.rows) {
+      return this.height[r][c]
     }
     return 0
   }
@@ -314,8 +441,11 @@ export class IsometricGrid {
       cellPart: options.cellPart,
       tileOverride: options.tileOverride, // per-cell art-style pin (e.g. a season's tree tile) — was dropped
       heightLevel: options.heightLevel,   // stack level: the editor brush stacks assets on one cell
+      height: options.height,             // per-instance block-height (a generated flower stands 1 block); undefined ⇒ tile height
+      settings: options.settings,         // per-instance render (e.g. display:'single' for a standing billboard); undefined ⇒ tile default
     }
     this.assets.push(asset)
+    this.cellIndex = null
 
     // If blocking, update collision grid
     if (options.blocking) {
@@ -381,6 +511,7 @@ export class IsometricGrid {
       heightLevel,
       tileKey,
     })
+    this.cellIndex = null
 
     // Blocks are collision, independent of elevation: a blocking asset marks its
     // cell blocked regardless of visual height level.
@@ -433,36 +564,47 @@ export class IsometricGrid {
     }
   }
 
-  // Get assets at a specific cell, sorted by height level
+  // Get assets at a specific cell, sorted by height level. Within a level the FLOOR sorts first so it stays
+  // the base of the stack (getStack index 0) and renders UNDER same-cell props.
   getAssetsAtCell(col: number, row: number): GridAsset[] {
-    return this.assets
-      .filter(a => a.col === col && a.row === row)
-      .sort((a, b) => (a.heightLevel ?? 0) - (b.heightLevel ?? 0))
+    if (!this.cellIndex) this.rebuildCellIndex()
+    return this.cellIndex!.get(this.floorKey(col, row)) ?? []
   }
 
-  // Clear all assets at a cell
+  // Clear all assets at a cell (INCLUDING its floor → empty cell).
   clearAssetsAtCell(col: number, row: number) {
+    this.decompressGroundAt(col, row) // split a z-width run so only THIS cell is cleared
     this.assets = this.assets.filter(a => !(a.col === col && a.row === row))
+    this.floorIndex.delete(this.floorKey(col, row))
+    this.cellIndex = null
     this.setCollision(col, row, false)
     this.setHeight(col, row, 0)
+    this.groundVersion++
   }
 
-  // Replace the WHOLE asset list — the single write-point for a wholesale swap (load/deserialize), so a
-  // later step can rebuild per-cell stacks here instead of code assigning grid.assets directly.
+  // Replace the WHOLE asset list — the single write-point for a wholesale swap (load/deserialize). Floors ride
+  // this list now, so rebuild the floor index + bump the projection version.
   setAssets(assets: GridAsset[]) {
     this.assets = assets
+    this.rebuildFloorIndex()
+    this.cellIndex = null
+    this.groundVersion++
   }
 
-  // Drop every asset (keeps ground/collision/height). Reassigns the array — identical to the `assets = []`
-  // it replaces — so identity-keyed render caches (e.g. the tree-cell set) rebuild.
+  // Drop every NON-FLOOR asset (keeps the floor/ground + collision/height) — the "clear props, keep terrain"
+  // semantics callers rely on. Floors are assets now, so they must be preserved explicitly.
   clearAssets() {
-    this.assets = []
+    this.assets = this.assets.filter(a => a.type === FLOOR_TYPE)
+    this.cellIndex = null
   }
 
-  // Drop every asset matching `pred`. Reassigns to a filtered array (new identity) exactly like the
-  // `assets = assets.filter(...)` writes it replaces, so behaviour and cache-busting are unchanged.
+  // Drop every asset matching `pred`. Reassigns to a filtered array (new identity). Resync the floor index
+  // in case a floor was removed.
   removeAssetsWhere(pred: (asset: GridAsset) => boolean) {
     this.assets = this.assets.filter(a => !pred(a))
+    this.rebuildFloorIndex()
+    this.cellIndex = null
+    this.groundVersion++
   }
 }
 

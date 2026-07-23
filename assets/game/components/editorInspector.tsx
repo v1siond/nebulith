@@ -180,6 +180,11 @@ export interface TileControlModel {
    *  asset.shape; null = mixed. Asset tiles only (mirrors Display — the floor has no block to reshape). */
   shape?: TileShape | null
   onShape?: (shape: TileShape) => void
+  /** TRANSPARENT — hide the block SHELL so only the tile's content shows (with Display 'single', just the
+   *  centered billboard, in its own colour): "style the flower without colouring the whole block". Reads
+   *  asset.settings.transparent; null = mixed. Asset tiles only (a flat floor has no shell to hide). */
+  transparent?: boolean | null
+  onTransparent?: (on: boolean) => void
   /** LIGHT — the warm night ground GLOW POOL this tile casts (GridAsset.light): intensity (strength), distance
    *  (radius in cells), colour, and an on/off toggle. Reads the first selected tile's light (undefined = none).
    *  Asset tiles only. `onLight(undefined)` clears the setting. */
@@ -212,15 +217,16 @@ export interface TileControlModel {
   onOpenAnimator?: () => void
 }
 
-/** The ONE inspector card a CELL and a UNIT both use. For a CELL: a COLLISION row (its sole tunable prop) +
- *  a COMPACT SUMMARY of the ONE selected tile — swap-tile (Open Tile Library), a colour swatch, and the
- *  buttons "Edit settings…" (opens the full settings MODAL {@link TileControls}), Animate, Remove — with a
- *  level stepper to reach every block. For a UNIT: the caller passes `unitSection`, which HIDES the collision
- *  row (a unit isn't a cell) and folds the unit's identity/vitals/inventory UNDER the same tile summary — so a
- *  unit is configured on the SAME card as a tile, not a parallel sidebar. Both get a "Triggers…" button
- *  (`onOpenTriggers`) that opens the trigger-authoring modal. The heavy per-axis controls stay in the modal. */
+/** The ONE inspector card a CELL and a UNIT both use — identical controls, identical order, no fork: a
+ *  COLLISION row, a Clear-tiles action, then a COMPACT SUMMARY of the ONE selected tile — swap-tile
+ *  (Add / Replace tile), a colour swatch, and the buttons "Edit settings…" (opens the full settings MODAL
+ *  {@link TileControls}), Animate, Remove — with a level stepper to reach every block, plus "Triggers…"
+ *  (`onOpenTriggers`). A UNIT additionally passes `unitSection`, which folds its name/size rows and its
+ *  stats / inventory / quests / attacks entry buttons UNDER the same tile summary — so a unit is configured
+ *  on the SAME card as a tile, never a parallel sidebar. The heavy per-axis controls stay in the modal. */
 export interface PropertiesPanelProps {
-  /** shared collision state across the selection, or null (mixed). */
+  /** shared collision state across the selection, or null (mixed). For a UNIT this is its `blocksMovement`
+   *  — ONE collision control serves cells and units alike (the old "Blocks movement" checkbox is gone). */
   collision: boolean | null
   onCollision: (blocked: boolean) => void
   /** the ONE selected tile, or null when the cell holds no tile at all (→ only the CELL section shows). */
@@ -233,21 +239,22 @@ export interface PropertiesPanelProps {
   onLevel: (index0: number) => void
   /** open the tile-settings MODAL (the {@link TileControls} body) — the "Edit settings…" button. */
   onOpenSettings: () => void
-  /** CLEAR every tile off the selected cell(s) — drops the stacked assets, like an erase over the selection
-   *  (Image #67). A CELL-level action, so it shows even when the selected tile is the floor; absent for a unit
-   *  (a unit isn't a cell). Wired to the existing erase path, captured by undo/redo. */
+  /** CLEAR every tile off the selected cell(s) — drops the stacked assets AND the floor, like an erase over
+   *  the selection (Image #67). It shows even when the selected tile is the floor, and for a UNIT too (the
+   *  page targets the cell the unit stands on). Wired to the existing erase path, captured by undo/redo. */
   onClearTiles?: () => void
   /** remove the SELECTED tile from the grid (not the floor — the caller omits this for level 0). Shows a
-   *  "Remove tile" button in the tile section when provided; absent → no button (e.g. the floor). */
+   *  "Remove tile" button in the tile section when provided; absent → no button (e.g. the floor). For a UNIT
+   *  this IS the delete action — removing a unit is removing a tile, so there is no bespoke Delete button. */
   onRemove?: () => void
   /** open the triggers-management MODAL (the "⚑ Triggers…" button) — for a CELL and a UNIT alike. Replaces
    *  the old inline trigger expando: authoring now lives in a floating panel, opened from this button. */
   onOpenTriggers?: () => void
   /** how many triggers the selected cell/unit currently has — surfaced as a count on the Triggers button. */
   triggerCount?: number
-  /** the UNIT-only extras section (identity/vitals/inventory/quests/attacks), composed by the page. When
-   *  present, THIS card is a unit: the cell-collision row is hidden (a unit isn't a cell) and the section
-   *  renders under the shared tile summary — the ONE card a tile and a unit both use. Absent → a plain cell. */
+  /** the UNIT-only extras section (name/size rows + stats/inventory/quests/attacks entry buttons), composed
+   *  by the page. It ADDS to the shared card, hiding nothing — the ONE card a tile and a unit both use.
+   *  Absent → a plain cell. */
   unitSection?: React.ReactNode
 }
 
@@ -340,6 +347,19 @@ function ShapeModeRow({ shape, onShape }: { shape: TileShape | null; onShape: (s
   )
 }
 
+/** TRANSPARENT — hide the block SHELL so only the tile's content shows (a flower billboard with no coloured
+ *  block around it). A two-button toggle mirroring Display/Shape. Asset tiles only. */
+function TransparentRow({ transparent, onTransparent }: { transparent: boolean | null; onTransparent: (on: boolean) => void }) {
+  return (
+    <label className="flex items-center gap-2" title="Block — draw the solid block shell, or make it transparent so only the tile content (e.g. the flower) shows">
+      <span className="w-14 shrink-0 text-[10px] text-gray-400">Block</span>
+      <button onClick={() => onTransparent(false)} aria-pressed={transparent === false} className={`rounded px-2 py-0.5 text-[10px] font-bold ${transparent === false ? 'bg-cyan-600 text-white' : 'bg-gray-700 hover:bg-gray-600'}`}>Solid</button>
+      <button onClick={() => onTransparent(true)} aria-pressed={transparent === true} className={`rounded px-2 py-0.5 text-[10px] font-bold ${transparent === true ? 'bg-cyan-600 text-white' : 'bg-gray-700 hover:bg-gray-600'}`}>Transparent</button>
+      {transparent === null && mixedBadge}
+    </label>
+  )
+}
+
 /** The default LIGHT a tile takes when the user first turns its light ON — matches the seeded lamp default
  *  (today's warm LAMP_GLOW: intensity 1, radius 3.2 cells, #ffd98a). */
 const DEFAULT_LIGHT: AssetLight = { intensity: 1, distance: 3.2, color: '#ffd98a', on: true }
@@ -427,6 +447,8 @@ export function TileControls({ tile }: { tile: TileControlModel }) {
       {tile.onDisplay && <DisplayModeRow display={tile.display ?? 'all-faces'} onDisplay={tile.onDisplay} />}
       {/* Shape: render the tile's block as a cube (square) or a ball (circle). Asset tiles only. */}
       {tile.onShape && <ShapeModeRow shape={tile.shape ?? 'square'} onShape={tile.onShape} />}
+      {/* Block: solid shell, or transparent so only the tile content (e.g. the flower) shows. Asset tiles only. */}
+      {tile.onTransparent && <TransparentRow transparent={tile.transparent ?? false} onTransparent={tile.onTransparent} />}
       {/* Light: cast a warm ground glow pool at night, with intensity/distance/colour + on-off. Asset tiles only. */}
       {tile.onLight && <LightControls light={tile.light} onLight={tile.onLight} />}
       <DimRow label="Zoom" axis="zoom" value={tile.dims.zoom} title="Zoom — scales Width, Height and Zoom together" onDim={tile.onDim} />
@@ -455,38 +477,35 @@ export function TileControls({ tile }: { tile: TileControlModel }) {
   )
 }
 
-/** The Cell inspector body — EXACTLY TWO sections. The CELL section (collision only — the cell's sole
- *  tunable prop) then the TILE section: a COMPACT SUMMARY of the ONE selected tile — its name in the header
- *  with a ▲▼ level stepper, swap-tile (Open Tile Library), a colour swatch, and the buttons. The full
- *  per-axis controls open in the settings MODAL via "Edit settings…". No per-tile-in-stack sections. */
+/** The inspector body — the SAME two sections for a cell and for a unit. The COLLISION/clear section
+ *  (collision + Clear tiles) then the TILE section: a COMPACT SUMMARY of the ONE selected tile — its name in
+ *  the header with a ▲▼ level stepper, swap-tile (Add / Replace tile), a colour swatch, and the buttons. The
+ *  full per-axis controls open in the settings MODAL via "Edit settings…". A unit appends `unitSection`. */
 export function PropertiesPanel(p: PropertiesPanelProps) {
   const t = p.tile
-  // A UNIT card passes `unitSection`: it hides the cell-collision row (a unit isn't a cell) and appends the
-  // unit-only extras under the SAME tile summary — one card serves a tile and a unit, no parallel sidebar.
+  // ONE card, whether this is a cell or a unit. `unitSection` only ADDS the unit-only extras — it hides
+  // NOTHING: the COLLISION toggle is the single collision control for everything (for a unit it IS its
+  // "blocks movement"), and Clear tiles / Remove tile are the same actions on both, because "everything in
+  // the map is a tile". The only thing the flag still drives is the section LABEL, which must stay truthful.
   const isUnit = !!p.unitSection
   return (
     <div className="space-y-1.5 text-xs">
-      {!isUnit && (
-        <>
-          <p className="text-[9px] font-bold uppercase tracking-wider text-gray-500">— cell —</p>
-          <div className="flex items-center gap-2">
-            <span className="w-14 shrink-0 text-[10px] text-gray-400">Collision</span>
-            <button onClick={() => p.onCollision(true)} aria-pressed={p.collision === true} className={`rounded px-2 py-0.5 text-[10px] font-bold ${p.collision === true ? 'bg-red-600 text-white' : 'bg-gray-700 hover:bg-gray-600'}`}>Blocked</button>
-            <button onClick={() => p.onCollision(false)} aria-pressed={p.collision === false} className={`rounded px-2 py-0.5 text-[10px] font-bold ${p.collision === false ? 'bg-emerald-600 text-white' : 'bg-gray-700 hover:bg-gray-600'}`}>Walkable</button>
-            {p.collision === null && mixedBadge}
-          </div>
-          {/* Clear tiles — a PROMINENT cell-level erase: drops every stacked tile off the selected cell(s).
-              Shown for a cell even when the floor is selected (it's a cell action, not a tile action). */}
-          {p.onClearTiles && (
-            <button onClick={p.onClearTiles} aria-label="Clear tiles" className="w-full rounded bg-red-800 px-2 py-1.5 text-xs font-bold text-white transition-colors hover:bg-red-700">
-              🧹 Clear tiles
-            </button>
-          )}
-        </>
+      {!isUnit && <p className="text-[9px] font-bold uppercase tracking-wider text-gray-500">— cell —</p>}
+      <div className="flex items-center gap-2">
+        <span className="w-14 shrink-0 text-[10px] text-gray-400">Collision</span>
+        <button onClick={() => p.onCollision(true)} aria-pressed={p.collision === true} className={`rounded px-2 py-0.5 text-[10px] font-bold ${p.collision === true ? 'bg-red-600 text-white' : 'bg-gray-700 hover:bg-gray-600'}`}>Blocked</button>
+        <button onClick={() => p.onCollision(false)} aria-pressed={p.collision === false} className={`rounded px-2 py-0.5 text-[10px] font-bold ${p.collision === false ? 'bg-emerald-600 text-white' : 'bg-gray-700 hover:bg-gray-600'}`}>Walkable</button>
+        {p.collision === null && mixedBadge}
+      </div>
+      {/* Clear tiles — a PROMINENT erase that empties the cell(s) this selection sits on, floor included. */}
+      {p.onClearTiles && (
+        <button onClick={p.onClearTiles} aria-label="Clear tiles" className="w-full rounded bg-red-800 px-2 py-1.5 text-xs font-bold text-white transition-colors hover:bg-red-700">
+          🧹 Clear tiles
+        </button>
       )}
       {t && (
         <>
-          <div className={`flex items-center justify-between ${isUnit ? '' : 'mt-1 border-t border-white/10 pt-1.5'}`}>
+          <div className="mt-1 flex items-center justify-between border-t border-white/10 pt-1.5">
             {/* "everything is a tile": a unit's sprite is shown as its tile, same header shape a cell tile uses.
                 A thumbnail of the tile's baked art (a SIBLING of the divider text, not inside it) SHOWS the
                 currently-selected tile at a glance (Image #67). */}
@@ -530,7 +549,7 @@ export function PropertiesPanel(p: PropertiesPanelProps) {
           )}
         </>
       )}
-      {/* Unit-only extras (identity/vitals/inventory/quests/attacks) — folded INTO this one card for a unit. */}
+      {/* Unit-only extras (name/size rows + stats/inventory/quests/attacks buttons) — folded INTO this one card. */}
       {p.unitSection && <div className="border-t border-white/10 pt-2">{p.unitSection}</div>}
       {/* Triggers — a BUTTON that opens the triggers-management modal (cell: enter/interact; unit: on defeat).
           Replaces the old inline expando; present for a bare cell too (a cell can trigger without a tile). */}

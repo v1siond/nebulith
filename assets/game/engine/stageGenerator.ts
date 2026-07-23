@@ -9,7 +9,7 @@
  * and reusable by the editor, the template mapper, and the eventual AI generator.
  */
 import { type BuildingType } from './buildingTypes'
-import { buildingCompositionKind, facingRotation, isRoadGround, rotateFootprintOffset } from './buildingCatalog'
+import { buildingCompositionKind, buildingDoorOffset, facingRotation, isRoadGround, rotateFootprintOffset } from './buildingCatalog'
 import { planVillage, type VillageLayout, type Settlement, type Plot, type Facing, type PlazaRect } from './villageLayout'
 import {
   stagePropTileOverride,
@@ -33,7 +33,7 @@ import {
 // Re-exported so the generator keeps its public tree-shape type (backend palette data now owns it).
 export type { LivingTreeKind } from './zones'
 import { type CellLabel } from './cellLabels'
-import { resolveTile, resolveComposition, canopyCount, pickGroundDecor } from './tileset/tileset'
+import { resolveTile, resolveComposition, canopyCount, pickGroundDecor, type TileDisplay } from './tileset/tileset'
 import { ASCII_TILESET } from './tileset/asciiTileset'
 import { varyIntensity } from './colors'
 import type { Connector } from '@/lib/api'
@@ -219,11 +219,34 @@ const makeFeatureCell = (zone: ZoneId, col: number, row: number, label: CellLabe
 }
 
 // Walkable flowers read from the zone's curated bloom set (ZONE_FLOWERS in zones.ts).
-const makeFlower = (zone: ZoneId, col: number, row: number): StageProp => {
+const makeFlower = (rng: Rng, zone: ZoneId, col: number, row: number): StageProp => {
   const set = ZONE_FLOWERS[zone] ?? DEFAULT_FLOWERS
-  const pick: FlowerKind = set[randInt(0, set.length - 1)]
+  const pick: FlowerKind = set[randIntWith(rng, 0, set.length - 1)] // seeded pick — the caller passes its layer rng so the pass stays reproducible
   // Each flower gets its own intensity tone (per-cell) for a naturally varied meadow — tone only, no opacity.
   return { col, row, type: 'flower', char: pick.char, blocking: false, color: varyIntensity(pick.color, shadeNoise(col * 2.7 + row * 3.1)) }
+}
+
+/** Per-instance RENDER the generator stamps onto specific prop TYPES — the SAME per-asset settings a hand-painter
+ *  would set (they ride the normal stage save/load; NO tile-definition change, NO migration). A flower stands as
+ *  ONE centered billboard a block tall (`display: 'single'` + `height: 1`) with a TRANSPARENT block — just the
+ *  bloom shows, no coloured cube around it. A type with no entry keeps the tile's own flat render, as before. */
+export const GENERATED_PROP_RENDER: Readonly<Record<string, { height?: number; display?: TileDisplay; transparent?: boolean }>> = {
+  flower: { height: 1, display: 'single', transparent: true },
+}
+
+/** The GridAsset overrides (`height` + `settings`) a generated prop of `type` carries — ONE source BOTH the live
+ *  grid (applyStageToGrid) and the saved payload (stageToTemplate) apply, so the two paths never diverge. Returns
+ *  {} for a type with no override (the default tile-driven flat render). */
+export function generatedPropRender(type: string): { height?: number; settings?: { display?: TileDisplay; transparent?: boolean } } {
+  const o = GENERATED_PROP_RENDER[type]
+  if (!o) return {}
+  const out: { height?: number; settings?: { display?: TileDisplay; transparent?: boolean } } = {}
+  if (o.height !== undefined) out.height = o.height
+  const settings: { display?: TileDisplay; transparent?: boolean } = {}
+  if (o.display !== undefined) settings.display = o.display
+  if (o.transparent !== undefined) settings.transparent = o.transparent
+  if (Object.keys(settings).length > 0) out.settings = settings
+  return out
 }
 
 // Deterministic per-cell pick from the zone-data ROCK_SHADES palette (zones.ts) so cave/arena
@@ -310,6 +333,26 @@ function scatterGroundCover(ctx: ArchetypeContext, density = 0.18): void {
     if (prop) fill.push(prop) // no decor tile for this zone (tileset not loaded) → leave the cell bare
   })
   props.push(...fill)
+}
+
+/** Scatter standing BLOOMS over a settlement's OPEN grass (skips edges, collisions, paved/built floor, roads, and
+ *  cells already holding a prop). Only flowering zones bloom (ZONE_FLOWERS). Each rides GENERATED_PROP_RENDER →
+ *  a single billboard a block tall — so the town's grass gets actual flowers, not just the flat ground tufts
+ *  scatterGroundCover lays down. */
+function scatterFlowers(ctx: ArchetypeContext, density: number): void {
+  const { props, collision, ground, cols, rows, zone } = ctx
+  if (ZONE_FLOWERS[zone] === undefined) return // non-flowering zone → no blooms
+  const occupied = new Set(props.map(p => `${p.col},${p.row}`))
+  const fresh: StageProp[] = []
+  forEachCell(cols, rows, (col, row) => {
+    if (isEdge(col, row, cols, rows)) return
+    if (collision[row][col]) return // walkable grass only
+    if (BUILT_FLOOR.has(ground[row][col]) || isRoadGround(ground[row][col])) return // keep streets/paved clean
+    if (occupied.has(`${col},${row}`)) return // don't cover trees / buildings / decor
+    if (ctx.rand() > density) return
+    fresh.push(makeFlower(ctx.rand, zone, col, row)) // seeded pick → the nature layer stays reproducible per-seed
+  })
+  props.push(...fresh)
 }
 
 // Structural decor for temple / boss arena / village (readable single-glyph props). Glyph + fallback
@@ -614,7 +657,8 @@ export function decorPass(ctx: ArchetypeContext, layout: VillageLayout): void {
  *  flowers over the open floor. This is the layer a "randomize trees / nature only" re-rolls. */
 export function naturePass(ctx: ArchetypeContext, layout: VillageLayout, settlement: Settlement): void {
   fillVillageNature(ctx, layout, NATURE_MULT[settlement])
-  scatterGroundCover(ctx, 0.12) // light grass/flowers; skips paved streets
+  scatterGroundCover(ctx, 0.12) // light flat ground tufts (clover/leaves); skips paved streets
+  scatterFlowers(ctx, 0.06) // + a light scatter of STANDING blooms (single billboards, height 1) over open grass
 }
 
 /**
@@ -840,30 +884,66 @@ export function labelForCell(type: string, pos = ''): string {
 }
 
 /**
+ * Where ONE facade offset lands on the grid, per facing — the SAME quarter-turn `rotateFootprintOffset`
+ * applies when the stamp rotates a south-baked composition to face its road. A door tile authored at
+ * `(dx, dy = depth-1)` rotates to: south → the bottom edge at +dx; north (180°) → the top edge mirrored;
+ * west (90° CW) → the left edge at row +dx; east (270°) → the right edge mirrored down the rows. Deriving
+ * the opening through the SAME geometry is what stops it drifting from the doorway that gets drawn.
+ * Dispatch map, not an if/else chain — a new facing is a new row here.
+ */
+const DOOR_CELL_AT: Readonly<Record<Facing, (rect: FootRect, offset: number) => Cell>> = {
+  south: (rect, offset) => ({ col: rect.col + offset, row: rect.row + rect.h - 1 }),
+  north: (rect, offset) => ({ col: rect.col + rect.w - 1 - offset, row: rect.row }),
+  west: (rect, offset) => ({ col: rect.col, row: rect.row + offset }),
+  east: (rect, offset) => ({ col: rect.col + rect.w - 1, row: rect.row + rect.h - 1 - offset }),
+}
+
+/**
  * The walkable DOOR cells — the building's way in — on the footprint's ROAD-FACING edge. Every OTHER
  * footprint cell blocks.
  *
- * The DRAWN door is `door.width` cells wide (2 on even frontages, #49). AXIS-ALIGNED (south/north) 2D
- * facades draw the door at its full width, so the walkable opening must be that wide too — otherwise a
- * 2-wide door has a walkable half and a blocked half and you "walk between two tiles but not the actual
- * entrance". The door is CENTRED, so its facade span [door.x, door.x+width) maps straight onto the edge's
- * frontage cells (rect.w == facade.length for south/north). ROTATED (east/west) 2D facades collapse the
- * door to a SINGLE edge cell (draw2DBuilding maps one road-edge column to the facade door, the rest to
- * wall), so the opening stays 1 cell there — matching what's drawn (no walk-through-wall).
+ * The opening spans the FULL drawn door on EVERY facing (G7: *"the walk-in ENTRANCE opening must ALWAYS
+ * match the door's width"*). `door` is the composition's own door span along its south-baked facade
+ * (`buildingDoorOffset`), and each offset in `[door.x, door.x + width)` is mapped through `DOOR_CELL_AT` —
+ * the stamp's own rotation — so a 2-door facade opens BOTH cells wherever it faces. East/west used to
+ * collapse to a single mid-edge cell on the grounds that `draw2DBuilding` drew only one door column there;
+ * that drawer is gone (H2 dead-code sweep) and buildings now render through the generic per-cell
+ * composition path in all three views, so a rotated 2-door facade really does stamp two door tiles down
+ * its edge — one walkable cell left the other half walled off.
  */
 export function doorCells(facing: Facing, rect: FootRect, door: { x: number; width: number }): Cell[] {
-  const midRow = rect.row + Math.floor(rect.h / 2)
-  if (facing === 'east') return [{ col: rect.col + rect.w - 1, row: midRow }] // road right → right edge
-  if (facing === 'west') return [{ col: rect.col, row: midRow }] // road left → left edge
-  const row = facing === 'south' ? rect.row + rect.h - 1 : rect.row // road below/above → bottom/top edge
+  const cellAt = DOOR_CELL_AT[facing]
   const cells: Cell[] = []
-  for (let i = 0; i < door.width; i++) cells.push({ col: rect.col + door.x + i, row })
+  for (let i = 0; i < door.width; i++) cells.push(cellAt(rect, door.x + i))
   return cells
 }
 
 /**
+ * The building's DOOR SPAN along its facade, READ from the composition the stamp will draw (never
+ * re-derived): `buildingDoorOffset` returns the ground-level `door` cells' first offset + how many there
+ * are, which the backend builds from the one `door_cols/1` list that also places the entrance apron — so
+ * doors, apron and opening can only ever agree.
+ *
+ * DEGRADED FALLBACK: the tileset holder starts EMPTY and is filled from `/api/tilesets` at load
+ * (MAP-MODEL §8), so an un-loaded (or unknown) kind has no readable door span. We still open a 1-cell
+ * centred entrance — a building with NO opening would seal the player out of the stage entirely — but we
+ * WARN, because that width is a guess and a wide door would come out half-walled. The shipped app never
+ * takes this path: the editor's render gate blocks until the tilesets are installed, so every real
+ * generate reads the composition. (It is reachable from a unit test that skips the tileset fixture.)
+ */
+function facadeDoorSpan(kind: string, facadeLength: number): { x: number; width: number } {
+  const span = buildingDoorOffset(kind)
+  if (span) return span
+  console.warn(
+    `[stageGenerator] composition "${kind}" is not in the loaded tileset — opening a GUESSED 1-cell entrance ` +
+      `at the facade centre. The real door span is unknown until /api/tilesets installs the tileset.`,
+  )
+  return { x: Math.floor(facadeLength / 2), width: 1 }
+}
+
+/**
  * Reserve a building's small GROUND FOOTPRINT (`rect`, width × depth): pave a stone base and BLOCK every
- * footprint cell (collision true) EXCEPT the single road-facing DOOR cell, which stays WALKABLE. This is
+ * footprint cell (collision true) EXCEPT the road-facing DOOR cells, which stay WALKABLE. This is
  * the collision blueprint spawn/enemy placement reads BEFORE the stamp; the building's actual tiles are
  * stamped from its composition at load (applyStageToGrid → stampBuildingComposition), so we emit NO
  * per-cell building props here — the composition IS the tiles. Returns the placed building's metadata
@@ -876,9 +956,9 @@ function placeBuilding(
   kind: string,
 ): PlacedBuilding {
   const { ground, collision, cols, rows } = ctx
-  // Every baked composition has ONE door cell, centred on the facade at dx = floor(length/2) — so the
-  // walkable entrance + its driveway derive without loading the tileset (keeps generation pure/testable).
-  const doors = doorCells(plot.facing, rect, { x: Math.floor(plot.length / 2), width: 1 })
+  // The walkable entrance + its driveway span the composition's REAL door — an even facade is baked with a
+  // centred 2-wide doorway, so a hardcoded 1-cell opening walled off half of it (G7).
+  const doors = doorCells(plot.facing, rect, facadeDoorSpan(kind, plot.length))
   const isDoor = new Set(doors.map(d => `${d.col},${d.row}`))
   for (let row = rect.row; row < rect.row + rect.h; row++) {
     for (let col = rect.col; col < rect.col + rect.w; col++) {
@@ -1570,7 +1650,7 @@ function scatterClearingCover(ctx: ArchetypeContext): void {
       ground[row][col] = accent // mid-level accent ground (zone-themed)
       return
     }
-    if (flowersAllowed && roll < 0.22) props.push(makeFlower(zone, col, row))
+    if (flowersAllowed && roll < 0.22) props.push(makeFlower(Math.random, zone, col, row))
   })
   scatterGroundCover(ctx, 0.1) // light non-blocking floor tufts — keep the forest floor clean + readable
 }
@@ -2376,12 +2456,17 @@ export function stageToTemplate(stage: StageData, name: string): StageTemplatePa
     type: a.type,
     blocking: a.blocking,
     color: a.color,
-    height: 0,
+    // NO hardcoded height — the renderer reads each tile's OWN block-height from the DB (a flat decor is 0.1,
+    // a standing prop ≥1), so a saved generated map matches the LIVE applyStageToGrid path (which also leaves
+    // height to the tile). Height is DATA, never forced here.
     label: a.label,
     footprint: a.footprint,
     // Keep the curated catalog skin the live grid stamps (applyStageToGrid) so a SAVED generated map
     // reloads with the same palette tiles — same per-zone/role dispatch, so the two paths never diverge.
     tileOverride: stagePropTileOverride(stage.zone, a.type),
+    // Per-instance render for standing props (a flower = single billboard, height 1) — the SAME override the
+    // live grid applies, so save/load matches. Spreads height + settings.display when the type has one.
+    ...generatedPropRender(a.type),
   }))
 
   // Trees are recorded as ANCHORS (see TreeAnchor). Expand each into its stacked composition tiles here so a

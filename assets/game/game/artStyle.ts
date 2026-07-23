@@ -46,7 +46,19 @@ export type ElementKind =
   | 'fire-slash' | 'ice-slash' | 'cleave' | 'bolt' | 'piercing-shot'
   | 'nova' | 'lightning' | 'heal-glow' | 'guard-flash'
 
-export type TileCategory = 'terrain' | 'buildings' | 'units' | 'nature'
+// The finer tile taxonomy (11 buckets, backend-owned). Order matches the Library sidebar layout.
+// `buildings` was split into its structural pieces: walls / windows / doors / roofs. Ground splits into
+// terrain (natural) / roads (paved ways) / floors (constructed interior). props = furniture/anchors, decor
+// = small ground detail. The DATA value is always one of these strings; the UI shows prettier labels.
+export type TileCategory =
+  | 'terrain' | 'roads' | 'floors'
+  | 'walls' | 'windows' | 'doors' | 'roofs'
+  | 'nature' | 'props' | 'decor' | 'units'
+
+/** The canonical bucket order (sidebar layout) + the single source for iterating every category. */
+export const TILE_CATEGORIES: readonly TileCategory[] = [
+  'terrain', 'roads', 'floors', 'walls', 'windows', 'doors', 'roofs', 'nature', 'props', 'decor', 'units',
+]
 
 // ── visuals ──────────────────────────────────────────────────────────────
 /** Draw a char (ASCII glyph OR an emoji) with fillText. `color` does DOUBLE duty:
@@ -235,7 +247,11 @@ const PIECE_LABEL = /^(wall_stone|wall_brick|wall_wood|wall_plaster|roof_slate|r
 /** Kind for a placed asset OR a labeled cell — the classifier the asset draw sites use.
  *  A tree label/type → 'tree'; a building part label → its part; else the asset `type`
  *  when that is itself a known kind; otherwise 'ground' (passthrough). */
-export function assetKind(asset: { type: string; label?: string }): ElementKind {
+export function assetKind(asset: { type: string; label?: string; tileKey?: string }): ElementKind {
+  // A FLOOR is a regular tile whose art KIND is its ground kind (grass/road/water/…), carried on tileKey.
+  // This is the ONE floor-aware line: it reuses groundKind so the floor slab resolves the SAME ground tile
+  // + colour the old ground layer did — through the normal per-asset tile path, no separate renderer.
+  if (asset.type === 'floor') return groundKind(asset.tileKey ?? 'grass')
   const label = asset.label
   if (label) {
     if (label.startsWith('tree')) return 'tree'
@@ -314,11 +330,11 @@ export interface TileDef {
 // ── the Tile Library: read LIVE from the loaded (DB) tilesets ─────────────────────────────────────
 // The sidebar browses the SAME tilesets the MAP renders — the backend-loaded EMOJI_TILESET / ASCII_TILESET
 // (tilesetLoader swaps in the :4000 DB rows). NOTHING art-related is hardcoded here: a tile is BROWSEABLE
-// when its loaded entry carries a `category` (terrain/buildings/units/nature); its display name is the
+// when its loaded entry carries a browseable `category` (one of TILE_CATEGORIES); its display name is the
 // entry's `title`, its art the entry's image/glyph. The per-kind seed metadata (category/label/glyph)
 // lives in the backend DB now — the frontend never hardcodes it.
 
-const BROWSEABLE_CATEGORIES: ReadonlySet<string> = new Set<TileCategory>(['terrain', 'buildings', 'units', 'nature'])
+const BROWSEABLE_CATEGORIES: ReadonlySet<string> = new Set<TileCategory>(TILE_CATEGORIES)
 
 /** The Visual for one loaded EMOJI tile entry — its baked image if present, else its glyph. */
 function emojiEntryVisual(t: { char: string; color?: string; image?: string }): Visual {
@@ -329,7 +345,7 @@ function emojiEntryVisual(t: { char: string; color?: string; image?: string }): 
  *  sidebar ALWAYS matches the map. Only entries carrying a `category` are browseable (internal cell-labels
  *  like wall pieces / tree corners render on the map but never surface in the sidebar). */
 export function tilesForStyle(styleId: string): Record<TileCategory, TileDef[]> {
-  const out: Record<TileCategory, TileDef[]> = { terrain: [], buildings: [], units: [], nature: [] }
+  const out = Object.fromEntries(TILE_CATEGORIES.map(c => [c, [] as TileDef[]])) as Record<TileCategory, TileDef[]>
   // `extra` carries the DB tile's BLOCK height + settings so the palette tile FULLY describes the DB tile —
   // the brush then seeds a painted asset from it and a painted tile matches the generator's version.
   const push = (key: string, category: string | undefined, title: string | undefined, visual: Visual, extra: Pick<TileDef, 'height' | 'settings'> = {}): void => {

@@ -47,13 +47,18 @@ export function entityKindForUnitSlug(slug: string): 'player' | 'npc' | 'enemy' 
   return 'enemy'
 }
 
+// Ground-family categories all lay down the cell's walkable ground (a terrain/road/floor is painted flat,
+// height 0). The finer taxonomy split `buildings` into stacked structural pieces (walls/windows/doors/roofs)
+// and `terrain` into terrain/roads/floors — but the PLACEMENT primitive only cares about ground-vs-asset.
+const GROUND_CATEGORIES = new Set<TileCategory>(['terrain', 'roads', 'floors'])
+
 /** Route an armed tile to its placement primitive:
- *   - terrain            → set the cell's ground
- *   - units (figure)     → place an entity
- *   - units (FX) / nature / buildings → stamp a (stackable) cell asset */
+ *   - terrain / roads / floors                          → set the cell's ground
+ *   - units (figure)                                    → place an entity
+ *   - units (FX) / walls / windows / doors / roofs / props / nature → stamp a (stackable) cell asset */
 export function placementFor(tile: Pick<TileDef, 'category' | 'id'>): PlacementKind {
   const cat: TileCategory = tile.category
-  if (cat === 'terrain') return 'terrain'
+  if (GROUND_CATEGORIES.has(cat)) return 'terrain'
   if (cat === 'units') return NON_ENTITY_UNIT.has(tileSlug(tile.id)) ? 'asset' : 'entity'
-  return 'asset' // nature + buildings
+  return 'asset' // walls/windows/doors/roofs/props/nature — every standing piece stacks as a cell asset
 }

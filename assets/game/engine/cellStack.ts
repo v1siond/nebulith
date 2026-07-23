@@ -1,31 +1,25 @@
 /**
- * CELL STACK — the forward-projection adapter for the "one tile-stack model" migration (Step 0).
+ * CELL STACK — the "one tile-stack model" projection over a cell's assets.
  *
- * TARGET model: a cell is a fixed slot; everything in it is a uniform TILE with Width/Depth/HEIGHT
- * (h:0 = flat floor, ≥1 = an extruded block); a cell holds an ORDERED stack, index 0 = the floor.
+ * MODEL: a cell is a fixed slot; everything in it is a uniform TILE with Width/Depth/HEIGHT (h:0 = a flat
+ * slab like a floor/road, ≥1 = an extruded block). A cell holds an ORDERED stack, index 0 = the base tile.
+ * There is NO separate ground store: the floor/road is a plain `type:'floor'` GridAsset at heightLevel 0
+ * (a thin coloured slab) living in `assets[]` exactly like every wall/prop, so the whole stack is just
+ * `assets[]` sorted by heightLevel. (Terrain `height[row][col]` is a CELL elevation prop, NOT a tile.)
  *
- * Today that data is split across `IsometricGrid`:
- *   - `ground[row][col]`      — floor slug (e.g. 'grass')
- *   - `groundColor[row][col]` — floor colour override (null = catalog colour)
- *   - `groundDims[row][col]`  — floor Width/Height/Depth/Zoom + pose (GroundCellDims)
- *   - `assets[]`              — flat list; each carries col/row/heightLevel/height/scaleX/scaleY/scaleZ/
- *                               scale/tileOverride/color/blocking/… (GridAsset)
- * (Terrain `height[row][col]` is a CELL elevation prop, NOT a tile — it is left untouched.)
- *
- * This module is PURELY ADDITIVE: it PROJECTS those current fields onto the target `TileEntry[]` stack
- * (and back, via mutators that call the grid's existing setters). It changes NO existing behaviour and
- * touches no render/codec/collision path — later migration steps consume it. Pure + unit-tested.
+ * `getStack` projects a cell's assets onto `TileEntry[]`; the mutators (pushTile/popTile) translate stack
+ * ops back onto the grid. Pure + unit-tested.
  */
-import type { IsometricGrid, GridAsset } from './IsometricGrid'
-import type { GroundCellDims } from './groundDims'
+import { FLOOR_TYPE, DEFAULT_FLOOR_SLUG, type IsometricGrid, type GridAsset } from './IsometricGrid'
 import type { TilePose } from './tileset/pose'
 import { resolveTileHeight } from './tileset/tileHeight'
 
 /** Which store a TileEntry projects from — lets a consumer/mutator route back to the right setter/store.
- *  Buildings are plain stacked ASSETS now, so a wall/window/door/roof block projects as `asset`; `entity` =
- *  an npc/enemy/player standing on the cell. Everything is a uniform tile — the source is only how you write
- *  BACK, never a branch a picker/inspector takes to READ. (`building` is retained for legacy round-trips.) */
-export type TileSource = 'floor' | 'asset' | 'building' | 'entity'
+ *  There is NO `floor` source: the floor is a plain `type:'floor'` ASSET, so it projects as `asset` exactly
+ *  like every wall/window/door/roof/prop block; `entity` = an npc/enemy/player standing on the cell. Everything
+ *  is a uniform tile — the source is only how you write BACK, never a branch a picker/inspector takes to READ.
+ *  (`building` is retained for legacy round-trips.) */
+export type TileSource = 'asset' | 'building' | 'entity'
 
 /** Back-reference from a derived TileEntry to the store row it came from, so selection/edits know which
  *  building block (building B, part, at level L) or which entity a picked tile IS. Floor/asset tiles carry
@@ -56,93 +50,61 @@ export interface StackScope {
 }
 
 /**
- * One uniform tile in a cell's stack. The target model's atom: everything in a cell — the floor and every
- * stacked prop/block — is a TileEntry. Populated by forward projection over the CURRENT split fields; the
- * `source`/`heightLevel`/`art`/`type`/`label` carry-throughs let the mutators reconstruct the legacy shape
- * losslessly for the round-trip.
+ * One uniform tile in a cell's stack. The model's atom: everything in a cell — the floor/road AND every
+ * stacked prop/block — is a TileEntry projected 1:1 from a GridAsset; the `source`/`heightLevel`/`art`/`type`/
+ * `label` carry-throughs let callers map an entry back to its asset.
  */
 export interface TileEntry {
-  /** style-agnostic Tile Library id pinning this cell's visual (GridAsset.tileOverride). Floor tiles follow
-   *  the active style, so this is absent for the floor. */
+  /** style-agnostic Tile Library id pinning this tile's visual (GridAsset.tileOverride). Absent → follows
+   *  the active style. */
   tileId?: string
-  /** what this tile IS: the ground slug for the floor; `label ?? type` for a stacked asset. */
+  /** what this tile IS: the ground slug for a floor tile; `label ?? type` for any other asset. */
   slug: string
-  /** Width (x) — horizontal stretch. GroundCellDims.scaleX / GridAsset.scaleX. Absent = tile default (→1). */
+  /** Width (x) — horizontal stretch. GridAsset.scaleX. Absent = tile default (→1). */
   w?: number
-  /** Depth (into-screen ground axis). GroundCellDims.scaleZ / GridAsset.scaleZ. Absent = tile default (→1). */
+  /** Depth (into-screen ground axis). GridAsset.scaleZ. Absent = tile default (→1). */
   d?: number
-  /** BLOCK height: 0 = flat floor tile, ≥1 = extruded cube. resolveTileHeight(GridAsset.height); floor = 0.
+  /** BLOCK height: 0 = flat slab tile (floor/road), ≥1 = extruded cube. resolveTileHeight(GridAsset.height).
    *  Absent = do NOT pin a per-instance height — the renderer falls back to the tile's catalog height (the
    *  editor brush relies on this so a placed house/tree keeps its authored extrusion). */
   h?: number
-  /** Zoom — uniform multiplier over every axis. GroundCellDims.scale / GridAsset.scale. */
+  /** Zoom — uniform multiplier over every axis. GridAsset.scale. */
   zoom?: number
-  /** Height (up) — vertical sprite stretch (grows UP). GroundCellDims.scaleY / GridAsset.scaleY. Carried;
-   *  a flat floor has no vertical axis but the value round-trips through save/load. */
+  /** Height (up) — the per-instance Height MULTIPLIER over the tile's own DB block-height (GridAsset.scaleY,
+   *  default 1). The tile's base height is DATA (its DB `height`, a flat tile 0.1); scaleY scales it. Round-trips
+   *  through save/load. */
   scaleY?: number
-  /** per-cell pose (position/rotation within the cell). Floor tiles only today (GroundCellDims.pose). */
+  /** per-instance pose (position/rotation within the cell). GridAsset.pose. */
   pose?: TilePose
-  /** colour override (GroundCellDims via groundColor / GridAsset.color). null/absent = catalog colour. */
+  /** colour override (GridAsset.color). null/absent = catalog colour. */
   color?: string | null
   /** per-instance sprite opacity (GridAsset.opacity). absent = fully opaque (the renderer uses `opacity ?? 1`). */
   opacity?: number
   /** does this tile block movement (GridAsset.blocking). See deriveCellCollision. */
   collision?: boolean
-  /** which legacy layer this entry came from. */
+  /** which store this entry came from (always `asset` for grid tiles; `entity` for a character). */
   source: TileSource
-  /** stack level carried from the asset (GridAsset.heightLevel). Floor = 0. */
+  /** stack level carried from the asset (GridAsset.heightLevel). A base tile = 0. */
   heightLevel?: number
-  /** carry-through of the asset's visual (GridAsset.art) — floor tiles have none. */
+  /** carry-through of the asset's visual (GridAsset.art). */
   art?: string[]
-  /** carry-through of the asset's type (GridAsset.type) — floor tiles have none. */
+  /** carry-through of the asset's type (GridAsset.type). */
   type?: string
-  /** carry-through of the asset's cell-part label (GridAsset.label) — floor tiles have none. */
+  /** carry-through of the asset's cell-part label (GridAsset.label). */
   label?: string
   /** back-reference to the store row a DERIVED tile came from (building block / entity). floor+asset
    *  tiles omit it (they write back through the grid's own setters / the asset). */
   ref?: TileRef
 }
 
-/** Legacy per-cell data (what the codec holds per cell). `migrateAssetsToStack` turns it into a stack. */
-export interface LegacyCell {
-  /** ground[row][col] — the floor slug. */
-  groundData: string
-  /** groundColor[row][col] — floor colour override (null = catalog colour). */
-  groundColor?: string | null
-  /** groundDims[row][col] — floor Width/Height/Depth/Zoom + pose. */
-  groundDims?: GroundCellDims
-  /** the GridAssets sitting on this cell (any order — sorted by heightLevel here). */
-  assetsData: GridAsset[]
-}
-
-/** The floor tile (stack index 0) built from the cell's ground slug + colour + dims. Always h:0 (flat).
- *
- *  NOTE on collision: terrain/base collision (grid.collision, e.g. water) is a CELL field in the legacy
- *  model. This additive step projects only ground/colour/dims onto the floor tile (per the migration plan),
- *  so the floor carries no collision — cell collision in the stack model derives from asset blocking (see
- *  deriveCellCollision). Folding terrain collision onto the floor tile is a later step. */
-function floorEntry(groundData: string, color: string | null | undefined, dims: GroundCellDims | undefined): TileEntry {
-  return {
-    source: 'floor',
-    slug: groundData,
-    w: dims?.scaleX ?? 1,
-    d: dims?.scaleZ ?? 1,
-    h: 0,
-    zoom: dims?.scale,
-    scaleY: dims?.scaleY,
-    pose: dims?.pose,
-    color: color ?? null,
-    heightLevel: 0,
-  }
-}
-
 /** A stacked asset → its uniform TileEntry. Height goes through resolveTileHeight (0-clamped, matches the
- *  iso renderer); blocking → collision; tileOverride → tileId; scaleX/scaleZ/scale → w/d/zoom. */
+ *  iso renderer); blocking → collision; tileOverride → tileId; scaleX/scaleZ/scale → w/d/zoom. A FLOOR is just
+ *  an asset whose slug is its ground tileKey (grass/road/…); it stays `source:'asset'` (no `source:'floor'`). */
 function assetEntry(a: GridAsset): TileEntry {
   return {
     source: 'asset',
     tileId: a.tileOverride,
-    slug: a.label ?? a.type,
+    slug: a.type === FLOOR_TYPE ? (a.tileKey ?? DEFAULT_FLOOR_SLUG) : (a.label ?? a.type),
     w: a.scaleX ?? 1,
     d: a.scaleZ ?? 1,
     h: resolveTileHeight(undefined, a),
@@ -159,65 +121,64 @@ function assetEntry(a: GridAsset): TileEntry {
 }
 
 /**
- * PURE forward projection of raw legacy cell data onto the target stack — the same result `getStack`
- * produces, but from plain data (no grid). Used by the codec step. Index 0 = floor; 1.. = the assets
- * sorted by heightLevel (index 0 = closest to the floor).
- */
-export function migrateAssetsToStack(cell: LegacyCell): TileEntry[] {
-  const assets = [...cell.assetsData].sort((a, b) => (a.heightLevel ?? 0) - (b.heightLevel ?? 0))
-  return [floorEntry(cell.groundData, cell.groundColor, cell.groundDims), ...assets.map(assetEntry)]
-}
-
-/**
- * The cell's tile stack: index 0 = the floor, then the loose assets sorted by heightLevel. A building's
- * wall/window/door/roof blocks are REAL per-cell assets on the grid (its composition stamps one asset per
- * block), so they come through this SAME assets list — there is no separate building projection to fold in.
- * `_scope` (entities) is accepted for call-site compatibility; buildings are never projected here (that
- * would DOUBLE-COUNT every block for the pick/inspector). ONE uniform TileEntry[] a picker/inspector
- * iterates with NO branch on "is it a building / character / prop". Does NOT mutate the grid.
+ * The cell's tile stack: index 0 = the floor (a level-0 floor asset), then the loose assets sorted by
+ * heightLevel. Buildings' wall/window/door/roof blocks are REAL per-cell assets, so they come through this
+ * SAME list — no separate floor/building projection to fold in. `_scope` (entities) is accepted for call-site
+ * compatibility. ONE uniform TileEntry[] a picker/inspector iterates with NO branch on the kind of tile.
  */
 export function getStack(grid: IsometricGrid, col: number, row: number, _scope: StackScope = {}): TileEntry[] {
-  return migrateAssetsToStack({
-    groundData: grid.ground[row]?.[col] ?? 'grass',
-    groundColor: grid.groundColor[row]?.[col] ?? null,
-    groundDims: grid.groundDims[row]?.[col],
-    assetsData: grid.getAssetsAtCell(col, row),
-  })
+  return grid.getAssetsAtCell(col, row).map(assetEntry)
 }
 
-/** Cell collision in the stack model = ANY tile in the stack blocks. Today that is the OR of the assets'
- *  blocking flags (the floor carries no collision in this step — see floorEntry). */
+/** A memoized "which stack slot is this asset" lookup over ONE grid snapshot — the canonical per-tile identity
+ *  used by selection/picking. A tile is identified by its cell + its INDEX in that cell's ordered stack
+ *  (`getAssetsAtCell` order: index 0 = the base/floor slab, then up), which is exactly the index the inspector's
+ *  `selectedTileLevel` addresses — so the render highlight, the pick key, and the inspector all agree on ONE
+ *  index per tile. This is what lets two tiles at the SAME level (grass slab + wall block, both level 0) be
+ *  selected APART: they are different stack slots. Returns a closure so a per-frame render pays the per-cell
+ *  sort ONCE (cached), not once per drawn tile. -1 for an asset not in the grid (defensive). */
+export function assetStackIndexer(grid: IsometricGrid): (asset: GridAsset) => number {
+  const cache = new Map<string, GridAsset[]>()
+  return (asset: GridAsset): number => {
+    const key = `${asset.col},${asset.row}`
+    let stack = cache.get(key)
+    if (!stack) {
+      stack = grid.getAssetsAtCell(asset.col, asset.row)
+      cache.set(key, stack)
+    }
+    return stack.indexOf(asset)
+  }
+}
+
+/** Cell collision in the stack model = ANY tile in the stack blocks. The OR of the assets' blocking flags
+ *  (a floor tile is blocking:false by default, so it never blocks unless the user opts it in like any tile). */
 export function deriveCellCollision(stack: TileEntry[]): boolean {
   return stack.some(t => t.collision === true)
 }
 
-// ── mutators: translate stack ops back onto the grid's EXISTING setters (used by later steps) ──
+// ── mutators: translate stack ops back onto the grid's EXISTING setters ──
 
-/** setFloor → setGround / setGroundColor / setGroundDims. Writes the floor tile (index 0) of the cell.
- *  Only the floor's own fields are written; h is ignored (the floor is always flat). */
-export function setFloor(grid: IsometricGrid, col: number, row: number, entry: TileEntry): void {
-  grid.setGround(col, row, entry.slug)
-  grid.setGroundColor(col, row, entry.color ?? null)
-  const dims: Partial<GroundCellDims> = { scaleX: entry.w, scaleZ: entry.d }
-  if (entry.zoom !== undefined) dims.scale = entry.zoom
-  if (entry.scaleY !== undefined) dims.scaleY = entry.scaleY
-  if (entry.pose !== undefined) dims.pose = entry.pose
-  grid.setGroundDims(col, row, dims)
-}
-
-/** The current top stack level at a cell, or -1 when the cell holds only its floor. */
+/** The current top NON-FLOOR stack level at a cell, or -1 when the cell holds no stacked tile (only its floor
+ *  or empty). The floor is EXCLUDED because it is the cell's thin ground SLAB (the "baseplate"), not a block
+ *  level: the FIRST tile pushed onto a bare/floor-only cell lands at level 0 — coexisting WITH the floor at
+ *  level 0 (a wall block on the grass slab) — and each further tile stacks one level above the tallest. */
 function topLevel(grid: IsometricGrid, col: number, row: number): number {
-  const assets = grid.getAssetsAtCell(col, row)
-  if (assets.length === 0) return -1
-  return assets.reduce((max, a) => Math.max(max, a.heightLevel ?? 0), 0)
+  return grid.getAssetsAtCell(col, row).reduce(
+    (max, a) => (a.type === FLOOR_TYPE ? max : Math.max(max, a.heightLevel ?? 0)),
+    -1,
+  )
 }
 
-/** pushTile → placeAsset at heightLevel = (top + 1). placeAsset's fixed option list drops the per-instance
- *  dims (scaleX/scaleZ/scaleY/height) and the label, so we assign those onto the just-placed asset to keep
- *  the uniform-tile push lossless. Each patch is applied ONLY when the entry actually pins that field: an
- *  entry that OMITS w/d/h (the editor brush, which places a tile at its catalog size/height) leaves
- *  scaleX/scaleZ/height undefined so the renderer falls back to the tile default — byte-identical to the
- *  pre-adapter placeAsset call. Returns the placed GridAsset. */
+/** pushTile → STACK a tile onto the cell (MAP-MODEL §4 "a cell holds an ORDERED stack ... stacked like legos"):
+ *  placeAsset at heightLevel = (top NON-floor + 1) — 0 on a bare/floor-only cell, one above the tallest stacked
+ *  tile otherwise. The floor STAYS: paint a wall on grass and the grass slab remains beneath as its own stacked
+ *  tile while the wall sits at level 0 on it; a roof/upper level stacks ABOVE. The floor is removed ONLY by an
+ *  explicit CLEAR/erase (grid.removeFloor via clearGroundTile), never by placement. placeAsset's fixed option
+ *  list drops the per-instance dims (scaleX/scaleZ/scaleY/height) and the label, so we assign those onto the
+ *  just-placed asset to keep the uniform-tile push lossless. Each patch is applied ONLY when the entry actually
+ *  pins that field: an entry that OMITS w/d/h (the editor brush, which places a tile at its catalog size/height)
+ *  leaves scaleX/scaleZ/height undefined so the renderer falls back to the tile default. Returns the placed
+ *  GridAsset. */
 export function pushTile(grid: IsometricGrid, col: number, row: number, entry: TileEntry): GridAsset {
   const heightLevel = topLevel(grid, col, row) + 1
   grid.placeAsset(entry.art ?? [], col, row, {
@@ -238,13 +199,13 @@ export function pushTile(grid: IsometricGrid, col: number, row: number, entry: T
   return placed
 }
 
-/** popTile → remove the TOP asset (highest heightLevel) at the cell. Returns the removed asset, or
- *  undefined when the cell holds only its floor. Cell collision is not recomputed here (Step 0 mirrors the
- *  legacy model, which does not unblock on single-asset removal). */
+/** popTile → remove the TOP STACKED asset (highest heightLevel, excluding the floor) at the cell. Returns the
+ *  removed asset, or undefined when the cell holds no stacked tile (only its floor, or empty) — the floor is
+ *  never popped here (clear it via removeFloor). Cell collision is recomputed by the caller (removeTopAsset). */
 export function popTile(grid: IsometricGrid, col: number, row: number): GridAsset | undefined {
-  const assets = grid.getAssetsAtCell(col, row)
-  if (assets.length === 0) return undefined
-  const top = assets[assets.length - 1]
+  const stacked = grid.getAssetsAtCell(col, row).filter(a => a.type !== FLOOR_TYPE)
+  if (stacked.length === 0) return undefined
+  const top = stacked[stacked.length - 1] // highest-level non-floor tile
   grid.removeAssetsWhere(a => a === top)
   return top
 }

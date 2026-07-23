@@ -1,7 +1,7 @@
 /**
  * TILE-BRUSH GRID MUTATIONS — the small, pure orchestration the editor's pick-first brush runs against a
  * grid. Every grid-write speaks in "tile stack" terms: it goes through the cellStack adapter's stack ops
- * (setFloor / pushTile / popTile + deriveCellCollision) rather than the low-level grid setters, so there is
+ * (pushTile / popTile + deriveCellCollision) rather than the low-level grid setters, so there is
  * one place — testable without React — that turns an armed catalog TileDef into a placed thing:
  *
  *   - placeGroundTile → terrain: replace the cell's FLOOR tile slug, preserving its colour/dims.
@@ -17,7 +17,7 @@
  */
 import type { GridAsset, IsometricGrid } from '@/engine/IsometricGrid'
 import type { TileDef } from '@/game/artStyle'
-import { deriveCellCollision, getStack, popTile, pushTile, setFloor, setTileCollision } from '@/engine/cellStack'
+import { deriveCellCollision, getStack, popTile, pushTile, setTileCollision } from '@/engine/cellStack'
 import { tileRenderBehavior } from '@/engine/tileset/tileset'
 import { tileSlug } from './tilePlacement'
 
@@ -32,26 +32,22 @@ function tileChar(tile: TileDef): string {
   return ''
 }
 
-/** terrain → set (replace) the cell's FLOOR to the tile's slug. Routed through the cellStack floor op: we
- *  read the current floor tile and patch ONLY its slug, so the cell's existing colour/dims round-trip
- *  untouched (setFloor rewrites them to the same values; a bare cell stays at the non-persisted defaults). */
+/** terrain → set (replace) the cell's FLOOR to the tile's slug. setGround places/updates the cell's level-0
+ *  floor ASSET, preserving its existing colour/dims (only the slug changes) — one uniform write, no branch. */
 export function placeGroundTile(grid: IsometricGrid, col: number, row: number, tile: TileDef): void {
-  const [floor] = getStack(grid, col, row)
-  setFloor(grid, col, row, { ...floor, slug: tileSlug(tile.id) })
+  grid.setGround(col, row, tileSlug(tile.id))
 }
 
-/** The BARE/default floor slug every freshly-initialised cell starts on (the IsometricGrid ctor fills the
- *  whole ground with it, and getStack falls back to it) — what a cleared cell returns to. */
+/** The default floor slug a freshly-initialised cell starts on (the IsometricGrid ctor fills the whole ground
+ *  with it). A CLEARED cell has NO floor at all — this is only the paint/regen default, not the cleared state. */
 export const DEFAULT_GROUND_SLUG = 'grass'
 
-/** CLEAR a cell's FLOOR back to bare: the default ground slug, no colour override, no dims. A road, terrain
- *  or plaza is JUST a floor tile (all painted via placeGroundTile), so this clears ANY of them the SAME way —
- *  there is NO branch on the tile's type / category / height / style. Pairs with removeTopAsset (which drops
- *  the stacked assets) so "Clear tiles" can EMPTY the whole cell, not just the stack. */
+/** CLEAR a cell's FLOOR entirely → an EMPTY cell (NOT grass). The floor is a regular tile, so clearing it
+ *  removes the floor asset just like popping any tile; a road/plaza/terrain floor all clear the SAME way, no
+ *  branch on type/category/height. Pairs with removeTopAsset (which drops the stacked assets) so "Clear tiles"
+ *  can EMPTY the whole cell. */
 export function clearGroundTile(grid: IsometricGrid, col: number, row: number): void {
-  grid.setGround(col, row, DEFAULT_GROUND_SLUG)
-  grid.setGroundColor(col, row, null)
-  grid.clearGroundDims(col, row)
+  grid.removeFloor(col, row)
 }
 
 /** nature / buildings → PUSH a tile onto the cell's stack (pushTile lands it one level above the tallest,

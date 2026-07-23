@@ -59,12 +59,14 @@ describe('AC-picker-constrained — the frame picker draws from the entity CATEG
     expect(person?.visual).toMatchObject({ char: '🧍' })
   })
 
-  test('buildings is a DIFFERENT, disjoint set — a character never picks a house as a frame', () => {
-    expect(emoji.buildings.length).toBeGreaterThan(0)
+  test('building pieces are a DIFFERENT, disjoint set — a character never picks a house as a frame', () => {
+    // the old `buildings` bucket split into walls/windows/doors/roofs/props — all still disjoint from units.
+    const buildingPieces = [...emoji.walls, ...emoji.windows, ...emoji.doors, ...emoji.roofs, ...emoji.props]
+    expect(buildingPieces.length).toBeGreaterThan(0)
     const unitIds = new Set(emoji.units.map(t => t.id))
-    expect(emoji.buildings.some(t => unitIds.has(t.id))).toBe(false)
-    // and the person tile is NOT in the buildings set
-    expect(emoji.buildings.some(t => t.id === 'emoji:person')).toBe(false)
+    expect(buildingPieces.some(t => unitIds.has(t.id))).toBe(false)
+    // and the person tile is NOT in the building set
+    expect(buildingPieces.some(t => t.id === 'emoji:person')).toBe(false)
   })
 })
 

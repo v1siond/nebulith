@@ -210,7 +210,7 @@ describe('generateStage — temple STRUCTURE: a grand settlement building compos
     return null
   }
 
-  it('stamps the temple footprint as collision, walkable only across its single door', () => {
+  it('stamps the temple footprint as collision, walkable only across its door cells', () => {
     const found = findTempleBuilding()
     expect(found).not.toBeNull()
     const { stage, temple: b } = found!
@@ -219,7 +219,9 @@ describe('generateStage — temple STRUCTURE: a grand settlement building compos
     const cells: { col: number; row: number }[] = []
     const top = b.row - (b.height - 1)
     for (let r = top; r <= b.row; r++) for (let c = b.col; c < b.col + b.length; c++) cells.push({ col: c, row: r })
-    expect(b.doorCells).toHaveLength(1) // one walkable door
+    // temple_8's 8-wide facade bakes a CENTRED 2-wide doorway, so the walk-in opening is 2 cells (G7 — the
+    // entrance always matches the door), not the one cell the hardcoded span used to open.
+    expect(b.doorCells).toHaveLength(2)
     const doorSet = new Set(b.doorCells.map(d => `${d.col},${d.row}`))
     for (const d of b.doorCells) expect(stage.collision[d.row][d.col]).toBe(false) // the door is a way in
     // every OTHER footprint cell blocks

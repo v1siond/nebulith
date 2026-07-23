@@ -24,14 +24,14 @@ describe('stampBuildingComposition → plain per-cell tiles carrying generic beh
     expect(placed).toBeGreaterThan(0)
     // `placed` counts the composition CELLS; contiguous same-tile vertical runs collapse into ONE sized
     // (scaleY) block, so there are FEWER assets than cells (the perf "intelligent building" reduction).
-    expect(grid.assets.length).toBeGreaterThan(0)
-    expect(grid.assets.length).toBeLessThanOrEqual(placed)
+    expect(grid.assets.filter(a => a.type !== 'floor').length).toBeGreaterThan(0)
+    expect(grid.assets.filter(a => a.type !== 'floor').length).toBeLessThanOrEqual(placed)
     expect(grid.assets.some(a => a.type === 'building')).toBe(false)
     expect(grid.assets.some(a => a.buildingType != null)).toBe(false)
     // The asset TYPE is the composition kind; every cell carries a building PART label (house_4's
     // cells resolve to its wood MATERIAL pieces: wall_wood_c / wall_wood_* + a red gable roof/roof_top).
-    expect(grid.assets.every(a => a.type === 'house_4')).toBe(true)
-    expect(grid.assets.every(a => isBuildingPart(a.label))).toBe(true)
+    expect(grid.assets.filter(a => a.type !== 'floor').every(a => a.type === 'house_4')).toBe(true)
+    expect(grid.assets.filter(a => a.type !== 'floor').every(a => isBuildingPart(a.label))).toBe(true)
   })
 
   test('walls / windows / doors carry settings.fadeNear (and NOT cutawayRoof)', () => {
@@ -61,7 +61,7 @@ describe('stampBuildingComposition → plain per-cell tiles carrying generic beh
     // a flat roof (parapet), and keeps its blue "Store" roof-top sign badge; door/upper-window stay generic.
     for (const part of ['wall_brick_c', 'window', 'door', 'display_window', 'awning', 'parapet', 'roof_top_store'])
       expect(labels.has(part)).toBe(true)
-    expect(grid.assets.every(a => a.type === 'store_5')).toBe(true)
+    expect(grid.assets.filter(a => a.type !== 'floor').every(a => a.type === 'store_5')).toBe(true)
   })
 
   test('exactly ONE apex roof_top tile — the single roof apex', () => {

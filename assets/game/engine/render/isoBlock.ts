@@ -94,6 +94,20 @@ export const DEPTH_CELL_STEP: Record<DepthDir, { dc: number; dr: number }> = {
 }
 
 /**
+ * Rotate a directional-depth `dir` by `rotation` CW quarter-turns (0–3; negatives/≥4 wrap) — the SAME grid
+ * rotation `rotateFootprintOffset` applies to a composition cell's offset, so a span authored along the +row
+ * (south, `left-down`) axis follows its building when it's rotated to face east/west/north (no sideways roof).
+ * DERIVED from DEPTH_CELL_STEP: one CW quarter-turn sends a grid step (dc,dr) → (−dr,dc); apply it `k` times
+ * and map the resulting unit vector back to its direction name (the four dirs are closed under the turn). Pure.
+ */
+export function rotateDepthDir(dir: DepthDir, rotation: number): DepthDir {
+  const k = ((rotation % 4) + 4) % 4
+  let { dc, dr } = DEPTH_CELL_STEP[dir]
+  for (let i = 0; i < k; i++) [dc, dr] = [-dr, dc]
+  return (Object.keys(DEPTH_CELL_STEP) as DepthDir[]).find(d => DEPTH_CELL_STEP[d].dc === dc && DEPTH_CELL_STEP[d].dr === dr)!
+}
+
+/**
  * Z-POSITION — slide a tile along an ISO DIAGONAL (NOT a vertical lift). `z` is the magnitude in cells;
  * `dir` picks one of the four iso diagonals (the SAME 4 dirs as directional depth / z-width). +z slides
  * the tile TOWARD `dir`, −z toward its opposite. Returns the screen-space offset in the caller's tileW/tileH

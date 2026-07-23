@@ -91,10 +91,14 @@ describe('a unit uses the SAME card as a tile (no separate unit sidebar)', () =>
     expect(screen.getByRole('button', { name: /Attacks/i })).toBeInTheDocument()
   })
 
-  it('HIDES the cell-collision row for a unit (a unit is not a cell)', () => {
+  // Updated with the unified-card work: there is now ONE collision control for everything — for a unit the
+  // card's Blocked/Walkable toggle IS its "blocks movement" (the standalone checkbox is gone). Only the
+  // "— cell —" section LABEL stays cell-specific, because a unit isn't a cell.
+  it('SHOWS the ONE collision row for a unit (it serves the unit\'s blocks-movement)', () => {
     renderUnitCard()
-    expect(screen.queryByRole('button', { name: 'Blocked' })).toBeNull()
-    expect(screen.queryByRole('button', { name: 'Walkable' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Blocked' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Walkable' })).toBeInTheDocument()
+    expect(screen.queryByLabelText('Blocks movement')).toBeNull() // no second, unit-only control
     expect(screen.queryByText('— cell —')).toBeNull()
   })
 
@@ -141,12 +145,15 @@ describe('Triggers is a BUTTON that opens the triggers modal', () => {
   })
 })
 
-describe('UnitSettingsSection — appearance presets + role-specific entry buttons', () => {
-  it('shows figure variants + size presets and wires the enemy attacks button', () => {
+describe('UnitSettingsSection — identity rows + role-specific entry buttons', () => {
+  // The FIGURE variant row was removed with the unified-card work: a unit is a tile, so its art is swapped
+  // with the card's regular "Replace tile" button. Size stays as a row (see unitTileCardParity.test.tsx).
+  it('shows size presets, drops the figure-variant row, and wires the enemy attacks button', () => {
     const onSize = jest.fn()
     const onOpenAttacks = jest.fn()
     render(<UnitSettingsSection unit={unitModel({ onSize, onOpenAttacks })} />)
-    expect(screen.getByRole('button', { name: 'female' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'female' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'neutral' })).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: '2×' }))
     expect(onSize).toHaveBeenCalledWith(2)
     fireEvent.click(screen.getByRole('button', { name: /Attacks/i }))

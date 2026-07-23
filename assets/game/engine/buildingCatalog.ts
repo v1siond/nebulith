@@ -116,7 +116,7 @@ export function nearestRoadFacing(grid: IsometricGrid, col: number, row: number)
   let best: { d: number; facing: Facing } | null = null
   for (let r = 0; r < grid.rows; r++) {
     for (let c = 0; c < grid.cols; c++) {
-      if (!isRoadGround(grid.ground[r]?.[c])) continue
+      if (!isRoadGround(grid.groundAt(c, r))) continue
       const d = Math.abs(c - col) + Math.abs(r - row)
       if (best && d >= best.d) continue
       const facing: Facing =
@@ -140,7 +140,7 @@ export function canPlaceBuildingComposition(grid: IsometricGrid, kind: string, a
       const row = anchorRow + dr
       if (col < 0 || row < 0 || col >= grid.cols || row >= grid.rows) return false
       if (grid.collision[row]?.[col] === 1) return false
-      if (isRoadGround(grid.ground[row]?.[col])) return false
+      if (isRoadGround(grid.groundAt(col, row))) return false
     }
   }
   return true

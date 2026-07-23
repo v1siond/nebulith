@@ -1,5 +1,5 @@
 import { player as playerSprite } from '@/assets/ascii'
-import { GridAsset, IsometricGrid } from '@/engine/IsometricGrid'
+import { GridAsset, IsometricGrid, FLOOR_TYPE } from '@/engine/IsometricGrid'
 import { assetAnimFrame, assetCycleFrame } from '@/engine/assetAnimations'
 import { type AttackAnim, animFrame } from '@/engine/attackAnimations'
 import { type Facing } from '@/engine/villageLayout'
@@ -18,13 +18,13 @@ import { Connector } from '@/lib/api'
 import { ASCII_FONT, COMBAT_RANGE, type DayNight, type DrawVisual, ENEMY_MOVE_MS, LIGHT, applyCellTransform, isoCameraFocus, assetCaptionByCell, terrainLabelAt, collectLampGlows, type CompositionGhost, compositionGhostColors, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawHoverRing, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawConnectorMarker, drawAttackAnimFrame, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, clipToBall, SINGLE_TILE_FRAC, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, frameImage, getPlayerArt, grassShade, cellFill, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, resolveAssetDraw, resolveEntityDraw, assetOverride, labelTileImage, labelTileRecolor, groundDecorImage, tileImage, tintedImage, tintedGlyphSprite, treeCanopyLayers, treeCellSet } from './shared'
 import { resolveAssetDrawSize } from './assetDimensions'
 import { resolveAssetAnimation } from './assetAnimation'
-import { type GroundCellDims, groundSizeFactors, groundDimsActive } from '@/engine/groundDims'
-import { getStack, type TileSource } from '@/engine/cellStack'
-import { isoBlockFaces, isoDepthBox, depthFrontExtent, isoZOffset, type BlockFace, type DepthDir } from './isoBlock'
-import { resolveTileHeight } from '@/engine/tileset/tileHeight'
+import { getStack, assetStackIndexer, type TileSource } from '@/engine/cellStack'
+import { isoBlockFaces, isoDepthBox, depthFrontExtent, isoZOffset, rotateDepthDir, type BlockFace, type DepthDir } from './isoBlock'
+import { orientCell, deorientCell, orientedDims, type Orientation } from './isoOrientation'
+import { resolveTileHeight, partialBlockScale } from '@/engine/tileset/tileHeight'
 import { EMOJI_TILESET } from '@/engine/tileset/emojiTileset'
 import { applyPose } from '@/engine/tileset/pose'
-import { cubeGeom, depthBoxGeom, billboardGeom, diamondGeom, pointInTileGeom, outlineSegments, poseMapper, tileGeomCentroid, type TileGeom } from './tileHit'
+import { cubeGeom, depthBoxGeom, billboardGeom, diamondGeom, pointInTileGeom, outlineSegments, poseMapper, tileGeomCentroid, tilesInScreenRect, type TileGeom } from './tileHit'
 import { resolveTileSize, resolveTilePose } from '@/engine/tileset/tileViewSettings'
 import { ASCII_STYLE, assetKind, entityKind, entityStyleOverride, genderize, groundKind, personVariantTileId, type ElementKind, type ImageVisual, type Style } from '@/game/artStyle'
 import { DEFAULT_CHARACTER_ANIMATIONS, activeFrame } from '@/game/runtime/entityAnimation'
@@ -47,14 +47,21 @@ export function faceLight(nx: number, ny: number): number {
 // (back→front). The picker walks it front→back (topmost first) so the tile you SEE on top wins an overlap.
 // ════════════════════════════════════════════════════════════════════════════
 
-/** One recorded rendered tile: its cell/stack level + the store it came from + its transform-aware screen
+/** One recorded rendered tile: its cell, its `level` (heightLevel — used by internal anchors like the lamp
+ *  glow), its `stackIndex` (its slot in the cell's ordered stack — the per-tile identity the SELECTION uses so
+ *  two tiles at the same level are distinguishable), the store it came from, and its transform-aware screen
  *  silhouette. Populated by render(); read by the pick + the selection/hover highlight. */
 export interface TileHit {
   col: number
   row: number
   level: number
+  stackIndex: number
   source: TileSource
   geom: TileGeom
+  /** For a UNIT hit (source 'entity'): the entity id to select. A UNIT is just a tile the picker returns like
+   *  any other — it records its billboard silhouette here so a click on the figure selects the unit (not the
+   *  floor under it). Absent for asset/floor tiles. */
+  entityId?: string
 }
 
 // The tiles drawn by the LAST render(), in draw order. The RAF loop refreshes this every frame, so a pick on
@@ -76,12 +83,29 @@ export function pickIsoTileAt(x: number, y: number): TileHit | null {
   return pickIsoTilesAt(x, y)[0] ?? null
 }
 
-/** The recorded silhouette of the tile at (col,row,level) drawn this frame, TOPMOST first — so the highlight
- *  outlines the ACTUAL rendered tile (its transformed cube/billboard), not the flat cell. null = not drawn. */
+/** Every recorded tile whose silhouette centroid is inside the screen rect — the block-aware MARQUEE query
+ *  (the shift+drag box's tiles), de-duped, topmost first. Canvas-internal pixels, like pickIsoTilesAt. */
+export function renderedTilesInRect(x0: number, y0: number, x1: number, y1: number): TileHit[] {
+  return tilesInScreenRect(isoTileHits, x0, y0, x1, y1)
+}
+
+/** The recorded silhouette of the tile at (col,row,level) drawn this frame, TOPMOST first — so an internal
+ *  anchor (the lamp glow) outlines the ACTUAL rendered tile by its heightLevel. null = not drawn. */
 export function isoRecordedGeom(col: number, row: number, level: number): TileGeom | null {
   for (let i = isoTileHits.length - 1; i >= 0; i--) {
     const t = isoTileHits[i]
     if (t.col === col && t.row === row && t.level === level) return t.geom
+  }
+  return null
+}
+
+/** The recorded silhouette of the tile at (col,row) that sits at STACK INDEX `stackIndex` — the per-tile
+ *  identity the SELECTION highlight uses, so a grass slab and a wall block at the SAME level hug their OWN
+ *  silhouettes (not just the topmost). null = that slot wasn't drawn this frame (→ flat-cell fallback). */
+export function isoRecordedTileGeom(col: number, row: number, stackIndex: number): TileGeom | null {
+  for (let i = isoTileHits.length - 1; i >= 0; i--) {
+    const t = isoTileHits[i]
+    if (t.col === col && t.row === row && t.stackIndex === stackIndex) return t.geom
   }
   return null
 }
@@ -99,285 +123,142 @@ function strokeTileOutline(ctx: CanvasRenderingContext2D, geom: TileGeom): void 
 
 
 // ════════════════════════════════════════════════════════════════════════════
-// ISO STATIC-GROUND OFFSCREEN CACHE
-// The ground layer (cube sides + diamond tops + per-cell glyphs) is by far the
-// heaviest part of an iso frame — thousands of fills/glyphs redrawn every rAF even
-// when nothing moves, which pins the GPU and stutters other tabs' video. It only
-// changes with the camera, zoom, viewport size, or the visible map cells — the
-// only per-frame ground motion is the grass micro-flicker and the water shimmer.
-// So we render it ONCE into an offscreen canvas keyed on exactly those inputs and
-// BLIT it each frame; the dynamic layer (live water, entities, buildings, effects,
-// night, UI) is drawn fresh on top. The blit is at offset (0,0) with the SAME
-// projection/camera the cache was built with, so it is pixel-identical to a direct
-// draw — no resampling. Grass's ≤1.5% flicker (mostly clamped to 1.0) is baked at
-// full alpha so the cache is time-independent and reusable (measured pixel impact
-// ~2e-5 MAE); the animated water surface is excluded and redrawn live. While the
-// camera is moving (key changing every frame) we draw directly — no regression.
-// Module state only — no game state is touched.
-export type IsoGroundCache = { canvas: HTMLCanvasElement; ctx: CanvasRenderingContext2D; camKey: string; contentSig: number; width: number; height: number; waterCells: { col: number; row: number }[] }
-
-export let isoGroundCache: IsoGroundCache | null = null
-
-export let isoCacheCanvas: HTMLCanvasElement | null = null
-
-export let isoLastFrameKey = ''
+// The separate ISO GROUND LAYER and its offscreen cache were REMOVED: a floor is now
+// an ordinary level-0 tile in grid.assets (a thin colored slab) drawn by the per-asset
+// loop below, so the map renders through ONE tile path with no bespoke ground renderer.
 
 export let isoRenderMsEMA = 0
-
-export const ISO_CACHE_MAX_DIM = 8192
-
 
 function perfNow(): number {
   return typeof performance !== 'undefined' ? performance.now() : Date.now()
 }
 
 
-/** Lazily create / resize the shared offscreen cache canvas. Null when there's no
- *  DOM (SSR / tests) — callers then fall back to a direct draw. */
-function ensureIsoCacheCanvas(w: number, h: number): { canvas: HTMLCanvasElement; ctx: CanvasRenderingContext2D } | null {
-  if (typeof document === 'undefined') return null
-  if (!isoCacheCanvas) isoCacheCanvas = document.createElement('canvas')
-  if (isoCacheCanvas.width !== w) isoCacheCanvas.width = w
-  if (isoCacheCanvas.height !== h) isoCacheCanvas.height = h
-  const ctx = isoCacheCanvas.getContext('2d')
-  if (!ctx) return null
-  return { canvas: isoCacheCanvas, ctx }
+// ════════════════════════════════════════════════════════════════════════════
+// CAMERA FACING — 4-way (90°) HORIZONTAL rotation of the iso camera (#75)
+// Alexander: "the rotate button or action … just rotates the map horizontally, changing the front perspective
+// of the map and showing a different side of it" / "we can rotate the corners, 4 corners, 4 rotation options,
+// all faces of the map are visible" — because "tiles that aren't in the front side from the camera perspective
+// are hard to select, specially with collisions on".
+//
+// The iso PROJECTION is untouched. A rotated camera turns the WORLD coord into the VIEW frame FIRST
+// (isoOrientation.orientCell) and then projects it, which is what swings a different map corner to the front.
+// Facing 0 is today's view and EVERY helper here short-circuits at 0, so an un-rotated frame is unchanged.
+// ════════════════════════════════════════════════════════════════════════════
+
+/** The facing a render() uses when its params omit `cameraFacing` — driven by the `__setCameraFacing` debug
+ *  seam until the editor UI owns it in React state and passes the param (an explicit param always wins). */
+let currentCameraFacing: Orientation = 0
+
+/** The camera facing a param-less render() will use. */
+export function isoCameraFacing(): Orientation {
+  return currentCameraFacing
 }
 
-
-export interface IsoGroundParams {
-  grid: IsometricGrid
-  w: number; h: number; time: number
-  camX: number; camZ: number; isoScale: number; cellSize: number
-  tileW: number; tileH: number; heightStep: number; cubeDepth: number
-  startCol: number; endCol: number; startRow: number; endRow: number
-  groundFontSize: number
-  style: Style
+/** Turn the camera to `facing` (quarter-turns CW, 0–3). The editor's RAF loop redraws every frame, so the
+ *  next frame shows it. Returns the new facing so a caller/seam can echo it. */
+export function setIsoCameraFacing(facing: Orientation): Orientation {
+  currentCameraFacing = facing
+  return currentCameraFacing
 }
 
+/** Window debug/validation seam — the `__setDepth` / `__setShape` family, installed from the render itself
+ *  (like `__isoRenderMs` below) because that is the one place the ISO view is guaranteed to run. Idempotent. */
+function installCameraFacingSeam(): void {
+  if (typeof window === 'undefined') return
+  const win = window as unknown as { __setCameraFacing?: (f: Orientation) => Orientation; __cameraFacing?: () => Orientation }
+  if (win.__setCameraFacing) return
+  win.__setCameraFacing = setIsoCameraFacing
+  win.__cameraFacing = isoCameraFacing
+}
 
-/** Draw a ground cell's CONTENT on top of its already-filled diamond:
- *   - reskin (a style tile / image is active) → the tile SHEARED flat onto the iso diamond via
- *     fillIsoFaceWithTile (angled, with the cube's z below it) — one path for emoji + image;
- *   - passthrough (no tint) → the caller's ASCII glyph exactly as before (grass keeps its live
- *     flicker when `live`), byte-identical to the pre-style inline loop. */
-function drawIsoGroundContent(
-  ctx: CanvasRenderingContext2D,
-  gdv: DrawVisual,
-  px: number,
-  drawY: number,
-  tileW: number,
-  tileH: number,
-  isGrass: boolean,
-  live: boolean,
-  time: number,
+/** The iso camera focus IN THE VIEW FRAME: rotate the world focus by `facing`, then clamp it against the
+ *  ORIENTED map dims — an odd facing SWAPS cols/rows, so clamping a rotated non-square map with the world dims
+ *  would throw the camera clean off it. Facing 0 → exactly today's `clampCamera ? isoCameraFocus(…) : raw`.
+ *  Exported so the editor's screen→cell inverse can reuse the SAME focus the render draws with (one source of
+ *  truth — the click and the pixels must not drift apart). */
+export function isoViewFocus(
+  rawFc: number,
+  rawFr: number,
+  pPad: number,
+  qPad: number,
+  cols: number,
+  rows: number,
+  facing: Orientation,
+  clamp: boolean,
+): { fc: number; fr: number } {
+  const view = facing === 0 ? { col: rawFc, row: rawFr } : orientCell(rawFc, rawFr, cols, rows, facing)
+  if (!clamp) return { fc: view.col, fr: view.row }
+  const dims = orientedDims(cols, rows, facing)
+  return isoCameraFocus(view.col, view.row, pPad, qPad, dims.cols, dims.rows)
+}
+
+/** The camera the FLAT (bare-cell) iso projection needs, in the render's own numbers: the viewport, the cell
+ *  size, the ZOOMED isoScale (`grid.isoScale * zoom`) and the VIEW-FRAME focus that `isoViewFocus` returned. */
+export interface IsoFlatCamera {
+  w: number
+  h: number
+  cellSize: number
+  isoScale: number
+  fc: number
+  fr: number
+}
+
+/** WORLD cell → the screen point the render draws its diamond CENTRE at — the forward flat projection, kept
+ *  here (not re-derived per call site) so a click, the selection outline and the pixels can't drift apart. */
+export function isoWorldCellToScreen(
   col: number,
   row: number,
-  tint?: string, // per-cell floor-colour override → recolour the ground tile image (#80)
-  dims?: GroundCellDims, // per-cell floor-dims override (Width/Depth/Zoom + pose) — undefined → default look
-): void {
-  // Reskin (a style tile is active): SHEAR the tile onto the iso DIAMOND so it lies FLAT on the
-  // ground plane — angled, with the cube's z below it — never an upright square stamped on top.
-  // The diamond is the parallelogram from its LEFT corner: eA→top, eB→bottom. One primitive covers
-  // an emoji glyph and an image sprite. ASCII passthrough (no tint/image) falls through to the
-  // byte-identical glyph draw below.
-  if (gdv.tint || gdv.image) {
-    // Per-cell DIMS override: size the diamond (Width→x, Depth→y, Zoom→both) and apply the per-cell pose,
-    // so THIS one floor cell stretches/shifts without touching its neighbours. Sized cells bake their own
-    // sprite (keyed on the factors); a pose blits under a per-cell transform. Only overridden cells reach
-    // here — an unset cell falls through to the shared unsized sprite below (byte-identical).
-    if (dims && groundDimsActive(dims)) {
-      const { fx, fy } = groundSizeFactors(dims)
-      const tw = tileW * fx
-      const th = tileH * fy
-      const pose = dims.pose
-      const poseUnit = Math.max(tileW, tileH) * 2 // ≈ one cell → pose dx/dy read as fractions of a tile
-      const sprite = groundSprite(gdv, tileW, tileH, tint, fx, fy)
-      if (sprite) {
-        if (pose) {
-          ctx.save()
-          ctx.translate(px, drawY)
-          applyPose(ctx, pose, 1, poseUnit)
-          ctx.drawImage(sprite, -tw, -th)
-          ctx.restore()
-        } else {
-          ctx.drawImage(sprite, px - tw, drawY - th)
-        }
-        return
-      }
-      // No baked sprite yet (SSR / image still decoding) → direct sheared draw, scaled + posed.
-      ctx.save()
-      ctx.translate(px, drawY)
-      if (pose) applyPose(ctx, pose, 1, poseUnit)
-      fillIsoFaceWithTile(ctx, { x: -tw, y: 0 }, { x: tw, y: -th }, { x: tw, y: th }, { char: gdv.char, color: gdv.color, image: gdv.image }, 1, 1, tint)
-      ctx.restore()
-      return
-    }
-    // Blit the pre-baked diamond sprite (constant shear → one bake reused for every cell) instead of a
-    // per-cell transform+clip — the ground-perf fix. Falls back to the direct draw when there's no sprite
-    // (SSR / an image tile still decoding).
-    const sprite = groundSprite(gdv, tileW, tileH, tint)
-    if (sprite) {
-      ctx.drawImage(sprite, px - tileW, drawY - tileH)
-      return
-    }
-    fillIsoFaceWithTile(ctx, { x: px - tileW, y: drawY }, { x: tileW, y: -tileH }, { x: tileW, y: tileH }, { char: gdv.char, color: gdv.color, image: gdv.image }, 1, 1, tint)
-    return
-  }
-  ctx.fillStyle = gdv.color
-  if (live && isGrass) {
-    ctx.globalAlpha = 0.85 + 0.15 * (Math.sin(time * 0.001 + col * 0.3 + row * 0.4) * 0.1 + 1)
-    ctx.fillText(gdv.char, px, drawY)
-    ctx.globalAlpha = 1
-  } else {
-    ctx.fillText(gdv.char, px, drawY)
-  }
+  cam: IsoFlatCamera,
+  cols: number,
+  rows: number,
+  facing: Orientation,
+): { x: number; y: number } {
+  const v = facing === 0 ? { col, row } : orientCell(col, row, cols, rows, facing)
+  const wx = (v.col - cam.fc) * cam.cellSize
+  const wz = (v.row - cam.fr) * cam.cellSize
+  return { x: cam.w / 2 + (wx - wz) * cam.isoScale * 0.71, y: cam.h / 2 + (wx + wz) * cam.isoScale * 0.36 }
 }
 
-
-/** Draw the ground layer (cube sides + diamond tops + glyphs). `bakeStatic = true`
- *  renders only the time-independent parts (grass glyph at full alpha; the animated
- *  water surface is skipped and its cells pushed into `waterOut`) into the offscreen
- *  cache. `false` renders the full layer byte-identically to the original inline loop
- *  (live grass flicker + live water shimmer) for the direct / fallback path. The
- *  projection is inlined so the hot double-loop never allocates a point per cell. */
-export function drawIsoGroundLayer(ctx: CanvasRenderingContext2D, p: IsoGroundParams, bakeStatic: boolean, waterOut: { col: number; row: number }[] | null): void {
-  const { grid, w, h, time, camX, camZ, isoScale, cellSize, tileW, tileH, heightStep, cubeDepth, startCol, endCol, startRow, endRow, groundFontSize, style } = p
-  ctx.font = `bold ${groundFontSize}px ${ASCII_FONT}`
-  ctx.textAlign = 'center'
-  ctx.textBaseline = 'middle'
-  for (let row = startRow; row <= endRow; row++) {
-    for (let col = startCol; col <= endCol; col++) {
-      const wx = col * cellSize - camX
-      const wz = row * cellSize - camZ
-      const px = w / 2 + (wx - wz) * isoScale * 0.71
-      const py = h / 2 + (wx + wz) * isoScale * 0.36
-      if (px < -tileW * 2 || px > w + tileW * 2 || py < -tileH * 2 || py > h + tileH * 2) continue
-
-      // Step 4b — the FLOOR is read as tile index 0 of the cell's unified stack (mirrors 2D's Step 4a).
-      // getStack projects the SAME ground slug/colour/dims the direct grid.ground/groundColor/groundDims
-      // reads gave, so resolveGroundTile/cellFill + the dims path below stay byte-identical — only the
-      // SOURCE moved onto the one tile-in-cell adapter. (Props keep their flat getVisibleAssets path in
-      // render(): the TileEntry projection is lossy for a prop and per-cell iteration would reorder the
-      // depth-sorted stack, either of which would break the pixel-identical contract.)
-      const floor = getStack(grid, col, row)[0]
-      const tileType = floor.slug || 'grass'
-      // Ground appearance now LOADS from the tileset (resolveGroundTile) instead of the hardcoded
-      // GROUND_COLORS table — byte-identical selection (same noise variant). Grass keeps its per-cell shade.
-      const gt = resolveGroundTile(ASCII_TILESET, tileType, col, row)
-      const char = gt.char
-      const fg = gt.fg
-      const isGrass = tileType.includes('grass')
-      const bg = isGrass ? grassShade(gt.bg, col, row) : gt.bg
-
-      // Active art style (ASCII passthrough → char+fg above, byte-identical). Ground cells carry no
-      // per-element override, so this depends only on the active style — folded into the cache key so
-      // a style switch rebuilds the offscreen ground. `tint` present → this is a REskinned tile: fill
-      // the SAME cube+diamond geometry with the tile hue (so it stays iso-angled with z) and drop a
-      // small hint — the geometry is reused, only the fill/asset changes. No tint → bg (identical).
-      const gk = groundKind(tileType)
-      const gdv = resolveDraw(gk, style, undefined, char, fg)
-      // reskin → the tile's OWN colour (catalog data), but grass AND the rocky cave floor KEEP their
-      // per-cell shade so the field/cavern isn't one flat sheet ("grass is just color"); ASCII → bg.
-      // A per-cell FLOOR COLOUR override (Property panel) wins over the catalog colour (drives the diamond
-      // top AND the darkened cube sides below, so a recoloured cell reads solid in iso).
-      const fillBg = floor.color ?? cellFill(gdv.tint, bg, isGrass || gk === 'cavefloor', col, row)
-
-      const cellHeight = grid.getHeight(col, row)
-      const heightOffset = cellHeight * heightStep
-      const drawY = py - heightOffset
-
-      // CUBE sides — only the terrain's exposed front edges actually show a wall, so draw
-      // the left face only when the down-left neighbour is lower/absent and the right face
-      // only when the down-right neighbour is. Same look, a fraction of the fills.
-      const sideBottom = py + cubeDepth
-      const leftOpen = row + 1 >= grid.rows || grid.getHeight(col, row + 1) < cellHeight
-      const rightOpen = col + 1 >= grid.cols || grid.getHeight(col + 1, row) < cellHeight
-      if (leftOpen) {
-        ctx.fillStyle = darkenColor(fillBg, 0.5)
-        ctx.beginPath()
-        ctx.moveTo(px - tileW, drawY)
-        ctx.lineTo(px, drawY + tileH)
-        ctx.lineTo(px, sideBottom + tileH)
-        ctx.lineTo(px - tileW, sideBottom)
-        ctx.closePath()
-        ctx.fill()
-      }
-      if (rightOpen) {
-        ctx.fillStyle = darkenColor(fillBg, 0.7)
-        ctx.beginPath()
-        ctx.moveTo(px + tileW, drawY)
-        ctx.lineTo(px, drawY + tileH)
-        ctx.lineTo(px, sideBottom + tileH)
-        ctx.lineTo(px + tileW, sideBottom)
-        ctx.closePath()
-        ctx.fill()
-      }
-
-      // Top face (diamond) - always draw, filled with the tile hue (bg for ASCII → identical)
-      ctx.fillStyle = fillBg
-      ctx.beginPath()
-      ctx.moveTo(px, drawY - tileH)
-      ctx.lineTo(px + tileW, drawY)
-      ctx.lineTo(px, drawY + tileH)
-      ctx.lineTo(px - tileW, drawY)
-      ctx.closePath()
-      ctx.fill()
-
-      const isWater = WATER_DEPTH_TILES.has(tileType)
-
-      // FLOOR COLOUR + DIMS also ride the floor tile (getStack maps groundColor → color and
-      // scaleX/scaleZ/scale/scaleY/pose → w/d/zoom/scaleY/pose). Reconstruct the SAME GroundCellDims the old
-      // grid.groundDims read gave — groundDimsActive/groundSizeFactors resolve identically (an all-unset
-      // floor → w:1,d:1 → inactive, {fx:1,fy:1}); floor.color ?? undefined == the old groundColor ?? undefined.
-      const floorTint = floor.color ?? undefined
-      const floorDims: GroundCellDims = { scaleX: floor.w, scaleY: floor.scaleY, scaleZ: floor.d, scale: floor.zoom, pose: floor.pose }
-
-      if (bakeStatic) {
-        // Static cache: skip the animated water surface (collected for the live pass);
-        // bake the grass glyph at full alpha (the ≤1.5% flicker is render-only motion).
-        if (isWater) { if (waterOut) waterOut.push({ col, row }); continue }
-        drawIsoGroundContent(ctx, gdv, px, drawY, tileW, tileH, isGrass, false, time, col, row, floorTint, floorDims)
-        continue
-      }
-
-      // Direct / fallback path — byte-identical to the original inline loop for ASCII.
-      if (isWater) drawIsoWaterDepth(ctx, px, drawY, tileW, tileH, fillBg, time, col, row)
-      drawIsoGroundContent(ctx, gdv, px, drawY, tileW, tileH, isGrass, true, time, col, row, floorTint, floorDims)
-    }
-  }
+/** Screen (canvas-internal px) → the WORLD cell under it — the EXACT inverse of isoWorldCellToScreen: invert
+ *  the diamond to a VIEW cell, then turn it back to world with `deorientCell`. This is the bare-cell fallback
+ *  the editor picks with when no rendered tile is under the pointer; without the deorient step a rotated
+ *  camera would select a mirrored/transposed cell. Facing 0 → today's inverse, untouched. */
+export function isoScreenToWorldCell(
+  x: number,
+  y: number,
+  cam: IsoFlatCamera,
+  cols: number,
+  rows: number,
+  facing: Orientation,
+): { col: number; row: number } {
+  const a = (x - cam.w / 2) / (cam.isoScale * 0.71)
+  const b = (y - cam.h / 2) / (cam.isoScale * 0.36)
+  const viewCol = Math.floor((a + b) / 2 / cam.cellSize + cam.fc)
+  const viewRow = Math.floor((b - a) / 2 / cam.cellSize + cam.fr)
+  if (facing === 0) return { col: viewCol, row: viewRow }
+  return deorientCell(viewCol, viewRow, cols, rows, facing)
 }
 
-
-/** Redraw the animated water cells (recessed shimmer surface + glyph) on top of the
- *  blitted static cache — the one ground element that must stay live each frame.
- *  Matches the original per-water-cell draw order: water depth, then the glyph. */
-function drawIsoWaterCells(ctx: CanvasRenderingContext2D, p: IsoGroundParams, cells: { col: number; row: number }[]): void {
-  const { grid, w, h, time, camX, camZ, isoScale, cellSize, tileW, tileH, heightStep, groundFontSize, style } = p
-  ctx.font = `bold ${groundFontSize}px ${ASCII_FONT}`
-  ctx.textAlign = 'center'
-  ctx.textBaseline = 'middle'
-  for (const cell of cells) {
-    const { col, row } = cell
-    const wx = col * cellSize - camX
-    const wz = row * cellSize - camZ
-    const px = w / 2 + (wx - wz) * isoScale * 0.71
-    const py = h / 2 + (wx + wz) * isoScale * 0.36
-    const floor = getStack(grid, col, row)[0] // Step 4b — floor from the unified stack (byte-identical)
-    const tileType = floor.slug || 'grass'
-    const gt = resolveGroundTile(ASCII_TILESET, tileType, col, row) // LOADS from the tileset (byte-identical)
-    const char = gt.char
-    const fg = gt.fg
-    const bg = gt.bg
-    const drawY = py - grid.getHeight(col, row) * heightStep
-    const wdv = resolveDraw(groundKind(tileType), style, undefined, char, fg)
-    const fillBg = wdv.tint ?? bg // reskin water → the tile's own colour (catalog data); ASCII → bg
-    drawIsoWaterDepth(ctx, px, drawY, tileW, tileH, fillBg, time, col, row)
-    const floorDims: GroundCellDims = { scaleX: floor.w, scaleY: floor.scaleY, scaleZ: floor.d, scale: floor.zoom, pose: floor.pose }
-    drawIsoGroundContent(ctx, wdv, px, drawY, tileW, tileH, false, true, time, col, row, floor.color ?? undefined, floorDims)
-  }
+/** A WORLD depth axis as the rotated view sees it. `DEPTH_CELL_STEP` maps every DepthDir to a grid step
+ *  (dc,dr), and one camera quarter-turn carries a grid step the same way it carries a coord — so the two use
+ *  the identical rotation and can never disagree. Facing 0 → the same dir (no lookup). */
+function viewDepthDir(dir: DepthDir, facing: Orientation): DepthDir {
+  return facing === 0 ? dir : rotateDepthDir(dir, facing)
 }
 
+/** The asset AS THE ROTATED VIEW SEES IT: its directional axes — `depthDir` (z-width span) and `zDir`
+ *  (z-position slide) — are WORLD grid axes, so a rotated camera must carry them CW by the same quarter-turns
+ *  the coords take, or a spanned/slid tile would point off-grid the moment you rotate. This is general to
+ *  EVERY depth-box asset (a roof is just the common one). Facing 0, or no axes → the SAME object, untouched. */
+function orientAssetForView(asset: GridAsset, facing: Orientation): GridAsset {
+  if (facing === 0 || (!asset.depthDir && !asset.zDir)) return asset
+  return {
+    ...asset,
+    depthDir: asset.depthDir && rotateDepthDir(asset.depthDir, facing),
+    zDir: asset.zDir && rotateDepthDir(asset.zDir, facing),
+  }
+}
 
 /** Everything render() needs to draw one iso frame. Required: the ctx, the viewport (w, h), the grid,
  *  the player, and the clock. Everything else is optional and defaults to an empty/neutral value — a bare
@@ -407,9 +288,13 @@ export interface IsoRenderParams {
   targetId?: string | null
   hoverId?: string | null
   selectedCells?: ReadonlySet<string>
-  hoveredCell?: { col: number; row: number; level?: number } | null
+  hoveredCell?: { col: number; row: number; stackIndex?: number } | null
   /** Armed Tile-composition placement ghost — a translucent footprint drawn at the hover cell before the click. */
   ghost?: CompositionGhost | null
+  /** Which of the map's 4 corners the camera looks from — quarter-turns CW. 0 (the default) is the historical
+   *  iso view and renders identically to before; 1/2/3 swing the map horizontally so a different side faces
+   *  the camera. Omitted → the `__setCameraFacing` debug seam's current value (also 0 until it's called). */
+  cameraFacing?: Orientation
 }
 
 /** Draw the composition-placement GHOST in ISO: each occupied cell gets a translucent tinted diamond on the
@@ -471,7 +356,9 @@ export function render(params: IsoRenderParams) {
     selectedCells = new Set<string>(),
     hoveredCell = null,
     ghost = null,
+    cameraFacing: facing = isoCameraFacing(),
   } = params
+  installCameraFacingSeam() // __setCameraFacing / __cameraFacing — idempotent, no draw side effects
   const __isoT0 = perfNow() // perf probe — rolling avg of render() ms, exposed on window.__isoRenderMs
   // Clear
   ctx.fillStyle = '#1a1a2e'
@@ -493,9 +380,12 @@ export function render(params: IsoRenderParams) {
   // then clamped to the diamond's width AT THAT HEIGHT so the sides stay inside it.
   // Clamp the camera to the map ONLY in game mode (predefined zooms, no drag). In dev mode the clamp
   // fought drag-to-pan — the system couldn't decide when to limit — so there the camera pans freely.
+  // The focus is resolved IN THE VIEW FRAME (isoViewFocus): rotated by `facing`, then clamped against the
+  // ORIENTED dims — so a rotated non-square map still clamps to its real on-screen extent. Facing 0 collapses
+  // to exactly the previous `clampCamera ? isoCameraFocus(…) : raw` line.
   const rawFc = (player.x - camOffset.x) / cellSize
   const rawFr = (player.z - camOffset.y) / cellSize
-  const { fc, fr } = clampCamera ? isoCameraFocus(rawFc, rawFr, pPad, qPad, grid.cols, grid.rows) : { fc: rawFc, fr: rawFr }
+  const { fc, fr } = isoViewFocus(rawFc, rawFr, pPad, qPad, grid.cols, grid.rows, facing, clampCamera)
   const camX = fc * cellSize
   const camZ = fr * cellSize
 
@@ -503,10 +393,9 @@ export function render(params: IsoRenderParams) {
   const tileW = cellSize * isoScale * 0.71  // Half-width of diamond
   const tileH = cellSize * isoScale * 0.36  // Half-height of diamond
   const heightStep = cellSize * isoScale * 0.4  // Height per elevation level
-  const cubeDepth = tileH * 1.6  // base extrusion so every tile reads as a CUBE
 
-  // Convert world to screen (center of diamond tile)
-  const toScreen = (col: number, row: number) => {
+  // The FIXED iso projection of a VIEW-frame coord (center of diamond tile) — unchanged by rotation.
+  const viewToScreen = (col: number, row: number) => {
     const wx = col * cellSize - camX
     const wz = row * cellSize - camZ
     return {
@@ -514,75 +403,25 @@ export function render(params: IsoRenderParams) {
       y: h / 2 + (wx + wz) * isoScale * 0.36
     }
   }
+  // Convert WORLD to screen. A rotated camera turns the world coord into the view frame first — that ONE hook
+  // is the whole rotation: every caller below (assets, units, connectors, ghosts, debug, lamp glows) keeps
+  // passing WORLD coords and lands in the right place. Facing 0 skips the turn, so the frame is untouched.
+  const toScreen = facing === 0
+    ? viewToScreen
+    : (col: number, row: number) => {
+      const v = orientCell(col, row, grid.cols, grid.rows, facing)
+      return viewToScreen(v.col, v.row)
+    }
 
-  // ─── GROUND TILES (cube sides + diamond tops + glyphs) ─────────────
-  // The heaviest part of the frame. Cache it to an offscreen canvas keyed on the
-  // camera / zoom / viewport / visible-cells and BLIT it each frame; only draw it
-  // directly while the camera is moving (key changing every frame) or when the
-  // cache can't be built. The animated water surface is always drawn live on top.
+  // ─── GROUND: nothing special here anymore ──────────────────────────
+  // Floors are ordinary level-0 tiles in grid.assets (thin colored slabs) — they flow through the SAME
+  // per-asset draw loop below as every wall/prop. There is NO separate ground layer / offscreen cache.
 
-  // Zoom-aware visible range: derive the half-span from the ACTUAL (zoomed) tile
-  // size, so we iterate exactly the cells the camera can see — fewer when zoomed in,
-  // more when zoomed out — then CLAMP to the grid so off-grid cells aren't scanned.
+  // Zoom-aware visible range: derive the half-span from the ACTUAL (zoomed) tile size, so we iterate
+  // exactly the cells (and thus floor/prop assets) the camera can see — fewer zoomed in, more zoomed out.
   const halfSpan = Math.ceil((w / tileW + h / tileH) / 2) + 4
-  const camCol = Math.floor(camX / cellSize)
-  const camRow = Math.floor(camZ / cellSize)
-  const startCol = Math.max(0, camCol - halfSpan)
-  const endCol = Math.min(grid.cols - 1, camCol + halfSpan)
-  const startRow = Math.max(0, camRow - halfSpan)
-  const endRow = Math.min(grid.rows - 1, camRow + halfSpan)
-  const groundFontSize = Math.max(12, tileH * 1.1)
-
-  const groundParams: IsoGroundParams = {
-    grid, w, h, time, camX, camZ, isoScale, cellSize,
-    tileW, tileH, heightStep, cubeDepth,
-    startCol, endCol, startRow, endRow, groundFontSize, style,
-  }
 
   ctx.globalAlpha = 1
-  const forceDirect = typeof window !== 'undefined' && !!(window as unknown as { __ISO_NOCACHE?: boolean }).__ISO_NOCACHE
-  const cacheFits = w <= ISO_CACHE_MAX_DIM && h <= ISO_CACHE_MAX_DIM
-  // Camera key = viewport + exact camera + zoom/cell scale. The exact camera means the
-  // blit is at offset (0,0) → no resampling → pixel-identical to a direct draw. The
-  // CONTENT signature is grid.groundVersion — an O(1) counter the grid bumps on every
-  // ground/height/colour/dims edit (setGround/setGroundColor/setGroundDims/setHeight), the
-  // SAME signal the 2D static-ground layer keys on. This replaces the per-frame FNV hash
-  // over the visible cells (which stringified every groundDims cell) with a single int
-  // compare on the hot cache-hit path; any map edit still forces a rebuild (never stale).
-  const camKey = `${w}x${h}|${camX.toFixed(3)},${camZ.toFixed(3)}|${isoScale.toFixed(4)}|${cellSize}|${style.id}`
-  let liveWater: { col: number; row: number }[] | null = null
-  let didCache = false
-
-  if (!forceDirect && cacheFits) {
-    const stableCam = !!isoGroundCache && isoGroundCache.camKey === camKey && isoGroundCache.width === w && isoGroundCache.height === h
-    if (stableCam || camKey === isoLastFrameKey) {
-      const sig = grid.groundVersion
-      if (stableCam && isoGroundCache!.contentSig === sig) {
-        ctx.drawImage(isoGroundCache!.canvas, 0, 0) // hit → one blit instead of thousands of fills/glyphs
-        liveWater = isoGroundCache!.waterCells
-        didCache = true
-      } else {
-        const cc = ensureIsoCacheCanvas(w, h) // camera settled or map edited → (re)build, then blit
-        if (cc) {
-          cc.ctx.clearRect(0, 0, w, h)
-          cc.ctx.globalAlpha = 1
-          const water: { col: number; row: number }[] = []
-          drawIsoGroundLayer(cc.ctx, groundParams, true, water)
-          isoGroundCache = { canvas: cc.canvas, ctx: cc.ctx, camKey, contentSig: sig, width: w, height: h, waterCells: water }
-          ctx.drawImage(cc.canvas, 0, 0)
-          liveWater = water
-          didCache = true
-        }
-      }
-    }
-  }
-  // Moving / first frame / viewport too big / no DOM → draw directly (no regression, identical).
-  if (!didCache) drawIsoGroundLayer(ctx, groundParams, false, null)
-  isoLastFrameKey = camKey
-
-  // The animated water surface is excluded from the static cache so its shimmer stays
-  // live — redraw just those (sparse) cells on top of the blit each frame.
-  if (liveWater && liveWater.length) drawIsoWaterCells(ctx, groundParams, liveWater)
 
   // ─── CONNECTOR MARKERS (purple diamond + ◊ on each owned cell's top face) ──
   for (const connector of connectors) {
@@ -610,9 +449,15 @@ export function render(params: IsoRenderParams) {
   // Zoom-aware cull: use the SAME span the camera can see (matches the ground tiles above),
   // so zooming OUT reveals more of the map's elements instead of a fixed 30×20 window — at
   // full zoom-out the span covers the whole map, so every element shows.
+  // camX/camZ are the camera in the VIEW frame, but the grid indexes WORLD cells — so turn the focus back
+  // (deorientCell) before asking what's visible, or a rotated camera would cull the wrong corner of the map.
+  // The window is a square centred on it, so rotating the CENTRE is all it takes. Facing 0 → today's floor().
+  const camCell = facing === 0
+    ? { col: camX / cellSize, row: camZ / cellSize }
+    : deorientCell(fc, fr, grid.cols, grid.rows, facing)
   const visibleAssets = grid.getVisibleAssets(
-    Math.floor(camX / cellSize),
-    Math.floor(camZ / cellSize),
+    Math.floor(camCell.col),
+    Math.floor(camCell.row),
     halfSpan * 2, halfSpan * 2
   )
   // Ground shadow goes ONLY on a tree's bottom (ground-contact) cell — see isGroundContact. The
@@ -643,7 +488,10 @@ export function render(params: IsoRenderParams) {
       row: player.z / cellSize,
       isPlayer: true
     }
-  ].sort(isoDepthCompare) // back-to-front, then bottom-up within a stacked cell (higher blocks over lower)
+  ]
+  // back-to-front, then bottom-up within a stacked cell (higher blocks over lower) — keyed on the ORIENTED
+  // coord so occlusion stays correct from whichever corner the camera looks. Facing 0 → isoDepthCompare itself.
+  allObjects.sort(isoDepthComparatorFor(allObjects, grid.cols, grid.rows, facing))
 
   // Render each object with ASCII art style
   const playerIsTarget = !!targetId && entities.some(e => e.kind === 'player' && e.id === targetId)
@@ -653,23 +501,54 @@ export function render(params: IsoRenderParams) {
   // settings.cutawayRoof lifts the tile off entirely — each computed from the asset's OWN cell distance in the
   // draw loop below (fadeNearAlpha / cutawayAlpha). So a tree-leaf tile carrying fadeNear fades exactly like a wall.
   isoTileHits = [] // fresh per-frame record of every drawn tile's silhouette — the inverted picker reads it
+  const stackIndexOf = assetStackIndexer(grid) // per-frame memo: an asset → its slot in its cell's stack (0 = base/floor)
+  // The player is drawn from PlayerState (no id); its selectable id lives on the player ENTITY in `entities`.
+  const playerEntityId = entities.find(e => e.kind === 'player')?.id
+  // A UNIT is just a tile the picker returns: record the figure's billboard silhouette so a click ANYWHERE on
+  // the sprite (feet to head) selects the unit (source 'entity'), instead of the floor under it. `cx` = sprite
+  // centre-x, `footY` = the sprite's base. The silhouette spans a touch below the feet up to the head — a
+  // generous, uniform box so both the hero and NPCs are fully clickable. stackIndex -1 = "not a cell-stack slot".
+  const recordUnitHit = (col: number, row: number, cx: number, footY: number, entityId: string): void => {
+    const bottom = footY + tileH * 0.6      // just under the feet
+    const top = footY - tileH * 4.8         // up past the head of a standing figure
+    // A unit's position is CONTINUOUS (`player.x / cellSize`, or the interpolated `entityRenderCell` while it
+    // walks) but a tile hit is keyed by CELL INDEX — and the pick's col/row becomes the selection KEY, which
+    // later frames re-parse into the cell-indexed grid APIs. Convert at this boundary so no fraction escapes.
+    isoTileHits.push({ col: Math.floor(col), row: Math.floor(row), level: 0, stackIndex: -1, source: 'entity', entityId, geom: billboardGeom(tileW * 1.7, bottom - top, poseMapper({ x: cx, y: (bottom + top) / 2 }, undefined, tileH)) })
+  }
+  // Draw ONE unit (hero / npc / enemy): its figure + its pick silhouette. Called in PASS 2 below, so a unit
+  // renders ON TOP of the map tiles (never hidden behind one — z-index: the unit is the interactive focus) and
+  // its recorded silhouette lands LAST, so a click on the figure always wins the pick.
+  const drawUnit = (obj: { col: number; row: number; isPlayer?: boolean; entity?: Entity; moving?: boolean; inRange?: boolean }, p: { x: number; y: number }, heightOffset: number): void => {
+    if (obj.isPlayer) {
+      const inHandSlash = attackAnims.find(a => a.inHand && now - a.start < a.durationMs)
+      const swingP = inHandSlash ? Math.min(1, (now - inHandSlash.start) / inHandSlash.durationMs) : null
+      const footY = p.y - heightOffset - (player.jumpHeight ?? 0)
+      drawIsoPlayer(ctx, p.x, footY, tileW, tileH, player, time, swingP, inHandSlash?.tint, style, playerIsTarget, playerIsHover)
+      if (playerEntityId) recordUnitHit(obj.col, obj.row, p.x, footY, playerEntityId) // pick the hero figure (foot→head)
+    } else if (obj.entity) {
+      const combat = obj.entity.kind === 'enemy' ? enemyCombat.get(obj.entity.id) : undefined
+      if (isDeadEnemy(obj.entity, combat)) return // hidden until it respawns
+      const attackable = enemyInAttackReach(obj.entity, Math.floor(player.x / cellSize), Math.floor(player.z / cellSize), attackReach)
+      const footY = p.y - heightOffset
+      const anchor = drawIsoEntity(ctx, p.x, footY, obj.entity, tileH, combat, now, obj.moving ?? false, obj.inRange ?? false, attackable, style, obj.entity.id === targetId, obj.entity.id === hoverId)
+      drawQuestMarker(ctx, entityQuestMarker(obj.entity, quests), anchor.x, anchor.y, Math.max(14, tileH * 1.6))
+      recordUnitHit(obj.col, obj.row, p.x, footY, obj.entity.id) // pick the unit figure (foot→head)
+    }
+  }
+  // ONE PASS — tiles AND units, in the single depth order `allObjects` already carries. A unit is a tile, so
+  // perspective decides what covers what: a wall nearer the camera hides the figure behind it, and the figure
+  // hides what stands behind IT. (Units used to draw in a separate later pass, which painted them over every
+  // tile — the hero standing on a roof he was actually behind.) A unit that wants to sit above its
+  // surroundings does it the same way any tile does: with a higher z-index, not with a privileged pass.
   for (const obj of allObjects) {
     const p = toScreen(obj.col, obj.row)
     const cellHeight = grid.getHeight(Math.floor(obj.col), Math.floor(obj.row))
     const heightOffset = cellHeight * heightStep
 
-    if (obj.isPlayer) {
-      // The player's melee swing progress (0..1) drives the in-hand weapon animation below.
-      const inHandSlash = attackAnims.find(a => a.inHand && now - a.start < a.durationMs)
-      const swingP = inHandSlash ? Math.min(1, (now - inHandSlash.start) / inHandSlash.durationMs) : null
-      drawIsoPlayer(ctx, p.x, p.y - heightOffset - (player.jumpHeight ?? 0), tileW, tileH, player, time, swingP, inHandSlash?.tint, style, playerIsTarget, playerIsHover)
-    } else if (obj.entity) {
-      const combat = obj.entity.kind === 'enemy' ? enemyCombat.get(obj.entity.id) : undefined
-      if (isDeadEnemy(obj.entity, combat)) continue // hidden until it respawns
-      const attackable = enemyInAttackReach(obj.entity, Math.floor(player.x / cellSize), Math.floor(player.z / cellSize), attackReach)
-      const anchor = drawIsoEntity(ctx, p.x, p.y - heightOffset, obj.entity, tileH, combat, now, obj.moving ?? false, obj.inRange ?? false, attackable, style, obj.entity.id === targetId, obj.entity.id === hoverId)
-      drawQuestMarker(ctx, entityQuestMarker(obj.entity, quests), anchor.x, anchor.y, Math.max(14, tileH * 1.6))
-    } else if (obj.asset) {
+    if (obj.isPlayer || obj.entity) { drawUnit(obj, p, heightOffset); continue }
+
+    if (obj.asset) {
       // A BUILDING is JUST tiles: walls, windows, doors AND the roof all render per-cell through this one
       // generic path. The roof is a STACK of roof blocks forming a peaked gable (buildingCellTiles →
       // gableRoofLevels), so it needs no special cap drawer — the SAME stacked tiles project to a triangle
@@ -677,7 +556,9 @@ export function render(params: IsoRenderParams) {
       // Live TILE ANIMATION overrides for THIS frame (settings tweens), scoped to the iso view + active style.
       // null when the asset has no animations / none in scope → the effective asset IS obj.asset (byte-identical).
       const anim = resolveAssetAnimation(obj.asset, time, style, 'iso', dayNight)
-      const drawAsset = anim ? anim.asset : obj.asset // colour/zoom/width/height overlaid onto the draw
+      // colour/zoom/width/height overlaid onto the draw, then the asset's WORLD depth axes turned into the
+      // view frame so a z-width span (a roof) rotates WITH the grid instead of pointing off it.
+      const drawAsset = orientAssetForView(anim ? anim.asset : obj.asset, facing)
       let op = obj.asset.opacity ?? 1 // per-asset opacity for contrast/depth
       // GENERIC proximity behavior: ANY asset whose tile opted into fadeNear/cutawayRoof eases by its OWN
       // distance to the hero — walls/leaves ease translucent (fadeNearAlpha), a roof lifts off (cutawayAlpha).
@@ -698,7 +579,8 @@ export function render(params: IsoRenderParams) {
       // the magnitude in cells; zDir picks the diagonal (default right-up), so +z slides TOWARD it (right-up =
       // up-right toward the back) and −z toward its opposite, landing on the neighbouring diamond exactly like
       // z-width's per-cell step. 0 (every generated/existing asset) → no-op.
-      const zMove = isoZOffset(obj.asset.zOffset ?? 0, obj.asset.zDir ?? 'right-up', tileW, tileH)
+      // The slide axis is a WORLD diagonal, so it turns with the camera — a slid tile stays on the cell it slid to.
+      const zMove = isoZOffset(obj.asset.zOffset ?? 0, viewDepthDir(obj.asset.zDir ?? 'right-up', facing), tileW, tileH)
       // Animated screen shift: `x` slides right, `y` LIFTS up (screen-space up is −Y), in tile fractions. 0 when
       // not animated → the anchor is unchanged.
       const animShiftX = anim ? anim.x * tileW : 0
@@ -712,12 +594,25 @@ export function render(params: IsoRenderParams) {
       if (op < 1) ctx.globalAlpha = 1
       // Record this tile's ACTUAL rendered silhouette so the inverted picker + the highlight hit-test IT, not
       // the flat ground cell. Uses the real asset's cell/level (the anim overlay never moves the cell).
-      if (geom) isoTileHits.push({ col: obj.asset.col, row: obj.asset.row, level: obj.asset.heightLevel ?? 0, source: 'asset', geom })
+      if (geom) {
+        if (obj.asset.type === FLOOR_TYPE && (obj.asset.depth ?? 1) > 1) {
+          // A z-width RUN floor DREW as ONE tile (the perf win) but PICKS per cell: record a flat pick diamond
+          // for every covered cell, so a click/paint lands on the REAL cell (which then cuts the run), not the anchor.
+          const idx = stackIndexOf(obj.asset)
+          for (const { col, row } of grid.floorCoveredCells(obj.asset)) {
+            const sp = toScreen(col, row)
+            isoTileHits.push({ col, row, level: 0, stackIndex: idx, source: 'asset', geom: diamondGeom(tileW, tileH, poseMapper({ x: sp.x, y: sp.y }, undefined, tileH)) })
+          }
+        } else {
+          isoTileHits.push({ col: obj.asset.col, row: obj.asset.row, level: obj.asset.heightLevel ?? 0, stackIndex: stackIndexOf(obj.asset), source: 'asset', geom })
+        }
+      }
     }
   }
 
   ctx.globalAlpha = 1
-  // (No post-loop roof CAP — the roof is per-cell stacked tiles drawn in the loop above, one system, all views.)
+  // (Units are drawn in the single depth-sorted loop above — no separate later pass, so perspective governs
+  //  them like every other tile. No post-loop roof CAP either: the roof is per-cell stacked tiles.)
 
   // Attack animations (slash / shot / lightning / block) in iso space. Read-only:
   // the loop prunes finished ones (animFrame returns null past the duration).
@@ -787,15 +682,17 @@ export function render(params: IsoRenderParams) {
   }
 
   // ─── Hover + selection HIGHLIGHT — INVERTED: outline the ACTUAL rendered TILE (its transformed cube /
-  //     billboard, from the frame's recorded geometry) so the ring hugs what the user points at, never the
-  //     flat ground cell. A bare floor cell (or a tile not drawn this frame) falls back to the flat cell cube.
-  const strokeCellOrTile = (col: number, row: number, lvl: number | undefined): void => {
-    const geom = lvl !== undefined ? isoRecordedGeom(col, row, lvl) : null
+  //     billboard, from the frame's recorded geometry, resolved by the tile's STACK INDEX so same-level tiles
+  //     hug their OWN silhouettes) so the ring hugs what the user points at, never the flat ground cell. A bare
+  //     cell region (no stack index), or a tile not drawn this frame, falls back to the flat ground cell cube.
+  const strokeCellOrTile = (col: number, row: number, stackIndex: number | undefined): void => {
+    const geom = stackIndex !== undefined ? isoRecordedTileGeom(col, row, stackIndex) : null
     if (geom) { strokeTileOutline(ctx, geom); return } // the real tile silhouette (scaleY/pose/zOffset/depth-aware)
-    // Fallback: the old flat cell cube at this level (bare floor / off-screen tile).
+    // Fallback: the flat ground cell cube (a bare cell region, or a selected tile not drawn this frame — the
+    // key carries the stack slot, not a heightLevel, so we outline the ground cell rather than guess a lift).
     const selH = tileW * ISO_BLOCK_H_FRAC
     const p = toScreen(col, row)
-    const raise = (lvl ?? 0) >= 1 ? grid.getHeight(col, row) * heightStep + (lvl ?? 0) * selH : 0
+    const raise = grid.getHeight(col, row) * heightStep
     const py = p.y - raise
     const gt = { x: p.x, y: py - tileH }, gr = { x: p.x + tileW, y: py }, gb = { x: p.x, y: py + tileH }, gl = { x: p.x - tileW, y: py }
     ctx.beginPath(); ctx.moveTo(gt.x, gt.y - selH); ctx.lineTo(gr.x, gr.y - selH); ctx.lineTo(gb.x, gb.y - selH); ctx.lineTo(gl.x, gl.y - selH); ctx.closePath(); ctx.stroke()
@@ -812,7 +709,7 @@ export function render(params: IsoRenderParams) {
   if (hoveredCell) {
     ctx.strokeStyle = 'rgba(255,255,255,0.5)'
     ctx.lineWidth = 1.5
-    strokeCellOrTile(hoveredCell.col, hoveredCell.row, hoveredCell.level)
+    strokeCellOrTile(hoveredCell.col, hoveredCell.row, hoveredCell.stackIndex)
   }
 
   // Selection outline (property-editor multi-select) — a yellow ring hugging each selected tile/cell.
@@ -820,9 +717,9 @@ export function render(params: IsoRenderParams) {
     ctx.strokeStyle = '#ffff00'
     ctx.lineWidth = 2
     for (const key of selectedCells) {
-      // "col,row,level" = a raised/recorded TILE; "col,row" = a flat cell (lvl undefined → flat fallback).
-      const [col, row, lvl] = key.split(',').map(Number)
-      strokeCellOrTile(col, row, lvl)
+      // "col,row,stackIndex" = a recorded TILE (hug its silhouette); "col,row" = a bare cell region (flat fallback).
+      const [col, row, stackIndex] = key.split(',').map(Number)
+      strokeCellOrTile(col, row, Number.isFinite(stackIndex) ? stackIndex : undefined)
     }
   }
 
@@ -1280,39 +1177,6 @@ export function fillIsoFaceWithTile(
 }
 
 
-/** Ground-tile SPRITE CACHE — the iso shear is CONSTANT per frame (only the cell position translates),
- *  so a reskinned ground tile is pixel-identical for every cell of a given appearance. Bake it ONCE to
- *  an offscreen diamond sprite and blit it translated per cell (drawImage) instead of paying a per-cell
- *  save/transform/clip/restore — the ctx.clip() over ~1000 ground cells/frame was the emoji-vs-ascii perf
- *  sink. Keyed on (tile,colour,size); ground resolves to only a handful of appearances per zoom level. */
-const _groundSpriteCache = new Map<string, HTMLCanvasElement | null>()
-// `sizeW`/`sizeD` (default 1) SCALE the baked diamond for a per-cell floor-dims override (Width×Zoom on x,
-// Depth×Zoom on the ground axis). At 1×1 the key + bake are byte-identical to before — the common (unsized)
-// ground cell reuses the ONE shared sprite. A sized cell bakes its own (few of them, so the cache stays small).
-function groundSprite(gdv: DrawVisual, tileW: number, tileH: number, tint?: string, sizeW = 1, sizeD = 1): HTMLCanvasElement | null {
-  if (typeof document === 'undefined') return null
-  // Don't bake until an image tile's raster is decoded — else the sprite would freeze the ASCII fallback.
-  if (gdv.image && !tileImage(gdv.image.src)) return null
-  const tw = tileW * sizeW
-  const th = tileH * sizeD
-  const sizeKey = sizeW !== 1 || sizeD !== 1 ? `|${sizeW}|${sizeD}` : '' // unsized → EXACTLY the old key
-  const key = `${gdv.image?.src ?? gdv.char}|${gdv.color}|${tint ?? ''}|${Math.round(tileW)}|${Math.round(tileH)}${sizeKey}`
-  const hit = _groundSpriteCache.get(key)
-  if (hit !== undefined) return hit
-  const cv = document.createElement('canvas')
-  cv.width = Math.ceil(2 * tw)
-  cv.height = Math.ceil(2 * th)
-  const c = cv.getContext('2d')
-  if (!c) {
-    _groundSpriteCache.set(key, null)
-    return null
-  }
-  // Bake with the diamond's LEFT corner at local (0, th) → the sprite's bbox top-left is (0,0), so a
-  // blit at (px - tw, drawY - th) lands the (scaled) diamond centred exactly where the unsized draw did.
-  fillIsoFaceWithTile(c, { x: 0, y: th }, { x: tw, y: -th }, { x: tw, y: th }, { char: gdv.char, color: gdv.color, image: gdv.image }, 1, 1, tint)
-  _groundSpriteCache.set(key, cv)
-  return cv
-}
 
 
 // The default iso BLOCK height (screen px) of ONE stack level — one cube tall. drawIsoTileBlock draws
@@ -1346,15 +1210,45 @@ export function isoDepthCompare(
   // A directional-depth box reaches `depthFrontExtent` cells toward the camera past its anchor, so it sorts by
   // its FRONTMOST covered cell — a box extending toward the camera draws in front of what it overlaps. A
   // depth-less asset (every existing tile) adds 0, so the no-depth case is byte-identical to (col+row).
-  const key = (o: { col: number; row: number; asset?: { depth?: number; depthDir?: DepthDir } }): number => {
+  const key = (o: { col: number; row: number; asset?: { depth?: number; depthDir?: DepthDir; heightLevel?: number } }): number => {
     const dep = o.asset?.depth
     const dir = o.asset?.depthDir
-    return o.col + o.row + (dir && dep && Math.floor(dep) > 1 ? depthFrontExtent(dep, dir) : 0)
+    // The front-extent (sort by the FRONTMOST covered cell) is only correct for an ELEVATED depth box (a roof,
+    // heightLevel ≥ 1) that actually OVERHANGS + occludes what's behind it. A FLAT run (heightLevel 0 — a
+    // z-width grass/road tile) occludes nothing, so it must sort by its ANCHOR (its backmost cell) and stay
+    // BEHIND every standing tile, like the ground it is — otherwise a long road draws over a house in front of it.
+    const extend = dir && dep && Math.floor(dep) > 1 && (o.asset?.heightLevel ?? 0) >= 1
+    return o.col + o.row + (extend ? depthFrontExtent(dep!, dir!) : 0)
   }
   const d = key(a) - key(b)
   if (d !== 0) return d
   if (a.asset && b.asset) return (a.asset.heightLevel ?? 0) - (b.asset.heightLevel ?? 0)
   return 0
+}
+
+/** One item the iso painter sorts — the structural shape isoDepthCompare reads. */
+type IsoDepthItem = Parameters<typeof isoDepthCompare>[0]
+
+/** The back-to-front comparator for a camera at `facing`: isoDepthCompare's key is (col + row), which is a
+ *  VIEW-frame quantity — so under rotation it must be fed the ORIENTED coord and the ORIENTED depth axis, or
+ *  the painter would occlude by the old front corner and the rotated map would draw inside-out. Each item is
+ *  mapped ONCE (not per comparison, which sort calls O(n log n) times) and the mapped pair is handed to the
+ *  UNCHANGED isoDepthCompare, so every rule in it (z-index priority, depth front-extent, stack tie-break) keeps
+ *  working. Facing 0 returns isoDepthCompare ITSELF — same function, same sort, byte-identical frame. */
+export function isoDepthComparatorFor<T extends IsoDepthItem>(
+  items: readonly T[],
+  cols: number,
+  rows: number,
+  facing: Orientation,
+): (a: T, b: T) => number {
+  if (facing === 0) return isoDepthCompare
+  const inView = new Map<T, IsoDepthItem>()
+  for (const item of items) {
+    const v = orientCell(item.col, item.row, cols, rows, facing)
+    const asset = item.asset && { ...item.asset, depthDir: item.asset.depthDir && rotateDepthDir(item.asset.depthDir, facing) }
+    inView.set(item, { col: v.col, row: v.row, asset })
+  }
+  return (a, b) => isoDepthCompare(inView.get(a)!, inView.get(b)!)
 }
 
 
@@ -1620,9 +1514,12 @@ export function drawIsoSingleTileBlock(
   tint?: string,
   depth = 1,
   depthDir?: DepthDir,
+  transparent = false,
 ): void {
   // 1) The plain block SHELL — same cube, but no image/char on the faces (fillFace only fills the shaded quad).
-  drawIsoTileBlock(ctx, center, tileW, tileH, blockH, height, { char: '', color: dv.color, tint: dv.tint }, tint, undefined, depth, depthDir)
+  //    SKIPPED when the tile is transparent: only the billboard (step 2) shows, so a flower stands with NO
+  //    coloured block around it — "style the flower without colouring the whole block".
+  if (!transparent) drawIsoTileBlock(ctx, center, tileW, tileH, blockH, height, { char: '', color: dv.color, tint: dv.tint }, tint, undefined, depth, depthDir)
   // 2) ONE centered tile INSIDE the block. `center` is the base diamond centre; the stack rises `total` px, so
   //    the volume's vertical mid-point is total/2 above it. The tile is drawn at SINGLE_TILE_FRAC of the block
   //    width so the shell stays visible around it.
@@ -1745,7 +1642,8 @@ type IsoShapeDrawer = (
 const ISO_SHAPE_DRAWERS: Record<TileShape, IsoShapeDrawer> = {
   square: (ctx, center, bw, bd, bh, blocks, dv, tint, asset) => {
     // DISPLAY = "single" draws ONE centered tile inside the shell; else the tile paints on all faces.
-    if (asset.settings?.display === 'single') drawIsoSingleTileBlock(ctx, center, bw, bd, bh, blocks, dv, tint, asset.depth, asset.depthDir)
+    // `transparent` drops the shell so only the billboard shows (a flower with no coloured block).
+    if (asset.settings?.display === 'single') drawIsoSingleTileBlock(ctx, center, bw, bd, bh, blocks, dv, tint, asset.depth, asset.depthDir, asset.settings?.transparent)
     else drawIsoTileBlock(ctx, center, bw, bd, bh, blocks, dv, tint, undefined, asset.depth, asset.depthDir)
   },
   circle: (ctx, center, bw, bd, bh, blocks, dv, tint) => drawIsoRoundedBlock(ctx, center, bw, bd, bh, blocks, dv, tint),
@@ -2016,15 +1914,25 @@ export function drawIsoAssetAscii(
   // why a tree's canopy/trunk cells draw their OWN leaf/trunk tile instead of the 'tree' KIND emoji, and why
   // a cell's colour setting filters the WHOLE tile (the image is recoloured — no kind emoji, no glyph that
   // would ignore the tint). Same path for every style (ascii/emoji/…) — the label is the only input.
-  if (asset.label && (asset.height ?? 0) >= 1) {
+  //
+  // EVERY image-backed labeled tile is a BLOCK — a height≥1 cell extrudes into stacked cubes, a sub-block
+  // (flat) labeled cell draws its own DB height as a thin partial slab (partialBlockScale), NEVER a flat
+  // billboard — so Z-Width/display/shape/scale apply through
+  // drawIsoTileForShape (MAP-MODEL §4, EDITOR-INTERACTION-SPEC §11). A genuinely image-LESS label (unknown /
+  // not-yet-baked) still falls to the neutral glyph below (MAP-MODEL §8), unchanged.
+  const labelImage = asset.label ? labelTileImage(asset.label, style) : undefined
+  if (asset.label && ((asset.height ?? 0) >= 1 || labelImage)) {
     const zoom = asset.scale ?? 1
     const bw = tileW * (asset.scaleX ?? 1) * zoom       // Width  — diamond half-width
     const bd = tileH * (asset.scaleZ ?? 1) * zoom       // Depth  — diamond half-height (into-screen axis)
-    const bh = tileW * ISO_BLOCK_H_FRAC * (asset.scaleY ?? 1) * zoom // Height — one block, flush with isoStackLift
+    // Height — the tile's OWN DB block-height turned into pixels: partialBlockScale draws a sub-block cell as a
+    // partial slab and a standing cell as a full block, × the per-instance Height multiplier (scaleY). The
+    // height VALUE is DATA (from the DB); nothing invented here.
+    const bh = tileW * ISO_BLOCK_H_FRAC * (asset.scaleY ?? 1) * partialBlockScale(asset.height ?? 0) * zoom
     const tint = asset.color ?? '#cccccc'
     const et = style.id === 'emoji' ? EMOJI_TILESET[asset.label] : undefined
     const glyph = et ? et.char : (asset.art[0] ?? '?')
-    const image = labelTileImage(asset.label, style)
+    const image = labelImage
     const recolor = labelTileRecolor(style, tint)
     const dvBlock = { char: glyph, color: tint, tint: recolor, image }
     // SHAPE + DISPLAY (per-tile settings): drawIsoTileForShape picks the solid — cube (all-faces / single) or
@@ -2051,23 +1959,20 @@ export function drawIsoAssetAscii(
   const adv = resolveAssetDraw(assetKind(asset), style, assetOverride(asset, style), '', asset.color ?? '#ffffff')
   // The tile's emoji-tileset entry: per-view size/pose + the iso block-height default. Undefined under ASCII.
   const vt = style.id === 'emoji' ? EMOJI_TILESET[assetKind(asset)] : undefined
-  // 3D half of the 2D+3D tileset: a tile (or the placed instance via GridAsset.height) with height≥1 extrudes
-  // into an iso BLOCK instead of a flat billboard. Height 0 / ASCII passthrough (adv.char '') → the flat draw below.
-  const blocks = resolveTileHeight(vt, asset)
-  // Z-WIDTH (directional depth) is a 3D BLOCK operation: once the user SETS it, the tile has declared it's a
-  // block extruded N cells along a diagonal, so the iso render MUST extrude it — even when the tile's base
-  // height is 0. The old flat billboard path silently DROPPED depth/depthDir + display (the painter bug: a
-  // painted wall set to Z-Width 3 still drew a flat 2D face). So a placed tile is a block when it has HEIGHT or
-  // Z-WIDTH; a Z-Width-only tile stands one block tall (max with its own height). No z-width + height 0 → the
-  // flat billboard below stays byte-identical.
+  // The tile's OWN iso block height — DATA read from the ACTIVE style's DB tile (emoji tile OR ascii tile), the
+  // SAME way in both, so a flat tile's 0.1 comes from the DB everywhere and nothing is invented here. height≥1 →
+  // N stacked cubes; a sub-block (flat 0.1) tile → one partial slab (partialBlockScale below).
+  const dbTile = style.id === ASCII_STYLE.id ? ASCII_TILESET.tiles[assetKind(asset)] : vt
+  const blocks = resolveTileHeight(dbTile, asset)
+  // Z-WIDTH (directional depth) is a 3D BLOCK operation: setting it declares the tile a block extruded N cells
+  // along a diagonal, so the iso render MUST extrude it even at base height 0. Z-Width only changes how FAR a
+  // block extrudes — a flat tile stays a THIN slab (see flatSlab below), just deeper.
   const hasZWidth = (asset.depth ?? 1) > 1
-  const blockCount = blocks >= 1 ? blocks : (hasZWidth ? 1 : 0)
-  // A well / fountain under a RESKIN (emoji) extrudes its RESOLVED TILE (⛲/🪣) into a raised iso basin block
-  // instead of a flat billboard — keeps the 3D depth from the DB tile; town fountains scale to their footprint.
-  // ASCII (passthrough) + a tile with its own height (blocks≥1) use the generic tile path below — the bespoke
-  // fountain/well drawers are gone. A Z-Width well flows to the generic block path (which honours depthDir).
+  // A well / fountain under a RESKIN (emoji), flat + no Z-Width, extrudes its RESOLVED TILE (⛲/🪣) into a raised
+  // iso basin block (bespoke depth) — town fountains scale to their footprint. A Z-Width well, or one with its
+  // own height, flows to the generic block path below (which honours depthDir). ASCII → the per-type draw.
   const reskinned = style.id !== ASCII_STYLE.id
-  if (reskinned && blockCount < 1 && (asset.type === 'well' || asset.type === 'fountain') && (adv.image || adv.char)) {
+  if (reskinned && blocks < 1 && !hasZWidth && (asset.type === 'well' || asset.type === 'fountain') && (adv.image || adv.char)) {
     const span = asset.footprint && asset.footprint > 1 ? asset.footprint : 1
     const bw = span > 1 ? tileW * span * 0.6 : tileW
     const bhScreen = span > 1 ? tileH * span * 0.6 : tileH
@@ -2075,6 +1980,18 @@ export function drawIsoAssetAscii(
     drawIsoTileBlock(ctx, { x, y }, bw, bhScreen, basinH, 1, adv, asset.color)
     return cubeGeom(bw, bhScreen, basinH, 1, poseMapper({ x, y }, undefined, tileH))
   }
+  // EVERY tile with ANY art is a BLOCK — the flat-billboard path for a placed tile is GONE (MAP-MODEL §4;
+  // EDITOR-INTERACTION §11: "the old flat billboard path that silently dropped depth/depthDir + display is
+  // gone"). A height≥1 tile extrudes into N cubes; a sub-block (flat) tile — a flower, a fallen leaf, floor
+  // decor, the floor itself — draws its OWN DB height as a thin partial slab (partialBlockScale), so it looks
+  // FLAT, not a tall cube, while Z-Width/display/shape/scaleX/scaleY/
+  // scaleZ/colour ALL apply through drawIsoTileForShape. `adv.char` routes an image-LESS GLYPH tile (an ASCII
+  // tile — whose override resolves to a glyph, not its baked image — or an emoji whose PNG hasn't decoded yet)
+  // through the SAME slab, drawing its glyph on the faces, in exact parity with the 2D flat path (topdown.ts).
+  // There is NO per-type/category/style branch: the ONE rule is "any art → a block/slab, never a billboard".
+  // Only a genuinely ART-LESS tile (adv.char '' + no image — the ASCII kind-catalog fallback) drops below to
+  // the per-type / labeled glyph drawers; a UNIT never reaches here (drawIsoEntity — the one billboard, §4).
+  const blockCount = blocks >= 1 ? blocks : ((hasZWidth || adv.image || adv.char) ? 1 : 0)
   if (blockCount >= 1 && (adv.image || adv.char)) {
     // A block scales on ALL THREE axes (was height-only): Width (scaleX) widens the diamond, Depth (scaleZ)
     // deepens it, Height (scaleY) stretches it up, and Zoom (scale) multiplies every axis. This is what makes a
@@ -2082,7 +1999,10 @@ export function drawIsoAssetAscii(
     const zoom = asset.scale ?? 1
     const bw = tileW * (asset.scaleX ?? 1) * zoom       // Width  — diamond half-width
     const bd = tileH * (asset.scaleZ ?? 1) * zoom       // Depth  — diamond half-height (into-screen axis)
-    const bh = tileW * 0.9 * (asset.scaleY ?? 1) * zoom // Height — one block ≈ the cell's iso width, stretched up
+    // Height — the tile's OWN DB block-height as pixels: partialBlockScale draws a sub-block (flat 0.1) tile as a
+    // thin partial slab and a standing tile as a full block, × the per-instance Height multiplier (scaleY). The
+    // height VALUE is DATA (from the DB, read into `blocks`); nothing invented.
+    const bh = tileW * 0.9 * (asset.scaleY ?? 1) * partialBlockScale(blocks) * zoom
     // SHAPE + DISPLAY (per-tile settings): drawIsoTileForShape picks the solid — cube (all-faces / single) or ball.
     const geom = blockGeom(x, y, bw, bd, bh, blockCount, asset, tileH)
     // Per-asset pose (x/y/rotate/flip) transforms the block around its base centre — the SAME applyPose the
@@ -2096,43 +2016,10 @@ export function drawIsoAssetAscii(
     drawIsoTileForShape(ctx, { x, y }, bw, bd, bh, blockCount, adv, asset.color, asset)
     return geom
   }
-  // A per-asset colour override tints the baked sprite (an emoji ships its own colours, so an override
-  // has to recolour the image, not a fill) — #80. Undefined colour → drawn untinted.
-  if (adv.image) {
-    // Per-view tile size (byte-identical when unset: falls back to the old 2.2 constant), then per-element dims (#77/#78).
-    const d = resolveAssetDrawSize(tileH * (resolveTileSize(vt, 'iso') ?? 2.2), asset, 'billboard')
-    const cx = x, cy = y - lineHeight * 0.6 - d.baseLift
-    const pose = asset.pose ?? resolveTilePose(vt, 'iso') // per-asset pose (inspector x/y/rotate) wins; else the tileset-kind pose
-    if (pose) {
-      ctx.save(); ctx.translate(cx, cy); applyPose(ctx, pose, 1, tileH)
-      drawStyledImage(ctx, adv.image, 0, 0, d.w, false, asset.color, d.h)
-      ctx.restore()
-    } else {
-      drawStyledImage(ctx, adv.image, cx, cy, d.w, false, asset.color, d.h)
-    }
-    return billboardGeom(d.w, d.h, poseMapper({ x: cx, y: cy }, pose, tileH))
-  }
-  if (adv.char) {
-    // Trees tower (~3 cells, like the ASCII tree) instead of a tiny one-cell 🌲, anchored at the base.
-    const isTree = asset.type === 'tree'
-    const base = fontSize * (isTree ? 2.7 : 1.7) * (resolveTileSize(vt, 'iso') ?? 1)
-    const d = resolveAssetDrawSize(base, asset, 'billboard') // #universal: Width/Height/Zoom apply to glyphs too
-    const gy = y - lineHeight * (isTree ? 1.15 : 0.6) - d.baseLift
-    const pose = asset.pose ?? resolveTilePose(vt, 'iso') // per-asset pose (inspector x/y/rotate) wins; else the tileset-kind pose
-    const strength = asset.color ? (isTree ? 0.55 : 0.85) : 0 // colour-emoji ignore fillStyle → wash the tint on
-    ctx.font = `bold ${d.h}px ${ASCII_FONT}`
-    ctx.textAlign = 'center'
-    ctx.textBaseline = 'middle'
-    ctx.fillStyle = asset.color ?? adv.color ?? '#ffffff' // ASCII glyphs / the no-override fillText path
-    ctx.save()
-    ctx.translate(x, gy)
-    if (pose) applyPose(ctx, pose, 1, tileH)
-    if (d.w !== d.h) ctx.scale(d.w / d.h, 1) // non-uniform Width vs Height, like the image branch
-    fillTintedGlyph(ctx, adv.char, 0, 0, d.h, asset.color, strength)
-    ctx.restore()
-    ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
-    return billboardGeom(d.w, d.h, poseMapper({ x, y: gy }, pose, tileH))
-  }
+  // (The image-LESS GLYPH tile is NO LONGER a billboard: adv.char now flows into blockCount above, so a placed
+  //  glyph tile — an ASCII tile or an undecoded emoji — draws its glyph on a thin SLAB / cube through the block
+  //  path, never a lifted billboard. Only an ART-LESS asset (adv.char '' + no image) continues below to the
+  //  labeled/cycle/per-type glyph drawers; a unit renders via drawIsoEntity — the one billboard exception, §4.)
 
   // (a labeled composition cell was already drawn at the TOP of this function — per-label baked image + colour.)
 
@@ -2238,7 +2125,7 @@ export function renderDebugOverlays(
 
       // The cell's tileset label, centred in the diamond + shrunk to fit (never overflows).
       const ac = assetCaps.get(`${col},${row}`)
-      const text = ac?.text ?? terrainLabelAt(grid.ground, col, row)
+      const text = ac?.text ?? terrainLabelAt(grid.groundSlugs(), col, row)
       const lc = debugLabelColors(ac?.type ?? 'terrain')
       drawCellLabel(ctx, text, p.x, p.y, tileW * 1.7, lc.fg, lc.bg)
     }

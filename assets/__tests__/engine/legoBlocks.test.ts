@@ -13,20 +13,19 @@ import { stampBuildingComposition } from '@/game/runtime/composition'
 const mkGrid = () => new IsometricGrid({ cols: 12, rows: 12, cellSize: 16, isoScale: 1.4 })
 
 describe('lego model — everything on the grid is an editable block', () => {
-  test('STACK: floor + pushed blocks form a column in the grid', () => {
+  test('STACK: the floor STAYS as the base — pushed blocks stack ON TOP of it (stacked like legos)', () => {
     const grid = mkGrid()
     grid.setGround(4, 4, 'grass')
     pushTile(grid, 4, 4, { source: 'asset', slug: 'stone', h: 1, art: ['█'], type: 'block' })
     pushTile(grid, 4, 4, { source: 'asset', slug: 'stone', h: 1, art: ['█'], type: 'block' })
     const stack = getStack(grid, 4, 4)
-    expect(stack.map(t => t.source)).toEqual(['floor', 'asset', 'asset']) // floor + a 2-block column
-    expect(stack[2].h).toBe(1)                                            // the top block carries its height
-    // ROOT CAUSE of the "#42 picks the bottom cell" bug, surfaced objectively: pushTile numbers stacked
-    // blocks from 0 (stack[1] = level 0, stack[2] = level 1), and pickIsoBlock only treats heightLevel >= 1
-    // as a "raised" block. So a building's single tall block (level 0, height = floors) is NOT seen as raised
-    // and the click falls through to the flat ground cell. That off-by-one is one of the two gaps to close.
-    expect(stack[1].heightLevel).toBe(0)
-    expect(stack[2].heightLevel).toBe(1)
+    // Placing a tile STACKS (never replaces): the grass floor slab stays as slot 0, the first block sits on it
+    // at level 0, the second stacks one level up — grass + two blocks, all in the cell's stack.
+    expect(stack.map(t => t.type)).toEqual(['floor', 'block', 'block'])
+    expect(stack[0].type).toBe('floor')     // the grass floor is NOT hidden — it stays beneath as its own tile
+    expect(stack[1].heightLevel).toBe(0)    // the first block sits at level 0 (on the floor slab), not replacing it
+    expect(stack[2].heightLevel).toBe(1)    // the second block stacks one level up
+    expect(stack[2].h).toBe(1)              // the top block carries its height
   })
 
   test('EDIT any block content → the grid reflects it (color + reskin + size)', () => {
@@ -36,7 +35,7 @@ describe('lego model — everything on the grid is an editable block', () => {
     wall.color = '#ff0000'
     wall.tileOverride = 'emoji:brick'
     wall.scaleX = 0.5
-    const [, block] = getStack(grid, 4, 4)
+    const block = getStack(grid, 4, 4).find(t => t.type === 'block')! // the pushed block (the floor stays at slot 0)
     expect(block.color).toBe('#ff0000')
     expect(block.tileId).toBe('emoji:brick')
     expect(block.w).toBe(0.5)
@@ -59,7 +58,8 @@ describe('lego model — everything on the grid is an editable block', () => {
     // It's EDITABLE like any block — recolor it, the grid reflects. A building cell can stack several
     // blocks (wall + window + roof), so read back the block at a0's OWN level, not just the first asset.
     a0.color = '#123456'
-    const after = getStack(grid, a0.col, a0.row).find(t => t.source === 'asset' && (t.heightLevel ?? 0) === (a0.heightLevel ?? 0))
+    // Match the BUILDING block (its composition-kind type), not the grass floor that now also shares heightLevel 0.
+    const after = getStack(grid, a0.col, a0.row).find(t => t.type === a0.type && (t.heightLevel ?? 0) === (a0.heightLevel ?? 0))
     expect(after?.color).toBe('#123456')
 
     // And a wall block must EXTRUDE (height >= 1) so it renders as a real lego cube, not flat.

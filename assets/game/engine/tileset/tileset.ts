@@ -13,6 +13,7 @@ import type { TilePose } from './pose'
 import type { TileView, TileViewSettings } from './tileViewSettings'
 import type { ImageVisual } from '@/game/artStyle'
 import type { Animation } from '@/engine/animation/tileAnimation'
+import type { DepthDir } from '../render/isoBlock'
 
 // 9-piece autotile POSITION — the swap standard: all sides + corners. 'single' = a non-tiling tile.
 export type TilePosition =
@@ -53,6 +54,9 @@ export interface TilesetTile {
   /** Where in a 9-piece autotile mass this tile sits (or 'single'). */
   position: TilePosition
   walkable: boolean
+  /** The tile's iso BLOCK height (DATA from the DB): a flat tile is a fraction (0.1 slab), a standing tile ≥1.
+   *  Read uniformly by the renderer (resolveTileHeight) so height is data in EVERY style, never invented. */
+  height?: number
   /** Which palette entry supplies the colour (e.g. 'canopy', 'trunk', 'building.roof'). */
   colorRole: string
   /** OPTIONAL positioning data (rotation/scale/flip/offset) resolved through `applyPose` — the SAME
@@ -146,6 +150,14 @@ export interface CompositionCellSettings {
   scaleX?: number
   scaleY?: number
   scaleZ?: number
+  /** Directional DEPTH in blocks (roof-z-width): >1 (with `depthDir`) extrudes this cell into ONE long iso box
+   *  spanning `depth` cells along a diagonal, anchored at its base cell — a roof column spans the whole footprint
+   *  depth as a single block. stampComposition copies it onto the placed asset's `depth`. Absent/1 → a unit cell. */
+  depth?: number
+  /** Which iso diagonal `depth` extrudes along (authored south-facing as `left-down` = +row); stampComposition
+   *  copies it onto the asset's `depthDir`, ROTATED by the building's rotation so an east/west building's roof
+   *  spans the correct grid axis. Absent → no directional depth (a plain cube). */
+  depthDir?: DepthDir
   display?: TileDisplay
   /** the SOLID this cell's tile renders as ('square' cube default, 'circle' ball) — stampComposition copies it
    *  onto the placed asset's `shape`, so a composition can ship a default shape (a lamp globe = a circle cell). */

@@ -73,6 +73,7 @@ function toAsciiTilesetTile(label: string, tile: ApiTile): TilesetTile {
     glyph: tile.glyph ?? '',
     position: tile.settings?.position ?? 'single',
     walkable: !tile.blocking,
+    height: tile.height, // carry the DB block-height so ASCII reads it uniformly (was dropped → flat tiles lost their 0.1)
     colorRole: tile.color_role ?? '',
     category: tile.category,
     title: tile.title,
@@ -81,7 +82,12 @@ function toAsciiTilesetTile(label: string, tile: ApiTile): TilesetTile {
   }
 }
 
-/** Build the ground/terrain map from the TERRAIN TILE ROWS (category 'terrain', with char/fg/bg in
+// The ground FAMILY: a paved road (`roads`) or a constructed floor (`floors`) is still walkable ground,
+// painted flat from its own char/fg/bg variants — the finer taxonomy split the sidebar bucket, not the
+// render path. All three build the ground map so ground rendering stays byte-identical after recategorizing.
+const GROUND_CATEGORIES = new Set(['terrain', 'roads', 'floors'])
+
+/** Build the ground/terrain map from the GROUND TILE ROWS (category terrain/roads/floors, with char/fg/bg in
  *  settings.variants) — "terrain is just another tile", so ground colour comes from each tile's own
  *  settings, never a `data.terrain` blob. Tiles without variants are skipped (resolveGroundTile then
  *  falls back to grass). */
@@ -89,7 +95,7 @@ function buildAsciiTerrain(apiTiles: Record<string, ApiTile>): Record<string, Gr
   const terrain: Record<string, GroundTile> = {}
   for (const [label, tile] of Object.entries(apiTiles)) {
     const v = tile.settings?.variants
-    if (tile.category === 'terrain' && v?.char?.length && v?.fg?.length && v?.bg?.length) terrain[label] = v
+    if (tile.category && GROUND_CATEGORIES.has(tile.category) && v?.char?.length && v?.fg?.length && v?.bg?.length) terrain[label] = v
   }
   return terrain
 }
