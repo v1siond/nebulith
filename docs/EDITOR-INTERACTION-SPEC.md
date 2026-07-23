@@ -66,20 +66,47 @@ A selected TILE and a selected UNIT render the **same** right-sidebar card (`Pro
 configured exactly like a tile — NOT a separate parallel unit sidebar (Alexander: "one single right sidebar,
 I want the same we use for tiles, with the extra unit options added … the unit data can be merged in to the
 general tile card").
-- **One card component.** `PropertiesPanel` is the single card. For a CELL it shows a collision row + the
-  compact tile summary. For a UNIT the page passes `unitSection`, which HIDES the collision row (a unit isn't
-  a cell) and folds the unit's data UNDER the same tile summary. The unit's sprite IS its tile ("everything is
-  a tile"): colour swatch, Open Tile Library, and "Edit settings…" all come from the shared tile summary.
+- **One card component, ONE control set.** `PropertiesPanel` is the single card and it renders the SAME
+  controls in the same order for a cell and for a unit — **Collision (Blocked/Walkable) · Clear tiles · the
+  tile chip + Colour · Add tile / Replace tile · Edit settings… · Animate… · Remove tile · Triggers… · Save
+  map**. A UNIT passes `unitSection`, which only **ADDS** its extras under the tile summary; it hides nothing.
+  There is **no unit menu** any more (Alexander: *"we should just have one tile UI … should be the same FOR
+  ALL TILES, including units, all tiles behave the same"*). The unit's sprite IS its tile ("everything is a
+  tile"): the tile chip shows its baked art, colour / Replace tile / "Edit settings…" all come from the shared
+  tile summary.
+- **The unit's small header card is GONE.** The `▸ PLAYER (PLAYER) @ 32,10` `SelectionHeader` pill above the
+  unit section was removed (*"we must remove the player small card"*); the unit's name rides the card title
+  and its own Name row. The bespoke **Delete / Deselect** pair is gone too — deleting a unit is the standard
+  **Remove tile** (*"we're replacing the unit menu with the tile card, so we'd have remove tile, add tile and
+  clear tiles"*); Esc still clears the selection.
+- **ONE collision control.** The card's `Collision [Blocked] [Walkable]` toggle serves a unit as well: for a
+  unit it writes `entity.blocksMovement`. The old standalone **"Blocks movement" checkbox is deleted** — one
+  collision control for everything.
+- **Clear tiles works on a unit too**, targeting the cell the unit stands on, through the SAME
+  `clearTilesAt(cells)` primitive a cell selection uses (undoable).
+- **The FIGURE variant row (neutral/male/female/old/child/alien/robot) is REMOVED.** A unit is a tile, so its
+  art is swapped with the card's regular **Replace tile** button, whose Tile Library lists the character tiles
+  (the `units` category) — *"units are just tiles, so if we want to replace a tile we should use the regular
+  replace tile button and see a list of characters to pick"*. `Entity.variant` survives as DATA (the
+  randomizer + the spawner still set it); only its authoring row is gone.
+- **`⛊ Stats…` is a BUTTON opening a draggable/resizable modal** (`UnitStatsBody` in a `FloatingPanel`,
+  geometry id **`stats`**): HP / DEF / STR / INT / DODGE%, **Hittable**, the enemy's kill-quest tag and its
+  respawn timer — *"stats would be a button that shows a draggable, movable, resizable modal where we control
+  all those extra unit settings"*. **Name and Size (1×/2×/3×) stay as ROWS on the card**, not in the modal.
+- **Inventory & abilities, Quests and Attacks are buttons on the SAME card** (`🎒 Inventory & abilities…`
+  for the player, `❒ Quests…` for an NPC, `⚔ Attacks / abilities…` for an enemy), each opening its existing
+  modal with its existing data — *"inventory and abilities must be moved to the tile menu and show the data
+  as it does when clicking on current unit menu"*.
 - **The unit's shared settings.** A unit maps its own fields into the same `TileControlModel`: colour →
   `entity.color`, the scale axes → the unit's uniform `size`, x/y/rotate/flip → `entity.pose` (same `TilePose`
   a tile carries; round-trips through the entity codec). Writers fan out via `patchSelectedEntity` — one
   source of truth. "Edit settings…" opens the SAME floating `SettingsPanelBody` (tile-only body: colour ·
   width/height/zoom · x/y/z · rotate · flip) a tile opens — asset-only rows (Z Width, Z-Index, Display, Shape,
   Light, z-slide) stay hidden for a unit exactly as they do for a floor tile.
-- **Unit-only extras** (`UnitSettingsSection`, folded INTO the card): appearance (figure variant + size
-  preset), the unit's identity + vitals (name, type/role, HP + combat stats, hittable / blocks-movement), and
-  the entry-point buttons a tile never has — **inventory** (player), **quests** (NPC), **attacks** (enemy) —
-  which open their own modals.
+- **Unit-only extras** (`UnitSettingsSection`, folded INTO the card): the two identity ROWS a unit keeps
+  inline — **Name** and the **Size** preset (1×/2×/3×; a boss scales its stats with its figure) — plus the
+  entry-point buttons a tile never has: **stats** (every unit), **inventory** (player), **quests** (NPC),
+  **attacks** (enemy), each opening its own modal.
 - **Animate is a button opening the IDENTICAL modal a tile uses.** The old inline unit "Animation" section
   (figure/size/colour + frame-list summary + "See more…") is REMOVED. The card's "✦ Animate…" button opens the
   ONE shared `TileAnimationEditor` in a floating modal — the SAME modal a tile opens, with **BOTH** add-buttons:
@@ -117,11 +144,13 @@ inline expando. It edits the SAME trigger data as before — a cell's `enter`/`i
 Every editor modal that hosts a settings-style body is a draggable + resizable **non-blocking** `FloatingPanel`
 (Alexander: "move and resize them at will and I want to save the position, size, as settings for the editor in
 the elixir backend"). This now covers: **settings** (tile + unit), **animation** (unit — the shared tile-animation modal, both kinds),
-**tileAnimation** (per-tile settings tweens), **triggers**, and **attacks** (enemy).
+**tileAnimation** (per-tile settings tweens), **triggers**, **attacks** (enemy), **stats** (unit),
+**connectors** and **tileLibrary**.
 - **Backend owns the geometry.** nebulith exposes a small key→value editor-settings store — `GET
   /api/editor_settings` returns `{editorSettings: {<modalId>: {x,y,w,h}}}`, `PUT /api/editor_settings/:key`
-  upserts one modal's geometry. `key` is the modal id (`settings`/`animation`/`triggers`/`attacks`/
-  `tileAnimation`); `value` is the panel's `{x,y,w,h}`. A single global record per key (no per-user auth).
+  upserts one modal's geometry. `key` is the modal id (`settings`/`animation`/`triggers`/`attacks`/`stats`/
+  `tileAnimation`/`connectors`/`tileLibrary`); `value` is the panel's `{x,y,w,h}`. The store takes ANY key, so
+  a new panel needs no backend change. A single global record per key (no per-user auth).
 - **Frontend never hardcodes geometry.** The editor loads the whole map once on mount (`getEditorSettings`),
   restores each panel's saved position/size on open, and on every drag/resize END upserts the one key
   (`saveEditorSetting`, debounced). `FloatingPanel` emits the final geometry via `onGeometryChange`.
@@ -154,16 +183,26 @@ system the GENERATOR and the RENDERER use — never a separate or hardcoded list
   **NO branch by tile type, category, label or art style** anywhere in the paint/placement path; the mechanism is
   identical for every tile, only the height DATA differs:
   - a **GROUND/FLAT** tile (a **flower**, a fallen leaf, floor decor, a facade piece — DB height `0`) inserts
-    **flat**: in iso it shows on the **floor face** only, and it is **walkable**.
+    **flat**: in iso it shows on the **floor face** only.
   - a **STANDING** tile (a tree, a rock, a building, a prop, a lamp, a mushroom — DB height `≥ 1`) inserts as an
-    extruded **block** and **blocks** movement.
+    extruded **block**.
   The user's rule, repeated in caps: *"all tiles behave and are inserted the same in the map, regardless of type
-  or art style"* — the **mechanism** is uniform; the height is per-tile DATA. **Collision DERIVES from that
-  height** (`collision = height > 0`): above-ground blocks, ground is walkable — no per-type blocking list. The
-  tile's own authored `settings` ride along via the SAME `tileRenderBehavior` seam `stampComposition` uses, and
-  the asset is selectable + changeable (colour/shape/size/pose/display/height/**collision** via the Inspector).
-  The height-derived collision default is **overridable per cell** (the Inspector's Blocked/Walkable toggle →
-  `grid.setCollision`), and that override wins.
+  or art style"* — the **mechanism** is uniform; the height is per-tile DATA. **Collision is INDEPENDENT of
+  height** — it is a per-cell **SETTING** with **ONE uniform default for every tile: walkable** (non-blocking),
+  set directly via the Inspector's **Blocked/Walkable** toggle (`grid.setCollision`), which is the **source of
+  truth** (MAP-MODEL §4). Height>0 tiles are *commonly* blocked, but that is a habit, **NOT a rule** — a
+  4-block-tall projection can be fully walkable, and a flat tile can block. (A generated/composition cell may
+  carry its own authored `walkable` DATA as its default.) The tile's own authored `settings` ride along via the
+  SAME `tileRenderBehavior` seam `stampComposition` uses, and the asset is selectable + changeable
+  (colour/shape/size/pose/display/height/**collision** via the Inspector).
+
+  **Roadmap — conditional collision (lands with the collisions + UI work).** The flat Blocked/Walkable setting is
+  the **base**; on top of it sits a **triggers-like** system of higher-priority conditional overrides —
+  *"if the element has a conditional-collision rule → use that, else fall back to the base setting."* Wanted
+  drivers: a **unit** defaults collision **off** (non-blocking) but flips **on when the player targets it** (so
+  units are interactable without being walls) — settable on a **multi-selected** set of units; a **ghost power**
+  that removes collision even for the **player** (walk through walls in some sections). The base setting remains
+  the source of truth whenever no conditional rule applies.
 - **Z-Width is a 3D block operation.** A STANDING painted tile (height ≥ 1) lands as an iso BLOCK, so **Display
   (all-faces / single) applies to it by default**; **Z-Width** extrudes it FURTHER along a diagonal (directional
   depth > 1) through the block path (`drawIsoTileForShape` → `drawIsoTileBlock`). Even a height-0 tile becomes a
@@ -226,8 +265,9 @@ editor-settings) and the left Paint tool's placement path — with NO fork and N
   too**, so `clearGroundTile` resets it to the bare default (`grass`, no colour override, no dims) and collision
   goes walkable. This is **uniform — NO branch on the tile's type/category/height/style**; a road, water and
   plaza all clear the exact same way. Captured by undo/redo (`checkpointHistory` snapshots the ground before the
-  clear, so Ctrl+Z restores BOTH the stacked tiles AND the cleared road). It's a CELL action, so it shows even
-  when the selected tile is the floor, and is hidden for a unit (a unit isn't a cell).
+  clear, so Ctrl+Z restores BOTH the stacked tiles AND the cleared road). It shows even when the selected tile
+  is the floor, and — since the unified card (§8) — for a **UNIT** too, where it targets the cell the unit
+  stands on through the SAME `clearTilesAt(cells)` primitive.
 - **Connectors — a right-sidebar button + a draggable modal.** The Connector tool is **off the left tool-rail**
   (`RAIL_MODES` drops it); its entry is a **"↗ Connectors" button in the right sidebar** that opens a draggable
   `FloatingPanel` (`ConnectorsPanelBody`, geometry id `connectors`) hosting the WHOLE flow — the Edit/Exit
@@ -251,7 +291,10 @@ editor-settings) and the left Paint tool's placement path — with NO fork and N
     `stackAssetTile`), so a terrain tile replaces the floor and a standing tile stacks — identical to the left
     brush. The selection is kept so you can keep painting and the label flips Add→Replace. `TileLibraryBody`
     runs in `paint` mode (prose "paint it onto the selected cells", no "Follow style").
-  - for a **UNIT** → still PINS the picked tile as a figure override (`setSelectionOverride`), unchanged.
+  - for a **UNIT** → the button always reads **"Replace tile"** (a unit always carries art) and picking a tile
+    PINS it as the unit's figure override (`setSelectionOverride`). The Library lists all four categories, so
+    the `units` characters are the list you pick from — this is now the ONLY way to change a unit's figure
+    (the Figure variant row was deleted, §8).
   The left Paint tool and this right-sidebar paint COEXIST and land the exact same tiles — one placement path.
 
 ## Randomize — macro (per-layer) + micro (selection) — SHIPPED 2026-07

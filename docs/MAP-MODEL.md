@@ -133,8 +133,13 @@ drawer** for a building, a roof, or anything (units/NPCs aside). Each view PROJE
 ISO stacks the blocks into a 3D shape, 2D collapses depth and stacks the cells into a front elevation, TOP
 shows the footprint.
 
-The roof is the clearest example: it is a **stack of roof tiles** (a gable). The SAME roof tiles project to a
-**triangle** (2D front), a **3D gable** (ISO), and the **footprint rectangle** (TOP).
+The roof is the clearest example: it is **roof tiles** projecting to a **triangle** (2D front), a **3D gable**
+(ISO), and the **footprint rectangle** (TOP). To keep the block count low, a roof is authored as ONE
+**depth-spanned** block PER COLUMN (roof-z-width): each column carries smart HEIGHT (`settings.scaleY` = its
+gable-step height) AND smart Z-WIDTH (`settings.depth` = the footprint depth, along `settings.depthDir`), so a
+whole ridge column is a single block spanning the depth instead of one tile per `(col,row)` — a gable falls to
+`w+1` blocks. The three views still read the SAME data: ISO draws the depth block as one long box, 2D collapses
+the depth onto the front face (the triangle), and TOP paints the tile across every covered footprint cell.
 
 **A composition cell resolves by its own LABEL, in every view.** A tree is two stacked cells — a `tree_trunk`
 cell at level 0 and a `tree_canopy` cell above it — each carrying its OWN part label but the SAME composition
@@ -150,7 +155,7 @@ branch.
 
 ```mermaid
 flowchart TD
-  STAMP["a building is stamped as per-cell TILES (walls stack by level, roof = gable tile stack)"]
+  STAMP["a building is stamped as per-cell TILES (walls stack by level, roof = depth-spanned block per column)"]
   STAMP --> REG["the REGULAR tile builder — one path, no special drawer"]
   REG -->|project| TOPp["TOP: footprint rectangle"]
   REG -->|project| TWODp["2D: front elevation, depth collapsed"]

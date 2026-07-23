@@ -112,7 +112,8 @@
       "glyph": "▔",
       "position": "single",
       "walkable": true,
-      "colorRole": "building.roof"
+      "colorRole": "building.roof",
+      "category": "roofs"
     },
     "roof": {
       "label": "roof",
@@ -120,7 +121,7 @@
       "position": "single",
       "walkable": false,
       "colorRole": "building.roof",
-      "category": "buildings",
+      "category": "roofs",
       "title": "Roof"
     },
     "wall": {
@@ -129,7 +130,7 @@
       "position": "single",
       "walkable": false,
       "colorRole": "building.wall",
-      "category": "buildings",
+      "category": "walls",
       "title": "Wall"
     },
     "door": {
@@ -138,7 +139,7 @@
       "position": "single",
       "walkable": false,
       "colorRole": "building.door",
-      "category": "buildings",
+      "category": "doors",
       "title": "Door"
     },
     "window": {
@@ -147,7 +148,7 @@
       "position": "single",
       "walkable": false,
       "colorRole": "building.window",
-      "category": "buildings",
+      "category": "windows",
       "title": "Window"
     },
     "mountain": {
@@ -270,7 +271,7 @@
     "path": {
       "label": "path",
       "glyph": "░",
-      "category": "terrain",
+      "category": "roads",
       "title": "Path",
       "position": "single",
       "walkable": true
@@ -294,7 +295,7 @@
     "cavefloor": {
       "label": "cavefloor",
       "glyph": ":",
-      "category": "terrain",
+      "category": "floors",
       "title": "Cave Floor",
       "position": "single",
       "walkable": true
@@ -310,7 +311,7 @@
     "pillar": {
       "label": "pillar",
       "glyph": "║",
-      "category": "buildings",
+      "category": "props",
       "title": "Pillar",
       "position": "single",
       "walkable": true
@@ -318,7 +319,7 @@
     "altar": {
       "label": "altar",
       "glyph": "‡",
-      "category": "buildings",
+      "category": "props",
       "title": "Altar",
       "position": "single",
       "walkable": true
@@ -724,7 +725,8 @@
       "bg": [
         "rgba(58, 60, 66, 0.95)",
         "rgba(50, 52, 58, 0.95)"
-      ]
+      ],
+      "category": "roads"
     },
     "road_center": {
       "char": [
@@ -738,7 +740,8 @@
       "bg": [
         "rgba(74, 76, 82, 0.92)",
         "rgba(66, 68, 74, 0.9)"
-      ]
+      ],
+      "category": "roads"
     },
     "road_edge": {
       "char": [
@@ -752,7 +755,8 @@
       "bg": [
         "rgba(44, 46, 52, 0.92)",
         "rgba(38, 40, 44, 0.9)"
-      ]
+      ],
+      "category": "roads"
     },
     "plaza": {
       "char": [
@@ -766,7 +770,8 @@
       "bg": [
         "rgba(180, 150, 100, 0.9)",
         "rgba(160, 130, 85, 0.85)"
-      ]
+      ],
+      "category": "floors"
     },
     "water": {
       "char": [
@@ -822,7 +827,8 @@
       "bg": [
         "rgba(102, 68, 34, 0.95)",
         "rgba(85, 51, 17, 0.9)"
-      ]
+      ],
+      "category": "roads"
     },
     "cliff": {
       "char": [
@@ -864,7 +870,8 @@
       "bg": [
         "rgba(85, 68, 51, 0.9)",
         "rgba(68, 51, 34, 0.85)"
-      ]
+      ],
+      "category": "floors"
     },
     "path_stone": {
       "char": [
@@ -878,7 +885,8 @@
       "bg": [
         "rgba(153, 136, 119, 0.9)",
         "rgba(136, 119, 102, 0.85)"
-      ]
+      ],
+      "category": "roads"
     },
     "path_dirt": {
       "char": [
@@ -892,7 +900,8 @@
       "bg": [
         "rgba(119, 102, 85, 0.9)",
         "rgba(102, 85, 68, 0.85)"
-      ]
+      ],
+      "category": "roads"
     },
     "snow": {
       "char": [
@@ -976,7 +985,8 @@
       "bg": [
         "rgba(160, 175, 200, 0.95)",
         "rgba(150, 170, 195, 0.92)"
-      ]
+      ],
+      "category": "roads"
     },
     "sand": {
       "char": [
@@ -1046,7 +1056,8 @@
       "bg": [
         "rgba(150, 120, 70, 0.95)",
         "rgba(140, 110, 65, 0.92)"
-      ]
+      ],
+      "category": "roads"
     },
     "lava": {
       "char": [
@@ -1158,7 +1169,8 @@
       "bg": [
         "rgba(70, 65, 60, 0.95)",
         "rgba(60, 55, 50, 0.92)"
-      ]
+      ],
+      "category": "floors"
     },
     "cave_moss": {
       "char": [
@@ -1200,7 +1212,8 @@
       "bg": [
         "rgba(80, 75, 60, 0.95)",
         "rgba(70, 65, 50, 0.92)"
-      ]
+      ],
+      "category": "floors"
     },
     "rune_floor": {
       "char": [
@@ -1214,7 +1227,8 @@
       "bg": [
         "rgba(50, 50, 70, 0.95)",
         "rgba(40, 40, 60, 0.92)"
-      ]
+      ],
+      "category": "floors"
     },
     "temple_floor": {
       "char": [
@@ -1228,7 +1242,8 @@
       "bg": [
         "rgba(108, 100, 78, 0.95)",
         "rgba(98, 90, 70, 0.92)"
-      ]
+      ],
+      "category": "floors"
     },
     "sand_trap": {
       "char": [
@@ -1256,7 +1271,8 @@
       "bg": [
         "rgba(50, 48, 45, 0.98)",
         "rgba(45, 43, 40, 0.95)"
-      ]
+      ],
+      "category": "floors"
     },
     "dead_grass": {
       "char": [
@@ -1340,7 +1356,8 @@
       "bg": [
         "rgba(180, 100, 60, 0.95)",
         "rgba(170, 90, 55, 0.92)"
-      ]
+      ],
+      "category": "floors"
     },
     "marble": {
       "char": [
@@ -1354,7 +1371,8 @@
       "bg": [
         "rgba(230, 225, 220, 0.95)",
         "rgba(220, 215, 210, 0.92)"
-      ]
+      ],
+      "category": "floors"
     },
     "olive_grove": {
       "char": [
@@ -1382,7 +1400,8 @@
       "bg": [
         "rgba(160, 30, 25, 0.98)",
         "rgba(140, 25, 20, 0.95)"
-      ]
+      ],
+      "category": "floors"
     },
     "gold_tile": {
       "char": [
@@ -1396,7 +1415,8 @@
       "bg": [
         "rgba(200, 160, 50, 0.95)",
         "rgba(180, 140, 40, 0.92)"
-      ]
+      ],
+      "category": "floors"
     },
     "bamboo_floor": {
       "char": [
@@ -1410,7 +1430,8 @@
       "bg": [
         "rgba(120, 140, 60, 0.95)",
         "rgba(110, 130, 55, 0.92)"
-      ]
+      ],
+      "category": "floors"
     },
     "spanish_tile": {
       "char": [
@@ -1424,7 +1445,8 @@
       "bg": [
         "rgba(200, 140, 80, 0.95)",
         "rgba(190, 130, 75, 0.92)"
-      ]
+      ],
+      "category": "floors"
     },
     "whitewash": {
       "char": [
@@ -1452,7 +1474,8 @@
       "bg": [
         "rgba(170, 160, 140, 0.95)",
         "rgba(160, 150, 130, 0.92)"
-      ]
+      ],
+      "category": "floors"
     },
     "birch_forest": {
       "char": [
@@ -1494,7 +1517,8 @@
       "bg": [
         "rgba(160, 150, 100, 0.95)",
         "rgba(150, 140, 95, 0.92)"
-      ]
+      ],
+      "category": "floors"
     },
     "sakura_petals": {
       "char": [
@@ -1550,7 +1574,8 @@
       "bg": [
         "rgba(180, 140, 60, 0.95)",
         "rgba(170, 130, 55, 0.92)"
-      ]
+      ],
+      "category": "floors"
     },
     "pyramid_stone": {
       "char": [
@@ -1564,7 +1589,8 @@
       "bg": [
         "rgba(180, 150, 100, 0.95)",
         "rgba(170, 140, 95, 0.92)"
-      ]
+      ],
+      "category": "floors"
     },
     "savanna": {
       "char": [
@@ -1634,7 +1660,8 @@
       "bg": [
         "rgba(255, 100, 100, 0.95)",
         "rgba(100, 255, 150, 0.92)"
-      ]
+      ],
+      "category": "floors"
     },
     "inca_stone": {
       "char": [
@@ -1648,7 +1675,8 @@
       "bg": [
         "rgba(100, 95, 85, 0.95)",
         "rgba(90, 85, 75, 0.92)"
-      ]
+      ],
+      "category": "floors"
     },
     "pampas": {
       "char": [
@@ -1704,7 +1732,8 @@
       "bg": [
         "rgba(120, 90, 50, 0.95)",
         "rgba(110, 80, 45, 0.92)"
-      ]
+      ],
+      "category": "floors"
     },
     "outback_red": {
       "char": [

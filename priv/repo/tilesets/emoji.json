@@ -17,14 +17,14 @@
     "char": "🟫",
     "color": "#9c7b4d",
     "image": "/tiles/emoji/baked/path.png",
-    "category": "terrain",
+    "category": "roads",
     "title": "Path"
   },
   "plaza": {
     "char": "⬜",
     "color": "#cabfa6",
     "image": "/tiles/emoji/baked/plaza.png",
-    "category": "terrain",
+    "category": "floors",
     "title": "Plaza"
   },
   "sand": {
@@ -52,7 +52,7 @@
     "char": "🪨",
     "color": "#3f3a34",
     "image": "/tiles/emoji/baked/cavefloor.png",
-    "category": "terrain",
+    "category": "floors",
     "title": "Cave Floor"
   },
   "moss": {
@@ -74,35 +74,35 @@
     "char": "🧱",
     "color": "#b0603a",
     "image": "/tiles/emoji/baked/wall.png",
-    "category": "buildings",
+    "category": "walls",
     "title": "Wall"
   },
   "roof": {
     "char": "🟥",
     "color": "#c8443c",
     "image": "/tiles/emoji/baked/roof.png",
-    "category": "buildings",
+    "category": "roofs",
     "title": "Roof"
   },
   "door": {
     "char": "🚪",
     "color": "#5a3a22",
     "image": "/tiles/emoji/baked/door.png",
-    "category": "buildings",
+    "category": "doors",
     "title": "Door"
   },
   "window": {
     "char": "🪟",
     "color": "#7fb4d8",
     "image": "/tiles/emoji/baked/window.png",
-    "category": "buildings",
+    "category": "windows",
     "title": "Window"
   },
   "fountain": {
     "char": "⛲",
     "color": "#4a90e2",
     "image": "/tiles/emoji/baked/fountain.png",
-    "category": "buildings",
+    "category": "props",
     "title": "Fountain"
   },
   "tree": {
@@ -173,7 +173,7 @@
     "char": "🏛️",
     "color": "#cbb68c",
     "image": "/tiles/emoji/baked/pillar.png",
-    "category": "buildings",
+    "category": "props",
     "title": "Pillar"
   },
   "altar": {
@@ -181,7 +181,7 @@
     "char": "🗿",
     "color": "#ffe7a8",
     "image": "/tiles/emoji/baked/altar.png",
-    "category": "buildings",
+    "category": "props",
     "title": "Altar"
   },
   "torch": {
@@ -315,14 +315,14 @@
     "char": "🪣",
     "color": "#9bc4d8",
     "image": "/tiles/emoji/baked/well.png",
-    "category": "buildings",
+    "category": "props",
     "title": "Well"
   },
   "connector": {
     "char": "🌀",
     "color": "#8a7bd8",
     "image": "/tiles/emoji/baked/connector.png",
-    "category": "buildings",
+    "category": "props",
     "title": "Portal"
   },
   "arrow": {
@@ -412,7 +412,7 @@
   "road": {
     "char": "⬛",
     "color": "#3d3d44",
-    "category": "terrain",
+    "category": "roads",
     "title": "Road"
   },
   "grass-field": {
@@ -460,21 +460,21 @@
   "dirt-path": {
     "char": "🟫",
     "color": "#9c7b4d",
-    "category": "terrain",
+    "category": "roads",
     "title": "Dirt Path",
     "image": "/tiles/emoji/catalog/dirt-path.png"
   },
   "gravel": {
     "char": "🟤",
     "color": "#7c6a52",
-    "category": "terrain",
+    "category": "roads",
     "title": "Gravel",
     "image": "/tiles/emoji/catalog/gravel.png"
   },
   "cobblestone": {
     "char": "⬜",
     "color": "#b9b2a3",
-    "category": "terrain",
+    "category": "roads",
     "title": "Cobblestone",
     "image": "/tiles/emoji/catalog/cobblestone.png"
   },
@@ -916,7 +916,7 @@
     "height": 1,
     "char": "🏠",
     "color": "#c8443c",
-    "category": "buildings",
+    "category": "props",
     "title": "House",
     "image": "/tiles/emoji/catalog/house.png"
   },
@@ -924,7 +924,7 @@
     "height": 1,
     "char": "🏡",
     "color": "#b5793a",
-    "category": "buildings",
+    "category": "props",
     "title": "House with Garden",
     "image": "/tiles/emoji/catalog/house-garden.png"
   },
@@ -932,7 +932,7 @@
     "height": 1,
     "char": "🏘️",
     "color": "#c86b4d",
-    "category": "buildings",
+    "category": "props",
     "title": "Houses",
     "image": "/tiles/emoji/catalog/houses.png"
   },
@@ -940,7 +940,7 @@
     "height": 1,
     "char": "🏚️",
     "color": "#8a7a5f",
-    "category": "buildings",
+    "category": "props",
     "title": "Derelict House",
     "image": "/tiles/emoji/catalog/derelict-house.png"
   },
@@ -948,7 +948,7 @@
     "height": 1,
     "char": "🏢",
     "color": "#7f8c9a",
-    "category": "buildings",
+    "category": "props",
     "title": "Office Building",
     "image": "/tiles/emoji/catalog/office-building.png"
   },
@@ -956,7 +956,7 @@
     "height": 1,
     "char": "🏬",
     "color": "#b05a8a",
-    "category": "buildings",
+    "category": "props",
     "title": "Department Store",
     "image": "/tiles/emoji/catalog/department-store.png"
   },
@@ -964,7 +964,7 @@
     "height": 1,
     "char": "🏪",
     "color": "#4a9ac8",
-    "category": "buildings",
+    "category": "props",
     "title": "Convenience Store",
     "image": "/tiles/emoji/catalog/convenience-store.png"
   },
@@ -972,7 +972,7 @@
     "height": 1,
     "char": "🏥",
     "color": "#e05a5a",
-    "category": "buildings",
+    "category": "props",
     "title": "Hospital",
     "image": "/tiles/emoji/catalog/hospital.png"
   },
@@ -980,7 +980,7 @@
     "height": 1,
     "char": "🏦",
     "color": "#6a8f5a",
-    "category": "buildings",
+    "category": "props",
     "title": "Bank",
     "image": "/tiles/emoji/catalog/bank.png"
   },
@@ -988,7 +988,7 @@
     "height": 1,
     "char": "🏨",
     "color": "#c89a4a",
-    "category": "buildings",
+    "category": "props",
     "title": "Hotel",
     "image": "/tiles/emoji/catalog/hotel.png"
   },
@@ -996,7 +996,7 @@
     "height": 1,
     "char": "🏫",
     "color": "#d0a83a",
-    "category": "buildings",
+    "category": "props",
     "title": "School",
     "image": "/tiles/emoji/catalog/school.png"
   },
@@ -1004,7 +1004,7 @@
     "height": 1,
     "char": "🏛️",
     "color": "#cbb68c",
-    "category": "buildings",
+    "category": "props",
     "title": "Classical Building",
     "image": "/tiles/emoji/catalog/classical-building.png"
   },
@@ -1012,7 +1012,7 @@
     "height": 1,
     "char": "🏰",
     "color": "#9a8a7a",
-    "category": "buildings",
+    "category": "props",
     "title": "Castle",
     "image": "/tiles/emoji/catalog/castle.png"
   },
@@ -1020,7 +1020,7 @@
     "height": 1,
     "char": "🏯",
     "color": "#d9c8a8",
-    "category": "buildings",
+    "category": "props",
     "title": "Japanese Castle",
     "image": "/tiles/emoji/catalog/japanese-castle.png"
   },
@@ -1028,7 +1028,7 @@
     "height": 1,
     "char": "⛪",
     "color": "#b0a89a",
-    "category": "buildings",
+    "category": "props",
     "title": "Church",
     "image": "/tiles/emoji/catalog/church.png"
   },
@@ -1036,7 +1036,7 @@
     "height": 1,
     "char": "🕌",
     "color": "#8aa88a",
-    "category": "buildings",
+    "category": "props",
     "title": "Mosque",
     "image": "/tiles/emoji/catalog/mosque.png"
   },
@@ -1044,7 +1044,7 @@
     "height": 1,
     "char": "🗼",
     "color": "#d0553a",
-    "category": "buildings",
+    "category": "props",
     "title": "Tower",
     "image": "/tiles/emoji/catalog/tower.png"
   },
@@ -1052,7 +1052,7 @@
     "height": 1,
     "char": "⛩️",
     "color": "#d0402a",
-    "category": "buildings",
+    "category": "props",
     "title": "Torii Gate",
     "image": "/tiles/emoji/catalog/torii-gate.png"
   },
@@ -1060,7 +1060,7 @@
     "height": 1,
     "char": "⛺",
     "color": "#7a9a5a",
-    "category": "buildings",
+    "category": "props",
     "title": "Tent",
     "image": "/tiles/emoji/catalog/tent.png"
   },
@@ -1068,14 +1068,14 @@
     "height": 1,
     "char": "🏭",
     "color": "#8a8a8a",
-    "category": "buildings",
+    "category": "props",
     "title": "Factory",
     "image": "/tiles/emoji/catalog/factory.png"
   },
   "brick": {
     "char": "🧱",
     "color": "#b0603a",
-    "category": "buildings",
+    "category": "walls",
     "title": "Brick",
     "image": "/tiles/emoji/catalog/brick.png",
     "height": 1
@@ -1083,14 +1083,14 @@
   "wooden-door": {
     "char": "🚪",
     "color": "#5a3a22",
-    "category": "buildings",
+    "category": "doors",
     "title": "Wooden Door",
     "image": "/tiles/emoji/catalog/wooden-door.png"
   },
   "glass-window": {
     "char": "🪟",
     "color": "#7fb4d8",
-    "category": "buildings",
+    "category": "windows",
     "title": "Glass Window",
     "image": "/tiles/emoji/catalog/glass-window.png"
   },
@@ -1098,7 +1098,7 @@
     "height": 1,
     "char": "🏟️",
     "color": "#9a9a8a",
-    "category": "buildings",
+    "category": "props",
     "title": "Stadium",
     "image": "/tiles/emoji/catalog/stadium.png"
   },

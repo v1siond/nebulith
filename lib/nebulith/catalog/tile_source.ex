@@ -138,7 +138,7 @@ defmodule Nebulith.Catalog.TileSource do
   # first `char` variant; the full char/fg/bg arrays live in settings.
 
   defp seed_terrain_tiles(terrain, tileset_id) do
-    for {label, %{"char" => char, "fg" => fg, "bg" => bg}} <- terrain do
+    for {label, %{"char" => char, "fg" => fg, "bg" => bg} = t} <- terrain do
       {:ok, _} =
         Catalog.upsert_tile(%{
           tileset_id: tileset_id,
@@ -147,7 +147,10 @@ defmodule Nebulith.Catalog.TileSource do
           color_role: nil,
           blocking: false,
           height: 0,
-          category: "terrain",
+          # Ground defaults to `terrain`; a paved way (`roads`) or a constructed interior floor (`floors`)
+          # carries its finer sidebar bucket in ascii.json (data-driven). All three stay WALKABLE ground —
+          # the frontend still resolves them as ground tiles (buildAsciiTerrain reads terrain/roads/floors).
+          category: t["category"] || "terrain",
           image_url: "/tiles/ascii/#{label}.png",
           settings:
             %{"variants" => %{"char" => char, "fg" => fg, "bg" => bg}}
@@ -259,7 +262,8 @@ defmodule Nebulith.Catalog.TileSource do
           color_role: nil,
           blocking: base != "roof_top",
           height: 1,
-          category: "buildings",
+          # building_tiles are all roof pieces (store/hospital roof + apex cap) → the finer `roofs` bucket.
+          category: "roofs",
           image_url: "/tiles/ascii/#{base}.png",
           settings:
             %{"colors" => Map.new(@all_zones, &{&1, color})}
@@ -277,7 +281,7 @@ defmodule Nebulith.Catalog.TileSource do
           color_role: nil,
           blocking: base != "roof_top",
           height: 1,
-          category: "buildings",
+          category: "roofs",
           image_url: "/tiles/emoji/#{label}.png",
           settings: %{"color" => color} |> merge_behavior(base)
         })
@@ -361,7 +365,7 @@ defmodule Nebulith.Catalog.TileSource do
   end
 
   # {label, glyph, colour, blocking, sidebar category}. Colour is zone-independent (one tone every
-  # season). Storefront/roof parts read as buildings.
+  # season). The storefront glass reads as `windows`; the awning + flat-roof deck/parapet/rooftop unit read as `roofs`.
   defp extra_tiles do
     [
       %{
@@ -369,7 +373,7 @@ defmodule Nebulith.Catalog.TileSource do
         glyph: "▦",
         color: "#86bcd6",
         blocking: true,
-        category: "buildings",
+        category: "windows",
         emoji: "🪟"
       },
       %{
@@ -377,17 +381,18 @@ defmodule Nebulith.Catalog.TileSource do
         glyph: "▨",
         color: "#b64a34",
         blocking: true,
-        category: "buildings",
+        # storefront canopy — grouped with roofs (flagged for review).
+        category: "roofs",
         emoji: "🟧"
       },
-      %{label: "flat_roof", glyph: "▬", color: "#8b9098", blocking: false, category: "buildings"},
-      %{label: "parapet", glyph: "▀", color: "#70757c", blocking: true, category: "buildings"},
+      %{label: "flat_roof", glyph: "▬", color: "#8b9098", blocking: false, category: "roofs"},
+      %{label: "parapet", glyph: "▀", color: "#70757c", blocking: true, category: "roofs"},
       %{
         label: "rooftop_unit",
         glyph: "▪",
         color: "#616870",
         blocking: true,
-        category: "buildings",
+        category: "roofs",
         emoji: "⬛"
       }
     ]
@@ -463,7 +468,7 @@ defmodule Nebulith.Catalog.TileSource do
         color_role: nil,
         blocking: false,
         height: 1,
-        category: nil,
+        category: "roofs",
         image_url: "/tiles/emoji/roof_top.png",
         settings: %{"color" => "#c8443c"} |> merge_behavior("roof_top")
       })
@@ -540,10 +545,12 @@ defmodule Nebulith.Catalog.TileSource do
   # Each piece: {label, ascii glyph, emoji, colour, blocking, sidebar category?, title?}. The rim/wall
   # EDGE + CORNER glyphs are the block-drawing border set (▛▜▙▟ corners, ▀▄▌▐ edges) so ascii reads as a
   # framed border; the emoji parts are the material's own part-emoji (🪨 stone, 🧱 brick, 🟫 wood, ⬜ plaster
-  # + fountain rim, 🟦 water, 💧 jet, ⬛ slate). The rim/edge pieces carry NO category (render-only, never in
-  # the sidebar — MAP-MODEL §8); the browseable material anchors (`water_c`, `water_jet`, `wall_*_c`,
-  # `roof_slate`) carry a category + title. "Variety of material = a DIFFERENT tile" (`wall_stone` vs
-  # `wall_brick` vs `wall_wood` vs `wall_plaster`); colour is ZONE-INDEPENDENT and lives in `settings.colors`.
+  # + fountain rim, 🟦 water, 💧 jet, ⬛ slate). A wall material's WHOLE autotile set — center `_c` AND its
+  # edge/corner pieces — carries the `walls` category (the slate roof carries `roofs`), so the pieces the
+  # building compositions place (`wall_stone_bl`, `roof_top`, …) show in their sidebar bucket; only the fountain rim stays
+  # category-less (its browseable unit is the `fountain`/`well` composition — MAP-MODEL §8). "Variety of
+  # material = a DIFFERENT tile" (`wall_stone` vs `wall_brick` vs `wall_wood` vs `wall_plaster`); colour is
+  # ZONE-INDEPENDENT and lives in `settings.colors`.
   defp autotile_piece_tiles do
     rim = "#cbc4b0"
     water = "#2f7fc9"
@@ -572,7 +579,7 @@ defmodule Nebulith.Catalog.TileSource do
           category: "nature",
           title: "Water Jet"
         }
-      ] ++ rim_or_wall_pieces("fountain", "", rim)
+      ] ++ rim_or_wall_pieces("fountain", "", rim, nil)
 
     # The wall MATERIALS — one autotile set per material (center anchor + 8 edge/corner pieces). Stone forces
     # a DISTINCT emoji block (🪨) so a stone wall reads apart from the ⬜ fountain rim (spec style call #3).
@@ -590,7 +597,7 @@ defmodule Nebulith.Catalog.TileSource do
         glyph: "▲",
         emoji: "⬛",
         color: slate,
-        category: "buildings",
+        category: "roofs",
         title: "Slate Roof",
         blocking: true
       },
@@ -599,7 +606,7 @@ defmodule Nebulith.Catalog.TileSource do
         glyph: "◣",
         emoji: "⬛",
         color: slate,
-        category: nil,
+        category: "roofs",
         blocking: false
       }
     ]
@@ -617,17 +624,19 @@ defmodule Nebulith.Catalog.TileSource do
         glyph: center_glyph,
         emoji: part_emoji,
         color: color,
-        category: "buildings",
+        category: "walls",
         title: title
       }
     ] ++
-      rim_or_wall_pieces(base, part_emoji, color)
+      rim_or_wall_pieces(base, part_emoji, color, "walls")
   end
 
   # The 8 EDGE + CORNER pieces for a `<base>` (fountain rim / a wall material), sharing the block-border glyph
   # set. `emoji` is the single part-emoji for every edge/corner; when "" (fountain rim) it defaults to ⬜. The
-  # center `_c` piece is authored separately (its glyph/emoji differ per base).
-  defp rim_or_wall_pieces(base, emoji, color) do
+  # center `_c` piece is authored separately (its glyph/emoji differ per base). `category` is the base's sidebar
+  # bucket — a wall material passes "walls" so its edge/corner pieces browse with `<mat>_c`; the fountain
+  # rim passes nil (render-only, its browseable unit is the `fountain`/`well` composition — MAP-MODEL §8).
+  defp rim_or_wall_pieces(base, emoji, color, category) do
     part = if emoji == "", do: "⬜", else: emoji
 
     for {suffix, glyph} <- [
@@ -640,7 +649,7 @@ defmodule Nebulith.Catalog.TileSource do
           {"bl", "▙"},
           {"br", "▟"}
         ] do
-      %{label: "#{base}_#{suffix}", glyph: glyph, emoji: part, color: color, category: nil}
+      %{label: "#{base}_#{suffix}", glyph: glyph, emoji: part, color: color, category: category}
     end
   end
 
@@ -837,8 +846,9 @@ defmodule Nebulith.Catalog.TileSource do
   end
 
   @doc """
-  Reconciles the `height` COLUMN of every paintable emoji ASSET tile (categories `buildings` + `nature`) to the
-  tile's OWN height from emoji.json — the per-tile DATA, read uniformly.
+  Reconciles the `height` COLUMN of every paintable emoji ASSET tile (the standing categories —
+  walls/windows/doors/roofs/props + nature; `buildings` kept for pre-split DBs) to the tile's OWN height
+  from emoji.json — the per-tile DATA, read uniformly.
 
   The user's model (MAP-MODEL / EDITOR-INTERACTION-SPEC): height is per-tile DATA read through ONE uniform path,
   with NO type/category/art-style code branch. A tile carries its own height and every consumer reads it the
@@ -861,7 +871,7 @@ defmodule Nebulith.Catalog.TileSource do
     emoji = read_tileset("emoji.json")
 
     updated =
-      for {label, t} <- emoji, t["category"] in ["buildings", "nature"], reduce: 0 do
+      for {label, t} <- emoji, t["category"] in ~w(buildings walls windows doors roofs props nature), reduce: 0 do
         acc ->
           {n, _} = Catalog.set_tile_height(emoji_id, label, t["height"] || 0)
           acc + n
