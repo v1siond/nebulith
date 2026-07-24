@@ -231,6 +231,10 @@ export function resolveGroundTile(tileset: Tileset, tileType: string, col: numbe
 export interface ResolvedTile {
   char: string
   color: string
+  /** The tile's OWN iso block height from the DB (a flat floor tile is a 0.1 slab, a standing tile ≥1).
+   *  Carried here so every consumer — the composition stamp included — reads height through the SAME data
+   *  path (MAP-MODEL §4) instead of assuming a whole block. Undefined for an unknown label. */
+  height?: number
   /** The tile's backend `settings` blob (carries the generic `fadeNear`/`cutawayRoof` behavior keys). */
   settings?: Record<string, unknown>
 }
@@ -308,7 +312,7 @@ export function pickGroundDecor(tileset: Tileset, zone: string, col: number, row
 export function resolveTile(tileset: Tileset, zone: string, label: string, variant = 0): ResolvedTile {
   const tile = tileset.tiles[label]
   if (!tile) return FALLBACK_RESOLVED
-  return { char: tile.glyph, color: resolveTileColor(tile, zone, variant), settings: tile.settings }
+  return { char: tile.glyph, color: resolveTileColor(tile, zone, variant), height: tile.height, settings: tile.settings }
 }
 
 /** The multi-cell COMPOSITION for an asset kind from a LOADED tileset (null if none). Pure — the caller

@@ -7,15 +7,14 @@
 // face its road), not a special building unit — that is how "everything is a collection of backend tiles"
 // is enforced.
 import { resolveComposition, resolveTile, tileRenderBehavior } from '@/engine/tileset/tileset'
-import type { CompositionCellSettings } from '@/engine/tileset/tileset'
+import type { Composition, CompositionCell, ResolvedTile } from '@/engine/tileset/tileset'
 import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
-import type { IsometricGrid } from '@/engine/IsometricGrid'
+import type { GridAsset, IsometricGrid } from '@/engine/IsometricGrid'
 import type { ZoneId } from '@/engine/zones'
 import type { BuildingType } from '@/engine/buildingTypes'
 import type { Facing } from '@/engine/villageLayout'
 import { buildingCompositionKind, facingRotation, rotateFootprintOffset } from '@/engine/buildingCatalog'
 import { rotateDepthDir } from '@/engine/render/isoBlock'
-import type { Animation } from '@/engine/animation/tileAnimation'
 
 // Apex-signage colour for a titled building — a single readable signage tone drawn on drawApexBadge's
 // dark backing. The building NAME is the DATA (the composition's `title`); the colour is a fixed render
@@ -41,6 +40,65 @@ const WALL_MAT = /^wall_(stone|brick|wood|plaster)_/
 // override → the tile's authored colour stands, so a colour-less stamp is byte-identical to before.
 const isRoofLabel = (label: string): boolean => label.startsWith('roof') || label === 'flat_roof' || label === 'parapet'
 const isWallLabel = (label: string): boolean => label.startsWith('wall_')
+
+/** The per-cell RENDER fields a composition cell contributes to the tile placed in it. */
+export type CompositionCellRender = Pick<
+  GridAsset,
+  'height' | 'heightLevel' | 'scale' | 'zIndex' | 'scaleX' | 'scaleY' | 'scaleZ' | 'depth' | 'depthDir' | 'pose' | 'shape' | 'light' | 'settings' | 'animations' | 'placedAt'
+>
+
+/** ONE mapping of a composition CELL onto those render fields — shared by the LIVE stamp (stampRun) and the
+ *  SAVE path (stageToTemplate), so a generated stage RELOADS exactly as it was stamped. Duplicating this
+ *  mapping is what dropped the authored `settings` on save: the 2-wide entrance collapsed back to one block
+ *  and the roof's z-width span broke into per-cell blocks on load.
+ *
+ *  HEIGHT is the TILE's OWN DB height (MAP-MODEL §4 — per-tile DATA, read the same way for every tile with no
+ *  branch by type/category/art style): a floor tile (the entrance's `path` doorstep) is its flat 0.1 slab, a
+ *  standing tile a whole block. A label with no DB tile keeps the unit block, so a stamp never vanishes.
+ *  `span` is the collapsed vertical RUN length (1 for a lone cell); `rotation` the building's quarter-turns,
+ *  applied to `depthDir` so a turned building's roof spans the right grid axis. */
+export function compositionCellRender(comp: Composition, cell: CompositionCell, tile: ResolvedTile, span: number, rotation: number): CompositionCellRender {
+  const cs = cell.settings
+  const animated = (cell.animations?.length ?? 0) > 0
+  return {
+    height: tile.height ?? 1,
+    heightLevel: cell.level ?? 0,
+    scale: cell.scale ?? 1,
+    zIndex: cell.zIndex,
+    // An AUTHORED per-cell `scaleY` (the lamp POST = one cell drawn ~7 blocks tall) wins; otherwise a collapsed
+    // vertical RUN sizes scaleY = span (a wall column of 4 → one block 4 tall). An authored cell is never part
+    // of a run, so the two never collide.
+    scaleY: cs?.scaleY ?? (span > 1 ? span : undefined),
+    // WIDTH + DEPTH: a cell can ship a THIN or WIDE tile independent of the uniform Zoom (a tree's trunk width).
+    scaleX: cs?.scaleX,
+    scaleZ: cs?.scaleZ,
+    // Directional DEPTH (roof-z-width / the entrance apron): ONE block spanning `depth` cells along a diagonal.
+    // `depthDir` is authored south-facing — ROTATE it by the building's rotation (the SAME quarter-turns
+    // rotateFootprintOffset applied to the cell's offset).
+    depth: cs?.depth,
+    depthDir: cs?.depthDir ? rotateDepthDir(cs.depthDir, rotation) : undefined,
+    pose: cs?.pose,
+    shape: cs?.shape,
+    light: cs?.light,
+    settings: cellSettings(comp, cell, tile),
+    // A composition cell can ship DEFAULT animations (the fountain water's rise/fade loop), anchored at
+    // placedAt 0 — the render clock's origin, so a LOAD-triggered loop plays immediately and every fountain
+    // stays in sync (an epoch timestamp would read as "far future" → never start).
+    animations: animated ? cell.animations : undefined,
+    placedAt: animated ? 0 : undefined,
+  }
+}
+
+/** The cell's render SETTINGS: the tile's own generic behavior (fadeNear/cutawayRoof), plus a cell-pinned
+ *  `display` ('single' → ONE centered billboard, the lamp BULB), plus the apex SIGNAGE a titled composition
+ *  (store/hospital) draws on its roof apex. Undefined when the cell opts into none. */
+function cellSettings(comp: Composition, cell: CompositionCell, tile: ResolvedTile): GridAsset['settings'] {
+  const behavior = tileRenderBehavior(tile.settings)
+  const display = cell.settings?.display
+  const badge = comp.title && cell.label.startsWith('roof_top') ? { text: comp.title, color: BADGE_COLOR } : undefined
+  if (!behavior && !display && !badge) return undefined
+  return { ...behavior, ...(display ? { display } : {}), ...(badge ? { badge } : {}) }
+}
 
 export function stampComposition(grid: IsometricGrid, kind: string, anchorCol: number, anchorRow: number, zone: ZoneId, variant = 0, rotation = 0, material?: string, roofColor?: string, wallColor?: string): number {
   const comp = resolveComposition(ASCII_TILESET, kind)
@@ -89,7 +147,7 @@ function stampRun(
   grid: IsometricGrid,
   comp: NonNullable<ReturnType<typeof resolveComposition>>,
   kind: string,
-  c: { dx: number; dy: number; level?: number; label: string; walkable?: boolean; scale?: number; zIndex?: number; animations?: Animation[]; settings?: CompositionCellSettings },
+  c: CompositionCell,
   span: number,
   anchorCol: number,
   anchorRow: number,
@@ -116,59 +174,12 @@ function stampRun(
   // those cells; every other cell (and any absent override) keeps the tile's own colour.
   const color = isRoofLabel(label) && roofColor ? roofColor : isWallLabel(label) && wallColor ? wallColor : tile.color
   const grounded = (c.level ?? 0) === 0 || undefined
-  // The cell's uniform draw ZOOM (backend `composition_cells.scale`) — the render reads asset.scale as its
-  // zoom, so a cell can hold a tile bigger than one block (the tree's canopy = one leaf cell at scale 2).
-  // `zIndex` (backend `composition_cells.z_index`) is the cell's draw-PRIORITY — the depth sort draws a higher
-  // one later (on top), so the fountain water reads in front of the wall behind it.
-  const asset = grid.placeAsset([tile.char], col, row, { type: kind, blocking: !c.walkable, color, heightLevel: c.level ?? 0, baseShadow: grounded, scale: c.scale, zIndex: c.zIndex })
+  const asset = grid.placeAsset([tile.char], col, row, { type: kind, blocking: !c.walkable, color, baseShadow: grounded })
   asset.label = label
-  asset.height = 1
-  // TUNED per-cell settings (backend `composition_cells.settings`) shape the tile into a realistic form — the
-  // "compositions use tuned tile settings for realistic shapes" path (the lamp post; trees to come). `pose`
-  // nudges the placed tile (the bulb's dy lift onto the post top); `scaleY`/`display` are applied just below.
-  const cs = c.settings
-  if (cs?.pose) asset.pose = cs.pose
-  // HEIGHT: an AUTHORED per-cell `scaleY` (the lamp POST = one cell drawn ~7 blocks tall) wins; otherwise a
-  // collapsed vertical RUN sizes scaleY = span (a wall column of 4 → one block 4 tall). A single authored cell
-  // is never part of a run, so the two never collide.
-  if (cs?.scaleY != null) asset.scaleY = cs.scaleY
-  else if (span > 1) asset.scaleY = span
-  // WIDTH (scaleX) + DEPTH (scaleZ): a cell can ship a THIN or WIDE tile independent of the uniform Zoom — a
-  // tree's skinny/thick TRUNK is a per-variant width (Alexander: "trunk width is a variable"). Absent → the
-  // axis stays 1, byte-identical to before.
-  if (cs?.scaleX != null) asset.scaleX = cs.scaleX
-  if (cs?.scaleZ != null) asset.scaleZ = cs.scaleZ
-  // Directional DEPTH (roof-z-width): a roof column is ONE block that spans the footprint DEPTH along a
-  // diagonal. `depthDir` is authored south-facing (+row) — ROTATE it by the building's rotation (the SAME
-  // quarter-turns rotateFootprintOffset applied to this cell's offset) so an east/west/north building's roof
-  // spans the right grid axis instead of sideways. Absent → the asset stays a unit cube, byte-identical.
-  if (cs?.depth != null) asset.depth = cs.depth
-  if (cs?.depthDir) asset.depthDir = rotateDepthDir(cs.depthDir, rotation)
-  // A composition cell can ship DEFAULT animations (the fountain water's rise/fade loop) — copy them onto the
-  // placed asset so the tile animates without any per-instance authoring, anchored at placedAt 0 (the render
-  // clock's origin — iso/2D/top drive the animation off `performance.now`, so a LOAD-triggered loop plays
-  // immediately and every fountain stays in sync; an epoch timestamp would read as "far future" → never start).
-  if (c.animations && c.animations.length > 0) {
-    asset.animations = c.animations
-    asset.placedAt = 0
-  }
-  const behavior = tileRenderBehavior(tile.settings)
-  if (behavior) asset.settings = behavior
-  // A cell can PIN `display: 'single'` (ONE centered billboard — the lamp BULB sits as a single bulb on top of
-  // the post, not tiled across the block faces) regardless of the tile's own display. Merge AFTER the tile
-  // behavior so it rides alongside any fade/cutaway (and the badge below) without clobbering them.
-  if (cs?.display) asset.settings = { ...(asset.settings ?? {}), display: cs.display }
-  // A cell can also PIN a render SHAPE (`circle` → a shaded ball instead of a cube — a lamp globe, a berry).
-  // Copied straight onto the placed asset; absent → the tile stays a square (cube), unchanged.
-  if (cs?.shape) asset.shape = cs.shape
-  // A cell can ship a default LIGHT (the lamp_post bulb casts a warm night ground pool) — copied straight onto
-  // the placed asset's `light`, so the lamp lights by default without any per-instance authoring. Absent → no
-  // pool (the night lighting still falls back to the default glow for a bare lamp). Round-trips like `shape`.
-  if (cs?.light) asset.light = cs.light
-  // Apex signage: a titled composition (store/hospital) badges its ONE roof-apex cell with its NAME.
-  if (comp.title && c.label.startsWith('roof_top')) {
-    asset.settings = { ...(asset.settings ?? {}), badge: { text: comp.title, color: BADGE_COLOR } }
-  }
+  // Every render field the cell shapes — its own HEIGHT, stack level, zoom/z-index, scale axes, z-width,
+  // pose/shape/light, behavior settings + apex signage, animations — through the ONE shared mapping the SAVE
+  // path uses too, so the live stamp and a reloaded save can never diverge.
+  Object.assign(asset, compositionCellRender(comp, c, tile, span, rotation))
   if (!c.walkable) grid.setCollision(col, row, true)
   return true
 }
