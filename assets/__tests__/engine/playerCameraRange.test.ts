@@ -104,3 +104,33 @@ describe('playerViewRange culls the render to a radius around the player', () =>
     expect(drawnAt(FAR.col, FAR.row)).toBe(true)
   })
 })
+
+// RANGE IS A GRID TEST, NOT A PER-TILE ONE (Alexander: "the range should actually work on per cell … on roads
+// we use 1 block with lots of z-width, if we do per tile range, then unless we hit the specific part the tile is
+// located, road won't show … for vision range, rendering player camera, it's better to use the grid").
+// A z-width run is ONE tile spanning MANY cells, so it must stay visible while the ring crosses ANY cell it
+// covers — testing only its anchor made a whole road vanish. Same anchor either way; only the z-width differs.
+describe('player range culls on the GRID CELLS a tile covers, not just its anchor', () => {
+  const ANCHOR = { col: PCOL + 5, row: PROW } // dist 5 — outside a range of 4, still on-screen
+  const runAt = (col: number, row: number, depth: number): GridAsset =>
+    ({ col, row, type: 'wall', tileKey: 'emoji:wall', art: ['#'], heightLevel: 0, height: 1, depth, depthDir: 'left-up' } as unknown as GridAsset)
+  const sceneWith = (a: GridAsset): IsometricGrid => {
+    const g = new IsometricGrid({ cols: 40, rows: 40, cellSize: CELL, isoScale: ISO })
+    g.setAssets([a])
+    return g
+  }
+
+  it('the anchor itself is genuinely OUT of range (guards the premise)', () => {
+    expect(withinPlayerRange(ANCHOR.col, ANCHOR.row, PCOL, PROW, 4)).toBe(false)
+  })
+
+  it('a z-width run whose COVERED cells reach into the ring still renders', () => {
+    renderIso(sceneWith(runAt(ANCHOR.col, ANCHOR.row, 3)), 4) // covers cols 15,14,13 — 14 and 13 are inside
+    expect(drawnAt(ANCHOR.col, ANCHOR.row)).toBe(true)
+  })
+
+  it('the SAME tile without z-width is culled — only its own cell counts, and that is outside', () => {
+    renderIso(sceneWith(runAt(ANCHOR.col, ANCHOR.row, 1)), 4)
+    expect(drawnAt(ANCHOR.col, ANCHOR.row)).toBe(false)
+  })
+})

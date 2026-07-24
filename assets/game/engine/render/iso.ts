@@ -19,7 +19,7 @@ import { ASCII_FONT, COMBAT_RANGE, type DayNight, type DrawVisual, ENEMY_MOVE_MS
 import { resolveAssetDrawSize } from './assetDimensions'
 import { resolveAssetAnimation } from './assetAnimation'
 import { getStack, assetStackIndexer, type TileSource } from '@/engine/cellStack'
-import { isoBlockFaces, isoDepthBox, depthFrontExtent, isoZOffset, rotateDepthDir, spanBackmost, type BlockFace, type DepthDir } from './isoBlock'
+import { isoBlockFaces, isoDepthBox, depthCells, depthFrontExtent, isoZOffset, rotateDepthDir, spanBackmost, type BlockFace, type DepthDir } from './isoBlock'
 import { type Orientation } from './isoOrientation'
 import { cellOrienterFor, orientCellTurn, deorientCellTurn, orientedDimsForTurn, facingForTurn, wrapTurn } from './isoTurn'
 import { resolveTileHeight, partialBlockScale } from '@/engine/tileset/tileHeight'
@@ -525,9 +525,17 @@ export function render(params: IsoRenderParams) {
   // render window as a controllable setting. Undefined/≤0 = off → today's zoom-derived window, byte-identical.
   const pcol = player.x / cellSize, prow = player.z / cellSize
   const rangeOn = typeof playerViewRange === 'number' && playerViewRange > 0
-  const visibleAssets = rangeOn
-    ? rectAssets.filter(a => withinPlayerRange(a.col, a.row, pcol, prow, playerViewRange!))
-    : rectAssets
+  // RANGE IS A GRID TEST, NOT A PER-TILE ONE (Alexander: "the range should actually work on per cell … on roads
+  // we use 1 block with lots of z-width, if we do per tile range then unless we hit the specific part the tile
+  // is located, road won't show … for vision range, rendering player camera, it's better to use the grid").
+  // A tile is in range when ANY GRID CELL IT COVERS is — so a long road/grass run stays visible while the ring
+  // crosses it, instead of vanishing whenever its anchor happens to sit outside. ONE rule for every tile: a
+  // depth-less tile covers just its own cell, so this is the plain cell test for everything else.
+  const coveredCells = (a: GridAsset): { col: number; row: number }[] =>
+    (a.depth ?? 1) > 1 && a.depthDir ? depthCells(a.col, a.row, a.depth!, a.depthDir) : [{ col: a.col, row: a.row }]
+  const tileInRange = (a: GridAsset): boolean =>
+    coveredCells(a).some(c => withinPlayerRange(c.col, c.row, pcol, prow, playerViewRange!))
+  const visibleAssets = rangeOn ? rectAssets.filter(tileInRange) : rectAssets
   // Ground shadow goes ONLY on a tree's bottom (ground-contact) cell — see isGroundContact. The
   // tree-cell Set is memoized (treeCellSet) so we don't rescan every asset + realloc each frame.
   const treeCells = treeCellSet(grid)
