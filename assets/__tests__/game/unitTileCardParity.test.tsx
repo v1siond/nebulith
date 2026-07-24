@@ -25,8 +25,9 @@ import { resolve } from 'path'
 import { useState } from 'react'
 import { render, screen, fireEvent, within } from '@testing-library/react'
 import { PropertiesPanel, type TileControlModel } from '@/components/game/editorChrome'
-import { FloatingPanel, UnitSettingsSection, UnitStatsBody, type UnitControlModel } from '@/components/game/modals'
-import { type Entity } from '@/game/types'
+import { buildUnitModel, FloatingPanel, UnitSettingsSection, UnitStatsBody, type UnitCardOpeners, type UnitControlModel } from '@/components/game/modals'
+import { type Animation as TileAnim } from '@/engine/animation/tileAnimation'
+import { type Entity, type EntityKind } from '@/game/types'
 
 const TEMPLATES_SRC = resolve(__dirname, '../../pages/personal-projects/game-engine/templates.tsx')
 
@@ -324,5 +325,95 @@ describe('the page replaces the unit menu with the tile card', () => {
   it('opens the Stats body in a geometry-persisting FloatingPanel (id "stats")', () => {
     expect(src).toContain('UnitStatsBody')
     expect(src).toContain("floatingProps('stats'")
+  })
+
+  it('builds the unit model through buildUnitModel — no inline kind ternary can hide an entry point again', () => {
+    expect(src).toContain('buildUnitModel(selEntity,')
+    expect(src).not.toContain('onOpenInventory: isPlayer')
+  })
+})
+
+// ── 8. REGRESSION (Alexander, QA): "we're missing inventory option, we only added quests and stats" ──
+//
+// Reproduced on the running editor: selecting an NPC shows EXACTLY `⛊ Stats…` + `❒ Quests…` and NO
+// inventory, because the page wired `onOpenInventory` behind `isPlayer ? … : undefined`. Every unit
+// carries a loadout (the equipment panel already keys `loadouts` by entity id), so the entry point is
+// UNIVERSAL — only quests (NPC) and attacks (enemy) are kind-specific. `buildUnitModel` is the ONE place
+// that decision lives, so the card and this test read the same rule.
+describe('🎒 Inventory & abilities is on EVERY unit card, not the player alone', () => {
+  const openers = (): jest.Mocked<UnitCardOpeners> => ({
+    onPatch: jest.fn(),
+    onSize: jest.fn(),
+    openStats: jest.fn(),
+    openInventory: jest.fn(),
+    openQuests: jest.fn(),
+    openAttacks: jest.fn(),
+  })
+
+  it.each<EntityKind>(['player', 'npc', 'enemy'])('a %s card shows the inventory button and opens the panel', kind => {
+    const open = openers()
+    render(<UnitSettingsSection unit={buildUnitModel(entity({ kind }), open)} />)
+    fireEvent.click(screen.getByRole('button', { name: /Inventory & abilities/i }))
+    expect(open.openInventory).toHaveBeenCalledTimes(1)
+  })
+
+  it.each<EntityKind>(['player', 'npc', 'enemy'])('a %s card keeps Stats… (universal, like the inventory)', kind => {
+    const open = openers()
+    render(<UnitSettingsSection unit={buildUnitModel(entity({ kind }), open)} />)
+    fireEvent.click(screen.getByRole('button', { name: /Stats/i }))
+    expect(open.openStats).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps the kind-SPECIFIC entries where they belong: quests → NPC, attacks → enemy', () => {
+    const npc = buildUnitModel(entity({ kind: 'npc' }), openers())
+    expect(npc.onOpenQuests).toBeDefined()
+    expect(npc.onOpenAttacks).toBeUndefined()
+
+    const enemy = buildUnitModel(entity({ kind: 'enemy' }), openers())
+    expect(enemy.onOpenAttacks).toBeDefined()
+    expect(enemy.onOpenQuests).toBeUndefined()
+
+    const player = buildUnitModel(entity({ kind: 'player' }), openers())
+    expect(player.onOpenQuests).toBeUndefined()
+    expect(player.onOpenAttacks).toBeUndefined()
+  })
+
+  it('an NPC card carries quests AND inventory together (the exact card Alexander was looking at)', () => {
+    const open = openers()
+    render(<UnitSettingsSection unit={buildUnitModel(entity({ kind: 'npc', name: 'Wanderer 1' }), open)} />)
+    expect(screen.getByRole('button', { name: /Quests/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Inventory & abilities/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Stats/i })).toBeInTheDocument()
+  })
+
+  it('still routes the name + size rows through the writers the page passes', () => {
+    const open = openers()
+    render(<UnitSettingsSection unit={buildUnitModel(entity({ kind: 'npc' }), open)} />)
+    fireEvent.change(screen.getByLabelText('Entity name'), { target: { value: 'Aria' } })
+    expect(open.onPatch).toHaveBeenCalledWith({ name: 'Aria' })
+    fireEvent.click(screen.getByRole('button', { name: '2×' }))
+    expect(open.onSize).toHaveBeenCalledWith(2)
+  })
+})
+
+// ── 9. Nothing else lost: the old card's ANIMATION SUMMARY ───────────────────────────────────────────
+// The pre-unification card listed the unit's authored animations inline ("No custom animations…" or a
+// name/trigger/frame-count list). The unified card's vocabulary for that is the Animate button's COUNT —
+// which a CELL tile gets (`animations: a0?.animations`) but the unit model never fed, so a seeded unit
+// carrying 9 animations read as if it had none.
+describe('the unit card keeps the authored-animation summary the old unit card showed', () => {
+  const anim = (id: string): TileAnim => ({ id, kind: 'settings', durationMs: 400, tracks: [] })
+
+  it('the Animate button counts the unit\'s animations, exactly like a cell tile\'s does', () => {
+    renderCard({
+      tile: tileModel({ animations: [anim('a1'), anim('a2')] }),
+      unitSection: <UnitSettingsSection unit={unitModel()} />,
+    })
+    expect(screen.getByRole('button', { name: 'Animate tile' })).toHaveTextContent('(2)')
+  })
+
+  it('the page feeds the unit its unified animations, so the count is REAL and not always empty', () => {
+    const src = readFileSync(TEMPLATES_SRC, 'utf8')
+    expect(src).toContain('animations: selEntity.unitAnimations ?? unitAnimationsFromEntity(selEntity.animations)')
   })
 })

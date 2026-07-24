@@ -3,6 +3,7 @@
 import type { Entity, CombatState } from '@/game/types'
 import { isDead } from '@/game/combat'
 import { entityCovers } from '@/game/entities'
+import { isAttackable } from './capabilities'
 import { aimDelta, type PlayerState } from './player'
 
 /** Per-enemy runtime bookkeeping the loop owns, keyed by entity id. */
@@ -23,10 +24,11 @@ export const makeEnemyRuntime = (): EnemyRuntime => ({
   attackFireCount: new Map(),
 })
 
-/** Is this entity a living (not currently dead/awaiting-respawn) enemy? */
+/** Is this unit a living (not dead/awaiting-respawn) ATTACKABLE target? "Can be attacked" is the per-unit
+ *  `hittable` SETTING (isAttackable), NOT the kind — so any unit flagged attackable is a valid target and a
+ *  `hittable: false` enemy is passive scenery. Enemies default attackable, so existing saves are unchanged. */
 export function isLivingEnemy(entity: Entity, runtime: EnemyRuntime): boolean {
-  if (entity.kind !== 'enemy') return false
-  if (entity.hittable === false) return false // a non-hittable enemy is passive scenery
+  if (!isAttackable(entity)) return false
   const state = runtime.combat.get(entity.id)
   if (!state) return true // freshly placed, not yet initialized → alive
   return !isDead(state.hp)

@@ -6,7 +6,8 @@ import type { Connector } from '@/lib/api'
 import { ABILITY_REGISTRY, ABILITY_TINT, type AbilityAnimation } from '@/game/abilities'
 import { ENEMY_ATTACK_PRESETS, addEnemyAttack, buildAttackPattern, defaultEnemyAttack, enemyAttackFromAbility, normalizeAttackPattern, removeEnemyAttack, setAttackPatternMode, updateEnemyAttack } from '@/game/patterns'
 import { rewardSummary } from '@/game/runtime/quest'
-import { type AttackMode, type AttackPattern, type AttackPatternMode, type EnemyAttack, type Entity, type Quest } from '@/game/types'
+import { isAttackable } from '@/game/runtime/capabilities'
+import { type AttackMode, type AttackPattern, type AttackPatternMode, type EnemyAttack, type Entity, type EntityKind, type Quest } from '@/game/types'
 import { QuestObjectives } from '@/components/game/hud'
 import { TileControls, type TileControlModel } from '@/components/game/editorChrome'
 
@@ -225,7 +226,7 @@ export function UnitStatsBody({ entity, onPatch }: {
   entity: Entity
   onPatch: (patch: Partial<Entity>) => void
 }) {
-  const hittable = entity.hittable ?? entity.kind === 'enemy'
+  const hittable = isAttackable(entity) // the `hittable` capability (setting, kind-defaulted) — one source of truth
   const isEnemy = entity.kind === 'enemy'
   return (
     <div className="space-y-2 text-xs">
@@ -291,6 +292,41 @@ export interface UnitControlModel {
   onOpenQuests?: () => void
   /** open the enemy's attacks / abilities editor — absent → no button. */
   onOpenAttacks?: () => void
+}
+
+/** The page's openers, one per entry point. The page owns what each button DOES; {@link buildUnitModel}
+ *  owns which of them a unit KIND gets — so a handler is never quietly dropped at the call site again. */
+export interface UnitCardOpeners {
+  onPatch: (patch: Partial<Entity>) => void
+  onSize: (size: number) => void
+  openStats: () => void
+  openInventory: () => void
+  openQuests: () => void
+  openAttacks: () => void
+}
+
+/** The KIND-specific entry points, as a dispatch table — a new unit kind adds a row, never a branch.
+ *  Stats and inventory are deliberately absent here because they are UNIVERSAL: every unit carries a stat
+ *  block, and every unit carries a loadout (the equipment panel already keys `loadouts` by entity id).
+ *  Gating the inventory on `kind === 'player'` is what hid it on the NPC card Alexander was inspecting. */
+const KIND_ENTRY_POINTS: Record<EntityKind, { quests: boolean; attacks: boolean }> = {
+  player: { quests: false, attacks: false },
+  npc: { quests: true, attacks: false },
+  enemy: { quests: false, attacks: true },
+}
+
+/** Build the unit card's model — the ONE place that decides which entry points a unit offers. PURE. */
+export function buildUnitModel(entity: Entity, open: UnitCardOpeners): UnitControlModel {
+  const kindEntries = KIND_ENTRY_POINTS[entity.kind]
+  return {
+    entity,
+    onPatch: open.onPatch,
+    onSize: open.onSize,
+    onOpenStats: open.openStats,
+    onOpenInventory: open.openInventory,
+    onOpenQuests: kindEntries.quests ? open.openQuests : undefined,
+    onOpenAttacks: kindEntries.attacks ? open.openAttacks : undefined,
+  }
 }
 
 /** The two identity ROWS that stay INLINE on the card — the unit's NAME and its discrete SIZE preset (a boss

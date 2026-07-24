@@ -28,6 +28,34 @@ export function cellsFromKeys(keys: Iterable<string>): { col: number; row: numbe
   return out
 }
 
+/** Parse ONE selection key into its cell + optional stack slot. A key is either a specific TILE
+ *  (`"col,row,stackIndex"`) or a bare CELL (`"col,row"`, no slot). Returns null for a malformed key. */
+export function parseSelectionKey(key: string): { col: number; row: number; stackIndex?: number } | null {
+  const [col, row, stackIndex] = key.split(',').map(Number)
+  if (!Number.isFinite(col) || !Number.isFinite(row)) return null
+  return Number.isFinite(stackIndex) ? { col, row, stackIndex } : { col, row }
+}
+
+/** A per-cell edit target: the cell + the stack SLOT the edit should act on. */
+export interface SelectionTileTarget { col: number; row: number; index: number }
+
+/** Turn a selection into per-cell edit targets that each use the tile's OWN stack slot — the fix for "edits hit
+ *  the wrong tile in the stack" (Alexander: "a few of the tiles I selected changed the tile located at the bottom
+ *  instead of the one selected"). Every selection key already carries the picked tile's slot, so a multi-select
+ *  edits/replaces each cell's SELECTED tile — NEVER a single global level forced onto every cell (which landed on
+ *  the bottom/floor tile). A bare `"col,row"` key (a flat rectangle drag with no specific tile) falls back to
+ *  `fallbackIndex` — the Inspector's `selectedTileLevel`. Mirrors {@link removeSelectedBlock}'s per-key resolution.
+ *  Malformed keys are skipped. */
+export function resolveSelectionTargets(keys: Iterable<string>, fallbackIndex: number): SelectionTileTarget[] {
+  const out: SelectionTileTarget[] = []
+  for (const key of keys) {
+    const parsed = parseSelectionKey(key)
+    if (!parsed) continue
+    out.push({ col: parsed.col, row: parsed.row, index: parsed.stackIndex ?? fallbackIndex })
+  }
+  return out
+}
+
 /** Inspector "Remove tile" → delete the EXACT tile(s) the user has SELECTED, one per selection KEY, then
  *  re-derive each touched cell's collision from whatever remains. Each key carries the tile's OWN STACK INDEX
  *  (its slot in the cell's ordered stack — the same per-tile identity the pick + highlight use), so a
@@ -45,9 +73,9 @@ export function removeSelectedBlock(grid: IsometricGrid, keys: Iterable<string>)
   const targets = new Set<GridAsset>()
   const touched = new Map<string, { col: number; row: number }>()
   for (const key of keys) {
-    const [col, row, stackIndex] = key.split(',').map(Number)
-    if (!Number.isFinite(col) || !Number.isFinite(row)) continue
-    if (!Number.isFinite(stackIndex)) continue // bare "col,row" cell key → nothing to remove
+    const parsed = parseSelectionKey(key)
+    if (!parsed || parsed.stackIndex === undefined) continue // bare "col,row" cell key → nothing to remove
+    const { col, row, stackIndex } = parsed
     const target = grid.getAssetsAtCell(col, row)[stackIndex]
     if (!target) continue // no tile at that slot → nothing to remove
     targets.add(target)

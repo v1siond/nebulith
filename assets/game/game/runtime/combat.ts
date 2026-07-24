@@ -12,6 +12,7 @@ import { weaponAnimKind, ATTACK_ANIM_MS, type AttackAnim, type AttackAnimKind } 
 import { weaponPose } from '@/engine/entityArt'
 import { aimDelta, type PlayerState } from './player'
 import { findTarget, isLivingEnemy, isAdjacentToPlayer, RANGED_RANGE, type EnemyRuntime } from './targeting'
+import { isAttackable, isHostile } from './capabilities'
 
 /** The player's DEFAULT melee — bare fists. The player starts unarmed (no weapon auto-equipped):
  *  weaponGlyph('unarmed') returns '' so NO blade is drawn, but the swing, the 1.5s cadence, and
@@ -72,7 +73,7 @@ export interface PlayerHud {
 function syncEnemyRuntime(entities: readonly Entity[], runtime: EnemyRuntime): void {
   const live = new Set<string>()
   for (const entity of entities) {
-    if (entity.kind !== 'enemy') continue
+    if (!isAttackable(entity)) continue // a combat participant is any ATTACKABLE unit (setting), not just kind==='enemy'
     live.add(entity.id)
     if (runtime.combat.has(entity.id)) continue
     runtime.combat.set(entity.id, startingCombatState(entity.baseStats))
@@ -94,7 +95,7 @@ function pruneRuntimeMaps(runtime: EnemyRuntime, live: ReadonlySet<string>): voi
 /** Respawn any dead enemy whose timer has elapsed (full HP, timers cleared). */
 function respawnElapsedEnemies(entities: readonly Entity[], runtime: EnemyRuntime, now: number): void {
   for (const entity of entities) {
-    if (entity.kind !== 'enemy') continue
+    if (!isAttackable(entity)) continue // same participant set as syncEnemyRuntime; a unit with no respawnMs simply never comes back
     const diedAt = runtime.diedAt.get(entity.id)
     if (diedAt === undefined) continue
     if (!isRespawned(diedAt, entity.respawnMs, now)) continue
@@ -476,6 +477,7 @@ export function applyEnemyRetaliation(input: CombatStepInput & { playerCombat: C
 
   for (const entity of entities) {
     if (!isLivingEnemy(entity, runtime)) continue
+    if (!isHostile(entity)) continue // only HOSTILE units retaliate — an attackable-but-peaceful unit won't hit back
     // The pattern decides the next attack (the cooldown gate uses THAT attack's cooldown).
     const fireCount = runtime.attackFireCount.get(entity.id) ?? 0
     const chosen = nextEnemyAttack(entity.attack, { fireCount })

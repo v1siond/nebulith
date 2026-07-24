@@ -248,8 +248,15 @@ export interface Entity {
   movement?: MovementPattern
   /** retaliation pattern (enemies): melee/ranged + cooldown. Omitted = engine default. */
   attack?: AttackPattern
-  /** can this entity be attacked? defaults: enemy=true, npc/decoration=false. */
+  /** CAPABILITY SETTING — can this unit be attacked (targeted + take damage)? "all units are the same …
+   *  can be attacked is a setting" (Alexander). Read via runtime/capabilities.isAttackable, which defaults
+   *  it BY KIND (enemy = true, others = false) so existing saves are unchanged; ANY unit flagged true
+   *  becomes attackable regardless of kind. NOT gated on `kind === 'enemy'` in the combat/targeting code. */
   hittable?: boolean
+  /** CAPABILITY SETTING — is this unit hostile (does it attack the player / retaliate)? "hostile … is a
+   *  setting" (Alexander). Read via runtime/capabilities.isHostile, defaulting BY KIND (enemy = true). A
+   *  unit can thus be `hittable: true, hostile: false` — attackable but peaceful — without a per-kind branch. */
+  hostile?: boolean
   /** does this character obstruct movement? Defaults to false — characters are walk-through
    *  (the player + patrols pass right through them) unless the author flips on the per-unit
    *  "Blocks movement" toggle. Separate from terrain collision (grid.isBlocked / the cell
@@ -284,6 +291,17 @@ export interface Entity {
    *  unit's settings panel like a tile's; round-trips via the entity codec. NOTE: the unit RENDERER does not
    *  read this yet — pose-honoring on units is the broader unit/tile render-parity work (#35). */
   pose?: TilePose
+  /** the unit's worn gear + bag + special slots + shortcuts — the SAME `Loadout` the equipment panel edits
+   *  (game/loadout.ts). EVERY unit carries one ("units are tiles with extra stuff; what a unit HAS is data")
+   *  and it PERSISTS on the entity, so equip / unequip / drop / reorder survive a reload EXACTLY, including
+   *  bag order. Folded onto the entity at save and split back into the editor's per-entity loadout map on
+   *  load (lib/unitDataPersistence.ts); rides the same `entities` channel every entity round-trips through.
+   *  Absent → the editor mints a fresh/empty loadout. */
+  loadout?: Loadout
+  /** the HERO's carried item bag + equipped weapon/armour (game/inventory.ts). PLAYER-ONLY — "the carried
+   *  item bag + vitals stay the hero's alone" (EDITOR-INTERACTION-SPEC §8). Persists on the player entity
+   *  alongside `loadout`, so an equipped weapon / dropped item / reordered bag survives a reload. */
+  inventory?: Inventory
 }
 
 // ── quests / missions ───────────────────────────────────────────────
