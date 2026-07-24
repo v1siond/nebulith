@@ -59,14 +59,19 @@ function genSeeded(opts: Parameters<typeof generateStage>[0], seed: number): Sta
 // hospital_6 / temple_8 / castle_12, all baked with a centred 2-wide doorway) opens BOTH door cells. That
 // moves `doorCells` + the collision grid, hence the digest. Only the three SETTLEMENTS have buildings; the
 // forest/cave/temple/boss archetypes are byte-identical.
+// Regenerated again 2026-07-23 when the scattered nature props (flower / rock / mushroom / crystal) started
+// carrying their baked backend LABEL so ASCII draws the baked tile image instead of a legacy glyph (see
+// generatedPropLabels.test.ts). Only stages that scatter those props move: the two summer settlements + city
+// (flowers), cave (rock walls + crystal + mushroom), boss-stage (rock). town|autumn (non-flowering, no rocks)
+// and temple|winter (interior) are byte-identical.
 const BASELINE: Record<string, string> = {
   'town|autumn|40x40|1': '295bac7b',
-  'town|summer|50x40|7': '5b623ba6',
-  'city|summer|56x44|3': 'bc464240',
-  'forest|summer|30x24|42': 'a4369e55',
-  'cave|autumn|40x30|99': '4eff2d41',
+  'town|summer|50x40|7': '6470ad71',
+  'city|summer|56x44|3': '46f42780',
+  'forest|summer|30x24|42': 'c191de23',
+  'cave|autumn|40x30|99': 'c3a252e7',
   'temple|winter|36x30|5': '7b1712d1',
-  'boss-stage|winter|36x30|11': '286ee6cd',
+  'boss-stage|winter|36x30|11': 'db1efcb4',
 }
 
 const CASES: Array<{ key: string; opts: Parameters<typeof generateStage>[0]; seed: number }> = [

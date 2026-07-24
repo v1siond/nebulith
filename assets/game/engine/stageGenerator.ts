@@ -35,6 +35,9 @@ export type { LivingTreeKind } from './zones'
 import { type CellLabel } from './cellLabels'
 import { resolveTile, resolveComposition, canopyCount, pickGroundDecor, type TileDisplay } from './tileset/tileset'
 import { ASCII_TILESET } from './tileset/asciiTileset'
+// The ONE per-cell mapping the live composition stamp uses — the save path expands its anchors through it too,
+// so a generated stage RELOADS exactly as it was stamped (height / z-width / scale / pose / animations).
+import { compositionCellRender } from '@/game/runtime/composition'
 import { varyIntensity } from './colors'
 import type { Connector } from '@/lib/api'
 import { clamp, randInt, randIntWith, manhattan, makeRng, type Rng } from '@/lib/math'
@@ -223,7 +226,10 @@ const makeFlower = (rng: Rng, zone: ZoneId, col: number, row: number): StageProp
   const set = ZONE_FLOWERS[zone] ?? DEFAULT_FLOWERS
   const pick: FlowerKind = set[randIntWith(rng, 0, set.length - 1)] // seeded pick — the caller passes its layer rng so the pass stays reproducible
   // Each flower gets its own intensity tone (per-cell) for a naturally varied meadow — tone only, no opacity.
-  return { col, row, type: 'flower', char: pick.char, blocking: false, color: varyIntensity(pick.color, shadeNoise(col * 2.7 + row * 3.1)) }
+  // LABEL 'flower' routes it through the label→image path (render/shared.labelTileImage) so it draws the BAKED
+  // flower tile in EVERY style (ascii + emoji), colour-composited — never a per-style glyph (ASCII_STYLE.map is
+  // empty, so a label-less prop would fall to the legacy '+' glyph drawer). The colour stays a per-instance tint.
+  return { col, row, type: 'flower', char: pick.char, label: 'flower', blocking: false, color: varyIntensity(pick.color, shadeNoise(col * 2.7 + row * 3.1)) }
 }
 
 /** Per-instance RENDER the generator stamps onto specific prop TYPES — the SAME per-asset settings a hand-painter
@@ -258,6 +264,7 @@ const makeRock = (col: number, row: number): StageProp => ({
   row,
   type: 'rock',
   char: Math.abs(col * 5 + row * 3) % 7 === 0 ? '▒' : '▓',
+  label: 'rock', // baked 'rock' tile (both styles) — draws the image, not the '▓' glyph, under ascii
   blocking: true,
   color: rockShade(col, row),
 })
@@ -278,6 +285,7 @@ const makeCaveDecor = (col: number, row: number, tone: string): StageProp => ({
 const makeCrystal = (col: number, row: number, tint: string): StageProp => ({
   col, row, type: 'crystal',
   char: Math.abs(col + row) % 2 === 0 ? '◆' : '◇',
+  label: 'crystal', // baked 'crystal' tile (both styles) — draws the image, not the '◆' glyph, under ascii
   blocking: false,
   color: varyIntensity(tint, shadeNoise(col * 3.1 + row * 1.9)),
 })
@@ -285,7 +293,7 @@ const makeCrystal = (col: number, row: number, tint: string): StageProp => ({
 // A cave mushroom (damp seasons only) — a red/tan toadstool on the floor. Non-blocking.
 // Cap tone from the zone-data MUSHROOM_TONES palette (zones.ts).
 const makeMushroom = (col: number, row: number): StageProp => ({
-  col, row, type: 'mushroom', char: '♠', blocking: false,
+  col, row, type: 'mushroom', char: '♠', label: 'mushroom', blocking: false,
   color: MUSHROOM_TONES[Math.abs(col * 3 + row * 5) % MUSHROOM_TONES.length],
 })
 
@@ -295,6 +303,7 @@ const makeMushroom = (col: number, row: number): StageProp => ({
 const makeCaveWall = (col: number, row: number, shades: readonly string[]): StageProp => ({
   col, row, type: 'rock',
   char: Math.abs(col * 5 + row * 3) % 7 === 0 ? '▒' : '▓',
+  label: 'rock', // baked 'rock' tile (both styles) — cave walls draw the image, not the '▓' glyph, under ascii
   blocking: true,
   color: shades[Math.abs(col * 7 + row * 13) % shades.length],
 })
@@ -2440,6 +2449,43 @@ export interface StageTemplatePayload {
   spawnRow: number
 }
 
+/** Expand ONE recorded composition ANCHOR (a tree, a building, a decor piece) into the per-cell tile records a
+ *  SAVE carries — through the SAME per-cell mapping the LIVE stamp uses (`compositionCellRender`), so what was
+ *  generated is what reloads. Cherry-picking the fields here is what broke the round-trip: dropping the cell's
+ *  `settings` collapsed the 2-wide entrance to one block and broke the roof's z-width span, and forcing
+ *  `height: 1` stood the flat doorstep up as a kerb. Cells outside the map are skipped; `rotation` is the
+ *  building's facing quarter-turns (0 for trees/decor, which are never rotated).
+ *
+ *  A vertical RUN is NOT collapsed here (span 1): the backend authors same-tile runs pre-collapsed as one
+ *  `settings.scaleY` cell (TILESET-AUTHORING §3 "minimal cells"), so the live stamp's run-collapse is a
+ *  no-op safety net and both paths emit the same blocks. */
+function anchorAssets(stage: StageData, kind: string, anchorCol: number, anchorRow: number, variant: number, rotation: number): Array<Record<string, unknown>> {
+  const comp = resolveComposition(ASCII_TILESET, kind)
+  if (!comp) return []
+  const { w, h } = comp.footprint
+  const assets: Array<Record<string, unknown>> = []
+  for (const c of comp.cells) {
+    const off = rotation ? rotateFootprintOffset(c.dx, c.dy, w, h, rotation) : { dx: c.dx, dy: c.dy }
+    const col = anchorCol + off.dx
+    const row = anchorRow + off.dy
+    if (col < 0 || row < 0 || col >= stage.cols || row >= stage.rows) continue
+    const tile = resolveTile(ASCII_TILESET, stage.zone, c.label, variant)
+    assets.push({
+      art: [tile.char],
+      col,
+      row,
+      type: kind,
+      blocking: !c.walkable,
+      color: tile.color,
+      label: c.label,
+      footprint: undefined,
+      tileOverride: undefined,
+      ...compositionCellRender(comp, c, tile, 1, rotation),
+    })
+  }
+  return assets
+}
+
 /** Map StageData onto the persisted Template shape so the editor can render it.
  *  Terrain height stays 0 — blocks are collision, not elevation. */
 export function stageToTemplate(stage: StageData, name: string): StageTemplatePayload {
@@ -2469,67 +2515,18 @@ export function stageToTemplate(stage: StageData, name: string): StageTemplatePa
     ...generatedPropRender(a.type),
   }))
 
-  // Trees are recorded as ANCHORS (see TreeAnchor). Expand each into its stacked composition tiles here so a
-  // stage saved through this path carries the SAME per-cell heightLevel blocks the live grid stamps
-  // (stampComposition) — the forest's collision + rich tiles survive the round-trip, each tile still selectable.
-  for (const t of stage.trees) {
-    const comp = resolveComposition(ASCII_TILESET, t.kind)
-    if (!comp) continue
-    for (const c of comp.cells) {
-      const col = t.col + c.dx
-      const row = t.row + c.dy
-      if (col < 0 || row < 0 || col >= stage.cols || row >= stage.rows) continue
-      const tile = resolveTile(ASCII_TILESET, stage.zone, c.label, t.variant)
-      assetsData.push({
-        art: [tile.char],
-        col,
-        row,
-        type: t.kind,
-        blocking: !c.walkable,
-        color: tile.color,
-        height: 1, // one block tall per tile; the column's height comes from the stacked levels
-        heightLevel: c.level ?? 0,
-        // Carry the cell's draw ZOOM so a SAVED generated stage keeps the 2× canopy on reload (the tree's
-        // leaf cell is scale 2). deserializeToGrid restores it onto the GridAsset, so live + saved match.
-        scale: c.scale ?? 1,
-        label: c.label,
-        footprint: undefined,
-        tileOverride: undefined,
-      })
-    }
-  }
-
-  // Buildings are recorded as composition anchors too (PlacedBuilding.kind + facing). Expand each into its
-  // stamped per-cell tiles here — rotated to face the road — so a saved generated town carries the SAME
-  // wall/window/door/roof blocks (and their collision) the live grid stamps (stampBuildingComposition).
+  // TREES, BUILDINGS and DECOR (the plaza centrepiece + the street lamps) are all recorded as composition
+  // ANCHORS — the generator places no baked props for them. Expand each through the SAME per-cell path the
+  // live grid stamps (stampComposition), so a saved stage carries exactly what was generated: the doorstep's
+  // flat floor height, the entrance + roof z-width spans, the wall piers' collapsed heights, the fountain's
+  // animation. A building is rotated to face its road; trees/decor are never rotated.
+  for (const t of stage.trees) assetsData.push(...anchorAssets(stage, t.kind, t.col, t.row, t.variant, 0))
   for (const b of stage.buildings) {
-    const comp = resolveComposition(ASCII_TILESET, b.kind)
-    if (!comp) continue
-    const rotation = facingRotation(b.facing)
-    const anchorCol = b.col // footprint TOP-LEFT (b.row is the BOTTOM row → back off its height)
-    const anchorRow = b.row - (b.height - 1)
-    const { w, h } = comp.footprint
-    for (const c of comp.cells) {
-      const off = rotation ? rotateFootprintOffset(c.dx, c.dy, w, h, rotation) : { dx: c.dx, dy: c.dy }
-      const col = anchorCol + off.dx
-      const row = anchorRow + off.dy
-      if (col < 0 || row < 0 || col >= stage.cols || row >= stage.rows) continue
-      const tile = resolveTile(ASCII_TILESET, stage.zone, c.label)
-      assetsData.push({
-        art: [tile.char],
-        col,
-        row,
-        type: b.kind,
-        blocking: !c.walkable,
-        color: tile.color,
-        height: 1,
-        heightLevel: c.level ?? 0,
-        label: c.label,
-        footprint: undefined,
-        tileOverride: undefined,
-      })
-    }
+    // b.col + b.row are the footprint TOP-LEFT col and BOTTOM row → back the row off its height to reach the
+    // composition's top-left anchor.
+    assetsData.push(...anchorAssets(stage, b.kind, b.col, b.row - (b.height - 1), 0, facingRotation(b.facing)))
   }
+  for (const c of stage.compositions) assetsData.push(...anchorAssets(stage, c.kind, c.col, c.row, c.variant ?? 0, 0))
 
   return {
     name,
