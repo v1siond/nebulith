@@ -334,15 +334,17 @@ defmodule Nebulith.BuildingCompositionsTest do
 
   describe "roof-z-width — each roof COLUMN is ONE depth-spanned block (smart height + smart z-width)" do
     for name <- @gable do
-      test "#{name}: gable roof collapses to w+1 depth-spanned blocks, per-column silhouette preserved" do
+      test "#{name}: gable roof collapses to ONE depth-spanned bar per column, silhouette preserved" do
         c = comp(unquote(name))
         w = c.footprint_w
         h = c.footprint_h
         roofs = roof_cells(c)
 
-        # w body columns + 1 ridge apex = w+1 blocks (house_5 → 6), instead of one cell per (col,row).
-        assert length(roofs) == w + 1,
-               "#{unquote(name)}: expected #{w + 1} roof blocks, got #{length(roofs)}"
+        # ONE depth-spanned bar PER COLUMN = w blocks, instead of one cell per (col,row). There is no separate
+        # ridge apex cap: it shortened one centre column and stuck a chunky block on top, which broke the
+        # left/right symmetry — the PEAK-height columns wear the roof_top ridge tile instead.
+        assert length(roofs) == w,
+               "#{unquote(name)}: expected #{w} roof blocks, got #{length(roofs)}"
 
         # Every roof block spans the footprint DEPTH along +row (grid-aligned, anchored at the back row) and is
         # walkable — the wall beneath a perimeter column already carries the collision, interior roof was always
@@ -372,8 +374,8 @@ defmodule Nebulith.BuildingCompositionsTest do
       end
     end
 
-    test "house_5 gable roof is exactly 6 blocks (the named target)" do
-      assert length(roof_cells(comp("house_5"))) == 6
+    test "house_5 gable roof is exactly 5 blocks — one bar per column, no apex cap" do
+      assert length(roof_cells(comp("house_5"))) == 5
     end
 
     for name <- @flat do
