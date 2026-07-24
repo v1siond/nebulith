@@ -19,6 +19,7 @@ import { FLOOR_TYPE, type GridAsset, type IsometricGrid } from '@/engine/Isometr
 import type { TileDef } from '@/game/artStyle'
 import { deriveCellCollision, getStack, popTile, pushTile, setTileCollision } from '@/engine/cellStack'
 import { tileRenderBehavior } from '@/engine/tileset/tileset'
+import { groundTileColor } from '@/engine/render/shared'
 import { placementFor, tileSlug } from './tilePlacement'
 
 /** The glyph a painted tile PINS as its art fallback — its own glyph (glyph tile) or the image's source glyph
@@ -32,10 +33,18 @@ function tileChar(tile: TileDef): string {
   return ''
 }
 
-/** terrain → set (replace) the cell's FLOOR to the tile's slug. setGround places/updates the cell's level-0
- *  floor ASSET, preserving its existing colour/dims (only the slug changes) — one uniform write, no branch. */
+/** Place a ground/floor tile of `type` at a cell AND write its colour as STATE — the ONE ground-placement
+ *  helper every map-builder (generator apply, editor paint, biome fills) routes through. The colour is PICKED
+ *  from the ground tile's own DB colour (groundTileColor); the grid stores it, and every view READS floor.color
+ *  instead of deriving it — so no floor is ever placed colourless and there is no render-time colour fallback
+ *  (Alexander: "the generator should put the color on the tile … if we don't have a value, empty grid"). */
+export function placeGround(grid: IsometricGrid, col: number, row: number, type: string): void {
+  grid.setGround(col, row, type, groundTileColor(type, col, row))
+}
+
+/** terrain → set (replace) the cell's FLOOR to the tile's slug, colour written as state (placeGround). */
 export function placeGroundTile(grid: IsometricGrid, col: number, row: number, tile: TileDef): void {
-  grid.setGround(col, row, tileSlug(tile.id))
+  placeGround(grid, col, row, tileSlug(tile.id))
 }
 
 /** The default floor slug a freshly-initialised cell starts on (the IsometricGrid ctor fills the whole ground

@@ -54,7 +54,6 @@ import { useRouter } from 'next/router'
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
 import { render, render2D, renderTopView, clampCameraAxis, entityMotion, ENEMY_MOVE_MS, isDebugMode, setDebugMode, isShowCollisions, setShowCollisions as setCollisionsFlag, cellCaptionMap, pickIsoTilesAt, pickTwoDTilesAt, renderedTilesInRect, renderedTwoDTilesInRect, isoRecordedGeom, twoDRecordedGeom, nextPickIndex, ISO_BLOCK_H_FRAC, depthCells, tileGeomPolygon, tileGeomCentroid, tileHandlePoints, handleAtPoint, dragOutwardPx, scaleFromDrag, depthFromDrag, drawTileHandles, polyBBox, HANDLE_HIT_RADIUS, type TileHandle, type HandleId, type CompositionGhost, type DayNight, type DepthDir } from '@/engine/render'
 import { isoWorldCellToScreen, setIsoCameraFacing } from '@/engine/render/iso'
-import { groundTileColor } from '@/engine/render/shared'
 import { type Orientation } from '@/engine/render/isoOrientation'
 import { isoEditorCamera, isoEditorCellAt, isoEditorCellAnchor, type IsoEditorView } from '@/game/editor/isoEditorCamera'
 import { loadTilesetsFromBackend, saveTilesetToBackend } from '@/engine/tileset/tilesetLoader'
@@ -85,7 +84,7 @@ import { editMap } from '@/game/editor/mapEdit'
 import { applyRectSelection, applyCellSelection, blockKeyForPick } from '@/game/editor/selection'
 import { copyTiles, pasteTiles, type TileClip } from '@/game/editor/clipboard'
 import { entityKindForUnitSlug, placementFor, tileSlug } from '@/game/editor/tilePlacement'
-import { clearGroundTile, placeGroundTile, removeTopAsset, removeAssetAtLevel, stackAssetTile, replaceTileInPlace } from '@/game/editor/tileBrush'
+import { clearGroundTile, placeGround, placeGroundTile, removeTopAsset, removeAssetAtLevel, stackAssetTile, replaceTileInPlace } from '@/game/editor/tileBrush'
 import { connectorEditFromSelection } from '@/game/editor/connectors'
 import { useEditorHistory } from '@/game/editor/useEditorHistory'
 
@@ -2299,7 +2298,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       const g = gridRef.current
       if (!g) return
       checkpointHistory() // clearing a region is a map edit → snapshot so Ctrl+Z brings it back
-      for (let r = row0; r <= row1; r++) for (let c = col0; c <= col1; c++) { g.setGround(c, r, 'grass'); g.setCollision(c, r, false) }
+      for (let r = row0; r <= row1; r++) for (let c = col0; c <= col1; c++) { placeGround(g, c, r, 'grass'); g.setCollision(c, r, false) }
       g.removeAssetsWhere(a => a.col >= col0 && a.col <= col1 && a.row >= row0 && a.row <= row1)
       bumpBuildingVersion()
     }
@@ -2658,7 +2657,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     // Fill with grass by default
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols; c++) {
-        gridRef.current.setGround(c, r, 'grass')
+        placeGround(gridRef.current, c, r, 'grass')
       }
     }
     setGridSize({ cols, rows })
@@ -2815,7 +2814,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     // Clear grid first
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols; c++) {
-        grid.setGround(c, r, 'grass')
+        placeGround(grid, c, r, 'grass')
         grid.setCollision(c, r, false)
         grid.setHeight(c, r, 0)
       }
@@ -3072,9 +3071,9 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
           for (let c = 0; c < cols; c++) {
             const dist = Math.sqrt((c - cx) ** 2 + (r - cy) ** 2)
             if (dist < radius - 2) {
-              grid.setGround(c, r, 'grass')
+              placeGround(grid, c, r, 'grass')
             } else if (dist < radius) {
-              grid.setGround(c, r, 'road') // beach ring
+              placeGround(grid, c, r, 'road') // beach ring
             }
           }
         }
@@ -3532,7 +3531,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
         // ground tile's DB colour via groundTileColor), so every view READS floor.color and nothing is derived
         // or hardcoded at render. A cell the generator left blank gets NO floor (empty) — never an 'ash' fallback.
         const kind = stage.ground[r]?.[c]
-        if (kind) grid.setGround(c, r, kind, groundTileColor(kind, c, r))
+        if (kind) placeGround(grid, c, r, kind)
         grid.setHeight(c, r, 0)
         grid.setCollision(c, r, !!stage.collision[r]?.[c])
       }
@@ -3540,7 +3539,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     grid.clearAssets()
     const paint = stagePaint(stage)
     for (const g of paint.ground) {
-      if (g.col >= 0 && g.col < grid.cols && g.row >= 0 && g.row < grid.rows) grid.setGround(g.col, g.row, g.type, groundTileColor(g.type, g.col, g.row))
+      if (g.col >= 0 && g.col < grid.cols && g.row >= 0 && g.row < grid.rows) placeGround(grid, g.col, g.row, g.type)
     }
     // Pin each generated prop to the SAME curated catalog tile the palette brush uses, per zone + role
     // (trees, flowers, floor-litter, rocks, mushrooms) — instead of the generic per-kind EMOJI_TILESET
@@ -3872,12 +3871,12 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols; c++) {
         if (preset.type === 'interior') {
-          grid.setGround(c, r, baseGround)
+          placeGround(grid, c, r, baseGround)
         } else {
           // Natural ground patches using noise - use theme-specific ground types
           const groundNoise = smoothNoise(c, r, 8)
           const groundType = groundNoise > 0.6 ? themeColors.tallGround : themeColors.baseGround
-          grid.setGround(c, r, groundType)
+          placeGround(grid, c, r, groundType)
         }
         grid.setCollision(c, r, false)
         grid.setHeight(c, r, 0)
@@ -3913,7 +3912,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       for (let i = 0; i < Math.max(cols, rows); i++) {
         for (let w = -1; w <= 1; w++) {
           if (rx + w >= 0 && rx + w < cols && ry >= 0 && ry < rows) {
-            grid.setGround(rx + w, ry, waterType)
+            placeGround(grid, rx + w, ry, waterType)
           }
         }
         rx += Math.floor(Math.random() * 3) - 1 + (rx < cx ? 0.3 : -0.3)
@@ -3934,7 +3933,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
             const px = lakeX + c
             const py = lakeY + r
             if (px >= 0 && px < cols && py >= 0 && py < rows) {
-              grid.setGround(px, py, waterType)
+              placeGround(grid, px, py, waterType)
             }
           }
         }
@@ -3954,7 +3953,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
           // Add noise to moat edges
           const noise = smoothNoise(c, r, 4) * 2
           if (chebyshev >= moatDist - 2 + noise && chebyshev <= moatDist + 1 + noise) {
-            grid.setGround(c, r, waterType)
+            placeGround(grid, c, r, waterType)
           }
         }
       }
@@ -3978,7 +3977,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       // For width 4+: edges are 0 and totalWidth-1, center is middle tiles
       const isEdge = (w === 0 || w === totalWidth - 1)
       const groundType = isEdge ? 'road_edge' : 'road_center'
-      grid.setGround(col, row, groundType)
+      placeGround(grid, col, row, groundType)
     }
 
     if (preset.roads.enabled && preset.roads.pattern !== 'none') {
@@ -4090,7 +4089,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
               })
             )
             if (adjRoad) {
-              grid.setGround(c, r, 'bridge')
+              placeGround(grid, c, r, 'bridge')
             }
           }
         }
