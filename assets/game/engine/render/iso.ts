@@ -687,20 +687,11 @@ export function render(params: IsoRenderParams) {
       // Record this tile's ACTUAL rendered silhouette so the inverted picker + the highlight hit-test IT, not
       // the flat ground cell. Uses the real asset's cell/level (the anim overlay never moves the cell).
       if (geom) {
-        if (obj.asset.type === FLOOR_TYPE && (obj.asset.depth ?? 1) > 1) {
-          // A z-width RUN floor DREW as ONE tile (the perf win) but PICKS + HIGHLIGHTS per cell. Like EVERY tile,
-          // each covered cell records its OWN thin-SLAB silhouette (the floor's real drawn shape) — NOT a flat cell
-          // diamond — so a road / grass field hovers + selects hugging the tile, IDENTICAL to any other tile
-          // (MAP-MODEL: "all tiles behave the same"). A click/paint still lands on the REAL cell (which cuts the run).
-          const idx = stackIndexOf(obj.asset)
-          const slabH = floorSlabHeight(obj.asset, style) * tileW * ISO_BLOCK_H_FRAC
-          for (const { col, row } of grid.floorCoveredCells(obj.asset)) {
-            const sp = toScreen(col, row)
-            isoTileHits.push({ col, row, level: 0, stackIndex: idx, source: 'asset', geom: cubeGeom(tileW, tileH, slabH, 1, poseMapper({ x: sp.x, y: sp.y }, undefined, tileH)) })
-          }
-        } else {
-          isoTileHits.push({ col: obj.asset.col, row: obj.asset.row, level: obj.asset.heightLevel ?? 0, stackIndex: stackIndexOf(obj.asset), source: 'asset', geom })
-        }
+        // ONE selector system for EVERY tile — floors included, no special case: record the tile's ACTUAL drawn
+        // silhouette (`geom`) at its cell/level/stack-slot, exactly like the trunk/wall/prop. A z-width run floor
+        // is ONE tile, so it records ONE box (its drawn depth-box) and selects/hovers as that box — the SAME
+        // validated selector, not a parallel per-cell floor path.
+        isoTileHits.push({ col: obj.asset.col, row: obj.asset.row, level: obj.asset.heightLevel ?? 0, stackIndex: stackIndexOf(obj.asset), source: 'asset', geom })
       }
     }
   }
