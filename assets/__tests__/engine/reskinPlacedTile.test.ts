@@ -10,6 +10,9 @@ import '@/__tests__/helpers/installTilesetSeed' // install the DB-equivalent til
 import { activeStyleVisualForOverride, resolveAssetDraw, resolveDraw } from '@/engine/render/shared'
 import { ASCII_STYLE, EMOJI_STYLE, visualForTileId } from '@/game/artStyle'
 
+// A slug in NEITHER style — the only way to exercise the coarse-kind fallback now the vocabulary is 1:1.
+const NO_SUCH_SLUG = 'definitely-not-a-real-slug'
+
 describe('activeStyleVisualForOverride — re-home a placed tile onto the active style', () => {
   test('emoji:pine-tree keeps its IDENTITY under emoji (the pine-tree tile, reskinned to itself)', () => {
     const v = activeStyleVisualForOverride('emoji:pine-tree', EMOJI_STYLE)
@@ -27,11 +30,16 @@ describe('activeStyleVisualForOverride — re-home a placed tile onto the active
     expect(activeStyleVisualForOverride('emoji:pine-tree', ASCII_STYLE)).toEqual(visualForTileId('ascii:pine-tree'))
   })
 
-  test('a still-emoji-only slug has NO ascii art → null (signals the coarse-kind fallback)', () => {
-    // `cactus` is one of the labels with no ascii pattern to follow (pending art direction — inventing one is
-    // exactly what must not happen), so it stays the honest fallback case this path was built for.
-    expect(visualForTileId('ascii:cactus')).toBeNull()
-    expect(activeStyleVisualForOverride('emoji:cactus', ASCII_STYLE)).toBeNull()
+  test('cactus reskins too — the vocabulary is 1:1, so no real label is missing from a style', () => {
+    // Every emoji label now has its own ascii art, cactus included, so a placed cactus keeps its identity
+    // when the style is toggled instead of degrading to a generic shape.
+    expect(visualForTileId('ascii:cactus')).not.toBeNull()
+    expect(activeStyleVisualForOverride('emoji:cactus', ASCII_STYLE)).toEqual(visualForTileId('ascii:cactus'))
+  })
+
+  test('a slug in NEITHER style → null (the coarse-kind fallback precondition)', () => {
+    expect(visualForTileId(`ascii:${NO_SUCH_SLUG}`)).toBeNull()
+    expect(activeStyleVisualForOverride(`emoji:${NO_SUCH_SLUG}`, ASCII_STYLE)).toBeNull()
   })
 
   test('round-trip emoji → ascii → emoji returns to the same pine-tree visual (nothing stored changed)', () => {
@@ -64,10 +72,10 @@ describe('resolveAssetDraw — the placed-asset draw funnel the 3 views use', ()
     expect(adv.image!.src).toContain('pine-tree')
   })
 
-  test('a placed EMOJI-ONLY slug falls back to the coarse kind under ASCII (no invented art)', () => {
-    // No ascii:cactus → resolveAssetDraw drops to resolveDraw('tree', ASCII, undefined): the ASCII
-    // passthrough, i.e. the caller's own default (its dedicated per-type draw), NOT a frozen emoji.
-    const adv = resolveAssetDraw('tree', ASCII_STYLE, 'emoji:cactus', 'DEF', '#abcabc')
+  test('a slug in NEITHER style falls back to the coarse kind under ASCII (no invented art)', () => {
+    // Re-home returns null → resolveDraw('tree', ASCII, undefined): the ASCII passthrough, i.e. the caller's
+    // own default (its dedicated per-type draw), NOT a frozen emoji.
+    const adv = resolveAssetDraw('tree', ASCII_STYLE, `emoji:${NO_SUCH_SLUG}`, 'DEF', '#abcabc')
     expect(adv.image).toBeUndefined()
     expect(adv).toEqual(resolveDraw('tree', ASCII_STYLE, undefined, 'DEF', '#abcabc'))
     expect(adv.char).toBe('DEF') // the passthrough default the view uses for its own art

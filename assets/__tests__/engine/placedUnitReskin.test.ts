@@ -15,10 +15,22 @@ import { ASCII_STYLE, EMOJI_STYLE, entityKind, entityStyleOverride, visualForTil
 
 // Precondition the catalog id format this suite relies on — if it ever drifts the tests fail loudly
 // instead of silently passing on a null lookup.
+// A slug that exists in NEITHER style — the only way left to exercise the coarse-kind fallback now that the
+// vocabulary is fully 1:1 (every emoji label has an ascii tile, so no real label can be missing from a style).
+const NO_SUCH_SLUG = 'definitely-not-a-real-slug'
+
 describe('catalog preconditions', () => {
-  test('emoji has a per-slug goblin tile; ASCII does NOT (kind-only catalog)', () => {
+  test('BOTH styles have a per-slug goblin tile — the vocabulary is 1:1', () => {
+    // The parity pass gave every emoji label its own ascii art, so a placed goblin re-homes onto a REAL ascii
+    // goblin instead of degrading to the generic enemy figure. Only the art differs between the two.
     expect(visualForTileId('emoji:goblin')).not.toBeNull()
-    expect(visualForTileId('ascii:goblin')).toBeNull()
+    expect(visualForTileId('ascii:goblin')).not.toBeNull()
+    expect(visualForTileId('ascii:goblin')).not.toEqual(visualForTileId('emoji:goblin'))
+  })
+
+  test('a slug in NEITHER style resolves to nothing (the fallback precondition)', () => {
+    expect(visualForTileId(`ascii:${NO_SUCH_SLUG}`)).toBeNull()
+    expect(visualForTileId(`emoji:${NO_SUCH_SLUG}`)).toBeNull()
   })
 })
 
@@ -31,11 +43,19 @@ describe('resolveEntityDraw — a placed unit re-homes its pin onto the active s
     expect(edv.image).toBeDefined() // goblin is a baked entity PNG
   })
 
-  test('under ASCII the pin FALLS BACK to the coarse kind (the ascii enemy), NOT the frozen emoji goblin', () => {
-    // No ascii:goblin → re-home returns null → resolveDraw(kind, ASCII, styleOverride). Under ASCII the
-    // enemy styleOverride is undefined, so this is the ASCII passthrough (the view's own default glyph).
-    const styleOverride = entityStyleOverride({ kind: 'enemy', enemyType: 'goblin' }, ASCII_STYLE) // undefined under ascii
+  test('under ASCII the pin RE-HOMES onto the ascii goblin — not frozen emoji, not a generic enemy', () => {
+    // ascii:goblin now exists, so re-homing keeps the unit's IDENTITY across the style toggle: it draws the
+    // ascii goblin's own art rather than the view's generic enemy figure ('X').
+    const styleOverride = entityStyleOverride({ kind: 'enemy', enemyType: 'goblin' }, ASCII_STYLE)
     const edv = resolveEntityDraw(enemyKind, ASCII_STYLE, 'emoji:goblin', styleOverride, 'X', '#abc')
+    expect(edv.image).toBeUndefined() // ascii art is a glyph here, not the frozen emoji PNG
+    expect(edv).toEqual(drawFromVisual(visualForTileId('ascii:goblin')!, 'X', '#abc'))
+    expect(edv.char).not.toBe('X')    // it is the goblin's OWN ascii art, not the passthrough default
+  })
+
+  test('a pin whose slug exists in NEITHER style falls back to the coarse kind (no invented art)', () => {
+    const styleOverride = entityStyleOverride({ kind: 'enemy', enemyType: 'goblin' }, ASCII_STYLE)
+    const edv = resolveEntityDraw(enemyKind, ASCII_STYLE, `emoji:${NO_SUCH_SLUG}`, styleOverride, 'X', '#abc')
     expect(edv.image).toBeUndefined()
     expect(edv).toEqual(resolveDraw(enemyKind, ASCII_STYLE, undefined, 'X', '#abc'))
     expect(edv.char).toBe('X') // the passthrough default the view draws for its own ASCII figure
