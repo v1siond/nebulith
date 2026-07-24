@@ -154,6 +154,35 @@ describe('RAISE a tile and what is on top of it goes up with it', () => {
     expect(roof.height).toBe(9)
   })
 
+  test("a tile flattened to 0 then raised again lifts only what's ON it — never the ground under it", () => {
+    // Alexander's repro: "stack two blocks, then select the bottom block and make it 0, then increase the
+    // height — the top block moves correctly but the tile stays flat on the first block."
+    // Flattening the bottom block collapses the tile above onto level 0 — the SAME level the floor sits at.
+    // Lifting by "level >= the old top" then swept the FLOOR up too, so the ground flew to level 3 and drew
+    // as a flat tile where the block should be. At equal levels, stack ORDER decides what is on top of what.
+    const grid = mkGrid()
+    grid.setGround(C, R, 'grass')
+    const block = (level: number): GridAsset => {
+      const a = grid.placeAsset([''], C, R, { type: 'house_4', heightLevel: level })
+      a.label = 'wall_wood_c'
+      a.height = 1
+      return a
+    }
+    const bottom = block(0)
+    const top = block(1)
+    const floor = grid.floorAt(C, R)!
+
+    setTileHeight(grid, C, R, 1, 0) // slot 1 = the bottom block (slot 0 is the floor)
+    expect(top.heightLevel).toBe(0)   // it settles onto the flattened block
+    expect(floor.heightLevel).toBe(0) // the ground has not moved
+
+    setTileHeight(grid, C, R, 1, 3) // drag the SAME slot back up
+
+    expect(bottom.height).toBe(3)
+    expect(top.heightLevel).toBe(3)   // the block above rides up
+    expect(floor.heightLevel).toBe(0) // …and the ground STAYS on the grid
+  })
+
   test('a Z-WIDTH tile lifts what stands on EVERY block it occupies, not just its anchor', () => {
     const grid = mkGrid()
     // ONE road tile anchored at (C,R) but spanning 4 blocks via smart z-width — it OCCUPIES all four.

@@ -249,12 +249,18 @@ export function setTileHeight(grid: IsometricGrid, col: number, row: number, sta
   // where its top USED to be. Both halves matter — see occupiedBlocks.
   const footprint = new Set(occupiedBlocks(target).map(blockKey))
   const wasTop = (target.heightLevel ?? 0) + before
+  const targetOrder = grid.assets.indexOf(target)
 
-  for (const other of grid.assets) {
-    if (other === target || (other.heightLevel ?? 0) < wasTop) continue
-    if (occupiedBlocks(other).some(b => footprint.has(blockKey(b)))) {
-      other.heightLevel = (other.heightLevel ?? 0) + delta
-    }
+  for (let i = 0; i < grid.assets.length; i++) {
+    const other = grid.assets[i]
+    if (other === target) continue
+    const level = other.heightLevel ?? 0
+    // ON TOP = starts at or above where this tile's top USED to be. A tile of 0 blocks makes everything share
+    // its level, so ties are broken by the cell's stack ORDER: a tile added later rests on one added earlier.
+    // That is what keeps the GROUND out of it — the floor is the first thing in a cell, so a block standing on
+    // it can never carry it upward, no matter how flat the block is. (No floor branch: it falls out of order.)
+    if (level < wasTop || (level === wasTop && i < targetOrder)) continue
+    if (occupiedBlocks(other).some(b => footprint.has(blockKey(b)))) other.heightLevel = level + delta
   }
   // The levels above just moved, so every cached per-cell stack ORDER is stale — and the stack slots the
   // renderer records for picking are built from it. Without this the inspector keeps editing the slot the
