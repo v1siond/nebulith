@@ -6262,9 +6262,12 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                         const stack = getStack(grid, fc.col, fc.row, { entities })
                         const levelCount = stack.length
                         const lvl = Math.min(Math.max(selectedTileLevel, 0), levelCount - 1)
-                        // The tile-add button names itself by CELL STATE (no tile-type branch): a bare cell (floor
-                        // only) reads "Add tile", a cell that already holds a stacked tile reads "Replace tile".
-                        const libraryLabel = levelCount > 1 ? 'Replace tile' : 'Add tile'
+                        // The library action names itself by WHAT IS SELECTED, not by how full the cell is: if a TILE
+                        // sits at the selected slot it gets REPLACED — and the floor slab IS a tile like any other,
+                        // so a plain grass cell reads "Replace tile" too. Only an EMPTY slot (a cleared cell, nothing
+                        // to swap) reads "Add tile". Counting levels made the one-tile floor read "Add" and hid the
+                        // swap entirely.
+                        const libraryLabel = stack[lvl] ? 'Replace tile' : 'Add tile'
                         // A tile's baked art for the Inspector thumbnail — pinned override first, else the style's
                         // tile for that slug. Undefined (ascii/none) → the preview shows a neutral placeholder.
                         const previewFor = (id: string | null | undefined, slug: string): Visual | undefined =>

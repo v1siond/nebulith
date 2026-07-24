@@ -128,7 +128,10 @@ export function replaceTileInPlace(grid: IsometricGrid, col: number, row: number
   if (!target) return false
   if (target.type === FLOOR_TYPE) {
     if (placementFor(tile) !== 'terrain') return false // a standing block can't BE the ground slab — caller stacks it
-    grid.setGround(col, row, tileSlug(tile.id))
+    // placeGround (not a bare setGround): the swap writes the NEW tile's colour too. A floor renders as its
+    // colour-tinted slab, so swapping only the slug left the OLD colour on it and the replace looked like
+    // "nothing happened" — the picked ground must bring its own colour, like any placed tile.
+    placeGround(grid, col, row, tileSlug(tile.id))
     return true
   }
   // Swap the asset's identity + art + own height in place — same slot, tiles above/below and collision untouched.
