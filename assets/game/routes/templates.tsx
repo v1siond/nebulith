@@ -5063,7 +5063,11 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
           selectedCells: selectedCellsRef.current,
           hoveredCell: hoveredCellRef.current,
           ghost: ghostRef.current, // armed-composition placement shadow (iso footprint + massing)
-          cameraFacing: cameraFacingRef.current, // #75 — the corner the nav's ↻ Rotate button turned to
+          // #75 — the corner the nav's ↻ Rotate button turned to. WHILE TURNING we pass undefined so the
+          // render falls through to the LIVE continuous turn (isoCameraTurn) that rotateCameraTo is easing.
+          // Passing the discrete corner here was why the spin never showed: the grid stayed on the old corner
+          // for the whole animation and snapped at the end, so all you saw was the map sliding sideways.
+          cameraFacing: turnAnimRef.current !== null ? undefined : cameraFacingRef.current,
           playerViewRange: playerViewRangeRef.current, // nav Range control — undefined = full render, no cull
         })
         drawSelectedTileHandles(ctx) // resize grips on the selected tile (reads the frame's recorded silhouette)
