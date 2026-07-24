@@ -256,6 +256,10 @@ export function setTileHeight(grid: IsometricGrid, col: number, row: number, sta
       other.heightLevel = (other.heightLevel ?? 0) + delta
     }
   }
+  // The levels above just moved, so every cached per-cell stack ORDER is stale — and the stack slots the
+  // renderer records for picking are built from it. Without this the inspector keeps editing the slot the
+  // tile USED to occupy, so the next height change lands on the wrong tile.
+  grid.assetLevelsChanged()
 }
 
 const blockKey = (b: { col: number; row: number }): string => `${b.col},${b.row}`

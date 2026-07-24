@@ -360,6 +360,16 @@ export class IsometricGrid {
     this.groundVersion++
   }
 
+  /** Tell the grid an asset was mutated IN PLACE in a way that changes a cell's stack ORDER — i.e. its
+   *  `heightLevel`. The per-cell index caches each cell's assets sorted (floor first, then heightLevel), so a
+   *  level written directly onto an asset leaves that cached ORDER stale, and the stack slots the renderer
+   *  records for picking stop matching the ones the inspector edits. Every setter in here invalidates for the
+   *  same reason; this is the seam for callers that mutate an asset they already hold. */
+  assetLevelsChanged(): void {
+    this.cellIndex = null
+    this.groundVersion++
+  }
+
   /** Remove a cell's floor entirely (→ EMPTY cell, not grass) — the bare state after a Clear. */
   removeFloor(col: number, row: number) {
     this.decompressGroundAt(col, row) // clear just THIS cell, not the whole z-width run it may belong to
