@@ -53,7 +53,7 @@ import { ASCII_STYLE, type Style, type TileCategory, type TileDef, type Visual, 
 import { useRouter } from 'next/router'
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
 import { render, render2D, renderTopView, clampCameraAxis, entityMotion, ENEMY_MOVE_MS, isDebugMode, setDebugMode, isShowCollisions, setShowCollisions as setCollisionsFlag, cellCaptionMap, pickIsoTilesAt, pickTwoDTilesAt, renderedTilesInRect, renderedTwoDTilesInRect, isoRecordedGeom, twoDRecordedGeom, nextPickIndex, ISO_BLOCK_H_FRAC, depthCells, tileGeomPolygon, tileGeomCentroid, tileHandlePoints, handleAtPoint, dragOutwardPx, scaleFromDrag, depthFromDrag, drawTileHandles, polyBBox, HANDLE_HIT_RADIUS, type TileHandle, type HandleId, type CompositionGhost, type DayNight, type DepthDir } from '@/engine/render'
-import { isoWorldCellToScreen, setIsoCameraFacing } from '@/engine/render/iso'
+import { isoWorldCellToScreen, setIsoCameraFacing, setIsoCameraTurn, isoCameraTurn } from '@/engine/render/iso'
 import { type Orientation } from '@/engine/render/isoOrientation'
 import { isoEditorCamera, isoEditorCellAt, isoEditorCellAnchor, type IsoEditorView } from '@/game/editor/isoEditorCamera'
 import { loadTilesetsFromBackend, saveTilesetToBackend } from '@/engine/tileset/tilesetLoader'
@@ -501,11 +501,36 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
 
   // Rotate the camera and KEEP THE VIEW ANCHORED: rotate the pan by the facing delta so the world point you
   // were looking at stays centred (the map turns around it, no jump). Pure math in `panKeepingCenter`.
+  // The in-flight turn ANIMATION's rAF id (null = settled). "Driving setIsoCameraTurn from an animation frame IS
+  // the rotation animation" (iso.ts): render() reads the CONTINUOUS module turn every frame, so easing it makes
+  // the world visibly SPIN to the next corner instead of snapping. The discrete facing is committed only on
+  // settle, so every facing-derived read (spans, clamp dims, movement) stays exact.
+  const turnAnimRef = useRef<number | null>(null)
+  useEffect(() => () => { if (turnAnimRef.current !== null) cancelAnimationFrame(turnAnimRef.current) }, [])
+
   const rotateCameraTo = (to: Orientation) => {
-    const p = panKeepingCenter(camOffsetRef.current, cameraFacingRef.current, to)
-    camOffsetRef.current = p
-    setCamOffset(p)
-    setCameraFacing(to)
+    const from = isoCameraTurn() // the LIVE continuous turn — re-clicking mid-spin continues from where it is
+    const delta = (((to - from) % 4) + 4) % 4 // always the CW way round, matching the button's +1 step
+    if (delta === 0) return
+    const pan0 = camOffsetRef.current
+    const pan1 = panKeepingCenter(pan0, cameraFacingRef.current, to)
+    if (turnAnimRef.current !== null) cancelAnimationFrame(turnAnimRef.current)
+    const now = () => (typeof performance !== 'undefined' ? performance.now() : Date.now())
+    const t0 = now()
+    const DURATION_MS = 260
+    const step = () => {
+      const k = Math.min(1, (now() - t0) / DURATION_MS)
+      const e = k < 0.5 ? 2 * k * k : 1 - ((-2 * k + 2) ** 2) / 2 // easeInOutQuad — spins out, settles in
+      setIsoCameraTurn(from + delta * e)
+      // The pan eases WITH the turn so the point you were looking at stays centred through the whole spin.
+      camOffsetRef.current = { x: pan0.x + (pan1.x - pan0.x) * e, y: pan0.y + (pan1.y - pan0.y) * e }
+      if (k < 1) { turnAnimRef.current = requestAnimationFrame(step); return }
+      turnAnimRef.current = null
+      camOffsetRef.current = pan1
+      setCamOffset(pan1)
+      setCameraFacing(to) // settle EXACTLY on the corner (the effect writes the whole turn)
+    }
+    turnAnimRef.current = requestAnimationFrame(step)
   }
 
   // Carry the player-camera range into the RAF loop's ref, and expose the same debug seam idiom as the camera
