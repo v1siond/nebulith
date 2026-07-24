@@ -185,6 +185,20 @@ describe('Tile settings body (TileControls) — every setting renders + writes t
     expect(screen.getByLabelText('flip horizontally')).toBeInTheDocument()
   })
 
+  it('the HEIGHT slider reaches 0 — a flat tile IS 0 blocks tall, so the control must be able to say so', () => {
+    // Alexander: "the slider should allow me to reach 0, it only goes down to 0.25". Flat floors are height 0
+    // (data migration 0005), so 0 is a real value the control has to express, not an edge to be clamped away.
+    render(<TileControls tile={floorTile()} />)
+    expect(screen.getByLabelText('Height')).toHaveAttribute('min', '0')
+  })
+
+  it('Width / Zoom keep their non-zero floor — 0 there would just erase the tile, not flatten it', () => {
+    render(<TileControls tile={assetTile()} />)
+    for (const axis of ['Width', 'Zoom']) {
+      expect(screen.getByLabelText(axis)).toHaveAttribute('min', '0.25')
+    }
+  })
+
   it('the settings body does NOT carry Open Tile Library or Animate (those stay in the inspector)', () => {
     render(<TileControls tile={assetTile({ onOpenAnimator: jest.fn() })} />)
     expect(screen.queryByRole('button', { name: /Open Tile Library/i })).toBeNull()

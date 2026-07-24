@@ -261,12 +261,17 @@ export interface PropertiesPanelProps {
 const mixedBadge = <span className="text-[9px] italic text-amber-300">mixed</span>
 const parseNum = (raw: string, cb: (n: number) => void) => { const n = parseFloat(raw); if (!Number.isNaN(n)) cb(n) }
 
+/** The lowest each axis can be dragged to. HEIGHT goes to 0 because 0 is a REAL height — a flat tile (floor,
+ *  road, fallen leaf) is 0 blocks tall, so the control has to be able to say so. The other axes keep a
+ *  non-zero floor: 0 width / depth / zoom doesn't flatten a tile, it erases it. */
+const DIM_MIN: Record<DimAxis, number> = { height: 0, width: 0.25, depth: 0.25, zoom: 0.25 }
+
 /** A sprite-scale row (Width/Height/Depth/Zoom): default 1 = the tile's natural drawn size. */
 function DimRow({ label, axis, value, title, onDim }: { label: string; axis: DimAxis; value: number | null; title: string; onDim: (axis: DimAxis, value: number) => void }) {
   return (
     <label className="flex items-center gap-2" title={title}>
       <span className="w-14 shrink-0 text-[10px] text-gray-400">{label}</span>
-      <input type="range" min={0.25} max={5} step={0.05} value={value ?? 1} onChange={e => parseNum(e.target.value, v => onDim(axis, v))} aria-label={label} className="flex-1 accent-cyan-500" />
+      <input type="range" min={DIM_MIN[axis]} max={5} step={0.05} value={value ?? 1} onChange={e => parseNum(e.target.value, v => onDim(axis, v))} aria-label={label} className="flex-1 accent-cyan-500" />
       <NumberField value={value ?? 1} onCommit={v => onDim(axis, v)} ariaLabel={`${label} value`} className="w-14 rounded bg-gray-800 p-1 text-[10px] tabular-nums text-cyan-300" />
       {value === null && mixedBadge}
     </label>
