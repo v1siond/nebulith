@@ -15,11 +15,11 @@
  * writes. Entity (units) placement stays in the page — it needs the React entities state + factories — but
  * its routing (entityKindForUnitSlug) and the category decision (placementFor) live in tilePlacement.ts.
  */
-import type { GridAsset, IsometricGrid } from '@/engine/IsometricGrid'
+import { FLOOR_TYPE, type GridAsset, type IsometricGrid } from '@/engine/IsometricGrid'
 import type { TileDef } from '@/game/artStyle'
 import { deriveCellCollision, getStack, popTile, pushTile, setTileCollision } from '@/engine/cellStack'
 import { tileRenderBehavior } from '@/engine/tileset/tileset'
-import { tileSlug } from './tilePlacement'
+import { placementFor, tileSlug } from './tilePlacement'
 
 /** The glyph a painted tile PINS as its art fallback — its own glyph (glyph tile) or the image's source glyph
  *  (image tile). NEVER a '?' dingbat: the tile is resolved by LABEL→IMAGE via its tileOverride, so an image
@@ -97,6 +97,40 @@ export function stackAssetTile(
   })
   const behavior = tileRenderBehavior(tile.settings)
   if (behavior) placed.settings = behavior
+}
+
+/** REPLACE the tile at the SELECTED stack slot IN PLACE — the Inspector's "Replace tile" (Image #15). The user's
+ *  expectation: picking a Library tile SWAPS the selected tile, it does NOT paint a new one on top (the bug was
+ *  Replace running the same stacking path as the paint brush). `stackIndex` is the tile's slot in the cell's
+ *  ordered stack (`getAssetsAtCell` order, 0 = the floor slab) — the SAME index the Inspector's `selectedTileLevel`
+ *  and the pick key address, so the swap lands on the exact tile the user selected. The tiles above and below are
+ *  untouched and the stack height is unchanged.
+ *
+ *  Two cases, by what sits at the slot — no tile-type branch beyond the floor/non-floor store split:
+ *   - the FLOOR slab (`type === floor`): a floor is the cell's ground SLAB, swapped through the ground setter so
+ *     the grid's floor index stays consistent. Only a GROUND/terrain tile belongs there, so a non-ground pick is
+ *     REFUSED (return false) — the caller treats that as an "add" and stacks it instead.
+ *   - any other stacked tile: rewrite the asset IN PLACE to the picked tile, mirroring stackAssetTile's field
+ *     map (art / slug / tileOverride / colour / its OWN height DATA / authored settings), keeping its slot
+ *     (heightLevel/col/row) and the cell's collision (a per-cell SETTING the user drives, MAP-MODEL §4).
+ *  Returns true when it swapped, false when nothing sits at the slot or a floor swap was refused. */
+export function replaceTileInPlace(grid: IsometricGrid, col: number, row: number, stackIndex: number, tile: TileDef): boolean {
+  const target = grid.getAssetsAtCell(col, row)[stackIndex]
+  if (!target) return false
+  if (target.type === FLOOR_TYPE) {
+    if (placementFor(tile) !== 'terrain') return false // a standing block can't BE the ground slab — caller stacks it
+    grid.setGround(col, row, tileSlug(tile.id))
+    return true
+  }
+  // Swap the asset's identity + art + own height in place — same slot, tiles above/below and collision untouched.
+  target.art = [tileChar(tile)]
+  target.type = tileSlug(tile.id)
+  target.tileOverride = tile.id
+  target.color = tile.visual.kind === 'ascii' ? undefined : tile.visual.color
+  target.height = tile.height ?? 0 // the picked tile's OWN block height (DATA) — read uniformly, like stackAssetTile
+  target.label = undefined         // no longer a composition part — it resolves by its own slug / tileOverride now
+  target.settings = tileRenderBehavior(tile.settings) ?? undefined // the picked tile's authored render behaviour
+  return true
 }
 
 /** ⌥Alt → pop the TOP tile off the cell's stack (highest heightLevel), then re-derive the cell's collision
