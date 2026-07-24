@@ -86,6 +86,22 @@ describe('a tile renders at its OWN DB height — read, not invented; sub-1 not 
     expect(flatX2).toBeCloseTo(flat * 2, 0)     // 0.1 × 2 = 0.2 — grows proportionally
   })
 
+  test('a LABELED composition tile extrudes to its height too — not pinned to one block', () => {
+    // Alexander (Image #38): "the tile stuck at height 1 … the tile didn't grew as expected but things still
+    // moved up". The labeled-cell path drew a single layer whatever the height was, so raising a wall/ground
+    // cell lifted everything above it while the tile itself stayed one block tall. A labeled tile is a tile:
+    // it extrudes exactly like an unlabeled one.
+    const labeled = (height: number): number => {
+      const a = { art: [''], col: 4, row: 4, type: 'house_4', label: 'wall_wood_c', heightLevel: 0, height, color: '#c9c9c9' } as unknown as GridAsset
+      const cv = H.makeCanvas(480, 420)
+      return extrudePx(drawIsoAssetAscii(cv.getContext('2d') as unknown as CanvasRenderingContext2D, CX, CY, a, TW, TH, 0, false, 'day', EMOJI_STYLE))
+    }
+    const one = labeled(1)
+    expect(one).toBeGreaterThan(0)
+    expect(labeled(3)).toBeCloseTo(one * 3, 0) // 3 blocks tall = 3x a one-block tile
+    expect(labeled(5)).toBeCloseTo(one * 5, 0)
+  })
+
   test('the floor asset carries NO hardcoded height — it resolves its ground tile\'s DB height (flat = 0)', () => {
     const floor = { art: [''], col: 4, row: 4, type: 'floor', tileKey: 'grass', heightLevel: 0, blocking: false } as unknown as GridAsset
     const cv = H.makeCanvas(480, 420)

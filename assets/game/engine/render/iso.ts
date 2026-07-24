@@ -2058,6 +2058,11 @@ export function drawIsoAssetAscii(
     // partial slab and a standing cell as a full block, × the per-instance Height multiplier (scaleY). The
     // height VALUE is DATA (from the DB); nothing invented here.
     const bh = tileW * ISO_BLOCK_H_FRAC * (asset.scaleY ?? 1) * layerBlockScale(asset.height ?? 0) * zoom
+    // …stacked as many times as the tile is tall. This used to be hardcoded to ONE layer, so a labeled cell
+    // drew a single block however tall you made it — raise it to 5 and the tiles above rose while the tile
+    // itself stayed put (Alexander, Image #38: "the tile stuck at height 1 … but things still moved up").
+    // No composition tile ships a DB height above 1, so generated maps render exactly as before.
+    const layers = blockLayers(asset.height ?? 0)
     const tint = asset.color ?? '#cccccc'
     const et = style.id === 'emoji' ? EMOJI_TILESET[asset.label] : undefined
     const glyph = et ? et.char : (asset.art[0] ?? '?')
@@ -2066,18 +2071,18 @@ export function drawIsoAssetAscii(
     const dvBlock = { char: glyph, color: tint, tint: recolor, image }
     // SHAPE + DISPLAY (per-tile settings): drawIsoTileForShape picks the solid — cube (all-faces / single) or
     // ball — so a labeled cell can render as a shaded ball just like a placed prop.
-    const geom = blockGeom(x, y, bw, bd, bh, 1, asset, tileH) // the shell cube (single) / cube column — SAME dims
+    const geom = blockGeom(x, y, bw, bd, bh, layers, asset, tileH) // the shell cube (single) / cube column — SAME dims
     // Per-asset pose (x/y/rotate/flip) transforms this labeled block too — same applyPose wrap as the generic
     // block/billboard paths, so a placed OR generated block moves/rotates. No pose → the byte-identical draw.
     if (asset.pose) {
       ctx.save(); ctx.translate(x, y); applyPose(ctx, asset.pose, 1, tileH)
-      drawIsoTileForShape(ctx, { x: 0, y: 0 }, bw, bd, bh, 1, dvBlock, recolor, asset)
-      if (asset.settings?.badge) drawApexBadge(ctx, 0, -bh, fontSize, asset.settings.badge)
+      drawIsoTileForShape(ctx, { x: 0, y: 0 }, bw, bd, bh, layers, dvBlock, recolor, asset)
+      if (asset.settings?.badge) drawApexBadge(ctx, 0, -bh * layers, fontSize, asset.settings.badge)
       ctx.restore()
       return geom
     }
-    drawIsoTileForShape(ctx, { x, y }, bw, bd, bh, 1, dvBlock, recolor, asset)
-    if (asset.settings?.badge) drawApexBadge(ctx, x, y - bh, fontSize, asset.settings.badge)
+    drawIsoTileForShape(ctx, { x, y }, bw, bd, bh, layers, dvBlock, recolor, asset)
+    if (asset.settings?.badge) drawApexBadge(ctx, x, y - bh * layers, fontSize, asset.settings.badge)
     return geom
   }
 
