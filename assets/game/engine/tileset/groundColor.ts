@@ -7,7 +7,6 @@
 import { varyIntensity } from '@/engine/colors'
 import { resolveGroundTile } from '@/engine/tileset/tileset'
 import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
-import { groundKind } from '@/game/artStyle'
 
 /** Deterministic per-cell grass tint: a stable position hash nudges the base grass bg lighter or darker so the
  *  lawn reads as natural patches, not one flat sheet. Computed from (col,row) only — stable per cell. */
@@ -16,13 +15,15 @@ export function grassShade(baseBg: string, col: number, row: number): string {
   return varyIntensity(baseBg, n - Math.floor(n), 0.22)
 }
 
-/** The ground colour a floor tile is BORN with as STATE — the ground tile's OWN DB colour (terrain `bg` from
- *  the loaded tileset), per-cell shaded for grassy ground so a meadow varies. Picked ONCE at placement and
- *  stored on `floor.color`, so every view READS it (no render-time colour derivation, no hardcoded fallback).
- *  Style-independent — one colour filters the tile in every style. No terrain loaded → resolveGroundTile
- *  returns an empty colour, so nothing is invented. */
+/** The ground colour a floor tile is BORN with as STATE — the ground tile's OWN DB colour (terrain `bg` from the
+ *  loaded tileset). Picked ONCE at placement and stored on `floor.color`, so every view READS it (no render-time
+ *  colour derivation, no hardcoded fallback). Style-independent — one colour filters the tile in every style.
+ *
+ *  UNIFORM per ground kind — deliberately NOT shaded per cell. A z-width run IS ONE TILE, so it carries ONE
+ *  colour; giving neighbours their own shade makes `compressGround` (which merges only floors of the SAME tile
+ *  AND colour) unable to merge anything, so a road/grass field explodes from one run into hundreds of separate
+ *  floor assets and the frame rate collapses. One tile → one colour keeps the runs, and the map fast.
+ *  No terrain loaded → resolveGroundTile returns an empty colour, so nothing is invented. */
 export function groundTileColor(tileType: string, col: number, row: number): string {
-  const bg = resolveGroundTile(ASCII_TILESET, tileType, col, row).bg
-  const grassy = tileType.includes('grass') || groundKind(tileType) === 'cavefloor'
-  return grassy ? grassShade(bg, col, row) : bg
+  return resolveGroundTile(ASCII_TILESET, tileType, col, row).bg
 }
