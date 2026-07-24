@@ -328,24 +328,30 @@ export class IsometricGrid {
 
   /** Build a bare floor asset for a cell — a regular tile that carries NO hardcoded height: the renderer reads
    *  the floor tile's OWN block-height from the DB (its ground tile, resolved via groundKind(tileKey)) and draws
-   *  it as a thin slab (a flat tile is 0.1 blocks tall in the DB). Height is DATA, never invented here. No
-   *  `color` so the render resolves the ground colour from groundKind(tileKey); a per-cell override rides `color`. */
-  private makeFloorAsset(col: number, row: number, slug: string): GridAsset {
-    return { art: [''], col, row, type: FLOOR_TYPE, tileKey: slug, heightLevel: 0, blocking: false }
+   *  it as a thin slab (a flat tile is 0.1 blocks tall in the DB). Height is DATA, never invented here. The
+   *  ground COLOUR is per-cell STATE the map-builder writes (`color` — see setGround); renders READ it, never
+   *  derive it, so a floor with no colour renders nothing (empty), never a hardcoded fallback. */
+  private makeFloorAsset(col: number, row: number, slug: string, color?: string): GridAsset {
+    const floor: GridAsset = { art: [''], col, row, type: FLOOR_TYPE, tileKey: slug, heightLevel: 0, blocking: false }
+    if (color !== undefined) floor.color = color
+    return floor
   }
 
   // Set the floor tile TYPE of a cell — place/replace its level-0 floor asset (the slug rides `tileKey`,
-  // which the renderer maps to groundKind for the tile's art). A per-cell colour/dims override on an
-  // existing floor is preserved (only the slug changes), matching the old setGround semantics.
-  setGround(col: number, row: number, type: string) {
+  // which the renderer maps to groundKind for the tile's art). `color` is the per-cell ground COLOUR the
+  // map-builder (generator / editor paint) PICKS and writes as state, so the render reads it instead of
+  // deriving it (no render-time colour math, no fallback). Omitting it keeps any existing colour (a re-slug
+  // that shouldn't recolour); passing it sets/updates the colour.
+  setGround(col: number, row: number, type: string, color?: string) {
     if (col < 0 || col >= this.cols || row < 0 || row >= this.rows) return
     this.decompressGroundAt(col, row) // if this cell is inside a z-width run, cut the run so only THIS cell changes
     const existing = this.floorAt(col, row)
     if (existing) {
       if (existing.tileKey !== type) { existing.tileKey = type; this.groundVersion++ }
+      if (color !== undefined && existing.color !== color) { existing.color = color; this.groundVersion++ }
       return
     }
-    const floor = this.makeFloorAsset(col, row, type)
+    const floor = this.makeFloorAsset(col, row, type, color)
     this.assets.push(floor)
     this.floorIndex.set(this.floorKey(col, row), floor)
     this.cellIndex = null

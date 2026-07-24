@@ -152,6 +152,26 @@ export function depthFrontExtent(depth: number, dir: DepthDir): number {
 }
 
 /**
+ * Restate a span from the end FARTHEST from the camera: the same cells, described from the other end.
+ *
+ * The depth sort keys on a span's anchor and only adds its length when the span runs toward the camera
+ * (`depthFrontExtent`) — both rest on one invariant: THE ANCHOR IS THE BACKMOST CELL. Authoring holds to it
+ * (`compressGround` anchors a run at min col/row; `right-down`/`left-down` both step forward), but a rotated
+ * camera can turn a span's axis to `left-up`/`right-up`, which runs BACKWARD from the anchor. The anchor is
+ * then the span's FRONT end, the sort treats it as the back, and the run draws over everything behind it —
+ * a merged grass run painting over the tree trunks it should sit behind.
+ *
+ * Re-anchoring restores the invariant instead of teaching every sort rule about a second case. Pure.
+ */
+export function spanBackmost(col: number, row: number, depth: number, dir: DepthDir): { col: number; row: number; dir: DepthDir } {
+  const n = Math.floor(depth)
+  if (n <= 1) return { col, row, dir } // a single cell has no far end
+  const { dc, dr } = DEPTH_CELL_STEP[dir]
+  if (dc + dr > 0) return { col, row, dir } // already anchored at the back
+  return { col: col + dc * (n - 1), row: row + dr * (n - 1), dir: rotateDepthDir(dir, 2) }
+}
+
+/**
  * The extruded-hull faces of a depth-D box at stacking `level` — the outer hull only (no internal seams).
  * The unit block is swept `(D−1)` steps along `dir`: its TOP diamond becomes a long parallelogram (the two
  * LEADING corners pushed by the sweep vector, the two trailing corners anchored), one front wall runs the
@@ -187,6 +207,10 @@ export function isoDepthBox(
 
   // Per-direction hull. The LONG wall + CAP are always the two front (+col/+row) walls of the unit cube; the
   // sweep turns one into a length-spanning parallelogram and translates/keeps the other as the visible cap.
+  // NEAR-cap vs FAR-cap is decided by whether the sweep RECEDES or APPROACHES: the visible cap sits on the
+  // cell CLOSEST to the camera. A RECEDING dir (−row 'right-up' / −col 'left-up') sweeps away from the anchor,
+  // so the anchor cell is the front → the cap is the UNMODIFIED unit wall (near). An APPROACHING dir (+row /
+  // +col) sweeps toward the camera, so the swept FAR end is the front → the cap is TRANSLATED by `o(...)`.
   switch (dir) {
     case 'right-up': // −row: RIGHT wall runs long, LEFT wall is the NEAR cap (unmodified)
       return {

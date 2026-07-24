@@ -15,12 +15,13 @@ import { type CombatState, type Entity, type Quest } from '@/game/types'
 import { resolveGroundTile, type TileShape } from '@/engine/tileset/tileset'
 import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 import { Connector } from '@/lib/api'
-import { ASCII_FONT, COMBAT_RANGE, type DayNight, type DrawVisual, ENEMY_MOVE_MS, LIGHT, applyCellTransform, isoCameraFocus, assetCaptionByCell, terrainLabelAt, collectLampGlows, type CompositionGhost, compositionGhostColors, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawHoverRing, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawConnectorMarker, drawAttackAnimFrame, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, clipToBall, SINGLE_TILE_FRAC, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, frameImage, getPlayerArt, grassShade, cellFill, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, resolveAssetDraw, resolveEntityDraw, assetOverride, labelTileImage, labelTileRecolor, groundDecorImage, tileImage, tintedImage, tintedGlyphSprite, treeCanopyLayers, treeCellSet } from './shared'
+import { ASCII_FONT, COMBAT_RANGE, type DayNight, type DrawVisual, ENEMY_MOVE_MS, LIGHT, applyCellTransform, isoCameraFocus, assetCaptionByCell, terrainLabelAt, collectLampGlows, type CompositionGhost, compositionGhostColors, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawHoverRing, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawConnectorMarker, drawAttackAnimFrame, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, clipToBall, SINGLE_TILE_FRAC, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, frameImage, getPlayerArt, grassShade, cellFill, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, resolveAssetDraw, resolveEntityDraw, assetOverride, labelTileImage, kindTileImage, labelTileRecolor, groundDecorImage, tileImage, tintedImage, tintedGlyphSprite, treeCanopyLayers, treeCellSet } from './shared'
 import { resolveAssetDrawSize } from './assetDimensions'
 import { resolveAssetAnimation } from './assetAnimation'
 import { getStack, assetStackIndexer, type TileSource } from '@/engine/cellStack'
-import { isoBlockFaces, isoDepthBox, depthFrontExtent, isoZOffset, rotateDepthDir, type BlockFace, type DepthDir } from './isoBlock'
-import { orientCell, deorientCell, orientedDims, type Orientation } from './isoOrientation'
+import { isoBlockFaces, isoDepthBox, depthFrontExtent, isoZOffset, rotateDepthDir, spanBackmost, type BlockFace, type DepthDir } from './isoBlock'
+import { type Orientation } from './isoOrientation'
+import { cellOrienterFor, orientCellTurn, deorientCellTurn, orientedDimsForTurn, facingForTurn, wrapTurn } from './isoTurn'
 import { resolveTileHeight, partialBlockScale } from '@/engine/tileset/tileHeight'
 import { EMOJI_TILESET } from '@/engine/tileset/emojiTileset'
 import { applyPose } from '@/engine/tileset/pose'
@@ -135,62 +136,99 @@ function perfNow(): number {
 
 
 // ════════════════════════════════════════════════════════════════════════════
-// CAMERA FACING — 4-way (90°) HORIZONTAL rotation of the iso camera (#75)
+// CAMERA TURN — HORIZONTAL rotation of the iso camera, continuous, settling on the 4 corners (#75)
 // Alexander: "the rotate button or action … just rotates the map horizontally, changing the front perspective
 // of the map and showing a different side of it" / "we can rotate the corners, 4 corners, 4 rotation options,
 // all faces of the map are visible" — because "tiles that aren't in the front side from the camera perspective
-// are hard to select, specially with collisions on".
+// are hard to select, specially with collisions on" — and then: "when rotating i want to see the animation of
+// the world rotating … Ideally, I should have a controller that allows me to rotate more accurately, with the
+// current 4 options as the quick turnarounds".
 //
-// The iso PROJECTION is untouched. A rotated camera turns the WORLD coord into the VIEW frame FIRST
-// (isoOrientation.orientCell) and then projects it, which is what swings a different map corner to the front.
-// Facing 0 is today's view and EVERY helper here short-circuits at 0, so an un-rotated frame is unchanged.
+// So the camera carries a TURN in quarter-turns (isoTurn), not just a corner: a WHOLE turn IS an `Orientation`
+// and runs today's exact integer maths; a fractional turn is the transient a drag/settle animation passes
+// through. The iso PROJECTION is untouched — a turned camera rotates the WORLD coord into the VIEW FRAME first
+// (isoTurn.cellOrienterFor) and then projects it, which is what swings a different map corner to the front.
+// Turn 0 short-circuits everywhere, so an un-turned frame is byte-identical.
 // ════════════════════════════════════════════════════════════════════════════
 
-/** The facing a render() uses when its params omit `cameraFacing` — driven by the `__setCameraFacing` debug
- *  seam until the editor UI owns it in React state and passes the param (an explicit param always wins). */
-let currentCameraFacing: Orientation = 0
+/** The turn a render() uses when its params omit `cameraTurn`/`cameraFacing` — driven by the `__setCameraTurn`
+ *  debug seam until the editor UI owns it in React state and passes the param (an explicit param always wins).
+ *  ONE source of truth: the facing accessors below are just this value read at its nearest corner. */
+let currentCameraTurn = 0
 
-/** The camera facing a param-less render() will use. */
-export function isoCameraFacing(): Orientation {
-  return currentCameraFacing
+/** The camera turn (quarter-turns, 0..4) a param-less render() will use. */
+export function isoCameraTurn(): number {
+  return currentCameraTurn
 }
 
-/** Turn the camera to `facing` (quarter-turns CW, 0–3). The editor's RAF loop redraws every frame, so the
- *  next frame shows it. Returns the new facing so a caller/seam can echo it. */
+/** Turn the camera to `turn` quarter-turns (any real; wrapped onto 0..4). The editor's RAF loop redraws every
+ *  frame, so the next frame shows it — driving this from an animation frame IS the rotation animation.
+ *  Returns the wrapped turn so a caller/seam can echo it. */
+export function setIsoCameraTurn(turn: number): number {
+  currentCameraTurn = wrapTurn(turn)
+  return currentCameraTurn
+}
+
+/** The camera CORNER a param-less render() is at/nearest — a whole turn is exactly its facing. */
+export function isoCameraFacing(): Orientation {
+  return facingForTurn(currentCameraTurn)
+}
+
+/** Turn the camera to `facing` (quarter-turns CW, 0–3) — the instant 4-way jump the nav buttons drive today.
+ *  A facing IS a whole turn, so this writes the same state the continuous turn does. */
 export function setIsoCameraFacing(facing: Orientation): Orientation {
-  currentCameraFacing = facing
-  return currentCameraFacing
+  setIsoCameraTurn(facing)
+  return isoCameraFacing()
 }
 
 /** Window debug/validation seam — the `__setDepth` / `__setShape` family, installed from the render itself
  *  (like `__isoRenderMs` below) because that is the one place the ISO view is guaranteed to run. Idempotent. */
-function installCameraFacingSeam(): void {
+function installCameraSeams(): void {
   if (typeof window === 'undefined') return
-  const win = window as unknown as { __setCameraFacing?: (f: Orientation) => Orientation; __cameraFacing?: () => Orientation }
-  if (win.__setCameraFacing) return
+  const win = window as unknown as {
+    __setCameraFacing?: (f: Orientation) => Orientation
+    __cameraFacing?: () => Orientation
+    __setCameraTurn?: (t: number) => number
+    __cameraTurn?: () => number
+  }
+  if (win.__setCameraTurn) return
   win.__setCameraFacing = setIsoCameraFacing
   win.__cameraFacing = isoCameraFacing
+  win.__setCameraTurn = setIsoCameraTurn
+  win.__cameraTurn = isoCameraTurn
 }
 
-/** The iso camera focus IN THE VIEW FRAME: rotate the world focus by `facing`, then clamp it against the
- *  ORIENTED map dims — an odd facing SWAPS cols/rows, so clamping a rotated non-square map with the world dims
- *  would throw the camera clean off it. Facing 0 → exactly today's `clampCamera ? isoCameraFocus(…) : raw`.
+/** The iso camera focus IN THE VIEW FRAME: turn the world focus by `turn`, then clamp it against the ORIENTED
+ *  map dims — an odd corner SWAPS cols/rows, so clamping a turned non-square map with the world dims would
+ *  throw the camera clean off it. Turn 0 → exactly today's `clampCamera ? isoCameraFocus(…) : raw`.
  *  Exported so the editor's screen→cell inverse can reuse the SAME focus the render draws with (one source of
- *  truth — the click and the pixels must not drift apart). */
+ *  truth — the click and the pixels must not drift apart).
+ *
+ *  MID-TURN the clamp dims follow the NEAREST corner (`orientedDimsForTurn`): the map's on-screen silhouette
+ *  between corners is a rotated rectangle, which `isoCameraFocus`'s diamond clamp doesn't model. The cost is a
+ *  small camera shift at the 45° crossover on a NON-SQUARE map in clamped (game) mode only — the editor, where
+ *  the drag controller lives, renders unclamped, and there the dims term cancels against the cell's own
+ *  re-centring so the spin is perfectly smooth. */
 export function isoViewFocus(
-  rawFc: number,
-  rawFr: number,
+  playerFc: number,
+  playerFr: number,
+  panCol: number,
+  panRow: number,
   pPad: number,
   qPad: number,
   cols: number,
   rows: number,
-  facing: Orientation,
+  turn: number,
   clamp: boolean,
 ): { fc: number; fr: number } {
-  const view = facing === 0 ? { col: rawFc, row: rawFr } : orientCell(rawFc, rawFr, cols, rows, facing)
-  if (!clamp) return { fc: view.col, fr: view.row }
-  const dims = orientedDims(cols, rows, facing)
-  return isoCameraFocus(view.col, view.row, pPad, qPad, dims.cols, dims.rows)
+  // The PLAYER focus is oriented + clamped in the rotated view frame (so the camera centres on the hero at
+  // any facing). The drag PAN (`panCol`/`panRow`) is a SCREEN-fixed gesture — the camera rotates the map, not
+  // the controls — so it is applied AFTER, UN-rotated: a drag pans the map the same direction at every facing.
+  const view = turn === 0 ? { col: playerFc, row: playerFr } : orientCellTurn(playerFc, playerFr, cols, rows, turn)
+  const focus = clamp
+    ? (() => { const dims = orientedDimsForTurn(cols, rows, turn); return isoCameraFocus(view.col, view.row, pPad, qPad, dims.cols, dims.rows) })()
+    : { fc: view.col, fr: view.row }
+  return { fc: focus.fc - panCol, fr: focus.fr - panRow }
 }
 
 /** The camera the FLAT (bare-cell) iso projection needs, in the render's own numbers: the viewport, the cell
@@ -212,37 +250,44 @@ export function isoWorldCellToScreen(
   cam: IsoFlatCamera,
   cols: number,
   rows: number,
-  facing: Orientation,
+  turn: number,
 ): { x: number; y: number } {
-  const v = facing === 0 ? { col, row } : orientCell(col, row, cols, rows, facing)
+  const v = turn === 0 ? { col, row } : orientCellTurn(col, row, cols, rows, turn)
   const wx = (v.col - cam.fc) * cam.cellSize
   const wz = (v.row - cam.fr) * cam.cellSize
   return { x: cam.w / 2 + (wx - wz) * cam.isoScale * 0.71, y: cam.h / 2 + (wx + wz) * cam.isoScale * 0.36 }
 }
 
 /** Screen (canvas-internal px) → the WORLD cell under it — the EXACT inverse of isoWorldCellToScreen: invert
- *  the diamond to a VIEW cell, then turn it back to world with `deorientCell`. This is the bare-cell fallback
- *  the editor picks with when no rendered tile is under the pointer; without the deorient step a rotated
- *  camera would select a mirrored/transposed cell. Facing 0 → today's inverse, untouched. */
+ *  the diamond to a VIEW coord, then turn it back to world. This is the bare-cell fallback the editor picks
+ *  with when no rendered tile is under the pointer; without the de-turn step a rotated camera would select a
+ *  mirrored/transposed cell. Turn 0 → today's inverse, untouched.
+ *
+ *  WHERE the floor lands differs by case and must: at a WHOLE turn the view coord is floored to a view CELL
+ *  first, because the corner maths (`h−1−row`) maps cell INDEX to cell INDEX; mid-turn the axes are diagonal
+ *  to the grid, so the continuous coord is de-turned FIRST and floored in world space. */
 export function isoScreenToWorldCell(
   x: number,
   y: number,
   cam: IsoFlatCamera,
   cols: number,
   rows: number,
-  facing: Orientation,
+  turn: number,
 ): { col: number; row: number } {
   const a = (x - cam.w / 2) / (cam.isoScale * 0.71)
   const b = (y - cam.h / 2) / (cam.isoScale * 0.36)
-  const viewCol = Math.floor((a + b) / 2 / cam.cellSize + cam.fc)
-  const viewRow = Math.floor((b - a) / 2 / cam.cellSize + cam.fr)
-  if (facing === 0) return { col: viewCol, row: viewRow }
-  return deorientCell(viewCol, viewRow, cols, rows, facing)
+  const viewCol = (a + b) / 2 / cam.cellSize + cam.fc
+  const viewRow = (b - a) / 2 / cam.cellSize + cam.fr
+  if (Number.isInteger(turn)) return deorientCellTurn(Math.floor(viewCol), Math.floor(viewRow), cols, rows, turn)
+  const world = deorientCellTurn(viewCol, viewRow, cols, rows, turn)
+  return { col: Math.floor(world.col), row: Math.floor(world.row) }
 }
 
 /** A WORLD depth axis as the rotated view sees it. `DEPTH_CELL_STEP` maps every DepthDir to a grid step
  *  (dc,dr), and one camera quarter-turn carries a grid step the same way it carries a coord — so the two use
- *  the identical rotation and can never disagree. Facing 0 → the same dir (no lookup). */
+ *  the identical rotation and can never disagree. Facing 0 → the same dir (no lookup).
+ *  A DepthDir is one of 4 discrete diagonals with no continuous form, so mid-turn it follows the NEAREST
+ *  corner — see `isoDepthComparatorFor` for what that quantisation costs. */
 function viewDepthDir(dir: DepthDir, facing: Orientation): DepthDir {
   return facing === 0 ? dir : rotateDepthDir(dir, facing)
 }
@@ -291,10 +336,18 @@ export interface IsoRenderParams {
   hoveredCell?: { col: number; row: number; stackIndex?: number } | null
   /** Armed Tile-composition placement ghost — a translucent footprint drawn at the hover cell before the click. */
   ghost?: CompositionGhost | null
+  /** PLAYER-CAMERA RANGE (radius in cells): when set, only elements within this many cells of the player
+   *  render, and a ring is drawn around the player at that edge. Undefined/≤0 = off (today's full window). */
+  playerViewRange?: number
   /** Which of the map's 4 corners the camera looks from — quarter-turns CW. 0 (the default) is the historical
    *  iso view and renders identically to before; 1/2/3 swing the map horizontally so a different side faces
-   *  the camera. Omitted → the `__setCameraFacing` debug seam's current value (also 0 until it's called). */
+   *  the camera. A facing IS a whole `cameraTurn`; this is the instant-jump shorthand the 4 nav buttons use. */
   cameraFacing?: Orientation
+  /** The camera's CONTINUOUS turn in quarter-turns (0..4, wrapping) — what a drag controller animates. A WHOLE
+   *  value is exactly `cameraFacing` and renders the identical frame; between corners the world visibly
+   *  rotates. Wins over `cameraFacing` when both are given. Omitted → `cameraFacing`, else the
+   *  `__setCameraTurn` debug seam's current value (0 until it's called). */
+  cameraTurn?: number
 }
 
 /** Draw the composition-placement GHOST in ISO: each occupied cell gets a translucent tinted diamond on the
@@ -356,9 +409,15 @@ export function render(params: IsoRenderParams) {
     selectedCells = new Set<string>(),
     hoveredCell = null,
     ghost = null,
-    cameraFacing: facing = isoCameraFacing(),
+    cameraFacing,
+    cameraTurn = cameraFacing ?? isoCameraTurn(),
+    playerViewRange,
   } = params
-  installCameraFacingSeam() // __setCameraFacing / __cameraFacing — idempotent, no draw side effects
+  installCameraSeams() // __setCameraTurn / __setCameraFacing … — idempotent, no draw side effects
+  // The camera's continuous turn, and the CORNER it is nearest. Everything positional reads `turn`; the few
+  // decisions with no continuous form (a span's diagonal axis, the clamp dims) read `facing`.
+  const turn = wrapTurn(cameraTurn)
+  const facing = facingForTurn(turn)
   const __isoT0 = perfNow() // perf probe — rolling avg of render() ms, exposed on window.__isoRenderMs
   // Clear
   ctx.fillStyle = '#1a1a2e'
@@ -383,9 +442,8 @@ export function render(params: IsoRenderParams) {
   // The focus is resolved IN THE VIEW FRAME (isoViewFocus): rotated by `facing`, then clamped against the
   // ORIENTED dims — so a rotated non-square map still clamps to its real on-screen extent. Facing 0 collapses
   // to exactly the previous `clampCamera ? isoCameraFocus(…) : raw` line.
-  const rawFc = (player.x - camOffset.x) / cellSize
-  const rawFr = (player.z - camOffset.y) / cellSize
-  const { fc, fr } = isoViewFocus(rawFc, rawFr, pPad, qPad, grid.cols, grid.rows, facing, clampCamera)
+  // Player focus is oriented/clamped; the drag PAN (camOffset) is applied un-rotated so drag is screen-fixed.
+  const { fc, fr } = isoViewFocus(player.x / cellSize, player.z / cellSize, camOffset.x / cellSize, camOffset.y / cellSize, pPad, qPad, grid.cols, grid.rows, turn, clampCamera)
   const camX = fc * cellSize
   const camZ = fr * cellSize
 
@@ -405,11 +463,13 @@ export function render(params: IsoRenderParams) {
   }
   // Convert WORLD to screen. A rotated camera turns the world coord into the view frame first — that ONE hook
   // is the whole rotation: every caller below (assets, units, connectors, ghosts, debug, lamp glows) keeps
-  // passing WORLD coords and lands in the right place. Facing 0 skips the turn, so the frame is untouched.
-  const toScreen = facing === 0
+  // passing WORLD coords and lands in the right place. Turn 0 skips the turn, so the frame is untouched; a
+  // FRACTIONAL turn spins the world about the camera focus (the orienter resolves its trig once per frame).
+  const orientForView = cellOrienterFor(grid.cols, grid.rows, turn)
+  const toScreen = turn === 0
     ? viewToScreen
     : (col: number, row: number) => {
-      const v = orientCell(col, row, grid.cols, grid.rows, facing)
+      const v = orientForView(col, row)
       return viewToScreen(v.col, v.row)
     }
 
@@ -452,14 +512,22 @@ export function render(params: IsoRenderParams) {
   // camX/camZ are the camera in the VIEW frame, but the grid indexes WORLD cells — so turn the focus back
   // (deorientCell) before asking what's visible, or a rotated camera would cull the wrong corner of the map.
   // The window is a square centred on it, so rotating the CENTRE is all it takes. Facing 0 → today's floor().
-  const camCell = facing === 0
+  const camCell = turn === 0
     ? { col: camX / cellSize, row: camZ / cellSize }
-    : deorientCell(fc, fr, grid.cols, grid.rows, facing)
-  const visibleAssets = grid.getVisibleAssets(
+    : deorientCellTurn(fc, fr, grid.cols, grid.rows, turn)
+  const rectAssets = grid.getVisibleAssets(
     Math.floor(camCell.col),
     Math.floor(camCell.row),
     halfSpan * 2, halfSpan * 2
   )
+  // PLAYER-CAMERA RANGE: when set, only elements within `playerViewRange` cells of the PLAYER render — a
+  // radial cull (measured from the hero, so it matches the ring drawn around them), restoring the old fixed
+  // render window as a controllable setting. Undefined/≤0 = off → today's zoom-derived window, byte-identical.
+  const pcol = player.x / cellSize, prow = player.z / cellSize
+  const rangeOn = typeof playerViewRange === 'number' && playerViewRange > 0
+  const visibleAssets = rangeOn
+    ? rectAssets.filter(a => withinPlayerRange(a.col, a.row, pcol, prow, playerViewRange!))
+    : rectAssets
   // Ground shadow goes ONLY on a tree's bottom (ground-contact) cell — see isGroundContact. The
   // tree-cell Set is memoized (treeCellSet) so we don't rescan every asset + realloc each frame.
   const treeCells = treeCellSet(grid)
@@ -476,13 +544,17 @@ export function render(params: IsoRenderParams) {
     ...visibleAssets.map(a => ({ col: a.col, row: a.row, asset: a })),
     // The player ENTITY is drawn as the live sprite below (isPlayer), so skip it here
     // to avoid a ghost double at the spawn cell. (Top view keeps it — see renderTopView.)
-    ...entities.filter(e => e.kind !== 'player').map(e => {
-      const pos = entityRenderCell(e, now) // smooth, deterministic interpolation (motionPos)
-      const mot = entityMotion.get(e.id)
-      const moving = !!mot && now < mot.startMs + ENEMY_MOVE_MS // mid-interpolation → walk anim
-      const inRange = e.kind === 'enemy' && Math.hypot(e.col - pCol, e.row - pRow) <= COMBAT_RANGE
-      return { col: pos.col, row: pos.row, entity: e, moving, inRange }
-    }),
+    // A non-player unit is an element too, so the player-camera range culls it like any tile (the player
+    // themselves is always drawn — they are the centre of the range).
+    ...entities.filter(e => e.kind !== 'player')
+      .filter(e => !rangeOn || withinPlayerRange(e.col, e.row, pcol, prow, playerViewRange!))
+      .map(e => {
+        const pos = entityRenderCell(e, now) // smooth, deterministic interpolation (motionPos)
+        const mot = entityMotion.get(e.id)
+        const moving = !!mot && now < mot.startMs + ENEMY_MOVE_MS // mid-interpolation → walk anim
+        const inRange = e.kind === 'enemy' && Math.hypot(e.col - pCol, e.row - pRow) <= COMBAT_RANGE
+        return { col: pos.col, row: pos.row, entity: e, moving, inRange }
+      }),
     {
       col: player.x / cellSize,
       row: player.z / cellSize,
@@ -490,8 +562,8 @@ export function render(params: IsoRenderParams) {
     }
   ]
   // back-to-front, then bottom-up within a stacked cell (higher blocks over lower) — keyed on the ORIENTED
-  // coord so occlusion stays correct from whichever corner the camera looks. Facing 0 → isoDepthCompare itself.
-  allObjects.sort(isoDepthComparatorFor(allObjects, grid.cols, grid.rows, facing))
+  // coord so occlusion stays correct from whichever corner the camera looks. Turn 0 → isoDepthCompare itself.
+  allObjects.sort(isoDepthComparatorFor(allObjects, grid.cols, grid.rows, turn))
 
   // Render each object with ASCII art style
   const playerIsTarget = !!targetId && entities.some(e => e.kind === 'player' && e.id === targetId)
@@ -536,6 +608,22 @@ export function render(params: IsoRenderParams) {
       recordUnitHit(obj.col, obj.row, p.x, footY, obj.entity.id) // pick the unit figure (foot→head)
     }
   }
+  // Each stacked tile RESTS ON its cell's FLOOR slab (MAP-MODEL §4 "stacked like legos/minecraft — height
+  // accumulates"): lift every non-floor tile by the floor tile's OWN rendered slab height, so a building / wall
+  // / prop sits ON the 0.1 grass instead of co-planar with it on the grid — the #16 report ("put directly on
+  // the grid and not on top of the grass"). The floor's DB height is stable per ground slug, so memoize
+  // slug → lift px across this frame — the hot loop pays ONE tileset lookup per distinct floor tile, not per
+  // drawn asset. A bare/cleared cell (no floor) lifts nothing, so an un-floored map is byte-identical.
+  const floorLiftBySlug = new Map<string, number>()
+  const floorLiftAt = (col: number, row: number): number => {
+    const floor = grid.floorAt(col, row)
+    if (!floor) return 0
+    const slug = floor.tileKey ?? ''
+    let lift = floorLiftBySlug.get(slug)
+    if (lift === undefined) { lift = floorSlabHeight(floor, style) * tileW * ISO_BLOCK_H_FRAC; floorLiftBySlug.set(slug, lift) }
+    return lift
+  }
+
   // ONE PASS — tiles AND units, in the single depth order `allObjects` already carries. A unit is a tile, so
   // perspective decides what covers what: a wall nearer the camera hides the figure behind it, and the figure
   // hides what stands behind IT. (Units used to draw in a separate later pass, which painted them over every
@@ -575,6 +663,10 @@ export function render(params: IsoRenderParams) {
       // into stacked cubes, decorative sprites become a lifted billboard). No-op at heightLevel 0 — every
       // generated/existing asset — so non-stacked maps are byte-identical. Mirrors the 2D raised stack.
       const stackLift = isoStackLift(tileW, obj.asset.heightLevel)
+      // …plus the cell's FLOOR slab beneath the whole stack — a non-floor tile rests ON the grass/road (0 for
+      // the floor itself, which IS the base, and for a bare cell). This is what seats a building ON the 0.1
+      // grass instead of on the grid (#16); it lifts the WHOLE stack uniformly, so no inter-tile gap changes.
+      const floorLift = obj.asset.type === FLOOR_TYPE ? 0 : floorLiftAt(obj.asset.col, obj.asset.row)
       // "z position" (per-asset zOffset): SLIDE the tile along an ISO DIAGONAL — NOT a vertical lift. zOffset is
       // the magnitude in cells; zDir picks the diagonal (default right-up), so +z slides TOWARD it (right-up =
       // up-right toward the back) and −z toward its opposite, landing on the neighbouring diamond exactly like
@@ -586,7 +678,7 @@ export function render(params: IsoRenderParams) {
       const animShiftX = anim ? anim.x * tileW : 0
       const animShiftY = anim ? anim.y * tileH : 0
       // Authored frame animation: offset/rotate/scale the asset around its cell (sway/wind).
-      const ax = p.x + zMove.dx + animShiftX, ay = p.y - heightOffset - stackLift + zMove.dy - animShiftY
+      const ax = p.x + zMove.dx + animShiftX, ay = p.y - heightOffset - stackLift - floorLift + zMove.dy - animShiftY
       const ct = assetCellTransform(obj.asset.cellAnim, time)
       if (ct) applyCellTransform(ctx, ax, ay, ct, tileW, tileH)
       const geom = drawIsoAssetAscii(ctx, ax, ay, drawAsset, tileW, tileH, time, obj.asset.type === 'tree' && (!!obj.asset.baseShadow || isGroundContact(isTreeCell, obj.asset.col, obj.asset.row)), dayNight, style)
@@ -613,6 +705,21 @@ export function render(params: IsoRenderParams) {
   ctx.globalAlpha = 1
   // (Units are drawn in the single depth-sorted loop above — no separate later pass, so perspective governs
   //  them like every other tile. No post-loop roof CAP either: the roof is per-cell stacked tiles.)
+
+  // PLAYER-CAMERA RANGE RING — the visible edge of the render range, drawn around the player. A circle of
+  // `playerViewRange` cells projects to an iso ELLIPSE: the diagonal reaches `range·√2` cells, so the screen
+  // half-width is `range·√2·tileW` and half-height `range·√2·tileH` (the 2:1 iso squash).
+  if (rangeOn) {
+    const pp = toScreen(pcol, prow)
+    const reach = playerViewRange! * Math.SQRT2
+    ctx.save()
+    ctx.lineWidth = 2
+    ctx.strokeStyle = 'rgba(120, 200, 255, 0.55)'
+    ctx.beginPath()
+    ctx.ellipse(pp.x, pp.y, reach * tileW, reach * tileH, 0, 0, Math.PI * 2)
+    ctx.stroke()
+    ctx.restore()
+  }
 
   // Attack animations (slash / shot / lightning / block) in iso space. Read-only:
   // the loop prunes finished ones (animFrame returns null past the duration).
@@ -1192,6 +1299,20 @@ export function isoStackLift(tileW: number, heightLevel: number | undefined): nu
   return (heightLevel ?? 0) * tileW * ISO_BLOCK_H_FRAC
 }
 
+/** The rendered SLAB height (in block units) of a cell's FLOOR tile — the thin base a stacked tile RESTS ON
+ *  (MAP-MODEL §4 "stacked like legos/minecraft — height accumulates"). Since the floor-as-tile refactor the
+ *  floor is a level-0 GridAsset carrying its ground tile's OWN DB height (grass/road ≈ 0.1); a wall/building
+ *  cell shares level 0 with it (stampRun), so without lifting by this the two bases were CO-PLANAR — the
+ *  building sat on the grid, not on the grass (Alexander #16). Reads the floor tile's OWN DB height the SAME
+ *  way drawIsoAssetAscii does (assetKind → DB tile → resolveTileHeight → partialBlockScale) — never a constant.
+ *  0 for a bare/cleared cell (no floor) or a non-floor asset (nothing beneath it to rest on). */
+export function floorSlabHeight(floor: GridAsset | undefined, style: Style): number {
+  if (!floor || floor.type !== FLOOR_TYPE) return 0
+  const kind = assetKind(floor)
+  const dbTile = style.id === ASCII_STYLE.id ? ASCII_TILESET.tiles[kind] : EMOJI_TILESET[kind]
+  return partialBlockScale(resolveTileHeight(dbTile, floor))
+}
+
 /** Depth order for the merged iso draw list: back-to-front by the iso key (col + row), then — for two
  *  ASSETS on the SAME cell — bottom-up by heightLevel so a brush STACK composites higher blocks OVER
  *  lower ones (matching the isoStackLift rise). A non-asset tie (entity/player/building) returns 0 to
@@ -1226,27 +1347,65 @@ export function isoDepthCompare(
   return 0
 }
 
+/** Is (col,row) within `range` cells of the player, measured RADIALLY (straight-line distance, not a box)?
+ *  The player-camera render cull uses this so what's drawn matches the circular ring drawn around the hero. */
+export function withinPlayerRange(col: number, row: number, playerCol: number, playerRow: number, range: number): boolean {
+  return Math.hypot(col - playerCol, row - playerRow) <= range
+}
+
 /** One item the iso painter sorts — the structural shape isoDepthCompare reads. */
 type IsoDepthItem = Parameters<typeof isoDepthCompare>[0]
 
-/** The back-to-front comparator for a camera at `facing`: isoDepthCompare's key is (col + row), which is a
+/** One sortable item AS THE TURNED VIEW SEES IT: its cell oriented, its span axis carried round with it, and
+ *  — the part that bites — a multi-cell span RE-ANCHORED to its backmost end. A quarter-turn can flip a span
+ *  to run backward from its stored anchor, and `isoDepthCompare` assumes the anchor IS the backmost cell, so
+ *  without this a merged ground run sorts as the nearest thing on screen and paints over what stands behind it. */
+function orientDepthItem(
+  item: IsoDepthItem,
+  orient: (col: number, row: number) => { col: number; row: number },
+  facing: Orientation,
+): IsoDepthItem {
+  const { col, row } = orient(item.col, item.row)
+  if (!item.asset) return { col, row, asset: item.asset }
+
+  const dir = item.asset.depthDir && rotateDepthDir(item.asset.depthDir, facing)
+  if (!dir || !item.asset.depth) return { col, row, asset: { ...item.asset, depthDir: dir } }
+
+  const back = spanBackmost(col, row, item.asset.depth, dir)
+  return { col: back.col, row: back.row, asset: { ...item.asset, depthDir: back.dir } }
+}
+
+/** The back-to-front comparator for a camera at `turn`: isoDepthCompare's key is (col + row), which is a
  *  VIEW-frame quantity — so under rotation it must be fed the ORIENTED coord and the ORIENTED depth axis, or
  *  the painter would occlude by the old front corner and the rotated map would draw inside-out. Each item is
  *  mapped ONCE (not per comparison, which sort calls O(n log n) times) and the mapped pair is handed to the
  *  UNCHANGED isoDepthCompare, so every rule in it (z-index priority, depth front-extent, stack tie-break) keeps
- *  working. Facing 0 returns isoDepthCompare ITSELF — same function, same sort, byte-identical frame. */
+ *  working. Turn 0 returns isoDepthCompare ITSELF — same function, same sort, byte-identical frame.
+ *
+ *  ── MID-TURN, the deliberate choice ────────────────────────────────────────────────────────────────────
+ *  `col + row` is only a valid depth ORDER at a whole quarter-turn — but it is valid for a CONTINUOUS reason:
+ *  the projection puts screen-y ∝ (viewCol + viewRow), so that sum IS the camera-depth of a cell at ANY angle.
+ *  So mid-turn we feed isoDepthCompare the FRACTIONAL oriented coords and its key becomes exactly the
+ *  continuous projected depth — the painter stays correct through the whole spin and the order flips where two
+ *  tiles genuinely reach the same screen depth, not at an arbitrary threshold.
+ *
+ *  LIMITATION: the two DISCRETE parts have no continuous form and follow the NEAREST corner — a span's
+ *  `depthDir` (one of 4 diagonals) and therefore its backmost re-anchor + `depthFrontExtent` bonus. So while a
+ *  MULTI-CELL span (a roof/merged ground run) is between corners, it is sorted by the end that will be its
+ *  backmost at the corner it is heading for. It can therefore occlude wrongly against something it overlaps
+ *  for at most half a quarter-turn of the transient. Single-cell tiles — every ordinary tile — are exact. */
 export function isoDepthComparatorFor<T extends IsoDepthItem>(
   items: readonly T[],
   cols: number,
   rows: number,
-  facing: Orientation,
+  turn: number,
 ): (a: T, b: T) => number {
-  if (facing === 0) return isoDepthCompare
+  if (turn === 0) return isoDepthCompare
+  const orient = cellOrienterFor(cols, rows, turn)
+  const facing = facingForTurn(turn)
   const inView = new Map<T, IsoDepthItem>()
   for (const item of items) {
-    const v = orientCell(item.col, item.row, cols, rows, facing)
-    const asset = item.asset && { ...item.asset, depthDir: item.asset.depthDir && rotateDepthDir(item.asset.depthDir, facing) }
-    inView.set(item, { col: v.col, row: v.row, asset })
+    inView.set(item, orientDepthItem(item, orient, facing))
   }
   return (a, b) => isoDepthCompare(inView.get(a)!, inView.get(b)!)
 }
@@ -1956,13 +2115,28 @@ export function drawIsoAssetAscii(
   // art below (labeled cells, trees, legacy buildings, props) with ONE tile. A PLACED tile's
   // override re-homes onto the active style so it RESKINS (resolveAssetDraw), never freezing to
   // the style it was picked in. ASCII + no override → adv.char '' → the byte-identical per-type draw.
-  const adv = resolveAssetDraw(assetKind(asset), style, assetOverride(asset, style), '', asset.color ?? '#ffffff')
+  let adv = resolveAssetDraw(assetKind(asset), style, assetOverride(asset, style), '', asset.color ?? '#ffffff')
   // The tile's emoji-tileset entry: per-view size/pose + the iso block-height default. Undefined under ASCII.
   const vt = style.id === 'emoji' ? EMOJI_TILESET[assetKind(asset)] : undefined
   // The tile's OWN iso block height — DATA read from the ACTIVE style's DB tile (emoji tile OR ascii tile), the
   // SAME way in both, so a flat tile's 0.1 comes from the DB everywhere and nothing is invented here. height≥1 →
   // N stacked cubes; a sub-block (flat 0.1) tile → one partial slab (partialBlockScale below).
   const dbTile = style.id === ASCII_STYLE.id ? ASCII_TILESET.tiles[assetKind(asset)] : vt
+  // A FLOOR (grass/road/water/…) resolves its baked ASCII image by KIND the SAME way emoji does via emojiStyleMap.
+  // The floor is the ONE tile whose identity is its groundKind (tileKey → assetKind), NOT a label (assetKind:254),
+  // and ASCII_STYLE.map is empty by design (a kind passes through to a glyph, so adv has NO image) — so without
+  // this an ascii floor falls to the '?' glyph though its baked grass/road tile IS in the DB (Alexander: "we don't
+  // have tiles for grass, road"). Emoji already carries the kind image in adv (its style map is populated) →
+  // kindTileImage returns undefined there, so this is ASCII-only and never overrides an existing image. The
+  // block/slab path below then draws the image at the floor's OWN DB height (`blocks` = 0.1), tinted by the cell
+  // colour — byte-identical to how emoji floors already render. `char: ''` so a not-yet-decoded PNG paints NOTHING,
+  // never the dingbat (mirrors the ground_decor/label image paths). Scoped to the floor so no per-type prop (crate
+  // /pillar/…) changes render path here — those keep their glyph until given a resolvable label, like the nature
+  // props (flower/rock/mushroom/crystal) now carry.
+  if (!adv.image && asset.type === FLOOR_TYPE) {
+    const kimg = kindTileImage(assetKind(asset), style)
+    if (kimg) adv = { ...adv, image: kimg, char: '', tint: adv.tint ?? asset.color }
+  }
   const blocks = resolveTileHeight(dbTile, asset)
   // Z-WIDTH (directional depth) is a 3D BLOCK operation: setting it declares the tile a block extruded N cells
   // along a diagonal, so the iso render MUST extrude it even at base height 0. Z-Width only changes how FAR a

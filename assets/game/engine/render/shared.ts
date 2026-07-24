@@ -9,7 +9,7 @@ import { motionPos } from '@/engine/movement'
 import { applyPose, type TilePose } from '@/engine/tileset/pose'
 import { EMOJI_TILESET } from '@/engine/tileset/emojiTileset'
 import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
-import { type TileShape } from '@/engine/tileset/tileset'
+import { resolveGroundTile, type TileShape } from '@/engine/tileset/tileset'
 import { edgeToSide, footprintRing, footprintSide, labelForCell, treeSubpart } from '@/engine/stageGenerator'
 import { terrainCaptions } from '@/engine/terrainLabels'
 import { isDead } from '@/game/combat'
@@ -27,7 +27,7 @@ export const ASCII_FONT = '"JetBrains Mono", "Fira Code", "Consolas", monospace'
 // property: on the ASCII style with NO override, resolveVisual returns the passthrough
 // sentinel, so `resolveDraw` returns the caller's OWN default char+color unchanged —
 // the fillText that follows is byte-identical to the pre-style code.
-import { resolveVisual, visualForTileId, type ElementKind, type ImageVisual, type Style, type Visual } from '@/game/artStyle'
+import { groundKind, resolveVisual, visualForTileId, type ElementKind, type ImageVisual, type Style, type Visual } from '@/game/artStyle'
 import { tileSlug } from '@/game/editor/tilePlacement'
 import { type AttackAnim, type AnimFrame } from '@/engine/attackAnimations'
 import { type TileView } from '@/engine/animation/tileAnimation'
@@ -152,6 +152,19 @@ export function labelTileImage(label: string, style: Style): ImageVisual | undef
     return et?.image ? { kind: 'image', src: et.image, char: et.char } : undefined
   }
   return ASCII_TILESET.tiles[label]?.image
+}
+
+/** The active-style baked IMAGE for a KIND-identified (label-less) tile — chiefly a FLOOR, whose identity is its
+ *  ground `tileKey` → `assetKind` (grass/road/water/…), never a label. `ASCII_STYLE.map` is EMPTY by design (a
+ *  kind passes through to a glyph), and the label→image path needs a label, so without this an ascii floor falls
+ *  to the `'?'` glyph even though its baked grass/road tile IS in the DB tileset. This resolves that DB tile's
+ *  image the SAME way emoji resolves a kind through `emojiStyleMap` — so the floor draws its picture, tinted by
+ *  its colour, exactly like emoji. EMOJI already carries the kind image in the caller's `adv` (its style map is
+ *  populated), so this is ASCII-only; a kind with no baked ascii tile → undefined (the caller keeps its glyph,
+ *  never an invented image). */
+export function kindTileImage(kind: ElementKind, style: Style): ImageVisual | undefined {
+  if (style.id !== 'ascii') return undefined
+  return ASCII_TILESET.tiles[kind]?.image
 }
 
 /** The tint to pass alongside a labelTileImage. COLOUR IS A PER-TILE SETTING that FILTERS the baked tile
@@ -583,6 +596,19 @@ export function grassShade(baseBg: string, col: number, row: number): string {
 export function cellFill(tint: string | undefined, bg: string, grassy: boolean, col: number, row: number): string {
   if (!tint) return bg
   return grassy ? grassShade(tint, col, row) : tint
+}
+
+/** The ground colour the GENERATOR/placement writes onto a floor tile as STATE (Alexander: "the generator should
+ *  put the color on the tile … no fallbacks … once stored they load"). It is the ground tile's OWN DB colour —
+ *  the terrain `bg` from the loaded tileset — per-cell shaded for grassy ground so a meadow varies. This is the
+ *  SAME value the renderers used to DERIVE per-frame (topdown's `bg`); computing it ONCE at placement and storing
+ *  it on `floor.color` moves the colour into the map state, so every view just READS `floor.color` and a floor
+ *  with no colour renders nothing — never a hardcoded fallback. Style-independent (one colour filters the tile in
+ *  every style). No terrain loaded → `resolveGroundTile` returns an empty colour, so nothing is invented. */
+export function groundTileColor(tileType: string, col: number, row: number): string {
+  const bg = resolveGroundTile(ASCII_TILESET, tileType, col, row).bg
+  const grassy = tileType.includes('grass') || groundKind(tileType) === 'cavefloor'
+  return grassy ? grassShade(bg, col, row) : bg
 }
 
 /** Draw an emoji glyph RECOLOURED toward `tint`, keeping its shape + internal shading — so one 🌲 reads

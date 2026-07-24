@@ -299,7 +299,7 @@ describe('the FLAT (bare-cell) screen↔cell pair — the editor\'s fallback whe
   // whole point of exporting it: the click and the pixels read one camera, so they cannot drift apart.
   const camFor = (facing: Orientation) => ({
     w: W, h: H, cellSize: CELL, isoScale: ISO,
-    ...isoViewFocus(PCOL, PROW, W / (2 * TILE_W), H / (2 * TILE_H), COLS, ROWS, facing, false),
+    ...isoViewFocus(PCOL, PROW, 0, 0, W / (2 * TILE_W), H / (2 * TILE_H), COLS, ROWS, facing, false),
   })
 
   test('screen→cell is the EXACT inverse of cell→screen, for every cell at every facing', () => {

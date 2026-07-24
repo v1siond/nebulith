@@ -38,6 +38,7 @@ import { type Projectile } from '@/game/projectiles'
 import { type QuestEvent, acceptQuest, recordEvent, turnIn } from '@/game/quests'
 import { BARE_HANDS, type HitMarker, type PlayerHud, type ProjectileContext, playerHudFrom, stepCombat, tickProjectiles, triggerAbility } from '@/game/runtime/combat'
 import { type PlayerState, aimFromKeys, facingFromKeys, playerDisplayName, resolveSpawnCell } from '@/game/runtime/player'
+import { moveWorldDelta, type MoveDir } from '@/game/runtime/cameraMovement'
 import { activeQuest, applyQuestEvent, questAnchorScreenPos, questForGiver, reachableQuestGiver, rewardSummary, upsertQuest } from '@/game/runtime/quest'
 import { type EnemyRuntime, isLivingEnemy, makeEnemyRuntime, RANGED_RANGE } from '@/game/runtime/targeting'
 import { ENEMY_TYPES, CAVE_ENEMY_TYPES, TEMPLE_ENEMY_TYPES, archetypeForEnemyType, scatterEntities } from '@/game/spawner'
@@ -45,6 +46,7 @@ import { type CombatState, type Entity, type EntityKind, type Inventory, type It
 import { weaponReach } from '@/game/weapons'
 import { VILLAGE_CONFIG } from '@/levels/village'
 import { Connector, TemplateListItem, createTemplate, deleteTemplate, deserializeToGrid, getTemplate, listTemplates, serializeGrid, updateTemplate, updateGame } from '@/lib/api'
+import { foldUnitData, splitUnitData } from '@/lib/unitDataPersistence'
 import { type CellTriggerGroup, ENTITY_GLYPH, cellTriggersFromAssets, cellTriggersToAssets, entitiesFromAssets, entitiesToAssets, isEntityAsset, isQuestAsset, isStyleAsset, isTriggerAsset, questsFromAssets, questsToAssets, styleFromAssets, styleToAssets, triggersAtCell } from '@/lib/gridCodec'
 import { type Trigger, type TriggerEffect, fireTriggers } from '@/game/runtime/trigger'
 import { ASCII_STYLE, type Style, type TileCategory, type TileDef, type Visual, styleById, groundKind, assetKind, entityKind, entityStyleOverride, genderize, resolveVisual, visualForTileId, tilesForStyle } from '@/game/artStyle'
@@ -52,6 +54,7 @@ import { useRouter } from 'next/router'
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
 import { render, render2D, renderTopView, clampCameraAxis, entityMotion, ENEMY_MOVE_MS, isDebugMode, setDebugMode, isShowCollisions, setShowCollisions as setCollisionsFlag, cellCaptionMap, pickIsoTilesAt, pickTwoDTilesAt, renderedTilesInRect, renderedTwoDTilesInRect, isoRecordedGeom, twoDRecordedGeom, nextPickIndex, ISO_BLOCK_H_FRAC, depthCells, tileGeomPolygon, tileGeomCentroid, tileHandlePoints, handleAtPoint, dragOutwardPx, scaleFromDrag, depthFromDrag, drawTileHandles, polyBBox, HANDLE_HIT_RADIUS, type TileHandle, type HandleId, type CompositionGhost, type DayNight, type DepthDir } from '@/engine/render'
 import { isoWorldCellToScreen, setIsoCameraFacing } from '@/engine/render/iso'
+import { groundTileColor } from '@/engine/render/shared'
 import { type Orientation } from '@/engine/render/isoOrientation'
 import { isoEditorCamera, isoEditorCellAt, isoEditorCellAnchor, type IsoEditorView } from '@/game/editor/isoEditorCamera'
 import { loadTilesetsFromBackend, saveTilesetToBackend } from '@/engine/tileset/tilesetLoader'
@@ -67,22 +70,22 @@ import { stampBuildingComposition, stampBuildingKind, stampComposition } from '@
 import { type Cursor, type JumpState, JUMP_MS, JUMP_PEAK_PX, advanceEnemyMovement, beginJump, tickCannons } from '@/game/runtime/movement'
 import { playSwoosh } from '@/game/runtime/audio'
 import { Card, EntityToolButton, ViewButton } from '@/components/game/controls'
-import { CameraRotateButton } from '@/components/game/cameraControls'
+import { CameraRotateButton, PlayerRangeControl, normalizePlayerViewRange, panKeepingCenter } from '@/components/game/cameraControls'
 import { AbilityBar, CombatHud, QuestHud } from '@/components/game/hud'
 import { EquipmentPanel, InventoryCard, QuestAuthoringCard, QuestLogPanel } from '@/components/game/panels'
-import { ConnectorsPanelBody, EntityAttackBody, FloatingPanel, Modal, QuestGiveBody, SettingsPanelBody, UnitSettingsSection, UnitStatsBody } from '@/components/game/modals'
+import { buildUnitModel, ConnectorsPanelBody, EntityAttackBody, FloatingPanel, Modal, QuestGiveBody, SettingsPanelBody, UnitSettingsSection, UnitStatsBody } from '@/components/game/modals'
 import { FlowViewOverlay, GamesViewOverlay } from '@/components/game/games'
 import { type BuildingTool, type EditorMode, type EntityTool } from '@/components/game/editorConfig'
 import { useDayNight, useFloatingPanels, useIsMobile } from '@/components/game/editorHooks'
 import { CompositionPalette, Dropdown, FpsReadout, GenerateControls, PoseControls, PropertiesPanel, type TileControlModel, SelectionHeader, StylePicker, TileAnimationEditor, TileLibraryBody, TilePalette, ToolRail, TriggerEditor, UnitPicker, WEAPON_KINDS } from '@/components/game/editorChrome'
 import type { Animation as TileAnim } from '@/engine/animation/tileAnimation'
 import { useFps, useRenderMs } from '@/components/useFps'
-import { commonValue, commonBool, cellsFromKeys, removeSelectedBlock } from '@/game/editor/selectionEdit'
+import { commonValue, commonBool, cellsFromKeys, removeSelectedBlock, resolveSelectionTargets } from '@/game/editor/selectionEdit'
 import { editMap } from '@/game/editor/mapEdit'
 import { applyRectSelection, applyCellSelection, blockKeyForPick } from '@/game/editor/selection'
 import { copyTiles, pasteTiles, type TileClip } from '@/game/editor/clipboard'
 import { entityKindForUnitSlug, placementFor, tileSlug } from '@/game/editor/tilePlacement'
-import { clearGroundTile, placeGroundTile, removeTopAsset, removeAssetAtLevel, stackAssetTile } from '@/game/editor/tileBrush'
+import { clearGroundTile, placeGroundTile, removeTopAsset, removeAssetAtLevel, stackAssetTile, replaceTileInPlace } from '@/game/editor/tileBrush'
 import { connectorEditFromSelection } from '@/game/editor/connectors'
 import { useEditorHistory } from '@/game/editor/useEditorHistory'
 
@@ -218,6 +221,12 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   // carries it into the once-mounted RAF loop. Only ISO rotates — 2D/Top have no rotation.
   const [cameraFacing, setCameraFacing] = useState<Orientation>(0)
   const cameraFacingRef = useRef<Orientation>(0)
+
+  // PLAYER-CAMERA RANGE (iso only): the radius in cells the iso render culls to (drawing a ring at the edge).
+  // DEFAULT OFF (undefined = today's full-window render, no regression). React owns it (the nav control sets it);
+  // a ref carries it into the once-mounted RAF loop, like cameraFacing. Not persisted yet — a follow-up.
+  const [playerViewRange, setPlayerViewRange] = useState<number | undefined>(undefined)
+  const playerViewRangeRef = useRef<number | undefined>(undefined)
 
   // Stage generator: selected zone (the variant is chosen per click)
   const [genZone, setGenZone] = useState<ZoneId>('spring')
@@ -429,6 +438,9 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   const [loadouts, setLoadouts] = useState<Record<string, Loadout>>({})
   const [inventoryOpen, setInventoryOpen] = useState(false)
   const inventoryRef = useRef<Inventory>(inventory)
+  // Mirror the whole loadout map for the save path (which reads refs, not state), so a save folds every
+  // unit's CURRENT gear onto its entity (lib/unitDataPersistence.foldUnitData).
+  const loadoutsRef = useRef<Record<string, Loadout>>(loadouts)
   // Talent path / archetype: warrior fights with a sword/axe, magician with a staff.
   const [talentPath, setTalentPath] = useState<TalentPath>('warrior')
   const enemyRuntimeRef = useRef<EnemyRuntime>(makeEnemyRuntime())
@@ -487,6 +499,28 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     cameraFacingRef.current = cameraFacing
     setIsoCameraFacing(cameraFacing)
   }, [cameraFacing])
+
+  // Rotate the camera and KEEP THE VIEW ANCHORED: rotate the pan by the facing delta so the world point you
+  // were looking at stays centred (the map turns around it, no jump). Pure math in `panKeepingCenter`.
+  const rotateCameraTo = (to: Orientation) => {
+    const p = panKeepingCenter(camOffsetRef.current, cameraFacingRef.current, to)
+    camOffsetRef.current = p
+    setCamOffset(p)
+    setCameraFacing(to)
+  }
+
+  // Carry the player-camera range into the RAF loop's ref, and expose the same debug seam idiom as the camera
+  // facing (`window.__setPlayerViewRange(n)` / `__playerViewRange()`): a Playwright/QA probe can set or read the
+  // range without touching the DOM control. A non-positive/invalid `n` turns it OFF (undefined = full render).
+  useEffect(() => {
+    playerViewRangeRef.current = playerViewRange
+    const win = window as unknown as {
+      __setPlayerViewRange?: (n: number | undefined | null) => number | undefined
+      __playerViewRange?: () => number | undefined
+    }
+    win.__setPlayerViewRange = (n) => { const next = normalizePlayerViewRange(n); setPlayerViewRange(next); return next }
+    win.__playerViewRange = () => playerViewRangeRef.current
+  }, [playerViewRange])
 
   // UI panels — sidebars are collapsible on mobile to free up canvas space
   const [showSidebars, setShowSidebars] = useState(true)
@@ -702,10 +736,32 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     playerWeaponRef.current = inventory.equippedWeapon ?? BARE_HANDS
   }, [inventory])
 
+  // Auto-save unit gear: "all interactions with the objects that can be picked and added to inventory
+  // trigger a database save" (Alexander). Every equip/unequip/drop/reorder mutates `loadouts`/`inventory`,
+  // so a debounced effect folds the live gear onto the entities and PATCHes JUST the `entities` field — a
+  // targeted write, not a full grid re-save. Only fires once a stage is saved (needs an id to patch), and
+  // skips the fire the load-restore itself provokes (suppressUnitAutoSaveRef).
+  const suppressUnitAutoSaveRef = useRef(false)
+  useEffect(() => {
+    if (suppressUnitAutoSaveRef.current) {
+      suppressUnitAutoSaveRef.current = false
+      return
+    }
+    const id = currentTemplateId
+    if (!id) return // nothing to patch until the stage has been saved once
+    const handle = setTimeout(() => {
+      updateTemplate(id, { entities: foldUnitData(entitiesRef.current, loadouts, inventory) }).catch(err =>
+        console.error('Failed to auto-save unit gear:', err),
+      )
+    }, 600)
+    return () => clearTimeout(handle)
+  }, [loadouts, inventory, currentTemplateId])
+
   // Player LOADOUT → combat refs: the equipped weapon, a shield's block%, and gear
   // stat bonuses (str/int/defense/dodge) feed the live fight, so equipping in the
   // inventory panel actually changes how you play.
   useEffect(() => {
+    loadoutsRef.current = loadouts // keep the save/auto-save fold reading the live map
     const pl = loadouts['__player__'] ?? seededPlayerLoadout()
     const weapons = [pl.equipped.weapon1, pl.equipped.weapon2].flatMap(i =>
       i && i.slot === 'weapon' ? [i.weapon] : [],
@@ -1717,6 +1773,20 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   // heightLevel — so the inspector's per-tile index maps to the right asset on both read and write.
   const stackedAssetsAt = (grid: IsometricGrid, col: number, row: number): GridAsset[] =>
     [...grid.getAssetsAtCell(col, row)].sort((a, b) => (a.heightLevel ?? 0) - (b.heightLevel ?? 0))
+  // Fan a per-TILE edit over the selection, resolving EACH selection key to its OWN stack slot — the fix for
+  // "edits changed the tile at the bottom instead of the one selected" (#2). A "col,row,stackIndex" key edits
+  // that exact tile; a bare "col,row" key (a flat rectangle drag) falls back to `fallbackI` (the inspector's
+  // selectedTileLevel). So a multi-select edits each cell's SELECTED tile — never one global level forced onto
+  // every cell. Mirrors removeSelectedBlock's per-key resolution; supersedes the old "i-th tile of every cell".
+  const applyToSelectedTiles = (fallbackI: number, apply: (asset: GridAsset) => void) => {
+    const grid = gridRef.current
+    if (!grid) return
+    for (const { col, row, index } of resolveSelectionTargets(selectedCells, fallbackI)) {
+      const asset = stackedAssetsAt(grid, col, row)[index]
+      if (asset) apply(asset)
+    }
+    bumpBuildingVersion()
+  }
   // Per-tile sprite scale (#77/#78): Width/Height/Depth are per-axis, Zoom is uniform. Dispatch the UI
   // axis to the asset field it writes; the renderers read these back per view (assetDimensions.ts).
   const DIM_FIELD = { width: 'scaleX', height: 'scaleY', depth: 'scaleZ', zoom: 'scale' } as const
@@ -1730,57 +1800,53 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     return resolveTileHeight(dbTile, a) * (a.scaleY ?? 1)
   }
   const setAssetDim = (i: number, axis: keyof typeof DIM_FIELD, v: number) =>
-    applyToSelectedCells((col, row, grid) => {
-      const a = stackedAssetsAt(grid, col, row)[i]; if (!a) return
+    applyToSelectedTiles(i, (a) => {
       // "Height" edits the tile's BLOCK-HEIGHT (asset.height) directly and resets the scaleY multiplier to 1 —
       // one number, the data. Width/Depth/Zoom keep their own scale fields.
       if (axis === 'height') { a.height = v; a.scaleY = undefined }
       else a[DIM_FIELD[axis]] = v
     })
   const setAssetColor = (i: number, color: string) =>
-    applyToSelectedCells((col, row, grid) => { const a = stackedAssetsAt(grid, col, row)[i]; if (a) a.color = color })
+    applyToSelectedTiles(i, (a) => { a.color = color })
   // Clear the i-th stacked tile's colour override → fall back to the tile's own resolved colour. The "↺ reset"
   // affordance the base/floor tile shows; the floor is a plain asset, so it clears like any other tile.
   const clearAssetColor = (i: number) =>
-    applyToSelectedCells((col, row, grid) => { const a = stackedAssetsAt(grid, col, row)[i]; if (a) a.color = undefined })
+    applyToSelectedTiles(i, (a) => { a.color = undefined })
   // "Z Width" (directional depth): the i-th stacked TILE spans `cells` blocks along asset.depthDir, extruded as
   // a long iso box (isoDepthBox). A box needs a direction to grow — default to 'right-up' ("right top", the
   // user's Image #28 arrow) when raising it past 1 with none set, so the extrusion shows immediately.
   const setAssetDepth = (i: number, cells: number) =>
-    applyToSelectedCells((col, row, grid) => {
-      const a = stackedAssetsAt(grid, col, row)[i]; if (!a) return
+    applyToSelectedTiles(i, (a) => {
       a.depth = Math.max(1, Math.round(cells))
       if (a.depth > 1 && !a.depthDir) a.depthDir = 'right-up'
     })
   const setAssetDepthDir = (i: number, dir: DepthDir) =>
-    applyToSelectedCells((col, row, grid) => { const a = stackedAssetsAt(grid, col, row)[i]; if (a) a.depthDir = dir })
+    applyToSelectedTiles(i, (a) => { a.depthDir = dir })
   // PER-ASSET pose (x/y/rotate/flip) and "z position" (ISO-DIAGONAL slide) — written to THIS placed tile
   // (persists with the map), not the shared tileset kind. The render reads asset.pose / asset.zOffset / asset.zDir
   // in every view.
   const setAssetPose = (i: number, pose: TilePose | undefined) =>
-    applyToSelectedCells((col, row, grid) => { const a = stackedAssetsAt(grid, col, row)[i]; if (a) a.pose = pose })
+    applyToSelectedTiles(i, (a) => { a.pose = pose })
   // "z position": SLIDE the tile along an iso diagonal (NOT a vertical lift). Default the direction to 'right-up'
   // ("right top", the user's +z = up-right) the first time z is set with none, so the slide has a direction to
   // move along immediately — mirrors setAssetDepth defaulting depthDir when depth grows past 1.
   const setAssetZOffset = (i: number, v: number) =>
-    applyToSelectedCells((col, row, grid) => {
-      const a = stackedAssetsAt(grid, col, row)[i]; if (!a) return
+    applyToSelectedTiles(i, (a) => {
       a.zOffset = v
       if (v !== 0 && !a.zDir) a.zDir = 'right-up'
     })
   const setAssetZDir = (i: number, dir: DepthDir) =>
-    applyToSelectedCells((col, row, grid) => { const a = stackedAssetsAt(grid, col, row)[i]; if (a) a.zDir = dir })
+    applyToSelectedTiles(i, (a) => { a.zDir = dir })
   // PER-ASSET "z-index" (draw-priority, CSS z-index style) — a higher value draws on top / in front, overriding
   // the positional depth sort. Written to THIS placed tile (persists with the map); the render reads asset.zIndex.
   const setAssetZIndex = (i: number, v: number) =>
-    applyToSelectedCells((col, row, grid) => { const a = stackedAssetsAt(grid, col, row)[i]; if (a) a.zIndex = Math.round(v) })
+    applyToSelectedTiles(i, (a) => { a.zIndex = Math.round(v) })
   // PER-ASSET "display" mode (all-faces / single) — how the tile is painted on its block. Written into THIS
   // placed tile's `settings` (persists with the map via the full-asset serialize) alongside the generic
   // fade/cutaway keys; the render reads asset.settings.display. 'all-faces' clears the key so a reset stays
   // byte-identical to a tile that never opted in.
   const setAssetDisplay = (i: number, mode: TileDisplay) =>
-    applyToSelectedCells((col, row, grid) => {
-      const a = stackedAssetsAt(grid, col, row)[i]; if (!a) return
+    applyToSelectedTiles(i, (a) => {
       const rest = { ...(a.settings ?? {}) }
       if (mode === 'single') a.settings = { ...rest, display: 'single' }
       else { delete rest.display; a.settings = rest }
@@ -1790,8 +1856,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   // Written to THIS placed tile's `settings` (persists via the full-asset serialize); off clears the key so a
   // reset stays byte-identical to a tile that never opted in.
   const setAssetTransparent = (i: number, on: boolean) =>
-    applyToSelectedCells((col, row, grid) => {
-      const a = stackedAssetsAt(grid, col, row)[i]; if (!a) return
+    applyToSelectedTiles(i, (a) => {
       const rest = { ...(a.settings ?? {}) }
       if (on) a.settings = { ...rest, transparent: true }
       else { delete rest.transparent; a.settings = rest }
@@ -1800,8 +1865,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   // via the full-asset serialize, like scaleX/pose). The render dispatches on asset.shape in every view.
   // 'square' clears the field so a reset stays byte-identical to a tile that never opted in (like Display).
   const setAssetShape = (i: number, shape: TileShape) =>
-    applyToSelectedCells((col, row, grid) => {
-      const a = stackedAssetsAt(grid, col, row)[i]; if (!a) return
+    applyToSelectedTiles(i, (a) => {
       if (shape === 'square') delete a.shape
       else a.shape = shape
     })
@@ -1809,8 +1873,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   // written to THIS placed tile (persists with the map via the full-asset serialize, like shape). Fans out to
   // the i-th stacked tile of every selected cell. Passing `undefined` clears the setting (back to no pool).
   const setAssetLight = (i: number, light: AssetLight | undefined) =>
-    applyToSelectedCells((col, row, grid) => {
-      const a = stackedAssetsAt(grid, col, row)[i]; if (!a) return
+    applyToSelectedTiles(i, (a) => {
       if (light) a.light = light
       else delete a.light
     })
@@ -1820,8 +1883,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   // same anchor the composition-default fountain uses. An empty list clears the key so a reset stays
   // byte-identical to a tile that never opted in.
   const setAssetAnimations = (i: number, animations: TileAnim[]) =>
-    applyToSelectedCells((col, row, grid) => {
-      const a = stackedAssetsAt(grid, col, row)[i]; if (!a) return
+    applyToSelectedTiles(i, (a) => {
       if (animations.length) { a.animations = animations; if (a.placedAt == null) a.placedAt = 0 }
       else { delete a.animations }
     })
@@ -2673,6 +2735,23 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     bumpBuildingVersion()
   }
 
+  /** Deliverable #1 (Image #15) — the Inspector's "Replace tile" must SWAP the selected tile IN PLACE, not stack
+   *  a new one on top like the paint brush. For each selected tile (resolved PER KEY to its OWN stack slot, the
+   *  same per-key resolution the settings edits use), replaceTileInPlace swaps that exact tile for the picked one
+   *  — tiles above/below untouched, stack height unchanged. The one case it can't swap in place — a NON-terrain
+   *  tile picked while the FLOOR slab is the selected slot — it refuses, and we fall back to the paint path so the
+   *  tile still lands (an "add"). Snapshots history so Ctrl+Z reverts, and keeps the selection so you can keep
+   *  editing. */
+  const replaceTileOnSelection = (tile: TileDef) => {
+    const grid = gridRef.current
+    if (!grid || selectedCells.size === 0) return
+    checkpointHistory()
+    for (const { col, row, index } of resolveSelectionTargets(selectedCells, selectedTileLevelRef.current)) {
+      if (!replaceTileInPlace(grid, col, row, index, tile)) placeArmedTileAt(col, row, tile) // floor+block edge → stack
+    }
+    bumpBuildingVersion()
+  }
+
   /** Deliverable #1 — CLEAR every tile off the selected cell(s) so they go BARE: pop each stacked asset via
    *  the SAME erase primitive ⌥Alt-click uses (`removeTopAsset`, which re-derives collision) AND clear the
    *  cell's GROUND/floor tile (a road/terrain/plaza is a floor tile too — `clearGroundTile` resets it to the
@@ -3449,7 +3528,11 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   const applyStageToGrid = (stage: StageData, grid: IsometricGrid, buildingSalt = 0) => {
     for (let r = 0; r < grid.rows; r++) {
       for (let c = 0; c < grid.cols; c++) {
-        grid.setGround(c, r, stage.ground[r]?.[c] ?? 'ash')
+        // The generator OWNS the ground colour: it writes each floor tile's colour as STATE (picked from the
+        // ground tile's DB colour via groundTileColor), so every view READS floor.color and nothing is derived
+        // or hardcoded at render. A cell the generator left blank gets NO floor (empty) — never an 'ash' fallback.
+        const kind = stage.ground[r]?.[c]
+        if (kind) grid.setGround(c, r, kind, groundTileColor(kind, c, r))
         grid.setHeight(c, r, 0)
         grid.setCollision(c, r, !!stage.collision[r]?.[c])
       }
@@ -3457,7 +3540,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     grid.clearAssets()
     const paint = stagePaint(stage)
     for (const g of paint.ground) {
-      if (g.col >= 0 && g.col < grid.cols && g.row >= 0 && g.row < grid.rows) grid.setGround(g.col, g.row, g.type)
+      if (g.col >= 0 && g.col < grid.cols && g.row >= 0 && g.row < grid.rows) grid.setGround(g.col, g.row, g.type, groundTileColor(g.type, g.col, g.row))
     }
     // Pin each generated prop to the SAME curated catalog tile the palette brush uses, per zone + role
     // (trees, flowers, floor-litter, rocks, mushrooms) — instead of the generic per-kind EMOJI_TILESET
@@ -4641,55 +4724,26 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
 
       const mkeys: Record<string, boolean> = keys
 
-      if (use2DMovement) {
-        // 2D/Top view: simple grid movement (up=north, down=south, etc.)
-        if (mkeys['ArrowUp'] || mkeys['w']) {
-          newZ -= speed
-          player.facing = 'up'
-          player.moving = true
-        }
-        if (mkeys['ArrowDown'] || mkeys['s']) {
-          newZ += speed
-          player.facing = 'down'
-          player.moving = true
-        }
-        if (mkeys['ArrowLeft'] || mkeys['a']) {
-          newX -= speed
-          player.facing = 'left'
-          player.moving = true
-        }
-        if (mkeys['ArrowRight'] || mkeys['d']) {
-          newX += speed
-          player.facing = 'right'
-          player.moving = true
-        }
-      } else {
-        // Isometric view: diagonal movement
-        const diagSpeed = speed * 0.707
-        if (mkeys['ArrowUp'] || mkeys['w']) {
-          newX -= diagSpeed
-          newZ -= diagSpeed
-          player.facing = 'up'
-          player.moving = true
-        }
-        if (mkeys['ArrowDown'] || mkeys['s']) {
-          newX += diagSpeed
-          newZ += diagSpeed
-          player.facing = 'down'
-          player.moving = true
-        }
-        if (mkeys['ArrowLeft'] || mkeys['a']) {
-          newX -= diagSpeed
-          newZ += diagSpeed
-          player.facing = 'left'
-          player.moving = true
-        }
-        if (mkeys['ArrowRight'] || mkeys['d']) {
-          newX += diagSpeed
-          newZ -= diagSpeed
-          player.facing = 'right'
-          player.moving = true
-        }
+      // Controls are SCREEN-fixed: up always moves toward the top of the screen, at any camera rotation.
+      // The camera only rotates the VIEW — `moveWorldDelta` turns the key's screen direction into the world
+      // delta that lands there for the current `cameraFacing` (iso only; 2D/top don't rotate). So rotating the
+      // camera never changes how the player moves.
+      const iso = !use2DMovement
+      const step = iso ? speed * 0.707 : speed // iso keys are diagonal unit vectors (√2) → 0.707 nets `speed`
+      const facing = cameraFacingRef.current
+      const pressed: [boolean, MoveDir][] = [
+        [!!(mkeys['ArrowUp'] || mkeys['w']), 'up'],
+        [!!(mkeys['ArrowDown'] || mkeys['s']), 'down'],
+        [!!(mkeys['ArrowLeft'] || mkeys['a']), 'left'],
+        [!!(mkeys['ArrowRight'] || mkeys['d']), 'right'],
+      ]
+      for (const [down, dir] of pressed) {
+        if (!down) continue
+        const [dc, dr] = moveWorldDelta(dir, facing, iso)
+        newX += dc * step
+        newZ += dr * step
+        player.facing = dir
+        player.moving = true
       }
       // Running = actually moving with Shift down (drives the 🏃 run frame; idle/still → not running).
       player.running = running && player.moving
@@ -4968,6 +5022,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
           hoveredCell: hoveredCellRef.current,
           ghost: ghostRef.current, // armed-composition placement shadow (iso footprint + massing)
           cameraFacing: cameraFacingRef.current, // #75 — the corner the nav's ↻ Rotate button turned to
+          playerViewRange: playerViewRangeRef.current, // nav Range control — undefined = full render, no cull
         })
         drawSelectedTileHandles(ctx) // resize grips on the selected tile (reads the frame's recorded silhouette)
       }
@@ -5083,13 +5138,19 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     try {
       const { groundData, heightData, assetsData } = serializeGrid(grid)
 
+      // Fold every unit's LOADOUT (+ the hero's INVENTORY) onto its entity BEFORE serializing, so a
+      // unit's gear rides the unit ("everything is data; what a unit HAS is data"). The folded entities
+      // feed BOTH the entities field AND the assets rider, so equip/drop/reorder persist whichever channel
+      // load reads (lib/unitDataPersistence).
+      const entitiesToSave = foldUnitData(entitiesRef.current, loadoutsRef.current, inventoryRef.current)
+
       // Entities AND quests have no field in the template schema (api.ts is
       // read-only here), so they ride alongside the assets as marked records and
       // are split back out on load. This keeps both persistent without touching
       // the API layer. NPC↔quest links survive via each entity's own questId.
       const assetsWithEntities = [
         ...assetsData,
-        ...entitiesToAssets(entities),
+        ...entitiesToAssets(entitiesToSave),
         ...questsToAssets(quests),
         ...styleToAssets(activeStyleId), // active art style rides as one off-grid marker (ASCII → none)
         ...cellTriggersToAssets(cellTriggers), // cell triggers (enter/interact) ride as off-grid markers
@@ -5105,7 +5166,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
           heightData,
           assetsData: assetsWithEntities,
           connectors,
-          entities: entitiesRef.current,
+          entities: entitiesToSave,
           quests: questsRef.current,
           cols: grid.cols,
           rows: grid.rows,
@@ -5122,7 +5183,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
           heightData,
           assetsData: assetsWithEntities,
           connectors,
-          entities: entitiesRef.current,
+          entities: entitiesToSave,
           quests: questsRef.current,
           cols: grid.cols,
           rows: grid.rows,
@@ -5131,6 +5192,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
           spawnCol: Math.floor(playerRef.current.x / grid.cellSize),
           spawnRow: Math.floor(playerRef.current.z / grid.cellSize),
         })
+        suppressUnitAutoSaveRef.current = true // the create already saved the gear; don't immediately re-patch it
         setCurrentTemplateId(created.id)
         savedTemplateId = created.id
       }
@@ -5231,6 +5293,13 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       setConnectors((template.connectors || []).map(normalizeConnector))
       setEntities(withSeededPersonAnimations(template.entities ?? []))
       setQuests(template.quests ?? [])
+      // Split each unit's persisted LOADOUT (+ the hero's INVENTORY) back out of the entities into the
+      // editor's maps, so equip/drop/reorder show up exactly as they were saved (order included). Only
+      // restore the inventory when the save carried one (older saves keep the current starter bag).
+      const restoredUnitData = splitUnitData(template.entities ?? [])
+      suppressUnitAutoSaveRef.current = true // this restore must not re-trigger a save of what we just loaded
+      setLoadouts(restoredUnitData.loadouts)
+      if (restoredUnitData.playerInventory) setInventory(restoredUnitData.playerInventory)
       // Older saves may have no player entity → mint one at the spawn so the player
       // is still a clickable, vitals-showing entity. A saved player is kept as-is.
       const landedCell = livePlayerCell()
@@ -5646,7 +5715,8 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
           </div>
           {/* ↻ Rotate — swing the iso camera one quarter-turn so a different side of the map faces you. ISO
               only: 2D (front elevation) and Top (footprint) have no camera to rotate. */}
-          {activeView === 'iso' && <CameraRotateButton facing={cameraFacing} onFacing={setCameraFacing} />}
+          {activeView === 'iso' && <CameraRotateButton facing={cameraFacing} onFacing={rotateCameraTo} />}
+          {activeView === 'iso' && <PlayerRangeControl range={playerViewRange} onRange={setPlayerViewRange} />}
           <span className="mx-1 h-5 w-px shrink-0 bg-white/15" />
           {/* ⚡ Generate — the stage-preset zone/variant controls as a dropdown */}
           <Dropdown
@@ -5930,7 +6000,6 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
               if (selEntity) {
                 const isPlayer = selEntity.kind === 'player'
                 const isEnemy = selEntity.kind === 'enemy'
-                const isNpc = selEntity.kind === 'npc'
                 // The player's held EMOJI weapon is pose-driven — tunable right here so the sword/bow etc.
                 // orientation is fixed live in-hand (poses are emoji-only, so gate on a non-ASCII style).
                 // Read the ACTUALLY-held weapon (playerWeaponRef — the same source the render draws in-hand;
@@ -5977,6 +6046,10 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                   onPose: p => patchSelectedEntity({ pose: p }),
                   onPoseReset: () => patchSelectedEntity({ pose: undefined }),
                   onOpenAnimator: () => setAnimEditorOpen(true),
+                  // The old unit card listed the authored animations inline; the unified card's vocabulary
+                  // for that is the Animate button's COUNT, so feed it the SAME unified list the modal edits
+                  // (a unit minted before `unitAnimations` bridges from its legacy sprite list).
+                  animations: selEntity.unitAnimations ?? unitAnimationsFromEntity(selEntity.animations),
                 }
                 return (
                   <>
@@ -6015,18 +6088,18 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                         onRemove={deleteSelectedEntity}
                         unitSection={
                           <div className="space-y-3">
-                            {/* name + size rows and the entry buttons a tile never has: stats, inventory
-                                (player), quests (NPC), attacks (enemy) — each opens its own draggable modal. */}
+                            {/* name + size rows and the entry buttons a tile never has. `buildUnitModel` owns
+                                which kind gets which: stats + inventory are UNIVERSAL, quests is the NPC's and
+                                attacks the enemy's. Each opens its own modal. */}
                             <UnitSettingsSection
-                              unit={{
-                                entity: selEntity,
+                              unit={buildUnitModel(selEntity, {
                                 onPatch: patchSelectedEntity,
                                 onSize: setSelectedEntitySize,
-                                onOpenStats: () => setUnitStatsOpen(true),
-                                onOpenInventory: isPlayer ? () => setEntityModal('inventory') : undefined,
-                                onOpenQuests: isNpc ? () => { if (selEntity.kind !== 'enemy') setQuestDraft(d => ({ ...d, giverId: selEntity.id })); setEntityModal('quests') } : undefined,
-                                onOpenAttacks: isEnemy ? () => setUnitAttacksOpen(true) : undefined,
-                              }}
+                                openStats: () => setUnitStatsOpen(true),
+                                openInventory: () => setEntityModal('inventory'),
+                                openQuests: () => { setQuestDraft(d => ({ ...d, giverId: selEntity.id })); setEntityModal('quests') },
+                                openAttacks: () => setUnitAttacksOpen(true),
+                              })}
                             />
                             {isPlayer && <CombatHud hud={playerHud} />}
                             {heldWeaponKind && EMOJI_TILESET[heldWeaponKind] && (
@@ -6485,12 +6558,20 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
             : cellPaint
             ? (selectedCells.size > 1 ? `${selectedCells.size} cells` : 'cell')
             : null
-          // For a cell selection, picking a tile PAINTS it (resolve the TileDef by id, then reuse the left
-          // paint path); for a unit it pins the figure override.
+          // For a cell selection, picking a tile lands it by the SAME state that NAMES the button (§13): once the
+          // focus cell holds a stacked tile the button reads "Replace tile", so the pick SWAPS the selected tile in
+          // place (replaceTileOnSelection); on a bare / floor-only cell it reads "Add tile" and STACKS as before
+          // (paintTileOnSelection). Distinguished by the focus cell's stack depth — no new mode. (A unit pins the
+          // figure override — handled by setSelectionOverride, not this.)
           const paintFromLibrary = (tileId: string | null) => {
             if (!tileId) return
             const picked = (Object.values(tilesForStyle(activeStyleId)).flat() as TileDef[]).find(t => t.id === tileId)
-            if (picked) paintTileOnSelection(picked)
+            if (!picked) return
+            const grid = gridRef.current
+            const fc = cellsFromKeys(selectedCells)[0]
+            const filled = !!grid && !!fc && getStack(grid, fc.col, fc.row, { entities }).length > 1
+            if (filled) replaceTileOnSelection(picked)
+            else paintTileOnSelection(picked)
           }
           return (
             <FloatingPanel title={`Tile Library — ${activeStyle.name}${scope ? ` · ${scope}` : ''}`} accent="cyan" onClose={close} {...floatingProps('tileLibrary', { w: 420, h: 520 })}>
@@ -6513,19 +6594,32 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
         })()}
 
         {/* LIBRARY modals — the per-element SETTINGS moved inline into the Inspector;
-            these two stay modal (the player equipment/abilities + the NPC quest authoring). */}
+            these two stay modal (the unit's equipment/abilities + the NPC quest authoring). */}
         {entityModal && (() => {
           const selected = entities.find(e => e.id === selectedEntityId)
           if (!selected) return null
           const who = selected.name || selected.kind
           const close = () => setEntityModal(null)
           if (entityModal === 'inventory') {
+            // The carried BAG + live vitals belong to the hero alone — he is the one unit with a combat
+            // state and an item bag. Every OTHER unit carries a loadout (weapon / armour / abilities), which
+            // the equipment panel already edits per entity (`loadouts[selectedEntityId]`), so the entry point
+            // is the same for all of them and only the bag section is the player's.
+            const carriesItemBag = selected.kind === 'player'
             return (
-              <Modal title={`${who} — Inventory`} accent="cyan" wide onClose={close}>
-                <CombatHud hud={playerHud} />
-                <div className="mt-3">
-                  <InventoryCard inventory={inventory} talentPath={talentPath} onEquip={equipItem} onUse={useItem} onSetClass={setArchetype} />
-                </div>
+              <Modal title={`${who} — Inventory & abilities`} accent="cyan" wide onClose={close}>
+                {carriesItemBag ? (
+                  <>
+                    <CombatHud hud={playerHud} />
+                    <div className="mt-3">
+                      <InventoryCard inventory={inventory} talentPath={talentPath} onEquip={equipItem} onUse={useItem} onSetClass={setArchetype} />
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-xs text-gray-400">
+                    {who} carries a loadout — weapon, armour and abilities. The carried item bag is the hero&apos;s alone.
+                  </p>
+                )}
                 <button
                   onClick={() => { close(); setInventoryOpen(true) }}
                   className="mt-3 w-full rounded bg-cyan-700 px-2 py-1.5 text-xs font-bold hover:bg-cyan-600"

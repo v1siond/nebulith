@@ -18,6 +18,11 @@
  *
  * Screen sanity-check for "CW": rotating an image CW sends TL→TR→BR→BL→TL. For a 5×3 grid, world TL (0,0)
  * lands at view (2,0) = the top-RIGHT of the swapped 3×5 view. That is a clockwise turn. ✓
+ *
+ * ─── The CONTINUOUS superset ──────────────────────────────────────────────────────────────────────────
+ * This module owns the four CORNERS — exact integer maths, the camera's resting states. The animated spin
+ * BETWEEN corners lives in `isoTurn.ts`, which delegates straight back here at every whole quarter-turn, so a
+ * settled camera never touches a float path.
  */
 
 /** Camera corner / quarter-turns CW. 0 = the current default iso view. */
@@ -27,6 +32,9 @@ export type Orientation = 0 | 1 | 2 | 3
  *  This is the single geometric primitive both orient and deorient are built from, so the inverse is
  *  provably exact (four turns = identity). Mirrors buildingCatalog.rotateOffsetCW so facing composes. */
 function quarterTurnCW(col: number, row: number, w: number, h: number): { col: number; row: number; w: number; h: number } {
+  // Worked example, w×h = 5×3: (0,0) → (h−1−0, 0) = (2,0); (4,0) → (2,4); (0,2) → (0,0); (4,2) → (0,4).
+  // The old row becomes the new col; the old col becomes the new row FLIPPED (h−1−…) — a rigid CW turn, not a
+  // transpose+mirror by accident: the flip is what keeps the four corners on the grid instead of off its edge.
   return { col: h - 1 - row, row: col, w: h, h: w }
 }
 

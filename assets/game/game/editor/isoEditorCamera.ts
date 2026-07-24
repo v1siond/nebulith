@@ -45,9 +45,9 @@ function tileHalfHeight(v: IsoEditorView): number {
 export function isoEditorCamera(v: IsoEditorView): IsoFlatCamera {
   const pPad = v.canvasW / (2 * v.cellSize * v.isoScale * 0.71)
   const qPad = v.canvasH / (2 * v.cellSize * v.isoScale * 0.36)
-  const rawFc = (v.playerX - v.camOffsetX) / v.cellSize
-  const rawFr = (v.playerZ - v.camOffsetY) / v.cellSize
-  const { fc, fr } = isoViewFocus(rawFc, rawFr, pPad, qPad, v.cols, v.rows, v.facing, v.clampCamera)
+  // Same split as the render: orient the player focus, apply the pan (camOffset) un-rotated — so a click
+  // resolves to the same cell whatever the camera facing, and the pan never spins the picker either.
+  const { fc, fr } = isoViewFocus(v.playerX / v.cellSize, v.playerZ / v.cellSize, v.camOffsetX / v.cellSize, v.camOffsetY / v.cellSize, pPad, qPad, v.cols, v.rows, v.facing, v.clampCamera)
   return { w: v.canvasW, h: v.canvasH, cellSize: v.cellSize, isoScale: v.isoScale, fc, fr }
 }
 
