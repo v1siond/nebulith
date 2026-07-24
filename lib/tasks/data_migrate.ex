@@ -8,7 +8,11 @@ defmodule Mix.Tasks.DataMigrate do
   """
   use Mix.Task
 
+  alias Nebulith.DataMigration.AsciiEmojiBehaviorParity
+  alias Nebulith.DataMigration.AsciiEmojiVocabularyParity
+  alias Nebulith.DataMigration.AsciiPathFloorHeight
   alias Nebulith.DataMigration.FlatTilesMinimalHeight
+  alias Nebulith.DataMigration.FlatTilesZeroHeight
 
   @shortdoc "Run nebulith data migrations"
   @impl Mix.Task
@@ -16,5 +20,11 @@ defmodule Mix.Tasks.DataMigrate do
     Mix.Task.run("app.start")
 
     FlatTilesMinimalHeight.run()
+    AsciiPathFloorHeight.run()
+    AsciiEmojiBehaviorParity.run()
+    AsciiEmojiVocabularyParity.run()
+    # LAST: floors are tiles and all tiles stack, so a flat tile needs no 0.1 slab — this undoes the 0.1 that
+    # 0001/0002 land, and keeps doing so on any full re-run.
+    FlatTilesZeroHeight.run()
   end
 end

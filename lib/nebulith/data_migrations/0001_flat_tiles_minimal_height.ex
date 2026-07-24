@@ -17,14 +17,22 @@ defmodule Nebulith.DataMigration.FlatTilesMinimalHeight do
   alias Nebulith.Repo
   alias Nebulith.Catalog.Tile
 
+  @flat_height 0.1
+
+  @doc """
+  The minimal height a FLAT tile carries, in blocks — the one place the value lives, so a later fix to a
+  drifted flat row (`AsciiPathFloorHeight`) lands exactly what this migration landed.
+  """
+  def flat_height, do: @flat_height
+
   def run do
     {count, _} =
       from(t in Tile,
         where: t.height == 0.0 and (is_nil(t.category) or t.category != "units")
       )
-      |> Repo.update_all(set: [height: 0.1])
+      |> Repo.update_all(set: [height: @flat_height])
 
-    Logger.info("[data_migrate] flat tiles -> height 0.1 (#{count} updated)")
+    Logger.info("[data_migrate] flat tiles -> height #{@flat_height} (#{count} updated)")
     :ok
   end
 end
