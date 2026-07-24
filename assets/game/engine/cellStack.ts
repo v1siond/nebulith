@@ -215,6 +215,39 @@ export function pushTile(grid: IsometricGrid, col: number, row: number, entry: T
   return placed
 }
 
+/** The cell's tiles in the order the INSPECTOR indexes them (ascending heightLevel) — the order a per-tile
+ *  edit's `stackIndex` addresses, so slot N here is the tile the user actually selected. */
+function orderedStack(grid: IsometricGrid, col: number, row: number): GridAsset[] {
+  return [...grid.getAssetsAtCell(col, row)].sort((a, b) => (a.heightLevel ?? 0) - (b.heightLevel ?? 0))
+}
+
+/** Set a stacked tile's own BLOCK height and LIFT everything above it in the cell by the change — "ALL TILES
+ *  STACK ON TOP OF ANOTHER LIKE LEGOS BY DEFAULT … IF INCREASE THE HEIGHT OF ANY FLOOR TILE, WHATEVER IS ON
+ *  TOP OF IT WILL GET LIFTED, BECAUSE THAT'S HOW ALL FUCKING TILES WORK AND THE FLOOR IS NO DIFFERENT FROM IT"
+ *  (Alexander). It applies to EVERY tile, floor included — there is no floor case in here.
+ *
+ *  The lift is written into STATE (the tiles above get new heightLevels), never derived at draw time. A level
+ *  is where the tile was PUT: 32 real composition cells deliberately float clear of whatever is under them (a
+ *  tree's leaves beside its trunk, a lamp's bulb, a store sign, an office rooftop unit), so re-seating each
+ *  tile onto the one below would collapse every tree and lamp on the map. Shifting the whole pile by the SAME
+ *  delta raises it while preserving those authored gaps. A shrink shifts back down, so the edit is reversible.
+ *
+ *  `blocks` becomes the tile's ONE height number — it lands on `height` and clears any per-instance `scaleY`
+ *  multiplier, so a collapsed composition run (height 1 × scaleY 4) edited to 5 is simply 5 blocks tall. */
+export function setTileHeight(grid: IsometricGrid, col: number, row: number, stackIndex: number, blocks: number): void {
+  const stack = orderedStack(grid, col, row)
+  const target = stack[stackIndex]
+  if (!target) return
+
+  const before = assetBlocks(target)
+  target.height = blocks
+  target.scaleY = undefined
+  const delta = assetBlocks(target) - before
+  if (delta === 0) return
+
+  for (const above of stack.slice(stackIndex + 1)) above.heightLevel = (above.heightLevel ?? 0) + delta
+}
+
 /** popTile → remove the TOP STACKED asset (highest heightLevel, excluding the floor) at the cell. Returns the
  *  removed asset, or undefined when the cell holds no stacked tile (only its floor, or empty) — the floor is
  *  never popped here (clear it via removeFloor). Cell collision is recomputed by the caller (removeTopAsset). */

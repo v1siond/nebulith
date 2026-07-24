@@ -14,8 +14,8 @@
  * These assert the grid state directly (no rendering) — the render half (that nothing adds a floor-shaped
  * lift on top of this) lives in render/floorIsJustATile.realcanvas.test.ts.
  */
-import { IsometricGrid } from '@/engine/IsometricGrid'
-import { pushTile } from '@/engine/cellStack'
+import { IsometricGrid, type GridAsset } from '@/engine/IsometricGrid'
+import { pushTile, setTileHeight } from '@/engine/cellStack'
 
 const mkGrid = () => new IsometricGrid({ cols: 12, rows: 12, cellSize: 16, isoScale: 1.4 })
 const C = 4, R = 4
@@ -78,5 +78,94 @@ describe('the floor is just a tile — one stacking rule, no floor special case'
     const grid = mkGrid()
     grid.removeFloor(C, R)
     expect(paint(grid, 1).heightLevel).toBe(0)
+  })
+})
+
+describe('RAISE a tile and what is on top of it goes up with it', () => {
+  /** A stamped building cell as the generator leaves it: the flat floor, a 4-block wall pier at level 0, and
+   *  the gable roof bar at level 4 — each an ALREADY-PLACED tile carrying its authored level. */
+  const stampedHouseCell = (grid: IsometricGrid): { wall: GridAsset; roof: GridAsset } => {
+    const place = (level: number, blocks: number): GridAsset => {
+      const a = grid.placeAsset([''], C, R, { type: 'house_4', heightLevel: level })
+      a.height = blocks
+      return a
+    }
+    return { wall: place(0, 4), roof: place(4, 2) }
+  }
+
+  test("raising the FLOOR lifts the house standing on it — Alexander's report (Image #36)", () => {
+    const grid = mkGrid()
+    grid.setGround(C, R, 'grass')
+    const { wall, roof } = stampedHouseCell(grid)
+
+    setTileHeight(grid, C, R, 0, 5) // the floor tile (stack slot 0) is raised to 5 blocks
+
+    expect(grid.floorAt(C, R)!.height).toBe(5)
+    expect(wall.heightLevel).toBe(5) // the wall now rests on the raised floor, not buried in it
+    expect(roof.heightLevel).toBe(9) // …and the roof rode up with it
+  })
+
+  test('the tiles above keep their RELATIVE spacing — an authored gap is preserved, not collapsed', () => {
+    const grid = mkGrid()
+    grid.setGround(C, R, 'grass')
+    // A tree cell: leaves authored to FLOAT at level 3 with nothing beneath them (32 real composition cells
+    // do this — collapsing them onto the tile below would wreck every tree, lamp and rooftop unit).
+    const leaf = grid.placeAsset([''], C, R, { type: 'tree', heightLevel: 3 })
+    leaf.height = 1
+
+    setTileHeight(grid, C, R, 0, 2)
+
+    expect(leaf.heightLevel).toBe(5) // shifted by the raise (3 + 2), NOT re-seated onto the floor
+  })
+
+  test('LOWERING brings them back down — the lift is reversible, never a one-way ratchet', () => {
+    const grid = mkGrid()
+    grid.setGround(C, R, 'grass')
+    const { wall, roof } = stampedHouseCell(grid)
+
+    setTileHeight(grid, C, R, 0, 5)
+    setTileHeight(grid, C, R, 0, 0)
+
+    expect(wall.heightLevel).toBe(0)
+    expect(roof.heightLevel).toBe(4)
+  })
+
+  test('ANY tile lifts what is above it — not just the floor (raise the wall, the roof rises)', () => {
+    const grid = mkGrid()
+    grid.setGround(C, R, 'grass')
+    const { wall, roof } = stampedHouseCell(grid)
+
+    setTileHeight(grid, C, R, 1, 6) // the WALL (slot 1) goes from 4 blocks to 6
+
+    expect(wall.heightLevel).toBe(0)  // the wall itself doesn't move — it grows upward from where it stands
+    expect(roof.heightLevel).toBe(6)  // the roof sits on its new top (4 + 2)
+  })
+
+  test('raising the TOP tile moves nothing — there is nothing above it to lift', () => {
+    const grid = mkGrid()
+    grid.setGround(C, R, 'grass')
+    const { wall, roof } = stampedHouseCell(grid)
+
+    setTileHeight(grid, C, R, 2, 9)
+
+    expect(wall.heightLevel).toBe(0)
+    expect(roof.heightLevel).toBe(4)
+    expect(roof.height).toBe(9)
+  })
+
+  test('a per-instance scaleY is folded into the tile\'s ONE height number when it is edited', () => {
+    const grid = mkGrid()
+    grid.setGround(C, R, 'grass')
+    const wall = grid.placeAsset([''], C, R, { type: 'house_4', heightLevel: 0 })
+    wall.height = 1
+    wall.scaleY = 4 // a collapsed 4-block run, as compositions author it
+    const roof = grid.placeAsset([''], C, R, { type: 'house_4', heightLevel: 4 })
+    roof.height = 2
+
+    setTileHeight(grid, C, R, 1, 5) // 4 blocks → 5 blocks
+
+    expect(wall.height).toBe(5)
+    expect(wall.scaleY).toBeUndefined() // one number, the data — no leftover multiplier
+    expect(roof.heightLevel).toBe(5)    // lifted by the ONE block it actually grew
   })
 })

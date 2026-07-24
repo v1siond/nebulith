@@ -16,7 +16,7 @@ import Link from 'next/link'
 import { useToast } from '@/components/Toast'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { type GridAsset, IsometricGrid, FLOOR_TYPE } from '@/engine/IsometricGrid'
-import { getStack, type TileEntry, type TileSource } from '@/engine/cellStack'
+import { getStack, setTileHeight, type TileEntry, type TileSource } from '@/engine/cellStack'
 import { type AttackAnim, isAnimDone } from '@/engine/attackAnimations'
 import { type BuildingType } from '@/engine/buildingTypes'
 import { BUILDING_PLACE_LENGTH, buildingCompositionKind, buildingFootprint, canPlaceBuildingComposition, isRoadGround, nearestRoadFacing, planComposition } from '@/engine/buildingCatalog'
@@ -1811,9 +1811,23 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     }
     bumpBuildingVersion()
   }
+  // The same per-key fan-out, for an edit that needs the tile's PLACE (grid + cell + stack slot) rather than
+  // just the asset — a height change is a whole-cell stack operation, since it moves the tiles above it too.
+  const applyToSelectedTileSlots = (
+    fallbackI: number,
+    apply: (grid: IsometricGrid, col: number, row: number, index: number) => void,
+  ) => {
+    const grid = gridRef.current
+    if (!grid) return
+    for (const { col, row, index } of resolveSelectionTargets(selectedCells, fallbackI)) apply(grid, col, row, index)
+    bumpBuildingVersion()
+  }
   // Per-tile sprite scale (#77/#78): Width/Height/Depth are per-axis, Zoom is uniform. Dispatch the UI
   // axis to the asset field it writes; the renderers read these back per view (assetDimensions.ts).
-  const DIM_FIELD = { width: 'scaleX', height: 'scaleY', depth: 'scaleZ', zoom: 'scale' } as const
+  // Width/Depth/Zoom are plain per-axis field writes. HEIGHT is deliberately NOT in here: changing a tile's
+  // height is a STACK operation (setTileHeight), because whatever rests on that tile has to move with it.
+  const DIM_FIELD = { width: 'scaleX', depth: 'scaleZ', zoom: 'scale' } as const
+  type DimAxis = 'height' | keyof typeof DIM_FIELD
   // Write the i-th stacked TILE of every selected cell (per-tile, not "all assets in the cell at once").
   // The tile's BLOCK-HEIGHT (data): its DB height × any per-instance scaleY. This is the ONE "Height" number the
   // inspector shows/edits — a flat tile reads 0.1, a wall 1, a scaleY-collapsed composition column its full span.
@@ -1823,13 +1837,17 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     const dbTile = activeStyleId === ASCII_STYLE.id ? ASCII_TILESET.tiles[kind] : EMOJI_TILESET[kind]
     return resolveTileHeight(dbTile, a) * (a.scaleY ?? 1)
   }
-  const setAssetDim = (i: number, axis: keyof typeof DIM_FIELD, v: number) =>
-    applyToSelectedTiles(i, (a) => {
-      // "Height" edits the tile's BLOCK-HEIGHT (asset.height) directly and resets the scaleY multiplier to 1 —
-      // one number, the data. Width/Depth/Zoom keep their own scale fields.
-      if (axis === 'height') { a.height = v; a.scaleY = undefined }
-      else a[DIM_FIELD[axis]] = v
-    })
+  const setAssetDim = (i: number, axis: DimAxis, v: number) => {
+    // "Height" edits the tile's BLOCK-HEIGHT (asset.height) as ONE number — the data — AND lifts everything
+    // stacked on that tile by the same change, because all tiles stack like legos and the floor is no
+    // different: raise the ground under a house and the house goes up with it (setTileHeight owns that rule,
+    // so the editor, tests and any other caller can't drift apart).
+    if (axis === 'height') {
+      applyToSelectedTileSlots(i, (grid, col, row, index) => setTileHeight(grid, col, row, index, v))
+      return
+    }
+    applyToSelectedTiles(i, (a) => { a[DIM_FIELD[axis]] = v })
+  }
   const setAssetColor = (i: number, color: string) =>
     applyToSelectedTiles(i, (a) => { a.color = color })
   // Clear the i-th stacked tile's colour override → fall back to the tile's own resolved colour. The "↺ reset"
