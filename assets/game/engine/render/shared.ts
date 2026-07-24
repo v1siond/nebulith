@@ -1,7 +1,7 @@
 import { player as playerSprite } from '@/assets/ascii'
 import { GridAsset, IsometricGrid } from '@/engine/IsometricGrid'
 import { type AnimTransform } from '@/engine/cellAnimation'
-import { darkenColor, lightenColor, parseColor, varyIntensity, withAlpha } from '@/engine/colors'
+import { darkenColor, lightenColor, parseColor, withAlpha } from '@/engine/colors'
 import { entityAnimState, entityFrameIndex } from '@/engine/entityAnim'
 import { entityArtFrame, entityFootprint } from '@/engine/entityArt'
 import { type QuestMarker } from '@/engine/entityQuestMarker'
@@ -9,7 +9,8 @@ import { motionPos } from '@/engine/movement'
 import { applyPose, type TilePose } from '@/engine/tileset/pose'
 import { EMOJI_TILESET } from '@/engine/tileset/emojiTileset'
 import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
-import { resolveGroundTile, type TileShape } from '@/engine/tileset/tileset'
+import { type TileShape } from '@/engine/tileset/tileset'
+import { grassShade, groundTileColor } from '@/engine/tileset/groundColor'
 import { edgeToSide, footprintRing, footprintSide, labelForCell, treeSubpart } from '@/engine/stageGenerator'
 import { terrainCaptions } from '@/engine/terrainLabels'
 import { isDead } from '@/game/combat'
@@ -27,7 +28,7 @@ export const ASCII_FONT = '"JetBrains Mono", "Fira Code", "Consolas", monospace'
 // property: on the ASCII style with NO override, resolveVisual returns the passthrough
 // sentinel, so `resolveDraw` returns the caller's OWN default char+color unchanged —
 // the fillText that follows is byte-identical to the pre-style code.
-import { groundKind, resolveVisual, visualForTileId, type ElementKind, type ImageVisual, type Style, type Visual } from '@/game/artStyle'
+import { resolveVisual, visualForTileId, type ElementKind, type ImageVisual, type Style, type Visual } from '@/game/artStyle'
 import { tileSlug } from '@/game/editor/tilePlacement'
 import { type AttackAnim, type AnimFrame } from '@/engine/attackAnimations'
 import { type TileView } from '@/engine/animation/tileAnimation'
@@ -581,13 +582,9 @@ export function treeCellSet(grid: IsometricGrid): Set<string> {
 }
 
 
-/** Deterministic per-cell grass tint: a stable position hash nudges the base grass bg lighter
- *  or darker so the lawn reads as natural patches instead of one flat sheet. Computed from
- *  (col,row) only — stable per cell, never shifts frame-to-frame. Paths/roads never call this. */
-export function grassShade(baseBg: string, col: number, row: number): string {
-  const n = Math.sin(col * 127.1 + row * 311.7) * 43758.5453
-  return varyIntensity(baseBg, n - Math.floor(n), 0.22)
-}
+// grassShade + groundTileColor live in the leaf tileset/groundColor (so IsometricGrid can colour a floor at
+// placement without a render↔grid cycle); re-exported here for the render call sites.
+export { grassShade, groundTileColor }
 
 /** Fill colour for a ground cell. A reskin (`tint` set) normally fills with the tile's flat catalog
  *  hue — but for GRASS that made a whole field ONE flat green ("grass is just color"), because the
@@ -598,18 +595,6 @@ export function cellFill(tint: string | undefined, bg: string, grassy: boolean, 
   return grassy ? grassShade(tint, col, row) : tint
 }
 
-/** The ground colour the GENERATOR/placement writes onto a floor tile as STATE (Alexander: "the generator should
- *  put the color on the tile … no fallbacks … once stored they load"). It is the ground tile's OWN DB colour —
- *  the terrain `bg` from the loaded tileset — per-cell shaded for grassy ground so a meadow varies. This is the
- *  SAME value the renderers used to DERIVE per-frame (topdown's `bg`); computing it ONCE at placement and storing
- *  it on `floor.color` moves the colour into the map state, so every view just READS `floor.color` and a floor
- *  with no colour renders nothing — never a hardcoded fallback. Style-independent (one colour filters the tile in
- *  every style). No terrain loaded → `resolveGroundTile` returns an empty colour, so nothing is invented. */
-export function groundTileColor(tileType: string, col: number, row: number): string {
-  const bg = resolveGroundTile(ASCII_TILESET, tileType, col, row).bg
-  const grassy = tileType.includes('grass') || groundKind(tileType) === 'cavefloor'
-  return grassy ? grassShade(bg, col, row) : bg
-}
 
 /** Draw an emoji glyph RECOLOURED toward `tint`, keeping its shape + internal shading — so one 🌲 reads
  *  spring-green, autumn-amber, or winter-frost by the zone's canopy colour (emoji CAN be recoloured: we

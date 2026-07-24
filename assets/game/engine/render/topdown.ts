@@ -17,7 +17,7 @@ import { applyPose } from '@/engine/tileset/pose'
 import { resolveTileSize, resolveTilePose } from '@/engine/tileset/tileViewSettings'
 import { resolveTileHeight, partialBlockScale } from '@/engine/tileset/tileHeight'
 import { Connector } from '@/lib/api'
-import { ASCII_FONT, COMBAT_RANGE, type DayNight, ENEMY_MOVE_MS, applyCellTransform, clampCameraAxis, assetCaptionByCell, terrainLabelAt, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawHoverRing, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawConnectorMarker, drawAttackAnimFrame, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, drawFlatTileForShape, SINGLE_TILE_FRAC, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, frameImage, getPlayerArt, grassShade, cellFill, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, resolveAssetDraw, resolveEntityDraw, assetOverride, labelTileImage, labelTileRecolor, groundDecorImage, treeCanopyLayers, treeCellSet, type DrawVisual } from './shared'
+import { ASCII_FONT, COMBAT_RANGE, type DayNight, ENEMY_MOVE_MS, applyCellTransform, clampCameraAxis, assetCaptionByCell, terrainLabelAt, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawHoverRing, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawConnectorMarker, drawAttackAnimFrame, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, drawFlatTileForShape, SINGLE_TILE_FRAC, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, frameImage, getPlayerArt, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, resolveAssetDraw, resolveEntityDraw, assetOverride, labelTileImage, labelTileRecolor, groundDecorImage, treeCanopyLayers, treeCellSet, type DrawVisual } from './shared'
 import { resolveAssetDrawSize } from './assetDimensions'
 import { resolveAssetAnimation } from './assetAnimation'
 import { DEPTH_CELL_STEP } from './isoBlock'
@@ -494,15 +494,16 @@ export function render2D(params: Render2DParams) {
       if (col < 0 || col >= grid.cols || row < 0 || row >= grid.rows) continue
       const floor = grid.floorAt(col, row)
       if (!floor) continue // empty (cleared) cell → void
+      if (!floor.color) continue // no colour STATE (only a pre-colour save) → render NOTHING, never a fallback
       const p = toScreen(col + 0.5, row + 0.5)
       if (p.x < -tileW || p.x > w + tileW || p.y < -tileH || p.y > h + tileH) continue
       const tileType = floor.tileKey || 'grass'
       const gt = resolveGroundTile(ASCII_TILESET, tileType, col, row)
       const gk = groundKind(tileType)
-      const grassy = tileType.includes('grass') || gk === 'cavefloor'
-      const bg = grassy ? grassShade(gt.bg, col, row) : gt.bg
       const gdv = resolveDraw(gk, style, undefined, gt.char, gt.fg)
-      const fillBg = floor.color ?? cellFill(gdv.tint, bg, grassy, col, row) // per-cell FLOOR colour wins
+      // COLOUR IS STATE: read floor.color — NEVER derive it per-frame (was `?? cellFill(...)`). A floor is born
+      // with its colour (IsometricGrid.makeFloorAsset → groundTileColor), so this just reads it (MAP-MODEL §8).
+      const fillBg = floor.color
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
       ctx.fillStyle = fillBg

@@ -13,6 +13,7 @@ import type { CellAnimation } from './cellAnimation'
 import type { DepthDir } from './render/isoBlock'
 import type { TilePose } from './tileset/pose'
 import type { AssetLight, TileDisplay, TileShape } from './tileset/tileset'
+import { groundTileColor } from './tileset/groundColor'
 
 /** GENERIC per-tile BEHAVIOR flags copied from the resolved tile's `settings` onto a placed asset, so ONE
  *  render path drives them for ANY tile — a wall, a roof, or a tree leaf. No `type:'building'` special case:
@@ -332,9 +333,10 @@ export class IsometricGrid {
    *  ground COLOUR is per-cell STATE the map-builder writes (`color` — see setGround); renders READ it, never
    *  derive it, so a floor with no colour renders nothing (empty), never a hardcoded fallback. */
   private makeFloorAsset(col: number, row: number, slug: string, color?: string): GridAsset {
-    const floor: GridAsset = { art: [''], col, row, type: FLOOR_TYPE, tileKey: slug, heightLevel: 0, blocking: false }
-    if (color !== undefined) floor.color = color
-    return floor
+    // A floor is BORN with its colour as STATE — either the explicit colour a map-builder PICKED, or (when a raw
+    // setGround / the ctor default lays one down) auto-picked from the ground tile's own DB colour. So no floor is
+    // ever colourless and every view just READS floor.color, never deriving it or falling back to a hardcode.
+    return { art: [''], col, row, type: FLOOR_TYPE, tileKey: slug, heightLevel: 0, blocking: false, color: color ?? groundTileColor(slug, col, row) }
   }
 
   // Set the floor tile TYPE of a cell — place/replace its level-0 floor asset (the slug rides `tileKey`,
