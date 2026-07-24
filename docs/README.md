@@ -19,6 +19,8 @@ and update the relevant doc in the same change that alters the model or a featur
 
 - [`ARCHITECTURE.md`](ARCHITECTURE.md) — end-to-end technical architecture of the system.
 - [`ENGINE-ARCHITECTURE.md`](ENGINE-ARCHITECTURE.md) — the engine's data flow (one grid → three renders).
+- [`RENDER-AND-CAMERA.md`](RENDER-AND-CAMERA.md) — the ISO projection math (the 2:1 squash), the camera
+  (focus/clamp/pan), the 4-way + continuous rotation, depth sorting, and the screen-fixed-input rule.
 - [`FEATURES.md`](FEATURES.md) — per-feature flows and where they live in the code.
 - [`EDITOR-INTERACTION-SPEC.md`](EDITOR-INTERACTION-SPEC.md) — the editor interaction model.
 - [`ANIMATION-SYSTEM.md`](ANIMATION-SYSTEM.md) — the tile animation envelope + z-index draw priority.

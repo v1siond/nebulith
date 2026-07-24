@@ -40,6 +40,15 @@ Example — the SAME house in all three (the reference sketch):
 - **2D**: gray wall rows + a red roof **gable / triangle** + windows + door — the front face; green ground, sky above.
 - **ISO**: the full 3D house — walls + red gable roof + door/windows.
 
+> **The ISO view is a ROTATABLE camera.** The three projections above are the *model*; the ISO view is drawn
+> through a camera that can turn around the map — the **4 corners** (quarter-turns CW, an `Orientation`) plus a
+> **continuous** spin between them the drag controller animates. The map's tile DATA never changes when you
+> turn — the renderer rotates the `(col,row)` coordinate BEFORE the fixed iso projection (a turntable spin),
+> and a tile's world-facing (a door's direction) is invariant; only the screen-side you view it from changes.
+> Movement and drag stay **screen-fixed** (the map turns, the controls don't). The projection math, the camera
+> focus/clamp/pan, the rotation, the depth sort, and the screen-fixed-input rule are all documented in
+> [`RENDER-AND-CAMERA.md`](RENDER-AND-CAMERA.md).
+
 ## 3. The matching rules — the views are consistent by construction
 
 The same thing appears in all three, so its dimensions are shared:
@@ -140,6 +149,17 @@ gable-step height) AND smart Z-WIDTH (`settings.depth` = the footprint depth, al
 whole ridge column is a single block spanning the depth instead of one tile per `(col,row)` — a gable falls to
 `w+1` blocks. The three views still read the SAME data: ISO draws the depth block as one long box, 2D collapses
 the depth onto the front face (the triangle), and TOP paints the tile across every covered footprint cell.
+The **entrance apron** (the doorstep in front of a building's doors) uses the SAME z-width mechanism on the
+facade axis — a 2-wide doorway is ONE `path` block with `settings.depth = 2` — and, being a **floor** tile, it
+carries the floor's own minimal height, so the doorstep lies FLAT like the road it joins instead of standing up
+as a kerb. Height comes from the tile, never from the stamp: **a composition cell is placed at its TILE's own
+DB height** (§4), so a flat tile in a composition stays flat and a standing one stays a block.
+
+**A generated stage SAVES what it stamped.** The live stamp and the save path (`stageToTemplate`) expand a
+recorded composition ANCHOR — tree, building, decor — through the **same** per-cell mapping
+(`compositionCellRender`), so every authored setting (`depth`/`depthDir` z-width, `scaleY` height, `scale`,
+`pose`, `shape`, `light`, animations) and each tile's own height survive save → load. Cherry-picking fields on
+save is what once reloaded a 2-wide entrance as one block and broke the roof spans.
 
 **A composition cell resolves by its own LABEL, in every view.** A tree is two stacked cells — a `tree_trunk`
 cell at level 0 and a `tree_canopy` cell above it — each carrying its OWN part label but the SAME composition

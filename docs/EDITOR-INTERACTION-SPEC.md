@@ -93,10 +93,19 @@ general tile card").
   geometry id **`stats`**): HP / DEF / STR / INT / DODGE%, **Hittable**, the enemy's kill-quest tag and its
   respawn timer — *"stats would be a button that shows a draggable, movable, resizable modal where we control
   all those extra unit settings"*. **Name and Size (1×/2×/3×) stay as ROWS on the card**, not in the modal.
-- **Inventory & abilities, Quests and Attacks are buttons on the SAME card** (`🎒 Inventory & abilities…`
-  for the player, `❒ Quests…` for an NPC, `⚔ Attacks / abilities…` for an enemy), each opening its existing
-  modal with its existing data — *"inventory and abilities must be moved to the tile menu and show the data
-  as it does when clicking on current unit menu"*.
+- **Inventory & abilities, Quests and Attacks are buttons on the SAME card** (`🎒 Inventory & abilities…`,
+  `❒ Quests…` for an NPC, `⚔ Attacks / abilities…` for an enemy), each opening its existing modal with its
+  existing data — *"inventory and abilities must be moved to the tile menu and show the data as it does when
+  clicking on current unit menu"*.
+  **`⛊ Stats…` and `🎒 Inventory & abilities…` are UNIVERSAL — EVERY unit gets both**; only quests (NPC) and
+  attacks (enemy) are kind-specific. Alexander QA'd an NPC and found *"we're missing inventory option, we only
+  added quests and stats"*: the inventory had been gated on `kind === 'player'`, so it never showed on an NPC
+  or an enemy card. Every unit carries a **loadout** (weapon / armour / abilities) — the equipment panel
+  already keys `loadouts` by entity id — so the entry point belongs on every unit. The carried **item bag +
+  vitals stay the hero's alone** (he is the only unit with a live combat state and a bag), so the modal shows
+  the bag for the player and the loadout entry for everyone.
+  **ONE place decides which entry points a kind gets — `buildUnitModel` (`modals.tsx`), a dispatch table**, not
+  a ternary at the call site. That is what let an entry point be dropped silently; a new unit kind adds a row.
 - **The unit's shared settings.** A unit maps its own fields into the same `TileControlModel`: colour →
   `entity.color`, the scale axes → the unit's uniform `size`, x/y/rotate/flip → `entity.pose` (same `TilePose`
   a tile carries; round-trips through the entity codec). Writers fan out via `patchSelectedEntity` — one
@@ -105,14 +114,16 @@ general tile card").
   Light, z-slide) stay hidden for a unit exactly as they do for a floor tile.
 - **Unit-only extras** (`UnitSettingsSection`, folded INTO the card): the two identity ROWS a unit keeps
   inline — **Name** and the **Size** preset (1×/2×/3×; a boss scales its stats with its figure) — plus the
-  entry-point buttons a tile never has: **stats** (every unit), **inventory** (player), **quests** (NPC),
+  entry-point buttons a tile never has: **stats** (every unit), **inventory** (every unit), **quests** (NPC),
   **attacks** (enemy), each opening its own modal.
 - **Animate is a button opening the IDENTICAL modal a tile uses.** The old inline unit "Animation" section
   (figure/size/colour + frame-list summary + "See more…") is REMOVED. The card's "✦ Animate…" button opens the
   ONE shared `TileAnimationEditor` in a floating modal — the SAME modal a tile opens, with **BOTH** add-buttons:
   **"✦ Add settings animation"** (position/scale/colour/opacity envelopes, exactly like a tile) AND **"✦ Add
   sprite animation"** (the frame-swap walk/idle/attack cycle). The user: *"both unit and tiles should use the
-  same animations modal... which is the one used by settings animation on tile."* A unit stores the same unified
+  same animations modal... which is the one used by settings animation on tile."* The old card listed the
+  authored animations inline; the unified card's vocabulary for that summary is the **count badge on the
+  Animate button** (`✦ Animate… (9)`), fed the SAME unified list the modal edits — exactly as a cell tile's is. A unit stores the same unified
   `Animation[]` a tile does in `Entity.unitAnimations`; its frame-swap render list (`Entity.animations`) is the
   derived sprite subset the untouched frame renderer plays. **Render-parity follow-up:** a unit's settings-kind
   envelope persists + authors but the entity renderer doesn't apply it yet (see §render-parity below).

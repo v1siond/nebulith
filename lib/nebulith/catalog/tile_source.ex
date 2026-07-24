@@ -72,6 +72,7 @@ defmodule Nebulith.Catalog.TileSource do
     seed_emoji_tiles(emoji, emoji_id)
     seed_autotile_pieces(ascii_id, emoji_id)
     seed_tree_pieces(ascii_id, emoji_id, ascii["palettes"])
+    seed_parity_tiles(ascii_id, emoji_id)
     seed_compositions(ascii["compositions"])
     seed_new_compositions()
     seed_building_compositions()
@@ -108,6 +109,11 @@ defmodule Nebulith.Catalog.TileSource do
   end
 
   # ── Ascii glyph tiles ─────────────────────────────────────────────────────
+  # HEIGHT is the tile's OWN authored DATA (MAP-MODEL §4), read the same way in every style: a STANDING glyph
+  # (wall, tree, crate…) carries no `height` and defaults to a whole block; a FLOOR glyph authors `0` so it
+  # lands flat like the terrain rows, and the flat-minimal data migration gives it its real slab height. The
+  # old hardcoded `height: 1` made every ascii.json `tiles` entry a block — which is how `path` (the entrance's
+  # doorstep) ended up a 1-block kerb in ascii while the same label was a flat slab in emoji.
 
   defp seed_glyph_tiles(tiles, tileset_id, palettes) do
     for {label, tile} <- tiles do
@@ -118,7 +124,7 @@ defmodule Nebulith.Catalog.TileSource do
           glyph: tile["glyph"],
           color_role: tile["colorRole"],
           blocking: not (tile["walkable"] || false),
-          height: 1,
+          height: Map.get(tile, "height", 1),
           category: tile["category"],
           title: tile["title"],
           image_url: "/tiles/ascii/#{label}.png",
@@ -767,6 +773,252 @@ defmodule Nebulith.Catalog.TileSource do
 
     trunk ++ canopy
   end
+
+  # ── Cross-style vocabulary parity (1:1 label set) ─────────────────────────
+  # THE full-parity pass (Alexander: "full 1:1 vocabulary parity now"): every tile LABEL exists in BOTH
+  # styles so a map painted or generated in one style never renders `?` in the other. Only the ART differs —
+  # the SAME label carries the SAME height/category/blocking (MAP-MODEL §4). We author each gap label's twin
+  # by FOLLOWING the existing patterns, never inventing art:
+  #   * an emoji-only GROUND/road (`desert`, `cobblestone`, …) → an ascii ground tile matching the existing
+  #     ascii terrain style (char/fg/bg authored in ascii.json's `terrain`, @parity_ground_labels);
+  #   * an emoji-only flat-decor / standing-nature / structural piece (`rose`, `oak-tree`, `brick`, …) →
+  #     an ascii tile REUSING an existing ascii glyph + its baked mask PNG (`decor_flower`/`tree`/
+  #     `wall_brick_c` …), tinted by the emoji tile's own colour — the same "reuse the base PNG, colour is a
+  #     setting" path the type-specific building tiles use (@ascii_reuse_twins);
+  #   * an ascii-only tile (a ground, a tree autotile piece, a roof deck, the peak) → an emoji twin: a
+  #     coloured SQUARE picked by the ascii tile's own hue for grounds/decor, the tree part-emoji (🟫 trunk /
+  #     🍃 leaf) for tree pieces, 🗻 for the peak — the existing emoji-ground / tree-piece conventions, never
+  #     a whole-object emoji (@emoji_twins).
+  # BEHAVIOR (height/category/blocking) is COPIED FROM the twin's existing row at seed time, so the two
+  # styles can never disagree; only the art columns are authored here. The genuinely-atomic emoji-only labels
+  # with NO ascii pattern (per-creature units, single-tile buildings, a few props/effects) are LEFT
+  # emoji-only and tracked as pending art direction in Nebulith.TilesetParityTest — never guessed here.
+
+  # The emoji-only GROUND labels given an ascii twin — authored as char/fg/bg in ascii.json's `terrain`
+  # (their natural home; seed_terrain_tiles reads them on a full seed). Named here so the surgical parity
+  # pass (and the data migration) upsert exactly these onto a LIVE DB.
+  @parity_ground_labels ~w(
+    grass-field dark-grass shallow-water deep-water beach-sand desert mountain-slope snowy-peak snowflake volcano ember autumn cobblestone dirt-path gravel
+  )
+
+  # {label, ascii glyph, reused baked mask PNG} — an emoji-only label whose ascii twin REUSES an existing
+  # glyph + PNG, tinted by the emoji tile's colour. Behaviour + colour come from the label's emoji row.
+  @ascii_reuse_twins [
+    %{label: "blossom", glyph: "❀", reuse: "decor_flower"},
+    %{label: "bouquet", glyph: "❀", reuse: "decor_flower"},
+    %{label: "cherry-blossom", glyph: "✿", reuse: "decor_blossom"},
+    %{label: "clover", glyph: "♣", reuse: "decor_clover"},
+    %{label: "fallen-leaf", glyph: "♧", reuse: "canopy_t"},
+    %{label: "hibiscus", glyph: "❀", reuse: "decor_flower"},
+    %{label: "maple-leaf", glyph: "♧", reuse: "canopy_t"},
+    %{label: "rose", glyph: "❀", reuse: "decor_flower"},
+    %{label: "seashell", glyph: "°", reuse: "decor_shell"},
+    %{label: "shamrock", glyph: "♣", reuse: "decor_clover"},
+    %{label: "sunflower", glyph: "❀", reuse: "decor_flower"},
+    %{label: "tulip", glyph: "❀", reuse: "decor_flower"},
+    %{label: "wheat", glyph: "\"", reuse: "grass_tall"},
+    %{label: "wilted-flower", glyph: "❀", reuse: "decor_flower"},
+    %{label: "boulder", glyph: "O", reuse: "rock"},
+    %{label: "dead-tree", glyph: "Ψ", reuse: "tree_snag"},
+    %{label: "oak-tree", glyph: "♣", reuse: "tree"},
+    %{label: "pine-tree", glyph: "♣", reuse: "tree"},
+    %{label: "palm-tree", glyph: "♣", reuse: "tree"},
+    %{label: "sapling", glyph: "♣", reuse: "tree"},
+    %{label: "shrub", glyph: "*", reuse: "bush"},
+    %{label: "red-mushroom", glyph: "♠", reuse: "mushroom"},
+    %{label: "brick", glyph: "▒", reuse: "wall_brick_c"},
+    %{label: "glass-window", glyph: "▒", reuse: "window"},
+    %{label: "wooden-door", glyph: "╫", reuse: "door"},
+  ]
+
+  # {label, part-emoji, baked PNG, backing colour} — an ascii-only label whose emoji twin is a coloured
+  # square by the tile's own hue (grounds/decor), 🟫/🍃 (tree pieces), 🗻 (peak) or grey ⬜ (flat roof).
+  # Behaviour comes from the label's ascii row at seed time.
+  @emoji_twins [
+    %{label: "adobe", emoji: "🟨", image_url: "/tiles/emoji/sq_yellow.png", color: "#c8a078"},
+    %{label: "ancient_stone", emoji: "🟫", image_url: "/tiles/emoji/sq_brown.png", color: "#8c8264"},
+    %{label: "ash", emoji: "🟫", image_url: "/tiles/emoji/sq_brown.png", color: "#96604a"},
+    %{label: "autumn_ground", emoji: "🟫", image_url: "/tiles/emoji/sq_brown.png", color: "#b07a46"},
+    %{label: "autumn_leaves", emoji: "🟧", image_url: "/tiles/emoji/sq_orange.png", color: "#d2782d"},
+    %{label: "bamboo_floor", emoji: "🟨", image_url: "/tiles/emoji/sq_yellow.png", color: "#b4c864"},
+    %{label: "basalt", emoji: "⬛", image_url: "/tiles/emoji/sq_black.png", color: "#6e3a30"},
+    %{label: "birch_forest", emoji: "🟨", image_url: "/tiles/emoji/sq_yellow.png", color: "#b4c8a0"},
+    %{label: "bridge", emoji: "🟫", image_url: "/tiles/emoji/sq_brown.png", color: "#bb8844"},
+    %{label: "cave_floor", emoji: "🟫", image_url: "/tiles/emoji/sq_brown.png", color: "#82786e"},
+    %{label: "cave_moss", emoji: "🟩", image_url: "/tiles/emoji/sq_green.png", color: "#508c46"},
+    %{label: "cliff", emoji: "🟨", image_url: "/tiles/emoji/sq_yellow.png", color: "#ffd43a"},
+    %{label: "cliff_face", emoji: "🟫", image_url: "/tiles/emoji/sq_brown.png", color: "#8b6914"},
+    %{label: "colorful_tile", emoji: "🟨", image_url: "/tiles/emoji/sq_yellow.png", color: "#ffc832"},
+    %{label: "courtyard_stone", emoji: "⬜", image_url: "/tiles/emoji/sq_white.png", color: "#dcd2be"},
+    %{label: "crypt_floor", emoji: "🟫", image_url: "/tiles/emoji/sq_brown.png", color: "#645f5a"},
+    %{label: "dead_grass", emoji: "🟫", image_url: "/tiles/emoji/sq_brown.png", color: "#8c825a"},
+    %{label: "decor_blossom", emoji: "🟨", image_url: "/tiles/emoji/sq_yellow.png", color: "#c4b061"},
+    %{label: "decor_clover", emoji: "🟩", image_url: "/tiles/emoji/sq_green.png", color: "#5aaf5a"},
+    %{label: "decor_dot", emoji: "🟫", image_url: "/tiles/emoji/sq_brown.png", color: "#a06a2c"},
+    %{label: "decor_flower", emoji: "🟪", image_url: "/tiles/emoji/sq_purple.png", color: "#c79bb4"},
+    %{label: "decor_grit", emoji: "🟫", image_url: "/tiles/emoji/sq_brown.png", color: "#bba360"},
+    %{label: "decor_pebbles", emoji: "🟫", image_url: "/tiles/emoji/sq_brown.png", color: "#b0894e"},
+    %{label: "decor_ripple", emoji: "⬜", image_url: "/tiles/emoji/sq_white.png", color: "#8fc7e0"},
+    %{label: "decor_shell", emoji: "⬜", image_url: "/tiles/emoji/sq_white.png", color: "#cfe6ee"},
+    %{label: "decor_spark", emoji: "⬜", image_url: "/tiles/emoji/sq_white.png", color: "#ccdbe7"},
+    %{label: "desert_road", emoji: "🟨", image_url: "/tiles/emoji/sq_yellow.png", color: "#c8aa78"},
+    %{label: "eucalyptus", emoji: "🟩", image_url: "/tiles/emoji/sq_green.png", color: "#78a082"},
+    %{label: "flat_roof", emoji: "⬜", image_url: "/tiles/emoji/sq_white.png", color: "#8b9098"},
+    %{label: "frost", emoji: "⬜", image_url: "/tiles/emoji/sq_white.png", color: "#d2ebff"},
+    %{label: "frozen_water", emoji: "⬜", image_url: "/tiles/emoji/sq_white.png", color: "#a0d2fa"},
+    %{label: "gold_tile", emoji: "🟨", image_url: "/tiles/emoji/sq_yellow.png", color: "#ffdc64"},
+    %{label: "grass_tall", emoji: "🟩", image_url: "/tiles/emoji/sq_green.png", color: "#78ac3c"},
+    %{label: "grave_dirt", emoji: "🟫", image_url: "/tiles/emoji/sq_brown.png", color: "#645541"},
+    %{label: "hieroglyph_floor", emoji: "🟨", image_url: "/tiles/emoji/sq_yellow.png", color: "#ffd264"},
+    %{label: "ice_cracked", emoji: "⬜", image_url: "/tiles/emoji/sq_white.png", color: "#b4e6ff"},
+    %{label: "ice_water", emoji: "🟦", image_url: "/tiles/emoji/sq_blue.png", color: "#78c8ff"},
+    %{label: "inca_stone", emoji: "🟫", image_url: "/tiles/emoji/sq_brown.png", color: "#a09682"},
+    %{label: "koi_pond", emoji: "🟦", image_url: "/tiles/emoji/sq_blue.png", color: "#64b4c8"},
+    %{label: "magma", emoji: "🟧", image_url: "/tiles/emoji/sq_orange.png", color: "#ff961e"},
+    %{label: "marble", emoji: "⬜", image_url: "/tiles/emoji/sq_white.png", color: "#faf8f5"},
+    %{label: "mud_hut", emoji: "🟫", image_url: "/tiles/emoji/sq_brown.png", color: "#a0825a"},
+    %{label: "oasis", emoji: "🟦", image_url: "/tiles/emoji/sq_blue.png", color: "#32b4c8"},
+    %{label: "obsidian", emoji: "⬛", image_url: "/tiles/emoji/sq_black.png", color: "#503c50"},
+    %{label: "olive_grove", emoji: "🟩", image_url: "/tiles/emoji/sq_green.png", color: "#507832"},
+    %{label: "outback_red", emoji: "🟧", image_url: "/tiles/emoji/sq_orange.png", color: "#dc783c"},
+    %{label: "pampas", emoji: "🟨", image_url: "/tiles/emoji/sq_yellow.png", color: "#b4c896"},
+    %{label: "parapet", emoji: "⬜", image_url: "/tiles/emoji/sq_white.png", color: "#8b9098"},
+    %{label: "path_dirt", emoji: "🟫", image_url: "/tiles/emoji/sq_brown.png", color: "#aa9977"},
+    %{label: "path_stone", emoji: "🟨", image_url: "/tiles/emoji/sq_yellow.png", color: "#ccbbaa"},
+    %{label: "peak", emoji: "🗻", image_url: "/tiles/emoji/baked/mountain.png", color: "#8d8d97"},
+    %{label: "prairie", emoji: "🟨", image_url: "/tiles/emoji/sq_yellow.png", color: "#c8be82"},
+    %{label: "pyramid_stone", emoji: "🟨", image_url: "/tiles/emoji/sq_yellow.png", color: "#e6c896"},
+    %{label: "red_earth", emoji: "🟫", image_url: "/tiles/emoji/sq_brown.png", color: "#b4643c"},
+    %{label: "red_lacquer", emoji: "🟥", image_url: "/tiles/emoji/sq_red.png", color: "#dc3c32"},
+    %{label: "road_center", emoji: "⬛", image_url: "/tiles/emoji/sq_black.png", color: "#9698a0"},
+    %{label: "road_edge", emoji: "⬛", image_url: "/tiles/emoji/sq_black.png", color: "#60626a"},
+    %{label: "rune_floor", emoji: "🟦", image_url: "/tiles/emoji/sq_blue.png", color: "#64c8ff"},
+    %{label: "russian_red", emoji: "🟥", image_url: "/tiles/emoji/sq_red.png", color: "#b43228"},
+    %{label: "sakura_petals", emoji: "⬜", image_url: "/tiles/emoji/sq_white.png", color: "#ffc8dc"},
+    %{label: "sand_dune", emoji: "⬜", image_url: "/tiles/emoji/sq_white.png", color: "#ffe6aa"},
+    %{label: "sand_trap", emoji: "🟨", image_url: "/tiles/emoji/sq_yellow.png", color: "#c8a860"},
+    %{label: "sandstone", emoji: "🟨", image_url: "/tiles/emoji/sq_yellow.png", color: "#e6be82"},
+    %{label: "savanna", emoji: "🟨", image_url: "/tiles/emoji/sq_yellow.png", color: "#c8b464"},
+    %{label: "seafloor", emoji: "🟦", image_url: "/tiles/emoji/sq_blue.png", color: "#6496b4"},
+    %{label: "seaweed", emoji: "🟩", image_url: "/tiles/emoji/sq_green.png", color: "#3cb478"},
+    %{label: "snow_deep", emoji: "⬜", image_url: "/tiles/emoji/sq_white.png", color: "#ffffff"},
+    %{label: "snow_path", emoji: "⬜", image_url: "/tiles/emoji/sq_white.png", color: "#d2dceb"},
+    %{label: "spanish_tile", emoji: "🟨", image_url: "/tiles/emoji/sq_yellow.png", color: "#ffc896"},
+    %{label: "stairs", emoji: "🟫", image_url: "/tiles/emoji/sq_brown.png", color: "#998866"},
+    %{label: "tatami", emoji: "🟨", image_url: "/tiles/emoji/sq_yellow.png", color: "#c8be96"},
+    %{label: "temple_floor", emoji: "🟨", image_url: "/tiles/emoji/sq_yellow.png", color: "#cec09e"},
+    %{label: "terracotta", emoji: "🟧", image_url: "/tiles/emoji/sq_orange.png", color: "#dc8c64"},
+    %{label: "tree_bottom", emoji: "🍃", image_url: "/tiles/emoji/leaf_center.png", color: "#5fae4f"},
+    %{label: "tree_bottom_left", emoji: "🍃", image_url: "/tiles/emoji/leaf_center.png", color: "#5fae4f"},
+    %{label: "tree_bottom_right", emoji: "🍃", image_url: "/tiles/emoji/leaf_center.png", color: "#5fae4f"},
+    %{label: "tree_crown", emoji: "🍃", image_url: "/tiles/emoji/leaf_center.png", color: "#5fae4f"},
+    %{label: "tree_edge_left", emoji: "🍃", image_url: "/tiles/emoji/leaf_center.png", color: "#5fae4f"},
+    %{label: "tree_edge_right", emoji: "🍃", image_url: "/tiles/emoji/leaf_center.png", color: "#5fae4f"},
+    %{label: "tree_interior", emoji: "🍃", image_url: "/tiles/emoji/leaf_center.png", color: "#5fae4f"},
+    %{label: "tree_leaf", emoji: "🍃", image_url: "/tiles/emoji/leaf_center.png", color: "#5fae4f"},
+    %{label: "tree_leaf_top", emoji: "🍃", image_url: "/tiles/emoji/leaf_center.png", color: "#5fae4f"},
+    %{label: "tree_snag", emoji: "🟫", image_url: "/tiles/emoji/trunk.png", color: "#7a5a3a"},
+    %{label: "tree_stem", emoji: "🟫", image_url: "/tiles/emoji/trunk.png", color: "#7a5a3a"},
+    %{label: "tree_stem_bottom", emoji: "🟫", image_url: "/tiles/emoji/trunk.png", color: "#7a5a3a"},
+    %{label: "tree_top", emoji: "🍃", image_url: "/tiles/emoji/leaf_center.png", color: "#5fae4f"},
+    %{label: "tree_top_left", emoji: "🍃", image_url: "/tiles/emoji/leaf_center.png", color: "#5fae4f"},
+    %{label: "tree_top_right", emoji: "🍃", image_url: "/tiles/emoji/leaf_center.png", color: "#5fae4f"},
+    %{label: "tropical_grass", emoji: "🟩", image_url: "/tiles/emoji/sq_green.png", color: "#32c850"},
+    %{label: "volcanic_rock", emoji: "⬛", image_url: "/tiles/emoji/sq_black.png", color: "#644632"},
+    %{label: "water_deep", emoji: "🟦", image_url: "/tiles/emoji/sq_blue.png", color: "#1144aa"},
+    %{label: "water_shallow", emoji: "🟦", image_url: "/tiles/emoji/sq_blue.png", color: "#4488dd"},
+    %{label: "whitewash", emoji: "⬜", image_url: "/tiles/emoji/sq_white.png", color: "#fffffa"},
+    %{label: "wooden_planks", emoji: "🟫", image_url: "/tiles/emoji/sq_brown.png", color: "#aa8250"},
+    %{label: "zen_garden", emoji: "⬜", image_url: "/tiles/emoji/sq_white.png", color: "#dcd7c8"},
+  ]
+
+  @doc """
+  Surgically upserts the cross-style parity twins onto a LIVE DB (ascii + emoji). Idempotent (upsert by
+  [tileset_id, label]) and pose-safe — it only INSERTS the gap labels (brand-new rows) and copies each
+  twin's behaviour from its existing row; it never touches the hand-tuned rows a full reseed would
+  clobber. Called by seed/0 (fresh DB) and by the AsciiEmojiVocabularyParity data migration (live DB).
+  """
+  def seed_parity do
+    ascii_id = ensure_tileset("ascii", "ASCII").id
+    emoji_id = ensure_tileset("emoji", "Emoji").id
+    seed_parity_tiles(ascii_id, emoji_id)
+    :ok
+  end
+
+  defp seed_parity_tiles(ascii_id, emoji_id) do
+    emoji_src = source_tiles("emoji")
+    ascii_src = source_tiles("ascii")
+    seed_parity_grounds(ascii_id, emoji_src)
+    seed_ascii_reuse_twins(ascii_id, emoji_src)
+    seed_emoji_square_twins(emoji_id, ascii_src)
+  end
+
+  # A snapshot of one style's rows keyed by label — the source we COPY behaviour (+ emoji colour) from,
+  # so a twin can never disagree with the tile it mirrors.
+  defp source_tiles(key), do: Map.new(Catalog.list_tiles_for(key), &{&1.label, &1})
+
+  # The 15 emoji-only grounds get their ascii twin from ascii.json's `terrain` (char/fg/bg), upserted
+  # through the SAME path every other ascii ground uses. seed_terrain_tiles seeds them at height 0 (the raw
+  # ground default); we then SNAP each to its emoji twin's CURRENT height so the two styles agree in every
+  # context — 0 vs 0 on a fresh seed, and 0.1 vs 0.1 on a live DB where the emoji ground is already
+  # flat-migrated (FlatTilesMinimalHeight runs before this pass, so a brand-new ascii ground would otherwise
+  # linger at 0 while its emoji twin sits at 0.1). Copying, not hardcoding, keeps parity either way.
+  defp seed_parity_grounds(ascii_id, emoji_src) do
+    terrain = read_tileset("ascii.json")["terrain"]
+    seed_terrain_tiles(Map.take(terrain, @parity_ground_labels), ascii_id)
+
+    for label <- @parity_ground_labels, twin = emoji_src[label] do
+      Catalog.set_tile_height(ascii_id, label, twin.height)
+    end
+  end
+
+  # Author the ascii twin of each reuse label: the reused glyph + baked mask PNG, tinted by the emoji tile's
+  # colour (zone-independent), with height/category/blocking COPIED from the emoji row.
+  defp seed_ascii_reuse_twins(ascii_id, emoji_src) do
+    for %{label: label, glyph: glyph, reuse: png} <- @ascii_reuse_twins, src = emoji_src[label] do
+      color = get_in(src.settings, ["color"]) || "#cccccc"
+
+      {:ok, _} =
+        Catalog.upsert_tile(%{
+          tileset_id: ascii_id,
+          label: label,
+          glyph: glyph,
+          color_role: nil,
+          blocking: src.blocking,
+          height: src.height,
+          category: src.category,
+          image_url: "/tiles/ascii/#{png}.png",
+          settings:
+            %{"colors" => Map.new(@all_zones, &{&1, color})} |> merge_behavior(reuse_behavior_base(label))
+        })
+    end
+  end
+
+  # Author the emoji twin of each ascii-only label: the part-emoji + baked PNG + backing colour, with
+  # height/category/blocking COPIED from the ascii row.
+  defp seed_emoji_square_twins(emoji_id, ascii_src) do
+    for %{label: label, emoji: emoji, image_url: img, color: color} <- @emoji_twins, src = ascii_src[label] do
+      {:ok, _} =
+        Catalog.upsert_tile(%{
+          tileset_id: emoji_id,
+          label: label,
+          emoji: emoji,
+          color_role: nil,
+          blocking: src.blocking,
+          height: src.height,
+          category: src.category,
+          image_url: img,
+          settings: %{"color" => color} |> merge_behavior(label)
+        })
+    end
+  end
+
+  # A reuse twin inherits its base part's fade behavior: a brick material fades near the hero (wall), a
+  # glass window fades (window), a wooden door fades (door); a nature/decor label maps to itself (no behavior).
+  defp reuse_behavior_base("brick"), do: "wall"
+  defp reuse_behavior_base("glass-window"), do: "window"
+  defp reuse_behavior_base("wooden-door"), do: "door"
+  defp reuse_behavior_base(label), do: label
 
   # ── Emoji tiles ───────────────────────────────────────────────────────────
 

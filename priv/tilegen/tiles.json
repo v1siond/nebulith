@@ -1720,5 +1720,149 @@
     "mode": "ascii",
     "style": "ascii",
     "glyph": "|"
+  },
+  {
+    "label": "sq_green",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "🟩"
+  },
+  {
+    "label": "sq_blue",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "🟦"
+  },
+  {
+    "label": "sq_brown",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "🟫"
+  },
+  {
+    "label": "sq_yellow",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "🟨"
+  },
+  {
+    "label": "sq_white",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "⬜"
+  },
+  {
+    "label": "sq_black",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "⬛"
+  },
+  {
+    "label": "sq_red",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "🟥"
+  },
+  {
+    "label": "sq_orange",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "🟧"
+  },
+  {
+    "label": "sq_purple",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "🟪"
+  },
+  {
+    "label": "grass-field",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": ";"
+  },
+  {
+    "label": "dark-grass",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": ";"
+  },
+  {
+    "label": "shallow-water",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "~"
+  },
+  {
+    "label": "deep-water",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "≈"
+  },
+  {
+    "label": "beach-sand",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "."
+  },
+  {
+    "label": "desert",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▓"
+  },
+  {
+    "label": "mountain-slope",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▓"
+  },
+  {
+    "label": "snowy-peak",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "≋"
+  },
+  {
+    "label": "snowflake",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "*"
+  },
+  {
+    "label": "volcano",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▓"
+  },
+  {
+    "label": "ember",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "≈"
+  },
+  {
+    "label": "autumn",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "·"
+  },
+  {
+    "label": "cobblestone",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "░"
+  },
+  {
+    "label": "dirt-path",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "·"
+  },
+  {
+    "label": "gravel",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "·"
   }
 ]

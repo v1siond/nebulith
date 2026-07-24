@@ -119,16 +119,17 @@
       "label": "roof",
       "glyph": "▀",
       "position": "single",
-      "walkable": false,
+      "walkable": true,
       "colorRole": "building.roof",
       "category": "roofs",
-      "title": "Roof"
+      "title": "Roof",
+      "height": 0
     },
     "wall": {
       "label": "wall",
       "glyph": "█",
       "position": "single",
-      "walkable": false,
+      "walkable": true,
       "colorRole": "building.wall",
       "category": "walls",
       "title": "Wall"
@@ -137,28 +138,31 @@
       "label": "door",
       "glyph": "╫",
       "position": "single",
-      "walkable": false,
+      "walkable": true,
       "colorRole": "building.door",
       "category": "doors",
-      "title": "Door"
+      "title": "Door",
+      "height": 0
     },
     "window": {
       "label": "window",
       "glyph": "▒",
       "position": "single",
-      "walkable": false,
+      "walkable": true,
       "colorRole": "building.window",
       "category": "windows",
-      "title": "Window"
+      "title": "Window",
+      "height": 0
     },
     "mountain": {
       "label": "mountain",
       "glyph": "▲",
       "position": "single",
-      "walkable": false,
+      "walkable": true,
       "colorRole": "feature.mountain",
       "category": "terrain",
-      "title": "Mountain"
+      "title": "Mountain",
+      "height": 0
     },
     "peak": {
       "label": "peak",
@@ -171,86 +175,94 @@
       "label": "spill",
       "glyph": "‖",
       "position": "single",
-      "walkable": false,
-      "colorRole": "feature.spill"
+      "walkable": true,
+      "colorRole": "feature.spill",
+      "height": 0,
+      "category": "terrain"
     },
     "sword": {
       "label": "sword",
       "glyph": "Ɨ",
       "position": "single",
-      "walkable": false,
+      "walkable": true,
       "colorRole": "weapon",
       "pose": {
         "rot": 3.141592653589793,
         "flip": true,
         "scale": 1.7,
         "dy": 0.765
-      }
+      },
+      "height": 0
     },
     "bow": {
       "label": "bow",
       "glyph": "}",
       "position": "single",
-      "walkable": false,
+      "walkable": true,
       "colorRole": "weapon",
       "pose": {
         "rot": 3.141592653589793,
         "flip": true,
         "scale": 1.7,
         "dy": 0.765
-      }
+      },
+      "height": 0
     },
     "gun": {
       "label": "gun",
       "glyph": "¬",
       "position": "single",
-      "walkable": false,
+      "walkable": true,
       "colorRole": "weapon",
       "pose": {
         "rot": 3.141592653589793,
         "flip": true,
         "scale": 1.7,
         "dy": 0.765
-      }
+      },
+      "height": 0
     },
     "axe": {
       "label": "axe",
       "glyph": "T",
       "position": "single",
-      "walkable": false,
+      "walkable": true,
       "colorRole": "weapon",
       "pose": {
         "rot": 3.141592653589793,
         "flip": true,
         "scale": 1.7,
         "dy": 0.765
-      }
+      },
+      "height": 0
     },
     "staff": {
       "label": "staff",
       "glyph": "i",
       "position": "single",
-      "walkable": false,
+      "walkable": true,
       "colorRole": "weapon",
       "pose": {
         "rot": 3.141592653589793,
         "flip": true,
         "scale": 1.7,
         "dy": 0.765
-      }
+      },
+      "height": 0
     },
     "shield": {
       "label": "shield",
       "glyph": "O",
       "position": "single",
-      "walkable": false,
+      "walkable": true,
       "colorRole": "weapon",
       "pose": {
         "rot": 3.141592653589793,
         "flip": true,
         "scale": 1.7,
         "dy": 0.765
-      }
+      },
+      "height": 0
     },
     "grass": {
       "label": "grass",
@@ -274,7 +286,8 @@
       "category": "roads",
       "title": "Path",
       "position": "single",
-      "walkable": true
+      "walkable": true,
+      "height": 0
     },
     "plaza": {
       "label": "plaza",
@@ -298,7 +311,8 @@
       "category": "floors",
       "title": "Cave Floor",
       "position": "single",
-      "walkable": true
+      "walkable": true,
+      "height": 0
     },
     "moss": {
       "label": "moss",
@@ -306,7 +320,8 @@
       "category": "terrain",
       "title": "Moss",
       "position": "single",
-      "walkable": true
+      "walkable": true,
+      "height": 0
     },
     "pillar": {
       "label": "pillar",
@@ -338,7 +353,8 @@
       "category": "nature",
       "title": "Flower",
       "position": "single",
-      "walkable": true
+      "walkable": true,
+      "height": 0
     },
     "bush": {
       "label": "bush",
@@ -402,7 +418,8 @@
       "category": "nature",
       "title": "Hazard",
       "position": "single",
-      "walkable": true
+      "walkable": true,
+      "height": 0
     },
     "key": {
       "label": "key",
@@ -410,7 +427,8 @@
       "category": "nature",
       "title": "Key",
       "position": "single",
-      "walkable": true
+      "walkable": true,
+      "height": 0
     },
     "enemy": {
       "label": "enemy",
@@ -418,7 +436,8 @@
       "category": "units",
       "title": "Enemy",
       "position": "single",
-      "walkable": true
+      "walkable": true,
+      "height": 0
     },
     "npc": {
       "label": "npc",
@@ -426,7 +445,8 @@
       "category": "units",
       "title": "NPC",
       "position": "single",
-      "walkable": true
+      "walkable": true,
+      "height": 0
     },
     "player": {
       "label": "player",
@@ -434,56 +454,64 @@
       "category": "units",
       "title": "Player",
       "position": "single",
-      "walkable": true
+      "walkable": true,
+      "height": 0
     },
     "trunk": {
       "label": "trunk",
       "glyph": "W",
       "colorRole": "trunk",
       "position": "single",
-      "walkable": false
+      "walkable": true,
+      "height": 0
     },
     "trunk_base": {
       "label": "trunk_base",
       "glyph": "0",
       "colorRole": "trunk",
       "position": "single",
-      "walkable": false
+      "walkable": true,
+      "height": 0
     },
     "leaf_left": {
       "label": "leaf_left",
       "glyph": "(@&",
       "colorRole": "canopy",
       "position": "single",
-      "walkable": true
+      "walkable": true,
+      "height": 0
     },
     "leaf_center": {
       "label": "leaf_center",
       "glyph": "@&@",
       "colorRole": "canopy",
       "position": "single",
-      "walkable": true
+      "walkable": true,
+      "height": 0
     },
     "leaf_right": {
       "label": "leaf_right",
       "glyph": "&@)",
       "colorRole": "canopy",
       "position": "single",
-      "walkable": true
+      "walkable": true,
+      "height": 0
     },
     "leaf_top": {
       "label": "leaf_top",
       "glyph": "(&)",
       "colorRole": "canopy",
       "position": "single",
-      "walkable": true
+      "walkable": true,
+      "height": 0
     },
     "snag": {
       "label": "snag",
       "glyph": "Y",
       "colorRole": "trunk",
       "position": "single",
-      "walkable": false
+      "walkable": true,
+      "height": 0
     }
   },
   "palettes": {
@@ -1762,6 +1790,219 @@
         "rgba(70, 110, 80, 0.95)",
         "rgba(60, 100, 70, 0.92)"
       ]
+    },
+    "grass-field": {
+      "char": [
+        ";",
+        ","
+      ],
+      "fg": [
+        "rgba(154, 196, 84, 0.9)",
+        "rgba(146, 188, 78, 0.9)"
+      ],
+      "bg": [
+        "rgba(96, 134, 52, 0.95)",
+        "rgba(90, 126, 48, 0.95)"
+      ]
+    },
+    "dark-grass": {
+      "char": [
+        ";",
+        ","
+      ],
+      "fg": [
+        "rgba(90, 150, 70, 0.9)",
+        "rgba(80, 140, 62, 0.88)"
+      ],
+      "bg": [
+        "rgba(50, 95, 42, 0.95)",
+        "rgba(44, 86, 38, 0.92)"
+      ]
+    },
+    "shallow-water": {
+      "char": [
+        "~",
+        "~"
+      ],
+      "fg": [
+        "rgba(68, 136, 221, 0.85)",
+        "rgba(85, 153, 238, 0.8)"
+      ],
+      "bg": [
+        "rgba(34, 102, 170, 0.9)",
+        "rgba(51, 119, 187, 0.85)"
+      ]
+    },
+    "deep-water": {
+      "char": [
+        "≈",
+        "≈"
+      ],
+      "fg": [
+        "rgba(17, 68, 170, 0.9)",
+        "rgba(0, 51, 170, 0.85)"
+      ],
+      "bg": [
+        "rgba(10, 34, 85, 0.95)",
+        "rgba(8, 26, 68, 0.9)"
+      ]
+    },
+    "beach-sand": {
+      "char": [
+        ".",
+        "·"
+      ],
+      "fg": [
+        "rgba(255, 220, 150, 0.90)",
+        "rgba(250, 210, 140, 0.88)"
+      ],
+      "bg": [
+        "rgba(220, 180, 100, 0.95)",
+        "rgba(210, 170, 95, 0.92)"
+      ]
+    },
+    "desert": {
+      "char": [
+        "▓",
+        "▒"
+      ],
+      "fg": [
+        "rgba(230, 190, 130, 0.90)",
+        "rgba(220, 180, 120, 0.88)"
+      ],
+      "bg": [
+        "rgba(180, 140, 80, 0.95)",
+        "rgba(170, 130, 75, 0.92)"
+      ]
+    },
+    "mountain-slope": {
+      "char": [
+        "▓",
+        "▒"
+      ],
+      "fg": [
+        "rgba(150, 150, 160, 0.9)",
+        "rgba(138, 138, 148, 0.88)"
+      ],
+      "bg": [
+        "rgba(90, 90, 100, 0.95)",
+        "rgba(80, 80, 90, 0.92)"
+      ]
+    },
+    "snowy-peak": {
+      "char": [
+        "≋",
+        "≡"
+      ],
+      "fg": [
+        "rgba(255, 255, 255, 0.95)",
+        "rgba(245, 250, 255, 0.92)"
+      ],
+      "bg": [
+        "rgba(180, 200, 225, 0.95)",
+        "rgba(170, 195, 220, 0.92)"
+      ]
+    },
+    "snowflake": {
+      "char": [
+        "*",
+        "+"
+      ],
+      "fg": [
+        "rgba(210, 235, 255, 0.9)",
+        "rgba(195, 225, 250, 0.85)"
+      ],
+      "bg": [
+        "rgba(170, 200, 225, 0.92)",
+        "rgba(155, 188, 215, 0.9)"
+      ]
+    },
+    "volcano": {
+      "char": [
+        "▓",
+        "█"
+      ],
+      "fg": [
+        "rgba(255, 150, 30, 0.95)",
+        "rgba(255, 130, 20, 0.92)"
+      ],
+      "bg": [
+        "rgba(150, 40, 10, 0.98)",
+        "rgba(130, 30, 5, 0.95)"
+      ]
+    },
+    "ember": {
+      "char": [
+        "≈",
+        "∿"
+      ],
+      "fg": [
+        "rgba(255, 200, 50, 0.95)",
+        "rgba(255, 180, 30, 0.92)"
+      ],
+      "bg": [
+        "rgba(200, 80, 20, 0.98)",
+        "rgba(180, 60, 15, 0.95)"
+      ]
+    },
+    "autumn": {
+      "char": [
+        "·",
+        "„"
+      ],
+      "fg": [
+        "rgba(176, 122, 70, 0.85)",
+        "rgba(156, 104, 58, 0.8)"
+      ],
+      "bg": [
+        "rgba(74, 50, 30, 0.95)",
+        "rgba(64, 42, 24, 0.92)"
+      ]
+    },
+    "cobblestone": {
+      "char": [
+        "░",
+        "▒"
+      ],
+      "fg": [
+        "rgba(204, 187, 170, 0.85)",
+        "rgba(187, 170, 153, 0.8)"
+      ],
+      "bg": [
+        "rgba(153, 136, 119, 0.9)",
+        "rgba(136, 119, 102, 0.85)"
+      ],
+      "category": "roads"
+    },
+    "dirt-path": {
+      "char": [
+        "·",
+        "·"
+      ],
+      "fg": [
+        "rgba(170, 153, 119, 0.85)",
+        "rgba(153, 136, 102, 0.8)"
+      ],
+      "bg": [
+        "rgba(119, 102, 85, 0.9)",
+        "rgba(102, 85, 68, 0.85)"
+      ],
+      "category": "roads"
+    },
+    "gravel": {
+      "char": [
+        "·",
+        "∴"
+      ],
+      "fg": [
+        "rgba(150, 138, 120, 0.85)",
+        "rgba(138, 126, 110, 0.82)"
+      ],
+      "bg": [
+        "rgba(90, 80, 66, 0.92)",
+        "rgba(80, 72, 60, 0.9)"
+      ],
+      "category": "roads"
     }
   },
   "compositions": {

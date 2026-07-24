@@ -2,7 +2,10 @@ defmodule Nebulith.TileSourceTest do
   use Nebulith.DataCase
 
   alias Nebulith.Catalog
+  alias Nebulith.Catalog.BuildingCompositions
   alias Nebulith.Catalog.TileSource
+  alias Nebulith.DataMigration.AsciiPathFloorHeight
+  alias Nebulith.DataMigration.FlatTilesMinimalHeight
 
   # Expected counts are derived straight from the source JSON so the test proves
   # every distinct label was ported (ascii `tiles` and `terrain` share a
@@ -350,6 +353,47 @@ defmodule Nebulith.TileSourceTest do
     for label <- ~w(grass water path road sand) do
       assert by.(label).height == 0, "#{label} is terrain (the floor), height 0"
     end
+  end
+
+  test "the entrance's doorstep tile is FLAT in BOTH styles — the same label carries the same floor height" do
+    # Alexander: "the entrance door … aren't 0.01 height like the rest of floor tiles, so we must generate them
+    # with that height". A building's entrance apron places the `path` TILE (BuildingCompositions.entrance_cells),
+    # so the doorstep is only as flat as that tile's own height DATA. The ascii glyph seed stamped every
+    # ascii.json `tiles` entry a full block (a hardcoded `height: 1`), so `path` was a 1-block kerb in ascii and a
+    # floor slab in emoji — the SAME label behaving differently per art style, which MAP-MODEL §4 forbids ("all
+    # tiles behave and are inserted the same in the map, regardless of type or art style").
+    assert [_ | _] = entrance = BuildingCompositions.entrance_cells([1, 2], 4)
+    assert Enum.map(entrance, & &1.label) |> Enum.uniq() == ["path"]
+
+    # every FLOOR tile you can walk on — the doorstep must be one of them, not a block standing on them.
+    floor_labels = ~w(path road plaza sand grass water)
+
+    for style <- ~w(ascii emoji) do
+      tiles = Catalog.list_tiles_for(style)
+      heights = Map.new(floor_labels, fn l -> {l, Enum.find(tiles, &(&1.label == l)).height} end)
+
+      assert Enum.uniq(Map.values(heights)) == [0.0],
+             "#{style}: floor tiles must all carry the SAME flat height, got #{inspect(heights)}"
+    end
+  end
+
+  test "AsciiPathFloorHeight puts a drifted ascii `path` back on the floor, settings untouched, idempotent" do
+    # The live DB carries the pre-fix row (ascii `path` = a full block) — a re-seed would clobber editor-tuned
+    # poses, so the DATA fix ships as a data migration. It lands the SAME minimal flat height every other floor
+    # tile already has (FlatTilesMinimalHeight), so the doorstep matches the road it joins.
+    path = Enum.find(Catalog.list_tiles_for("ascii"), &(&1.label == "path"))
+    settings_before = path.settings
+    {1, _} = Catalog.set_tile_height(path.tileset_id, "path", 1.0)
+
+    :ok = AsciiPathFloorHeight.run()
+    fixed = Enum.find(Catalog.list_tiles_for("ascii"), &(&1.label == "path"))
+    assert fixed.height == FlatTilesMinimalHeight.flat_height()
+    assert fixed.settings == settings_before, "settings (colour/pose) survive the height-only fix"
+
+    :ok = AsciiPathFloorHeight.run()
+
+    assert Enum.find(Catalog.list_tiles_for("ascii"), &(&1.label == "path")).height ==
+             FlatTilesMinimalHeight.flat_height()
   end
 
   test "reconcile_tile_heights restores each asset tile's OWN height from emoji.json (drift snaps back), settings untouched" do

@@ -22,7 +22,9 @@ defmodule Nebulith.Catalog.BuildingCompositions do
   ROOF is one consistent colour (`roof`/`roof_top` share it, or the slate pair for masonry).
   The ENTRANCE apron (`entrance_cells/2`) is built from that SAME `door_cols/1` list, so it always
   matches the doors block for block — 2 doors → a 2-block entrance, 3 doors → a 3-block one — with
-  each contiguous run collapsed to ONE z-width block (G7).
+  each contiguous run collapsed to ONE z-width block (G7). The apron places the `path` FLOOR tile, so
+  the doorstep carries the floor's own minimal height and lies FLAT like the road it joins — height is
+  the TILE's data, never the composition's (MAP-MODEL §4/§5).
 
   **Minimal cells (#30).** Each vertical RUN of the same tile in a column is authored as ONE
   cell sized `settings.scaleY = span` (a 4-tall wall pier → 1 cell, not 4 stacked). This is
