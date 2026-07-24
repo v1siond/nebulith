@@ -50,13 +50,16 @@ const FACADE_OVERLAY = 'rgba(0, 0, 0, 0.45)'
 describe('render2D — a stamped building renders as a front elevation (depth collapsed)', () => {
   test("the house's 2D vertical extent equals its LEVEL height, not level + depth", () => {
     const grid = grid40()
-    // house_4: 4 wide × 4 deep — 2 living floors (levels 0-3) + a gable roof, ridge at level 5 (6 tall).
+    // house_4: 4 wide × 4 deep — living floors (levels 0-3) + a gable roof whose eave starts at level 4.
     // Front door faces south → front row = anchor + 3.
     const ANCHOR = PROW - 1 // near centre so the camera never clamps and the whole house is on-screen
     stampBuildingComposition(grid, 'house', 4, ANCHOR, ANCHOR, 'spring', 'south')
 
-    const maxLevel = Math.max(...grid.assets.map(a => a.heightLevel ?? 0))
-    expect(maxLevel).toBe(5) // sanity: the stamped house really is 6 levels tall (gable ridge at L5)
+    // The building's TRUE rendered height in blocks — `level + own height × scaleY`, the same accumulation
+    // the stacking rule uses. The gable's ridge is a level-4 bar carrying its step height as scaleY 2, so the
+    // house tops out at 6 blocks even though its highest LEVEL is 4.
+    const topBlocks = Math.max(...grid.assets.map(a => (a.heightLevel ?? 0) + (a.height ?? 1) * (a.scaleY ?? 1)))
+    expect(topBlocks).toBe(6) // sanity: the stamped house really is 6 blocks tall (ridge = level 4 + a 2-block bar)
 
     const { ctx, rects } = recordingCtx()
     render2D({ ctx, w: W, h: H, grid, player: player(), time: 0 })
@@ -64,12 +67,12 @@ describe('render2D — a stamped building renders as a front elevation (depth co
     const facade = rects.filter(r => r.style === FACADE_OVERLAY && r.w === TILE && r.h % TILE === 0)
     expect(facade.length).toBeGreaterThan(0)
 
-    // GEOMETRY: the facade's total vertical span == (maxLevel + 1) cells = its true height.
+    // GEOMETRY: the facade's total vertical span == the building's true height in cells.
     const top = Math.min(...facade.map(r => r.y))
     const bottom = Math.max(...facade.map(r => r.y + r.h))
     const extentCells = (bottom - top) / TILE
-    expect(extentCells).toBeCloseTo(maxLevel + 1, 5) // 5 cells tall — NOT depth(4) + levels(5) ≈ 9
-    expect(extentCells).toBeLessThan(maxLevel + 2) // hard upper bound: depth is truly collapsed
+    expect(extentCells).toBeCloseTo(topBlocks, 5)  // 6 cells tall — NOT depth(4) + height(6) ≈ 10
+    expect(extentCells).toBeLessThan(topBlocks + 1) // hard upper bound: depth is truly collapsed
 
     // The number of drawn facade cells equals the depth-collapsed projection (front-most per col/level).
     const projected = frontElevation(grid.assets).draw.size

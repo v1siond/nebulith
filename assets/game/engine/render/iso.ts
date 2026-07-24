@@ -616,22 +616,6 @@ export function render(params: IsoRenderParams) {
       recordUnitHit(obj.col, obj.row, p.x, footY, obj.entity.id) // pick the unit figure (foot→head)
     }
   }
-  // Each stacked tile RESTS ON its cell's FLOOR slab (MAP-MODEL §4 "stacked like legos/minecraft — height
-  // accumulates"): lift every non-floor tile by the floor tile's OWN rendered slab height, so a building / wall
-  // / prop sits ON the 0.1 grass instead of co-planar with it on the grid — the #16 report ("put directly on
-  // the grid and not on top of the grass"). The floor's DB height is stable per ground slug, so memoize
-  // slug → lift px across this frame — the hot loop pays ONE tileset lookup per distinct floor tile, not per
-  // drawn asset. A bare/cleared cell (no floor) lifts nothing, so an un-floored map is byte-identical.
-  const floorLiftBySlug = new Map<string, number>()
-  const floorLiftAt = (col: number, row: number): number => {
-    const floor = grid.floorAt(col, row)
-    if (!floor) return 0
-    const slug = floor.tileKey ?? ''
-    let lift = floorLiftBySlug.get(slug)
-    if (lift === undefined) { lift = floorSlabHeight(floor, style) * tileW * ISO_BLOCK_H_FRAC; floorLiftBySlug.set(slug, lift) }
-    return lift
-  }
-
   // ONE PASS — tiles AND units, in the single depth order `allObjects` already carries. A unit is a tile, so
   // perspective decides what covers what: a wall nearer the camera hides the figure behind it, and the figure
   // hides what stands behind IT. (Units used to draw in a separate later pass, which painted them over every
@@ -667,14 +651,12 @@ export function render(params: IsoRenderParams) {
       }
       if (anim) op *= anim.opacity // animated opacity fades the drawn tile (multiplies base + proximity alpha)
       if (op < 1) ctx.globalAlpha = op
-      // Brush STACK: lift this entry `heightLevel` cubes up so the pile climbs in iso (block-kinds extrude
-      // into stacked cubes, decorative sprites become a lifted billboard). No-op at heightLevel 0 — every
-      // generated/existing asset — so non-stacked maps are byte-identical. Mirrors the 2D raised stack.
+      // STACK: lift this tile `heightLevel` blocks up so the pile climbs in iso. This is the WHOLE lift —
+      // there is no floor-shaped extra term and no "floor stack lift" (Alexander: "FLOOR ARE TILES, ALL TILES
+      // STACK ON TOP OF ANOTHER LIKE LEGOS BY DEFAULT … THE FLOOR IS NO DIFFERENT FROM IT"). A tile's level
+      // already accounts for everything beneath it, floor included, because `stackTop` (cellStack) assigns it
+      // as `level + own height` over the cell's tiles — so raising a floor tile lifts what sits on it for free.
       const stackLift = isoStackLift(tileW, obj.asset.heightLevel)
-      // …plus the cell's FLOOR slab beneath the whole stack — a non-floor tile rests ON the grass/road (0 for
-      // the floor itself, which IS the base, and for a bare cell). This is what seats a building ON the 0.1
-      // grass instead of on the grid (#16); it lifts the WHOLE stack uniformly, so no inter-tile gap changes.
-      const floorLift = obj.asset.type === FLOOR_TYPE ? 0 : floorLiftAt(obj.asset.col, obj.asset.row)
       // "z position" (per-asset zOffset): SLIDE the tile along an ISO DIAGONAL — NOT a vertical lift. zOffset is
       // the magnitude in cells; zDir picks the diagonal (default right-up), so +z slides TOWARD it (right-up =
       // up-right toward the back) and −z toward its opposite, landing on the neighbouring diamond exactly like
@@ -686,7 +668,7 @@ export function render(params: IsoRenderParams) {
       const animShiftX = anim ? anim.x * tileW : 0
       const animShiftY = anim ? anim.y * tileH : 0
       // Authored frame animation: offset/rotate/scale the asset around its cell (sway/wind).
-      const ax = p.x + zMove.dx + animShiftX, ay = p.y - heightOffset - stackLift - floorLift + zMove.dy - animShiftY
+      const ax = p.x + zMove.dx + animShiftX, ay = p.y - heightOffset - stackLift + zMove.dy - animShiftY
       const ct = assetCellTransform(obj.asset.cellAnim, time)
       if (ct) applyCellTransform(ctx, ax, ay, ct, tileW, tileH)
       const geom = drawIsoAssetAscii(ctx, ax, ay, drawAsset, tileW, tileH, time, obj.asset.type === 'tree' && (!!obj.asset.baseShadow || isGroundContact(isTreeCell, obj.asset.col, obj.asset.row)), dayNight, style)
@@ -1299,20 +1281,6 @@ export const ISO_BLOCK_H_FRAC = 0.9
  *  so this is a pure no-op for non-stacked maps. Matches topdown.ts's 2D `heightLevel * tileH * 0.9`. */
 export function isoStackLift(tileW: number, heightLevel: number | undefined): number {
   return (heightLevel ?? 0) * tileW * ISO_BLOCK_H_FRAC
-}
-
-/** The rendered SLAB height (in block units) of a cell's FLOOR tile — the thin base a stacked tile RESTS ON
- *  (MAP-MODEL §4 "stacked like legos/minecraft — height accumulates"). Since the floor-as-tile refactor the
- *  floor is a level-0 GridAsset carrying its ground tile's OWN DB height (grass/road ≈ 0.1); a wall/building
- *  cell shares level 0 with it (stampRun), so without lifting by this the two bases were CO-PLANAR — the
- *  building sat on the grid, not on the grass (Alexander #16). Reads the floor tile's OWN DB height the SAME
- *  way drawIsoAssetAscii does (assetKind → DB tile → resolveTileHeight → partialBlockScale) — never a constant.
- *  0 for a bare/cleared cell (no floor) or a non-floor asset (nothing beneath it to rest on). */
-export function floorSlabHeight(floor: GridAsset | undefined, style: Style): number {
-  if (!floor || floor.type !== FLOOR_TYPE) return 0
-  const kind = assetKind(floor)
-  const dbTile = style.id === ASCII_STYLE.id ? ASCII_TILESET.tiles[kind] : EMOJI_TILESET[kind]
-  return partialBlockScale(resolveTileHeight(dbTile, floor))
 }
 
 /** Depth order for the merged iso draw list: back-to-front by the iso key (col + row), then — for two

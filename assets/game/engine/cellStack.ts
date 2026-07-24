@@ -13,6 +13,8 @@
 import { FLOOR_TYPE, DEFAULT_FLOOR_SLUG, type IsometricGrid, type GridAsset } from './IsometricGrid'
 import type { TilePose } from './tileset/pose'
 import { resolveTileHeight } from './tileset/tileHeight'
+import { ASCII_TILESET } from './tileset/asciiTileset'
+import { EMOJI_TILESET } from './tileset/emojiTileset'
 
 /** Which store a TileEntry projects from — lets a consumer/mutator route back to the right setter/store.
  *  There is NO `floor` source: the floor is a plain `type:'floor'` ASSET, so it projects as `asset` exactly
@@ -158,21 +160,35 @@ export function deriveCellCollision(stack: TileEntry[]): boolean {
 
 // ── mutators: translate stack ops back onto the grid's EXISTING setters ──
 
-/** The current top NON-FLOOR stack level at a cell, or -1 when the cell holds no stacked tile (only its floor
- *  or empty). The floor is EXCLUDED because it is the cell's thin ground SLAB (the "baseplate"), not a block
- *  level: the FIRST tile pushed onto a bare/floor-only cell lands at level 0 — coexisting WITH the floor at
- *  level 0 (a wall block on the grass slab) — and each further tile stacks one level above the tallest. */
-function topLevel(grid: IsometricGrid, col: number, row: number): number {
-  return grid.getAssetsAtCell(col, row).reduce(
-    (max, a) => (a.type === FLOOR_TYPE ? max : Math.max(max, a.heightLevel ?? 0)),
-    -1,
-  )
+/** The TOP of what a cell already holds, in blocks — where the next tile lands. ONE rule for EVERY tile
+ *  (Alexander: "ALL TILES STACK ON TOP OF ANOTHER LIKE LEGOS BY DEFAULT … THE FLOOR IS NO DIFFERENT FROM
+ *  IT"): each tile occupies `its level + its own block height`, and the next tile rests on the tallest of
+ *  them. The FLOOR is counted like any other tile — a flat floor is 0 blocks tall so it adds nothing and a
+ *  wall painted on grass starts on the grid, while RAISING that floor tile lifts whatever is stacked above
+ *  it, for free, because the rule reads its height the same way it reads a wall's. 0 on an empty cell.
+ *
+ *  Height is `resolveTileHeight` × the per-instance Height multiplier (scaleY) — the SAME product the iso
+ *  renderer extrudes, so a 4-block pier authored as one scaleY-4 cell stacks as 4 blocks, not as 1. */
+function stackTop(grid: IsometricGrid, col: number, row: number): number {
+  return grid.getAssetsAtCell(col, row).reduce((top, a) => Math.max(top, (a.heightLevel ?? 0) + assetBlocks(a)), 0)
+}
+
+/** A placed tile's own height in BLOCKS: its per-instance override, else its DB tile's height, × the
+ *  per-instance Height multiplier (scaleY) — the same product the iso renderer extrudes. The DB read matters:
+ *  a GENERATED asset usually pins no per-instance height (it renders at its catalog height), so reading the
+ *  instance alone would treat a standing tree as 0 blocks and bury the next tile inside it. Heights are
+ *  style-identical — the SAME label carries the SAME height in ascii and emoji (MAP-MODEL §4) — so whichever
+ *  tileset holds the label answers. */
+function assetBlocks(a: GridAsset): number {
+  const slug = a.type === FLOOR_TYPE ? (a.tileKey ?? DEFAULT_FLOOR_SLUG) : (a.label ?? a.type)
+  return resolveTileHeight(ASCII_TILESET.tiles[slug] ?? EMOJI_TILESET[slug], a) * (a.scaleY ?? 1)
 }
 
 /** pushTile → STACK a tile onto the cell (MAP-MODEL §4 "a cell holds an ORDERED stack ... stacked like legos"):
- *  placeAsset at heightLevel = (top NON-floor + 1) — 0 on a bare/floor-only cell, one above the tallest stacked
- *  tile otherwise. The floor STAYS: paint a wall on grass and the grass slab remains beneath as its own stacked
- *  tile while the wall sits at level 0 on it; a roof/upper level stacks ABOVE. The floor is removed ONLY by an
+ *  placeAsset at heightLevel = `stackTop` — the top of everything already in the cell, floor included, so the
+ *  tile rests ON what is there. The floor STAYS: paint a wall on grass and the grass tile remains beneath as
+ *  its own stacked tile (a flat floor is 0 blocks, so the wall starts on the grid); a roof/upper level stacks
+ *  ABOVE by its own height. The floor is removed ONLY by an
  *  explicit CLEAR/erase (grid.removeFloor via clearGroundTile), never by placement. placeAsset's fixed option
  *  list drops the per-instance dims (scaleX/scaleZ/scaleY/height) and the label, so we assign those onto the
  *  just-placed asset to keep the uniform-tile push lossless. Each patch is applied ONLY when the entry actually
@@ -180,7 +196,7 @@ function topLevel(grid: IsometricGrid, col: number, row: number): number {
  *  leaves scaleX/scaleZ/height undefined so the renderer falls back to the tile default. Returns the placed
  *  GridAsset. */
 export function pushTile(grid: IsometricGrid, col: number, row: number, entry: TileEntry): GridAsset {
-  const heightLevel = topLevel(grid, col, row) + 1
+  const heightLevel = stackTop(grid, col, row)
   grid.placeAsset(entry.art ?? [], col, row, {
     type: entry.type,
     blocking: entry.collision ?? false,

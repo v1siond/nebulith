@@ -19,6 +19,13 @@ function levelsOf(c: Cell): number[] {
   const span = Math.max(1, Math.trunc(c.settings?.scaleY ?? 1))
   return Array.from({ length: span }, (_, i) => c.level + i)
 }
+// The building's OWN cells — its footprint rows only. The backend also authors the entrance APRON (the `path`
+// doorstep, `entrance_cells/2`) on the row IN FRONT of the facade (dy = h) so the doorstep joins the road it
+// meets. That apron is GROUND, not facade: leaving it in makes a "front face" read at the door column return
+// the doorstep instead of the door.
+const facadeCells = (c: { cells: unknown; footprint: { h: number } }): Cell[] =>
+  (c.cells as Cell[]).filter(x => x.dy < c.footprint.h)
+
 // The label on a FACE (front = max-dy, back = min-dy) at (dx, level), scaleY-span aware, or null.
 function faceLabel(cells: Cell[], face: 'front' | 'back', dx: number, level: number): string | null {
   const at = cells.filter(c => c.dx === dx && levelsOf(c).includes(level))
@@ -40,7 +47,7 @@ describe('sample compositions — realistic building/fountain/tree DATA from the
       test(`${name}: windows mirror across the centreline, never at the bare edge, aligned across floors`, () => {
         const c = comp(name)
         const w = c.footprint.w
-        const cells = c.cells as Cell[]
+        const cells = facadeCells(c)
         const maxLevel = Math.max(...cells.flatMap(levelsOf))
         const windowColsAt = (lv: number) => Array.from({ length: w }, (_, dx) => dx).filter(dx => windowAt(cells, dx, lv))
         const windowLevels = Array.from({ length: maxLevel + 1 }, (_, lv) => lv).filter(lv => windowColsAt(lv).length > 0)
@@ -73,7 +80,7 @@ describe('sample compositions — realistic building/fountain/tree DATA from the
 
   test('store: a storefront — wide display window + centred door + a striped awning above, flat roof', () => {
     const c = comp('store_5')
-    const cells = c.cells as Cell[]
+    const cells = facadeCells(c)
     const w = c.footprint.w
     const doorCol = Math.floor(w / 2)
     // Ground front (level 0): display windows flanking a centred door.
@@ -91,7 +98,7 @@ describe('sample compositions — realistic building/fountain/tree DATA from the
 
   test('office: taller than a house, flat roof + a rooftop unit, regular window grid every floor', () => {
     const c = comp('office_5')
-    const cells = c.cells as Cell[]
+    const cells = facadeCells(c)
     const maxLevel = Math.max(...cells.map(x => x.level))
     expect(maxLevel).toBeGreaterThan(Math.max(...comp('house_4').cells.map(x => x.level))) // taller than a house
     const labels = new Set(cells.map(x => x.label))
@@ -211,7 +218,7 @@ describe('sample compositions — realistic building/fountain/tree DATA from the
 
   test('stone_building: a wall_stone MATERIAL box, front face autotiled from center/edge/corner pieces + spaced windows + door + gable roof', () => {
     const c = comp('stone_building')
-    const cells = c.cells as Cell[]
+    const cells = facadeCells(c)
     expect(c.footprint.w).toBe(5)
     const labels = new Set(cells.map(x => x.label))
     // MATERIAL variety — the wall field is `wall_stone` (a DISTINCT tile from brick), never plain `wall`/brick reskins.

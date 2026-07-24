@@ -46,10 +46,10 @@ const ENTRANCE_COMP: Composition = {
   ],
 }
 
-// The FLOOR height every floor tile carries in the DB (nebulith `FlatTilesMinimalHeight` = 0.1 blocks — "a
-// block with minimal height, enough to just see the colour"). Verified against the live backend: after the
-// ascii `path` fix, GET :4000/api/tilesets serves path = road = grass = 0.1 in BOTH styles.
-const FLOOR_HEIGHT = 0.1
+/** The doorstep's height, READ from the loaded tileset — never a constant pinned here. A flat tile is 0 blocks
+ *  (nebulith data migration 0005, "GET THE TILES OF 0.1 DOWN TO 0"); whatever the DB says is what the stamp
+ *  must produce, which is the only thing this file should assert. */
+const floorHeight = (): number => ASCII_TILESET.tiles.path.height ?? 0
 
 const mkGrid = (): IsometricGrid => new IsometricGrid({ cols: 40, rows: 40, cellSize: 16, isoScale: 1.4 })
 
@@ -67,12 +67,7 @@ const shapesOf = (assets: Array<Partial<GridAsset>>): string[] => assets.map(sha
 describe('(A) a composition cell stamps at the TILE\'s OWN height', () => {
   useSeedTileset() // the DB-equivalent tileset — real wall/door/roof/path tiles with their DB heights
 
-  beforeAll(() => {
-    ASCII_TILESET.compositions[KIND] = ENTRANCE_COMP
-    // The captured fixture predates the ascii `path` floor-height fix; the live backend now serves 0.1 (the
-    // same value every other floor tile carries), so pin the fixture tile to what the DB actually returns.
-    ASCII_TILESET.tiles.path.height = FLOOR_HEIGHT
-  })
+  beforeAll(() => { ASCII_TILESET.compositions[KIND] = ENTRANCE_COMP })
   afterAll(() => { delete ASCII_TILESET.compositions[KIND] })
 
   test('the entrance doorstep stamps FLAT — the path tile\'s own floor height, not a 1-block kerb', () => {
@@ -81,8 +76,8 @@ describe('(A) a composition cell stamps at the TILE\'s OWN height', () => {
 
     const doorstep = grid.assets.filter(a => a.label === 'path')
     expect(doorstep).toHaveLength(1)
-    expect(doorstep[0].height).toBe(FLOOR_HEIGHT)
-    expect(doorstep[0].height).toBe(ASCII_TILESET.tiles.path.height) // read from the DB tile, never invented
+    expect(doorstep[0].height).toBe(floorHeight()) // read from the DB tile, never invented
+    expect(doorstep[0].height).toBeLessThan(1)     // FLAT — the doorstep is not a 1-block kerb in front of the door
   })
 
   test('a STANDING cell (wall / door / roof) still stamps a whole block', () => {
@@ -112,15 +107,20 @@ describe('(A) a composition cell stamps at the TILE\'s OWN height', () => {
     }
   })
 
-  test('the existing compositions keep their heights — tree / bush / fountain / lamp post / house', () => {
-    // Behaviour-preservation guard: reading the tile's own height must not shrink anything that stood before.
-    // Every one of these cells resolves to a standing DB tile (height 1), so the whole set stays at 1 block.
+  test('every cell of the existing compositions stamps its OWN tile height — tree / bush / fountain / lamp post / house', () => {
+    // Behaviour-preservation guard, stated as the actual invariant (this describe's whole point): a stamped
+    // cell's height IS its tile's DB height — a standing wall/trunk/roof is its 1 block, the house's entrance
+    // doorstep is the FLAT `path` floor tile. Nothing is forced to 1 and nothing is invented, so a tile whose
+    // DB height changes flows straight through without this test needing a new hardcoded number.
     for (const kind of ['tree_small', 'tree', 'bush', 'fountain', 'well', 'lamp_post', 'house_4', 'store_5']) {
       const grid = mkGrid()
       const placed = stampComposition(grid, kind, 12, 12, 'spring')
       expect(placed).toBeGreaterThan(0)
-      const heights = new Set(grid.assets.filter(a => a.type === kind).map(a => a.height))
-      expect([...heights]).toEqual([1])
+      const wrong = grid.assets
+        .filter(a => a.type === kind)
+        .filter(a => a.height !== (ASCII_TILESET.tiles[a.label ?? '']?.height ?? 1))
+        .map(a => `${kind}/${a.label}: stamped ${a.height}, DB says ${ASCII_TILESET.tiles[a.label ?? '']?.height}`)
+      expect(wrong).toEqual([])
     }
   })
 })
@@ -128,10 +128,7 @@ describe('(A) a composition cell stamps at the TILE\'s OWN height', () => {
 describe('(B) a generated stage survives stageToTemplate — depth / depthDir / scaleY / height intact', () => {
   useSeedTileset()
 
-  beforeAll(() => {
-    ASCII_TILESET.compositions[KIND] = ENTRANCE_COMP
-    ASCII_TILESET.tiles.path.height = FLOOR_HEIGHT
-  })
+  beforeAll(() => { ASCII_TILESET.compositions[KIND] = ENTRANCE_COMP })
   afterAll(() => { delete ASCII_TILESET.compositions[KIND] })
 
   /** A real generated town, re-pointed at the test building so the save path walks the LIVE cell shapes. */
@@ -149,7 +146,7 @@ describe('(B) a generated stage survives stageToTemplate — depth / depthDir / 
     expect(saved).toHaveLength(1) // ONE z-width block, not two cells and not zero
     expect(saved[0].depth).toBe(2)
     expect(saved[0].depthDir).toBe('right-down')
-    expect(saved[0].height).toBe(FLOOR_HEIGHT)
+    expect(saved[0].height).toBe(floorHeight()) // the doorstep reloads at the DB height it was stamped with
   })
 
   test('the roof column keeps its z-width span AND its gable-step height', () => {

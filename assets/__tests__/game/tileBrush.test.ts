@@ -10,6 +10,7 @@ import '@/__tests__/helpers/installTilesetSeed' // install the DB-equivalent til
  * here via `nonFloor()`. The floor slab is only removed by an explicit Clear/⌥Alt-erase, never by placement.
  */
 import { IsometricGrid, type GridAsset } from '@/engine/IsometricGrid'
+import { EMOJI_TILESET } from '@/engine/tileset/emojiTileset'
 import { tilesForStyle, type TileDef } from '@/game/artStyle'
 import { clearGroundTile, placeGroundTile, removeTopAsset, removeAssetAtLevel, stackAssetTile } from '@/game/editor/tileBrush'
 import { tileSlug } from '@/game/editor/tilePlacement'
@@ -133,12 +134,15 @@ describe('painted tile — its OWN height + settings seed onto the asset (unifor
     expect(a.settings?.fadeNear).toBe(true)
   })
 
-  test('a roof tile carries cutawayRoof from its DB settings (and inserts flat — its DB height is 0)', () => {
+  test('a roof tile carries cutawayRoof from its DB settings, and inserts at its OWN DB height', () => {
     const g = makeGrid()
     stackAssetTile(g, 1, 1, byId('emoji:roof'))
     const a = nonFloor(g, 1, 1)[0]
     expect(a.settings?.cutawayRoof).toBe(true)
-    expect(a.height).toBe(0) // a facade piece is flat (floor face) — its own DB height, not a forced block
+    // The roof is a STANDING block in the DB (the gable is real depth-spanned roof bars, not a flat cap), and
+    // the brush reads that number rather than forcing one — the same uniform read every tile gets.
+    expect(a.height).toBe(EMOJI_TILESET.roof.height)
+    expect(a.height).toBe(1)
   })
 
   test('a flower inserts FLAT (its own DB height 0 — floor face only in iso) and never forced to display:single', () => {

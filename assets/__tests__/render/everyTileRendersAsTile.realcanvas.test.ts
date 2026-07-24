@@ -106,25 +106,27 @@ describe.each([
   })
 })
 
-// ── a sub-block (flat, 0<h<1) tile is a THIN slab; a height≥1 tile is a taller cube (both real blocks) ──
-// Flat tiles now carry their real DB height (0.1) — the renderer reads it and draws a proportional slab, never
-// flooring it to a full cube. (Only UNITS are height 0 now; they render via the entity path, tested below.)
-describe('the height model — sub-block (flat) = thin slab, standing = taller cube (both blocks)', () => {
-  it('a sub-block emoji tile is a THIN slab and a height≥1 emoji tile is a much taller cube', () => {
-    const flat = nonUnit(emojiRows()).find(r => r.height > 0 && r.height < 1)!
-    const tall = nonUnit(emojiRows()).find(r => r.height >= 1)!
-    const flatPx = cubeExtrudePx(renderIso(EMOJI_STYLE, flat))
-    const tallPx = cubeExtrudePx(renderIso(EMOJI_STYLE, tall))
-    expect(flatPx).toBeGreaterThan(0)          // a REAL (thin) slab — its DB height (0.1) drawn, not floored to 0
-    expect(tallPx).toBeGreaterThan(flatPx * 3) // …but far shorter than a standing block (the floor-slab look)
+// ── a FLAT tile is the ground diamond; a height≥1 tile is an extruded cube — BOTH are tiles, neither billboards ──
+// Flat tiles carry their real DB height, which is 0 (nebulith data migration 0005 — "GET THE TILES OF 0.1 DOWN
+// TO 0"): a flat tile takes up no vertical room, so the renderer draws it with no side walls, while a standing
+// tile extrudes. That the flat draw is still VISIBLE (it paints its ground diamond) is proved on real pixels in
+// flatTileHeightUniform.realcanvas.test.ts; here we pin the SHAPE — every tile records tile geometry.
+describe('the height model — flat = ground diamond, standing = extruded cube (both real tiles)', () => {
+  it('a FLAT emoji tile records a tile with no extrusion; a height≥1 emoji tile extrudes', () => {
+    const flat = nonUnit(emojiRows()).find(r => r.height === 0)
+    const tall = nonUnit(emojiRows()).find(r => r.height >= 1)
+    expect(flat).toBeDefined()
+    expect(tall).toBeDefined()
+    expect(renderIso(EMOJI_STYLE, flat!)?.kind).toBe('cube') // a tile, not a billboard
+    expect(cubeExtrudePx(renderIso(EMOJI_STYLE, flat!))).toBe(0)
+    expect(cubeExtrudePx(renderIso(EMOJI_STYLE, tall!))).toBeGreaterThan(0)
   })
 
-  it('an image-LESS ASCII glyph tile is still a THIN slab (glyph on the block), never a billboard', () => {
+  it('an image-LESS ASCII glyph tile is still a TILE (glyph on the block), never a billboard', () => {
     // ASCII resolves a placed tile to its GLYPH (not its baked image); the flat case used to billboard.
-    const flatAscii = nonUnit(asciiRows()).find(r => r.height > 0 && r.height < 1)!
-    const g = renderIso(ASCII_STYLE, flatAscii)
-    expect(g?.kind).toBe('cube')
-    expect(cubeExtrudePx(g)).toBeGreaterThan(0)
+    const flatAscii = nonUnit(asciiRows()).find(r => r.height === 0)
+    expect(flatAscii).toBeDefined()
+    expect(renderIso(ASCII_STYLE, flatAscii!)?.kind).toBe('cube')
   })
 })
 

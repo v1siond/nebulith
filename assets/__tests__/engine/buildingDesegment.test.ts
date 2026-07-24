@@ -14,8 +14,9 @@ import { stampBuildingComposition } from '@/game/runtime/composition'
 const mkGrid = () => new IsometricGrid({ cols: 32, rows: 32, cellSize: 16, isoScale: 1.4 })
 // A cell label is a building PART when it is a base part OR a material/variant of one
 // (a store's `roof_top_store`, a house's `wall_wood_c`, a slate `roof_slate`, …) — each still a
-// roof/wall/window/door/apex.
-const isBuildingPart = (label = '') => /^(roof_top|roof|wall|window|door)/.test(label)
+// roof/wall/window/door/apex — OR the entrance APRON, the `path` FLOOR tile the backend's
+// `entrance_cells/2` lays on the row in front of the doors so the doorstep joins the road it meets.
+const isBuildingPart = (label = '') => /^(roof_top|roof|wall|window|door|path)/.test(label)
 
 describe('stampBuildingComposition → plain per-cell tiles carrying generic behavior settings', () => {
   test('every stamped cell is a labeled tile — none is `type:"building"`, none carries `buildingType`', () => {
@@ -64,9 +65,17 @@ describe('stampBuildingComposition → plain per-cell tiles carrying generic beh
     expect(grid.assets.filter(a => a.type !== 'floor').every(a => a.type === 'store_5')).toBe(true)
   })
 
-  test('exactly ONE apex roof_top tile — the single roof apex', () => {
-    const grid = mkGrid()
-    stampBuildingComposition(grid, 'house', 4, 12, 12, 'spring', 'south')
-    expect(grid.assets.filter(a => (a.label ?? '').startsWith('roof_top'))).toHaveLength(1)
+  test('the roof RIDGE wears roof_top — one ridge column per peak, symmetric about the centre', () => {
+    // The gable is one depth-spanned bar PER COLUMN at its symmetric step height (`gable_roof`), with the
+    // PEAK-height columns wearing the ridge tile. An ODD width peaks on one centre column; an EVEN width
+    // peaks on two (w=4 → steps [1,2,2,1]). The old separate apex "cap" was removed because it shortened one
+    // centre column and broke that left/right symmetry — so the count follows the width, it is not always 1.
+    const ridges = (w: number): number => {
+      const grid = mkGrid()
+      stampBuildingComposition(grid, 'house', w, 12, 12, 'spring', 'south')
+      return grid.assets.filter(a => (a.label ?? '').startsWith('roof_top')).length
+    }
+    expect(ridges(4)).toBe(2) // even width → a two-column ridge
+    expect(ridges(5)).toBe(1) // odd width  → a single centre apex
   })
 })

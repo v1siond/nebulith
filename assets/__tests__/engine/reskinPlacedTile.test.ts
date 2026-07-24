@@ -19,17 +19,27 @@ describe('activeStyleVisualForOverride — re-home a placed tile onto the active
     expect((v as { src: string }).src).toContain('pine-tree')
   })
 
-  test('emoji:pine-tree has NO per-slug art under ASCII → null (signals the coarse-kind fallback)', () => {
-    // ASCII's catalog is per-KIND (ascii:tree), not per-slug — there is no ascii:pine-tree.
-    expect(visualForTileId('ascii:pine-tree')).toBeNull()
-    expect(activeStyleVisualForOverride('emoji:pine-tree', ASCII_STYLE)).toBeNull()
+  test('emoji:pine-tree KEEPS its identity under ASCII — the vocabulary-parity twin, not a coarse tree', () => {
+    // The parity pass gave every patternable emoji label an ascii twin, so ascii:pine-tree now EXISTS: it
+    // reuses the baked ascii tree art tinted by its own colour setting (never invented art), which is how a
+    // placed pine-tree stops degrading to the generic tree kind when the style is toggled.
+    expect(visualForTileId('ascii:pine-tree')).not.toBeNull()
+    expect(activeStyleVisualForOverride('emoji:pine-tree', ASCII_STYLE)).toEqual(visualForTileId('ascii:pine-tree'))
+  })
+
+  test('a still-emoji-only slug has NO ascii art → null (signals the coarse-kind fallback)', () => {
+    // `cactus` is one of the labels with no ascii pattern to follow (pending art direction — inventing one is
+    // exactly what must not happen), so it stays the honest fallback case this path was built for.
+    expect(visualForTileId('ascii:cactus')).toBeNull()
+    expect(activeStyleVisualForOverride('emoji:cactus', ASCII_STYLE)).toBeNull()
   })
 
   test('round-trip emoji → ascii → emoji returns to the same pine-tree visual (nothing stored changed)', () => {
     const first = activeStyleVisualForOverride('emoji:pine-tree', EMOJI_STYLE)
-    expect(activeStyleVisualForOverride('emoji:pine-tree', ASCII_STYLE)).toBeNull()
+    const underAscii = activeStyleVisualForOverride('emoji:pine-tree', ASCII_STYLE)
+    expect(underAscii).not.toEqual(first) // it genuinely re-homes onto the ascii twin…
     const back = activeStyleVisualForOverride('emoji:pine-tree', EMOJI_STYLE)
-    expect(back).toEqual(first)
+    expect(back).toEqual(first)           // …and nothing STORED changed, so it comes back identical
   })
 
   test('a slug present in BOTH styles reskins to EACH (rock → the emoji rock, then the ascii glyph)', () => {
@@ -54,14 +64,13 @@ describe('resolveAssetDraw — the placed-asset draw funnel the 3 views use', ()
     expect(adv.image!.src).toContain('pine-tree')
   })
 
-  test('placed emoji pine-tree FALLS BACK to the ascii TREE (coarse kind) under ASCII', () => {
-    // No ascii:pine-tree → resolveAssetDraw drops to resolveDraw('tree', ASCII, undefined): the ASCII
-    // passthrough, i.e. the caller's own default (its dedicated per-type tree draw), NOT a frozen emoji.
-    const adv = resolveAssetDraw('tree', ASCII_STYLE, 'emoji:pine-tree', 'DEF', '#abcabc')
+  test('a placed EMOJI-ONLY slug falls back to the coarse kind under ASCII (no invented art)', () => {
+    // No ascii:cactus → resolveAssetDraw drops to resolveDraw('tree', ASCII, undefined): the ASCII
+    // passthrough, i.e. the caller's own default (its dedicated per-type draw), NOT a frozen emoji.
+    const adv = resolveAssetDraw('tree', ASCII_STYLE, 'emoji:cactus', 'DEF', '#abcabc')
     expect(adv.image).toBeUndefined()
-    expect(adv.tint).toBeUndefined()
     expect(adv).toEqual(resolveDraw('tree', ASCII_STYLE, undefined, 'DEF', '#abcabc'))
-    expect(adv.char).toBe('DEF') // the passthrough default the view uses for its own tree art
+    expect(adv.char).toBe('DEF') // the passthrough default the view uses for its own art
   })
 
   test('back under emoji the placed pine-tree is the emoji tile again (reskin follows the toggle)', () => {
