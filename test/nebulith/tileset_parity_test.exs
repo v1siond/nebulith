@@ -25,28 +25,6 @@ defmodule Nebulith.TilesetParityTest do
   # fall back to grass. Documented divergence, not a bug.
   @intentional_divergence ~w(rock crystal coral)
 
-  # PENDING ALEXANDER'S ART DIRECTION — the emoji-only labels that have NO ascii pattern to follow, so a
-  # faithful twin can't be authored without INVENTING art (the one thing Alexander forbade — "the RICH style
-  # I created … don't invent"): per-creature UNITS (a cat/dragon/wizard — and in ascii an entity already
-  # resolves generically to enemy/npc/player, so these never render as their own ascii tile anyway), the
-  # single-tile emoji BUILDINGS/props (a whole house/castle/church in ONE glyph — the building VOCABULARY is
-  # already covered by the shared multi-cell building compositions), a few atomic nature props (cactus/
-  # potted-plant/wood-log) and the runtime combat/locomotion VFX (fist/run/walk). The vocabulary pass
-  # (`TileSource.seed_parity`) authored every gap label that DID follow an existing pattern (grounds, decor,
-  # tree/nature reuses, wall/window/door); these remain the honest, DOCUMENTED gap until Alexander directs
-  # their ascii art. Remove a label from here the moment its ascii twin ships.
-  @pending_alexander ~w(
-    adult alien arrow bank bat bear bird boar bolt boss boy bullet butterfly cactus castle cat chicken
-    child church classical-building cleave connector construction-worker convenience-store cow dart deer
-    department-store derelict-house dog dove dragon duck elder elf factory fire-slash fist fountain fox
-    frog ghost girl goat goblin grey-alien grey-wolf guard guard-flash guardian heal-glow hedgehog
-    honeybee horse hospital hotel house house-garden houses ice-slash japanese-castle ladybug lightning
-    mage man mosque ninja nova office-building ogre old-man old-woman owl person piercing-shot pig
-    police-officer potted-plant prince princess pumpkin rabbit robot run school sheep skeleton skull
-    snail spider squirrel stadium tent torii-gate tower troll turtle vampire walk well witch wizard wolf
-    woman wood-log zombie
-  )
-
   setup do
     :ok = TileSource.seed()
 
@@ -69,9 +47,9 @@ defmodule Nebulith.TilesetParityTest do
            "tiles with no baked image (would render `?`):\n" <> Enum.join(offenders, "\n")
   end
 
-  test "every label in one style exists in the other (except the documented divergence + pending-Alexander art)",
+  test "EVERY label exists in BOTH styles (full 1:1 vocabulary — only the documented divergence is excused)",
        ctx do
-    excused = MapSet.new(@intentional_divergence ++ @pending_alexander)
+    excused = MapSet.new(@intentional_divergence)
     ascii = MapSet.new(Map.keys(ctx.ascii))
     emoji = MapSet.new(Map.keys(ctx.emoji))
 
@@ -82,19 +60,8 @@ defmodule Nebulith.TilesetParityTest do
            "ascii labels with NO emoji twin (would render `?` in emoji):\n" <> Enum.join(ascii_only, ", ")
 
     assert emoji_only == [],
-           "emoji labels with NO ascii twin (would render `?` in ascii) and not documented pending:\n" <>
+           "emoji labels with NO ascii twin (would render `?` in ascii):\n" <>
              Enum.join(emoji_only, ", ")
-  end
-
-  test "the pending-Alexander labels are all still genuinely emoji-only (list stays honest as twins ship)",
-       ctx do
-    ascii = MapSet.new(Map.keys(ctx.ascii))
-
-    already_shipped = Enum.filter(@pending_alexander, &MapSet.member?(ascii, &1))
-
-    assert already_shipped == [],
-           "these labels now HAVE an ascii twin — remove them from @pending_alexander:\n" <>
-             Enum.join(already_shipped, ", ")
   end
 
   test "every SHARED label agrees across styles on height, category and blocking", ctx do

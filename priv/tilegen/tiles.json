@@ -1864,5 +1864,641 @@
     "mode": "ascii",
     "style": "ascii",
     "glyph": "·"
+  },
+  {
+    "label": "person",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "@"
+  },
+  {
+    "label": "adult",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "@"
+  },
+  {
+    "label": "man",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "♂"
+  },
+  {
+    "label": "woman",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "♀"
+  },
+  {
+    "label": "boy",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "ъ"
+  },
+  {
+    "label": "girl",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "ф"
+  },
+  {
+    "label": "child",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "ç"
+  },
+  {
+    "label": "elder",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "ê"
+  },
+  {
+    "label": "old-man",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "ô"
+  },
+  {
+    "label": "old-woman",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "ö"
+  },
+  {
+    "label": "prince",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "Þ"
+  },
+  {
+    "label": "princess",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "þ"
+  },
+  {
+    "label": "guard",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "Ħ"
+  },
+  {
+    "label": "police-officer",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "Ρ"
+  },
+  {
+    "label": "construction-worker",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "Ĥ"
+  },
+  {
+    "label": "ninja",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "Ň"
+  },
+  {
+    "label": "mage",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "Ϻ"
+  },
+  {
+    "label": "wizard",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "Ŵ"
+  },
+  {
+    "label": "witch",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "Ŷ"
+  },
+  {
+    "label": "elf",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "ë"
+  },
+  {
+    "label": "guardian",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "Ǥ"
+  },
+  {
+    "label": "boss",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "Ω"
+  },
+  {
+    "label": "robot",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "¤"
+  },
+  {
+    "label": "bat",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "v"
+  },
+  {
+    "label": "bear",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "B"
+  },
+  {
+    "label": "bird",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "ь"
+  },
+  {
+    "label": "boar",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "p"
+  },
+  {
+    "label": "butterfly",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "ψ"
+  },
+  {
+    "label": "cat",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "f"
+  },
+  {
+    "label": "chicken",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "ķ"
+  },
+  {
+    "label": "cow",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "C"
+  },
+  {
+    "label": "deer",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "Y"
+  },
+  {
+    "label": "dog",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "d"
+  },
+  {
+    "label": "dove",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "ν"
+  },
+  {
+    "label": "dragon",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "D"
+  },
+  {
+    "label": "duck",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "u"
+  },
+  {
+    "label": "fox",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "F"
+  },
+  {
+    "label": "frog",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "j"
+  },
+  {
+    "label": "goat",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "ģ"
+  },
+  {
+    "label": "grey-wolf",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "W"
+  },
+  {
+    "label": "hedgehog",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "ĥ"
+  },
+  {
+    "label": "honeybee",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "ў"
+  },
+  {
+    "label": "horse",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "H"
+  },
+  {
+    "label": "ladybug",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "ŏ"
+  },
+  {
+    "label": "owl",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "Ö"
+  },
+  {
+    "label": "pig",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "P"
+  },
+  {
+    "label": "rabbit",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "ř"
+  },
+  {
+    "label": "sheep",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "S"
+  },
+  {
+    "label": "snail",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "ę"
+  },
+  {
+    "label": "spider",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "ж"
+  },
+  {
+    "label": "turtle",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "ť"
+  },
+  {
+    "label": "wolf",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "w"
+  },
+  {
+    "label": "alien",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "Ä"
+  },
+  {
+    "label": "grey-alien",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "ä"
+  },
+  {
+    "label": "ghost",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "§"
+  },
+  {
+    "label": "goblin",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "g"
+  },
+  {
+    "label": "ogre",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "Ǫ"
+  },
+  {
+    "label": "troll",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "Ť"
+  },
+  {
+    "label": "skeleton",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "Ž"
+  },
+  {
+    "label": "zombie",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "z"
+  },
+  {
+    "label": "vampire",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "Ѵ"
+  },
+  {
+    "label": "skull",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "ѫ"
+  },
+  {
+    "label": "pumpkin",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "ϴ"
+  },
+  {
+    "label": "arrow",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "↑"
+  },
+  {
+    "label": "bolt",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "¦"
+  },
+  {
+    "label": "bullet",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "·"
+  },
+  {
+    "label": "dart",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "‡"
+  },
+  {
+    "label": "cleave",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⁄"
+  },
+  {
+    "label": "fire-slash",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "∕"
+  },
+  {
+    "label": "ice-slash",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "∖"
+  },
+  {
+    "label": "piercing-shot",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "→"
+  },
+  {
+    "label": "lightning",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "Ƶ"
+  },
+  {
+    "label": "nova",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "✳"
+  },
+  {
+    "label": "heal-glow",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "±"
+  },
+  {
+    "label": "guard-flash",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "◊"
+  },
+  {
+    "label": "fist",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "ø"
+  },
+  {
+    "label": "run",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "»"
+  },
+  {
+    "label": "walk",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "›"
+  },
+  {
+    "label": "house",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⌂"
+  },
+  {
+    "label": "houses",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⌂⌂"
+  },
+  {
+    "label": "house-garden",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⌂,"
+  },
+  {
+    "label": "derelict-house",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⌐"
+  },
+  {
+    "label": "bank",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "Β"
+  },
+  {
+    "label": "castle",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "Ķ"
+  },
+  {
+    "label": "japanese-castle",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "Ĵ"
+  },
+  {
+    "label": "church",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "†"
+  },
+  {
+    "label": "mosque",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "Ϛ"
+  },
+  {
+    "label": "hospital",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "╬"
+  },
+  {
+    "label": "hotel",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "Ĭ"
+  },
+  {
+    "label": "school",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "Ŝ"
+  },
+  {
+    "label": "factory",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "Ƒ"
+  },
+  {
+    "label": "stadium",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "Ŭ"
+  },
+  {
+    "label": "office-building",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "Ē"
+  },
+  {
+    "label": "department-store",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "Ð"
+  },
+  {
+    "label": "convenience-store",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "Ĉ"
+  },
+  {
+    "label": "classical-building",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "Π"
+  },
+  {
+    "label": "tower",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "Ŧ"
+  },
+  {
+    "label": "tent",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "Λ"
+  },
+  {
+    "label": "torii-gate",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "π"
+  },
+  {
+    "label": "fountain",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "Ѱ"
+  },
+  {
+    "label": "well",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "Θ"
+  },
+  {
+    "label": "connector",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "╋"
+  },
+  {
+    "label": "cactus",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "ǂ"
+  },
+  {
+    "label": "potted-plant",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "ϙ"
+  },
+  {
+    "label": "wood-log",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▬"
+  },
+  {
+    "label": "squirrel",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "ŝ"
   }
 ]

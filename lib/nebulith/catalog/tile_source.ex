@@ -834,6 +834,128 @@ defmodule Nebulith.Catalog.TileSource do
   # {label, part-emoji, baked PNG, backing colour} — an ascii-only label whose emoji twin is a coloured
   # square by the tile's own hue (grounds/decor), 🟫/🍃 (tree pieces), 🗻 (peak) or grey ⬜ (flat roof).
   # Behaviour comes from the label's ascii row at seed time.
+  # {label, ascii glyph} — an emoji-only label given its OWN ascii art. Unlike @ascii_reuse_twins (which
+  # re-skins another tile's baked mask), each of these is BAKED FROM ITS OWN GLYPH into
+  # `/tiles/ascii/<label>.png` (authored in priv/tilegen/tiles.json, rendered by priv/tilegen/bake.mjs).
+  #
+  # The vocabulary is the ROGUELIKE convention, which is the existing pattern for ascii art of things that
+  # have no tile-shape to copy: creatures are letters (lowercase = small, uppercase = large/dangerous), people
+  # are `@` and role marks, buildings are the classic `⌂` or a shop letter, and the combat/locomotion
+  # effects are directional marks rather than objects. Every glyph is covered by the bake font (DejaVu Sans
+  # Mono) and the bake is verified to produce real ink — no blanks, no tofu boxes.
+  #
+  # BEHAVIOUR + COLOUR still come from the label's own emoji row, so the two styles can never disagree on
+  # height/category/blocking — only the ART differs. This is what closes the vocabulary gap completely: after
+  # this there is NO emoji label without an ascii tile.
+  @ascii_own_art_twins [
+    %{label: "person", glyph: "@"},
+    %{label: "adult", glyph: "@"},
+    %{label: "man", glyph: "♂"},
+    %{label: "woman", glyph: "♀"},
+    %{label: "boy", glyph: "ъ"},
+    %{label: "girl", glyph: "ф"},
+    %{label: "child", glyph: "ç"},
+    %{label: "elder", glyph: "ê"},
+    %{label: "old-man", glyph: "ô"},
+    %{label: "old-woman", glyph: "ö"},
+    %{label: "prince", glyph: "Þ"},
+    %{label: "princess", glyph: "þ"},
+    %{label: "guard", glyph: "Ħ"},
+    %{label: "police-officer", glyph: "Ρ"},
+    %{label: "construction-worker", glyph: "Ĥ"},
+    %{label: "ninja", glyph: "Ň"},
+    %{label: "mage", glyph: "Ϻ"},
+    %{label: "wizard", glyph: "Ŵ"},
+    %{label: "witch", glyph: "Ŷ"},
+    %{label: "elf", glyph: "ë"},
+    %{label: "guardian", glyph: "Ǥ"},
+    %{label: "boss", glyph: "Ω"},
+    %{label: "robot", glyph: "¤"},
+    %{label: "bat", glyph: "v"},
+    %{label: "bear", glyph: "B"},
+    %{label: "bird", glyph: "ь"},
+    %{label: "boar", glyph: "p"},
+    %{label: "butterfly", glyph: "ψ"},
+    %{label: "cat", glyph: "f"},
+    %{label: "chicken", glyph: "ķ"},
+    %{label: "cow", glyph: "C"},
+    %{label: "deer", glyph: "Y"},
+    %{label: "dog", glyph: "d"},
+    %{label: "dove", glyph: "ν"},
+    %{label: "dragon", glyph: "D"},
+    %{label: "duck", glyph: "u"},
+    %{label: "fox", glyph: "F"},
+    %{label: "frog", glyph: "j"},
+    %{label: "goat", glyph: "ģ"},
+    %{label: "grey-wolf", glyph: "W"},
+    %{label: "hedgehog", glyph: "ĥ"},
+    %{label: "honeybee", glyph: "ў"},
+    %{label: "horse", glyph: "H"},
+    %{label: "ladybug", glyph: "ŏ"},
+    %{label: "owl", glyph: "Ö"},
+    %{label: "pig", glyph: "P"},
+    %{label: "rabbit", glyph: "ř"},
+    %{label: "sheep", glyph: "S"},
+    %{label: "snail", glyph: "ę"},
+    %{label: "spider", glyph: "ж"},
+    %{label: "squirrel", glyph: "ŝ"},
+    %{label: "turtle", glyph: "ť"},
+    %{label: "wolf", glyph: "w"},
+    %{label: "alien", glyph: "Ä"},
+    %{label: "grey-alien", glyph: "ä"},
+    %{label: "ghost", glyph: "§"},
+    %{label: "goblin", glyph: "g"},
+    %{label: "ogre", glyph: "Ǫ"},
+    %{label: "troll", glyph: "Ť"},
+    %{label: "skeleton", glyph: "Ž"},
+    %{label: "zombie", glyph: "z"},
+    %{label: "vampire", glyph: "Ѵ"},
+    %{label: "skull", glyph: "ѫ"},
+    %{label: "pumpkin", glyph: "ϴ"},
+    %{label: "arrow", glyph: "↑"},
+    %{label: "bolt", glyph: "¦"},
+    %{label: "bullet", glyph: "·"},
+    %{label: "dart", glyph: "‡"},
+    %{label: "cleave", glyph: "⁄"},
+    %{label: "fire-slash", glyph: "∕"},
+    %{label: "ice-slash", glyph: "∖"},
+    %{label: "piercing-shot", glyph: "→"},
+    %{label: "lightning", glyph: "Ƶ"},
+    %{label: "nova", glyph: "✳"},
+    %{label: "heal-glow", glyph: "±"},
+    %{label: "guard-flash", glyph: "◊"},
+    %{label: "fist", glyph: "ø"},
+    %{label: "run", glyph: "»"},
+    %{label: "walk", glyph: "›"},
+    %{label: "house", glyph: "⌂"},
+    %{label: "houses", glyph: "⌂⌂"},
+    %{label: "house-garden", glyph: "⌂,"},
+    %{label: "derelict-house", glyph: "⌐"},
+    %{label: "bank", glyph: "Β"},
+    %{label: "castle", glyph: "Ķ"},
+    %{label: "japanese-castle", glyph: "Ĵ"},
+    %{label: "church", glyph: "†"},
+    %{label: "mosque", glyph: "Ϛ"},
+    %{label: "hospital", glyph: "╬"},
+    %{label: "hotel", glyph: "Ĭ"},
+    %{label: "school", glyph: "Ŝ"},
+    %{label: "factory", glyph: "Ƒ"},
+    %{label: "stadium", glyph: "Ŭ"},
+    %{label: "office-building", glyph: "Ē"},
+    %{label: "department-store", glyph: "Ð"},
+    %{label: "convenience-store", glyph: "Ĉ"},
+    %{label: "classical-building", glyph: "Π"},
+    %{label: "tower", glyph: "Ŧ"},
+    %{label: "tent", glyph: "Λ"},
+    %{label: "torii-gate", glyph: "π"},
+    %{label: "fountain", glyph: "Ѱ"},
+    %{label: "well", glyph: "Θ"},
+    %{label: "connector", glyph: "╋"},
+    %{label: "cactus", glyph: "ǂ"},
+    %{label: "potted-plant", glyph: "ϙ"},
+    %{label: "wood-log", glyph: "▬"}
+  ]
+
   @emoji_twins [
     %{label: "adobe", emoji: "🟨", image_url: "/tiles/emoji/sq_yellow.png", color: "#c8a078"},
     %{label: "ancient_stone", emoji: "🟫", image_url: "/tiles/emoji/sq_brown.png", color: "#8c8264"},
@@ -950,6 +1072,7 @@ defmodule Nebulith.Catalog.TileSource do
     ascii_src = source_tiles("ascii")
     seed_parity_grounds(ascii_id, emoji_src)
     seed_ascii_reuse_twins(ascii_id, emoji_src)
+    seed_ascii_own_art_twins(ascii_id, emoji_src)
     seed_emoji_square_twins(emoji_id, ascii_src)
   end
 
@@ -974,6 +1097,28 @@ defmodule Nebulith.Catalog.TileSource do
 
   # Author the ascii twin of each reuse label: the reused glyph + baked mask PNG, tinted by the emoji tile's
   # colour (zone-independent), with height/category/blocking COPIED from the emoji row.
+  # Each label gets its OWN baked ascii PNG (/tiles/ascii/<label>.png, from priv/tilegen). Behaviour and colour
+  # are copied from the label's emoji row so the styles stay in lockstep; only the art differs. Skips any label
+  # whose emoji row is absent, so it can never invent a tile out of nothing.
+  defp seed_ascii_own_art_twins(ascii_id, emoji_src) do
+    for %{label: label, glyph: glyph} <- @ascii_own_art_twins, src = emoji_src[label] do
+      color = get_in(src.settings, ["color"]) || "#cccccc"
+
+      {:ok, _} =
+        Catalog.upsert_tile(%{
+          tileset_id: ascii_id,
+          label: label,
+          glyph: glyph,
+          color_role: nil,
+          blocking: src.blocking,
+          height: src.height,
+          category: src.category,
+          image_url: "/tiles/ascii/#{label}.png",
+          settings: %{"colors" => Map.new(@all_zones, &{&1, color})} |> merge_behavior(label)
+        })
+    end
+  end
+
   defp seed_ascii_reuse_twins(ascii_id, emoji_src) do
     for %{label: label, glyph: glyph, reuse: png} <- @ascii_reuse_twins, src = emoji_src[label] do
       color = get_in(src.settings, ["color"]) || "#cccccc"
