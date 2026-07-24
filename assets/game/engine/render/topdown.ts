@@ -15,7 +15,7 @@ import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 import { EMOJI_TILESET } from '@/engine/tileset/emojiTileset'
 import { applyPose } from '@/engine/tileset/pose'
 import { resolveTileSize, resolveTilePose } from '@/engine/tileset/tileViewSettings'
-import { resolveTileHeight, partialBlockScale } from '@/engine/tileset/tileHeight'
+import { resolveTileHeight } from '@/engine/tileset/tileHeight'
 import { Connector } from '@/lib/api'
 import { ASCII_FONT, COMBAT_RANGE, type DayNight, ENEMY_MOVE_MS, applyCellTransform, clampCameraAxis, assetCaptionByCell, terrainLabelAt, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawHoverRing, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawConnectorMarker, drawAttackAnimFrame, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, drawFlatTileForShape, SINGLE_TILE_FRAC, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, frameImage, getPlayerArt, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, resolveAssetDraw, resolveEntityDraw, assetOverride, labelTileImage, labelTileRecolor, groundDecorImage, treeCanopyLayers, treeCellSet, type DrawVisual } from './shared'
 import { resolveAssetDrawSize } from './assetDimensions'
@@ -180,7 +180,7 @@ export function draw2DLabeledCell(
   // HEIGHT — the SAME reading iso uses: the tile's OWN DB block-height (partialBlockScale) × the per-instance
   // Height multiplier (scaleY). A sub-block (flat 0.1) cell is a thin slab, a standing cell a full box —
   // identically in 2D and iso because both read the tile's real height DATA. Nothing invented.
-  const drawH = tileH * (asset.scaleY ?? 1) * partialBlockScale(resolveTileHeight(undefined, asset)) * zoom
+  const drawH = tileH * (asset.scaleY ?? 1) * resolveTileHeight(undefined, asset) * zoom
   const cy = baseY - drawH * 0.5
   // The tile's NORMAL 2D front face — its own-colour backing + the label image (or glyph). Shared by the plain
   // square path and the circle path so a rounded tile shows the SAME painting, only its form changes.
@@ -788,7 +788,7 @@ export function render2D(params: Render2DParams) {
         draw2DLabeledCell(ctx, p.x, baseY, tileW, tileH, asset, style, adv)
         // Pick box matches the drawn slab — the tile's own DB height (partialBlockScale), not a full-height rect.
         const z = asset.scale ?? 1, dw = tileW * (asset.scaleX ?? 1) * z
-        const dh = tileH * (asset.scaleY ?? 1) * partialBlockScale(resolveTileHeight(undefined, asset)) * z
+        const dh = tileH * (asset.scaleY ?? 1) * resolveTileHeight(undefined, asset) * z
         hit2D = billboardGeom(dw, dh, poseMapper({ x: p.x, y: baseY - dh / 2 }, undefined, tileH))
       } else if (adv.image) {
         // A per-asset colour override recolours the baked sprite (#80); undefined → drawn untinted.

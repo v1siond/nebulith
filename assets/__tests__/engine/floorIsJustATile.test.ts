@@ -16,6 +16,7 @@
  */
 import { IsometricGrid, type GridAsset } from '@/engine/IsometricGrid'
 import { pushTile, setTileHeight } from '@/engine/cellStack'
+import { depthCells } from '@/engine/render/isoBlock'
 
 const mkGrid = () => new IsometricGrid({ cols: 12, rows: 12, cellSize: 16, isoScale: 1.4 })
 const C = 4, R = 4
@@ -151,6 +152,65 @@ describe('RAISE a tile and what is on top of it goes up with it', () => {
     expect(wall.heightLevel).toBe(0)
     expect(roof.heightLevel).toBe(4)
     expect(roof.height).toBe(9)
+  })
+
+  test('a Z-WIDTH tile lifts what stands on EVERY block it occupies, not just its anchor', () => {
+    const grid = mkGrid()
+    // ONE road tile anchored at (C,R) but spanning 4 blocks via smart z-width — it OCCUPIES all four.
+    grid.setGround(C, R, 'road')
+    const road = grid.floorAt(C, R)!
+    road.depth = 4
+    road.depthDir = 'right-down'
+
+    // A wall standing on the THIRD block of that span — its own cell, but the same tile underneath.
+    const spanned = depthCells(C, R, 4, 'right-down')[2]
+    const wall = grid.placeAsset([''], spanned.col, spanned.row, { type: 'house_4', heightLevel: 0 })
+    wall.height = 4
+
+    setTileHeight(grid, C, R, 0, 3) // raise the road tile to 3 blocks
+
+    // "even if it's 1 tile positioned in 1 block with smart z-width, it's still occupying the other blocks"
+    expect(wall.heightLevel).toBe(3)
+  })
+
+  test('a tile whose OWN z-width reaches over the raised tile is lifted too (anchored elsewhere)', () => {
+    const grid = mkGrid()
+    grid.setGround(C, R, 'grass')
+    // A roof bar anchored two cells away, spanning back ACROSS (C,R) — it stands over the raised tile even
+    // though its anchor cell is somewhere else.
+    const roof = grid.placeAsset([''], C + 2, R, { type: 'house_4', heightLevel: 4 })
+    roof.height = 1
+    roof.depth = 3
+    roof.depthDir = 'left-up' // steps -1 col per block: (C+2,R) → (C+1,R) → (C,R)
+    expect(depthCells(C + 2, R, 3, 'left-up').some(c => c.col === C && c.row === R)).toBe(true)
+
+    setTileHeight(grid, C, R, 0, 2)
+
+    expect(roof.heightLevel).toBe(6)
+  })
+
+  test('a tile NOT over the raised tile stays put — the lift follows occupancy, not the whole map', () => {
+    const grid = mkGrid()
+    grid.setGround(C, R, 'grass')
+    const elsewhere = grid.placeAsset([''], C + 5, R + 5, { type: 'house_4', heightLevel: 0 })
+    elsewhere.height = 1
+
+    setTileHeight(grid, C, R, 0, 4)
+
+    expect(elsewhere.heightLevel).toBe(0)
+  })
+
+  test('heights are CONTINUOUS — a 0.001 change lifts by exactly 0.001, never rounded to a whole block', () => {
+    const grid = mkGrid()
+    grid.setGround(C, R, 'grass')
+    const wall = grid.placeAsset([''], C, R, { type: 'house_4', heightLevel: 0 })
+    wall.height = 1
+
+    setTileHeight(grid, C, R, 0, 0.001)
+    expect(wall.heightLevel).toBeCloseTo(0.001, 6)
+
+    setTileHeight(grid, C, R, 0, 2.5)
+    expect(wall.heightLevel).toBeCloseTo(2.5, 6)
   })
 
   test('a per-instance scaleY is folded into the tile\'s ONE height number when it is edited', () => {

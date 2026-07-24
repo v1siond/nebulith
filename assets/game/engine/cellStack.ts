@@ -15,6 +15,7 @@ import type { TilePose } from './tileset/pose'
 import { resolveTileHeight } from './tileset/tileHeight'
 import { ASCII_TILESET } from './tileset/asciiTileset'
 import { EMOJI_TILESET } from './tileset/emojiTileset'
+import { depthCells } from './render/isoBlock'
 
 /** Which store a TileEntry projects from — lets a consumer/mutator route back to the right setter/store.
  *  There is NO `floor` source: the floor is a plain `type:'floor'` ASSET, so it projects as `asset` exactly
@@ -235,8 +236,7 @@ function orderedStack(grid: IsometricGrid, col: number, row: number): GridAsset[
  *  `blocks` becomes the tile's ONE height number — it lands on `height` and clears any per-instance `scaleY`
  *  multiplier, so a collapsed composition run (height 1 × scaleY 4) edited to 5 is simply 5 blocks tall. */
 export function setTileHeight(grid: IsometricGrid, col: number, row: number, stackIndex: number, blocks: number): void {
-  const stack = orderedStack(grid, col, row)
-  const target = stack[stackIndex]
+  const target = orderedStack(grid, col, row)[stackIndex]
   if (!target) return
 
   const before = assetBlocks(target)
@@ -245,7 +245,33 @@ export function setTileHeight(grid: IsometricGrid, col: number, row: number, sta
   const delta = assetBlocks(target) - before
   if (delta === 0) return
 
-  for (const above of stack.slice(stackIndex + 1)) above.heightLevel = (above.heightLevel ?? 0) + delta
+  // Everything standing ON the tile rises: any OTHER tile that shares a block with it and starts at or above
+  // where its top USED to be. Both halves matter — see occupiedBlocks.
+  const footprint = new Set(occupiedBlocks(target).map(blockKey))
+  const wasTop = (target.heightLevel ?? 0) + before
+
+  for (const other of grid.assets) {
+    if (other === target || (other.heightLevel ?? 0) < wasTop) continue
+    if (occupiedBlocks(other).some(b => footprint.has(blockKey(b)))) {
+      other.heightLevel = (other.heightLevel ?? 0) + delta
+    }
+  }
+}
+
+const blockKey = (b: { col: number; row: number }): string => `${b.col},${b.row}`
+
+/** Every block a tile OCCUPIES: its anchor, plus the blocks its Z-WIDTH spans.
+ *
+ *  "even if it's 1 tile positioned in 1 block with smart z-width, it's still ocupying the other blocks, just
+ *  differently" (Alexander). A z-width road or roof bar is ONE tile lying ACROSS several blocks, so a lift has
+ *  to consider all of them — both directions:
+ *   - raise the spanning tile → everything standing on ANY block it covers goes up (its anchor is not special);
+ *   - raise a tile under one of those blocks → the spanning tile goes up, even though it is anchored elsewhere.
+ *  A tile with no z-width simply occupies its own block, so the ordinary case is unchanged. */
+function occupiedBlocks(a: GridAsset): { col: number; row: number }[] {
+  const depth = a.depth ?? 1
+  if (depth > 1 && a.depthDir) return depthCells(a.col, a.row, depth, a.depthDir)
+  return [{ col: a.col, row: a.row }]
 }
 
 /** popTile → remove the TOP STACKED asset (highest heightLevel, excluding the floor) at the cell. Returns the

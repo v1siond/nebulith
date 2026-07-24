@@ -22,7 +22,7 @@ import { getStack, assetStackIndexer, type TileSource } from '@/engine/cellStack
 import { isoBlockFaces, isoDepthBox, depthCells, depthFrontExtent, isoZOffset, rotateDepthDir, spanBackmost, type BlockFace, type DepthDir } from './isoBlock'
 import { type Orientation } from './isoOrientation'
 import { cellOrienterFor, orientCellTurn, deorientCellTurn, orientedDimsForTurn, facingForTurn, wrapTurn } from './isoTurn'
-import { resolveTileHeight, partialBlockScale } from '@/engine/tileset/tileHeight'
+import { resolveTileHeight, blockLayers, layerBlockScale } from '@/engine/tileset/tileHeight'
 import { EMOJI_TILESET } from '@/engine/tileset/emojiTileset'
 import { applyPose } from '@/engine/tileset/pose'
 import { cubeGeom, depthBoxGeom, billboardGeom, diamondGeom, pointInTileGeom, outlineSegments, poseMapper, tileGeomCentroid, tilesInScreenRect, type TileGeom } from './tileHit'
@@ -1519,7 +1519,7 @@ function drawIsoTileBlockLive(
   depth = 1, // directional-depth: >1 (with depthDir) extrudes into a long iso box spanning `depth` cells
   depthDir?: DepthDir,
 ): void {
-  const n = Math.max(1, Math.floor(height))
+  const n = blockLayers(height)
   const faceColor = tint ?? dv.tint ?? dv.color
   // Per-face brightness from the sun (outward screen normals of the two FRONT walls). Constant per
   // block → hoisted out of the stacking loop. Same faceLight shading the peaked roof uses.
@@ -1652,7 +1652,7 @@ export function drawIsoSingleTileBlock(
   // 2) ONE centered tile INSIDE the block. `center` is the base diamond centre; the stack rises `total` px, so
   //    the volume's vertical mid-point is total/2 above it. The tile is drawn at SINGLE_TILE_FRAC of the block
   //    width so the shell stays visible around it.
-  const total = Math.max(1, Math.floor(height)) * blockH
+  const total = blockLayers(height) * blockH
   const cx = center.x
   const cy = center.y - total / 2
   const size = tileW * 2 * SINGLE_TILE_FRAC
@@ -1692,7 +1692,7 @@ export function roundedBlockEllipse(
   blockH: number,
   height: number,
 ): { cx: number; cy: number; rx: number; ry: number } {
-  const stack = Math.max(1, Math.floor(height)) * blockH // the extruded height in px (top diamond centre lifts this)
+  const stack = blockLayers(height) * blockH // the extruded height in px (top diamond centre lifts this)
   const rx = tileW                                       // footprint half-width (honours scaleX/zoom via the caller's bw)
   const ry = Math.sqrt((stack / 2) * (stack / 2) + stack * tileH) // tangent to the slanted faces → inscribes the hexagon
   return { cx: center.x, cy: center.y - stack / 2, rx, ry }       // centred at the cuboid's vertical mid-point
@@ -1714,7 +1714,7 @@ function roundIsoTopFrontCorner(
   height: number,
   faceColor: string,
 ): void {
-  const stack = Math.max(1, Math.floor(height)) * blockH
+  const stack = blockLayers(height) * blockH
   const ty = center.y - stack // top diamond centre-y
   const fx = center.x, fy = ty + tileH // F — the top face's front vertex (where its two front edges meet)
   const bevel = 0.5 // how far up the two front edges the round reaches, as a fraction of the top-diamond edge
@@ -1754,7 +1754,7 @@ export function drawIsoRoundedBlock(
   // The rounded silhouette: the block's INSCRIBED ellipse, so every corner bends away and proportions are kept.
   clipToBall(ctx, cx, cy, rx, ry)
   // The SAME cuboid — three shaded faces + painted art — drawn normally; only the clip above rounds it.
-  drawIsoTileBlock(ctx, center, tileW, tileH, blockH, Math.max(1, Math.floor(height)), dv, tint)
+  drawIsoTileBlock(ctx, center, tileW, tileH, blockH, blockLayers(height), dv, tint)
   // Bevel the one corner the silhouette clip can't reach — the top face's interior front vertex (Image #61).
   roundIsoTopFrontCorner(ctx, center, tileW, tileH, blockH, height, tint ?? dv.tint ?? dv.color)
   ctx.restore()
@@ -2057,7 +2057,7 @@ export function drawIsoAssetAscii(
     // Height — the tile's OWN DB block-height turned into pixels: partialBlockScale draws a sub-block cell as a
     // partial slab and a standing cell as a full block, × the per-instance Height multiplier (scaleY). The
     // height VALUE is DATA (from the DB); nothing invented here.
-    const bh = tileW * ISO_BLOCK_H_FRAC * (asset.scaleY ?? 1) * partialBlockScale(asset.height ?? 0) * zoom
+    const bh = tileW * ISO_BLOCK_H_FRAC * (asset.scaleY ?? 1) * layerBlockScale(asset.height ?? 0) * zoom
     const tint = asset.color ?? '#cccccc'
     const et = style.id === 'emoji' ? EMOJI_TILESET[asset.label] : undefined
     const glyph = et ? et.char : (asset.art[0] ?? '?')
@@ -2146,7 +2146,7 @@ export function drawIsoAssetAscii(
     // Height — the tile's OWN DB block-height as pixels: partialBlockScale draws a sub-block (flat 0.1) tile as a
     // thin partial slab and a standing tile as a full block, × the per-instance Height multiplier (scaleY). The
     // height VALUE is DATA (from the DB, read into `blocks`); nothing invented.
-    const bh = tileW * 0.9 * (asset.scaleY ?? 1) * partialBlockScale(blocks) * zoom
+    const bh = tileW * 0.9 * (asset.scaleY ?? 1) * layerBlockScale(blocks) * zoom
     // SHAPE + DISPLAY (per-tile settings): drawIsoTileForShape picks the solid — cube (all-faces / single) or ball.
     const geom = blockGeom(x, y, bw, bd, bh, blockCount, asset, tileH)
     // Per-asset pose (x/y/rotate/flip) transforms the block around its base centre — the SAME applyPose the

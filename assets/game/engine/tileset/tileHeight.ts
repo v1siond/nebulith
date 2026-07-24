@@ -22,13 +22,21 @@ export function resolveTileHeight(tile: HasTileHeight | undefined, asset: HasAss
   return h > 0 ? h : 0
 }
 
-/** Render-geometry ONLY (no invented value): how tall to draw a tile's SINGLE base layer, given its DB
- *  block-height. A standing tile (≥ 1 block) stacks whole layers, so its base layer is a full block (1) and
- *  the COUNT carries the height. A sub-block tile (a flat 0.1-block floor/road/flower) is ONE partial layer
- *  drawn at that fraction — so a tile whose DB height is 0.1 draws a 0.1 slab. The number comes from the DATA
- *  (`blocks` = the tile's DB height, read via resolveTileHeight); this only decides how the renderer expresses
- *  it as pixels. Negative/zero clamps to 0 (nothing to draw). */
-export function partialBlockScale(blocks: number): number {
-  if (blocks >= 1) return 1
-  return blocks > 0 ? blocks : 0
+/** Render-geometry ONLY (no invented value): how MANY layers the iso renderer stacks for a tile of `blocks`
+ *  height. Paired with `layerBlockScale` such that `blockLayers(b) * layerBlockScale(b) === b` exactly.
+ *
+ *  Blocks are a unit of MEASUREMENT, not a constraint to whole numbers — "we can increase from 0.001 block
+ *  size, the blocks and cells are a control of position and measurement, doesn't necessarilly mean everything
+ *  is handled by integer numbers" (Alexander). The old rule floored the count, so a 4.5-block tile drew 4
+ *  blocks tall and the remainder vanished; now the extra layer carries it. A whole-number height (4 → 4 layers
+ *  of 1) and a sub-block height (0.1 → 1 layer of 0.1) are unchanged. */
+export function blockLayers(blocks: number): number {
+  return Math.max(1, Math.ceil(blocks > 0 ? blocks : 0))
+}
+
+/** How tall ONE drawn layer is, as a fraction of a full block — `blocks / blockLayers(blocks)`. The layers are
+ *  equal, so their total is the tile's exact height. Negative/zero clamps to 0 (nothing to draw). */
+export function layerBlockScale(blocks: number): number {
+  const h = blocks > 0 ? blocks : 0
+  return h / blockLayers(h)
 }
