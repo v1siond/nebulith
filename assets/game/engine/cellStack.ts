@@ -170,8 +170,37 @@ export function deriveCellCollision(stack: TileEntry[]): boolean {
  *
  *  Height is `resolveTileHeight` × the per-instance Height multiplier (scaleY) — the SAME product the iso
  *  renderer extrudes, so a 4-block pier authored as one scaleY-4 cell stacks as 4 blocks, not as 1. */
-function stackTop(grid: IsometricGrid, col: number, row: number): number {
-  return grid.getAssetsAtCell(col, row).reduce((top, a) => Math.max(top, (a.heightLevel ?? 0) + assetBlocks(a)), 0)
+export function cellStackTop(grid: IsometricGrid, col: number, row: number): number {
+  // The lego rule is UNCHANGED: each tile occupies `its level + its own block height`, and the next tile rests
+  // on the tallest — height ≥ 1 tiles stack on top, a flat tile adds 0 so content lands at its level.
+  // ACT-AS-TILE (Alexander: "the cell works as if a tile was inside it already") makes a tile count as an
+  // occupant of AT LEAST ONE block for stacking, so content stacks ON TOP of it EVEN WHEN IT IS FLAT (a
+  // height-0 road you WALK OVER lifts the walker to level 1 without being raised). Default false → a flat tile
+  // still lets content land at its own level. A height-≥1 tile is already ≥1, so this never changes the legos.
+  return grid.getAssetsAtCell(col, row).reduce((top, a) => Math.max(top, (a.heightLevel ?? 0) + stackContribution(a)), 0)
+}
+
+/** How many blocks a tile occupies FOR STACKING — its own block height, but AT LEAST 1 when it acts as a tile
+ *  so content stacks on top of it (a flat walk-over surface still lifts what stands on it). Non-act-as-tile →
+ *  its plain height, so the lego model is byte-identical. */
+function stackContribution(a: GridAsset): number {
+  return assetActsAsTile(a) ? Math.max(1, assetBlocks(a)) : assetBlocks(a)
+}
+
+/** Does this placed tile ACT AS A TILE — i.e. "does the cell behave as if a tile was already inside it", so the
+ *  next tile stacks ON TOP rather than landing inside at level 0? A per-tile SETTING (`settings.actAsTile`),
+ *  read the SAME data path as height: a per-instance/composition-cell override on the asset wins, else the DB
+ *  tile's own `settings.actAsTile`. The DEFAULT is TRUE for every cell/block (Alexander 2026-07-26: "act_as_tile
+ *  set to true in ALL cells/block by default … houses stack on top of the grass tiles instead of inside"): only
+ *  an explicit `false` opts out. Resolved by the tile's slug (floor → its ground kind, like assetBlocks). */
+function assetActsAsTile(a: GridAsset): boolean {
+  const perInstance = (a.settings as { actAsTile?: boolean } | undefined)?.actAsTile
+  if (perInstance !== undefined) return perInstance
+  const slug = a.type === FLOOR_TYPE ? (a.tileKey ?? DEFAULT_FLOOR_SLUG) : (a.label ?? a.type)
+  const tile = ASCII_TILESET.tiles[slug] ?? EMOJI_TILESET[slug]
+  // DEFAULT TRUE for every cell/block (Alexander 2026-07-26). Only an explicit `false` opts out. Lands WITH the
+  // height-1 default (all grounds are now ≥1 blocks) so content stacks ON TOP of the ground, not sunk inside it.
+  return (tile?.settings as { actAsTile?: boolean } | undefined)?.actAsTile !== false
 }
 
 /** A placed tile's own height in BLOCKS: its per-instance override, else its DB tile's height, × the
@@ -197,7 +226,7 @@ function assetBlocks(a: GridAsset): number {
  *  leaves scaleX/scaleZ/height undefined so the renderer falls back to the tile default. Returns the placed
  *  GridAsset. */
 export function pushTile(grid: IsometricGrid, col: number, row: number, entry: TileEntry): GridAsset {
-  const heightLevel = stackTop(grid, col, row)
+  const heightLevel = cellStackTop(grid, col, row)
   grid.placeAsset(entry.art ?? [], col, row, {
     type: entry.type,
     blocking: entry.collision ?? false,
@@ -265,6 +294,30 @@ export function setTileHeight(grid: IsometricGrid, col: number, row: number, sta
   // The levels above just moved, so every cached per-cell stack ORDER is stale — and the stack slots the
   // renderer records for picking are built from it. Without this the inspector keeps editing the slot the
   // tile USED to occupy, so the next height change lands on the wrong tile.
+  grid.assetLevelsChanged()
+}
+
+/** Toggle a stacked tile's ACT-AS-TILE setting (`settings.actAsTile`) and LIFT what stands on it by the change
+ *  in its stacking occupancy — act_as_tile makes the tile count as ≥1 block for stacking, so a FLAT tile that
+ *  starts acting as a tile lifts content ON TOP of it (a walk-over road/floor). Mirrors setTileHeight's lift
+ *  (the shared "raising a tile lifts what's on it" rule); a height-≥1 tile already counts ≥1 so nothing moves. */
+export function setCellActAsTile(grid: IsometricGrid, col: number, row: number, stackIndex: number, on: boolean): void {
+  const target = orderedStack(grid, col, row)[stackIndex]
+  if (!target) return
+  const before = stackContribution(target)
+  target.settings = { ...(target.settings ?? {}), actAsTile: on }
+  const delta = stackContribution(target) - before
+  if (delta === 0) return
+  const footprint = new Set(occupiedBlocks(target).map(blockKey))
+  const wasTop = (target.heightLevel ?? 0) + before
+  const targetOrder = grid.assets.indexOf(target)
+  for (let i = 0; i < grid.assets.length; i++) {
+    const other = grid.assets[i]
+    if (other === target) continue
+    const level = other.heightLevel ?? 0
+    if (level < wasTop || (level === wasTop && i < targetOrder)) continue
+    if (occupiedBlocks(other).some(b => footprint.has(blockKey(b)))) other.heightLevel = level + delta
+  }
   grid.assetLevelsChanged()
 }
 

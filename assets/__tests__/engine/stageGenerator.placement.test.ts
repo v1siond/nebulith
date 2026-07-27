@@ -190,7 +190,9 @@ describe('settlement building placement (consumer matches planner contract)', ()
   })
 
   test('town: every tree anchor stands on GRASS — never on the paved plaza or roads', () => {
-    const GRASS = new Set(['grass', 'grass_tall'])
+    // spring/summer settlements floor with the flat 'meadow' tile (groundTypes[0]); grass/grass_tall are the
+    // accent + legacy grass — all are natural, unpaved ground a tree may stand on (never plaza/road).
+    const GRASS = new Set(['meadow', 'grass', 'grass_tall'])
     for (const seed of [12345, 777, 42, 1, 2, 3, 7, 99]) {
       const { stage } = genWithSeed('town', seed)
       expect(stage.trees.length).toBeGreaterThan(0) // a spring town is leafy

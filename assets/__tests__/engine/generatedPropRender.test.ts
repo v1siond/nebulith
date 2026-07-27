@@ -12,8 +12,12 @@ import { generatedPropRender } from '@/engine/stageGenerator'
 import { IsometricGrid } from '@/engine/IsometricGrid'
 
 describe('generatedPropRender — per-instance standing-prop render', () => {
-  test('a flower stands as a single billboard, one block tall, with a transparent block', () => {
-    expect(generatedPropRender('flower')).toEqual({ height: 1, settings: { display: 'single', transparent: true } })
+  test('a flower — and a scattered ground-decor bloom — renders as a small single transparent billboard', () => {
+    // Alexander 2026-07-27: flowers (and the daisy ground-decor that used to render as coloured CUBES) must be
+    // single + transparent + slightly smaller (scale < 1), NOT full-cell blocks.
+    const bloom = { height: 1, scale: 0.85, settings: { display: 'single', transparent: true } }
+    expect(generatedPropRender('flower')).toEqual(bloom)
+    expect(generatedPropRender('ground_decor')).toEqual(bloom)
   })
 
   test('a prop with no override carries nothing (keeps the tile-driven flat render)', () => {

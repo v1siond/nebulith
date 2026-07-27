@@ -28,6 +28,7 @@ import { applyPose } from '@/engine/tileset/pose'
 import { cubeGeom, depthBoxGeom, billboardGeom, diamondGeom, pointInTileGeom, outlineSegments, poseMapper, tileGeomCentroid, tilesInScreenRect, type TileGeom } from './tileHit'
 import { resolveTileSize, resolveTilePose } from '@/engine/tileset/tileViewSettings'
 import { ASCII_STYLE, assetKind, entityKind, entityStyleOverride, genderize, groundKind, personVariantTileId, type ElementKind, type ImageVisual, type Style } from '@/game/artStyle'
+import { cellStackTop } from '@/engine/cellStack'
 import { DEFAULT_CHARACTER_ANIMATIONS, activeFrame } from '@/game/runtime/entityAnimation'
 
 
@@ -548,8 +549,32 @@ export function render(params: IsoRenderParams) {
   // A BUILDING is just TILES: a pre-built building is stamped as its composition's per-cell assets (like a
   // tree cell), so its walls/windows/door/roof flow into the draw list through the SAME `asset` path as any
   // stacked tile — no building-specific collect/filter/drawer, and no grouped-building array to read.
-  const allObjects: { col: number; row: number; isPlayer?: boolean; asset?: GridAsset; entity?: Entity; moving?: boolean; inRange?: boolean }[] = [
-    ...visibleAssets.map(a => ({ col: a.col, row: a.row, asset: a })),
+  // Cells that carry STANDING content — a non-floor tile (prop/wall/tree/rock) or a unit. A raised z-width FLOOR
+  // run must NOT front-extent over these: they sit ON the run, so the run has to stay BEHIND them (a floor is the
+  // ground under everything). Built once per frame; a run then suppresses its extent if its span touches one.
+  const standingCells = new Set<string>()
+  for (const a of visibleAssets) if (a.type !== FLOOR_TYPE) standingCells.add(`${a.col},${a.row}`)
+  for (const e of entities) standingCells.add(`${e.col},${e.row}`)
+  // A raised FLOOR run takes the front-extent ONLY when it is BARE. A run that carries a prop/unit on its span
+  // keeps its anchor sort (like before) so the thing on top stays drawn over it — trading a little of the run's
+  // own completeness for never occluding what sits on it. A bare run (Alexander's road) still draws complete.
+  const runFrontExtentRise = (a: GridAsset): number | undefined => {
+    if (!((a.depth ?? 1) > 1 && a.depthDir)) return undefined
+    const rise = assetBlockRise(a)
+    if (rise < 1) return rise // a flat run — front-extent gate is off anyway; report the true rise
+    const bare = !depthCells(a.col, a.row, a.depth!, a.depthDir).some(c => standingCells.has(`${c.col},${c.row}`))
+    return bare ? rise : 0 // carries something on top → sort by anchor (rise 0 = no front-extent)
+  }
+  const allObjects: { col: number; row: number; isPlayer?: boolean; asset?: GridAsset; blockRise?: number; entity?: Entity; moving?: boolean; inRange?: boolean }[] = [
+    // blockRise = the run's SORT-EFFECTIVE rise, resolved ONLY for a z-width box (the one tile the depth-sort
+    // front-extent reads). A height-1 meadow/water FLOOR run reads rise ≥ 1 → takes the front-extent so a BARE
+    // raised curb draws complete (Alexander's road); a flat town road run reads < 1 → keeps its anchor. A raised
+    // run that CARRIES a prop/unit on its span reports 0 here so it stays behind that content (see runFrontExtentRise).
+    // The raw asset rides untouched so the draw + identity-keyed stack index are unchanged.
+    ...visibleAssets.map(a => ({
+      col: a.col, row: a.row, asset: a,
+      blockRise: runFrontExtentRise(a),
+    })),
     // The player ENTITY is drawn as the live sprite below (isPlayer), so skip it here
     // to avoid a ghost double at the spawn cell. (Top view keeps it — see renderTopView.)
     // A non-player unit is an element too, so the player-camera range culls it like any tile (the player
@@ -626,7 +651,15 @@ export function render(params: IsoRenderParams) {
     const cellHeight = grid.getHeight(Math.floor(obj.col), Math.floor(obj.row))
     const heightOffset = cellHeight * heightStep
 
-    if (obj.isPlayer || obj.entity) { drawUnit(obj, p, heightOffset); continue }
+    if (obj.isPlayer || obj.entity) {
+      // A UNIT stands ON TOP of whatever fills the cell — the SAME shared lego rule (`cellStackTop`) every tile
+      // uses, not a special floor lift (the #28 "walks THROUGH the floor" bug). A flat town floor tops out at 0
+      // (byte-identical), a height-1 meadow at 1 so the hero stands on the surface. "Floors are tiles, all tiles
+      // stack" (Alexander) — no floorStackLift.
+      const floorLift = isoStackLift(tileW, cellStackTop(grid, Math.floor(obj.col), Math.floor(obj.row)))
+      drawUnit(obj, p, heightOffset + floorLift)
+      continue
+    }
 
     if (obj.asset) {
       // A BUILDING is JUST tiles: walls, windows, doors AND the roof all render per-cell through this one
@@ -1283,14 +1316,25 @@ export function isoStackLift(tileW: number, heightLevel: number | undefined): nu
   return (heightLevel ?? 0) * tileW * ISO_BLOCK_H_FRAC
 }
 
+/** An asset's rendered RISE in blocks — `resolveTileHeight × scaleY`, resolved by the asset's KIND the SAME way
+ *  the draw does (assetKind → groundKind for a floor). A generated FLOOR pins no per-instance `height`, so its
+ *  rise lives on its tile: a height-1 meadow/water floor reads 1 here even though `asset.height` is undefined,
+ *  which is exactly what the depth sort needs to tell a raised curb from a flat slab. Heights are style-identical
+ *  (MAP-MODEL §4), so either tileset answers. Used only for the depth-sort front-extent gate. */
+function assetBlockRise(a: GridAsset): number {
+  const kind = assetKind(a)
+  const tile = ASCII_TILESET.tiles[kind] ?? EMOJI_TILESET[kind]
+  return resolveTileHeight(tile, a) * (a.scaleY ?? 1)
+}
+
 /** Depth order for the merged iso draw list: back-to-front by the iso key (col + row), then — for two
  *  ASSETS on the SAME cell — bottom-up by heightLevel so a brush STACK composites higher blocks OVER
  *  lower ones (matching the isoStackLift rise). A non-asset tie (entity/player/building) returns 0 to
  *  keep the array's stable insertion order, so nothing but same-cell asset stacks is reordered — the
  *  no-stack case is byte-identical to the old `(a.col+a.row)-(b.col+b.row)` sort. */
 export function isoDepthCompare(
-  a: { col: number; row: number; asset?: { heightLevel?: number; depth?: number; depthDir?: DepthDir; zIndex?: number } },
-  b: { col: number; row: number; asset?: { heightLevel?: number; depth?: number; depthDir?: DepthDir; zIndex?: number } },
+  a: { col: number; row: number; blockRise?: number; asset?: { heightLevel?: number; height?: number; depth?: number; depthDir?: DepthDir; zIndex?: number } },
+  b: { col: number; row: number; blockRise?: number; asset?: { heightLevel?: number; height?: number; depth?: number; depthDir?: DepthDir; zIndex?: number } },
 ): number {
   // DRAW-PRIORITY first (CSS z-index): a HIGHER zIndex draws LATER (on top / in front), overriding the
   // positional key below — a cell authored with a higher zIndex sits in front of one behind it no matter where
@@ -1301,13 +1345,18 @@ export function isoDepthCompare(
   // A directional-depth box reaches `depthFrontExtent` cells toward the camera past its anchor, so it sorts by
   // its FRONTMOST covered cell — a box extending toward the camera draws in front of what it overlaps. A
   // depth-less asset (every existing tile) adds 0, so the no-depth case is byte-identical to (col+row).
-  const key = (o: { col: number; row: number; asset?: { depth?: number; depthDir?: DepthDir; heightLevel?: number } }): number => {
+  const key = (o: { col: number; row: number; blockRise?: number; asset?: { depth?: number; depthDir?: DepthDir; heightLevel?: number; height?: number } }): number => {
     const dep = o.asset?.depth
     const dir = o.asset?.depthDir
-    // The front-extent (sort by the FRONTMOST covered cell) is only correct for an ELEVATED depth box (a roof,
-    // heightLevel ≥ 1) that actually OVERHANGS + occludes what's behind it. A FLAT run (heightLevel 0 — a
-    // z-width grass/road tile) occludes nothing, so it must sort by its ANCHOR (its backmost cell) and stay
-    // BEHIND every standing tile, like the ground it is — otherwise a long road draws over a house in front of it.
+    // The front-extent (sort by the FRONTMOST covered cell) is only correct for a box that OVERHANGS what it
+    // covers — a STACKED asset lifted off the ground (heightLevel ≥ 1: a roof / upper level). The GROUND itself
+    // (heightLevel 0) never overhangs anything: it is the base every standing tile sits on, so it must always
+    // sort by its ANCHOR and stay BEHIND the standing tiles along its span — otherwise a merged ground RUN paints
+    // its raised curb-face up over the houses/trees in front of it (Alexander's #52 "everything mixed together").
+    // (Historically a rise ≥ 1 floor ALSO front-extended, to tell a raised meadow/water CURB from a flat height-0
+    // town slab — Images #29/#31. That distinction died when ALL terrain became height-1 GLOBAL: every floor now
+    // reads rise ≥ 1, so keying off the absolute rise made EVERY ground run climb over the buildings. Height is
+    // uniform now, so a floor is never a curb relative to its neighbours — the ground sorts by anchor, period.)
     const extend = dir && dep && Math.floor(dep) > 1 && (o.asset?.heightLevel ?? 0) >= 1
     return o.col + o.row + (extend ? depthFrontExtent(dep!, dir!) : 0)
   }
@@ -1335,14 +1384,17 @@ function orientDepthItem(
   orient: (col: number, row: number) => { col: number; row: number },
   facing: Orientation,
 ): IsoDepthItem {
+  // The block's RISE is turn-invariant (rotating the camera never flattens a raised block), so carry blockRise
+  // through untouched — otherwise the front-extent gate would read it as flat at any facing but 0 and a raised
+  // z-width floor run would occlude again the moment the camera turns.
   const { col, row } = orient(item.col, item.row)
-  if (!item.asset) return { col, row, asset: item.asset }
+  if (!item.asset) return { col, row, blockRise: item.blockRise, asset: item.asset }
 
   const dir = item.asset.depthDir && rotateDepthDir(item.asset.depthDir, facing)
-  if (!dir || !item.asset.depth) return { col, row, asset: { ...item.asset, depthDir: dir } }
+  if (!dir || !item.asset.depth) return { col, row, blockRise: item.blockRise, asset: { ...item.asset, depthDir: dir } }
 
   const back = spanBackmost(col, row, item.asset.depth, dir)
-  return { col: back.col, row: back.row, asset: { ...item.asset, depthDir: back.dir } }
+  return { col: back.col, row: back.row, blockRise: item.blockRise, asset: { ...item.asset, depthDir: back.dir } }
 }
 
 /** The back-to-front comparator for a camera at `turn`: isoDepthCompare's key is (col + row), which is a
@@ -1770,12 +1822,18 @@ type IsoShapeDrawer = (
 
 const ISO_SHAPE_DRAWERS: Record<TileShape, IsoShapeDrawer> = {
   square: (ctx, center, bw, bd, bh, blocks, dv, tint, asset) => {
-    // DISPLAY = "single" draws ONE centered tile inside the shell; else the tile paints on all faces.
-    // `transparent` drops the shell so only the billboard shows (a flower with no coloured block).
-    if (asset.settings?.display === 'single') drawIsoSingleTileBlock(ctx, center, bw, bd, bh, blocks, dv, tint, asset.depth, asset.depthDir, asset.settings?.transparent)
-    else drawIsoTileBlock(ctx, center, bw, bd, bh, blocks, dv, tint, undefined, asset.depth, asset.depthDir)
+    // `transparent` drops the coloured block so it reads SEE-THROUGH — and it applies to EVERY tile, not just a
+    // 'single' one (Alexander: "ALL SETTINGS ARE APPLIED, PERIOD; transparent only on single tiles is a BUG").
+    // DISPLAY = "single" still draws ONE centered billboard inside the (here dropped) shell; an all-faces tile
+    // with transparent draws NOTHING (see-through), same as single drops its shell.
+    const transparent = asset.settings?.transparent
+    if (asset.settings?.display === 'single') drawIsoSingleTileBlock(ctx, center, bw, bd, bh, blocks, dv, tint, asset.depth, asset.depthDir, transparent)
+    else if (!transparent) drawIsoTileBlock(ctx, center, bw, bd, bh, blocks, dv, tint, undefined, asset.depth, asset.depthDir)
   },
-  circle: (ctx, center, bw, bd, bh, blocks, dv, tint) => drawIsoRoundedBlock(ctx, center, bw, bd, bh, blocks, dv, tint),
+  circle: (ctx, center, bw, bd, bh, blocks, dv, tint, asset) => {
+    if (asset.settings?.transparent) return // transparent applies to circles too — see-through, no coloured ball
+    drawIsoRoundedBlock(ctx, center, bw, bd, bh, blocks, dv, tint)
+  },
 }
 
 /** Draw a placed tile's block as the SOLID its `shape` selects — the single call the asset draw sites use in

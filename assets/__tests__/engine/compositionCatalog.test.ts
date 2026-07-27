@@ -1,18 +1,36 @@
 /**
  * The Tile-composition PALETTE catalog + the tool RENAME. The editor's old "Building" tool listed a hardcoded
  * handful of buildings; it is now "Tile composition" and must list EVERY composition the backend serves — the
- * same set the world randomizer stamps (buildings AND trees/bushes/fountains/wells/lamp posts). These tests
- * drive buildCompositionPalette against the DB-equivalent seed tileset and assert nothing is dropped and the
- * non-building compositions are present + grouped sensibly, plus that the tool-rail label was renamed.
+ * same set the world randomizer stamps (buildings AND trees/bushes/fountains/wells/lamp posts).
+ *
+ * Grouping is DATA-DRIVEN: a composition's group is the backend `category` it is SERVED with (like a tile),
+ * NOT a frontend name-regex / door-detection heuristic. These tests drive buildCompositionPalette against the
+ * DB-equivalent seed tileset (nothing dropped, non-buildings present, sensibly bucketed) AND against synthetic
+ * tilesets that PROVE the group tracks the served category and nothing else (positive + negative).
  */
-import '@/__tests__/helpers/installTilesetSeed' // fills ASCII_TILESET with the DB-equivalent compositions
+import '@/__tests__/helpers/installTilesetSeed' // fills ASCII_TILESET with the DB-equivalent compositions (now carrying category)
 import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
-import { buildCompositionPalette, compositionGroup, compositionLabel, COMPOSITION_GROUP_ORDER } from '@/engine/compositionCatalog'
+import type { Composition, Tileset } from '@/engine/tileset/tileset'
+import {
+  buildCompositionPalette,
+  compositionLabel,
+  COMPOSITION_CATEGORIES,
+  COMPOSITION_CATEGORY_LABELS,
+} from '@/engine/compositionCatalog'
 import { RAIL_MODES } from '@/components/game/editorChrome'
 
 const allKinds = () => Object.keys(ASCII_TILESET.compositions ?? {})
 const flatKinds = () => buildCompositionPalette(ASCII_TILESET).flatMap(s => s.items.map(i => i.kind))
 const comp = (kind: string) => ASCII_TILESET.compositions![kind]
+
+// ── synthetic tilesets (prove the group comes from the served category, nothing else) ──────────────
+const synth = (compositions: Record<string, Composition>): Tileset => ({
+  id: 'x', name: 'x', tiles: {}, palettes: {}, terrain: {}, compositions,
+})
+const doorCell = { dx: 0, dy: 0, level: 0, label: 'door', walkable: true }
+const leafCell = { dx: 0, dy: 0, level: 0, label: 'leaf_center', walkable: false }
+const groupOf = (tileset: Tileset, kind: string) =>
+  buildCompositionPalette(tileset).find(s => s.items.some(i => i.kind === kind))?.category
 
 describe('buildCompositionPalette lists EVERY backend composition, not just buildings', () => {
   test('every composition the tileset serves appears exactly once in the palette', () => {
@@ -38,23 +56,28 @@ describe('buildCompositionPalette lists EVERY backend composition, not just buil
     expect(listed.has('castle_12')).toBe(true)
   })
 
-  test('compositions are bucketed sensibly: door-bearing → Buildings, tree/bush → Nature, the rest → Props', () => {
-    expect(compositionGroup('house_4', comp('house_4'))).toBe('Buildings')
-    expect(compositionGroup('store_5', comp('store_5'))).toBe('Buildings')
-    expect(compositionGroup('tree_tall', comp('tree_tall'))).toBe('Nature')
-    expect(compositionGroup('bush', comp('bush'))).toBe('Nature')
-    expect(compositionGroup('fountain', comp('fountain'))).toBe('Props')
-    expect(compositionGroup('well', comp('well'))).toBe('Props')
-    expect(compositionGroup('lamp_post', comp('lamp_post'))).toBe('Props')
+  test('compositions are bucketed by their SERVED backend category (buildings / nature / props)', () => {
+    expect(groupOf(ASCII_TILESET, 'house_4')).toBe('buildings')
+    expect(groupOf(ASCII_TILESET, 'store_5')).toBe('buildings')
+    expect(groupOf(ASCII_TILESET, 'tree_tall')).toBe('nature')
+    expect(groupOf(ASCII_TILESET, 'bush')).toBe('nature')
+    expect(groupOf(ASCII_TILESET, 'fountain')).toBe('props')
+    expect(groupOf(ASCII_TILESET, 'well')).toBe('props')
+    expect(groupOf(ASCII_TILESET, 'lamp_post')).toBe('props')
+    // the served category is exactly what the item carries — no derivation in between
+    const items = buildCompositionPalette(ASCII_TILESET).flatMap(s => s.items)
+    for (const it of items) expect(it.category).toBe(comp(it.kind).category)
   })
 
-  test('groups are in a stable display order (Buildings → Nature → Props), each non-empty', () => {
-    const groups = buildCompositionPalette(ASCII_TILESET).map(s => s.group)
-    // the palette groups are a prefix of the canonical order (empty groups dropped, order preserved)
-    expect(groups).toEqual(COMPOSITION_GROUP_ORDER.filter(g => groups.includes(g)))
-    expect(groups).toContain('Buildings')
-    expect(groups).toContain('Nature')
-    expect(groups).toContain('Props')
+  test('groups are in the canonical order (subset of the tile category order), each non-empty', () => {
+    const groups = buildCompositionPalette(ASCII_TILESET).map(s => s.category)
+    // the palette groups are a prefix-subset of the canonical order (empty groups dropped, order preserved)
+    expect(groups).toEqual(COMPOSITION_CATEGORIES.filter(c => groups.includes(c)))
+    expect(groups).toContain('buildings')
+    expect(groups).toContain('nature')
+    expect(groups).toContain('props')
+    // each section carries the prettier header for its bucket
+    for (const s of buildCompositionPalette(ASCII_TILESET)) expect(s.label).toBe(COMPOSITION_CATEGORY_LABELS[s.category])
   })
 
   test('items carry a readable label + their footprint size (so the palette shows "how many cells")', () => {
@@ -74,6 +97,43 @@ describe('buildCompositionPalette lists EVERY backend composition, not just buil
     expect(buildCompositionPalette({ id: 'x', name: 'x', tiles: {}, palettes: {}, terrain: {} })).toEqual([])
   })
 })
+
+describe('the group is the SERVED backend category — never a name-regex / door-detection heuristic', () => {
+  test('a tree-NAMED composition served category:buildings lands under buildings (the name is NOT consulted)', () => {
+    const t = synth({ tree_decoy: { footprint: { w: 1, h: 1 }, cells: [leafCell], category: 'buildings' } })
+    expect(groupOf(t, 'tree_decoy')).toBe('buildings') // the OLD /^(tree|bush)/ regex would have said 'nature'
+  })
+
+  test('a DOOR-bearing composition served category:nature lands under nature (the door is NOT consulted)', () => {
+    const t = synth({ manor: { footprint: { w: 2, h: 2 }, cells: [doorCell], category: 'nature' } })
+    expect(groupOf(t, 'manor')).toBe('nature') // the OLD compositionFacesRoad door-check would have said 'Buildings'
+  })
+
+  test('each served category routes to its own bucket', () => {
+    const t = synth({
+      a: { footprint: { w: 1, h: 1 }, cells: [leafCell], category: 'nature' },
+      b: { footprint: { w: 1, h: 1 }, cells: [leafCell], category: 'props' },
+      c: { footprint: { w: 2, h: 2 }, cells: [doorCell], category: 'buildings' },
+    })
+    expect(groupOf(t, 'a')).toBe('nature')
+    expect(groupOf(t, 'b')).toBe('props')
+    expect(groupOf(t, 'c')).toBe('buildings')
+  })
+
+  test('NEGATIVE: a composition with NO category is DROPPED (browseable only when it carries a category, like a tile)', () => {
+    const t = synth({ orphan: { footprint: { w: 1, h: 1 }, cells: [doorCell] } }) // a door, but no served category
+    expect(flatKindsOf(t)).not.toContain('orphan')
+    expect(buildCompositionPalette(t)).toEqual([]) // nothing browseable at all
+  })
+
+  test('NEGATIVE: a composition with an UNKNOWN category is DROPPED (not silently defaulted to a bucket)', () => {
+    const t = synth({ weird: { footprint: { w: 1, h: 1 }, cells: [leafCell], category: 'zzz' } })
+    expect(flatKindsOf(t)).not.toContain('weird')
+    expect(buildCompositionPalette(t)).toEqual([])
+  })
+})
+
+const flatKindsOf = (t: Tileset) => buildCompositionPalette(t).flatMap(s => s.items.map(i => i.kind))
 
 describe('the tool-rail item is RENAMED from "Building" to a Tile-composition tool', () => {
   test('the composition mode is labelled/hinted as a Tile composition, no longer "Building"', () => {

@@ -15,11 +15,18 @@ export interface HasAssetHeight {
   height?: number
 }
 
-/** Resolve the iso block height: instance override ?? tile default ?? 0 (flat). An explicit `0` override
- *  forces flat; negatives clamp to flat. The 2D/top views ignore this — a tile is always a flat square there. */
+/** Resolve the iso block height of a PLACED block. Height is a per-PLACEMENT value (the block the generator or
+ *  editor created) — NOT a property of the art tile. The 2D/top views ignore this; a tile is a flat square there. */
 export function resolveTileHeight(tile: HasTileHeight | undefined, asset: HasAssetHeight | undefined): number {
-  const h = asset?.height ?? tile?.height ?? 0
-  return h > 0 ? h : 0
+  // A tile is pure ART and carries NO height (Alexander 2026-07-27: "tiles only have data when they're assigned
+  // to a cell … the generator should assign the value when creating something"). So we NEVER read the art tile's
+  // height — that stray art `0` was what sank the road below the height-1 grass (the trench). Height comes from
+  // the PLACED block: the generator/stamp/editor sets `asset.height`; absent → 1 (default block). A non-positive
+  // value clamps to 1 — "all tiles/blocks are height 1, GLOBAL, no exceptions". `tile` is kept for call-site
+  // stability but intentionally unused.
+  void tile
+  const h = asset?.height ?? 1
+  return h > 0 ? h : 1
 }
 
 /** Render-geometry ONLY (no invented value): how MANY layers the iso renderer stacks for a tile of `blocks`

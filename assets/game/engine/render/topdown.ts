@@ -584,7 +584,11 @@ export function render2D(params: Render2DParams) {
   // optimization). Then the existing keys: (front-elevation) row so things further up screen draw first (=
   // behind); a level tiebreak keeps a structure's higher tiles (roof) drawn after the walls below them. All
   // zIndex default 0 → the first term is 0 and the order is unchanged.
-  drawables.sort((a, b) => a.zIndex - b.zIndex || a.sortRow - b.sortRow || a.level - b.level)
+  // Final tiebreak: among cells that collapsed onto the SAME screen position (same anchor row + level — the
+  // fountain's front rim and the water column behind it, both anchored at the front row), the FRONT-most
+  // ORIGINAL row draws LAST so the near face (the rim) sits in front of the taller thing behind it (the
+  // water rising above it). Buildings keep ONE cell per (col,level) so there is no tie — byte-identical.
+  drawables.sort((a, b) => a.zIndex - b.zIndex || a.sortRow - b.sortRow || a.level - b.level || a.row - b.row)
 
   // Draw each object
   twoDTileHits = [] // fresh per-frame record of every drawn 2D tile's silhouette — the inverted picker reads it

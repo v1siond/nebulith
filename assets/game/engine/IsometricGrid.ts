@@ -26,6 +26,9 @@ export interface AssetSettings {
                         // over a plain shell; absent/'all-faces' → the tile is painted on all visible faces.
   transparent?: boolean // the block SHELL is not drawn — only the tile's content shows (with 'single', just the
                         // centered billboard, in its own colour). Lets a flower show WITHOUT colouring its block.
+  actAsTile?: boolean   // the cell "behaves as if a tile is already inside it": content stacks ON TOP of this
+                        // block (counts as ≥1 for stacking) instead of landing inside at level 0. DEFAULT true
+                        // (all cells); an explicit false opts out. Decoupled from height (see cellStack).
 }
 
 export interface GridAsset {

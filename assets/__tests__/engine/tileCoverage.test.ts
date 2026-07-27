@@ -135,8 +135,15 @@ describe('tile coverage guardrail — every world identifier resolves to an IMAG
     expect(gaps).toEqual([])
   })
 
-  it('every GROUND TYPE (groundKind) resolves to an image', () => {
-    const gaps = GROUND_TYPES.filter(g => !resolvesToImage(groundKind(g)))
+  // COLOUR-ONLY grounds render as a per-cell tinted colour SLAB with NO image resource — the deliberate
+  // "grass + water are colour, tiles are spent only on ornaments" model (GENERATION-SPEC §5.5, MAP-MODEL §4:
+  // an art style is made OF tiles, but a ground need not be BUILT from a tile-image — a coloured block is one).
+  // They have no glyph to fall back to (iso.ts colour-slab path: `!adv.image && type === FLOOR_TYPE`), so the
+  // `??`-glyph guardrail EXEMPTS them; every OTHER ground must still resolve to a baked image.
+  const COLOUR_ONLY_GROUNDS = new Set(['meadow'])
+
+  it('every GROUND TYPE (groundKind) resolves to an image OR is a colour-only ground (a tinted slab, no image)', () => {
+    const gaps = GROUND_TYPES.filter(g => !resolvesToImage(groundKind(g)) && !COLOUR_ONLY_GROUNDS.has(groundKind(g)))
       .map(g => `${g} → ${groundKind(g)}`)
     expect(gaps).toEqual([])
   })

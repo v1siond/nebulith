@@ -10,7 +10,7 @@
 import { isoDepthCompare } from '@/engine/render/iso'
 import type { DepthDir } from '@/engine/render/isoBlock'
 
-type Item = { id: string; col: number; row: number; asset?: { heightLevel?: number; zIndex?: number; depth?: number; depthDir?: DepthDir } }
+type Item = { id: string; col: number; row: number; blockRise?: number; asset?: { heightLevel?: number; height?: number; zIndex?: number; depth?: number; depthDir?: DepthDir } }
 
 // Draw order = the array after the SAME sort the render runs. First element = drawn first (furthest back);
 // last element = drawn last (on top / in front).
@@ -108,5 +108,54 @@ describe('isoDepthCompare — a FLAT z-width run stays behind standing tiles (ro
     const roof: Item = { id: 'roof', col: 2, row: 5, asset: { heightLevel: 2, depth: 5, depthDir: 'right-down' } }
     expect(drawOrder([roof, house])).toEqual(['house', 'roof']) // roof front-extends → drawn last (over house)
     expect(isoDepthCompare(roof, house)).toBeGreaterThan(0)
+  })
+})
+
+describe('isoDepthCompare — a GROUND run (heightLevel 0) NEVER front-extends: it stays under standing tiles', () => {
+  // Alexander's #52 ("everything mixed together in a non-perspective way"). The ground is the base every standing
+  // tile sits on, so a merged ground RUN must always sort by its BACK/ANCHOR cell and stay BEHIND the houses and
+  // trees along its span — it must never paint its raised curb-face up over them.
+  //
+  // History: the gate used to give a ground run a FRONT-EXTENT when its rendered rise ≥ 1, to tell a raised
+  // meadow/water CURB (height-1) from a flat height-0 town slab (Images #29/#31). That distinction DIED when ALL
+  // terrain became height-1 GLOBAL: every floor now reads rise ≥ 1, so the extent fired for EVERY ground run and
+  // each one climbed the draw order and painted over the buildings — #52. Height is uniform now, so a floor is
+  // never a curb relative to its neighbours; the ground keys on its anchor, and only STACKED geometry
+  // (heightLevel ≥ 1: roofs / upper levels) still front-extends. A run at (2,5) depth 5 right-down covers cols
+  // 2..6 — its OLD front-extent key was 11, its anchor key is 7.
+  const groundRun: Item = { id: 'ground', col: 2, row: 5, blockRise: 1, asset: { heightLevel: 0, depth: 5, depthDir: 'right-down' } }
+  // A house whose anchor (10) sits BETWEEN the run's anchor (7) and its OLD front-extent (11) — the exact tile the
+  // old behaviour leapfrogged and painted ground over. With the fix the run keys on 7 and stays behind it.
+  const house: Item = { id: 'house', col: 6, row: 4, asset: { heightLevel: 1, height: 5 } }
+
+  test('a raised ground run keys on its ANCHOR (no front-extent) so a house in front of it draws on top', () => {
+    expect(drawOrder([groundRun, house])).toEqual(['ground', 'house']) // ground first (behind), house on top
+    expect(isoDepthCompare(groundRun, house)).toBeLessThan(0)
+    expect(isoDepthCompare(house, groundRun)).toBeGreaterThan(0)
+  })
+
+  test('the RISE is no longer a lever for the ground — a raised run and a flat one sort IDENTICALLY now', () => {
+    // Under uniform height-1 the ground stopped reading its rise: a raised ground run and a flat one key the same
+    // (both on their anchor). blockRise is still computed by the render but the ground path no longer consults it.
+    const flatRun: Item = { id: 'run', col: 2, row: 5, asset: { heightLevel: 0, depth: 5, depthDir: 'right-down' } } // no rise
+    expect(isoDepthCompare(groundRun, house)).toBe(isoDepthCompare(flatRun, house))
+    expect(isoDepthCompare(flatRun, house)).toBeLessThan(0) // still behind
+  })
+
+  test('a ROOF (heightLevel ≥ 1) KEEPS its front-extent — the fix is scoped to the ground only', () => {
+    // A roof is lifted off the ground, genuinely overhangs what it covers, and still sorts by its FRONT cell so it
+    // draws over the walls/house it caps. Same geometry as the ground run but heightLevel 2 → extends to key 11.
+    const roof: Item = { id: 'roof', col: 2, row: 5, asset: { heightLevel: 2, depth: 5, depthDir: 'right-down' } }
+    const capped: Item = { id: 'house', col: 4, row: 5, asset: { heightLevel: 1 } } // (4,5) = 9 < roof front 11
+    expect(drawOrder([roof, capped])).toEqual(['house', 'roof']) // roof front-extends → drawn last (over house)
+    expect(isoDepthCompare(roof, capped)).toBeGreaterThan(0)
+  })
+
+  test('a prop standing ON the run still draws over it (ground is the base under everything)', () => {
+    // A tile that sits on the run's span (heightLevel ≥ 1) has a higher positional key than the run's anchor, so it
+    // naturally draws on top — the ground never occludes what stands on it.
+    const propOnSpan: Item = { id: 'prop', col: 4, row: 5, asset: { heightLevel: 1 } } // a rock standing on the run's span
+    expect(drawOrder([propOnSpan, groundRun])).toEqual(['ground', 'prop']) // run first (behind), prop on top
+    expect(isoDepthCompare(groundRun, propOnSpan)).toBeLessThan(0)
   })
 })

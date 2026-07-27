@@ -8741,6 +8741,7 @@
       "compositions": {
         "big_house_6": {
           "title": null,
+          "category": "buildings",
           "footprint": {
             "h": 4,
             "w": 6
@@ -9205,6 +9206,7 @@
         },
         "bush": {
           "title": null,
+          "category": "nature",
           "footprint": {
             "h": 1,
             "w": 1
@@ -9226,6 +9228,7 @@
         },
         "bush_round": {
           "title": null,
+          "category": "nature",
           "footprint": {
             "h": 1,
             "w": 1
@@ -9248,6 +9251,7 @@
         },
         "castle_12": {
           "title": null,
+          "category": "buildings",
           "footprint": {
             "h": 6,
             "w": 12
@@ -10738,6 +10742,7 @@
         },
         "cathedral_7": {
           "title": null,
+          "category": "buildings",
           "footprint": {
             "h": 5,
             "w": 7
@@ -11354,6 +11359,7 @@
         },
         "fountain": {
           "title": null,
+          "category": "props",
           "footprint": {
             "h": 5,
             "w": 5
@@ -11660,6 +11666,7 @@
         },
         "hospital_6": {
           "title": "Hospital",
+          "category": "buildings",
           "footprint": {
             "h": 4,
             "w": 6
@@ -12124,6 +12131,7 @@
         },
         "house_3": {
           "title": null,
+          "category": "buildings",
           "footprint": {
             "h": 4,
             "w": 3
@@ -12380,6 +12388,7 @@
         },
         "house_4": {
           "title": null,
+          "category": "buildings",
           "footprint": {
             "h": 4,
             "w": 4
@@ -12720,6 +12729,7 @@
         },
         "house_5": {
           "title": null,
+          "category": "buildings",
           "footprint": {
             "h": 4,
             "w": 5
@@ -13124,6 +13134,7 @@
         },
         "lamp_post": {
           "title": null,
+          "category": "props",
           "footprint": {
             "h": 1,
             "w": 1
@@ -13188,6 +13199,7 @@
         },
         "lamp_post_failing": {
           "title": null,
+          "category": "props",
           "footprint": {
             "h": 1,
             "w": 1
@@ -13273,6 +13285,7 @@
         },
         "office_5": {
           "title": null,
+          "category": "buildings",
           "footprint": {
             "h": 5,
             "w": 5
@@ -13782,6 +13795,7 @@
         },
         "stone_building": {
           "title": null,
+          "category": "buildings",
           "footprint": {
             "h": 4,
             "w": 5
@@ -14138,6 +14152,7 @@
         },
         "store_5": {
           "title": "Store",
+          "category": "buildings",
           "footprint": {
             "h": 4,
             "w": 5
@@ -14500,6 +14515,7 @@
         },
         "temple_8": {
           "title": null,
+          "category": "buildings",
           "footprint": {
             "h": 4,
             "w": 8
@@ -15266,6 +15282,7 @@
         },
         "tree": {
           "title": null,
+          "category": "nature",
           "footprint": {
             "h": 1,
             "w": 1
@@ -15299,6 +15316,7 @@
         },
         "tree_dead": {
           "title": null,
+          "category": "nature",
           "footprint": {
             "h": 1,
             "w": 1
@@ -15335,6 +15353,7 @@
         },
         "tree_round": {
           "title": null,
+          "category": "nature",
           "footprint": {
             "h": 1,
             "w": 1
@@ -15369,6 +15388,7 @@
         },
         "tree_small": {
           "title": null,
+          "category": "nature",
           "footprint": {
             "h": 3,
             "w": 5
@@ -15648,6 +15668,7 @@
         },
         "tree_stub": {
           "title": null,
+          "category": "nature",
           "footprint": {
             "h": 1,
             "w": 1
@@ -15682,6 +15703,7 @@
         },
         "tree_tall": {
           "title": null,
+          "category": "nature",
           "footprint": {
             "h": 1,
             "w": 1
@@ -15716,6 +15738,7 @@
         },
         "well": {
           "title": null,
+          "category": "props",
           "footprint": {
             "h": 3,
             "w": 5
@@ -21982,6 +22005,7 @@
       "compositions": {
         "big_house_6": {
           "title": null,
+          "category": "buildings",
           "footprint": {
             "h": 4,
             "w": 6
@@ -22446,6 +22470,7 @@
         },
         "bush": {
           "title": null,
+          "category": "nature",
           "footprint": {
             "h": 1,
             "w": 1
@@ -22467,6 +22492,7 @@
         },
         "bush_round": {
           "title": null,
+          "category": "nature",
           "footprint": {
             "h": 1,
             "w": 1
@@ -22489,6 +22515,7 @@
         },
         "castle_12": {
           "title": null,
+          "category": "buildings",
           "footprint": {
             "h": 6,
             "w": 12
@@ -23979,6 +24006,7 @@
         },
         "cathedral_7": {
           "title": null,
+          "category": "buildings",
           "footprint": {
             "h": 5,
             "w": 7
@@ -24595,6 +24623,7 @@
         },
         "fountain": {
           "title": null,
+          "category": "props",
           "footprint": {
             "h": 5,
             "w": 5
@@ -24901,6 +24930,7 @@
         },
         "hospital_6": {
           "title": "Hospital",
+          "category": "buildings",
           "footprint": {
             "h": 4,
             "w": 6
@@ -25365,6 +25395,7 @@
         },
         "house_3": {
           "title": null,
+          "category": "buildings",
           "footprint": {
             "h": 4,
             "w": 3
@@ -25621,6 +25652,7 @@
         },
         "house_4": {
           "title": null,
+          "category": "buildings",
           "footprint": {
             "h": 4,
             "w": 4
@@ -25961,6 +25993,7 @@
         },
         "house_5": {
           "title": null,
+          "category": "buildings",
           "footprint": {
             "h": 4,
             "w": 5
@@ -26365,6 +26398,7 @@
         },
         "lamp_post": {
           "title": null,
+          "category": "props",
           "footprint": {
             "h": 1,
             "w": 1
@@ -26429,6 +26463,7 @@
         },
         "lamp_post_failing": {
           "title": null,
+          "category": "props",
           "footprint": {
             "h": 1,
             "w": 1
@@ -26514,6 +26549,7 @@
         },
         "office_5": {
           "title": null,
+          "category": "buildings",
           "footprint": {
             "h": 5,
             "w": 5
@@ -27023,6 +27059,7 @@
         },
         "stone_building": {
           "title": null,
+          "category": "buildings",
           "footprint": {
             "h": 4,
             "w": 5
@@ -27379,6 +27416,7 @@
         },
         "store_5": {
           "title": "Store",
+          "category": "buildings",
           "footprint": {
             "h": 4,
             "w": 5
@@ -27741,6 +27779,7 @@
         },
         "temple_8": {
           "title": null,
+          "category": "buildings",
           "footprint": {
             "h": 4,
             "w": 8
@@ -28507,6 +28546,7 @@
         },
         "tree": {
           "title": null,
+          "category": "nature",
           "footprint": {
             "h": 1,
             "w": 1
@@ -28540,6 +28580,7 @@
         },
         "tree_dead": {
           "title": null,
+          "category": "nature",
           "footprint": {
             "h": 1,
             "w": 1
@@ -28576,6 +28617,7 @@
         },
         "tree_round": {
           "title": null,
+          "category": "nature",
           "footprint": {
             "h": 1,
             "w": 1
@@ -28610,6 +28652,7 @@
         },
         "tree_small": {
           "title": null,
+          "category": "nature",
           "footprint": {
             "h": 3,
             "w": 5
@@ -28889,6 +28932,7 @@
         },
         "tree_stub": {
           "title": null,
+          "category": "nature",
           "footprint": {
             "h": 1,
             "w": 1
@@ -28923,6 +28967,7 @@
         },
         "tree_tall": {
           "title": null,
+          "category": "nature",
           "footprint": {
             "h": 1,
             "w": 1
@@ -28957,6 +29002,7 @@
         },
         "well": {
           "title": null,
+          "category": "props",
           "footprint": {
             "h": 3,
             "w": 5

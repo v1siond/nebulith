@@ -166,6 +166,11 @@ export interface CompositionCellSettings {
   /** the LIGHT this cell casts (a warm ground GLOW POOL at night) — stampComposition copies it onto the placed
    *  asset's `light`, so the lamp_post BULB cell ships a lit-by-default lamp. See {@link AssetLight}. */
   light?: AssetLight
+  /** an authored per-cell COLOUR ("#rrggbb") that TINTS this cell's baked tile in the base render (MAP-MODEL §8:
+   *  "colour is a setting of the tile"). stampComposition uses it as the placed asset's colour, so a composition
+   *  can ship a recoloured cell — e.g. the lamp BULB reads as a dark lantern by day (a `color` night-animation
+   *  still last-wins-tints it warm gold at night). Absent → the tile's own colour. */
+  color?: string
 }
 
 /** A per-tile LIGHT setting: the tile casts a warm radial GROUND GLOW POOL (drawn only at night by
@@ -193,6 +198,11 @@ export interface Composition {
    *  "Hospital". When set, the stamp badges the building's roof apex with it (apex signage). Absent for
    *  houses/trees/others → no badge. */
   title?: string
+  /** OPTIONAL sidebar BUCKET (served from the DB `compositions.category`) — the SAME `category` vocabulary a
+   *  tile carries (buildings/nature/props/terrain, MAP-MODEL §8). It marks the composition browseable in the
+   *  paint palette and GROUPS it there, exactly like a tile's `category` — so the editor reads the group from
+   *  this backend value instead of deriving it (door-detection / name regex). Absent = not browseable. */
+  category?: string
 }
 
 export interface Tileset {

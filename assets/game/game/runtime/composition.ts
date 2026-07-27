@@ -10,6 +10,7 @@ import { resolveComposition, resolveTile, tileRenderBehavior } from '@/engine/ti
 import type { Composition, CompositionCell, ResolvedTile } from '@/engine/tileset/tileset'
 import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 import type { GridAsset, IsometricGrid } from '@/engine/IsometricGrid'
+import { cellStackTop } from '@/engine/cellStack'
 import type { ZoneId } from '@/engine/zones'
 import type { BuildingType } from '@/engine/buildingTypes'
 import type { Facing } from '@/engine/villageLayout'
@@ -57,12 +58,22 @@ export type CompositionCellRender = Pick<
  *  standing tile a whole block. A label with no DB tile keeps the unit block, so a stamp never vanishes.
  *  `span` is the collapsed vertical RUN length (1 for a lone cell); `rotation` the building's quarter-turns,
  *  applied to `depthDir` so a turned building's roof spans the right grid axis. */
-export function compositionCellRender(comp: Composition, cell: CompositionCell, tile: ResolvedTile, span: number, rotation: number): CompositionCellRender {
+// `baseLevel` LIFTS every cell onto the raised FLOOR block it is stamped on (0 for a flat/thin town floor, so
+// towns are byte-identical; 1 for a height-1 meadow, so a trunk sits ON TOP of the block instead of embedding
+// at level 0). Added to the cell's OWN authored level so the whole composition rises as one — the live callers
+// pass the cell's shared stack top (`cellStackTop`), so a composition just lands ON TOP of the floor tile like
+// any stacked tile; there is no floor-special lift.
+export function compositionCellRender(comp: Composition, cell: CompositionCell, tile: ResolvedTile, span: number, rotation: number, baseLevel = 0): CompositionCellRender {
   const cs = cell.settings
   const animated = (cell.animations?.length ?? 0) > 0
   return {
-    height: tile.height ?? 1,
-    heightLevel: cell.level ?? 0,
+    // A placed block is ALWAYS height 1 (Alexander: "all tiles/blocks are height 1 by default, GLOBAL, no
+    // exceptions"). A tile is pure ART — it does NOT carry height; the GENERATOR/stamp assigns it here when it
+    // creates the block. Tallness comes from STACKING cells (a 5-storey building = 5 stacked level-0..4 cells)
+    // and `scaleY` (the run-collapse below, and the lamp POST drawn ~7 tall), never from a per-art height. This
+    // is why window/leaf/roof/door no longer render flat: they used to copy an art-tile `height: 0`.
+    height: 1,
+    heightLevel: (cell.level ?? 0) + baseLevel,
     scale: cell.scale ?? 1,
     zIndex: cell.zIndex,
     // An AUTHORED per-cell `scaleY` (the lamp POST = one cell drawn ~7 blocks tall) wins; otherwise a collapsed
@@ -103,6 +114,10 @@ function cellSettings(comp: Composition, cell: CompositionCell, tile: ResolvedTi
 export function stampComposition(grid: IsometricGrid, kind: string, anchorCol: number, anchorRow: number, zone: ZoneId, variant = 0, rotation = 0, material?: string, roofColor?: string, wallColor?: string): number {
   const comp = resolveComposition(ASCII_TILESET, kind)
   if (!comp) return 0
+  // ONE global rule for EVERY composition (building, tree, fountain, lamp): it stacks ON TOP of whatever already
+  // fills its anchor cell — the shared cell stack top. No caller passes a lift; a composition is just ordered
+  // tiles and they ALL land through this same funnel, so a house lifts onto the height-1 grass exactly like a tree.
+  const baseLevel = cellStackTop(grid, anchorCol, anchorRow)
   const { w, h } = comp.footprint
   // PERF + "intelligent building" (Alexander): collapse each vertical RUN of the SAME tile at a footprint cell
   // into ONE block sized `scaleY = run length`, instead of N stacked unit cubes — a wall column of 4 becomes 1
@@ -133,7 +148,7 @@ export function stampComposition(grid: IsometricGrid, kind: string, anchorCol: n
         cells[j + 1].walkable === cells[i].walkable
       )
         j++
-      if (stampRun(grid, comp, kind, cells[i], j - i + 1, anchorCol, anchorRow, w, h, rotation, zone, variant, material, roofColor, wallColor)) placed += j - i + 1
+      if (stampRun(grid, comp, kind, cells[i], j - i + 1, anchorCol, anchorRow, w, h, rotation, zone, variant, material, roofColor, wallColor, baseLevel)) placed += j - i + 1
       i = j + 1
     }
   }
@@ -159,6 +174,7 @@ function stampRun(
   material: string | undefined,
   roofColor: string | undefined,
   wallColor: string | undefined,
+  baseLevel: number,
 ): boolean {
   const off = rotation ? rotateFootprintOffset(c.dx, c.dy, w, h, rotation) : { dx: c.dx, dy: c.dy }
   const col = anchorCol + off.dx
@@ -170,16 +186,17 @@ function stampRun(
   // block on it); higher levels (roof, upper wall) stack above. The floor is only removed by an explicit CLEAR.
   const label = material ? c.label.replace(WALL_MAT, `${material}_`) : c.label
   const tile = resolveTile(ASCII_TILESET, zone, label, variant)
-  // Colour SETTING = the filter the renderer tints the baked tile to. A roof/wall override recolours just
-  // those cells; every other cell (and any absent override) keeps the tile's own colour.
-  const color = isRoofLabel(label) && roofColor ? roofColor : isWallLabel(label) && wallColor ? wallColor : tile.color
+  // Colour SETTING = the filter the renderer tints the baked tile to. A roof/wall material override recolours
+  // just those cells; otherwise an AUTHORED per-cell `settings.color` wins (MAP-MODEL §8: "colour is a setting
+  // of the tile" — e.g. the lamp BULB is a dark lantern by day); absent → the tile's own colour.
+  const color = isRoofLabel(label) && roofColor ? roofColor : isWallLabel(label) && wallColor ? wallColor : c.settings?.color ?? tile.color
   const grounded = (c.level ?? 0) === 0 || undefined
   const asset = grid.placeAsset([tile.char], col, row, { type: kind, blocking: !c.walkable, color, baseShadow: grounded })
   asset.label = label
   // Every render field the cell shapes — its own HEIGHT, stack level, zoom/z-index, scale axes, z-width,
   // pose/shape/light, behavior settings + apex signage, animations — through the ONE shared mapping the SAVE
   // path uses too, so the live stamp and a reloaded save can never diverge.
-  Object.assign(asset, compositionCellRender(comp, c, tile, span, rotation))
+  Object.assign(asset, compositionCellRender(comp, c, tile, span, rotation, baseLevel))
   if (!c.walkable) grid.setCollision(col, row, true)
   return true
 }

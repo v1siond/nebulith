@@ -4,10 +4,11 @@
 // props-driven — all gameplay state/handlers live in the page; this is layout only.
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { ZoneId } from '@/engine/zones'
+import type { ForestLayout } from '@/engine/stageGenerator'
 import { BUILT_IN_STYLES, TILE_CATEGORIES, type TileCategory, type TileDef, tilesForStyle } from '@/game/artStyle'
 import { DEFAULT_ACTION_PARAMS, makeTrigger, type Trigger, type TriggerActionType, type TriggerEvent } from '@/game/runtime/trigger'
-import { type EditorMode, SEASON_BTN, STAGE_VARIANTS, STAGE_ZONES, SELECT_CLS, INPUT_CLS } from './editorConfig'
-import { type CompositionPaletteGroup } from '@/engine/compositionCatalog'
+import { type EditorMode, FOREST_LAYOUT_OPTIONS, GENERATOR_LAYERS, type LayoutOption, SEASON_BTN, STAGE_VARIANT_LABELS, STAGE_VARIANTS, STAGE_ZONES, VARIANT_LAYOUTS, SELECT_CLS, INPUT_CLS } from './editorConfig'
+import { COMPOSITION_CATEGORY_GLYPH, type CompositionPaletteGroup } from '@/engine/compositionCatalog'
 import { headroomFps } from '@/components/useFps'
 
 // ── Tool-rail (left, slim icon strip) ────────────────────────────────
@@ -57,10 +58,54 @@ function RailButton({ def, active, onClick }: { def: RailDef; active: boolean; o
 /**
  * The Tile-composition PALETTE — the "Building" card, generalised. Lists EVERY composition the backend
  * serves (the same set the world randomizer stamps: buildings, trees/bushes, fountains, wells, lamp posts…),
- * grouped and labelled by {@link buildCompositionPalette}. Each button shows the composition's footprint size
- * (w×h) so you know how many cells it takes before you even hover, and arms it as the stamp brush on click.
- * Fully data-driven — no hardcoded building list — so a new backend composition shows up here automatically.
+ * GROUPED BY THE COMPOSITION'S BACKEND `category` (Buildings / Nature / Props …), exactly the way the tile
+ * palette groups tiles — {@link buildCompositionPalette} reads the served category, no frontend heuristic.
+ * Each button shows the composition's footprint size (w×h) so you know how many cells it takes before you even
+ * hover, and arms it as the stamp brush on click. Fully data-driven — no hardcoded building list — so a new
+ * backend composition shows up in its category automatically.
  */
+/** One placeable composition button — its label + a footprint (w×h) badge so you know how many cells it takes
+ *  before hovering. Clicking arms it as the stamp brush; the armed one glows in the Compose-tool accent. */
+function CompositionButton({ item, active, onArm }: { item: CompositionPaletteGroup['items'][number]; active: boolean; onArm: (kind: string) => void }) {
+  return (
+    <button
+      type="button"
+      onClick={() => onArm(item.kind)}
+      aria-pressed={active}
+      title={`${item.label} — ${item.footprint.w}×${item.footprint.h} cells`}
+      className={`flex items-center justify-between gap-1 rounded px-2 py-1.5 text-left text-xs font-bold transition-colors ${
+        active ? 'bg-amber-600 text-black' : 'bg-gray-700 hover:bg-gray-600'
+      }`}
+    >
+      <span className="truncate">{item.label}</span>
+      <span className={`shrink-0 rounded px-1 font-mono text-[9px] ${active ? 'bg-black/20 text-black/80' : 'bg-black/30 text-gray-400'}`}>
+        {item.footprint.w}×{item.footprint.h}
+      </span>
+    </button>
+  )
+}
+
+/** One category SECTION — a clear header (glyph + name + item count + divider) over a 2-up grid of its
+ *  compositions. The header mirrors the tile-palette category headers so both browse the same way. */
+function CompositionSection({ section, armedKind, onArm }: { section: CompositionPaletteGroup; armedKind: string | null; onArm: (kind: string) => void }) {
+  return (
+    <div>
+      <div className="mb-1.5 flex items-baseline justify-between border-b border-white/10 pb-1">
+        <span className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-gray-300">
+          <span aria-hidden className="text-sm text-gray-500">{COMPOSITION_CATEGORY_GLYPH[section.category]}</span>
+          {section.label}
+        </span>
+        <span className="font-mono text-[9px] text-gray-500">{section.items.length}</span>
+      </div>
+      <div className="grid grid-cols-2 gap-1">
+        {section.items.map(item => (
+          <CompositionButton key={item.kind} item={item} active={armedKind === item.kind} onArm={onArm} />
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export function CompositionPalette({
   catalog,
   armedKind,
@@ -74,33 +119,9 @@ export function CompositionPalette({
     return <p className="text-xs text-gray-400">Loading compositions from the server…</p>
   }
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       {catalog.map(section => (
-        <div key={section.group}>
-          <h4 className="mb-1 text-[10px] font-bold uppercase tracking-wide text-gray-400">{section.group}</h4>
-          <div className="grid grid-cols-2 gap-1">
-            {section.items.map(item => {
-              const active = armedKind === item.kind
-              return (
-                <button
-                  key={item.kind}
-                  type="button"
-                  onClick={() => onArm(item.kind)}
-                  aria-pressed={active}
-                  title={`${item.label} — ${item.footprint.w}×${item.footprint.h} cells`}
-                  className={`flex items-center justify-between gap-1 rounded px-2 py-1.5 text-left text-xs font-bold transition-colors ${
-                    active ? 'bg-amber-600 text-black' : 'bg-gray-700 hover:bg-gray-600'
-                  }`}
-                >
-                  <span className="truncate">{item.label}</span>
-                  <span className={`shrink-0 font-mono text-[9px] ${active ? 'text-black/70' : 'text-gray-400'}`}>
-                    {item.footprint.w}×{item.footprint.h}
-                  </span>
-                </button>
-              )
-            })}
-          </div>
-        </div>
+        <CompositionSection key={section.category} section={section} armedKind={armedKind} onArm={onArm} />
       ))}
     </div>
   )
@@ -286,19 +307,29 @@ export function Dropdown({
   )
 }
 
-// ── ⚡ Generate (zone × variant) ──────────────────────────────────────
-/** The stage-preset controls (zone picker + variant generate buttons). Shared by
- *  the top-bar Generate dropdown and the Inspector's nothing-selected stage panel. */
-// The per-layer randomize scopes — re-roll ONE layer of the current map, keeping the rest (macro
-// randomize, GENERATION-SPEC §5). Order matches the generator's layer list; labels are user-facing.
-const RANDOMIZE_LAYERS: ReadonlyArray<readonly [string, string]> = [
-  ['layout', 'Layout only'],
-  ['buildings', 'Buildings'],
-  ['nature', 'Trees / nature'],
-  ['decor', 'Decor'],
-  ['units', 'Units'],
-]
+// ── ⚡ Generate (season → map type → layout, + universal layer re-roll) ─────────────
+// Shared micro-header for the Generate menu sections — same type scale as the tile/composition palette
+// headers, so the whole editor's grouped panels read as one system.
+const MENU_HEADER = 'text-[10px] font-bold uppercase tracking-wider text-gray-400'
+// Stable empty list so a layout-less map type doesn't re-allocate `[]` on every render.
+const NO_LAYOUTS: readonly LayoutOption[] = []
 
+/** A labelled section header for the Generate menu (matches the palette headers). */
+function MenuHeader({ children, className = '' }: { children: React.ReactNode; className?: string }) {
+  return <p className={`${MENU_HEADER} ${className}`}>{children}</p>
+}
+
+/**
+ * The ⚡ Generate controls — a clear top-down hierarchy: **Season** → **Map type** → the chosen map type's
+ * **Layouts** (a labelled group nested UNDER the selected type, not loose buttons), then a divider and the
+ * **universal per-layer re-roll** row. Shared by the top-bar Generate dropdown and the Inspector's
+ * nothing-selected stage panel.
+ *
+ * GLOBAL, no per-map conditionals: a map type's layouts come from `VARIANT_LAYOUTS[variant]` (data — add a
+ * type's layouts by adding a row, never a `variant === 'forest'` branch), and the layer re-roll row shows the
+ * SAME five sub-categories (`GENERATOR_LAYERS`) for every map type — a forest, a town and a temple all have a
+ * layout / buildings / nature / decor / units layer.
+ */
 export function GenerateControls({
   zone,
   onZone,
@@ -307,63 +338,122 @@ export function GenerateControls({
 }: {
   zone: ZoneId
   onZone: (z: ZoneId) => void
-  onGenerate: (zone: ZoneId, variant: (typeof STAGE_VARIANTS)[number]) => void
-  /** When provided, shows a "randomize just one layer" row that re-rolls a single layer of the
-   *  current map (leaving the others intact). Omitted where there is no current map to scope. */
+  /** `layout` steers a map type that HAS layouts (undefined otherwise → the generator's own default). */
+  onGenerate: (zone: ZoneId, variant: (typeof STAGE_VARIANTS)[number], layout?: ForestLayout) => void
+  /** When provided, shows the universal "re-roll one layer" row that re-rolls a single layer of the current
+   *  map (leaving the others intact). Omitted where there is no current map to scope. */
   onRandomizeLayer?: (layer: string) => void
 }) {
+  // The selected map type — its layout group renders under it. Forest is the flagship of this forest-first
+  // engine, so it starts selected.
+  const [variant, setVariant] = useState<(typeof STAGE_VARIANTS)[number]>('forest')
+  // The user-steered layout within that map type; the generator randomizes the rest (GENERATION-SPEC §3/§5.4).
+  const [layout, setLayout] = useState<ForestLayout>(FOREST_LAYOUT_OPTIONS[0].id)
+
+  // The selected map type's layouts — looked up as DATA, never branched on the variant. Empty → no layout group.
+  const layouts = VARIANT_LAYOUTS[variant] ?? NO_LAYOUTS
+  const variantLabel = STAGE_VARIANT_LABELS[variant]
+
+  // One generate path: mark the map type active and forward the layout only when that type HAS layouts (else
+  // undefined → the generator's default). Keeps the click-to-generate pattern the whole menu uses.
+  const generate = (v: (typeof STAGE_VARIANTS)[number], chosen?: ForestLayout) => {
+    setVariant(v)
+    if (chosen) setLayout(chosen)
+    const vLayouts = VARIANT_LAYOUTS[v]
+    onGenerate(zone, v, vLayouts && vLayouts.length > 0 ? (chosen ?? layout) : undefined)
+  }
+
   return (
-    <div>
-      <p className="mb-1 text-xs text-gray-400">Zone</p>
-      <div className="mb-2 grid grid-cols-3 gap-1">
-        {STAGE_ZONES.map(z => (
-          <button
-            key={z}
-            onClick={() => onZone(z)}
-            aria-pressed={zone === z}
-            className={`rounded px-2 py-1 text-xs capitalize transition-colors ${
-              zone === z ? SEASON_BTN[z] : 'bg-gray-700 hover:bg-gray-600'
-            }`}
-          >
-            {z}
-          </button>
-        ))}
-      </div>
-      <p className="mb-1 text-xs text-gray-400">Variant — click to generate</p>
-      <div className="grid grid-cols-3 gap-1">
-        {STAGE_VARIANTS.map(v => (
-          <button
-            key={v}
-            onClick={() => onGenerate(zone, v)}
-            className="rounded bg-purple-700 px-2 py-1.5 text-xs capitalize transition-colors hover:bg-purple-600"
-            title={`Generate a randomized ${zone} ${v.replace('-', ' ')}`}
-          >
-            {v.replace('-', ' ')}
-          </button>
-        ))}
-      </div>
-      <p className="mt-2 text-[10px] text-gray-500">
-        Pick a variant to generate a randomized {zone} stage — forest, town, a much larger city, a cavern, or a temple dungeon.
+    <div className="space-y-3">
+      {/* 1 · Season — sets the zone, no generate. */}
+      <section>
+        <MenuHeader>Season</MenuHeader>
+        <div className="mt-1 grid grid-cols-3 gap-1">
+          {STAGE_ZONES.map(z => (
+            <button
+              key={z}
+              onClick={() => onZone(z)}
+              aria-pressed={zone === z}
+              className={`rounded px-2 py-1 text-xs capitalize transition-colors ${
+                zone === z ? SEASON_BTN[z] : 'bg-gray-700 hover:bg-gray-600'
+              }`}
+            >
+              {z}
+            </button>
+          ))}
+        </div>
+      </section>
+
+      {/* 2 · Map type — clicking one generates a randomized stage of that kind AND reveals its layouts. */}
+      <section>
+        <MenuHeader>Map type</MenuHeader>
+        <div className="mt-1 grid grid-cols-3 gap-1">
+          {STAGE_VARIANTS.map(v => (
+            <button
+              key={v}
+              onClick={() => generate(v)}
+              aria-pressed={variant === v}
+              className={`rounded px-2 py-1.5 text-xs capitalize transition-colors ${
+                variant === v ? 'bg-purple-600 ring-1 ring-purple-300' : 'bg-purple-700 hover:bg-purple-600'
+              }`}
+              title={`Generate a randomized ${zone} ${STAGE_VARIANT_LABELS[v].toLowerCase()}`}
+            >
+              {v}
+            </button>
+          ))}
+        </div>
+
+        {/* The selected map type's layouts — a labelled group NESTED under it (tinted to the map-type accent so
+            it reads as "these belong to Forest"), never loose buttons. Shown only when this type has layouts. */}
+        {layouts.length > 0 && (
+          <div className="mt-1.5 rounded-md border border-purple-400/25 bg-purple-500/5 p-2">
+            <MenuHeader className="text-purple-200/80">{variantLabel} layouts</MenuHeader>
+            <div className="mt-1 grid grid-cols-2 gap-1">
+              {layouts.map(({ id, label }) => (
+                <button
+                  key={id}
+                  onClick={() => generate(variant, id)}
+                  aria-pressed={layout === id}
+                  className={`rounded px-2 py-1.5 text-xs transition-colors ${
+                    layout === id ? 'bg-emerald-700 ring-1 ring-emerald-300' : 'bg-gray-700 hover:bg-gray-600'
+                  }`}
+                  title={`Generate the ${zone} ${variantLabel.toLowerCase()} as a ${label.toLowerCase()}`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <p className="mt-1.5 text-[10px] leading-tight text-gray-400/80">
+              Pick a shape; the generator randomizes the rest.
+            </p>
+          </div>
+        )}
+      </section>
+
+      <p className="text-[10px] leading-tight text-gray-500">
+        Pick a season, then a map type — it generates a randomized {zone} stage of that kind.
       </p>
+
+      {/* Universal per-layer re-roll — the SAME five sub-categories for EVERY map type. */}
       {onRandomizeLayer && (
-        <>
-          <p className="mb-1 mt-3 border-t border-gray-700 pt-2 text-xs text-gray-400">Randomize just one layer — keeps the rest of the map</p>
+        <section className="border-t border-gray-700 pt-3">
+          <MenuHeader>Re-roll one layer</MenuHeader>
+          <p className="mb-1.5 mt-0.5 text-[10px] leading-tight text-gray-500">
+            The same layers on every map type — re-roll one part of the current {variantLabel.toLowerCase()}; the rest stays put.
+          </p>
           <div className="grid grid-cols-3 gap-1">
-            {RANDOMIZE_LAYERS.map(([id, label]) => (
+            {GENERATOR_LAYERS.map(({ id, label, hint }) => (
               <button
                 key={id}
                 onClick={() => onRandomizeLayer(id)}
-                className="rounded bg-indigo-700 px-2 py-1.5 text-xs capitalize transition-colors hover:bg-indigo-600"
-                title={`Re-roll only the ${label.toLowerCase()} of the current map`}
+                className="rounded bg-indigo-700 px-2 py-1.5 text-xs transition-colors hover:bg-indigo-600"
+                title={`Re-roll ${label.toLowerCase()} — ${hint}`}
               >
                 {label}
               </button>
             ))}
           </div>
-          <p className="mt-1 text-[10px] text-gray-500">
-            Generate a map first, then re-roll one layer at a time — e.g. new trees without touching the buildings, or the bare street/plot layout with no structures.
-          </p>
-        </>
+        </section>
       )}
     </div>
   )

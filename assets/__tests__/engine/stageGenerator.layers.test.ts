@@ -64,11 +64,19 @@ function genSeeded(opts: Parameters<typeof generateStage>[0], seed: number): Sta
 // generatedPropLabels.test.ts). Only stages that scatter those props move: the two summer settlements + city
 // (flowers), cave (rock walls + crystal + mushroom), boss-stage (rock). town|autumn (non-flowering, no rocks)
 // and temple|winter (interior) are byte-identical.
+// Regenerated again 2026-07-25 for the FOREST rework to match #24/#14: the meadow now DOMINATES the map — an
+// open olive field with faint garden-plot grid lines, subtle earth/rock/flower ornament zones, a SINGLE
+// bottom-left cobble entrance (lamps + flower beds), and SPARSE tree clumps framing the edges; the river
+// variant adds a WINDING colour-only river hugging three sides (near edge open) + a top-right stone bridge.
+// The dense tree border + perimeter ring + two entrances were removed, so forest|summer legitimately moves.
+// The two SUMMER settlements also move because SUMMER_FLOWERS gained four more bloom tones (a fuller flower
+// bed, per #14/#17) — town|summer + city|summer scatter from the wider set. Every other archetype (town|autumn,
+// cave, temple, boss) is byte-identical.
 const BASELINE: Record<string, string> = {
   'town|autumn|40x40|1': '295bac7b',
-  'town|summer|50x40|7': '6470ad71',
-  'city|summer|56x44|3': '46f42780',
-  'forest|summer|30x24|42': 'c191de23',
+  'town|summer|50x40|7': '43b40617',
+  'city|summer|56x44|3': '4cc20517',
+  'forest|summer|30x24|42': '693fc6e6',
   'cave|autumn|40x30|99': 'c3a252e7',
   'temple|winter|36x30|5': '7b1712d1',
   'boss-stage|winter|36x30|11': 'db1efcb4',

@@ -185,6 +185,11 @@ export interface TileControlModel {
    *  asset.settings.transparent; null = mixed. Asset tiles only (a flat floor has no shell to hide). */
   transparent?: boolean | null
   onTransparent?: (on: boolean) => void
+  /** ACT AS TILE — the cell behaves as if a tile is already inside it, so a tile placed on it stacks ON TOP
+   *  (like a road/floor you walk over) instead of landing inside at level 0. Reads asset.settings.actAsTile;
+   *  DEFAULT true (every cell); null = mixed. Asset tiles only. */
+  actAsTile?: boolean | null
+  onActAsTile?: (on: boolean) => void
   /** LIGHT — the warm night ground GLOW POOL this tile casts (GridAsset.light): intensity (strength), distance
    *  (radius in cells), colour, and an on/off toggle. Reads the first selected tile's light (undefined = none).
    *  Asset tiles only. `onLight(undefined)` clears the setting. */
@@ -362,6 +367,20 @@ function TransparentRow({ transparent, onTransparent }: { transparent: boolean |
   )
 }
 
+/** ACT AS TILE — does content stacked on this cell rest ON TOP of the block (the cell behaves as if a tile is
+ *  already inside it — a road/floor you walk over) or land INSIDE it at level 0? A two-button toggle mirroring
+ *  Block/Display/Shape. Default ON (true). Asset tiles only. */
+function ActAsTileRow({ actAsTile, onActAsTile }: { actAsTile: boolean | null; onActAsTile: (on: boolean) => void }) {
+  return (
+    <label className="flex items-center gap-2" title="Act as tile — ON: content stacks ON TOP of this block (a walk-over floor/road); OFF: content lands INSIDE the block at level 0">
+      <span className="w-14 shrink-0 text-[10px] text-gray-400">Act as tile</span>
+      <button onClick={() => onActAsTile(true)} aria-pressed={actAsTile === true} className={`rounded px-2 py-0.5 text-[10px] font-bold ${actAsTile === true ? 'bg-cyan-600 text-white' : 'bg-gray-700 hover:bg-gray-600'}`}>On</button>
+      <button onClick={() => onActAsTile(false)} aria-pressed={actAsTile === false} className={`rounded px-2 py-0.5 text-[10px] font-bold ${actAsTile === false ? 'bg-cyan-600 text-white' : 'bg-gray-700 hover:bg-gray-600'}`}>Off</button>
+      {actAsTile === null && mixedBadge}
+    </label>
+  )
+}
+
 /** The default LIGHT a tile takes when the user first turns its light ON — matches the seeded lamp default
  *  (today's warm LAMP_GLOW: intensity 1, radius 3.2 cells, #ffd98a). */
 const DEFAULT_LIGHT: AssetLight = { intensity: 1, distance: 3.2, color: '#ffd98a', on: true }
@@ -451,6 +470,7 @@ export function TileControls({ tile }: { tile: TileControlModel }) {
       {tile.onShape && <ShapeModeRow shape={tile.shape ?? 'square'} onShape={tile.onShape} />}
       {/* Block: solid shell, or transparent so only the tile content (e.g. the flower) shows. Asset tiles only. */}
       {tile.onTransparent && <TransparentRow transparent={tile.transparent ?? false} onTransparent={tile.onTransparent} />}
+      {tile.onActAsTile && <ActAsTileRow actAsTile={tile.actAsTile ?? true} onActAsTile={tile.onActAsTile} />}
       {/* Light: cast a warm ground glow pool at night, with intensity/distance/colour + on-off. Asset tiles only. */}
       {tile.onLight && <LightControls light={tile.light} onLight={tile.onLight} />}
       <DimRow label="Zoom" axis="zoom" value={tile.dims.zoom} title="Zoom — scales Width, Height and Zoom together" onDim={tile.onDim} />

@@ -23,14 +23,14 @@ export interface ZonePalette {
 export const ZONE_PALETTES: Record<ZoneId, ZonePalette> = {
   spring: {
     id: 'spring',
-    groundTypes: ['grass', 'grass_tall', 'grass'],
+    groundTypes: ['meadow', 'grass_tall', 'grass'],
     hazard: 'water',
     wallColor: '#6a5a3a',
     accentColor: '#ff9ecf', // blossom pink
   },
   summer: {
     id: 'summer',
-    groundTypes: ['grass', 'grass_tall', 'grass'],
+    groundTypes: ['meadow', 'grass_tall', 'grass'],
     hazard: 'water',
     wallColor: '#5a4a30',
     accentColor: '#2e8b2e', // deep green
@@ -160,9 +160,15 @@ const SPRING_FLOWERS: ReadonlyArray<FlowerKind> = [
   { char: '✽', color: '#ffffff' }, // daisy
   { char: '❋', color: '#7ad0ff' }, // bluebell
 ]
+// SUMMER blooms in a spread of tended-bed colours (a meadow in full flower, per #14/#17) — the tint recolours
+// the season bloom tile, so a bed reads pink / gold / white / red / lilac / sky like the reference borders.
 const SUMMER_FLOWERS: ReadonlyArray<FlowerKind> = [
-  { char: '*', color: '#ff88cc' },
-  { char: '✿', color: '#ffd24a' },
+  { char: '*', color: '#ff88cc' }, // pink
+  { char: '✿', color: '#ffd24a' }, // gold
+  { char: '❁', color: '#ff6f6f' }, // red
+  { char: '✽', color: '#f4f4ec' }, // white
+  { char: '✾', color: '#b892ff' }, // lilac
+  { char: '❋', color: '#7ac6ff' }, // sky
 ]
 /** Fallback bloom set for a zone with no curated list — a stray bloom still lands on a real variant. */
 export const DEFAULT_FLOWERS: ReadonlyArray<FlowerKind> = SUMMER_FLOWERS

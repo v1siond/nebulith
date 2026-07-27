@@ -9,9 +9,16 @@ import type { GridAsset } from '@/engine/IsometricGrid'
  * projection drew each cell at its own (col,row) raised by heightLevel, so a 4-deep × 5-tall house piled up
  * ~9 cells tall (depth + height). This helper collapses that depth:
  *
- *   for each (col, heightLevel) screen position, only the FRONT-most cell (the row nearest the viewer,
- *   i.e. the MAX row / door-facing face) is drawn; the cells behind it are hidden, and every kept cell
- *   anchors its vertical stack at the structure's FRONT row.
+ *   for each (col, heightLevel) screen position the cells overlap; a cell is hidden only when a cell IN
+ *   FRONT of it (nearer the viewer / higher row) is at LEAST as TALL — real occlusion, not row alone. Equal-
+ *   height rows (a wall column, a back wall behind its door) collapse to the front-most exactly as before,
+ *   but a cell TALLER than everything in front of it survives and draws its extra height above the front
+ *   face. Every kept cell anchors its vertical stack at the structure's FRONT row.
+ *
+ * This occlusion rule is what keeps a FLAT composition (fountain, well — all cells at level 0 but spanning
+ * depth) visible in 2D: its rim is 1 block, its interior water grows to ~4, so the water peeks over the front
+ * rim instead of being dropped behind it. Under the old front-most-row rule the whole water body hid and the
+ * fountain read as a bare strip of rim (MAP-MODEL §5 — a composition cell resolves by its LABEL in EVERY view).
  *
  * It is a pure PROJECTION — no per-type "if building" branch. Any stacked structure that has real depth
  * (a column occupied at more than one row: buildings, multi-deep trees) collapses identically. A structure
@@ -43,6 +50,28 @@ const lvl = (a: GridAsset): number => a.heightLevel ?? 0
  *  roof, door, window, tree leaf …) — those carry a `label`. Flat props (crates, lamps, npcs) and the
  *  live player have no label, so they never collapse and keep their own row. */
 const isStructureCell = (a: GridAsset): boolean => a.label != null
+
+/** The MAX vertical extent (in tile/block units) a cell can draw — its base height AND the peak of any
+ *  height-grow animation. Used by the depth-collapse to decide OCCLUSION: a front cell only hides a cell
+ *  behind it when the front cell is at LEAST as tall (so an equal-height wall row still dedupes, but a TALL
+ *  cell behind a SHORT one survives — the fountain water, which grows 1→4 blocks, peeking over its 1-block
+ *  rim). `height` composes ADDITIVELY onto `scaleY` (tileAnimation ADDITIVE_SETTINGS: rendered = base +
+ *  (value − from)), so a `1→4` grow lifts scaleY to `base + (4 − 1)`. An upper bound is safe here — it only
+ *  ever KEEPS more, never wrongly hides. */
+function cellFrontHeight(a: GridAsset): number {
+  const baseScaleY = a.scaleY ?? 1
+  const dims = (scaleY: number): number => (a.height ?? 1) * scaleY * (a.scale ?? 1)
+  let peak = dims(baseScaleY)
+  for (const anim of a.animations ?? []) {
+    if (anim.kind !== 'settings') continue
+    for (const t of anim.tracks) {
+      // height → scaleY (ADDITIVE). Only numeric tracks stretch the block; colour/display don't.
+      if (t.setting !== 'height' || typeof t.from !== 'number' || typeof t.to !== 'number') continue
+      peak = Math.max(peak, dims(baseScaleY + (Math.max(t.from, t.to) - t.from)))
+    }
+  }
+  return peak
+}
 
 /** Compute the front-elevation projection for a set of placed assets. See the module doc. */
 export function frontElevation(assets: readonly GridAsset[]): FrontElevation {
@@ -116,19 +145,27 @@ function collapseComponent(
   }
   if (!hasDepth) return // no depth — a 1-deep tree / single-column structure renders as-is
 
-  // Depth-collapse: keep the front-most cell per (col, level), hide the rest, anchor kept cells at frontRow.
-  const winnerByColLevel = new Map<string, GridAsset>()
+  // Depth-collapse by OCCLUSION, not by row alone: bucket cells per (col, level) — they overlap on the
+  // front-elevation screen column — and HIDE a cell only when a cell IN FRONT of it (nearer the camera =
+  // higher row) is at LEAST as tall. Equal-height rows (a wall column, a building's back wall behind its
+  // door) dedupe to the front-most exactly as before; but a cell that is TALLER than everything in front of
+  // it survives, so it draws its extra height above the front face. This is what keeps a FLAT composition's
+  // body visible: the fountain / well rim is 1 block, its interior water grows to ~4 — the water would
+  // otherwise hide entirely behind the front rim row (MAP-MODEL §5 — every composition cell resolves in
+  // every view). Kept cells anchor at the structure's front row so the facade sits on one ground line.
+  const byColLevel = new Map<string, GridAsset[]>()
   for (const a of componentCells) {
     const ck = `${a.col}|${lvl(a)}`
-    const cur = winnerByColLevel.get(ck)
-    if (!cur || a.row > cur.row) {
-      if (cur) hidden.add(cur) // the previous front-runner is now occluded
-      winnerByColLevel.set(ck, a)
-    } else {
-      hidden.add(a) // behind the current front-runner
-    }
+    const bucket = byColLevel.get(ck)
+    if (bucket) bucket.push(a)
+    else byColLevel.set(ck, [a])
   }
-  for (const winner of winnerByColLevel.values()) {
-    draw.set(winner, { anchorRow: frontRow })
+  for (const bucket of byColLevel.values()) {
+    for (const a of bucket) {
+      const h = cellFrontHeight(a)
+      const occluded = bucket.some(o => o !== a && o.row > a.row && cellFrontHeight(o) >= h)
+      if (occluded) hidden.add(a)
+      else draw.set(a, { anchorRow: frontRow })
+    }
   }
 }

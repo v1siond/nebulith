@@ -16,14 +16,14 @@ import Link from 'next/link'
 import { useToast } from '@/components/Toast'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { type GridAsset, IsometricGrid, FLOOR_TYPE } from '@/engine/IsometricGrid'
-import { getStack, setTileHeight, type TileEntry, type TileSource } from '@/engine/cellStack'
+import { getStack, setTileHeight, setCellActAsTile, type TileEntry, type TileSource } from '@/engine/cellStack'
 import { type AttackAnim, isAnimDone } from '@/engine/attackAnimations'
 import { type BuildingType } from '@/engine/buildingTypes'
 import { BUILDING_PLACE_LENGTH, buildingCompositionKind, buildingFootprint, canPlaceBuildingComposition, isRoadGround, nearestRoadFacing, planComposition } from '@/engine/buildingCatalog'
 import { buildCompositionPalette, type CompositionPaletteGroup } from '@/engine/compositionCatalog'
 import { findTriggeredConnector, normalizeConnector } from '@/engine/connectors'
 import { entityPalette, punchTile, weaponEmoji, weaponGlyph, weaponPose } from '@/engine/entityArt'
-import { StageData, VariantId, type LayerId, generateStage, stagePaint, generatedPropRender } from '@/engine/stageGenerator'
+import { StageData, VariantId, type LayerId, type ForestLayout, generateStage, stagePaint, generatedPropRender } from '@/engine/stageGenerator'
 import { type Action as TriggerAction, resolveAction } from '@/engine/triggers'
 import { stagePropTileOverride, ZoneId, ROCK_SHADES, MUSHROOM_TONES, ZONE_FLOWERS, DEFAULT_FLOWERS } from '@/engine/zones'
 import { varyIntensity } from '@/engine/colors'
@@ -50,6 +50,7 @@ import { foldUnitData, splitUnitData } from '@/lib/unitDataPersistence'
 import { type CellTriggerGroup, ENTITY_GLYPH, cellTriggersFromAssets, cellTriggersToAssets, entitiesFromAssets, entitiesToAssets, isEntityAsset, isQuestAsset, isStyleAsset, isTriggerAsset, questsFromAssets, questsToAssets, styleFromAssets, styleToAssets, triggersAtCell } from '@/lib/gridCodec'
 import { type Trigger, type TriggerEffect, fireTriggers } from '@/game/runtime/trigger'
 import { ASCII_STYLE, type Style, type TileCategory, type TileDef, type Visual, styleById, groundKind, assetKind, entityKind, entityStyleOverride, genderize, resolveVisual, visualForTileId, tilesForStyle } from '@/game/artStyle'
+import { cellStackTop } from '@/engine/cellStack'
 import { useRouter } from 'next/router'
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
 import { render, render2D, renderTopView, clampCameraAxis, entityMotion, ENEMY_MOVE_MS, isDebugMode, setDebugMode, isShowCollisions, setShowCollisions as setCollisionsFlag, cellCaptionMap, pickIsoTilesAt, pickTwoDTilesAt, renderedTilesInRect, renderedTwoDTilesInRect, isoRecordedGeom, twoDRecordedGeom, nextPickIndex, ISO_BLOCK_H_FRAC, depthCells, tileGeomPolygon, tileGeomCentroid, tileHandlePoints, handleAtPoint, dragOutwardPx, scaleFromDrag, depthFromDrag, drawTileHandles, polyBBox, HANDLE_HIT_RADIUS, type TileHandle, type HandleId, type CompositionGhost, type DayNight, type DepthDir } from '@/engine/render'
@@ -1903,6 +1904,12 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       if (on) a.settings = { ...rest, transparent: true }
       else { delete rest.transparent; a.settings = rest }
     })
+  // PER-CELL "act as tile" — the cell behaves as if a tile were already inside it, so content stacks ON TOP of
+  // this block instead of inside at level 0 (a walk-over floor/road). A STACK operation (setCellActAsTile) like
+  // height: toggling it re-lifts whatever rests on the tile by the change in its stacking occupancy, so the
+  // change shows immediately, and the setting persists via the full-asset serialize.
+  const setAssetActAsTile = (i: number, on: boolean) =>
+    applyToSelectedTileSlots(i, (grid, col, row, index) => setCellActAsTile(grid, col, row, index, on))
   // PER-ASSET render SHAPE ('square' cube / 'circle' ball) — written to THIS placed tile (persists with the map
   // via the full-asset serialize, like scaleX/pose). The render dispatches on asset.shape in every view.
   // 'square' clears the field so a reset stays byte-identical to a tile that never opted in (like Display).
@@ -2061,13 +2068,14 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       __setDebug?: (v: boolean) => void
       __cellLabels?: (col0: number, row0: number, col1: number, row1: number) => unknown
       __stackAt?: (col: number, row: number) => Array<{ label: string; type: string; heightLevel: number; h: number; source: string }>
+      __floorInfoAt?: (col: number, row: number) => { color: string | null; kind: string | null; depth: number | null; depthDir: string | null; heightLevel: number } | null
       __camOffset?: () => { x: number; y: number }
       __stackAsset?: (col: number, row: number, n?: number) => number | null
       __paletteTiles?: (category?: string) => Array<{ id: string; label: string; category: string; height: number | null }>
       __paintTile?: (tileId: string, col: number, row: number) => unknown
       __isoBlockScreen?: (col: number, row: number, level: number) => { x: number; y: number } | null
       __genVillage?: () => { buildings: number }
-      __genStage?: (zone: string, variant: string) => { buildings: number }
+      __genStage?: (zone: string, variant: string, layout?: string, seed?: number) => { buildings: number }
       __randomizeLayer?: (layer: string) => { buildings: number }
       __randomizeSelected?: () => boolean
       __centerOn?: (col: number, row: number) => void
@@ -2210,7 +2218,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     const countBuildingTiles = (g: IsometricGrid | null): number =>
       g ? g.assets.filter(a => /^(house|big_house|store|hospital|temple|cathedral|castle)_\d+$/.test(a.type)).length : 0
     win.__genVillage = () => { generateStageInEditor('spring', 'town'); return { buildings: countBuildingTiles(gridRef.current) } }
-    win.__genStage = (zone: string, variant: string) => { generateStageInEditor(zone as ZoneId, variant as VariantId); return { buildings: countBuildingTiles(gridRef.current) } }
+    win.__genStage = (zone: string, variant: string, layout?: string, seed?: number) => { generateStageInEditor(zone as ZoneId, variant as VariantId, layout as ForestLayout | undefined, seed); return { buildings: countBuildingTiles(gridRef.current) } }
     // Re-roll ONE generation layer over the current map (the Generate menu's scoped randomize) — a
     // validation seam mirroring the menu buttons: layout / buildings / nature / decor / units.
     win.__randomizeLayer = (layer: string) => { randomizeLayerInEditor(layer as LayerId); return { buildings: countBuildingTiles(gridRef.current) } }
@@ -2325,6 +2333,12 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       const grid = gridRef.current
       if (!grid) return []
       return getStack(grid, col, row).map(t => ({ label: t.label ?? t.slug ?? '', type: t.type ?? String(t.source), heightLevel: t.heightLevel ?? 0, h: t.h ?? 0, source: String(t.source) }))
+    }
+    win.__floorInfoAt = (col: number, row: number) => {
+      const grid = gridRef.current
+      if (!grid) return null
+      const f = grid.floorAt(col, row)
+      return f ? { color: f.color ?? null, kind: f.tileKey ?? null, depth: f.depth ?? null, depthDir: f.depthDir ?? null, heightLevel: f.heightLevel ?? 0 } : null
     }
     win.__cellSel = () => ({ count: selectedCellsRef.current.size, first: Array.from(selectedCellsRef.current)[0] ?? null })
     win.__selKeys = () => Array.from(selectedCellsRef.current) // full selection-key list (block "col,row,level" / flat "col,row") for validation
@@ -2488,7 +2502,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     const grid = gridRef.current
     if (!grid) return
     const collision = Array.from({ length: grid.rows }, (_, r) =>
-      Array.from({ length: grid.cols }, (_, c) => grid.isBlocked(c, r)),
+      Array.from({ length: grid.cols }, (_, c) => grid.isBlocked(c, r) || groundKind(grid.groundAt(c, r)) === 'water'),
     )
     setEntities(prev => {
       const occupied = prev.map(e => ({ col: e.col, row: e.row }))
@@ -2514,7 +2528,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     const kind = entityKindForUnitSlug(slug)
     if (kind === 'player') { toast('Only one player — use Add to place the hero', 'warning'); return }
     const collision = Array.from({ length: grid.rows }, (_, r) =>
-      Array.from({ length: grid.cols }, (_, c) => grid.isBlocked(c, r)),
+      Array.from({ length: grid.cols }, (_, c) => grid.isBlocked(c, r) || groundKind(grid.groundAt(c, r)) === 'water'),
     )
     checkpointHistory() // a scatter adds many units at once → snapshot so one Ctrl+Z removes the whole batch
     setEntities(prev => {
@@ -3574,7 +3588,15 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
         // ground tile's DB colour via groundTileColor), so every view READS floor.color and nothing is derived
         // or hardcoded at render. A cell the generator left blank gets NO floor (empty) — never an 'ash' fallback.
         const kind = stage.ground[r]?.[c]
-        if (kind) placeGround(grid, c, r, kind)
+        if (kind) {
+          // The generator may write a per-cell floor COLOUR as STATE (the meadow season gradient +
+          // earth/cobble/river patches — stageGenerator.floorColors). When present, set the floor with THAT
+          // colour; otherwise placeGround auto-picks the ground tile's own DB colour. Either way the render
+          // just READS floor.color (MAP-MODEL §4 — no render-time colour derivation).
+          const floorColor = stage.floorColors?.[r]?.[c]
+          if (floorColor) grid.setGround(c, r, kind, floorColor)
+          else placeGround(grid, c, r, kind)
+        }
         grid.setHeight(c, r, 0)
         grid.setCollision(c, r, !!stage.collision[r]?.[c])
       }
@@ -3593,9 +3615,14 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     // TONAL variety is dropped in favour of a distinct, palette-matching species per season.
     for (const a of paint.assets) {
       const override = stagePropTileOverride(stage.zone, a.type)
+      // A prop STACKS on whatever is already in the cell — the SHARED lego rule (`cellStackTop`), not a special
+      // floor lift: on a flat town floor the top is 0 (byte-identical); on a height-1 meadow the top is 1 so the
+      // flower billboard sits ON the meadow block instead of embedding in its green volume. "Floors are tiles,
+      // all tiles stack" (Alexander) — no floorStackLift, the prop just lands on top of what's there.
+      const propLift = cellStackTop(grid, a.col, a.row)
       // Per-instance render for standing props (a flower = single billboard, height 1) — the SAME override the
       // SAVE path (stageToTemplate) writes, so live + saved/loaded match. Spreads height + settings.display.
-      grid.placeAsset([a.char], a.col, a.row, { type: a.type, blocking: a.blocking, color: a.color, label: a.label, baseShadow: a.baseShadow, buildingType: a.buildingType, edge: a.edge, footprint: a.footprint, cellPart: a.label, tileOverride: override, ...generatedPropRender(a.type) })
+      grid.placeAsset([a.char], a.col, a.row, { type: a.type, blocking: a.blocking, color: a.color, label: a.label, baseShadow: a.baseShadow, buildingType: a.buildingType, edge: a.edge, footprint: a.footprint, cellPart: a.label, tileOverride: override, heightLevel: propLift, ...generatedPropRender(a.type) })
     }
     // Mirror the generator's authoritative collision into the grid so trees/water/
     // features are truly blocked — enemies (manual placement + scatter) only land on
@@ -3646,13 +3673,22 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     // (stampComposition → one asset per cell+level of tree_small / tree_dead), the SAME per-block path
     // buildings use — so every generated tree is 100% backend DB tiles AND each tile is individually
     // selectable. The generator recorded anchors (stage.trees) instead of baking flat tree props (TreeAnchor).
-    for (const t of stage.trees ?? []) stampComposition(grid, t.kind, t.col, t.row, stage.zone, t.variant)
+    // A tree STACKS on the anchor cell's current top — the SHARED lego rule (`cellStackTop`): a raised meadow
+    // floor (DB height 1) puts the trunk ON TOP of the block instead of embedding at level 0 (the exposed-trunk
+    // bug), a flat town/grass floor (top 0) is byte-identical. No floorStackLift — the composition just lands on
+    // what is already there, "floors are tiles, all tiles stack" (Alexander).
+    for (const t of stage.trees ?? []) stampComposition(grid, t.kind, t.col, t.row, stage.zone, t.variant, 0)
     // A FOUNTAIN is just TILES too: stamp each recorded composition ANCHOR (the plaza fountain — rim +
-    // water + jets) through the SAME path, so it's per-cell backend tiles, not a special drawer/prop.
-    for (const c of stage.compositions ?? []) stampComposition(grid, c.kind, c.col, c.row, stage.zone, c.variant ?? 0)
-    // PERF: merge the per-cell grass/road ground into z-width RUN tiles (the same depth-spanned trick roofs
-    // use) — cuts ~1300 ground cells to a handful of run tiles, the biggest per-frame draw+sort cost.
-    grid.compressGround()
+    // water + jets) through the SAME path, so it's per-cell backend tiles, not a special drawer/prop — lifted
+    // onto its floor block the same way (0 on a flat plaza, so town fountains are unchanged).
+    for (const c of stage.compositions ?? []) stampComposition(grid, c.kind, c.col, c.row, stage.zone, c.variant ?? 0, 0)
+    // GROUND stays PER-CELL — deliberately NOT merged into z-width runs. A merged run spans many camera depths
+    // under ONE sort key, so no key can be right: sorted by its anchor its FRONT cells get wrongly occluded (a
+    // grass cell "looks behind" the thing in front of it), and the front-extent patch over-corrects. Keeping each
+    // ground cell its own block sorts it at its OWN camera depth — pure perspective, correct at every rotation
+    // (Alexander 2026-07-27: "prioritize the CAMERA perspective OF THE ELEMENTS", no front-side priority). The
+    // perf cost is small in practice (~2-4ms; measured ~11ms/frame on a town), so correctness wins. (`compressGround`
+    // stays defined but uncalled — the old FPS trick, kept only for reference.)
   }
 
   /** Promote the generators' decorative ☺ NPC assets into REAL npc entities: a generated town's
@@ -3673,7 +3709,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   // ── macro RANDOMIZE: whole map + per-layer scopes (GENERATION-SPEC §5) ──────
   // The recipe of the last full generate — zone/variant/size + the per-layer SEEDS. Re-rolling one
   // layer changes only that layer's seed and regenerates: the rest, fed the same seeds, reproduce.
-  const lastGenRef = useRef<{ zone: ZoneId; variant: VariantId; cols: number; rows: number; seeds: Record<'layout' | 'buildings' | 'nature' | 'decor', number> } | null>(null)
+  const lastGenRef = useRef<{ zone: ZoneId; variant: VariantId; layout?: ForestLayout; cols: number; rows: number; seeds: Record<'layout' | 'buildings' | 'nature' | 'decor', number> } | null>(null)
   // Salts the per-building material/roof/wall-colour hash so "randomize buildings only" repaints.
   const buildingSaltRef = useRef(0)
   const randSeed = (): number => (Math.random() * 0x7fffffff) | 0
@@ -3702,7 +3738,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     const settled = variant !== 'cave' && variant !== 'temple'
     const townCount = variant === 'city' ? 14 : variant === 'town' ? 8 : 5
     const collision = Array.from({ length: grid.rows }, (_, r) =>
-      Array.from({ length: grid.cols }, (_, c) => grid.isBlocked(c, r)),
+      Array.from({ length: grid.cols }, (_, c) => grid.isBlocked(c, r) || groundKind(grid.groundAt(c, r)) === 'water'),
     )
     setEntities(prev => {
       const kept = byKind(prev, 'player')
@@ -3736,7 +3772,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     lastGenRef.current = { ...recipe, seeds }
     if (layer === 'buildings' && isSettlement) buildingSaltRef.current = randSeed() // repaint the buildings
 
-    const full = generateStage({ zone: recipe.zone, variant: recipe.variant, cols: recipe.cols, rows: recipe.rows, seeds })
+    const full = generateStage({ zone: recipe.zone, variant: recipe.variant, layout: recipe.layout, cols: recipe.cols, rows: recipe.rows, seeds })
     const stage = layer === 'layout' && isSettlement ? stripToLayout(full) : full
     applyStageToGrid(stage, grid, buildingSaltRef.current)
     // Keep the player on walkable ground (new trees/plots may sit where they stood); entities stay put.
@@ -3799,23 +3835,30 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     randomizeSelectedTiles(rand)
   }
 
-  const generateStageInEditor = (zone: ZoneId, variant: VariantId) => {
+  const generateStageInEditor = (zone: ZoneId, variant: VariantId, layout?: ForestLayout, seed?: number) => {
     resetHistory() // a freshly generated stage replaces the whole map → start its undo history clean
     // A city is a big settlement — give it a markedly larger grid (~1.7× town linear) so it READS
     // bigger on screen, on top of the denser street grid + ~4× building cap in villageLayout. Town,
     // forest and the rest stay on the modest default grid.
+    // A fixed SEED (the dev/validation harness only — no UI path passes one) makes the WHOLE generate
+    // reproducible: a deterministic grid size + per-layer seeds derived from it, so a generator can be
+    // iterated frame-to-frame against a reference. Undefined (every real UI generate) keeps the randomized
+    // size + fresh seeds, so production behaviour is byte-for-byte unchanged.
     const big = variant === 'city'
-    const cols = big ? 52 + Math.floor(Math.random() * 20) : 30 + Math.floor(Math.random() * 16) // city 52–71, else 30–45
-    const rows = big ? 42 + Math.floor(Math.random() * 16) : 24 + Math.floor(Math.random() * 12) // city 42–57, else 24–35
+    const seeded = seed !== undefined
+    const cols = seeded ? (big ? 60 : 42) : big ? 52 + Math.floor(Math.random() * 20) : 30 + Math.floor(Math.random() * 16) // city 52–71, else 30–45
+    const rows = seeded ? (big ? 48 : 34) : big ? 42 + Math.floor(Math.random() * 16) : 24 + Math.floor(Math.random() * 12) // city 42–57, else 24–35
     resizeGrid(cols, rows)
     const grid = gridRef.current
     if (!grid) return
     // Capture a per-layer SEED set so the Generate menu can later re-roll a SINGLE layer (buildings /
     // trees / decor / layout) while the rest — fed these same seeds — reproduce identically.
-    const seeds = { layout: randSeed(), buildings: randSeed(), nature: randSeed(), decor: randSeed() }
-    lastGenRef.current = { zone, variant, cols: grid.cols, rows: grid.rows, seeds }
-    buildingSaltRef.current = randSeed()
-    const stage = generateStage({ zone, variant, cols: grid.cols, rows: grid.rows, seeds })
+    const seeds = seeded
+      ? { layout: seed, buildings: seed + 1, nature: seed + 2, decor: seed + 3 }
+      : { layout: randSeed(), buildings: randSeed(), nature: randSeed(), decor: randSeed() }
+    lastGenRef.current = { zone, variant, layout, cols: grid.cols, rows: grid.rows, seeds }
+    buildingSaltRef.current = seeded ? seed + 4 : randSeed()
+    const stage = generateStage({ zone, variant, layout, cols: grid.cols, rows: grid.rows, seeds })
     applyStageToGrid(stage, grid, buildingSaltRef.current)
     movePlayerToValidSpawn(stage.spawn.col, stage.spawn.row)
     const live = livePlayerCell()
@@ -3829,7 +3872,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     const settled = variant !== 'cave' && variant !== 'temple'
     const townCount = variant === 'city' ? 14 : variant === 'town' ? 8 : 5
     const collision = Array.from({ length: grid.rows }, (_, r) =>
-      Array.from({ length: grid.cols }, (_, c) => grid.isBlocked(c, r)),
+      Array.from({ length: grid.cols }, (_, c) => grid.isBlocked(c, r) || groundKind(grid.groundAt(c, r)) === 'water'),
     )
     setEntities(prev => {
       const kept = byKind(prev, 'player')
@@ -3848,7 +3891,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   // loop lazily gives each a combat runtime the first frame it's seen. Shared by cave + temple.
   const seedStageEnemies = (grid: IsometricGrid, enemyTypes: readonly string[], prefix: string) => {
     const collision = Array.from({ length: grid.rows }, (_, r) =>
-      Array.from({ length: grid.cols }, (_, c) => grid.isBlocked(c, r)),
+      Array.from({ length: grid.cols }, (_, c) => grid.isBlocked(c, r) || groundKind(grid.groundAt(c, r)) === 'water'),
     )
     setEntities(prev => {
       const occupied = prev.map(e => ({ col: e.col, row: e.row }))
@@ -5775,7 +5818,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
               <GenerateControls
                 zone={genZone}
                 onZone={setGenZone}
-                onGenerate={(z, v) => { generateStageInEditor(z, v); close() }}
+                onGenerate={(z, v, layout) => { generateStageInEditor(z, v, layout); close() }}
                 onRandomizeLayer={layer => { randomizeLayerInEditor(layer as LayerId); close() }}
               />
             )}
@@ -6351,6 +6394,8 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                             onTransparent: posable ? (on => setAssetTransparent(i, on)) : undefined,
                             shape: commonValue(cells.map(({ col, row }) => (stackedAssetsAt(grid, col, row)[i]?.shape ?? 'square') as TileShape)),
                             onShape: posable ? (shape => setAssetShape(i, shape)) : undefined,
+                            actAsTile: commonValue(cells.map(({ col, row }) => stackedAssetsAt(grid, col, row)[i]?.settings?.actAsTile ?? true)),
+                            onActAsTile: posable ? (on => setAssetActAsTile(i, on)) : undefined,
                             light: a0?.light,
                             onLight: posable ? (l => setAssetLight(i, l)) : undefined,
                             pose: posable ? a0?.pose : undefined,

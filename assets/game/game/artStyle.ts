@@ -30,7 +30,7 @@ import { getEntityResolution } from '@/engine/entity/entityResolution'
 import type { EntityVariant } from '@/game/types'
 
 export type ElementKind =
-  | 'grass' | 'water' | 'path' | 'road' | 'plaza' | 'sand' | 'ground' | 'snow' | 'autumn' // terrain (+ seasons; road = dark-gray town street)
+  | 'grass' | 'water' | 'path' | 'road' | 'plaza' | 'sand' | 'ground' | 'snow' | 'autumn' | 'meadow' // terrain (+ seasons; road = dark-gray town street; meadow = flat colour-only floor)
   | 'cavefloor' | 'moss'                                       // dungeon terrain (cavern floor + moss)
   | 'wall' | 'roof' | 'door' | 'window' | 'fountain'          // buildings
   | 'tree' | 'flower' | 'bush' | 'rock' | 'crate' | 'lamp'    // nature / props
@@ -212,6 +212,7 @@ const LAVA_GROUND = /^lava$|^magma$/
 /** Classify a ground TILE TYPE string (grass / path_stone / water_deep / …) into a kind.
  *  Unrecognized terrain → 'ground' (unmapped → passes through to ASCII, never mis-skinned). */
 export function groundKind(tileType: string): ElementKind {
+  if (tileType === 'meadow') return 'meadow' // a flat colour-only meadow floor — its own baked solid tile, no clover
   if (LAVA_GROUND.test(tileType)) return 'lava' // before water: a lava lake floor is its own molten kind
   if (WATER_GROUND.test(tileType)) return 'water'
   if (ROAD_GROUND.test(tileType)) return 'road' // town roads carve their own dark-gray tile
