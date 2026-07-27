@@ -53,6 +53,9 @@ defmodule NebulithWeb.TilesetJSON do
     %{
       footprint: %{w: c.footprint_w, h: c.footprint_h},
       title: c.title,
+      # Sidebar BUCKET — the SAME `category` a tile carries (tile_data/1). The palette groups compositions
+      # by this served value, exactly like tiles, instead of deriving the group on the frontend.
+      category: c.category,
       # DETERMINISTIC cell order: the DB heap order is unstable (a reseed's delete+insert reuses tuple slots),
       # which would make the served list — and any fixture captured from it — reorder run to run. Sort by grid
       # position (dx, dy, level, label) so the payload is reproducible; the render is order-independent (every

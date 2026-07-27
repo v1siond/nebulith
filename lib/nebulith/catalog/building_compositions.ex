@@ -58,17 +58,27 @@ defmodule Nebulith.Catalog.BuildingCompositions do
   # carry one; houses/others have none → no badge.
   @titles %{"store_5" => "Store", "hospital_6" => "Hospital"}
 
+  # Sidebar CATEGORY for every composition this module authors — they are ALL buildings (a perimeter wall
+  # box with a door), so they share the tile-mirroring `buildings` bucket (MAP-MODEL §8). This is authored
+  # DATA per composition, not a frontend name/door guess.
+  @category "buildings"
+
   @doc """
   Every baked building composition, keyed by type_length (hyphens in the type become underscores).
 
   Cells reference type-specific tiles (per `@type_tiles`) and store/hospital carry their apex-signage
-  `title`, so the seeded compositions render each building's own colours + name.
+  `title`, so the seeded compositions render each building's own colours + name. Every one carries the
+  `buildings` `category` so the palette groups it exactly like a tile.
   """
   def all do
     for {name, comp} <- definitions(), into: %{} do
-      {name, comp |> remap_cells(name) |> put_title(name)}
+      {name, comp |> remap_cells(name) |> put_title(name) |> put_category()}
     end
   end
+
+  # Tag the composition with its sidebar bucket. Everything this module builds IS a building, so the
+  # category is constant here — the tree/bush/prop compositions live in TileSource with their own.
+  defp put_category(comp), do: Map.put(comp, :category, @category)
 
   # Swap each cell's label for its type-specific tile (unlisted labels pass through unchanged).
   defp remap_cells(%{cells: cells} = comp, name) do
@@ -167,7 +177,11 @@ defmodule Nebulith.Catalog.BuildingCompositions do
         wall_column(dx, dy, wall_top, dx in doors, facade_fun)
       end
 
-    cells = List.flatten(walls) ++ roof_cells ++ entrance_cells(doors, h)
+    # NO separate entrance apron (Alexander #49): now that every tile is a height-1 block, the `path` apron in
+    # front of the doors became a raised block that BLOCKS the doorway — and it's redundant since the road/ground
+    # is already there as colour. The doors open straight onto the ground; road identity + walkability come from
+    # the layout, not a doorstep tile.
+    cells = List.flatten(walls) ++ roof_cells
     %{footprint_w: w, footprint_h: h, cells: cells}
   end
 

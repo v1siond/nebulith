@@ -70,9 +70,9 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-  DBB["Elixir/Phoenix backend<br/>/api/tilesets (:4000)"] -->|GET, override defaults| LOADER["tilesetLoader.ts"]
-  LOADER --> ASCII["ASCII_TILESET (GROUND_COLORS, village.ts)"]
-  LOADER --> EMOJI["EMOJI_TILESET (emojiTileset.ts)"]
+  DBB["Elixir/Phoenix backend<br/>/api/tilesets (:4000)"] -->|GET, install into EMPTY holders| LOADER["tilesetLoader.ts"]
+  LOADER --> ASCII["ASCII_TILESET (starts EMPTY, no bundled default)"]
+  LOADER --> EMOJI["EMOJI_TILESET (starts EMPTY, no bundled default)"]
   TYPE["ground type string<br/>e.g. 'road'"] --> GK["groundKind() → ElementKind"]
   GK --> ASCII
   GK --> EMOJI
@@ -81,10 +81,12 @@ flowchart LR
 ```
 
 - **Two tilesets of the same tile**: ASCII (glyph + fg/bg colors) and EMOJI (emoji/Noto image + tint). Same
-  label, different art. The front end renders; **the tile data comes from the DB** (bundled defaults are the
-  seed; the backend can override the `ascii`/`emoji` blobs).
-- A ground type → `groundKind()` → an `ElementKind` → the tileset entry. Adding a tile = data (color/art) +
-  its label mapping — never a hardcoded render branch.
+  label, different art. The front end renders; **ALL the tile data comes from the DB** — `EMOJI_TILESET` /
+  `ASCII_TILESET` start **EMPTY** and `tilesetLoader` installs the served rows; there is **no bundled default
+  and no fallback**, and the render gate blocks until the baked images are decoded (MAP-MODEL §8).
+- A ground type → `groundKind()` → an `ElementKind` → the tileset entry. **Adding a tile is a BACKEND authoring
+  path** (nebulith `TileSource` → `priv/tilegen/bake.mjs` → seed → served), NOT a frontend edit — the old
+  `GROUND_COLORS`/`village.ts` data is DEAD (TILE-BACKEND-MIGRATION §5). Never a hardcoded render branch.
 
 ## 5. Generators (`src/engine/stageGenerator.ts`, `src/engine/villageLayout.ts`)
 

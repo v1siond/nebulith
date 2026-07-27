@@ -244,19 +244,38 @@ is any multi-cell template the DB serves, and the tool now places **every one th
   ("Tile compositions") is built by `buildCompositionPalette(ASCII_TILESET)` from the loaded tileset's
   `compositions` map (served by `/api/tilesets`), so it lists the full set the world generator stamps:
   **Buildings** (house/store/hospital/temple/manor/cathedral/castle/office/…), **Nature** (tree + its
-  tall/round/stub variants, bushes), and **Props** (fountain, well, lamp post). Grouping is data-driven:
-  a composition with a ground-level **`door` cell** (`compositionFacesRoad`) is a *Building*; a `tree*`/`bush*`
-  kind is *Nature*; everything else is a *Prop*. Each button shows the composition's **footprint size (w×h)** so
-  you know how many cells it takes before placing. A new backend composition appears here automatically — no
-  frontend list to edit.
+  tall/round/stub variants, bushes), and **Props** (fountain, well, lamp post). **Grouping is the composition's
+  backend `category` — EXACTLY like a tile (§11).** Each composition row carries a `category`
+  (`buildings`/`nature`/`props`/`terrain` — the SAME bucket vocabulary a tile carries, MAP-MODEL §8), served on
+  `/api/tilesets` (`comp_data`) and authored in the backend (`building_compositions.ex` → `buildings`,
+  `tile_source.ex` → `nature`/`props`). `buildCompositionPalette` READS that `category` and groups by it in the
+  tile-category order — it does NOT derive the group on the frontend. The old door-detection + `tree|bush`
+  name-regex heuristic (`compositionGroup`) is GONE; a composition is browseable only when it carries a
+  `category` (an uncategorized one renders on the map but never surfaces in the palette, exactly like a tile).
+  **Each category renders a clear section header** (redesigned 2026-07-25) — a scannable glyph
+  (`COMPOSITION_CATEGORY_GLYPH`: ⌂ Buildings, ❀ Nature, ✦ Props, ▦ Terrain), the label, and the item **count**,
+  over a divider — mirroring the tile palette so both browse the same way, with the compositions in a 2-up grid
+  below. Each button shows the composition's **footprint size (w×h)** as a badge so you know how many cells it
+  takes before placing. A new backend composition appears here automatically — no frontend list to edit.
 - **Placement is composition-generic (`planComposition`).** The clicked cell is the footprint **CENTRE**.
   A *Building* (has a door) rotates to face the **nearest road** (`nearestRoadFacing` → `facingRotation`, the
-  footprint axes swapping for east/west); a *Prop/Nature* composition drops **unrotated**. A stamp is refused
-  when a footprint cell is out of bounds, blocked (tree/water/another building), or — for a building only — on a
-  road/path. This is the SAME `planComposition` the ghost preview draws, so *what you see is exactly what lands*.
+  footprint axes swapping for east/west); a *Prop/Nature* composition drops **unrotated**. This is the SAME
+  `planComposition` the ghost preview draws, so *what you see is exactly what lands*.
+- **Placement REPLACES anything — red ONLY when it doesn't FIT.** The manual place tool works on a
+  **replace-anything** basis (Alexander: *"the map should work on a 'replace anything if I want to' type of
+  thing … it's only red when there's not enough cells or blocks in the area … if there's a building in a place
+  and I want to put another in the same place, I should be able to"*). Validity = **fit only**: `compositionFits`
+  checks in-bounds and **nothing else**, so the ghost is red **only when the footprint runs OFF the map** —
+  occupied cells, roads and water are FINE (green wherever it fits). On placement (`placeComposition`) every
+  footprint cell is **cleared first** (`grid.clearAssetsAtCell` drops its assets + collision + height), then the
+  composition is stamped onto the clean cells, so dropping a building on another SWAPS it with no stray remnant.
+  Hand-placing a pre-built building routes through this SAME path (a building is just a composition). The old
+  "occupied/road/water → invalid" rule is gone from the manual tool; only the **world generator** still avoids
+  overlaps (`canPlaceBuildingComposition`) so auto-layouts don't stack buildings.
 - **A placement GHOST previews the footprint on hover, BEFORE the click.** While a composition is armed and the
   cursor is over the map, a translucent **shadow** is drawn at the hovered cell: each occupied cell's footprint,
-  plus (in iso) a faded raised box for the massing/height, tinted **green when it fits / red when it's blocked**.
+  plus (in iso) a faded raised box for the massing/height, tinted **green when it fits / red only when it runs
+  off the map**.
   It follows the cursor and clears on disarm / mode-switch / pointer-leave. The footprint cells come from the
   composition's OWN cell data (`compositionFootprintCells`, deduped across stack levels, rotation-aware), so the
   shadow is byte-accurate to the stamp. It's computed only on mouse-move (not every frame) and only when armed
@@ -308,6 +327,52 @@ editor-settings) and the left Paint tool's placement path — with NO fork and N
     (the Figure variant row was deleted, §8).
   The left Paint tool and this right-sidebar paint COEXIST and land the exact same tiles — one placement path.
 
+## 14. ◈ Unit — the top-nav creature picker (place enemies/units)
+Units are placed from the **top-nav ◈ Unit** dropdown, NOT the Paint palette (paint lists regular tiles only —
+§11). The dropdown is the *enemy/creature* picker the user asked for (Alexander: *"I don't see the enemy tiles
+in the unit top nav option, how can I decide which enemies to add now? … move the enemy painting to the unit
+top nav and edit the functionality either randomize the enemies (scatter them) or add/remove them normally like
+we'd do when painting"*).
+
+- **The picker (`UnitPicker`)** lists the `units`-category tiles (`tilesForStyle(styleId).units`, placeable
+  figures only — FX/projectile units filtered via `placementFor`), so you SEE + pick WHICH creature to add. The
+  data agent folds monsters, animals and people into `units`, so one picker serves them all: the picked tile's
+  slug decides the entity KIND (`entityKindForUnitSlug`: person → npc, monster/animal → enemy, player → player).
+- **Two placement modes.** **＋ Add** — pick a creature, click the map to place it one at a time (like painting;
+  Erase removes). **⤳ Scatter** — randomize several of the picked creature across the free space (each with the
+  picked art pinned + a real `spawner` patrol so they wander); no pick → the mixed enemies+NPCs scatter.
+- **Static or animated.** In Add mode a **● Static / ✦ Animated** toggle decides the placed unit's motion. Static
+  pins a stationary single-waypoint pattern (§8 — a hand-placed enemy stays put). Animated attaches a random
+  wandering patrol PLUS a `randomMovementAnimation` (so it moves AND animates). Default is Static.
+- **Player / NPC / Erase / Collision** stay as utility tools in the dropdown; the old free-text "Enemy type"
+  field is gone (the visual picker replaces it).
+
+## 15. Editor panel hygiene (each surface does one job)
+Per Alexander, the panels were doing too much — trimmed so each surface is convenient and uncluttered:
+- **Paint (left) sidebar = pick a tile + place it, nothing else.** The **Height**, **Opacity** and **Clear
+  selected cells** controls are removed from Paint — those are Inspector (right-sidebar) concerns, edited
+  per-tile there. Paint is just the DB tile palette now.
+- **No STYLE card in the Inspector.** The right sidebar's nothing-selected state no longer shows a Style card
+  (style is set from the top-nav 🎨 Style dropdown) — just a compact "nothing selected" hint.
+- **No tutorial prose on the cards.** The long instructional paragraphs ("How to build a house", "Pick a
+  building and click the map to STAMP…", "A building is just its cells…", "…tiles — pick one, then click the
+  map…") are stripped. Cards keep their controls + at most a one-line functional status.
+
+## 16. Undo / redo (Ctrl+Z / Ctrl+Y) — a bounded editor history
+Map edits are undoable (Alexander: *"ctrl + y and ctrl + z functionalities … replace a building for another,
+then ctrl+z to go back to previous building or ctrl+y to go forward … 4-5 steps forward and backwards"*).
+- **Model:** a bounded **snapshot ring** of the MAP — grid layers (ground / height / collision / floor colour
+  / floor dims) + placed assets + entities. UI-only state (selection, panels, camera) is **not** captured.
+  `useEditorHistory` (with the pure `editorHistory` stack + `mapSnapshot` capture/restore) checkpoints the
+  pre-edit map at the START of each map-mutating edit; **Ctrl+Z** restores it exactly, **Ctrl+Y** (or
+  **Ctrl+Shift+Z**) re-applies. Bound = **5 steps** each way (`HISTORY_LIMIT`); a new edit truncates the redo
+  branch; loading a template or generating a stage resets the history.
+- **Captured edits:** place/replace composition, paint / stack / erase a tile, unit add / erase / scatter /
+  clear-all, collision toggle, clear-region. Continuous slider tweaks (per-tile W/H/D sliders) are **not** in
+  history — they'd flood the 5-step buffer; they'd need per-gesture batching to be added cleanly.
+- **UX:** the keys fire only when the editor/canvas is focused — **ignored while typing in an input/textarea**
+  (so Ctrl+Z in a text field still edits text, not the map).
+
 ## Randomize — macro (per-layer) + micro (selection) — SHIPPED 2026-07
 
 The randomizer is scoped, not all-or-nothing (user: "randomize every stage… only trees… only buildings…
@@ -315,18 +380,42 @@ just the MAP without structures nor nature… single/set of units/tiles/composit
 animation for a unit"). It has two slices, both built on the generator's seedable **layer passes**
 (see `GENERATION-SPEC.md` §5).
 
-### Macro — the `⚡ Generate ▾` menu (`GenerateControls`)
-Below the whole-map variant buttons, a **"Randomize just one layer — keeps the rest of the map"** row:
-**Layout only · Buildings · Trees / Nature · Decor · Units**. Every full generate captures a per-layer
-**seed set** (`lastGenRef`); clicking a layer re-rolls ONLY that layer's seed and regenerates — the
-untouched layers, fed the same seeds, reproduce, so visually only the picked layer moves:
-- **Layout only** — new streets + plots, structures and nature stripped (`stripToLayout`): the bare map.
-- **Trees / Nature only** — new trees/flowers, buildings + roads untouched.
-- **Buildings** — repaint the buildings in place (fresh materials + roof/wall tones via an
+### Macro — the `⚡ Generate ▾` menu (`GenerateControls`) — redesigned 2026-07-25
+The menu reads as one top-down **hierarchy** so every control's scope is obvious (`editorChrome.tsx`
+`GenerateControls`; menu DATA in `editorConfig.ts`):
+
+1. **Season** — picks the zone (spring/summer/autumn/winter/desert). Selection only, no generate.
+2. **Map type** — Forest · Town · City · Cave · Temple. Clicking one **generates** a randomized stage of that
+   kind AND marks it selected, revealing its layouts underneath.
+3. **Layouts** — the selected map type's layouts, a **labelled group NESTED under the chosen map type** (tinted
+   to the map-type accent so it reads as "these belong to *Forest*"), NOT loose buttons with an ambiguous
+   "Forest layout" header. Forest ships **Meadow · Meadow + River**; clicking one generates the map with that
+   shape. The group is DATA: a map type's layouts come from `VARIANT_LAYOUTS[variant]`, so it appears for
+   exactly the types that have layouts and is omitted for the rest. **There is NO `variant === 'forest'`
+   branch** — adding town/temple layouts is one row in `VARIANT_LAYOUTS` + registering the builders in the
+   engine (`FOREST_LAYOUTS`); a layout whose builder isn't wired falls back to the default instead of crashing.
+
+The choice threads through `onGenerate(zone, variant, layout)` → `generateStageInEditor` →
+`generateStage({ layout })`, where the generator picks that layout's builder and randomizes the rest
+(GENERATION-SPEC.md §3 / §5.4); a map type with no layouts passes no layout (the generator uses its default).
+Debug seam: `window.__genStage(zone, variant, layout)`.
+
+**The per-layer re-roll is GLOBAL — the SAME sub-categories for EVERY map type, never a town-only concept.**
+Under a divider, a **"Re-roll one layer"** section lists the five universal generator layers (`GENERATOR_LAYERS`,
+`editorConfig.ts`): **Layout · Buildings · Nature · Decor · Units**. These are the generator's sub-categories
+*for whatever map type is selected* — the *forest layout* / *town layout*, *forest decor* / *town decor* framing
+the user asked for. The section copy names the current map type ("re-roll one part of the current *forest* /
+*town* / *temple*…") to make that concreteness visible, and it renders identically whatever map type is active
+(no per-map gating). Every full generate captures a per-layer **seed set** (`lastGenRef`); clicking a layer
+re-rolls ONLY that layer's seed and regenerates — the untouched layers, fed the same seeds, reproduce, so
+visually only the picked layer moves:
+- **Layout** — new streets + plots/clearings, structures and nature stripped (`stripToLayout`): the bare map.
+- **Buildings** — repaint the structures in place (fresh materials + roof/wall tones via an
   `applyStageToGrid` salt); geometry is a plot decision, so it stays put. *Visible in ISO/2D, not in the
   flat top view (top shows the roof cap).*
-- **Units** — re-scatter the enemies/townsfolk; the map is untouched.
+- **Nature** — new trees/flowers, buildings + roads untouched.
 - **Decor** — re-roll the plaza + lamps.
+- **Units** — re-scatter the enemies/townsfolk; the map is untouched.
 
 Non-settlement archetypes (forest/cave/temple/boss) aren't decomposed into layers, so any scope there
 re-rolls the whole archetype via its layout rng. Debug seam: `window.__randomizeLayer(layer)`.

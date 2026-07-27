@@ -185,3 +185,55 @@ subset of the placed lamps (usually 1, sometimes 2, occasionally 0) to the flick
 (see `LIGHTING.md` §4 — "only 1 or 2 lamps flicker"). **units** are an editor entity concern. The non-settlement archetypes (forest / cave / temple / boss) remain
 single whole-map generators reading `ctx.rand` (seeded via the layout rng); they are not decomposed
 into these layers.
+
+### 5.5 Forest = the MEADOW layouts (rebuilt 2026-07-25 to match #24 / #14)
+
+The forest variant builds one of three **meadow** layouts (references #14 = meadow, #24 = meadow + river, #26 =
+meadow + two ways); the earlier `passages` / `open` / `lake` generators were **retired**. A `ForestLayout` is
+`meadow | meadow_river | meadow_pass`, and a plain forest generate (no explicit layout) **randomly picks one**
+(seeded via `ctx.rand`, so it reproduces).
+
+Both build an OPEN muted-olive meadow that **DOMINATES** the map (an airy field, not a clearing hemmed by trees):
+
+- **`meadow`** — the open field with faint rectangular **garden-plot** grid lines (a colour), subtle brown
+  **dirt/earth** patches, a few grey field **rocks**, and tiny scattered **flowers** ("not everything is
+  green"); a **SINGLE** cobblestone entrance on the near (**bottom-left**) edge, lined with **lamp posts** +
+  colourful **flower beds**; and **SPARSE** tree **CLUMPS** framing the top / left / right edges plus a few at
+  the bottom corners — **never a dense ring** (the dense tree-border was the wrong look).
+- **`meadow_river`** — the same, PLUS a **colour-only WINDING river** hugging **three** sides (top / left /
+  right), a meandering channel set in from the edge with sandy **BANKS**, leaving the near (bottom) edge **OPEN**
+  for the entrance and a thin **LAND strip BEYOND** the river for the framing trees. It is **NOT** a 4-sided
+  perimeter ring / moat. A walkable stone **BRIDGE** crosses it at the top-right.
+- **`meadow_pass`** (#26) — the open field opened on **TWO opposite edges** (top + bottom, aligned on the same
+  column) for a **through-route** you enter one side and exit the other, each way paved cobble + lined with lamp
+  posts + flower beds. No river. Distinct from single-entrance `meadow` — a "variation = new type".
+
+**Composition appearance (2026-07-25, toward #24 — validate on :3000):** tree/bush **canopies render as ROUNDED
+crowns**, not leaf-faced cubes — the `leaf_center` cell defaults to the `shape:"circle"` FORM (MAP-MODEL §5, the
+existing silhouette setting, NOT new shape logic). The entrance **lamp posts** carry a **small DARK lantern** bulb
+by day (bulb `scale` 0.6→0.34 + an authored per-cell `settings.color`), still lighting warm gold at night via the
+`night` colour animation. Both ride the general rule that a composition cell's **`settings.color` tints its baked
+tile in the base render** (MAP-MODEL §8) — `stampComposition` now applies it, so any composition can ship a
+recoloured cell.
+
+The whole floor is a **COLOUR on a RAISED tile**: grass / earth / cobble are per-cell `floorColors` STATE the
+generator writes on the flat-but-**height-1** `meadow` tile, and the river is the flat colour-only **height-1**
+`water` tile (blue, blocking). Because the floor is a **height-1 BLOCK**, everything **stacks ON TOP of it**,
+globally and data-driven from the tile's own height (`floorBlockLift`):
+
+- **units** (the player, NPCs, enemies) render **lifted onto the block top** — they stand ON the meadow, not
+  sunk through it (a flat town floor is height 0 → lift 0 → towns byte-identical). The lift is added to the
+  unit's iso draw offset, the SAME `isoStackLift` trees/props ride.
+- **ornaments** (flowers, rocks, decor) are placed at `heightLevel = floorBlockLift`, i.e. a **transparent
+  billboard in a cell ON TOP of** the floor block — the floor colour shows beneath, no green cube around the
+  bloom (a flower = `display:'single'` + `transparent`, MAP-MODEL §4). The generator emits **no 0-height tiles**.
+
+TILES are spent only on **ornaments** (flowers, rocks) + the bridge — the "reduce tiles, grass + water are
+colour" model. Colour is per-cell DATA the render READS (MAP-MODEL §4), never derived at render, and coarsened
+to **ZONE/PATCH level** so `compressGround` merges the floor into runs (a **row-band** season gradient +
+**patch checkerboard** plots + patch-quantised river ripple — the per-cell diagonal gradient + per-cell plot
+grid-lines were the FPS killer). A single **reusable land-only guard** (`isWaterGround`/`isLandCell`) keeps
+**every** prop, tree, lamp, ornament AND unit/spawn OFF water — nothing lands on a water cell except the bridge
+deck. `repairFloorConnectivity` fills only TINY stranded pockets, so the land strip beyond the river stays a
+deliberate separate area. Structure is locked by `stageGenerator.meadow.test.ts`; the visual match itself is
+validated on the running game (:3000).

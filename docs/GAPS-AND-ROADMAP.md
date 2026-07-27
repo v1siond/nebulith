@@ -13,7 +13,7 @@ biggest gap but is **deferred** behind product hardening.
 
 | Claim (the vision) | Reality (audit) |
 |--------------------|-----------------|
-| "All templates are fully playable — move, interact, jump" | **Only `move` + collision** is implemented in the editor loop. Interact/jump/attack/touch don't exist there (though `Player.ts` has a working jump, unused). |
+| "All templates are fully playable — move, interact, jump" | **`move` + collision + JUMP** are wired in the play loop — Space fires `beginJump` (`game/runtime/movement.ts`) and the `jumpHeight` sine arc renders in iso + 2D (`templates.tsx` play loop, `iso.ts`/`topdown.ts`). **Interact / attack / touch trigger-actions still don't fire** in the editor loop. |
 | "Templates are connected; connector triggers work" | Connectors are **authored, persisted, visualized** — but **no teleport ever fires in play.** Functionally inert. |
 | "3 views: 2D top-down, isometric, 2D horizontal" | All three render. But editing is locked to TOP/DEBUG; view state is split across module globals **and** React state (fragile). |
 | "All exporters working" | The layers JSON exporter works **but corrupts themed/generated maps** (partial charMap → everything non-basic exports as grass). |

@@ -25,6 +25,13 @@ defmodule Nebulith.TilesetParityTest do
   # fall back to grass. Documented divergence, not a bug.
   @intentional_divergence ~w(rock crystal coral)
 
+  # COLOR-ONLY FLOOR tiles: `meadow` + `water` are flat colour floors (MAP-MODEL — grass/water are a COLOUR on
+  # a flat tile, not a tiled texture). Their EMOJI twin is a baked flat square (tinted by the per-cell floor
+  # colour); their ASCII twin is a terrain glyph (`.` / `~`) over a solid `bg` FILL, so image_url is
+  # deliberately nil — there is no `?` risk (the glyph is a universal ASCII char AND the cell is colour-filled).
+  # This is the documented exception to "every tile is a baked image"; the ascii image check excuses them.
+  @color_only_floors ~w(meadow water)
+
   setup do
     :ok = TileSource.seed()
 
@@ -39,6 +46,7 @@ defmodule Nebulith.TilesetParityTest do
     offenders =
       for {style, tiles} <- [{"ascii", ctx.ascii}, {"emoji", ctx.emoji}],
           {label, tile} <- tiles,
+          not (style == "ascii" and label in @color_only_floors), # flat colour floors: ascii = glyph + bg fill
           reason = image_problem(tile, static_dir),
           reason != nil,
           do: "#{style}/#{label}: #{reason}"

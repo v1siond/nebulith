@@ -18,16 +18,20 @@ or emoji) — two arts of the same tile. Ground types map to a `kind`; the kind 
 ```mermaid
 flowchart LR
   T["ground type (e.g. 'road')"] --> GK["groundKind() → ElementKind ('road')"]
-  GK --> A["ASCII_TILESET.terrain — char/fg/bg (village.ts GROUND_COLORS)"]
-  GK --> E["EMOJI_TILESET['road'] — emoji + tint (emojiTileset.ts)"]
+  GK --> A["ASCII_TILESET.terrain — installed from the DB by tilesetLoader (starts EMPTY)"]
+  GK --> E["EMOJI_TILESET['road'] — installed from the DB by tilesetLoader (starts EMPTY)"]
   A --> RD["resolveDraw(kind, style)"]
   E --> RD
   RD --> PX["glyph / emoji / Noto image on the canvas"]
 ```
 
-**Add a tile the right way:** add its color/art to `GROUND_COLORS` (ascii) + `EMOJI_TILESET` (emoji) as
-DATA, map the type in `groundKind` — never a hardcoded render branch. Files: `src/levels/village.ts`,
-`src/engine/tileset/emojiTileset.ts`, `src/game/artStyle.ts`, `src/engine/tileset/tilesetLoader.ts`.
+**Add a tile the right way — in the BACKEND, never the frontend** (MAP-MODEL §8, TILE-BACKEND-MIGRATION §5):
+author it in nebulith `Nebulith.Catalog.TileSource` (label + glyph/emoji + `settings.colors` + category) with
+`image_url: "/tiles/<style>/<label>.png"`, add a bake entry to `priv/tilegen/tiles.json` and run
+`node priv/tilegen/bake.mjs`, then seed. The frontend holds **no tile art and no tile data** — the OLD
+`GROUND_COLORS`/`village.ts` + `gen-tileset-seeds.mjs` import path is **DEAD** (do not author tiles there).
+`EMOJI_TILESET`/`ASCII_TILESET` start **EMPTY** and `tilesetLoader` installs the DB rows from `/api/tilesets`
+(there is **no bundled default** and no fallback — the render gate waits for the decoded images).
 
 ## 2. Buildings as composition tiles
 
@@ -87,8 +91,8 @@ A road is a real **`road` tile** (dark-gray) placed by the generator into road c
 ```mermaid
 flowchart LR
   PLAN["villageLayout roads[][]"] --> CARVE["stageGenerator: ground[r][c] = 'road'"]
-  CARVE --> ASCII["GROUND_COLORS.road — dark-gray char/fg/bg"]
-  CARVE --> EMOJI["groundKind 'road' → EMOJI_TILESET.road (dark gray)"]
+  CARVE --> ASCII["ASCII_TILESET 'road' — dark-gray, installed from the DB (tilesetLoader)"]
+  CARVE --> EMOJI["groundKind 'road' → EMOJI_TILESET.road (dark gray), from the DB"]
   CARVE --> AVOID["ROAD_GROUNDS → buildings avoid roads"]
 ```
 

@@ -117,6 +117,30 @@ defmodule NebulithWeb.TilesetControllerTest do
       assert [%{"zIndex" => 0}] = t["compositions"]["tree_small"]["cells"]
     end
 
+    test "a composition's category is served (its sidebar bucket, exactly like a tile's)", %{conn: conn} do
+      # a tileset must exist so the index returns a `data` entry to hang the (style-agnostic) compositions on.
+      {:ok, _ts} = Nebulith.Catalog.create_tileset(%{key: "ascii", name: "ASCII", data: %{}})
+
+      {:ok, _} =
+        Nebulith.Catalog.upsert_composition_with_cells(
+          %{name: "house_4", footprint_w: 4, footprint_h: 4, category: "buildings"},
+          [%{dx: 0, dy: 0, level: 0, label: "door", walkable: true}]
+        )
+
+      {:ok, _} =
+        Nebulith.Catalog.upsert_composition_with_cells(
+          %{name: "loose", footprint_w: 1, footprint_h: 1},
+          [%{dx: 0, dy: 0, level: 0, label: "post", walkable: false}]
+        )
+
+      conn = get(conn, ~p"/api/tilesets")
+      [t] = json_response(conn, 200)["data"]
+      # the authored bucket rides through so the palette groups the composition like a tile (no frontend derivation)
+      assert t["compositions"]["house_4"]["category"] == "buildings"
+      # a category-less row serves nil — no crash, no invented bucket (it just isn't browseable in the palette)
+      assert t["compositions"]["loose"]["category"] == nil
+    end
+
     test "a cell's z_index is served as `zIndex` (draw priority) in the API", %{conn: conn} do
       # a tileset must exist so the index returns a `data` entry to hang the (style-agnostic) compositions on.
       {:ok, _ts} = Nebulith.Catalog.create_tileset(%{key: "ascii", name: "ASCII", data: %{}})

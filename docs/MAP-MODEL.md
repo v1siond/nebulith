@@ -94,6 +94,13 @@ flowchart LR
 - A **TILE** is the art inside a cell/block — an ascii glyph, an emoji, or an image, coming from the **DB
   tileset**. Ascii and emoji are just **two tilesets** of the same tile (same label, different art). The
   front end renders; the tile data comes from the DB — the front end hardcodes nothing.
+- **An art style is made OF tiles, but not everything is BUILT WITH a tile-image.** *"Every tile is a baked
+  image"* is a rule about the **ART** — when a tile carries art it is a baked image, never a raw glyph that
+  renders `??` — **NOT** a rule that every cell must hold an image. A **ground can be a plain COLOURED block**:
+  grass / roads / water are authored as a per-cell `color` on the floor block with **no image resource**
+  (GENERATION-SPEC §5.5, *"reduce tiles — grass + water are colour"*), and the iso render draws a tinted slab
+  (`!image && FLOOR_TYPE`). Tiles (image art) are spent only where art is genuinely needed — ornaments,
+  structures, highlights. So a colour-only ground legitimately resolves to a colour, not an image.
 - **Height is per-tile DATA, read UNIFORMLY.** Every tile carries its **own** block height in the DB, and every
   consumer (the editor brush `stackAssetTile`, the generator, the three renderers) reads it through the **same**
   path — there is **NO branch by tile type, category, label, or art style** anywhere in the insert/height/
@@ -128,6 +135,21 @@ flowchart LR
   `drawFlatTileForShape`, whose face is a rectangle so its own inscribed-ellipse clip already rounds all four
   corners) — no per-view `if (shape === 'circle')` — so a new shape adds one map entry, never a branch
   (SOLID/OCP).
+- A cell/block CAN carry an **`act_as_tile`** stacking SETTING (`settings.actAsTile`, default **false**). The
+  **lego rule is unchanged**: a cell is EMPTY until a tile is put in it, and every FURTHER tile put in the same
+  cell **STACKS ON TOP** of what is there (each tile occupies `its level + its own height`, `stackTop`) — floors
+  included, so a composition dropped on floor tiles already stacks. **The law** (Alexander): *"there shouldn't be
+  anything as floorStackLift whatsoever — FLOOR ARE TILES, ALL TILES STACK ON TOP LIKE LEGOS BY DEFAULT"* — so a
+  floor lifts what stands on it through this ONE rule, needing no floor-special lift. (A `floorBlockLift` helper
+  still exists for the composition/unit placement paths that don't yet route through `stackTop`; it is a
+  deviation slated for removal once those paths read the shared stack, per this law.) `act_as_tile` makes a tile
+  count as an occupant of **at least one block** for stacking, so the
+  cell *"behaves as if a tile were already inside it"* and the next tile stacks ON TOP **even when the tile is
+  FLAT** (height 0). Alexander: *"act_as_tile means the cell works by default as if a tile was inside of it
+  already … adding a tile stacks it OVER the block; default is false; we change it in COMPOSITION when it makes
+  sense — roads, whatever we must WALK OVER."* Decoupled from height (a height-≥1 tile already counts as ≥1, so
+  the legos are byte-identical); authored per-tile in the DB `settings` or per composition cell, served verbatim
+  by the backend, and editable in the inspector.
 
 **Terminology — never interchange:**
 - **CELL** = a 2D grid square `(col, row)`.

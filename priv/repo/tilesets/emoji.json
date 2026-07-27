@@ -7,8 +7,9 @@
     "title": "Grass"
   },
   "water": {
-    "char": "🌊",
-    "color": "#4a90e2",
+    "char": "🟦",
+    "color": "#4f93b3",
+    "height": 1,
     "image": "/tiles/emoji/baked/water.png",
     "category": "terrain",
     "title": "Water"

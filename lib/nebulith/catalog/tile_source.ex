@@ -48,7 +48,18 @@ defmodule Nebulith.Catalog.TileSource do
     "awning" => %{"fadeNear" => true},
     "flat_roof" => %{"cutawayRoof" => true},
     "parapet" => %{"cutawayRoof" => true},
-    "rooftop_unit" => %{"cutawayRoof" => true}
+    "rooftop_unit" => %{"cutawayRoof" => true},
+    # FLOWERS render as a single centered BILLBOARD in a transparent block (a standing bloom, not a cube) —
+    # EVERYWHERE: scattered AND inside compositions (Alexander #49). Set on the flower TILE so it's global, not
+    # per-composition. Every flower reuses `decor_flower`'s art, so they all take the same behavior.
+    "decor_flower" => %{"display" => "single", "transparent" => true},
+    "blossom" => %{"display" => "single", "transparent" => true},
+    "bouquet" => %{"display" => "single", "transparent" => true},
+    "hibiscus" => %{"display" => "single", "transparent" => true},
+    "rose" => %{"display" => "single", "transparent" => true},
+    "sunflower" => %{"display" => "single", "transparent" => true},
+    "tulip" => %{"display" => "single", "transparent" => true},
+    "wilted-flower" => %{"display" => "single", "transparent" => true}
   }
 
   @doc """
@@ -70,6 +81,8 @@ defmodule Nebulith.Catalog.TileSource do
     seed_extra_tiles(ascii_id, emoji_id)
     seed_prop_tiles(ascii_id, emoji_id)
     seed_emoji_tiles(emoji, emoji_id)
+    seed_meadow_tiles(ascii_id, emoji_id)
+    seed_water_color()
     seed_autotile_pieces(ascii_id, emoji_id)
     seed_tree_pieces(ascii_id, emoji_id, ascii["palettes"])
     seed_parity_tiles(ascii_id, emoji_id)
@@ -140,8 +153,8 @@ defmodule Nebulith.Catalog.TileSource do
   end
 
   # ── Ascii terrain / ground tiles ──────────────────────────────────────────
-  # Ground is walkable (blocking false) and flat (height 0). Its glyph is the
-  # first `char` variant; the full char/fg/bg arrays live in settings.
+  # Ground is walkable (blocking false) and a height-1 BLOCK (Alexander 2026-07-26: "all tiles/blocks are height
+  # 1 by default. GLOBAL"). Its glyph is the first `char` variant; the full char/fg/bg arrays live in settings.
 
   defp seed_terrain_tiles(terrain, tileset_id) do
     for {label, %{"char" => char, "fg" => fg, "bg" => bg} = t} <- terrain do
@@ -152,7 +165,8 @@ defmodule Nebulith.Catalog.TileSource do
           glyph: List.first(char),
           color_role: nil,
           blocking: false,
-          height: 0,
+          # Height 1 (raised block) so content marked act_as_tile stacks ON TOP of the ground, not sunk inside it.
+          height: 1,
           # Ground defaults to `terrain`; a paved way (`roads`) or a constructed interior floor (`floors`)
           # carries its finer sidebar bucket in ascii.json (data-driven). All three stay WALKABLE ground —
           # the frontend still resolves them as ground tiles (buildAsciiTerrain reads terrain/roads/floors).
@@ -1167,6 +1181,129 @@ defmodule Nebulith.Catalog.TileSource do
 
   # ── Emoji tiles ───────────────────────────────────────────────────────────
 
+  # The meadow floor's yellowish-green — a smooth flat colour (matches the meadow reference #14), NOT the busy
+  # tiled clover of `grass`. One constant so the emoji tile's colour and the ascii terrain bg (which actually
+  # TINTS the flat baked square, see below) never drift.
+  @meadow_color "#a4ac48"
+
+  @doc """
+  Upserts the FLAT-COLOUR `meadow` ground tile in BOTH styles — a smooth yellowish-green floor, the clean
+  base for a meadow layout instead of `grass`'s busy tiled clover.
+
+  The frontend sources a floor's IMAGE and its COLOUR from different places, so both rows matter:
+    * EMOJI image resolves by ground KIND (`groundKind` → `EMOJI_TILESET[kind].image`, tinted by the
+      floor colour). `meadow` is its OWN kind (see artStyle.ts groundKind), pointing at a FLAT solid baked
+      square — so a meadow floor draws as one clean tinted colour, NOT the clover texture of `grass`.
+    * The floor COLOUR is style-independent: `groundTileColor` reads the ASCII terrain tile's
+      `settings.variants.bg` BY SLUG (buildAsciiTerrain). Without the ascii `meadow` twin the floor falls
+      back to the grass colour. Its `bg` carries @meadow_color, which then tints the flat emoji square.
+
+  Idempotent upsert by [tileset_id, label] — safe on the shared dev DB. Called by seed/0, runnable standalone.
+  """
+  def seed_meadow do
+    ascii_id = ensure_tileset("ascii", "ASCII").id
+    emoji_id = ensure_tileset("emoji", "Emoji").id
+    seed_meadow_tiles(ascii_id, emoji_id)
+    IO.puts("seeded meadow flat-colour ground tile (ascii + emoji)")
+    :ok
+  end
+
+  # The color-only RIVER blue — a flat water floor the meadow_river layout tints per-cell (sampled from #17).
+  @water_color "#4f93b3"
+
+  defp seed_meadow_tiles(ascii_id, emoji_id) do
+    # HEIGHT 1.0: the meadow floor is a RAISED colour block with visible side faces (Alexander: "no 0-height
+    # tiles in generators, floor will elevate the things on top") — ornaments STACK on top of it. It stays a
+    # flat solid baked square TINTED by the per-cell floor colour (the season gradient / earth / cobble the
+    # generator writes as STATE).
+    {:ok, _} =
+      Catalog.upsert_tile(%{
+        tileset_id: emoji_id,
+        label: "meadow",
+        emoji: "🟩",
+        color_role: nil,
+        blocking: false,
+        height: 1.0,
+        category: "terrain",
+        title: "Meadow",
+        image_url: "/tiles/emoji/baked/meadow.png",
+        settings: %{"color" => @meadow_color} |> merge_behavior("meadow")
+      })
+
+    {:ok, _} =
+      Catalog.upsert_tile(%{
+        tileset_id: ascii_id,
+        label: "meadow",
+        glyph: ".",
+        color_role: nil,
+        blocking: false,
+        height: 1.0,
+        category: "terrain",
+        title: "Meadow",
+        image_url: nil,
+        settings: %{
+          "variants" => %{
+            "char" => [".", ","],
+            "fg" => ["#c8e08a", "#bcd67e"],
+            "bg" => [@meadow_color, @meadow_color]
+          }
+        }
+      })
+  end
+
+  @doc """
+  Upserts the color-only WATER ground tile in BOTH styles — a flat blue floor built the SAME way as `meadow`
+  (a flat baked square TINTED by the per-cell floor colour), so the meadow_river layout paints its river +
+  lake with COLOUR instead of a tiled 🌊 texture (Alexander: "reduce tiles usage… build the lake with
+  colors"). Height 1.0 so the water reads as a raised block like the land it sits beside.
+
+  The emoji image is the same flat white square `/tiles/emoji/baked/water.png` (overwritten to a flat square
+  in the tile pipeline) that the floor colour tints; the ascii twin carries @water_color as its terrain `bg`
+  so `groundTileColor("water")` resolves the river blue for any non-generator paint / a reloaded save.
+  Idempotent upsert by [tileset_id, label]. Runnable standalone.
+  """
+  def seed_water_color do
+    ascii_id = ensure_tileset("ascii", "ASCII").id
+    emoji_id = ensure_tileset("emoji", "Emoji").id
+
+    {:ok, _} =
+      Catalog.upsert_tile(%{
+        tileset_id: emoji_id,
+        label: "water",
+        emoji: "🟦",
+        color_role: nil,
+        blocking: false,
+        height: 1.0,
+        category: "terrain",
+        title: "Water",
+        image_url: "/tiles/emoji/baked/water.png",
+        settings: %{"color" => @water_color} |> merge_behavior("water")
+      })
+
+    {:ok, _} =
+      Catalog.upsert_tile(%{
+        tileset_id: ascii_id,
+        label: "water",
+        glyph: "~",
+        color_role: nil,
+        blocking: false,
+        height: 1.0,
+        category: "terrain",
+        title: "Water",
+        image_url: nil,
+        settings: %{
+          "variants" => %{
+            "char" => ["~", "≈"],
+            "fg" => ["#bfe4f5", "#a9d6ee"],
+            "bg" => [@water_color, @water_color]
+          }
+        }
+      })
+
+    IO.puts("seeded color-only water ground tile (ascii + emoji)")
+    :ok
+  end
+
   defp seed_emoji_tiles(emoji, tileset_id) do
     for {label, t} <- emoji do
       {:ok, _} =
@@ -1192,10 +1329,15 @@ defmodule Nebulith.Catalog.TileSource do
   # ── Compositions ──────────────────────────────────────────────────────────
 
   defp seed_compositions(compositions) do
-    for {name, %{"footprint" => footprint, "cells" => cells}} <- compositions do
+    for {name, %{"footprint" => footprint, "cells" => cells} = comp} <- compositions do
       {:ok, _} =
         Catalog.upsert_composition_with_cells(
-          %{name: name, footprint_w: footprint["w"], footprint_h: footprint["h"]},
+          %{
+            name: name,
+            footprint_w: footprint["w"],
+            footprint_h: footprint["h"],
+            category: comp["category"]
+          },
           Enum.map(cells, &cell_attrs/1)
         )
     end
@@ -1270,7 +1412,7 @@ defmodule Nebulith.Catalog.TileSource do
     updated =
       for {label, t} <- emoji, t["category"] in ~w(buildings walls windows doors roofs props nature), reduce: 0 do
         acc ->
-          {n, _} = Catalog.set_tile_height(emoji_id, label, t["height"] || 0)
+          {n, _} = Catalog.set_tile_height(emoji_id, label, max(1.0, t["height"] || 1))
           acc + n
       end
 
@@ -1333,10 +1475,10 @@ defmodule Nebulith.Catalog.TileSource do
   end
 
   defp seed_new_compositions do
-    for {name, %{footprint_w: w, footprint_h: h, cells: cells}} <- compositions() do
+    for {name, %{footprint_w: w, footprint_h: h, cells: cells} = comp} <- compositions() do
       {:ok, _} =
         Catalog.upsert_composition_with_cells(
-          %{name: name, footprint_w: w, footprint_h: h},
+          %{name: name, footprint_w: w, footprint_h: h, category: Map.get(comp, :category)},
           cells
         )
     end
@@ -1354,7 +1496,13 @@ defmodule Nebulith.Catalog.TileSource do
           BuildingCompositions.all() do
       {:ok, _} =
         Catalog.upsert_composition_with_cells(
-          %{name: name, footprint_w: w, footprint_h: h, title: Map.get(comp, :title)},
+          %{
+            name: name,
+            footprint_w: w,
+            footprint_h: h,
+            title: Map.get(comp, :title),
+            category: Map.get(comp, :category)
+          },
           cells
         )
     end
@@ -1377,6 +1525,8 @@ defmodule Nebulith.Catalog.TileSource do
     %{
       footprint_w: 1,
       footprint_h: 1,
+      # A tree is natural cover → the `nature` bucket (the SAME category vocabulary tiles use, MAP-MODEL §8).
+      category: "nature",
       cells: [
         %{dx: 0, dy: 0, level: 0, label: "trunk_mid", walkable: false, scale: opts.trunk_zoom, settings: trunk_settings(opts.trunk_h, trunk_w)},
         leaf_cell(leaf_level, opts.leaf_h, opts.leaf_zoom, Map.get(opts, :shape), true)
@@ -1388,10 +1538,14 @@ defmodule Nebulith.Catalog.TileSource do
   # leaf cell sitting on the ground (level 0), blocking (a ground-level shrub obstructs, unlike a tree's
   # walkable overhead canopy). One tile — the leanest asset in the set.
   defp bush_comp(opts) do
-    %{footprint_w: 1, footprint_h: 1, cells: [leaf_cell(0, opts.leaf_h, opts.leaf_zoom, Map.get(opts, :shape), false)]}
+    # A bush is natural cover too → the `nature` bucket, exactly like the trees it is a trunkless variant of.
+    %{footprint_w: 1, footprint_h: 1, category: "nature", cells: [leaf_cell(0, opts.leaf_h, opts.leaf_zoom, Map.get(opts, :shape), false)]}
   end
 
   defp leaf_cell(level, leaf_h, leaf_zoom, shape, walkable) do
+    # The canopy defaults to a SQUARE crown (a leaf cube); a ROUND crown is OPT-IN via `shape: "circle"`
+    # ("tree_round"/"bush_round"), so "tree" and "tree round" render DIFFERENTLY (Alexander #46 — they had become
+    # identical when the default was "circle"). An explicit shape always wins (a future conifer can pass a cone).
     settings = %{"scaleY" => leaf_h}
     settings = if shape, do: Map.put(settings, "shape", shape), else: settings
     %{dx: 0, dy: 0, level: level, label: "leaf_center", walkable: walkable, scale: leaf_zoom, settings: settings}
@@ -1434,6 +1588,11 @@ defmodule Nebulith.Catalog.TileSource do
       "tree_stub" => tree_comp(%{trunk_h: 1.7, trunk_zoom: 0.6, trunk_w: 1.2, leaf_h: 1.0, leaf_zoom: 1.35}),
       "tree_round" =>
         tree_comp(%{trunk_h: 3.15, trunk_zoom: 0.6, trunk_w: 1.0, leaf_h: 2.0, leaf_zoom: 1.35, shape: "circle"}),
+      # SIZE variants (Alexander #46): tree_small = a genuinely SMALL tree (short trunk + small canopy, was a
+      # confusing legacy 5×3), tree_big = a LARGE tree (tall trunk + broad canopy). Both respect the trunk<leaf
+      # dimension guard. Canopy WIDTH (leaf_zoom) is the main size read: 0.95 small vs 1.35 default vs 1.9 big.
+      "tree_small" => tree_comp(%{trunk_h: 1.9, trunk_zoom: 0.5, trunk_w: 1.0, leaf_h: 1.2, leaf_zoom: 0.95}),
+      "tree_big" => tree_comp(%{trunk_h: 4.2, trunk_zoom: 0.7, trunk_w: 1.0, leaf_h: 2.8, leaf_zoom: 1.9}),
       "bush" => bush_comp(%{leaf_h: 1.2, leaf_zoom: 1.35}),
       "bush_round" => bush_comp(%{leaf_h: 1.2, leaf_zoom: 1.35, shape: "circle"}),
       # TWO water variants of the town-square basin, both COMPOSITIONS assembled from AUTOTILE PIECES
@@ -1446,8 +1605,9 @@ defmodule Nebulith.Catalog.TileSource do
       # `fountain` — the LARGE variant (Alexander: "one that has 9 blocks of water"): a 5×5 basin whose interior
       #   is a 3×3 GRID of 9 `water_c` cells; only the CENTER ROW of 3 animates (Alexander: "in the 9 blocks
       #   version, the 3 in the center are the ones to animate"), the other 6 are STATIC blue water.
-      "well" => %{footprint_w: 5, footprint_h: 3, cells: well_cells()},
-      "fountain" => %{footprint_w: 5, footprint_h: 5, cells: fountain_cells()},
+      # A basin is a standalone ornament → the `props` bucket (same category vocabulary as tiles, MAP-MODEL §8).
+      "well" => %{footprint_w: 5, footprint_h: 3, category: "props", cells: well_cells()},
+      "fountain" => %{footprint_w: 5, footprint_h: 5, category: "props", cells: fountain_cells()},
       # LIGHT POSTS — a composition, NOT a single lamp tile (Alexander: "light posts should be a composition of a
       # post/base tile + the lamp on top … the composition of maps is exactly the same between art styles, only
       # the tile changes"). ONE 1×1 column of TWO cells, each shaped by its OWN tuned settings so it reads like a
@@ -1465,8 +1625,11 @@ defmodule Nebulith.Catalog.TileSource do
       #     `lamp_flicker_anim` (a stepped, erratic opacity dip — a dying bulb, NOT a smooth pulse). Its ground
       #     pool dims in SYNC with the flicker (the frontend folds the bulb's live opacity into the pool
       #     intensity — see LIGHTING.md, Alexander: "the light area should fail at the same rhythm").
-      "lamp_post" => lamp_post_composition([bulb_night_lit_anim()]),
-      "lamp_post_failing" => lamp_post_composition([bulb_night_lit_anim(), lamp_flicker_anim()])
+      # The browseable palette shows ONE "Lamp post" (category "props"); the FAILING variant is a generator-only
+      # flavour (~18% of stamped lamps), so it carries NO category → it renders on the map but is NOT a duplicate
+      # palette entry (Alexander #45 "remove duplicated lamp post options").
+      "lamp_post" => lamp_post_composition([bulb_night_lit_anim()], "props"),
+      "lamp_post_failing" => lamp_post_composition([bulb_night_lit_anim(), lamp_flicker_anim()], nil)
     }
   end
 
@@ -1476,7 +1639,7 @@ defmodule Nebulith.Catalog.TileSource do
   # top. `nil` → no animation (kept for callers that want a plain bulb). Everything else — structure, the tuned
   # post/bulb settings, the `light` glow pool — is IDENTICAL, so a failing lamp is a lit lamp whose bulb flickers.
   # The STRUCTURE is style-agnostic (only the baked `post`/`lamp` ART differs per style).
-  defp lamp_post_composition(bulb_animations) do
+  defp lamp_post_composition(bulb_animations, category) do
     # `light` is a real, controllable SETTING (Alexander: "control the light intensity and distance"): the bulb
     # casts a warm ground GLOW POOL at night, sized by `distance` (cells), strengthened/tinted by `intensity`/
     # `color`. `color` is a SATURATED warm gold (#ffc24d) so the pool reads as a real LIT lamp, not a pale wash
@@ -1488,6 +1651,9 @@ defmodule Nebulith.Catalog.TileSource do
         level: 1,
         label: "lamp",
         walkable: true,
+        # The bulb reads as a real lamp head (Alexander, #43) — ONE centered billboard at Zoom `scale` 0.6,
+        # lifted onto the post top by `pose.dy` -1.8. NO dark base tint: it shows the `lamp` tile's own art (the
+        # pale bulb of #43); the night-lit `color` animation last-wins-tints it warm gold at night.
         scale: 0.6,
         settings: %{
           "display" => "single",
@@ -1502,6 +1668,8 @@ defmodule Nebulith.Catalog.TileSource do
     %{
       footprint_w: 1,
       footprint_h: 1,
+      # Category is passed in: "props" for the browseable default lamp, nil for the generator-only failing variant.
+      category: category,
       cells: [
         %{dx: 0, dy: 0, level: 0, label: "post", walkable: false, scale: 0.3, settings: %{"scaleY" => 7.0}},
         bulb

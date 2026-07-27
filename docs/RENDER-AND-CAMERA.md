@@ -229,13 +229,26 @@ front), because §1 showed screen-`y ∝ (col + row)`. Precedence:
    draws later regardless of position. **Every cell currently defaults to `0`**, so `0 − 0 = 0` falls straight
    through and every existing map sorts byte-identically. (The capability is reserved for the composition-
    optimization pass — see MAP-MODEL §4 and ANIMATION-SYSTEM.)
-2. **Positional key = `col + row + frontExtent`.** A directional-depth box (a roof / entrance apron spanning
-   `depth` cells along a diagonal) reaches `depthFrontExtent(depth, dir)` cells toward the camera past its
-   anchor, so it sorts by its **frontmost** covered cell and draws in front of what it overlaps. The bonus is
-   added **only for an ELEVATED box** (`heightLevel ≥ 1`) that actually overhangs; a **flat** run
-   (`heightLevel 0` — a merged grass/road z-width tile) occludes nothing, so it sorts by its **anchor** and
-   stays behind standing tiles (else a long road paints over a house in front of it). A depth-less tile adds
-   `0` → byte-identical to plain `(col + row)`.
+2. **Positional key = `col + row + frontExtent`.** A directional-depth box (a roof / entrance apron / raised
+   ground run spanning `depth` cells along a diagonal) reaches `depthFrontExtent(depth, dir)` cells toward the
+   camera past its anchor, so it sorts by its **frontmost** covered cell and draws in front of what it overlaps.
+   The bonus is added for a box that **RISES and so overhangs** — either it is **STACKED** (`heightLevel ≥ 1`: a
+   roof / upper level) **or it is a full-block box sitting on the ground** (its rendered rise ≥ 1 — a **height-1
+   meadow/water FLOOR run**, a raised curb, NOT a thin slab). A truly **FLAT** slab (rise < 1 — a merged town
+   grass/road z-width tile) occludes nothing, so it sorts by its **anchor** and stays behind standing tiles (else
+   a long road paints over a house in front of it). A depth-less tile adds `0` → byte-identical to plain
+   `(col + row)`. **Watch the two heights:** `heightLevel` is the STACK level (0 for a ground block); the *rise*
+   is the block's rendered **height** — a height-1 floor is a raised box at stack level 0, so gating on
+   `heightLevel` alone (the old bug) left it flat-sorted and an adjacent block painted over its front. The rise
+   is resolved by KIND (`iso.ts` `assetBlockRise` → `resolveTileHeight × scaleY`), because a generated floor pins
+   no per-instance `height` — its height lives on its tile.
+
+   **One exception keeps the ground under everything — a raised FLOOR run front-extends only when BARE.** If a
+   standing tile or a unit sits on any cell the run covers, the run reports rise `0` to the comparator
+   (`iso.ts` `runFrontExtentRise`, from a per-frame `standingCells` set) and keeps its **anchor** sort, so that
+   content draws **over** it — a raised curb never paints over the rock / tree / hero standing on it. The trade
+   is a little of the run's own completeness where it is occupied; a **bare** run (Alexander's raised road) still
+   draws complete. This keeps the fix a pure perspective sort at z-index 0 — no z-index override required.
 3. **Tie-break:** two assets on the SAME cell sort **bottom-up by `heightLevel`** so a brush stack composites
    higher blocks over lower ones. A non-asset tie returns `0` (stable insertion order).
 
@@ -336,9 +349,15 @@ The render draws DATA; it invents nothing. For the full model see MAP-MODEL; the
 - **TOP** (`topdown.ts`): `x = w/2 + (col − camCol)·tileW`, `y = h/2 + (row − camRow)·tileH` — a plain
   Width×Depth footprint, height hidden.
 - **2D** (`frontElevation.ts`): a true Width×Height front elevation — horizontal axis is `col`, vertical is
-  `heightLevel` (stack up), **depth collapsed**: per `(col, heightLevel)` only the front-most (max-row) cell
-  of a connected structure draws, the rest hide, and every kept cell anchors its stack at the structure's
-  front row (so a 4-deep × 5-tall house reads 5 tall, not ~9).
+  `heightLevel` (stack up), **depth collapsed**: per `(col, heightLevel)` the cells overlap, and one is hidden
+  only when a cell **in front of it** (nearer the camera / higher row) is **at least as TALL** — real
+  occlusion, not row alone. Equal-height rows (a wall column, a back wall behind a door) collapse to the
+  front-most exactly as before, so a 4-deep × 5-tall house still reads 5 tall (not ~9); but a cell **taller
+  than everything in front of it survives** and draws its extra height above the front face. That is what keeps
+  a FLAT composition (fountain, well — all cells at level 0 but spanning depth) visible: its rim is 1 block, its
+  interior water grows to ~4, so the water peeks over the front rim instead of being dropped behind it
+  (MAP-MODEL §5 — a composition cell resolves by its LABEL in EVERY view). Every kept cell anchors its stack at
+  the structure's front row; a cell's max height reads its base height×scaleY AND any height-grow animation peak.
 
 ---
 
