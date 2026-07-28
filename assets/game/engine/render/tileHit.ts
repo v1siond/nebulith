@@ -136,6 +136,30 @@ export function depthBoxGeom(
   return { kind: 'poly', pts: convexHull(pts) }
 }
 
+/** A 2-AXIS z-width RECTANGLE's screen hull (Alexander #62/#63): the convex hull of the solid block's 8 corners
+ *  (top parallelogram + its base), matching drawIsoRectBlock, so a click ANYWHERE on the deck selects it and the
+ *  outline hugs the whole element — not just the first column. `ext` = grid cells spanned in each of ±col/±row
+ *  (assetRectExtents). A single cell / 1-wide line is the degenerate case → the same hull as the cube / long box. */
+export function rectBoxGeom(
+  halfW: number,
+  halfD: number,
+  blockH: number,
+  blocks: number,
+  ext: { colMinus: number; colPlus: number; rowMinus: number; rowPlus: number },
+  xf: (p: Pt) => Pt,
+): PolyGeom {
+  const H = blockH * Math.max(1, Math.floor(blocks))
+  const { colMinus: cm, colPlus: cp, rowMinus: rm, rowPlus: rp } = ext
+  const top: Pt[] = [
+    { x: (rm - cm) * halfW, y: -H - (cm + rm + 1) * halfD }, // back
+    { x: (cp + rm + 1) * halfW, y: -H + (cp - rm) * halfD }, // right
+    { x: (cp - rp) * halfW, y: -H + (cp + rp + 1) * halfD }, // front
+    { x: -(cm + rp + 1) * halfW, y: -H + (rp - cm) * halfD }, // left
+  ]
+  const pts = [...top, ...top.map((p) => ({ x: p.x, y: p.y + H }))].map(xf) // top + base corners
+  return { kind: 'poly', pts: convexHull(pts) }
+}
+
 /** Andrew's monotone-chain convex hull (screen space). Returns the hull ring CCW-ish; ≤2 points pass through. */
 export function convexHull(points: readonly Pt[]): Pt[] {
   const pts = [...points].sort((a, b) => (a.x === b.x ? a.y - b.y : a.x - b.x))

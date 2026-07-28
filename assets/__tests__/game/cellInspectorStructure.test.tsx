@@ -178,7 +178,7 @@ describe('Tile settings body (TileControls) — every setting renders + writes t
       expect(screen.getByLabelText(axis)).toBeInTheDocument()
     }
     expect(screen.queryByLabelText('Depth')).toBeNull()
-    expect(screen.queryByLabelText('Z Width')).toBeNull()
+    expect(screen.queryByRole('group', { name: 'Z Width per direction' })).toBeNull()
     for (const axis of ['x', 'y', 'rotate']) {
       expect(screen.getByLabelText(axis)).toBeInTheDocument()
     }
@@ -213,22 +213,26 @@ describe('Tile settings body (TileControls) — every setting renders + writes t
     expect(onPose).toHaveBeenCalledWith(expect.objectContaining({ flip: true }))
   })
 
-  it('an ASSET tile gets the Z Width directional-depth control (4 directions) + a z slide', () => {
-    const onZWidth = jest.fn(), onZDir = jest.fn(), onZPos = jest.fn()
-    render(<TileControls tile={assetTile({ onZWidth, onZDir, onZPos })} />)
-    expect(screen.getByLabelText('Z Width')).toBeInTheDocument()
+  it('an ASSET tile gets the Z Width multi-direction control (4 independent diagonals) + a z slide', () => {
+    const onZWidth = jest.fn(), onZBack = jest.fn(), onZPerp = jest.fn(), onZPerpBack = jest.fn(), onZDir = jest.fn(), onZPos = jest.fn()
+    render(<TileControls tile={assetTile({ onZWidth, onZBack, onZPerp, onZPerpBack, onZDir, onZPos })} />)
     expect(screen.queryByLabelText('Depth')).toBeNull()
-    const zWidthGroup = within(screen.getByRole('group', { name: 'Z Width direction' }))
-    for (const dir of ['right top', 'left top', 'bottom left', 'bottom right']) {
-      expect(zWidthGroup.getByRole('button', { name: dir })).toBeInTheDocument()
+    // Z Width is now MULTI-DIRECTION: one INDEPENDENT slider per diagonal (Alexander "two sides at the same time
+    // … any combination of 2"), so moving one direction never resets another.
+    const zWidthGroup = within(screen.getByRole('group', { name: 'Z Width per direction' }))
+    for (const dir of ['left top', 'right top', 'bottom left', 'bottom right']) {
+      expect(zWidthGroup.getByLabelText(`Z Width ${dir}`)).toBeInTheDocument()
     }
     expect(screen.getByLabelText('z')).toBeInTheDocument()
-    fireEvent.change(screen.getByLabelText('Z Width'), { target: { value: '4' } })
-    expect(onZWidth).toHaveBeenLastCalledWith(4)
-    fireEvent.click(zWidthGroup.getByRole('button', { name: 'right top' }))
-    expect(onZDir).toHaveBeenLastCalledWith('right-up')
-    fireEvent.click(zWidthGroup.getByRole('button', { name: 'bottom left' }))
-    expect(onZDir).toHaveBeenLastCalledWith('left-down')
+    // bottom-right = the primary axis' FORWARD end → onZWidth gets the full depth (cells beyond anchor + 1).
+    fireEvent.change(zWidthGroup.getByLabelText('Z Width bottom right'), { target: { value: '4' } })
+    expect(onZWidth).toHaveBeenLastCalledWith(5)
+    // a perpendicular slider (bottom-left) writes its OWN extent — the second axis, independently.
+    fireEvent.change(zWidthGroup.getByLabelText('Z Width bottom left'), { target: { value: '3' } })
+    expect(onZPerp).toHaveBeenLastCalledWith(3)
+    // the opposite end (left-top) writes the BACKWARD extent — the "other side" without touching the forward one.
+    fireEvent.change(zWidthGroup.getByLabelText('Z Width left top'), { target: { value: '2' } })
+    expect(onZBack).toHaveBeenLastCalledWith(2)
   })
 
   it('an ASSET tile gets a z-POSITION direction picker (4 diagonals) wired to onZPosDir', () => {
@@ -327,7 +331,7 @@ describe('Part B — the tile settings MODAL opens from the inspector and closes
     for (const axis of ['Width', 'Height', 'Zoom']) {
       expect(dialog.getByLabelText(axis)).toBeInTheDocument()
     }
-    expect(dialog.getByLabelText('Z Width')).toBeInTheDocument()
+    expect(dialog.getByRole('group', { name: 'Z Width per direction' })).toBeInTheDocument()
     expect(dialog.getByLabelText('flip horizontally')).toBeInTheDocument()
     expect(dialog.getAllByLabelText(/colour/i).length).toBe(1)
   })

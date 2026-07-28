@@ -45,7 +45,7 @@ const isWallLabel = (label: string): boolean => label.startsWith('wall_')
 /** The per-cell RENDER fields a composition cell contributes to the tile placed in it. */
 export type CompositionCellRender = Pick<
   GridAsset,
-  'height' | 'heightLevel' | 'scale' | 'zIndex' | 'scaleX' | 'scaleY' | 'scaleZ' | 'depth' | 'depthDir' | 'pose' | 'shape' | 'light' | 'settings' | 'animations' | 'placedAt'
+  'height' | 'heightLevel' | 'scale' | 'zIndex' | 'scaleX' | 'scaleY' | 'scaleZ' | 'depth' | 'depthDir' | 'depthBack' | 'depthPerp' | 'depthPerpBack' | 'pose' | 'shape' | 'light' | 'settings' | 'animations' | 'placedAt'
 >
 
 /** ONE mapping of a composition CELL onto those render fields — shared by the LIVE stamp (stampRun) and the
@@ -88,6 +88,10 @@ export function compositionCellRender(comp: Composition, cell: CompositionCell, 
     // rotateFootprintOffset applied to the cell's offset).
     depth: cs?.depth,
     depthDir: cs?.depthDir ? rotateDepthDir(cs.depthDir, rotation) : undefined,
+    depthBack: cs?.depthBack, // BIDIRECTIONAL z-width (#58): a composition cell can span BOTH ways from its anchor
+                              // → one roof tile instead of a row (the "optimize tiles usage AGAIN" win)
+    depthPerp: cs?.depthPerp, // 2-AXIS z-width ("two sides at the same time"): + the PERPENDICULAR extents, so a
+    depthPerpBack: cs?.depthPerpBack, // composition cell covers a RECTANGLE (a 2×2 roof deck authored as 1 tile)
     pose: cs?.pose,
     shape: cs?.shape,
     light: cs?.light,

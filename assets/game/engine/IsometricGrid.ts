@@ -10,7 +10,7 @@
 import type { Animation } from './animation/tileAnimation'
 import type { AnimationCycle } from './animationCycles'
 import type { CellAnimation } from './cellAnimation'
-import type { DepthDir } from './render/isoBlock'
+import { assetRectExtents, type DepthDir } from './render/isoBlock'
 import type { TilePose } from './tileset/pose'
 import type { AssetLight, TileDisplay, TileShape } from './tileset/tileset'
 import { groundTileColor } from './tileset/groundColor'
@@ -45,6 +45,16 @@ export interface GridAsset {
                         // box spanning `depth` cells along a diagonal, anchored at its base cell. Default 1
                         // (a unit cube). ISO view. Distinct from scaleZ (the flat top-view stretch).
   depthDir?: DepthDir   // Which iso diagonal the depth extrudes along: right-up/left-up/left-down/right-down.
+  depthBack?: number    // BIDIRECTIONAL z-width (Alexander #58): EXTRA blocks the box extends the OPPOSITE way
+                        // from `depthDir` (backward from the anchor). Default 0 = today's one-way span. So one
+                        // tile z-widths BOTH ways (`depthBack` behind + `depth` ahead) — a 4-cell roof → 1 tile.
+                        // Normalized to a one-way span (anchor − depthBack·step, total depth depthBack+depth) so
+                        // every depth fn (depthCells/isoDepthBox/spanBackmost/the sort) keeps working. ISO view.
+  depthPerp?: number    // 2-AXIS z-width (Alexander: "two sides at the same time"): cells the box ALSO spans along
+  depthPerpBack?: number // the PERPENDICULAR axis (rotateDepthDir(depthDir,1)) — forward (`depthPerp`) + back
+                        // (`depthPerpBack`) beyond the anchor. With the col-axis depth this makes the tile a small
+                        // RECTANGLE (a 2×2 roof → 1 tile), sliders independent per direction. Both absent/0 =
+                        // today's 1-wide line. The render draws the rectangle as adjacent depth-box lines. ISO view.
   pose?: TilePose       // PER-INSTANCE position/rotation/flip (x/y/rotate/flip inspector). Deviations-only; the
                         // render applies it through applyPose in every view. Distinct from the tileset-KIND pose
                         // (shared art tuning) — this moves THIS placed tile, not every tile of its kind.
@@ -201,6 +211,19 @@ export class IsometricGrid {
     return out
   }
 
+  /** The grid cells a 2-axis z-width STANDING tile (a rectangular roof/deck) covers — its whole footprint, not
+   *  just the anchor. So getAssetsAtCell + cellStackTop see the deck at EVERY cell it spans, and a tile dropped on
+   *  the MIDDLE of the rectangle stacks ON TOP of it (Alexander #63: stack a smaller deck on the middle for a
+   *  stepped roof), and clicking any covered cell resolves the same tile. A 1-cell tile → just its anchor. */
+  rectCoveredCells(a: GridAsset): { col: number; row: number }[] {
+    const { colMinus, colPlus, rowMinus, rowPlus } = assetRectExtents(a)
+    if (colMinus + colPlus + rowMinus + rowPlus === 0) return [{ col: a.col, row: a.row }]
+    const out: { col: number; row: number }[] = []
+    for (let c = a.col - colMinus; c <= a.col + colPlus; c++)
+      for (let r = a.row - rowMinus; r <= a.row + rowPlus; r++) out.push({ col: c, row: r })
+    return out
+  }
+
   /** Rebuild the floorIndex from the current asset list (after a wholesale swap / load). A Z-WIDTH run floor
    *  is indexed at EVERY cell it covers, so floorAt/groundAt resolve per-cell even though it is one tile. */
   private rebuildFloorIndex(): void {
@@ -272,8 +295,11 @@ export class IsometricGrid {
     const idx = new Map<string, GridAsset[]>()
     for (const a of this.assets) {
       // A Z-WIDTH run FLOOR belongs to EVERY cell it covers (so a prop's stack + a per-cell pick see the ground
-      // beneath); every other tile is its single cell.
-      const cells = (a.type === FLOOR_TYPE && (a.depth ?? 1) > 1) ? this.floorCoveredCells(a) : [{ col: a.col, row: a.row }]
+      // beneath); a 2-axis z-width STANDING tile (a rectangular deck) likewise belongs to its whole footprint so a
+      // tile dropped on its MIDDLE stacks ON TOP (Alexander #63); every other tile is its single cell.
+      const cells = (a.type === FLOOR_TYPE && (a.depth ?? 1) > 1) ? this.floorCoveredCells(a)
+        : (a.type !== FLOOR_TYPE && a.depthDir) ? this.rectCoveredCells(a)
+        : [{ col: a.col, row: a.row }]
       for (const { col, row } of cells) {
         const key = this.floorKey(col, row)
         const arr = idx.get(key)

@@ -1810,6 +1810,8 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       const asset = stackedAssetsAt(grid, col, row)[index]
       if (asset) apply(asset)
     }
+    grid.assetLevelsChanged() // re-index: a z-width / level / depth edit re-maps the tile's covered cells so the
+                              // stack + pick see the whole footprint (Alexander #63: stack on a rectangle's middle)
     bumpBuildingVersion()
   }
   // The same per-key fan-out, for an edit that needs the tile's PLACE (grid + cell + stack slot) rather than
@@ -1865,6 +1867,25 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     })
   const setAssetDepthDir = (i: number, dir: DepthDir) =>
     applyToSelectedTiles(i, (a) => { a.depthDir = dir })
+  // BIDIRECTIONAL z-width (#58): extend the SAME tile BACKWARD from its anchor (opposite depthDir) by `cells`, so
+  // one roof tile spans both ways. 0 = one-way (today). Needs a depthDir to point the axis (default like depth).
+  const setAssetDepthBack = (i: number, cells: number) =>
+    applyToSelectedTiles(i, (a) => {
+      a.depthBack = Math.max(0, Math.round(cells))
+      if ((a.depthBack ?? 0) > 0 && !a.depthDir) a.depthDir = 'right-down'
+    })
+  // 2-AXIS z-width (Alexander "two sides at the same time"): the PERPENDICULAR extents — forward (depthPerp) +
+  // back (depthPerpBack) along rotateDepthDir(depthDir,1). With the primary axis this makes the tile a RECTANGLE.
+  const setAssetDepthPerp = (i: number, cells: number) =>
+    applyToSelectedTiles(i, (a) => {
+      a.depthPerp = Math.max(0, Math.round(cells))
+      if (!a.depthDir) a.depthDir = 'right-down'
+    })
+  const setAssetDepthPerpBack = (i: number, cells: number) =>
+    applyToSelectedTiles(i, (a) => {
+      a.depthPerpBack = Math.max(0, Math.round(cells))
+      if (!a.depthDir) a.depthDir = 'right-down'
+    })
   // PER-ASSET pose (x/y/rotate/flip) and "z position" (ISO-DIAGONAL slide) — written to THIS placed tile
   // (persists with the map), not the shared tileset kind. The render reads asset.pose / asset.zOffset / asset.zDir
   // in every view.
@@ -2081,6 +2102,8 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       __centerOn?: (col: number, row: number) => void
       __setHero?: (col: number, row: number) => void
       __setDepth?: (col: number, row: number, depth: number, dir: DepthDir) => { col: number; row: number; depth: number; depthDir: DepthDir; cells: { col: number; row: number }[] } | null
+      __setDepthBack?: (col: number, row: number, back: number, dir?: DepthDir) => { col: number; row: number; depthBack: number; depthDir?: DepthDir } | null
+      __setDepthPerp?: (col: number, row: number, fwd: number, backCells?: number) => { col: number; row: number; depthPerp: number; depthPerpBack: number; depthDir?: DepthDir } | null
       __setZPos?: (col: number, row: number, z: number, dir: DepthDir) => { col: number; row: number; zOffset: number; zDir: DepthDir } | null
       __setShape?: (col: number, row: number, shape: TileShape) => { col: number; row: number; shape: TileShape } | null
       __setDisplay?: (col: number, row: number, mode: TileDisplay) => { col: number; row: number; mode: TileDisplay } | null
@@ -2255,8 +2278,36 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       a.depthDir = dir
       const cells = depthCells(col, row, depth, dir)
       for (const c of cells) g.setCollision(c.col, c.row, true)
+      g.assetLevelsChanged() // mirror the real editor path: re-index the covered footprint so it stacks
       bumpBuildingVersion()
       return { col, row, depth, depthDir: dir, cells }
+    }
+    // BIDIRECTIONAL z-width (#58): extend the topmost tile at (col,row) BACKWARD `back` cells too.
+    win.__setDepthBack = (col: number, row: number, back: number, dir?: DepthDir) => {
+      const g = gridRef.current
+      if (!g) return null
+      const a = g.getAssetsAtCell(col, row).at(-1)
+      if (!a) return null
+      a.depthBack = back
+      if (dir) a.depthDir = dir
+      else if (!a.depthDir) a.depthDir = 'right-down'
+      g.assetLevelsChanged() // re-index covered footprint (mirror the editor path)
+      bumpBuildingVersion()
+      return { col, row, depthBack: back, depthDir: a.depthDir }
+    }
+    // 2-AXIS z-width validation seam: set the PERPENDICULAR extents (forward + back) on the topmost block, making
+    // it a RECTANGLE with the primary depth. Returns what it set so the render can be driven deterministically.
+    win.__setDepthPerp = (col: number, row: number, fwd: number, backCells = 0) => {
+      const g = gridRef.current
+      if (!g) return null
+      const a = g.getAssetsAtCell(col, row).at(-1)
+      if (!a) return null
+      a.depthPerp = fwd
+      a.depthPerpBack = backCells
+      if (!a.depthDir) a.depthDir = 'right-down'
+      g.assetLevelsChanged() // re-index covered footprint (mirror the editor path)
+      bumpBuildingVersion()
+      return { col, row, depthPerp: fwd, depthPerpBack: backCells, depthDir: a.depthDir }
     }
     // Z-POSITION validation seam: set `zOffset` (magnitude in cells) + `zDir` (which iso diagonal) on the TOPMOST
     // block at (col,row) so it SLIDES along that diagonal (+z toward dir, −z opposite), then bump a redraw.
@@ -6379,8 +6430,14 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                             libraryLabel,
                             onOpenLibrary: () => setTileLibraryOpen(true),
                             zWidth: adim(i, a => a.depth ?? 1),
+                            zBack: adim(i, a => a.depthBack ?? 0),
+                            zPerp: adim(i, a => a.depthPerp ?? 0),
+                            zPerpBack: adim(i, a => a.depthPerpBack ?? 0),
                             zDir: commonValue(cells.map(({ col, row }) => (stackedAssetsAt(grid, col, row)[i]?.depthDir ?? null) as DepthDir | null)),
                             onZWidth: posable ? (v => setAssetDepth(i, v)) : undefined,
+                            onZBack: posable ? (v => setAssetDepthBack(i, v)) : undefined,
+                            onZPerp: posable ? (v => setAssetDepthPerp(i, v)) : undefined,
+                            onZPerpBack: posable ? (v => setAssetDepthPerpBack(i, v)) : undefined,
                             onZDir: posable ? (dir => setAssetDepthDir(i, dir)) : undefined,
                             zPos: adim(i, a => a.zOffset ?? 0),
                             onZPos: posable ? (v => setAssetZOffset(i, v)) : undefined,

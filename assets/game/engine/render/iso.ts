@@ -19,13 +19,13 @@ import { ASCII_FONT, COMBAT_RANGE, type DayNight, type DrawVisual, ENEMY_MOVE_MS
 import { resolveAssetDrawSize } from './assetDimensions'
 import { resolveAssetAnimation } from './assetAnimation'
 import { getStack, assetStackIndexer, type TileSource } from '@/engine/cellStack'
-import { isoBlockFaces, isoDepthBox, depthCells, depthFrontExtent, isoZOffset, rotateDepthDir, spanBackmost, type BlockFace, type DepthDir } from './isoBlock'
+import { isoBlockFaces, isoDepthBox, depthCells, depthFrontExtent, isoZOffset, rotateDepthDir, spanBackmost, normalizeDepthSpan, assetRectExtents, type BlockFace, type DepthDir } from './isoBlock'
 import { type Orientation } from './isoOrientation'
 import { cellOrienterFor, orientCellTurn, deorientCellTurn, orientedDimsForTurn, facingForTurn, wrapTurn } from './isoTurn'
 import { resolveTileHeight, blockLayers, layerBlockScale } from '@/engine/tileset/tileHeight'
 import { EMOJI_TILESET } from '@/engine/tileset/emojiTileset'
 import { applyPose } from '@/engine/tileset/pose'
-import { cubeGeom, depthBoxGeom, billboardGeom, diamondGeom, pointInTileGeom, outlineSegments, poseMapper, tileGeomCentroid, tilesInScreenRect, type TileGeom } from './tileHit'
+import { cubeGeom, depthBoxGeom, rectBoxGeom, billboardGeom, diamondGeom, pointInTileGeom, outlineSegments, poseMapper, tileGeomCentroid, tilesInScreenRect, type TileGeom } from './tileHit'
 import { resolveTileSize, resolveTilePose } from '@/engine/tileset/tileViewSettings'
 import { ASCII_STYLE, assetKind, entityKind, entityStyleOverride, genderize, groundKind, personVariantTileId, type ElementKind, type ImageVisual, type Style } from '@/game/artStyle'
 import { cellStackTop } from '@/engine/cellStack'
@@ -1333,8 +1333,8 @@ function assetBlockRise(a: GridAsset): number {
  *  keep the array's stable insertion order, so nothing but same-cell asset stacks is reordered — the
  *  no-stack case is byte-identical to the old `(a.col+a.row)-(b.col+b.row)` sort. */
 export function isoDepthCompare(
-  a: { col: number; row: number; blockRise?: number; asset?: { heightLevel?: number; height?: number; depth?: number; depthDir?: DepthDir; zIndex?: number } },
-  b: { col: number; row: number; blockRise?: number; asset?: { heightLevel?: number; height?: number; depth?: number; depthDir?: DepthDir; zIndex?: number } },
+  a: { col: number; row: number; blockRise?: number; asset?: { heightLevel?: number; height?: number; depth?: number; depthDir?: DepthDir; depthBack?: number; zIndex?: number } },
+  b: { col: number; row: number; blockRise?: number; asset?: { heightLevel?: number; height?: number; depth?: number; depthDir?: DepthDir; depthBack?: number; zIndex?: number } },
 ): number {
   // DRAW-PRIORITY first (CSS z-index): a HIGHER zIndex draws LATER (on top / in front), overriding the
   // positional key below — a cell authored with a higher zIndex sits in front of one behind it no matter where
@@ -1345,20 +1345,17 @@ export function isoDepthCompare(
   // A directional-depth box reaches `depthFrontExtent` cells toward the camera past its anchor, so it sorts by
   // its FRONTMOST covered cell — a box extending toward the camera draws in front of what it overlaps. A
   // depth-less asset (every existing tile) adds 0, so the no-depth case is byte-identical to (col+row).
-  const key = (o: { col: number; row: number; blockRise?: number; asset?: { depth?: number; depthDir?: DepthDir; heightLevel?: number; height?: number } }): number => {
-    const dep = o.asset?.depth
+  const key = (o: { col: number; row: number; blockRise?: number; asset?: { depth?: number; depthDir?: DepthDir; depthBack?: number; heightLevel?: number; height?: number } }): number => {
     const dir = o.asset?.depthDir
-    // The front-extent (sort by the FRONTMOST covered cell) is only correct for a box that OVERHANGS what it
-    // covers — a STACKED asset lifted off the ground (heightLevel ≥ 1: a roof / upper level). The GROUND itself
-    // (heightLevel 0) never overhangs anything: it is the base every standing tile sits on, so it must always
-    // sort by its ANCHOR and stay BEHIND the standing tiles along its span — otherwise a merged ground RUN paints
-    // its raised curb-face up over the houses/trees in front of it (Alexander's #52 "everything mixed together").
-    // (Historically a rise ≥ 1 floor ALSO front-extended, to tell a raised meadow/water CURB from a flat height-0
-    // town slab — Images #29/#31. That distinction died when ALL terrain became height-1 GLOBAL: every floor now
-    // reads rise ≥ 1, so keying off the absolute rise made EVERY ground run climb over the buildings. Height is
-    // uniform now, so a floor is never a curb relative to its neighbours — the ground sorts by anchor, period.)
-    const extend = dir && dep && Math.floor(dep) > 1 && (o.asset?.heightLevel ?? 0) >= 1
-    return o.col + o.row + (extend ? depthFrontExtent(dep!, dir!) : 0)
+    if (!dir || !o.asset?.depth) return o.col + o.row // no depth box → plain anchor key (byte-identical to before)
+    // Fold a BIDIRECTIONAL span (depthBack behind + depth ahead, Alexander #58) into its one-way equivalent, then
+    // key on the TRUE backmost cell + total length (depthBack 0/absent → unchanged). The front-extent (sort by the
+    // FRONTMOST covered cell) is only correct for a box that OVERHANGS what it covers — a STACKED asset
+    // (heightLevel ≥ 1: a roof / upper level). The GROUND (heightLevel 0) never overhangs, so it sorts by its
+    // anchor and stays BEHIND the standing tiles along its span (Alexander's #52 "everything mixed together").
+    const box = normalizeDepthSpan(o.col, o.row, o.asset.depth, o.asset.depthBack, dir)
+    const extend = Math.floor(box.depth) > 1 && (o.asset?.heightLevel ?? 0) >= 1
+    return box.col + box.row + (extend ? depthFrontExtent(box.depth, dir) : 0)
   }
   const d = key(a) - key(b)
   if (d !== 0) return d
@@ -1393,8 +1390,11 @@ function orientDepthItem(
   const dir = item.asset.depthDir && rotateDepthDir(item.asset.depthDir, facing)
   if (!dir || !item.asset.depth) return { col, row, blockRise: item.blockRise, asset: { ...item.asset, depthDir: dir } }
 
-  const back = spanBackmost(col, row, item.asset.depth, dir)
-  return { col: back.col, row: back.row, blockRise: item.blockRise, asset: { ...item.asset, depthDir: back.dir } }
+  // Fold the bidirectional span (#58) in the ORIENTED frame, THEN re-anchor to the backmost for this turn. The
+  // folded item carries the TOTAL depth with depthBack cleared, so isoDepthCompare's own fold is a no-op on it.
+  const norm = normalizeDepthSpan(col, row, item.asset.depth, item.asset.depthBack, dir)
+  const back = spanBackmost(norm.col, norm.row, norm.depth, dir)
+  return { col: back.col, row: back.row, blockRise: item.blockRise, asset: { ...item.asset, depth: norm.depth, depthBack: 0, depthDir: back.dir } }
 }
 
 /** The back-to-front comparator for a camera at `turn`: isoDepthCompare's key is (col + row), which is a
@@ -1613,6 +1613,48 @@ function drawIsoTileBlockLive(
   else fillFace(top, faceColor, dv, tint)
 }
 
+/** A SOLID rectangular iso block (Alexander #62: "a solid rectangle, not a collage of columns") — a 2-axis
+ *  z-width tile drawn as ONE body: a single parallelogram TOP + the two OUTER walls, no internal seams. `ext` is
+ *  the grid span in cells in each of ±col/±row from the anchor (assetRectExtents). Degenerate (a 1-wide line, or
+ *  a single cell at ext 0) it matches the unit cube / isoDepthBox. `layers` blocks tall; the tile shears onto
+ *  every face like the cube. Pure-ish (canvas glue), same conventions as drawIsoTileBlockLive. */
+function drawIsoRectBlock(
+  ctx: CanvasRenderingContext2D,
+  center: Pt,
+  tileW: number,
+  tileH: number,
+  blockH: number,
+  layers: number,
+  dv: DrawVisual,
+  tint: string | undefined,
+  ext: { colMinus: number; colPlus: number; rowMinus: number; rowPlus: number },
+  topDv?: DrawVisual,
+): void {
+  const px = center.x
+  const H = blockH * Math.max(1, layers) // total rise; the walls drop this far from the top face
+  const ty = center.y - H // top-face reference (the block rises H above its ground base)
+  const { colMinus: cm, colPlus: cp, rowMinus: rm, rowPlus: rp } = ext
+  // The four OUTER corners of the rectangle's top parallelogram (dir1/dir2 are the two grid axes → 4 corners).
+  const T = { x: px + (rm - cm) * tileW, y: ty - (cm + rm + 1) * tileH } // back (min col, min row) → top vertex
+  const R = { x: px + (cp + rm + 1) * tileW, y: ty + (cp - rm) * tileH } // right (max col, min row)
+  const B = { x: px + (cp - rp) * tileW, y: ty + (cp + rp + 1) * tileH } // front (max col, max row) → bottom vertex
+  const L = { x: px - (cm + rp + 1) * tileW, y: ty + (rp - cm) * tileH } // left (min col, max row)
+  const dn = (p: Pt): Pt => ({ x: p.x, y: p.y + H })
+  const faceColor = tint ?? dv.tint ?? dv.color
+  const leftShade = darkenColor(faceColor, faceLight(-tileH, tileW)) // +row (front-left) wall
+  const rightShade = darkenColor(faceColor, faceLight(tileH, tileW)) // +col (front-right) wall
+  const fillFace = (f: BlockFace, colour: string, fdv: DrawVisual, ftint?: string): void => {
+    ctx.fillStyle = colour
+    fillQuad(ctx, f.a, f.b, f.c, f.d)
+    if (fdv.image || fdv.char) fillIsoFaceWithTile(ctx, f.a, { x: f.b.x - f.a.x, y: f.b.y - f.a.y }, { x: f.d.x - f.a.x, y: f.d.y - f.a.y }, { char: fdv.char, color: fdv.color, image: fdv.image }, 1, 1, ftint)
+  }
+  fillFace({ a: dn(L), b: dn(B), c: B, d: L }, leftShade, dv, tint) // +row (front-left) wall
+  fillFace({ a: dn(B), b: dn(R), c: R, d: B }, rightShade, dv, tint) // +col (front-right) wall
+  const top: BlockFace = { a: L, b: T, c: R, d: B } // one solid top parallelogram → no column seams
+  if (topDv) fillFace(top, topDv.tint ?? topDv.color ?? faceColor, topDv)
+  else fillFace(top, faceColor, dv, tint)
+}
+
 // ── Single-block cube SPRITE CACHE (the building-cell hotspot) ────────────────────────────────────────
 // A building cell is a height-1 image cube (drawIsoTileBlock(..., 1, ...)). It is pixel-identical for every
 // cell of the same (tile image, face colour, tint, top-cap, dims) — a city has THOUSANDS (every wall / roof /
@@ -1827,8 +1869,17 @@ const ISO_SHAPE_DRAWERS: Record<TileShape, IsoShapeDrawer> = {
     // DISPLAY = "single" still draws ONE centered billboard inside the (here dropped) shell; an all-faces tile
     // with transparent draws NOTHING (see-through), same as single drops its shell.
     const transparent = asset.settings?.transparent
+    // Z-WIDTH RECTANGLE (Alexander #62/#63): a square tile spanning ≥2 cells — along ONE axis (depth/depthBack)
+    // or TWO (depthPerp/depthPerpBack too) — draws as ONE SOLID block: one parallelogram top + two outer walls,
+    // NO column seams. This lives HERE (the shape drawer) so EVERY tile gets it, not just label-backed ones — a
+    // painted/override roof (label:null) reaches this same drawer, so "all settings apply to every tile" holds.
+    // `assetRectExtents` is all-zeros for a non-z-width tile → isRect false → the byte-identical cube below.
+    const ext = assetRectExtents(asset)
+    const isRect = ext.colMinus + ext.colPlus + ext.rowMinus + ext.rowPlus > 0
     if (asset.settings?.display === 'single') drawIsoSingleTileBlock(ctx, center, bw, bd, bh, blocks, dv, tint, asset.depth, asset.depthDir, transparent)
-    else if (!transparent) drawIsoTileBlock(ctx, center, bw, bd, bh, blocks, dv, tint, undefined, asset.depth, asset.depthDir)
+    else if (transparent) return // see-through: no coloured block (whether a rect deck or a plain cube)
+    else if (isRect) drawIsoRectBlock(ctx, center, bw, bd, bh, blocks, dv, tint, ext)
+    else drawIsoTileBlock(ctx, center, bw, bd, bh, blocks, dv, tint, undefined, asset.depth, asset.depthDir)
   },
   circle: (ctx, center, bw, bd, bh, blocks, dv, tint, asset) => {
     if (asset.settings?.transparent) return // transparent applies to circles too — see-through, no coloured ball
@@ -1891,7 +1942,10 @@ function drawIsoWaterDepth(
  *  poseMapper exactly as the draw applies it, so the geom matches whether or not the block is posed. */
 function blockGeom(x: number, y: number, halfW: number, halfD: number, blockH: number, blocks: number, asset: GridAsset, unit: number): TileGeom {
   const xf = poseMapper({ x, y }, asset.pose, unit)
-  if (asset.depthDir && (asset.depth ?? 1) > 1) return depthBoxGeom(halfW, halfD, blockH, blocks, asset.depth ?? 1, asset.depthDir, xf)
+  // A z-widthed tile (1-axis line OR 2-axis rectangle) → the SOLID block's full hull, so the pick + outline hug
+  // the WHOLE element (Alexander #62/#63 "hover the whole element, not just the first column"), not the anchor cell.
+  const ext = assetRectExtents(asset)
+  if (ext.colMinus + ext.colPlus + ext.rowMinus + ext.rowPlus > 0) return rectBoxGeom(halfW, halfD, blockH, blocks, ext, xf)
   return cubeGeom(halfW, halfD, blockH, blocks, xf)
 }
 
@@ -2127,19 +2181,15 @@ export function drawIsoAssetAscii(
     const image = labelImage
     const recolor = labelTileRecolor(style, tint)
     const dvBlock = { char: glyph, color: tint, tint: recolor, image }
-    // SHAPE + DISPLAY (per-tile settings): drawIsoTileForShape picks the solid — cube (all-faces / single) or
-    // ball — so a labeled cell can render as a shaded ball just like a placed prop.
-    const geom = blockGeom(x, y, bw, bd, bh, layers, asset, tileH) // the shell cube (single) / cube column — SAME dims
-    // Per-asset pose (x/y/rotate/flip) transforms this labeled block too — same applyPose wrap as the generic
-    // block/billboard paths, so a placed OR generated block moves/rotates. No pose → the byte-identical draw.
+    // A z-width tile (≥2 cells, 1 or 2 axes) draws as ONE SOLID block, a plain tile as a cube — drawIsoTileForShape
+    // decides via the tile's shape drawer (the SAME solid-rect path a painted/override tile takes), so nothing
+    // here has to branch on z-width. blockGeom hugs the whole hull for the pick/outline (Alexander #62/#63).
+    const geom = blockGeom(x, y, bw, bd, bh, layers, asset, tileH)
     if (asset.pose) {
-      ctx.save(); ctx.translate(x, y); applyPose(ctx, asset.pose, 1, tileH)
-      drawIsoTileForShape(ctx, { x: 0, y: 0 }, bw, bd, bh, layers, dvBlock, recolor, asset)
-      if (asset.settings?.badge) drawApexBadge(ctx, 0, -bh * layers, fontSize, asset.settings.badge)
-      ctx.restore()
-      return geom
+      ctx.save(); ctx.translate(x, y); applyPose(ctx, asset.pose, 1, tileH); drawIsoTileForShape(ctx, { x: 0, y: 0 }, bw, bd, bh, layers, dvBlock, recolor, asset); ctx.restore()
+    } else {
+      drawIsoTileForShape(ctx, { x, y }, bw, bd, bh, layers, dvBlock, recolor, asset)
     }
-    drawIsoTileForShape(ctx, { x, y }, bw, bd, bh, layers, dvBlock, recolor, asset)
     if (asset.settings?.badge) drawApexBadge(ctx, x, y - bh * layers, fontSize, asset.settings.badge)
     return geom
   }

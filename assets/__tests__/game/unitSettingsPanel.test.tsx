@@ -82,7 +82,7 @@ describe('SettingsPanelBody — a unit uses the SAME settings UX as a tile', () 
 
   it('keeps asset-only tile controls OUT of the unit view (clean split)', () => {
     render(<SettingsPanelBody tile={makeUnitTile()} unit={makeUnit()} />)
-    expect(screen.queryByLabelText('Z Width')).toBeNull()
+    expect(screen.queryByRole('group', { name: 'Z Width per direction' })).toBeNull()
     expect(screen.queryByLabelText('Z-Index')).toBeNull()
     expect(screen.queryByLabelText('Light intensity')).toBeNull()
     // Display / Shape toggles (rendered as buttons) are absent too.
@@ -105,7 +105,8 @@ describe('SettingsPanelBody — a unit uses the SAME settings UX as a tile', () 
     expect(screen.getByLabelText('wall colour')).toBeInTheDocument()
     expect(screen.getByLabelText('Width')).toBeInTheDocument()
     // …and the asset-only rows DO show for a tile (proves the split is data-driven, not hardcoded).
-    expect(screen.getByLabelText('Z Width')).toBeInTheDocument()
+    // Z Width is now a MULTI-DIRECTION control (one slider per diagonal — Alexander "two sides at the same time").
+    expect(screen.getByRole('group', { name: 'Z Width per direction' })).toBeInTheDocument()
     expect(screen.getByLabelText('Z-Index')).toBeInTheDocument()
     // …but the unit-only extras are absent.
     expect(screen.queryByLabelText('Entity name')).toBeNull()

@@ -155,9 +155,17 @@ export interface TileControlModel {
   /** DIRECTIONAL DEPTH ("Z Width"): how many cells this block extrudes into a long iso box (asset.depth;
    *  null = mixed). Present only for asset tiles that support it — the floor omits it (no directional depth). */
   zWidth?: number | null
+  /** BIDIRECTIONAL z-width (#58): cells this SAME block extends BACKWARD (asset.depthBack; 0 = one-way, null = mixed). */
+  zBack?: number | null
+  /** 2-AXIS z-width: cells along the PERPENDICULAR axis — forward (asset.depthPerp) + back (asset.depthPerpBack). */
+  zPerp?: number | null
+  zPerpBack?: number | null
   /** which iso diagonal the Z Width grows along (asset.depthDir; null = none/mixed). */
   zDir?: DepthDir | null
   onZWidth?: (cells: number) => void
+  onZBack?: (cells: number) => void
+  onZPerp?: (cells: number) => void
+  onZPerpBack?: (cells: number) => void
   onZDir?: (dir: DepthDir) => void
   /** "z position": ISO-DIAGONAL slide magnitude in cells (asset.zOffset; null = mixed). NOT a vertical lift —
    *  the tile moves along zPosDir's diagonal. Asset tiles only. */
@@ -290,22 +298,50 @@ const Z_WIDTH_DIRS: { label: string; dir: DepthDir }[] = [
   { label: 'bottom right', dir: 'right-down' },
 ]
 
-/** Z WIDTH — directional depth: how many cells the selected BLOCK extrudes into a long iso box, plus WHICH
- *  diagonal it grows along. Replaces the old symmetric "Depth" (scaleZ) stretch — the value is a cell count
- *  (integer), and the render extrudes the long box via isoDepthBox in the chosen direction. */
-function ZWidthRow({ zWidth, zDir, onZWidth, onZDir }: { zWidth: number | null; zDir: DepthDir | null; onZWidth: (cells: number) => void; onZDir: (dir: DepthDir) => void }) {
+/** Opposite iso diagonal (180°); perpendicular (90°, = rotateDepthDir(dir,1)). The 4 diagonals close under both. */
+const Z_WIDTH_OPPOSITE: Record<DepthDir, DepthDir> = { 'left-up': 'right-down', 'right-down': 'left-up', 'right-up': 'left-down', 'left-down': 'right-up' }
+const Z_WIDTH_PERP: Record<DepthDir, DepthDir> = { 'left-up': 'right-up', 'right-up': 'right-down', 'right-down': 'left-down', 'left-down': 'left-up' }
+
+/** Z WIDTH — MULTI-DIRECTION (Alexander "two sides at the same time"): one INDEPENDENT amount per direction. The
+ *  box spans a RECTANGLE: the primary axis (depthDir) has a FORWARD end (`depth-1` past the anchor) + a BACK end
+ *  (`depthBack`); the PERPENDICULAR axis has forward (`depthPerp`) + back (`depthPerpBack`). Because the 4
+ *  diagonals are exactly {dir, opposite, perp, opposite-perp}, EACH of the 4 sliders writes its OWN extent — so
+ *  moving one never resets the others (the bug). A fresh tile fixes depthDir to the primary col axis. 2×2 layout
+ *  matches where the box grows on screen; cap at 2 sides (zoom covers the rest). */
+function ZWidthRow({ zWidth, zBack, zPerp, zPerpBack, zDir, onZWidth, onZBack, onZPerp, onZPerpBack, onZDir }: { zWidth: number | null; zBack?: number | null; zPerp?: number | null; zPerpBack?: number | null; zDir: DepthDir | null; onZWidth: (cells: number) => void; onZBack?: (cells: number) => void; onZPerp?: (cells: number) => void; onZPerpBack?: (cells: number) => void; onZDir: (dir: DepthDir) => void }) {
+  const depth = zWidth ?? 1, back = zBack ?? 0, perp = zPerp ?? 0, perpBack = zPerpBack ?? 0
+  const dir = zDir ?? 'right-down' // fresh tile → the primary (col) axis, so the 4 sliders map to fixed extents
+  const perpDir = Z_WIDTH_PERP[dir]
+  // cells this block extends toward `d` — each direction is its OWN extent, so all four are independent.
+  const amountFor = (d: DepthDir): number =>
+    d === dir ? Math.max(0, depth - 1)
+      : d === Z_WIDTH_OPPOSITE[dir] ? back
+        : d === perpDir ? perp
+          : perpBack
+  const setAmount = (d: DepthDir, raw: number): void => {
+    const n = Math.max(0, Math.round(raw))
+    if (zDir == null) onZDir(dir)                       // establish the axis ONCE for a fresh tile (never after)
+    if (d === dir) onZWidth(n + 1)                      // FORWARD end of the primary axis (depth incl. anchor)
+    else if (d === Z_WIDTH_OPPOSITE[dir]) onZBack?.(n)  // BACK end of the primary axis
+    else if (d === perpDir) onZPerp?.(n)                // FORWARD along the perpendicular
+    else onZPerpBack?.(n)                               // BACK along the perpendicular
+  }
   return (
     <div className="space-y-1">
-      <label className="flex items-center gap-2" title="Z Width — how many cells this block extrudes into a long iso box, along the chosen direction (iso view)">
-        <span className="w-14 shrink-0 text-[10px] text-gray-400">Z Width</span>
-        <input type="range" min={1} max={8} step={1} value={zWidth ?? 1} onChange={e => parseNum(e.target.value, onZWidth)} aria-label="Z Width" className="flex-1 accent-cyan-500" />
-        <NumberField value={zWidth ?? 1} onCommit={onZWidth} ariaLabel="Z Width value" className="w-14 rounded bg-gray-800 p-1 text-[10px] tabular-nums text-cyan-300" />
-        {zWidth === null && mixedBadge}
-      </label>
-      <div className="grid grid-cols-2 gap-1 pl-16" role="group" aria-label="Z Width direction">
-        {Z_WIDTH_DIRS.map(({ label, dir }) => (
-          <button key={dir} onClick={() => onZDir(dir)} aria-pressed={zDir === dir} className={`rounded px-1.5 py-0.5 text-[9px] font-bold ${zDir === dir ? 'bg-cyan-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}>{label}</button>
-        ))}
+      <div className="flex items-center gap-2 text-[10px] text-gray-400">
+        <span>Z Width — cells per direction</span>{zWidth === null && mixedBadge}
+      </div>
+      <div className="grid grid-cols-2 gap-1" role="group" aria-label="Z Width per direction">
+        {Z_WIDTH_DIRS.map(({ label, dir }) => {
+          const on = amountFor(dir) > 0
+          return (
+            <label key={dir} className={`flex items-center gap-1.5 rounded px-1.5 py-0.5 ${on ? 'bg-cyan-900/50 ring-1 ring-cyan-700' : 'bg-gray-800/60'}`} title={`Z Width toward ${label} — how many cells this block extends that way`}>
+              <span className="w-16 shrink-0 text-[9px] font-bold text-gray-300">{label}</span>
+              <input type="range" min={0} max={8} step={1} value={amountFor(dir)} onChange={e => parseNum(e.target.value, n => setAmount(dir, n))} aria-label={`Z Width ${label}`} className="min-w-0 flex-1 accent-cyan-500" />
+              <NumberField value={amountFor(dir)} onCommit={n => setAmount(dir, n)} ariaLabel={`Z Width ${label} value`} className="w-10 rounded bg-gray-900 p-1 text-[10px] tabular-nums text-cyan-300" />
+            </label>
+          )
+        })}
       </div>
     </div>
   )
@@ -461,7 +497,7 @@ export function TileControls({ tile }: { tile: TileControlModel }) {
       <DimRow label="Height" axis="height" value={tile.dims.height} title="Height — grows UP from the base (iso + 2D views)" onDim={tile.onDim} />
       {/* Z Width (directional depth): extrudes the block into a long iso box along a chosen diagonal. Replaces
           the old symmetric "Depth" (scaleZ) stretch. Asset tiles only — the floor omits onZWidth. */}
-      {tile.onZWidth && <ZWidthRow zWidth={tile.zWidth ?? 1} zDir={tile.zDir ?? null} onZWidth={tile.onZWidth} onZDir={tile.onZDir ?? (() => {})} />}
+      {tile.onZWidth && <ZWidthRow zWidth={tile.zWidth ?? 1} zBack={tile.zBack ?? 0} zPerp={tile.zPerp ?? 0} zPerpBack={tile.zPerpBack ?? 0} zDir={tile.zDir ?? null} onZWidth={tile.onZWidth} onZBack={tile.onZBack} onZPerp={tile.onZPerp} onZPerpBack={tile.onZPerpBack} onZDir={tile.onZDir ?? (() => {})} />}
       {/* Z-Index (draw priority): a higher value draws on top / in front, overriding the depth sort. Asset tiles only. */}
       {tile.onZIndex && <ZIndexRow zIndex={tile.zIndex ?? 0} onZIndex={tile.onZIndex} />}
       {/* Display mode: paint the tile on ALL faces, or ONE tile inside the block. Asset tiles only. */}

@@ -141,6 +141,43 @@ export function depthCells(col: number, row: number, depth: number, dir: DepthDi
   return out
 }
 
+/** Normalize a BIDIRECTIONAL span (anchor + `depth` ahead along `dir`, plus `depthBack` behind it) into the
+ *  one-way span every depth fn already understands: the anchor moves BACK `depthBack` cells along −dir and the
+ *  depth grows to depthBack+depth. depthBack ≤ 0 → anchor + depth unchanged (today's one-way span, byte-identical).
+ *  So authoring can z-width BOTH ways (Alexander #58) while depthCells / isoDepthBox / spanBackmost / the depth
+ *  sort keep their single "anchor is the start, depth runs along dir" contract untouched. Pure, unit-tested. */
+export function normalizeDepthSpan(col: number, row: number, depth: number | undefined, depthBack: number | undefined, dir: DepthDir): { col: number; row: number; depth: number } {
+  const b = Math.max(0, Math.floor(depthBack ?? 0))
+  const d = Math.max(1, Math.floor(depth ?? 1))
+  if (b === 0) return { col, row, depth: d }
+  const { dc, dr } = DEPTH_CELL_STEP[dir]
+  return { col: col - b * dc, row: row - b * dr, depth: b + d }
+}
+
+/** The GRID extents of a 2-axis z-width tile — how many cells it spans in each of ±col/±row from its anchor.
+ *  Folds the model (depthDir + depth/depthBack on the primary axis, depthPerp/depthPerpBack on the perpendicular)
+ *  into a plain rectangle cols [col−colMinus, col+colPlus] × rows [row−rowMinus, row+rowPlus]. `depth` INCLUDES the
+ *  anchor (depth−1 cells forward); the other three are cells BEYOND the anchor. depthDir absent → all 0 (1 cell). */
+export function assetRectExtents(a: { depthDir?: DepthDir; depth?: number; depthBack?: number; depthPerp?: number; depthPerpBack?: number }): { colMinus: number; colPlus: number; rowMinus: number; rowPlus: number } {
+  const ext = { colMinus: 0, colPlus: 0, rowMinus: 0, rowPlus: 0 }
+  const dir = a.depthDir
+  if (!dir) return ext
+  const add = (d: DepthDir, cells: number): void => {
+    if (cells <= 0) return
+    const { dc, dr } = DEPTH_CELL_STEP[d]
+    if (dc > 0) ext.colPlus += cells
+    else if (dc < 0) ext.colMinus += cells
+    if (dr > 0) ext.rowPlus += cells
+    else if (dr < 0) ext.rowMinus += cells
+  }
+  add(dir, Math.max(0, Math.floor(a.depth ?? 1) - 1)) // primary FORWARD (depth incl. anchor)
+  add(rotateDepthDir(dir, 2), Math.max(0, Math.floor(a.depthBack ?? 0))) // primary BACK (opposite)
+  const perp = rotateDepthDir(dir, 1)
+  add(perp, Math.max(0, Math.floor(a.depthPerp ?? 0))) // perpendicular FORWARD
+  add(rotateDepthDir(perp, 2), Math.max(0, Math.floor(a.depthPerpBack ?? 0))) // perpendicular BACK
+  return ext
+}
+
 /** How much a depth box reaches TOWARD the camera (in col+row units) past its anchor — the FRONTMOST covered
  *  cell's (col+row) minus the anchor's. Approaching dirs (+col/+row) reach (D−1) closer; receding dirs
  *  (−col/−row) reach 0 (the anchor stays the frontmost). Added to the iso depth-sort key so a box that

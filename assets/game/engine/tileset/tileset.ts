@@ -158,6 +158,15 @@ export interface CompositionCellSettings {
    *  copies it onto the asset's `depthDir`, ROTATED by the building's rotation so an east/west building's roof
    *  spans the correct grid axis. Absent → no directional depth (a plain cube). */
   depthDir?: DepthDir
+  /** BIDIRECTIONAL z-width (#58): extra cells this SAME cell spans BACKWARD (opposite `depthDir`) from its anchor,
+   *  so ONE roof/deck cell covers a footprint both ways — a 4-cell roof authored as 1 tile. stampComposition
+   *  copies it onto the placed asset's `depthBack`. Absent/0 → today's one-way span. */
+  depthBack?: number
+  /** 2-AXIS z-width ("two sides at the same time"): cells this cell ALSO spans along the PERPENDICULAR axis —
+   *  forward (`depthPerp`) + back (`depthPerpBack`). With `depth`/`depthBack` this makes the cell a RECTANGLE
+   *  (a 2×2 roof deck authored as 1 tile). stampComposition copies both onto the placed asset. Absent/0 = a line. */
+  depthPerp?: number
+  depthPerpBack?: number
   display?: TileDisplay
   /** the SOLID this cell's tile renders as ('square' cube default, 'circle' ball) — stampComposition copies it
    *  onto the placed asset's `shape`, so a composition can ship a default shape (a lamp globe = a circle cell). */
