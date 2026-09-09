@@ -1,5 +1,4 @@
 import {
-  isWalkable,
   autotileLabel,
   isGroundContact,
   TREE_MASS_FAMILY,
@@ -26,48 +25,17 @@ describe('isGroundContact — only the BOTTOM cell of a tree/column (where the s
   })
 })
 
-describe('cellLabels — per-label collision (isWalkable)', () => {
-  it('blocks all solid tree parts (only the reserved tree_leaf_top stays walkable)', () => {
-    // tree_leaf_top remains walkable in the vocabulary for a FUTURE overhead-canopy
-    // layer, but the generator no longer emits it — glade trees are capped by a
-    // SOLID tree_crown so the whole tree blocks.
-    expect(isWalkable('tree_leaf_top')).toBe(true)
-    const blockingTreeParts: CellLabel[] = ['tree_stem_bottom', 'tree_stem', 'tree_leaf', 'tree_crown', 'tree_snag']
-    for (const label of blockingTreeParts) {
-      expect(isWalkable(label)).toBe(false)
-    }
-  })
-
-  it('blocks every 9-piece tree-mass cell (canopy is solid)', () => {
-    const massLabels: CellLabel[] = [
-      'tree_top_left',
-      'tree_top',
-      'tree_top_right',
-      'tree_edge_left',
-      'tree_interior',
-      'tree_edge_right',
-      'tree_bottom_left',
-      'tree_bottom',
-      'tree_bottom_right',
-    ]
-    for (const label of massLabels) {
-      expect(isWalkable(label)).toBe(false)
-    }
-  })
-
-  it('makes ONLY the top roof tile walkable among building parts (buildings are solid)', () => {
-    expect(isWalkable('roof_top')).toBe(true)
-    // doors block too now — a building is solid like a tree until interiors arrive
-    const blockingBuildingParts: CellLabel[] = ['roof', 'wall', 'window', 'door']
-    for (const label of blockingBuildingParts) {
-      expect(isWalkable(label)).toBe(false)
-    }
-  })
-
-  it('treats an unknown label as blocking (fail-safe collision)', () => {
-    expect(isWalkable('totally_unknown_label')).toBe(false)
-  })
-})
+// PER-LABEL COLLISION IS GONE, and so is the group that tested it.
+//
+// `isWalkable(label)` was removed from `cellLabels.ts` on 2026-09-06, and its own note says why: it
+// hardcoded a walkability table in the frontend, it claimed a ROOF was walkable (which the combat spec
+// forbids — Alexander: *"roof should have collissions"*), and it duplicated data the backend already owns
+// and serves as `tiles.blocking` and `composition_cells.walkable`. It had no runtime callers.
+//
+// So there is nothing here to re-point at: the question "is this label walkable?" is not one the frontend
+// answers any more. Collision now rides on the placed tile, is per-view, and is covered by the collision
+// and composition suites. `isGroundContact`, `autotileLabel` and `TREE_MASS_FAMILY` are still real and
+// still tested above.
 
 describe('cellLabels — autotile labeler (9-piece, 8-neighbour)', () => {
   // 3×3 solid block: the center is interior, corners/edges are the 9 pieces.

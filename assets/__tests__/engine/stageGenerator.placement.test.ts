@@ -1,7 +1,7 @@
 import '@/__tests__/helpers/installTilesetSeed' // the walkable opening is READ from the loaded composition's door span
 import { generateStage, treeColumnClearsPaving, doorCells } from '@/engine/stageGenerator'
 import { planVillage, type Plot } from '@/engine/villageLayout'
-import { BUILDING_DEPTH, buildingDoorOffset } from '@/engine/buildingCatalog'
+import { BACKEND_BUILDING_SIZES, buildingDepth, buildingDoorOffset } from '@/engine/buildingCatalog'
 
 // A deterministic LCG so the same seed reproduces the SAME layout in both the generator (via the
 // Math.random stub) and the standalone planVillage call we assert against.
@@ -31,7 +31,11 @@ function genWithSeed(settlement: 'town' | 'city', seed: number, dim = COLS) {
   Math.random = seeded(seed)
   try {
     const stage = generateStage({ zone: 'spring', variant: settlement, cols: dim, rows: dim })
-    const layout = planVillage(dim, dim, seeded(seed), settlement)
+    // `sizes` is the 4th argument. When `planVillage` gained it this call was not updated, so the
+    // settlement string landed in the sizes slot and the planner called `.lengthOf()` on it. Passing the
+    // real backend-backed sizes is also what the assertions below need: plot widths come from the loaded
+    // compositions, not from a table.
+    const layout = planVillage(dim, dim, seeded(seed), BACKEND_BUILDING_SIZES, settlement)
     return { stage, layout }
   } finally {
     Math.random = realRandom
@@ -78,7 +82,7 @@ describe('settlement building placement (consumer matches planner contract)', ()
       //     single walkable door, and the footprint depth is the composition's baked (small) depth.
       for (const b of stage.buildings) {
         const horizontal = b.facing === 'south' || b.facing === 'north'
-        expect(horizontal ? b.height : b.length).toBe(BUILDING_DEPTH[b.type]) // perpendicular span = depth
+        expect(horizontal ? b.height : b.length).toBe(buildingDepth(b.type, b.length)) // perpendicular span = depth
         const top = b.row - (b.height - 1)
         let blocked = 0
         for (let r = top; r <= b.row; r++) {

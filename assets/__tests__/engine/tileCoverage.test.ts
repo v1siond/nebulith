@@ -13,8 +13,8 @@
  * the stage generator / catalog / combat can emit resolves to `kind: 'image'`. Each `it` collects
  * the gaps into a list and asserts it is empty, so a RED run prints the full authoritative gap set.
  *
- * Enumerations are pulled from the real sources (CELL_LABELS, ZONE_PALETTES, MULTI_CELL_ASSETS,
- * ABILITY_TINT, the backend entity resolution, enemyTileId) — not a guessed subset. The handful that
+ * Enumerations are pulled from the real sources (CELL_LABELS, ZONE_PALETTES, ABILITY_TINT, the backend
+ * entity resolution, enemyTileId) — not a guessed subset. The handful that
  * cannot be imported (inline `type:` string literals in stageGenerator, the projectile glyphs that
  * are private to combat.ts) are listed verbatim with a source citation.
  */
@@ -39,7 +39,6 @@ import { glyphImageVisual } from '@/engine/render/shared'
 
 import { CELL_LABELS } from '@/engine/cellLabels'
 import { ZONE_PALETTES } from '@/engine/zones'
-import { MULTI_CELL_ASSETS } from '@/engine/multiCellAssets'
 import { ABILITY_TINT } from '@/game/abilities'
 // The entity resolution the runtime installs from `/api/entities` — a captured fixture of that endpoint's
 // payload (the shape EntitySource serves), installed the SAME way the loader installs it.
@@ -84,9 +83,10 @@ const ASSET_TYPES: string[] = [
   'decoration', 'crate', 'lantern', 'npc', 'water', 'bush',
 ]
 
-// Every cell LABEL (CELL_LABELS covers tree_*, roof/wall/door/window, mountain/peak/spill), plus
-// the multi-cell asset ids that stampAsset writes as a structure `label`.
-const MULTICELL_LABELS: string[] = MULTI_CELL_ASSETS.map(a => a.id)
+// The MULTI-CELL enumeration is gone with the table it read. `MULTI_CELL_ASSETS` was a hardcoded frontend
+// asset list, retired when compositions moved to the backend, and the `structure` asset type went with it —
+// nothing in production emits one. A composition places per-cell TILES now, and every one of those labels is
+// already covered by the CELL_LABELS check below.
 
 // Every ground TYPE string that lands in ground[][]: the zone palettes' groundTypes + hazards,
 // plus the explicit floors the archetypes paint (grep-verified from stageGenerator.ts).
@@ -125,13 +125,6 @@ describe('tile coverage guardrail — every world identifier resolves to an IMAG
     const gaps = (CELL_LABELS as readonly string[])
       .filter(label => !resolvesToImage(assetKind({ type: 'feature', label })))
       .map(label => `${label} → ${assetKind({ type: 'feature', label })}`)
-    expect(gaps).toEqual([])
-  })
-
-  it('every MULTI-CELL asset (structure label) resolves to an image', () => {
-    const gaps = MULTICELL_LABELS
-      .filter(label => !resolvesToImage(assetKind({ type: 'structure', label })))
-      .map(label => `${label} → ${assetKind({ type: 'structure', label })}`)
     expect(gaps).toEqual([])
   })
 

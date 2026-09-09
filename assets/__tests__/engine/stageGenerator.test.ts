@@ -2,7 +2,7 @@ import { styleCatalog, styleTile } from '@/engine/tileset/styleTiles'
 import '@/__tests__/helpers/installTilesetSeed' // the generator reads ALL tile data (terrain/canopy/decor) + building compositions from the loaded backend tileset fixture
 import { installSeedTileset } from '@/__tests__/helpers/tilesetSeed'
 import { generateStage, stagePaint, footprintEdgeClass, footprintSide, footprintRing, edgeToSide, treeSubpart, labelForCell, pickLivingTree } from '@/engine/stageGenerator'
-import { BUILDING_DEPTH, buildingDoorOffset } from '@/engine/buildingCatalog'
+import { buildingDepth, buildingDoorOffset } from '@/engine/buildingCatalog'
 import { parseColor } from '@/engine/colors'
 import { resolveGroundTile, canopyCount, resolveComposition } from '@/engine/tileset/tileset'
 
@@ -68,7 +68,7 @@ describe('generateStage — town vertical slice', () => {
       // A building is a COMPOSITION now: it names its kind (house_4 / store_5 / …) and its footprint DEPTH
       // matches the composition's baked depth (small ground, not a tall facade).
       expect(b.kind).toMatch(/^(house|big_house|store|hospital|temple|cathedral|castle)_\d+$/)
-      expect(b.depth).toBe(BUILDING_DEPTH[b.type])
+      expect(b.depth).toBe(buildingDepth(b.type, b.length))
       // The opening matches the composition's OWN door span (G7) — an odd facade bakes 1 door column, an
       // even one a centred 2-wide doorway — so it is read, never assumed to be 1.
       expect(b.doorCells).toHaveLength(buildingDoorOffset(b.kind)?.width ?? 0)
@@ -120,7 +120,7 @@ describe('generateStage — a building reserves a small width×depth footprint (
     for (const b of stage.buildings) {
       const doors = new Set(b.doorCells.map(d => `${d.col},${d.row}`))
       const horizontal = b.facing === 'south' || b.facing === 'north'
-      expect(horizontal ? b.height : b.length).toBe(BUILDING_DEPTH[b.type]) // small ground depth
+      expect(horizontal ? b.height : b.length).toBe(buildingDepth(b.type, b.length)) // small ground depth
       for (const { col, row } of footprintCells(b)) {
         const walkable = doors.has(`${col},${row}`)
         expect(stage.collision[row][col]).toBe(!walkable)
