@@ -296,13 +296,40 @@ describe('villageLayout — reserves a central town SQUARE before houses', () =>
 })
 
 describe('villageLayout — house footprints vary in size', () => {
-  it('gives houses varied widths (2..n blocks), including small cottages', () => {
+  // The weighting the BACKEND serves as `settlement.houseWidths`. It used to be a `HOUSE_WIDTHS` constant
+  // in villageLayout — an exact duplicate of this served list, which was parsed and then ignored. The
+  // planner reads the served one now, so the variety is an INPUT and the test supplies it, exactly as a
+  // generate does.
+  const SERVED_HOUSE_WIDTHS = [3, 3, 4, 4, 4, 5]
+
+  it('gives houses varied widths from the served weighting, including small cottages', () => {
     const widths = new Set<number>()
     for (let s = 1; s <= 20; s++) {
-      const layout = planVillage(60, 44, seededRng(s), SIZES, 'town')
+      const layout = planVillage(60, 44, seededRng(s), SIZES, 'town', SERVED_HOUSE_WIDTHS)
       for (const p of layout.plots) if (p.type === 'house') widths.add(p.length)
     }
     expect(widths.size).toBeGreaterThan(1) // not all the same width
     expect(Math.min(...[...widths])).toBeLessThanOrEqual(3) // small cottages exist
+  })
+
+  it('plants ONE default width when no weighting is served — it invents no variety of its own', () => {
+    // Alexander, 2026-09-09: *"we don't need anything hardcoded in frontend other than default values and
+    // the necessary code to randomize data."* With nothing served there is nothing to randomize FROM, and
+    // the honest result is the default size rather than a spread this file made up.
+    const widths = new Set<number>()
+    for (let s = 1; s <= 8; s++) {
+      const layout = planVillage(60, 44, seededRng(s), SIZES, 'town')
+      for (const p of layout.plots) if (p.type === 'house') widths.add(p.length)
+    }
+    expect(widths.size).toBe(1)
+  })
+
+  it('rolls only widths the weighting offers — never one it was not given', () => {
+    for (let s = 1; s <= 12; s++) {
+      const layout = planVillage(60, 44, seededRng(s), SIZES, 'town', SERVED_HOUSE_WIDTHS)
+      for (const p of layout.plots) {
+        if (p.type === 'house') expect(SERVED_HOUSE_WIDTHS).toContain(p.length)
+      }
+    }
   })
 })

@@ -67,7 +67,13 @@ describe('generateStage — town vertical slice', () => {
     for (const b of stage.buildings) {
       // A building is a COMPOSITION now: it names its kind (house_4 / store_5 / …) and its footprint DEPTH
       // matches the composition's baked depth (small ground, not a tall facade).
-      expect(b.kind).toMatch(/^(house|big_house|store|hospital|temple|cathedral|castle)_\d+$/)
+      // The kind names the composition this plot needs. Two spellings are legitimate now:
+      //   `house_4`   — an AUTHORED composition, the shape before /api/buildings existed
+      //   `house@4x4` — one COMPOSED to the footprint the plot rolled
+      // Alexander, 2026-09-09: *"we randomize the footprint and house adapts to it."* The second form is
+      // what a generate produces once the backend has answered; this test's generate has no backend, so it
+      // gets the first. Both are asserted so neither path can drift into a name nothing can resolve.
+      expect(b.kind).toMatch(/^(house|big[-_]house|store|hospital|office|temple|cathedral|castle)([_]\d+|@\d+x\d+)$/)
       expect(b.depth).toBe(buildingDepth(b.type, b.length))
       // The opening matches the composition's OWN door span (G7) — an odd facade bakes 1 door column, an
       // even one a centred 2-wide doorway — so it is read, never assumed to be 1.

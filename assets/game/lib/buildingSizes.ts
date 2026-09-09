@@ -77,7 +77,19 @@ export async function fetchBuildingTypes(): Promise<BuildingTypeCatalog> {
  * composed kind can never collide with an authored one.
  */
 export function composedKind(type: string, size: Footprint): string {
-  return `${type}@${size.w}x${size.h}`
+  return `${backendTypeKey(type)}@${size.w}x${size.h}`
+}
+
+/**
+ * The BACKEND's spelling of a building type.
+ *
+ * The frontend's `BuildingType` uses hyphens (`big-house`); the backend's keys use underscores
+ * (`big_house`), and it documents that convention itself — *"keyed by type_length (hyphens in the type
+ * become underscores)"*. One place converts, so a plan naming `big-house` still finds the composition that
+ * was pre-composed under `big_house` instead of silently placing nothing.
+ */
+export function backendTypeKey(type: string): string {
+  return type.replace(/-/g, '_')
 }
 
 /**
@@ -143,4 +155,103 @@ export async function composeBuilding(
     ...(typeof data.title === 'string' ? { title: data.title } : {}),
   } as never)
   return kind
+}
+
+/**
+ * A `BuildingSizes` backed by the BACKEND's default footprints.
+ *
+ * Alexander, 2026-09-09: *"user will specify the size or we'd use the default one. For randomizers, we
+ * randomize the footprint and house adapts to it … even the footprint should come from backend, then
+ * frontend draws."* So the generator rolls around these numbers and the building is composed to fit
+ * whatever it rolls — nothing snaps to an authored size.
+ *
+ * Undefined until `/api/buildings` has answered, and the planner then keeps using the composition-backed
+ * source. That is not a fallback in the forbidden sense: it is the OLD behaviour, unchanged, for the window
+ * before the backend has spoken.
+ */
+export function buildingSizeSource(catalog: BuildingTypeCatalog): {
+  depthOf: (type: string, length: number) => number | null
+  lengthOf: (type: string) => number | null
+  defaultOf: (type: string) => Footprint | null
+} | undefined {
+  if (catalog.types.length === 0) return undefined
+  const byKey = new Map(catalog.types.map(t => [t.key, t]))
+  // Looked up by the BACKEND's spelling — see `backendTypeKey`.
+  const defaultOf = (type: string) => byKey.get(backendTypeKey(type))?.default ?? null
+  return {
+    defaultOf,
+    lengthOf: (type: string) => defaultOf(type)?.w ?? null,
+    depthOf: (type: string) => defaultOf(type)?.h ?? null,
+  }
+}
+
+/**
+ * Install every composition a generated stage names, so the synchronous stamp can find them.
+ *
+ * The generator plans first and stamps second, which is the seam this uses: by the time a stage exists it
+ * has already decided each building's footprint and named the composition for it, so the names can be
+ * collected and fetched before anything is placed.
+ *
+ * DISTINCT kinds only, and `composeBuilding` returns early for one already in the catalog — so a town of
+ * eighteen buildings is a handful of requests, and a re-generate at the same sizes is none. A kind that
+ * fails to compose is warned about and skipped: the stamp then places nothing for that plot, which is the
+ * correct outcome for a building the backend could not lay out.
+ */
+export async function installComposedBuildings(
+  stage: { buildings: readonly { kind: string }[] },
+  styleId: string,
+): Promise<void> {
+  const wanted = new Map<string, Footprint>()
+  for (const building of stage.buildings) {
+    const size = sizeOfComposedKind(building.kind)
+    if (size) wanted.set(building.kind, size)
+  }
+  await Promise.all(
+    [...wanted].map(([kind, size]) =>
+      composeBuilding(styleId, typeOfComposedKind(kind), size).catch((err: unknown) =>
+        console.warn(`[buildings] the stage wants ${kind} and the backend could not compose it`, err),
+      ),
+    ),
+  )
+}
+
+/**
+ * Install every footprint a GENERATE could plan, before it plans.
+ *
+ * The ordering problem this solves: `generateStage` reads each building's composition while planning, to
+ * learn its real DOOR SPAN — so composing after the plan is too late, and the generator correctly warns
+ * that it is "opening a GUESSED 1-cell entrance". But the kinds are not known until the plan exists,
+ * because they depend on the footprints it rolls.
+ *
+ * The way out is that the rolls are not arbitrary: `plotWidth` picks a house width from the SERVED
+ * `houseWidths` and every other type takes its served default. So the set of footprints a generate could
+ * possibly want is enumerable up front — a handful, about ten for a town — and composing them first makes
+ * the generate single-pass, deterministic and warning-free.
+ *
+ * Failures are warned and skipped, never thrown: one type the backend cannot lay out must not stop a whole
+ * world from generating.
+ */
+export async function installPlannableBuildings(
+  styleId: string,
+  catalog: BuildingTypeCatalog,
+  houseWidths: readonly number[] = [],
+): Promise<void> {
+  if (catalog.types.length === 0) return
+  const wanted = new Map<string, { type: string; size: Footprint }>()
+  const want = (type: string, size: Footprint) => wanted.set(composedKind(type, size), { type, size })
+
+  for (const { key, default: size } of catalog.types) {
+    want(key, size)
+    // A house is the one type the settlement config re-weights, so its widths come from there — at the
+    // type's own default depth, which is what `plotDepth` uses.
+    if (key === 'house') for (const w of new Set(houseWidths)) want(key, { w, h: size.h })
+  }
+
+  await Promise.all(
+    [...wanted.values()].map(({ type, size }) =>
+      composeBuilding(styleId, type, size).catch((err: unknown) =>
+        console.warn(`[buildings] could not pre-compose a ${size.w}x${size.h} ${type}`, err),
+      ),
+    ),
+  )
 }

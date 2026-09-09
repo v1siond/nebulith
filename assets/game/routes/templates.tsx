@@ -86,7 +86,7 @@ import { describeSaveState } from '@/game/editor/saveState'
 import { useDayNight, useFloatingPanels, useGeneratorCatalog, useInspectorSections, useIsMobile, usePlayerViewRange, useSaveState } from '@/components/game/editorHooks'
 import { findGenerator, rollGridSize, type GeneratorBuildings, type GeneratorCatalog, type GeneratorDef } from '@/lib/generatorCatalog'
 import { clampMapSize, type MapSize } from '@/lib/mapSize'
-import { composeBuilding, fetchBuildingTypes, EMPTY_BUILDING_TYPES, type BuildingTypeCatalog } from '@/lib/buildingSizes'
+import { buildingSizeSource, composeBuilding, fetchBuildingTypes, installComposedBuildings, installPlannableBuildings, EMPTY_BUILDING_TYPES, type BuildingTypeCatalog } from '@/lib/buildingSizes'
 import { applyStageToGrid } from '@/game/editor/applyStage'
 import { makeRng } from '@/lib/math'
 import { RulesWorkspace } from '@/components/game/rulesWorkspace'
@@ -939,10 +939,19 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
    * until then — a type list the frontend guessed at would be the hardcoding this replaced.
    */
   const [buildingTypes, setBuildingTypes] = useState<BuildingTypeCatalog>(EMPTY_BUILDING_TYPES)
+  /**
+   * The same list, in a ref, because the GENERATE path is not a render.
+   *
+   * `win.__genStage` is installed in a mount-time effect, so it closed over the EMPTY list forever: a
+   * generate through the dev seam planned its plots from no backend sizes at all and silently fell back to
+   * the baked ones. The file already keeps `generatorCatalogRef` for exactly this reason — anything the
+   * generate reads has to be reachable without a re-render.
+   */
+  const buildingTypesRef = useRef<BuildingTypeCatalog>(EMPTY_BUILDING_TYPES)
   useEffect(() => {
     let live = true
     fetchBuildingTypes()
-      .then(next => { if (live) setBuildingTypes(next) })
+      .then(next => { if (live) { setBuildingTypes(next); buildingTypesRef.current = next } })
       .catch((err: unknown) => console.warn('[buildings] could not load the composable types', err))
     return () => { live = false }
   }, [])
@@ -3400,7 +3409,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
    * without regenerating the map. Non-settlement archetypes (forest/cave/temple/boss) aren't
    * decomposed into layers, so any scope there re-rolls the whole archetype via its layout rng.
    */
-  const randomizeLayerInEditor = (layer: LayerId) => {
+  const randomizeLayerInEditor = async (layer: LayerId) => {
     const grid = gridRef.current
     const recipe = lastGenRef.current
     if (!grid) return
@@ -3416,8 +3425,29 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     lastGenRef.current = { ...recipe, seeds }
     if (layer === 'buildings' && isSettlement) buildingSaltRef.current = randSeed() // repaint the buildings
 
-    const full = generateStage({ zone: recipe.zone, variant: recipe.variant, layout: recipe.layout, cols: recipe.cols, rows: recipe.rows, seeds })
+    await installPlannableBuildings(activeStyleId, buildingTypesRef.current, generator.config.settlement?.houseWidths)
+    const full = generateStage({
+      zone: recipe.zone,
+      variant: recipe.variant,
+      layout: recipe.layout,
+      cols: recipe.cols,
+      rows: recipe.rows,
+      seeds,
+      // The re-roll must be fed the SAME served config as the original generate, or a re-rolled town
+      // would plan its plots from different numbers than the one it is replacing.
+      nature: generator.config.nature,
+      settlement: generator.config.settlement,
+      buildingSizes: buildingSizeSource(buildingTypesRef.current),
+    })
     const stage = layer === 'layout' && isSettlement ? stripToLayout(full) : full
+    // COMPOSE WHAT THE PLAN ROLLED, then stamp. The plan names a composition per building
+    // (`house@5x4`), and `stampComposition` resolves synchronously from the loaded catalog — so the
+    // footprints the generator invented have to exist before the stamp runs. This is the whole of what I
+    // wrongly called a blocker: the plan is produced BEFORE stamping, so there is a place to do it.
+    //
+    // Distinct kinds only, and the client skips anything already installed, so a town of 18 buildings is a
+    // handful of requests rather than eighteen.
+    await installComposedBuildings(stage, activeStyleId)
     applyStageToGrid(stage, grid, buildingSaltRef.current, generator.config.buildings)
     // Keep the player on walkable ground (new trees/plots may sit where they stood); entities stay put.
     const here = livePlayerCell()
@@ -3479,7 +3509,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     randomizeSelectedTiles(rand)
   }
 
-  const generateStageInEditor = (
+  const generateStageInEditor = async (
     zone: ZoneId,
     variant: VariantId,
     layout?: ForestLayout,
@@ -3543,7 +3573,35 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     // parsed into the catalog since T-113, but `generateStage` never took them, so `groundCover` was dead
     // data — the knob existed at both ends with nothing between. `nature.canopy` is what makes the
     // woodland layout a forest, so this is the wire that carries it.
-    const stage = generateStage({ zone, variant, layout, cols: grid.cols, rows: grid.rows, seeds, nature: generator.config.nature })
+    // EVERY FOOTPRINT A PLAN COULD WANT, INSTALLED FIRST. The generator reads a building's composition
+    // while planning — that is how it knows the real door span — so composing afterwards left it guessing
+    // a 1-cell entrance and saying so. The possible footprints are enumerable up front; see
+    // `installPlannableBuildings`.
+    await installPlannableBuildings(activeStyleId, buildingTypesRef.current, generator.config.settlement?.houseWidths)
+    const stage = generateStage({
+      zone,
+      variant,
+      layout,
+      cols: grid.cols,
+      rows: grid.rows,
+      seeds,
+      nature: generator.config.nature,
+      // The served settlement tuning — `houseWidths` is the plot-size weighting the town rolls from. Parsed
+      // since T-113 and never read until now, exactly like `nature.groundCover`.
+      settlement: generator.config.settlement,
+      // Footprints come from the BACKEND. Alexander, 2026-09-09: *"even the footprint should come from
+      // backend, then frontend draws."* Only supplied once /api/buildings has answered; before that the
+      // planner falls back to the baked sizes and a generate still works.
+      buildingSizes: buildingSizeSource(buildingTypesRef.current),
+    })
+    // COMPOSE WHAT THE PLAN ROLLED, then stamp. The plan names a composition per building
+    // (`house@5x4`), and `stampComposition` resolves synchronously from the loaded catalog — so the
+    // footprints the generator invented have to exist before the stamp runs. This is the whole of what I
+    // wrongly called a blocker: the plan is produced BEFORE stamping, so there is a place to do it.
+    //
+    // Distinct kinds only, and the client skips anything already installed, so a town of 18 buildings is a
+    // handful of requests rather than eighteen.
+    await installComposedBuildings(stage, activeStyleId)
     applyStageToGrid(stage, grid, buildingSaltRef.current, generator.config.buildings)
     movePlayerToValidSpawn(stage.spawn.col, stage.spawn.row)
     const live = livePlayerCell()

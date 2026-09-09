@@ -106,6 +106,16 @@ export interface BuildingSizes {
   depthOf(type: BuildingType, length: number): number | null
   /** The facade width the planner plants for this type. Null when nothing is loaded. */
   lengthOf(type: BuildingType): number | null
+  /**
+   * The type's DEFAULT footprint, straight off `/api/buildings`.
+   *
+   * Alexander, 2026-09-09: *"user will specify the size or we'd use the default one. For randomizers, we
+   * randomize the footprint and house adapts to it … even the footprint should come from backend, then
+   * frontend draws."* So a plot rolls a footprint and the building is composed to fit it; this is where
+   * the number it rolls around comes from. Absent → the planner falls back to the baked size, which is how
+   * a generate still works before `/api/buildings` has answered.
+   */
+  defaultOf?(type: BuildingType): { w: number; h: number } | null
 }
 
 // Realistic lot rules (subdivision design): a SETBACK (front-yard cells between the building and
@@ -125,11 +135,29 @@ const MAX_PER_FRONTAGE: Record<Settlement, number> = { town: 6, city: 99 }
 const BUILDING_CAP: Record<Settlement, number> = { town: 18, city: 72 }
 
 // House footprints stay modest + similar so a frontage reads as a TIDY ROW, not a jagged skyline.
-const HOUSE_WIDTHS = [3, 3, 4, 4, 4, 5]
-// The house WEIGHTING is generator tuning (a frontage should read as a tidy row), not footprint data — it moves
-// to the backend with the rest of the generator config. The SIZES it picks between are backend data already.
-const plotWidth = (type: BuildingType, rng: Rng, sizes: BuildingSizes): number | null =>
-  type === 'house' ? HOUSE_WIDTHS[Math.floor(rng() * HOUSE_WIDTHS.length)] : sizes.lengthOf(type)
+/**
+ * The facade width this plot rolls for a building.
+ *
+ * `HOUSE_WIDTHS = [3, 3, 4, 4, 4, 5]` used to live here, and the backend has been serving that exact list
+ * as `settlement.houseWidths` all along — parsed into `GeneratorSettlement` and then ignored, the same
+ * dead-served-data trap `nature.groundCover` was in. It is read now, so re-weighting a town's houses is a
+ * data change rather than an edit here.
+ *
+ * Alexander, 2026-09-09: *"we randomize the footprint and house adapts to it … even the footprint should
+ * come from backend."* Which is what this is: the numbers are the backend's, the roll is the generator's,
+ * and the building is composed to whatever comes out.
+ *
+ * Order of preference, with no invented values anywhere: the served weighting → the type's served default
+ * → the baked size. Null only when NONE of them is available, which the planner reads as "skip".
+ */
+const plotWidth = (type: BuildingType, rng: Rng, sizes: BuildingSizes, widths?: readonly number[]): number | null => {
+  if (type === 'house' && widths && widths.length > 0) return widths[Math.floor(rng() * widths.length)]
+  return sizes.defaultOf?.(type)?.w ?? sizes.lengthOf(type)
+}
+
+/** The plot's depth — the served default, else the baked composition's own. */
+const plotDepth = (type: BuildingType, len: number, sizes: BuildingSizes): number | null =>
+  sizes.defaultOf?.(type)?.h ?? sizes.depthOf(type, len)
 
 /**
  * STEP 2 — the building MIX: ALWAYS one store + one hospital (every settlement has them), plus
@@ -310,7 +338,7 @@ export function planPlaza(cols: number, rows: number, roads: boolean[][], settle
  * rest fill as houses; where an essential doesn't fit a spot, a house fills it instead so rows never
  * starve. rectClear skips cells over cross-streets, so rows break cleanly at intersections. Pure.
  */
-export function placePlots(roads: boolean[][], frontages: Frontage[], cols: number, rows: number, rng: Rng, settlement: Settlement, sizes: BuildingSizes, reserved: PlazaRect | null = null): Plot[] {
+export function placePlots(roads: boolean[][], frontages: Frontage[], cols: number, rows: number, rng: Rng, settlement: Settlement, sizes: BuildingSizes, reserved: PlazaRect | null = null, houseWidths?: readonly number[]): Plot[] {
   const plots: Plot[] = []
   if (frontages.length === 0) return plots
   const occ = roads.map(r => r.slice())
@@ -342,8 +370,8 @@ export function placePlots(roads: boolean[][], frontages: Frontage[], cols: numb
     for (const type of ['store', 'hospital'] as BuildingType[]) {
       let guard = 0
       while (pos + 2 <= topSouth.hi && guard++ < 1000) {
-        const len = plotWidth(type, rng, sizes)
-        const depth = len === null ? null : sizes.depthOf(type, len)
+        const len = plotWidth(type, rng, sizes, houseWidths)
+        const depth = len === null ? null : plotDepth(type, len, sizes)
         if (len === null || depth === null) break // no backend size for this type — never invent one
         const foot = footprint(topSouth, pos, len, depth)
         const reserve = expandRect(foot, 1)
@@ -379,8 +407,8 @@ export function placePlots(roads: boolean[][], frontages: Frontage[], cols: numb
       const tryTypes: BuildingType[] = want ? [want, 'house'] : ['house']
       let placed = false
       for (const type of tryTypes) {
-        const len = plotWidth(type, rng, sizes)
-        const depth = len === null ? null : sizes.depthOf(type, len)
+        const len = plotWidth(type, rng, sizes, houseWidths)
+        const depth = len === null ? null : plotDepth(type, len, sizes)
         if (len === null || depth === null) continue // no backend size for this type — never invent one
         const foot = footprint(f, pos, len, depth)
         // Reserve the footprint + a 1-cell margin on every side (the road-side cell is the setback
@@ -405,9 +433,9 @@ export function placePlots(roads: boolean[][], frontages: Frontage[], cols: numb
 
 /** Compose the steps: road GRID → reserve the central SQUARE → fill frontages with rows of lots
  *  AROUND the square. The pipeline the generator stamps (it paves the square + drops ONE fountain). */
-export function planVillage(cols: number, rows: number, rng: Rng, sizes: BuildingSizes, settlement: Settlement = 'town'): VillageLayout {
+export function planVillage(cols: number, rows: number, rng: Rng, sizes: BuildingSizes, settlement: Settlement = 'town', houseWidths?: readonly number[]): VillageLayout {
   const { roads, frontages, entrances } = planRoads(cols, rows, rng, settlement)
   const plaza = planPlaza(cols, rows, roads, settlement)
-  const plots = placePlots(roads, frontages, cols, rows, rng, settlement, sizes, plaza)
+  const plots = placePlots(roads, frontages, cols, rows, rng, settlement, sizes, plaza, houseWidths)
   return { roads, plots, entrances, plaza }
 }
