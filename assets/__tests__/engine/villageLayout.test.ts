@@ -305,7 +305,7 @@ describe('villageLayout — house footprints vary in size', () => {
   it('gives houses varied widths from the served weighting, including small cottages', () => {
     const widths = new Set<number>()
     for (let s = 1; s <= 20; s++) {
-      const layout = planVillage(60, 44, seededRng(s), SIZES, 'town', SERVED_HOUSE_WIDTHS)
+      const layout = planVillage(60, 44, seededRng(s), SIZES, 'town', { houseWidths: SERVED_HOUSE_WIDTHS })
       for (const p of layout.plots) if (p.type === 'house') widths.add(p.length)
     }
     expect(widths.size).toBeGreaterThan(1) // not all the same width
@@ -326,10 +326,56 @@ describe('villageLayout — house footprints vary in size', () => {
 
   it('rolls only widths the weighting offers — never one it was not given', () => {
     for (let s = 1; s <= 12; s++) {
-      const layout = planVillage(60, 44, seededRng(s), SIZES, 'town', SERVED_HOUSE_WIDTHS)
+      const layout = planVillage(60, 44, seededRng(s), SIZES, 'town', { houseWidths: SERVED_HOUSE_WIDTHS })
       for (const p of layout.plots) {
         if (p.type === 'house') expect(SERVED_HOUSE_WIDTHS).toContain(p.length)
       }
     }
+  })
+})
+
+describe('the SERVED settlement tuning wins over this file\'s defaults', () => {
+  // Alexander, 2026-09-09: *"we don't need anything hardcoded in frontend other than default values and
+  // the necessary code to randomize data, everything else is backend driven."* Nine numbers in
+  // villageLayout had a hand-kept twin in `settlement` on /api/generators — houseWidths was the first one
+  // traced, and it was being parsed and ignored. These prove the served value is the one that lands.
+  const seed = () => seededRng(5)
+
+  it('PREFERS the served plaza size — the compact 5 is the fallback when it will not fit', () => {
+    // `planPlaza` tries [served, 5] in that order, by design: a grand square that does not fit the road
+    // grid becomes a modest one rather than nothing. So the assertion is that the served size is what it
+    // REACHES FOR, not that it always lands.
+    const served = planVillage(60, 44, seed(), SIZES, 'town', { plazaSize: 7 })
+    expect(served.plaza?.size).toBeDefined()
+    expect([7, 5]).toContain(served.plaza?.size)
+    const bigger = planVillage(90, 90, seed(), SIZES, 'town', { plazaSize: 9 })
+    expect(bigger.plaza?.size).toBe(9) // room to fit it, so the served size lands
+  })
+
+  it('takes the building cap from the served config', () => {
+    const tight = planVillage(60, 44, seed(), SIZES, 'town', { buildingCap: 3 })
+    expect(tight.plots.length).toBeLessThanOrEqual(3)
+  })
+
+  it('takes the per-frontage limit from the served config', () => {
+    const one = planVillage(60, 44, seed(), SIZES, 'town', { maxPerFrontage: 1 })
+    const many = planVillage(60, 44, seed(), SIZES, 'town', { maxPerFrontage: 99 })
+    expect(one.plots.length).toBeLessThan(many.plots.length)
+  })
+
+  it('takes the road width from the served config', () => {
+    const wide = planVillage(60, 44, seed(), SIZES, 'town', { roadWidth: 8 })
+    const narrow = planVillage(60, 44, seed(), SIZES, 'town', { roadWidth: 2 })
+    const paved = (l: ReturnType<typeof planVillage>) => l.roads.flat().filter(Boolean).length
+    expect(paved(wide)).toBeGreaterThan(paved(narrow))
+  })
+
+  it('falls back to a default for anything the config omits — a partial block is fine', () => {
+    // The served block is read field by field, so a generator stating only one number still works: the
+    // other eight come from this file's defaults rather than being undefined.
+    const partial = planVillage(60, 44, seed(), SIZES, 'town', { buildingCap: 4 })
+    expect(partial.plots.length).toBeLessThanOrEqual(4)
+    expect(partial.plaza).not.toBeNull()
+    expect(partial.roads.flat().filter(Boolean).length).toBeGreaterThan(0)
   })
 })

@@ -118,7 +118,7 @@ export interface BuildingSizes {
   defaultOf?(type: BuildingType): { w: number; h: number } | null
 }
 
-// Realistic lot rules (subdivision design): a SETBACK (front-yard cells between the building and
+// Realistic lot rules (subdivision design): a setback (front-yard cells between the building and
 // the street) and a LOT_GAP (side-yard cells between neighbours). The door faces the road across
 // the setback; a driveway crosses it (stamped by the generator).
 const SETBACK = 1
@@ -133,6 +133,61 @@ const LOT_GAP_BY: Record<Settlement, [number, number]> = {
 }
 const MAX_PER_FRONTAGE: Record<Settlement, number> = { town: 6, city: 99 }
 const BUILDING_CAP: Record<Settlement, number> = { town: 18, city: 72 }
+
+/**
+ * THE SETTLEMENT TUNING THE BACKEND SERVES.
+ *
+ * Every field above is also a value in `settlement` on `/api/generators` — `plazaSize`, `setback`,
+ * `roadWidth`, `lotGap`, `maxPerFrontage`, `buildingCap`, `houseRange`, `bigHouseRange`, `houseWidths` —
+ * and until now the frontend kept its own copy of each and read that instead. `houseWidths` was the first
+ * one traced (it duplicated the served list exactly); these are the rest of the same family.
+ *
+ * Alexander, 2026-09-09: *"we don't need anything hardcoded in frontend other than default values and the
+ * necessary code to randomize data, everything else is backend driven."* So the constants above stay, as
+ * DEFAULTS, and the served value wins wherever there is one. That keeps a generate working before
+ * `/api/generators` answers and keeps every existing test calling `planVillage` without config valid,
+ * while making a town's tuning a data change rather than an edit in this file.
+ */
+export interface SettlementTuning {
+  plazaSize?: number
+  setback?: number
+  roadWidth?: number
+  lotGap?: readonly [number, number]
+  maxPerFrontage?: number
+  buildingCap?: number
+  houseRange?: readonly [number, number]
+  bigHouseRange?: readonly [number, number]
+  houseWidths?: readonly number[]
+}
+
+/** The tuning with every value settled — served first, this file's default second. */
+interface Tuning {
+  plazaSize: number
+  setback: number
+  roadWidth: number
+  lotGap: readonly [number, number]
+  maxPerFrontage: number
+  buildingCap: number
+  houseRange: readonly [number, number]
+  bigHouseRange: readonly [number, number]
+  houseWidths: readonly number[]
+}
+
+function resolveTuning(settlement: Settlement, served?: SettlementTuning): Tuning {
+  return {
+    plazaSize: served?.plazaSize ?? PLAZA_SIZE[settlement],
+    setback: served?.setback ?? SETBACK,
+    roadWidth: served?.roadWidth ?? ROAD_W,
+    lotGap: served?.lotGap ?? LOT_GAP_BY[settlement],
+    maxPerFrontage: served?.maxPerFrontage ?? MAX_PER_FRONTAGE[settlement],
+    buildingCap: served?.buildingCap ?? BUILDING_CAP[settlement],
+    houseRange: served?.houseRange ?? HOUSE_RANGE[settlement],
+    bigHouseRange: served?.bigHouseRange ?? BIG_RANGE[settlement],
+    // No default: with nothing served there is nothing to randomize FROM, and `plotWidth` then takes the
+    // type's own default size rather than a spread invented here.
+    houseWidths: served?.houseWidths ?? [],
+  }
+}
 
 // House footprints stay modest + similar so a frontage reads as a TIDY ROW, not a jagged skyline.
 /**
@@ -163,11 +218,11 @@ const plotDepth = (type: BuildingType, len: number, sizes: BuildingSizes): numbe
  * STEP 2 — the building MIX: ALWAYS one store + one hospital (every settlement has them), plus
  * houses + big buildings scaled by size, shuffled so a street isn't a fixed order. Pure.
  */
-export function buildingMix(settlement: Settlement, rng: Rng): BuildingType[] {
+export function buildingMix(settlement: Settlement, rng: Rng, tuning: Tuning = resolveTuning(settlement)): BuildingType[] {
   const rest: BuildingType[] = []
-  const [hl, hh] = HOUSE_RANGE[settlement]
+  const [hl, hh] = tuning.houseRange
   for (let i = randInt(rng, hl, hh); i > 0; i--) rest.push('house')
-  const [bl, bh] = BIG_RANGE[settlement]
+  const [bl, bh] = tuning.bigHouseRange
   for (let i = randInt(rng, bl, bh); i > 0; i--) rest.push('big-house')
   for (let i = rest.length - 1; i > 0; i--) {
     const j = Math.floor(rng() * (i + 1))
@@ -179,11 +234,11 @@ export function buildingMix(settlement: Settlement, rng: Rng): BuildingType[] {
 
 /** Evenly-spaced positions for `n` full-span 2-wide streets along a `span`, clamped so each leaves a
  *  buildable block + frontage room and never touches the edge or a neighbour. */
-function streetLines(span: number, n: number): number[] {
+function streetLines(span: number, n: number, roadWidth: number): number[] {
   const out: number[] = []
   for (let i = 1; i <= n; i++) {
-    const p = clamp(Math.round((span * i) / (n + 1)), 5, span - 5 - ROAD_W)
-    if (!out.some(q => Math.abs(q - p) <= ROAD_W + 2)) out.push(p)
+    const p = clamp(Math.round((span * i) / (n + 1)), 5, span - 5 - roadWidth)
+    if (!out.some(q => Math.abs(q - p) <= roadWidth + 2)) out.push(p)
   }
   return out.sort((a, b) => a - b)
 }
@@ -193,37 +248,37 @@ function streetLines(span: number, n: number): number[] {
  * then a FRONTAGE on BOTH sides of every street (the rows of lots placePlots fills). Grid size is
  * clamped to the map so each block still fits a row of houses between streets.
  */
-export function planRoads(cols: number, rows: number, rng: Rng, settlement: Settlement): RoadPlan {
+export function planRoads(cols: number, rows: number, rng: Rng, settlement: Settlement, tuning: Tuning = resolveTuning(settlement)): RoadPlan {
   const roads: boolean[][] = Array.from({ length: rows }, () => new Array<boolean>(cols).fill(false))
   const entrances: Entrance[] = []
   const g = GRID[settlement]
-  // Each block between streets needs the road (ROAD_W) + a lot row on each side (≈ depth 3 + setback 1
-  // + buffer) → ~ROAD_W+7 cells of spacing; clamp the grid to the map so blocks never collapse.
-  const hN = Math.max(2, Math.min(g.h, Math.floor((rows - 4) / (ROAD_W + 7))))
-  const vN = Math.max(2, Math.min(g.v, Math.floor((cols - 4) / (ROAD_W + 7))))
-  const streetRows = streetLines(rows, hN)
-  const streetCols = streetLines(cols, vN)
+  // Each block between streets needs the road (tuning.roadWidth) + a lot row on each side (≈ depth 3 + tuning.setback 1
+  // + buffer) → ~tuning.roadWidth+7 cells of spacing; clamp the grid to the map so blocks never collapse.
+  const hN = Math.max(2, Math.min(g.h, Math.floor((rows - 4) / (tuning.roadWidth + 7))))
+  const vN = Math.max(2, Math.min(g.v, Math.floor((cols - 4) / (tuning.roadWidth + 7))))
+  const streetRows = streetLines(rows, hN, tuning.roadWidth)
+  const streetCols = streetLines(cols, vN, tuning.roadWidth)
 
   for (const sr of streetRows) {
-    for (let c = 0; c < cols; c++) for (let w = 0; w < ROAD_W; w++) roads[sr + w][c] = true
+    for (let c = 0; c < cols; c++) for (let w = 0; w < tuning.roadWidth; w++) roads[sr + w][c] = true
     entrances.push({ col: 0, row: sr, side: 'left' }, { col: cols - 1, row: sr, side: 'right' })
   }
   for (const sc of streetCols) {
-    for (let r = 0; r < rows; r++) for (let w = 0; w < ROAD_W; w++) roads[r][sc + w] = true
+    for (let r = 0; r < rows; r++) for (let w = 0; w < tuning.roadWidth; w++) roads[r][sc + w] = true
     entrances.push({ col: sc, row: 0, side: 'top' }, { col: sc, row: rows - 1, side: 'bottom' })
   }
 
   // Frontages: a row of doors SET BACK from each street (a front-yard cell between the door edge and
   // the street), on BOTH sides, facing it. placePlots fills each into a row; rectClear skips cells
-  // over the cross-streets (intersections), so rows break cleanly at corners. Street = [s, s+ROAD_W-1].
+  // over the cross-streets (intersections), so rows break cleanly at corners. Street = [s, s+tuning.roadWidth-1].
   const frontages: Frontage[] = []
   for (const sr of streetRows) {
-    frontages.push({ axis: 'col', facing: 'south', doorLine: sr - 1 - SETBACK, away: -1, lo: 1, hi: cols - 1 }) // above, faces down
-    frontages.push({ axis: 'col', facing: 'north', doorLine: sr + ROAD_W + SETBACK, away: 1, lo: 1, hi: cols - 1 }) // below, faces up
+    frontages.push({ axis: 'col', facing: 'south', doorLine: sr - 1 - tuning.setback, away: -1, lo: 1, hi: cols - 1 }) // above, faces down
+    frontages.push({ axis: 'col', facing: 'north', doorLine: sr + tuning.roadWidth + tuning.setback, away: 1, lo: 1, hi: cols - 1 }) // below, faces up
   }
   for (const sc of streetCols) {
-    frontages.push({ axis: 'row', facing: 'east', doorLine: sc - 1 - SETBACK, away: -1, lo: 1, hi: rows - 1 }) // left, faces right
-    frontages.push({ axis: 'row', facing: 'west', doorLine: sc + ROAD_W + SETBACK, away: 1, lo: 1, hi: rows - 1 }) // right, faces left
+    frontages.push({ axis: 'row', facing: 'east', doorLine: sc - 1 - tuning.setback, away: -1, lo: 1, hi: rows - 1 }) // left, faces right
+    frontages.push({ axis: 'row', facing: 'west', doorLine: sc + tuning.roadWidth + tuning.setback, away: 1, lo: 1, hi: rows - 1 }) // right, faces left
   }
 
   return { roads, frontages, entrances }
@@ -239,7 +294,7 @@ interface Rect {
 /** The GROUND footprint rect for a building of `len` (road-parallel) × `depth` (perpendicular) at
  *  position `pos` on frontage `f`. Depth — NOT facade height — sets the away-from-road extent, so
  *  collision + lots stay a small footprint while the facade rises tall only in the iso render. */
-function footprint(f: Frontage, pos: number, len: number, depth: number): Rect {
+function footprint(f: Frontage, pos: number, len: number, depth: number, setback: number): Rect {
   if (f.axis === 'col') {
     // beside a horizontal street: length runs along cols, depth extrudes along rows.
     const r0 = f.away < 0 ? f.doorLine - depth + 1 : f.doorLine
@@ -250,17 +305,17 @@ function footprint(f: Frontage, pos: number, len: number, depth: number): Rect {
   return { c0, r0: pos, w: depth, h: len }
 }
 
-/** The footprint expanded by the SETBACK toward the road — the front-yard the planner reserves so
+/** The footprint expanded by the setback toward the road — the front-yard the planner reserves so
  *  no neighbour lands on the driveway/yard between this building and its street. */
-function clearanceRect(foot: Rect, f: Frontage): Rect {
+function clearanceRect(foot: Rect, f: Frontage, setback: number, roadWidth: number): Rect {
   if (f.axis === 'col') {
     return f.away < 0
-      ? { ...foot, h: foot.h + SETBACK } // road below → reserve down toward it
-      : { ...foot, r0: foot.r0 - SETBACK, h: foot.h + SETBACK } // road above → reserve up
+      ? { ...foot, h: foot.h + setback } // road below → reserve down toward it
+      : { ...foot, r0: foot.r0 - setback, h: foot.h + setback } // road above → reserve up
   }
   return f.away < 0
-    ? { ...foot, w: foot.w + SETBACK } // road right → reserve right
-    : { ...foot, c0: foot.c0 - SETBACK, w: foot.w + SETBACK } // road left → reserve left
+    ? { ...foot, w: foot.w + setback } // road right → reserve right
+    : { ...foot, c0: foot.c0 - setback, w: foot.w + setback } // road left → reserve left
 }
 
 /** A rect grown by `n` cells on every side — a candidate must clear this, so a 1-cell no-touch buffer
@@ -309,8 +364,8 @@ function findPlazaSpot(cols: number, rows: number, roads: boolean[][], size: num
  * grid leaves no room for the big one. Deterministic (no rng). Null only on a map too small for any
  * square — the generator then just skips the fountain.
  */
-export function planPlaza(cols: number, rows: number, roads: boolean[][], settlement: Settlement): PlazaRect | null {
-  const sizes = [...new Set([PLAZA_SIZE[settlement], 5])] // preferred, then a compact fallback
+export function planPlaza(cols: number, rows: number, roads: boolean[][], settlement: Settlement, tuning: Tuning = resolveTuning(settlement)): PlazaRect | null {
+  const sizes = [...new Set([tuning.plazaSize, 5])] // preferred, then a compact fallback
   const mc = cols / 2
   const mr = rows / 2
   let best: PlazaRect | null = null
@@ -338,7 +393,7 @@ export function planPlaza(cols: number, rows: number, roads: boolean[][], settle
  * rest fill as houses; where an essential doesn't fit a spot, a house fills it instead so rows never
  * starve. rectClear skips cells over cross-streets, so rows break cleanly at intersections. Pure.
  */
-export function placePlots(roads: boolean[][], frontages: Frontage[], cols: number, rows: number, rng: Rng, settlement: Settlement, sizes: BuildingSizes, reserved: PlazaRect | null = null, houseWidths?: readonly number[]): Plot[] {
+export function placePlots(roads: boolean[][], frontages: Frontage[], cols: number, rows: number, rng: Rng, settlement: Settlement, sizes: BuildingSizes, reserved: PlazaRect | null = null, tuning: Tuning = resolveTuning(settlement)): Plot[] {
   const plots: Plot[] = []
   if (frontages.length === 0) return plots
   const occ = roads.map(r => r.slice())
@@ -350,13 +405,13 @@ export function placePlots(roads: boolean[][], frontages: Frontage[], cols: numb
       for (let c = reserved.c0; c < reserved.c0 + reserved.size; c++)
         if (r >= 0 && r < rows && c >= 0 && c < cols) occ[r][c] = true
   }
-  const cap = BUILDING_CAP[settlement]
-  const maxPer = MAX_PER_FRONTAGE[settlement]
-  const [gapLo, gapHi] = LOT_GAP_BY[settlement]
+  const cap = tuning.buildingCap
+  const maxPer = tuning.maxPerFrontage
+  const [gapLo, gapHi] = tuning.lotGap
   // Civic essentials — every settlement gets a store + hospital, and a grand TEMPLE landmark (the
   // round-robin fill places the temple wherever its bigger footprint fits, else it stays pending).
   const pending: BuildingType[] = ['store', 'hospital', 'temple']
-  for (let i = randInt(rng, ...BIG_RANGE[settlement]); i > 0; i--) pending.push('big-house')
+  for (let i = randInt(rng, ...tuning.bigHouseRange); i > 0; i--) pending.push('big-house')
   for (let i = randInt(rng, ...OFFICE_RANGE[settlement]); i > 0; i--) pending.push('office')
 
   // Store + hospital ALWAYS go on the TOP horizontal street, facing FRONT (south = door toward the
@@ -370,10 +425,10 @@ export function placePlots(roads: boolean[][], frontages: Frontage[], cols: numb
     for (const type of ['store', 'hospital'] as BuildingType[]) {
       let guard = 0
       while (pos + 2 <= topSouth.hi && guard++ < 1000) {
-        const len = plotWidth(type, rng, sizes, houseWidths)
+        const len = plotWidth(type, rng, sizes, tuning.houseWidths)
         const depth = len === null ? null : plotDepth(type, len, sizes)
         if (len === null || depth === null) break // no backend size for this type — never invent one
-        const foot = footprint(topSouth, pos, len, depth)
+        const foot = footprint(topSouth, pos, len, depth, tuning.setback)
         const reserve = expandRect(foot, 1)
         if (!rectClear(reserve, occ, cols, rows)) { pos += 1; continue }
         for (let r = Math.max(0, reserve.r0); r < Math.min(rows, reserve.r0 + reserve.h); r++)
@@ -407,10 +462,10 @@ export function placePlots(roads: boolean[][], frontages: Frontage[], cols: numb
       const tryTypes: BuildingType[] = want ? [want, 'house'] : ['house']
       let placed = false
       for (const type of tryTypes) {
-        const len = plotWidth(type, rng, sizes, houseWidths)
+        const len = plotWidth(type, rng, sizes, tuning.houseWidths)
         const depth = len === null ? null : plotDepth(type, len, sizes)
         if (len === null || depth === null) continue // no backend size for this type — never invent one
-        const foot = footprint(f, pos, len, depth)
+        const foot = footprint(f, pos, len, depth, tuning.setback)
         // Reserve the footprint + a 1-cell margin on every side (the road-side cell is the setback
         // yard, never the street; the other sides are the no-touch buffer trees fill) so no two
         // buildings ever abut.
@@ -433,9 +488,12 @@ export function placePlots(roads: boolean[][], frontages: Frontage[], cols: numb
 
 /** Compose the steps: road GRID → reserve the central SQUARE → fill frontages with rows of lots
  *  AROUND the square. The pipeline the generator stamps (it paves the square + drops ONE fountain). */
-export function planVillage(cols: number, rows: number, rng: Rng, sizes: BuildingSizes, settlement: Settlement = 'town', houseWidths?: readonly number[]): VillageLayout {
-  const { roads, frontages, entrances } = planRoads(cols, rows, rng, settlement)
-  const plaza = planPlaza(cols, rows, roads, settlement)
-  const plots = placePlots(roads, frontages, cols, rows, rng, settlement, sizes, plaza, houseWidths)
+export function planVillage(cols: number, rows: number, rng: Rng, sizes: BuildingSizes, settlement: Settlement = 'town', served?: SettlementTuning): VillageLayout {
+  // Resolved ONCE, then handed down. Every pass must plan from the same numbers, and resolving per-pass
+  // would let a served value reach one and not another.
+  const tuning = resolveTuning(settlement, served)
+  const { roads, frontages, entrances } = planRoads(cols, rows, rng, settlement, tuning)
+  const plaza = planPlaza(cols, rows, roads, settlement, tuning)
+  const plots = placePlots(roads, frontages, cols, rows, rng, settlement, sizes, plaza, tuning)
   return { roads, plots, entrances, plaza }
 }

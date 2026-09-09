@@ -12,7 +12,7 @@ import { styleCatalog, styleTile } from '@/engine/tileset/styleTiles'
 import { type BuildingType } from './buildingTypes'
 import { buildingCompositionKind, buildingDoorOffset, facingRotation, isRoadGround, rotateFootprintOffset } from './buildingCatalog'
 import { composedKind } from '@/lib/buildingSizes'
-import { type BuildingSizes, planVillage, type VillageLayout, type Settlement, type Plot, type Facing, type PlazaRect } from './villageLayout'
+import { type BuildingSizes, type SettlementTuning, planVillage, type VillageLayout, type Settlement, type Plot, type Facing, type PlazaRect } from './villageLayout'
 // The planner is pure: it takes the building sizes rather than reading them. They come from the BACKEND
 // compositions (buildingCatalog resolves them), so deepening a building in Elixir moves the plots with it.
 import { BACKEND_BUILDING_SIZES } from './buildingCatalog'
@@ -202,10 +202,11 @@ export interface GenerateOptions {
    * The chosen generator's `settlement` block, straight off `/api/generators`.
    *
    * Same dead-data story as `nature`: it has been served and parsed into `GeneratorSettlement` all along
-   * and nothing read it, so `houseWidths` sat in the payload while an identical `HOUSE_WIDTHS` lived in
-   * `villageLayout`. Passed through now; absent → the planner keeps its previous behaviour.
+   * and nothing read it, so every value in it had a hand-kept twin in `villageLayout` — `houseWidths`,
+   * `plazaSize`, `setback`, `roadWidth`, `lotGap`, `maxPerFrontage`, `buildingCap`, `houseRange` and
+   * `bigHouseRange`. The whole block passes through now; absent → the planner uses its own defaults.
    */
-  settlement?: { houseWidths?: readonly number[] }
+  settlement?: SettlementTuning
   /**
    * Where footprints come from. Alexander, 2026-09-09: *"even the footprint should come from backend, then
    * frontend draws."* Defaults to the composition-backed source so a caller that does not care (every
@@ -607,8 +608,8 @@ interface ArchetypeContext {
   /** The generator's served nature densities, or undefined when it states none. A layout must treat an
    *  absent value as "no opinion" and never substitute a number of its own — see the compliance rule. */
   nature?: NatureDensity
-  /** The served settlement tuning — `houseWidths` is the plot-size weighting the town rolls from. */
-  settlement?: { houseWidths?: readonly number[] }
+  /** The served settlement tuning — every number the backend states about a settlement's shape. */
+  settlement?: SettlementTuning
   /** Where footprints come from — see `GenerateOptions.buildingSizes`. */
   buildingSizes?: BuildingSizes
   /** The user-steered forest layout, or undefined for a plain generate (placeForest then random-picks a
@@ -730,7 +731,7 @@ export function layoutPass(ctx: ArchetypeContext, settlement: Settlement): Villa
         '/api/tilesets, which has not installed the tileset yet.',
     )
   }
-  const layout = planVillage(cols, rows, ctx.rand, ctx.buildingSizes ?? BACKEND_BUILDING_SIZES, settlement, ctx.settlement?.houseWidths)
+  const layout = planVillage(cols, rows, ctx.rand, ctx.buildingSizes ?? BACKEND_BUILDING_SIZES, settlement, ctx.settlement)
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
       // Roads are a COLOUR on the ground BLOCK, not a separate ROAD tile (Alexander #34/#48: "remove the tiles
