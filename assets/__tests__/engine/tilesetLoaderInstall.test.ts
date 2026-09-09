@@ -3,11 +3,10 @@
  * height/category/title/glyph/emoji/color_role/settings (not the old bundled Tileset/EmojiTile blob).
  * This proves loadTilesetsFromBackend() INSTALLS that shape correctly: every tile carries its backend
  * `image` (absolutized against the API origin), walkability/colour/glyph map across, and compositions
- * come through — so the renderer (unchanged this task) keeps working off ASCII_TILESET/EMOJI_TILESET.
+ * come through — so the renderer (unchanged this task) keeps working off styleCatalog('ascii')/styleTiles('emoji').
  */
+import { styleCatalog, styleTiles } from '@/engine/tileset/styleTiles'
 import { loadTilesetsFromBackend } from '@/engine/tileset/tilesetLoader'
-import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
-import { EMOJI_TILESET } from '@/engine/tileset/emojiTileset'
 import { resolveComposition } from '@/engine/tileset/tileset'
 
 // The loader now DECODES every baked image before it resolves (the render gate waits on decoded images —
@@ -56,25 +55,25 @@ describe('loadTilesetsFromBackend — installs the new /api/tilesets shape', () 
 
   test('ascii bush tile gets an absolute image src derived from its image_url', async () => {
     await loadTilesetsFromBackend()
-    const bush = ASCII_TILESET.tiles.bush
+    const bush = styleTiles('ascii').bush
     expect(bush.image?.src.startsWith('http')).toBe(true)
     expect(bush.image?.src.endsWith('/tiles/ascii/bush.png')).toBe(true)
   })
 
   test('ascii bush tile is walkable (blocking: false); palettes are empty (colour is a per-tile setting, not a blob)', async () => {
     await loadTilesetsFromBackend()
-    expect(ASCII_TILESET.tiles.bush.walkable).toBe(true)
-    expect(ASCII_TILESET.palettes).toEqual({}) // no palette blob — a tile's colour lives in its own settings.colors
+    expect(styleTiles('ascii').bush.walkable).toBe(true)
+    expect(styleCatalog('ascii').palettes).toEqual({}) // no palette blob — a tile's colour lives in its own settings.colors
   })
 
   test('emoji bear tile gets its absolute image + color installed', async () => {
     await loadTilesetsFromBackend()
-    expect(EMOJI_TILESET.bear.image?.endsWith('/tiles/emoji/catalog/bear.png')).toBe(true)
-    expect(EMOJI_TILESET.bear.color).toBe('#8a5f3a')
+    expect(styleTiles('emoji').bear.image?.endsWith('/tiles/emoji/catalog/bear.png')).toBe(true)
+    expect(styleTiles('emoji').bear.color).toBe('#8a5f3a')
   })
 
   test('the tree_small composition installs and resolves', async () => {
     await loadTilesetsFromBackend()
-    expect(resolveComposition(ASCII_TILESET, 'tree_small')).not.toBeNull()
+    expect(resolveComposition(styleCatalog('ascii'), 'tree_small')).not.toBeNull()
   })
 })

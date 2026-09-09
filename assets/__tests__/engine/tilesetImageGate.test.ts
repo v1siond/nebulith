@@ -10,10 +10,10 @@
  * an image is decoded the render takes the image path — the tiled-glyph flash can no longer fire. The full
  * fresh-load-with-saved-map proof is the recorded video (per-frame, on the running editor).
  */
+import { installStyleTiles, styleTiles } from '@/engine/tileset/styleTiles'
 import { preloadTileImages, tileImage } from '@/engine/render/shared'
 import { fillIsoFaceWithTile } from '@/engine/render/iso'
 import { loadTilesetsFromBackend } from '@/engine/tileset/tilesetLoader'
-import { EMOJI_TILESET, setEmojiTileset } from '@/engine/tileset/emojiTileset'
 import { NEBULITH_API } from '@/lib/nebulithApi'
 
 const ORIGIN = NEBULITH_API.replace(/\/api\/?$/, '')
@@ -53,7 +53,7 @@ function recordingCtx(): Rec {
 afterEach(() => {
   ;(global as { Image: unknown }).Image = RealImage
   ;(global as { fetch: typeof fetch }).fetch = realFetch
-  setEmojiTileset({})
+  installStyleTiles('emoji', {})
   DeferredImage.pending = []
 })
 
@@ -100,7 +100,7 @@ describe('loadTilesetsFromBackend — the gate opens on DECODED images, not just
     const p = loadTilesetsFromBackend().then((r) => { done = true; return r })
     await tick(); await tick()
 
-    expect(EMOJI_TILESET.gate_probe).toBeDefined() // the JSON has installed...
+    expect(styleTiles('emoji').gate_probe).toBeDefined() // the JSON has installed...
     expect(done).toBe(false)                       // ...but the gate has NOT opened — it's awaiting the image decode
     const src = ORIGIN + IMG
     expect(tileImage(src)).toBeNull()              // raster not ready yet

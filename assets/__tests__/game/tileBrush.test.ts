@@ -1,3 +1,4 @@
+import { styleTiles } from '@/engine/tileset/styleTiles'
 import '@/__tests__/helpers/installTilesetSeed' // install the DB-equivalent tileset the runtime loads
 /**
  * TILE-BRUSH GRID SCENARIOS — the editor's pick-first brush against a real IsometricGrid. Validates the
@@ -10,7 +11,6 @@ import '@/__tests__/helpers/installTilesetSeed' // install the DB-equivalent til
  * here via `nonFloor()`. The floor slab is only removed by an explicit Clear/⌥Alt-erase, never by placement.
  */
 import { IsometricGrid, type GridAsset } from '@/engine/IsometricGrid'
-import { EMOJI_TILESET } from '@/engine/tileset/emojiTileset'
 import { tilesForStyle, type TileDef } from '@/game/artStyle'
 import { clearGroundTile, placeGroundTile, removeTopAsset, removeAssetAtLevel, stackAssetTile } from '@/game/editor/tileBrush'
 import { tileSlug } from '@/game/editor/tilePlacement'
@@ -141,7 +141,7 @@ describe('painted tile — its OWN height + settings seed onto the asset (unifor
     expect(a.settings?.cutawayRoof).toBe(true)
     // The roof is a STANDING block in the DB (the gable is real depth-spanned roof bars, not a flat cap), and
     // the brush reads that number rather than forcing one — the same uniform read every tile gets.
-    expect(a.height).toBe(EMOJI_TILESET.roof.height)
+    expect(a.height).toBe(styleTiles('emoji').roof.height)
     expect(a.height).toBe(1)
   })
 

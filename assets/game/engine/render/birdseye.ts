@@ -6,17 +6,15 @@ import { entityQuestMarker } from '@/engine/entityQuestMarker'
 import { type HitMarker } from '@/game/runtime/combat'
 import { type PlayerState, barFraction, hpFraction } from '@/game/runtime/player'
 import { type CombatState, type Entity, type Quest } from '@/game/types'
-import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 import { Connector } from '@/lib/api'
-import { ASCII_FONT, type CompositionGhost, type DayNight, applyCellTransform, clampCameraAxis, collectLampGlows, drawCompositionGhostFlat, debugCellCaptions, debugLabelColors, drawConnectorMarker, drawHitMarker, drawHpBar, drawNightLighting, drawQuestMarker, drawStyledImage, drawFlatTileForShape, SINGLE_TILE_FRAC, fillTintedGlyph, grassShade, cellFill, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, resolveAssetDraw, resolveEntityDraw, assetOverride, labelTileImage, labelTileRecolor, tileImage } from './shared'
+import { ASCII_FONT, type CompositionGhost, type DayNight, applyCellTransform, clampCameraAxis, collectLampGlows, drawCompositionGhostFlat, debugCellCaptions, debugLabelColors, drawConnectorMarker, drawHitMarker, drawHpBar, drawNightLighting, drawQuestMarker, drawStyledImage, drawFlatTileForShape, SINGLE_TILE_FRAC, fillTintedGlyph, grassShade, cellFill, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, resolveAssetDraw, resolveEntityDraw, assetOverride, styleTileImage, labelTileRecolor, tileImage } from './shared'
 import { resolveAssetDrawSize } from './assetDimensions'
 import { resolveAssetAnimation } from './assetAnimation'
 import { DEPTH_CELL_STEP, depthCells } from './isoBlock'
 import { getStack } from '@/engine/cellStack'
-import { EMOJI_TILESET } from '@/engine/tileset/emojiTileset'
 import { applyPose } from '@/engine/tileset/pose'
 import { resolveTileSize, resolveTilePose } from '@/engine/tileset/tileViewSettings'
-import { ASCII_STYLE, assetKind, entityKind, entityStyleOverride, genderize, groundKind, personVariantTileId, type Style } from '@/game/artStyle'
+import { ASCII_STYLE, assetKind, entityKind, entityStyleOverride, genderize, groundKind, personVariantTileId, styleTileArt, type Style } from '@/game/artStyle'
 
 
 /** TOP (blueprint) view: an entity is a single `>` glyph colored by role — yellow player,
@@ -65,6 +63,8 @@ export interface RenderTopViewParams {
   hoveredCell?: { col: number; row: number } | null
   /** Armed Tile-composition placement ghost — a translucent footprint at the hover cell before the click. */
   ghost?: CompositionGhost | null
+  /** Draw the view's heading and keyboard hint. True for the full-screen mode, false for a small map. */
+  chrome?: boolean
 }
 
 export function renderTopView(params: RenderTopViewParams) {
@@ -84,6 +84,7 @@ export function renderTopView(params: RenderTopViewParams) {
     style = ASCII_STYLE,
     hoveredCell = null,
     ghost = null,
+    chrome = true,
   } = params
   // Clear
   ctx.fillStyle = '#0a0a10'
@@ -152,7 +153,9 @@ export function renderTopView(params: RenderTopViewParams) {
       // Show the cell's OWN tile for its LABEL — the emoji in emoji mode (a composition cell resolves its
       // per-part emoji), else the ascii glyph. A floor tile has no label → its ground image/colour resolves
       // via assetKind→groundKind below; cellFill picks up that tint so a bare grass/road floor paints correctly.
-      const char = (style.id === 'emoji' && asset.label ? EMOJI_TILESET[asset.label]?.char : undefined) ?? asset.art[0] ?? '?'
+      // The label's glyph in the ACTIVE style — one lookup, no style branch (only ever painted when the
+      // baked PNG is genuinely missing; a floor has no label and resolves by KIND below).
+      const char = (asset.label ? styleTileArt(asset.label, style.id)?.char : undefined) ?? asset.art[0] ?? '?'
       const fg = asset.color ?? '#cccccc'
       // Grass floors keep their per-cell shade (grassShade via cellFill) so a field isn't one flat sheet.
       const grassy = asset.type === FLOOR_TYPE && (asset.tileKey ?? '').includes('grass')
@@ -162,7 +165,17 @@ export function renderTopView(params: RenderTopViewParams) {
       // Resolve the active art style (ASCII passthrough → the defaults above, unchanged). A PLACED
       // tile's override re-homes onto the active style so it RESKINS (resolveAssetDraw); a bare ground
       // cell (no asset) passes undefined → the coarse kind, unchanged.
-      const dv = resolveAssetDraw(kind, style, asset ? assetOverride(asset, style) : undefined, char, fg)
+      let dv = resolveAssetDraw(kind, style, asset ? assetOverride(asset, style) : undefined, char, fg)
+      // ANY tile identified by its KIND rather than a label resolves its baked image here — the SAME rescue
+      // iso.ts and topdown.ts do. `ASCII_STYLE.map` is empty by design, so under ASCII `dv` never arrives
+      // with an image and an ascii floor/prop painted a glyph where its emoji twin painted a picture. Emoji
+      // already carries the kind image, so `!dv.image` is false there and nothing changes.
+      if (!dv.image) {
+        const kimg = styleTileImage(kind, style)
+        if (kimg) dv = { ...dv, image: kimg, char: '', tint: dv.tint ?? asset.color }
+      }
+      // The tile's ACTIVE-STYLE entry — per-view size/pose, read the SAME way in every style (styleTileArt).
+      const styleTile = styleTileArt(kind, style.id)
 
       // Draw cell — a reskin tints the blueprint cell at the tile hue (agrees with iso/2D), but grass
       // keeps its per-cell shade so a field isn't one flat green ("grass is just color"); ASCII → bg.
@@ -210,16 +223,15 @@ export function renderTopView(params: RenderTopViewParams) {
       // PNG, NEVER recoloured. Takes priority over the kind-driven `dv.image` (which already happens to
       // agree for building parts, since their label IS their kind) so a label with backend art renders it
       // even where kind-resolution can't (e.g. per-part tree labels collapse to the generic 'tree' kind).
-      const labelImage = asset?.label ? labelTileImage(asset.label, style) : undefined
+      const labelImage = asset?.label ? styleTileImage(asset.label, style) : undefined
       const img = labelImage ?? dv.image
       // The tile's NORMAL overhead draw — the label/kind image, or the glyph. Shared by the plain square path
       // and the circle path so a rounded footprint shows the SAME painting; only its form changes.
       const drawTopTile = (): void => {
         if (img) {
           // Per-view tile size (byte-identical when unset: old tileSize base), then per-element dims (#77/#78).
-          const vt = style.id === 'emoji' && asset ? EMOJI_TILESET[assetKind(asset)] : undefined
-          const d = resolveAssetDrawSize(tileSize * (resolveTileSize(vt, 'top') ?? 1), dAsset ?? {}, 'overhead')
-          const pose = asset?.pose ?? resolveTilePose(vt, 'top') // per-asset pose (inspector x/y/rotate) wins; else the tileset-kind pose
+          const d = resolveAssetDrawSize(tileSize * (resolveTileSize(styleTile, 'top') ?? 1), dAsset ?? {}, 'overhead')
+          const pose = asset?.pose ?? resolveTilePose(styleTile, 'top') // per-asset pose (inspector x/y/rotate) wins; else the tileset-kind pose
           const recolor = labelImage ? labelTileRecolor(style, dAsset?.color ?? '#cccccc') : dAsset?.color
           // DISPLAY = "single": draw ONE smaller centered tile inside the plain cell (the cell backing already
           // painted above shows around it), matching the iso/2D "single tile inside the block" look. Absent → 1×.
@@ -237,9 +249,8 @@ export function renderTopView(params: RenderTopViewParams) {
         // mirroring topdown's 2D glyph path (here the overhead view → Width × Depth). A bare ground glyph
         // (no asset, dims 1, no tint) falls through fillTintedGlyph to a plain centred fillText at the old
         // font size — byte-identical to before.
-        const vt = style.id === 'emoji' && asset ? EMOJI_TILESET[assetKind(asset)] : undefined
-        const d = resolveAssetDrawSize(fontSize * (resolveTileSize(vt, 'top') ?? 1), dAsset ?? {}, 'overhead')
-        const pose = asset?.pose ?? resolveTilePose(vt, 'top') // per-asset pose (inspector x/y/rotate) wins; else the tileset-kind pose
+        const d = resolveAssetDrawSize(fontSize * (resolveTileSize(styleTile, 'top') ?? 1), dAsset ?? {}, 'overhead')
+        const pose = asset?.pose ?? resolveTilePose(styleTile, 'top') // per-asset pose (inspector x/y/rotate) wins; else the tileset-kind pose
         const strength = dAsset?.color ? 0.85 : 0 // colour-emoji ignore fillStyle → wash the tint on
         ctx.font = `bold ${d.h}px ${ASCII_FONT}`
         ctx.save()
@@ -479,15 +490,18 @@ export function renderTopView(params: RenderTopViewParams) {
     drawNightLighting(ctx, w, h, lamps)
   }
 
-  // UI
-  ctx.fillStyle = isDebugMode() ? '#ff6666' : '#55aaff'
-  ctx.font = `bold 16px ${ASCII_FONT}`
-  ctx.textAlign = 'center'
-  ctx.fillText(isDebugMode() ? 'TOP VIEW + DEBUG' : 'TOP VIEW', w / 2, 20)
+  // The view's own CHROME — a heading and the keyboard hint. Fine across a full-screen view mode; a 16px
+  // banner stamped over a 176px level map, which is why the caller can turn it off.
+  if (chrome) {
+    ctx.fillStyle = isDebugMode() ? '#ff6666' : '#55aaff'
+    ctx.font = `bold 16px ${ASCII_FONT}`
+    ctx.textAlign = 'center'
+    ctx.fillText(isDebugMode() ? 'TOP VIEW + DEBUG' : 'TOP VIEW', w / 2, 20)
 
-  ctx.fillStyle = '#888'
-  ctx.font = `12px ${ASCII_FONT}`
-  ctx.fillText(`WASD move | Scroll zoom (${zoom.toFixed(1)}x) | Click to select`, w / 2, 38)
+    ctx.fillStyle = '#888'
+    ctx.font = `12px ${ASCII_FONT}`
+    ctx.fillText(`WASD move | Scroll zoom (${zoom.toFixed(1)}x) | Click to select`, w / 2, 38)
+  }
 
   // Selection info
   if (selectedCells.size > 0) {

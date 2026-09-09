@@ -3,7 +3,8 @@ import {
   ASCII_STYLE,
   EMOJI_STYLE,
   ASCII_PASSTHROUGH,
-  BUILT_IN_STYLES,
+  availableStyles,
+  setStyleList,
   styleById,
   resolveVisual,
   groundKind,
@@ -46,8 +47,8 @@ describe('resolveVisual — the one style decision point', () => {
     expect(resolveVisual('enemy', EMOJI_STYLE, enemyTileId('goblin', EMOJI_STYLE))).toMatchObject({ char: '👺' })
     expect(resolveVisual('enemy', EMOJI_STYLE, enemyTileId('wolf', EMOJI_STYLE))).toMatchObject({ char: '🐺' })
     expect(resolveVisual('enemy', EMOJI_STYLE, enemyTileId('skeleton', EMOJI_STYLE))).toMatchObject({ char: '💀' })
-    // ASCII keeps its own enemy art (no override), and an unmapped/blank type falls back to base 👾
-    expect(enemyTileId('goblin', ASCII_STYLE)).toBeUndefined()
+    // ASCII resolves the SAME label to ITS OWN picture — one engine, N styles.
+    expect(enemyTileId('goblin', ASCII_STYLE)).toBe('ascii:goblin')
     expect(enemyTileId('nonesuch', EMOJI_STYLE)).toBeUndefined()
     expect(enemyTileId(undefined, EMOJI_STYLE)).toBeUndefined()
   })
@@ -189,8 +190,15 @@ describe('style registry + tile library', () => {
     expect(styleById(null)).toBe(ASCII_STYLE)
   })
 
-  it('ASCII is the first offered style (the default)', () => {
-    expect(BUILT_IN_STYLES[0]).toBe(ASCII_STYLE)
+  // §3.14a: the style LIST is backend data — a tileset row IS a style.
+  it('offers NO styles until the backend catalog is installed', () => {
+    setStyleList([])
+    expect(availableStyles()).toEqual([])
+  })
+
+  it('offers the served styles, in the backend order, with its name + icon', () => {
+    setStyleList([{ id: 'ascii', name: 'ASCII', icon: '⌨' }, { id: 'emoji', name: 'Emoji', icon: '😀' }])
+    expect(availableStyles().map(s => s.id)).toEqual(['ascii', 'emoji'])
   })
 
   it('tilesForStyle groups tiles into the taxonomy buckets with content', () => {

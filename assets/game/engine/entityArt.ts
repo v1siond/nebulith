@@ -1,80 +1,47 @@
+import { styleTile, styleTiles } from '@/engine/tileset/styleTiles'
 import type { Entity, Quest } from '@/game/types'
-import { EMOJI_TILESET } from '@/engine/tileset/emojiTileset'
-import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 import type { TilePose } from '@/engine/tileset/pose'
 
 /**
- * Multi-row ASCII figures for entities. Authored LEFT-ALIGNED (leading spaces carry
- * the shape) — the renderer draws the rows left-aligned on a shared origin (monospace),
- * NOT centered per-row, so the figure holds together. Recognizable creature forms,
- * compact enough to read as a sprite (no artist signatures — these are game sprites).
+ * ENTITY ART — a READER over the backend unit tiles. It declares no figures of its own.
+ *
+ * This file used to BE the art: 11 multi-row enemy figures, their 11 animation frames, the villager, the
+ * fallbacks — ~90 lines of hand-drawn sprites in the frontend. Alexander, 2026-09-08:
+ *
+ *   > human like units should look like the user player, animals, and other units are also composition of
+ *   > ascii characters grouped to create a given element … a dog is not a single character, is a set of
+ *   > characters combined to form a dog, that was then converted to png to be a tile … we lost the unit
+ *   > ascii art and we must recover it a correctly convert it to tile images and save them in thew elixir
+ *   > backend … i don't want ANY data layer on frontend, just actual game engine.
+ *
+ * Those figures now live in nebulith (`priv/repo/tilesets/ascii_unit_art.json` → `TileSource.apply_unit_art`)
+ * and arrive on each unit tile as `settings.artFrames` — the character ROWS of every frame — alongside
+ * `settings.frames`, the baked picture per frame, and `settings.frameMs`, the loop length. The 11 enemy
+ * figures were recovered from this file verbatim, so nothing was redrawn in the move.
+ *
+ * What stays here is the NAMED ACCESS the render already used — `entityArt(entity)`, `entityArtFrame(e, n)`,
+ * `entityFootprint(e)` — so every call site keeps its shape while the rows come from the catalog.
+ *
+ * An unserved label resolves to NO rows rather than a stand-in figure: a unit the backend has no art for
+ * must read as missing, not as a goblin. The footprint still floors at 1×2 cells, because collision needs a
+ * box for a unit that exists whether or not its picture has loaded.
  */
-export const ENEMY_ART: Readonly<Record<string, readonly string[]>> = {
-  goblin: [
-    ' ,-.',
-    '(>o<)',
-    '/|Y|\\',
-    ' d b',
-  ],
-  skeleton: [
-    ' ___',
-    '(o.o)', // skull with eye sockets
-    ' )|(',  // jaw / neck + collarbone
-    '/|=|\\', // ribcage (= ribs, | spine)
-    ' d b',  // leg bones
-  ],
-  ghost: [
-    ' .-.',
-    '(o o)',
-    '| O \\',
-    ' \\   \\',
-    " `~~~'",
-  ],
-  spider: [
-    '  / _ \\',
-    '\\_\\(_)/_/',
-    ' _//o\\\\_',
-    '  /   \\',
-  ],
-  wolf: [
-    '/\\_/\\',
-    '( o.o )',
-    ' > ^ <',
-  ],
-  orc: [
-    ' ,vv,',
-    '(O~~O)',
-    '/|##|\\',
-    ' J  L',
-  ],
-  slime: [
-    ' .--.',
-    '(o..o)',
-    "'+--+'",
-  ],
-  bat: [
-    '/\\ ^ /\\',
-    '(o   o)',
-    ' \\vvv/',
-  ],
-  bandit: [
-    ' ___',
-    '[-_-]',
-    '/|"|\\',
-    ' | |',
-  ],
-  guardian: [
-    ' [=]',   // helmed stone warden
-    '[|O|]',
-    '/|#|\\',  // armoured torso
-    ' |_|',
-  ],
-  wraith: [
-    ' /^\\',
-    '(x x)',  // hollow-eyed specter
-    ' \\~/ ',
-    '  ~  ',
-  ],
+
+/** The unit TILE LABEL an entity draws. An enemy is its type (`goblin`); everything else is its kind
+ *  (`player` / `npc`) — the same label→tile resolution the renderer uses for the baked image, so the rows
+ *  and the picture can never disagree about which unit this is. */
+function unitLabel(entity: Entity): string {
+  if (entity.kind === 'enemy') return entity.enemyType?.trim().toLowerCase() ?? 'enemy'
+  return entity.kind
+}
+
+/** The served frames of character rows for a unit, or `[]` when the backend has no art for it.
+ *  ASCII is asked because it is the style whose tiles are composed FROM characters — the emoji rows carry
+ *  no `artFrames`, and a pictograph has no character grid to read. */
+function servedFrames(entity: Entity): readonly string[][] {
+  const settings = styleTile('ascii', unitLabel(entity))?.settings as { artFrames?: string[][] } | undefined
+  const frames = settings?.artFrames
+  return Array.isArray(frames) ? frames : []
 }
 
 /**
@@ -164,58 +131,27 @@ export function topRoleColor(entity: Entity, quests: readonly Quest[]): string {
   return TOP_ROLE_COLOR.npc
 }
 
-/** Drawn for an enemy whose type has no bespoke art. */
-export const ENEMY_FALLBACK: readonly string[] = [
-  ' ___',
-  '(@_@)',
-  '/| |\\',
-  ' " "',
-]
-
-/** A humanoid figure for NPCs (a villager — same silhouette family as the player). */
-export const NPC_ART: readonly string[] = [
-  '  O',
-  ' /|\\',
-  ' / \\',
-]
-
-/** The multi-row ASCII art an entity renders as. */
+/**
+ * The character ROWS a unit draws, frame 0 — its figure at rest.
+ *
+ * Empty when the backend serves no art for this unit. Nothing here substitutes another unit's figure: an
+ * unserved label has to read as missing, which is a seeding gap to fix in nebulith, not something the
+ * renderer should paper over with a goblin.
+ */
 export function entityArt(entity: Entity): readonly string[] {
-  if (entity.kind === 'enemy') {
-    const key = entity.enemyType?.trim().toLowerCase() ?? ''
-    return ENEMY_ART[key] ?? ENEMY_FALLBACK
-  }
-  return NPC_ART // npc + player
+  return servedFrames(entity)[0] ?? []
 }
 
-/** Frame 1 of each idle animation — a SMALL change (blink / arms / wings), authored
- *  at the SAME dimensions as frame 0 so the footprint never jitters. */
-export const ENEMY_ART_ALT: Readonly<Record<string, readonly string[]>> = {
-  goblin: [' ,-.', '(>o<)', '\\|Y|/', ' d b'], // arms up
-  skeleton: [' ___', '(-.-)', ' )|(', '\\|=|/', ' d b'], // blink + arms raise
-  ghost: [' .-.', '(o o)', '| O /', ' /   /', " `~~~'"], // tail sways
-  spider: ['  \\ _ /', '\\_\\(_)/_/', ' _//o\\\\_', '  \\   /'], // legs flex
-  wolf: ['/\\_/\\', '( -.- )', ' > ^ <'], // blink
-  orc: [' ,vv,', '(o~~o)', '/|##|\\', ' J  L'], // eyes
-  slime: [' .--.', '(o..o)', "'+~~+'"], // wobble
-  bat: ['_\\ ^ /_', '(o   o)', ' \\vvv/'], // wings flap
-  bandit: [' ___', '[-_-]', '\\|"|/', ' | |'], // arms
-  guardian: [' [=]', '[|o|]', '\\|#|/', ' |_|'], // eye dims, arms shift
-  wraith: [' /^\\', '(- -)', ' /~\\ ', '  ~  '], // blink + drift
-}
-
-const ENEMY_FALLBACK_ALT: readonly string[] = [' ___', '(@_@)', '\\| |/', ' " "']
-const NPC_ART_ALT: readonly string[] = ['  O', ' \\|/', ' / \\'] // arms shift
-
-/** The art for a given idle FRAME (0 or 1). Frame 0 is the base figure; frame 1 is
- *  the alt pose. The draw loop picks the frame from the clock for a slow idle. */
+/**
+ * The rows for one animation FRAME, wrapping at the end of the cycle.
+ *
+ * Every frame is authored at the same row count and width as frame 0, so cycling never jitters the
+ * footprint — the rule the old hardcoded `ENEMY_ART_ALT` followed and the seeder now asserts.
+ */
 export function entityArtFrame(entity: Entity, frame: number): readonly string[] {
-  if (frame % 2 === 0) return entityArt(entity)
-  if (entity.kind === 'enemy') {
-    const key = entity.enemyType?.trim().toLowerCase() ?? ''
-    return ENEMY_ART_ALT[key] ?? ENEMY_FALLBACK_ALT
-  }
-  return NPC_ART_ALT // npc + player
+  const frames = servedFrames(entity)
+  if (frames.length === 0) return []
+  return frames[((frame % frames.length) + frames.length) % frames.length]
 }
 
 /** The grid footprint (in CELLS) an entity occupies, derived from its art so the
@@ -229,8 +165,15 @@ export function entityFootprint(entity: Entity): { w: number; h: number } {
   return { w: Math.max(1, Math.round(cols / 3)), h: Math.max(2, Math.ceil(rows / 1.5)) }
 }
 
-/** All enemy-type keys that have bespoke art (for tests / tooling). */
-export const ENEMY_ART_TYPES = Object.keys(ENEMY_ART)
+/** Every unit label the loaded ascii tileset serves a composed FIGURE for (tests / tooling).
+ *  A FUNCTION, not a const: the catalog arrives over the network, so a module-level array would capture
+ *  the empty catalog at import time and stay empty forever. */
+export function unitArtLabels(): string[] {
+  return Object.entries(styleTiles('ascii'))
+    .filter(([, tile]) => Array.isArray((tile.settings as { artFrames?: unknown })?.artFrames))
+    .map(([label]) => label)
+    .sort()
+}
 
 /** The held-weapon glyph drawn beside the player so equipped gear is visible at a
  *  glance. A ranged weapon (e.g. a bow) reads by `range`; melee weapons by `kind`.
@@ -250,7 +193,7 @@ export function weaponEmoji(weapon?: { kind?: string; range?: string } | null): 
   if (!weapon || weapon.kind === 'unarmed') return ''
   // Prefer the loaded tileset's glyph so the weapon char is data-driven (backend/DB); fall back to the
   // switch when the tileset hasn't loaded yet (SSR / backend down) so the hand is never empty.
-  const fromTileset = weapon.kind ? EMOJI_TILESET[weapon.kind]?.char : undefined
+  const fromTileset = weapon.kind ? styleTile('emoji', weapon.kind)?.char : undefined
   if (fromTileset) return fromTileset
   switch (weapon.kind) {
     case 'bow': return '🏹'
@@ -279,8 +222,8 @@ export function weaponPose(kind: string | undefined, style: 'emoji' | 'ascii'): 
   if (!kind) return undefined
   // ASCII is just another tileset: read the weapon's pose from the loaded ascii tiles, falling back to the
   // shared ASCII_WEAPON_POSE when the tileset hasn't loaded a per-weapon pose (so the look never regresses).
-  if (style === 'ascii') return ASCII_TILESET.tiles[kind]?.pose ?? ASCII_WEAPON_POSE
-  return EMOJI_TILESET[kind]?.pose
+  if (style === 'ascii') return styleTile('ascii', kind)?.pose ?? ASCII_WEAPON_POSE
+  return styleTile('emoji', kind)?.pose
 }
 
 /** The bare-handed PUNCH tile (glyph + pose) for the reskin styles — a real 👊 swung at the hand when the
@@ -288,7 +231,7 @@ export function weaponPose(kind: string | undefined, style: 'emoji' | 'ascii'): 
  *  like the weapons read theirs. ASCII bare hands stay as they were (no glyph → the fist is emoji art). */
 export function punchTile(style: 'emoji' | 'ascii'): { glyph: string; pose?: TilePose } {
   if (style !== 'emoji') return { glyph: '' }
-  const t = EMOJI_TILESET['fist']
+  const t = styleTile('emoji', 'fist')
   return { glyph: t?.char ?? '', pose: t?.pose }
 }
 

@@ -36,32 +36,147 @@ export interface BlockFaces {
 /** The three visible faces of the block at stacking `level` (0 = the block sitting on the ground; 1 =
  *  the block stacked on top of it; …). `center` is the cell diamond centre at ground level (screen space,
  *  height-offset already applied). */
-export function isoBlockFaces(center: Pt, tileW: number, tileH: number, blockH: number, level = 0): BlockFaces {
+/**
+ * A cell's ground footprint as its FOUR corners, offset from the cell centre.
+ *
+ * The names are positional on screen — `l`eft, `t`op, `r`ight, `b`ottom — and the block builder walks them
+ * in that cyclic order, so a THINNED footprint (a parallelogram) composes exactly like the full diamond.
+ */
+export interface GroundQuad {
+  l: Pt
+  t: Pt
+  r: Pt
+  b: Pt
+}
+
+/** The full cell: the unit diamond every block has drawn on since the beginning. */
+export function unitGroundQuad(tileW: number, tileH: number): GroundQuad {
+  return {
+    l: { x: -tileW, y: 0 },
+    t: { x: 0, y: -tileH },
+    r: { x: tileW, y: 0 },
+    b: { x: 0, y: tileH },
+  }
+}
+
+/** THICKNESS as four independent REACHES — how far the block extends toward each world direction, as a
+ *  fraction of the cell. 1 (the default) reaches all the way to that face; lowering it pulls that face in. */
+export type ThicknessReach = Partial<Record<DepthDir, number>>
+
+/** The opposite iso diagonal (180°). */
+const OPPOSITE_DIR: Record<DepthDir, DepthDir> = {
+  'left-up': 'right-down', 'right-down': 'left-up', 'right-up': 'left-down', 'left-down': 'right-up',
+}
+
+/** A reach, clamped to (0, 1]. Anything else (missing, NaN, negative, > 1) means "all the way". */
+const reachOf = (reach: ThicknessReach, dir: DepthDir): number => {
+  const raw = reach[dir]
+  return typeof raw === 'number' && raw > 0 && raw < 1 ? raw : 1
+}
+
+/** Never let two opposing reaches close the block to nothing — it would silently vanish mid-drag. */
+const MIN_SPAN = 0.05
+
+/**
+ * THICKNESS: the block's footprint INSIDE its own cell, from four independent per-direction reaches.
+ *
+ * This is the same question the Footprint asks — "how far does this tile reach toward ⟨direction⟩?" — only
+ * the unit differs: Footprint counts whole CELLS (≥1), thickness measures WITHIN one cell (≤1). Alexander
+ * asked for the two to work alike, so they share the vocabulary, the four diagonals and the control shape.
+ *
+ * The axes are WORLD axes, not screen ones: a cell's ground axes are the diamond's DIAGONALS
+ * (`u = (+tileW,+tileH)` = +col, `v = (−tileW,+tileH)` = +row), so the old screen-extent squash thinned along
+ * no world direction at all — which is why a door read thin from one side of the house and solid from the
+ * other. Along each axis the block spans from `1 − reach(back)` to `reach(forward)`, so a door with reach 1
+ * toward its wall and 0.3 the other way is a 0.3-thick panel FLUSH with that wall.
+ */
+export function reachGroundQuad(tileW: number, tileH: number, reach: ThicknessReach): GroundQuad {
+  const full = unitGroundQuad(tileW, tileH)
+
+  // Parameters along the two world axes, each in [0,1] across the cell. `+col` runs t→r, `+row` runs t→l.
+  const span = (forward: DepthDir): [number, number] => {
+    const hi = reachOf(reach, forward)
+    const lo = 1 - reachOf(reach, OPPOSITE_DIR[forward])
+    if (hi - lo >= MIN_SPAN) return [lo, hi]
+    const mid = (lo + hi) / 2 // both sides pulled past each other → keep a visible sliver where they met
+    return [mid - MIN_SPAN / 2, mid + MIN_SPAN / 2]
+  }
+  const [c0, c1] = span('right-down') // +col
+  const [r0, r1] = span('left-down')  // +row
+
+  if (c0 === 0 && c1 === 1 && r0 === 0 && r1 === 1) return full // untouched → the byte-identical unit cell
+
+  // The corner at (col a, row b), with `t` as the origin and the two cell edges as the basis.
+  const u = { x: tileW, y: tileH }   // +col
+  const v = { x: -tileW, y: tileH }  // +row
+  const at = (a: number, b: number): Pt => ({
+    x: full.t.x + u.x * a + v.x * b,
+    y: full.t.y + u.y * a + v.y * b,
+  })
+  // Keep the positional corner NAMES: l is +row-most/−col, t the origin corner, r +col, b both.
+  return { t: at(c0, r0), r: at(c1, r0), b: at(c1, r1), l: at(c0, r1) }
+}
+
+/** Turn a reach map by `rotation` quarter-turns — the KEYS move, the values ride along. Thickness axes are
+ *  WORLD axes, so they rotate with the camera (`orientAssetForView`) and with the building a tile is stamped
+ *  into (`compositionCellRender`), exactly like `depthDir`. */
+export function rotateThicknessReach(reach: ThicknessReach, rotation: number): ThicknessReach {
+  const out: ThicknessReach = {}
+  for (const [dir, value] of Object.entries(reach) as [DepthDir, number][]) {
+    out[rotateDepthDir(dir, rotation)] = value
+  }
+  return out
+}
+
+/**
+ * Shrink along ONE axis to a fraction `t`, HUGGING the face `dir` points at — the authoring shorthand a
+ * backend tile uses ("a door is 0.3 thick toward its wall"). Expressed in reaches: full toward `dir`, `t`
+ * toward its opposite.
+ */
+export function thinGroundQuad(tileW: number, tileH: number, dir: DepthDir, t: number): GroundQuad {
+  if (!(t > 0) || t >= 1) return unitGroundQuad(tileW, tileH)
+  return reachGroundQuad(tileW, tileH, { [OPPOSITE_DIR[dir]]: t })
+}
+
+export function isoBlockFaces(
+  center: Pt,
+  tileW: number,
+  tileH: number,
+  blockH: number,
+  level = 0,
+  /** The ground footprint, as corner offsets from the cell centre. Defaults to the FULL cell, so every
+   *  existing caller draws byte-identically; a THINNED quad (`thinGroundQuad`) composes the same way
+   *  because the corners keep their cyclic order — the walls are still "the two edges meeting at `b`". */
+  quad: GroundQuad = unitGroundQuad(tileW, tileH),
+): BlockFaces {
   const px = center.x
   const by = center.y - level * blockH // this block's BASE diamond centre-y (lower on screen)
   const ty = by - blockH // this block's TOP diamond centre-y (one block higher)
 
+  // A corner of the footprint, placed on the TOP plane (`ty`) or the BASE plane (`by`).
+  const at = (c: Pt, planeY: number): Pt => ({ x: px + c.x, y: planeY + c.y })
+
   return {
-    // TOP: the diamond at `ty`, as a flat fillIsoFaceWithTile diamond (origin = left corner, eA → top, eB → bottom).
+    // TOP: the footprint at `ty`, as a flat fillIsoFaceWithTile quad (origin = left corner, eA → top, eB → bottom).
     top: {
-      a: { x: px - tileW, y: ty }, // left
-      b: { x: px, y: ty - tileH }, // top
-      c: { x: px + tileW, y: ty }, // right
-      d: { x: px, y: ty + tileH }, // bottom
+      a: at(quad.l, ty),
+      b: at(quad.t, ty),
+      c: at(quad.r, ty),
+      d: at(quad.b, ty),
     },
-    // LEFT: the front-left L→B wall, rising from the base diamond (by) to the top diamond (ty).
+    // LEFT: the front-left L→B wall, rising from the base footprint (by) to the top one (ty).
     left: {
-      a: { x: px - tileW, y: by }, // bottom-left  = L at base
-      b: { x: px, y: by + tileH }, // bottom-right = B at base
-      c: { x: px, y: ty + tileH }, // top-right    = B at top
-      d: { x: px - tileW, y: ty }, // top-left     = L at top
+      a: at(quad.l, by), // bottom-left  = L at base
+      b: at(quad.b, by), // bottom-right = B at base
+      c: at(quad.b, ty), // top-right    = B at top
+      d: at(quad.l, ty), // top-left     = L at top
     },
     // RIGHT: the front-right B→R wall.
     right: {
-      a: { x: px, y: by + tileH }, // bottom-left  = B at base
-      b: { x: px + tileW, y: by }, // bottom-right = R at base
-      c: { x: px + tileW, y: ty }, // top-right    = R at top
-      d: { x: px, y: ty + tileH }, // top-left     = B at top
+      a: at(quad.b, by), // bottom-left  = B at base
+      b: at(quad.r, by), // bottom-right = R at base
+      c: at(quad.r, ty), // top-right    = R at top
+      d: at(quad.b, ty), // top-left     = B at top
     },
   }
 }

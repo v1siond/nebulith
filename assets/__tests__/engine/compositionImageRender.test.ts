@@ -1,6 +1,6 @@
 /**
- * The tileset loader now populates each tile's backend IMAGE (ASCII_TILESET.tiles[label].image is an
- * ImageVisual; EMOJI_TILESET[label].image is a URL string), but the COMPOSITION render path (a labeled
+ * The tileset loader populates each tile's backend IMAGE — `styleTile(style, label).image`, the SAME field
+ * and the same URL shape in every style — but the COMPOSITION render path (a labeled
  * tree/building/feature cell drawn as an iso cube / 2D cell / top cell) still drew the glyph, never the
  * image. This proves it now draws the image — mirroring emojiImageTiles.test.ts's setup and
  * tileRouting.test.ts's recordingCtx render-test pattern.
@@ -19,6 +19,7 @@
  * image untouched. So "the drawn source !== the raw stub image" IS "a tint was applied", and
  * "drawn source === the raw stub image" IS "no tint was applied" — a genuine behavioural assertion.
  */
+import { makeStyleTile, setStyleTile, styleCatalog, styleTile, styleTiles } from '@/engine/tileset/styleTiles'
 import { installTilesetPayload } from '@/engine/tileset/tilesetLoader'
 import tilesetFixture from '@/__tests__/fixtures/tilesets.json'
 import { drawIsoAssetAscii } from '@/engine/render/iso'
@@ -27,8 +28,6 @@ import { renderTopView } from '@/engine/render/birdseye'
 import { tileImage } from '@/engine/render/shared'
 import { IsometricGrid, type GridAsset } from '@/engine/IsometricGrid'
 import { EMOJI_STYLE, ASCII_STYLE, type Style } from '@/game/artStyle'
-import { EMOJI_TILESET } from '@/engine/tileset/emojiTileset'
-import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 import type { PlayerState } from '@/game/runtime/player'
 
 const LABEL = '__test_comp_label__'
@@ -62,24 +61,20 @@ beforeAll(() => {
     return t === '2d' ? new FakeOffscreenCtx() : null
   }
   // The render paints ground from the loaded backend tileset's terrain; install ONLY the ascii entry so
-  // ASCII_TILESET has terrain (no longer bundled). Emoji is left as the bundled default on purpose — this
-  // suite drives EMOJI_TILESET/EMOJI_STYLE manually, so it must not be rebuilt from the fixture.
+  // styleCatalog('ascii') has terrain (no longer bundled). Emoji is left as the bundled default on purpose — this
+  // suite drives styleTiles('emoji')/EMOJI_STYLE manually, so it must not be rebuilt from the fixture.
   installTilesetPayload((tilesetFixture.data as Parameters<typeof installTilesetPayload>[0]).filter(t => t.key === 'ascii'))
 })
 
 beforeEach(() => {
-  EMOJI_TILESET[LABEL] = { char: '¤', color: '#334455', image: EMOJI_SRC }
-  EMOJI_TILESET[NO_IMAGE_LABEL] = { char: '¥', color: '#112233' } // no image → glyph fallback
-  ASCII_TILESET.tiles[LABEL] = { label: LABEL, glyph: '#', position: 'single', walkable: false, colorRole: 'canopy', image: { kind: 'image', src: ASCII_SRC } }
-  ASCII_TILESET.tiles[NO_IMAGE_LABEL] = { label: NO_IMAGE_LABEL, glyph: '¥', position: 'single', walkable: false, colorRole: 'canopy' } // no image
+  setStyleTile('emoji', LABEL, makeStyleTile(LABEL, { char: '¤', color: '#334455', image: EMOJI_SRC }))
+  setStyleTile('emoji', NO_IMAGE_LABEL, makeStyleTile(NO_IMAGE_LABEL, { char: '¥', color: '#112233' })) // no image → glyph fallback
+  setStyleTile('ascii', LABEL, makeStyleTile(LABEL, { char: '#', position: 'single', walkable: false, colorRole: 'canopy', image: ASCII_SRC }))
+  setStyleTile('ascii', NO_IMAGE_LABEL, makeStyleTile(NO_IMAGE_LABEL, { char: '¥', position: 'single', walkable: false, colorRole: 'canopy' })) // no image
 })
 
-afterEach(() => {
-  delete EMOJI_TILESET[LABEL]
-  delete EMOJI_TILESET[NO_IMAGE_LABEL]
-  delete ASCII_TILESET.tiles[LABEL]
-  delete ASCII_TILESET.tiles[NO_IMAGE_LABEL]
-})
+// No teardown of the four sentinel tiles: `beforeEach` rewrites all of them, and jest gives every test FILE
+// its own module registry, so this file's style store cannot leak into another suite.
 
 interface Rec {
   ctx: CanvasRenderingContext2D
@@ -124,16 +119,21 @@ describe('composition tiles paint their backend IMAGE (tint ascii, never emoji) 
     expect(r.images.every((src) => src !== rawImg)).toBe(true) // every face drew the FILTERED sprite — colour is a per-tile setting
   })
 
-  test('a label with no image still draws its glyph (never blank)', () => {
+  // The last resort is the TILE's `char` — the backend mark the picture was baked from — and NOT the placed
+  // asset's own `art`. That distinction is the one-engine rule in miniature: both styles reach the same line
+  // of the same renderer and read the same field, so `'Q'` (bundled onto the asset) must never appear.
+  test('a label with no image falls back to the TILE\'s char, in BOTH styles — never blank, never asset.art', () => {
     const rAscii = recordingCtx()
     drawIsoAssetAscii(rAscii.ctx, 100, 100, asset({ label: NO_IMAGE_LABEL, art: ['Q'] }), 22, 11, 0, false, 'day', ASCII_STYLE)
     expect(rAscii.images.length).toBe(0)
-    expect(rAscii.glyphs).toContain('Q')
+    expect(rAscii.glyphs).toContain(styleTile('ascii', NO_IMAGE_LABEL)?.char)
+    expect(rAscii.glyphs).not.toContain('Q')
 
     const rEmoji = recordingCtx()
     drawIsoAssetAscii(rEmoji.ctx, 100, 100, asset({ label: NO_IMAGE_LABEL, art: ['Q'] }), 22, 11, 0, false, 'day', EMOJI_STYLE)
     expect(rEmoji.images.length).toBe(0)
-    expect(rEmoji.glyphs).toContain(EMOJI_TILESET[NO_IMAGE_LABEL].char)
+    expect(rEmoji.glyphs).toContain(styleTile('emoji', NO_IMAGE_LABEL)?.char)
+    expect(rEmoji.glyphs).not.toContain('Q')
   })
 })
 
@@ -154,11 +154,12 @@ describe('composition tiles paint their backend IMAGE (tint ascii, never emoji) 
     expect(r.images.every((src) => src !== rawImg)).toBe(true)
   })
 
-  test('no image → glyph fallback', () => {
+  test('no image → the TILE\'s char, not the asset\'s art', () => {
     const r = recordingCtx()
     draw2DLabeledCell(r.ctx, 100, 100, 20, 20, asset({ label: NO_IMAGE_LABEL, art: ['Q'] }), ASCII_STYLE)
     expect(r.images.length).toBe(0)
-    expect(r.glyphs).toContain('Q')
+    expect(r.glyphs).toContain(styleTile('ascii', NO_IMAGE_LABEL)?.char)
+    expect(r.glyphs).not.toContain('Q')
   })
 })
 
@@ -188,10 +189,11 @@ describe('composition tiles paint their backend IMAGE (tint ascii, never emoji) 
     expect(r.images.every((src) => src !== rawImg)).toBe(true)
   })
 
-  test('no image → glyph fallback', () => {
+  test('no image → the TILE\'s char, not the asset\'s art', () => {
     const r = recordingCtx()
     run(r.ctx, gridWith(NO_IMAGE_LABEL), ASCII_STYLE)
     expect(r.images.length).toBe(0)
-    expect(r.glyphs).toContain('Q')
+    expect(r.glyphs).toContain(styleTile('ascii', NO_IMAGE_LABEL)?.char)
+    expect(r.glyphs).not.toContain('Q')
   })
 })

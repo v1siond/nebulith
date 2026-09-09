@@ -7,18 +7,18 @@
  * `/api/tilesets` response) and assert the derivation over THAT — the same data the runtime loads from the
  * backend. There is no verbatim value pin any more: the tile values live in the backend, not the frontend.
  */
+import { styleTile, styleTiles } from '@/engine/tileset/styleTiles'
 import '@/__tests__/helpers/installTilesetSeed' // fill the (empty) emoji holder with the DB-equivalent fixture
-import { EMOJI_TILESET } from '@/engine/tileset/emojiTileset'
 import { EMOJI_STYLE, resolveVisual, type GlyphVisual, type ImageVisual } from '@/game/artStyle'
 
 describe('emoji tileset extraction — EMOJI_STYLE is a faithful view over the loaded tileset', () => {
   test('the loaded tileset is non-empty (the fixture installed)', () => {
-    expect(Object.keys(EMOJI_TILESET).length).toBeGreaterThan(0)
+    expect(Object.keys(styleTiles('emoji')).length).toBeGreaterThan(0)
   })
 
   test('every kind becomes a Visual matching its tile — image tiles → ImageVisual, else GlyphVisual', () => {
-    for (const kind of Object.keys(EMOJI_TILESET)) {
-      const tile = EMOJI_TILESET[kind]
+    for (const kind of Object.keys(styleTiles('emoji'))) {
+      const tile = styleTile('emoji', kind)
       const expected = tile.image
         ? { kind: 'image', src: tile.image, color: tile.color, char: tile.char } // image tiles keep the source glyph as label/fallback
         : { kind: 'glyph', char: tile.char, color: tile.color }
@@ -27,8 +27,8 @@ describe('emoji tileset extraction — EMOJI_STYLE is a faithful view over the l
   })
 
   test('resolveVisual over the derived style returns each kind’s emoji tile', () => {
-    for (const kind of Object.keys(EMOJI_TILESET)) {
-      const tile = EMOJI_TILESET[kind]
+    for (const kind of Object.keys(styleTiles('emoji'))) {
+      const tile = styleTile('emoji', kind)
       const v = resolveVisual(kind as never, EMOJI_STYLE)
       if (tile.image) {
         expect(v.kind).toBe('image')
@@ -42,6 +42,6 @@ describe('emoji tileset extraction — EMOJI_STYLE is a faithful view over the l
   })
 
   test('EMOJI_STYLE.map has exactly the tileset’s kinds (no drift either way)', () => {
-    expect(Object.keys(EMOJI_STYLE.map).sort()).toEqual(Object.keys(EMOJI_TILESET).sort())
+    expect(Object.keys(EMOJI_STYLE.map).sort()).toEqual(Object.keys(styleTiles('emoji')).sort())
   })
 })

@@ -7,6 +7,7 @@ import type { Entity, Quest } from '@/game/types'
 import type { Animation } from '@/engine/animation/tileAnimation'
 import type { AssetLight } from '@/engine/tileset/tileset'
 import { NEBULITH_API } from './nebulithApi'
+import { unitStandLevel } from '@/engine/cellStack'
 
 export interface Connector {
   // A connector owns a SET of cells — one connector can span many selected cells.
@@ -320,12 +321,17 @@ export function deserializeToGrid(
     }
   }
 
-  // Rebuild collision grid from assets. Blocks are collision regardless of any
-  // visual height level — a blocking asset always blocks its cell.
+  // Rebuild the collision grid from the assets — GROUND-level blocks only, the same rule the composition stamp
+  // follows. The map is 2D (one flag per cell) while a building is 3D, so blocking a cell for a tile at ANY
+  // level made an upper storey seal the floor beneath it: a saved village held 89 blocking assets above ground
+  // (windows at L2/L4/L6, wall courses at L3/L5, awnings at L2) and the collision map traced those storeys
+  // instead of the walls — "the collissions don't match the generated building" (Alexander, Image #13).
+  // A unit walks on the ground, so the ground is what this flat map means. Tiles keep their own truthful
+  // `blocking` data: a roof still blocks as a block, it just does not seal the room under it.
   for (const asset of grid.assets) {
-    if (asset.blocking) {
-      grid.setCollision(asset.col, asset.row, true)
-    }
+    if (!asset.blocking) continue
+    if ((asset.heightLevel ?? 0) > unitStandLevel(grid, asset.col, asset.row)) continue // an upper storey
+    grid.setCollision(asset.col, asset.row, true)
   }
 
   return grid

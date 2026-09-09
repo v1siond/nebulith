@@ -31,6 +31,7 @@ export default function GameShowPage() {
       .then((g: Game) =>
         setCtx({
           gameId: g.id,
+          gameName: g.name,
           templateIds: g.templateIds,
           startTemplateId: g.lastTemplateId || g.templateIds[0] || null,
           play,

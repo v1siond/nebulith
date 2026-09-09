@@ -5,29 +5,36 @@
  * active style. `resolveVisual(kind, style, override?)` is the single decision point
  * every renderer funnels through.
  *
- * The load-bearing invariant: the built-in **ASCII** style maps NOTHING, so
- * `resolveVisual` returns the `ascii` passthrough sentinel for every unmapped kind —
- * the renderer then draws EXACTLY as it always did (byte-identical). A non-ASCII style
- * (e.g. Emoji) only overrides the kinds it maps; anything it leaves out still passes
- * through to ASCII, so the world can never go blank.
+ * THE INVARIANT — **a style is a SET OF BAKED IMAGES, and nothing else.** Alexander: *"all arts have
+ * the exact same behavior and engine and the only thing that changes is the tiles, that's all that
+ * changes, the tileset art … changing from emoji to ascii shouldn't make a difference whatsoever,
+ * because we're just saying 'use this set of images instead of this other one'."* So a tile's Visual
+ * is built by ONE helper (`tileVisual`) from ONE normalised record (`TileArt`), looked up through ONE
+ * one lookup (`styleTileArt`). No resolver, and no renderer, may branch on the style id for
+ * anything but WHICH TILESET to read — never for how to draw. (MAP-MODEL §4 / §8.)
  *
- * Two Visual KINDS keep the mechanism future-proof:
- *   - `glyph`  — a char (+ optional color): what ASCII uses, and what an Emoji style
- *                uses (tree→🌲, water→🟦…). Drawn with the existing fillText path.
- *   - `image`  — a sprite/tile src + optional sub-rect: for pixel packs / Pixellab /
- *                uploads. The renderer draws it with drawImage. v1 ships no image pack,
- *                but the resolution + draw plumbing is wired.
+ * `ASCII_STYLE.map` stays empty: a KIND resolves through the tileset lookup, not a pre-baked kind map,
+ * so `resolveVisual` returns the `ascii` passthrough sentinel for an unmapped kind and the renderer
+ * resolves the kind's baked tile itself (`styleTileImage`). A non-ASCII style only overrides the kinds
+ * it maps; anything it leaves out passes through, so the world can never go blank.
+ *
+ * Two Visual KINDS:
+ *   - `image`  — a baked tile PNG (+ optional atlas sub-rect). **This is what every seeded tile is**,
+ *                in EITHER style; the renderer draws it with drawImage and caches the built sprite.
+ *   - `glyph`  — a char (+ optional color). The documented LAST RESORT for a tile with genuinely no
+ *                baked image (MAP-MODEL §8 forbids `image_url: nil` on a seeded tile), never a
+ *                pre-load placeholder — the loader decodes every PNG before the render gate opens.
  */
 
 // ── element kinds (the vocabulary a Style maps) ──────────────────────────
-import { EMOJI_TILESET } from '@/engine/tileset/emojiTileset'
-import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
+import { styleTile, styleTiles } from '@/engine/tileset/styleTiles'
 // The BAKED entity/person/enemy resolution (which baked slug an enemyType / variant draws) is backend
 // DATA fetched from `GET /api/entities` and installed into this holder — the frontend holds none of it.
 // Read LIVE at call time so the resolvers below see the installed map (empty pre-load → the entity falls
 // back to its base figure; the render is gated on the install, so that empty state never paints).
 import { getEntityResolution } from '@/engine/entity/entityResolution'
 import type { EntityVariant } from '@/game/types'
+import type { HasTileViews } from '@/engine/tileset/tileViewSettings'
 
 export type ElementKind =
   | 'grass' | 'water' | 'path' | 'road' | 'plaza' | 'sand' | 'ground' | 'snow' | 'autumn' | 'meadow' // terrain (+ seasons; road = dark-gray town street; meadow = flat colour-only floor)
@@ -60,6 +67,12 @@ export const TILE_CATEGORIES: readonly TileCategory[] = [
   'terrain', 'roads', 'floors', 'walls', 'windows', 'doors', 'roofs', 'nature', 'props', 'decor', 'units',
 ]
 
+/** The heading each bucket shows. The DATA value is the lowercase string above; this is what people read. */
+export const CATEGORY_LABELS: Record<TileCategory, string> = {
+  terrain: 'Terrain', roads: 'Roads/Paths', floors: 'Floors', walls: 'Walls', windows: 'Windows',
+  doors: 'Doors', roofs: 'Roofs', nature: 'Nature', props: 'Props/Furniture', decor: 'Decor', units: 'Units',
+}
+
 // ── visuals ──────────────────────────────────────────────────────────────
 /** Draw a char (ASCII glyph OR an emoji) with fillText. `color` does DOUBLE duty:
  *  it is the glyph fill (an emoji ignores it; an ASCII glyph inherits the renderer's
@@ -80,6 +93,47 @@ export type Visual = GlyphVisual | ImageVisual | AsciiVisual
 /** The one shared passthrough instance (referentially stable, cheap to compare). */
 export const ASCII_PASSTHROUGH: AsciiVisual = { kind: 'ascii' }
 
+/** A loaded tile's ART, normalised across the tilesets — the ONE shape every style is read through.
+ *  An `EmojiTile` carries `char`/`color`/`image:string`; a `TilesetTile` carries `glyph`/`image:ImageVisual`.
+ *  Both project onto this, so nothing downstream may branch on which style it came from. `pose`/`views` ride
+ *  along because the per-view size/pose resolvers (tileViewSettings) read them and must read them the SAME
+ *  way in every style — a renderer that only looked them up for emoji made a tile behave differently under
+ *  ASCII, which the whole "a style is just a set of images" rule forbids. */
+export interface TileArt extends HasTileViews { char: string; color?: string; image?: string; height?: number }
+
+/** The Visual for ONE loaded tile — its baked IMAGE if it has one, else its glyph.
+ *
+ *  THE INVARIANT (Alexander): *"the only thing that changes is the tiles, that's all that changes, the
+ *  tileset art … we're just saying 'use this set of images instead of this other one'."* So this is the
+ *  SINGLE builder for EVERY style — ascii and emoji produce the identical Visual shape and only the `src`
+ *  differs. ASCII used to discard the tile's baked `image` here and hand back a raw glyph, which made every
+ *  image-backed tile miss the cube-sprite cache (gated on `dv.image`) and fall into the per-face
+ *  clip+fillText path — the whole reason ASCII rendered ~2.5× slower than emoji on the same map.
+ *
+ *  The glyph branch is the documented LAST RESORT for a tile with genuinely no baked image (MAP-MODEL §8:
+ *  a seeded tile must never be `image_url: nil`); it is never a pre-load placeholder — the loader decodes
+ *  every baked PNG before the render gate opens (tilesetLoader → preloadTileImages). */
+export function tileVisual(t: TileArt): Visual {
+  return t.image ? { kind: 'image', src: t.image, color: t.color, char: t.char } : { kind: 'glyph', char: t.char, color: t.color }
+}
+
+/**
+ * The normalised art for a tile LABEL under a STYLE — the ONE lookup every renderer and resolver shares.
+ *
+ * There used to be two normalisers (`asciiTileArt` / `emojiTileArt`) behind a dispatch map keyed on the
+ * style id, because the two stores held two different shapes. There is one shape now (`StyleTile`), so
+ * there is one lookup and no map: a style is a set of pictures for the same labels, and a third style
+ * resolves here the day the backend serves it, with no code change.
+ *
+ * Undefined when this style has no such label — the caller then falls back to the coarse kind. An unknown
+ * style resolves nothing rather than borrowing another style's picture.
+ */
+export function styleTileArt(label: string, styleId: string): TileArt | undefined {
+  const tile = styleTile(styleId, label)
+  if (!tile) return undefined
+  return { char: tile.char, color: tile.color, image: tile.image, height: tile.height, pose: tile.pose, views: tile.views }
+}
+
 // ── a Style ───────────────────────────────────────────────────────────────
 export interface Style {
   id: string
@@ -93,24 +147,21 @@ export interface Style {
 /** The built-in default — maps nothing, so EVERY kind passes through unchanged. */
 export const ASCII_STYLE: Style = { id: 'ascii', name: 'ASCII', icon: '⌨', map: {} }
 
-/** Build the emoji Style's map from the plain-data EMOJI_TILESET — each kind → a glyph Visual. This
- *  is the "load different" seam for emoji: the glyph+colour data lives in EMOJI_TILESET (JSON-
- *  serialisable, DB-seed-ready), and EMOJI_STYLE is just a view over it — not a hardcoded literal. */
+/** Build the emoji Style's per-kind map from the ONE tile store. A Style's `map` is only a shortcut for
+ *  resolving a coarse ElementKind; every actual tile resolves by LABEL through `styleTileArt`. */
 function emojiStyleMap(): Partial<Record<ElementKind, Visual>> {
   const map: Partial<Record<ElementKind, Visual>> = {}
-  for (const kind of Object.keys(EMOJI_TILESET)) {
-    const tile = EMOJI_TILESET[kind]
-    // A tile with an `image` (a Noto PNG) renders through the wired drawImage path — kills the Segoe
-    // `[?]` tofu on Unicode-13 glyphs. `color` still rides along as the geometry backing tint.
-    map[kind as ElementKind] = tile.image
-      ? { kind: 'image', src: tile.image, color: tile.color, char: tile.char }
-      : { kind: 'glyph', char: tile.char, color: tile.color }
+  // A tile with an `image` (a Noto PNG) renders through the wired drawImage path — kills the Segoe
+  // `[?]` tofu on Unicode-13 glyphs. `color` still rides along as the geometry backing tint. Built by
+  // the SAME `tileVisual` every other style/lookup uses (see below) — no bespoke emoji construction.
+  for (const [label, tile] of Object.entries(styleTiles('emoji'))) {
+    map[label as ElementKind] = tileVisual({ char: tile.char, color: tile.color, image: tile.image })
   }
   return map
 }
 
 /** Zero-asset, visually striking reskin — proves the mechanism with pure emoji glyphs. Built from
- *  EMOJI_TILESET (loadable plain data), so the emoji tileset isn't hardcoded here. */
+ *  the loaded tile store, so no art is hardcoded here. */
 export const EMOJI_STYLE: Style = {
   id: 'emoji',
   name: 'Emoji',
@@ -118,8 +169,8 @@ export const EMOJI_STYLE: Style = {
   map: emojiStyleMap(),
 }
 
-/** Rebuild EMOJI_STYLE.map from the current EMOJI_TILESET — call after setEmojiTileset() so DB-loaded
- *  emoji tiles install into the active style (EMOJI_STYLE is a stable object; only its map is swapped). */
+/** Rebuild EMOJI_STYLE.map from the loaded store — called after a tileset install (EMOJI_STYLE is a stable
+ *  object; only its map is swapped). */
 export function rebuildEmojiStyle(): void {
   EMOJI_STYLE.map = emojiStyleMap()
 }
@@ -165,13 +216,21 @@ export function bakedEntityImage(slug: string): string | undefined {
 }
 
 
-/** The per-variant tile OVERRIDE for a PERSON (npc/player) under a reskin — male→🧍‍♂️ man, old→🧓 elder,
- *  robot→🤖 … each a baked image. Returns undefined for ASCII, for no variant, or for a variant with no
- *  baked tile — all of which fall back to the BASE figure (never a raw glyph). Mirrors enemyTileId. */
+/**
+ * The per-variant tile for a PERSON (npc/player) — male→`man`, old→`elder`, robot→`robot`.
+ *
+ * Resolves in the ACTIVE style, whichever that is. It used to read `if (style.id === 'ascii') return
+ * undefined` and hardcode `emoji:${slug}` — so ascii was denied pictures the backend was serving it
+ * (`/tiles/ascii/man.png` exists, and always did). That is the "one engine, N art styles" rule broken by a
+ * style-name check: the question is never *which style is this*, it is *does this style have a picture for
+ * this label*.
+ *
+ * Undefined for no variant, or a variant this style has no tile for — both fall back to the BASE figure.
+ */
 export function personVariantTileId(variant: EntityVariant | undefined, style: Style): string | undefined {
-  if (style.id === 'ascii' || !variant) return undefined
+  if (!variant) return undefined
   const slug = getEntityResolution().variantSlug[variant]
-  return slug && bakedEntityImage(slug) ? `emoji:${slug}` : undefined
+  return slug && styleTile(style.id, slug) ? `${style.id}:${slug}` : undefined
 }
 
 /** The style-derived tile override for an ENTITY: an enemy's per-type tile (goblin→👺) or a person's
@@ -185,12 +244,61 @@ export function entityStyleOverride(
   return personVariantTileId(entity.variant, style)
 }
 
-/** The styles the picker offers, in order. ASCII first (the default). */
-export const BUILT_IN_STYLES: readonly Style[] = [ASCII_STYLE, EMOJI_STYLE]
+// ── the style LIST is backend data ────────────────────────────────────────
+/**
+ * The art styles, as the BACKEND declares them (Alexander, 2026-09-08: *"styles should be backend
+ * categories"*).
+ *
+ * A tileset row IS a style — `ascii` and `emoji` are rows in the `tilesets` table — so the list, its order,
+ * and each style's display name and icon are catalog data, served on `/api/tilesets`. This used to be a
+ * frontend constant (`BUILT_IN_STYLES`, §3.14a), which meant adding a style was a frontend edit: exactly
+ * what the whole tile pipeline exists to avoid.
+ *
+ * What stays here is MECHANISM, not data: each style needs a way to look a label's art up
+ * (`styleTiles`), and that is engine code. A served style with no such entry still lists and still
+ * switches — every tile resolves by LABEL, so it simply renders whatever that style's tileset holds.
+ */
+export interface StyleInfo {
+  id: string
+  name: string
+  icon: string
+}
 
-/** Look a style up by id, defaulting to ASCII (so a bad/absent saved id can't break render). */
+// Filled by `setStyleCatalog` on the tileset load. EMPTY until the backend answers — the picker then shows
+// nothing rather than inventing a style list, the same honesty rule the generator menu follows.
+let STYLE_CATALOG: readonly StyleInfo[] = []
+
+/** Install the served STYLE LIST — which styles the picker offers (not their tiles; that is
+ *  `setStyleCatalog` in engine/tileset/styleTiles.ts). Called by the tileset loader. */
+export function setStyleList(styles: readonly StyleInfo[]): void {
+  STYLE_CATALOG = styles
+}
+
+/** The styles the picker offers, in the backend's order. */
+export function availableStyles(): readonly StyleInfo[] {
+  return STYLE_CATALOG
+}
+
+// The per-style art LOOKUP. A style is only a different set of images, so this maps a style id to the
+// Style object that resolves its visuals; the backend decides which of these are actually offered.
+const STYLE_BY_ID: Readonly<Record<string, Style>> = {
+  ascii: ASCII_STYLE,
+  emoji: EMOJI_STYLE,
+}
+
+/**
+ * Look a style up by id, defaulting to ASCII (so a bad/absent saved id can't break render).
+ *
+ * A style the backend serves but the engine has no art lookup for still resolves: it gets a Style with an
+ * empty `map`, and every tile then renders through the LABEL→IMAGE path against that style's tileset —
+ * which is the whole point of "one engine, N art styles".
+ */
 export function styleById(id: string | null | undefined): Style {
-  return BUILT_IN_STYLES.find(s => s.id === id) ?? ASCII_STYLE
+  if (!id) return ASCII_STYLE
+  const known = STYLE_BY_ID[id]
+  if (known) return known
+  const served = STYLE_CATALOG.find(s => s.id === id)
+  return served ? { id: served.id, name: served.name, icon: served.icon, map: {} } : ASCII_STYLE
 }
 
 // ── kind derivation (pure classifiers the renderers call) ────────────────
@@ -299,14 +407,20 @@ export function entityKind(kind: string): ElementKind {
   return 'enemy'
 }
 
-/** The per-type tile OVERRIDE for an enemy under a reskin style — so goblin→👺, wolf→🐺, etc. Reads the
- *  backend-served enemyType→slug map (getEntityResolution) so the id always points at a baked tile, keyed
- *  on the lowercase enemyType tag. Returns undefined for ASCII (its enemies stay block-figures) and for
- *  unmapped/blank types (→ the base 👾). */
+/**
+ * The per-type tile for an ENEMY — goblin, wolf, bat… — in the ACTIVE style.
+ *
+ * Same correction as `personVariantTileId`: this used to return undefined for ascii and hardcode
+ * `emoji:${slug}`, so an ascii goblin drew a generic block-figure while `/tiles/ascii/goblin.png` sat
+ * unused. A style is a set of pictures for the same labels; the enemyType→slug map is backend data and the
+ * slug is a LABEL, so it resolves in whatever style is active.
+ *
+ * Undefined for a blank/unmapped type, or one this style has no tile for (→ the base figure).
+ */
 export function enemyTileId(enemyType: string | undefined, style: Style): string | undefined {
-  if (style.id === 'ascii' || !enemyType) return undefined
+  if (!enemyType) return undefined
   const slug = getEntityResolution().enemyTypeSlug[enemyType.toLowerCase()]
-  return slug ? `emoji:${slug}` : undefined
+  return slug && styleTile(style.id, slug) ? `${style.id}:${slug}` : undefined
 }
 
 // ── the Tile Library catalog (what the modal lists + what an override points at) ──
@@ -329,7 +443,7 @@ export interface TileDef {
 }
 
 // ── the Tile Library: read LIVE from the loaded (DB) tilesets ─────────────────────────────────────
-// The sidebar browses the SAME tilesets the MAP renders — the backend-loaded EMOJI_TILESET / ASCII_TILESET
+// The sidebar browses the SAME tiles the MAP renders — the one backend-loaded store
 // (tilesetLoader swaps in the :4000 DB rows). NOTHING art-related is hardcoded here: a tile is BROWSEABLE
 // when its loaded entry carries a browseable `category` (one of TILE_CATEGORIES); its display name is the
 // entry's `title`, its art the entry's image/glyph. The per-kind seed metadata (category/label/glyph)
@@ -337,10 +451,6 @@ export interface TileDef {
 
 const BROWSEABLE_CATEGORIES: ReadonlySet<string> = new Set<TileCategory>(TILE_CATEGORIES)
 
-/** The Visual for one loaded EMOJI tile entry — its baked image if present, else its glyph. */
-function emojiEntryVisual(t: { char: string; color?: string; image?: string }): Visual {
-  return t.image ? { kind: 'image', src: t.image, color: t.color, char: t.char } : { kind: 'glyph', char: t.char, color: t.color }
-}
 
 /** The tiles the Library lists for a style, grouped by category — read LIVE from the loaded tileset so the
  *  sidebar ALWAYS matches the map. Only entries carrying a `category` are browseable (internal cell-labels
@@ -348,25 +458,31 @@ function emojiEntryVisual(t: { char: string; color?: string; image?: string }): 
 export function tilesForStyle(styleId: string): Record<TileCategory, TileDef[]> {
   const out = Object.fromEntries(TILE_CATEGORIES.map(c => [c, [] as TileDef[]])) as Record<TileCategory, TileDef[]>
   // `extra` carries the DB tile's BLOCK height + settings so the palette tile FULLY describes the DB tile —
-  // the brush then seeds a painted asset from it and a painted tile matches the generator's version.
-  const push = (key: string, category: string | undefined, title: string | undefined, visual: Visual, extra: Pick<TileDef, 'height' | 'settings'> = {}): void => {
+  // the brush then seeds a painted asset from it and a painted tile matches the generator's version. BOTH
+  // styles push the same fields through the same helper: a style is only a different set of images.
+  const push = (key: string, category: string | undefined, title: string | undefined, art: TileArt, settings?: Record<string, unknown>): void => {
     if (!category || !BROWSEABLE_CATEGORIES.has(category)) return
-    out[category as TileCategory].push({ id: `${styleId}:${key}`, label: title ?? key, category: category as TileCategory, styleId, visual, ...extra })
+    out[category as TileCategory].push({ id: `${styleId}:${key}`, label: title ?? key, category: category as TileCategory, styleId, visual: tileVisual(art), height: art.height, settings })
   }
-  if (styleId === 'emoji') for (const [key, t] of Object.entries(EMOJI_TILESET)) push(key, t.category, t.title, emojiEntryVisual(t), { height: t.height, settings: t.settings })
-  else if (styleId === 'ascii') for (const [key, t] of Object.entries(ASCII_TILESET.tiles)) push(key, t.category, t.title, { kind: 'glyph', char: t.glyph }, { settings: t.settings })
+  // ONE loop over the style's own tiles. This used to be `if (styleId === 'emoji') … else if ('ascii') …`
+  // over two differently-shaped stores — the clearest instance of the two-engines problem, since adding a
+  // style meant editing this function.
+  for (const [label, tile] of Object.entries(styleTiles(styleId))) {
+    push(label, tile.category, tile.title, {
+      char: tile.char, color: tile.color, image: tile.image, height: tile.height, pose: tile.pose, views: tile.views,
+    }, tile.settings)
+  }
   return out
 }
 
 /** Resolve a style-agnostic tile id (`<styleId>:<key>`) to its Visual, LIVE from the loaded tileset (null
- *  for an unknown id / a style that lacks that tile — the caller then falls back to the coarse kind). */
+ *  for an unknown id / a style that lacks that tile — the caller then falls back to the coarse kind).
+ *  One path for every style: look the tile's normalised art up, build the Visual from it. */
 export function visualForTileId(id: string): Visual | null {
   const sep = id.indexOf(':')
   if (sep < 0) return null
-  const styleId = id.slice(0, sep), key = id.slice(sep + 1)
-  if (styleId === 'emoji') { const t = EMOJI_TILESET[key]; return t ? emojiEntryVisual(t) : null }
-  if (styleId === 'ascii') { const t = ASCII_TILESET.tiles[key]; return t ? { kind: 'glyph', char: t.glyph } : null }
-  return null
+  const art = styleTileArt(id.slice(sep + 1), id.slice(0, sep))
+  return art ? tileVisual(art) : null
 }
 
 // ── the one resolution point ──────────────────────────────────────────────

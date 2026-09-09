@@ -1,8 +1,8 @@
+import { makeStyleTile, setStyleCatalog, styleCatalog } from '@/engine/tileset/styleTiles'
 import '@/__tests__/helpers/installTilesetSeed' // the opening is READ from the loaded composition — install what production loads
 import { generateStage, doorCells, type StageData } from '@/engine/stageGenerator'
 import { buildingDoorOffset, facingRotation, rotateFootprintOffset } from '@/engine/buildingCatalog'
 import { resolveComposition } from '@/engine/tileset/tileset'
-import { ASCII_TILESET, setAsciiTileset } from '@/engine/tileset/asciiTileset'
 import { makeRng } from '@/lib/math'
 
 // G7 (REQUIREMENTS-cell-block-tile.md:110): "The walk-in ENTRANCE opening must ALWAYS match the door's
@@ -23,7 +23,7 @@ function genSeeded(opts: Parameters<typeof generateStage>[0], seed: number): Sta
 /** The grid cells a building's composition really puts its ground-level `door` tiles on — computed with the
  *  SAME rotation the stamp applies (rotateFootprintOffset), so this is the drawn doorway, not a re-derivation. */
 function stampedDoorCells(b: StageData['buildings'][number]): Set<string> {
-  const comp = resolveComposition(ASCII_TILESET, b.kind)
+  const comp = resolveComposition(styleCatalog('ascii'), b.kind)
   if (!comp) throw new Error(`composition ${b.kind} missing from the seeded tileset fixture`)
   const rotation = facingRotation(b.facing)
   const anchorCol = b.col
@@ -94,35 +94,50 @@ describe('G7 — the walkable ENTRANCE opening matches the door width', () => {
     expect(seenFacings.size).toBeGreaterThanOrEqual(2) // both axis-aligned and rotated buildings exercised
   })
 
-  test('the footprint blocks EVERYWHERE except the door cells (no extra hole, no sealed door)', () => {
+  test('the WALLS block everywhere except the doors, and the ROOM inside is walkable', () => {
+    // A building is a room you walk into, not a solid lump: the perimeter is wall (opened only at the door
+    // cells) and every interior cell is clear. That is what makes the interior reveal mean anything —
+    // Alexander: *"roof gets transparent when user enters the building and we can see the inside of the
+    // thing"*. You cannot enter a footprint that blocks all the way through.
     for (const seed of TOWN_SEEDS) {
       const stage = genSeeded({ zone: 'spring', variant: 'town', cols: 48, rows: 48 }, seed)
+      expect(stage.buildings.length).toBeGreaterThan(0)
       for (const b of stage.buildings) {
-        const open: string[] = []
+        const doors = new Set(b.doorCells.map(d => `${d.col},${d.row}`))
         const top = b.row - (b.height - 1)
+        const openWalls: string[] = []
+        const blockedInterior: string[] = []
         for (let r = top; r <= b.row; r++) {
-          for (let c = b.col; c < b.col + b.length; c++) if (!stage.collision[r][c]) open.push(`${c},${r}`)
+          for (let c = b.col; c < b.col + b.length; c++) {
+            const onPerimeter = r === top || r === b.row || c === b.col || c === b.col + b.length - 1
+            const walkable = !stage.collision[r][c]
+            if (onPerimeter && walkable !== doors.has(`${c},${r}`)) openWalls.push(`${c},${r}`)
+            if (!onPerimeter && !walkable) blockedInterior.push(`${c},${r}`)
+          }
         }
-        expect(new Set(open)).toEqual(new Set(b.doorCells.map(d => `${d.col},${d.row}`)))
+        expect(openWalls).toEqual([]) // no extra hole in the wall, and no sealed door
+        expect(blockedInterior).toEqual([]) // nothing left standing inside the room
       }
     }
   })
 
-  test('DEGRADED path: with no tileset loaded the generator still opens a way in, and WARNS instead of failing silently', () => {
-    const loaded = ASCII_TILESET
+  test('NO tileset loaded → NO buildings, said out loud (a size is never invented)', () => {
+    // This used to assert a "degraded path" that still planted buildings. It does not any more, and that is
+    // the point: a building's SIZE is backend data (the composition footprints), so with none loaded there is
+    // no size to plan and nothing to stamp (MAP-MODEL §8, the no-fallback law — `layoutPass`). Inventing a
+    // 4×3 house here would put a building on the map that the backend cannot stamp, which is exactly the
+    // class of "fake tile" being removed everywhere else.
+    const loaded = styleCatalog('ascii')
     const warn = jest.spyOn(console, 'warn').mockImplementation(() => {})
     try {
-      setAsciiTileset({ id: 'ascii', name: 'ASCII', tiles: {}, palettes: {}, terrain: {}, compositions: {} })
+      setStyleCatalog({ id: 'ascii', name: 'ASCII', tiles: {}, compositions: {}, terrain: {} })
       const stage = genSeeded({ zone: 'spring', variant: 'town', cols: 40, rows: 40 }, 1)
-      expect(stage.buildings.length).toBeGreaterThan(0)
-      for (const b of stage.buildings) {
-        expect(b.doorCells.length).toBeGreaterThanOrEqual(1) // never seal the player out
-        for (const d of b.doorCells) expect(stage.collision[d.row][d.col]).toBe(false)
-      }
+      expect(stage.buildings).toEqual([])
+      // The one thing worse than an empty town is a SILENTLY empty town — the warning has to name the cause.
       expect(warn).toHaveBeenCalled()
-      expect(warn.mock.calls.some(c => String(c[0]).includes(stage.buildings[0].kind))).toBe(true)
+      expect(warn.mock.calls.some(c => String(c[0]).includes('no building compositions are loaded'))).toBe(true)
     } finally {
-      setAsciiTileset(loaded)
+      setStyleCatalog(loaded)
       warn.mockRestore()
     }
   })

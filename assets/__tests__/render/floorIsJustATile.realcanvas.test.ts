@@ -15,13 +15,13 @@
  * floor lifted by only 1). Proved through the production `render()` path on a REAL @napi-rs/canvas in the
  * EMOJI style — the one Alexander QAs — placing tiles through the BRUSH path (pushTile), not hand-set levels.
  */
+import { styleTiles } from '@/engine/tileset/styleTiles'
 import { installRealCanvas, type RealCanvasHarness } from '@/__tests__/helpers/realCanvas'
 import { installSeedTileset } from '@/__tests__/helpers/tilesetSeed'
 import { render, isoRecordedTileGeom, ISO_BLOCK_H_FRAC } from '@/engine/render/iso'
 import { IsometricGrid, type GridAsset } from '@/engine/IsometricGrid'
 import { pushTile } from '@/engine/cellStack'
 import { EMOJI_STYLE } from '@/game/artStyle'
-import { EMOJI_TILESET } from '@/engine/tileset/emojiTileset'
 import type { PlayerState } from '@/game/runtime/player'
 import type { TileGeom } from '@/engine/render/tileHit'
 
@@ -38,7 +38,7 @@ const player = (): PlayerState => ({ x: PCOL * CELL, z: PROW * CELL, moving: fal
 
 /** Any emoji tile that carries a baked image — a concrete standing block to paint over a floor. */
 function anImageTileKey(): string {
-  const hit = Object.entries(EMOJI_TILESET).find(([, t]) => t.image && t.category !== 'units')
+  const hit = Object.entries(styleTiles('emoji')).find(([, t]) => t.image && t.category !== 'units')
   if (!hit) throw new Error('fixture has no image-backed non-unit emoji tile')
   return hit[0]
 }
@@ -66,7 +66,7 @@ const baseY = (g: TileGeom | null): number => avgY(cube(g).base) // base-diamond
 beforeAll(async () => {
   H = installRealCanvas().harness
   const srcs = new Set<string>()
-  for (const t of Object.values(EMOJI_TILESET)) if (t.image) srcs.add(t.image)
+  for (const t of Object.values(styleTiles('emoji'))) if (t.image) srcs.add(t.image)
   for (const s of srcs) H.registerSolid(s, '#00c800')
   await H.warm([...srcs])
 })

@@ -9,9 +9,9 @@
  * EVEN WHEN THE TILE IS FLAT (height 0) — a flat road you walk over lifts the walker to level 1 without being
  * raised. Height-≥1 tiles are already ≥1, so they are byte-identical (the legos stay legos). Decoupled from height.
  */
+import { makeStyleTile, setStyleTile, styleTile } from '@/engine/tileset/styleTiles'
 import { pushTile } from '@/engine/cellStack'
 import { IsometricGrid } from '@/engine/IsometricGrid'
-import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 
 const FLAT_PLAIN = '__flat_plain__' // a flat tile (height 0) — content overlaps it at level 0 (default)
 const FLAT_ACT = '__flat_act__'     // a flat tile marked act_as_tile — content stacks ON TOP at level 1
@@ -19,16 +19,16 @@ const TALL_PLAIN = '__tall_plain__' // a height-1 plain block — content stacks
 const TOP = '__topper__'
 
 beforeAll(() => {
-  ASCII_TILESET.tiles[FLAT_PLAIN] = { label: FLAT_PLAIN, glyph: '.', position: 'single', walkable: true, colorRole: 'ground', height: 0 }
-  ASCII_TILESET.tiles[FLAT_ACT] = { label: FLAT_ACT, glyph: '.', position: 'single', walkable: true, colorRole: 'ground', height: 0, settings: { actAsTile: true } }
-  ASCII_TILESET.tiles[TALL_PLAIN] = { label: TALL_PLAIN, glyph: '#', position: 'single', walkable: true, colorRole: 'ground', height: 1 }
-  ASCII_TILESET.tiles[TOP] = { label: TOP, glyph: '@', position: 'single', walkable: true, colorRole: 'ground', height: 1 }
+  setStyleTile('ascii', FLAT_PLAIN, makeStyleTile(FLAT_PLAIN, { char: '.', position: 'single', walkable: true, colorRole: 'ground', height: 0 }))
+  setStyleTile('ascii', FLAT_ACT, makeStyleTile(FLAT_ACT, { char: '.', position: 'single', walkable: true, colorRole: 'ground', height: 0, settings: { actAsTile: true } }))
+  setStyleTile('ascii', TALL_PLAIN, makeStyleTile(TALL_PLAIN, { char: '#', position: 'single', walkable: true, colorRole: 'ground', height: 1 }))
+  setStyleTile('ascii', TOP, makeStyleTile(TOP, { char: '@', position: 'single', walkable: true, colorRole: 'ground', height: 1 }))
 })
 afterAll(() => {
-  delete ASCII_TILESET.tiles[FLAT_PLAIN]
-  delete ASCII_TILESET.tiles[FLAT_ACT]
-  delete ASCII_TILESET.tiles[TALL_PLAIN]
-  delete ASCII_TILESET.tiles[TOP]
+  delete styleTile('ascii', FLAT_PLAIN)
+  delete styleTile('ascii', FLAT_ACT)
+  delete styleTile('ascii', TALL_PLAIN)
+  delete styleTile('ascii', TOP)
 })
 
 const grid = () => new IsometricGrid({ cols: 6, rows: 6, cellSize: 32, isoScale: 1.4 })

@@ -4,14 +4,13 @@
  * source of truth). These prove the DATA the app renders from, not pixels: THE realism rule is that windows
  * form a SPACED GRID (window, wall, window …), vertically aligned across floors — never a solid band.
  */
+import { styleCatalog, styleTile } from '@/engine/tileset/styleTiles'
 import '@/__tests__/helpers/installTilesetSeed'
 import { resolveComposition } from '@/engine/tileset/tileset'
-import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
-import { EMOJI_TILESET } from '@/engine/tileset/emojiTileset'
 import { assetKind } from '@/game/artStyle'
 
 type Cell = { dx: number; dy: number; level: number; label: string; settings?: { scaleY?: number } }
-const comp = (name: string) => resolveComposition(ASCII_TILESET, name)!
+const comp = (name: string) => resolveComposition(styleCatalog('ascii'), name)!
 
 // A minimal-cell (#30) building authors a same-tile vertical RUN as ONE cell sized settings.scaleY = span,
 // so a cell at `level` with scaleY = n covers levels level..level+n-1. Expand so a per-level read still works.
@@ -209,7 +208,7 @@ describe('sample compositions — realistic building/fountain/tree DATA from the
     // (trees, bushes, all buildings, AND the fountain/well basin) NO cell carries a non-zero zIndex.
     const names = ['tree', 'bush', 'fountain', 'well', 'house_3', 'house_4', 'house_5', 'store_5', 'office_5', 'stone_building', 'hospital_6', 'big_house_6', 'temple_8', 'cathedral_7', 'castle_12']
     for (const name of names) {
-      const c = resolveComposition(ASCII_TILESET, name)
+      const c = resolveComposition(styleCatalog('ascii'), name)
       if (!c) continue
       const cells = c.cells as Array<Cell & { zIndex?: number }>
       expect(cells.every(cell => (cell.zIndex ?? 0) === 0)).toBe(true)
@@ -250,8 +249,8 @@ describe('sample compositions — realistic building/fountain/tree DATA from the
     const pieces = new Set<string>()
     for (const name of ['fountain', 'stone_building']) for (const cell of comp(name).cells as Cell[]) if (isPiece(cell.label)) pieces.add(cell.label)
     expect(pieces.size).toBeGreaterThanOrEqual(18) // water_c + water_jet + 8 fountain rim + 9 wall_stone pieces used
-    expect([...pieces].filter(l => !ASCII_TILESET.tiles[l]?.glyph)).toEqual([]) // ascii glyph gaps
-    expect([...pieces].filter(l => !EMOJI_TILESET[l]?.char)).toEqual([]) // emoji char gaps
+    expect([...pieces].filter(l => !styleTile('ascii', l)?.glyph)).toEqual([]) // ascii glyph gaps
+    expect([...pieces].filter(l => !styleTile('emoji', l)?.char)).toEqual([]) // emoji char gaps
   })
 
   test('the LIGHT POST is a post+lamp composition — identical structure in both styles, each piece a real tile in both', () => {
@@ -265,8 +264,8 @@ describe('sample compositions — realistic building/fountain/tree DATA from the
     expect(byLevel.map(c => [c.label, c.level])).toEqual([['post', 0], ['lamp', 1]])
     // no single-tile collapse: each piece carries its OWN ascii glyph AND emoji char
     for (const label of ['post', 'lamp']) {
-      expect(ASCII_TILESET.tiles[label]?.glyph).toBeTruthy()
-      expect(EMOJI_TILESET[label]?.char).toBeTruthy()
+      expect(styleTile('ascii', label)?.glyph).toBeTruthy()
+      expect(styleTile('emoji', label)?.char).toBeTruthy()
     }
   })
 
@@ -327,17 +326,17 @@ describe('material + roof rollout — every material/piece resolves and every bu
     for (const base of WALL_MATERIALS) for (const s of SUFFIXES) need.push(`${base}_${s}`)
     need.push('roof_slate', 'roof_top_slate')
     // every new label carries an ascii glyph AND an emoji char (both tilesets paint it per-cell).
-    expect(need.filter(l => !ASCII_TILESET.tiles[l]?.glyph)).toEqual([])
-    expect(need.filter(l => !EMOJI_TILESET[l]?.char)).toEqual([])
+    expect(need.filter(l => !styleTile('ascii', l)?.glyph)).toEqual([])
+    expect(need.filter(l => !styleTile('emoji', l)?.char)).toEqual([])
   })
 
   test('each material carries its OWN distinct emoji block (stone 🪨 ≠ brick 🧱 ≠ wood 🟫 ≠ plaster ⬜, slate ⬛)', () => {
-    expect(EMOJI_TILESET['wall_stone_c'].char).toBe('🪨') // distinct from the ⬜ fountain rim (spec style call #3)
-    expect(EMOJI_TILESET['wall_brick_c'].char).toBe('🧱')
-    expect(EMOJI_TILESET['wall_wood_c'].char).toBe('🟫')
-    expect(EMOJI_TILESET['wall_plaster_c'].char).toBe('⬜')
-    expect(EMOJI_TILESET['roof_slate'].char).toBe('⬛')
-    expect(EMOJI_TILESET['roof_top_slate'].char).toBe('⬛')
+    expect(styleTile('emoji', 'wall_stone_c').char).toBe('🪨') // distinct from the ⬜ fountain rim (spec style call #3)
+    expect(styleTile('emoji', 'wall_brick_c').char).toBe('🧱')
+    expect(styleTile('emoji', 'wall_wood_c').char).toBe('🟫')
+    expect(styleTile('emoji', 'wall_plaster_c').char).toBe('⬜')
+    expect(styleTile('emoji', 'roof_slate').char).toBe('⬛')
+    expect(styleTile('emoji', 'roof_top_slate').char).toBe('⬛')
   })
 
   describe('each BOX building facade emits its mapped material — center + autotiled edge/corner pieces', () => {
@@ -395,16 +394,16 @@ describe('material + roof rollout — every material/piece resolves and every bu
     expect(leaf).toEqual(['leaf_center']) // ONE leaf tile IS the whole (2×) canopy now
     // both parts carry an ascii glyph AND an emoji char
     for (const l of [...trunk, ...leaf]) {
-      expect(ASCII_TILESET.tiles[l]?.glyph).toBeTruthy()
-      expect(EMOJI_TILESET[l]?.char).toBeTruthy()
+      expect(styleTile('ascii', l)?.glyph).toBeTruthy()
+      expect(styleTile('emoji', l)?.char).toBeTruthy()
     }
-    for (const l of trunk) expect(EMOJI_TILESET[l].char).toBe('🟫') // brown trunk block
-    for (const l of leaf) expect(EMOJI_TILESET[l].char).toBe('🍃') // leaf — not a whole tree, not an herb
-    expect(labels.some(l => EMOJI_TILESET[l]?.char === '🌲')).toBe(false) // never the whole-object tree
+    for (const l of trunk) expect(styleTile('emoji', l).char).toBe('🟫') // brown trunk block
+    for (const l of leaf) expect(styleTile('emoji', l).char).toBe('🍃') // leaf — not a whole tree, not an herb
+    expect(labels.some(l => styleTile('emoji', l)?.char === '🌲')).toBe(false) // never the whole-object tree
     // the leaf tile carries a NON-null baked image in BOTH styles (no more image_url:null → the tint composites
     // onto a real PNG, so emoji leaves take the per-tree pink/brown canopy shade instead of staying green)
-    expect(ASCII_TILESET.tiles['leaf_center']?.image).toBeTruthy()
-    expect(EMOJI_TILESET['leaf_center']?.image).toBeTruthy()
+    expect(styleTile('ascii', 'leaf_center')?.image).toBeTruthy()
+    expect(styleTile('emoji', 'leaf_center')?.image).toBeTruthy()
   })
 
   test('classifier routes the new wall materials + slate roof to the `ground` kind (per-label emoji)', () => {

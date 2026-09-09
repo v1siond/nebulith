@@ -13,9 +13,9 @@
  * This drives the REAL seeded fixture (the captured /api/tilesets response), so it verifies the actual
  * backend default, not a hand-built stand-in.
  */
+import { styleCatalog } from '@/engine/tileset/styleTiles'
 import { stampComposition } from '@/game/runtime/composition'
 import { IsometricGrid } from '@/engine/IsometricGrid'
-import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 import { useSeedTileset } from '@/__tests__/helpers/tilesetSeed'
 import type { SettingsAnimation } from '@/engine/animation/tileAnimation'
 
@@ -29,7 +29,7 @@ describe('fountain composition — water cells ship the height-grow animation as
   }
 
   test('the fountain interior is all water_c (no drops); exactly 3 of the 9 animate, 6 are STATIC, the rim never', () => {
-    const comp = ASCII_TILESET.compositions?.['fountain']
+    const comp = styleCatalog('ascii').compositions?.['fountain']
     expect(comp).toBeTruthy()
     // the drops are gone — the interior is blue water only
     expect(comp!.cells.some(c => c.label === 'water_jet')).toBe(false)

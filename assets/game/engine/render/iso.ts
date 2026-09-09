@@ -1,6 +1,6 @@
 import { player as playerSprite } from '@/assets/ascii'
 import { GridAsset, IsometricGrid, FLOOR_TYPE } from '@/engine/IsometricGrid'
-import { assetAnimFrame, assetCycleFrame } from '@/engine/assetAnimations'
+import { assetCycleFrame } from '@/engine/assetAnimations'
 import { type AttackAnim, animFrame } from '@/engine/attackAnimations'
 import { type Facing } from '@/engine/villageLayout'
 import { assetCellTransform } from '@/engine/cellAnimation'
@@ -13,22 +13,20 @@ import { type HitMarker } from '@/game/runtime/combat'
 import { type PlayerState, barFraction, hpFraction, playerDisplayName } from '@/game/runtime/player'
 import { type CombatState, type Entity, type Quest } from '@/game/types'
 import { resolveGroundTile, type TileShape } from '@/engine/tileset/tileset'
-import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 import { Connector } from '@/lib/api'
-import { ASCII_FONT, COMBAT_RANGE, type DayNight, type DrawVisual, ENEMY_MOVE_MS, LIGHT, applyCellTransform, isoCameraFocus, assetCaptionByCell, terrainLabelAt, collectLampGlows, type CompositionGhost, compositionGhostColors, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawHoverRing, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawConnectorMarker, drawAttackAnimFrame, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, clipToBall, SINGLE_TILE_FRAC, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, frameImage, getPlayerArt, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, resolveAssetDraw, resolveEntityDraw, assetOverride, labelTileImage, kindTileImage, labelTileRecolor, groundDecorImage, tileImage, tintedImage, tintedGlyphSprite, treeCanopyLayers, treeCellSet } from './shared'
+import { ASCII_FONT, COMBAT_RANGE, type DayNight, type DrawVisual, ENEMY_MOVE_MS, LIGHT, applyCellTransform, isoCameraFocus, assetCaptionByCell, terrainLabelAt, collectLampGlows, type CompositionGhost, compositionGhostColors, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawHoverRing, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawConnectorMarker, drawAttackAnimFrame, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, clipToBall, SINGLE_TILE_FRAC, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, frameImage, getPlayerArt, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, resolveAssetDraw, resolveEntityDraw, assetOverride, styleTileImage, labelTileRecolor, groundDecorImage, tileImage, tintedImage, tintedGlyphSprite, treeCellSet } from './shared'
 import { resolveAssetDrawSize } from './assetDimensions'
 import { resolveAssetAnimation } from './assetAnimation'
-import { getStack, assetStackIndexer, type TileSource } from '@/engine/cellStack'
-import { isoBlockFaces, isoDepthBox, depthCells, depthFrontExtent, isoZOffset, rotateDepthDir, spanBackmost, normalizeDepthSpan, assetRectExtents, type BlockFace, type DepthDir } from './isoBlock'
+import { getStack, assetStackIndexer, unitStandLevel, type TileSource } from '@/engine/cellStack'
+import { isoBlockFaces, isoDepthBox, depthCells, depthFrontExtent, isoZOffset, rotateDepthDir, spanBackmost, normalizeDepthSpan, assetRectExtents, reachGroundQuad, rotateThicknessReach, type BlockFace, type DepthDir, type ThicknessReach } from './isoBlock'
 import { type Orientation } from './isoOrientation'
 import { cellOrienterFor, orientCellTurn, deorientCellTurn, orientedDimsForTurn, facingForTurn, wrapTurn } from './isoTurn'
 import { resolveTileHeight, blockLayers, layerBlockScale } from '@/engine/tileset/tileHeight'
-import { EMOJI_TILESET } from '@/engine/tileset/emojiTileset'
 import { applyPose } from '@/engine/tileset/pose'
 import { cubeGeom, depthBoxGeom, rectBoxGeom, billboardGeom, diamondGeom, pointInTileGeom, outlineSegments, poseMapper, tileGeomCentroid, tilesInScreenRect, type TileGeom } from './tileHit'
+import { revealedRoofs, revealedShell, revealAlpha } from './roofReveal'
 import { resolveTileSize, resolveTilePose } from '@/engine/tileset/tileViewSettings'
-import { ASCII_STYLE, assetKind, entityKind, entityStyleOverride, genderize, groundKind, personVariantTileId, type ElementKind, type ImageVisual, type Style } from '@/game/artStyle'
-import { cellStackTop } from '@/engine/cellStack'
+import { ASCII_STYLE, assetKind, entityKind, entityStyleOverride, genderize, groundKind, personVariantTileId, styleTileArt, type ElementKind, type ImageVisual, type Style } from '@/game/artStyle'
 import { DEFAULT_CHARACTER_ANIMATIONS, activeFrame } from '@/game/runtime/entityAnimation'
 
 
@@ -78,6 +76,26 @@ export function pickIsoTilesAt(x: number, y: number): TileHit[] {
     if (pointInTileGeom(x, y, isoTileHits[i].geom)) hits.push(isoTileHits[i])
   }
   return hits
+}
+
+/**
+ * Draw something WITHOUT letting it disturb the hit record the map's picker reads back.
+ *
+ * `render` resets `isoTileHits` and repopulates it as it draws, and `pickIsoTilesAt` / `renderedTilesInRect`
+ * read that array to turn a mouse position into a tile. So anything that renders a DIFFERENT grid through
+ * the same function — a preview thumbnail, most obviously — leaves the picker pointing at a grid the user
+ * cannot see, and the next click on the map resolves against it. This restores the array afterwards, which
+ * is enough because `render` REPLACES it rather than mutating in place.
+ *
+ * A preview is a picture, not a surface you can click, so it has no business owning the hit record.
+ */
+export function withoutIsoRecording<T>(draw: () => T): T {
+  const saved = isoTileHits
+  try {
+    return draw()
+  } finally {
+    isoTileHits = saved
+  }
 }
 
 /** The frontmost recorded tile under (x,y), or null (the caller then falls back to the flat ground cell). */
@@ -298,11 +316,15 @@ function viewDepthDir(dir: DepthDir, facing: Orientation): DepthDir {
  *  the coords take, or a spanned/slid tile would point off-grid the moment you rotate. This is general to
  *  EVERY depth-box asset (a roof is just the common one). Facing 0, or no axes → the SAME object, untouched. */
 function orientAssetForView(asset: GridAsset, facing: Orientation): GridAsset {
-  if (facing === 0 || (!asset.depthDir && !asset.zDir)) return asset
+  if (facing === 0 || (!asset.depthDir && !asset.zDir && !asset.thickness)) return asset
   return {
     ...asset,
     depthDir: asset.depthDir && rotateDepthDir(asset.depthDir, facing),
     zDir: asset.zDir && rotateDepthDir(asset.zDir, facing),
+    // THICKNESS reaches are world axes too: a door thin toward its wall must stay thin toward THAT wall when
+    // the camera turns. Without this it would thin toward whatever the viewer currently calls "front" — the
+    // exact defect the directional thickness exists to fix.
+    thickness: asset.thickness && rotateThicknessReach(asset.thickness, facing),
   }
 }
 
@@ -349,6 +371,15 @@ export interface IsoRenderParams {
    *  rotates. Wins over `cameraFacing` when both are given. Omitted → `cameraFacing`, else the
    *  `__setCameraTurn` debug seam's current value (0 until it's called). */
   cameraTurn?: number
+  /**
+   * Draw the renderer's own on-screen text — the `Pos:` / `Grid:` readout and the debug banner.
+   *
+   * True (the default) is the editor and the game. False is for anywhere this render is a PICTURE of the
+   * world rather than the world itself: a preview thumbnail, a minimap. `renderTopView` has carried this
+   * flag since the minimap needed it; without the same flag here, every isometric preview came out with
+   * "Pos: 84, 84" burned across it.
+   */
+  chrome?: boolean
 }
 
 /** Draw the composition-placement GHOST in ISO: each occupied cell gets a translucent tinted diamond on the
@@ -413,6 +444,7 @@ export function render(params: IsoRenderParams) {
     cameraFacing,
     cameraTurn = cameraFacing ?? isoCameraTurn(),
     playerViewRange,
+    chrome = true,
   } = params
   installCameraSeams() // __setCameraTurn / __setCameraFacing … — idempotent, no draw side effects
   // The camera's continuous turn, and the CORNER it is nearest. Everything positional reads `turn`; the few
@@ -607,6 +639,17 @@ export function render(params: IsoRenderParams) {
   // draw loop below (fadeNearAlpha / cutawayAlpha). So a tree-leaf tile carrying fadeNear fades exactly like a wall.
   isoTileHits = [] // fresh per-frame record of every drawn tile's silhouette — the inverted picker reads it
   const stackIndexOf = assetStackIndexer(grid) // per-frame memo: an asset → its slot in its cell's stack (0 = base/floor)
+  // ROOF REVEAL (Diablo / Path of Exile) — POSITIONAL, not proximity: the hero is under a roof or they are not.
+  // Every `cutawayRoof` tile offers its covered footprint; the CONNECTED roof over the hero's cell comes off as
+  // ONE piece (a roof is many z-width column blocks — lifting just the one overhead would punch a hole), and the
+  // walls/windows/doors of that same shell (`fadeNear`) ease translucent so the interior actually reads.
+  // OUTSIDE a building nothing fades: the old distance ease ghosted every wall the hero walked past while the
+  // roof stayed solid (Alexander, Image #1 — "not transparent enough and is not applied correctly").
+  const roofTiles = visibleAssets.filter(a => a.settings?.cutawayRoof)
+  const roofFootprints = roofTiles.map(a => grid.rectCoveredCells(a).map(c => `${c.col},${c.row}`))
+  const liftedRoofs = revealedRoofs(Math.floor(pCol), Math.floor(pRow), roofFootprints)
+  const roofsOff = new Set<GridAsset>(Array.from(liftedRoofs, i => roofTiles[i]))
+  const shellCells = revealedShell(roofFootprints, liftedRoofs)
   // The player is drawn from PlayerState (no id); its selectable id lives on the player ENTITY in `entities`.
   const playerEntityId = entities.find(e => e.kind === 'player')?.id
   // A UNIT is just a tile the picker returns: record the figure's billboard silhouette so a click ANYWHERE on
@@ -652,11 +695,12 @@ export function render(params: IsoRenderParams) {
     const heightOffset = cellHeight * heightStep
 
     if (obj.isPlayer || obj.entity) {
-      // A UNIT stands ON TOP of whatever fills the cell — the SAME shared lego rule (`cellStackTop`) every tile
-      // uses, not a special floor lift (the #28 "walks THROUGH the floor" bug). A flat town floor tops out at 0
-      // (byte-identical), a height-1 meadow at 1 so the hero stands on the surface. "Floors are tiles, all tiles
-      // stack" (Alexander) — no floorStackLift.
-      const floorLift = isoStackLift(tileW, cellStackTop(grid, Math.floor(obj.col), Math.floor(obj.row)))
+      // A UNIT stands on the cell's GROUND (`unitStandLevel`), not on the top of everything in it. Raising the
+      // ground still lifts it — a height-1 meadow or a walk-over road carries the hero up, the same lego math
+      // every tile reads (so the #28 "walks THROUGH the floor" bug stays fixed). What it does NOT do is lift a
+      // unit onto STRUCTURE: a doorway cell holds the whole facade column above the doorstep, and taking the
+      // stack top there drew the hero on the ROOF instead of inside the house (Alexander, Image #2).
+      const floorLift = isoStackLift(tileW, unitStandLevel(grid, Math.floor(obj.col), Math.floor(obj.row)))
       drawUnit(obj, p, heightOffset + floorLift)
       continue
     }
@@ -673,14 +717,18 @@ export function render(params: IsoRenderParams) {
       // view frame so a z-width span (a roof) rotates WITH the grid instead of pointing off it.
       const drawAsset = orientAssetForView(anim ? anim.asset : obj.asset, facing)
       let op = obj.asset.opacity ?? 1 // per-asset opacity for contrast/depth
-      // GENERIC proximity behavior: ANY asset whose tile opted into fadeNear/cutawayRoof eases by its OWN
-      // distance to the hero — walls/leaves ease translucent (fadeNearAlpha), a roof lifts off (cutawayAlpha).
+      // GENERIC reveal behavior: ANY asset whose tile opted into cutawayRoof/fadeNear answers to the hero's
+      // POSITION, not their distance. Inside the building: its roof is skipped entirely and its shell eases to
+      // INTERIOR_SHELL_ALPHA. Outside: both draw at full opacity.
       const fx = obj.asset.settings
-      if (fx && (fx.fadeNear || fx.cutawayRoof)) {
+      if (fx?.cutawayRoof || fx?.fadeNear) {
+        // INSIDE = the hero is under this roof, or this shell tile belongs to the revealed building. A revealed
+        // ROOF is skipped outright; everything else eases by `revealAlpha` — solid far away, translucent as the
+        // hero closes in (so the facade and its door read), and dropped right back once inside.
+        const inside = fx.cutawayRoof ? roofsOff.has(obj.asset) : shellCells.has(`${obj.asset.col},${obj.asset.row}`)
+        if (fx.cutawayRoof && inside) continue
         const dist = Math.hypot(pCol - obj.asset.col, pRow - obj.asset.row)
-        const alpha = fx.cutawayRoof ? cutawayAlpha(dist) : fadeNearAlpha(dist)
-        if (alpha <= 0.03) continue // a cutaway tile lifted off → skip drawing entirely
-        op = Math.min(op, alpha)
+        op = Math.min(op, revealAlpha({ dist, inside, minAlpha: fx.minAlpha }))
       }
       if (anim) op *= anim.opacity // animated opacity fades the drawn tile (multiplies base + proximity alpha)
       if (op < 1) ctx.globalAlpha = op
@@ -798,11 +846,11 @@ export function render(params: IsoRenderParams) {
   // ─── DEBUG MODE ────────────────────────────────────────────────────
 
   if (isDebugMode()) {
-    renderDebugOverlays(ctx, w, h, grid, player, (wx, wz) => toScreen(wx / cellSize, wz / cellSize), cellSize, true, tileW, tileH)
+    renderDebugOverlays(ctx, w, h, grid, player, (wx, wz) => toScreen(wx / cellSize, wz / cellSize), cellSize, true, tileW, tileH, heightStep)
   } else if (isShowCollisions()) {
     // Collision-only overlay: same red diamonds as debug, no coords/labels. Pass the render's ZOOMED
     // tileW/tileH so the diamonds fill each cell edge-to-edge (not the unzoomed grid.isoScale default).
-    renderDebugOverlays(ctx, w, h, grid, player, (wx, wz) => toScreen(wx / cellSize, wz / cellSize), cellSize, false, tileW, tileH)
+    renderDebugOverlays(ctx, w, h, grid, player, (wx, wz) => toScreen(wx / cellSize, wz / cellSize), cellSize, false, tileW, tileH, heightStep)
   }
 
   // ─── Hover + selection HIGHLIGHT — INVERTED: outline the ACTUAL rendered TILE (its transformed cube /
@@ -852,15 +900,17 @@ export function render(params: IsoRenderParams) {
 
   // ─── UI ───────────────────────────────────────────────────────────
 
-  ctx.fillStyle = '#ffffff'
-  ctx.font = `14px ${ASCII_FONT}`
-  ctx.textAlign = 'left'
-  ctx.fillText(`Pos: ${Math.floor(player.x)}, ${Math.floor(player.z)}`, 10, 30)
-  ctx.fillText(`Grid: ${Math.floor(player.x / cellSize)}, ${Math.floor(player.z / cellSize)}`, 10, 50)
+  if (chrome) {
+    ctx.fillStyle = '#ffffff'
+    ctx.font = `14px ${ASCII_FONT}`
+    ctx.textAlign = 'left'
+    ctx.fillText(`Pos: ${Math.floor(player.x)}, ${Math.floor(player.z)}`, 10, 30)
+    ctx.fillText(`Grid: ${Math.floor(player.x / cellSize)}, ${Math.floor(player.z / cellSize)}`, 10, 50)
 
-  if (isDebugMode()) {
-    ctx.fillStyle = '#ff4444'
-    ctx.fillText('DEBUG MODE', 10, 70)
+    if (isDebugMode()) {
+      ctx.fillStyle = '#ff4444'
+      ctx.fillText('DEBUG MODE', 10, 70)
+    }
   }
 
   const __isoMs = perfNow() - __isoT0
@@ -967,7 +1017,7 @@ export function drawIsoPlayer(
   let headY: number
   if (pdv.image || pdv.char) {
     const pf = activeFrame(player.animations ?? DEFAULT_CHARACTER_ANIMATIONS, { char: pdv.char }, { moving: player.moving, facing: player.facing, running: player.running ?? false }, time)
-    const pfImg = frameImage(pf, pdv.char, pdv.image)
+    const pfImg = frameImage(pf, pdv.char, pdv.image, style)
     if (pfImg) {
       const imgPx = tileH * 2.6
       const cy = groundY - imgPx * 0.42 - breathe
@@ -1150,7 +1200,7 @@ export function drawIsoEntity(
   let figureTop: number
   if (edv.image || edv.char) {
     const ef = activeFrame(anims, { char: edv.char }, { moving, facing: 'down', running: false }, now)
-    const efImg = frameImage(ef, edv.char, edv.image)
+    const efImg = frameImage(ef, edv.char, edv.image, style)
     if (efImg) {
       const baseImgPx = tileH * (isEnemy ? 1.9 : 2.4)
       const imgPx = baseImgPx * size
@@ -1190,25 +1240,12 @@ export function drawIsoEntity(
 }
 
 
-// Proximity reveal (Zelda/PoE style), now a GENERIC per-tile behavior driven by settings.fadeNear /
-// settings.cutawayRoof — not building-only. A `fadeNear` tile eases to translucent as the hero closes in; a
-// `cutawayRoof` tile eases to fully invisible — SMOOTHLY (smoothstep), not a hard pop. Constants kept.
-export const BUILDING_FADE_RADIUS = 4.5 // fade begins easing this far out — a wide, gentle onset
-export const BUILDING_MIN_ALPHA = 0.22  // a fadeNear tile eases to this (translucent but readable) on top
-export const ROOF_GONE_DIST = 1.8       // a cutaway tile is fully invisible within this distance — lifted clean off
-
-const smoothstep = (t: number): number => { const c = Math.max(0, Math.min(1, t)); return c * c * (3 - 2 * c) }
-/** fadeNear opacity by the hero's distance: 1 far, easing to BUILDING_MIN_ALPHA on top (walls, leaves, …). */
-export function fadeNearAlpha(dist: number): number {
-  if (dist >= BUILDING_FADE_RADIUS) return 1
-  return BUILDING_MIN_ALPHA + (1 - BUILDING_MIN_ALPHA) * smoothstep(dist / BUILDING_FADE_RADIUS)
-}
-/** cutawayRoof opacity by distance: 1 far, easing to 0 by ROOF_GONE_DIST — the tile lifts off smoothly, no pop. */
-export function cutawayAlpha(dist: number): number {
-  if (dist >= BUILDING_FADE_RADIUS) return 1
-  if (dist <= ROOF_GONE_DIST) return 0
-  return smoothstep((dist - ROOF_GONE_DIST) / (BUILDING_FADE_RADIUS - ROOF_GONE_DIST))
-}
+// Interior reveal (Diablo / Path of Exile), a GENERIC per-tile behavior driven by settings.cutawayRoof /
+// settings.fadeNear — not building-only. The bands and the alpha maths live in ./roofReveal (`revealAlpha`):
+// solid far away, easing translucent as the hero approaches so the facade and its door read, and the roof off
+// with the shell dropped right back once the hero is inside. Re-exported here because this is the render seam
+// the tests and the page read.
+export { INTERIOR_SHELL_ALPHA, APPROACH_ALPHA, APPROACH_RADIUS } from './roofReveal'
 
 
 // ISO facing. Each building stands inside its plot RECT — cols [col, col+L] × the clear headroom
@@ -1322,9 +1359,10 @@ export function isoStackLift(tileW: number, heightLevel: number | undefined): nu
  *  which is exactly what the depth sort needs to tell a raised curb from a flat slab. Heights are style-identical
  *  (MAP-MODEL §4), so either tileset answers. Used only for the depth-sort front-extent gate. */
 function assetBlockRise(a: GridAsset): number {
-  const kind = assetKind(a)
-  const tile = ASCII_TILESET.tiles[kind] ?? EMOJI_TILESET[kind]
-  return resolveTileHeight(tile, a) * (a.scaleY ?? 1)
+  // resolveTileHeight reads the PLACED block, never the art tile (heights are placement data, not art), so
+  // there is nothing style-dependent to look up here — and the per-asset tileset probe this used to do ran
+  // on every item of the depth sort, every frame, for a value the resolver discards.
+  return resolveTileHeight(undefined, a) * (a.scaleY ?? 1)
 }
 
 /** Depth order for the merged iso draw list: back-to-front by the iso key (col + row), then — for two
@@ -1570,9 +1608,15 @@ function drawIsoTileBlockLive(
   topDv?: DrawVisual, // optional DIFFERENT tile for the TOP face (e.g. a ROOF cap on a WALL block)
   depth = 1, // directional-depth: >1 (with depthDir) extrudes into a long iso box spanning `depth` cells
   depthDir?: DepthDir,
+  /** THICKNESS: how far the block reaches toward each WORLD direction inside its own cell. Present → the
+   *  footprint shrinks to those reaches; absent → the untouched unit cell. */
+  thickness?: ThicknessReach,
 ): void {
   const n = blockLayers(height)
   const faceColor = tint ?? dv.tint ?? dv.color
+  // The ground footprint every face is built from. Thinned along a WORLD diagonal when the tile asks for it
+  // (a door flush in its wall); otherwise the full cell, so every existing block draws byte-identically.
+  const quad = thickness ? reachGroundQuad(tileW, tileH, thickness) : undefined
   // Per-face brightness from the sun (outward screen normals of the two FRONT walls). Constant per
   // block → hoisted out of the stacking loop. Same faceLight shading the peaked roof uses.
   const leftShade = darkenColor(faceColor, faceLight(-tileH, tileW)) // front-left wall (L→B edge)
@@ -1604,11 +1648,11 @@ function drawIsoTileBlockLive(
 
   // Stack bottom→top so higher blocks composite over lower ones; the TOP face is capped last (full-bright).
   for (let k = 0; k < n; k++) {
-    const faces = isoBlockFaces(center, tileW, tileH, blockH, k)
+    const faces = isoBlockFaces(center, tileW, tileH, blockH, k, quad)
     fillFace(faces.left, leftShade, dv, tint)
     fillFace(faces.right, rightShade, dv, tint)
   }
-  const top = isoBlockFaces(center, tileW, tileH, blockH, n - 1).top
+  const top = isoBlockFaces(center, tileW, tileH, blockH, n - 1, quad).top
   if (topDv) fillFace(top, topDv.tint ?? topDv.color ?? faceColor, topDv) // a ROOF tile capping a wall block
   else fillFace(top, faceColor, dv, tint)
 }
@@ -1705,17 +1749,20 @@ export function drawIsoTileBlock(
   topDv?: DrawVisual,
   depth = 1, // directional-depth (with depthDir) → a long iso box; default 1 = the unmodified cube
   depthDir?: DepthDir,
+  /** THICKNESS reaches → the footprint shrinks inside its own cell (a door flush in its wall). */
+  thickness?: ThicknessReach,
 ): void {
   const isDepthBox = !!depthDir && Math.floor(depth) > 1
-  // The cube-sprite cache bakes a UNIT cube — never a directional box; skip it so a depth box always draws live.
-  if (!isDepthBox && Math.floor(height) === 1 && ctx.globalAlpha === 1 && dv.image) {
+  // The cube-sprite cache bakes a UNIT cube — never a directional box, and never a THINNED one; skip it for
+  // both so the live builder draws the real footprint.
+  if (!isDepthBox && !thickness && Math.floor(height) === 1 && ctx.globalAlpha === 1 && dv.image) {
     const spr = cubeBlockSprite(dv, tileW, tileH, blockH, tint, topDv)
     if (spr) {
       ctx.drawImage(spr.canvas, center.x - spr.ox, center.y - spr.oy)
       return
     }
   }
-  drawIsoTileBlockLive(ctx, center, tileW, tileH, blockH, height, dv, tint, topDv, depth, depthDir)
+  drawIsoTileBlockLive(ctx, center, tileW, tileH, blockH, height, dv, tint, topDv, depth, depthDir, thickness)
 }
 
 /** DISPLAY = "single" (per-tile `settings.display`): draw the block as a PLAIN, shaded SHELL — the SAME cube
@@ -1862,6 +1909,15 @@ type IsoShapeDrawer = (
   dv: DrawVisual, tint: string | undefined, asset: GridAsset,
 ) => void
 
+/** The tile's DIRECTIONAL thickness, or undefined when it has none.
+ *
+ *  Thickness only becomes a world-axis shrink once the tile says WHICH way it is thin (`thicknessDir`). A
+ *  tile carrying only `scaleZ` keeps the historical screen-axis squash at the call site, so nothing that
+ *  renders today changes until it is given a direction. */
+function assetThickness(asset: GridAsset): ThicknessReach | undefined {
+  return asset.thickness && Object.keys(asset.thickness).length > 0 ? asset.thickness : undefined
+}
+
 const ISO_SHAPE_DRAWERS: Record<TileShape, IsoShapeDrawer> = {
   square: (ctx, center, bw, bd, bh, blocks, dv, tint, asset) => {
     // `transparent` drops the coloured block so it reads SEE-THROUGH — and it applies to EVERY tile, not just a
@@ -1879,7 +1935,7 @@ const ISO_SHAPE_DRAWERS: Record<TileShape, IsoShapeDrawer> = {
     if (asset.settings?.display === 'single') drawIsoSingleTileBlock(ctx, center, bw, bd, bh, blocks, dv, tint, asset.depth, asset.depthDir, transparent)
     else if (transparent) return // see-through: no coloured block (whether a rect deck or a plain cube)
     else if (isRect) drawIsoRectBlock(ctx, center, bw, bd, bh, blocks, dv, tint, ext)
-    else drawIsoTileBlock(ctx, center, bw, bd, bh, blocks, dv, tint, undefined, asset.depth, asset.depthDir)
+    else drawIsoTileBlock(ctx, center, bw, bd, bh, blocks, dv, tint, undefined, asset.depth, asset.depthDir, assetThickness(asset))
   },
   circle: (ctx, center, bw, bd, bh, blocks, dv, tint, asset) => {
     if (asset.settings?.transparent) return // transparent applies to circles too — see-through, no coloured ball
@@ -1949,148 +2005,37 @@ function blockGeom(x: number, y: number, halfW: number, halfD: number, blockH: n
   return cubeGeom(halfW, halfD, blockH, blocks, xf)
 }
 
-/** Per-type ASCII sprite silhouette: [half-width as a MULTIPLE of tileW, layer count]. A prop with no entry
- *  is a one-layer sprite 0.6·tileW wide. Keyed lookup (not a switch) so a type maps to its bounds directly. */
-const ISO_ASCII_STACK: Readonly<Record<string, readonly [halfWMul: number, layers: number]>> = {
-  tree: [1.1, 5],
-  lamp: [0.5, 3],
-  lantern: [0.5, 3],
-  npc: [0.55, 3],
-  bush: [0.6, 2],
+// ── The LAST-RESORT glyph plate (no baked tile at all) ────────────────────────────────────────────────────
+// EVERY seeded tile is image-backed in EVERY style (MAP-MODEL §8 — a tile row must never be `image_url: nil`),
+// so a tile resolves its baked picture through `styleTileImage` and draws as a cached block, identically in
+// ascii and emoji. The whole family of frontend-invented per-type ASCII sprites this file used to carry
+// (ISO_ASCII_DRAWERS → drawIsoTreeAscii / Lamp / Bush / Npc / Flower / Rock, each a stack of measureText'd
+// glyph plates redrawn EVERY frame) is DELETED: with the kind→image resolution ungated, nothing reached them,
+// and the `ctx.measureText` per asset per frame they ran was a top cost of the ASCII render (TILE-BACKEND-
+// MIGRATION §11 — "de-hardcoding is per-type … add a tile, drop the drawer").
+//
+// What remains is the ONE genuine last resort: an asset whose KIND has no tile in the active tileset at all
+// (`assetKind` → the unmapped `'ground'`) and which carries no label. It draws the asset's own art glyph on a
+// darkened plate so the cell is never blank. It is NOT style-specific — ascii and emoji reach it under exactly
+// the same condition, which is the point: there is no ASCII path any more, only a no-tile path.
+
+/** Half-width + layer count of the last-resort glyph plate — one layer, 0.6·tileW wide. Drives the recorded
+ *  pick silhouette so a click hugs the drawn plate rather than the whole ground cell. */
+function lastResortPlateBounds(tileW: number): [halfW: number, layers: number] {
+  return [tileW * 0.6, 1]
 }
 
-/** Half-width + layer count of a per-type ASCII sprite (tree/lamp/npc/…), which draws a STACK of glyph layers
- *  rising from the cell. Drives the recorded pick silhouette so a click hugs the visible sprite, not the cell. */
-function perTypeStackBounds(type: string, tileW: number): [halfW: number, layers: number] {
-  const [mul, layers] = ISO_ASCII_STACK[type] ?? [0.6, 1]
-  return [tileW * mul, layers]
-}
-
-// ── Legacy per-type ASCII prop art (tree/lamp/bush/npc/flower/rock/…) ─────────────────────────────────────
-// FALLBACK glyph art invented in the frontend, drawn ONLY when NO baked tile resolves for the asset's kind —
-// i.e. the ASCII style, whose kind catalog has no prop tiles (public/tiles has emoji/ only). Under emoji every
-// one of these types resolves a baked tile in drawIsoAssetAscii's `adv.image` branch and never reaches here.
-// To DE-HARDCODE a type, add its backend ASCII TileSource (→ tiles.json → bake → seed) so the image path
-// catches it upstream; until then these drawers keep the exact legacy pixels. Routed by a dispatch map, not an
-// `if type===` chain, so each type is one small, named, testable unit.
-
-/** Inputs every per-type ASCII drawer reads — all derived from the drawIsoAssetAscii call. */
-interface IsoAsciiParams {
-  x: number
-  y: number
-  tileW: number
-  tileH: number
-  fontSize: number
-  lineHeight: number
-  time: number
-  flicker: number
-  groundContact: boolean
-}
-
-type IsoAsciiDrawer = (ctx: CanvasRenderingContext2D, asset: GridAsset, p: IsoAsciiParams) => void
-
-/** One glyph layer of a stacked ASCII prop: coloured text over a bg plate so it reads on any ground. */
-interface AsciiStackLayer { text: string; color: string; bg: string }
-
-/** Draw a bottom-up STACK of glyph layers rising from (x,y): layer i sits i line-heights up, each on its own
- *  measured bg plate. `fontFor` sizes layer i (uniform, or tapering for a tree/head); `shadow` drops a 1px
- *  black offset behind the glyph (the npc figure). The shared body of the tree/lamp/bush/npc sprites. */
-function drawIsoGlyphStack(
-  ctx: CanvasRenderingContext2D, x: number, y: number, layers: readonly AsciiStackLayer[],
-  lineHeight: number, fontFor: (i: number) => number, shadow = false,
+/** The last-resort plate: the asset's own art glyph over a darkened backing, sized to the glyph. Reached only
+ *  by a tile-less, label-less asset (see the note above) — never by a seeded tile in any style. */
+function drawIsoLastResortGlyph(
+  ctx: CanvasRenderingContext2D, asset: GridAsset,
+  x: number, y: number, fontSize: number, lineHeight: number,
 ): void {
-  for (let i = 0; i < layers.length; i++) {
-    const layer = layers[i]
-    const layerY = y - i * lineHeight - lineHeight * 0.5
-    ctx.font = `bold ${fontFor(i)}px ${ASCII_FONT}`
-    const textWidth = ctx.measureText(layer.text).width
-    ctx.fillStyle = layer.bg
-    ctx.fillRect(x - textWidth / 2 - 2, layerY - lineHeight / 2, textWidth + 4, lineHeight)
-    if (shadow) { ctx.fillStyle = '#000000'; ctx.fillText(layer.text, x + 1, layerY + 1) }
-    ctx.fillStyle = layer.color
-    ctx.fillText(layer.text, x, layerY)
-  }
-}
-
-/** Tree: bark trunk + a canopy pyramid tinted to the asset's zone/theme colour (never hardcoded green); the
- *  trunk stays bark. Ground shadow only on the ground-contact cell. Wide base drawn first, apex on top. */
-function drawIsoTreeAscii(ctx: CanvasRenderingContext2D, asset: GridAsset, p: IsoAsciiParams): void {
-  const { x, y, tileW, tileH, fontSize, lineHeight, flicker, groundContact } = p
-  const canopy = treeCanopyLayers(asset.color || '#2e8b2e', flicker)
-  if (groundContact) {
-    ctx.save()
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.3)'
-    ctx.beginPath()
-    ctx.ellipse(x, y, tileW * 0.55, tileH * 0.5, 0, 0, Math.PI * 2)
-    ctx.fill()
-    ctx.restore()
-  }
-  const layers: AsciiStackLayer[] = [
-    { text: '0', color: '#ad8621', bg: '#5a4510' },              // trunk bottom
-    { text: 'W', color: '#c9a030', bg: '#6a5520' },              // trunk top
-    { text: '(@&@&@)', color: canopy[0].fg, bg: canopy[0].bg },  // wide base
-    { text: '(@&@)', color: canopy[1].fg, bg: canopy[1].bg },    // mid
-    { text: '(&)', color: canopy[2].fg, bg: canopy[2].bg },      // narrow apex
-  ]
-  // Bigger font at the wide base, smaller toward the apex → a crisp upright pyramid.
-  drawIsoGlyphStack(ctx, x, y, layers, lineHeight, i => (i < 2 ? fontSize * 0.9 : fontSize * (0.85 - (i - 2) * 0.05)))
-}
-
-/** Legacy single-lamp/lantern prop — a STEADY lit bulb glyph. Day/night ambience is the warm ground GLOW POOL
- *  (drawNightLighting) + a night-triggered flicker animation, NOT faked here, so this ignores dayNight. */
-function drawIsoLampAscii(ctx: CanvasRenderingContext2D, _asset: GridAsset, p: IsoAsciiParams): void {
-  const layers: AsciiStackLayer[] = [
-    { text: '|', color: '#666666', bg: '#333333' },
-    { text: '|', color: '#777777', bg: '#444444' },
-    { text: 'o', color: 'rgba(255, 220, 50, 1)', bg: 'rgba(100, 80, 0, 1)' },
-  ]
-  drawIsoGlyphStack(ctx, p.x, p.y, layers, p.lineHeight, () => p.fontSize)
-}
-
-/** Small bush — two leafy layers that shimmer with the ambient flicker. */
-function drawIsoBushAscii(ctx: CanvasRenderingContext2D, _asset: GridAsset, p: IsoAsciiParams): void {
-  const { flicker } = p
-  const layers: AsciiStackLayer[] = [
-    { text: '*', color: `rgba(80, 200, 80, ${0.8 + 0.2 * flicker})`, bg: 'rgba(0, 100, 0, 0.85)' },
-    { text: '**', color: `rgba(60, 180, 60, ${0.85 + 0.15 * flicker})`, bg: 'rgba(0, 90, 0, 0.8)' },
-  ]
-  drawIsoGlyphStack(ctx, p.x, p.y, layers, p.lineHeight, () => p.fontSize * 0.9)
-}
-
-/** NPC — a humanoid figure (legs / torso / head) with a 1px shadow and a slightly smaller head. */
-function drawIsoNpcAscii(ctx: CanvasRenderingContext2D, _asset: GridAsset, p: IsoAsciiParams): void {
-  const layers: AsciiStackLayer[] = [
-    { text: '/\\', color: '#3355aa', bg: '#1a2a55' },   // legs (pants)
-    { text: '[=]', color: '#4466cc', bg: '#223366' },   // body/torso
-    { text: '(o)', color: '#ffccaa', bg: '#996644' },   // head with simple face
-  ]
-  drawIsoGlyphStack(ctx, p.x, p.y, layers, p.lineHeight, i => (i === 2 ? p.fontSize * 0.95 : p.fontSize), true)
-}
-
-/** Small flower — a single glyph swaying via the ambient animation engine (assetAnimFrame). */
-function drawIsoFlowerAscii(ctx: CanvasRenderingContext2D, asset: GridAsset, p: IsoAsciiParams): void {
-  ctx.font = `bold ${p.fontSize * 0.8}px ${ASCII_FONT}`
-  const layerY = p.y - p.lineHeight * 0.3
-  ctx.fillStyle = asset.color || '#ff88cc'
-  ctx.fillText(assetAnimFrame('flower', p.time)?.[0] ?? '+', p.x, layerY)
-}
-
-/** Rock / decoration — a grey 'O' pebble on a plate the width of the cell. Fixed greys (ignores asset colour). */
-function drawIsoRockAscii(ctx: CanvasRenderingContext2D, _asset: GridAsset, p: IsoAsciiParams): void {
-  const { x, y, tileW, fontSize, lineHeight } = p
-  ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
-  const layerY = y - lineHeight * 0.5
-  ctx.fillStyle = '#555555'
-  ctx.fillRect(x - tileW / 2, layerY - lineHeight / 2, tileW, lineHeight)
-  ctx.fillStyle = '#999999'
-  ctx.fillText('O', x, layerY)
-}
-
-/** Default prop — the asset's own art glyph on a darkened plate. Fountain/well fall through here under ASCII
- *  (their bespoke drawers are gone; the emoji reskin extrudes ⛲/🪣 into an iso basin upstream). */
-function drawIsoDefaultAscii(ctx: CanvasRenderingContext2D, asset: GridAsset, p: IsoAsciiParams): void {
-  const { x, y, tileW, fontSize, lineHeight } = p
-  const char = asset.art[0] || '?'
+  // NEVER '?'. A tile with no art is a DATA gap, and painting a question mark over it invents a picture
+  // the catalog does not have — the "fake ascii tiles" Alexander reported were literal '?' plates drawn
+  // here. Missing stays missing (the tile draws its backing and nothing else), so a gap is visible as an
+  // absence and gets fixed in the backend rather than papered over in the renderer.
+  const char = asset.art[0] ?? ''
   const layerY = y - lineHeight * 0.5
   ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
   ctx.fillStyle = darkenColor(asset.color || '#888888', 0.4)
@@ -2098,18 +2043,6 @@ function drawIsoDefaultAscii(ctx: CanvasRenderingContext2D, asset: GridAsset, p:
   ctx.fillRect(x - textWidth / 2 - 2, layerY - lineHeight / 2, textWidth + 4, lineHeight)
   ctx.fillStyle = asset.color || '#ffffff'
   ctx.fillText(char, x, layerY)
-}
-
-/** Legacy per-type ASCII prop drawers, keyed by asset.type. Unmapped types → drawIsoDefaultAscii. */
-const ISO_ASCII_DRAWERS: Readonly<Record<string, IsoAsciiDrawer>> = {
-  tree: drawIsoTreeAscii,
-  lamp: drawIsoLampAscii,
-  lantern: drawIsoLampAscii,
-  bush: drawIsoBushAscii,
-  npc: drawIsoNpcAscii,
-  flower: drawIsoFlowerAscii,
-  rock: drawIsoRockAscii,
-  decoration: drawIsoRockAscii,
 }
 
 /** Draw a placed tile in iso AND return its transform-aware screen silhouette (TileGeom) so the inverted
@@ -2136,7 +2069,7 @@ export function drawIsoAssetAscii(
   ctx.textBaseline = 'middle'
 
   // GROUND DECOR is a flat overlay tile (flowers/clover/pebbles): draw its BAKED tile image — resolved by
-  // its LABEL for the ACTIVE style (groundDecorImage → labelTileImage) — SHEARED flat onto the cell's ground
+  // its LABEL for the ACTIVE style (groundDecorImage → styleTileImage) — SHEARED flat onto the cell's ground
   // DIAMOND (the same geometry the ground layer uses; (x,y) IS the cell's ground centre) and colour-composited
   // (tint = asset.color). `char: ''` so a not-yet-decoded PNG paints NOTHING — never the dingbat. No baked decor
   // tile for this style (a backend data gap) → fall through to the existing path (e.g. emoji's curated litter
@@ -2161,11 +2094,14 @@ export function drawIsoAssetAscii(
   // billboard — so Z-Width/display/shape/scale apply through
   // drawIsoTileForShape (MAP-MODEL §4, EDITOR-INTERACTION-SPEC §11). A genuinely image-LESS label (unknown /
   // not-yet-baked) still falls to the neutral glyph below (MAP-MODEL §8), unchanged.
-  const labelImage = asset.label ? labelTileImage(asset.label, style) : undefined
+  const labelImage = asset.label ? styleTileImage(asset.label, style) : undefined
   if (asset.label && ((asset.height ?? 0) >= 1 || labelImage)) {
     const zoom = asset.scale ?? 1
     const bw = tileW * (asset.scaleX ?? 1) * zoom       // Width  — diamond half-width
-    const bd = tileH * (asset.scaleZ ?? 1) * zoom       // Depth  — diamond half-height (into-screen axis)
+    // THICKNESS: with a `thicknessDir` the shrink happens along a WORLD axis inside the shape drawer, so the
+    // screen half-height stays FULL here — applying scaleZ in both places would thin a door twice. Without a
+    // direction, `scaleZ` keeps its historical screen-axis meaning.
+    const bd = tileH * (asset.thickness ? 1 : (asset.scaleZ ?? 1)) * zoom
     // Height — the tile's OWN DB block-height turned into pixels: partialBlockScale draws a sub-block cell as a
     // partial slab and a standing cell as a full block, × the per-instance Height multiplier (scaleY). The
     // height VALUE is DATA (from the DB); nothing invented here.
@@ -2176,8 +2112,9 @@ export function drawIsoAssetAscii(
     // No composition tile ships a DB height above 1, so generated maps render exactly as before.
     const layers = blockLayers(asset.height ?? 0)
     const tint = asset.color ?? '#cccccc'
-    const et = style.id === 'emoji' ? EMOJI_TILESET[asset.label] : undefined
-    const glyph = et ? et.char : (asset.art[0] ?? '?')
+    // The label's own glyph in the ACTIVE style (one lookup, no style branch) — the last-resort char if the
+    // baked PNG is genuinely missing; falls back to the asset's authored art when the style has no such tile.
+    const glyph = styleTileArt(asset.label, style.id)?.char ?? asset.art[0] ?? '?'
     const image = labelImage
     const recolor = labelTileRecolor(style, tint)
     const dvBlock = { char: glyph, color: tint, tint: recolor, image }
@@ -2199,25 +2136,20 @@ export function drawIsoAssetAscii(
   // override re-homes onto the active style so it RESKINS (resolveAssetDraw), never freezing to
   // the style it was picked in. ASCII + no override → adv.char '' → the byte-identical per-type draw.
   let adv = resolveAssetDraw(assetKind(asset), style, assetOverride(asset, style), '', asset.color ?? '#ffffff')
-  // The tile's emoji-tileset entry: per-view size/pose + the iso block-height default. Undefined under ASCII.
-  const vt = style.id === 'emoji' ? EMOJI_TILESET[assetKind(asset)] : undefined
-  // The tile's OWN iso block height — DATA read from the ACTIVE style's DB tile (emoji tile OR ascii tile), the
-  // SAME way in both, so a flat tile's 0.1 comes from the DB everywhere and nothing is invented here. height≥1 →
-  // N stacked cubes; a sub-block (flat 0.1) tile → one partial slab (partialBlockScale below).
-  const dbTile = style.id === ASCII_STYLE.id ? ASCII_TILESET.tiles[assetKind(asset)] : vt
-  // A FLOOR (grass/road/water/…) resolves its baked ASCII image by KIND the SAME way emoji does via emojiStyleMap.
-  // The floor is the ONE tile whose identity is its groundKind (tileKey → assetKind), NOT a label (assetKind:254),
-  // and ASCII_STYLE.map is empty by design (a kind passes through to a glyph, so adv has NO image) — so without
-  // this an ascii floor falls to the '?' glyph though its baked grass/road tile IS in the DB (Alexander: "we don't
-  // have tiles for grass, road"). Emoji already carries the kind image in adv (its style map is populated) →
-  // kindTileImage returns undefined there, so this is ASCII-only and never overrides an existing image. The
-  // block/slab path below then draws the image at the floor's OWN DB height (`blocks` = 0.1), tinted by the cell
-  // colour — byte-identical to how emoji floors already render. `char: ''` so a not-yet-decoded PNG paints NOTHING,
-  // never the dingbat (mirrors the ground_decor/label image paths). Scoped to the floor so no per-type prop (crate
-  // /pillar/…) changes render path here — those keep their glyph until given a resolvable label, like the nature
-  // props (flower/rock/mushroom/crystal) now carry.
-  if (!adv.image && asset.type === FLOOR_TYPE) {
-    const kimg = kindTileImage(assetKind(asset), style)
+  // The tile's ACTIVE-STYLE entry: per-view size/pose + the iso block-height default. ONE lookup for every
+  // style (styleTileArt) — reading it only for emoji made an ascii tile ignore its own authored data.
+  const dbTile = styleTileArt(assetKind(asset), style.id)
+  // ANY tile identified by its KIND rather than a label resolves its baked image here — the floor
+  // (grass/road/water: its identity IS its groundKind, `tileKey` → assetKind, never a label) and every prop
+  // whose kind carries a tile. `ASCII_STYLE.map` is empty by design, so ASCII's `adv` never arrives with an
+  // image and without this the tile fell through to the legacy per-type glyph drawers — the '?' plates on
+  // grass/road AND the per-frame `measureText` that made ASCII ~2.5× slower than emoji on the same map. This
+  // is NOT style- or type-scoped: emoji already carries the kind image in `adv` (its style map is populated),
+  // so `!adv.image` is simply false there and nothing changes. `char: ''` so a not-yet-decoded PNG paints
+  // NOTHING, never the dingbat (mirrors the ground_decor/label image paths). A kind with no baked tile in the
+  // active style still resolves undefined and keeps its glyph — the documented last resort (MAP-MODEL §8).
+  if (!adv.image) {
+    const kimg = styleTileImage(assetKind(asset), style)
     if (kimg) adv = { ...adv, image: kimg, char: '', tint: adv.tint ?? asset.color }
   }
   const blocks = resolveTileHeight(dbTile, asset)
@@ -2299,15 +2231,11 @@ export function drawIsoAssetAscii(
     return billboardGeom(tileW, lineHeight, poseMapper({ x, y: layerY }, undefined, tileH))
   }
 
-  // Legacy per-type ASCII prop art: pick the drawer for this type (default → the art-glyph plate). Fires only
-  // under ASCII / a kind with no baked tile — emoji resolved a tile in the `adv.image` branch above.
-  const drawAscii = ISO_ASCII_DRAWERS[asset.type] ?? drawIsoDefaultAscii
-  drawAscii(ctx, asset, { x, y, tileW, tileH, fontSize, lineHeight, time, flicker, groundContact })
-
-  // Per-type ASCII sprites (tree/lamp/bush/npc/flower/rock/default) draw a STACK of glyph layers rising from
-  // the cell. Record a billboard covering that stacked art so the picker + highlight hug the visible sprite,
-  // not the flat ground cell under it — the same inversion the block/billboard branches above return.
-  const [halfW, layers] = perTypeStackBounds(asset.type, tileW)
+  // LAST RESORT — the asset has no label, no cycle art, and its KIND has no tile in the ACTIVE tileset, so
+  // there is genuinely no picture to draw. Same condition in every style (see the note by the drawer): the
+  // per-type ASCII sprite family is gone, so this is not "the ASCII path", it is "the no-tile path".
+  drawIsoLastResortGlyph(ctx, asset, x, y, fontSize, lineHeight)
+  const [halfW, layers] = lastResortPlateBounds(tileW)
   return billboardGeom(halfW * 2, layers * lineHeight, poseMapper({ x, y: y - (layers * lineHeight) / 2 }, undefined, tileH))
 }
 
@@ -2327,7 +2255,20 @@ export function renderDebugOverlays(
   // (off grid.isoScale) for callers/tests that don't pass a zoom — back-compat, but they under-fill zoomed.
   tileW = cellSize * grid.isoScale * 0.71,
   tileH = cellSize * grid.isoScale * 0.36,
+  // The per-elevation lift the render uses (`cellSize * isoScale * 0.4`). Defaulted so callers/tests that
+  // don't pass it keep the old flat behaviour, but render() passes its own so the tint lands where the cell is.
+  heightStep = cellSize * grid.isoScale * 0.4,
 ) {
+  // The collision map means "a unit walking HERE is stopped", so the tint has to be painted on the surface
+  // that unit would stand on — not on the raw ground plane. It was painted flat, so on any cell whose walk
+  // surface is lifted (terrain elevation, or a floor the building's ground course sits on) the red diamond
+  // landed a block BELOW the structure and spilled out from under it onto the grass: "collissions don't match
+  // structures" (Alexander, Image #5). Measured before the fix: cell 6,1 tinted at y=-129.6 while its surface
+  // was at y=-155.2 — a full block adrift.
+  // `isoStackLift` is the SAME lift the render puts a unit on, so the tint and the thing it describes can
+  // never drift apart.
+  const surfaceLift = (col: number, row: number): number =>
+    grid.getHeight(col, row) * heightStep + isoStackLift(tileW, unitStandLevel(grid, col, row))
   const tilesX = Math.ceil(w / 32) + 10
   const tilesZ = Math.ceil(h / 20) + 10
   const startCol = Math.floor(player.x / cellSize) - tilesX / 2
@@ -2360,13 +2301,14 @@ export function renderDebugOverlays(
       // diamond + the building-footprint cube EXACTLY at any zoom — blocked cells GLUE edge-to-edge, no gaps.
 
       if (isBlocked) {
-        // Red overlay for collision
+        // Red overlay for collision, ON the cell's walk surface (see surfaceLift).
+        const cy = p.y - surfaceLift(col, row)
         ctx.fillStyle = 'rgba(255, 0, 0, 0.4)'
         ctx.beginPath()
-        ctx.moveTo(p.x, p.y - tileH)
-        ctx.lineTo(p.x + tileW, p.y)
-        ctx.lineTo(p.x, p.y + tileH)
-        ctx.lineTo(p.x - tileW, p.y)
+        ctx.moveTo(p.x, cy - tileH)
+        ctx.lineTo(p.x + tileW, cy)
+        ctx.lineTo(p.x, cy + tileH)
+        ctx.lineTo(p.x - tileW, cy)
         ctx.closePath()
         ctx.fill()
       }

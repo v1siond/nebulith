@@ -1,3 +1,4 @@
+import { styleCatalog, styleTile, styleTiles } from '@/engine/tileset/styleTiles'
 import { player as playerSprite } from '@/assets/ascii'
 import { GridAsset, IsometricGrid } from '@/engine/IsometricGrid'
 import { type AnimTransform } from '@/engine/cellAnimation'
@@ -7,8 +8,6 @@ import { entityArtFrame, entityFootprint } from '@/engine/entityArt'
 import { type QuestMarker } from '@/engine/entityQuestMarker'
 import { motionPos } from '@/engine/movement'
 import { applyPose, type TilePose } from '@/engine/tileset/pose'
-import { EMOJI_TILESET } from '@/engine/tileset/emojiTileset'
-import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 import { type TileShape } from '@/engine/tileset/tileset'
 import { grassShade, groundTileColor } from '@/engine/tileset/groundColor'
 import { edgeToSide, footprintRing, footprintSide, labelForCell, treeSubpart } from '@/engine/stageGenerator'
@@ -28,7 +27,7 @@ export const ASCII_FONT = '"JetBrains Mono", "Fira Code", "Consolas", monospace'
 // property: on the ASCII style with NO override, resolveVisual returns the passthrough
 // sentinel, so `resolveDraw` returns the caller's OWN default char+color unchanged —
 // the fillText that follows is byte-identical to the pre-style code.
-import { resolveVisual, visualForTileId, type ElementKind, type ImageVisual, type Style, type Visual } from '@/game/artStyle'
+import { resolveVisual, styleTileArt, visualForTileId, type ElementKind, type ImageVisual, type Style, type Visual } from '@/game/artStyle'
 import { tileSlug } from '@/game/editor/tilePlacement'
 import { type AttackAnim, type AnimFrame } from '@/engine/attackAnimations'
 import { type TileView } from '@/engine/animation/tileAnimation'
@@ -127,7 +126,15 @@ export function resolveEntityDraw(
 ): DrawVisual {
   const styled = tileOverride ? activeStyleVisualForOverride(tileOverride, style) : null
   if (styled) return drawFromVisual(styled, defChar, defColor)
-  return resolveDraw(kind, style, styleOverride, defChar, defColor)
+  const drawn = resolveDraw(kind, style, styleOverride, defChar, defColor)
+  if (drawn.image || drawn.char) return drawn
+  // A UNIT IS A TILE. `npc` / `enemy` / `player` are real backend rows, so an entity the style map leaves
+  // unresolved falls back to its BAKED TILE — the same `styleTileImage` rescue every asset gets — instead of
+  // the frontend's hand-drawn glyph figures. Alexander: "it just means we don't load anything until backend
+  // data comes in, the fallback is still ascii, but the backend image tile, as it should." So the glyph
+  // figure is a PRE-LOAD state: with nothing served this still resolves nothing and the caller draws it.
+  const tile = styleTileImage(kind, style)
+  return tile ? drawFromVisual(tile, defChar, defColor) : drawn
 }
 
 /** The effective per-cell tile override for an asset under a style. Ground decor now draws its OWN baked
@@ -142,30 +149,39 @@ export function assetOverride(asset: GridAsset, style: Style): string | null | u
   return asset.tileOverride
 }
 
-/** The active-style backend IMAGE for a COMPOSITION cell's LABEL (a tree/building/feature part), shared
- *  by every view (iso/2D/top) so a label resolves its picture identically everywhere. ascii images are
- *  white tint-targets (recoloured by the caller via labelTileRecolor); emoji images are already-coloured
- *  Noto/baked PNGs and must never be recoloured. Undefined when the label carries no image (most labels
- *  today) — the caller then falls back to its glyph, never a blank cell/block. */
-export function labelTileImage(label: string, style: Style): ImageVisual | undefined {
-  if (style.id === 'emoji') {
-    const et = EMOJI_TILESET[label]
-    return et?.image ? { kind: 'image', src: et.image, char: et.char } : undefined
-  }
-  return ASCII_TILESET.tiles[label]?.image
+/** The ACTIVE style's baked tile IMAGE for a tile KEY — a composition cell's LABEL (a tree/building/feature
+ *  part) or an element KIND (a floor, whose identity is its ground `tileKey` → `assetKind`, never a label).
+ *
+ *  ONE resolver for every view (iso/2D/top) AND every style: the key selects the tile, the style selects only
+ *  WHICH TILESET to read it from (`styleTileArt` — a dispatch map, no style `if`). This replaced a pair of
+ *  near-identical helpers, one of which was hard-gated to ASCII and one to a FLOOR, so a label-less ASCII prop
+ *  could never reach its baked tile and dropped into the legacy per-type glyph drawers instead.
+ *
+ *  The returned visual deliberately carries NO `color`: a tile's colour is the PER-CELL setting the caller
+ *  passes as the tint (MAP-MODEL §4), not a property of the art. Undefined when the active style's tileset has
+ *  no tile for that key, or the tile carries no baked image — the caller then falls back to its glyph (the
+ *  documented last resort), never a blank cell and never an invented image. */
+export function styleTileImage(key: string, style: Style): ImageVisual | undefined {
+  const art = styleTileArt(key, style.id)
+  return art?.image ? { kind: 'image', src: art.image, char: art.char } : undefined
 }
 
-/** The active-style baked IMAGE for a KIND-identified (label-less) tile — chiefly a FLOOR, whose identity is its
- *  ground `tileKey` → `assetKind` (grass/road/water/…), never a label. `ASCII_STYLE.map` is EMPTY by design (a
- *  kind passes through to a glyph), and the label→image path needs a label, so without this an ascii floor falls
- *  to the `'?'` glyph even though its baked grass/road tile IS in the DB tileset. This resolves that DB tile's
- *  image the SAME way emoji resolves a kind through `emojiStyleMap` — so the floor draws its picture, tinted by
- *  its colour, exactly like emoji. EMOJI already carries the kind image in the caller's `adv` (its style map is
- *  populated), so this is ASCII-only; a kind with no baked ascii tile → undefined (the caller keeps its glyph,
- *  never an invented image). */
+/** The active-style backend IMAGE for a COMPOSITION cell's LABEL (a tree/building/feature part), shared by
+ *  every view (iso/2D/top) so a label resolves its picture identically everywhere. One lookup for every
+ *  style — the label names the thing, the style supplies the picture. Undefined when this style carries no
+ *  image for the label; the caller then falls back to its glyph, never a blank cell. */
+export function labelTileImage(label: string, style: Style): ImageVisual | undefined {
+  const tile = styleTile(style.id, label)
+  return tile?.image ? { kind: 'image', src: tile.image, char: tile.char } : undefined
+}
+
+/** The active-style baked IMAGE for a KIND-identified (label-less) tile — chiefly a FLOOR, whose identity is
+ *  its ground `tileKey` → `assetKind` (grass/road/water/…), never a label. Resolves the same way for every
+ *  style: a kind IS a label in the catalog. A kind with no baked tile → undefined (the caller keeps its
+ *  glyph, never an invented image). */
 export function kindTileImage(kind: ElementKind, style: Style): ImageVisual | undefined {
-  if (style.id !== 'ascii') return undefined
-  return ASCII_TILESET.tiles[kind]?.image
+  const tile = styleTile(style.id, kind)
+  return tile?.image ? { kind: 'image', src: tile.image, char: tile.char } : undefined
 }
 
 /** The tint to pass alongside a labelTileImage. COLOUR IS A PER-TILE SETTING that FILTERS the baked tile
@@ -181,14 +197,14 @@ export function labelTileRecolor(_style: Style, tint: string): string {
 }
 
 /** The BAKED tile image for a GROUND-DECOR asset (flowers/clover/pebbles/…) — resolved by its LABEL for the
- *  ACTIVE style (labelTileImage, the SAME per-label path every other tile uses), so decor draws its own tile
+ *  ACTIVE style (styleTileImage, the SAME per-key path every other tile uses), so decor draws its own tile
  *  IMAGE, colour-composited, NEVER a glyph. The decor flat-overlay draw in every view (iso/2D/top) funnels
  *  through this. Undefined when the asset isn't ground decor, carries no label, or the active style has no
  *  baked decor tile for that label — a backend data gap the caller surfaces by falling through (it never
  *  substitutes a glyph). */
 export function groundDecorImage(asset: GridAsset, style: Style): ImageVisual | undefined {
   if (asset.type !== 'ground_decor' || !asset.label) return undefined
-  return labelTileImage(asset.label, style)
+  return styleTileImage(asset.label, style)
 }
 
 // Image/atlas cache so a tile src is decoded once, not per frame. v1 ships no image
@@ -197,8 +213,26 @@ const _imgCache = new Map<string, HTMLImageElement>()
 export function tileImage(src: string): HTMLImageElement | null {
   if (typeof Image === 'undefined') return null
   let img = _imgCache.get(src)
-  if (!img) { img = new Image(); img.src = src; _imgCache.set(src, img) }
+  if (!img) { img = newTileImage(src); _imgCache.set(src, img) }
   return img.complete && img.naturalWidth > 0 ? img : null
+}
+
+/**
+ * A tile image that does NOT taint the canvas it is drawn into.
+ *
+ * The baked PNGs come from the backend's origin, and a cross-origin image drawn into a canvas makes that
+ * canvas unreadable — `getImageData` and `toDataURL` then throw a SecurityError. That silently blocks
+ * anything that needs to read the map back: a level minimap cached as a bitmap, a generated preset
+ * thumbnail, an in-browser pixel test.
+ *
+ * `crossOrigin` must be set BEFORE `src`, or the browser has already begun the no-cors fetch. The backend's
+ * half of this is CORS headers on `/tiles/*` — both halves are required, and neither works alone.
+ */
+function newTileImage(src: string): HTMLImageElement {
+  const img = new Image()
+  img.crossOrigin = 'anonymous'
+  img.src = src
+  return img
 }
 
 /**
@@ -220,7 +254,7 @@ export async function preloadTileImages(srcs: Iterable<string>): Promise<void> {
   for (const src of srcs) {
     if (!src) continue
     let img = _imgCache.get(src)
-    if (!img) { img = new Image(); img.src = src; _imgCache.set(src, img) }
+    if (!img) { img = newTileImage(src); _imgCache.set(src, img) }
     if (img.complete && img.naturalWidth > 0) continue // already decoded — nothing to wait on
     const el = img
     const done = typeof el.decode === 'function'
@@ -244,25 +278,46 @@ export function buildGlyphImageIndex(tiles: Record<string, { char?: string; imag
   return map
 }
 
-// Rebuilt only when EMOJI_TILESET is SWAPPED (a DB tileset load reassigns the live binding), never per
-// frame — the index is keyed by the tileset object reference.
-let _glyphIndex: { src: unknown; map: Map<string, string> } | null = null
-function glyphImageIndex(): Map<string, string> {
-  if (_glyphIndex?.src !== EMOJI_TILESET) _glyphIndex = { src: EMOJI_TILESET, map: buildGlyphImageIndex(EMOJI_TILESET) }
-  return _glyphIndex.map
+/** The ACTIVE style's tileset projected onto `{char, image}` — the input the char index is built from.
+ *  A dispatch map, so the index is per STYLE and never a merged bag where an ascii glyph could shadow an
+ *  emoji char (or vice versa). Read LIVE: a DB tileset install reassigns the bindings. */
+const GLYPH_SOURCE_BY_STYLE: Readonly<Record<string, () => { ref: unknown; tiles: Record<string, { char?: string; image?: string }> }>> = {
+  ascii: () => ({
+    ref: styleCatalog('ascii'),
+    tiles: styleTiles('ascii'),
+  }),
+  emoji: () => ({ ref: styleTiles('emoji'), tiles: styleTiles('emoji') }),
+}
+
+// Rebuilt only when that style's tileset is SWAPPED (a DB tileset load reassigns the live binding), never
+// per frame — each entry is keyed by the tileset object reference it was built from.
+const _glyphIndex = new Map<string, { ref: unknown; map: Map<string, string> }>()
+function glyphImageIndex(styleId: string): Map<string, string> {
+  const source = GLYPH_SOURCE_BY_STYLE[styleId]
+  if (!source) return new Map()
+  const { ref, tiles } = source()
+  const hit = _glyphIndex.get(styleId)
+  if (hit && hit.ref === ref) return hit.map
+  const map = buildGlyphImageIndex(tiles)
+  _glyphIndex.set(styleId, { ref, map })
+  return map
 }
 
 /** The baked tile IMAGE for a glyph drawn by char (a held weapon / shield / fist), or null when the
- *  active tileset has no image for it — then the caller draws the glyph, byte-identically to before. */
+ *  active tileset has no image for it — then the caller draws the glyph, byte-identically to before.
+ *  NOTE: still emoji-indexed, because the held-weapon path (drawPoseGlyph) carries an ASCII-specific
+ *  contract of its own (the monochrome depth-shadow double-draw + the `>`/`<` swing bracket) that is
+ *  FIGURE art, not tile art. Migrating it is its own change — see the report. */
 export function glyphTileImage(glyph: string): HTMLImageElement | null {
-  const src = glyphImageIndex().get(glyph)
+  const src = glyphImageIndex('emoji').get(glyph)
   return src ? tileImage(src) : null
 }
 
-/** The baked IMAGE VISUAL for a glyph char, or undefined when the active tileset has no image for it —
- *  the ImageVisual twin of glyphTileImage (so an animation frame's char resolves to a drawable tile). */
-export function glyphImageVisual(glyph: string): ImageVisual | undefined {
-  const src = glyphImageIndex().get(glyph)
+/** The baked IMAGE VISUAL for a glyph char in the ACTIVE style — the ImageVisual twin of glyphTileImage
+ *  (so an animation frame, or a projectile, resolves to a drawable tile). Undefined when that style's
+ *  tileset has no image for the char; the caller then draws the glyph (the documented last resort). */
+export function glyphImageVisual(glyph: string, style: Style): ImageVisual | undefined {
+  const src = glyphImageIndex(style.id).get(glyph)
   return src ? { kind: 'image', src } : undefined
 }
 
@@ -271,9 +326,9 @@ export function glyphImageVisual(glyph: string): ImageVisual | undefined {
  *  of the render freezing on the static base tile). Precedence: an explicit frame image → a frame whose
  *  char IS the base tile's own char draws the base image (variant-exact) → any other char resolves to ITS
  *  baked image (none → undefined, the caller draws the glyph) → an empty frame → the base image. */
-export function frameImage(frame: ResolvedFrame, baseChar: string, baseImage: ImageVisual | undefined): ImageVisual | undefined {
+export function frameImage(frame: ResolvedFrame, baseChar: string, baseImage: ImageVisual | undefined, style: Style): ImageVisual | undefined {
   if (frame.image) return frame.image
-  if (frame.char) return frame.char === baseChar ? baseImage : glyphImageVisual(frame.char)
+  if (frame.char) return frame.char === baseChar ? baseImage : glyphImageVisual(frame.char, style)
   return baseImage
 }
 
@@ -904,10 +959,11 @@ export function drawProjectileGlyph(
   ctx.save()
   ctx.translate(drawX, drawY)
   ctx.rotate(angle)
-  // Under a reskin the projectile GLYPH (➤/•/→) resolves to its baked arrow/bullet/dart tile IMAGE
-  // (Phase-1 char→image index), drawn rotated + warm-tinted just like the glyph. ASCII (no style / the
-  // image not yet decoded) → the plain rotated glyph, byte-identical to before.
-  const image = style && style.id !== 'ascii' ? glyphImageVisual(glyph) : undefined
+  // The projectile GLYPH (➤/•/→) resolves to its baked arrow/bullet/dart tile IMAGE in the ACTIVE style's
+  // tileset (char→image index), drawn rotated + warm-tinted just like the glyph. This used to be gated to
+  // `style.id !== 'ascii'`, so an ASCII arrow drew a fillText glyph while the emoji one drew its picture —
+  // a per-style behaviour branch. No image for that char in the active style → the plain rotated glyph.
+  const image = style ? glyphImageVisual(glyph, style) : undefined
   if (image && tileImage(image.src)) drawStyledImage(ctx, image, 0, 0, size ?? 16, false, tint)
   else ctx.fillText(glyph, 0, 0)
   ctx.restore()

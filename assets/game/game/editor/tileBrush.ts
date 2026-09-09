@@ -16,9 +16,9 @@
  * its routing (entityKindForUnitSlug) and the category decision (placementFor) live in tilePlacement.ts.
  */
 import { FLOOR_TYPE, type GridAsset, type IsometricGrid } from '@/engine/IsometricGrid'
-import type { TileDef } from '@/game/artStyle'
+import type { TileDef, Visual } from '@/game/artStyle'
 import { deriveCellCollision, getStack, popTile, pushTile, setTileCollision } from '@/engine/cellStack'
-import { tileRenderBehavior } from '@/engine/tileset/tileset'
+import { tileThickness, tileThicknessReach, tileRenderBehavior } from '@/engine/tileset/tileset'
 import { groundTileColor } from '@/engine/render/shared'
 import { placementFor, tileSlug } from './tilePlacement'
 
@@ -26,11 +26,15 @@ import { placementFor, tileSlug } from './tilePlacement'
  *  (image tile). NEVER a '?' dingbat: the tile is resolved by LABEL→IMAGE via its tileOverride, so an image
  *  tile with no source glyph, or the ascii passthrough, pins '' (draw nothing / resolve by image) rather than
  *  stamping a literal '?' into asset.art that would render on the user's machine. */
-function tileChar(tile: TileDef): string {
-  const v = tile.visual
+export function visualChar(v: Visual | null | undefined): string {
+  if (!v) return ''
   if (v.kind === 'glyph') return v.char
   if (v.kind === 'image') return v.char ?? ''
   return ''
+}
+
+export function tileChar(tile: TileDef): string {
+  return visualChar(tile.visual)
 }
 
 /** Place a ground/floor tile of `type` at a cell AND write its colour as STATE — the ONE ground-placement
@@ -106,6 +110,14 @@ export function stackAssetTile(
   })
   const behavior = tileRenderBehavior(tile.settings)
   if (behavior) placed.settings = behavior
+  // THICKNESS: the tile's authored 3D fill inside its own cell. Seeded onto the instance exactly like its
+  // height, so a hand-painted door is the same thin panel the generator stamps — the brush used to drop it.
+  const thicknessAmount = tileThickness(tile.settings)
+  if (thicknessAmount !== undefined) placed.scaleZ = thicknessAmount
+  // …and WHICH WAY it is thin, as the four per-direction reaches. Without them the render falls back to the
+  // old screen-axis squash, so a painted door would be thin toward the viewer instead of into its wall.
+  const thickness = tileThicknessReach(tile.settings)
+  if (thickness !== undefined) placed.thickness = thickness
 }
 
 /** REPLACE the tile at the SELECTED stack slot IN PLACE — the Inspector's "Replace tile" (Image #15). The user's
@@ -142,6 +154,9 @@ export function replaceTileInPlace(grid: IsometricGrid, col: number, row: number
   target.height = tile.height ?? 0 // the picked tile's OWN block height (DATA) — read uniformly, like stackAssetTile
   target.label = undefined         // no longer a composition part — it resolves by its own slug / tileOverride now
   target.settings = tileRenderBehavior(tile.settings) ?? undefined // the picked tile's authored render behaviour
+  target.scaleZ = tileThickness(tile.settings) // the picked tile's own thickness — CLEARED when it has none,
+                                               // so swapping a door out doesn't leave the wall thin
+  target.thickness = tileThicknessReach(tile.settings) // …and its reaches, cleared the same way
   return true
 }
 

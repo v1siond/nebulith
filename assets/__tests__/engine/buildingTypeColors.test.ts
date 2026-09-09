@@ -6,11 +6,11 @@
  * These assert the resolved COLOUR + LABEL + TITLE end-to-end through the DB tileset + stamp — never a
  * hardcoded glyph.
  */
+import { styleCatalog } from '@/engine/tileset/styleTiles'
 import '@/__tests__/helpers/installTilesetSeed' // type tiles + building compositions come from the loaded backend tileset fixture
 import { IsometricGrid } from '@/engine/IsometricGrid'
 import { stampBuildingComposition } from '@/game/runtime/composition'
 import { resolveComposition, resolveTile } from '@/engine/tileset/tileset'
-import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 
 const mkGrid = () => new IsometricGrid({ cols: 32, rows: 32, cellSize: 16, isoScale: 1.4 })
 const roofOf = (grid: IsometricGrid, type: string) =>
@@ -18,21 +18,21 @@ const roofOf = (grid: IsometricGrid, type: string) =>
 
 describe('per-type building colours come from the type-specific DB tile (not one shared roof)', () => {
   test('the DB tileset resolves a store roof to BLUE and a hospital roof to GREEN — its own tile', () => {
-    const store = resolveTile(ASCII_TILESET, 'summer', 'roof_store')
-    const hospital = resolveTile(ASCII_TILESET, 'summer', 'roof_hospital')
+    const store = resolveTile(styleCatalog('ascii'), 'summer', 'roof_store')
+    const hospital = resolveTile(styleCatalog('ascii'), 'summer', 'roof_hospital')
     expect(store.color).toBe('#235a96') // recovered store blue (old BUILDING_PALETTES.store.roof)
     expect(hospital.color).toBe('#2f7e50') // recovered hospital green
     // and DISTINCT from the shared default roof (which every building used to share)
-    expect(store.color).not.toBe(resolveTile(ASCII_TILESET, 'summer', 'roof').color)
+    expect(store.color).not.toBe(resolveTile(styleCatalog('ascii'), 'summer', 'roof').color)
     expect(store.color).not.toBe(hospital.color)
   })
 
   test('type colours are ZONE-INDEPENDENT — a store roof reads blue in every season (old fixed palette)', () => {
     for (const zone of ['spring', 'summer', 'autumn', 'winter', 'desert', 'beach', 'lava']) {
-      expect(resolveTile(ASCII_TILESET, zone, 'roof_store').color).toBe('#235a96')
+      expect(resolveTile(styleCatalog('ascii'), zone, 'roof_store').color).toBe('#235a96')
     }
     // the shared default roof, by contrast, DOES vary by zone (summer vs winter differ)
-    expect(resolveTile(ASCII_TILESET, 'summer', 'roof').color).not.toBe(resolveTile(ASCII_TILESET, 'winter', 'roof').color)
+    expect(resolveTile(styleCatalog('ascii'), 'summer', 'roof').color).not.toBe(resolveTile(styleCatalog('ascii'), 'winter', 'roof').color)
   })
 
   test('a stamped STORE reads its own tiles — cream walls + a blue Store sign over a flat roof', () => {
@@ -44,7 +44,7 @@ describe('per-type building colours come from the type-specific DB tile (not one
     expect(labels.has('parapet')).toBe(true)
     const sign = grid.assets.find(a => (a.label ?? '').startsWith('roof_top'))!
     expect(sign.label).toBe('roof_top_store') // the store's OWN sign tile
-    expect(sign.color).toBe(resolveTile(ASCII_TILESET, 'summer', 'roof_top_store').color)
+    expect(sign.color).toBe(resolveTile(styleCatalog('ascii'), 'summer', 'roof_top_store').color)
     expect(sign.color).toBe('#235a96') // recovered store blue, now carried by the sign
     // The store's walls are the BRICK material tile (a distinct tile, its brick tone in settings.colors).
     const wall = grid.assets.find(a => (a.label ?? '').startsWith('wall') && a.type === 'store_5')!
@@ -87,11 +87,11 @@ describe('per-type building colours come from the type-specific DB tile (not one
 
 describe('the apex NAME badge comes from composition DATA (title), not a hardcoded per-type lookup', () => {
   test('store/hospital compositions carry their human title; houses/others carry none', () => {
-    expect(resolveComposition(ASCII_TILESET, 'store_5')!.title).toBe('Store')
-    expect(resolveComposition(ASCII_TILESET, 'hospital_6')!.title).toBe('Hospital')
+    expect(resolveComposition(styleCatalog('ascii'), 'store_5')!.title).toBe('Store')
+    expect(resolveComposition(styleCatalog('ascii'), 'hospital_6')!.title).toBe('Hospital')
     // houses/others carry no title (served as null) → falsy, so the badge guard skips them
-    expect(resolveComposition(ASCII_TILESET, 'house_4')!.title).toBeFalsy()
-    expect(resolveComposition(ASCII_TILESET, 'temple_8')!.title).toBeFalsy()
+    expect(resolveComposition(styleCatalog('ascii'), 'house_4')!.title).toBeFalsy()
+    expect(resolveComposition(styleCatalog('ascii'), 'temple_8')!.title).toBeFalsy()
   })
 
   test('a stamped STORE badges its ONE roof apex with the composition title', () => {
@@ -129,7 +129,7 @@ describe('a COLOUR override FILTERS just a building\'s roof + wall cells — col
     expect(walls.every(a => a.color === '#c9a66b')).toBe(true) // every wall cell filters to the wall colour
     // the door is NEITHER roof nor wall → the override never touches it; it keeps the tile's authored colour
     const door = grid.assets.find(a => a.label === 'door')!
-    expect(door.color).toBe(resolveTile(ASCII_TILESET, 'summer', 'door').color)
+    expect(door.color).toBe(resolveTile(styleCatalog('ascii'), 'summer', 'door').color)
     expect(door.color).not.toBe('#b5533a')
     expect(door.color).not.toBe('#c9a66b')
   })
@@ -148,7 +148,7 @@ describe('a COLOUR override FILTERS just a building\'s roof + wall cells — col
     const grid = mkGrid()
     stampBuildingComposition(grid, 'house', 4, 12, 12, 'summer', 'south', 'wall_wood') // no roof/wall colour
     const wall = grid.assets.find(a => isWall(a.label))!
-    expect(wall.color).toBe(resolveTile(ASCII_TILESET, 'summer', wall.label!).color) // unchanged from the tile
+    expect(wall.color).toBe(resolveTile(styleCatalog('ascii'), 'summer', wall.label!).color) // unchanged from the tile
   })
 
   test('STORE fixed identity — a BLUE roof over the WHOLE flat-roof deck + WHITE walls', () => {

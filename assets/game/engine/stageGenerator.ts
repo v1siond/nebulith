@@ -8,9 +8,13 @@
  * Pure logic (no rendering, no IsometricGrid mutation) so it is unit-testable
  * and reusable by the editor, the template mapper, and the eventual AI generator.
  */
+import { styleCatalog, styleTile } from '@/engine/tileset/styleTiles'
 import { type BuildingType } from './buildingTypes'
 import { buildingCompositionKind, buildingDoorOffset, facingRotation, isRoadGround, rotateFootprintOffset } from './buildingCatalog'
 import { planVillage, type VillageLayout, type Settlement, type Plot, type Facing, type PlazaRect } from './villageLayout'
+// The planner is pure: it takes the building sizes rather than reading them. They come from the BACKEND
+// compositions (buildingCatalog resolves them), so deepening a building in Elixir moves the plots with it.
+import { BACKEND_BUILDING_SIZES } from './buildingCatalog'
 import {
   stagePropTileOverride,
   ZONE_PALETTES,
@@ -34,7 +38,6 @@ import {
 export type { LivingTreeKind } from './zones'
 import { type CellLabel } from './cellLabels'
 import { resolveTile, resolveComposition, canopyCount, pickGroundDecor, type TileDisplay } from './tileset/tileset'
-import { ASCII_TILESET } from './tileset/asciiTileset'
 import { groundKind } from '@/game/artStyle'
 import { resolveTileHeight } from './tileset/tileHeight'
 
@@ -43,7 +46,7 @@ import { resolveTileHeight } from './tileset/tileHeight'
  *  level a stamped composition/prop lands at, because it serializes StageData WITHOUT a grid; the LIVE path gets
  *  the identical value from the real stack (`cellStackTop`). No `floorStackLift` special case — just a tile's height. */
 function groundBlockHeight(slug: string): number {
-  return resolveTileHeight(ASCII_TILESET.tiles[slug] ?? ASCII_TILESET.tiles[groundKind(slug)], undefined)
+  return resolveTileHeight(styleTile('ascii', slug) ?? styleTile('ascii', groundKind(slug)), undefined)
 }
 // The ONE per-cell mapping the live composition stamp uses — the save path expands its anchors through it too,
 // so a generated stage RELOADS exactly as it was stamped (height / z-width / scale / pose / animations).
@@ -77,7 +80,7 @@ type LayerRngs = Record<EngineLayerId, Rng>
  *  generators were RETIRED (Alexander) — the forest now builds one of the meadow layouts, and a plain generate
  *  with no explicit layout RANDOMLY picks one (seeded). All are registered in FOREST_LAYOUTS. `meadow_pass` is a
  *  NEW variation: the open meadow opened on TWO opposite edges (top + bottom) for a through-route map (#26). */
-export type ForestLayout = 'meadow' | 'meadow_river' | 'meadow_pass'
+export type ForestLayout = 'woodland' | 'meadow' | 'meadow_river' | 'meadow_pass'
 
 export interface StageProp {
   col: number
@@ -185,6 +188,30 @@ export interface GenerateOptions {
    *  seam: re-roll one layer by changing only its seed and regenerating — the other layers, fed the
    *  SAME seeds, reproduce identically. Omitting `seeds` entirely = a plain, unchanged generate. */
   seeds?: Partial<Record<EngineLayerId, number>>
+  /**
+   * The chosen generator's `nature` block, straight off `/api/generators`.
+   *
+   * This is why `groundCover` was dead data: the backend has served it since T-113 and
+   * `generatorCatalog.ts` has parsed it into the typed catalog, but `generateStage` never took it, so
+   * nothing could read it. Turning the knob up changed nothing. Passed through now, and a layout that
+   * has no opinion simply ignores it.
+   */
+  nature?: NatureDensity
+}
+
+/**
+ * How much stuff a generator wants on the ground, as fractions of its cells.
+ *
+ * `canopy` is new and is what makes a FOREST a forest: the share of cells carrying a tree. The meadow
+ * layouts do not read it — they are clearings by definition, framed rather than filled.
+ */
+export interface NatureDensity {
+  /** Grass / ground-cover ornaments, 0–1. */
+  groundCover?: number
+  /** Flowers, 0–1. */
+  flowers?: number
+  /** Tree cover, 0–1. A woodland reads as woodland from about 0.35 up. */
+  canopy?: number
 }
 
 type Cell = { col: number; row: number }
@@ -235,7 +262,7 @@ export function pickLivingTree(rand: number): LivingTreeKind {
  *  the tileset's per-zone feature palette (ember crater in lava, snowcap + blue
  *  waterfall otherwise). Always blocks (it's terrain). */
 const makeFeatureCell = (zone: ZoneId, col: number, row: number, label: CellLabel): StageProp => {
-  const tile = resolveTile(ASCII_TILESET, zone, label) // LOADS from the tileset, not hardcoded cellTile
+  const tile = resolveTile(styleCatalog('ascii'), zone, label) // LOADS from the tileset, not hardcoded cellTile
   return { col, row, type: 'feature', char: tile.char, blocking: true, color: tile.color, label }
 }
 
@@ -336,7 +363,7 @@ const makeCaveWall = (col: number, row: number, shades: readonly string[]): Stag
 // deterministically from the loaded tileset and resolves its glyph + zone colour. Null when the tileset
 // carries no decor for the zone (e.g. before load) — the caller then skips the cell.
 export const makeGroundDecor = (zone: ZoneId, col: number, row: number): StageProp | null => {
-  const d = pickGroundDecor(ASCII_TILESET, zone, col, row)
+  const d = pickGroundDecor(styleCatalog('ascii'), zone, col, row)
   if (!d) return null
   // Carry the decor tile's LABEL so the render resolves its BAKED image (labelTileImage) per active style —
   // decor draws its own tile image, colour-composited, NOT a glyph (see render/shared.groundDecorImage).
@@ -562,6 +589,9 @@ interface ArchetypeContext {
   floorColors: (string | undefined)[][]
   cols: number
   rows: number
+  /** The generator's served nature densities, or undefined when it states none. A layout must treat an
+   *  absent value as "no opinion" and never substitute a number of its own — see the compliance rule. */
+  nature?: NatureDensity
   /** The user-steered forest layout, or undefined for a plain generate (placeForest then random-picks a
    *  meadow layout). Only placeForest reads it. */
   layout: ForestLayout | undefined
@@ -615,7 +645,7 @@ export function generateStage(opts: GenerateOptions): StageData {
     decor: layerRng(opts.seeds, 'decor'),
   }
   // Single-pass archetypes (forest/cave/temple/boss) read `ctx.rand`; the layout rng is their source.
-  const ctx: ArchetypeContext = { zone, ground, collision, floorColors, buildings, props, trees, compositions, cols, rows, layout, rand: rngs.layout }
+  const ctx: ArchetypeContext = { zone, ground, collision, floorColors, buildings, props, trees, compositions, cols, rows, layout, nature: opts.nature, rand: rngs.layout }
   ARCHETYPES[variant]?.(ctx, rngs)
   addTerrainTransitions(ctx) // blended shorelines / lava banks over the painted ground
 
@@ -672,7 +702,16 @@ function placeSettlement(ctx: ArchetypeContext, settlement: Settlement, rngs: La
  */
 export function layoutPass(ctx: ArchetypeContext, settlement: Settlement): VillageLayout {
   const { ground, cols, rows } = ctx
-  const layout = planVillage(cols, rows, ctx.rand, settlement)
+  // A building's SIZE is backend data (the composition footprints). With none loaded there is no size to plan
+  // and nothing to stamp, so the settlement gets NO buildings — a size is never invented (MAP-MODEL §8). Say it
+  // out loud: an empty town is a data problem, and the one thing worse than no buildings is silent no buildings.
+  if (BACKEND_BUILDING_SIZES.lengthOf('house') === null) {
+    console.warn(
+      '[stageGenerator] no building compositions are loaded — planting NO buildings. The sizes come from ' +
+        '/api/tilesets, which has not installed the tileset yet.',
+    )
+  }
+  const layout = planVillage(cols, rows, ctx.rand, BACKEND_BUILDING_SIZES, settlement)
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
       // Roads are a COLOUR on the ground BLOCK, not a separate ROAD tile (Alexander #34/#48: "remove the tiles
@@ -1015,11 +1054,19 @@ function placeBuilding(
   // centred 2-wide doorway, so a hardcoded 1-cell opening walled off half of it (G7).
   const doors = doorCells(plot.facing, rect, facadeDoorSpan(kind, plot.length))
   const isDoor = new Set(doors.map(d => `${d.col},${d.row}`))
-  for (let row = rect.row; row < rect.row + rect.h; row++) {
-    for (let col = rect.col; col < rect.col + rect.w; col++) {
+  // A building is a ROOM, not a solid obstacle: its SHELL blocks (walls + windows — you don't walk through a
+  // window), the DOORWAY is the way in, and the INTERIOR is walkable floor you move around on. Blanket-blocking
+  // the whole rect (the old `!isDoor` line) let the hero stand in the doorway and go nowhere — Alexander,
+  // Image #5: "I can't navigate inside the house". Per-cell truth still comes from the composition's own
+  // `walkable` flags when it stamps; the generator must not pre-seal what the composition leaves open.
+  const lastCol = rect.col + rect.w - 1
+  const lastRow = rect.row + rect.h - 1
+  for (let row = rect.row; row <= lastRow; row++) {
+    for (let col = rect.col; col <= lastCol; col++) {
       if (!inBounds(col, row, cols, rows)) continue
       ground[row][col] = 'path_stone' // brown stone BASE under the building (freed from roads, §2b)
-      collision[row][col] = !isDoor.has(`${col},${row}`) // walls/roof block, the door is the way in
+      const shell = col === rect.col || col === lastCol || row === rect.row || row === lastRow
+      collision[row][col] = shell && !isDoor.has(`${col},${row}`)
     }
   }
   // `row` = the rect's BOTTOM row; `length`/`height` = the rect's grid span (cols×rows), so the nature
@@ -1039,24 +1086,251 @@ function placeForest(ctx: ArchetypeContext): void {
   // The forest builds one of the MEADOW layouts (Alexander retired the old passages/open/lake
   // generators). An explicit meadow layout is honoured; a plain generate (no/legacy layout) RANDOMLY
   // picks one — seeded from ctx.rand, so it's reproducible per seed. Dispatch map (Open/Closed).
-  const layout = ctx.layout && FOREST_LAYOUTS[ctx.layout] ? ctx.layout : pickMeadowLayout(ctx.rand)
+  const layout = ctx.layout && FOREST_LAYOUTS[ctx.layout] ? ctx.layout : pickMeadowLayout(ctx.rand, ctx.nature)
   FOREST_LAYOUTS[layout]!(ctx)
 }
 
-/** Pick one of the meadow layouts at random (seeded via the caller's rng) — the forest's default when the user
- *  hasn't steered a specific layout. Includes the new through-route `meadow_pass` so a plain generate can roll it too. */
-const RANDOM_MEADOW_LAYOUTS: readonly ForestLayout[] = ['meadow', 'meadow_river', 'meadow_pass']
-function pickMeadowLayout(rand: Rng): ForestLayout {
-  return RANDOM_MEADOW_LAYOUTS[randIntWith(rand, 0, RANDOM_MEADOW_LAYOUTS.length - 1)]
+/**
+ * Pick a forest layout at random (seeded via the caller's rng) — the forest's default when the user hasn't
+ * steered one.
+ *
+ * ONLY LAYOUTS WHOSE PREREQUISITES ARE MET. `woodland` needs a served `nature.canopy` and correctly plants
+ * nothing without it; putting it in the pool unconditionally meant a plain `generateStage({variant:
+ * 'forest'})` could roll it and hand back an empty field. That is worse than the old behaviour, because it
+ * fails only sometimes — it broke six existing generator tests exactly one run in four.
+ *
+ * A layout that cannot run is not a candidate. The alternative — letting it run and inventing a canopy
+ * density — is the hardcoded fallback the compliance rule forbids.
+ */
+function forestLayoutCandidates(nature: NatureDensity | undefined): readonly ForestLayout[] {
+  const meadows: readonly ForestLayout[] = ['meadow', 'meadow_river', 'meadow_pass']
+  return nature?.canopy === undefined ? meadows : ['woodland', ...meadows]
+}
+
+function pickMeadowLayout(rand: Rng, nature: NatureDensity | undefined): ForestLayout {
+  const pool = forestLayoutCandidates(nature)
+  return pool[randIntWith(rand, 0, pool.length - 1)]
 }
 
 /** Forest layout builders, keyed by the user-steered ForestLayout. Each runs on the already-floored ctx
  *  and is fully responsible for the floor gradient / trees / river / ornaments / repair.
  *  Open/Closed: register a layout here, no dispatcher edits. */
 const FOREST_LAYOUTS: Readonly<Partial<Record<ForestLayout, (ctx: ArchetypeContext) => void>>> = {
+  woodland: layoutWoodland,
   meadow: layoutMeadow,
   meadow_river: layoutMeadowRiver,
   meadow_pass: layoutMeadowPass,
+}
+
+// ── 'woodland' layout — an ACTUAL forest ──────────────────────────────────────
+//
+// Alexander, 2026-09-09: *"plus generators aren't good either, like the meadow is not a forest, it doesn't
+// look like one."* He is right, and the measurement was blunt: the Forest category's presets produced
+// ~10% tree cover scattered at random over an open field. That is a lawn with shrubs on it. Worse, the
+// category described itself as "Open meadow and tree masses" and `forest_meadow` as "tree masses filling
+// the rest" — both promising something the code never built. `scatterFramingTrees` says so in its own
+// comment: *"trees only frame the edges; the centre stays open"*.
+//
+// A meadow framed by trees is a fine thing and it stays. It is simply not a forest, so the category now
+// leads with one.
+//
+// THE INVERSION. A meadow decides where trees are ALLOWED (a band near the edges) and leaves the rest
+// empty. A woodland decides where they are ABSENT — trees are the field, and clearings are carved out of
+// it. That single reversal is the whole layout:
+//
+//   1. canopy everywhere the density says, as coherent stands rather than per-cell coin flips
+//   2. carve a handful of organic CLEARINGS out of it
+//   3. cut WINDING PATHS joining every clearing, so nothing is sealed off
+//   4. dress the clearings with the ground cover / flowers the generator asked for
+//
+// Step 3 is not decoration: a dense forest with no connectivity guarantee produces sealed pockets, and a
+// spawn inside one is an unplayable level. The paths are cut AFTER the canopy and clear whatever they
+// cross, which makes reachability a property of the construction rather than something to test for.
+
+/** Woodland tuning that is NOT the generator's to state — the shape of the algorithm, not its dial. */
+const WOODLAND = {
+  /** Clearings per 1,000 cells. Enough that a map always has somewhere to stand. */
+  clearingsPerThousand: 2.2,
+  /** A clearing's radius range, in cells. */
+  clearingRadius: [2, 5] as const,
+  /** How wide a path through the trees is. Two cells so a unit never threads a one-cell gap. */
+  pathWidth: 2,
+} as const
+
+/**
+ * Build a woodland: dense canopy, carved clearings, connected paths.
+ *
+ * `ctx.nature?.canopy` is the density and it comes from the BACKEND. Absent → nothing is planted and a
+ * warning says why, rather than this file inventing a number: a generator that states no canopy has not
+ * been configured as a forest, and quietly picking 0.45 here is exactly the hardcoded-fallback the
+ * compliance rule forbids.
+ */
+function layoutWoodland(ctx: ArchetypeContext): void {
+  const { cols, rows, collision, ground, zone, trees } = ctx
+  const canopy = ctx.nature?.canopy
+  if (canopy === undefined) {
+    console.warn('[generate] this generator serves no `nature.canopy`, so a woodland has no tree density to build from — nothing planted')
+    return
+  }
+
+  const floor = ZONE_PALETTES[zone].groundTypes[0]
+  forEachCell(cols, rows, (col, row) => { ground[row][col] = floor })
+
+  // 1 · CLEARINGS first, as a mask, so the canopy pass can simply avoid them. Deciding the holes before
+  //     the fill is cheaper and more controllable than planting everything and cutting back.
+  const open = new Set<string>()
+  const clearings: Cell[] = []
+  const wanted = Math.max(2, Math.round((cols * rows / 1000) * WOODLAND.clearingsPerThousand))
+  for (let i = 0; i < wanted; i++) {
+    const centre = {
+      col: randIntWith(ctx.rand, 3, Math.max(3, cols - 4)),
+      row: randIntWith(ctx.rand, 3, Math.max(3, rows - 4)),
+    }
+    const radius = randIntWith(ctx.rand, WOODLAND.clearingRadius[0], WOODLAND.clearingRadius[1])
+    clearings.push(centre)
+    // A ragged disc, not a circle: the radius wobbles per cell so the edge reads as natural.
+    for (let r = centre.row - radius - 1; r <= centre.row + radius + 1; r++) {
+      for (let c = centre.col - radius - 1; c <= centre.col + radius + 1; c++) {
+        if (!inBounds(c, r, cols, rows)) continue
+        const d = Math.hypot(c - centre.col, r - centre.row)
+        if (d <= radius - 0.5 + ctx.rand()) open.add(`${c},${r}`)
+      }
+    }
+  }
+
+  // 2 · PATHS joining the clearings in a chain, so every one of them is reachable from every other.
+  //     A chain (not a full mesh) is enough for connectivity and leaves the forest feeling like forest.
+  for (let i = 1; i < clearings.length; i++) carveWoodlandPath(ctx, clearings[i - 1], clearings[i], open)
+
+  // 3 · CANOPY everywhere else — chosen, not thrown.
+  //
+  //     Two attempts failed here and both failures are worth keeping, because they are the same mistake
+  //     twice: treating a density as an input to a lossy process instead of as the outcome.
+  //
+  //       (a) `clumps = cells * canopy / radius²`, run that many times. Gave 27% for a configured 42%:
+  //           thinning, overlap and clearing-skips all ate cells with nothing accounting for them.
+  //       (b) Random anchors until a planted-count target was hit. Hit the number, but the distribution
+  //           was ruinous — the loop terminated as soon as the count filled, so wherever the early darts
+  //           happened to land became dense forest and the rest of the map stayed bare grass.
+  //
+  //     So: score EVERY plantable cell with spatially-coherent noise, then take the lowest-scoring
+  //     `target` of them. Coverage is exact by construction, and it clumps because neighbouring cells
+  //     score alike. Nothing is random-walked and nothing terminates early.
+  const field = woodlandCanopyField(ctx, open, canopy)
+  for (const { col, row } of field) {
+    const kind: LivingTreeKind | 'tree_dead' = ctx.rand() < 0.06 ? 'tree_dead' : pickLivingTree(ctx.rand())
+    trees.push({ col, row, kind, variant: massVariant(col, row) })
+    collision[row][col] = true // the trunk blocks; the canopy is walkable overhead, as everywhere else
+  }
+
+  // 4 · The clearings get whatever ground cover and flowers the generator asked for. Absent → bare.
+  dressWoodlandClearings(ctx, open)
+
+  void collision
+  void trees
+}
+
+/**
+ * Cut a walkable path between two clearings, clearing canopy as it goes.
+ *
+ * An L with a wobble rather than a straight line: a forest track bends. It walks the column first or the
+ * row first at random, so a map does not read as a grid of right angles all turning the same way.
+ */
+function carveWoodlandPath(ctx: ArchetypeContext, from: Cell, to: Cell, open: Set<string>): void {
+  const { cols, rows } = ctx
+  const colFirst = ctx.rand() < 0.5
+  const widen = (c: number, r: number) => {
+    for (let dr = 0; dr < WOODLAND.pathWidth; dr++) {
+      for (let dc = 0; dc < WOODLAND.pathWidth; dc++) {
+        if (inBounds(c + dc, r + dr, cols, rows)) open.add(`${c + dc},${r + dr}`)
+      }
+    }
+  }
+  const step = (a: number, b: number) => (a < b ? 1 : -1)
+  let { col, row } = from
+  const walkCols = () => { while (col !== to.col) { col += step(col, to.col); widen(col, row) } }
+  const walkRows = () => { while (row !== to.row) { row += step(row, to.row); widen(col, row) } }
+  if (colFirst) { walkCols(); walkRows() } else { walkRows(); walkCols() }
+}
+
+/** Lattice spacing for the canopy noise, in cells. Larger = broader stands; 4 gives tree masses a few
+ *  cells across, which is what reads as woodland rather than as hedges. */
+const CANOPY_LATTICE = 4
+
+/**
+ * Which cells get a tree: exactly `canopy` of the plantable ones, chosen so they clump.
+ *
+ * Value noise on a coarse lattice, bilinearly interpolated, then the lowest-scoring cells taken. The two
+ * properties that matter both fall out of that:
+ *
+ *  · **Exact coverage.** Taking the lowest N is a selection, not a probability, so a served 0.42 plants
+ *    42% of the forest floor every time — no drift from thinning or overlap.
+ *  · **Coherence.** Neighbouring cells interpolate from the same lattice corners, so they score alike and
+ *    are taken or skipped together. That is what makes a stand a stand.
+ *
+ * The share is of the PLANTABLE floor, not of the whole grid: a clearing is not somewhere a tree failed to
+ * grow, so counting clearings in the denominator would make the density mean less the more clearings a map
+ * happened to roll.
+ */
+function woodlandCanopyField(ctx: ArchetypeContext, open: Set<string>, canopy: number): Cell[] {
+  const { cols, rows, collision } = ctx
+  // The lattice — one random value per corner, drawn from the layer rng so a seed reproduces the forest.
+  const latticeCols = Math.ceil(cols / CANOPY_LATTICE) + 2
+  const latticeRows = Math.ceil(rows / CANOPY_LATTICE) + 2
+  const corner: number[][] = []
+  for (let r = 0; r < latticeRows; r++) {
+    const line: number[] = []
+    for (let c = 0; c < latticeCols; c++) line.push(ctx.rand())
+    corner.push(line)
+  }
+  const smooth = (t: number) => t * t * (3 - 2 * t) // ease the interpolation so lattice lines do not show
+  const noiseAt = (col: number, row: number): number => {
+    const gc = col / CANOPY_LATTICE
+    const gr = row / CANOPY_LATTICE
+    const c0 = Math.floor(gc)
+    const r0 = Math.floor(gr)
+    const tx = smooth(gc - c0)
+    const ty = smooth(gr - r0)
+    const a = corner[r0][c0] + (corner[r0][c0 + 1] - corner[r0][c0]) * tx
+    const b = corner[r0 + 1][c0] + (corner[r0 + 1][c0 + 1] - corner[r0 + 1][c0]) * tx
+    return a + (b - a) * ty
+  }
+
+  const scored: { col: number; row: number; n: number }[] = []
+  for (let row = 1; row < rows - 1; row++) {
+    for (let col = 1; col < cols - 1; col++) {
+      if (open.has(`${col},${row}`) || collision[row][col]) continue
+      scored.push({ col, row, n: noiseAt(col, row) })
+    }
+  }
+  const target = Math.round(scored.length * Math.max(0, Math.min(1, canopy)))
+  scored.sort((a, b) => a.n - b.n)
+  return scored.slice(0, target).map(({ col, row }) => ({ col, row }))
+}
+
+/**
+ * Scatter the generator's ground cover and flowers across the CLEARINGS only.
+ *
+ * Both densities come from the backend and both go through the existing prop seams — `makeFlower` and
+ * `makeGroundDecor` — so a woodland's dressing is the same data-driven, per-zone, baked-image path the
+ * meadow and the town use. `makeGroundDecor` returns null when the loaded tileset carries no decor for
+ * the zone; that cell is then simply bare, which is the correct answer to missing data.
+ */
+function dressWoodlandClearings(ctx: ArchetypeContext, open: Set<string>): void {
+  const cover = ctx.nature?.groundCover
+  const flowers = ctx.nature?.flowers
+  if (cover === undefined && flowers === undefined) return
+  for (const key of open) {
+    const [c, r] = key.split(',').map(Number)
+    if (!inBounds(c, r, ctx.cols, ctx.rows) || ctx.collision[r][c]) continue
+    if (flowers !== undefined && ctx.rand() < flowers) {
+      placeProp(ctx, makeFlower(ctx.rand, ctx.zone, c, r))
+      continue
+    }
+    if (cover === undefined || ctx.rand() >= cover) continue
+    const decor = makeGroundDecor(ctx.zone, c, r)
+    if (decor) placeProp(ctx, decor)
+  }
 }
 
 // ── 'meadow' + 'meadow_river' layouts (references #14 / #17) ──────────────────
@@ -1270,7 +1544,7 @@ const HARSH_ZONES: ReadonlySet<ZoneId> = new Set<ZoneId>(['autumn', 'winter', 'l
 function stampMeadowTree(ctx: ArchetypeContext, col: number, row: number, tall: boolean): void {
   const { zone, trees, collision } = ctx
   if (!isLandCell(ctx, col, row)) return // land-only: no tree in water
-  const variant = randIntWith(ctx.rand, 0, canopyCount(ASCII_TILESET, zone) - 1)
+  const variant = randIntWith(ctx.rand, 0, canopyCount(styleCatalog('ascii'), zone) - 1)
   // The green/verdant reference meadows show NO bare snags — only a HARSH season sprinkles a little dead wood.
   const dead = HARSH_ZONES.has(zone) && ctx.rand() < DEAD_TREE_CHANCE[zone] * 0.4
   const kind: LivingTreeKind | 'tree_dead' = dead ? 'tree_dead' : tall ? 'tree_tall' : pickLivingTree(ctx.rand())
@@ -1486,7 +1760,7 @@ function repairFloorConnectivity(ctx: ArchetypeContext, maxPocket = Infinity): v
     region.forEach(key => {
       const { col, row } = toCell(key)
       collision[row][col] = true
-      anchors.push({ col, row, kind: pickLivingTree(shadeNoise(col * 17 + row * 43)), variant: massVariant(col, row) % canopyCount(ASCII_TILESET, zone) }) // tiny dead pocket → forest fills it
+      anchors.push({ col, row, kind: pickLivingTree(shadeNoise(col * 17 + row * 43)), variant: massVariant(col, row) % canopyCount(styleCatalog('ascii'), zone) }) // tiny dead pocket → forest fills it
     })
   }
 }
@@ -1594,7 +1868,7 @@ export function treeColumnClearsPaving(ground: string[][], col: number, baseRow:
 function stampTree(ctx: ArchetypeContext, baseCol: number, baseRow: number, dead = false): void {
   const { collision, zone, trees, cols, rows } = ctx
   if (!isLandCell(ctx, baseCol, baseRow)) return // land-only: no tree in water
-  const variant = randIntWith(ctx.rand, 0, canopyCount(ASCII_TILESET, zone) - 1) // this tree's canopy tone (green…pink)
+  const variant = randIntWith(ctx.rand, 0, canopyCount(styleCatalog('ascii'), zone) - 1) // this tree's canopy tone (green…pink)
   const kind = dead ? 'tree_dead' : pickLivingTree(ctx.rand()) // random shape variant (standard/tall/small/round/bush)
   trees.push({ col: baseCol, row: baseRow, kind, variant })
   if (inBounds(baseCol, baseRow, cols, rows)) collision[baseRow][baseCol] = true // only the trunk cell blocks
@@ -2452,7 +2726,7 @@ export interface StageTemplatePayload {
  *  `settings.scaleY` cell (TILESET-AUTHORING §3 "minimal cells"), so the live stamp's run-collapse is a
  *  no-op safety net and both paths emit the same blocks. */
 function anchorAssets(stage: StageData, kind: string, anchorCol: number, anchorRow: number, variant: number, rotation: number): Array<Record<string, unknown>> {
-  const comp = resolveComposition(ASCII_TILESET, kind)
+  const comp = resolveComposition(styleCatalog('ascii'), kind)
   if (!comp) return []
   const { w, h } = comp.footprint
   // The composition lands ON TOP of the floor tile at its anchor — the SAME level the live stamp gets from the
@@ -2465,7 +2739,7 @@ function anchorAssets(stage: StageData, kind: string, anchorCol: number, anchorR
     const col = anchorCol + off.dx
     const row = anchorRow + off.dy
     if (col < 0 || row < 0 || col >= stage.cols || row >= stage.rows) continue
-    const tile = resolveTile(ASCII_TILESET, stage.zone, c.label, variant)
+    const tile = resolveTile(styleCatalog('ascii'), stage.zone, c.label, variant)
     assets.push({
       art: [tile.char],
       col,

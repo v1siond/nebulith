@@ -27,6 +27,10 @@ const seeded = (seed: number): (() => number) => {
 const openGrid = (cols: number, rows: number): boolean[][] =>
   Array.from({ length: rows }, () => Array.from({ length: cols }, () => false))
 
+import { installLiveCatalogs } from '@/__tests__/helpers/catalogs'
+
+beforeEach(installLiveCatalogs)
+
 describe('enemy archetype TABLE — distinct, meaningful profiles', () => {
   it('every roster id resolves to an archetype whose id matches its key', () => {
     expect(ALL.length).toBeGreaterThanOrEqual(5)

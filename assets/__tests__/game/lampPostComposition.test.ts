@@ -13,9 +13,9 @@
  * default, and asserts stampComposition applies each setting onto the placed asset (scaleY, scale, settings.display,
  * pose) — the "compositions use tuned tile settings for realistic shapes" plumbing.
  */
+import { styleCatalog } from '@/engine/tileset/styleTiles'
 import { stampComposition } from '@/game/runtime/composition'
 import { IsometricGrid } from '@/engine/IsometricGrid'
-import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 import { useSeedTileset } from '@/__tests__/helpers/tilesetSeed'
 
 describe('lamp_post composition — a tall thin post + a single bulb, shaped by backend per-cell settings', () => {
@@ -23,10 +23,10 @@ describe('lamp_post composition — a tall thin post + a single bulb, shaped by 
 
   // Compositions are STYLE-AGNOSTIC: nebulith serves ONE global `lamp_post` row (identical under both the ascii
   // and emoji API entries — verified by the backend test + `curl /api/tilesets`), and the frontend reads it from
-  // ASCII_TILESET for BOTH render styles (stampComposition → resolveComposition(ASCII_TILESET, …)); the active
+  // styleCatalog('ascii') for BOTH render styles (stampComposition → resolveComposition(styleCatalog('ascii'), …)); the active
   // style only swaps which tile ART resolves. So one source carries the tuned shape for both styles.
   test('the composition carries the tuned per-cell settings — a tall thin post + a single bulb on top', () => {
-    const comp = ASCII_TILESET.compositions?.['lamp_post']
+    const comp = styleCatalog('ascii').compositions?.['lamp_post']
     expect(comp).toBeTruthy()
     expect(comp!.footprint).toEqual({ w: 1, h: 1 })
 

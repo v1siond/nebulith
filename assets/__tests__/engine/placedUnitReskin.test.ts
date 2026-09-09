@@ -48,13 +48,18 @@ describe('resolveEntityDraw — a placed unit re-homes its pin onto the active s
     // ascii goblin's own art rather than the view's generic enemy figure ('X').
     const styleOverride = entityStyleOverride({ kind: 'enemy', enemyType: 'goblin' }, ASCII_STYLE)
     const edv = resolveEntityDraw(enemyKind, ASCII_STYLE, 'emoji:goblin', styleOverride, 'X', '#abc')
-    expect(edv.image).toBeUndefined() // ascii art is a glyph here, not the frozen emoji PNG
+    // The ascii goblin has a BAKED PICTURE (`/tiles/ascii/goblin.png`), so re-homing draws that image —
+    // which is what this test's title always said. The old assertion (`image` undefined, "ascii art is a
+    // glyph here") predates ascii tiles being baked images like every other style's.
+    expect(edv.image?.src).toContain('/tiles/ascii/goblin.png')
     expect(edv).toEqual(drawFromVisual(visualForTileId('ascii:goblin')!, 'X', '#abc'))
     expect(edv.char).not.toBe('X')    // it is the goblin's OWN ascii art, not the passthrough default
   })
 
   test('a pin whose slug exists in NEITHER style falls back to the coarse kind (no invented art)', () => {
-    const styleOverride = entityStyleOverride({ kind: 'enemy', enemyType: 'goblin' }, ASCII_STYLE)
+    // The enemyType is unknown too, so NOTHING can resolve a picture — which is what this pins. A
+    // `goblin` override would now legitimately supply ascii art and hide the fallback.
+    const styleOverride = entityStyleOverride({ kind: 'enemy', enemyType: NO_SUCH_SLUG }, ASCII_STYLE)
     const edv = resolveEntityDraw(enemyKind, ASCII_STYLE, `emoji:${NO_SUCH_SLUG}`, styleOverride, 'X', '#abc')
     expect(edv.image).toBeUndefined()
     expect(edv).toEqual(resolveDraw(enemyKind, ASCII_STYLE, undefined, 'X', '#abc'))
@@ -65,7 +70,8 @@ describe('resolveEntityDraw — a placed unit re-homes its pin onto the active s
     const underEmoji = resolveEntityDraw(enemyKind, EMOJI_STYLE, 'emoji:goblin', 'emoji:goblin', '', '#fff')
     const underAscii = resolveEntityDraw(enemyKind, ASCII_STYLE, 'emoji:goblin', undefined, '', '#fff')
     const backEmoji = resolveEntityDraw(enemyKind, EMOJI_STYLE, 'emoji:goblin', 'emoji:goblin', '', '#fff')
-    expect(underAscii.image).toBeUndefined()
+    // Under ascii the SAME label resolves ascii's own picture — a different png, not no png.
+    expect(underAscii.image?.src).toContain('/tiles/ascii/goblin.png')
     expect(backEmoji).toEqual(underEmoji)
     expect(backEmoji.image).toBeDefined()
   })

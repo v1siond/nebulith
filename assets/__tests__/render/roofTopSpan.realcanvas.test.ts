@@ -11,12 +11,11 @@
  * across ~D cells (a tall vertical band), while the SAME asset with NO depthDir paints RED in ~one cell. The
  * band's vertical spread and red-pixel count scale with D — the gap is gone.
  */
+import { styleCatalog, styleTiles } from '@/engine/tileset/styleTiles'
 import { installRealCanvas, type RealCanvasHarness } from '@/__tests__/helpers/realCanvas'
 import { renderTopView } from '@/engine/render/birdseye'
 import { IsometricGrid, type GridAsset } from '@/engine/IsometricGrid'
 import { EMOJI_STYLE, rebuildEmojiStyle } from '@/game/artStyle'
-import { EMOJI_TILESET } from '@/engine/tileset/emojiTileset'
-import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 import type { PlayerState } from '@/game/runtime/player'
 import type { Canvas } from '@napi-rs/canvas'
 
@@ -37,23 +36,23 @@ const hadGrass = '__rz_had_grass__'
 beforeAll(async () => {
   H = installRealCanvas().harness
   H.registerSolid(ROOF_SRC, RED)
-  EMOJI_TILESET.roof = { char: '▲', color: RED, image: ROOF_SRC, height: 1 }
-  EMOJI_TILESET.player = { char: '🧍', color: '#ffcf3a' }
+  styleTiles('emoji').roof = { char: '▲', color: RED, image: ROOF_SRC, height: 1 }
+  styleTiles('emoji').player = { char: '🧍', color: '#ffcf3a' }
   rebuildEmojiStyle()
   await H.warm([ROOF_SRC])
-  if (!ASCII_TILESET.terrain.grass) {
-    ;(ASCII_TILESET.terrain as Record<string, { char: string[]; fg: string[]; bg: string[] }>).grass = { char: ['.'], fg: ['#5aa05a'], bg: ['#1c3a22'] }
-    ;(ASCII_TILESET.terrain as Record<string, unknown>)[hadGrass] = false
+  if (!styleCatalog('ascii').terrain.grass) {
+    ;(styleCatalog('ascii').terrain as Record<string, { char: string[]; fg: string[]; bg: string[] }>).grass = { char: ['.'], fg: ['#5aa05a'], bg: ['#1c3a22'] }
+    ;(styleCatalog('ascii').terrain as Record<string, unknown>)[hadGrass] = false
   }
 })
 
 afterAll(() => {
-  delete EMOJI_TILESET.roof
-  delete EMOJI_TILESET.player
+  delete styleTiles('emoji').roof
+  delete styleTiles('emoji').player
   rebuildEmojiStyle()
-  if ((ASCII_TILESET.terrain as Record<string, unknown>)[hadGrass] === false) {
-    delete (ASCII_TILESET.terrain as Record<string, unknown>).grass
-    delete (ASCII_TILESET.terrain as Record<string, unknown>)[hadGrass]
+  if ((styleCatalog('ascii').terrain as Record<string, unknown>)[hadGrass] === false) {
+    delete (styleCatalog('ascii').terrain as Record<string, unknown>).grass
+    delete (styleCatalog('ascii').terrain as Record<string, unknown>)[hadGrass]
   }
 })
 

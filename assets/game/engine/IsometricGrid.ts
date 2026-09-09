@@ -10,7 +10,7 @@
 import type { Animation } from './animation/tileAnimation'
 import type { AnimationCycle } from './animationCycles'
 import type { CellAnimation } from './cellAnimation'
-import { assetRectExtents, type DepthDir } from './render/isoBlock'
+import { assetRectExtents, type DepthDir, type ThicknessReach } from './render/isoBlock'
 import type { TilePose } from './tileset/pose'
 import type { AssetLight, TileDisplay, TileShape } from './tileset/tileset'
 import { groundTileColor } from './tileset/groundColor'
@@ -21,6 +21,9 @@ import { groundTileColor } from './tileset/groundColor'
 export interface AssetSettings {
   fadeNear?: boolean    // near the player this tile eases translucent (walls/windows/doors/roof_top)
   cutawayRoof?: boolean // near the player this tile lifts off entirely (roof) — skipped when fully gone
+  minAlpha?: number     // the LEAST opaque this tile may ever draw during a reveal. The DOOR carries a high one
+                        // so it stays opaque and obvious while the wall around it fades (Alexander 2026-09-06:
+                        // "doors should be more opaque and obvious"). Data, so the renderer needs no name check.
   badge?: { text: string; color: string } // apex signage (STORE/HOSPITAL) drawn generically, no buildingType
   display?: TileDisplay // 'single' → ONE centered tile drawn INSIDE the block (billboard at the block centre)
                         // over a plain shell; absent/'all-faces' → the tile is painted on all visible faces.
@@ -40,7 +43,15 @@ export interface GridAsset {
   scale?: number        // uniform Zoom — multiplies every draw axis (#77/#78). Default 1.
   scaleX?: number       // Width — horizontal sprite stretch, every view (#77/#78). Default 1.
   scaleY?: number       // Height — vertical stretch, grows UP from the base; iso/2D views (#77/#78). Default 1.
-  scaleZ?: number       // Depth — vertical stretch in the overhead/top view only (#77/#78). Default 1.
+  scaleZ?: number       // THICKNESS — the fraction of its own cell the block fills (1 = a full cube, a door
+                        // 0.3). With `thicknessDir` it shrinks along that WORLD axis; without one it falls back
+                        // to the historical screen-axis squash. Also the overhead/top vertical stretch (#77/#78).
+  /** THICKNESS as four independent REACHES — how far the block extends toward each WORLD direction, as a
+   *  fraction of its own cell (1 = all the way to that face). The same question the Footprint asks, in the
+   *  smaller unit: Footprint counts whole CELLS, this measures within one. World axes, so a door stays thin
+   *  toward ITS wall when the camera rotates and when the BUILDING is rotated (Alexander: "the front of the
+   *  house", not "MY front"). Absent = the legacy screen-axis `scaleZ` squash. */
+  thickness?: ThicknessReach
   depth?: number        // Directional DEPTH (blocks): >1 (with depthDir) extrudes this block into a long iso
                         // box spanning `depth` cells along a diagonal, anchored at its base cell. Default 1
                         // (a unit cube). ISO view. Distinct from scaleZ (the flat top-view stretch).

@@ -10,7 +10,7 @@
  * "frontend invents data / branch by name" pattern). No React here — pure derivation, so it unit-tests
  * directly and the JSX stays a flat map.
  */
-import type { Composition, Tileset } from './tileset/tileset'
+import type { Composition } from './tileset/tileset'
 
 /** A composition's sidebar BUCKET — the subset of the tile `TileCategory` vocabulary (artStyle) that a whole
  *  composition falls into. Served on each composition by `/api/tilesets` as `category`; the palette READS it. */
@@ -74,7 +74,7 @@ export function compositionLabel(kind: string, comp: Composition): string {
  *  SAME gate `tilesForStyle` applies to tiles. Groups are emitted in the canonical order, sorted by label
  *  within each, and empty groups are dropped so the panel shows only sections that have items. Returns []
  *  before the tileset (and its compositions) load. */
-export function buildCompositionPalette(tileset: Tileset): CompositionPaletteGroup[] {
+export function buildCompositionPalette(tileset: { compositions?: Record<string, Composition> }): CompositionPaletteGroup[] {
   const comps = tileset.compositions ?? {}
   const byCategory = Object.fromEntries(
     COMPOSITION_CATEGORIES.map(c => [c, [] as CompositionPaletteItem[]]),

@@ -12,12 +12,11 @@
  * the SAME production draw code onto a real rasteriser at chosen clock times — baked tiles are OS-independent,
  * so the measured pixels are authoritative for the visible behaviour.
  */
+import { makeStyleTile, setStyleTile, styleCatalog, styleTile } from '@/engine/tileset/styleTiles'
 import { installRealCanvas, type RealCanvasHarness } from '@/__tests__/helpers/realCanvas'
 import { render as renderIso } from '@/engine/render/iso'
 import { IsometricGrid, type GridAsset } from '@/engine/IsometricGrid'
 import { EMOJI_STYLE, ASCII_STYLE, type Style } from '@/game/artStyle'
-import { EMOJI_TILESET } from '@/engine/tileset/emojiTileset'
-import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 import type { PlayerState } from '@/game/runtime/player'
 import type { Animation } from '@/engine/animation/tileAnimation'
 import type { Canvas } from '@napi-rs/canvas'
@@ -87,20 +86,20 @@ const animMetrics = (base: number, from: number, to: number, t: number, s: Style
 const hadGrass = '__had_grass_compose__'
 beforeAll(async () => {
   H = installRealCanvas().harness
-  EMOJI_TILESET[LABEL] = { char: '?', color: '#ffffff', image: SRC, height: 1 }
+  setStyleTile('emoji', LABEL, makeStyleTile(LABEL, { char: '?', color: '#ffffff', image: SRC, height: 1 }))
   H.registerSolid(SRC, '#ffffff')
   await H.warm([SRC])
-  if (!ASCII_TILESET.terrain.grass) {
-    ;(ASCII_TILESET.terrain as Record<string, { char: string[]; fg: string[]; bg: string[] }>).grass =
+  if (!styleCatalog('ascii').terrain.grass) {
+    ;(styleCatalog('ascii').terrain as Record<string, { char: string[]; fg: string[]; bg: string[] }>).grass =
       { char: ['.'], fg: ['#5aa05a'], bg: ['#24402a'] }
-    ;(ASCII_TILESET.terrain as Record<string, unknown>)[hadGrass] = false
+    ;(styleCatalog('ascii').terrain as Record<string, unknown>)[hadGrass] = false
   }
 })
 afterAll(() => {
-  delete EMOJI_TILESET[LABEL]
-  if ((ASCII_TILESET.terrain as Record<string, unknown>)[hadGrass] === false) {
-    delete (ASCII_TILESET.terrain as Record<string, unknown>).grass
-    delete (ASCII_TILESET.terrain as Record<string, unknown>)[hadGrass]
+  delete styleTile('emoji', LABEL)
+  if ((styleCatalog('ascii').terrain as Record<string, unknown>)[hadGrass] === false) {
+    delete (styleCatalog('ascii').terrain as Record<string, unknown>).grass
+    delete (styleCatalog('ascii').terrain as Record<string, unknown>)[hadGrass]
   }
 })
 

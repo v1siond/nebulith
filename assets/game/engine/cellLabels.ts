@@ -51,16 +51,12 @@ export const CELL_LABELS = [...TREE_COLUMN_LABELS, ...TREE_MASS_LABELS, ...BUILD
 
 export type CellLabel = (typeof CELL_LABELS)[number]
 
-// ── per-label collision ────────────────────────────────────────────────
-// The ONLY walkable cells: a tree's canopy top (walk under it) and a building's single
-// top roof tile (apex). Everything else — walls, windows, DOORS, roof body, and anything
-// unknown — blocks (fail-safe). Buildings are SOLID like trees until interiors arrive.
-// Membership lookup, not an if/else chain.
-const WALKABLE_LABELS: ReadonlySet<string> = new Set<CellLabel>(['tree_leaf_top', 'roof_top'])
-
-export function isWalkable(label: string): boolean {
-  return WALKABLE_LABELS.has(label)
-}
+// PER-LABEL COLLISION LIVED HERE AND IS GONE (2026-09-06). It hardcoded
+// `WALKABLE_LABELS = {tree_leaf_top, roof_top}` in the frontend, and it was wrong twice over: it claimed a ROOF
+// is walkable, which COMBAT-AND-SYSTEMS-SPEC §9 now forbids ("a ROOF BLOCKS" — Alexander: "roof should have
+// collissions"), and it duplicated data the backend already owns and serves — `tiles.blocking` and
+// `composition_cells.walkable`. It had no runtime callers, so it was a latent bug waiting for one.
+// Walkability is BACKEND DATA. Read it from the tile/composition cell; never from a label set.
 
 // ── autotile labeler (9-piece corner/edge/interior) ────────────────────
 // Each filled cell is labeled from its neighbourhood: a corner/edge piece is

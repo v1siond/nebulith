@@ -1,5 +1,5 @@
 export { render, pickIsoBlock, pickIsoBlocksAll, pickIsoTilesAt, pickIsoTileAt, renderedTilesInRect, isoRecordedGeom, nextPickIndex, ISO_BLOCK_H_FRAC, type IsoPickCamera, type IsoPickBlock, type IsoPickResult, type TileHit } from './iso'
-export { isoDepthBox, depthCells, depthFrontExtent, rotateDepthDir, type DepthDir } from './isoBlock'
+export { isoDepthBox, depthCells, depthFrontExtent, rotateDepthDir, rotateThicknessReach, reachGroundQuad, thinGroundQuad, unitGroundQuad, type DepthDir, type ThicknessReach, type GroundQuad } from './isoBlock'
 export { render2D, pickTwoDTilesAt, pickTwoDTileAt, renderedTwoDTilesInRect, twoDRecordedGeom } from './topdown'
 export { tileGeomPolygon, tileGeomCentroid, tilesInScreenRect, type Pt } from './tileHit'
 export { polyBBox, tileHandlePoints, handleAtPoint, dragOutwardPx, scaleFromDrag, depthFromDrag, drawTileHandles, HANDLE_HIT_RADIUS, HANDLE_SIZE, type TileHandle, type HandleId } from './tileHandles'

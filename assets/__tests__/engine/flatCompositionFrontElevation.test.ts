@@ -15,13 +15,13 @@
  * face. These assert the module behaviour end-to-end (positive: the water renders; negative: buildings still
  * depth-collapse, equal-height rows still dedupe) — no pixels, GEOMETRY + the real render's drawn-cell record.
  */
+import { styleCatalog } from '@/engine/tileset/styleTiles'
 import '@/__tests__/helpers/installTilesetSeed'
 import { render2D } from '@/engine/render/topdown'
 import { frontElevation } from '@/engine/render/frontElevation'
 import { IsometricGrid, type GridAsset } from '@/engine/IsometricGrid'
 import { stampComposition, stampBuildingComposition } from '@/game/runtime/composition'
 import { resolveComposition } from '@/engine/tileset/tileset'
-import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 import type { PlayerState } from '@/game/runtime/player'
 
 const CELL = 16
@@ -79,7 +79,7 @@ describe('flat compositions (fountain / well) render their body in the 2D front 
     test(`${kind}: render2D draws MORE than just the front rim row (the body is visible)`, () => {
       const grid = grid40()
       stampComposition(grid, kind, 18, 18, 'spring')
-      const comp = resolveComposition(ASCII_TILESET, kind)!
+      const comp = resolveComposition(styleCatalog('ascii'), kind)!
       const frontRowWidth = comp.footprint.w // the front rim is one row = footprint width cells
 
       const facade = drawFacade(grid)
@@ -91,7 +91,7 @@ describe('flat compositions (fountain / well) render their body in the 2D front 
 
   test('AUDIT — every composition in the tileset renders at least one facade cell in 2D', () => {
     const missing: string[] = []
-    for (const kind of Object.keys(ASCII_TILESET.compositions)) {
+    for (const kind of Object.keys(styleCatalog('ascii').compositions)) {
       const grid = grid40()
       // Every composition (building, tree, fountain, well, lamp, bush) stamps by kind through the ONE generic
       // per-cell path and must project at least one facade cell in the 2D view.

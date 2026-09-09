@@ -10,11 +10,10 @@
  * `getStack` projects a cell's assets onto `TileEntry[]`; the mutators (pushTile/popTile) translate stack
  * ops back onto the grid. Pure + unit-tested.
  */
+import { styleCatalog, styleTile, styleTiles } from '@/engine/tileset/styleTiles'
 import { FLOOR_TYPE, DEFAULT_FLOOR_SLUG, type IsometricGrid, type GridAsset } from './IsometricGrid'
 import type { TilePose } from './tileset/pose'
 import { resolveTileHeight } from './tileset/tileHeight'
-import { ASCII_TILESET } from './tileset/asciiTileset'
-import { EMOJI_TILESET } from './tileset/emojiTileset'
 import { depthCells } from './render/isoBlock'
 
 /** Which store a TileEntry projects from — lets a consumer/mutator route back to the right setter/store.
@@ -180,6 +179,24 @@ export function cellStackTop(grid: IsometricGrid, col: number, row: number): num
   return grid.getAssetsAtCell(col, row).reduce((top, a) => Math.max(top, (a.heightLevel ?? 0) + stackContribution(a)), 0)
 }
 
+/** The level a UNIT (hero / npc / enemy) STANDS AT in a cell — the top of the cell's GROUND, NOT the top of
+ *  everything in it. A unit is not a tile you stack: walls, doors, windows and roofs are STRUCTURE it passes
+ *  through (the cell is walkable) or that blocks the cell outright — never a surface it is lifted onto.
+ *
+ *  Using `cellStackTop` here was the "hero walks in the door and ends up on the roof" bug (Alexander, Image #2:
+ *  "instead of going inside, it went over the tiles, which is wrong"): a doorway cell holds the whole facade
+ *  column above the doorstep — `L0 path_stone | L1 door | L3 wall | L4 window | L5 wall | L6 window | L7 roof` —
+ *  so the stack top was 8 and the hero was drawn eight blocks up, standing on the roof.
+ *
+ *  RAISING THE GROUND STILL LIFTS THE UNIT: the ground is read through the SAME lego math every tile uses
+ *  (`stackContribution` — its level + its own height, act-as-tile counting as ≥1), so a height-1 meadow or a
+ *  walk-over road lifts the walker exactly like it lifts a stacked tile. 0 on a cell with no ground. */
+export function unitStandLevel(grid: IsometricGrid, col: number, row: number): number {
+  return grid
+    .getAssetsAtCell(col, row)
+    .reduce((top, a) => (a.type === FLOOR_TYPE ? Math.max(top, (a.heightLevel ?? 0) + stackContribution(a)) : top), 0)
+}
+
 /** How many blocks a tile occupies FOR STACKING — its own block height, but AT LEAST 1 when it acts as a tile
  *  so content stacks on top of it (a flat walk-over surface still lifts what stands on it). Non-act-as-tile →
  *  its plain height, so the lego model is byte-identical. */
@@ -197,7 +214,7 @@ function assetActsAsTile(a: GridAsset): boolean {
   const perInstance = (a.settings as { actAsTile?: boolean } | undefined)?.actAsTile
   if (perInstance !== undefined) return perInstance
   const slug = a.type === FLOOR_TYPE ? (a.tileKey ?? DEFAULT_FLOOR_SLUG) : (a.label ?? a.type)
-  const tile = ASCII_TILESET.tiles[slug] ?? EMOJI_TILESET[slug]
+  const tile = styleTile('ascii', slug) ?? styleTile('emoji', slug)
   // DEFAULT TRUE for every cell/block (Alexander 2026-07-26). Only an explicit `false` opts out. Lands WITH the
   // height-1 default (all grounds are now ≥1 blocks) so content stacks ON TOP of the ground, not sunk inside it.
   return (tile?.settings as { actAsTile?: boolean } | undefined)?.actAsTile !== false
@@ -211,7 +228,7 @@ function assetActsAsTile(a: GridAsset): boolean {
  *  tileset holds the label answers. */
 function assetBlocks(a: GridAsset): number {
   const slug = a.type === FLOOR_TYPE ? (a.tileKey ?? DEFAULT_FLOOR_SLUG) : (a.label ?? a.type)
-  return resolveTileHeight(ASCII_TILESET.tiles[slug] ?? EMOJI_TILESET[slug], a) * (a.scaleY ?? 1)
+  return resolveTileHeight(styleTile('ascii', slug) ?? styleTile('emoji', slug), a) * (a.scaleY ?? 1)
 }
 
 /** pushTile → STACK a tile onto the cell (MAP-MODEL §4 "a cell holds an ORDERED stack ... stacked like legos"):

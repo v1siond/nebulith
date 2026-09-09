@@ -1,10 +1,17 @@
 // Games view: list/edit saved games (ordered template levels) + the flow-view
-// graph overlay. Moved out of the page (stage 4). Pure ops live in @/game/games;
-// persistence (localStorage) in @/game/gamesStore.
+// graph overlay. Moved out of the page (stage 4).
+//
+// The GAME MODEL IS THE BACKEND'S (§3.1's P0): this overlay used to read a completely separate
+// localStorage list, so a user sitting inside a backend game was told they had none. It now reads
+// and writes `/api/games` — one model, one id scheme, one source of truth. Ordering the levels is
+// the only game logic left in the frontend (@/game/levelOrder), because that is a user gesture
+// applied before the list is PUT back.
+import { layoutBounds, layoutLevels } from '@/game/editor/levelMapLayout'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { type Game, addTemplate as addGameTemplate, createGame, deleteGame as deleteGameFromList, levelCount, levelTemplate, removeTemplate as removeGameTemplate, renameGame, reorderTemplate as reorderGameTemplate, upsertGame } from '@/game/games'
-import { loadGames, saveGames } from '@/game/gamesStore'
-import { type Connector, type TemplateListItem } from '@/lib/api'
+import { levelTemplateId, moveLevel, removeLevel } from '@/game/levelOrder'
+import { nextGameName } from '@/game/autoNaming'
+import { browserImportDeps, importLocalGames } from '@/lib/gamesMigration'
+import { type Connector, type Game, type TemplateListItem, createGame, deleteGame, listGames, updateGame } from '@/lib/api'
 
 // ── GAMES VIEW ───────────────────────────────────────────────────────────────
 // A Game is an ORDERED list of templates presented as levels (see docs/games-flows.md):
@@ -57,7 +64,7 @@ export function GameEditor({
         <button onClick={onBack} className="shrink-0 rounded bg-gray-700 px-3 py-1.5 text-xs hover:bg-gray-600">← Games</button>
         <input
           value={game.name}
-          onChange={e => onChange(renameGame(game, e.target.value))}
+          onChange={e => onChange({ ...game, name: e.target.value })}
           aria-label="Game name"
           placeholder="Game name…"
           className="flex-1 rounded bg-gray-800 px-3 py-1.5 text-sm text-white"
@@ -73,7 +80,7 @@ export function GameEditor({
               <div className="absolute right-0 z-10 mt-1 max-h-64 w-60 space-y-1 overflow-y-auto rounded-lg border border-white/10 bg-gray-950 p-2 shadow-2xl">
                 {savedTemplates.length === 0 && <p className="text-[10px] text-gray-500">No saved templates to add.</p>}
                 {savedTemplates.map(t => (
-                  <button key={t.id} onClick={() => { onChange(addGameTemplate(game, t.id)); setPickerOpen(false) }} className="block w-full truncate rounded bg-gray-800 px-2 py-1 text-left text-xs text-gray-200 hover:bg-gray-700">{t.name}</button>
+                  <button key={t.id} onClick={() => { onChange({ ...game, templateIds: [...game.templateIds, t.id] }); setPickerOpen(false) }} className="block w-full truncate rounded bg-gray-800 px-2 py-1 text-left text-xs text-gray-200 hover:bg-gray-700">{t.name}</button>
                 ))}
               </div>
             )}
@@ -92,9 +99,9 @@ export function GameEditor({
               name={nameOf(id)}
               isFirst={i === 0}
               isLast={i === levels.length - 1}
-              onUp={() => onChange(reorderGameTemplate(game, i, i - 1))}
-              onDown={() => onChange(reorderGameTemplate(game, i, i + 1))}
-              onRemove={() => onChange(removeGameTemplate(game, i))}
+              onUp={() => onChange({ ...game, templateIds: moveLevel(game.templateIds, i, i - 1) })}
+              onDown={() => onChange({ ...game, templateIds: moveLevel(game.templateIds, i, i + 1) })}
+              onRemove={() => onChange({ ...game, templateIds: removeLevel(game.templateIds, i) })}
               onPlay={() => onPlayLevel(id)}
             />
           ))}
@@ -114,22 +121,45 @@ export function GamesViewOverlay({
 }) {
   const [games, setGames] = useState<Game[]>([])
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  // Load once on open; persist (state + localStorage) on every change so it round-trips.
-  useEffect(() => { setGames(loadGames()) }, [])
-  const persist = useCallback((next: Game[]) => { setGames(next); saveGames(next) }, [])
+  // On open: carry any games this browser still holds under the retired `nebulith:games` key across
+  // to the backend (§5.3's one-shot migration), THEN list. Import failure is not fatal — the key is
+  // left intact and the backend list still renders, so a server hiccup can't hide the real games.
+  const refresh = useCallback(async () => {
+    const deps = browserImportDeps(input => createGame(input))
+    if (deps) await importLocalGames(deps).catch(err => console.warn('Local games import deferred', err))
+    setGames(await listGames())
+  }, [])
+
+  useEffect(() => {
+    let live = true
+    refresh()
+      .catch(() => { if (live) setError('Could not reach the server — games are stored there now.') })
+      .finally(() => { if (live) setLoading(false) })
+    return () => { live = false }
+  }, [refresh])
 
   const editing = editingId ? games.find(g => g.id === editingId) ?? null : null
-  const updateGame = (g: Game) => persist(upsertGame(games, g))
   const nameOf = (id: string) => savedTemplates.find(t => t.id === id)?.name ?? '(missing template)'
 
-  const handleNew = () => {
-    const g = createGame('New game')
-    persist(upsertGame(games, g))
+  // Optimistic: the edited game shows immediately, the PUT follows. A rejected write re-reads the
+  // server rather than leaving the screen showing an edit that never landed.
+  const handleChange = (g: Game) => {
+    setGames(prev => prev.map(x => (x.id === g.id ? g : x)))
+    void updateGame(g.id, { name: g.name, templateIds: g.templateIds }).catch(() => void refresh())
+  }
+
+  const handleNew = async () => {
+    const g = await createGame({ name: nextGameName(games) })
+    setGames(prev => [...prev, g])
     setEditingId(g.id)
   }
-  const handleDelete = (id: string) => {
-    persist(deleteGameFromList(games, id))
+
+  const handleDelete = async (id: string) => {
+    await deleteGame(id)
+    setGames(prev => prev.filter(g => g.id !== id))
     if (editingId === id) setEditingId(null)
   }
 
@@ -145,21 +175,29 @@ export function GamesViewOverlay({
           <GameEditor
             game={editing}
             savedTemplates={savedTemplates}
-            onChange={updateGame}
+            onChange={handleChange}
             onPlayLevel={onPlayLevel}
             onBack={() => setEditingId(null)}
           />
         ) : (
           <div className="space-y-3">
-            <button onClick={handleNew} className="w-full rounded-lg border border-dashed border-indigo-500/40 bg-indigo-900/20 px-4 py-3 text-sm font-bold text-indigo-200 hover:bg-indigo-900/40">＋ New Game</button>
+            <button onClick={() => void handleNew()} className="w-full rounded-lg border border-dashed border-indigo-500/40 bg-indigo-900/20 px-4 py-3 text-sm font-bold text-indigo-200 hover:bg-indigo-900/40">＋ New Game</button>
 
-            {games.length === 0 && (
+            {error && (
+              <p className="rounded-lg border border-red-500/30 bg-red-950/40 px-4 py-3 text-center text-xs text-red-200">{error}</p>
+            )}
+
+            {loading && (
+              <p className="rounded-lg border border-white/10 bg-black/40 px-4 py-10 text-center text-sm text-gray-400">Loading games…</p>
+            )}
+
+            {!loading && !error && games.length === 0 && (
               <p className="rounded-lg border border-white/10 bg-black/40 px-4 py-10 text-center text-sm text-gray-400">No games yet. Create one to group templates into a playable, ordered flow (level 1, 2, 3 …).</p>
             )}
 
             {games.map(g => {
-              const first = levelTemplate(g, 1)
-              const count = levelCount(g)
+              const first = levelTemplateId(g.templateIds, 1)
+              const count = g.templateIds.length
               return (
                 <div key={g.id} className="flex items-center gap-3 rounded-lg border border-white/10 bg-black/50 px-4 py-3">
                   <div className="min-w-0 flex-1">
@@ -175,7 +213,7 @@ export function GamesViewOverlay({
                     ▶ Play
                   </button>
                   <button onClick={() => setEditingId(g.id)} aria-label={`Edit ${g.name}`} className="shrink-0 rounded bg-gray-700 px-3 py-1.5 text-xs hover:bg-gray-600">Edit</button>
-                  <button onClick={() => handleDelete(g.id)} aria-label={`Delete ${g.name}`} className="shrink-0 rounded px-2 py-1.5 text-red-400 hover:text-red-300">✕</button>
+                  <button onClick={() => void handleDelete(g.id)} aria-label={`Delete ${g.name}`} className="shrink-0 rounded px-2 py-1.5 text-red-400 hover:text-red-300">✕</button>
                 </div>
               )
             })}
@@ -203,41 +241,88 @@ export function FlowViewOverlay({
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
-  // Lay EVERY saved template (+ the current one) out in a circle — the full level
-  // graph, not just the current room's neighbours. x/y are node centres; each node
-  // carries its own connectors (the current room's come from the live `connectors`
-  // prop, since it may have unsaved edits). Shared by render + click hit-testing.
+  // Lay EVERY saved template (+ the current one) out as a MAP — each level placed in the direction its
+  // doorway pointed, walking outward from the level you are standing in. x/y are node centres; each node
+  // carries its own connectors (the current room's come from the live `connectors` prop, since it may have
+  // unsaved edits). Shared by render + click hit-testing.
+  //
+  // This used to be a CIRCLE by array index: `angle = i / count * 2π`. The edges were right, so you could
+  // see what connected to what, but the positions carried no information — the level through your east
+  // door might be drawn to the north-west, and reordering the list moved everything. Alexander,
+  // 2026-09-08: *"while we do have a connection of all levels, it's not formed into a real map layout."*
+  //
+  // `layoutLevels` does the placing and is pure + tested; this only turns its integer lattice into pixels.
   const layoutNodes = useCallback(
     (w: number, h: number) => {
-      const base = allTemplates.map(t => ({ id: t.id, name: t.name, connectors: (t.connectors as Connector[]) || [] }))
+      const base = allTemplates.map(t => ({
+        id: t.id,
+        name: t.name,
+        cols: t.cols,
+        rows: t.rows,
+        connectors: (t.connectors as Connector[]) || [],
+      }))
       if (currentTemplate && !base.some(t => t.id === currentTemplate.id)) {
-        base.push({ id: currentTemplate.id, name: currentTemplate.name, connectors })
+        // The open level may not be saved yet. Its own size is not in the list, so use the served default —
+        // it only decides which EDGE a doorway is nearest, and a doorway is at an edge either way.
+        base.push({ id: currentTemplate.id, name: currentTemplate.name, cols: 40, rows: 40, connectors })
       }
-      const radius = Math.min(w, h) * 0.32
-      const single = base.length <= 1
-      return base.map((t, i) => {
-        const angle = (i / Math.max(1, base.length)) * Math.PI * 2 - Math.PI / 2
-        return {
+      const live = base.map(t => ({ ...t, connectors: t.id === currentTemplate?.id ? connectors : t.connectors }))
+      const placed = layoutLevels(
+        live.map(t => ({
           id: t.id,
           name: t.name,
-          connectors: t.id === currentTemplate?.id ? connectors : t.connectors,
-          x: single ? w / 2 : w / 2 + Math.cos(angle) * radius,
-          y: single ? h / 2 : h / 2 + Math.sin(angle) * radius,
-        }
-      })
+          cols: t.cols,
+          rows: t.rows,
+          doors: t.connectors
+            .filter(c => c.targetTemplateId)
+            .map(c => ({ targetId: c.targetTemplateId, cells: c.cells ?? [] })),
+        })),
+        currentTemplate?.id ?? live[0]?.id ?? '',
+      )
+      // Lattice → pixels: fit the whole map in the box with room for a node's own radius.
+      const box = layoutBounds(placed)
+      const spanX = box.maxX - box.minX + 1
+      const spanY = box.maxY - box.minY + 1
+      const pitch = Math.max(90, Math.min(w / (spanX + 0.6), h / (spanY + 0.6)))
+      const originX = w / 2 - ((box.minX + box.maxX) / 2) * pitch
+      const originY = h / 2 - ((box.minY + box.maxY) / 2) * pitch
+      const byId = new Map(live.map(t => [t.id, t]))
+      return placed.map(p => ({
+        id: p.id,
+        name: p.name,
+        connectors: byId.get(p.id)?.connectors ?? [],
+        x: originX + p.gx * pitch,
+        y: originY + p.gy * pitch,
+      }))
     },
     [currentTemplate, connectors, allTemplates],
   )
 
   const render = useCallback(() => {
     const canvas = canvasRef.current
-    if (!canvas || !currentTemplate) return
+    if (!canvas) return
 
     const ctx = canvas.getContext('2d')
     if (!ctx) return
 
     canvas.width = window.innerWidth
     canvas.height = window.innerHeight
+
+    // NOTHING SAVED YET → say so. With no current template this used to return before drawing anything,
+    // leaving whatever was on the canvas before — in practice a black rectangle with no explanation of
+    // whether the view was broken, loading, or simply empty. A map of nothing still has to say it is a map.
+    if (!currentTemplate) {
+      ctx.fillStyle = '#0a0a12'
+      ctx.fillRect(0, 0, canvas.width, canvas.height)
+      ctx.fillStyle = '#8899aa'
+      ctx.font = '15px ui-monospace, monospace'
+      ctx.textAlign = 'center'
+      ctx.fillText('No levels saved yet.', canvas.width / 2, canvas.height / 2 - 12)
+      ctx.fillStyle = '#5a6b7a'
+      ctx.font = '13px ui-monospace, monospace'
+      ctx.fillText('Save this level, then add a doorway to another one — they will appear here as a map.', canvas.width / 2, canvas.height / 2 + 14)
+      return
+    }
 
     const centerX = canvas.width / 2
     const centerY = canvas.height / 2

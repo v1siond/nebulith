@@ -5,9 +5,9 @@
  * stampComposition against a minimal injected composition (a back-anchored roof column) so the wiring is
  * exercised end-to-end without needing a fresh /api/tilesets capture.
  */
+import { styleCatalog } from '@/engine/tileset/styleTiles'
 import { stampComposition } from '@/game/runtime/composition'
 import { IsometricGrid } from '@/engine/IsometricGrid'
-import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 import type { Composition } from '@/engine/tileset/tileset'
 import { useSeedTileset } from '@/__tests__/helpers/tilesetSeed'
 
@@ -30,8 +30,8 @@ describe('stampRun copies a roof cell depth-span onto the placed asset, rotated 
   useSeedTileset() // resolveTile needs the real zone tiles for the `roof` label
 
   beforeAll(() => {
-    ASCII_TILESET.compositions![SPAN_KIND] = spanComposition
-    ASCII_TILESET.compositions![PLAIN_KIND] = plainComposition
+    styleCatalog('ascii').compositions![SPAN_KIND] = spanComposition
+    styleCatalog('ascii').compositions![PLAIN_KIND] = plainComposition
   })
 
   test('rotation 0 (south): keeps the authored +row span (depth=4, depthDir=left-down) and scaleY height', () => {

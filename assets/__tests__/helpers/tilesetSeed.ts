@@ -6,10 +6,9 @@
 //   • `installSeedTileset()` — install globally (a whole-file need; see ./installTilesetSeed which calls it).
 //   • `useSeedTileset()`     — install for ONE describe + restore the bundled default after, so sibling
 //                              describes (mechanism tests that assert the bundled glyphs) keep the default.
+import { installStyleTiles, makeStyleTile, setStyleCatalog, styleCatalog, styleTiles } from '@/engine/tileset/styleTiles'
 import fixture from '@/__tests__/fixtures/tilesets.json'
 import entitiesFixture from '@/__tests__/fixtures/entities.json'
-import { setEmojiTileset, EMOJI_TILESET } from '@/engine/tileset/emojiTileset'
-import { setAsciiTileset, ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 import { rebuildEmojiStyle } from '@/game/artStyle'
 import { installTilesetPayload } from '@/engine/tileset/tilesetLoader'
 import { installEntityPayload } from '@/engine/entity/entityLoader'
@@ -21,8 +20,8 @@ export function installSeedTileset(): void {
 }
 
 export function useSeedTileset(): void {
-  const bundledEmoji = EMOJI_TILESET
-  const bundledAscii = ASCII_TILESET
+  const bundledEmoji = styleTiles('emoji')
+  const bundledAscii = styleCatalog('ascii')
   beforeAll(() => installSeedTileset())
-  afterAll(() => { setEmojiTileset(bundledEmoji); setAsciiTileset(bundledAscii); rebuildEmojiStyle(); clearEntityResolution() })
+  afterAll(() => { installStyleTiles('emoji', bundledEmoji); setStyleCatalog(bundledAscii); rebuildEmojiStyle(); clearEntityResolution() })
 }

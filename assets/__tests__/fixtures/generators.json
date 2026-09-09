@@ -1,0 +1,368 @@
+{
+    "data": [
+        {
+            "name": "Forest",
+            "position": 0,
+            "description": "Open meadow and tree masses \u2014 no settlement.",
+            "key": "forest",
+            "generators": [
+                {
+                    "name": "Meadow",
+                    "position": 0,
+                    "config": {
+                        "grid": {
+                            "cellSize": 16,
+                            "cols": {
+                                "max": 45,
+                                "min": 30
+                            },
+                            "isoScale": 2.5,
+                            "rows": {
+                                "max": 35,
+                                "min": 24
+                            }
+                        },
+                        "nature": {
+                            "flowers": 0.06,
+                            "groundCover": 0.12
+                        },
+                        "units": {
+                            "enemies": 0,
+                            "enemyTypes": [],
+                            "townsfolk": 5
+                        }
+                    },
+                    "description": "Clearings wired by corridors, tree masses filling the rest.",
+                    "key": "forest_meadow",
+                    "layout": "meadow",
+                    "zones": [
+                        "spring",
+                        "summer",
+                        "autumn",
+                        "winter",
+                        "desert"
+                    ]
+                },
+                {
+                    "name": "Meadow + River",
+                    "position": 1,
+                    "config": {
+                        "grid": {
+                            "cellSize": 16,
+                            "cols": {
+                                "max": 45,
+                                "min": 30
+                            },
+                            "isoScale": 2.5,
+                            "rows": {
+                                "max": 35,
+                                "min": 24
+                            }
+                        },
+                        "nature": {
+                            "flowers": 0.06,
+                            "groundCover": 0.12
+                        },
+                        "units": {
+                            "enemies": 0,
+                            "enemyTypes": [],
+                            "townsfolk": 5
+                        }
+                    },
+                    "description": "The meadow, cut by a river with framing trees beyond it.",
+                    "key": "forest_meadow_river",
+                    "layout": "meadow_river",
+                    "zones": [
+                        "spring",
+                        "summer",
+                        "autumn",
+                        "winter",
+                        "desert"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "Town",
+            "position": 1,
+            "description": "A modest, leafy settlement around a square.",
+            "key": "town",
+            "generators": [
+                {
+                    "name": "Town",
+                    "position": 0,
+                    "config": {
+                        "buildings": {
+                            "fixedWall": "#f0f0ea",
+                            "hospitalRoof": "#2f7e50",
+                            "materials": [
+                                "wall_brick",
+                                "wall_wood",
+                                "wall_stone"
+                            ],
+                            "roofColors": [
+                                "#b5533a",
+                                "#5a636b",
+                                "#5c4433",
+                                "#4a6a7a"
+                            ],
+                            "storeRoof": "#235a96",
+                            "wallColors": [
+                                "#9e4b3b",
+                                "#c9a66b",
+                                "#e8dcc0",
+                                "#8a8580",
+                                "#a89f7a"
+                            ]
+                        },
+                        "grid": {
+                            "cellSize": 16,
+                            "cols": {
+                                "max": 45,
+                                "min": 30
+                            },
+                            "isoScale": 2.5,
+                            "rows": {
+                                "max": 35,
+                                "min": 24
+                            }
+                        },
+                        "nature": {
+                            "flowers": 0.06,
+                            "groundCover": 0.12
+                        },
+                        "settlement": {
+                            "bigHouseRange": [
+                                1,
+                                3
+                            ],
+                            "buildingCap": 18,
+                            "houseRange": [
+                                4,
+                                6
+                            ],
+                            "houseWidths": [
+                                3,
+                                3,
+                                4,
+                                4,
+                                4,
+                                5
+                            ],
+                            "lotGap": [
+                                1,
+                                2
+                            ],
+                            "maxPerFrontage": 6,
+                            "natureMultiplier": 1.15,
+                            "plazaSize": 5,
+                            "roadWidth": 4,
+                            "setback": 1
+                        },
+                        "units": {
+                            "enemies": 0,
+                            "enemyTypes": [],
+                            "townsfolk": 8
+                        }
+                    },
+                    "description": "Streets, a central square, houses fronting the roads.",
+                    "key": "town_default",
+                    "layout": null,
+                    "zones": [
+                        "spring",
+                        "summer",
+                        "autumn",
+                        "winter",
+                        "desert"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "City",
+            "position": 2,
+            "description": "The same lots packed far harder \u2014 roughly 4x a town.",
+            "key": "city",
+            "generators": [
+                {
+                    "name": "City",
+                    "position": 0,
+                    "config": {
+                        "buildings": {
+                            "fixedWall": "#f0f0ea",
+                            "hospitalRoof": "#2f7e50",
+                            "materials": [
+                                "wall_brick",
+                                "wall_wood",
+                                "wall_stone"
+                            ],
+                            "roofColors": [
+                                "#b5533a",
+                                "#5a636b",
+                                "#5c4433",
+                                "#4a6a7a"
+                            ],
+                            "storeRoof": "#235a96",
+                            "wallColors": [
+                                "#9e4b3b",
+                                "#c9a66b",
+                                "#e8dcc0",
+                                "#8a8580",
+                                "#a89f7a"
+                            ]
+                        },
+                        "grid": {
+                            "cellSize": 16,
+                            "cols": {
+                                "max": 71,
+                                "min": 52
+                            },
+                            "isoScale": 2.5,
+                            "rows": {
+                                "max": 57,
+                                "min": 42
+                            }
+                        },
+                        "nature": {
+                            "flowers": 0.06,
+                            "groundCover": 0.12
+                        },
+                        "settlement": {
+                            "bigHouseRange": [
+                                3,
+                                5
+                            ],
+                            "buildingCap": 72,
+                            "houseRange": [
+                                7,
+                                11
+                            ],
+                            "houseWidths": [
+                                3,
+                                3,
+                                4,
+                                4,
+                                4,
+                                5
+                            ],
+                            "lotGap": [
+                                1,
+                                1
+                            ],
+                            "maxPerFrontage": 99,
+                            "natureMultiplier": 0.4,
+                            "plazaSize": 7,
+                            "roadWidth": 4,
+                            "setback": 1
+                        },
+                        "units": {
+                            "enemies": 0,
+                            "enemyTypes": [],
+                            "townsfolk": 14
+                        }
+                    },
+                    "description": "The town's rules on a bigger grid with tighter lots and no per-street limit.",
+                    "key": "city_default",
+                    "layout": null,
+                    "zones": [
+                        "spring",
+                        "summer",
+                        "autumn",
+                        "winter",
+                        "desert"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "Cave",
+            "position": 3,
+            "description": "A seasonal cavern with enemies instead of townsfolk.",
+            "key": "cave",
+            "generators": [
+                {
+                    "name": "Cave",
+                    "position": 0,
+                    "config": {
+                        "grid": {
+                            "cellSize": 16,
+                            "cols": {
+                                "max": 45,
+                                "min": 30
+                            },
+                            "isoScale": 2.5,
+                            "rows": {
+                                "max": 35,
+                                "min": 24
+                            }
+                        },
+                        "units": {
+                            "enemies": 10,
+                            "enemyTypes": [
+                                "bat",
+                                "spider",
+                                "skeleton"
+                            ],
+                            "townsfolk": 0
+                        }
+                    },
+                    "description": "A cavern floor \u2014 bats, spiders and skeletons instead of townsfolk.",
+                    "key": "cave_default",
+                    "layout": null,
+                    "zones": [
+                        "spring",
+                        "summer",
+                        "autumn",
+                        "winter",
+                        "desert"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "Temple",
+            "position": 4,
+            "description": "A seasonal temple dungeon.",
+            "key": "temple",
+            "generators": [
+                {
+                    "name": "Temple",
+                    "position": 0,
+                    "config": {
+                        "grid": {
+                            "cellSize": 16,
+                            "cols": {
+                                "max": 45,
+                                "min": 30
+                            },
+                            "isoScale": 2.5,
+                            "rows": {
+                                "max": 35,
+                                "min": 24
+                            }
+                        },
+                        "units": {
+                            "enemies": 10,
+                            "enemyTypes": [
+                                "skeleton",
+                                "guardian",
+                                "wraith"
+                            ],
+                            "townsfolk": 0
+                        }
+                    },
+                    "description": "A temple dungeon \u2014 skeletons, guardians and wraiths.",
+                    "key": "temple_default",
+                    "layout": null,
+                    "zones": [
+                        "spring",
+                        "summer",
+                        "autumn",
+                        "winter",
+                        "desert"
+                    ]
+                }
+            ]
+        }
+    ]
+}

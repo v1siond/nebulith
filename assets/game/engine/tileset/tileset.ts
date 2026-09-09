@@ -10,10 +10,11 @@
  * The render logic never changes — only where the tileset comes from.
  */
 import type { TilePose } from './pose'
+import type { StyleTile } from './styleTiles'
 import type { TileView, TileViewSettings } from './tileViewSettings'
 import type { ImageVisual } from '@/game/artStyle'
 import type { Animation } from '@/engine/animation/tileAnimation'
-import type { DepthDir } from '../render/isoBlock'
+import type { DepthDir, ThicknessReach } from '../render/isoBlock'
 
 // 9-piece autotile POSITION — the swap standard: all sides + corners. 'single' = a non-tiling tile.
 export type TilePosition =
@@ -32,54 +33,11 @@ export type TilePosition =
  *  is drawn on the block — it never introduces a glyph. */
 export type TileDisplay = 'all-faces' | 'single'
 
-/** SHAPE — a FORM modifier for a tile's block: it rounds the silhouette WITHOUT touching the tile's painting.
- *  A per-tile render SETTING (lives in the tile's `settings` jsonb / a per-ASSET override from the editor), the
- *  sibling of `display`:
- *    • 'square' (DEFAULT, current behaviour) — the tile extrudes into an iso CUBE (drawIsoTileBlock), a front
- *      rect in 2D, a footprint square in Top.
- *    • 'circle' — the SAME cube/cell is drawn (its baked art, colour filter, per-face shading and every other
- *      setting intact) but CLIPPED to an ELLIPSE of the block's OWN extent, so the cuboid's corners are bent away
- *      into a smooth OVAL — PROPORTIONAL to the block (a tall block → a tall oval, a cube → a rounder blob). It
- *      shows EXACTLY what the cube shows, only rounded — NO spherical relight, NO single flat surface, NO fixed
- *      circle (those were rejected "ball" attempts). 2D/Top round the footprint the same way.
- *  Absent → 'square' (byte-identical to before). Designed to grow ('oval', …) via a dispatch map keyed by this
- *  value, NOT hardcoded branches — a new shape adds one drawer, never a new `if`. */
+/** How a tile's block renders: a cube, or a shaded ball. */
 export type TileShape = 'square' | 'circle'
 
-export interface TilesetTile {
-  /** The swap key — same across every tileset, so re-skin is a label match. */
-  label: string
-  /** The tile's appearance in THIS tileset (an ASCII glyph now; an image/sprite src later). */
-  glyph: string
-  /** Where in a 9-piece autotile mass this tile sits (or 'single'). */
-  position: TilePosition
-  walkable: boolean
-  /** The tile's iso BLOCK height (DATA from the DB): a flat tile is a fraction (0.1 slab), a standing tile ≥1.
-   *  Read uniformly by the renderer (resolveTileHeight) so height is data in EVERY style, never invented. */
-  height?: number
-  /** Which palette entry supplies the colour (e.g. 'canopy', 'trunk', 'building.roof'). */
-  colorRole: string
-  /** OPTIONAL positioning data (rotation/scale/flip/offset) resolved through `applyPose` — the SAME
-   *  deviations-only shape the emoji tiles carry. Held items (weapons/shield) store here the orientation
-   *  the ASCII renderer used to hardcode, so ASCII drives its weapon pose from tileset DATA like emoji. */
-  pose?: TilePose
-  /** OPTIONAL per-view settings (size/pose/…) — the SAME deviations-only shape the emoji tiles carry;
-   *  absent view/field falls back to the tile's shared value then the renderer's hardcoded default. */
-  views?: Partial<Record<TileView, TileViewSettings>>
-  /** OPTIONAL sidebar metadata (served from the DB): `category` (terrain/buildings/units/nature) marks the
-   *  tile BROWSEABLE in the Tile Library; `title` is its human display name. Absent = an internal cell-label
-   *  (tree_top, wall corners…) that renders on the map but never shows in the sidebar. */
-  category?: string
-  title?: string
-  /** OPTIONAL portable image asset served by the backend (`image_url` on the API tile) — the same
-   *  "load different, behave the same" seam as the emoji tileset's `image`. When set, the renderer's
-   *  image path draws this instead of the glyph; absent = the ascii glyph stays the only visual. */
-  image?: ImageVisual
-  /** OPTIONAL backend `settings` blob (served on the API tile) — holds the GENERIC render-behavior keys
-   *  `fadeNear` / `cutawayRoof` a stamp copies onto the placed asset, plus style-specific extras. Any tile
-   *  can carry them, so proximity fade/cutaway is a per-tile property, not a building special case. */
-  settings?: Record<string, unknown>
-}
+// `StyleTile` (engine/tileset/styleTiles.ts) is THE tile shape — one per (style, label). The old
+// per-style `TilesetTile` is gone with the two holder files.
 
 export interface ZonePalette {
   trunk: string
@@ -150,6 +108,9 @@ export interface CompositionCellSettings {
   scaleX?: number
   scaleY?: number
   scaleZ?: number
+  /** Which WORLD axis this cell's THICKNESS shrinks along (authored south-facing, like `depthDir`). The stamp
+   *  rotates it by the building's rotation, so a door is thin toward ITS house's front. */
+  thicknessDir?: DepthDir
   /** Directional DEPTH in blocks (roof-z-width): >1 (with `depthDir`) extrudes this cell into ONE long iso box
    *  spanning `depth` cells along a diagonal, anchored at its base cell — a roof column spans the whole footprint
    *  depth as a single block. stampComposition copies it onto the placed asset's `depth`. Absent/1 → a unit cell. */
@@ -218,7 +179,7 @@ export interface Tileset {
   id: string
   name: string
   /** Every cell-label tile, keyed by its swap-label (trees / buildings / features). */
-  tiles: Readonly<Record<string, TilesetTile>>
+  tiles: Readonly<Record<string, StyleTile>>
   /** Colour palettes keyed by zone id — the "stored colour property" that reskins cell-labels by zone. */
   palettes: Readonly<Record<string, ZonePalette>>
   /** Ground/terrain tiles keyed by ground type. */
@@ -235,7 +196,7 @@ const EMPTY_GROUND: ResolvedGround = { char: ' ', fg: 'transparent', bg: 'transp
 /** Resolve a GROUND tile's glyph + fg + base fill from a LOADED tileset — the data-driven twin of the
  *  inline `GROUND_COLORS[type]` + noise-variant selection in drawIsoGroundLayer. Pure; deterministic
  *  per (type, col, row). Grass's per-cell shade is applied by the caller (unchanged), so bg is the base. */
-export function resolveGroundTile(tileset: Tileset, tileType: string, col: number, row: number): ResolvedGround {
+export function resolveGroundTile(tileset: { terrain: Record<string, GroundTile> }, tileType: string, col: number, row: number): ResolvedGround {
   const g = tileset.terrain[tileType] ?? tileset.terrain.grass
   if (!g) return EMPTY_GROUND // terrain not loaded yet (empty tileset) → draw nothing, don't crash on a missing tile
   const noiseVal = Math.sin(col * 0.3 + row * 0.5) * Math.cos(col * 0.7 - row * 0.2)
@@ -266,19 +227,97 @@ export const FALLBACK_RESOLVED: ResolvedTile = { char: '?', color: '#cccccc' }
  *  so a stamp only sets `asset.settings` on tiles that actually opt into a behavior. `display` follows the
  *  SAME data path: only the non-default `'single'` rides through — `'all-faces'` / absent carries nothing,
  *  leaving `asset.settings` unset so a default tile renders byte-identically to before. */
-export function tileRenderBehavior(settings?: Record<string, unknown>): { fadeNear?: boolean; cutawayRoof?: boolean; display?: TileDisplay } | undefined {
+export function tileRenderBehavior(settings?: Record<string, unknown>): { fadeNear?: boolean; cutawayRoof?: boolean; minAlpha?: number; display?: TileDisplay } | undefined {
   if (!settings) return undefined
-  const out: { fadeNear?: boolean; cutawayRoof?: boolean; display?: TileDisplay } = {}
+  const out: { fadeNear?: boolean; cutawayRoof?: boolean; minAlpha?: number; display?: TileDisplay } = {}
+  if (typeof settings.minAlpha === 'number') out.minAlpha = settings.minAlpha
   if (settings.fadeNear) out.fadeNear = true
   if (settings.cutawayRoof) out.cutawayRoof = true
   if (settings.display === 'single') out.display = 'single'
   return out.fadeNear || out.cutawayRoof || out.display ? out : undefined
 }
 
+/** A tile's authored THICKNESS (`settings.scaleZ`) — how much of its own cell the block fills along the
+ *  into-screen axis. Backend TILE data (`tile_source.ex`: "scaleZ is THICKNESS — a door is a thin panel in
+ *  the wall, not a full cube"), so a door is thin WHEREVER it lands: stamped by the generator or painted by
+ *  hand. THE single reader — the composition stamp and the paint brush both call this, so they cannot drift
+ *  the way they did when each kept its own copy.
+ *
+ *  Ignored unless it is a positive number: a malformed record must never collapse a block to nothing. */
+export function tileThickness(settings?: Record<string, unknown>): number | undefined {
+  const raw = settings?.scaleZ
+  return typeof raw === 'number' && raw > 0 ? raw : undefined
+}
+
+/** The four iso diagonals a THICKNESS may shrink along — the same axes z-width spans. */
+const THICKNESS_DIRS: ReadonlySet<string> = new Set(['left-up', 'right-up', 'left-down', 'right-down'])
+
+/**
+ * A tile's OWN colour, by label — or undefined when the tileset carries no such tile.
+ *
+ * The one reader for "what colour is this thing, per the backend". Deliberately NOT `resolveTile`, which
+ * substitutes `FALLBACK_RESOLVED` for a missing tile: a caller asking for a colour must be able to tell
+ * "the backend says grey" from "the backend has never heard of this", and silently returning the fallback
+ * grey is how an invented colour gets mistaken for served data.
+ *
+ * Handles both shapes the backend serves: a flat `settings.color` (emoji rows) and a per-zone
+ * `settings.colors` map (ascii rows).
+ */
+export function tileColorByLabel(tileset: TileSource, label: string, zone = 'spring'): string | undefined {
+  const tile = tileset.tiles[label]
+  if (!tile) return undefined
+  const colors = tileColors(tile)
+  const perZone = colors?.[zone] ?? (colors ? Object.values(colors)[0] : undefined)
+  if (typeof perZone === 'string') return perZone
+  if (Array.isArray(perZone) && perZone.length > 0) return perZone[0]
+  const flat = (tile.settings as { color?: unknown } | undefined)?.color
+  return typeof flat === 'string' ? flat : undefined
+}
+
+/** The opposite iso diagonal, for expanding the "hug this face" shorthand. */
+const OPPOSITE: Record<DepthDir, DepthDir> = {
+  'left-up': 'right-down', 'right-down': 'left-up', 'right-up': 'left-down', 'left-down': 'right-up',
+}
+
+/**
+ * A tile's authored THICKNESS as the four REACHES the renderer and the editor both speak.
+ *
+ * The backend authors it two ways, because one is far easier to write by hand:
+ *   - the SHORTHAND `{scaleZ, thicknessDir}` — "0.3 thick, hugging this face" (how a door is authored), and
+ *   - the EXPLICIT `{thickness: {"<dir>": 0.4, …}}` — a per-direction reach map, for anything the shorthand
+ *     cannot say (thin on both sides, or thin along both axes).
+ *
+ * Both land in one shape here, so nothing downstream has to know which was written. A direction the
+ * renderer cannot name is DROPPED rather than trusted — a typo must leave a full cube, never a block
+ * thinned along an axis that does not exist.
+ */
+export function tileThicknessReach(settings?: Record<string, unknown>): ThicknessReach | undefined {
+  const out: ThicknessReach = {}
+
+  const explicit = settings?.thickness
+  if (explicit && typeof explicit === 'object') {
+    for (const [dir, value] of Object.entries(explicit as Record<string, unknown>)) {
+      if (THICKNESS_DIRS.has(dir) && typeof value === 'number' && value > 0 && value < 1) {
+        out[dir as DepthDir] = value
+      }
+    }
+  }
+
+  // The shorthand fills in only what the explicit map left unsaid, so an explicit reach always wins.
+  const amount = settings?.scaleZ
+  const hug = settings?.thicknessDir
+  if (typeof amount === 'number' && amount > 0 && amount < 1 && typeof hug === 'string' && THICKNESS_DIRS.has(hug)) {
+    const back = OPPOSITE[hug as DepthDir]
+    if (out[back] === undefined) out[back] = amount
+  }
+
+  return Object.keys(out).length > 0 ? out : undefined
+}
+
 /** A tile's own per-zone colour map from its backend `settings.colors` (undefined when it carries none).
  *  The single reader for "a tile's colour lives in its own settings" — used by colour resolution, the
  *  canopy-shade count, and decor zone-membership, so none of them re-reach into `settings` by hand. */
-function tileColors(tile?: TilesetTile): Record<string, string | readonly string[]> | undefined {
+function tileColors(tile?: StyleTile): Record<string, string | readonly string[]> | undefined {
   return (tile?.settings as { colors?: Record<string, string | readonly string[]> } | undefined)?.colors
 }
 
@@ -286,7 +325,7 @@ function tileColors(tile?: TilesetTile): Record<string, string | readonly string
  *  array of tonal shades and `variant` picks one (wrapping). Falls back to the neutral colour when the
  *  tile has no colour for the zone. This is the "a tile's colour comes from its settings, not a shared
  *  palette" rule — the frontend never reads a per-zone palette blob. */
-function resolveTileColor(tile: TilesetTile, zone: string, variant: number): string {
+function resolveTileColor(tile: StyleTile, zone: string, variant: number): string {
   const c = tileColors(tile)?.[zone]
   if (typeof c === 'string') return c
   if (Array.isArray(c) && c.length > 0) return c[((variant % c.length) + c.length) % c.length]
@@ -298,7 +337,7 @@ function resolveTileColor(tile: TilesetTile, zone: string, variant: number): str
  *  frontend `TREE_CANOPY_SHADES[zone].length`. The generator picks a tree's canopy variant in
  *  `[0, count)`. Safe: returns >= 1 even before the tileset loads (empty) or for an unknown zone, so
  *  tree generation never divides by zero. */
-export function canopyCount(tileset: Tileset, zone: string): number {
+export function canopyCount(tileset: TileSource, zone: string): number {
   const leaf = tileset.tiles['leaf_center'] ?? tileset.tiles['leaf_top']
   const shades = tileColors(leaf)?.[zone]
   return Array.isArray(shades) && shades.length > 0 ? shades.length : 1
@@ -308,7 +347,7 @@ export function canopyCount(tileset: Tileset, zone: string): number {
  *  `settings.colors` carries that zone (presence of the zone key = it is used there). Sorted by label
  *  so per-cell selection is deterministic regardless of the backend's row order. Empty when the tileset
  *  has not loaded. Replaces the deleted frontend `GROUND_DECOR` table. */
-export function decorTilesForZone(tileset: Tileset, zone: string): TilesetTile[] {
+export function decorTilesForZone(tileset: TileSource, zone: string): StyleTile[] {
   return Object.values(tileset.tiles)
     .filter(t => t.category === 'decor' && tileColors(t)?.[zone] != null)
     .sort((a, b) => (a.label < b.label ? -1 : a.label > b.label ? 1 : 0))
@@ -317,25 +356,33 @@ export function decorTilesForZone(tileset: Tileset, zone: string): TilesetTile[]
 /** Pick a ground-decor tile for a cell and resolve its glyph + zone colour + its swap-LABEL — the
  *  data-driven twin of the deleted `groundDecor(zone, variant)`. Deterministic per `(col, row)` (the same
  *  hash the generator used). The `label` is threaded onto the placed decor so the render resolves the
- *  tile's BAKED image by label per active style (labelTileImage), exactly like every other tile — decor is
+ *  tile's BAKED image by label per active style (styleTileImage), exactly like every other tile — decor is
  *  an image, not a glyph. Null when the zone has no decor tiles (unloaded tileset), so the caller skips the cell. */
-export function pickGroundDecor(tileset: Tileset, zone: string, col: number, row: number): (ResolvedTile & { label: string }) | null {
+export function pickGroundDecor(tileset: TileSource, zone: string, col: number, row: number): (ResolvedTile & { label: string }) | null {
   const decors = decorTilesForZone(tileset, zone)
   if (decors.length === 0) return null
   const tile = decors[Math.abs(col * 7 + row * 13) % decors.length]
   return { ...resolveTile(tileset, zone, tile.label), label: tile.label }
 }
 
+/** The minimum a resolver needs: a label → tile map. Structural, so ANY style's catalog satisfies it and
+ *  no resolver has to know which style it was handed. */
+export interface TileSource {
+  tiles: Record<string, StyleTile>
+  terrain?: Record<string, GroundTile>
+  compositions?: Record<string, Composition>
+}
+
 /** Resolve one tile's glyph + colour from a LOADED tileset — the data-driven twin of `cellTile()`.
  *  `variant` picks a canopy tonal shade (ignored by single-colour tiles). Pure. */
-export function resolveTile(tileset: Tileset, zone: string, label: string, variant = 0): ResolvedTile {
+export function resolveTile(tileset: TileSource, zone: string, label: string, variant = 0): ResolvedTile {
   const tile = tileset.tiles[label]
   if (!tile) return FALLBACK_RESOLVED
-  return { char: tile.glyph, color: resolveTileColor(tile, zone, variant), height: tile.height, settings: tile.settings }
+  return { char: tile.char, color: resolveTileColor(tile, zone, variant), height: tile.height, settings: tile.settings }
 }
 
 /** The multi-cell COMPOSITION for an asset kind from a LOADED tileset (null if none). Pure — the caller
  *  (stampComposition) resolves each cell's tile via resolveTile + places it; no render logic here. */
-export function resolveComposition(tileset: Tileset, kind: string): Composition | null {
+export function resolveComposition(tileset: { compositions?: Record<string, Composition> }, kind: string): Composition | null {
   return tileset.compositions?.[kind] ?? null
 }

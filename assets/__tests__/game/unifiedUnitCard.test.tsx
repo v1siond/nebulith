@@ -70,7 +70,8 @@ function renderUnitCard(props: Partial<React.ComponentProps<typeof PropertiesPan
       level={1}
       levelCount={1}
       onLevel={jest.fn()}
-      onOpenSettings={jest.fn()}
+      sectionOpen={() => true}
+      onToggleSection={jest.fn()}
       onOpenTriggers={jest.fn()}
       triggerCount={0}
       unitSection={<UnitSettingsSection unit={unit} />}
@@ -104,7 +105,7 @@ describe('a unit uses the SAME card as a tile (no separate unit sidebar)', () =>
 
   it('a plain TILE card (no unitSection) still shows the collision row + no unit extras', () => {
     render(
-      <PropertiesPanel collision={false} onCollision={jest.fn()} tile={unitTile({ label: 'grass' })} level={1} levelCount={1} onLevel={jest.fn()} onOpenSettings={jest.fn()} />,
+      <PropertiesPanel collision={false} onCollision={jest.fn()} tile={unitTile({ label: 'grass' })} level={1} levelCount={1} onLevel={jest.fn()} sectionOpen={() => true} onToggleSection={jest.fn()} />,
     )
     expect(screen.getByRole('button', { name: 'Blocked' })).toBeInTheDocument()
     expect(screen.queryByLabelText('Entity name')).toBeNull()
@@ -138,7 +139,7 @@ describe('Triggers is a BUTTON that opens the triggers modal', () => {
   it('a CELL card gets the same Triggers button (enter/interact triggers)', () => {
     const onOpenTriggers = jest.fn()
     render(
-      <PropertiesPanel collision={false} onCollision={jest.fn()} tile={unitTile({ label: 'grass' })} level={1} levelCount={1} onLevel={jest.fn()} onOpenSettings={jest.fn()} onOpenTriggers={onOpenTriggers} />,
+      <PropertiesPanel collision={false} onCollision={jest.fn()} tile={unitTile({ label: 'grass' })} level={1} levelCount={1} onLevel={jest.fn()} sectionOpen={() => true} onToggleSection={jest.fn()} onOpenTriggers={onOpenTriggers} />,
     )
     fireEvent.click(screen.getByRole('button', { name: /Triggers/i }))
     expect(onOpenTriggers).toHaveBeenCalledTimes(1)

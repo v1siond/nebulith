@@ -20,13 +20,12 @@
  *     trunk. Pre-fix the canopy painted the whole-tree KIND emoji (~1.5 cells tall, lifted), so its vertical
  *     extent was far larger and it overlapped the trunk — the doubling this test locks out.
  */
+import { styleCatalog, styleTiles } from '@/engine/tileset/styleTiles'
 import { installRealCanvas, type RealCanvasHarness } from '@/__tests__/helpers/realCanvas'
 import { render2D } from '@/engine/render/topdown'
 import { render as renderIso } from '@/engine/render/iso'
 import { IsometricGrid, type GridAsset } from '@/engine/IsometricGrid'
 import { EMOJI_STYLE, rebuildEmojiStyle } from '@/game/artStyle'
-import { EMOJI_TILESET } from '@/engine/tileset/emojiTileset'
-import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 import type { PlayerState } from '@/game/runtime/player'
 import type { Canvas } from '@napi-rs/canvas'
 
@@ -62,33 +61,33 @@ beforeAll(async () => {
   H.registerSolid(CANOPY_SRC, '#ffffff')
   // The generic 'tree' KIND resolves the whole-tree emoji (pre-fix, both cells painted THIS). The two part
   // labels resolve their own trunk/leaf tile (post-fix, what each cell paints).
-  EMOJI_TILESET.tree = { char: '🌲', color: '#3aaa3a', image: KIND_SRC }
-  EMOJI_TILESET.tree_trunk = { char: '▮', color: '#8a5a2a', image: TRUNK_SRC, height: 1 }
-  EMOJI_TILESET.tree_canopy = { char: '●', color: '#2fbf2f', image: CANOPY_SRC, height: 1 }
+  styleTiles('emoji').tree = { char: '🌲', color: '#3aaa3a', image: KIND_SRC }
+  styleTiles('emoji').tree_trunk = { char: '▮', color: '#8a5a2a', image: TRUNK_SRC, height: 1 }
+  styleTiles('emoji').tree_canopy = { char: '●', color: '#2fbf2f', image: CANOPY_SRC, height: 1 }
   // The parked hero must render as a SHORT emoji billboard (gold 🧍), not a tall ASCII figure — a tall
   // figure would occlude the top of the magenta canopy and skew the centroid scan. The frontend ships no
   // bundled default now, so seed the person tile here alongside the tree tiles.
-  EMOJI_TILESET.player = { char: '🧍', color: '#ffcf3a' }
+  styleTiles('emoji').player = { char: '🧍', color: '#ffcf3a' }
   rebuildEmojiStyle() // install the KIND tile into EMOJI_STYLE.map so resolveAssetDraw('tree') sees its image
   await H.warm([KIND_SRC, TRUNK_SRC, CANOPY_SRC])
   // render2D/iso paint ground from the loaded tileset terrain (DB-seeded, `{}` in tests) — seed grass so the
   // ground draws without a lookup crash; its dark bg reads neither magenta nor blue.
-  if (!ASCII_TILESET.terrain.grass) {
-    ;(ASCII_TILESET.terrain as Record<string, { char: string[]; fg: string[]; bg: string[] }>).grass =
+  if (!styleCatalog('ascii').terrain.grass) {
+    ;(styleCatalog('ascii').terrain as Record<string, { char: string[]; fg: string[]; bg: string[] }>).grass =
       { char: ['.'], fg: ['#5aa05a'], bg: ['#24402a'] }
-    ;(ASCII_TILESET.terrain as Record<string, unknown>)[hadGrass] = false
+    ;(styleCatalog('ascii').terrain as Record<string, unknown>)[hadGrass] = false
   }
 })
 
 afterAll(() => {
-  delete EMOJI_TILESET.tree
-  delete EMOJI_TILESET.tree_trunk
-  delete EMOJI_TILESET.tree_canopy
-  delete EMOJI_TILESET.player
+  delete styleTiles('emoji').tree
+  delete styleTiles('emoji').tree_trunk
+  delete styleTiles('emoji').tree_canopy
+  delete styleTiles('emoji').player
   rebuildEmojiStyle()
-  if ((ASCII_TILESET.terrain as Record<string, unknown>)[hadGrass] === false) {
-    delete (ASCII_TILESET.terrain as Record<string, unknown>).grass
-    delete (ASCII_TILESET.terrain as Record<string, unknown>)[hadGrass]
+  if ((styleCatalog('ascii').terrain as Record<string, unknown>)[hadGrass] === false) {
+    delete (styleCatalog('ascii').terrain as Record<string, unknown>).grass
+    delete (styleCatalog('ascii').terrain as Record<string, unknown>)[hadGrass]
   }
 })
 

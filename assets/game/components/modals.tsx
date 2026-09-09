@@ -1,9 +1,10 @@
 // Reusable modal + entity-inspector modal bodies (identity/stats, movement,
 // attacks) and the quest-offer body. Moved out of the page (stage 4);
 // props-driven presentational components.
-import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react'
 import type { Connector } from '@/lib/api'
-import { ABILITY_REGISTRY, ABILITY_TINT, type AbilityAnimation } from '@/game/abilities'
+import { ABILITY_ANIMATIONS, abilityRegistry, type AbilityAnimation } from '@/game/abilities'
+import { abilityTint } from '@/game/abilityArt'
 import { ENEMY_ATTACK_PRESETS, addEnemyAttack, buildAttackPattern, defaultEnemyAttack, enemyAttackFromAbility, normalizeAttackPattern, removeEnemyAttack, setAttackPatternMode, updateEnemyAttack } from '@/game/patterns'
 import { rewardSummary } from '@/game/runtime/quest'
 import { isAttackable } from '@/game/runtime/capabilities'
@@ -75,6 +76,18 @@ export function Modal({ title, accent = 'orange', onClose, children, wide, ancho
   )
 }
 
+/**
+ * How many panels are currently placed by `openBeside`, so the next one cascades instead of landing on
+ * the last one's exact spot.
+ *
+ * Three inspector sections opened at (951, 96) each — perfectly stacked, so only the top one could be used
+ * at all. Panels are for working in two at once; that is the whole reason they are movable.
+ */
+let besidePlaced = 0
+
+/** Enough to leave the panel beneath grabbable by its title bar without throwing it across the screen. */
+const CASCADE = { x: 34, y: 36 }
+
 /** A screen point / size (px). */
 interface XY { x: number; y: number }
 interface WH { w: number; h: number }
@@ -99,7 +112,7 @@ function clampToViewport(pos: XY, size: WH): XY {
  *
  * `role="dialog"` WITHOUT `aria-modal` — it is deliberately non-modal (the rest of the page stays live).
  */
-export function FloatingPanel({ title, accent = 'cyan', onClose, children, initialPos, initialSize, onGeometryChange }: {
+export function FloatingPanel({ title, accent = 'cyan', onClose, children, initialPos, initialSize, openBeside, onGeometryChange }: {
   title: string
   accent?: PanelAccent
   onClose: () => void
@@ -107,6 +120,15 @@ export function FloatingPanel({ title, accent = 'cyan', onClose, children, initi
   /** where the panel first appears; defaults to the top-right so it doesn't cover the centred selection. */
   initialPos?: XY
   initialSize?: WH
+  /**
+   * A CSS selector to open NEXT TO, when there is no remembered position — the panel lands just right of
+   * that element instead of in the top-right corner.
+   *
+   * Alexander, 2026-09-09: *"i requested a movable preview modal next to the left panel"*. Measured from the
+   * element rather than computed from the column widths, which are CSS custom properties that change
+   * whenever a zone is collapsed. It only decides where the panel STARTS — it stays movable.
+   */
+  openBeside?: string
   /** Fired once at the END of a drag or resize with the final `{x,y,w,h}` — the page persists it as a
    *  backend editor setting (debounced), so the panel reopens where the user left it. */
   onGeometryChange?: (geometry: { x: number; y: number; w: number; h: number }) => void
@@ -115,8 +137,46 @@ export function FloatingPanel({ title, accent = 'cyan', onClose, children, initi
   const [pos, setPos] = useState<XY>(() => {
     if (initialPos) return initialPos
     if (typeof window === 'undefined') return { x: 24, y: 96 }
-    return { x: window.innerWidth - (initialSize?.w ?? 340) - 24, y: 96 }
+    const w = initialSize?.w ?? 340
+    return { x: window.innerWidth - w - 24, y: 96 }
   })
+
+  /**
+   * OPEN BESIDE an element — measured after mount, not while rendering.
+   *
+   * Two things this has to get right, each of which it got wrong first:
+   *
+   *  · **Measure after commit.** The `useState` initialiser runs during render, so a panel rendered INSIDE
+   *    the element it wants to sit beside cannot see that element yet — `querySelector` returned null and
+   *    every inspector section panel fell back to the top-right, landing on top of the inspector and
+   *    swallowing clicks on the rows you open the next section with. A layout effect runs after the DOM is
+   *    committed and before paint, so the panel never appears in the wrong place.
+   *  · **Pick the side with room.** Preferring the right unconditionally fails for a right-hand anchor: the
+   *    inspector is the last column, so "just right of it" is off-screen and the clamp drags the panel back
+   *    over it.
+   *
+   * A remembered position always wins — this only decides where a panel appears the FIRST time.
+   */
+  const placed = useRef(false)
+  useLayoutEffect(() => {
+    if (placed.current || initialPos || !openBeside) return
+    placed.current = true
+    const beside = document.querySelector(openBeside)?.getBoundingClientRect()
+    if (!beside) return
+    const GAP = 10
+    const fitsRight = beside.right + GAP + size.w <= window.innerWidth - 12
+    const slot = besidePlaced++ % 4
+    // Cascade AWAY from the anchor, so a stack of panels never creeps back over the thing it opened from.
+    const step = (fitsRight ? 1 : -1) * CASCADE.x * slot
+    const x = (fitsRight ? beside.right + GAP : beside.left - GAP - size.w) + step
+    setPos({
+      x: Math.max(12, Math.min(x, window.innerWidth - size.w - 12)),
+      y: Math.max(12, Math.min(beside.top + CASCADE.y * slot, window.innerHeight - 90)),
+    })
+  }, [openBeside, initialPos, size.w])
+
+  // Release the cascade slot, so closing and reopening does not walk panels off the screen.
+  useEffect(() => () => { if (placed.current) besidePlaced = Math.max(0, besidePlaced - 1) }, [])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
@@ -167,38 +227,36 @@ export function FloatingPanel({ title, accent = 'cyan', onClose, children, initi
     window.addEventListener('mouseup', onUp)
   }
 
+  // The design's movable panel (`.mw`). Alexander, 2026-09-08: *"what's wrong with having separate movable
+  // modals ????? which I said was preferred."* Every deep editor in the app already opened through this
+  // component, so dressing THIS in the design clothes every one of them at once — and the per-panel accent
+  // colour is gone, because eight different header colours said the eight panels were different kinds of
+  // thing when they are all "a panel about the selection".
+  //
+  // `neb` is on the root because the design's tokens are scoped to it and this renders outside the editor
+  // grid (it is `position:fixed`).
   return (
     <div
-      className={`fixed z-50 flex flex-col overflow-hidden rounded-xl border ${ACCENT_RING[accent]} bg-gray-950 font-mono text-white shadow-2xl shadow-black/60`}
+      className="neb mw"
       style={{ left: pos.x, top: pos.y, width: size.w, height: size.h }}
       role="dialog"
       aria-label={title}
     >
-      <header
-        onMouseDown={startDrag}
-        data-drag-handle
-        className="flex shrink-0 cursor-move select-none items-center justify-between border-b border-white/10 bg-black/40 px-4 py-3"
-      >
-        <h3 className={`text-sm font-bold uppercase tracking-widest ${ACCENT_HEAD[accent]}`}>{title}</h3>
+      <div onMouseDown={startDrag} data-drag-handle className="bar">
+        <span className="gr" aria-hidden="true">⣿</span>
+        <span className="ti">{title}</span>
         <button
+          type="button"
           onMouseDown={e => e.stopPropagation()}
           onClick={onClose}
           aria-label="Close"
-          className="rounded px-2 py-1 text-gray-400 hover:bg-white/10 hover:text-white"
+          title="Close"
         >
           ✕
         </button>
-      </header>
-      <div className="min-h-0 flex-1 overflow-y-auto p-4">{children}</div>
-      {/* bottom-right resize grip */}
-      <div
-        onMouseDown={startResize}
-        data-resize-handle
-        aria-label="Resize panel"
-        role="separator"
-        className="absolute bottom-0 right-0 h-4 w-4 cursor-nwse-resize"
-        style={{ background: 'linear-gradient(135deg, transparent 50%, rgba(255,255,255,0.35) 50%)' }}
-      />
+      </div>
+      <div className="body">{children}</div>
+      <div onMouseDown={startResize} data-resize-handle aria-label="Resize panel" role="separator" className="rz" />
     </div>
   )
 }
@@ -384,25 +442,11 @@ export function UnitSettingsSection({ unit }: { unit: UnitControlModel }) {
   )
 }
 
-/** The ONE settings-panel body the FloatingPanel hosts for BOTH a tile and a unit. The SAME
- *  {@link TileControls} (colour / scale / pose) drives the top, so a unit's settings look + work exactly like
- *  a tile's; a unit ALSO passes `unit`, appending the unit-only extras (name/size + its modal buttons). A tile
- *  passes no `unit`, so those never show. One shared component — no forked parallel copy. */
-export function SettingsPanelBody({ tile, unit }: { tile: TileControlModel; unit?: UnitControlModel }) {
-  return (
-    <div className="space-y-3">
-      <TileControls tile={tile} />
-      {unit && (
-        <div className="border-t border-white/10 pt-3">
-          <UnitSettingsSection unit={unit} />
-        </div>
-      )}
-    </div>
-  )
-}
 
 /** The seeded animation ids (drive the swing/bolt tint) — for the per-attack tint picker. */
-export const ATTACK_ANIMATION_OPTIONS = Object.keys(ABILITY_TINT) as AbilityAnimation[]
+// The animations an attack may use — TYPE data, straight from the engine's own list. It used to read
+// the KEYS of the colour table, which made the list a side effect of where colours happened to live.
+export const ATTACK_ANIMATION_OPTIONS: AbilityAnimation[] = [...ABILITY_ANIMATIONS]
 
 /** One attack row in the pattern editor: melee/ranged + damage + cooldown + tint + remove. */
 export function EnemyAttackRow({ attack, index, onChange, onRemove }: {
@@ -411,7 +455,7 @@ export function EnemyAttackRow({ attack, index, onChange, onRemove }: {
   onChange: (patch: Partial<EnemyAttack>) => void
   onRemove: () => void
 }) {
-  const tint = attack.animation ? ABILITY_TINT[attack.animation] : '#9aa4b2'
+  const tint = (attack.animation ? abilityTint(attack.animation) : undefined) ?? '#9aa4b2'
   return (
     <div className="rounded border border-gray-700 p-1.5">
       <div className="mb-1 flex items-center gap-1">
@@ -552,7 +596,7 @@ export function EntityAttackBody({ entity, onPatch }: {
                   if (preset) onPatch({ attack: addEnemyAttack(pattern, preset) })
                   return
                 }
-                const ability = ABILITY_REGISTRY.find(a => a.id === v.slice('ability:'.length))
+                const ability = abilityRegistry().find(a => a.id === v.slice('ability:'.length))
                 if (ability) onPatch({ attack: addEnemyAttack(pattern, enemyAttackFromAbility(ability)) })
               }}
               aria-label="Add attack from preset or ability"
@@ -565,7 +609,7 @@ export function EntityAttackBody({ entity, onPatch }: {
                 ))}
               </optgroup>
               <optgroup label="Abilities">
-                {ABILITY_REGISTRY.filter(a => (a.effect.damage ?? 0) > 0).map(a => (
+                {abilityRegistry().filter(a => (a.effect.damage ?? 0) > 0).map(a => (
                   <option key={a.id} value={`ability:${a.id}`}>{a.name}</option>
                 ))}
               </optgroup>
@@ -687,7 +731,7 @@ export function ConnectorsPanelBody(p: ConnectorsPanelProps) {
                   : { type: 'goto_region', col: f.spawnCol ?? 0, row: f.spawnRow ?? 0 },
               }))
             }}
-            aria-label="Trigger action"
+            aria-label="What this doorway does"
             className={input}
           >
             <option value="teleport">Go to template (teleport)</option>
@@ -743,7 +787,7 @@ export function ConnectorsPanelBody(p: ConnectorsPanelProps) {
           <select
             value={p.form.interaction || 'walk'}
             onChange={e => p.setForm(f => ({ ...f, interaction: e.target.value as Connector['interaction'] }))}
-            aria-label="How the player triggers this connector"
+            aria-label="How the player opens this doorway"
             className={input}
           >
             <option value="walk">Walk onto it</option>
@@ -782,13 +826,13 @@ export function ConnectorsPanelBody(p: ConnectorsPanelProps) {
         </div>
       ) : (
         <p className="text-[10px] leading-tight text-gray-500">
-          {p.connectorMode ? 'Click a cell in Top view to start a connector.' : 'Turn on Edit, then click a cell in Top view to add one.'}
+          {p.connectorMode ? 'Click a cell on the map to place a connection.' : 'Turn on Edit, then click a cell on the map to add one.'}
         </p>
       )}
 
       {p.connectors.length > 0 && (
         <div className="space-y-1">
-          <p className={label}>Saved connectors</p>
+          <p className={label}>Doorways in this level</p>
           <div className="max-h-64 space-y-1 overflow-y-auto">
             {p.connectors.map((c, i) => (
               <button
@@ -804,7 +848,7 @@ export function ConnectorsPanelBody(p: ConnectorsPanelProps) {
           </div>
         </div>
       )}
-      {p.connectors.length === 0 && !p.editing && <p className="text-[10px] text-gray-500">No connectors yet.</p>}
+      {p.connectors.length === 0 && !p.editing && <p className="text-[10px] text-gray-500">No doorways yet.</p>}
     </div>
   )
 }

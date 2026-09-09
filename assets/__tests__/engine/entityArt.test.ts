@@ -1,41 +1,119 @@
-import { entityArt, entityFootprint, weaponGlyph, weaponEmoji, weaponPose, ASCII_WEAPON_POSE, SWORD_GLYPH, ENEMY_ART, ENEMY_ART_TYPES, ENEMY_FALLBACK, NPC_ART, entityPalette, ENEMY_PALETTE, CHARACTER_TONES, characterTone, ENEMY_PALETTE_FALLBACK, topRoleColor, TOP_ROLE_COLOR } from '@/engine/entityArt'
-import { setEmojiTileset } from '@/engine/tileset/emojiTileset'
+import { clearStyleCatalogs, installStyleTiles } from '@/engine/tileset/styleTiles'
+import { entityArt, entityArtFrame, entityFootprint, unitArtLabels, weaponGlyph, weaponEmoji, weaponPose, ASCII_WEAPON_POSE, SWORD_GLYPH, entityPalette, ENEMY_PALETTE, CHARACTER_TONES, characterTone, ENEMY_PALETTE_FALLBACK, topRoleColor, TOP_ROLE_COLOR } from '@/engine/entityArt'
 import { makeEnemy, makeNpc, makePlayer } from '@/game/entities'
 import type { Quest } from '@/game/types'
 
-describe('entityArt — multi-row ASCII for entities', () => {
-  it('every enemy type, the fallback, and npc art is non-empty multi-row', () => {
-    expect(ENEMY_ART_TYPES.length).toBeGreaterThan(0)
-    for (const t of ENEMY_ART_TYPES) {
-      const art = ENEMY_ART[t]
-      expect(art.length).toBeGreaterThanOrEqual(2) // multi-row
-      expect(art.every(r => r.length > 0)).toBe(true)
+// The rows a real backend payload carries — `settings.artFrames`, frame 0 then the movement frame. These
+// are the served shapes verbatim (goblin recovered from this repo's own deleted ENEMY_ART, villager from
+// NPC_ART), so the reader is exercised against what nebulith actually sends.
+const GOBLIN = [
+  [' ,-.', '(>o<)', '/|Y|\\', ' d b'],
+  [' ,-.', '(>o<)', '\\|Y|/', ' d b'],
+]
+const VILLAGER = [
+  ['  O', ' /|\\', ' / \\'],
+  ['  O', ' \\|/', ' / \\'],
+]
+
+const installUnitArt = (): void =>
+  installStyleTiles('ascii', {
+    goblin: { char: 'g', category: 'units', settings: { artFrames: GOBLIN, frameMs: 900 } },
+    npc: { char: '@', category: 'units', settings: { artFrames: VILLAGER, frameMs: 900 } },
+    player: { char: '@', category: 'units', settings: { artFrames: VILLAGER, frameMs: 900 } },
+    // a units tile the backend serves NO figure for — the seeding gap that must read as missing
+    mimic: { char: 'm', category: 'units' },
+  })
+
+describe('entityArt — the FIGURE comes from the backend, never from this file', () => {
+  beforeEach(clearStyleCatalogs)
+
+  it('a unit is a GRID of characters, not one character', () => {
+    // THE regression guard. Treating a unit like a terrain slab — one distinct glyph each — is what turned
+    // Alexander's whole cast into `♀`/`♂`/`d` (Image #13). A figure has depth AND width.
+    installUnitArt()
+    for (const entity of [makeEnemy('e', 0, 0, 'goblin'), makeNpc('n', 0, 0), makePlayer('p', 0, 0)]) {
+      const art = entityArt(entity)
+      expect(art.length).toBeGreaterThanOrEqual(2) // more than one row
+      expect(Math.max(...art.map(r => r.length))).toBeGreaterThan(1) // more than one column
     }
-    expect(ENEMY_FALLBACK.length).toBeGreaterThanOrEqual(2)
-    expect(NPC_ART.length).toBeGreaterThanOrEqual(2)
   })
 
-  it('returns typed art for a known enemy and the fallback for an unknown type', () => {
-    expect(entityArt(makeEnemy('e1', 0, 0, 'goblin'))).toBe(ENEMY_ART.goblin)
-    expect(entityArt(makeEnemy('e2', 1, 1, 'dragon-xyz'))).toBe(ENEMY_FALLBACK)
+  it('reads the SERVED rows for a unit — re-seed the tile and the figure moves', () => {
+    installUnitArt()
+    expect(entityArt(makeEnemy('e1', 0, 0, 'goblin'))).toEqual(GOBLIN[0])
+    expect(entityArt(makeNpc('n1', 2, 2, { name: 'Bob' }))).toEqual(VILLAGER[0])
+
+    // a copied constant could not follow this
+    installStyleTiles('ascii', { goblin: { char: 'g', category: 'units', settings: { artFrames: [['xx', 'yy']] } } })
+    expect(entityArt(makeEnemy('e1', 0, 0, 'goblin'))).toEqual(['xx', 'yy'])
   })
 
-  it('npc uses the humanoid figure', () => {
-    expect(entityArt(makeNpc('n1', 2, 2, { name: 'Bob' }))).toBe(NPC_ART)
+  it('invents NOTHING for a unit the backend serves no figure for', () => {
+    // No substitute goblin: an unserved label has to read as missing, which is a seeding gap to fix in
+    // nebulith rather than something the renderer papers over.
+    installUnitArt()
+    expect(entityArt(makeEnemy('e2', 1, 1, 'mimic'))).toEqual([])
+    expect(entityArt(makeEnemy('e3', 1, 1, 'dragon-xyz'))).toEqual([])
   })
+
+  it('resolves nothing at all before the backend answers', () => {
+    expect(entityArt(makeNpc('n1', 0, 0))).toEqual([])
+    expect(unitArtLabels()).toEqual([])
+  })
+
+  it('unitArtLabels asks the CATALOG — a function, so a late load is seen', () => {
+    expect(unitArtLabels()).toEqual([]) // read before the load…
+    installUnitArt()
+    expect(unitArtLabels()).toEqual(['goblin', 'npc', 'player']) // …and again after it
+  })
+})
+
+describe('entityArtFrame — the movement frames', () => {
+  beforeEach(() => { clearStyleCatalogs(); installUnitArt() })
+
+  it('every frame has the SAME dimensions as frame 0, so cycling never jitters the footprint', () => {
+    for (const entity of [makeEnemy('e', 0, 0, 'goblin'), makeNpc('n', 0, 0)]) {
+      const base = entityArtFrame(entity, 0)
+      for (let frame = 1; frame < 4; frame++) {
+        const rows = entityArtFrame(entity, frame)
+        expect(rows.length).toBe(base.length)
+        expect(rows.map(r => r.length)).toEqual(base.map(r => r.length))
+      }
+    }
+  })
+
+  it('wraps at the end of the cycle, forwards and backwards', () => {
+    const g = makeEnemy('e', 0, 0, 'goblin')
+    expect(entityArtFrame(g, 0)).toEqual(GOBLIN[0])
+    expect(entityArtFrame(g, 1)).toEqual(GOBLIN[1])
+    expect(entityArtFrame(g, 2)).toEqual(GOBLIN[0]) // wrapped
+    expect(entityArtFrame(g, -1)).toEqual(GOBLIN[1]) // a negative index must not read off the end
+  })
+
+  it('a unit with no served figure has no frames either', () => {
+    expect(entityArtFrame(makeEnemy('e', 0, 0, 'mimic'), 0)).toEqual([])
+    expect(entityArtFrame(makeEnemy('e', 0, 0, 'mimic'), 3)).toEqual([])
+  })
+})
+
+describe('entityFootprint — derived from the SERVED rows', () => {
+  beforeEach(() => { clearStyleCatalogs(); installUnitArt() })
 
   it('entities are at least 2 cells tall (like the player), not 1×1', () => {
-    // NPC quest-givers: a humanoid 2 tall, 1 wide — matches the player.
     const npc = entityFootprint(makeNpc('n1', 0, 0, { name: 'Elder' }))
     expect(npc.h).toBeGreaterThanOrEqual(2)
     expect(npc.w).toBe(1)
-    // Every monster is at least 2 tall; a wide one spans 2 cells across.
-    for (const t of ENEMY_ART_TYPES) {
-      const fp = entityFootprint(makeEnemy('e', 0, 0, t))
-      expect(fp.h).toBeGreaterThanOrEqual(2)
-      expect(fp.w).toBeGreaterThanOrEqual(1)
-    }
-    expect(entityFootprint(makeEnemy('g', 0, 0, 'goblin')).w).toBe(2) // '(>o<)' is 5 chars → 2 wide
+    const goblin = entityFootprint(makeEnemy('g', 0, 0, 'goblin'))
+    expect(goblin.h).toBeGreaterThanOrEqual(2)
+    expect(goblin.w).toBe(2) // '(>o<)' is 5 chars → 2 cells wide
+  })
+
+  it('a unit with no served figure still gets a collision box', () => {
+    // The floor is deliberate: collision needs a box for a unit that EXISTS whether or not its picture
+    // has loaded. A 0×0 footprint would make it unhittable and un-walkable-around.
+    expect(entityFootprint(makeEnemy('e', 0, 0, 'mimic'))).toEqual({ w: 1, h: 2 })
+    clearStyleCatalogs()
+    expect(entityFootprint(makeNpc('n', 0, 0))).toEqual({ w: 1, h: 2 })
   })
 })
 
@@ -85,13 +163,12 @@ describe('weaponGlyph — the held weapon drawn beside the player', () => {
 
 describe('entityPalette — robust fg/bg block colors (the trees\' language)', () => {
   it('gives every enemy type a hex fg + bg pair, distinct hues across the cast', () => {
-    for (const t of ENEMY_ART_TYPES) {
-      const p = ENEMY_PALETTE[t] ?? ENEMY_PALETTE_FALLBACK
+    for (const p of [...Object.values(ENEMY_PALETTE), ENEMY_PALETTE_FALLBACK]) {
       expect(p.fg).toMatch(/^#[0-9a-f]{6}$/i)
       expect(p.bg).toMatch(/^#[0-9a-f]{6}$/i)
       expect(p.fg).not.toBe(p.bg) // contrast
     }
-    const fgs = ENEMY_ART_TYPES.map(t => (ENEMY_PALETTE[t] ?? ENEMY_PALETTE_FALLBACK).fg)
+    const fgs = Object.values(ENEMY_PALETTE).map(p => p.fg)
     expect(new Set(fgs).size).toBeGreaterThan(4) // colorful, not one flat enemy color
   })
 
@@ -117,9 +194,10 @@ describe('entityPalette — robust fg/bg block colors (the trees\' language)', (
     expect(new Set(fgs).size).toBeGreaterThan(2)
   })
 
-  it('the skeleton reads as bone-white on dark + keeps its base/alt dimensions aligned', () => {
+  it('the skeleton reads as bone-white on dark', () => {
+    // Its ART dimensions are asserted where the art now lives — nebulith's unit-art guard — and the
+    // frame-alignment rule is covered by `entityArtFrame` above.
     expect(ENEMY_PALETTE.skeleton.fg).toBe('#ece8d2')
-    expect(ENEMY_ART.skeleton.length).toBe(5)
   })
 
   it('an editor colour override recolours the fg but keeps the role bg for contrast', () => {
@@ -161,7 +239,7 @@ describe('topRoleColor — top-view > glyph colors by role + quest state', () =>
 // and its own describe — the weaponEmoji tests above rely on the bundled fallback tileset.
 describe('weaponPose — the equipped weapon reads its pose from the loaded tileset', () => {
   it('returns the tileset entry pose for emoji, the ascii tileset pose (fallback) for ascii, undefined for unknown', () => {
-    setEmojiTileset({ sword: { char: '🗡️', color: '#fff', pose: { rot: 3.14, scale: 1.1 } } } as never)
+    installStyleTiles('emoji', { sword: { char: '🗡️', color: '#fff', pose: { rot: 3.14, scale: 1.1 } } } as never)
     expect(weaponPose('sword', 'emoji')).toEqual({ rot: 3.14, scale: 1.1 })
     // ASCII now reads its tileset pose; the bundled ascii tileset carries no per-weapon pose here, so it
     // falls back to the shared ASCII_WEAPON_POSE — the ascii weapon look is data-driven, never regresses.

@@ -1,6 +1,6 @@
 /**
- * The Tile Library SIDEBAR must read its tiles ONLY from the backend-loaded tilesets (EMOJI_TILESET /
- * ASCII_TILESET — swapped in by tilesetLoader from the :4000 DB), the SAME source the MAP renders from,
+ * The Tile Library SIDEBAR must read its tiles ONLY from the backend-loaded tilesets (styleTiles('emoji') /
+ * styleCatalog('ascii') — swapped in by tilesetLoader from the :4000 DB), the SAME source the MAP renders from,
  * with NOTHING art-related hardcoded on the frontend (user directive; MAP-MODEL §4 "art comes from the DB
  * tileset, the front end hardcodes nothing"; TILE-VOCABULARY-CONTRACT "one source generates the rest").
  *
@@ -9,19 +9,19 @@
  *   G4 (Image #16) — the list is DERIVED from the loaded tileset, so it always matches the map (no stale
  *                    hardcoded copy like the old ASCII_TILE_GLYPHS / emojiCatalog.json).
  */
+import { clearStyleCatalogs, installStyleTiles } from '@/engine/tileset/styleTiles'
 import { render, screen } from '@testing-library/react'
 import { TilePalette, TileLibraryBody } from '@/components/game/editorChrome'
 import { tilesForStyle, visualForTileId, rebuildEmojiStyle } from '@/game/artStyle'
-import { EMOJI_TILESET, setEmojiTileset } from '@/engine/tileset/emojiTileset'
-import { ASCII_TILESET, setAsciiTileset } from '@/engine/tileset/asciiTileset'
 
-const origEmoji = EMOJI_TILESET
-const origAscii = ASCII_TILESET
-afterEach(() => { setEmojiTileset(origEmoji); rebuildEmojiStyle(); setAsciiTileset(origAscii) })
+// Every case installs its rows through `installStyleTiles` — the ONE store's own door, the same one the
+// loader uses. Nothing here hand-builds a catalog shape, so a change to `StyleTile` breaks these tests
+// instead of being quietly translated away by a test-local shim.
+afterEach(clearStyleCatalogs)
 
 describe('Tile Library sidebar reads ONLY the backend-loaded tileset (G3/G4)', () => {
   it('emoji sidebar derives from the loaded tileset — image art, DB labels, no hardcoded-catalog leak', () => {
-    setEmojiTileset({
+    installStyleTiles('emoji', {
       grass: { char: '🍀', color: '#5faf4a', image: '/tiles/emoji/baked/grass.png', category: 'terrain', title: 'Grass' },
       db_only: { char: '🆕', color: '#123456', image: '/tiles/emoji/catalog/db_only.png', category: 'nature', title: 'DB Only' },
       internal_no_cat: { char: '?', color: '#000000' }, // no category → NOT browseable
@@ -53,7 +53,7 @@ describe('Tile Library sidebar reads ONLY the backend-loaded tileset (G3/G4)', (
   // terrain / roads / floors / walls / … / nature / props) — units (player / enemies / NPCs) are placed via
   // the top-nav ◈ Unit flow, never armed as a paint brush.
   it('the Paint palette lists REGULAR tiles only — no unit/enemy tiles (units come from the top-nav)', () => {
-    setEmojiTileset({
+    installStyleTiles('emoji', {
       grass: { char: '🍀', color: '#5faf4a', image: '/tiles/emoji/baked/grass.png', category: 'terrain', title: 'Grass' },
       pine_tree: { char: '🌲', color: '#2f7d3a', category: 'nature', title: 'Pine Tree', height: 1 },
       goblin: { char: '👺', color: '#c0392b', category: 'units', title: 'Goblin' },
@@ -74,7 +74,7 @@ describe('Tile Library sidebar reads ONLY the backend-loaded tileset (G3/G4)', (
   // The Tile LIBRARY (pin a tile as an element override) is a DIFFERENT surface — it still browses every
   // category, units included; only the Paint palette drops units. Proves the filter is scoped to paint.
   it('the Tile Library still lists units (only the Paint palette drops them)', () => {
-    setEmojiTileset({
+    installStyleTiles('emoji', {
       grass: { char: '🍀', color: '#5faf4a', category: 'terrain', title: 'Grass' },
       goblin: { char: '👺', color: '#c0392b', category: 'units', title: 'Goblin' },
     })
@@ -85,13 +85,9 @@ describe('Tile Library sidebar reads ONLY the backend-loaded tileset (G3/G4)', (
   })
 
   it('ascii sidebar derives from the loaded ascii tileset (glyph + title from the DB, not a hardcoded map)', () => {
-    setAsciiTileset({
-      id: 'ascii', name: 'ASCII',
-      tiles: {
-        grass: { label: 'grass', glyph: '"', position: 'single', walkable: true, colorRole: 'x', category: 'terrain', title: 'Grass' },
-        tree_top: { label: 'tree_top', glyph: '♣', position: 'single', walkable: true, colorRole: 'canopy' }, // no category → internal, excluded
-      },
-      palettes: {}, terrain: {},
+    installStyleTiles('ascii', {
+      grass: { char: '"', position: 'single', walkable: true, colorRole: 'x', category: 'terrain', title: 'Grass' },
+      tree_top: { char: '♣', position: 'single', walkable: true, colorRole: 'canopy' }, // no category → internal, excluded
     })
     const all = Object.values(tilesForStyle('ascii')).flat()
     const grass = all.find(t => t.id === 'ascii:grass')
@@ -105,7 +101,7 @@ describe('Tile Library sidebar reads ONLY the backend-loaded tileset (G3/G4)', (
   // The palette tile must FULLY describe the DB tile — its BLOCK height and render settings ride along, not
   // just the art — so the brush can seed a painted asset that matches the generator (#52 single source of truth).
   it('the palette tile carries the DB block height + settings (so a painted tile === a generated one)', () => {
-    setEmojiTileset({
+    installStyleTiles('emoji', {
       boulder: { char: '🪨', color: '#8a8a8a', image: '/tiles/emoji/catalog/boulder.png', category: 'nature', title: 'Boulder', height: 1, settings: { color: '#8a8a8a' } },
       stone_wall: { char: '🧱', color: '#8f8b82', image: '/tiles/emoji/catalog/stone_wall.png', category: 'walls', title: 'Stone Wall', height: 1, settings: { color: '#8f8b82', fadeNear: true } },
       grass: { char: '🍀', color: '#5faf4a', category: 'terrain', title: 'Grass' }, // flat, no settings

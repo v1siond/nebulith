@@ -1,9 +1,9 @@
+import { styleCatalog } from '@/engine/tileset/styleTiles'
 import { generateStage } from '@/engine/stageGenerator'
 import { scatterEntities, TEMPLE_ENEMY_TYPES } from '@/game/spawner'
 import type { ZoneId } from '@/engine/zones'
 import { useSeedTileset } from '@/__tests__/helpers/tilesetSeed'
 import { resolveComposition } from '@/engine/tileset/tileset'
-import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 
 // 4-neighbour flood fill over walkable cells — proves the open floor is ONE region.
 function reachableCount(collision: boolean[][], start: { col: number; row: number }): number {
@@ -239,7 +239,7 @@ describe('generateStage — temple STRUCTURE: a grand settlement building compos
     const facadeSpan = b.facing === 'south' || b.facing === 'north' ? b.length : b.height
     expect(facadeSpan).toBeGreaterThanOrEqual(8)
     // colonnade = MANY open 'window' bays in the baked composition (a grand pillared facade)
-    const comp = resolveComposition(ASCII_TILESET, 'temple_8')
+    const comp = resolveComposition(styleCatalog('ascii'), 'temple_8')
     expect(comp).not.toBeNull()
     expect(comp!.cells.filter(c => c.label === 'window').length).toBeGreaterThan(20)
   })

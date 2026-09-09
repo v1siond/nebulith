@@ -20,7 +20,7 @@ import { starterWarriorGear } from './gear'
 /** Default trigger keys for the special-action slots. They start at 5 (not 1) so they never
  *  collide with the ABILITY slots, which default to 1–4. Both sets are independently rebindable
  *  to any key (setShortcut for specials, rebindAbility for abilities). */
-const DEFAULT_SPECIAL_KEYS = ['5', '6', '7', '8', '9', '0', '1', '2', '3', '4'] as const
+export const DEFAULT_SPECIAL_KEYS = ['5', '6', '7', '8', '9', '0', '1', '2', '3', '4'] as const
 
 /** Which equip slots a given item may occupy (empty for non-equippables). */
 const ARMOR_SLOTS: Record<GearSlot, EquipSlot[]> = {

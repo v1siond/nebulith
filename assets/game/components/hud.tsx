@@ -2,7 +2,8 @@
 // with cooldown sweep, and the active-quest tracker + objective checklist.
 // Moved out of the page (stage 4); props-driven and self-contained.
 import { useEffect, useState } from 'react'
-import { ABILITY_SLOTS, ABILITY_TINT, type AbilityBinding, abilityReady, bindingForSlot } from '@/game/abilities'
+import { ABILITY_SLOTS, type AbilityBinding, abilityReady, bindingForSlot } from '@/game/abilities'
+import { abilityTint } from '@/game/abilityArt'
 import { isComplete, progress } from '@/game/quests'
 import { type PlayerHud } from '@/game/runtime/combat'
 import type { Objective, Quest } from '@/game/types'
@@ -92,7 +93,7 @@ export function AbilityBar({ loadout, lastUsedRef }: {
     >
       {ABILITY_SLOTS.map(slot => {
         const ability = bindingForSlot(loadout, slot)?.ability
-        const tint = ability ? ABILITY_TINT[ability.animation] : '#555'
+        const tint = (ability ? abilityTint(ability.animation) : undefined) ?? '#555'
         const lastUsed = ability ? lastUsedRef.current.get(ability.id) : undefined
         const ready = !ability || abilityReady(ability, lastUsed, now)
         const remaining = ability && lastUsed != null ? Math.max(0, ability.cooldownMs - (now - lastUsed)) : 0

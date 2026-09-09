@@ -1,15 +1,15 @@
+import { styleCatalog, styleTile } from '@/engine/tileset/styleTiles'
 import '@/__tests__/helpers/installTilesetSeed' // the generator reads ALL tile data (terrain/canopy/decor) + building compositions from the loaded backend tileset fixture
 import { installSeedTileset } from '@/__tests__/helpers/tilesetSeed'
 import { generateStage, stagePaint, footprintEdgeClass, footprintSide, footprintRing, edgeToSide, treeSubpart, labelForCell, pickLivingTree } from '@/engine/stageGenerator'
 import { BUILDING_DEPTH, buildingDoorOffset } from '@/engine/buildingCatalog'
 import { parseColor } from '@/engine/colors'
 import { resolveGroundTile, canopyCount, resolveComposition } from '@/engine/tileset/tileset'
-import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 
 // The zone canopy shades now live on the loaded backend `leaf_center` tile (settings.colors[zone]) —
 // the data-driven replacement for the deleted frontend TREE_CANOPY_SHADES table.
 const canopyShades = (zone: string): string[] =>
-  ((ASCII_TILESET.tiles['leaf_center'].settings as { colors: Record<string, string[]> }).colors[zone]) ?? []
+  ((styleTile('ascii', 'leaf_center').settings as { colors: Record<string, string[]> }).colors[zone]) ?? []
 
 // The small GROUND footprint cells of a placed building: cols [col, col+length) × rows
 // [row-(height-1), row] (length = grid col-span, height = grid row-span — both small now).
@@ -39,7 +39,7 @@ describe('generateStage — town vertical slice', () => {
     // the broken cavefloor hijack is gone
     expect(stage.ground.flat().includes('cavefloor')).toBe(false)
     // and the road tile RESOLVES dark-gray in ASCII — assert the COMPOSITION, not just the string
-    const bg = parseColor(resolveGroundTile(ASCII_TILESET, 'road', 0, 0).bg)!
+    const bg = parseColor(resolveGroundTile(styleCatalog('ascii'), 'road', 0, 0).bg)!
     expect(Math.max(bg.r, bg.g, bg.b) - Math.min(bg.r, bg.g, bg.b)).toBeLessThan(24) // neutral gray
     expect((bg.r + bg.g + bg.b) / 3).toBeLessThan(110) // dark
   })
@@ -254,7 +254,7 @@ describe('generateStage — zone-tinted trees (varied canopy tones per zone)', (
     const zone = 'summer'
     for (const v of variantsFor(zone)) {
       expect(v).toBeGreaterThanOrEqual(0)
-      expect(v).toBeLessThan(canopyCount(ASCII_TILESET, zone))
+      expect(v).toBeLessThan(canopyCount(styleCatalog('ascii'), zone))
     }
   })
 
@@ -355,7 +355,7 @@ describe('generateStage — buildings are backend COMPOSITIONS (store + hospital
     const stage = generateStage({ zone: 'summer', variant: 'town', cols: 50, rows: 40 })
     expect(stage.buildings.length).toBeGreaterThan(0)
     for (const b of stage.buildings) {
-      const comp = resolveComposition(ASCII_TILESET, b.kind)
+      const comp = resolveComposition(styleCatalog('ascii'), b.kind)
       expect(comp).not.toBeNull()
       const cellLabels = comp!.cells.map(c => c.label)
       // Each building has wall + door cells + a ROOF CAP — matched by FAMILY since store/hospital/houses
@@ -370,7 +370,7 @@ describe('generateStage — buildings are backend COMPOSITIONS (store + hospital
   })
 
   it('a store composition has WINDOW cells (a glassy facade) and exactly ONE walkable door', () => {
-    const comp = resolveComposition(ASCII_TILESET, 'store_5')
+    const comp = resolveComposition(styleCatalog('ascii'), 'store_5')
     expect(comp).not.toBeNull()
     expect(comp!.cells.some(c => c.label === 'window')).toBe(true)
     expect(comp!.cells.filter(c => (c.level ?? 0) === 0 && c.label === 'door')).toHaveLength(1)

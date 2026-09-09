@@ -5,8 +5,8 @@
  * that opt into it (settings.colors[zone]). These replace the deleted cellTileset TREE_CANOPY_SHADES
  * + GROUND_DECOR. The fixture is the captured /api/tilesets response (real DB tiles).
  */
+import { styleCatalog, styleTile } from '@/engine/tileset/styleTiles'
 import { canopyCount, decorTilesForZone, pickGroundDecor, type Tileset } from '@/engine/tileset/tileset'
-import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 import { useSeedTileset } from '@/__tests__/helpers/tilesetSeed'
 import type { ZoneId } from '@/engine/zones'
 
@@ -19,9 +19,9 @@ describe('canopyCount — reads the leaf_center canopy-shade count from the load
 
   it('matches the leaf_center tile settings.colors[zone] array length for every zone', () => {
     for (const zone of ZONES) {
-      const shades = (ASCII_TILESET.tiles['leaf_center'].settings as { colors: Record<string, string[]> }).colors[zone]
+      const shades = (styleTile('ascii', 'leaf_center').settings as { colors: Record<string, string[]> }).colors[zone]
       expect(Array.isArray(shades)).toBe(true)
-      expect(canopyCount(ASCII_TILESET, zone)).toBe(shades.length)
+      expect(canopyCount(styleCatalog('ascii'), zone)).toBe(shades.length)
     }
   })
 
@@ -30,7 +30,7 @@ describe('canopyCount — reads the leaf_center canopy-shade count from the load
   })
 
   it('falls back to 1 for a zone with no canopy colour', () => {
-    expect(canopyCount(ASCII_TILESET, 'not_a_zone')).toBe(1)
+    expect(canopyCount(styleCatalog('ascii'), 'not_a_zone')).toBe(1)
   })
 })
 
@@ -44,7 +44,7 @@ describe('decorTilesForZone — the decor tiles that opt into a zone via setting
 
   it('returns only category==="decor" tiles whose colours carry the zone', () => {
     for (const zone of ZONES) {
-      const decors = decorTilesForZone(ASCII_TILESET, zone)
+      const decors = decorTilesForZone(styleCatalog('ascii'), zone)
       expect(decors.length).toBe(EXPECTED_COUNT[zone])
       for (const t of decors) {
         expect(t.category).toBe('decor')
@@ -55,7 +55,7 @@ describe('decorTilesForZone — the decor tiles that opt into a zone via setting
   })
 
   it('is sorted by label so selection is deterministic regardless of backend row order', () => {
-    const labels = decorTilesForZone(ASCII_TILESET, 'lava').map(t => t.label)
+    const labels = decorTilesForZone(styleCatalog('ascii'), 'lava').map(t => t.label)
     expect(labels).toEqual([...labels].sort())
   })
 
@@ -72,17 +72,17 @@ describe('pickGroundDecor — deterministic per-cell selection resolved to glyph
   })
 
   it('is deterministic — the same cell always resolves to the same decor', () => {
-    const a = pickGroundDecor(ASCII_TILESET, 'autumn', 5, 9)
-    const b = pickGroundDecor(ASCII_TILESET, 'autumn', 5, 9)
+    const a = pickGroundDecor(styleCatalog('ascii'), 'autumn', 5, 9)
+    const b = pickGroundDecor(styleCatalog('ascii'), 'autumn', 5, 9)
     expect(a).toEqual(b)
   })
 
   it('resolves to that decor tile’s own zone colour + glyph (a valid hex, not the neutral fallback)', () => {
-    const zoneColors = decorTilesForZone(ASCII_TILESET, 'spring').map(
+    const zoneColors = decorTilesForZone(styleCatalog('ascii'), 'spring').map(
       t => (t.settings as { colors: Record<string, string> }).colors.spring,
     )
-    const glyphs = decorTilesForZone(ASCII_TILESET, 'spring').map(t => t.glyph)
-    const r = pickGroundDecor(ASCII_TILESET, 'spring', 2, 3)!
+    const glyphs = decorTilesForZone(styleCatalog('ascii'), 'spring').map(t => t.glyph)
+    const r = pickGroundDecor(styleCatalog('ascii'), 'spring', 2, 3)!
     expect(r).not.toBeNull()
     expect(isHex(r.color)).toBe(true)
     expect(zoneColors).toContain(r.color)
@@ -92,7 +92,7 @@ describe('pickGroundDecor — deterministic per-cell selection resolved to glyph
   it('covers every decor variant of a multi-decor zone across the grid', () => {
     const seen = new Set<string>()
     for (let col = 0; col < 12; col++) for (let row = 0; row < 12; row++) {
-      const r = pickGroundDecor(ASCII_TILESET, 'spring', col, row)
+      const r = pickGroundDecor(styleCatalog('ascii'), 'spring', col, row)
       if (r) seen.add(r.char)
     }
     expect(seen.size).toBe(2) // spring has two decor glyphs

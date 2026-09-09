@@ -11,10 +11,10 @@
  * These render drawIsoAssetAscii to @napi-rs/canvas and read the PIXELS (extrusion coverage) AND assert the
  * returned TileGeom: a height-0 tile returns a CUBE geom (the thin slab / block path), never a billboard poly.
  */
+import { makeStyleTile, setStyleTile, styleTile } from '@/engine/tileset/styleTiles'
 import { installRealCanvas, type RealCanvasHarness } from '@/__tests__/helpers/realCanvas'
 import { drawIsoAssetAscii } from '@/engine/render/iso'
 import { EMOJI_STYLE } from '@/game/artStyle'
-import { EMOJI_TILESET } from '@/engine/tileset/emojiTileset'
 import type { GridAsset } from '@/engine/IsometricGrid'
 import type { Canvas } from '@napi-rs/canvas'
 
@@ -35,11 +35,11 @@ const paintedWall = (over: Partial<GridAsset>): GridAsset => ({
 
 beforeAll(async () => {
   H = installRealCanvas().harness
-  EMOJI_TILESET['__probe_wall__'] = { char: '🧱', color: '#b0603a', image: SRC }
+  setStyleTile('emoji', '__probe_wall__', makeStyleTile('__probe_wall__', { char: '🧱', color: '#b0603a', image: SRC }))
   H.registerSolid(SRC, GREEN)
   await H.warm([SRC])
 })
-afterAll(() => { delete EMOJI_TILESET['__probe_wall__'] })
+afterAll(() => { delete styleTile('emoji', '__probe_wall__') })
 
 /** Count clearly-GREEN opaque pixels in a sub-rect (the baked tile's presence signal). */
 function regionGreen(canvas: Canvas, x: number, y: number, w: number, h: number): number {

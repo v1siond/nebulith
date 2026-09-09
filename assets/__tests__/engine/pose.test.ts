@@ -1,3 +1,4 @@
+import { styleTiles } from '@/engine/tileset/styleTiles'
 import { resolvePose, applyPose, type TilePose } from '@/engine/tileset/pose'
 import { drawPoseGlyph, buildGlyphImageIndex } from '@/engine/render/shared'
 
@@ -64,7 +65,7 @@ function drawCtx() {
 }
 
 describe('drawPoseGlyph — applies the pose then draws the glyph once at the origin', () => {
-  // The bundled EMOJI_TILESET carries no weapons/images (they live only in the DB tileset), so with no
+  // The bundled styleTiles('emoji') carries no weapons/images (they live only in the DB tileset), so with no
   // baked image resolvable the draw stays a single fillText — byte-identical to before this system.
   test('rot-only pose: rotate then a single fillText (no stray transforms)', () => {
     const { ctx, calls } = drawCtx()

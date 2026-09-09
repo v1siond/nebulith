@@ -4,9 +4,9 @@
  * load." The colour a floor carries is DATA it is BORN with (setGround/makeFloorAsset), picked from the
  * ground tile's OWN DB colour; every view then READS `floor.color` instead of deriving it per-frame.
  */
+import { styleCatalog } from './styleTiles'
 import { varyIntensity } from '@/engine/colors'
 import { resolveGroundTile } from '@/engine/tileset/tileset'
-import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 
 /** Deterministic per-cell grass tint: a stable position hash nudges the base grass bg lighter or darker so the
  *  lawn reads as natural patches, not one flat sheet. Computed from (col,row) only — stable per cell. */
@@ -25,5 +25,5 @@ export function grassShade(baseBg: string, col: number, row: number): string {
  *  floor assets and the frame rate collapses. One tile → one colour keeps the runs, and the map fast.
  *  No terrain loaded → resolveGroundTile returns an empty colour, so nothing is invented. */
 export function groundTileColor(tileType: string, col: number, row: number): string {
-  return resolveGroundTile(ASCII_TILESET, tileType, col, row).bg
+  return resolveGroundTile(styleCatalog('ascii'), tileType, col, row).bg
 }

@@ -12,12 +12,11 @@
  * one. These tests render to a real rasteriser (@napi-rs/canvas) and read the PIXELS: a GREEN baked-tile
  * stand-in painted on a cube with `color = magenta` must come back MAGENTA, with no green left.
  */
+import { makeStyleTile, setStyleTile, styleTile } from '@/engine/tileset/styleTiles'
 import { installRealCanvas, type RealCanvasHarness } from '@/__tests__/helpers/realCanvas'
 import { drawIsoTileBlock, drawIsoAssetAscii } from '@/engine/render/iso'
 import { tileImage, tintedImage, drawStyledImage } from '@/engine/render/shared'
 import { EMOJI_STYLE, ASCII_STYLE } from '@/game/artStyle'
-import { EMOJI_TILESET } from '@/engine/tileset/emojiTileset'
-import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 import type { GridAsset } from '@/engine/IsometricGrid'
 
 let H: RealCanvasHarness
@@ -120,13 +119,13 @@ describe('colour recolours the baked tile IMAGE on a cube — drawIsoAssetAscii 
   const ASCII_SRC = '/tiles/ascii/__rc_leaf.png'
 
   beforeAll(async () => {
-    EMOJI_TILESET[EMOJI_LABEL] = { char: '🍃', color: '#2f8f3f', image: EMOJI_SRC, height: 1 }
-    ASCII_TILESET.tiles[ASCII_LABEL] = { label: ASCII_LABEL, glyph: '#', position: 'single', walkable: false, colorRole: 'canopy', image: { kind: 'image', src: ASCII_SRC } }
+    setStyleTile('emoji', EMOJI_LABEL, makeStyleTile(EMOJI_LABEL, { char: '🍃', color: '#2f8f3f', image: EMOJI_SRC, height: 1 }))
+    setStyleTile('ascii', ASCII_LABEL, makeStyleTile(ASCII_LABEL, { char: '#', position: 'single', walkable: false, colorRole: 'canopy', image: ASCII_SRC }))
     H.registerSolid(EMOJI_SRC, GREEN)
     H.registerSolid(ASCII_SRC, '#ffffff') // ascii tiles bake as white tint-targets
     await H.warm([EMOJI_SRC, ASCII_SRC])
   })
-  afterAll(() => { delete EMOJI_TILESET[EMOJI_LABEL]; delete ASCII_TILESET.tiles[ASCII_LABEL] })
+  afterAll(() => { delete styleTile('emoji', EMOJI_LABEL); delete styleTile('ascii', ASCII_LABEL) })
 
   test('EMOJI: a leaf cube set to magenta recolours the leaf IMAGE (not just the cell fill)', () => {
     const cv = H.makeCanvas(240, 260)
@@ -156,14 +155,14 @@ describe('per-art-style scenarios — stacked, multi-detail, and NEGATIVE cases'
   const NATIVE_SRC = '/tiles/emoji/__rc_native.png'
 
   beforeAll(async () => {
-    EMOJI_TILESET[STACK_LABEL] = { char: '🍃', color: '#2f8f3f', image: STACK_SRC, height: 1 }
-    EMOJI_TILESET[WINDOW_LABEL] = { char: '🪟', color: '#7fb4d8', image: WINDOW_SRC, height: 1 }
+    setStyleTile('emoji', STACK_LABEL, makeStyleTile(STACK_LABEL, { char: '🍃', color: '#2f8f3f', image: STACK_SRC, height: 1 }))
+    setStyleTile('emoji', WINDOW_LABEL, makeStyleTile(WINDOW_LABEL, { char: '🪟', color: '#7fb4d8', image: WINDOW_SRC, height: 1 }))
     H.registerSolid(STACK_SRC, GREEN)
     H.registerBands(WINDOW_SRC, '#3060c0', '#ffffff') // a window: blue glass over a white frame
     H.registerSolid(NATIVE_SRC, GREEN)
     await H.warm([STACK_SRC, WINDOW_SRC, NATIVE_SRC])
   })
-  afterAll(() => { delete EMOJI_TILESET[STACK_LABEL]; delete EMOJI_TILESET[WINDOW_LABEL] })
+  afterAll(() => { delete styleTile('emoji', STACK_LABEL); delete styleTile('emoji', WINDOW_LABEL) })
 
   test('EMOJI: colour recolours a tile on a STACKED/scaled cell (leaf @ scaleY 2)', () => {
     const cv = H.makeCanvas(260, 300)

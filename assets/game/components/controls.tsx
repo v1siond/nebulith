@@ -24,8 +24,6 @@ export function Card({
   action,
   children,
   defaultOpen = true,
-  sectionId,
-  focus,
 }: {
   title: string
   accent?: CardAccent
@@ -33,23 +31,10 @@ export function Card({
   children: React.ReactNode
   /** start collapsed by passing false — collapsible to cut sidebar scrolling. */
   defaultOpen?: boolean
-  /** stable id so the on-canvas quick-actions can target this section. */
-  sectionId?: string
-  /** bumped `{ id, n }` from a quick-action: when `id` matches `sectionId` the card
-   *  opens itself + scrolls into view. The `n` nonce lets a repeat click re-focus. */
-  focus?: { id: string; n: number } | null
 }) {
   const [open, setOpen] = useState(defaultOpen)
-  const ref = useRef<HTMLElement>(null)
-  useEffect(() => {
-    if (!focus || !sectionId || focus.id !== sectionId) return
-    setOpen(true)
-    // wait a frame so the just-expanded body has laid out before we scroll to it.
-    const raf = requestAnimationFrame(() => ref.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }))
-    return () => cancelAnimationFrame(raf)
-  }, [focus, sectionId])
   return (
-    <section ref={ref} data-section={sectionId} className="rounded-lg border border-white/10 bg-black/60 p-3 shadow-lg shadow-black/40">
+    <section className="rounded-lg border border-white/10 bg-black/60 p-3 shadow-lg shadow-black/40">
       <header className={`flex items-center justify-between gap-2 ${open ? 'mb-3' : ''}`}>
         <button
           type="button"
@@ -80,13 +65,9 @@ export function ViewButton({
   onClick: () => void
 }) {
   return (
-    <button
-      onClick={onClick}
-      aria-pressed={active}
-      className={`rounded px-2 py-1 text-xs font-bold transition-colors ${
-        active ? activeClass : 'bg-gray-700 hover:bg-gray-600'
-      }`}
-    >
+    // The design gives every toggle ONE look, so the per-button accent colour is no longer read — a yellow
+    // ISO beside a blue 2D beside a purple Flow said the three were different kinds of thing.
+    <button type="button" onClick={onClick} aria-pressed={active} className={active ? 'on' : ''}>
       {label}
     </button>
   )

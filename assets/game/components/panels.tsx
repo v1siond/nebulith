@@ -3,14 +3,17 @@
 // panel, item/ability tooltips, the ability browse modal, the quest log, and the
 // inventory card. Moved out of the page (stage 4); props-driven presentational.
 import { useEffect, useState } from 'react'
-import { ABILITY_REGISTRY, ABILITY_SLOTS, ABILITY_TINT, type AbilityBinding, type AbilityDef, type AbilitySlot, assignAbility, bindingForSlot, rebindAbility, removeAbility } from '@/game/abilities'
+import { abilityRegistry, ABILITY_SLOTS, type AbilityBinding, type AbilityDef, type AbilitySlot, assignAbility, bindingForSlot, rebindAbility, removeAbility } from '@/game/abilities'
+import { abilityTint } from '@/game/abilityArt'
 import { weaponEmoji } from '@/engine/entityArt'
-import { GEAR_CATALOG } from '@/game/gear'
+import { gearCatalog } from '@/game/gear'
 import { addToBag, allowedSlots, equip as equipToSlot, loadoutBonuses, setShortcut, setSpecial, unequip as unequipSlot } from '@/game/loadout'
 import { progress } from '@/game/quests'
 import { BARE_HANDS } from '@/game/runtime/combat'
 import { DEFAULT_PLAYER_NAME } from '@/game/runtime/player'
 import { type QuestDraft } from '@/game/runtime/questDraft'
+import { tileFrames } from '@/engine/tilePreview'
+import { TilePicture } from './shell/Previews'
 import { type Armor, type ConsumableEffect, type Entity, EQUIP_SLOTS, type EquipSlot, type Inventory, type Item, type Loadout, type ObjectiveKind, type Quest, type Stats, type TalentPath, type Weapon } from '@/game/types'
 import { weaponReach } from '@/game/weapons'
 import { Card } from '@/components/game/controls'
@@ -337,7 +340,7 @@ export function AbilityTooltip({ ability, x, y }: { ability: AbilityDef; x: numb
       className="pointer-events-none fixed z-50 w-44 rounded border border-fuchsia-500/50 bg-gray-900/95 px-2 py-1.5 font-mono text-[10px] text-gray-300 shadow-xl"
       style={{ left, top }}
     >
-      <div className="mb-0.5 truncate text-[11px] font-bold" style={{ color: ABILITY_TINT[ability.animation] }}>{ability.name}</div>
+      <div className="mb-0.5 truncate text-[11px] font-bold" style={{ color: abilityTint(ability.animation) }}>{ability.name}</div>
       {lines.map((line, i) => <div key={i}>{line}</div>)}
     </div>
   )
@@ -464,21 +467,21 @@ export function AbilityBrowseModal({ loadout, targetSlot, onPickSlot, onAssign, 
                 className={`rounded border px-1.5 py-1 text-center text-[10px] ${active ? 'border-fuchsia-400 bg-fuchsia-900/60' : 'border-white/10 bg-black/40 hover:bg-white/5'}`}
               >
                 <span className="block font-bold">Slot {slot}</span>
-                <span className="block truncate text-[9px]" style={{ color: ability ? ABILITY_TINT[ability.animation] : '#6b7280' }}>{ability ? ability.name : 'empty'}</span>
+                <span className="block truncate text-[9px]" style={{ color: ability ? abilityTint(ability.animation) : '#6b7280' }}>{ability ? ability.name : 'empty'}</span>
               </button>
             )
           })}
         </div>
-        <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-gray-400">Abilities ({ABILITY_REGISTRY.length})</p>
+        <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-gray-400">Abilities ({abilityRegistry().length})</p>
         <div className="grid grid-cols-2 gap-1.5">
-          {ABILITY_REGISTRY.map(a => (
+          {abilityRegistry().map(a => (
             <button
               key={a.id}
               onClick={() => onAssign(targetSlot, a)}
               {...tipProps(a)}
               className="rounded border border-white/10 bg-gray-800 px-2 py-1.5 text-left hover:border-fuchsia-500/60 hover:bg-fuchsia-900/40"
             >
-              <span className="block truncate text-[11px] font-bold" style={{ color: ABILITY_TINT[a.animation] }}>{a.name}</span>
+              <span className="block truncate text-[11px] font-bold" style={{ color: abilityTint(a.animation) }}>{a.name}</span>
               <span className="block truncate text-[9px] text-gray-400">{a.category} · {(a.cooldownMs / 1000).toFixed(0)}s cd</span>
               <span className="block truncate text-[9px] text-gray-300">{abilityEffectLabel(a)}</span>
             </button>
@@ -489,8 +492,10 @@ export function AbilityBrowseModal({ loadout, targetSlot, onPickSlot, onAssign, 
   )
 }
 
-export function EquipmentPanel({ label, loadout, baseStats, hp, onChange, onClose, abilityLoadout, onAbilityChange, nameValue, onNameChange }: {
+export function EquipmentPanel({ label, styleId, loadout, baseStats, hp, onChange, onClose, abilityLoadout, onAbilityChange, nameValue, onNameChange, talentPath, onTalentPath }: {
   label: string
+  /** The active art style — an item's picture is a real tile, resolved by label like everything else. */
+  styleId: string
   loadout: Loadout
   baseStats: Stats
   hp: { current: number; max: number }
@@ -504,6 +509,12 @@ export function EquipmentPanel({ label, loadout, baseStats, hp, onChange, onClos
   // passed the header name becomes an input so you can rename right from the inventory.
   nameValue?: string
   onNameChange?: (name: string) => void
+  // §4.10: the Class switch moves INTO this panel as a header control. It used to live in `InventoryCard`,
+  // a second inventory surface over a second model (§3.7: "three inventory surfaces, TWO inventory
+  // models") — deleting that card is what makes this the one inventory, so its one unique control moves
+  // here rather than being lost. Optional: only the player has a class.
+  talentPath?: TalentPath
+  onTalentPath?: (path: TalentPath) => void
 }) {
   // Hovered item + live cursor pos for the stat tooltip (#51). Cleared on leave.
   const [hovered, setHovered] = useState<{ item: Item; x: number; y: number } | null>(null)
@@ -580,11 +591,98 @@ export function EquipmentPanel({ label, loadout, baseStats, hp, onChange, onClos
                 label
               )}
             </h2>
+            {/* Class — §4.10 draws it as a header control: "Class: (•) Warrior ( ) Magician". */}
+            {talentPath && onTalentPath && (
+              <div className="flex items-center gap-1" role="group" aria-label="Class">
+                <span className="text-[10px] uppercase tracking-wider text-gray-400">Class</span>
+                {(['warrior', 'magician'] as const).map(path => (
+                  <button
+                    key={path}
+                    onClick={() => onTalentPath(path)}
+                    aria-pressed={talentPath === path}
+                    className={`rounded px-2 py-0.5 text-[11px] font-bold capitalize transition-colors ${
+                      talentPath === path ? 'bg-cyan-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                    }`}
+                  >
+                    {path}
+                  </button>
+                ))}
+              </div>
+            )}
             <button onClick={onClose} className="rounded bg-gray-700 px-2 py-1 text-xs hover:bg-gray-600" aria-label="Close inventory">✕ (I)</button>
           </div>
 
           {/* ── Action slots: SPECIAL ACTIONS beside ABILITIES — two distinct, user-keyed sets ── */}
-          <div className="mb-3 grid grid-cols-2 gap-3">
+          {/* ONE COLUMN. Alexander, 2026-09-09: *"inventory is still fucking ugly.."* — the bag and the
+              equipment list were `grid-cols-2` inside an already-narrow panel, so each got half the width
+              and the bag's four-across slots came out as unreadable squares. Stacked, both get the full
+              width and the slots are big enough to show an item. */}
+          <div className="space-y-3">
+            {/* LEFT — the bag */}
+            <section>
+              <p className="mb-1 text-xs font-bold text-gray-400">Inventory — Bag ({loadout.bag.filter(Boolean).length}/{loadout.bag.length})</p>
+              <div className="mb-3 grid grid-cols-6 gap-1.5">
+                {loadout.bag.map((item, i) => (
+                  <button key={i} onClick={() => onChange(useBagItem(loadout, i))} disabled={!item} {...tipProps(item)}
+                    title={item ? `Equip / use ${item.name}` : ''}
+                    className={`aspect-square rounded border p-1 text-[9px] leading-tight ${item ? 'border-white/20 bg-gray-800 hover:bg-gray-700' : 'border-white/5 bg-black/30 text-gray-700'}`}>
+                    {item ? (
+                      <span className="flex flex-col items-center gap-0.5">
+                        <ItemFace item={item} styleId={styleId} size={26} />
+                        {/* THE FULL NAME. Alexander, Image #20: the bag showed "Iron Swo" and "Hunter B" —
+                          not a CSS overflow but `item.name.slice(0, 8)`, a hard cut at eight characters.
+                          The slot is wide enough to read now (one column, not two), so the name is the
+                          name and long ones wrap onto a second line instead of being amputated. */}
+                      <span className="w-full text-center leading-tight">{item.name}</span>
+                      </span>
+                    ) : ''}
+                  </button>
+                ))}
+              </div>
+              {/* The gap, stated. The old panel returned 🛡️ / 🧪 for anything it did not recognise, which made
+                  every pictureless item look finished — so nobody knew the art was missing. */}
+              <MissingArtNote items={loadout.bag} styleId={styleId} />
+              <details>
+                <summary className="cursor-pointer text-xs text-gray-400">+ Add gear to bag</summary>
+                <div className="mt-1 grid grid-cols-2 gap-1">
+                  {gearCatalog().map(g => (
+                    <button key={g.id} onClick={() => onChange(addToBag(loadout, g))} className="truncate rounded bg-gray-700 px-1 py-0.5 text-[10px] hover:bg-gray-600">{g.name}</button>
+                  ))}
+                </div>
+              </details>
+            </section>
+
+            {/* RIGHT — character equipment + live stat totals */}
+            <section>
+              <PlayerStatsPanel baseStats={baseStats} loadout={loadout} hp={hp} />
+              <p className="mb-1 text-xs font-bold text-gray-400">Equipment</p>
+              <div className="grid grid-cols-3 gap-1.5">
+                {EQUIP_SLOTS.map(slot => {
+                  const item = loadout.equipped[slot]
+                  return (
+                    <button key={slot} onClick={() => unequipToBag(slot)} disabled={!item} {...tipProps(item)}
+                      className={`rounded border px-2 py-1.5 text-left text-[11px] ${item ? 'border-cyan-600 bg-cyan-900/40 hover:bg-cyan-900/70' : 'border-white/10 bg-black/40 text-gray-600'}`}>
+                      <span className="block text-[9px] uppercase text-gray-500">{SLOT_LABEL[slot]}</span>
+                      <span className="block truncate" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        {item ? <><ItemFace item={item} styleId={styleId} size={20} />{item.name}</> : '—'}
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+            </section>
+          </div>
+          {/* THESE TWO BELONG TO THE PLAYER'S UI, not to an inventory. Alexander, 2026-09-09: *"also, that
+              inventory has things that would normally be associated with the HUD."* He is right — a key you
+              press during play is a HUD binding, not a possession. They are demoted to a closed disclosure
+              at the bottom rather than deleted, because Player UI does not host them yet and deleting a
+              working feature to make a point is not a fix. Moving them there is the follow-up. */}
+          <details className="mt-3 rounded-lg border border-white/10 bg-black/30 p-2">
+            <summary className="cursor-pointer text-[11px] font-bold uppercase tracking-wider text-gray-400">
+              Keys and abilities · these belong in Player UI
+            </summary>
+            <div className="mt-2">
+          <div className="grid grid-cols-2 gap-3">
             {/* Special actions (consumables / throwables) — default keys 5–8, rebindable to any key. */}
             <section className="rounded-lg border border-amber-500/30 bg-black/40 p-2">
               <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wider text-amber-300">Special actions — own keys</p>
@@ -627,7 +725,7 @@ export function EquipmentPanel({ label, loadout, baseStats, hp, onChange, onClos
                       <div
                         key={slot}
                         className="rounded border border-fuchsia-600/40 bg-fuchsia-900/20 p-1 text-center text-[11px]"
-                        style={ability ? { borderColor: ABILITY_TINT[ability.animation] } : undefined}
+                        style={ability ? { borderColor: abilityTint(ability.animation) } : undefined}
                       >
                         <div className="flex items-center justify-center gap-1">
                           <KeyCaptureBadge
@@ -652,7 +750,7 @@ export function EquipmentPanel({ label, loadout, baseStats, hp, onChange, onClos
                             {...abilityTipProps(ability)}
                             onClick={() => setBrowseSlot(slot)}
                             className="mt-0.5 block w-full truncate font-bold hover:text-fuchsia-300"
-                            style={{ color: ABILITY_TINT[ability.animation] }}
+                            style={{ color: abilityTint(ability.animation) }}
                           >
                             {ability.name}
                           </button>
@@ -676,52 +774,8 @@ export function EquipmentPanel({ label, loadout, baseStats, hp, onChange, onClos
           </div>
 
           {/* ── Two-column body: LEFT = bag (inventory), RIGHT = character equipment + stats ── */}
-          <div className="grid grid-cols-2 gap-3">
-            {/* LEFT — the bag */}
-            <section>
-              <p className="mb-1 text-xs font-bold text-gray-400">Inventory — Bag ({loadout.bag.filter(Boolean).length}/{loadout.bag.length})</p>
-              <div className="mb-3 grid grid-cols-4 gap-1">
-                {loadout.bag.map((item, i) => (
-                  <button key={i} onClick={() => onChange(useBagItem(loadout, i))} disabled={!item} {...tipProps(item)}
-                    title={item ? `Equip / use ${item.name}` : ''}
-                    className={`aspect-square rounded border p-1 text-[9px] leading-tight ${item ? 'border-white/20 bg-gray-800 hover:bg-gray-700' : 'border-white/5 bg-black/30 text-gray-700'}`}>
-                    {item ? (
-                      <span className="flex flex-col items-center gap-0.5">
-                        <span aria-hidden className="text-lg leading-none">{itemIcon(item)}</span>
-                        <span className="w-full truncate text-center">{item.name.slice(0, 8)}</span>
-                      </span>
-                    ) : ''}
-                  </button>
-                ))}
-              </div>
-              <details>
-                <summary className="cursor-pointer text-xs text-gray-400">+ Add gear to bag</summary>
-                <div className="mt-1 grid grid-cols-2 gap-1">
-                  {GEAR_CATALOG.map(g => (
-                    <button key={g.id} onClick={() => onChange(addToBag(loadout, g))} className="truncate rounded bg-gray-700 px-1 py-0.5 text-[10px] hover:bg-gray-600">{g.name}</button>
-                  ))}
-                </div>
-              </details>
-            </section>
-
-            {/* RIGHT — character equipment + live stat totals */}
-            <section>
-              <PlayerStatsPanel baseStats={baseStats} loadout={loadout} hp={hp} />
-              <p className="mb-1 text-xs font-bold text-gray-400">Equipment</p>
-              <div className="grid grid-cols-2 gap-1">
-                {EQUIP_SLOTS.map(slot => {
-                  const item = loadout.equipped[slot]
-                  return (
-                    <button key={slot} onClick={() => unequipToBag(slot)} disabled={!item} {...tipProps(item)}
-                      className={`rounded border px-2 py-1.5 text-left text-[11px] ${item ? 'border-cyan-600 bg-cyan-900/40 hover:bg-cyan-900/70' : 'border-white/10 bg-black/40 text-gray-600'}`}>
-                      <span className="block text-[9px] uppercase text-gray-500">{SLOT_LABEL[slot]}</span>
-                      <span className="block truncate">{item ? <><span aria-hidden className="mr-1">{itemIcon(item)}</span>{item.name}</> : '—'}</span>
-                    </button>
-                  )
-                })}
-              </div>
-            </section>
-          </div>
+            </div>
+          </details>
         </div>
       </div>
       {browseSlot !== null && abilityLoadout && onAbilityChange && (
@@ -800,54 +854,66 @@ export function QuestLogPanel({ quests, onClose }: {
   )
 }
 
-/** An emoji icon for an inventory item — the weapon's own ⚔️/🏹/🪄, a shield/armor 🛡️, a consumable 🧪 —
- *  so the bag reads at a glance instead of plain text. Data-derived from the item's slot/kind. */
-function itemIcon(item: Item): string {
-  if (item.slot === 'weapon') return weaponEmoji(item.weapon) || '⚔️'
-  if (item.slot === 'armor') return '🛡️'
-  return '🧪'
+/**
+ * The LABEL whose baked picture represents this item, or null when the backend has no art for it.
+ *
+ * Alexander, 2026-09-08: *"in general we need preview for everything."* An item's picture is a real tile,
+ * resolved by label like everything else — `Iron Sword` → `sword`, `Battle Axe` → `axe`.
+ *
+ * It returns NULL rather than a stand-in, and that matters: only 6 of the 21 seeded items have art (the
+ * weapons). All the armour and every consumable have none. The old version hid that by returning 🛡️ or 🧪
+ * for anything it did not recognise, which made 15 pictureless items look finished — so the gap was
+ * invisible and never got authored.
+ */
+function itemArtLabel(item: Item, styleId: string): string | null {
+  // `Item` is a discriminated union, so the candidate label comes from the arm that HAS one. A consumable
+  // has neither a weapon nor an armour kind — there is nothing to look up, and that is the answer.
+  const candidate = item.slot === 'weapon' ? item.weapon.kind : item.slot === 'armor' ? item.armor.kind : null
+  if (!candidate) return null
+  return tileFrames(styleId, candidate).length > 0 ? candidate : null
 }
 
-export function InventoryCard({ inventory, talentPath, onEquip, onUse, onSetClass }: {
-  inventory: Inventory
-  talentPath: TalentPath
-  onEquip: (itemId: string) => void
-  onUse: (itemId: string) => void
-  onSetClass: (path: TalentPath) => void
-}) {
-  const classBtn = (path: TalentPath, label: string) =>
-    `flex-1 rounded px-2 py-0.5 ${talentPath === path ? 'bg-cyan-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`
+/**
+ * How many of these items have no picture on the backend.
+ *
+ * Only the weapons are authored: all the armour and every consumable are missing, so this is not a rare
+ * edge — it is 15 of the 21 seeded items. Naming the number is what turns it into a task instead of a
+ * mystery, and it disappears on its own once the tiles are baked.
+ */
+function MissingArtNote({ items, styleId }: { items: readonly (Item | null)[]; styleId: string }) {
+  const present = items.filter((i): i is Item => i !== null)
+  const missing = present.filter(i => itemArtLabel(i, styleId) === null)
+  if (missing.length === 0) return null
   return (
-    <Card title="Inventory" accent="cyan">
-      <div className="space-y-2 text-xs">
-        <div>
-          <span className="mb-1 block text-[10px] uppercase tracking-wider text-gray-400">Class</span>
-          <div className="flex gap-1">
-            <button onClick={() => onSetClass('warrior')} className={classBtn('warrior', 'Warrior')} aria-pressed={talentPath === 'warrior'}>Warrior</button>
-            <button onClick={() => onSetClass('magician')} className={classBtn('magician', 'Magician')} aria-pressed={talentPath === 'magician'}>Magician</button>
-          </div>
-        </div>
-        <div className="text-gray-300">
-          <div>Weapon: <span className="text-cyan-300">{inventory.equippedWeapon?.name ?? '—'}</span></div>
-          <div>Armor: <span className="text-cyan-300">{inventory.equippedArmor?.name ?? '—'}</span></div>
-        </div>
-        <ul className="space-y-1">
-          {inventory.items.length === 0 && <li className="text-gray-500">No items</li>}
-          {inventory.items.map(item => (
-            <li key={item.id} className="flex items-center justify-between gap-2">
-              <span className="truncate text-gray-200">
-                <span className="mr-1" aria-hidden>{itemIcon(item)}</span>
-                {item.name} <span className="text-gray-500">({item.slot})</span>
-              </span>
-              {item.slot === 'consumable' ? (
-                <button onClick={() => onUse(item.id)} className="shrink-0 rounded bg-emerald-700 px-2 py-0.5 hover:bg-emerald-600" aria-label={`Use ${item.name}`}>Use</button>
-              ) : (
-                <button onClick={() => onEquip(item.id)} className="shrink-0 rounded bg-cyan-700 px-2 py-0.5 hover:bg-cyan-600" aria-label={`Equip ${item.name}`}>Equip</button>
-              )}
-            </li>
-          ))}
-        </ul>
-      </div>
-    </Card>
+    <div className="warn">
+      <b>{`${missing.length} of ${present.length} have no picture`}</b>
+      <u>
+        {'Armour and consumables have no tile on the backend yet, so there is nothing to draw for them. They need authoring through the bake pipeline — not an emoji picked from the item\u2019s name, which is what this panel used to do.'}
+      </u>
+    </div>
   )
 }
+
+/** An item's face: its real picture where one exists, and an honest hole where it does not. */
+function ItemFace({ item, styleId, size = 22 }: { item: Item; styleId: string; size?: number }) {
+  const label = itemArtLabel(item, styleId)
+  if (!label) {
+    return (
+      <span
+        className="ig q"
+        style={{ width: size, height: size }}
+        role="img"
+        aria-label={`${item.name} — no picture`}
+        title={`${item.name} — no picture on the backend yet`}
+      >
+        ?
+      </span>
+    )
+  }
+  return <TilePicture styleId={styleId} label={label} size={size} />
+}
+
+/* InventoryCard deleted (§4.10 / Week 6). §3.7 measured three inventory surfaces over TWO models; this
+   card was the second surface AND the second model's only UI. Its one unique control — the Warrior /
+   Magician class switch — moved into EquipmentPanel's header, which is now the single inventory. */
+

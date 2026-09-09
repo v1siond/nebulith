@@ -19,12 +19,12 @@
  *   • the colour SETTING still FILTERS the tile (a magenta colour → a magenta form; a green baked image is
  *     recoloured, never left green), in BOTH emoji + ascii styles, positive + negative.
  */
+import { makeStyleTile, setStyleTile, styleTile } from '@/engine/tileset/styleTiles'
 import { installRealCanvas, type RealCanvasHarness } from '@/__tests__/helpers/realCanvas'
 import { drawIsoRoundedBlock, drawIsoTileBlock, drawIsoAssetAscii, roundedBlockEllipse } from '@/engine/render/iso'
 import { drawFlatTileForShape } from '@/engine/render/shared'
 import { draw2DLabeledCell } from '@/engine/render/topdown'
 import { EMOJI_STYLE, ASCII_STYLE } from '@/game/artStyle'
-import { EMOJI_TILESET } from '@/engine/tileset/emojiTileset'
 import type { GridAsset } from '@/engine/IsometricGrid'
 import type { ImageVisual } from '@/game/artStyle'
 import type { Canvas } from '@napi-rs/canvas'
@@ -174,11 +174,11 @@ describe('shape = circle honours the colour SETTING per style (emoji + ascii), p
   const asset = (over: Partial<GridAsset>): GridAsset => ({ art: ['o'], col: 3, row: 3, type: 'water', height: 1, label: LABEL, scale: 3, shape: 'circle', ...over })
 
   beforeAll(async () => {
-    EMOJI_TILESET[LABEL] = { char: '🌊', color: '#2f6fbf', image: SRC, height: 1 }
+    setStyleTile('emoji', LABEL, makeStyleTile(LABEL, { char: '🌊', color: '#2f6fbf', image: SRC, height: 1 }))
     H.registerSolid(SRC, GREEN) // a GREEN baked tile — the colour setting must RECOLOUR it (never leave it green)
     await H.warm([SRC])
   })
-  afterAll(() => { delete EMOJI_TILESET[LABEL] })
+  afterAll(() => { delete styleTile('emoji', LABEL) })
 
   test('emoji: a MAGENTA-colour tile → a MAGENTA rounded block; the GREEN baked image is recoloured, never left green', () => {
     const cv = H.makeCanvas(260, 300)
@@ -221,11 +221,11 @@ describe('2D: shape = circle rounds the cell face but keeps its painting', () =>
   const asset = (over: Partial<GridAsset>): GridAsset => ({ art: ['o'], col: 3, row: 3, type: 'building', height: 1, label: LABEL, color: MAGENTA, ...over })
 
   beforeAll(async () => {
-    EMOJI_TILESET[LABEL] = { char: '🧱', color: '#b05030', image: SRC, height: 1 }
+    setStyleTile('emoji', LABEL, makeStyleTile(LABEL, { char: '🧱', color: '#b05030', image: SRC, height: 1 }))
     H.registerSolid(SRC, GREEN)
     await H.warm([SRC])
   })
-  afterAll(() => { delete EMOJI_TILESET[LABEL] })
+  afterAll(() => { delete styleTile('emoji', LABEL) })
 
   test('circle: the cell CENTRE shows the tile (magenta-filtered) but the box CORNERS are cut transparent', () => {
     const cv = H.makeCanvas(320, 260)

@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/router'
 import { GameEngineLayout } from '@/components/game/GameEngineLayout'
 import { listGames, createGame, deleteGame, type Game } from '@/lib/api'
+import { nextGameName } from '@/game/autoNaming'
+import { useConfirm } from '@/components/game/useConfirm'
 
 /**
  * GAMES gallery — the app is scoped to games now (templates are a reusable resource). Games are PERSISTED
@@ -12,6 +14,7 @@ export default function GamesPage() {
   const router = useRouter()
   const [games, setGames] = useState<Game[]>([])
   const [loading, setLoading] = useState(true)
+  const { confirm, dialog: confirmDialog } = useConfirm()
 
   const load = () => {
     listGames()
@@ -23,31 +26,42 @@ export default function GamesPage() {
   // The /games/[id] route resolves the start template (last-watched, else first) itself — just pass the id.
   const openGame = (g: Game) => router.push(`/personal-projects/game-engine/games/${g.id}`)
   const playGame = (g: Game) => router.push(`/personal-projects/game-engine/games/${g.id}?play=1`)
+  // Creating a game asks nothing — Alexander: "just assign a random name or put something generic
+  // like 'game X' and redirect user to the editor right away." The gallery names it from what is
+  // already there and the editor opens; renaming is a normal edit once you are in it.
   const handleNew = async () => {
-    const name = window.prompt('New game name?')?.trim()
-    if (!name) return
-    const g = await createGame({ name })
+    const g = await createGame({ name: nextGameName(games) })
     router.push(`/personal-projects/game-engine/games/${g.id}`)
   }
   const handleDelete = async (g: Game) => {
-    if (!window.confirm(`Delete game "${g.name}"? (its templates are kept)`)) return
+    const ok = await confirm({
+      title: 'Delete game',
+      body: `Delete "${g.name}"? Its levels are kept — only the game that groups them goes.`,
+      confirmLabel: 'Delete game',
+    })
+    if (!ok) return
     await deleteGame(g.id)
     load()
   }
 
   return (
     <GameEngineLayout active="games">
+      {confirmDialog}
       <div className="bg-gray-800 rounded-lg p-4 mb-6 flex items-center justify-between">
         <div>
           <span className="text-gray-400 text-sm">Games:</span>
           <span className="ml-2 text-xl font-bold">{games.length}</span>
         </div>
-        <button
-          onClick={handleNew}
-          className="px-6 py-3 rounded-lg font-bold text-lg bg-green-600 hover:bg-green-500 hover:scale-105 transition-all"
-        >
-          + New Game
-        </button>
+        {/* ONE create button on the page, never two — while the gallery is empty the call to action
+            IS the empty state below, so this one stands down. */}
+        {games.length > 0 && (
+          <button
+            onClick={handleNew}
+            className="px-6 py-3 rounded-lg font-bold text-lg bg-green-600 hover:bg-green-500 hover:scale-105 transition-all"
+          >
+            + New Game
+          </button>
+        )}
       </div>
 
       {loading ? (

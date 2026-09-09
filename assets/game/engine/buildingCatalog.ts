@@ -6,12 +6,12 @@
  * + door from the loaded tileset, decides a road facing, and validates a footprint on the grid. The stamp
  * itself is game/runtime/composition.ts's stampBuildingComposition; here is pure lookup + grid reads.
  */
+import { styleCatalog } from '@/engine/tileset/styleTiles'
 import type { BuildingType } from './buildingTypes'
-import type { Facing } from './villageLayout'
+import type { BuildingSizes, Facing } from './villageLayout'
 import type { IsometricGrid } from './IsometricGrid'
 import type { Composition } from './tileset/tileset'
 import { resolveComposition } from './tileset/tileset'
-import { ASCII_TILESET } from './tileset/asciiTileset'
 
 // ── road / path grounds ──────────────────────────────────────────────────
 /** The primary paved road/driveway ground (what the settlement generator carves streets + driveways as). */
@@ -31,30 +31,49 @@ export function isRoadGround(ground: string | undefined): boolean {
 }
 
 // ── composition catalog ───────────────────────────────────────────────────
-// Ground footprint DEPTH (cells perpendicular to the facade, away from the road) per type — MUST match the
-// baked composition footprint_h (south facing) so the pure planner reserves exactly what a stamp fills.
-export const BUILDING_DEPTH: Readonly<Record<BuildingType, number>> = {
-  house: 4,
-  'big-house': 4,
-  store: 4,
-  office: 5,
-  hospital: 4,
-  temple: 4,
-  cathedral: 5,
-  castle: 6,
+// A building's SIZE is backend data. These used to be two hardcoded tables here and a THIRD copy inside
+// villageLayout, each hand-maintained against Nebulith.Catalog.BuildingCompositions with nothing enforcing the
+// match — so deepening a building in Elixir silently desynced the plot planner from what the stamp fills
+// (Alexander: "generating bigger houses, just mean we'll store bigger houses in the backend").
+// Now every size RESOLVES from the loaded compositions, whose names encode `<type>_<facadeWidth>`.
+// Null when nothing is loaded — an unknown size is never invented (MAP-MODEL §8, the no-fallback law).
+
+/** The baked facade widths for a type, ascending — parsed from the loaded composition NAMES (`house_3/4/5`).
+ *  Empty when nothing is loaded; the caller picks from what EXISTS rather than from a hand-kept list. */
+export function buildingFacadeLengths(type: BuildingType): number[] {
+  const prefix = `${type.replace(/-/g, '_')}_`
+  const comps = styleCatalog('ascii').compositions
+  if (!comps) return []
+  const out: number[] = []
+  for (const name of Object.keys(comps)) {
+    if (!name.startsWith(prefix)) continue
+    const width = Number(name.slice(prefix.length))
+    if (Number.isInteger(width)) out.push(width)
+  }
+  return out.sort((a, b) => a - b)
 }
 
-// The facade LENGTH the editor's place tool uses per type — the baked size (houses default to 4). A house
-// also has baked 3/5 variants the generator rolls, but the editor plants one deterministic default.
-export const BUILDING_PLACE_LENGTH: Readonly<Record<BuildingType, number>> = {
-  house: 4,
-  'big-house': 6,
-  store: 5,
-  office: 5,
-  hospital: 6,
-  temple: 8,
-  cathedral: 7,
-  castle: 12,
+/** Ground footprint DEPTH of ONE baked size: cells perpendicular to the facade, away from the road — that
+ *  composition's own south-facing `footprint.h`, so a plot reserves exactly what the stamp fills. Depth is
+ *  per (type,LENGTH), not per type: a wider house may be a deeper house. Null when that size is not baked. */
+export function buildingDepth(type: BuildingType, length: number): number | null {
+  return resolveComposition(styleCatalog('ascii'), buildingCompositionKind(type, length))?.footprint.h ?? null
+}
+
+/** The planner's size source, backed by the loaded compositions — one object so `villageLayout` stays pure and
+ *  depends on the ABSTRACTION it is handed, never on this module's tileset access. */
+export const BACKEND_BUILDING_SIZES: BuildingSizes = {
+  depthOf: buildingDepth,
+  lengthOf: buildingPlaceLength,
+}
+
+/** The facade LENGTH the editor's place tool plants for a type. A type with ONE baked size resolves to it; a
+ *  type with several (houses: 3/4/5) takes the MIDDLE one, so the editor stays deterministic and lands on the
+ *  same default it always has. Null when nothing is loaded. */
+export function buildingPlaceLength(type: BuildingType): number | null {
+  const lengths = buildingFacadeLengths(type)
+  if (lengths.length === 0) return null
+  return lengths[Math.floor((lengths.length - 1) / 2)]
 }
 
 /** The backend composition name for a (type,length): `${type}_${length}`, hyphens → underscores
@@ -91,7 +110,7 @@ export function rotateFootprintOffset(dx: number, dy: number, w: number, h: numb
 /** The on-grid footprint (w×h) of a building composition once rotated to `facing`. East/west swap the
  *  south footprint's axes (length↔depth). Null when the composition isn't loaded. */
 export function buildingFootprint(kind: string, facing: Facing): { w: number; h: number } | null {
-  const comp = resolveComposition(ASCII_TILESET, kind)
+  const comp = resolveComposition(styleCatalog('ascii'), kind)
   if (!comp) return null
   const swap = facing === 'east' || facing === 'west'
   return swap ? { w: comp.footprint.h, h: comp.footprint.w } : { w: comp.footprint.w, h: comp.footprint.h }
@@ -101,7 +120,7 @@ export function buildingFootprint(kind: string, facing: Facing): { w: number; h:
  *  generator can place the walkable entrance + its driveway. Null when the composition isn't loaded or has
  *  no door. Measured along the facade length (dx), matching the generator's `doorCells(facing, rect, door)`. */
 export function buildingDoorOffset(kind: string): { x: number; width: number } | null {
-  const comp = resolveComposition(ASCII_TILESET, kind)
+  const comp = resolveComposition(styleCatalog('ascii'), kind)
   if (!comp) return null
   const doors = comp.cells.filter(c => (c.level ?? 0) === 0 && c.label === 'door')
   if (doors.length === 0) return null
@@ -225,7 +244,7 @@ export interface CompositionPlan {
  *  generic replacement for the building-only placeNewBuilding math. Buildings rotate to face the nearest road;
  *  props/trees drop unrotated. Returns null only when the composition isn't in the loaded tileset yet. */
 export function planComposition(grid: IsometricGrid, kind: string, col: number, row: number): CompositionPlan | null {
-  const comp = resolveComposition(ASCII_TILESET, kind)
+  const comp = resolveComposition(styleCatalog('ascii'), kind)
   if (!comp) return null
   const facesRoad = compositionFacesRoad(comp)
   const facing: Facing = facesRoad ? nearestRoadFacing(grid, col, row) : 'south'

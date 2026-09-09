@@ -7,7 +7,8 @@ import { isRespawned, DEFAULT_PLAYER_STATS } from '@/game/entities'
 import { isRanged, weaponReach } from '@/game/weapons'
 import { projectileArrived, resolveImpact, type Projectile } from '@/game/projectiles'
 import { nextEnemyAttack } from '@/game/patterns'
-import { abilityReady, ABILITY_TINT, type AbilityBinding, type AbilityAnimation } from '@/game/abilities'
+import { abilityReady, type AbilityBinding, type AbilityAnimation } from '@/game/abilities'
+import { abilityTint } from '@/game/abilityArt'
 import { weaponAnimKind, ATTACK_ANIM_MS, type AttackAnim, type AttackAnimKind } from '@/engine/attackAnimations'
 import { weaponPose } from '@/engine/entityArt'
 import { aimDelta, type PlayerState } from './player'
@@ -213,7 +214,9 @@ function spawnAttackAnim(
  *  in place of the weapon's roll, per the data-driven model) and the blade tint for the swing. */
 interface AbilitySwing {
   damage: number
-  tint: string
+  /** The blade tint, from the ability's own FX TILE. Optional because a tileset that does not serve that
+   *  tile has no colour to give — the caller draws its default rather than the frontend inventing a hex. */
+  tint?: string
 }
 
 /** Fire the first off-cooldown ability whose bound key is on its rising edge this frame. Keys come
@@ -235,7 +238,7 @@ export function triggerAbility(
     const ability = binding.ability
     if (!abilityReady(ability, lastUsed.get(ability.id), now)) continue
     lastUsed.set(ability.id, now)
-    swing = { damage: ability.effect.damage ?? 0, tint: ABILITY_TINT[ability.animation] }
+    swing = { damage: ability.effect.damage ?? 0, tint: abilityTint(ability.animation) }
   }
   return swing
 }
@@ -497,7 +500,7 @@ export function applyEnemyRetaliation(input: CombatStepInput & { playerCombat: C
     runtime.attackFireCount.set(entity.id, fireCount + 1) // advance the sequential cycle
     // The enemy's swing/bolt animates too — attacks trigger animations for EVERY attacker. The
     // attack's animation recolors it (a fire bite burns orange, a frost bolt glows blue).
-    const tint = chosen.animation ? ABILITY_TINT[chosen.animation] : undefined
+    const tint = chosen.animation ? abilityTint(chosen.animation) : undefined
     // Pass the ability ANIMATION too (not just its tint) so the renderer can draw the ability's FX tile
     // (fire-slash 🔥 / bolt 🔮 / …) under a reskin — the tint recolours it, exactly as it recoloured the glyph.
     spawnAttackAnim(input.anims, entity.col * cellSize + cellSize / 2, entity.row * cellSize + cellSize / 2, player.x, player.z, ranged ? 'shot' : 'slash', now, undefined, false, tint, chosen.animation)

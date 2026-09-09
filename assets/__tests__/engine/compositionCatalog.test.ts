@@ -8,8 +8,8 @@
  * DB-equivalent seed tileset (nothing dropped, non-buildings present, sensibly bucketed) AND against synthetic
  * tilesets that PROVE the group tracks the served category and nothing else (positive + negative).
  */
-import '@/__tests__/helpers/installTilesetSeed' // fills ASCII_TILESET with the DB-equivalent compositions (now carrying category)
-import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
+import { styleCatalog } from '@/engine/tileset/styleTiles'
+import '@/__tests__/helpers/installTilesetSeed' // fills styleCatalog('ascii') with the DB-equivalent compositions (now carrying category)
 import type { Composition, Tileset } from '@/engine/tileset/tileset'
 import {
   buildCompositionPalette,
@@ -19,9 +19,9 @@ import {
 } from '@/engine/compositionCatalog'
 import { RAIL_MODES } from '@/components/game/editorChrome'
 
-const allKinds = () => Object.keys(ASCII_TILESET.compositions ?? {})
-const flatKinds = () => buildCompositionPalette(ASCII_TILESET).flatMap(s => s.items.map(i => i.kind))
-const comp = (kind: string) => ASCII_TILESET.compositions![kind]
+const allKinds = () => Object.keys(styleCatalog('ascii').compositions ?? {})
+const flatKinds = () => buildCompositionPalette(styleCatalog('ascii')).flatMap(s => s.items.map(i => i.kind))
+const comp = (kind: string) => styleCatalog('ascii').compositions![kind]
 
 // ── synthetic tilesets (prove the group comes from the served category, nothing else) ──────────────
 const synth = (compositions: Record<string, Composition>): Tileset => ({
@@ -57,31 +57,31 @@ describe('buildCompositionPalette lists EVERY backend composition, not just buil
   })
 
   test('compositions are bucketed by their SERVED backend category (buildings / nature / props)', () => {
-    expect(groupOf(ASCII_TILESET, 'house_4')).toBe('buildings')
-    expect(groupOf(ASCII_TILESET, 'store_5')).toBe('buildings')
-    expect(groupOf(ASCII_TILESET, 'tree_tall')).toBe('nature')
-    expect(groupOf(ASCII_TILESET, 'bush')).toBe('nature')
-    expect(groupOf(ASCII_TILESET, 'fountain')).toBe('props')
-    expect(groupOf(ASCII_TILESET, 'well')).toBe('props')
-    expect(groupOf(ASCII_TILESET, 'lamp_post')).toBe('props')
+    expect(groupOf(styleCatalog('ascii'), 'house_4')).toBe('buildings')
+    expect(groupOf(styleCatalog('ascii'), 'store_5')).toBe('buildings')
+    expect(groupOf(styleCatalog('ascii'), 'tree_tall')).toBe('nature')
+    expect(groupOf(styleCatalog('ascii'), 'bush')).toBe('nature')
+    expect(groupOf(styleCatalog('ascii'), 'fountain')).toBe('props')
+    expect(groupOf(styleCatalog('ascii'), 'well')).toBe('props')
+    expect(groupOf(styleCatalog('ascii'), 'lamp_post')).toBe('props')
     // the served category is exactly what the item carries — no derivation in between
-    const items = buildCompositionPalette(ASCII_TILESET).flatMap(s => s.items)
+    const items = buildCompositionPalette(styleCatalog('ascii')).flatMap(s => s.items)
     for (const it of items) expect(it.category).toBe(comp(it.kind).category)
   })
 
   test('groups are in the canonical order (subset of the tile category order), each non-empty', () => {
-    const groups = buildCompositionPalette(ASCII_TILESET).map(s => s.category)
+    const groups = buildCompositionPalette(styleCatalog('ascii')).map(s => s.category)
     // the palette groups are a prefix-subset of the canonical order (empty groups dropped, order preserved)
     expect(groups).toEqual(COMPOSITION_CATEGORIES.filter(c => groups.includes(c)))
     expect(groups).toContain('buildings')
     expect(groups).toContain('nature')
     expect(groups).toContain('props')
     // each section carries the prettier header for its bucket
-    for (const s of buildCompositionPalette(ASCII_TILESET)) expect(s.label).toBe(COMPOSITION_CATEGORY_LABELS[s.category])
+    for (const s of buildCompositionPalette(styleCatalog('ascii'))) expect(s.label).toBe(COMPOSITION_CATEGORY_LABELS[s.category])
   })
 
   test('items carry a readable label + their footprint size (so the palette shows "how many cells")', () => {
-    const items = buildCompositionPalette(ASCII_TILESET).flatMap(s => s.items)
+    const items = buildCompositionPalette(styleCatalog('ascii')).flatMap(s => s.items)
     const byKind = new Map(items.map(i => [i.kind, i]))
     // an authored title wins; else the kind is humanised
     expect(compositionLabel('store_5', comp('store_5'))).toBe('Store')       // title

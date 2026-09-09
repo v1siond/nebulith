@@ -1,21 +1,21 @@
 /**
- * CELL inspector STRUCTURE — the reworked inspector is a COMPACT SUMMARY that opens the full tile settings
- * in a MODAL (mirroring the tile-animation modal). Two things are asserted here:
+ * CELL inspector STRUCTURE (§4.7) — the inspector IS the settings now.
  *
- *   1. SUMMARY (PropertiesPanel) — still EXACTLY TWO sections (CELL = collision; TILE = the one selected
- *      tile), but the TILE section is now a compact summary: Open Tile Library + a colour swatch + the
- *      "Edit settings…" button (opens the modal) + Animate + Remove. The heavy per-axis controls are GONE
- *      from the summary — they moved into the modal.
- *   2. SETTINGS BODY (TileControls) — the modal body renders EVERY setting: colour, Width/Height/Zoom, the
- *      Z Width directional depth + z-position pickers for asset tiles, x/y/rotate/flip, Z-Index, Display.
+ * §3.10 measured the previous shape as a flat summary hiding everything real behind an "Edit settings…"
+ * modal. §4.7 replaces it with six accordions titled after the questions people ask — WHAT IS IT / HOW IT
+ * LOOKS / SIZE & POSITION / HOW IT BEHAVES / ANIMATION / RULES — with the full control set INLINE and the
+ * open/closed state remembered per section.
+ *
+ * Asserted here:
+ *   1. STRUCTURE — the sections §4.7 draws, in its order, with the collapse actually hiding their contents.
+ *   2. CONTENT — each control lands in the section that answers its question, and still writes through.
+ *   3. The destructive footer stays OUT of every section, so it can never hide inside a collapsed one.
  *
  * Plus Part A: the numeric fields accept an EMPTY transient value (so you can clear + retype) and values
  * BELOW the slider min / ABOVE the max (the typed number is honored, no hard clamp) and write them through.
  */
-import { useState } from 'react'
 import { render, screen, fireEvent, within } from '@testing-library/react'
 import { PropertiesPanel, TileControls, type TileControlModel } from '@/components/game/editorChrome'
-import { Modal } from '@/components/game/modals'
 
 /** A minimal floor-tile model (level 0), with a pose so x/y/rotate/flip render in the settings body. */
 function floorTile(overrides: Partial<TileControlModel> = {}): TileControlModel {
@@ -68,82 +68,76 @@ function renderPanel(props: Partial<React.ComponentProps<typeof PropertiesPanel>
       level={1}
       levelCount={1}
       onLevel={jest.fn()}
-      onOpenSettings={jest.fn()}
+      sectionOpen={() => true}
+      onToggleSection={jest.fn()}
       {...props}
     />,
   )
 }
 
-/** The ordered list of section-divider texts the inspector renders (the `— … —` headings). */
-function dividerList(): string[] {
+/** The inspector's section headers, in DOM order — each accordion's toggle carries `aria-expanded`. */
+function sectionList(): string[] {
   return screen
-    .getAllByText((_content, el) => {
-      const t = el?.textContent?.trim() ?? ''
-      return el?.tagName === 'P' && /^—\s.+\s—$/.test(t)
-    })
-    .filter(el => el.tagName === 'P')
-    .map(el => el.textContent!.trim())
+    .queryAllByRole('button', { expanded: true })
+    .concat(screen.queryAllByRole('button', { expanded: false }))
+    .filter(el => el.getAttribute('aria-expanded') !== null && el.getAttribute('aria-label'))
+    .sort((a, b) => (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1))
+    .map(el => el.getAttribute('aria-label')!)
 }
 
-describe('Cell inspector summary — exactly two sections', () => {
-  it('a bare grass cell renders EXACTLY [CELL, TILE·grass]', () => {
+describe('the inspector renders §4.7\'s sections', () => {
+  it('draws them in the design\'s order for a cell holding a tile', () => {
+    renderPanel({ tile: assetTile({ onOpenAnimator: jest.fn() }), onOpenTriggers: jest.fn() })
+    expect(sectionList()).toEqual([
+      'What is it', 'How it looks', 'Size & position', 'How it behaves', 'Animation', 'Rules',
+    ])
+  })
+
+  it('asks "who is it" of a unit, and "what is it" of a cell (§4.7)', () => {
+    const { unmount } = renderPanel()
+    expect(sectionList()[0]).toBe('What is it')
+    unmount()
+    renderPanel({ unitSection: <p>unit extras</p> })
+    expect(sectionList()[0]).toBe('Who is it')
+  })
+
+  it('keeps HOW IT BEHAVES for a cell holding NO tile — an empty cell can still be blocked', () => {
+    renderPanel({ tile: null, collision: true, levelCount: 0 })
+    expect(sectionList()).toEqual(['How it behaves'])
+    expect(screen.getByRole('button', { name: 'Blocked' })).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  it('has no "Edit settings…" — §4.7 folded the modal\'s controls inline', () => {
     renderPanel()
-    expect(dividerList()).toEqual(['— cell —', '— tile · grass —'])
-    expect(screen.queryByText(/^— floor/i)).toBeNull()
-    expect(screen.queryByText(/^— wall/i)).toBeNull()
+    expect(screen.queryByRole('button', { name: /Edit settings/i })).toBeNull()
   })
 
-  it('the CELL section holds ONLY collision', () => {
-    renderPanel()
-    expect(screen.getByRole('button', { name: 'Blocked' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Walkable' })).toBeInTheDocument()
+  it('names the tile in the header, above every section', () => {
+    renderPanel({ tile: assetTile(), level: 2, levelCount: 2 })
+    expect(screen.getByText(/cell · wall/i)).toBeInTheDocument()
   })
 
-  it('the TILE summary keeps Open Tile Library + a single colour swatch + the Edit settings button', () => {
-    renderPanel()
-    expect(screen.getByRole('button', { name: /Open Tile Library/i })).toBeInTheDocument()
-    expect(screen.getAllByLabelText(/colour/i).length).toBe(1)
-    expect(screen.getByRole('button', { name: /Edit settings/i })).toBeInTheDocument()
-  })
-
-  it('the heavy per-axis controls are NOT in the summary — they moved into the modal', () => {
-    renderPanel()
-    // no sliders / number fields leak into the compact summary
-    expect(screen.queryByLabelText('Width')).toBeNull()
-    expect(screen.queryByLabelText('Width value')).toBeNull()
-    expect(screen.queryByLabelText('Height')).toBeNull()
-    expect(screen.queryByLabelText('Zoom')).toBeNull()
-    expect(screen.queryByLabelText('x')).toBeNull()
-    expect(screen.queryByLabelText('flip horizontally')).toBeNull()
-  })
-
-  it('"Edit settings…" fires onOpenSettings (opens the modal)', () => {
-    const onOpenSettings = jest.fn()
-    renderPanel({ onOpenSettings })
-    fireEvent.click(screen.getByRole('button', { name: /Edit settings/i }))
-    expect(onOpenSettings).toHaveBeenCalledTimes(1)
-  })
-
-  it('"Open Tile Library" fires onOpenLibrary (change-tile entry point)', () => {
+  it('"Open Tile Library" fires onOpenLibrary (the change-tile entry point)', () => {
     const onOpenLibrary = jest.fn()
     renderPanel({ tile: floorTile({ onOpenLibrary }) })
     fireEvent.click(screen.getByRole('button', { name: /Open Tile Library/i }))
     expect(onOpenLibrary).toHaveBeenCalledTimes(1)
   })
 
-  it('a cell with no tile shows ONLY the CELL section', () => {
-    renderPanel({ tile: null, collision: true, levelCount: 0 })
-    expect(dividerList()).toEqual(['— cell —'])
-    expect(screen.queryByText(/^— tile/)).toBeNull()
-    expect(screen.queryByRole('button', { name: /Edit settings/i })).toBeNull()
+  it('HOW IT LOOKS holds exactly one colour swatch', () => {
+    renderPanel()
+    expect(screen.getAllByLabelText(/colour/i).length).toBe(1)
   })
 
-  it('the TILE header names the SELECTED tile (wall), not the whole stack', () => {
-    renderPanel({ tile: assetTile(), collision: true, level: 2, levelCount: 2 })
-    expect(dividerList()).toEqual(['— cell —', '— tile · wall —'])
+  it('SIZE & POSITION holds the per-axis controls that used to need a modal', () => {
+    renderPanel({ tile: assetTile() })
+    for (const label of ['Width', 'Height', 'Zoom', 'Left ↔ Right', 'Up ↕ Down', 'Rotate', 'Mirror', 'Draw order']) {
+      expect(screen.getByLabelText(label)).toBeInTheDocument()
+    }
+    expect(screen.getByRole('group', { name: 'Footprint per direction' })).toBeInTheDocument()
   })
 
-  it('a >1 stack shows the level stepper and steps up/down by 0-based index', () => {
+  it('the level stepper stays in the header — it says WHICH tile you are editing', () => {
     const onLevel = jest.fn()
     renderPanel({ tile: assetTile(), collision: true, level: 2, levelCount: 3, onLevel })
     expect(screen.getByText('level 2/3')).toBeInTheDocument()
@@ -156,95 +150,141 @@ describe('Cell inspector summary — exactly two sections', () => {
   it('no stepper on a single-tile stack', () => {
     renderPanel()
     expect(screen.queryByRole('button', { name: 'Higher tile' })).toBeNull()
-    expect(screen.queryByRole('button', { name: 'Lower tile' })).toBeNull()
-  })
-
-  it('an asset tile keeps its "Animate…" entry (fires onOpenAnimator) + a Remove button', () => {
-    const onOpenAnimator = jest.fn()
-    const onRemove = jest.fn()
-    renderPanel({ tile: assetTile({ onOpenAnimator, animations: [] }), collision: true, level: 2, levelCount: 2, onRemove })
-    fireEvent.click(screen.getByRole('button', { name: /Animate tile/i }))
-    expect(onOpenAnimator).toHaveBeenCalledTimes(1)
-    fireEvent.click(screen.getByRole('button', { name: /Remove tile/i }))
-    expect(onRemove).toHaveBeenCalledTimes(1)
   })
 })
 
-describe('Tile settings body (TileControls) — every setting renders + writes through', () => {
-  it('a floor tile shows colour + Width/Height/Zoom + x/y/rotate/flip, and NO Depth / Z Width', () => {
-    render(<TileControls tile={floorTile()} />)
+describe('collapsing a section hides its controls, and reports the toggle', () => {
+  it('a closed section renders none of its body', () => {
+    renderPanel({ tile: assetTile(), sectionOpen: id => id !== 'size' })
+    expect(screen.queryByLabelText('Width')).toBeNull()
+    expect(screen.queryByRole('group', { name: 'Footprint per direction' })).toBeNull()
     expect(screen.getAllByLabelText(/colour/i).length).toBe(1)
-    for (const axis of ['Width', 'Height', 'Zoom']) {
-      expect(screen.getByLabelText(axis)).toBeInTheDocument()
+  })
+
+  it('announces open/closed on the header itself', () => {
+    renderPanel({ tile: assetTile(), sectionOpen: id => id !== 'size' })
+    expect(screen.getByRole('button', { name: 'How it looks' })).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getByRole('button', { name: 'Size & position' })).toHaveAttribute('aria-expanded', 'false')
+  })
+
+  it('reports WHICH section was clicked, so the caller can persist it', () => {
+    const onToggleSection = jest.fn()
+    renderPanel({ tile: assetTile(), onToggleSection })
+    fireEvent.click(screen.getByRole('button', { name: 'Size & position' }))
+    expect(onToggleSection).toHaveBeenCalledWith('size')
+  })
+})
+
+describe('the destructive footer never hides inside a collapsed section', () => {
+  it('shows Clear tiles + Remove tile with EVERY section closed', () => {
+    renderPanel({ tile: assetTile(), sectionOpen: () => false, onClearTiles: jest.fn(), onRemove: jest.fn() })
+    expect(screen.getByRole('button', { name: /Clear tiles/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Remove tile/i })).toBeInTheDocument()
+  })
+})
+
+/**
+ * §3.13's genuine trap, and §4.7's instruction: *"The inert building-block panel (3.13) must either write
+ * back or be replaced with an explicit … message. Rendering live controls over no-op handlers is worse than
+ * showing nothing."*
+ */
+describe('a tile the editor cannot write to SAYS so, instead of faking controls (§3.13)', () => {
+  const notice = "This tile is part of a generated object and can't be edited directly yet."
+
+  it('shows the message and drops the two sections a no-op writer would fake', () => {
+    renderPanel({ tile: assetTile(), tileNotice: notice })
+    expect(screen.getByText(notice)).toBeInTheDocument()
+    expect(sectionList()).not.toContain('How it looks')
+    expect(sectionList()).not.toContain('Size & position')
+    expect(screen.queryByLabelText('Width')).toBeNull()
+  })
+
+  it('keeps the controls that DO write: collision, the tile library, remove, clear', () => {
+    const onRemove = jest.fn()
+    renderPanel({ tile: assetTile(), tileNotice: notice, onRemove, onClearTiles: jest.fn() })
+    expect(screen.getByRole('button', { name: 'Blocked' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Open Tile Library/i })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /Remove tile/i }))
+    expect(onRemove).toHaveBeenCalled()
+  })
+
+  it('an ordinary tile carries no notice and keeps both sections', () => {
+    renderPanel({ tile: assetTile() })
+    expect(screen.queryByText(notice)).toBeNull()
+    expect(sectionList()).toContain('How it looks')
+    expect(sectionList()).toContain('Size & position')
+  })
+})
+
+/**
+ * The CONTROL BODIES (`TileControls`) — every setting renders and writes through.
+ *
+ * Rewritten for §4.7's labels. It used to name the pre-relabel controls (`x`, `y`, `flip horizontally`,
+ * `Z Width left top`, `Z-Index`, `Z position direction`) — §3.10's jargon, which §4.7 replaced with
+ * `Left ↔ Right`, `Up ↕ Down`, `Mirror`, `Footprint <direction>`, `Draw order` and `Slide <direction>`.
+ * Asserting the old names tested a UI that no longer exists.
+ */
+describe('the control bodies — every setting renders + writes through', () => {
+  it('a floor tile shows colour, the three scale axes and the nudge controls', () => {
+    render(<TileControls tile={floorTile()} />)
+    expect(screen.getAllByLabelText(/colour/i).length).toBeGreaterThan(0)
+    for (const label of ['Width', 'Height', 'Zoom', 'Left ↔ Right', 'Up ↕ Down', 'Rotate', 'Mirror']) {
+      expect(screen.getByLabelText(label)).toBeInTheDocument()
     }
-    expect(screen.queryByLabelText('Depth')).toBeNull()
-    expect(screen.queryByRole('group', { name: 'Z Width per direction' })).toBeNull()
-    for (const axis of ['x', 'y', 'rotate']) {
-      expect(screen.getByLabelText(axis)).toBeInTheDocument()
-    }
-    expect(screen.getByLabelText('flip horizontally')).toBeInTheDocument()
+  })
+
+  it('a FLOOR gets no Footprint and no Draw order — the model wires it no writer for them', () => {
+    render(<TileControls tile={floorTile()} />)
+    expect(screen.queryByRole('group', { name: 'Footprint per direction' })).toBeNull()
+    expect(screen.queryByLabelText('Draw order')).toBeNull()
   })
 
   it('EVERY dimension slider drags down to 0 — the slider is the control, not a fallback to typing', () => {
-    // Alexander: "the slider should allow me to reach 0, it only goes down to 0.25" / "I requested to
-    // explicitly be able to drag sliders to 0". A dimension is a measurement and 0 is a value it can hold
-    // (a flat tile is 0 blocks tall) — the slider has to cover its own range without deferring to the box.
-    render(<TileControls tile={assetTile()} />)
+    render(<TileControls tile={floorTile()} />)
     for (const axis of ['Width', 'Height', 'Zoom']) {
       expect(screen.getByLabelText(axis)).toHaveAttribute('min', '0')
     }
-    render(<TileControls tile={floorTile()} />)
-    expect(screen.getAllByLabelText('Height')[0]).toHaveAttribute('min', '0')
   })
 
-  it('the settings body does NOT carry Open Tile Library or Animate (those stay in the inspector)', () => {
+  it('the bodies do NOT carry Open Tile Library or Animate — those stay in the inspector header', () => {
     render(<TileControls tile={assetTile({ onOpenAnimator: jest.fn() })} />)
     expect(screen.queryByRole('button', { name: /Open Tile Library/i })).toBeNull()
     expect(screen.queryByRole('button', { name: /Animate tile/i })).toBeNull()
   })
 
-  it('editing a dim/pose writes through the tile callbacks', () => {
+  it('editing a dim or a nudge writes through the tile callbacks', () => {
     const onDim = jest.fn()
     const onPose = jest.fn()
     render(<TileControls tile={floorTile({ onDim, onPose })} />)
-    fireEvent.change(within(screen.getByText('Width').closest('label')!).getByLabelText('Width value'), { target: { value: '2' } })
+    fireEvent.change(screen.getByLabelText('Width value'), { target: { value: '2' } })
     expect(onDim).toHaveBeenCalledWith('width', 2)
-    fireEvent.click(screen.getByLabelText('flip horizontally'))
+    fireEvent.click(screen.getByLabelText('Mirror'))
     expect(onPose).toHaveBeenCalledWith(expect.objectContaining({ flip: true }))
   })
 
-  it('an ASSET tile gets the Z Width multi-direction control (4 independent diagonals) + a z slide', () => {
-    const onZWidth = jest.fn(), onZBack = jest.fn(), onZPerp = jest.fn(), onZPerpBack = jest.fn(), onZDir = jest.fn(), onZPos = jest.fn()
-    render(<TileControls tile={assetTile({ onZWidth, onZBack, onZPerp, onZPerpBack, onZDir, onZPos })} />)
-    expect(screen.queryByLabelText('Depth')).toBeNull()
-    // Z Width is now MULTI-DIRECTION: one INDEPENDENT slider per diagonal (Alexander "two sides at the same time
-    // … any combination of 2"), so moving one direction never resets another.
-    const zWidthGroup = within(screen.getByRole('group', { name: 'Z Width per direction' }))
-    for (const dir of ['left top', 'right top', 'bottom left', 'bottom right']) {
-      expect(zWidthGroup.getByLabelText(`Z Width ${dir}`)).toBeInTheDocument()
-    }
-    expect(screen.getByLabelText('z')).toBeInTheDocument()
-    // bottom-right = the primary axis' FORWARD end → onZWidth gets the full depth (cells beyond anchor + 1).
-    fireEvent.change(zWidthGroup.getByLabelText('Z Width bottom right'), { target: { value: '4' } })
-    expect(onZWidth).toHaveBeenLastCalledWith(5)
-    // a perpendicular slider (bottom-left) writes its OWN extent — the second axis, independently.
-    fireEvent.change(zWidthGroup.getByLabelText('Z Width bottom left'), { target: { value: '3' } })
-    expect(onZPerp).toHaveBeenLastCalledWith(3)
-    // the opposite end (left-top) writes the BACKWARD extent — the "other side" without touching the forward one.
-    fireEvent.change(zWidthGroup.getByLabelText('Z Width left top'), { target: { value: '2' } })
-    expect(onZBack).toHaveBeenLastCalledWith(2)
+  it('an ASSET tile gets the FOOTPRINT control — four independent diagonals, each in CELLS', () => {
+    const onZWidth = jest.fn()
+    render(<TileControls tile={assetTile({ onZWidth, onZBack: jest.fn(), onZPerp: jest.fn(), onZPerpBack: jest.fn() })} />)
+    const group = screen.getByRole('group', { name: 'Footprint per direction' })
+    // Four sliders, one per iso diagonal, each labelled by the direction it reaches.
+    expect(within(group).getAllByRole('slider')).toHaveLength(4)
   })
 
-  it('an ASSET tile gets a z-POSITION direction picker (4 diagonals) wired to onZPosDir', () => {
-    const onZPos = jest.fn(), onZPosDir = jest.fn()
-    render(<TileControls tile={assetTile({ onZPos, onZPosDir })} />)
-    const zPosGroup = within(screen.getByRole('group', { name: 'Z position direction' }))
-    fireEvent.click(zPosGroup.getByRole('button', { name: 'right top' }))
-    expect(onZPosDir).toHaveBeenLastCalledWith('right-up')
-    fireEvent.click(zPosGroup.getByRole('button', { name: 'bottom right' }))
-    expect(onZPosDir).toHaveBeenLastCalledWith('right-down')
-    fireEvent.change(screen.getByLabelText('z'), { target: { value: '2' } })
-    expect(onZPos).toHaveBeenLastCalledWith(2)
+  it('an ASSET tile gets the SLIDE direction picker — the same four diagonals', () => {
+    const onZPosDir = jest.fn()
+    render(<TileControls tile={assetTile({ onZPos: jest.fn(), onZPosDir })} />)
+    const group = screen.getByRole('group', { name: 'Slide direction' })
+    const dirs = within(group).getAllByRole('button')
+    expect(dirs).toHaveLength(4)
+    fireEvent.click(dirs[1])
+    expect(onZPosDir).toHaveBeenCalled()
+  })
+
+  it('an ASSET tile gets Draw order, and it writes whole numbers', () => {
+    const onZIndex = jest.fn()
+    render(<TileControls tile={assetTile({ onZIndex })} />)
+    fireEvent.change(screen.getByLabelText('Draw order value'), { target: { value: '7' } })
+    expect(onZIndex).toHaveBeenCalledWith(7)
   })
 })
 
@@ -283,64 +323,23 @@ describe('Part A — free numeric input (empty allowed + out-of-range honored)',
   it('a NEGATIVE value below the pose min is honored on a pose axis', () => {
     const onPose = jest.fn()
     render(<TileControls tile={floorTile({ onPose, pose: { dx: 0, dy: 0, rot: 0 } })} />)
-    fireEvent.change(screen.getByLabelText('x value'), { target: { value: '-3' } }) // pose x slider is -1..1
+    fireEvent.change(screen.getByLabelText('Left ↔ Right value'), { target: { value: '-3' } }) // pose x slider is -1..1
     expect(onPose).toHaveBeenLastCalledWith(expect.objectContaining({ dx: -3 }))
   })
 
   it('Z-Index accepts a value above its slider max', () => {
     const onZIndex = jest.fn()
     render(<TileControls tile={assetTile({ onZIndex })} />)
-    fireEvent.change(screen.getByLabelText('Z-Index value'), { target: { value: '250' } }) // slider max is 100
+    fireEvent.change(screen.getByLabelText('Draw order value'), { target: { value: '250' } }) // slider max is 100
     expect(onZIndex).toHaveBeenLastCalledWith(250)
   })
 
   it('a lone "-" is held without writing (transient, not a number yet)', () => {
     const onPose = jest.fn()
     render(<TileControls tile={floorTile({ onPose, pose: { dx: 0, dy: 0, rot: 0 } })} />)
-    const x = screen.getByLabelText('x value') as HTMLInputElement
+    const x = screen.getByLabelText('Left ↔ Right value') as HTMLInputElement
     fireEvent.change(x, { target: { value: '-' } })
     expect(x.value).toBe('-')
     expect(onPose).not.toHaveBeenCalled()
-  })
-})
-
-/** Faithful re-creation of the templates.tsx wiring: the inspector's Edit-settings button opens a Modal
- *  that hosts the TileControls settings body — the SAME pattern as the tile-animation modal. */
-function SettingsModalHarness({ tile }: { tile: TileControlModel }) {
-  const [open, setOpen] = useState(false)
-  return (
-    <>
-      <PropertiesPanel collision={false} onCollision={jest.fn()} tile={tile} level={1} levelCount={1} onLevel={jest.fn()} onOpenSettings={() => setOpen(true)} />
-      {open && (
-        <Modal title={`${tile.label} — Settings`} accent="cyan" wide onClose={() => setOpen(false)}>
-          <TileControls tile={tile} />
-        </Modal>
-      )}
-    </>
-  )
-}
-
-describe('Part B — the tile settings MODAL opens from the inspector and closes', () => {
-  it('the settings are hidden until Edit settings is clicked, then the modal shows them', () => {
-    render(<SettingsModalHarness tile={assetTile()} />)
-    expect(screen.queryByRole('dialog')).toBeNull()
-    expect(screen.queryByLabelText('Width')).toBeNull() // the slider lives only in the modal
-
-    fireEvent.click(screen.getByRole('button', { name: /Edit settings/i }))
-    const dialog = within(screen.getByRole('dialog'))
-    for (const axis of ['Width', 'Height', 'Zoom']) {
-      expect(dialog.getByLabelText(axis)).toBeInTheDocument()
-    }
-    expect(dialog.getByRole('group', { name: 'Z Width per direction' })).toBeInTheDocument()
-    expect(dialog.getByLabelText('flip horizontally')).toBeInTheDocument()
-    expect(dialog.getAllByLabelText(/colour/i).length).toBe(1)
-  })
-
-  it('closing the modal (✕) hides the settings again', () => {
-    render(<SettingsModalHarness tile={assetTile()} />)
-    fireEvent.click(screen.getByRole('button', { name: /Edit settings/i }))
-    expect(screen.getByRole('dialog')).toBeInTheDocument()
-    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Close' }))
-    expect(screen.queryByRole('dialog')).toBeNull()
   })
 })

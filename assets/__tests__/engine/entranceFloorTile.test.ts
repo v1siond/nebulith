@@ -22,8 +22,8 @@
  *   entrance → {"label":"path","level":0,"settings":{"depth":2,"depthDir":"right-down"},"dx":1,"dy":4,"walkable":true}
  *   roof     → one depth-spanned block per column ({"depth":4,"depthDir":"left-down","scaleY":2})
  */
+import { styleCatalog, styleTile, styleTiles } from '@/engine/tileset/styleTiles'
 import { useSeedTileset } from '@/__tests__/helpers/tilesetSeed'
-import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 import { IsometricGrid, type GridAsset } from '@/engine/IsometricGrid'
 import { stampComposition, stampBuildingKind } from '@/game/runtime/composition'
 import { generateStage, stageToTemplate, type StageData } from '@/engine/stageGenerator'
@@ -49,7 +49,7 @@ const ENTRANCE_COMP: Composition = {
 /** The doorstep's height, READ from the loaded tileset — never a constant pinned here. A flat tile is 0 blocks
  *  (nebulith data migration 0005, "GET THE TILES OF 0.1 DOWN TO 0"); whatever the DB says is what the stamp
  *  must produce, which is the only thing this file should assert. */
-const floorHeight = (): number => ASCII_TILESET.tiles.path.height ?? 0
+const floorHeight = (): number => styleTiles('ascii').path.height ?? 0
 
 const mkGrid = (): IsometricGrid => new IsometricGrid({ cols: 40, rows: 40, cellSize: 16, isoScale: 1.4 })
 
@@ -67,8 +67,8 @@ const shapesOf = (assets: Array<Partial<GridAsset>>): string[] => assets.map(sha
 describe('(A) a composition cell stamps at the TILE\'s OWN height', () => {
   useSeedTileset() // the DB-equivalent tileset — real wall/door/roof/path tiles with their DB heights
 
-  beforeAll(() => { ASCII_TILESET.compositions[KIND] = ENTRANCE_COMP })
-  afterAll(() => { delete ASCII_TILESET.compositions[KIND] })
+  beforeAll(() => { styleCatalog('ascii').compositions[KIND] = ENTRANCE_COMP })
+  afterAll(() => { delete styleCatalog('ascii').compositions[KIND] })
 
   test('the entrance doorstep stamps FLAT — the path tile\'s own floor height, not a 1-block kerb', () => {
     const grid = mkGrid()
@@ -92,7 +92,7 @@ describe('(A) a composition cell stamps at the TILE\'s OWN height', () => {
   })
 
   test('a label with NO tile in the DB keeps the unit block — a stamp never vanishes', () => {
-    ASCII_TILESET.compositions['__unknown_label__'] = {
+    styleCatalog('ascii').compositions['__unknown_label__'] = {
       footprint: { w: 1, h: 1 },
       cells: [{ dx: 0, dy: 0, level: 0, label: '__no_such_tile__', walkable: true }],
     }
@@ -103,7 +103,7 @@ describe('(A) a composition cell stamps at the TILE\'s OWN height', () => {
       expect(placed).toHaveLength(1)
       expect(placed[0].height).toBe(1)
     } finally {
-      delete ASCII_TILESET.compositions['__unknown_label__']
+      delete styleCatalog('ascii').compositions['__unknown_label__']
     }
   })
 
@@ -118,8 +118,8 @@ describe('(A) a composition cell stamps at the TILE\'s OWN height', () => {
       expect(placed).toBeGreaterThan(0)
       const wrong = grid.assets
         .filter(a => a.type === kind)
-        .filter(a => a.height !== (ASCII_TILESET.tiles[a.label ?? '']?.height ?? 1))
-        .map(a => `${kind}/${a.label}: stamped ${a.height}, DB says ${ASCII_TILESET.tiles[a.label ?? '']?.height}`)
+        .filter(a => a.height !== (styleTile('ascii', a.label ?? '')?.height ?? 1))
+        .map(a => `${kind}/${a.label}: stamped ${a.height}, DB says ${styleTile('ascii', a.label ?? '')?.height}`)
       expect(wrong).toEqual([])
     }
   })
@@ -128,8 +128,8 @@ describe('(A) a composition cell stamps at the TILE\'s OWN height', () => {
 describe('(B) a generated stage survives stageToTemplate — depth / depthDir / scaleY / height intact', () => {
   useSeedTileset()
 
-  beforeAll(() => { ASCII_TILESET.compositions[KIND] = ENTRANCE_COMP })
-  afterAll(() => { delete ASCII_TILESET.compositions[KIND] })
+  beforeAll(() => { styleCatalog('ascii').compositions[KIND] = ENTRANCE_COMP })
+  afterAll(() => { delete styleCatalog('ascii').compositions[KIND] })
 
   /** A real generated town, re-pointed at the test building so the save path walks the LIVE cell shapes. */
   function stageWithTestBuilding(facing: Facing): StageData {

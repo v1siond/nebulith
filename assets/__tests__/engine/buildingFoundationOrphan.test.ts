@@ -15,11 +15,11 @@
  * These tests generate MANY towns and assert every building's kind stamps > 0 cells (0 orphans) — and prove the
  * check isn't vacuous by showing the OLD `(type, length)` derivation still orphans on the same stages.
  */
+import { styleCatalog } from '@/engine/tileset/styleTiles'
 import '@/__tests__/helpers/installTilesetSeed' // building compositions come from the loaded backend tileset fixture
 import { generateStage } from '@/engine/stageGenerator'
 import { stampBuildingKind, stampBuildingComposition } from '@/game/runtime/composition'
 import { resolveComposition } from '@/engine/tileset/tileset'
-import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 import { IsometricGrid } from '@/engine/IsometricGrid'
 import type { ZoneId } from '@/engine/zones'
 
@@ -73,7 +73,7 @@ describe('BUG #3: every generated building foundation gets its building stamped 
   test('every generated building records a kind that RESOLVES to a loaded composition', () => {
     for (const { stage } of manyTowns()) {
       for (const b of stage.buildings) {
-        expect(resolveComposition(ASCII_TILESET, b.kind)).not.toBeNull()
+        expect(resolveComposition(styleCatalog('ascii'), b.kind)).not.toBeNull()
       }
     }
   })
@@ -108,8 +108,8 @@ describe('BUG #3: every generated building foundation gets its building stamped 
           expect(b.length).toBe(b.depth)            // recorded length = grid col-span = the DEPTH (4)
           expect(b.kind).toBe(`hospital_${b.height}`) // kind uses the facade length = the grid ROW-SPAN (6)
           expect(b.height).not.toBe(b.length)        // facade length ≠ depth → the re-derivation would miss
-          expect(resolveComposition(ASCII_TILESET, b.kind)).not.toBeNull()
-          expect(resolveComposition(ASCII_TILESET, `hospital_${b.length}`)).toBeNull() // hospital_4 does not exist
+          expect(resolveComposition(styleCatalog('ascii'), b.kind)).not.toBeNull()
+          expect(resolveComposition(styleCatalog('ascii'), `hospital_${b.length}`)).toBeNull() // hospital_4 does not exist
           checked++
           if (checked >= 3) return
         }

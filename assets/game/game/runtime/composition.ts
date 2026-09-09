@@ -6,16 +6,16 @@
 // per-cell pass) — NO per-type drawer. A pre-built BUILDING is stamped through THIS exact path (rotated to
 // face its road), not a special building unit — that is how "everything is a collection of backend tiles"
 // is enforced.
-import { resolveComposition, resolveTile, tileRenderBehavior } from '@/engine/tileset/tileset'
+import { styleCatalog } from '@/engine/tileset/styleTiles'
+import { resolveComposition, resolveTile, tileRenderBehavior, tileThickness, tileThicknessReach } from '@/engine/tileset/tileset'
 import type { Composition, CompositionCell, ResolvedTile } from '@/engine/tileset/tileset'
-import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 import type { GridAsset, IsometricGrid } from '@/engine/IsometricGrid'
 import { cellStackTop } from '@/engine/cellStack'
 import type { ZoneId } from '@/engine/zones'
 import type { BuildingType } from '@/engine/buildingTypes'
 import type { Facing } from '@/engine/villageLayout'
 import { buildingCompositionKind, facingRotation, rotateFootprintOffset } from '@/engine/buildingCatalog'
-import { rotateDepthDir } from '@/engine/render/isoBlock'
+import { rotateDepthDir, rotateThicknessReach, type DepthDir, type ThicknessReach } from '@/engine/render/isoBlock'
 
 // Apex-signage colour for a titled building — a single readable signage tone drawn on drawApexBadge's
 // dark backing. The building NAME is the DATA (the composition's `title`); the colour is a fixed render
@@ -45,7 +45,7 @@ const isWallLabel = (label: string): boolean => label.startsWith('wall_')
 /** The per-cell RENDER fields a composition cell contributes to the tile placed in it. */
 export type CompositionCellRender = Pick<
   GridAsset,
-  'height' | 'heightLevel' | 'scale' | 'zIndex' | 'scaleX' | 'scaleY' | 'scaleZ' | 'depth' | 'depthDir' | 'depthBack' | 'depthPerp' | 'depthPerpBack' | 'pose' | 'shape' | 'light' | 'settings' | 'animations' | 'placedAt'
+  'height' | 'heightLevel' | 'scale' | 'zIndex' | 'scaleX' | 'scaleY' | 'scaleZ' | 'thickness' | 'depth' | 'depthDir' | 'depthBack' | 'depthPerp' | 'depthPerpBack' | 'pose' | 'shape' | 'light' | 'settings' | 'animations' | 'placedAt'
 >
 
 /** ONE mapping of a composition CELL onto those render fields — shared by the LIVE stamp (stampRun) and the
@@ -63,6 +63,12 @@ export type CompositionCellRender = Pick<
 // at level 0). Added to the cell's OWN authored level so the whole composition rises as one — the live callers
 // pass the cell's shared stack top (`cellStackTop`), so a composition just lands ON TOP of the floor tile like
 // any stacked tile; there is no floor-special lift.
+/** Turn a thickness reach map by the building's quarter-turns. Undefined stays undefined — a tile with no
+ *  thickness must not acquire one from a rotation. */
+function rotateThickness(reach: ThicknessReach | undefined, rotation: number): ThicknessReach | undefined {
+  return reach ? rotateThicknessReach(reach, rotation) : undefined
+}
+
 export function compositionCellRender(comp: Composition, cell: CompositionCell, tile: ResolvedTile, span: number, rotation: number, baseLevel = 0): CompositionCellRender {
   const cs = cell.settings
   const animated = (cell.animations?.length ?? 0) > 0
@@ -81,8 +87,20 @@ export function compositionCellRender(comp: Composition, cell: CompositionCell, 
     // of a run, so the two never collide.
     scaleY: cs?.scaleY ?? (span > 1 ? span : undefined),
     // WIDTH + DEPTH: a cell can ship a THIN or WIDE tile independent of the uniform Zoom (a tree's trunk width).
+    // THICKNESS is TILE data first (`tile.settings.scaleZ`) so a door is a thin panel WHEREVER it is placed —
+    // generator-stamped or hand-painted — instead of drawing as a full cube that reads as a block, not a door
+    // (Alexander, Image #10). An explicit per-cell value still wins. Note this is NOT the editor's "z-width":
+    // that is `depth`, the number of CELLS spanned, which is always ≥1 because a tile occupies its own cell.
     scaleX: cs?.scaleX,
-    scaleZ: cs?.scaleZ,
+    scaleZ: cs?.scaleZ ?? tileThickness(tile.settings as Record<string, unknown> | undefined),
+    // The thickness AXIS is authored south-facing, exactly like `depthDir` — ROTATE it by the building's
+    // rotation so a house turned a quarter-turn has its doors thin toward ITS front, not the map's.
+    // (Alexander: "the doors are less tick while facing the direction of their logical front".)
+    thickness: rotateThickness(
+      tileThicknessReach((cs ?? undefined) as Record<string, unknown> | undefined)
+        ?? tileThicknessReach(tile.settings as Record<string, unknown> | undefined),
+      rotation,
+    ),
     // Directional DEPTH (roof-z-width / the entrance apron): ONE block spanning `depth` cells along a diagonal.
     // `depthDir` is authored south-facing — ROTATE it by the building's rotation (the SAME quarter-turns
     // rotateFootprintOffset applied to the cell's offset).
@@ -116,7 +134,7 @@ function cellSettings(comp: Composition, cell: CompositionCell, tile: ResolvedTi
 }
 
 export function stampComposition(grid: IsometricGrid, kind: string, anchorCol: number, anchorRow: number, zone: ZoneId, variant = 0, rotation = 0, material?: string, roofColor?: string, wallColor?: string): number {
-  const comp = resolveComposition(ASCII_TILESET, kind)
+  const comp = resolveComposition(styleCatalog('ascii'), kind)
   if (!comp) return 0
   // ONE global rule for EVERY composition (building, tree, fountain, lamp): it stacks ON TOP of whatever already
   // fills its anchor cell — the shared cell stack top. No caller passes a lift; a composition is just ordered
@@ -189,19 +207,25 @@ function stampRun(
   // LEVEL-0 wall/trunk/rim tile coexists with the floor at level 0 (the floor is a thin ground slab, the wall a
   // block on it); higher levels (roof, upper wall) stack above. The floor is only removed by an explicit CLEAR.
   const label = material ? c.label.replace(WALL_MAT, `${material}_`) : c.label
-  const tile = resolveTile(ASCII_TILESET, zone, label, variant)
+  const tile = resolveTile(styleCatalog('ascii'), zone, label, variant)
   // Colour SETTING = the filter the renderer tints the baked tile to. A roof/wall material override recolours
   // just those cells; otherwise an AUTHORED per-cell `settings.color` wins (MAP-MODEL §8: "colour is a setting
   // of the tile" — e.g. the lamp BULB is a dark lantern by day); absent → the tile's own colour.
   const color = isRoofLabel(label) && roofColor ? roofColor : isWallLabel(label) && wallColor ? wallColor : c.settings?.color ?? tile.color
   const grounded = (c.level ?? 0) === 0 || undefined
-  const asset = grid.placeAsset([tile.char], col, row, { type: kind, blocking: !c.walkable, color, baseShadow: grounded })
+  // The grid's collision map is 2D — one flag per (col,row) — so only the composition's GROUND course may write
+  // to it. A unit walks at ground level, so that is what the flat map means: a wall at the ground blocks the
+  // cell, while a roof or a rooftop unit five levels up must not seal the floor beneath it (a flat-roof shop's
+  // crown sits over the middle of its own room and punched a blocked hole in the shop floor). The tile keeps
+  // its own truthful `blocking` DATA either way — a roof blocks as a block, nothing stands on it.
+  const asset = grid.placeAsset([tile.char], col, row, { type: kind, blocking: !c.walkable && !!grounded, color, baseShadow: grounded })
+  asset.blocking = !c.walkable
   asset.label = label
   // Every render field the cell shapes — its own HEIGHT, stack level, zoom/z-index, scale axes, z-width,
   // pose/shape/light, behavior settings + apex signage, animations — through the ONE shared mapping the SAVE
   // path uses too, so the live stamp and a reloaded save can never diverge.
   Object.assign(asset, compositionCellRender(comp, c, tile, span, rotation, baseLevel))
-  if (!c.walkable) grid.setCollision(col, row, true)
+  if (!c.walkable && grounded) grid.setCollision(col, row, true) // ground course only — see the note above
   return true
 }
 

@@ -13,12 +13,11 @@
  *   3. `drawIsoAssetAscii` ROUTES on `asset.settings.display`: "single" draws the tile ONCE (a centered
  *      billboard) while "all-faces"/default draws it on all THREE faces — counted via a recording context.
  */
+import { makeStyleTile, setStyleTile, styleCatalog } from '@/engine/tileset/styleTiles'
 import { tileRenderBehavior } from '@/engine/tileset/tileset'
 import { stampComposition } from '@/game/runtime/composition'
 import { drawIsoAssetAscii } from '@/engine/render/iso'
 import { IsometricGrid, type GridAsset } from '@/engine/IsometricGrid'
-import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
-import { EMOJI_TILESET } from '@/engine/tileset/emojiTileset'
 import { EMOJI_STYLE } from '@/game/artStyle'
 import type { Composition } from '@/engine/tileset/tileset'
 
@@ -48,9 +47,11 @@ describe('stampComposition — a composition cell copies its tile\'s settings.di
   const KIND = '__disp_fountain__'
 
   beforeAll(() => {
-    ASCII_TILESET.tiles[SINGLE_LABEL] = { label: SINGLE_LABEL, glyph: '~', position: 'single', walkable: false, colorRole: 'water', settings: { display: 'single' } }
-    ASCII_TILESET.tiles[PLAIN_LABEL] = { label: PLAIN_LABEL, glyph: '~', position: 'single', walkable: false, colorRole: 'water' } // no display setting
-    ;(ASCII_TILESET.compositions as Record<string, Composition>)[KIND] = {
+    setStyleTile('ascii', SINGLE_LABEL, makeStyleTile(SINGLE_LABEL, { char: '~', position: 'single', walkable: false, colorRole: 'water', settings: { display: 'single' } }))
+    // The SAME tile shape with no `settings` at all — the control. Both go through `setStyleTile`, the one
+    // way into the store, so this pair differs by exactly one key.
+    setStyleTile('ascii', PLAIN_LABEL, makeStyleTile(PLAIN_LABEL, { char: '~', position: 'single', walkable: false, colorRole: 'water' }))
+    ;(styleCatalog('ascii').compositions as Record<string, Composition>)[KIND] = {
       footprint: { w: 1, h: 2 },
       cells: [
         { dx: 0, dy: 0, level: 0, label: SINGLE_LABEL },
@@ -58,10 +59,11 @@ describe('stampComposition — a composition cell copies its tile\'s settings.di
       ],
     }
   })
+  // No per-test teardown of the two sentinel tiles: jest gives every test FILE its own module registry, so
+  // the style store this suite writes into is created fresh here and dies with the file. The composition IS
+  // removed, because the two describes below share this file's store.
   afterAll(() => {
-    delete ASCII_TILESET.tiles[SINGLE_LABEL]
-    delete ASCII_TILESET.tiles[PLAIN_LABEL]
-    delete (ASCII_TILESET.compositions as Record<string, Composition>)[KIND]
+    delete (styleCatalog('ascii').compositions as Record<string, Composition>)[KIND]
   })
 
   test('the "single" tile → asset.settings.display === "single"; the plain tile → no display (byte-identical)', () => {
@@ -112,10 +114,8 @@ describe('drawIsoAssetAscii ROUTES on asset.settings.display (end-to-end)', () =
     ;(HTMLCanvasElement.prototype as unknown as { getContext: (t: string) => unknown }).getContext = function (t: string) {
       return t === '2d' ? new FakeOffscreenCtx() : null
     }
-    EMOJI_TILESET[LABEL] = { char: '🌊', color: '#2f6fbf', image: SRC, height: 1 }
+    setStyleTile('emoji', LABEL, makeStyleTile(LABEL, { char: '🌊', color: '#2f6fbf', image: SRC, height: 1 }))
   })
-  afterAll(() => { delete EMOJI_TILESET[LABEL] })
-
   test('default (no settings) → the tile is painted on THREE faces (3 image draws)', () => {
     const r = recordingCtx()
     drawIsoAssetAscii(r.ctx, 100, 120, asset({}), 22, 11, 0, false, 'day', EMOJI_STYLE)

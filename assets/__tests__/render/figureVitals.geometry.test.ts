@@ -10,19 +10,19 @@
  * emoji glyph's y, or — under ascii — the top figure glyph). The vertical gap between them must be a
  * TIGHT band of the head (well under one cell), NOT the old multi-cell float.
  */
+import { styleTiles } from '@/engine/tileset/styleTiles'
 import { drawIsoEntity } from '@/engine/render/iso'
 import { drawTopEntity } from '@/engine/render/topdown'
 import { drawFigureVitals, VITALS_HEAD_GAP_PX, VITALS_NAME_COLOR } from '@/engine/render/shared'
 import { EMOJI_STYLE, ASCII_STYLE, rebuildEmojiStyle } from '@/game/artStyle'
-import { EMOJI_TILESET } from '@/engine/tileset/emojiTileset'
 import type { Entity } from '@/game/types'
 
 // This geometry test reads the drawn SPRITE's y via its fillText glyph, so it needs the base enemy to draw
 // as a 👾 GLYPH billboard (an image tile would draw via drawImage, which emits no measurable text). The
 // frontend ships no bundled default, so seed a glyph-only enemy tile here — exactly the "base 👾 GLYPH (no
 // image)" the cases assume.
-beforeAll(() => { EMOJI_TILESET.enemy = { char: '👾', color: '#b45ac0' }; rebuildEmojiStyle() })
-afterAll(() => { delete EMOJI_TILESET.enemy; rebuildEmojiStyle() })
+beforeAll(() => { styleTiles('emoji').enemy = { char: '👾', color: '#b45ac0' }; rebuildEmojiStyle() })
+afterAll(() => { delete styleTiles('emoji').enemy; rebuildEmojiStyle() })
 
 // The HP-bar BODY rect (drawHpBar's second fillRect) — its fill colour is unique, so we find the bar's
 // bottom edge unambiguously in either style. The emoji glyph the enemy draws under EMOJI mode.

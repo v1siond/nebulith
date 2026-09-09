@@ -5,11 +5,11 @@
  * These assert grid state directly after stampComposition: the stacked per-cell blocks, the selectable-block
  * shape (heightLevel + height>=1 — the picker's gate), collision, and that glyph+colour come from the DB tile.
  */
+import { styleCatalog } from '@/engine/tileset/styleTiles'
 import { IsometricGrid } from '@/engine/IsometricGrid'
 import { getStack } from '@/engine/cellStack'
 import { stampComposition } from '@/game/runtime/composition'
 import { resolveComposition, resolveTile } from '@/engine/tileset/tileset'
-import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 import { useSeedTileset } from '@/__tests__/helpers/tilesetSeed'
 
 const mkGrid = () => new IsometricGrid({ cols: 14, rows: 14, cellSize: 16, isoScale: 1.4 })
@@ -18,7 +18,7 @@ describe('tree composition — every ascii asset is a collection of selectable D
   useSeedTileset() // the DB-equivalent tileset the runtime loads (carries the tree_small / tree_dead compositions)
 
   test('the DB tileset SERVES the tree composition (nothing hardcoded on the frontend)', () => {
-    const comp = resolveComposition(ASCII_TILESET, 'tree_small')
+    const comp = resolveComposition(styleCatalog('ascii'), 'tree_small')
     expect(comp).not.toBeNull()
     expect(comp!.footprint).toEqual({ w: 5, h: 3 }) // the diagram: 5-wide canopy base, 3 DEEP (leaf sections repeated at dy -1/0/+1)
     expect(comp!.cells.length).toBe(30) // 3 trunk + a 3-deep canopy (L3 5-wide + L4 3-wide + L5 crown) repeated across dy -1/0/+1
@@ -62,7 +62,7 @@ describe('tree composition — every ascii asset is a collection of selectable D
     const grid = mkGrid()
     stampComposition(grid, 'tree_small', 7, 7, 'spring', 0)
     const leaf = grid.assets.find(a => a.label === 'leaf_center')!
-    const dbLeaf = resolveTile(ASCII_TILESET, 'spring', 'leaf_center', 0)
+    const dbLeaf = resolveTile(styleCatalog('ascii'), 'spring', 'leaf_center', 0)
     expect(leaf.art[0]).toBe(dbLeaf.char)   // glyph from the DB tile
     expect(leaf.color).toBe(dbLeaf.color)   // canopy colour from the DB palette
   })

@@ -91,14 +91,22 @@ const GRID: Record<Settlement, { h: number; v: number }> = {
 // instead of squeezing the fountain into leftovers. A city's square is bigger (grander fountain).
 const PLAZA_SIZE: Record<Settlement, number> = { town: 5, city: 7 }
 
-// MUST match the baked building composition sizes (Nebulith.Catalog.BuildingCompositions) so a plot
-// reserves exactly the footprint a stamp fills. `length` is the road-parallel facade span; `depth` is the
-// perpendicular footprint extent (= the composition's south-facing footprint_h). Houses roll a width in
-// HOUSE_WIDTHS (3/4/5), so house_3/4/5 must all exist; the rest use their single baked size.
-const BUILDING_LENGTH: Partial<Record<BuildingType, number>> = { house: 4, 'big-house': 6, store: 5, office: 5, hospital: 6, temple: 8 }
-const lengthOf = (t: BuildingType): number => BUILDING_LENGTH[t] ?? 8
-const BUILDING_DEPTH: Partial<Record<BuildingType, number>> = { house: 4, 'big-house': 4, store: 4, office: 5, hospital: 4, temple: 4, cathedral: 5, castle: 6 }
-const depthOf = (t: BuildingType): number => BUILDING_DEPTH[t] ?? 4
+/**
+ * How big each building TYPE is on the ground. The caller SUPPLIES this from the backend composition data
+ * (`buildingCatalog`'s resolvers) — the planner never reaches for the tileset and never guesses a size, so it
+ * stays pure and a footprint change in Elixir moves the plots automatically.
+ *
+ * This replaced two hardcoded tables here that duplicated a third pair in `buildingCatalog`, all three
+ * hand-maintained against the backend with nothing enforcing the match.
+ */
+export interface BuildingSizes {
+  /** Cells perpendicular to the facade, away from the road, for ONE facade length — that composition's
+   *  south-facing `footprint_h`. Per (type,length) because a wider variant may also be a deeper one.
+   *  Null when that size is not baked, which the planner reads as "skip", never as a default. */
+  depthOf(type: BuildingType, length: number): number | null
+  /** The facade width the planner plants for this type. Null when nothing is loaded. */
+  lengthOf(type: BuildingType): number | null
+}
 
 // Realistic lot rules (subdivision design): a SETBACK (front-yard cells between the building and
 // the street) and a LOT_GAP (side-yard cells between neighbours). The door faces the road across
@@ -118,8 +126,10 @@ const BUILDING_CAP: Record<Settlement, number> = { town: 18, city: 72 }
 
 // House footprints stay modest + similar so a frontage reads as a TIDY ROW, not a jagged skyline.
 const HOUSE_WIDTHS = [3, 3, 4, 4, 4, 5]
-const plotWidth = (type: BuildingType, rng: Rng): number =>
-  type === 'house' ? HOUSE_WIDTHS[Math.floor(rng() * HOUSE_WIDTHS.length)] : lengthOf(type)
+// The house WEIGHTING is generator tuning (a frontage should read as a tidy row), not footprint data — it moves
+// to the backend with the rest of the generator config. The SIZES it picks between are backend data already.
+const plotWidth = (type: BuildingType, rng: Rng, sizes: BuildingSizes): number | null =>
+  type === 'house' ? HOUSE_WIDTHS[Math.floor(rng() * HOUSE_WIDTHS.length)] : sizes.lengthOf(type)
 
 /**
  * STEP 2 — the building MIX: ALWAYS one store + one hospital (every settlement has them), plus
@@ -300,7 +310,7 @@ export function planPlaza(cols: number, rows: number, roads: boolean[][], settle
  * rest fill as houses; where an essential doesn't fit a spot, a house fills it instead so rows never
  * starve. rectClear skips cells over cross-streets, so rows break cleanly at intersections. Pure.
  */
-export function placePlots(roads: boolean[][], frontages: Frontage[], cols: number, rows: number, rng: Rng, settlement: Settlement, reserved: PlazaRect | null = null): Plot[] {
+export function placePlots(roads: boolean[][], frontages: Frontage[], cols: number, rows: number, rng: Rng, settlement: Settlement, sizes: BuildingSizes, reserved: PlazaRect | null = null): Plot[] {
   const plots: Plot[] = []
   if (frontages.length === 0) return plots
   const occ = roads.map(r => r.slice())
@@ -332,8 +342,9 @@ export function placePlots(roads: boolean[][], frontages: Frontage[], cols: numb
     for (const type of ['store', 'hospital'] as BuildingType[]) {
       let guard = 0
       while (pos + 2 <= topSouth.hi && guard++ < 1000) {
-        const len = plotWidth(type, rng)
-        const depth = depthOf(type)
+        const len = plotWidth(type, rng, sizes)
+        const depth = len === null ? null : sizes.depthOf(type, len)
+        if (len === null || depth === null) break // no backend size for this type — never invent one
         const foot = footprint(topSouth, pos, len, depth)
         const reserve = expandRect(foot, 1)
         if (!rectClear(reserve, occ, cols, rows)) { pos += 1; continue }
@@ -368,8 +379,9 @@ export function placePlots(roads: boolean[][], frontages: Frontage[], cols: numb
       const tryTypes: BuildingType[] = want ? [want, 'house'] : ['house']
       let placed = false
       for (const type of tryTypes) {
-        const len = plotWidth(type, rng)
-        const depth = depthOf(type)
+        const len = plotWidth(type, rng, sizes)
+        const depth = len === null ? null : sizes.depthOf(type, len)
+        if (len === null || depth === null) continue // no backend size for this type — never invent one
         const foot = footprint(f, pos, len, depth)
         // Reserve the footprint + a 1-cell margin on every side (the road-side cell is the setback
         // yard, never the street; the other sides are the no-touch buffer trees fill) so no two
@@ -393,9 +405,9 @@ export function placePlots(roads: boolean[][], frontages: Frontage[], cols: numb
 
 /** Compose the steps: road GRID → reserve the central SQUARE → fill frontages with rows of lots
  *  AROUND the square. The pipeline the generator stamps (it paves the square + drops ONE fountain). */
-export function planVillage(cols: number, rows: number, rng: Rng, settlement: Settlement = 'town'): VillageLayout {
+export function planVillage(cols: number, rows: number, rng: Rng, sizes: BuildingSizes, settlement: Settlement = 'town'): VillageLayout {
   const { roads, frontages, entrances } = planRoads(cols, rows, rng, settlement)
   const plaza = planPlaza(cols, rows, roads, settlement)
-  const plots = placePlots(roads, frontages, cols, rows, rng, settlement, plaza)
+  const plots = placePlots(roads, frontages, cols, rows, rng, settlement, sizes, plaza)
   return { roads, plots, entrances, plaza }
 }

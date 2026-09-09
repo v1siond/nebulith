@@ -55,7 +55,8 @@ function renderPanel(props: Partial<React.ComponentProps<typeof PropertiesPanel>
       level={1}
       levelCount={1}
       onLevel={jest.fn()}
-      onOpenSettings={jest.fn()}
+      sectionOpen={() => true}
+      onToggleSection={jest.fn()}
       {...props}
     />,
   )
@@ -108,7 +109,7 @@ describe('#3 the tile-add button sits BELOW Colour and opens a FloatingPanel', (
       const [open, setOpen] = useState(false)
       return (
         <>
-          <PropertiesPanel collision={false} onCollision={jest.fn()} tile={floorTile({ libraryLabel: 'Add tile', onOpenLibrary: () => setOpen(true) })} level={1} levelCount={1} onLevel={jest.fn()} onOpenSettings={jest.fn()} />
+          <PropertiesPanel sectionOpen={() => true} onToggleSection={jest.fn()} collision={false} onCollision={jest.fn()} tile={floorTile({ libraryLabel: 'Add tile', onOpenLibrary: () => setOpen(true) })} level={1} levelCount={1} onLevel={jest.fn()} sectionOpen={() => true} onToggleSection={jest.fn()} />
           {open && (
             <FloatingPanel title="Tile Library — Emoji · cell" accent="cyan" onClose={() => setOpen(false)}>
               <TileLibraryBody styleId="emoji" styleName="Emoji" override={null} paint onPick={jest.fn()} />
@@ -140,7 +141,7 @@ describe('#4 the tile-add button names itself by cell status', () => {
     const { rerender } = renderPanel({ tile: floorTile({ libraryLabel: 'Add tile' }) })
     expect(screen.getByRole('button', { name: 'Add tile' })).toBeInTheDocument()
     rerender(
-      <PropertiesPanel collision={false} onCollision={jest.fn()} tile={floorTile({ libraryLabel: 'Replace tile' })} level={1} levelCount={1} onLevel={jest.fn()} onOpenSettings={jest.fn()} />,
+      <PropertiesPanel collision={false} onCollision={jest.fn()} tile={floorTile({ libraryLabel: 'Replace tile' })} level={1} levelCount={1} onLevel={jest.fn()} sectionOpen={() => true} onToggleSection={jest.fn()} />,
     )
     expect(screen.getByRole('button', { name: 'Replace tile' })).toBeInTheDocument()
   })

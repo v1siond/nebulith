@@ -130,7 +130,7 @@ const ZONAL_ROLE_TILE: Readonly<Record<string, Record<ZoneId, string>>> = {
 
 /** The curated-catalog `tileOverride` a generated prop of `propType` wears in `zone` — so the map
  *  RANDOMIZER pins the SAME Tile Library tiles the palette brush does (per zone/role) instead of the
- *  ~40 generic per-kind EMOJI_TILESET fallbacks. Undefined for props with no curated role (buildings,
+ *  ~40 generic per-kind styleTiles('emoji') fallbacks. Undefined for props with no curated role (buildings,
  *  water, temple/cave furniture, biome features) — those keep their existing tile. Dispatch-table
  *  lookup (OCP: add a role by adding a row, no branching). VISUAL-ONLY — collision/height are unchanged
  *  by the override. Pure. */

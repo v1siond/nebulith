@@ -45,8 +45,10 @@ describe('typed enemies resolve to baked images', () => {
     expect(resolveVisual('enemy', EMOJI_STYLE, undefined)).toMatchObject({ char: '👾' })
   })
 
-  it('ASCII keeps its own enemy art (no override)', () => {
-    expect(enemyTileId('goblin', ASCII_STYLE)).toBeUndefined()
+  // One engine, N styles: a goblin is a goblin in every style, and /tiles/ascii/goblin.png exists.
+  it('resolves the enemy tile in WHATEVER style is active — same label, different png', () => {
+    expect(enemyTileId('goblin', ASCII_STYLE)).toBe('ascii:goblin')
+    expect(enemyTileId('goblin', EMOJI_STYLE)).toBe('emoji:goblin')
   })
 })
 
@@ -60,9 +62,13 @@ describe('person variants resolve to baked images', () => {
     expect(onDisk((v as ImageVisual).src)).toBe(true)
   })
 
-  it('no variant / ASCII → no override → the base figure (fallback, never a raw glyph)', () => {
+  it('resolves the variant figure in WHATEVER style is active (same label, different png)', () => {
+    expect(personVariantTileId('male', ASCII_STYLE)).toBe('ascii:man')
+    expect(personVariantTileId('male', EMOJI_STYLE)).toBe('emoji:man')
+  })
+
+  it('no variant → no override → the base figure', () => {
     expect(personVariantTileId(undefined, EMOJI_STYLE)).toBeUndefined()
-    expect(personVariantTileId('male', ASCII_STYLE)).toBeUndefined()
   })
 })
 

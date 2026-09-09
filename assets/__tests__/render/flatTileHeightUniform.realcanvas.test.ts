@@ -14,11 +14,11 @@
  *
  * Proved against the production iso path (drawIsoAssetAscii) on a REAL @napi-rs/canvas.
  */
+import { styleTiles } from '@/engine/tileset/styleTiles'
 import { installRealCanvas, type RealCanvasHarness } from '@/__tests__/helpers/realCanvas'
 import { installSeedTileset } from '@/__tests__/helpers/tilesetSeed'
 import { drawIsoAssetAscii } from '@/engine/render/iso'
 import { EMOJI_STYLE } from '@/game/artStyle'
-import { EMOJI_TILESET } from '@/engine/tileset/emojiTileset'
 import type { GridAsset } from '@/engine/IsometricGrid'
 import type { TileGeom } from '@/engine/render/tileHit'
 
@@ -29,7 +29,7 @@ const TW = 30, TH = 15, CX = 200, CY = 250
 
 /** Any emoji tile that carries a baked image — a concrete tile to render at various heights. */
 function anImageTileKey(): string {
-  const hit = Object.entries(EMOJI_TILESET).find(([, t]) => t.image && t.category !== 'units')
+  const hit = Object.entries(styleTiles('emoji')).find(([, t]) => t.image && t.category !== 'units')
   if (!hit) throw new Error('fixture has no image-backed non-unit emoji tile')
   return hit[0]
 }
@@ -54,7 +54,7 @@ function paintedPixels(cv: ReturnType<RealCanvasHarness['makeCanvas']>): number 
 beforeAll(async () => {
   H = installRealCanvas().harness
   const srcs = new Set<string>()
-  for (const t of Object.values(EMOJI_TILESET)) if (t.image) srcs.add(t.image)
+  for (const t of Object.values(styleTiles('emoji'))) if (t.image) srcs.add(t.image)
   for (const s of srcs) H.registerSolid(s, '#00c800')
   await H.warm([...srcs])
 })

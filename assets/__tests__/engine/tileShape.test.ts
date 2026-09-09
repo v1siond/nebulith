@@ -11,13 +11,12 @@
  *      image draws (the same cube faces) PLUS a rounding clip/ellipse; square → 3 image draws with NO clip. So the
  *      clip discriminates a rounded cuboid from a plain one — both keep the 3 painted faces.
  */
+import { makeStyleTile, setStyleTile, styleCatalog, styleTile } from '@/engine/tileset/styleTiles'
 import { stampComposition } from '@/game/runtime/composition'
 import { drawIsoAssetAscii, roundedBlockEllipse } from '@/engine/render/iso'
 import { pointInPolygon } from '@/engine/render/tileHit'
 import { serializeGrid, deserializeToGrid } from '@/lib/api'
 import { IsometricGrid, type GridAsset } from '@/engine/IsometricGrid'
-import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
-import { EMOJI_TILESET } from '@/engine/tileset/emojiTileset'
 import { EMOJI_STYLE } from '@/game/artStyle'
 import type { Composition } from '@/engine/tileset/tileset'
 
@@ -50,9 +49,9 @@ describe('stampComposition — a composition CELL can ship a default shape (sett
   const KIND = '__shape_lamp__'
 
   beforeAll(() => {
-    ASCII_TILESET.tiles[BALL_LABEL] = { label: BALL_LABEL, glyph: 'o', position: 'single', walkable: false, colorRole: 'building' }
-    ASCII_TILESET.tiles[PLAIN_LABEL] = { label: PLAIN_LABEL, glyph: '#', position: 'single', walkable: false, colorRole: 'building' }
-    ;(ASCII_TILESET.compositions as Record<string, Composition>)[KIND] = {
+    setStyleTile('ascii', BALL_LABEL, makeStyleTile(BALL_LABEL, { char: 'o', position: 'single', walkable: false, colorRole: 'building' }))
+    setStyleTile('ascii', PLAIN_LABEL, makeStyleTile(PLAIN_LABEL, { char: '#', position: 'single', walkable: false, colorRole: 'building' }))
+    ;(styleCatalog('ascii').compositions as Record<string, Composition>)[KIND] = {
       footprint: { w: 1, h: 2 },
       cells: [
         { dx: 0, dy: 0, level: 0, label: BALL_LABEL, settings: { shape: 'circle' } }, // a globe on top
@@ -61,9 +60,9 @@ describe('stampComposition — a composition CELL can ship a default shape (sett
     }
   })
   afterAll(() => {
-    delete ASCII_TILESET.tiles[BALL_LABEL]
-    delete ASCII_TILESET.tiles[PLAIN_LABEL]
-    delete (ASCII_TILESET.compositions as Record<string, Composition>)[KIND]
+    delete styleTile('ascii', BALL_LABEL)
+    delete styleTile('ascii', PLAIN_LABEL)
+    delete (styleCatalog('ascii').compositions as Record<string, Composition>)[KIND]
   })
 
   test('the circle cell → asset.shape === "circle"; the plain cell → no shape (byte-identical to before)', () => {
@@ -112,9 +111,9 @@ describe('drawIsoAssetAscii ROUTES on asset.shape (end-to-end)', () => {
     ;(HTMLCanvasElement.prototype as unknown as { getContext: (t: string) => unknown }).getContext = function (t: string) {
       return t === '2d' ? new FakeOffscreenCtx() : null
     }
-    EMOJI_TILESET[LABEL] = { char: '🌊', color: '#2f6fbf', image: SRC, height: 1 }
+    setStyleTile('emoji', LABEL, makeStyleTile(LABEL, { char: '🌊', color: '#2f6fbf', image: SRC, height: 1 }))
   })
-  afterAll(() => { delete EMOJI_TILESET[LABEL] })
+  afterAll(() => { delete styleTile('emoji', LABEL) })
 
   test('default (square) → the tile image is painted on THREE faces (3 image draws) and NO rounding clip', () => {
     const r = recordingCtx()

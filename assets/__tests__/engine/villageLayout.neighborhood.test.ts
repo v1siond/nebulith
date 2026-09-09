@@ -1,4 +1,9 @@
-import { planVillage, planRoads, type Plot } from '../../engine/villageLayout'
+import '@/__tests__/helpers/installTilesetSeed' // the planner sizes its plots from the LOADED compositions — install the captured backend payload
+import { planVillage, planRoads, type Plot } from '@/engine/villageLayout'
+import { BACKEND_BUILDING_SIZES } from '@/engine/buildingCatalog'
+
+// The planner takes its sizes as a DEPENDENCY so it stays pure; hand it the real backend-backed one.
+const SIZES = BACKEND_BUILDING_SIZES
 
 // Deterministic rng so the layout is reproducible per seed.
 function seeded(seed: number): () => number {
@@ -53,7 +58,7 @@ describe('neighborhood layout LOGIC (asserted on the grid)', () => {
     // may not fit every facing, so we assert the property holds across a handful of seeds (both sides get lined).
     const seen = new Set<string>()
     for (const s of [12, 13, 42, 7, 99]) {
-      for (const p of planVillage(COLS, ROWS, seeded(s), 'town').plots) seen.add(p.facing)
+      for (const p of planVillage(COLS, ROWS, seeded(s), SIZES, 'town').plots) seen.add(p.facing)
     }
     for (const f of ['south', 'north', 'east', 'west'] as const) {
       expect(seen.has(f)).toBe(true)
@@ -68,7 +73,7 @@ describe('neighborhood layout LOGIC (asserted on the grid)', () => {
     let maxRun = 0
     let tightPair = false
     for (const seed of [12, 13, 42, 7, 99]) {
-      const { plots } = planVillage(COLS, ROWS, seeded(seed), 'town')
+      const { plots } = planVillage(COLS, ROWS, seeded(seed), SIZES, 'town')
       // group plots by the frontage LINE they share (same road-facing edge), recording their position
       // ALONG the street.
       const groups = new Map<string, number[]>()
@@ -90,7 +95,7 @@ describe('neighborhood layout LOGIC (asserted on the grid)', () => {
 
   test('every house: faces its road, set back (yard cell), never on a road, no overlap', () => {
     for (const seed of [1, 2, 3, 4, 5]) {
-      const { roads, plots } = planVillage(COLS, ROWS, seeded(seed), 'town')
+      const { roads, plots } = planVillage(COLS, ROWS, seeded(seed), SIZES, 'town')
       for (let i = 0; i < plots.length; i++) {
         const a = footRect(plots[i])
         // footprint in-bounds and entirely OFF the roads
@@ -115,7 +120,7 @@ describe('neighborhood layout LOGIC (asserted on the grid)', () => {
 
   test('town is MODEST (capped) and NO two buildings touch (≥1 cell of trees between)', () => {
     for (const seed of [1, 2, 3, 4]) {
-      const { plots } = planVillage(COLS, ROWS, seeded(seed), 'town')
+      const { plots } = planVillage(COLS, ROWS, seeded(seed), SIZES, 'town')
       expect(plots.length).toBeLessThanOrEqual(18) // capped at the town BUILDING_CAP — a modest settlement
       expect(plots.length).toBeGreaterThanOrEqual(4) // ...but still a real settlement
       for (let i = 0; i < plots.length; i++) {
@@ -129,8 +134,8 @@ describe('neighborhood layout LOGIC (asserted on the grid)', () => {
   })
 
   test('coverage: both settlements are populated, and the GRID densifies town→city', () => {
-    expect(planVillage(COLS, ROWS, seeded(21), 'town').plots.length).toBeGreaterThanOrEqual(12)
-    expect(planVillage(COLS, ROWS, seeded(21), 'city').plots.length).toBeGreaterThanOrEqual(12)
+    expect(planVillage(COLS, ROWS, seeded(21), SIZES, 'town').plots.length).toBeGreaterThanOrEqual(12)
+    expect(planVillage(COLS, ROWS, seeded(21), SIZES, 'city').plots.length).toBeGreaterThanOrEqual(12)
     // What scales with settlement is the street GRID density (more blocks) on top of the caps.
     // A city has at least as many streets as a town (and on a big map, far more buildings).
     const streets = (s: 'town' | 'city') => {

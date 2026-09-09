@@ -21,13 +21,12 @@
  * is stubbed by a solid raster + warmed BEFORE any render (the images-decoded condition the real app gates
  * on). No network at test time.
  */
+import { styleTiles } from '@/engine/tileset/styleTiles'
 import { installRealCanvas, type RealCanvasHarness } from '@/__tests__/helpers/realCanvas'
 import { installSeedTileset } from '@/__tests__/helpers/tilesetSeed'
 import { drawIsoAssetAscii, drawIsoEntity } from '@/engine/render/iso'
 import { EMOJI_STYLE, ASCII_STYLE } from '@/game/artStyle'
 import { placementFor } from '@/game/editor/tilePlacement'
-import { EMOJI_TILESET } from '@/engine/tileset/emojiTileset'
-import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 import type { GridAsset } from '@/engine/IsometricGrid'
 import type { TileGeom } from '@/engine/render/tileHit'
 import type { Entity } from '@/game/types'
@@ -45,10 +44,10 @@ interface Row { key: string; category: string; height: number; src?: string }
 
 // Read the LIVE loaded tilesets (installed from the baked fixture) — the exact set /api/tilesets serves.
 function emojiRows(): Row[] {
-  return Object.entries(EMOJI_TILESET).map(([key, t]) => ({ key, category: t.category ?? '(none)', height: t.height ?? 0, src: t.image }))
+  return Object.entries(styleTiles('emoji')).map(([key, t]) => ({ key, category: t.category ?? '(none)', height: t.height ?? 0, src: t.image }))
 }
 function asciiRows(): Row[] {
-  return Object.entries(ASCII_TILESET.tiles).map(([key, t]) => ({ key, category: t.category ?? '(none)', height: (t as { height?: number }).height ?? 0, src: t.image?.src }))
+  return Object.entries(styleTiles('ascii')).map(([key, t]) => ({ key, category: t.category ?? '(none)', height: (t as { height?: number }).height ?? 0, src: t.image?.src }))
 }
 const nonUnit = (rows: Row[]) => rows.filter(r => r.category !== 'units')
 
@@ -153,7 +152,7 @@ describe('UNIT tiles render as billboards via the entity path — never forced i
   it('every figure-unit tile routes to the ENTITY path (not asset/terrain — never a block)', () => {
     const misrouted = unitRows()
       .filter(r => !FX_PROJECTILES.has(r.key))
-      .filter(r => placementFor({ category: 'units', id: `x:${r.key}` }) !== 'entity')
+      .filter(r => placementFor({ category: 'units', id: `x:${r.key}`, settings: { unitRole: 'person' } }) !== 'entity')
       .map(r => r.key)
     expect(misrouted).toEqual([])
   })

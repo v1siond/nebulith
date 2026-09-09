@@ -28,6 +28,10 @@ import {
 import { POWER_SHOT } from '@/game/abilities'
 import type { AttackPattern, EnemyAttack } from '@/game/types'
 
+import { installLiveCatalogs } from '@/__tests__/helpers/catalogs'
+
+beforeEach(installLiveCatalogs)
+
 describe('movement patterns', () => {
   it('buildBoxPatrol makes a 4-corner loop around the origin', () => {
     const p = buildBoxPatrol(5, 5, 'sequential', 2)

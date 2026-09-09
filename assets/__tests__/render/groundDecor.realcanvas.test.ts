@@ -11,14 +11,13 @@
  * Routing: makeGroundDecor carries the decor tile's LABEL, and the render (groundDecorImage → labelTileImage)
  * resolves that label to the baked image per style. Both proven here, per style (emoji AND ascii).
  */
+import { makeStyleTile, setStyleTile, styleCatalog, styleTile } from '@/engine/tileset/styleTiles'
 import { installRealCanvas, type RealCanvasHarness } from '@/__tests__/helpers/realCanvas'
 import { drawIsoAssetAscii } from '@/engine/render/iso'
 import { groundDecorImage } from '@/engine/render/shared'
 import { makeGroundDecor } from '@/engine/stageGenerator'
 import { pickGroundDecor } from '@/engine/tileset/tileset'
 import { EMOJI_STYLE, ASCII_STYLE } from '@/game/artStyle'
-import { EMOJI_TILESET } from '@/engine/tileset/emojiTileset'
-import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 import { labelTileImage } from '@/engine/render/shared'
 import type { GridAsset } from '@/engine/IsometricGrid'
 
@@ -52,13 +51,13 @@ beforeAll(async () => {
   H = installRealCanvas().harness
   // Seed a decor tile in BOTH styles (as the DB serves them). Emoji bakes a coloured PNG (GREEN stand-in);
   // ascii bakes a WHITE tint-target that the decor colour recolours.
-  EMOJI_TILESET[EMOJI_LABEL] = { char: '❀', color: '#7ac07a', image: EMOJI_SRC, height: 0, category: 'decor', settings: { colors: { spring: '#7ac07a' } } }
-  ASCII_TILESET.tiles[ASCII_LABEL] = { label: ASCII_LABEL, glyph: '❀', position: 'single', walkable: true, colorRole: 'decor', category: 'decor', settings: { colors: { spring: '#c79bb4' } }, image: { kind: 'image', src: ASCII_SRC } }
+  setStyleTile('emoji', EMOJI_LABEL, makeStyleTile(EMOJI_LABEL, { char: '❀', color: '#7ac07a', image: EMOJI_SRC, height: 0, category: 'decor', settings: { colors: { spring: '#7ac07a' } } }))
+  setStyleTile('ascii', ASCII_LABEL, makeStyleTile(ASCII_LABEL, { char: '❀', position: 'single', walkable: true, colorRole: 'decor', category: 'decor', settings: { colors: { spring: '#c79bb4' } }, image: ASCII_SRC }))
   H.registerSolid(EMOJI_SRC, GREEN)
   H.registerSolid(ASCII_SRC, '#ffffff') // ascii tiles bake white so a colour setting can recolour them
   await H.warm([EMOJI_SRC, ASCII_SRC])
 })
-afterAll(() => { delete EMOJI_TILESET[EMOJI_LABEL]; delete ASCII_TILESET.tiles[ASCII_LABEL] })
+afterAll(() => { delete styleTile('emoji', EMOJI_LABEL); delete styleTile('ascii', ASCII_LABEL) })
 
 describe('ground decor renders its BAKED IMAGE (not a fillText glyph) — iso, per style', () => {
   test('EMOJI: decor with no colour draws its NATIVE baked image (a filled GREEN diamond, not a small glyph)', () => {
@@ -95,10 +94,10 @@ describe('the decor COLOUR setting filters the decor image — iso, per style', 
 })
 
 describe('routing — makeGroundDecor carries the tile LABEL, and the render resolves its baked image', () => {
-  // NOTE: makeGroundDecor reads the module ASCII_TILESET; only our ascii decor label is present, so the
+  // NOTE: makeGroundDecor reads the module styleCatalog('ascii'); only our ascii decor label is present, so the
   // per-cell pick lands on it for the 'spring' zone (its settings.colors carries 'spring').
   test('pickGroundDecor exposes the decor tile LABEL (the render swap key)', () => {
-    const picked = pickGroundDecor(ASCII_TILESET, 'spring', 4, 7)
+    const picked = pickGroundDecor(styleCatalog('ascii'), 'spring', 4, 7)
     expect(picked).not.toBeNull()
     expect(picked!.label).toBe(ASCII_LABEL)
   })

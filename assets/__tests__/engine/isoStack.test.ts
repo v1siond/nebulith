@@ -14,9 +14,9 @@
  * Verified through a recording ctx (the isoTileBlock.test.ts technique) that also tracks translation, so
  * the effective screen y of the cube vertices / billboard glyph is observable per stack level.
  */
+import { styleTiles } from '@/engine/tileset/styleTiles'
 import { isoStackLift, isoDepthCompare, ISO_BLOCK_H_FRAC, drawIsoAssetAscii } from '@/engine/render/iso'
 import { EMOJI_STYLE, rebuildEmojiStyle } from '@/game/artStyle'
-import { EMOJI_TILESET } from '@/engine/tileset/emojiTileset'
 import type { GridAsset } from '@/engine/IsometricGrid'
 
 // This is a MECHANISM test for the stack lift + the tall-cube-vs-thin-slab height split, so it seeds exactly
@@ -24,13 +24,13 @@ import type { GridAsset } from '@/engine/IsometricGrid'
 // into a full cube) and a height-0 DECORATIVE tree (no tileset height → a lifted THIN SLAB, still a block).
 // Kept out of the fixture so the two kinds are unambiguous regardless of the DB's per-tile height choices.
 beforeAll(() => {
-  EMOJI_TILESET.rock = { char: '🪨', color: '#8a8a8a', height: 1 }
-  EMOJI_TILESET.tree = { char: '🌲', color: '#2f8f3f' } // no height → a height-0 thin-slab block (never a billboard)
+  styleTiles('emoji').rock = { char: '🪨', color: '#8a8a8a', height: 1 }
+  styleTiles('emoji').tree = { char: '🌲', color: '#2f8f3f' } // no height → a height-0 thin-slab block (never a billboard)
   rebuildEmojiStyle()
 })
 afterAll(() => {
-  delete EMOJI_TILESET.rock
-  delete EMOJI_TILESET.tree
+  delete styleTiles('emoji').rock
+  delete styleTiles('emoji').tree
   rebuildEmojiStyle()
 })
 

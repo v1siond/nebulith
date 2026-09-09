@@ -10,10 +10,9 @@
  * tiles (a wrong-style flash). Sets `window.__nebulithTilesets` and logs, so "the app is using the
  * backend" is verifiable (devtools console + a GET to `${NEBULITH_API}/tilesets` in the network tab).
  */
-import { ASCII_TILESET, setAsciiTileset } from './asciiTileset'
-import { EMOJI_TILESET, setEmojiTileset, type EmojiTile } from './emojiTileset'
-import { rebuildEmojiStyle } from '@/game/artStyle'
-import type { Tileset, TilesetTile, TilePosition, ZonePalette, GroundTile, Composition } from './tileset'
+import { rebuildEmojiStyle, setStyleList } from '@/game/artStyle'
+import { loadedStyleIds, setStyleCatalog, styleTiles, type StyleTile } from './styleTiles'
+import type { Composition, TilePosition, ZonePalette, GroundTile } from './tileset'
 import type { TilePose } from './pose'
 import type { TileView, TileViewSettings } from './tileViewSettings'
 import { NEBULITH_API } from '@/lib/nebulithApi'
@@ -50,6 +49,9 @@ interface ApiTileset {
   id?: number | string
   key: string
   name: string
+  /** The style picker's affordance + order — a tileset row IS an art style (§3.14a `BUILT_IN_STYLES`). */
+  icon?: string | null
+  position?: number | null
   /** The OLD blob — still holds `palettes` + `terrain` for ascii (out of scope to migrate this task). */
   data: { palettes?: Record<string, ZonePalette>; terrain?: Record<string, GroundTile> }
   tiles?: Record<string, ApiTile>
@@ -65,22 +67,52 @@ const tilesetIdByKey = new Map<string, number | string>()
 const ORIGIN = NEBULITH_API.replace(/\/api\/?$/, '')
 const abs = (u: string | null | undefined): string | undefined => (u ? (u.startsWith('http') ? u : ORIGIN + u) : undefined)
 
-/** Map one backend ascii tile row → a TilesetTile (the shape the renderer/resolver read). */
-function toAsciiTilesetTile(label: string, tile: ApiTile): TilesetTile {
-  const imageUrl = abs(tile.image_url)
+/**
+ * The tile's `settings` with any `frames` array absolutised against the backend origin.
+ *
+ * Returns the SAME object when there is nothing to rewrite, so the common case allocates nothing and a
+ * tile's settings stay referentially stable across loads.
+ */
+function absoluteFrames(settings: Record<string, unknown> | undefined): Record<string, unknown> | undefined {
+  const frames = settings?.frames
+  if (!Array.isArray(frames)) return settings
+  const resolved = frames.map(frame => (typeof frame === 'string' ? abs(frame) : frame)).filter(Boolean)
+  return { ...settings, frames: resolved }
+}
+
+
+/**
+ * Map one backend row → the ONE tile shape, for ANY style.
+ *
+ * The whole "one engine, N art styles" rule in a function: every style's rows go through it, and the only
+ * field that differs between `grass` in ascii and `grass` in emoji is `image`. It replaces the two
+ * per-style mappers that produced two different shapes for the same concept.
+ *
+ * `char` takes the glyph OR the emoji, because they are the same thing: the mark the style's picture was
+ * baked from.
+ */
+function toStyleTile(label: string, tile: ApiTile): StyleTile {
   return {
     label,
-    glyph: tile.glyph ?? '',
-    position: tile.settings?.position ?? 'single',
-    walkable: !tile.blocking,
-    height: tile.height, // carry the DB block-height so ASCII reads it uniformly (was dropped → flat tiles lost their 0.1)
-    colorRole: tile.color_role ?? '',
+    title: tile.title ?? undefined,
     category: tile.category,
-    title: tile.title,
-    image: imageUrl ? { kind: 'image', src: imageUrl, char: tile.glyph } : undefined,
-    settings: tile.settings, // pass the backend blob through so the stamp reads fadeNear/cutawayRoof
+    height: tile.height,
+    walkable: !tile.blocking,
+    image: abs(tile.image_url),
+    char: tile.glyph || tile.emoji || '',
+    color: tile.settings?.color,
+    colorRole: tile.color_role ?? '',
+    position: tile.settings?.position ?? 'single',
+    pose: tile.settings?.pose,
+    views: tile.settings?.views,
+    // `settings.frames` is the baked picture PER ANIMATION FRAME, and it arrives root-relative exactly
+    // like `image_url` — so it gets absolutised through the same `abs`. It was passed through raw, which
+    // made every animated tile's frames unusable as URLs (`/tiles/ascii/dragon.png` resolved against the
+    // FRONTEND origin and 404'd). Nothing consumed them yet, so nothing had noticed.
+    settings: absoluteFrames(tile.settings),
   }
 }
+
 
 // The ground FAMILY: a paved road (`roads`) or a constructed floor (`floors`) is still walkable ground,
 // painted flat from its own char/fg/bg variants — the finer taxonomy split the sidebar bucket, not the
@@ -91,7 +123,7 @@ const GROUND_CATEGORIES = new Set(['terrain', 'roads', 'floors'])
  *  settings.variants) — "terrain is just another tile", so ground colour comes from each tile's own
  *  settings, never a `data.terrain` blob. Tiles without variants are skipped (resolveGroundTile then
  *  falls back to grass). */
-function buildAsciiTerrain(apiTiles: Record<string, ApiTile>): Record<string, GroundTile> {
+function buildTerrain(apiTiles: Record<string, ApiTile>): Record<string, GroundTile> {
   const terrain: Record<string, GroundTile> = {}
   for (const [label, tile] of Object.entries(apiTiles)) {
     const v = tile.settings?.variants
@@ -100,66 +132,58 @@ function buildAsciiTerrain(apiTiles: Record<string, ApiTile>): Record<string, Gr
   return terrain
 }
 
-/** Build the full ASCII Tileset from a backend row — tiles mapped per-label + terrain from the terrain
- *  tile rows' settings.variants + compositions. NO `palettes`/`terrain` blob: every colour lives on its
- *  own tile (a tile's colour comes from its settings, not a shared palette or a residual data blob). */
-function buildAsciiTileset(t: ApiTileset): Tileset {
-  const apiTiles = t.tiles ?? {}
-  const tiles: Record<string, TilesetTile> = {}
-  for (const [label, tile] of Object.entries(apiTiles)) tiles[label] = toAsciiTilesetTile(label, tile)
-  return {
-    id: t.key,
-    name: t.name,
-    tiles,
-    palettes: {},
-    terrain: buildAsciiTerrain(apiTiles),
-    compositions: t.compositions ?? {},
-  }
-}
 
-/** Map one backend emoji tile row → an EmojiTile (the shape EMOJI_TILESET/artStyle read). */
-function toEmojiTile(tile: ApiTile): EmojiTile {
-  return {
-    char: tile.emoji ?? '',
-    color: tile.settings?.color ?? '',
-    image: abs(tile.image_url),
-    height: tile.height,
-    category: tile.category,
-    title: tile.title,
-    pose: tile.settings?.pose,
-    views: tile.settings?.views,
-    settings: tile.settings, // pass the backend blob through (same generic fadeNear/cutawayRoof keys)
-  }
-}
 
-/** Build the full emoji tile map from a backend row. */
-function buildEmojiTileset(t: ApiTileset): Record<string, EmojiTile> {
-  const tiles: Record<string, EmojiTile> = {}
-  for (const [label, tile] of Object.entries(t.tiles ?? {})) tiles[label] = toEmojiTile(tile)
-  return tiles
-}
 
 /** Install a `/api/tilesets` payload's entries (one per style: ascii/emoji) into the live tileset
  *  singletons — the same per-entry mapping `loadTilesetsFromBackend` uses, factored out so tests can
  *  install a captured fixture without a network round-trip. Returns the style keys it installed. */
 export function installTilesetPayload(list: ApiTileset[]): string[] {
   const loaded: string[] = []
+  // EVERY served style installs through the ONE mapper into the ONE store. No per-style branch: a style is
+  // a set of pictures for the same labels, so a third style needs no code here at all.
+  for (const t of list) {
+    const tiles = Object.fromEntries(
+      Object.entries(t.tiles ?? {}).map(([label, tile]) => [label, toStyleTile(label, tile)]),
+    )
+    setStyleCatalog({
+      id: t.key,
+      name: t.name,
+      tiles,
+      compositions: t.compositions ?? {},
+      // The ground index comes from the ground TILES' own `settings.variants` — "terrain is just another
+      // tile", so ground colour is a per-tile setting, never a `data.terrain` blob.
+      terrain: buildTerrain(t.tiles ?? {}),
+    })
+  }
+  // The STYLE LIST is backend data: every served tileset is a style the picker offers, in the backend's
+  // `position` order, with the backend's name and icon. Installed before the tiles so a style is never
+  // offered without its catalog behind it.
+  setStyleList(
+    [...list]
+      .sort((a, b) => (a.position ?? 0) - (b.position ?? 0) || a.key.localeCompare(b.key))
+      .map(t => ({ id: t.key, name: t.name, icon: t.icon ?? '' })),
+  )
   for (const t of list) {
     if (t.id != null) tilesetIdByKey.set(t.key, t.id) // remember the row id so a Save can PUT it back
-    if (t.key === 'ascii') { setAsciiTileset(buildAsciiTileset(t)); loaded.push('ascii') }
-    if (t.key === 'emoji') { setEmojiTileset(buildEmojiTileset(t)); rebuildEmojiStyle(); loaded.push('emoji') } // tileset (incl. image refs) comes straight from the backend DB
-  }
+    loaded.push(t.key)
+  }  // The Style objects' per-kind `map` is a view over the store, so refresh it after an install.
+  rebuildEmojiStyle()
+
   return loaded
 }
 
-/** Every baked-image src the CURRENTLY installed tilesets reference — the exact `tileImage` cache keys the
- *  render will draw. It covers the whole render surface: plain tiles, composition part-labels, held weapons
- *  and PLACED ENTITIES all resolve their picture through an EMOJI_TILESET / ASCII_TILESET row's `image`
- *  (an entity is just a `units` tile), so decoding this set decodes everything a first frame can paint. */
+/** Every baked-image src the installed catalogs reference — the exact `tileImage` cache keys the render
+ *  will draw. It covers the whole render surface: plain tiles, composition part-labels, held weapons and
+ *  PLACED ENTITIES all resolve their picture through a tile row's `image` (an entity is just a `units`
+ *  tile), so decoding this set decodes everything a first frame can paint.
+ *
+ *  Style-agnostic: it walks whatever styles are installed, so a third one is preloaded automatically. */
 function collectInstalledImageSrcs(): string[] {
   const srcs = new Set<string>()
-  for (const t of Object.values(EMOJI_TILESET)) if (t.image) srcs.add(t.image)
-  for (const t of Object.values(ASCII_TILESET.tiles)) if (t.image?.src) srcs.add(t.image.src)
+  for (const id of loadedStyleIds()) {
+    for (const tile of Object.values(styleTiles(id))) if (tile.image) srcs.add(tile.image)
+  }
   return [...srcs]
 }
 
@@ -193,7 +217,8 @@ export async function loadTilesetsFromBackend(): Promise<string[]> {
 export async function saveTilesetToBackend(key: 'emoji' | 'ascii'): Promise<void> {
   const id = tilesetIdByKey.get(key)
   if (id == null) throw new Error(`no backend id for the ${key} tileset — load it first`)
-  const data = key === 'emoji' ? EMOJI_TILESET : ASCII_TILESET
+  // PUT the style's own tiles back. One store, so one read — no per-style branch.
+  const data = styleTiles(key)
   const res = await fetch(`${NEBULITH_API}/tilesets/${id}`, {
     method: 'PUT',
     headers: { 'content-type': 'application/json', accept: 'application/json' },

@@ -63,6 +63,9 @@ function recordingCtx() {
     fillStyle: '#000', strokeStyle: '#000', font: '', textAlign: '' as CanvasTextAlign,
     textBaseline: '' as CanvasTextBaseline, lineWidth: 1, lineCap: '' as CanvasLineCap, globalAlpha: 1,
     save() {}, restore() {}, rotate() {}, setLineDash() {},
+    // `transform` is how the render lays a tile image onto an iso face (fillIsoFaceWithTile); a fake ctx
+    // missing it makes the IMAGE path throw, which reads as a geometry failure rather than a stub gap.
+    transform() {}, setTransform() {}, resetTransform() {}, getTransform() { return { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 } },
     translate(x: number, y: number) { translates.push({ x, y }) },
     scale() {},
     beginPath() {}, moveTo() {}, lineTo() {}, quadraticCurveTo() {}, bezierCurveTo() {}, arc() {},

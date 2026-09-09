@@ -85,7 +85,8 @@ function renderCard(props: Partial<React.ComponentProps<typeof PropertiesPanel>>
       level={1}
       levelCount={1}
       onLevel={jest.fn()}
-      onOpenSettings={jest.fn()}
+      sectionOpen={() => true}
+      onToggleSection={jest.fn()}
       onOpenTriggers={jest.fn()}
       onClearTiles={jest.fn()}
       onRemove={jest.fn()}
@@ -192,7 +193,8 @@ describe('Stats… opens a draggable, movable, resizable modal with the extra un
             level={1}
             levelCount={1}
             onLevel={jest.fn()}
-            onOpenSettings={jest.fn()}
+            sectionOpen={() => true}
+            onToggleSection={jest.fn()}
             unitSection={<UnitSettingsSection unit={unitModel({ onOpenStats: () => setOpen(true) })} />}
           />
           {open && (

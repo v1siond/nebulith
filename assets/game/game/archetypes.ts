@@ -13,7 +13,6 @@
  */
 import type { Stats, AttackPattern } from './types'
 import { buildAttackPattern, makeEnemyAttack, enemyAttackFromAbility, ENEMY_ATTACK_PRESETS } from './patterns'
-import { FIRE_SLASH } from './abilities'
 
 /** The archetype roster. Melee: grunt/brute/skirmisher; ranged: archer/mage; mixed: raider;
  *  cave: flyer (bat) / crawler (spider); temple: sentinel (guardian). */
@@ -72,7 +71,20 @@ export const ENEMY_ARCHETYPES: Readonly<Record<EnemyArchetypeId, EnemyArchetype>
     stats: { strength: 12, intelligence: 0, defense: 6, maxHp: 72, dodge: 0 },
     moveDelayMs: 1700,
     reachCells: MELEE_REACH,
-    attack: buildAttackPattern('sequential', [enemyAttackFromAbility(FIRE_SLASH)]),
+    // The brute's heavy swing carries its OWN numbers, like every other archetype in this table.
+    //
+    // It used to borrow the registry's Fire Slash object (`enemyAttackFromAbility(FIRE_SLASH)`). That
+    // stopped being possible when the registry became backend data (§3.14b #2): `ENEMY_ARCHETYPES` is a
+    // module-level const, so it is built the moment this file is imported — long before any fetch resolves
+    // — and would have captured an empty registry and silently given the brute a 8-damage tap. Backend data
+    // cannot be read at module scope; it has to be read when something renders or runs.
+    //
+    // The values are Fire Slash's, unchanged: 18 damage on a 6s cooldown, the fire-slash animation. When
+    // §3.14b #3 moves the archetypes themselves into the backend, both rows become catalog data and this
+    // duplication goes away.
+    attack: buildAttackPattern('sequential', [
+      { ...makeEnemyAttack('melee', 18, 6000, 'fire-slash'), name: 'Fire Slash' },
+    ]),
   },
   // Glass cannon's nimble cousin: low hp, HIGH dodge, FAST, a light melee on a short
   // cooldown (hits often).

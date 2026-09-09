@@ -3,27 +3,40 @@ import {
   ironHelmet, ironChest, leatherChest, ironGloves, leatherGloves,
   ironBoots, leatherBoots, dodgeRing, focusRing, amulet,
   healthPotion, manaPotion, rageTonic, bomb, teleportScroll,
-  GEAR_CATALOG, starterWarriorGear, starterMageGear,
+  gearCatalog, starterWarriorGear, starterMageGear,
 } from '@/game/gear'
+import { installItemCatalog } from '@/game/itemCatalog'
+import liveItems from '@/__tests__/fixtures/items.json'
 import { allowedSlots } from '@/game/loadout'
 import type { GearSlot } from '@/game/types'
 
+beforeEach(() => installItemCatalog(liveItems.data as never))
+
+describe('with NO catalog loaded, the frontend invents nothing', () => {
+  it('offers no items and no kits', () => {
+    installItemCatalog([])
+    expect(gearCatalog()).toEqual([])
+    expect(starterWarriorGear()).toEqual([])
+    expect(sword()!).toBeUndefined()
+  })
+})
+
 describe('gear catalog — weapons', () => {
   it('melee physical weapons (sword/axe), axe hits harder', () => {
-    for (const w of [sword(), axe()]) {
+    for (const w of [sword()!, axe()!]) {
       expect(w.slot).toBe('weapon')
       if (w.slot !== 'weapon') return
       expect(w.weapon.school).toBe('physical')
       expect(w.weapon.range).toBe('melee')
     }
-    const s = sword(), a = axe()
+    const s = sword()!, a = axe()!
     if (s.slot === 'weapon' && a.slot === 'weapon') {
       expect(a.weapon.baseDamage).toBeGreaterThan(s.weapon.baseDamage)
     }
   })
 
   it('bow is ranged physical; staff is magical with magic + int', () => {
-    const b = bow(), st = staff()
+    const b = bow()!, st = staff()!
     if (b.slot === 'weapon') {
       expect(b.weapon.range).toBe('ranged')
       expect(b.weapon.school).toBe('physical')
@@ -36,7 +49,7 @@ describe('gear catalog — weapons', () => {
   })
 
   it('gun is a ranged physical weapon that deals damage (fires a projectile)', () => {
-    const g = gun()
+    const g = gun()!
     if (g.slot !== 'weapon') throw new Error('gun must be a weapon item')
     expect(g.weapon.kind).toBe('gun')
     expect(g.weapon.range).toBe('ranged')
@@ -45,7 +58,7 @@ describe('gear catalog — weapons', () => {
   })
 
   it('shield carries a block chance and defense', () => {
-    const sh = shield()
+    const sh = shield()!
     if (sh.slot !== 'weapon') throw new Error('shield must be a weapon item')
     expect(sh.weapon.kind).toBe('shield')
     expect(sh.weapon.blockChance ?? 0).toBeGreaterThan(0)
@@ -54,11 +67,11 @@ describe('gear catalog — weapons', () => {
 })
 
 describe('gear catalog — armor covers every slot, with dodge gear', () => {
-  const armors = [ironHelmet(), ironChest(), leatherChest(), ironGloves(), leatherGloves(), ironBoots(), leatherBoots(), dodgeRing(), focusRing(), amulet()]
+  const armors = () => [ironHelmet()!, ironChest()!, leatherChest()!, ironGloves()!, leatherGloves()!, ironBoots()!, leatherBoots()!, dodgeRing()!, focusRing()!, amulet()!]
 
   it('provides a piece for all 6 GearSlots', () => {
     const slots = new Set<GearSlot>()
-    for (const it of armors) {
+    for (const it of armors()) {
       if (it.slot === 'armor') slots.add(it.armor.slot ?? 'chest')
     }
     const expected: GearSlot[] = ['helmet', 'chest', 'gloves', 'boots', 'ring', 'neck']
@@ -66,42 +79,42 @@ describe('gear catalog — armor covers every slot, with dodge gear', () => {
   })
 
   it('some armor grants dodge', () => {
-    const withDodge = armors.filter(it => it.slot === 'armor' && (it.armor.dodgeBonus ?? 0) > 0)
+    const withDodge = armors().filter(it => it.slot === 'armor' && (it.armor.dodgeBonus ?? 0) > 0)
     expect(withDodge.length).toBeGreaterThan(0)
   })
 
   it('rings resolve to ring1/ring2 and a helmet only to helmet (via allowedSlots)', () => {
-    expect(allowedSlots(dodgeRing())).toEqual(['ring1', 'ring2'])
-    expect(allowedSlots(ironHelmet())).toEqual(['helmet'])
+    expect(allowedSlots(dodgeRing()!)).toEqual(['ring1', 'ring2'])
+    expect(allowedSlots(ironHelmet()!)).toEqual(['helmet'])
   })
 })
 
 describe('gear catalog — consumables / special items', () => {
   it('potions/tonic carry their effect; bomb + scroll exist as consumables', () => {
-    const hp = healthPotion(), mp = manaPotion(), rt = rageTonic()
+    const hp = healthPotion()!, mp = manaPotion()!, rt = rageTonic()!
     if (hp.slot === 'consumable') expect(hp.effect.hp).toBe(30)
     if (mp.slot === 'consumable') expect(mp.effect.mana).toBe(20)
     if (rt.slot === 'consumable') expect(rt.effect.rage).toBe(20)
-    expect(bomb().slot).toBe('consumable')
-    expect(teleportScroll().slot).toBe('consumable')
+    expect(bomb()!.slot).toBe('consumable')
+    expect(teleportScroll()!.slot).toBe('consumable')
   })
 
   it('consumables are not equippable (allowedSlots empty)', () => {
-    expect(allowedSlots(healthPotion())).toEqual([])
-    expect(allowedSlots(bomb())).toEqual([])
+    expect(allowedSlots(healthPotion()!)).toEqual([])
+    expect(allowedSlots(bomb()!)).toEqual([])
   })
 })
 
 describe('gear catalog — catalog + starter sets', () => {
-  it('GEAR_CATALOG holds many items with unique ids', () => {
-    expect(GEAR_CATALOG.length).toBeGreaterThanOrEqual(18)
-    const ids = GEAR_CATALOG.map(i => i.id)
+  it('gearCatalog() holds many items with unique ids', () => {
+    expect(gearCatalog().length).toBeGreaterThanOrEqual(18)
+    const ids = gearCatalog().map(i => i.id)
     expect(new Set(ids).size).toBe(ids.length)
   })
 
   it('factories return fresh objects (no shared mutable references)', () => {
-    expect(sword()).not.toBe(sword())
-    expect(GEAR_CATALOG[0]).not.toBe(sword())
+    expect(sword()!).not.toBe(sword()!)
+    expect(gearCatalog()[0]).not.toBe(sword()!)
   })
 
   it('starter sets are non-empty; their gear is equippable', () => {

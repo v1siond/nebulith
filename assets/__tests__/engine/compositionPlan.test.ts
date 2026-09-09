@@ -4,9 +4,9 @@
  * where a composition anchors (clicked cell = footprint CENTRE), which cells it fills (deduped, rotation-aware),
  * how tall it stands, and when it's valid (in-bounds, unblocked, off-road for buildings vs. anywhere for props).
  */
-import '@/__tests__/helpers/installTilesetSeed' // DB-equivalent compositions in ASCII_TILESET
+import { styleCatalog } from '@/engine/tileset/styleTiles'
+import '@/__tests__/helpers/installTilesetSeed' // DB-equivalent compositions in styleCatalog('ascii')
 import { IsometricGrid } from '@/engine/IsometricGrid'
-import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
 import { resolveComposition } from '@/engine/tileset/tileset'
 import type { Composition } from '@/engine/tileset/tileset'
 import { stampComposition } from '@/game/runtime/composition'
@@ -19,7 +19,7 @@ import {
 } from '@/engine/buildingCatalog'
 
 const mkGrid = () => new IsometricGrid({ cols: 40, rows: 40, cellSize: 16, isoScale: 1.4 })
-const comp = (kind: string) => resolveComposition(ASCII_TILESET, kind)!
+const comp = (kind: string) => resolveComposition(styleCatalog('ascii'), kind)!
 
 describe('compositionFacesRoad — the door signal that decides "rotate to a road" vs "drop as-is"', () => {
   test('a building (house) has a door → faces a road; a fountain / lamp post / tree does not', () => {

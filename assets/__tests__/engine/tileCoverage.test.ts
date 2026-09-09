@@ -18,6 +18,7 @@
  * cannot be imported (inline `type:` string literals in stageGenerator, the projectile glyphs that
  * are private to combat.ts) are listed verbatim with a source citation.
  */
+import { installStyleTiles, styleTile, styleTiles } from '@/engine/tileset/styleTiles'
 import fs from 'fs'
 import path from 'path'
 
@@ -31,7 +32,6 @@ import {
   personVariantTileId,
   type ElementKind,
 } from '@/game/artStyle'
-import { EMOJI_TILESET, setEmojiTileset, type EmojiTile } from '@/engine/tileset/emojiTileset'
 import { rebuildEmojiStyle } from '@/game/artStyle'
 import { installEntityPayload } from '@/engine/entity/entityLoader'
 import { getEntityResolution } from '@/engine/entity/entityResolution'
@@ -59,7 +59,7 @@ function loadSeed(): Record<string, EmojiTile> {
 }
 
 beforeAll(() => {
-  setEmojiTileset(loadSeed())
+  installStyleTiles('emoji', loadSeed())
   rebuildEmojiStyle()
   installEntityPayload(ENTITIES_FIXTURE.data) // install the backend-served entity resolution
 })
@@ -111,7 +111,7 @@ const ABILITY_ANIMATIONS: string[] = Object.keys(ABILITY_TINT)
 
 describe('tile coverage guardrail — every world identifier resolves to an IMAGE under the emoji style', () => {
   it('the seed loaded and built an emoji style with image tiles', () => {
-    expect(Object.keys(EMOJI_TILESET).length).toBeGreaterThan(30)
+    expect(Object.keys(styleTiles('emoji')).length).toBeGreaterThan(30)
     expect(resolveVisual('grass', EMOJI_STYLE).kind).toBe('image') // sanity: baked terrain is an image
   })
 
@@ -173,7 +173,7 @@ describe('tile coverage guardrail — every world identifier resolves to an IMAG
 
   it('every WEAPON glyph resolves to a baked image (drawn in-hand by char)', () => {
     const gaps = WEAPON_KINDS.filter(kind => {
-      const char = EMOJI_TILESET[kind]?.char
+      const char = styleTile('emoji', kind)?.char
       return !char || !glyphResolvesToImage(char)
     })
     expect(gaps).toEqual([])

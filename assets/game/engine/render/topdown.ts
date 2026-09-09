@@ -1,8 +1,8 @@
+import { styleCatalog } from '@/engine/tileset/styleTiles'
 import { player as playerSprite } from '@/assets/ascii'
 import { GridAsset, IsometricGrid, FLOOR_TYPE } from '@/engine/IsometricGrid'
 import { type AttackAnim, animFrame } from '@/engine/attackAnimations'
 import { assetCellTransform } from '@/engine/cellAnimation'
-import { isGroundContact } from '@/engine/cellLabels'
 import { darkenColor } from '@/engine/colors'
 import { entityPalette } from '@/engine/entityArt'
 import { entityQuestMarker } from '@/engine/entityQuestMarker'
@@ -11,13 +11,11 @@ import { type HitMarker } from '@/game/runtime/combat'
 import { type PlayerState, barFraction, hpFraction, playerDisplayName } from '@/game/runtime/player'
 import { type CombatState, type Entity, type Quest } from '@/game/types'
 import { resolveGroundTile } from '@/engine/tileset/tileset'
-import { ASCII_TILESET } from '@/engine/tileset/asciiTileset'
-import { EMOJI_TILESET } from '@/engine/tileset/emojiTileset'
 import { applyPose } from '@/engine/tileset/pose'
 import { resolveTileSize, resolveTilePose } from '@/engine/tileset/tileViewSettings'
 import { resolveTileHeight } from '@/engine/tileset/tileHeight'
 import { Connector } from '@/lib/api'
-import { ASCII_FONT, COMBAT_RANGE, type DayNight, ENEMY_MOVE_MS, applyCellTransform, clampCameraAxis, assetCaptionByCell, terrainLabelAt, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawHoverRing, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawConnectorMarker, drawAttackAnimFrame, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, drawFlatTileForShape, SINGLE_TILE_FRAC, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, frameImage, getPlayerArt, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, resolveAssetDraw, resolveEntityDraw, assetOverride, labelTileImage, labelTileRecolor, groundDecorImage, treeCanopyLayers, treeCellSet, type DrawVisual } from './shared'
+import { ASCII_FONT, COMBAT_RANGE, type DayNight, ENEMY_MOVE_MS, applyCellTransform, clampCameraAxis, assetCaptionByCell, terrainLabelAt, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawHoverRing, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawConnectorMarker, drawAttackAnimFrame, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, drawFlatTileForShape, SINGLE_TILE_FRAC, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, frameImage, getPlayerArt, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, resolveAssetDraw, resolveEntityDraw, assetOverride, styleTileImage, labelTileRecolor, groundDecorImage, type DrawVisual } from './shared'
 import { resolveAssetDrawSize } from './assetDimensions'
 import { resolveAssetAnimation } from './assetAnimation'
 import { DEPTH_CELL_STEP } from './isoBlock'
@@ -25,7 +23,7 @@ import { billboardGeom, pointInTileGeom, outlineSegments, poseMapper, tileGeomCe
 import type { TileSource } from '@/engine/cellStack'
 import { frontElevation, type FrontElevation } from './frontElevation'
 import { getStack, assetStackIndexer } from '@/engine/cellStack'
-import { ASCII_STYLE, assetKind, entityKind, entityStyleOverride, genderize, groundKind, personVariantTileId, type ElementKind, type Style } from '@/game/artStyle'
+import { ASCII_STYLE, assetKind, entityKind, entityStyleOverride, genderize, groundKind, personVariantTileId, styleTileArt, type ElementKind, type Style } from '@/game/artStyle'
 import { DEFAULT_CHARACTER_ANIMATIONS, activeFrame } from '@/game/runtime/entityAnimation'
 
 
@@ -96,7 +94,7 @@ export function drawTopEntity(
   let figureTop: number
   if (edv.image || edv.char) {
     const ef = activeFrame(anims, { char: edv.char }, { moving, facing: 'down', running: false }, now)
-    const efImg = frameImage(ef, edv.char, edv.image)
+    const efImg = frameImage(ef, edv.char, edv.image, style)
     if (efImg) {
       const baseImgPx = spanH * 0.9
       const imgPx = baseImgPx * size
@@ -168,7 +166,10 @@ export function draw2DLabeledCell(
 ): void {
   // Paint the cell with the ACTIVE style's tile for its LABEL — the emoji in emoji mode, else the ascii glyph.
   // Never mix: a composition cell is emoji in emoji mode, ascii in ascii mode. Both come from the DB tileset.
-  const char = (style.id === 'emoji' && asset.label ? EMOJI_TILESET[asset.label]?.char : undefined) ?? dv?.char ?? asset.art[0] ?? '?'
+  // The label's glyph in the ACTIVE style — one lookup, no style branch. Only ever painted when the baked
+  // PNG is genuinely missing (the documented last resort); a composition cell is ascii art in ascii mode and
+  // emoji art in emoji mode, both straight from the DB tileset — never mixed.
+  const char = (asset.label ? styleTileArt(asset.label, style.id)?.char : undefined) ?? dv?.char ?? asset.art[0] ?? '?'
   const tint = asset.color ?? '#cccccc'
   // Width/Height/Zoom (scaleX/scaleY/scale) stretch the cell; HEIGHT (scaleY) grows the box UP from its base
   // — the bottom edge stays planted at `baseY` while the top rises — so a labeled tile whose height is
@@ -200,7 +201,7 @@ export function draw2DLabeledCell(
     // The label's backend IMAGE (ascii: a white tint-target, RECOLOURED to `tint`; emoji: an already-coloured
     // PNG, NEVER recoloured) fills the same cell box the glyph would; a label with no image (most today)
     // falls through to the glyph below, so the cell is never blank.
-    const image = (asset.label ? labelTileImage(asset.label, style) : undefined) ?? dv?.image
+    const image = (asset.label ? styleTileImage(asset.label, style) : undefined) ?? dv?.image
     if (image) {
       drawStyledImage(ctx, image, x, cy, drawW * frac, false, labelTileRecolor(style, tint), drawH * frac)
       return
@@ -237,6 +238,24 @@ let _groundPendingKey = '' // the ground key seen LAST frame; we only bake once 
 // the flat ground cell. Refreshed every frame; read on mousemove/mousedown. Canvas-internal pixels.
 interface TileHit2D { col: number; row: number; level: number; stackIndex: number; source: TileSource; geom: TileGeom; entityId?: string }
 let twoDTileHits: TileHit2D[] = []
+
+/**
+ * The 2D twin of `withoutIsoRecording` — see its note. Guards two things: the hit record the 2D picker
+ * reads, and the baked ground layer, which is cached per grid and would otherwise be thrown away and
+ * re-baked every frame a preview of a different grid rendered.
+ */
+export function without2DRecording<T>(draw: () => T): T {
+  const hits = twoDTileHits
+  const ground = _groundLayer
+  const pending = _groundPendingKey
+  try {
+    return draw()
+  } finally {
+    twoDTileHits = hits
+    _groundLayer = ground
+    _groundPendingKey = pending
+  }
+}
 
 /** Every recorded 2D tile whose rect contains (x,y), TOPMOST (last-drawn) first — the frontmost is the pick. */
 export function pickTwoDTilesAt(x: number, y: number): TileHit2D[] {
@@ -290,118 +309,28 @@ function stroke2DTileOutline(ctx: CanvasRenderingContext2D, geom: TileGeom): voi
   }
 }
 
-// ── Legacy per-type 2D (top-view) ASCII prop art (tree/lamp/npc/…) ────────────────────────────────────────
-// The 2D twin of iso's ISO_ASCII_DRAWERS: FALLBACK glyph art drawn ONLY when no baked tile resolves (the ASCII
-// style — emoji resolves a tile in the `adv.image` branch above and never reaches here). Each drawer returns
-// the tile's 2D silhouette (hit2D) so the picker/highlight hug the sprite, not the cell. Only tree/lamp/npc are
-// bespoke; every other type (bush/flower/rock/lantern/decoration/…) uses the default art-glyph plate — same as
-// the old else-branch. De-hardcoding a type needs its backend ASCII tile (→ tiles.json → bake → seed) upstream.
+// ── The LAST-RESORT glyph plate (no baked tile at all) ────────────────────────────────────────────────────
+// The 2D twin of iso's note: every seeded tile is image-backed in EVERY style (MAP-MODEL §8), so a tile
+// resolves its picture through `styleTileImage` and draws through the image path, identically in ascii and
+// emoji. The frontend-invented per-type 2D sprites (TOP_ASCII_DRAWERS → drawTopTreeAscii / Lamp / Npc) are
+// DELETED with iso's: with the kind→image rescue ungated nothing reached them (TILE-BACKEND-MIGRATION §11).
+// What remains is the one no-tile case — NOT a style branch: ascii and emoji reach it identically.
 
-/** Inputs every per-type 2D ASCII drawer reads — all derived from the render2D asset loop. */
-interface TopAsciiParams {
-  x: number
-  baseY: number
-  tileW: number
-  tileH: number
-  flicker: number
-  groundContact: boolean
-}
-
-type TopAsciiDrawer = (ctx: CanvasRenderingContext2D, asset: GridAsset, p: TopAsciiParams) => TileGeom
-
-/** Layered tree: bark trunk + a canopy pyramid tinted to the asset's zone/theme colour. Ground shadow on the
- *  base cell. Wide base drawn first (lowest), narrow apex on top. Restores the base font before returning. */
-function drawTopTreeAscii(ctx: CanvasRenderingContext2D, asset: GridAsset, p: TopAsciiParams): TileGeom {
-  const { x, baseY, tileW, tileH, flicker, groundContact } = p
-  const canopy = treeCanopyLayers(asset.color || '#2e8b2e', flicker)
-  if (groundContact) {
-    ctx.save()
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.25)'
-    ctx.beginPath()
-    ctx.ellipse(x, baseY, tileW * 0.5, tileH * 0.45, 0, 0, Math.PI * 2)
-    ctx.fill()
-    ctx.restore()
-  }
-  const trunkChars = ['W', '0', 'W']
-  for (let h = 0; h < 2; h++) {
-    const tileTop = baseY - (h + 1) * tileH
-    ctx.fillStyle = `rgba(173, 134, 33, 0.96)` // golden brown
-    ctx.fillRect(x - tileW * 0.35, tileTop, tileW * 0.7, tileH)
-    ctx.fillStyle = `rgba(243, 191, 54, ${0.7 + 0.3 * flicker})` // bright gold
-    ctx.fillText(trunkChars[h] || '0', x, tileTop + tileH * 0.5)
-  }
-  const layers = [
-    { chars: '(@&@&@)', width: 2.0, bg: canopy[0].bg, fg: canopy[0].fg }, // wide base
-    { chars: '(@&@)', width: 1.6, bg: canopy[1].bg, fg: canopy[1].fg },   // mid
-    { chars: '(&)', width: 1.2, bg: canopy[2].bg, fg: canopy[2].fg },     // apex
-  ]
-  for (let h = 0; h < layers.length; h++) {
-    const layer = layers[h]
-    const tileTop = baseY - (h + 3) * tileH
-    ctx.fillStyle = layer.bg
-    ctx.fillRect(x - tileW * layer.width * 0.5, tileTop, tileW * layer.width, tileH)
-    ctx.fillStyle = layer.fg
-    ctx.font = `bold ${tileH * 0.65}px ${ASCII_FONT}`
-    ctx.fillText(layer.chars, x, tileTop + tileH * 0.5)
-  }
-  ctx.font = `bold ${tileH * 0.8}px ${ASCII_FONT}`
-  return billboardGeom(tileW * 2, tileH * 6, poseMapper({ x, y: baseY - tileH * 3 }, undefined, tileH))
-}
-
-/** Legacy single-lamp prop — a STEADY lit bulb on a post. Day/night ambience is the warm ground GLOW POOL
- *  (drawNightLighting) gated to night, not faked here, so this ignores dayNight. */
-function drawTopLampAscii(ctx: CanvasRenderingContext2D, _asset: GridAsset, p: TopAsciiParams): TileGeom {
-  const { x, baseY, tileW, tileH } = p
-  ctx.fillStyle = '#333333'
-  ctx.fillRect(x - tileW * 0.12, baseY - tileH * 2, tileW * 0.24, tileH * 2)
-  ctx.fillStyle = '#555555'
-  ctx.fillText('|', x, baseY - tileH * 0.5)
-  ctx.fillStyle = 'rgba(255, 255, 0, 1)'
-  ctx.fillRect(x - tileW * 0.25, baseY - tileH * 2.4, tileW * 0.5, tileH * 0.5)
-  ctx.fillStyle = 'rgba(255, 200, 50, 1)'
-  ctx.fillText('o', x, baseY - tileH * 2.2)
-  return billboardGeom(tileW * 0.6, tileH * 2.7, poseMapper({ x, y: baseY - tileH * 1.35 }, undefined, tileH))
-}
-
-/** NPC — a humanoid figure (legs / body / head) as fillRect layers with a narrower head. */
-function drawTopNpcAscii(ctx: CanvasRenderingContext2D, _asset: GridAsset, p: TopAsciiParams): TileGeom {
-  const { x, baseY, tileW, tileH } = p
-  const layers = [
-    { text: '/\\', fg: '#3355aa', bg: '#1a2a55' }, // legs
-    { text: '[=]', fg: '#4466cc', bg: '#223366' }, // body
-    { text: '(o)', fg: '#ffccaa', bg: '#996644' }, // head
-  ]
-  for (let h = 0; h < layers.length; h++) {
-    const layer = layers[h]
-    const tileTop = baseY - (h + 1) * tileH
-    const layerWidth = h === 2 ? 0.7 : 0.8
-    ctx.fillStyle = layer.bg
-    ctx.fillRect(x - tileW * layerWidth * 0.5, tileTop, tileW * layerWidth, tileH)
-    ctx.fillStyle = layer.fg
-    ctx.fillText(layer.text, x, tileTop + tileH * 0.5)
-  }
-  return billboardGeom(tileW * 0.9, tileH * 3, poseMapper({ x, y: baseY - tileH * 1.5 }, undefined, tileH))
-}
-
-/** Default prop — the asset's own art glyph on a darkened (or bgColor) plate the width of the cell. */
-function drawTopDefaultAscii(ctx: CanvasRenderingContext2D, asset: GridAsset, p: TopAsciiParams): TileGeom {
-  const { x, baseY, tileW, tileH } = p
+/** The last-resort plate: the asset's own art glyph over its darkened backing, the size of the cell. Returns
+ *  the drawn silhouette so the picker/highlight hug the plate rather than the ground cell. */
+function drawTopLastResortGlyph(ctx: CanvasRenderingContext2D, asset: GridAsset, x: number, baseY: number, tileW: number, tileH: number): TileGeom {
   const tileFg = asset.color || '#ffffff'
   const tileBg = asset.bgColor || darkenColor(tileFg, 0.3)
-  const char = asset.art[0] || '?'
+  // NEVER '?'. A tile with no art is a DATA gap, and painting a question mark over it invents a picture
+  // the catalog does not have — the "fake ascii tiles" Alexander reported were literal '?' plates drawn
+  // here. Missing stays missing (the tile draws its backing and nothing else), so a gap is visible as an
+  // absence and gets fixed in the backend rather than papered over in the renderer.
+  const char = asset.art[0] ?? ''
   ctx.fillStyle = tileBg
   ctx.fillRect(x - tileW * 0.5, baseY - tileH, tileW, tileH)
   ctx.fillStyle = tileFg
   ctx.fillText(char, x, baseY - tileH * 0.5)
   return billboardGeom(tileW, tileH, poseMapper({ x, y: baseY - tileH * 0.5 }, undefined, tileH))
-}
-
-/** Legacy per-type 2D ASCII prop drawers, keyed by asset.type. Unmapped types → drawTopDefaultAscii. Only
- *  tree/lamp/npc are bespoke in the top view — everything else has always fallen through to the default. */
-const TOP_ASCII_DRAWERS: Readonly<Record<string, TopAsciiDrawer>> = {
-  tree: drawTopTreeAscii,
-  lamp: drawTopLampAscii,
-  npc: drawTopNpcAscii,
 }
 
 /** Everything render2D() needs to draw one top-down (front-elevation) frame. Required: the ctx, the
@@ -430,6 +359,9 @@ export interface Render2DParams {
   hoverId?: string | null
   selectedCells?: ReadonlySet<string>
   hoveredCell?: { col: number; row: number; stackIndex?: number } | null
+  /** Draw the renderer's own on-screen text (`Pos:`, the mode banner). False for a preview or a minimap —
+   *  see the same flag on `IsoRenderParams` and `RenderTopViewParams`. */
+  chrome?: boolean
 }
 
 export function render2D(params: Render2DParams) {
@@ -451,6 +383,7 @@ export function render2D(params: Render2DParams) {
     hoverId = null,
     selectedCells = new Set<string>(),
     hoveredCell = null,
+    chrome = true,
   } = params
   const __t0 = typeof performance !== 'undefined' ? performance.now() : 0
   const playerIsTarget = !!targetId && entities.some(e => e.kind === 'player' && e.id === targetId)
@@ -498,7 +431,7 @@ export function render2D(params: Render2DParams) {
       const p = toScreen(col + 0.5, row + 0.5)
       if (p.x < -tileW || p.x > w + tileW || p.y < -tileH || p.y > h + tileH) continue
       const tileType = floor.tileKey || 'grass'
-      const gt = resolveGroundTile(ASCII_TILESET, tileType, col, row)
+      const gt = resolveGroundTile(styleCatalog('ascii'), tileType, col, row)
       const gk = groundKind(tileType)
       const gdv = resolveDraw(gk, style, undefined, gt.char, gt.fg)
       // COLOUR IS STATE: read floor.color — NEVER derive it per-frame (was `?? cellFill(...)`). A floor is born
@@ -565,8 +498,6 @@ export function render2D(params: Render2DParams) {
     Math.floor(camCol), Math.floor(camRow), tilesX, tilesY
   )
   const fe: FrontElevation = frontElevation(visibleAssets)
-  const treeCells2D = treeCellSet(grid) // memoized (see shared.treeCellSet) — no per-frame assets rescan
-  const isTreeCell2D = (c: number, r: number): boolean => treeCells2D.has(`${c},${r}`)
   for (const asset of visibleAssets) {
     if (asset.type === FLOOR_TYPE) continue // floors are the ground plane, painted as filled tiles above — not facades
     if (fe.hidden.has(asset)) continue // occluded behind a front-elevation face — depth collapsed away
@@ -649,7 +580,7 @@ export function render2D(params: Render2DParams) {
       let headY: number
       if (pdv.image || pdv.char) {
         const pf = activeFrame(player.animations ?? DEFAULT_CHARACTER_ANIMATIONS, { char: pdv.char }, { moving: player.moving, facing: player.facing, running: player.running ?? false }, time)
-        const pfImg = frameImage(pf, pdv.char, pdv.image)
+        const pfImg = frameImage(pf, pdv.char, pdv.image, style)
         if (pfImg) {
           const cy = baseY - personImgPx * 0.42
           drawStyledImage(ctx, pfImg, p.x, cy, personImgPx, pf.flipX)
@@ -755,14 +686,24 @@ export function render2D(params: Render2DParams) {
       ctx.textBaseline = 'middle'
 
       // Draw based on asset type - VIBRANT test-ascii style (Crash Bandicoot palette)
-      // Animation flicker based on time
-      const flicker = Math.sin(time * 0.003 + obj.col * 0.5 + obj.row * 0.7) * 0.15 + 1
 
       // Active art style: a mapped kind (or a per-element override) replaces the whole
       // per-type ASCII art with ONE tile. A PLACED tile's override re-homes onto the active
       // style so it RESKINS (resolveAssetDraw), never freezing to the style it was picked in.
       // ASCII + no override → adv.char '' → falls through to the byte-identical per-type branches.
-      const adv = resolveAssetDraw(assetKind(asset), style, assetOverride(asset, style), '', '')
+      let adv = resolveAssetDraw(assetKind(asset), style, assetOverride(asset, style), '', '')
+      // ANY tile identified by its KIND rather than a label resolves its baked image here — the SAME rescue
+      // iso.ts does (drawIsoAssetAscii). `ASCII_STYLE.map` is empty by design, so under ASCII `adv` never
+      // arrives with an image and the tile fell all the way through to the legacy per-type glyph drawers,
+      // while its emoji twin drew a picture. Emoji already carries the kind image in `adv`, so `!adv.image`
+      // is false there and nothing changes. No baked tile for that kind → keeps its glyph (last resort).
+      if (!adv.image) {
+        const kimg = styleTileImage(assetKind(asset), style)
+        if (kimg) adv = { ...adv, image: kimg, char: '', tint: adv.tint ?? asset.color }
+      }
+      // The tile's ACTIVE-STYLE entry — per-view size/pose, read the SAME way in every style (styleTileArt).
+      // Looking it up only for emoji made an ascii tile silently ignore its own authored per-view settings.
+      const styleTile = styleTileArt(assetKind(asset), style.id)
       // GROUND DECOR draws its BAKED tile image (resolved by LABEL for the active style) flat on the floor —
       // just the image (transparent surround = subtle litter, no solid cell backing), colour-composited, never
       // a glyph. No baked decor tile for this style (backend gap) → fall through to the paths below (e.g. the
@@ -783,7 +724,7 @@ export function render2D(params: Render2DParams) {
         draw2DLabeledCell(ctx, p.x, baseY, tileW, tileH, asset, style)
         const z = asset.scale ?? 1, dw = tileW * (asset.scaleX ?? 1) * z, dh = tileH * (asset.scaleY ?? 1) * z
         hit2D = billboardGeom(dw, dh, poseMapper({ x: p.x, y: baseY - dh / 2 }, undefined, tileH))
-      } else if ((adv.image || adv.char) && resolveTileHeight(style.id === 'emoji' ? EMOJI_TILESET[assetKind(asset)] : undefined, asset) < 1) {
+      } else if ((adv.image || adv.char) && resolveTileHeight(styleTile, asset) < 1) {
         // FLAT tile (its OWN DB height is 0: a flower, a fallen leaf, floor decor) → a flat front-elevation CELL
         // through the SAME drawer a composition cell uses (draw2DLabeledCell), fed its resolved image/glyph.
         // Honours shape/display/colour/scale — the SAME settings iso's thin slab honours — instead of the
@@ -797,10 +738,9 @@ export function render2D(params: Render2DParams) {
       } else if (adv.image) {
         // A per-asset colour override recolours the baked sprite (#80); undefined → drawn untinted.
         // Per-view tile size (byte-identical when unset: old 1.5 constant), then per-element dims (#77/#78).
-        const vt = style.id === 'emoji' ? EMOJI_TILESET[assetKind(asset)] : undefined
-        const d = resolveAssetDrawSize(tileH * (resolveTileSize(vt, '2d') ?? 1.5), asset, 'billboard')
+        const d = resolveAssetDrawSize(tileH * (resolveTileSize(styleTile, '2d') ?? 1.5), asset, 'billboard')
         const cx = p.x, cy = baseY - tileH * 0.7 - d.baseLift
-        const pose = asset.pose ?? resolveTilePose(vt, '2d') // per-asset pose (inspector x/y/rotate) wins; else the tileset-kind pose
+        const pose = asset.pose ?? resolveTilePose(styleTile, '2d') // per-asset pose (inspector x/y/rotate) wins; else the tileset-kind pose
         if (pose) {
           ctx.save(); ctx.translate(cx, cy); applyPose(ctx, pose, 1, tileH)
           drawStyledImage(ctx, adv.image, 0, 0, d.w, false, asset.color, d.h)
@@ -813,15 +753,14 @@ export function render2D(params: Render2DParams) {
         // Trees are drawn TALLER (a 🌲 in one cell reads tiny) — roughly the 3-cell height the ASCII
         // tree gets — anchored at the base so the trunk sits on its cell and the canopy rises.
         const isTree = asset.type === 'tree'
-        const vt = style.id === 'emoji' ? EMOJI_TILESET[assetKind(asset)] : undefined
-        const base = (isTree ? tileH * 2.3 : tileH * 1.3) * (resolveTileSize(vt, '2d') ?? 1)
+        const base = (isTree ? tileH * 2.3 : tileH * 1.3) * (resolveTileSize(styleTile, '2d') ?? 1)
         const d = resolveAssetDrawSize(base, asset, 'billboard') // #universal: Width/Height/Zoom apply to glyphs too
         const lift = (isTree ? tileH * 1.05 : tileH * 0.6) + d.baseLift
         ctx.font = `bold ${d.h}px ${ASCII_FONT}`
         ctx.textAlign = 'center'
         ctx.textBaseline = 'middle'
         ctx.fillStyle = asset.color ?? adv.color ?? '#ffffff' // ASCII glyphs / the no-override fillText path
-        const pose = asset.pose ?? resolveTilePose(vt, '2d') // per-asset pose (inspector x/y/rotate) wins; else the tileset-kind pose
+        const pose = asset.pose ?? resolveTilePose(styleTile, '2d') // per-asset pose (inspector x/y/rotate) wins; else the tileset-kind pose
         const strength = asset.color ? (isTree ? 0.55 : 0.85) : 0 // colour-emoji ignore fillStyle → wash the tint on
         // A tree keeps its 🌲 shape but is recoloured to its SEASON's canopy shade (asset.color).
         ctx.save()
@@ -839,12 +778,9 @@ export function render2D(params: Render2DParams) {
         const z = asset.scale ?? 1, dw = tileW * (asset.scaleX ?? 1) * z, dh = tileH * (asset.scaleY ?? 1) * z
         hit2D = billboardGeom(dw, dh, poseMapper({ x: p.x, y: baseY - dh / 2 }, undefined, tileH))
       } else {
-        // Legacy per-type 2D ASCII prop art (tree/lamp/npc → bespoke; everything else → the default glyph plate).
-        // Tree's base shadow is a generator-marked base cell OR any ground-contact cell; computed here so the
-        // drawer stays pure (other drawers ignore it). Fires only under ASCII — emoji resolved a tile above.
-        const treeShadow = !!asset.baseShadow || isGroundContact(isTreeCell2D, asset.col, asset.row)
-        const drawAscii = TOP_ASCII_DRAWERS[asset.type] ?? drawTopDefaultAscii
-        hit2D = drawAscii(ctx, asset, { x: p.x, baseY, tileW, tileH, flicker, groundContact: treeShadow })
+        // LAST RESORT — no label, and this asset's KIND has no tile in the ACTIVE tileset, so there is
+        // genuinely no picture to draw. Same condition in every style (see the note by the drawer).
+        hit2D = drawTopLastResortGlyph(ctx, asset, p.x, baseY, tileW, tileH)
       }
 
       if (ct2d) ctx.restore() // pop the cell-animation transform
@@ -1022,12 +958,14 @@ export function render2D(params: Render2DParams) {
   }
 
   // ─── UI ───────────────────────────────────────────────────────────
-  ctx.fillStyle = '#ffffff'
-  ctx.font = `14px ${ASCII_FONT}`
-  ctx.textAlign = 'left'
-  ctx.fillText(`Pos: ${Math.floor(player.x)}, ${Math.floor(player.z)}`, 10, 30)
-  ctx.fillStyle = isDebugMode() ? '#ff6666' : '#4488ff'
-  ctx.fillText(isDebugMode() ? '2D DEBUG MODE' : '2D RPG MODE', 10, 50)
+  if (chrome) {
+    ctx.fillStyle = '#ffffff'
+    ctx.font = `14px ${ASCII_FONT}`
+    ctx.textAlign = 'left'
+    ctx.fillText(`Pos: ${Math.floor(player.x)}, ${Math.floor(player.z)}`, 10, 30)
+    ctx.fillStyle = isDebugMode() ? '#ff6666' : '#4488ff'
+    ctx.fillText(isDebugMode() ? '2D DEBUG MODE' : '2D RPG MODE', 10, 50)
+  }
 
   const __ms = (typeof performance !== 'undefined' ? performance.now() : 0) - __t0
   twoDRenderMsEMA = twoDRenderMsEMA === 0 ? __ms : twoDRenderMsEMA * 0.9 + __ms * 0.1

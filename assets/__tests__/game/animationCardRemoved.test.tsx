@@ -45,7 +45,7 @@ describe('Cell inspector — the real TileAnimationEditor entry survives', () =>
   it('an asset tile still shows the "Animate…" entry and it fires onOpenAnimator', () => {
     const onOpenAnimator = jest.fn()
     render(
-      <PropertiesPanel
+      <PropertiesPanel sectionOpen={() => true} onToggleSection={jest.fn()}
         collision={true}
         onCollision={jest.fn()}
         tile={assetTile({ onOpenAnimator, animations: [] })}
@@ -62,7 +62,7 @@ describe('Cell inspector — the real TileAnimationEditor entry survives', () =>
 
   it('a floor tile (no onOpenAnimator) shows no animation entry at all', () => {
     render(
-      <PropertiesPanel
+      <PropertiesPanel sectionOpen={() => true} onToggleSection={jest.fn()}
         collision={false}
         onCollision={jest.fn()}
         tile={assetTile({ key: 'floor', label: 'grass', onOpenAnimator: undefined })}
@@ -78,7 +78,7 @@ describe('Cell inspector — the real TileAnimationEditor entry survives', () =>
 describe('Cell inspector — the dead cell-anim PRESET card is gone', () => {
   it('the inspector never renders the preset buttons or Preview/Apply', () => {
     render(
-      <PropertiesPanel
+      <PropertiesPanel sectionOpen={() => true} onToggleSection={jest.fn()}
         collision={true}
         onCollision={jest.fn()}
         tile={assetTile({ onOpenAnimator: jest.fn(), animations: [] })}

@@ -13,11 +13,11 @@
  * "single" must leave the SIDE-face regions the plain WHITE shell (no green) and show the ONE green tile only
  * at the block centre. Colour-filtering is asserted separately (a magenta tile comes back magenta in BOTH modes).
  */
+import { makeStyleTile, setStyleTile, styleTile } from '@/engine/tileset/styleTiles'
 import { installRealCanvas, type RealCanvasHarness } from '@/__tests__/helpers/realCanvas'
 import { drawIsoTileBlock, drawIsoSingleTileBlock, drawIsoAssetAscii } from '@/engine/render/iso'
 import { SINGLE_TILE_FRAC } from '@/engine/render/shared'
 import { EMOJI_STYLE } from '@/game/artStyle'
-import { EMOJI_TILESET } from '@/engine/tileset/emojiTileset'
 import type { GridAsset } from '@/engine/IsometricGrid'
 import type { Canvas } from '@napi-rs/canvas'
 
@@ -108,11 +108,11 @@ describe('colour still FILTERS the image in BOTH modes (drawIsoAssetAscii label 
   const asset = (over: Partial<GridAsset>): GridAsset => ({ art: ['?'], col: 3, row: 3, type: 'water', height: 1, label: LABEL, color: MAGENTA, scale: 3, ...over })
 
   beforeAll(async () => {
-    EMOJI_TILESET[LABEL] = { char: '🌊', color: '#2f6fbf', image: SRC, height: 1 }
+    setStyleTile('emoji', LABEL, makeStyleTile(LABEL, { char: '🌊', color: '#2f6fbf', image: SRC, height: 1 }))
     H.registerSolid(SRC, GREEN) // a green baked tile; the asset's magenta colour must FILTER it
     await H.warm([SRC])
   })
-  afterAll(() => { delete EMOJI_TILESET[LABEL] })
+  afterAll(() => { delete styleTile('emoji', LABEL) })
 
   test('all-faces: a GREEN tile on a MAGENTA asset comes back magenta, no green survives', () => {
     const cv = H.makeCanvas(260, 300)

@@ -5,12 +5,13 @@
  * to data (category, cooldown, requirements, effect magnitudes). Entities equip up to 4, bound to
  * keys 1–4. Pure module: no rendering, no React — the play loop reads these + the cooldown helper.
  *
- * The engine seeds a database of abilities spanning every category (offensive melee/ranged, defensive,
- * protection, debuff, healing); the inventory's "browse abilities" modal lists them and assigns one
- * into a slot. Adding/editing an ability is one const + one line in ABILITY_REGISTRY — the lookup and
- * loadout helpers stay untouched, so the editor + progress system can plug in later without reshaping
- * this.
+ * The BACKEND serves the registry — abilities spanning every category (offensive melee/ranged, defensive,
+ * protection, debuff, healing) — and the inventory's "browse abilities" modal lists them and assigns one
+ * into a slot. Adding or editing an ability is a row in nebulith's `abilities` table (§3.14b #2); the
+ * lookup and loadout helpers here stay untouched, so the editor + progress system can plug in later
+ * without reshaping this.
  */
+import { NEBULITH_API } from '@/lib/nebulithApi'
 
 export type AbilityCategory = 'offensive' | 'defensive' | 'debuff' | 'protection' | 'healing'
 
@@ -46,181 +47,86 @@ export interface AbilityDef {
   effect: AbilityEffect
 }
 
-/** Per-animation visual tint (the blade/bolt color) — the render reads this to recolor the swing. */
-export const ABILITY_TINT: Record<AbilityAnimation, string> = {
-  'fire-slash': '#ff7a2a', // red-orange
-  'ice-slash': '#7fd0ff',
-  cleave: '#e6ebf3',
-  bolt: '#ffe9a8',
-  'piercing-shot': '#cfd8e3',
-  nova: '#c08cff',
-  lightning: '#7ad7ff',
-  'heal-glow': '#8effa0',
-  'guard-flash': '#9fd3ff',
-}
-
-// ── the ability REGISTRY (the database) ──────────────────────────────────────────────
-// The engine seeds these; the author assigns them into slots and (later) edits/adds more.
-// Adding a new ability is just one const + one line in ABILITY_REGISTRY — no other wiring.
-// Keep VARIETY: at least one per category so there's something real to assign.
-
-/** Offensive melee — the blade burns red-orange and bites for fire damage. */
-export const FIRE_SLASH: AbilityDef = {
-  id: 'fire-slash',
-  name: 'Fire Slash',
-  description: 'A blazing melee slash — the blade burns red-orange and bites for fire damage.',
-  category: 'offensive',
-  animation: 'fire-slash',
-  cooldownMs: 6000,
-  effect: { damage: 18 },
-}
-
-/** Offensive ranged — a heavy piercing bolt that hits harder than the basic shot. */
-export const POWER_SHOT: AbilityDef = {
-  id: 'power-shot',
-  name: 'Power Shot',
-  description: 'A drawn-back piercing bolt — slower to ready, but it punches through for big damage.',
-  category: 'offensive',
-  animation: 'piercing-shot',
-  cooldownMs: 8000,
-  effect: { damage: 26 },
-}
-
-/** Defensive — a brief shield-flash window that soaks incoming damage. */
-export const GUARD: AbilityDef = {
-  id: 'guard',
-  name: 'Guard',
-  description: 'Raise a flash-guard for a few seconds, cutting the damage you take.',
-  category: 'defensive',
-  animation: 'guard-flash',
-  cooldownMs: 12000,
-  effect: { shieldMs: 4000 },
-}
-
-/** Debuff — an icy slash that chills the target, slowing it for a few seconds. */
-export const FROST: AbilityDef = {
-  id: 'frost',
-  name: 'Frost',
-  description: 'An icy slash that chills the target — it crawls (slowed) for a few seconds.',
-  category: 'debuff',
-  animation: 'ice-slash',
-  cooldownMs: 9000,
-  effect: { damage: 8, debuff: { kind: 'slow', durationMs: 3000, magnitude: 0.4 } },
-}
-
-/** Offensive melee — a wide two-handed swing that cleaves for heavy physical damage. */
-export const CLEAVE: AbilityDef = {
-  id: 'cleave',
-  name: 'Cleave',
-  description: 'A wide, two-handed swing that cleaves through for heavy physical damage.',
-  category: 'offensive',
-  animation: 'cleave',
-  cooldownMs: 7000,
-  effect: { damage: 22 },
-}
-
-/** Offensive ranged (magic) — a fast arcane bolt that snaps out for steady damage. */
-export const ARCANE_BOLT: AbilityDef = {
-  id: 'arcane-bolt',
-  name: 'Arcane Bolt',
-  description: 'A quick bolt of raw arcane force — short cooldown, reliable ranged damage.',
-  category: 'offensive',
-  animation: 'bolt',
-  cooldownMs: 5000,
-  effect: { damage: 20 },
-}
-
-/** Offensive (magic burst) — a violet nova that detonates around you for big damage. */
-export const NOVA_BURST: AbilityDef = {
-  id: 'nova-burst',
-  name: 'Nova Burst',
-  description: 'A violet nova that detonates around you — slow to charge, hits hard.',
-  category: 'offensive',
-  animation: 'nova',
-  cooldownMs: 14000,
-  effect: { damage: 30 },
-}
-
-/** Offensive (magic) — a forked bolt of lightning that arcs into the target. */
-export const CHAIN_LIGHTNING: AbilityDef = {
-  id: 'chain-lightning',
-  name: 'Chain Lightning',
-  description: 'A forked bolt of lightning that arcs into the target for strong shock damage.',
-  category: 'offensive',
-  animation: 'lightning',
-  cooldownMs: 11000,
-  effect: { damage: 24 },
-}
-
-/** Protection — a heavy bulwark that holds a long damage-soak window (longer than Guard). */
-export const BULWARK: AbilityDef = {
-  id: 'bulwark',
-  name: 'Bulwark',
-  description: 'Brace behind a heavy bulwark — a long window that soaks most incoming damage.',
-  category: 'protection',
-  animation: 'guard-flash',
-  cooldownMs: 16000,
-  effect: { shieldMs: 6000 },
-}
-
-/** Debuff — a venom-tipped shot: light damage now, poison ticking after. */
-export const POISON_DART: AbilityDef = {
-  id: 'poison-dart',
-  name: 'Poison Dart',
-  description: 'A venom-tipped shot — light hit up front, then poison eats away at the target.',
-  category: 'debuff',
-  animation: 'piercing-shot',
-  cooldownMs: 8000,
-  effect: { damage: 6, debuff: { kind: 'poison', durationMs: 5000, magnitude: 4 } },
-}
-
-/** Debuff — an enfeebling pulse that weakens the target's hits for a while. */
-export const ENFEEBLE: AbilityDef = {
-  id: 'enfeeble',
-  name: 'Enfeeble',
-  description: 'A draining pulse that weakens the target — its blows land softer for a while.',
-  category: 'debuff',
-  animation: 'nova',
-  cooldownMs: 10000,
-  effect: { debuff: { kind: 'weaken', durationMs: 6000, magnitude: 0.3 } },
-}
-
-/** Healing — a burst of restorative light that mends a solid chunk of HP. */
-export const MEND: AbilityDef = {
-  id: 'mend',
-  name: 'Mend',
-  description: 'A burst of restorative light — mends a solid chunk of your health.',
-  category: 'healing',
-  animation: 'heal-glow',
-  cooldownMs: 10000,
-  effect: { healing: 25 },
-}
-
-/** Healing — a quick, low-cooldown top-up of health when you need it fast. */
-export const RENEW: AbilityDef = {
-  id: 'renew',
-  name: 'Renew',
-  description: 'A quick top-up of health on a short cooldown — small, but always ready.',
-  category: 'healing',
-  animation: 'heal-glow',
-  cooldownMs: 7000,
-  effect: { healing: 14 },
-}
-
-/** The seeded ability database the UI reads to populate the browse-abilities modal. Add/update =
- *  edit a def + this list; the lookup + loadout helpers stay untouched. Spans every category. */
-export const ABILITY_REGISTRY: readonly AbilityDef[] = [
-  FIRE_SLASH, CLEAVE, // offensive melee
-  POWER_SHOT, ARCANE_BOLT, NOVA_BURST, CHAIN_LIGHTNING, // offensive ranged / magic
-  GUARD, // defensive
-  BULWARK, // protection
-  FROST, POISON_DART, ENFEEBLE, // debuff
-  MEND, RENEW, // healing
+/** Every animation the engine ships — TYPE data (which animations exist), not a by-product of a colour
+ *  table. The per-animation COLOUR is backend tile data: each of these labels is an FX tile row carrying the
+ *  tint in its own `settings`, so `abilityTint()` reads it instead of the frontend re-declaring it
+ *  (§3.14b #2 — the old `ABILITY_TINT` map duplicated nine hexes the API already served, identically in both
+ *  styles and across every zone). */
+export const ABILITY_ANIMATIONS: readonly AbilityAnimation[] = [
+  'fire-slash', 'ice-slash', 'cleave',
+  'bolt', 'piercing-shot',
+  'nova', 'lightning',
+  'heal-glow', 'guard-flash',
 ]
 
-/** Look an ability up by id (round-trips with ABILITY_REGISTRY). Pure. */
+// ── the ability REGISTRY — BACKEND DATA (§3.14b #2) ──────────────────────────────────
+/**
+ * The registry used to be 13 `AbilityDef` constants right here — name, description, category, cooldown and
+ * effect, all frontend literals. Alexander, 2026-09-08: *"all hardcoded data of the frontend moved to the
+ * elixir backend … pretty much everything that is DATA or depends on DATA"*. The rows live in nebulith's
+ * `abilities` table now and arrive via `GET /api/abilities`.
+ *
+ * The honesty rule is the same as the tile catalog's: an unloaded registry is EMPTY. Nothing here invents a
+ * Fire Slash, so the browse modal shows what the backend has and says so when it has nothing.
+ *
+ * There is deliberately no colour: an ability names the FX TILE it plays (`animation`), and that tile row
+ * carries the tint — which is what `abilityTint()` reads. The old `ABILITY_TINT` map duplicated nine hexes
+ * the API already served.
+ */
+let REGISTRY: readonly AbilityDef[] = []
+
+/** One row as `/api/abilities` serves it. */
+interface ApiAbility {
+  slug: string
+  name: string
+  description: string | null
+  category: string
+  animation: string | null
+  cooldownMs: number
+  effect: AbilityEffect
+}
+
+/** Install a served payload (also the seam tests use, so they need no network). */
+export function installAbilityRegistry(rows: readonly ApiAbility[]): void {
+  REGISTRY = rows.map(row => ({
+    id: row.slug,
+    name: row.name,
+    description: row.description ?? '',
+    category: row.category as AbilityDef['category'],
+    animation: (row.animation ?? '') as AbilityAnimation,
+    cooldownMs: row.cooldownMs,
+    effect: row.effect ?? {},
+  }))
+}
+
+export async function loadAbilityRegistry(): Promise<number> {
+  try {
+    const res = await fetch(`${NEBULITH_API}/abilities`, { headers: { accept: 'application/json' } })
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    const body = (await res.json()) as { data?: ApiAbility[] }
+    installAbilityRegistry(body.data ?? [])
+    return REGISTRY.length
+  } catch (error) {
+    console.warn('Failed to load the ability registry', error)
+    return 0
+  }
+}
+
+/**
+ * Every ability the backend serves, in its order.
+ *
+ * A FUNCTION, not a const: the registry arrives over the network, so a module-level array captured at
+ * import { NEBULITH_API } from '@/lib/nebulithApi'
+import { NEBULITH_API } from '@/lib/nebulithApi'
+import time would be empty forever. Every reader calls this when it renders.
+ */
+export function abilityRegistry(): readonly AbilityDef[] {
+  return REGISTRY
+}
+
+/** Look an ability up by id. Undefined when the registry has no such row — never a stand-in. */
 export function getAbility(id: string): AbilityDef | undefined {
-  return ABILITY_REGISTRY.find(a => a.id === id)
+  return REGISTRY.find(a => a.id === id)
 }
 
 // ── loadout: up to 4 abilities on keys 1–4 (rebindable) ──────────────────────────────
@@ -232,10 +138,17 @@ export interface AbilityBinding {
   ability: AbilityDef
 }
 
-/** The default player loadout — v1 has just Fire Slash on slot/key 1. */
-export const DEFAULT_ABILITY_LOADOUT: readonly AbilityBinding[] = [
-  { slot: 1, key: '1', ability: FIRE_SLASH },
-]
+/**
+ * The default player loadout — slot/key 1 holds the registry's FIRST ability.
+ *
+ * A FUNCTION over the loaded registry, not a const naming `FIRE_SLASH`: the registry is backend data now
+ * (§3.14b #2), so a hardcoded default would name an ability the catalog might not serve. An EMPTY registry
+ * yields an EMPTY loadout — the player simply has no ability bound yet, which is the truth.
+ */
+export function defaultAbilityLoadout(): readonly AbilityBinding[] {
+  const first = REGISTRY[0]
+  return first ? [{ slot: 1, key: '1', ability: first }] : []
+}
 
 /** Off cooldown? (first use always allowed.) Pure. */
 export function abilityReady(ability: AbilityDef, lastUsedAt: number | undefined, now: number): boolean {

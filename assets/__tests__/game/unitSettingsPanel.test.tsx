@@ -1,7 +1,9 @@
 import { render, screen, fireEvent } from '@testing-library/react'
-import { FloatingPanel, SettingsPanelBody, UnitSettingsSection, UnitStatsBody, type UnitControlModel } from '@/components/game/modals'
+import { UnitSettingsSection, UnitStatsBody, type UnitControlModel } from '@/components/game/modals'
+import { TileControls } from '@/components/game/editorChrome'
 import { type TileControlModel } from '@/components/game/editorChrome'
 import { type Entity } from '@/game/types'
+import '@/__tests__/helpers/installTilesetSeed'
 
 // ───────────────────────────────────────────────────────────────────────────
 // UNIT SETTINGS PANEL — the user's ask: "have the same UX/UI for both, regular
@@ -9,7 +11,7 @@ import { type Entity } from '@/game/types'
 // there, like the inventory."
 //
 // A selected unit opens the SAME FloatingPanel hosting the SAME shared settings
-// body (SettingsPanelBody → TileControls) a tile uses, PLUS a unit-only section
+// body (TileControls) a tile uses, PLUS a unit-only section
 // (identity/vitals + inventory). We drive the REAL components and assert:
 //   • a unit shows the SAME shared controls a tile does (colour/scale/pose),
 //   • asset-only tile controls (Z Width/Z-Index/Display/Shape/Light) stay OUT,
@@ -66,9 +68,9 @@ const makeUnit = (over: Partial<UnitControlModel> = {}): UnitControlModel => ({
   ...over,
 })
 
-describe('SettingsPanelBody — a unit uses the SAME settings UX as a tile', () => {
+describe('the shared control body — a unit uses the SAME settings UX as a tile', () => {
   it('shows the SAME shared controls a tile does (colour, scale, pose)', () => {
-    render(<SettingsPanelBody tile={makeUnitTile()} unit={makeUnit()} />)
+    render(<><TileControls tile={makeUnitTile()} /><UnitSettingsSection unit={makeUnit()} /></>)
     // The exact controls a floor-tile settings panel shows — proving parity.
     expect(screen.getByLabelText('Hero colour')).toBeInTheDocument()
     expect(screen.getByLabelText('Width')).toBeInTheDocument()
@@ -81,7 +83,7 @@ describe('SettingsPanelBody — a unit uses the SAME settings UX as a tile', () 
   })
 
   it('keeps asset-only tile controls OUT of the unit view (clean split)', () => {
-    render(<SettingsPanelBody tile={makeUnitTile()} unit={makeUnit()} />)
+    render(<><TileControls tile={makeUnitTile()} /><UnitSettingsSection unit={makeUnit()} /></>)
     expect(screen.queryByRole('group', { name: 'Z Width per direction' })).toBeNull()
     expect(screen.queryByLabelText('Z-Index')).toBeNull()
     expect(screen.queryByLabelText('Light intensity')).toBeNull()
@@ -93,14 +95,14 @@ describe('SettingsPanelBody — a unit uses the SAME settings UX as a tile', () 
   // The VITALS moved into the "⛊ Stats…" modal (UnitStatsBody) with the unified-card work — only the unit's
   // identity rows + entry buttons stay in the section itself.
   it('renders the unit-only section a tile never gets: identity + inventory (vitals live in the Stats modal)', () => {
-    render(<SettingsPanelBody tile={makeUnitTile()} unit={makeUnit()} />)
+    render(<><TileControls tile={makeUnitTile()} /><UnitSettingsSection unit={makeUnit()} /></>)
     expect(screen.getByLabelText('Entity name')).toBeInTheDocument()
     expect(screen.queryByLabelText('player HP')).toBeNull()
     expect(screen.getByRole('button', { name: /Inventory/ })).toBeInTheDocument()
   })
 
   it('a PLAIN tile (no unit) shows the shared controls but NO unit section', () => {
-    render(<SettingsPanelBody tile={makeAssetTile()} />)
+    render(<TileControls tile={makeAssetTile()} />)
     // Shared controls still there…
     expect(screen.getByLabelText('wall colour')).toBeInTheDocument()
     expect(screen.getByLabelText('Width')).toBeInTheDocument()
@@ -114,31 +116,31 @@ describe('SettingsPanelBody — a unit uses the SAME settings UX as a tile', () 
   })
 })
 
-describe('SettingsPanelBody — edits fan out to the selected unit (one source of truth)', () => {
+describe('the shared control body — edits fan out to the selected unit (one source of truth)', () => {
   it('editing colour writes through the shared colour writer', () => {
     const onColor = jest.fn()
-    render(<SettingsPanelBody tile={makeUnitTile({ onColor })} unit={makeUnit()} />)
+    render(<><TileControls tile={makeUnitTile({ onColor })} /><UnitSettingsSection unit={makeUnit()} /></>)
     fireEvent.change(screen.getByLabelText('Hero colour'), { target: { value: '#ff0000' } })
     expect(onColor).toHaveBeenCalledWith('#ff0000')
   })
 
   it('editing scale writes through the shared dim writer (→ the unit size)', () => {
     const onDim = jest.fn()
-    render(<SettingsPanelBody tile={makeUnitTile({ onDim })} unit={makeUnit()} />)
+    render(<><TileControls tile={makeUnitTile({ onDim })} /><UnitSettingsSection unit={makeUnit()} /></>)
     fireEvent.change(screen.getByLabelText('Zoom'), { target: { value: '2' } })
     expect(onDim).toHaveBeenCalledWith('zoom', 2)
   })
 
   it('toggling flip writes through the shared pose writer', () => {
     const onPose = jest.fn()
-    render(<SettingsPanelBody tile={makeUnitTile({ onPose })} unit={makeUnit()} />)
+    render(<><TileControls tile={makeUnitTile({ onPose })} /><UnitSettingsSection unit={makeUnit()} /></>)
     fireEvent.click(screen.getByLabelText('flip horizontally'))
     expect(onPose).toHaveBeenCalledWith({ flip: true })
   })
 
   it('editing the unit name fans out to the entity patch writer', () => {
     const onPatch = jest.fn()
-    render(<SettingsPanelBody tile={makeUnitTile()} unit={makeUnit({ onPatch })} />)
+    render(<><TileControls tile={makeUnitTile()} /><UnitSettingsSection unit={makeUnit({ onPatch })} /></>)
     fireEvent.change(screen.getByLabelText('Entity name'), { target: { value: 'Aria' } })
     expect(onPatch).toHaveBeenCalledWith({ name: 'Aria' })
   })
@@ -172,18 +174,3 @@ describe('UnitSettingsSection — the unit-only extras', () => {
   })
 })
 
-describe('the unit settings panel is the SAME floating panel a tile opens', () => {
-  it('is a non-blocking FloatingPanel hosting the shared body + unit section', () => {
-    render(
-      <FloatingPanel title="Hero — Settings" accent="cyan" onClose={() => {}}>
-        <SettingsPanelBody tile={makeUnitTile()} unit={makeUnit()} />
-      </FloatingPanel>,
-    )
-    const dialog = screen.getByRole('dialog', { name: 'Hero — Settings' })
-    // Same non-modal contract as the tile panel (canvas stays live behind it).
-    expect(dialog).not.toHaveAttribute('aria-modal')
-    // Shared control + unit extra both live inside the one floating panel.
-    expect(screen.getByLabelText('Hero colour')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Inventory/ })).toBeInTheDocument()
-  })
-})
