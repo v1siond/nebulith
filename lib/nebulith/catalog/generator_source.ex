@@ -71,7 +71,18 @@ defmodule Nebulith.Catalog.GeneratorSource do
   # the default state. Note the share is of the PLANTABLE floor, not the whole grid — the clearings and
   # paths are excluded, so this number is not diluted by how many clearings a map happens to roll.
   # Ground cover is richer than the meadow's because a forest floor is not lawn.
-  @woodland_nature %{"groundCover" => 0.2, "flowers" => 0.04, "canopy" => 0.62}
+  # Alexander, 2026-09-09: *"we need less trees on woodland, reduce it about 30%."* 0.62 → 0.434. The trees
+  # were reading as a wall rather than as a wood — thinning them lets the clearings and trails breathe and
+  # lets you see through the trunks. The density lives HERE, not in the generator, so tuning it is a data
+  # change and not a code change.
+  @woodland_nature %{"groundCover" => 0.2, "flowers" => 0.04, "canopy" => 0.434}
+
+  # A JUNGLE is a woodland grown over: the canopy Alexander already accepted as forest-dense (the 0.62 the
+  # woodland used to carry), plus the thing that actually distinguishes a jungle from a wood — UNDERGROWTH.
+  # Ground cover more than doubles and the blooms go with it, so the floor is choked rather than walkable
+  # lawn between trunks. Same STRUCTURE as the woodland (clearings, trails); only these numbers differ, which
+  # is why it needs no generator of its own. Starting values — tune them here by eye.
+  @jungle_nature %{"groundCover" => 0.5, "flowers" => 0.1, "canopy" => 0.62}
 
   @doc "The categories to seed, in menu order (`editorConfig.ts` STAGE_VARIANTS)."
   def categories do
@@ -93,7 +104,17 @@ defmodule Nebulith.Catalog.GeneratorSource do
         config: %{"grid" => @small_grid, "nature" => @woodland_nature, "units" => townsfolk(3)}
       },
       %{
-        category: "forest", key: "forest_meadow", name: "Meadow", layout: "meadow", position: 1,
+        category: "forest", key: "forest_woodland_river", name: "Woodland + River", layout: "woodland_river", position: 1,
+        description: "The woodland, cut by a river with a bridge across it.",
+        config: %{"grid" => @small_grid, "nature" => @woodland_nature, "units" => townsfolk(3)}
+      },
+      %{
+        category: "forest", key: "forest_jungle", name: "Jungle", layout: "jungle", position: 2,
+        description: "A closed canopy over choked undergrowth, with clearings cut into it.",
+        config: %{"grid" => @small_grid, "nature" => @jungle_nature, "units" => townsfolk(2)}
+      },
+      %{
+        category: "forest", key: "forest_meadow", name: "Meadow", layout: "meadow", position: 3,
         # WAS "Clearings wired by corridors, tree masses filling the rest." It never built tree masses —
         # `scatterFramingTrees` frames the edges and leaves the centre open, which is a meadow. The
         # description promised the thing the new Woodland preset actually does.
@@ -101,7 +122,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
         config: %{"grid" => @small_grid, "nature" => @outdoor_nature, "units" => townsfolk(5)}
       },
       %{
-        category: "forest", key: "forest_meadow_river", name: "Meadow + River", layout: "meadow_river", position: 2,
+        category: "forest", key: "forest_meadow_river", name: "Meadow + River", layout: "meadow_river", position: 4,
         description: "The meadow, cut by a river with a bridge across it.",
         config: %{"grid" => @small_grid, "nature" => @outdoor_nature, "units" => townsfolk(5)}
       },
