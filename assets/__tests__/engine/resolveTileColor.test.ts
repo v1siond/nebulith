@@ -15,15 +15,15 @@ const TILESET: Tileset = {
   compositions: {},
   tiles: {
     wall: {
-      label: 'wall', glyph: '█', position: 'single', walkable: false, colorRole: 'building.wall',
+      label: 'wall', char: '█', position: 'single', walkable: false, colorRole: 'building.wall',
       settings: { colors: { spring: '#ddd0a8', summer: '#c8a878' } },
     },
     leaf: {
-      label: 'leaf', glyph: '@', position: 'single', walkable: true, colorRole: 'canopy',
+      label: 'leaf', char: '@', position: 'single', walkable: true, colorRole: 'canopy',
       settings: { colors: { spring: ['#7cc46a', '#9ed87f', '#5fae4f'] } },
     },
     plain: {
-      label: 'plain', glyph: '.', position: 'single', walkable: true, colorRole: '', settings: {},
+      label: 'plain', char: '.', position: 'single', walkable: true, colorRole: '', settings: {},
     },
   },
 }
@@ -49,7 +49,9 @@ describe("resolveTile resolves colour from each tile's own settings.colors (not 
     expect(resolveTile(TILESET, 'winter', 'wall').color).toBe(FALLBACK_RESOLVED.color) // wall has no winter
   })
 
-  test('glyph + settings still pass through', () => {
+  // The mark and the settings ride through untouched. The field is `char` — the mark the picture was
+  // baked FROM — not `glyph`; authoring `glyph` here handed resolveTile an undefined it passed straight on.
+  test('the tile mark + settings still pass through', () => {
     const r = resolveTile(TILESET, 'spring', 'wall')
     expect(r.char).toBe('█')
     expect(r.settings).toBe(TILESET.tiles.wall.settings)

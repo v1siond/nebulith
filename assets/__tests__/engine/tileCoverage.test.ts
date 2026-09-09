@@ -13,7 +13,7 @@
  * the stage generator / catalog / combat can emit resolves to `kind: 'image'`. Each `it` collects
  * the gaps into a list and asserts it is empty, so a RED run prints the full authoritative gap set.
  *
- * Enumerations are pulled from the real sources (CELL_LABELS, ZONE_PALETTES, ABILITY_TINT, the backend
+ * Enumerations are pulled from the real sources (CELL_LABELS, ZONE_PALETTES, ABILITY_ANIMATIONS, the backend
  * entity resolution, enemyTileId) — not a guessed subset. The handful that
  * cannot be imported (inline `type:` string literals in stageGenerator, the projectile glyphs that
  * are private to combat.ts) are listed verbatim with a source citation.
@@ -39,7 +39,7 @@ import { glyphImageVisual } from '@/engine/render/shared'
 
 import { CELL_LABELS } from '@/engine/cellLabels'
 import { ZONE_PALETTES } from '@/engine/zones'
-import { ABILITY_TINT } from '@/game/abilities'
+import { ABILITY_ANIMATIONS } from '@/game/abilities'
 // The entity resolution the runtime installs from `/api/entities` — a captured fixture of that endpoint's
 // payload (the shape EntitySource serves), installed the SAME way the loader installs it.
 import ENTITIES_FIXTURE from '@/__tests__/fixtures/entities.json'
@@ -67,7 +67,7 @@ beforeAll(() => {
 /** resolveVisual returns an IMAGE for `kind`? (the pass condition — never ascii/glyph). */
 const resolvesToImage = (kind: ElementKind): boolean => resolveVisual(kind, EMOJI_STYLE).kind === 'image'
 /** A raw glyph char resolves to a baked image through the char→image index (weapons/projectiles). */
-const glyphResolvesToImage = (glyph: string): boolean => glyphImageVisual(glyph)?.kind === 'image'
+const glyphResolvesToImage = (glyph: string): boolean => glyphImageVisual(glyph, EMOJI_STYLE)?.kind === 'image'
 
 // ── the enumerations (from the real sources) ────────────────────────────────────────────────────
 
@@ -106,8 +106,10 @@ const WEAPON_KINDS: string[] = ['sword', 'axe', 'bow', 'gun', 'staff', 'shield',
 // Projectile glyphs — src/game/runtime/combat.ts PROJECTILE_GLYPHS = { bow: '➤', gun: '•' }, default '→'.
 const PROJECTILE_GLYPHS: string[] = ['➤', '•', '→']
 
-// Ability animations — the keys of ABILITY_TINT ARE the full AbilityAnimation set.
-const ABILITY_ANIMATIONS: string[] = Object.keys(ABILITY_TINT)
+// Ability animations come straight from the engine's own list. They used to be read off the keys of an
+// ABILITY_TINT map, which is gone: each animation is an FX TILE whose tint lives in its own backend settings,
+// so the frontend stopped re-declaring nine hexes the API already served. Reading a deleted map's keys threw
+// before a single test in this file could run.
 
 describe('tile coverage guardrail — every world identifier resolves to an IMAGE under the emoji style', () => {
   it('the seed loaded and built an emoji style with image tiles', () => {

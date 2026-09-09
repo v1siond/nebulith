@@ -126,30 +126,25 @@ describe('G4 attack animation routes the ability → its FX tile', () => {
 })
 
 // ── G3 · well (3D from the tile) + boss (a prop) in iso ─────────────────────────────────────────
-describe('G3 well/boss route through resolveDraw in iso (no procedural / raw-glyph branch under emoji)', () => {
-  test('EMOJI well → a 3D tile BLOCK: the well tile IMAGE on filled faces (depth preserved), not drawIsoWellFountain', () => {
+// ONE ENGINE, N ART STYLES. These used to be two cases per subject — emoji draws a picture, ascii draws a
+// glyph — which described two engines. Every tile is baked in every style now, so BOTH styles take the same
+// route and differ only in WHICH picture comes back. Running each subject over both styles is the strongest
+// form of the thing this group exists to guard: no bespoke procedural drawer, no raw-glyph branch, anywhere.
+describe('G3 well/boss route through resolveDraw in iso — same path in every style', () => {
+  const STYLES: [string, Style][] = [['emoji', EMOJI_STYLE], ['ascii', ASCII_STYLE]]
+
+  test.each(STYLES)('%s well → a 3D tile BLOCK from its own picture, never drawIsoWellFountain', (_id, style) => {
     const r = recordingCtx()
-    drawIsoAssetAscii(r.ctx, 100, 100, asset({ type: 'well', art: ['O'] }), 22, 11, 0, false, 'day', EMOJI_STYLE)
-    expect(r.images).toBeGreaterThanOrEqual(1) // the well.png sheared onto the block faces
+    drawIsoAssetAscii(r.ctx, 100, 100, asset({ type: 'well', art: ['O'] }), 22, 11, 0, false, 'day', style)
+    expect(r.images).toBeGreaterThanOrEqual(1) // the well picture sheared onto the block faces
     expect(r.fills).toBeGreaterThanOrEqual(3) // 3D depth: two side faces + a top cap
   })
-  test('ASCII well → its TILE glyph (asset.art), NOT a bespoke procedural basin drawer', () => {
+
+  test.each(STYLES)('%s boss → its own tile IMAGE, never the raw art glyph', (_id, style) => {
     const r = recordingCtx()
-    drawIsoAssetAscii(r.ctx, 100, 100, asset({ type: 'well', art: ['O'] }), 22, 11, 0, false, 'day', ASCII_STYLE)
-    expect(r.images).toBe(0)
-    expect(r.glyphs).toContain('O') // renders the asset's tile glyph via the generic path — no fountain/well drawer
-  })
-  test('EMOJI boss → its 👹 tile IMAGE (drawImage), not the raw art glyph', () => {
-    const r = recordingCtx()
-    drawIsoAssetAscii(r.ctx, 100, 100, asset({ type: 'boss', art: ['Ω'] }), 22, 11, 0, false, 'day', EMOJI_STYLE)
+    drawIsoAssetAscii(r.ctx, 100, 100, asset({ type: 'boss', art: ['Ω'] }), 22, 11, 0, false, 'day', style)
     expect(r.images).toBeGreaterThanOrEqual(1)
-    expect(r.glyphs).not.toContain('Ω')
-  })
-  test('ASCII boss → the raw art glyph, no tile image', () => {
-    const r = recordingCtx()
-    drawIsoAssetAscii(r.ctx, 100, 100, asset({ type: 'boss', art: ['Ω'] }), 22, 11, 0, false, 'day', ASCII_STYLE)
-    expect(r.glyphs).toContain('Ω')
-    expect(r.images).toBe(0)
+    expect(r.glyphs).not.toContain('Ω') // the art mark is what the picture was baked FROM, not what is drawn
   })
 })
 

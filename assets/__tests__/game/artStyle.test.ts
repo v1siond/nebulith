@@ -78,9 +78,12 @@ describe('resolveVisual — the one style decision point', () => {
   })
 
   it('a per-element override WINS over a non-ASCII style too', () => {
-    // pin an ASCII tree glyph while the world is Emoji
-    const v = resolveVisual('tree', EMOJI_STYLE, 'ascii:tree') as GlyphVisual
-    expect(v.kind).toBe('glyph')
+    // Pin the ASCII tree while the world is Emoji. The RULE is unchanged — the override beats the active
+    // style — only the medium is: an ascii tile is a BAKED PICTURE now (a grid of characters baked to a PNG),
+    // not a live glyph, so this asserts the ascii PICTURE won rather than an ascii glyph kind. The mark the
+    // picture was baked from still rides along as `char`.
+    const v = resolveVisual('tree', EMOJI_STYLE, 'ascii:tree') as ImageVisual & { char?: string }
+    expect(v.src).toContain('/tiles/ascii/tree')
     expect(v.char).toBe('♣')
   })
 

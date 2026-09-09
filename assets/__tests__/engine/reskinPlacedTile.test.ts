@@ -50,11 +50,15 @@ describe('activeStyleVisualForOverride — re-home a placed tile onto the active
     expect(back).toEqual(first)           // …and nothing STORED changed, so it comes back identical
   })
 
-  test('a slug present in BOTH styles reskins to EACH (rock → the emoji rock, then the ascii glyph)', () => {
+  test('a slug present in BOTH styles reskins to EACH (rock → the emoji rock, then the ascii rock)', () => {
     const emojiRock = activeStyleVisualForOverride('emoji:rock', EMOJI_STYLE)
     const asciiRock = activeStyleVisualForOverride('emoji:rock', ASCII_STYLE)
     expect(emojiRock).not.toBeNull()
-    expect(asciiRock).toEqual({ kind: 'glyph', char: '▓' }) // the ascii:rock catalog glyph
+    // Each style answers with its OWN baked picture for the same label — that IS the model. It used to be
+    // asserted as an ascii glyph; ascii art is composed and baked like everything else now, so the ascii
+    // answer is a picture too, carrying the '▓' it was baked from.
+    expect(asciiRock).toMatchObject({ kind: 'image', char: '▓' })
+    expect((asciiRock as { src: string }).src).toContain('/tiles/ascii/rock')
     expect(emojiRock).not.toEqual(asciiRock) // it genuinely changes with the style
     // and picking it under ascii round-trips back to the emoji rock under emoji
     expect(activeStyleVisualForOverride('ascii:rock', EMOJI_STYLE)).toEqual(emojiRock)
@@ -84,7 +88,10 @@ describe('resolveAssetDraw — the placed-asset draw funnel the 3 views use', ()
   test('back under emoji the placed pine-tree is the emoji tile again (reskin follows the toggle)', () => {
     const underAscii = resolveAssetDraw('tree', ASCII_STYLE, 'emoji:pine-tree', '', '#ffffff')
     const backEmoji = resolveAssetDraw('tree', EMOJI_STYLE, 'emoji:pine-tree', '', '#ffffff')
-    expect(underAscii.image).toBeUndefined()
+    // The pinned tile RE-HOMES onto whichever style is active — it never freezes to the one it was placed in.
+    // Both sides are pictures now, so the reskin is asserted by WHICH picture each style hands back; the old
+    // "ascii has no image" spelling only worked while ascii was live glyphs.
+    expect(underAscii.image?.src).toContain('/tiles/ascii/')
     expect(backEmoji.image?.src).toContain('pine-tree')
   })
 
