@@ -72,10 +72,19 @@ function genSeeded(opts: Parameters<typeof generateStage>[0], seed: number): Sta
 // The two SUMMER settlements also move because SUMMER_FLOWERS gained four more bloom tones (a fuller flower
 // bed, per #14/#17) — town|summer + city|summer scatter from the wider set. Every other archetype (town|autumn,
 // cave, temple, boss) is byte-identical.
+// Regenerated again 2026-09-09 for the two de-hardcoding changes Alexander asked for. (1) villageLayout takes
+// its nine settlement numbers (plaza size, setback, road width, lot gap, per-frontage cap, building cap, house
+// + big-house ranges, house widths) from the backend `settlement` block instead of nine frontend constants —
+// they were parsed and then never read. (2) A building is COMPOSED to the footprint its plot rolled rather
+// than snapping to the nearest baked size — *"we randomize the footprint and house adapts to it"*. Both move
+// where plots land and what they are called, hence the digest. Only the three SETTLEMENTS move; forest, cave,
+// temple and boss are byte-identical. Sanity-checked before relocking: each still carves roads (816/936/1184
+// tinted cells), plants 15-19 buildings across several kinds, every building keeps a door, and none lands
+// off-grid.
 const BASELINE: Record<string, string> = {
-  'town|autumn|40x40|1': '295bac7b',
-  'town|summer|50x40|7': '43b40617',
-  'city|summer|56x44|3': '4cc20517',
+  'town|autumn|40x40|1': '8ffad300',
+  'town|summer|50x40|7': '8c83d0fd',
+  'city|summer|56x44|3': '93a2b8c7',
   'forest|summer|30x24|42': '693fc6e6',
   'cave|autumn|40x30|99': 'c3a252e7',
   'temple|winter|36x30|5': '7b1712d1',

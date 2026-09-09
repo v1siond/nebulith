@@ -210,7 +210,7 @@ describe('generateStage — temple STRUCTURE: a grand settlement building compos
     return null
   }
 
-  it('stamps the temple footprint as collision, walkable only across its door cells', () => {
+  it('stamps the temple SHELL as collision — its doorway and its inside stay walkable', () => {
     const found = findTempleBuilding()
     expect(found).not.toBeNull()
     const { stage, temple: b } = found!
@@ -224,10 +224,11 @@ describe('generateStage — temple STRUCTURE: a grand settlement building compos
     expect(b.doorCells).toHaveLength(2)
     const doorSet = new Set(b.doorCells.map(d => `${d.col},${d.row}`))
     for (const d of b.doorCells) expect(stage.collision[d.row][d.col]).toBe(false) // the door is a way in
-    // every OTHER footprint cell blocks
+    // The reservation is a HOLLOW shell: the wall ring blocks, the inside does not — which is what makes the
+    // temple something you can walk INTO rather than a solid slab on the map.
     for (const c of cells) {
-      const isDoor = doorSet.has(`${c.col},${c.row}`)
-      expect(stage.collision[c.row][c.col]).toBe(!isDoor)
+      const onRing = c.col === b.col || c.col === b.col + b.length - 1 || c.row === top || c.row === b.row
+      expect(stage.collision[c.row][c.col]).toBe(onRing && !doorSet.has(`${c.col},${c.row}`))
     }
   })
 

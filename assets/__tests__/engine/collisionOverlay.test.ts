@@ -7,7 +7,7 @@
  * We record the diamond's four vertices and assert its half-extents equal the tileW/tileH passed in — not
  * the grid.isoScale default — and that only a BLOCKED cell tints (a clear cell draws no red).
  */
-import { renderDebugOverlays } from '@/engine/render/iso'
+import { ISO_BLOCK_H_FRAC, renderDebugOverlays } from '@/engine/render/iso'
 import { IsometricGrid } from '@/engine/IsometricGrid'
 import type { PlayerState } from '@/game/runtime/player'
 
@@ -59,20 +59,25 @@ describe('renderDebugOverlays — collision diamonds fill cells at the render zo
 
     const red = fills.filter(f => f.style === RED)
     expect(red).toHaveLength(1) // exactly the one blocked cell tinted
-    // Diamond vertices in draw order: top, right, bottom, left — each offset from the cell centre by the
+    // The tint is painted on the SURFACE A UNIT WOULD STAND ON, not on the flat grid plane — "a unit walking
+    // HERE is stopped" is about the walkable top of the cell. The ground is a block like everything else now,
+    // so that surface is one block up and the diamond rides with it; sitting at the plane would draw the tint
+    // buried inside the ground it describes.
+    const top = { x: centre.x, y: centre.y - tileW * ISO_BLOCK_H_FRAC }
+    // Diamond vertices in draw order: top, right, bottom, left — each offset from that surface centre by the
     // passed half-extents. This is the fix: the size follows the render's zoomed tileW/tileH.
     expect(red[0].pts).toEqual([
-      [centre.x, centre.y - tileH],
-      [centre.x + tileW, centre.y],
-      [centre.x, centre.y + tileH],
-      [centre.x - tileW, centre.y],
+      [top.x, top.y - tileH],
+      [top.x + tileW, top.y],
+      [top.x, top.y + tileH],
+      [top.x - tileW, top.y],
     ])
     // Restated as half-extents so a future regression to the unzoomed formula fails loudly.
     const xs = red[0].pts.map(p => p[0]), ys = red[0].pts.map(p => p[1])
-    expect(Math.max(...xs) - centre.x).toBe(tileW)
-    expect(centre.x - Math.min(...xs)).toBe(tileW)
-    expect(Math.max(...ys) - centre.y).toBe(tileH)
-    expect(centre.y - Math.min(...ys)).toBe(tileH)
+    expect(Math.max(...xs) - top.x).toBe(tileW)
+    expect(top.x - Math.min(...xs)).toBe(tileW)
+    expect(Math.max(...ys) - top.y).toBe(tileH)
+    expect(top.y - Math.min(...ys)).toBe(tileH)
   })
 
   test('a CLEAR cell draws no red diamond (only blocked cells tint)', () => {
