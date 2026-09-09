@@ -237,45 +237,15 @@ defmodule Nebulith.BuildingCompositionsTest do
     end
   end
 
-  describe "the entrance RULE — door columns in, entrance blocks out" do
-    alias Nebulith.Catalog.BuildingCompositions, as: BC
-
-    test "1 door → 1 entrance block" do
-      assert [%{dx: 4, dy: 4, level: 0, label: "path", walkable: true}] =
-               BC.entrance_cells([4], 4)
-    end
-
-    test "2 contiguous doors → ONE entrance block of z-width 2" do
-      assert [e] = BC.entrance_cells([2, 3], 4)
-      assert e.dx == 2
-      assert e.settings == %{"depth" => 2, "depthDir" => "right-down"}
-    end
-
-    test "3 contiguous doors → ONE entrance block of z-width 3" do
-      assert [e] = BC.entrance_cells([2, 3, 4], 5)
-      assert e.dx == 2
-      assert e.settings == %{"depth" => 3, "depthDir" => "right-down"}
-    end
-
-    test "non-adjacent doors → ONE entrance block EACH (no span across the wall between them)" do
-      assert [left, right] = BC.entrance_cells([1, 4], 4)
-      assert left.dx == 1
-      assert right.dx == 4
-      refute Map.has_key?(left, :settings) and Map.has_key?(right, :settings)
-    end
-
-    test "a mixed facade spans each contiguous RUN and leaves the lone door plain" do
-      assert [pair, lone] = BC.entrance_cells([1, 2, 5], 4)
-      assert pair.dx == 1
-      assert pair.settings == %{"depth" => 2, "depthDir" => "right-down"}
-      assert lone.dx == 5
-      refute Map.has_key?(lone, :settings)
-    end
-
-    test "no doors → no entrance" do
-      assert BC.entrance_cells([], 4) == []
-    end
-  end
+  # THE ENTRANCE RULE group is gone with `entrance_cells/2` itself.
+  #
+  # It tested the apron builder in detail — one door to one block, contiguous doors collapsing into one
+  # z-width span, non-adjacent doors staying separate. Careful work, and all of it about a function no
+  # building has called since #49 removed the apron: it stood UP in front of the doors and blocked the
+  # doorway it served. The function had no caller but these tests, so it and they go together.
+  #
+  # What replaced the property is asserted above: nothing sits on the row in front of a facade, no cell
+  # anywhere is the `path` doorstep tile, and the doorway is still walkable.
 
   describe "#31 roof is a single consistent colour (one roof material, never mixed)" do
     for name <- @gable do

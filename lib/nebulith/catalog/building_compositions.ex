@@ -20,7 +20,8 @@ defmodule Nebulith.Catalog.BuildingCompositions do
   Windows sit on the same columns on every floor (vertically aligned). The DOOR is centred
   (`door_cols/1` — one column for odd widths, a 2-wide centred opening for even widths). The
   ROOF is one consistent colour (`roof`/`roof_top` share it, or the slate pair for masonry).
-  The ENTRANCE apron (`entrance_cells/2`) is built from that SAME `door_cols/1` list, so it always
+  (The ENTRANCE apron is gone — #49: once every tile became a height-1 block it stood UP in front of the
+  doors and blocked the doorway it served. Doors open straight onto the ground.) It always
   matches the doors block for block — 2 doors → a 2-block entrance, 3 doors → a 3-block one — with
   each contiguous run collapsed to ONE z-width block (G7). The apron places the `path` FLOOR tile, so
   the doorstep carries the floor's own minimal height and lies FLAT like the road it joins — height is
@@ -309,47 +310,10 @@ defmodule Nebulith.Catalog.BuildingCompositions do
 
   defp perimeter?(dx, dy, w, h), do: dx == 0 or dx == w - 1 or dy == 0 or dy == h - 1
 
-  @doc """
-  The ENTRANCE apron for a facade's `door_cols` — the walkable ground tiles you step onto to reach the doorway.
-
-  The entrance is derived from the SAME door-column list that places the doors, so it ALWAYS matches them
-  block for block (G7: *"the walk-in ENTRANCE opening must ALWAYS match the door's width"*): 2 doors → a
-  2-block entrance, 3 doors → a 3-block entrance. Each CONTIGUOUS run of door columns collapses to ONE
-  z-width block (`settings.depth` = the run length along `depthDir: "right-down"`, the +col facade axis) —
-  the same depth-span mechanism the roof uses on the +row axis (#32), so a 2-wide doorway costs one cell
-  instead of two. Doors separated by a wall get one block EACH (nothing spans across the wall between them).
-
-  `dy` is the row the apron sits on — pass the footprint depth so it lands on the ground row directly in
-  FRONT of the facade. The stamp rotates it with the building, so it always faces the road.
-  """
-  def entrance_cells(door_cols, dy) do
-    door_cols
-    |> contiguous_runs()
-    |> Enum.map(&entrance_cell(&1, dy))
-  end
-
   # Group a column list into CONTIGUOUS runs: [2, 3] → [[2, 3]]; [1, 4] → [[1], [4]]; [1, 2, 5] → [[1, 2], [5]].
-  defp contiguous_runs(cols) do
-    cols
-    |> Enum.sort()
-    |> Enum.chunk_while([], &extend_or_break/2, &flush_run/1)
-  end
-
-  defp extend_or_break(col, []), do: {:cont, [col]}
-  defp extend_or_break(col, [prev | _] = run) when col == prev + 1, do: {:cont, [col | run]}
-  defp extend_or_break(col, run), do: {:cont, Enum.reverse(run), [col]}
-
-  defp flush_run([]), do: {:cont, []}
-  defp flush_run(run), do: {:cont, Enum.reverse(run), []}
 
   # ONE entrance block per run, anchored at the run's leftmost column. A single column stays a plain cell; a
   # wider run carries its z-width so the apron is one block, not one per door.
-  defp entrance_cell([dx], dy), do: cell(dx, dy, 0, "path", true)
-
-  defp entrance_cell([dx | _] = run, dy) do
-    cell(dx, dy, 0, "path", true)
-    |> Map.put(:settings, %{"depth" => length(run), "depthDir" => "right-down"})
-  end
 
   # Build the wall box: for every PERIMETER column, collapse levels 0..wall_top (labelled by `facade_fun`) into
   # the FEWEST cells (`wall_column`). The DOORWAY column is walkable end-to-end (you pass through the doorway);
@@ -454,10 +418,6 @@ defmodule Nebulith.Catalog.BuildingCompositions do
     crown = cell(div(w - 1, 2), div(h - 1, 2), roof_level + 1, crown_label, false)
     columns ++ [crown]
   end
-
-
-
-
 
   # STONE BUILDING — the material+piece SAMPLE (TILESET-AUTHORING §3). A 5×4 box (matches the store footprint,
   # so the generator can render its single store from this) whose wall field is the `wall_stone` MATERIAL — a

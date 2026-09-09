@@ -47,7 +47,7 @@ defmodule Nebulith.TileSourceTest do
     assert MapSet.size(emoji_labels) >= ctx.expected_emoji
   end
 
-  test "ports the json-sourced + elixir-authored compositions, tree_small carrying 30 cells" do
+  test "ports the json-sourced + elixir-authored compositions, each with cells and a footprint" do
     comps = Catalog.list_compositions()
     names = MapSet.new(comps, & &1.name)
 
@@ -55,8 +55,13 @@ defmodule Nebulith.TileSourceTest do
     # the moment a building or tree variant is added).
     assert MapSet.subset?(MapSet.new(~w(tree_small tree_dead tree bush well fountain)), names)
 
+    # THE CELL COUNT IS NO LONGER ASSERTED. It was 30 for tree_small, which was the count BEFORE #30's
+    # minimal-cells rebuild collapsed each vertical run of identical tiles into one block carrying a
+    # `scaleY`. A composition's cell count is now an artefact of that optimisation, so pinning a number
+    # asserts the optimisation has not improved — what matters is that it has cells and a real footprint.
     tree_small = Enum.find(comps, &(&1.name == "tree_small"))
-    assert length(tree_small.cells) == 30
+    assert tree_small.cells != []
+    assert tree_small.footprint_w >= 1 and tree_small.footprint_h >= 1
   end
 
   test "the tree is EXACTLY 2 tiles — a thin tall trunk + a bigger leaf; the bush is trunkless (1 tile)" do
@@ -338,55 +343,54 @@ defmodule Nebulith.TileSourceTest do
     end
   end
 
-  test "each paintable asset tile carries its OWN height — standing = block (≥1), ground/flat = 0; terrain is the floor (0)" do
-    # The user's model: height is per-tile DATA read uniformly, with NO type/category code branch — a tile just
-    # carries its own height. A STANDING object (tree/rock/building/prop) is an extruded block (≥1); a GROUND/FLAT
-    # tile (flower/leaf/facade piece/water feature) is height 0 (shows on the floor face, walkable). seed() writes
-    # each tile's own emoji.json height (absent → 0); terrain stays the floor primitive (0).
-    emoji = Catalog.list_tiles_for("emoji")
-    by = fn label -> Enum.find(emoji, &(&1.label == label)) end
+  test "every tile carries its OWN height, and the SAME label carries the same one in every art style" do
+    # The rule this file states and the one worth guarding: *"height is per-tile DATA read uniformly, with
+    # NO type/category code branch — a tile just carries its own height."*
+    #
+    # THE CLASSIFICATION LISTS ARE GONE, and they were the part contradicting that rule. This test used to
+    # hardcode which labels are flat and which stand, which is the very type/category branch the model
+    # forbids — and it had gone stale in two ways: it called `roof` flat and walkable, exactly the claim
+    # COMBAT-AND-SYSTEMS-SPEC §9 forbids (Alexander: *"roof should have collissions"*), and it called
+    # `water` a flat floor when water is deliberately a height-1 block so ornaments stack on top of it.
+    #
+    # What replaces it is the ENGINE's own law: one label, one set of facts, a different picture per style.
+    # A height that differs between ascii and emoji is a real defect; a height this test disagrees with is
+    # not.
+    ascii = Map.new(Catalog.list_tiles_for("ascii"), &{&1.label, &1.height})
+    emoji = Map.new(Catalog.list_tiles_for("emoji"), &{&1.label, &1.height})
 
-    # STANDING things (whole buildings + structural parts + standing nature) — an extruded block, height ≥ 1.
-    standing = ~w(wall house castle brick tower bank tree palm-tree rock boulder mushroom bush cactus potted-plant)
-    for label <- standing do
-      assert by.(label).height >= 1, "#{label} is a standing object — it must extrude into a block (height ≥ 1)"
+    shared = MapSet.intersection(MapSet.new(Map.keys(ascii)), MapSet.new(Map.keys(emoji)))
+    assert MapSet.size(shared) > 100, "expected the two styles to share most labels"
+
+    drift =
+      shared
+      |> Enum.filter(fn label -> ascii[label] != emoji[label] end)
+      |> Enum.map(fn label -> "#{label}: ascii #{ascii[label]} vs emoji #{emoji[label]}" end)
+
+    assert drift == [], "the same label must carry the same height in every style:\n  " <> Enum.join(drift, "\n  ")
+
+    # Every tile HAS a height, and none is negative — the floor-vs-block boundary is a number, always present.
+    for {label, height} <- ascii do
+      assert height != nil, "#{label} carries no height"
+      assert height >= 0, "#{label} has a negative height (#{height})"
     end
 
-    # GROUND/FLAT things — thin facade pieces (door/window), water features, and the ground overlays
-    # (flowers/leaves) — carry height 0: they show on the floor face only and are walkable.
-    flat = ~w(door window glass-window wooden-door fountain well roof flower rose tulip sunflower fallen-leaf maple-leaf clover coral seashell wheat)
-    for label <- flat do
-      assert by.(label).height == 0, "#{label} is a ground/flat tile — its own height is 0 (floor face, walkable)"
-    end
-
-    # terrain is the FLOOR primitive (painted onto the ground, never a stacked block), so it is height 0 by
-    # definition — the floor-vs-stack boundary, read the SAME way as any other tile's height.
-    for label <- ~w(grass water path road sand) do
-      assert by.(label).height == 0, "#{label} is terrain (the floor), height 0"
-    end
-  end
-
-  test "the entrance's doorstep tile is FLAT in BOTH styles — the same label carries the same floor height" do
-    # Alexander: "the entrance door … aren't 0.01 height like the rest of floor tiles, so we must generate them
-    # with that height". A building's entrance apron places the `path` TILE (BuildingCompositions.entrance_cells),
-    # so the doorstep is only as flat as that tile's own height DATA. The ascii glyph seed stamped every
-    # ascii.json `tiles` entry a full block (a hardcoded `height: 1`), so `path` was a 1-block kerb in ascii and a
-    # floor slab in emoji — the SAME label behaving differently per art style, which MAP-MODEL §4 forbids ("all
-    # tiles behave and are inserted the same in the map, regardless of type or art style").
-    assert [_ | _] = entrance = BuildingCompositions.entrance_cells([1, 2], 4)
-    assert Enum.map(entrance, & &1.label) |> Enum.uniq() == ["path"]
-
-    # every FLOOR tile you can walk on — the doorstep must be one of them, not a block standing on them.
-    floor_labels = ~w(path road plaza sand grass water)
-
-    for style <- ~w(ascii emoji) do
-      tiles = Catalog.list_tiles_for(style)
-      heights = Map.new(floor_labels, fn l -> {l, Enum.find(tiles, &(&1.label == l)).height} end)
-
-      assert Enum.uniq(Map.values(heights)) == [0.0],
-             "#{style}: floor tiles must all carry the SAME flat height, got #{inspect(heights)}"
+    # The one structural claim that is still true and still worth pinning: a STANDING object extrudes.
+    for label <- ~w(wall house castle brick tower bank tree palm-tree rock boulder mushroom bush cactus potted-plant) do
+      assert ascii[label] >= 1, "#{label} is a standing object — it must extrude into a block (height >= 1)"
     end
   end
+
+  # THE DOORSTEP TEST IS GONE, with the thing it tested.
+  #
+  # It asserted that a building's entrance apron places a flat `path` tile. #49 removed the apron — once
+  # every tile became a height-1 block the apron stood UP in front of the doors and blocked the doorway it
+  # served — so no building places a `path` cell any more and `entrance_cells/2` had no caller but this.
+  #
+  # It also happened to be the only thing asserting `water` was flat, which is why removing it settles that
+  # question rather than raising one: water is deliberately a height-1 terrain block so ornaments stack on
+  # it (see the meadow layout, which says so), and it carries the same height in BOTH styles, which is the
+  # rule that actually matters.
 
   test "AsciiPathFloorHeight puts a drifted ascii `path` back on the floor, settings untouched, idempotent" do
     # The live DB carries the pre-fix row (ascii `path` = a full block) — a re-seed would clobber editor-tuned
@@ -407,26 +411,13 @@ defmodule Nebulith.TileSourceTest do
              FlatTilesMinimalHeight.flat_height()
   end
 
-  test "reconcile_tile_heights restores each asset tile's OWN height from emoji.json (drift snaps back), settings untouched" do
-    # Pose-safe fix: reconcile touches ONLY the height column, so editor-tuned poses (in `settings`) survive.
-    # Per-tile DATA: a flower's own height is 0 (flat), a wall's is 1 (block) — reconcile writes each tile's own
-    # emoji.json height, not a uniform constant.
-    rose = Enum.find(Catalog.list_tiles_for("emoji"), &(&1.label == "rose"))
-    assert rose.height == 0, "a flower is a ground/flat tile by default (its own height is 0)"
-    settings_before = rose.settings
-
-    # simulate DB drift: push a flat tile UP and a block tile to a wrong value.
-    {1, _} = Catalog.set_tile_height(rose.tileset_id, "rose", 3)
-    {1, _} = Catalog.set_tile_height(rose.tileset_id, "wall", 5)
-    assert Enum.find(Catalog.list_tiles_for("emoji"), &(&1.label == "rose")).height == 3
-
-    :ok = TileSource.reconcile_tile_heights()
-    fixed = Catalog.list_tiles_for("emoji")
-    by = fn label -> Enum.find(fixed, &(&1.label == label)) end
-    assert by.("rose").height == 0, "reconcile restores the flower's OWN height (0), not a uniform block"
-    assert by.("wall").height == 1, "a drifted building height snaps back to its OWN height (1)"
-    assert by.("rose").settings == settings_before, "settings (colour/pose) survive the height-only fix"
-  end
+  # THE emoji.json RECONCILE test is gone. Alexander, 2026-09-09: *"there's 0 sense on having a validation
+  # for emoji.json when we use the backend database, the only exception would be if we wanted to validate
+  # the import/seed of the json into de database works, but that seems like a really useless test when we
+  # can just run migrations and validate the lists."*
+  #
+  # The DB is the source of truth. What is worth asserting about heights is asserted below, against the
+  # seeded rows rather than against the file they came from.
 
   test "animals are UNITS/enemies, not nature; genuine nature (trees/rocks/plants) stays nature" do
     # User: "we have a bunch of enemy or unit tiles on the nature category, like bears, wolf — animals aren't
