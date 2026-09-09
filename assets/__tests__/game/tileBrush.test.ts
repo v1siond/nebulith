@@ -42,12 +42,12 @@ describe('placeGroundTile — terrain replaces the cell ground', () => {
 })
 
 describe('stackAssetTile — nature/buildings stack as cell assets (ON TOP of the floor)', () => {
-  test('one place → one stacked asset at level 0 (on the floor slab), pinned to the exact tile', () => {
+  test('one place → one stacked asset ON the floor block, pinned to the exact tile', () => {
     const g = makeGrid()
     stackAssetTile(g, 1, 1, byId('emoji:pine-tree'))
     const placed = nonFloor(g, 1, 1)
     expect(placed).toHaveLength(1)
-    expect(placed[0].heightLevel).toBe(0) // sits at level 0 ON the floor slab (which stays as slot 0)
+    expect(placed[0].heightLevel).toBe(1) // sits ON the grass block, not inside it (the floor stays as slot 0)
     expect(placed[0].tileOverride).toBe('emoji:pine-tree')
     expect(placed[0].type).toBe('pine-tree') // the tile's OWN slug, not a classified category
     expect(g.groundAt(1, 1)).toBe('grass')  // the grass floor is NOT removed — it stays beneath
@@ -72,7 +72,7 @@ describe('stackAssetTile — nature/buildings stack as cell assets (ON TOP of th
     stackAssetTile(g, 1, 1, byId('emoji:oak-tree'))
     stackAssetTile(g, 1, 1, byId('emoji:boulder'))
     const placed = nonFloor(g, 1, 1)
-    expect(placed.map(a => a.heightLevel)).toEqual([0, 1, 2])
+    expect(placed.map(a => a.heightLevel)).toEqual([1, 2, 3]) // the ground is block 0; the pile starts above it
     expect(placed.map(a => a.tileOverride)).toEqual(['emoji:pine-tree', 'emoji:oak-tree', 'emoji:boulder'])
   })
 
@@ -436,10 +436,10 @@ describe('Clear tiles on a selection — empties assets + ground, and undo resto
 describe('removeAssetAtLevel — ⌥Alt removes the block you POINT at, not blindly the top', () => {
   test('removes the asset at the given heightLevel, leaving the rest of the stack intact', () => {
     const g = makeGrid()
-    stackAssetTile(g, 1, 1, byId('emoji:pine-tree')) // level 0
-    stackAssetTile(g, 1, 1, byId('emoji:oak-tree'))  // level 1
-    stackAssetTile(g, 1, 1, byId('emoji:boulder'))   // level 2 (top)
-    const removed = removeAssetAtLevel(g, 1, 1, 1)    // point at the MIDDLE block
+    stackAssetTile(g, 1, 1, byId('emoji:pine-tree')) // level 1 (on the ground block)
+    stackAssetTile(g, 1, 1, byId('emoji:oak-tree'))  // level 2
+    stackAssetTile(g, 1, 1, byId('emoji:boulder'))   // level 3 (top)
+    const removed = removeAssetAtLevel(g, 1, 1, 2)    // point at the MIDDLE block
     expect(removed?.tileOverride).toBe('emoji:oak-tree')
     // the top (boulder) and bottom (pine) survive — only the pointed block is gone
     expect(nonFloor(g, 1, 1).map(a => a.tileOverride)).toEqual(['emoji:pine-tree', 'emoji:boulder'])
@@ -447,10 +447,10 @@ describe('removeAssetAtLevel — ⌥Alt removes the block you POINT at, not blin
 
   test('re-derives collision: removing the only blocking (authored) asset unblocks the cell even if a walkable tile stays', () => {
     const g = makeGrid()
-    stackAssetTile(g, 2, 2, byId('emoji:rose'))                                   // painted, walkable (level 0)
-    g.placeAsset(['🧱'], 2, 2, { type: 'wall', blocking: true, heightLevel: 1 })  // authored blocker (level 1, top)
+    stackAssetTile(g, 2, 2, byId('emoji:rose'))                                   // painted, walkable (level 1)
+    g.placeAsset(['🧱'], 2, 2, { type: 'wall', blocking: true, heightLevel: 2 })  // authored blocker (level 2, top)
     expect(g.isBlocked(2, 2)).toBe(true)
-    removeAssetAtLevel(g, 2, 2, 1) // remove the blocker specifically
+    removeAssetAtLevel(g, 2, 2, 2) // remove the blocker specifically
     expect(g.isBlocked(2, 2)).toBe(false)
     expect(nonFloor(g, 2, 2).map(a => a.tileOverride)).toEqual(['emoji:rose'])
   })

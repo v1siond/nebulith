@@ -4,6 +4,7 @@ import { installSeedTileset } from '@/__tests__/helpers/tilesetSeed'
 import { generateStage, stagePaint, footprintEdgeClass, footprintSide, footprintRing, edgeToSide, treeSubpart, labelForCell, pickLivingTree } from '@/engine/stageGenerator'
 import { buildingDepth, buildingDoorOffset } from '@/engine/buildingCatalog'
 import { parseColor } from '@/engine/colors'
+import { groundTileColor } from '@/engine/tileset/groundColor'
 import { resolveGroundTile, canopyCount, resolveComposition } from '@/engine/tileset/tileset'
 
 // The zone canopy shades now live on the loaded backend `leaf_center` tile (settings.colors[zone]) —
@@ -13,6 +14,12 @@ const canopyShades = (zone: string): string[] =>
 
 // The small GROUND footprint cells of a placed building: cols [col, col+length) × rows
 // [row-(height-1), row] (length = grid col-span, height = grid row-span — both small now).
+/** The building's FACADE length — the axis its front runs along. A south/north-facing building fronts along
+ *  the columns (`length`); an east/west one is rotated, so its facade runs down the rows (`height`) and its
+ *  `length` is the ground depth instead. The composition is named after the facade, so this is what names it. */
+const facadeLength = (b: { length: number; height: number; facing: string }): number =>
+  b.facing === 'south' || b.facing === 'north' ? b.length : b.height
+
 const footprintCells = (b: { col: number; row: number; length: number; height: number }) => {
   const cells: { col: number; row: number }[] = []
   const top = b.row - (b.height - 1)
@@ -23,6 +30,17 @@ const footprintCells = (b: { col: number; row: number; length: number; height: n
 describe('generateStage — town vertical slice', () => {
   const stage = generateStage({ zone: 'autumn', variant: 'town' })
 
+  /** The cells the generator tinted as ROAD. Roads carry no tile of their own any more — their identity is the
+   *  per-cell floor COLOUR the layout writes, so that is what a road test has to read. Compared per cell
+   *  because `groundTileColor` varies the shade by position. */
+  const roadCellKeys = (): Set<string> => {
+    const keys = new Set<string>()
+    stage.floorColors.forEach((row, r) => row.forEach((color, c) => {
+      if (color && color === groundTileColor('road', c, r)) keys.add(`${c},${r}`)
+    }))
+    return keys
+  }
+
   it('produces a town of the requested identity', () => {
     expect(stage.zone).toBe('autumn')
     expect(stage.variant).toBe('town')
@@ -30,12 +48,17 @@ describe('generateStage — town vertical slice', () => {
     expect(stage.rows).toBeGreaterThan(0)
   })
 
-  it('carves streets as dark-gray ROAD tiles (not brown path, not the broken cavefloor)', () => {
-    const allowed = new Set(['autumn_ground', 'autumn_leaves', 'road', 'path_stone']) // roads = the dark-gray 'road' tile; plaza/driveway keep brown path_stone
+  it('carves streets as a dark-gray ROAD COLOUR on the ground block, never a separate road tile', () => {
+    // Alexander (#34/#48): *"remove the tiles from the roads, we can use color"*. A road is the ordinary
+    // ground block TINTED asphalt, so it sits FLUSH with the grass — a road tile of its own re-introduced the
+    // raised trench. Road identity lives in the layout and lands here as a per-cell floor colour.
+    const allowed = new Set(['autumn_ground', 'autumn_leaves', 'path_stone']) // plaza/driveway keep brown path_stone
     const allThemed = stage.ground.every(row => row.every(t => allowed.has(t)))
     expect(allThemed).toBe(true)
-    // streets ARE carved, placed as the 'road' tile (not a hijacked ground string)
-    expect(stage.ground.flat().filter(t => t === 'road').length).toBeGreaterThan(0)
+    // No cell is a road TILE — that is the thing that was removed.
+    expect(stage.ground.flat().filter(t => t === 'road').length).toBe(0)
+    // …and streets ARE carved: a good number of cells carry the road tint.
+    expect(roadCellKeys().size).toBeGreaterThan(0)
     // the broken cavefloor hijack is gone
     expect(stage.ground.flat().includes('cavefloor')).toBe(false)
     // and the road tile RESOLVES dark-gray in ASCII — assert the COMPOSITION, not just the string
@@ -54,8 +77,7 @@ describe('generateStage — town vertical slice', () => {
   })
 
   it('never scatters nature onto road cells — nature belongs on grass, not streets (Image #12)', () => {
-    const roadCells = new Set<string>()
-    stage.ground.forEach((r, row) => r.forEach((t, col) => { if (t === 'road' || t === 'road_center' || t === 'road_edge') roadCells.add(`${col},${row}`) }))
+    const roadCells = roadCellKeys()
     expect(roadCells.size).toBeGreaterThan(0) // there ARE roads in a town
     const nature = new Set(['ground_decor', 'flower', 'tree', 'bush'])
     const natureOnRoad = stage.props.filter(p => nature.has(p.type) && roadCells.has(`${p.col},${p.row}`))
@@ -74,27 +96,32 @@ describe('generateStage — town vertical slice', () => {
       // what a generate produces once the backend has answered; this test's generate has no backend, so it
       // gets the first. Both are asserted so neither path can drift into a name nothing can resolve.
       expect(b.kind).toMatch(/^(house|big[-_]house|store|hospital|office|temple|cathedral|castle)([_]\d+|@\d+x\d+)$/)
-      expect(b.depth).toBe(buildingDepth(b.type, b.length))
+      // The FACADE length is whichever axis the facade lies on — a building facing east/west is rotated, so
+      // its facade runs down the rows (`height`) and its `length` is the depth. Passing `length` blindly
+      // asked for a `hospital_4` that is not baked; the hospital is 6 wide × 4 deep, the first type whose two
+      // axes differ, so the swap only became visible once one of them was placed rotated.
+      expect(b.depth).toBe(buildingDepth(b.type, facadeLength(b)))
       // The opening matches the composition's OWN door span (G7) — an odd facade bakes 1 door column, an
       // even one a centred 2-wide doorway — so it is read, never assumed to be 1.
       expect(b.doorCells).toHaveLength(buildingDoorOffset(b.kind)?.width ?? 0)
     }
   })
 
-  it('blocks the whole small footprint EXCEPT the walkable road-facing door cells', () => {
+  it('blocks the building SHELL — the wall ring — leaving the doorway and the interior walkable', () => {
+    // A building reserves a HOLLOW footprint: its wall ring blocks, its inside does not. That is what makes a
+    // building enterable, which is the whole point — Alexander, Image #2: *"instead of going inside, it went
+    // over the tiles, which is wrong."* A solid block would put the interior permanently out of reach.
     for (const b of stage.buildings) {
       expect(b.doorCells).toHaveLength(buildingDoorOffset(b.kind)?.width ?? 0)
       for (const door of b.doorCells) expect(stage.collision[door.row][door.col]).toBe(false) // the way in
 
-      const cells = footprintCells(b)
-      let blocked = 0
-      let walkable = 0
-      for (const { col, row } of cells) {
-        if (stage.collision[row][col]) blocked++
-        else walkable++
+      const doors = new Set(b.doorCells.map(d => `${d.col},${d.row}`))
+      const top = b.row - (b.height - 1)
+      for (const { col, row } of footprintCells(b)) {
+        const onRing = col === b.col || col === b.col + b.length - 1 || row === top || row === b.row
+        const expected = onRing && !doors.has(`${col},${row}`)
+        expect({ col, row, blocked: stage.collision[row][col] }).toEqual({ col, row, blocked: expected })
       }
-      expect(blocked).toBe(b.length * b.height - b.doorCells.length) // every footprint cell blocks…
-      expect(walkable).toBe(b.doorCells.length) // …except the door cells
     }
   })
 
@@ -121,15 +148,17 @@ describe('generateStage — a building reserves a small width×depth footprint (
     expect(stage.props.filter(p => p.type === 'building')).toHaveLength(0)
   })
 
-  it('reserves each footprint as blocked collision, only the door walkable, DEPTH = the composition depth', () => {
+  it('reserves each footprint as a blocked SHELL, doorway and interior walkable, DEPTH = the composition depth', () => {
     const stage = generateStage({ zone: 'autumn', variant: 'town' })
     for (const b of stage.buildings) {
       const doors = new Set(b.doorCells.map(d => `${d.col},${d.row}`))
       const horizontal = b.facing === 'south' || b.facing === 'north'
-      expect(horizontal ? b.height : b.length).toBe(buildingDepth(b.type, b.length)) // small ground depth
+      expect(horizontal ? b.height : b.length).toBe(buildingDepth(b.type, facadeLength(b))) // small ground depth
+      // The reservation is the SHELL, not a solid slab — see the sibling test above for why.
+      const top = b.row - (b.height - 1)
       for (const { col, row } of footprintCells(b)) {
-        const walkable = doors.has(`${col},${row}`)
-        expect(stage.collision[row][col]).toBe(!walkable)
+        const onRing = col === b.col || col === b.col + b.length - 1 || row === top || row === b.row
+        expect(stage.collision[row][col]).toBe(onRing && !doors.has(`${col},${row}`))
       }
     }
   })
