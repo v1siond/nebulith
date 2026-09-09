@@ -43,6 +43,12 @@ defmodule NebulithWeb.Router do
     # The map-generator CATALOG — categories + their generators, with every knob a generate takes.
     # Read-only; the editor loads it at mount so nothing about a generator is hardcoded frontend-side.
     get "/generators", GeneratorController, :index
+    # BUILDINGS AT ANY SIZE — the types the composer offers, and one composed to order. Alexander,
+    # 2026-09-08: *"why having 3 size house when we can have 1 house button and allow user to make a house
+    # as big or as small as he wants???"* `show` serves the SAME composition shape /api/tilesets does, so
+    # the editor stamps a generated building through the path it already has.
+    get "/buildings", BuildingController, :index
+    get "/buildings/:type", BuildingController, :show
     # The item catalog — weapons / armour / consumables + starter kits (§3.14b #1).
     get "/items", ItemController, :index
     # The ability registry (§3.14b #2).

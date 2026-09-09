@@ -225,8 +225,15 @@ defmodule Nebulith.Catalog.BuildingCompositions do
     facade = facade_fun(spec, w, h, wall_top, mat, win_levels, doors)
     roof_cells = roof_for(spec, w, h, wall_top, opts)
 
+    # The apex TITLE rides with the type, so a store composed to order keeps its badge. `all/0` attaches it
+    # separately for the seeded eleven (via @titles); a building composed on request has no later pass to
+    # add it, and losing it would make a 9-wide store a different thing from the 5-wide one.
     assemble(w, h, wall_top, doors, facade, roof_cells)
+    |> maybe_put_title(Map.get(spec, :title))
   end
+
+  defp maybe_put_title(comp, nil), do: comp
+  defp maybe_put_title(comp, title), do: Map.put(comp, :title, title)
 
   # The observed height curve — see the note on @building_types. `wall_top_bonus` is a per-type override.
   defp wall_top_for(w, spec) do
