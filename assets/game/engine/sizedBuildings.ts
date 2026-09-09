@@ -28,6 +28,15 @@ export interface SizedBuildingItem extends CompositionPaletteItem {
   defaultSize: Footprint
   /** The footprints that were authored as separate compositions, for reference in the UI. */
   bakedSizes: readonly number[]
+  /**
+   * A REAL composition kind to draw the entry's picture from — the seeded one nearest its default size.
+   *
+   * The folded entry's own `kind` is the bare type (`house`), which is not a composition: nothing is
+   * installed under it until the user picks a size and the backend composes one. Drawing from it gave a
+   * black swatch, correctly — there was nothing there. The seeded eleven still exist, so `house_4` is a
+   * real house to show while the size control sits underneath offering any other.
+   */
+  previewKind: string
 }
 
 export function isSizable(item: CompositionPaletteItem): item is SizedBuildingItem {
@@ -85,13 +94,24 @@ export function collapseSizedBuildings(
         buildingType: type,
         defaultSize: spec.default,
         bakedSizes: [],
+        previewKind: item.kind, // the first seeded size seen; refined below to the one nearest the default
       } as SizedBuildingItem)
     }
 
-    // Attach the baked widths once every item has been seen, so the list is complete.
+    // Attach the baked widths once every item has been seen, so the list is complete — and pick the picture
+    // from the baked size NEAREST the default, so a House shows the 4-wide one rather than whichever
+    // happened to sort first.
     for (const [type, index] of foldedAt) {
       const entry = out[index] as SizedBuildingItem
-      out[index] = { ...entry, bakedSizes: baked.get(type) ?? [] } as SizedBuildingItem
+      const widths = baked.get(type) ?? []
+      const nearest = widths.length
+        ? widths.reduce((best, w) => (Math.abs(w - entry.defaultSize.w) < Math.abs(best - entry.defaultSize.w) ? w : best))
+        : undefined
+      out[index] = {
+        ...entry,
+        bakedSizes: widths,
+        previewKind: nearest === undefined ? entry.previewKind : `${type}_${nearest}`,
+      } as SizedBuildingItem
     }
     return { ...section, items: out }
   })

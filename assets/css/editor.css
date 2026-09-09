@@ -609,3 +609,8 @@
   flex-direction:column;background:transparent;border:0;padding:0}
 .neb .minimap.big .mmcanvas{flex:1;min-height:0;width:100%;aspect-ratio:auto}
 .neb .minimap.big .mmhead{margin-bottom:8px}
+
+/* HOW BIG, for the armed building. A bordered block so it reads as a control panel for the armed object
+   rather than another row of the list, and the two steppers line up with the design's `.ctl` rows. */
+.neb .bsize{border-top:1px solid var(--line);margin-top:10px;padding-top:10px}
+.neb .bsize .ctl input{text-align:center}

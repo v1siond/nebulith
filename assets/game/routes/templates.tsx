@@ -86,6 +86,7 @@ import { describeSaveState } from '@/game/editor/saveState'
 import { useDayNight, useFloatingPanels, useGeneratorCatalog, useInspectorSections, useIsMobile, usePlayerViewRange, useSaveState } from '@/components/game/editorHooks'
 import { findGenerator, rollGridSize, type GeneratorBuildings, type GeneratorCatalog, type GeneratorDef } from '@/lib/generatorCatalog'
 import { clampMapSize, type MapSize } from '@/lib/mapSize'
+import { composeBuilding, fetchBuildingTypes, EMPTY_BUILDING_TYPES, type BuildingTypeCatalog } from '@/lib/buildingSizes'
 import { applyStageToGrid } from '@/game/editor/applyStage'
 import { makeRng } from '@/lib/math'
 import { RulesWorkspace } from '@/components/game/rulesWorkspace'
@@ -929,6 +930,35 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   const [previewOpen, setPreviewOpen] = useState(true)
   /** Is the level map open BIG, in its own panel? Separate from `levelMapOpen`, which is the corner one. */
   const [levelMapBig, setLevelMapBig] = useState(false)
+
+  /**
+   * The building types the backend can compose at any size (`/api/buildings`).
+   *
+   * Alexander, 2026-09-08: *"why having 3 size house when we can have 1 house button and allow user to make
+   * a house as big or as small as he wants???"* Empty until it answers, and the palette is simply unchanged
+   * until then — a type list the frontend guessed at would be the hardcoding this replaced.
+   */
+  const [buildingTypes, setBuildingTypes] = useState<BuildingTypeCatalog>(EMPTY_BUILDING_TYPES)
+  useEffect(() => {
+    let live = true
+    fetchBuildingTypes()
+      .then(next => { if (live) setBuildingTypes(next) })
+      .catch((err: unknown) => console.warn('[buildings] could not load the composable types', err))
+    return () => { live = false }
+  }, [])
+
+  /**
+   * Compose a building at a size and arm it.
+   *
+   * The layout is the BACKEND's — this asks for it, installs the answer into the loaded catalog, and arms
+   * the kind it came back under. From that point the stamp, the ghost and the preview all treat it as any
+   * other composition, which is why no downstream code knows a generated building from a seeded one.
+   */
+  const composeAndArm = (type: string, size: { w: number; h: number }) => {
+    composeBuilding(activeStyleId, type, size)
+      .then(kind => { setBuildingTool(kind); bumpBuildingVersion() })
+      .catch((err: unknown) => console.warn(`[buildings] could not compose a ${size.w}x${size.h} ${type}`, err))
+  }
 
   /**
    * Centre the view on a cell — the same maths `__centerOn` uses, so there is ONE notion of "go there".
@@ -5328,6 +5358,8 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                   catalog={compositionPalette}
                   styleId={activeStyleId}
                   preview={previewContext}
+                  buildingTypes={buildingTypes}
+                  onComposeBuilding={composeAndArm}
                   armedKind={buildingTool}
                   onArm={toggleBuildingTool}
                   onHover={setLibraryHover}

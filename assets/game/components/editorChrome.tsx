@@ -23,6 +23,8 @@ import { HelpButton } from './editorHelp'
 import { ViewButton } from './controls'
 import type { Orientation } from '@/engine/render/isoOrientation'
 import type { DayNight } from '@/engine/render'
+import { collapseSizedBuildings, isSizable, type SizedBuildingItem } from '@/engine/sizedBuildings'
+import { typeOfComposedKind, type BuildingTypeCatalog, type Footprint } from '@/lib/buildingSizes'
 
 // ── Tool-rail (left, slim icon strip) ────────────────────────────────
 type RailDef = { mode: EditorMode; glyph: string; label: string; hint: string }
@@ -135,7 +137,7 @@ function CompositionSection({
           item={item}
           styleId={styleId}
           preview={preview}
-          active={armedKind === item.kind}
+          active={armedKind === item.kind || typeOfComposedKind(armedKind ?? '') === item.kind}
           onArm={onArm}
           onHover={onHover}
         />
@@ -151,6 +153,11 @@ function CompositionSection({
  * toplace it in grid, which works different to all the other tiles."* Now they preview like everything
  * else, and the picture is assembled from the very tiles the stamp will place.
  */
+/** The composition to PICTURE an entry with — a folded type points at a real seeded size. */
+function previewKindOf(item: CompositionPaletteGroup['items'][number]): string {
+  return isSizable(item) ? item.previewKind : item.kind
+}
+
 function ObjectSwatch({
   item,
   styleId,
@@ -174,13 +181,15 @@ function ObjectSwatch({
       className={`sw${active ? ' on' : ''}`}
       title={item.label}
       aria-pressed={active}
-      onMouseEnter={() => onHover?.(item.kind)}
-      onFocus={() => onHover?.(item.kind)}
+      onMouseEnter={() => onHover?.(previewKindOf(item))}
+      onFocus={() => onHover?.(previewKindOf(item))}
       onClick={() => onArm(item.kind)}
     >
       {/* The map's own render, not a composed elevation. These three — fountain, lamp post, well — were the
           ones Alexander named as worst, and all three were wrong for the same reason. */}
-      <PreviewThumb subject={{ kind: 'composition', comp: item.kind }} context={ctx} px={66} />
+      {/* Drawn from a REAL composition: a folded entry's own kind is a bare type with nothing installed
+          under it until a size is composed. */}
+      <PreviewThumb subject={{ kind: 'composition', comp: previewKindOf(item) }} context={ctx} px={66} />
       <span className="n">{item.label}</span>
       {size && <span className="sz">{`${size.width}×${size.depth}`}</span>}
     </button>
@@ -194,6 +203,8 @@ export function CompositionPalette({
   armedKind,
   onArm,
   onHover,
+  buildingTypes,
+  onComposeBuilding,
 }: {
   catalog: readonly CompositionPaletteGroup[]
   styleId: string
@@ -203,16 +214,39 @@ export function CompositionPalette({
   onArm: (kind: string) => void
   /** Report what the cursor is over, so the preview panel can show it. */
   onHover?: (slug: string | null) => void
+  /**
+   * The building types the backend can compose at any size, from `/api/buildings`.
+   *
+   * Given these, the palette shows ONE entry per type with a size control instead of one per baked size —
+   * Alexander: *"why having 3 size house when we can have 1 house button and allow user to make a house as
+   * big or as small as he wants???"* Empty (the backend has not answered) → the palette is unchanged.
+   */
+  buildingTypes?: BuildingTypeCatalog
+  /** Compose a building of this type at this size and arm it. The palette never lays one out itself. */
+  onComposeBuilding?: (type: string, size: Footprint) => void
 }) {
   const [query, setQuery] = useState('')
   const [kind, setKind] = useState<string | null>(null)
+  // The size the user has dialled for each type, keyed by type. Absent → that type's default.
+  const [sizes, setSizes] = useState<Record<string, Footprint>>({})
   const setHover = (slug: string | null) => onHover?.(slug)
+
+  // ONE entry per composable type. Pure and tested — see `collapseSizedBuildings`.
+  const folded = collapseSizedBuildings(catalog, buildingTypes?.types ?? [])
+  // The armed entry, when it is one the backend can resize.
+  //
+  // Matched on the TYPE inside the armed kind, not the kind itself: arming a composed building sets it to
+  // the synthetic `house@6x4`, so comparing kinds made the control disappear the instant you used it.
+  const armedType = armedKind === null ? null : typeOfComposedKind(armedKind)
+  const armedSizable = folded
+    .flatMap(section => section.items)
+    .find((item): item is SizedBuildingItem => isSizable(item) && item.buildingType === armedType)
 
   if (catalog.length === 0) {
     return <div className="hint">Loading objects from the server…</div>
   }
   const term = query.trim().toLowerCase()
-  const sections = catalog
+  const sections = folded
     .filter(section => kind === null || section.category === kind)
     .map(section => ({
       ...section,
@@ -268,12 +302,85 @@ export function CompositionPalette({
           />
         ))}
       </div>
+      {/* HOW BIG — shown only for the armed object, and only when the backend can compose that type at any
+          size. Alexander, 2026-09-08: *"i think we should NOT have a fixed size, but a default one and allow
+          user to specify the size of the element they want to put."* It sits in the footer rather than on
+          every swatch for the reason the character panel does: a control per card would leave the swatches
+          — the thing you opened the library for — as one clipped row. */}
+      {armedSizable && onComposeBuilding && (
+        <BuildingSizeControl
+          item={armedSizable}
+          size={sizes[armedSizable.buildingType] ?? armedSizable.defaultSize}
+          min={buildingTypes?.min ?? { w: 4, h: 3 }}
+          onSize={next => {
+            setSizes(prev => ({ ...prev, [armedSizable.buildingType]: next }))
+            onComposeBuilding(armedSizable.buildingType, next)
+          }}
+        />
+      )}
       <div className="pfoot">
         {armedKind
           ? 'Move over the map to see its footprint, then click to place it.'
           : 'Pick an object, then click the map.'}
       </div>
     </>
+  )
+}
+
+/**
+ * HOW BIG the armed building is — two numbers, and the sizes that used to be separate buttons.
+ *
+ * The numbers are applied IMMEDIATELY rather than behind a confirm, because unlike the map size this is not
+ * destructive: it composes a building and arms it, and nothing on the map changes until you click. The map
+ * size needs a commit step; this does not, and adding one would be ceremony.
+ *
+ * The minimum comes from the BACKEND (`/api/buildings`), which is also the only thing that knows it —
+ * Alexander: *"the smalles house would be something like 4x3"*.
+ */
+function BuildingSizeControl({
+  item,
+  size,
+  min,
+  onSize,
+}: {
+  item: SizedBuildingItem
+  size: Footprint
+  min: Footprint
+  onSize: (next: Footprint) => void
+}) {
+  const step = (axis: 'w' | 'h', by: number) => {
+    const floor = axis === 'w' ? min.w : min.h
+    onSize({ ...size, [axis]: Math.max(floor, size[axis] + by) })
+  }
+  const row = (axis: 'w' | 'h', label: string) => (
+    <div className="ctl" key={axis}>
+      <span className="l">{label}</span>
+      <button type="button" className="b sm" aria-label={`Fewer ${label.toLowerCase()}`} onClick={() => step(axis, -1)}>−</button>
+      <input
+        type="number"
+        aria-label={`${item.label} ${label.toLowerCase()}`}
+        value={size[axis]}
+        onChange={event => {
+          const next = parseInt(event.target.value, 10)
+          if (Number.isFinite(next)) onSize({ ...size, [axis]: Math.max(axis === 'w' ? min.w : min.h, next) })
+        }}
+        style={{ width: 58 }}
+      />
+      <button type="button" className="b sm" aria-label={`More ${label.toLowerCase()}`} onClick={() => step(axis, 1)}>+</button>
+    </div>
+  )
+
+  return (
+    <section className="bsize">
+      <div className="sub">{`How big — ${item.label}`}</div>
+      {row('w', 'Width')}
+      {row('h', 'Depth')}
+      <div className="hint">
+        {item.bakedSizes.length > 0
+          ? `Built to order. ${item.bakedSizes.join(', ')} used to be separate buttons.`
+          : 'Built to order.'}
+      </div>
+    </section>
   )
 }
 

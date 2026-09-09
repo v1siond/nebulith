@@ -80,6 +80,24 @@ export function composedKind(type: string, size: Footprint): string {
   return `${type}@${size.w}x${size.h}`
 }
 
+/**
+ * The TYPE inside a kind, composed or not — `house@6x4` → `house`, `fountain` → `fountain`.
+ *
+ * The inverse of `composedKind`, and the palette needs it: arming a composed building sets the armed kind
+ * to the synthetic one, so a palette matching `armedKind === item.kind` immediately stopped recognising its
+ * own entry — the size control vanished after the first change and the swatch un-highlighted.
+ */
+export function typeOfComposedKind(kind: string): string {
+  const at = kind.indexOf('@')
+  return at === -1 ? kind : kind.slice(0, at)
+}
+
+/** The size inside a composed kind, or undefined when it carries none. */
+export function sizeOfComposedKind(kind: string): Footprint | undefined {
+  const match = /@(\d+)x(\d+)$/.exec(kind)
+  return match ? { w: Number(match[1]), h: Number(match[2]) } : undefined
+}
+
 export interface ComposeOptions {
   material?: string
   roof?: string
