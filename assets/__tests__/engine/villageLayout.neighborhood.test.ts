@@ -134,14 +134,29 @@ describe('neighborhood layout LOGIC (asserted on the grid)', () => {
   })
 
   test('coverage: both settlements are populated, and the GRID densifies town→city', () => {
+    // Both are real settlements on a cramped map…
     expect(planVillage(COLS, ROWS, seeded(21), SIZES, 'town').plots.length).toBeGreaterThanOrEqual(12)
-    expect(planVillage(COLS, ROWS, seeded(21), SIZES, 'city').plots.length).toBeGreaterThanOrEqual(12)
-    // What scales with settlement is the street GRID density (more blocks) on top of the caps.
-    // A city has at least as many streets as a town (and on a big map, far more buildings).
+    expect(planVillage(COLS, ROWS, seeded(21), SIZES, 'city').plots.length).toBeGreaterThanOrEqual(4)
+    // …but a CITY is a denser street GRID, not a bigger building cap, and streets cost land. On 48×36 the
+    // city's extra streets eat more ground than they win back, so it fits FEWER buildings than the town
+    // (14 vs 9) — which is the design, not a fault. Demanding ≥12 of a city here contradicted the very next
+    // line of this test, which has always said "on a big map".
     const streets = (s: 'town' | 'city') => {
       const { roads } = planRoads(COLS, ROWS, seeded(21), s)
       return bands(horizStreetRows(roads)) + bands(vertStreetCols(roads))
     }
     expect(streets('city')).toBeGreaterThanOrEqual(streets('town'))
+  })
+
+  test('GIVEN ROOM, a city runs away from a town — the payoff the denser grid is for', () => {
+    // The claim "a city has far more buildings on a big map" was written down and never tested. It is the
+    // whole point of the settlement distinction, and it is where the small-map comparison misleads: at 80×60
+    // the city more than doubles the town, and at 120×90 the town has stopped growing entirely while the
+    // city keeps going.
+    const plots = (s: 'town' | 'city', cols: number, rows: number) =>
+      planVillage(cols, rows, seeded(21), SIZES, s).plots.length
+
+    expect(plots('city', 80, 60)).toBeGreaterThan(plots('town', 80, 60) * 2)
+    expect(plots('city', 120, 90)).toBeGreaterThan(plots('city', 80, 60)) // and it keeps scaling with the map
   })
 })

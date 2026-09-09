@@ -78,19 +78,25 @@ describe('settlement building placement (consumer matches planner contract)', ()
         }
       }
 
-      // (c) STRONGER: collision == the small width×depth footprint. Every footprint cell BLOCKS except the
-      //     single walkable door, and the footprint depth is the composition's baked (small) depth.
+      // (c) STRONGER: collision == the building's SHELL over its small width×depth footprint. The wall ring
+      //     blocks, the doorway and the inside stay walkable (that is what makes a building enterable), and
+      //     the footprint depth is the composition's baked (small) depth.
       for (const b of stage.buildings) {
         const horizontal = b.facing === 'south' || b.facing === 'north'
-        expect(horizontal ? b.height : b.length).toBe(buildingDepth(b.type, b.length)) // perpendicular span = depth
+        // The FACADE length is whichever axis the facade lies on — an east/west building is rotated, so its
+        // facade runs down the rows and `length` is the depth. That is what names its composition.
+        const facade = horizontal ? b.length : b.height
+        expect(horizontal ? b.height : b.length).toBe(buildingDepth(b.type, facade)) // perpendicular span = depth
         const top = b.row - (b.height - 1)
-        let blocked = 0
-        for (let r = top; r <= b.row; r++) {
-          for (let c = b.col; c < b.col + b.length; c++) if (stage.collision[r][c]) blocked++
-        }
+        const doors = new Set(b.doorCells.map(d => `${d.col},${d.row}`))
         expect(b.doorCells).toHaveLength(buildingDoorOffset(b.kind)?.width ?? 0) // opening == the baked door span
         for (const d of b.doorCells) expect(stage.collision[d.row][d.col]).toBe(false) // every door cell is walkable
-        expect(blocked).toBe(b.length * b.height - b.doorCells.length) // every NON-door footprint cell blocks
+        for (let r = top; r <= b.row; r++) {
+          for (let c = b.col; c < b.col + b.length; c++) {
+            const onRing = c === b.col || c === b.col + b.length - 1 || r === top || r === b.row
+            expect(stage.collision[r][c]).toBe(onRing && !doors.has(`${c},${r}`))
+          }
+        }
       }
     })
   }
