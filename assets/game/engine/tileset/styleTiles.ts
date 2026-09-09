@@ -119,6 +119,22 @@ export function setStyleTile(styleId: string, label: string, tile: StyleTile): v
 }
 
 /**
+ * Write ONE composition into a style's catalog.
+ *
+ * The seam that lets a building COMPOSED TO ORDER be stamped by the path a seeded one uses. The editor
+ * asks `/api/buildings/:type?width=&depth=` for a footprint nobody authored, installs the answer here under
+ * a synthetic kind, and arms it — from that point nothing downstream knows or cares that it was generated.
+ *
+ * Alexander, 2026-09-08: *"why having 3 size house when we can have 1 house button and allow user to make a
+ * house as big or as small as he wants???"* One way in, mirroring `setStyleTile`, because there is one store.
+ */
+export function setStyleComposition(styleId: string, kind: string, comp: StyleCatalog['compositions'][string]): void {
+  const catalog = CATALOGS[styleId] ?? { ...EMPTY, id: styleId, tiles: {}, compositions: {}, terrain: {} }
+  catalog.compositions = { ...catalog.compositions, [kind]: comp }
+  CATALOGS[styleId] = catalog
+}
+
+/**
  * A tile with the required fields filled in — for callers that only care about a couple of them.
  *
  * `walkable` defaults true and `char` to empty, so a caller states only what it is testing or authoring.
