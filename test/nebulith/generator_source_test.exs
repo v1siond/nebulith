@@ -18,12 +18,12 @@ defmodule Nebulith.GeneratorSourceTest do
 
   describe "seed/0" do
     test "creates every category and generator, and reports what it wrote" do
-      assert {5, 6} = GeneratorSource.seed()
+      assert {5, 7} = GeneratorSource.seed()
 
       categories = Catalog.list_generator_categories()
       assert Enum.map(categories, & &1.key) == ~w(forest town city cave temple)
       assert Enum.map(categories, & &1.name) == ["Forest", "Town", "City", "Cave", "Temple"]
-      assert Enum.sum(Enum.map(categories, &length(&1.generators))) == 6
+      assert Enum.sum(Enum.map(categories, &length(&1.generators))) == 7
     end
 
     test "categories come back in MENU order, not insertion or alphabetical order" do
@@ -34,13 +34,32 @@ defmodule Nebulith.GeneratorSourceTest do
       refute keys == Enum.sort(keys)
     end
 
-    test "a forest offers both meadow layouts, in order; a settlement offers one default" do
+    test "a forest LEADS WITH THE WOODLAND, then its meadows; a settlement offers one default" do
       GeneratorSource.seed()
       cats = Catalog.list_generator_categories() |> by_key()
 
-      assert Enum.map(cats["forest"].generators, & &1.layout) == ["meadow", "meadow_river"]
+      # Order matters and is asserted, because the category's FIRST preset is the one the panel opens on.
+      # Alexander, 2026-09-09: *"the meadow is not a forest, it doesn't look like one"* — every preset here
+      # used to be a clearing, so a category called Forest opened on something that was not one.
+      assert Enum.map(cats["forest"].generators, & &1.layout) == ["woodland", "meadow", "meadow_river"]
       assert Enum.map(cats["town"].generators, & &1.key) == ["town_default"]
       assert [%Generator{layout: nil}] = cats["town"].generators
+    end
+
+    test "only the woodland states a canopy — a clearing has no tree density to state" do
+      GeneratorSource.seed()
+      cats = Catalog.list_generator_categories() |> by_key()
+
+      canopies =
+        for g <- cats["forest"].generators, into: %{} do
+          {g.layout, g.config["nature"]["canopy"]}
+        end
+
+      # The woodland layout plants nothing without this and says so, rather than inventing a density —
+      # which is also why the random layout pool skips it when a generator does not serve one.
+      assert canopies["woodland"] > 0
+      assert canopies["meadow"] == nil
+      assert canopies["meadow_river"] == nil
     end
 
     test "every generator runs in every season the editor offers" do
@@ -56,12 +75,12 @@ defmodule Nebulith.GeneratorSourceTest do
       before = Catalog.list_generator_categories()
       ids = Enum.map(before, & &1.id)
 
-      assert {5, 6} = GeneratorSource.seed()
+      assert {5, 7} = GeneratorSource.seed()
 
       again = Catalog.list_generator_categories()
       assert Enum.map(again, & &1.id) == ids
       assert Repo.aggregate(GeneratorCategory, :count) == 5
-      assert Repo.aggregate(Generator, :count) == 6
+      assert Repo.aggregate(Generator, :count) == 7
     end
 
     test "re-seeding REFRESHES a row someone edited by hand" do

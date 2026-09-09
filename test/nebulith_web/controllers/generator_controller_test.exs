@@ -22,8 +22,8 @@ defmodule NebulithWeb.GeneratorControllerTest do
       assert Enum.map(data, & &1["key"]) == ~w(forest town city cave temple)
       forest = hd(data)
       assert forest["name"] == "Forest"
-      assert Enum.map(forest["generators"], & &1["key"]) == ~w(forest_meadow forest_meadow_river)
-      assert Enum.map(forest["generators"], & &1["layout"]) == ["meadow", "meadow_river"]
+      assert Enum.map(forest["generators"], & &1["key"]) == ~w(forest_woodland forest_meadow forest_meadow_river)
+      assert Enum.map(forest["generators"], & &1["layout"]) == ["woodland", "meadow", "meadow_river"]
     end
 
     test "a generator's whole config rides through the JSON untouched", %{conn: conn} do

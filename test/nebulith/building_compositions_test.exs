@@ -102,12 +102,6 @@ defmodule Nebulith.BuildingCompositionsTest do
   # facade (dy == footprint_h, one past the front wall row), where the frontend's driveway lands.
   defp entrance_cells(c), do: Enum.filter(c.cells, &(&1.dy == c.footprint_h))
 
-  # The facade COLUMNS one entrance cell covers: its anchor `dx` plus its z-width span along +col
-  # (`settings.depth`, `depthDir: "right-down"`). A plain cell covers its own column only.
-  defp entrance_cols(cell) do
-    span = Map.get(st(cell), "depth", 1)
-    Enum.to_list(cell.dx..(cell.dx + span - 1))
-  end
 
   # Every DOOR column the composition actually places — `door_cols/1` as realised in the authored data.
   defp door_columns(c) do
@@ -187,60 +181,58 @@ defmodule Nebulith.BuildingCompositionsTest do
     end
   end
 
-  describe "entrance matches the doors — the apron spans every door column (G7)" do
+  describe "the doorway opens onto the ground — there is NO entrance apron (#49)" do
+    # THIS GROUP WAS INVERTED, not deleted.
+    #
+    # It used to assert an apron: a `path` cell on the row in front of the facade, spanning every door
+    # column. Alexander #49 removed it, and `assemble/6` says why — once every tile became a height-1 block
+    # the apron stood UP as a raised block directly in front of the doors and BLOCKED the doorway it was
+    # meant to serve. It is also redundant: the road or ground is already there, and walkability comes from
+    # the layout rather than from a doorstep tile.
+    #
+    # So the property is real but the other way round, and it is worth guarding: re-adding an apron would
+    # re-introduce exactly the bug #49 fixed. These tests fail if one ever comes back.
     for name <- @all do
-      test "#{name}: the entrance covers EXACTLY the door columns" do
+      test "#{name}: nothing is placed on the row in front of the facade" do
         c = comp(unquote(name))
-        doors = c |> door_columns() |> Enum.sort()
-        covered = c |> entrance_cells() |> Enum.flat_map(&entrance_cols/1) |> Enum.sort()
 
-        assert covered == doors,
-               "#{unquote(name)}: entrance covers #{inspect(covered)} but the doors are at #{inspect(doors)}"
+        assert entrance_cells(c) == [],
+               "#{unquote(name)}: something sits in front of the doors — a raised block there blocks the doorway (#49)"
       end
 
-      test "#{name}: every entrance cell is a walkable ground tile on the row in front of the facade" do
+      test "#{name}: no cell anywhere is the `path` doorstep tile" do
         c = comp(unquote(name))
-        cells = entrance_cells(c)
-        assert cells != [], "#{unquote(name)} has no entrance in front of its door"
+        paths = Enum.filter(c.cells, &(&1.label == "path"))
 
-        for e <- cells do
-          assert e.label == "path",
-                 "#{unquote(name)}: entrance is #{e.label}, not the walkable path tile"
-
-          assert e.level == 0, "#{unquote(name)}: the entrance must sit on the ground (level 0)"
-
-          assert e.walkable == true,
-                 "#{unquote(name)}: you must be able to walk onto the entrance"
-        end
+        assert paths == [],
+               "#{unquote(name)}: #{length(paths)} `path` cell(s) — the doorstep tile is gone, the ground carries the walkway"
       end
     end
 
-    test "a 1-door facade (house_3, odd width) gets ONE entrance block, no z-width" do
-      c = comp("house_3")
-      assert [e] = entrance_cells(c)
-      assert door_columns(c) == [e.dx]
-      refute Map.has_key?(st(e), "depth"), "a single-column entrance needs no z-width span"
-    end
-
-    test "a 2-door facade (house_4, even width) collapses to ONE entrance block of z-width 2" do
-      c = comp("house_4")
-      assert [e] = entrance_cells(c)
-      assert st(e)["depth"] == 2
-
-      assert st(e)["depthDir"] == "right-down",
-             "the entrance spans the FACADE axis (+col), not the depth axis"
-
-      assert entrance_cols(e) == Enum.sort(door_columns(c))
-    end
-
-    test "every even-width facade carries a 2-block entrance and every odd-width facade a 1-block one" do
+    test "the building occupies exactly its own footprint, and never the row beyond it" do
       for name <- @all do
         c = comp(name)
-        covered = c |> entrance_cells() |> Enum.flat_map(&entrance_cols/1)
-        expected = if rem(c.footprint_w, 2) == 0, do: 2, else: 1
+        max_dy = c.cells |> Enum.map(& &1.dy) |> Enum.max()
 
-        assert length(covered) == expected,
-               "#{name} (w=#{c.footprint_w}): entrance is #{length(covered)} blocks"
+        assert max_dy == c.footprint_h - 1,
+               "#{name}: cells reach dy #{max_dy}, past its own depth of #{c.footprint_h}"
+      end
+    end
+
+    test "the doorway is still walkable — removing the apron must not seal the building" do
+      for name <- @all do
+        c = comp(name)
+        doors = door_columns(c) |> Enum.sort()
+
+        walkable_front =
+          c.cells
+          |> Enum.filter(&(&1.dy == c.footprint_h - 1 and &1.walkable))
+          |> Enum.map(& &1.dx)
+          |> Enum.uniq()
+          |> Enum.sort()
+
+        assert walkable_front == doors,
+               "#{name}: front row walkable at #{inspect(walkable_front)}, doors at #{inspect(doors)}"
       end
     end
   end
