@@ -632,6 +632,18 @@ export function GenerateControls({
   const activeCategory = activeKey === null ? undefined : findCategory(catalog, activeKey)
   const layouts = activeKey === null ? [] : categoryLayouts(catalog, activeKey)
   const typeLabel = activeCategory?.name ?? 'map'
+  /**
+   * The cards to show — always at least one.
+   *
+   * Alexander, 2026-09-09: *"the preview of the forests ARE AWESONE; we need the same with all places, like
+   * towns, cities, etc."* Only the forest had cards, because only the forest has NAMED layouts; a town has a
+   * single generator with `layout: null`, so `categoryLayouts` returned nothing and the whole card grid —
+   * thumbnail included — was skipped. A category with one generator still has something to show you: what
+   * that generator builds. Its card carries no layout id, which is exactly what `generateStage` wants for
+   * "run the category's own default pass".
+   */
+  const presets: ReadonlyArray<{ id: string | undefined; label: string }> =
+    layouts.length > 0 ? layouts : activeCategory ? [{ id: undefined, label: activeCategory.name }] : []
 
   // Picking a map type or a shape only SELECTS it. §4.6: "clicking a map type selects it rather than
   // generating (today it generates immediately — a genuine 'why did my map just vanish' trap)".
@@ -705,18 +717,23 @@ export function GenerateControls({
       {/* The chosen kind's presets as CARDS. Alexander: *"shape is not good, in the sense that, we should
           have better sub options layout"* and *"meadow, meadow + river are just pre defined options of
           forests."* So they are named presets OF the kind above, not a separate concept called "shape". */}
-      {layouts.length > 0 && (
+      {presets.length > 0 && (
         <>
-          <div className="sub">{`Which ${typeLabel.toLowerCase()}?`}</div>
+          {/* The heading only earns its space when there is a CHOICE. One card needs no question. */}
+          {layouts.length > 1 && <div className="sub">{`Which ${typeLabel.toLowerCase()}?`}</div>}
           <div className="pgrid">
-            {layouts.map(({ id, label }) => (
+            {presets.map(({ id, label }) => (
               <button
-                key={id}
+                key={id ?? `${activeKey}-default`}
                 type="button"
                 onClick={() => select(activeKey as string, id)}
-                aria-pressed={layout === id}
-                className={`pcard${layout === id ? ' on' : ''}`}
-                title={`Shape the ${zone} ${typeLabel.toLowerCase()} as a ${label.toLowerCase()}`}
+                aria-pressed={id === undefined ? true : layout === id}
+                className={`pcard${id === undefined || layout === id ? ' on' : ''}`}
+                title={
+                  id === undefined
+                    ? `Build a ${zone} ${typeLabel.toLowerCase()}`
+                    : `Shape the ${zone} ${typeLabel.toLowerCase()} as a ${label.toLowerCase()}`
+                }
               >
                 {/* THE PRESET'S OWN PICTURE — the level this button would build, generated small and
                     seeded, drawn by the map's renderer. Alexander, 2026-09-08: *"yes we want this
@@ -733,7 +750,7 @@ export function GenerateControls({
                       nature: findGenerator(catalog, activeKey, id)?.config.nature,
                       // Seeded from the preset's identity, so a card's picture is stable across renders
                       // and every card shows a DIFFERENT world rather than all sharing one seed.
-                      seed: presetSeed(activeKey, id, zone),
+                      seed: presetSeed(activeKey, id ?? 'default', zone),
                       cols: PRESET_THUMB_CELLS.cols,
                       rows: PRESET_THUMB_CELLS.rows,
                     }}
@@ -745,7 +762,11 @@ export function GenerateControls({
                     inline element — as spans these two ran together as "Meadowa spring forest laid out…". */}
                 <div>
                   <div className="pn">{label}</div>
-                  <div className="pd">{`a ${zone} ${typeLabel.toLowerCase()} laid out as a ${label.toLowerCase()}`}</div>
+                  <div className="pd">
+                    {id === undefined
+                      ? `a ${zone} ${typeLabel.toLowerCase()}`
+                      : `a ${zone} ${typeLabel.toLowerCase()} laid out as a ${label.toLowerCase()}`}
+                  </div>
                 </div>
               </button>
             ))}

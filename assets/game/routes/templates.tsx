@@ -927,6 +927,21 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     styleId: activeStyleId,
   }
   const [previewOpen, setPreviewOpen] = useState(true)
+  /** Is the level map open BIG, in its own panel? Separate from `levelMapOpen`, which is the corner one. */
+  const [levelMapBig, setLevelMapBig] = useState(false)
+
+  /**
+   * Centre the view on a cell — the same maths `__centerOn` uses, so there is ONE notion of "go there".
+   * Shared by the corner map and the big one; two copies would drift the moment the camera model changed.
+   */
+  const jumpToCell = (col: number, row: number) => {
+    const grid = gridRef.current
+    if (!grid) return
+    const cs = grid.cellSize
+    const off = { x: playerRef.current.x - col * cs, y: playerRef.current.z - row * cs }
+    camOffsetRef.current = off
+    setCamOffset(off)
+  }
 
   /**
    * WHERE AN INSPECTOR SECTION'S CONTROLS GO — a movable panel beside the inspector.
@@ -4869,17 +4884,34 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
               camOffset={camOffset}
               zoomPct={zoomPct}
               mainCanvas={canvasRef.current}
-              onJumpTo={(col, row) => {
-                const grid = gridRef.current
-                if (!grid) return
-                // The same maths `__centerOn` uses — one notion of "centre the view on a cell".
-                const cs = grid.cellSize
-                const off = { x: playerRef.current.x - col * cs, y: playerRef.current.z - row * cs }
-                camOffsetRef.current = off
-                setCamOffset(off)
-              }}
+              onJumpTo={jumpToCell}
               onHide={() => setLevelMapOpen(false)}
+              onMaximize={() => setLevelMapBig(true)}
             />
+          )}
+          {/* THE MAP, BIG. Alexander, 2026-09-09: *"i want to be able to increase/maximize the map, right
+              now only the mini map is available."* The same component at panel size — one map, drawn by
+              `renderTopView` either way, so the big one cannot disagree with the corner one. Movable and
+              resizable like every other panel, and clicking it still jumps the view. */}
+          {isChromeVisible && !hudMode && levelMapBig && (
+            <FloatingPanel
+              title="This level"
+              accent="cyan"
+              onClose={() => setLevelMapBig(false)}
+              {...floatingProps('levelMap', { w: 620, h: 560 })}
+            >
+              <LevelMinimap
+                big
+                grid={gridRef.current}
+                player={playerRef.current}
+                entities={entities}
+                style={activeStyle}
+                camOffset={camOffset}
+                zoomPct={zoomPct}
+                mainCanvas={canvasRef.current}
+                onJumpTo={jumpToCell}
+              />
+            </FloatingPanel>
           )}
           {isChromeVisible && !hudMode && !levelMapOpen && (
             <button type="button" className="b sm mmshow" title="Show the map of this level" onClick={() => setLevelMapOpen(true)}>

@@ -45,9 +45,17 @@ export interface LevelMinimapProps {
   onJumpTo?: (col: number, row: number) => void
   /** Collapse it. Alexander: the HUD version will be hideable "like almost everything in HUD". */
   onHide?: () => void
+  /**
+   * Open the map BIG. Alexander, 2026-09-09: *"i want to be able to increase/maximize the map, right now
+   * only the mini map is available."* Absent → no maximize control (the big one does not offer to open
+   * itself again).
+   */
+  onMaximize?: () => void
+  /** Drawn large, in a panel of its own. Only changes the chrome — the map is the same component. */
+  big?: boolean
 }
 
-export function LevelMinimap({ grid, player, entities, style, camOffset, zoomPct, mainCanvas, onJumpTo, onHide }: LevelMinimapProps) {
+export function LevelMinimap({ grid, player, entities, style, camOffset, zoomPct, mainCanvas, onJumpTo, onHide, onMaximize, big = false }: LevelMinimapProps) {
   const canvas = useRef<HTMLCanvasElement>(null)
 
   // The map's aspect follows the LEVEL's, so a 40×40 map is square and a 60×20 one is wide — the shape of
@@ -137,10 +145,15 @@ export function LevelMinimap({ grid, player, entities, style, camOffset, zoomPct
   if (!grid) return null
 
   return (
-    <div className="minimap" aria-label="Map of this level">
+    <div className={big ? 'minimap big' : 'minimap'} aria-label="Map of this level">
       <div className="mmhead">
         <span className="mmt">This level</span>
         <span className="mmsize">{`${cols} × ${rows}`}</span>
+        {onMaximize && (
+          <button type="button" className="mmx" title="Open the map big" aria-label="Open the map big" onClick={onMaximize}>
+            ⤢
+          </button>
+        )}
         {onHide && (
           <button type="button" className="mmx" title="Hide the map" aria-label="Hide the map" onClick={onHide}>
             ✕
