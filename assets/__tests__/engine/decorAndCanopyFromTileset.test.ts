@@ -81,7 +81,7 @@ describe('pickGroundDecor — deterministic per-cell selection resolved to glyph
     const zoneColors = decorTilesForZone(styleCatalog('ascii'), 'spring').map(
       t => (t.settings as { colors: Record<string, string> }).colors.spring,
     )
-    const glyphs = decorTilesForZone(styleCatalog('ascii'), 'spring').map(t => t.glyph)
+    const glyphs = decorTilesForZone(styleCatalog('ascii'), 'spring').map(t => t.char) // `glyph` is not a field a tile has
     const r = pickGroundDecor(styleCatalog('ascii'), 'spring', 2, 3)!
     expect(r).not.toBeNull()
     expect(isHex(r.color)).toBe(true)

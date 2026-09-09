@@ -242,15 +242,17 @@ describe('sample compositions — realistic building/fountain/tree DATA from the
   })
 
   test('every AUTOTILE PIECE label (fountain rim/water/jet + stone-wall material) resolves in BOTH styles — no gaps', () => {
-    // The NEW piece labels the sample authors — each must carry an ascii glyph AND an emoji char so both
-    // styles paint the piece per-cell. (roof/roof_top/window/door are pre-existing labels that resolve via
-    // their own emoji or the coarse roof kind — out of scope here.)
+    // The NEW piece labels the sample authors — each must resolve to a BAKED PICTURE in both styles, which
+    // is what the renderer actually draws ("every tile is a baked backend IMAGE resolved by LABEL"). Asserting
+    // an ascii *glyph* here was the old model: ascii art is composed and baked like everything else now, so a
+    // glyph is a last resort, and a missing bake — the thing that really breaks the screen — went unnoticed.
+    // (roof/roof_top/window/door are pre-existing labels out of scope here.)
     const isPiece = (l: string) => /^(wall_stone|fountain_|water_c$|water_jet$)/.test(l)
     const pieces = new Set<string>()
     for (const name of ['fountain', 'stone_building']) for (const cell of comp(name).cells as Cell[]) if (isPiece(cell.label)) pieces.add(cell.label)
     expect(pieces.size).toBeGreaterThanOrEqual(18) // water_c + water_jet + 8 fountain rim + 9 wall_stone pieces used
-    expect([...pieces].filter(l => !styleTile('ascii', l)?.glyph)).toEqual([]) // ascii glyph gaps
-    expect([...pieces].filter(l => !styleTile('emoji', l)?.char)).toEqual([]) // emoji char gaps
+    expect([...pieces].filter(l => !styleTile('ascii', l)?.image)).toEqual([]) // ascii bake gaps
+    expect([...pieces].filter(l => !styleTile('emoji', l)?.image)).toEqual([]) // emoji bake gaps
   })
 
   test('the LIGHT POST is a post+lamp composition — identical structure in both styles, each piece a real tile in both', () => {
@@ -262,10 +264,10 @@ describe('sample compositions — realistic building/fountain/tree DATA from the
     expect(lp.footprint).toEqual({ w: 1, h: 1 })
     const byLevel = (lp.cells as Cell[]).slice().sort((a, b) => a.level - b.level)
     expect(byLevel.map(c => [c.label, c.level])).toEqual([['post', 0], ['lamp', 1]])
-    // no single-tile collapse: each piece carries its OWN ascii glyph AND emoji char
+    // no single-tile collapse: each piece is its OWN baked tile in each style
     for (const label of ['post', 'lamp']) {
-      expect(styleTile('ascii', label)?.glyph).toBeTruthy()
-      expect(styleTile('emoji', label)?.char).toBeTruthy()
+      expect(styleTile('ascii', label)?.image).toBeTruthy()
+      expect(styleTile('emoji', label)?.image).toBeTruthy()
     }
   })
 
@@ -325,9 +327,9 @@ describe('material + roof rollout — every material/piece resolves and every bu
     const need: string[] = []
     for (const base of WALL_MATERIALS) for (const s of SUFFIXES) need.push(`${base}_${s}`)
     need.push('roof_slate', 'roof_top_slate')
-    // every new label carries an ascii glyph AND an emoji char (both tilesets paint it per-cell).
-    expect(need.filter(l => !styleTile('ascii', l)?.glyph)).toEqual([])
-    expect(need.filter(l => !styleTile('emoji', l)?.char)).toEqual([])
+    // every new label is BAKED in both tilesets, so both paint it per-cell.
+    expect(need.filter(l => !styleTile('ascii', l)?.image)).toEqual([])
+    expect(need.filter(l => !styleTile('emoji', l)?.image)).toEqual([])
   })
 
   test('each material carries its OWN distinct emoji block (stone 🪨 ≠ brick 🧱 ≠ wood 🟫 ≠ plaster ⬜, slate ⬛)', () => {
@@ -392,10 +394,10 @@ describe('material + roof rollout — every material/piece resolves and every bu
     const leaf = labels.filter(l => l.startsWith('leaf'))
     expect(trunk.length).toBeGreaterThanOrEqual(1)
     expect(leaf).toEqual(['leaf_center']) // ONE leaf tile IS the whole (2×) canopy now
-    // both parts carry an ascii glyph AND an emoji char
+    // both parts are baked in both styles
     for (const l of [...trunk, ...leaf]) {
-      expect(styleTile('ascii', l)?.glyph).toBeTruthy()
-      expect(styleTile('emoji', l)?.char).toBeTruthy()
+      expect(styleTile('ascii', l)?.image).toBeTruthy()
+      expect(styleTile('emoji', l)?.image).toBeTruthy()
     }
     for (const l of trunk) expect(styleTile('emoji', l).char).toBe('🟫') // brown trunk block
     for (const l of leaf) expect(styleTile('emoji', l).char).toBe('🍃') // leaf — not a whole tree, not an herb

@@ -29,17 +29,20 @@ describe('tree composition — every ascii asset is a collection of selectable D
     const placed = stampComposition(grid, 'tree_small', 7, 7, 'spring', 0)
     expect(placed).toBe(30)
 
-    // Anchor column (7,7): a 3-cell TRUNK (L0-1-2) then the canopy centre up the widths — leaf L3, leaf L4, crown L5.
+    // Anchor column (7,7): a 3-cell TRUNK then the canopy centre up the widths — leaf, leaf, crown.
+    // Every level is +1 on the composition's own authored levels because the tree stands ON the ground, which
+    // is a block like anything else ("all tiles/blocks are height 1, GLOBAL"). stampComposition takes that
+    // offset from cellStackTop, so level 1 here is the ground's top, not a gap.
     const center = getStack(grid, 7, 7).filter(t => t.type !== 'floor')
-    expect(center.map(t => t.heightLevel)).toEqual([0, 1, 2, 3, 4, 5])
+    expect(center.map(t => t.heightLevel)).toEqual([1, 2, 3, 4, 5, 6])
     expect(center.map(t => t.label)).toEqual(['trunk_base', 'trunk', 'trunk', 'leaf_center', 'leaf_center', 'leaf_top'])
 
-    // The canopy widens DOWN the levels (the diagram): level 3 spans 5 cells (dx -2..2), level 4 spans 3 (dx -1..1).
-    // Outermost base cells (dx ±2) carry ONE leaf at L3; the inner cells (dx ±1) carry a leaf at L3 AND L4.
-    expect(getStack(grid, 5, 7).filter(t => t.type !== 'floor').map(t => t.heightLevel)).toEqual([3]) // dx -2, base only
-    expect(getStack(grid, 9, 7).filter(t => t.type !== 'floor').map(t => t.heightLevel)).toEqual([3]) // dx +2, base only
-    expect(getStack(grid, 6, 7).filter(t => t.type !== 'floor').map(t => t.heightLevel)).toEqual([3, 4]) // dx -1, base + mid
-    expect(getStack(grid, 8, 7).filter(t => t.type !== 'floor').map(t => t.heightLevel)).toEqual([3, 4]) // dx +1, base + mid
+    // The canopy widens DOWN the levels (the diagram): its base level spans 5 cells (dx -2..2), the one above
+    // spans 3 (dx -1..1). Outermost base cells (dx ±2) carry ONE leaf; the inner cells (dx ±1) carry two.
+    expect(getStack(grid, 5, 7).filter(t => t.type !== 'floor').map(t => t.heightLevel)).toEqual([4]) // dx -2, base only
+    expect(getStack(grid, 9, 7).filter(t => t.type !== 'floor').map(t => t.heightLevel)).toEqual([4]) // dx +2, base only
+    expect(getStack(grid, 6, 7).filter(t => t.type !== 'floor').map(t => t.heightLevel)).toEqual([4, 5]) // dx -1, base + mid
+    expect(getStack(grid, 8, 7).filter(t => t.type !== 'floor').map(t => t.heightLevel)).toEqual([4, 5]) // dx +1, base + mid
   })
 
   test('EVERY composition tile is an independently selectable block (heightLevel set + height>=1 — the picker gate)', () => {
@@ -104,14 +107,14 @@ describe('tree composition — every ascii asset is a collection of selectable D
   })
 
   // ── The optimized living `tree` — EXACTLY 2 tiles (thin tall trunk + bigger leaf cube on top) ──────────
-  test('the tree stamps EXACTLY 2 cells — a thin tall trunk (L0) + a bigger leaf cube lifted onto its top', () => {
+  test('the tree stamps EXACTLY 2 cells — a thin tall trunk on the ground + a bigger leaf cube on its top', () => {
     const grid = mkGrid()
     const placed = stampComposition(grid, 'tree', 7, 7, 'spring', 0)
     expect(placed).toBe(2) // Alexander's optimized reference: "just two tiles, one trunk, one leafs" (down from 3)
 
     const col = getStack(grid, 7, 7).filter(t => t.type !== 'floor')
     expect(col.map(t => t.label)).toEqual(['trunk_mid', 'leaf_center'])
-    expect(col.map(t => t.heightLevel)).toEqual([0, 2]) // trunk on the ground; leaf lifted to the trunk top
+    expect(col.map(t => t.heightLevel)).toEqual([1, 3]) // trunk ON the ground block; leaf lifted to the trunk top
 
     // The user's hand-tuned settings ride the cell: trunk = Height(scaleY) 3.15 at Zoom(scale) 0.6 (thin tall
     // post); leaf = Height(scaleY) 2 at Zoom(scale) 1.35 (a bigger cube). All DATA — nothing hardcoded.

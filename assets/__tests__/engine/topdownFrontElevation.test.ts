@@ -16,7 +16,7 @@
 import '@/__tests__/helpers/installTilesetSeed' // house_4 composition + tiles come from the loaded backend tileset fixture
 import { render2D } from '@/engine/render/topdown'
 import { frontElevation } from '@/engine/render/frontElevation'
-import { IsometricGrid } from '@/engine/IsometricGrid'
+import { FLOOR_TYPE, IsometricGrid } from '@/engine/IsometricGrid'
 import { stampBuildingComposition } from '@/game/runtime/composition'
 import type { PlayerState } from '@/game/runtime/player'
 
@@ -56,10 +56,14 @@ describe('render2D — a stamped building renders as a front elevation (depth co
     stampBuildingComposition(grid, 'house', 4, ANCHOR, ANCHOR, 'spring', 'south')
 
     // The building's TRUE rendered height in blocks — `level + own height × scaleY`, the same accumulation
-    // the stacking rule uses. The gable's ridge is a level-4 bar carrying its step height as scaleY 2, so the
-    // house tops out at 6 blocks even though its highest LEVEL is 4.
-    const topBlocks = Math.max(...grid.assets.map(a => (a.heightLevel ?? 0) + (a.height ?? 1) * (a.scaleY ?? 1)))
-    expect(topBlocks).toBe(6) // sanity: the stamped house really is 6 blocks tall (ridge = level 4 + a 2-block bar)
+    // the stacking rule uses, measured from the building's own BASE rather than from zero. The house stands
+    // ON the ground, which is a block like anything else, so its cells start a level up; what the facade
+    // spans is its own height, not its distance from the grid plane.
+    const building = grid.assets.filter(a => a.type !== FLOOR_TYPE)
+    const baseLevel = Math.min(...building.map(a => a.heightLevel ?? 0))
+    const ridgeLevel = Math.max(...building.map(a => (a.heightLevel ?? 0) + (a.height ?? 1) * (a.scaleY ?? 1)))
+    const topBlocks = ridgeLevel - baseLevel
+    expect(topBlocks).toBe(6) // sanity: the house really is 6 blocks tall (ridge = 4 levels of wall + a 2-block bar)
 
     const { ctx, rects } = recordingCtx()
     render2D({ ctx, w: W, h: H, grid, player: player(), time: 0 })

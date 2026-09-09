@@ -56,14 +56,18 @@ describe('loadTilesetsFromBackend — installs the new /api/tilesets shape', () 
   test('ascii bush tile gets an absolute image src derived from its image_url', async () => {
     await loadTilesetsFromBackend()
     const bush = styleTiles('ascii').bush
-    expect(bush.image?.src.startsWith('http')).toBe(true)
-    expect(bush.image?.src.endsWith('/tiles/ascii/bush.png')).toBe(true)
+    // `image` is the baked PNG's URL — a STRING, not an element with a `.src`. (The emoji case below already
+    // reads it that way; this one still went through the old loaded-Image shape.)
+    expect(bush.image?.startsWith('http')).toBe(true)
+    expect(bush.image?.endsWith('/tiles/ascii/bush.png')).toBe(true)
   })
 
-  test('ascii bush tile is walkable (blocking: false); palettes are empty (colour is a per-tile setting, not a blob)', async () => {
+  test('ascii bush tile is walkable (blocking: false); there is no palette blob at all', async () => {
     await loadTilesetsFromBackend()
     expect(styleTiles('ascii').bush.walkable).toBe(true)
-    expect(styleCatalog('ascii').palettes).toEqual({}) // no palette blob — a tile's colour lives in its own settings.colors
+    // The blob was REMOVED, not emptied — a catalog is {id, name, tiles, compositions, terrain} and a tile's
+    // colour lives in its own settings.colors. Asserting `{}` quietly accepted a blob that came back empty.
+    expect(styleCatalog('ascii')).not.toHaveProperty('palettes')
   })
 
   test('emoji bear tile gets its absolute image + color installed', async () => {
