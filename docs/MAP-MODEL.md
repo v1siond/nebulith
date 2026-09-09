@@ -204,12 +204,148 @@ flowchart TD
   REG -->|project| ISOp["ISO: 3D block stack with gable roof"]
 ```
 
+### Per-tile SIZE modifier: `scaleZ` — THICKNESS, the 3D fill inside the cell
+
+A tile's `scaleZ` is its **THICKNESS**: how much of its own block it fills along the **into-screen** axis.
+`1` (the default) is a full cube; a **door is a thin panel in a wall** and ships at `0.3`
+(`nebulith/lib/nebulith/catalog/tile_source.ex`, Alexander: *"they should be thin"*). Drawn at the default
+thickness a door renders as a solid block and stops reading as a door at all.
+
+**THICKNESS IS NOT FOOTPRINT.** They were once conflated, and the thickness control was deleted as
+"redundant" — it is not:
+
+| | `scaleZ` — **Thickness** | `depth` / `depthDir` — **Footprint** |
+|---|---|---|
+| Question | how much of ONE cell does the block fill? | how many CELLS does the tile span? |
+| Unit | a fraction of a block (0 < t ≤ 1 typically) | whole blocks, always ≥ 1 |
+| Range | any positive number | integers ≥ 1 (a tile occupies at least its own cell) |
+| Editor control | **Thickness** — four directional sliders | **Footprint** — four directional sliders |
+| Backend home | `tiles.settings.scaleZ` | `composition_cells.depth` + `depth_dir` |
+
+**Where it comes from, in precedence order** — one resolver, `tileThickness()` in
+`engine/tileset/tileset.ts`, is the single reader for all of it:
+
+1. the placed instance's own `GridAsset.thickness` reaches (the editor's Thickness sliders; saved in `Template.assetsData`),
+2. an explicit per-cell `composition_cells.settings.scaleZ` for a stamped composition,
+3. the TILE's authored `tiles.settings.scaleZ` — the backend default,
+4. nothing → a full block, unchanged.
+
+A tile is therefore thin **wherever it lands**: generator-stamped (`game/runtime/composition.ts`) or
+hand-painted (`game/editor/tileBrush.ts`). Both call the same reader — they are only allowed to *read* it,
+never to invent one, and each keeping a private copy is exactly how the paint brush silently dropped it.
+
+#### Thickness is four REACHES — the same shape as the Footprint
+
+Thickness alone is not enough: it needs a direction, or the shrink happens along a **screen** axis and the
+same door reads thin from one side of the house and solid from the other (Alexander, Image #3: *"it's only
+applied viewing to MY front, not the front of the house"*).
+
+A cell's two ground axes are the diamond's **diagonals**, not its screen extents — the top face runs
+`t → t+u → t+u+v → t+v` with `u = (+tileW, +tileH)` (+col) and `v = (−tileW, +tileH)` (+row). So thickness
+is expressed on those same four iso diagonals, as **four independent reaches** (`GridAsset.thickness`).
+
+**Thickness and Footprint ask ONE question in two units** (Alexander: *"I pefer thickness UI to work like
+z-width UI"*) — *how far does this tile reach toward ⟨direction⟩?*
+
+| | Footprint (`depth` / `depthBack` / `depthPerp` / `depthPerpBack`) | Thickness (`thickness`) |
+|---|---|---|
+| Unit | whole CELLS | a fraction of ONE cell |
+| Range | ≥ 1 — a tile always occupies its own cell | ≤ 1 — 1 reaches that face exactly |
+| Control | four arrow + slider rows | the same four arrow + slider rows |
+
+Along each axis the block spans from `1 − reach(back)` to `reach(forward)`, so a door with reach 1 toward
+its wall and 0.3 the other way is a 0.3-thick panel **flush with that wall** — it sits *in* the wall rather
+than floating mid-cell. The perpendicular axis is untouched, so a thin door is still a full-width door. Two
+opposing reaches that would close the block keep a visible sliver rather than vanishing mid-drag. The pure
+geometry is `reachGroundQuad()` in `engine/render/isoBlock.ts`; `thinGroundQuad()` is the hug-one-face
+shorthand on top of it.
+
+**Authoring.** The backend writes either form and `tileThicknessReach()` normalises both:
+`{scaleZ: 0.3, thicknessDir: "left-down"}` (the shorthand a door uses — "0.3 thick, hugging this face") or
+`{thickness: {"right-up": 0.3, …}}` (explicit per-direction reaches, for anything the shorthand cannot say).
+
+**The controls read in SCREEN space, the data stays in WORLD space.** The arrow glyphs keep their position
+in the 2×2 grid — ↖ is always the up-left corner, matching where the block grows on screen — and the world
+axis under each is re-derived per camera facing (`dirsForFacing`). Alexander: *"the direction should match
+and be aligned with the current cammera rotation, I rotated and the direction the propreties in the UI were
+showing didn't match the view."* Storing world-space is what keeps a door thin toward its own wall as you
+rotate; displaying screen-space is what makes the arrow you click the axis you see. Both the Thickness and
+the Footprint rows do this.
+
+Being a WORLD axis, it is rotated twice, exactly like `depthDir`:
+
+| Rotation | Where | Why |
+|---|---|---|
+| the **building**'s | `composition.ts`, at stamp time | a house turned a quarter-turn has its doors thin toward **its** front |
+| the **camera**'s | `iso.ts` `orientAssetForView` | turning the camera must not re-thin the door |
+
+Doors are authored `left-down` (+row) because a building's front face is `dy == h - 1`
+(`building_compositions.ex`) — the south-facing convention every composition is authored in.
+
+**Without a direction** `scaleZ` keeps its historical screen-axis meaning, so nothing that renders today
+changes until a tile is given one.
+
+Rendered as the block's footprint in ISO (`render/iso.ts` → `isoBlockFaces(..., quad)`) and as the vertical
+axis of the TOP/overhead view (`render/assetDimensions.ts`).
+
+#### Footprint reads in CELLS, minimum 1
+
+The Footprint sliders once showed the **extra** cells beyond the anchor, so `0` and `1` drew the identical
+block and a fractional value did nothing at all — *"I have 0, but its behaving as if value was 1 … the UI is
+wrong. The min is 1 cell"*. They now count **cells, including the tile's own**, with a floor of 1. The four
+stored extents are unchanged; only the unit the user reads and types changed.
+
+### Per-tile ROLE: `unitRole` — what a `units` tile places as
+
+A `units` tile is the one family that can become something other than a block: a **character** the player
+meets, or a **combat effect** that is just decoration. Which one is the tile's own DATA —
+`tiles.settings.unitRole ∈ {person, enemy, fx}` — never a frontend classification of the slug.
+
+| Role | `placementFor` | `entityKindForUnitTile` |
+|---|---|---|
+| `person` | `entity` | `npc` |
+| `enemy` | `entity` | `enemy` |
+| `fx` | `asset` (a pinned decoration) | `null` — not a character |
+
+The hero stays the one distinguished entity: the `player` slug is checked first and its row's role is
+`person` like any other figure ("only units are special, they move").
+
+**Status: the READER is in (`game/editor/tilePlacement.ts` — `unitRole`, `entityKindForUnitTile`,
+`placementFor`), the FIELD is NOT SEEDED yet.** The live API carries `unitRole` on 0 of 79 `units` rows, so
+those readers still fall through to two bridge lists (`NON_ENTITY_UNIT` 13 FX + `PERSON_SLUGS` 23 figures) —
+the §3.14b Tier-1 #2 violation itself. The served role always wins, so seeding the 79 rows in
+`nebulith/lib/nebulith/catalog/tile_source.ex` deletes both lists with no other change. This is also the
+grouping the Characters library needs to sub-divide its 79 creatures.
+
 ## 6. Elevation is stacked cells/blocks + collision — not special logic
 
 A hill / mountain / cliff / staircase is just **cells/blocks stacked with collision**. The elevation system
 already exists (a per-cell `height` grid; the ISO + TOP renders raise cells and draw cliff faces). The open
 work is only **expanding the generators + tiles to place PLACES with elevation** (mountains, staircases,
 cliffs, hills) — **not** new render logic. "Segmented code" per view is fine; the **logic is one system**.
+
+
+### The collision flag means the WALK SURFACE
+
+`grid.collision` is 2D — one flag per cell — while a building is 3D. The flag therefore has exactly one
+meaning: **a unit walking the ground here is stopped**. The rule, shared by every writer:
+
+> a cell is blocked ⟺ it holds a blocking tile at or below `unitStandLevel(grid, col, row)`
+
+`unitStandLevel` is the level a unit stands at in that cell — **not 0**. Every cell carries a floor slab at
+level 0, so a building's ground course sits at level 1. Blocking a cell for a tile at ANY level made an
+upper storey seal the floor beneath it (the collision map traced the storeys instead of the walls); keying
+it to `heightLevel === 0` instead would block nothing at all.
+
+Three places implement it and must not drift: the composition stamp (`game/runtime/composition.ts`), the
+template load (`lib/api.ts`), and the editor's own edits (`deriveCellCollision`).
+
+**The overlay paints on that same surface.** `renderDebugOverlays` used to tint the raw ground plane, so on
+every cell the red diamond sat a block BELOW the structure it described and spilled out from under buildings
+onto the grass — "collissions don't match structures" (Alexander, Image #5). Measured across a generated
+town: all 181 blocked cells were tinted 26 px low, a uniform one-block offset. It now lifts by
+`grid.getHeight(col,row) * heightStep + isoStackLift(tileW, unitStandLevel(...))` — the SAME lift the render
+puts a unit on, so the tint and the thing it describes cannot diverge.
 
 ## 7. The pipeline — generator → one grid → three renders
 
@@ -223,11 +359,20 @@ flowchart LR
 
 ## 8. Tileset source of truth — the DB + one seed pipeline
 
-Tiles are **DB data**, served by the nebulith backend (`:4000`, `tilesets` table, one row per style key —
+Tiles are **DB data**, served by the nebulith backend (`:6328` by default, `PORT`-driven; `tilesets` table, one row per style key —
 `ascii`, `emoji`). Each tile entry carries its **art** (`glyph`/`char` + optional `image` + `color`) plus
 optional **sidebar metadata**: `category` (terrain/buildings/units/nature) marks a tile BROWSEABLE and groups
 it; `title` is its display name. Entries with no `category` (wall pieces, tree corners, entity reskin tiles)
 render on the map but never surface in the sidebar.
+
+**A STYLE IS A SET OF BAKED IMAGES AND NOTHING ELSE.** Alexander: *"all arts have the exact same behavior and
+engine and the only thing that changes is the tiles, that's all that changes, the tileset art … changing from
+emoji to ascii shouldn't make a difference whatsoever, because we're just saying 'use this set of images
+instead of this other one'."* So EVERY tile row in EVERY style carries a baked `image_url`, and the frontend
+builds its Visual through ONE helper (`artStyle.tileVisual`) fed by ONE lookup (`styleTileArt`, a dispatch map
+keyed by style id). **No renderer may branch on the style for anything but which tileset to read.** A `glyph`
+is the LAST RESORT for a tile with genuinely no baked image — never a per-style art path, and never a pre-load
+placeholder (the loader decodes every PNG before the render gate opens).
 
 **The app reads ONLY the DB tilesets — the front end hardcodes no tile art AND no tile data.** `tilesetLoader`
 fetches the rows on load and installs them (`EMOJI_TILESET` / `ASCII_TILESET`). BOTH the **map render** and the
@@ -265,13 +410,15 @@ flowchart LR
   SRC --> BAKE["priv/tilegen/tiles.json + bake.mjs (Noto/DejaVu → PNG)"]
   BAKE --> PNG["priv/static/tiles/&lt;style&gt;/&lt;label&gt;.png (Phoenix-served image)"]
   SRC --> SEED["seed (idempotent upsert)"] --> DB[("tiles / compositions DB")]
-  DB --> API["GET /api/tilesets (:4000)"] --> APP["map render draws image_url + Tile Library"]
+  DB --> API["GET /api/tilesets (:6328)"] --> APP["map render draws image_url + Tile Library"]
 ```
 
 **To add or change a tile:** (1) author it in `Nebulith.Catalog.TileSource` (Elixir) with
 `image_url: "/tiles/<style>/<label>.png"` — `glyph`/`emoji` are BAKE INPUTS only; (2) add a bake entry to
 `priv/tilegen/tiles.json` `{label, mode, style, glyph|emoji}` and run `node priv/tilegen/bake.mjs`
-(→ a baked PNG in `priv/static/tiles/`); (3) seed. NEVER `image_url: nil` + a raw glyph (renders `??` on a
+(**incrementally: `node priv/tilegen/bake.mjs --only=<label>[,<label>]`** — adding ONE tile must not
+re-rasterise the other ~400 through whatever fonts the baking machine happens to have)
+(→ a baked PNG in `priv/static/tiles/`); (3) seed. NEVER `image_url: nil` + a raw glyph (**it silently costs the renderer its cube-sprite cache**, which is keyed on the tile having an image: an image-less tile re-draws its three faces live, with a `clip` each, every frame) (renders `??` on a
 machine whose font lacks the emoji), and NEVER hand-edit tile art into a component or the renderer. Seeds are
 FINE (Elixir → DB); only the frontend JSON is dead.
 

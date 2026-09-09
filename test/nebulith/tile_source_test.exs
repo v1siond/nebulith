@@ -295,8 +295,11 @@ defmodule Nebulith.TileSourceTest do
     emoji_roof_top = Enum.find(Catalog.list_tiles_for("emoji"), &(&1.label == "roof_top"))
     assert emoji_roof_top, "emoji roof_top parity twin missing"
     assert emoji_roof_top.image_url == "/tiles/emoji/roof_top.png"
-    # walkable apex cap that eases translucent near the hero (inherits roof_top's fadeNear)
-    assert emoji_roof_top.settings["fadeNear"] == true
+    # The ridge apex is ROOF: it lifts off with the rest of the roof (cutawayRoof), it does not merely ease
+    # translucent. While it carried fadeNear, a hero under a PEAK column — the door columns of every gable
+    # house — was under no cutaway tile, so the roof never came off (Alexander, Image #4).
+    assert emoji_roof_top.settings["cutawayRoof"] == true
+    refute emoji_roof_top.settings["fadeNear"]
   end
 
   test "an ascii canopy tile carries its per-zone palette colors in settings" do
@@ -314,16 +317,24 @@ defmodule Nebulith.TileSourceTest do
     assert grass.settings["color"]
   end
 
-  test "wall/window/door/roof_top tiles get fadeNear, roof gets cutawayRoof, in both styles" do
+  test "wall/window/door tiles get fadeNear; every ROOF label gets cutawayRoof, in both styles" do
     for style <- ["ascii", "emoji"] do
       tiles = Catalog.list_tiles_for(style)
-      wall = Enum.find(tiles, &(&1.label == "wall"))
 
-      assert wall.settings["fadeNear"] == true, "#{style} wall missing fadeNear"
+      for label <- ~w(wall window door) do
+        tile = Enum.find(tiles, &(&1.label == label))
+        assert tile.settings["fadeNear"] == true, "#{style} #{label} missing fadeNear"
+      end
 
-      roof = Enum.find(tiles, &(&1.label == "roof"))
-      assert roof.settings["cutawayRoof"] == true, "#{style} roof missing cutawayRoof"
-      refute roof.settings["fadeNear"], "#{style} roof should not have fadeNear"
+      # The whole roof VOLUME lifts off as one — body, ridge apex, flat deck, parapet and rooftop unit alike.
+      # A roof that only eased translucent (or, for the apex, did nothing) left the hero unable to see the
+      # inside of the building they were standing in.
+      for label <- ~w(roof roof_top flat_roof parapet rooftop_unit) do
+        tile = Enum.find(tiles, &(&1.label == label))
+        assert tile, "#{style} #{label} missing"
+        assert tile.settings["cutawayRoof"] == true, "#{style} #{label} missing cutawayRoof"
+        refute tile.settings["fadeNear"], "#{style} #{label} should not have fadeNear"
+      end
     end
   end
 

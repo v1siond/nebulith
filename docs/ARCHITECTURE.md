@@ -101,10 +101,12 @@ interface Connector {
 
 ### 1.6 Persistence + API
 
-- **Postgres via Prisma.** Single `Template` model (`prisma/schema.prisma:18-59`): grid layers
-  (`groundData`, `heightData`, `assetsData`) and `connectors` stored as **inline JSON**, not
-  normalized. The only real relation is `author → User`. **No auth/ownership is enforced** by any
-  route; `isPublic` is never checked.
+- **Postgres via the Elixir backend (nebulith).** The `"Template"` record holds grid layers
+  (`groundData`, `heightData`, `assetsData`) plus `connectors` / `entities` / `quests` as **inline JSON**,
+  not normalized. **No auth/ownership is enforced** by any route; `isPublic` is never checked.
+  **Prisma was removed in `0e3eba9`** — the table it left behind is now created and owned by
+  `nebulith/priv/repo/migrations/20260907120000_create_template_table.exs`. `authorId` survives as a plain
+  string: the Prisma-owned `User` table went with Prisma, so there is no relation to enforce.
 - `CustomAsset` model exists in the schema but has **no API route** (unreachable).
 - **REST CRUD** at `/api/templates` (Pages router) — list/create (`index.ts`), get/update/delete
   (`[id].ts`). Client wrapper in `src/lib/api.ts` (+ `serializeGrid`/`deserializeToGrid`).

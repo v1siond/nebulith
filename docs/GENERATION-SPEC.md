@@ -66,13 +66,30 @@ receives" principle from [`../README.md`](../README.md).
 
 ### 3.1 MVP preset matrix — zone × variant (START HERE)
 
-> **Status (observed 2026-07 — the code is newer than this section).** The shipped editor's zone
-> selector now speaks **seasons**: `spring · summer · autumn · winter · desert`
-> (`game-website/src/components/game/editorConfig.ts` `STAGE_ZONES`; palettes in
-> `src/engine/zones.ts`), with variants `forest · town · city · cave · temple` (`STAGE_VARIANTS`).
-> `lava` and `beach` still exist as `ZoneId` values but are off the UI menu; `frozen`/`verdant` are
-> gone. The lava/frozen matrix below is the earlier design and does NOT describe the current build —
-> reconcile it (and §7 of `EDITOR-INTERACTION-SPEC.md`) with the seasonal model before building to it.
+> **Status (observed 2026-09 — the code is newer than this section).** The zone × variant matrix is a
+> **backend catalog** now, not a frontend table: `GET /api/generators` serves the map-type CATEGORIES and
+> the GENERATORS in them, each with the seasons it runs in and every knob a generate takes
+> (`nebulith/lib/nebulith/catalog/generator_source.ex` → `generator_categories` / `generators`; client +
+> selectors in `game-website/src/lib/generatorCatalog.ts`; T-113).
+>
+> The shipped catalog: seasons `spring · summer · autumn · winter · desert`, categories
+> `forest · town · city · cave · temple`, and `forest` carries two layouts (`meadow`, `meadow_river`).
+> Each generator's `config` carries its own grid range (`cols`/`rows` min-max, `cellSize`, `isoScale`),
+> `units` (`townsfolk` / `enemies` / `enemyTypes`), and — for a settlement — `nature`, `settlement`
+> tuning and the `buildings` material + colour palette. The zone PALETTES are still frontend
+> (`src/engine/zones.ts`, §3.14b Tier-1 #4, not yet migrated).
+>
+> The frontend holds **no** list of seasons, map types or layouts: the four tables that used to
+> (`editorConfig.ts` `STAGE_ZONES` / `STAGE_VARIANTS` / `STAGE_VARIANT_LABELS` / `VARIANT_LAYOUTS`) were
+> deleted with T-113. Adding a map type is a seed row. `lava` and `beach` still exist as `ZoneId` values
+> but no generator runs in them, so they are off the menu; `frozen`/`verdant` are gone. The lava/frozen
+> matrix below is the earlier design and does NOT describe the current build — reconcile it (and §7 of
+> `EDITOR-INTERACTION-SPEC.md`) with the catalog before building to it.
+>
+> **Still frontend, deliberately:** the five generator LAYERS (`GENERATOR_LAYERS`, `editorConfig.ts`) are
+> engine PASSES (`stageGenerator.ts` `LAYER_IDS`), not generator records, and `/api/generators` serves no
+> layer list. **Not yet migrated:** the settlement tuning + nature densities still live as constants in
+> `engine/villageLayout.ts` and `engine/stageGenerator.ts` even though the catalog already serves them.
 
 Replace today's ~30 messy presets (many dead cultural themes) with a small, manageable matrix:
 - **Zone** = elemental theme → palette + prop set. MVP: **lava** and **frozen** ONLY.

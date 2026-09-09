@@ -314,9 +314,14 @@ screen-fixed for the identical reason movement is.
 
 The render draws DATA; it invents nothing. For the full model see MAP-MODEL; the render-relevant essentials:
 
-- **A tile is a baked IMAGE resolved by LABEL** from the Postgres tileset (never a glyph fallback pre-load).
-  The renderer resolves a stacked cell by its own `label` before any coarse whole-object kind art
-  (MAP-MODEL §5, §8).
+- **A tile is a baked IMAGE resolved by KEY** from the Postgres tileset (never a glyph fallback pre-load) —
+  its `label` for a composition cell, its `kind` for a label-less tile such as a FLOOR (whose identity is its
+  ground `tileKey`). The renderer resolves a stacked cell by its own `label` first, then falls back to the
+  coarse kind. **Both go through the one `styleTileImage(key, style)`, in EVERY art style** — the key picks the
+  tile, the style picks only which tileset supplies the PNG (MAP-MODEL §5, §8; ENGINE-ARCHITECTURE §3). The
+  kind lookup used to be gated to floors and to ASCII, which left every other label-less ascii tile image-less:
+  it missed the cube-sprite cache and fell into the per-face `clip + fillText` path — the reason ASCII rendered
+  ~2× slower than emoji on the same map.
 - **Height is per-tile DATA, read uniformly** (`tileHeight.ts`). `resolveTileHeight = asset.height ?? tile.height ?? 0`
   (an explicit `0`/negative clamps to flat). A **flat** tile (a fractional block height, e.g. `0.1` — floor,
   road, flower) draws as ONE partial layer at that fraction via `partialBlockScale`; a **standing** tile

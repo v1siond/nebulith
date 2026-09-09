@@ -1,0 +1,36 @@
+import { chromium } from 'playwright'
+const b = await chromium.launch(); const p = await b.newPage({viewport:{width:1680,height:1000}})
+const errs = []; p.on('pageerror', e => errs.push(e.message))
+await p.goto('http://localhost:3000/personal-projects/game-engine/games/97829bd2-78fa-4d8f-94aa-8d0cea5f8ffb', {waitUntil:'networkidle', timeout:60000})
+await p.waitForTimeout(5500)
+const cols = () => p.evaluate(() => getComputedStyle(document.querySelector('main')).gridTemplateColumns)
+const W = sel => p.evaluate(s => { const e = document.querySelector(s); return e ? Math.round(e.getBoundingClientRect().width) : null }, sel)
+console.log('NOTHING SELECTED')
+console.log('  inspector present:', await p.locator('.z-insp').count(), '(0 = removed, as asked)')
+console.log('  columns          :', await cols())
+console.log('  canvas width     :', await W('.z-canvas'))
+console.log('  collapse handles :', await p.locator('.zcol').count())
+// collapse the rail
+await p.locator('.z-rail .zcol').click(); await p.waitForTimeout(400)
+console.log('\nRAIL COLLAPSED')
+console.log('  columns     :', await cols())
+console.log('  rail width  :', await W('.z-rail'), '| strip label visible:', await p.locator('.z-rail .zname').isVisible())
+console.log('  canvas width:', await W('.z-canvas'))
+await p.locator('.z-rail .zcol').click(); await p.waitForTimeout(300)
+// collapse the panel
+await p.locator('.z-panel .zcol').click(); await p.waitForTimeout(400)
+console.log('\nPANEL COLLAPSED')
+console.log('  columns     :', await cols(), '| panel width:', await W('.z-panel'))
+await p.locator('.z-panel .zcol').click(); await p.waitForTimeout(300)
+// select something so the inspector appears
+await p.locator('.z-canvas canvas').click({ position: { x: 300, y: 300 } }); await p.waitForTimeout(700)
+console.log('\nAFTER CLICKING THE MAP')
+console.log('  inspector present:', await p.locator('.z-insp').count(), '| width:', await W('.z-insp'))
+console.log('  columns          :', await cols())
+if (await p.locator('.z-insp .zcol').count()) {
+  await p.locator('.z-insp .zcol').click(); await p.waitForTimeout(400)
+  console.log('  after collapsing it: width', await W('.z-insp'), '| reopen handle:', await p.locator('.z-insp .zcol').count())
+}
+await p.screenshot({ path: process.argv[2] + '/collapse.png' })
+console.log('\npage errors:', errs.length ? errs.slice(0,3) : 'none')
+await b.close()

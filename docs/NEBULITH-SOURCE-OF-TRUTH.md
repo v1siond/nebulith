@@ -50,7 +50,7 @@ Four conceptual systems currently live in **two** git repos. (See
    author a     │  │ templates.tsx │──►│ src/engine/*        │ │
    level        │  │ (runtime too!)│   │ (geometry + legacy) │ │
                 │  └──────┬────────┘   └─────────────────────┘ │
-                │         │ save/load (Prisma → Postgres)       │
+                │         │ save/load (Elixir → Postgres)       │
                 │         ▼                                     │
                 │  ┌───────────────┐   ┌─────────────────────┐ │
                 │  │ /api/templates│   │ /api/pixellab (AI)   │─┼──► Pixellab.ai

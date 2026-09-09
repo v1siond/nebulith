@@ -15,6 +15,20 @@ defmodule NebulithWeb.Endpoint do
     websocket: [connect_info: [session: @session_options]],
     longpoll: [connect_info: [session: @session_options]]
 
+  # CORS runs FIRST, before Plug.Static.
+  #
+  # It used to sit just above the Router, at the bottom of this pipeline — which meant the API got its
+  # `access-control-allow-origin` header (the API goes through the Router) and the baked tile PNGs did NOT
+  # (Plug.Static answers and HALTS long before the bottom of the pipeline is reached).
+  #
+  # The consequence was not a failed request — the images loaded fine — but a TAINTED canvas: a cross-origin
+  # image drawn into a canvas without CORS makes that canvas unreadable, so `getImageData` and `toDataURL`
+  # throw a SecurityError on anything the map is drawn into. That blocks reading pixels back for a level
+  # minimap, for cached preset thumbnails, and for any in-browser pixel test.
+  #
+  # The frontend's half of this is `crossOrigin = 'anonymous'` on the tile images; both halves are required.
+  plug CORSPlug, origin: [~r/^http:\/\/localhost:\d+$/]
+
   # Serve at "/" the static files from "priv/static" directory.
   #
   # When code reloading is disabled (e.g., in production),
@@ -52,7 +66,5 @@ defmodule NebulithWeb.Endpoint do
   plug Plug.Head
   plug Plug.Session, @session_options
 
-  # Allow the game-website frontend (any localhost dev port) to fetch the tileset API cross-origin.
-  plug CORSPlug, origin: [~r/^http:\/\/localhost:\d+$/]
   plug NebulithWeb.Router
 end

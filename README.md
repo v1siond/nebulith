@@ -45,9 +45,18 @@ mix setup            # deps.get + ecto.setup (create, migrate, seed) + assets
 mix phx.server       # or: iex -S mix phx.server
 ```
 
-Dev serves on **http://localhost:4001** (`config/dev.exs` — port 4000 is taken by another local BEAM
-app; production defaults `PORT` to 4000 in `config/runtime.exs`). The frontend points at
-`NEXT_PUBLIC_NEBULITH_API` (default `http://localhost:4001/api`), and CORS allows any `localhost:<port>`.
+Serves on **http://localhost:6328** in every environment. The port is env-driven from ONE place —
+`PORT` in `config/runtime.exs` (default `6328`) — because runtime.exs is evaluated last and deep-merges
+over `dev.exs`/`test.exs`, so a port written anywhere else is silently ignored. Move it with:
+
+```bash
+PORT=7654 mix phx.server
+```
+
+We deliberately stay off 4000/4001: 4000 is the default of every other Phoenix app on this machine
+(insuradmin holds it), and the clash kills boot with `eaddrinuse`. The frontend points at
+`NEXT_PUBLIC_NEBULITH_API` (default `http://localhost:6328/api`, set in `game-website/.env.local` —
+change BOTH when you move the port), and CORS allows any `localhost:<port>`.
 
 `mix setup` runs the granular steps if you prefer them individually:
 

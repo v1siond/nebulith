@@ -39,8 +39,24 @@ defmodule Nebulith.Catalog.TileSource do
   @behavior_settings %{
     "wall" => %{"fadeNear" => true},
     "window" => %{"fadeNear" => true},
-    "door" => %{"fadeNear" => true},
-    "roof_top" => %{"fadeNear" => true},
+    # A DOOR stays opaque and obvious while the wall around it fades — it is the thing you are looking FOR
+    # (Alexander 2026-09-06: "doors should be more opaque and obvious", "would I know that there's a door in a
+    # building if I can't see it?"). `minAlpha` is the floor the reveal may never take a tile below.
+    # `scaleZ` is THICKNESS — a door is a thin panel in the wall, not a full cube (Alexander, Image #10: "they
+    # don't look like doors"). Distinct from the editor's "z-width" (`depth`), which counts CELLS spanned and is
+    # always >= 1 because a tile occupies its own cell.
+    #
+    # `thicknessDir` is WHICH WAY it is thin, as a WORLD axis. Without it the shrink happened along a
+    # screen axis, so a door read as thin from one side of the house and solid from the other (Alexander,
+    # Image #3: "it's only applied viewing to MY front, not the front of the house"). `left-down` is +row =
+    # the FRONT face a building is authored with (`building_compositions.ex`: `front = dy == h - 1`), and the
+    # stamp ROTATES it by the building's rotation, so every door is thin toward ITS OWN house's front.
+    "door" => %{"fadeNear" => true, "minAlpha" => 0.9, "scaleZ" => 0.3, "thicknessDir" => "left-down"},
+    # The ridge apex is ROOF, so it lifts off with the rest of it. It used to carry `fadeNear` (it was the
+    # "walkable apex cap"), which left a hero standing under a PEAK column — the door columns of every gable
+    # house — under no cutaway tile at all, so the roof stayed solid over their head (Alexander, Image #4:
+    # "I'm inside but I can't see inside, the roof is not transparent").
+    "roof_top" => %{"cutawayRoof" => true},
     "roof" => %{"cutawayRoof" => true},
     # storefront glass + awning ease translucent as the hero approaches, like a window;
     # the flat-roof deck / its parapet lip / a rooftop AC unit lift off like a gable roof.
@@ -93,6 +109,26 @@ defmodule Nebulith.Catalog.TileSource do
     # with no per-category code branch. seed_emoji_tiles already writes the raw per-tile height; this re-applies it
     # pose-safely so a fresh full seed agrees with seed_sample.
     reconcile_tile_heights()
+    # …and then make every OTHER style agree, because height is DATA and the same label is the same shape in
+    # every style. This used to live in seeds.exs, which meant `seed()` on its own left 32 of 358 shared
+    # labels disagreeing (ascii 0.0 vs emoji 1.0) — a caller had to remember a second call for the DB to be
+    # correct. An invariant that depends on being remembered is not an invariant.
+    normalize_tile_heights()
+    # Seven seeders write glyphs and none can see the others' choices. The curated file says what each ascii
+    # tile should look like; the algorithm then catches anything it does not cover yet. Without this pair,
+    # two tiles share a glyph and therefore share a picture — the "fake tiles" report.
+    apply_curated_glyphs()
+    # The UNIT FIGURES — a unit is a GRID of characters, not one character (see `apply_unit_art/0`).
+    apply_unit_art()
+    ensure_distinct_glyphs()
+    # …and every PER-LABEL fact agrees across styles. A label owns its name, bucket, height and collision;
+    # only the picture is the style's. Without this the same `grass` was "Grass" in one style and nameless
+    # in the other — two engines' worth of drift in the data.
+    normalize_label_facts()
+    point_tiles_at_own_image()
+    # What each `units` tile IS — person / enemy / animal / fx. The editor reads this instead of
+    # classifying 36 backend-owned slugs itself (§3.14b #11), and the Characters library sub-groups by it.
+    seed_unit_roles()
 
     ascii_count = length(Catalog.list_tiles_for("ascii"))
     emoji_count = length(Catalog.list_tiles_for("emoji"))
@@ -109,17 +145,39 @@ defmodule Nebulith.Catalog.TileSource do
   # Reuse the existing row if present (leaving its `data` blob untouched);
   # create a bare key/name row when absent.
 
+  # How the style picker SHOWS each style. A tileset row is an art style (Alexander: "styles should be
+  # backend categories"), so its icon and order are catalog data, not something the frontend declares.
+  # ASCII is position 1 — it is the editor's default and the engine's baseline.
+  @style_presentation %{
+    "ascii" => %{icon: "⌨", position: 1},
+    "emoji" => %{icon: "😀", position: 2}
+  }
+
   defp ensure_tileset(key, name) do
     case Repo.get_by(Tileset, key: key) do
-      %Tileset{} = tileset -> tileset
+      %Tileset{} = tileset -> ensure_presentation(tileset)
       nil -> create_tileset!(key, name)
     end
   end
 
   defp create_tileset!(key, name) do
-    {:ok, tileset} = Catalog.create_tileset(%{key: key, name: name})
+    look = Map.get(@style_presentation, key, %{icon: nil, position: 99})
+    {:ok, tileset} = Catalog.create_tileset(%{key: key, name: name, icon: look.icon, position: look.position})
     tileset
   end
+
+  # A tileset seeded before the style columns existed has no icon; fill it so the picker never shows a
+  # blank affordance on an upgraded DB.
+  defp ensure_presentation(%Tileset{icon: icon} = tileset) when icon in [nil, ""] do
+    case Map.get(@style_presentation, tileset.key) do
+      nil -> tileset
+      look ->
+        {:ok, updated} = Catalog.update_tileset(tileset, %{icon: look.icon, position: look.position})
+        updated
+    end
+  end
+
+  defp ensure_presentation(tileset), do: tileset
 
   # ── Ascii glyph tiles ─────────────────────────────────────────────────────
   # HEIGHT is the tile's OWN authored DATA (MAP-MODEL §4), read the same way in every style: a STANDING glyph
@@ -478,7 +536,7 @@ defmodule Nebulith.Catalog.TileSource do
       })
 
     # Parity twin: the emoji generic `roof_top` apex cap (🟥, matching the emoji roof body #c8443c). Walkable
-    # cap that eases translucent near the hero (inherits roof_top's fadeNear). ascii `roof_top` already exists
+    # cap that lifts off with the roof near the hero (inherits roof_top's cutawayRoof). ascii `roof_top` already exists
     # (ascii.json); this only adds the missing emoji row so both styles paint the cap's OWN tile.
     {:ok, _} =
       Catalog.upsert_tile(%{
@@ -610,7 +668,7 @@ defmodule Nebulith.Catalog.TileSource do
         material_pieces("wall_plaster", "░", "⬜", plaster, "Plaster Wall")
 
     # A grey SLATE gable roof for stone/masonry buildings — a dark ⬛ block distinct from the red 🟥 gable.
-    # `roof_slate` is the browseable roof body (cutawayRoof); `roof_top_slate` its walkable apex cap (fadeNear).
+    # `roof_slate` is the browseable roof body (cutawayRoof); `roof_top_slate` its ridge apex cap (also cutawayRoof).
     roofs = [
       %{
         label: "roof_slate",
@@ -1148,7 +1206,7 @@ defmodule Nebulith.Catalog.TileSource do
           category: src.category,
           image_url: "/tiles/ascii/#{png}.png",
           settings:
-            %{"colors" => Map.new(@all_zones, &{&1, color})} |> merge_behavior(reuse_behavior_base(label))
+            %{"colors" => Map.new(@all_zones, &{&1, color})} |> merge_behavior(label)
         })
     end
   end
@@ -1198,6 +1256,12 @@ defmodule Nebulith.Catalog.TileSource do
       `settings.variants.bg` BY SLUG (buildAsciiTerrain). Without the ascii `meadow` twin the floor falls
       back to the grass colour. Its `bg` carries @meadow_color, which then tints the flat emoji square.
 
+  BOTH styles are IMAGE-BACKED (MAP-MODEL §8 — never `image_url: nil` + a raw glyph): the ascii twin points
+  at `/tiles/ascii/meadow.png` (baked from its `.` glyph via priv/tilegen). It was the LAST ascii tile with
+  no baked image, and `meadow` is the default floor of spring/summer plus the flood floor of every forest
+  layout — so under ASCII a whole town drew ~1200 glyph plates instead of one cached image block, which is
+  why ASCII rendered far slower than emoji on the same map.
+
   Idempotent upsert by [tileset_id, label] — safe on the shared dev DB. Called by seed/0, runnable standalone.
   """
   def seed_meadow do
@@ -1240,7 +1304,7 @@ defmodule Nebulith.Catalog.TileSource do
         height: 1.0,
         category: "terrain",
         title: "Meadow",
-        image_url: nil,
+        image_url: "/tiles/ascii/meadow.png",
         settings: %{
           "variants" => %{
             "char" => [".", ","],
@@ -1259,7 +1323,9 @@ defmodule Nebulith.Catalog.TileSource do
 
   The emoji image is the same flat white square `/tiles/emoji/baked/water.png` (overwritten to a flat square
   in the tile pipeline) that the floor colour tints; the ascii twin carries @water_color as its terrain `bg`
-  so `groundTileColor("water")` resolves the river blue for any non-generator paint / a reloaded save.
+  so `groundTileColor("water")` resolves the river blue for any non-generator paint / a reloaded save. The
+  ascii twin is IMAGE-BACKED too (`/tiles/ascii/water.png`, baked from its `~` glyph) — MAP-MODEL §8 forbids
+  `image_url: nil` + a raw glyph, and an image-less tile misses the renderer's cube-sprite cache entirely.
   Idempotent upsert by [tileset_id, label]. Runnable standalone.
   """
   def seed_water_color do
@@ -1290,7 +1356,7 @@ defmodule Nebulith.Catalog.TileSource do
         height: 1.0,
         category: "terrain",
         title: "Water",
-        image_url: nil,
+        image_url: "/tiles/ascii/water.png",
         settings: %{
           "variants" => %{
             "char" => ["~", "≈"],
@@ -1382,6 +1448,446 @@ defmodule Nebulith.Catalog.TileSource do
     reconcile_tile_categories()
     IO.puts("reseeded sample tiles + compositions")
     :ok
+  end
+
+  @doc """
+  Makes a tile's HEIGHT agree across EVERY art style.
+
+  There is ONE engine and N art styles; a style is a set of baked images and nothing else. Height is not
+  art — the same `door` is the same shape whichever images you are looking at — so it belongs to the LABEL,
+  not to a style's row. The render already assumes exactly that (`iso.ts assetBlockRise` reads whichever
+  tileset happens to be loaded, "heights are style-identical", MAP-MODEL §4).
+
+  The DATA disagreed for 32 of 358 shared labels, because the seeders default in opposite directions when a
+  tile authors no height of its own:
+
+      glyph tiles   height: Map.get(tile, "height", 1)   # unauthored -> a BLOCK
+      catalog tiles height: t["height"] || 0             # unauthored -> FLAT
+
+  It never showed in the render (`resolveTileHeight` ignores the art tile's height) but it changed what the
+  BRUSH seeds: the same map differed by which palette built it.
+
+  Style-agnostic by construction — it walks EVERY tileset in the DB, so a third art style is normalised the
+  day it is seeded with no edit here. `@height_authority` names the ONE catalog that authors heights
+  today; that is a single documented constant, not a rule spread through the code.
+
+  Walks the height column only (`set_tile_height`), so editor-tuned poses in `settings` survive — a full
+  upsert would `replace_all` them. Idempotent.
+  """
+  # The catalog whose rows carry the authored per-label height. A style is only ever an image set, so this
+  # is a DATA-ownership statement, not a claim that this style is special to the engine.
+  @height_authority "emoji"
+
+  def normalize_tile_heights do
+    canonical =
+      Catalog.list_tiles_for(@height_authority)
+      |> Map.new(&{&1.label, &1.height})
+
+    changed =
+      for tileset <- Catalog.list_tilesets(),
+          tileset.key != @height_authority,
+          tile <- Catalog.list_tiles_for(tileset.key),
+          Map.has_key?(canonical, tile.label),
+          canonical[tile.label] != tile.height do
+        Catalog.set_tile_height(tileset.id, tile.label, canonical[tile.label])
+        {tileset.key, tile.label}
+      end
+
+    IO.puts("normalized #{length(changed)} tile heights across #{length(Catalog.list_tilesets())} styles (height is not art)")
+    :ok
+  end
+
+  # Prefixes whose members are pieces of ONE autotiled thing, so sharing a shape is the point.
+  @glyph_family_prefixes ~w(wall_ fountain_ trunk_ canopy_ tree_ roof_top)
+  # One figure, distinguished by colour rather than by shape.
+  @glyph_shared_labels ~w(adult person player)
+
+  # Replacement glyphs, in order — box-drawing, geometric and technical blocks, so a distinct tile reads as
+  # a distinct mark at 128px. Only ever consulted for a tile that lost a contest, so the pool is small.
+  @glyph_pool ~w(
+    ⌬ ⌭ ⌮ ⌯ ⌰ ⌱ ⌲ ⌳ ⌴ ⌵ ⌶ ⌷ ⌸ ⌹ ⌺ ⌻ ⌼ ⌽ ⌾ ⌿
+    ⍀ ⍁ ⍂ ⍃ ⍄ ⍅ ⍆ ⍇ ⍈ ⍉ ⍊ ⍋ ⍌ ⍍ ⍎ ⍏ ⍐ ⍑ ⍒ ⍓
+    ⍔ ⍕ ⍖ ⍗ ⍘ ⍙ ⍚ ⍛ ⍜ ⍝ ⍞ ⍟ ⍠ ⍡ ⍢ ⍣ ⍤ ⍥ ⍦ ⍧
+    ⍨ ⍩ ⍪ ⍫ ⍬ ⍭ ⍮ ⍯ ⍰ ⍱ ⍲ ⍳ ⍴ ⍵ ⍶ ⍷ ⍸ ⍹ ⍺ ⎊
+    ⎔ ⎕ ⏆ ⏇ ⏈ ⏉ ⏊ ⏋ ⏌ ⏍ ⏎ ⏏ ⏐ ⏑ ⏒ ⏓ ⏔ ⏕ ⏖ ⏗
+    ▰ ▱ ◰ ◱ ◲ ◳ ◴ ◵ ◶ ◷ ◸ ◹ ◿ ⬢ ⬣ ⬟ ⬠ ⬡ ⯀ ⯁
+    ⯂ ⯃ ⯄ ⯅ ⯆ ⯇ ⯈ ⯊ ⯋ ⯌ ⯍ ⯎ ⯏ ⯐ ⯑ ⧄ ⧆ ⧇ ⧊ ⧋
+  )
+
+
+  @doc """
+  Applies the CURATED ascii glyphs (`priv/repo/tilesets/ascii_glyphs.json`) — the file that decides what each
+  ascii tile looks like.
+
+  An ascii tile's picture is rasterised from its glyph, so this is the ascii art. It lives as DATA rather
+  than inside the seven seeders that write glyphs, because none of those can see the others' choices — which
+  is exactly how `rose`, `tulip`, `sunflower` and `hibiscus` ended up sharing one `❀` plate. Curating them
+  in one file makes the whole set reviewable at a glance and keeps the art out of the code.
+
+  Runs after every seeder and before `ensure_distinct_glyphs/0`, which is the safety net for any label this
+  file has not been updated for yet. Walks the glyph column only, so editor-tuned poses survive. Idempotent.
+  """
+  def apply_curated_glyphs do
+    path = Path.join(:code.priv_dir(:nebulith), "repo/tilesets/ascii_glyphs.json")
+
+    with true <- File.exists?(path),
+         {:ok, body} <- File.read(path),
+         {:ok, %{"glyphs" => glyphs}} <- Jason.decode(body) do
+      tileset = Enum.find(Catalog.list_tilesets(), &(&1.key == "ascii"))
+      apply_glyphs(tileset, glyphs)
+    else
+      _ -> IO.puts("no curated ascii glyphs to apply")
+    end
+  end
+
+  defp apply_glyphs(nil, _glyphs), do: :ok
+
+  defp apply_glyphs(tileset, glyphs) do
+    applied =
+      for tile <- Catalog.list_tiles_for(tileset.key),
+          want = glyphs[tile.label],
+          want != nil and want != tile.glyph do
+        Catalog.set_tile_glyph(tileset.id, tile.label, want)
+        tile.label
+      end
+
+    IO.puts("applied #{length(applied)} curated ascii glyphs")
+    :ok
+  end
+
+  @doc """
+  Makes every PER-LABEL fact agree across styles — the "one engine, N art styles" rule, enforced.
+
+  Alexander, 2026-09-08: *"we just need ONE ENGINE that is used by ALL ART STYLES … changing a style just
+  changes the database of tiles … same name, same label, same identifier, different png"*.
+
+  So a LABEL owns everything except the picture. `grass` is called "Grass", is `terrain`, is walkable and is
+  a flat slab — in every style, because those are facts about grass, not about which pictures you are
+  looking at. Only `image_url` (and the glyph/emoji the picture is baked FROM) may differ.
+
+  It had drifted, because nothing enforced it: **154 labels had a different title per style** (`grass` was
+  "Grass" in emoji and NOTHING in ascii), and `coral`/`crystal`/`rock` were `terrain` in one and `nature` in
+  the other. Height and blocking were already reconciled by `normalize_tile_heights/0`; this closes the
+  remaining two columns and, with them, §3.5's "120 raw-slug labels in the picker".
+
+  Where NO style authored a title, one is derived from the label (`wall_brick_c` → "Wall Brick C") so the
+  picker never shows a raw slug. That is a display name computed from data the row already carries — an
+  authored title always wins.
+  """
+  def normalize_label_facts do
+    tilesets = Catalog.list_tilesets()
+    by_label = tiles_by_label(tilesets)
+
+    changed =
+      Enum.flat_map(by_label, fn {label, tiles} ->
+        agree_on_label(label, tiles, tilesets)
+      end)
+
+    IO.puts("agreed #{length(changed)} per-label facts across styles (a label owns everything but the picture)")
+    :ok
+  end
+
+  defp tiles_by_label(tilesets) do
+    for tileset <- tilesets, tile <- Catalog.list_tiles_for(tileset.key), reduce: %{} do
+      acc -> Map.update(acc, tile.label, [tile], &[tile | &1])
+    end
+  end
+
+  # Write the label's canonical title + category onto every style's row for it.
+  #
+  # Deliberately NOT a comprehension: `category = canonical_category(tiles)` as a comprehension generator is
+  # a FILTER, so a label whose category is nil is silently dropped — which is exactly what happened, and 53
+  # tiles (`trunk_top`, `canopy_r`, the fountain pieces…) never got their title as a result.
+  defp agree_on_label(label, tiles, tilesets) do
+    title = canonical_title(label, tiles)
+    category = canonical_category(tiles)
+
+    tilesets
+    |> Enum.map(fn tileset -> {tileset, Enum.find(tiles, &(&1.tileset_id == tileset.id))} end)
+    |> Enum.filter(fn {_tileset, tile} -> tile && (tile.title != title or tile.category != category) end)
+    |> Enum.map(fn {tileset, _tile} ->
+      Catalog.set_tile_label_facts(tileset.id, label, title, category)
+      {tileset.key, label}
+    end)
+  end
+
+  # The name a label goes by. An authored title wins (whichever style carries one); otherwise the label is
+  # humanised, so the picker shows "Trunk Top" rather than `trunk_top` (§3.5).
+  defp canonical_title(label, tiles) do
+    case Enum.find_value(tiles, fn t -> if t.title not in [nil, ""], do: t.title end) do
+      nil -> humanise(label)
+      title -> title
+    end
+  end
+
+  # The bucket a label sits in. The most common answer wins, so a single drifted row cannot flip the label.
+  # `nil` when no style authored one — a category is not invented here.
+  defp canonical_category(tiles) do
+    tiles
+    |> Enum.map(& &1.category)
+    |> Enum.reject(&(&1 in [nil, ""]))
+    |> Enum.frequencies()
+    |> Enum.max_by(fn {_category, count} -> count end, fn -> {nil, 0} end)
+    |> elem(0)
+  end
+
+  @doc """
+  Gives every `units` tile its ROLE — what the thing IS: a person, a monster, an animal, or a combat effect.
+
+  §3.14b #11: the frontend was classifying 36 backend-owned slugs itself, in two hardcoded Sets
+  (`NON_ENTITY_UNIT`, `PERSON_SLUGS`), to decide what a `units` tile places as. That is data about the
+  catalog living outside the catalog. It is also what §4.5's Characters library needs in order to sub-group
+  its 79 creatures at all (§3.6: "79 creatures in a 256px dropdown, no grouping").
+
+  ## Where each role comes from
+
+  `enemy` is DERIVED, not listed: `EntitySource.enemy_type_slug` is already the authoritative enemy-type
+  list, so a monster is a monster because the entity resolution says so. That settles the genuinely
+  ambiguous ones from data rather than taste — `bat`, `spider` and `wolf` are hostiles in this game, and
+  nothing here had to decide that.
+
+  `fx` is the projectiles and the ability animations: they live in `units` because they are baked figures,
+  but they are effects, so placing one must drop a decoration rather than spawn a creature.
+
+  `person` is listed, because "is this a walking character" is not derivable from anything the catalog
+  already holds. Everything left over is an `animal`.
+  """
+  # Combat effects that sit in `units` — projectiles + the ability animations. Not placeable creatures.
+  @fx_units ~w(
+    arrow bullet dart
+    fire-slash ice-slash cleave bolt piercing-shot nova lightning heal-glow guard-flash
+  )
+
+  # Walking characters. The one role that has to be named: nothing else in the catalog implies it.
+  @person_units ~w(
+    npc person player adult boy girl child man woman old-man old-woman elder
+    guard mage wizard witch elf ninja prince princess police-officer construction-worker
+    robot grey-alien alien
+  )
+
+  # Hostiles the enemy-type list does not name, but that are plainly monsters rather than animals.
+  @extra_enemy_units ~w(enemy boss skull pumpkin grey-wolf)
+
+  def seed_unit_roles do
+    enemies =
+      Nebulith.Catalog.EntitySource.resolution().enemy_type_slug
+      |> Map.keys()
+      |> Enum.concat(@extra_enemy_units)
+      |> MapSet.new()
+
+    written =
+      for tileset <- Catalog.list_tilesets(),
+          tile <- Catalog.list_tiles_for(tileset.key),
+          tile.category == "units" do
+        Catalog.put_tile_setting(tileset.id, tile.label, "unitRole", role_for(tile.label, enemies))
+        tile.label
+      end
+
+    IO.puts("gave #{length(written)} unit tiles their role (person / enemy / animal / fx)")
+    :ok
+  end
+
+  defp role_for(label, enemies) do
+    cond do
+      label in @fx_units -> "fx"
+      label in @person_units -> "person"
+      MapSet.member?(enemies, label) -> "enemy"
+      true -> "animal"
+    end
+  end
+
+  defp humanise(label) do
+    label
+    |> String.replace(~r/[_-]+/, " ")
+    |> String.split(" ", trim: true)
+    |> Enum.map_join(" ", &String.capitalize/1)
+  end
+
+  @doc """
+  Points every tile at its OWN picture, when one has been baked for it.
+
+  Alexander's model: *"same name, same label, same identifier, different png"*. A tile's picture is its
+  label's file in its style's directory. **29 ascii tiles pointed at ANOTHER tile's png** — `rose`,
+  `sunflower` and `blossom` all at `decor_flower.png`, `pine-tree` and `palm-tree` at `tree.png` — so they
+  drew a duplicate even after being given their own glyph and their own baked file. That is the same "fake
+  tile" defect the `?` was, one layer down: a picture that is not this tile's.
+
+  Only claims a file that EXISTS. Sharing one picture on purpose stays untouched: 95 emoji tiles point at
+  `sq_brown.png` and tint it per-tile, which is the "colour is a setting" model working, not drift.
+  """
+  def point_tiles_at_own_image do
+    static = Path.join(:code.priv_dir(:nebulith), "static")
+
+    repointed =
+      for tileset <- Catalog.list_tilesets(),
+          tile <- Catalog.list_tiles_for(tileset.key),
+          own = "/tiles/#{tileset.key}/#{tile.label}.png",
+          tile.image_url != own,
+          File.exists?(Path.join(static, own)) do
+        Catalog.set_tile_image(tileset.id, tile.label, own)
+        {tileset.key, tile.label}
+      end
+
+    IO.puts("pointed #{length(repointed)} tiles at their own picture (a tile draws ITSELF, not a neighbour)")
+    :ok
+  end
+
+
+  @doc """
+  Applies the ASCII UNIT ART (`priv/repo/tilesets/ascii_unit_art.json`) — the FIGURES units draw as.
+
+  Alexander, 2026-09-08, on seeing every unit render as a single character (Image #13, the `♀`/`♂` cast):
+
+    > human like units should look like the user player, animals, and other units are also composition of
+    > ascii characters grouped to create a given element … a dog is not a single character, is a set of
+    > characters combined to form a dog, that was then converted to png to be a tile, and we'd have
+    > variations to be able to specify movement animations, just like the player character.
+    >
+    > we applied bad logic, you tried the ascii art the same as emoji, which they are at a fundamental
+    > level, in the sense both are just art style, but that doesn't mean the tiles are generated in the
+    > same way.
+
+  That is the distinction this seeder carries. The ENGINE is one: every style draws baked image tiles, every
+  style animates them, every tile has the same settings. What differs is how a style's picture is AUTHORED —
+  emoji places one pictograph, ascii composes a grid of characters:
+
+      "  O"        "/\_/\"
+      " /|\"       "( o.o )"
+      " / \"       " (>w<)"
+      villager      dog
+
+  So the art is `rows`, not a glyph, and the baker composes them (`priv/tilegen/atlas.html`, the `art` path).
+  Treating a unit like a terrain slab — one distinct character each — is what lost the figures: `man` became
+  `♂`, `dog` became `d`.
+
+  Three things land on the tile, all of them DATA the frontend only reads:
+
+    * `settings.artFrames` — the CHARACTER ROWS of every frame, `[[rows], [rows]]`. Named for what it is, so
+      it is never confused with the baker's per-cell `art` (one frame's rows). This is what the catalog and
+      the pre-load state draw before a single picture has decoded.
+    * `settings.frames` — the ORDERED frame pictures, `[<label>.png, <label>_f1.png]`. A frame is a picture,
+      not a second tile row: giving each frame its own label would put `Dog F1` in the units library and
+      break the one-label-per-thing invariant every style shares. Emoji lists the one picture it has; ascii
+      lists its two. Same field, same engine, different number of frames — which IS "all art styles do
+      tileset animation".
+    * `settings.frameMs` — the loop length. Frame 1 is authored at the SAME row count and width as frame 0,
+      so the footprint never jitters as it cycles.
+
+  Idempotent, and settings-key-surgical (`put_tile_setting/4`), so editor-tuned poses survive.
+  """
+  # Slow enough to read as breathing/padding rather than a strobe, and the same for every unit so a crowd
+  # does not shimmer out of phase.
+  @unit_frame_ms 900
+
+  def apply_unit_art do
+    path = Path.join(:code.priv_dir(:nebulith), "repo/tilesets/ascii_unit_art.json")
+
+    with true <- File.exists?(path),
+         {:ok, body} <- File.read(path),
+         {:ok, art} <- Jason.decode(body) do
+      apply_unit_art(Enum.find(Catalog.list_tilesets(), &(&1.key == "ascii")), art)
+    else
+      _ -> IO.puts("no ascii unit art to apply")
+    end
+  end
+
+  defp apply_unit_art(nil, _art), do: :ok
+
+  defp apply_unit_art(tileset, art) do
+    static = Path.join(:code.priv_dir(:nebulith), "static")
+    served = Map.new(Catalog.list_tiles_for(tileset.key), &{&1.label, &1})
+
+    written =
+      for {label, %{"frames" => [_ | _] = frames}} <- art, Map.has_key?(served, label) do
+        Catalog.put_tile_setting(tileset.id, label, "artFrames", frames)
+        Catalog.put_tile_setting(tileset.id, label, "frames", frame_images(tileset.key, label, frames, static))
+        Catalog.put_tile_setting(tileset.id, label, "frameMs", @unit_frame_ms)
+        label
+      end
+
+    IO.puts("gave #{length(written)} ascii units their composed FIGURE (a unit is a grid of characters)")
+    :ok
+  end
+
+  # The baked picture per frame, in order — frame 0 is the label's own file, frame N is `<label>_fN`.
+  # Only files that EXIST are listed: an unbaked frame must shorten the cycle, never point the renderer at a
+  # missing image (the no-fallback law — a missing picture is what drew the `?` in the first place).
+  defp frame_images(style, label, frames, static) do
+    frames
+    |> Enum.with_index()
+    |> Enum.map(fn {_rows, i} -> if i == 0, do: "/tiles/#{style}/#{label}.png", else: "/tiles/#{style}/#{label}_f#{i}.png" end)
+    |> Enum.filter(&File.exists?(Path.join(static, &1)))
+  end
+
+  @doc """
+  Gives every tile that names a DISTINCT thing its own glyph, in every style that uses glyphs.
+
+  An ascii tile's picture is rasterised FROM its glyph, so two tiles on one glyph are two tiles with one
+  picture. Alexander, 2026-09-08: *"a lot of ascii art tiles are fake"* — measured at 170 of 358 ascii tiles
+  drawing a byte-identical copy of another tile's art, because `rose`/`tulip`/`sunflower`/`hibiscus` were all
+  `❀` and `oak-tree`/`palm-tree`/`pine-tree` were all `♣`.
+
+  This runs as the last step of `seed/0` rather than as a list of glyphs somewhere, because the glyphs are
+  written by SEVEN different seeders (glyph tiles, terrain, decor, buildings, extras, props, parity) and no
+  single one of them can see what the others chose. An invariant that spans all of them has to be enforced
+  after all of them. It is also why the earlier hand-written migrations kept introducing fresh collisions:
+  uniqueness across ~350 rows is a job for a computer.
+
+  ## The two legitimate ways to share a glyph
+
+    * an AUTOTILING family — `wall_brick_tl`, `wall_stone_tl` and `fountain_tl` all draw `▛` because that
+      glyph IS the top-left corner SHAPE; the material is the tile's COLOUR (TILESET-AUTHORING). Same for
+      the `trunk_` column, the `canopy_` ring, the `tree_` parts and the `roof_top` caps;
+    * `adult` / `person` / `player` — one human figure, three colours.
+
+  The INCUMBENT of a contested glyph is the alphabetically-first label, so the assignment is stable across
+  runs (idempotent) and the baseline tiles the generator leans on — `grass`, `water`, `path`, `sand` — keep
+  the plain glyphs a reader expects. Walks the glyph column only, so editor-tuned poses survive.
+  """
+  def ensure_distinct_glyphs do
+    changed =
+      for tileset <- Catalog.list_tilesets(), reduce: [] do
+        acc -> acc ++ distinct_glyphs_for(tileset)
+      end
+
+    IO.puts("gave #{length(changed)} tiles their own glyph (a shared glyph is a shared picture)")
+    :ok
+  end
+
+  defp distinct_glyphs_for(tileset) do
+    tiles = Enum.filter(Catalog.list_tiles_for(tileset.key), &(&1.glyph not in [nil, ""]))
+    taken = MapSet.new(tiles, & &1.glyph)
+
+    tiles
+    |> Enum.group_by(& &1.glyph, & &1.label)
+    |> Enum.flat_map(fn {_glyph, labels} -> contested(labels) end)
+    |> Enum.sort()
+    |> Enum.reduce({taken, @glyph_pool, []}, fn label, {taken, pool, done} ->
+      {glyph, rest} = take_free_glyph(pool, taken)
+      Catalog.set_tile_glyph(tileset.id, label, glyph)
+      {MapSet.put(taken, glyph), rest, [label | done]}
+    end)
+    |> elem(2)
+  end
+
+  # The labels on one glyph that must MOVE: everything but the incumbent, once the members that share a
+  # glyph BY DESIGN are set aside.
+  defp contested(labels) do
+    case labels
+         |> Enum.reject(&(glyph_family?(&1) or &1 in @glyph_shared_labels))
+         |> Enum.sort() do
+      [] -> []
+      [_only] -> []
+      [_incumbent | rest] -> rest
+    end
+  end
+
+  defp glyph_family?(label), do: Enum.any?(@glyph_family_prefixes, &String.starts_with?(label, &1))
+
+  defp take_free_glyph([], _taken), do: raise("glyph pool exhausted — widen @glyph_pool")
+
+  defp take_free_glyph([g | rest], taken) do
+    if MapSet.member?(taken, g), do: take_free_glyph(rest, taken), else: {g, rest}
   end
 
   @doc """
@@ -1909,8 +2415,12 @@ defmodule Nebulith.Catalog.TileSource do
   defp maybe_put(map, _key, nil), do: map
   defp maybe_put(map, key, value), do: Map.put(map, key, value)
 
+  # A label that REUSES another's behaviour (wooden-door → door) must do so in EVERY style. Resolving the
+  # reuse HERE rather than at each call site is what fixes the emoji `wooden-door`, which was seeded through a
+  # path that passed the raw label and so rendered as a full cube while the ascii twin was a thin panel —
+  # the same tile, two behaviours (Alexander's rule: every style renders the same label identically).
   defp merge_behavior(settings, label) do
-    Map.merge(settings, Map.get(@behavior_settings, label, %{}))
+    Map.merge(settings, Map.get(@behavior_settings, reuse_behavior_base(label), %{}))
   end
 
   defp read_tileset(file) do

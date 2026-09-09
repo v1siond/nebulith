@@ -66,12 +66,47 @@ coefficients are TBD — start trivial (X/Y HP, flat numbers) and refine.
   collision unless swim, lava collision).
 
 ## 9. Structure collision rule (extends the keystone)
-Same pattern as trees: **a building/house/structure blocks on every cell EXCEPT the top-most roof
-tile and the door cells** (doors are walkable to enter). This needs the structure dimensions/
-implementation defined first (building composer: 8×4 min, 2×2 door) — hence starting with forest +
-easy archetypes. Each structure cell is **labeled** (`roof_top`, `roof_left`, `wall`, `door`,
-`window`…) for tileset replacement, and the label drives collision (`roof_top` = walkable, rest
-block; doors walkable).
+Same pattern as trees: **a building/house/structure blocks on every cell EXCEPT its DOORWAY** —
+the doorway column on the FRONT row, which you walk through to get in, and the interior floor it
+opens onto. Each structure cell is **labeled** (`roof_top`, `roof_left`, `wall`, `door`, `window`…)
+for tileset replacement, and the label drives collision.
+
+**A ROOF BLOCKS** (Alexander 2026-09-06: *"roof should have collissions"*). It is not a floor and
+nothing stands on it — `roof`, `roof_top`, `flat_roof`, `parapet` and `rooftop_unit` are all
+authored `walkable: false`. The earlier rule ("`roof_top` = walkable, the wall beneath carries the
+collision") is GONE: it made "walkable" claim you may stand on a roof, and the hero did.
+
+**Only the front-row doorway is an opening.** `BuildingCompositions.assemble` keys walkability on
+`dx in doors AND dy == h - 1`. Keying it on the column alone left the BACK wall opposite every door
+walkable too, so you could walk straight through a building and out the other side (Alexander
+2026-09-06: *"I can leave the houses from the back, following the doors street line, which is bad.
+I should only be able to navigate and leave buildings through actual pathways, like doors or
+stairs"*).
+
+**A unit stands on the GROUND, never on the structure above it.** The iso renderer lifts a unit by
+`unitStandLevel` (the top of the cell's floor tiles), not by `cellStackTop` (the top of everything
+in the cell). A doorway cell holds the whole facade column above the doorstep, so taking the stack
+top there drew the hero on the ROOF instead of inside the house. Raising the GROUND still lifts the
+unit — the same lego math every tile reads.
+
+## 9b. Interior reveal (Diablo / Path of Exile)
+
+The reveal is **POSITIONAL**, not proximity-based: the hero is under a roof or they are not.
+
+- Every tile carrying `settings.cutawayRoof` offers its covered footprint (z-width included).
+- The **connected** roof over the hero's cell is skipped entirely — a roof is many z-width column
+  blocks, so lifting only the one overhead would punch a hole instead of removing the roof.
+  Connectivity stops at the next building, so the neighbour across the street keeps its roof.
+- Tiles carrying `settings.fadeNear` **inside that revealed shell** (its footprint + the ring of
+  walls around it) ease to `INTERIOR_SHELL_ALPHA`, so the interior actually reads.
+- **Outside a building nothing fades.** The old distance ease (`fadeNearAlpha` / `cutawayAlpha`,
+  now deleted) ghosted every wall the hero merely walked past while the roof stayed solid
+  (Alexander 2026-09-06, Image #1: *"not transparent enough and is not applied correctly … it
+  should be like diablo likes games, or path of exile, where roof gets transparent when user enters
+  the building and we can see the inside of the thing"*).
+
+Logic: `src/engine/render/roofReveal.ts` (`revealedRoofs` / `revealedShell`), applied in `iso.ts`.
+
 
 ---
 

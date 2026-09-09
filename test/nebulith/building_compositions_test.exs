@@ -346,13 +346,14 @@ defmodule Nebulith.BuildingCompositionsTest do
         assert length(roofs) == w,
                "#{unquote(name)}: expected #{w} roof blocks, got #{length(roofs)}"
 
-        # Every roof block spans the footprint DEPTH along +row (grid-aligned, anchored at the back row) and is
-        # walkable — the wall beneath a perimeter column already carries the collision, interior roof was always
-        # walkable, so the roof itself never blocks.
+        # Every roof block spans the footprint DEPTH along +row (grid-aligned, anchored at the back row) and
+        # BLOCKS — Alexander 2026-09-06: "roof should have collissions". (It used to be authored walkable on the
+        # reasoning that the wall beneath carried the collision; that made "walkable" claim you may stand on a
+        # roof, which is how the hero ended up standing on one.)
         for r <- roofs do
           assert st(r)["depth"] == h, "#{unquote(name)}: roof block missing depth=#{h}"
           assert st(r)["depthDir"] == "left-down"
-          assert r.walkable == true
+          assert r.walkable == false
 
           assert r.dy == 0,
                  "#{unquote(name)}: a depth-span roof must anchor at the back row (dy=0)"
@@ -398,13 +399,64 @@ defmodule Nebulith.BuildingCompositionsTest do
         assert crown.walkable == false
         refute Map.has_key?(st(crown), "depth")
 
-        # Every deck/parapet column spans the footprint depth along +row and is walkable.
+        # Every deck/parapet column spans the footprint depth along +row and BLOCKS, like the crown and every
+        # gable bar — a roof is not a floor (Alexander 2026-09-06: "roof should have collissions").
         for d <- deck do
           assert st(d)["depth"] == h, "#{unquote(name)}: deck column missing depth=#{h}"
           assert st(d)["depthDir"] == "left-down"
-          assert d.walkable == true
+          assert d.walkable == false
         end
       end
     end
   end
+  # ── WALKABILITY (Alexander 2026-09-06, Images #1/#2) ────────────────────────────────────────────────────
+  # "when entering through a door, the user goes over the roof instead of inside the house … we're most likely
+  #  applying the properties wrong, plus roof should have collissions, so this shouldn't be a posssible bug"
+  #
+  # Two authoring defects this guards:
+  #  1. `assemble` marked a column walkable by its COLUMN ALONE (`dx in doors`), ignoring the row — so the BACK
+  #     wall directly opposite each door was walkable too, and you could stroll through the back of every
+  #     building. Only the DOOR ROW (the front, dy = h-1) is an opening.
+  #  2. Roof blocks were authored walkable, on the reasoning that the wall beneath carries the collision. A roof
+  #     is not a floor: it BLOCKS.
+  describe "walkability — only the doorway is an opening; walls and roofs block" do
+    for name <- @all do
+      test "#{name}: the door row's door columns are walkable, and nothing else on the ground floor is" do
+        c = comp(unquote(name))
+        front = c.footprint_h - 1
+
+        ground = Enum.filter(c.cells, &(&1.level == 0))
+        walkable_ground = ground |> Enum.filter(& &1.walkable) |> Enum.map(&{&1.dx, &1.dy})
+        doors = ground |> Enum.filter(&(&1.label == "door")) |> Enum.map(&{&1.dx, &1.dy})
+
+        assert doors != [], "#{unquote(name)} has no ground-floor door"
+        assert Enum.sort(walkable_ground) == Enum.sort(doors),
+               "#{unquote(name)}: walkable ground cells #{inspect(Enum.sort(walkable_ground))} should be exactly the doors #{inspect(Enum.sort(doors))}"
+
+        assert Enum.all?(doors, fn {_dx, dy} -> dy == front end),
+               "#{unquote(name)}: a door must sit on the front row #{front}"
+      end
+
+      test "#{name}: the back wall opposite a door is NOT walkable" do
+        c = comp(unquote(name))
+        back_row = Enum.filter(c.cells, &(&1.dy == 0))
+
+        refute Enum.any?(back_row, & &1.walkable),
+               "#{unquote(name)}: back-row cells #{inspect(back_row |> Enum.filter(& &1.walkable) |> Enum.map(&{&1.dx, &1.label}))} are walkable — you can walk through the back wall"
+      end
+
+      test "#{name}: every roof block blocks — a roof is not a floor" do
+        c = comp(unquote(name))
+        roofs = Enum.filter(c.cells, &roof_label?(&1.label))
+
+        assert roofs != [], "#{unquote(name)} has no roof cells"
+
+        refute Enum.any?(roofs, & &1.walkable),
+               "#{unquote(name)}: walkable roof cells #{inspect(roofs |> Enum.filter(& &1.walkable) |> Enum.map(& &1.label))}"
+      end
+    end
+  end
+
+  defp roof_label?(label),
+    do: String.starts_with?(label, "roof") or label in ["flat_roof", "parapet", "rooftop_unit"]
 end

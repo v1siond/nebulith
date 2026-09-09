@@ -39,7 +39,7 @@
     },
     "tree_snag": {
       "label": "tree_snag",
-      "glyph": "Ψ",
+      "glyph": "⑀",
       "position": "single",
       "walkable": false,
       "colorRole": "trunk"
@@ -117,7 +117,7 @@
     },
     "roof": {
       "label": "roof",
-      "glyph": "▀",
+      "glyph": "⌮",
       "position": "single",
       "walkable": true,
       "colorRole": "building.roof",
@@ -156,7 +156,7 @@
     },
     "mountain": {
       "label": "mountain",
-      "glyph": "▲",
+      "glyph": "⛰",
       "position": "single",
       "walkable": true,
       "colorRole": "feature.mountain",
@@ -166,7 +166,7 @@
     },
     "peak": {
       "label": "peak",
-      "glyph": "▲",
+      "glyph": "⌃",
       "position": "single",
       "walkable": false,
       "colorRole": "feature.peak"
@@ -252,7 +252,7 @@
     },
     "shield": {
       "label": "shield",
-      "glyph": "O",
+      "glyph": "⛨",
       "position": "single",
       "walkable": true,
       "colorRole": "weapon",
@@ -266,7 +266,7 @@
     },
     "grass": {
       "label": "grass",
-      "glyph": "\"",
+      "glyph": ";",
       "category": "terrain",
       "title": "Grass",
       "position": "single",
@@ -274,7 +274,7 @@
     },
     "water": {
       "label": "water",
-      "glyph": "≈",
+      "glyph": "~",
       "category": "terrain",
       "title": "Water",
       "position": "single",
@@ -291,7 +291,7 @@
     },
     "plaza": {
       "label": "plaza",
-      "glyph": "#",
+      "glyph": "⌰",
       "category": "terrain",
       "title": "Plaza",
       "position": "single",
@@ -299,7 +299,7 @@
     },
     "sand": {
       "label": "sand",
-      "glyph": "∴",
+      "glyph": "⢈",
       "category": "terrain",
       "title": "Sand",
       "position": "single",
@@ -316,7 +316,7 @@
     },
     "moss": {
       "label": "moss",
-      "glyph": ",",
+      "glyph": "⸴",
       "category": "terrain",
       "title": "Moss",
       "position": "single",
@@ -333,7 +333,7 @@
     },
     "altar": {
       "label": "altar",
-      "glyph": "‡",
+      "glyph": "⩚",
       "category": "props",
       "title": "Altar",
       "position": "single",
@@ -341,7 +341,7 @@
     },
     "tree": {
       "label": "tree",
-      "glyph": "♣",
+      "glyph": "⌯",
       "category": "nature",
       "title": "Tree",
       "position": "single",
@@ -358,7 +358,7 @@
     },
     "bush": {
       "label": "bush",
-      "glyph": "*",
+      "glyph": "❉",
       "category": "nature",
       "title": "Bush",
       "position": "single",
@@ -366,7 +366,7 @@
     },
     "rock": {
       "label": "rock",
-      "glyph": "O",
+      "glyph": "▓",
       "category": "nature",
       "title": "Rock",
       "position": "single",
@@ -414,7 +414,7 @@
     },
     "hazard": {
       "label": "hazard",
-      "glyph": "▲",
+      "glyph": "⚠",
       "category": "nature",
       "title": "Hazard",
       "position": "single",
@@ -459,7 +459,7 @@
     },
     "trunk": {
       "label": "trunk",
-      "glyph": "W",
+      "glyph": "╿",
       "colorRole": "trunk",
       "position": "single",
       "walkable": true,
@@ -507,7 +507,7 @@
     },
     "snag": {
       "label": "snag",
-      "glyph": "Y",
+      "glyph": "⑁",
       "colorRole": "trunk",
       "position": "single",
       "walkable": true,

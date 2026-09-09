@@ -52,14 +52,13 @@ small, well-scoped builds, and in several cases the code already exists and just
 6. **Fix the themed-ground export charMap.** `exportLayers()` only maps ~5 ground types; snow/sand/
    stone/`road_center`/`road_edge`/themed water fall through to `'.'`. Drive the map from the full
    `TILES` registry (ideally from the canonical vocabulary file).
-7. **Decompose `templates.tsx` (~5,272 lines).** Split the runtime (game loop + renderers) from the
+7. **Decompose `templates.tsx` (~5,600 lines, down from ~6,900 after the 2026-09-06 dead-generator deletion).** Split the runtime (game loop + renderers) from the
    editor UI from the generators. Prerequisite for sustainable feature work. Do it incrementally.
 
 ### P2 — Correctness bugs (from the audits)
 - `getPlayerArt()` has no `default` return → `.length` can throw if `facing` is ever undefined.
 - Iso depth-sort mixes **float** player col/row with integer asset col/row → player can sort to the
   wrong layer at cell boundaries.
-- `generateRandomMap` size range is exclusive of max → presets never reach stated max dimensions.
 - Shared-mutable-inner-array trap `Array(n).fill(Array(m).fill(x))` across `asciiComponents.ts`,
   `buildingComponents.ts`, `MapComposer.ts` (latent today; fix to `.map(() => Array(m).fill(x))`).
 - `BUSH_LARGE` declared `width:5` but sprite lines are 4 chars (and similar component width/blocking
@@ -69,12 +68,15 @@ small, well-scoped builds, and in several cases the code already exists and just
 ### P3 — UX friction
 - `resizeGrid()` wipes the map to grass with **no confirmation** (easy data loss).
 - Delete uses blocking `window.confirm()` instead of the app's `useToast`.
-- **23 themes advertised, ~13 render nothing** (cultural-theme categories have no presets) — the
-  generator UI over-promises.
+- ~~23 themes advertised, ~13 render nothing~~ — RESOLVED 2026-09-06 by deletion: that catalog belonged
+  to `generateRandomMap`, a SECOND generator reachable only from `?new=1`. It, its 35-preset catalog
+  (`game/presets`) and its 21 hardcoded colour themes (`getThemeColors`) are gone; `?new=1` now runs the
+  real `generateStage` engine like every other generate.
 - ISO/2D toggle is buried in the TOP-view sidebar, not next to the view buttons.
 
 ### Dead code to remove (reduces the surface before refactor)
-- `applyTemplate()` (~300 lines, never called; superseded by `generateRandomMap`).
+- ~~`applyTemplate()`~~, ~~`generateRandomMap()`~~, ~~`getThemeColors()`~~, ~~`game/presets`~~,
+  ~~`createVillageLevel()`~~, ~~`QuickActionToolbar`~~ — all DELETED 2026-09-06 (~1,900 lines).
 - `MapComposer.ts` (imported nowhere) — or revive it and wire into the barrel.
 - Re-export or delete the orphaned `tileVocabulary`, `asciiComponents`, `buildingComponents` (the
   `index.ts` barrel omits them).

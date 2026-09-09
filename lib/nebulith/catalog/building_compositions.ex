@@ -98,6 +98,190 @@ defmodule Nebulith.Catalog.BuildingCompositions do
     end
   end
 
+  # ── BUILDINGS AT ANY SIZE ───────────────────────────────────────────────────
+  #
+  # Alexander, 2026-09-08: *"i think we should NOT have a fixed size, but a default one and allow user to
+  # specify the size of the element they want to put — for example, why having 3 size house when we can have
+  # 1 house button and allow user to make a house as big or as small as he wants??? … i want to be able to
+  # generate a store of any size, a hospital of any size, etc."*
+  #
+  # The size used to live in a STRING: eleven compositions named `house_3` / `house_4` / `house_5`, with the
+  # width recovered by parsing the name (`buildingCatalog.ts:41` says so outright). But the RECIPE was
+  # already parametric — `house/4`, `store/0`, `office/0` and `civic/7` were the same function five times
+  # over, differing only in a material, a roof kind, which courses carry windows, and at most one extra.
+  #
+  # So this is that table, and the five builders collapse into it. Per the spec: one ROW per type, so adding
+  # "warehouse" is a row and never a branch.
+  #
+  # Two rules the eleven seeds already obey, derived from them rather than invented (the spec listed both as
+  # open questions; the answers were in the code):
+  #
+  #   · **Wall height from width:** `max(3, min(width - 3, 8))`. Fits all eleven — houses at 3–6 wide are
+  #     wall_top 3, cathedral (7) is 4, temple (8) is 5, castle (12) is 8. `wall_top_bonus` is the one
+  #     override, for the office, which is authored deliberately taller than a house of the same width.
+  #   · **Windows on the odd courses up to the wall top** — `1, 3, 5, …` — so a wall course always sits
+  #     between floors. Fits all eleven: house [1,3], cathedral [1,3], temple/office [1,3,5],
+  #     castle [1,3,5,7].
+  #
+  # `materials` is a LIST because Alexander asked for the material to be rolled, not fixed: *"pick random
+  # material, but allow user to change the selected roof, walls, windows and doors."* A one-entry list is a
+  # type whose material is part of its identity (a hospital is plaster).
+  @building_types %{
+    "house" => %{
+      materials: ["wall_brick", "wall_wood", "wall_stone"],
+      roof: :gable,
+      default: {4, 4}
+    },
+    "big_house" => %{materials: ["wall_brick"], roof: :gable, default: {6, 4}},
+    "hospital" => %{
+      materials: ["wall_plaster"],
+      roof: {:gable, "roof_hospital", "roof_top_hospital"},
+      title: "Hospital",
+      default: {6, 4}
+    },
+    "store" => %{
+      materials: ["wall_brick"],
+      roof: {:flat, title: true},
+      # The ground floor is a storefront centred on the door — a display window either side under an awning
+      # course. Already width-relative in the authored store (`abs(dx - door_col) <= 1`), so it needs no
+      # rule of its own to work at another width.
+      storefront: true,
+      # A SHOP's windows are not a house's. Two differences, both read off the authored store rather than
+      # chosen: they sit on the FRONT only (a shop shows its goods to the street, and its back is a wall),
+      # and only on the TOP course — the courses below are the storefront and its awning.
+      window_faces: :front,
+      window_levels: :top_course,
+      title: "Store",
+      default: {5, 4}
+    },
+    "office" => %{
+      materials: ["wall_stone"],
+      roof: {:flat, []},
+      # The office is authored taller than its width implies — it is the "apartment block" of the set.
+      wall_top_bonus: 2,
+      default: {5, 5}
+    },
+    "temple" => %{materials: ["wall_stone"], roof: {:gable, "roof_slate", "roof_top_slate"}, default: {8, 4}},
+    "cathedral" => %{materials: ["wall_stone"], roof: {:gable, "roof_slate", "roof_top_slate"}, default: {7, 5}},
+    "castle" => %{materials: ["wall_stone"], roof: {:gable, "roof_slate", "roof_top_slate"}, default: {12, 6}}
+  }
+
+  @doc "Every building type this module can compose, for the editor's palette."
+  def building_types, do: Map.keys(@building_types) |> Enum.sort()
+
+  @doc """
+  The default footprint for a type — `{width, depth}`.
+
+  Alexander, 2026-09-08: *"we should have default values … you can pick one of the old hardcoded values."*
+  So each default IS that type's authored footprint, not a new number.
+  """
+  def default_footprint(type) do
+    case Map.fetch(@building_types, type) do
+      {:ok, %{default: wh}} -> wh
+      :error -> nil
+    end
+  end
+
+  @doc """
+  The smallest building to OFFER — Alexander: *"the smalles house would be something like 4x3"*. Below this
+  the facade has no interior column for a window and the door fills the front wall.
+
+  It is advice for the caller, not a rule this module enforces. `compose_building/4` composes exactly the
+  size it is asked for, because a composer that silently rewrites its input is the same defect as a map-size
+  field that silently rewrites yours — and the authored `house_3` is a live example of a legitimate 3-wide
+  building that a hard floor here would make impossible to reproduce.
+  """
+  def min_footprint, do: {4, 3}
+
+  @doc """
+  Compose a building of ANY size.
+
+  `type` is a key of `@building_types`. `width` and `depth` are free, held at `min_footprint/0`. Returns the
+  same `%{footprint: …, cells: […]}` shape as the authored compositions, because it is what authors them —
+  `definitions/0` calls this eleven times, so the existing composition tests are the proof that this
+  generalises the seeds rather than replacing them with something that merely looks similar.
+
+  Options, all of which Alexander asked to be overridable (*"allow user to change the selected roof, walls,
+  windows and doors"*):
+
+    * `:material` — a wall material label, else one is ROLLED from the type's list
+    * `:roof` / `:roof_top` — the roof body + apex tiles
+    * `:wall_top` — the top wall course, else derived from the width
+    * `:seed` — makes the material roll reproducible; omit for a genuinely random one
+  """
+  def compose_building(type, width, depth, opts \\ []) do
+    spec = Map.get(@building_types, type)
+    if spec == nil, do: raise(ArgumentError, "unknown building type #{inspect(type)}")
+
+    # Composed at EXACTLY the requested size — see `min_footprint/0` for why the floor is not applied here.
+    w = max(width, 1)
+    h = max(depth, 1)
+    wall_top = Keyword.get(opts, :wall_top) || wall_top_for(w, spec)
+    mat = Keyword.get(opts, :material) || roll_material(spec, opts)
+    win_levels = window_levels(spec, wall_top)
+    doors = door_cols(w)
+
+    facade = facade_fun(spec, w, h, wall_top, mat, win_levels, doors)
+    roof_cells = roof_for(spec, w, h, wall_top, opts)
+
+    assemble(w, h, wall_top, doors, facade, roof_cells)
+  end
+
+  # The observed height curve — see the note on @building_types. `wall_top_bonus` is a per-type override.
+  defp wall_top_for(w, spec) do
+    max(3, min(w - 3, 8)) + Map.get(spec, :wall_top_bonus, 0)
+  end
+
+  # Windows on the odd courses up to the wall top, so a wall course always sits between floors — unless the
+  # type says otherwise (a shop glazes only its top course; the ones below are storefront).
+  defp window_levels(%{window_levels: :top_course}, wall_top), do: [wall_top]
+  defp window_levels(_spec, wall_top), do: Enum.filter(1..wall_top//2, &(rem(&1, 2) == 1))
+
+  # A material is ROLLED, not fixed. Seeded when the caller wants the same building twice (a thumbnail, a
+  # test); genuinely random otherwise, which is how the world generator already gets its wall variety.
+  defp roll_material(%{materials: [only]}, _opts), do: only
+
+  defp roll_material(%{materials: materials}, opts) do
+    case Keyword.get(opts, :seed) do
+      nil -> Enum.random(materials)
+      seed -> Enum.at(materials, rem(abs(seed), length(materials)))
+    end
+  end
+
+  # ONE facade, from the table's row. Every authored builder was this `cond` with different arms.
+  defp facade_fun(spec, w, h, wall_top, mat, win_levels, doors) do
+    storefront? = Map.get(spec, :storefront, false)
+    front_only? = Map.get(spec, :window_faces) == :front
+    door_col = div(w, 2)
+
+    fn dx, dy, level ->
+      front = dy == h - 1
+      glazed_face = if front_only?, do: front, else: dy == 0 or dy == h - 1
+      shop = storefront? and front and abs(dx - door_col) <= 1
+
+      cond do
+        front and dx in doors and level in [0, 1] -> "door"
+        shop and level == 0 -> "display_window"
+        shop and level == 1 -> "awning"
+        glazed_face and window?(dx, w) and level in win_levels -> "window"
+        front -> material_piece(mat, dx, level, w, wall_top)
+        true -> "#{mat}_c"
+      end
+    end
+  end
+
+  defp roof_for(%{roof: :gable} = _spec, w, h, wall_top, opts) do
+    gable_roof(w, h, wall_top, Keyword.get(opts, :roof, "roof"), Keyword.get(opts, :roof_top, "roof_top"))
+  end
+
+  defp roof_for(%{roof: {:gable, roof, roof_top}}, w, h, wall_top, opts) do
+    gable_roof(w, h, wall_top, Keyword.get(opts, :roof, roof), Keyword.get(opts, :roof_top, roof_top))
+  end
+
+  defp roof_for(%{roof: {:flat, flat_opts}}, w, h, wall_top, _opts) do
+    flat_roof(w, h, wall_top, flat_opts)
+  end
+
   # ── Facade GRAMMAR (symmetric windows + centred door) ──────────────────────
   # house/store/office/civic are AUTHORED from a compact facade spec, not a hand-listed cell dump, so the
   # symmetric-realism rule is explicit in code. Every building is the SAME shape: a perimeter WALL box whose
@@ -168,13 +352,16 @@ defmodule Nebulith.Catalog.BuildingCompositions do
   end
 
   # Build the wall box: for every PERIMETER column, collapse levels 0..wall_top (labelled by `facade_fun`) into
-  # the FEWEST cells (`wall_column`). The door column is walkable end-to-end (you pass through the doorway);
-  # every other facade column blocks. Roof cells come from `roof_cells`, and the ENTRANCE apron from the SAME
-  # `doors` list the facade used — so the doorstep can never drift from the doors it serves.
+  # the FEWEST cells (`wall_column`). The DOORWAY column is walkable end-to-end (you pass through the doorway);
+  # every other facade column blocks. Roof cells come from `roof_cells`.
+  #
+  # A doorway is `dx in doors` AND the FRONT row — the row `facade_fun` actually puts a "door" on. Keying it on
+  # the column alone left the BACK wall opposite every door walkable, so you could walk straight through the
+  # back of the building (Alexander 2026-09-06: "we're most likely applying the properties wrong").
   defp assemble(w, h, wall_top, doors, facade_fun, roof_cells) do
     walls =
       for dy <- 0..(h - 1), dx <- 0..(w - 1), perimeter?(dx, dy, w, h) do
-        wall_column(dx, dy, wall_top, dx in doors, facade_fun)
+        wall_column(dx, dy, wall_top, dx in doors and dy == h - 1, facade_fun)
       end
 
     # NO separate entrance apron (Alexander #49): now that every tile is a height-1 block, the `path` apron in
@@ -217,13 +404,13 @@ defmodule Nebulith.Catalog.BuildingCompositions do
   # DEPTH along the +row (south) axis via `depth`/`depthDir`, carrying its gable-step HEIGHT as `scaleY` —
   # instead of one cell per (col,row). Anchored at the BACK row (dy=0) so the +row (`left-down`) span reaches
   # forward across the footprint; the frontend rotates the direction with the footprint when a building faces
-  # east/west/north. WALKABLE: a perimeter roof column sits directly above a wall that already carries the
-  # collision, and the interior roof volume was always walkable — so the roof itself never blocks (only the
-  # flat-roof crown, which sits above no wall, keeps blocking).
+  # east/west/north. A roof BLOCKS (Alexander 2026-09-06: "roof should have collissions"): it is not a floor and
+  # nothing stands on it. It used to be authored walkable on the reasoning that the wall beneath already carried
+  # the collision — which left "walkable" claiming you may stand on a roof.
   defp roof_span_cell(dx, level, label, depth, span) do
     settings = %{"depth" => depth, "depthDir" => "left-down"}
     settings = if span > 1, do: Map.put(settings, "scaleY", span), else: settings
-    cell(dx, 0, level, label, true) |> Map.put(:settings, settings)
+    cell(dx, 0, level, label, false) |> Map.put(:settings, settings)
   end
 
   # A GABLE roof (houses): each COLUMN (dx) is ONE depth-spanned block (roof-z-width #32) — smart HEIGHT
@@ -254,7 +441,7 @@ defmodule Nebulith.Catalog.BuildingCompositions do
   # detail block sits at the centre — the `roof_top` SIGN (badge anchor) for a titled shop, else a plain
   # `rooftop_unit` AC/vent. That crown sits above NO wall, so it is the ONE roof cell that stays BLOCKING (a
   # single, non-spanned cell). Result ≈ w+1 blocks (a store w=5 → 6) instead of one cell per (col,row).
-  defp flat_roof(w, h, wall_top, opts \\ []) do
+  defp flat_roof(w, h, wall_top, opts) do
     roof_level = wall_top + 1
 
     columns =
@@ -268,111 +455,9 @@ defmodule Nebulith.Catalog.BuildingCompositions do
     columns ++ [crown]
   end
 
-  # HOUSE — 2 living floors + a gable roof, in a WALL MATERIAL (brick/wood/stone, per definitions). Windows sit
-  # on the upper course of each floor (levels 1 & 3) on the SYMMETRIC window columns; a centred door spans the
-  # ground floor; a wall course separates the floors. The FRONT face is autotiled from the material's
-  # center/edge/corner pieces; back + sides are the plain center piece. `roof`/`roof_top` name the gable
-  # material (red by default; slate for the stone house).
-  defp house(w, mat, roof \\ "roof", roof_top \\ "roof_top") do
-    h = 4
-    wall_top = 3
-    doors = door_cols(w)
 
-    facade = fn dx, dy, level ->
-      front = dy == h - 1
-      front_or_back = dy == 0 or dy == h - 1
 
-      cond do
-        front and dx in doors and level in [0, 1] -> "door"
-        front_or_back and window?(dx, w) and level in [1, 3] -> "window"
-        front -> material_piece(mat, dx, level, w, wall_top)
-        true -> "#{mat}_c"
-      end
-    end
 
-    assemble(w, h, wall_top, doors, facade, gable_roof(w, h, wall_top, roof, roof_top))
-  end
-
-  # STORE — 5×4, 2 floors, flat roof, in a BRICK wall material. Ground FRONT = a BOUNDED storefront centred on
-  # the door: a `display_window` on the two columns flanking the door (never a full-width band) with a striped
-  # `awning` course directly above them — only over that storefront width. The rest of the ground-floor front
-  # stays autotiled brick; the upper floor is a SYMMETRIC window grid (`window?`). Back + sides are the plain
-  # brick center. Keeps its blue "Store" apex badge (flat_roof title).
-  defp store do
-    w = 5
-    h = 4
-    wall_top = 3
-    doors = door_cols(w)
-    door_col = div(w, 2)
-    mat = "wall_brick"
-
-    facade = fn dx, dy, level ->
-      front = dy == h - 1
-
-      # storefront = the door column + the columns immediately flanking it (3 cells centred on the door).
-      storefront = front and abs(dx - door_col) <= 1
-
-      cond do
-        front and dx == door_col and level in [0, 1] -> "door"
-        storefront and level == 0 -> "display_window"
-        storefront and level == 1 -> "awning"
-        front and level == 3 and window?(dx, w) -> "window"
-        front -> material_piece(mat, dx, level, w, wall_top)
-        true -> "#{mat}_c"
-      end
-    end
-
-    assemble(w, h, wall_top, doors, facade, flat_roof(w, h, wall_top, title: true))
-  end
-
-  # OFFICE / APARTMENT — 5×5, 3 floors, flat roof, in a STONE wall material. A regular SYMMETRIC window grid
-  # (aligned every floor), a centred door, a small rooftop unit. Taller than a house or store. Front face
-  # autotiled stone; back + sides the plain stone center.
-  defp office do
-    w = 5
-    h = 5
-    wall_top = 5
-    doors = door_cols(w)
-    mat = "wall_stone"
-
-    facade = fn dx, dy, level ->
-      front = dy == h - 1
-      front_or_back = dy == 0 or dy == h - 1
-
-      cond do
-        front and dx in doors and level in [0, 1] -> "door"
-        front_or_back and window?(dx, w) and level in [1, 3, 5] -> "window"
-        front -> material_piece(mat, dx, level, w, wall_top)
-        true -> "#{mat}_c"
-      end
-    end
-
-    assemble(w, h, wall_top, doors, facade, flat_roof(w, h, wall_top))
-  end
-
-  # CIVIC (big civic buildings: temple / cathedral / castle) — a taller masonry box, built EXACTLY like a
-  # house/office: a perimeter wall box in a `mat` MATERIAL whose FRONT + BACK faces carry a SYMMETRIC window
-  # grid (`window?`, at the aligned `win_levels` odd courses so a wall course sits between floors), a centred
-  # door on the ground floor, and a gable roof (`roof`/`roof_top` name its ONE colour — red default, slate for
-  # stone). `w`/`h`/`wall_top` come from each building's own footprint + height. Front face autotiled; back +
-  # sides the plain center piece.
-  defp civic(w, h, wall_top, mat, win_levels, roof, roof_top) do
-    doors = door_cols(w)
-
-    facade = fn dx, dy, level ->
-      front = dy == h - 1
-      front_or_back = dy == 0 or dy == h - 1
-
-      cond do
-        front and dx in doors and level in [0, 1] -> "door"
-        front_or_back and window?(dx, w) and level in win_levels -> "window"
-        front -> material_piece(mat, dx, level, w, wall_top)
-        true -> "#{mat}_c"
-      end
-    end
-
-    assemble(w, h, wall_top, doors, facade, gable_roof(w, h, wall_top, roof, roof_top))
-  end
 
   # STONE BUILDING — the material+piece SAMPLE (TILESET-AUTHORING §3). A 5×4 box (matches the store footprint,
   # so the generator can render its single store from this) whose wall field is the `wall_stone` MATERIAL — a
@@ -429,23 +514,36 @@ defmodule Nebulith.Catalog.BuildingCompositions do
     %{
       # Residential MATERIAL variety (spec mapping): brick / wood / stone houses; the stone house takes a
       # slate gable, brick + wood keep the red gable.
-      "house_3" => house(3, "wall_brick"),
-      "house_4" => house(4, "wall_wood"),
-      "house_5" => house(5, "wall_stone", "roof_slate", "roof_top_slate"),
-      "store_5" => store(),
-      "office_5" => office(),
+      # AUTHORED THROUGH THE PARAMETRIC COMPOSER, not beside it. Each of these is the same call the editor
+      # makes for an arbitrary size, with this building's own footprint and material pinned — so the eleven
+      # seeds and every generated building come out of ONE recipe. That is also what makes the existing
+      # tests in `building_compositions_test.exs` the proof: they assert the authored data cell-for-cell,
+      # and they still pass, so the generalisation reproduces the seeds rather than merely resembling them.
+      "house_3" => compose_building("house", 3, 4, material: "wall_brick"),
+      "house_4" => compose_building("house", 4, 4, material: "wall_wood"),
+      "house_5" =>
+        compose_building("house", 5, 4,
+          material: "wall_stone",
+          roof: "roof_slate",
+          roof_top: "roof_top_slate"
+        ),
+      "store_5" => compose_building("store", 5, 4),
+      "office_5" => compose_building("office", 5, 5),
+      # STONE BUILDING stays hand-authored: it is the material+piece SAMPLE from TILESET-AUTHORING §3, and
+      # Alexander has already agreed it merges with `house_5` (*"yes merge"*) — so generalising it now would
+      # be work on something scheduled for deletion.
       "stone_building" => stone_building(),
       # Hospital — box-built like the houses (6-wide, h=4, 2 floors + gable), so its windows are a symmetric
       # spaced grid instead of a solid band. Its identity rides in as builder args: plaster walls + a green
       # gable (roof_hospital / roof_top_hospital); the "Hospital" apex badge stays via @titles.
-      "hospital_6" => house(6, "wall_plaster", "roof_hospital", "roof_top_hospital"),
+      "hospital_6" => compose_building("hospital", 6, 4),
       # Big civic buildings — box-built like the houses so their windows are a symmetric spaced grid.
       # WIDTH from the name; h/wall_top preserve each one's authored footprint + height. big_house = brick +
       # red gable; temple/cathedral/castle = stone + slate.
-      "big_house_6" => house(6, "wall_brick"),
-      "temple_8" => civic(8, 4, 5, "wall_stone", [1, 3, 5], "roof_slate", "roof_top_slate"),
-      "cathedral_7" => civic(7, 5, 4, "wall_stone", [1, 3], "roof_slate", "roof_top_slate"),
-      "castle_12" => civic(12, 6, 8, "wall_stone", [1, 3, 5, 7], "roof_slate", "roof_top_slate")
+      "big_house_6" => compose_building("big_house", 6, 4),
+      "temple_8" => compose_building("temple", 8, 4),
+      "cathedral_7" => compose_building("cathedral", 7, 5),
+      "castle_12" => compose_building("castle", 12, 6)
     }
   end
 end

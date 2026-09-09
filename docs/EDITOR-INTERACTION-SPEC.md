@@ -171,7 +171,7 @@ The left **Paint** tool's tile list ("TERRAIN / TILES & GROUND / …") and a pai
 system the GENERATOR and the RENDERER use — never a separate or hardcoded list.
 
 - **Palette source = the DB tileset.** The palette is `tilesForStyle(styleId)`, which reads LIVE from the
-  backend-loaded `EMOJI_TILESET` / `ASCII_TILESET` (installed by `tilesetLoader` from `:4000` `/api/tilesets`).
+  backend-loaded `EMOJI_TILESET` / `ASCII_TILESET` (installed by `tilesetLoader` from `NEXT_PUBLIC_NEBULITH_API`, default `:6328`, `/api/tilesets`).
   A tile is browseable when its DB entry carries a `category` (terrain/buildings/units/nature); its name is the
   DB `title`, its art the DB image/glyph. There is NO parallel hardcoded catalog — the palette always matches
   the map. (The same tileset the generator's `resolveTile`/`resolveComposition` and the label→image renderer
@@ -382,27 +382,40 @@ animation for a unit"). It has two slices, both built on the generator's seedabl
 
 ### Macro — the `⚡ Generate ▾` menu (`GenerateControls`) — redesigned 2026-07-25
 The menu reads as one top-down **hierarchy** so every control's scope is obvious (`editorChrome.tsx`
-`GenerateControls`; menu DATA in `editorConfig.ts`):
+`GenerateControls`). **Every option is BACKEND DATA** — the catalog served by `GET /api/generators`
+(`lib/generatorCatalog.ts`, loaded once on mount by `useGeneratorCatalog`); the frontend keeps no list of
+seasons, map types or layouts (T-113):
 
-1. **Season** — picks the zone (spring/summer/autumn/winter/desert). Selection only, no generate.
-2. **Map type** — Forest · Town · City · Cave · Temple. Clicking one **generates** a randomized stage of that
-   kind AND marks it selected, revealing its layouts underneath.
+1. **Season** — picks the zone. The chips are the UNION of the generators' own `zones`, so a season exists
+   exactly when something can be generated in it. Selection only, no generate.
+2. **Map type** — one card per catalog CATEGORY, labelled with the backend's own `name`
+   (Forest · Town · City · Cave · Temple today). Clicking one **generates** a randomized stage of that kind
+   AND marks it selected, revealing its layouts underneath.
 3. **Layouts** — the selected map type's layouts, a **labelled group NESTED under the chosen map type** (tinted
    to the map-type accent so it reads as "these belong to *Forest*"), NOT loose buttons with an ambiguous
-   "Forest layout" header. Forest ships **Meadow · Meadow + River**; clicking one generates the map with that
-   shape. The group is DATA: a map type's layouts come from `VARIANT_LAYOUTS[variant]`, so it appears for
-   exactly the types that have layouts and is omitted for the rest. **There is NO `variant === 'forest'`
-   branch** — adding town/temple layouts is one row in `VARIANT_LAYOUTS` + registering the builders in the
-   engine (`FOREST_LAYOUTS`); a layout whose builder isn't wired falls back to the default instead of crashing.
+   "Forest layout" header. A layout is a generator inside that category that names a `layout` shape — Forest
+   ships **Meadow · Meadow + River**. The group appears for exactly the types the catalog gives layouts to and
+   is omitted for the rest. **There is NO `variant === 'forest'` branch** and no frontend table — adding
+   town/temple layouts is a seed row + registering the builders in the engine (`FOREST_LAYOUTS`).
 
-The choice threads through `onGenerate(zone, variant, layout)` → `generateStageInEditor` →
-`generateStage({ layout })`, where the generator picks that layout's builder and randomizes the rest
-(GENERATION-SPEC.md §3 / §5.4); a map type with no layouts passes no layout (the generator uses its default).
-Debug seam: `window.__genStage(zone, variant, layout)`.
+**An unavailable catalog is SAID, never faked.** Until the fetch resolves the menu says "Loading the map
+generators…"; if it fails it names the failure. It never falls back to a hardcoded list of map types the
+backend may not have — a button for a world that cannot be generated is the same silent lie as §3.1's
+localStorage games.
+
+The choice threads through `onGenerate(zone, categoryKey, layout)` → `generateStageInEditor`, which resolves
+the generator (`findGenerator`) and reads its config: the GRID SIZE is rolled from the served `cols`/`rows`
+range (`rollGridSize`), the townsfolk/enemy counts come from `config.units`, and the building material +
+roof/wall colours from `config.buildings` — then `generateStage({ layout })` picks that layout's builder and
+randomizes the rest (GENERATION-SPEC.md §3 / §5.4). **No generator, no generate:** an unknown map type plants
+nothing and warns, rather than inventing a world.
+Debug seams: `window.__genStage(zone, variant, layout)` and `window.__generatorsReady()` — the catalog is a
+fetch, so a validation harness must wait for the latter before generating.
 
 **The per-layer re-roll is GLOBAL — the SAME sub-categories for EVERY map type, never a town-only concept.**
 Under a divider, a **"Re-roll one layer"** section lists the five universal generator layers (`GENERATOR_LAYERS`,
-`editorConfig.ts`): **Layout · Buildings · Nature · Decor · Units**. These are the generator's sub-categories
+`editorConfig.ts` — engine PASSES (`stageGenerator.ts` `LAYER_IDS`), not generator records, so this row stays
+frontend data; `/api/generators` serves no layer list): **Layout · Buildings · Nature · Decor · Units**. These are the generator's sub-categories
 *for whatever map type is selected* — the *forest layout* / *town layout*, *forest decor* / *town decor* framing
 the user asked for. The section copy names the current map type ("re-roll one part of the current *forest* /
 *town* / *temple*…") to make that concreteness visible, and it renders identically whatever map type is active

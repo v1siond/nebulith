@@ -20,8 +20,9 @@ config :nebulith, Nebulith.Repo,
 config :nebulith, NebulithWeb.Endpoint,
   # Binding to loopback ipv4 address prevents access from other machines.
   # Change to `ip: {0, 0, 0, 0}` to allow access from other machines.
-  # Port 4001 — 4000 is used by another local BEAM app.
-  http: [ip: {127, 0, 0, 1}, port: 4001],
+  # No port here on purpose: config/runtime.exs owns it (PORT, default 6328) and would
+  # deep-merge over anything we put here anyway.
+  http: [ip: {127, 0, 0, 1}],
   check_origin: false,
   code_reloader: true,
   debug_errors: true,
@@ -44,7 +45,7 @@ config :nebulith, NebulithWeb.Endpoint,
 # The `http:` config above can be replaced with:
 #
 #     https: [
-#       port: 4001,
+#       port: 6329,
 #       cipher_suite: :strong,
 #       keyfile: "priv/cert/selfsigned_key.pem",
 #       certfile: "priv/cert/selfsigned.pem"

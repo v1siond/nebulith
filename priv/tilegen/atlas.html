@@ -5,6 +5,19 @@
   tiles.json itself; bake.mjs reads the JSON from disk and calls renderAtlas(tiles).
   Each tile becomes a 128x128, transparent, centered cell with a stable id
   "tile-<style>-<label>" that bake.mjs screenshots one by one.
+
+  TWO WAYS A CELL IS DRAWN, because a style's tiles are AUTHORED differently even though the engine
+  treats every result identically (Alexander, 2026-09-08: "all art styles use image tiles ... but that
+  doesn't mean the tiles are generated in the same way"):
+
+    * ONE MARK      — `glyph` (ascii) or `emoji`. A terrain slab, a wall piece, a weapon.
+    * A GRID OF MARKS — `art`, an ARRAY OF ROWS composed into a figure:
+                          ["  O", " /|\", " / \"]
+                        This is how every UNIT is drawn. Alexander: "a dog is not a single character, is
+                        a set of characters combined to form a dog, that was then converted to png to be
+                        a tile". Rows are LEFT-ALIGNED on one shared origin (leading spaces carry the
+                        shape) and share one monospace advance, so the figure holds together instead of
+                        each row centring itself and shearing the silhouette.
 -->
 <!DOCTYPE html>
 <html>
@@ -41,6 +54,15 @@
         line-height: 1;
         font-size: 96px;
       }
+      /* A composed figure: pre-wrap keeps the leading spaces that carry the shape, and `left` text-align
+         puts every row on ONE origin (centring per row would shear the silhouette). */
+      .art {
+        color: #ffffff;
+        font-family: "DejaVu Sans Mono", Consolas, monospace;
+        white-space: pre;
+        text-align: left;
+        line-height: 1;
+      }
     </style>
   </head>
   <body>
@@ -59,22 +81,58 @@
         return Math.max(24, Math.min(72, Math.floor(118 / (n * 0.62))));
       }
 
+      // Fit a COMPOSED FIGURE inside ~120px of the cell, on BOTH axes.
+      // Width  is the widest row  x 0.602em advance; height is rowCount x 1em (line-height 1).
+      // The binding axis wins, so a wide 4-row spider and a narrow 3-row villager both fill the cell
+      // without either overflowing — the footprint is the same 128px box for every unit.
+      function artFontSize(rows) {
+        const widest = rows.reduce((m, r) => Math.max(m, codePointCount(r)), 0) || 1;
+        const byWidth = 120 / (widest * 0.602);
+        const byHeight = 120 / rows.length;
+        return Math.max(8, Math.min(72, Math.floor(Math.min(byWidth, byHeight))));
+      }
+
       function makeCell(tile) {
         const cell = document.createElement("div");
         cell.className = "tile";
         cell.id = "tile-" + tile.style + "-" + tile.label;
 
-        const inner = document.createElement("span");
-        if (tile.mode === "emoji") {
-          inner.className = "emoji";
-          inner.textContent = tile.emoji || "";
-        } else {
-          inner.className = "glyph";
-          inner.textContent = tile.glyph || "";
-          inner.style.fontSize = glyphFontSize(tile.glyph || "") + "px";
-        }
-        cell.appendChild(inner);
+        cell.appendChild(makeMark(tile));
         return cell;
+      }
+
+      // Which of the three authoring shapes a tile uses, in priority order: a composed FIGURE if it has
+      // one, else the style's single mark. `art` wins over `glyph` so a unit row can keep a glyph as its
+      // catalog preview while the BAKED picture is the figure.
+      function makeMark(tile) {
+        const rows = Array.isArray(tile.art) ? tile.art : null;
+        if (rows && rows.length > 0) return artMark(rows);
+        if (tile.mode === "emoji") return emojiMark(tile.emoji || "");
+        return glyphMark(tile.glyph || "");
+      }
+
+      function artMark(rows) {
+        const el = document.createElement("pre");
+        el.className = "art";
+        el.style.margin = "0";
+        el.style.fontSize = artFontSize(rows) + "px";
+        el.textContent = rows.join("\n");
+        return el;
+      }
+
+      function emojiMark(emoji) {
+        const el = document.createElement("span");
+        el.className = "emoji";
+        el.textContent = emoji;
+        return el;
+      }
+
+      function glyphMark(glyph) {
+        const el = document.createElement("span");
+        el.className = "glyph";
+        el.textContent = glyph;
+        el.style.fontSize = glyphFontSize(glyph) + "px";
+        return el;
       }
 
       window.renderAtlas = function (tiles) {

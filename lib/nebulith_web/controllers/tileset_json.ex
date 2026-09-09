@@ -20,6 +20,8 @@ defmodule NebulithWeb.TilesetJSON do
       id: tileset.id,
       key: tileset.key,
       name: tileset.name,
+      icon: tileset.icon,
+      position: tileset.position,
       data: tileset.data
     }
   end
@@ -29,6 +31,8 @@ defmodule NebulithWeb.TilesetJSON do
       id: ts.id,
       key: ts.key,
       name: ts.name,
+      icon: ts.icon,
+      position: ts.position,
       data: ts.data,
       tiles: Map.new(tiles, fn t -> {t.label, tile_data(t)} end),
       compositions: Map.new(comps, fn c -> {c.name, comp_data(c)} end)

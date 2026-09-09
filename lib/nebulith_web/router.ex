@@ -40,6 +40,13 @@ defmodule NebulithWeb.Router do
     resources "/templates", TemplateController, except: [:new, :edit]
     resources "/games", GameController, except: [:new, :edit]
     # Editor UI settings — a key→value store for editor chrome geometry (per modal id).
+    # The map-generator CATALOG — categories + their generators, with every knob a generate takes.
+    # Read-only; the editor loads it at mount so nothing about a generator is hardcoded frontend-side.
+    get "/generators", GeneratorController, :index
+    # The item catalog — weapons / armour / consumables + starter kits (§3.14b #1).
+    get "/items", ItemController, :index
+    # The ability registry (§3.14b #2).
+    get "/abilities", AbilityController, :index
     get "/editor_settings", EditorSettingController, :index
     put "/editor_settings/:key", EditorSettingController, :update
     get "/cv", CVController, :index

@@ -285,3 +285,50 @@ It now lives in the backend and is fetched at load time, so the frontend holds *
 - **Tests:** ExUnit `entity_controller_test.exs` pins the served shape + that every mapped slug is baked;
   the frontend loader/gate/no-fallback + a captured `fixtures/entities.json` cover the install; a
   grep-proof guard asserts no runtime module imports `entityTiles.json`.
+
+## 12. Legacy per-type ASCII prop art (frontend-invented fallback — **DONE, deleted**)
+
+A handful of asset **types** had no baked ASCII tile, so under the **ASCII style** they drew glyph art invented
+in the frontend — the last frontend-invented art in the render path. **DONE (2026-09): every one of those
+drawers is DELETED.** The types were never actually missing a tile: `ISO_ASCII_DRAWERS` /
+`TOP_ASCII_DRAWERS` were reachable at all only because the ASCII resolution path threw the tile's baked image
+away before the draw sites ever asked for it.
+
+**What was actually wrong** (all four are gone):
+1. `artStyle.visualForTileId` / `tilesForStyle` returned `{kind:'glyph', char}` for ASCII and DISCARDED the
+   tile's baked `image`, while emoji kept it. So every asset carrying a `tileOverride` — every hand-painted
+   tile, every generator stage-prop — had `dv.image === undefined` under ASCII. **The root cause.**
+2. The single-block cube **sprite cache** (`iso.ts` `cubeBlockSprite`) is gated on `dv.image`, so a glyph tile
+   could never be cached and re-drew its three faces LIVE every frame.
+3. `fillIsoFaceWithTile`'s glyph branch does `beginPath + rect + clip + fillText` **per face** — the image
+   branch deliberately skips the clip, which its own comment calls "a real hotspot". ASCII only ever reached
+   the slow branch.
+4. The kind→image rescue was gated to `asset.type === FLOOR_TYPE` (and internally to `style.id === 'ascii'`),
+   so a label-less non-floor ASCII asset got no baked image and fell into these drawers — which called
+   `ctx.measureText` **per asset per frame**. `topdown.ts`/`birdseye.ts` had no rescue at all.
+
+**The fix:** one normalised tile record (`artStyle.TileArt`) + one Visual builder (`tileVisual`) + one lookup
+(`styleTileArt`, a dispatch map keyed by style id) + one image resolver (`render/shared.styleTileImage`),
+ungated, used by all three views. Plus the backend data gap: ascii `meadow` and `water` were the only 2 of 358
+ascii rows seeded `image_url: nil`; `meadow` is the default floor of spring/summer AND the flood floor of every
+forest layout, so ASCII `spring/town` drew its whole ground as glyph plates. Both are now baked and seeded.
+
+What REMAINS is a single documented **last resort**: an asset with no label whose KIND has no tile in the
+active tileset (`assetKind` → the unmapped `'ground'`) draws its own art glyph on a darkened plate, so the cell
+is never blank. It is **not a style branch** — ascii and emoji reach it under exactly the same condition. Locked
+by `src/__tests__/render/asciiSameEngineAsEmoji.realcanvas.test.ts`, which counts real canvas calls per style.
+
+**Measured** (headless/software-rasterised, so an underestimate of a real GPU-composited browser), median
+ms/frame, same map, same viewport, ascii vs emoji:
+
+| map | before (ascii / emoji) | after (ascii / emoji) |
+|---|---|---|
+| painted `wall_brick_c` field (1156 cells) | 22.93 / 10.91 → **2.10×** | 12.39 / 12.16 → **1.02×** |
+| `lava/cave` | 9.54 / 4.82 → **1.98×** | 4.86 / 4.50 → **1.08×** |
+| `spring/city` | 16.83 / 15.08 → **1.12×** | 14.16 / 13.44 → **1.05×** |
+| `spring/town` | 5.42 / 4.58 → **1.18×** | 4.63 / 4.43 → **1.05×** |
+| `winter/town` (control — its ascii ground was already baked) | 5.33 / 4.18 → **1.28×** | 4.20 / 4.22 → **1.00×** |
+
+Canvas calls per frame on the painted field, ASCII: `clip` 3489 → **21**, `fillText` 3561 → **59**,
+`measureText` 23 → **1**, `drawImage` 890 → **2292** (i.e. the work moved onto the cached image path). 3489
+clips ÷ 3 faces = 1163 ≈ exactly the painted blocks on screen.

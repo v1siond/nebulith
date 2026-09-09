@@ -20,8 +20,13 @@ if System.get_env("PHX_SERVER") do
   config :nebulith, NebulithWeb.Endpoint, server: true
 end
 
+# THE single source of truth for the HTTP port, in EVERY environment (runtime.exs is
+# evaluated last and deep-merges over dev.exs/test.exs, so setting it anywhere else is a lie).
+# 6328 = "NEBU" on a phone keypad. We stay off 4000/4001: 4000 is the default of every other
+# Phoenix app on this machine (insuradmin owns it) and the collision silently kills boot.
+# Override per-shell with PORT=xxxx.
 config :nebulith, NebulithWeb.Endpoint,
-  http: [port: String.to_integer(System.get_env("PORT", "4000"))]
+  http: [port: String.to_integer(System.get_env("PORT") || "6328")]
 
 if config_env() == :prod do
   database_url =

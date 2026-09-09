@@ -9,6 +9,7 @@ defmodule Nebulith.Catalog do
   alias Nebulith.Catalog.Tileset
   alias Nebulith.Catalog.Template
   alias Nebulith.Catalog.{Tile, Composition, CompositionCell}
+  alias Nebulith.Catalog.{Generator, GeneratorCategory}
 
   @doc """
   Returns the list of tilesets.
@@ -20,7 +21,9 @@ defmodule Nebulith.Catalog do
 
   """
   def list_tilesets do
-    Repo.all(Tileset)
+    # In PICKER order: a tileset row is an art style, and `position` is the order the style picker shows
+    # them in (ascii first — the editor's default). Key breaks ties so the order is stable.
+    Repo.all(from(t in Tileset, order_by: [asc: t.position, asc: t.key]))
   end
 
   @doc """
@@ -161,6 +164,72 @@ defmodule Nebulith.Catalog do
   end
 
   @doc """
+  Merges ONE key into a tile's `settings` blob, leaving every other key alone.
+
+  The settings map carries editor-tuned poses and per-view sizes; a full upsert would `replace_all` them, so
+  adding a fact about a tile (its `unitRole`, say) reads-modifies-writes just that key.
+  """
+  def put_tile_setting(tileset_id, label, key, value) do
+    case Repo.get_by(Tile, tileset_id: tileset_id, label: label) do
+      nil ->
+        {0, nil}
+
+      tile ->
+        settings = Map.put(tile.settings || %{}, key, value)
+
+        from(t in Tile, where: t.id == ^tile.id)
+        |> Repo.update_all(set: [settings: settings, updated_at: DateTime.truncate(DateTime.utc_now(), :second)])
+    end
+  end
+
+  @doc """
+  Sets ONLY the `image_url` column. Pose-safe, like `set_tile_height`.
+  """
+  def set_tile_image(tileset_id, label, image_url) do
+    from(t in Tile, where: t.tileset_id == ^tileset_id and t.label == ^label)
+    |> Repo.update_all(set: [image_url: image_url, updated_at: DateTime.truncate(DateTime.utc_now(), :second)])
+  end
+
+  @doc """
+  Sets the PER-LABEL facts (title + category) of one tile, leaving glyph/height/settings untouched.
+
+  Same pose-safe path as `set_tile_height`: a label owns its name and bucket in every style, and a full
+  upsert would `replace_all` the editor-tuned settings alongside them.
+  """
+  def set_tile_label_facts(tileset_id, label, title, category) do
+    from(t in Tile, where: t.tileset_id == ^tileset_id and t.label == ^label)
+    |> Repo.update_all(
+      set: [title: title, category: category, updated_at: DateTime.truncate(DateTime.utc_now(), :second)]
+    )
+  end
+
+  @doc """
+  Every ABILITY in the registry, in its declared order (§3.14b #2).
+  """
+  def list_abilities do
+    Repo.all(from(a in Nebulith.Catalog.Ability, order_by: [asc: a.position, asc: a.slug]))
+  end
+
+  @doc """
+  Every ITEM in the catalog, in its declared order (§3.14b #1 — the item catalog moved out of the frontend).
+  """
+  def list_items do
+    Repo.all(from(i in Nebulith.Catalog.Item, order_by: [asc: i.position, asc: i.slug]))
+  end
+
+  @doc """
+  Sets ONLY the `glyph` column of the (tileset_id, label) tile.
+
+  Same pose-safe path as `set_tile_height`: the glyph is the one thing an ascii tile's baked picture is
+  rasterised from, and a full upsert would `replace_all` the editor-tuned `settings` alongside it.
+  Returns `{updated_count, nil}`.
+  """
+  def set_tile_glyph(tileset_id, label, glyph) do
+    from(t in Tile, where: t.tileset_id == ^tileset_id and t.label == ^label)
+    |> Repo.update_all(set: [glyph: glyph, updated_at: DateTime.truncate(DateTime.utc_now(), :second)])
+  end
+
+  @doc """
   Sets ONLY the `category` column of the (tileset_id, label) tile, leaving settings/pose/height untouched.
 
   Same pose-safe path as `set_tile_height`: a full upsert would `replace_all` and clobber editor-tuned poses,
@@ -209,5 +278,20 @@ defmodule Nebulith.Catalog do
 
       Repo.preload(comp, :cells)
     end)
+  end
+  @doc """
+  Every generator CATEGORY in menu order, each with its generators (also ordered) preloaded — the
+  one read `/api/generators` serves. Ordering is data (`position`), never the insertion order or an
+  alphabetical accident, so the editor's map-type menu is authored here.
+  """
+  def list_generator_categories do
+    generators = from(g in Generator, order_by: [asc: g.position, asc: g.key])
+
+    Repo.all(
+      from(c in GeneratorCategory,
+        order_by: [asc: c.position, asc: c.key],
+        preload: [generators: ^generators]
+      )
+    )
   end
 end
