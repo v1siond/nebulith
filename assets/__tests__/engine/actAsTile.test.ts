@@ -1,56 +1,104 @@
 /**
- * ACT AS TILE — the "cell behaves as if a tile is already inside it" setting (Alexander, verbatim):
- *   "a cell/block is EMPTY until we put a tile inside; after that any other tile put in the same block STACKS
- *    ON TOP. act_as_tile means the cell works by default AS IF a tile was inside it already, so the next tile
- *    stacks on top. Default is FALSE; we set it in compositions when it makes sense — roads, whatever we walk over."
+ * ACT AS TILE — "does the cell behave as if a tile were already inside it", so the next tile stacks ON TOP.
  *
- * The lego model is UNCHANGED: a tile occupies `its level + its own height`, and content stacks on the tallest.
- * `act_as_tile` only makes a tile count as an occupant of AT LEAST ONE block, so content stacks ON TOP of it
- * EVEN WHEN THE TILE IS FLAT (height 0) — a flat road you walk over lifts the walker to level 1 without being
- * raised. Height-≥1 tiles are already ≥1, so they are byte-identical (the legos stay legos). Decoupled from height.
+ * THIS SUITE ASSERTED A MODEL THAT HAS BEEN REPLACED TWICE, which is why every test in it failed. Both
+ * changes are Alexander's, both are cited in the code that implements them, and together they leave this
+ * setting with nothing left to do:
+ *
+ *  1. **The default flipped.** It was *"Default is FALSE; we set it in compositions when it makes sense —
+ *     roads, whatever we walk over"*. On 2026-07-26: *"act_as_tile set to true in ALL cells/block by
+ *     default … houses stack on top of the grass tiles instead of inside"*. `assetActsAsTile` follows that.
+ *  2. **Flat tiles stopped existing.** On 2026-07-27: *"tiles only have data when they're assigned to a
+ *     cell"* and *"all tiles/blocks are height 1, GLOBAL, no exceptions"*. `resolveTileHeight` reads the
+ *     PLACED block's height, defaults it to 1, and clamps anything non-positive to 1.
+ *
+ * The second one is what empties the setting out. `stackContribution` is
+ * `actsAsTile ? max(1, blocks) : blocks` — and `blocks` can no longer be less than 1, so both branches are
+ * the same number. **`act_as_tile` cannot currently change any stacking outcome.** That is not a bug and it
+ * is not asserted as desirable; it is the honest state, and it is recorded here because the alternative is a
+ * suite that pretends to cover a live switch.
+ *
+ * What IS live, and what these tests now pin, is the lego rule the two decisions produced: every tile
+ * occupies at least one block, a fresh cell already holds a floor, and heights accumulate.
  */
 import { makeStyleTile, setStyleTile, styleTile } from '@/engine/tileset/styleTiles'
-import { pushTile } from '@/engine/cellStack'
+import { cellStackTop, pushTile } from '@/engine/cellStack'
 import { IsometricGrid } from '@/engine/IsometricGrid'
 
-const FLAT_PLAIN = '__flat_plain__' // a flat tile (height 0) — content overlaps it at level 0 (default)
-const FLAT_ACT = '__flat_act__'     // a flat tile marked act_as_tile — content stacks ON TOP at level 1
-const TALL_PLAIN = '__tall_plain__' // a height-1 plain block — content stacks on top (legos, unchanged)
+const PLAIN = '__plain__'
+const OPTED_OUT = '__opted_out__' // settings.actAsTile:false — kept to prove the switch is inert
 const TOP = '__topper__'
 
 beforeAll(() => {
-  setStyleTile('ascii', FLAT_PLAIN, makeStyleTile(FLAT_PLAIN, { char: '.', position: 'single', walkable: true, colorRole: 'ground', height: 0 }))
-  setStyleTile('ascii', FLAT_ACT, makeStyleTile(FLAT_ACT, { char: '.', position: 'single', walkable: true, colorRole: 'ground', height: 0, settings: { actAsTile: true } }))
-  setStyleTile('ascii', TALL_PLAIN, makeStyleTile(TALL_PLAIN, { char: '#', position: 'single', walkable: true, colorRole: 'ground', height: 1 }))
-  setStyleTile('ascii', TOP, makeStyleTile(TOP, { char: '@', position: 'single', walkable: true, colorRole: 'ground', height: 1 }))
+  const tile = (label: string, settings?: Record<string, unknown>) =>
+    makeStyleTile(label, { char: '.', position: 'single', walkable: true, colorRole: 'ground', ...(settings ? { settings } : {}) })
+  setStyleTile('ascii', PLAIN, tile(PLAIN))
+  setStyleTile('ascii', OPTED_OUT, tile(OPTED_OUT, { actAsTile: false }))
+  setStyleTile('ascii', TOP, tile(TOP))
 })
 afterAll(() => {
-  delete styleTile('ascii', FLAT_PLAIN)
-  delete styleTile('ascii', FLAT_ACT)
-  delete styleTile('ascii', TALL_PLAIN)
-  delete styleTile('ascii', TOP)
+  for (const label of [PLAIN, OPTED_OUT, TOP]) delete styleTile('ascii', label)
 })
 
 const grid = () => new IsometricGrid({ cols: 6, rows: 6, cellSize: 32, isoScale: 1.4 })
-const push = (g: IsometricGrid, type: string, art: string, h: number) =>
-  pushTile(g, 2, 2, { source: 'asset', type, art: [art], h, collision: false })
+const push = (g: IsometricGrid, type: string, h?: number, settings?: Record<string, unknown>) =>
+  pushTile(g, 2, 2, { source: 'asset', type, art: ['.'], ...(h === undefined ? {} : { h }), collision: false, ...(settings ? { settings } : {}) })
 
-describe('act_as_tile — a FLAT tile lifts content ON TOP; without it content overlaps at its level', () => {
-  test('flat tile, act_as_tile OFF (default) → the next tile lands INSIDE at level 0 (overlaps)', () => {
+describe('every placed block occupies at least one block — "no exceptions"', () => {
+  it('gives a tile pushed with height 0 a full block anyway', () => {
+    // Alexander, 2026-07-27: *"all tiles/blocks are height 1, GLOBAL, no exceptions"*. A caller asking for
+    // 0 is asking for something the model no longer has, and it is clamped rather than honoured.
     const g = grid()
-    push(g, FLAT_PLAIN, '.', 0)
-    expect(push(g, TOP, '@', 1).heightLevel).toBe(0)
+    push(g, PLAIN, 0)
+    expect(push(g, TOP).heightLevel).toBe(2)
   })
 
-  test('flat tile, act_as_tile ON → the next tile stacks ON TOP at level 1 (walk-over surface), NOT raising the tile', () => {
+  it('gives a tile pushed with NO height a full block — the default is 1, not 0', () => {
     const g = grid()
-    push(g, FLAT_ACT, '.', 0)
-    expect(push(g, TOP, '@', 1).heightLevel).toBe(1)
+    push(g, PLAIN)
+    expect(push(g, TOP).heightLevel).toBe(2)
+  })
+})
+
+describe('a fresh cell already holds a floor, and the floor is just a tile', () => {
+  it('stacks the FIRST pushed tile on top of the floor rather than inside it', () => {
+    // Alexander, 2026-07-26: *"houses stack on top of the grass tiles instead of inside"* — measured.
+    expect(push(grid(), PLAIN).heightLevel).toBe(1)
   })
 
-  test('the lego model is untouched: a height-1 PLAIN block still stacks content on top (level 1)', () => {
+  it('reports the cell top as the floor alone when nothing has been pushed', () => {
+    expect(cellStackTop(grid(), 2, 2)).toBe(1)
+  })
+})
+
+describe('heights ACCUMULATE — the rule that makes it a lego model', () => {
+  it('lands each tile on top of everything below it', () => {
     const g = grid()
-    push(g, TALL_PLAIN, '#', 1)
-    expect(push(g, TOP, '@', 1).heightLevel).toBe(1)
+    expect([push(g, PLAIN), push(g, PLAIN), push(g, TOP)].map(a => a.heightLevel)).toEqual([1, 2, 3])
+  })
+
+  it('multiplies a tile\'s own height by its scaleY when it spans several blocks', () => {
+    const g = grid()
+    pushTile(g, 2, 2, { source: 'asset', type: PLAIN, art: ['.'], h: 1, collision: false, scaleY: 4 })
+    expect(push(g, TOP).heightLevel).toBe(5) // floor 1 + a 4-block column
+  })
+})
+
+describe('the act_as_tile switch is currently INERT — recorded, not endorsed', () => {
+  it('stacks identically whether a tile opts out or not', () => {
+    const optedOut = grid()
+    const plain = grid()
+    push(optedOut, OPTED_OUT)
+    push(plain, PLAIN)
+    // `stackContribution` is `actsAsTile ? max(1, blocks) : blocks`, and blocks is always >= 1 since
+    // 2026-07-27 — so the two branches cannot differ. If this test ever FAILS, the height model has gained
+    // sub-block tiles again and the switch has become observable, which is worth knowing either way.
+    expect(cellStackTop(optedOut, 2, 2)).toBe(cellStackTop(plain, 2, 2))
+  })
+
+  it('stacks identically with a per-INSTANCE override too', () => {
+    const g = grid()
+    push(g, PLAIN, undefined, { actAsTile: false })
+    expect(push(g, TOP).heightLevel).toBe(2)
   })
 })
