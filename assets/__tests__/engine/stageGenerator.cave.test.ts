@@ -1,5 +1,6 @@
 import '@/__tests__/helpers/installTilesetSeed' // the generator reads canopy/decor/feature colours from the loaded backend tileset now — install the captured fixture
 import { generateStage } from '@/engine/stageGenerator'
+import { makeRng } from '@/lib/math'
 import { scatterEntities, CAVE_ENEMY_TYPES } from '@/game/spawner'
 import type { ZoneId } from '@/engine/zones'
 
@@ -154,18 +155,27 @@ describe('generateStage — cave: scattered features', () => {
 })
 
 describe('generateStage — cave: a clear walkable entrance region', () => {
-  it('keeps the south-centre entrance chamber walkable', () => {
-    for (let i = 0; i < 6; i++) {
-      const stage = cave('summer')
+  // SWEPT OVER SEEDS, not repeated over unseeded rolls. This ran 6 unseeded caves and flaked roughly one run
+  // in three — and the flake was TRUE: a pool stamped across the entrance corridor left the chamber severed,
+  // the floor repair kept the largest region and filled the severed pocket, and ~3% of caves came out with no
+  // entrance at all. An unseeded loop can only tell you that sometimes-something-is-wrong; seeding names the
+  // caves, so the bound below is a real one and a regression reproduces instead of haunting the suite.
+  const SEEDS = 60
+  it(`keeps the south-centre entrance chamber walkable and connected, across ${SEEDS} seeded caves`, () => {
+    const broken: string[] = []
+    for (let seed = 1; seed <= SEEDS; seed++) {
+      const orig = Math.random
+      Math.random = makeRng(seed)
+      let stage: ReturnType<typeof cave>
+      try { stage = cave('summer') } finally { Math.random = orig }
       const centerCol = Math.floor(stage.cols / 2)
-      // the entrance chamber sits just inside the south border, centred
-      expect(stage.collision[stage.rows - 2][centerCol]).toBe(false)
-      expect(stage.collision[stage.rows - 3][centerCol]).toBe(false)
-      // and it is connected to the spawn (part of the one floor region)
-      const reachable = reachableCount(stage.collision, stage.spawn)
-      const entranceReachable = reachableCount(stage.collision, { col: centerCol, row: stage.rows - 2 })
-      expect(entranceReachable).toBe(reachable)
+      const walkable = !stage.collision[stage.rows - 2][centerCol] && !stage.collision[stage.rows - 3][centerCol]
+      // …and it is connected to the spawn (part of the ONE floor region)
+      const connected = reachableCount(stage.collision, { col: centerCol, row: stage.rows - 2 })
+        === reachableCount(stage.collision, stage.spawn)
+      if (!walkable || !connected) broken.push(`seed ${seed}${walkable ? ' (severed)' : ' (sealed)'}`)
     }
+    expect(broken).toEqual([])
   })
 })
 

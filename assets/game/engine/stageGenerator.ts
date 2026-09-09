@@ -81,7 +81,7 @@ type LayerRngs = Record<EngineLayerId, Rng>
  *  generators were RETIRED (Alexander) — the forest now builds one of the meadow layouts, and a plain generate
  *  with no explicit layout RANDOMLY picks one (seeded). All are registered in FOREST_LAYOUTS. `meadow_pass` is a
  *  NEW variation: the open meadow opened on TWO opposite edges (top + bottom) for a through-route map (#26). */
-export type ForestLayout = 'woodland' | 'meadow' | 'meadow_river' | 'meadow_pass'
+export type ForestLayout = 'woodland' | 'woodland_river' | 'jungle' | 'meadow' | 'meadow_river' | 'meadow_pass'
 
 export interface StageProp {
   col: number
@@ -1130,7 +1130,10 @@ function placeForest(ctx: ArchetypeContext): void {
  */
 function forestLayoutCandidates(nature: NatureDensity | undefined): readonly ForestLayout[] {
   const meadows: readonly ForestLayout[] = ['meadow', 'meadow_river', 'meadow_pass']
-  return nature?.canopy === undefined ? meadows : ['woodland', ...meadows]
+  // The canopy layouts need a served tree density to build from; without one they would plant nothing, so
+  // they only enter the pool when the generator actually supplies `nature.canopy`.
+  const canopied: readonly ForestLayout[] = ['woodland', 'woodland_river', 'jungle']
+  return nature?.canopy === undefined ? meadows : [...canopied, ...meadows]
 }
 
 function pickMeadowLayout(rand: Rng, nature: NatureDensity | undefined): ForestLayout {
@@ -1142,7 +1145,12 @@ function pickMeadowLayout(rand: Rng, nature: NatureDensity | undefined): ForestL
  *  and is fully responsible for the floor gradient / trees / river / ornaments / repair.
  *  Open/Closed: register a layout here, no dispatcher edits. */
 const FOREST_LAYOUTS: Readonly<Partial<Record<ForestLayout, (ctx: ArchetypeContext) => void>>> = {
-  woodland: layoutWoodland,
+  woodland: ctx => layoutWoodland(ctx),
+  woodland_river: ctx => layoutWoodland(ctx, { river: true }),
+  // A JUNGLE is a woodland at jungle DENSITY — same trails, same clearings, a much heavier canopy and floor.
+  // The difference is entirely in the served `nature` block, so it needs no structure of its own; giving it
+  // one would be two code paths that have to be kept looking alike by hand.
+  jungle: ctx => layoutWoodland(ctx),
   meadow: layoutMeadow,
   meadow_river: layoutMeadowRiver,
   meadow_pass: layoutMeadowPass,
@@ -1197,7 +1205,11 @@ const WOODLAND = {
  * been configured as a forest, and quietly picking 0.45 here is exactly the hardcoded-fallback the
  * compliance rule forbids.
  */
-function layoutWoodland(ctx: ArchetypeContext): void {
+/** `woodland` (dense trees, clearings, trails) and `woodland_river` (the same, cut by a river with a bridge).
+ *  Alexander, 2026-09-09: *"add a woodland + river variant too."* Mirrors the meadow pair — one builder, an
+ *  options object — so the two never drift apart. A JUNGLE is not here: it is the same STRUCTURE at a heavier
+ *  served density, so it is a preset over this builder, not a fourth code path (see FOREST_LAYOUTS). */
+function layoutWoodland(ctx: ArchetypeContext, opts: { river?: boolean } = {}): void {
   const { cols, rows, collision, ground, zone, trees } = ctx
   const canopy = ctx.nature?.canopy
   if (canopy === undefined) {
@@ -1208,9 +1220,15 @@ function layoutWoodland(ctx: ArchetypeContext): void {
   const floor = ZONE_PALETTES[zone].groundTypes[0]
   forEachCell(cols, rows, (col, row) => { ground[row][col] = floor })
 
-  // 1 · CLEARINGS first, as a mask, so the canopy pass can simply avoid them. Deciding the holes before
-  //     the fill is cheaper and more controllable than planting everything and cutting back.
+  // 0 · THE RIVER, if this variant has one — carved BEFORE anything is planted, so its cells are already
+  //     spoken for. It joins `open` (the not-plantable mask) rather than getting its own check, which is why
+  //     the canopy pass below needs no river branch at all: water is simply somewhere a tree cannot go.
   const open = new Set<string>()
+  const water = opts.river ? paintMeadowRiver(ctx) : new Set<string>()
+  for (const key of water) open.add(key)
+
+  // 1 · CLEARINGS, as a mask, so the canopy pass can simply avoid them. Deciding the holes before
+  //     the fill is cheaper and more controllable than planting everything and cutting back.
   // The corridor cells specifically. `open` also holds the clearings, and paving those would turn every
   // glade into a courtyard — a trail is the route BETWEEN them.
   const trailCells = new Set<string>()
@@ -1278,6 +1296,16 @@ function layoutWoodland(ctx: ArchetypeContext): void {
 
   // 4 · The clearings get whatever ground cover and flowers the generator asked for. Absent → bare.
   dressWoodlandClearings(ctx, open)
+
+  // 5 · KEEP THE FLOOR ONE PLACE. A river can strand a pocket of forest floor behind it, and a pocket you
+  //     cannot walk to is a hole in the map. Only the river variant needs this — a plain woodland carves no
+  //     water — and it runs BEFORE the bridge so the repair can never fill the deck back in. Same bound and
+  //     same ordering as the meadow's, because it is the same problem.
+  if (opts.river) repairFloorConnectivity(ctx, MEADOW_MAX_POCKET)
+
+  // 6 · THE CROSSING, last — a river you cannot cross splits the forest in two, and the deck has to be laid
+  //     after the planting so nothing puts a trunk back on it. Same ordering reason as the meadow's.
+  if (opts.river) placeMeadowBridge(ctx, water)
 
   void collision
   void trees
@@ -2348,7 +2376,11 @@ function placeCave(ctx: ArchetypeContext): void {
   // 6. Seasonal water / ice / lava pools in the cavern (kept north of the entrance).
   carveCavePools(ctx, pal, entrance)
 
-  // 7. Guarantee ONE connected floor — fill any pocket a pool stranded with rock.
+  // 7. Guarantee ONE connected floor — but RE-OPEN the way in first. A pool can land across the corridor
+  //    that joins the entrance chamber to the cavern, and the repair below keeps the LARGEST region, so the
+  //    severed entrance was the pocket it filled: ~3% of caves came out with no entrance at all. Reconnecting
+  //    before repairing means the entrance is part of the kept region by construction.
+  reopenCaveEntrance(ctx, pal, entrance)
   repairCaveFloor(ctx, pal)
 
   // 8. Populate: moss/leaf accents, crystal clusters, a mushroom patch, floor rubble.
@@ -2447,6 +2479,46 @@ function repairCaveFloor(ctx: ArchetypeContext, pal: CavePalette): void {
     collision[row][col] = true
     props.push(makeCaveWall(col, row, pal.wall)) // stranded pocket → rock
   })
+}
+
+/** Re-join the entrance chamber to the main cavern if a pool severed the corridor between them.
+ *
+ *  `joinEntranceToCavern` opens that corridor while the map is still a rock grid, but the pools are stamped
+ *  AFTER it — and a blocking pool (water/lava) laid across the corridor cuts the entrance off. The floor
+ *  repair then keeps the largest region and fills the rest, so the thing it filled was the way in. Measured
+ *  on a 120-seed sweep: 4 caves had a fully sealed entrance chamber.
+ *
+ *  Carving here (rather than teaching the pools to avoid the corridor) keeps the fix where the invariant is:
+ *  the entrance must reach the cavern, whatever the pools did. A no-op when they are already connected. */
+function reopenCaveEntrance(ctx: ArchetypeContext, pal: CavePalette, entrance: Rect): void {
+  const { collision, cols, rows } = ctx
+  const isFloor = (col: number, row: number): boolean => inBounds(col, row, cols, rows) && !collision[row][col]
+  const mouth: Cell = { col: entrance.col + Math.floor(entrance.w / 2), row: entrance.row }
+  // Opening a cell means clearing the rock prop standing there too, or a wall stays drawn over walkable floor.
+  const open = (col: number, row: number): void => {
+    if (!inBounds(col, row, cols, rows) || isEdge(col, row, cols, rows)) return
+    collision[row][col] = false
+    ctx.ground[row][col] = pal.floor
+    // SPLICE, never reassign: other passes hold a destructured `const { props } = ctx` reference, so swapping
+    // the array out orphans their pushes into a detached list (it silently emptied the crystals/mushrooms).
+    for (let i = ctx.props.length - 1; i >= 0; i--) {
+      const pr = ctx.props[i]
+      if (pr.col === col && pr.row === row && pr.blocking) ctx.props.splice(i, 1)
+    }
+  }
+
+  // 1 · The CHAMBER is floor by definition — it is the room you arrive in. A pool that grew south into it
+  //     (they seed north of it, but they spread) left it part-filled, and a half-buried entrance is the same
+  //     defect as a severed one. Restore the room the carve intended before worrying about the corridor.
+  for (let r = entrance.row; r < entrance.row + entrance.h; r++)
+    for (let c = entrance.col; c < entrance.col + entrance.w; c++) open(c, r)
+
+  // 2 · …and JOIN it to the main cavern, if a pool landed across the corridor that used to reach it.
+  const largest = largestFloorRegion(isFloor, cols, rows)
+  if (largest.size === 0 || largest.has(`${mouth.col},${mouth.row}`)) return // already connected — the common case
+  const target = [...largest].map(toCell).reduce((a, b) => (manhattan(mouth, b) < manhattan(mouth, a) ? b : a), toCell([...largest][0]))
+  for (let c = Math.min(mouth.col, target.col); c <= Math.max(mouth.col, target.col); c++) open(c, mouth.row)
+  for (let r = Math.min(mouth.row, target.row); r <= Math.max(mouth.row, target.row); r++) open(target.col, r)
 }
 
 /** Paint patchy seasonal accent ground (moss / fallen leaves / dune) over the floor. */

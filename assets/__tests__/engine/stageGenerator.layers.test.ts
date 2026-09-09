@@ -81,12 +81,17 @@ function genSeeded(opts: Parameters<typeof generateStage>[0], seed: number): Sta
 // temple and boss are byte-identical. Sanity-checked before relocking: each still carves roads (816/936/1184
 // tinted cells), plants 15-19 buildings across several kinds, every building keeps a door, and none lands
 // off-grid.
+// Regenerated again 2026-09-09 for the CAVE ENTRANCE fix. A pool stamped across the corridor joining the
+// entrance chamber to the cavern severed it, and the floor repair — which keeps the largest region — filled
+// the severed entrance as a stranded pocket: measured on a 400-seed sweep, ~3% of caves came out with no way
+// in at all. The cave now restores its entrance chamber and re-joins it before the repair runs, so the cells
+// that used to be filled stay floor. Only the CAVE moves; every other archetype is byte-identical.
 const BASELINE: Record<string, string> = {
   'town|autumn|40x40|1': '8ffad300',
   'town|summer|50x40|7': '8c83d0fd',
   'city|summer|56x44|3': '93a2b8c7',
   'forest|summer|30x24|42': '693fc6e6',
-  'cave|autumn|40x30|99': 'c3a252e7',
+  'cave|autumn|40x30|99': 'fd2b4fbe',
   'temple|winter|36x30|5': '7b1712d1',
   'boss-stage|winter|36x30|11': 'db1efcb4',
 }

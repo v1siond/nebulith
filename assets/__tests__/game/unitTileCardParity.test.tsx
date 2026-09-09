@@ -112,6 +112,16 @@ describe('a selected UNIT renders the SAME control set as a selected tile', () =
     for (const name of cellControls.filter(n => n !== 'Tile')) expect(unitControls).toContain(name)
   })
 
+  it('says WHERE the character stands, beside its name', () => {
+    renderCard({
+      tile: tileModel({ label: 'Goblin' }),
+      at: { col: 4, row: 7 },
+      unitSection: <UnitSettingsSection unit={unitModel()} />,
+    })
+    // The old `▸ PLAYER (PLAYER) @ 32,10` pill carried this and nothing replaced it when it went.
+    expect(screen.getByText(/Goblin/)).toHaveTextContent('4, 7')
+  })
+
   it('…and the card NAMES what you selected — a tile is a Tile, a unit is a Character', () => {
     const cell = renderCard()
     expect(controlNames(cell.container)).toContain('Tile')
@@ -336,11 +346,9 @@ describe('the page replaces the unit menu with the tile card', () => {
     expect(src).not.toContain('SelectionHeader kind={selEntity.kind}')
     expect(src).not.toContain('>Deselect<')
     expect(src).not.toContain('onClick={deleteSelectedEntity}')
-    // The old header also carried the unit's COORDS, and nothing on the card replaced them — neither card
-    // shows a cell reference since the §3.10 restructure turned the headings into `Tile` / `Character`. The
-    // page comment still claims "the coords ride the card title", which was an intent, never a change. Left
-    // as an open question for Alexander rather than invented here; asserting a title that does not exist was
-    // hiding it. The three negatives above are what actually guarantees the duplicate header is gone.
+    // Nothing is lost with the header: its COORDS moved onto the card, beside the character's name.
+    // Alexander, 2026-09-09: *"yes, it they should see where they're."*
+    expect(src).toContain('at={{ col: selEntity.col, row: selEntity.row }}')
   })
 
   it('gives the unit card the SAME Save map button the cell card has (one component)', () => {

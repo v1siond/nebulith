@@ -281,6 +281,9 @@ export interface PropertiesPanelProps {
   /** open the rules MODAL (the "⚑ Rules for this…" button) — for a CELL and a UNIT alike. Replaces the old
    *  inline expando: authoring now lives in a floating panel, opened from this button. The PROP and the type
    *  are still named `trigger` — the user-facing WORD changed, the data model did not. */
+  /** WHERE the selection sits, shown beside its name. Absent → no location (a multi-cell selection has no
+   *  single one). */
+  at?: { col: number; row: number }
   onOpenTriggers?: () => void
   /** how many rules the selected cell/unit currently has — surfaced as a count on the Rules button. */
   triggerCount?: number
@@ -793,7 +796,13 @@ export function PropertiesPanel(p: PropertiesPanelProps) {
           <div className="flex items-center justify-between">
             <span className="flex min-w-0 items-center gap-1.5">
               <TilePreview visual={t.preview} label={t.label} />
-              <p className="truncate text-[9px] font-bold uppercase tracking-wider text-gray-500">{isUnit ? t.label : `cell · ${t.label}`}</p>
+              {/* WHERE it is, beside what it is. Alexander, 2026-09-09: *"yes, it they should see where
+                  they're."* The old `▸ PLAYER (PLAYER) @ 32,10` header carried the coords and nothing replaced
+                  it when that pill went, so a selected character stopped saying which cell it stood on. */}
+              <p className="truncate text-[9px] font-bold uppercase tracking-wider text-gray-500">
+                {isUnit ? t.label : `cell · ${t.label}`}
+                {p.at && <span className="text-gray-600">{` · ${p.at.col}, ${p.at.row}`}</span>}
+              </p>
             </span>
             {p.levelCount > 1 && (
               <span className="flex shrink-0 items-center gap-1 text-[9px] text-gray-400" aria-label="Select stack level">

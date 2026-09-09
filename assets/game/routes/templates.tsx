@@ -5682,6 +5682,8 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                         // (the old standalone "Blocks movement" checkbox is gone).
                         collision={selEntity.blocksMovement ?? false}
                         onCollision={blocked => patchSelectedEntity({ blocksMovement: blocked })}
+                        // WHERE the character stands, beside its name — what the old header pill carried.
+                        at={{ col: selEntity.col, row: selEntity.row }}
                         tile={unitTileModel}
                         level={1}
                         levelCount={1}
