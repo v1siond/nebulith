@@ -105,20 +105,30 @@ describe.each([
   })
 })
 
-// ── a FLAT tile is the ground diamond; a height≥1 tile is an extruded cube — BOTH are tiles, neither billboards ──
-// Flat tiles carry their real DB height, which is 0 (nebulith data migration 0005 — "GET THE TILES OF 0.1 DOWN
-// TO 0"): a flat tile takes up no vertical room, so the renderer draws it with no side walls, while a standing
-// tile extrudes. That the flat draw is still VISIBLE (it paints its ground diamond) is proved on real pixels in
-// flatTileHeightUniform.realcanvas.test.ts; here we pin the SHAPE — every tile records tile geometry.
-describe('the height model — flat = ground diamond, standing = extruded cube (both real tiles)', () => {
-  it('a FLAT emoji tile records a tile with no extrusion; a height≥1 emoji tile extrudes', () => {
-    const flat = nonUnit(emojiRows()).find(r => r.height === 0)
+// ── EVERY tile is an extruded cube; the PLACED BLOCK's height says how tall ──────────────────────────────
+// "all tiles/blocks are height 1, GLOBAL, no exceptions" (Alexander, 2026-07-27). There is no flat-tile shape
+// any more: the catalog row is ART, and whatever height it carries is never read (resolveTileHeight ignores
+// the tile and takes the PLACEMENT's height, defaulting to one block). So a row still marked `height: 0` in
+// the catalog must extrude exactly like any other — if it drew as a flat diamond, an inert art number would
+// be steering geometry again, which is what sank the road below the grass beside it (the trench).
+describe('the height model — every tile extrudes; the placed block decides how far', () => {
+  it('a catalog row marked height 0 still extrudes — the ART\'s height is inert', () => {
+    const zeroInArt = nonUnit(emojiRows()).find(r => r.height === 0)
     const tall = nonUnit(emojiRows()).find(r => r.height >= 1)
-    expect(flat).toBeDefined()
+    expect(zeroInArt).toBeDefined() // such rows still exist in the catalog; they simply carry no authority
     expect(tall).toBeDefined()
-    expect(renderIso(EMOJI_STYLE, flat!)?.kind).toBe('cube') // a tile, not a billboard
-    expect(cubeExtrudePx(renderIso(EMOJI_STYLE, flat!))).toBe(0)
-    expect(cubeExtrudePx(renderIso(EMOJI_STYLE, tall!))).toBeGreaterThan(0)
+    expect(renderIso(EMOJI_STYLE, zeroInArt!)?.kind).toBe('cube') // a tile, not a billboard
+    // Both draw the SAME one-block cube, because neither placement pinned a height.
+    const flatPx = cubeExtrudePx(renderIso(EMOJI_STYLE, zeroInArt!))
+    expect(flatPx).toBeGreaterThan(0)
+    expect(cubeExtrudePx(renderIso(EMOJI_STYLE, tall!))).toBeCloseTo(flatPx, 0)
+  })
+
+  it('the PLACEMENT scales the extrusion — 3 blocks draws three times a 1-block tile', () => {
+    const row = nonUnit(emojiRows()).find(r => r.height === 0)! // the art number stays 0 throughout
+    const one = cubeExtrudePx(renderIso(EMOJI_STYLE, row, { height: 1 }))
+    expect(one).toBeGreaterThan(0)
+    expect(cubeExtrudePx(renderIso(EMOJI_STYLE, row, { height: 3 }))).toBeCloseTo(one * 3, 0)
   })
 
   it('an image-LESS ASCII glyph tile is still a TILE (glyph on the block), never a billboard', () => {

@@ -8,9 +8,10 @@
  * The renderer lifts a tile by its stack level and NOTHING else (`isoStackLift`). Everything beneath it is
  * already accounted for, because `stackTop` (cellStack) hands the tile a level of `level + own height` over
  * the cell's tiles — the floor counted exactly like a wall. So:
- *   • a flat floor (0 blocks, data migration 0005) lifts nothing — a wall painted on grass starts on the grid;
+ *   • the ground is ONE block ("all tiles/blocks are height 1, GLOBAL, no exceptions"), so a wall painted on
+ *     grass rises by exactly that one block — no more, and never by a floor-shaped bonus term;
  *   • RAISING that floor tile lifts the wall by exactly the floor's own height, with no floor-specific code;
- *   • a bare cell and a flat-floored cell put the wall in the SAME place.
+ *   • a bare cell and a floored cell differ by exactly the floor's height, and by nothing else.
  * The old floor-only lift got the middle case WRONG (it clamped through `partialBlockScale`, so a 2-block
  * floor lifted by only 1). Proved through the production `render()` path on a REAL @napi-rs/canvas in the
  * EMOJI style — the one Alexander QAs — placing tiles through the BRUSH path (pushTile), not hand-set levels.
@@ -72,16 +73,17 @@ beforeAll(async () => {
 })
 
 describe('iso: a tile is lifted by its stack level ONLY — no floor-shaped extra term', () => {
-  test('a FLAT floor lifts nothing — the painted tile starts on the grid, co-planar with the floor base', () => {
+  test('the ground lifts by its OWN one block — the painted tile sits on it, not inside it and not higher', () => {
     const grid = newGrid()
-    expect(grid.floorAt(ACOL, AROW)?.height ?? 0).toBe(0) // flat floors are 0 blocks (migration 0005)
     paintBlock(grid)
     renderIso(grid)
 
     const floor = isoRecordedTileGeom(ACOL, AROW, 0)
     const wall = isoRecordedTileGeom(ACOL, AROW, 1)
-    // Both bases sit on the same grid plane: a 0-block floor takes up no vertical room, so nothing lifts.
-    expect(baseY(wall)).toBeCloseTo(baseY(floor), 1)
+    // Screen Y grows downward, so "one block up" is −1 UNIT. Exactly one: the ground contributes its own
+    // height and nothing else. Zero would mean the wall was sunk into the ground; more than one would be the
+    // floor-shaped bonus term this whole file exists to forbid.
+    expect(baseY(floor) - baseY(wall)).toBeCloseTo(UNIT, 1)
   })
 
   test('RAISE the floor tile → the tile on top rises by EXACTLY the floor\'s own height (2 blocks, not 1)', () => {
@@ -97,7 +99,7 @@ describe('iso: a tile is lifted by its stack level ONLY — no floor-shaped extr
     expect(baseY(floor) - baseY(wall)).toBeCloseTo(2 * UNIT, 1)
   })
 
-  test('a BARE cell and a FLAT-floored cell place the painted tile identically (a 0-block floor adds nothing)', () => {
+  test('a BARE cell and a FLOORED cell differ by EXACTLY the floor\'s one block — and by nothing else', () => {
     const floored = newGrid()
     paintBlock(floored)
     renderIso(floored)
@@ -109,7 +111,10 @@ describe('iso: a tile is lifted by its stack level ONLY — no floor-shaped extr
     renderIso(bare)
     const withoutFloor = baseY(isoRecordedTileGeom(ACOL, AROW, 0)) // no floor → the tile is stack index 0
 
-    expect(withFloor).toBeCloseTo(withoutFloor, 1)
+    // The ONLY difference between the two cells is one block of ground, so that is the only difference the
+    // render may show. This is the test that catches a floor-shaped term: it would push the two further apart
+    // than the floor's own height accounts for.
+    expect(withoutFloor - withFloor).toBeCloseTo(UNIT, 1)
   })
 
   test('stacked tiles keep a ONE-BLOCK gap — the stack is not stretched or squashed by anything', () => {

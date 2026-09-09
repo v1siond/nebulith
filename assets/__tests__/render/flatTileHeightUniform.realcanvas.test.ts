@@ -102,16 +102,20 @@ describe('a tile renders at its OWN DB height — read, not invented; sub-1 not 
     expect(labeled(5)).toBeCloseTo(one * 5, 0)
   })
 
-  test('the floor asset carries NO hardcoded height — it resolves its ground tile\'s DB height (flat = 0)', () => {
+  test('the floor is a BLOCK like every other tile — one block tall, with real side walls', () => {
     const floor = { art: [''], col: 4, row: 4, type: 'floor', tileKey: 'grass', heightLevel: 0, blocking: false } as unknown as GridAsset
     const cv = H.makeCanvas(480, 420)
     const g = drawIsoAssetAscii(cv.getContext('2d') as unknown as CanvasRenderingContext2D, CX, CY, floor, TW, TH, 0, false, 'day', EMOJI_STYLE)
-    expect(g?.kind).toBe('cube')     // a tile, not a billboard — the same shape every tile records
-    expect(extrudePx(g)).toBe(0)     // grass is 0 blocks in the DB → no side walls, it IS the ground plane
+    expect(g?.kind).toBe('cube')          // a tile, not a billboard — the same shape every tile records
+    // The ground pins no height of its own, so it resolves to ONE block ("all tiles/blocks are height 1,
+    // GLOBAL, no exceptions") and extrudes exactly like the labeled wall above. It is not a special flat
+    // plane the rest of the map sits on top of — it IS one of the blocks the map is built from.
+    const wall = { art: [''], col: 4, row: 4, type: 'house_4', label: 'wall_wood_c', heightLevel: 0, height: 1, color: '#c9c9c9' } as unknown as GridAsset
+    const wallPx = extrudePx(drawIsoAssetAscii(H.makeCanvas(480, 420).getContext('2d') as unknown as CanvasRenderingContext2D, CX, CY, wall, TW, TH, 0, false, 'day', EMOJI_STYLE))
+    expect(extrudePx(g)).toBeCloseTo(wallPx, 0)
 
-    // …and it is still PAINTED. A 0-block tile is FLAT, not absent: it draws its ground diamond, which must
-    // cover a real area of the canvas (the map is made of these). This is the assertion that would catch a
-    // "flat height 0 made the ground invisible" regression, which geometry alone cannot.
+    // …and it is PAINTED. Geometry alone cannot catch a ground that computes correctly and draws nothing,
+    // and the map is made of these — so assert real pixels over a real area of the canvas.
     const painted = paintedPixels(cv)
     const diamondArea = TW * TH // the iso ground diamond's bounding box for one cell
     expect(painted).toBeGreaterThan(diamondArea * 0.25)

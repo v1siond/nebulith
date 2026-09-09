@@ -1,23 +1,31 @@
 import { resolveTileHeight, blockLayers, layerBlockScale } from '@/engine/tileset/tileHeight'
 
-describe('resolveTileHeight — iso block count: instance override ?? tile default ?? 0 (flat)', () => {
-  test('flat by default — no tile default, no override', () => {
-    expect(resolveTileHeight({}, {})).toBe(0)
-    expect(resolveTileHeight(undefined, undefined)).toBe(0)
+// FLAT TILES NO LONGER EXIST. Alexander, 2026-07-27: "all tiles/blocks are height 1, GLOBAL, no exceptions".
+// Height is a property of the PLACED BLOCK, never of the art tile — "tiles only have data when they're
+// assigned to a cell … the generator should assign the value when creating something". So the resolution is
+// `placement ?? 1`, with the art tile deliberately unread; there is no tile-default tier left to fall back to.
+describe('resolveTileHeight — iso block count: the PLACED block\'s height ?? 1, art never consulted', () => {
+  test('ONE block by default — an ordinary placement with no height pinned', () => {
+    expect(resolveTileHeight({}, {})).toBe(1)
+    expect(resolveTileHeight(undefined, undefined)).toBe(1)
   })
 
-  test('the tile default applies when there is no instance override', () => {
-    expect(resolveTileHeight({ height: 1 }, {})).toBe(1)
-    expect(resolveTileHeight({ height: 2 }, undefined)).toBe(2)
+  test('the PLACEMENT carries the height — a generator/editor value of any size lands as given', () => {
+    expect(resolveTileHeight(undefined, { height: 3 })).toBe(3)
+    expect(resolveTileHeight({}, { height: 0.5 })).toBe(0.5) // blocks are a measurement, not an integer
   })
 
-  test('an instance override wins over the tile default (incl. an explicit 0 = force flat)', () => {
-    expect(resolveTileHeight({ height: 1 }, { height: 3 })).toBe(3)
-    expect(resolveTileHeight({ height: 1 }, { height: 0 })).toBe(0)
+  test('the ART TILE is never read — a stray height on the picture cannot move the block', () => {
+    // That stray art `0` is what sank the road below the height-1 grass (the trench). The art file is a
+    // picture; whatever number it carries, the placed block decides.
+    expect(resolveTileHeight({ height: 0 }, {})).toBe(1)
+    expect(resolveTileHeight({ height: 7 }, {})).toBe(1)
+    expect(resolveTileHeight({ height: 7 }, { height: 2 })).toBe(2)
   })
 
-  test('negative heights clamp to flat', () => {
-    expect(resolveTileHeight({ height: -2 }, {})).toBe(0)
+  test('zero and negative clamp UP to one block — flat is not a state a block can be in', () => {
+    expect(resolveTileHeight({}, { height: 0 })).toBe(1)
+    expect(resolveTileHeight({}, { height: -2 })).toBe(1)
   })
 })
 

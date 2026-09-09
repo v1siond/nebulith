@@ -15,7 +15,7 @@
  * lift on top of this) lives in render/floorIsJustATile.realcanvas.test.ts.
  */
 import { IsometricGrid, type GridAsset } from '@/engine/IsometricGrid'
-import { pushTile, setTileHeight } from '@/engine/cellStack'
+import { cellStackTop, pushTile, setTileHeight } from '@/engine/cellStack'
 import { depthCells } from '@/engine/render/isoBlock'
 
 const mkGrid = () => new IsometricGrid({ cols: 12, rows: 12, cellSize: 16, isoScale: 1.4 })
@@ -26,13 +26,15 @@ const paint = (grid: IsometricGrid, h: number, scaleY?: number) =>
   pushTile(grid, C, R, { source: 'asset', slug: 'stone', type: 'block', art: ['█'], h, scaleY })
 
 describe('the floor is just a tile — one stacking rule, no floor special case', () => {
-  test('a FLAT floor (0 blocks) adds no lift — a tile painted on grass sits at level 0, on the grid', () => {
+  test('the ground is ONE block like everything else — a tile painted on grass sits ON it, at level 1', () => {
     const grid = mkGrid()
     grid.setGround(C, R, 'grass')
-    // A flat tile is 0 blocks tall (data migration 0005: "GET THE TILES OF 0.1 DOWN TO 0"), so it takes up
-    // no vertical room and what lands on it starts on the grid plane.
-    expect(grid.floorAt(C, R)?.height ?? 0).toBe(0)
-    expect(paint(grid, 1).heightLevel).toBe(0)
+    // FLAT TILES NO LONGER EXIST (Alexander, 2026-07-27: "all tiles/blocks are height 1, GLOBAL, no
+    // exceptions"). The ground is a block like any other, so a wall painted on grass rests on TOP of it
+    // rather than sinking into it — the same complaint that produced the rule ("houses stack on top of the
+    // grass tiles instead of inside"). This is the assertion that catches a 0-height ground coming back.
+    expect(cellStackTop(grid, C, R)).toBe(1)
+    expect(paint(grid, 1).heightLevel).toBe(1)
   })
 
   test('RAISE the floor tile and what goes on top gets lifted — the floor lifts like ANY tile', () => {
@@ -45,34 +47,35 @@ describe('the floor is just a tile — one stacking rule, no floor special case'
     expect(paint(grid, 1).heightLevel).toBe(2)
   })
 
-  test('heights ACCUMULATE like legos — painting on a 4-block wall lands at level 4, not level 1', () => {
+  test('heights ACCUMULATE like legos — painting on a 4-block wall lands at level 5, not level 1', () => {
     const grid = mkGrid()
     grid.setGround(C, R, 'grass')
-    paint(grid, 4) // a 4-block wall pier at level 0
+    paint(grid, 4) // a 4-block wall pier, itself standing on the 1-block ground
     // The old rule was `topLevel + 1` — one level per TILE regardless of how tall it is, which buried the
-    // next tile inside the wall. Legos stack by HEIGHT: 4 blocks up.
-    expect(paint(grid, 1).heightLevel).toBe(4)
+    // next tile inside the wall. Legos stack by HEIGHT: 1 block of ground + 4 of wall = level 5.
+    expect(paint(grid, 1).heightLevel).toBe(5)
   })
 
   test('a tall tile authored as scaleY (a composition wall pier) stacks by its RENDERED height', () => {
     const grid = mkGrid()
     grid.setGround(C, R, 'grass')
     paint(grid, 1, 3) // 1 block × Height multiplier 3 = a 3-block pier (the "minimal cells" authoring)
-    expect(paint(grid, 1).heightLevel).toBe(3)
+    expect(paint(grid, 1).heightLevel).toBe(4) // 1 ground + 3 pier — the multiplier counts, not the tile
   })
 
-  test('the floor is NOT special — a 2-block FLOOR and a 2-block WALL lift the next tile identically', () => {
+  test('the floor is NOT special — 3 blocks of FLOOR and 1 floor + 2 of WALL lift the next tile identically', () => {
     const onFloor = mkGrid()
     onFloor.setGround(C, R, 'grass')
-    onFloor.floorAt(C, R)!.height = 2
+    onFloor.floorAt(C, R)!.height = 3 // three blocks, all of them ground
 
     const onWall = mkGrid()
     onWall.setGround(C, R, 'grass')
-    paint(onWall, 2)
+    paint(onWall, 2) // three blocks too: the 1-block ground plus a 2-block wall standing on it
 
-    // Same height beneath → same landing level. If a floor-shaped branch existed anywhere in the rule,
-    // these two would disagree.
-    expect(paint(onFloor, 1).heightLevel).toBe(paint(onWall, 1).heightLevel)
+    // Same number of blocks beneath → same landing level, whatever KIND of tile those blocks are. If a
+    // floor-shaped branch existed anywhere in the rule, these two would disagree.
+    expect(paint(onFloor, 1).heightLevel).toBe(3)
+    expect(paint(onWall, 1).heightLevel).toBe(3)
   })
 
   test('an EMPTY cell (floor cleared) starts at level 0 — nothing beneath, nothing to stack on', () => {
@@ -83,11 +86,17 @@ describe('the floor is just a tile — one stacking rule, no floor special case'
 })
 
 describe('RAISE a tile and what is on top of it goes up with it', () => {
-  /** A stamped building cell as the generator leaves it: the flat floor, a 4-block wall pier at level 0, and
-   *  the gable roof bar at level 4 — each an ALREADY-PLACED tile carrying its authored level. */
+  /** A stamped building cell as the generator leaves it: the 1-block ground, a 4-block wall pier standing ON
+   *  it, and the gable roof bar on top of the wall — each an ALREADY-PLACED tile carrying its authored level.
+   *
+   *  The levels are taken from `cellStackTop`, NOT hand-written, because that is literally what the stamper
+   *  does (`stampBuildingComposition` → `baseLevel = cellStackTop(...)`, composition.ts:142). Hand-writing
+   *  `heightLevel: 0` here authored a wall INSIDE the ground — a placement production stopped producing when
+   *  the ground became a block like everything else. */
   const stampedHouseCell = (grid: IsometricGrid): { wall: GridAsset; roof: GridAsset } => {
+    const base = cellStackTop(grid, C, R) // 1 on grass — the composition lands on top of the ground
     const place = (level: number, blocks: number): GridAsset => {
-      const a = grid.placeAsset([''], C, R, { type: 'house_4', heightLevel: level })
+      const a = grid.placeAsset([''], C, R, { type: 'house_4', heightLevel: base + level })
       a.height = blocks
       return a
     }
@@ -116,7 +125,9 @@ describe('RAISE a tile and what is on top of it goes up with it', () => {
 
     setTileHeight(grid, C, R, 0, 2)
 
-    expect(leaf.heightLevel).toBe(5) // shifted by the raise (3 + 2), NOT re-seated onto the floor
+    // The ground went from ONE block to two — a CHANGE of one, not of two — so the leaves shift by one and
+    // keep floating clear. What matters is that they moved by the delta and were not re-seated onto the floor.
+    expect(leaf.heightLevel).toBe(4)
   })
 
   test('LOWERING brings them back down — the lift is reversible, never a one-way ratchet', () => {
@@ -125,10 +136,10 @@ describe('RAISE a tile and what is on top of it goes up with it', () => {
     const { wall, roof } = stampedHouseCell(grid)
 
     setTileHeight(grid, C, R, 0, 5)
-    setTileHeight(grid, C, R, 0, 0)
+    setTileHeight(grid, C, R, 0, 0) // "back to nothing" is back to ONE block — the floor of every tile
 
-    expect(wall.heightLevel).toBe(0)
-    expect(roof.heightLevel).toBe(4)
+    expect(wall.heightLevel).toBe(1)
+    expect(roof.heightLevel).toBe(5)
   })
 
   test('ANY tile lifts what is above it — not just the floor (raise the wall, the roof rises)', () => {
@@ -138,8 +149,8 @@ describe('RAISE a tile and what is on top of it goes up with it', () => {
 
     setTileHeight(grid, C, R, 1, 6) // the WALL (slot 1) goes from 4 blocks to 6
 
-    expect(wall.heightLevel).toBe(0)  // the wall itself doesn't move — it grows upward from where it stands
-    expect(roof.heightLevel).toBe(6)  // the roof sits on its new top (4 + 2)
+    expect(wall.heightLevel).toBe(1)  // the wall itself doesn't move — it grows upward from where it stands
+    expect(roof.heightLevel).toBe(7)  // the roof sits on its new top (1 ground + 6 wall)
   })
 
   test('raising the TOP tile moves nothing — there is nothing above it to lift', () => {
@@ -149,38 +160,54 @@ describe('RAISE a tile and what is on top of it goes up with it', () => {
 
     setTileHeight(grid, C, R, 2, 9)
 
-    expect(wall.heightLevel).toBe(0)
-    expect(roof.heightLevel).toBe(4)
+    expect(wall.heightLevel).toBe(1)
+    expect(roof.heightLevel).toBe(5)
     expect(roof.height).toBe(9)
   })
 
-  test("a tile flattened to 0 then raised again lifts only what's ON it — never the ground under it", () => {
+  test("a tile SHRUNK then raised again lifts only what's ON it — never the ground under it", () => {
     // Alexander's repro: "stack two blocks, then select the bottom block and make it 0, then increase the
     // height — the top block moves correctly but the tile stays flat on the first block."
-    // Flattening the bottom block collapses the tile above onto level 0 — the SAME level the floor sits at.
-    // Lifting by "level >= the old top" then swept the FLOOR up too, so the ground flew to level 3 and drew
-    // as a flat tile where the block should be. At equal levels, stack ORDER decides what is on top of what.
+    // Shrinking the bottom block brings the tile above DOWN toward the ground. Lifting by "level >= the old
+    // top" then swept the FLOOR up too, so the ground flew upward and drew as a flat tile where the block
+    // should be. At equal levels, stack ORDER decides what is on top of what — that is what keeps the ground
+    // out of it, with no floor branch anywhere in the rule.
     const grid = mkGrid()
     grid.setGround(C, R, 'grass')
-    const block = (level: number): GridAsset => {
+    const block = (level: number, blocks: number): GridAsset => {
       const a = grid.placeAsset([''], C, R, { type: 'house_4', heightLevel: level })
       a.label = 'wall_wood_c'
-      a.height = 1
+      a.height = blocks
       return a
     }
-    const bottom = block(0)
-    const top = block(1)
+    const bottom = block(1, 3) // on the 1-block ground, three blocks tall
+    const top = block(4, 1)    // resting on its top
     const floor = grid.floorAt(C, R)!
 
-    setTileHeight(grid, C, R, 1, 0) // slot 1 = the bottom block (slot 0 is the floor)
-    expect(top.heightLevel).toBe(0)   // it settles onto the flattened block
+    setTileHeight(grid, C, R, 1, 1) // slot 1 = the bottom block (slot 0 is the floor): 3 blocks → 1
+    expect(top.heightLevel).toBe(2)   // it settles down onto the shrunken block
     expect(floor.heightLevel).toBe(0) // the ground has not moved
 
     setTileHeight(grid, C, R, 1, 3) // drag the SAME slot back up
 
     expect(bottom.height).toBe(3)
-    expect(top.heightLevel).toBe(3)   // the block above rides up
+    expect(top.heightLevel).toBe(4)   // the block above rides up
     expect(floor.heightLevel).toBe(0) // …and the ground STAYS on the grid
+  })
+
+  test('ONE block is the floor of the model — asking for 0 leaves the tile a block tall, and moves nothing', () => {
+    // "all tiles/blocks are height 1, GLOBAL, no exceptions" (Alexander, 2026-07-27). A height of 0 is not a
+    // flat tile any more, it is simply not representable: resolveTileHeight clamps it back to one block. So
+    // the edit is a no-op rather than a collapse, and nothing above it moves.
+    const grid = mkGrid()
+    grid.setGround(C, R, 'grass')
+    const roof = grid.placeAsset([''], C, R, { type: 'house_4', heightLevel: 1 })
+    roof.height = 2
+
+    setTileHeight(grid, C, R, 0, 0) // try to flatten the ground
+
+    expect(cellStackTop(grid, C, R)).toBe(3) // still 1 block of ground carrying a 2-block roof
+    expect(roof.heightLevel).toBe(1)
   })
 
   test('a Z-WIDTH tile lifts what stands on EVERY block it occupies, not just its anchor', () => {
@@ -193,8 +220,8 @@ describe('RAISE a tile and what is on top of it goes up with it', () => {
 
     // A wall standing on the THIRD block of that span — its own cell, but the same tile underneath.
     const spanned = depthCells(C, R, 4, 'right-down')[2]
-    const wall = grid.placeAsset([''], spanned.col, spanned.row, { type: 'house_4', heightLevel: 0 })
-    wall.height = 4
+    const wall = grid.placeAsset([''], spanned.col, spanned.row, { type: 'house_4', heightLevel: 1 })
+    wall.height = 4 // level 1: standing ON the road tile, the way the stamper would place it
 
     setTileHeight(grid, C, R, 0, 3) // raise the road tile to 3 blocks
 
@@ -213,9 +240,9 @@ describe('RAISE a tile and what is on top of it goes up with it', () => {
     roof.depthDir = 'left-up' // steps -1 col per block: (C+2,R) → (C+1,R) → (C,R)
     expect(depthCells(C + 2, R, 3, 'left-up').some(c => c.col === C && c.row === R)).toBe(true)
 
-    setTileHeight(grid, C, R, 0, 2)
+    setTileHeight(grid, C, R, 0, 2) // the ground under it goes from one block to two — a delta of ONE
 
-    expect(roof.heightLevel).toBe(6)
+    expect(roof.heightLevel).toBe(5)
   })
 
   test('a tile NOT over the raised tile stays put — the lift follows occupancy, not the whole map', () => {
@@ -232,7 +259,7 @@ describe('RAISE a tile and what is on top of it goes up with it', () => {
   test('heights are CONTINUOUS — a 0.001 change lifts by exactly 0.001, never rounded to a whole block', () => {
     const grid = mkGrid()
     grid.setGround(C, R, 'grass')
-    const wall = grid.placeAsset([''], C, R, { type: 'house_4', heightLevel: 0 })
+    const wall = grid.placeAsset([''], C, R, { type: 'house_4', heightLevel: 1 })
     wall.height = 1
 
     setTileHeight(grid, C, R, 0, 0.001)

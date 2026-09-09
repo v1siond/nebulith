@@ -104,7 +104,9 @@ function compositionGrid(): IsometricGrid {
 function twoD(grid: IsometricGrid): Canvas {
   const cv = H.makeCanvas(W, H2)
   const ctx = cv.getContext('2d') as unknown as CanvasRenderingContext2D
-  render2D({ ctx, w: W, h: H2, grid, player: PLAYER, time: 0, zoom: ZOOM, camOffset: { x: 0, y: 0 }, entities: [], enemyCombat: new Map(), connectors: [], quests: [], dayNight: 'day', attackAnims: [], hitMarkers: [], projectiles: [], attackReach: 1, style: EMOJI_STYLE })
+  // chrome OFF: the view's heading/hint is drawn in a blue that the trunk scan reads as trunk pixels, at the
+  // top of the canvas — it dragged the trunk's centroid a whole cell upward and hid the real stacking.
+  render2D({ ctx, w: W, h: H2, grid, player: PLAYER, time: 0, zoom: ZOOM, camOffset: { x: 0, y: 0 }, entities: [], enemyCombat: new Map(), connectors: [], quests: [], dayNight: 'day', attackAnims: [], hitMarkers: [], projectiles: [], attackReach: 1, style: EMOJI_STYLE, chrome: false })
   return cv
 }
 

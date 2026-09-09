@@ -132,8 +132,11 @@ describe('a painted base-height-0 tile honours Z-Width by extruding into a real 
 // NO Z-Width and NO manual height edit. These render a height-1 painted wall (depth unset) and prove it is a
 // taller, higher-coverage BLOCK than the genuinely-flat height-0 face.
 describe('a painted tile with DB block height >= 1 renders as an all-faces BLOCK without any Z-Width', () => {
-  test('height 1 (no z-width) is a TALLER, higher-coverage cube than the flat height-0 thin slab', () => {
-    const flat = greenBBox(draw(paintedWall({ height: 0 })))       // height-0 tile → a THIN slab (block path)
+  test('height 1 (no z-width) is a TALLER, higher-coverage cube than a minimal thin slab', () => {
+    // The slab is 0.1 blocks, not 0. Blocks are a MEASUREMENT and a fraction is honoured, but ZERO is not a
+    // height a block can have any more — "all tiles/blocks are height 1, GLOBAL, no exceptions", so
+    // resolveTileHeight clamps 0 back up to a full block and the two cases would be the same picture.
+    const flat = greenBBox(draw(paintedWall({ height: 0.1 })))     // a genuinely thin slab (block path)
     const block = greenBBox(draw(paintedWall({ height: 1 })))      // DB block tile → a full extruded cube, NO depth
 
     expect(block.vExtent).toBeGreaterThan(flat.vExtent)            // the full cube silhouette is measurably taller
@@ -142,9 +145,9 @@ describe('a painted tile with DB block height >= 1 renders as an all-faces BLOCK
 
   test('the full cube paints a taller side-face COLUMN than the thin slab (both are blocks, cube is deeper)', () => {
     // Directly under-left of the base diamond is the block's LEFT side face — a tall column for the full cube,
-    // only a thin sliver for the height-0 slab (which is a flat, minimal-height block, not a billboard).
+    // only a thin sliver for the 0.1-block slab (which is a minimal-height block, not a billboard).
     const SIDE = { x: CX - TW, y: CY - TH, w: TW, h: TH + 24 }
-    const slabSide = regionGreen(draw(paintedWall({ height: 0 })), SIDE.x, SIDE.y, SIDE.w, SIDE.h)
+    const slabSide = regionGreen(draw(paintedWall({ height: 0.1 })), SIDE.x, SIDE.y, SIDE.w, SIDE.h)
     const blockSide = regionGreen(draw(paintedWall({ height: 1 })), SIDE.x, SIDE.y, SIDE.w, SIDE.h)
     expect(blockSide).toBeGreaterThan(0)  // the full cube has a tall visible side face
     expect(blockSide).toBeGreaterThan(slabSide)

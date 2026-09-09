@@ -14,7 +14,8 @@
 import '@/__tests__/helpers/installTilesetSeed' // ground reads the loaded backend tileset — install the fixture
 import { isoZOffset, DEPTH_STEP, type DepthDir } from '@/engine/render/isoBlock'
 import { render } from '@/engine/render/iso'
-import { render2D } from '@/engine/render/topdown'
+import { render2D, twoDRecordedTileGeom } from '@/engine/render/topdown'
+import { tileGeomCentroid, type Pt } from '@/engine/render/tileHit'
 import { IsometricGrid, type GridAsset } from '@/engine/IsometricGrid'
 import { deserializeToGrid, serializeGrid, type TemplateData } from '@/lib/api'
 import { ASCII_STYLE } from '@/game/artStyle'
@@ -139,41 +140,49 @@ describe('B. ISO render — the asset SLIDES along the diagonal (drawn origin mo
 // ── C. render2D — the slide projects to the ground plane, with NO vertical lift ──────────────────
 describe('C. render2D — z projects to the ground-plane delta, never a vertical lift', () => {
   const CELL = 16, W = 480, H = 480, TILE = 24, PCOL = 20, PROW = 20, ACOL = 22, AROW = 20
-  const UNIQUE = '#0a0b0c' // asset bg colour → find its exact fillRect among the ground rects
   const player = (): PlayerState => ({ x: PCOL * CELL, z: PROW * CELL, moving: false } as PlayerState)
 
   const assetGrid = (zOffset: number, zDir?: DepthDir): IsometricGrid => {
     const grid = new IsometricGrid({ cols: 40, rows: 40, cellSize: CELL, isoScale: 1 })
     grid.setAssets([{
-      art: ['#'], col: ACOL, row: AROW, type: 'crate', color: '#ffffff', bgColor: UNIQUE,
+      art: ['#'], col: ACOL, row: AROW, type: 'crate', color: '#ffffff',
       ...(zOffset ? { zOffset } : {}), ...(zDir ? { zDir } : {}),
     } as GridAsset])
     return grid
   }
-  const assetRect = (zOffset: number, zDir?: DepthDir): Rect => {
-    const { ctx, rects } = recordingCtx()
+
+  /**
+   * Where the renderer says it drew the tile — read from its OWN per-frame hit record, the same one the
+   * editor's picker reads back, so this can never drift from the draw.
+   *
+   * The earlier probe hunted the raw fillRect stream for a magic `bgColor`. That colour is only filled by
+   * `drawTopLastResortGlyph` — the no-baked-tile path — so once every tile became image-backed (MAP-MODEL §8)
+   * the asset drew through `drawImage` and the probe found nothing at all. It was pinned to a rescue path,
+   * not to the geometry under test.
+   */
+  const assetAt = (zOffset: number, zDir?: DepthDir): Pt => {
+    const { ctx } = recordingCtx()
     render2D({ ctx, w: W, h: H, grid: assetGrid(zOffset, zDir), player: player(), time: 0 })
-    const r = rects.find(r => r.style === UNIQUE && r.w === TILE && r.h === TILE)
-    if (!r) throw new Error('asset rect not drawn')
-    return r
+    const geom = twoDRecordedTileGeom(ACOL, AROW, 0)
+    if (!geom) throw new Error('asset tile not drawn')
+    return tileGeomCentroid(geom)
   }
 
-  test('z=0 baseline', () => {
-    const r = assetRect(0)
-    // cell centre x = W/2 + (col+0.5-PCOL)*TILE; the default-asset rect starts half a tile left of centre.
-    expect(r.x).toBeCloseTo(W / 2 + (ACOL + 0.5 - PCOL) * TILE - TILE / 2, 6)
+  test('z=0 baseline — drawn at its own cell centre, no slide', () => {
+    // camCol = player.x / cellSize = PCOL, and render2D projects at a FIXED 24px base tile.
+    expect(assetAt(0).x).toBeCloseTo(W / 2 + (ACOL + 0.5 - PCOL) * TILE, 6)
   })
 
   test('right-down (+3): the tile slides +3 cells RIGHT on the ground plane; y is UNCHANGED (no vertical lift)', () => {
-    const base = assetRect(0)
-    const moved = assetRect(3, 'right-down') // dc=+1, dr=0 → pure +col
+    const base = assetAt(0)
+    const moved = assetAt(3, 'right-down') // dc=+1, dr=0 → pure +col
     expect(moved.x - base.x).toBeCloseTo(3 * TILE, 6) // slid right by 3 cells
     expect(moved.y).toBeCloseTo(base.y, 6) // NO vertical lift — the old zOffset*tileH*0.9 lift is gone
   })
 
   test('right-up (+3): pure depth (−row) → x UNCHANGED, projects to screen-up (still a ground move, not a lift)', () => {
-    const base = assetRect(0)
-    const moved = assetRect(3, 'right-up') // dc=0, dr=-1 → pure −row
+    const base = assetAt(0)
+    const moved = assetAt(3, 'right-up') // dc=0, dr=-1 → pure −row
     expect(moved.x).toBeCloseTo(base.x, 6)
     expect(moved.y - base.y).toBeCloseTo(-3 * TILE, 6) // the row delta projects to screen-up in the 2D view
   })

@@ -6,15 +6,15 @@
  * emoji head. The fix passes the ACTUAL drawn-sprite top, so the bar hugs the head in every branch.
  *
  * These drive the REAL view drawers (drawIsoEntity, drawTopEntity) onto a recording 2D context and read
- * back the drawn coordinates: the HP-bar body rect (its unique '#3a1414' fill) vs the drawn sprite (the
- * emoji glyph's y, or — under ascii — the top figure glyph). The vertical gap between them must be a
- * TIGHT band of the head (well under one cell), NOT the old multi-cell float.
+ * back the drawn coordinates: the HP-bar body rect (its unique '#3a1414' fill) vs the drawn sprite's own y.
+ * The vertical gap between them must be a TIGHT band of the head (well under one cell), NOT the old
+ * multi-cell float.
  */
 import { styleTiles } from '@/engine/tileset/styleTiles'
 import { drawIsoEntity } from '@/engine/render/iso'
 import { drawTopEntity } from '@/engine/render/topdown'
 import { drawFigureVitals, VITALS_HEAD_GAP_PX, VITALS_NAME_COLOR } from '@/engine/render/shared'
-import { EMOJI_STYLE, ASCII_STYLE, rebuildEmojiStyle } from '@/game/artStyle'
+import { EMOJI_STYLE, rebuildEmojiStyle } from '@/game/artStyle'
 import type { Entity } from '@/game/types'
 
 // This geometry test reads the drawn SPRITE's y via its fillText glyph, so it needs the base enemy to draw
@@ -25,7 +25,7 @@ beforeAll(() => { styleTiles('emoji').enemy = { char: '👾', color: '#b45ac0' }
 afterAll(() => { delete styleTiles('emoji').enemy; rebuildEmojiStyle() })
 
 // The HP-bar BODY rect (drawHpBar's second fillRect) — its fill colour is unique, so we find the bar's
-// bottom edge unambiguously in either style. The emoji glyph the enemy draws under EMOJI mode.
+// bottom edge unambiguously. The glyph the enemy draws.
 const HP_BODY_FILL = '#3a1414'
 const ENEMY_EMOJI = '👾'
 
@@ -72,8 +72,8 @@ function hpBarBottom(rects: RectRec[]): number {
   return body.y + body.h
 }
 
-/** A bare enemy with NO enemyType → under EMOJI it resolves to the base 👾 GLYPH (no image), so the glyph
- *  branch runs and we can read the sprite's on-screen y. Under ASCII it draws the multi-row block figure. */
+/** A bare enemy with NO enemyType → it resolves to the base 👾 GLYPH (no image), so the glyph branch runs
+ *  and we can read the sprite's on-screen y. */
 function enemy(): Entity {
   return {
     id: 'e1', kind: 'enemy', col: 3, row: 3, name: 'Slime',
@@ -127,20 +127,15 @@ describe('EMOJI enemy — the bar hugs the short billboard, not a phantom ascii 
   })
 })
 
-describe('ASCII enemy — the bar still hugs the block figure’s own head', () => {
-  it('iso: HP bar sits just above the top figure glyph (within one row)', () => {
-    const { ctx, rects, texts } = recCtx()
-    const tileH = 32
-    const lineHeight = tileH * 1.4
-    drawIsoEntity(ctx, 200, 200, enemy(), tileH, undefined, 0, false, /*inRange*/ true, false, ASCII_STYLE)
-    // The figure glyphs are every non-name text with visible ink; the topmost (min y) is the head row.
-    // Exclude the name label — its fg is VITALS_NAME_COLOR and its drop-shadow is pure '#000000' (the
-    // block figure's own shadow is 'rgba(0,0,0,0.55)', so real figure rows survive this filter).
-    const figureGlyphs = texts.filter(t => t.fill !== VITALS_NAME_COLOR && t.fill !== '#000000' && t.text.trim() !== '')
-    expect(figureGlyphs.length).toBeGreaterThan(0)
-    const topGlyphY = Math.min(...figureGlyphs.map(t => t.y))
-    const gap = topGlyphY - hpBarBottom(rects)
-    expect(gap).toBeGreaterThan(0) // bar is above the figure's head, not overlapping it
-    expect(gap).toBeLessThan(lineHeight * 1.3) // and within a row of it — tight, not floating
-  })
-})
+// The third group here asserted that ASCII was different IN KIND — a tall stack of character rows whose
+// topmost glyph was the head, against emoji's short billboard — and it is deleted rather than re-pointed.
+//
+// That is no longer what ASCII is. An ascii unit is a GRID of characters BAKED TO A PICTURE in the backend
+// (a dog is not the letter 'd'), so it draws through the SAME sprite path emoji does; there is no ascii glyph
+// stack left to measure. Keeping the group meant asserting a second engine, which is the one thing the
+// tileset model forbids — and it could only be made to "pass" by hand-feeding this harness a live ascii
+// glyph, i.e. by re-staging the removed model in the fixture.
+//
+// Nothing is lost. The two cases above already pin the bar against a real drawn sprite, and STYLE PARITY —
+// that ascii and emoji run one engine — is proved on a real canvas with real baked images in
+// asciiSameEngineAsEmoji.realcanvas.test.ts, which is where it belongs.

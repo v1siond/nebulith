@@ -48,18 +48,24 @@ export function drawTopEntity(
   // The figure spans a footprint (a 3-row figure ≈ 2 cells tall, 1 wide) anchored so
   // the entity's cell is the BOTTOM cell — matching the player's 2-tall look in top view.
   const art = entityAnimFrame(entity, now, moving, inRange)
-  const cellsTall = Math.max(2, Math.ceil(art.length / 1.5))
+  // ROWS the figure's layout is measured in. A unit is a baked PICTURE now, not a stack of characters, so
+  // `art` is routinely EMPTY — and dividing by that yields Infinity, not an error, which then poisoned
+  // fontSize → footY → figureTop → the HP bar's y with NaN. (The HP bar still "drew", at NaN, so it simply
+  // vanished from the 2D view.) One row is the honest measure for an image/glyph unit: it occupies one.
+  // The iso twin derives its font from the tile height instead, which is why only this view was affected.
+  const rows = Math.max(1, art.length)
+  const cellsTall = Math.max(2, Math.ceil(rows / 1.5))
   const spanH = cellsTall * tileSize
   const topY = y - (cellsTall - 1) * tileSize
-  const fontSize = Math.max(6, (spanH * 0.9) / art.length)
+  const fontSize = Math.max(6, (spanH * 0.9) / rows)
   const charW = fontSize * 0.6
   const maxW = art.reduce((m, r) => Math.max(m, r.length), 0)
   const cx = x + tileSize / 2
   const textLeft = cx - (maxW * charW) / 2
-  const startY = topY + spanH / 2 - ((art.length - 1) / 2) * fontSize
+  const startY = topY + spanH / 2 - ((rows - 1) / 2) * fontSize
 
   // Ground shadow at the figure's feet (bottom row) — sized to the figure.
-  const footY = startY + (art.length - 1) * fontSize + fontSize * 0.35
+  const footY = startY + (rows - 1) * fontSize + fontSize * 0.35
   drawGroundShadow(ctx, cx, footY, (maxW * charW) / 2)
   // Selected target: red reticle at the feet (mirrors the iso view's drawSelectionRing).
   if (isTarget) drawSelectionRing(ctx, cx, footY, (maxW * charW) / 2 + tileSize * 0.28)
@@ -588,6 +594,11 @@ export function render2D(params: Render2DParams) {
         } else {
           const cy = baseY - personGlyphPx * 0.42
           ctx.font = `bold ${personGlyphPx}px ${ASCII_FONT}` // character height, matching npcs
+          // The hero's OWN colour. `fillStyle` is sticky canvas state and `drawFacingGlyph` is a shared
+          // primitive that does not set it, so without this line the hero is painted in whatever colour the
+          // last tile drawn before it happened to leave behind — a magenta tree cell made a magenta hero.
+          // The other three glyph call sites (iso hero, iso entity, 2D entity) already set it; this one did not.
+          ctx.fillStyle = pdv.color
           drawFacingGlyph(ctx, genderize(pf.char ?? pdv.char, player.variant), p.x, cy, pf.flipX)
           ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
           headY = cy - personGlyphPx * 0.5
