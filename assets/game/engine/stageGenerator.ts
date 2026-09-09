@@ -1149,8 +1149,14 @@ const FOREST_LAYOUTS: Readonly<Partial<Record<ForestLayout, (ctx: ArchetypeConte
 
 /** Woodland tuning that is NOT the generator's to state — the shape of the algorithm, not its dial. */
 const WOODLAND = {
-  /** Clearings per 1,000 cells. Enough that a map always has somewhere to stand. */
-  clearingsPerThousand: 2.2,
+  /**
+   * Clearings per 1,000 cells.
+   *
+   * Alexander, 2026-09-09: *"the woodland is bad, in the sense that, the forest is generated without any
+   * roads, there's no way to navigate it."* Two clearings on a small map gave ONE trail between them, which
+   * is not a network. Raised so a map always has somewhere to go as well as somewhere to stand.
+   */
+  clearingsPerThousand: 5,
   /** A clearing's radius range, in cells. */
   clearingRadius: [2, 5] as const,
   /** How wide a path through the trees is. Two cells so a unit never threads a one-cell gap. */
@@ -1179,6 +1185,9 @@ function layoutWoodland(ctx: ArchetypeContext): void {
   // 1 · CLEARINGS first, as a mask, so the canopy pass can simply avoid them. Deciding the holes before
   //     the fill is cheaper and more controllable than planting everything and cutting back.
   const open = new Set<string>()
+  // The corridor cells specifically. `open` also holds the clearings, and paving those would turn every
+  // glade into a courtyard — a trail is the route BETWEEN them.
+  const trailCells = new Set<string>()
   const clearings: Cell[] = []
   const wanted = Math.max(2, Math.round((cols * rows / 1000) * WOODLAND.clearingsPerThousand))
   for (let i = 0; i < wanted; i++) {
@@ -1198,9 +1207,27 @@ function layoutWoodland(ctx: ArchetypeContext): void {
     }
   }
 
-  // 2 · PATHS joining the clearings in a chain, so every one of them is reachable from every other.
-  //     A chain (not a full mesh) is enough for connectivity and leaves the forest feeling like forest.
-  for (let i = 1; i < clearings.length; i++) carveWoodlandPath(ctx, clearings[i - 1], clearings[i], open)
+  // 2 · TRAILS joining the clearings in a chain, so every one is reachable from every other, plus a spur
+  //     from the first and last clearing to the map EDGE — a forest you cannot enter or leave is a room.
+  //
+  //     Alexander, 2026-09-09: *"there's no way to navigate it."* The first version stopped here and only
+  //     removed canopy, so a trail was an absence rather than a route: nothing marked it, nothing paved it,
+  //     and with two clearings there was one of them. Now the corridors are PAVED (step 2b) and there are
+  //     enough of them to form a network.
+  for (let i = 1; i < clearings.length; i++) carveWoodlandPath(ctx, clearings[i - 1], clearings[i], open, trailCells)
+  if (clearings.length > 0) {
+    carveWoodlandPath(ctx, clearings[0], nearestEdgeCell(clearings[0], cols, rows), open, trailCells)
+    const last = clearings[clearings.length - 1]
+    carveWoodlandPath(ctx, last, nearestEdgeCell(last, cols, rows), open, trailCells)
+  }
+
+  // 2b · PAVE them. A trail has to be visible to be a trail — this is the half that was missing. The tile
+  //      comes from the zone's palette, so a season can pave its trails differently without a branch here.
+  const trail = ZONE_PALETTES[zone].trail
+  for (const key of trailCells) {
+    const [c, r] = key.split(',').map(Number)
+    if (inBounds(c, r, cols, rows)) ground[r][c] = trail
+  }
 
   // 3 · CANOPY everywhere else — chosen, not thrown.
   //
@@ -1231,18 +1258,36 @@ function layoutWoodland(ctx: ArchetypeContext): void {
 }
 
 /**
+ * The nearest point on the map edge to a cell — where a trail leaves the forest.
+ *
+ * Nearest rather than random so the spur is short: a trail crossing the whole map to reach a far edge would
+ * cut the woodland in half, which is the opposite of what a forest with a road through it should look like.
+ */
+function nearestEdgeCell(from: Cell, cols: number, rows: number): Cell {
+  const options: ReadonlyArray<readonly [number, Cell]> = [
+    [from.row, { col: from.col, row: 0 }],
+    [rows - 1 - from.row, { col: from.col, row: rows - 1 }],
+    [from.col, { col: 0, row: from.row }],
+    [cols - 1 - from.col, { col: cols - 1, row: from.row }],
+  ]
+  return options.reduce((best, next) => (next[0] < best[0] ? next : best))[1]
+}
+
+/**
  * Cut a walkable path between two clearings, clearing canopy as it goes.
  *
  * An L with a wobble rather than a straight line: a forest track bends. It walks the column first or the
  * row first at random, so a map does not read as a grid of right angles all turning the same way.
  */
-function carveWoodlandPath(ctx: ArchetypeContext, from: Cell, to: Cell, open: Set<string>): void {
+function carveWoodlandPath(ctx: ArchetypeContext, from: Cell, to: Cell, open: Set<string>, trailCells: Set<string>): void {
   const { cols, rows } = ctx
   const colFirst = ctx.rand() < 0.5
   const widen = (c: number, r: number) => {
     for (let dr = 0; dr < WOODLAND.pathWidth; dr++) {
       for (let dc = 0; dc < WOODLAND.pathWidth; dc++) {
-        if (inBounds(c + dc, r + dr, cols, rows)) open.add(`${c + dc},${r + dr}`)
+        if (!inBounds(c + dc, r + dr, cols, rows)) continue
+        open.add(`${c + dc},${r + dr}`)
+        trailCells.add(`${c + dc},${r + dr}`)
       }
     }
   }

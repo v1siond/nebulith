@@ -16,6 +16,14 @@ export interface ZonePalette {
   groundTypes: string[]
   /** The "water" equivalent hazard tile for this season (winter = walkable ice). */
   hazard: string
+  /**
+   * The ground tile a TRAIL is paved with — a walkable route cut through whatever fills the map.
+   *
+   * `path` in every zone today because it is the only road-category tile the catalog serves for all of
+   * them (`snow_path` and `desert_road` are not authored yet). It sits here rather than in the layout so
+   * that authoring them later is a data change in this table, not a branch in a generator.
+   */
+  trail: string
   wallColor: string
   accentColor: string
 }
@@ -25,6 +33,7 @@ export const ZONE_PALETTES: Record<ZoneId, ZonePalette> = {
     id: 'spring',
     groundTypes: ['meadow', 'grass_tall', 'grass'],
     hazard: 'water',
+    trail: 'path',
     wallColor: '#6a5a3a',
     accentColor: '#ff9ecf', // blossom pink
   },
@@ -32,6 +41,7 @@ export const ZONE_PALETTES: Record<ZoneId, ZonePalette> = {
     id: 'summer',
     groundTypes: ['meadow', 'grass_tall', 'grass'],
     hazard: 'water',
+    trail: 'path',
     wallColor: '#5a4a30',
     accentColor: '#2e8b2e', // deep green
   },
@@ -39,34 +49,39 @@ export const ZONE_PALETTES: Record<ZoneId, ZonePalette> = {
     id: 'autumn',
     groundTypes: ['autumn_ground', 'autumn_leaves', 'autumn_ground'],
     hazard: 'water',
+    trail: 'path',
     wallColor: '#6a4a28',
     accentColor: '#d2691e', // amber
   },
   winter: {
     id: 'winter',
     groundTypes: ['snow', 'ice', 'frost'],
-    hazard: 'ice_water', // ice is walkable (skate/swim later)
+    hazard: 'ice_water',
+    trail: 'path', // ice is walkable (skate/swim later)
     wallColor: '#3a5a7a',
     accentColor: '#a0e0ff', // frost blue
   },
   desert: {
     id: 'desert',
     groundTypes: ['sand', 'sand_dune', 'sand'],
-    hazard: 'water', // rare oasis
+    hazard: 'water',
+    trail: 'path', // rare oasis
     wallColor: '#b89a5a', // sandstone
     accentColor: '#e8c97a', // sunlit dune
   },
   beach: {
     id: 'beach',
     groundTypes: ['sand', 'sand_dune', 'sand'],
-    hazard: 'water', // the sea
+    hazard: 'water',
+    trail: 'path', // the sea
     wallColor: '#c2a878',
     accentColor: '#7fd0c0', // sea-foam
   },
   lava: {
     id: 'lava',
     groundTypes: ['ash', 'rock', 'basalt'],
-    hazard: 'lava', // molten — always blocks
+    hazard: 'lava',
+    trail: 'path', // molten — always blocks
     wallColor: '#4a4038',
     accentColor: '#ff7a30', // ember
   },
