@@ -13,7 +13,7 @@
 import { readFileSync } from 'fs'
 import { resolve } from 'path'
 import { render, screen, fireEvent } from '@testing-library/react'
-import { UnitPicker } from '@/components/game/editorChrome'
+import { UnitPicker, UnitPlacementBody } from '@/components/game/editorChrome'
 import type { TileDef } from '@/game/artStyle'
 
 const TEMPLATES_SRC = resolve(__dirname, '../../pages/personal-projects/game-engine/templates.tsx')
@@ -43,56 +43,96 @@ function renderPicker(overrides: Partial<React.ComponentProps<typeof UnitPicker>
 describe('◈ Unit top-nav — the creature picker', () => {
   it('lists the units-category tiles so you can SEE which enemy/creature to add', () => {
     renderPicker()
-    expect(screen.getByTitle('Goblin (emoji:goblin)')).toBeInTheDocument()
-    expect(screen.getByTitle('Wolf (emoji:wolf)')).toBeInTheDocument()
+    expect(screen.getByTitle('Goblin')).toBeInTheDocument()
+    expect(screen.getByTitle('Wolf')).toBeInTheDocument()
   })
 
   it('picking a tile fires onPick with that tile', () => {
     const onPick = jest.fn()
     renderPicker({ onPick })
-    fireEvent.click(screen.getByTitle('Goblin (emoji:goblin)'))
+    fireEvent.click(screen.getByTitle('Goblin'))
     expect(onPick).toHaveBeenCalledWith(GOBLIN)
   })
 
   it('re-picking the armed tile disarms (onPick(null))', () => {
     const onPick = jest.fn()
     renderPicker({ pickedId: GOBLIN.id, onPick })
-    const btn = screen.getByTitle('Goblin (emoji:goblin)')
+    const btn = screen.getByTitle('Goblin')
     expect(btn).toHaveAttribute('aria-pressed', 'true')
     fireEvent.click(btn)
     expect(onPick).toHaveBeenCalledWith(null)
   })
 
-  it('offers Add / Scatter placement modes and switches between them', () => {
-    const onMode = jest.fn()
-    renderPicker({ onMode })
-    // Add is the default → the motion toggle shows; the Scatter button does not.
-    expect(screen.getByRole('button', { name: /Scatter/i })).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: '⤳ Scatter' }))
-    expect(onMode).toHaveBeenCalledWith('scatter')
-  })
-
-  it('in Add mode, a Static / Animated toggle picks the placed unit motion', () => {
-    const onAnimated = jest.fn()
-    renderPicker({ mode: 'add', onAnimated })
-    expect(screen.getByRole('button', { name: /Static/i })).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: /Animated/i }))
-    expect(onAnimated).toHaveBeenCalledWith(true)
-  })
-
-  it('in Scatter mode the Scatter action runs onScatter and the motion toggle is hidden', () => {
-    const onScatter = jest.fn()
-    renderPicker({ mode: 'scatter', pickedId: GOBLIN.id, onScatter })
-    // motion toggle only bites in Add mode
-    expect(screen.queryByRole('button', { name: /Static/i })).toBeNull()
-    const scatter = screen.getByRole('button', { name: /Scatter Goblin/i })
-    fireEvent.click(scatter)
-    expect(onScatter).toHaveBeenCalledTimes(1)
+  it('sends you to the Behaviour panel, and says what it is set to without opening it', () => {
+    const onOpenPlacement = jest.fn()
+    renderPicker({ onOpenPlacement, placeAs: 'enemy', animated: true })
+    const btn = screen.getByRole('button', { name: /Behaviour/i })
+    expect(btn).toHaveTextContent('Unfriendly · Patrols') // readable at a glance, unopened
+    fireEvent.click(btn)
+    expect(onOpenPlacement).toHaveBeenCalledTimes(1)
   })
 
   it('with no units it degrades gracefully (no crash, a hint instead of a grid)', () => {
     renderPicker({ units: [] })
-    expect(screen.getByText(/No unit tiles/i)).toBeInTheDocument()
+    expect(screen.getByText(/No characters in this style yet/i)).toBeInTheDocument()
+  })
+})
+
+// The three placement decisions moved OUT of the picker into their own movable panel — Alexander,
+// 2026-09-09: *"that's why I requested explicitly to consider movable modals, because I knew this was gonna
+// be a problem."* Stacked under the grid they crushed the swatches into one clipped row. They were relabelled
+// in the same pass (*"'how it will be placed' is not clear at all"*, *"we need clear concise labeling that
+// clearly points at the action/feature"*), so both the HOME and the WORDS below are the current ones.
+describe('◈ How a character lands — the behaviour panel', () => {
+  const renderPlacement = (overrides: Partial<React.ComponentProps<typeof UnitPlacementBody>> = {}) => {
+    const props: React.ComponentProps<typeof UnitPlacementBody> = {
+      mode: 'add',
+      onMode: jest.fn(),
+      animated: false,
+      onAnimated: jest.fn(),
+      onScatter: jest.fn(),
+      placeAs: 'auto',
+      onPlaceAs: jest.fn(),
+      ...overrides,
+    }
+    return { props, ...render(<UnitPlacementBody {...props} />) }
+  }
+
+  it('offers one-at-a-time vs sprinkle, and switches between them', () => {
+    const onMode = jest.fn()
+    renderPlacement({ onMode })
+    expect(screen.getByRole('button', { name: /One at a time/i })).toHaveAttribute('aria-pressed', 'true')
+    fireEvent.click(screen.getByRole('button', { name: /Sprinkle several/i }))
+    expect(onMode).toHaveBeenCalledWith('scatter')
+  })
+
+  it('one-at-a-time offers the motion choice — stands still vs patrols', () => {
+    const onAnimated = jest.fn()
+    renderPlacement({ mode: 'add', onAnimated })
+    expect(screen.getByRole('button', { name: /Stands still/i })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /Patrols nearby/i }))
+    expect(onAnimated).toHaveBeenCalledWith(true)
+  })
+
+  it('sprinkling runs onScatter, names what it will sprinkle, and hides the motion choice', () => {
+    const onScatter = jest.fn()
+    renderPlacement({ mode: 'scatter', pickedLabel: 'Goblin', onScatter })
+    // motion only bites one-at-a-time — a sprinkle always attaches a patrol
+    expect(screen.queryByRole('button', { name: /Stands still/i })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: /Sprinkle Goblin/i }))
+    expect(onScatter).toHaveBeenCalledTimes(1)
+  })
+
+  it('whose side is two answers, not three — neither pressed means the creature decides', () => {
+    // Alexander, 2026-09-08: *"I don't think auto should be an option in the character, it's either friendly
+    // or unfriendly as simple as that."* So `auto` survives as the DEFAULT, never as a third button.
+    const onPlaceAs = jest.fn()
+    renderPlacement({ placeAs: 'auto', onPlaceAs })
+    expect(screen.getByRole('button', { name: /^Friendly$/i })).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByRole('button', { name: /^Unfriendly$/i })).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.queryByRole('button', { name: /^Auto$/i })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: /^Friendly$/i }))
+    expect(onPlaceAs).toHaveBeenCalledWith('npc')
   })
 })
 
