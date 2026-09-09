@@ -44,7 +44,7 @@ describe('Tile Library sidebar reads ONLY the backend-loaded tileset (G3/G4)', (
     // G3 render: image tiles draw their baked art (<img>), never the 🖼 placeholder
     render(<TilePalette styleId="emoji" styleName="Emoji" armedId={null} onArm={() => {}} />)
     expect(screen.queryAllByText('🖼')).toHaveLength(0)
-    const btn = screen.getByTitle('Grass (emoji:grass)')
+    const btn = screen.getByTitle('Grass')
     expect(btn.querySelector('img')?.getAttribute('src')).toBe('/tiles/emoji/baked/grass.png')
   })
 
@@ -56,18 +56,21 @@ describe('Tile Library sidebar reads ONLY the backend-loaded tileset (G3/G4)', (
     installStyleTiles('emoji', {
       grass: { char: '🍀', color: '#5faf4a', image: '/tiles/emoji/baked/grass.png', category: 'terrain', title: 'Grass' },
       pine_tree: { char: '🌲', color: '#2f7d3a', category: 'nature', title: 'Pine Tree', height: 1 },
-      goblin: { char: '👺', color: '#c0392b', category: 'units', title: 'Goblin' },
-      npc: { char: '🧍', color: '#4aa3df', category: 'units', title: 'NPC' },
+      // A units-category tile is only a CHARACTER when its backend row says so (`settings.unitRole`). The
+      // split is by ROLE, not by category, because the twelve fx labels (arrow, nova, fire-slash…) live in
+      // `units` too and ARE paintable. A fixture without the role reads as fx and is kept — which is right.
+      goblin: { char: '👺', color: '#c0392b', category: 'units', title: 'Goblin', settings: { unitRole: 'enemy' } },
+      npc: { char: '🧍', color: '#4aa3df', category: 'units', title: 'NPC', settings: { unitRole: 'person' } },
     })
     rebuildEmojiStyle()
 
     render(<TilePalette styleId="emoji" styleName="Emoji" armedId={null} onArm={() => {}} />)
     // regular tiles ARE offered
-    expect(screen.getByTitle('Grass (emoji:grass)')).toBeInTheDocument()
-    expect(screen.getByTitle('Pine Tree (emoji:pine_tree)')).toBeInTheDocument()
+    expect(screen.getByTitle('Grass')).toBeInTheDocument()
+    expect(screen.getByTitle('Pine Tree')).toBeInTheDocument()
     // unit/enemy tiles are NOT — and the "units" category header never renders in the paint palette
-    expect(screen.queryByTitle('Goblin (emoji:goblin)')).toBeNull()
-    expect(screen.queryByTitle('NPC (emoji:npc)')).toBeNull()
+    expect(screen.queryByTitle('Goblin')).toBeNull()
+    expect(screen.queryByTitle('NPC')).toBeNull()
     expect(screen.queryByText('Units')).toBeNull()
   })
 
@@ -76,12 +79,16 @@ describe('Tile Library sidebar reads ONLY the backend-loaded tileset (G3/G4)', (
   it('the Tile Library still lists units (only the Paint palette drops them)', () => {
     installStyleTiles('emoji', {
       grass: { char: '🍀', color: '#5faf4a', category: 'terrain', title: 'Grass' },
-      goblin: { char: '👺', color: '#c0392b', category: 'units', title: 'Goblin' },
+      goblin: { char: '👺', color: '#c0392b', category: 'units', title: 'Goblin', settings: { unitRole: 'enemy' } },
     })
     rebuildEmojiStyle()
     render(<TileLibraryBody styleId="emoji" styleName="Emoji" override={null} onPick={() => {}} />)
-    expect(screen.getByTitle('Goblin (emoji:goblin)')).toBeInTheDocument()
-    expect(screen.getByText('Units')).toBeInTheDocument()
+    expect(screen.getByTitle('Goblin')).toBeInTheDocument() // the character IS browsable here
+    // NOTE the heading: the library calls the `units` bucket "Effects", because in the PAINT palette that
+    // group holds only the fx labels (arrow, nova, fire-slash…) once characters are filtered out. The library
+    // does not filter, so a character lands under a heading that does not describe it. Asserted as-is rather
+    // than quietly renamed — it is a labelling wart worth Alexander's eye, not a test to bend.
+    expect(screen.getByText('Effects')).toBeInTheDocument()
   })
 
   it('ascii sidebar derives from the loaded ascii tileset (glyph + title from the DB, not a hardcoded map)', () => {

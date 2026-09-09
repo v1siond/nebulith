@@ -106,20 +106,46 @@ describe('a selected UNIT renders the SAME control set as a selected tile', () =
     const unitControls = controlNames(unit.container)
 
     expect(cellControls.length).toBeGreaterThan(0)
-    for (const name of cellControls) expect(unitControls).toContain(name)
+    // The one thing that SHOULD differ is the heading naming what you selected — a tile card says "Tile", a
+    // unit card says "Character". That is the card telling you what it is about, not a control, so it is
+    // excluded here and asserted on its own below. Everything else must match.
+    for (const name of cellControls.filter(n => n !== 'Tile')) expect(unitControls).toContain(name)
   })
 
-  it('the unit card carries the tile summary: colour swatch, tile chip, Replace tile, Edit settings, Animate', () => {
+  it('…and the card NAMES what you selected — a tile is a Tile, a unit is a Character', () => {
+    const cell = renderCard()
+    expect(controlNames(cell.container)).toContain('Tile')
+    expect(controlNames(cell.container)).not.toContain('Character')
+    cell.unmount()
+
+    const unit = renderCard({ unitSection: <UnitSettingsSection unit={unitModel()} /> })
+    expect(controlNames(unit.container)).toContain('Character')
+    expect(controlNames(unit.container)).not.toContain('Tile')
+  })
+
+  it('the unit card carries the tile summary: colour swatch, tile chip, Replace tile, Animate, Rules', () => {
     renderCard({
-      tile: tileModel({ label: 'Goblin', preview: { kind: 'image', src: '/tiles/emoji/goblin.png', char: '👺' } }),
+      tile: tileModel({
+        label: 'Goblin',
+        preview: { kind: 'image', src: '/tiles/emoji/goblin.png', char: '👺' },
+        libraryLabel: 'Replace tile',
+        onOpenAnimator: jest.fn(),
+      }),
+      onOpenTriggers: jest.fn(),
       unitSection: <UnitSettingsSection unit={unitModel()} />,
     })
     expect(screen.getByAltText('Goblin')).toBeInTheDocument() // the tile chip shows the unit's baked art
     expect(screen.getByLabelText('Goblin colour')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Replace tile' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Edit settings' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Animate tile' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Edit triggers' })).toBeInTheDocument()
+    // "Edit triggers" is now "the rules for this" — the Triggers→Rules language you asked to finish.
+    expect(screen.getByRole('button', { name: 'Edit the rules for this' })).toBeInTheDocument()
+    // There is no "Edit settings" button any more: that modal was one flat wall of controls, and its
+    // contents now live ON the card as the named sections below (Appearance / Size & position / Behaviour).
+    expect(screen.queryByRole('button', { name: /Edit settings/i })).toBeNull()
+    for (const s of ['Appearance', 'Size & position', 'Behaviour']) {
+      expect(screen.getByRole('button', { name: s })).toBeInTheDocument()
+    }
   })
 
   it('shows the Clear tiles action for a unit too (the tile card vocabulary: add / replace / clear / remove)', () => {
@@ -310,8 +336,11 @@ describe('the page replaces the unit menu with the tile card', () => {
     expect(src).not.toContain('SelectionHeader kind={selEntity.kind}')
     expect(src).not.toContain('>Deselect<')
     expect(src).not.toContain('onClick={deleteSelectedEntity}')
-    // nothing is LOST with the header: the coords ride the card title, like the cell card's `Cell (3, 4)`
-    expect(src).toContain('(${selEntity.col}, ${selEntity.row})')
+    // The old header also carried the unit's COORDS, and nothing on the card replaced them — neither card
+    // shows a cell reference since the §3.10 restructure turned the headings into `Tile` / `Character`. The
+    // page comment still claims "the coords ride the card title", which was an intent, never a change. Left
+    // as an open question for Alexander rather than invented here; asserting a title that does not exist was
+    // hiding it. The three negatives above are what actually guarantees the duplicate header is gone.
   })
 
   it('gives the unit card the SAME Save map button the cell card has (one component)', () => {

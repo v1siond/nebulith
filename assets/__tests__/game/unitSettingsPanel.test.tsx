@@ -76,16 +76,18 @@ describe('the shared control body — a unit uses the SAME settings UX as a tile
     expect(screen.getByLabelText('Width')).toBeInTheDocument()
     expect(screen.getByLabelText('Height')).toBeInTheDocument()
     expect(screen.getByLabelText('Zoom')).toBeInTheDocument()
-    expect(screen.getByLabelText('x')).toBeInTheDocument()
-    expect(screen.getByLabelText('y')).toBeInTheDocument()
-    expect(screen.getByLabelText('rotate')).toBeInTheDocument()
-    expect(screen.getByLabelText('flip horizontally')).toBeInTheDocument()
+    // The nudge controls say what they DO now — bare x / y / rotate / "flip horizontally" became
+    // Left ↔ Right, Up ↕ Down, Rotate and Mirror. The labels changed; the writers did not.
+    expect(screen.getByLabelText('Left ↔ Right')).toBeInTheDocument()
+    expect(screen.getByLabelText('Up ↕ Down')).toBeInTheDocument()
+    expect(screen.getByLabelText('Rotate')).toBeInTheDocument()
+    expect(screen.getByLabelText('Mirror')).toBeInTheDocument()
   })
 
   it('keeps asset-only tile controls OUT of the unit view (clean split)', () => {
     render(<><TileControls tile={makeUnitTile()} /><UnitSettingsSection unit={makeUnit()} /></>)
-    expect(screen.queryByRole('group', { name: 'Z Width per direction' })).toBeNull()
-    expect(screen.queryByLabelText('Z-Index')).toBeNull()
+    expect(screen.queryByRole('group', { name: 'Footprint per direction' })).toBeNull() // was "Z Width"
+    expect(screen.queryByLabelText('Draw order')).toBeNull() // was "Z-Index"
     expect(screen.queryByLabelText('Light intensity')).toBeNull()
     // Display / Shape toggles (rendered as buttons) are absent too.
     expect(screen.queryByRole('button', { name: 'All faces' })).toBeNull()
@@ -107,9 +109,10 @@ describe('the shared control body — a unit uses the SAME settings UX as a tile
     expect(screen.getByLabelText('wall colour')).toBeInTheDocument()
     expect(screen.getByLabelText('Width')).toBeInTheDocument()
     // …and the asset-only rows DO show for a tile (proves the split is data-driven, not hardcoded).
-    // Z Width is now a MULTI-DIRECTION control (one slider per diagonal — Alexander "two sides at the same time").
-    expect(screen.getByRole('group', { name: 'Z Width per direction' })).toBeInTheDocument()
-    expect(screen.getByLabelText('Z-Index')).toBeInTheDocument()
+    // The footprint is a MULTI-DIRECTION control (one slider per diagonal — Alexander "two sides at the same
+    // time"), named for what it means: how many cells the tile covers. "Z Width"/"Z-Index" said nothing.
+    expect(screen.getByRole('group', { name: 'Footprint per direction' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Draw order')).toBeInTheDocument()
     // …but the unit-only extras are absent.
     expect(screen.queryByLabelText('Entity name')).toBeNull()
     expect(screen.queryByRole('button', { name: /Inventory/ })).toBeNull()
@@ -134,7 +137,7 @@ describe('the shared control body — edits fan out to the selected unit (one so
   it('toggling flip writes through the shared pose writer', () => {
     const onPose = jest.fn()
     render(<><TileControls tile={makeUnitTile({ onPose })} /><UnitSettingsSection unit={makeUnit()} /></>)
-    fireEvent.click(screen.getByLabelText('flip horizontally'))
+    fireEvent.click(screen.getByLabelText('Mirror'))
     expect(onPose).toHaveBeenCalledWith({ flip: true })
   })
 

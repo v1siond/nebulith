@@ -5645,7 +5645,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                   // A unit ALWAYS carries art, so the tile-add button reads "Replace tile" — the SAME button a
                   // cell uses. Its library lists the character tiles (the `units` category), which is how a
                   // unit's figure is changed now that the Figure variant row is gone.
-                  libraryLabel: 'Swap this tile for another…',
+                  libraryLabel: 'Replace tile',
                   onOpenLibrary: () => setTileLibraryOpen(true),
                   pose: selEntity.pose,
                   onPose: p => patchSelectedEntity({ pose: p }),
@@ -5672,8 +5672,10 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                         movement"), Clear tiles, the tile chip + colour, Add/Replace tile, Edit settings…,
                         Animate…, Remove tile, Triggers… and Save map are the tile card's own controls; the unit
                         only ADDS its name/size rows and the Stats / Inventory / Quests / Attacks buttons. */}
-                    {/* The coords ride the card title exactly as the cell card's do (`Cell (3, 4)`) — the old
-                        `▸ PLAYER (PLAYER) @ 32,10` header pill is gone, so there is ONE unit header, not two. */}
+                    {/* The old `▸ PLAYER (PLAYER) @ 32,10` header pill is gone, so there is ONE unit header,
+                        not two. NOTE: its COORDS went with it and nothing here replaced them — the card's
+                        heading is `Character`, the same way a cell's is `Tile`. Open question for Alexander:
+                        whether a selected character should still say which cell it is on. */}
                     <>
                       <PropertiesPanel
                         // ONE collision control for everything: for a unit the toggle IS `blocksMovement`
@@ -5846,7 +5848,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                         // so a plain grass cell reads "Replace tile" too. Only an EMPTY slot (a cleared cell, nothing
                         // to swap) reads "Add tile". Counting levels made the one-tile floor read "Add" and hid the
                         // swap entirely.
-                        const libraryLabel = stack[lvl] ? 'Swap this tile for another…' : 'Add a tile here'
+                        const libraryLabel = stack[lvl] ? 'Replace tile' : 'Add tile'
                         // A tile's baked art for the Inspector thumbnail — pinned override first, else the style's
                         // tile for that slug. Undefined (ascii/none) → the preview shows a neutral placeholder.
                         const previewFor = (id: string | null | undefined, slug: string): Visual | undefined =>

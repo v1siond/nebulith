@@ -94,14 +94,20 @@ describe('#1 Inspector shows the selected tile + a Clear-tiles action', () => {
   })
 })
 
-// ── Deliverable #3 — Tile Library below Colour, opens a draggable/resizable modal ────────────────────────
-describe('#3 the tile-add button sits BELOW Colour and opens a FloatingPanel', () => {
-  it('the Colour swatch appears BEFORE the tile-library button in the DOM', () => {
+// ── Deliverable #3 — the Tile Library button, and the draggable/resizable modal it opens ────────────────
+describe('#3 the tile-add button opens a FloatingPanel', () => {
+  it('the swap-tile button sits in the identity section, ABOVE the Appearance colour', () => {
     renderPanel({ tile: floorTile({ libraryLabel: 'Add tile' }) })
     const colour = screen.getByLabelText('grass colour')
     const libraryBtn = screen.getByRole('button', { name: 'Add tile' })
-    // colour precedes the library button (below-colour ordering)
-    expect(colour.compareDocumentPosition(libraryBtn) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+
+    // ORDER CONFLICT, FLAGGED RATHER THAN SETTLED HERE. Deliverable #3 asked for this button BELOW the
+    // colour swatch. The later §4.7 section design — the approved mockup — puts identity first ("Tile", with
+    // the swap button that answers *what is this*), then "Appearance", which is where the colour now lives.
+    // The card follows the sections, so the button precedes the colour. That reads sensibly (pick the thing,
+    // then paint it) but it is the reverse of #3, and which one wins is Alexander's call, not this test's.
+    // Asserted as-built so the file is an honest description of the card either way.
+    expect(libraryBtn.compareDocumentPosition(colour) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 
   it('the library opens inside a draggable FloatingPanel (dialog with a drag handle + resize grip)', () => {
@@ -163,7 +169,7 @@ describe('#4 TileLibraryBody PAINT mode (right-sidebar paint the selection)', ()
   it('picking a tile in paint mode fires onPick with the tile id (the page routes it to the shared paint path)', () => {
     const onPick = jest.fn()
     render(<TileLibraryBody styleId="emoji" styleName="Emoji" override={null} paint onPick={onPick} />)
-    fireEvent.click(screen.getByTitle(/emoji:pine-tree/))
+    fireEvent.click(screen.getByTitle('Pine Tree')) // a swatch titles itself with the tile's LABEL, not its id
     expect(onPick).toHaveBeenCalledWith('emoji:pine-tree')
   })
 
@@ -234,11 +240,13 @@ describe('#2 Connectors — ConnectorsPanelBody hosts the whole flow', () => {
     const onSave = jest.fn(), onDelete = jest.fn(), onCancel = jest.fn()
     const { rerender } = render(<ConnectorsPanelBody {...connectorProps()} />)
     // not editing → no form
-    expect(screen.queryByLabelText('How the player triggers this connector')).toBeNull()
+    expect(screen.queryByLabelText('How the player opens this doorway')).toBeNull()
 
     rerender(<ConnectorsPanelBody {...connectorProps({ editing: { col: 2, row: 3 }, editingLabel: '(2, 3)', form: { interaction: 'walk', spawnCol: 0, spawnRow: 0, targetTemplateId: 't2' }, onSave, onDelete, onCancel })} />)
-    expect(screen.getByLabelText('Trigger action')).toBeInTheDocument()
-    expect(screen.getByLabelText('How the player triggers this connector')).toBeInTheDocument()
+    // Both of these were relabelled to say what they DO to the thing in front of you: "Trigger action" and
+    // "How the player triggers this connector" named the mechanism, not the choice.
+    expect(screen.getByLabelText('What this doorway does')).toBeInTheDocument()
+    expect(screen.getByLabelText('How the player opens this doorway')).toBeInTheDocument()
     expect(screen.getByLabelText('Spawn column in target template')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
     expect(onSave).toHaveBeenCalledTimes(1)
@@ -251,7 +259,7 @@ describe('#2 Connectors — ConnectorsPanelBody hosts the whole flow', () => {
   it('changing the interaction dropdown flows up through setForm', () => {
     const setForm = jest.fn()
     render(<ConnectorsPanelBody {...connectorProps({ editing: { col: 2, row: 3 }, editingLabel: '(2, 3)', setForm })} />)
-    fireEvent.change(screen.getByLabelText('How the player triggers this connector'), { target: { value: 'interact' } })
+    fireEvent.change(screen.getByLabelText('How the player opens this doorway'), { target: { value: 'interact' } })
     expect(setForm).toHaveBeenCalledTimes(1)
   })
 

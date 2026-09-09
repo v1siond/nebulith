@@ -89,21 +89,21 @@ describe('the inspector renders §4.7\'s sections', () => {
   it('draws them in the design\'s order for a cell holding a tile', () => {
     renderPanel({ tile: assetTile({ onOpenAnimator: jest.fn() }), onOpenTriggers: jest.fn() })
     expect(sectionList()).toEqual([
-      'What is it', 'How it looks', 'Size & position', 'How it behaves', 'Animation', 'Rules',
+      'Tile', 'Appearance', 'Size & position', 'What is this?', 'Behaviour', 'Animation', 'Rules',
     ])
   })
 
-  it('asks "who is it" of a unit, and "what is it" of a cell (§4.7)', () => {
+  it('names WHAT you selected — a cell holds a Tile, a unit is a Character', () => {
     const { unmount } = renderPanel()
-    expect(sectionList()[0]).toBe('What is it')
+    expect(sectionList()[0]).toBe('Tile')
     unmount()
     renderPanel({ unitSection: <p>unit extras</p> })
-    expect(sectionList()[0]).toBe('Who is it')
+    expect(sectionList()[0]).toBe('Character')
   })
 
   it('keeps HOW IT BEHAVES for a cell holding NO tile — an empty cell can still be blocked', () => {
     renderPanel({ tile: null, collision: true, levelCount: 0 })
-    expect(sectionList()).toEqual(['How it behaves'])
+    expect(sectionList()).toEqual(['Behaviour'])
     expect(screen.getByRole('button', { name: 'Blocked' })).toHaveAttribute('aria-pressed', 'true')
   })
 
@@ -163,7 +163,7 @@ describe('collapsing a section hides its controls, and reports the toggle', () =
 
   it('announces open/closed on the header itself', () => {
     renderPanel({ tile: assetTile(), sectionOpen: id => id !== 'size' })
-    expect(screen.getByRole('button', { name: 'How it looks' })).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getByRole('button', { name: 'Appearance' })).toHaveAttribute('aria-expanded', 'true')
     expect(screen.getByRole('button', { name: 'Size & position' })).toHaveAttribute('aria-expanded', 'false')
   })
 
@@ -194,7 +194,7 @@ describe('a tile the editor cannot write to SAYS so, instead of faking controls 
   it('shows the message and drops the two sections a no-op writer would fake', () => {
     renderPanel({ tile: assetTile(), tileNotice: notice })
     expect(screen.getByText(notice)).toBeInTheDocument()
-    expect(sectionList()).not.toContain('How it looks')
+    expect(sectionList()).not.toContain('Appearance')
     expect(sectionList()).not.toContain('Size & position')
     expect(screen.queryByLabelText('Width')).toBeNull()
   })
@@ -211,7 +211,7 @@ describe('a tile the editor cannot write to SAYS so, instead of faking controls 
   it('an ordinary tile carries no notice and keeps both sections', () => {
     renderPanel({ tile: assetTile() })
     expect(screen.queryByText(notice)).toBeNull()
-    expect(sectionList()).toContain('How it looks')
+    expect(sectionList()).toContain('Appearance')
     expect(sectionList()).toContain('Size & position')
   })
 })

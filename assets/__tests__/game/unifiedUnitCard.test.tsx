@@ -85,7 +85,12 @@ describe('a unit uses the SAME card as a tile (no separate unit sidebar)', () =>
     renderUnitCard()
     // the tile summary a tile gets…
     expect(screen.getByRole('button', { name: /Open Tile Library/i })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Edit settings/i })).toBeInTheDocument()
+    // The settings are ON the card now, as named sections. The old "Edit settings…" button opened one flat
+    // wall of controls, which is exactly what §3.10 broke up — so the sections ARE the assertion.
+    expect(screen.queryByRole('button', { name: /Edit settings/i })).toBeNull()
+    for (const name of ['Appearance', 'Size & position', 'Behaviour']) {
+      expect(screen.getByRole('button', { name })).toBeInTheDocument()
+    }
     expect(screen.getByLabelText('Goblin colour')).toBeInTheDocument()
     // …and the unit-only extras on the SAME card (identity + the enemy's attacks entry).
     expect(screen.getByLabelText('Entity name')).toBeInTheDocument()
@@ -126,22 +131,25 @@ describe('the unit ANIMATION section is gone — it is a button now', () => {
   })
 })
 
-describe('Triggers is a BUTTON that opens the triggers modal', () => {
-  it('renders a Triggers button with a count badge and fires onOpenTriggers', () => {
+// "Triggers" is called RULES in the UI now — the last of the stale trigger language. The DATA keeps its
+// name (the `Trigger` type, the handler `onOpenTriggers`), which is why the seams below still read that way.
+describe('Rules is a BUTTON that opens the rules modal', () => {
+  it('renders a Rules button with a count badge and fires onOpenTriggers', () => {
     const onOpenTriggers = jest.fn()
     renderUnitCard({ onOpenTriggers, triggerCount: 2 })
-    const btn = screen.getByRole('button', { name: /Triggers/i })
-    expect(btn).toHaveTextContent('(2)')
+    const btn = screen.getByRole('button', { name: 'Edit the rules for this' })
+    expect(btn).toHaveTextContent('Rules')
+    expect(btn).toHaveTextContent('2') // the count rides the button as a badge
     fireEvent.click(btn)
     expect(onOpenTriggers).toHaveBeenCalledTimes(1)
   })
 
-  it('a CELL card gets the same Triggers button (enter/interact triggers)', () => {
+  it('a CELL card gets the same Rules button (enter/interact rules)', () => {
     const onOpenTriggers = jest.fn()
     render(
       <PropertiesPanel collision={false} onCollision={jest.fn()} tile={unitTile({ label: 'grass' })} level={1} levelCount={1} onLevel={jest.fn()} sectionOpen={() => true} onToggleSection={jest.fn()} onOpenTriggers={onOpenTriggers} />,
     )
-    fireEvent.click(screen.getByRole('button', { name: /Triggers/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'Edit the rules for this' }))
     expect(onOpenTriggers).toHaveBeenCalledTimes(1)
   })
 })
