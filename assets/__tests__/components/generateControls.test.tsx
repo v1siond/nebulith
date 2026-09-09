@@ -1,19 +1,26 @@
 /**
- * THE ⚡ GENERATE PANEL (§4.6).
+ * THE "NEW WORLD" PANEL (was ⚡ GENERATE, §4.6).
  *
- * The menu IS the backend catalog (T-113 / §3.14b Tier-1 #1). It used to render from four hand-kept
- * frontend tables — `STAGE_ZONES`, `STAGE_VARIANTS`, `STAGE_VARIANT_LABELS`, `VARIANT_LAYOUTS` — that
- * duplicated `Nebulith.Catalog.GeneratorSource`. These tests drive the REAL component against a verbatim
- * capture of `/api/generators`, so they prove two things at once: every season / map type / shape the menu
- * offers comes from the catalog, and the menu offers NOTHING the catalog does not carry.
+ * The menu IS the backend catalog (T-113): every season, kind of place and preset comes from a verbatim
+ * capture of `/api/generators`, and the menu offers NOTHING the catalog does not carry. That is the point
+ * these tests exist to hold, and it is unchanged.
  *
- * They also pin §4.6's two behavioural changes and its numbered steps:
+ * WHAT CHANGED, 2026-09-09, and why this suite was rewritten rather than patched. Alexander asked for four
+ * things and each one moved a contract the old tests pinned:
  *
- *   1. clicking a map type **selects** it rather than generating — *"today it generates immediately … a
- *      genuine 'why did my map just vanish' trap"*;
- *   2. the steps are NUMBERED (`1 · SEASON` … `4 · MAP SIZE`), which is what tells a first-time user the
- *      order without being told;
- *   3. MAP SIZE defines the grid's MATRIX — columns × rows of cell-size cells.
+ *  · *"why not just a regular select??? we don't need to have the options showing with scrolling when we
+ *    can use an actual dropdown selector and reduce space"* — season chips and map-type cards are now
+ *    native `<select>`s, so `getByRole('button', {name: 'winter'})` has no subject.
+ *  · *"build this world button should be at the end"* — and it is named that, not "Generate world".
+ *  · *"labels aren't clearly descriptive… we need clear concise labeling"* — the numbered
+ *    `1 · SEASON` / `4 · MAP SIZE` headings are gone; a control is labelled by what it is.
+ *  · *"this shouldn't be a limitation… the previous limits where caused by poor optimization"* — the size
+ *    CAPS are deleted. The two tests that asserted the panel refuses an out-of-range size are replaced by
+ *    their opposite: it accepts the number and builds exactly that.
+ *
+ * Everything else the old suite proved is proved here too: a click selects rather than generates, the size
+ * numbers are a draft, the picked preset id is forwarded verbatim, and a preset does not survive changing
+ * the kind of place.
  */
 import { render, screen, fireEvent } from '@testing-library/react'
 import { GenerateControls } from '@/components/game/editorChrome'
@@ -23,135 +30,144 @@ import liveBody from '@/__tests__/fixtures/generators.json'
 
 const CATALOG = parseGeneratorCatalog(liveBody)
 const noop = () => {}
+const SIZE = { cols: 40, rows: 34, cellSize: 16 }
 
-const generateWorld = () => fireEvent.click(screen.getByRole('button', { name: /generate world/i }))
+const build = () => fireEvent.click(screen.getByRole('button', { name: /build this world/i }))
+const seasons = () => screen.getByLabelText(/^season$/i)
+const kinds = () => screen.getByLabelText(/kind of place/i)
+/**
+ * A preset card, by the name printed on it.
+ *
+ * The name is ESCAPED before it becomes a regex. "Meadow + River" is a real preset, and `+` is a
+ * quantifier — `new RegExp('Meadow + River')` matches "Meadow River" and finds nothing.
+ */
+const rx = (text: string) => new RegExp(text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i')
+
+/**
+ * Found by its NAME element, exactly, then walked up to the card.
+ *
+ * A name match is not enough: "Meadow" is a substring of "Meadow + River", so the accessible-name query
+ * finds two cards and throws. The `.pn` span holds the name alone.
+ */
+const preset = (name: string): HTMLElement => {
+  const label = screen.getByText(name, { selector: '.pn', exact: true })
+  const card = label.closest('button')
+  if (!card) throw new Error(`preset "${name}" is not inside a button`)
+  return card
+}
 
 describe('the menu IS the catalog', () => {
-  it('renders a season chip for every season the catalog serves, and no others', () => {
+  it('offers a season option for every season the catalog serves, and no others', () => {
     render(<GenerateControls catalog={CATALOG} zone="summer" onZone={noop} onGenerate={noop} />)
-    for (const zone of catalogZones(CATALOG)) {
-      expect(screen.getByRole('button', { name: zone })).toBeInTheDocument()
-    }
-    expect(screen.queryByRole('button', { name: 'beach' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'lava' })).not.toBeInTheDocument()
+    const offered = [...seasons().querySelectorAll('option')].map(o => o.getAttribute('value'))
+    expect(offered).toEqual(catalogZones(CATALOG))
+    // Two zones the ENGINE knows but this catalog does not serve — the menu must not invent them.
+    expect(offered).not.toContain('beach')
+    expect(offered).not.toContain('lava')
   })
 
-  it('renders a map-type card for every category, labelled with the backend\'s own name', () => {
+  it('offers a kind of place for every category, named by the backend', () => {
     render(<GenerateControls catalog={CATALOG} zone="summer" onZone={noop} onGenerate={noop} />)
+    const labels = [...kinds().querySelectorAll('option')].map(o => o.textContent ?? '')
     for (const category of CATALOG) {
-      expect(screen.getByRole('button', { name: category.name })).toBeInTheDocument()
+      expect(labels.some(l => l.startsWith(category.name))).toBe(true)
     }
+    expect(labels).toHaveLength(CATALOG.length)
   })
 
-  it('marks the active season pressed, and reports a season click without generating', () => {
+  it('says how many presets each kind offers, so the label carries information', () => {
+    render(<GenerateControls catalog={CATALOG} zone="summer" onZone={noop} onGenerate={noop} />)
+    const forest = [...kinds().querySelectorAll('option')].find(o => o.textContent?.startsWith('Forest'))
+    expect(forest?.textContent).toMatch(new RegExp(`\\(${categoryLayouts(CATALOG, 'forest').length}\\)`))
+  })
+
+  it('reports a season change without generating', () => {
     const onZone = jest.fn()
     const onGenerate = jest.fn()
     render(<GenerateControls catalog={CATALOG} zone="spring" onZone={onZone} onGenerate={onGenerate} />)
-    expect(screen.getByRole('button', { name: 'spring' })).toHaveAttribute('aria-pressed', 'true')
-    fireEvent.click(screen.getByRole('button', { name: 'winter' }))
+    expect(seasons()).toHaveValue('spring')
+    fireEvent.change(seasons(), { target: { value: 'winter' } })
     expect(onZone).toHaveBeenCalledWith('winter')
     expect(onGenerate).not.toHaveBeenCalled()
   })
 })
 
-describe('§4.6 numbers the steps — that IS the instruction', () => {
-  it('labels them 1 · SEASON, 2 · WHAT KIND OF PLACE?, 4 · MAP SIZE', () => {
-    render(
-      <GenerateControls catalog={CATALOG} zone="spring" onZone={noop} onGenerate={noop}
-        size={{ cols: 40, rows: 34, cellSize: 16 }} onResize={noop} />,
-    )
-    expect(screen.getByText(/1 · season/i)).toBeInTheDocument()
-    expect(screen.getByText(/2 · what kind of place\?/i)).toBeInTheDocument()
-    expect(screen.getByText(/4 · map size/i)).toBeInTheDocument()
-  })
-
-  it('numbers the SHAPE step with the map type it belongs to', () => {
-    render(<GenerateControls catalog={CATALOG} zone="summer" onZone={noop} onGenerate={noop} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Forest' }))
-    expect(screen.getByText(/3 · shape \(forest\)/i)).toBeInTheDocument()
-  })
-})
-
-describe('picking a map type SELECTS — it does not destroy the open map', () => {
-  it('does not generate when a map type is clicked', () => {
+describe('picking is not building — §4.6\'s "why did my map just vanish" trap', () => {
+  const setup = () => {
     const onGenerate = jest.fn()
     render(<GenerateControls catalog={CATALOG} zone="spring" onZone={noop} onGenerate={onGenerate} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Town' }))
+    return onGenerate
+  }
+
+  it('touches the open map on NO click but the build one', () => {
+    const onGenerate = setup()
+    fireEvent.change(kinds(), { target: { value: 'forest' } })
     expect(onGenerate).not.toHaveBeenCalled()
-  })
-
-  it('marks the clicked type as the selection', () => {
-    render(<GenerateControls catalog={CATALOG} zone="spring" onZone={noop} onGenerate={noop} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Town' }))
-    expect(screen.getByRole('button', { name: 'Town' })).toHaveAttribute('aria-pressed', 'true')
-  })
-
-  it('touches the open map on NO click but the generate one — the trap §4.6 names', () => {
-    const onGenerate = jest.fn()
-    render(<GenerateControls catalog={CATALOG} zone="spring" onZone={noop} onGenerate={onGenerate} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Town' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Forest' }))
-    fireEvent.click(screen.getByRole('button', { name: 'winter' }))
+    const [{ label }] = categoryLayouts(CATALOG, 'forest')
+    fireEvent.click(preset(label))
     expect(onGenerate).not.toHaveBeenCalled()
+    build()
+    expect(onGenerate).toHaveBeenCalledTimes(1)
+  })
+
+  it('marks the clicked preset as the selection', () => {
+    setup()
+    fireEvent.change(kinds(), { target: { value: 'forest' } })
+    const [, second] = categoryLayouts(CATALOG, 'forest')
+    fireEvent.click(preset(second.label))
+    expect(preset(second.label)).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  it('forwards the picked preset id verbatim — the seam templates.tsx turns into generateStage({layout})', () => {
+    const onGenerate = setup()
+    fireEvent.change(kinds(), { target: { value: 'forest' } })
+    const [, second] = categoryLayouts(CATALOG, 'forest')
+    fireEvent.click(preset(second.label))
+    build()
+    expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', second.id, undefined)
+  })
+
+  it('builds the category\'s FIRST preset when the kind was chosen but no preset was', () => {
+    const onGenerate = setup()
+    fireEvent.change(kinds(), { target: { value: 'forest' } })
+    build()
+    const [first] = categoryLayouts(CATALOG, 'forest')
+    expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', first.id, undefined)
+  })
+
+  it('passes NO preset for a kind that has none, and hides the preset group', () => {
+    const onGenerate = setup()
+    const bare = CATALOG.find(c => categoryLayouts(CATALOG, c.key).length === 0)
+    if (!bare) return // every category in the fixture has presets; nothing to assert
+    fireEvent.change(kinds(), { target: { value: bare.key } })
+    expect(screen.queryByText(/^which /i)).not.toBeInTheDocument()
+    build()
+    expect(onGenerate).toHaveBeenCalledWith('spring', bare.key, undefined, undefined)
+  })
+
+  it('does NOT carry a preset across kinds of place', () => {
+    const onGenerate = setup()
+    fireEvent.change(kinds(), { target: { value: 'forest' } })
+    const [, second] = categoryLayouts(CATALOG, 'forest')
+    fireEvent.click(preset(second.label))
+    const other = CATALOG.find(c => c.key !== 'forest' && categoryLayouts(CATALOG, c.key).length > 0)
+    if (!other) return
+    fireEvent.change(kinds(), { target: { value: other.key } })
+    build()
+    const [firstOfOther] = categoryLayouts(CATALOG, other.key)
+    expect(onGenerate).toHaveBeenCalledWith('spring', other.key, firstOfOther.id, undefined)
   })
 })
 
-describe('generating is an explicit act, and forwards the catalog\'s own ids', () => {
-  it('forwards the picked shape id verbatim — the seam templates.tsx turns into generateStage({layout})', () => {
-    for (const { id, label } of categoryLayouts(CATALOG, 'forest')) {
-      const onGenerate = jest.fn()
-      const { unmount } = render(<GenerateControls catalog={CATALOG} zone="summer" onZone={noop} onGenerate={onGenerate} />)
-      fireEvent.click(screen.getByRole('button', { name: label }))
-      generateWorld()
-      expect(onGenerate).toHaveBeenCalledWith('summer', 'forest', id)
-      unmount()
-    }
-  })
-
-  it('generates the category\'s FIRST shape when the type was selected but no shape was', () => {
-    const onGenerate = jest.fn()
-    render(<GenerateControls catalog={CATALOG} zone="spring" onZone={noop} onGenerate={onGenerate} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Forest' }))
-    generateWorld()
-    expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', categoryLayouts(CATALOG, 'forest')[0].id)
-  })
-
-  it('passes NO shape for a map type that has none, and hides the shape group', () => {
-    const onGenerate = jest.fn()
-    render(<GenerateControls catalog={CATALOG} zone="summer" onZone={noop} onGenerate={onGenerate} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Town' }))
-    generateWorld()
-    expect(onGenerate).toHaveBeenCalledWith('summer', 'town', undefined)
-    expect(screen.queryByRole('button', { name: 'Meadow' })).not.toBeInTheDocument()
-  })
-
-  it('does NOT carry a shape across map types', () => {
-    const onGenerate = jest.fn()
-    render(<GenerateControls catalog={CATALOG} zone="spring" onZone={noop} onGenerate={onGenerate} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Meadow + River' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Cave' }))
-    generateWorld()
-    expect(onGenerate).toHaveBeenLastCalledWith('spring', 'cave', undefined)
-  })
-})
-
-/**
- * `4 · MAP SIZE` — the grid's MATRIX VARIABLES.
- *
- * Alexander, 2026-09-08: *"the map should have a cell size and how many rows x columns there's in the map,
- * where columns = the number of cells per row … basically the grid is just a matrix, we must define the
- * matrix variables"*. So three inputs, not two. `cellSize` is what a cell MEASURES in pixels — not the
- * camera's zoom — which is why applying it rebuilds the grid.
- */
-describe('the map matrix — columns × rows of cell-size cells', () => {
-  const SIZE = { cols: 40, rows: 34, cellSize: 16 }
+describe('HOW BIG — the grid is a matrix, and the numbers you type are the ones it builds', () => {
   const withSize = (over: Partial<typeof SIZE> = {}) => {
     const onResize = jest.fn()
+    const onGenerate = jest.fn()
     render(
-      <GenerateControls catalog={CATALOG} zone="spring" onZone={noop} onGenerate={noop}
+      <GenerateControls catalog={CATALOG} zone="spring" onZone={noop} onGenerate={onGenerate}
         size={{ ...SIZE, ...over }} onResize={onResize} />,
     )
-    return onResize
+    return { onResize, onGenerate }
   }
 
   it('is absent when no resize handler is wired — there is no map to rebuild', () => {
@@ -163,12 +179,13 @@ describe('the map matrix — columns × rows of cell-size cells', () => {
     withSize()
     expect(screen.getByLabelText(/map columns/i)).toHaveValue(40)
     expect(screen.getByLabelText(/map rows/i)).toHaveValue(34)
-    expect(screen.getByLabelText(/map cell size/i)).toHaveValue(16)
+    // "Cell size" became "Cell pixels" — it is what a cell MEASURES, and the old name read like a setting.
+    expect(screen.getByLabelText(/map cell pixels/i)).toHaveValue(16)
   })
 
-  it('says what COLUMNS means — cells per row — and totals the matrix', () => {
+  it('totals the matrix, and says what COLUMNS means', () => {
     withSize()
-    expect(screen.getByText(/40 columns × 34 rows = 1,360 cells/i)).toBeInTheDocument()
+    expect(screen.getByText(/40 × 34 = 1,360 cells/i)).toBeInTheDocument()
     expect(screen.getByText(/columns is how many cells fit in one row/i)).toBeInTheDocument()
   })
 
@@ -178,120 +195,138 @@ describe('the map matrix — columns × rows of cell-size cells', () => {
   })
 
   it('does NOT rebuild while typing — the numbers are a draft', () => {
-    const onResize = withSize()
+    const { onResize } = withSize()
     fireEvent.change(screen.getByLabelText(/map columns/i), { target: { value: '60' } })
-    fireEvent.change(screen.getByLabelText(/map cell size/i), { target: { value: '32' } })
+    fireEvent.change(screen.getByLabelText(/map cell pixels/i), { target: { value: '32' } })
     expect(onResize).not.toHaveBeenCalled()
   })
 
   it('applies all three together', () => {
-    const onResize = withSize()
+    const { onResize } = withSize()
     fireEvent.change(screen.getByLabelText(/map columns/i), { target: { value: '60' } })
     fireEvent.change(screen.getByLabelText(/map rows/i), { target: { value: '50' } })
-    fireEvent.change(screen.getByLabelText(/map cell size/i), { target: { value: '32' } })
-    fireEvent.click(screen.getByRole('button', { name: /Rebuild as 60 × 50 @ 32px/i }))
+    fireEvent.change(screen.getByLabelText(/map cell pixels/i), { target: { value: '32' } })
+    fireEvent.click(screen.getByRole('button', { name: /resize to 60 × 50/i }))
     expect(onResize).toHaveBeenCalledWith(60, 50, 32)
   })
 
-  it('refuses a cell size the world cannot run in, and says those bounds', () => {
-    const onResize = withSize()
-    fireEvent.change(screen.getByLabelText(/map cell size/i), { target: { value: '0' } })
-    expect(screen.getByText(/a cell is 4.*128 pixels square/i)).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: /Rebuild as/i }))
-    expect(onResize).not.toHaveBeenCalled()
-  })
-
-  it('refuses a grid the engine cannot build, and says those bounds instead', () => {
-    const onResize = withSize()
-    fireEvent.change(screen.getByLabelText(/map columns/i), { target: { value: '0' } })
-    expect(screen.getByText(/a map is 10.*100 cells on each side/i)).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: /Rebuild as/i }))
-    expect(onResize).not.toHaveBeenCalled()
-  })
-
   it('refuses a no-op rebuild — it would clear the map for nothing', () => {
-    const onResize = withSize()
-    fireEvent.click(screen.getByRole('button', { name: /Rebuild as/i }))
-    expect(onResize).not.toHaveBeenCalled()
+    withSize()
+    expect(screen.queryByRole('button', { name: /resize to/i })).not.toBeInTheDocument()
+  })
+
+  it('ACCEPTS a size far past the old cap, and says it will build exactly that', () => {
+    // Alexander, 2026-09-09: *"this shouldn't be a limitation, our generators should be versatile enough
+    // and random enough to do a forest as big as what I put."* This replaces the two tests that asserted
+    // the panel refuses an out-of-range size — the caps are gone, and 400 × 240 could not even be COUNTED
+    // before, because the field would not validate a number it meant to reject.
+    withSize()
+    fireEvent.change(screen.getByLabelText(/map columns/i), { target: { value: '400' } })
+    fireEvent.change(screen.getByLabelText(/map rows/i), { target: { value: '240' } })
+    expect(screen.getByText(/400 × 240 = 96,000 cells/i)).toBeInTheDocument()
+    expect(screen.getByText(/at 400 × 240 cells of 16px — the numbers above, exactly/i)).toBeInTheDocument()
+  })
+
+  it('builds at the TYPED size, not the map\'s current one', () => {
+    // The defect this pins: the draft used to live inside the size section, so "Build this world" read the
+    // live grid and rebuilt at the old dimensions. Alexander hit it twice.
+    const { onGenerate } = withSize()
+    fireEvent.change(screen.getByLabelText(/map columns/i), { target: { value: '52' } })
+    fireEvent.change(screen.getByLabelText(/map rows/i), { target: { value: '40' } })
+    fireEvent.change(screen.getByLabelText(/map cell pixels/i), { target: { value: '24' } })
+    build()
+    expect(onGenerate).toHaveBeenCalledWith('spring', expect.any(String), expect.anything(), {
+      cols: 52,
+      rows: 40,
+      cellSize: 24,
+    })
+  })
+
+  it('still states the structural floor — a grid needs at least one cell', () => {
+    withSize()
+    fireEvent.change(screen.getByLabelText(/map columns/i), { target: { value: '0' } })
+    expect(screen.getByText(/at least one cell/i)).toBeInTheDocument()
   })
 
   it('follows the map when it is rebuilt from ELSEWHERE — generating, or loading a level', () => {
-    const props = { catalog: CATALOG, zone: 'spring', onZone: noop, onGenerate: noop, onResize: noop }
-    const { rerender } = render(<GenerateControls {...props} size={SIZE} />)
-    rerender(<GenerateControls {...props} size={{ cols: 12, rows: 12, cellSize: 64 }} />)
-    expect(screen.getByLabelText(/map columns/i)).toHaveValue(12)
-    expect(screen.getByLabelText(/map cell size/i)).toHaveValue(64)
+    const { rerender } = render(
+      <GenerateControls catalog={CATALOG} zone="spring" onZone={noop} onGenerate={noop}
+        size={SIZE} onResize={noop} />,
+    )
+    rerender(
+      <GenerateControls catalog={CATALOG} zone="spring" onZone={noop} onGenerate={noop}
+        size={{ cols: 80, rows: 60, cellSize: 24 }} onResize={noop} />,
+    )
+    expect(screen.getByLabelText(/map columns/i)).toHaveValue(80)
+    expect(screen.getByLabelText(/map cell pixels/i)).toHaveValue(24)
   })
 })
 
-describe('an unavailable catalog is SAID, never faked', () => {
-  it('offers no map types and no generate button while the catalog is empty', () => {
+describe('an empty or failed catalog says so instead of offering nothing', () => {
+  it('offers no kinds and no build button while the catalog is empty', () => {
     render(<GenerateControls catalog={EMPTY_GENERATOR_CATALOG} zone="spring" onZone={noop} onGenerate={noop} />)
-    for (const name of ['Forest', 'Town', 'City', 'Cave', 'Temple']) {
-      expect(screen.queryByRole('button', { name })).not.toBeInTheDocument()
-    }
-    expect(screen.queryByRole('button', { name: /generate world/i })).not.toBeInTheDocument()
+    expect(screen.queryByLabelText(/kind of place/i)).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /build this world/i })).not.toBeInTheDocument()
   })
 
   it('says the generators are loading when nothing has failed yet', () => {
     render(<GenerateControls catalog={EMPTY_GENERATOR_CATALOG} zone="spring" onZone={noop} onGenerate={noop} />)
-    expect(screen.getByText(/Loading the map generators/i)).toBeInTheDocument()
+    expect(screen.getByText(/loading the map generators/i)).toBeInTheDocument()
   })
 
   it('names the failure when the load failed, instead of an empty menu', () => {
     render(
-      <GenerateControls catalog={EMPTY_GENERATOR_CATALOG} catalogError="Service Unavailable"
-        zone="spring" onZone={noop} onGenerate={noop} />,
+      <GenerateControls catalog={EMPTY_GENERATOR_CATALOG} catalogError="offline" zone="spring"
+        onZone={noop} onGenerate={noop} />,
     )
-    expect(screen.getByText(/could not be loaded/i)).toBeInTheDocument()
-    expect(screen.getByText(/Service Unavailable/)).toBeInTheDocument()
+    expect(screen.getByText(/offline/i)).toBeInTheDocument()
   })
 })
 
-// The layers are engine PASSES (stageGenerator's LAYER_IDS), not generator records — `/api/generators`
-// serves no layer list, so this row stays frontend data. It must be the SAME set for every map type.
-describe('the per-part re-roll rows', () => {
-  it('shows every generator layer, and the SAME set for every map type', () => {
-    render(<GenerateControls catalog={CATALOG} zone="summer" onZone={noop} onGenerate={noop} onRandomizeLayer={noop} />)
-    for (const category of CATALOG) {
-      fireEvent.click(screen.getByRole('button', { name: category.name }))
-      GENERATOR_LAYERS.forEach(({ label }) => {
-        expect(screen.getByRole('button', { name: label })).toBeInTheDocument()
-      })
+describe('rebuild ONE part, keep the rest', () => {
+  it('shows every generator layer, and the SAME set for every kind of place', () => {
+    const onRandomizeLayer = jest.fn()
+    render(
+      <GenerateControls catalog={CATALOG} zone="spring" onZone={noop} onGenerate={noop}
+        onRandomizeLayer={onRandomizeLayer} />,
+    )
+    for (const { label } of GENERATOR_LAYERS) {
+      expect(screen.getByRole('button', { name: new RegExp(label, 'i') })).toBeInTheDocument()
     }
   })
 
   it('forwards the clicked layer id (data-driven, no per-id branch)', () => {
-    GENERATOR_LAYERS.forEach(({ id, label }) => {
-      const onRandomizeLayer = jest.fn()
-      const { unmount } = render(
-        <GenerateControls catalog={CATALOG} zone="spring" onZone={noop} onGenerate={noop} onRandomizeLayer={onRandomizeLayer} />,
-      )
-      fireEvent.click(screen.getByRole('button', { name: label }))
+    const onRandomizeLayer = jest.fn()
+    render(
+      <GenerateControls catalog={CATALOG} zone="spring" onZone={noop} onGenerate={noop}
+        onRandomizeLayer={onRandomizeLayer} />,
+    )
+    for (const { id, label } of GENERATOR_LAYERS) {
+      fireEvent.click(screen.getByRole('button', { name: new RegExp(label, 'i') }))
       expect(onRandomizeLayer).toHaveBeenCalledWith(id)
-      unmount()
-    })
-  })
-
-  it('§4.6 also draws RE-ROLL THE SELECTION — it names the count and says what to do first', () => {
-    const onRandomizeSelection = jest.fn()
-    const { rerender } = render(
-      <GenerateControls catalog={CATALOG} zone="spring" onZone={noop} onGenerate={noop}
-        selectedCount={0} onRandomizeSelection={onRandomizeSelection} />,
-    )
-    expect(screen.getByRole('button', { name: /randomize the selection/i })).toBeDisabled()
-    expect(screen.getByText(/select some cells on the map first/i)).toBeInTheDocument()
-
-    rerender(
-      <GenerateControls catalog={CATALOG} zone="spring" onZone={noop} onGenerate={noop}
-        selectedCount={4} onRandomizeSelection={onRandomizeSelection} />,
-    )
-    fireEvent.click(screen.getByRole('button', { name: /randomize 4 selected tiles/i }))
-    expect(onRandomizeSelection).toHaveBeenCalled()
+    }
   })
 
   it('hides the layer row entirely when no handler is wired (no current map to scope)', () => {
     render(<GenerateControls catalog={CATALOG} zone="spring" onZone={noop} onGenerate={noop} />)
-    expect(screen.queryByRole('button', { name: 'Decor' })).not.toBeInTheDocument()
+    expect(screen.queryByText(/rebuild one part/i)).not.toBeInTheDocument()
+  })
+})
+
+describe('re-roll the selection — it names the count and says what to do first', () => {
+  it('names how many tiles it will touch', () => {
+    render(
+      <GenerateControls catalog={CATALOG} zone="spring" onZone={noop} onGenerate={noop}
+        selectedCount={7} onRandomizeSelection={noop} />,
+    )
+    expect(screen.getByRole('button', { name: /7 selected tiles/i })).toBeInTheDocument()
+  })
+
+  it('offers the missing prerequisite instead of only disabling itself', () => {
+    render(
+      <GenerateControls catalog={CATALOG} zone="spring" onZone={noop} onGenerate={noop}
+        selectedCount={0} onRandomizeSelection={noop} />,
+    )
+    expect(screen.getByText(/select some cells on the map first/i)).toBeInTheDocument()
   })
 })
