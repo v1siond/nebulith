@@ -1,3 +1,4 @@
+import '@/__tests__/helpers/installTilesetSeed' // an attack's TINT is backend tile data (the fx row's own settings), so the catalog has to be loaded to see it
 import { applyEnemyRetaliation, type CombatStepInput } from '@/game/runtime/combat'
 import { makeEnemyRuntime, type EnemyRuntime } from '@/game/runtime/targeting'
 import { type PlayerState } from '@/game/runtime/player'

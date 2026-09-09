@@ -25,7 +25,7 @@ import {
   normalizeAttackPattern,
   nextEnemyAttack,
 } from '@/game/patterns'
-import { POWER_SHOT } from '@/game/abilities'
+import type { AbilityDef } from '@/game/abilities'
 import type { AttackPattern, EnemyAttack } from '@/game/types'
 
 import { installLiveCatalogs } from '@/__tests__/helpers/catalogs'
@@ -101,14 +101,25 @@ describe('enemy attack patterns — building one attack', () => {
   })
 
   it('enemyAttackFromAbility reuses the ability damage/cooldown/animation + infers range', () => {
-    // POWER_SHOT is a piercing ranged ability → a ranged enemy attack carrying its numbers.
-    const a = enemyAttackFromAbility(POWER_SHOT)
-    expect(a.mode).toBe('ranged')
-    expect(a.damage).toBe(POWER_SHOT.effect.damage)
-    expect(a.cooldownMs).toBe(POWER_SHOT.cooldownMs)
-    expect(a.animation).toBe(POWER_SHOT.animation)
-    expect(a.abilityId).toBe(POWER_SHOT.id)
-    expect(a.name).toBe(POWER_SHOT.name)
+    // Abilities are BACKEND rows now (installAbilityRegistry / getAbility), so there is no POWER_SHOT
+    // constant to reach for — importing one silently handed this pure mapper `undefined`. The mapper takes an
+    // AbilityDef and returns an EnemyAttack, so the honest test hands it one: a piercing ranged ability.
+    const powerShot: AbilityDef = {
+      id: 'power-shot',
+      name: 'Power Shot',
+      description: 'A piercing shot.',
+      category: 'offensive',
+      animation: 'piercing-shot',
+      cooldownMs: 4200,
+      effect: { damage: 24 },
+    }
+    const a = enemyAttackFromAbility(powerShot)
+    expect(a.mode).toBe('ranged') // inferred from the animation, not restated on the ability
+    expect(a.damage).toBe(powerShot.effect.damage)
+    expect(a.cooldownMs).toBe(powerShot.cooldownMs)
+    expect(a.animation).toBe(powerShot.animation)
+    expect(a.abilityId).toBe(powerShot.id)
+    expect(a.name).toBe(powerShot.name)
   })
 
   it('the presets include both melee and ranged ready-made attacks', () => {

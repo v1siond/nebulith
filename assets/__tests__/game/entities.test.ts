@@ -1,3 +1,4 @@
+import '@/__tests__/helpers/installTilesetSeed' // an entity's FOOTPRINT is derived from the art the backend serves (settings.artFrames) — with no catalog every creature collapses to one cell
 import {
   makePlayer,
   makeEnemy,
