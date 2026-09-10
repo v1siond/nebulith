@@ -537,6 +537,21 @@ export function render(params: IsoRenderParams) {
     }
   }
 
+  // ─── THE GRID'S OWN BODY — the thick RPG base ─────────────────────
+  //
+  // Alexander, 2026-09-10: *"I wanted to have a real ground like old rpgs and other isometric games, that's
+  // where the 'height 1' comes into play"* and *"we can make the grid have height … then add the footprints
+  // and all the fancy stuff on top."*
+  //
+  // The map's thickness belongs to the GRID, not to each floor tile. That is the whole point of the split: a
+  // floor is a flat skin with no side faces (so it never occludes and never needs a turn in the depth sort),
+  // and the volume you see under the map is drawn once, here, underneath everything.
+  //
+  // ONLY THE SKIRT IS DRAWN. A solid slab's interior walls are each hidden by the cell in front of them, so
+  // the only ones that can ever be seen are at the map's outer edge (and around any hole). That is ~400 edge
+  // cells on a 100x100 instead of 10,000 cubes — which is why this costs nothing while a cube per cell cost
+  // everything. Each wall takes its own cell's floor colour, darkened, so the earth under grass reads as
+  // earth and the bed under a river reads as riverbed, with no new backend data.
   // ─── ASSETS + PLAYER (ASCII art stacked in isometric space) ────────
 
   // Zoom-aware cull: use the SAME span the camera can see (matches the ground tiles above),
@@ -548,6 +563,8 @@ export function render(params: IsoRenderParams) {
   const camCell = turn === 0
     ? { col: camX / cellSize, row: camZ / cellSize }
     : deorientCellTurn(fc, fr, grid.cols, grid.rows, turn)
+  drawGridSkirt(ctx, grid, toScreen, tileW, tileH, Math.floor(camCell.col), Math.floor(camCell.row), halfSpan)
+
   const rectAssets = grid.getVisibleAssets(
     Math.floor(camCell.col),
     Math.floor(camCell.row),
@@ -1371,6 +1388,84 @@ export function fillIsoFaceWithTile(
 // The default iso BLOCK height (screen px) of ONE stack level — one cube tall. drawIsoTileBlock draws
 // a default-dim cube exactly this tall (its `bh` base is tileW * 0.9), so lifting a stacked asset by
 // this per level makes the pile climb in lockstep with the cubes (and with the 2D raised stack).
+/** How thick the map's body is, in blocks. One block — the same thickness a floor tile used to have, so the
+ *  map reads exactly as solid as it did before the split, without any floor being a cube. */
+export const GRID_SLAB_BLOCKS = 1
+
+/**
+ * THE GRID'S BODY — the thick base under the whole map.
+ *
+ * Alexander, 2026-09-10: *"I wanted to have a real ground like old rpgs and other isometric games"*, and the
+ * resolution that unblocked everything: *"we can make the grid have height … then add the footprints and all
+ * the fancy stuff on top."*
+ *
+ * The map's THICKNESS is the grid's, not each tile's. A floor tile is a flat skin (height 0) so it has no side
+ * faces, occludes nothing, and needs no place in the depth sort — which is what lets ground merge into z-width
+ * runs at all. The volume you see under the map is this, drawn once, under everything.
+ *
+ * ONLY THE SKIRT EXISTS. A solid slab's interior walls are each hidden by the cell in front of them, so the
+ * only walls that can ever be seen are where the map STOPS — its outer edge, and the rim of any hole. So this
+ * draws a wall only where the neighbour it would face is missing: ~400 edge cells on a 100x100 rather than
+ * 10,000 cubes, which is the difference between free and ruinous.
+ *
+ * Which neighbour faces which wall follows the projection: +col steps right-down and +row steps left-down, so
+ * the RIGHT wall is hidden by (col+1, row) and the LEFT wall by (col, row+1).
+ */
+export function drawGridSkirt(
+  ctx: CanvasRenderingContext2D,
+  grid: IsometricGrid,
+  toScreen: (col: number, row: number) => { x: number; y: number },
+  tileW: number,
+  tileH: number,
+  camCol: number,
+  camRow: number,
+  halfSpan: number,
+): void {
+  const blockH = tileW * ISO_BLOCK_H_FRAC
+  const drop = GRID_SLAB_BLOCKS * blockH
+  const c0 = Math.max(0, camCol - halfSpan)
+  const c1 = Math.min(grid.cols - 1, camCol + halfSpan)
+  const r0 = Math.max(0, camRow - halfSpan)
+  const r1 = Math.min(grid.rows - 1, camRow + halfSpan)
+
+  const wall = (p: { x: number; y: number }, side: 'left' | 'right', color: string): void => {
+    // The two front faces of the cell's diamond, dropped by the slab thickness. LEFT is the L→B edge
+    // (facing +row), RIGHT is the B→R edge (facing +col) — the same corners isoBlockFaces uses.
+    const l = { x: p.x - tileW, y: p.y }
+    const b = { x: p.x, y: p.y + tileH }
+    const r = { x: p.x + tileW, y: p.y }
+    const [from, to] = side === 'left' ? [l, b] : [b, r]
+    ctx.fillStyle = color
+    ctx.beginPath()
+    ctx.moveTo(from.x, from.y)
+    ctx.lineTo(to.x, to.y)
+    ctx.lineTo(to.x, to.y + drop)
+    ctx.lineTo(from.x, from.y + drop)
+    ctx.closePath()
+    ctx.fill()
+  }
+
+  for (let row = r0; row <= r1; row++) {
+    for (let col = c0; col <= c1; col++) {
+      const floor = grid.floorAt(col, row)
+      if (!floor) continue // no ground here → nothing to hold up
+      const openRight = !grid.floorAt(col + 1, row) // the +col neighbour, which would hide the right wall
+      const openLeft = !grid.floorAt(col, row + 1) // the +row neighbour, which would hide the left wall
+      if (!openRight && !openLeft) continue // fully enclosed — its walls can never be seen
+      const p = toScreen(col, row)
+      // Each wall takes its OWN cell's colour, darkened: earth under grass, riverbed under water. The two
+      // sides differ so the edge reads as a solid body catching light rather than a flat band.
+      //
+      // A floor is BORN with its colour as state (makeFloorAsset), so this reads it and never derives one —
+      // a colourless floor is a data gap, and the rule for those is to draw nothing rather than invent.
+      const base = floor.color
+      if (!base) continue
+      if (openLeft) wall(p, 'left', darkenColor(base, 0.45))
+      if (openRight) wall(p, 'right', darkenColor(base, 0.62))
+    }
+  }
+}
+
 export const ISO_BLOCK_H_FRAC = 0.9
 
 /** Iso screen-space RISE for a stacked asset: `heightLevel` cubes up (one ISO_BLOCK_H per level). The

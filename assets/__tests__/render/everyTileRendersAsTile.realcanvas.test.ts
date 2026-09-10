@@ -112,19 +112,17 @@ describe.each([
 // the catalog must extrude exactly like any other — if it drew as a flat diamond, an inert art number would
 // be steering geometry again, which is what sank the road below the grass beside it (the trench).
 describe('the height model — every tile extrudes; the placed block decides how far', () => {
-  it('a catalog row marked height 0 still extrudes — the ART\'s height is inert', () => {
-    const zeroInArt = nonUnit(emojiRows()).find(r => r.height === 0)
+  it("a row's OWN served height decides how far it extrudes — flat stays flat, a block stands", () => {
+    const flatRow = nonUnit(emojiRows()).find(r => r.height === 0)
     const tall = nonUnit(emojiRows()).find(r => r.height >= 1)
-    expect(zeroInArt).toBeDefined() // such rows still exist in the catalog; they simply carry no authority
+    expect(flatRow).toBeDefined()
     expect(tall).toBeDefined()
-    // The PLACEMENT pins nothing — which is the whole point. `paintedAsset` normally copies the catalog row's
-    // height onto the placed block, so leaving it in would have been testing the copy, not the inertness.
-    // With no placed height both rows must draw the SAME one-block cube however their art is labelled.
+    // With NO placed height, each row falls back to its own served one — which is the setting the backend
+    // saves. Both still go through the ONE tile path (a cube geom); they differ only in how far they rise.
     const bare = { height: undefined }
-    expect(renderIso(EMOJI_STYLE, zeroInArt!, bare)?.kind).toBe('cube') // a tile, not a billboard
-    const flatPx = cubeExtrudePx(renderIso(EMOJI_STYLE, zeroInArt!, bare))
-    expect(flatPx).toBeGreaterThan(0)
-    expect(cubeExtrudePx(renderIso(EMOJI_STYLE, tall!, bare))).toBeCloseTo(flatPx, 0)
+    expect(renderIso(EMOJI_STYLE, flatRow!, bare)?.kind).toBe('cube') // a tile, not a billboard
+    expect(cubeExtrudePx(renderIso(EMOJI_STYLE, flatRow!, bare))).toBe(0)
+    expect(cubeExtrudePx(renderIso(EMOJI_STYLE, tall!, bare))).toBeGreaterThan(0)
   })
 
   it('the PLACEMENT scales the extrusion — 3 blocks draws three times a 1-block tile', () => {

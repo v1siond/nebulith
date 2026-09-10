@@ -373,19 +373,11 @@ export class IsometricGrid {
    *  ground COLOUR is per-cell STATE the map-builder writes (`color` — see setGround); renders READ it, never
    *  derive it, so a floor with no colour renders nothing (empty), never a hardcoded fallback. */
   private makeFloorAsset(col: number, row: number, slug: string, color?: string): GridAsset {
-    // A floor is BORN with its colour as STATE — either the explicit colour a map-builder PICKED, or (when a raw
-    // setGround / the ctor default lays one down) auto-picked from the ground tile's own DB colour. So no floor is
-    // ever colourless and every view just READS floor.color, never deriving it or falling back to a hardcode.
-    // FLAT, deliberately. Alexander, 2026-09-10: *"reduce the height of any floor tile to 0 … for the backend
-    // it'll be just a layer of flat tiles, which are used to put other stuff on top."* The map's THICKNESS is
-    // the grid's job now (one slab, drawn at its perimeter), not a cube per cell. A flat tile has no side
-    // faces, so it occludes nothing, so where it falls in the draw order does not matter — which is what lets
-    // ground merge into z-width runs without the sort breaking (his Images #27/#28).
-    //
-    // The STACKING is untouched: `act_as_tile` defaults true, so a flat floor still reports a contribution of
-    // one block and content still lands at level 1, standing on the slab's top. Written as placement STATE
-    // here rather than branched on `type` at render time.
-    return { art: [''], col, row, type: FLOOR_TYPE, tileKey: slug, heightLevel: 0, height: 0, blocking: false, color: color ?? groundTileColor(slug, col, row) }
+    // NO HEIGHT PINNED HERE. A floor is a regular tile — "FLOOR ARE FUCKING TILES, ALL TILES STACK ON TOP OF
+    // ANOTHER LIKE LEGOS BY DEFAULT … THE FLOOR IS NO DIFFERENT FROM IT" (Alexander). Its height is the TILE's
+    // own setting, served by the backend and saved with it — not a number this factory stamps on. Pinning it
+    // here made the floor special again and, worse, put the value somewhere that never persists.
+    return { art: [''], col, row, type: FLOOR_TYPE, tileKey: slug, heightLevel: 0, blocking: false, color: color ?? groundTileColor(slug, col, row) }
   }
 
   // Set the floor tile TYPE of a cell — place/replace its level-0 floor asset (the slug rides `tileKey`,

@@ -102,17 +102,19 @@ describe('a tile renders at its OWN DB height — read, not invented; sub-1 not 
     expect(labeled(5)).toBeCloseTo(one * 5, 0)
   })
 
-  test('the floor is a BLOCK like every other tile — one block tall, with real side walls', () => {
+  test('the floor is FLAT — no side walls, so it can never occlude what stands beyond it', () => {
     const floor = { art: [''], col: 4, row: 4, type: 'floor', tileKey: 'grass', heightLevel: 0, blocking: false } as unknown as GridAsset
     const cv = H.makeCanvas(480, 420)
     const g = drawIsoAssetAscii(cv.getContext('2d') as unknown as CanvasRenderingContext2D, CX, CY, floor, TW, TH, 0, false, 'day', EMOJI_STYLE)
-    expect(g?.kind).toBe('cube')          // a tile, not a billboard — the same shape every tile records
-    // The ground pins no height of its own, so it resolves to ONE block ("all tiles/blocks are height 1,
-    // GLOBAL, no exceptions") and extrudes exactly like the labeled wall above. It is not a special flat
-    // plane the rest of the map sits on top of — it IS one of the blocks the map is built from.
+    expect(g?.kind).toBe('cube')          // still the ONE tile path — a flat tile, never a billboard
+    // The ground's own served height is 0 (migration 0008), so it draws with NO extrusion at all, while the
+    // labeled wall beside it still stands a full block. That difference is the point: a flat tile has no side
+    // faces, so it cannot occlude, so it needs no turn in the depth sort — which is what lets ground merge
+    // into z-width runs. A floor that extrudes like the wall brings back the road-behind-grass bug.
     const wall = { art: [''], col: 4, row: 4, type: 'house_4', label: 'wall_wood_c', heightLevel: 0, height: 1, color: '#c9c9c9' } as unknown as GridAsset
     const wallPx = extrudePx(drawIsoAssetAscii(H.makeCanvas(480, 420).getContext('2d') as unknown as CanvasRenderingContext2D, CX, CY, wall, TW, TH, 0, false, 'day', EMOJI_STYLE))
-    expect(extrudePx(g)).toBeCloseTo(wallPx, 0)
+    expect(extrudePx(g)).toBe(0)
+    expect(wallPx).toBeGreaterThan(0)
 
     // …and it is PAINTED. Geometry alone cannot catch a ground that computes correctly and draws nothing,
     // and the map is made of these — so assert real pixels over a real area of the canvas.

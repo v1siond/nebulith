@@ -4,7 +4,7 @@ import { resolveTileHeight, blockLayers, layerBlockScale } from '@/engine/tilese
 // Height is a property of the PLACED BLOCK, never of the art tile — "tiles only have data when they're
 // assigned to a cell … the generator should assign the value when creating something". So the resolution is
 // `placement ?? 1`, with the art tile deliberately unread; there is no tile-default tier left to fall back to.
-describe('resolveTileHeight — iso block count: the PLACED block\'s height ?? 1, art never consulted', () => {
+describe("resolveTileHeight — the PLACEMENT's height ?? the TILE's height ?? one block", () => {
   test('ONE block by default — an ordinary placement with no height pinned', () => {
     expect(resolveTileHeight({}, {})).toBe(1)
     expect(resolveTileHeight(undefined, undefined)).toBe(1)
@@ -15,12 +15,17 @@ describe('resolveTileHeight — iso block count: the PLACED block\'s height ?? 1
     expect(resolveTileHeight({}, { height: 0.5 })).toBe(0.5) // blocks are a measurement, not an integer
   })
 
-  test('the ART TILE is never read — a stray height on the picture cannot move the block', () => {
-    // That stray art `0` is what sank the road below the height-1 grass (the trench). The art file is a
-    // picture; whatever number it carries, the placed block decides.
-    expect(resolveTileHeight({ height: 0 }, {})).toBe(1)
-    expect(resolveTileHeight({ height: 7 }, {})).toBe(1)
+  test("the TILE's own height is the default — that is the setting the backend saves", () => {
+    // This used to be thrown away (`void tile`), because the served data was inconsistent and a road sank
+    // below the grass beside it. The data was fixed instead (migration 0008), so the column is read again —
+    // otherwise a floor could never be flat and no chosen height could ever persist.
+    expect(resolveTileHeight({ height: 0 }, {})).toBe(0)
+    expect(resolveTileHeight({ height: 7 }, {})).toBe(7)
+  })
+
+  test('…and a PLACEMENT still wins over it — a decision about THIS block beats what the thing is', () => {
     expect(resolveTileHeight({ height: 7 }, { height: 2 })).toBe(2)
+    expect(resolveTileHeight({ height: 0 }, { height: 3 })).toBe(3) // a raised weir over flat water
   })
 
   test('a DELIBERATE zero is honoured — that is how a flat floor skin is expressed', () => {

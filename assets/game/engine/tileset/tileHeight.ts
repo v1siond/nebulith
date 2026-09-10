@@ -15,28 +15,25 @@ export interface HasAssetHeight {
   height?: number
 }
 
-/** Resolve the iso block height of a PLACED block. Height is a per-PLACEMENT value (the block the generator or
- *  editor created) — NOT a property of the art tile. The 2D/top views ignore this; a tile is a flat square there. */
+/**
+ * The iso block height of a placed tile: the PLACEMENT's own height if it pins one, else the TILE's height
+ * from the backend, else one block.
+ *
+ * The tile's number is read again. It used to be thrown away (`void tile`) because the served data was
+ * INCONSISTENT — `road` and `grass` said 0 while `meadow`, `water` and `path_stone` said 1, so a road sank
+ * below the grass beside it and made a trench. Ignoring the data hid that, at the cost of making the setting
+ * unusable: a floor could never be flat, and nothing about a tile's height could be saved.
+ *
+ * Alexander, 2026-09-10: *"floors should be generated with height 0, which mean, the height setting from the
+ * floor tile is 0, which allow us to save it in the backend … floor are regular fucking tiles, nothing more
+ * nothing less."* So the data is fixed instead of ignored, and this reads it.
+ *
+ * Order, and why: a PLACEMENT wins because that is a decision someone made about this specific block (the
+ * editor's Z control, a composition's authored pier). The TILE's height is what the thing is by default.
+ * Neither invents anything; absent everywhere means one block. Negative is nonsense and clamps.
+ */
 export function resolveTileHeight(tile: HasTileHeight | undefined, asset: HasAssetHeight | undefined): number {
-  // A tile is pure ART and carries NO height (Alexander 2026-07-27: "tiles only have data when they're assigned
-  // to a cell … the generator should assign the value when creating something"). So we NEVER read the art tile's
-  // height — that stray art `0` was what sank the road below the height-1 grass (the trench). Height comes from
-  // the PLACED block: the generator/stamp/editor sets `asset.height`. `tile` is kept for call-site stability
-  // but intentionally unused.
-  void tile
-  // ABSENT means one block — "all tiles/blocks are height 1, GLOBAL, no exceptions" still holds for anything
-  // that does not say otherwise. But a DELIBERATE 0 is now honoured, which it was not: the old clamp read
-  // `h > 0 ? h : 1` and made flat unreachable.
-  //
-  // Alexander, 2026-09-10: *"we can make the grid have height … that'll allow us to reduce the height of any
-  // floor tile to 0 in the generators, for the backend it'll be just a layer of flat tiles."* The two jobs
-  // that `height: 1` was doing — giving the map visible thickness, and making each floor a solid cube — are
-  // being split. The GRID takes the thickness; the floor becomes a flat skin on it. A flat tile has no side
-  // faces, so it cannot occlude, so its place in the draw order stops mattering — which is what unblocks
-  // merging ground into runs at all (his Images #27/#28).
-  //
-  // Negative is still nonsense and still clamps to one block.
-  const h = asset?.height ?? 1
+  const h = asset?.height ?? tile?.height ?? 1
   return h >= 0 ? h : 1
 }
 
