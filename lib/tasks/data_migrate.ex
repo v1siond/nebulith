@@ -14,6 +14,7 @@ defmodule Mix.Tasks.DataMigrate do
   alias Nebulith.DataMigration.BackfillCompositionCategories
   alias Nebulith.DataMigration.FlatTilesMinimalHeight
   alias Nebulith.DataMigration.FlatTilesZeroHeight
+  alias Nebulith.DataMigration.GroundTilesAreFlat
 
   @shortdoc "Run nebulith data migrations"
   @impl Mix.Task
@@ -28,5 +29,9 @@ defmodule Mix.Tasks.DataMigrate do
     # LAST: floors are tiles and all tiles stack, so a flat tile needs no 0.1 slab — this undoes the 0.1 that
     # 0001/0002 land, and keeps doing so on any full re-run.
     FlatTilesZeroHeight.run()
+    # …and after THAT, the ground goes flat. 0007 raises every tile to at least one block, which is right for
+    # everything that STANDS and wrong for the surface it stands on — a 1-block floor is a cube that occludes,
+    # and a merged run of them cannot be depth-sorted. Must run after 0007 or it would simply be undone.
+    GroundTilesAreFlat.run()
   end
 end
