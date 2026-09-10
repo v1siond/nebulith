@@ -55,10 +55,11 @@ describe('lamp_post composition — a tall thin post + a single bulb, shaped by 
     expect(post).toBeTruthy()
     expect(lamp).toBeTruthy()
 
-    // POST — stretched tall (scaleY 7) + thin (scale 0.3), standing ON the ground block, blocking.
+    // POST: stretched tall (scaleY 7) and thin (scale 0.3), standing ON the flat ground, blocking.
+    // Level 0, not 1: the ground is flat since T-140, so there is no block under the post to climb.
     expect(post.scaleY).toBeCloseTo(7, 5)
     expect(post.scale).toBeCloseTo(0.3, 5)
-    expect(post.heightLevel).toBe(1)
+    expect(post.heightLevel).toBe(0)
     expect(post.blocking).toBe(true)
 
     // BULB — a single centered billboard (settings.display), zoomed 0.6, lifted onto the post top via pose.dy;
@@ -66,7 +67,7 @@ describe('lamp_post composition — a tall thin post + a single bulb, shaped by 
     expect(lamp.settings?.display).toBe('single')
     expect(lamp.scale).toBeCloseTo(0.6, 5)
     expect(lamp.pose?.dy).toBeCloseTo(-1.8, 5)
-    expect(lamp.heightLevel).toBe(2) // one level above the post's, as the composition authors it
+    expect(lamp.heightLevel).toBe(1) // one level above the post's, as the composition authors it
     expect(lamp.blocking).toBe(false)
     expect(lamp.scaleY ?? 1).toBe(1)
   })

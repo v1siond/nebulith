@@ -1,32 +1,34 @@
 /**
  * ACT AS TILE — "does the cell behave as if a tile were already inside it", so the next tile stacks ON TOP.
  *
- * THIS SUITE ASSERTED A MODEL THAT HAS BEEN REPLACED TWICE, which is why every test in it failed. Both
- * changes are Alexander's, both are cited in the code that implements them, and together they leave this
- * setting with nothing left to do:
+ * The switch is OPT-IN, and it is observable again. Both facts come out of Alexander's own decisions:
  *
- *  1. **The default flipped.** It was *"Default is FALSE; we set it in compositions when it makes sense —
- *     roads, whatever we walk over"*. On 2026-07-26: *"act_as_tile set to true in ALL cells/block by
- *     default … houses stack on top of the grass tiles instead of inside"*. `assetActsAsTile` follows that.
- *  2. **Flat tiles stopped existing.** On 2026-07-27: *"tiles only have data when they're assigned to a
- *     cell"* and *"all tiles/blocks are height 1, GLOBAL, no exceptions"*. `resolveTileHeight` reads the
- *     PLACED block's height, defaults it to 1, and clamps anything non-positive to 1.
+ *  1. He originally described it as opt-in: *"Default is FALSE; we set it in compositions when it makes
+ *     sense, roads, whatever we walk over"*. On 2026-07-26 he asked for the opposite: *"act_as_tile set to
+ *     true in ALL cells/block by default … houses stack on top of the grass tiles instead of inside"*.
+ *  2. At that time every ground was a height-1 cube, so default-TRUE was a NO-OP: `stackContribution` is
+ *     `actsAsTile ? max(1, blocks) : blocks`, and both branches agree when blocks is already 1.
  *
- * The second one is what empties the setting out. `stackContribution` is
- * `actsAsTile ? max(1, blocks) : blocks` — and `blocks` can no longer be less than 1, so both branches are
- * the same number. **`act_as_tile` cannot currently change any stacking outcome.** That is not a bug and it
- * is not asserted as desirable; it is the honest state, and it is recorded here because the alternative is a
- * suite that pretends to cover a live switch.
+ * T-140 then made the ground FLAT (*"floor are regular fucking tiles, nothing more nothing less"*) and moved
+ * the map's thickness onto the GRID. That turned the dormant default into a live defect: a flat floor claimed
+ * a block of vertical space that nothing draws, so every building was stamped one block clear of its own
+ * floor. Alexander, Image #30: *"drawing issue base doesn't match buildings … the 'floor' of the building is
+ * not aligned with the building itself"*.
  *
- * What IS live, and what these tests now pin, is the lego rule the two decisions produced: every tile
- * occupies at least one block, a fresh cell already holds a floor, and heights accumulate.
+ * So the default went back to opt-in, which serves his 2026-07-26 GOAL unchanged. On a flat ground tile,
+ * level 0 IS on top of it, there is no interior to sink into. That leaves the switch doing the job he first
+ * described: a walk-over surface that is flat but still counts as an occupant.
+ *
+ * These tests pin both halves: the lego rule (a tile is as tall as its height says, heights accumulate, a
+ * fresh cell already holds a floor) and the switch itself, on a FLAT tile, which is the only place it shows.
  */
 import { makeStyleTile, setStyleTile, styleTile } from '@/engine/tileset/styleTiles'
-import { cellStackTop, pushTile } from '@/engine/cellStack'
-import { IsometricGrid } from '@/engine/IsometricGrid'
+import { cellStackTop, pushTile, setCellActAsTile } from '@/engine/cellStack'
+import { IsometricGrid, type GridAsset } from '@/engine/IsometricGrid'
 
 const PLAIN = '__plain__'
-const OPTED_OUT = '__opted_out__' // settings.actAsTile:false — kept to prove the switch is inert
+const OPTED_OUT = '__opted_out__' // settings.actAsTile:false, the explicit opt-out
+const OPTED_IN = '__opted_in__'   // settings.actAsTile:true, a walk-over surface ("roads, whatever we walk over")
 const TOP = '__topper__'
 
 beforeAll(() => {
@@ -34,23 +36,28 @@ beforeAll(() => {
     makeStyleTile(label, { char: '.', position: 'single', walkable: true, colorRole: 'ground', ...(settings ? { settings } : {}) })
   setStyleTile('ascii', PLAIN, tile(PLAIN))
   setStyleTile('ascii', OPTED_OUT, tile(OPTED_OUT, { actAsTile: false }))
+  setStyleTile('ascii', OPTED_IN, tile(OPTED_IN, { actAsTile: true }))
   setStyleTile('ascii', TOP, tile(TOP))
 })
 afterAll(() => {
-  for (const label of [PLAIN, OPTED_OUT, TOP]) delete styleTile('ascii', label)
+  for (const label of [PLAIN, OPTED_OUT, OPTED_IN, TOP]) delete styleTile('ascii', label)
 })
 
 const grid = () => new IsometricGrid({ cols: 6, rows: 6, cellSize: 32, isoScale: 1.4 })
-const push = (g: IsometricGrid, type: string, h?: number, settings?: Record<string, unknown>) =>
-  pushTile(g, 2, 2, { source: 'asset', type, art: ['.'], ...(h === undefined ? {} : { h }), collision: false, ...(settings ? { settings } : {}) })
+/** The stack slot a placed asset sits in, what `setCellActAsTile`/`setTileHeight` address. */
+const orderedIndexOf = (g: IsometricGrid, a: GridAsset): number =>
+  [...g.getAssetsAtCell(2, 2)].sort((x, y) => (x.heightLevel ?? 0) - (y.heightLevel ?? 0)).indexOf(a)
+const push = (g: IsometricGrid, type: string, h?: number) =>
+  pushTile(g, 2, 2, { source: 'asset', type, art: ['.'], ...(h === undefined ? {} : { h }), collision: false })
 
-describe('every placed block occupies at least one block — "no exceptions"', () => {
-  it('gives a tile pushed with height 0 a full block anyway', () => {
-    // Alexander, 2026-07-27: *"all tiles/blocks are height 1, GLOBAL, no exceptions"*. A caller asking for
-    // 0 is asking for something the model no longer has, and it is clamped rather than honoured.
+describe('a tile is as tall as its height says, 0 means FLAT', () => {
+  it('lets a tile pushed with height 0 stay flat, so the next tile lands at the same level', () => {
+    // T-140 gave 0 back to the model, at Alexander's word: *"floors should be generated with height 0, which
+    // mean, the height setting from the floor tile is 0 … floor are regular fucking tiles, nothing more
+    // nothing less."* A flat tile occupies no vertical space, so the tile after it does NOT climb.
     const g = grid()
-    push(g, PLAIN, 0)
-    expect(push(g, TOP).heightLevel).toBe(2)
+    const flat = push(g, PLAIN, 0)
+    expect(push(g, TOP).heightLevel).toBe(flat.heightLevel)
   })
 
   it('gives a tile pushed with NO height a full block — the default is 1, not 0', () => {
@@ -84,21 +91,44 @@ describe('heights ACCUMULATE — the rule that makes it a lego model', () => {
   })
 })
 
-describe('the act_as_tile switch is currently INERT — recorded, not endorsed', () => {
-  it('stacks identically whether a tile opts out or not', () => {
-    const optedOut = grid()
-    const plain = grid()
-    push(optedOut, OPTED_OUT)
-    push(plain, PLAIN)
-    // `stackContribution` is `actsAsTile ? max(1, blocks) : blocks`, and blocks is always >= 1 since
-    // 2026-07-27 — so the two branches cannot differ. If this test ever FAILS, the height model has gained
-    // sub-block tiles again and the switch has become observable, which is worth knowing either way.
-    expect(cellStackTop(optedOut, 2, 2)).toBe(cellStackTop(plain, 2, 2))
+describe('the act_as_tile switch is LIVE again, it is what a FLAT tile uses to still be stood on', () => {
+  // The old version of this suite predicted its own end: *"if this test ever FAILS, the height model has
+  // gained sub-block tiles again and the switch has become observable"*. T-140 did exactly that. On a tile
+  // that is already a block tall the switch cannot change anything (max(1, 1) === 1), so both cases below use
+  // a FLAT tile, the only place it is observable, and the case Alexander described it for: *"roads, whatever
+  // we walk over"*.
+
+  it('does NOT lift what stands on a flat tile by default, opt-in not opt-out', () => {
+    // This is the defect from Image #30 stated as a test. Default-TRUE fabricated a block of vertical space
+    // that nothing draws, so a building stood one block clear of its own floor.
+    const g = grid()
+    const flat = push(g, PLAIN, 0)
+    expect(push(g, TOP).heightLevel).toBe(flat.heightLevel)
   })
 
-  it('stacks identically with a per-INSTANCE override too', () => {
+  it('DOES lift what stands on a flat tile whose DB tile opts in', () => {
     const g = grid()
-    push(g, PLAIN, undefined, { actAsTile: false })
-    expect(push(g, TOP).heightLevel).toBe(2)
+    const flat = push(g, OPTED_IN, 0)
+    expect(push(g, TOP).heightLevel).toBe(flat.heightLevel + 1)
+  })
+
+  it('lifts what already stands on a flat tile the moment it is switched on', () => {
+    // The per-INSTANCE path, through the real API. `setCellActAsTile` mirrors setTileHeight's lift, so
+    // flipping the switch on a flat tile raises what sits on it by the one block it now occupies.
+    const g = grid()
+    const flat = push(g, PLAIN, 0)
+    const top = push(g, TOP)
+    const before = top.heightLevel ?? 0
+    setCellActAsTile(g, 2, 2, orderedIndexOf(g, flat), true)
+    expect(top.heightLevel).toBe(before + 1)
+  })
+
+  it('a height-1 tile is unaffected by the switch, it already occupies its block', () => {
+    const g = grid()
+    const block = push(g, PLAIN, 1)
+    const top = push(g, TOP)
+    const before = top.heightLevel ?? 0
+    setCellActAsTile(g, 2, 2, orderedIndexOf(g, block), true)
+    expect(top.heightLevel).toBe(before)
   })
 })

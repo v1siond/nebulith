@@ -136,10 +136,10 @@ describe('RAISE a tile and what is on top of it goes up with it', () => {
     const { wall, roof } = stampedHouseCell(grid)
 
     setTileHeight(grid, C, R, 0, 5)
-    setTileHeight(grid, C, R, 0, 0) // "back to nothing" is back to ONE block — the floor of every tile
+    setTileHeight(grid, C, R, 0, 0) // "back to nothing" is back to FLAT, 0 is representable since ticket 43
 
-    expect(wall.heightLevel).toBe(1)
-    expect(roof.heightLevel).toBe(5)
+    expect(wall.heightLevel).toBe(0) // the house sits ON the flat ground, not one phantom block above it
+    expect(roof.heightLevel).toBe(4)
   })
 
   test('ANY tile lifts what is above it — not just the floor (raise the wall, the roof rises)', () => {
@@ -195,19 +195,21 @@ describe('RAISE a tile and what is on top of it goes up with it', () => {
     expect(floor.heightLevel).toBe(0) // …and the ground STAYS on the grid
   })
 
-  test('ONE block is the floor of the model — asking for 0 leaves the tile a block tall, and moves nothing', () => {
-    // "all tiles/blocks are height 1, GLOBAL, no exceptions" (Alexander, 2026-07-27). A height of 0 is not a
-    // flat tile any more, it is simply not representable: resolveTileHeight clamps it back to one block. So
-    // the edit is a no-op rather than a collapse, and nothing above it moves.
+  test('FLATTENING the ground to 0 brings what stands on it down to the ground', () => {
+    // T-140 made 0 a real height (`resolveTileHeight` reads `h >= 0`), because Alexander asked for exactly
+    // that: *"floors should be generated with height 0, which mean, the height setting from the floor tile is
+    // 0 … floor are regular fucking tiles, nothing more nothing less."* So flattening is a COLLAPSE, not the
+    // old no-op, and what stood on the block comes down with it instead of hanging one block up (Image #30:
+    // *"the 'floor' of the building is not aligned with the building itself"*).
     const grid = mkGrid()
     grid.setGround(C, R, 'grass')
     const roof = grid.placeAsset([''], C, R, { type: 'house_4', heightLevel: 1 })
     roof.height = 2
 
-    setTileHeight(grid, C, R, 0, 0) // try to flatten the ground
+    setTileHeight(grid, C, R, 0, 0) // flatten the ground
 
-    expect(cellStackTop(grid, C, R)).toBe(3) // still 1 block of ground carrying a 2-block roof
-    expect(roof.heightLevel).toBe(1)
+    expect(roof.heightLevel).toBe(0) // came down onto the flat ground
+    expect(cellStackTop(grid, C, R)).toBe(2) // 0 blocks of ground carrying a 2-block roof
   })
 
   test('a Z-WIDTH tile lifts what stands on EVERY block it occupies, not just its anchor', () => {
@@ -271,22 +273,36 @@ describe('RAISE a tile and what is on top of it goes up with it', () => {
     expect(floor.height).toBeCloseTo(7.25, 6)
   })
 
-  test('…but what STANDS on it moves in whole blocks, because act_as_tile counts a cell as occupied', () => {
-    // Alexander, 2026-07-26: *"act_as_tile set to true in ALL cells/block by default … houses stack on top of
-    // the grass tiles instead of inside."* That default is what puts content on the ground rather than in it,
-    // and it means a cell occupies AT LEAST one block for stacking however thin its tile is. So growing a flat
-    // floor to 0.001 does not lift the house by a thousandth — the cell was already counting as one block, and
-    // still is. The two rules meet here on purpose; the tile's own height (above) stays exact regardless.
+  test('…and what STANDS on it follows the floor EXACTLY, in fractions of a block', () => {
+    // *"we can increase from 0.001 block size, the blocks and cells are a control of position and measurement,
+    // doesn't necessarilly mean everything is handled by integer numbers"* (Alexander). So a floor grown to
+    // 0.001 lifts the wall by exactly 0.001, it no longer rounds up to a whole phantom block. That rounding
+    // came from act_as_tile being default-TRUE, which is what left buildings a block clear of their own floor
+    // once T-140 made the ground flat; the setting is opt-in now, so the tile's height governs on its own.
     const grid = mkGrid()
     grid.setGround(C, R, 'grass')
-    const wall = grid.placeAsset([''], C, R, { type: 'house_4', heightLevel: 1 })
+    setTileHeight(grid, C, R, 0, 0) // start FLAT, the way a generated map now ships
+    const wall = grid.placeAsset([''], C, R, { type: 'house_4', heightLevel: 0 })
     wall.height = 1
 
     setTileHeight(grid, C, R, 0, 0.001)
-    expect(wall.heightLevel).toBe(1) // still standing on the one block the cell occupies
+    expect(wall.heightLevel).toBeCloseTo(0.001, 6) // the floor's exact height, not a rounded block
 
-    setTileHeight(grid, C, R, 0, 2.5) // now the floor genuinely outgrows that block
+    setTileHeight(grid, C, R, 0, 2.5)
     expect(wall.heightLevel).toBeCloseTo(2.5, 6)
+  })
+
+  test('a tile that OPTS IN to act_as_tile still lifts what stands on it while staying flat', () => {
+    // The switch keeps the job Alexander first described for it: a walk-over surface (*"roads, whatever we
+    // walk over"*) that is FLAT but still counts as an occupant, so content lands on top of it. Opt-in, per
+    // tile, in the backend. This is the negative case for the test above: same flat height, different setting.
+    const grid = mkGrid()
+    grid.setGround(C, R, 'grass')
+    const floor = grid.floorAt(C, R)!
+    floor.settings = { ...(floor.settings ?? {}), actAsTile: true }
+    floor.height = 0
+
+    expect(cellStackTop(grid, C, R)).toBe(1) // flat, yet the cell reads as one block occupied
   })
 
   test('a per-instance scaleY is folded into the tile\'s ONE height number when it is edited', () => {

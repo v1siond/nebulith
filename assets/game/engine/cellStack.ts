@@ -207,17 +207,27 @@ function stackContribution(a: GridAsset): number {
 /** Does this placed tile ACT AS A TILE — i.e. "does the cell behave as if a tile was already inside it", so the
  *  next tile stacks ON TOP rather than landing inside at level 0? A per-tile SETTING (`settings.actAsTile`),
  *  read the SAME data path as height: a per-instance/composition-cell override on the asset wins, else the DB
- *  tile's own `settings.actAsTile`. The DEFAULT is TRUE for every cell/block (Alexander 2026-07-26: "act_as_tile
- *  set to true in ALL cells/block by default … houses stack on top of the grass tiles instead of inside"): only
- *  an explicit `false` opts out. Resolved by the tile's slug (floor → its ground kind, like assetBlocks). */
+ *  tile's own `settings.actAsTile`. Resolved by the tile's slug (floor → its ground kind, like assetBlocks).
+ *
+ *  OPT-IN. It was default-TRUE (Alexander 2026-07-26: *"act_as_tile set to true in ALL cells/block by default …
+ *  houses stack on top of the grass tiles instead of inside"*). While every ground was a height-1 cube that
+ *  default was a NO-OP: `max(1, blocks)` and `blocks` are the same number when blocks is already 1. It only
+ *  started doing anything when T-140 made the ground FLAT, and what it then did was fabricate a block of
+ *  vertical space that NOTHING DRAWS: the floor skin is painted at level 0, the building was stamped at level 1,
+ *  and the house parted company with its own floor. Alexander, Image #30: *"drawing issue base doesn't match
+ *  buildings … the 'floor' of the building is not aligned with the building itself"*.
+ *
+ *  His 2026-07-26 GOAL still holds and is still met: on a FLAT ground tile, level 0 *is* on top of it, there is
+ *  no interior to sink into. So the lego law he stated governs unchanged (*"each tile occupies its level + its own
+ *  block height, and the next tile rests on the tallest"*), and act_as_tile goes back to being what he first
+ *  described it as, the explicit switch for a walk-over surface (a height-0 road that should still lift what
+ *  stands on it), set on the TILE in the backend like every other setting. No tile in the live DB sets it today. */
 function assetActsAsTile(a: GridAsset): boolean {
   const perInstance = (a.settings as { actAsTile?: boolean } | undefined)?.actAsTile
   if (perInstance !== undefined) return perInstance
   const slug = a.type === FLOOR_TYPE ? (a.tileKey ?? DEFAULT_FLOOR_SLUG) : (a.label ?? a.type)
   const tile = styleTile('ascii', slug) ?? styleTile('emoji', slug)
-  // DEFAULT TRUE for every cell/block (Alexander 2026-07-26). Only an explicit `false` opts out. Lands WITH the
-  // height-1 default (all grounds are now ≥1 blocks) so content stacks ON TOP of the ground, not sunk inside it.
-  return (tile?.settings as { actAsTile?: boolean } | undefined)?.actAsTile !== false
+  return (tile?.settings as { actAsTile?: boolean } | undefined)?.actAsTile === true
 }
 
 /** A placed tile's own height in BLOCKS: its per-instance override, else its DB tile's height, × the

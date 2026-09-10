@@ -73,17 +73,25 @@ beforeAll(async () => {
 })
 
 describe('iso: a tile is lifted by its stack level ONLY — no floor-shaped extra term', () => {
-  test('the ground lifts by its OWN one block — the painted tile sits on it, not inside it and not higher', () => {
+  test('the ground lifts by its OWN height and nothing more, so a tile on FLAT ground is not lifted at all', () => {
     const grid = newGrid()
+    grid.floorAt(ACOL, AROW)!.height = 1 // a one-block ground: the tile on it rides up exactly one
     paintBlock(grid)
     renderIso(grid)
 
     const floor = isoRecordedTileGeom(ACOL, AROW, 0)
     const wall = isoRecordedTileGeom(ACOL, AROW, 1)
-    // Screen Y grows downward, so "one block up" is −1 UNIT. Exactly one: the ground contributes its own
-    // height and nothing else. Zero would mean the wall was sunk into the ground; more than one would be the
-    // floor-shaped bonus term this whole file exists to forbid.
+    // Screen Y grows downward, so "one block up" is -1 UNIT. Exactly one: the ground contributes its own
+    // height and nothing else. More than one would be the floor-shaped bonus term this whole file forbids.
     expect(baseY(floor) - baseY(wall)).toBeCloseTo(UNIT, 1)
+
+    // And the FLAT case, which is what a generated map ships since T-140. A flat floor has no height to
+    // contribute, so the tile lands ON it at the same level: no lift at all. act_as_tile being default-TRUE
+    // used to fabricate one block here, which is what left buildings hanging clear of their own floor
+    // (Alexander, Image #30). Same file, same rule, applied to a height of 0.
+    const flatGrid = newGrid() // the default `grass` floor is height 0
+    const painted = paintBlock(flatGrid)
+    expect(painted.heightLevel ?? 0).toBe(0)
   })
 
   test('RAISE the floor tile → the tile on top rises by EXACTLY the floor\'s own height (2 blocks, not 1)', () => {
@@ -99,8 +107,27 @@ describe('iso: a tile is lifted by its stack level ONLY — no floor-shaped extr
     expect(baseY(floor) - baseY(wall)).toBeCloseTo(2 * UNIT, 1)
   })
 
-  test('a BARE cell and a FLOORED cell differ by EXACTLY the floor\'s one block — and by nothing else', () => {
+  test('a BARE cell and a FLAT-FLOORED cell draw the tile at the SAME height, because a flat floor adds nothing', () => {
+    const floored = newGrid() // default `grass` floor, height 0
+    paintBlock(floored)
+    renderIso(floored)
+    const withFloor = baseY(isoRecordedTileGeom(ACOL, AROW, 1)) // stack INDEX 1: the painted tile, not the floor
+
+    const bare = newGrid()
+    bare.removeFloor(ACOL, AROW)
+    paintBlock(bare)
+    renderIso(bare)
+    const withoutFloor = baseY(isoRecordedTileGeom(ACOL, AROW, 0)) // no floor, so the tile is stack index 0
+
+    // The only difference between the two cells is a floor of height ZERO, so the render may show NO
+    // difference. This is the test that catches a floor-shaped term: any gap here is a bonus the floor's own
+    // height does not account for, which is precisely the block act_as_tile used to invent.
+    expect(withoutFloor - withFloor).toBeCloseTo(0, 1)
+  })
+
+  test('a ONE-BLOCK floor and a bare cell differ by exactly that block, and by nothing else', () => {
     const floored = newGrid()
+    floored.floorAt(ACOL, AROW)!.height = 1
     paintBlock(floored)
     renderIso(floored)
     const withFloor = baseY(isoRecordedTileGeom(ACOL, AROW, 1))
@@ -109,11 +136,8 @@ describe('iso: a tile is lifted by its stack level ONLY — no floor-shaped extr
     bare.removeFloor(ACOL, AROW)
     paintBlock(bare)
     renderIso(bare)
-    const withoutFloor = baseY(isoRecordedTileGeom(ACOL, AROW, 0)) // no floor → the tile is stack index 0
+    const withoutFloor = baseY(isoRecordedTileGeom(ACOL, AROW, 0))
 
-    // The ONLY difference between the two cells is one block of ground, so that is the only difference the
-    // render may show. This is the test that catches a floor-shaped term: it would push the two further apart
-    // than the floor's own height accounts for.
     expect(withoutFloor - withFloor).toBeCloseTo(UNIT, 1)
   })
 
@@ -123,7 +147,7 @@ describe('iso: a tile is lifted by its stack level ONLY — no floor-shaped extr
     paintBlock(grid) // lands at level 1 (on the 1-block tile below)
     renderIso(grid)
 
-    const lower = baseY(isoRecordedTileGeom(ACOL, AROW, 1))
+    const lower = baseY(isoRecordedTileGeom(ACOL, AROW, 1)) // stack INDEX: the floor keeps slot 0
     const upper = baseY(isoRecordedTileGeom(ACOL, AROW, 2))
     expect(lower - upper).toBeCloseTo(UNIT, 1)
   })

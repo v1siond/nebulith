@@ -8,6 +8,7 @@ import '@/__tests__/helpers/installTilesetSeed' // the house_4 composition + wal
 import { FLOOR_TYPE, IsometricGrid } from '@/engine/IsometricGrid'
 import type { Facing } from '@/engine/villageLayout'
 import { stampBuildingComposition } from '@/game/runtime/composition'
+import { cellStackTop } from '@/engine/cellStack'
 
 const mkGrid = () => new IsometricGrid({ cols: 24, rows: 24, cellSize: 16, isoScale: 1.4 })
 // A square 4×4 footprint (house_4) at this top-left, so a 90° rotation keeps the same footprint rect.
@@ -28,14 +29,16 @@ describe('a stamped building composition fronts its road (door on the facing edg
       const grid = mkGrid()
       stampBuildingComposition(grid, 'house', SIZE, ANCHOR, ANCHOR, 'spring', facing)
       const doorTiles = grid.assets.filter(a => a.label === 'door')
-      // house_4 is EVEN-width → a centred 2-WIDE door (2 columns). Each 2-tall column is ONE collapsed
-      // scaleY block seated at the building's BASE — the minimal-cell rebuild (#30). Asserted against that
-      // base rather than a literal 0: the house stands ON the ground, which is a block like any other, so
-      // its base is one up. What matters is that the door is at the bottom of the building — the doorstep —
-      // and not raised a floor above it.
+      // house_4 is EVEN-width, so a centred 2-WIDE door (2 columns). Each 2-tall column is ONE collapsed
+      // scaleY block seated at the building's BASE, the minimal-cell rebuild (#30). What matters is that the
+      // door is at the bottom of the building, the doorstep, and not raised a floor above it.
+      // The expected base is READ from the ground rather than hardcoded, so this keeps holding whatever the
+      // ground's height is. On today's FLAT ground that is 0: the house sits on its own floor, which is the
+      // whole point of Image #30 ("the 'floor' of the building is not aligned with the building itself").
       const building = grid.assets.filter(a => a.type !== FLOOR_TYPE)
       const base = Math.min(...building.map(a => a.heightLevel ?? 0))
-      expect(base).toBe(1) // the doorstep rests on the ground block, not sunk into it
+      expect(base).toBe(cellStackTop(mkGrid(), ANCHOR, ANCHOR)) // the doorstep rests on the ground, not sunk in it
+      expect(base).toBe(0) // and on flat ground that IS zero, stated plainly so a regression is readable
       expect(doorTiles.length).toBeGreaterThanOrEqual(1)
       expect(doorTiles.every(d => (d.heightLevel ?? 0) === base)).toBe(true) // every door column is at the doorstep
       const cols = new Set(doorTiles.map(d => `${d.col},${d.row}`))

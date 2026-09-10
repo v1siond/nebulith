@@ -20,12 +20,13 @@ describe('lego model — everything on the grid is an editable block', () => {
     pushTile(grid, 4, 4, { source: 'asset', slug: 'stone', h: 1, art: ['█'], type: 'block' })
     const stack = getStack(grid, 4, 4)
     // Placing a tile STACKS (never replaces): the grass floor stays as slot 0, the first block sits ON it,
-    // the second stacks on that — grass + two blocks, all in the cell's stack. The grass is a block like any
-    // other ("all tiles/blocks are height 1, GLOBAL"), so the first tile lands at level 1, not inside it.
+    // the second stacks on that. Grass plus two blocks, all in the cell's stack.
+    // The grass is FLAT since T-140 ("floor are regular fucking tiles"), so it occupies no vertical space and
+    // the first block lands at level 0, ON the ground rather than a block above it (Image #30).
     expect(stack.map(t => t.type)).toEqual(['floor', 'block', 'block'])
-    expect(stack[0].type).toBe('floor')     // the grass floor is NOT hidden — it stays beneath as its own tile
-    expect(stack[1].heightLevel).toBe(1)    // the first block sits ON the grass, not replacing or sinking into it
-    expect(stack[2].heightLevel).toBe(2)    // the second block stacks one level up
+    expect(stack[0].type).toBe('floor')     // the grass floor is NOT hidden, it stays beneath as its own tile
+    expect(stack[1].heightLevel).toBe(0)    // the first block sits ON the flat grass, not a block clear of it
+    expect(stack[2].heightLevel).toBe(1)    // the second block stacks one level up
     expect(stack[2].h).toBe(1)              // the top block carries its height
   })
 
