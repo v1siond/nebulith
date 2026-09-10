@@ -256,16 +256,36 @@ describe('RAISE a tile and what is on top of it goes up with it', () => {
     expect(elsewhere.heightLevel).toBe(0)
   })
 
-  test('heights are CONTINUOUS — a 0.001 change lifts by exactly 0.001, never rounded to a whole block', () => {
+  test('heights are CONTINUOUS — a tile keeps the EXACT height it was given, never rounded to a block', () => {
+    // Blocks are a unit of MEASUREMENT ("we can increase from 0.001 block size … doesn't necessarilly mean
+    // everything is handled by integer numbers"). The tile's own height stays exact at any scale.
+    const grid = mkGrid()
+    grid.setGround(C, R, 'grass')
+    const floor = grid.floorAt(C, R)!
+
+    setTileHeight(grid, C, R, 0, 0.001)
+    expect(floor.height).toBeCloseTo(0.001, 6)
+    setTileHeight(grid, C, R, 0, 2.5)
+    expect(floor.height).toBeCloseTo(2.5, 6)
+    setTileHeight(grid, C, R, 0, 7.25)
+    expect(floor.height).toBeCloseTo(7.25, 6)
+  })
+
+  test('…but what STANDS on it moves in whole blocks, because act_as_tile counts a cell as occupied', () => {
+    // Alexander, 2026-07-26: *"act_as_tile set to true in ALL cells/block by default … houses stack on top of
+    // the grass tiles instead of inside."* That default is what puts content on the ground rather than in it,
+    // and it means a cell occupies AT LEAST one block for stacking however thin its tile is. So growing a flat
+    // floor to 0.001 does not lift the house by a thousandth — the cell was already counting as one block, and
+    // still is. The two rules meet here on purpose; the tile's own height (above) stays exact regardless.
     const grid = mkGrid()
     grid.setGround(C, R, 'grass')
     const wall = grid.placeAsset([''], C, R, { type: 'house_4', heightLevel: 1 })
     wall.height = 1
 
     setTileHeight(grid, C, R, 0, 0.001)
-    expect(wall.heightLevel).toBeCloseTo(0.001, 6)
+    expect(wall.heightLevel).toBe(1) // still standing on the one block the cell occupies
 
-    setTileHeight(grid, C, R, 0, 2.5)
+    setTileHeight(grid, C, R, 0, 2.5) // now the floor genuinely outgrows that block
     expect(wall.heightLevel).toBeCloseTo(2.5, 6)
   })
 

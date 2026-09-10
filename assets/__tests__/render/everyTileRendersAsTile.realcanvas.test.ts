@@ -117,11 +117,14 @@ describe('the height model — every tile extrudes; the placed block decides how
     const tall = nonUnit(emojiRows()).find(r => r.height >= 1)
     expect(zeroInArt).toBeDefined() // such rows still exist in the catalog; they simply carry no authority
     expect(tall).toBeDefined()
-    expect(renderIso(EMOJI_STYLE, zeroInArt!)?.kind).toBe('cube') // a tile, not a billboard
-    // Both draw the SAME one-block cube, because neither placement pinned a height.
-    const flatPx = cubeExtrudePx(renderIso(EMOJI_STYLE, zeroInArt!))
+    // The PLACEMENT pins nothing — which is the whole point. `paintedAsset` normally copies the catalog row's
+    // height onto the placed block, so leaving it in would have been testing the copy, not the inertness.
+    // With no placed height both rows must draw the SAME one-block cube however their art is labelled.
+    const bare = { height: undefined }
+    expect(renderIso(EMOJI_STYLE, zeroInArt!, bare)?.kind).toBe('cube') // a tile, not a billboard
+    const flatPx = cubeExtrudePx(renderIso(EMOJI_STYLE, zeroInArt!, bare))
     expect(flatPx).toBeGreaterThan(0)
-    expect(cubeExtrudePx(renderIso(EMOJI_STYLE, tall!))).toBeCloseTo(flatPx, 0)
+    expect(cubeExtrudePx(renderIso(EMOJI_STYLE, tall!, bare))).toBeCloseTo(flatPx, 0)
   })
 
   it('the PLACEMENT scales the extrusion — 3 blocks draws three times a 1-block tile', () => {

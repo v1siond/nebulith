@@ -285,16 +285,22 @@ export function setTileHeight(grid: IsometricGrid, col: number, row: number, sta
   const target = orderedStack(grid, col, row)[stackIndex]
   if (!target) return
 
-  const before = assetBlocks(target)
+  // Measured in STACKING blocks, not raw height — the two differ for a flat tile that acts as one. A floor is
+  // flat now (height 0) while `act_as_tile` still makes it occupy one block for stacking, which is what puts
+  // content on the slab's top at level 1. Taking the delta from the raw height would count that first block
+  // twice: raising a flat floor to 5 would lift what stands on it by 5 rather than by 4, and the house would
+  // part company with its own floor. `stackContribution` is what decided where the content sits, so it is what
+  // has to decide how far it moves.
+  const before = stackContribution(target)
   target.height = blocks
   target.scaleY = undefined
-  const delta = assetBlocks(target) - before
+  const delta = stackContribution(target) - before
   if (delta === 0) return
 
   // Everything standing ON the tile rises: any OTHER tile that shares a block with it and starts at or above
   // where its top USED to be. Both halves matter — see occupiedBlocks.
   const footprint = new Set(occupiedBlocks(target).map(blockKey))
-  const wasTop = (target.heightLevel ?? 0) + before
+  const wasTop = (target.heightLevel ?? 0) + before // same measure as the delta, so the two can never disagree
   const targetOrder = grid.assets.indexOf(target)
 
   for (let i = 0; i < grid.assets.length; i++) {

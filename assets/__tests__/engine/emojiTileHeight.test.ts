@@ -35,9 +35,10 @@ describe('the emoji tileset carries pictures, not heights', () => {
   test('the PLACEMENT sets the height, for a ground tile exactly as for a wall', () => {
     expect(resolveTileHeight(styleTiles('emoji').grass, { height: 3 })).toBe(3) // a raised patch of ground
     expect(resolveTileHeight(styleTiles('emoji').wall, { height: 3 })).toBe(3) // a three-storey wall pier
-    // …and neither can be flattened away: one block is the floor of the model.
-    expect(resolveTileHeight(styleTiles('emoji').grass, { height: 0 })).toBe(1)
-    expect(resolveTileHeight(styleTiles('emoji').wall, { height: 0 })).toBe(1)
+    // …and either CAN be laid flat, which is how a floor skin is expressed now that the grid carries the
+    // map's thickness itself (Alexander, 2026-09-10). Absent still means one block; this is a deliberate 0.
+    expect(resolveTileHeight(styleTiles('emoji').grass, { height: 0 })).toBe(0)
+    expect(resolveTileHeight(styleTiles('emoji').wall, { height: 0 })).toBe(0)
   })
 
   test('the two art styles agree — the same LABEL is the same block in ascii and emoji', () => {

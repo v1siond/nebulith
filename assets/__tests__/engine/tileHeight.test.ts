@@ -23,8 +23,17 @@ describe('resolveTileHeight — iso block count: the PLACED block\'s height ?? 1
     expect(resolveTileHeight({ height: 7 }, { height: 2 })).toBe(2)
   })
 
-  test('zero and negative clamp UP to one block — flat is not a state a block can be in', () => {
-    expect(resolveTileHeight({}, { height: 0 })).toBe(1)
+  test('a DELIBERATE zero is honoured — that is how a flat floor skin is expressed', () => {
+    // Alexander, 2026-09-10: *"that'll allow us to reduce the height of any floor tile to 0 in the
+    // generators."* The grid takes the map's thickness; a floor becomes a flat skin on it. A flat tile has no
+    // side faces, cannot occlude, and so does not need a place in the draw order — which is what lets ground
+    // merge into runs at all.
+    expect(resolveTileHeight({}, { height: 0 })).toBe(0)
+  })
+
+  test('…but ABSENT still means one block, and negative is still nonsense', () => {
+    // The global rule stands for anything that does not deliberately say otherwise.
+    expect(resolveTileHeight({}, {})).toBe(1)
     expect(resolveTileHeight({}, { height: -2 })).toBe(1)
   })
 })

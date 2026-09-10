@@ -21,12 +21,23 @@ export function resolveTileHeight(tile: HasTileHeight | undefined, asset: HasAss
   // A tile is pure ART and carries NO height (Alexander 2026-07-27: "tiles only have data when they're assigned
   // to a cell … the generator should assign the value when creating something"). So we NEVER read the art tile's
   // height — that stray art `0` was what sank the road below the height-1 grass (the trench). Height comes from
-  // the PLACED block: the generator/stamp/editor sets `asset.height`; absent → 1 (default block). A non-positive
-  // value clamps to 1 — "all tiles/blocks are height 1, GLOBAL, no exceptions". `tile` is kept for call-site
-  // stability but intentionally unused.
+  // the PLACED block: the generator/stamp/editor sets `asset.height`. `tile` is kept for call-site stability
+  // but intentionally unused.
   void tile
+  // ABSENT means one block — "all tiles/blocks are height 1, GLOBAL, no exceptions" still holds for anything
+  // that does not say otherwise. But a DELIBERATE 0 is now honoured, which it was not: the old clamp read
+  // `h > 0 ? h : 1` and made flat unreachable.
+  //
+  // Alexander, 2026-09-10: *"we can make the grid have height … that'll allow us to reduce the height of any
+  // floor tile to 0 in the generators, for the backend it'll be just a layer of flat tiles."* The two jobs
+  // that `height: 1` was doing — giving the map visible thickness, and making each floor a solid cube — are
+  // being split. The GRID takes the thickness; the floor becomes a flat skin on it. A flat tile has no side
+  // faces, so it cannot occlude, so its place in the draw order stops mattering — which is what unblocks
+  // merging ground into runs at all (his Images #27/#28).
+  //
+  // Negative is still nonsense and still clamps to one block.
   const h = asset?.height ?? 1
-  return h > 0 ? h : 1
+  return h >= 0 ? h : 1
 }
 
 /** Render-geometry ONLY (no invented value): how MANY layers the iso renderer stacks for a tile of `blocks`

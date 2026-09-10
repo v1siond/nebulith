@@ -376,7 +376,16 @@ export class IsometricGrid {
     // A floor is BORN with its colour as STATE — either the explicit colour a map-builder PICKED, or (when a raw
     // setGround / the ctor default lays one down) auto-picked from the ground tile's own DB colour. So no floor is
     // ever colourless and every view just READS floor.color, never deriving it or falling back to a hardcode.
-    return { art: [''], col, row, type: FLOOR_TYPE, tileKey: slug, heightLevel: 0, blocking: false, color: color ?? groundTileColor(slug, col, row) }
+    // FLAT, deliberately. Alexander, 2026-09-10: *"reduce the height of any floor tile to 0 … for the backend
+    // it'll be just a layer of flat tiles, which are used to put other stuff on top."* The map's THICKNESS is
+    // the grid's job now (one slab, drawn at its perimeter), not a cube per cell. A flat tile has no side
+    // faces, so it occludes nothing, so where it falls in the draw order does not matter — which is what lets
+    // ground merge into z-width runs without the sort breaking (his Images #27/#28).
+    //
+    // The STACKING is untouched: `act_as_tile` defaults true, so a flat floor still reports a contribution of
+    // one block and content still lands at level 1, standing on the slab's top. Written as placement STATE
+    // here rather than branched on `type` at render time.
+    return { art: [''], col, row, type: FLOOR_TYPE, tileKey: slug, heightLevel: 0, height: 0, blocking: false, color: color ?? groundTileColor(slug, col, row) }
   }
 
   // Set the floor tile TYPE of a cell — place/replace its level-0 floor asset (the slug rides `tileKey`,
