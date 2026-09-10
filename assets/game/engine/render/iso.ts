@@ -600,8 +600,11 @@ export function render(params: IsoRenderParams) {
   // canvas. Written as the SAME per-tile shape as the player range, so a long z-width run stays visible while
   // any part of it is on screen — the rule Alexander set for the other range ("the range should actually work
   // on per cell … on roads we use 1 block with lots of z-width").
-  const marginX = tileW * 2
-  const marginTop = tileH * 3 // a cell just above the top edge can still show the bottom of its base diamond
+  // The margins are the CELL'S OWN EXTENT, not a chosen multiple of it: a cell's diamond reaches exactly
+  // ±tileW horizontally and ±tileH vertically from its centre, so a cell further out than that cannot put a
+  // pixel on screen. Derived, so there is no number here anyone has to justify or tune.
+  const marginX = tileW
+  const marginTop = tileH
   const onScreen = (a: GridAsset): boolean => {
     // A tile draws UPWARD from its cell, so one below the bottom edge is visible when it is tall enough to
     // reach back into view — its own rise is the exact margin, no guessing at a worst case.
@@ -1388,10 +1391,6 @@ export function fillIsoFaceWithTile(
 // The default iso BLOCK height (screen px) of ONE stack level — one cube tall. drawIsoTileBlock draws
 // a default-dim cube exactly this tall (its `bh` base is tileW * 0.9), so lifting a stacked asset by
 // this per level makes the pile climb in lockstep with the cubes (and with the 2D raised stack).
-/** How thick the map's body is, in blocks. One block — the same thickness a floor tile used to have, so the
- *  map reads exactly as solid as it did before the split, without any floor being a cube. */
-export const GRID_SLAB_BLOCKS = 1
-
 /**
  * THE GRID'S BODY — the thick base under the whole map.
  *
@@ -1421,8 +1420,14 @@ export function drawGridSkirt(
   camRow: number,
   halfSpan: number,
 ): void {
+  // THE THICKNESS IS MAP DATA — `grid.slabBlocks`, served with the level and saved with it. It was a module
+  // constant (`GRID_SLAB_BLOCKS = 1`) for exactly one day, which was one day too long: Alexander, 2026-09-10,
+  // *"is there any way to control the height of the grid??"* — no, and that is the same mistake as pinning a
+  // floor's height in a factory, one layer up. Zero means no body at all, and nothing draws.
+  const slab = grid.slabBlocks
+  if (slab <= 0) return
   const blockH = tileW * ISO_BLOCK_H_FRAC
-  const drop = GRID_SLAB_BLOCKS * blockH
+  const drop = slab * blockH
   const c0 = Math.max(0, camCol - halfSpan)
   const c1 = Math.min(grid.cols - 1, camCol + halfSpan)
   const r0 = Math.max(0, camRow - halfSpan)
@@ -1449,19 +1454,21 @@ export function drawGridSkirt(
     for (let col = c0; col <= c1; col++) {
       const floor = grid.floorAt(col, row)
       if (!floor) continue // no ground here → nothing to hold up
-      const openRight = !grid.floorAt(col + 1, row) // the +col neighbour, which would hide the right wall
-      const openLeft = !grid.floorAt(col, row + 1) // the +row neighbour, which would hide the left wall
-      if (!openRight && !openLeft) continue // fully enclosed — its walls can never be seen
+      // ONLY THE MAP'S OUTER EDGE. This first asked "is the neighbouring FLOOR missing", which fired all over
+      // the interior — a town's roads and plots are separate floors, so every plot edge grew a wall and the
+      // grass appeared to stand a block above the road. That is the raised ground Alexander reported
+      // (Image #29), and it was this skirt, not the tile heights. The map's boundary is the grid's bounds.
+      const openRight = col + 1 >= grid.cols // the +col neighbour is off the map, so this wall faces the void
+      const openLeft = row + 1 >= grid.rows // the +row neighbour is off the map
+      if (!openRight && !openLeft) continue // inside the map — its walls can never be seen
       const p = toScreen(col, row)
-      // Each wall takes its OWN cell's colour, darkened: earth under grass, riverbed under water. The two
-      // sides differ so the edge reads as a solid body catching light rather than a flat band.
-      //
-      // A floor is BORN with its colour as state (makeFloorAsset), so this reads it and never derives one —
-      // a colourless floor is a data gap, and the rule for those is to draw nothing rather than invent.
-      const base = floor.color
-      if (!base) continue
-      if (openLeft) wall(p, 'left', darkenColor(base, 0.45))
-      if (openRight) wall(p, 'right', darkenColor(base, 0.62))
+      // READ the body colour the floor was born with — never shade one here. Deriving a colour at draw time is
+      // forbidden (and would recompute for every visible edge cell, every frame). A floor without one is a data
+      // gap, and the rule for a gap is to draw nothing rather than invent something.
+      const body = floor.sideColor
+      if (!body) continue
+      if (openLeft) wall(p, 'left', body)
+      if (openRight) wall(p, 'right', body)
     }
   }
 }

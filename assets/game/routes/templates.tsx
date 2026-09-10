@@ -4412,7 +4412,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   const createBlankTemplate = async (name: string): Promise<string | null> => {
     const grid = gridRef.current
     if (!grid) return null
-    const blank = new IsometricGrid({ cols: grid.cols, rows: grid.rows, cellSize: grid.cellSize, isoScale: grid.isoScale })
+    const blank = new IsometricGrid({ cols: grid.cols, rows: grid.rows, cellSize: grid.cellSize, isoScale: grid.isoScale, slabBlocks: grid.slabBlocks })
     const { groundData, heightData, assetsData } = serializeGrid(blank)
     try {
       const created = await createTemplate({
@@ -4507,6 +4507,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
           rows: grid.rows,
           cellSize: grid.cellSize,
           isoScale: grid.isoScale,
+          slabBlocks: grid.slabBlocks, // the map's own body thickness travels with it
           spawnCol: Math.floor(playerRef.current.x / grid.cellSize),
           spawnRow: Math.floor(playerRef.current.z / grid.cellSize),
         })
@@ -4524,6 +4525,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
           rows: grid.rows,
           cellSize: grid.cellSize,
           isoScale: grid.isoScale,
+          slabBlocks: grid.slabBlocks, // the map's own body thickness travels with it
           spawnCol: Math.floor(playerRef.current.x / grid.cellSize),
           spawnRow: Math.floor(playerRef.current.z / grid.cellSize),
         })

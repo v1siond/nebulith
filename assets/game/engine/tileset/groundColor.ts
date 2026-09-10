@@ -7,6 +7,7 @@
 import { styleCatalog } from './styleTiles'
 import { varyIntensity } from '@/engine/colors'
 import { resolveGroundTile } from '@/engine/tileset/tileset'
+import { darkenColor } from '@/engine/colors'
 
 /** Deterministic per-cell grass tint: a stable position hash nudges the base grass bg lighter or darker so the
  *  lawn reads as natural patches, not one flat sheet. Computed from (col,row) only — stable per cell. */
@@ -27,3 +28,21 @@ export function grassShade(baseBg: string, col: number, row: number): string {
 export function groundTileColor(tileType: string, col: number, row: number): string {
   return resolveGroundTile(styleCatalog('ascii'), tileType, col, row).bg
 }
+
+/** The colour of the map BODY beneath a ground tile — the earth under grass, the bed under a river.
+ *
+ *  Written as STATE at placement, exactly like `groundTileColor` above, and READ by the render. That split is
+ *  the rule: the generator PICKS colours, the render only reads them; deriving a shade at draw time is
+ *  forbidden (it also recomputes per frame for every visible cell). Nothing is invented from thin air — the
+ *  body takes the ground's OWN colour, darkened, so it always belongs to the surface above it.
+ *
+ *  Empty ground colour (no terrain loaded) → empty here too, and the skirt draws nothing rather than guessing. */
+export function groundSideColor(tileType: string, col: number, row: number): string {
+  const base = groundTileColor(tileType, col, row)
+  return base ? darkenColor(base, GROUND_BODY_DARKEN) : ''
+}
+
+/** How much darker the map's body is than the surface it carries. A LOOK constant, in the one module that owns
+ *  ground colour — not a value the backend serves per tile, because it describes the lighting of the whole map
+ *  rather than any one terrain. */
+const GROUND_BODY_DARKEN = 0.5

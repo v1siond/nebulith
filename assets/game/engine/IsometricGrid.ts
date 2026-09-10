@@ -13,7 +13,7 @@ import type { CellAnimation } from './cellAnimation'
 import { assetRectExtents, type DepthDir, type ThicknessReach } from './render/isoBlock'
 import type { TilePose } from './tileset/pose'
 import type { AssetLight, TileDisplay, TileShape } from './tileset/tileset'
-import { groundTileColor } from './tileset/groundColor'
+import { groundSideColor, groundTileColor } from './tileset/groundColor'
 
 /** GENERIC per-tile BEHAVIOR flags copied from the resolved tile's `settings` onto a placed asset, so ONE
  *  render path drives them for ANY tile — a wall, a roof, or a tree leaf. No `type:'building'` special case:
@@ -79,6 +79,9 @@ export interface GridAsset {
                         // zIndex renders in front of one behind it. A capability for composition optimization;
                         // every cell defaults to 0 → sorts positionally, exactly as before.
   color?: string
+  /** The colour of the map BODY under a FLOOR tile — the earth under grass, the bed under a river. State,
+   *  picked at placement from the ground's own colour; the render reads it and draws nothing without it. */
+  sideColor?: string
   bgColor?: string
   height?: number       // Height in blocks (for buildings, towers, etc.)
   heightLevel?: number  // Which height level this asset sits on (for stacked tiles)
@@ -116,6 +119,11 @@ export interface GridAsset {
 /** A floor is a regular GridAsset carrying this type — the discriminator setGround/clear/getStack use to find
  *  "the floor" among a cell's level-0 assets. It is NOT a render mode: the floor renders through the same
  *  per-asset block path as every tile; `type:'floor'` only routes its art KIND to groundKind (see assetKind). */
+/** The default thickness of a map's body, in blocks, when nothing says otherwise — one block, which is what
+ *  the ground used to be before floors went flat, so an untouched map looks exactly as solid as it did. A
+ *  DEFAULT is allowed to live here; a VALUE is not (it belongs to the map, and saves with it). */
+export const DEFAULT_SLAB_BLOCKS = 1
+
 export const FLOOR_TYPE = 'floor'
 
 /** The default terrain slug a fresh grid / a repaint with no explicit type uses. */
@@ -126,6 +134,10 @@ export interface GridConfig {
   rows: number
   cellSize: number
   isoScale?: number  // Default 1.4
+  /** How thick the map's BODY is, in blocks — the "real ground like old rpgs" Alexander asked for. It is the
+   *  GRID's height, not any tile's: floors are flat skins on top of it. Map DATA, saved with the level and
+   *  served by the generator, never a render constant. 0 = no body (a paper-thin map). */
+  slabBlocks?: number
 }
 
 export class IsometricGrid {
@@ -133,6 +145,9 @@ export class IsometricGrid {
   rows: number
   cellSize: number
   isoScale: number
+  /** The map's BODY thickness in blocks (see GridConfig.slabBlocks). Mutable: the editor can change it and the
+   *  save carries it. */
+  slabBlocks: number
 
   // Height grid - elevation in blocks (0 = ground level, negative = water/pit)
   height: number[][]
@@ -170,6 +185,7 @@ export class IsometricGrid {
     this.rows = config.rows
     this.cellSize = config.cellSize
     this.isoScale = config.isoScale ?? 1.4
+    this.slabBlocks = config.slabBlocks ?? DEFAULT_SLAB_BLOCKS
 
     // Initialize height as 0 (ground level)
     this.height = []
@@ -377,7 +393,13 @@ export class IsometricGrid {
     // ANOTHER LIKE LEGOS BY DEFAULT … THE FLOOR IS NO DIFFERENT FROM IT" (Alexander). Its height is the TILE's
     // own setting, served by the backend and saved with it — not a number this factory stamps on. Pinning it
     // here made the floor special again and, worse, put the value somewhere that never persists.
-    return { art: [''], col, row, type: FLOOR_TYPE, tileKey: slug, heightLevel: 0, blocking: false, color: color ?? groundTileColor(slug, col, row) }
+    return {
+      art: [''], col, row, type: FLOOR_TYPE, tileKey: slug, heightLevel: 0, blocking: false,
+      color: color ?? groundTileColor(slug, col, row),
+      // …and the colour of the map BODY under it, picked at the same moment from the same data. State,
+      // so the render READS it instead of shading at draw time (forbidden, and recomputed per frame).
+      sideColor: groundSideColor(slug, col, row),
+    }
   }
 
   // Set the floor tile TYPE of a cell — place/replace its level-0 floor asset (the slug rides `tileKey`,

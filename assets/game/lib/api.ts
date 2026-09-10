@@ -48,6 +48,8 @@ export interface TemplateData {
   rows: number
   cellSize: number
   isoScale: number
+  /** The map's BODY thickness in blocks — the grid's own height, saved with the level. */
+  slabBlocks?: number
   spawnCol: number
   spawnRow: number
   groundData: string[][]
@@ -96,6 +98,8 @@ export interface CreateTemplateInput {
   rows: number
   cellSize: number
   isoScale: number
+  /** The map's BODY thickness in blocks — the grid's own height, saved with the level. */
+  slabBlocks?: number
   spawnCol: number
   spawnRow: number
   groundData: string[][]
@@ -292,6 +296,7 @@ export function deserializeToGrid(
     rows: data.rows,
     cellSize: data.cellSize,
     isoScale: data.isoScale,
+    slabBlocks: data.slabBlocks,
   })
 
   // Load height data
