@@ -16,8 +16,10 @@
  * What remains is a structural FLOOR of one cell, because a grid with no cells is not a grid. It is stated
  * rather than silently applied: nothing here may quietly change a number the user typed.
  *
- * A very large map does render slowly today. That is a rendering problem to fix in the renderer — the cell
- * walk is per-frame and unwindowed — not a reason to refuse the map.
+ * A CEILING is back, at his word — Alexander, 2026-09-10: *"let's limit maps to 100x100 for now."* Note the
+ * "for now": this is a deliberate, temporary bound while the renderer catches up, not a return to the old
+ * rule. It is stated in ONE place so lifting it is a one-line change, and the panel reports it rather than
+ * silently rewriting what you typed.
  */
 
 /** The open map's size, as the panel shows it. */
@@ -27,18 +29,42 @@ export interface MapSize {
   cellSize: number
 }
 
-/** A grid must have at least one cell, and a cell at least one pixel. The only structural limits. */
+/** A grid must have at least one cell, and a cell at least one pixel. The structural limits. */
 export const MAP_SIZE_MIN = 1
 export const CELL_SIZE_MIN = 1
+
+/** The largest map either side may be, for now (Alexander, 2026-09-10). Temporary: raise or drop this one
+ *  constant when the renderer no longer cares. */
+export const MAP_SIZE_MAX = 100
 
 /** True when `n` is a real number of at least `lo`. A half-typed input (NaN) is not. */
 export function atLeast(n: number, lo: number): boolean {
   return Number.isFinite(n) && n >= lo
 }
 
+/** True when `n` is a real number within [lo, hi]. */
+export function within(n: number, lo: number, hi: number): boolean {
+  return Number.isFinite(n) && n >= lo && n <= hi
+}
+
 /** Is every number of this size one the engine can actually build? */
 export function mapSizeValid(size: MapSize): boolean {
-  return atLeast(size.cols, MAP_SIZE_MIN) && atLeast(size.rows, MAP_SIZE_MIN) && atLeast(size.cellSize, CELL_SIZE_MIN)
+  return (
+    within(size.cols, MAP_SIZE_MIN, MAP_SIZE_MAX) &&
+    within(size.rows, MAP_SIZE_MIN, MAP_SIZE_MAX) &&
+    atLeast(size.cellSize, CELL_SIZE_MIN)
+  )
+}
+
+/** Why a size is not buildable, in the panel's own words — or null when it is fine. Said out loud rather
+ *  than applied silently: a number quietly rewritten under you is the bug this file was created for. */
+export function mapSizeProblem(size: MapSize): string | null {
+  for (const [axis, n] of [['Columns', size.cols], ['Rows', size.rows]] as const) {
+    if (!Number.isFinite(n)) continue
+    if (n < MAP_SIZE_MIN) return `${axis} must be at least ${MAP_SIZE_MIN}.`
+    if (n > MAP_SIZE_MAX) return `${axis} is ${Math.floor(n)} — maps are limited to ${MAP_SIZE_MAX} per side for now.`
+  }
+  return null
 }
 
 /** How many cells a size describes — the number the panel prints. */
@@ -50,6 +76,9 @@ export function cellCount(size: MapSize): number | null {
 const floor = (n: number, lo: number, whenUnset: number): number =>
   Number.isFinite(n) ? Math.max(Math.floor(n), lo) : whenUnset
 
+const bound = (n: number, lo: number, hi: number, whenUnset: number): number =>
+  Number.isFinite(n) ? Math.min(Math.max(Math.floor(n), lo), hi) : whenUnset
+
 /**
  * Hold a requested size above the structural floor, and nowhere else.
  *
@@ -59,8 +88,8 @@ const floor = (n: number, lo: number, whenUnset: number): number =>
  */
 export function clampMapSize(size: MapSize, fallback: MapSize): MapSize {
   return {
-    cols: floor(size.cols, MAP_SIZE_MIN, fallback.cols),
-    rows: floor(size.rows, MAP_SIZE_MIN, fallback.rows),
+    cols: bound(size.cols, MAP_SIZE_MIN, MAP_SIZE_MAX, fallback.cols),
+    rows: bound(size.rows, MAP_SIZE_MIN, MAP_SIZE_MAX, fallback.rows),
     cellSize: floor(size.cellSize, CELL_SIZE_MIN, fallback.cellSize),
   }
 }

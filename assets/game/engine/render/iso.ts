@@ -568,7 +568,35 @@ export function render(params: IsoRenderParams) {
     (a.depth ?? 1) > 1 && a.depthDir ? depthCells(a.col, a.row, a.depth!, a.depthDir) : [{ col: a.col, row: a.row }]
   const tileInRange = (a: GridAsset): boolean =>
     coveredCells(a).some(c => withinPlayerRange(c.col, c.row, pcol, prow, playerViewRange!))
-  const visibleAssets = rangeOn ? rectAssets.filter(tileInRange) : rectAssets
+  // GLOBAL RANGE — the browser's visible area, always on. Alexander, 2026-09-10: *"there'll be two ranges,
+  // one global, always on which is linked to the browser visible body, which mean, nothing i can't actually
+  // see in my pc renders … they work the same, just different context"*, and *"fps are really low even when
+  // range is on … looks like the range is just hidding stuf from top."*
+  //
+  // He was right that something was off, though not where it looked. The rectangle above IS derived from the
+  // viewport, but as a SQUARE in cell space sized by a mixed average — `(w/tileW + h/tileH)/2 + 4`. On a
+  // 1500x950 canvas that is a half-span of 58, i.e. 116x116 = 13,456 cells, while the screen actually shows an
+  // iso DIAMOND of roughly 2,800. So for any map up to 116x116 the "cull" removed nothing at all and every
+  // tile was sorted and drawn, on screen or not.
+  //
+  // This is the real one: project the cells a tile covers and keep it only if any of them can land on the
+  // canvas. Written as the SAME per-tile shape as the player range, so a long z-width run stays visible while
+  // any part of it is on screen — the rule Alexander set for the other range ("the range should actually work
+  // on per cell … on roads we use 1 block with lots of z-width").
+  const marginX = tileW * 2
+  const marginTop = tileH * 3 // a cell just above the top edge can still show the bottom of its base diamond
+  const onScreen = (a: GridAsset): boolean => {
+    // A tile draws UPWARD from its cell, so one below the bottom edge is visible when it is tall enough to
+    // reach back into view — its own rise is the exact margin, no guessing at a worst case.
+    const rise = isoStackLift(tileW, a.heightLevel) + assetBlockRise(a) * tileW * ISO_BLOCK_H_FRAC
+    return coveredCells(a).some(c => {
+      const pt = toScreen(c.col, c.row)
+      if (pt.x < -marginX || pt.x > w + marginX) return false
+      return pt.y - rise <= h + tileH && pt.y >= -marginTop
+    })
+  }
+  const onScreenAssets = rectAssets.filter(onScreen)
+  const visibleAssets = rangeOn ? onScreenAssets.filter(tileInRange) : onScreenAssets
   // Ground shadow goes ONLY on a tree's bottom (ground-contact) cell — see isGroundContact. The
   // tree-cell Set is memoized (treeCellSet) so we don't rescan every asset + realloc each frame.
   const treeCells = treeCellSet(grid)

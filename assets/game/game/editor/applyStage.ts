@@ -114,11 +114,16 @@ export function applyStageToGrid(stage: StageData, grid: IsometricGrid, building
   // water + jets) through the SAME path, so it's per-cell backend tiles, not a special drawer/prop — lifted
   // onto its floor block the same way (0 on a flat plaza, so town fountains are unchanged).
   for (const c of stage.compositions ?? []) stampComposition(grid, c.kind, c.col, c.row, stage.zone, c.variant ?? 0, 0)
-  // GROUND stays PER-CELL — deliberately NOT merged into z-width runs. A merged run spans many camera depths
-  // under ONE sort key, so no key can be right: sorted by its anchor its FRONT cells get wrongly occluded (a
-  // grass cell "looks behind" the thing in front of it), and the front-extent patch over-corrects. Keeping each
-  // ground cell its own block sorts it at its OWN camera depth — pure perspective, correct at every rotation
-  // (Alexander 2026-07-27: "prioritize the CAMERA perspective OF THE ELEMENTS", no front-side priority). The
-  // perf cost is small in practice (~2-4ms; measured ~11ms/frame on a town), so correctness wins. (`compressGround`
-  // stays defined but uncalled — the old FPS trick, kept only for reference.)
+  // MERGE THE GROUND into z-width runs — the "optimized footprints" pass. Alexander, 2026-09-09: *"we must
+  // have FOOTPRINTS for each map … instead of using 16 tiles to do a grass zone, we can use less, maybe even
+  // 1 if there's no flowers and it's plain grass"*, and 2026-09-10: *"let's turn it on first."*
+  //
+  // Measured on the generators: 1600 floor tiles → 93 on a town, 2464 → 116 on a city, 2400 → 163 on a forest.
+  //
+  // This was switched OFF on 2026-07-27 because a merged run spans many camera depths under ONE sort key, so
+  // its front cells could be wrongly occluded. That objection dates from the same day the ground became
+  // height-1 BLOCKS: a flat ground diamond has no side faces and cannot overdraw anything, a 1-block one can.
+  // It is back on so the defect can be SEEN and fixed rather than reasoned about — his call, and the right one:
+  // the merge is worth 15-20x and the sorting is a solvable problem, not a reason to pay per cell forever.
+  grid.compressGround()
 }
