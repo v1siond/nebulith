@@ -12,7 +12,7 @@ import { InfoButton } from './shell/InfoButton'
 import { availableStyles, CATEGORY_LABELS, TILE_CATEGORIES, type TileCategory, type TileDef, tilesForStyle } from '@/game/artStyle'
 import { DEFAULT_ACTION_PARAMS, makeTrigger, type Trigger, type TriggerActionType, type TriggerEvent } from '@/game/runtime/trigger'
 import { catalogZones, categoryLayouts, findCategory, findGenerator, type GeneratorCatalog } from '@/lib/generatorCatalog'
-import { CELL_SIZE_MIN, MAP_SIZE_MIN, atLeast, cellCount, mapSizeValid, type MapSize } from '@/lib/mapSize'
+import { CELL_SIZE_MIN, atLeast, cellCount, mapSizeProblem, mapSizeValid, type MapSize } from '@/lib/mapSize'
 import { PreviewThumb, type PreviewContext } from '@/components/game/shell/PreviewThumb'
 import { subjectFor } from '@/engine/preview/previewScene'
 import { EDITOR_BANDS, EDITOR_RAIL, type RailEntry, type RailId, type EditorMode, GENERATOR_LAYERS, SEASON_BTN, SEASON_BTN_ACTIVE, SELECT_CLS, INPUT_CLS } from './editorConfig'
@@ -592,16 +592,24 @@ function MapSizeSection({
   onDraft,
   size,
   onResize,
+  slabBlocks,
+  onSlabBlocks,
 }: {
   draft: MapSize
   onDraft: (next: MapSize) => void
   /** The size the open map actually IS, so the destructive button can tell whether it has work to do. */
   size: MapSize
   onResize: (cols: number, rows: number, cellSize: number) => void
+  /** How thick the map's BODY is, in blocks — the grid's own height, not any tile's. Applies immediately:
+   *  unlike the three numbers above it needs no rebuild, it just changes how deep the map looks. Absent
+   *  (no map open) → the control is not drawn; nothing here invents a thickness. */
+  slabBlocks?: number
+  onSlabBlocks?: (blocks: number) => void
 }) {
-  // NO MAXIMUM. Alexander, 2026-09-09: *"this shouldn't be a limitation, our generators should be versatile
-  // enough and random enough to do a forest as big as what I put"* and *"the previous limits where caused by
-  // poor optimization."*
+  // A MAXIMUM, but only because he put one back: Alexander, 2026-09-10, *"let's limit maps to 100x100 for
+  // now"* — the "for now" is his, and MAP_SIZE_MAX is the one place it lives. Before that he had removed every
+  // cap (*"this shouldn't be a limitation … the previous limits where caused by poor optimization"*), which is
+  // why nothing here silently rewrites a number: an out-of-range size is REPORTED, never quietly corrected.
   //
   // There were two caps and both leaked into the UI as nonsense: the generator's served range silently cut a
   // requested 40 rows to 35, and an engine cap of 100 made the panel print `400 × 240 = — cells` because it
@@ -634,6 +642,32 @@ function MapSizeSection({
           ? 'Columns is how many cells fit in one row.'
           : `${draft.cols} × ${draft.rows} = ${cells.toLocaleString()} cells. Columns is how many cells fit in one row.`}
       </div>
+
+      {/* GROUND THICKNESS — the map's own body, the "real ground like old rpgs" (Alexander, 2026-09-10). It is
+          the GRID's height, not any tile's: floors are flat skins laid on top of it, which is what lets a
+          generator put 0 on every floor tile and still have the map look like ground. Separate from the three
+          numbers above because it changes nothing about the cells — no rebuild, no data loss — so it applies
+          on the spot instead of hiding behind the destructive button. 0 lays the map flat. */}
+      {slabBlocks !== undefined && onSlabBlocks && (
+        <>
+          <div className="ctl">
+            <span className="l">Ground thickness</span>
+            <input
+              type="number" min={0} step={1} aria-label="Ground thickness in blocks"
+              value={slabBlocks}
+              onChange={e => {
+                const next = parseInt(e.target.value, 10)
+                if (Number.isFinite(next) && next >= 0) onSlabBlocks(next)
+              }}
+            />
+          </div>
+          <div className="hint">
+            {slabBlocks === 0
+              ? 'Flat — the map has no body, just its surface.'
+              : `The map stands ${slabBlocks} block${slabBlocks === 1 ? '' : 's'} deep. You see it at the edges.`}
+          </div>
+        </>
+      )}
       {/* Only shown once the numbers actually differ — a destructive button with nothing to do is noise. */}
       {!unchanged && (
         <button
@@ -648,8 +682,8 @@ function MapSizeSection({
         </button>
       )}
       <div className="hint" style={{ color: 'var(--warn)' }}>
-        {!atLeast(draft.cols, MAP_SIZE_MIN) || !atLeast(draft.rows, MAP_SIZE_MIN)
-          ? '\u26a0 A map needs at least one cell on each side.'
+        {mapSizeProblem(draft)
+          ? `\u26a0 ${mapSizeProblem(draft)}`
           : !atLeast(draft.cellSize, CELL_SIZE_MIN)
             ? '\u26a0 A cell needs to be at least one pixel.'
             : '\u26a0 Changing the size clears the map. Ctrl+Z undoes it.'}
@@ -691,6 +725,8 @@ export function GenerateControls({
   onRandomizeSelection,
   size,
   onResize,
+  slabBlocks,
+  onSlabBlocks,
   preview,
 }: {
   /** The backend's generator catalog (see `useGeneratorCatalog`). Empty until it loads, or if it failed. */
@@ -715,6 +751,10 @@ export function GenerateControls({
    *  wants OUT of ⚙ Stage. Omit both where there is no map to resize. */
   size?: MapSize
   onResize?: (cols: number, rows: number, cellSize: number) => void
+  /** The map's ground thickness in blocks, and how to change it. Sits with the size because it is the
+   *  fourth number that describes the map's shape — but it applies on the spot, since it rebuilds nothing. */
+  slabBlocks?: number
+  onSlabBlocks?: (blocks: number) => void
   /** How to draw a preset's thumbnail the way the map would. Absent → the cards carry no picture. */
   preview?: PreviewContext
 }) {
@@ -892,6 +932,8 @@ export function GenerateControls({
             onDraft={setSizeDraft}
             size={size}
             onResize={onResize}
+            slabBlocks={slabBlocks}
+            onSlabBlocks={onSlabBlocks}
           />
         </>
       )}
@@ -948,9 +990,16 @@ export function GenerateControls({
         ⚡ Build this world
       </button>
       <div className="hint">
-        {sizeDraft
-          ? `At ${sizeDraft.cols} × ${sizeDraft.rows} cells of ${sizeDraft.cellSize}px — the numbers above, exactly.`
-          : 'The generator picks the size.'}
+        {/* "the numbers above, exactly" has to stay TRUE. Building goes through clampMapSize, which holds a
+            size inside the cap — so at 400 columns the map would come back 100 wide while this line claimed
+            400. That silent rewrite is the exact bug Alexander hit twice (*"it didn't built it with the
+            specific sizes I selected"*), so the panel says what is wrong instead of promising a size it
+            will not build. */}
+        {!sizeDraft
+          ? 'The generator picks the size.'
+          : mapSizeProblem(sizeDraft)
+            ? `${mapSizeProblem(sizeDraft)} Fix it above and this will build exactly what you typed.`
+            : `At ${sizeDraft.cols} × ${sizeDraft.rows} cells of ${sizeDraft.cellSize}px — the numbers above, exactly.`}
       </div>
     </div>
   )

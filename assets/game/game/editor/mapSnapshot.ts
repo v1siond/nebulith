@@ -1,7 +1,7 @@
 /**
  * MAP SNAPSHOT — the deep copy an undo checkpoint stores and a redo/undo restores. Everything a map EDIT can
  * change lives here: the grid's per-cell layers (ground / height / collision / floor colour / floor dims), its
- * placed assets, and the entities. UI-only state (selection, panels, camera) is deliberately NOT captured —
+ * placed assets, its ground thickness, and the entities. UI-only state (selection, panels, camera) is deliberately NOT captured —
  * undo restores the MAP, not the workspace (Alexander: "don't capture non-map UI state"). Snapshots are the
  * currency of editorHistory.ts; this module owns the grid⇄snapshot deep-clone so neither side aliases the other.
  */
@@ -15,6 +15,9 @@ export interface MapSnapshot {
   rows: number
   height: number[][]
   collision: number[][]
+  /** How thick the map's BODY is, in blocks. A whole-map number rather than a per-cell one, but it IS a map
+   *  edit — the Generate panel changes it — so undo has to carry it or Ctrl+Z would silently skip it. */
+  slabBlocks: number
   // The FLOOR is an asset now, so it rides `assets` with every other tile — no separate ground/colour/dims arrays.
   assets: GridAsset[]
   entities: Entity[]
@@ -31,6 +34,7 @@ export function captureMapSnapshot(grid: IsometricGrid, entities: readonly Entit
     rows: grid.rows,
     height: clone(grid.height),
     collision: clone(grid.collision),
+    slabBlocks: grid.slabBlocks,
     assets: clone(grid.assets), // floors are in here too
     entities: clone(entities) as Entity[],
   }
@@ -45,6 +49,7 @@ export function restoreMapSnapshot(grid: IsometricGrid, snap: MapSnapshot): Enti
   if (snap.cols !== grid.cols || snap.rows !== grid.rows) return null
   grid.height = clone(snap.height)
   grid.collision = clone(snap.collision)
+  grid.slabBlocks = snap.slabBlocks
   grid.setAssets(clone(snap.assets)) // floors + props; rebuilds floor index, new identity → render caches rebuild
   return clone(snap.entities) as Entity[]
 }

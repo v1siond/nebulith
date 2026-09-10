@@ -60,6 +60,18 @@ describe('mapSnapshot — capture/restore the exact map (grid + entities)', () =
     expect(restoreMapSnapshot(grid, snap)![0].col).toBe(1)
   })
 
+  test('GROUND THICKNESS rides the snapshot — Ctrl+Z puts the map back to the depth it had', () => {
+    // The panel's thickness control is a map edit like any other, so undo has to carry it. It is a
+    // whole-map number rather than a per-cell layer, which is exactly how it got missed: assets restored
+    // perfectly and the one thing you had just changed stayed changed, so undo LOOKED like it ran.
+    const grid = mkGrid()
+    grid.slabBlocks = 1
+    const snap = captureMapSnapshot(grid, [])
+    grid.slabBlocks = 5
+    restoreMapSnapshot(grid, snap)
+    expect(grid.slabBlocks).toBe(1)
+  })
+
   test('a snapshot from a differently sized grid is refused (returns null, grid untouched)', () => {
     const small = new IsometricGrid({ cols: 4, rows: 4, cellSize: 16 })
     const snap = captureMapSnapshot(small, [])

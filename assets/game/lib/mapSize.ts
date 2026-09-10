@@ -61,8 +61,8 @@ export function mapSizeValid(size: MapSize): boolean {
 export function mapSizeProblem(size: MapSize): string | null {
   for (const [axis, n] of [['Columns', size.cols], ['Rows', size.rows]] as const) {
     if (!Number.isFinite(n)) continue
-    if (n < MAP_SIZE_MIN) return `${axis} must be at least ${MAP_SIZE_MIN}.`
-    if (n > MAP_SIZE_MAX) return `${axis} is ${Math.floor(n)} — maps are limited to ${MAP_SIZE_MAX} per side for now.`
+    if (n < MAP_SIZE_MIN) return 'A map needs at least one cell on each side.'
+    if (n > MAP_SIZE_MAX) return `${axis} is ${Math.floor(n)} — maps are limited to ${MAP_SIZE_MAX} cells per side for now.`
   }
   return null
 }

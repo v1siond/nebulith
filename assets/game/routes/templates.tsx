@@ -174,6 +174,10 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   const [zoomPct, setZoomPct] = useState(100)
   // The grid's MATRIX VARIABLES, mirrored for the panel: `cols × rows` cells of `cellSize` pixels each.
   const [gridSize, setGridSize] = useState({ cols: 40, rows: 40, cellSize: VILLAGE_CONFIG.cellSize })
+  // GROUND THICKNESS is deliberately NOT mirrored: it is read straight off the grid where it lives, so
+  // loading a level or generating one shows that map's own saved value with nothing to keep in sync. This
+  // only repaints the panel after a change — the canvas repaints itself every frame.
+  const [, bumpGround] = useReducer((n: number) => n + 1, 0)
   const [selectedCells, setSelectedCells] = useState<Set<string>>(new Set())
   // Which tile in the selected cell's stack the inspector edits: a 0-based index into getStack (0 = floor,
   // 1.. = stacked). Set from the iso block you click (its level) and moved by the TILE header's ▲▼ stepper.
@@ -3192,6 +3196,23 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     resizeGrid(cols, rows, cellSize)
   }
 
+  /**
+   * How thick the map's BODY is, in blocks — the grid's own height.
+   *
+   * Alexander, 2026-09-10: *"I wanted to have a real ground like old rpgs … we can make the grid have
+   * height … that'll allow us to reduce the height of any floor tile to 0 in the generators."* So the map's
+   * depth is the GRID's, and a floor is a flat skin laid on it. Unlike cols/rows/cellSize this touches no
+   * cell, so it applies on the spot instead of throwing the map away — but it is still a map edit, so it
+   * takes an undo checkpoint and marks the map unsaved like every other one.
+   */
+  const setGroundThickness = (blocks: number) => {
+    const grid = gridRef.current
+    if (!grid || blocks === grid.slabBlocks) return
+    checkpointHistory()
+    grid.slabBlocks = blocks
+    bumpGround()
+  }
+
   // ── Minecraft-style tile brush (Paint mode) ─────────────────────────
   // Pick a tile from the DB catalog palette → it becomes the ARMED brush; each canvas LEFT-click PLACES
   // it, routed by the tile's CATEGORY through the pure tilePlacement module. One general path for every
@@ -5524,6 +5545,8 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                   onRandomizeSelection={randomizeSelected}
                   size={gridSize}
                   onResize={resizeMapFromPanel}
+                  slabBlocks={gridRef.current?.slabBlocks}
+                  onSlabBlocks={setGroundThickness}
                   preview={previewContext}
                 />
               </>

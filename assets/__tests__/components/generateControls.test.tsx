@@ -15,8 +15,9 @@
  *  · *"labels aren't clearly descriptive… we need clear concise labeling"* — the numbered
  *    `1 · SEASON` / `4 · MAP SIZE` headings are gone; a control is labelled by what it is.
  *  · *"this shouldn't be a limitation… the previous limits where caused by poor optimization"* — the size
- *    CAPS are deleted. The two tests that asserted the panel refuses an out-of-range size are replaced by
- *    their opposite: it accepts the number and builds exactly that.
+ *    caps were deleted. ONE came back on 2026-09-10 at his own request (*"let's limit maps to 100x100 for
+ *    now"*), and it is held to the same standard the removal was: a number is never quietly rewritten under
+ *    you. Over the cap the panel SAYS so; it does not silently build something else.
  *
  * Everything else the old suite proved is proved here too: a click selects rather than generates, the size
  * numbers are a draft, the picked preset id is forwarded verbatim, and a preset does not survive changing
@@ -215,16 +216,31 @@ describe('HOW BIG — the grid is a matrix, and the numbers you type are the one
     expect(screen.queryByRole('button', { name: /resize to/i })).not.toBeInTheDocument()
   })
 
-  it('ACCEPTS a size far past the old cap, and says it will build exactly that', () => {
+  it('COUNTS any size you type, however big — the field never refuses to do arithmetic', () => {
     // Alexander, 2026-09-09: *"this shouldn't be a limitation, our generators should be versatile enough
-    // and random enough to do a forest as big as what I put."* This replaces the two tests that asserted
-    // the panel refuses an out-of-range size — the caps are gone, and 400 × 240 could not even be COUNTED
-    // before, because the field would not validate a number it meant to reject.
+    // and random enough to do a forest as big as what I put."* 400 × 240 could not even be COUNTED before,
+    // because the field would not validate a number it meant to reject and printed `400 × 240 = — cells`.
     withSize()
     fireEvent.change(screen.getByLabelText(/map columns/i), { target: { value: '400' } })
     fireEvent.change(screen.getByLabelText(/map rows/i), { target: { value: '240' } })
     expect(screen.getByText(/400 × 240 = 96,000 cells/i)).toBeInTheDocument()
-    expect(screen.getByText(/at 400 × 240 cells of 16px — the numbers above, exactly/i)).toBeInTheDocument()
+  })
+
+  it('SAYS a size is over the cap instead of quietly building a smaller one', () => {
+    // The cap is back at his request (*"let's limit maps to 100x100 for now"*), and building clamps to it.
+    // A panel that promised "the numbers above, exactly" while the map came back 100 wide would be the same
+    // silent rewrite he hit twice — so over the cap it names the problem and promises nothing.
+    withSize()
+    fireEvent.change(screen.getByLabelText(/map columns/i), { target: { value: '400' } })
+    // Said in BOTH places: beside the numbers, and beside the button that would have built it.
+    expect(screen.getAllByText(/limited to 100 cells per side/i)).toHaveLength(2)
+    expect(screen.queryByText(/the numbers above, exactly/i)).not.toBeInTheDocument()
+  })
+
+  it('…and holds that promise for every size it WILL build', () => {
+    withSize()
+    fireEvent.change(screen.getByLabelText(/map columns/i), { target: { value: '100' } })
+    expect(screen.getByText(/at 100 × 34 cells of 16px — the numbers above, exactly/i)).toBeInTheDocument()
   })
 
   it('builds at the TYPED size, not the map\'s current one', () => {
@@ -245,7 +261,9 @@ describe('HOW BIG — the grid is a matrix, and the numbers you type are the one
   it('still states the structural floor — a grid needs at least one cell', () => {
     withSize()
     fireEvent.change(screen.getByLabelText(/map columns/i), { target: { value: '0' } })
-    expect(screen.getByText(/at least one cell/i)).toBeInTheDocument()
+    // Said in BOTH places a person is looking: beside the numbers, and beside the button that would act.
+    expect(screen.getAllByText(/at least one cell/i).length).toBeGreaterThan(0)
+    expect(screen.queryByText(/the numbers above, exactly/i)).not.toBeInTheDocument()
   })
 
   it('follows the map when it is rebuilt from ELSEWHERE — generating, or loading a level', () => {
@@ -259,6 +277,71 @@ describe('HOW BIG — the grid is a matrix, and the numbers you type are the one
     )
     expect(screen.getByLabelText(/map columns/i)).toHaveValue(80)
     expect(screen.getByLabelText(/map cell pixels/i)).toHaveValue(24)
+  })
+})
+
+/**
+ * GROUND THICKNESS — the map's own body, and the ONLY place a person can change it.
+ *
+ * Alexander, 2026-09-10: *"I wanted to have a real ground like old rpgs and other isometric games … we can
+ * make the grid have height … that'll allow us to reduce the height of any floor tile to 0 in the
+ * generators."* The map's depth became the GRID's, and every floor tile went flat — but for a while the
+ * number had no control at all, which is what he asked about next: *"where can I change the height in the
+ * grid in the UI?"*
+ *
+ * It sits with the size because it is the fourth number describing the map's shape, and it is deliberately
+ * NOT part of the destructive rebuild: it touches no cell, so making someone clear their map to change how
+ * deep the ground looks would be nonsense.
+ */
+describe('GROUND THICKNESS — the map has a body, and you can say how deep', () => {
+  const withThickness = (blocks?: number) => {
+    const onSlabBlocks = jest.fn()
+    const onResize = jest.fn()
+    render(
+      <GenerateControls catalog={CATALOG} zone="spring" onZone={noop} onGenerate={noop}
+        size={SIZE} onResize={onResize} slabBlocks={blocks} onSlabBlocks={onSlabBlocks} />,
+    )
+    return { onSlabBlocks, onResize }
+  }
+  const field = () => screen.getByLabelText(/ground thickness/i)
+
+  it('shows the map\'s OWN thickness — the value comes from the map, not from the panel', () => {
+    withThickness(3)
+    expect(field()).toHaveValue(3)
+  })
+
+  it('applies ON THE SPOT — no rebuild button, because no cell is touched', () => {
+    const { onSlabBlocks, onResize } = withThickness(1)
+    fireEvent.change(field(), { target: { value: '4' } })
+    expect(onSlabBlocks).toHaveBeenCalledWith(4)
+    expect(onResize).not.toHaveBeenCalled()
+    // …and it never smuggles itself into the destructive path either.
+    expect(screen.queryByRole('button', { name: /resize to/i })).not.toBeInTheDocument()
+  })
+
+  it('accepts ZERO — that is a map laid flat, and it says so', () => {
+    withThickness(0)
+    expect(field()).toHaveValue(0)
+    expect(screen.getByText(/flat — the map has no body/i)).toBeInTheDocument()
+  })
+
+  it('says how deep the map stands, in the map\'s own units', () => {
+    withThickness(2)
+    expect(screen.getByText(/stands 2 blocks deep/i)).toBeInTheDocument()
+  })
+
+  it('refuses a NEGATIVE thickness — there is no such map', () => {
+    const { onSlabBlocks } = withThickness(1)
+    fireEvent.change(field(), { target: { value: '-3' } })
+    expect(onSlabBlocks).not.toHaveBeenCalled()
+  })
+
+  it('is NOT drawn when no map is open — the panel invents no thickness of its own', () => {
+    render(
+      <GenerateControls catalog={CATALOG} zone="spring" onZone={noop} onGenerate={noop}
+        size={SIZE} onResize={noop} />,
+    )
+    expect(screen.queryByLabelText(/ground thickness/i)).not.toBeInTheDocument()
   })
 })
 
