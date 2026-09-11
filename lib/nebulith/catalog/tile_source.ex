@@ -2060,6 +2060,19 @@ defmodule Nebulith.Catalog.TileSource do
     end
   end
 
+  @doc """
+  Upsert ONLY the compositions (trees, fountains, buildings), by name.
+
+  The full `seed/0` also rewrites tile rows, and the runtime tileset carries poses tuned by hand in the editor
+  that a reseed would clobber. Adding a tree shape must not cost those, so this path touches compositions and
+  nothing else.
+  """
+  def seed_compositions do
+    seed_new_compositions()
+    seed_building_compositions()
+    :ok
+  end
+
   defp seed_new_compositions do
     for {name, %{footprint_w: w, footprint_h: h, cells: cells} = comp} <- compositions() do
       {:ok, _} =
@@ -2181,6 +2194,32 @@ defmodule Nebulith.Catalog.TileSource do
       "tree_big" => tree_comp(%{trunk_h: 4.2, trunk_zoom: 0.7, trunk_w: 1.0, leaf_h: 2.8, leaf_zoom: 1.9}),
       "bush" => bush_comp(%{leaf_h: 1.2, leaf_zoom: 1.35}),
       "bush_round" => bush_comp(%{leaf_h: 1.2, leaf_zoom: 1.35, shape: "circle"}),
+      # MORE SPECIES, FROM THE SAME BASE. Alexander, 2026-09-11: *"we're using the same for all forest
+      # variations, but that's not good, existing trees serves as a great starting point, let's use that base
+      # to generate more variants"*. Every one below is `tree_comp/1` with different proportions, so each still
+      # passes the trunk-thinner-than-leaves guard and stamps through the same two-tile path. Only `square` and
+      # `circle` crowns are drawable today, so the silhouette comes from the proportions, not a new shape.
+      #
+      # conifer: a tall narrow crown on a thin trunk (his image #12, the hillside conifers)
+      "tree_conifer" => tree_comp(%{trunk_h: 3.8, trunk_zoom: 0.45, trunk_w: 0.8, leaf_h: 3.4, leaf_zoom: 0.9}),
+      # column: a long straight bare trunk with the crown held high (image #11's beech stand, #15's giants)
+      "tree_column" => tree_comp(%{trunk_h: 5.0, trunk_zoom: 0.5, trunk_w: 0.8, leaf_h: 2.2, leaf_zoom: 1.2}),
+      # broadleaf: short trunk under a wide, low, round crown
+      "tree_broadleaf" =>
+        tree_comp(%{trunk_h: 2.4, trunk_zoom: 0.55, trunk_w: 1.1, leaf_h: 1.7, leaf_zoom: 1.75, shape: "circle"}),
+      # gnarled: a squat trunk under a flat spreading crown — the lone pasture tree of image #10
+      "tree_gnarled" =>
+        tree_comp(%{trunk_h: 2.0, trunk_zoom: 0.6, trunk_w: 1.15, leaf_h: 1.3, leaf_zoom: 1.85, shape: "circle"}),
+      # giant: the jungle emergent, taller and broader than anything around it
+      "tree_giant" =>
+        tree_comp(%{trunk_h: 5.8, trunk_zoom: 0.75, trunk_w: 1.1, leaf_h: 2.8, leaf_zoom: 2.1, shape: "circle"}),
+      # cypress: a thick buttressed trunk and a modest crown — the trees standing in the water of image #13
+      "tree_cypress" => tree_comp(%{trunk_h: 3.4, trunk_zoom: 0.8, trunk_w: 1.3, leaf_h: 1.8, leaf_zoom: 1.3}),
+      # palm: a tall skinny trunk with a small round top, for coastal and island ground
+      "tree_palm" =>
+        tree_comp(%{trunk_h: 4.6, trunk_zoom: 0.4, trunk_w: 0.7, leaf_h: 1.0, leaf_zoom: 1.15, shape: "circle"}),
+      # sapling: new growth, the smallest tree there is
+      "tree_sapling" => tree_comp(%{trunk_h: 1.2, trunk_zoom: 0.35, trunk_w: 0.8, leaf_h: 0.9, leaf_zoom: 0.7}),
       # TWO water variants of the town-square basin, both COMPOSITIONS assembled from AUTOTILE PIECES
       # (TILESET-AUTHORING §3), not one fill: a rim of the RIGHT edge/corner piece per cell (`fountain_tl/tr/
       # bl/br` corners + `fountain_t/b/l/r` sides) around a `water_c` (blue water) interior. Every cell blocks

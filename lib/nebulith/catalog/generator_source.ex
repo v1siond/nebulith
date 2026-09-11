@@ -144,6 +144,38 @@ defmodule Nebulith.Catalog.GeneratorSource do
     "trail" => "#57502f"
   }
 
+  # WHICH TREES GROW HERE. Alexander, 2026-09-11: *"we need to have more variance of trees, like we're using
+  # the same for all forest variations, but that's not good"*. Every forest rolled from one global weighted
+  # table, so a jungle and a meadow grew the same species. Each template states its own mix now; a template
+  # that states none falls back to that global table.
+  @woodland_trees [
+    %{"kind" => "tree_column", "weight" => 30},
+    %{"kind" => "tree", "weight" => 22},
+    %{"kind" => "tree_tall", "weight" => 18},
+    %{"kind" => "tree_round", "weight" => 12},
+    %{"kind" => "tree_conifer", "weight" => 10},
+    %{"kind" => "tree_stub", "weight" => 8},
+    %{"kind" => "bush", "weight" => 6},
+    %{"kind" => "tree_sapling", "weight" => 4}
+  ]
+
+  @meadow_trees [
+    %{"kind" => "tree_gnarled", "weight" => 38},
+    %{"kind" => "tree_broadleaf", "weight" => 22},
+    %{"kind" => "tree_round", "weight" => 20},
+    %{"kind" => "tree_big", "weight" => 10},
+    %{"kind" => "bush_round", "weight" => 10}
+  ]
+
+  @jungle_trees [
+    %{"kind" => "tree_round", "weight" => 22},
+    %{"kind" => "tree_big", "weight" => 20},
+    %{"kind" => "bush_round", "weight" => 16},
+    %{"kind" => "tree_giant", "weight" => 14},
+    %{"kind" => "tree_palm", "weight" => 14},
+    %{"kind" => "bush", "weight" => 14}
+  ]
+
   # HOW THE TREES ARE DISTRIBUTED. Alexander, 2026-09-11: *"we need more variants of trees distribution too,
   # or formations, like right now all forest variations kind of follow the same type oof tree grouping, but
   # just there's different forests types, there's different ways in which trees and nature is distributed
@@ -204,7 +236,8 @@ defmodule Nebulith.Catalog.GeneratorSource do
       "undergrowth" => 0.5,
       "floor" => "#3f5f33",
       # an open region reads as individual trees on visible ground — his image #12
-      "formation" => %{"lattice" => 9, "spacing" => 3, "understory" => 0.5}
+      "formation" => %{"lattice" => 9, "spacing" => 3, "understory" => 0.5},
+      "trees" => [%{"kind" => "tree_palm", "weight" => 30}, %{"kind" => "tree_round", "weight" => 30}, %{"kind" => "tree_big", "weight" => 20}, %{"kind" => "bush_round", "weight" => 20}]
     },
     %{
       "key" => "dense",
@@ -214,7 +247,8 @@ defmodule Nebulith.Catalog.GeneratorSource do
       "undergrowth" => 1.45,
       "floor" => "#24381f",
       # wall to wall, nothing between — his image #14
-      "formation" => %{"lattice" => 13, "spacing" => 0, "understory" => 1.3}
+      "formation" => %{"lattice" => 13, "spacing" => 0, "understory" => 1.3},
+      "trees" => [%{"kind" => "tree_giant", "weight" => 25}, %{"kind" => "tree_big", "weight" => 25}, %{"kind" => "bush", "weight" => 25}, %{"kind" => "tree_round", "weight" => 25}]
     },
     %{
       "key" => "swamp",
@@ -226,7 +260,9 @@ defmodule Nebulith.Catalog.GeneratorSource do
       # the share of the zone that stands under water — pools, not a channel
       "pools" => 0.22,
       # cypress standing IN the water, well apart — his image #13
-      "formation" => %{"lattice" => 5, "spacing" => 3, "understory" => 0.7}
+      "formation" => %{"lattice" => 5, "spacing" => 3, "understory" => 0.7},
+      # the cypress IS the swamp — image #13
+      "trees" => [%{"kind" => "tree_cypress", "weight" => 60}, %{"kind" => "bush_round", "weight" => 25}, %{"kind" => "tree_round", "weight" => 15}]
     },
     %{
       "key" => "ruins",
@@ -237,7 +273,8 @@ defmodule Nebulith.Catalog.GeneratorSource do
       "floor" => "#4a4a3c",
       # the trees have taken the ruins back, but unevenly — clumps with open stone between
       "stone" => 0.16,
-      "formation" => %{"lattice" => 8, "spacing" => 2, "understory" => 0.6}
+      "formation" => %{"lattice" => 8, "spacing" => 2, "understory" => 0.6},
+      "trees" => [%{"kind" => "tree_round", "weight" => 30}, %{"kind" => "bush", "weight" => 30}, %{"kind" => "tree_stub", "weight" => 20}, %{"kind" => "tree_sapling", "weight" => 20}]
     }
   ]
 
@@ -258,19 +295,19 @@ defmodule Nebulith.Catalog.GeneratorSource do
       %{
         category: "forest", key: "forest_woodland", name: "Woodland", layout: "woodland", position: 0,
         description: "Dense trees with clearings cut into them, joined by paths.",
-        config: %{"grid" => @small_grid, "nature" => @woodland_nature, "units" => townsfolk(3), "palette" => @woodland_palette, "formation" => @formations["stand"]},
+        config: %{"grid" => @small_grid, "nature" => @woodland_nature, "units" => townsfolk(3), "palette" => @woodland_palette, "formation" => @formations["stand"], "trees" => @woodland_trees},
         options: @water_options
       },
       %{
         category: "forest", key: "forest_jungle", name: "Jungle", layout: "jungle", position: 1,
         description: "A closed canopy over choked undergrowth, with clearings cut into it.",
-        config: %{"grid" => @small_grid, "nature" => @jungle_nature, "units" => townsfolk(2), "palette" => @jungle_palette, "subZones" => @jungle_sub_zones, "formation" => @formations["closed"]},
+        config: %{"grid" => @small_grid, "nature" => @jungle_nature, "units" => townsfolk(2), "palette" => @jungle_palette, "subZones" => @jungle_sub_zones, "formation" => @formations["closed"], "trees" => @jungle_trees},
         options: @water_options
       },
       %{
         category: "forest", key: "forest_meadow", name: "Meadow", layout: "meadow", position: 2,
         description: "An open clearing framed by trees, with two ways in.",
-        config: %{"grid" => @small_grid, "nature" => @outdoor_nature, "units" => townsfolk(5), "formation" => @formations["scattered"]},
+        config: %{"grid" => @small_grid, "nature" => @outdoor_nature, "units" => townsfolk(5), "formation" => @formations["scattered"], "trees" => @meadow_trees},
         options: @water_options
       },
       %{
