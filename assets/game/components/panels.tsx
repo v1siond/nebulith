@@ -492,7 +492,7 @@ export function AbilityBrowseModal({ loadout, targetSlot, onPickSlot, onAssign, 
   )
 }
 
-export function EquipmentPanel({ label, styleId, loadout, baseStats, hp, onChange, onClose, abilityLoadout, onAbilityChange, nameValue, onNameChange, talentPath, onTalentPath }: {
+export function EquipmentPanel({ label, styleId, loadout, baseStats, hp, onChange, onClose, abilityLoadout, onAbilityChange, nameValue, onNameChange, talentPath, onTalentPath, embedded = false }: {
   label: string
   /** The active art style — an item's picture is a real tile, resolved by label like everything else. */
   styleId: string
@@ -515,6 +515,14 @@ export function EquipmentPanel({ label, styleId, loadout, baseStats, hp, onChang
   // here rather than being lost. Optional: only the player has a class.
   talentPath?: TalentPath
   onTalentPath?: (path: TalentPath) => void
+  /**
+   * Rendered INSIDE the character panel's Inventory tab rather than as its own overlay.
+   *
+   * Without this the bag draws `fixed inset-0 z-30` on top of the panel that contains it — the tab rail
+   * ends up underneath the tab's own content and nothing is clickable. A tab owns the frame; the thing in
+   * it draws only itself.
+   */
+  embedded?: boolean
 }) {
   // Hovered item + live cursor pos for the stat tooltip (#51). Cleared on leave.
   const [hovered, setHovered] = useState<{ item: Item; x: number; y: number } | null>(null)
@@ -574,9 +582,17 @@ export function EquipmentPanel({ label, styleId, loadout, baseStats, hp, onChang
 
   return (
     <>
-      <div className="fixed inset-0 z-30 flex items-center justify-center bg-black/70 p-4 font-mono" role="dialog" aria-label="Inventory" onClick={onClose}>
-        <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-lg border border-cyan-500/40 bg-gray-900 p-4 text-white shadow-2xl" onClick={e => e.stopPropagation()}>
-          <div className="mb-3 flex items-center justify-between">
+      <div
+        className={embedded ? 'font-mono text-white' : 'fixed inset-0 z-30 flex items-center justify-center bg-black/70 p-4 font-mono'}
+        role={embedded ? undefined : 'dialog'}
+        aria-label={embedded ? undefined : 'Inventory'}
+        onClick={embedded ? undefined : onClose}
+      >
+        <div
+          className={embedded ? '' : 'max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-lg border border-cyan-500/40 bg-gray-900 p-4 text-white shadow-2xl'}
+          onClick={e => e.stopPropagation()}
+        >
+          <div className={embedded ? 'mb-3 flex items-center justify-between' : 'mb-3 flex items-center justify-between'}>
             <h2 className="flex items-center gap-1 text-sm font-bold text-cyan-400">
               Inventory —{' '}
               {onNameChange ? (
@@ -807,22 +823,30 @@ export const QUEST_LOG_GROUPS: ReadonlyArray<{ state: Quest['state']; label: str
  * shared objective checklist + a progress count. Mirrors the inventory EquipmentPanel:
  * backdrop click or the ✕ button closes it (the page also wires Esc + the Q key).
  */
-export function QuestLogPanel({ quests, onClose }: {
+export function QuestLogPanel({ quests, onClose, embedded = false }: {
   quests: readonly Quest[]
   onClose: () => void
+  /**
+   * Rendered INSIDE the character panel's Quests tab rather than as its own overlay.
+   *
+   * A tab already has a frame, a title and a close button, so an embedded log draws none of them: two
+   * dialogs stacked on each other is how a panel ends up with two ✕ buttons that mean different things.
+   */
+  embedded?: boolean
 }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
-  return (
-    <div className="fixed inset-0 z-30 flex items-center justify-center bg-black/70 p-4 font-mono" role="dialog" aria-label="Quest log" onClick={onClose}>
-      <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg border border-orange-500/40 bg-gray-900 p-4 text-white shadow-2xl" onClick={e => e.stopPropagation()}>
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-sm font-bold text-orange-400">Quest Log</h2>
-          <button onClick={onClose} className="rounded bg-gray-700 px-2 py-1 text-xs hover:bg-gray-600" aria-label="Close quest log">✕ (Q)</button>
-        </div>
+  const body = (
+    <>
+        {!embedded && (
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-sm font-bold text-orange-400">Quest Log</h2>
+            <button onClick={onClose} className="rounded bg-gray-700 px-2 py-1 text-xs hover:bg-gray-600" aria-label="Close quest log">✕ (Q)</button>
+          </div>
+        )}
         {quests.length === 0 && <p className="text-xs text-gray-500">No quests yet. Find a quest-giver and press E to accept one.</p>}
         <div className="space-y-3">
           {QUEST_LOG_GROUPS.map(group => {
@@ -849,6 +873,16 @@ export function QuestLogPanel({ quests, onClose }: {
             )
           })}
         </div>
+    </>
+  )
+
+  // Embedded: the tab owns the frame. Standalone: its own dialog, as before.
+  if (embedded) return <div className="font-mono text-white">{body}</div>
+
+  return (
+    <div className="fixed inset-0 z-30 flex items-center justify-center bg-black/70 p-4 font-mono" role="dialog" aria-label="Quest log" onClick={onClose}>
+      <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg border border-orange-500/40 bg-gray-900 p-4 text-white shadow-2xl" onClick={e => e.stopPropagation()}>
+        {body}
       </div>
     </div>
   )

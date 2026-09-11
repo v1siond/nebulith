@@ -113,6 +113,8 @@ import { loadZones, zones } from '@/engine/zoneCatalog'
 import { loadCombatCatalog } from '@/game/combatCatalog'
 import { loadUiProfile } from '@/game/uiProfile'
 import { HudPlaced } from '@/components/game/shell/HudPlaced'
+import { PlayerStatsPanel } from '@/components/game/panels'
+import { CharacterPanel } from '@/components/game/shell/CharacterPanel'
 import { SwapTilePanel } from '@/components/game/shell/SwapTilePanel'
 import { NO_ZONES_SHUT, ZoneCollapse, zoneClasses, type EditorZoneId, type EditorZoneShut } from '@/components/game/shell/ZoneCollapse'
 import { HudOverlay, PlayerUiPanel, useHudLayout } from '@/components/game/shell/PlayerUiPanel'
@@ -6252,7 +6254,12 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
             specialKeys={loadouts['__player__']?.shortcuts}
           />
         )}
-        {inventoryOpen && (() => {
+        {/* THE CHARACTER PANEL. Alexander, 2026-09-10: *"a tab panel where we can go from inventory, to
+            map, to our character stats, status, class, to the actual inventory to the abilities or
+            talents, where each is a different tab"*. The bag button and the quest button both open THIS,
+            each on its own tab — which is also what makes the bag a bag again, since the stats block and
+            the key-rebinding block that had nowhere else to live now have tabs of their own. */}
+        {(inventoryOpen || questLogOpen) && (() => {
           const selEntity = selectedEntityId ? entities.find(e => e.id === selectedEntityId) : undefined
           // The player ENTITY and the '__player__' loadout are the SAME character: when the player is
           // selected, resolve to '__player__' so the panel shows the REAL equipped gear (matching the
@@ -6267,8 +6274,10 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
           const hp = selEntity
             ? { current: selEntity.baseStats.maxHp, max: selEntity.baseStats.maxHp }
             : { current: Math.round(playerHud.hp), max: Math.round(playerHud.maxHp) }
-          return (
+          const closeAll = () => { setInventoryOpen(false); setQuestLogOpen(false) }
+          const gear = (
             <EquipmentPanel
+              embedded
               label={who}
               styleId={activeStyleId}
               loadout={current}
@@ -6291,6 +6300,31 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                 : {})}
             />
           )
+
+          return (
+            <CharacterPanel
+              title={who}
+              initial={questLogOpen && !inventoryOpen ? 'quests' : 'inventory'}
+              onClose={closeAll}
+              tabs={[
+                { id: 'inventory', label: 'Inventory', glyph: '▤', render: () => gear },
+                {
+                  id: 'character',
+                  label: 'Character',
+                  glyph: '☻',
+                  // His *"stats section"* that did not belong in the bag. It belongs here.
+                  render: () => <PlayerStatsPanel baseStats={baseStats} loadout={current} hp={hp} />,
+                },
+                {
+                  id: 'quests',
+                  label: 'Quests',
+                  glyph: '❒',
+                  badge: quests.length,
+                  render: () => <QuestLogPanel quests={quests} onClose={closeAll} embedded />,
+                },
+              ]}
+            />
+          )
         })()}
 
         {/* Quest log — open button (also toggled by the Q key) + the panel overlay */}
@@ -6306,9 +6340,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
             </button>
           </HudPlaced>
         )}
-        {questLogOpen && (
-          <QuestLogPanel quests={quests} onClose={() => setQuestLogOpen(false)} />
-        )}
+
 
         {/* Quest OFFER modal — opened when the player talks to a giver with an
             `available` quest; floats above the giver (centered if off-screen). */}

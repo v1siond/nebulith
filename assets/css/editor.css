@@ -372,6 +372,24 @@
 .neb .hplate i{display:block;width:44px;height:3px;background:#ffffff22;border-radius:2px;margin-top:2px}
 .neb .hplate i s{display:block;height:100%;background:var(--ok);text-decoration:none}
 
+/* THE CHARACTER PANEL — tabs down the side, one open at a time (WoW / Resident Evil, his reference).
+   Full-screen because it is a MODE you enter, not a widget you glance at. */
+.neb .charpanel{position:fixed;inset:0;z-index:40;display:grid;grid-template-columns:180px 1fr;
+  background:#0b0d13ee;backdrop-filter:blur(2px)}
+.neb .chartabs{display:flex;flex-direction:column;gap:2px;padding:14px 8px;background:var(--panel);border-right:1px solid var(--line)}
+.neb .chartabs button{display:flex;align-items:center;gap:8px;padding:9px 10px;border:0;border-radius:8px;
+  background:transparent;color:var(--dim);font:inherit;font-size:13px;text-align:left;cursor:pointer}
+.neb .chartabs button:hover{background:var(--panel2);color:var(--ink)}
+.neb .chartabs button.on{background:var(--accent);color:#06121c;font-weight:700}
+.neb .chartabs .ic{font-size:15px}
+.neb .chartabs .ct{margin-left:auto;background:#0006;border-radius:999px;padding:0 6px;font-size:11px}
+.neb .charbody{display:flex;flex-direction:column;min-width:0}
+.neb .charhead{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--line)}
+.neb .charhead b{font-size:15px}
+.neb .charhead button{background:transparent;border:0;color:var(--dim);font-size:16px;cursor:pointer}
+.neb .charhead button:hover{color:var(--ink)}
+.neb .charcontent{flex:1;overflow:auto;padding:14px 16px}
+
 /* ONE BAR in the Bars tab — a card so several bars read as several things rather than one long column
    of controls. Alexander: "it doesn't allow me toa dd new bars easily". */
 .neb .barcard{border:1px solid var(--line);border-radius:8px;padding:8px;margin:8px 0;background:var(--panel2)}
