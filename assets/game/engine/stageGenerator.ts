@@ -575,7 +575,10 @@ const isLandCell = (ctx: ArchetypeContext, col: number, row: number): boolean =>
   inBounds(col, row, ctx.cols, ctx.rows) && !isWaterGround(ctx.ground[row][col])
 
 function edgeDecor(zone: ZoneId, neighbourType: string, col: number, row: number): StageProp | null {
-  if (WATER_LIKE.has(neighbourType)) {
+  // ANY water, not the four names in WATER_LIKE. The depth pass renames a cell `water_shallow` or `water_deep`,
+  // so a deep pool used to border the land with no shoreline at all, which is half of why his swamp read as
+  // *"really really confusing"*: nothing marked where the water began.
+  if (isWaterGround(neighbourType)) {
     const frost = zone === 'winter' || neighbourType === 'ice_water'
     return { col, row, type: 'shore', char: frost ? '∼' : '≈', blocking: false, color: frost ? '#bfe6f5' : '#6fb7d8' }
   }
@@ -594,7 +597,7 @@ function addTerrainTransitions(ctx: ArchetypeContext): void {
   for (let row = 0; row < rows; row++) {
     for (let col = 0; col < cols; col++) {
       const here = ground[row][col]
-      if (WATER_LIKE.has(here) || LAVA_LIKE.has(here)) continue // decorate LAND only
+      if (isWaterGround(here) || LAVA_LIKE.has(here)) continue // decorate LAND only, whatever depth the water is
       if (collision[row][col] || occupied.has(`${col},${row}`)) continue
       for (const [dc, dr] of ORTHO) {
         const c = col + dc
@@ -1801,7 +1804,9 @@ function elbowRoute(a: Cell, b: Cell, colsFirst: boolean): Cell[] {
 /** The first right-angle route into the main region that touches no water — every main cell, nearest first,
  *  both elbow orders. Null only when every one of them has to cross water, which is the one case for a log. */
 function dryRouteTo(ctx: ArchetypeContext, from: Cell, mainCells: readonly Cell[]): Cell[] | null {
-  const isWater = (c: Cell) => inBounds(c.col, c.row, ctx.cols, ctx.rows) && ctx.ground[c.row][c.col] === 'water'
+  // isWaterGround, not a name test: after the depth pass a cell is `water_deep`, and an exact test read that
+  // as dry ground and would cut a route straight across it.
+  const isWater = (c: Cell) => inBounds(c.col, c.row, ctx.cols, ctx.rows) && isWaterGround(ctx.ground[c.row][c.col])
   const byDistance = [...mainCells].sort((p, q) =>
     (p.col - from.col) ** 2 + (p.row - from.row) ** 2 - ((q.col - from.col) ** 2 + (q.row - from.row) ** 2))
   for (const target of byDistance) {
@@ -1827,7 +1832,7 @@ function cutRoute(ctx: ArchetypeContext, route: readonly Cell[], bridgeWater: bo
         const c = col + dc
         const r = row + dr
         if (!inBounds(c, r, ctx.cols, ctx.rows)) continue
-        ;(ctx.ground[r][c] === 'water' ? wet : dry).add(`${c},${r}`)
+        ;(isWaterGround(ctx.ground[r][c]) ? wet : dry).add(`${c},${r}`)
       }
     }
   }
@@ -1993,18 +1998,67 @@ function paintSubZoneFloors(ctx: ArchetypeContext, zoneAt: (GeneratorSubZone | u
  *  scored off the same coherent noise the canopy uses rather than scattered per cell. */
 function floodSwampPools(ctx: ArchetypeContext, zoneAt: (GeneratorSubZone | undefined)[][], pal: GeneratorPalette | undefined): Set<string> {
   const { cols, rows, ground, collision, floorColors } = ctx
-  const pools = new Set<string>()
+
+  // 1 · WHERE the water stands. Coherent noise on a COARSE patch, so a pool comes out as a sheet.
+  const candidate = new Set<string>()
   forEachCell(cols, rows, (col, row) => {
     const share = zoneAt[row][col]?.pools
     if (share === undefined) return
-    // Coherent noise → connected sheets of water, not a pepper of single wet cells.
-    if (shadeNoise(Math.floor(col / 2) * 1.9 + Math.floor(row / 2) * 2.7) > share * 2) return
+    if (shadeNoise(Math.floor(col / SWAMP_POOL_PATCH) * 1.9 + Math.floor(row / SWAMP_POOL_PATCH) * 2.7) > share * 2) return
+    candidate.add(`${col},${row}`)
+  })
+
+  // 2 · Only the real BODIES of it. A puddle of one or two cells reads as wet dirt, not as water you have to
+  //     go around, and it is what made the map hard to read.
+  const pools = new Set<string>()
+  for (const body of bodiesOf(candidate)) {
+    if (body.size < SWAMP_MIN_POOL) continue
+    for (const key of body) pools.add(key)
+  }
+
+  // 3 · Lay it. The share the backend serves is untouched: the same noise at the same threshold, measured over
+  //     a coarser patch, so a swamp is as wet as it was and simply legible.
+  for (const key of pools) {
+    const { col, row } = toCell(key)
     ground[row][col] = 'water'
     collision[row][col] = true
     if (pal?.water) floorColors[row][col] = varyIntensity(pal.water, 0.4)
-    pools.add(`${col},${row}`)
-  })
+  }
   return pools
+}
+
+/**
+ * How coarse the pool noise is, in cells.
+ *
+ * Alexander, 2026-09-11: *"the swamp water is still really really confusing and poorly optimized"*, with image
+ * #18, where a swamp is a few big pools with boardwalks and mounds between them. Measured on a swamp jungle
+ * before this: THIRTY separate bodies of water on one 40x30 map, twelve of them three cells or smaller, sizes
+ * 129, 48, 20, 18, 16, 16, 12, 12 and down. That is a pepper of puddles and it came straight from scoring the
+ * noise over a 2x2 patch. Five reads as a hollow full of standing water.
+ */
+const SWAMP_POOL_PATCH = 5
+/** Under this many cells it is not a pool, so it never becomes water at all. */
+const SWAMP_MIN_POOL = 6
+
+/** The separate 4-connected bodies in a set of cells. */
+function bodiesOf(cells: ReadonlySet<string>): Array<Set<string>> {
+  const seen = new Set<string>()
+  const out: Array<Set<string>> = []
+  for (const key of cells) {
+    if (seen.has(key)) continue
+    seen.add(key)
+    const body = new Set<string>([key])
+    const stack = [key]
+    while (stack.length) {
+      const { col, row } = toCell(stack.pop()!)
+      for (const [dc, dr] of ORTHO) {
+        const k = `${col + dc},${row + dr}`
+        if (cells.has(k) && !seen.has(k)) { seen.add(k); body.add(k); stack.push(k) }
+      }
+    }
+    out.push(body)
+  }
+  return out
 }
 
 /** RUINS — fallen masonry in a ruins region. Blocking stone, scattered rather than laid out, because what is
@@ -3202,12 +3256,33 @@ function repairFloorConnectivity(ctx: ArchetypeContext, maxPocket = Infinity): v
   })
   for (const region of regions) {
     if (region === largest || region.size > maxPocket) continue // keep the meadow + the intentional outer strip
+    // A pocket the WATER cut off is not a mistake, it is a MOUND. His image #18 is mounds with boardwalks
+    // between them, so carpeting one with tree mass deletes the very thing you are meant to stand on. Left
+    // alone here, and `joinStrandedRegions` planks out to it.
+    if (waterBound(ctx, region)) continue
     region.forEach(key => {
       const { col, row } = toCell(key)
       collision[row][col] = true
       anchors.push({ col, row, kind: pickLivingTree(shadeNoise(col * 17 + row * 43), ctx.treeMix), variant: massVariant(col, row) % canopyCount(styleCatalog('ascii'), zone) }) // tiny dead pocket → forest fills it
     })
   }
+}
+
+/** Is this pocket ringed by WATER rather than closed in by trees: more of its border is wet than dry. */
+function waterBound(ctx: ArchetypeContext, region: ReadonlySet<string>): boolean {
+  let wet = 0
+  let dry = 0
+  for (const key of region) {
+    const { col, row } = toCell(key)
+    for (const [dc, dr] of ORTHO) {
+      const c = col + dc
+      const r = row + dr
+      if (!inBounds(c, r, ctx.cols, ctx.rows) || region.has(`${c},${r}`)) continue
+      if (isWaterGround(ctx.ground[r][c])) wet++
+      else dry++
+    }
+  }
+  return wet > dry
 }
 
 const FLOOR_DIRS: ReadonlyArray<readonly [number, number]> = [[1, 0], [-1, 0], [0, 1], [0, -1]]
