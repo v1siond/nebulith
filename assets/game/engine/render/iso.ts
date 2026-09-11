@@ -907,7 +907,7 @@ export function render(params: IsoRenderParams) {
       const g = isoRecordedGeom(a.col, a.row, a.heightLevel ?? 0)
       return g ? tileGeomCentroid(g) : null
     }
-    const lamps = collectLampGlows(grid, (c, r) => toScreen(c, r), tileW, tileH * 1.5, w, h, { time, style, view: 'iso' }, bulbAnchor)
+    const lamps = collectLampGlows(grid, (c, r) => toScreen(c, r), tileW, tileH * 1.5, w, h, { time, style, view: 'iso' }, bulbAnchor, entities)
     drawNightLighting(ctx, w, h, lamps)
   }
 

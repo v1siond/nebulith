@@ -5782,6 +5782,12 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                   onDim: (_axis, v) => patchSelectedEntity({ size: v > 1 ? v : undefined }), // size 1 drops the field
                   onColor: c => patchSelectedEntity({ color: c }),
                   onClearColor: () => patchSelectedEntity({ color: undefined }),
+                  // A character casts the same night glow pool a tile does — a torch-bearer, a lantern NPC.
+                  // Alexander, 2026-09-11: *"appearance only has color when Id expect all the same tile
+                  // settings a regular tile has too"*. This is the setting of that set a BILLBOARD can carry:
+                  // a light is a pool at a position, and a unit has a position.
+                  light: selEntity.light,
+                  onLight: l => patchSelectedEntity({ light: l }),
                   override: selEntity.tileOverride ?? null,
                   styleName: activeStyle.name,
                   preview: selBaseVisual, // the tile chip shows the unit's own baked art, like any other tile

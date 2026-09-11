@@ -1,4 +1,4 @@
-import { assetLight, collectLampGlows, drawNightLighting, LAMP_GLOW } from '../../engine/render/shared'
+import { assetLight, collectLampGlows, drawNightLighting, entityLight, LAMP_GLOW } from '../../engine/render/shared'
 import { resolveAssetAnimation } from '../../engine/render/assetAnimation'
 import { flickerEase, type Animation } from '../../engine/animation/tileAnimation'
 import { EMOJI_STYLE } from '../../game/artStyle'
@@ -44,6 +44,30 @@ describe('assetLight — the ONE resolver for a tile\'s night glow pool', () => 
   })
 })
 
+describe('entityLight — a CHARACTER casts a pool through the SAME resolver', () => {
+  // Alexander, 2026-09-11: *"appearance only has color when Id expect all the same tile settings a regular
+  // tile has too"*. A light is a pool at a position and a unit has a position, so this one carries over
+  // whole. (Display / transparent / shape describe a BLOCK's faces, and a unit is drawn as a billboard, so
+  // they are not here — see the note on Entity.light.)
+  const unit = (light?: unknown) => ({ id: 'u1', kind: 'npc', col: 1, row: 1, light }) as never
+
+  test('reads distance, intensity and colour exactly like a tile\'s', () => {
+    expect(entityLight(unit({ intensity: 0.4, distance: 6, color: '#00ff00' })))
+      .toEqual({ rgb: '0, 255, 0', radiusTiles: 6, intensity: 0.4 })
+  })
+
+  test('`on: false` casts nothing — the torch is out', () => {
+    expect(entityLight(unit({ intensity: 1, distance: 3, on: false }))).toBeNull()
+  })
+
+  test('a character with NO light casts nothing, even one called "lamp"', () => {
+    // The lamp-NAME default belongs to tiles: a tile labelled lamp IS a lamp. A character named Lamp is a
+    // person. Falling back here would light up every NPC whose name happened to match.
+    expect(entityLight(unit(undefined))).toBeNull()
+    expect(entityLight({ id: 'u2', kind: 'npc', col: 0, row: 0, name: 'lamp' } as never)).toBeNull()
+  })
+})
+
 describe('collectLampGlows — night pool anchors, sized by each asset\'s light', () => {
   test('the lamp CELL of the lamp_post composition (label === "lamp") casts the default pool', () => {
     // the regression: lamps became compositions of type "lamp_post"; the pool must key on the cell label
@@ -52,6 +76,27 @@ describe('collectLampGlows — night pool anchors, sized by each asset\'s light'
     expect(out).toHaveLength(1)
     // default radius = LAMP_GLOW.radiusTiles(3.2) × tilePx(32); warm default rgb, full intensity.
     expect(out[0]).toMatchObject({ x: 20, r: LAMP_GLOW.radiusTiles * TILE_PX, rgb: LAMP_GLOW.rgb, intensity: 1 })
+  })
+
+  test('a torch-bearing CHARACTER lights the ground it stands on', () => {
+    const g = gridWith([])
+    const torchBearer = { id: 'u1', kind: 'npc', col: 4, row: 5, light: { intensity: 0.8, distance: 3 } }
+    const out = collectLampGlows(g, center, TILE_PX, 0, 800, 600, undefined, undefined, [torchBearer] as never)
+    expect(out).toHaveLength(1)
+    expect(out[0]).toMatchObject({ x: 40, y: 50, r: 3 * TILE_PX, intensity: 0.8 })
+  })
+
+  test('a character carrying no light adds no pool — units do not light the map by existing', () => {
+    const plain = { id: 'u1', kind: 'npc', col: 4, row: 5 }
+    expect(collectLampGlows(gridWith([]), center, TILE_PX, 0, 800, 600, undefined, undefined, [plain] as never)).toEqual([])
+  })
+
+  test('units and tiles light the SAME night — both pools come back together', () => {
+    const g = gridWith([{ col: 2, row: 3, type: 'lamp_post', label: 'lamp' }])
+    const torchBearer = { id: 'u1', kind: 'npc', col: 6, row: 6, light: { intensity: 1, distance: 2 } }
+    const out = collectLampGlows(g, center, TILE_PX, 0, 800, 600, undefined, undefined, [torchBearer] as never)
+    expect(out).toHaveLength(2)
+    expect(out.map(l => l.x).sort((a, b) => a - b)).toEqual([20, 60])
   })
 
   test('a per-asset light DISTANCE sizes the pool radius (distance × tilePx)', () => {

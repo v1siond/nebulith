@@ -11,6 +11,7 @@ import type { EntityAnimation } from './runtime/entityAnimation'
 import type { Animation } from '@/engine/animation/tileAnimation'
 import type { Trigger } from './runtime/trigger'
 import type { TilePose } from '@/engine/tileset/pose'
+import type { AssetLight } from '@/engine/tileset/tileset'
 
 // ── stats & runtime combat state ────────────────────────────────────
 export interface Stats {
@@ -287,6 +288,16 @@ export interface Entity {
   size?: number
   /** editor colour override for the figure glyph. Absent → the kind/role default palette. */
   color?: string
+  /**
+   * PER-UNIT LIGHT — this character casts the same warm night ground pool a tile does, from the same
+   * `AssetLight` shape and through the same resolver. A torch-bearer, a lantern NPC, a glowing boss.
+   *
+   * Alexander, 2026-09-11: *"appearance only has color when Id expect all the same tile settings a regular
+   * tile has too"*. This is the one of those that a BILLBOARD can honour: a light is a pool at a position,
+   * and a unit has a position. Display / transparent / shape describe the faces of a BLOCK, and a unit is
+   * not drawn as one (`drawIsoEntity` is the billboard exception), so those stay with the block work.
+   */
+  light?: AssetLight
   /** shared settings-panel pose — x/y offset, rotation, flip (same shape a tile carries). Authored in the
    *  unit's settings panel like a tile's; round-trips via the entity codec. NOTE: the unit RENDERER does not
    *  read this yet — pose-honoring on units is the broader unit/tile render-parity work (#35). */

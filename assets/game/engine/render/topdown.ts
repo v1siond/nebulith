@@ -948,7 +948,7 @@ export function render2D(params: Render2DParams) {
       const g = twoDRecordedGeom(a.col, a.row, a.heightLevel ?? 0)
       return g ? tileGeomCentroid(g) : null
     }
-    const lamps = collectLampGlows(grid, (c, r) => toScreen(c + 0.5, r + 0.5), tileW, tileH * 2.2, w, h, { time, style, view: '2d' }, bulbAnchor)
+    const lamps = collectLampGlows(grid, (c, r) => toScreen(c + 0.5, r + 0.5), tileW, tileH * 2.2, w, h, { time, style, view: '2d' }, bulbAnchor, entities)
     drawNightLighting(ctx, w, h, lamps)
   }
 

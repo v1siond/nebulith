@@ -494,6 +494,8 @@ export function renderTopView(params: RenderTopViewParams) {
       w,
       h,
       { time: now, style, view: 'top' },
+      undefined, // no per-bulb anchor in the top view — no vertical perspective to anchor to
+      entities,
     )
     drawNightLighting(ctx, w, h, lamps)
   }

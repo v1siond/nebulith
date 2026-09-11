@@ -8,7 +8,7 @@ import { entityArtFrame, entityFootprint } from '@/engine/entityArt'
 import { type QuestMarker } from '@/engine/entityQuestMarker'
 import { motionPos } from '@/engine/movement'
 import { applyPose, type TilePose } from '@/engine/tileset/pose'
-import { type TileShape } from '@/engine/tileset/tileset'
+import { type AssetLight, type TileShape } from '@/engine/tileset/tileset'
 import { grassShade, groundTileColor } from '@/engine/tileset/groundColor'
 import { edgeToSide, footprintRing, footprintSide, labelForCell, treeSubpart } from '@/engine/stageGenerator'
 import { terrainCaptions } from '@/engine/terrainLabels'
@@ -525,15 +525,28 @@ function lightRgb(color: string | undefined): string {
  *  default warm LAMP_GLOW so seeded/legacy lamps still light. Anything else → null. This is the ONE place the
  *  "any asset carrying a light casts a pool, lamp is just the default" rule lives; the renderers read it. */
 export function assetLight(asset: GridAsset): { rgb: string; radiusTiles: number; intensity: number } | null {
-  const light = asset.light
-  if (light) {
-    if (light.on === false) return null
-    const radiusTiles = light.distance > 0 ? light.distance : LAMP_GLOW.radiusTiles
-    const intensity = Math.max(0, Math.min(1, light.intensity ?? LAMP_GLOW.intensity))
-    return { rgb: lightRgb(light.color), radiusTiles, intensity }
-  }
+  const explicit = resolveLight(asset.light)
+  if (explicit !== undefined) return explicit
   const isLamp = asset.type === 'lamp' || asset.type === 'lantern' || asset.label === 'lamp' || asset.label === 'lantern'
   return isLamp ? { rgb: LAMP_GLOW.rgb, radiusTiles: LAMP_GLOW.radiusTiles, intensity: LAMP_GLOW.intensity } : null
+}
+
+/** An explicit `light` setting resolved to a pool, `null` for a switched-off one, `undefined` when there is
+ *  no setting at all — the three cases the callers need to tell apart, since "no setting" falls back to the
+ *  lamp default for a TILE and to nothing for a unit. */
+function resolveLight(light: AssetLight | undefined): { rgb: string; radiusTiles: number; intensity: number } | null | undefined {
+  if (!light) return undefined
+  if (light.on === false) return null
+  const radiusTiles = light.distance > 0 ? light.distance : LAMP_GLOW.radiusTiles
+  const intensity = Math.max(0, Math.min(1, light.intensity ?? LAMP_GLOW.intensity))
+  return { rgb: lightRgb(light.color), radiusTiles, intensity }
+}
+
+/** The LIGHT a character casts, through the same resolver a tile's goes through. No lamp-name default here:
+ *  a tile called "lamp" is a lamp, but a character called anything is not, so a unit lights only when it was
+ *  actually given a light. */
+export function entityLight(entity: Entity): { rgb: string; radiusTiles: number; intensity: number } | null {
+  return resolveLight(entity.light) ?? null
 }
 
 
@@ -596,8 +609,22 @@ export function collectLampGlows(
   h: number,
   anim?: { time: number; style: Style; view: TileView },
   anchorFor?: (asset: GridAsset) => { x: number; y: number } | null,
+  /** The characters on the map. One carrying a light casts the same pool a tile does — a torch-bearer lights
+   *  the road. Omitted → tiles only, exactly as before. */
+  entities: readonly Entity[] = [],
 ): LampGlow[] {
   const out: LampGlow[] = []
+  for (const e of entities) {
+    const light = entityLight(e)
+    if (!light) continue
+    const r = light.radiusTiles * tilePx
+    // A unit has no recorded block geometry to anchor to, so its pool sits at its cell, lifted like a tile's.
+    const c = cellCenter(e.col, e.row)
+    const x = c.x
+    const y = c.y - lift
+    if (x < -r || x > w + r || y < -r || y > h + r) continue
+    out.push({ x, y, r, rgb: light.rgb, intensity: light.intensity })
+  }
   for (const a of grid.assets) {
     const light = assetLight(a)
     if (!light) continue
