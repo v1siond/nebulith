@@ -64,6 +64,17 @@ defmodule Nebulith.Catalog.CombatSource do
     |> Repo.insert_or_update!()
   end
 
+  @doc """
+  Upsert arbitrary rule bundles.
+
+  `game_rules` is the home for anything tunable that belongs to nobody in particular, so more than one
+  seeder writes to it — the fight's coefficients here, the season-independent prop tables from
+  `ZoneSource`. One way in, so two seeders cannot invent two ways to store a rule.
+  """
+  def put_rules(bundles) do
+    Enum.each(bundles, fn {key, value} -> upsert_rule(key, value) end)
+  end
+
   @doc "Every rule bundle, as a key → value map."
   def rule_map do
     from(r in GameRule, select: {r.key, r.value}) |> Repo.all() |> Map.new()
