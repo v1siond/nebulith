@@ -843,8 +843,20 @@ export function GenerateControls({
       {` = ${buildCells.toLocaleString()} cells, ${sizeDraft.cellSize}px each`}
     </div>
   )
-  // The options that SHAPE the world, and the act that builds it. They go to the Preview window when there is one
-  // (tuningSlot), and stay right here when there is not, in the order they always had.
+  // THE SEASON is one of the things that shape the world, so it travels with the rest of them to the Preview
+  // window. Alexander, 2026-09-11: *"I also think the season should be part of the preview modal too"*.
+  const season = (
+    <div className="ctl">
+      <span className="l">Season</span>
+      <select className="sel" aria-label="Season" value={zone} onChange={e => onZone(e.target.value)} style={{ flex: 1, textTransform: 'capitalize' }}>
+        {zones.map(z => <option key={z} value={z}>{z}</option>)}
+      </select>
+    </div>
+  )
+  // The options that SHAPE the world. They go to the Preview window when there is one (tuningSlot), and stay
+  // right here when there is not, in the order they always had. The BUILD button no longer travels with them:
+  // *"on left side all I want to see is the kind of place, and the list of presets per kind, and the build this
+  // world button"*.
   const tuning = (
     <>
       {/* THE SUBTYPES, one picker per level, as deep as the data goes. Alexander, 2026-09-11: *"forest > type of
@@ -852,10 +864,10 @@ export function GenerateControls({
           forest"*, *"or just randomize"*. Each level offers its own standard version, every subtype, and Random. */}
       {chain.map((node, level) => (node.children?.length ?? 0) > 0 && (
         <div key={node.key} className="ctl">
-          <span className="l">{`Which ${node.name.toLowerCase()}?`}</span>
+          <span className="l">{node.name}</span>
           <select
             className="sel"
-            aria-label={`Which ${node.name.toLowerCase()}?`}
+            aria-label={node.name}
             value={path[level] ?? ''}
             style={{ flex: 1 }}
             onChange={e => {
@@ -878,7 +890,7 @@ export function GenerateControls({
           *"in theory it's what I'm requesting up top, but I don't anything on the UI"*. */}
       {(activeGenerator?.config.subZones?.length ?? 0) > 0 && (
         <>
-          <div className="sub">Regions in it</div>
+          <div className="sub">Regions</div>
           {activeGenerator?.config.subZones?.map(z => (
             <label key={z.key} className="ctl">
               <span className="l">{z.name ?? z.key}</span>
@@ -903,7 +915,7 @@ export function GenerateControls({
       {/* THE VARIATIONS, as options rather than as extra rows in the list above. */}
       {(activeGenerator?.options.length ?? 0) > 0 && (
         <>
-          <div className="sub">Anything else?</div>
+          <div className="sub">Options</div>
           {activeGenerator?.options.map(opt => {
             const blocked = opt.requires !== undefined && !optionIsOn(optionValue(opt.requires))
             // Every change re-peeks, so the panel SHOWS what the extra did. Built from `next` rather than read
@@ -953,7 +965,7 @@ export function GenerateControls({
           lives in the view bar with the camera controls. */}
       {size && onSizeDraft && onResize && sizeDraft && (
         <>
-          <div className="sub">How big</div>
+          <div className="sub">Size</div>
           <MapMatrixSection draft={sizeDraft} size={size} onDraft={onSizeDraft} onResize={onResize} />
         </>
       )}
@@ -987,18 +999,49 @@ export function GenerateControls({
     </>
   )
 
+  // REBUILD ONE LAYER, and re-roll a selection: both shape the world rather than pick the place, so both sit
+  // on the right with the options.
+  const layers = onRandomizeLayer && (
+    <>
+      {/* Change ONE layer: the same five parts on every kind of place. Named for what it IS, which is his
+          *"rebuild one part" why not just layers?*. */}
+      <div className="sub">Layers</div>
+      <div className="seg" style={{ flexWrap: 'wrap' }} role="group" aria-label="Layers">
+        {GENERATOR_LAYERS.map(({ id, label, hint }) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => onRandomizeLayer(id)}
+            title={`Rebuild ${label.toLowerCase()}: ${hint}`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      <div className="hint">Everything else stays exactly as it is. “Build this world” rebuilds all of it.</div>
+    </>
+  )
+  // The third scope: the whole map, one layer, or just what you picked.
+  const randomize = onRandomizeSelection && (
+    <>
+      <div className="sub">Randomize</div>
+      <button
+        type="button"
+        onClick={onRandomizeSelection}
+        disabled={selectedCount === 0}
+        className="b sm"
+        style={{ width: '100%', justifyContent: 'center' }}
+      >
+        {`🎲 Randomize ${selectedCount > 0 ? `${selectedCount} selected tile${selectedCount === 1 ? '' : 's'}` : 'the selection'} (R)`}
+      </button>
+      {/* A missing prerequisite is OFFERED, never enforced by a bare disabled control. */}
+      {selectedCount === 0 && <div className="hint">Select some cells on the map first. Shift-drag picks several.</div>}
+    </>
+  )
+
   return (
     <div className="pfix" style={{ overflowY: 'auto' }}>
       <div className="hint">Builds a whole level from a preset. Replaces whatever is on this level now.</div>
-
-      {/* Every step is NUMBERED, and the numbers are the instructions: a new user reads 1 → 2 → 3 → 4 and
-          knows the order without being told. */}
-      <div className="ctl">
-        <span className="l">Season</span>
-        <select className="sel" aria-label="Season" value={zone} onChange={e => onZone(e.target.value)} style={{ flex: 1, textTransform: 'capitalize' }}>
-          {zones.map(z => <option key={z} value={z}>{z}</option>)}
-        </select>
-      </div>
 
       {/* A selectable LIST, not a grid of pills. Alexander, 2026-09-08: *"I don't like to use pills as
           filters, they'll create a lot of issues after, because of space."* Each row carries how many
@@ -1030,7 +1073,7 @@ export function GenerateControls({
       {presets.length > 0 && (
         <>
           {/* The heading only earns its space when there is a CHOICE. One card needs no question. */}
-          {layouts.length > 1 && <div className="sub">{`Which ${typeLabel.toLowerCase()}?`}</div>}
+          {layouts.length > 1 && <div className="sub">Presets</div>}
           <div className="pgrid">
             {presets.map(({ id, label }) => (
               <button
@@ -1072,50 +1115,9 @@ export function GenerateControls({
         </>
       )}
 
-      {!tuningSlot && tuning}
-
-      {/* Change ONE layer — the same five parts on every kind of place. */}
-      {onRandomizeLayer && (
-        <>
-          {/* Named for what it DOES, not for the scope it is not. "Change just one layer" sitting next to a
-              button that rebuilds everything never said which one you were about to do. */}
-          <div className="sub">Rebuild one part</div>
-          <div className="seg" style={{ flexWrap: 'wrap' }} role="group" aria-label="Rebuild one part">
-            {GENERATOR_LAYERS.map(({ id, label, hint }) => (
-              <button
-                key={id}
-                type="button"
-                onClick={() => onRandomizeLayer(id)}
-                title={`Rebuild ${label.toLowerCase()} — ${hint}`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-          <div className="hint">Everything else stays exactly as it is. “Build this world” below rebuilds all of it.</div>
-        </>
-      )}
-
-      {/* The third scope: the whole map, one layer, or just what you picked. */}
-      {onRandomizeSelection && (
-        <>
-          <div className="sub">Re-roll the selection</div>
-          <button
-            type="button"
-            onClick={onRandomizeSelection}
-            disabled={selectedCount === 0}
-            className="b sm"
-            style={{ width: '100%', justifyContent: 'center' }}
-          >
-            {`🎲 Randomize ${selectedCount > 0 ? `${selectedCount} selected tile${selectedCount === 1 ? '' : 's'}` : 'the selection'} (R)`}
-          </button>
-          {/* A missing prerequisite is OFFERED, never enforced by a bare disabled control. */}
-          {selectedCount === 0 && <div className="hint">Select some cells on the map first — Shift-drag picks several.</div>}
-        </>
-      )}
-
-      {!tuningSlot && building}
-      {tuningSlot && createPortal(<>{sizeLine}{tuning}{building}</>, tuningSlot)}
+      {!tuningSlot && <>{season}{tuning}{layers}{randomize}</>}
+      {building}
+      {tuningSlot && createPortal(<>{sizeLine}{season}{tuning}{layers}{randomize}</>, tuningSlot)}
     </div>
   )
 }

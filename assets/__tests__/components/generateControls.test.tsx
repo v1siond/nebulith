@@ -233,7 +233,9 @@ describe('forest > type > subtype — pick one, go deeper, or randomize', () => 
     render(<GenerateControls catalog={CATALOG} zone="spring" onZone={noop} onGenerate={onGenerate} />)
     return onGenerate
   }
-  const which = (name: string) => screen.getByLabelText(`Which ${name}?`) as HTMLSelectElement
+  // Labelled by the thing it picks since 2026-09-11, not by a question: his *"why do we have "which forest?"
+  // instead of "presets" or something"*.
+  const which = (name: string) => screen.getByLabelText(new RegExp(`^${name}$`, 'i')) as HTMLSelectElement
   const WOODLANDS = ['forest_woodland_beech', 'forest_woodland_dense', 'forest_woodland_mountain', 'forest_woodland_glades']
 
   it('offers the woodland\'s own standard version, every subtype, and Random', () => {
@@ -400,7 +402,7 @@ describe('the preview window shows the world to build, its size, and the options
     expect(into.textContent).toContain('100 × 80 = 8,000 cells, 12px each')
   })
 
-  it('with a preview window, the options, the size and the build button live in it, not in the panel', () => {
+  it('with a preview window, the options and the size live in it, and the build button stays in the panel', () => {
     const into = slot()
     const p = props({ tuningSlot: into })
     const { container } = render(<GenerateControls {...p} />)
@@ -408,22 +410,23 @@ describe('the preview window shows the world to build, its size, and the options
     expect(within(into).getByLabelText(/^river$/i)).toBeInTheDocument()
     expect(within(into).getByLabelText(/^kind of crossing$/i)).toBeInTheDocument()
     expect(within(into).getByLabelText(/^map columns$/i)).toBeInTheDocument()
-    expect(within(into).getByRole('button', { name: /build this world/i })).toBeInTheDocument()
+    expect(within(into).getByLabelText(/^season$/i)).toBeInTheDocument() // the season shapes the world, so it travels too
     expect(into.textContent).toContain('60 × 40 = 2,400 cells, 16px each')
     expect(within(container).queryByLabelText(/^river$/i)).toBeNull()
-    expect(within(container).queryByRole('button', { name: /build this world/i })).toBeNull()
+    expect(within(container).getByRole('button', { name: /build this world/i })).toBeInTheDocument()
+    expect(within(into).queryByRole('button', { name: /build this world/i })).toBeNull()
     // the place itself is still picked in the panel
     expect(within(container).getByLabelText(/kind of place/i)).toBeInTheDocument()
   })
 
-  it('a build from the window builds what the window shows', () => {
+  it('a build from the panel builds what the window shows', () => {
     const into = slot()
     const p = props({ tuningSlot: into })
     render(<GenerateControls {...p} />)
     fireEvent.change(kinds(), { target: { value: 'forest' } })
     fireEvent.change(within(into).getByLabelText(/^river$/i), { target: { value: 'through' } })
     fireEvent.change(within(into).getByLabelText(/^kind of crossing$/i), { target: { value: 'planks' } })
-    fireEvent.click(within(into).getByRole('button', { name: /build this world/i }))
+    fireEvent.click(screen.getByRole('button', { name: /build this world/i }))
     expect(p.onGenerate).toHaveBeenCalledWith('spring', 'forest', expect.any(String), { river: 'through', crossing: false, bridge: 'planks' })
   })
 })

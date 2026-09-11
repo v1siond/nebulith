@@ -43,18 +43,18 @@ export const EDITOR_GUIDES: readonly Guide[] = [
         why: 'The number in brackets is how many presets that kind offers.',
       },
       {
-        do: 'Pick one of the presets in the list that appears — each one is a different layout of the same kind.',
-        why: 'The heading names the kind you chose, so it reads "Which forest?" or "Which town?".',
+        do: 'Pick one of the **Presets** that appear. Each one is a different layout of the same kind.',
+        why: 'Every preset draws its own small picture of the level it would build, so you can tell them apart.',
       },
       {
-        do: 'Set **Columns**, **Rows** and **Cell pixels** under HOW BIG.',
+        do: 'Set **Columns**, **Rows** and **Cell pixels** under **Size**.',
         why: 'These are exactly the numbers it will build. Nothing rounds them or overrides them.',
       },
       {
         do: 'Click **⚡ Build this world**.',
         why: 'Nothing above this button has touched the map yet. This is the step that replaces it.',
       },
-      { do: 'Not quite right? Use **Rebuild one part** to re-roll just the buildings, or just the trees.' },
+      { do: 'Not quite right? Use **Layers** to rebuild just the buildings, or just the trees.' },
     ],
   },
   {
