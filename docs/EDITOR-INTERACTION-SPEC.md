@@ -380,6 +380,51 @@ just the MAP without structures nor nature… single/set of units/tiles/composit
 animation for a unit"). It has two slices, both built on the generator's seedable **layer passes**
 (see `GENERATION-SPEC.md` §5).
 
+## 17. The GRID section — the map's own settings, outside the generator (2026-09-10)
+
+The four numbers that describe a map's shape live in their own rail section, `Grid`, first in the
+**MAKE THE WORLD** band (`editorConfig.ts` `EDITOR_BANDS`, panel in `components/game/gridPanel.tsx`).
+
+Alexander, 2026-09-10:
+
+> the ground thicknes is not a per template setting, is just a general setting of the grid ... we should
+> add an option in the main sidebar related specifically to the grid, I think we should just have that
+> outside of the template generation, and the template generation just uses whatever we setup on it and the
+> data is stored in the database. Like rows, column, cell size (px), grid thickness, and potentially other
+> future settings should be there
+
+This **reverses** his 2026-09-08 direction (*"I think map size should be part of generate"*), and the new
+model is the better one: those numbers describe THE GRID, and the generator is one of several things that
+read them. The editor brush, a loaded map and an undo all act on the same grid.
+
+**What the section holds** (`GridSettings` — add a field to extend it, not a second panel):
+
+| | applies | why |
+|---|---|---|
+| Columns / Rows / Cell pixels | on an explicit **Resize this map** | rebuilding clears every cell |
+| Ground thickness (`slabBlocks`) | **as you type** | it touches no cell, only how deep the map draws |
+
+**Generating reads the section.** `GenerateControls` takes no size at all now — `onGenerate` is
+`(zone, categoryKey, layout?)`, and `generateStageInEditor` reads the panel's numbers. A build therefore
+needs no resize first: it generates straight into the grid you set. A SEEDED generate (the validation
+harness) still rolls its size from the generator's served range, so reproducibility is unchanged.
+
+**Three defects this fixed**, all measured in the running editor before the change:
+
+1. *"It doesn't allow me to delete number"* — the old input ran `parseInt` per keystroke and dropped
+   anything that did not parse, so an empty field was rejected and the old value snapped back. `NumberField`
+   holds a text draft and separates the COMMIT from the keystroke.
+2. *"when I click build this world is reset to 1"* — `resizeGrid` built `new IsometricGrid({...VILLAGE_CONFIG,
+   cols, rows, cellSize})`, which carries no `slabBlocks`, so the constructor fell to `DEFAULT_SLAB_BLOCKS`.
+   Every resize and every generate silently threw the thickness away. It is carried across explicitly now.
+3. *"the data is stored in the database"* — it was not. The frontend had sent `slabBlocks` with every save
+   since `75f9685`, but `Template` had no column for it and Ecto's `cast/3` drops what the schema does not
+   declare. Migration `20260910190000_add_slab_blocks_to_template`, plus the schema field and the JSON view.
+
+**A note that belongs in the UI and now is:** the body is only visible where the map STOPS
+(`drawGridSkirt` skips a cell with no floor), so on an empty map changing the thickness draws nothing at
+all. The panel says so.
+
 ### Macro — the `⚡ Generate ▾` menu (`GenerateControls`) — redesigned 2026-07-25
 The menu reads as one top-down **hierarchy** so every control's scope is obvious (`editorChrome.tsx`
 `GenerateControls`). **Every option is BACKEND DATA** — the catalog served by `GET /api/generators`

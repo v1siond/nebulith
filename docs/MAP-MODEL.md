@@ -40,15 +40,6 @@ Example — the SAME house in all three (the reference sketch):
 - **2D**: gray wall rows + a red roof **gable / triangle** + windows + door — the front face; green ground, sky above.
 - **ISO**: the full 3D house — walls + red gable roof + door/windows.
 
-> **The ISO view is a ROTATABLE camera.** The three projections above are the *model*; the ISO view is drawn
-> through a camera that can turn around the map — the **4 corners** (quarter-turns CW, an `Orientation`) plus a
-> **continuous** spin between them the drag controller animates. The map's tile DATA never changes when you
-> turn — the renderer rotates the `(col,row)` coordinate BEFORE the fixed iso projection (a turntable spin),
-> and a tile's world-facing (a door's direction) is invariant; only the screen-side you view it from changes.
-> Movement and drag stay **screen-fixed** (the map turns, the controls don't). The projection math, the camera
-> focus/clamp/pan, the rotation, the depth sort, and the screen-fixed-input rule are all documented in
-> [`RENDER-AND-CAMERA.md`](RENDER-AND-CAMERA.md).
-
 ## 3. The matching rules — the views are consistent by construction
 
 The same thing appears in all three, so its dimensions are shared:
@@ -75,81 +66,21 @@ flowchart LR
 - **ISO grid = BLOCKS** — 3D containers `(col, row, level)`. Stack as many as you want for height/depth.
 - **2D grid = CELLS** — `(col, row)`; **stack cells** to simulate elevation (height). Depth is collapsed.
 - **TOP grid = cells** from above — elevation is not shown.
-- A **cell/block has collision or not** — it blocks movement or it doesn't. **Collision is a per-cell SETTING,
-  NOT derived from anything.** It is **NOT** computed from height (or type, category, label, or art style) —
-  a **4-block-tall projection can be fully walkable**, a **4-block cave entrance** walkable, a **2-block open
-  door** walkable. The user drives it directly via the inspector's **Blocked/Walkable** toggle
-  (`setCellCollision` → `grid.setCollision`) — that setting is the **source of truth** for a cell's collision.
-  When a tile is **painted**, it lands with **ONE uniform default for every tile**: **walkable** (non-blocking).
-  Same default for every tile, height, art style and category — there is **no per-type blocking list and no
-  height→collision rule** anywhere in the paint/insert path. **Height and collision are fully independent:** any
-  height can carry any collision. (A generated/composition cell may carry its **own** authored `walkable` DATA —
-  that is per-cell DATA on the block, not a code branch, so the generator path is unaffected.)
-- A cell/block CAN carry a **draw priority** (`z_index`, CSS-style) — a higher value draws LATER (on top / in
-  front), overriding the positional depth sort in every view. It's DATA on the cell (the editor's Z-Index control
-  or a seeded default), not a render special-case. **Currently every cell defaults to 0** and sorts positionally —
-  the capability is reserved for the later composition-optimization pass (e.g. giving a container a higher
-  `z_index` than its contents so its front edge occludes them). See `ANIMATION-SYSTEM.md` → "z-index draw priority
-  (a capability for composition optimization)".
+- A **cell/block has collision or not** — it blocks movement or it doesn't. Collision is a property of the
+  cell/block, **independent of the tile** it holds.
 - A **TILE** is the art inside a cell/block — an ascii glyph, an emoji, or an image, coming from the **DB
   tileset**. Ascii and emoji are just **two tilesets** of the same tile (same label, different art). The
   front end renders; the tile data comes from the DB — the front end hardcodes nothing.
-- **An art style is made OF tiles, but not everything is BUILT WITH a tile-image.** *"Every tile is a baked
-  image"* is a rule about the **ART** — when a tile carries art it is a baked image, never a raw glyph that
-  renders `??` — **NOT** a rule that every cell must hold an image. A **ground can be a plain COLOURED block**:
-  grass / roads / water are authored as a per-cell `color` on the floor block with **no image resource**
-  (GENERATION-SPEC §5.5, *"reduce tiles — grass + water are colour"*), and the iso render draws a tinted slab
-  (`!image && FLOOR_TYPE`). Tiles (image art) are spent only where art is genuinely needed — ornaments,
-  structures, highlights. So a colour-only ground legitimately resolves to a colour, not an image.
-- **Height is per-tile DATA, read UNIFORMLY.** Every tile carries its **own** block height in the DB, and every
-  consumer (the editor brush `stackAssetTile`, the generator, the three renderers) reads it through the **same**
-  path — there is **NO branch by tile type, category, label, or art style** anywhere in the insert/height/
-  collision path. The MECHANISM is identical for every tile (*"all tiles behave and are inserted the same in the
-  map, regardless of type or art style"*); only the **DATA** each tile carries differs:
-  - a **GROUND/FLAT** tile — terrain, a **flower**, a fallen leaf, floor decor, a facade piece — has height
-    **0/min**: in iso it shows on the **floor face** of the block only (no extrusion).
-  - a **STANDING** tile — a tree, a rock, a mushroom, a cactus, a crate, a lamp, a building, a prop — has height
-    **≥ 1**: it extrudes into a 3D **block**.
-  Height affects only the **extrusion**; it does **NOT** affect collision (see the collision setting above — a
-  tall block is walkable by default just like a flat tile). This is DATA per tile, **not** a category code branch
-  — a data drift on one tile can never reopen a per-type split, because there is no per-type code. A tile's
-  height can be **overridden per cell/block** in the right sidebar, and collision is set independently there via
-  the Blocked/Walkable toggle; nothing else — its type/category/style — changes how it inserts. (Terrain is just
-  the height-0 case painted onto the **FLOOR** via `placeGroundTile` rather than stacked, so it shows on the
-  floor face — the same "height 0 = floor face" rule as any other flat tile.)
-- A cell/block CAN carry a **`shape`** render setting (`square` default | `circle`) — DATA on the cell
-  (`composition_cells.settings.shape` or a per-instance editor setting), never a render special-case.
-  **`shape: circle` takes the SAME cuboid and BENDS ITS CORNERS ROUND**, NOT a repainted sphere (Alexander:
-  *"ALL I WANT WITH THE SHAPE IS TO MANIPULATE THE SIDES OF THE CUBOID … bend the corners OF THE CUBOID to form
-  a circle"*): the renderer draws the block's **normal cube — the tile painted on all three shaded faces, its
-  background colour fill + art + per-face shading all kept — then CLIPS it to an ELLIPSE** so the silhouette
-  rounds. The clip is the block's **INSCRIBED ellipse** (`roundedBlockEllipse`): `rx = footprint half-width`,
-  `ry = √((stack/2)² + stack·tileH)` centred at the cuboid's mid-height — **tangent to the four slanted faces**,
-  so **EVERY corner is bent away** (the top apex, the mid-side vertices, and the bottom) and there is **no
-  straight-edge/arc kink**. The earlier `ry = stack/2 + tileH` passed through the apex + bottom and cut across
-  the faces, leaving those three corners angular (Alexander circled the top point, a mid-right side corner, and
-  the bottom) — the inscribe fixes all three. It stays **PROPORTIONAL** — a tall block → a tall oval (an egg
-  standing up), a unit cube → a rounder blob — and is **NOT a sphere**: no single flat surface, no radial
-  relight, the three faces + their seams still show; only the OUTLINE rounds. `square` is the plain cube. All
-  three views route their `circle`/`square` through ONE shared shape dispatch (iso `ISO_SHAPE_DRAWERS`, 2D/top
-  `drawFlatTileForShape`, whose face is a rectangle so its own inscribed-ellipse clip already rounds all four
-  corners) — no per-view `if (shape === 'circle')` — so a new shape adds one map entry, never a branch
-  (SOLID/OCP).
-- A cell/block CAN carry an **`act_as_tile`** stacking SETTING (`settings.actAsTile`, default **false**). The
-  **lego rule is unchanged**: a cell is EMPTY until a tile is put in it, and every FURTHER tile put in the same
-  cell **STACKS ON TOP** of what is there (each tile occupies `its level + its own height`, `stackTop`) — floors
-  included, so a composition dropped on floor tiles already stacks. **The law** (Alexander): *"there shouldn't be
-  anything as floorStackLift whatsoever — FLOOR ARE TILES, ALL TILES STACK ON TOP LIKE LEGOS BY DEFAULT"* — so a
-  floor lifts what stands on it through this ONE rule, needing no floor-special lift. (A `floorBlockLift` helper
-  still exists for the composition/unit placement paths that don't yet route through `stackTop`; it is a
-  deviation slated for removal once those paths read the shared stack, per this law.) `act_as_tile` makes a tile
-  count as an occupant of **at least one block** for stacking, so the
-  cell *"behaves as if a tile were already inside it"* and the next tile stacks ON TOP **even when the tile is
-  FLAT** (height 0). Alexander: *"act_as_tile means the cell works by default as if a tile was inside of it
-  already … adding a tile stacks it OVER the block; default is false; we change it in COMPOSITION when it makes
-  sense — roads, whatever we must WALK OVER."* Decoupled from height (a height-≥1 tile already counts as ≥1, so
-  the legos are byte-identical); authored per-tile in the DB `settings` or per composition cell, served verbatim
-  by the backend, and editable in the inspector.
+- **Every tile is INSERTED UNIFORMLY.** Painting or generating ANY tile places it with the SAME default: a full
+  all-faces block one level tall (`height = 1`) — the SAME height the generator forces on every composition cell
+  (`stampComposition`: `asset.height = 1`) and the editor brush seeds (`stackAssetTile`: `h = 1`). There is **NO
+  branch by tile type, category, label, or art style** anywhere in the insertion path — a flower, a tree, a
+  building, a rock, an animal-shaped decoration all land as structurally identical blocks (the user's hard rule:
+  *"all tiles behave and are inserted the same in the map, regardless of type or art style"*). The **ONLY**
+  source of a per-tile difference — flatten it, round it (`shape`), resize it, recolour it — is the **SETTINGS**
+  on that individual cell/block, edited in the right sidebar, **never** the tile's type/category. (Terrain is
+  the one exception, because it is the **FLOOR** — painted onto the ground via `placeGroundTile`, not stacked as
+  a block.)
 
 **Terminology — never interchange:**
 - **CELL** = a 2D grid square `(col, row)`.
@@ -164,45 +95,37 @@ drawer** for a building, a roof, or anything (units/NPCs aside). Each view PROJE
 ISO stacks the blocks into a 3D shape, 2D collapses depth and stacks the cells into a front elevation, TOP
 shows the footprint.
 
-The roof is the clearest example: it is **roof tiles** projecting to a **triangle** (2D front), a **3D gable**
-(ISO), and the **footprint rectangle** (TOP). To keep the block count low, a roof is authored as ONE
-**depth-spanned** block PER COLUMN (roof-z-width): each column carries smart HEIGHT (`settings.scaleY` = its
-gable-step height) AND smart Z-WIDTH (`settings.depth` = the footprint depth, along `settings.depthDir`), so a
-whole ridge column is a single block spanning the depth instead of one tile per `(col,row)` — a gable falls to
-`w+1` blocks. The three views still read the SAME data: ISO draws the depth block as one long box, 2D collapses
-the depth onto the front face (the triangle), and TOP paints the tile across every covered footprint cell.
-The **entrance apron** (the doorstep in front of a building's doors) uses the SAME z-width mechanism on the
-facade axis — a 2-wide doorway is ONE `path` block with `settings.depth = 2` — and, being a **floor** tile, it
-carries the floor's own minimal height, so the doorstep lies FLAT like the road it joins instead of standing up
-as a kerb. Height comes from the tile, never from the stamp: **a composition cell is placed at its TILE's own
-DB height** (§4), so a flat tile in a composition stays flat and a standing one stays a block.
-
-**A generated stage SAVES what it stamped.** The live stamp and the save path (`stageToTemplate`) expand a
-recorded composition ANCHOR — tree, building, decor — through the **same** per-cell mapping
-(`compositionCellRender`), so every authored setting (`depth`/`depthDir` z-width, `scaleY` height, `scale`,
-`pose`, `shape`, `light`, animations) and each tile's own height survive save → load. Cherry-picking fields on
-save is what once reloaded a 2-wide entrance as one block and broke the roof spans.
-
-**A composition cell resolves by its own LABEL, in every view.** A tree is two stacked cells — a `tree_trunk`
-cell at level 0 and a `tree_canopy` cell above it — each carrying its OWN part label but the SAME composition
-`type` ('tree'). Every renderer resolves a stacked cell (one that carries a `label` and `height ≥ 1`) by that
-**label** — its own trunk/leaf/wall/roof tile — **before** the coarse whole-object KIND art is ever consulted
-(`assetKind` collapses `tree_*` to the `tree` kind, whose emoji is the whole 🌲). So the trunk cell draws the
-trunk tile and the canopy cell draws the leaf tile, each at its own stacked position, composing into ONE
-coherent tree — identically in ISO (label cube per cell), 2D (label cell per level), and TOP (the top-of-stack
-label per footprint cell). This label-first rule is what stops the 2D view from painting the whole-tree KIND
-tile once per stacked cell — the "tree on tree" doubling — so **ANY** composition (tree, building, fountain,
-lamp) translates consistently across the three views. It is DATA-driven (label + height), never a per-type
-branch.
+The roof is the clearest example: it is a **stack of roof tiles** (a gable). The SAME roof tiles project to a
+**triangle** (2D front), a **3D gable** (ISO), and the **footprint rectangle** (TOP).
 
 ```mermaid
 flowchart TD
-  STAMP["a building is stamped as per-cell TILES (walls stack by level, roof = depth-spanned block per column)"]
+  STAMP["a building is stamped as per-cell TILES (walls stack by level, roof = gable tile stack)"]
   STAMP --> REG["the REGULAR tile builder — one path, no special drawer"]
   REG -->|project| TOPp["TOP: footprint rectangle"]
   REG -->|project| TWODp["2D: front elevation, depth collapsed"]
   REG -->|project| ISOp["ISO: 3D block stack with gable roof"]
 ```
+
+### Per-tile FORM modifier: `shape` — round the silhouette, keep the painting
+
+A tile's `shape` setting (`'square'` = the default cube · `'circle'`) is a **FORM modifier, NOT a repaint** —
+it changes only the tile's **silhouette**, never its painting. `circle` **bends the corners OF THE CUBOID**: it
+draws the tile's **normal cube/cell** (its baked art, colour filter, per-face shading and every other setting
+intact) and then **clips it to an INSCRIBED ellipse of the block's OWN projected extent** — horizontal radius =
+the footprint half-width, vertical radius **tangent to the four slanted faces** (`ry² = (stack/2)² + stack·tileH`),
+centred at the volume's mid-height. Inscribing pushes every one of the 6 silhouette vertices strictly OUTSIDE the
+ellipse, so the clip bends them ALL away with no straight-edge/arc kink. So the outline is rounded but **PROPORTIONAL
+to the block**: a tall block → a **tall OVAL** (an egg standing up), a unit cube → a rounder blob. The outer clip
+only reaches the SILHOUETTE, so the ONE corner it can't bend — the top face's **interior front vertex** (where the
+bright top diamond's front point meets the two front walls, Image #61) — is beveled separately by
+`roundIsoTopFrontCorner`: it overpaints that sharp tip with the front-wall shades up to a rounded arc, so the bright
+top recedes to a curved front instead of a downward point. Now **every** corner is bent. The three shaded faces and
+the painted art all stay — it is the cuboid with its corners rounded away, **not** a repainted sphere. There is **no**
+spherical relight, **no** single flat surface and **no** fixed circle (`rx==ry`) — those were rejected "ball" attempts.
+All three views round the same way: ISO (`drawIsoRoundedBlock` clips `drawIsoTileBlock`, then bevels the top-front
+vertex), 2D (`draw2DLabeledCell`) and TOP (footprint) draw ONE ellipse-clipped face so they have no such interior
+seam. New shapes plug into a dispatch map (`ISO_SHAPE_DRAWERS`) keyed by the setting — one drawer per shape, never a new `if`.
 
 ### Per-tile SIZE modifier: `scaleZ` — THICKNESS, the 3D fill inside the cell
 
@@ -210,6 +133,13 @@ A tile's `scaleZ` is its **THICKNESS**: how much of its own block it fills along
 `1` (the default) is a full cube; a **door is a thin panel in a wall** and ships at `0.3`
 (`nebulith/lib/nebulith/catalog/tile_source.ex`, Alexander: *"they should be thin"*). Drawn at the default
 thickness a door renders as a solid block and stops reading as a door at all.
+
+**THE GRID'S OWN BODY is a fourth thing again, and it is not a tile's anything.** `GridConfig.slabBlocks`
+is how deep the MAP stands, drawn as a skirt where the map stops (`drawGridSkirt`). A floor is a flat skin
+laid on top of it, which is what lets a generator put height 0 on every floor tile and still have the map
+read as ground. It is map DATA: it round-trips through the save payload and, since 2026-09-10, through the
+`Template.slabBlocks` column (it was silently dropped before that, because the column did not exist). It is
+edited in the editor's **Grid** rail section, never in a frontend constant — see EDITOR-INTERACTION-SPEC §17.
 
 **THICKNESS IS NOT FOOTPRINT.** They were once conflated, and the thickness control was deleted as
 "redundant" — it is not:
@@ -374,31 +304,10 @@ keyed by style id). **No renderer may branch on the style for anything but which
 is the LAST RESORT for a tile with genuinely no baked image — never a per-style art path, and never a pre-load
 placeholder (the loader decodes every PNG before the render gate opens).
 
-**The app reads ONLY the DB tilesets — the front end hardcodes no tile art AND no tile data.** `tilesetLoader`
-fetches the rows on load and installs them (`EMOJI_TILESET` / `ASCII_TILESET`). BOTH the **map render** and the
-**Tile Library sidebar** (`tilesForStyle` / `visualForTileId`) derive from those loaded tilesets — so the
-sidebar always matches the map (no parallel hardcoded catalog that can drift).
-
-**The holders start EMPTY and a loader gates the render — there is NO fallback.** Both `EMOJI_TILESET` and
-`ASCII_TILESET` are empty until `/api/tilesets` installs the DB rows; there is no bundled default tileset. The
-editor shows a **LOADING TILES loader** (and the RAF loop paints only a plain background) until the tiles are
-ready, and an **error/retry** state if the load fails. **"Ready" means the baked PNG IMAGES are DECODED, not
-just the JSON installed** — `loadTilesetsFromBackend` preloads + decodes every installed tile image
-(`preloadTileImages`, into the same cache the render reads) *before* it resolves and the gate opens. This is
-what killed the last flash (Image #70): opening on the JSON alone let the first frames paint the tile's GLYPH
-fallback (the wall's brick emoji tiled across the cube faces — a repeated "S" / brown-crate building, an
-un-drawn hero) for the ~1s the rasters were still decoding. The glyph is now ONLY the after-load neutral render
-for a genuinely image-less / unknown label — never a pre-load placeholder — and the RAF hard-gate blocks even
-the saved map from painting until ready. Nothing is ever drawn from frontend tile data — so a fresh load
-(including an auto-loaded saved map) goes straight from loader → the correct DB style, with no wrong-style
-flash at any point.
-
-**Entity resolution is backend data too (a unit is just a tile).** How an entity resolves to a baked tile — an
-enemy's `enemyType` → slug, a person's `variant` → slug, and the baked-slug set — used to be the last frontend
-data file (`game/data/entityTiles.json`). It now lives in the backend (`Nebulith.Catalog.EntitySource`) and is
-served by **`GET /api/entities`**; the frontend installs it into an EMPTY holder via `entityLoader` and the
-render gate waits for it **alongside** the tilesets (no fallback). The frontend now holds **no** tile OR entity
-data. See TILE-BACKEND-MIGRATION §11.
+**The app reads ONLY the DB tilesets — the front end hardcodes no tile art.** `tilesetLoader` fetches the rows
+on load and installs them (`EMOJI_TILESET` / `ASCII_TILESET`). BOTH the **map render** and the **Tile Library
+sidebar** (`tilesForStyle` / `visualForTileId`) derive from those loaded tilesets — so the sidebar always
+matches the map (no parallel hardcoded catalog that can drift).
 
 **Tile pipeline (Elixir backend → baked image → DB → app).** All tile DATA lives in the nebulith backend.
 The game-website FRONTEND JSON (`tileKinds.json`/`emojiCatalog.json` + `gen-tileset-seeds.mjs`) was the
@@ -416,11 +325,13 @@ flowchart LR
 **To add or change a tile:** (1) author it in `Nebulith.Catalog.TileSource` (Elixir) with
 `image_url: "/tiles/<style>/<label>.png"` — `glyph`/`emoji` are BAKE INPUTS only; (2) add a bake entry to
 `priv/tilegen/tiles.json` `{label, mode, style, glyph|emoji}` and run `node priv/tilegen/bake.mjs`
-(**incrementally: `node priv/tilegen/bake.mjs --only=<label>[,<label>]`** — adding ONE tile must not
-re-rasterise the other ~400 through whatever fonts the baking machine happens to have)
-(→ a baked PNG in `priv/static/tiles/`); (3) seed. NEVER `image_url: nil` + a raw glyph (**it silently costs the renderer its cube-sprite cache**, which is keyed on the tile having an image: an image-less tile re-draws its three faces live, with a `clip` each, every frame) (renders `??` on a
-machine whose font lacks the emoji), and NEVER hand-edit tile art into a component or the renderer. Seeds are
-FINE (Elixir → DB); only the frontend JSON is dead.
+(→ a baked PNG in `priv/static/tiles/`); (3) seed. **Bake incrementally** — `node priv/tilegen/bake.mjs
+--only=<label>[,<label>]` restricts the run to those labels, so adding ONE tile does not re-rasterise the
+other ~400 through whatever fonts happen to be installed on the baking machine. NEVER `image_url: nil` + a raw
+glyph (renders `??` on a machine whose font lacks the emoji — **and it silently costs the renderer its
+cube-sprite cache**, because that cache is keyed on the tile having an image; an image-less tile re-draws its
+three faces live, with a `clip` each, every frame). NEVER hand-edit tile art into a component or the renderer.
+Seeds are FINE (Elixir → DB); only the frontend JSON is dead.
 
 ---
 
