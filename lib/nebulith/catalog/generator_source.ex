@@ -492,7 +492,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
   @doc "The categories to seed, in menu order (`editorConfig.ts` STAGE_VARIANTS)."
   def categories do
     [
-      %{key: "forest", name: "Forest", position: 0, description: "Woodland and open meadows — no settlement."},
+      %{key: "forest", name: "Forest", position: 0, description: "Woodland and open meadows, with no settlement in them."},
       # Alexander, 2026-09-11: *"City and town options are the same, it'd put them in a single category"*. So a
       # town and a city are two PRESETS of one kind of place, the way a woodland and a meadow are two presets
       # of forest. The row says which archetype it runs, so the engine still builds a town for Town.
@@ -631,13 +631,13 @@ defmodule Nebulith.Catalog.GeneratorSource do
       },
       %{
         category: "cave", key: "cave_default", name: "Cave", variant: "cave", position: 0,
-        description: "A cavern floor — bats, spiders and skeletons instead of townsfolk.",
+        description: "A cavern floor: bats, spiders and skeletons instead of townsfolk.",
         config: %{"grid" => @small_grid, "units" => enemies(~w(bat spider skeleton))},
         options: @way_options
       },
       %{
         category: "temple", key: "temple_default", name: "Temple", variant: "temple", position: 0,
-        description: "A temple dungeon — skeletons, guardians and wraiths.",
+        description: "A temple dungeon: skeletons, guardians and wraiths.",
         config: %{"grid" => @small_grid, "units" => enemies(~w(skeleton guardian wraith))},
         options: @way_options
       }
