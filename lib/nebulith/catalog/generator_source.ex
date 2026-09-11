@@ -296,6 +296,22 @@ defmodule Nebulith.Catalog.GeneratorSource do
     }
   ]
 
+  # How many ancestors a seed row has — parents seed first.
+  defp depth(%{parent: parent}, by_key) when is_binary(parent), do: 1 + depth(Map.fetch!(by_key, parent), by_key)
+  defp depth(_row, _by_key), do: 0
+
+  # The jungle's regions at different weights — a swamp jungle is the same regions, mostly swamp. A weight of
+  # zero leaves that region out.
+  defp sub_zones(weights) do
+    for z <- @jungle_sub_zones, w = Map.get(weights, z["key"], 0), w > 0, do: Map.put(z, "weight", w)
+  end
+
+  # The water options with a different starting river — an island starts ringed by water.
+  defp water_options(river_default) do
+    [river | rest] = @water_options
+    [Map.put(river, "default", river_default) | rest]
+  end
+
   @doc "The categories to seed, in menu order (`editorConfig.ts` STAGE_VARIANTS)."
   def categories do
     [
@@ -327,6 +343,88 @@ defmodule Nebulith.Catalog.GeneratorSource do
         description: "An open clearing framed by trees, with two ways in.",
         config: %{"grid" => @small_grid, "nature" => @outdoor_nature, "units" => townsfolk(5), "formation" => @formations["scattered"], "trees" => @meadow_trees},
         options: @water_options
+      },
+      # ── SUBTYPES ────────────────────────────────────────────────────────────────────────────────────
+      # Alexander, 2026-09-11: *"we should also have extra options to select different types of the selected
+      # zone, or just randomize, and we can go various levels deeper / forest > type of forest > sub type of
+      # type of forest > etc / like maybe it's an island jungle, maybe it's a mountain forest"*. Each one
+      # states ONLY what makes it different; the catalog merges its parent's config under it. The woodland and
+      # meadow sets are his six reference photographs, named by image.
+
+      # image #11 — straight trunks at even spacing, a clear floor
+      %{
+        category: "forest", parent: "forest_woodland", key: "forest_woodland_beech", name: "Beech stand",
+        layout: "woodland", position: 0,
+        description: "Tall straight trunks at even spacing over a clear floor.",
+        config: %{"formation" => @formations["stand"], "nature" => %{"canopy" => 0.45},
+                  "trees" => [%{"kind" => "tree_column", "weight" => 55}, %{"kind" => "tree_tall", "weight" => 25}, %{"kind" => "tree", "weight" => 20}]}
+      },
+      # image #15 — the floor is the hard part: deep undergrowth, a trail through it
+      %{
+        category: "forest", parent: "forest_woodland", key: "forest_woodland_dense", name: "Dense woodland",
+        layout: "woodland", position: 1,
+        description: "Tall trunks over deep undergrowth, with a trail cut through it.",
+        config: %{"formation" => @formations["understory"], "nature" => %{"canopy" => 0.55, "groundCover" => 0.4},
+                  "trees" => [%{"kind" => "tree_column", "weight" => 40}, %{"kind" => "tree_tall", "weight" => 30}, %{"kind" => "bush", "weight" => 30}]}
+      },
+      # image #12 — conifers in patches over an open hillside
+      %{
+        category: "forest", parent: "forest_woodland", key: "forest_woodland_mountain", name: "Mountain forest",
+        layout: "woodland", position: 2,
+        description: "Conifers in patches over open hillside.",
+        config: %{"formation" => @formations["clumped"], "nature" => %{"canopy" => 0.28},
+                  "trees" => [%{"kind" => "tree_conifer", "weight" => 70}, %{"kind" => "tree_tall", "weight" => 15}, %{"kind" => "tree_stub", "weight" => 15}]}
+      },
+      # image #12 again — woodland broken by open meadow sections
+      %{
+        category: "forest", parent: "forest_woodland", key: "forest_woodland_glades", name: "Woodland with meadows",
+        layout: "woodland", position: 3,
+        description: "Stands of trees broken by open meadow.",
+        config: %{"formation" => @formations["clumped"], "nature" => %{"canopy" => 0.35},
+                  "trees" => [%{"kind" => "tree", "weight" => 30}, %{"kind" => "tree_round", "weight" => 25}, %{"kind" => "tree_broadleaf", "weight" => 25}, %{"kind" => "bush_round", "weight" => 20}]}
+      },
+      # image #14 — wall to wall, no floor visible
+      %{
+        category: "forest", parent: "forest_jungle", key: "forest_jungle_dense", name: "Super dense jungle",
+        layout: "jungle", position: 0,
+        description: "A closed canopy wall to wall, almost no open ground.",
+        config: %{"nature" => %{"canopy" => 0.72}, "subZones" => sub_zones(%{"dense" => 5, "open" => 1})}
+      },
+      # image #13 — cypress standing in the water
+      %{
+        category: "forest", parent: "forest_jungle", key: "forest_jungle_swamp", name: "Swamp jungle",
+        layout: "jungle", position: 1,
+        description: "Mostly swamp, cypress standing in the water.",
+        config: %{"subZones" => sub_zones(%{"swamp" => 6, "dense" => 2, "open" => 1})}
+      },
+      # his words — an island: water around it, palms
+      %{
+        category: "forest", parent: "forest_jungle", key: "forest_jungle_island", name: "Island jungle",
+        layout: "jungle", position: 2,
+        description: "Jungle ringed by water, heavy with palms.",
+        config: %{"subZones" => sub_zones(%{"open" => 3, "dense" => 2}),
+                  "trees" => [%{"kind" => "tree_palm", "weight" => 50}, %{"kind" => "tree_round", "weight" => 25}, %{"kind" => "bush_round", "weight" => 25}]},
+        options: water_options("around")
+      },
+      %{
+        category: "forest", parent: "forest_jungle", key: "forest_jungle_ruins", name: "Jungle ruins",
+        layout: "jungle", position: 3,
+        description: "Ruins the jungle has taken back.",
+        config: %{"subZones" => sub_zones(%{"ruins" => 5, "dense" => 2, "open" => 2})}
+      },
+      # image #10 — big lone trees wide apart on open grass
+      %{
+        category: "forest", parent: "forest_meadow", key: "forest_meadow_pasture", name: "Wood pasture",
+        layout: "meadow", position: 0,
+        description: "Big lone trees standing wide apart on open grass.",
+        config: %{"formation" => @formations["scattered"],
+                  "trees" => [%{"kind" => "tree_gnarled", "weight" => 60}, %{"kind" => "tree_broadleaf", "weight" => 25}, %{"kind" => "bush_round", "weight" => 15}]}
+      },
+      %{
+        category: "forest", parent: "forest_meadow", key: "forest_meadow_open", name: "Open meadow",
+        layout: "meadow", position: 1,
+        description: "The open clearing, as it is.",
+        config: %{}
       },
       %{
         category: "town", key: "town_default", name: "Town", position: 0,
@@ -380,8 +478,23 @@ defmodule Nebulith.Catalog.GeneratorSource do
         {attrs.key, row.id}
       end)
 
-    for attrs <- generators() do
-      params = attrs |> Map.delete(:category) |> Map.put(:category_id, Map.fetch!(ids, attrs.category)) |> Map.put(:zones, @zones)
+    # Parents before their subtypes, at any depth, so every `parent` key resolves to a row that exists.
+    rows = generators()
+    by_key = Map.new(rows, &{&1.key, &1})
+
+    for attrs <- Enum.sort_by(rows, &depth(&1, by_key)) do
+      parent_id =
+        case Map.get(attrs, :parent) do
+          nil -> nil
+          parent_key -> Repo.get_by!(Generator, key: parent_key).id
+        end
+
+      params =
+        attrs
+        |> Map.drop([:category, :parent])
+        |> Map.put(:category_id, Map.fetch!(ids, attrs.category))
+        |> Map.put(:zones, @zones)
+        |> Map.put(:parent_id, parent_id)
 
       {:ok, _} =
         (Repo.get_by(Generator, key: attrs.key) || %Generator{})

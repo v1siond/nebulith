@@ -62,6 +62,10 @@ defmodule Nebulith.Catalog.Generator do
     field :options, Nebulith.EctoJSON, default: []
     field :position, :integer, default: 0
     belongs_to :category, Nebulith.Catalog.GeneratorCategory
+    # A SUBTYPE of another generator — *"forest > type of forest > sub type of type of forest > etc"*. Nil for
+    # a top-level type. `children` is filled when the catalog is read as a tree, never persisted.
+    belongs_to :parent, Nebulith.Catalog.Generator
+    field :children, :any, virtual: true, default: []
 
     timestamps(type: :utc_datetime)
   end
@@ -69,7 +73,7 @@ defmodule Nebulith.Catalog.Generator do
   @doc false
   def changeset(generator, attrs) do
     generator
-    |> cast(attrs, [:key, :name, :description, :layout, :zones, :config, :options, :position, :category_id])
+    |> cast(attrs, [:key, :name, :description, :layout, :zones, :config, :options, :position, :category_id, :parent_id])
     |> validate_required([:key, :name, :category_id])
     |> unique_constraint(:key)
     |> assoc_constraint(:category)

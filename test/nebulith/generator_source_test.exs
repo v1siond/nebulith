@@ -25,7 +25,7 @@ defmodule Nebulith.GeneratorSourceTest do
 
   describe "seed/0" do
     test "creates every category and generator, and reports what it wrote" do
-      assert {5, 7} = GeneratorSource.seed()
+      assert {5, 17} = GeneratorSource.seed()
 
       categories = Catalog.list_generator_categories()
       assert Enum.map(categories, & &1.key) == ~w(forest town city cave temple)
@@ -167,12 +167,12 @@ defmodule Nebulith.GeneratorSourceTest do
       before = Catalog.list_generator_categories()
       ids = Enum.map(before, & &1.id)
 
-      assert {5, 7} = GeneratorSource.seed()
+      assert {5, 17} = GeneratorSource.seed()
 
       again = Catalog.list_generator_categories()
       assert Enum.map(again, & &1.id) == ids
       assert Repo.aggregate(GeneratorCategory, :count) == 5
-      assert Repo.aggregate(Generator, :count) == 7
+      assert Repo.aggregate(Generator, :count) == 17
     end
 
     test "re-seeding REFRESHES a row someone edited by hand" do
@@ -261,6 +261,65 @@ defmodule Nebulith.GeneratorSourceTest do
         refute Map.has_key?(g.config, "buildingSizes")
         refute get_in(g.config, ["settlement", "buildingDepth"])
       end
+    end
+  end
+
+  describe "the catalog is a TREE — forest > type > subtype" do
+    # Alexander, 2026-09-11: *"forest > type of forest > sub type of type of forest > etc / like maybe it's an
+    # island jungle, maybe it's a mountain forest"*.
+    setup do
+      GeneratorSource.seed()
+      %{forest: Catalog.list_generator_categories() |> by_key() |> Map.fetch!("forest")}
+    end
+
+    test "each forest type carries its subtypes, and only the top level sits in the category", %{forest: f} do
+      assert Enum.map(f.generators, & &1.key) == ~w(forest_woodland forest_jungle forest_meadow)
+      subs = Map.new(f.generators, &{&1.key, Enum.map(&1.children, fn c -> c.key end)})
+      assert subs["forest_woodland"] == ~w(forest_woodland_beech forest_woodland_dense forest_woodland_mountain forest_woodland_glades)
+      assert subs["forest_jungle"] == ~w(forest_jungle_dense forest_jungle_swamp forest_jungle_island forest_jungle_ruins)
+      assert subs["forest_meadow"] == ~w(forest_meadow_pasture forest_meadow_open)
+    end
+
+    test "a subtype serves its parent's config merged UNDER its own", %{forest: f} do
+      woodland = Enum.find(f.generators, &(&1.key == "forest_woodland"))
+      mountain = Enum.find(woodland.children, &(&1.key == "forest_woodland_mountain"))
+
+      # its own: the canopy it overrides, and the species
+      assert mountain.config["nature"]["canopy"] == 0.28
+      assert hd(mountain.config["trees"])["kind"] == "tree_conifer"
+      # inherited: everything it did not state, down to the nested keys
+      assert mountain.config["nature"]["groundCover"] == woodland.config["nature"]["groundCover"]
+      assert mountain.config["grid"] == woodland.config["grid"]
+      assert mountain.config["palette"] == woodland.config["palette"]
+    end
+
+    test "a list is REPLACED by the subtype, never appended to", %{forest: f} do
+      woodland = Enum.find(f.generators, &(&1.key == "forest_woodland"))
+      beech = Enum.find(woodland.children, &(&1.key == "forest_woodland_beech"))
+      assert Enum.map(beech.config["trees"], & &1["kind"]) == ~w(tree_column tree_tall tree)
+    end
+
+    test "options inherit unless a subtype states its own — an island starts ringed by water", %{forest: f} do
+      jungle = Enum.find(f.generators, &(&1.key == "forest_jungle"))
+      island = Enum.find(jungle.children, &(&1.key == "forest_jungle_island"))
+      swamp = Enum.find(jungle.children, &(&1.key == "forest_jungle_swamp"))
+
+      assert hd(island.options)["default"] == "around"
+      assert swamp.options == jungle.options
+    end
+
+    test "a swamp jungle is the same regions, mostly swamp", %{forest: f} do
+      jungle = Enum.find(f.generators, &(&1.key == "forest_jungle"))
+      swamp = Enum.find(jungle.children, &(&1.key == "forest_jungle_swamp"))
+      weights = Map.new(swamp.config["subZones"], &{&1["key"], &1["weight"]})
+      assert weights["swamp"] > weights["dense"] and weights["dense"] > weights["open"]
+      refute Map.has_key?(weights, "ruins")
+    end
+
+    test "deleting a type takes its subtypes with it" do
+      woodland = Repo.get_by!(Generator, key: "forest_woodland")
+      Repo.delete!(woodland)
+      refute Repo.get_by(Generator, key: "forest_woodland_beech")
     end
   end
 

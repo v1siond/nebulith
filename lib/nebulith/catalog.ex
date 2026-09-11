@@ -308,5 +308,37 @@ defmodule Nebulith.Catalog do
         preload: [generators: ^generators]
       )
     )
+    |> Enum.map(fn category -> %{category | generators: generator_tree(category.generators)} end)
   end
+
+  # The generators as a TREE, top-level types first with their subtypes nested under them, any depth.
+  #
+  # Each subtype serves its parent's config merged UNDER its own, so every level arrives ready to run and the
+  # frontend never reconstructs one. A subtype states only what makes it different (a beech stand is a
+  # woodland with a different formation and species); everything else is inherited. Options inherit the same
+  # way unless a subtype states its own.
+  defp generator_tree(flat) do
+    by_parent = Enum.group_by(flat, & &1.parent_id)
+
+    grow = fn grow, parent_id, inherited ->
+      for g <- Map.get(by_parent, parent_id, []) do
+        node = %{
+          g
+          | config: deep_merge(inherited.config, g.config || %{}),
+            options: if(g.options in [nil, []], do: inherited.options, else: g.options)
+        }
+
+        %{node | children: grow.(grow, g.id, node)}
+      end
+    end
+
+    grow.(grow, nil, %{config: %{}, options: []})
+  end
+
+  # Maps merge key by key, recursively; anything else (a list, a number) is REPLACED by the subtype's value.
+  # A subtype's tree mix replaces its parent's rather than being appended to it, which is the point of it.
+  defp deep_merge(base, over) when is_map(base) and is_map(over),
+    do: Map.merge(base, over, fn _k, a, b -> deep_merge(a, b) end)
+
+  defp deep_merge(_base, over), do: over
 end

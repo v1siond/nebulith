@@ -43,7 +43,7 @@ defmodule NebulithWeb.GeneratorControllerTest do
       generator = hd(category["generators"])
 
       assert Map.keys(category) |> Enum.sort() == ~w(description generators key name position)
-      assert Map.keys(generator) |> Enum.sort() == ~w(config description key layout name options position zones)
+      assert Map.keys(generator) |> Enum.sort() == ~w(children config description key layout name options position zones)
     end
 
     test "a forest's options ride over the wire whole, dependency and all", %{conn: conn} do
@@ -74,6 +74,16 @@ defmodule NebulithWeb.GeneratorControllerTest do
                  "requires" => "river"
                }
              ]
+    end
+
+    test "subtypes ride nested, each with its merged config ready to run", %{conn: conn} do
+      data = json_response(get(conn, ~p"/api/generators"), 200)["data"]
+      woodland = hd(data) |> Map.fetch!("generators") |> hd()
+      mountain = Enum.find(woodland["children"], &(&1["key"] == "forest_woodland_mountain"))
+
+      assert mountain["config"]["nature"]["canopy"] == 0.28
+      assert mountain["config"]["grid"] == woodland["config"]["grid"]
+      assert mountain["children"] == []
     end
 
     test "a generator with nothing to switch on serves an empty list, not null", %{conn: conn} do

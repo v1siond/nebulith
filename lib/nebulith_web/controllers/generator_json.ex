@@ -24,7 +24,10 @@ defmodule NebulithWeb.GeneratorJSON do
       position: g.position,
       config: g.config,
       # What a person may switch on for this generator — a variation is an option, not another row.
-      options: g.options
+      options: g.options,
+      # Its SUBTYPES, same shape, any depth — *"forest > type of forest > sub type of type of forest"*. Each
+      # already carries its parent's config merged under its own.
+      children: for(c <- g.children, do: generator(c))
     }
   end
 end
