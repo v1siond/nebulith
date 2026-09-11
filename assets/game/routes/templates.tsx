@@ -16,7 +16,9 @@ import Head from 'next/head'
 import Link from 'next/link'
 import { useToast } from '@/components/Toast'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
-import { type GridAsset, IsometricGrid, FLOOR_TYPE } from '@/engine/IsometricGrid'
+import { isApiError } from '@/lib/apiError'
+
+import { type GridAsset, IsometricGrid, FLOOR_TYPE, DEFAULT_SLAB_BLOCKS } from '@/engine/IsometricGrid'
 import { getStack, setTileHeight, setCellActAsTile, type TileEntry, type TileSource, unitStandLevel } from '@/engine/cellStack'
 import { type AttackAnim, isAnimDone } from '@/engine/attackAnimations'
 import { type BuildingType } from '@/engine/buildingTypes'
@@ -78,7 +80,7 @@ import { buildUnitModel, ConnectorsPanelBody, EntityAttackBody, FloatingPanel, M
 import { FlowViewOverlay, GamesViewOverlay } from '@/components/game/games'
 import { type BuildingTool, type EditorMode, type EntityTool, type RailEntry, type RailId, EDITOR_RAIL_STARTERS, RAIL_BY_MODE } from '@/components/game/editorConfig'
 import { CanvasModeChip, HelpButton, HelpSheet } from '@/components/game/editorHelp'
-import { canvasOverlayVisible, chromeRestoreVisible, chromeVisible } from '@/components/game/chromeVisibility'
+import { canvasFullBleed, canvasOverlayVisible, chromeRestoreVisible, chromeVisible } from '@/components/game/chromeVisibility'
 import { useConfirm, usePrompt } from '@/components/game/useConfirm'
 import { LevelStepper } from '@/components/game/levelStepper'
 import { GameMenu } from '@/components/game/gameMenu'
@@ -166,6 +168,8 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   const [showFlowView, setShowFlowView] = useState(false)
   // GAMES view — a full overlay (like Flow) listing playable flows + a game editor.
   const [showGamesView, setShowGamesView] = useState(false)
+  /** Which game the levels overlay opens ON. Null = the plain list (reached from "All games…"). */
+  const [manageGameId, setManageGameId] = useState<string | null>(null)
   const [topViewZoom, setTopViewZoom] = useState(1.0)
   const zoomRef = useRef(1.0)
   const isoZoomRef = useRef(1.0) // mouse-wheel zoom for the isometric view
@@ -174,6 +178,26 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   const [zoomPct, setZoomPct] = useState(100)
   // The grid's MATRIX VARIABLES, mirrored for the panel: `cols × rows` cells of `cellSize` pixels each.
   const [gridSize, setGridSize] = useState({ cols: 40, rows: 40, cellSize: VILLAGE_CONFIG.cellSize })
+  /**
+   * THE GRID PANEL'S NUMBERS — the matrix you have TYPED, plus the thickness the map is at.
+   *
+   * It lives here, above both panels, because two different actions read it: `Resize this map` applies it
+   * to the open map, and `Build this world` generates into it. Alexander, 2026-09-10: *"the template
+   * generation just uses whatever we setup on it"*. When it was private to the Generate panel those two
+   * could disagree, and a generate silently rebuilt at the old dimensions.
+   *
+   * It re-seeds whenever the map's size changes from OUTSIDE the panel (loading a level, generating one,
+   * an undo) — tracked through `gridSizeSeen` rather than by comparing against the draft, so a half-typed
+   * number is never overwritten by its own echo.
+   */
+  const [gridDraft, setGridDraft] = useState<MapSize>({ cols: 40, rows: 40, cellSize: VILLAGE_CONFIG.cellSize })
+  const gridDraftRef = useRef<MapSize>(gridDraft)
+  gridDraftRef.current = gridDraft
+  const [gridSizeSeen, setGridSizeSeen] = useState(gridSize)
+  if (gridSize.cols !== gridSizeSeen.cols || gridSize.rows !== gridSizeSeen.rows || gridSize.cellSize !== gridSizeSeen.cellSize) {
+    setGridSizeSeen(gridSize)
+    setGridDraft(prev => ({ ...prev, ...gridSize }))
+  }
   // GROUND THICKNESS is deliberately NOT mirrored: it is read straight off the grid where it lives, so
   // loading a level or generating one shows that map's own saved value with nothing to keep in sync. This
   // only repaints the panel after a change — the canvas repaints itself every frame.
@@ -2461,8 +2485,9 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       __paletteTiles?: (category?: string) => Array<{ id: string; label: string; category: string; height: number | null }>
       __paintTile?: (tileId: string, col: number, row: number) => unknown
       __isoBlockScreen?: (col: number, row: number, level: number) => { x: number; y: number } | null
-      __genVillage?: () => { buildings: number }
-      __genStage?: (zone: string, variant: string, layout?: string, seed?: number) => { buildings: number }
+      __genVillage?: () => Promise<{ buildings: number }>
+      __genStage?: (zone: string, variant: string, layout?: string, seed?: number) => Promise<{ buildings: number }>
+      __countBuildings?: () => number
       __generatorsReady?: () => boolean
       __randomizeLayer?: (layer: string) => { buildings: number }
       __randomizeSelected?: () => boolean
@@ -2605,13 +2630,29 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     // blocks pick as tiles through the SAME path as a prop, not a synthetic rock stack.
     // `buildings` counts the stamped building-composition TILES (a town stamps many) — buildings are plain
     // tiles now, so this proves a town has them without a grouped-building metadata array.
+    // BOTH SPELLINGS. A building's asset `type` is its composition KIND, and there are two: the authored
+    // `house_4`, and the composed-to-order `house@4x4` that every generated building has carried since
+    // buildings started being composed to the footprint the plan rolls. This matched only the first, so it
+    // answered 0 for a town visibly full of houses — and a validation seam that under-reports is worse than
+    // none: it sent a whole debugging session hunting for buildings that were on the screen the entire time.
+    const BUILDING_TYPES = 'house|big_house|store|hospital|temple|cathedral|castle|office'
+    const BUILDING_KIND = new RegExp(`^(${BUILDING_TYPES})(_\\d+|@\\d+x\\d+)$`)
     const countBuildingTiles = (g: IsometricGrid | null): number =>
-      g ? g.assets.filter(a => /^(house|big_house|store|hospital|temple|cathedral|castle)_\d+$/.test(a.type)).length : 0
+      g ? g.assets.filter(a => BUILDING_KIND.test(a.type)).length : 0
     // The generator catalog is FETCHED, so a validation harness must wait for it before generating — a
     // generate with no catalog plants nothing (by design) and would look like a broken generator.
     win.__generatorsReady = () => generatorCatalogRef.current.length > 0
-    win.__genVillage = () => { generateStageInEditor('spring', 'town'); return { buildings: countBuildingTiles(gridRef.current) } }
-    win.__genStage = (zone: string, variant: string, layout?: string, seed?: number) => { generateStageInEditor(zone as ZoneId, variant as VariantId, layout as ForestLayout | undefined, undefined, seed); return { buildings: countBuildingTiles(gridRef.current) } }
+    // AWAITED, because a generate IS async: it composes the footprints it needs from the backend before it
+    // stamps. These seams used to call it and count in the same breath, so they reported the count from
+    // BEFORE the stamp — always 0 buildings on a fresh map. A validation seam that answers stale is worse
+    // than no seam: it says a town has no buildings while the screen shows a town full of them.
+    win.__genVillage = async () => { await generateStageInEditor('spring', 'town'); return { buildings: countBuildingTiles(gridRef.current) } }
+    win.__genStage = async (zone: string, variant: string, layout?: string, seed?: number) => {
+      await generateStageInEditor(zone as ZoneId, variant as VariantId, layout as ForestLayout | undefined, undefined, seed)
+      return { buildings: countBuildingTiles(gridRef.current) }
+    }
+    /** Count the stamped building tiles on the CURRENT map, without generating anything. */
+    win.__countBuildings = () => countBuildingTiles(gridRef.current)
     // Re-roll ONE generation layer over the current map (the Generate menu's scoped randomize) — a
     // validation seam mirroring the menu buttons: layout / buildings / nature / decor / units.
     win.__randomizeLayer = (layer: string) => { randomizeLayerInEditor(layer as LayerId); return { buildings: countBuildingTiles(gridRef.current) } }
@@ -3174,7 +3215,18 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
    * like a resize rather than being a view setting.
    */
   const resizeGrid = (cols: number, rows: number, cellSize?: number) => {
-    const newConfig = { ...VILLAGE_CONFIG, cols, rows, cellSize: cellSize ?? gridRef.current?.cellSize ?? VILLAGE_CONFIG.cellSize }
+    // THE THICKNESS SURVIVES THE REBUILD. Alexander, 2026-09-10: *"when I click build this world is reset
+    // to 1 instead of using the number I set"*. Measured: this built `new IsometricGrid({...VILLAGE_CONFIG,
+    // cols, rows, cellSize})`, which carries no `slabBlocks`, so the constructor fell to DEFAULT_SLAB_BLOCKS
+    // and every resize AND every generate threw his number away. It is a property of the map, not something
+    // a resize gets to decide, so it is carried across explicitly.
+    const newConfig = {
+      ...VILLAGE_CONFIG,
+      cols,
+      rows,
+      cellSize: cellSize ?? gridRef.current?.cellSize ?? VILLAGE_CONFIG.cellSize,
+      slabBlocks: gridRef.current?.slabBlocks ?? DEFAULT_SLAB_BLOCKS,
+    }
     gridRef.current = new IsometricGrid(newConfig)
     // Fill with grass by default
     for (let r = 0; r < rows; r++) {
@@ -3575,8 +3627,14 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       rows: gridRef.current?.rows ?? rolled.rows,
       cellSize: gridRef.current?.cellSize ?? VILLAGE_CONFIG.cellSize,
     }
-    const size = requested
-      ? clampMapSize(requested, current)
+    // THE GRID PANEL IS THE SIZE. Alexander, 2026-09-10: *"the template generation just uses whatever we
+    // setup on it"*. `requested` is now only the dev harness's explicit override; a normal build reads the
+    // panel, and a SEEDED run keeps rolling from the generator's served range so the validation harness
+    // stays reproducible frame-to-frame.
+    const panel: MapSize = { cols: gridDraftRef.current.cols, rows: gridDraftRef.current.rows, cellSize: gridDraftRef.current.cellSize }
+    const chosen = requested ?? (seeded ? undefined : panel)
+    const size = chosen
+      ? clampMapSize(chosen, current)
       : { ...rolled, cellSize: current.cellSize }
     resetHistory() // a freshly generated stage replaces the whole map → start its undo history clean
     markEdited()   // …and the server has never seen this map, so it is unsaved work (§4.4)
@@ -4413,6 +4471,8 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       setSavedTemplates(templates)
     } catch (error) {
       console.error('Failed to load templates:', error)
+      // Swallowing this made a DEAD BACKEND look like an empty library: same blank list, no reason given.
+      toast(error instanceof Error ? error.message : 'The map library could not be loaded', 'error')
     }
   }
 
@@ -4672,7 +4732,16 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       setShowTemplateList(false)
     } catch (error) {
       console.error('Failed to load template:', error)
-      toast('Failed to load template', 'error')
+      // A 404 here is a map that is GONE, not an app that is broken — a stale link, a deleted map, or a
+      // game still pointing at a template someone removed. It used to read `Failed to load template`,
+      // the same words a dead backend produced, so the user could not tell which one they had. Now the
+      // status says which, and a missing map opens the library so the next click is the way out.
+      if (isApiError(error) && error.isNotFound) {
+        toast('That map is not in the library any more', 'error')
+        setShowTemplateList(true)
+        return
+      }
+      toast(error instanceof Error ? error.message : 'This map could not be loaded', 'error')
     } finally {
       setIsLoading(false)
     }
@@ -4971,7 +5040,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
           world and what goes in it, canvas = the map, insp = what is SELECTED, bar = THE VIEW.
           Every dialog and play-mode overlay below stays `position:fixed`, which takes it OUT of grid flow —
           so this is a restyle of the chrome that is already wired, not a second tree. */}
-      <main className={`neb ed fixed inset-0${hudMode ? ' edhud' : ''} ${zoneClasses(zoneShut, !hasSelection)}`.trimEnd()}>
+      <main className={`neb ed fixed inset-0${canvasFullBleed(chrome) ? ' play' : ''}${hudMode ? ' edhud' : ''} ${zoneClasses(zoneShut, !hasSelection)}`.trimEnd()}>
         <div className="z-canvas">
           <canvas
             ref={canvasRef}
@@ -5077,6 +5146,8 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
             onFacing={rotateCameraTo}
             playerRange={playerViewRange}
             onPlayerRange={setPlayerViewRange}
+            slabBlocks={gridRef.current?.slabBlocks}
+            onSlabBlocks={setGroundThickness}
             dayNight={dayNight}
             onDayNight={() => setDayNight(d => (d === 'day' ? 'night' : 'day'))}
             showDebug={showDebug}
@@ -5184,8 +5255,9 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
         {showGamesView && (
           <GamesViewOverlay
             savedTemplates={savedTemplates}
+            openGameId={manageGameId}
             onPlayLevel={playGameLevel}
-            onClose={() => setShowGamesView(false)}
+            onClose={() => { setShowGamesView(false); setManageGameId(null) }}
           />
         )}
 
@@ -5218,7 +5290,11 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
               confirmLabel: 'Leave without saving',
             })}
             onRename={() => void renameGame()}
-            onManageLevels={() => setShowGamesView(true)}
+            // THIS GAME's levels. Alexander, 2026-09-10: "clcking in manage levels doesn't make sense, it
+            // shows games??? instead of the levels of my game". It opened the games LIST and made you find
+            // the game you were already inside. The overlay has a per-game editor already (reorder, remove,
+            // play a level); it was simply never told which game to open.
+            onManageLevels={() => { setManageGameId(gameContext?.gameId ?? null); setShowGamesView(true) }}
             onFlow={toggleFlowView}
             onExport={exportLayers}
             onAllGames={() => router.push('/personal-projects/game-engine/games')}
@@ -5241,7 +5317,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
               setLoadMenuPos(r ? { top: r.bottom + 4, left: r.left } : { top: 64, left: 200 })
               setShowTemplateList(true)
             }}
-            onReorder={() => setShowGamesView(true)}
+            onReorder={() => { setManageGameId(gameContext?.gameId ?? null); setShowGamesView(true) }}
           />
           <button type="button" className="b sm" title="Undo (Ctrl+Z)" aria-label="Undo" onClick={undoEdit}>↶</button>
           <button type="button" className="b sm" title="Redo (Ctrl+Y)" aria-label="Redo" onClick={redoEdit}>↷</button>
@@ -5538,19 +5614,21 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                   catalogError={generatorCatalogError}
                   zone={genZone}
                   onZone={z => setGenZone(z as ZoneId)}
-                  onGenerate={(z, v, layout, requested) =>
-                    generateStageInEditor(z as ZoneId, v as VariantId, layout as ForestLayout | undefined, requested)}
+                  onGenerate={(z, v, layout) => {
+                    void generateStageInEditor(z as ZoneId, v as VariantId, layout as ForestLayout | undefined)
+                  }}
                   onRandomizeLayer={layer => randomizeLayerInEditor(layer as LayerId)}
                   selectedCount={selectedCells.size}
                   onRandomizeSelection={randomizeSelected}
+                  sizeDraft={gridDraft}
                   size={gridSize}
+                  onSizeDraft={next => setGridDraft(prev => ({ ...prev, ...next }))}
                   onResize={resizeMapFromPanel}
-                  slabBlocks={gridRef.current?.slabBlocks}
-                  onSlabBlocks={setGroundThickness}
                   preview={previewContext}
                 />
               </>
             )}
+
 
             {/* ART STYLE — its own group (Alexander, 2026-09-08). Lists every art style the BACKEND serves
                 (a tileset row IS a style), and switching one swaps only the pictures: same labels, same

@@ -113,14 +113,22 @@ export function GameEditor({
 
 /** The Games view: a list of saved games (▶ Play = level 1) + an inline game editor. */
 export function GamesViewOverlay({
-  savedTemplates, onPlayLevel, onClose,
+  savedTemplates, openGameId = null, onPlayLevel, onClose,
 }: {
   savedTemplates: TemplateListItem[]
+  /**
+   * Open straight onto THIS game's levels instead of the list of every game.
+   *
+   * Alexander, 2026-09-10: *"clcking in manage levels doesn't make sense, it shows games??? instead of the
+   * levels of my game"*. "Manage levels" is reached from inside a game, so the game is already known; making
+   * you pick it out of a list of all your games was asking a question that had been answered.
+   */
+  openGameId?: string | null
   onPlayLevel: (templateId: string) => void
   onClose: () => void
 }) {
   const [games, setGames] = useState<Game[]>([])
-  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editingId, setEditingId] = useState<string | null>(openGameId)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 

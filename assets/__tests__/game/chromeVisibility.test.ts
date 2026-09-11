@@ -10,7 +10,7 @@
  *
  * Pure predicates over a tiny state object, so every combination is cheap to pin.
  */
-import { canvasOverlayVisible, chromeRestoreVisible, chromeVisible, type ChromeState } from '@/components/game/chromeVisibility'
+import { canvasFullBleed, canvasOverlayVisible, chromeRestoreVisible, chromeVisible, type ChromeState } from '@/components/game/chromeVisibility'
 
 const state = (over: Partial<ChromeState> = {}): ChromeState => ({
   showSidebars: true,
@@ -85,5 +85,32 @@ describe('chromeRestoreVisible — the "show UI again" button', () => {
       const s = state(over)
       expect(chromeVisible(s) && chromeRestoreVisible(s)).toBe(false)
     }
+  })
+})
+
+describe('canvasFullBleed — the map takes the whole screen', () => {
+  const state = (over: Partial<ChromeState> = {}): ChromeState => ({
+    showSidebars: true, playMode: false, showGamesView: false, showFlowView: false, ...over,
+  })
+
+  it('is false while the editor furniture is up', () => {
+    expect(canvasFullBleed(state())).toBe(false)
+  })
+
+  it('is true in PLAY', () => {
+    expect(canvasFullBleed(state({ playMode: true }))).toBe(true)
+  })
+
+  it('is true in PREVIEW, which is the sidebars toggled off', () => {
+    expect(canvasFullBleed(state({ showSidebars: false }))).toBe(true)
+  })
+
+  it('is false while the games overlay owns the screen — it is not the canvas that needs the room', () => {
+    expect(canvasFullBleed(state({ playMode: true, showGamesView: true }))).toBe(false)
+    expect(canvasFullBleed(state({ showSidebars: false, showGamesView: true }))).toBe(false)
+  })
+
+  it('stays true in the flow view, which replaces the canvas rather than the chrome', () => {
+    expect(canvasFullBleed(state({ playMode: true, showFlowView: true }))).toBe(true)
   })
 })

@@ -28,11 +28,15 @@
   grid-template-areas:"top top top top" "rail panel canvas insp" "bar bar bar bar";
   grid-template-columns:186px 352px minmax(300px,1fr) 300px;
   grid-template-rows:auto 704px auto;font:14px/1.5 var(--sans)}
-.neb.ed.play{grid-template-areas:"canvas";grid-template-columns:1fr;grid-template-rows:704px}
+/* PLAY / PREVIEW — the map has the whole screen. The 704px row was a fixed height from when this shell
+   was a box on a page; the shell is `fixed inset-0` now, so the canvas takes the viewport. The frame's
+   padding, gap and rounded border go too: a game with an 8px inset and rounded corners is not full screen. */
+.neb.ed.play{grid-template-areas:"canvas";grid-template-columns:1fr;grid-template-rows:1fr;
+  padding:0;gap:0;border:0;border-radius:0}
 /* the cell inspector has nothing to say about a HUD element, so the stage gets its width */
 .neb.ed.edhud{grid-template-areas:"top top top" "rail panel canvas" "bar bar bar";
   grid-template-columns:186px 352px minmax(300px,1fr)}
-.neb.ed.play>*:not(.z-canvas){display:none}
+.neb.ed.play>.z{display:none}  /* the editor's zones only: the HUD lives in this shell too and plays on */
 .neb .z{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px;min-width:0}
 .neb .z-top{grid-area:top;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
 .neb .z-rail{grid-area:rail;display:flex;flex-direction:column;gap:5px;overflow:hidden}
@@ -317,7 +321,16 @@
 .neb .hel:active{cursor:grabbing}
 .neb .hbody{width:100%;height:100%;pointer-events:none;display:flex;flex-direction:column;
   align-items:center;justify-content:center;gap:3px}
-.neb .hrz{position:absolute;right:-4px;bottom:-4px;width:12px;height:12px;border-radius:3px;
+/* The grip sits on the corner OPPOSITE the pin, because that is the only corner that can move: a piece
+   pinned to the bottom grows upward. The side classes come from `hudGripCorner`, so the CSS and the maths
+   cannot disagree about which corner it is. */
+.neb .hrz.right{right:-4px}
+.neb .hrz.left{left:-4px}
+.neb .hrz.bottom{bottom:-4px}
+.neb .hrz.top{top:-4px}
+.neb .hrz.top.right, .neb .hrz.bottom.left{cursor:nesw-resize}
+.neb .hrz.top.left, .neb .hrz.bottom.right{cursor:nwse-resize}
+.neb .hrz{position:absolute;width:12px;height:12px;border-radius:3px;
   background:var(--accent);opacity:0;cursor:nwse-resize}
 .neb .hel.sel .hrz{opacity:1}
 .neb .htag{position:absolute;left:0;top:-19px;display:none;gap:7px;align-items:baseline;white-space:nowrap;
