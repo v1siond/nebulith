@@ -144,6 +144,57 @@ defmodule Nebulith.Catalog.GeneratorSource do
     "trail" => "#57502f"
   }
 
+  # THE JUNGLE'S SUB-ZONES. Alexander, 2026-09-10: *"the generator shoudl be smart enough to identify
+  # different patterns of jungles for example, open zones, dense zones, zones with swamp, zone with river,
+  # zone with cave, zone with ruins"*, and 2026-09-11 on the shape: REGIONS INSIDE ONE MAP, not more rows in
+  # the template list. You walk out of the open canopy into dense growth, through a swamp, up to the ruins,
+  # without loading anything.
+  #
+  # `canopy` and `undergrowth` are MULTIPLIERS on the generator's served base densities, not absolutes. That
+  # keeps one knob in charge: tune `@jungle_nature` and the whole map moves together, tune a multiplier here
+  # and only that kind of ground changes. `weight` is how much of the map a kind tends to claim.
+  #
+  # The river is not in this list because it is not a region — it is the watercourse that runs THROUGH them,
+  # and every jungle has one.
+  @jungle_sub_zones [
+    %{
+      "key" => "open",
+      "name" => "Open canopy",
+      "weight" => 3,
+      "canopy" => 0.45,
+      "undergrowth" => 0.5,
+      "floor" => "#3f5f33"
+    },
+    %{
+      "key" => "dense",
+      "weight" => 4,
+      "name" => "Dense growth",
+      "canopy" => 1.3,
+      "undergrowth" => 1.45,
+      "floor" => "#24381f"
+    },
+    %{
+      "key" => "swamp",
+      "name" => "Swamp",
+      "weight" => 2,
+      "canopy" => 0.85,
+      "undergrowth" => 1.1,
+      "floor" => "#3b4a2e",
+      # the share of the zone that stands under water — pools, not a channel
+      "pools" => 0.22
+    },
+    %{
+      "key" => "ruins",
+      "name" => "Ruins",
+      "weight" => 2,
+      "canopy" => 0.55,
+      "undergrowth" => 0.65,
+      "floor" => "#4a4a3c",
+      # the share of the zone carrying fallen masonry
+      "stone" => 0.16
+    }
+  ]
+
   @doc "The categories to seed, in menu order (`editorConfig.ts` STAGE_VARIANTS)."
   def categories do
     [
@@ -167,7 +218,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
       %{
         category: "forest", key: "forest_jungle", name: "Jungle", layout: "jungle", position: 1,
         description: "A closed canopy over choked undergrowth, with clearings cut into it.",
-        config: %{"grid" => @small_grid, "nature" => @jungle_nature, "units" => townsfolk(2), "palette" => @jungle_palette},
+        config: %{"grid" => @small_grid, "nature" => @jungle_nature, "units" => townsfolk(2), "palette" => @jungle_palette, "subZones" => @jungle_sub_zones},
         options: @water_options
       },
       %{
