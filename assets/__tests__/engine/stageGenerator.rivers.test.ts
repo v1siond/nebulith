@@ -40,9 +40,11 @@ function grow(layout: 'woodland' | 'meadow' | 'jungle', river: GeneratorOptionVa
 }
 type Stage = ReturnType<typeof grow>
 
+/** Every water label the generator writes: plain water, and the shallow and deep bands of the depth pass. */
+const WATER = new Set(['water', 'water_shallow', 'water_deep'])
 const waterCells = (s: Stage): Array<[number, number]> => {
   const out: Array<[number, number]> = []
-  s.ground.forEach((row, r) => row.forEach((g, c) => { if (g === 'water') out.push([c, r]) }))
+  s.ground.forEach((row, r) => row.forEach((g, c) => { if (WATER.has(g)) out.push([c, r]) }))
   return out
 }
 
@@ -200,14 +202,41 @@ describe('random — one of the courses, and more than one across seeds', () => 
   })
 })
 
-describe('whatever the course, water is never walkable', () => {
-  // The bug this guards: the region join used to run before the river was bridged, saw the far bank as a
-  // stray region, and cut a track straight across the water — a walkable stripe through the river.
-  it.each(['through', 'divides', 'around', 'random'])('%s leaves every water cell blocked', course => {
+describe('water by depth: wade the shallows, the rest blocks', () => {
+  // Alexander, 2026-09-11: *"I only want light blue for walkable water, different layers of darkblue for the
+  // deeper waters"*. The one kind of water you may walk is the SHALLOW edge; everything past it blocks.
+  it.each(['through', 'divides', 'around', 'random'])('%s: only the shallow band is walkable', course => {
     for (const layout of ['woodland', 'meadow', 'jungle'] as const) {
       const s = grow(layout, course, 3)
-      const walkableWater = waterCells(s).filter(([c, r]) => !s.collision[r][c])
-      expect({ layout, course, walkableWater: walkableWater.length }).toEqual({ layout, course, walkableWater: 0 })
+      const walkableDeep = waterCells(s).filter(([c, r]) => s.ground[r][c] !== 'water_shallow' && !s.collision[r][c])
+      const blockedShallow = waterCells(s).filter(([c, r]) => s.ground[r][c] === 'water_shallow' && s.collision[r][c])
+      expect({ layout, course, walkableDeep: walkableDeep.length, blockedShallow: blockedShallow.length })
+        .toEqual({ layout, course, walkableDeep: 0, blockedShallow: 0 })
     }
+  })
+
+  it('a wide river is shallow at the edge and deep in the middle, and still divides the map', () => {
+    const s = grow('woodland', 'divides', 2)
+    const labels = new Set(waterCells(s).map(([c, r]) => s.ground[r][c]))
+    expect([...labels].sort()).toEqual(['water', 'water_deep', 'water_shallow'])
+    // wading the edges does not get you across. The middle still blocks, so the one crossing is still THE way
+    expect(crossings(s)).toBe(1)
+    expect(regionSizes(s, deckCells(s)).filter(n => n > 40).length).toBeGreaterThanOrEqual(2)
+  })
+
+  it('paints each band from the served palette: shallow light, deep dark', () => {
+    const pal = findGenerator(CATALOG, 'forest', 'woodland')!.config.palette!
+    const s = grow('woodland', 'divides', 2)
+    const tone = (label: string) => new Set(waterCells(s).filter(([c, r]) => s.ground[r][c] === label).map(([c, r]) => s.floorColors[r][c]))
+    expect([...tone('water_shallow')]).toEqual([pal.waterShallow])
+    expect([...tone('water_deep')]).toEqual([pal.waterDeep])
+  })
+
+  it('a swamp pool stays blocking and turns blue-green, never the floor-green it used to be', () => {
+    const config = findGenerator(CATALOG, 'forest', 'jungle')!.config
+    const s = grow('jungle', 'none', 7)
+    const pools = waterCells(s).filter(([c, r]) => s.floorColors[r][c] === config.palette!.swamp)
+    expect(pools.length).toBeGreaterThan(0)
+    expect(pools.every(([c, r]) => s.collision[r][c])).toBe(true)
   })
 })

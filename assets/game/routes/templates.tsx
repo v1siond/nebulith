@@ -1745,9 +1745,8 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   const isValidSpawn = (grid: IsometricGrid, col: number, row: number): boolean => {
     if (col < 0 || col >= grid.cols || row < 0 || row >= grid.rows) return false
 
-    // Check ground type - water is not walkable
-    const groundType = grid.groundAt(col, row)
-    if (groundType === 'water') return false
+    // Never spawn in water, the wadeable shallows included
+    if (groundKind(grid.groundAt(col, row)) === 'water') return false
 
     // Check collision grid
     if (grid.isBlocked(col, row)) return false
@@ -2485,7 +2484,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       __setDebug?: (v: boolean) => void
       __cellLabels?: (col0: number, row0: number, col1: number, row1: number) => unknown
       __stackAt?: (col: number, row: number) => Array<{ label: string; type: string; heightLevel: number; h: number; source: string }>
-      __collisionAudit?: (col0?: number, row0?: number, col1?: number, row1?: number) => { col: number; row: number; blocked: boolean; standLevel: number; tiles: { label: string; level: number; blocking: boolean }[] }[]
+      __collisionAudit?: (col0?: number, row0?: number, col1?: number, row1?: number) => { col: number; row: number; ground: string; blocked: boolean; standLevel: number; tiles: { label: string; level: number; blocking: boolean }[] }[]
       __floorInfoAt?: (col: number, row: number) => { color: string | null; kind: string | null; depth: number | null; depthDir: string | null; heightLevel: number } | null
       __camOffset?: () => { x: number; y: number }
       __stackAsset?: (col: number, row: number, n?: number) => number | null
@@ -2824,11 +2823,11 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       // Clamp to the REAL grid: `isBlocked` reports true out of bounds (a wall around the world), so an audit
       // window bigger than the grid would count the void as false positives.
       const c1 = Math.min(col1, grid.cols - 1), r1 = Math.min(row1, grid.rows - 1)
-      const out: { col: number; row: number; blocked: boolean; standLevel: number; tiles: { label: string; level: number; blocking: boolean }[] }[] = []
+      const out: { col: number; row: number; ground: string; blocked: boolean; standLevel: number; tiles: { label: string; level: number; blocking: boolean }[] }[] = []
       for (let row = Math.max(0, row0); row <= r1; row++) {
         for (let col = Math.max(0, col0); col <= c1; col++) {
           const tiles = grid.getAssetsAtCell(col, row).map(a => ({ label: a.label ?? a.type ?? '', level: a.heightLevel ?? 0, blocking: !!a.blocking }))
-          out.push({ col, row, blocked: grid.isBlocked(col, row), standLevel: unitStandLevel(grid, col, row), tiles })
+          out.push({ col, row, ground: grid.groundAt(col, row), blocked: grid.isBlocked(col, row), standLevel: unitStandLevel(grid, col, row), tiles })
         }
       }
       return out

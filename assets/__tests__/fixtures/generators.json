@@ -37,9 +37,12 @@
                   "floor": "#6f7f4a",
                   "floorAlt": "#7d8a55",
                   "litter": "#7a6a44",
+                  "swamp": "#3f8a84",
                   "trail": "#9a8a62",
                   "undergrowth": "#6d7f45",
-                  "water": "#4f93b3"
+                  "water": "#4f93b3",
+                  "waterDeep": "#2a5f8a",
+                  "waterShallow": "#8ccbe8"
                 },
                 "trees": [
                   {
@@ -143,9 +146,12 @@
                   "floor": "#6f7f4a",
                   "floorAlt": "#7d8a55",
                   "litter": "#7a6a44",
+                  "swamp": "#3f8a84",
                   "trail": "#9a8a62",
                   "undergrowth": "#6d7f45",
-                  "water": "#4f93b3"
+                  "water": "#4f93b3",
+                  "waterDeep": "#2a5f8a",
+                  "waterShallow": "#8ccbe8"
                 },
                 "trees": [
                   {
@@ -249,9 +255,12 @@
                   "floor": "#6f7f4a",
                   "floorAlt": "#7d8a55",
                   "litter": "#7a6a44",
+                  "swamp": "#3f8a84",
                   "trail": "#9a8a62",
                   "undergrowth": "#6d7f45",
-                  "water": "#4f93b3"
+                  "water": "#4f93b3",
+                  "waterDeep": "#2a5f8a",
+                  "waterShallow": "#8ccbe8"
                 },
                 "trees": [
                   {
@@ -355,9 +364,12 @@
                   "floor": "#6f7f4a",
                   "floorAlt": "#7d8a55",
                   "litter": "#7a6a44",
+                  "swamp": "#3f8a84",
                   "trail": "#9a8a62",
                   "undergrowth": "#6d7f45",
-                  "water": "#4f93b3"
+                  "water": "#4f93b3",
+                  "waterDeep": "#2a5f8a",
+                  "waterShallow": "#8ccbe8"
                 },
                 "trees": [
                   {
@@ -464,9 +476,12 @@
               "floor": "#6f7f4a",
               "floorAlt": "#7d8a55",
               "litter": "#7a6a44",
+              "swamp": "#3f8a84",
               "trail": "#9a8a62",
               "undergrowth": "#6d7f45",
-              "water": "#4f93b3"
+              "water": "#4f93b3",
+              "waterDeep": "#2a5f8a",
+              "waterShallow": "#8ccbe8"
             },
             "trees": [
               {
@@ -592,9 +607,12 @@
                   "floor": "#2f4a2a",
                   "floorAlt": "#38552f",
                   "litter": "#46442a",
+                  "swamp": "#3a8278",
                   "trail": "#57502f",
                   "undergrowth": "#25532a",
-                  "water": "#5e6b3a"
+                  "water": "#3f86b0",
+                  "waterDeep": "#23547e",
+                  "waterShallow": "#86c5e2"
                 },
                 "subZones": [
                   {
@@ -774,9 +792,12 @@
                   "floor": "#2f4a2a",
                   "floorAlt": "#38552f",
                   "litter": "#46442a",
+                  "swamp": "#3a8278",
                   "trail": "#57502f",
                   "undergrowth": "#25532a",
-                  "water": "#5e6b3a"
+                  "water": "#3f86b0",
+                  "waterDeep": "#23547e",
+                  "waterShallow": "#86c5e2"
                 },
                 "subZones": [
                   {
@@ -984,9 +1005,12 @@
                   "floor": "#2f4a2a",
                   "floorAlt": "#38552f",
                   "litter": "#46442a",
+                  "swamp": "#3a8278",
                   "trail": "#57502f",
                   "undergrowth": "#25532a",
-                  "water": "#5e6b3a"
+                  "water": "#3f86b0",
+                  "waterDeep": "#23547e",
+                  "waterShallow": "#86c5e2"
                 },
                 "subZones": [
                   {
@@ -1154,9 +1178,12 @@
                   "floor": "#2f4a2a",
                   "floorAlt": "#38552f",
                   "litter": "#46442a",
+                  "swamp": "#3a8278",
                   "trail": "#57502f",
                   "undergrowth": "#25532a",
-                  "water": "#5e6b3a"
+                  "water": "#3f86b0",
+                  "waterDeep": "#23547e",
+                  "waterShallow": "#86c5e2"
                 },
                 "subZones": [
                   {
@@ -1367,9 +1394,12 @@
               "floor": "#2f4a2a",
               "floorAlt": "#38552f",
               "litter": "#46442a",
+              "swamp": "#3a8278",
               "trail": "#57502f",
               "undergrowth": "#25532a",
-              "water": "#5e6b3a"
+              "water": "#3f86b0",
+              "waterDeep": "#23547e",
+              "waterShallow": "#86c5e2"
             },
             "subZones": [
               {
@@ -1603,6 +1633,12 @@
                   "flowers": 0.06,
                   "groundCover": 0.12
                 },
+                "palette": {
+                  "swamp": "#3f8a84",
+                  "water": "#4a8fbf",
+                  "waterDeep": "#275b88",
+                  "waterShallow": "#91cdea"
+                },
                 "trees": [
                   {
                     "kind": "tree_gnarled",
@@ -1696,6 +1732,12 @@
                 "nature": {
                   "flowers": 0.06,
                   "groundCover": 0.12
+                },
+                "palette": {
+                  "swamp": "#3f8a84",
+                  "water": "#4a8fbf",
+                  "waterDeep": "#275b88",
+                  "waterShallow": "#91cdea"
                 },
                 "trees": [
                   {
@@ -1797,6 +1839,12 @@
             "nature": {
               "flowers": 0.06,
               "groundCover": 0.12
+            },
+            "palette": {
+              "swamp": "#3f8a84",
+              "water": "#4a8fbf",
+              "waterDeep": "#275b88",
+              "waterShallow": "#91cdea"
             },
             "trees": [
               {

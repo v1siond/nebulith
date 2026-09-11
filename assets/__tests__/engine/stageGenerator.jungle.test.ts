@@ -127,7 +127,7 @@ describe('the COLOURS come from the served palette, and only from there', () => 
     const served = new Set(Object.values(JUNG_PAL))
     const land = new Set<string>()
     j.floorColors.forEach((rowArr, r) => rowArr.forEach((tone, c) => {
-      if (tone && j.ground[r][c] !== 'water') land.add(tone)
+      if (tone && !['water', 'water_shallow', 'water_deep'].includes(j.ground[r][c])) land.add(tone)
     }))
     expect(land.size).toBeGreaterThan(0)
     const foreign = [...land].filter(t => !served.has(t))

@@ -108,6 +108,12 @@ export interface GeneratorPalette {
   undergrowth?: string
   /** a watercourse, and the ground either side of it */
   water?: string
+  /** water by DEPTH: the wadeable edge, and the deep middle. Alexander, 2026-09-11: *"I only want light blue
+   *  for walkable water, different layers of darkblue for the deeper waters"*. */
+  waterShallow?: string
+  waterDeep?: string
+  /** standing swamp water, blue-green, the only water allowed to lean green */
+  swamp?: string
   bank?: string
   /** a walked route */
   trail?: string
@@ -479,7 +485,7 @@ function parseSubZones(v: unknown): readonly GeneratorSubZone[] | undefined {
  *  is this colour" and paint nothing rather than inventing one. */
 function parsePalette(v: unknown): GeneratorPalette | undefined {
   if (!isObject(v)) return undefined
-  const keys = ['floor', 'floorAlt', 'litter', 'canopy', 'canopyAlt', 'undergrowth', 'water', 'bank', 'trail'] as const
+  const keys = ['floor', 'floorAlt', 'litter', 'canopy', 'canopyAlt', 'undergrowth', 'water', 'waterShallow', 'waterDeep', 'swamp', 'bank', 'trail'] as const
   const out: GeneratorPalette = {}
   for (const k of keys) {
     const hex = str(v[k])
