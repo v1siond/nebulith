@@ -17,6 +17,9 @@ defmodule Nebulith.Catalog.Template do
     field :rows, :integer, default: 50
     field :cellSize, :integer, default: 16
     field :isoScale, :float, default: 2.5
+    # How thick the map's own BODY is, in blocks. The fourth number that describes a map's shape,
+    # alongside cols/rows/cellSize. Sent since 75f9685, storable since 2026-09-10.
+    field :slabBlocks, :integer, default: 1
     field :spawnCol, :integer, default: 25
     field :spawnRow, :integer, default: 25
     field :groundData, Nebulith.EctoJSON
@@ -33,7 +36,7 @@ defmodule Nebulith.Catalog.Template do
     timestamps(inserted_at: :createdAt, updated_at: :updatedAt, type: :naive_datetime)
   end
 
-  @castable ~w(id name description category cols rows cellSize isoScale spawnCol spawnRow
+  @castable ~w(id name description category cols rows cellSize isoScale slabBlocks spawnCol spawnRow
                groundData heightData assetsData thumbnail isPublic tags authorId
                connectors entities quests)a
 

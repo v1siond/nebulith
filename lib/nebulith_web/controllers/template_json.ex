@@ -46,6 +46,7 @@ defmodule NebulithWeb.TemplateJSON do
       rows: t.rows,
       cellSize: t.cellSize,
       isoScale: t.isoScale,
+      slabBlocks: t.slabBlocks,
       spawnCol: t.spawnCol,
       spawnRow: t.spawnRow,
       groundData: t.groundData,
