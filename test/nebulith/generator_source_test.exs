@@ -12,6 +12,13 @@ defmodule Nebulith.GeneratorSourceTest do
 
   defp by_key(categories), do: Map.new(categories, &{&1.key, &1})
 
+  # Rough perceived brightness of "#rrggbb" — enough to assert which of two colours is the darker one.
+  defp luminance("#" <> hex) do
+    {r, g, b} = {String.slice(hex, 0, 2), String.slice(hex, 2, 2), String.slice(hex, 4, 2)}
+    [r, g, b] = Enum.map([r, g, b], &elem(Integer.parse(&1, 16), 0))
+    0.2126 * r + 0.7152 * g + 0.0722 * b
+  end
+
   defp generator(categories, cat_key, gen_key) do
     categories |> by_key() |> Map.fetch!(cat_key) |> Map.fetch!(:generators) |> Enum.find(&(&1.key == gen_key))
   end
@@ -100,6 +107,24 @@ defmodule Nebulith.GeneratorSourceTest do
       # which is also why the random layout pool skips it when a generator does not serve one.
       assert canopies["woodland"] > 0
       assert canopies["meadow"] == nil
+    end
+
+    test "a jungle and a woodland are painted from DIFFERENT colours" do
+      GeneratorSource.seed()
+      cats = Catalog.list_generator_categories() |> by_key()
+      pal = for g <- cats["forest"].generators, into: %{}, do: {g.layout, g.config["palette"]}
+
+      # Alexander, 2026-09-10: *"colors should be different"*, *"like there's a huge difference between
+      # amazonas and a pines forest"*. Every colour in a forest used to come from the SEASON, so a spring
+      # jungle and a spring woodland were painted from the same numbers and looked identical. The assertion
+      # is that they SHARE NOTHING, not that either is a particular hex — tune the hexes freely, just never
+      # back into agreement.
+      assert MapSet.disjoint?(MapSet.new(Map.values(pal["woodland"])), MapSet.new(Map.values(pal["jungle"])))
+
+      # And the one that carries the look: a jungle floor is in permanent shade under a closed canopy, so it
+      # is DARKER than the canopy above it. A temperate wood is the other way round.
+      assert luminance(pal["jungle"]["floor"]) < luminance(pal["jungle"]["canopy"])
+      assert luminance(pal["woodland"]["floor"]) > luminance(pal["woodland"]["canopy"])
     end
 
     test "a jungle is a woodland grown over — denser canopy AND far more undergrowth" do

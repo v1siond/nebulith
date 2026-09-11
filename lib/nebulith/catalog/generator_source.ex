@@ -102,6 +102,48 @@ defmodule Nebulith.Catalog.GeneratorSource do
   # is why it needs no generator of its own. Starting values — tune them here by eye.
   @jungle_nature %{"groundCover" => 0.5, "flowers" => 0.1, "canopy" => 0.62}
 
+  # THE FOREST PALETTES. Alexander, 2026-09-10: *"right now a jungle is basically the same as woodland in the
+  # app, there's not a single difference between them, but they should be, colors should be different"* and
+  # *"like there's a huge difference between amazonas and a pines forest"*.
+  #
+  # He is right, and the reason was structural: every colour in a forest came from the SEASON (spring, autumn)
+  # and nothing came from the KIND of forest, so a spring jungle and a spring woodland were painted from the
+  # same numbers. A palette per GENERATOR is what makes them different places, and it lives here because it is
+  # data about a template.
+  #
+  # The generator paints these onto cells as floor STATE. That is the sanctioned path: a generator PICKS and
+  # WRITES colour, the renderer only reads. Nothing here is a render-time fallback.
+
+  # A TEMPERATE WOOD. Muted, grey-green, a lot of brown showing through — a pine or oak floor is needles and
+  # leaf litter with light reaching it, so it reads dry and open even under the canopy.
+  @woodland_palette %{
+    "floor" => "#6f7f4a",
+    "floorAlt" => "#7d8a55",
+    "litter" => "#7a6a44",
+    "canopy" => "#5d7340",
+    "canopyAlt" => "#6b8049",
+    "undergrowth" => "#6d7f45",
+    "water" => "#4f93b3",
+    "bank" => "#c1a877",
+    "trail" => "#9a8a62"
+  }
+
+  # AN AMAZONAS. Deep, wet, saturated, and DARK: a closed canopy puts the floor in permanent shade, so the
+  # ground is near-black green rather than the woodland's lit olive. The canopy above it is the brightest
+  # thing on the map because it is the layer actually getting the sun, which is the inversion that makes a
+  # jungle read as a jungle. Water is silt-brown, not blue — a jungle river carries the forest in it.
+  @jungle_palette %{
+    "floor" => "#2f4a2a",
+    "floorAlt" => "#38552f",
+    "litter" => "#46442a",
+    "canopy" => "#2e6b32",
+    "canopyAlt" => "#3f8a3c",
+    "undergrowth" => "#25532a",
+    "water" => "#5e6b3a",
+    "bank" => "#6b5f3c",
+    "trail" => "#57502f"
+  }
+
   @doc "The categories to seed, in menu order (`editorConfig.ts` STAGE_VARIANTS)."
   def categories do
     [
@@ -119,13 +161,13 @@ defmodule Nebulith.Catalog.GeneratorSource do
       %{
         category: "forest", key: "forest_woodland", name: "Woodland", layout: "woodland", position: 0,
         description: "Dense trees with clearings cut into them, joined by paths.",
-        config: %{"grid" => @small_grid, "nature" => @woodland_nature, "units" => townsfolk(3)},
+        config: %{"grid" => @small_grid, "nature" => @woodland_nature, "units" => townsfolk(3), "palette" => @woodland_palette},
         options: @water_options
       },
       %{
         category: "forest", key: "forest_jungle", name: "Jungle", layout: "jungle", position: 1,
         description: "A closed canopy over choked undergrowth, with clearings cut into it.",
-        config: %{"grid" => @small_grid, "nature" => @jungle_nature, "units" => townsfolk(2)},
+        config: %{"grid" => @small_grid, "nature" => @jungle_nature, "units" => townsfolk(2), "palette" => @jungle_palette},
         options: @water_options
       },
       %{
