@@ -3,7 +3,7 @@
     {
       "name": "Forest",
       "position": 0,
-      "description": "Woodland and open meadows — no settlement.",
+      "description": "Woodland and open meadows, with no settlement in them.",
       "key": "forest",
       "generators": [
         {
@@ -4616,7 +4616,7 @@
               "type": "choice"
             }
           ],
-          "description": "A cavern floor — bats, spiders and skeletons instead of townsfolk.",
+          "description": "A cavern floor: bats, spiders and skeletons instead of townsfolk.",
           "key": "cave_default",
           "layout": null,
           "children": [],
@@ -4721,7 +4721,7 @@
               "type": "choice"
             }
           ],
-          "description": "A temple dungeon — skeletons, guardians and wraiths.",
+          "description": "A temple dungeon: skeletons, guardians and wraiths.",
           "key": "temple_default",
           "layout": null,
           "children": [],
