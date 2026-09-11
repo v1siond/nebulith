@@ -70,9 +70,9 @@ defmodule Nebulith.GeneratorSourceTest do
       assert length(layouts) == 3
 
       for g <- cats["forest"].generators do
-        assert Enum.map(g.options, & &1["key"]) == ~w(river crossing bridge), "#{g.key} offers #{inspect(g.options)}"
+        assert Enum.map(g.options, & &1["key"]) == ~w(exits pathways river crossing bridge), "#{g.key} offers #{inspect(g.options)}"
         # Nothing runs by default: no river, and so no crossing either, whatever kind it would be.
-        [river, crossing, kind] = g.options
+        [river, crossing, kind] = Enum.filter(g.options, &(&1["key"] in ~w(river crossing bridge)))
         assert river["default"] == "none", "#{g.key} runs a river by default"
         assert crossing["default"] == false
         assert kind["requires"] == "river"
@@ -83,7 +83,7 @@ defmodule Nebulith.GeneratorSourceTest do
       GeneratorSource.seed()
       woodland = Catalog.list_generator_categories() |> generator("forest", "forest_woodland")
 
-      [river, crossing, kind] = woodland.options
+      [river, crossing, kind] = Enum.filter(woodland.options, &(&1["key"] in ~w(river crossing bridge)))
 
       # His next ticket was *"rivers need crossings connected to the paths"*. A crossing over dry ground is
       # nonsense, so the row says what it depends on and the editor greys the toggle out from the DATA.
@@ -98,7 +98,11 @@ defmodule Nebulith.GeneratorSourceTest do
 
     test "the river offers each COURSE he named, and random as one of them" do
       GeneratorSource.seed()
-      [river | _] = Catalog.list_generator_categories() |> generator("forest", "forest_woodland") |> Map.fetch!(:options)
+      river =
+        Catalog.list_generator_categories()
+        |> generator("forest", "forest_woodland")
+        |> Map.fetch!(:options)
+        |> Enum.find(&(&1["key"] == "river"))
 
       # *"maybe it's traversable, maybe it's dividing the map in two half, maybe it's around the map"*, and
       # *"I want and think the randomness is good"* — random stays, as one choice among the courses.
@@ -106,14 +110,40 @@ defmodule Nebulith.GeneratorSourceTest do
       assert river["default"] in Enum.map(river["choices"], & &1["key"])
     end
 
-    test "a settlement or a dungeon offers no options at all" do
+    test "a settlement offers no options at all" do
       GeneratorSource.seed()
       cats = Catalog.list_generator_categories() |> by_key()
 
       # An empty list, not nil — the column is NOT NULL with a `[]` default, so the frontend can map over
       # it without a guard on every generator it draws.
-      for key <- ~w(town city cave temple), g <- cats[key].generators do
+      for key <- ~w(town city), g <- cats[key].generators do
         assert g.options == [], "#{g.key} carries #{inspect(g.options)}"
+      end
+    end
+
+    test "every forest, cave and temple says how many EXITS and PATHWAYS it has" do
+      GeneratorSource.seed()
+      cats = Catalog.list_generator_categories() |> by_key()
+
+      # Alexander, 2026-09-11: *"on temple, cave and forest templates we should have the option to define how
+      # many pathways, we want to have"*, and the cave he drew out: *"1 exit and 3 pathways to simulate
+      # entrance, then I continue doing the same until I reach a part where is just 1 exit no pathway, which is
+      # the end of the cave"*. That is TWO numbers, not one. An exit leaves the map (a connector to the next
+      # one), a pathway runs inside it, and a pathway that is not an exit has to end somewhere, which is where
+      # a closed or gated section goes.
+      for key <- ~w(forest cave temple), g <- cats[key].generators do
+        [exits, pathways] = Enum.filter(g.options, &(&1["key"] in ~w(exits pathways)))
+
+        assert exits["type"] == "choice", "#{g.key}"
+        assert pathways["type"] == "choice", "#{g.key}"
+        # Random by default, so a preset nobody has touched still rolls ways through the map.
+        assert exits["default"] == "random", "#{g.key}"
+        assert pathways["default"] == "random", "#{g.key}"
+        assert Enum.map(exits["choices"], & &1["key"]) == ~w(random 1 2 3 4), "#{g.key}"
+        assert Enum.map(pathways["choices"], & &1["key"]) == ~w(random 1 2 3 4), "#{g.key}"
+        # Neither depends on anything: the ways are what the map is built around, they are never greyed out.
+        refute Map.has_key?(exits, "requires"), "#{g.key}"
+        refute Map.has_key?(pathways, "requires"), "#{g.key}"
       end
     end
 
@@ -350,7 +380,7 @@ defmodule Nebulith.GeneratorSourceTest do
       island = Enum.find(jungle.children, &(&1.key == "forest_jungle_island"))
       swamp = Enum.find(jungle.children, &(&1.key == "forest_jungle_swamp"))
 
-      assert hd(island.options)["default"] == "around"
+      assert Enum.find(island.options, &(&1["key"] == "river"))["default"] == "around"
       assert swamp.options == jungle.options
     end
 

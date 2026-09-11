@@ -97,6 +97,45 @@ defmodule Nebulith.Catalog.GeneratorSource do
     "stone" => %{"tile" => "cobblestone"}
   }
 
+  # ── THE WAYS THROUGH A MAP ────────────────────────────────────────────────
+  # Alexander, 2026-09-11: *"I expect maps to have an entrance and exit, sometimes it'll be the same place to enter
+  # and leave, others we must have multiple pathways with different exists ... we should always have paths firsts,
+  # and ensure the rest is build around it"*, and for caves and temples too: *"I can generate a cave with 1 exit and
+  # 3 pathways to simulate entrance, then I continue doing the same until I reach a part where is just 1 exit no
+  # pathway, which is the end of the cave"*.
+  #
+  # So a map carries TWO numbers, not one. EXITS are the ways out to another map (the connectors). PATHWAYS are the
+  # paths inside it: the ones that are not an exit end somewhere in the map, which is where a closed or gated
+  # section belongs. One exit and no extra pathway is the end of a chain; one exit and three pathways is a junction.
+  @way_options [
+    %{
+      "key" => "exits",
+      "label" => "Exits",
+      "type" => "choice",
+      "default" => "random",
+      "choices" => [
+        %{"key" => "random", "label" => "Random"},
+        %{"key" => "1", "label" => "1: in and out the same way"},
+        %{"key" => "2", "label" => "2: in one side, out the other"},
+        %{"key" => "3", "label" => "3"},
+        %{"key" => "4", "label" => "4"}
+      ]
+    },
+    %{
+      "key" => "pathways",
+      "label" => "Pathways",
+      "type" => "choice",
+      "default" => "random",
+      "choices" => [
+        %{"key" => "random", "label" => "Random"},
+        %{"key" => "1", "label" => "1"},
+        %{"key" => "2", "label" => "2"},
+        %{"key" => "3", "label" => "3"},
+        %{"key" => "4", "label" => "4"}
+      ]
+    }
+  ]
+
   # The default grid a non-city map rolls, and the cell geometry every map starts from.
   @small_grid %{
     "cols" => %{"min" => 30, "max" => 45},
@@ -376,19 +415,19 @@ defmodule Nebulith.Catalog.GeneratorSource do
         category: "forest", key: "forest_woodland", name: "Woodland", layout: "woodland", position: 0,
         description: "Dense trees with clearings cut into them, joined by paths.",
         config: %{"grid" => @small_grid, "nature" => @woodland_nature, "units" => townsfolk(3), "palette" => @woodland_palette, "formation" => @formations["stand"], "trees" => @woodland_trees, "crossings" => @crossings},
-        options: @water_options
+        options: @way_options ++ @water_options
       },
       %{
         category: "forest", key: "forest_jungle", name: "Jungle", layout: "jungle", position: 1,
         description: "A closed canopy over choked undergrowth, with clearings cut into it.",
         config: %{"grid" => @small_grid, "nature" => @jungle_nature, "units" => townsfolk(2), "palette" => @jungle_palette, "subZones" => @jungle_sub_zones, "formation" => @formations["closed"], "trees" => @jungle_trees, "crossings" => @crossings},
-        options: @water_options
+        options: @way_options ++ @water_options
       },
       %{
         category: "forest", key: "forest_meadow", name: "Meadow", layout: "meadow", position: 2,
         description: "An open clearing framed by trees, with two ways in.",
         config: %{"grid" => @small_grid, "nature" => @outdoor_nature, "units" => townsfolk(5), "formation" => @formations["scattered"], "trees" => @meadow_trees, "palette" => @meadow_palette, "crossings" => @crossings},
-        options: @water_options
+        options: @way_options ++ @water_options
       },
       # ── SUBTYPES ────────────────────────────────────────────────────────────────────────────────────
       # Alexander, 2026-09-11: *"we should also have extra options to select different types of the selected
@@ -450,7 +489,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
         description: "Jungle ringed by water, heavy with palms.",
         config: %{"subZones" => sub_zones(%{"open" => 3, "dense" => 2}),
                   "trees" => [%{"kind" => "tree_palm", "weight" => 50}, %{"kind" => "tree_round", "weight" => 25}, %{"kind" => "bush_round", "weight" => 25}]},
-        options: water_options("around")
+        options: @way_options ++ water_options("around")
       },
       %{
         category: "forest", parent: "forest_jungle", key: "forest_jungle_ruins", name: "Jungle ruins",
@@ -499,12 +538,14 @@ defmodule Nebulith.Catalog.GeneratorSource do
       %{
         category: "cave", key: "cave_default", name: "Cave", position: 0,
         description: "A cavern floor — bats, spiders and skeletons instead of townsfolk.",
-        config: %{"grid" => @small_grid, "units" => enemies(~w(bat spider skeleton))}
+        config: %{"grid" => @small_grid, "units" => enemies(~w(bat spider skeleton))},
+        options: @way_options
       },
       %{
         category: "temple", key: "temple_default", name: "Temple", position: 0,
         description: "A temple dungeon — skeletons, guardians and wraiths.",
-        config: %{"grid" => @small_grid, "units" => enemies(~w(skeleton guardian wraith))}
+        config: %{"grid" => @small_grid, "units" => enemies(~w(skeleton guardian wraith))},
+        options: @way_options
       }
     ]
   end
