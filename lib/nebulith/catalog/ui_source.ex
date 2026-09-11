@@ -133,28 +133,6 @@ defmodule Nebulith.Catalog.UiSource do
           "on" => false,
           "z" => 50
         }},
-      %{element_key: "bag_btn", form: "Desktop", placement: %{
-          "a" => "BC",
-          "x" => 38,
-          "y" => 16,
-          "w" => 76,
-          "h" => 30,
-          "s" => 1,
-          "o" => 1,
-          "on" => true,
-          "z" => 20
-        }},
-      %{element_key: "journal_btn", form: "Desktop", placement: %{
-          "a" => "BC",
-          "x" => 197,
-          "y" => 16,
-          "w" => 94,
-          "h" => 30,
-          "s" => 1,
-          "o" => 1,
-          "on" => true,
-          "z" => 20
-        }},
       %{element_key: "bag_panel", form: "Desktop", placement: %{
           "a" => "MC",
           "x" => 0,
@@ -275,28 +253,6 @@ defmodule Nebulith.Catalog.UiSource do
           "o" => 1,
           "on" => false,
           "z" => 50
-        }},
-      %{element_key: "bag_btn", form: "Mobile", placement: %{
-          "a" => "BL",
-          "x" => 12,
-          "y" => 14,
-          "w" => 56,
-          "h" => 44,
-          "s" => 1,
-          "o" => 1,
-          "on" => true,
-          "z" => 20
-        }},
-      %{element_key: "journal_btn", form: "Mobile", placement: %{
-          "a" => "BR",
-          "x" => 12,
-          "y" => 14,
-          "w" => 56,
-          "h" => 44,
-          "s" => 1,
-          "o" => 1,
-          "on" => true,
-          "z" => 20
         }},
       %{element_key: "bag_panel", form: "Mobile", placement: %{
           "a" => "MC",
