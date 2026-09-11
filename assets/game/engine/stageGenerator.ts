@@ -16,7 +16,7 @@ import { type BuildingSizes, type SettlementTuning, planVillage, type VillageLay
 // The planner is pure: it takes the building sizes rather than reading them. They come from the BACKEND
 // compositions (buildingCatalog resolves them), so deepening a building in Elixir moves the plots with it.
 import { BACKEND_BUILDING_SIZES } from './buildingCatalog'
-import { type GeneratorFormation, type GeneratorPalette, type GeneratorSubZone, type GeneratorTreeWeight, type GeneratorOptionValue } from '@/lib/generatorCatalog'
+import { type GeneratorCrossing, type GeneratorFormation, type GeneratorPalette, type GeneratorSubZone, type GeneratorTreeWeight, type GeneratorOptionValue } from '@/lib/generatorCatalog'
 import {
   stagePropTileOverride,
   zonePalette,
@@ -220,6 +220,8 @@ export interface GenerateOptions {
   /** WHICH trees grow here (`config.trees`). Named `treeMix` because the stage already has a `trees` list,
    *  the anchors. Absent → the global weighted table. */
   treeMix?: readonly GeneratorTreeWeight[]
+  /** What a river is crossed on, by kind (`config.crossings`), picked by the `bridge` option. */
+  crossings?: Readonly<Record<string, GeneratorCrossing>>
   /**
    * Where footprints come from. Alexander, 2026-09-09: *"even the footprint should come from backend, then
    * frontend draws."* Defaults to the composition-backed source so a caller that does not care (every
@@ -621,6 +623,11 @@ interface ArchetypeContext {
    *  paint the season gradient + earth/cobble/river patches here; every other archetype leaves it undefined
    *  and the render falls back to the ground tile's own DB colour. */
   floorColors: (string | undefined)[][]
+  /** Every cell laid as a crossing deck. The depth pass has to tell a deck from a bank, and the tile no longer
+   *  says which (a dirt-path crossing is the flat floor). */
+  decks: Set<string>
+  /** The crossing this map is built with, decided the first time a deck is laid. null → the classic deck. */
+  crossing?: GeneratorCrossing | null
   cols: number
   rows: number
   /** The generator's served nature densities, or undefined when it states none. A layout must treat an
@@ -639,6 +646,8 @@ interface ArchetypeContext {
   formation?: GeneratorFormation
   /** The species this template grows. A jungle is not a meadow with more trees in it. */
   treeMix?: readonly GeneratorTreeWeight[]
+  /** What a river is crossed on, by kind (`config.crossings`), picked by the `bridge` option. */
+  crossings?: Readonly<Record<string, GeneratorCrossing>>
   /** Where footprints come from — see `GenerateOptions.buildingSizes`. */
   buildingSizes?: BuildingSizes
   /** The user-steered forest layout, or undefined for a plain generate (placeForest then random-picks a
@@ -762,7 +771,7 @@ export function generateStage(opts: GenerateOptions): StageData {
     decor: layerRng(opts.seeds, 'decor'),
   }
   // Single-pass archetypes (forest/cave/temple/boss) read `ctx.rand`; the layout rng is their source.
-  const ctx: ArchetypeContext = { zone, ground, collision, floorColors, buildings, props, trees, compositions, cols, rows, layout, options: opts.options, nature: opts.nature, settlement: opts.settlement, palette: opts.palette, subZones: opts.subZones, formation: opts.formation, treeMix: opts.treeMix, buildingSizes: opts.buildingSizes, rand: rngs.layout }
+  const ctx: ArchetypeContext = { zone, ground, collision, floorColors, buildings, props, trees, compositions, cols, rows, layout, options: opts.options, nature: opts.nature, settlement: opts.settlement, palette: opts.palette, subZones: opts.subZones, formation: opts.formation, treeMix: opts.treeMix, crossings: opts.crossings, decks: new Set<string>(), buildingSizes: opts.buildingSizes, rand: rngs.layout }
   ARCHETYPES[variant]?.(ctx, rngs)
   flattenFloors(ctx, FLOOR_MATERIALS[variant]?.(ctx) ?? [])
   addTerrainTransitions(ctx) // blended shorelines / lava banks over the painted ground
@@ -2439,7 +2448,7 @@ function waterBand(depth: number, wadeable: boolean): WaterBand {
 function waterDepth(ctx: ArchetypeContext, pools: ReadonlySet<string>): Map<string, number> {
   const { cols, rows, ground } = ctx
   const isChannel = (c: number, r: number) => inBounds(c, r, cols, rows) && ground[r][c] === 'water' && !pools.has(`${c},${r}`)
-  const isBank = (c: number, r: number) => inBounds(c, r, cols, rows) && ground[r][c] !== 'water' && ground[r][c] !== 'bridge'
+  const isBank = (c: number, r: number) => inBounds(c, r, cols, rows) && ground[r][c] !== 'water' && !ctx.decks.has(`${c},${r}`)
   const depth = new Map<string, number>()
   const queue: Cell[] = []
   forEachCell(cols, rows, (col, row) => {
@@ -2498,7 +2507,7 @@ function wadeableShallows(ctx: ArchetypeContext, depth: ReadonlyMap<string, numb
 function dryAreas(ctx: ArchetypeContext): Map<string, number> {
   const { cols, rows, ground, collision } = ctx
   const isDry = (c: number, r: number) =>
-    inBounds(c, r, cols, rows) && !collision[r][c] && ground[r][c] !== 'water' && ground[r][c] !== 'bridge'
+    inBounds(c, r, cols, rows) && !collision[r][c] && ground[r][c] !== 'water' && !ctx.decks.has(`${c},${r}`)
   const seen = new Set<string>()
   const area = new Map<string, number>()
   let next = 0
@@ -2956,21 +2965,48 @@ function waterReach(water: Set<string>, at: Cell, dc: number, dr: number): numbe
   return n
 }
 
-/** Turn a set of cells into walkable bridge deck: clear what stands on them, lay the 'bridge' tile, take the
- *  cobble tone. Shared by the plain bridge and the joined crossing, so the two always read alike. */
+/** Turn a set of cells into walkable deck: clear what stands on them and lay the crossing this map is built
+ *  with. Shared by every crossing (the bridge, the joined crossing, fallen logs, a route over water) so they all
+ *  read alike, and each cell is remembered in `ctx.decks`. */
 function layDeck(ctx: ArchetypeContext, deck: Set<string>, tone: string | undefined): void {
   const { cols, rows, ground, collision, floorColors } = ctx
+  const style = crossingStyle(ctx)
   clearMeadowCells(ctx, deck)
   for (const key of deck) {
     const { col, row } = toCell(key)
     if (!inBounds(col, row, cols, rows)) continue
-    ground[row][col] = 'bridge'
+    ground[row][col] = style?.tile ?? 'bridge'
     collision[row][col] = false
-    // No tone → leave the tile's own colour. A default here would be a hardcoded fallback for a SERVED
-    // value, which is the one thing the compliance rule names: a caller with no colour to give has no
-    // opinion, and this deck is not the place to invent one.
-    if (tone) floorColors[row][col] = tone
+    ctx.decks.add(key)
+    // A served crossing wears its own colour (or the tile it names in `colorOf`), written over whatever the
+    // cell wore as water. The classic deck keeps the caller's tone, and with no tone leaves the colour alone:
+    // a default here would be a hardcoded fallback for a SERVED value.
+    if (style) floorColors[row][col] = groundTileColor(style.colorOf ?? style.tile, col, row) || undefined
+    else if (tone) floorColors[row][col] = tone
   }
+}
+
+/**
+ * THE KIND OF CROSSING. Alexander, 2026-09-11: *"on the "bridges" that we use on rivers, we must have multiple
+ * variations too / it can be a simple dirt path, it can be an actual bridge, which again, are multiple
+ * variations"*. One per map, so every crossing on it matches, picked the first time a deck is laid.
+ */
+function crossingStyle(ctx: ArchetypeContext): GeneratorCrossing | undefined {
+  if (ctx.crossing === undefined) ctx.crossing = resolveCrossing(ctx.options?.bridge, ctx.crossings, ctx.rand) ?? null
+  return ctx.crossing ?? undefined
+}
+
+/** The pure half of `crossingStyle`. `random` picks one of the served kinds; an option the map was not built
+ *  with (an older recipe) keeps the classic deck, so a saved map does not change under anyone. */
+export function resolveCrossing(
+  value: GeneratorOptionValue | undefined,
+  crossings: Readonly<Record<string, GeneratorCrossing>> | undefined,
+  rand: Rng,
+): GeneratorCrossing | undefined {
+  if (!crossings || typeof value !== 'string') return undefined
+  if (value !== 'random') return crossings[value]
+  const kinds = Object.keys(crossings)
+  return kinds.length > 0 ? crossings[kinds[randIntWith(rand, 0, kinds.length - 1)]] : undefined
 }
 
 /** Pave an L-shaped spur from the bridge landing to the route it joins, wearing the TILE AND COLOUR of that

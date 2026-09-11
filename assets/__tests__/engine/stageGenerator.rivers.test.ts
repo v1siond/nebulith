@@ -16,8 +16,9 @@
  * And one thing no course may do, whatever it looks like: make water walkable.
  */
 import '@/__tests__/helpers/installTilesetSeed'
-import { generateStage, resolveRiverCourse } from '@/engine/stageGenerator'
-import { findGenerator, parseGeneratorCatalog, type GeneratorOptionValue } from '@/lib/generatorCatalog'
+import { FLAT_FLOOR, generateStage, resolveCrossing, resolveRiverCourse } from '@/engine/stageGenerator'
+import { groundTileColor } from '@/engine/tileset/groundColor'
+import { findGenerator, parseGeneratorCatalog, type GeneratorCrossing, type GeneratorOptionValue } from '@/lib/generatorCatalog'
 import { makeRng } from '@/lib/math'
 import liveBody from '@/__tests__/fixtures/generators.json'
 
@@ -33,6 +34,22 @@ function grow(layout: 'woodland' | 'meadow' | 'jungle', river: GeneratorOptionVa
       zone: 'summer', variant: 'forest', layout, cols: 60, rows: 40,
       nature: config.nature, palette: config.palette, formation: config.formation,
       treeMix: config.trees, subZones: config.subZones, options: { river, crossing },
+    })
+  } finally {
+    Math.random = orig
+  }
+}
+/** The same, crossed on one KIND of crossing (the `bridge` option), with the template's served crossings. */
+function growKind(layout: 'woodland' | 'meadow' | 'jungle', river: GeneratorOptionValue, bridge: string, seed = 5) {
+  const config = findGenerator(CATALOG, 'forest', layout)!.config
+  const orig = Math.random
+  Math.random = makeRng(seed)
+  try {
+    return generateStage({
+      zone: 'summer', variant: 'forest', layout, cols: 60, rows: 40,
+      nature: config.nature, palette: config.palette, formation: config.formation,
+      treeMix: config.trees, subZones: config.subZones, crossings: config.crossings,
+      options: { river, crossing: false, bridge },
     })
   } finally {
     Math.random = orig
@@ -238,5 +255,61 @@ describe('water by depth: wade the shallows, the rest blocks', () => {
     const pools = waterCells(s).filter(([c, r]) => s.floorColors[r][c] === config.palette!.swamp)
     expect(pools.length).toBeGreaterThan(0)
     expect(pools.every(([c, r]) => s.collision[r][c])).toBe(true)
+  })
+})
+
+describe('the kind of crossing: a dirt path, or one of several bridges', () => {
+  // Alexander, 2026-09-11: *"on the "bridges" that we use on rivers, we must have multiple variations too / it can
+  // be a simple dirt path, it can be an actual bridge, which again, are multiple variations"*.
+  const kinds = (layout: 'woodland' | 'meadow' | 'jungle') => findGenerator(CATALOG, 'forest', layout)!.config.crossings!
+  const deckOf = (s: Stage, style: GeneratorCrossing): Set<string> => {
+    const out = new Set<string>()
+    s.ground.forEach((row, r) => row.forEach((g, c) => {
+      if (g !== style.tile) return
+      if (style.colorOf && s.floorColors[r][c] !== groundTileColor(style.colorOf, c, r)) return
+      out.add(`${c},${r}`)
+    }))
+    return out
+  }
+
+  it('serves a dirt path and at least three bridges, every one naming its tile', () => {
+    const served = kinds('woodland')
+    expect(served.dirt).toEqual({ tile: FLAT_FLOOR, colorOf: 'path_dirt' })
+    expect(Object.keys(served).length).toBeGreaterThanOrEqual(4)
+    expect(Object.values(served).every(k => typeof k.tile === 'string' && k.tile.length > 0)).toBe(true)
+  })
+
+  it.each(['dirt', 'wood', 'planks', 'stone'])('%s: every deck is that kind, and the map is still one place', kind => {
+    for (const layout of ['woodland', 'meadow', 'jungle'] as const) {
+      const style = kinds(layout)[kind]
+      const s = growKind(layout, 'divides', kind, 2)
+      expect({ layout, kind, decks: deckOf(s, style).size > 0 }).toEqual({ layout, kind, decks: true })
+      if (style.tile !== 'bridge') expect({ layout, kind, classic: s.ground.flat().filter(g => g === 'bridge').length }).toEqual({ layout, kind, classic: 0 })
+      expect({ layout, kind, regions: regionSizes(s).length }).toEqual({ layout, kind, regions: 1 })
+    }
+  })
+
+  it('a dirt path is the flat floor in the dirt path colour, and it still divides like a bridge does', () => {
+    const style = kinds('woodland').dirt
+    const s = growKind('woodland', 'divides', 'dirt', 2)
+    const deck = deckOf(s, style)
+    expect(deck.size).toBeGreaterThan(0)
+    // take the path away and the river splits the map, so the path IS the crossing, not a gap in the water
+    expect(regionSizes(s, deck).filter(n => n > 40).length).toBeGreaterThanOrEqual(2)
+  })
+
+  it('random picks among the kinds, and more than one across maps', () => {
+    const seen = new Set<string>()
+    for (let seed = 1; seed <= 12; seed++) {
+      const s = growKind('woodland', 'divides', 'random', seed)
+      for (const [key, style] of Object.entries(kinds('woodland'))) if (deckOf(s, style).size > 0) seen.add(key)
+    }
+    expect(seen.size).toBeGreaterThanOrEqual(2)
+  })
+
+  it('an older recipe with no kind keeps the classic deck, so a saved map does not change', () => {
+    expect(resolveCrossing(undefined, kinds('woodland'), makeRng(1))).toBeUndefined()
+    expect(resolveCrossing('stone', undefined, makeRng(1))).toBeUndefined()
+    expect(resolveCrossing('stone', kinds('woodland'), makeRng(1))).toEqual(kinds('woodland').stone)
   })
 })

@@ -130,7 +130,7 @@ describe('picking is not building — §4.6\'s "why did my map just vanish" trap
     const [, second] = categoryLayouts(CATALOG, 'forest')
     fireEvent.click(preset(second.label))
     build()
-    expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', second.id, { river: 'none', crossing: false })
+    expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', second.id, { river: 'none', crossing: false, bridge: 'none' })
   })
 
   it('builds the category\'s FIRST preset when the kind was chosen but no preset was', () => {
@@ -138,7 +138,7 @@ describe('picking is not building — §4.6\'s "why did my map just vanish" trap
     fireEvent.change(kinds(), { target: { value: 'forest' } })
     build()
     const [first] = categoryLayouts(CATALOG, 'forest')
-    expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', first.id, { river: 'none', crossing: false })
+    expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', first.id, { river: 'none', crossing: false, bridge: 'none' })
   })
 
   it('passes NO preset for a kind that has none, and hides the preset group', () => {
@@ -186,7 +186,7 @@ describe('variations are options on a preset, not more presets', () => {
     fireEvent.change(kinds(), { target: { value: 'forest' } })
     fireEvent.change(control(/^river$/i), { target: { value: 'divides' } })
     build()
-    expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', expect.any(String), { river: 'divides', crossing: false })
+    expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', expect.any(String), { river: 'divides', crossing: false, bridge: 'random' })
   })
 
   it('will not send a crossing without the river it declares it needs', () => {
@@ -199,7 +199,22 @@ describe('variations are options on a preset, not more presets', () => {
     fireEvent.click(control(/a crossing joined to the paths/i))
     fireEvent.change(control(/^river$/i), { target: { value: 'none' } }) // the river goes, the crossing goes with it
     build()
-    expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', expect.any(String), { river: 'none', crossing: false })
+    expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', expect.any(String), { river: 'none', crossing: false, bridge: 'none' })
+  })
+
+  it('offers the kind of crossing, greyed out until there is a river, and forwards the one picked', () => {
+    // Alexander, 2026-09-11: *"it can be a simple dirt path, it can be an actual bridge, which again, are
+    // multiple variations"*.
+    const onGenerate = setup()
+    fireEvent.change(kinds(), { target: { value: 'forest' } })
+    const kind = () => control(/^kind of crossing$/i)
+    expect([...kind().options].map(o => o.value)).toEqual(['random', 'dirt', 'wood', 'planks', 'stone'])
+    expect(kind().disabled).toBe(true)
+    fireEvent.change(control(/^river$/i), { target: { value: 'divides' } })
+    expect(kind().disabled).toBe(false)
+    fireEvent.change(kind(), { target: { value: 'stone' } })
+    build()
+    expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', expect.any(String), { river: 'divides', crossing: false, bridge: 'stone' })
   })
 
   it('offers nothing to switch on for a kind of place that has no options', () => {
@@ -234,7 +249,7 @@ describe('forest > type > subtype — pick one, go deeper, or randomize', () => 
     fireEvent.click(preset('Woodland'))
     fireEvent.change(which('woodland'), { target: { value: 'forest_woodland_mountain' } })
     build()
-    expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', 'woodland', { river: 'none', crossing: false }, 'forest_woodland_mountain')
+    expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', 'woodland', { river: 'none', crossing: false, bridge: 'none' }, 'forest_woodland_mountain')
   })
 
   it('Random builds one of the subtypes, rolled on the build itself', () => {
@@ -265,7 +280,7 @@ describe('forest > type > subtype — pick one, go deeper, or randomize', () => 
     ])
     fireEvent.click(screen.getByLabelText('Region: Swamp'))
     build()
-    expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', 'jungle', { river: 'none', crossing: false, 'region:swamp': false })
+    expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', 'jungle', { river: 'none', crossing: false, bridge: 'none', 'region:swamp': false })
   })
 
   it('a subtype brings its own regions — a super dense jungle is barely anything but dense growth', () => {

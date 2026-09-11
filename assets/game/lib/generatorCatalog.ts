@@ -188,6 +188,8 @@ export interface GeneratorConfig {
    * that's not good"*. Absent → the global weighted table every template used to share.
    */
   trees?: readonly GeneratorTreeWeight[]
+  /** What a river is crossed on, by kind. Absent → the classic bridge deck. */
+  crossings?: Readonly<Record<string, GeneratorCrossing>>
 }
 
 /** One generator — a concrete map the user can ask for ("Meadow + River", "Town"). */
@@ -223,6 +225,16 @@ export interface GeneratorDef {
 export interface GeneratorChoice {
   key: string
   label: string
+}
+
+/**
+ * One kind of river crossing: the tile its deck lays, and optionally the tile whose COLOUR it wears. Alexander,
+ * 2026-09-11: *"it can be a simple dirt path, it can be an actual bridge, which again, are multiple variations"*.
+ * A dirt path is the flat floor in the dirt path's colour; a bridge is its own textured tile.
+ */
+export interface GeneratorCrossing {
+  tile: string
+  colorOf?: string
 }
 
 /** What an option holds: a toggle is on/off, a choice is the key of the picked value. */
@@ -414,6 +426,7 @@ function parseConfig(v: unknown): GeneratorConfig {
   const subZones = parseSubZones(v.subZones)
   const formation = parseFormation(v.formation)
   const trees = parseTreeMix(v.trees)
+  const crossings = parseCrossings(v.crossings)
   if (grid) out.grid = grid
   if (units) out.units = units
   if (nature) out.nature = nature
@@ -423,7 +436,21 @@ function parseConfig(v: unknown): GeneratorConfig {
   if (subZones) out.subZones = subZones
   if (formation) out.formation = formation
   if (trees) out.trees = trees
+  if (crossings) out.crossings = crossings
   return out
+}
+
+/** The served kinds of crossing. One with no tile is DROPPED: a crossing the backend could not describe is one
+ *  the generator must not lay. None left means none served. */
+function parseCrossings(v: unknown): Readonly<Record<string, GeneratorCrossing>> | undefined {
+  if (!isObject(v)) return undefined
+  const out: Record<string, GeneratorCrossing> = {}
+  for (const [key, raw] of Object.entries(v)) {
+    if (!isObject(raw) || !str(raw.tile)) continue
+    const colorOf = str(raw.colorOf)
+    out[key] = colorOf ? { tile: str(raw.tile)!, colorOf } : { tile: str(raw.tile)! }
+  }
+  return Object.keys(out).length > 0 ? out : undefined
 }
 
 /** A served tree mix. An entry with no kind or no positive weight is DROPPED, not defaulted — a species the

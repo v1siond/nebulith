@@ -698,6 +698,7 @@ export function GenerateControls({
     subZones: (gen ?? findGenerator(catalog, categoryKey, layoutId))?.config.subZones,
     formation: (gen ?? findGenerator(catalog, categoryKey, layoutId))?.config.formation,
     treeMix: (gen ?? findGenerator(catalog, categoryKey, layoutId))?.config.trees,
+    crossings: (gen ?? findGenerator(catalog, categoryKey, layoutId))?.config.crossings,
     // Seeded from the preset's identity, so a card's picture is stable across renders and every card shows
     // a DIFFERENT world rather than all sharing one seed.
     seed: presetSeed(categoryKey, layoutId ?? 'default', zone),
