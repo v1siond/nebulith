@@ -98,6 +98,7 @@ defmodule Nebulith.Catalog.TileSource do
     seed_prop_tiles(ascii_id, emoji_id)
     seed_emoji_tiles(emoji, emoji_id)
     seed_meadow_tiles(ascii_id, emoji_id)
+    seed_floor_tiles(ascii_id, emoji_id)
     seed_water_color()
     seed_autotile_pieces(ascii_id, emoji_id)
     seed_tree_pieces(ascii_id, emoji_id, ascii["palettes"])
@@ -1270,6 +1271,68 @@ defmodule Nebulith.Catalog.TileSource do
     seed_meadow_tiles(ascii_id, emoji_id)
     IO.puts("seeded meadow flat-colour ground tile (ascii + emoji)")
     :ok
+  end
+
+  @doc """
+  Upserts the FLAT `floor` ground tile in BOTH styles: the meadow's flat floor, for every other template.
+
+  Alexander, 2026-09-11: *"look how we handle the floor in meadow, just using different colors and only using
+  the floor tiles as ornaments, that's how we wanna do it on all other templates too"*. A cave, a temple, a
+  town plaza or a snowy wood lays this tile and writes the material's colour on it as per-cell STATE, which
+  leaves the textured tiles (cave floor, moss, stone) for ornaments.
+
+  Built exactly like `meadow`: the ascii picture is a sparse white glyph (`⸪`, baked by priv/tilegen) that the
+  cell's colour tints, and the emoji picture is the same flat white square. Its own label because a cave floor
+  is not a meadow, and the label is what names it in the editor.
+
+  Height 0.0, level with the live terrain it stands in for. Idempotent upsert by [tileset_id, label]. Called by
+  seed/0 and by the migration that adds it to an existing DB, runnable standalone.
+  """
+  def seed_floor do
+    ascii_id = ensure_tileset("ascii", "ASCII").id
+    emoji_id = ensure_tileset("emoji", "Emoji").id
+    seed_floor_tiles(ascii_id, emoji_id)
+    IO.puts("seeded the flat floor tile (ascii + emoji)")
+    :ok
+  end
+
+  # What a hand-painted floor wears before anyone colours it. A generated one always carries its own.
+  @floor_color "#8c8a82"
+
+  defp seed_floor_tiles(ascii_id, emoji_id) do
+    {:ok, _} =
+      Catalog.upsert_tile(%{
+        tileset_id: emoji_id,
+        label: "floor",
+        emoji: "⬜",
+        color_role: nil,
+        blocking: false,
+        height: 0.0,
+        category: "terrain",
+        title: "Floor",
+        image_url: "/tiles/emoji/baked/floor.png",
+        settings: %{"color" => @floor_color}
+      })
+
+    {:ok, _} =
+      Catalog.upsert_tile(%{
+        tileset_id: ascii_id,
+        label: "floor",
+        glyph: "⸪",
+        color_role: nil,
+        blocking: false,
+        height: 0.0,
+        category: "terrain",
+        title: "Floor",
+        image_url: "/tiles/ascii/floor.png",
+        settings: %{
+          "variants" => %{
+            "char" => ["⸪", "⸪"],
+            "fg" => [@floor_color, @floor_color],
+            "bg" => [@floor_color, @floor_color]
+          }
+        }
+      })
   end
 
   # The color-only RIVER blue — a flat water floor the meadow_river layout tints per-cell (sampled from #17).

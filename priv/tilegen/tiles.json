@@ -419,6 +419,12 @@
   "glyph": "⁘"
  },
  {
+  "label": "floor",
+  "mode": "ascii",
+  "style": "ascii",
+  "glyph": "⸪"
+ },
+ {
   "label": "desert_road",
   "mode": "ascii",
   "style": "ascii",

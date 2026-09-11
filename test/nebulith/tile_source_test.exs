@@ -343,6 +343,24 @@ defmodule Nebulith.TileSourceTest do
     end
   end
 
+  # Alexander, 2026-09-11: every template handles its floor the way the meadow does, colour on one flat tile.
+  test "the flat floor is served in both styles: walkable terrain, level with the ground, its own picture" do
+    for style <- ["ascii", "emoji"] do
+      floor = Enum.find(Catalog.list_tiles_for(style), &(&1.label == "floor"))
+      assert floor, "#{style} serves no flat floor"
+      assert floor.category == "terrain"
+      assert floor.blocking == false
+      assert floor.height == 0.0
+      assert floor.title == "Floor"
+
+      on_disk = Application.app_dir(:nebulith, Path.join("priv/static", floor.image_url))
+      assert File.exists?(on_disk), "#{style} floor points at #{floor.image_url}, which was never baked"
+    end
+
+    ascii = Map.new(Catalog.list_tiles_for("ascii"), &{&1.label, &1})
+    refute ascii["floor"].glyph == ascii["meadow"].glyph, "a shared glyph is a shared picture"
+  end
+
   test "every tile carries its OWN height, and the SAME label carries the same one in every art style" do
     # The rule this file states and the one worth guarding: *"height is per-tile DATA read uniformly, with
     # NO type/category code branch — a tile just carries its own height."*
