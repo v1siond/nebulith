@@ -1,16 +1,22 @@
 import '@/__tests__/helpers/installTilesetSeed' // the generator reads ALL tile data from the loaded backend tileset fixture
 import { generateStage } from '@/engine/stageGenerator'
 
-// The meadow layouts reproduce the reference forests (#14 = meadow, #24 = meadow + river): an OPEN muted-olive
+// The meadow layouts reproduce the reference forests (#14 = meadow, #24 = meadow with the river option on): an OPEN muted-olive
 // meadow that DOMINATES the map — a season floor-colour GRADIENT written as per-cell STATE, faint garden-PLOT
 // grid lines + subtle earth/rock/flower ornament ZONES ("not everything is green"), a SINGLE cobble entrance on
 // the near (bottom-left) edge (lamp posts + flower beds), SPARSE tree clumps framing the edges (never a dense
-// ring), and — the river variant — a WINDING colour-only river hugging THREE sides (top / left / right, the near
+// ring), and — the river option — a WINDING colour-only river hugging THREE sides (top / left / right, the near
 // edge left OPEN) with sandy banks and a walkable stone BRIDGE. Everything here is STRUCTURE the render depends
 // on; the visual match itself is validated on the running game (:3000).
 const seeds = (s: number) => ({ layout: s, buildings: s, nature: s, decor: s })
-const gen = (layout: 'meadow' | 'meadow_river', s = 7) =>
-  generateStage({ zone: 'summer', variant: 'forest', layout, cols: 40, rows: 40, seeds: seeds(s) })
+// A river is an OPTION on the meadow now, not a second layout (ticket 47). Same two worlds as before, the
+// switch just moved from the layout name into `options` — which is what the generator catalog serves.
+const gen = (water: 'dry' | 'river', s = 7) =>
+  generateStage({
+    zone: 'summer', variant: 'forest', layout: 'meadow',
+    options: { river: water === 'river' },
+    cols: 40, rows: 40, seeds: seeds(s),
+  })
 
 const edgeDepth = (c: number, r: number, cols: number, rows: number): number =>
   Math.min(c, cols - 1 - c, r, rows - 1 - r)
@@ -29,14 +35,14 @@ const walkableRuns = (collision: boolean[][], row: number): number => {
 
 describe('meadow layouts — structural match to #14 / #24', () => {
   it('writes a season floor-colour GRADIENT as per-cell STATE (every cell coloured, many bands)', () => {
-    const s = gen('meadow')
+    const s = gen('dry')
     expect(s.floorColors.flat().filter(Boolean)).toHaveLength(s.cols * s.rows) // every cell carries a colour
     expect(new Set(s.floorColors.flat()).size).toBeGreaterThan(6) // a real gradient, not one flat colour
   })
 
   it('keeps an OPEN centre — the meadow DOMINATES, framed by SPARSE edge trees (not a dense ring)', () => {
-    for (const layout of ['meadow', 'meadow_river'] as const) {
-      const s = gen(layout)
+    for (const water of ['dry', 'river'] as const) {
+      const s = gen(water)
       const lo = Math.floor(s.cols * 0.3)
       const hi = Math.floor(s.cols * 0.7)
       let inner = 0
@@ -55,8 +61,8 @@ describe('meadow layouts — structural match to #14 / #24', () => {
   })
 
   it('opens a SINGLE cobble entrance on the near (bottom-left) edge, lit by lamp posts', () => {
-    for (const layout of ['meadow', 'meadow_river'] as const) {
-      const s = gen(layout)
+    for (const water of ['dry', 'river'] as const) {
+      const s = gen(water)
       // the near (bottom) edge is OPEN — a wide walkable span (the entrance / open front), never sealed by a ring
       const bottom = s.rows - 1
       let open = 0
@@ -69,7 +75,7 @@ describe('meadow layouts — structural match to #14 / #24', () => {
   })
 
   it('scatters ornament ZONES that are NOT all green — earth/dirt patches + light field stones + plot lines', () => {
-    const s = gen('meadow')
+    const s = gen('dry')
     expect(s.props.some(p => p.type === 'rock')).toBe(true) // rock ornaments present
     // some floor cells carry a brown-ish EARTH/cobble tint (R noticeably above B) — "not everything is green"
     const brownish = s.floorColors.flat().filter((hex): hex is string => {
@@ -80,10 +86,10 @@ describe('meadow layouts — structural match to #14 / #24', () => {
     expect(brownish.length).toBeGreaterThan(0)
   })
 
-  it('meadow has NO water; meadow_river winds a river hugging THREE sides, leaving the near edge OPEN', () => {
-    expect(gen('meadow').ground.flat().filter(g => g === 'water')).toHaveLength(0)
+  it('meadow has NO water; the river option winds a river hugging THREE sides, leaving the near edge OPEN', () => {
+    expect(gen('dry').ground.flat().filter(g => g === 'water')).toHaveLength(0)
 
-    const wet = gen('meadow_river')
+    const wet = gen('river')
     const water: Array<[number, number]> = []
     wet.ground.forEach((rowArr, r) => rowArr.forEach((g, c) => { if (g === 'water') water.push([c, r]) }))
     expect(water.length).toBeGreaterThan(30) // a real river body, not a puddle
@@ -95,7 +101,7 @@ describe('meadow layouts — structural match to #14 / #24', () => {
   })
 
   it('never plants a tree or standing prop IN the water', () => {
-    const wet = gen('meadow_river')
+    const wet = gen('river')
     const water = new Set<string>()
     wet.ground.forEach((rowArr, r) => rowArr.forEach((g, c) => { if (g === 'water') water.add(`${c},${r}`) }))
     expect(wet.trees.some(t => water.has(`${t.col},${t.row}`))).toBe(false)
@@ -103,7 +109,7 @@ describe('meadow layouts — structural match to #14 / #24', () => {
   })
 
   it('crosses the river with a walkable stone BRIDGE', () => {
-    const wet = gen('meadow_river')
+    const wet = gen('river')
     const bridge: Array<[number, number]> = []
     wet.ground.forEach((rowArr, r) => rowArr.forEach((g, c) => { if (g === 'bridge') bridge.push([c, r]) }))
     expect(bridge.length).toBeGreaterThan(0)
@@ -114,8 +120,8 @@ describe('meadow layouts — structural match to #14 / #24', () => {
     const plain = generateStage({ zone: 'summer', variant: 'forest', cols: 40, rows: 40, seeds: seeds(4) })
     expect(plain.floorColors.flat().filter(Boolean).length).toBe(plain.cols * plain.rows) // meadow ran (it owns the gradient)
 
-    const a = gen('meadow_river', 3)
-    const b = gen('meadow_river', 3)
+    const a = gen('river', 3)
+    const b = gen('river', 3)
     expect(a.ground).toEqual(b.ground)
     expect(a.collision).toEqual(b.collision)
     expect(a.trees).toEqual(b.trees)

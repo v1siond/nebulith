@@ -3464,7 +3464,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   // ── macro RANDOMIZE: whole map + per-layer scopes (GENERATION-SPEC §5) ──────
   // The recipe of the last full generate — zone/variant/size + the per-layer SEEDS. Re-rolling one
   // layer changes only that layer's seed and regenerates: the rest, fed the same seeds, reproduce.
-  const lastGenRef = useRef<{ zone: ZoneId; variant: VariantId; layout?: ForestLayout; cols: number; rows: number; seeds: Record<'layout' | 'buildings' | 'nature' | 'decor', number> } | null>(null)
+  const lastGenRef = useRef<{ zone: ZoneId; variant: VariantId; layout?: ForestLayout; options?: Record<string, boolean>; cols: number; rows: number; seeds: Record<'layout' | 'buildings' | 'nature' | 'decor', number> } | null>(null)
   // Salts the per-building material/roof/wall-colour hash so "randomize buildings only" repaints.
   const buildingSaltRef = useRef(0)
   const randSeed = (): number => (Math.random() * 0x7fffffff) | 0
@@ -3536,8 +3536,10 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       cols: recipe.cols,
       rows: recipe.rows,
       seeds,
-      // The re-roll must be fed the SAME served config as the original generate, or a re-rolled town
-      // would plan its plots from different numbers than the one it is replacing.
+      // The re-roll must be fed the SAME served config AND the same options as the original generate, or
+      // a re-rolled town would plan its plots from different numbers than the one it is replacing — and a
+      // woodland with a river would lose the river.
+      options: recipe.options,
       nature: generator.config.nature,
       settlement: generator.config.settlement,
       buildingSizes: buildingSizeSource(buildingTypesRef.current),
@@ -3619,6 +3621,8 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     /** The size the panel asked for — cell pixels included. Absent = let the generator roll one. */
     requested?: MapSize,
     seed?: number,
+    /** The generator's options as the person set them — a river, a crossing. Not a separate template. */
+    options?: Record<string, boolean>,
   ) => {
     // WHICH world to build is the backend's answer (`/api/generators`, T-113): the map type's grid range,
     // unit counts and building palette all come off this row. No generator → nothing is generated and the
@@ -3676,7 +3680,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     const seeds = seeded
       ? { layout: seed, buildings: seed + 1, nature: seed + 2, decor: seed + 3 }
       : { layout: randSeed(), buildings: randSeed(), nature: randSeed(), decor: randSeed() }
-    lastGenRef.current = { zone, variant, layout, cols: grid.cols, rows: grid.rows, seeds }
+    lastGenRef.current = { zone, variant, layout, options, cols: grid.cols, rows: grid.rows, seeds }
     buildingSaltRef.current = seeded ? seed + 4 : randSeed()
     // THE GENERATOR'S OWN NATURE DENSITIES travel with the call. They were served by the backend and
     // parsed into the catalog since T-113, but `generateStage` never took them, so `groundCover` was dead
@@ -3694,6 +3698,9 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       cols: grid.cols,
       rows: grid.rows,
       seeds,
+      // What the person switched on for this generator (a river, a crossing). The layout builders read
+      // these instead of there being a `woodland_river` row beside the `woodland` one.
+      options,
       nature: generator.config.nature,
       // The served settlement tuning — `houseWidths` is the plot-size weighting the town rolls from. Parsed
       // since T-113 and never read until now, exactly like `nature.groundCover`.
@@ -5643,8 +5650,8 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                   catalogError={generatorCatalogError}
                   zone={genZone}
                   onZone={z => setGenZone(z as ZoneId)}
-                  onGenerate={(z, v, layout) => {
-                    void generateStageInEditor(z as ZoneId, v as VariantId, layout as ForestLayout | undefined)
+                  onGenerate={(z, v, layout, options) => {
+                    void generateStageInEditor(z as ZoneId, v as VariantId, layout as ForestLayout | undefined, undefined, undefined, options)
                   }}
                   onRandomizeLayer={layer => randomizeLayerInEditor(layer as LayerId)}
                   selectedCount={selectedCells.size}

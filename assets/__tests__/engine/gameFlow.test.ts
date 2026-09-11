@@ -12,9 +12,9 @@ import type { Quest } from '@/game/types'
 // together from zero to a finished quest.
 describe('Nebulith — full game flow: 0 → game-ready → quest complete', () => {
   it('generates a 5-section level, links it, and plays a kill quest to turn-in', () => {
-    // 1) GENERATE the sections: 2 forests (meadow + meadow_river), a temple, a cave, a boss room.
+    // 1) GENERATE the sections: 2 forests (a dry meadow + one with the river option on), a temple, a cave, a boss room.
     const forestA = generateStage({ zone: 'summer', variant: 'forest', layout: 'meadow', cols: 40, rows: 30 })
-    const forestB = generateStage({ zone: 'summer', variant: 'forest', layout: 'meadow_river', cols: 40, rows: 30 })
+    const forestB = generateStage({ zone: 'summer', variant: 'forest', layout: 'meadow', options: { river: true }, cols: 40, rows: 30 })
     const temple = generateStage({ zone: 'autumn', variant: 'temple', cols: 36, rows: 30 })
     const cave = generateStage({ zone: 'autumn', variant: 'cave', cols: 40, rows: 30 })
     const boss = generateStage({ zone: 'autumn', variant: 'boss-stage', cols: 36, rows: 30 })
@@ -29,7 +29,7 @@ describe('Nebulith — full game flow: 0 → game-ready → quest complete', () 
     expect(temple.props.some(p => p.type === 'temple_wall')).toBe(true) // walled interior
     expect(cave.props.some(p => p.type === 'rock')).toBe(true)
     expect(boss.props.some(p => p.type === 'boss')).toBe(true)
-    expect(forestB.ground.flat().includes('water')).toBe(true) // the meadow_river's winding river
+    expect(forestB.ground.flat().includes('water')).toBe(true) // the river option's winding river
 
     // 2) CONNECT them into a path: forestA → forestB → temple → cave → boss.
     const order = ['forestA', 'forestB', 'temple', 'cave', 'boss'] as const

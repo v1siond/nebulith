@@ -104,6 +104,50 @@ export interface GeneratorDef {
   zones: readonly string[]
   position: number
   config: GeneratorConfig
+  /**
+   * What a person may switch ON for this generator.
+   *
+   * Alexander, 2026-09-10: *"every time we add a new template, the list grows ... that's not sustainable.
+   * Instead, we should just have extra options for each template"*. A river used to be a second row
+   * (`Woodland + River`); it is an option on Woodland now. DECLARED by the backend, so the panel renders
+   * whatever exists without knowing any option by name.
+   */
+  options: readonly GeneratorOption[]
+}
+
+/** One switch a generator offers. `requires` names an option that must be on for this one to apply. */
+export interface GeneratorOption {
+  key: string
+  label: string
+  type: 'toggle'
+  default: boolean
+  /** Meaningless without that option — a crossing needs a river. Stated here, not known by the frontend. */
+  requires?: string
+}
+
+/**
+ * The options a served generator declares. A malformed one is DROPPED with a warning rather than guessed
+ * at: an option the panel cannot describe is one a person cannot use on purpose.
+ */
+function parseOptions(raw: unknown): readonly GeneratorOption[] {
+  if (!Array.isArray(raw)) return []
+  const out: GeneratorOption[] = []
+  for (const row of raw) {
+    if (typeof row !== 'object' || row === null) continue
+    const { key, label, type, default: fallback, requires } = row as Record<string, unknown>
+    if (typeof key !== 'string' || typeof label !== 'string') {
+      console.warn('[generators] an option with no key or label was dropped', row)
+      continue
+    }
+    out.push({
+      key,
+      label,
+      type: type === 'toggle' ? 'toggle' : 'toggle',
+      default: fallback === true,
+      ...(typeof requires === 'string' ? { requires } : {}),
+    })
+  }
+  return out
 }
 
 /** A category — the user-facing MAP TYPE (Forest, Town, City, Cave, Temple) and its generators. */
@@ -247,6 +291,7 @@ function parseGenerator(v: unknown): GeneratorDef | null {
     zones: strList(v.zones) ?? [],
     position: num(v.position) ?? 0,
     config: parseConfig(v.config),
+    options: parseOptions(v.options),
   }
 }
 

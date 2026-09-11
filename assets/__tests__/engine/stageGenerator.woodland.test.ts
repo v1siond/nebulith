@@ -1,5 +1,5 @@
 /**
- * THE CANOPY FOREST LAYOUTS — `woodland`, `woodland_river` and `jungle`.
+ * THE CANOPY FOREST LAYOUTS — `woodland`, `jungle`, and the river OPTION either can carry.
  *
  * Alexander, 2026-09-09: *"we need less trees on woodland, reduce it about 30%"*, *"add a jungle variant"*,
  * *"and add a woodland + river variant too."*
@@ -27,11 +27,11 @@ const JUNGLE: NatureDensity = { canopy: 0.62, groundCover: 0.5, flowers: 0.1 }
 /** Build under a SEEDED Math.random, so a density assertion measures the density and not the roll of the
  *  day. Comparing two stochastic quantities across unseeded runs is how a test becomes a coin flip — this
  *  suite asserts ratios, so it has to hold the randomness still. */
-const build = (layout: ForestLayout, nature: NatureDensity, seed = 1) => {
+const build = (layout: ForestLayout, nature: NatureDensity, seed = 1, options?: Record<string, boolean>) => {
   const orig = Math.random
   Math.random = makeRng(seed)
   try {
-    return generateStage({ zone: 'summer', variant: 'forest', layout, cols: COLS, rows: ROWS, nature })
+    return generateStage({ zone: 'summer', variant: 'forest', layout, cols: COLS, rows: ROWS, nature, options })
   } finally {
     Math.random = orig
   }
@@ -39,6 +39,24 @@ const build = (layout: ForestLayout, nature: NatureDensity, seed = 1) => {
 
 const countGround = (stage: ReturnType<typeof build>, tile: string) =>
   stage.ground.flat().filter(t => t === tile).length
+
+/** Every cell carrying `tile`, as [col, row] pairs. */
+const cellsOf = (stage: ReturnType<typeof build>, tile: string): Array<[number, number]> => {
+  const out: Array<[number, number]> = []
+  stage.ground.forEach((rowArr, r) => rowArr.forEach((g, c) => { if (g === tile) out.push([c, r]) }))
+  return out
+}
+
+/** The tile this stage's trails are paved with — read off the map rather than hardcoded, because the trail
+ *  tile comes from the zone's palette and a season is free to pave differently. It is the commonest ground
+ *  tile that is neither the floor nor the water nor the deck. */
+const trailTile = (stage: ReturnType<typeof build>): string => {
+  const tally = new Map<string, number>()
+  for (const t of stage.ground.flat()) tally.set(t, (tally.get(t) ?? 0) + 1)
+  const floor = [...tally.entries()].sort((a, b) => b[1] - a[1])[0][0]
+  const rest = [...tally.entries()].filter(([t]) => t !== floor && t !== 'water' && t !== 'bridge')
+  return rest.sort((a, b) => b[1] - a[1])[0]?.[0] ?? ''
+}
 
 /** Trees averaged over several SEEDED maps — one map says nothing about a density, and the seeds make the
  *  average reproducible so the band below is a real bound rather than a lucky one. */
@@ -49,12 +67,14 @@ const meanTrees = (layout: ForestLayout, nature: NatureDensity, runs = 5) => {
 }
 
 describe('every canopy layout builds a navigable forest', () => {
-  it.each<[ForestLayout, NatureDensity]>([
-    ['woodland', WOODLAND],
-    ['woodland_river', WOODLAND],
-    ['jungle', JUNGLE],
-  ])('%s plants trees, carves clearings and leaves a way through', (layout, nature) => {
-    const stage = build(layout, nature)
+  // A river is an OPTION on a canopy layout, not a layout of its own (ticket 47) — so the wet woodland is
+  // the SAME row with `river` switched on, which is exactly how the editor asks for it.
+  it.each<[string, ForestLayout, NatureDensity, Record<string, boolean> | undefined]>([
+    ['woodland', 'woodland', WOODLAND, undefined],
+    ['woodland + river', 'woodland', WOODLAND, { river: true }],
+    ['jungle', 'jungle', JUNGLE, undefined],
+  ])('%s plants trees, carves clearings and leaves a way through', (_label, layout, nature, options) => {
+    const stage = build(layout, nature, 1, options)
     expect(stage.trees.length).toBeGreaterThan(0)
     // Not a solid block of forest: a real share of the map is NOT under a trunk, which is what the clearings
     // and trails are. Alexander, 2026-09-09: *"the forest is generated without any roads, there's no way to
@@ -88,16 +108,43 @@ describe('the woodland was thinned by ~30% (Alexander, 2026-09-09)', () => {
 
 describe('woodland + river', () => {
   it('cuts a river through the trees and bridges it, so the wood is still one place', () => {
-    const stage = build('woodland_river', WOODLAND)
+    const stage = build('woodland', WOODLAND, 1, { river: true })
     expect(countGround(stage, 'water')).toBeGreaterThan(0)
     // A river you cannot cross splits the forest in two — the deck is laid last so nothing plants over it.
     expect(countGround(stage, 'bridge')).toBeGreaterThan(0)
   })
 
   it('never plants a tree in the water — the river is carved BEFORE anything is planted', () => {
-    const stage = build('woodland_river', WOODLAND)
+    const stage = build('woodland', WOODLAND, 1, { river: true })
     const inWater = stage.trees.filter(t => stage.ground[t.row]?.[t.col] === 'water')
     expect(inWater.map(t => `${t.col},${t.row}`)).toEqual([])
+  })
+
+  it('never leaves the crossing stranded — the deck is walkable whichever way it was placed', () => {
+    for (const crossing of [false, true]) {
+      const stage = build('woodland', WOODLAND, 4, { river: true, crossing })
+      const deck = cellsOf(stage, 'bridge')
+      expect(deck.length).toBeGreaterThan(0) // a river with no way over it is two maps
+      expect(deck.every(([c, r]) => stage.collision[r][c] === false)).toBe(true)
+    }
+  })
+
+  it('JOINS the crossing to a trail when asked — the deck touches the path network, not the trees', () => {
+    // Ticket 36, his words: *"rivers need crossings connected to the paths"*. The plain bridge spans at a
+    // fixed column and lands wherever that is, which in a wood is usually nowhere. With the option on, the
+    // span is chosen AGAINST the trails and paved back to them, so a deck cell is always next to paving.
+    //
+    // These five seeds DISCRIMINATE, which is the only reason the loop is here: measured with the option
+    // off, seeds 1 and 3 leave the deck stranded in the trees and 2/4/5 happen to land near a trail anyway.
+    // A single seed would have passed either way and proved nothing.
+    for (const seed of [1, 2, 3, 4, 5]) {
+      const stage = build('woodland', WOODLAND, seed, { river: true, crossing: true })
+      const deck = cellsOf(stage, 'bridge')
+      const paved = new Set(cellsOf(stage, trailTile(stage)).map(([c, r]) => `${c},${r}`))
+      const touching = deck.some(([c, r]) =>
+        [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dc, dr]) => paved.has(`${c + dc},${r + dr}`)))
+      expect({ seed, touching }).toEqual({ seed, touching: true })
+    }
   })
 
   it('the plain woodland has no water at all', () => {

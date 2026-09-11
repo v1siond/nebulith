@@ -86,11 +86,16 @@ function genSeeded(opts: Parameters<typeof generateStage>[0], seed: number): Sta
 // the severed entrance as a stranded pocket: measured on a 400-seed sweep, ~3% of caves came out with no way
 // in at all. The cave now restores its entrance chamber and re-joins it before the repair runs, so the cells
 // that used to be filled stay floor. Only the CAVE moves; every other archetype is byte-identical.
+// Regenerated 2026-09-11 for ticket 47, a river is an OPTION now and `meadow_river` is gone as a layout. This
+// case serves no layout, so it rolls one, and the random pool went from three meadows to two — a different
+// draw off the same seed, hence a different digest. Only the FOREST moves. Sanity-checked before relocking:
+// 30x24 all meadow floor, 63 trees framing an open middle, 91% of cells walkable, and no water, which is
+// right because nothing switched the river on.
 const BASELINE: Record<string, string> = {
   'town|autumn|40x40|1': '8ffad300',
   'town|summer|50x40|7': '8c83d0fd',
   'city|summer|56x44|3': '93a2b8c7',
-  'forest|summer|30x24|42': '693fc6e6',
+  'forest|summer|30x24|42': 'f243961a',
   'cave|autumn|40x30|99': 'fd2b4fbe',
   'temple|winter|36x30|5': '7b1712d1',
   'boss-stage|winter|36x30|11': 'db1efcb4',

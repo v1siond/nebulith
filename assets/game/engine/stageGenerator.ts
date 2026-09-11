@@ -81,7 +81,7 @@ type LayerRngs = Record<EngineLayerId, Rng>
  *  generators were RETIRED (Alexander) — the forest now builds one of the meadow layouts, and a plain generate
  *  with no explicit layout RANDOMLY picks one (seeded). All are registered in FOREST_LAYOUTS. `meadow_pass` is a
  *  NEW variation: the open meadow opened on TWO opposite edges (top + bottom) for a through-route map (#26). */
-export type ForestLayout = 'woodland' | 'woodland_river' | 'jungle' | 'meadow' | 'meadow_river' | 'meadow_pass'
+export type ForestLayout = 'woodland' | 'jungle' | 'meadow' | 'meadow_pass'
 
 export interface StageProp {
   col: number
@@ -181,6 +181,8 @@ export interface GenerateOptions {
   variant: VariantId
   cols?: number
   rows?: number
+  /** The generator's options as the person set them (`{river: true}`) — a variation, not a new template. */
+  options?: Readonly<Record<string, boolean>>
   /** Steer the general forest layout; the rest is randomized. Default 'passages'
    *  reproduces today's multi-passage forest. Only the forest variant reads it. */
   layout?: ForestLayout
@@ -615,6 +617,8 @@ interface ArchetypeContext {
   /** The user-steered forest layout, or undefined for a plain generate (placeForest then random-picks a
    *  meadow layout). Only placeForest reads it. */
   layout: ForestLayout | undefined
+  /** The generator's OPTIONS as the person set them — `{river: true}`. A layout reads the ones it knows. */
+  options: Readonly<Record<string, boolean>> | undefined
   /** The active pass's random source. Defaults to `Math.random`; a seeded layer swaps in its own
    *  `makeRng(seed)` stream so the pass reproduces. EVERY stochastic helper draws from this, never
    *  from `Math.random` directly, so a pass is pure given its rng. */
@@ -668,7 +672,7 @@ export function generateStage(opts: GenerateOptions): StageData {
     decor: layerRng(opts.seeds, 'decor'),
   }
   // Single-pass archetypes (forest/cave/temple/boss) read `ctx.rand`; the layout rng is their source.
-  const ctx: ArchetypeContext = { zone, ground, collision, floorColors, buildings, props, trees, compositions, cols, rows, layout, nature: opts.nature, settlement: opts.settlement, buildingSizes: opts.buildingSizes, rand: rngs.layout }
+  const ctx: ArchetypeContext = { zone, ground, collision, floorColors, buildings, props, trees, compositions, cols, rows, layout, options: opts.options, nature: opts.nature, settlement: opts.settlement, buildingSizes: opts.buildingSizes, rand: rngs.layout }
   ARCHETYPES[variant]?.(ctx, rngs)
   addTerrainTransitions(ctx) // blended shorelines / lava banks over the painted ground
 
@@ -1132,10 +1136,10 @@ function placeForest(ctx: ArchetypeContext): void {
  * density — is the hardcoded fallback the compliance rule forbids.
  */
 function forestLayoutCandidates(nature: NatureDensity | undefined): readonly ForestLayout[] {
-  const meadows: readonly ForestLayout[] = ['meadow', 'meadow_river', 'meadow_pass']
+  const meadows: readonly ForestLayout[] = ['meadow', 'meadow_pass']
   // The canopy layouts need a served tree density to build from; without one they would plant nothing, so
   // they only enter the pool when the generator actually supplies `nature.canopy`.
-  const canopied: readonly ForestLayout[] = ['woodland', 'woodland_river', 'jungle']
+  const canopied: readonly ForestLayout[] = ['woodland', 'jungle']
   return nature?.canopy === undefined ? meadows : [...canopied, ...meadows]
 }
 
@@ -1144,18 +1148,29 @@ function pickMeadowLayout(rand: Rng, nature: NatureDensity | undefined): ForestL
   return pool[randIntWith(rand, 0, pool.length - 1)]
 }
 
+/** The water options as the generator serves them, read once so the three forest layouts cannot drift apart
+ *  on what a river or a crossing means. An absent option is OFF: the catalog row says `default: false`, and
+ *  inventing a value here is exactly the hardcoded fallback the compliance rule forbids. */
+const forestWater = (ctx: ArchetypeContext): { river: boolean; crossing: boolean } => ({
+  river: ctx.options?.river === true,
+  crossing: ctx.options?.crossing === true,
+})
+
 /** Forest layout builders, keyed by the user-steered ForestLayout. Each runs on the already-floored ctx
  *  and is fully responsible for the floor gradient / trees / river / ornaments / repair.
  *  Open/Closed: register a layout here, no dispatcher edits. */
 const FOREST_LAYOUTS: Readonly<Partial<Record<ForestLayout, (ctx: ArchetypeContext) => void>>> = {
-  woodland: ctx => layoutWoodland(ctx),
-  woodland_river: ctx => layoutWoodland(ctx, { river: true }),
+  // A RIVER IS AN OPTION, not a layout. Alexander, 2026-09-10: *"every time we add a new template, the
+  // list grows ... that's not sustainable. Instead, we should just have extra options for each template"*.
+  // It was already an option INSIDE the builder — `layoutWoodland(ctx, {river: true})` — and only the
+  // catalog row and the layout string duplicated per combination. Now the option reaches the builder from
+  // the generator's declared options, and `woodland_river` / `meadow_river` are gone as layouts.
+  woodland: ctx => layoutWoodland(ctx, forestWater(ctx)),
   // A JUNGLE is a woodland at jungle DENSITY — same trails, same clearings, a much heavier canopy and floor.
   // The difference is entirely in the served `nature` block, so it needs no structure of its own; giving it
   // one would be two code paths that have to be kept looking alike by hand.
-  jungle: ctx => layoutWoodland(ctx),
-  meadow: layoutMeadow,
-  meadow_river: layoutMeadowRiver,
+  jungle: ctx => layoutWoodland(ctx, forestWater(ctx)),
+  meadow: ctx => buildMeadow(ctx, { ...forestWater(ctx), twoWays: false }),
   meadow_pass: layoutMeadowPass,
 }
 
@@ -1212,7 +1227,7 @@ const WOODLAND = {
  *  Alexander, 2026-09-09: *"add a woodland + river variant too."* Mirrors the meadow pair — one builder, an
  *  options object — so the two never drift apart. A JUNGLE is not here: it is the same STRUCTURE at a heavier
  *  served density, so it is a preset over this builder, not a fourth code path (see FOREST_LAYOUTS). */
-function layoutWoodland(ctx: ArchetypeContext, opts: { river?: boolean } = {}): void {
+function layoutWoodland(ctx: ArchetypeContext, opts: { river?: boolean; crossing?: boolean } = {}): void {
   const { cols, rows, collision, ground, zone, trees } = ctx
   const canopy = ctx.nature?.canopy
   if (canopy === undefined) {
@@ -1308,7 +1323,9 @@ function layoutWoodland(ctx: ArchetypeContext, opts: { river?: boolean } = {}): 
 
   // 6 · THE CROSSING, last — a river you cannot cross splits the forest in two, and the deck has to be laid
   //     after the planting so nothing puts a trunk back on it. Same ordering reason as the meadow's.
-  if (opts.river) placeMeadowBridge(ctx, water)
+  //     The trails carved in step 2 are this layout's path network, so a joined crossing lands on one of them
+  //     rather than in the middle of the trees — which is the whole of ticket 36.
+  if (opts.river) crossRiver(ctx, water, trailCells, opts.crossing === true)
 
   void collision
   void trees
@@ -1490,14 +1507,15 @@ function lerpHex(a: string, b: string, t: number): string {
 }
 
 function layoutMeadow(ctx: ArchetypeContext): void { buildMeadow(ctx, { river: false, twoWays: false }) }
-function layoutMeadowRiver(ctx: ArchetypeContext): void { buildMeadow(ctx, { river: true, twoWays: false }) }
 /** `meadow_pass` (#26): the open meadow opened on TWO opposite edges (top + bottom) — a through-route you can
  *  enter one side and exit the other, distinct from the single-entrance `meadow`. No river. */
 function layoutMeadowPass(ctx: ArchetypeContext): void { buildMeadow(ctx, { river: false, twoWays: true }) }
 
 interface MeadowBuild {
-  /** Carve the perimeter WINDING river + a crossing bridge (the `meadow_river` variation). */
+  /** Carve the perimeter WINDING river. An option on the generator now, not a layout of its own. */
   river: boolean
+  /** Put the river's crossing ON the path network instead of at the fixed top-right span (ticket 36). */
+  crossing?: boolean
   /** Open TWO opposite cobble ways (top + bottom) for a through-route (`meadow_pass`) instead of one bottom way. */
   twoWays: boolean
 }
@@ -1513,14 +1531,24 @@ function buildMeadow(ctx: ArchetypeContext, opts: MeadowBuild): void {
   paintMeadowPlots(ctx, water)                    // faint tended-field patchwork (a subtle colour)
   scatterMeadowOrnaments(ctx, water)              // subtle dirt/earth patches, a few field stones, tiny flowers — mostly open
   scatterFramingTrees(ctx, water)                 // SPARSE tree clumps BEYOND the river (top/left/right) + a few near the bottom corners
+  // The cobble ways ARE this layout's path network, so they are what a joined crossing joins to.
+  const routes = new Set<string>()
   if (opts.twoWays) {
-    paintMeadowEntrance(ctx, water, false, 0.5)   // near (bottom) cobble way in
-    paintMeadowEntrance(ctx, water, true, 0.5)    // far (top) cobble way out — opposite edge, aligned → a through-route (#26)
+    paintMeadowEntrance(ctx, water, routes, false, 0.5) // near (bottom) cobble way in
+    paintMeadowEntrance(ctx, water, routes, true, 0.5)  // far (top) cobble way out — opposite edge, aligned → a through-route (#26)
   } else {
-    paintMeadowEntrance(ctx, water)               // ONE bottom-left cobble entrance, lamp posts + flower beds
+    paintMeadowEntrance(ctx, water, routes)       // ONE bottom-left cobble entrance, lamp posts + flower beds
   }
   repairFloorConnectivity(ctx, MEADOW_MAX_POCKET) // fill only TINY stranded pockets; the land strip beyond the river stays (decor)
-  if (opts.river) placeMeadowBridge(ctx, water)   // a stone bridge crossing the river at the top-right (drawn after repair)
+  if (opts.river) crossRiver(ctx, water, routes, opts.crossing === true) // drawn after repair so the deck is never filled back in
+}
+
+/** Get across the river. With the crossing option on, the span is placed against the path network and paved
+ *  back to it (ticket 36); with it off, the plain fixed-column bridge. Either way the map stays ONE place —
+ *  an uncrossable river is two maps, which is never what anyone asked for. */
+function crossRiver(ctx: ArchetypeContext, water: Set<string>, routes: Set<string>, joined: boolean): void {
+  if (joined && placeRiverCrossing(ctx, water, routes)) return
+  placeMeadowBridge(ctx, water)
 }
 
 /** Flat 'meadow' floor tile in every cell — a raised, colour-tintable block (its per-cell colour is
@@ -1658,7 +1686,7 @@ function stampMeadowTree(ctx: ArchetypeContext, col: number, row: number, tall: 
  *  a colour, not a tile) from the near edge inward, lined with colourful flower beds + lamp posts (the lit
  *  cobble way in #24). Clears any framing tree/prop off the lane first, so the way in is always a clean
  *  opening. */
-function paintMeadowEntrance(ctx: ArchetypeContext, water: Set<string>, fromTop = false, frac = MEADOW_ENTRANCE_FRAC): void {
+function paintMeadowEntrance(ctx: ArchetypeContext, water: Set<string>, routes: Set<string>, fromTop = false, frac = MEADOW_ENTRANCE_FRAC): void {
   const { cols, rows, ground, collision, floorColors, zone } = ctx
   const pal = MEADOW_PALETTES[zone] ?? MEADOW_PALETTES.summer
   const g = clamp(Math.floor(cols * frac), MEADOW_ENTRANCE_HALF + 1, cols - MEADOW_ENTRANCE_HALF - 2)
@@ -1676,6 +1704,7 @@ function paintMeadowEntrance(ctx: ArchetypeContext, water: Set<string>, fromTop 
       if (!inBounds(c, row, cols, rows) || water.has(`${c},${row}`) || collision[row][c]) continue
       ground[row][c] = 'meadow'
       floorColors[row][c] = pal.cobble
+      routes.add(`${c},${row}`)
     }
     plantFlowerBed(ctx, g - MEADOW_ENTRANCE_HALF - 1, row) // beds hug both sides of the lane
     plantFlowerBed(ctx, g + MEADOW_ENTRANCE_HALF + 1, row)
@@ -1809,8 +1838,7 @@ function placeMeadowOrnamentZone(ctx: ArchetypeContext, cc: number, cr: number, 
  *  the river. Drawn AFTER repairFloorConnectivity so its walkable deck is never filled back to forest; clears
  *  any tree/prop on the deck. */
 function placeMeadowBridge(ctx: ArchetypeContext, water: Set<string>): void {
-  const { cols, rows, ground, collision, floorColors } = ctx
-  const pal = MEADOW_PALETTES[ctx.zone] ?? MEADOW_PALETTES.summer
+  const { cols, rows } = ctx
   const bridgeCol = Math.floor(cols * 0.72) // top-right, over the top-edge river arm (#24)
   const span: number[] = []
   for (let row = 0; row < rows; row++) if (water.has(`${bridgeCol},${row}`)) span.push(row)
@@ -1818,13 +1846,144 @@ function placeMeadowBridge(ctx: ArchetypeContext, water: Set<string>): void {
   const rowsToDeck = [Math.min(...span) - 1, ...span, Math.max(...span) + 1]
   const deck = new Set<string>()
   for (const row of rowsToDeck) for (let w = -1; w <= 1; w++) deck.add(`${bridgeCol + w},${row}`)
-  clearMeadowCells(ctx, deck) // drop any tree/prop the border/repair left on the deck
+  layDeck(ctx, deck) // clears any tree/prop the border/repair left on it, then lays the walkable deck
+}
+
+/**
+ * THE CROSSING, JOINED TO THE PATHS (ticket 36). Alexander, 2026-09-10: *"rivers need crossings connected to
+ * the paths"*.
+ *
+ * `placeMeadowBridge` spans the river at a FIXED column, wherever that lands. On a meadow it happens to land
+ * near the way in; in a wood it lands wherever it lands, so you get a deck in the middle of the trees with no
+ * route to it. That is the defect he named, and it is a placement problem, not a missing feature.
+ *
+ * This one works the other way round: start from the ROUTE the layout already paved, span the river at its
+ * narrowest point beside it, and pave a spur from each bank back to the nearest route cell. The deck ends up
+ * part of the path network rather than a bridge that happens to exist.
+ *
+ * Returns false when there is nothing to join to (no route, or no water beside it) so the caller can fall
+ * back to the plain bridge — a river still has to be crossable either way.
+ */
+function placeRiverCrossing(ctx: ArchetypeContext, water: Set<string>, routes: Set<string>): boolean {
+  if (water.size === 0 || routes.size === 0) return false
+  const meet = closestPair(routes, water)
+  if (!meet) return false
+
+  // Span whichever way the river is NARROWER here — the perimeter river runs along the top as a horizontal
+  // arm and down the sides as vertical ones, so the deck's axis cannot be assumed.
+  const across = (dc: number, dr: number) => waterReach(water, meet.to, dc, dr)
+  const horizontal = 1 + across(1, 0) + across(-1, 0) <= 1 + across(0, 1) + across(0, -1)
+  const axis: readonly [number, number] = horizontal ? [1, 0] : [0, 1]
+  const perp: readonly [number, number] = horizontal ? [0, 1] : [1, 0]
+
+  // One dry cell beyond the water at each end, so the deck has a landing rather than stopping in the river.
+  const back = across(-axis[0], -axis[1]) + 1
+  const forward = across(axis[0], axis[1]) + 1
+  const at = (i: number): Cell => ({ col: meet.to.col + axis[0] * i, row: meet.to.row + axis[1] * i })
+  const deck = new Set<string>()
+  for (let i = -back; i <= forward; i++) {
+    const cell = at(i)
+    for (let w = -1; w <= 1; w++) deck.add(`${cell.col + perp[0] * w},${cell.row + perp[1] * w}`)
+  }
+  if (![...deck].some(key => inBounds(toCell(key).col, toCell(key).row, ctx.cols, ctx.rows))) return false
+  layDeck(ctx, deck)
+
+  // JOIN IT. Both banks, because a crossing you can only reach from one side is a pier.
+  for (const end of [at(-back), at(forward)]) {
+    const target = nearestCell(end, routes)
+    if (target) carveSpur(ctx, end, target, water)
+  }
+  return true
+}
+
+/** The closest cell in `a` to any cell in `b`, as the pair. Both sets are map-sized at most, so the plain
+ *  double loop is cheaper than the spatial index it would take to beat it. */
+function closestPair(a: Iterable<string>, b: Iterable<string>): { from: Cell; to: Cell } | null {
+  const targets = [...b].map(toCell)
+  let best: { from: Cell; to: Cell } | null = null
+  let bestD = Infinity
+  for (const key of a) {
+    const from = toCell(key)
+    for (const to of targets) {
+      const d = (from.col - to.col) ** 2 + (from.row - to.row) ** 2
+      if (d >= bestD) continue
+      bestD = d
+      best = { from, to }
+    }
+  }
+  return best
+}
+
+/** The cell in `keys` nearest `from`, or null when there are none. */
+function nearestCell(from: Cell, keys: Iterable<string>): Cell | null {
+  let best: Cell | null = null
+  let bestD = Infinity
+  for (const key of keys) {
+    const cell = toCell(key)
+    const d = (cell.col - from.col) ** 2 + (cell.row - from.row) ** 2
+    if (d >= bestD) continue
+    bestD = d
+    best = cell
+  }
+  return best
+}
+
+/** How many consecutive water cells lie beyond `at` in direction (dc, dr) — how far the river reaches that way. */
+function waterReach(water: Set<string>, at: Cell, dc: number, dr: number): number {
+  let n = 0
+  let { col, row } = at
+  while (water.has(`${col + dc},${row + dr}`)) {
+    col += dc
+    row += dr
+    n++
+  }
+  return n
+}
+
+/** Turn a set of cells into walkable bridge deck: clear what stands on them, lay the 'bridge' tile, take the
+ *  cobble tone. Shared by the plain bridge and the joined crossing, so the two always read alike. */
+function layDeck(ctx: ArchetypeContext, deck: Set<string>): void {
+  const { cols, rows, ground, collision, floorColors } = ctx
+  const pal = MEADOW_PALETTES[ctx.zone] ?? MEADOW_PALETTES.summer
+  clearMeadowCells(ctx, deck)
   for (const key of deck) {
     const { col, row } = toCell(key)
     if (!inBounds(col, row, cols, rows)) continue
     ground[row][col] = 'bridge'
-    collision[row][col] = false // the deck is WALKABLE — you cross the river on it
+    collision[row][col] = false
     floorColors[row][col] = pal.cobble
+  }
+}
+
+/** Pave an L-shaped spur from the bridge landing to the route it joins, wearing the TILE AND COLOUR of that
+ *  route cell — so the spur looks like the path it runs into (a forest trail in a wood, cobble on a meadow)
+ *  without this code knowing which layout called it. Never paves over water; the deck is what crosses that. */
+function carveSpur(ctx: ArchetypeContext, from: Cell, to: Cell, water: Set<string>): void {
+  const { cols, rows, ground, floorColors } = ctx
+  if (!inBounds(to.col, to.row, cols, rows)) return
+  const tile = ground[to.row][to.col]
+  const tone = floorColors[to.row][to.col]
+
+  const lane = new Set<string>()
+  const widen = (col: number, row: number) => {
+    for (let dc = 0; dc < WOODLAND.pathWidth; dc++)
+      for (let dr = 0; dr < WOODLAND.pathWidth; dr++) lane.add(`${col + dc},${row + dr}`)
+  }
+  const step = (a: number, b: number) => (a < b ? 1 : -1)
+  let { col, row } = from
+  widen(col, row)
+  while (col !== to.col) { col += step(col, to.col); widen(col, row) }
+  while (row !== to.row) { row += step(row, to.row); widen(col, row) }
+
+  const paveable = new Set([...lane].filter(key => {
+    const cell = toCell(key)
+    return inBounds(cell.col, cell.row, cols, rows) && !water.has(key)
+  }))
+  clearMeadowCells(ctx, paveable) // a spur through the trees has to actually clear them
+  for (const key of paveable) {
+    const cell = toCell(key)
+    ground[cell.row][cell.col] = tile
+    floorColors[cell.row][cell.col] = tone
   }
 }
 

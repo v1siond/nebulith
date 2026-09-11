@@ -614,7 +614,7 @@ export function GenerateControls({
   /** `layout` steers a map type that HAS layouts (undefined otherwise → the generator's own default).
    *  The SIZE is not passed: it belongs to the Grid panel now, and the caller reads it from there.
    *  Alexander, 2026-09-10: *"the template generation just uses whatever we setup on it"*. */
-  onGenerate: (zone: string, categoryKey: string, layout?: string) => void
+  onGenerate: (zone: string, categoryKey: string, layout?: string, options?: Record<string, boolean>) => void
   /** When provided, shows the universal "re-roll one layer" row that re-rolls a single layer of the current
    *  map (leaving the others intact). Omitted where there is no current map to scope. */
   onRandomizeLayer?: (layer: string) => void
@@ -639,6 +639,14 @@ export function GenerateControls({
   // menu never highlights a type the backend does not serve.
   const [categoryKey, setCategoryKey] = useState<string | null>(null)
   const [layout, setLayout] = useState<string | null>(null)
+  /**
+   * The generator's OPTIONS as the person set them.
+   *
+   * Alexander, 2026-09-10: *"we should just have extra options for each template"*, because a row per
+   * combination does not scale — his own example ran woodland, woodland + river, woodland + river + bridge.
+   * Keyed by option key; absent means "as the backend declared it".
+   */
+  const [options, setOptions] = useState<Record<string, boolean>>({})
   const zones = catalogZones(catalog)
   // The first category is the flagship the menu opens on, until the user picks another.
   const activeKey = categoryKey ?? catalog[0]?.key ?? null
@@ -679,6 +687,30 @@ export function GenerateControls({
   const presets: ReadonlyArray<{ id: string | undefined; label: string }> =
     layouts.length > 0 ? layouts : activeCategory ? [{ id: undefined, label: activeCategory.name }] : []
 
+  /** The generator whose options the panel is showing — the picked preset, or the type's own generator. */
+  const activeGenerator = activeKey === null
+    ? undefined
+    : findGenerator(catalog, activeKey, layouts.some(l => l.id === layout) ? layout ?? undefined : layouts[0]?.id)
+
+  /** Is this option on: what the person set, else what the backend declared as its default. */
+  const optionOn = (key: string, fallback: boolean): boolean => options[key] ?? fallback
+
+  /**
+   * The options to build with.
+   *
+   * An option whose `requires` is off is sent as OFF whatever the person last set, because a crossing with
+   * no river is not a thing the generator can make. The rule comes from the backend's declaration, so the
+   * panel never has to know that a crossing needs a river.
+   */
+  const chosenOptions = (): Record<string, boolean> => {
+    const out: Record<string, boolean> = {}
+    for (const opt of activeGenerator?.options ?? []) {
+      const on = optionOn(opt.key, opt.default)
+      out[opt.key] = opt.requires ? on && (out[opt.requires] ?? false) : on
+    }
+    return out
+  }
+
   // Picking a map type or a shape only SELECTS it. §4.6: "clicking a map type selects it rather than
   // generating (today it generates immediately — a genuine 'why did my map just vanish' trap)".
   const select = (key: string, chosen?: string) => {
@@ -693,9 +725,9 @@ export function GenerateControls({
     if (activeKey === null) return
     // No size travels with this any more. The caller reads the GRID panel's numbers, which is the one place
     // they are set, so a generate and a resize can no longer disagree about what the map's shape is.
-    if (layouts.length === 0) { onGenerate(zone, activeKey, undefined); return }
+    if (layouts.length === 0) { onGenerate(zone, activeKey, undefined, chosenOptions()); return }
     const picked = layouts.some(l => l.id === layout) ? layout : layouts[0].id
-    onGenerate(zone, activeKey, picked ?? undefined)
+    onGenerate(zone, activeKey, picked ?? undefined, chosenOptions())
   }
 
   if (catalog.length === 0) {
@@ -792,6 +824,31 @@ export function GenerateControls({
             ))}
           </div>
           <div className="hint">Pick one; the generator randomizes everything else.</div>
+        </>
+      )}
+
+      {/* THE VARIATIONS, as options rather than as extra rows in the list above. */}
+      {(activeGenerator?.options.length ?? 0) > 0 && (
+        <>
+          <div className="sub">Anything else?</div>
+          {activeGenerator?.options.map(opt => {
+            const blocked = opt.requires !== undefined && !optionOn(opt.requires, false)
+            return (
+              <label key={opt.key} className="ctl" style={blocked ? { opacity: 0.45 } : undefined}>
+                <span className="l">{opt.label}</span>
+                <input
+                  type="checkbox"
+                  checked={!blocked && optionOn(opt.key, opt.default)}
+                  disabled={blocked}
+                  aria-label={opt.label}
+                  onChange={e => setOptions(prev => ({ ...prev, [opt.key]: e.target.checked }))}
+                />
+              </label>
+            )
+          })}
+          <div className="hint">
+            Variations are options, not extra templates — adding one never makes the list above longer.
+          </div>
         </>
       )}
 
