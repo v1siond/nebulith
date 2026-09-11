@@ -11,6 +11,9 @@ defmodule Nebulith.Games.Game do
     field :last_template_id, :string
 
     has_many :game_templates, Nebulith.Games.GameTemplate, on_replace: :delete
+    # A game is a list of LEVELS, and a level is a list of maps. *"game > has many levels > has many
+    # templates"* — Mario, then 1-1 / 1-2 / 1-3, then the maps each of those is built from.
+    has_many :levels, Nebulith.Games.Level, on_replace: :delete, preload_order: [asc: :position]
 
     timestamps(type: :utc_datetime)
   end

@@ -42,7 +42,15 @@ defmodule NebulithWeb.Router do
     get "/ui", UiController, :index
     put "/ui", UiController, :update
     resources "/templates", TemplateController, except: [:new, :edit]
-    resources "/games", GameController, except: [:new, :edit]
+    resources "/games", GameController, except: [:new, :edit] do
+      # A game's LEVELS, nested so the route itself carries whose levels these are. *"game > has many levels
+      # > has many templates"* — the layer that was missing, and the reason "Manage levels" could only show
+      # him a list of games.
+      resources "/levels", LevelController, only: [:index, :create]
+      put "/levels/order", LevelController, :reorder
+    end
+
+    resources "/levels", LevelController, only: [:show, :update, :delete]
     # Editor UI settings — a key→value store for editor chrome geometry (per modal id).
     # The map-generator CATALOG — categories + their generators, with every knob a generate takes.
     # Read-only; the editor loads it at mount so nothing about a generator is hardcoded frontend-side.
