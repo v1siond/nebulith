@@ -18,6 +18,10 @@ import { EDITOR_GUIDES, guideFor } from '@/components/game/shell/editorGuides.da
 /** The files that draw the controls the guides point at. */
 const SOURCES = [
   'components/game/editorChrome.tsx',
+  // The grid's own controls live here since 2026-09-10: the matrix section the New world panel renders,
+  // and the ground control in the view bar. The guides point at "Columns" / "Cell pixels", which moved
+  // with them — the controls still exist, they are just drawn from another file now.
+  'components/game/gridPanel.tsx',
   'components/game/editorInspector.tsx',
   'components/game/shell/ArtStyleControl.tsx',
   'components/game/editorConfig.ts',

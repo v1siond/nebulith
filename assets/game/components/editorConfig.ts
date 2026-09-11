@@ -85,6 +85,13 @@ export const EDITOR_BANDS: readonly RailBand[] = [
   {
     title: 'MAKE THE WORLD',
     items: [
+      // MAP SIZE IS BACK IN HERE, and the ground thickness is not. Alexander, 2026-09-10, reversing his own
+      // move of a few hours earlier: *"my decision to move the grid out of the world section was worse ...
+      // it's way better to have that close by to generate stuff on demand ... we keep grid size inside the
+      // world section"*, and separately *"let's keep thickness out of the new world section, I think it
+      // makes sense close to rotate and range, which are grid properties too in a way"*. So the numbers
+      // that REBUILD the map sit with the thing that rebuilds it, and the one that only changes how it is
+      // DRAWN sits in the view bar with the camera.
       { id: 'generate', glyph: '⚡', label: 'New world', hint: 'Season, kind of place, preset and size — then build it', mode: null },
     ],
   },

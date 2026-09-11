@@ -19,6 +19,7 @@ import { EDITOR_BANDS, EDITOR_RAIL, type RailEntry, type RailId, type EditorMode
 import { COMPOSITION_CATEGORY_GLYPH, type CompositionPaletteGroup } from '@/engine/compositionCatalog'
 import { headroomFps } from '@/components/useFps'
 import { CameraRotateButton, PlayerRangeControl } from './cameraControls'
+import { MapMatrixSection, GroundThicknessControl } from './gridPanel'
 import { HelpButton } from './editorHelp'
 import { ViewButton } from './controls'
 import type { Orientation } from '@/engine/render/isoOrientation'
@@ -565,132 +566,6 @@ function MenuHeader({ children, className = '' }: { children: React.ReactNode; c
  *  bounds, because the generate path has to agree with this panel about them. */
 export type { MapSize }
 
-/**
- * `4 · MAP SIZE` (§4.6) — the grid's MATRIX VARIABLES.
- *
- * Alexander, 2026-09-08: *"the map should have a cell size and how many rows x columns there's in the map,
- * where columns = the number of cells per row … basically the grid is just a matrix, we must define the
- * matrix variables"*. So all three are here: `Columns`, `Rows`, and `Cell size`. The first two were the
- * only ones reachable from the UI, even though `IsometricGrid` has carried `cellSize` all along.
- *
- * It also moved out of ⚙ Stage, which §3.11 measured as "a destructive action [sitting] above four harmless
- * view toggles … no confirmation and no undo checkpoint".
- *
- * The typed numbers are a DRAFT: typing a width must never touch the open map — only an explicit act
- * applies it — and the warning is shown BEFORE the commit rather than as a dialogue after it, so the
- * consequence is legible while you are still deciding.
- *
- * The draft is OWNED BY THE PARENT, and that is the whole point. It used to be this component's private
- * `useState`, which made it unreachable from "Build this world" — so the build read the LIVE grid's size and
- * rebuilt at the old dimensions. Alexander, twice: *"I clicked build this world and it randomized the values
- * I selected on step 4 how big"* and then *"Again, I picked a specific map size, specified the rows, columns
- * and cell pixels … and it didn't built it with the specific sizes I selected."* A number two different
- * actions depend on cannot be private to one of them.
- */
-function MapSizeSection({
-  draft,
-  onDraft,
-  size,
-  onResize,
-  slabBlocks,
-  onSlabBlocks,
-}: {
-  draft: MapSize
-  onDraft: (next: MapSize) => void
-  /** The size the open map actually IS, so the destructive button can tell whether it has work to do. */
-  size: MapSize
-  onResize: (cols: number, rows: number, cellSize: number) => void
-  /** How thick the map's BODY is, in blocks — the grid's own height, not any tile's. Applies immediately:
-   *  unlike the three numbers above it needs no rebuild, it just changes how deep the map looks. Absent
-   *  (no map open) → the control is not drawn; nothing here invents a thickness. */
-  slabBlocks?: number
-  onSlabBlocks?: (blocks: number) => void
-}) {
-  // A MAXIMUM, but only because he put one back: Alexander, 2026-09-10, *"let's limit maps to 100x100 for
-  // now"* — the "for now" is his, and MAP_SIZE_MAX is the one place it lives. Before that he had removed every
-  // cap (*"this shouldn't be a limitation … the previous limits where caused by poor optimization"*), which is
-  // why nothing here silently rewrites a number: an out-of-range size is REPORTED, never quietly corrected.
-  //
-  // There were two caps and both leaked into the UI as nonsense: the generator's served range silently cut a
-  // requested 40 rows to 35, and an engine cap of 100 made the panel print `400 × 240 = — cells` because it
-  // refused to count a size it would not accept. The note naming the preset's authored range is gone too —
-  // it described the generator's taste as if it were a rule.
-  const valid = mapSizeValid(draft)
-  const cells = cellCount(draft)
-  const unchanged = draft.cols === size.cols && draft.rows === size.rows && draft.cellSize === size.cellSize
-
-  // A row per number, in the design's control layout, so a narrow panel can never clip the action.
-  const num = (key: keyof MapSize, label: string) => (
-    <div className="ctl" key={key}>
-      <span className="l">{label}</span>
-      <input
-        type="number" aria-label={`Map ${label.toLowerCase()}`}
-        value={draft[key]}
-        onChange={e => onDraft({ ...draft, [key]: parseInt(e.target.value, 10) })}
-      />
-    </div>
-  )
-
-  return (
-    <section>
-      {/* The matrix, stated as a matrix: columns × rows of cells, then how big one cell is. */}
-      {num('cols', 'Columns')}
-      {num('rows', 'Rows')}
-      {num('cellSize', 'Cell pixels')}
-      <div className="hint">
-        {cells === null
-          ? 'Columns is how many cells fit in one row.'
-          : `${draft.cols} × ${draft.rows} = ${cells.toLocaleString()} cells. Columns is how many cells fit in one row.`}
-      </div>
-
-      {/* GROUND THICKNESS — the map's own body, the "real ground like old rpgs" (Alexander, 2026-09-10). It is
-          the GRID's height, not any tile's: floors are flat skins laid on top of it, which is what lets a
-          generator put 0 on every floor tile and still have the map look like ground. Separate from the three
-          numbers above because it changes nothing about the cells — no rebuild, no data loss — so it applies
-          on the spot instead of hiding behind the destructive button. 0 lays the map flat. */}
-      {slabBlocks !== undefined && onSlabBlocks && (
-        <>
-          <div className="ctl">
-            <span className="l">Ground thickness</span>
-            <input
-              type="number" min={0} step={1} aria-label="Ground thickness in blocks"
-              value={slabBlocks}
-              onChange={e => {
-                const next = parseInt(e.target.value, 10)
-                if (Number.isFinite(next) && next >= 0) onSlabBlocks(next)
-              }}
-            />
-          </div>
-          <div className="hint">
-            {slabBlocks === 0
-              ? 'Flat — the map has no body, just its surface.'
-              : `The map stands ${slabBlocks} block${slabBlocks === 1 ? '' : 's'} deep. You see it at the edges.`}
-          </div>
-        </>
-      )}
-      {/* Only shown once the numbers actually differ — a destructive button with nothing to do is noise. */}
-      {!unchanged && (
-        <button
-          type="button"
-          onClick={() => onResize(draft.cols, draft.rows, draft.cellSize)}
-          disabled={!valid}
-          title={`Rebuild the map as ${draft.cols} × ${draft.rows} cells of ${draft.cellSize}px`}
-          className="b dan"
-          style={{ width: '100%', marginTop: 6, justifyContent: 'center' }}
-        >
-          {`Resize to ${draft.cols} × ${draft.rows}…`}
-        </button>
-      )}
-      <div className="hint" style={{ color: 'var(--warn)' }}>
-        {mapSizeProblem(draft)
-          ? `\u26a0 ${mapSizeProblem(draft)}`
-          : !atLeast(draft.cellSize, CELL_SIZE_MIN)
-            ? '\u26a0 A cell needs to be at least one pixel.'
-            : '\u26a0 Changing the size clears the map. Ctrl+Z undoes it.'}
-      </div>
-    </section>
-  )
-}
 
 /** The grid a preset thumbnail generates. Small enough to be cheap, big enough that a layout's structure
  *  — a clearing, a street grid, a river — is still legible at ~90px. */
@@ -723,10 +598,10 @@ export function GenerateControls({
   onRandomizeLayer,
   selectedCount = 0,
   onRandomizeSelection,
+  sizeDraft,
   size,
+  onSizeDraft,
   onResize,
-  slabBlocks,
-  onSlabBlocks,
   preview,
 }: {
   /** The backend's generator catalog (see `useGeneratorCatalog`). Empty until it loads, or if it failed. */
@@ -736,9 +611,9 @@ export function GenerateControls({
   zone: string
   onZone: (z: string) => void
   /** `layout` steers a map type that HAS layouts (undefined otherwise → the generator's own default).
-   *  `requested` is the size TYPED IN "How big" — all three numbers, cell pixels included — and it wins
-   *  outright over the generator's random roll. Absent = nothing typed, so let the generator roll one. */
-  onGenerate: (zone: string, categoryKey: string, layout?: string, requested?: MapSize) => void
+   *  The SIZE is not passed: it belongs to the Grid panel now, and the caller reads it from there.
+   *  Alexander, 2026-09-10: *"the template generation just uses whatever we setup on it"*. */
+  onGenerate: (zone: string, categoryKey: string, layout?: string) => void
   /** When provided, shows the universal "re-roll one layer" row that re-rolls a single layer of the current
    *  map (leaving the others intact). Omitted where there is no current map to scope. */
   onRandomizeLayer?: (layer: string) => void
@@ -747,14 +622,13 @@ export function GenerateControls({
    *  count in the label so you can see what it will touch. */
   selectedCount?: number
   onRandomizeSelection?: () => void
-  /** The open map's size. Together with `onResize` this renders §4.6's MAP SIZE section — the one §3.11
-   *  wants OUT of ⚙ Stage. Omit both where there is no map to resize. */
+  /** The matrix as TYPED — what this build will produce. Owned by the parent because `Build this world`
+   *  and the resize button both read it. */
+  sizeDraft?: MapSize
+  /** The size the open map actually IS. With `onResize`, renders the `How big` section. */
   size?: MapSize
+  onSizeDraft?: (next: MapSize) => void
   onResize?: (cols: number, rows: number, cellSize: number) => void
-  /** The map's ground thickness in blocks, and how to change it. Sits with the size because it is the
-   *  fourth number that describes the map's shape — but it applies on the spot, since it rebuilds nothing. */
-  slabBlocks?: number
-  onSlabBlocks?: (blocks: number) => void
   /** How to draw a preset's thumbnail the way the map would. Absent → the cards carry no picture. */
   preview?: PreviewContext
 }) {
@@ -762,17 +636,6 @@ export function GenerateControls({
   // menu never highlights a type the backend does not serve.
   const [categoryKey, setCategoryKey] = useState<string | null>(null)
   const [layout, setLayout] = useState<string | null>(null)
-  // THE SIZE DRAFT lives here, not in `MapSizeSection`, because BOTH the resize button and "Build this
-  // world" act on it. Seeded from the open map, and re-seeded whenever the map is resized from outside this
-  // panel (loading a level, generating one) — but never while a number is half-typed, which is why the
-  // incoming size is tracked separately rather than compared against the draft.
-  const [sizeDraft, setSizeDraft] = useState<MapSize | null>(size ?? null)
-  const [sizeSeen, setSizeSeen] = useState<MapSize | null>(size ?? null)
-  if (size && (!sizeSeen || size.cols !== sizeSeen.cols || size.rows !== sizeSeen.rows || size.cellSize !== sizeSeen.cellSize)) {
-    setSizeSeen(size)
-    setSizeDraft(size)
-  }
-
   const zones = catalogZones(catalog)
   // The first category is the flagship the menu opens on, until the user picks another.
   const activeKey = categoryKey ?? catalog[0]?.key ?? null
@@ -803,13 +666,11 @@ export function GenerateControls({
   // generator runs; otherwise the picked shape, or that type's first when the user has not chosen one.
   const generate = () => {
     if (activeKey === null) return
-    // The numbers TYPED in "How big" travel with the map type — they are one decision, and the draft is the
-    // user's answer to it. Reading `size` (the live grid) instead was the defect: it rebuilt at the old
-    // dimensions and looked exactly like the generator had randomised over the choice.
-    const requested = sizeDraft ?? undefined
-    if (layouts.length === 0) { onGenerate(zone, activeKey, undefined, requested); return }
+    // No size travels with this any more. The caller reads the GRID panel's numbers, which is the one place
+    // they are set, so a generate and a resize can no longer disagree about what the map's shape is.
+    if (layouts.length === 0) { onGenerate(zone, activeKey, undefined); return }
     const picked = layouts.some(l => l.id === layout) ? layout : layouts[0].id
-    onGenerate(zone, activeKey, picked ?? undefined, requested)
+    onGenerate(zone, activeKey, picked ?? undefined)
   }
 
   if (catalog.length === 0) {
@@ -922,19 +783,13 @@ export function GenerateControls({
         </>
       )}
 
-      {/* MAP SIZE is part of the same decision, not an afterthought — Alexander, 2026-09-08: *"I think map
-          size should be part of generate."* */}
-      {size && onResize && sizeDraft && (
+      {/* HOW BIG — back inside this panel. Alexander, 2026-09-10: *"it's way better to have that close by to
+          generate stuff on demand"*. The thickness is deliberately NOT here: it rebuilds nothing, so it
+          lives in the view bar with the camera controls. */}
+      {size && onSizeDraft && onResize && sizeDraft && (
         <>
           <div className="sub">How big</div>
-          <MapSizeSection
-            draft={sizeDraft}
-            onDraft={setSizeDraft}
-            size={size}
-            onResize={onResize}
-            slabBlocks={slabBlocks}
-            onSlabBlocks={onSlabBlocks}
-          />
+          <MapMatrixSection draft={sizeDraft} size={size} onDraft={onSizeDraft} onResize={onResize} />
         </>
       )}
 
@@ -1832,6 +1687,7 @@ export function ViewBar({
   activeView, onIso, on2D, onTop, onFlow,
   facing, onFacing,
   playerRange, onPlayerRange,
+  slabBlocks, onSlabBlocks,
   dayNight, onDayNight,
   showDebug, onDebug,
   showCollisions, onCollisions,
@@ -1850,6 +1706,9 @@ export function ViewBar({
   onFacing: (facing: Orientation) => void
   playerRange: number | undefined
   onPlayerRange: (range: number | undefined) => void
+  /** The map's ground thickness in blocks, and how to change it. Absent (no map open) → not drawn. */
+  slabBlocks?: number
+  onSlabBlocks?: (blocks: number) => void
   /** The 🎨 art-style switch. §4.1's first principle puts "how am I looking at it" in this bar, and a
    *  reskin changes no map data — so the style belongs here, not in the PROJECT bar (§4.3 lists only six
    *  things there). */
@@ -1902,6 +1761,11 @@ export function ViewBar({
       {activeView === 'iso' && <span className="vr" aria-hidden="true" />}
       {activeView === 'iso' && <CameraRotateButton facing={facing} onFacing={onFacing} />}
       {activeView === 'iso' && <PlayerRangeControl range={playerRange} onRange={onPlayerRange} />}
+      {/* ▤ Ground — the map's own depth. His words: *"close to rotate and range, which are grid properties
+          too in a way"*. ISO-only for the same reason those two are: a flat projection has no body to show. */}
+      {activeView === 'iso' && slabBlocks !== undefined && onSlabBlocks && (
+        <GroundThicknessControl blocks={slabBlocks} onBlocks={onSlabBlocks} />
+      )}
 
       <span className="vr" aria-hidden="true" />
       <button
