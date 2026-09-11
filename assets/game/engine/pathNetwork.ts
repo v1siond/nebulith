@@ -41,6 +41,15 @@ export interface RoutePlan {
   hub: RouteCell
   /** Every cell the network covers, `col,row` keys. */
   cells: Set<string>
+  /**
+   * The one-cell CENTRE LINE of the same network.
+   *
+   * A cave gallery should pinch and open along its length (a chokepoint is what makes a cave read as a cave,
+   * and Warcraft 3's map guidance is blunt about them mattering), but narrowing a corridor by hand is how you
+   * sever a leg by accident. With the spine carved ALWAYS and the rest of the band carved only where the map
+   * wants width, connectivity holds by construction and the width is free to vary.
+   */
+  spine: Set<string>
 }
 
 /** The sides the gates take, in order, the entrance first. A third gate takes two of the remaining sides at random. */
@@ -106,6 +115,7 @@ export const DEAD_END_MARGIN = 4
  */
 export function planRoutes(cols: number, rows: number, ways: Ways, rand: Rng, width = 3): RoutePlan {
   const cells = new Set<string>()
+  const spine = new Set<string>()
   const hub = {
     col: clamp(Math.round(cols / 2 + (rand() - 0.5) * cols * 0.3), 2, cols - 3),
     row: clamp(Math.round(rows / 2 + (rand() - 0.5) * rows * 0.3), 2, rows - 3),
@@ -116,16 +126,19 @@ export function planRoutes(cols: number, rows: number, ways: Ways, rand: Rng, wi
 
   for (const gate of gates) {
     for (const c of gate.cells) cells.add(`${c.col},${c.row}`)
-    run(gate.inside, hub, width, cols, rows, rand, cells)
+    // The gate's own middle cell and the step inside it are spine: a way out never pinches shut.
+    spine.add(`${gate.cells[Math.floor(gate.cells.length / 2)].col},${gate.cells[Math.floor(gate.cells.length / 2)].row}`)
+    spine.add(`${gate.inside.col},${gate.inside.row}`)
+    run(gate.inside, hub, width, cols, rows, rand, cells, spine)
   }
-  for (const stop of deadEnds) run(hub, stop, width, cols, rows, rand, cells)
-  return { entrance: gates[0], gates, deadEnds, hub, cells }
+  for (const stop of deadEnds) run(hub, stop, width, cols, rows, rand, cells, spine)
+  return { entrance: gates[0], gates, deadEnds, hub, cells, spine }
 }
 
 /** One winding path from `a` to `b`: waypoints pushed off the straight line, joined by right-angle legs. */
-function run(a: RouteCell, b: RouteCell, width: number, cols: number, rows: number, rand: Rng, cells: Set<string>): void {
+function run(a: RouteCell, b: RouteCell, width: number, cols: number, rows: number, rand: Rng, cells: Set<string>, spine: Set<string>): void {
   const points = [a, ...waypoints(a, b, cols, rows, rand), b]
-  for (let i = 1; i < points.length; i++) leg(points[i - 1], points[i], width, cols, rows, rand, cells)
+  for (let i = 1; i < points.length; i++) leg(points[i - 1], points[i], width, cols, rows, rand, cells, spine)
 }
 
 const dist = (a: RouteCell, b: RouteCell): number => Math.hypot(a.col - b.col, a.row - b.row)
@@ -173,9 +186,11 @@ function waypoints(a: RouteCell, b: RouteCell, cols: number, rows: number, rand:
 }
 
 /** A right-angle leg from `a` to `b`, `width` cells wide and centred on its line, columns or rows first at random. */
-function leg(a: RouteCell, b: RouteCell, width: number, cols: number, rows: number, rand: Rng, cells: Set<string>): void {
+function leg(a: RouteCell, b: RouteCell, width: number, cols: number, rows: number, rand: Rng, cells: Set<string>, spine: Set<string>): void {
   const half = Math.floor(width / 2)
   const paint = (col: number, row: number) => {
+    // the centre cell is the SPINE: whatever a layout does with the width, this line stays open
+    if (col >= 0 && row >= 0 && col < cols && row < rows) spine.add(`${col},${row}`)
     for (let dr = -half; dr < width - half; dr++) {
       for (let dc = -half; dc < width - half; dc++) {
         const c = col + dc

@@ -144,3 +144,37 @@ describe('the two served counts', () => {
     expect([...seen].sort()).toEqual([...ROUTE_COUNTS])
   })
 })
+
+describe('the spine: the one-cell centre line of the same network', () => {
+  // A cave gallery has to pinch and open along its run, and narrowing a corridor by hand is how a leg gets
+  // severed by accident. The spine is carved ALWAYS, so the width above it is free to vary.
+  it.each(EVERY)('%i exits, %i pathways: the spine is inside the band, and holds the whole map together', (exits, pathways) => {
+    for (let seed = 1; seed <= 10; seed++) {
+      const plan = planRoutes(COLS, ROWS, ways(exits, pathways), makeRng(seed))
+      for (const k of plan.spine) expect(plan.cells.has(k)).toBe(true)
+
+      // walk the SPINE only: the hub, every gate and every stop must still be reachable from the entrance
+      const seen = new Set<string>()
+      const start = [...plan.spine].filter(k => plan.entrance.cells.some(c => key(c) === k))
+      expect(start.length).toBeGreaterThan(0)
+      const stack = [...start]
+      start.forEach(k => seen.add(k))
+      while (stack.length) {
+        const [c, r] = stack.pop()!.split(',').map(Number)
+        for (const [dc, dr] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          const k = `${c + dc},${r + dr}`
+          if (plan.spine.has(k) && !seen.has(k)) { seen.add(k); stack.push(k) }
+        }
+      }
+      expect(seen.has(key(plan.hub))).toBe(true)
+      for (const gate of plan.gates) expect(gate.cells.some(c => seen.has(key(c)))).toBe(true)
+      for (const stop of plan.deadEnds) expect(seen.has(key(stop))).toBe(true)
+    }
+  })
+
+  it('is a fraction of the band, not the whole of it', () => {
+    const plan = planRoutes(COLS, ROWS, ways(3, 4), makeRng(5))
+    expect(plan.spine.size).toBeGreaterThan(0)
+    expect(plan.spine.size).toBeLessThan(plan.cells.size / 2) // a 3-wide band is about three times its centre
+  })
+})
