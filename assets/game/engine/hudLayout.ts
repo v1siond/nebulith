@@ -31,6 +31,52 @@ export function hudRect(placement: HudPlacement, stageW: number, stageH: number)
   }
 }
 
+/** Smallest a piece may be left, in placement pixels — below this there is nothing left to grab. */
+export const HUD_MIN_W = 40
+export const HUD_MIN_H = 20
+
+/** Which corner of a piece can actually move, given the edge it is pinned to. */
+export interface HudGrip {
+  x: 'left' | 'right'
+  y: 'top' | 'bottom'
+}
+
+/**
+ * The corner the resize grip belongs on: the one OPPOSITE the pin.
+ *
+ * A piece pinned to the bottom keeps its bottom edge where it is, so the only edge that can move is the
+ * top. Drawing the grip at the bottom-right regardless is what made resizing read as inverted — you drag
+ * down, the piece grows, and it grows away from your cursor because the edge under your hand is nailed
+ * down. A centre pin moves both edges, so either corner works and the far one is used.
+ */
+export function hudGripCorner(anchor: HudAnchor): HudGrip {
+  const [originX, originY] = HUD_ANCHORS[anchor]
+  return { x: originX === 1 ? 'left' : 'right', y: originY === 1 ? 'top' : 'bottom' }
+}
+
+/**
+ * Resize a piece from a drag on its grip, so the corner tracks the cursor 1:1 for every anchor.
+ *
+ * The derivation, from `hudRect`: the left edge moves by `-originX` per unit of width and the right edge by
+ * `1 - originX`. So a drag on the right edge is `dw = dx / (1 - originX)` and one on the left is
+ * `dw = -dx / originX` — which is why a centre-pinned piece widens by 2 for every 1 the cursor moves, and a
+ * bottom-pinned one cannot change height from its bottom edge at all.
+ *
+ * `dxStage` / `dyStage` are in STAGE pixels: the caller has already divided out the preview's zoom. The
+ * piece's own `s` is divided out here, because the rectangle you see is `w * s`.
+ */
+export function hudResize(from: HudPlacement, dxStage: number, dyStage: number): { w: number; h: number } {
+  const [originX, originY] = HUD_ANCHORS[from.a]
+  const grip = hudGripCorner(from.a)
+  const scale = from.s || 1
+  const dw = (grip.x === 'right' ? dxStage / (1 - originX) : -dxStage / originX) / scale
+  const dh = (grip.y === 'bottom' ? dyStage / (1 - originY) : -dyStage / originY) / scale
+  return {
+    w: Math.max(HUD_MIN_W, Math.round(from.w + dw)),
+    h: Math.max(HUD_MIN_H, Math.round(from.h + dh)),
+  }
+}
+
 /** The overlapping area of two rectangles, in square pixels. Zero when they do not touch. */
 export function overlapArea(a: HudRect, b: HudRect): number {
   const wide = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x)

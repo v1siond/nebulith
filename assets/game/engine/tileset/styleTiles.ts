@@ -135,6 +135,24 @@ export function setStyleComposition(styleId: string, kind: string, comp: StyleCa
 }
 
 /**
+ * Write ONE composition into EVERY loaded style.
+ *
+ * A composition is STRUCTURE, not art: which cells exist, at which levels, carrying which LABELS. The art
+ * is the label's baked picture, and that is the only thing a style changes (MAP-MODEL: one engine, N art
+ * styles). So a composition belongs to all of them, and the seeded ones already do — the backend serves the
+ * same 24 with every tileset.
+ *
+ * A building COMPOSED TO ORDER (`house@4x4`) did not. It was installed into the ACTIVE style alone, while
+ * every structure reader in the engine looks in one fixed catalog, so the two only met when the active
+ * style happened to be that one. Alexander, 2026-09-10: *"there's no buildings in towns now"* — measured:
+ * composed into `emoji`, a town stamped 0 wall/roof tiles; the same stage composed into `ascii` stamped 436.
+ * The stamp returns a cell COUNT and nobody read it, so it failed in total silence.
+ */
+export function setSharedComposition(kind: string, comp: StyleCatalog['compositions'][string]): void {
+  for (const styleId of Object.keys(CATALOGS)) setStyleComposition(styleId, kind, comp)
+}
+
+/**
  * A tile with the required fields filled in — for callers that only care about a couple of them.
  *
  * `walkable` defaults true and `char` to empty, so a caller states only what it is testing or authoring.

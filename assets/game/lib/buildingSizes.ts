@@ -17,7 +17,7 @@
  * a house is.
  */
 import { NEBULITH_API } from './nebulithApi'
-import { setStyleComposition, styleCatalog } from '@/engine/tileset/styleTiles'
+import { setSharedComposition, styleCatalog } from '@/engine/tileset/styleTiles'
 
 const BASE = `${NEBULITH_API}/buildings`
 
@@ -147,8 +147,11 @@ export async function composeBuilding(
   }
 
   // Installed in the SAME shape the tileset loader installs a seeded composition, so every reader —
-  // the ghost, the stamp, the preview, the palette — treats it identically.
-  setStyleComposition(styleId, kind, {
+  // the ghost, the stamp, the preview, the palette — treats it identically. Into EVERY loaded style, not
+  // just the active one: a composition is structure and the label carries the art, so a house composed
+  // while emoji is active is the same house in ascii. Installing it into one style is what made a town
+  // come out with no buildings at all.
+  setSharedComposition(kind, {
     footprint,
     cells: data.cells,
     category: 'buildings',

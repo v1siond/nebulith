@@ -18,7 +18,11 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 
 import {
   HUD_ANCHOR_ORDER,
+  HUD_MIN_H,
+  HUD_MIN_W,
   hudCollisions,
+  hudGripCorner,
+  hudResize,
   hudStyle,
   nudged,
   stageScale,
@@ -173,11 +177,9 @@ export function HudOverlay({ state }: { state: HudLayoutState }) {
     const startY = event.clientY
     const from = layout[key]
     const move = (ev: MouseEvent) => {
+      // STAGE pixels: divide out the preview's zoom here, the piece's own scale inside `hudResize`.
       const factor = scale.current || 1
-      patch(key, {
-        w: Math.max(40, Math.round(from.w + (ev.clientX - startX) / factor)),
-        h: Math.max(20, Math.round(from.h + (ev.clientY - startY) / factor)),
-      })
+      patch(key, hudResize(from, (ev.clientX - startX) / factor, (ev.clientY - startY) / factor))
     }
     const up = () => {
       window.removeEventListener('mousemove', move)
@@ -217,7 +219,14 @@ export function HudOverlay({ state }: { state: HudLayoutState }) {
                 <i>{HUD_ANCHOR_NAMES[placement.a]}</i>
                 {!placement.on && <u>hidden in play</u>}
               </span>
-              <div className="hrz" onMouseDown={startResize(key)} aria-hidden="true" />
+              {/* On the corner OPPOSITE the pin — the only one free to move. A bottom-pinned piece grows
+                  upward, so its grip goes on top; drawing it at the bottom-right regardless is what made
+                  resizing read as inverted. */}
+              <div
+                className={`hrz ${hudGripCorner(placement.a).y} ${hudGripCorner(placement.a).x}`}
+                onMouseDown={startResize(key)}
+                aria-hidden="true"
+              />
             </div>
           )
         })}
@@ -353,8 +362,13 @@ export function PlayerUiPanel({ state, onDone }: { state: HudLayoutState; onDone
             <Hint>Pinned, not placed. &ldquo;16 up from the bottom-left&rdquo; survives a resized window; &ldquo;y = 812&rdquo; does not.</Hint>
             <NumberField label="Across" value={placement.x} unit="px" onChange={(v) => patch(selected, { x: v })} />
             <NumberField label="In from the edge" value={placement.y} unit="px" onChange={(v) => patch(selected, { y: v })} />
-            <NumberField label="Width" value={placement.w} unit="px" onChange={(v) => patch(selected, { w: v })} />
-            <NumberField label="Height" value={placement.h} unit="px" onChange={(v) => patch(selected, { h: v })} />
+            {/* Alexander, 2026-09-10: *"why does width doesn't have a slider, but size does?"* No reason —
+                they are the same kind of decision, so they get the same control. Bounded by the STAGE,
+                because a piece of HUD cannot usefully be wider than the window it sits in. */}
+            <Slider label="Width" min={HUD_MIN_W} max={stageW} step={1} value={placement.w} unit="px"
+              onChange={(v) => patch(selected, { w: v })} />
+            <Slider label="Height" min={HUD_MIN_H} max={stageH} step={1} value={placement.h} unit="px"
+              onChange={(v) => patch(selected, { h: v })} />
             <Slider label="Size" min={0.6} max={2} step={0.05} value={placement.s} unit="×" onChange={(v) => patch(selected, { s: v })} />
             <Slider label="See-through" min={0.2} max={1} step={0.05} value={placement.o} onChange={(v) => patch(selected, { o: v })} />
             <NumberField label="Draw order" value={placement.z} onChange={(v) => patch(selected, { z: v })} />
