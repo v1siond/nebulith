@@ -142,6 +142,11 @@ defmodule Nebulith.Catalog.GeneratorSource do
     "canopyAlt" => "#6b8049",
     "undergrowth" => "#6d7f45",
     "water" => "#4f93b3",
+    # Water by DEPTH, then swamp. Alexander, 2026-09-11: *"I only want light blue for walkable water, different
+    # layers of darkblue for the deeper waters and we can have some share of blue-green for swamp"*.
+    "waterShallow" => "#8ccbe8",
+    "waterDeep" => "#2a5f8a",
+    "swamp" => "#3f8a84",
     "bank" => "#c1a877",
     "trail" => "#9a8a62"
   }
@@ -157,7 +162,12 @@ defmodule Nebulith.Catalog.GeneratorSource do
     "canopy" => "#2e6b32",
     "canopyAlt" => "#3f8a3c",
     "undergrowth" => "#25532a",
-    "water" => "#5e6b3a",
+    # Was olive silt (#5e6b3a), my choice in ticket 48, and exactly what he saw: *"right now the green used
+    # makes it look like a floor instead of water and it's confusing"*. Water is blue; only swamp leans green.
+    "water" => "#3f86b0",
+    "waterShallow" => "#86c5e2",
+    "waterDeep" => "#23547e",
+    "swamp" => "#3a8278",
     "bank" => "#6b5f3c",
     "trail" => "#57502f"
   }
@@ -193,6 +203,15 @@ defmodule Nebulith.Catalog.GeneratorSource do
     %{"kind" => "tree_palm", "weight" => 14},
     %{"kind" => "bush", "weight" => 14}
   ]
+
+  # The meadow's WATER, by depth. It has no floor palette of its own (its gradient is seasonal), but its river
+  # is still water and owes the same reading as every other: light blue where you can wade, darker as it deepens.
+  @meadow_palette %{
+    "water" => "#4a8fbf",
+    "waterShallow" => "#91cdea",
+    "waterDeep" => "#275b88",
+    "swamp" => "#3f8a84"
+  }
 
   # HOW THE TREES ARE DISTRIBUTED. Alexander, 2026-09-11: *"we need more variants of trees distribution too,
   # or formations, like right now all forest variations kind of follow the same type oof tree grouping, but
@@ -341,7 +360,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
       %{
         category: "forest", key: "forest_meadow", name: "Meadow", layout: "meadow", position: 2,
         description: "An open clearing framed by trees, with two ways in.",
-        config: %{"grid" => @small_grid, "nature" => @outdoor_nature, "units" => townsfolk(5), "formation" => @formations["scattered"], "trees" => @meadow_trees},
+        config: %{"grid" => @small_grid, "nature" => @outdoor_nature, "units" => townsfolk(5), "formation" => @formations["scattered"], "trees" => @meadow_trees, "palette" => @meadow_palette},
         options: @water_options
       },
       # ── SUBTYPES ────────────────────────────────────────────────────────────────────────────────────

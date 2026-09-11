@@ -12,6 +12,11 @@ defmodule Nebulith.GeneratorSourceTest do
 
   defp by_key(categories), do: Map.new(categories, &{&1.key, &1})
 
+  defp rgb("#" <> hex) do
+    [r, g, b] = for i <- [0, 2, 4], do: elem(Integer.parse(String.slice(hex, i, 2), 16), 0)
+    {r, g, b}
+  end
+
   # Rough perceived brightness of "#rrggbb" — enough to assert which of two colours is the darker one.
   defp luminance("#" <> hex) do
     {r, g, b} = {String.slice(hex, 0, 2), String.slice(hex, 2, 2), String.slice(hex, 4, 2)}
@@ -139,6 +144,23 @@ defmodule Nebulith.GeneratorSourceTest do
       # is DARKER than the canopy above it. A temperate wood is the other way round.
       assert luminance(pal["jungle"]["floor"]) < luminance(pal["jungle"]["canopy"])
       assert luminance(pal["woodland"]["floor"]) > luminance(pal["woodland"]["canopy"])
+    end
+
+    test "water reads as WATER: blue that darkens with depth, and only swamp leans green" do
+      # Alexander, 2026-09-11: *"I only want light blue for walkable water, different layers of darkblue for the
+      # deeper waters and we can have some share of blue-green for swamp ... the green used makes it look like a
+      # floor instead of water"*. Asserted as RELATIONSHIPS so the hexes stay free to tune.
+      GeneratorSource.seed()
+      cats = Catalog.list_generator_categories() |> by_key()
+
+      for g <- cats["forest"].generators, pal = g.config["palette"], pal != nil do
+        {r, gr, b} = rgb(pal["water"])
+        assert b > r and b > gr, "#{g.key} water is not blue: #{pal["water"]}"
+        assert luminance(pal["waterShallow"]) > luminance(pal["water"]), "#{g.key} shallow is not lighter"
+        assert luminance(pal["water"]) > luminance(pal["waterDeep"]), "#{g.key} deep is not darker"
+        {sr, sg, sb} = rgb(pal["swamp"])
+        assert sg > sr and sb > sr, "#{g.key} swamp is not blue-green: #{pal["swamp"]}"
+      end
     end
 
     test "a jungle is a woodland grown over — denser canopy AND far more undergrowth" do
