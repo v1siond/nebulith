@@ -380,6 +380,16 @@ export interface IsoRenderParams {
    * "Pos: 84, 84" burned across it.
    */
   chrome?: boolean
+  /**
+   * Draw the hero, or only USE them as the camera. Default true.
+   *
+   * Every renderer frames on `player`, so a caller that wants a camera position has had to invent a
+   * player — and got one DRAWN into the picture. That is why every tile, object and preset preview had
+   * the hero standing in the middle of it (Alexander, 2026-09-10: *"the roof preview showing a grid
+   * floor with player, instead of a building"*). Where the camera looks and what gets drawn are two
+   * questions, so they are two parameters.
+   */
+  showPlayer?: boolean
 }
 
 /** Draw the composition-placement GHOST in ISO: each occupied cell gets a translucent tinted diamond on the
@@ -445,6 +455,7 @@ export function render(params: IsoRenderParams) {
     cameraTurn = cameraFacing ?? isoCameraTurn(),
     playerViewRange,
     chrome = true,
+    showPlayer = true,
   } = params
   installCameraSeams() // __setCameraTurn / __setCameraFacing … — idempotent, no draw side effects
   // The camera's continuous turn, and the CORNER it is nearest. Everything positional reads `turn`; the few
@@ -668,11 +679,14 @@ export function render(params: IsoRenderParams) {
         const inRange = e.kind === 'enemy' && Math.hypot(e.col - pCol, e.row - pRow) <= COMBAT_RANGE
         return { col: pos.col, row: pos.row, entity: e, moving, inRange }
       }),
-    {
-      col: player.x / cellSize,
-      row: player.z / cellSize,
-      isPlayer: true
-    }
+    // The hero, unless the caller only wanted the camera (see `showPlayer`).
+    ...(showPlayer
+      ? [{
+          col: player.x / cellSize,
+          row: player.z / cellSize,
+          isPlayer: true,
+        }]
+      : []),
   ]
   // back-to-front, then bottom-up within a stacked cell (higher blocks over lower) — keyed on the ORIENTED
   // coord so occlusion stays correct from whichever corner the camera looks. Turn 0 → isoDepthCompare itself.
@@ -695,7 +709,10 @@ export function render(params: IsoRenderParams) {
   // roof stayed solid (Alexander, Image #1 — "not transparent enough and is not applied correctly").
   const roofTiles = visibleAssets.filter(a => a.settings?.cutawayRoof)
   const roofFootprints = roofTiles.map(a => grid.rectCoveredCells(a).map(c => `${c.col},${c.row}`))
-  const liftedRoofs = revealedRoofs(Math.floor(pCol), Math.floor(pRow), roofFootprints)
+  // NO HERO, NO REVEAL. The Diablo-style cutaway exists because the player walked INSIDE a building; a
+  // preview has no player, only a camera parked on the subject, and treating that as "standing inside"
+  // faded every wall it was asked to show (Alexander: the roof/window previews came out ghosted).
+  const liftedRoofs = showPlayer ? revealedRoofs(Math.floor(pCol), Math.floor(pRow), roofFootprints) : new Set<number>()
   const roofsOff = new Set<GridAsset>(Array.from(liftedRoofs, i => roofTiles[i]))
   const shellCells = revealedShell(roofFootprints, liftedRoofs)
   // The player is drawn from PlayerState (no id); its selectable id lives on the player ENTITY in `entities`.
@@ -769,7 +786,10 @@ export function render(params: IsoRenderParams) {
       // POSITION, not their distance. Inside the building: its roof is skipped entirely and its shell eases to
       // INTERIOR_SHELL_ALPHA. Outside: both draw at full opacity.
       const fx = obj.asset.settings
-      if (fx?.cutawayRoof || fx?.fadeNear) {
+      // …and ONLY when there is a hero to be near. Both behaviours answer to the hero's position, so with
+      // no hero they have no question to answer: a preview parks a camera on the subject, and reading that
+      // as "the hero is standing right here" faded every wall the preview existed to show.
+      if (showPlayer && (fx?.cutawayRoof || fx?.fadeNear)) {
         // INSIDE = the hero is under this roof, or this shell tile belongs to the revealed building. A revealed
         // ROOF is skipped outright; everything else eases by `revealAlpha` — solid far away, translucent as the
         // hero closes in (so the facade and its door read), and dropped right back once inside.

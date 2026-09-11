@@ -65,6 +65,8 @@ export interface RenderTopViewParams {
   ghost?: CompositionGhost | null
   /** Draw the view's heading and keyboard hint. True for the full-screen mode, false for a small map. */
   chrome?: boolean
+  /** Draw the hero, or only USE them as the camera. Default true — see the note on `IsoRenderParams`. */
+  showPlayer?: boolean
 }
 
 export function renderTopView(params: RenderTopViewParams) {
@@ -85,6 +87,7 @@ export function renderTopView(params: RenderTopViewParams) {
     hoveredCell = null,
     ghost = null,
     chrome = true,
+    showPlayer = true,
   } = params
   // Clear
   ctx.fillStyle = '#0a0a10'
@@ -369,34 +372,39 @@ export function renderTopView(params: RenderTopViewParams) {
   const px = offsetX + playerCellCol * tileSize
   const py = offsetY + playerCellRow * tileSize
 
-  // Player cell background + bold outline so it never gets lost in the foliage
-  ctx.fillStyle = '#ffdd00'
-  ctx.fillRect(px, py, tileSize - 1, tileSize - 1)
-  ctx.strokeStyle = '#1a1a1a'
-  ctx.lineWidth = 2
-  ctx.strokeRect(px + 1, py + 1, tileSize - 3, tileSize - 3)
+  // THE HERO, unless the caller only wanted the camera. A preview invents a player to frame on and
+  // must not have one painted into the picture. The cell highlight, the facing arrow and the life
+  // bar all belong to the hero, so the whole block is one decision.
+  if (showPlayer) {
+    // Player cell background + bold outline so it never gets lost in the foliage
+    ctx.fillStyle = '#ffdd00'
+    ctx.fillRect(px, py, tileSize - 1, tileSize - 1)
+    ctx.strokeStyle = '#1a1a1a'
+    ctx.lineWidth = 2
+    ctx.strokeRect(px + 1, py + 1, tileSize - 3, tileSize - 3)
 
-  // Direction arrow
-  ctx.fillStyle = '#000000'
-  ctx.font = `bold ${tileSize * 0.7}px ${ASCII_FONT}`
-  ctx.textAlign = 'center'
-  ctx.textBaseline = 'middle'
-  let dirChar = 'v'
-  switch (player.facing) {
-    case 'up': dirChar = '^'; break
-    case 'down': dirChar = 'v'; break
-    case 'left': dirChar = '<'; break
-    case 'right': dirChar = '>'; break
-  }
-  const pdv = resolveDraw('player', style, personVariantTileId(player.variant, style), dirChar, '#000000')
-  // genderize the person glyph so the hero's male/female figure shows in top view too (matches
-  // iso/2d); the ASCII direction arrow passes through genderize unchanged.
-  if (pdv.image) drawStyledImage(ctx, pdv.image, px + tileSize / 2, py + tileSize / 2, tileSize)
-  else ctx.fillText(genderize(pdv.char, player.variant), px + tileSize / 2, py + tileSize / 2)
+    // Direction arrow
+    ctx.fillStyle = '#000000'
+    ctx.font = `bold ${tileSize * 0.7}px ${ASCII_FONT}`
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    let dirChar = 'v'
+    switch (player.facing) {
+      case 'up': dirChar = '^'; break
+      case 'down': dirChar = 'v'; break
+      case 'left': dirChar = '<'; break
+      case 'right': dirChar = '>'; break
+    }
+    const pdv = resolveDraw('player', style, personVariantTileId(player.variant, style), dirChar, '#000000')
+    // genderize the person glyph so the hero's male/female figure shows in top view too (matches
+    // iso/2d); the ASCII direction arrow passes through genderize unchanged.
+    if (pdv.image) drawStyledImage(ctx, pdv.image, px + tileSize / 2, py + tileSize / 2, tileSize)
+    else ctx.fillText(genderize(pdv.char, player.variant), px + tileSize / 2, py + tileSize / 2)
 
-  // Life bar above the player cell — the SAME drawHpBar enemies get in this view (below).
-  if (player.maxHp != null) {
-    drawHpBar(ctx, px + tileSize / 2, py - 3, tileSize, 3, barFraction(player.hp ?? player.maxHp, player.maxHp))
+    // Life bar above the player cell — the SAME drawHpBar enemies get in this view (below).
+    if (player.maxHp != null) {
+      drawHpBar(ctx, px + tileSize / 2, py - 3, tileSize, 3, barFraction(player.hp ?? player.maxHp, player.maxHp))
+    }
   }
 
   // Draw connectors — one marker per cell the connector owns; the label rides on

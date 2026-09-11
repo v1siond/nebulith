@@ -368,6 +368,16 @@ export interface Render2DParams {
   /** Draw the renderer's own on-screen text (`Pos:`, the mode banner). False for a preview or a minimap —
    *  see the same flag on `IsoRenderParams` and `RenderTopViewParams`. */
   chrome?: boolean
+  /**
+   * Draw the hero, or only USE them as the camera. Default true.
+   *
+   * Every renderer frames on `player`, so a caller that wants a camera position has had to invent a
+   * player — and got one DRAWN into the picture. That is why every tile, object and preset preview had
+   * the hero standing in the middle of it (Alexander, 2026-09-10: *"the roof preview showing a grid
+   * floor with player, instead of a building"*). Where the camera looks and what gets drawn are two
+   * questions, so they are two parameters.
+   */
+  showPlayer?: boolean
 }
 
 export function render2D(params: Render2DParams) {
@@ -390,6 +400,7 @@ export function render2D(params: Render2DParams) {
     selectedCells = new Set<string>(),
     hoveredCell = null,
     chrome = true,
+    showPlayer = true,
   } = params
   const __t0 = typeof performance !== 'undefined' ? performance.now() : 0
   const playerIsTarget = !!targetId && entities.some(e => e.kind === 'player' && e.id === targetId)
@@ -514,7 +525,7 @@ export function render2D(params: Render2DParams) {
   // Add player
   const playerCol = player.x / cellSize
   const playerRow = player.z / cellSize
-  drawables.push({ row: playerRow, col: playerCol, type: 'player', sortRow: playerRow, level: 0, zIndex: 0 })
+  if (showPlayer) drawables.push({ row: playerRow, col: playerCol, type: 'player', sortRow: playerRow, level: 0, zIndex: 0 })
 
   // DRAW-PRIORITY first (CSS z-index): a higher zIndex draws LATER (on top / in front) regardless of position —
   // a cell authored with a higher zIndex sits in front of one behind it (a capability for composition

@@ -25,6 +25,7 @@ import { resolveComposition } from '@/engine/tileset/tileset'
 import { styleCatalog } from '@/engine/tileset/styleTiles'
 import { ZONE_PALETTES, type ZoneId } from '@/engine/zones'
 import { placeGroundTile, stackAssetTile } from '@/game/editor/tileBrush'
+import { ISO_BLOCK_H_FRAC } from '@/engine/render/iso'
 import { tileSlug, placementFor } from '@/game/editor/tilePlacement'
 import { stampComposition } from '@/game/runtime/composition'
 import { tilesForStyle, type TileDef } from '@/game/artStyle'
@@ -92,6 +93,45 @@ export function compositionSpan(comp: string): { cols: number; rows: number } | 
  * stand-in tile and no invented footprint: a preview of something the backend does not serve would be a
  * picture of a thing that does not exist.
  */
+
+/**
+ * What a piece needs AROUND it to read as itself, by the tile's OWN backend category.
+ *
+ * Alexander, 2026-09-10: *"there's previews that make 0 sense, like the roof preview showing a grid floor
+ * with player, instead of a building, or a window not being previewed in a building, like preview must be
+ * logical"*. He is right: a roof lying on grass is not a roof, it is a coloured lid. A window floating in
+ * the open is not a window, it is a pane.
+ *
+ * The rule is DATA, not a guess about names: the backend already files every tile under a category
+ * (`roofs`, `windows`, `doors`, `walls`, `terrain`, `nature`…), so the context comes from the row. A
+ * category with no entry here previews on plain ground, exactly as before.
+ */
+type PreviewContextKind = 'on-wall' | 'in-wall' | 'wall-run'
+
+const CONTEXT_BY_CATEGORY: Readonly<Record<string, PreviewContextKind>> = {
+  roofs: 'on-wall',   // a roof CAPS a building, so it is shown capping one
+  windows: 'in-wall', // a window sits IN a wall, with courses above and below it
+  doors: 'in-wall',
+  walls: 'wall-run',  // a wall reads as a run of wall, not as one lonely cube
+}
+
+/** How tall the stub is, in blocks. Two courses under a roof reads as a building without becoming one. */
+const STUB_COURSES = 2
+
+/**
+ * A plain wall from the SAME style to build the stub from.
+ *
+ * Never invented: it is picked out of the loaded catalog, and when the catalog carries no wall the stub is
+ * skipped and the piece previews on plain ground. Prefers a neutral, unpatterned material so the subject
+ * stays the thing you are looking at.
+ */
+function stubWall(styleId: string, subjectId: string): TileDef | undefined {
+  const walls = tilesForStyle(styleId).walls
+  if (walls.length === 0) return undefined
+  const plain = walls.find(w => /wall_(stone|plaster|brick)_c$/.test(tileSlug(w.id)))
+  return plain ?? walls.find(w => w.id !== subjectId) ?? walls[0]
+}
+
 export function buildPreviewScene(subject: PreviewSubject, zone: ZoneId, styleId: string): PreviewScene | null {
   if (subject.kind === 'stage') return buildStageScene(subject)
   const span = subject.kind === 'composition' ? compositionSpan(subject.comp) : { cols: 1, rows: 1 }
@@ -124,8 +164,33 @@ export function buildPreviewScene(subject: PreviewSubject, zone: ZoneId, styleId
   const how = placementFor(subject.tile)
   if (how === 'entity') return { grid, span, anchor, entity: true, levels: 1 }
   // The brush's own two paths: ground REPLACES the floor, everything else STACKS on it.
-  if (how === 'terrain') placeGroundTile(grid, anchor.col, anchor.row, subject.tile)
-  else stackAssetTile(grid, anchor.col, anchor.row, subject.tile)
+  if (how === 'terrain') {
+    placeGroundTile(grid, anchor.col, anchor.row, subject.tile)
+    return { grid, span, anchor, entity: false, levels: tallestStack(grid, anchor, span) }
+  }
+
+  // A piece that only makes sense in a building gets the building around it.
+  const context = CONTEXT_BY_CATEGORY[subject.tile.category]
+  const wall = context ? stubWall(styleId, subject.tile.id) : undefined
+  if (context && wall) {
+    if (context === 'on-wall') {
+      for (let course = 0; course < STUB_COURSES; course++) stackAssetTile(grid, anchor.col, anchor.row, wall)
+      stackAssetTile(grid, anchor.col, anchor.row, subject.tile)
+    } else if (context === 'in-wall') {
+      stackAssetTile(grid, anchor.col, anchor.row, wall)        // the course below the opening
+      stackAssetTile(grid, anchor.col, anchor.row, subject.tile) // the window / door itself
+      stackAssetTile(grid, anchor.col, anchor.row, wall)        // and the course above it
+    } else {
+      // A RUN: the subject in the middle, the same wall either side, so you read the material and not a cube.
+      for (const col of [anchor.col - 1, anchor.col + 1]) {
+        for (let course = 0; course < STUB_COURSES; course++) stackAssetTile(grid, col, anchor.row, wall)
+      }
+      for (let course = 0; course < STUB_COURSES; course++) stackAssetTile(grid, anchor.col, anchor.row, subject.tile)
+    }
+    return { grid, span, anchor, entity: false, levels: tallestStack(grid, anchor, span) }
+  }
+
+  stackAssetTile(grid, anchor.col, anchor.row, subject.tile)
   return { grid, span, anchor, entity: false, levels: tallestStack(grid, anchor, span) }
 }
 
@@ -172,10 +237,15 @@ export function fitZoom(
   const h = box.h * FILL
   if (view === 'top') return Math.min(w / (grid.cols * 16), h / (grid.rows * 16))
   if (view === '2d') return Math.min(w / (grid.cols * 24), h / (grid.rows * 24 + levels * 16))
-  // ISO: the diamond spans (cols + rows) in both diagonal axes, and the stack adds 0.4 per level on y.
+  // ISO: the diamond spans (cols + rows) in both diagonal axes, and a stacked block adds its real height.
+  //
+  // That last part was wrong and it SHOWED: the allowance was 0.4 per level while the renderer draws a block
+  // at `tileW * ISO_BLOCK_H_FRAC` (0.9), so anything tall was zoomed to fit a box less than half its height
+  // and had its top cut off — which is what a roof on a wall stub does (Alexander: *"weird vertical
+  // centering in a lot of the previews"*). One constant, imported from the renderer, so the two cannot drift.
   const diagonal = grid.cols + grid.rows
   const perZoomX = cs * grid.isoScale * 0.71 * diagonal
-  const perZoomY = cs * grid.isoScale * (0.36 * diagonal + 0.4 * levels)
+  const perZoomY = cs * grid.isoScale * (0.36 * diagonal + ISO_BLOCK_H_FRAC * levels)
   return Math.min(w / perZoomX, h / perZoomY)
 }
 

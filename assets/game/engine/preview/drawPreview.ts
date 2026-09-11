@@ -51,8 +51,10 @@ export function drawPreviewScene(
 ): void {
   const { grid, span, anchor } = scene
   const cs = grid.cellSize
-  // Every renderer frames the "player", so the player IS the centre of the subject's footprint and no camera
-  // offset is applied — the subject lands in the middle of the box.
+  // Every renderer frames the "player", so this is a CAMERA POSITION, not a character: it puts the subject
+  // in the middle of the box with no camera offset. `showPlayer: false` is what keeps it a camera — without
+  // it the renderer also DREW this invented hero, which is why every preview had a figure standing on it
+  // (Alexander: *"the roof preview showing a grid floor with player, instead of a building"*).
   const player = {
     x: (anchor.col + span.cols / 2) * cs,
     z: (anchor.row + span.rows / 2) * cs,
@@ -62,16 +64,16 @@ export function drawPreviewScene(
   const zoom = fitZoom(view, { w, h }, scene)
 
   if (view === 'top') {
-    renderTopView({ ctx, w, h, grid, player, entities, style, chrome: false, zoom })
+    renderTopView({ ctx, w, h, grid, player, entities, style, chrome: false, showPlayer: false, zoom })
     return
   }
   if (view === '2d') {
-    without2DRecording(() => render2D({ ctx, w, h, grid, player, time: timeSec, entities, style, zoom, chrome: false }))
+    without2DRecording(() => render2D({ ctx, w, h, grid, player, time: timeSec, entities, style, zoom, chrome: false, showPlayer: false }))
     return
   }
   // `clampCamera: false` so the camera sits exactly on the subject. The clamp exists to stop a game camera
   // showing off-grid void; here the off-grid margin IS the framing.
-  withoutIsoRecording(() => renderIso({ ctx, w, h, grid, player, time: timeSec, entities, style, zoom, clampCamera: false, chrome: false }))
+  withoutIsoRecording(() => renderIso({ ctx, w, h, grid, player, time: timeSec, entities, style, zoom, clampCamera: false, chrome: false, showPlayer: false }))
 }
 
 /**

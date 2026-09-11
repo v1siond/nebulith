@@ -598,6 +598,7 @@ export function GenerateControls({
   onRandomizeLayer,
   selectedCount = 0,
   onRandomizeSelection,
+  onPeek,
   sizeDraft,
   size,
   onSizeDraft,
@@ -622,6 +623,8 @@ export function GenerateControls({
    *  count in the label so you can see what it will touch. */
   selectedCount?: number
   onRandomizeSelection?: () => void
+  /** Show this preset's world in the big Preview panel — on hover, and on the click that selects it. */
+  onPeek?: (subject: { kind: 'stage' } & Record<string, unknown>) => void
   /** The matrix as TYPED — what this build will produce. Owned by the parent because `Build this world`
    *  and the resize button both read it. */
   sizeDraft?: MapSize
@@ -652,6 +655,27 @@ export function GenerateControls({
    * that generator builds. Its card carries no layout id, which is exactly what `generateStage` wants for
    * "run the category's own default pass".
    */
+  /**
+   * The world a preset would build, as a preview SUBJECT.
+   *
+   * One object, two consumers: the card's own thumbnail and the big Preview panel (`onPeek`). They used to
+   * be one consumer, which is why hovering a preset showed a tooltip and nothing else — Alexander,
+   * 2026-09-10: *"the preview panel on selection is not showing on generators"*. Built here so the small
+   * picture and the big one can never disagree about which world they are showing.
+   */
+  const presetSubject = (categoryKey: string, layoutId: string | undefined) => ({
+    kind: 'stage' as const,
+    zone: zone as never,
+    variant: categoryKey as never,
+    layout: layoutId,
+    nature: findGenerator(catalog, categoryKey, layoutId)?.config.nature,
+    // Seeded from the preset's identity, so a card's picture is stable across renders and every card shows
+    // a DIFFERENT world rather than all sharing one seed.
+    seed: presetSeed(categoryKey, layoutId ?? 'default', zone),
+    cols: PRESET_THUMB_CELLS.cols,
+    rows: PRESET_THUMB_CELLS.rows,
+  })
+
   const presets: ReadonlyArray<{ id: string | undefined; label: string }> =
     layouts.length > 0 ? layouts : activeCategory ? [{ id: undefined, label: activeCategory.name }] : []
 
@@ -660,6 +684,7 @@ export function GenerateControls({
   const select = (key: string, chosen?: string) => {
     setCategoryKey(key)
     if (chosen) setLayout(chosen)
+    onPeek?.(presetSubject(key, chosen))
   }
 
   // Generating is the explicit act. A type with no layouts sends `undefined` so the category's own default
@@ -732,6 +757,8 @@ export function GenerateControls({
           <div className="pgrid">
             {presets.map(({ id, label }) => (
               <button
+                onPointerEnter={() => activeKey && onPeek?.(presetSubject(activeKey, id))}
+                onPointerLeave={() => onPeek?.(null as never)}
                 key={id ?? `${activeKey}-default`}
                 type="button"
                 onClick={() => select(activeKey as string, id)}
@@ -749,22 +776,7 @@ export function GenerateControls({
                     dropped it; it is worth more now than when he asked, because Woodland sits next to two
                     Meadows and the only honest way to tell them apart is to look. */}
                 {preview && activeKey && (
-                  <PreviewThumb
-                    subject={{
-                      kind: 'stage',
-                      zone: zone as never,
-                      variant: activeKey as never,
-                      layout: id,
-                      nature: findGenerator(catalog, activeKey, id)?.config.nature,
-                      // Seeded from the preset's identity, so a card's picture is stable across renders
-                      // and every card shows a DIFFERENT world rather than all sharing one seed.
-                      seed: presetSeed(activeKey, id ?? 'default', zone),
-                      cols: PRESET_THUMB_CELLS.cols,
-                      rows: PRESET_THUMB_CELLS.rows,
-                    }}
-                    context={preview}
-                    px={92}
-                  />
+                  <PreviewThumb subject={presetSubject(activeKey, id)} context={preview} px={92} />
                 )}
                 {/* DIVs, matching the design. `.pd` carries `margin-top:3px`, which does nothing on an
                     inline element — as spans these two ran together as "Meadowa spring forest laid out…". */}

@@ -941,7 +941,19 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
    * requested a movable preview modal next to the left panel..."* The right-zone version is deleted — it
    * reproduced exactly the cramming he predicted when he first asked for movable modals.
    */
-  const previewSubject = subjectFor(libraryKind, previewLabel, activeStyleId)
+  /**
+   * The world a hovered/selected GENERATOR preset would build. The Generate panel is not a library, so
+   * `libraryKind` is null while it is open and `subjectFor` had nothing to answer with — which is why the
+   * preview panel stayed empty there (Alexander, 2026-09-10: *"the preview panel on selection is not
+   * showing on generators"*). The panel hands its own subject up instead.
+   */
+  const [genPeek, setGenPeek] = useState<ReturnType<typeof subjectFor>>(null)
+  const previewSubject = genPeek ?? subjectFor(libraryKind, previewLabel, activeStyleId)
+  /** What the panel calls what it is showing: a library row by its label, a generator preset by its world. */
+  const previewCaption =
+    genPeek && genPeek.kind === 'stage'
+      ? `${String(genPeek.layout ?? genPeek.variant)} — the world this preset builds`
+      : previewLabel
   /**
    * How every swatch and the preview panel should draw a thing: the view you are looking through, the zone
    * whose ground it stands on, and the art style. One object so a library takes one prop, not four — and so
@@ -5620,6 +5632,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                   onRandomizeLayer={layer => randomizeLayerInEditor(layer as LayerId)}
                   selectedCount={selectedCells.size}
                   onRandomizeSelection={randomizeSelected}
+                  onPeek={next => setGenPeek((next ?? null) as ReturnType<typeof subjectFor>)}
                   sizeDraft={gridDraft}
                   size={gridSize}
                   onSizeDraft={next => setGridDraft(prev => ({ ...prev, ...next }))}
@@ -6331,7 +6344,11 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
             preview modal next to the left panel..."* and *"also, the preview should be how it looks in the
             map."* Both are the same panel: `MapPreview` stamps the subject into a real grid and calls the
             renderer the view bar has selected, so it cannot disagree with the map. */}
-        {!hudMode && libraryKind !== null && previewOpen && (
+        {/* SHOWN WHEN THERE IS SOMETHING TO SHOW, which is not the same as "a library is open". Gating it on
+            the library is why hovering a generator preset produced nothing: the Generate panel is not a
+            library, so the whole panel was absent (Alexander: *"the preview panel on selection is not
+            showing on generators"*). */}
+        {!hudMode && previewSubject !== null && previewOpen && (
           <FloatingPanel
             title="Preview"
             accent="cyan"
@@ -6348,9 +6365,9 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
             />
             {/* Only says something when there IS something — `MapPreview` already carries the empty state,
                 and both showing it printed "Point at something in the library" twice. */}
-            {previewLabel && (
+            {previewCaption && (
               <div className="hint">
-                {`${previewLabel} — drawn by the ${previewContext.view} renderer, on ${genZone} ground.`}
+                {`${previewCaption} — drawn by the ${previewContext.view} renderer, on ${genZone} ground.`}
               </div>
             )}
           </FloatingPanel>
