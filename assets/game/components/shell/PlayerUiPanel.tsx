@@ -105,8 +105,6 @@ const CONTENT: Record<string, () => React.ReactNode> = {
   select_hint: () => <span className="hpill">Click anything to edit it</span>,
   trigger_msg: () => <span className="hmsg">The gate grinds open.</span>,
   win_lose: () => <div className="hwin"><b>You win</b><i>Play again · Back to the editor</i></div>,
-  bag_btn: () => <span className="hbtn">🎒 Bag</span>,
-  journal_btn: () => <span className="hbtn">📖 Journal</span>,
   bag_panel: () => (
     <div className="hpanel"><b>Bag</b><div className="hslotgrid">{Array.from({ length: 12 }, (_, i) => <i key={i} />)}</div></div>
   ),

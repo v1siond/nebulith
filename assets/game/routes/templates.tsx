@@ -6221,22 +6221,10 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
           </div>
         )}
 
-        {/* Inventory — open button (also toggled by the I key) + the panel overlay.
-            WHERE IT SITS IS DATA. Alexander, 2026-09-10: *"quests and inventory buttons can't be moved,
-            they should just be pat of the HUD we can edit"*. It could not be moved because its position
-            was `fixed bottom-16 left-1/2` written right here. It is `bag_btn` in the profile now, so it
-            moves in the Player UI panel like every other piece. */}
-        {(showSidebars || playMode) && !inventoryOpen && !showFlowView && !showGamesView && (
-          <HudPlaced element="bag_btn">
-            <button
-              onClick={() => setInventoryOpen(true)}
-              className="rounded bg-cyan-700 px-3 py-1 font-mono text-xs font-bold text-white shadow-lg hover:bg-cyan-600"
-              aria-label="Open inventory (I)"
-            >
-              ▤ Inventory (I)
-            </button>
-          </HudPlaced>
-        )}
+        {/* No floating Inventory button. Alexander, 2026-09-11: *"those two from the image AREN'T NEDDED,
+            I DON'T WANT THEM, NUKE THEM OUT"*. The bag opens on I, from the sidebar, or from any action bar
+            slot bound to `open_bag` — three ways in already, so a button parked over the map was a fourth
+            that only ever got in the way. */}
         {confirmDialog}
         {promptDialog}
         {/* THE SHORTCUT SHEET (§4.9). It reads the PLAYER's live bindings, so a rebound ability or
@@ -6334,19 +6322,8 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
           )
         })()}
 
-        {/* Quest log — open button (also toggled by the Q key) + the panel overlay */}
-        {/* Same for the quest log: `journal_btn` in the profile, placed by it, not by a literal here. */}
-        {(showSidebars || playMode) && !questLogOpen && !showFlowView && !showGamesView && (
-          <HudPlaced element="journal_btn">
-            <button
-              onClick={() => setQuestLogOpen(true)}
-              className="rounded bg-orange-700 px-3 py-1 font-mono text-xs font-bold text-white shadow-lg hover:bg-orange-600"
-              aria-label="Open quest log (Q)"
-            >
-              ❒ Quests (Q)
-            </button>
-          </HudPlaced>
-        )}
+        {/* Same for the quest log: Q, or a slot bound to `open_journal`, or the Quests tab of the
+            character window. It is already on the player's own panel, so it never needed a button too. */}
 
 
         {/* Quest OFFER modal — opened when the player talks to a giver with an

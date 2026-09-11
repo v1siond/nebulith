@@ -32,7 +32,7 @@ describe('parseGeneratorCatalog — the live /api/generators body', () => {
   })
 
   it('reads each category\'s generators, in menu order', () => {
-    expect(findCategory(LIVE, 'forest')!.generators.map(g => g.key)).toEqual(['forest_meadow', 'forest_meadow_river'])
+    expect(findCategory(LIVE, 'forest')!.generators.map(g => g.key)).toEqual(['forest_woodland', 'forest_jungle', 'forest_meadow'])
     expect(findCategory(LIVE, 'town')!.generators.map(g => g.key)).toEqual(['town_default'])
   })
 
@@ -51,7 +51,9 @@ describe('parseGeneratorCatalog — the live /api/generators body', () => {
   it('reads the townsfolk counts the editor scattered from a 14/8/5 ternary', () => {
     expect(findGenerator(LIVE, 'city')!.config.units!.townsfolk).toBe(14)
     expect(findGenerator(LIVE, 'town')!.config.units!.townsfolk).toBe(8)
-    expect(findGenerator(LIVE, 'forest')!.config.units!.townsfolk).toBe(5)
+    // The forest's FIRST row is the woodland now, and a wood scatters fewer people than an open meadow.
+    expect(findGenerator(LIVE, 'forest')!.config.units!.townsfolk).toBe(3)
+    expect(findGenerator(LIVE, 'forest', 'meadow')!.config.units!.townsfolk).toBe(5)
   })
 
   it('reads the dungeon enemy rosters — CAVE_ENEMY_TYPES / TEMPLE_ENEMY_TYPES as data', () => {
@@ -108,10 +110,13 @@ describe('catalogZones — the season chips are the union of what generators run
 })
 
 describe('categoryLayouts — a map type\'s shapes are DATA, not a `key === forest` branch', () => {
-  it('lists the forest\'s two layouts with their display names', () => {
+  it('lists the forest\'s three KINDS of forest with their display names', () => {
+    // Three, not five. A river is an OPTION on each of these now, so it is not a layout and never shows up
+    // here — which is the whole of ticket 47: the list stopped growing when a variation stopped being a row.
     expect(categoryLayouts(LIVE, 'forest')).toEqual([
+      { id: 'woodland', label: 'Woodland' },
+      { id: 'jungle', label: 'Jungle' },
       { id: 'meadow', label: 'Meadow' },
-      { id: 'meadow_river', label: 'Meadow + River' },
     ])
   })
 
@@ -127,12 +132,12 @@ describe('categoryLayouts — a map type\'s shapes are DATA, not a `key === fore
 
 describe('findGenerator — the editor runs exactly the world the user asked for', () => {
   it('picks the generator whose layout was chosen', () => {
-    expect(findGenerator(LIVE, 'forest', 'meadow_river')!.key).toBe('forest_meadow_river')
+    expect(findGenerator(LIVE, 'forest', 'jungle')!.key).toBe('forest_jungle')
     expect(findGenerator(LIVE, 'forest', 'meadow')!.key).toBe('forest_meadow')
   })
 
   it('picks the first generator when no layout is chosen', () => {
-    expect(findGenerator(LIVE, 'forest')!.key).toBe('forest_meadow')
+    expect(findGenerator(LIVE, 'forest')!.key).toBe('forest_woodland')
   })
 
   it('finds NOTHING for a layout the category does not carry — never a silent substitution', () => {
