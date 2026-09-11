@@ -477,6 +477,30 @@ defmodule Nebulith.Catalog.GeneratorSource do
   defp depth(%{parent: parent}, by_key) when is_binary(parent), do: 1 + depth(Map.fetch!(by_key, parent), by_key)
   defp depth(_row, _by_key), do: 0
 
+  @doc false
+  # THE REGION PICKER. Alexander, 2026-09-11: *"on jungle we have "regions" in it, but it's badly implemented,
+  # we should just have variations, similar to "which jungle" "which region""*.
+  #
+  # Tick boxes are gone. You pick a region to LEAD and the map leans that way, which is the same idiom as
+  # picking a preset or a subtype. Built from the KEYS a row actually carries, so a subtype that holds two
+  # regions offers two, and the names come from one place.
+  defp region_options(keys) do
+    named = Map.new(@jungle_sub_zones, &{&1["key"], &1["name"]})
+
+    [
+      %{
+        "key" => "region",
+        "label" => "Region",
+        "type" => "choice",
+        "default" => "random",
+        "choices" => [
+          %{"key" => "random", "label" => "Random"}
+          | for(k <- keys, do: %{"key" => k, "label" => Map.fetch!(named, k)})
+        ]
+      }
+    ]
+  end
+
   # The jungle's regions at different weights — a swamp jungle is the same regions, mostly swamp. A weight of
   # zero leaves that region out.
   defp sub_zones(weights) do
@@ -515,7 +539,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
         category: "forest", key: "forest_jungle", name: "Jungle", layout: "jungle", variant: "forest", position: 1,
         description: "A closed canopy over choked undergrowth, with clearings cut into it.",
         config: %{"grid" => @small_grid, "nature" => @jungle_nature, "units" => townsfolk(2), "palette" => @jungle_palette, "subZones" => @jungle_sub_zones, "formation" => @formations["closed"], "trees" => @jungle_trees, "crossings" => @crossings},
-        options: @way_options ++ @water_options
+        options: @way_options ++ region_options(~w(open dense swamp ruins)) ++ @water_options
       },
       %{
         category: "forest", key: "forest_meadow", name: "Meadow", layout: "meadow", variant: "forest", position: 2,
@@ -567,14 +591,16 @@ defmodule Nebulith.Catalog.GeneratorSource do
         category: "forest", parent: "forest_jungle", key: "forest_jungle_dense", name: "Super dense jungle",
         layout: "jungle", position: 0,
         description: "A closed canopy wall to wall, almost no open ground.",
-        config: %{"nature" => %{"canopy" => 0.72}, "subZones" => sub_zones(%{"dense" => 5, "open" => 1})}
+        config: %{"nature" => %{"canopy" => 0.72}, "subZones" => sub_zones(%{"dense" => 5, "open" => 1})},
+        options: @way_options ++ region_options(~w(open dense)) ++ @water_options
       },
       # image #13 — cypress standing in the water
       %{
         category: "forest", parent: "forest_jungle", key: "forest_jungle_swamp", name: "Swamp jungle",
         layout: "jungle", position: 1,
         description: "Mostly swamp, cypress standing in the water.",
-        config: %{"subZones" => sub_zones(%{"swamp" => 6, "dense" => 2, "open" => 1})}
+        config: %{"subZones" => sub_zones(%{"swamp" => 6, "dense" => 2, "open" => 1})},
+        options: @way_options ++ region_options(~w(open dense swamp)) ++ @water_options
       },
       # his words — an island: water around it, palms
       %{
@@ -583,13 +609,14 @@ defmodule Nebulith.Catalog.GeneratorSource do
         description: "Jungle ringed by water, heavy with palms.",
         config: %{"subZones" => sub_zones(%{"open" => 3, "dense" => 2}),
                   "trees" => [%{"kind" => "tree_palm", "weight" => 50}, %{"kind" => "tree_round", "weight" => 25}, %{"kind" => "bush_round", "weight" => 25}]},
-        options: @way_options ++ water_options("around")
+        options: @way_options ++ region_options(~w(open dense)) ++ water_options("around")
       },
       %{
         category: "forest", parent: "forest_jungle", key: "forest_jungle_ruins", name: "Jungle ruins",
         layout: "jungle", position: 3,
         description: "Ruins the jungle has taken back.",
-        config: %{"subZones" => sub_zones(%{"ruins" => 5, "dense" => 2, "open" => 2})}
+        config: %{"subZones" => sub_zones(%{"ruins" => 5, "dense" => 2, "open" => 2})},
+        options: @way_options ++ region_options(~w(open dense ruins)) ++ @water_options
       },
       # image #10 — big lone trees wide apart on open grass
       %{

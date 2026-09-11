@@ -71,7 +71,13 @@ defmodule Nebulith.GeneratorSourceTest do
       assert length(layouts) == 3
 
       for g <- cats["forest"].generators do
-        assert Enum.map(g.options, & &1["key"]) == ~w(exits pathways river crossing bridge), "#{g.key} offers #{inspect(g.options)}"
+        # A jungle also offers its REGION picker, since it is the one kind split into regions.
+        expected =
+          if g.key == "forest_jungle",
+            do: ~w(exits pathways region river crossing bridge),
+            else: ~w(exits pathways river crossing bridge)
+
+        assert Enum.map(g.options, & &1["key"]) == expected, "#{g.key} offers #{inspect(g.options)}"
         # Nothing runs by default: no river, and so no crossing either, whatever kind it would be.
         [river, crossing, kind] = Enum.filter(g.options, &(&1["key"] in ~w(river crossing bridge)))
         assert river["default"] == "none", "#{g.key} runs a river by default"
@@ -382,7 +388,15 @@ defmodule Nebulith.GeneratorSourceTest do
       swamp = Enum.find(jungle.children, &(&1.key == "forest_jungle_swamp"))
 
       assert Enum.find(island.options, &(&1["key"] == "river"))["default"] == "around"
-      assert swamp.options == jungle.options
+
+      # A subtype with nothing of its own INHERITS: a beech stand offers exactly the woodland's options.
+      woodland = Enum.find(f.generators, &(&1.key == "forest_woodland"))
+      beech = Enum.find(woodland.children, &(&1.key == "forest_woodland_beech"))
+      assert beech.options == woodland.options
+
+      # A jungle subtype states its own REGION picker, listing only the regions it carries.
+      assert swamp.options |> Enum.find(&(&1["key"] == "region")) |> Map.fetch!("choices") |> Enum.map(& &1["key"]) ==
+               ~w(random open dense swamp)
     end
 
     test "a swamp jungle is the same regions, mostly swamp", %{forest: f} do
