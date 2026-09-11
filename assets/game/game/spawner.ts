@@ -11,8 +11,8 @@
  * area, goblins in another, etc. — instead of every type clumping in one corner.
  */
 import type { Entity, EntityKind, MovementPattern, Cell, Rarity } from '@/game/types'
+import { combatForEnemyType } from '@/game/combatCatalog'
 import { makeEnemy, makeNpc, makePlayer } from '@/game/entities'
-import { buildArchetypeProfile, type EnemyArchetypeId } from '@/game/archetypes'
 import { chebyshev } from '@/lib/math'
 
 /** The enemy roster a randomizer draws from (the tag 'kill' objectives count). */
@@ -27,26 +27,13 @@ export const CAVE_ENEMY_TYPES = ['bat', 'spider', 'skeleton'] as const
  *  (sentinel), wraiths haunt them (mage caster). The temple interior seeds these. */
 export const TEMPLE_ENEMY_TYPES = ['skeleton', 'guardian', 'wraith'] as const
 
-/** Each roster type maps to a distinct combat ARCHETYPE, so the type-grouped zones also
- *  vary by fighting style: goblins are basic grunts, wolves dart (skirmisher), bandits
- *  shoot (archer), skeletons hit like brutes, bats flit (flyer), spiders ambush (crawler).
- *  The archetype seeds the enemy's stats + attack pattern (see entities.makeEnemy). */
-const ARCHETYPE_BY_ENEMY_TYPE: Record<string, EnemyArchetypeId> = {
-  goblin: 'grunt',
-  wolf: 'skirmisher',
-  bandit: 'archer',
-  skeleton: 'brute',
-  bat: 'flyer',
-  spider: 'crawler',
-  guardian: 'sentinel', // temple stone warden — tanky, crushing melee
-  wraith: 'mage', // temple caster — haunts the halls with arcane bolts
-}
-
-/** The archetype for a roster type, or undefined for an unknown/custom type (→ plain
- *  default mob). Exposed so the editor's manual placement varies enemies by type too. */
-export function archetypeForEnemyType(type: string): EnemyArchetypeId | undefined {
-  return (ARCHETYPE_BY_ENEMY_TYPE as Record<string, EnemyArchetypeId>)[type]
-}
+/*
+ * `ARCHETYPE_BY_ENEMY_TYPE` and `archetypeForEnemyType` lived here: a hardcoded table translating a
+ * creature into a second vocabulary of nine "archetypes" that mapped one-to-one back onto eight creatures.
+ * Alexander, 2026-09-10: *"an enemy is just a regular unit, but marked as hostile towards player. so, I
+ * don't think we need a separate table for it"*. A creature carries its own numbers now
+ * (`combatForEnemyType` → the tile's `settings.combat`), so there is nothing left to translate.
+ */
 
 export interface ScatterOptions {
   /** [row][col]; true = blocked. */
@@ -256,9 +243,9 @@ function buildEnemy(
   collision: boolean[][],
   rarity?: Rarity,
 ): Entity {
-  const archetype = archetypeForEnemyType(type)
-  const enemy = makeEnemy(id, cell.col, cell.row, type, { archetype, rarity })
-  const moveDelayMs = archetype ? buildArchetypeProfile(archetype).moveDelayMs : undefined
+  // The creature's pace comes off its own tile, like the rest of its stat block. No archetype in between.
+  const enemy = makeEnemy(id, cell.col, cell.row, type, { rarity })
+  const moveDelayMs = combatForEnemyType(type)?.moveDelayMs
   return { ...enemy, hittable: true, movement: makePatrol(cell, rng, collision, moveDelayMs) }
 }
 

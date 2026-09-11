@@ -8,7 +8,9 @@ import {
 } from '@/game/archetypes'
 import { nextEnemyAttack } from '@/game/patterns'
 import { makeEnemy, DEFAULT_ENEMY_STATS } from '@/game/entities'
-import { scatterEntities, archetypeForEnemyType, ENEMY_TYPES } from '@/game/spawner'
+import { scatterEntities, ENEMY_TYPES } from '@/game/spawner'
+import { installCreatureTiles } from '@/__tests__/helpers/creatureTiles'
+import { combatForEnemyType } from '@/game/combatCatalog'
 import type { AttackMode, EnemyAttack } from '@/game/types'
 
 const ALL = ENEMY_ARCHETYPE_IDS
@@ -151,15 +153,19 @@ describe('archetype builder — yields the right hp / damage / pattern', () => {
   })
 })
 
-describe('makeEnemy — archetype wiring + back-compat default', () => {
-  it('with NO archetype keeps the legacy defaults (flat stats, no authored attack)', () => {
-    const e = makeEnemy('e1', 0, 0, 'goblin')
+describe('makeEnemy — the creature\'s own tile, and the default when it carries none', () => {
+  beforeEach(() => installCreatureTiles())
+
+  it('a creature whose TILE carries no combat keeps the defaults', () => {
+    // The premise moved with the model: it used to be "no archetype passed", it is now "the tile says
+    // nothing". Either way nothing is invented and the engine's single-melee fallback answers.
+    const e = makeEnemy('e1', 0, 0, 'not-a-creature')
     expect(e.baseStats).toEqual(DEFAULT_ENEMY_STATS)
-    expect(e.attack).toBeUndefined() // → engine single-melee fallback (no regression)
+    expect(e.attack).toBeUndefined()
   })
 
-  it('with an archetype stamps that archetype stats + a real attack pattern', () => {
-    const e = makeEnemy('e1', 0, 0, 'skeleton', { archetype: 'brute' })
+  it('takes the stat block and attack pattern its TILE carries', () => {
+    const e = makeEnemy('e1', 0, 0, 'skeleton')
     expect(e.baseStats).toEqual(ENEMY_ARCHETYPES.brute.stats)
     expect(e.attack).toBeDefined()
     expect(nextEnemyAttack(e.attack, { fireCount: 0 }).damage).toBe(
@@ -167,19 +173,24 @@ describe('makeEnemy — archetype wiring + back-compat default', () => {
     )
   })
 
-  it('an explicit stats override still wins over the archetype stats', () => {
-    const e = makeEnemy('boss', 0, 0, 'skeleton', { archetype: 'brute', stats: { maxHp: 500 } })
+  it('an explicit stats override still wins over the tile\'s block', () => {
+    const e = makeEnemy('boss', 0, 0, 'skeleton', { stats: { maxHp: 500 } })
     expect(e.baseStats.maxHp).toBe(500) // override wins
     expect(e.baseStats.strength).toBe(ENEMY_ARCHETYPES.brute.stats.strength) // rest from archetype
   })
 })
 
-describe('spawner — enemies vary by type via archetypes', () => {
-  it('maps each roster type to a distinct archetype, unknown → undefined', () => {
-    const ids = ENEMY_TYPES.map(t => archetypeForEnemyType(t))
-    expect(ids.every(Boolean)).toBe(true)
-    expect(new Set(ids).size).toBe(ENEMY_TYPES.length) // four types, four DISTINCT archetypes
-    expect(archetypeForEnemyType('totally-made-up')).toBeUndefined()
+describe('spawner — enemies vary by type, each from its own tile', () => {
+  beforeEach(() => installCreatureTiles())
+
+  it('resolves each roster type to its own creature block, unknown → undefined', () => {
+    // Was "maps each roster type to a distinct archetype". Same property, one layer fewer: the type
+    // resolves straight to the tile carrying the numbers, with no second vocabulary in between.
+    const blocks = ENEMY_TYPES.map(t => combatForEnemyType(t))
+    expect(blocks.every(Boolean)).toBe(true)
+    const hp = blocks.map(b => b!.stats.maxHp)
+    expect(new Set(hp).size).toBe(hp.length) // four types, four genuinely different creatures
+    expect(combatForEnemyType('totally-made-up')).toBeUndefined()
   })
 
   it('scattered enemies carry attack patterns and span more than one stat profile', () => {

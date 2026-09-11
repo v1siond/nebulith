@@ -45,7 +45,7 @@ import { MOVE_KEYS, isTypingTarget, matchEditorAction, type EditorActionId } fro
 import { nextLevelName } from '@/game/autoNaming'
 import { activeQuest, applyQuestEvent, questAnchorScreenPos, questForGiver, reachableQuestGiver, rewardSummary, upsertQuest } from '@/game/runtime/quest'
 import { type EnemyRuntime, isLivingEnemy, makeEnemyRuntime, RANGED_RANGE } from '@/game/runtime/targeting'
-import { ENEMY_TYPES, archetypeForEnemyType, scatterEntities } from '@/game/spawner'
+import { ENEMY_TYPES, scatterEntities } from '@/game/spawner'
 import { type CombatState, type Entity, type EntityKind, type Inventory, type Loadout, type MovementPattern, type Quest, type Reward, type Stats, type TalentPath, type Weapon } from '@/game/types'
 import { weaponReach } from '@/game/weapons'
 import { VILLAGE_CONFIG } from '@/levels/village'
@@ -2867,7 +2867,9 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       const ents = entitiesRef.current
       const byVariant: Record<string, number> = {}
       for (const e of ents) { const key = e.variant ?? 'none'; byVariant[key] = (byVariant[key] ?? 0) + 1 }
-      return { count: ents.length, byVariant, entities: ents.map(e => ({ id: e.id, kind: e.kind, variant: e.variant ?? null, name: e.name, col: e.col, row: e.row, anims: e.animations?.length ?? 0 })) }
+      // hp + the first attack's name come along so a validation run can see that a creature actually got
+      // the stat block its TILE carries, rather than the flat default.
+      return { count: ents.length, byVariant, entities: ents.map(e => ({ id: e.id, kind: e.kind, variant: e.variant ?? null, name: e.name, col: e.col, row: e.row, anims: e.animations?.length ?? 0, enemyType: e.enemyType ?? null, maxHp: e.baseStats?.maxHp ?? null, attack: e.attack?.attacks?.[0]?.name ?? null })) }
     }
     // Each entity's SCREEN position in the current view (via the same cellToScreen the click path uses) —
     // so a validation click lands exactly on a figure, and we can tell click-mapping from inspector bugs.
@@ -3312,7 +3314,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     setEntities(prev => {
       if (!canPlaceEntity(prev, col, row, grid.cols, grid.rows, collisionFn)) return prev
       const base: Entity = kind === 'enemy'
-        ? { ...makeEnemy(mintEntityId('enemy'), col, row, slug, { archetype: archetypeForEnemyType(slug) }), tileOverride: tile.id }
+        ? { ...makeEnemy(mintEntityId('enemy'), col, row, slug, {}), tileOverride: tile.id }
         : { ...makeNpc(mintEntityId('npc'), col, row, {}), tileOverride: tile.id }
       placed = true
       return placeEntity(prev, motion(base))
@@ -4863,7 +4865,6 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     const grid = gridRef.current
     if (!grid) return
     const type = enemyType.trim() || 'enemy'
-    const archetype = archetypeForEnemyType(type)
     const blocked = (c: number, r: number) => grid.isBlocked(c, r)
     setEntities(prev => {
       let next = prev
@@ -4874,7 +4875,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
             if (Math.max(Math.abs(dc), Math.abs(dr)) !== ring) continue // walk the ring perimeter only
             const c = col + dc, r = row + dr
             if (!canPlaceEntity(next, c, r, grid.cols, grid.rows, blocked)) continue
-            next = placeEntity(next, { ...makeEnemy(mintEntityId('enemy'), c, r, type, { archetype }), hittable: true })
+            next = placeEntity(next, { ...makeEnemy(mintEntityId('enemy'), c, r, type, {}), hittable: true })
             placed++
           }
         }

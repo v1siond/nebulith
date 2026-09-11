@@ -10,7 +10,7 @@
 import type { Entity, EntityKind, Stats, Rarity } from '@/game/types'
 import { RESPAWN_MS_BY_RARITY, respawnMsForRarity } from '@/game/types'
 import { entityFootprint } from '@/engine/entityArt'
-import { buildArchetypeProfile, type EnemyArchetypeId } from '@/game/archetypes'
+import { combatForEnemyType } from '@/game/combatCatalog'
 import { seedCharacterAnimations } from '@/game/runtime/entityAnimation'
 
 // ── default stats ───────────────────────────────────────────────────
@@ -85,9 +85,7 @@ export interface MakeEnemyOptions {
   /** Rarity tier; sets the default respawnMs (rarer = slower to come back). Default 'common'. */
   rarity?: Rarity
   /** Stat ARCHETYPE (grunt/brute/archer/…): seeds the full stat block + a real attack pattern.
-   *  Omit for a plain default mob (back-compat). `stats` still overrides the archetype's stats. */
-  archetype?: EnemyArchetypeId
-  /** Partial stat overrides merged over the archetype (or enemy defaults) — e.g. bosses. */
+  /** Partial stat overrides merged over the creature's own block (or enemy defaults) — e.g. bosses. */
   stats?: Partial<Stats>
   /** render + stat SCALE (default 1). A boss at size 2 draws twice as big and derives beefier stats
    *  (see scaleStatsBySize) — applied AFTER the archetype/stat overrides, so size multiplies the final block. */
@@ -103,10 +101,10 @@ export const DEFAULT_RESPAWN_MS = RESPAWN_MS_BY_RARITY.common
  * respawnMs defaults to the rarity's delay (common when unset) so dropped enemies
  * respawn; pass an explicit respawnMs to override, or 0 for a permanent enemy.
  *
- * Pass an `archetype` to seed a distinct stat block + a real attack pattern (grunt /
- * brute / archer / …). With NO archetype the enemy keeps the legacy defaults (flat
- * stats, no authored attack → the engine's single-melee fallback), so nothing regresses.
- * An explicit `stats` override always wins over the archetype's stats.
+ * The creature's own stat block and attack pattern come from its TILE, resolved from the
+ * enemy type. A type whose tile carries no combat settings keeps the defaults (flat stats,
+ * no authored attack → the engine's single-melee fallback), so nothing regresses. An
+ * explicit `stats` override always wins.
  */
 export function makeEnemy(
   id: string,
@@ -115,7 +113,11 @@ export function makeEnemy(
   enemyType: string,
   options: MakeEnemyOptions = {},
 ): Entity {
-  const profile = options.archetype ? buildArchetypeProfile(options.archetype) : undefined
+  // THE CREATURE'S OWN NUMBERS, off its tile. Alexander, 2026-09-10: *"an enemy is just a regular unit,
+  // but marked as hostile towards player"*. There is no archetype to pass any more: the enemy TYPE is
+  // already here, and the backend resolves it to the tile whose settings carry the stat block. A type
+  // whose tile carries none falls to the default stats, exactly as an unrecognised type always did.
+  const profile = combatForEnemyType(enemyType)
   const size = options.size ?? 1
   // Size multiplies the FINAL stat block (defaults ← archetype ← explicit overrides), so a boss is just
   // a normal enemy scaled up. Only stamp `size` on the entity when it's non-trivial (keeps saves clean).

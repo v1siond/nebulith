@@ -27,6 +27,7 @@
  *    here is a FUNCTION, called when something renders or runs.
  */
 import { NEBULITH_API } from '@/lib/nebulithApi'
+import { getEntityResolution } from '@/engine/entity/entityResolution'
 import { styleTile } from '@/engine/tileset/styleTiles'
 import type { AttackPattern, Stats } from './types'
 
@@ -103,6 +104,19 @@ export function enemyCombat(label: string | undefined): CreatureCombat | undefin
   const settings = styleTile('ascii', label)?.settings as { combat?: unknown } | undefined
   const combat = settings?.combat
   return isObject(combat) ? (combat as unknown as CreatureCombat) : undefined
+}
+
+/**
+ * The stat block for an enemy TYPE (`bandit`, `wraith`), through the backend's own resolution.
+ *
+ * A type is not a tile: a bandit draws as the ninja tile and a wraith as the ghost, and that mapping is
+ * `/api/entities` data. So this resolves type → slug → the tile's combat, and every hop is backend-owned.
+ * The frontend's old `ARCHETYPE_BY_ENEMY_TYPE` did the same job with a hardcoded table; it is gone.
+ */
+export function combatForEnemyType(enemyType: string | undefined): CreatureCombat | undefined {
+  if (!enemyType) return undefined
+  const slug = getEntityResolution().enemyTypeSlug[enemyType.toLowerCase()]
+  return enemyCombat(slug ?? enemyType.toLowerCase())
 }
 
 /** The combat coefficients, or null when the backend has not answered. */

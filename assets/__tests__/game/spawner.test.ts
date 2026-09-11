@@ -1,4 +1,5 @@
-import { scatterEntities, ENEMY_TYPES, archetypeForEnemyType } from '@/game/spawner'
+import { scatterEntities, ENEMY_TYPES } from '@/game/spawner'
+import { installCreatureTiles } from '@/__tests__/helpers/creatureTiles'
 import { makeEnemy, mintEntityId } from '@/game/entities'
 import { advanceEnemyMovement } from '@/game/runtime/movement'
 import { IsometricGrid } from '@/engine/IsometricGrid'
@@ -74,7 +75,7 @@ describe('scatterEntities — scatter into free cells', () => {
       const e = out.find(x => x.id === enemy.id)!
       return { col: e.col, row: e.row }
     }
-    const baseEnemy = () => makeEnemy(mintEntityId('enemy'), 4, 4, 'goblin', { archetype: archetypeForEnemyType('goblin') })
+    const baseEnemy = () => makeEnemy(mintEntityId('enemy'), 4, 4, 'goblin')
 
     it('the STATIONARY single-waypoint pattern the top-nav pins keeps a hand-placed enemy PUT', () => {
       const manual: Entity = { ...baseEnemy(), movement: { mode: 'sequential', waypoints: [{ col: 4, row: 4 }] } }
