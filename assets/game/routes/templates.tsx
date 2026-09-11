@@ -86,7 +86,7 @@ import { LevelStepper } from '@/components/game/levelStepper'
 import { GameMenu } from '@/components/game/gameMenu'
 import { describeSaveState } from '@/game/editor/saveState'
 import { useDayNight, useFloatingPanels, useGeneratorCatalog, useInspectorSections, useIsMobile, usePlayerViewRange, useSaveState } from '@/components/game/editorHooks'
-import { findGenerator, rollGridSize, type GeneratorBuildings, type GeneratorCatalog, type GeneratorDef, type GeneratorOptionValue } from '@/lib/generatorCatalog'
+import { findGenerator, rollGridSize, type GeneratorBuildings, type GeneratorCatalog, type GeneratorDef, type GeneratorOptionValue, findGeneratorByKey } from '@/lib/generatorCatalog'
 import { clampMapSize, type MapSize } from '@/lib/mapSize'
 import { buildingSizeSource, composeBuilding, fetchBuildingTypes, installComposedBuildings, installPlannableBuildings, EMPTY_BUILDING_TYPES, type BuildingTypeCatalog } from '@/lib/buildingSizes'
 import { applyStageToGrid } from '@/game/editor/applyStage'
@@ -3467,7 +3467,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   // ── macro RANDOMIZE: whole map + per-layer scopes (GENERATION-SPEC §5) ──────
   // The recipe of the last full generate — zone/variant/size + the per-layer SEEDS. Re-rolling one
   // layer changes only that layer's seed and regenerates: the rest, fed the same seeds, reproduce.
-  const lastGenRef = useRef<{ zone: ZoneId; variant: VariantId; layout?: ForestLayout; options?: Record<string, GeneratorOptionValue>; cols: number; rows: number; seeds: Record<'layout' | 'buildings' | 'nature' | 'decor', number> } | null>(null)
+  const lastGenRef = useRef<{ zone: ZoneId; variant: VariantId; layout?: ForestLayout; options?: Record<string, GeneratorOptionValue>; generatorKey?: string; cols: number; rows: number; seeds: Record<'layout' | 'buildings' | 'nature' | 'decor', number> } | null>(null)
   // Salts the per-building material/roof/wall-colour hash so "randomize buildings only" repaints.
   const buildingSaltRef = useRef(0)
   const randSeed = (): number => (Math.random() * 0x7fffffff) | 0
@@ -3520,7 +3520,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     const recipe = lastGenRef.current
     if (!grid) return
     if (!recipe) { generateStageInEditor(genZone, 'town'); return } // nothing generated yet → a full town
-    const generator = findGenerator(generatorCatalogRef.current, recipe.variant, recipe.layout)
+    const generator = (recipe.generatorKey ? findGeneratorByKey(generatorCatalogRef.current, recipe.generatorKey) : undefined) ?? findGenerator(generatorCatalogRef.current, recipe.variant, recipe.layout)
     if (!generator) { console.warn(`[generate] the backend serves no "${recipe.variant}" generator — nothing re-rolled`); return }
     if (layer === 'units') { reseedUnits(grid, generator); bumpBuildingVersion(); return }
 
@@ -3638,11 +3638,13 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     seed?: number,
     /** The generator's options as the person set them — a river, a crossing. Not a separate template. */
     options?: Record<string, GeneratorOptionValue>,
+    /** The SUBTYPE picked below the preset (`forest_woodland_mountain`), when one was. */
+    generatorKey?: string,
   ) => {
     // WHICH world to build is the backend's answer (`/api/generators`, T-113): the map type's grid range,
     // unit counts and building palette all come off this row. No generator → nothing is generated and the
     // console says why; the editor must never invent a world the backend cannot describe.
-    const generator = findGenerator(generatorCatalogRef.current, variant, layout)
+    const generator = (generatorKey ? findGeneratorByKey(generatorCatalogRef.current, generatorKey) : undefined) ?? findGenerator(generatorCatalogRef.current, variant, layout)
     if (!generator) {
       console.warn(`[generate] the backend serves no "${variant}" generator${layout ? ` with layout "${layout}"` : ''} — nothing generated`)
       return
@@ -3695,7 +3697,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     const seeds = seeded
       ? { layout: seed, buildings: seed + 1, nature: seed + 2, decor: seed + 3 }
       : { layout: randSeed(), buildings: randSeed(), nature: randSeed(), decor: randSeed() }
-    lastGenRef.current = { zone, variant, layout, options, cols: grid.cols, rows: grid.rows, seeds }
+    lastGenRef.current = { zone, variant, layout, options, generatorKey, cols: grid.cols, rows: grid.rows, seeds }
     buildingSaltRef.current = seeded ? seed + 4 : randSeed()
     // THE GENERATOR'S OWN NATURE DENSITIES travel with the call. They were served by the backend and
     // parsed into the catalog since T-113, but `generateStage` never took them, so `groundCover` was dead
@@ -5677,8 +5679,8 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                   catalogError={generatorCatalogError}
                   zone={genZone}
                   onZone={z => setGenZone(z as ZoneId)}
-                  onGenerate={(z, v, layout, options) => {
-                    void generateStageInEditor(z as ZoneId, v as VariantId, layout as ForestLayout | undefined, undefined, undefined, options)
+                  onGenerate={(z, v, layout, options, generatorKey) => {
+                    void generateStageInEditor(z as ZoneId, v as VariantId, layout as ForestLayout | undefined, undefined, undefined, options, generatorKey)
                   }}
                   onRandomizeLayer={layer => randomizeLayerInEditor(layer as LayerId)}
                   selectedCount={selectedCells.size}

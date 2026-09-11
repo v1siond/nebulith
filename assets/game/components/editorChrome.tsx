@@ -11,7 +11,7 @@ import { compositionPreview, tileFrames } from '@/engine/tilePreview'
 import { InfoButton } from './shell/InfoButton'
 import { availableStyles, CATEGORY_LABELS, TILE_CATEGORIES, type TileCategory, type TileDef, tilesForStyle } from '@/game/artStyle'
 import { DEFAULT_ACTION_PARAMS, makeTrigger, type Trigger, type TriggerActionType, type TriggerEvent } from '@/game/runtime/trigger'
-import { catalogZones, categoryLayouts, findCategory, findGenerator, type GeneratorCatalog, type GeneratorOptionValue, optionIsOn, optionOffValue } from '@/lib/generatorCatalog'
+import { catalogZones, categoryLayouts, findCategory, findGenerator, type GeneratorCatalog, type GeneratorOptionValue, optionIsOn, optionOffValue, type GeneratorDef } from '@/lib/generatorCatalog'
 import { CELL_SIZE_MIN, atLeast, cellCount, mapSizeProblem, mapSizeValid, type MapSize } from '@/lib/mapSize'
 import { PreviewThumb, type PreviewContext } from '@/components/game/shell/PreviewThumb'
 import { subjectFor } from '@/engine/preview/previewScene'
@@ -614,7 +614,8 @@ export function GenerateControls({
   /** `layout` steers a map type that HAS layouts (undefined otherwise → the generator's own default).
    *  The SIZE is not passed: it belongs to the Grid panel now, and the caller reads it from there.
    *  Alexander, 2026-09-10: *"the template generation just uses whatever we setup on it"*. */
-  onGenerate: (zone: string, categoryKey: string, layout?: string, options?: Record<string, GeneratorOptionValue>) => void
+  /** `generatorKey` is the SUBTYPE picked below the preset, when one was — the build runs exactly that one. */
+  onGenerate: (zone: string, categoryKey: string, layout?: string, options?: Record<string, GeneratorOptionValue>, generatorKey?: string) => void
   /** When provided, shows the universal "re-roll one layer" row that re-rolls a single layer of the current
    *  map (leaving the others intact). Omitted where there is no current map to scope. */
   onRandomizeLayer?: (layer: string) => void
@@ -647,6 +648,16 @@ export function GenerateControls({
    * Keyed by option key; absent means "as the backend declared it".
    */
   const [options, setOptions] = useState<Record<string, GeneratorOptionValue>>({})
+  /**
+   * The SUBTYPE picked at each level below the preset, top down. Alexander, 2026-09-11: *"when selecting a zone,
+   * we should also have extra options to select different types of the selected zone, or just randomize, and
+   * we can go various levels deeper / forest > type of forest > sub type of type of forest > etc"*. Each entry
+   * is a child key, `random`, or '' for the level's own standard version.
+   */
+  const [path, setPath] = useState<string[]>([])
+  /** Regions the person unticked. The sub-zones existed before this but only as data nobody could see —
+   *  *"I don't anything on the UI"*. */
+  const [regionsOff, setRegionsOff] = useState<ReadonlySet<string>>(new Set())
   const zones = catalogZones(catalog)
   // The first category is the flagship the menu opens on, until the user picks another.
   const activeKey = categoryKey ?? catalog[0]?.key ?? null
@@ -671,20 +682,20 @@ export function GenerateControls({
    * 2026-09-10: *"the preview panel on selection is not showing on generators"*. Built here so the small
    * picture and the big one can never disagree about which world they are showing.
    */
-  const presetSubject = (categoryKey: string, layoutId: string | undefined, opts?: Record<string, GeneratorOptionValue>) => ({
+  const presetSubject = (categoryKey: string, layoutId: string | undefined, opts?: Record<string, GeneratorOptionValue>, gen?: GeneratorDef) => ({
     kind: 'stage' as const,
     zone: zone as never,
     variant: categoryKey as never,
     layout: layoutId,
-    nature: findGenerator(catalog, categoryKey, layoutId)?.config.nature,
+    nature: (gen ?? findGenerator(catalog, categoryKey, layoutId))?.config.nature,
     // The preview has to be built from the SAME inputs the build uses, or it is a picture of a different
     // map. Alexander, 2026-09-11: *"it's not clear how the extras modify the existing selected zone"* —
     // it was not clear because the preview was not told about them.
     options: opts,
-    palette: findGenerator(catalog, categoryKey, layoutId)?.config.palette,
-    subZones: findGenerator(catalog, categoryKey, layoutId)?.config.subZones,
-    formation: findGenerator(catalog, categoryKey, layoutId)?.config.formation,
-    treeMix: findGenerator(catalog, categoryKey, layoutId)?.config.trees,
+    palette: (gen ?? findGenerator(catalog, categoryKey, layoutId))?.config.palette,
+    subZones: (gen ?? findGenerator(catalog, categoryKey, layoutId))?.config.subZones,
+    formation: (gen ?? findGenerator(catalog, categoryKey, layoutId))?.config.formation,
+    treeMix: (gen ?? findGenerator(catalog, categoryKey, layoutId))?.config.trees,
     // Seeded from the preset's identity, so a card's picture is stable across renders and every card shows
     // a DIFFERENT world rather than all sharing one seed.
     seed: presetSeed(categoryKey, layoutId ?? 'default', zone),
@@ -695,10 +706,31 @@ export function GenerateControls({
   const presets: ReadonlyArray<{ id: string | undefined; label: string }> =
     layouts.length > 0 ? layouts : activeCategory ? [{ id: undefined, label: activeCategory.name }] : []
 
-  /** The generator whose options the panel is showing — the picked preset, or the type's own generator. */
-  const activeGenerator = activeKey === null
+  /** The preset card's own generator — the TYPE. */
+  const presetGenerator = activeKey === null
     ? undefined
     : findGenerator(catalog, activeKey, layouts.some(l => l.id === layout) ? layout ?? undefined : layouts[0]?.id)
+
+  /** The chain of generators the picks resolve to, type first. Stops at the first level left standard or set
+   *  to Random, so the chain always ends on a generator that exists. */
+  const walk = (steps: readonly string[]): GeneratorDef[] => {
+    const chain: GeneratorDef[] = presetGenerator ? [presetGenerator] : []
+    for (const step of steps) {
+      const next = chain[chain.length - 1]?.children?.find(c => c.key === step)
+      if (!next) break
+      chain.push(next)
+    }
+    return chain
+  }
+  const chain = walk(path)
+  /** The generator whose options and regions the panel is showing — the deepest subtype picked. */
+  const activeGenerator = chain[chain.length - 1]
+  /** The level set to Random, if any — resolved only when building, so each build rolls again. */
+  const randomParent = path[chain.length - 1] === 'random' ? activeGenerator : undefined
+
+  /** The unticked regions as options the generator reads (`region:<key>: false`). */
+  const regionOptions = (off: ReadonlySet<string>): Record<string, GeneratorOptionValue> =>
+    Object.fromEntries([...off].map(key => [`region:${key}`, false]))
 
   /** Is this option on: what the person set, else what the backend declared as its default. */
   const optionValue = (key: string): GeneratorOptionValue | undefined =>
@@ -722,14 +754,17 @@ export function GenerateControls({
     return out
   }
 
-  const chosenOptions = (): Record<string, GeneratorOptionValue> => enforceRequires(options)
+  const chosenOptions = (): Record<string, GeneratorOptionValue> => ({ ...enforceRequires(options), ...regionOptions(regionsOff) })
 
   // Picking a map type or a shape only SELECTS it. §4.6: "clicking a map type selects it rather than
   // generating (today it generates immediately — a genuine 'why did my map just vanish' trap)".
   const select = (key: string, chosen?: string) => {
     setCategoryKey(key)
     if (chosen) setLayout(chosen)
-    onPeek?.(presetSubject(key, chosen, chosenOptions()))
+    // A different preset has different subtypes and regions, so the picks below it start over.
+    setPath([])
+    setRegionsOff(new Set())
+    onPeek?.(presetSubject(key, chosen, enforceRequires(options)))
   }
 
   /**
@@ -740,7 +775,7 @@ export function GenerateControls({
    * look at the thing you had actually chosen. Hover is a peek at another option; this is the resting state.
    */
   const selectedSubject = () =>
-    activeKey === null ? null : presetSubject(activeKey, layouts.some(l => l.id === layout) ? layout ?? undefined : layouts[0]?.id, chosenOptions())
+    activeKey === null ? null : presetSubject(activeKey, layouts.some(l => l.id === layout) ? layout ?? undefined : layouts[0]?.id, chosenOptions(), activeGenerator)
 
   // Generating is the explicit act. A type with no layouts sends `undefined` so the category's own default
   // generator runs; otherwise the picked shape, or that type's first when the user has not chosen one.
@@ -750,7 +785,12 @@ export function GenerateControls({
     // they are set, so a generate and a resize can no longer disagree about what the map's shape is.
     if (layouts.length === 0) { onGenerate(zone, activeKey, undefined, chosenOptions()); return }
     const picked = layouts.some(l => l.id === layout) ? layout : layouts[0].id
-    onGenerate(zone, activeKey, picked ?? undefined, chosenOptions())
+    // Random rolls HERE, on each build, so the same pick builds a different subtype every time.
+    const pool = randomParent?.children ?? []
+    const leaf = pool.length > 0 ? pool[Math.floor(Math.random() * pool.length)] : activeGenerator
+    // Only a SUBTYPE travels as a key; the type itself is what (category, layout) already names.
+    if (leaf && leaf !== presetGenerator) onGenerate(zone, activeKey, picked ?? undefined, chosenOptions(), leaf.key)
+    else onGenerate(zone, activeKey, picked ?? undefined, chosenOptions())
   }
 
   if (catalog.length === 0) {
@@ -850,6 +890,59 @@ export function GenerateControls({
         </>
       )}
 
+      {/* THE SUBTYPES, one picker per level, as deep as the data goes. Alexander, 2026-09-11: *"forest > type of
+          forest > sub type of type of forest > etc / like maybe it's an island jungle, maybe it's a mountain
+          forest"*, *"or just randomize"*. Each level offers its own standard version, every subtype, and Random. */}
+      {chain.map((node, level) => (node.children?.length ?? 0) > 0 && (
+        <div key={node.key} className="ctl">
+          <span className="l">{`Which ${node.name.toLowerCase()}?`}</span>
+          <select
+            className="sel"
+            aria-label={`Which ${node.name.toLowerCase()}?`}
+            value={path[level] ?? ''}
+            style={{ flex: 1 }}
+            onChange={e => {
+              const nextPath = [...path.slice(0, level), e.target.value]
+              setPath(nextPath)
+              setRegionsOff(new Set())
+              const nextChain = walk(nextPath)
+              if (activeKey) onPeek?.(presetSubject(activeKey, layouts.some(l => l.id === layout) ? layout ?? undefined : layouts[0]?.id, enforceRequires(options), nextChain[nextChain.length - 1]) as never)
+            }}
+          >
+            <option value="">{`${node.name} (standard)`}</option>
+            {node.children?.map(c => <option key={c.key} value={c.key}>{c.name}</option>)}
+            <option value="random">Random</option>
+          </select>
+        </div>
+      ))}
+      {activeGenerator?.description && chain.length > 1 && <div className="hint">{activeGenerator.description}</div>}
+
+      {/* THE REGIONS this map is split into — they existed as data and were invisible. Alexander, 2026-09-11:
+          *"in theory it's what I'm requesting up top, but I don't anything on the UI"*. */}
+      {(activeGenerator?.config.subZones?.length ?? 0) > 0 && (
+        <>
+          <div className="sub">Regions in it</div>
+          {activeGenerator?.config.subZones?.map(z => (
+            <label key={z.key} className="ctl">
+              <span className="l">{z.name ?? z.key}</span>
+              <input
+                type="checkbox"
+                checked={!regionsOff.has(z.key)}
+                aria-label={`Region: ${z.name ?? z.key}`}
+                onChange={e => {
+                  const next = new Set(regionsOff)
+                  if (e.target.checked) next.delete(z.key)
+                  else next.add(z.key)
+                  setRegionsOff(next)
+                  if (activeKey) onPeek?.(presetSubject(activeKey, layouts.some(l => l.id === layout) ? layout ?? undefined : layouts[0]?.id, { ...enforceRequires(options), ...regionOptions(next) }, activeGenerator) as never)
+                }}
+              />
+            </label>
+          ))}
+          <div className="hint">The regions this map is split into. Untick one to leave it out.</div>
+        </>
+      )}
+
       {/* THE VARIATIONS, as options rather than as extra rows in the list above. */}
       {(activeGenerator?.options.length ?? 0) > 0 && (
         <>
@@ -861,7 +954,7 @@ export function GenerateControls({
             const set = (value: GeneratorOptionValue) => {
               const next = { ...options, [opt.key]: value }
               setOptions(next)
-              if (activeKey) onPeek?.(presetSubject(activeKey, layouts.some(l => l.id === layout) ? layout ?? undefined : layouts[0]?.id, enforceRequires(next)) as never)
+              if (activeKey) onPeek?.(presetSubject(activeKey, layouts.some(l => l.id === layout) ? layout ?? undefined : layouts[0]?.id, { ...enforceRequires(next), ...regionOptions(regionsOff) }, activeGenerator) as never)
             }
             return (
               <label key={opt.key} className="ctl" style={blocked ? { opacity: 0.45 } : undefined}>

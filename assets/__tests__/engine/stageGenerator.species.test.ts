@@ -91,3 +91,21 @@ describe('a template that serves no mix keeps the old shared table', () => {
     }
   })
 })
+
+describe('a region left UNTICKED in the panel is left out of the map', () => {
+  it('the jungle with its swamp unticked grows no cypress', () => {
+    const config = findGenerator(CATALOG, 'forest', 'jungle')!.config
+    const build = (options: Record<string, boolean>) => {
+      const orig = Math.random
+      Math.random = makeRng(7)
+      try {
+        return generateStage({ zone: 'summer', variant: 'forest', layout: 'jungle', cols: 60, rows: 40, nature: config.nature,
+          palette: config.palette, formation: config.formation, subZones: config.subZones, treeMix: config.trees, options })
+      } finally {
+        Math.random = orig
+      }
+    }
+    expect(build({}).trees.some(t => t.kind === 'tree_cypress')).toBe(true)
+    expect(build({ 'region:swamp': false }).trees.some(t => t.kind === 'tree_cypress')).toBe(false)
+  })
+})

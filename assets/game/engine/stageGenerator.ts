@@ -1494,7 +1494,9 @@ function layoutJungle(ctx: ArchetypeContext, opts: { river?: RiverCourse | null;
   // 0b · THE REGIONS. A jungle is not one uniform density, it is several kinds of ground you walk between —
   //      open canopy, dense growth, swamp, ruins. Served by the backend, so which regions exist and how much
   //      of the map each claims is data. Absent → one uniform jungle, exactly as before.
-  const zones = ctx.subZones ?? []
+  // A region the person UNTICKED is left out — the sub-zones are steerable from the panel now (Alexander,
+  // 2026-09-11: *"I don't anything on the UI"*). All of them off is simply one uniform jungle.
+  const zones = (ctx.subZones ?? []).filter(z => ctx.options?.[`region:${z.key}`] !== false)
   const zoneAt = partitionSubZones(ctx, zones)
   paintSubZoneFloors(ctx, zoneAt)
 

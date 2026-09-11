@@ -210,6 +210,75 @@ describe('variations are options on a preset, not more presets', () => {
   })
 })
 
+describe('forest > type > subtype — pick one, go deeper, or randomize', () => {
+  // Alexander, 2026-09-11: *"when selecting a zone, we should also have extra options to select different
+  // types of the selected zone, or just randomize, and we can go various levels deeper"*.
+  const setup = () => {
+    const onGenerate = jest.fn()
+    render(<GenerateControls catalog={CATALOG} zone="spring" onZone={noop} onGenerate={onGenerate} />)
+    return onGenerate
+  }
+  const which = (name: string) => screen.getByLabelText(`Which ${name}?`) as HTMLSelectElement
+  const WOODLANDS = ['forest_woodland_beech', 'forest_woodland_dense', 'forest_woodland_mountain', 'forest_woodland_glades']
+
+  it('offers the woodland\'s own standard version, every subtype, and Random', () => {
+    setup()
+    fireEvent.change(kinds(), { target: { value: 'forest' } })
+    fireEvent.click(preset('Woodland'))
+    expect([...which('woodland').options].map(o => o.value)).toEqual(['', ...WOODLANDS, 'random'])
+  })
+
+  it('builds exactly the subtype that was picked', () => {
+    const onGenerate = setup()
+    fireEvent.change(kinds(), { target: { value: 'forest' } })
+    fireEvent.click(preset('Woodland'))
+    fireEvent.change(which('woodland'), { target: { value: 'forest_woodland_mountain' } })
+    build()
+    expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', 'woodland', { river: 'none', crossing: false }, 'forest_woodland_mountain')
+  })
+
+  it('Random builds one of the subtypes, rolled on the build itself', () => {
+    const onGenerate = setup()
+    fireEvent.change(kinds(), { target: { value: 'forest' } })
+    fireEvent.click(preset('Woodland'))
+    fireEvent.change(which('woodland'), { target: { value: 'random' } })
+    build()
+    expect(WOODLANDS).toContain(onGenerate.mock.calls[0][4])
+  })
+
+  it('the standard version sends no subtype — exactly the call it always made', () => {
+    const onGenerate = setup()
+    fireEvent.change(kinds(), { target: { value: 'forest' } })
+    fireEvent.click(preset('Woodland'))
+    build()
+    expect(onGenerate.mock.calls[0]).toHaveLength(4)
+  })
+
+  it('a jungle LISTS the regions it is split into, and an unticked one is left out of the build', () => {
+    // *"in theory it's what I'm requesting up top, but I don't anything on the UI"* — the regions were data
+    // nobody could see.
+    const onGenerate = setup()
+    fireEvent.change(kinds(), { target: { value: 'forest' } })
+    fireEvent.click(preset('Jungle'))
+    expect(screen.getAllByLabelText(/^Region: /).map(e => e.getAttribute('aria-label'))).toEqual([
+      'Region: Open canopy', 'Region: Dense growth', 'Region: Swamp', 'Region: Ruins',
+    ])
+    fireEvent.click(screen.getByLabelText('Region: Swamp'))
+    build()
+    expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', 'jungle', { river: 'none', crossing: false, 'region:swamp': false })
+  })
+
+  it('a subtype brings its own regions — a super dense jungle is barely anything but dense growth', () => {
+    setup()
+    fireEvent.change(kinds(), { target: { value: 'forest' } })
+    fireEvent.click(preset('Jungle'))
+    fireEvent.change(which('jungle'), { target: { value: 'forest_jungle_dense' } })
+    expect(screen.getAllByLabelText(/^Region: /).map(e => e.getAttribute('aria-label'))).toEqual([
+      'Region: Open canopy', 'Region: Dense growth',
+    ])
+  })
+})
+
 describe('an empty or failed catalog says so instead of offering nothing', () => {
   it('offers no kinds and no build button while the catalog is empty', () => {
     render(<GenerateControls catalog={EMPTY_GENERATOR_CATALOG} zone="spring" onZone={noop} onGenerate={noop} />)

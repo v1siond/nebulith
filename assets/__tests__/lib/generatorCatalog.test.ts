@@ -10,16 +10,7 @@
  *     does not exist, a config section it omits reads `undefined`, and a malformed row is dropped, not
  *     defaulted (the no-fallback law, MAP-MODEL §8).
  */
-import {
-  EMPTY_GENERATOR_CATALOG,
-  catalogZones,
-  categoryLayouts,
-  fetchGeneratorCatalog,
-  findCategory,
-  findGenerator,
-  parseGeneratorCatalog,
-  rollGridSize,
-} from '@/lib/generatorCatalog'
+import { EMPTY_GENERATOR_CATALOG, catalogZones, categoryLayouts, fetchGeneratorCatalog, findCategory, findGenerator, parseGeneratorCatalog, rollGridSize, findGeneratorByKey } from '@/lib/generatorCatalog'
 import { makeRng } from '@/lib/math'
 import liveBody from '@/__tests__/fixtures/generators.json'
 
@@ -272,5 +263,29 @@ describe('fetchGeneratorCatalog — the wire', () => {
   it('throws a NAMED error on a non-ok response — the editor must show the failure, not a fake menu', async () => {
     global.fetch = jest.fn().mockResolvedValue({ ok: false, statusText: 'Service Unavailable' }) as unknown as typeof fetch
     await expect(fetchGeneratorCatalog()).rejects.toThrow(/Failed to load the generator catalog/)
+  })
+})
+
+describe('the catalog is a TREE — forest > type > subtype', () => {
+  // Alexander, 2026-09-11: *"forest > type of forest > sub type of type of forest > etc / like maybe it's an
+  // island jungle, maybe it's a mountain forest"*.
+  it('parses each type\'s subtypes, in menu order', () => {
+    expect(findGenerator(LIVE, 'forest', 'woodland')!.children?.map(c => c.key)).toEqual([
+      'forest_woodland_beech', 'forest_woodland_dense', 'forest_woodland_mountain', 'forest_woodland_glades',
+    ])
+  })
+
+  it('finds a subtype by key at any depth, and nothing for a key that is not there', () => {
+    expect(findGeneratorByKey(LIVE, 'forest_jungle_island')?.name).toBe('Island jungle')
+    expect(findGeneratorByKey(LIVE, 'forest_woodland')?.name).toBe('Woodland')
+    expect(findGeneratorByKey(LIVE, 'no_such_thing')).toBeUndefined()
+  })
+
+  it('a subtype arrives with its parent\'s config merged under its own, ready to run', () => {
+    const woodland = findGenerator(LIVE, 'forest', 'woodland')!
+    const mountain = findGeneratorByKey(LIVE, 'forest_woodland_mountain')!
+    expect(mountain.config.nature?.canopy).toBe(0.28)
+    expect(mountain.config.nature?.groundCover).toBe(woodland.config.nature?.groundCover)
+    expect(mountain.config.grid).toEqual(woodland.config.grid)
   })
 })

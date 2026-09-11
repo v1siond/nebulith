@@ -205,6 +205,11 @@ export interface GeneratorDef {
    * whatever exists without knowing any option by name.
    */
   options: readonly GeneratorOption[]
+  /**
+   * Its SUBTYPES, any depth — *"forest > type of forest > sub type of type of forest > etc"*. Each arrives with
+   * its parent's config already merged under its own, so a subtype runs exactly like any generator.
+   */
+  children?: readonly GeneratorDef[]
 }
 
 /** One switch a generator offers. `requires` names an option that must be on for this one to apply. */
@@ -498,6 +503,10 @@ function parseGenerator(v: unknown): GeneratorDef | null {
     position: num(v.position) ?? 0,
     config: parseConfig(v.config),
     options: parseOptions(v.options),
+    children: (Array.isArray(v.children) ? v.children : [])
+      .map(parseGenerator)
+      .filter((g): g is GeneratorDef => g !== null)
+      .sort((a, b) => a.position - b.position),
   }
 }
 
@@ -602,6 +611,23 @@ export function findGenerator(
   if (!category) return undefined
   if (layout === undefined) return category.generators[0]
   return category.generators.find(g => g.layout === layout)
+}
+
+/** Any generator in the catalog by its key, at any depth — how the editor finds the SUBTYPE that was picked. */
+export function findGeneratorByKey(catalog: GeneratorCatalog, key: string): GeneratorDef | undefined {
+  const search = (list: readonly GeneratorDef[]): GeneratorDef | undefined => {
+    for (const g of list) {
+      if (g.key === key) return g
+      const hit = search(g.children ?? [])
+      if (hit) return hit
+    }
+    return undefined
+  }
+  for (const category of catalog) {
+    const hit = search(category.generators)
+    if (hit) return hit
+  }
+  return undefined
 }
 
 /**
