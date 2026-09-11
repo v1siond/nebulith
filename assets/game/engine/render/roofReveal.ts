@@ -56,6 +56,22 @@ export function revealAlpha({ dist, inside, minAlpha = 0 }: { dist: number; insi
   return Math.max(band, Math.min(1, minAlpha))
 }
 
+/**
+ * The near-hero fade for ONE tile in a view with no building shell to reason about (2D and top): the same
+ * `revealAlpha` distance rule the iso view uses, for any tile that opted into `fadeNear`. No hero, or a tile that
+ * did not opt in, draws solid. Alexander, 2026-09-11: *"when user is close, they get more transparent. Specially on
+ * trees and buildings, and any exterior element that can block us from seeing the player character"*.
+ */
+export function nearFadeAlpha(
+  settings: { fadeNear?: boolean; minAlpha?: number } | undefined,
+  col: number,
+  row: number,
+  hero: { col: number; row: number } | null,
+): number {
+  if (!hero || !settings?.fadeNear) return 1
+  return revealAlpha({ dist: Math.hypot(hero.col - col, hero.row - row), inside: false, minAlpha: settings.minAlpha })
+}
+
 /** The 8-neighbourhood of a `col,row` key, plus the cell itself — "touches" for roof grouping. */
 function touching(key: string): string[] {
   const [col, row] = key.split(',').map(Number)

@@ -16,6 +16,7 @@ import { resolveTileSize, resolveTilePose } from '@/engine/tileset/tileViewSetti
 import { resolveTileHeight } from '@/engine/tileset/tileHeight'
 import { Connector } from '@/lib/api'
 import { ASCII_FONT, COMBAT_RANGE, type DayNight, ENEMY_MOVE_MS, applyCellTransform, clampCameraAxis, assetCaptionByCell, terrainLabelAt, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawHoverRing, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawConnectorMarker, drawAttackAnimFrame, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, drawFlatTileForShape, SINGLE_TILE_FRAC, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, frameImage, getPlayerArt, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, resolveAssetDraw, resolveEntityDraw, assetOverride, styleTileImage, labelTileRecolor, groundDecorImage, type DrawVisual } from './shared'
+import { nearFadeAlpha } from './roofReveal'
 import { drawWeather, type WeatherId } from './weather'
 import { resolveAssetDrawSize } from './assetDimensions'
 import { resolveAssetAnimation } from './assetAnimation'
@@ -545,6 +546,8 @@ export function render2D(params: Render2DParams) {
   // Draw each object
   twoDTileHits = [] // fresh per-frame record of every drawn 2D tile's silhouette — the inverted picker reads it
   const stackIndexOf = assetStackIndexer(grid) // per-frame memo: an asset → its slot in its cell's stack (0 = base/floor)
+  // The hero's cell, for the near-hero fade. No hero drawn (a preview) → nothing fades.
+  const heroCell = showPlayer ? { col: player.x / cellSize, row: player.z / cellSize } : null
   for (const obj of drawables) {
     // A front-elevation cell (part of a stacked structure with depth) projects at its ANCHORED front row so
     // its column stacks as a flat facade — depth is collapsed (MAP-MODEL §2-3). Everything else (a flat
@@ -696,11 +699,14 @@ export function render2D(params: Render2DParams) {
       // tile draw so every branch below inherits them. Skipped entirely when not animated → byte-identical.
       const animShiftX = assetAnim ? assetAnim.x * tileW : 0
       const animShiftY = assetAnim ? assetAnim.y * tileH : 0
-      const animWrap = !!assetAnim && (animShiftX !== 0 || animShiftY !== 0 || assetAnim.opacity < 1)
+      // NEAR THE HERO a tall thing eases see-through, the rule the iso view applies (roofReveal.nearFadeAlpha).
+      const nearFade = nearFadeAlpha(asset.settings, asset.col, asset.row, heroCell)
+      const animWrap = nearFade < 1 || (!!assetAnim && (animShiftX !== 0 || animShiftY !== 0 || assetAnim.opacity < 1))
       if (animWrap) {
         ctx.save()
         ctx.translate(animShiftX, -animShiftY)
-        if (assetAnim!.opacity < 1) ctx.globalAlpha *= assetAnim!.opacity
+        if (assetAnim && assetAnim.opacity < 1) ctx.globalAlpha *= assetAnim.opacity
+        if (nearFade < 1) ctx.globalAlpha *= nearFade
       }
 
       // Authored frame animation: offset/rotate/scale the asset around its ground point (sway/wind).

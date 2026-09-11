@@ -8,6 +8,7 @@ import { type PlayerState, barFraction, hpFraction } from '@/game/runtime/player
 import { type CombatState, type Entity, type Quest } from '@/game/types'
 import { Connector } from '@/lib/api'
 import { ASCII_FONT, type CompositionGhost, type DayNight, applyCellTransform, clampCameraAxis, collectLampGlows, drawCompositionGhostFlat, debugCellCaptions, debugLabelColors, drawConnectorMarker, drawHitMarker, drawHpBar, drawNightLighting, drawQuestMarker, drawStyledImage, drawFlatTileForShape, SINGLE_TILE_FRAC, fillTintedGlyph, grassShade, cellFill, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, resolveAssetDraw, resolveEntityDraw, assetOverride, styleTileImage, labelTileRecolor, tileImage } from './shared'
+import { nearFadeAlpha } from './roofReveal'
 import { drawWeather, type WeatherId } from './weather'
 import { resolveAssetDrawSize } from './assetDimensions'
 import { resolveAssetAnimation } from './assetAnimation'
@@ -130,6 +131,8 @@ export function renderTopView(params: RenderTopViewParams) {
   // when priorities tie — so with every zIndex at the default 0 this is byte-identical to the old unconditional
   // "last write wins" (the roof, placed last, still wins its footprint cell).
   const assetMap: Record<string, GridAsset> = {}
+  // The hero's cell, for the near-hero fade. No hero drawn (a preview) → nothing fades.
+  const heroCell = showPlayer ? { col: player.x / cellSize, row: player.z / cellSize } : null
   for (const asset of grid.assets) {
     // A depth-spanned asset (a roof column — `depthDir` + `depth` > 1) covers EVERY cell along its diagonal, so
     // the overhead view paints its tile across the whole footprint span, not just the anchor cell (which would
@@ -217,11 +220,14 @@ export function renderTopView(params: RenderTopViewParams) {
       const dAsset = assetAnim ? assetAnim.asset : asset
       const animShiftX = assetAnim ? assetAnim.x * tileSize : 0
       const animShiftY = assetAnim ? assetAnim.y * tileSize : 0
-      const animWrap = !!assetAnim && (animShiftX !== 0 || animShiftY !== 0 || assetAnim.opacity < 1)
+      // NEAR THE HERO a tall thing eases see-through, the rule the iso view applies (roofReveal.nearFadeAlpha).
+      const nearFade = asset ? nearFadeAlpha(asset.settings, asset.col, asset.row, heroCell) : 1
+      const animWrap = nearFade < 1 || (!!assetAnim && (animShiftX !== 0 || animShiftY !== 0 || assetAnim.opacity < 1))
       if (animWrap) {
         ctx.save()
         ctx.translate(animShiftX, -animShiftY)
-        if (assetAnim!.opacity < 1) ctx.globalAlpha *= assetAnim!.opacity
+        if (assetAnim && assetAnim.opacity < 1) ctx.globalAlpha *= assetAnim.opacity
+        if (nearFade < 1) ctx.globalAlpha *= nearFade
       }
       const ctTop = asset ? assetCellTransform(asset.cellAnim, now) : null
       if (ctTop) applyCellTransform(ctx, gx, gy, ctTop, tileSize, tileSize)
