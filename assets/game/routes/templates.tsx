@@ -983,6 +983,12 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     styleId: activeStyleId,
   }
   const [previewOpen, setPreviewOpen] = useState(true)
+  /** The New world panel's options render INTO the Preview window (GenerateControls' tuningSlot), beside the picture
+   *  they change. Alexander, 2026-09-11: *"We should also have the rest of options like variations of the map,
+   *  adding river, adding bridge, etc etc"*. */
+  const [tuningSlot, setTuningSlot] = useState<HTMLElement | null>(null)
+  // The New world panel works WITH the preview window, so opening the panel opens the window.
+  useEffect(() => { if (activeRailId === 'generate') setPreviewOpen(true) }, [activeRailId])
   /** Is the level map open BIG, in its own panel? Separate from `levelMapOpen`, which is the corner one. */
   const [levelMapBig, setLevelMapBig] = useState(false)
 
@@ -5673,6 +5679,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                   onSizeDraft={next => setGridDraft(prev => ({ ...prev, ...next }))}
                   onResize={resizeMapFromPanel}
                   preview={previewContext}
+                  tuningSlot={previewOpen ? tuningSlot : null}
                 />
               </>
             )}
@@ -6413,11 +6420,14 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
             showing on generators"*). */}
         {!hudMode && previewSubject !== null && previewOpen && (
           <FloatingPanel
+            // Building a world, the window also holds the options that shape it, so it keeps its OWN size under
+            // its own name: the tall one it needs, without undoing the size you gave the library preview.
+            key={activeRailId === 'generate' ? 'worldPreview' : 'preview'}
             title="Preview"
             accent="cyan"
             openBeside=".z-panel"
             onClose={() => setPreviewOpen(false)}
-            {...floatingProps('preview', { w: 330, h: 392 })}
+            {...(activeRailId === 'generate' ? floatingProps('worldPreview', { w: 360, h: 640 }) : floatingProps('preview', { w: 330, h: 392 }))}
           >
             <MapPreview
               subject={previewSubject}
@@ -6433,6 +6443,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                 {`${previewCaption}, drawn by the ${previewContext.view} renderer on ${genZone} ground.`}
               </div>
             )}
+            {activeRailId === 'generate' && <div ref={setTuningSlot} />}
           </FloatingPanel>
         )}
 

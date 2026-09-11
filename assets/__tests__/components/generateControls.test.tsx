@@ -28,7 +28,7 @@
  * thickness are the GRID's, so their tests moved with them to `gridPanel.test.tsx`. This panel takes no
  * size at all now: `onGenerate` has three arguments and the caller reads the grid.
  */
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, within } from '@testing-library/react'
 import { GenerateControls } from '@/components/game/editorChrome'
 import { GENERATOR_LAYERS } from '@/components/game/editorConfig'
 import { EMPTY_GENERATOR_CATALOG, catalogZones, categoryLayouts, parseGeneratorCatalog } from '@/lib/generatorCatalog'
@@ -360,5 +360,70 @@ describe('re-roll the selection — it names the count and says what to do first
         selectedCount={0} onRandomizeSelection={noop} />,
     )
     expect(screen.getByText(/select some cells on the map first/i)).toBeInTheDocument()
+  })
+})
+
+describe('the preview window shows the world to build, its size, and the options that shape it', () => {
+  // Alexander, 2026-09-11: *"we should see the preview of the map to generate in the preview modal as soon as we
+  // select the zone and in that same preview map, we should see the grid size, how many cells, etc. We should also
+  // have the rest of options like variations of the map, adding river, adding bridge, etc etc"*.
+  const size = { cols: 60, rows: 40, cellSize: 16 }
+  type Props = Parameters<typeof GenerateControls>[0]
+  const props = (extra: Partial<Props> = {}): Props => ({
+    catalog: CATALOG, zone: 'spring', onZone: noop, onGenerate: jest.fn(), onPeek: jest.fn(),
+    sizeDraft: size, size, onSizeDraft: noop, onResize: noop, ...extra,
+  })
+  const lastPeek = (onPeek: jest.Mock) => onPeek.mock.calls[onPeek.mock.calls.length - 1][0]
+  const slots: HTMLElement[] = []
+  const slot = () => { const el = document.body.appendChild(document.createElement('div')); slots.push(el); return el }
+  afterEach(() => { slots.splice(0).forEach(el => el.remove()) })
+
+  it('peeks the selected world the moment the panel opens, at the size it will be built', () => {
+    const p = props()
+    render(<GenerateControls {...p} />)
+    expect(lastPeek(p.onPeek as jest.Mock)).toMatchObject({ kind: 'stage', zone: 'spring', variant: CATALOG[0].key, cols: 60, rows: 40 })
+  })
+
+  it('a new season re-peeks on its own, no hover needed', () => {
+    const p = props()
+    const { rerender } = render(<GenerateControls {...p} />)
+    rerender(<GenerateControls {...p} zone="winter" />)
+    expect(lastPeek(p.onPeek as jest.Mock)).toMatchObject({ zone: 'winter', cols: 60, rows: 40 })
+  })
+
+  it('the picture is the map at the size it will be built, up to the largest map there is', () => {
+    const big = { cols: 100, rows: 80, cellSize: 12 }
+    const into = slot()
+    const p = props({ sizeDraft: big, size: big, tuningSlot: into })
+    render(<GenerateControls {...p} />)
+    expect(lastPeek(p.onPeek as jest.Mock)).toMatchObject({ cols: 100, rows: 80 })
+    expect(into.textContent).toContain('100 × 80 = 8,000 cells, 12px each')
+  })
+
+  it('with a preview window, the options, the size and the build button live in it, not in the panel', () => {
+    const into = slot()
+    const p = props({ tuningSlot: into })
+    const { container } = render(<GenerateControls {...p} />)
+    fireEvent.change(kinds(), { target: { value: 'forest' } })
+    expect(within(into).getByLabelText(/^river$/i)).toBeInTheDocument()
+    expect(within(into).getByLabelText(/^kind of crossing$/i)).toBeInTheDocument()
+    expect(within(into).getByLabelText(/^map columns$/i)).toBeInTheDocument()
+    expect(within(into).getByRole('button', { name: /build this world/i })).toBeInTheDocument()
+    expect(into.textContent).toContain('60 × 40 = 2,400 cells, 16px each')
+    expect(within(container).queryByLabelText(/^river$/i)).toBeNull()
+    expect(within(container).queryByRole('button', { name: /build this world/i })).toBeNull()
+    // the place itself is still picked in the panel
+    expect(within(container).getByLabelText(/kind of place/i)).toBeInTheDocument()
+  })
+
+  it('a build from the window builds what the window shows', () => {
+    const into = slot()
+    const p = props({ tuningSlot: into })
+    render(<GenerateControls {...p} />)
+    fireEvent.change(kinds(), { target: { value: 'forest' } })
+    fireEvent.change(within(into).getByLabelText(/^river$/i), { target: { value: 'through' } })
+    fireEvent.change(within(into).getByLabelText(/^kind of crossing$/i), { target: { value: 'planks' } })
+    fireEvent.click(within(into).getByRole('button', { name: /build this world/i }))
+    expect(p.onGenerate).toHaveBeenCalledWith('spring', 'forest', expect.any(String), { river: 'through', crossing: false, bridge: 'planks' })
   })
 })

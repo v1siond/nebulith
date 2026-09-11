@@ -4,6 +4,7 @@
 // props-driven — all gameplay state/handlers live in the page; this is layout only.
 import { filterTiles } from '@/game/editor/tileSearch'
 import { Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { isCharacterTile, tileSlug, unitRole, type UnitRole } from '@/game/editor/tilePlacement'
 
 import { TilePicture } from './shell/Previews'
@@ -571,6 +572,13 @@ export type { MapSize }
  *  — a clearing, a street grid, a river — is still legible at ~90px. */
 const PRESET_THUMB_CELLS = { cols: 26, rows: 20 } as const
 
+/** The size the BIG preview draws a world at: exactly the size it will be built at. Maps are capped at
+ *  MAP_SIZE_MAX a side, so that is never more than the map itself costs. A size that cannot be built yet (typed
+ *  past the cap, or half-typed) keeps the card size; the size inputs already say what is wrong with it. */
+function previewCells(size: MapSize | undefined): { cols: number; rows: number } {
+  return size && mapSizeValid(size) ? { cols: size.cols, rows: size.rows } : PRESET_THUMB_CELLS
+}
+
 /**
  * A stable seed for one preset's thumbnail, from its identity rather than a counter.
  *
@@ -604,6 +612,7 @@ export function GenerateControls({
   onSizeDraft,
   onResize,
   preview,
+  tuningSlot,
 }: {
   /** The backend's generator catalog (see `useGeneratorCatalog`). Empty until it loads, or if it failed. */
   catalog: GeneratorCatalog
@@ -635,6 +644,12 @@ export function GenerateControls({
   onResize?: (cols: number, rows: number, cellSize: number) => void
   /** How to draw a preset's thumbnail the way the map would. Absent → the cards carry no picture. */
   preview?: PreviewContext
+  /**
+   * Where the options that shape the new world go: the Preview window, so they sit with the picture they change.
+   * Alexander, 2026-09-11: *"We should also have the rest of options like variations of the map, adding river,
+   * adding bridge, etc etc"*. Absent (the window is closed) → they stay inline in this panel.
+   */
+  tuningSlot?: HTMLElement | null
 }) {
   // The selected map type + the layout picked within it. Both start UNSET and follow the catalog, so the
   // menu never highlights a type the backend does not serve.
@@ -682,7 +697,7 @@ export function GenerateControls({
    * 2026-09-10: *"the preview panel on selection is not showing on generators"*. Built here so the small
    * picture and the big one can never disagree about which world they are showing.
    */
-  const presetSubject = (categoryKey: string, layoutId: string | undefined, opts?: Record<string, GeneratorOptionValue>, gen?: GeneratorDef) => ({
+  const presetSubject = (categoryKey: string, layoutId: string | undefined, opts?: Record<string, GeneratorOptionValue>, gen?: GeneratorDef, cells: { cols: number; rows: number } = PRESET_THUMB_CELLS) => ({
     kind: 'stage' as const,
     zone: zone as never,
     variant: categoryKey as never,
@@ -702,9 +717,11 @@ export function GenerateControls({
     // Seeded from the preset's identity, so a card's picture is stable across renders and every card shows
     // a DIFFERENT world rather than all sharing one seed.
     seed: presetSeed(categoryKey, layoutId ?? 'default', zone),
-    cols: PRESET_THUMB_CELLS.cols,
-    rows: PRESET_THUMB_CELLS.rows,
+    cols: cells.cols,
+    rows: cells.rows,
   })
+  /** The big preview's size: the map as it will be built (see previewCells). The card thumbnails stay small. */
+  const peekCells = () => previewCells(sizeDraft)
 
   const presets: ReadonlyArray<{ id: string | undefined; label: string }> =
     layouts.length > 0 ? layouts : activeCategory ? [{ id: undefined, label: activeCategory.name }] : []
@@ -767,7 +784,7 @@ export function GenerateControls({
     // A different preset has different subtypes and regions, so the picks below it start over.
     setPath([])
     setRegionsOff(new Set())
-    onPeek?.(presetSubject(key, chosen, enforceRequires(options)))
+    onPeek?.(presetSubject(key, chosen, enforceRequires(options), undefined, peekCells()))
   }
 
   /**
@@ -778,7 +795,7 @@ export function GenerateControls({
    * look at the thing you had actually chosen. Hover is a peek at another option; this is the resting state.
    */
   const selectedSubject = () =>
-    activeKey === null ? null : presetSubject(activeKey, layouts.some(l => l.id === layout) ? layout ?? undefined : layouts[0]?.id, chosenOptions(), activeGenerator)
+    activeKey === null ? null : presetSubject(activeKey, layouts.some(l => l.id === layout) ? layout ?? undefined : layouts[0]?.id, chosenOptions(), activeGenerator, peekCells())
 
   // Generating is the explicit act. A type with no layouts sends `undefined` so the category's own default
   // generator runs; otherwise the picked shape, or that type's first when the user has not chosen one.
@@ -796,6 +813,14 @@ export function GenerateControls({
     else onGenerate(zone, activeKey, picked ?? undefined, chosenOptions())
   }
 
+  // THE PICTURE FROM THE START. Alexander, 2026-09-11: *"we should see the preview of the map to generate in the
+  // preview modal as soon as we select the zone"*. The resting picture follows the season, the kind and the size on
+  // its own instead of waiting for a hover. The other picks re-peek in their own handlers.
+  useEffect(() => {
+    const subject = selectedSubject()
+    if (subject) onPeek?.(subject as never)
+  }, [zone, activeKey, sizeDraft?.cols, sizeDraft?.rows, catalog]) // eslint-disable-line react-hooks/exhaustive-deps
+
   if (catalog.length === 0) {
     return (
       <div className="pfix">
@@ -807,6 +832,159 @@ export function GenerateControls({
       </div>
     )
   }
+
+  // THE SIZE, said plainly under the picture. Alexander, 2026-09-11: *"in that same preview map, we should see the
+  // grid size, how many cells, etc."* The renderer's own corner readout is too small to read at this scale.
+  const buildCells = sizeDraft ? cellCount(sizeDraft) : null
+  const sizeLine = sizeDraft && buildCells !== null && (
+    <div aria-label="The map this builds" style={{ margin: '8px 0 4px', fontSize: 15 }}>
+      <strong>{`${sizeDraft.cols} × ${sizeDraft.rows}`}</strong>
+      {` = ${buildCells.toLocaleString()} cells, ${sizeDraft.cellSize}px each`}
+    </div>
+  )
+  // The options that SHAPE the world, and the act that builds it. They go to the Preview window when there is one
+  // (tuningSlot), and stay right here when there is not, in the order they always had.
+  const tuning = (
+    <>
+      {/* THE SUBTYPES, one picker per level, as deep as the data goes. Alexander, 2026-09-11: *"forest > type of
+          forest > sub type of type of forest > etc / like maybe it's an island jungle, maybe it's a mountain
+          forest"*, *"or just randomize"*. Each level offers its own standard version, every subtype, and Random. */}
+      {chain.map((node, level) => (node.children?.length ?? 0) > 0 && (
+        <div key={node.key} className="ctl">
+          <span className="l">{`Which ${node.name.toLowerCase()}?`}</span>
+          <select
+            className="sel"
+            aria-label={`Which ${node.name.toLowerCase()}?`}
+            value={path[level] ?? ''}
+            style={{ flex: 1 }}
+            onChange={e => {
+              const nextPath = [...path.slice(0, level), e.target.value]
+              setPath(nextPath)
+              setRegionsOff(new Set())
+              const nextChain = walk(nextPath)
+              if (activeKey) onPeek?.(presetSubject(activeKey, layouts.some(l => l.id === layout) ? layout ?? undefined : layouts[0]?.id, enforceRequires(options), nextChain[nextChain.length - 1], peekCells()) as never)
+            }}
+          >
+            <option value="">{`${node.name} (standard)`}</option>
+            {node.children?.map(c => <option key={c.key} value={c.key}>{c.name}</option>)}
+            <option value="random">Random</option>
+          </select>
+        </div>
+      ))}
+      {activeGenerator?.description && chain.length > 1 && <div className="hint">{activeGenerator.description}</div>}
+
+      {/* THE REGIONS this map is split into — they existed as data and were invisible. Alexander, 2026-09-11:
+          *"in theory it's what I'm requesting up top, but I don't anything on the UI"*. */}
+      {(activeGenerator?.config.subZones?.length ?? 0) > 0 && (
+        <>
+          <div className="sub">Regions in it</div>
+          {activeGenerator?.config.subZones?.map(z => (
+            <label key={z.key} className="ctl">
+              <span className="l">{z.name ?? z.key}</span>
+              <input
+                type="checkbox"
+                checked={!regionsOff.has(z.key)}
+                aria-label={`Region: ${z.name ?? z.key}`}
+                onChange={e => {
+                  const next = new Set(regionsOff)
+                  if (e.target.checked) next.delete(z.key)
+                  else next.add(z.key)
+                  setRegionsOff(next)
+                  if (activeKey) onPeek?.(presetSubject(activeKey, layouts.some(l => l.id === layout) ? layout ?? undefined : layouts[0]?.id, { ...enforceRequires(options), ...regionOptions(next) }, activeGenerator, peekCells()) as never)
+                }}
+              />
+            </label>
+          ))}
+          <div className="hint">The regions this map is split into. Untick one to leave it out.</div>
+        </>
+      )}
+
+      {/* THE VARIATIONS, as options rather than as extra rows in the list above. */}
+      {(activeGenerator?.options.length ?? 0) > 0 && (
+        <>
+          <div className="sub">Anything else?</div>
+          {activeGenerator?.options.map(opt => {
+            const blocked = opt.requires !== undefined && !optionIsOn(optionValue(opt.requires))
+            // Every change re-peeks, so the panel SHOWS what the extra did. Built from `next` rather than read
+            // back from state, because the state write has not landed yet.
+            const set = (value: GeneratorOptionValue) => {
+              const next = { ...options, [opt.key]: value }
+              setOptions(next)
+              if (activeKey) onPeek?.(presetSubject(activeKey, layouts.some(l => l.id === layout) ? layout ?? undefined : layouts[0]?.id, { ...enforceRequires(next), ...regionOptions(regionsOff) }, activeGenerator, peekCells()) as never)
+            }
+            return (
+              <label key={opt.key} className="ctl" style={blocked ? { opacity: 0.45 } : undefined}>
+                <span className="l">{opt.label}</span>
+                {opt.type === 'choice'
+                  ? (
+                    <select
+                      // The design's own class, not the panel-scoped bridge rule: these render in the Preview
+                      // window too, outside the panel, and drew there as a blank white box without it.
+                      className="sel"
+                      value={String(blocked ? optionOffValue(opt) : optionValue(opt.key) ?? opt.default)}
+                      disabled={blocked}
+                      aria-label={opt.label}
+                      onChange={e => set(e.target.value)}
+                    >
+                      {opt.choices?.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
+                    </select>
+                  )
+                  : (
+                    <input
+                      type="checkbox"
+                      checked={!blocked && optionIsOn(optionValue(opt.key))}
+                      disabled={blocked}
+                      aria-label={opt.label}
+                      onChange={e => set(e.target.checked)}
+                    />
+                  )}
+              </label>
+            )
+          })}
+          <div className="hint">
+            Variations are options, not extra templates. Adding one never makes the list above longer.
+          </div>
+        </>
+      )}
+
+      {/* HOW BIG — back inside this panel. Alexander, 2026-09-10: *"it's way better to have that close by to
+          generate stuff on demand"*. The thickness is deliberately NOT here: it rebuilds nothing, so it
+          lives in the view bar with the camera controls. */}
+      {size && onSizeDraft && onResize && sizeDraft && (
+        <>
+          <div className="sub">How big</div>
+          <MapMatrixSection draft={sizeDraft} size={size} onDraft={onSizeDraft} onResize={onResize} />
+        </>
+      )}
+    </>
+  )
+  const building = (
+    <>
+      {/* THE EXPLICIT ACT, LAST. Alexander, 2026-09-09: *"build this world button should be at the end."*
+          Until it is clicked nothing above has touched the open map. */}
+      <button
+        type="button"
+        onClick={generate}
+        title={`Build a ${zone} ${typeLabel.toLowerCase()}${sizeDraft ? ` at ${sizeDraft.cols} × ${sizeDraft.rows}` : ''}. This replaces the open map`}
+        className="b pri"
+        style={{ width: '100%', margin: '16px 0 4px', padding: 13, fontSize: 15, justifyContent: 'center' }}
+      >
+        ⚡ Build this world
+      </button>
+      <div className="hint">
+        {/* "the numbers above, exactly" has to stay TRUE. Building goes through clampMapSize, which holds a
+            size inside the cap, so at 400 columns the map would come back 100 wide while this line claimed
+            400. That silent rewrite is the exact bug Alexander hit twice (*"it didn't built it with the
+            specific sizes I selected"*), so the panel says what is wrong instead of promising a size it
+            will not build. */}
+        {!sizeDraft
+          ? 'The generator picks the size.'
+          : mapSizeProblem(sizeDraft)
+            ? `${mapSizeProblem(sizeDraft)} Fix it above and this will build exactly what you typed.`
+            : `At ${sizeDraft.cols} × ${sizeDraft.rows} cells of ${sizeDraft.cellSize}px: the numbers above, exactly.`}
+      </div>
+    </>
+  )
 
   return (
     <div className="pfix" style={{ overflowY: 'auto' }}>
@@ -821,7 +999,7 @@ export function GenerateControls({
         </select>
       </div>
 
-      {/* A selectable LIST, not a grid of pills — Alexander, 2026-09-08: *"I don't like to use pills as
+      {/* A selectable LIST, not a grid of pills. Alexander, 2026-09-08: *"I don't like to use pills as
           filters, they'll create a lot of issues after, because of space."* Each row carries how many
           shapes it offers, which is the information that makes the row worth clicking. */}
       <div className="ctl">
@@ -855,7 +1033,7 @@ export function GenerateControls({
           <div className="pgrid">
             {presets.map(({ id, label }) => (
               <button
-                onPointerEnter={() => activeKey && onPeek?.(presetSubject(activeKey, id, chosenOptions()))}
+                onPointerEnter={() => activeKey && onPeek?.(presetSubject(activeKey, id, chosenOptions(), undefined, peekCells()))}
                 onPointerLeave={() => onPeek?.(selectedSubject() as never)}
                 key={id ?? `${activeKey}-default`}
                 type="button"
@@ -868,7 +1046,7 @@ export function GenerateControls({
                     : `Shape the ${zone} ${typeLabel.toLowerCase()} as a ${label.toLowerCase()}`
                 }
               >
-                {/* THE PRESET'S OWN PICTURE — the level this button would build, generated small and
+                {/* THE PRESET'S OWN PICTURE: the level this button would build, generated small and
                     seeded, drawn by the map's renderer. Alexander, 2026-09-08: *"yes we want this
                     feature."* The design reserved this slot (a `.pmap` block beside the name) and the port
                     dropped it; it is worth more now than when he asked, because Woodland sits next to two
@@ -877,7 +1055,7 @@ export function GenerateControls({
                   <PreviewThumb subject={presetSubject(activeKey, id)} context={preview} px={92} />
                 )}
                 {/* DIVs, matching the design. `.pd` carries `margin-top:3px`, which does nothing on an
-                    inline element — as spans these two ran together as "Meadowa spring forest laid out…". */}
+                    inline element; as spans these two ran together as "Meadowa spring forest laid out…". */}
                 <div>
                   <div className="pn">{label}</div>
                   <div className="pd">
@@ -893,113 +1071,7 @@ export function GenerateControls({
         </>
       )}
 
-      {/* THE SUBTYPES, one picker per level, as deep as the data goes. Alexander, 2026-09-11: *"forest > type of
-          forest > sub type of type of forest > etc / like maybe it's an island jungle, maybe it's a mountain
-          forest"*, *"or just randomize"*. Each level offers its own standard version, every subtype, and Random. */}
-      {chain.map((node, level) => (node.children?.length ?? 0) > 0 && (
-        <div key={node.key} className="ctl">
-          <span className="l">{`Which ${node.name.toLowerCase()}?`}</span>
-          <select
-            className="sel"
-            aria-label={`Which ${node.name.toLowerCase()}?`}
-            value={path[level] ?? ''}
-            style={{ flex: 1 }}
-            onChange={e => {
-              const nextPath = [...path.slice(0, level), e.target.value]
-              setPath(nextPath)
-              setRegionsOff(new Set())
-              const nextChain = walk(nextPath)
-              if (activeKey) onPeek?.(presetSubject(activeKey, layouts.some(l => l.id === layout) ? layout ?? undefined : layouts[0]?.id, enforceRequires(options), nextChain[nextChain.length - 1]) as never)
-            }}
-          >
-            <option value="">{`${node.name} (standard)`}</option>
-            {node.children?.map(c => <option key={c.key} value={c.key}>{c.name}</option>)}
-            <option value="random">Random</option>
-          </select>
-        </div>
-      ))}
-      {activeGenerator?.description && chain.length > 1 && <div className="hint">{activeGenerator.description}</div>}
-
-      {/* THE REGIONS this map is split into — they existed as data and were invisible. Alexander, 2026-09-11:
-          *"in theory it's what I'm requesting up top, but I don't anything on the UI"*. */}
-      {(activeGenerator?.config.subZones?.length ?? 0) > 0 && (
-        <>
-          <div className="sub">Regions in it</div>
-          {activeGenerator?.config.subZones?.map(z => (
-            <label key={z.key} className="ctl">
-              <span className="l">{z.name ?? z.key}</span>
-              <input
-                type="checkbox"
-                checked={!regionsOff.has(z.key)}
-                aria-label={`Region: ${z.name ?? z.key}`}
-                onChange={e => {
-                  const next = new Set(regionsOff)
-                  if (e.target.checked) next.delete(z.key)
-                  else next.add(z.key)
-                  setRegionsOff(next)
-                  if (activeKey) onPeek?.(presetSubject(activeKey, layouts.some(l => l.id === layout) ? layout ?? undefined : layouts[0]?.id, { ...enforceRequires(options), ...regionOptions(next) }, activeGenerator) as never)
-                }}
-              />
-            </label>
-          ))}
-          <div className="hint">The regions this map is split into. Untick one to leave it out.</div>
-        </>
-      )}
-
-      {/* THE VARIATIONS, as options rather than as extra rows in the list above. */}
-      {(activeGenerator?.options.length ?? 0) > 0 && (
-        <>
-          <div className="sub">Anything else?</div>
-          {activeGenerator?.options.map(opt => {
-            const blocked = opt.requires !== undefined && !optionIsOn(optionValue(opt.requires))
-            // Every change re-peeks, so the panel SHOWS what the extra did. Built from `next` rather than read
-            // back from state, because the state write has not landed yet.
-            const set = (value: GeneratorOptionValue) => {
-              const next = { ...options, [opt.key]: value }
-              setOptions(next)
-              if (activeKey) onPeek?.(presetSubject(activeKey, layouts.some(l => l.id === layout) ? layout ?? undefined : layouts[0]?.id, { ...enforceRequires(next), ...regionOptions(regionsOff) }, activeGenerator) as never)
-            }
-            return (
-              <label key={opt.key} className="ctl" style={blocked ? { opacity: 0.45 } : undefined}>
-                <span className="l">{opt.label}</span>
-                {opt.type === 'choice'
-                  ? (
-                    <select
-                      value={String(blocked ? optionOffValue(opt) : optionValue(opt.key) ?? opt.default)}
-                      disabled={blocked}
-                      aria-label={opt.label}
-                      onChange={e => set(e.target.value)}
-                    >
-                      {opt.choices?.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
-                    </select>
-                  )
-                  : (
-                    <input
-                      type="checkbox"
-                      checked={!blocked && optionIsOn(optionValue(opt.key))}
-                      disabled={blocked}
-                      aria-label={opt.label}
-                      onChange={e => set(e.target.checked)}
-                    />
-                  )}
-              </label>
-            )
-          })}
-          <div className="hint">
-            Variations are options, not extra templates — adding one never makes the list above longer.
-          </div>
-        </>
-      )}
-
-      {/* HOW BIG — back inside this panel. Alexander, 2026-09-10: *"it's way better to have that close by to
-          generate stuff on demand"*. The thickness is deliberately NOT here: it rebuilds nothing, so it
-          lives in the view bar with the camera controls. */}
-      {size && onSizeDraft && onResize && sizeDraft && (
-        <>
-          <div className="sub">How big</div>
-          <MapMatrixSection draft={sizeDraft} size={size} onDraft={onSizeDraft} onResize={onResize} />
-        </>
-      )}
+      {!tuningSlot && tuning}
 
       {/* Change ONE layer — the same five parts on every kind of place. */}
       {onRandomizeLayer && (
@@ -1041,29 +1113,8 @@ export function GenerateControls({
         </>
       )}
 
-      {/* THE EXPLICIT ACT, LAST. Alexander, 2026-09-09: *"build this world button should be at the end."*
-          Until it is clicked nothing above has touched the open map. */}
-      <button
-        type="button"
-        onClick={generate}
-        title={`Build a ${zone} ${typeLabel.toLowerCase()}${sizeDraft ? ` at ${sizeDraft.cols} × ${sizeDraft.rows}` : ''} — this replaces the open map`}
-        className="b pri"
-        style={{ width: '100%', margin: '16px 0 4px', padding: 13, fontSize: 15, justifyContent: 'center' }}
-      >
-        ⚡ Build this world
-      </button>
-      <div className="hint">
-        {/* "the numbers above, exactly" has to stay TRUE. Building goes through clampMapSize, which holds a
-            size inside the cap — so at 400 columns the map would come back 100 wide while this line claimed
-            400. That silent rewrite is the exact bug Alexander hit twice (*"it didn't built it with the
-            specific sizes I selected"*), so the panel says what is wrong instead of promising a size it
-            will not build. */}
-        {!sizeDraft
-          ? 'The generator picks the size.'
-          : mapSizeProblem(sizeDraft)
-            ? `${mapSizeProblem(sizeDraft)} Fix it above and this will build exactly what you typed.`
-            : `At ${sizeDraft.cols} × ${sizeDraft.rows} cells of ${sizeDraft.cellSize}px — the numbers above, exactly.`}
-      </div>
+      {!tuningSlot && building}
+      {tuningSlot && createPortal(<>{sizeLine}{tuning}{building}</>, tuningSlot)}
     </div>
   )
 }
