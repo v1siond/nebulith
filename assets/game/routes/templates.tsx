@@ -964,7 +964,9 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   /** What the panel calls what it is showing: a library row by its label, a generator preset by its world. */
   const previewCaption =
     genPeek && genPeek.kind === 'stage'
-      ? `${String(genPeek.layout ?? genPeek.variant)} — the world this preset builds`
+      // The picked world by NAME ("Mountain forest"), not its layout ("woodland"): once a type has subtypes,
+      // the layout no longer says which world this is.
+      ? `${String(genPeek.name ?? genPeek.layout ?? genPeek.variant)}: the world this preset builds`
       : previewLabel
   /**
    * How every swatch and the preview panel should draw a thing: the view you are looking through, the zone
@@ -6448,7 +6450,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                 and both showing it printed "Point at something in the library" twice. */}
             {previewCaption && (
               <div className="hint">
-                {`${previewCaption} — drawn by the ${previewContext.view} renderer, on ${genZone} ground.`}
+                {`${previewCaption}, drawn by the ${previewContext.view} renderer on ${genZone} ground.`}
               </div>
             )}
           </FloatingPanel>

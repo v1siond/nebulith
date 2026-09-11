@@ -687,6 +687,8 @@ export function GenerateControls({
     zone: zone as never,
     variant: categoryKey as never,
     layout: layoutId,
+    // The picked world's NAME, not its layout, so the preview can say "Mountain forest" and not "woodland".
+    name: (gen ?? findGenerator(catalog, categoryKey, layoutId))?.name,
     nature: (gen ?? findGenerator(catalog, categoryKey, layoutId))?.config.nature,
     // The preview has to be built from the SAME inputs the build uses, or it is a picture of a different
     // map. Alexander, 2026-09-11: *"it's not clear how the extras modify the existing selected zone"* —

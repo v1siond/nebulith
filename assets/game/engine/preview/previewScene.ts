@@ -49,6 +49,8 @@ export type PreviewSubject =
       zone: ZoneId
       variant: VariantId
       layout?: string
+      /** The picked generator's own NAME ("Mountain forest"), so a caption can say which world this is. */
+      name?: string
       /** The generator's nature densities — `canopy` is what makes a woodland thumbnail a woodland. */
       nature?: NatureDensity
       /**
