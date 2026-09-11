@@ -18,7 +18,7 @@
  */
 import '@/__tests__/helpers/installTilesetSeed'
 import { generateStage, type NatureDensity } from '@/engine/stageGenerator'
-import { type GeneratorPalette } from '@/lib/generatorCatalog'
+import { type GeneratorPalette, type GeneratorSubZone } from '@/lib/generatorCatalog'
 import { makeRng } from '@/lib/math'
 
 /** The served densities, as `generator_source.ex` carries them. */
@@ -29,15 +29,26 @@ const JUNGLE: NatureDensity = { canopy: 0.62, groundCover: 0.5, flowers: 0.1 }
 const WOOD_PAL: GeneratorPalette = { floor: '#6f7f4a', floorAlt: '#7d8a55', litter: '#7a6a44', canopy: '#5d7340', canopyAlt: '#6b8049', undergrowth: '#6d7f45', water: '#4f93b3', bank: '#c1a877', trail: '#9a8a62' }
 const JUNG_PAL: GeneratorPalette = { floor: '#2f4a2a', floorAlt: '#38552f', litter: '#46442a', canopy: '#2e6b32', canopyAlt: '#3f8a3c', undergrowth: '#25532a', water: '#5e6b3a', bank: '#6b5f3c', trail: '#57502f' }
 
-const build = (layout: 'woodland' | 'jungle', nature: NatureDensity, palette?: GeneratorPalette, seed = 3, cols = 60, rows = 40) => {
+/** The served sub-zones, as `generator_source.ex` carries them. Regions inside ONE map — Alexander,
+ *  2026-09-11, choosing between that and separate templates. */
+const ZONES: readonly GeneratorSubZone[] = [
+  { key: 'open', weight: 3, canopy: 0.45, undergrowth: 0.5, floor: '#3f5f33' },
+  { key: 'dense', weight: 4, canopy: 1.3, undergrowth: 1.45, floor: '#24381f' },
+  { key: 'swamp', weight: 2, canopy: 0.85, undergrowth: 1.1, floor: '#3b4a2e', pools: 0.22 },
+  { key: 'ruins', weight: 2, canopy: 0.55, undergrowth: 0.65, floor: '#4a4a3c', stone: 0.16 },
+]
+
+const build = (layout: 'woodland' | 'jungle', nature: NatureDensity, palette?: GeneratorPalette, seed = 3, cols = 60, rows = 40, subZones?: readonly GeneratorSubZone[]) => {
   const orig = Math.random
   Math.random = makeRng(seed)
   try {
-    return generateStage({ zone: 'summer', variant: 'forest', layout, cols, rows, nature, palette })
+    return generateStage({ zone: 'summer', variant: 'forest', layout, cols, rows, nature, palette, subZones })
   } finally {
     Math.random = orig
   }
 }
+
+const zoned = (seed = 5, cols = 60, rows = 40) => build('jungle', JUNGLE, JUNG_PAL, seed, cols, rows, ZONES)
 
 const jungle = (seed = 3, cols = 60, rows = 40) => build('jungle', JUNGLE, JUNG_PAL, seed, cols, rows)
 const woodland = (seed = 3) => build('woodland', WOODLAND, WOOD_PAL, seed)
@@ -149,5 +160,69 @@ describe('however dense it gets, the jungle is ONE place', () => {
     const sizes = regions(jungle(10, 30, 24))
     expect(sizes.length).toBe(1)
     expect(sizes[0]).toBeGreaterThan(60) // and there is a real amount of it, not one cleared cell
+  })
+})
+
+describe('the jungle is PARTITIONED into sub-zones — regions inside one map', () => {
+  // Alexander, 2026-09-10: *"the generator shoudl be smart enough to identify different patterns of jungles
+  // for example, open zones, dense zones, zones with swamp, zone with river, zone with cave, zone with
+  // ruins"*. On 2026-09-11 he chose the shape: regions inside ONE map, so you walk out of the open canopy
+  // into dense growth without loading anything, and the template list stays at three forests.
+
+  const floorCells = (s: ReturnType<typeof zoned>, tone: string) =>
+    s.floorColors.flat().filter(t => t === tone).length
+
+  it('puts EVERY served region on the map — none is quietly dropped', () => {
+    const s = zoned()
+    for (const z of ZONES) {
+      // The swamp is mostly under its own pools, so it is asserted as present rather than at a size.
+      const present = floorCells(s, z.floor!) > 0 || z.key === 'swamp'
+      expect({ zone: z.key, present }).toEqual({ zone: z.key, present: true })
+    }
+  })
+
+  it('a DENSE region is genuinely denser than an OPEN one on the SAME map', () => {
+    // The point of the whole thing. Before this the canopy took one target over the whole map, so averaging
+    // a dense region and an open one gave you neither — just a uniform middle everywhere.
+    const s = zoned()
+    const dense = ZONES.find(z => z.key === 'dense')!
+    const open = ZONES.find(z => z.key === 'open')!
+    const rate = (tone: string) => {
+      let cells = 0
+      let blocked = 0
+      s.floorColors.forEach((rowArr, r) => rowArr.forEach((t, c) => {
+        if (t !== tone) return
+        cells++
+        if (s.collision[r][c]) blocked++
+      }))
+      return cells > 0 ? blocked / cells : 0
+    }
+    expect(rate(dense.floor!)).toBeGreaterThan(rate(open.floor!))
+  })
+
+  it('floods the SWAMP with standing pools, not a channel', () => {
+    const s = zoned()
+    const dry = build('jungle', JUNGLE, JUNG_PAL, 5, 60, 40) // the same seed with no regions = creek only
+    expect(s.ground.flat().filter(t => t === 'water').length)
+      .toBeGreaterThan(dry.ground.flat().filter(t => t === 'water').length)
+  })
+
+  it('drops fallen masonry in the RUINS, and nowhere else without a ruins region', () => {
+    const rocks = (s: ReturnType<typeof zoned>) => s.props.filter(p => p.type === 'rock').length
+    expect(rocks(zoned())).toBeGreaterThan(0)
+    expect(rocks(build('jungle', JUNGLE, JUNG_PAL, 5))).toBe(0)
+  })
+
+  it('is STILL one place, regions and all', () => {
+    // Everything above adds blocking ground. None of it may cut the map up.
+    for (const seed of [1, 2, 3, 4, 5]) {
+      expect({ seed, regions: regions(zoned(seed, 45, 35)).length }).toEqual({ seed, regions: 1 })
+    }
+  })
+
+  it('serves NO regions → one uniform jungle, exactly as before', () => {
+    // A template that states no sub-zones must not have any invented for it.
+    const plain = build('jungle', JUNGLE, JUNG_PAL, 5)
+    for (const z of ZONES) expect(floorCells(plain, z.floor!)).toBe(0)
   })
 })

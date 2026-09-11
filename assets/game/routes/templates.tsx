@@ -3549,6 +3549,8 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       // painted from the same numbers. BOTH call sites get it, the build and the re-roll, or a re-rolled
       // layer would repaint a jungle in the woodland's tones.
       palette: generator.config.palette,
+      // The REGIONS this template partitions itself into — open canopy, dense growth, swamp, ruins.
+      subZones: generator.config.subZones,
       settlement: generator.config.settlement,
       buildingSizes: buildingSizeSource(buildingTypesRef.current),
     })
@@ -3715,6 +3717,8 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       // painted from the same numbers. BOTH call sites get it, the build and the re-roll, or a re-rolled
       // layer would repaint a jungle in the woodland's tones.
       palette: generator.config.palette,
+      // The REGIONS this template partitions itself into — open canopy, dense growth, swamp, ruins.
+      subZones: generator.config.subZones,
       // The served settlement tuning — `houseWidths` is the plot-size weighting the town rolls from. Parsed
       // since T-113 and never read until now, exactly like `nature.groundCover`.
       settlement: generator.config.settlement,

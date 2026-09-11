@@ -113,6 +113,31 @@ export interface GeneratorPalette {
   trail?: string
 }
 
+/**
+ * ONE SUB-ZONE a map is partitioned into — a region with its own character, not a template of its own.
+ *
+ * Alexander, 2026-09-10: *"the generator shoudl be smart enough to identify different patterns of jungles
+ * for example, open zones, dense zones, zones with swamp, zone with river, zone with cave, zone with
+ * ruins"*, and 2026-09-11 on the shape: regions inside ONE map. You walk from one into the next.
+ *
+ * `canopy` and `undergrowth` MULTIPLY the generator's served base densities rather than replacing them, so
+ * the base stays the one knob that moves the whole map.
+ */
+export interface GeneratorSubZone {
+  key: string
+  name?: string
+  /** how much of the map this kind tends to claim, relative to its siblings */
+  weight: number
+  canopy?: number
+  undergrowth?: number
+  /** this region's own floor tone */
+  floor?: string
+  /** the share of the region standing under water (a swamp's pools) */
+  pools?: number
+  /** the share of the region carrying fallen masonry (ruins) */
+  stone?: number
+}
+
 export interface GeneratorConfig {
   grid?: GeneratorGrid
   units?: GeneratorUnits
@@ -120,6 +145,8 @@ export interface GeneratorConfig {
   buildings?: GeneratorBuildings
   settlement?: GeneratorSettlement
   palette?: GeneratorPalette
+  /** The regions this template partitions itself into. Absent → one uniform map. */
+  subZones?: readonly GeneratorSubZone[]
 }
 
 /** One generator — a concrete map the user can ask for ("Meadow + River", "Town"). */
@@ -300,13 +327,39 @@ function parseConfig(v: unknown): GeneratorConfig {
   const buildings = parseBuildings(v.buildings)
   const settlement = parseSettlement(v.settlement)
   const palette = parsePalette(v.palette)
+  const subZones = parseSubZones(v.subZones)
   if (grid) out.grid = grid
   if (units) out.units = units
   if (nature) out.nature = nature
   if (buildings) out.buildings = buildings
   if (settlement) out.settlement = settlement
   if (palette) out.palette = palette
+  if (subZones) out.subZones = subZones
   return out
+}
+
+/** The served sub-zones. A row without a key or a usable weight is DROPPED rather than defaulted — a region
+ *  the backend could not describe is one the generator must not invent a character for. */
+function parseSubZones(v: unknown): readonly GeneratorSubZone[] | undefined {
+  if (!Array.isArray(v)) return undefined
+  const rows: GeneratorSubZone[] = []
+  for (const raw of v) {
+    if (!isObject(raw)) continue
+    const key = str(raw.key)
+    const weight = num(raw.weight)
+    if (!key || weight === undefined || weight <= 0) continue
+    const row: GeneratorSubZone = { key, weight }
+    const name = str(raw.name)
+    if (name) row.name = name
+    for (const k of ['canopy', 'undergrowth', 'pools', 'stone'] as const) {
+      const n = num(raw[k])
+      if (n !== undefined) row[k] = n
+    }
+    const floor = str(raw.floor)
+    if (floor) row.floor = floor
+    rows.push(row)
+  }
+  return rows.length > 0 ? rows : undefined
 }
 
 /** The served palette, keeping only the fields that ARRIVED as colours. A malformed or missing entry is

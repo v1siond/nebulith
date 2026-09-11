@@ -16,7 +16,7 @@ import { type BuildingSizes, type SettlementTuning, planVillage, type VillageLay
 // The planner is pure: it takes the building sizes rather than reading them. They come from the BACKEND
 // compositions (buildingCatalog resolves them), so deepening a building in Elixir moves the plots with it.
 import { BACKEND_BUILDING_SIZES } from './buildingCatalog'
-import { type GeneratorPalette } from '@/lib/generatorCatalog'
+import { type GeneratorPalette, type GeneratorSubZone } from '@/lib/generatorCatalog'
 import {
   stagePropTileOverride,
   zonePalette,
@@ -213,6 +213,8 @@ export interface GenerateOptions {
   /** The served COLOURS for this template (`config.palette`). Absent → this generator states none and the
    *  layout paints nothing, keeping the ground tile's own colour. Never substituted for here. */
   palette?: GeneratorPalette
+  /** The REGIONS this template partitions itself into (`config.subZones`). Absent → one uniform map. */
+  subZones?: readonly GeneratorSubZone[]
   /**
    * Where footprints come from. Alexander, 2026-09-09: *"even the footprint should come from backend, then
    * frontend draws."* Defaults to the composition-backed source so a caller that does not care (every
@@ -619,6 +621,9 @@ interface ArchetypeContext {
   /** The served COLOURS for this template. What makes an Amazonas not a pine wood — every colour in a forest
    *  used to come from the SEASON, so two different forests in spring were painted identically. */
   palette?: GeneratorPalette
+  /** The REGIONS this template partitions itself into — open canopy, dense growth, swamp, ruins. A jungle is
+   *  not one uniform density, it is several kinds of ground you walk between. */
+  subZones?: readonly GeneratorSubZone[]
   /** Where footprints come from — see `GenerateOptions.buildingSizes`. */
   buildingSizes?: BuildingSizes
   /** The user-steered forest layout, or undefined for a plain generate (placeForest then random-picks a
@@ -679,7 +684,7 @@ export function generateStage(opts: GenerateOptions): StageData {
     decor: layerRng(opts.seeds, 'decor'),
   }
   // Single-pass archetypes (forest/cave/temple/boss) read `ctx.rand`; the layout rng is their source.
-  const ctx: ArchetypeContext = { zone, ground, collision, floorColors, buildings, props, trees, compositions, cols, rows, layout, options: opts.options, nature: opts.nature, settlement: opts.settlement, palette: opts.palette, buildingSizes: opts.buildingSizes, rand: rngs.layout }
+  const ctx: ArchetypeContext = { zone, ground, collision, floorColors, buildings, props, trees, compositions, cols, rows, layout, options: opts.options, nature: opts.nature, settlement: opts.settlement, palette: opts.palette, subZones: opts.subZones, buildingSizes: opts.buildingSizes, rand: rngs.layout }
   ARCHETYPES[variant]?.(ctx, rngs)
   addTerrainTransitions(ctx) // blended shorelines / lava banks over the painted ground
 
@@ -1393,6 +1398,13 @@ function layoutJungle(ctx: ArchetypeContext, opts: { river?: boolean; crossing?:
   forEachCell(cols, rows, (col, row) => { ground[row][col] = floor })
   paintJungleFloor(ctx, pal)
 
+  // 0b · THE REGIONS. A jungle is not one uniform density, it is several kinds of ground you walk between —
+  //      open canopy, dense growth, swamp, ruins. Served by the backend, so which regions exist and how much
+  //      of the map each claims is data. Absent → one uniform jungle, exactly as before.
+  const zones = ctx.subZones ?? []
+  const zoneAt = partitionSubZones(ctx, zones)
+  paintSubZoneFloors(ctx, zoneAt)
+
   const open = new Set<string>()
 
   // 1 · THE CREEK — the route through, and the only reliable one. A jungle map without water is a map with
@@ -1401,6 +1413,9 @@ function layoutJungle(ctx: ArchetypeContext, opts: { river?: boolean; crossing?:
   //     reads, and turns the creek into a full river (wider, with a crossing).
   const wide = opts.river === true
   const water = carveJungleCreek(ctx, pal, wide)
+  // 1b · SWAMP POOLS — standing water where a swamp region says so. They join the same water set the creek
+  //      is in, so every later pass treats a pool exactly as it treats the channel.
+  for (const key of floodSwampPools(ctx, zoneAt, pal)) water.add(key)
   const banks = jungleBanks(ctx, water, pal)
   for (const key of banks) open.add(key)
 
@@ -1434,8 +1449,12 @@ function layoutJungle(ctx: ArchetypeContext, opts: { river?: boolean; crossing?:
   }
 
   // 4 · THE CANOPY over everything else — the same exact-coverage field the woodland uses, because choosing
-  //     the lowest-scoring N cells is the right way to hit a density whatever the forest.
-  const field = woodlandCanopyField(ctx, open, canopy)
+  //     the lowest-scoring N cells is the right way to hit a density whatever the forest. Run PER REGION so
+  //     dense growth is genuinely denser than open canopy on the same map, rather than the whole map sharing
+  //     one number. A map with no regions runs it once, which is the old behaviour exactly.
+  const field = zones.length > 0
+    ? subZoneCanopyField(ctx, open, canopy, zoneAt, zones)
+    : woodlandCanopyField(ctx, open, canopy)
   for (const { col, row } of field) {
     const kind: LivingTreeKind | 'tree_dead' = ctx.rand() < 0.04 ? 'tree_dead' : pickLivingTree(ctx.rand())
     trees.push({ col, row, kind, variant: massVariant(col, row) })
@@ -1443,8 +1462,11 @@ function layoutJungle(ctx: ArchetypeContext, opts: { river?: boolean; crossing?:
   }
 
   // 5 · UNDERGROWTH between the trunks — the layer a wood does not have. Its density is the served
-  //     `groundCover`, which is why a jungle's 0.5 chokes the floor where a woodland's 0.2 dresses it.
-  plantUndergrowth(ctx, open, water, pal)
+  //     `groundCover` scaled by the region, which is why dense growth is a wall and open canopy is not.
+  plantUndergrowth(ctx, open, water, pal, zoneAt)
+
+  // 5b · RUINS where a ruins region says so — fallen masonry, scattered, blocking.
+  raiseRuins(ctx, zoneAt, open, water)
 
   // 6 · EMERGENTS — the few giants standing clear above the canopy. Recorded as taller tree anchors.
   plantEmergents(ctx, open, water)
@@ -1549,6 +1571,138 @@ function fellLogsAcross(ctx: ArchetypeContext, water: Set<string>, pal: Generato
     }
     layDeck(ctx, deck, pal?.trail)
   }
+}
+
+/**
+ * THE SUB-ZONE MAP — which region each cell belongs to.
+ *
+ * Alexander, 2026-09-10: *"the generator shoudl be smart enough to identify different patterns of jungles for
+ * example, open zones, dense zones, zones with swamp ... zone with ruins"*, and on the shape (2026-09-11):
+ * regions inside ONE map, so you walk out of the open canopy into dense growth without loading anything.
+ *
+ * Nearest-seed partition: scatter a seed per region, every cell joins its closest. That gives irregular
+ * organic borders for free, which matters — a jungle does not change character along a straight line. The
+ * distance is warped by a little noise so the borders wobble instead of reading as Voronoi edges.
+ *
+ * Seeds are drawn by WEIGHT, so the served numbers decide how much of the map each kind tends to claim.
+ */
+function partitionSubZones(ctx: ArchetypeContext, zones: readonly GeneratorSubZone[]): (GeneratorSubZone | undefined)[][] {
+  const { cols, rows } = ctx
+  const map: (GeneratorSubZone | undefined)[][] = Array.from({ length: rows }, () => new Array(cols).fill(undefined))
+  if (zones.length === 0) return map
+
+  // One seed per ~200 cells, never fewer than TWICE the number of kinds. The density matters: the first pass
+  // hands one seed to each kind so none is ever missing, and only the seeds after that are drawn by weight,
+  // so too few of them and the served weights stop deciding anything.
+  const total = zones.reduce((n, z) => n + z.weight, 0)
+  const count = Math.max(zones.length * 2, Math.round((cols * rows) / 200))
+  const seeds: Array<{ col: number; row: number; zone: GeneratorSubZone }> = []
+  for (let i = 0; i < count; i++) {
+    // The first pass guarantees every KIND is present; after that they are drawn by weight.
+    const zone = i < zones.length ? zones[i] : pickWeighted(zones, ctx.rand() * total)
+    seeds.push({ col: randIntWith(ctx.rand, 0, cols - 1), row: randIntWith(ctx.rand, 0, rows - 1), zone })
+  }
+
+  forEachCell(cols, rows, (col, row) => {
+    let best = seeds[0]
+    let bestD = Infinity
+    for (const seed of seeds) {
+      // The noise term is what stops the borders being straight lines between seeds.
+      const wobble = shadeNoise(col * 0.31 + row * 0.47 + seed.col * 1.7 + seed.row * 2.3) * 6
+      const d = Math.hypot(col - seed.col, row - seed.row) + wobble
+      if (d >= bestD) continue
+      bestD = d
+      best = seed
+    }
+    map[row][col] = best.zone
+  })
+  return map
+}
+
+/**
+ * The canopy field, scored PER REGION so each one hits its own density.
+ *
+ * The woodland's field takes one target over the whole map. That is right when the map has one character and
+ * wrong the moment it has several: averaging a dense region and an open one gives you neither, just a
+ * uniform middle. So the cells are bucketed by region and the same exact-coverage selection runs inside each
+ * bucket against its own scaled target.
+ *
+ * Reuses `woodlandCanopyField`'s guarantee rather than re-deriving it: take the lowest-scoring N, and
+ * coverage is exact by construction while still clumping.
+ */
+function subZoneCanopyField(
+  ctx: ArchetypeContext,
+  open: Set<string>,
+  canopy: number,
+  zoneAt: (GeneratorSubZone | undefined)[][],
+  zones: readonly GeneratorSubZone[],
+): Cell[] {
+  const out: Cell[] = []
+  for (const zone of zones) {
+    // Everything OUTSIDE this region counts as already spoken for, so the shared field only scores cells
+    // belonging to it. One extra pass per region, and each is cheap.
+    const masked = new Set(open)
+    forEachCell(ctx.cols, ctx.rows, (col, row) => {
+      if (zoneAt[row][col] !== zone) masked.add(`${col},${row}`)
+    })
+    const target = clamp01(canopy * (zone.canopy ?? 1))
+    out.push(...woodlandCanopyField(ctx, masked, target))
+  }
+  return out
+}
+
+/** Pick a sub-zone by WEIGHT from an already-scaled roll. */
+function pickWeighted(zones: readonly GeneratorSubZone[], roll: number): GeneratorSubZone {
+  let r = roll
+  for (const z of zones) {
+    if (r < z.weight) return z
+    r -= z.weight
+  }
+  return zones[zones.length - 1]
+}
+
+/** Paint each region's own floor tone, so the border between open canopy and dense growth is visible from
+ *  above. A region that states no floor colour keeps whatever the base floor pass gave it. */
+function paintSubZoneFloors(ctx: ArchetypeContext, zoneAt: (GeneratorSubZone | undefined)[][]): void {
+  forEachCell(ctx.cols, ctx.rows, (col, row) => {
+    const tone = zoneAt[row][col]?.floor
+    if (tone) ctx.floorColors[row][col] = tone
+  })
+}
+
+/** SWAMP POOLS — standing water in a swamp region. Not a channel: pools sit in hollows, so they are blobs
+ *  scored off the same coherent noise the canopy uses rather than scattered per cell. */
+function floodSwampPools(ctx: ArchetypeContext, zoneAt: (GeneratorSubZone | undefined)[][], pal: GeneratorPalette | undefined): Set<string> {
+  const { cols, rows, ground, collision, floorColors } = ctx
+  const pools = new Set<string>()
+  forEachCell(cols, rows, (col, row) => {
+    const share = zoneAt[row][col]?.pools
+    if (share === undefined) return
+    // Coherent noise → connected sheets of water, not a pepper of single wet cells.
+    if (shadeNoise(Math.floor(col / 2) * 1.9 + Math.floor(row / 2) * 2.7) > share * 2) return
+    ground[row][col] = 'water'
+    collision[row][col] = true
+    if (pal?.water) floorColors[row][col] = varyIntensity(pal.water, 0.4)
+    pools.add(`${col},${row}`)
+  })
+  return pools
+}
+
+/** RUINS — fallen masonry in a ruins region. Blocking stone, scattered rather than laid out, because what is
+ *  left of a jungle ruin is rubble and the odd standing wall, not a building. */
+function raiseRuins(ctx: ArchetypeContext, zoneAt: (GeneratorSubZone | undefined)[][], open: Set<string>, water: Set<string>): void {
+  const { cols, rows, collision } = ctx
+  forEachCell(cols, rows, (col, row) => {
+    const share = zoneAt[row][col]?.stone
+    if (share === undefined) return
+    const key = `${col},${row}`
+    if (open.has(key) || water.has(key) || collision[row][col]) return
+    if (ctx.rand() >= share) return
+    // The SAME rock prop the caves place — a fallen block is a rock, and giving the ruins their own would be
+    // a second thing to keep looking like the first.
+    placeProp(ctx, makeRock(col, row))
+    collision[row][col] = true
+  })
 }
 
 /** The shaded floor, mottled over coarse patches. Two tones from the served palette so it reads as litter and
@@ -1663,14 +1817,22 @@ function traceJungleTrack(ctx: ArchetypeContext, from: Cell, to: Cell, open: Set
 /** UNDERGROWTH — the choked layer between the trunks, and the thing that actually makes a jungle hard to
  *  cross. Density is the served `groundCover`. It BLOCKS, unlike the woodland's ground dressing, which is
  *  the whole distinction: a wood's floor cover is decoration, a jungle's is an obstacle. */
-function plantUndergrowth(ctx: ArchetypeContext, open: Set<string>, water: Set<string>, pal: GeneratorPalette | undefined): void {
+function plantUndergrowth(
+  ctx: ArchetypeContext,
+  open: Set<string>,
+  water: Set<string>,
+  pal: GeneratorPalette | undefined,
+  zoneAt?: (GeneratorSubZone | undefined)[][],
+): void {
   const cover = ctx.nature?.groundCover
   if (cover === undefined) return
   const { cols, rows, collision, floorColors } = ctx
   forEachCell(cols, rows, (col, row) => {
     const key = `${col},${row}`
     if (open.has(key) || water.has(key) || collision[row][col]) return
-    if (ctx.rand() >= cover) return
+    // The region SCALES the served density; a region that states no multiplier leaves it alone.
+    const scaled = cover * (zoneAt?.[row][col]?.undergrowth ?? 1)
+    if (ctx.rand() >= scaled) return
     const decor = makeGroundDecor(ctx.zone, col, row)
     if (decor) placeProp(ctx, decor)
     collision[row][col] = true // you do not walk through it — that is what undergrowth IS
