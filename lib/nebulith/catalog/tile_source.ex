@@ -1687,6 +1687,86 @@ defmodule Nebulith.Catalog.TileSource do
     :ok
   end
 
+  @doc """
+  Gives a creature tile its COMBAT settings — the stat block it fights with.
+
+  Alexander, 2026-09-10: *"an enemy is just a regular unit, but marked as hostile towards player. so, I
+  don't think we need a separate table for it"*. He is right, and the evidence was in the mapping: nine
+  archetypes existed for eight creatures, one each, with a frontend `Record` translating between the two
+  vocabularies. A second vocabulary whose only job is to be translated back is not a concept.
+
+  So a creature's numbers live on the creature, next to the role, the height and the collision it already
+  carries. `enemy_archetypes` is dropped, and `ARCHETYPE_BY_ENEMY_TYPE` goes with it.
+
+  Written to EVERY style's row, like `height` and `unitRole` before it: these are facts about the LABEL,
+  and a style only changes the picture.
+  """
+  # Every number is the one the archetype table shipped with, so folding it changes no fight. Keyed by the
+  # TILE the creature draws as (`EntitySource.enemy_type_slug`): a bandit is the ninja tile, a wraith the
+  # ghost tile, so that is where a bandit's and a wraith's numbers belong.
+  @unit_combat %{
+    "goblin" => %{
+      "stats" => %{"strength" => 6, "intelligence" => 0, "defense" => 3, "maxHp" => 34, "dodge" => 5},
+      "moveDelayMs" => 1000, "reachCells" => 1,
+      "attack" => %{"mode" => "sequential", "attacks" => [
+        %{"mode" => "melee", "damage" => 4, "cooldownMs" => 1000, "animation" => "cleave", "name" => "Strike"}]}
+    },
+    "skeleton" => %{
+      "stats" => %{"strength" => 12, "intelligence" => 0, "defense" => 6, "maxHp" => 72, "dodge" => 0},
+      "moveDelayMs" => 1700, "reachCells" => 1,
+      "attack" => %{"mode" => "sequential", "attacks" => [
+        %{"mode" => "melee", "damage" => 18, "cooldownMs" => 6000, "animation" => "fire-slash", "name" => "Fire Slash"}]}
+    },
+    "wolf" => %{
+      "stats" => %{"strength" => 5, "intelligence" => 0, "defense" => 1, "maxHp" => 20, "dodge" => 18},
+      "moveDelayMs" => 550, "reachCells" => 1,
+      "attack" => %{"mode" => "sequential", "attacks" => [
+        %{"mode" => "melee", "damage" => 2, "cooldownMs" => 450, "animation" => "cleave", "name" => "Quick Slash"}]}
+    },
+    "ninja" => %{
+      "stats" => %{"strength" => 4, "intelligence" => 0, "defense" => 1, "maxHp" => 22, "dodge" => 10},
+      "moveDelayMs" => 900, "reachCells" => 6,
+      "attack" => %{"mode" => "sequential", "attacks" => [
+        %{"mode" => "ranged", "damage" => 6, "cooldownMs" => 1500, "animation" => "bolt", "name" => "Bolt", "reachCells" => 6}]}
+    },
+    "ghost" => %{
+      "stats" => %{"strength" => 3, "intelligence" => 10, "defense" => 1, "maxHp" => 18, "dodge" => 6},
+      "moveDelayMs" => 950, "reachCells" => 7,
+      "attack" => %{"mode" => "sequential", "attacks" => [
+        %{"mode" => "ranged", "damage" => 12, "cooldownMs" => 1900, "animation" => "nova", "name" => "Arcane Bolt", "reachCells" => 7}]}
+    },
+    "bat" => %{
+      "stats" => %{"strength" => 4, "intelligence" => 0, "defense" => 0, "maxHp" => 16, "dodge" => 24},
+      "moveDelayMs" => 560, "reachCells" => 1,
+      "attack" => %{"mode" => "sequential", "attacks" => [
+        %{"mode" => "melee", "damage" => 2, "cooldownMs" => 500, "animation" => "cleave", "name" => "Bite"}]}
+    },
+    "spider" => %{
+      "stats" => %{"strength" => 6, "intelligence" => 0, "defense" => 2, "maxHp" => 30, "dodge" => 12},
+      "moveDelayMs" => 720, "reachCells" => 1,
+      "attack" => %{"mode" => "sequential", "attacks" => [
+        %{"mode" => "melee", "damage" => 4, "cooldownMs" => 900, "animation" => "cleave", "name" => "Venom Bite"}]}
+    },
+    "guardian" => %{
+      "stats" => %{"strength" => 14, "intelligence" => 0, "defense" => 9, "maxHp" => 96, "dodge" => 0},
+      "moveDelayMs" => 1700, "reachCells" => 1,
+      "attack" => %{"mode" => "sequential", "attacks" => [
+        %{"mode" => "melee", "damage" => 20, "cooldownMs" => 2200, "animation" => "cleave", "name" => "Crush"}]}
+    }
+  }
+
+  def seed_unit_combat do
+    written =
+      for tileset <- Catalog.list_tilesets(),
+          {label, combat} <- @unit_combat do
+        Catalog.put_tile_setting(tileset.id, label, "combat", combat)
+        label
+      end
+
+    IO.puts("gave #{length(written)} creature tiles their combat settings")
+    :ok
+  end
+
   defp role_for(label, enemies) do
     cond do
       label in @fx_units -> "fx"

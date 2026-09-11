@@ -1,12 +1,15 @@
 defmodule Nebulith.Catalog.CombatSource do
   @moduledoc """
-  The SEED for the creature + combat catalog, ported verbatim from the frontend constants it replaces.
+  The SEED for the fight's own RULES — the coefficients the damage maths multiplies by, and the stat lines
+  a fresh player / enemy / npc starts from.
+
+  A CREATURE's numbers are not here: an enemy is a unit tile marked hostile, so its stat block lives on its
+  own tile row (`TileSource.seed_unit_combat/0`). Alexander, 2026-09-10: *"an enemy is just a regular unit,
+  but marked as hostile towards player"*.
 
   Every number here is the value the game uses TODAY, so seeding changes no behaviour — it only moves
   where the number lives. Provenance, so the port can be re-checked:
 
-    * archetypes — `src/game/archetypes.ts` `ENEMY_ARCHETYPES` (9 rows, in that file's order)
-    * reach — the same file's `MELEE_REACH` 1 / `ARCHER_REACH` 6 / `MAGE_REACH` 7
     * combat coefficients — `src/game/combat.ts` (`REGULAR_MULTIPLIER`, `SPECIAL_MULTIPLIER`,
       `RAGE_PER_STRENGTH`, `MANA_PER_INTELLIGENCE`, `SPECIAL_RESOURCE_COST`, `MIN_DAMAGE`) and its
       `SPECIAL_RESOURCE` map of school → resource
@@ -19,56 +22,7 @@ defmodule Nebulith.Catalog.CombatSource do
   import Ecto.Query, warn: false
 
   alias Nebulith.Repo
-  alias Nebulith.Catalog.{EnemyArchetype, GameRule}
-
-  @melee_reach 1
-  @archer_reach 6
-  @mage_reach 7
-
-  defp hit(mode, damage, cooldown, animation, name, reach \\ nil) do
-    Map.merge(
-      %{"mode" => mode, "damage" => damage, "cooldownMs" => cooldown, "animation" => animation, "name" => name},
-      if(reach, do: %{"reachCells" => reach}, else: %{})
-    )
-  end
-
-  defp sequential(attacks), do: %{"mode" => "sequential", "attacks" => attacks}
-
-  @doc "Every archetype, in menu order."
-  def archetypes do
-    [
-      %{key: "grunt", name: "Grunt", move_delay_ms: 1000, reach_cells: @melee_reach,
-        stats: %{"strength" => 6, "intelligence" => 0, "defense" => 3, "maxHp" => 34, "dodge" => 5},
-        attack: sequential([hit("melee", 4, 1000, "cleave", "Strike")])},
-      %{key: "brute", name: "Brute", move_delay_ms: 1700, reach_cells: @melee_reach,
-        stats: %{"strength" => 12, "intelligence" => 0, "defense" => 6, "maxHp" => 72, "dodge" => 0},
-        attack: sequential([hit("melee", 18, 6000, "fire-slash", "Fire Slash")])},
-      %{key: "skirmisher", name: "Skirmisher", move_delay_ms: 550, reach_cells: @melee_reach,
-        stats: %{"strength" => 5, "intelligence" => 0, "defense" => 1, "maxHp" => 20, "dodge" => 18},
-        attack: sequential([hit("melee", 2, 450, "cleave", "Quick Slash")])},
-      %{key: "archer", name: "Archer", move_delay_ms: 900, reach_cells: @archer_reach,
-        stats: %{"strength" => 4, "intelligence" => 0, "defense" => 1, "maxHp" => 22, "dodge" => 10},
-        attack: sequential([hit("ranged", 6, 1500, "bolt", "Bolt", @archer_reach)])},
-      %{key: "mage", name: "Mage", move_delay_ms: 950, reach_cells: @mage_reach,
-        stats: %{"strength" => 3, "intelligence" => 10, "defense" => 1, "maxHp" => 18, "dodge" => 6},
-        attack: sequential([hit("ranged", 12, 1900, "nova", "Arcane Bolt", @mage_reach)])},
-      %{key: "raider", name: "Raider", move_delay_ms: 850, reach_cells: @archer_reach,
-        stats: %{"strength" => 7, "intelligence" => 0, "defense" => 3, "maxHp" => 40, "dodge" => 8},
-        attack: sequential([
-          hit("melee", 6, 800, "fire-slash", "Hack"),
-          hit("ranged", 9, 1400, "bolt", "Snipe", @archer_reach)
-        ])},
-      %{key: "flyer", name: "Bat", move_delay_ms: 560, reach_cells: @melee_reach,
-        stats: %{"strength" => 4, "intelligence" => 0, "defense" => 0, "maxHp" => 16, "dodge" => 24},
-        attack: sequential([hit("melee", 2, 500, "cleave", "Bite")])},
-      %{key: "crawler", name: "Spider", move_delay_ms: 720, reach_cells: @melee_reach,
-        stats: %{"strength" => 6, "intelligence" => 0, "defense" => 2, "maxHp" => 30, "dodge" => 12},
-        attack: sequential([hit("melee", 4, 900, "cleave", "Venom Bite")])},
-      %{key: "sentinel", name: "Guardian", move_delay_ms: 1700, reach_cells: @melee_reach,
-        stats: %{"strength" => 14, "intelligence" => 0, "defense" => 9, "maxHp" => 96, "dodge" => 0},
-        attack: sequential([hit("melee", 20, 2200, "cleave", "Crush")])}
-    ]
-  end
+  alias Nebulith.Catalog.GameRule
 
   @doc "The tunable rule bundles, by key."
   def rules do
@@ -96,25 +50,9 @@ defmodule Nebulith.Catalog.CombatSource do
     }
   end
 
-  @doc "Upsert every archetype and rule bundle. Returns what it wrote."
+  @doc "Upsert every rule bundle. Returns what it wrote."
   def seed do
-    archetypes =
-      archetypes()
-      |> Enum.with_index()
-      |> Enum.map(fn {row, index} -> upsert_archetype(Map.put(row, :position, index)) end)
-
-    rules = Enum.map(rules(), fn {key, value} -> upsert_rule(key, value) end)
-
-    %{archetypes: length(archetypes), rules: length(rules)}
-  end
-
-  defp upsert_archetype(attrs) do
-    case Repo.get_by(EnemyArchetype, key: attrs.key) do
-      nil -> %EnemyArchetype{}
-      found -> found
-    end
-    |> EnemyArchetype.changeset(attrs)
-    |> Repo.insert_or_update!()
+    %{rules: length(Enum.map(rules(), fn {key, value} -> upsert_rule(key, value) end))}
   end
 
   defp upsert_rule(key, value) do
@@ -125,9 +63,6 @@ defmodule Nebulith.Catalog.CombatSource do
     |> GameRule.changeset(%{key: key, value: value})
     |> Repo.insert_or_update!()
   end
-
-  @doc "Every archetype in menu order."
-  def list_archetypes, do: Repo.all(from a in EnemyArchetype, order_by: [asc: a.position, asc: a.key])
 
   @doc "Every rule bundle, as a key → value map."
   def rule_map do
