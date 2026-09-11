@@ -227,14 +227,21 @@ export const FALLBACK_RESOLVED: ResolvedTile = { char: '?', color: '#cccccc' }
  *  so a stamp only sets `asset.settings` on tiles that actually opt into a behavior. `display` follows the
  *  SAME data path: only the non-default `'single'` rides through — `'all-faces'` / absent carries nothing,
  *  leaving `asset.settings` unset so a default tile renders byte-identically to before. */
-export function tileRenderBehavior(settings?: Record<string, unknown>): { fadeNear?: boolean; cutawayRoof?: boolean; minAlpha?: number; display?: TileDisplay } | undefined {
+export function tileRenderBehavior(settings?: Record<string, unknown>): { fadeNear?: boolean; cutawayRoof?: boolean; minAlpha?: number; display?: TileDisplay; collision?: Array<{ x: number; y: number; w: number; h: number }> } | undefined {
   if (!settings) return undefined
-  const out: { fadeNear?: boolean; cutawayRoof?: boolean; minAlpha?: number; display?: TileDisplay } = {}
+  const out: { fadeNear?: boolean; cutawayRoof?: boolean; minAlpha?: number; display?: TileDisplay; collision?: Array<{ x: number; y: number; w: number; h: number }> } = {}
   if (typeof settings.minAlpha === 'number') out.minAlpha = settings.minAlpha
   if (settings.fadeNear) out.fadeNear = true
   if (settings.cutawayRoof) out.cutawayRoof = true
   if (settings.display === 'single') out.display = 'single'
-  return out.fadeNear || out.cutawayRoof || out.display ? out : undefined
+  // AUTHORED collision boxes, the finer truth under a blocked cell (collisionBoxes.ts). Kept only when every box
+  // is a real rectangle: a malformed one must never make a tile walk-through.
+  const boxes = Array.isArray(settings.collision)
+    ? settings.collision.filter((b): b is { x: number; y: number; w: number; h: number } =>
+      !!b && typeof b === 'object' && ['x', 'y', 'w', 'h'].every(k => typeof (b as Record<string, unknown>)[k] === 'number'))
+    : []
+  if (boxes.length > 0) out.collision = boxes
+  return out.fadeNear || out.cutawayRoof || out.display || out.collision ? out : undefined
 }
 
 /** A tile's authored THICKNESS (`settings.scaleZ`) — how much of its own cell the block fills along the

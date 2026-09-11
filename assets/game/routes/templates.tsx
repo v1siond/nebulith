@@ -2489,6 +2489,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       __selKeys?: () => string[]
       __marqueeKeys?: (x0: number, y0: number, x1: number, y1: number) => string[]
       __hoverCell?: () => { col: number; row: number; level?: number; source?: string } | null
+      __solidAt?: (x: number, z: number) => boolean
       __selectCells?: (keys: string[]) => number
       __applyCellTile?: (tileId: string | null) => void
       __clearRegion?: (col0: number, row0: number, col1: number, row1: number) => void
@@ -2843,6 +2844,9 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       }
       return out
     }
+    // COLLISION validation seam: is this WORLD point solid? A body collides with what a tile occupies, not with
+    // its whole cell (collisionBoxes.ts), so this is the only way to see a trunk's real box from outside.
+    win.__solidAt = (x: number, z: number) => gridRef.current?.isWorldBlocked(x, z) ?? true
     win.__cellSel = () => ({ count: selectedCellsRef.current.size, first: Array.from(selectedCellsRef.current)[0] ?? null })
     win.__selKeys = () => Array.from(selectedCellsRef.current) // full selection-key list (block "col,row,level" / flat "col,row") for validation
     // Block-aware MARQUEE validation seam: the keys a shift+drag box (CLIENT coords) selects, computed through

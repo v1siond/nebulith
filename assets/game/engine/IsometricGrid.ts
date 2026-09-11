@@ -8,6 +8,7 @@
  *   grid.render(ctx, cameraX, cameraZ)
  */
 import type { Animation } from './animation/tileAnimation'
+import { worldPointBlocked } from './collisionBoxes'
 import type { AnimationCycle } from './animationCycles'
 import type { CellAnimation } from './cellAnimation'
 import { assetRectExtents, type DepthDir, type ThicknessReach } from './render/isoBlock'
@@ -29,6 +30,9 @@ export interface AssetSettings {
                         // over a plain shell; absent/'all-faces' → the tile is painted on all visible faces.
   transparent?: boolean // the block SHELL is not drawn — only the tile's content shows (with 'single', just the
                         // centered billboard, in its own colour). Lets a flower show WITHOUT colouring its block.
+  /** What this tile makes solid INSIDE its cell, in cell fractions (collisionBoxes.ts). Many boxes allowed, each
+   *  positioned and sized. Absent → the box is taken from the size the tile is drawn at. */
+  collision?: Array<{ x: number; y: number; w: number; h: number }>
   actAsTile?: boolean   // the cell "behaves as if a tile is already inside it": content stacks ON TOP of this
                         // block (counts as ≥1 for stacking) instead of landing inside at level 0. DEFAULT true
                         // (all cells); an explicit false opts out. Decoupled from height (see cellStack).
@@ -543,10 +547,11 @@ export class IsometricGrid {
     return this.collision[row][col] === 1
   }
 
-  // Check if world position is blocked
+  /** Is this world POINT solid? A body (the player) collides on real contact with what a tile actually occupies,
+   *  not with its whole cell: a trunk drawn at 0.6 of a cell blocks 0.6 of it (collisionBoxes.ts). Cell-level
+   *  `isBlocked` is unchanged, so pathing, spawning and the generator keep thinking in whole cells. */
   isWorldBlocked(x: number, z: number): boolean {
-    const { col, row } = this.worldToGrid(x, z)
-    return this.isBlocked(col, row)
+    return worldPointBlocked(this, x, z)
   }
 
   // Assets within the camera view rect (+ margin). Just a cull — NO depth sort here: every render path
