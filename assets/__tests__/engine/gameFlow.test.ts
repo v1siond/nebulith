@@ -1,3 +1,4 @@
+import '@/__tests__/helpers/installZoneSeed' // the generator reads every season from the backend catalog
 import { generateStage } from '@/engine/stageGenerator'
 import { acceptQuest, recordEvent, isComplete, turnIn } from '@/game/quests'
 import { makeEnemy, makeNpc } from '@/game/entities'

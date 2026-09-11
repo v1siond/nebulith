@@ -1,3 +1,4 @@
+import '@/__tests__/helpers/installZoneSeed' // the generator reads every season from the backend catalog
 import { styleCatalog } from '@/engine/tileset/styleTiles'
 import { generateStage } from '@/engine/stageGenerator'
 import { scatterEntities, TEMPLE_ENEMY_TYPES } from '@/game/spawner'

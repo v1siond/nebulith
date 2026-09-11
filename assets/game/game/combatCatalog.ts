@@ -28,6 +28,7 @@
  */
 import { NEBULITH_API } from '@/lib/nebulithApi'
 import { getEntityResolution } from '@/engine/entity/entityResolution'
+import { installZoneRules } from '@/engine/zoneCatalog'
 import { styleTile } from '@/engine/tileset/styleTiles'
 import type { AttackPattern, Stats } from './types'
 
@@ -83,7 +84,11 @@ export async function loadCombatCatalog(): Promise<void> {
   try {
     const res = await fetch(`${NEBULITH_API}/combat`)
     if (!res.ok) throw new Error(`HTTP ${res.status}`)
-    installCombatCatalog(await res.json())
+    const body = await res.json()
+    installCombatCatalog(body)
+    // The season-INDEPENDENT tables (tree weights, rock shades, cave decor, prop art) ride in the same
+    // bundles, because they are rules rather than anything one season owns. One fetch, both readers.
+    installZoneRules((body as { data?: { rules?: unknown } })?.data?.rules)
   } catch (error) {
     console.warn('[combat] the creature + combat catalog could not be loaded — nothing will fight', error)
   }

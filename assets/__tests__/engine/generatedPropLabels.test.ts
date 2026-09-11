@@ -1,3 +1,4 @@
+import '@/__tests__/helpers/installZoneSeed' // the generator reads every season from the backend catalog
 /**
  * SCATTERED NATURE PROPS ARE BAKED-IMAGE TILES, NOT GLYPHS. Alexander: "ascii is still screwed … the emoji
  * tileset got ahead of the ascii side, so we must analyze what we have and are using there, then replicate it

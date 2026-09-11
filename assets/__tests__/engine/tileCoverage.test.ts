@@ -1,3 +1,5 @@
+import '@/__tests__/helpers/installZoneSeed'
+import { zones } from '@/engine/zoneCatalog' // the generator reads every season from the backend catalog
 /**
  * TILE COVERAGE GUARDRAIL — every game-world identifier must resolve to a real IMAGE tile
  * under the EMOJI style (never the ASCII passthrough / a hardcoded glyph).
@@ -13,7 +15,7 @@
  * the stage generator / catalog / combat can emit resolves to `kind: 'image'`. Each `it` collects
  * the gaps into a list and asserts it is empty, so a RED run prints the full authoritative gap set.
  *
- * Enumerations are pulled from the real sources (CELL_LABELS, ZONE_PALETTES, ABILITY_ANIMATIONS, the backend
+ * Enumerations are pulled from the real sources (CELL_LABELS, zonePalette, ABILITY_ANIMATIONS, the backend
  * entity resolution, enemyTileId) — not a guessed subset. The handful that
  * cannot be imported (inline `type:` string literals in stageGenerator, the projectile glyphs that
  * are private to combat.ts) are listed verbatim with a source citation.
@@ -91,7 +93,7 @@ const ASSET_TYPES: string[] = [
 // Every ground TYPE string that lands in ground[][]: the zone palettes' groundTypes + hazards,
 // plus the explicit floors the archetypes paint (grep-verified from stageGenerator.ts).
 const GROUND_TYPES: string[] = Array.from(new Set([
-  ...Object.values(ZONE_PALETTES).flatMap(p => [...p.groundTypes, p.hazard]),
+  ...zones().flatMap(z => [...z.palette.groundTypes, z.palette.hazard]),
   'path_stone', 'ancient_stone', 'rune_floor', 'plaza',
   'temple_floor', 'marble', 'gold_tile', 'sandstone', 'cave_moss', 'cave_floor',
   'lava',

@@ -23,7 +23,7 @@ import { generateStage, type NatureDensity, type VariantId } from '@/engine/stag
 import { applyStageToGrid } from '@/game/editor/applyStage'
 import { resolveComposition } from '@/engine/tileset/tileset'
 import { styleCatalog } from '@/engine/tileset/styleTiles'
-import { ZONE_PALETTES, type ZoneId } from '@/engine/zones'
+import { zonePalette, type ZoneId } from '@/engine/zones'
 import { placeGroundTile, stackAssetTile } from '@/game/editor/tileBrush'
 import { ISO_BLOCK_H_FRAC } from '@/engine/render/iso'
 import { tileSlug, placementFor } from '@/game/editor/tilePlacement'
@@ -261,7 +261,7 @@ export function fitZoom(
  * module-level lookup would capture that empty state for the life of the page.
  */
 function groundTileFor(zone: ZoneId, styleId: string): TileDef | undefined {
-  const label = ZONE_PALETTES[zone]?.groundTypes[0]
+  const label = zonePalette(zone)?.groundTypes[0]
   if (!label) return undefined
   return tilesForStyle(styleId).terrain.find(tile => tileSlug(tile.id) === label)
 }

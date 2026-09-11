@@ -1,3 +1,4 @@
+import '@/__tests__/helpers/installZoneSeed' // the generator reads every season from the backend catalog
 import { generateStage, stageToTemplate, type StageTemplatePayload } from '@/engine/stageGenerator'
 import { deserializeToGrid, type TemplateData, type Connector } from '@/lib/api'
 import type { IsometricGrid } from '@/engine/IsometricGrid'

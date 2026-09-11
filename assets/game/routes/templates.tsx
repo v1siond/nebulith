@@ -28,7 +28,7 @@ import { findTriggeredConnector, normalizeConnector } from '@/engine/connectors'
 import { entityPalette, punchTile, weaponEmoji, weaponGlyph, weaponPose } from '@/engine/entityArt'
 import { StageData, VariantId, type LayerId, type ForestLayout, generateStage, stagePaint, generatedPropRender } from '@/engine/stageGenerator'
 import { type Action as TriggerAction, resolveAction } from '@/engine/triggers'
-import { stagePropTileOverride, ZoneId, ROCK_SHADES, MUSHROOM_TONES, ZONE_FLOWERS, DEFAULT_FLOWERS } from '@/engine/zones'
+import { stagePropTileOverride, ZoneId, rockShades, mushroomTones, zoneFlowers, defaultFlowers } from '@/engine/zones'
 import { varyIntensity } from '@/engine/colors'
 import { type AbilityBinding, defaultAbilityLoadout, loadAbilityRegistry } from '@/game/abilities'
 import { startingCombatState } from '@/game/combat'
@@ -109,6 +109,8 @@ import { MapPreview } from '@/components/game/shell/MapPreview'
 import { type PreviewContext } from '@/components/game/shell/PreviewThumb'
 import { type SectionPresenter } from '@/components/game/editorInspector'
 import { subjectFor } from '@/engine/preview/previewScene'
+import { loadZones, zones } from '@/engine/zoneCatalog'
+import { loadCombatCatalog } from '@/game/combatCatalog'
 import { SwapTilePanel } from '@/components/game/shell/SwapTilePanel'
 import { NO_ZONES_SHUT, ZoneCollapse, zoneClasses, type EditorZoneId, type EditorZoneShut } from '@/components/game/shell/ZoneCollapse'
 import { HudOverlay, PlayerUiPanel, useHudLayout } from '@/components/game/shell/PlayerUiPanel'
@@ -693,9 +695,15 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     // bag, so a failed item load must not black out the editor.
     void loadItemCatalog()
     void loadAbilityRegistry()
-    Promise.all([loadTilesetsFromBackend(), loadEntitiesFromBackend()])
+    // The COMBAT rules ride along like the items: a map draws fine with nobody able to fight, so a failed
+    // load must not black out the editor. It also installs the season-independent prop tables.
+    void loadCombatCatalog()
+    // THE SEASONS GATE THE RENDER, unlike those. Ground palettes are backend data since 2026-09-11, so a
+    // map with no season catalog has no ground at all — that is a broken editor, not a degraded one, and it
+    // belongs with the tileset in the gate rather than failing quietly into an empty world.
+    Promise.all([loadTilesetsFromBackend(), loadEntitiesFromBackend(), loadZones()])
       .then(([loaded, entitiesLoaded]) => {
-        if (loaded.length === 0 || !entitiesLoaded) { setTilesetError(true); return }
+        if (loaded.length === 0 || !entitiesLoaded || zones().length === 0) { setTilesetError(true); return }
         // Build the Tile-composition palette from the just-loaded tileset — EVERY composition the backend
         // serves (buildings + trees + fountains + lamp posts…), grouped for the panel. Data-driven, so a new
         // backend composition appears in the palette with no frontend change.
@@ -3552,9 +3560,9 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   const rerollTileColor = (asset: GridAsset, zone: ZoneId, rand: () => number): string | null => {
     const pickFrom = (arr: readonly string[]): string => arr[Math.floor(rand() * arr.length)]
     const t = asset.type ?? ''
-    if (t === 'rock') return pickFrom(ROCK_SHADES)
-    if (t === 'mushroom') return pickFrom(MUSHROOM_TONES)
-    if (t === 'flower') return pickFrom((ZONE_FLOWERS[zone] ?? DEFAULT_FLOWERS).map(f => f.color))
+    if (t === 'rock') return pickFrom(rockShades())
+    if (t === 'mushroom') return pickFrom(mushroomTones())
+    if (t === 'flower') return pickFrom((zoneFlowers(zone) ?? defaultFlowers()).map(f => f.color))
     return asset.color ? varyIntensity(asset.color, rand()) : null // a tonal variant of the tile's own tone
   }
 

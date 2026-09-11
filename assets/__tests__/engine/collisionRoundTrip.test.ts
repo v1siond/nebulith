@@ -1,3 +1,4 @@
+import '@/__tests__/helpers/installZoneSeed' // the generator reads every season from the backend catalog
 import { generateStage, stageToTemplate } from '@/engine/stageGenerator'
 import { deserializeToGrid, type TemplateData } from '@/lib/api'
 import { useSeedTileset } from '@/__tests__/helpers/tilesetSeed' // stageToTemplate expands tree anchors via the DB compositions

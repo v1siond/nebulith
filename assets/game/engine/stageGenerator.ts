@@ -18,22 +18,22 @@ import { type BuildingSizes, type SettlementTuning, planVillage, type VillageLay
 import { BACKEND_BUILDING_SIZES } from './buildingCatalog'
 import {
   stagePropTileOverride,
-  ZONE_PALETTES,
+  zonePalette,
   ZoneId,
-  ZONE_FLOWERS,
-  DEFAULT_FLOWERS,
+  zoneFlowers,
+  defaultFlowers,
   type FlowerKind,
   type LivingTreeKind,
-  LIVING_TREE_VARIANTS,
-  LIVING_TREE_WEIGHT,
-  ROCK_SHADES,
-  CAVE_DECOR,
-  MUSHROOM_TONES,
-  PROP_ART,
+  livingTreeVariants,
+  livingTreeWeight,
+  rockShades,
+  caveDecor,
+  mushroomTones,
+  propArt,
   type TemplePalette,
-  TEMPLE_PALETTES,
+  templePalette,
   type CavePalette,
-  CAVE_PALETTES,
+  cavePalette,
 } from './zones'
 // Re-exported so the generator keeps its public tree-shape type (backend palette data now owns it).
 export type { LivingTreeKind } from './zones'
@@ -266,12 +266,12 @@ const massVariant = (col: number, row: number): number =>
  *  a stand shows standard / tall / small / round trees + bushes instead of one repeated shape. Pure +
  *  injectable (tests pass explicit rolls to prove the full spread). */
 export function pickLivingTree(rand: number): LivingTreeKind {
-  let roll = rand * LIVING_TREE_WEIGHT
-  for (const v of LIVING_TREE_VARIANTS) {
+  let roll = rand * livingTreeWeight()
+  for (const v of livingTreeVariants()) {
     if (roll < v.weight) return v.kind
     roll -= v.weight
   }
-  return LIVING_TREE_VARIANTS[0].kind
+  return livingTreeVariants()[0].kind
 }
 
 /** One blocking biome-feature cell (mountain / peak / spill) — appearance from
@@ -284,7 +284,7 @@ const makeFeatureCell = (zone: ZoneId, col: number, row: number, label: CellLabe
 
 // Walkable flowers read from the zone's curated bloom set (ZONE_FLOWERS in zones.ts).
 const makeFlower = (rng: Rng, zone: ZoneId, col: number, row: number): StageProp => {
-  const set = ZONE_FLOWERS[zone] ?? DEFAULT_FLOWERS
+  const set = zoneFlowers(zone) ?? defaultFlowers()
   const pick: FlowerKind = set[randIntWith(rng, 0, set.length - 1)] // seeded pick — the caller passes its layer rng so the pass stays reproducible
   // Each flower gets its own intensity tone (per-cell) for a naturally varied meadow — tone only, no opacity.
   // LABEL 'flower' routes it through the label→image path (render/shared.labelTileImage) so it draws the BAKED
@@ -321,9 +321,9 @@ export function generatedPropRender(type: string): { height?: number; scale?: nu
   return out
 }
 
-// Deterministic per-cell pick from the zone-data ROCK_SHADES palette (zones.ts) so cave/arena
+// Deterministic per-cell pick from the zone-data rockShades() palette (zones.ts) so cave/arena
 // walls read tonal, not one flat grey.
-const rockShade = (col: number, row: number): string => ROCK_SHADES[Math.abs(col * 7 + row * 13) % ROCK_SHADES.length]
+const rockShade = (col: number, row: number): string => rockShades()[Math.abs(col * 7 + row * 13) % rockShades().length]
 
 const makeRock = (col: number, row: number): StageProp => ({
   col,
@@ -341,7 +341,7 @@ const makeRock = (col: number, row: number): StageProp => ({
 // season's rock tone so they read as living rock against the cavern walls.
 const makeCaveDecor = (col: number, row: number, tone: string): StageProp => ({
   col, row, type: 'cave_decor',
-  char: CAVE_DECOR[Math.abs(col * 5 + row * 7) % CAVE_DECOR.length],
+  char: caveDecor()[Math.abs(col * 5 + row * 7) % caveDecor().length],
   blocking: false,
   color: varyIntensity(tone, shadeNoise(col * 1.7 + row * 2.3)),
 })
@@ -357,10 +357,10 @@ const makeCrystal = (col: number, row: number, tint: string): StageProp => ({
 })
 
 // A cave mushroom (damp seasons only) — a red/tan toadstool on the floor. Non-blocking.
-// Cap tone from the zone-data MUSHROOM_TONES palette (zones.ts).
+// Cap tone from the zone-data mushroomTones() palette (zones.ts).
 const makeMushroom = (col: number, row: number): StageProp => ({
   col, row, type: 'mushroom', char: '♠', label: 'mushroom', blocking: false,
-  color: MUSHROOM_TONES[Math.abs(col * 3 + row * 5) % MUSHROOM_TONES.length],
+  color: mushroomTones()[Math.abs(col * 3 + row * 5) % mushroomTones().length],
 })
 
 // One blocking cave WALL cell — the rock boundary + internal formations. Tonal per
@@ -417,7 +417,7 @@ function scatterGroundCover(ctx: ArchetypeContext, density = 0.18, layout?: Vill
  *  scatterGroundCover lays down. */
 function scatterFlowers(ctx: ArchetypeContext, density: number, layout?: VillageLayout): void {
   const { props, collision, ground, cols, rows, zone } = ctx
-  if (ZONE_FLOWERS[zone] === undefined) return // non-flowering zone → no blooms
+  if (zoneFlowers(zone) === undefined) return // non-flowering zone → no blooms
   const occupied = new Set(props.map(p => `${p.col},${p.row}`))
   const fresh: StageProp[] = []
   forEachCell(cols, rows, (col, row) => {
@@ -433,10 +433,10 @@ function scatterFlowers(ctx: ArchetypeContext, density: number, layout?: Village
 }
 
 // Structural decor for temple / boss arena / village (readable single-glyph props). Glyph + fallback
-// colour come from the zone-data PROP_ART table (zones.ts); a caller passes the zone's tint to override.
-const makePillar = (col: number, row: number, color = PROP_ART.pillar.color): StageProp => ({ col, row, type: 'pillar', char: PROP_ART.pillar.char, blocking: true, color })
-const makeBrazier = (col: number, row: number): StageProp => ({ col, row, type: 'brazier', char: PROP_ART.brazier.char, blocking: true, color: PROP_ART.brazier.color })
-const makeAltar = (col: number, row: number, color = PROP_ART.altar.color): StageProp => ({ col, row, type: 'altar', char: PROP_ART.altar.char, blocking: true, color })
+// colour come from the zone-data propArt() table (zones.ts); a caller passes the zone's tint to override.
+const makePillar = (col: number, row: number, color = propArt().pillar.color): StageProp => ({ col, row, type: 'pillar', char: propArt().pillar.char, blocking: true, color })
+const makeBrazier = (col: number, row: number): StageProp => ({ col, row, type: 'brazier', char: propArt().brazier.char, blocking: true, color: propArt().brazier.color })
+const makeAltar = (col: number, row: number, color = propArt().altar.color): StageProp => ({ col, row, type: 'altar', char: propArt().altar.char, blocking: true, color })
 
 // ── temple-interior feature cells (all SEASONAL) — every KIND maps to an ASCII glyph+color
 //    AND an emoji tint (see game/artStyle.ts): temple_wall → 🧱, pillar → 🏛️, altar → 🗿,
@@ -453,7 +453,7 @@ const makeTempleWall = (col: number, row: number, shades: readonly string[]): St
 
 // A wall TORCH — a mounted flame lighting the halls. Non-blocking (a sconce you pass under),
 // so it can never pinch off the walkable floor.
-const makeTorch = (col: number, row: number, color: string): StageProp => ({ col, row, type: 'torch', char: PROP_ART.torch.char, blocking: false, color })
+const makeTorch = (col: number, row: number, color: string): StageProp => ({ col, row, type: 'torch', char: propArt().torch.char, blocking: false, color })
 
 // A floor HAZARD — spike/pit trap tile. Non-blocking (you CAN step on it — it would deal
 // damage in play), so hazards never disconnect the dungeon floor. Season-tinted.
@@ -646,9 +646,12 @@ export function generateStage(opts: GenerateOptions): StageData {
   const cols = opts.cols ?? 40
   const rows = opts.rows ?? 40
   const layout = opts.layout // undefined → placeForest randomly picks a meadow layout (seeded)
-  const palette = ZONE_PALETTES[zone]
+  // THE SEASON'S OWN GROUND, from the backend. No palette → no ground: a generate with an unloaded catalog
+  // produces an empty map and says so, rather than inventing a green the author never chose.
+  const palette = zonePalette(zone)
+  if (!palette) console.warn(`[generate] the backend serves no "${zone}" season — the map has no ground`)
 
-  const ground = makeGrid(cols, rows, () => palette.groundTypes[0])
+  const ground = makeGrid(cols, rows, () => palette?.groundTypes[0] ?? '')
   const collision = makeGrid(cols, rows, () => false)
   const floorColors = makeGrid<string | undefined>(cols, rows, () => undefined)
   const buildings: PlacedBuilding[] = []
@@ -1105,7 +1108,7 @@ function placeBuilding(
 //    trail with glades, then blue-noise trees dotting the clearings ──────────
 function placeForest(ctx: ArchetypeContext): void {
   const { ground, zone, cols, rows } = ctx
-  const floor = ZONE_PALETTES[zone].groundTypes[0] // zone floor: grass / snow / ash
+  const floor = zonePalette(zone)?.groundTypes[0] ?? '' // zone floor: grass / snow / ash; none served → bare
   forEachCell(cols, rows, (col, row) => {
     ground[row][col] = floor
   })
@@ -1217,7 +1220,7 @@ function layoutWoodland(ctx: ArchetypeContext, opts: { river?: boolean } = {}): 
     return
   }
 
-  const floor = ZONE_PALETTES[zone].groundTypes[0]
+  const floor = zonePalette(zone)?.groundTypes[0] ?? ''
   forEachCell(cols, rows, (col, row) => { ground[row][col] = floor })
 
   // 0 · THE RIVER, if this variant has one — carved BEFORE anything is planted, so its cells are already
@@ -1267,7 +1270,7 @@ function layoutWoodland(ctx: ArchetypeContext, opts: { river?: boolean } = {}): 
 
   // 2b · PAVE them. A trail has to be visible to be a trail — this is the half that was missing. The tile
   //      comes from the zone's palette, so a season can pave its trails differently without a branch here.
-  const trail = ZONE_PALETTES[zone].trail
+  const trail = zonePalette(zone)?.trail ?? ''
   for (const key of trailCells) {
     const [c, r] = key.split(',').map(Number)
     if (inBounds(c, r, cols, rows)) ground[r][c] = trail
@@ -2052,7 +2055,10 @@ const roomCentre = (room: Rect): Cell => ({ col: room.col + Math.floor(room.w / 
 
 function placeTemple(ctx: ArchetypeContext): void {
   const { cols, rows, zone } = ctx
-  const pal = TEMPLE_PALETTES[zone] ?? TEMPLE_PALETTES.summer
+  // Falls back to SUMMER's palette, as it always did — but by READING it, since the table is backend data
+  // now. No palette at all (the catalog has not answered) and there is nothing to draw a temple from.
+  const pal = templePalette(zone) ?? templePalette('summer')
+  if (!pal) { console.warn('[generate] no temple palette served — nothing built'); return }
 
   // 1. Repaint the whole ground to the seasonal temple floor; start fully walled (solid stone).
   forEachCell(cols, rows, (col, row) => {
@@ -2348,7 +2354,8 @@ const ENTRANCE_HEIGHT = 4
 
 function placeCave(ctx: ArchetypeContext): void {
   const { cols, rows, zone } = ctx
-  const pal = CAVE_PALETTES[zone] ?? CAVE_PALETTES.summer
+  const pal = cavePalette(zone) ?? cavePalette('summer')
+  if (!pal) { console.warn('[generate] no cave palette served — nothing built'); return }
 
   // 1. Repaint the whole ground to the seasonal cave floor (walls cover their cells).
   forEachCell(cols, rows, (col, row) => {
