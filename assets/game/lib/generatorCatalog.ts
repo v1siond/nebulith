@@ -208,13 +208,42 @@ export interface GeneratorDef {
 }
 
 /** One switch a generator offers. `requires` names an option that must be on for this one to apply. */
+/** One pickable value of a choice option. */
+export interface GeneratorChoice {
+  key: string
+  label: string
+}
+
+/** What an option holds: a toggle is on/off, a choice is the key of the picked value. */
+export type GeneratorOptionValue = boolean | string
+
 export interface GeneratorOption {
   key: string
   label: string
-  type: 'toggle'
-  default: boolean
+  /**
+   * `toggle` is on/off. `choice` picks one of `choices` — the river is one, because Alexander asked for its
+   * COURSE to be steerable (*"maybe it's traversable, maybe it's dividing the map in two half, maybe it's
+   * around the map"*), which an on/off cannot say.
+   */
+  type: 'toggle' | 'choice'
+  default: GeneratorOptionValue
+  choices?: readonly GeneratorChoice[]
   /** Meaningless without that option — a crossing needs a river. Stated here, not known by the frontend. */
   requires?: string
+}
+
+/**
+ * Is this option doing anything? A toggle when it is true; a choice when it picked something other than its
+ * "none". One definition, so `requires` means the same thing for every kind of option.
+ */
+export function optionIsOn(value: GeneratorOptionValue | undefined): boolean {
+  if (typeof value === 'string') return value !== 'none' && value !== ''
+  return value === true
+}
+
+/** The value an option takes when what it `requires` is off. */
+export function optionOffValue(opt: GeneratorOption): GeneratorOptionValue {
+  return opt.type === 'toggle' ? false : 'none'
 }
 
 /**
@@ -226,18 +255,27 @@ function parseOptions(raw: unknown): readonly GeneratorOption[] {
   const out: GeneratorOption[] = []
   for (const row of raw) {
     if (typeof row !== 'object' || row === null) continue
-    const { key, label, type, default: fallback, requires } = row as Record<string, unknown>
+    const { key, label, type, default: fallback, requires, choices } = row as Record<string, unknown>
     if (typeof key !== 'string' || typeof label !== 'string') {
       console.warn('[generators] an option with no key or label was dropped', row)
       continue
     }
-    out.push({
-      key,
-      label,
-      type: type === 'toggle' ? 'toggle' : 'toggle',
-      default: fallback === true,
-      ...(typeof requires === 'string' ? { requires } : {}),
-    })
+    const need = typeof requires === 'string' ? { requires } : {}
+    if (type === 'choice') {
+      // A choice with nothing to choose from cannot be used on purpose, so it is dropped rather than drawn
+      // as an empty select. Its default must be one of its own choices, or the first one stands in.
+      const picks = Array.isArray(choices)
+        ? choices.flatMap(c => (isObject(c) && str(c.key) && str(c.label) ? [{ key: str(c.key)!, label: str(c.label)! }] : []))
+        : []
+      if (picks.length === 0) {
+        console.warn('[generators] a choice option with no choices was dropped', row)
+        continue
+      }
+      const initial = typeof fallback === 'string' && picks.some(p => p.key === fallback) ? fallback : picks[0].key
+      out.push({ key, label, type: 'choice', default: initial, choices: picks, ...need })
+      continue
+    }
+    out.push({ key, label, type: 'toggle', default: fallback === true, ...need })
   }
   return out
 }

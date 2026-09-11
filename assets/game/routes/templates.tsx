@@ -86,7 +86,7 @@ import { LevelStepper } from '@/components/game/levelStepper'
 import { GameMenu } from '@/components/game/gameMenu'
 import { describeSaveState } from '@/game/editor/saveState'
 import { useDayNight, useFloatingPanels, useGeneratorCatalog, useInspectorSections, useIsMobile, usePlayerViewRange, useSaveState } from '@/components/game/editorHooks'
-import { findGenerator, rollGridSize, type GeneratorBuildings, type GeneratorCatalog, type GeneratorDef } from '@/lib/generatorCatalog'
+import { findGenerator, rollGridSize, type GeneratorBuildings, type GeneratorCatalog, type GeneratorDef, type GeneratorOptionValue } from '@/lib/generatorCatalog'
 import { clampMapSize, type MapSize } from '@/lib/mapSize'
 import { buildingSizeSource, composeBuilding, fetchBuildingTypes, installComposedBuildings, installPlannableBuildings, EMPTY_BUILDING_TYPES, type BuildingTypeCatalog } from '@/lib/buildingSizes'
 import { applyStageToGrid } from '@/game/editor/applyStage'
@@ -3467,7 +3467,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   // ── macro RANDOMIZE: whole map + per-layer scopes (GENERATION-SPEC §5) ──────
   // The recipe of the last full generate — zone/variant/size + the per-layer SEEDS. Re-rolling one
   // layer changes only that layer's seed and regenerates: the rest, fed the same seeds, reproduce.
-  const lastGenRef = useRef<{ zone: ZoneId; variant: VariantId; layout?: ForestLayout; options?: Record<string, boolean>; cols: number; rows: number; seeds: Record<'layout' | 'buildings' | 'nature' | 'decor', number> } | null>(null)
+  const lastGenRef = useRef<{ zone: ZoneId; variant: VariantId; layout?: ForestLayout; options?: Record<string, GeneratorOptionValue>; cols: number; rows: number; seeds: Record<'layout' | 'buildings' | 'nature' | 'decor', number> } | null>(null)
   // Salts the per-building material/roof/wall-colour hash so "randomize buildings only" repaints.
   const buildingSaltRef = useRef(0)
   const randSeed = (): number => (Math.random() * 0x7fffffff) | 0
@@ -3637,7 +3637,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     requested?: MapSize,
     seed?: number,
     /** The generator's options as the person set them — a river, a crossing. Not a separate template. */
-    options?: Record<string, boolean>,
+    options?: Record<string, GeneratorOptionValue>,
   ) => {
     // WHICH world to build is the backend's answer (`/api/generators`, T-113): the map type's grid range,
     // unit counts and building palette all come off this row. No generator → nothing is generated and the

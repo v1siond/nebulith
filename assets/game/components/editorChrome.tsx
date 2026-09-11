@@ -11,7 +11,7 @@ import { compositionPreview, tileFrames } from '@/engine/tilePreview'
 import { InfoButton } from './shell/InfoButton'
 import { availableStyles, CATEGORY_LABELS, TILE_CATEGORIES, type TileCategory, type TileDef, tilesForStyle } from '@/game/artStyle'
 import { DEFAULT_ACTION_PARAMS, makeTrigger, type Trigger, type TriggerActionType, type TriggerEvent } from '@/game/runtime/trigger'
-import { catalogZones, categoryLayouts, findCategory, findGenerator, type GeneratorCatalog } from '@/lib/generatorCatalog'
+import { catalogZones, categoryLayouts, findCategory, findGenerator, type GeneratorCatalog, type GeneratorOptionValue, optionIsOn, optionOffValue } from '@/lib/generatorCatalog'
 import { CELL_SIZE_MIN, atLeast, cellCount, mapSizeProblem, mapSizeValid, type MapSize } from '@/lib/mapSize'
 import { PreviewThumb, type PreviewContext } from '@/components/game/shell/PreviewThumb'
 import { subjectFor } from '@/engine/preview/previewScene'
@@ -614,7 +614,7 @@ export function GenerateControls({
   /** `layout` steers a map type that HAS layouts (undefined otherwise → the generator's own default).
    *  The SIZE is not passed: it belongs to the Grid panel now, and the caller reads it from there.
    *  Alexander, 2026-09-10: *"the template generation just uses whatever we setup on it"*. */
-  onGenerate: (zone: string, categoryKey: string, layout?: string, options?: Record<string, boolean>) => void
+  onGenerate: (zone: string, categoryKey: string, layout?: string, options?: Record<string, GeneratorOptionValue>) => void
   /** When provided, shows the universal "re-roll one layer" row that re-rolls a single layer of the current
    *  map (leaving the others intact). Omitted where there is no current map to scope. */
   onRandomizeLayer?: (layer: string) => void
@@ -646,7 +646,7 @@ export function GenerateControls({
    * combination does not scale — his own example ran woodland, woodland + river, woodland + river + bridge.
    * Keyed by option key; absent means "as the backend declared it".
    */
-  const [options, setOptions] = useState<Record<string, boolean>>({})
+  const [options, setOptions] = useState<Record<string, GeneratorOptionValue>>({})
   const zones = catalogZones(catalog)
   // The first category is the flagship the menu opens on, until the user picks another.
   const activeKey = categoryKey ?? catalog[0]?.key ?? null
@@ -671,7 +671,7 @@ export function GenerateControls({
    * 2026-09-10: *"the preview panel on selection is not showing on generators"*. Built here so the small
    * picture and the big one can never disagree about which world they are showing.
    */
-  const presetSubject = (categoryKey: string, layoutId: string | undefined, opts?: Record<string, boolean>) => ({
+  const presetSubject = (categoryKey: string, layoutId: string | undefined, opts?: Record<string, GeneratorOptionValue>) => ({
     kind: 'stage' as const,
     zone: zone as never,
     variant: categoryKey as never,
@@ -701,7 +701,8 @@ export function GenerateControls({
     : findGenerator(catalog, activeKey, layouts.some(l => l.id === layout) ? layout ?? undefined : layouts[0]?.id)
 
   /** Is this option on: what the person set, else what the backend declared as its default. */
-  const optionOn = (key: string, fallback: boolean): boolean => options[key] ?? fallback
+  const optionValue = (key: string): GeneratorOptionValue | undefined =>
+    options[key] ?? activeGenerator?.options.find(o => o.key === key)?.default
 
   /**
    * The options to build with.
@@ -712,16 +713,16 @@ export function GenerateControls({
    */
   /** Resolve a raw set of switches against what each option DECLARES it needs. One implementation, used by
    *  the build and by the preview alike, so the picture can never be of a different world than the build. */
-  const enforceRequires = (raw: Record<string, boolean>): Record<string, boolean> => {
-    const out: Record<string, boolean> = {}
+  const enforceRequires = (raw: Record<string, GeneratorOptionValue>): Record<string, GeneratorOptionValue> => {
+    const out: Record<string, GeneratorOptionValue> = {}
     for (const opt of activeGenerator?.options ?? []) {
-      const on = raw[opt.key] ?? opt.default
-      out[opt.key] = opt.requires ? on && (out[opt.requires] ?? false) : on
+      const value = raw[opt.key] ?? opt.default
+      out[opt.key] = opt.requires && !optionIsOn(out[opt.requires]) ? optionOffValue(opt) : value
     }
     return out
   }
 
-  const chosenOptions = (): Record<string, boolean> => enforceRequires(options)
+  const chosenOptions = (): Record<string, GeneratorOptionValue> => enforceRequires(options)
 
   // Picking a map type or a shape only SELECTS it. §4.6: "clicking a map type selects it rather than
   // generating (today it generates immediately — a genuine 'why did my map just vanish' trap)".
@@ -854,23 +855,37 @@ export function GenerateControls({
         <>
           <div className="sub">Anything else?</div>
           {activeGenerator?.options.map(opt => {
-            const blocked = opt.requires !== undefined && !optionOn(opt.requires, false)
+            const blocked = opt.requires !== undefined && !optionIsOn(optionValue(opt.requires))
+            // Every change re-peeks, so the panel SHOWS what the extra did. Built from `next` rather than read
+            // back from state, because the state write has not landed yet.
+            const set = (value: GeneratorOptionValue) => {
+              const next = { ...options, [opt.key]: value }
+              setOptions(next)
+              if (activeKey) onPeek?.(presetSubject(activeKey, layouts.some(l => l.id === layout) ? layout ?? undefined : layouts[0]?.id, enforceRequires(next)) as never)
+            }
             return (
               <label key={opt.key} className="ctl" style={blocked ? { opacity: 0.45 } : undefined}>
                 <span className="l">{opt.label}</span>
-                <input
-                  type="checkbox"
-                  checked={!blocked && optionOn(opt.key, opt.default)}
-                  disabled={blocked}
-                  aria-label={opt.label}
-                  onChange={e => {
-                    const next = { ...options, [opt.key]: e.target.checked }
-                    setOptions(next)
-                    // Re-peek with the new setting so the panel SHOWS what the extra did. Built from `next`
-                    // rather than read back from state, because the state write has not landed yet.
-                    if (activeKey) onPeek?.(presetSubject(activeKey, layouts.some(l => l.id === layout) ? layout ?? undefined : layouts[0]?.id, enforceRequires(next)) as never)
-                  }}
-                />
+                {opt.type === 'choice'
+                  ? (
+                    <select
+                      value={String(blocked ? optionOffValue(opt) : optionValue(opt.key) ?? opt.default)}
+                      disabled={blocked}
+                      aria-label={opt.label}
+                      onChange={e => set(e.target.value)}
+                    >
+                      {opt.choices?.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
+                    </select>
+                  )
+                  : (
+                    <input
+                      type="checkbox"
+                      checked={!blocked && optionIsOn(optionValue(opt.key))}
+                      disabled={blocked}
+                      aria-label={opt.label}
+                      onChange={e => set(e.target.checked)}
+                    />
+                  )}
               </label>
             )
           })}

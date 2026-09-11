@@ -16,7 +16,7 @@ import { type BuildingSizes, type SettlementTuning, planVillage, type VillageLay
 // The planner is pure: it takes the building sizes rather than reading them. They come from the BACKEND
 // compositions (buildingCatalog resolves them), so deepening a building in Elixir moves the plots with it.
 import { BACKEND_BUILDING_SIZES } from './buildingCatalog'
-import { type GeneratorFormation, type GeneratorPalette, type GeneratorSubZone, type GeneratorTreeWeight } from '@/lib/generatorCatalog'
+import { type GeneratorFormation, type GeneratorPalette, type GeneratorSubZone, type GeneratorTreeWeight, type GeneratorOptionValue } from '@/lib/generatorCatalog'
 import {
   stagePropTileOverride,
   zonePalette,
@@ -183,7 +183,7 @@ export interface GenerateOptions {
   cols?: number
   rows?: number
   /** The generator's options as the person set them (`{river: true}`) — a variation, not a new template. */
-  options?: Readonly<Record<string, boolean>>
+  options?: Readonly<Record<string, GeneratorOptionValue>>
   /** Steer the general forest layout; the rest is randomized. Default 'passages'
    *  reproduces today's multi-passage forest. Only the forest variant reads it. */
   layout?: ForestLayout
@@ -645,7 +645,7 @@ interface ArchetypeContext {
    *  meadow layout). Only placeForest reads it. */
   layout: ForestLayout | undefined
   /** The generator's OPTIONS as the person set them — `{river: true}`. A layout reads the ones it knows. */
-  options: Readonly<Record<string, boolean>> | undefined
+  options: Readonly<Record<string, GeneratorOptionValue>> | undefined
   /** The active pass's random source. Defaults to `Math.random`; a seeded layer swaps in its own
    *  `makeRng(seed)` stream so the pass reproduces. EVERY stochastic helper draws from this, never
    *  from `Math.random` directly, so a pass is pure given its rng. */
@@ -1178,10 +1178,67 @@ function pickMeadowLayout(rand: Rng, nature: NatureDensity | undefined): ForestL
 /** The water options as the generator serves them, read once so the three forest layouts cannot drift apart
  *  on what a river or a crossing means. An absent option is OFF: the catalog row says `default: false`, and
  *  inventing a value here is exactly the hardcoded fallback the compliance rule forbids. */
-const forestWater = (ctx: ArchetypeContext): { river: boolean; crossing: boolean } => ({
-  river: ctx.options?.river === true,
+const forestWater = (ctx: ArchetypeContext, legacy: RiverCourse): { river: RiverCourse | null; crossing: boolean } => ({
+  river: riverCourse(ctx, legacy),
   crossing: ctx.options?.crossing === true,
 })
+
+/**
+ * THE RIVER'S COURSE. Alexander, 2026-09-11: *"variants of river usage, maybe it's traversable, maybe it's
+ * dividing the map in two half, maybe it's around the map, etc right now is super random, and while I want
+ * and think the randomness is good, we need to parametize it a bit more"*.
+ *
+ *   · `through` — winds across the map edge to edge, and is easy to cross in several places
+ *   · `divides` — cuts the map in two, and can be crossed at exactly ONE place
+ *   · `around`  — runs around the edge, leaving the way in open
+ */
+export type RiverCourse = 'through' | 'divides' | 'around'
+const RIVER_COURSES: readonly RiverCourse[] = ['through', 'divides', 'around']
+
+/** Resolve the served `river` option to a course, or null for no river. `random` is one of the choices, not
+ *  the only behaviour, which is the whole of his note. An old boolean recipe (`river: true`) keeps the river
+ *  its layout always had, so a saved map does not change under anyone. */
+function riverCourse(ctx: ArchetypeContext, legacy: RiverCourse): RiverCourse | null {
+  return resolveRiverCourse(ctx.options?.river, legacy, ctx.rand)
+}
+
+/** The pure half of `riverCourse`, exported so "random" can be tested as a DISTRIBUTION rather than guessed
+ *  from what a map happens to look like. */
+export function resolveRiverCourse(value: GeneratorOptionValue | undefined, legacy: RiverCourse, rand: Rng): RiverCourse | null {
+  if (value === undefined || value === false || value === 'none') return null
+  if (value === true) return legacy
+  if (value === 'random') return RIVER_COURSES[randIntWith(rand, 0, RIVER_COURSES.length - 1)]
+  return (RIVER_COURSES as readonly string[]).includes(value) ? (value as RiverCourse) : null
+}
+
+/** Carve the river along its course. `around` is the existing perimeter river; the other two are channels
+ *  that cross the whole map, which is what makes them cross it or cut it. */
+function carveRiver(ctx: ArchetypeContext, course: RiverCourse, pal: GeneratorPalette | undefined): Set<string> {
+  if (course === 'around') {
+    const water = paintMeadowRiver(ctx)
+    // A template that serves its own water colour wears it here too, not the meadow's blue.
+    if (pal?.water) for (const key of water) { const { col, row } = toCell(key); ctx.floorColors[row][col] = varyIntensity(pal.water, 0.44) }
+    return water
+  }
+  // `divides` is wide and nearly straight across the middle, so it reads as a barrier; `through` meanders.
+  return course === 'divides'
+    ? carveChannel(ctx, pal, { half: 2.3, swing: 0.05, horizontal: true })
+    : carveChannel(ctx, pal, { half: 1.6, swing: 0.26 })
+}
+
+/**
+ * Get across it, the way its course says. Several crossings make `through` traversable; exactly ONE makes
+ * `divides` a real division; `around` keeps the bridge it always had over its near arm.
+ */
+function bridgeRiver(ctx: ArchetypeContext, water: Set<string>, routes: Set<string>, course: RiverCourse, joined: boolean, pal: GeneratorPalette | undefined): void {
+  if (course === 'around') { crossRiver(ctx, water, routes, joined); return }
+  if (joined && placeRiverCrossing(ctx, water, routes)) {
+    // The crossing sits ON the path network; a river that is easy to cross gets fords elsewhere too.
+    if (course === 'through') fellLogsAcross(ctx, water, pal, [0.2, 0.8])
+    return
+  }
+  fellLogsAcross(ctx, water, pal, course === 'divides' ? [0.5] : [0.25, 0.55, 0.85])
+}
 
 /** Forest layout builders, keyed by the user-steered ForestLayout. Each runs on the already-floored ctx
  *  and is fully responsible for the floor gradient / trees / river / ornaments / repair.
@@ -1192,12 +1249,12 @@ const FOREST_LAYOUTS: Readonly<Partial<Record<ForestLayout, (ctx: ArchetypeConte
   // It was already an option INSIDE the builder — `layoutWoodland(ctx, {river: true})` — and only the
   // catalog row and the layout string duplicated per combination. Now the option reaches the builder from
   // the generator's declared options, and `woodland_river` / `meadow_river` are gone as layouts.
-  woodland: ctx => layoutWoodland(ctx, forestWater(ctx)),
+  woodland: ctx => layoutWoodland(ctx, forestWater(ctx, 'around')),
   // A JUNGLE HAS ITS OWN BUILDER. It used to share the woodland's with heavier numbers, and Alexander was
   // right that density is not the difference: *"there's a huge difference between amazonas and a pines
   // forest"*. Light gaps instead of clearings, a creek instead of trails, blocking undergrowth, emergents.
-  jungle: ctx => layoutJungle(ctx, forestWater(ctx)),
-  meadow: ctx => buildMeadow(ctx, { ...forestWater(ctx), twoWays: false }),
+  jungle: ctx => layoutJungle(ctx, forestWater(ctx, 'through')),
+  meadow: ctx => buildMeadow(ctx, { ...forestWater(ctx, 'around'), twoWays: false }),
   meadow_pass: layoutMeadowPass,
 }
 
@@ -1257,7 +1314,7 @@ const WOODLAND = {
  *  Alexander, 2026-09-09: *"add a woodland + river variant too."* Mirrors the meadow pair — one builder, an
  *  options object — so the two never drift apart. A JUNGLE is not here: it is the same STRUCTURE at a heavier
  *  served density, so it is a preset over this builder, not a fourth code path (see FOREST_LAYOUTS). */
-function layoutWoodland(ctx: ArchetypeContext, opts: { river?: boolean; crossing?: boolean } = {}): void {
+function layoutWoodland(ctx: ArchetypeContext, opts: { river?: RiverCourse | null; crossing?: boolean } = {}): void {
   const { cols, rows, collision, ground, zone, trees } = ctx
   const canopy = ctx.nature?.canopy
   if (canopy === undefined) {
@@ -1272,7 +1329,7 @@ function layoutWoodland(ctx: ArchetypeContext, opts: { river?: boolean; crossing
   //     spoken for. It joins `open` (the not-plantable mask) rather than getting its own check, which is why
   //     the canopy pass below needs no river branch at all: water is simply somewhere a tree cannot go.
   const open = new Set<string>()
-  const water = opts.river ? paintMeadowRiver(ctx) : new Set<string>()
+  const water = opts.river ? carveRiver(ctx, opts.river, ctx.palette) : new Set<string>()
   for (const key of water) open.add(key)
 
   // 1 · CLEARINGS, as a mask, so the canopy pass can simply avoid them. Deciding the holes before
@@ -1318,7 +1375,9 @@ function layoutWoodland(ctx: ArchetypeContext, opts: { river?: boolean; crossing
   const trail = zonePalette(zone)?.trail ?? ''
   for (const key of trailCells) {
     const [c, r] = key.split(',').map(Number)
-    if (inBounds(c, r, cols, rows)) ground[r][c] = trail
+    // Not over the river: a trail tile laid on water leaves a blocked stripe of path across it, which is
+    // neither a river nor a way over one. Water is crossed on a deck.
+    if (inBounds(c, r, cols, rows) && ground[r][c] !== 'water') ground[r][c] = trail
   }
 
   // 3 · CANOPY everywhere else — chosen, not thrown.
@@ -1351,12 +1410,8 @@ function layoutWoodland(ctx: ArchetypeContext, opts: { river?: boolean; crossing
   //      states no understory runs nothing here, so an ordinary wood is unchanged.
   if (ctx.formation?.understory !== undefined) {
     plantUndergrowth(ctx, open, water, ctx.palette)
-    // Undergrowth BLOCKS, so planting it pinches the floor into islands — measured at 363 separate regions
-    // on one seed before this ran. Tracks, NOT the meadow's repair: that one answers a stranded pocket by
-    // filling it with trees, which here both destroys the play area and wrecks the formation (every layout
-    // came out at the same 0.97 clumping once the carpeting had run). These pockets are walled by brush, so
-    // the honest fix is to cut through the brush.
-    joinStrandedRegions(ctx)
+    // Undergrowth BLOCKS, so this pinches the floor into islands (363 on one seed). They are joined in step
+    // 7, AFTER the river is bridged — see there for why the order matters.
   }
 
   // 5 · KEEP THE FLOOR ONE PLACE. A river can strand a pocket of forest floor behind it, and a pocket you
@@ -1369,7 +1424,13 @@ function layoutWoodland(ctx: ArchetypeContext, opts: { river?: boolean; crossing
   //     after the planting so nothing puts a trunk back on it. Same ordering reason as the meadow's.
   //     The trails carved in step 2 are this layout's path network, so a joined crossing lands on one of them
   //     rather than in the middle of the trees — which is the whole of ticket 36.
-  if (opts.river) crossRiver(ctx, water, trailCells, opts.crossing === true)
+  if (opts.river) bridgeRiver(ctx, water, trailCells, opts.river, opts.crossing === true, ctx.palette)
+
+  // 7 · ONE PLACE, cutting tracks through the brush to anything the undergrowth walled off. AFTER the bridge,
+  //     and that order is a fix, not a preference: run before it, the join saw the far bank of a river as a
+  //     stray region and cut a track straight across the water, which made the river walkable. A region the
+  //     water separates is joined by its crossing, never by a track.
+  if (ctx.formation?.understory !== undefined) joinStrandedRegions(ctx)
 
   void collision
   void trees
@@ -1415,7 +1476,7 @@ const JUNGLE = {
  * before the canopy is scored, exactly as the woodland's clearings do, which is why neither the canopy nor
  * the undergrowth pass needs to know what water or a gap is.
  */
-function layoutJungle(ctx: ArchetypeContext, opts: { river?: boolean; crossing?: boolean } = {}): void {
+function layoutJungle(ctx: ArchetypeContext, opts: { river?: RiverCourse | null; crossing?: boolean } = {}): void {
   const { cols, rows, collision, ground, trees } = ctx
   const canopy = ctx.nature?.canopy
   if (canopy === undefined) {
@@ -1443,8 +1504,11 @@ function layoutJungle(ctx: ArchetypeContext, opts: { river?: boolean; crossing?:
   //     no way across it, so this is not gated on the river OPTION the way the woodland's is: the option
   //     decides whether a WOOD has a river, but a jungle IS built around its watercourse. The option still
   //     reads, and turns the creek into a full river (wider, with a crossing).
-  const wide = opts.river === true
-  const water = carveJungleCreek(ctx, pal, wide)
+  // No course picked → the jungle's own narrow creek; `through` → the same creek, wide; the other courses
+  // carve their own channel. A jungle always has water — the option only says what KIND.
+  const water = opts.river === 'through' ? carveJungleCreek(ctx, pal, true)
+    : opts.river ? carveRiver(ctx, opts.river, pal)
+    : carveJungleCreek(ctx, pal, false)
   // 1b · SWAMP POOLS — standing water where a swamp region says so. They join the same water set the creek
   //      is in, so every later pass treats a pool exactly as it treats the channel.
   for (const key of floodSwampPools(ctx, zoneAt, pal)) water.add(key)
@@ -1510,7 +1574,8 @@ function layoutJungle(ctx: ArchetypeContext, opts: { river?: boolean; crossing?:
   //     The crossings are FALLEN LOGS, not a stone bridge: a jungle has no masonry, and the thing you
   //     actually cross a creek on is a tree that came down over it. Same walkable deck underneath, wearing
   //     the palette's trail tone instead of cobble.
-  fellLogsAcross(ctx, water, pal)
+  if (opts.river) bridgeRiver(ctx, water, open, opts.river, opts.crossing === true, pal)
+  else fellLogsAcross(ctx, water, pal)
 
   // 8 · KEEP IT ONE PLACE, by CUTTING TO the strays rather than carpeting them. The undergrowth pass blocks
   //     half the floor, which pinches regions off behind it. Filling those in is the meadow's answer and it
@@ -1519,7 +1584,6 @@ function layoutJungle(ctx: ArchetypeContext, opts: { river?: boolean; crossing?:
   //     after, and no map loses ground to it.
   repairFloorConnectivity(ctx, JUNGLE_MAX_POCKET)
   joinStrandedRegions(ctx)
-  if (wide && opts.crossing === true) crossRiver(ctx, water, open, true)
 }
 
 /** How big a stranded pocket the jungle repair absorbs. Higher than the meadow's 12 because undergrowth
@@ -1540,7 +1604,7 @@ function joinStrandedRegions(ctx: ArchetypeContext): void {
   const { cols, rows, collision } = ctx
   const isFloor = (col: number, row: number) => inBounds(col, row, cols, rows) && !collision[row][col]
 
-  // A few passes, because one track can absorb several strays at once and re-flooding is cheaper than
+  // A few passes, because one route can absorb several strays at once and re-flooding is cheaper than
   // assuming it did not. Each pass strictly reduces the count, so this cannot spin.
   for (let guard = 0; guard < 6; guard++) {
     const seen = new Set<string>()
@@ -1551,27 +1615,75 @@ function joinStrandedRegions(ctx: ArchetypeContext): void {
     })
     if (found.length <= 1) return
     found.sort((a, b) => b.size - a.size)
-    const main = found[0]
+    const mainCells = [...found[0]].map(toCell)
 
-    // EVERY stray in one pass, not one at a time. Dense undergrowth pinches the floor into hundreds of small
-    // islands — measured at 363 on one seed — and joining them one per pass would need hundreds of full
-    // re-floods. The anchor is a cell of the main region near the stray, so the track is short.
-    const mainCells = [...main].map(toCell)
+    // EVERY stray in one pass — dense undergrowth pinches the floor into many small islands, and one per pass
+    // would need a full re-flood each.
     for (const stray of found.slice(1)) {
       const from = toCell([...stray][0])
-      const to = nearestOf(from, mainCells)
-      if (!to) continue
-      const carved = new Set<string>()
-      traceJungleTrack(ctx, from, to, carved)
-      for (const key of carved) {
-        const { col, row } = toCell(key)
-        if (!inBounds(col, row, cols, rows)) continue
-        collision[row][col] = false
-      }
-      // Whatever the track cut through stops standing there — that is what cutting a track means.
-      clearMeadowCells(ctx, carved)
+      // A DRY route first, a log only when there is none. Measured before this: an around-river woodland came
+      // out with five crossings, because the forest beyond the river breaks into fragments and each one was
+      // reached across the nearest water when it could be joined ALONG ITS OWN BANK to the piece the real
+      // bridge already serves. A moat with five logs over it is not a moat. Right-angle routes, not a
+      // wandering track: a dry one can be checked before it is cut, and a log, when one is needed, comes out
+      // as one straight deck instead of the scatter of pieces a wandering line leaves on water.
+      const dry = dryRouteTo(ctx, from, mainCells)
+      if (dry) cutRoute(ctx, dry, false)
+      else cutRoute(ctx, elbowRoute(from, nearestOf(from, mainCells) ?? from, true), true)
     }
   }
+}
+
+/** A right-angle route from `a` to `b`: along one axis, then the other. */
+function elbowRoute(a: Cell, b: Cell, colsFirst: boolean): Cell[] {
+  const out: Cell[] = [{ col: a.col, row: a.row }]
+  let { col, row } = a
+  const step = (x: number, y: number) => (x < y ? 1 : -1)
+  const walkCols = () => { while (col !== b.col) { col += step(col, b.col); out.push({ col, row }) } }
+  const walkRows = () => { while (row !== b.row) { row += step(row, b.row); out.push({ col, row }) } }
+  if (colsFirst) { walkCols(); walkRows() } else { walkRows(); walkCols() }
+  return out
+}
+
+/** The first right-angle route into the main region that touches no water — every main cell, nearest first,
+ *  both elbow orders. Null only when every one of them has to cross water, which is the one case for a log. */
+function dryRouteTo(ctx: ArchetypeContext, from: Cell, mainCells: readonly Cell[]): Cell[] | null {
+  const isWater = (c: Cell) => inBounds(c.col, c.row, ctx.cols, ctx.rows) && ctx.ground[c.row][c.col] === 'water'
+  const byDistance = [...mainCells].sort((p, q) =>
+    (p.col - from.col) ** 2 + (p.row - from.row) ** 2 - ((q.col - from.col) ** 2 + (q.row - from.row) ** 2))
+  for (const target of byDistance) {
+    for (const colsFirst of [true, false]) {
+      const route = elbowRoute(from, target, colsFirst)
+      if (!route.some(isWater)) return route
+    }
+  }
+  return null
+}
+
+/**
+ * Cut a route to walking width. Land is cleared of whatever stands on it. Water is either left alone (a dry
+ * route that merely runs beside it) or, for a route that has to cross, laid as a log deck — never cleared
+ * into a walkable stripe of river.
+ */
+function cutRoute(ctx: ArchetypeContext, route: readonly Cell[], bridgeWater: boolean): void {
+  const wet = new Set<string>()
+  const dry = new Set<string>()
+  for (const { col, row } of route) {
+    for (let dc = 0; dc < WOODLAND.pathWidth; dc++) {
+      for (let dr = 0; dr < WOODLAND.pathWidth; dr++) {
+        const c = col + dc
+        const r = row + dr
+        if (!inBounds(c, r, ctx.cols, ctx.rows)) continue
+        ;(ctx.ground[r][c] === 'water' ? wet : dry).add(`${c},${r}`)
+      }
+    }
+  }
+  for (const key of dry) {
+    const { col, row } = toCell(key)
+    ctx.collision[row][col] = false
+  }
+  clearMeadowCells(ctx, dry)
+  if (bridgeWater && wet.size > 0) layDeck(ctx, wet, ctx.palette?.trail)
 }
 
 /** The nearest of an already-materialised cell list. Separate from `nearestCell` because that one re-parses
@@ -1594,7 +1706,7 @@ function nearestOf(from: Cell, cells: readonly Cell[]): Cell | null {
  * Placed along the creek's run rather than at a fixed point, because a creek that meanders has no single
  * "middle", and two of them so a crossing is never a long detour.
  */
-function fellLogsAcross(ctx: ArchetypeContext, water: Set<string>, pal: GeneratorPalette | undefined): void {
+function fellLogsAcross(ctx: ArchetypeContext, water: Set<string>, pal: GeneratorPalette | undefined, fractions: readonly number[] = [0.32, 0.72]): void {
   if (water.size === 0) return
   const cells = [...water].map(toCell)
   // Which way the creek RUNS — the axis it spans more of. The log lies across the other one.
@@ -1605,7 +1717,7 @@ function fellLogsAcross(ctx: ArchetypeContext, water: Set<string>, pal: Generato
   const lo = Math.min(...cells.map(along))
   const hi = Math.max(...cells.map(along))
 
-  for (const frac of [0.32, 0.72]) {
+  for (const frac of fractions) {
     const at = Math.round(lo + (hi - lo) * frac)
     // Every water cell on that line, plus one dry cell past each end so the log lands on both banks.
     const band = cells.filter(c => along(c) === at)
@@ -1791,10 +1903,25 @@ function paintJungleGaps(ctx: ArchetypeContext, gaps: Set<string>, pal: Generato
  * creek is the thing you travel along, so it has to cross the middle.
  */
 function carveJungleCreek(ctx: ArchetypeContext, pal: GeneratorPalette | undefined, wide: boolean): Set<string> {
+  return carveChannel(ctx, pal, { half: JUNGLE.creekHalf * (wide ? 1.8 : 1), swing: 0.26 })
+}
+
+/** The shape of a channel: how wide, how far it wanders, and optionally which way it must run. */
+interface ChannelShape {
+  half: number
+  /** how far the centreline wanders, as a share of the map's width across it */
+  swing: number
+  /** force it to run left to right (cutting top from bottom). Absent → rolled. */
+  horizontal?: boolean
+}
+
+/** A watercourse running edge to edge through the map — the jungle's creek, and the `through` and `divides`
+ *  rivers. The draw order is unchanged when nothing is forced, so the jungle's creek is byte-identical. */
+function carveChannel(ctx: ArchetypeContext, pal: GeneratorPalette | undefined, shape: ChannelShape): Set<string> {
   const { cols, rows, ground, collision, floorColors } = ctx
   const water = new Set<string>()
-  const half = JUNGLE.creekHalf * (wide ? 1.8 : 1)
-  const vertical = ctx.rand() < 0.5
+  const half = shape.half
+  const vertical = shape.horizontal === undefined ? ctx.rand() < 0.5 : !shape.horizontal
   const span = vertical ? rows : cols
   const across = vertical ? cols : rows
   const phase = ctx.rand() * Math.PI * 2
@@ -1803,7 +1930,7 @@ function carveJungleCreek(ctx: ArchetypeContext, pal: GeneratorPalette | undefin
   // rather than a wave, kept off the edges so the creek never degenerates into a border.
   const centre = (along: number): number => {
     const mid = across / 2
-    const swing = across * 0.26
+    const swing = across * shape.swing
     return mid + swing * Math.sin(along * 0.14 + phase) + swing * 0.4 * Math.sin(along * 0.31 + phase2)
   }
   for (let along = 0; along < span; along++) {
@@ -2164,14 +2291,20 @@ function lerpHex(a: string, b: string, t: number): string {
   return `#${[mix(ar, br), mix(ag, bg), mix(ab, bb)].map(v => v.toString(16).padStart(2, '0')).join('')}`
 }
 
-function layoutMeadow(ctx: ArchetypeContext): void { buildMeadow(ctx, { river: false, twoWays: false }) }
+function layoutMeadow(ctx: ArchetypeContext): void { buildMeadow(ctx, { river: null, twoWays: false }) }
 /** `meadow_pass` (#26): the open meadow opened on TWO opposite edges (top + bottom) — a through-route you can
  *  enter one side and exit the other, distinct from the single-entrance `meadow`. No river. */
-function layoutMeadowPass(ctx: ArchetypeContext): void { buildMeadow(ctx, { river: false, twoWays: true }) }
+/** The meadow's water, bank and deck tones, from its own season palette — the colours its river always wore. */
+function meadowWater(ctx: ArchetypeContext): GeneratorPalette {
+  const pal = MEADOW_PALETTES[ctx.zone] ?? MEADOW_PALETTES.summer
+  return { water: pal.river, bank: pal.bank, trail: pal.cobble }
+}
+
+function layoutMeadowPass(ctx: ArchetypeContext): void { buildMeadow(ctx, { river: null, twoWays: true }) }
 
 interface MeadowBuild {
-  /** Carve the perimeter WINDING river. An option on the generator now, not a layout of its own. */
-  river: boolean
+  /** The river's COURSE, or null for none. An option on the generator, not a layout of its own. */
+  river: RiverCourse | null
   /** Put the river's crossing ON the path network instead of at the fixed top-right span (ticket 36). */
   crossing?: boolean
   /** Open TWO opposite cobble ways (top + bottom) for a through-route (`meadow_pass`) instead of one bottom way. */
@@ -2185,7 +2318,7 @@ interface MeadowBuild {
 function buildMeadow(ctx: ArchetypeContext, opts: MeadowBuild): void {
   floodMeadowFloor(ctx)                          // flat 'meadow' tile everywhere (a raised, tintable block)
   paintMeadowGradient(ctx)                        // season olive greens→yellows as per-cell floor STATE
-  const water = opts.river ? paintMeadowRiver(ctx) : new Set<string>() // a WINDING river hugging 3 sides (top/left/right), open near edge
+  const water = opts.river ? carveRiver(ctx, opts.river, meadowWater(ctx)) : new Set<string>() // the river along the course the option picked
   paintMeadowPlots(ctx, water)                    // faint tended-field patchwork (a subtle colour)
   scatterMeadowOrnaments(ctx, water)              // subtle dirt/earth patches, a few field stones, tiny flowers — mostly open
   scatterFramingTrees(ctx, water)                 // SPARSE tree clumps BEYOND the river (top/left/right) + a few near the bottom corners
@@ -2198,7 +2331,7 @@ function buildMeadow(ctx: ArchetypeContext, opts: MeadowBuild): void {
     paintMeadowEntrance(ctx, water, routes)       // ONE bottom-left cobble entrance, lamp posts + flower beds
   }
   repairFloorConnectivity(ctx, MEADOW_MAX_POCKET) // fill only TINY stranded pockets; the land strip beyond the river stays (decor)
-  if (opts.river) crossRiver(ctx, water, routes, opts.crossing === true) // drawn after repair so the deck is never filled back in
+  if (opts.river) bridgeRiver(ctx, water, routes, opts.river, opts.crossing === true, meadowWater(ctx)) // after repair, so the deck is never filled back in
 }
 
 /** Get across the river. With the crossing option on, the span is placed against the path network and paved
@@ -2245,8 +2378,13 @@ function paintMeadowRiver(ctx: ArchetypeContext): Set<string> {
   const water = new Set<string>()
   // The channel centreline meanders along whichever active edge is nearest, parameterised by the coordinate
   // that runs ALONG that edge (col on the top, row on the sides) so the wobble is coherent, not per-cell noise.
+  // The outward swing is CLAMPED so the channel never reaches the map edge. Unclamped, the wobble brushed the
+  // edge on some seeds and cut the land OUTSIDE the river into pieces only water separated — measured on an
+  // around-river woodland, 3 seeds in 6 then needed extra logs to reach them, which is not a river that runs
+  // around the edge. Clamped, the strip outside stays one continuous piece and its one bridge reaches all of
+  // it. Draw order is unchanged, so the phases, and everything after them, are too.
   const centreInset = (along: number): number =>
-    MEADOW_RIVER_INSET + 2.4 * Math.sin(along * 0.23 + phase) + 1.2 * Math.sin(along * 0.11 + phase2)
+    Math.max(MEADOW_RIVER_HALF + 3, MEADOW_RIVER_INSET + 2.4 * Math.sin(along * 0.23 + phase) + 1.2 * Math.sin(along * 0.11 + phase2))
   forEachCell(cols, rows, (col, row) => {
     const dTop = row
     const dLeft = col
@@ -2354,6 +2492,10 @@ function paintMeadowEntrance(ctx: ArchetypeContext, water: Set<string>, routes: 
   const lane = new Set<string>()
   for (let d = 0; d < MEADOW_ENTRANCE_RUN; d++)
     for (let w = -MEADOW_ENTRANCE_HALF; w <= MEADOW_ENTRANCE_HALF; w++) lane.add(`${g + w},${rowAt(d)}`)
+  // Never the water in it. Clearing a river cell's collision makes the river WALKABLE, and a river on the
+  // `through` course can run straight across this lane. The old perimeter river left the near edge open, so
+  // it never reached here, which is why this only showed once the courses existed.
+  for (const key of [...lane]) if (water.has(key)) lane.delete(key)
   clearMeadowCells(ctx, lane)
   for (let d = 0; d < MEADOW_ENTRANCE_RUN; d++) {
     const row = rowAt(d)

@@ -130,7 +130,7 @@ describe('picking is not building — §4.6\'s "why did my map just vanish" trap
     const [, second] = categoryLayouts(CATALOG, 'forest')
     fireEvent.click(preset(second.label))
     build()
-    expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', second.id, { river: false, crossing: false })
+    expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', second.id, { river: 'none', crossing: false })
   })
 
   it('builds the category\'s FIRST preset when the kind was chosen but no preset was', () => {
@@ -138,7 +138,7 @@ describe('picking is not building — §4.6\'s "why did my map just vanish" trap
     fireEvent.change(kinds(), { target: { value: 'forest' } })
     build()
     const [first] = categoryLayouts(CATALOG, 'forest')
-    expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', first.id, { river: false, crossing: false })
+    expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', first.id, { river: 'none', crossing: false })
   })
 
   it('passes NO preset for a kind that has none, and hides the preset group', () => {
@@ -166,43 +166,47 @@ describe('picking is not building — §4.6\'s "why did my map just vanish" trap
 })
 
 describe('variations are options on a preset, not more presets', () => {
-  const toggle = (label: RegExp | string) => screen.getByLabelText(label) as HTMLInputElement
+  const control = (label: RegExp | string) => screen.getByLabelText(label) as HTMLInputElement & HTMLSelectElement
   const setup = () => {
     const onGenerate = jest.fn()
     render(<GenerateControls catalog={CATALOG} zone="spring" onZone={noop} onGenerate={onGenerate} />)
     return onGenerate
   }
 
-  it('forwards what was switched on, so a river never needs a row of its own', () => {
+  it('offers the river as a choice of COURSE — each one he named, random among them', () => {
+    // Alexander, 2026-09-11: *"maybe it's traversable, maybe it's dividing the map in two half, maybe it's
+    // around the map ... the randomness is good, we need to parametize it a bit more"*.
+    setup()
+    fireEvent.change(kinds(), { target: { value: 'forest' } })
+    expect([...control(/^river$/i).options].map(o => o.value)).toEqual(['none', 'random', 'through', 'divides', 'around'])
+  })
+
+  it('forwards the course that was picked, so a river never needs a row of its own', () => {
     const onGenerate = setup()
     fireEvent.change(kinds(), { target: { value: 'forest' } })
-    fireEvent.click(toggle(/a river through it/i))
+    fireEvent.change(control(/^river$/i), { target: { value: 'divides' } })
     build()
-    expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', expect.any(String), { river: true, crossing: false })
+    expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', expect.any(String), { river: 'divides', crossing: false })
   })
 
   it('will not send a crossing without the river it declares it needs', () => {
     const onGenerate = setup()
     fireEvent.change(kinds(), { target: { value: 'forest' } })
-
-    // The dependency is DATA — the served row says `requires: "river"`. The control is dead until the river
-    // is on, and even a stale checked state from before is sent as OFF, because a crossing over dry ground
-    // is not a map anybody asked for.
-    expect(toggle(/a crossing joined to the paths/i).disabled).toBe(true)
-
-    fireEvent.click(toggle(/a river through it/i))
-    expect(toggle(/a crossing joined to the paths/i).disabled).toBe(false)
-    fireEvent.click(toggle(/a crossing joined to the paths/i))
-    fireEvent.click(toggle(/a river through it/i)) // river back OFF — the crossing must go with it
+    // The dependency is DATA — the served row says `requires: "river"`, and "no river" is off for a choice.
+    expect(control(/a crossing joined to the paths/i).disabled).toBe(true)
+    fireEvent.change(control(/^river$/i), { target: { value: 'through' } })
+    expect(control(/a crossing joined to the paths/i).disabled).toBe(false)
+    fireEvent.click(control(/a crossing joined to the paths/i))
+    fireEvent.change(control(/^river$/i), { target: { value: 'none' } }) // the river goes, the crossing goes with it
     build()
-    expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', expect.any(String), { river: false, crossing: false })
+    expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', expect.any(String), { river: 'none', crossing: false })
   })
 
   it('offers nothing to switch on for a kind of place that has no options', () => {
     setup()
     fireEvent.change(kinds(), { target: { value: 'cave' } })
     expect(screen.queryByText(/anything else/i)).toBeNull()
-    expect(screen.queryByLabelText(/a river through it/i)).toBeNull()
+    expect(screen.queryByLabelText(/^river$/i)).toBeNull()
   })
 })
 

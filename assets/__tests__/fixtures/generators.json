@@ -84,10 +84,32 @@
           "name": "Woodland",
           "options": [
             {
-              "default": false,
+              "choices": [
+                {
+                  "key": "none",
+                  "label": "No river"
+                },
+                {
+                  "key": "random",
+                  "label": "Random"
+                },
+                {
+                  "key": "through",
+                  "label": "Winds through (easy to cross)"
+                },
+                {
+                  "key": "divides",
+                  "label": "Divides the map in two"
+                },
+                {
+                  "key": "around",
+                  "label": "Around the edge"
+                }
+              ],
+              "default": "none",
               "key": "river",
-              "label": "A river through it",
-              "type": "toggle"
+              "label": "River",
+              "type": "choice"
             },
             {
               "default": false,
@@ -303,10 +325,32 @@
           "name": "Jungle",
           "options": [
             {
-              "default": false,
+              "choices": [
+                {
+                  "key": "none",
+                  "label": "No river"
+                },
+                {
+                  "key": "random",
+                  "label": "Random"
+                },
+                {
+                  "key": "through",
+                  "label": "Winds through (easy to cross)"
+                },
+                {
+                  "key": "divides",
+                  "label": "Divides the map in two"
+                },
+                {
+                  "key": "around",
+                  "label": "Around the edge"
+                }
+              ],
+              "default": "none",
               "key": "river",
-              "label": "A river through it",
-              "type": "toggle"
+              "label": "River",
+              "type": "choice"
             },
             {
               "default": false,
@@ -382,10 +426,32 @@
           "name": "Meadow",
           "options": [
             {
-              "default": false,
+              "choices": [
+                {
+                  "key": "none",
+                  "label": "No river"
+                },
+                {
+                  "key": "random",
+                  "label": "Random"
+                },
+                {
+                  "key": "through",
+                  "label": "Winds through (easy to cross)"
+                },
+                {
+                  "key": "divides",
+                  "label": "Divides the map in two"
+                },
+                {
+                  "key": "around",
+                  "label": "Around the edge"
+                }
+              ],
+              "default": "none",
               "key": "river",
-              "label": "A river through it",
-              "type": "toggle"
+              "label": "River",
+              "type": "choice"
             },
             {
               "default": false,

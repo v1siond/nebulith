@@ -21,7 +21,7 @@
 import { IsometricGrid } from '@/engine/IsometricGrid'
 import { generateStage, type NatureDensity, type VariantId } from '@/engine/stageGenerator'
 import { applyStageToGrid } from '@/game/editor/applyStage'
-import { type GeneratorFormation, type GeneratorPalette, type GeneratorSubZone, type GeneratorTreeWeight } from '@/lib/generatorCatalog'
+import { type GeneratorFormation, type GeneratorPalette, type GeneratorSubZone, type GeneratorTreeWeight, type GeneratorOptionValue } from '@/lib/generatorCatalog'
 import { resolveComposition } from '@/engine/tileset/tileset'
 import { styleCatalog } from '@/engine/tileset/styleTiles'
 import { zonePalette, type ZoneId } from '@/engine/zones'
@@ -59,7 +59,7 @@ export type PreviewSubject =
        * build and not the picture of it. A preview that is not fed the same inputs is a picture of a
        * different map, which is worse than no picture.
        */
-      options?: Record<string, boolean>
+      options?: Record<string, GeneratorOptionValue>
       palette?: GeneratorPalette
       subZones?: readonly GeneratorSubZone[]
       formation?: GeneratorFormation
