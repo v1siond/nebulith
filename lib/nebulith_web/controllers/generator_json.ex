@@ -20,6 +20,8 @@ defmodule NebulithWeb.GeneratorJSON do
       name: g.name,
       description: g.description,
       layout: g.layout,
+      # WHICH ARCHETYPE to run. The editor used to send the category key; a category holds two kinds now.
+      variant: g.variant,
       zones: g.zones,
       position: g.position,
       config: g.config,

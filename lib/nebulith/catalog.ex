@@ -325,14 +325,17 @@ defmodule Nebulith.Catalog do
         node = %{
           g
           | config: deep_merge(inherited.config, g.config || %{}),
-            options: if(g.options in [nil, []], do: inherited.options, else: g.options)
+            options: if(g.options in [nil, []], do: inherited.options, else: g.options),
+            # A subtype of a town is still a town: the archetype inherits like everything else, so a
+            # variation states only what makes it look different.
+            variant: g.variant || inherited.variant
         }
 
         %{node | children: grow.(grow, g.id, node)}
       end
     end
 
-    grow.(grow, nil, %{config: %{}, options: []})
+    grow.(grow, nil, %{config: %{}, options: [], variant: nil})
   end
 
   # Maps merge key by key, recursively; anything else (a list, a number) is REPLACED by the subtype's value.

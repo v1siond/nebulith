@@ -60,6 +60,10 @@ defmodule Nebulith.Catalog.Generator do
     # variation is an option, not a new row (Alexander: *"we should just have extra options for each
     # template"*). Declared, not inferred, so the panel renders whatever the backend says exists.
     field :options, Nebulith.EctoJSON, default: []
+    # WHICH ARCHETYPE this row runs ("town", "city", "forest", "cave", "temple"). The category key used to be
+    # read as the variant, which cannot survive two kinds sharing one category (Alexander: *"City and town
+    # options are the same, it'd put them in a single category"*). Nil on a subtype: it inherits its parent's.
+    field :variant, :string
     field :position, :integer, default: 0
     belongs_to :category, Nebulith.Catalog.GeneratorCategory
     # A SUBTYPE of another generator — *"forest > type of forest > sub type of type of forest > etc"*. Nil for
@@ -73,7 +77,7 @@ defmodule Nebulith.Catalog.Generator do
   @doc false
   def changeset(generator, attrs) do
     generator
-    |> cast(attrs, [:key, :name, :description, :layout, :zones, :config, :options, :position, :category_id, :parent_id])
+    |> cast(attrs, [:key, :name, :description, :layout, :variant, :zones, :config, :options, :position, :category_id, :parent_id])
     |> validate_required([:key, :name, :category_id])
     |> unique_constraint(:key)
     |> assoc_constraint(:category)

@@ -43,7 +43,7 @@ defmodule NebulithWeb.GeneratorControllerTest do
       generator = hd(category["generators"])
 
       assert Map.keys(category) |> Enum.sort() == ~w(description generators key name position)
-      assert Map.keys(generator) |> Enum.sort() == ~w(children config description key layout name options position zones)
+      assert Map.keys(generator) |> Enum.sort() == ~w(children config description key layout name options position variant zones)
     end
 
     test "a forest's options ride over the wire whole, dependency and all", %{conn: conn} do
