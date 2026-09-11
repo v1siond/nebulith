@@ -56,6 +56,10 @@ defmodule Nebulith.Catalog.Generator do
     field :layout, :string
     field :zones, {:array, :string}, default: []
     field :config, Nebulith.EctoJSON, default: %{}
+    # What a person may switch ON for this generator: `[{key, label, type, default, requires}]`. A
+    # variation is an option, not a new row (Alexander: *"we should just have extra options for each
+    # template"*). Declared, not inferred, so the panel renders whatever the backend says exists.
+    field :options, Nebulith.EctoJSON, default: []
     field :position, :integer, default: 0
     belongs_to :category, Nebulith.Catalog.GeneratorCategory
 
@@ -65,7 +69,7 @@ defmodule Nebulith.Catalog.Generator do
   @doc false
   def changeset(generator, attrs) do
     generator
-    |> cast(attrs, [:key, :name, :description, :layout, :zones, :config, :position, :category_id])
+    |> cast(attrs, [:key, :name, :description, :layout, :zones, :config, :options, :position, :category_id])
     |> validate_required([:key, :name, :category_id])
     |> unique_constraint(:key)
     |> assoc_constraint(:category)

@@ -22,8 +22,8 @@ defmodule NebulithWeb.GeneratorControllerTest do
       assert Enum.map(data, & &1["key"]) == ~w(forest town city cave temple)
       forest = hd(data)
       assert forest["name"] == "Forest"
-      assert Enum.map(forest["generators"], & &1["key"]) == ~w(forest_woodland forest_meadow forest_meadow_river)
-      assert Enum.map(forest["generators"], & &1["layout"]) == ["woodland", "meadow", "meadow_river"]
+      assert Enum.map(forest["generators"], & &1["key"]) == ~w(forest_woodland forest_jungle forest_meadow)
+      assert Enum.map(forest["generators"], & &1["layout"]) == ["woodland", "jungle", "meadow"]
     end
 
     test "a generator's whole config rides through the JSON untouched", %{conn: conn} do
@@ -43,7 +43,33 @@ defmodule NebulithWeb.GeneratorControllerTest do
       generator = hd(category["generators"])
 
       assert Map.keys(category) |> Enum.sort() == ~w(description generators key name position)
-      assert Map.keys(generator) |> Enum.sort() == ~w(config description key layout name position zones)
+      assert Map.keys(generator) |> Enum.sort() == ~w(config description key layout name options position zones)
+    end
+
+    test "a forest's options ride over the wire whole, dependency and all", %{conn: conn} do
+      data = json_response(get(conn, ~p"/api/generators"), 200)["data"]
+      woodland = hd(data) |> Map.fetch!("generators") |> hd()
+
+      # The editor draws these toggles straight from here and greys the crossing out until the river is on.
+      # It never hardcodes the pair, so the shape is the contract — keys, labels, defaults and `requires`.
+      assert woodland["options"] == [
+               %{"key" => "river", "label" => "A river through it", "type" => "toggle", "default" => false},
+               %{
+                 "key" => "crossing",
+                 "label" => "A crossing joined to the paths",
+                 "type" => "toggle",
+                 "default" => false,
+                 "requires" => "river"
+               }
+             ]
+    end
+
+    test "a generator with nothing to switch on serves an empty list, not null", %{conn: conn} do
+      data = json_response(get(conn, ~p"/api/generators"), 200)["data"]
+      cave = Enum.find(data, &(&1["key"] == "cave")) |> Map.fetch!("generators") |> hd()
+
+      # `null` would make the frontend guard every map over it. The column is NOT NULL defaulting to `[]`.
+      assert cave["options"] == []
     end
   end
 end

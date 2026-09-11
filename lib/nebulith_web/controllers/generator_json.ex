@@ -22,7 +22,9 @@ defmodule NebulithWeb.GeneratorJSON do
       layout: g.layout,
       zones: g.zones,
       position: g.position,
-      config: g.config
+      config: g.config,
+      # What a person may switch on for this generator — a variation is an option, not another row.
+      options: g.options
     }
   end
 end

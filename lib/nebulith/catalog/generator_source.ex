@@ -34,6 +34,24 @@ defmodule Nebulith.Catalog.GeneratorSource do
   # runs in all of them, so the menu is zone x category with no gaps.
   @zones ~w(spring summer autumn winter desert)
 
+  # THE OPTIONS an outdoor generator offers. Alexander, 2026-09-10: *"we should just have extra options for
+  # each template"*, after listing exactly how the row count explodes otherwise (woodland, woodland + river,
+  # woodland + river + bridge…).
+  #
+  # `requires` is what keeps the panel honest: a crossing is meaningless without a river, so it says so
+  # rather than the frontend knowing it. That was his next ticket too — *"rivers need crossings connected to
+  # the paths"* — and as an option it is one more row here, never another template.
+  @water_options [
+    %{"key" => "river", "label" => "A river through it", "type" => "toggle", "default" => false},
+    %{
+      "key" => "crossing",
+      "label" => "A crossing joined to the paths",
+      "type" => "toggle",
+      "default" => false,
+      "requires" => "river"
+    }
+  ]
+
   # The default grid a non-city map rolls, and the cell geometry every map starts from.
   @small_grid %{
     "cols" => %{"min" => 30, "max" => 45},
@@ -101,30 +119,20 @@ defmodule Nebulith.Catalog.GeneratorSource do
       %{
         category: "forest", key: "forest_woodland", name: "Woodland", layout: "woodland", position: 0,
         description: "Dense trees with clearings cut into them, joined by paths.",
-        config: %{"grid" => @small_grid, "nature" => @woodland_nature, "units" => townsfolk(3)}
+        config: %{"grid" => @small_grid, "nature" => @woodland_nature, "units" => townsfolk(3)},
+        options: @water_options
       },
       %{
-        category: "forest", key: "forest_woodland_river", name: "Woodland + River", layout: "woodland_river", position: 1,
-        description: "The woodland, cut by a river with a bridge across it.",
-        config: %{"grid" => @small_grid, "nature" => @woodland_nature, "units" => townsfolk(3)}
-      },
-      %{
-        category: "forest", key: "forest_jungle", name: "Jungle", layout: "jungle", position: 2,
+        category: "forest", key: "forest_jungle", name: "Jungle", layout: "jungle", position: 1,
         description: "A closed canopy over choked undergrowth, with clearings cut into it.",
-        config: %{"grid" => @small_grid, "nature" => @jungle_nature, "units" => townsfolk(2)}
+        config: %{"grid" => @small_grid, "nature" => @jungle_nature, "units" => townsfolk(2)},
+        options: @water_options
       },
       %{
-        category: "forest", key: "forest_meadow", name: "Meadow", layout: "meadow", position: 3,
-        # WAS "Clearings wired by corridors, tree masses filling the rest." It never built tree masses —
-        # `scatterFramingTrees` frames the edges and leaves the centre open, which is a meadow. The
-        # description promised the thing the new Woodland preset actually does.
+        category: "forest", key: "forest_meadow", name: "Meadow", layout: "meadow", position: 2,
         description: "An open clearing framed by trees, with two ways in.",
-        config: %{"grid" => @small_grid, "nature" => @outdoor_nature, "units" => townsfolk(5)}
-      },
-      %{
-        category: "forest", key: "forest_meadow_river", name: "Meadow + River", layout: "meadow_river", position: 4,
-        description: "The meadow, cut by a river with a bridge across it.",
-        config: %{"grid" => @small_grid, "nature" => @outdoor_nature, "units" => townsfolk(5)}
+        config: %{"grid" => @small_grid, "nature" => @outdoor_nature, "units" => townsfolk(5)},
+        options: @water_options
       },
       %{
         category: "town", key: "town_default", name: "Town", position: 0,

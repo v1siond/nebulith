@@ -34,19 +34,60 @@ defmodule Nebulith.GeneratorSourceTest do
       refute keys == Enum.sort(keys)
     end
 
-    test "a forest LEADS WITH THE WOODLAND, then its meadows; a settlement offers one default" do
+    test "a forest lists the three KINDS of forest, and nothing that is only a variation of one" do
       GeneratorSource.seed()
       cats = Catalog.list_generator_categories() |> by_key()
 
       # Order matters and is asserted, because the category's FIRST preset is the one the panel opens on.
       # Alexander, 2026-09-09: *"the meadow is not a forest, it doesn't look like one"* — every preset here
       # used to be a clearing, so a category called Forest opened on something that was not one.
-      assert Enum.map(cats["forest"].generators, & &1.layout) == ["woodland", "meadow", "meadow_river"]
+      assert Enum.map(cats["forest"].generators, & &1.layout) == ["woodland", "jungle", "meadow"]
       assert Enum.map(cats["town"].generators, & &1.key) == ["town_default"]
       assert [%Generator{layout: nil}] = cats["town"].generators
     end
 
-    test "only the woodland states a canopy — a clearing has no tree density to state" do
+    test "a river is an OPTION on a forest, never a row of its own" do
+      GeneratorSource.seed()
+      cats = Catalog.list_generator_categories() |> by_key()
+      layouts = Enum.map(cats["forest"].generators, & &1.layout)
+
+      # Alexander, 2026-09-10, on the list growing combinatorially: *"we should just have extra options for
+      # each template"*. `forest_meadow_river` used to be its own row, which is exactly the growth he named:
+      # one boolean doubled the category. The river survives as a toggle, so the count stays at three.
+      refute "meadow_river" in layouts
+      assert length(layouts) == 3
+
+      for g <- cats["forest"].generators do
+        assert Enum.map(g.options, & &1["key"]) == ~w(river crossing), "#{g.key} offers #{inspect(g.options)}"
+        assert Enum.all?(g.options, &(&1["default"] == false)), "#{g.key} opts something in by default"
+      end
+    end
+
+    test "a crossing DECLARES that it needs a river — the panel does not have to know" do
+      GeneratorSource.seed()
+      woodland = Catalog.list_generator_categories() |> generator("forest", "forest_woodland")
+
+      [river, crossing] = woodland.options
+
+      # His next ticket was *"rivers need crossings connected to the paths"*. A crossing over dry ground is
+      # nonsense, so the row says what it depends on and the editor greys the toggle out from the DATA.
+      refute Map.has_key?(river, "requires")
+      assert crossing["requires"] == "river"
+      assert crossing["type"] == "toggle" and river["type"] == "toggle"
+    end
+
+    test "a settlement or a dungeon offers no options at all" do
+      GeneratorSource.seed()
+      cats = Catalog.list_generator_categories() |> by_key()
+
+      # An empty list, not nil — the column is NOT NULL with a `[]` default, so the frontend can map over
+      # it without a guard on every generator it draws.
+      for key <- ~w(town city cave temple), g <- cats[key].generators do
+        assert g.options == [], "#{g.key} carries #{inspect(g.options)}"
+      end
+    end
+
+    test "only the treed layouts state a canopy — a clearing has no tree density to state" do
       GeneratorSource.seed()
       cats = Catalog.list_generator_categories() |> by_key()
 
@@ -59,7 +100,19 @@ defmodule Nebulith.GeneratorSourceTest do
       # which is also why the random layout pool skips it when a generator does not serve one.
       assert canopies["woodland"] > 0
       assert canopies["meadow"] == nil
-      assert canopies["meadow_river"] == nil
+    end
+
+    test "a jungle is a woodland grown over — denser canopy AND far more undergrowth" do
+      GeneratorSource.seed()
+      cats = Catalog.list_generator_categories() |> by_key()
+      nature = for g <- cats["forest"].generators, into: %{}, do: {g.layout, g.config["nature"]}
+
+      # Ticket 48, his words: *"a jungle is not a woodland"*. What makes it one is these numbers, not a
+      # separate generator — same clearings, same trails, choked floor. If the two ever read the same the
+      # preset is decorative, so the test asserts the GAP rather than the values.
+      assert nature["jungle"]["canopy"] > nature["woodland"]["canopy"]
+      assert nature["jungle"]["groundCover"] > nature["woodland"]["groundCover"] * 2
+      assert nature["jungle"]["flowers"] > nature["woodland"]["flowers"]
     end
 
     test "every generator runs in every season the editor offers" do
