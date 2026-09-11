@@ -121,6 +121,7 @@ import { NO_ZONES_SHUT, ZoneCollapse, zoneClasses, type EditorZoneId, type Edito
 import { HudOverlay, PlayerUiPanel, useHudLayout } from '@/components/game/shell/PlayerUiPanel'
 import { connectorEditFromSelection } from '@/game/editor/connectors'
 import { useEditorHistory } from '@/game/editor/useEditorHistory'
+import { spawnInMainArea } from '@/game/runtime/spawn'
 
 
 // View mode states (global for game loop access)
@@ -1734,38 +1735,11 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   }
 
   // Find a valid walkable spawn point near a target position
-  const findValidSpawn = (grid: IsometricGrid, targetCol: number, targetRow: number): { col: number; row: number } => {
-    // Check if target is valid
-    if (isValidSpawn(grid, targetCol, targetRow)) {
-      return { col: targetCol, row: targetRow }
-    }
-
-    // Spiral search outward from target
-    for (let radius = 1; radius < Math.max(grid.cols, grid.rows); radius++) {
-      for (let dx = -radius; dx <= radius; dx++) {
-        for (let dy = -radius; dy <= radius; dy++) {
-          if (Math.abs(dx) !== radius && Math.abs(dy) !== radius) continue // Only check perimeter
-          const col = targetCol + dx
-          const row = targetRow + dy
-          if (isValidSpawn(grid, col, row)) {
-            return { col, row }
-          }
-        }
-      }
-    }
-
-    // Fallback: find any valid spot
-    for (let r = 0; r < grid.rows; r++) {
-      for (let c = 0; c < grid.cols; c++) {
-        if (isValidSpawn(grid, c, r)) {
-          return { col: c, row: r }
-        }
-      }
-    }
-
-    // Last resort: center of map
-    return { col: Math.floor(grid.cols / 2), row: Math.floor(grid.rows / 2) }
-  }
+  // Find where the player lands: the LARGEST walkable area, as near the target as it allows. Checking the one
+  // target cell was not enough — a cell between trees passes that and leads nowhere (spawn.ts has the why).
+  const findValidSpawn = (grid: IsometricGrid, targetCol: number, targetRow: number): { col: number; row: number } =>
+    spawnInMainArea((c, r) => isValidSpawn(grid, c, r), grid.cols, grid.rows, { col: targetCol, row: targetRow })
+      ?? { col: Math.floor(grid.cols / 2), row: Math.floor(grid.rows / 2) }
 
   // Check if a cell is valid for spawning (walkable ground, no blocking assets)
   const isValidSpawn = (grid: IsometricGrid, col: number, row: number): boolean => {
@@ -2522,6 +2496,8 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       __genStage?: (zone: string, variant: string, layout?: string, seed?: number) => Promise<{ buildings: number }>
       __countBuildings?: () => number
       __generatorsReady?: () => boolean
+      /** The LIVE player cell (the play-loop position, not the player entity marker). */
+      __playerCell?: () => { col: number; row: number }
       __randomizeLayer?: (layer: string) => { buildings: number }
       __randomizeSelected?: () => boolean
       __centerOn?: (col: number, row: number) => void
@@ -2675,6 +2651,9 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     // The generator catalog is FETCHED, so a validation harness must wait for it before generating — a
     // generate with no catalog plants nothing (by design) and would look like a broken generator.
     win.__generatorsReady = () => generatorCatalogRef.current.length > 0
+    // The cell the player actually stands in. The only other readout is painted onto the canvas, and the
+    // player ENTITY is a marker that WASD does not move, so neither can tell a validation run where you are.
+    win.__playerCell = () => livePlayerCell()
     // AWAITED, because a generate IS async: it composes the footprints it needs from the backend before it
     // stamps. These seams used to call it and count in the same breath, so they reported the count from
     // BEFORE the stamp — always 0 buildings on a fresh map. A validation seam that answers stale is worse
@@ -2968,7 +2947,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       setSelectedCells(new Set([`${best.col},${best.row}`]))
       return best
     }
-    return () => { delete win.__setArtStyle; delete win.__selectFirstTreeCell; delete win.__setView; delete win.__gridKinds; delete win.__entityInfo; delete win.__entityScreens; delete win.__selectEntity; delete win.__setEntitySize; delete win.__scatter; delete win.__selectedEntityInfo; delete win.__placeBuilding; delete win.__placeComposition; delete win.__armComposition; delete win.__cellSel; delete win.__selKeys; delete win.__marqueeKeys; delete win.__hoverCell; delete win.__selectCells; delete win.__applyCellTile; delete win.__clearRegion; delete win.__setDebug; delete win.__cellLabels; delete win.__stackAt; delete win.__camOffset; delete win.__stackAsset; delete win.__paletteTiles; delete win.__paintTile; delete win.__isoBlockScreen; delete win.__generatorsReady; delete win.__genVillage; delete win.__genStage; delete win.__randomizeLayer; delete win.__randomizeSelected; delete win.__centerOn; delete win.__setHero; delete win.__pickTileAt; delete win.__cellScreen; delete win.__tileCentroid; delete win.__tileHandles; delete win.__setShape; delete win.__setDisplay; delete win.__setLight; delete win.__recordedGeom; delete win.__collisionAudit }
+    return () => { delete win.__setArtStyle; delete win.__selectFirstTreeCell; delete win.__setView; delete win.__gridKinds; delete win.__entityInfo; delete win.__entityScreens; delete win.__selectEntity; delete win.__setEntitySize; delete win.__scatter; delete win.__selectedEntityInfo; delete win.__placeBuilding; delete win.__placeComposition; delete win.__armComposition; delete win.__cellSel; delete win.__selKeys; delete win.__marqueeKeys; delete win.__hoverCell; delete win.__selectCells; delete win.__applyCellTile; delete win.__clearRegion; delete win.__setDebug; delete win.__cellLabels; delete win.__stackAt; delete win.__camOffset; delete win.__stackAsset; delete win.__paletteTiles; delete win.__paintTile; delete win.__isoBlockScreen; delete win.__generatorsReady; delete win.__playerCell; delete win.__genVillage; delete win.__genStage; delete win.__randomizeLayer; delete win.__randomizeSelected; delete win.__centerOn; delete win.__setHero; delete win.__pickTileAt; delete win.__cellScreen; delete win.__tileCentroid; delete win.__tileHandles; delete win.__setShape; delete win.__setDisplay; delete win.__setLight; delete win.__recordedGeom; delete win.__collisionAudit }
   }, [])
 
   // ── Selected-entity inspector actions ─────────────────────────────
