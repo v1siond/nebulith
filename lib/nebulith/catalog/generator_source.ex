@@ -164,7 +164,10 @@ defmodule Nebulith.Catalog.GeneratorSource do
   }
 
   # The light dressing every outdoor map gets: flat ground tufts + a few standing blooms.
-  @outdoor_nature %{"groundCover" => 0.12, "flowers" => 0.06}
+  # `tallGrass` is the share of open floor standing in LONG GRASS, walkable, the kind Pokemon hides its
+  # encounters in (Alexander, 2026-09-11: *"we do need some type of walkable long grass too ... that long grass
+  # is walkable, we need variance like that too"*). A field is where you expect it most.
+  @outdoor_nature %{"groundCover" => 0.12, "flowers" => 0.06, "tallGrass" => 0.18}
 
   # A WOODLAND's densities. `canopy` is the share of cells carrying a tree, and it is the number that
   # makes a forest read as a forest. Alexander, 2026-09-09: *"the meadow is not a forest, it doesn't look
@@ -177,7 +180,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
   # were reading as a wall rather than as a wood — thinning them lets the clearings and trails breathe and
   # lets you see through the trunks. The density lives HERE, not in the generator, so tuning it is a data
   # change and not a code change.
-  @woodland_nature %{"groundCover" => 0.2, "flowers" => 0.04, "canopy" => 0.434}
+  @woodland_nature %{"groundCover" => 0.2, "flowers" => 0.04, "canopy" => 0.434, "tallGrass" => 0.12}
 
   # A JUNGLE is a woodland grown over: the canopy Alexander already accepted as forest-dense (the 0.62 the
   # woodland used to carry), plus the thing that actually distinguishes a jungle from a wood — UNDERGROWTH.
