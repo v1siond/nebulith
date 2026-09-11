@@ -70,11 +70,12 @@ defmodule Nebulith.GeneratorSourceTest do
       assert length(layouts) == 3
 
       for g <- cats["forest"].generators do
-        assert Enum.map(g.options, & &1["key"]) == ~w(river crossing), "#{g.key} offers #{inspect(g.options)}"
-        # Nothing runs by default: no river, and so no crossing either.
-        [river, crossing] = g.options
+        assert Enum.map(g.options, & &1["key"]) == ~w(river crossing bridge), "#{g.key} offers #{inspect(g.options)}"
+        # Nothing runs by default: no river, and so no crossing either, whatever kind it would be.
+        [river, crossing, kind] = g.options
         assert river["default"] == "none", "#{g.key} runs a river by default"
         assert crossing["default"] == false
+        assert kind["requires"] == "river"
       end
     end
 
@@ -82,7 +83,7 @@ defmodule Nebulith.GeneratorSourceTest do
       GeneratorSource.seed()
       woodland = Catalog.list_generator_categories() |> generator("forest", "forest_woodland")
 
-      [river, crossing] = woodland.options
+      [river, crossing, kind] = woodland.options
 
       # His next ticket was *"rivers need crossings connected to the paths"*. A crossing over dry ground is
       # nonsense, so the row says what it depends on and the editor greys the toggle out from the DATA.
@@ -90,11 +91,14 @@ defmodule Nebulith.GeneratorSourceTest do
       assert crossing["requires"] == "river"
       assert crossing["type"] == "toggle"
       assert river["type"] == "choice"
+      # the kind of crossing needs a river just the same
+      assert kind["requires"] == "river"
+      assert kind["type"] == "choice"
     end
 
     test "the river offers each COURSE he named, and random as one of them" do
       GeneratorSource.seed()
-      [river, _] = Catalog.list_generator_categories() |> generator("forest", "forest_woodland") |> Map.fetch!(:options)
+      [river | _] = Catalog.list_generator_categories() |> generator("forest", "forest_woodland") |> Map.fetch!(:options)
 
       # *"maybe it's traversable, maybe it's dividing the map in two half, maybe it's around the map"*, and
       # *"I want and think the randomness is good"* — random stays, as one choice among the courses.
@@ -144,6 +148,26 @@ defmodule Nebulith.GeneratorSourceTest do
       # is DARKER than the canopy above it. A temperate wood is the other way round.
       assert luminance(pal["jungle"]["floor"]) < luminance(pal["jungle"]["canopy"])
       assert luminance(pal["woodland"]["floor"]) > luminance(pal["woodland"]["canopy"])
+    end
+
+    test "every kind of crossing the river offers is served with the tile it lays" do
+      # Alexander, 2026-09-11: *"it can be a simple dirt path, it can be an actual bridge, which again, are
+      # multiple variations"*.
+      GeneratorSource.seed()
+      cats = Catalog.list_generator_categories() |> by_key()
+
+      for g <- cats["forest"].generators do
+        kind = Enum.find(g.options, &(&1["key"] == "bridge"))
+        assert kind, "#{g.key} offers no kind of crossing"
+        assert kind["requires"] == "river"
+        picks = Enum.map(kind["choices"], & &1["key"]) -- ["random"]
+        assert length(picks) >= 3, "#{g.key} offers #{inspect(picks)}, not a dirt path and several bridges"
+
+        for pick <- picks do
+          crossing = g.config["crossings"][pick]
+          assert is_binary(crossing["tile"]), "#{g.key} offers #{pick} but serves no tile for it"
+        end
+      end
     end
 
     test "water reads as WATER: blue that darkens with depth, and only swamp leans green" do

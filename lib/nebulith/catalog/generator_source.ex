@@ -67,8 +67,35 @@ defmodule Nebulith.Catalog.GeneratorSource do
       "type" => "toggle",
       "default" => false,
       "requires" => "river"
+    },
+    # WHAT the river is crossed on. Alexander, 2026-09-11: *"on the "bridges" that we use on rivers, we must have
+    # multiple variations too / it can be a simple dirt path, it can be an actual bridge, which again, are
+    # multiple variations"*. Each key is a row of @crossings, which says the tile it lays.
+    %{
+      "key" => "bridge",
+      "label" => "Kind of crossing",
+      "type" => "choice",
+      "default" => "random",
+      "requires" => "river",
+      "choices" => [
+        %{"key" => "random", "label" => "Random"},
+        %{"key" => "dirt", "label" => "Dirt path"},
+        %{"key" => "wood", "label" => "Wooden bridge"},
+        %{"key" => "planks", "label" => "Plank walkway"},
+        %{"key" => "stone", "label" => "Stone bridge"}
+      ]
     }
   ]
+
+  # The tile each kind of crossing lays over the water. A dirt path is the flat floor wearing the dirt path's
+  # colour (the floor rule: colour on the flat tile, textured tiles for the things that stand out). The bridges
+  # are the textured tiles, in the colour they come in, so each reads as its own material.
+  @crossings %{
+    "dirt" => %{"tile" => "floor", "colorOf" => "path_dirt"},
+    "wood" => %{"tile" => "bridge"},
+    "planks" => %{"tile" => "wooden_planks"},
+    "stone" => %{"tile" => "cobblestone"}
+  }
 
   # The default grid a non-city map rolls, and the cell geometry every map starts from.
   @small_grid %{
@@ -348,19 +375,19 @@ defmodule Nebulith.Catalog.GeneratorSource do
       %{
         category: "forest", key: "forest_woodland", name: "Woodland", layout: "woodland", position: 0,
         description: "Dense trees with clearings cut into them, joined by paths.",
-        config: %{"grid" => @small_grid, "nature" => @woodland_nature, "units" => townsfolk(3), "palette" => @woodland_palette, "formation" => @formations["stand"], "trees" => @woodland_trees},
+        config: %{"grid" => @small_grid, "nature" => @woodland_nature, "units" => townsfolk(3), "palette" => @woodland_palette, "formation" => @formations["stand"], "trees" => @woodland_trees, "crossings" => @crossings},
         options: @water_options
       },
       %{
         category: "forest", key: "forest_jungle", name: "Jungle", layout: "jungle", position: 1,
         description: "A closed canopy over choked undergrowth, with clearings cut into it.",
-        config: %{"grid" => @small_grid, "nature" => @jungle_nature, "units" => townsfolk(2), "palette" => @jungle_palette, "subZones" => @jungle_sub_zones, "formation" => @formations["closed"], "trees" => @jungle_trees},
+        config: %{"grid" => @small_grid, "nature" => @jungle_nature, "units" => townsfolk(2), "palette" => @jungle_palette, "subZones" => @jungle_sub_zones, "formation" => @formations["closed"], "trees" => @jungle_trees, "crossings" => @crossings},
         options: @water_options
       },
       %{
         category: "forest", key: "forest_meadow", name: "Meadow", layout: "meadow", position: 2,
         description: "An open clearing framed by trees, with two ways in.",
-        config: %{"grid" => @small_grid, "nature" => @outdoor_nature, "units" => townsfolk(5), "formation" => @formations["scattered"], "trees" => @meadow_trees, "palette" => @meadow_palette},
+        config: %{"grid" => @small_grid, "nature" => @outdoor_nature, "units" => townsfolk(5), "formation" => @formations["scattered"], "trees" => @meadow_trees, "palette" => @meadow_palette, "crossings" => @crossings},
         options: @water_options
       },
       # ── SUBTYPES ────────────────────────────────────────────────────────────────────────────────────

@@ -72,6 +72,20 @@ defmodule NebulithWeb.GeneratorControllerTest do
                  "type" => "toggle",
                  "default" => false,
                  "requires" => "river"
+               },
+               %{
+                 "key" => "bridge",
+                 "label" => "Kind of crossing",
+                 "type" => "choice",
+                 "default" => "random",
+                 "requires" => "river",
+                 "choices" => [
+                   %{"key" => "random", "label" => "Random"},
+                   %{"key" => "dirt", "label" => "Dirt path"},
+                   %{"key" => "wood", "label" => "Wooden bridge"},
+                   %{"key" => "planks", "label" => "Plank walkway"},
+                   %{"key" => "stone", "label" => "Stone bridge"}
+                 ]
                }
              ]
     end
