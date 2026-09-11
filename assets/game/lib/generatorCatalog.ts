@@ -200,6 +200,15 @@ export interface GeneratorDef {
   /** The SHAPE the user steers within a category ('meadow', 'meadow_river'), or null when the category
    *  offers only one generator and therefore no shape choice. */
   layout: string | null
+  /**
+   * WHICH ARCHETYPE this generator runs: 'town', 'city', 'forest', 'cave', 'temple'.
+   *
+   * The editor used to send the CATEGORY KEY to the engine as the variant, which only worked while every
+   * category held one kind. Alexander, 2026-09-11: *"City and town options are the same, it'd put them in a
+   * single category"*, so a row says what it runs. Null on a payload from before this existed, and the caller
+   * then falls back to the category key exactly as it used to.
+   */
+  variant: string | null
   /** The seasons this generator runs in — the season chips are the union of these. */
   zones: readonly string[]
   position: number
@@ -532,6 +541,7 @@ function parseGenerator(v: unknown): GeneratorDef | null {
     name,
     description: str(v.description) ?? null,
     layout: str(v.layout) ?? null,
+    variant: str(v.variant) ?? null,
     zones: strList(v.zones) ?? [],
     position: num(v.position) ?? 0,
     config: parseConfig(v.config),
