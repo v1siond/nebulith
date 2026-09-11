@@ -794,6 +794,39 @@ const layerRng = (seeds: GenerateOptions['seeds'], layer: EngineLayerId): Rng =>
   return seed === undefined ? Math.random : makeRng(seed)
 }
 
+/**
+ * A PLAIN COLOUR TO WORK ON: every cell the flat floor tile, one colour, and nothing else in it.
+ *
+ * Alexander, 2026-09-11: *"when you land on a new map, I see the grid base full of random tiles, It'd like to
+ * just have a solid color to work on, it can be brown, green like meadow, whatever, just don't use tiles at all,
+ * plain color grid base ready to edit"*. Landing on a new template used to lay down a whole generated town.
+ *
+ * The colour is the floor tile's OWN served colour, so this invents nothing: change it in the backend and every
+ * blank map follows. `variant` is inert here, a blank map carries no buildings, props or units for it to steer.
+ */
+export function blankStage(zone: ZoneId, cols: number, rows: number): StageData {
+  const floorColors = makeGrid<string | undefined>(cols, rows, () => undefined)
+  forEachCell(cols, rows, (col, row) => {
+    floorColors[row][col] = groundTileColor(FLAT_FLOOR, col, row) || undefined
+  })
+  return {
+    zone,
+    variant: 'town',
+    cols,
+    rows,
+    ground: makeGrid(cols, rows, () => FLAT_FLOOR),
+    collision: makeGrid(cols, rows, () => false),
+    buildings: [],
+    props: [],
+    trees: [],
+    compositions: [],
+    floorColors,
+    connectors: [],
+    spawn: { col: Math.floor(cols / 2), row: Math.floor(rows / 2) },
+    routes: null,
+  }
+}
+
 export function generateStage(opts: GenerateOptions): StageData {
   const { zone, variant } = opts
   const cols = opts.cols ?? 40

@@ -26,7 +26,7 @@ import { buildingCompositionKind, buildingPlaceLength, planComposition } from '@
 import { buildCompositionPalette, type CompositionPaletteGroup } from '@/engine/compositionCatalog'
 import { findTriggeredConnector, normalizeConnector } from '@/engine/connectors'
 import { entityPalette, punchTile, weaponEmoji, weaponGlyph, weaponPose } from '@/engine/entityArt'
-import { StageData, VariantId, type LayerId, type ForestLayout, generateStage, stagePaint, generatedPropRender } from '@/engine/stageGenerator'
+import { StageData, VariantId, type LayerId, type ForestLayout, blankStage, generateStage, stagePaint, generatedPropRender } from '@/engine/stageGenerator'
 import { type Action as TriggerAction, resolveAction } from '@/engine/triggers'
 import { stagePropTileOverride, ZoneId, rockShades, mushroomTones, zoneFlowers, defaultFlowers } from '@/engine/zones'
 import { varyIntensity } from '@/engine/colors'
@@ -5069,10 +5069,21 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       setConnectors([])
       setQuests([])
       setCellTriggers([])
-      // Lay down a fresh map with the REAL generator — the same one the ⚡ Generate menu drives. (This
-      // used to call a second, parallel generator with its own 35-preset catalog and 21 hardcoded colour
-      // themes, reachable ONLY from here; it was deleted with the rest of the hardcoded game data.)
-      generateStageInEditor(genZone, 'town')
+      // A PLAIN COLOUR TO WORK ON, not a generated world. Alexander, 2026-09-11: *"when you land on a new
+      // map, I see the grid base full of random tiles, It'd like to just have a solid color to work on, it can
+      // be brown, green like meadow, whatever, just don't use tiles at all, plain color grid base ready to
+      // edit"*. This used to generate a whole town here, which is what those random tiles were. The generate
+      // menu is still the way to lay a world down when you want one.
+      const fresh = gridRef.current
+      if (fresh) {
+        const blank = blankStage(genZone, fresh.cols, fresh.rows)
+        applyStageToGrid(blank, fresh)
+        movePlayerToValidSpawn(blank.spawn.col, blank.spawn.row)
+        const at = livePlayerCell()
+        syncPlayerEntity(at.col, at.row, true)
+        setEntities(prev => byKind(prev, 'player')) // a blank map has nobody on it yet
+        setSelectedCells(new Set())
+      }
       setTemplateName(`Template ${new Date().toLocaleDateString()}`)
     } else {
       // No id, not new → restore the user's LAST SAVED template (falls back to the gallery) and
