@@ -7,6 +7,7 @@ import type { Entity, Quest } from '@/game/types'
 import type { Animation } from '@/engine/animation/tileAnimation'
 import type { AssetLight } from '@/engine/tileset/tileset'
 import { NEBULITH_API } from './nebulithApi'
+import { apiFailure } from './apiError'
 import { unitStandLevel } from '@/engine/cellStack'
 
 export interface Connector {
@@ -135,18 +136,18 @@ export async function listTemplates(options: {
 
   const response = await fetch(`${API_BASE}?${params}`)
   if (!response.ok) {
-    throw new Error(`Failed to list templates: ${response.statusText}`)
+    throw await apiFailure(response, 'The map library could not be loaded')
   }
   return response.json()
 }
 
 export async function getTemplate(id: string): Promise<TemplateData> {
   const response = await fetch(`${API_BASE}/${id}`)
+  // The 404 is no longer singled out here: `ApiError` carries the status, so the CALLER decides what
+  // a missing map means. In the editor that is "this map is gone, here is the library", which is a
+  // different screen from "the backend is down" — a distinction a thrown sentence could not make.
   if (!response.ok) {
-    if (response.status === 404) {
-      throw new Error('Template not found')
-    }
-    throw new Error(`Failed to get template: ${response.statusText}`)
+    throw await apiFailure(response, 'This map could not be loaded')
   }
   return response.json()
 }
@@ -171,8 +172,7 @@ export async function createTemplate(input: CreateTemplateInput): Promise<Templa
     body: JSON.stringify(withTemplateDefaults(input)),
   })
   if (!response.ok) {
-    const error = await response.json().catch(() => ({}))
-    throw new Error(error.error || `Failed to create template: ${response.statusText}`)
+    throw await apiFailure(response, 'This map could not be saved')
   }
   return response.json()
 }
@@ -187,8 +187,7 @@ export async function updateTemplate(
     body: JSON.stringify(input),
   })
   if (!response.ok) {
-    const error = await response.json().catch(() => ({}))
-    throw new Error(error.error || `Failed to update template: ${response.statusText}`)
+    throw await apiFailure(response, 'This map could not be saved')
   }
   return response.json()
 }
@@ -198,8 +197,7 @@ export async function deleteTemplate(id: string): Promise<void> {
     method: 'DELETE',
   })
   if (!response.ok) {
-    const error = await response.json().catch(() => ({}))
-    throw new Error(error.error || `Failed to delete template: ${response.statusText}`)
+    throw await apiFailure(response, 'This map could not be deleted')
   }
 }
 
@@ -222,14 +220,14 @@ const GAMES_BASE = `${NEBULITH_API}/games`
 
 export async function listGames(): Promise<Game[]> {
   const res = await fetch(GAMES_BASE)
-  if (!res.ok) throw new Error(`Failed to list games: ${res.statusText}`)
+  if (!res.ok) throw await apiFailure(res, 'The game list could not be loaded')
   const data = await res.json()
   return data.games ?? []
 }
 
 export async function getGame(id: string): Promise<Game> {
   const res = await fetch(`${GAMES_BASE}/${id}`)
-  if (!res.ok) throw new Error(`Failed to get game: ${res.statusText}`)
+  if (!res.ok) throw await apiFailure(res, 'This game could not be loaded')
   return res.json()
 }
 
@@ -244,7 +242,7 @@ export async function createGame(input: {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(input),
   })
-  if (!res.ok) throw new Error(`Failed to create game: ${res.statusText}`)
+  if (!res.ok) throw await apiFailure(res, 'This game could not be created')
   return res.json()
 }
 
@@ -257,13 +255,13 @@ export async function updateGame(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(input),
   })
-  if (!res.ok) throw new Error(`Failed to update game: ${res.statusText}`)
+  if (!res.ok) throw await apiFailure(res, 'This game could not be saved')
   return res.json()
 }
 
 export async function deleteGame(id: string): Promise<void> {
   const res = await fetch(`${GAMES_BASE}/${id}`, { method: 'DELETE' })
-  if (!res.ok) throw new Error(`Failed to delete game: ${res.statusText}`)
+  if (!res.ok) throw await apiFailure(res, 'This game could not be deleted')
 }
 
 // ═══════════════════════════════════════════════════════════════════
