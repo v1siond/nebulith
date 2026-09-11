@@ -671,12 +671,18 @@ export function GenerateControls({
    * 2026-09-10: *"the preview panel on selection is not showing on generators"*. Built here so the small
    * picture and the big one can never disagree about which world they are showing.
    */
-  const presetSubject = (categoryKey: string, layoutId: string | undefined) => ({
+  const presetSubject = (categoryKey: string, layoutId: string | undefined, opts?: Record<string, boolean>) => ({
     kind: 'stage' as const,
     zone: zone as never,
     variant: categoryKey as never,
     layout: layoutId,
     nature: findGenerator(catalog, categoryKey, layoutId)?.config.nature,
+    // The preview has to be built from the SAME inputs the build uses, or it is a picture of a different
+    // map. Alexander, 2026-09-11: *"it's not clear how the extras modify the existing selected zone"* —
+    // it was not clear because the preview was not told about them.
+    options: opts,
+    palette: findGenerator(catalog, categoryKey, layoutId)?.config.palette,
+    subZones: findGenerator(catalog, categoryKey, layoutId)?.config.subZones,
     // Seeded from the preset's identity, so a card's picture is stable across renders and every card shows
     // a DIFFERENT world rather than all sharing one seed.
     seed: presetSeed(categoryKey, layoutId ?? 'default', zone),
@@ -702,22 +708,36 @@ export function GenerateControls({
    * no river is not a thing the generator can make. The rule comes from the backend's declaration, so the
    * panel never has to know that a crossing needs a river.
    */
-  const chosenOptions = (): Record<string, boolean> => {
+  /** Resolve a raw set of switches against what each option DECLARES it needs. One implementation, used by
+   *  the build and by the preview alike, so the picture can never be of a different world than the build. */
+  const enforceRequires = (raw: Record<string, boolean>): Record<string, boolean> => {
     const out: Record<string, boolean> = {}
     for (const opt of activeGenerator?.options ?? []) {
-      const on = optionOn(opt.key, opt.default)
+      const on = raw[opt.key] ?? opt.default
       out[opt.key] = opt.requires ? on && (out[opt.requires] ?? false) : on
     }
     return out
   }
+
+  const chosenOptions = (): Record<string, boolean> => enforceRequires(options)
 
   // Picking a map type or a shape only SELECTS it. §4.6: "clicking a map type selects it rather than
   // generating (today it generates immediately — a genuine 'why did my map just vanish' trap)".
   const select = (key: string, chosen?: string) => {
     setCategoryKey(key)
     if (chosen) setLayout(chosen)
-    onPeek?.(presetSubject(key, chosen))
+    onPeek?.(presetSubject(key, chosen, chosenOptions()))
   }
+
+  /**
+   * The world the panel should be showing when nobody is hovering anything — the SELECTED preset's.
+   *
+   * Alexander, 2026-09-11: *"preview only shows on hover is not kept on selection"*. Leaving a card used to
+   * clear the panel to null, so the picture only existed while the pointer sat on it and you could never
+   * look at the thing you had actually chosen. Hover is a peek at another option; this is the resting state.
+   */
+  const selectedSubject = () =>
+    activeKey === null ? null : presetSubject(activeKey, layouts.some(l => l.id === layout) ? layout ?? undefined : layouts[0]?.id, chosenOptions())
 
   // Generating is the explicit act. A type with no layouts sends `undefined` so the category's own default
   // generator runs; otherwise the picked shape, or that type's first when the user has not chosen one.
@@ -789,8 +809,8 @@ export function GenerateControls({
           <div className="pgrid">
             {presets.map(({ id, label }) => (
               <button
-                onPointerEnter={() => activeKey && onPeek?.(presetSubject(activeKey, id))}
-                onPointerLeave={() => onPeek?.(null as never)}
+                onPointerEnter={() => activeKey && onPeek?.(presetSubject(activeKey, id, chosenOptions()))}
+                onPointerLeave={() => onPeek?.(selectedSubject() as never)}
                 key={id ?? `${activeKey}-default`}
                 type="button"
                 onClick={() => select(activeKey as string, id)}
@@ -841,7 +861,13 @@ export function GenerateControls({
                   checked={!blocked && optionOn(opt.key, opt.default)}
                   disabled={blocked}
                   aria-label={opt.label}
-                  onChange={e => setOptions(prev => ({ ...prev, [opt.key]: e.target.checked }))}
+                  onChange={e => {
+                    const next = { ...options, [opt.key]: e.target.checked }
+                    setOptions(next)
+                    // Re-peek with the new setting so the panel SHOWS what the extra did. Built from `next`
+                    // rather than read back from state, because the state write has not landed yet.
+                    if (activeKey) onPeek?.(presetSubject(activeKey, layouts.some(l => l.id === layout) ? layout ?? undefined : layouts[0]?.id, enforceRequires(next)) as never)
+                  }}
                 />
               </label>
             )

@@ -1224,7 +1224,10 @@ const WOODLAND = {
   /** A clearing's radius range, in cells. */
   clearingRadius: [2, 5] as const,
   /** How wide a path through the trees is. Two cells so a unit never threads a one-cell gap. */
-  pathWidth: 2,
+  // Alexander, 2026-09-11: *"the paths through should be, at least 2-3 grid cells wide, in order to walk
+  // normally"*. It was 2, the bottom of what he asked for, and a 2-wide corridor with a tree leaning into it
+  // walks like a 1-wide one. 3 is the width you can actually move down.
+  pathWidth: 3,
 } as const
 
 /**
@@ -1806,10 +1809,14 @@ function traceJungleTrack(ctx: ArchetypeContext, from: Cell, to: Cell, open: Set
     const dr = to.row - row
     if (Math.abs(dc) > Math.abs(dr) ? ctx.rand() < 0.82 : ctx.rand() < 0.18) col += Math.sign(dc)
     else row += Math.sign(dr)
-    for (const [oc, or_] of [[0, 0], [1, 0], [0, 1]] as const) {
-      const c = col + oc
-      const r = row + or_
-      if (inBounds(c, r, cols, rows)) open.add(`${c},${r}`)
+    // Widened to the same minimum every other route uses. An animal track is the narrowest thing on the
+    // map and it still has to be walkable, which is the whole of his note.
+    for (let oc = 0; oc < WOODLAND.pathWidth; oc++) {
+      for (let or_ = 0; or_ < WOODLAND.pathWidth; or_++) {
+        const c = col + oc
+        const r = row + or_
+        if (inBounds(c, r, cols, rows)) open.add(`${c},${r}`)
+      }
     }
   }
 }

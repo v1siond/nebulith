@@ -106,6 +106,38 @@ describe('the woodland was thinned by ~30% (Alexander, 2026-09-09)', () => {
   })
 })
 
+describe('a path is wide enough to walk down', () => {
+  // Alexander, 2026-09-11: *"the paths through should be, at least 2-3 grid cells wide, in order to walk
+  // normally"*. They were 2, the bottom of that range, and a 2-wide corridor with a trunk leaning into it
+  // walks like a 1-wide one.
+
+  /** For every trail cell, the narrower of its horizontal and vertical trail run — the local corridor width.
+   *  Reported as the tightest PINCH on the map, because the narrowest point is what decides if you get through. */
+  const trailPinch = (stage: ReturnType<typeof build>): number => {
+    const tile = trailTile(stage)
+    const isTrail = (c: number, r: number) =>
+      r >= 0 && r < stage.rows && c >= 0 && c < stage.cols && stage.ground[r][c] === tile
+    const run = (c: number, r: number, dc: number, dr: number) => {
+      let n = 1
+      for (let k = 1; isTrail(c + dc * k, r + dr * k); k++) n++
+      for (let k = 1; isTrail(c - dc * k, r - dr * k); k++) n++
+      return n
+    }
+    let min = Infinity
+    for (let r = 0; r < stage.rows; r++) {
+      for (let c = 0; c < stage.cols; c++) {
+        if (!isTrail(c, r)) continue
+        min = Math.min(min, Math.min(run(c, r, 1, 0), run(c, r, 0, 1)))
+      }
+    }
+    return min
+  }
+
+  it.each([1, 2, 3, 4, 5])('seed %i never pinches a trail below 3 cells', seed => {
+    expect({ seed, pinch: trailPinch(build('woodland', WOODLAND, seed)) }).toEqual({ seed, pinch: 3 })
+  })
+})
+
 describe('woodland + river', () => {
   it('cuts a river through the trees and bridges it, so the wood is still one place', () => {
     const stage = build('woodland', WOODLAND, 1, { river: true })

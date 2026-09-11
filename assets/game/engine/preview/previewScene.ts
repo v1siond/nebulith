@@ -21,6 +21,7 @@
 import { IsometricGrid } from '@/engine/IsometricGrid'
 import { generateStage, type NatureDensity, type VariantId } from '@/engine/stageGenerator'
 import { applyStageToGrid } from '@/game/editor/applyStage'
+import { type GeneratorPalette, type GeneratorSubZone } from '@/lib/generatorCatalog'
 import { resolveComposition } from '@/engine/tileset/tileset'
 import { styleCatalog } from '@/engine/tileset/styleTiles'
 import { zonePalette, type ZoneId } from '@/engine/zones'
@@ -50,6 +51,17 @@ export type PreviewSubject =
       layout?: string
       /** The generator's nature densities — `canopy` is what makes a woodland thumbnail a woodland. */
       nature?: NatureDensity
+      /**
+       * The rest of what a build is fed — the switches, the colours, the regions.
+       *
+       * Alexander, 2026-09-11: *"it's not clear how the extras modify the existing selected zone"*. It was
+       * not clear because the preview was generated WITHOUT them, so a river you switched on changed the
+       * build and not the picture of it. A preview that is not fed the same inputs is a picture of a
+       * different map, which is worse than no picture.
+       */
+      options?: Record<string, boolean>
+      palette?: GeneratorPalette
+      subZones?: readonly GeneratorSubZone[]
       /** Fixed so a card's picture never re-rolls between renders. */
       seed: number
       cols: number
@@ -297,7 +309,7 @@ export function subjectFor(
  * world on every re-render and stops being a reference you can compare against the card next to it.
  */
 function buildStageScene(subject: Extract<PreviewSubject, { kind: 'stage' }>): PreviewScene | null {
-  const { zone, variant, layout, nature, seed, cols, rows } = subject
+  const { zone, variant, layout, nature, options, palette, subZones, seed, cols, rows } = subject
   const grid = new IsometricGrid({ cols, rows, cellSize: PREVIEW_CELL, isoScale: 2.5 })
   const stage = generateStage({
     zone,
@@ -306,6 +318,9 @@ function buildStageScene(subject: Extract<PreviewSubject, { kind: 'stage' }>): P
     cols,
     rows,
     nature,
+    options,
+    palette,
+    subZones,
     // Per-layer seeds derived from the one seed, exactly as the editor derives them, so the thumbnail is
     // the same world the button will build for that seed.
     seeds: { layout: seed, buildings: seed + 1, nature: seed + 2, decor: seed + 3 },
