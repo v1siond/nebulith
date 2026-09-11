@@ -673,7 +673,6 @@ export function GenerateControls({
   const [path, setPath] = useState<string[]>([])
   /** Regions the person unticked. The sub-zones existed before this but only as data nobody could see —
    *  *"I don't anything on the UI"*. */
-  const [regionsOff, setRegionsOff] = useState<ReadonlySet<string>>(new Set())
   const zones = catalogZones(catalog)
   // The first category is the flagship the menu opens on, until the user picks another.
   const activeKey = categoryKey ?? catalog[0]?.key ?? null
@@ -749,10 +748,6 @@ export function GenerateControls({
   /** The level set to Random, if any — resolved only when building, so each build rolls again. */
   const randomParent = path[chain.length - 1] === 'random' ? activeGenerator : undefined
 
-  /** The unticked regions as options the generator reads (`region:<key>: false`). */
-  const regionOptions = (off: ReadonlySet<string>): Record<string, GeneratorOptionValue> =>
-    Object.fromEntries([...off].map(key => [`region:${key}`, false]))
-
   /** Is this option on: what the person set, else what the backend declared as its default. */
   const optionValue = (key: string): GeneratorOptionValue | undefined =>
     options[key] ?? activeGenerator?.options.find(o => o.key === key)?.default
@@ -775,7 +770,7 @@ export function GenerateControls({
     return out
   }
 
-  const chosenOptions = (): Record<string, GeneratorOptionValue> => ({ ...enforceRequires(options), ...regionOptions(regionsOff) })
+  const chosenOptions = (): Record<string, GeneratorOptionValue> => enforceRequires(options)
 
   // Picking a map type or a shape only SELECTS it. §4.6: "clicking a map type selects it rather than
   // generating (today it generates immediately — a genuine 'why did my map just vanish' trap)".
@@ -784,7 +779,6 @@ export function GenerateControls({
     if (chosen) setLayout(chosen)
     // A different preset has different subtypes and regions, so the picks below it start over.
     setPath([])
-    setRegionsOff(new Set())
     onPeek?.(presetSubject(key, chosen, enforceRequires(options), undefined, peekCells()))
   }
 
@@ -883,8 +877,7 @@ export function GenerateControls({
             onChange={e => {
               const nextPath = [...path.slice(0, level), e.target.value]
               setPath(nextPath)
-              setRegionsOff(new Set())
-              const nextChain = walk(nextPath)
+                        const nextChain = walk(nextPath)
               if (activeKey) onPeek?.(presetSubject(activeKey, layouts.some(l => l.id === layout) ? layout ?? undefined : layouts[0]?.id, enforceRequires(options), nextChain[nextChain.length - 1], peekCells()) as never)
             }}
           >
@@ -895,32 +888,6 @@ export function GenerateControls({
         </div>
       ))}
       {activeGenerator?.description && chain.length > 1 && <div className="hint">{activeGenerator.description}</div>}
-
-      {/* THE REGIONS this map is split into — they existed as data and were invisible. Alexander, 2026-09-11:
-          *"in theory it's what I'm requesting up top, but I don't anything on the UI"*. */}
-      {(activeGenerator?.config.subZones?.length ?? 0) > 0 && (
-        <>
-          <div className="sub">Regions</div>
-          {activeGenerator?.config.subZones?.map(z => (
-            <label key={z.key} className="ctl">
-              <span className="l">{z.name ?? z.key}</span>
-              <input
-                type="checkbox"
-                checked={!regionsOff.has(z.key)}
-                aria-label={`Region: ${z.name ?? z.key}`}
-                onChange={e => {
-                  const next = new Set(regionsOff)
-                  if (e.target.checked) next.delete(z.key)
-                  else next.add(z.key)
-                  setRegionsOff(next)
-                  if (activeKey) onPeek?.(presetSubject(activeKey, layouts.some(l => l.id === layout) ? layout ?? undefined : layouts[0]?.id, { ...enforceRequires(options), ...regionOptions(next) }, activeGenerator, peekCells()) as never)
-                }}
-              />
-            </label>
-          ))}
-          <div className="hint">The regions this map is split into. Untick one to leave it out.</div>
-        </>
-      )}
 
       {/* THE VARIATIONS, as options rather than as extra rows in the list above. */}
       {(activeGenerator?.options.length ?? 0) > 0 && (
@@ -933,7 +900,7 @@ export function GenerateControls({
             const set = (value: GeneratorOptionValue) => {
               const next = { ...options, [opt.key]: value }
               setOptions(next)
-              if (activeKey) onPeek?.(presetSubject(activeKey, layouts.some(l => l.id === layout) ? layout ?? undefined : layouts[0]?.id, { ...enforceRequires(next), ...regionOptions(regionsOff) }, activeGenerator, peekCells()) as never)
+              if (activeKey) onPeek?.(presetSubject(activeKey, layouts.some(l => l.id === layout) ? layout ?? undefined : layouts[0]?.id, enforceRequires(next), activeGenerator, peekCells()) as never)
             }
             return (
               <label key={opt.key} className="ctl" style={blocked ? { opacity: 0.45 } : undefined}>

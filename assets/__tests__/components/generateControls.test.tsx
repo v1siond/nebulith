@@ -130,7 +130,8 @@ describe('picking is not building — §4.6\'s "why did my map just vanish" trap
     const [, second] = categoryLayouts(CATALOG, 'forest')
     fireEvent.click(preset(second.label))
     build()
-    expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', second.id, { exits: 'random', pathways: 'random', river: 'none', crossing: false, bridge: 'none' })
+    // `second` is the Jungle, and a jungle carries the region picker, so its build says which region leads.
+    expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', second.id, { exits: 'random', pathways: 'random', region: 'random', river: 'none', crossing: false, bridge: 'none' })
   })
 
   it('builds the category\'s FIRST preset when the kind was chosen but no preset was', () => {
@@ -271,28 +272,26 @@ describe('forest > type > subtype — pick one, go deeper, or randomize', () => 
     expect(onGenerate.mock.calls[0]).toHaveLength(4)
   })
 
-  it('a jungle LISTS the regions it is split into, and an unticked one is left out of the build', () => {
-    // *"in theory it's what I'm requesting up top, but I don't anything on the UI"* — the regions were data
-    // nobody could see.
+  it('a jungle offers the REGION that leads it, and forwards the one picked', () => {
+    // *"we should just have variations, similar to "which jungle" "which region""*: a picker, not tick boxes.
     const onGenerate = setup()
     fireEvent.change(kinds(), { target: { value: 'forest' } })
     fireEvent.click(preset('Jungle'))
-    expect(screen.getAllByLabelText(/^Region: /).map(e => e.getAttribute('aria-label'))).toEqual([
-      'Region: Open canopy', 'Region: Dense growth', 'Region: Swamp', 'Region: Ruins',
-    ])
-    fireEvent.click(screen.getByLabelText('Region: Swamp'))
+    const region = screen.getByLabelText(/^region$/i) as HTMLSelectElement
+    expect([...region.options].map(o => o.value)).toEqual(['random', 'open', 'dense', 'swamp', 'ruins'])
+
+    fireEvent.change(region, { target: { value: 'swamp' } })
     build()
-    expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', 'jungle', { exits: 'random', pathways: 'random', river: 'none', crossing: false, bridge: 'none', 'region:swamp': false })
+    expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', 'jungle', { exits: 'random', pathways: 'random', region: 'swamp', river: 'none', crossing: false, bridge: 'none' })
   })
 
-  it('a subtype brings its own regions — a super dense jungle is barely anything but dense growth', () => {
+  it('a subtype offers only the regions it carries', () => {
     setup()
     fireEvent.change(kinds(), { target: { value: 'forest' } })
     fireEvent.click(preset('Jungle'))
     fireEvent.change(which('jungle'), { target: { value: 'forest_jungle_dense' } })
-    expect(screen.getAllByLabelText(/^Region: /).map(e => e.getAttribute('aria-label'))).toEqual([
-      'Region: Open canopy', 'Region: Dense growth',
-    ])
+    const region = screen.getByLabelText(/^region$/i) as HTMLSelectElement
+    expect([...region.options].map(o => o.value)).toEqual(['random', 'open', 'dense'])
   })
 })
 

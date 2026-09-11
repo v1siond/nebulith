@@ -1357,6 +1357,34 @@
             {
               "choices": [
                 {
+                  "key": "random",
+                  "label": "Random"
+                },
+                {
+                  "key": "open",
+                  "label": "Open canopy"
+                },
+                {
+                  "key": "dense",
+                  "label": "Dense growth"
+                },
+                {
+                  "key": "swamp",
+                  "label": "Swamp"
+                },
+                {
+                  "key": "ruins",
+                  "label": "Ruins"
+                }
+              ],
+              "default": "random",
+              "key": "region",
+              "label": "Region",
+              "type": "choice"
+            },
+            {
+              "choices": [
+                {
                   "key": "none",
                   "label": "No river"
                 },
@@ -1629,6 +1657,26 @@
                   "default": "random",
                   "key": "pathways",
                   "label": "Pathways",
+                  "type": "choice"
+                },
+                {
+                  "choices": [
+                    {
+                      "key": "random",
+                      "label": "Random"
+                    },
+                    {
+                      "key": "open",
+                      "label": "Open canopy"
+                    },
+                    {
+                      "key": "dense",
+                      "label": "Dense growth"
+                    }
+                  ],
+                  "default": "random",
+                  "key": "region",
+                  "label": "Region",
                   "type": "choice"
                 },
                 {
@@ -1948,6 +1996,30 @@
                 {
                   "choices": [
                     {
+                      "key": "random",
+                      "label": "Random"
+                    },
+                    {
+                      "key": "open",
+                      "label": "Open canopy"
+                    },
+                    {
+                      "key": "dense",
+                      "label": "Dense growth"
+                    },
+                    {
+                      "key": "swamp",
+                      "label": "Swamp"
+                    }
+                  ],
+                  "default": "random",
+                  "key": "region",
+                  "label": "Region",
+                  "type": "choice"
+                },
+                {
+                  "choices": [
+                    {
                       "key": "none",
                       "label": "No river"
                     },
@@ -2217,6 +2289,26 @@
                   "default": "random",
                   "key": "pathways",
                   "label": "Pathways",
+                  "type": "choice"
+                },
+                {
+                  "choices": [
+                    {
+                      "key": "random",
+                      "label": "Random"
+                    },
+                    {
+                      "key": "open",
+                      "label": "Open canopy"
+                    },
+                    {
+                      "key": "dense",
+                      "label": "Dense growth"
+                    }
+                  ],
+                  "default": "random",
+                  "key": "region",
+                  "label": "Region",
                   "type": "choice"
                 },
                 {
@@ -2535,6 +2627,30 @@
                   "default": "random",
                   "key": "pathways",
                   "label": "Pathways",
+                  "type": "choice"
+                },
+                {
+                  "choices": [
+                    {
+                      "key": "random",
+                      "label": "Random"
+                    },
+                    {
+                      "key": "open",
+                      "label": "Open canopy"
+                    },
+                    {
+                      "key": "dense",
+                      "label": "Dense growth"
+                    },
+                    {
+                      "key": "ruins",
+                      "label": "Ruins"
+                    }
+                  ],
+                  "default": "random",
+                  "key": "region",
+                  "label": "Region",
                   "type": "choice"
                 },
                 {

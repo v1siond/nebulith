@@ -92,10 +92,13 @@ describe('a template that serves no mix keeps the old shared table', () => {
   })
 })
 
-describe('a region left UNTICKED in the panel is left out of the map', () => {
-  it('the jungle with its swamp unticked grows no cypress', () => {
+describe('the region you PICK leads the map', () => {
+  // Alexander, 2026-09-11: *"on jungle we have "regions" in it, but it's badly implemented, we should just have
+  // variations, similar to "which jungle" "which region""*. Ticking a region OUT is gone, so what there is to
+  // measure is EMPHASIS: the region you pick dominates, and the others are still in there.
+  it('a jungle led by its swamp grows more cypress than one led by open canopy', () => {
     const config = findGenerator(CATALOG, 'forest', 'jungle')!.config
-    const build = (options: Record<string, boolean>) => {
+    const build = (options: Record<string, string>) => {
       const orig = Math.random
       Math.random = makeRng(7)
       try {
@@ -105,7 +108,11 @@ describe('a region left UNTICKED in the panel is left out of the map', () => {
         Math.random = orig
       }
     }
-    expect(build({}).trees.some(t => t.kind === 'tree_cypress')).toBe(true)
-    expect(build({ 'region:swamp': false }).trees.some(t => t.kind === 'tree_cypress')).toBe(false)
+    const cypress = (options: Record<string, string>) => build(options).trees.filter(t => t.kind === 'tree_cypress').length
+
+    expect(cypress({})).toBeGreaterThan(0) // the served weights already carry a swamp
+    expect(cypress({ region: 'swamp' })).toBeGreaterThan(cypress({ region: 'open' }))
+    // and the swamp is still THERE when another region leads: a lead is a weight, not an exclusion
+    expect(cypress({ region: 'open' })).toBeGreaterThan(0)
   })
 })

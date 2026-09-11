@@ -1695,9 +1695,9 @@ function layoutJungle(ctx: ArchetypeContext, opts: ForestBuild = {}): void {
   // 0b · THE REGIONS. A jungle is not one uniform density, it is several kinds of ground you walk between —
   //      open canopy, dense growth, swamp, ruins. Served by the backend, so which regions exist and how much
   //      of the map each claims is data. Absent → one uniform jungle, exactly as before.
-  // A region the person UNTICKED is left out — the sub-zones are steerable from the panel now (Alexander,
-  // 2026-09-11: *"I don't anything on the UI"*). All of them off is simply one uniform jungle.
-  const zones = (ctx.subZones ?? []).filter(z => ctx.options?.[`region:${z.key}`] !== false)
+  // The region the person picked LEADS this map (Alexander, 2026-09-11: *"on jungle we have "regions" in it,
+  // but it's badly implemented, we should just have variations, similar to "which jungle" "which region""*).
+  const zones = leadRegion(ctx, ctx.subZones)
   const zoneAt = partitionSubZones(ctx, zones)
   paintSubZoneFloors(ctx, zoneAt)
 
@@ -1982,6 +1982,27 @@ function fellLogsAcross(ctx: ArchetypeContext, water: Set<string>, pal: Generato
  *
  * Seeds are drawn by WEIGHT, so the served numbers decide how much of the map each kind tends to claim.
  */
+/**
+ * How much heavier the region you PICKED is than the weights the generator serves.
+ *
+ * `partitionSubZones` hands one seed to every kind first and draws the rest by weight, so multiplying the
+ * lead's weight makes it dominate the map WITHOUT deleting the others: a swamp-led jungle is mostly swamp with
+ * dense growth and open canopy still in it, which is what a region you pick should mean.
+ */
+const REGION_LEAD = 5
+
+/**
+ * The served regions, with the picked one weighted up. `random` or nothing picked leaves the served weights
+ * exactly as they are, and a key this template does not carry is ignored rather than guessed at.
+ */
+function leadRegion(ctx: ArchetypeContext, zones: readonly GeneratorSubZone[] | undefined): readonly GeneratorSubZone[] {
+  const served = zones ?? []
+  const picked = ctx.options?.region
+  if (typeof picked !== 'string' || picked === 'random' || picked === '') return served
+  if (!served.some(z => z.key === picked)) return served
+  return served.map(z => (z.key === picked ? { ...z, weight: z.weight * REGION_LEAD } : z))
+}
+
 function partitionSubZones(ctx: ArchetypeContext, zones: readonly GeneratorSubZone[]): (GeneratorSubZone | undefined)[][] {
   const { cols, rows } = ctx
   const map: (GeneratorSubZone | undefined)[][] = Array.from({ length: rows }, () => new Array(cols).fill(undefined))
