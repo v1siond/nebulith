@@ -8,7 +8,8 @@ import { abilityTint } from '@/game/abilityArt'
 import { ENEMY_ATTACK_PRESETS, addEnemyAttack, buildAttackPattern, defaultEnemyAttack, enemyAttackFromAbility, normalizeAttackPattern, removeEnemyAttack, setAttackPatternMode, updateEnemyAttack } from '@/game/patterns'
 import { rewardSummary } from '@/game/runtime/quest'
 import { isAttackable } from '@/game/runtime/capabilities'
-import { type AttackMode, type AttackPattern, type AttackPatternMode, type EnemyAttack, type Entity, type EntityKind, type Quest } from '@/game/types'
+import { type AttackMode, type AttackPattern, type AttackPatternMode, type DialogKind, type DialogSituation, type EnemyAttack, type Entity, type EntityKind, type Quest, type QuestState, type UnitDialog } from '@/game/types'
+import { DIALOG_KIND_LABEL, DIALOG_SITUATIONS, QUEST_STATE_LABEL, newDialog } from '@/game/runtime/dialog'
 import { QuestObjectives } from '@/components/game/hud'
 import { TileControls, type TileControlModel } from '@/components/game/editorChrome'
 import { SwapTilePanel } from '@/components/game/shell/SwapTilePanel'
@@ -401,11 +402,13 @@ export function buildUnitModel(entity: Entity, open: UnitCardOpeners): UnitContr
  * extra action???"* stops applying here too), the name and size sit under it, and the stats are in the same
  * window rather than beside it.
  */
-export function CharacterWindow({ entity, styleId, fromLabel, onPatch, onSize, onSwap }: {
+export function CharacterWindow({ entity, styleId, fromLabel, onPatch, onSize, onSwap, quests = [] }: {
   entity: Entity
   styleId: string
   /** The figure currently in the slot, for the swap panel's BEFORE picture. */
   fromLabel: string | null
+  /** The level's quests, so a dialog can be tied to one. */
+  quests?: readonly Quest[]
   onPatch: (patch: Partial<Entity>) => void
   onSize?: (size: number) => void
   onSwap: (tile: TileDef) => void
@@ -430,6 +433,10 @@ export function CharacterWindow({ entity, styleId, fromLabel, onPatch, onSize, o
           onCancel={() => {}}
         />
       </div>
+      <div className="border-t border-white/10 pt-2">
+        <p className="mb-1.5 text-[9px] font-bold uppercase tracking-wider text-gray-500">Dialogs</p>
+        <UnitDialogsSection dialogs={entity.dialogs ?? []} quests={quests} onChange={dialogs => onPatch({ dialogs })} />
+      </div>
     </div>
   )
 }
@@ -438,6 +445,62 @@ export function CharacterWindow({ entity, styleId, fromLabel, onPatch, onSize, o
  *  is bigger AND tougher; `resizeEntityById` rescales the stat block by the same ratio). The old FIGURE
  *  (neutral/male/female/old/child/alien/robot) row is GONE: a unit is a tile, so its art is swapped with the
  *  card's regular "Replace tile" button, which lists the character tiles like any other tile. */
+/**
+ * WHAT THIS UNIT SAYS, as many dialogs as it needs. Alexander, 2026-09-11: *"each unit has many dialogs, some
+ * dialogs are linked to quests, others are static and others are event of situational based"*. Each dialog is its
+ * lines (one per line) and what it waits for: nothing, a quest in a given state, or a situation.
+ */
+export function UnitDialogsSection({ dialogs, quests, onChange }: {
+  dialogs: readonly UnitDialog[]
+  quests: readonly Quest[]
+  onChange: (next: UnitDialog[]) => void
+}) {
+  const update = (id: string, patch: Partial<UnitDialog>) => onChange(dialogs.map(d => (d.id === id ? { ...d, ...patch } : d)))
+  const retype = (id: string, kind: DialogKind) => onChange(dialogs.map(d => (d.id === id ? { ...newDialog(kind, d.id), lines: d.lines } : d)))
+  return (
+    <div className="space-y-2">
+      {dialogs.length === 0 && <p className="text-[11px] text-gray-500">Says nothing yet.</p>}
+      {dialogs.map((d, n) => (
+        <div key={d.id} className="space-y-1 rounded bg-gray-900/60 p-1.5" aria-label={`Dialog ${n + 1}`}>
+          <div className="flex items-center gap-1">
+            <select value={d.kind} onChange={e => retype(d.id, e.target.value as DialogKind)} aria-label={`Dialog ${n + 1} kind`} className="min-w-0 flex-1 rounded bg-gray-800 p-1 text-xs">
+              {(Object.keys(DIALOG_KIND_LABEL) as DialogKind[]).map(k => <option key={k} value={k}>{DIALOG_KIND_LABEL[k]}</option>)}
+            </select>
+            <button type="button" onClick={() => onChange(dialogs.filter(x => x.id !== d.id))} aria-label={`Remove dialog ${n + 1}`} className="rounded bg-gray-700 px-2 py-0.5 text-gray-300 hover:bg-red-800">✕</button>
+          </div>
+          {d.kind === 'quest' && (
+            <div className="flex gap-1">
+              <select value={d.questId ?? ''} onChange={e => update(d.id, { questId: e.target.value || undefined })} aria-label={`Dialog ${n + 1} quest`} className="min-w-0 flex-1 rounded bg-gray-800 p-1 text-xs">
+                <option value="">{quests.length === 0 ? 'No quests on this level yet' : 'Pick a quest'}</option>
+                {quests.map(q => <option key={q.id} value={q.id}>{q.title}</option>)}
+              </select>
+              <select value={d.questState ?? 'available'} onChange={e => update(d.id, { questState: e.target.value as QuestState })} aria-label={`Dialog ${n + 1} quest state`} className="min-w-0 flex-1 rounded bg-gray-800 p-1 text-xs">
+                {(Object.keys(QUEST_STATE_LABEL) as QuestState[]).map(s => <option key={s} value={s}>{QUEST_STATE_LABEL[s]}</option>)}
+              </select>
+            </div>
+          )}
+          {d.kind === 'situational' && (
+            <select value={d.situation ?? 'night'} onChange={e => update(d.id, { situation: e.target.value as DialogSituation })} aria-label={`Dialog ${n + 1} situation`} className="w-full rounded bg-gray-800 p-1 text-xs">
+              {(Object.keys(DIALOG_SITUATIONS) as DialogSituation[]).map(s => <option key={s} value={s}>{DIALOG_SITUATIONS[s].label}</option>)}
+            </select>
+          )}
+          <textarea
+            value={d.lines.join('\n')}
+            onChange={e => update(d.id, { lines: e.target.value.split('\n') })}
+            rows={2}
+            placeholder="One line per line. They are said in order."
+            aria-label={`Dialog ${n + 1} lines`}
+            className="w-full rounded bg-gray-800 p-1 text-xs"
+          />
+        </div>
+      ))}
+      <button type="button" onClick={() => onChange([...dialogs, newDialog('static', `dlg-${Date.now().toString(36)}-${dialogs.length}`)])} className="w-full rounded bg-gray-700 px-2 py-1 text-gray-200 hover:bg-gray-600">
+        + Add a dialog
+      </button>
+    </div>
+  )
+}
+
 function UnitIdentityRows({ entity, onPatch, onSize }: { entity: Entity; onPatch: (patch: Partial<Entity>) => void; onSize?: (size: number) => void }) {
   return (
     <div className="space-y-1.5">

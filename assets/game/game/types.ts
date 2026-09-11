@@ -302,6 +302,8 @@ export interface Entity {
    *  unit's settings panel like a tile's; round-trips via the entity codec. NOTE: the unit RENDERER does not
    *  read this yet — pose-honoring on units is the broader unit/tile render-parity work (#35). */
   pose?: TilePose
+  /** everything this unit can say (see UnitDialog). Rides the entity codec like every other field. */
+  dialogs?: UnitDialog[]
   /** the unit's worn gear + bag + special slots + shortcuts — the SAME `Loadout` the equipment panel edits
    *  (game/loadout.ts). EVERY unit carries one ("units are tiles with extra stuff; what a unit HAS is data")
    *  and it PERSISTS on the entity, so equip / unequip / drop / reorder survive a reload EXACTLY, including
@@ -336,6 +338,29 @@ export interface Reward {
 }
 
 export type QuestState = 'available' | 'active' | 'completed' | 'turned_in'
+
+/**
+ * WHAT A UNIT SAYS. Alexander, 2026-09-11: *"on units we need to have a dialog system, each unit has many dialogs,
+ * some dialogs are linked to quests, others are static and others are event of situational based"*.
+ *
+ *  · static      what it says any time
+ *  · quest       what it says about ONE quest while that quest is in a given state
+ *  · situational what it says while a situation holds (see DIALOG_SITUATIONS in runtime/dialog.ts)
+ */
+export type DialogKind = 'static' | 'quest' | 'situational'
+/** The situations a dialog can wait for: the world state the engine actually tracks today. */
+export type DialogSituation = 'day' | 'night' | 'rain' | 'clear'
+export interface UnitDialog {
+  id: string
+  kind: DialogKind
+  /** Said in order, one line after another. */
+  lines: string[]
+  /** quest dialogs: which quest, and the state it has to be in. */
+  questId?: string
+  questState?: QuestState
+  /** situational dialogs: the situation that has to hold. */
+  situation?: DialogSituation
+}
 export interface Quest {
   id: string
   giverId: string

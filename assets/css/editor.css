@@ -432,7 +432,9 @@
   border-bottom:1px dotted #ffffff12;padding-bottom:2px}
 .neb .carry i b{color:var(--dim);font-weight:400}
 .neb .carry i span{color:#cdd5e4}
-.neb .swapg{max-height:190px;grid-template-columns:repeat(auto-fill,minmax(62px,1fr))!important}
+/* The figure grid scrolls inside its cap. Without overflow the swatches past 190px painted over whatever came
+   next and took its clicks: a unit's "+ Add a dialog" picked a figure instead. */
+.neb .swapg{max-height:190px;overflow-y:auto;grid-template-columns:repeat(auto-fill,minmax(62px,1fr))!important}
 
 /* item / power faces — a real picture where one exists, and an honest hole where one does not */
 .neb .slot2 .sface{display:flex;align-items:center;gap:8px;min-width:0}

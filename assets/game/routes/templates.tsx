@@ -44,6 +44,7 @@ import { moveWorldDelta } from '@/game/runtime/cameraMovement'
 import { MOVE_KEYS, isTypingTarget, matchEditorAction, type EditorActionId } from '@/game/shortcuts'
 import { nextLevelName } from '@/game/autoNaming'
 import { activeQuest, applyQuestEvent, questAnchorScreenPos, questForGiver, reachableQuestGiver, rewardSummary, upsertQuest } from '@/game/runtime/quest'
+import { reachableSpeaker } from '@/game/runtime/dialog'
 import { type EnemyRuntime, isLivingEnemy, makeEnemyRuntime, RANGED_RANGE } from '@/game/runtime/targeting'
 import { ENEMY_TYPES, scatterEntities } from '@/game/spawner'
 import { type CombatState, type Entity, type EntityKind, type Inventory, type Loadout, type MovementPattern, type Quest, type Reward, type Stats, type TalentPath, type Weapon } from '@/game/types'
@@ -350,6 +351,8 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   // message popup. Null = hidden. The loop sets these through refs (latest closure).
   const [endState, setEndState] = useState<'win' | 'lose' | null>(null)
   const [triggerMessage, setTriggerMessage] = useState<string | null>(null)
+  /** What a unit is saying right now (runtime/dialog.ts), shown until closed. */
+  const [dialogShown, setDialogShown] = useState<{ speaker: string; lines: string[] } | null>(null)
 
   // Entity placement state (player / enemies / NPCs). The game loop is mounted
   // once and reads through a ref, so entities mirror to entitiesRef like connectors.
@@ -3169,15 +3172,17 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       }
     }
     const giver = reachableQuestGiver(entitiesRef.current, pCol, pRow)
-    if (!giver) return
-    const quest = questForGiver(questsRef.current, giver)
-    if (!quest) return
+    const quest = giver ? questForGiver(questsRef.current, giver) : null
     // available → open the OFFER modal (anchored above the giver) instead of
     // instant-accepting, so the player can read it and Accept/Reject (re-askable).
-    if (quest.state === 'available') return setQuestGiveModal({ giverId: giver.id, anchor: questGiverAnchor(giver) })
-    if (quest.state === 'completed') return turnInGiverQuest(quest)
+    if (giver && quest?.state === 'available') return setQuestGiveModal({ giverId: giver.id, anchor: questGiverAnchor(giver) })
+    if (quest?.state === 'completed') return turnInGiverQuest(quest)
+    // THEN WHAT ANYONE NEAR HAS TO SAY (runtime/dialog.ts): the most specific dialog that applies right now. A
+    // quest-giver's own dialog about the quest in progress says more than the generic reminder, so it goes first.
+    const talk = reachableSpeaker(entitiesRef.current, pCol, pRow, { quests: questsRef.current, dayNight: dayNightRef.current, weather: weatherRef.current })
+    if (talk) return setDialogShown({ speaker: talk.unit.name?.trim() || talk.unit.kind, lines: talk.dialog.lines.filter(l => l.trim() !== '') })
     // active (not yet complete) or already turned_in — nothing to do but remind.
-    if (quest.state === 'active') toast(`In progress: ${quest.title}`, 'info')
+    if (quest?.state === 'active') toast(`In progress: ${quest.title}`, 'info')
   }, [])
 
   // Project the giver's cell to a screen point ABOVE the figure for the offer modal,
@@ -5262,6 +5267,14 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
         )}
 
         {/* Trigger message popup — a small dismissible text box (show message action). */}
+        {/* WHAT A UNIT SAYS (runtime/dialog.ts), beside the trigger message and closed the same way. */}
+        {dialogShown !== null && (
+          <div className="absolute bottom-24 left-1/2 z-40 -translate-x-1/2 rounded-lg border border-white/15 bg-gray-900/95 p-3 shadow-xl" role="dialog" aria-label={`${dialogShown.speaker} says`}>
+            <p className="mb-1 text-xs font-bold uppercase tracking-wider text-cyan-300">{dialogShown.speaker}</p>
+            {dialogShown.lines.map((line, i) => <p key={i} className="max-w-sm text-sm text-gray-100">{line}</p>)}
+            <button type="button" onClick={() => setDialogShown(null)} className="mt-2 rounded bg-gray-700 px-2 py-0.5 text-xs text-gray-200 hover:bg-gray-600">Close</button>
+          </div>
+        )}
         {triggerMessage !== null && (
           <div className="fixed bottom-24 left-1/2 z-40 -translate-x-1/2 rounded-lg border border-white/15 bg-black/90 px-4 py-3 font-mono shadow-lg shadow-black/50">
             <div className="flex items-start gap-3">
@@ -5874,6 +5887,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                             onPatch={patchSelectedEntity}
                             onSize={setSelectedEntitySize}
                             onSwap={(tile: TileDef) => setSelectionOverride(tile.id)}
+                            quests={quests}
                           />
                         }
                         // Clear tiles targets the cell the unit STANDS on, through the same primitive a cell

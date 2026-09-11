@@ -93,7 +93,7 @@ export function reachableQuestGiver(entities: readonly Entity[], pCol: number, p
 }
 
 /** Player's own cell first (talk while standing on it), then the 8 neighbours. */
-const QUEST_REACH_DELTAS: ReadonlyArray<readonly [number, number]> = [
+export const QUEST_REACH_DELTAS: ReadonlyArray<readonly [number, number]> = [
   [0, 0],
   [0, -1], [0, 1], [-1, 0], [1, 0],
   [-1, -1], [1, 1], [-1, 1], [1, -1],
