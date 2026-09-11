@@ -144,6 +144,45 @@ defmodule Nebulith.Catalog.GeneratorSource do
     "trail" => "#57502f"
   }
 
+  # HOW THE TREES ARE DISTRIBUTED. Alexander, 2026-09-11: *"we need more variants of trees distribution too,
+  # or formations, like right now all forest variations kind of follow the same type oof tree grouping, but
+  # just there's different forests types, there's different ways in which trees and nature is distributed
+  # across these zones"*, with six reference photographs.
+  #
+  # Two numbers do most of the work:
+  #
+  #   * `lattice` — the scale of the noise the canopy is scored against, in cells. SMALL means the score
+  #     changes every few cells, so trees land as fine scatter. LARGE means neighbouring cells score alike,
+  #     so they land as big continuous masses. This is the "grouping" he is describing.
+  #   * `spacing` — the minimum gap between two trunks. 0 lets them touch and read as a wall; 3 forces the
+  #     open, individually-readable spacing of a wood pasture. NEVER 1: claiming only the four orthogonal
+  #     neighbours leaves a CHECKERBOARD, which is passable diagonally (the iso view's movement) but not
+  #     orthogonally (the top view's), so the floor measures as hundreds of regions and the repair has to cut
+  #     through the whole wood to fix it. Measured at 308 regions on one seed. 0 or 2+, never 1.
+  #
+  # `understory` multiplies the served ground cover, because how choked the floor is between the trunks is
+  # the other half of what tells two forests apart.
+  #
+  # Each of these is one of his photographs:
+  @formations %{
+    # Image #10 — a wood pasture. Big gnarled trees standing alone on open grass, wide apart, nothing
+    # between them. The trees are individuals, not a canopy.
+    "scattered" => %{"lattice" => 3, "spacing" => 4, "understory" => 0.35},
+    # Image #11 — an even-aged beech stand. Straight trunks at regular spacing, a clear walkable floor, and
+    # a broad track through it. Ordered rather than clumped.
+    "stand" => %{"lattice" => 5, "spacing" => 2, "understory" => 0.45},
+    # Image #12 — conifers scattered in patches over an open hillside. Clear ground between the groups, so
+    # a large lattice (real clumps) but a low overall density.
+    "clumped" => %{"lattice" => 10, "spacing" => 0, "understory" => 0.6},
+    # Image #14 — a closed canopy seen from across the valley. Wall to wall, no floor visible anywhere.
+    "closed" => %{"lattice" => 13, "spacing" => 0, "understory" => 1.25},
+    # Image #15 — tall dense trunks over deep green undergrowth, with a narrow trail winding through. The
+    # canopy is not the hard part here, the floor is.
+    "understory" => %{"lattice" => 7, "spacing" => 0, "understory" => 1.9},
+    # Image #13 — cypress standing IN the water, well apart, buttressed bases. Spaced like a pasture but wet.
+    "flooded" => %{"lattice" => 5, "spacing" => 3, "understory" => 0.7}
+  }
+
   # THE JUNGLE'S SUB-ZONES. Alexander, 2026-09-10: *"the generator shoudl be smart enough to identify
   # different patterns of jungles for example, open zones, dense zones, zones with swamp, zone with river,
   # zone with cave, zone with ruins"*, and 2026-09-11 on the shape: REGIONS INSIDE ONE MAP, not more rows in
@@ -163,7 +202,9 @@ defmodule Nebulith.Catalog.GeneratorSource do
       "weight" => 3,
       "canopy" => 0.45,
       "undergrowth" => 0.5,
-      "floor" => "#3f5f33"
+      "floor" => "#3f5f33",
+      # an open region reads as individual trees on visible ground — his image #12
+      "formation" => %{"lattice" => 9, "spacing" => 3, "understory" => 0.5}
     },
     %{
       "key" => "dense",
@@ -171,7 +212,9 @@ defmodule Nebulith.Catalog.GeneratorSource do
       "name" => "Dense growth",
       "canopy" => 1.3,
       "undergrowth" => 1.45,
-      "floor" => "#24381f"
+      "floor" => "#24381f",
+      # wall to wall, nothing between — his image #14
+      "formation" => %{"lattice" => 13, "spacing" => 0, "understory" => 1.3}
     },
     %{
       "key" => "swamp",
@@ -181,7 +224,9 @@ defmodule Nebulith.Catalog.GeneratorSource do
       "undergrowth" => 1.1,
       "floor" => "#3b4a2e",
       # the share of the zone that stands under water — pools, not a channel
-      "pools" => 0.22
+      "pools" => 0.22,
+      # cypress standing IN the water, well apart — his image #13
+      "formation" => %{"lattice" => 5, "spacing" => 3, "understory" => 0.7}
     },
     %{
       "key" => "ruins",
@@ -190,8 +235,9 @@ defmodule Nebulith.Catalog.GeneratorSource do
       "canopy" => 0.55,
       "undergrowth" => 0.65,
       "floor" => "#4a4a3c",
-      # the share of the zone carrying fallen masonry
-      "stone" => 0.16
+      # the trees have taken the ruins back, but unevenly — clumps with open stone between
+      "stone" => 0.16,
+      "formation" => %{"lattice" => 8, "spacing" => 2, "understory" => 0.6}
     }
   ]
 
@@ -212,19 +258,19 @@ defmodule Nebulith.Catalog.GeneratorSource do
       %{
         category: "forest", key: "forest_woodland", name: "Woodland", layout: "woodland", position: 0,
         description: "Dense trees with clearings cut into them, joined by paths.",
-        config: %{"grid" => @small_grid, "nature" => @woodland_nature, "units" => townsfolk(3), "palette" => @woodland_palette},
+        config: %{"grid" => @small_grid, "nature" => @woodland_nature, "units" => townsfolk(3), "palette" => @woodland_palette, "formation" => @formations["stand"]},
         options: @water_options
       },
       %{
         category: "forest", key: "forest_jungle", name: "Jungle", layout: "jungle", position: 1,
         description: "A closed canopy over choked undergrowth, with clearings cut into it.",
-        config: %{"grid" => @small_grid, "nature" => @jungle_nature, "units" => townsfolk(2), "palette" => @jungle_palette, "subZones" => @jungle_sub_zones},
+        config: %{"grid" => @small_grid, "nature" => @jungle_nature, "units" => townsfolk(2), "palette" => @jungle_palette, "subZones" => @jungle_sub_zones, "formation" => @formations["closed"]},
         options: @water_options
       },
       %{
         category: "forest", key: "forest_meadow", name: "Meadow", layout: "meadow", position: 2,
         description: "An open clearing framed by trees, with two ways in.",
-        config: %{"grid" => @small_grid, "nature" => @outdoor_nature, "units" => townsfolk(5)},
+        config: %{"grid" => @small_grid, "nature" => @outdoor_nature, "units" => townsfolk(5), "formation" => @formations["scattered"]},
         options: @water_options
       },
       %{
