@@ -1,14 +1,18 @@
 /**
- * WEATHER over the finished frame. Alexander, 2026-09-11: *"please add a rain status, which would similar to the
- * night mode, in the sense that we activate it and rain shows up, we'll also implement other clima effects, like
- * snowing, sand storm, etc. but rains it's the basic foundation for all"*.
+ * WEATHER ON THE MAP. Alexander, 2026-09-11: *"the rain is not interacting with the map, it shoudl be rain on top
+ * of the map only and interacting with it, the rain should show landing on the flor"*.
+ *
+ * It used to be a screen effect over the whole canvas. These pin the two halves of his note: nothing falls outside
+ * the map's drawn floor, and a drop ends its fall ON that floor, leaving a ripple there.
  */
-import { drawWeather, nextWeather, WEATHER, WEATHER_LABEL, WEATHER_ORDER } from '@/engine/render/weather'
+import { drawWeather, nextWeather, onSurface, surfaceArea, WEATHER, WEATHER_LABEL, WEATHER_ORDER, type MapSurface } from '@/engine/render/weather'
 
 function recorder() {
   const calls: Array<[string, number[]]> = []
   const ctx = {
-    save: jest.fn(), restore: jest.fn(), beginPath: jest.fn(), stroke: jest.fn(),
+    save: jest.fn(), restore: jest.fn(), clip: jest.fn(), closePath: jest.fn(),
+    beginPath: jest.fn(() => calls.push(['beginPath', []])),
+    stroke: jest.fn(() => calls.push(['stroke', []])),
     fillRect: jest.fn((...a: number[]) => calls.push(['fillRect', a])),
     moveTo: jest.fn((...a: number[]) => calls.push(['moveTo', a])),
     lineTo: jest.fn((...a: number[]) => calls.push(['lineTo', a])),
@@ -16,46 +20,109 @@ function recorder() {
   }
   return { ctx: ctx as unknown as CanvasRenderingContext2D, calls, raw: ctx }
 }
-const drops = (calls: Array<[string, number[]]>) => calls.filter(([k]) => k === 'moveTo').map(([, a]) => a)
 
-describe('drawWeather', () => {
+/** The map filling the whole canvas, as the top view draws it. */
+const rect = (w: number, h: number): MapSurface => ({ corners: [{ x: 0, y: 0 }, { x: w, y: 0 }, { x: w, y: h }, { x: 0, y: h }] })
+/** The map as ISO draws it: a diamond, with a lot of canvas outside it. */
+const diamond = (w: number, h: number): MapSurface =>
+  ({ corners: [{ x: w / 2, y: 0 }, { x: w, y: h / 2 }, { x: w / 2, y: h }, { x: 0, y: h / 2 }] })
+
+/** The strokes of each path in order: [0] is the falling streaks, [1] the ripples on the floor. */
+function paths(calls: Array<[string, number[]]>): number[][][] {
+  const out: number[][][] = []
+  let current: number[][] | null = null
+  for (const [kind, args] of calls) {
+    if (kind === 'beginPath') { current = []; continue }
+    if (kind === 'stroke') { if (current) out.push(current); current = null; continue }
+    if (current && (kind === 'moveTo' || kind === 'lineTo')) current.push(args)
+  }
+  return out
+}
+const heads = (calls: Array<[string, number[]]>) => paths(calls)[0] ?? []
+const ripples = (calls: Array<[string, number[]]>) => paths(calls)[1] ?? []
+
+describe('rain falls on the map, not on the screen', () => {
   it('clear draws nothing at all', () => {
     const { ctx, raw } = recorder()
-    drawWeather(ctx, 800, 600, 'clear', 1234)
+    drawWeather(ctx, 800, 600, 'clear', 1234, rect(800, 600))
     expect(raw.save).not.toHaveBeenCalled()
     expect(raw.moveTo).not.toHaveBeenCalled()
   })
 
-  it('rain dims the frame and lays drops in proportion to the screen', () => {
-    const small = recorder()
-    const big = recorder()
-    drawWeather(small.ctx, 400, 300, 'rain', 1000)
-    drawWeather(big.ctx, 1600, 900, 'rain', 1000)
-    expect(small.calls[0]).toEqual(['fillRect', [0, 0, 400, 300]]) // the veil first, under the drops
-    expect(drops(small.calls)).toHaveLength(Math.round((400 * 300 / 10000) * WEATHER.rain.density))
-    expect(drops(big.calls)).toHaveLength(Math.round((1600 * 900 / 10000) * WEATHER.rain.density))
-    expect(small.raw.stroke).toHaveBeenCalledTimes(1) // one path for every drop, not one stroke each
+  it('everything is clipped to the map before a single drop is drawn', () => {
+    const { ctx, raw, calls } = recorder()
+    drawWeather(ctx, 800, 600, 'rain', 1000, rect(800, 600))
+    expect(raw.clip).toHaveBeenCalledTimes(1)
+    // the veil comes after the clip, so the grey around the map is left alone
+    expect(calls.find(([k]) => k === 'fillRect')).toEqual(['fillRect', [0, 0, 800, 600]])
+    expect(raw.clip.mock.invocationCallOrder[0]).toBeLessThan(raw.fillRect.mock.invocationCallOrder[0])
+  })
+
+  it('the amount of rain follows the MAP\'s drawn area, not the canvas', () => {
+    const full = recorder()
+    const half = recorder()
+    drawWeather(full.ctx, 800, 600, 'rain', 1000, rect(800, 600))
+    drawWeather(half.ctx, 800, 600, 'rain', 1000, rect(400, 300))
+    const perArea = (area: number) => Math.round((area / 10000) * WEATHER.rain.density)
+    // a falling drop is two points (its head and its tail), a ripple is three, and every particle is one or
+    // the other: either it is still falling or it has landed.
+    const particles = (calls: Array<[string, number[]]>) => heads(calls).length / 2 + ripples(calls).length / 3
+    expect(particles(full.calls)).toBe(perArea(800 * 600))
+    expect(particles(half.calls)).toBe(perArea(400 * 300))
+  })
+
+  it('an iso diamond lands its rain inside the diamond, never in the bare corners', () => {
+    const w = 800
+    const h = 600
+    const inside = (x: number, y: number) => Math.abs((x - w / 2) / (w / 2)) + Math.abs((y - h / 2) / (h / 2))
+    for (const t of [1000, 2500, 4200, 7700]) {
+      const r = recorder()
+      drawWeather(r.ctx, w, h, 'rain', t, diamond(w, h))
+      const floor = ripples(r.calls)
+      expect(floor.length).toBeGreaterThan(0)
+      // a ripple is three points around the landing spot; the middle one is lifted, so test the outer two
+      for (const [x, y] of floor) expect(inside(x, y)).toBeLessThanOrEqual(1.02)
+    }
+  })
+})
+
+describe('a drop lands on the floor', () => {
+  it('leaves a ripple, and never draws through the floor it landed on', () => {
+    const surface = rect(800, 600)
+    let rippled = 0
+    for (const t of [500, 1200, 3300, 5000, 9100]) {
+      const r = recorder()
+      drawWeather(r.ctx, 800, 600, 'rain', t, surface)
+      rippled += ripples(r.calls).length
+      // every streak runs downward and stops at or above its landing row
+      const path = heads(r.calls)
+      for (const [, y] of path) expect(y).toBeLessThanOrEqual(600)
+    }
+    expect(rippled).toBeGreaterThan(0)
   })
 
   it('the same moment draws the same rain, and a later one has moved it', () => {
+    const s = rect(800, 600)
     const a = recorder(); const b = recorder(); const later = recorder()
-    drawWeather(a.ctx, 800, 600, 'rain', 5000)
-    drawWeather(b.ctx, 800, 600, 'rain', 5000)
-    drawWeather(later.ctx, 800, 600, 'rain', 5050)
-    expect(drops(a.calls)).toEqual(drops(b.calls))
-    expect(drops(later.calls)).not.toEqual(drops(a.calls))
+    drawWeather(a.ctx, 800, 600, 'rain', 5000, s)
+    drawWeather(b.ctx, 800, 600, 'rain', 5000, s)
+    drawWeather(later.ctx, 800, 600, 'rain', 5050, s)
+    expect(heads(a.calls)).toEqual(heads(b.calls))
+    expect(heads(later.calls)).not.toEqual(heads(a.calls))
+  })
+})
+
+describe('the ground plane maths', () => {
+  it('a corner is a corner, and the middle is the middle', () => {
+    const s = diamond(800, 600)
+    expect(onSurface(s, 0, 0)).toEqual({ x: 400, y: 0 })
+    expect(onSurface(s, 1, 1)).toEqual({ x: 400, y: 600 })
+    expect(onSurface(s, 0.5, 0.5)).toEqual({ x: 400, y: 300 })
   })
 
-  it('every drop starts on or near the screen, never somewhere it could not be seen', () => {
-    const r = recorder()
-    drawWeather(r.ctx, 800, 600, 'rain', 987654)
-    const fx = WEATHER.rain
-    for (const [x, y] of drops(r.calls)) {
-      expect(y).toBeGreaterThanOrEqual(-fx.length)
-      expect(y).toBeLessThanOrEqual(600)
-      expect(x).toBeGreaterThanOrEqual(-(600 * fx.slant + fx.length))
-      expect(x).toBeLessThanOrEqual(800)
-    }
+  it('the area is the area, rectangle or diamond', () => {
+    expect(surfaceArea(rect(800, 600))).toBe(800 * 600)
+    expect(surfaceArea(diamond(800, 600))).toBe((800 * 600) / 2)
   })
 })
 
@@ -64,6 +131,13 @@ describe('the weathers are a table, so snow and a sandstorm are rows', () => {
     for (const id of WEATHER_ORDER) {
       expect(WEATHER_LABEL[id]).toBeTruthy()
       if (id !== 'clear') expect(WEATHER[id as keyof typeof WEATHER]).toBeDefined()
+    }
+  })
+
+  it('every effect says how far it falls, so a particle has a floor to reach', () => {
+    for (const id of WEATHER_ORDER) {
+      if (id === 'clear') continue
+      expect(WEATHER[id as keyof typeof WEATHER].fall).toBeGreaterThan(0)
     }
   })
 

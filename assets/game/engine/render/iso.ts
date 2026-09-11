@@ -915,8 +915,20 @@ export function render(params: IsoRenderParams) {
     drawNightLighting(ctx, w, h, lamps)
   }
 
-  // ─── WEATHER, over everything the night pass left, the same in every view.
-  drawWeather(ctx, w, h, weather, time)
+  // ─── WEATHER, on the MAP's own floor, over everything the night pass left.
+  //     Alexander, 2026-09-11: *"the rain is not interacting with the map, it shoudl be rain on top of the map
+  //     only and interacting with it, the rain should show landing on the flor"*. So the view hands over the four
+  //     drawn corners of the ground plane, and the rain falls on THAT instead of over the whole canvas.
+  //     In iso the map is a diamond and `toScreen` lands on a cell's centre, so its corners are the four corner
+  //     CELLS. Through `toScreen` they follow the camera's turn, so rain stays on the map however it is spun.
+  drawWeather(ctx, w, h, weather, time, {
+    corners: [
+      toScreen(0, 0),
+      toScreen(grid.cols - 1, 0),
+      toScreen(grid.cols - 1, grid.rows - 1),
+      toScreen(0, grid.rows - 1),
+    ],
+  })
 
   // ─── DEBUG MODE ────────────────────────────────────────────────────
 

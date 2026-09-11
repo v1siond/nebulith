@@ -510,8 +510,18 @@ export function renderTopView(params: RenderTopViewParams) {
     drawNightLighting(ctx, w, h, lamps)
   }
 
-  // ─── WEATHER, over everything the night pass left, the same in every view.
-  drawWeather(ctx, w, h, weather, now)
+  // ─── WEATHER, on the MAP's own floor, over everything the night pass left.
+  //     Alexander, 2026-09-11: *"the rain is not interacting with the map, it shoudl be rain on top of the map
+  //     only and interacting with it, the rain should show landing on the flor"*. So the view hands over the four
+  //     drawn corners of the ground plane, and the rain falls on THAT instead of over the whole canvas.
+  drawWeather(ctx, w, h, weather, now, {
+    corners: [
+      { x: offsetX, y: offsetY },
+      { x: offsetX + grid.cols * tileSize, y: offsetY },
+      { x: offsetX + grid.cols * tileSize, y: offsetY + grid.rows * tileSize },
+      { x: offsetX, y: offsetY + grid.rows * tileSize },
+    ],
+  })
 
   // The view's own CHROME — a heading and the keyboard hint. Fine across a full-screen view mode; a 16px
   // banner stamped over a 176px level map, which is why the caller can turn it off.

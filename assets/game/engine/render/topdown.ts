@@ -962,8 +962,14 @@ export function render2D(params: Render2DParams) {
     drawNightLighting(ctx, w, h, lamps)
   }
 
-  // ─── WEATHER, over everything the night pass left, the same in every view.
-  drawWeather(ctx, w, h, weather, time)
+  // ─── WEATHER, on the MAP's own floor, over everything the night pass left.
+  //     Alexander, 2026-09-11: *"the rain is not interacting with the map, it shoudl be rain on top of the map
+  //     only and interacting with it, the rain should show landing on the flor"*. So the view hands over the four
+  //     drawn corners of the ground plane, and the rain falls on THAT instead of over the whole canvas.
+  //     `toScreen` lands on a cell's top-left corner here, so the map's own corners are exact.
+  drawWeather(ctx, w, h, weather, time, {
+    corners: [toScreen(0, 0), toScreen(grid.cols, 0), toScreen(grid.cols, grid.rows), toScreen(0, grid.rows)],
+  })
 
   // ─── Hover + selection HIGHLIGHT — INVERTED: outline the ACTUAL rendered TILE (its recorded 2D rect,
   //     scaleY/heightLevel-lift/zOffset/pose aware) so the ring hugs what the user sees, not the flat cell.
