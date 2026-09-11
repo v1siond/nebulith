@@ -361,6 +361,31 @@ defmodule Nebulith.TileSourceTest do
     refute ascii["floor"].glyph == ascii["meadow"].glyph, "a shared glyph is a shared picture"
   end
 
+  # Alexander, 2026-09-11: trees, buildings and any exterior element that can hide the player fade when you're close.
+  test "trees and standing exterior tiles fade near the hero, flowers and markers stay solid" do
+    for style <- ["ascii", "emoji"] do
+      tiles = Map.new(Catalog.list_tiles_for(style), &{&1.label, &1})
+
+      for label <- ~w(leaf_center trunk_mid canopy_c tree_top oak-tree bush boulder house castle tower fountain lamp),
+          Map.has_key?(tiles, label) do
+        assert tiles[label].settings["fadeNear"] == true, "#{style} #{label} does not fade near the hero"
+      end
+
+      for label <- ~w(rose tulip clover key hazard connector mushroom), Map.has_key?(tiles, label) do
+        refute tiles[label].settings["fadeNear"], "#{style} #{label} fades, but it cannot hide anyone"
+      end
+    end
+  end
+
+  test "fading near the hero writes one key and leaves a tile's tuned settings alone" do
+    ascii = Enum.find(Catalog.list_tilesets(), &(&1.key == "ascii"))
+    Catalog.put_tile_setting(ascii.id, "leaf_center", "pose", %{"x" => 3})
+    :ok = TileSource.ensure_fade_near()
+    tile = Enum.find(Catalog.list_tiles_for("ascii"), &(&1.label == "leaf_center"))
+    assert tile.settings["pose"] == %{"x" => 3}
+    assert tile.settings["fadeNear"] == true
+  end
+
   test "every tile carries its OWN height, and the SAME label carries the same one in every art style" do
     # The rule this file states and the one worth guarding: *"height is per-tile DATA read uniformly, with
     # NO type/category code branch — a tile just carries its own height."*
@@ -467,16 +492,18 @@ defmodule Nebulith.TileSourceTest do
     assert fixed.settings == settings_before, "settings survive the category-only fix"
   end
 
-  test "behavior settings don't clobber existing settings and stay scoped to building tiles" do
+  test "behavior settings don't clobber existing settings, and a roof cutaway stays on roofs" do
     ascii_tiles = Catalog.list_tiles_for("ascii")
 
     wall = Enum.find(ascii_tiles, &(&1.label == "wall"))
     assert wall.settings["colors"]
     assert wall.settings["fadeNear"] == true
 
+    # A canopy FADES now: Alexander, 2026-09-11, *"Specially on trees"*. It still keeps its per-season colours
+    # next to the new key, and it is never a roof, so it never lifts off.
     canopy = Enum.find(ascii_tiles, &(&1.label == "leaf_center"))
     assert canopy.settings["colors"]["spring"]
-    refute canopy.settings["fadeNear"]
+    assert canopy.settings["fadeNear"] == true
     refute canopy.settings["cutawayRoof"]
 
     grass = Enum.find(Catalog.list_tiles_for("emoji"), &(&1.label == "grass"))

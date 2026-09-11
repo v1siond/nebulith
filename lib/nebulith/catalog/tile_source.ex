@@ -122,6 +122,7 @@ defmodule Nebulith.Catalog.TileSource do
     # The UNIT FIGURES — a unit is a GRID of characters, not one character (see `apply_unit_art/0`).
     apply_unit_art()
     ensure_distinct_glyphs()
+    ensure_fade_near()
     # …and every PER-LABEL fact agrees across styles. A label owns its name, bucket, height and collision;
     # only the picture is the style's. Without this the same `grass` was "Grass" in one style and nameless
     # in the other — two engines' worth of drift in the data.
@@ -1960,6 +1961,41 @@ defmodule Nebulith.Catalog.TileSource do
     |> Enum.with_index()
     |> Enum.map(fn {_rows, i} -> if i == 0, do: "/tiles/#{style}/#{label}.png", else: "/tiles/#{style}/#{label}_f#{i}.png" end)
     |> Enum.filter(&File.exists?(Path.join(static, &1)))
+  end
+
+  # ── Fade near the hero ─────────────────────────────────────────────────────
+  # Alexander, 2026-09-11: *"we must add transparency/opacity on all static elements, when user is close, they get
+  # more transparent. Specially on trees and buildings, and any exterior element that can block us from seeing the
+  # player character"*. A building's walls, windows and doors already fade (@behavior_settings). These are the
+  # trees and the other standing things outside. NAMED, not derived from height: a flower is as tall as a castle
+  # in this data, and a key or a hazard marker must stay solid, it is the thing you are walking toward.
+  @fade_near_prefixes ~w(trunk leaf_ canopy_ tree_)
+  @fade_near ~w(tree oak-tree palm-tree pine-tree dead-tree cherry-blossom sapling snag bush shrub cactus
+                boulder rock crate bank castle church classical-building convenience-store department-store
+                derelict-house factory hospital hotel house house-garden houses japanese-castle mosque
+                office-building school stadium tent tower torii-gate fountain well pillar water_c water_jet
+                lamp torch)
+
+  @doc "Does this label fade as the hero comes close? The rule `ensure_fade_near/0` writes."
+  def fades_near?(label), do: label in @fade_near or String.starts_with?(label, @fade_near_prefixes)
+
+  @doc """
+  Gives every tree part and standing exterior tile `fadeNear`, in every tileset, writing ONLY that key
+  (`Catalog.put_tile_setting/4`), so poses and sizes tuned in the editor survive.
+
+  Runs last in `seed/0`, like `ensure_distinct_glyphs/0`, because the tiles it covers are written by several
+  seeders (tree pieces, props, nature) and none of them sees the others. Also run by the migration that adds it
+  to an existing DB. Idempotent.
+  """
+  def ensure_fade_near do
+    written =
+      for tileset <- Catalog.list_tilesets(), tile <- Catalog.list_tiles_for(tileset.key), fades_near?(tile.label) do
+        Catalog.put_tile_setting(tileset.id, tile.label, "fadeNear", true)
+        tile.label
+      end
+
+    IO.puts("#{length(written)} tree and exterior tiles fade as the hero comes close")
+    :ok
   end
 
   @doc """
