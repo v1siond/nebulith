@@ -13,4 +13,19 @@ defmodule NebulithWeb.UiController do
     profile = params |> Map.get("game") |> UiSource.profile_for() |> UiSource.load()
     render(conn, :index, actions: UiSource.list_actions(), profile: profile)
   end
+
+  @doc """
+  `PUT /api/ui?game=<id>` — save the bars and/or the element placements.
+
+  Writing to a game for the first time FORKS the default into a profile of its own, so one game's edit
+  never reaches every other game that is still on the default.
+  """
+  def update(conn, params) do
+    profile = params |> Map.get("game") |> UiSource.editable_profile()
+
+    if bars = params["bars"], do: UiSource.put_bars(profile, bars)
+    if elements = params["elements"], do: UiSource.put_elements(profile, elements)
+
+    render(conn, :index, actions: UiSource.list_actions(), profile: UiSource.load(profile))
+  end
 end

@@ -439,6 +439,123 @@ defmodule Nebulith.Catalog.UiSource do
 
   defp default_profile, do: Repo.one(from p in Profile, where: p.key == ^@default_key)
 
+  @doc """
+  The profile a GAME may edit, creating it on first write.
+
+  COPY-ON-WRITE, and it matters: the seeded default is shared by every game that has not customised its UI,
+  so the first time one game moves a bar it must get its OWN profile rather than editing everyone's. The
+  copy carries the default's bindings, elements and bars, so a game starts from exactly what it was already
+  showing (his Q1: *"we'd always offer an easy default set"* — you start from it, you do not lose it).
+  """
+  def editable_profile(nil), do: default_profile()
+
+  def editable_profile(game_id) do
+    case Repo.one(from p in Profile, where: p.game_id == ^game_id) do
+      nil -> fork_default(game_id)
+      found -> found
+    end
+  end
+
+  defp fork_default(game_id) do
+    source = default_profile() |> load()
+
+    mine =
+      %Profile{}
+      |> Profile.changeset(%{
+        key: "game-#{game_id}",
+        name: "This game's UI",
+        game_id: game_id,
+        player_may: (source && source.player_may) || player_may()
+      })
+      |> Repo.insert!()
+
+    if source do
+      for b <- source.bindings do
+        %Binding{}
+        |> Binding.changeset(%{profile_id: mine.id, action_key: b.action_key, input: b.input, editable: b.editable, position: b.position})
+        |> Repo.insert!()
+      end
+
+      for e <- source.elements do
+        %Element{}
+        |> Element.changeset(%{profile_id: mine.id, element_key: e.element_key, form: e.form, placement: e.placement, editable: e.editable})
+        |> Repo.insert!()
+      end
+
+      for bar <- source.bars do
+        copy =
+          %Bar{}
+          |> Bar.changeset(%{profile_id: mine.id, name: bar.name, position: bar.position, rows: bar.rows, cols: bar.cols, settings: bar.settings, condition: bar.condition})
+          |> Repo.insert!()
+
+        for slot <- bar.slots do
+          %BarSlot{}
+          |> BarSlot.changeset(%{bar_id: copy.id, slot: slot.slot, ref_kind: slot.ref_kind, ref_key: slot.ref_key})
+          |> Repo.insert!()
+        end
+      end
+    end
+
+    mine
+  end
+
+  @doc """
+  Replace a profile's BARS with the list given.
+
+  Replace rather than patch because a bar list is ordered and a save can add, remove and reorder in one
+  gesture; reconciling that per-row would be more moving parts than the thing is worth. Slots ride with
+  their bar, since a slot has no meaning without one.
+  """
+  def put_bars(profile, bars) when is_list(bars) do
+    Repo.delete_all(from b in Bar, where: b.profile_id == ^profile.id)
+
+    for {bar, index} <- Enum.with_index(bars) do
+      row =
+        %Bar{}
+        |> Bar.changeset(%{
+          profile_id: profile.id,
+          name: bar["name"],
+          position: index,
+          rows: bar["rows"] || 1,
+          cols: bar["cols"] || 6,
+          settings: bar["settings"] || %{},
+          condition: bar["condition"]
+        })
+        |> Repo.insert!()
+
+      for slot <- bar["slots"] || [] do
+        %BarSlot{}
+        |> BarSlot.changeset(%{bar_id: row.id, slot: slot["slot"], ref_kind: slot["refKind"], ref_key: slot["refKey"]})
+        |> Repo.insert!()
+      end
+    end
+
+    :ok
+  end
+
+  @doc "Replace a profile's element placements for the forms present in the list."
+  def put_elements(profile, elements) when is_list(elements) do
+    for e <- elements do
+      attrs = %{
+        profile_id: profile.id,
+        element_key: e["elementKey"],
+        form: e["form"],
+        placement: e["placement"] || %{},
+        editable: Map.get(e, "editable", true)
+      }
+
+      case Repo.one(from x in Element,
+             where: x.profile_id == ^profile.id and x.element_key == ^attrs.element_key and x.form == ^attrs.form) do
+        nil -> %Element{}
+        found -> found
+      end
+      |> Element.changeset(attrs)
+      |> Repo.insert_or_update!()
+    end
+
+    :ok
+  end
+
   @doc "Every action in the catalog, in menu order."
   def list_actions, do: Repo.all(from a in Action, order_by: [asc: a.position, asc: a.key])
 

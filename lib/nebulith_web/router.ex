@@ -40,6 +40,7 @@ defmodule NebulithWeb.Router do
     get "/combat", CombatController, :index
     get "/zones", ZoneController, :index
     get "/ui", UiController, :index
+    put "/ui", UiController, :update
     resources "/templates", TemplateController, except: [:new, :edit]
     resources "/games", GameController, except: [:new, :edit]
     # Editor UI settings — a key→value store for editor chrome geometry (per modal id).
