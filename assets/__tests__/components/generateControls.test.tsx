@@ -130,7 +130,7 @@ describe('picking is not building — §4.6\'s "why did my map just vanish" trap
     const [, second] = categoryLayouts(CATALOG, 'forest')
     fireEvent.click(preset(second.label))
     build()
-    expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', second.id, { river: 'none', crossing: false, bridge: 'none' })
+    expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', second.id, { exits: 'random', pathways: 'random', river: 'none', crossing: false, bridge: 'none' })
   })
 
   it('builds the category\'s FIRST preset when the kind was chosen but no preset was', () => {
@@ -138,7 +138,7 @@ describe('picking is not building — §4.6\'s "why did my map just vanish" trap
     fireEvent.change(kinds(), { target: { value: 'forest' } })
     build()
     const [first] = categoryLayouts(CATALOG, 'forest')
-    expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', first.id, { river: 'none', crossing: false, bridge: 'none' })
+    expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', first.id, { exits: 'random', pathways: 'random', river: 'none', crossing: false, bridge: 'none' })
   })
 
   it('passes NO preset for a kind that has none, and hides the preset group', () => {
@@ -148,7 +148,7 @@ describe('picking is not building — §4.6\'s "why did my map just vanish" trap
     fireEvent.change(kinds(), { target: { value: bare.key } })
     expect(screen.queryByText(/^which /i)).not.toBeInTheDocument()
     build()
-    expect(onGenerate).toHaveBeenCalledWith('spring', bare.key, undefined, {})
+    expect(onGenerate).toHaveBeenCalledWith('spring', bare.key, undefined, { exits: 'random', pathways: 'random' })
   })
 
   it('does NOT carry a preset across kinds of place', () => {
@@ -161,7 +161,7 @@ describe('picking is not building — §4.6\'s "why did my map just vanish" trap
     fireEvent.change(kinds(), { target: { value: other.key } })
     build()
     const [firstOfOther] = categoryLayouts(CATALOG, other.key)
-    expect(onGenerate).toHaveBeenCalledWith('spring', other.key, firstOfOther.id, {})
+    expect(onGenerate).toHaveBeenCalledWith('spring', other.generators[0].variant, firstOfOther.id, {})
   })
 })
 
@@ -186,7 +186,7 @@ describe('variations are options on a preset, not more presets', () => {
     fireEvent.change(kinds(), { target: { value: 'forest' } })
     fireEvent.change(control(/^river$/i), { target: { value: 'divides' } })
     build()
-    expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', expect.any(String), { river: 'divides', crossing: false, bridge: 'random' })
+    expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', expect.any(String), { exits: 'random', pathways: 'random', river: 'divides', crossing: false, bridge: 'random' })
   })
 
   it('will not send a crossing without the river it declares it needs', () => {
@@ -199,7 +199,7 @@ describe('variations are options on a preset, not more presets', () => {
     fireEvent.click(control(/a crossing joined to the paths/i))
     fireEvent.change(control(/^river$/i), { target: { value: 'none' } }) // the river goes, the crossing goes with it
     build()
-    expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', expect.any(String), { river: 'none', crossing: false, bridge: 'none' })
+    expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', expect.any(String), { exits: 'random', pathways: 'random', river: 'none', crossing: false, bridge: 'none' })
   })
 
   it('offers the kind of crossing, greyed out until there is a river, and forwards the one picked', () => {
@@ -214,7 +214,7 @@ describe('variations are options on a preset, not more presets', () => {
     expect(kind().disabled).toBe(false)
     fireEvent.change(kind(), { target: { value: 'stone' } })
     build()
-    expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', expect.any(String), { river: 'divides', crossing: false, bridge: 'stone' })
+    expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', expect.any(String), { exits: 'random', pathways: 'random', river: 'divides', crossing: false, bridge: 'stone' })
   })
 
   it('offers nothing to switch on for a kind of place that has no options', () => {
@@ -251,7 +251,7 @@ describe('forest > type > subtype — pick one, go deeper, or randomize', () => 
     fireEvent.click(preset('Woodland'))
     fireEvent.change(which('woodland'), { target: { value: 'forest_woodland_mountain' } })
     build()
-    expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', 'woodland', { river: 'none', crossing: false, bridge: 'none' }, 'forest_woodland_mountain')
+    expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', 'woodland', { exits: 'random', pathways: 'random', river: 'none', crossing: false, bridge: 'none' }, 'forest_woodland_mountain')
   })
 
   it('Random builds one of the subtypes, rolled on the build itself', () => {
@@ -282,7 +282,7 @@ describe('forest > type > subtype — pick one, go deeper, or randomize', () => 
     ])
     fireEvent.click(screen.getByLabelText('Region: Swamp'))
     build()
-    expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', 'jungle', { river: 'none', crossing: false, bridge: 'none', 'region:swamp': false })
+    expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', 'jungle', { exits: 'random', pathways: 'random', river: 'none', crossing: false, bridge: 'none', 'region:swamp': false })
   })
 
   it('a subtype brings its own regions — a super dense jungle is barely anything but dense growth', () => {
@@ -427,6 +427,6 @@ describe('the preview window shows the world to build, its size, and the options
     fireEvent.change(within(into).getByLabelText(/^river$/i), { target: { value: 'through' } })
     fireEvent.change(within(into).getByLabelText(/^kind of crossing$/i), { target: { value: 'planks' } })
     fireEvent.click(screen.getByRole('button', { name: /build this world/i }))
-    expect(p.onGenerate).toHaveBeenCalledWith('spring', 'forest', expect.any(String), { river: 'through', crossing: false, bridge: 'planks' })
+    expect(p.onGenerate).toHaveBeenCalledWith('spring', 'forest', expect.any(String), { exits: 'random', pathways: 'random', river: 'through', crossing: false, bridge: 'planks' })
   })
 })

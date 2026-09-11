@@ -656,6 +656,28 @@ export function findGenerator(
   return category.generators.find(g => g.layout === layout)
 }
 
+/**
+ * The generator that runs a given ARCHETYPE, optionally of a given shape.
+ *
+ * `findGenerator` takes a CATEGORY key, and that was the same thing as the variant until a town and a city
+ * started sharing one category (Alexander, 2026-09-11: *"City and town options are the same, it'd put them in a
+ * single category"*). A programmatic generate still asks for "town", so this resolves a row by what it RUNS
+ * rather than by where it sits in the menu.
+ *
+ * A `layout` narrows it when the archetype has shapes (a forest has three). A catalog served before the variant
+ * existed carries none, and then this falls back to the old category lookup, so nothing old breaks.
+ */
+export function findGeneratorForVariant(
+  catalog: GeneratorCatalog,
+  variant: string,
+  layout?: string,
+): GeneratorDef | undefined {
+  const rows = catalog.flatMap(c => c.generators).filter(g => g.variant === variant)
+  if (rows.length === 0) return findGenerator(catalog, variant, layout)
+  if (layout === undefined) return rows[0]
+  return rows.find(g => g.layout === layout) ?? rows[0]
+}
+
 /** Any generator in the catalog by its key, at any depth — how the editor finds the SUBTYPE that was picked. */
 export function findGeneratorByKey(catalog: GeneratorCatalog, key: string): GeneratorDef | undefined {
   const search = (list: readonly GeneratorDef[]): GeneratorDef | undefined => {

@@ -10,7 +10,7 @@
  *     does not exist, a config section it omits reads `undefined`, and a malformed row is dropped, not
  *     defaulted (the no-fallback law, MAP-MODEL §8).
  */
-import { EMPTY_GENERATOR_CATALOG, catalogZones, categoryLayouts, fetchGeneratorCatalog, findCategory, findGenerator, parseGeneratorCatalog, rollGridSize, findGeneratorByKey } from '@/lib/generatorCatalog'
+import { EMPTY_GENERATOR_CATALOG, catalogZones, categoryLayouts, fetchGeneratorCatalog, findCategory, findGenerator, parseGeneratorCatalog, rollGridSize, findGeneratorByKey, findGeneratorForVariant} from '@/lib/generatorCatalog'
 import { makeRng } from '@/lib/math'
 import liveBody from '@/__tests__/fixtures/generators.json'
 
@@ -18,30 +18,30 @@ const LIVE = parseGeneratorCatalog(liveBody)
 
 describe('parseGeneratorCatalog — the live /api/generators body', () => {
   it('reads every category the backend serves, in menu order', () => {
-    expect(LIVE.map(c => c.key)).toEqual(['forest', 'town', 'city', 'cave', 'temple'])
-    expect(LIVE.map(c => c.name)).toEqual(['Forest', 'Town', 'City', 'Cave', 'Temple'])
+    expect(LIVE.map(c => c.key)).toEqual(['forest', 'settlement', 'cave', 'temple'])
+    expect(LIVE.map(c => c.name)).toEqual(['Forest', 'Settlement', 'Cave', 'Temple'])
   })
 
   it('reads each category\'s generators, in menu order', () => {
     expect(findCategory(LIVE, 'forest')!.generators.map(g => g.key)).toEqual(['forest_woodland', 'forest_jungle', 'forest_meadow'])
-    expect(findCategory(LIVE, 'town')!.generators.map(g => g.key)).toEqual(['town_default'])
+    expect(findCategory(LIVE, 'settlement')!.generators.map(g => g.key)).toEqual(['town_default', 'city_default'])
   })
 
   it('reads the grid range the town rolls — the numbers templates.tsx used to hardcode', () => {
-    expect(findGenerator(LIVE, 'town')!.config.grid).toEqual({
+    expect(findGenerator(LIVE, 'settlement', 'town')!.config.grid).toEqual({
       cols: { min: 30, max: 45 }, rows: { min: 24, max: 35 }, cellSize: 16, isoScale: 2.5,
     })
   })
 
   it('reads the CITY\'s bigger grid — the `variant === city` branch is data now', () => {
-    expect(findGenerator(LIVE, 'city')!.config.grid).toEqual({
+    expect(findGenerator(LIVE, 'settlement', 'city')!.config.grid).toEqual({
       cols: { min: 52, max: 71 }, rows: { min: 42, max: 57 }, cellSize: 16, isoScale: 2.5,
     })
   })
 
   it('reads the townsfolk counts the editor scattered from a 14/8/5 ternary', () => {
-    expect(findGenerator(LIVE, 'city')!.config.units!.townsfolk).toBe(14)
-    expect(findGenerator(LIVE, 'town')!.config.units!.townsfolk).toBe(8)
+    expect(findGenerator(LIVE, 'settlement', 'city')!.config.units!.townsfolk).toBe(14)
+    expect(findGenerator(LIVE, 'settlement', 'town')!.config.units!.townsfolk).toBe(8)
     // The forest's FIRST row is the woodland now, and a wood scatters fewer people than an open meadow.
     expect(findGenerator(LIVE, 'forest')!.config.units!.townsfolk).toBe(3)
     expect(findGenerator(LIVE, 'forest', 'meadow')!.config.units!.townsfolk).toBe(5)
@@ -53,7 +53,7 @@ describe('parseGeneratorCatalog — the live /api/generators body', () => {
   })
 
   it('reads the building material + colour palette the page declared as five consts', () => {
-    expect(findGenerator(LIVE, 'town')!.config.buildings).toEqual({
+    expect(findGenerator(LIVE, 'settlement', 'town')!.config.buildings).toEqual({
       materials: ['wall_brick', 'wall_wood', 'wall_stone'],
       roofColors: ['#b5533a', '#5a636b', '#5c4433', '#4a6a7a'],
       wallColors: ['#9e4b3b', '#c9a66b', '#e8dcc0', '#8a8580', '#a89f7a'],
@@ -62,12 +62,12 @@ describe('parseGeneratorCatalog — the live /api/generators body', () => {
   })
 
   it('reads the settlement tuning that lives in villageLayout as ten consts', () => {
-    expect(findGenerator(LIVE, 'town')!.config.settlement).toEqual({
+    expect(findGenerator(LIVE, 'settlement', 'town')!.config.settlement).toEqual({
       plazaSize: 5, roadWidth: 4, setback: 1, lotGap: [1, 2], maxPerFrontage: 6,
       buildingCap: 18, houseRange: [4, 6], bigHouseRange: [1, 3],
       houseWidths: [3, 3, 4, 4, 4, 5], natureMultiplier: 1.15,
     })
-    expect(findGenerator(LIVE, 'city')!.config.settlement).toMatchObject({
+    expect(findGenerator(LIVE, 'settlement', 'city')!.config.settlement).toMatchObject({
       plazaSize: 7, maxPerFrontage: 99, buildingCap: 72, natureMultiplier: 0.4,
     })
   })
@@ -112,7 +112,7 @@ describe('categoryLayouts — a map type\'s shapes are DATA, not a `key === fore
   })
 
   it('lists NO layouts for a map type whose generator names no shape', () => {
-    expect(categoryLayouts(LIVE, 'town')).toEqual([])
+    expect(categoryLayouts(LIVE, 'settlement')).toEqual([{ id: 'town', label: 'Town' }, { id: 'city', label: 'City' }])
     expect(categoryLayouts(LIVE, 'cave')).toEqual([])
   })
 
@@ -142,8 +142,8 @@ describe('findGenerator — the editor runs exactly the world the user asked for
 })
 
 describe('rollGridSize — the size comes from the served range', () => {
-  const town = findGenerator(LIVE, 'town')
-  const city = findGenerator(LIVE, 'city')
+  const town = findGenerator(LIVE, 'settlement', 'town')
+  const city = findGenerator(LIVE, 'settlement', 'city')
 
   it('rolls the range MINIMUM at rand 0 and the MAXIMUM just under 1', () => {
     expect(rollGridSize(town, () => 0)).toEqual({ cols: 30, rows: 24 })
@@ -256,7 +256,7 @@ describe('fetchGeneratorCatalog — the wire', () => {
     global.fetch = fetchMock as unknown as typeof fetch
 
     const catalog = await fetchGeneratorCatalog()
-    expect(catalog.map(c => c.key)).toEqual(['forest', 'town', 'city', 'cave', 'temple'])
+    expect(catalog.map(c => c.key)).toEqual(['forest', 'settlement', 'cave', 'temple'])
     expect(fetchMock.mock.calls[0][0]).toContain('/generators')
   })
 
@@ -287,5 +287,40 @@ describe('the catalog is a TREE — forest > type > subtype', () => {
     expect(mountain.config.nature?.canopy).toBe(0.28)
     expect(mountain.config.nature?.groundCover).toBe(woodland.config.nature?.groundCover)
     expect(mountain.config.grid).toEqual(woodland.config.grid)
+  })
+})
+
+describe('a generator is found by the ARCHETYPE it runs, not by where it sits', () => {
+  // Alexander, 2026-09-11: *"City and town options are the same, it'd put them in a single category"*. A
+  // programmatic generate still asks for "town", and a town lives in the settlement category now.
+  const MERGED = parseGeneratorCatalog({
+    data: [{
+      key: 'settlement', name: 'Settlement', position: 1, generators: [
+        { key: 'town_default', name: 'Town', layout: 'town', variant: 'town', position: 0, config: {} },
+        { key: 'city_default', name: 'City', layout: 'city', variant: 'city', position: 1, config: {} },
+      ],
+    }],
+  })
+
+  it('finds the town in a category that is not called town', () => {
+    expect(findGeneratorForVariant(MERGED, 'town')?.key).toBe('town_default')
+    expect(findGeneratorForVariant(MERGED, 'city')?.key).toBe('city_default')
+  })
+
+  it('narrows by shape when the archetype has shapes', () => {
+    expect(findGeneratorForVariant(MERGED, 'town', 'town')?.key).toBe('town_default')
+    // a shape the archetype does not carry falls back to the archetype's own row rather than to nothing
+    expect(findGeneratorForVariant(MERGED, 'town', 'nonsense')?.key).toBe('town_default')
+  })
+
+  it('an archetype nobody serves resolves to nothing', () => {
+    expect(findGeneratorForVariant(MERGED, 'temple')).toBeUndefined()
+  })
+
+  it('a catalog served before variants existed keeps the old category lookup', () => {
+    const OLD = parseGeneratorCatalog({
+      data: [{ key: 'town', name: 'Town', position: 1, generators: [{ key: 'town_default', name: 'Town', position: 0, config: {} }] }],
+    })
+    expect(findGeneratorForVariant(OLD, 'town')?.key).toBe('town_default')
   })
 })

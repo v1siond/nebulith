@@ -1,627 +1,14 @@
 {
   "data": [
     {
-      "description": "Woodland and open meadows \u2014 no settlement.",
+      "name": "Forest",
+      "position": 0,
+      "description": "Woodland and open meadows — no settlement.",
+      "key": "forest",
       "generators": [
         {
-          "children": [
-            {
-              "children": [],
-              "config": {
-                "crossings": {
-                  "dirt": {
-                    "colorOf": "path_dirt",
-                    "tile": "floor"
-                  },
-                  "planks": {
-                    "tile": "wooden_planks"
-                  },
-                  "stone": {
-                    "tile": "cobblestone"
-                  },
-                  "wood": {
-                    "tile": "bridge"
-                  }
-                },
-                "formation": {
-                  "lattice": 5,
-                  "spacing": 2,
-                  "understory": 0.45
-                },
-                "grid": {
-                  "cellSize": 16,
-                  "cols": {
-                    "max": 45,
-                    "min": 30
-                  },
-                  "isoScale": 2.5,
-                  "rows": {
-                    "max": 35,
-                    "min": 24
-                  }
-                },
-                "nature": {
-                  "canopy": 0.45,
-                  "flowers": 0.04,
-                  "groundCover": 0.2
-                },
-                "palette": {
-                  "bank": "#c1a877",
-                  "canopy": "#5d7340",
-                  "canopyAlt": "#6b8049",
-                  "floor": "#6f7f4a",
-                  "floorAlt": "#7d8a55",
-                  "litter": "#7a6a44",
-                  "swamp": "#3f8a84",
-                  "trail": "#9a8a62",
-                  "undergrowth": "#6d7f45",
-                  "water": "#4f93b3",
-                  "waterDeep": "#2a5f8a",
-                  "waterShallow": "#8ccbe8"
-                },
-                "trees": [
-                  {
-                    "kind": "tree_column",
-                    "weight": 55
-                  },
-                  {
-                    "kind": "tree_tall",
-                    "weight": 25
-                  },
-                  {
-                    "kind": "tree",
-                    "weight": 20
-                  }
-                ],
-                "units": {
-                  "enemies": 0,
-                  "enemyTypes": [],
-                  "townsfolk": 3
-                }
-              },
-              "description": "Tall straight trunks at even spacing over a clear floor.",
-              "key": "forest_woodland_beech",
-              "layout": "woodland",
-              "name": "Beech stand",
-              "options": [
-                {
-                  "choices": [
-                    {
-                      "key": "none",
-                      "label": "No river"
-                    },
-                    {
-                      "key": "random",
-                      "label": "Random"
-                    },
-                    {
-                      "key": "through",
-                      "label": "Winds through (easy to cross)"
-                    },
-                    {
-                      "key": "divides",
-                      "label": "Divides the map in two"
-                    },
-                    {
-                      "key": "around",
-                      "label": "Around the edge"
-                    }
-                  ],
-                  "default": "none",
-                  "key": "river",
-                  "label": "River",
-                  "type": "choice"
-                },
-                {
-                  "default": false,
-                  "key": "crossing",
-                  "label": "A crossing joined to the paths",
-                  "requires": "river",
-                  "type": "toggle"
-                },
-                {
-                  "choices": [
-                    {
-                      "key": "random",
-                      "label": "Random"
-                    },
-                    {
-                      "key": "dirt",
-                      "label": "Dirt path"
-                    },
-                    {
-                      "key": "wood",
-                      "label": "Wooden bridge"
-                    },
-                    {
-                      "key": "planks",
-                      "label": "Plank walkway"
-                    },
-                    {
-                      "key": "stone",
-                      "label": "Stone bridge"
-                    }
-                  ],
-                  "default": "random",
-                  "key": "bridge",
-                  "label": "Kind of crossing",
-                  "requires": "river",
-                  "type": "choice"
-                }
-              ],
-              "position": 0,
-              "zones": [
-                "spring",
-                "summer",
-                "autumn",
-                "winter",
-                "desert"
-              ]
-            },
-            {
-              "children": [],
-              "config": {
-                "crossings": {
-                  "dirt": {
-                    "colorOf": "path_dirt",
-                    "tile": "floor"
-                  },
-                  "planks": {
-                    "tile": "wooden_planks"
-                  },
-                  "stone": {
-                    "tile": "cobblestone"
-                  },
-                  "wood": {
-                    "tile": "bridge"
-                  }
-                },
-                "formation": {
-                  "lattice": 7,
-                  "spacing": 0,
-                  "understory": 1.9
-                },
-                "grid": {
-                  "cellSize": 16,
-                  "cols": {
-                    "max": 45,
-                    "min": 30
-                  },
-                  "isoScale": 2.5,
-                  "rows": {
-                    "max": 35,
-                    "min": 24
-                  }
-                },
-                "nature": {
-                  "canopy": 0.55,
-                  "flowers": 0.04,
-                  "groundCover": 0.4
-                },
-                "palette": {
-                  "bank": "#c1a877",
-                  "canopy": "#5d7340",
-                  "canopyAlt": "#6b8049",
-                  "floor": "#6f7f4a",
-                  "floorAlt": "#7d8a55",
-                  "litter": "#7a6a44",
-                  "swamp": "#3f8a84",
-                  "trail": "#9a8a62",
-                  "undergrowth": "#6d7f45",
-                  "water": "#4f93b3",
-                  "waterDeep": "#2a5f8a",
-                  "waterShallow": "#8ccbe8"
-                },
-                "trees": [
-                  {
-                    "kind": "tree_column",
-                    "weight": 40
-                  },
-                  {
-                    "kind": "tree_tall",
-                    "weight": 30
-                  },
-                  {
-                    "kind": "bush",
-                    "weight": 30
-                  }
-                ],
-                "units": {
-                  "enemies": 0,
-                  "enemyTypes": [],
-                  "townsfolk": 3
-                }
-              },
-              "description": "Tall trunks over deep undergrowth, with a trail cut through it.",
-              "key": "forest_woodland_dense",
-              "layout": "woodland",
-              "name": "Dense woodland",
-              "options": [
-                {
-                  "choices": [
-                    {
-                      "key": "none",
-                      "label": "No river"
-                    },
-                    {
-                      "key": "random",
-                      "label": "Random"
-                    },
-                    {
-                      "key": "through",
-                      "label": "Winds through (easy to cross)"
-                    },
-                    {
-                      "key": "divides",
-                      "label": "Divides the map in two"
-                    },
-                    {
-                      "key": "around",
-                      "label": "Around the edge"
-                    }
-                  ],
-                  "default": "none",
-                  "key": "river",
-                  "label": "River",
-                  "type": "choice"
-                },
-                {
-                  "default": false,
-                  "key": "crossing",
-                  "label": "A crossing joined to the paths",
-                  "requires": "river",
-                  "type": "toggle"
-                },
-                {
-                  "choices": [
-                    {
-                      "key": "random",
-                      "label": "Random"
-                    },
-                    {
-                      "key": "dirt",
-                      "label": "Dirt path"
-                    },
-                    {
-                      "key": "wood",
-                      "label": "Wooden bridge"
-                    },
-                    {
-                      "key": "planks",
-                      "label": "Plank walkway"
-                    },
-                    {
-                      "key": "stone",
-                      "label": "Stone bridge"
-                    }
-                  ],
-                  "default": "random",
-                  "key": "bridge",
-                  "label": "Kind of crossing",
-                  "requires": "river",
-                  "type": "choice"
-                }
-              ],
-              "position": 1,
-              "zones": [
-                "spring",
-                "summer",
-                "autumn",
-                "winter",
-                "desert"
-              ]
-            },
-            {
-              "children": [],
-              "config": {
-                "crossings": {
-                  "dirt": {
-                    "colorOf": "path_dirt",
-                    "tile": "floor"
-                  },
-                  "planks": {
-                    "tile": "wooden_planks"
-                  },
-                  "stone": {
-                    "tile": "cobblestone"
-                  },
-                  "wood": {
-                    "tile": "bridge"
-                  }
-                },
-                "formation": {
-                  "lattice": 10,
-                  "spacing": 0,
-                  "understory": 0.6
-                },
-                "grid": {
-                  "cellSize": 16,
-                  "cols": {
-                    "max": 45,
-                    "min": 30
-                  },
-                  "isoScale": 2.5,
-                  "rows": {
-                    "max": 35,
-                    "min": 24
-                  }
-                },
-                "nature": {
-                  "canopy": 0.28,
-                  "flowers": 0.04,
-                  "groundCover": 0.2
-                },
-                "palette": {
-                  "bank": "#c1a877",
-                  "canopy": "#5d7340",
-                  "canopyAlt": "#6b8049",
-                  "floor": "#6f7f4a",
-                  "floorAlt": "#7d8a55",
-                  "litter": "#7a6a44",
-                  "swamp": "#3f8a84",
-                  "trail": "#9a8a62",
-                  "undergrowth": "#6d7f45",
-                  "water": "#4f93b3",
-                  "waterDeep": "#2a5f8a",
-                  "waterShallow": "#8ccbe8"
-                },
-                "trees": [
-                  {
-                    "kind": "tree_conifer",
-                    "weight": 70
-                  },
-                  {
-                    "kind": "tree_tall",
-                    "weight": 15
-                  },
-                  {
-                    "kind": "tree_stub",
-                    "weight": 15
-                  }
-                ],
-                "units": {
-                  "enemies": 0,
-                  "enemyTypes": [],
-                  "townsfolk": 3
-                }
-              },
-              "description": "Conifers in patches over open hillside.",
-              "key": "forest_woodland_mountain",
-              "layout": "woodland",
-              "name": "Mountain forest",
-              "options": [
-                {
-                  "choices": [
-                    {
-                      "key": "none",
-                      "label": "No river"
-                    },
-                    {
-                      "key": "random",
-                      "label": "Random"
-                    },
-                    {
-                      "key": "through",
-                      "label": "Winds through (easy to cross)"
-                    },
-                    {
-                      "key": "divides",
-                      "label": "Divides the map in two"
-                    },
-                    {
-                      "key": "around",
-                      "label": "Around the edge"
-                    }
-                  ],
-                  "default": "none",
-                  "key": "river",
-                  "label": "River",
-                  "type": "choice"
-                },
-                {
-                  "default": false,
-                  "key": "crossing",
-                  "label": "A crossing joined to the paths",
-                  "requires": "river",
-                  "type": "toggle"
-                },
-                {
-                  "choices": [
-                    {
-                      "key": "random",
-                      "label": "Random"
-                    },
-                    {
-                      "key": "dirt",
-                      "label": "Dirt path"
-                    },
-                    {
-                      "key": "wood",
-                      "label": "Wooden bridge"
-                    },
-                    {
-                      "key": "planks",
-                      "label": "Plank walkway"
-                    },
-                    {
-                      "key": "stone",
-                      "label": "Stone bridge"
-                    }
-                  ],
-                  "default": "random",
-                  "key": "bridge",
-                  "label": "Kind of crossing",
-                  "requires": "river",
-                  "type": "choice"
-                }
-              ],
-              "position": 2,
-              "zones": [
-                "spring",
-                "summer",
-                "autumn",
-                "winter",
-                "desert"
-              ]
-            },
-            {
-              "children": [],
-              "config": {
-                "crossings": {
-                  "dirt": {
-                    "colorOf": "path_dirt",
-                    "tile": "floor"
-                  },
-                  "planks": {
-                    "tile": "wooden_planks"
-                  },
-                  "stone": {
-                    "tile": "cobblestone"
-                  },
-                  "wood": {
-                    "tile": "bridge"
-                  }
-                },
-                "formation": {
-                  "lattice": 10,
-                  "spacing": 0,
-                  "understory": 0.6
-                },
-                "grid": {
-                  "cellSize": 16,
-                  "cols": {
-                    "max": 45,
-                    "min": 30
-                  },
-                  "isoScale": 2.5,
-                  "rows": {
-                    "max": 35,
-                    "min": 24
-                  }
-                },
-                "nature": {
-                  "canopy": 0.35,
-                  "flowers": 0.04,
-                  "groundCover": 0.2
-                },
-                "palette": {
-                  "bank": "#c1a877",
-                  "canopy": "#5d7340",
-                  "canopyAlt": "#6b8049",
-                  "floor": "#6f7f4a",
-                  "floorAlt": "#7d8a55",
-                  "litter": "#7a6a44",
-                  "swamp": "#3f8a84",
-                  "trail": "#9a8a62",
-                  "undergrowth": "#6d7f45",
-                  "water": "#4f93b3",
-                  "waterDeep": "#2a5f8a",
-                  "waterShallow": "#8ccbe8"
-                },
-                "trees": [
-                  {
-                    "kind": "tree",
-                    "weight": 30
-                  },
-                  {
-                    "kind": "tree_round",
-                    "weight": 25
-                  },
-                  {
-                    "kind": "tree_broadleaf",
-                    "weight": 25
-                  },
-                  {
-                    "kind": "bush_round",
-                    "weight": 20
-                  }
-                ],
-                "units": {
-                  "enemies": 0,
-                  "enemyTypes": [],
-                  "townsfolk": 3
-                }
-              },
-              "description": "Stands of trees broken by open meadow.",
-              "key": "forest_woodland_glades",
-              "layout": "woodland",
-              "name": "Woodland with meadows",
-              "options": [
-                {
-                  "choices": [
-                    {
-                      "key": "none",
-                      "label": "No river"
-                    },
-                    {
-                      "key": "random",
-                      "label": "Random"
-                    },
-                    {
-                      "key": "through",
-                      "label": "Winds through (easy to cross)"
-                    },
-                    {
-                      "key": "divides",
-                      "label": "Divides the map in two"
-                    },
-                    {
-                      "key": "around",
-                      "label": "Around the edge"
-                    }
-                  ],
-                  "default": "none",
-                  "key": "river",
-                  "label": "River",
-                  "type": "choice"
-                },
-                {
-                  "default": false,
-                  "key": "crossing",
-                  "label": "A crossing joined to the paths",
-                  "requires": "river",
-                  "type": "toggle"
-                },
-                {
-                  "choices": [
-                    {
-                      "key": "random",
-                      "label": "Random"
-                    },
-                    {
-                      "key": "dirt",
-                      "label": "Dirt path"
-                    },
-                    {
-                      "key": "wood",
-                      "label": "Wooden bridge"
-                    },
-                    {
-                      "key": "planks",
-                      "label": "Plank walkway"
-                    },
-                    {
-                      "key": "stone",
-                      "label": "Stone bridge"
-                    }
-                  ],
-                  "default": "random",
-                  "key": "bridge",
-                  "label": "Kind of crossing",
-                  "requires": "river",
-                  "type": "choice"
-                }
-              ],
-              "position": 3,
-              "zones": [
-                "spring",
-                "summer",
-                "autumn",
-                "winter",
-                "desert"
-              ]
-            }
-          ],
+          "name": "Woodland",
+          "position": 0,
           "config": {
             "crossings": {
               "dirt": {
@@ -658,7 +45,8 @@
             "nature": {
               "canopy": 0.434,
               "flowers": 0.04,
-              "groundCover": 0.2
+              "groundCover": 0.2,
+              "tallGrass": 0.12
             },
             "palette": {
               "bank": "#c1a877",
@@ -714,11 +102,63 @@
               "townsfolk": 3
             }
           },
-          "description": "Dense trees with clearings cut into them, joined by paths.",
-          "key": "forest_woodland",
-          "layout": "woodland",
-          "name": "Woodland",
           "options": [
+            {
+              "choices": [
+                {
+                  "key": "random",
+                  "label": "Random"
+                },
+                {
+                  "key": "1",
+                  "label": "1: in and out the same way"
+                },
+                {
+                  "key": "2",
+                  "label": "2: in one side, out the other"
+                },
+                {
+                  "key": "3",
+                  "label": "3"
+                },
+                {
+                  "key": "4",
+                  "label": "4"
+                }
+              ],
+              "default": "random",
+              "key": "exits",
+              "label": "Exits",
+              "type": "choice"
+            },
+            {
+              "choices": [
+                {
+                  "key": "random",
+                  "label": "Random"
+                },
+                {
+                  "key": "1",
+                  "label": "1"
+                },
+                {
+                  "key": "2",
+                  "label": "2"
+                },
+                {
+                  "key": "3",
+                  "label": "3"
+                },
+                {
+                  "key": "4",
+                  "label": "4"
+                }
+              ],
+              "default": "random",
+              "key": "pathways",
+              "label": "Pathways",
+              "type": "choice"
+            },
             {
               "choices": [
                 {
@@ -784,982 +224,871 @@
               "type": "choice"
             }
           ],
-          "position": 0,
+          "description": "Dense trees with clearings cut into them, joined by paths.",
+          "key": "forest_woodland",
+          "layout": "woodland",
+          "children": [
+            {
+              "name": "Beech stand",
+              "position": 0,
+              "config": {
+                "crossings": {
+                  "dirt": {
+                    "colorOf": "path_dirt",
+                    "tile": "floor"
+                  },
+                  "planks": {
+                    "tile": "wooden_planks"
+                  },
+                  "stone": {
+                    "tile": "cobblestone"
+                  },
+                  "wood": {
+                    "tile": "bridge"
+                  }
+                },
+                "formation": {
+                  "lattice": 5,
+                  "spacing": 2,
+                  "understory": 0.45
+                },
+                "grid": {
+                  "cellSize": 16,
+                  "cols": {
+                    "max": 45,
+                    "min": 30
+                  },
+                  "isoScale": 2.5,
+                  "rows": {
+                    "max": 35,
+                    "min": 24
+                  }
+                },
+                "nature": {
+                  "canopy": 0.45,
+                  "flowers": 0.04,
+                  "groundCover": 0.2,
+                  "tallGrass": 0.12
+                },
+                "palette": {
+                  "bank": "#c1a877",
+                  "canopy": "#5d7340",
+                  "canopyAlt": "#6b8049",
+                  "floor": "#6f7f4a",
+                  "floorAlt": "#7d8a55",
+                  "litter": "#7a6a44",
+                  "swamp": "#3f8a84",
+                  "trail": "#9a8a62",
+                  "undergrowth": "#6d7f45",
+                  "water": "#4f93b3",
+                  "waterDeep": "#2a5f8a",
+                  "waterShallow": "#8ccbe8"
+                },
+                "trees": [
+                  {
+                    "kind": "tree_column",
+                    "weight": 55
+                  },
+                  {
+                    "kind": "tree_tall",
+                    "weight": 25
+                  },
+                  {
+                    "kind": "tree",
+                    "weight": 20
+                  }
+                ],
+                "units": {
+                  "enemies": 0,
+                  "enemyTypes": [],
+                  "townsfolk": 3
+                }
+              },
+              "options": [
+                {
+                  "choices": [
+                    {
+                      "key": "random",
+                      "label": "Random"
+                    },
+                    {
+                      "key": "1",
+                      "label": "1: in and out the same way"
+                    },
+                    {
+                      "key": "2",
+                      "label": "2: in one side, out the other"
+                    },
+                    {
+                      "key": "3",
+                      "label": "3"
+                    },
+                    {
+                      "key": "4",
+                      "label": "4"
+                    }
+                  ],
+                  "default": "random",
+                  "key": "exits",
+                  "label": "Exits",
+                  "type": "choice"
+                },
+                {
+                  "choices": [
+                    {
+                      "key": "random",
+                      "label": "Random"
+                    },
+                    {
+                      "key": "1",
+                      "label": "1"
+                    },
+                    {
+                      "key": "2",
+                      "label": "2"
+                    },
+                    {
+                      "key": "3",
+                      "label": "3"
+                    },
+                    {
+                      "key": "4",
+                      "label": "4"
+                    }
+                  ],
+                  "default": "random",
+                  "key": "pathways",
+                  "label": "Pathways",
+                  "type": "choice"
+                },
+                {
+                  "choices": [
+                    {
+                      "key": "none",
+                      "label": "No river"
+                    },
+                    {
+                      "key": "random",
+                      "label": "Random"
+                    },
+                    {
+                      "key": "through",
+                      "label": "Winds through (easy to cross)"
+                    },
+                    {
+                      "key": "divides",
+                      "label": "Divides the map in two"
+                    },
+                    {
+                      "key": "around",
+                      "label": "Around the edge"
+                    }
+                  ],
+                  "default": "none",
+                  "key": "river",
+                  "label": "River",
+                  "type": "choice"
+                },
+                {
+                  "default": false,
+                  "key": "crossing",
+                  "label": "A crossing joined to the paths",
+                  "requires": "river",
+                  "type": "toggle"
+                },
+                {
+                  "choices": [
+                    {
+                      "key": "random",
+                      "label": "Random"
+                    },
+                    {
+                      "key": "dirt",
+                      "label": "Dirt path"
+                    },
+                    {
+                      "key": "wood",
+                      "label": "Wooden bridge"
+                    },
+                    {
+                      "key": "planks",
+                      "label": "Plank walkway"
+                    },
+                    {
+                      "key": "stone",
+                      "label": "Stone bridge"
+                    }
+                  ],
+                  "default": "random",
+                  "key": "bridge",
+                  "label": "Kind of crossing",
+                  "requires": "river",
+                  "type": "choice"
+                }
+              ],
+              "description": "Tall straight trunks at even spacing over a clear floor.",
+              "key": "forest_woodland_beech",
+              "layout": "woodland",
+              "children": [],
+              "zones": [
+                "spring",
+                "summer",
+                "autumn",
+                "winter",
+                "desert"
+              ],
+              "variant": "forest"
+            },
+            {
+              "name": "Dense woodland",
+              "position": 1,
+              "config": {
+                "crossings": {
+                  "dirt": {
+                    "colorOf": "path_dirt",
+                    "tile": "floor"
+                  },
+                  "planks": {
+                    "tile": "wooden_planks"
+                  },
+                  "stone": {
+                    "tile": "cobblestone"
+                  },
+                  "wood": {
+                    "tile": "bridge"
+                  }
+                },
+                "formation": {
+                  "lattice": 7,
+                  "spacing": 0,
+                  "understory": 1.9
+                },
+                "grid": {
+                  "cellSize": 16,
+                  "cols": {
+                    "max": 45,
+                    "min": 30
+                  },
+                  "isoScale": 2.5,
+                  "rows": {
+                    "max": 35,
+                    "min": 24
+                  }
+                },
+                "nature": {
+                  "canopy": 0.55,
+                  "flowers": 0.04,
+                  "groundCover": 0.4,
+                  "tallGrass": 0.12
+                },
+                "palette": {
+                  "bank": "#c1a877",
+                  "canopy": "#5d7340",
+                  "canopyAlt": "#6b8049",
+                  "floor": "#6f7f4a",
+                  "floorAlt": "#7d8a55",
+                  "litter": "#7a6a44",
+                  "swamp": "#3f8a84",
+                  "trail": "#9a8a62",
+                  "undergrowth": "#6d7f45",
+                  "water": "#4f93b3",
+                  "waterDeep": "#2a5f8a",
+                  "waterShallow": "#8ccbe8"
+                },
+                "trees": [
+                  {
+                    "kind": "tree_column",
+                    "weight": 40
+                  },
+                  {
+                    "kind": "tree_tall",
+                    "weight": 30
+                  },
+                  {
+                    "kind": "bush",
+                    "weight": 30
+                  }
+                ],
+                "units": {
+                  "enemies": 0,
+                  "enemyTypes": [],
+                  "townsfolk": 3
+                }
+              },
+              "options": [
+                {
+                  "choices": [
+                    {
+                      "key": "random",
+                      "label": "Random"
+                    },
+                    {
+                      "key": "1",
+                      "label": "1: in and out the same way"
+                    },
+                    {
+                      "key": "2",
+                      "label": "2: in one side, out the other"
+                    },
+                    {
+                      "key": "3",
+                      "label": "3"
+                    },
+                    {
+                      "key": "4",
+                      "label": "4"
+                    }
+                  ],
+                  "default": "random",
+                  "key": "exits",
+                  "label": "Exits",
+                  "type": "choice"
+                },
+                {
+                  "choices": [
+                    {
+                      "key": "random",
+                      "label": "Random"
+                    },
+                    {
+                      "key": "1",
+                      "label": "1"
+                    },
+                    {
+                      "key": "2",
+                      "label": "2"
+                    },
+                    {
+                      "key": "3",
+                      "label": "3"
+                    },
+                    {
+                      "key": "4",
+                      "label": "4"
+                    }
+                  ],
+                  "default": "random",
+                  "key": "pathways",
+                  "label": "Pathways",
+                  "type": "choice"
+                },
+                {
+                  "choices": [
+                    {
+                      "key": "none",
+                      "label": "No river"
+                    },
+                    {
+                      "key": "random",
+                      "label": "Random"
+                    },
+                    {
+                      "key": "through",
+                      "label": "Winds through (easy to cross)"
+                    },
+                    {
+                      "key": "divides",
+                      "label": "Divides the map in two"
+                    },
+                    {
+                      "key": "around",
+                      "label": "Around the edge"
+                    }
+                  ],
+                  "default": "none",
+                  "key": "river",
+                  "label": "River",
+                  "type": "choice"
+                },
+                {
+                  "default": false,
+                  "key": "crossing",
+                  "label": "A crossing joined to the paths",
+                  "requires": "river",
+                  "type": "toggle"
+                },
+                {
+                  "choices": [
+                    {
+                      "key": "random",
+                      "label": "Random"
+                    },
+                    {
+                      "key": "dirt",
+                      "label": "Dirt path"
+                    },
+                    {
+                      "key": "wood",
+                      "label": "Wooden bridge"
+                    },
+                    {
+                      "key": "planks",
+                      "label": "Plank walkway"
+                    },
+                    {
+                      "key": "stone",
+                      "label": "Stone bridge"
+                    }
+                  ],
+                  "default": "random",
+                  "key": "bridge",
+                  "label": "Kind of crossing",
+                  "requires": "river",
+                  "type": "choice"
+                }
+              ],
+              "description": "Tall trunks over deep undergrowth, with a trail cut through it.",
+              "key": "forest_woodland_dense",
+              "layout": "woodland",
+              "children": [],
+              "zones": [
+                "spring",
+                "summer",
+                "autumn",
+                "winter",
+                "desert"
+              ],
+              "variant": "forest"
+            },
+            {
+              "name": "Mountain forest",
+              "position": 2,
+              "config": {
+                "crossings": {
+                  "dirt": {
+                    "colorOf": "path_dirt",
+                    "tile": "floor"
+                  },
+                  "planks": {
+                    "tile": "wooden_planks"
+                  },
+                  "stone": {
+                    "tile": "cobblestone"
+                  },
+                  "wood": {
+                    "tile": "bridge"
+                  }
+                },
+                "formation": {
+                  "lattice": 10,
+                  "spacing": 0,
+                  "understory": 0.6
+                },
+                "grid": {
+                  "cellSize": 16,
+                  "cols": {
+                    "max": 45,
+                    "min": 30
+                  },
+                  "isoScale": 2.5,
+                  "rows": {
+                    "max": 35,
+                    "min": 24
+                  }
+                },
+                "nature": {
+                  "canopy": 0.28,
+                  "flowers": 0.04,
+                  "groundCover": 0.2,
+                  "tallGrass": 0.12
+                },
+                "palette": {
+                  "bank": "#c1a877",
+                  "canopy": "#5d7340",
+                  "canopyAlt": "#6b8049",
+                  "floor": "#6f7f4a",
+                  "floorAlt": "#7d8a55",
+                  "litter": "#7a6a44",
+                  "swamp": "#3f8a84",
+                  "trail": "#9a8a62",
+                  "undergrowth": "#6d7f45",
+                  "water": "#4f93b3",
+                  "waterDeep": "#2a5f8a",
+                  "waterShallow": "#8ccbe8"
+                },
+                "trees": [
+                  {
+                    "kind": "tree_conifer",
+                    "weight": 70
+                  },
+                  {
+                    "kind": "tree_tall",
+                    "weight": 15
+                  },
+                  {
+                    "kind": "tree_stub",
+                    "weight": 15
+                  }
+                ],
+                "units": {
+                  "enemies": 0,
+                  "enemyTypes": [],
+                  "townsfolk": 3
+                }
+              },
+              "options": [
+                {
+                  "choices": [
+                    {
+                      "key": "random",
+                      "label": "Random"
+                    },
+                    {
+                      "key": "1",
+                      "label": "1: in and out the same way"
+                    },
+                    {
+                      "key": "2",
+                      "label": "2: in one side, out the other"
+                    },
+                    {
+                      "key": "3",
+                      "label": "3"
+                    },
+                    {
+                      "key": "4",
+                      "label": "4"
+                    }
+                  ],
+                  "default": "random",
+                  "key": "exits",
+                  "label": "Exits",
+                  "type": "choice"
+                },
+                {
+                  "choices": [
+                    {
+                      "key": "random",
+                      "label": "Random"
+                    },
+                    {
+                      "key": "1",
+                      "label": "1"
+                    },
+                    {
+                      "key": "2",
+                      "label": "2"
+                    },
+                    {
+                      "key": "3",
+                      "label": "3"
+                    },
+                    {
+                      "key": "4",
+                      "label": "4"
+                    }
+                  ],
+                  "default": "random",
+                  "key": "pathways",
+                  "label": "Pathways",
+                  "type": "choice"
+                },
+                {
+                  "choices": [
+                    {
+                      "key": "none",
+                      "label": "No river"
+                    },
+                    {
+                      "key": "random",
+                      "label": "Random"
+                    },
+                    {
+                      "key": "through",
+                      "label": "Winds through (easy to cross)"
+                    },
+                    {
+                      "key": "divides",
+                      "label": "Divides the map in two"
+                    },
+                    {
+                      "key": "around",
+                      "label": "Around the edge"
+                    }
+                  ],
+                  "default": "none",
+                  "key": "river",
+                  "label": "River",
+                  "type": "choice"
+                },
+                {
+                  "default": false,
+                  "key": "crossing",
+                  "label": "A crossing joined to the paths",
+                  "requires": "river",
+                  "type": "toggle"
+                },
+                {
+                  "choices": [
+                    {
+                      "key": "random",
+                      "label": "Random"
+                    },
+                    {
+                      "key": "dirt",
+                      "label": "Dirt path"
+                    },
+                    {
+                      "key": "wood",
+                      "label": "Wooden bridge"
+                    },
+                    {
+                      "key": "planks",
+                      "label": "Plank walkway"
+                    },
+                    {
+                      "key": "stone",
+                      "label": "Stone bridge"
+                    }
+                  ],
+                  "default": "random",
+                  "key": "bridge",
+                  "label": "Kind of crossing",
+                  "requires": "river",
+                  "type": "choice"
+                }
+              ],
+              "description": "Conifers in patches over open hillside.",
+              "key": "forest_woodland_mountain",
+              "layout": "woodland",
+              "children": [],
+              "zones": [
+                "spring",
+                "summer",
+                "autumn",
+                "winter",
+                "desert"
+              ],
+              "variant": "forest"
+            },
+            {
+              "name": "Woodland with meadows",
+              "position": 3,
+              "config": {
+                "crossings": {
+                  "dirt": {
+                    "colorOf": "path_dirt",
+                    "tile": "floor"
+                  },
+                  "planks": {
+                    "tile": "wooden_planks"
+                  },
+                  "stone": {
+                    "tile": "cobblestone"
+                  },
+                  "wood": {
+                    "tile": "bridge"
+                  }
+                },
+                "formation": {
+                  "lattice": 10,
+                  "spacing": 0,
+                  "understory": 0.6
+                },
+                "grid": {
+                  "cellSize": 16,
+                  "cols": {
+                    "max": 45,
+                    "min": 30
+                  },
+                  "isoScale": 2.5,
+                  "rows": {
+                    "max": 35,
+                    "min": 24
+                  }
+                },
+                "nature": {
+                  "canopy": 0.35,
+                  "flowers": 0.04,
+                  "groundCover": 0.2,
+                  "tallGrass": 0.12
+                },
+                "palette": {
+                  "bank": "#c1a877",
+                  "canopy": "#5d7340",
+                  "canopyAlt": "#6b8049",
+                  "floor": "#6f7f4a",
+                  "floorAlt": "#7d8a55",
+                  "litter": "#7a6a44",
+                  "swamp": "#3f8a84",
+                  "trail": "#9a8a62",
+                  "undergrowth": "#6d7f45",
+                  "water": "#4f93b3",
+                  "waterDeep": "#2a5f8a",
+                  "waterShallow": "#8ccbe8"
+                },
+                "trees": [
+                  {
+                    "kind": "tree",
+                    "weight": 30
+                  },
+                  {
+                    "kind": "tree_round",
+                    "weight": 25
+                  },
+                  {
+                    "kind": "tree_broadleaf",
+                    "weight": 25
+                  },
+                  {
+                    "kind": "bush_round",
+                    "weight": 20
+                  }
+                ],
+                "units": {
+                  "enemies": 0,
+                  "enemyTypes": [],
+                  "townsfolk": 3
+                }
+              },
+              "options": [
+                {
+                  "choices": [
+                    {
+                      "key": "random",
+                      "label": "Random"
+                    },
+                    {
+                      "key": "1",
+                      "label": "1: in and out the same way"
+                    },
+                    {
+                      "key": "2",
+                      "label": "2: in one side, out the other"
+                    },
+                    {
+                      "key": "3",
+                      "label": "3"
+                    },
+                    {
+                      "key": "4",
+                      "label": "4"
+                    }
+                  ],
+                  "default": "random",
+                  "key": "exits",
+                  "label": "Exits",
+                  "type": "choice"
+                },
+                {
+                  "choices": [
+                    {
+                      "key": "random",
+                      "label": "Random"
+                    },
+                    {
+                      "key": "1",
+                      "label": "1"
+                    },
+                    {
+                      "key": "2",
+                      "label": "2"
+                    },
+                    {
+                      "key": "3",
+                      "label": "3"
+                    },
+                    {
+                      "key": "4",
+                      "label": "4"
+                    }
+                  ],
+                  "default": "random",
+                  "key": "pathways",
+                  "label": "Pathways",
+                  "type": "choice"
+                },
+                {
+                  "choices": [
+                    {
+                      "key": "none",
+                      "label": "No river"
+                    },
+                    {
+                      "key": "random",
+                      "label": "Random"
+                    },
+                    {
+                      "key": "through",
+                      "label": "Winds through (easy to cross)"
+                    },
+                    {
+                      "key": "divides",
+                      "label": "Divides the map in two"
+                    },
+                    {
+                      "key": "around",
+                      "label": "Around the edge"
+                    }
+                  ],
+                  "default": "none",
+                  "key": "river",
+                  "label": "River",
+                  "type": "choice"
+                },
+                {
+                  "default": false,
+                  "key": "crossing",
+                  "label": "A crossing joined to the paths",
+                  "requires": "river",
+                  "type": "toggle"
+                },
+                {
+                  "choices": [
+                    {
+                      "key": "random",
+                      "label": "Random"
+                    },
+                    {
+                      "key": "dirt",
+                      "label": "Dirt path"
+                    },
+                    {
+                      "key": "wood",
+                      "label": "Wooden bridge"
+                    },
+                    {
+                      "key": "planks",
+                      "label": "Plank walkway"
+                    },
+                    {
+                      "key": "stone",
+                      "label": "Stone bridge"
+                    }
+                  ],
+                  "default": "random",
+                  "key": "bridge",
+                  "label": "Kind of crossing",
+                  "requires": "river",
+                  "type": "choice"
+                }
+              ],
+              "description": "Stands of trees broken by open meadow.",
+              "key": "forest_woodland_glades",
+              "layout": "woodland",
+              "children": [],
+              "zones": [
+                "spring",
+                "summer",
+                "autumn",
+                "winter",
+                "desert"
+              ],
+              "variant": "forest"
+            }
+          ],
           "zones": [
             "spring",
             "summer",
             "autumn",
             "winter",
             "desert"
-          ]
+          ],
+          "variant": "forest"
         },
         {
-          "children": [
-            {
-              "children": [],
-              "config": {
-                "crossings": {
-                  "dirt": {
-                    "colorOf": "path_dirt",
-                    "tile": "floor"
-                  },
-                  "planks": {
-                    "tile": "wooden_planks"
-                  },
-                  "stone": {
-                    "tile": "cobblestone"
-                  },
-                  "wood": {
-                    "tile": "bridge"
-                  }
-                },
-                "formation": {
-                  "lattice": 13,
-                  "spacing": 0,
-                  "understory": 1.25
-                },
-                "grid": {
-                  "cellSize": 16,
-                  "cols": {
-                    "max": 45,
-                    "min": 30
-                  },
-                  "isoScale": 2.5,
-                  "rows": {
-                    "max": 35,
-                    "min": 24
-                  }
-                },
-                "nature": {
-                  "canopy": 0.72,
-                  "flowers": 0.1,
-                  "groundCover": 0.5
-                },
-                "palette": {
-                  "bank": "#6b5f3c",
-                  "canopy": "#2e6b32",
-                  "canopyAlt": "#3f8a3c",
-                  "floor": "#2f4a2a",
-                  "floorAlt": "#38552f",
-                  "litter": "#46442a",
-                  "swamp": "#3a8278",
-                  "trail": "#57502f",
-                  "undergrowth": "#25532a",
-                  "water": "#3f86b0",
-                  "waterDeep": "#23547e",
-                  "waterShallow": "#86c5e2"
-                },
-                "subZones": [
-                  {
-                    "canopy": 0.45,
-                    "floor": "#3f5f33",
-                    "formation": {
-                      "lattice": 9,
-                      "spacing": 3,
-                      "understory": 0.5
-                    },
-                    "key": "open",
-                    "name": "Open canopy",
-                    "trees": [
-                      {
-                        "kind": "tree_palm",
-                        "weight": 30
-                      },
-                      {
-                        "kind": "tree_round",
-                        "weight": 30
-                      },
-                      {
-                        "kind": "tree_big",
-                        "weight": 20
-                      },
-                      {
-                        "kind": "bush_round",
-                        "weight": 20
-                      }
-                    ],
-                    "undergrowth": 0.5,
-                    "weight": 1
-                  },
-                  {
-                    "canopy": 1.3,
-                    "floor": "#24381f",
-                    "formation": {
-                      "lattice": 13,
-                      "spacing": 0,
-                      "understory": 1.3
-                    },
-                    "key": "dense",
-                    "name": "Dense growth",
-                    "trees": [
-                      {
-                        "kind": "tree_giant",
-                        "weight": 25
-                      },
-                      {
-                        "kind": "tree_big",
-                        "weight": 25
-                      },
-                      {
-                        "kind": "bush",
-                        "weight": 25
-                      },
-                      {
-                        "kind": "tree_round",
-                        "weight": 25
-                      }
-                    ],
-                    "undergrowth": 1.45,
-                    "weight": 5
-                  }
-                ],
-                "trees": [
-                  {
-                    "kind": "tree_round",
-                    "weight": 22
-                  },
-                  {
-                    "kind": "tree_big",
-                    "weight": 20
-                  },
-                  {
-                    "kind": "bush_round",
-                    "weight": 16
-                  },
-                  {
-                    "kind": "tree_giant",
-                    "weight": 14
-                  },
-                  {
-                    "kind": "tree_palm",
-                    "weight": 14
-                  },
-                  {
-                    "kind": "bush",
-                    "weight": 14
-                  }
-                ],
-                "units": {
-                  "enemies": 0,
-                  "enemyTypes": [],
-                  "townsfolk": 2
-                }
-              },
-              "description": "A closed canopy wall to wall, almost no open ground.",
-              "key": "forest_jungle_dense",
-              "layout": "jungle",
-              "name": "Super dense jungle",
-              "options": [
-                {
-                  "choices": [
-                    {
-                      "key": "none",
-                      "label": "No river"
-                    },
-                    {
-                      "key": "random",
-                      "label": "Random"
-                    },
-                    {
-                      "key": "through",
-                      "label": "Winds through (easy to cross)"
-                    },
-                    {
-                      "key": "divides",
-                      "label": "Divides the map in two"
-                    },
-                    {
-                      "key": "around",
-                      "label": "Around the edge"
-                    }
-                  ],
-                  "default": "none",
-                  "key": "river",
-                  "label": "River",
-                  "type": "choice"
-                },
-                {
-                  "default": false,
-                  "key": "crossing",
-                  "label": "A crossing joined to the paths",
-                  "requires": "river",
-                  "type": "toggle"
-                },
-                {
-                  "choices": [
-                    {
-                      "key": "random",
-                      "label": "Random"
-                    },
-                    {
-                      "key": "dirt",
-                      "label": "Dirt path"
-                    },
-                    {
-                      "key": "wood",
-                      "label": "Wooden bridge"
-                    },
-                    {
-                      "key": "planks",
-                      "label": "Plank walkway"
-                    },
-                    {
-                      "key": "stone",
-                      "label": "Stone bridge"
-                    }
-                  ],
-                  "default": "random",
-                  "key": "bridge",
-                  "label": "Kind of crossing",
-                  "requires": "river",
-                  "type": "choice"
-                }
-              ],
-              "position": 0,
-              "zones": [
-                "spring",
-                "summer",
-                "autumn",
-                "winter",
-                "desert"
-              ]
-            },
-            {
-              "children": [],
-              "config": {
-                "crossings": {
-                  "dirt": {
-                    "colorOf": "path_dirt",
-                    "tile": "floor"
-                  },
-                  "planks": {
-                    "tile": "wooden_planks"
-                  },
-                  "stone": {
-                    "tile": "cobblestone"
-                  },
-                  "wood": {
-                    "tile": "bridge"
-                  }
-                },
-                "formation": {
-                  "lattice": 13,
-                  "spacing": 0,
-                  "understory": 1.25
-                },
-                "grid": {
-                  "cellSize": 16,
-                  "cols": {
-                    "max": 45,
-                    "min": 30
-                  },
-                  "isoScale": 2.5,
-                  "rows": {
-                    "max": 35,
-                    "min": 24
-                  }
-                },
-                "nature": {
-                  "canopy": 0.62,
-                  "flowers": 0.1,
-                  "groundCover": 0.5
-                },
-                "palette": {
-                  "bank": "#6b5f3c",
-                  "canopy": "#2e6b32",
-                  "canopyAlt": "#3f8a3c",
-                  "floor": "#2f4a2a",
-                  "floorAlt": "#38552f",
-                  "litter": "#46442a",
-                  "swamp": "#3a8278",
-                  "trail": "#57502f",
-                  "undergrowth": "#25532a",
-                  "water": "#3f86b0",
-                  "waterDeep": "#23547e",
-                  "waterShallow": "#86c5e2"
-                },
-                "subZones": [
-                  {
-                    "canopy": 0.45,
-                    "floor": "#3f5f33",
-                    "formation": {
-                      "lattice": 9,
-                      "spacing": 3,
-                      "understory": 0.5
-                    },
-                    "key": "open",
-                    "name": "Open canopy",
-                    "trees": [
-                      {
-                        "kind": "tree_palm",
-                        "weight": 30
-                      },
-                      {
-                        "kind": "tree_round",
-                        "weight": 30
-                      },
-                      {
-                        "kind": "tree_big",
-                        "weight": 20
-                      },
-                      {
-                        "kind": "bush_round",
-                        "weight": 20
-                      }
-                    ],
-                    "undergrowth": 0.5,
-                    "weight": 1
-                  },
-                  {
-                    "canopy": 1.3,
-                    "floor": "#24381f",
-                    "formation": {
-                      "lattice": 13,
-                      "spacing": 0,
-                      "understory": 1.3
-                    },
-                    "key": "dense",
-                    "name": "Dense growth",
-                    "trees": [
-                      {
-                        "kind": "tree_giant",
-                        "weight": 25
-                      },
-                      {
-                        "kind": "tree_big",
-                        "weight": 25
-                      },
-                      {
-                        "kind": "bush",
-                        "weight": 25
-                      },
-                      {
-                        "kind": "tree_round",
-                        "weight": 25
-                      }
-                    ],
-                    "undergrowth": 1.45,
-                    "weight": 2
-                  },
-                  {
-                    "canopy": 0.85,
-                    "floor": "#3b4a2e",
-                    "formation": {
-                      "lattice": 5,
-                      "spacing": 3,
-                      "understory": 0.7
-                    },
-                    "key": "swamp",
-                    "name": "Swamp",
-                    "pools": 0.22,
-                    "trees": [
-                      {
-                        "kind": "tree_cypress",
-                        "weight": 60
-                      },
-                      {
-                        "kind": "bush_round",
-                        "weight": 25
-                      },
-                      {
-                        "kind": "tree_round",
-                        "weight": 15
-                      }
-                    ],
-                    "undergrowth": 1.1,
-                    "weight": 6
-                  }
-                ],
-                "trees": [
-                  {
-                    "kind": "tree_round",
-                    "weight": 22
-                  },
-                  {
-                    "kind": "tree_big",
-                    "weight": 20
-                  },
-                  {
-                    "kind": "bush_round",
-                    "weight": 16
-                  },
-                  {
-                    "kind": "tree_giant",
-                    "weight": 14
-                  },
-                  {
-                    "kind": "tree_palm",
-                    "weight": 14
-                  },
-                  {
-                    "kind": "bush",
-                    "weight": 14
-                  }
-                ],
-                "units": {
-                  "enemies": 0,
-                  "enemyTypes": [],
-                  "townsfolk": 2
-                }
-              },
-              "description": "Mostly swamp, cypress standing in the water.",
-              "key": "forest_jungle_swamp",
-              "layout": "jungle",
-              "name": "Swamp jungle",
-              "options": [
-                {
-                  "choices": [
-                    {
-                      "key": "none",
-                      "label": "No river"
-                    },
-                    {
-                      "key": "random",
-                      "label": "Random"
-                    },
-                    {
-                      "key": "through",
-                      "label": "Winds through (easy to cross)"
-                    },
-                    {
-                      "key": "divides",
-                      "label": "Divides the map in two"
-                    },
-                    {
-                      "key": "around",
-                      "label": "Around the edge"
-                    }
-                  ],
-                  "default": "none",
-                  "key": "river",
-                  "label": "River",
-                  "type": "choice"
-                },
-                {
-                  "default": false,
-                  "key": "crossing",
-                  "label": "A crossing joined to the paths",
-                  "requires": "river",
-                  "type": "toggle"
-                },
-                {
-                  "choices": [
-                    {
-                      "key": "random",
-                      "label": "Random"
-                    },
-                    {
-                      "key": "dirt",
-                      "label": "Dirt path"
-                    },
-                    {
-                      "key": "wood",
-                      "label": "Wooden bridge"
-                    },
-                    {
-                      "key": "planks",
-                      "label": "Plank walkway"
-                    },
-                    {
-                      "key": "stone",
-                      "label": "Stone bridge"
-                    }
-                  ],
-                  "default": "random",
-                  "key": "bridge",
-                  "label": "Kind of crossing",
-                  "requires": "river",
-                  "type": "choice"
-                }
-              ],
-              "position": 1,
-              "zones": [
-                "spring",
-                "summer",
-                "autumn",
-                "winter",
-                "desert"
-              ]
-            },
-            {
-              "children": [],
-              "config": {
-                "crossings": {
-                  "dirt": {
-                    "colorOf": "path_dirt",
-                    "tile": "floor"
-                  },
-                  "planks": {
-                    "tile": "wooden_planks"
-                  },
-                  "stone": {
-                    "tile": "cobblestone"
-                  },
-                  "wood": {
-                    "tile": "bridge"
-                  }
-                },
-                "formation": {
-                  "lattice": 13,
-                  "spacing": 0,
-                  "understory": 1.25
-                },
-                "grid": {
-                  "cellSize": 16,
-                  "cols": {
-                    "max": 45,
-                    "min": 30
-                  },
-                  "isoScale": 2.5,
-                  "rows": {
-                    "max": 35,
-                    "min": 24
-                  }
-                },
-                "nature": {
-                  "canopy": 0.62,
-                  "flowers": 0.1,
-                  "groundCover": 0.5
-                },
-                "palette": {
-                  "bank": "#6b5f3c",
-                  "canopy": "#2e6b32",
-                  "canopyAlt": "#3f8a3c",
-                  "floor": "#2f4a2a",
-                  "floorAlt": "#38552f",
-                  "litter": "#46442a",
-                  "swamp": "#3a8278",
-                  "trail": "#57502f",
-                  "undergrowth": "#25532a",
-                  "water": "#3f86b0",
-                  "waterDeep": "#23547e",
-                  "waterShallow": "#86c5e2"
-                },
-                "subZones": [
-                  {
-                    "canopy": 0.45,
-                    "floor": "#3f5f33",
-                    "formation": {
-                      "lattice": 9,
-                      "spacing": 3,
-                      "understory": 0.5
-                    },
-                    "key": "open",
-                    "name": "Open canopy",
-                    "trees": [
-                      {
-                        "kind": "tree_palm",
-                        "weight": 30
-                      },
-                      {
-                        "kind": "tree_round",
-                        "weight": 30
-                      },
-                      {
-                        "kind": "tree_big",
-                        "weight": 20
-                      },
-                      {
-                        "kind": "bush_round",
-                        "weight": 20
-                      }
-                    ],
-                    "undergrowth": 0.5,
-                    "weight": 3
-                  },
-                  {
-                    "canopy": 1.3,
-                    "floor": "#24381f",
-                    "formation": {
-                      "lattice": 13,
-                      "spacing": 0,
-                      "understory": 1.3
-                    },
-                    "key": "dense",
-                    "name": "Dense growth",
-                    "trees": [
-                      {
-                        "kind": "tree_giant",
-                        "weight": 25
-                      },
-                      {
-                        "kind": "tree_big",
-                        "weight": 25
-                      },
-                      {
-                        "kind": "bush",
-                        "weight": 25
-                      },
-                      {
-                        "kind": "tree_round",
-                        "weight": 25
-                      }
-                    ],
-                    "undergrowth": 1.45,
-                    "weight": 2
-                  }
-                ],
-                "trees": [
-                  {
-                    "kind": "tree_palm",
-                    "weight": 50
-                  },
-                  {
-                    "kind": "tree_round",
-                    "weight": 25
-                  },
-                  {
-                    "kind": "bush_round",
-                    "weight": 25
-                  }
-                ],
-                "units": {
-                  "enemies": 0,
-                  "enemyTypes": [],
-                  "townsfolk": 2
-                }
-              },
-              "description": "Jungle ringed by water, heavy with palms.",
-              "key": "forest_jungle_island",
-              "layout": "jungle",
-              "name": "Island jungle",
-              "options": [
-                {
-                  "choices": [
-                    {
-                      "key": "none",
-                      "label": "No river"
-                    },
-                    {
-                      "key": "random",
-                      "label": "Random"
-                    },
-                    {
-                      "key": "through",
-                      "label": "Winds through (easy to cross)"
-                    },
-                    {
-                      "key": "divides",
-                      "label": "Divides the map in two"
-                    },
-                    {
-                      "key": "around",
-                      "label": "Around the edge"
-                    }
-                  ],
-                  "default": "around",
-                  "key": "river",
-                  "label": "River",
-                  "type": "choice"
-                },
-                {
-                  "default": false,
-                  "key": "crossing",
-                  "label": "A crossing joined to the paths",
-                  "requires": "river",
-                  "type": "toggle"
-                },
-                {
-                  "choices": [
-                    {
-                      "key": "random",
-                      "label": "Random"
-                    },
-                    {
-                      "key": "dirt",
-                      "label": "Dirt path"
-                    },
-                    {
-                      "key": "wood",
-                      "label": "Wooden bridge"
-                    },
-                    {
-                      "key": "planks",
-                      "label": "Plank walkway"
-                    },
-                    {
-                      "key": "stone",
-                      "label": "Stone bridge"
-                    }
-                  ],
-                  "default": "random",
-                  "key": "bridge",
-                  "label": "Kind of crossing",
-                  "requires": "river",
-                  "type": "choice"
-                }
-              ],
-              "position": 2,
-              "zones": [
-                "spring",
-                "summer",
-                "autumn",
-                "winter",
-                "desert"
-              ]
-            },
-            {
-              "children": [],
-              "config": {
-                "crossings": {
-                  "dirt": {
-                    "colorOf": "path_dirt",
-                    "tile": "floor"
-                  },
-                  "planks": {
-                    "tile": "wooden_planks"
-                  },
-                  "stone": {
-                    "tile": "cobblestone"
-                  },
-                  "wood": {
-                    "tile": "bridge"
-                  }
-                },
-                "formation": {
-                  "lattice": 13,
-                  "spacing": 0,
-                  "understory": 1.25
-                },
-                "grid": {
-                  "cellSize": 16,
-                  "cols": {
-                    "max": 45,
-                    "min": 30
-                  },
-                  "isoScale": 2.5,
-                  "rows": {
-                    "max": 35,
-                    "min": 24
-                  }
-                },
-                "nature": {
-                  "canopy": 0.62,
-                  "flowers": 0.1,
-                  "groundCover": 0.5
-                },
-                "palette": {
-                  "bank": "#6b5f3c",
-                  "canopy": "#2e6b32",
-                  "canopyAlt": "#3f8a3c",
-                  "floor": "#2f4a2a",
-                  "floorAlt": "#38552f",
-                  "litter": "#46442a",
-                  "swamp": "#3a8278",
-                  "trail": "#57502f",
-                  "undergrowth": "#25532a",
-                  "water": "#3f86b0",
-                  "waterDeep": "#23547e",
-                  "waterShallow": "#86c5e2"
-                },
-                "subZones": [
-                  {
-                    "canopy": 0.45,
-                    "floor": "#3f5f33",
-                    "formation": {
-                      "lattice": 9,
-                      "spacing": 3,
-                      "understory": 0.5
-                    },
-                    "key": "open",
-                    "name": "Open canopy",
-                    "trees": [
-                      {
-                        "kind": "tree_palm",
-                        "weight": 30
-                      },
-                      {
-                        "kind": "tree_round",
-                        "weight": 30
-                      },
-                      {
-                        "kind": "tree_big",
-                        "weight": 20
-                      },
-                      {
-                        "kind": "bush_round",
-                        "weight": 20
-                      }
-                    ],
-                    "undergrowth": 0.5,
-                    "weight": 2
-                  },
-                  {
-                    "canopy": 1.3,
-                    "floor": "#24381f",
-                    "formation": {
-                      "lattice": 13,
-                      "spacing": 0,
-                      "understory": 1.3
-                    },
-                    "key": "dense",
-                    "name": "Dense growth",
-                    "trees": [
-                      {
-                        "kind": "tree_giant",
-                        "weight": 25
-                      },
-                      {
-                        "kind": "tree_big",
-                        "weight": 25
-                      },
-                      {
-                        "kind": "bush",
-                        "weight": 25
-                      },
-                      {
-                        "kind": "tree_round",
-                        "weight": 25
-                      }
-                    ],
-                    "undergrowth": 1.45,
-                    "weight": 2
-                  },
-                  {
-                    "canopy": 0.55,
-                    "floor": "#4a4a3c",
-                    "formation": {
-                      "lattice": 8,
-                      "spacing": 2,
-                      "understory": 0.6
-                    },
-                    "key": "ruins",
-                    "name": "Ruins",
-                    "stone": 0.16,
-                    "trees": [
-                      {
-                        "kind": "tree_round",
-                        "weight": 30
-                      },
-                      {
-                        "kind": "bush",
-                        "weight": 30
-                      },
-                      {
-                        "kind": "tree_stub",
-                        "weight": 20
-                      },
-                      {
-                        "kind": "tree_sapling",
-                        "weight": 20
-                      }
-                    ],
-                    "undergrowth": 0.65,
-                    "weight": 5
-                  }
-                ],
-                "trees": [
-                  {
-                    "kind": "tree_round",
-                    "weight": 22
-                  },
-                  {
-                    "kind": "tree_big",
-                    "weight": 20
-                  },
-                  {
-                    "kind": "bush_round",
-                    "weight": 16
-                  },
-                  {
-                    "kind": "tree_giant",
-                    "weight": 14
-                  },
-                  {
-                    "kind": "tree_palm",
-                    "weight": 14
-                  },
-                  {
-                    "kind": "bush",
-                    "weight": 14
-                  }
-                ],
-                "units": {
-                  "enemies": 0,
-                  "enemyTypes": [],
-                  "townsfolk": 2
-                }
-              },
-              "description": "Ruins the jungle has taken back.",
-              "key": "forest_jungle_ruins",
-              "layout": "jungle",
-              "name": "Jungle ruins",
-              "options": [
-                {
-                  "choices": [
-                    {
-                      "key": "none",
-                      "label": "No river"
-                    },
-                    {
-                      "key": "random",
-                      "label": "Random"
-                    },
-                    {
-                      "key": "through",
-                      "label": "Winds through (easy to cross)"
-                    },
-                    {
-                      "key": "divides",
-                      "label": "Divides the map in two"
-                    },
-                    {
-                      "key": "around",
-                      "label": "Around the edge"
-                    }
-                  ],
-                  "default": "none",
-                  "key": "river",
-                  "label": "River",
-                  "type": "choice"
-                },
-                {
-                  "default": false,
-                  "key": "crossing",
-                  "label": "A crossing joined to the paths",
-                  "requires": "river",
-                  "type": "toggle"
-                },
-                {
-                  "choices": [
-                    {
-                      "key": "random",
-                      "label": "Random"
-                    },
-                    {
-                      "key": "dirt",
-                      "label": "Dirt path"
-                    },
-                    {
-                      "key": "wood",
-                      "label": "Wooden bridge"
-                    },
-                    {
-                      "key": "planks",
-                      "label": "Plank walkway"
-                    },
-                    {
-                      "key": "stone",
-                      "label": "Stone bridge"
-                    }
-                  ],
-                  "default": "random",
-                  "key": "bridge",
-                  "label": "Kind of crossing",
-                  "requires": "river",
-                  "type": "choice"
-                }
-              ],
-              "position": 3,
-              "zones": [
-                "spring",
-                "summer",
-                "autumn",
-                "winter",
-                "desert"
-              ]
-            }
-          ],
+          "name": "Jungle",
+          "position": 1,
           "config": {
             "crossings": {
               "dirt": {
@@ -1968,11 +1297,63 @@
               "townsfolk": 2
             }
           },
-          "description": "A closed canopy over choked undergrowth, with clearings cut into it.",
-          "key": "forest_jungle",
-          "layout": "jungle",
-          "name": "Jungle",
           "options": [
+            {
+              "choices": [
+                {
+                  "key": "random",
+                  "label": "Random"
+                },
+                {
+                  "key": "1",
+                  "label": "1: in and out the same way"
+                },
+                {
+                  "key": "2",
+                  "label": "2: in one side, out the other"
+                },
+                {
+                  "key": "3",
+                  "label": "3"
+                },
+                {
+                  "key": "4",
+                  "label": "4"
+                }
+              ],
+              "default": "random",
+              "key": "exits",
+              "label": "Exits",
+              "type": "choice"
+            },
+            {
+              "choices": [
+                {
+                  "key": "random",
+                  "label": "Random"
+                },
+                {
+                  "key": "1",
+                  "label": "1"
+                },
+                {
+                  "key": "2",
+                  "label": "2"
+                },
+                {
+                  "key": "3",
+                  "label": "3"
+                },
+                {
+                  "key": "4",
+                  "label": "4"
+                }
+              ],
+              "default": "random",
+              "key": "pathways",
+              "label": "Pathways",
+              "type": "choice"
+            },
             {
               "choices": [
                 {
@@ -2038,314 +1419,1215 @@
               "type": "choice"
             }
           ],
-          "position": 1,
+          "description": "A closed canopy over choked undergrowth, with clearings cut into it.",
+          "key": "forest_jungle",
+          "layout": "jungle",
+          "children": [
+            {
+              "name": "Super dense jungle",
+              "position": 0,
+              "config": {
+                "crossings": {
+                  "dirt": {
+                    "colorOf": "path_dirt",
+                    "tile": "floor"
+                  },
+                  "planks": {
+                    "tile": "wooden_planks"
+                  },
+                  "stone": {
+                    "tile": "cobblestone"
+                  },
+                  "wood": {
+                    "tile": "bridge"
+                  }
+                },
+                "formation": {
+                  "lattice": 13,
+                  "spacing": 0,
+                  "understory": 1.25
+                },
+                "grid": {
+                  "cellSize": 16,
+                  "cols": {
+                    "max": 45,
+                    "min": 30
+                  },
+                  "isoScale": 2.5,
+                  "rows": {
+                    "max": 35,
+                    "min": 24
+                  }
+                },
+                "nature": {
+                  "canopy": 0.72,
+                  "flowers": 0.1,
+                  "groundCover": 0.5
+                },
+                "palette": {
+                  "bank": "#6b5f3c",
+                  "canopy": "#2e6b32",
+                  "canopyAlt": "#3f8a3c",
+                  "floor": "#2f4a2a",
+                  "floorAlt": "#38552f",
+                  "litter": "#46442a",
+                  "swamp": "#3a8278",
+                  "trail": "#57502f",
+                  "undergrowth": "#25532a",
+                  "water": "#3f86b0",
+                  "waterDeep": "#23547e",
+                  "waterShallow": "#86c5e2"
+                },
+                "subZones": [
+                  {
+                    "canopy": 0.45,
+                    "floor": "#3f5f33",
+                    "formation": {
+                      "lattice": 9,
+                      "spacing": 3,
+                      "understory": 0.5
+                    },
+                    "key": "open",
+                    "name": "Open canopy",
+                    "trees": [
+                      {
+                        "kind": "tree_palm",
+                        "weight": 30
+                      },
+                      {
+                        "kind": "tree_round",
+                        "weight": 30
+                      },
+                      {
+                        "kind": "tree_big",
+                        "weight": 20
+                      },
+                      {
+                        "kind": "bush_round",
+                        "weight": 20
+                      }
+                    ],
+                    "undergrowth": 0.5,
+                    "weight": 1
+                  },
+                  {
+                    "canopy": 1.3,
+                    "floor": "#24381f",
+                    "formation": {
+                      "lattice": 13,
+                      "spacing": 0,
+                      "understory": 1.3
+                    },
+                    "key": "dense",
+                    "name": "Dense growth",
+                    "trees": [
+                      {
+                        "kind": "tree_giant",
+                        "weight": 25
+                      },
+                      {
+                        "kind": "tree_big",
+                        "weight": 25
+                      },
+                      {
+                        "kind": "bush",
+                        "weight": 25
+                      },
+                      {
+                        "kind": "tree_round",
+                        "weight": 25
+                      }
+                    ],
+                    "undergrowth": 1.45,
+                    "weight": 5
+                  }
+                ],
+                "trees": [
+                  {
+                    "kind": "tree_round",
+                    "weight": 22
+                  },
+                  {
+                    "kind": "tree_big",
+                    "weight": 20
+                  },
+                  {
+                    "kind": "bush_round",
+                    "weight": 16
+                  },
+                  {
+                    "kind": "tree_giant",
+                    "weight": 14
+                  },
+                  {
+                    "kind": "tree_palm",
+                    "weight": 14
+                  },
+                  {
+                    "kind": "bush",
+                    "weight": 14
+                  }
+                ],
+                "units": {
+                  "enemies": 0,
+                  "enemyTypes": [],
+                  "townsfolk": 2
+                }
+              },
+              "options": [
+                {
+                  "choices": [
+                    {
+                      "key": "random",
+                      "label": "Random"
+                    },
+                    {
+                      "key": "1",
+                      "label": "1: in and out the same way"
+                    },
+                    {
+                      "key": "2",
+                      "label": "2: in one side, out the other"
+                    },
+                    {
+                      "key": "3",
+                      "label": "3"
+                    },
+                    {
+                      "key": "4",
+                      "label": "4"
+                    }
+                  ],
+                  "default": "random",
+                  "key": "exits",
+                  "label": "Exits",
+                  "type": "choice"
+                },
+                {
+                  "choices": [
+                    {
+                      "key": "random",
+                      "label": "Random"
+                    },
+                    {
+                      "key": "1",
+                      "label": "1"
+                    },
+                    {
+                      "key": "2",
+                      "label": "2"
+                    },
+                    {
+                      "key": "3",
+                      "label": "3"
+                    },
+                    {
+                      "key": "4",
+                      "label": "4"
+                    }
+                  ],
+                  "default": "random",
+                  "key": "pathways",
+                  "label": "Pathways",
+                  "type": "choice"
+                },
+                {
+                  "choices": [
+                    {
+                      "key": "none",
+                      "label": "No river"
+                    },
+                    {
+                      "key": "random",
+                      "label": "Random"
+                    },
+                    {
+                      "key": "through",
+                      "label": "Winds through (easy to cross)"
+                    },
+                    {
+                      "key": "divides",
+                      "label": "Divides the map in two"
+                    },
+                    {
+                      "key": "around",
+                      "label": "Around the edge"
+                    }
+                  ],
+                  "default": "none",
+                  "key": "river",
+                  "label": "River",
+                  "type": "choice"
+                },
+                {
+                  "default": false,
+                  "key": "crossing",
+                  "label": "A crossing joined to the paths",
+                  "requires": "river",
+                  "type": "toggle"
+                },
+                {
+                  "choices": [
+                    {
+                      "key": "random",
+                      "label": "Random"
+                    },
+                    {
+                      "key": "dirt",
+                      "label": "Dirt path"
+                    },
+                    {
+                      "key": "wood",
+                      "label": "Wooden bridge"
+                    },
+                    {
+                      "key": "planks",
+                      "label": "Plank walkway"
+                    },
+                    {
+                      "key": "stone",
+                      "label": "Stone bridge"
+                    }
+                  ],
+                  "default": "random",
+                  "key": "bridge",
+                  "label": "Kind of crossing",
+                  "requires": "river",
+                  "type": "choice"
+                }
+              ],
+              "description": "A closed canopy wall to wall, almost no open ground.",
+              "key": "forest_jungle_dense",
+              "layout": "jungle",
+              "children": [],
+              "zones": [
+                "spring",
+                "summer",
+                "autumn",
+                "winter",
+                "desert"
+              ],
+              "variant": "forest"
+            },
+            {
+              "name": "Swamp jungle",
+              "position": 1,
+              "config": {
+                "crossings": {
+                  "dirt": {
+                    "colorOf": "path_dirt",
+                    "tile": "floor"
+                  },
+                  "planks": {
+                    "tile": "wooden_planks"
+                  },
+                  "stone": {
+                    "tile": "cobblestone"
+                  },
+                  "wood": {
+                    "tile": "bridge"
+                  }
+                },
+                "formation": {
+                  "lattice": 13,
+                  "spacing": 0,
+                  "understory": 1.25
+                },
+                "grid": {
+                  "cellSize": 16,
+                  "cols": {
+                    "max": 45,
+                    "min": 30
+                  },
+                  "isoScale": 2.5,
+                  "rows": {
+                    "max": 35,
+                    "min": 24
+                  }
+                },
+                "nature": {
+                  "canopy": 0.62,
+                  "flowers": 0.1,
+                  "groundCover": 0.5
+                },
+                "palette": {
+                  "bank": "#6b5f3c",
+                  "canopy": "#2e6b32",
+                  "canopyAlt": "#3f8a3c",
+                  "floor": "#2f4a2a",
+                  "floorAlt": "#38552f",
+                  "litter": "#46442a",
+                  "swamp": "#3a8278",
+                  "trail": "#57502f",
+                  "undergrowth": "#25532a",
+                  "water": "#3f86b0",
+                  "waterDeep": "#23547e",
+                  "waterShallow": "#86c5e2"
+                },
+                "subZones": [
+                  {
+                    "canopy": 0.45,
+                    "floor": "#3f5f33",
+                    "formation": {
+                      "lattice": 9,
+                      "spacing": 3,
+                      "understory": 0.5
+                    },
+                    "key": "open",
+                    "name": "Open canopy",
+                    "trees": [
+                      {
+                        "kind": "tree_palm",
+                        "weight": 30
+                      },
+                      {
+                        "kind": "tree_round",
+                        "weight": 30
+                      },
+                      {
+                        "kind": "tree_big",
+                        "weight": 20
+                      },
+                      {
+                        "kind": "bush_round",
+                        "weight": 20
+                      }
+                    ],
+                    "undergrowth": 0.5,
+                    "weight": 1
+                  },
+                  {
+                    "canopy": 1.3,
+                    "floor": "#24381f",
+                    "formation": {
+                      "lattice": 13,
+                      "spacing": 0,
+                      "understory": 1.3
+                    },
+                    "key": "dense",
+                    "name": "Dense growth",
+                    "trees": [
+                      {
+                        "kind": "tree_giant",
+                        "weight": 25
+                      },
+                      {
+                        "kind": "tree_big",
+                        "weight": 25
+                      },
+                      {
+                        "kind": "bush",
+                        "weight": 25
+                      },
+                      {
+                        "kind": "tree_round",
+                        "weight": 25
+                      }
+                    ],
+                    "undergrowth": 1.45,
+                    "weight": 2
+                  },
+                  {
+                    "canopy": 0.85,
+                    "floor": "#3b4a2e",
+                    "formation": {
+                      "lattice": 5,
+                      "spacing": 3,
+                      "understory": 0.7
+                    },
+                    "key": "swamp",
+                    "name": "Swamp",
+                    "pools": 0.22,
+                    "trees": [
+                      {
+                        "kind": "tree_cypress",
+                        "weight": 60
+                      },
+                      {
+                        "kind": "bush_round",
+                        "weight": 25
+                      },
+                      {
+                        "kind": "tree_round",
+                        "weight": 15
+                      }
+                    ],
+                    "undergrowth": 1.1,
+                    "weight": 6
+                  }
+                ],
+                "trees": [
+                  {
+                    "kind": "tree_round",
+                    "weight": 22
+                  },
+                  {
+                    "kind": "tree_big",
+                    "weight": 20
+                  },
+                  {
+                    "kind": "bush_round",
+                    "weight": 16
+                  },
+                  {
+                    "kind": "tree_giant",
+                    "weight": 14
+                  },
+                  {
+                    "kind": "tree_palm",
+                    "weight": 14
+                  },
+                  {
+                    "kind": "bush",
+                    "weight": 14
+                  }
+                ],
+                "units": {
+                  "enemies": 0,
+                  "enemyTypes": [],
+                  "townsfolk": 2
+                }
+              },
+              "options": [
+                {
+                  "choices": [
+                    {
+                      "key": "random",
+                      "label": "Random"
+                    },
+                    {
+                      "key": "1",
+                      "label": "1: in and out the same way"
+                    },
+                    {
+                      "key": "2",
+                      "label": "2: in one side, out the other"
+                    },
+                    {
+                      "key": "3",
+                      "label": "3"
+                    },
+                    {
+                      "key": "4",
+                      "label": "4"
+                    }
+                  ],
+                  "default": "random",
+                  "key": "exits",
+                  "label": "Exits",
+                  "type": "choice"
+                },
+                {
+                  "choices": [
+                    {
+                      "key": "random",
+                      "label": "Random"
+                    },
+                    {
+                      "key": "1",
+                      "label": "1"
+                    },
+                    {
+                      "key": "2",
+                      "label": "2"
+                    },
+                    {
+                      "key": "3",
+                      "label": "3"
+                    },
+                    {
+                      "key": "4",
+                      "label": "4"
+                    }
+                  ],
+                  "default": "random",
+                  "key": "pathways",
+                  "label": "Pathways",
+                  "type": "choice"
+                },
+                {
+                  "choices": [
+                    {
+                      "key": "none",
+                      "label": "No river"
+                    },
+                    {
+                      "key": "random",
+                      "label": "Random"
+                    },
+                    {
+                      "key": "through",
+                      "label": "Winds through (easy to cross)"
+                    },
+                    {
+                      "key": "divides",
+                      "label": "Divides the map in two"
+                    },
+                    {
+                      "key": "around",
+                      "label": "Around the edge"
+                    }
+                  ],
+                  "default": "none",
+                  "key": "river",
+                  "label": "River",
+                  "type": "choice"
+                },
+                {
+                  "default": false,
+                  "key": "crossing",
+                  "label": "A crossing joined to the paths",
+                  "requires": "river",
+                  "type": "toggle"
+                },
+                {
+                  "choices": [
+                    {
+                      "key": "random",
+                      "label": "Random"
+                    },
+                    {
+                      "key": "dirt",
+                      "label": "Dirt path"
+                    },
+                    {
+                      "key": "wood",
+                      "label": "Wooden bridge"
+                    },
+                    {
+                      "key": "planks",
+                      "label": "Plank walkway"
+                    },
+                    {
+                      "key": "stone",
+                      "label": "Stone bridge"
+                    }
+                  ],
+                  "default": "random",
+                  "key": "bridge",
+                  "label": "Kind of crossing",
+                  "requires": "river",
+                  "type": "choice"
+                }
+              ],
+              "description": "Mostly swamp, cypress standing in the water.",
+              "key": "forest_jungle_swamp",
+              "layout": "jungle",
+              "children": [],
+              "zones": [
+                "spring",
+                "summer",
+                "autumn",
+                "winter",
+                "desert"
+              ],
+              "variant": "forest"
+            },
+            {
+              "name": "Island jungle",
+              "position": 2,
+              "config": {
+                "crossings": {
+                  "dirt": {
+                    "colorOf": "path_dirt",
+                    "tile": "floor"
+                  },
+                  "planks": {
+                    "tile": "wooden_planks"
+                  },
+                  "stone": {
+                    "tile": "cobblestone"
+                  },
+                  "wood": {
+                    "tile": "bridge"
+                  }
+                },
+                "formation": {
+                  "lattice": 13,
+                  "spacing": 0,
+                  "understory": 1.25
+                },
+                "grid": {
+                  "cellSize": 16,
+                  "cols": {
+                    "max": 45,
+                    "min": 30
+                  },
+                  "isoScale": 2.5,
+                  "rows": {
+                    "max": 35,
+                    "min": 24
+                  }
+                },
+                "nature": {
+                  "canopy": 0.62,
+                  "flowers": 0.1,
+                  "groundCover": 0.5
+                },
+                "palette": {
+                  "bank": "#6b5f3c",
+                  "canopy": "#2e6b32",
+                  "canopyAlt": "#3f8a3c",
+                  "floor": "#2f4a2a",
+                  "floorAlt": "#38552f",
+                  "litter": "#46442a",
+                  "swamp": "#3a8278",
+                  "trail": "#57502f",
+                  "undergrowth": "#25532a",
+                  "water": "#3f86b0",
+                  "waterDeep": "#23547e",
+                  "waterShallow": "#86c5e2"
+                },
+                "subZones": [
+                  {
+                    "canopy": 0.45,
+                    "floor": "#3f5f33",
+                    "formation": {
+                      "lattice": 9,
+                      "spacing": 3,
+                      "understory": 0.5
+                    },
+                    "key": "open",
+                    "name": "Open canopy",
+                    "trees": [
+                      {
+                        "kind": "tree_palm",
+                        "weight": 30
+                      },
+                      {
+                        "kind": "tree_round",
+                        "weight": 30
+                      },
+                      {
+                        "kind": "tree_big",
+                        "weight": 20
+                      },
+                      {
+                        "kind": "bush_round",
+                        "weight": 20
+                      }
+                    ],
+                    "undergrowth": 0.5,
+                    "weight": 3
+                  },
+                  {
+                    "canopy": 1.3,
+                    "floor": "#24381f",
+                    "formation": {
+                      "lattice": 13,
+                      "spacing": 0,
+                      "understory": 1.3
+                    },
+                    "key": "dense",
+                    "name": "Dense growth",
+                    "trees": [
+                      {
+                        "kind": "tree_giant",
+                        "weight": 25
+                      },
+                      {
+                        "kind": "tree_big",
+                        "weight": 25
+                      },
+                      {
+                        "kind": "bush",
+                        "weight": 25
+                      },
+                      {
+                        "kind": "tree_round",
+                        "weight": 25
+                      }
+                    ],
+                    "undergrowth": 1.45,
+                    "weight": 2
+                  }
+                ],
+                "trees": [
+                  {
+                    "kind": "tree_palm",
+                    "weight": 50
+                  },
+                  {
+                    "kind": "tree_round",
+                    "weight": 25
+                  },
+                  {
+                    "kind": "bush_round",
+                    "weight": 25
+                  }
+                ],
+                "units": {
+                  "enemies": 0,
+                  "enemyTypes": [],
+                  "townsfolk": 2
+                }
+              },
+              "options": [
+                {
+                  "choices": [
+                    {
+                      "key": "random",
+                      "label": "Random"
+                    },
+                    {
+                      "key": "1",
+                      "label": "1: in and out the same way"
+                    },
+                    {
+                      "key": "2",
+                      "label": "2: in one side, out the other"
+                    },
+                    {
+                      "key": "3",
+                      "label": "3"
+                    },
+                    {
+                      "key": "4",
+                      "label": "4"
+                    }
+                  ],
+                  "default": "random",
+                  "key": "exits",
+                  "label": "Exits",
+                  "type": "choice"
+                },
+                {
+                  "choices": [
+                    {
+                      "key": "random",
+                      "label": "Random"
+                    },
+                    {
+                      "key": "1",
+                      "label": "1"
+                    },
+                    {
+                      "key": "2",
+                      "label": "2"
+                    },
+                    {
+                      "key": "3",
+                      "label": "3"
+                    },
+                    {
+                      "key": "4",
+                      "label": "4"
+                    }
+                  ],
+                  "default": "random",
+                  "key": "pathways",
+                  "label": "Pathways",
+                  "type": "choice"
+                },
+                {
+                  "choices": [
+                    {
+                      "key": "none",
+                      "label": "No river"
+                    },
+                    {
+                      "key": "random",
+                      "label": "Random"
+                    },
+                    {
+                      "key": "through",
+                      "label": "Winds through (easy to cross)"
+                    },
+                    {
+                      "key": "divides",
+                      "label": "Divides the map in two"
+                    },
+                    {
+                      "key": "around",
+                      "label": "Around the edge"
+                    }
+                  ],
+                  "default": "around",
+                  "key": "river",
+                  "label": "River",
+                  "type": "choice"
+                },
+                {
+                  "default": false,
+                  "key": "crossing",
+                  "label": "A crossing joined to the paths",
+                  "requires": "river",
+                  "type": "toggle"
+                },
+                {
+                  "choices": [
+                    {
+                      "key": "random",
+                      "label": "Random"
+                    },
+                    {
+                      "key": "dirt",
+                      "label": "Dirt path"
+                    },
+                    {
+                      "key": "wood",
+                      "label": "Wooden bridge"
+                    },
+                    {
+                      "key": "planks",
+                      "label": "Plank walkway"
+                    },
+                    {
+                      "key": "stone",
+                      "label": "Stone bridge"
+                    }
+                  ],
+                  "default": "random",
+                  "key": "bridge",
+                  "label": "Kind of crossing",
+                  "requires": "river",
+                  "type": "choice"
+                }
+              ],
+              "description": "Jungle ringed by water, heavy with palms.",
+              "key": "forest_jungle_island",
+              "layout": "jungle",
+              "children": [],
+              "zones": [
+                "spring",
+                "summer",
+                "autumn",
+                "winter",
+                "desert"
+              ],
+              "variant": "forest"
+            },
+            {
+              "name": "Jungle ruins",
+              "position": 3,
+              "config": {
+                "crossings": {
+                  "dirt": {
+                    "colorOf": "path_dirt",
+                    "tile": "floor"
+                  },
+                  "planks": {
+                    "tile": "wooden_planks"
+                  },
+                  "stone": {
+                    "tile": "cobblestone"
+                  },
+                  "wood": {
+                    "tile": "bridge"
+                  }
+                },
+                "formation": {
+                  "lattice": 13,
+                  "spacing": 0,
+                  "understory": 1.25
+                },
+                "grid": {
+                  "cellSize": 16,
+                  "cols": {
+                    "max": 45,
+                    "min": 30
+                  },
+                  "isoScale": 2.5,
+                  "rows": {
+                    "max": 35,
+                    "min": 24
+                  }
+                },
+                "nature": {
+                  "canopy": 0.62,
+                  "flowers": 0.1,
+                  "groundCover": 0.5
+                },
+                "palette": {
+                  "bank": "#6b5f3c",
+                  "canopy": "#2e6b32",
+                  "canopyAlt": "#3f8a3c",
+                  "floor": "#2f4a2a",
+                  "floorAlt": "#38552f",
+                  "litter": "#46442a",
+                  "swamp": "#3a8278",
+                  "trail": "#57502f",
+                  "undergrowth": "#25532a",
+                  "water": "#3f86b0",
+                  "waterDeep": "#23547e",
+                  "waterShallow": "#86c5e2"
+                },
+                "subZones": [
+                  {
+                    "canopy": 0.45,
+                    "floor": "#3f5f33",
+                    "formation": {
+                      "lattice": 9,
+                      "spacing": 3,
+                      "understory": 0.5
+                    },
+                    "key": "open",
+                    "name": "Open canopy",
+                    "trees": [
+                      {
+                        "kind": "tree_palm",
+                        "weight": 30
+                      },
+                      {
+                        "kind": "tree_round",
+                        "weight": 30
+                      },
+                      {
+                        "kind": "tree_big",
+                        "weight": 20
+                      },
+                      {
+                        "kind": "bush_round",
+                        "weight": 20
+                      }
+                    ],
+                    "undergrowth": 0.5,
+                    "weight": 2
+                  },
+                  {
+                    "canopy": 1.3,
+                    "floor": "#24381f",
+                    "formation": {
+                      "lattice": 13,
+                      "spacing": 0,
+                      "understory": 1.3
+                    },
+                    "key": "dense",
+                    "name": "Dense growth",
+                    "trees": [
+                      {
+                        "kind": "tree_giant",
+                        "weight": 25
+                      },
+                      {
+                        "kind": "tree_big",
+                        "weight": 25
+                      },
+                      {
+                        "kind": "bush",
+                        "weight": 25
+                      },
+                      {
+                        "kind": "tree_round",
+                        "weight": 25
+                      }
+                    ],
+                    "undergrowth": 1.45,
+                    "weight": 2
+                  },
+                  {
+                    "canopy": 0.55,
+                    "floor": "#4a4a3c",
+                    "formation": {
+                      "lattice": 8,
+                      "spacing": 2,
+                      "understory": 0.6
+                    },
+                    "key": "ruins",
+                    "name": "Ruins",
+                    "stone": 0.16,
+                    "trees": [
+                      {
+                        "kind": "tree_round",
+                        "weight": 30
+                      },
+                      {
+                        "kind": "bush",
+                        "weight": 30
+                      },
+                      {
+                        "kind": "tree_stub",
+                        "weight": 20
+                      },
+                      {
+                        "kind": "tree_sapling",
+                        "weight": 20
+                      }
+                    ],
+                    "undergrowth": 0.65,
+                    "weight": 5
+                  }
+                ],
+                "trees": [
+                  {
+                    "kind": "tree_round",
+                    "weight": 22
+                  },
+                  {
+                    "kind": "tree_big",
+                    "weight": 20
+                  },
+                  {
+                    "kind": "bush_round",
+                    "weight": 16
+                  },
+                  {
+                    "kind": "tree_giant",
+                    "weight": 14
+                  },
+                  {
+                    "kind": "tree_palm",
+                    "weight": 14
+                  },
+                  {
+                    "kind": "bush",
+                    "weight": 14
+                  }
+                ],
+                "units": {
+                  "enemies": 0,
+                  "enemyTypes": [],
+                  "townsfolk": 2
+                }
+              },
+              "options": [
+                {
+                  "choices": [
+                    {
+                      "key": "random",
+                      "label": "Random"
+                    },
+                    {
+                      "key": "1",
+                      "label": "1: in and out the same way"
+                    },
+                    {
+                      "key": "2",
+                      "label": "2: in one side, out the other"
+                    },
+                    {
+                      "key": "3",
+                      "label": "3"
+                    },
+                    {
+                      "key": "4",
+                      "label": "4"
+                    }
+                  ],
+                  "default": "random",
+                  "key": "exits",
+                  "label": "Exits",
+                  "type": "choice"
+                },
+                {
+                  "choices": [
+                    {
+                      "key": "random",
+                      "label": "Random"
+                    },
+                    {
+                      "key": "1",
+                      "label": "1"
+                    },
+                    {
+                      "key": "2",
+                      "label": "2"
+                    },
+                    {
+                      "key": "3",
+                      "label": "3"
+                    },
+                    {
+                      "key": "4",
+                      "label": "4"
+                    }
+                  ],
+                  "default": "random",
+                  "key": "pathways",
+                  "label": "Pathways",
+                  "type": "choice"
+                },
+                {
+                  "choices": [
+                    {
+                      "key": "none",
+                      "label": "No river"
+                    },
+                    {
+                      "key": "random",
+                      "label": "Random"
+                    },
+                    {
+                      "key": "through",
+                      "label": "Winds through (easy to cross)"
+                    },
+                    {
+                      "key": "divides",
+                      "label": "Divides the map in two"
+                    },
+                    {
+                      "key": "around",
+                      "label": "Around the edge"
+                    }
+                  ],
+                  "default": "none",
+                  "key": "river",
+                  "label": "River",
+                  "type": "choice"
+                },
+                {
+                  "default": false,
+                  "key": "crossing",
+                  "label": "A crossing joined to the paths",
+                  "requires": "river",
+                  "type": "toggle"
+                },
+                {
+                  "choices": [
+                    {
+                      "key": "random",
+                      "label": "Random"
+                    },
+                    {
+                      "key": "dirt",
+                      "label": "Dirt path"
+                    },
+                    {
+                      "key": "wood",
+                      "label": "Wooden bridge"
+                    },
+                    {
+                      "key": "planks",
+                      "label": "Plank walkway"
+                    },
+                    {
+                      "key": "stone",
+                      "label": "Stone bridge"
+                    }
+                  ],
+                  "default": "random",
+                  "key": "bridge",
+                  "label": "Kind of crossing",
+                  "requires": "river",
+                  "type": "choice"
+                }
+              ],
+              "description": "Ruins the jungle has taken back.",
+              "key": "forest_jungle_ruins",
+              "layout": "jungle",
+              "children": [],
+              "zones": [
+                "spring",
+                "summer",
+                "autumn",
+                "winter",
+                "desert"
+              ],
+              "variant": "forest"
+            }
+          ],
           "zones": [
             "spring",
             "summer",
             "autumn",
             "winter",
             "desert"
-          ]
+          ],
+          "variant": "forest"
         },
         {
-          "children": [
-            {
-              "children": [],
-              "config": {
-                "crossings": {
-                  "dirt": {
-                    "colorOf": "path_dirt",
-                    "tile": "floor"
-                  },
-                  "planks": {
-                    "tile": "wooden_planks"
-                  },
-                  "stone": {
-                    "tile": "cobblestone"
-                  },
-                  "wood": {
-                    "tile": "bridge"
-                  }
-                },
-                "formation": {
-                  "lattice": 3,
-                  "spacing": 4,
-                  "understory": 0.35
-                },
-                "grid": {
-                  "cellSize": 16,
-                  "cols": {
-                    "max": 45,
-                    "min": 30
-                  },
-                  "isoScale": 2.5,
-                  "rows": {
-                    "max": 35,
-                    "min": 24
-                  }
-                },
-                "nature": {
-                  "flowers": 0.06,
-                  "groundCover": 0.12
-                },
-                "palette": {
-                  "swamp": "#3f8a84",
-                  "water": "#4a8fbf",
-                  "waterDeep": "#275b88",
-                  "waterShallow": "#91cdea"
-                },
-                "trees": [
-                  {
-                    "kind": "tree_gnarled",
-                    "weight": 60
-                  },
-                  {
-                    "kind": "tree_broadleaf",
-                    "weight": 25
-                  },
-                  {
-                    "kind": "bush_round",
-                    "weight": 15
-                  }
-                ],
-                "units": {
-                  "enemies": 0,
-                  "enemyTypes": [],
-                  "townsfolk": 5
-                }
-              },
-              "description": "Big lone trees standing wide apart on open grass.",
-              "key": "forest_meadow_pasture",
-              "layout": "meadow",
-              "name": "Wood pasture",
-              "options": [
-                {
-                  "choices": [
-                    {
-                      "key": "none",
-                      "label": "No river"
-                    },
-                    {
-                      "key": "random",
-                      "label": "Random"
-                    },
-                    {
-                      "key": "through",
-                      "label": "Winds through (easy to cross)"
-                    },
-                    {
-                      "key": "divides",
-                      "label": "Divides the map in two"
-                    },
-                    {
-                      "key": "around",
-                      "label": "Around the edge"
-                    }
-                  ],
-                  "default": "none",
-                  "key": "river",
-                  "label": "River",
-                  "type": "choice"
-                },
-                {
-                  "default": false,
-                  "key": "crossing",
-                  "label": "A crossing joined to the paths",
-                  "requires": "river",
-                  "type": "toggle"
-                },
-                {
-                  "choices": [
-                    {
-                      "key": "random",
-                      "label": "Random"
-                    },
-                    {
-                      "key": "dirt",
-                      "label": "Dirt path"
-                    },
-                    {
-                      "key": "wood",
-                      "label": "Wooden bridge"
-                    },
-                    {
-                      "key": "planks",
-                      "label": "Plank walkway"
-                    },
-                    {
-                      "key": "stone",
-                      "label": "Stone bridge"
-                    }
-                  ],
-                  "default": "random",
-                  "key": "bridge",
-                  "label": "Kind of crossing",
-                  "requires": "river",
-                  "type": "choice"
-                }
-              ],
-              "position": 0,
-              "zones": [
-                "spring",
-                "summer",
-                "autumn",
-                "winter",
-                "desert"
-              ]
-            },
-            {
-              "children": [],
-              "config": {
-                "crossings": {
-                  "dirt": {
-                    "colorOf": "path_dirt",
-                    "tile": "floor"
-                  },
-                  "planks": {
-                    "tile": "wooden_planks"
-                  },
-                  "stone": {
-                    "tile": "cobblestone"
-                  },
-                  "wood": {
-                    "tile": "bridge"
-                  }
-                },
-                "formation": {
-                  "lattice": 3,
-                  "spacing": 4,
-                  "understory": 0.35
-                },
-                "grid": {
-                  "cellSize": 16,
-                  "cols": {
-                    "max": 45,
-                    "min": 30
-                  },
-                  "isoScale": 2.5,
-                  "rows": {
-                    "max": 35,
-                    "min": 24
-                  }
-                },
-                "nature": {
-                  "flowers": 0.06,
-                  "groundCover": 0.12
-                },
-                "palette": {
-                  "swamp": "#3f8a84",
-                  "water": "#4a8fbf",
-                  "waterDeep": "#275b88",
-                  "waterShallow": "#91cdea"
-                },
-                "trees": [
-                  {
-                    "kind": "tree_gnarled",
-                    "weight": 38
-                  },
-                  {
-                    "kind": "tree_broadleaf",
-                    "weight": 22
-                  },
-                  {
-                    "kind": "tree_round",
-                    "weight": 20
-                  },
-                  {
-                    "kind": "tree_big",
-                    "weight": 10
-                  },
-                  {
-                    "kind": "bush_round",
-                    "weight": 10
-                  }
-                ],
-                "units": {
-                  "enemies": 0,
-                  "enemyTypes": [],
-                  "townsfolk": 5
-                }
-              },
-              "description": "The open clearing, as it is.",
-              "key": "forest_meadow_open",
-              "layout": "meadow",
-              "name": "Open meadow",
-              "options": [
-                {
-                  "choices": [
-                    {
-                      "key": "none",
-                      "label": "No river"
-                    },
-                    {
-                      "key": "random",
-                      "label": "Random"
-                    },
-                    {
-                      "key": "through",
-                      "label": "Winds through (easy to cross)"
-                    },
-                    {
-                      "key": "divides",
-                      "label": "Divides the map in two"
-                    },
-                    {
-                      "key": "around",
-                      "label": "Around the edge"
-                    }
-                  ],
-                  "default": "none",
-                  "key": "river",
-                  "label": "River",
-                  "type": "choice"
-                },
-                {
-                  "default": false,
-                  "key": "crossing",
-                  "label": "A crossing joined to the paths",
-                  "requires": "river",
-                  "type": "toggle"
-                },
-                {
-                  "choices": [
-                    {
-                      "key": "random",
-                      "label": "Random"
-                    },
-                    {
-                      "key": "dirt",
-                      "label": "Dirt path"
-                    },
-                    {
-                      "key": "wood",
-                      "label": "Wooden bridge"
-                    },
-                    {
-                      "key": "planks",
-                      "label": "Plank walkway"
-                    },
-                    {
-                      "key": "stone",
-                      "label": "Stone bridge"
-                    }
-                  ],
-                  "default": "random",
-                  "key": "bridge",
-                  "label": "Kind of crossing",
-                  "requires": "river",
-                  "type": "choice"
-                }
-              ],
-              "position": 1,
-              "zones": [
-                "spring",
-                "summer",
-                "autumn",
-                "winter",
-                "desert"
-              ]
-            }
-          ],
+          "name": "Meadow",
+          "position": 2,
           "config": {
             "crossings": {
               "dirt": {
@@ -2381,7 +2663,8 @@
             },
             "nature": {
               "flowers": 0.06,
-              "groundCover": 0.12
+              "groundCover": 0.12,
+              "tallGrass": 0.18
             },
             "palette": {
               "swamp": "#3f8a84",
@@ -2417,11 +2700,63 @@
               "townsfolk": 5
             }
           },
-          "description": "An open clearing framed by trees, with two ways in.",
-          "key": "forest_meadow",
-          "layout": "meadow",
-          "name": "Meadow",
           "options": [
+            {
+              "choices": [
+                {
+                  "key": "random",
+                  "label": "Random"
+                },
+                {
+                  "key": "1",
+                  "label": "1: in and out the same way"
+                },
+                {
+                  "key": "2",
+                  "label": "2: in one side, out the other"
+                },
+                {
+                  "key": "3",
+                  "label": "3"
+                },
+                {
+                  "key": "4",
+                  "label": "4"
+                }
+              ],
+              "default": "random",
+              "key": "exits",
+              "label": "Exits",
+              "type": "choice"
+            },
+            {
+              "choices": [
+                {
+                  "key": "random",
+                  "label": "Random"
+                },
+                {
+                  "key": "1",
+                  "label": "1"
+                },
+                {
+                  "key": "2",
+                  "label": "2"
+                },
+                {
+                  "key": "3",
+                  "label": "3"
+                },
+                {
+                  "key": "4",
+                  "label": "4"
+                }
+              ],
+              "default": "random",
+              "key": "pathways",
+              "label": "Pathways",
+              "type": "choice"
+            },
             {
               "choices": [
                 {
@@ -2487,25 +2822,443 @@
               "type": "choice"
             }
           ],
-          "position": 2,
+          "description": "An open clearing framed by trees, with two ways in.",
+          "key": "forest_meadow",
+          "layout": "meadow",
+          "children": [
+            {
+              "name": "Wood pasture",
+              "position": 0,
+              "config": {
+                "crossings": {
+                  "dirt": {
+                    "colorOf": "path_dirt",
+                    "tile": "floor"
+                  },
+                  "planks": {
+                    "tile": "wooden_planks"
+                  },
+                  "stone": {
+                    "tile": "cobblestone"
+                  },
+                  "wood": {
+                    "tile": "bridge"
+                  }
+                },
+                "formation": {
+                  "lattice": 3,
+                  "spacing": 4,
+                  "understory": 0.35
+                },
+                "grid": {
+                  "cellSize": 16,
+                  "cols": {
+                    "max": 45,
+                    "min": 30
+                  },
+                  "isoScale": 2.5,
+                  "rows": {
+                    "max": 35,
+                    "min": 24
+                  }
+                },
+                "nature": {
+                  "flowers": 0.06,
+                  "groundCover": 0.12,
+                  "tallGrass": 0.18
+                },
+                "palette": {
+                  "swamp": "#3f8a84",
+                  "water": "#4a8fbf",
+                  "waterDeep": "#275b88",
+                  "waterShallow": "#91cdea"
+                },
+                "trees": [
+                  {
+                    "kind": "tree_gnarled",
+                    "weight": 60
+                  },
+                  {
+                    "kind": "tree_broadleaf",
+                    "weight": 25
+                  },
+                  {
+                    "kind": "bush_round",
+                    "weight": 15
+                  }
+                ],
+                "units": {
+                  "enemies": 0,
+                  "enemyTypes": [],
+                  "townsfolk": 5
+                }
+              },
+              "options": [
+                {
+                  "choices": [
+                    {
+                      "key": "random",
+                      "label": "Random"
+                    },
+                    {
+                      "key": "1",
+                      "label": "1: in and out the same way"
+                    },
+                    {
+                      "key": "2",
+                      "label": "2: in one side, out the other"
+                    },
+                    {
+                      "key": "3",
+                      "label": "3"
+                    },
+                    {
+                      "key": "4",
+                      "label": "4"
+                    }
+                  ],
+                  "default": "random",
+                  "key": "exits",
+                  "label": "Exits",
+                  "type": "choice"
+                },
+                {
+                  "choices": [
+                    {
+                      "key": "random",
+                      "label": "Random"
+                    },
+                    {
+                      "key": "1",
+                      "label": "1"
+                    },
+                    {
+                      "key": "2",
+                      "label": "2"
+                    },
+                    {
+                      "key": "3",
+                      "label": "3"
+                    },
+                    {
+                      "key": "4",
+                      "label": "4"
+                    }
+                  ],
+                  "default": "random",
+                  "key": "pathways",
+                  "label": "Pathways",
+                  "type": "choice"
+                },
+                {
+                  "choices": [
+                    {
+                      "key": "none",
+                      "label": "No river"
+                    },
+                    {
+                      "key": "random",
+                      "label": "Random"
+                    },
+                    {
+                      "key": "through",
+                      "label": "Winds through (easy to cross)"
+                    },
+                    {
+                      "key": "divides",
+                      "label": "Divides the map in two"
+                    },
+                    {
+                      "key": "around",
+                      "label": "Around the edge"
+                    }
+                  ],
+                  "default": "none",
+                  "key": "river",
+                  "label": "River",
+                  "type": "choice"
+                },
+                {
+                  "default": false,
+                  "key": "crossing",
+                  "label": "A crossing joined to the paths",
+                  "requires": "river",
+                  "type": "toggle"
+                },
+                {
+                  "choices": [
+                    {
+                      "key": "random",
+                      "label": "Random"
+                    },
+                    {
+                      "key": "dirt",
+                      "label": "Dirt path"
+                    },
+                    {
+                      "key": "wood",
+                      "label": "Wooden bridge"
+                    },
+                    {
+                      "key": "planks",
+                      "label": "Plank walkway"
+                    },
+                    {
+                      "key": "stone",
+                      "label": "Stone bridge"
+                    }
+                  ],
+                  "default": "random",
+                  "key": "bridge",
+                  "label": "Kind of crossing",
+                  "requires": "river",
+                  "type": "choice"
+                }
+              ],
+              "description": "Big lone trees standing wide apart on open grass.",
+              "key": "forest_meadow_pasture",
+              "layout": "meadow",
+              "children": [],
+              "zones": [
+                "spring",
+                "summer",
+                "autumn",
+                "winter",
+                "desert"
+              ],
+              "variant": "forest"
+            },
+            {
+              "name": "Open meadow",
+              "position": 1,
+              "config": {
+                "crossings": {
+                  "dirt": {
+                    "colorOf": "path_dirt",
+                    "tile": "floor"
+                  },
+                  "planks": {
+                    "tile": "wooden_planks"
+                  },
+                  "stone": {
+                    "tile": "cobblestone"
+                  },
+                  "wood": {
+                    "tile": "bridge"
+                  }
+                },
+                "formation": {
+                  "lattice": 3,
+                  "spacing": 4,
+                  "understory": 0.35
+                },
+                "grid": {
+                  "cellSize": 16,
+                  "cols": {
+                    "max": 45,
+                    "min": 30
+                  },
+                  "isoScale": 2.5,
+                  "rows": {
+                    "max": 35,
+                    "min": 24
+                  }
+                },
+                "nature": {
+                  "flowers": 0.06,
+                  "groundCover": 0.12,
+                  "tallGrass": 0.18
+                },
+                "palette": {
+                  "swamp": "#3f8a84",
+                  "water": "#4a8fbf",
+                  "waterDeep": "#275b88",
+                  "waterShallow": "#91cdea"
+                },
+                "trees": [
+                  {
+                    "kind": "tree_gnarled",
+                    "weight": 38
+                  },
+                  {
+                    "kind": "tree_broadleaf",
+                    "weight": 22
+                  },
+                  {
+                    "kind": "tree_round",
+                    "weight": 20
+                  },
+                  {
+                    "kind": "tree_big",
+                    "weight": 10
+                  },
+                  {
+                    "kind": "bush_round",
+                    "weight": 10
+                  }
+                ],
+                "units": {
+                  "enemies": 0,
+                  "enemyTypes": [],
+                  "townsfolk": 5
+                }
+              },
+              "options": [
+                {
+                  "choices": [
+                    {
+                      "key": "random",
+                      "label": "Random"
+                    },
+                    {
+                      "key": "1",
+                      "label": "1: in and out the same way"
+                    },
+                    {
+                      "key": "2",
+                      "label": "2: in one side, out the other"
+                    },
+                    {
+                      "key": "3",
+                      "label": "3"
+                    },
+                    {
+                      "key": "4",
+                      "label": "4"
+                    }
+                  ],
+                  "default": "random",
+                  "key": "exits",
+                  "label": "Exits",
+                  "type": "choice"
+                },
+                {
+                  "choices": [
+                    {
+                      "key": "random",
+                      "label": "Random"
+                    },
+                    {
+                      "key": "1",
+                      "label": "1"
+                    },
+                    {
+                      "key": "2",
+                      "label": "2"
+                    },
+                    {
+                      "key": "3",
+                      "label": "3"
+                    },
+                    {
+                      "key": "4",
+                      "label": "4"
+                    }
+                  ],
+                  "default": "random",
+                  "key": "pathways",
+                  "label": "Pathways",
+                  "type": "choice"
+                },
+                {
+                  "choices": [
+                    {
+                      "key": "none",
+                      "label": "No river"
+                    },
+                    {
+                      "key": "random",
+                      "label": "Random"
+                    },
+                    {
+                      "key": "through",
+                      "label": "Winds through (easy to cross)"
+                    },
+                    {
+                      "key": "divides",
+                      "label": "Divides the map in two"
+                    },
+                    {
+                      "key": "around",
+                      "label": "Around the edge"
+                    }
+                  ],
+                  "default": "none",
+                  "key": "river",
+                  "label": "River",
+                  "type": "choice"
+                },
+                {
+                  "default": false,
+                  "key": "crossing",
+                  "label": "A crossing joined to the paths",
+                  "requires": "river",
+                  "type": "toggle"
+                },
+                {
+                  "choices": [
+                    {
+                      "key": "random",
+                      "label": "Random"
+                    },
+                    {
+                      "key": "dirt",
+                      "label": "Dirt path"
+                    },
+                    {
+                      "key": "wood",
+                      "label": "Wooden bridge"
+                    },
+                    {
+                      "key": "planks",
+                      "label": "Plank walkway"
+                    },
+                    {
+                      "key": "stone",
+                      "label": "Stone bridge"
+                    }
+                  ],
+                  "default": "random",
+                  "key": "bridge",
+                  "label": "Kind of crossing",
+                  "requires": "river",
+                  "type": "choice"
+                }
+              ],
+              "description": "The open clearing, as it is.",
+              "key": "forest_meadow_open",
+              "layout": "meadow",
+              "children": [],
+              "zones": [
+                "spring",
+                "summer",
+                "autumn",
+                "winter",
+                "desert"
+              ],
+              "variant": "forest"
+            }
+          ],
           "zones": [
             "spring",
             "summer",
             "autumn",
             "winter",
             "desert"
-          ]
+          ],
+          "variant": "forest"
         }
-      ],
-      "key": "forest",
-      "name": "Forest",
-      "position": 0
+      ]
     },
     {
-      "description": "A modest, leafy settlement around a square.",
+      "name": "Settlement",
+      "position": 1,
+      "description": "Towns and cities: the same streets and squares at different densities.",
+      "key": "settlement",
       "generators": [
         {
-          "children": [],
+          "name": "Town",
+          "position": 0,
           "config": {
             "buildings": {
               "fixedWall": "#f0f0ea",
@@ -2544,7 +3297,8 @@
             },
             "nature": {
               "flowers": 0.06,
-              "groundCover": 0.12
+              "groundCover": 0.12,
+              "tallGrass": 0.18
             },
             "settlement": {
               "bigHouseRange": [
@@ -2580,30 +3334,565 @@
               "townsfolk": 8
             }
           },
+          "options": [],
           "description": "Streets, a central square, houses fronting the roads.",
           "key": "town_default",
-          "layout": null,
-          "name": "Town",
-          "options": [],
-          "position": 0,
+          "layout": "town",
+          "children": [
+            {
+              "name": "Traditional",
+              "position": 0,
+              "config": {
+                "buildings": {
+                  "fixedWall": "#f0f0ea",
+                  "hospitalRoof": "#2f7e50",
+                  "materials": [
+                    "wall_wood",
+                    "wall_stone",
+                    "wall_brick"
+                  ],
+                  "roofColors": [
+                    "#8a4b2f",
+                    "#6b4a2b",
+                    "#7a5230",
+                    "#5c4433"
+                  ],
+                  "storeRoof": "#235a96",
+                  "wallColors": [
+                    "#c9a66b",
+                    "#d8c79a",
+                    "#b08d5b",
+                    "#e8dcc0"
+                  ]
+                },
+                "grid": {
+                  "cellSize": 16,
+                  "cols": {
+                    "max": 45,
+                    "min": 30
+                  },
+                  "isoScale": 2.5,
+                  "rows": {
+                    "max": 35,
+                    "min": 24
+                  }
+                },
+                "nature": {
+                  "flowers": 0.06,
+                  "groundCover": 0.12,
+                  "tallGrass": 0.18
+                },
+                "settlement": {
+                  "bigHouseRange": [
+                    1,
+                    3
+                  ],
+                  "buildingCap": 18,
+                  "houseRange": [
+                    4,
+                    6
+                  ],
+                  "houseWidths": [
+                    3,
+                    3,
+                    4,
+                    4,
+                    4,
+                    5
+                  ],
+                  "lotGap": [
+                    1,
+                    2
+                  ],
+                  "maxPerFrontage": 6,
+                  "natureMultiplier": 1.3,
+                  "plazaSize": 5,
+                  "roadWidth": 4,
+                  "setback": 1
+                },
+                "units": {
+                  "enemies": 0,
+                  "enemyTypes": [],
+                  "townsfolk": 8
+                }
+              },
+              "options": [],
+              "description": "Timber and stone, warm roofs, trees between the lots.",
+              "key": "town_traditional",
+              "layout": "town",
+              "children": [],
+              "zones": [
+                "spring",
+                "summer",
+                "autumn",
+                "winter",
+                "desert"
+              ],
+              "variant": "town"
+            },
+            {
+              "name": "Modern",
+              "position": 1,
+              "config": {
+                "buildings": {
+                  "fixedWall": "#f0f0ea",
+                  "hospitalRoof": "#2f7e50",
+                  "materials": [
+                    "wall_stone",
+                    "wall_brick"
+                  ],
+                  "roofColors": [
+                    "#4a4f55",
+                    "#5a636b",
+                    "#3f464c",
+                    "#6b7378"
+                  ],
+                  "storeRoof": "#235a96",
+                  "wallColors": [
+                    "#d6d9dc",
+                    "#b9bfc4",
+                    "#8a9199",
+                    "#eceff1"
+                  ]
+                },
+                "grid": {
+                  "cellSize": 16,
+                  "cols": {
+                    "max": 45,
+                    "min": 30
+                  },
+                  "isoScale": 2.5,
+                  "rows": {
+                    "max": 35,
+                    "min": 24
+                  }
+                },
+                "nature": {
+                  "flowers": 0.06,
+                  "groundCover": 0.12,
+                  "tallGrass": 0.18
+                },
+                "settlement": {
+                  "bigHouseRange": [
+                    1,
+                    3
+                  ],
+                  "buildingCap": 18,
+                  "houseRange": [
+                    4,
+                    6
+                  ],
+                  "houseWidths": [
+                    3,
+                    3,
+                    4,
+                    4,
+                    4,
+                    5
+                  ],
+                  "lotGap": [
+                    1,
+                    2
+                  ],
+                  "maxPerFrontage": 6,
+                  "natureMultiplier": 0.5,
+                  "plazaSize": 7,
+                  "roadWidth": 5,
+                  "setback": 1
+                },
+                "units": {
+                  "enemies": 0,
+                  "enemyTypes": [],
+                  "townsfolk": 8
+                }
+              },
+              "options": [],
+              "description": "Concrete, glass and flat grey roofs, wide streets, little green.",
+              "key": "town_modern",
+              "layout": "town",
+              "children": [],
+              "zones": [
+                "spring",
+                "summer",
+                "autumn",
+                "winter",
+                "desert"
+              ],
+              "variant": "town"
+            },
+            {
+              "name": "Tropical",
+              "position": 2,
+              "config": {
+                "buildings": {
+                  "fixedWall": "#f0f0ea",
+                  "hospitalRoof": "#2f7e50",
+                  "materials": [
+                    "wall_wood",
+                    "wall_brick"
+                  ],
+                  "roofColors": [
+                    "#7d6a3a",
+                    "#946f3c",
+                    "#8a5a2b",
+                    "#6f7a3a"
+                  ],
+                  "storeRoof": "#235a96",
+                  "wallColors": [
+                    "#f2e0b0",
+                    "#e8b98a",
+                    "#cfe0a8",
+                    "#f6efdc"
+                  ]
+                },
+                "grid": {
+                  "cellSize": 16,
+                  "cols": {
+                    "max": 45,
+                    "min": 30
+                  },
+                  "isoScale": 2.5,
+                  "rows": {
+                    "max": 35,
+                    "min": 24
+                  }
+                },
+                "nature": {
+                  "flowers": 0.06,
+                  "groundCover": 0.12,
+                  "tallGrass": 0.18
+                },
+                "settlement": {
+                  "bigHouseRange": [
+                    1,
+                    3
+                  ],
+                  "buildingCap": 18,
+                  "houseRange": [
+                    4,
+                    6
+                  ],
+                  "houseWidths": [
+                    3,
+                    3,
+                    4,
+                    4,
+                    4,
+                    5
+                  ],
+                  "lotGap": [
+                    1,
+                    2
+                  ],
+                  "maxPerFrontage": 6,
+                  "natureMultiplier": 1.8,
+                  "plazaSize": 5,
+                  "roadWidth": 4,
+                  "setback": 1
+                },
+                "units": {
+                  "enemies": 0,
+                  "enemyTypes": [],
+                  "townsfolk": 8
+                }
+              },
+              "options": [],
+              "description": "Timber and palm thatch, bright walls, green everywhere.",
+              "key": "town_tropical",
+              "layout": "town",
+              "children": [],
+              "zones": [
+                "spring",
+                "summer",
+                "autumn",
+                "winter",
+                "desert"
+              ],
+              "variant": "town"
+            },
+            {
+              "name": "Snowy",
+              "position": 3,
+              "config": {
+                "buildings": {
+                  "fixedWall": "#f0f0ea",
+                  "hospitalRoof": "#2f7e50",
+                  "materials": [
+                    "wall_wood",
+                    "wall_stone"
+                  ],
+                  "roofColors": [
+                    "#3d454f",
+                    "#4b545e",
+                    "#2f3640",
+                    "#59636d"
+                  ],
+                  "storeRoof": "#235a96",
+                  "wallColors": [
+                    "#eef2f6",
+                    "#d8e1e8",
+                    "#c3ccd4",
+                    "#b0b9c1"
+                  ]
+                },
+                "grid": {
+                  "cellSize": 16,
+                  "cols": {
+                    "max": 45,
+                    "min": 30
+                  },
+                  "isoScale": 2.5,
+                  "rows": {
+                    "max": 35,
+                    "min": 24
+                  }
+                },
+                "nature": {
+                  "flowers": 0.06,
+                  "groundCover": 0.12,
+                  "tallGrass": 0.18
+                },
+                "settlement": {
+                  "bigHouseRange": [
+                    1,
+                    3
+                  ],
+                  "buildingCap": 18,
+                  "houseRange": [
+                    4,
+                    6
+                  ],
+                  "houseWidths": [
+                    3,
+                    3,
+                    4,
+                    4,
+                    4,
+                    5
+                  ],
+                  "lotGap": [
+                    1,
+                    2
+                  ],
+                  "maxPerFrontage": 6,
+                  "natureMultiplier": 0.35,
+                  "plazaSize": 5,
+                  "roadWidth": 4,
+                  "setback": 1
+                },
+                "units": {
+                  "enemies": 0,
+                  "enemyTypes": [],
+                  "townsfolk": 8
+                }
+              },
+              "options": [],
+              "description": "Pale walls under dark steep roofs, and almost nothing growing.",
+              "key": "town_snowy",
+              "layout": "town",
+              "children": [],
+              "zones": [
+                "spring",
+                "summer",
+                "autumn",
+                "winter",
+                "desert"
+              ],
+              "variant": "town"
+            },
+            {
+              "name": "Mediterranean",
+              "position": 4,
+              "config": {
+                "buildings": {
+                  "fixedWall": "#f0f0ea",
+                  "hospitalRoof": "#2f7e50",
+                  "materials": [
+                    "wall_stone",
+                    "wall_brick"
+                  ],
+                  "roofColors": [
+                    "#b5533a",
+                    "#a8462f",
+                    "#c2603f",
+                    "#93402c"
+                  ],
+                  "storeRoof": "#235a96",
+                  "wallColors": [
+                    "#f4ecd8",
+                    "#efe0c0",
+                    "#e6d3ae",
+                    "#faf3e4"
+                  ]
+                },
+                "grid": {
+                  "cellSize": 16,
+                  "cols": {
+                    "max": 45,
+                    "min": 30
+                  },
+                  "isoScale": 2.5,
+                  "rows": {
+                    "max": 35,
+                    "min": 24
+                  }
+                },
+                "nature": {
+                  "flowers": 0.06,
+                  "groundCover": 0.12,
+                  "tallGrass": 0.18
+                },
+                "settlement": {
+                  "bigHouseRange": [
+                    1,
+                    3
+                  ],
+                  "buildingCap": 18,
+                  "houseRange": [
+                    4,
+                    6
+                  ],
+                  "houseWidths": [
+                    3,
+                    3,
+                    4,
+                    4,
+                    4,
+                    5
+                  ],
+                  "lotGap": [
+                    1,
+                    1
+                  ],
+                  "maxPerFrontage": 6,
+                  "natureMultiplier": 0.8,
+                  "plazaSize": 4,
+                  "roadWidth": 4,
+                  "setback": 1
+                },
+                "units": {
+                  "enemies": 0,
+                  "enemyTypes": [],
+                  "townsfolk": 8
+                }
+              },
+              "options": [],
+              "description": "Cream walls and terracotta roofs packed tight around a small square.",
+              "key": "town_mediterranean",
+              "layout": "town",
+              "children": [],
+              "zones": [
+                "spring",
+                "summer",
+                "autumn",
+                "winter",
+                "desert"
+              ],
+              "variant": "town"
+            },
+            {
+              "name": "Andean",
+              "position": 5,
+              "config": {
+                "buildings": {
+                  "fixedWall": "#f0f0ea",
+                  "hospitalRoof": "#2f7e50",
+                  "materials": [
+                    "wall_brick",
+                    "wall_stone"
+                  ],
+                  "roofColors": [
+                    "#8f4a33",
+                    "#7a4a2c",
+                    "#9c6b3a",
+                    "#5f5a52"
+                  ],
+                  "storeRoof": "#235a96",
+                  "wallColors": [
+                    "#c98f5c",
+                    "#b87d4a",
+                    "#d9a877",
+                    "#a86b3d"
+                  ]
+                },
+                "grid": {
+                  "cellSize": 16,
+                  "cols": {
+                    "max": 45,
+                    "min": 30
+                  },
+                  "isoScale": 2.5,
+                  "rows": {
+                    "max": 35,
+                    "min": 24
+                  }
+                },
+                "nature": {
+                  "flowers": 0.06,
+                  "groundCover": 0.12,
+                  "tallGrass": 0.18
+                },
+                "settlement": {
+                  "bigHouseRange": [
+                    1,
+                    3
+                  ],
+                  "buildingCap": 18,
+                  "houseRange": [
+                    4,
+                    6
+                  ],
+                  "houseWidths": [
+                    3,
+                    3,
+                    4,
+                    4,
+                    4,
+                    5
+                  ],
+                  "lotGap": [
+                    1,
+                    1
+                  ],
+                  "maxPerFrontage": 6,
+                  "natureMultiplier": 0.7,
+                  "plazaSize": 5,
+                  "roadWidth": 4,
+                  "setback": 1
+                },
+                "units": {
+                  "enemies": 0,
+                  "enemyTypes": [],
+                  "townsfolk": 8
+                }
+              },
+              "options": [],
+              "description": "Adobe walls and tin roofs stepping up the slope.",
+              "key": "town_andean",
+              "layout": "town",
+              "children": [],
+              "zones": [
+                "spring",
+                "summer",
+                "autumn",
+                "winter",
+                "desert"
+              ],
+              "variant": "town"
+            }
+          ],
           "zones": [
             "spring",
             "summer",
             "autumn",
             "winter",
             "desert"
-          ]
-        }
-      ],
-      "key": "town",
-      "name": "Town",
-      "position": 1
-    },
-    {
-      "description": "The same lots packed far harder \u2014 roughly 4x a town.",
-      "generators": [
+          ],
+          "variant": "town"
+        },
         {
-          "children": [],
+          "name": "City",
+          "position": 1,
           "config": {
             "buildings": {
               "fixedWall": "#f0f0ea",
@@ -2642,7 +3931,8 @@
             },
             "nature": {
               "flowers": 0.06,
-              "groundCover": 0.12
+              "groundCover": 0.12,
+              "tallGrass": 0.18
             },
             "settlement": {
               "bigHouseRange": [
@@ -2678,30 +3968,573 @@
               "townsfolk": 14
             }
           },
+          "options": [],
           "description": "The town's rules on a bigger grid with tighter lots and no per-street limit.",
           "key": "city_default",
-          "layout": null,
-          "name": "City",
-          "options": [],
-          "position": 0,
+          "layout": "city",
+          "children": [
+            {
+              "name": "Traditional",
+              "position": 0,
+              "config": {
+                "buildings": {
+                  "fixedWall": "#f0f0ea",
+                  "hospitalRoof": "#2f7e50",
+                  "materials": [
+                    "wall_wood",
+                    "wall_stone",
+                    "wall_brick"
+                  ],
+                  "roofColors": [
+                    "#8a4b2f",
+                    "#6b4a2b",
+                    "#7a5230",
+                    "#5c4433"
+                  ],
+                  "storeRoof": "#235a96",
+                  "wallColors": [
+                    "#c9a66b",
+                    "#d8c79a",
+                    "#b08d5b",
+                    "#e8dcc0"
+                  ]
+                },
+                "grid": {
+                  "cellSize": 16,
+                  "cols": {
+                    "max": 71,
+                    "min": 52
+                  },
+                  "isoScale": 2.5,
+                  "rows": {
+                    "max": 57,
+                    "min": 42
+                  }
+                },
+                "nature": {
+                  "flowers": 0.06,
+                  "groundCover": 0.12,
+                  "tallGrass": 0.18
+                },
+                "settlement": {
+                  "bigHouseRange": [
+                    3,
+                    5
+                  ],
+                  "buildingCap": 72,
+                  "houseRange": [
+                    7,
+                    11
+                  ],
+                  "houseWidths": [
+                    3,
+                    3,
+                    4,
+                    4,
+                    4,
+                    5
+                  ],
+                  "lotGap": [
+                    1,
+                    1
+                  ],
+                  "maxPerFrontage": 99,
+                  "natureMultiplier": 1.3,
+                  "plazaSize": 7,
+                  "roadWidth": 4,
+                  "setback": 1
+                },
+                "units": {
+                  "enemies": 0,
+                  "enemyTypes": [],
+                  "townsfolk": 14
+                }
+              },
+              "options": [],
+              "description": "Timber and stone, warm roofs, trees between the lots.",
+              "key": "city_traditional",
+              "layout": "city",
+              "children": [],
+              "zones": [
+                "spring",
+                "summer",
+                "autumn",
+                "winter",
+                "desert"
+              ],
+              "variant": "city"
+            },
+            {
+              "name": "Modern",
+              "position": 1,
+              "config": {
+                "buildings": {
+                  "fixedWall": "#f0f0ea",
+                  "hospitalRoof": "#2f7e50",
+                  "materials": [
+                    "wall_stone",
+                    "wall_brick"
+                  ],
+                  "roofColors": [
+                    "#4a4f55",
+                    "#5a636b",
+                    "#3f464c",
+                    "#6b7378"
+                  ],
+                  "storeRoof": "#235a96",
+                  "wallColors": [
+                    "#d6d9dc",
+                    "#b9bfc4",
+                    "#8a9199",
+                    "#eceff1"
+                  ]
+                },
+                "grid": {
+                  "cellSize": 16,
+                  "cols": {
+                    "max": 71,
+                    "min": 52
+                  },
+                  "isoScale": 2.5,
+                  "rows": {
+                    "max": 57,
+                    "min": 42
+                  }
+                },
+                "nature": {
+                  "flowers": 0.06,
+                  "groundCover": 0.12,
+                  "tallGrass": 0.18
+                },
+                "settlement": {
+                  "bigHouseRange": [
+                    3,
+                    5
+                  ],
+                  "buildingCap": 72,
+                  "houseRange": [
+                    7,
+                    11
+                  ],
+                  "houseWidths": [
+                    3,
+                    3,
+                    4,
+                    4,
+                    4,
+                    5
+                  ],
+                  "lotGap": [
+                    1,
+                    1
+                  ],
+                  "maxPerFrontage": 99,
+                  "natureMultiplier": 0.5,
+                  "plazaSize": 7,
+                  "roadWidth": 5,
+                  "setback": 1
+                },
+                "units": {
+                  "enemies": 0,
+                  "enemyTypes": [],
+                  "townsfolk": 14
+                }
+              },
+              "options": [],
+              "description": "Concrete, glass and flat grey roofs, wide streets, little green.",
+              "key": "city_modern",
+              "layout": "city",
+              "children": [],
+              "zones": [
+                "spring",
+                "summer",
+                "autumn",
+                "winter",
+                "desert"
+              ],
+              "variant": "city"
+            },
+            {
+              "name": "Tropical",
+              "position": 2,
+              "config": {
+                "buildings": {
+                  "fixedWall": "#f0f0ea",
+                  "hospitalRoof": "#2f7e50",
+                  "materials": [
+                    "wall_wood",
+                    "wall_brick"
+                  ],
+                  "roofColors": [
+                    "#7d6a3a",
+                    "#946f3c",
+                    "#8a5a2b",
+                    "#6f7a3a"
+                  ],
+                  "storeRoof": "#235a96",
+                  "wallColors": [
+                    "#f2e0b0",
+                    "#e8b98a",
+                    "#cfe0a8",
+                    "#f6efdc"
+                  ]
+                },
+                "grid": {
+                  "cellSize": 16,
+                  "cols": {
+                    "max": 71,
+                    "min": 52
+                  },
+                  "isoScale": 2.5,
+                  "rows": {
+                    "max": 57,
+                    "min": 42
+                  }
+                },
+                "nature": {
+                  "flowers": 0.06,
+                  "groundCover": 0.12,
+                  "tallGrass": 0.18
+                },
+                "settlement": {
+                  "bigHouseRange": [
+                    3,
+                    5
+                  ],
+                  "buildingCap": 72,
+                  "houseRange": [
+                    7,
+                    11
+                  ],
+                  "houseWidths": [
+                    3,
+                    3,
+                    4,
+                    4,
+                    4,
+                    5
+                  ],
+                  "lotGap": [
+                    1,
+                    1
+                  ],
+                  "maxPerFrontage": 99,
+                  "natureMultiplier": 1.8,
+                  "plazaSize": 7,
+                  "roadWidth": 4,
+                  "setback": 1
+                },
+                "units": {
+                  "enemies": 0,
+                  "enemyTypes": [],
+                  "townsfolk": 14
+                }
+              },
+              "options": [],
+              "description": "Timber and palm thatch, bright walls, green everywhere.",
+              "key": "city_tropical",
+              "layout": "city",
+              "children": [],
+              "zones": [
+                "spring",
+                "summer",
+                "autumn",
+                "winter",
+                "desert"
+              ],
+              "variant": "city"
+            },
+            {
+              "name": "Snowy",
+              "position": 3,
+              "config": {
+                "buildings": {
+                  "fixedWall": "#f0f0ea",
+                  "hospitalRoof": "#2f7e50",
+                  "materials": [
+                    "wall_wood",
+                    "wall_stone"
+                  ],
+                  "roofColors": [
+                    "#3d454f",
+                    "#4b545e",
+                    "#2f3640",
+                    "#59636d"
+                  ],
+                  "storeRoof": "#235a96",
+                  "wallColors": [
+                    "#eef2f6",
+                    "#d8e1e8",
+                    "#c3ccd4",
+                    "#b0b9c1"
+                  ]
+                },
+                "grid": {
+                  "cellSize": 16,
+                  "cols": {
+                    "max": 71,
+                    "min": 52
+                  },
+                  "isoScale": 2.5,
+                  "rows": {
+                    "max": 57,
+                    "min": 42
+                  }
+                },
+                "nature": {
+                  "flowers": 0.06,
+                  "groundCover": 0.12,
+                  "tallGrass": 0.18
+                },
+                "settlement": {
+                  "bigHouseRange": [
+                    3,
+                    5
+                  ],
+                  "buildingCap": 72,
+                  "houseRange": [
+                    7,
+                    11
+                  ],
+                  "houseWidths": [
+                    3,
+                    3,
+                    4,
+                    4,
+                    4,
+                    5
+                  ],
+                  "lotGap": [
+                    1,
+                    1
+                  ],
+                  "maxPerFrontage": 99,
+                  "natureMultiplier": 0.35,
+                  "plazaSize": 7,
+                  "roadWidth": 4,
+                  "setback": 1
+                },
+                "units": {
+                  "enemies": 0,
+                  "enemyTypes": [],
+                  "townsfolk": 14
+                }
+              },
+              "options": [],
+              "description": "Pale walls under dark steep roofs, and almost nothing growing.",
+              "key": "city_snowy",
+              "layout": "city",
+              "children": [],
+              "zones": [
+                "spring",
+                "summer",
+                "autumn",
+                "winter",
+                "desert"
+              ],
+              "variant": "city"
+            },
+            {
+              "name": "Mediterranean",
+              "position": 4,
+              "config": {
+                "buildings": {
+                  "fixedWall": "#f0f0ea",
+                  "hospitalRoof": "#2f7e50",
+                  "materials": [
+                    "wall_stone",
+                    "wall_brick"
+                  ],
+                  "roofColors": [
+                    "#b5533a",
+                    "#a8462f",
+                    "#c2603f",
+                    "#93402c"
+                  ],
+                  "storeRoof": "#235a96",
+                  "wallColors": [
+                    "#f4ecd8",
+                    "#efe0c0",
+                    "#e6d3ae",
+                    "#faf3e4"
+                  ]
+                },
+                "grid": {
+                  "cellSize": 16,
+                  "cols": {
+                    "max": 71,
+                    "min": 52
+                  },
+                  "isoScale": 2.5,
+                  "rows": {
+                    "max": 57,
+                    "min": 42
+                  }
+                },
+                "nature": {
+                  "flowers": 0.06,
+                  "groundCover": 0.12,
+                  "tallGrass": 0.18
+                },
+                "settlement": {
+                  "bigHouseRange": [
+                    3,
+                    5
+                  ],
+                  "buildingCap": 72,
+                  "houseRange": [
+                    7,
+                    11
+                  ],
+                  "houseWidths": [
+                    3,
+                    3,
+                    4,
+                    4,
+                    4,
+                    5
+                  ],
+                  "lotGap": [
+                    1,
+                    1
+                  ],
+                  "maxPerFrontage": 99,
+                  "natureMultiplier": 0.8,
+                  "plazaSize": 4,
+                  "roadWidth": 4,
+                  "setback": 1
+                },
+                "units": {
+                  "enemies": 0,
+                  "enemyTypes": [],
+                  "townsfolk": 14
+                }
+              },
+              "options": [],
+              "description": "Cream walls and terracotta roofs packed tight around a small square.",
+              "key": "city_mediterranean",
+              "layout": "city",
+              "children": [],
+              "zones": [
+                "spring",
+                "summer",
+                "autumn",
+                "winter",
+                "desert"
+              ],
+              "variant": "city"
+            },
+            {
+              "name": "Andean",
+              "position": 5,
+              "config": {
+                "buildings": {
+                  "fixedWall": "#f0f0ea",
+                  "hospitalRoof": "#2f7e50",
+                  "materials": [
+                    "wall_brick",
+                    "wall_stone"
+                  ],
+                  "roofColors": [
+                    "#8f4a33",
+                    "#7a4a2c",
+                    "#9c6b3a",
+                    "#5f5a52"
+                  ],
+                  "storeRoof": "#235a96",
+                  "wallColors": [
+                    "#c98f5c",
+                    "#b87d4a",
+                    "#d9a877",
+                    "#a86b3d"
+                  ]
+                },
+                "grid": {
+                  "cellSize": 16,
+                  "cols": {
+                    "max": 71,
+                    "min": 52
+                  },
+                  "isoScale": 2.5,
+                  "rows": {
+                    "max": 57,
+                    "min": 42
+                  }
+                },
+                "nature": {
+                  "flowers": 0.06,
+                  "groundCover": 0.12,
+                  "tallGrass": 0.18
+                },
+                "settlement": {
+                  "bigHouseRange": [
+                    3,
+                    5
+                  ],
+                  "buildingCap": 72,
+                  "houseRange": [
+                    7,
+                    11
+                  ],
+                  "houseWidths": [
+                    3,
+                    3,
+                    4,
+                    4,
+                    4,
+                    5
+                  ],
+                  "lotGap": [
+                    1,
+                    1
+                  ],
+                  "maxPerFrontage": 99,
+                  "natureMultiplier": 0.7,
+                  "plazaSize": 7,
+                  "roadWidth": 4,
+                  "setback": 1
+                },
+                "units": {
+                  "enemies": 0,
+                  "enemyTypes": [],
+                  "townsfolk": 14
+                }
+              },
+              "options": [],
+              "description": "Adobe walls and tin roofs stepping up the slope.",
+              "key": "city_andean",
+              "layout": "city",
+              "children": [],
+              "zones": [
+                "spring",
+                "summer",
+                "autumn",
+                "winter",
+                "desert"
+              ],
+              "variant": "city"
+            }
+          ],
           "zones": [
             "spring",
             "summer",
             "autumn",
             "winter",
             "desert"
-          ]
+          ],
+          "variant": "city"
         }
-      ],
-      "key": "city",
-      "name": "City",
-      "position": 2
+      ]
     },
     {
+      "name": "Cave",
+      "position": 2,
       "description": "A seasonal cavern with enemies instead of townsfolk.",
+      "key": "cave",
       "generators": [
         {
-          "children": [],
+          "name": "Cave",
+          "position": 0,
           "config": {
             "grid": {
               "cellSize": 16,
@@ -2725,30 +4558,88 @@
               "townsfolk": 0
             }
           },
-          "description": "A cavern floor \u2014 bats, spiders and skeletons instead of townsfolk.",
+          "options": [
+            {
+              "choices": [
+                {
+                  "key": "random",
+                  "label": "Random"
+                },
+                {
+                  "key": "1",
+                  "label": "1: in and out the same way"
+                },
+                {
+                  "key": "2",
+                  "label": "2: in one side, out the other"
+                },
+                {
+                  "key": "3",
+                  "label": "3"
+                },
+                {
+                  "key": "4",
+                  "label": "4"
+                }
+              ],
+              "default": "random",
+              "key": "exits",
+              "label": "Exits",
+              "type": "choice"
+            },
+            {
+              "choices": [
+                {
+                  "key": "random",
+                  "label": "Random"
+                },
+                {
+                  "key": "1",
+                  "label": "1"
+                },
+                {
+                  "key": "2",
+                  "label": "2"
+                },
+                {
+                  "key": "3",
+                  "label": "3"
+                },
+                {
+                  "key": "4",
+                  "label": "4"
+                }
+              ],
+              "default": "random",
+              "key": "pathways",
+              "label": "Pathways",
+              "type": "choice"
+            }
+          ],
+          "description": "A cavern floor — bats, spiders and skeletons instead of townsfolk.",
           "key": "cave_default",
           "layout": null,
-          "name": "Cave",
-          "options": [],
-          "position": 0,
+          "children": [],
           "zones": [
             "spring",
             "summer",
             "autumn",
             "winter",
             "desert"
-          ]
+          ],
+          "variant": "cave"
         }
-      ],
-      "key": "cave",
-      "name": "Cave",
-      "position": 3
+      ]
     },
     {
+      "name": "Temple",
+      "position": 3,
       "description": "A seasonal temple dungeon.",
+      "key": "temple",
       "generators": [
         {
-          "children": [],
+          "name": "Temple",
+          "position": 0,
           "config": {
             "grid": {
               "cellSize": 16,
@@ -2772,24 +4663,78 @@
               "townsfolk": 0
             }
           },
-          "description": "A temple dungeon \u2014 skeletons, guardians and wraiths.",
+          "options": [
+            {
+              "choices": [
+                {
+                  "key": "random",
+                  "label": "Random"
+                },
+                {
+                  "key": "1",
+                  "label": "1: in and out the same way"
+                },
+                {
+                  "key": "2",
+                  "label": "2: in one side, out the other"
+                },
+                {
+                  "key": "3",
+                  "label": "3"
+                },
+                {
+                  "key": "4",
+                  "label": "4"
+                }
+              ],
+              "default": "random",
+              "key": "exits",
+              "label": "Exits",
+              "type": "choice"
+            },
+            {
+              "choices": [
+                {
+                  "key": "random",
+                  "label": "Random"
+                },
+                {
+                  "key": "1",
+                  "label": "1"
+                },
+                {
+                  "key": "2",
+                  "label": "2"
+                },
+                {
+                  "key": "3",
+                  "label": "3"
+                },
+                {
+                  "key": "4",
+                  "label": "4"
+                }
+              ],
+              "default": "random",
+              "key": "pathways",
+              "label": "Pathways",
+              "type": "choice"
+            }
+          ],
+          "description": "A temple dungeon — skeletons, guardians and wraiths.",
           "key": "temple_default",
           "layout": null,
-          "name": "Temple",
-          "options": [],
-          "position": 0,
+          "children": [],
           "zones": [
             "spring",
             "summer",
             "autumn",
             "winter",
             "desert"
-          ]
+          ],
+          "variant": "temple"
         }
-      ],
-      "key": "temple",
-      "name": "Temple",
-      "position": 4
+      ]
     }
   ]
 }

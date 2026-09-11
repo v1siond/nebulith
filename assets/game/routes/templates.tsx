@@ -88,7 +88,7 @@ import { GameMenu } from '@/components/game/gameMenu'
 import { describeSaveState } from '@/game/editor/saveState'
 import { useDayNight, useWeather, useFloatingPanels, useGeneratorCatalog, useInspectorSections, useIsMobile, usePlayerViewRange, useSaveState } from '@/components/game/editorHooks'
 import { nextWeather } from '@/engine/render/weather'
-import { findGenerator, rollGridSize, type GeneratorBuildings, type GeneratorCatalog, type GeneratorDef, type GeneratorOptionValue, findGeneratorByKey } from '@/lib/generatorCatalog'
+import { findGenerator, findGeneratorForVariant, rollGridSize, type GeneratorBuildings, type GeneratorCatalog, type GeneratorDef, type GeneratorOptionValue, findGeneratorByKey } from '@/lib/generatorCatalog'
 import { clampMapSize, type MapSize } from '@/lib/mapSize'
 import { buildingSizeSource, composeBuilding, fetchBuildingTypes, installComposedBuildings, installPlannableBuildings, EMPTY_BUILDING_TYPES, type BuildingTypeCatalog } from '@/lib/buildingSizes'
 import { applyStageToGrid } from '@/game/editor/applyStage'
@@ -3517,7 +3517,9 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     const recipe = lastGenRef.current
     if (!grid) return
     if (!recipe) { generateStageInEditor(genZone, 'town'); return } // nothing generated yet → a full town
-    const generator = (recipe.generatorKey ? findGeneratorByKey(generatorCatalogRef.current, recipe.generatorKey) : undefined) ?? findGenerator(generatorCatalogRef.current, recipe.variant, recipe.layout)
+    // By ARCHETYPE, not by category. A recipe says `variant: 'town'`, and a town lives in the settlement
+    // category now, so the old lookup would search for a category called "town" and find nothing.
+    const generator = (recipe.generatorKey ? findGeneratorByKey(generatorCatalogRef.current, recipe.generatorKey) : undefined) ?? findGeneratorForVariant(generatorCatalogRef.current, recipe.variant, recipe.layout)
     if (!generator) { console.warn(`[generate] the backend serves no "${recipe.variant}" generator — nothing re-rolled`); return }
     if (layer === 'units') { reseedUnits(grid, generator); bumpBuildingVersion(); return }
 
@@ -3642,7 +3644,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     // WHICH world to build is the backend's answer (`/api/generators`, T-113): the map type's grid range,
     // unit counts and building palette all come off this row. No generator → nothing is generated and the
     // console says why; the editor must never invent a world the backend cannot describe.
-    const generator = (generatorKey ? findGeneratorByKey(generatorCatalogRef.current, generatorKey) : undefined) ?? findGenerator(generatorCatalogRef.current, variant, layout)
+    const generator = (generatorKey ? findGeneratorByKey(generatorCatalogRef.current, generatorKey) : undefined) ?? findGeneratorForVariant(generatorCatalogRef.current, variant, layout)
     if (!generator) {
       console.warn(`[generate] the backend serves no "${variant}" generator${layout ? ` with layout "${layout}"` : ''} — nothing generated`)
       return

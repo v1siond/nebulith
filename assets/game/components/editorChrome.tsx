@@ -800,18 +800,28 @@ export function GenerateControls({
 
   // Generating is the explicit act. A type with no layouts sends `undefined` so the category's own default
   // generator runs; otherwise the picked shape, or that type's first when the user has not chosen one.
+  /**
+   * WHICH ARCHETYPE the engine is asked for. The row says it, not the category.
+   *
+   * Alexander, 2026-09-11: *"City and town options are the same, it'd put them in a single category"*. Once a
+   * town and a city share one, the category key names no archetype, so sending it would ask the engine to
+   * build a "settlement", which is not a thing it makes. A row served before this field existed has none, and
+   * then the category key stands in exactly as it used to.
+   */
+  const archetypeOf = (gen: GeneratorDef | undefined): string => gen?.variant ?? (activeKey as string)
+
   const generate = () => {
     if (activeKey === null) return
     // No size travels with this any more. The caller reads the GRID panel's numbers, which is the one place
     // they are set, so a generate and a resize can no longer disagree about what the map's shape is.
-    if (layouts.length === 0) { onGenerate(zone, activeKey, undefined, chosenOptions()); return }
+    if (layouts.length === 0) { onGenerate(zone, archetypeOf(activeGenerator), undefined, chosenOptions()); return }
     const picked = layouts.some(l => l.id === layout) ? layout : layouts[0].id
     // Random rolls HERE, on each build, so the same pick builds a different subtype every time.
     const pool = randomParent?.children ?? []
     const leaf = pool.length > 0 ? pool[Math.floor(Math.random() * pool.length)] : activeGenerator
     // Only a SUBTYPE travels as a key; the type itself is what (category, layout) already names.
-    if (leaf && leaf !== presetGenerator) onGenerate(zone, activeKey, picked ?? undefined, chosenOptions(), leaf.key)
-    else onGenerate(zone, activeKey, picked ?? undefined, chosenOptions())
+    if (leaf && leaf !== presetGenerator) onGenerate(zone, archetypeOf(leaf), picked ?? undefined, chosenOptions(), leaf.key)
+    else onGenerate(zone, archetypeOf(leaf), picked ?? undefined, chosenOptions())
   }
 
   // THE PICTURE FROM THE START. Alexander, 2026-09-11: *"we should see the preview of the map to generate in the
