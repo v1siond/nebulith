@@ -132,6 +132,12 @@ export interface GeneratorPalette {
  * canopy is scored against (small = fine scatter, large = big continuous masses) and `spacing` is the
  * minimum gap between trunks (0 lets them form a wall, 3+ makes every tree individually readable).
  */
+/** One entry of a template's tree mix — which shape, and how often it is rolled. */
+export interface GeneratorTreeWeight {
+  kind: string
+  weight: number
+}
+
 export interface GeneratorFormation {
   /** noise scale in cells — the "grouping" knob */
   lattice?: number
@@ -156,6 +162,8 @@ export interface GeneratorSubZone {
   stone?: number
   /** this region's own tree distribution — a swamp is spaced like a pasture, dense growth is a wall */
   formation?: GeneratorFormation
+  /** which species grow in this region — the swamp is cypress, whatever the rest of the jungle is */
+  trees?: readonly GeneratorTreeWeight[]
 }
 
 export interface GeneratorConfig {
@@ -169,6 +177,11 @@ export interface GeneratorConfig {
   subZones?: readonly GeneratorSubZone[]
   /** How this template distributes its trees. Absent → the generator's own default grouping. */
   formation?: GeneratorFormation
+  /**
+   * WHICH trees grow here. Alexander, 2026-09-11: *"we're using the same for all forest variations, but
+   * that's not good"*. Absent → the global weighted table every template used to share.
+   */
+  trees?: readonly GeneratorTreeWeight[]
 }
 
 /** One generator — a concrete map the user can ask for ("Meadow + River", "Town"). */
@@ -351,6 +364,7 @@ function parseConfig(v: unknown): GeneratorConfig {
   const palette = parsePalette(v.palette)
   const subZones = parseSubZones(v.subZones)
   const formation = parseFormation(v.formation)
+  const trees = parseTreeMix(v.trees)
   if (grid) out.grid = grid
   if (units) out.units = units
   if (nature) out.nature = nature
@@ -359,7 +373,22 @@ function parseConfig(v: unknown): GeneratorConfig {
   if (palette) out.palette = palette
   if (subZones) out.subZones = subZones
   if (formation) out.formation = formation
+  if (trees) out.trees = trees
   return out
+}
+
+/** A served tree mix. An entry with no kind or no positive weight is DROPPED, not defaulted — a species the
+ *  backend could not describe is one the generator must not plant. An empty mix is no mix at all. */
+function parseTreeMix(v: unknown): readonly GeneratorTreeWeight[] | undefined {
+  if (!Array.isArray(v)) return undefined
+  const out: GeneratorTreeWeight[] = []
+  for (const raw of v) {
+    if (!isObject(raw)) continue
+    const kind = str(raw.kind)
+    const weight = num(raw.weight)
+    if (kind && weight !== undefined && weight > 0) out.push({ kind, weight })
+  }
+  return out.length > 0 ? out : undefined
 }
 
 /** The served distribution, keeping only the numbers that arrived. A missing field means the backend has no
@@ -395,6 +424,8 @@ function parseSubZones(v: unknown): readonly GeneratorSubZone[] | undefined {
     if (floor) row.floor = floor
     const formation = parseFormation(raw.formation)
     if (formation) row.formation = formation
+    const trees = parseTreeMix(raw.trees)
+    if (trees) row.trees = trees
     rows.push(row)
   }
   return rows.length > 0 ? rows : undefined

@@ -21,7 +21,7 @@
 import { IsometricGrid } from '@/engine/IsometricGrid'
 import { generateStage, type NatureDensity, type VariantId } from '@/engine/stageGenerator'
 import { applyStageToGrid } from '@/game/editor/applyStage'
-import { type GeneratorFormation, type GeneratorPalette, type GeneratorSubZone } from '@/lib/generatorCatalog'
+import { type GeneratorFormation, type GeneratorPalette, type GeneratorSubZone, type GeneratorTreeWeight } from '@/lib/generatorCatalog'
 import { resolveComposition } from '@/engine/tileset/tileset'
 import { styleCatalog } from '@/engine/tileset/styleTiles'
 import { zonePalette, type ZoneId } from '@/engine/zones'
@@ -63,6 +63,7 @@ export type PreviewSubject =
       palette?: GeneratorPalette
       subZones?: readonly GeneratorSubZone[]
       formation?: GeneratorFormation
+      treeMix?: readonly GeneratorTreeWeight[]
       /** Fixed so a card's picture never re-rolls between renders. */
       seed: number
       cols: number
@@ -310,7 +311,7 @@ export function subjectFor(
  * world on every re-render and stops being a reference you can compare against the card next to it.
  */
 function buildStageScene(subject: Extract<PreviewSubject, { kind: 'stage' }>): PreviewScene | null {
-  const { zone, variant, layout, nature, options, palette, subZones, formation, seed, cols, rows } = subject
+  const { zone, variant, layout, nature, options, palette, subZones, formation, treeMix, seed, cols, rows } = subject
   const grid = new IsometricGrid({ cols, rows, cellSize: PREVIEW_CELL, isoScale: 2.5 })
   const stage = generateStage({
     zone,
@@ -323,6 +324,7 @@ function buildStageScene(subject: Extract<PreviewSubject, { kind: 'stage' }>): P
     palette,
     subZones,
     formation,
+    treeMix,
     // Per-layer seeds derived from the one seed, exactly as the editor derives them, so the thumbnail is
     // the same world the button will build for that seed.
     seeds: { layout: seed, buildings: seed + 1, nature: seed + 2, decor: seed + 3 },

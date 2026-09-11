@@ -72,7 +72,13 @@ export function livingTreeWeight(): number {
   return livingTreeVariants().reduce((sum, v) => sum + v.weight, 0)
 }
 
-export type LivingTreeKind = 'tree' | 'tree_tall' | 'tree_stub' | 'tree_round' | 'bush' | 'bush_round'
+/** Every tree SHAPE the backend composes. Typing only — `stampComposition` resolves any composition key by
+ *  name, so a new shape is backend data; this union just lets the generator name it. */
+export type LivingTreeKind =
+  | 'tree' | 'tree_tall' | 'tree_stub' | 'tree_round' | 'tree_small' | 'tree_big'
+  | 'tree_conifer' | 'tree_column' | 'tree_broadleaf' | 'tree_gnarled'
+  | 'tree_giant' | 'tree_cypress' | 'tree_palm' | 'tree_sapling'
+  | 'bush' | 'bush_round'
 
 /** Tonal rock shades so cave and arena walls are not one flat grey. */
 export function rockShades(): readonly string[] {

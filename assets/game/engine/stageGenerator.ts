@@ -16,7 +16,7 @@ import { type BuildingSizes, type SettlementTuning, planVillage, type VillageLay
 // The planner is pure: it takes the building sizes rather than reading them. They come from the BACKEND
 // compositions (buildingCatalog resolves them), so deepening a building in Elixir moves the plots with it.
 import { BACKEND_BUILDING_SIZES } from './buildingCatalog'
-import { type GeneratorFormation, type GeneratorPalette, type GeneratorSubZone } from '@/lib/generatorCatalog'
+import { type GeneratorFormation, type GeneratorPalette, type GeneratorSubZone, type GeneratorTreeWeight } from '@/lib/generatorCatalog'
 import {
   stagePropTileOverride,
   zonePalette,
@@ -217,6 +217,9 @@ export interface GenerateOptions {
   subZones?: readonly GeneratorSubZone[]
   /** How this template DISTRIBUTES its trees (`config.formation`) — grouping, spacing, understory. */
   formation?: GeneratorFormation
+  /** WHICH trees grow here (`config.trees`). Named `treeMix` because the stage already has a `trees` list,
+   *  the anchors. Absent → the global weighted table. */
+  treeMix?: readonly GeneratorTreeWeight[]
   /**
    * Where footprints come from. Alexander, 2026-09-09: *"even the footprint should come from backend, then
    * frontend draws."* Defaults to the composition-backed source so a caller that does not care (every
@@ -275,13 +278,18 @@ const massVariant = (col: number, row: number): number =>
  *  scatter, a position hash for the coherent forest mass. This is the randomization the ticket asks for:
  *  a stand shows standard / tall / small / round trees + bushes instead of one repeated shape. Pure +
  *  injectable (tests pass explicit rolls to prove the full spread). */
-export function pickLivingTree(rand: number): LivingTreeKind {
-  let roll = rand * livingTreeWeight()
-  for (const v of livingTreeVariants()) {
-    if (roll < v.weight) return v.kind
+export function pickLivingTree(rand: number, mix?: readonly GeneratorTreeWeight[]): LivingTreeKind {
+  // A template's OWN species first. Alexander, 2026-09-11: *"we're using the same for all forest variations,
+  // but that's not good"* — every forest rolled this one global table, so a jungle grew what a meadow grew.
+  // No served mix → the global table, which is exactly the old behaviour.
+  const table = mix && mix.length > 0 ? mix : livingTreeVariants()
+  const total = table.reduce((sum, v) => sum + v.weight, 0)
+  let roll = rand * total
+  for (const v of table) {
+    if (roll < v.weight) return v.kind as LivingTreeKind
     roll -= v.weight
   }
-  return livingTreeVariants()[0].kind
+  return table[0].kind as LivingTreeKind
 }
 
 /** One blocking biome-feature cell (mountain / peak / spill) — appearance from
@@ -629,6 +637,8 @@ interface ArchetypeContext {
   /** How the trees are DISTRIBUTED — a wood pasture, an even-aged stand and a closed canopy differ in this,
    *  not in how many trees they hold. */
   formation?: GeneratorFormation
+  /** The species this template grows. A jungle is not a meadow with more trees in it. */
+  treeMix?: readonly GeneratorTreeWeight[]
   /** Where footprints come from — see `GenerateOptions.buildingSizes`. */
   buildingSizes?: BuildingSizes
   /** The user-steered forest layout, or undefined for a plain generate (placeForest then random-picks a
@@ -689,7 +699,7 @@ export function generateStage(opts: GenerateOptions): StageData {
     decor: layerRng(opts.seeds, 'decor'),
   }
   // Single-pass archetypes (forest/cave/temple/boss) read `ctx.rand`; the layout rng is their source.
-  const ctx: ArchetypeContext = { zone, ground, collision, floorColors, buildings, props, trees, compositions, cols, rows, layout, options: opts.options, nature: opts.nature, settlement: opts.settlement, palette: opts.palette, subZones: opts.subZones, formation: opts.formation, buildingSizes: opts.buildingSizes, rand: rngs.layout }
+  const ctx: ArchetypeContext = { zone, ground, collision, floorColors, buildings, props, trees, compositions, cols, rows, layout, options: opts.options, nature: opts.nature, settlement: opts.settlement, palette: opts.palette, subZones: opts.subZones, formation: opts.formation, treeMix: opts.treeMix, buildingSizes: opts.buildingSizes, rand: rngs.layout }
   ARCHETYPES[variant]?.(ctx, rngs)
   addTerrainTransitions(ctx) // blended shorelines / lava banks over the painted ground
 
@@ -1327,7 +1337,7 @@ function layoutWoodland(ctx: ArchetypeContext, opts: { river?: boolean; crossing
   //     score alike. Nothing is random-walked and nothing terminates early.
   const field = woodlandCanopyField(ctx, open, canopy, ctx.formation)
   for (const { col, row } of field) {
-    const kind: LivingTreeKind | 'tree_dead' = ctx.rand() < 0.06 ? 'tree_dead' : pickLivingTree(ctx.rand())
+    const kind: LivingTreeKind | 'tree_dead' = ctx.rand() < 0.06 ? 'tree_dead' : pickLivingTree(ctx.rand(), ctx.treeMix)
     trees.push({ col, row, kind, variant: massVariant(col, row) })
     collision[row][col] = true // the trunk blocks; the canopy is walkable overhead, as everywhere else
   }
@@ -1478,7 +1488,7 @@ function layoutJungle(ctx: ArchetypeContext, opts: { river?: boolean; crossing?:
     ? subZoneCanopyField(ctx, open, canopy, zoneAt, zones)
     : woodlandCanopyField(ctx, open, canopy, ctx.formation)
   for (const { col, row } of field) {
-    const kind: LivingTreeKind | 'tree_dead' = ctx.rand() < 0.04 ? 'tree_dead' : pickLivingTree(ctx.rand())
+    const kind: LivingTreeKind | 'tree_dead' = ctx.rand() < 0.04 ? 'tree_dead' : pickLivingTree(ctx.rand(), zoneAt[row][col]?.trees ?? ctx.treeMix)
     trees.push({ col, row, kind, variant: massVariant(col, row) })
     collision[row][col] = true
   }
@@ -1943,7 +1953,7 @@ function plantEmergents(ctx: ArchetypeContext, open: Set<string>, water: Set<str
     const row = randIntWith(ctx.rand, 2, Math.max(2, rows - 3))
     const key = `${col},${row}`
     if (open.has(key) || water.has(key)) continue
-    trees.push({ col, row, kind: 'tree_tall', variant: massVariant(col, row) })
+    trees.push({ col, row, kind: 'tree_giant', variant: massVariant(col, row) })
     collision[row][col] = true
   }
 }
@@ -2325,7 +2335,7 @@ function stampMeadowTree(ctx: ArchetypeContext, col: number, row: number, tall: 
   const variant = randIntWith(ctx.rand, 0, canopyCount(styleCatalog('ascii'), zone) - 1)
   // The green/verdant reference meadows show NO bare snags — only a HARSH season sprinkles a little dead wood.
   const dead = HARSH_ZONES.has(zone) && ctx.rand() < DEAD_TREE_CHANCE[zone] * 0.4
-  const kind: LivingTreeKind | 'tree_dead' = dead ? 'tree_dead' : tall ? 'tree_tall' : pickLivingTree(ctx.rand())
+  const kind: LivingTreeKind | 'tree_dead' = dead ? 'tree_dead' : tall ? 'tree_tall' : pickLivingTree(ctx.rand(), ctx.treeMix)
   trees.push({ col, row, kind, variant })
   collision[row][col] = true
 }
@@ -2676,7 +2686,7 @@ function repairFloorConnectivity(ctx: ArchetypeContext, maxPocket = Infinity): v
     region.forEach(key => {
       const { col, row } = toCell(key)
       collision[row][col] = true
-      anchors.push({ col, row, kind: pickLivingTree(shadeNoise(col * 17 + row * 43)), variant: massVariant(col, row) % canopyCount(styleCatalog('ascii'), zone) }) // tiny dead pocket → forest fills it
+      anchors.push({ col, row, kind: pickLivingTree(shadeNoise(col * 17 + row * 43), ctx.treeMix), variant: massVariant(col, row) % canopyCount(styleCatalog('ascii'), zone) }) // tiny dead pocket → forest fills it
     })
   }
 }
@@ -2785,7 +2795,7 @@ function stampTree(ctx: ArchetypeContext, baseCol: number, baseRow: number, dead
   const { collision, zone, trees, cols, rows } = ctx
   if (!isLandCell(ctx, baseCol, baseRow)) return // land-only: no tree in water
   const variant = randIntWith(ctx.rand, 0, canopyCount(styleCatalog('ascii'), zone) - 1) // this tree's canopy tone (green…pink)
-  const kind = dead ? 'tree_dead' : pickLivingTree(ctx.rand()) // random shape variant (standard/tall/small/round/bush)
+  const kind = dead ? 'tree_dead' : pickLivingTree(ctx.rand(), ctx.treeMix) // random shape variant (standard/tall/small/round/bush)
   trees.push({ col: baseCol, row: baseRow, kind, variant })
   if (inBounds(baseCol, baseRow, cols, rows)) collision[baseRow][baseCol] = true // only the trunk cell blocks
 }
