@@ -111,6 +111,7 @@ import { type SectionPresenter } from '@/components/game/editorInspector'
 import { subjectFor } from '@/engine/preview/previewScene'
 import { loadZones, zones } from '@/engine/zoneCatalog'
 import { loadCombatCatalog } from '@/game/combatCatalog'
+import { loadUiProfile } from '@/game/uiProfile'
 import { SwapTilePanel } from '@/components/game/shell/SwapTilePanel'
 import { NO_ZONES_SHUT, ZoneCollapse, zoneClasses, type EditorZoneId, type EditorZoneShut } from '@/components/game/shell/ZoneCollapse'
 import { HudOverlay, PlayerUiPanel, useHudLayout } from '@/components/game/shell/PlayerUiPanel'
@@ -698,6 +699,10 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     // The COMBAT rules ride along like the items: a map draws fine with nobody able to fight, so a failed
     // load must not black out the editor. It also installs the season-independent prop tables.
     void loadCombatCatalog()
+    // The player-UI PROFILE: the HUD layout, the keybindings and the bars. Non-gating like the items — a
+    // map draws fine before the HUD has its layout — and it takes the GAME's profile when there is one,
+    // falling back to the seeded default, which is the design rather than a fallback.
+    void loadUiProfile(gameContext?.gameId)
     // THE SEASONS GATE THE RENDER, unlike those. Ground palettes are backend data since 2026-09-11, so a
     // map with no season catalog has no ground at all — that is a broken editor, not a degraded one, and it
     // belongs with the tileset in the gate rather than failing quietly into an empty world.
