@@ -19,7 +19,7 @@ defmodule NebulithWeb.GeneratorControllerTest do
     test "serves every category in menu order, each with its generators", %{conn: conn} do
       data = json_response(get(conn, ~p"/api/generators"), 200)["data"]
 
-      assert Enum.map(data, & &1["key"]) == ~w(forest town city cave temple)
+      assert Enum.map(data, & &1["key"]) == ~w(forest settlement cave temple)
       forest = hd(data)
       assert forest["name"] == "Forest"
       assert Enum.map(forest["generators"], & &1["key"]) == ~w(forest_woodland forest_jungle forest_meadow)
@@ -28,7 +28,7 @@ defmodule NebulithWeb.GeneratorControllerTest do
 
     test "a generator's whole config rides through the JSON untouched", %{conn: conn} do
       data = json_response(get(conn, ~p"/api/generators"), 200)["data"]
-      town = Enum.find(data, &(&1["key"] == "town")) |> Map.fetch!("generators") |> hd()
+      town = Enum.find(data, &(&1["key"] == "settlement")) |> Map.fetch!("generators") |> hd()
 
       assert town["config"]["grid"]["cols"] == %{"min" => 30, "max" => 45}
       assert town["config"]["settlement"]["buildingCap"] == 18
@@ -106,7 +106,7 @@ defmodule NebulithWeb.GeneratorControllerTest do
 
     test "a generator with nothing to switch on serves an empty list, not null", %{conn: conn} do
       data = json_response(get(conn, ~p"/api/generators"), 200)["data"]
-      town = Enum.find(data, &(&1["key"] == "town")) |> Map.fetch!("generators") |> hd()
+      town = Enum.find(data, &(&1["key"] == "settlement")) |> Map.fetch!("generators") |> hd()
 
       # `null` would make the frontend guard every map over it. The column is NOT NULL defaulting to `[]`.
       # A cave is no longer the example: since 2026-09-11 it says how many exits and pathways it has.

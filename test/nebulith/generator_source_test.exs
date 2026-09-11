@@ -30,11 +30,11 @@ defmodule Nebulith.GeneratorSourceTest do
 
   describe "seed/0" do
     test "creates every category and generator, and reports what it wrote" do
-      assert {5, 17} = GeneratorSource.seed()
+      assert {4, 29} = GeneratorSource.seed()
 
       categories = Catalog.list_generator_categories()
-      assert Enum.map(categories, & &1.key) == ~w(forest town city cave temple)
-      assert Enum.map(categories, & &1.name) == ["Forest", "Town", "City", "Cave", "Temple"]
+      assert Enum.map(categories, & &1.key) == ~w(forest settlement cave temple)
+      assert Enum.map(categories, & &1.name) == ["Forest", "Settlement", "Cave", "Temple"]
       assert Enum.sum(Enum.map(categories, &length(&1.generators))) == 7
     end
 
@@ -42,7 +42,7 @@ defmodule Nebulith.GeneratorSourceTest do
       GeneratorSource.seed()
       keys = Catalog.list_generator_categories() |> Enum.map(& &1.key)
 
-      assert keys == ~w(forest town city cave temple)
+      assert keys == ~w(forest settlement cave temple)
       refute keys == Enum.sort(keys)
     end
 
@@ -54,8 +54,9 @@ defmodule Nebulith.GeneratorSourceTest do
       # Alexander, 2026-09-09: *"the meadow is not a forest, it doesn't look like one"* — every preset here
       # used to be a clearing, so a category called Forest opened on something that was not one.
       assert Enum.map(cats["forest"].generators, & &1.layout) == ["woodland", "jungle", "meadow"]
-      assert Enum.map(cats["town"].generators, & &1.key) == ["town_default"]
-      assert [%Generator{layout: nil}] = cats["town"].generators
+      # One CATEGORY for both settlements since 2026-09-11, and each names the archetype it runs.
+      assert Enum.map(cats["settlement"].generators, & &1.key) == ["town_default", "city_default"]
+      assert [%Generator{layout: "town", variant: "town"}, %Generator{layout: "city", variant: "city"}] = cats["settlement"].generators
     end
 
     test "a river is an OPTION on a forest, never a row of its own" do
@@ -116,7 +117,7 @@ defmodule Nebulith.GeneratorSourceTest do
 
       # An empty list, not nil — the column is NOT NULL with a `[]` default, so the frontend can map over
       # it without a guard on every generator it draws.
-      for key <- ~w(town city), g <- cats[key].generators do
+      for g <- cats["settlement"].generators do
         assert g.options == [], "#{g.key} carries #{inspect(g.options)}"
       end
     end
@@ -243,12 +244,12 @@ defmodule Nebulith.GeneratorSourceTest do
       before = Catalog.list_generator_categories()
       ids = Enum.map(before, & &1.id)
 
-      assert {5, 17} = GeneratorSource.seed()
+      assert {4, 29} = GeneratorSource.seed()
 
       again = Catalog.list_generator_categories()
       assert Enum.map(again, & &1.id) == ids
-      assert Repo.aggregate(GeneratorCategory, :count) == 5
-      assert Repo.aggregate(Generator, :count) == 17
+      assert Repo.aggregate(GeneratorCategory, :count) == 4
+      assert Repo.aggregate(Generator, :count) == 29
     end
 
     test "re-seeding REFRESHES a row someone edited by hand" do
@@ -270,8 +271,8 @@ defmodule Nebulith.GeneratorSourceTest do
     end
 
     test "grid: a city is markedly bigger than a town, and both carry the cell geometry", %{categories: cats} do
-      town = generator(cats, "town", "town_default").config["grid"]
-      city = generator(cats, "city", "city_default").config["grid"]
+      town = generator(cats, "settlement", "town_default").config["grid"]
+      city = generator(cats, "settlement", "city_default").config["grid"]
 
       assert town == %{"cols" => %{"min" => 30, "max" => 45}, "rows" => %{"min" => 24, "max" => 35}, "cellSize" => 16, "isoScale" => 2.5}
       assert city["cols"] == %{"min" => 52, "max" => 71}
@@ -281,7 +282,7 @@ defmodule Nebulith.GeneratorSourceTest do
     end
 
     test "settlement tuning matches villageLayout's constants exactly", %{categories: cats} do
-      assert generator(cats, "town", "town_default").config["settlement"] == %{
+      assert generator(cats, "settlement", "town_default").config["settlement"] == %{
                "plazaSize" => 5,
                "setback" => 1,
                "roadWidth" => 4,
@@ -294,7 +295,7 @@ defmodule Nebulith.GeneratorSourceTest do
                "natureMultiplier" => 1.15
              }
 
-      city = generator(cats, "city", "city_default").config["settlement"]
+      city = generator(cats, "settlement", "city_default").config["settlement"]
       assert city["buildingCap"] == 72
       assert city["lotGap"] == [1, 1]
       assert city["maxPerFrontage"] == 99
@@ -304,8 +305,8 @@ defmodule Nebulith.GeneratorSourceTest do
     end
 
     test "units: settlements scatter townsfolk, dungeons scatter their own enemies", %{categories: cats} do
-      assert generator(cats, "town", "town_default").config["units"] == %{"townsfolk" => 8, "enemies" => 0, "enemyTypes" => []}
-      assert generator(cats, "city", "city_default").config["units"]["townsfolk"] == 14
+      assert generator(cats, "settlement", "town_default").config["units"] == %{"townsfolk" => 8, "enemies" => 0, "enemyTypes" => []}
+      assert generator(cats, "settlement", "city_default").config["units"]["townsfolk"] == 14
       assert generator(cats, "forest", "forest_meadow").config["units"]["townsfolk"] == 5
 
       cave = generator(cats, "cave", "cave_default").config["units"]
@@ -323,7 +324,7 @@ defmodule Nebulith.GeneratorSourceTest do
     end
 
     test "building materials and colours ride with the settlements that place buildings", %{categories: cats} do
-      buildings = generator(cats, "town", "town_default").config["buildings"]
+      buildings = generator(cats, "settlement", "town_default").config["buildings"]
 
       assert buildings["materials"] == ["wall_brick", "wall_wood", "wall_stone"]
       assert buildings["storeRoof"] == "#235a96"
@@ -428,11 +429,14 @@ defmodule Nebulith.GeneratorSourceTest do
     test "deleting a category takes its generators with it (no orphans)" do
       GeneratorSource.seed()
       cat = Repo.get_by!(GeneratorCategory, key: "forest")
+      # Counted, not typed: the forest carries subtypes and the number changes every time one is added.
+      total = Repo.aggregate(Generator, :count)
+      forest_rows = cat |> Repo.preload(:generators) |> Map.fetch!(:generators) |> length()
 
       Repo.delete!(cat)
 
-      assert Repo.aggregate(Generator, :count) == 4
-      assert Catalog.list_generator_categories() |> Enum.map(& &1.key) == ~w(town city cave temple)
+      assert Repo.aggregate(Generator, :count) == total - forest_rows
+      assert Catalog.list_generator_categories() |> Enum.map(& &1.key) == ~w(settlement cave temple)
     end
   end
 end

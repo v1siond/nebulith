@@ -384,6 +384,95 @@ defmodule Nebulith.Catalog.GeneratorSource do
     }
   ]
 
+  # ── SETTLEMENT VARIATIONS ─────────────────────────────────────────────────────────────────────────
+  # Alexander, 2026-09-11: *"and just like forest, we should have different variations of towns and cities too,
+  # like there's modern cities, traditional cities, tropical cities, snowy cities, italy cities are different to
+  # perú cities, you get the idea."*
+  #
+  # Each one states ONLY what makes it look different: what its walls are made of, what its roofs and walls are
+  # coloured, and how leafy it is. Everything else is its parent's, merged under it, exactly as a forest subtype
+  # works. Both settlements get the same list, because a modern town and a modern city differ in DENSITY, which
+  # is what their parents already say.
+  @settlement_looks [
+    %{
+      key: "traditional", name: "Traditional", position: 0,
+      description: "Timber and stone, warm roofs, trees between the lots.",
+      buildings: %{
+        "materials" => ["wall_wood", "wall_stone", "wall_brick"],
+        "roofColors" => ["#8a4b2f", "#6b4a2b", "#7a5230", "#5c4433"],
+        "wallColors" => ["#c9a66b", "#d8c79a", "#b08d5b", "#e8dcc0"]
+      },
+      settlement: %{"natureMultiplier" => 1.3}
+    },
+    %{
+      key: "modern", name: "Modern", position: 1,
+      description: "Concrete, glass and flat grey roofs, wide streets, little green.",
+      buildings: %{
+        "materials" => ["wall_stone", "wall_brick"],
+        "roofColors" => ["#4a4f55", "#5a636b", "#3f464c", "#6b7378"],
+        "wallColors" => ["#d6d9dc", "#b9bfc4", "#8a9199", "#eceff1"]
+      },
+      settlement: %{"natureMultiplier" => 0.5, "roadWidth" => 5, "plazaSize" => 7}
+    },
+    %{
+      key: "tropical", name: "Tropical", position: 2,
+      description: "Timber and palm thatch, bright walls, green everywhere.",
+      buildings: %{
+        "materials" => ["wall_wood", "wall_brick"],
+        "roofColors" => ["#7d6a3a", "#946f3c", "#8a5a2b", "#6f7a3a"],
+        "wallColors" => ["#f2e0b0", "#e8b98a", "#cfe0a8", "#f6efdc"]
+      },
+      settlement: %{"natureMultiplier" => 1.8}
+    },
+    %{
+      key: "snowy", name: "Snowy", position: 3,
+      description: "Pale walls under dark steep roofs, and almost nothing growing.",
+      buildings: %{
+        "materials" => ["wall_wood", "wall_stone"],
+        "roofColors" => ["#3d454f", "#4b545e", "#2f3640", "#59636d"],
+        "wallColors" => ["#eef2f6", "#d8e1e8", "#c3ccd4", "#b0b9c1"]
+      },
+      settlement: %{"natureMultiplier" => 0.35}
+    },
+    %{
+      key: "mediterranean", name: "Mediterranean", position: 4,
+      description: "Cream walls and terracotta roofs packed tight around a small square.",
+      buildings: %{
+        "materials" => ["wall_stone", "wall_brick"],
+        "roofColors" => ["#b5533a", "#a8462f", "#c2603f", "#93402c"],
+        "wallColors" => ["#f4ecd8", "#efe0c0", "#e6d3ae", "#faf3e4"]
+      },
+      settlement: %{"natureMultiplier" => 0.8, "lotGap" => [1, 1], "plazaSize" => 4}
+    },
+    %{
+      key: "andean", name: "Andean", position: 5,
+      description: "Adobe walls and tin roofs stepping up the slope.",
+      buildings: %{
+        "materials" => ["wall_brick", "wall_stone"],
+        "roofColors" => ["#8f4a33", "#7a4a2c", "#9c6b3a", "#5f5a52"],
+        "wallColors" => ["#c98f5c", "#b87d4a", "#d9a877", "#a86b3d"]
+      },
+      settlement: %{"natureMultiplier" => 0.7, "lotGap" => [1, 1]}
+    }
+  ]
+
+  # The same six looks under each settlement preset. A variation inherits its parent's archetype, so a
+  # Tropical town is still a town.
+  defp settlement_variations do
+    for parent <- ["town", "city"], look <- @settlement_looks do
+      %{
+        category: "settlement",
+        parent: "#{parent}_default",
+        key: "#{parent}_#{look.key}",
+        name: look.name,
+        layout: parent,
+        position: look.position,
+        description: look.description,
+        config: %{"buildings" => look.buildings, "settlement" => look.settlement}
+      }
+    end
+  end
+
   # How many ancestors a seed row has — parents seed first.
   defp depth(%{parent: parent}, by_key) when is_binary(parent), do: 1 + depth(Map.fetch!(by_key, parent), by_key)
   defp depth(_row, _by_key), do: 0
@@ -404,10 +493,12 @@ defmodule Nebulith.Catalog.GeneratorSource do
   def categories do
     [
       %{key: "forest", name: "Forest", position: 0, description: "Woodland and open meadows — no settlement."},
-      %{key: "town", name: "Town", position: 1, description: "A modest, leafy settlement around a square."},
-      %{key: "city", name: "City", position: 2, description: "The same lots packed far harder — roughly 4x a town."},
-      %{key: "cave", name: "Cave", position: 3, description: "A seasonal cavern with enemies instead of townsfolk."},
-      %{key: "temple", name: "Temple", position: 4, description: "A seasonal temple dungeon."}
+      # Alexander, 2026-09-11: *"City and town options are the same, it'd put them in a single category"*. So a
+      # town and a city are two PRESETS of one kind of place, the way a woodland and a meadow are two presets
+      # of forest. The row says which archetype it runs, so the engine still builds a town for Town.
+      %{key: "settlement", name: "Settlement", position: 1, description: "Towns and cities: the same streets and squares at different densities."},
+      %{key: "cave", name: "Cave", position: 2, description: "A seasonal cavern with enemies instead of townsfolk."},
+      %{key: "temple", name: "Temple", position: 3, description: "A seasonal temple dungeon."}
     ]
   end
 
@@ -415,19 +506,19 @@ defmodule Nebulith.Catalog.GeneratorSource do
   def generators do
     [
       %{
-        category: "forest", key: "forest_woodland", name: "Woodland", layout: "woodland", position: 0,
+        category: "forest", key: "forest_woodland", name: "Woodland", layout: "woodland", variant: "forest", position: 0,
         description: "Dense trees with clearings cut into them, joined by paths.",
         config: %{"grid" => @small_grid, "nature" => @woodland_nature, "units" => townsfolk(3), "palette" => @woodland_palette, "formation" => @formations["stand"], "trees" => @woodland_trees, "crossings" => @crossings},
         options: @way_options ++ @water_options
       },
       %{
-        category: "forest", key: "forest_jungle", name: "Jungle", layout: "jungle", position: 1,
+        category: "forest", key: "forest_jungle", name: "Jungle", layout: "jungle", variant: "forest", position: 1,
         description: "A closed canopy over choked undergrowth, with clearings cut into it.",
         config: %{"grid" => @small_grid, "nature" => @jungle_nature, "units" => townsfolk(2), "palette" => @jungle_palette, "subZones" => @jungle_sub_zones, "formation" => @formations["closed"], "trees" => @jungle_trees, "crossings" => @crossings},
         options: @way_options ++ @water_options
       },
       %{
-        category: "forest", key: "forest_meadow", name: "Meadow", layout: "meadow", position: 2,
+        category: "forest", key: "forest_meadow", name: "Meadow", layout: "meadow", variant: "forest", position: 2,
         description: "An open clearing framed by trees, with two ways in.",
         config: %{"grid" => @small_grid, "nature" => @outdoor_nature, "units" => townsfolk(5), "formation" => @formations["scattered"], "trees" => @meadow_trees, "palette" => @meadow_palette, "crossings" => @crossings},
         options: @way_options ++ @water_options
@@ -515,7 +606,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
         config: %{}
       },
       %{
-        category: "town", key: "town_default", name: "Town", position: 0,
+        category: "settlement", key: "town_default", name: "Town", layout: "town", variant: "town", position: 0,
         description: "Streets, a central square, houses fronting the roads.",
         config: %{
           "grid" => @small_grid,
@@ -527,7 +618,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
         }
       },
       %{
-        category: "city", key: "city_default", name: "City", position: 0,
+        category: "settlement", key: "city_default", name: "City", layout: "city", variant: "city", position: 1,
         description: "The town's rules on a bigger grid with tighter lots and no per-street limit.",
         config: %{
           "grid" => @city_grid,
@@ -539,18 +630,18 @@ defmodule Nebulith.Catalog.GeneratorSource do
         }
       },
       %{
-        category: "cave", key: "cave_default", name: "Cave", position: 0,
+        category: "cave", key: "cave_default", name: "Cave", variant: "cave", position: 0,
         description: "A cavern floor — bats, spiders and skeletons instead of townsfolk.",
         config: %{"grid" => @small_grid, "units" => enemies(~w(bat spider skeleton))},
         options: @way_options
       },
       %{
-        category: "temple", key: "temple_default", name: "Temple", position: 0,
+        category: "temple", key: "temple_default", name: "Temple", variant: "temple", position: 0,
         description: "A temple dungeon — skeletons, guardians and wraiths.",
         config: %{"grid" => @small_grid, "units" => enemies(~w(skeleton guardian wraith))},
         options: @way_options
       }
-    ]
+    ] ++ settlement_variations()
   end
 
   @doc """
@@ -590,6 +681,13 @@ defmodule Nebulith.Catalog.GeneratorSource do
         (Repo.get_by(Generator, key: attrs.key) || %Generator{})
         |> Generator.changeset(params)
         |> Repo.insert_or_update()
+    end
+
+    # A category the list no longer names is DELETED. `seed/0` upserts by key and never removed anything, so
+    # merging town and city into one category would have left both behind as empty rows in the menu. Their
+    # generators have already moved to their new category above, so this deletes nothing but the husk.
+    for stale <- Repo.all(GeneratorCategory), stale.key not in Enum.map(categories(), & &1.key) do
+      Repo.delete(stale)
     end
 
     {map_size(ids), length(generators())}
