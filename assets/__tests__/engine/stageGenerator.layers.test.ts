@@ -98,8 +98,13 @@ function genSeeded(opts: Parameters<typeof generateStage>[0], seed: number): Sta
 // flat already). Nothing else draws off the rng differently except the cave's moss. Checked before relocking in
 // stageGenerator.floors.test.ts: no textured floor left in open ground, stone only under buildings, moss under a
 // tenth of a cave's floor.
+// Relocked 2026-09-11, town|autumn|40x40|1 only: a settlement now finds its store and hospital a spot on ANY
+// street before houses fill in (7 of 300 summer towns had no hospital). This town was one where an essential
+// did not fit the top street; the rescue searches the streets in random order (so a rescued building can still
+// land on an east/west street, which the foundation-orphan test samples), and this town comes out with its store,
+// hospital, temple and 12 houses.
 const BASELINE: Record<string, string> = {
-  'town|autumn|40x40|1': 'aeceac41',
+  'town|autumn|40x40|1': 'c17be222',
   'town|summer|50x40|7': '973a9388',
   'city|summer|56x44|3': 'd747d9b8',
   'forest|summer|30x24|42': 'f243961a',

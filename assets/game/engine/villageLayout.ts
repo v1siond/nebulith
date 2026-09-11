@@ -442,6 +442,24 @@ export function placePlots(roads: boolean[][], frontages: Frontage[], cols: numb
     }
   }
 
+  // THE GUARANTEE, kept. An essential the top street could not fit used to wait in `pending` for the fill, and
+  // the fill tries it at each spot and puts a HOUSE there whenever it does not fit, so a small town could reach
+  // its building cap on houses and never place its hospital: 7 of 300 seeded summer towns at 40 x 40 had a
+  // store and fourteen houses, the same seeds before and after 2026-09-11. So each essential still pending
+  // gets its own search over every frontage first, before any house can take the room it needs.
+  for (const type of ['store', 'hospital'] as BuildingType[]) {
+    if (!pending.includes(type)) continue
+    const len = plotWidth(type, rng, sizes, tuning.houseWidths)
+    const depth = len === null ? null : plotDepth(type, len, sizes)
+    if (len === null || depth === null) continue // no backend size for this type, never invent one
+    const spot = firstClearSpot(shuffled(frontages, rng), len, depth, tuning.setback, occ, cols, rows)
+    if (!spot) continue
+    for (let r = Math.max(0, spot.reserve.r0); r < Math.min(rows, spot.reserve.r0 + spot.reserve.h); r++)
+      for (let c = Math.max(0, spot.reserve.c0); c < Math.min(cols, spot.reserve.c0 + spot.reserve.w); c++) occ[r][c] = true
+    plots.push({ col: spot.foot.c0, row: spot.foot.r0, type, length: len, depth, facing: spot.facing })
+    pending.splice(pending.indexOf(type), 1)
+  }
+
   // Visit frontages SHUFFLED so a capped settlement (a modest town) spreads its houses across
   // the whole grid instead of packing the first streets.
   const order = frontages.map((_, i) => i)
@@ -484,6 +502,31 @@ export function placePlots(roads: boolean[][], frontages: Frontage[], cols: numb
     }
   }
   return plots
+}
+
+/** A copy of the frontages in random order. The search below takes the FIRST fit, so a fixed order would send
+ *  every rescued essential to the same kind of street: with the streets in their built order, a hospital always
+ *  landed on a horizontal one and east/west hospitals stopped happening at all (which emptied the sample the
+ *  foundation-orphan test needs). Shuffled, it can land on any street, as the general fill's does. */
+function shuffled(frontages: Frontage[], rng: Rng): Frontage[] {
+  const out = frontages.slice()
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1))
+    ;[out[i], out[j]] = [out[j], out[i]]
+  }
+  return out
+}
+
+/** The first spot, on any frontage, where a plot of `len` x `depth` and its 1-cell margin fit clear. */
+function firstClearSpot(frontages: Frontage[], len: number, depth: number, setback: number, occ: boolean[][], cols: number, rows: number): { foot: Rect; reserve: Rect; facing: Frontage['facing'] } | null {
+  for (const f of frontages) {
+    for (let pos = f.lo + 1; pos + 2 <= f.hi; pos++) {
+      const foot = footprint(f, pos, len, depth, setback)
+      const reserve = expandRect(foot, 1)
+      if (rectClear(reserve, occ, cols, rows)) return { foot, reserve, facing: f.facing }
+    }
+  }
+  return null
 }
 
 /** Compose the steps: road GRID → reserve the central SQUARE → fill frontages with rows of lots
