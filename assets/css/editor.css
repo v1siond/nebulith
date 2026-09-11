@@ -83,10 +83,15 @@
 .neb .chip.on{background:var(--accent);border-color:var(--accent);color:#08131f;font-weight:700}
 .neb .chip em{color:var(--faint);font-style:normal;margin-left:4px}
 .neb .chip.on em{color:#08131f}
-.neb .grid{flex:1;min-height:0;overflow-y:auto;padding:10px;display:grid;
+/* THE PALETTE GRID. Named `palgrid`, not `grid`, and that matters: `.neb .grid` (0,2,0) outranks Tailwind's
+   `.grid-cols-2` (0,1,0), so it silently hijacked EVERY Tailwind grid in the editor into this auto-fill
+   layout. The unit stat block is where it showed — five stats laid out four-across in 35px slivers instead
+   of the two columns its class asked for — but 16 grids were affected and none of them said so. A component
+   class sharing a name with a utility class is the bug; the palette owns this layout, so it gets the name. */
+.neb .palgrid{flex:1;min-height:0;overflow-y:auto;padding:10px;display:grid;
   grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:6px;align-content:start}
 /* an object is a whole building — it needs room for a silhouette, not a 24px chip */
-.neb .grid.objgrid{grid-template-columns:repeat(auto-fill,minmax(102px,1fr))}
+.neb .palgrid.objgrid{grid-template-columns:repeat(auto-fill,minmax(102px,1fr))}
 .neb .sw{background:var(--panel2);border:1px solid var(--line);border-radius:8px;cursor:pointer;padding:7px 4px;
   display:flex;flex-direction:column;align-items:center;gap:4px;color:var(--dim);min-height:74px;overflow:hidden}
 .neb .sw:hover{border-color:var(--accent);color:var(--ink)}

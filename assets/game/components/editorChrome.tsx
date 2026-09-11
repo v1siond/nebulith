@@ -289,7 +289,7 @@ export function CompositionPalette({
           <InfoButton helpId="objprev" />
         </div>
       </div>
-      <div className="grid objgrid" onMouseLeave={() => setHover(null)}>
+      <div className="palgrid objgrid" onMouseLeave={() => setHover(null)}>
         {sections.map(section => (
           <CompositionSection
             key={section.category}
@@ -1092,7 +1092,7 @@ export function LibraryRecent({ tiles, isOn, onPick, onHover, preview }: {
   return (
     <div>
       <div className="sub">★ Recent</div>
-      <div className="grid">
+      <div className="palgrid">
         {tiles.map(t => (
           <TileSwatch key={`recent-${t.id}`} tile={t} on={isOn(t)} onPick={() => onPick(t)} onHover={onHover} preview={preview} />
         ))}
@@ -1164,7 +1164,7 @@ function TileCategoryGrid({
   // the per-category headings only reappear in the unfiltered view — where they are the map of the library.
   const single = visible.length === 1
   return (
-    <div className="grid" onMouseLeave={() => onHover?.(null)}>
+    <div className="palgrid" onMouseLeave={() => onHover?.(null)}>
       {visible.map(cat => (
         <Fragment key={cat}>
           {!single && (
@@ -1431,9 +1431,9 @@ export function UnitPicker({ units, pickedId, onPick, mode, onMode, animated, on
       </div>
 
       {units.length === 0 ? (
-        <div className="grid"><div className="hint">No characters in this style yet.</div></div>
+        <div className="palgrid"><div className="hint">No characters in this style yet.</div></div>
       ) : (
-        <div className="grid" onMouseLeave={() => setHover(null)}>
+        <div className="palgrid" onMouseLeave={() => setHover(null)}>
           {shownUnits.map(t => (
             <TileSwatch
               key={t.id}

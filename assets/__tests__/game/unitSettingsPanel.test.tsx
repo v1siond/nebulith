@@ -1,5 +1,5 @@
 import { render, screen, fireEvent } from '@testing-library/react'
-import { UnitSettingsSection, UnitStatsBody, type UnitControlModel } from '@/components/game/modals'
+import { CharacterWindow, UnitSettingsSection, UnitStatsBody, type UnitControlModel } from '@/components/game/modals'
 import { TileControls } from '@/components/game/editorChrome'
 import { type TileControlModel } from '@/components/game/editorChrome'
 import { type Entity } from '@/game/types'
@@ -94,13 +94,35 @@ describe('the shared control body — a unit uses the SAME settings UX as a tile
     expect(screen.queryByRole('button', { name: 'Square' })).toBeNull()
   })
 
-  // The VITALS moved into the "⛊ Stats…" modal (UnitStatsBody) with the unified-card work — only the unit's
-  // identity rows + entry buttons stay in the section itself.
-  it('renders the unit-only section a tile never gets: identity + inventory (vitals live in the Stats modal)', () => {
+  // The NAME, the SIZE and the STATS all live in the Character window now. Alexander, 2026-09-11: *"I'd
+  // expect to see the stats inside the character window instead of a separate window"*. What is left in this
+  // section is the ways OUT to the big editors (inventory, quests, attacks), which are real windows of their
+  // own rather than a button behind a button.
+  it('renders the unit-only section a tile never gets: the ways out to the big editors', () => {
     render(<><TileControls tile={makeUnitTile()} /><UnitSettingsSection unit={makeUnit()} /></>)
-    expect(screen.getByLabelText('Entity name')).toBeInTheDocument()
-    expect(screen.queryByLabelText('player HP')).toBeNull()
     expect(screen.getByRole('button', { name: /Inventory/ })).toBeInTheDocument()
+    expect(screen.queryByLabelText('Entity name')).toBeNull() // it is in the Character window
+    expect(screen.queryByRole('button', { name: /Stats/ })).toBeNull() // ditto, no separate window
+  })
+
+  it('the CHARACTER WINDOW carries the name, the size, the stats AND the figure picker, in one place', () => {
+    // The whole of his complaint in one assertion: *"character opens a modal that only has replace tile,
+    // instead of having stats and other options there"*.
+    render(
+      <CharacterWindow
+        entity={makeEntity()}
+        styleId="emoji"
+        fromLabel="player"
+        onPatch={jest.fn()}
+        onSize={jest.fn()}
+        onSwap={jest.fn()}
+      />,
+    )
+    expect(screen.getByLabelText('Entity name')).toBeInTheDocument()
+    expect(screen.getByLabelText('player HP')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '2×' })).toBeInTheDocument()
+    // the figure picker itself, not a button that opens the figure picker
+    expect(screen.getByPlaceholderText(/search .* characters/i)).toBeInTheDocument()
   })
 
   it('a PLAIN tile (no unit) shows the shared controls but NO unit section', () => {
@@ -114,7 +136,6 @@ describe('the shared control body — a unit uses the SAME settings UX as a tile
     expect(screen.getByRole('group', { name: 'Footprint per direction' })).toBeInTheDocument()
     expect(screen.getByLabelText('Draw order')).toBeInTheDocument()
     // …but the unit-only extras are absent.
-    expect(screen.queryByLabelText('Entity name')).toBeNull()
     expect(screen.queryByRole('button', { name: /Inventory/ })).toBeNull()
   })
 })
@@ -143,7 +164,7 @@ describe('the shared control body — edits fan out to the selected unit (one so
 
   it('editing the unit name fans out to the entity patch writer', () => {
     const onPatch = jest.fn()
-    render(<><TileControls tile={makeUnitTile()} /><UnitSettingsSection unit={makeUnit({ onPatch })} /></>)
+    render(<CharacterWindow entity={makeEntity()} styleId="emoji" fromLabel="player" onPatch={onPatch} onSwap={jest.fn()} />)
     fireEvent.change(screen.getByLabelText('Entity name'), { target: { value: 'Aria' } })
     expect(onPatch).toHaveBeenCalledWith({ name: 'Aria' })
   })

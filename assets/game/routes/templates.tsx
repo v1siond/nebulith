@@ -76,7 +76,7 @@ import { Card, EntityToolButton, ViewButton } from '@/components/game/controls'
 import { CameraRotateButton, PlayerRangeControl, normalizePlayerViewRange, panKeepingCenter } from '@/components/game/cameraControls'
 import { AbilityBar, CombatHud, QuestHud } from '@/components/game/hud'
 import { EquipmentPanel, QuestAuthoringCard, QuestLogPanel } from '@/components/game/panels'
-import { buildUnitModel, ConnectorsPanelBody, EntityAttackBody, FloatingPanel, Modal, QuestGiveBody, UnitSettingsSection, UnitStatsBody } from '@/components/game/modals'
+import { buildUnitModel, CharacterWindow, ConnectorsPanelBody, EntityAttackBody, FloatingPanel, Modal, QuestGiveBody, UnitSettingsSection } from '@/components/game/modals'
 import { FlowViewOverlay, GamesViewOverlay } from '@/components/game/games'
 import { type BuildingTool, type EditorMode, type EntityTool, type RailEntry, type RailId, EDITOR_RAIL_STARTERS, RAIL_BY_MODE } from '@/components/game/editorConfig'
 import { CanvasModeChip, HelpButton, HelpSheet } from '@/components/game/editorHelp'
@@ -108,6 +108,7 @@ import { GuidesPanel } from '@/components/game/shell/GuidesPanel'
 import { MapPreview } from '@/components/game/shell/MapPreview'
 import { type PreviewContext } from '@/components/game/shell/PreviewThumb'
 import { type SectionPresenter } from '@/components/game/editorInspector'
+import { type InspectorSectionId } from '@/game/editor/inspectorSections'
 import { subjectFor } from '@/engine/preview/previewScene'
 import { loadZones, zones } from '@/engine/zoneCatalog'
 import { loadCombatCatalog } from '@/game/combatCatalog'
@@ -402,11 +403,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   const [tileAnimatorOpen, setTileAnimatorOpen] = useState(false)
   // The TILE settings modal — hosts the full TileControls body (colour/size/pose/z…) so the inspector stays
   // a compact summary. Same open/close pattern as the animation modal above.
-  // The UNIT settings panel — hosts the SAME FloatingPanel + shared settings body a tile uses (colour/scale/
-  // pose). The unit's identity/vitals/inventory live on the CARD now, so this modal is tile-only for a unit.
-  // The UNIT stats panel — the "⛊ Stats…" button's draggable/resizable modal (HP/DEF/STR/INT/DODGE% +
-  // hittable + respawn). Name/size stay as rows on the card; collision is the card's Blocked/Walkable toggle.
-  const [unitStatsOpen, setUnitStatsOpen] = useState(false)
+  // The stats have no panel of their own any more — they are a block inside the Character window.
   // The TRIGGERS modal — a floating panel (like settings) to manage the selected cell's or unit's triggers.
   const [triggersOpen, setTriggersOpen] = useState(false)
   // The enemy ATTACKS modal — the attack/ability pattern editor, folded off the card into a floating panel.
@@ -417,7 +414,6 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     selectedEntityIdRef.current = selectedEntityId
     setEntityModal(null)
     setAnimEditorOpen(false)
-    setUnitStatsOpen(false)
     setTriggersOpen(false)
     setUnitAttacksOpen(false)
   }, [selectedEntityId])
@@ -1048,6 +1044,13 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
    * The page supplies this rather than the inspector importing a panel — see `SectionPresenter`. Geometry
    * persists per section under its own key, so each one reopens where it was left.
    */
+  // A section's DEFAULT size, before the person drags it to their own. The Character window holds four
+  // blocks (name, size, the stat grid, the figure picker with its search), so at everyone else's 330x380 the
+  // figure fell off the bottom and the stat fields were squeezed to slivers. Only the default differs —
+  // every panel is still freely resizable and remembers where it was left.
+  const SECTION_SIZE: Partial<Record<InspectorSectionId, { w: number; h: number }>> = {
+    identity: { w: 420, h: 640 },
+  }
   const presentInspectorSection: SectionPresenter = (id, title, body, onClose) => (
     <FloatingPanel
       key={id}
@@ -1055,7 +1058,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       accent="cyan"
       openBeside=".z-insp"
       onClose={onClose}
-      {...floatingProps(`inspector.panel.${id}`, { w: 330, h: 380 })}
+      {...floatingProps(`inspector.panel.${id}`, SECTION_SIZE[id] ?? { w: 330, h: 380 })}
     >
       {body}
     </FloatingPanel>
@@ -5833,6 +5836,18 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                         present={presentInspectorSection}
                         onOpenTriggers={() => setTriggersOpen(true)}
                         triggerCount={selEntity.triggers?.length ?? 0}
+                        // THE CHARACTER WINDOW — figure, name, size and stats together, instead of a panel
+                        // holding one button that opened a panel that opened a panel.
+                        unitIdentity={
+                          <CharacterWindow
+                            entity={selEntity}
+                            styleId={activeStyleId}
+                            fromLabel={selEntity.enemyType?.trim().toLowerCase() || selEntity.kind}
+                            onPatch={patchSelectedEntity}
+                            onSize={setSelectedEntitySize}
+                            onSwap={(tile: TileDef) => setSelectionOverride(tile.id)}
+                          />
+                        }
                         // Clear tiles targets the cell the unit STANDS on, through the same primitive a cell
                         // selection uses; Remove tile deletes the unit — a unit IS a tile, so no bespoke Delete.
                         onClearTiles={() => clearTilesAt([{ col: selEntity.col, row: selEntity.row }])}
@@ -5846,7 +5861,6 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                               unit={buildUnitModel(selEntity, {
                                 onPatch: patchSelectedEntity,
                                 onSize: setSelectedEntitySize,
-                                openStats: () => setUnitStatsOpen(true),
                                 openInventory: () => setEntityModal('inventory'),
                                 openQuests: () => { setQuestDraft(d => ({ ...d, giverId: selEntity.id })); setEntityModal('quests') },
                                 openAttacks: () => setUnitAttacksOpen(true),
@@ -5900,14 +5914,9 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                     {/* Unit settings — the SAME floating panel + shared body a tile opens. Tile-only here: the
                         unit's identity/inventory live on the CARD now, not in this modal. Geometry id "settings". */}
                     {/* unit settings modal retired (§4.7 / Week 5) — every control it hosted is an inline accordion in the inspector now. */}
-                    {/* Stats — the "⛊ Stats…" button's draggable/resizable modal: the extra unit settings that
-                        are NOT tile settings (HP/DEF/STR/INT/DODGE%, hittable, the enemy's kill-quest tag +
-                        respawn). Geometry persists in the backend under id "stats", like every other panel. */}
-                    {unitStatsOpen && (
-                      <FloatingPanel title={`${selEntity.name || selEntity.kind} — Stats`} accent="orange" onClose={() => setUnitStatsOpen(false)} {...floatingProps('stats', { w: 320, h: 400 })}>
-                        <UnitStatsBody entity={selEntity} onPatch={patchSelectedEntity} />
-                      </FloatingPanel>
-                    )}
+                    {/* The standalone Stats window is gone. Alexander, 2026-09-11: *"I'd expect to see the
+                        stats inside the character window instead of a separate window"*. UnitStatsBody is
+                        unchanged, it just renders inside CharacterWindow now. */}
                     {/* Triggers — a floating modal (like settings) to manage this unit's on-defeat triggers. */}
                     {triggersOpen && (
                       <FloatingPanel title={`${selEntity.name || selEntity.kind} — Rules`} accent="yellow" onClose={() => setTriggersOpen(false)} {...floatingProps('triggers', { w: 360, h: 380 })}>

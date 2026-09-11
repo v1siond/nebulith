@@ -25,7 +25,7 @@ import { resolve } from 'path'
 import { useState } from 'react'
 import { render, screen, fireEvent, within } from '@testing-library/react'
 import { PropertiesPanel, type TileControlModel } from '@/components/game/editorChrome'
-import { buildUnitModel, FloatingPanel, UnitSettingsSection, UnitStatsBody, type UnitCardOpeners, type UnitControlModel } from '@/components/game/modals'
+import { buildUnitModel, CharacterWindow, FloatingPanel, UnitSettingsSection, UnitStatsBody, type UnitCardOpeners, type UnitControlModel } from '@/components/game/modals'
 import { type Animation as TileAnim } from '@/engine/animation/tileAnimation'
 import { type Entity, type EntityKind } from '@/game/types'
 
@@ -146,10 +146,11 @@ describe('a selected UNIT renders the SAME control set as a selected tile', () =
     })
     expect(screen.getByAltText('Goblin')).toBeInTheDocument() // the tile chip shows the unit's baked art
     expect(screen.getByLabelText('Goblin colour')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Replace tile' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Animate tile' })).toBeInTheDocument()
-    // "Edit triggers" is now "the rules for this" — the Triggers→Rules language you asked to finish.
-    expect(screen.getByRole('button', { name: 'Edit the rules for this' })).toBeInTheDocument()
+    // Each of these is a ROW that does its job on the first click. They used to be panels containing a
+    // single button, which is what Alexander called out on 2026-09-11.
+    expect(screen.getByRole('button', { name: 'Character' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Animation' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Rules' })).toBeInTheDocument()
     // There is no "Edit settings" button any more: that modal was one flat wall of controls, and its
     // contents now live ON the card as the named sections below (Appearance / Size & position / Behaviour).
     expect(screen.queryByRole('button', { name: /Edit settings/i })).toBeNull()
@@ -176,11 +177,15 @@ describe('the Figure (neutral/male/female/…) row is REMOVED', () => {
     expect(screen.queryByText('Figure')).toBeNull()
   })
 
-  it('the unit swaps its art through the standard Replace tile button (→ the tile library)', () => {
-    const onOpenLibrary = jest.fn()
-    renderCard({ tile: tileModel({ onOpenLibrary }), unitSection: <UnitSettingsSection unit={unitModel()} /> })
-    fireEvent.click(screen.getByRole('button', { name: 'Replace tile' }))
-    expect(onOpenLibrary).toHaveBeenCalledTimes(1)
+  it('the unit swaps its art with the figure picker INSIDE the character window', () => {
+    // Not through a Replace tile button any more. The picker is in the window, so the swap is one panel
+    // deep instead of three.
+    renderCard({
+      tile: tileModel(),
+      unitIdentity: <CharacterWindow entity={entity()} styleId="emoji" fromLabel="goblin" onPatch={jest.fn()} onSwap={jest.fn()} />,
+      unitSection: <UnitSettingsSection unit={unitModel()} />,
+    })
+    expect(screen.getByPlaceholderText(/search .* characters/i)).toBeInTheDocument()
   })
 })
 
@@ -210,47 +215,17 @@ describe('"Blocks movement" is served by the ONE Collision toggle', () => {
 
 // ── 4. Stats… → a draggable/resizable FloatingPanel ─────────────────────────────────────────────────
 describe('Stats… opens a draggable, movable, resizable modal with the extra unit settings', () => {
-  it('the card carries a Stats… button wired to the opener', () => {
-    const onOpenStats = jest.fn()
-    renderCard({ unitSection: <UnitSettingsSection unit={unitModel({ onOpenStats })} /> })
-    fireEvent.click(screen.getByRole('button', { name: /Stats/i }))
-    expect(onOpenStats).toHaveBeenCalledTimes(1)
+  it('there is NO Stats button and NO Stats window — the stats are in the character window', () => {
+    renderCard({ unitSection: <UnitSettingsSection unit={unitModel()} /> })
+    expect(screen.queryByRole('button', { name: /Stats/i })).toBeNull()
   })
 
-  it('the stats live in a FloatingPanel (drag handle + resize grip) — HP/DEF/STR/INT/DODGE% + Hittable', () => {
-    function Harness() {
-      const [open, setOpen] = useState(false)
-      return (
-        <>
-          <PropertiesPanel
-            collision={false}
-            onCollision={jest.fn()}
-            tile={tileModel()}
-            level={1}
-            levelCount={1}
-            onLevel={jest.fn()}
-            sectionOpen={() => true}
-            onToggleSection={jest.fn()}
-            unitSection={<UnitSettingsSection unit={unitModel({ onOpenStats: () => setOpen(true) })} />}
-          />
-          {open && (
-            <FloatingPanel title="Goblin — Stats" accent="orange" onClose={() => setOpen(false)}>
-              <UnitStatsBody entity={entity()} onPatch={jest.fn()} />
-            </FloatingPanel>
-          )}
-        </>
-      )
-    }
-    render(<Harness />)
-    expect(screen.queryByRole('dialog')).toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: /Stats/i }))
-    const dialog = screen.getByRole('dialog', { name: /Stats/i })
-    expect(dialog.querySelector('[data-drag-handle]')).toBeInTheDocument()
-    expect(dialog.querySelector('[data-resize-handle]')).toBeInTheDocument()
+  it('the stats render INSIDE the character window — HP/DEF/STR/INT/DODGE% + Hittable', () => {
+    render(<CharacterWindow entity={entity()} styleId="emoji" fromLabel="goblin" onPatch={jest.fn()} onSwap={jest.fn()} />)
     for (const label of ['enemy HP', 'enemy DEF', 'enemy STR', 'enemy INT', 'enemy DODGE%']) {
-      expect(within(dialog).getByLabelText(label)).toBeInTheDocument()
+      expect(screen.getByLabelText(label)).toBeInTheDocument()
     }
-    expect(within(dialog).getByLabelText('Hittable')).toBeInTheDocument()
+    expect(screen.getByLabelText('Hittable')).toBeInTheDocument()
   })
 
   it('editing a stat and toggling Hittable fan out through the entity patch writer', () => {
@@ -268,7 +243,7 @@ describe('Stats… opens a draggable, movable, resizable modal with the extra un
     expect(screen.getByLabelText('Respawn seconds')).toBeInTheDocument()
   })
 
-  it('does NOT duplicate the stats on the card — they live only in the modal', () => {
+  it('does NOT duplicate the stats on the card — they live only in the character window', () => {
     renderCard({ unitSection: <UnitSettingsSection unit={unitModel()} /> })
     expect(screen.queryByLabelText('enemy HP')).toBeNull()
     expect(screen.queryByLabelText('Hittable')).toBeNull()
@@ -276,17 +251,17 @@ describe('Stats… opens a draggable, movable, resizable modal with the extra un
 })
 
 // ── 5. Name + Size stay as card rows; Inventory & abilities reachable from the card ─────────────────
-describe('Name + Size stay as rows on the tile card', () => {
+describe('Name + Size live in the character window', () => {
   it('the Name row writes through the entity patch writer', () => {
     const onPatch = jest.fn()
-    renderCard({ unitSection: <UnitSettingsSection unit={unitModel({ onPatch })} /> })
+    render(<CharacterWindow entity={entity()} styleId="emoji" fromLabel="goblin" onPatch={onPatch} onSwap={jest.fn()} />)
     fireEvent.change(screen.getByLabelText('Entity name'), { target: { value: 'Aria' } })
     expect(onPatch).toHaveBeenCalledWith({ name: 'Aria' })
   })
 
   it('the Size 1×/2×/3× row writes through the size writer', () => {
     const onSize = jest.fn()
-    renderCard({ unitSection: <UnitSettingsSection unit={unitModel({ onSize })} /> })
+    render(<CharacterWindow entity={entity()} styleId="emoji" fromLabel="goblin" onPatch={jest.fn()} onSize={onSize} onSwap={jest.fn()} />)
     fireEvent.click(screen.getByRole('button', { name: '3×' }))
     expect(onSize).toHaveBeenCalledWith(3)
   })
@@ -361,9 +336,9 @@ describe('the page replaces the unit menu with the tile card', () => {
     expect(src).toContain("libraryLabel: 'Replace tile'")
   })
 
-  it('opens the Stats body in a geometry-persisting FloatingPanel (id "stats")', () => {
-    expect(src).toContain('UnitStatsBody')
-    expect(src).toContain("floatingProps('stats'")
+  it('renders the stats inside the character window, with no window of their own', () => {
+    expect(src).toContain('<CharacterWindow')
+    expect(src).not.toContain("floatingProps('stats'")
   })
 
   it('builds the unit model through buildUnitModel — no inline kind ternary can hide an entry point again', () => {
@@ -396,11 +371,11 @@ describe('🎒 Inventory & abilities is on EVERY unit card, not the player alone
     expect(open.openInventory).toHaveBeenCalledTimes(1)
   })
 
-  it.each<EntityKind>(['player', 'npc', 'enemy'])('a %s card keeps Stats… (universal, like the inventory)', kind => {
-    const open = openers()
-    render(<UnitSettingsSection unit={buildUnitModel(entity({ kind }), open)} />)
-    fireEvent.click(screen.getByRole('button', { name: /Stats/i }))
-    expect(open.openStats).toHaveBeenCalledTimes(1)
+  it.each<EntityKind>(['player', 'npc', 'enemy'])('a %s gets its stats in the character window, whatever kind it is', kind => {
+    // Stats are universal, same as the inventory — but they are a BLOCK in the character window now rather
+    // than a button to a window of their own.
+    render(<CharacterWindow entity={entity({ kind })} styleId="emoji" fromLabel={kind} onPatch={jest.fn()} onSwap={jest.fn()} />)
+    expect(screen.getByLabelText(`${kind} HP`)).toBeInTheDocument()
   })
 
   it('keeps the kind-SPECIFIC entries where they belong: quests → NPC, attacks → enemy', () => {
@@ -422,12 +397,12 @@ describe('🎒 Inventory & abilities is on EVERY unit card, not the player alone
     render(<UnitSettingsSection unit={buildUnitModel(entity({ kind: 'npc', name: 'Wanderer 1' }), open)} />)
     expect(screen.getByRole('button', { name: /Quests/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Inventory & abilities/i })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Stats/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Inventory/i })).toBeInTheDocument()
   })
 
   it('still routes the name + size rows through the writers the page passes', () => {
     const open = openers()
-    render(<UnitSettingsSection unit={buildUnitModel(entity({ kind: 'npc' }), open)} />)
+    render(<CharacterWindow entity={entity({ kind: 'npc' })} styleId="emoji" fromLabel="npc" onPatch={open.onPatch} onSize={open.onSize} onSwap={jest.fn()} />)
     fireEvent.change(screen.getByLabelText('Entity name'), { target: { value: 'Aria' } })
     expect(open.onPatch).toHaveBeenCalledWith({ name: 'Aria' })
     fireEvent.click(screen.getByRole('button', { name: '2×' }))
@@ -448,7 +423,7 @@ describe('the unit card keeps the authored-animation summary the old unit card s
       tile: tileModel({ animations: [anim('a1'), anim('a2')] }),
       unitSection: <UnitSettingsSection unit={unitModel()} />,
     })
-    expect(screen.getByRole('button', { name: 'Animate tile' })).toHaveTextContent('(2)')
+    expect(screen.getByRole('button', { name: 'Animation' })).toHaveTextContent('2')
   })
 
   it('the page feeds the unit its unified animations, so the count is REAL and not always empty', () => {

@@ -75,21 +75,20 @@ function renderPanel(props: Partial<React.ComponentProps<typeof PropertiesPanel>
   )
 }
 
-/** The inspector's section headers, in DOM order — each accordion's toggle carries `aria-expanded`. */
+/** The inspector's section headers, in DOM order. Keyed off `data-section` rather than `aria-expanded`:
+ *  a section that only LAUNCHES an editor never expands, so it correctly carries no `aria-expanded` at all. */
 function sectionList(): string[] {
-  return screen
-    .queryAllByRole('button', { expanded: true })
-    .concat(screen.queryAllByRole('button', { expanded: false }))
-    .filter(el => el.getAttribute('aria-expanded') !== null && el.getAttribute('aria-label'))
-    .sort((a, b) => (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1))
-    .map(el => el.getAttribute('aria-label')!)
+  return [...document.querySelectorAll('[data-section]')].map(el => el.getAttribute('aria-label')!)
 }
 
 describe('the inspector renders §4.7\'s sections', () => {
   it('draws them in the design\'s order for a cell holding a tile', () => {
     renderPanel({ tile: assetTile({ onOpenAnimator: jest.fn() }), onOpenTriggers: jest.fn() })
+    // "What is this?" used to show up here, but it is not a section — it is a disclosure nested INSIDE
+    // Behaviour that the old aria-expanded sweep picked up by accident. Keying off `data-section` lists the
+    // sections and nothing else.
     expect(sectionList()).toEqual([
-      'Tile', 'Appearance', 'Size & position', 'What is this?', 'Behaviour', 'Animation', 'Rules',
+      'Tile', 'Appearance', 'Size & position', 'Behaviour', 'Animation', 'Rules',
     ])
   })
 
@@ -117,11 +116,26 @@ describe('the inspector renders §4.7\'s sections', () => {
     expect(screen.getByText(/cell · wall/i)).toBeInTheDocument()
   })
 
-  it('"Open Tile Library" fires onOpenLibrary (the change-tile entry point)', () => {
+  it('the Tile row IS the swap — one click, not a panel holding one button', () => {
+    // Alexander, 2026-09-11: *"there's many options in right sidebar that open a modal that have a button
+    // inside that open a another modal ... whats the point of having an extra action???"* A cell's identity
+    // has exactly one control, so the row does it rather than opening a panel to show it to you.
     const onOpenLibrary = jest.fn()
     renderPanel({ tile: floorTile({ onOpenLibrary }) })
-    fireEvent.click(screen.getByRole('button', { name: /Open Tile Library/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'Tile' }))
     expect(onOpenLibrary).toHaveBeenCalledTimes(1)
+    // and it never expands, so there is no second button underneath to hunt for
+    expect(screen.queryByRole('button', { name: /Open Tile Library/i })).toBeNull()
+  })
+
+  it('Animation and Rules are one-click too — same reason, same shape', () => {
+    const onOpenAnimator = jest.fn()
+    const onOpenTriggers = jest.fn()
+    renderPanel({ tile: assetTile({ onOpenAnimator }), onOpenTriggers })
+    fireEvent.click(screen.getByRole('button', { name: 'Animation' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Rules' }))
+    expect(onOpenAnimator).toHaveBeenCalledTimes(1)
+    expect(onOpenTriggers).toHaveBeenCalledTimes(1)
   })
 
   it('HOW IT LOOKS holds exactly one colour swatch', () => {
@@ -203,7 +217,7 @@ describe('a tile the editor cannot write to SAYS so, instead of faking controls 
     const onRemove = jest.fn()
     renderPanel({ tile: assetTile(), tileNotice: notice, onRemove, onClearTiles: jest.fn() })
     expect(screen.getByRole('button', { name: 'Blocked' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Open Tile Library/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Tile' })).toBeInTheDocument() // the swap still reachable
     fireEvent.click(screen.getByRole('button', { name: /Remove tile/i }))
     expect(onRemove).toHaveBeenCalled()
   })

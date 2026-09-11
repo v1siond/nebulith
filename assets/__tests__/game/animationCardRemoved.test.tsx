@@ -6,8 +6,8 @@
  * frame-preset flow and was superseded by the real per-asset TileAnimationEditor modal. It's gone.
  *
  * These tests lock the removal two ways:
- *   1. STRUCTURE — the real animation entry (the "Animate tile" button that opens TileAnimationEditor)
- *      still renders on an asset tile, and the dead preset controls never render in the inspector.
+ *   1. STRUCTURE — the real animation entry (the Animation row, which opens TileAnimationEditor on the
+ *      first click) still renders on an asset tile, and the dead preset controls never render.
  *   2. SOURCE GUARD — the page source no longer carries the preset card markup or its exclusive wiring,
  *      while the TileAnimationEditor modal wiring is untouched. (The card lived inline in the page, so a
  *      source assertion is the honest regression guard against it being re-added as a sibling.)
@@ -54,7 +54,9 @@ describe('Cell inspector — the real TileAnimationEditor entry survives', () =>
         onLevel={jest.fn()}
       />,
     )
-    const animate = screen.getByRole('button', { name: /Animate tile/i })
+    // The row IS the entry now, no "✦ Animate…" button underneath it — a section whose only content was a
+    // launch button became the launch button (his *"whats the point of having an extra action???"*).
+    const animate = screen.getByRole('button', { name: 'Animation' })
     expect(animate).toBeInTheDocument()
     fireEvent.click(animate)
     expect(onOpenAnimator).toHaveBeenCalledTimes(1)
@@ -71,7 +73,7 @@ describe('Cell inspector — the real TileAnimationEditor entry survives', () =>
         onLevel={jest.fn()}
       />,
     )
-    expect(screen.queryByRole('button', { name: /Animate tile/i })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Animation' })).toBeNull()
   })
 })
 

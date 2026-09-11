@@ -96,10 +96,11 @@ describe('#1 Inspector shows the selected tile + a Clear-tiles action', () => {
 
 // ── Deliverable #3 — the Tile Library button, and the draggable/resizable modal it opens ────────────────
 describe('#3 the tile-add button opens a FloatingPanel', () => {
-  it('the swap-tile button sits in the identity section, ABOVE the Appearance colour', () => {
+  it('the swap-tile row sits in the identity section, ABOVE the Appearance colour', () => {
     renderPanel({ tile: floorTile({ libraryLabel: 'Add tile' }) })
     const colour = screen.getByLabelText('grass colour')
-    const libraryBtn = screen.getByRole('button', { name: 'Add tile' })
+    // The Tile ROW is the swap now — there is no button inside it to find, because there is no inside.
+    const libraryBtn = screen.getByRole('button', { name: 'Tile' })
 
     // ORDER CONFLICT, FLAGGED RATHER THAN SETTLED HERE. Deliverable #3 asked for this button BELOW the
     // colour swatch. The later §4.7 section design — the approved mockup — puts identity first ("Tile", with
@@ -126,7 +127,7 @@ describe('#3 the tile-add button opens a FloatingPanel', () => {
     }
     render(<Harness />)
     expect(screen.queryByRole('dialog')).toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: 'Add tile' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Tile' }))
     const dialog = screen.getByRole('dialog', { name: /Tile Library/i })
     expect(dialog).toBeInTheDocument()
     expect(dialog.querySelector('[data-drag-handle]')).toBeInTheDocument()
@@ -143,13 +144,16 @@ describe('#4 the tile-add button names itself by cell status', () => {
     expect(screen.getByRole('button', { name: 'Replace tile' })).toBeInTheDocument()
   })
 
-  it('the inspector reads "Add tile" on an empty cell and "Replace tile" on a filled one (libraryLabel)', () => {
+  it('the Tile row still SAYS "Add tile" / "Replace tile" — as its badge, not a button inside it', () => {
+    // Collapsing the panel must not cost the wording. That label is the only thing telling you whether the
+    // click adds to an empty cell or swaps what is already there, so it moved onto the row as its summary.
+    const row = () => screen.getByRole('button', { name: 'Tile' })
     const { rerender } = renderPanel({ tile: floorTile({ libraryLabel: 'Add tile' }) })
-    expect(screen.getByRole('button', { name: 'Add tile' })).toBeInTheDocument()
+    expect(row()).toHaveTextContent('Add tile')
     rerender(
       <PropertiesPanel collision={false} onCollision={jest.fn()} tile={floorTile({ libraryLabel: 'Replace tile' })} level={1} levelCount={1} onLevel={jest.fn()} sectionOpen={() => true} onToggleSection={jest.fn()} />,
     )
-    expect(screen.getByRole('button', { name: 'Replace tile' })).toBeInTheDocument()
+    expect(row()).toHaveTextContent('Replace tile')
   })
 })
 

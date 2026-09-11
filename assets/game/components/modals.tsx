@@ -11,6 +11,8 @@ import { isAttackable } from '@/game/runtime/capabilities'
 import { type AttackMode, type AttackPattern, type AttackPatternMode, type EnemyAttack, type Entity, type EntityKind, type Quest } from '@/game/types'
 import { QuestObjectives } from '@/components/game/hud'
 import { TileControls, type TileControlModel } from '@/components/game/editorChrome'
+import { SwapTilePanel } from '@/components/game/shell/SwapTilePanel'
+import type { TileDef } from '@/game/artStyle'
 
 /** Right-sidebar inspector for a clicked entity: edit its name / enemy-type, toggle
  *  whether it's hittable (a non-hittable enemy becomes passive scenery), see its
@@ -300,12 +302,14 @@ export function UnitStatsBody({ entity, onPatch }: {
           {UNIT_STATS.map(([stat, label]) => (
             <label key={stat} className="flex items-center gap-1 text-[10px] text-gray-400">
               <span className="w-12 shrink-0">{label}</span>
+              {/* `min-w-0` is the load-bearing half: a flex item will not shrink below its content width
+                  without it, so a number field next to a fixed label overflows and then gets squeezed. */}
               <input
                 type="number"
                 value={entity.baseStats[stat] ?? 0}
                 onChange={e => onPatch({ baseStats: { ...entity.baseStats, [stat]: Number(e.target.value) } })}
                 aria-label={`${entity.kind} ${label}`}
-                className="w-full rounded bg-gray-800 p-1 text-xs"
+                className="min-w-0 flex-1 rounded bg-gray-800 p-1 text-xs"
               />
             </label>
           ))}
@@ -324,7 +328,7 @@ export function UnitStatsBody({ entity, onPatch }: {
             value={Math.round((entity.respawnMs ?? 0) / 1000)}
             onChange={e => onPatch({ respawnMs: Math.max(0, Number(e.target.value)) * 1000 })}
             aria-label="Respawn seconds"
-            className="w-full rounded bg-gray-800 p-1 text-xs"
+            className="min-w-0 flex-1 rounded bg-gray-800 p-1 text-xs"
           />
         </label>
       )}
@@ -343,7 +347,6 @@ export interface UnitControlModel {
    *  size row hides (the raw scale is still editable via the settings sliders). */
   onSize?: (size: number) => void
   /** open the unit's STATS modal (HP/DEF/STR/INT/DODGE% + hittable + respawn) — absent → no button. */
-  onOpenStats?: () => void
   /** open the unit's inventory & abilities (the player carries one) — absent → no button. */
   onOpenInventory?: () => void
   /** open the NPC's quest authoring — absent → no button. */
@@ -357,7 +360,6 @@ export interface UnitControlModel {
 export interface UnitCardOpeners {
   onPatch: (patch: Partial<Entity>) => void
   onSize: (size: number) => void
-  openStats: () => void
   openInventory: () => void
   openQuests: () => void
   openAttacks: () => void
@@ -380,11 +382,56 @@ export function buildUnitModel(entity: Entity, open: UnitCardOpeners): UnitContr
     entity,
     onPatch: open.onPatch,
     onSize: open.onSize,
-    onOpenStats: open.openStats,
     onOpenInventory: open.openInventory,
     onOpenQuests: kindEntries.quests ? open.openQuests : undefined,
     onOpenAttacks: kindEntries.attacks ? open.openAttacks : undefined,
   }
+}
+
+/**
+ * THE CHARACTER WINDOW — everything about who this is, in one place.
+ *
+ * Alexander, 2026-09-11: *"character opens a modal that only has replace tile, instead of having stats and
+ * other options there"* and *"I'd expect to see the stats inside the character window instead of a separate
+ * window"*.
+ *
+ * Before this the Character row opened a panel holding one button, that button opened a SECOND panel to pick
+ * a figure, and the stat block lived in a THIRD window off a separate button. Three windows for one
+ * character. Now the figure picker is inline (no intermediate button, so his *"whats the point of having an
+ * extra action???"* stops applying here too), the name and size sit under it, and the stats are in the same
+ * window rather than beside it.
+ */
+export function CharacterWindow({ entity, styleId, fromLabel, onPatch, onSize, onSwap }: {
+  entity: Entity
+  styleId: string
+  /** The figure currently in the slot, for the swap panel's BEFORE picture. */
+  fromLabel: string | null
+  onPatch: (patch: Partial<Entity>) => void
+  onSize?: (size: number) => void
+  onSwap: (tile: TileDef) => void
+}) {
+  return (
+    <div className="space-y-3 text-xs">
+      <UnitIdentityRows entity={entity} onPatch={onPatch} onSize={onSize} />
+      <div className="border-t border-white/10 pt-2">
+        <p className="mb-1.5 text-[9px] font-bold uppercase tracking-wider text-gray-500">Stats</p>
+        <UnitStatsBody entity={entity} onPatch={onPatch} />
+      </div>
+      <div className="border-t border-white/10 pt-2">
+        <p className="mb-1.5 text-[9px] font-bold uppercase tracking-wider text-gray-500">Figure</p>
+        {/* The picker itself, not a button that opens the picker. `onCancel` is a no-op: there is nothing to
+            back out OF when the panel is the section you already opened, and the section's own ✕ closes it. */}
+        <SwapTilePanel
+          styleId={styleId}
+          fromLabel={fromLabel}
+          where={`cell ${entity.col}, ${entity.row}`}
+          isCharacter
+          onSwap={onSwap}
+          onCancel={() => {}}
+        />
+      </div>
+    </div>
+  )
 }
 
 /** The two identity ROWS that stay INLINE on the card — the unit's NAME and its discrete SIZE preset (a boss
@@ -423,16 +470,14 @@ function UnitIdentityRows({ entity, onPatch, onSize }: { entity: Entity; onPatch
  *  stats (every unit), inventory (player), quests (NPC), attacks (enemy). Each button opens its own draggable
  *  modal. Rendered ONLY for a unit; a tile passes no unit model so this never shows. */
 export function UnitSettingsSection({ unit }: { unit: UnitControlModel }) {
-  const { entity, onPatch, onSize, onOpenStats, onOpenInventory, onOpenQuests, onOpenAttacks } = unit
+  const { entity, onPatch, onSize, onOpenInventory, onOpenQuests, onOpenAttacks } = unit
   const btn = 'w-full rounded bg-gray-700 px-2 py-1.5 text-left text-xs font-bold transition-colors hover:bg-gray-600'
-  const hasEntries = onOpenStats || onOpenInventory || onOpenQuests || onOpenAttacks
+  const hasEntries = onOpenInventory || onOpenQuests || onOpenAttacks
   return (
     <div className="space-y-2">
       <p className="text-[9px] font-bold uppercase tracking-wider text-gray-500">— unit · {entity.kind} —</p>
-      <UnitIdentityRows entity={entity} onPatch={onPatch} onSize={onSize} />
       {hasEntries && (
         <div className="space-y-1 border-t border-white/10 pt-2">
-          {onOpenStats && <button type="button" className={btn} onClick={onOpenStats}>⛊ Stats…</button>}
           {onOpenInventory && <button type="button" className={btn} onClick={onOpenInventory}>🎒 Inventory &amp; abilities…</button>}
           {onOpenQuests && <button type="button" className={btn} onClick={onOpenQuests}>❒ Quests…</button>}
           {onOpenAttacks && <button type="button" className={btn} onClick={onOpenAttacks}>⚔ Attacks / abilities…</button>}

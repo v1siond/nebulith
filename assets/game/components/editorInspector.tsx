@@ -285,6 +285,14 @@ export interface PropertiesPanelProps {
    *  single one). */
   at?: { col: number; row: number }
   onOpenTriggers?: () => void
+  /**
+   * The CHARACTER window's body — the figure, the name, the size and the stat block, all in one place.
+   *
+   * Only a unit passes it. When it is absent the identity row is a plain launcher into the tile swap, which
+   * is all a cell has to offer. Alexander, 2026-09-11: *"I'd expect to see the stats inside the character
+   * window instead of a separate window"*.
+   */
+  unitIdentity?: React.ReactNode
   /** how many rules the selected cell/unit currently has — surfaced as a count on the Rules button. */
   triggerCount?: number
   /** Why this tile's look/size cannot be edited, when it cannot (§3.13 / §4.7).
@@ -725,7 +733,7 @@ export type SectionPresenter = (
   onClose: () => void,
 ) => React.ReactNode
 
-export function InspectorSection({ id, isUnit, open, onToggle, badge, present, children }: {
+export function InspectorSection({ id, isUnit, open, onToggle, badge, present, launch, children }: {
   id: InspectorSectionId
   /** A unit is a WHO, a cell is a WHAT — the only wording that differs (§4.7). */
   isUnit: boolean
@@ -733,6 +741,18 @@ export function InspectorSection({ id, isUnit, open, onToggle, badge, present, c
   onToggle: (id: InspectorSectionId) => void
   /** A short summary shown in the header, so a closed section still answers its own question. */
   badge?: React.ReactNode
+  /**
+   * This section has nothing to show, only something to DO — so the header does it.
+   *
+   * Alexander, 2026-09-11: *"there's many options in right sidebar that open a modal that have a button
+   * inside that open a another modal, the issue is that the first modal, only had the option to open
+   * another modal, so whats the point of having an extra action???"*
+   *
+   * He is right and it was indefensible: Rules opened a panel holding one Rules button, Animation a panel
+   * holding one Animate button. Two clicks and two windows to reach one editor. A section that is purely a
+   * way in should BE the way in, so these rows open their editor on the first click and never expand.
+   */
+  launch?: () => void
   /**
    * Where the body goes when open. Absent → inline, the original accordion.
    *
@@ -747,20 +767,26 @@ export function InspectorSection({ id, isUnit, open, onToggle, badge, present, c
   return (
     <section className="border-t border-white/10 pt-1.5">
       <button
-        onClick={() => onToggle(id)}
-        aria-expanded={open}
+        onClick={launch ?? (() => onToggle(id))}
+        // A launcher does not expand, so it must not CLAIM to: `aria-expanded` on a control that never
+        // reveals anything tells a screen reader the opposite of what happens. `data-section` is the stable
+        // hook for finding these rows instead, since the attribute that used to identify them is now
+        // conditional.
+        aria-expanded={launch ? undefined : open}
+        data-section={id}
         aria-label={title}
         className="flex w-full items-center gap-1.5 rounded px-1 py-0.5 text-left transition-colors hover:bg-white/5"
       >
         {/* The marker says what the click DOES. Inline it is a disclosure triangle; as a panel it is a
-            pop-out, because the body is not going to appear underneath. */}
+            pop-out, because the body is not going to appear underneath; a launcher is an arrow, because the
+            one click takes you straight to the editor. */}
         <span aria-hidden className="w-2 shrink-0 text-[9px] text-gray-500">
-          {present ? (open ? '▣' : '▢') : open ? '▾' : '▸'}
+          {launch ? '→' : present ? (open ? '▣' : '▢') : open ? '▾' : '▸'}
         </span>
         <span className="text-[9px] font-bold uppercase tracking-wider text-gray-400">{title}</span>
         {badge !== undefined && <span className="ml-auto truncate text-[9px] text-gray-500">{badge}</span>}
       </button>
-      {open && (present
+      {!launch && open && (present
         ? present(id, title, children, () => onToggle(id))
         : <div className="mt-1.5 space-y-1.5 pl-1">{children}</div>)}
     </section>
@@ -785,6 +811,12 @@ export function PropertiesPanel(p: PropertiesPanelProps) {
   const section = (id: InspectorSectionId, badge: React.ReactNode | undefined, body: React.ReactNode) => (
     <InspectorSection id={id} isUnit={isUnit} open={p.sectionOpen(id)} onToggle={p.onToggleSection} badge={badge} present={p.present}>
       {body}
+    </InspectorSection>
+  )
+  /** A row that IS its action — no panel in between, because there would be nothing in it but this button. */
+  const launcher = (id: InspectorSectionId, badge: React.ReactNode | undefined, run: () => void) => (
+    <InspectorSection id={id} isUnit={isUnit} open={false} onToggle={p.onToggleSection} badge={badge} launch={run} present={p.present}>
+      {null}
     </InspectorSection>
   )
 
@@ -815,13 +847,18 @@ export function PropertiesPanel(p: PropertiesPanelProps) {
         )
         : <p className="text-[9px] font-bold uppercase tracking-wider text-gray-500">— cell —</p>}
 
-      {t && section('identity', t.styleName, (
-        <>
-          {/* Tile Library — the swap-tile action. Its label reads "Add tile" / "Replace tile" by cell status
-              for a cell; a unit keeps the default. Opens the draggable/resizable Tile Library modal. */}
-          <ArtSection override={t.override} styleName={t.styleName} onOpen={t.onOpenLibrary} label={t.libraryLabel} />
-        </>
-      ))}
+      {/* TILE / CHARACTER.
+          A cell's only identity control is the swap, so the row opens the swap panel on the first click
+          rather than a panel containing one button (his *"whats the point of having an extra action???"*).
+          A CHARACTER is the opposite case: it has a name, a size, a figure and a stat block, so it gets a
+          real window. Alexander, 2026-09-11: *"character opens a modal that only has replace tile, instead
+          of having stats and other options there"*. */}
+      {t && (p.unitIdentity
+        ? section('identity', t.styleName, p.unitIdentity)
+        // The badge carries what the click DOES ("Add tile" on an empty cell, "Replace tile" on a filled
+        // one) — that wording used to be printed on the button inside, and it is the useful half. The style
+        // name it displaces is global and already shown in the top bar.
+        : launcher('identity', t.libraryLabel ?? 'Swap tile', t.onOpenLibrary))}
 
       {/* HOW IT LOOKS and SIZE & POSITION are the two sections a no-op writer would fake, so a tile that
           cannot be written to gets the reason instead of the controls (§3.13). */}
@@ -859,11 +896,7 @@ export function PropertiesPanel(p: PropertiesPanelProps) {
 
       {/* Animate — opens its OWN modal. A tile authors GridAsset settings tweens; a unit authors its
           frame-by-frame character animations. Present whenever the model wires onOpenAnimator. */}
-      {t?.onOpenAnimator && section('animation', t.animations?.length ?? 0, (
-        <button onClick={t.onOpenAnimator} aria-label="Animate tile" className="w-full rounded bg-fuchsia-800 px-2 py-1 text-[10px] font-bold text-white transition-colors hover:bg-fuchsia-700">
-          ✦ Animate…{t.animations?.length ? ` (${t.animations.length})` : ''}
-        </button>
-      ))}
+      {t?.onOpenAnimator && launcher('animation', t.animations?.length ?? 0, t.onOpenAnimator)}
 
       {/* Rules — opens the rules modal (cell: enter/interact; unit: on defeat). Present for a bare cell too:
           a cell can carry a rule without holding a tile.
@@ -871,13 +904,7 @@ export function PropertiesPanel(p: PropertiesPanelProps) {
           The user-facing word is RULES. Alexander, 2026-09-09: *"there's old language in functionalities,
           for example right panel says triggers in tile selection, but that was changed to rules."* The prop
           and the `Trigger` type keep their names — renaming the DATA is a separate, larger change. */}
-      {p.onOpenTriggers && section('rules', p.triggerCount ?? 0, (
-        <button onClick={p.onOpenTriggers} aria-label="Edit the rules for this" className="b wide sm">
-          <span className="ic" aria-hidden="true">⚑</span>
-          <span>Rules</span>
-          {p.triggerCount ? <span className="ct">{p.triggerCount}</span> : null}
-        </button>
-      ))}
+      {p.onOpenTriggers && launcher('rules', p.triggerCount ?? 0, p.onOpenTriggers)}
 
       {/* The destructive footer — outside every section, so an action that empties the cell can never hide
           inside a collapsed one. */}

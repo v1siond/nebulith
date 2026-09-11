@@ -315,7 +315,7 @@ export function PlayerUiPanel({ state, onDone, gameId }: { state: HudLayoutState
         </div>
       </div>
 
-      {tab === 'layout' && <div className="grid" style={{ gridTemplateColumns: '1fr', gap: 1, padding: 10 }}>
+      {tab === 'layout' && <div className="palgrid" style={{ gridTemplateColumns: '1fr', gap: 1, padding: 10 }}>
         <div className="sub">Pieces of the HUD</div>
         <div className="flist">
           {HUD_ELEMENTS.map((el) => {
