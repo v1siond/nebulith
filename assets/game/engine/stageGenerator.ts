@@ -57,7 +57,7 @@ import { varyIntensity } from './colors'
 import { groundTileColor } from './tileset/groundColor'
 import type { Connector } from '@/lib/api'
 import { clamp, randInt, randIntWith, manhattan, makeRng, type Rng } from '@/lib/math'
-import { planRoutes, resolveWays, type RoutePlan } from '@/engine/pathNetwork'
+import { planRoutes, resolveWays, type Gate, type RouteCell, type RoutePlan } from '@/engine/pathNetwork'
 
 export type VariantId = 'town' | 'city' | 'forest' | 'cave' | 'temple' | 'boss-stage'
 
@@ -1408,12 +1408,12 @@ const FOREST_LAYOUTS: Readonly<Partial<Record<ForestLayout, (ctx: ArchetypeConte
   // It was already an option INSIDE the builder — `layoutWoodland(ctx, {river: true})` — and only the
   // catalog row and the layout string duplicated per combination. Now the option reaches the builder from
   // the generator's declared options, and `woodland_river` / `meadow_river` are gone as layouts.
-  woodland: ctx => layoutWoodland(ctx, { ...forestWater(ctx, 'around'), routes: forestRoutes(ctx) }),
+  woodland: ctx => layoutWoodland(ctx, { ...forestWater(ctx, 'around'), routes: plannedRoutes(ctx) }),
   // A JUNGLE HAS ITS OWN BUILDER. It used to share the woodland's with heavier numbers, and Alexander was
   // right that density is not the difference: *"there's a huge difference between amazonas and a pines
   // forest"*. Light gaps instead of clearings, a creek instead of trails, blocking undergrowth, emergents.
-  jungle: ctx => layoutJungle(ctx, { ...forestWater(ctx, 'through'), routes: forestRoutes(ctx) }),
-  meadow: ctx => buildMeadow(ctx, { ...forestWater(ctx, 'around'), twoWays: false, routes: forestRoutes(ctx) }),
+  jungle: ctx => layoutJungle(ctx, { ...forestWater(ctx, 'through'), routes: plannedRoutes(ctx) }),
+  meadow: ctx => buildMeadow(ctx, { ...forestWater(ctx, 'around'), twoWays: false, routes: plannedRoutes(ctx) }),
   meadow_pass: layoutMeadowPass,
 }
 
@@ -1482,7 +1482,7 @@ interface ForestBuild {
  * A generator that serves neither count returns null and its layout builds the map it always did, so every saved
  * recipe is untouched.
  */
-function forestRoutes(ctx: ArchetypeContext): RoutePlan | null {
+function plannedRoutes(ctx: ArchetypeContext): RoutePlan | null {
   const ways = resolveWays(ctx.options, ctx.rand)
   if (!ways) return null
   ctx.routes = planRoutes(ctx.cols, ctx.rows, ways, ctx.rand, WOODLAND.pathWidth)
@@ -2754,7 +2754,7 @@ function dryAreas(ctx: ArchetypeContext): Map<string, number> {
   return area
 }
 
-function layoutMeadowPass(ctx: ArchetypeContext): void { buildMeadow(ctx, { river: null, twoWays: true, routes: forestRoutes(ctx) }) }
+function layoutMeadowPass(ctx: ArchetypeContext): void { buildMeadow(ctx, { river: null, twoWays: true, routes: plannedRoutes(ctx) }) }
 
 interface MeadowBuild {
   /** The river's COURSE, or null for none. An option on the generator, not a layout of its own. */
@@ -3867,6 +3867,76 @@ const CAVE_ITERATIONS = 5 // smoothing passes (4-5 gives crisp caverns)
 const ENTRANCE_HALF = 3 // → a 7-wide chamber
 const ENTRANCE_HEIGHT = 4
 
+/**
+ * A CAVE IS A SPIDER, once the generator says how many ways run through it.
+ *
+ * Alexander, 2026-09-11: *"caves and temples are BAD, they should be completely re-imagined, just like we did
+ * with forests, we should research temple types and how they've been built in other games, like world of
+ * warcraft, warcraft 3, zelda, etc"*, and *"I can generate a cave with 1 exit and 3 pathways to simulate
+ * entrance, then I continue doing the same until I reach a part where is just 1 exit no pathway, which is the
+ * end of the cave"*.
+ *
+ * The research he asked for says the same thing twice. A Zelda dungeon is a SPIDER: an entrance, a hub (the
+ * body), legs off it, each leg ending somewhere worth reaching, the boss locked off the hub. His "1 exit and 3
+ * pathways" IS that spider. WoW's lesson is rhythm, a short run and then a place that looks like somewhere, so
+ * every stop gets a CHAMBER rather than a corridor end. Warcraft 3's is the chokepoint, so a gallery pinches
+ * and opens along its length, which the plan's SPINE makes safe to do.
+ *
+ * What this used to be: one cellular-automata blob with a chamber cut into its south edge, and no notion of
+ * where you came in or where you could go next. A generator that serves no ways still gets exactly that.
+ */
+const CAVE_HUB_RADIUS = [4, 6] as const
+const CAVE_STOP_RADIUS = [3, 4] as const
+const CAVE_MOUTH_RADIUS = 2
+/** Above this the gallery carries its full width; below it it pinches to the spine alone. A chokepoint. */
+const CAVE_PINCH = 0.42
+
+/** A blobby chamber: a disc whose radius wobbles per cell, so it reads as a cave rather than a room. The border
+ *  is never touched: a cave is enclosed, and its ways out are MOUTHS, not holes in the rock. */
+function carveCaveChamber(rock: boolean[][], centre: RouteCell, radius: number, cols: number, rows: number, rand: Rng, into: Set<string>): void {
+  for (let r = centre.row - radius - 1; r <= centre.row + radius + 1; r++) {
+    for (let c = centre.col - radius - 1; c <= centre.col + radius + 1; c++) {
+      if (!inBounds(c, r, cols, rows) || isEdge(c, r, cols, rows)) continue
+      if (Math.hypot(c - centre.col, r - centre.row) > radius - 0.5 + rand()) continue
+      rock[r][c] = false
+      into.add(`${c},${r}`)
+    }
+  }
+}
+
+/** The spider: a mouth inside every gate, a chamber at the hub and at every stop, galleries between them that
+ *  pinch and open. The spine is carved unconditionally, so nothing here can seal a leg off. */
+function carveCaveSpider(ctx: ArchetypeContext, rock: boolean[][], plan: RoutePlan): Set<string> {
+  const { cols, rows, rand } = ctx
+  const chambers = new Set<string>()
+  carveCaveChamber(rock, plan.hub, randIntWith(rand, CAVE_HUB_RADIUS[0], CAVE_HUB_RADIUS[1]), cols, rows, rand, chambers)
+  for (const stop of plan.deadEnds) {
+    carveCaveChamber(rock, stop, randIntWith(rand, CAVE_STOP_RADIUS[0], CAVE_STOP_RADIUS[1]), cols, rows, rand, chambers)
+  }
+  for (const gate of plan.gates) carveCaveChamber(rock, gate.inside, CAVE_MOUTH_RADIUS, cols, rows, rand, chambers)
+
+  for (const key of plan.spine) {
+    const { col, row } = toCell(key)
+    if (inBounds(col, row, cols, rows) && !isEdge(col, row, cols, rows)) rock[row][col] = false
+  }
+  for (const key of plan.cells) {
+    if (plan.spine.has(key)) continue
+    const { col, row } = toCell(key)
+    if (!inBounds(col, row, cols, rows) || isEdge(col, row, cols, rows)) continue
+    if (shadeNoise(col * 0.71 + row * 1.31) < CAVE_PINCH) continue // a chokepoint: the spine alone, here
+    rock[row][col] = false
+  }
+  return chambers
+}
+
+/** The mouth chamber as a rect, for the passes that reason about "north of the way in". */
+const mouthRect = (gate: Gate): Rect => ({
+  col: gate.inside.col - CAVE_MOUTH_RADIUS,
+  row: gate.inside.row - CAVE_MOUTH_RADIUS,
+  w: CAVE_MOUTH_RADIUS * 2 + 1,
+  h: CAVE_MOUTH_RADIUS * 2 + 1,
+})
+
 function placeCave(ctx: ArchetypeContext): void {
   const { cols, rows, zone } = ctx
   const pal = cavePalette(zone) ?? cavePalette('summer')
@@ -3877,14 +3947,28 @@ function placeCave(ctx: ArchetypeContext): void {
     ctx.ground[row][col] = pal.floor
   })
 
-  // 2. CA cavern skeleton → keep ONE connected cavern (stray pockets fill back to rock).
-  let rock = makeGrid(cols, rows, () => Math.random() < CAVE_FILL)
-  for (let i = 0; i < CAVE_ITERATIONS; i++) rock = smoothCave(rock, cols, rows)
-  const cavern = keepLargestClearing(rock, cols, rows) // true = rock
+  const plan = plannedRoutes(ctx)
+  let rock: boolean[][]
+  let entrance: Rect
+  // The rooms you stand in: the hub, every stop, every mouth. A pool belongs in the cavern AROUND them.
+  let chambers: ReadonlySet<string> = new Set<string>()
 
-  // 3. Carve the south entrance chamber and join it to the cavern with a wide corridor.
-  const entrance = carveEntranceChamber(rock, cols, rows)
-  joinEntranceToCavern(rock, entrance, cavern, cols, rows)
+  if (plan) {
+    // 2. THE SPIDER, carved out of solid rock: chambers where you arrive, where the ways meet, and where each
+    //    one ends; galleries between them.
+    rock = makeGrid(cols, rows, () => true)
+    chambers = carveCaveSpider(ctx, rock, plan)
+    entrance = mouthRect(plan.entrance)
+  } else {
+    // 2. CA cavern skeleton → keep ONE connected cavern (stray pockets fill back to rock).
+    rock = makeGrid(cols, rows, () => Math.random() < CAVE_FILL)
+    for (let i = 0; i < CAVE_ITERATIONS; i++) rock = smoothCave(rock, cols, rows)
+    const cavern = keepLargestClearing(rock, cols, rows) // true = rock
+
+    // 3. Carve the south entrance chamber and join it to the cavern with a wide corridor.
+    entrance = carveEntranceChamber(rock, cols, rows)
+    joinEntranceToCavern(rock, entrance, cavern, cols, rows)
+  }
 
   // 4. Seal the map border so the cavern is fully ENCLOSED (the CA can leave stray
   //    open border cells; force them rock — the interior floor is repaired below).
@@ -3896,7 +3980,11 @@ function placeCave(ctx: ArchetypeContext): void {
   commitCaveWalls(ctx, rock, pal)
 
   // 6. Seasonal water / ice / lava pools in the cavern (kept north of the entrance).
-  carveCavePools(ctx, pal, entrance)
+  carveCavePools(ctx, pal, entrance, chambers)
+
+  // 6b. A pool never cuts a gallery. The same rule the forests got: where a planned way meets water the way
+  //     wins (there it is planked, here the cave simply does not flood its own corridor).
+  if (plan) keepSpineOpen(ctx, plan, pal)
 
   // 7. Guarantee ONE connected floor — but RE-OPEN the way in first. A pool can land across the corridor
   //    that joins the entrance chamber to the cavern, and the repair below keeps the LARGEST region, so the
@@ -3942,6 +4030,22 @@ function joinEntranceToCavern(rock: boolean[][], entrance: Rect, cavern: Set<str
 }
 
 /** Commit the seasonal rock walls: every rock cell becomes a blocking wall prop. */
+/** Re-open the plan's centre line after the pools: a flooded gallery is a severed leg, and the repair below
+ *  would answer it by filling the far side in. */
+function keepSpineOpen(ctx: ArchetypeContext, plan: RoutePlan, pal: CavePalette): void {
+  const { cols, rows } = ctx
+  const open = new Set<string>()
+  for (const key of plan.spine) {
+    const { col, row } = toCell(key)
+    if (inBounds(col, row, cols, rows) && !isEdge(col, row, cols, rows)) open.add(key)
+  }
+  clearMeadowCells(ctx, open) // drops whatever was placed there and clears the collision
+  for (const key of open) {
+    const { col, row } = toCell(key)
+    ctx.ground[row][col] = pal.floor
+  }
+}
+
 function commitCaveWalls(ctx: ArchetypeContext, rock: boolean[][], pal: CavePalette): void {
   const { props, collision, cols, rows } = ctx
   forEachCell(cols, rows, (col, row) => {
@@ -3953,7 +4057,7 @@ function commitCaveWalls(ctx: ArchetypeContext, rock: boolean[][], pal: CavePale
 
 /** Stamp 1–3 seasonal pools onto cavern FLOOR (never carving into rock walls), north
  *  of the entrance. Water + lava block (routed around); frozen ice stays walkable. */
-function carveCavePools(ctx: ArchetypeContext, pal: CavePalette, entrance: Rect): void {
+function carveCavePools(ctx: ArchetypeContext, pal: CavePalette, entrance: Rect, keepOut: ReadonlySet<string> = new Set()): void {
   const { collision, cols, rows } = ctx
   const count = 1 + Math.floor(Math.random() * 3)
   const maxRow = Math.max(4, entrance.row - 2) // keep pools clear of the entrance chamber
@@ -3962,15 +4066,21 @@ function carveCavePools(ctx: ArchetypeContext, pal: CavePalette, entrance: Rect)
     for (let tries = 0; tries < 40 && !seed; tries++) {
       const col = randInt(3, cols - 4)
       const row = randInt(3, maxRow)
-      if (!collision[row][col]) seed = { col, row }
+      if (!collision[row][col] && !keepOut.has(`${col},${row}`)) seed = { col, row }
     }
-    if (seed) stampPool(ctx, pal, seed.col, seed.row)
+    if (seed) stampPool(ctx, pal, seed.col, seed.row, keepOut)
   }
 }
 
 /** One organic pool disc (a wobbling radius so it reads natural, not a clean circle),
  *  painted only over existing floor cells. */
-function stampPool(ctx: ArchetypeContext, pal: CavePalette, cc: number, cr: number): void {
+/** A pool, and the cells it must not touch.
+ *
+ * `keepOut` is how a CHAMBER stays dry: the hub is where the ways meet and a stop is the room at the end of
+ * one, and a room you arrive in should not be a lake. Measured before this existed: ten of the twenty five
+ * cells around the hub came out as water. The temple's own pool has the same discipline in the other
+ * direction, staying strictly inside its room so it cannot seal a doorway. */
+function stampPool(ctx: ArchetypeContext, pal: CavePalette, cc: number, cr: number, keepOut: ReadonlySet<string> = new Set()): void {
   const { ground, collision, cols, rows } = ctx
   const radius = 2 + Math.floor(Math.random() * 2) // 2–3
   const phase = Math.random() * Math.PI * 2
@@ -3980,6 +4090,7 @@ function stampPool(ctx: ArchetypeContext, pal: CavePalette, cc: number, cr: numb
       const row = cr + dr
       if (!inBounds(col, row, cols, rows) || isEdge(col, row, cols, rows)) continue
       if (collision[row][col]) continue // pool sits on floor, never punches through a wall
+      if (keepOut.has(`${col},${row}`)) continue // a chamber stays dry
       const reach = radius * (1 + 0.22 * Math.sin(Math.atan2(dr, dc) * 3 + phase))
       if (dc * dc + dr * dr > reach * reach) continue
       ground[row][col] = pal.pool
