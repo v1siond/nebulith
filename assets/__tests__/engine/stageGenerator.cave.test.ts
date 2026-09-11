@@ -1,5 +1,6 @@
 import '@/__tests__/helpers/installTilesetSeed' // the generator reads canopy/decor/feature colours from the loaded backend tileset now — install the captured fixture
-import { generateStage } from '@/engine/stageGenerator'
+import { FLAT_FLOOR, generateStage } from '@/engine/stageGenerator'
+import { groundTileColor } from '@/engine/tileset/groundColor'
 import { makeRng } from '@/lib/math'
 import { scatterEntities, CAVE_ENEMY_TYPES } from '@/game/spawner'
 import type { ZoneId } from '@/engine/zones'
@@ -82,15 +83,18 @@ describe('generateStage — cave: seasons yield DISTINCT palettes', () => {
   })
 
   it('paints a season-specific cave FLOOR (not grass) that differs across seasons', () => {
-    const floorTiles = (zone: ZoneId) => new Set(cave(zone).ground.flat())
-    const summer = floorTiles('summer')
-    const winter = floorTiles('winter')
-    const desert = floorTiles('desert')
-    // a cave floor is stone/ice/sand — never the outdoor grass fill
-    expect(summer.has('grass')).toBe(false)
-    expect(summer.has('cave_floor')).toBe(true) // mossy stone cavern
-    expect(winter.has('frost')).toBe(true) // frozen cavern
-    expect(desert.has('sand')).toBe(true) // dry sandy cavern
+    // The floor is the flat tile now, the meadow's way (Alexander, 2026-09-11), so the season lives in its
+    // COLOUR: every flat cell wears that season's cave-floor tile colour.
+    const wears = (zone: ZoneId, material: string): boolean => {
+      const s = cave(zone)
+      const flat: Array<[number, number]> = []
+      s.ground.forEach((row, r) => row.forEach((g, c) => { if (g === FLAT_FLOOR) flat.push([c, r]) }))
+      return flat.length > 0 && flat.every(([c, r]) => s.floorColors[r][c] === groundTileColor(material, c, r))
+    }
+    expect(new Set(cave('summer').ground.flat()).has('grass')).toBe(false) // never the outdoor grass fill
+    expect(wears('summer', 'cave_floor')).toBe(true) // mossy stone cavern
+    expect(wears('winter', 'frost')).toBe(true) // frozen cavern
+    expect(wears('desert', 'sand')).toBe(true) // dry sandy cavern
   })
 })
 

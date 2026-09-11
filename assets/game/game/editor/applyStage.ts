@@ -39,7 +39,9 @@ export function applyStageToGrid(stage: StageData, grid: IsometricGrid, building
   grid.clearAssets()
   const paint = stagePaint(stage)
   for (const g of paint.ground) {
-    if (g.col >= 0 && g.col < grid.cols && g.row >= 0 && g.row < grid.rows) placeGround(grid, g.col, g.row, g.type)
+    if (g.col < 0 || g.col >= grid.cols || g.row < 0 || g.row >= grid.rows) continue
+    if (g.color) grid.setGround(g.col, g.row, g.type, g.color)
+    else placeGround(grid, g.col, g.row, g.type)
   }
   // Pin each generated prop to the SAME curated catalog tile the palette brush uses, per zone + role
   // (trees, flowers, floor-litter, rocks, mushrooms) — instead of the generic per-kind styleTiles('emoji')

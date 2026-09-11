@@ -1,6 +1,7 @@
 import '@/__tests__/helpers/installZoneSeed' // the generator reads every season from the backend catalog
 import { styleCatalog } from '@/engine/tileset/styleTiles'
-import { generateStage } from '@/engine/stageGenerator'
+import { FLAT_FLOOR, generateStage } from '@/engine/stageGenerator'
+import { groundTileColor } from '@/engine/tileset/groundColor'
 import { scatterEntities, TEMPLE_ENEMY_TYPES } from '@/game/spawner'
 import type { ZoneId } from '@/engine/zones'
 import { useSeedTileset } from '@/__tests__/helpers/tilesetSeed'
@@ -109,14 +110,18 @@ describe('generateStage — temple interior: seasons yield DISTINCT palettes', (
   })
 
   it('paints a season-specific temple FLOOR (never outdoor grass) that differs across seasons', () => {
-    const floorTiles = (zone: ZoneId) => new Set(temple(zone).ground.flat())
-    const summer = floorTiles('summer')
-    const winter = floorTiles('winter')
-    const desert = floorTiles('desert')
-    expect(summer.has('grass')).toBe(false)
-    expect(summer.has('ancient_stone')).toBe(true) // stone hall
-    expect(winter.has('frost')).toBe(true) // frozen temple
-    expect(desert.has('sandstone')).toBe(true) // sandstone temple
+    // Flat floor in the season's colours now, the meadow's way (Alexander, 2026-09-11). The hall's checker is
+    // two colours instead of two textured tiles, so every flat cell wears the floor's or the accent's colour.
+    const wears = (zone: ZoneId, materials: string[]): boolean => {
+      const s = temple(zone)
+      const flat: Array<[number, number]> = []
+      s.ground.forEach((row, r) => row.forEach((g, c) => { if (g === FLAT_FLOOR) flat.push([c, r]) }))
+      return flat.length > 0 && flat.every(([c, r]) => materials.some(m => s.floorColors[r][c] === groundTileColor(m, c, r)))
+    }
+    expect(new Set(temple('summer').ground.flat()).has('grass')).toBe(false)
+    expect(wears('summer', ['ancient_stone', 'marble'])).toBe(true) // stone hall
+    expect(wears('winter', ['frost', 'ice'])).toBe(true) // frozen temple
+    expect(wears('desert', ['sandstone', 'sand'])).toBe(true) // sandstone temple
   })
 })
 

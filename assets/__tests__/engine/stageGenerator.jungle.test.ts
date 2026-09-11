@@ -17,7 +17,9 @@
  * And the one thing that is not negotiable whatever it looks like: the whole floor is ONE PLACE.
  */
 import '@/__tests__/helpers/installTilesetSeed'
-import { generateStage, type NatureDensity } from '@/engine/stageGenerator'
+import { FLAT_FLOOR, generateStage, type NatureDensity } from '@/engine/stageGenerator'
+import { groundTileColor } from '@/engine/tileset/groundColor'
+import { zonePalette } from '@/engine/zones'
 import { type GeneratorPalette, type GeneratorSubZone } from '@/lib/generatorCatalog'
 import { makeRng } from '@/lib/math'
 
@@ -90,7 +92,15 @@ describe('a jungle is structurally a different place from a woodland', () => {
   })
 
   it('lays NO trails — a jungle has no roads, a woodland paves its corridors', () => {
-    const trail = (s: ReturnType<typeof jungle>) => s.ground.flat().filter(t => t === 'path' || t === 'path_stone').length
+    // A trail is flat floor in the trail tile's colour now (the meadow's way), so it is found by its colour.
+    const trail = (s: ReturnType<typeof jungle>) => {
+      const tile = zonePalette(s.zone)?.trail ?? ''
+      let n = 0
+      s.ground.forEach((row, r) => row.forEach((g, c) => {
+        if (g === FLAT_FLOOR && s.floorColors[r][c] === groundTileColor(tile, c, r)) n++
+      }))
+      return n
+    }
     expect(trail(woodland())).toBeGreaterThan(0)
     expect(trail(jungle())).toBe(0)
   })

@@ -665,6 +665,69 @@ const ARCHETYPES: Partial<Record<VariantId, (ctx: ArchetypeContext, rngs: LayerR
   'boss-stage': placeBossStage,
 }
 
+// ── the floor is a colour ────────────────────────────────────────────────
+// Alexander, 2026-09-11: *"look how we handle the floor in meadow, just using different colors and only using the
+// floor tiles as ornaments, that's how we wanna do it on all other templates too"*.
+//
+// The meadow lays ONE flat tile and paints each cell's colour on it; textured tiles are spent on ornaments. The
+// other archetypes laid a textured tile as their whole floor (a cave is `cave_floor` wall to wall, a temple a
+// checkerboard of two textured tiles, a winter wood is `snow`). They still lay those while they build, because
+// their own passes read the labels (a pool is "not the cave floor"). Once an archetype is done, `flattenFloors`
+// swaps each open-ground material for the flat tile, wearing that material's colour: the colour stays, only the
+// texture goes. Tiles laid on purpose as ornaments (moss patches, the rune ring, bridges) are not open ground, so
+// they stay textured.
+
+/** The flat floor every template lays (backend tile `floor`, the meadow's flat tile under a neutral name). */
+export const FLAT_FLOOR = 'floor'
+/** Floors that are flat already: the meadow's own tile, and this one. */
+const FLAT_FLOORS: ReadonlySet<string> = new Set(['meadow', FLAT_FLOOR])
+/** The stone a settlement paves its plaza and door steps with. Its building foundations use the same tile, but a
+ *  foundation belongs to the building, so `flattenFloors` leaves footprints alone. */
+const PLAZA_STONE = 'path_stone'
+/** The stone a boss arena is paved with. */
+const ARENA_STONE = 'ancient_stone'
+
+const seasonGround = (ctx: ArchetypeContext): string | undefined => zonePalette(ctx.zone)?.groundTypes[0]
+
+/** The OPEN-GROUND labels of each kind of place, read from the served palettes where they come from there. */
+const FLOOR_MATERIALS: Readonly<Record<VariantId, (ctx: ArchetypeContext) => ReadonlyArray<string | undefined>>> = {
+  town: ctx => [seasonGround(ctx), PLAZA_STONE],
+  city: ctx => [seasonGround(ctx), PLAZA_STONE],
+  forest: ctx => [seasonGround(ctx), zonePalette(ctx.zone)?.trail],
+  cave: ctx => [(cavePalette(ctx.zone) ?? cavePalette('summer'))?.floor],
+  temple: ctx => {
+    const pal = templePalette(ctx.zone) ?? templePalette('summer')
+    return [pal?.floor, pal?.accent]
+  },
+  'boss-stage': ctx => [seasonGround(ctx), ARENA_STONE],
+}
+
+/** Swap every open-ground material for the flat floor, keeping the colour it wore. */
+function flattenFloors(ctx: ArchetypeContext, materials: ReadonlyArray<string | undefined>): void {
+  const open = new Set(materials.filter((m): m is string => !!m && !FLAT_FLOORS.has(m)))
+  if (open.size === 0) return
+  const foundations = buildingFootprints(ctx.buildings)
+  forEachCell(ctx.cols, ctx.rows, (col, row) => {
+    const material = ctx.ground[row][col]
+    if (!open.has(material) || foundations.has(`${col},${row}`)) return
+    const tone = ctx.floorColors[row][col] ?? groundTileColor(material, col, row)
+    if (!tone) return // no colour served for it: keep its own tile rather than lay a flat one in no colour
+    ctx.floorColors[row][col] = tone
+    ctx.ground[row][col] = FLAT_FLOOR
+  })
+}
+
+/** Every cell a building stands on. A placed building's `row` is its BOTTOM row (see placeBuilding). */
+function buildingFootprints(buildings: readonly PlacedBuilding[]): Set<string> {
+  const cells = new Set<string>()
+  for (const b of buildings) {
+    for (let row = b.row - (b.height - 1); row <= b.row; row++) {
+      for (let col = b.col; col < b.col + b.length; col++) cells.add(`${col},${row}`)
+    }
+  }
+  return cells
+}
+
 /** A layer's random source: its own reproducible `makeRng(seed)` when a seed is given, else the
  *  global `Math.random` (today's behaviour, so a plain generate is unchanged). */
 const layerRng = (seeds: GenerateOptions['seeds'], layer: EngineLayerId): Rng => {
@@ -701,6 +764,7 @@ export function generateStage(opts: GenerateOptions): StageData {
   // Single-pass archetypes (forest/cave/temple/boss) read `ctx.rand`; the layout rng is their source.
   const ctx: ArchetypeContext = { zone, ground, collision, floorColors, buildings, props, trees, compositions, cols, rows, layout, options: opts.options, nature: opts.nature, settlement: opts.settlement, palette: opts.palette, subZones: opts.subZones, formation: opts.formation, treeMix: opts.treeMix, buildingSizes: opts.buildingSizes, rand: rngs.layout }
   ARCHETYPES[variant]?.(ctx, rngs)
+  flattenFloors(ctx, FLOOR_MATERIALS[variant]?.(ctx) ?? [])
   addTerrainTransitions(ctx) // blended shorelines / lava banks over the painted ground
 
   return {
@@ -909,7 +973,7 @@ function placeCentrepiece(ctx: ArchetypeContext, plaza: PlazaRect | null): void 
   const { c0, r0, size } = plaza
   // Pave the whole square as a walkable stone plaza (the ring you stroll around the basin).
   for (let r = r0; r < r0 + size; r++)
-    for (let c = c0; c < c0 + size; c++) if (inBounds(c, r, cols, rows)) ground[r][c] = 'path_stone'
+    for (let c = c0; c < c0 + size; c++) if (inBounds(c, r, cols, rows)) ground[r][c] = PLAZA_STONE
 
   // The centrepiece is a COMPOSITION (rim + water), not a special prop: pick the variant by settlement size,
   // record its anchor centred in the square (footprint TOP-LEFT, the origin stampComposition places from).
@@ -3641,15 +3705,33 @@ function reopenCaveEntrance(ctx: ArchetypeContext, pal: CavePalette, entrance: R
   for (let r = Math.min(mouth.row, target.row); r <= Math.max(mouth.row, target.row); r++) open(target.col, r)
 }
 
-/** Paint patchy seasonal accent ground (moss / fallen leaves / dune) over the floor. */
+/**
+ * Moss, fallen leaves or dune as ORNAMENTS, the way the meadow sprinkles its plots: a few small patches on a
+ * loose grid (the meadow's own spacing). It used to roll every floor cell against `accentChance`, which textured a
+ * fifth of the floor; Alexander, 2026-09-11: *"only using the floor tiles as ornaments"*. `accentChance` is now
+ * the chance a grid slot grows a patch, so the served number still says how mossy a season's caves are.
+ */
 function paintFloorAccents(ctx: ArchetypeContext, pal: CavePalette): void {
   const { ground, collision, cols, rows } = ctx
-  forEachCell(cols, rows, (col, row) => {
-    if (isEdge(col, row, cols, rows)) return
-    if (collision[row][col]) return // floor only
-    if (ground[row][col] !== pal.floor) return // don't repaint pools
-    if (Math.random() < pal.accentChance) ground[row][col] = pal.accent
-  })
+  for (let gy = 1; gy < rows - 1; gy += CAVE_ORNAMENT_STEP) {
+    for (let gx = 1; gx < cols - 1; gx += CAVE_ORNAMENT_STEP) {
+      if (Math.random() >= pal.accentChance) continue
+      const cc = clamp(gx + randIntWith(Math.random, 0, CAVE_ORNAMENT_STEP - 3), 1, cols - 2)
+      const cr = clamp(gy + randIntWith(Math.random, 0, CAVE_ORNAMENT_STEP - 3), 1, rows - 2)
+      forEachInPatch(cc, cr, (col, row) => {
+        if (!inBounds(col, row, cols, rows) || collision[row][col] || ground[row][col] !== pal.floor) return
+        ground[row][col] = pal.accent
+      })
+    }
+  }
+}
+
+/** The meadow's plot spacing (`scatterMeadowOrnaments`), reused so a cave's ornaments sit as far apart. */
+const CAVE_ORNAMENT_STEP = 8
+
+/** The 3x3 patch around a centre, the size of one meadow ornament plot. */
+function forEachInPatch(cc: number, cr: number, visit: (col: number, row: number) => void): void {
+  for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) visit(cc + dc, cr + dr)
 }
 
 /** Scatter 2–4 crystal CLUSTERS — each a small blob of gems grown near a wall (a random
@@ -3792,7 +3874,7 @@ function paveArena(ctx: ArchetypeContext, arena: Rect): void {
     for (let dx = 0; dx < arena.w; dx++) {
       const c = arena.col + dx
       const r = arena.row + dy
-      if (inBounds(c, r, cols, rows) && !collision[r][c]) ground[r][c] = 'ancient_stone'
+      if (inBounds(c, r, cols, rows) && !collision[r][c]) ground[r][c] = ARENA_STONE
     }
   }
 }
@@ -3931,7 +4013,7 @@ function firstWalkable(collision: boolean[][], cols: number, rows: number): Cell
 
 // ── visual mapping (shared by the template mapper + the live-grid applier) ──
 export interface StagePaint {
-  ground: { col: number; row: number; type: string }[]
+  ground: { col: number; row: number; type: string; color?: string }[]
   assets: { col: number; row: number; char: string; type: string; color: string; blocking: boolean; label?: string; baseShadow?: boolean; buildingType?: string; edge?: BuildingEdge; footprint?: number; height?: number }[]
 }
 
@@ -3961,7 +4043,12 @@ function paintBuildingGround(b: PlacedBuilding, ground: StagePaint['ground']): v
   const [dc, dr] = FACING_STEP[b.facing]
   // The setback yard cell in front of EACH door cell, paved as the driveway — a 2-wide door gets a
   // 2-wide drive so the paving matches the full (now fully walkable) entrance.
-  for (const door of b.doorCells) ground.push({ col: door.col + dc, row: door.row + dr, type: 'path_stone' })
+  // Flat, like every other open floor, wearing the paving stone's colour.
+  for (const door of b.doorCells) {
+    const col = door.col + dc
+    const row = door.row + dr
+    ground.push({ col, row, type: FLAT_FLOOR, color: groundTileColor(PLAZA_STONE, col, row) })
+  }
 }
 
 export interface StageTemplatePayload {

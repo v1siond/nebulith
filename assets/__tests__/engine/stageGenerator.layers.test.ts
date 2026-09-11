@@ -91,14 +91,21 @@ function genSeeded(opts: Parameters<typeof generateStage>[0], seed: number): Sta
 // draw off the same seed, hence a different digest. Only the FOREST moves. Sanity-checked before relocking:
 // 30x24 all meadow floor, 63 trees framing an open middle, 91% of cells walkable, and no water, which is
 // right because nothing switched the river on.
+// Relocked 2026-09-11 for flat floors. Alexander: *"look how we handle the floor in meadow, just using different
+// colors and only using the floor tiles as ornaments, that's how we wanna do it on all other templates too"*. Every
+// open-ground material is swapped for the flat `floor` tile wearing the same colour, and a cave's moss is laid as a
+// few ornament patches instead of a per-cell roll, so the ground moves in every case but the forest (a meadow,
+// flat already). Nothing else draws off the rng differently except the cave's moss. Checked before relocking in
+// stageGenerator.floors.test.ts: no textured floor left in open ground, stone only under buildings, moss under a
+// tenth of a cave's floor.
 const BASELINE: Record<string, string> = {
-  'town|autumn|40x40|1': '8ffad300',
-  'town|summer|50x40|7': '8c83d0fd',
-  'city|summer|56x44|3': '93a2b8c7',
+  'town|autumn|40x40|1': 'aeceac41',
+  'town|summer|50x40|7': '973a9388',
+  'city|summer|56x44|3': 'd747d9b8',
   'forest|summer|30x24|42': 'f243961a',
-  'cave|autumn|40x30|99': 'fd2b4fbe',
-  'temple|winter|36x30|5': '7b1712d1',
-  'boss-stage|winter|36x30|11': 'db1efcb4',
+  'cave|autumn|40x30|99': '77075081',
+  'temple|winter|36x30|5': 'c3a336a9',
+  'boss-stage|winter|36x30|11': 'e081dcd4',
 }
 
 const CASES: Array<{ key: string; opts: Parameters<typeof generateStage>[0]; seed: number }> = [

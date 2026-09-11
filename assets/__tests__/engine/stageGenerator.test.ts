@@ -1,7 +1,7 @@
 import { styleCatalog, styleTile } from '@/engine/tileset/styleTiles'
 import '@/__tests__/helpers/installTilesetSeed' // the generator reads ALL tile data (terrain/canopy/decor) + building compositions from the loaded backend tileset fixture
 import { installSeedTileset } from '@/__tests__/helpers/tilesetSeed'
-import { generateStage, stagePaint, footprintEdgeClass, footprintSide, footprintRing, edgeToSide, treeSubpart, labelForCell, pickLivingTree } from '@/engine/stageGenerator'
+import { FLAT_FLOOR, generateStage, stagePaint, footprintEdgeClass, footprintSide, footprintRing, edgeToSide, treeSubpart, labelForCell, pickLivingTree } from '@/engine/stageGenerator'
 import { makeRng } from '@/lib/math'
 import { buildingDepth, buildingDoorOffset } from '@/engine/buildingCatalog'
 import { parseColor } from '@/engine/colors'
@@ -53,7 +53,9 @@ describe('generateStage — town vertical slice', () => {
     // Alexander (#34/#48): *"remove the tiles from the roads, we can use color"*. A road is the ordinary
     // ground block TINTED asphalt, so it sits FLUSH with the grass — a road tile of its own re-introduced the
     // raised trench. Road identity lives in the layout and lands here as a per-cell floor colour.
-    const allowed = new Set(['autumn_ground', 'autumn_leaves', 'path_stone']) // plaza/driveway keep brown path_stone
+    // The open ground is the flat floor wearing the season's colour, the meadow's way on every template
+    // (Alexander, 2026-09-11). path_stone is left only under the buildings, as their foundation.
+    const allowed = new Set([FLAT_FLOOR, 'autumn_leaves', 'path_stone'])
     const allThemed = stage.ground.every(row => row.every(t => allowed.has(t)))
     expect(allThemed).toBe(true)
     // No cell is a road TILE — that is the thing that was removed.
@@ -491,10 +493,13 @@ describe('generateStage — a settlement guarantees a store + a hospital', () =>
 })
 
 describe('generateStage — a driveway crosses the setback from every door to its street', () => {
-  it('paints ≥1 path_stone cell toward the road for every building', () => {
+  it('paints ≥1 paving-stone cell toward the road for every building', () => {
     const stage = generateStage({ zone: 'summer', variant: 'town' })
+    // Flat like every other open floor, wearing the paving stone's colour.
     const paved = new Set(
-      stagePaint(stage).ground.filter(g => g.type === 'path_stone').map(g => `${g.col},${g.row}`),
+      stagePaint(stage).ground
+        .filter(g => g.type === FLAT_FLOOR && g.color === groundTileColor('path_stone', g.col, g.row))
+        .map(g => `${g.col},${g.row}`),
     )
     expect(stage.buildings.length).toBeGreaterThan(0)
     for (const b of stage.buildings) {

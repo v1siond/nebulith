@@ -37,7 +37,7 @@ import type { EntityVariant } from '@/game/types'
 import type { HasTileViews } from '@/engine/tileset/tileViewSettings'
 
 export type ElementKind =
-  | 'grass' | 'water' | 'path' | 'road' | 'plaza' | 'sand' | 'ground' | 'snow' | 'autumn' | 'meadow' // terrain (+ seasons; road = dark-gray town street; meadow = flat colour-only floor)
+  | 'grass' | 'water' | 'path' | 'road' | 'plaza' | 'sand' | 'ground' | 'snow' | 'autumn' | 'meadow' | 'floor' // terrain (+ seasons; road = dark-gray town street; meadow + floor = flat colour-only floors)
   | 'cavefloor' | 'moss'                                       // dungeon terrain (cavern floor + moss)
   | 'wall' | 'roof' | 'door' | 'window' | 'fountain'          // buildings
   | 'tree' | 'flower' | 'bush' | 'rock' | 'crate' | 'lamp'    // nature / props
@@ -321,6 +321,7 @@ const LAVA_GROUND = /^lava$|^magma$/
  *  Unrecognized terrain → 'ground' (unmapped → passes through to ASCII, never mis-skinned). */
 export function groundKind(tileType: string): ElementKind {
   if (tileType === 'meadow') return 'meadow' // a flat colour-only meadow floor — its own baked solid tile, no clover
+  if (tileType === 'floor') return 'floor' // the same flat floor for every other template, wearing whatever colour it is given
   if (LAVA_GROUND.test(tileType)) return 'lava' // before water: a lava lake floor is its own molten kind
   if (WATER_GROUND.test(tileType)) return 'water'
   if (ROAD_GROUND.test(tileType)) return 'road' // town roads carve their own dark-gray tile
