@@ -52,7 +52,11 @@ defmodule NebulithWeb.GeneratorControllerTest do
 
       # The editor draws these toggles straight from here and greys the crossing out until the river is on.
       # It never hardcodes the pair, so the shape is the contract — keys, labels, defaults and `requires`.
-      assert woodland["options"] == [
+      # THE WAYS COME FIRST, since 2026-09-11: his *"we should always have paths firsts"*. Their own shape is
+      # pinned in `generator_source_test`; here it matters that they ride over the wire, and in what order.
+      assert Enum.map(woodland["options"], & &1["key"]) == ~w(exits pathways river crossing bridge)
+
+      assert Enum.drop(woodland["options"], 2) == [
                %{
                  "key" => "river",
                  "label" => "River",
@@ -102,10 +106,21 @@ defmodule NebulithWeb.GeneratorControllerTest do
 
     test "a generator with nothing to switch on serves an empty list, not null", %{conn: conn} do
       data = json_response(get(conn, ~p"/api/generators"), 200)["data"]
-      cave = Enum.find(data, &(&1["key"] == "cave")) |> Map.fetch!("generators") |> hd()
+      town = Enum.find(data, &(&1["key"] == "town")) |> Map.fetch!("generators") |> hd()
 
       # `null` would make the frontend guard every map over it. The column is NOT NULL defaulting to `[]`.
-      assert cave["options"] == []
+      # A cave is no longer the example: since 2026-09-11 it says how many exits and pathways it has.
+      assert town["options"] == []
+    end
+
+    test "a cave says how many EXITS and PATHWAYS it has", %{conn: conn} do
+      data = json_response(get(conn, ~p"/api/generators"), 200)["data"]
+      cave = Enum.find(data, &(&1["key"] == "cave")) |> Map.fetch!("generators") |> hd()
+
+      # His cave: *"1 exit and 3 pathways to simulate entrance ... until I reach a part where is just 1 exit no
+      # pathway, which is the end of the cave"*. Two numbers, and they reach the editor from here.
+      assert Enum.map(cave["options"], & &1["key"]) == ~w(exits pathways)
+      assert Enum.all?(cave["options"], &(&1["default"] == "random"))
     end
   end
 end

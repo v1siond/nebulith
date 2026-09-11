@@ -93,6 +93,7 @@ defmodule Nebulith.Catalog.TileSource do
     seed_glyph_tiles(ascii["tiles"], ascii_id, ascii["palettes"])
     seed_terrain_tiles(ascii["terrain"], ascii_id)
     seed_decor_tiles(ascii_id)
+    seed_growth_tiles(ascii_id, emoji_id)
     seed_building_tiles(ascii_id, emoji_id)
     seed_extra_tiles(ascii_id, emoji_id)
     seed_prop_tiles(ascii_id, emoji_id)
@@ -1289,6 +1290,86 @@ defmodule Nebulith.Catalog.TileSource do
   Height 0.0, level with the live terrain it stands in for. Idempotent upsert by [tileset_id, label]. Called by
   seed/0 and by the migration that adds it to an existing DB, runnable standalone.
   """
+  @doc """
+  WHAT GROWS ON THE FLOOR: walkable long grass, and a thicket you cannot push through.
+
+  Alexander, 2026-09-11: *"some collisions are actually dumb lol, we are using collissions in flowers / like, I
+  get it on trees, but flowers? come on, let's have some common sense when doing these generators / it's easy to
+  know which things should be walkable and which shouldn't."* The jungle's undergrowth pass was drawing the same
+  little clover a meadow uses and then blocking the cell, so what you saw was walkable and what you hit was a
+  wall. A thicket that stops you has to LOOK like a thicket, which is what `thicket` is for.
+
+  And: *"we do need some type of walkable long grass too, for example, look pokemon they ahve regular grass and
+  regular roads, but ALSO, have different type of long grass where pokemon appears, that long grass is walkable,
+  we need variance like that too"*. That is `tall_grass`, walkable, height 0 like `grass`.
+
+  Heights and shapes are taken from the rows they stand beside rather than invented: `grass` is height 0.0, and
+  `bush` is height 1.0 with `fadeNear`, so the thicket fades as you approach it the way a bush does.
+  """
+  def seed_growth do
+    ascii_id = ensure_tileset("ascii", "ASCII").id
+    emoji_id = ensure_tileset("emoji", "Emoji").id
+    seed_growth_tiles(ascii_id, emoji_id)
+    IO.puts("seeded tall_grass (walkable) + thicket (blocking), ascii + emoji")
+    :ok
+  end
+
+  # Long grass you walk INTO, and a thicket you walk AROUND. One list, both styles, so the two never drift.
+  @growth_tiles [
+    %{
+      label: "tall_grass",
+      title: "Long grass",
+      glyph: "⁑",
+      emoji: "🌾",
+      category: "terrain",
+      blocking: false,
+      height: 0.0,
+      settings: %{"color" => "#3f8f38"}
+    },
+    %{
+      label: "thicket",
+      title: "Thicket",
+      glyph: "☙",
+      emoji: "🌿",
+      category: "nature",
+      blocking: true,
+      height: 1.0,
+      settings: %{"color" => "#2f6b2a", "fadeNear" => true, "display" => "single", "transparent" => true}
+    }
+  ]
+
+  defp seed_growth_tiles(ascii_id, emoji_id) do
+    for t <- @growth_tiles do
+      {:ok, _} =
+        Catalog.upsert_tile(%{
+          tileset_id: emoji_id,
+          label: t.label,
+          emoji: t.emoji,
+          color_role: nil,
+          blocking: t.blocking,
+          height: t.height,
+          category: t.category,
+          title: t.title,
+          image_url: "/tiles/emoji/baked/#{t.label}.png",
+          settings: t.settings
+        })
+
+      {:ok, _} =
+        Catalog.upsert_tile(%{
+          tileset_id: ascii_id,
+          label: t.label,
+          glyph: t.glyph,
+          color_role: nil,
+          blocking: t.blocking,
+          height: t.height,
+          category: t.category,
+          title: t.title,
+          image_url: "/tiles/ascii/#{t.label}.png",
+          settings: t.settings
+        })
+    end
+  end
+
   def seed_floor do
     ascii_id = ensure_tileset("ascii", "ASCII").id
     emoji_id = ensure_tileset("emoji", "Emoji").id

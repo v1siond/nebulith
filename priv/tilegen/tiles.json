@@ -1,3763 +1,3787 @@
 [
- {
-  "label": "bush",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "❉"
- },
- {
-  "label": "mountain",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "⛰"
- },
- {
-  "label": "window",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "▒"
- },
- {
-  "label": "flower",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "+"
- },
- {
-  "label": "roof",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "⌮"
- },
- {
-  "label": "leaf_center",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "@&@"
- },
- {
-  "label": "tree_stem_bottom",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "╨"
- },
- {
-  "label": "crate",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "$"
- },
- {
-  "label": "spill",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "‖"
- },
- {
-  "label": "path",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "░"
- },
- {
-  "label": "npc",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "☺",
-  "art": [
-   "  O",
-   " /|\\",
-   " / \\"
-  ]
- },
- {
-  "label": "hazard",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "⚠"
- },
- {
-  "label": "tree_edge_left",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "╠"
- },
- {
-  "label": "trunk",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "╿"
- },
- {
-  "label": "snag",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "⑁"
- },
- {
-  "label": "moss",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "⸴"
- },
- {
-  "label": "leaf_right",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "&@)"
- },
- {
-  "label": "tree_bottom_left",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "╚"
- },
- {
-  "label": "tree",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "⌯"
- },
- {
-  "label": "door",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "╫"
- },
- {
-  "label": "tree_interior",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "@"
- },
- {
-  "label": "axe",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "T"
- },
- {
-  "label": "roof_top",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "▔"
- },
- {
-  "label": "gun",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "¬"
- },
- {
-  "label": "sword",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "Ɨ"
- },
- {
-  "label": "leaf_left",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "(@&"
- },
- {
-  "label": "road_center",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "⌶"
- },
- {
-  "label": "zen_garden",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "⌘"
- },
- {
-  "label": "water_shallow",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "⌱"
- },
- {
-  "label": "crypt_floor",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "⊟"
- },
- {
-  "label": "road_edge",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "-"
- },
- {
-  "label": "cave_moss",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "⌁"
- },
- {
-  "label": "grave_dirt",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "⁖"
- },
- {
-  "label": "mud_hut",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "◍"
- },
- {
-  "label": "tree_crown",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "♣"
- },
- {
-  "label": "altar",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "⩚"
- },
- {
-  "label": "tree_stem",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "│"
- },
- {
-  "label": "torch",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "ϯ"
- },
- {
-  "label": "frost",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "❄"
- },
- {
-  "label": "path_dirt",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "·"
- },
- {
-  "label": "frozen_water",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "⌒"
- },
- {
-  "label": "oasis",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "⌾"
- },
- {
-  "label": "ice_cracked",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "╳"
- },
- {
-  "label": "ice_water",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "⩪"
- },
- {
-  "label": "inca_stone",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "⊠"
- },
- {
-  "label": "spanish_tile",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "⧉"
- },
- {
-  "label": "red_lacquer",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "◉"
- },
- {
-  "label": "tree_leaf",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "@"
- },
- {
-  "label": "tree_leaf_top",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "♣"
- },
- {
-  "label": "pampas",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "⌇"
- },
- {
-  "label": "lamp",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "!"
- },
- {
-  "label": "post",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "╽"
- },
- {
-  "label": "ancient_stone",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "⌗"
- },
- {
-  "label": "outback_red",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "⋅"
- },
- {
-  "label": "volcanic_rock",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "▩"
- },
- {
-  "label": "sakura_petals",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "❃"
- },
- {
-  "label": "cliff",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "◤"
- },
- {
-  "label": "grass",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": ";"
- },
- {
-  "label": "gold_tile",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "◈"
- },
- {
-  "label": "tree_top",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "╦"
- },
- {
-  "label": "pillar",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "║"
- },
- {
-  "label": "tree_top_left",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "╔"
- },
- {
-  "label": "bamboo_floor",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "⌷"
- },
- {
-  "label": "prairie",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "⩙"
- },
- {
-  "label": "snow",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "❅"
- },
- {
-  "label": "savanna",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "⋏"
- },
- {
-  "label": "ash",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "⁙"
- },
- {
-  "label": "water",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "~"
- },
- {
-  "label": "meadow",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "⁘"
- },
- {
-  "label": "floor",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "⸪"
- },
- {
-  "label": "desert_road",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "⋕"
- },
- {
-  "label": "peak",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "⌃"
- },
- {
-  "label": "staff",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "i"
- },
- {
-  "label": "wall",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "█"
- },
- {
-  "label": "wooden_planks",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "▥"
- },
- {
-  "label": "obsidian",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "■"
- },
- {
-  "label": "magma",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "⩕"
- },
- {
-  "label": "whitewash",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "⌻"
- },
- {
-  "label": "ice",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "❖"
- },
- {
-  "label": "terracotta",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "⊡"
- },
- {
-  "label": "seafloor",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "⣀"
- },
- {
-  "label": "koi_pond",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "⨯"
- },
- {
-  "label": "tree_snag",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "⑀"
- },
- {
-  "label": "enemy",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "&",
-  "art": [
-   " ___",
-   "(@_@)",
-   "/| |\\",
-   " \" \""
-  ]
- },
- {
-  "label": "mushroom",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "♠"
- },
- {
-  "label": "cliff_face",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "▉"
- },
- {
-  "label": "courtyard_stone",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "⊞"
- },
- {
-  "label": "hieroglyph_floor",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "☥"
- },
- {
-  "label": "crystal",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "◆"
- },
- {
-  "label": "temple_floor",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "▫"
- },
- {
-  "label": "cave_floor",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "⌸"
- },
- {
-  "label": "tree_bottom_right",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "╝"
- },
- {
-  "label": "pyramid_stone",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "◭"
- },
- {
-  "label": "leaf_top",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "(&)"
- },
- {
-  "label": "stairs",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "⌅"
- },
- {
-  "label": "grass_tall",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "⑊"
- },
- {
-  "label": "sand_dune",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "⏝"
- },
- {
-  "label": "snow_path",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "⁞"
- },
- {
-  "label": "plaza",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "⌰"
- },
- {
-  "label": "sand_trap",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "⌓"
- },
- {
-  "label": "olive_grove",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "⩏"
- },
- {
-  "label": "autumn_leaves",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "⩊"
- },
- {
-  "label": "player",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "@",
-  "art": [
-   "  0",
-   " <#>",
-   " / \\"
-  ]
- },
- {
-  "label": "dead_grass",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "⸵"
- },
- {
-  "label": "tree_bottom",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "╩"
- },
- {
-  "label": "red_earth",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "∵"
- },
- {
-  "label": "russian_red",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "⧅"
- },
- {
-  "label": "marble",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "⌹"
- },
- {
-  "label": "bridge",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "≡"
- },
- {
-  "label": "sand",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "⢈"
- },
- {
-  "label": "sandstone",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "⋰"
- },
- {
-  "label": "snow_deep",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "≋"
- },
- {
-  "label": "rune_floor",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "☆"
- },
- {
-  "label": "seaweed",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "⑃"
- },
- {
-  "label": "shield",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "⛨"
- },
- {
-  "label": "key",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "⚷"
- },
- {
-  "label": "colorful_tile",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "◇"
- },
- {
-  "label": "water_deep",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "≈"
- },
- {
-  "label": "tatami",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "▤"
- },
- {
-  "label": "basalt",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "⧈"
- },
- {
-  "label": "tropical_grass",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "⋎"
- },
- {
-  "label": "adobe",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "▚"
- },
- {
-  "label": "rock",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "▓"
- },
- {
-  "label": "tree_edge_right",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "╣"
- },
- {
-  "label": "tree_top_right",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "╗"
- },
- {
-  "label": "bow",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "}"
- },
- {
-  "label": "trunk_base",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "0"
- },
- {
-  "label": "cavefloor",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": ":"
- },
- {
-  "label": "birch_forest",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "↾"
- },
- {
-  "label": "road",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "="
- },
- {
-  "label": "coral",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "※"
- },
- {
-  "label": "path_stone",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "⌺"
- },
- {
-  "label": "eucalyptus",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "⇂"
- },
- {
-  "label": "lava",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "⩫"
- },
- {
-  "label": "autumn_ground",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "⁜"
- },
- {
-  "label": "trunk",
-  "mode": "emoji",
-  "style": "emoji",
-  "emoji": "🟫"
- },
- {
-  "label": "coral",
-  "mode": "emoji",
-  "style": "emoji",
-  "emoji": "🪸"
- },
- {
-  "label": "leaf_top",
-  "mode": "emoji",
-  "style": "emoji",
-  "emoji": "🍃"
- },
- {
-  "label": "trunk_base",
-  "mode": "emoji",
-  "style": "emoji",
-  "emoji": "🟫"
- },
- {
-  "label": "leaf_center",
-  "mode": "emoji",
-  "style": "emoji",
-  "emoji": "🍃"
- },
- {
-  "label": "leaf_right",
-  "mode": "emoji",
-  "style": "emoji",
-  "emoji": "🍃"
- },
- {
-  "label": "dead-tree",
-  "mode": "emoji",
-  "style": "emoji",
-  "emoji": "🪾"
- },
- {
-  "label": "road",
-  "mode": "emoji",
-  "style": "emoji",
-  "emoji": "⬛"
- },
- {
-  "label": "troll",
-  "mode": "emoji",
-  "style": "emoji",
-  "emoji": "🧌"
- },
- {
-  "label": "snag",
-  "mode": "emoji",
-  "style": "emoji",
-  "emoji": "🟫"
- },
- {
-  "label": "leaf_left",
-  "mode": "emoji",
-  "style": "emoji",
-  "emoji": "🍃"
- },
- {
-  "label": "wall_stone_c",
-  "mode": "emoji",
-  "style": "emoji",
-  "emoji": "🪨"
- },
- {
-  "label": "wall_stone_t",
-  "mode": "emoji",
-  "style": "emoji",
-  "emoji": "🪨"
- },
- {
-  "label": "wall_stone_b",
-  "mode": "emoji",
-  "style": "emoji",
-  "emoji": "🪨"
- },
- {
-  "label": "wall_stone_l",
-  "mode": "emoji",
-  "style": "emoji",
-  "emoji": "🪨"
- },
- {
-  "label": "wall_stone_r",
-  "mode": "emoji",
-  "style": "emoji",
-  "emoji": "🪨"
- },
- {
-  "label": "wall_stone_tl",
-  "mode": "emoji",
-  "style": "emoji",
-  "emoji": "🪨"
- },
- {
-  "label": "wall_stone_tr",
-  "mode": "emoji",
-  "style": "emoji",
-  "emoji": "🪨"
- },
- {
-  "label": "wall_stone_bl",
-  "mode": "emoji",
-  "style": "emoji",
-  "emoji": "🪨"
- },
- {
-  "label": "wall_stone_br",
-  "mode": "emoji",
-  "style": "emoji",
-  "emoji": "🪨"
- },
- {
-  "label": "wall_brick_c",
-  "mode": "emoji",
-  "style": "emoji",
-  "emoji": "🧱"
- },
- {
-  "label": "wall_brick_t",
-  "mode": "emoji",
-  "style": "emoji",
-  "emoji": "🧱"
- },
- {
-  "label": "wall_brick_b",
-  "mode": "emoji",
-  "style": "emoji",
-  "emoji": "🧱"
- },
- {
-  "label": "wall_brick_l",
-  "mode": "emoji",
-  "style": "emoji",
-  "emoji": "🧱"
- },
- {
-  "label": "wall_brick_r",
-  "mode": "emoji",
-  "style": "emoji",
-  "emoji": "🧱"
- },
- {
-  "label": "wall_brick_tl",
-  "mode": "emoji",
-  "style": "emoji",
-  "emoji": "🧱"
- },
- {
-  "label": "wall_brick_tr",
-  "mode": "emoji",
-  "style": "emoji",
-  "emoji": "🧱"
- },
- {
-  "label": "wall_brick_bl",
-  "mode": "emoji",
-  "style": "emoji",
-  "emoji": "🧱"
- },
- {
-  "label": "wall_brick_br",
-  "mode": "emoji",
-  "style": "emoji",
-  "emoji": "🧱"
- },
- {
-  "label": "wall_wood_c",
-  "mode": "emoji",
-  "style": "emoji",
-  "emoji": "🟫"
- },
- {
-  "label": "wall_wood_t",
-  "mode": "emoji",
-  "style": "emoji",
-  "emoji": "🟫"
- },
- {
-  "label": "wall_wood_b",
-  "mode": "emoji",
-  "style": "emoji",
-  "emoji": "🟫"
- },
- {
-  "label": "wall_wood_l",
-  "mode": "emoji",
-  "style": "emoji",
-  "emoji": "🟫"
- },
- {
-  "label": "wall_wood_r",
-  "mode": "emoji",
-  "style": "emoji",
-  "emoji": "🟫"
- },
- {
-  "label": "wall_wood_tl",
-  "mode": "emoji",
-  "style": "emoji",
-  "emoji": "🟫"
- },
- {
-  "label": "wall_wood_tr",
-  "mode": "emoji",
-  "style": "emoji",
-  "emoji": "🟫"
- },
- {
-  "label": "wall_wood_bl",
-  "mode": "emoji",
-  "style": "emoji",
-  "emoji": "🟫"
- },
- {
-  "label": "wall_wood_br",
-  "mode": "emoji",
-  "style": "emoji",
-  "emoji": "🟫"
- },
- {
-  "label": "wall_plaster_c",
-  "mode": "emoji",
-  "style": "emoji",
-  "emoji": "⬜"
- },
- {
-  "label": "wall_plaster_t",
-  "mode": "emoji",
-  "style": "emoji",
-  "emoji": "⬜"
- },
- {
-  "label": "wall_plaster_b",
-  "mode": "emoji",
-  "style": "emoji",
-  "emoji": "⬜"
- },
- {
-  "label": "wall_plaster_l",
-  "mode": "emoji",
-  "style": "emoji",
-  "emoji": "⬜"
- },
- {
-  "label": "wall_plaster_r",
-  "mode": "emoji",
-  "style": "emoji",
-  "emoji": "⬜"
- },
- {
-  "label": "wall_plaster_tl",
-  "mode": "emoji",
-  "style": "emoji",
-  "emoji": "⬜"
- },
- {
-  "label": "wall_plaster_tr",
-  "mode": "emoji",
-  "style": "emoji",
-  "emoji": "⬜"
- },
- {
-  "label": "wall_plaster_bl",
-  "mode": "emoji",
-  "style": "emoji",
-  "emoji": "⬜"
- },
- {
-  "label": "wall_plaster_br",
-  "mode": "emoji",
-  "style": "emoji",
-  "emoji": "⬜"
- },
- {
-  "label": "fountain_t",
-  "mode": "emoji",
-  "style": "emoji",
-  "emoji": "⬜"
- },
- {
-  "label": "fountain_b",
-  "mode": "emoji",
-  "style": "emoji",
-  "emoji": "⬜"
- },
- {
-  "label": "fountain_l",
-  "mode": "emoji",
-  "style": "emoji",
-  "emoji": "⬜"
- },
- {
-  "label": "fountain_r",
-  "mode": "emoji",
-  "style": "emoji",
-  "emoji": "⬜"
- },
- {
-  "label": "fountain_tl",
-  "mode": "emoji",
-  "style": "emoji",
-  "emoji": "⬜"
- },
- {
-  "label": "fountain_tr",
-  "mode": "emoji",
-  "style": "emoji",
-  "emoji": "⬜"
- },
- {
-  "label": "fountain_bl",
-  "mode": "emoji",
-  "style": "emoji",
-  "emoji": "⬜"
- },
- {
-  "label": "fountain_br",
-  "mode": "emoji",
-  "style": "emoji",
-  "emoji": "⬜"
- },
- {
-  "label": "roof_slate",
-  "mode": "emoji",
-  "style": "emoji",
-  "emoji": "⬛"
- },
- {
-  "label": "post",
-  "mode": "emoji",
-  "style": "emoji",
-  "emoji": "⬛"
- },
- {
-  "label": "roof_top",
-  "mode": "emoji",
-  "style": "emoji",
-  "emoji": "🟥"
- },
- {
-  "label": "roof_top_slate",
-  "mode": "emoji",
-  "style": "emoji",
-  "emoji": "⬛"
- },
- {
-  "label": "roof_store",
-  "mode": "emoji",
-  "style": "emoji",
-  "emoji": "🟦"
- },
- {
-  "label": "roof_top_store",
-  "mode": "emoji",
-  "style": "emoji",
-  "emoji": "🟦"
- },
- {
-  "label": "roof_hospital",
-  "mode": "emoji",
-  "style": "emoji",
-  "emoji": "🟩"
- },
- {
-  "label": "roof_top_hospital",
-  "mode": "emoji",
-  "style": "emoji",
-  "emoji": "🟩"
- },
- {
-  "label": "rooftop_unit",
-  "mode": "emoji",
-  "style": "emoji",
-  "emoji": "⬛"
- },
- {
-  "label": "display_window",
-  "mode": "emoji",
-  "style": "emoji",
-  "emoji": "🪟"
- },
- {
-  "label": "awning",
-  "mode": "emoji",
-  "style": "emoji",
-  "emoji": "🟧"
- },
- {
-  "label": "water_c",
-  "mode": "emoji",
-  "style": "emoji",
-  "emoji": "🟦"
- },
- {
-  "label": "water_jet",
-  "mode": "emoji",
-  "style": "emoji",
-  "emoji": "💧"
- },
- {
-  "label": "trunk_bottom",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "║"
- },
- {
-  "label": "trunk_mid",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "║"
- },
- {
-  "label": "trunk_top",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "║"
- },
- {
-  "label": "canopy_tl",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "╭"
- },
- {
-  "label": "canopy_t",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "♧"
- },
- {
-  "label": "canopy_tr",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "╮"
- },
- {
-  "label": "canopy_l",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "♧"
- },
- {
-  "label": "canopy_c",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "♣"
- },
- {
-  "label": "canopy_r",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "♧"
- },
- {
-  "label": "canopy_bl",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "╰"
- },
- {
-  "label": "canopy_b",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "♧"
- },
- {
-  "label": "canopy_br",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "╯"
- },
- {
-  "label": "trunk_bottom",
-  "mode": "emoji",
-  "style": "emoji",
-  "emoji": "🟫"
- },
- {
-  "label": "trunk_mid",
-  "mode": "emoji",
-  "style": "emoji",
-  "emoji": "🟫"
- },
- {
-  "label": "trunk_top",
-  "mode": "emoji",
-  "style": "emoji",
-  "emoji": "🟫"
- },
- {
-  "label": "canopy_tl",
-  "mode": "emoji",
-  "style": "emoji",
-  "emoji": "🍃"
- },
- {
-  "label": "canopy_t",
-  "mode": "emoji",
-  "style": "emoji",
-  "emoji": "🍃"
- },
- {
-  "label": "canopy_tr",
-  "mode": "emoji",
-  "style": "emoji",
-  "emoji": "🍃"
- },
- {
-  "label": "canopy_l",
-  "mode": "emoji",
-  "style": "emoji",
-  "emoji": "🍃"
- },
- {
-  "label": "canopy_c",
-  "mode": "emoji",
-  "style": "emoji",
-  "emoji": "🍃"
- },
- {
-  "label": "canopy_r",
-  "mode": "emoji",
-  "style": "emoji",
-  "emoji": "🍃"
- },
- {
-  "label": "canopy_bl",
-  "mode": "emoji",
-  "style": "emoji",
-  "emoji": "🍃"
- },
- {
-  "label": "canopy_b",
-  "mode": "emoji",
-  "style": "emoji",
-  "emoji": "🍃"
- },
- {
-  "label": "canopy_br",
-  "mode": "emoji",
-  "style": "emoji",
-  "emoji": "🍃"
- },
- {
-  "label": "awning",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "▨"
- },
- {
-  "label": "decor_blossom",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "✿"
- },
- {
-  "label": "decor_clover",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "♣"
- },
- {
-  "label": "decor_dot",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "."
- },
- {
-  "label": "decor_flower",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "❀"
- },
- {
-  "label": "decor_grit",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "⁃"
- },
- {
-  "label": "decor_pebbles",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "∴"
- },
- {
-  "label": "decor_ripple",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "⌣"
- },
- {
-  "label": "decor_shell",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "◡"
- },
- {
-  "label": "decor_spark",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "*"
- },
- {
-  "label": "display_window",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "⌬"
- },
- {
-  "label": "flat_roof",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "▂"
- },
- {
-  "label": "fountain_b",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "▄"
- },
- {
-  "label": "fountain_bl",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "▙"
- },
- {
-  "label": "fountain_br",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "▟"
- },
- {
-  "label": "fountain_l",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "▌"
- },
- {
-  "label": "fountain_r",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "▐"
- },
- {
-  "label": "fountain_t",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "▀"
- },
- {
-  "label": "fountain_tl",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "▛"
- },
- {
-  "label": "fountain_tr",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "▜"
- },
- {
-  "label": "parapet",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "▀"
- },
- {
-  "label": "roof_slate",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "⌆"
- },
- {
-  "label": "roof_top_slate",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "◣"
- },
- {
-  "label": "rooftop_unit",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "▪"
- },
- {
-  "label": "wall_brick_b",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "▄"
- },
- {
-  "label": "wall_brick_bl",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "▙"
- },
- {
-  "label": "wall_brick_br",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "▟"
- },
- {
-  "label": "wall_brick_c",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "▒"
- },
- {
-  "label": "wall_brick_l",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "▌"
- },
- {
-  "label": "wall_brick_r",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "▐"
- },
- {
-  "label": "wall_brick_t",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "▀"
- },
- {
-  "label": "wall_brick_tl",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "▛"
- },
- {
-  "label": "wall_brick_tr",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "▜"
- },
- {
-  "label": "wall_plaster_b",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "▄"
- },
- {
-  "label": "wall_plaster_bl",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "▙"
- },
- {
-  "label": "wall_plaster_br",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "▟"
- },
- {
-  "label": "wall_plaster_c",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "░"
- },
- {
-  "label": "wall_plaster_l",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "▌"
- },
- {
-  "label": "wall_plaster_r",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "▐"
- },
- {
-  "label": "wall_plaster_t",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "▀"
- },
- {
-  "label": "wall_plaster_tl",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "▛"
- },
- {
-  "label": "wall_plaster_tr",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "▜"
- },
- {
-  "label": "wall_stone_b",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "▄"
- },
- {
-  "label": "wall_stone_bl",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "▙"
- },
- {
-  "label": "wall_stone_br",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "▟"
- },
- {
-  "label": "wall_stone_c",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "▓"
- },
- {
-  "label": "wall_stone_l",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "▌"
- },
- {
-  "label": "wall_stone_r",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "▐"
- },
- {
-  "label": "wall_stone_t",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "▀"
- },
- {
-  "label": "wall_stone_tl",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "▛"
- },
- {
-  "label": "wall_stone_tr",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "▜"
- },
- {
-  "label": "wall_wood_b",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "▄"
- },
- {
-  "label": "wall_wood_bl",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "▙"
- },
- {
-  "label": "wall_wood_br",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "▟"
- },
- {
-  "label": "wall_wood_c",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "▤"
- },
- {
-  "label": "wall_wood_l",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "▌"
- },
- {
-  "label": "wall_wood_r",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "▐"
- },
- {
-  "label": "wall_wood_t",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "▀"
- },
- {
-  "label": "wall_wood_tl",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "▛"
- },
- {
-  "label": "wall_wood_tr",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "▜"
- },
- {
-  "label": "water_c",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "⩭"
- },
- {
-  "label": "water_jet",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "|"
- },
- {
-  "label": "sq_green",
-  "mode": "emoji",
-  "style": "emoji",
-  "emoji": "🟩"
- },
- {
-  "label": "sq_blue",
-  "mode": "emoji",
-  "style": "emoji",
-  "emoji": "🟦"
- },
- {
-  "label": "sq_brown",
-  "mode": "emoji",
-  "style": "emoji",
-  "emoji": "🟫"
- },
- {
-  "label": "sq_yellow",
-  "mode": "emoji",
-  "style": "emoji",
-  "emoji": "🟨"
- },
- {
-  "label": "sq_white",
-  "mode": "emoji",
-  "style": "emoji",
-  "emoji": "⬜"
- },
- {
-  "label": "sq_black",
-  "mode": "emoji",
-  "style": "emoji",
-  "emoji": "⬛"
- },
- {
-  "label": "sq_red",
-  "mode": "emoji",
-  "style": "emoji",
-  "emoji": "🟥"
- },
- {
-  "label": "sq_orange",
-  "mode": "emoji",
-  "style": "emoji",
-  "emoji": "🟧"
- },
- {
-  "label": "sq_purple",
-  "mode": "emoji",
-  "style": "emoji",
-  "emoji": "🟪"
- },
- {
-  "label": "grass-field",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "⸲"
- },
- {
-  "label": "dark-grass",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "⁏"
- },
- {
-  "label": "shallow-water",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "⌢"
- },
- {
-  "label": "deep-water",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "⩬"
- },
- {
-  "label": "beach-sand",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "⋄"
- },
- {
-  "label": "desert",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "⋯"
- },
- {
-  "label": "mountain-slope",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "◺"
- },
- {
-  "label": "snowy-peak",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "⋀"
- },
- {
-  "label": "snowflake",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "❆"
- },
- {
-  "label": "volcano",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "⩓"
- },
- {
-  "label": "ember",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "⚶"
- },
- {
-  "label": "autumn",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "⁚"
- },
- {
-  "label": "cobblestone",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "⁛"
- },
- {
-  "label": "dirt-path",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "⋮"
- },
- {
-  "label": "gravel",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "⁝"
- },
- {
-  "label": "person",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "@",
-  "art": [
-   "  O",
-   " /|\\",
-   " / \\"
-  ]
- },
- {
-  "label": "adult",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "@",
-  "art": [
-   "  O",
-   " /|\\",
-   " / \\"
-  ]
- },
- {
-  "label": "man",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "♂",
-  "art": [
-   "  O ",
-   " /[]\\",
-   " /  \\"
-  ]
- },
- {
-  "label": "woman",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "♀",
-  "art": [
-   " (O)",
-   " /|\\",
-   " /\\ "
-  ]
- },
- {
-  "label": "boy",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "ъ",
-  "art": [
-   "  o",
-   " /|\\",
-   " / \\"
-  ]
- },
- {
-  "label": "girl",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "ф",
-  "art": [
-   " (o)",
-   " /|\\",
-   " /\\ "
-  ]
- },
- {
-  "label": "child",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "ç",
-  "art": [
-   "  o",
-   " /|\\",
-   " ' '"
-  ]
- },
- {
-  "label": "elder",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "ê",
-  "art": [
-   "  O",
-   " /|\\|",
-   " / \\|"
-  ]
- },
- {
-  "label": "old-man",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "ô",
-  "art": [
-   "  Q",
-   " /|\\_",
-   " / \\|"
-  ]
- },
- {
-  "label": "old-woman",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "ö",
-  "art": [
-   " (Q)",
-   " /|\\_",
-   " /\\ |"
-  ]
- },
- {
-  "label": "prince",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "Þ",
-  "art": [
-   " vOv",
-   " /|\\",
-   " / \\"
-  ]
- },
- {
-  "label": "princess",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "þ",
-  "art": [
-   " vOv",
-   " /|\\",
-   " /\\ "
-  ]
- },
- {
-  "label": "guard",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "Ħ",
-  "art": [
-   " [=]",
-   " /H\\",
-   " / \\"
-  ]
- },
- {
-  "label": "police-officer",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "Ρ",
-  "art": [
-   " ,=.",
-   " /P\\",
-   " / \\"
-  ]
- },
- {
-  "label": "construction-worker",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "Ĥ",
-  "art": [
-   " .-.",
-   " /W\\",
-   " / \\"
-  ]
- },
- {
-  "label": "ninja",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "Ň",
-  "art": [
-   " .-.",
-   " /N\\",
-   " / \\"
-  ]
- },
- {
-  "label": "mage",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "Ϻ",
-  "art": [
-   "  /\\",
-   " (o)",
-   " /|\\"
-  ]
- },
- {
-  "label": "wizard",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "Ŵ",
-  "art": [
-   "  /\\",
-   " (o)",
-   " /|\\_",
-   " / \\|"
-  ]
- },
- {
-  "label": "witch",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "Ŷ",
-  "art": [
-   "  /\\",
-   " (^)",
-   " /|\\~",
-   " / \\~"
-  ]
- },
- {
-  "label": "elf",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "ë",
-  "art": [
-   " >O<",
-   " /|\\",
-   " / \\"
-  ]
- },
- {
-  "label": "guardian",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "Ǥ",
-  "art": [
-   " [=]",
-   "[|O|]",
-   "/|#|\\",
-   " |_|"
-  ]
- },
- {
-  "label": "boss",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "Ω",
-  "art": [
-   " ,WWW,",
-   "(O###O)",
-   "/|###|\\",
-   " J   L"
-  ]
- },
- {
-  "label": "robot",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "¤",
-  "art": [
-   " [oo]",
-   " |[]|",
-   " [] []"
-  ]
- },
- {
-  "label": "bat",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "v",
-  "art": [
-   "/\\ ^ /\\",
-   "(o   o)",
-   " \\vvv/"
-  ]
- },
- {
-  "label": "bear",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "B",
-  "art": [
-   "(\\_/)",
-   "( O.O )",
-   "(#####)",
-   " J   L"
-  ]
- },
- {
-  "label": "bird",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "ь",
-  "art": [
-   "  ,-.",
-   " (o<",
-   "  ^^ "
-  ]
- },
- {
-  "label": "boar",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "p",
-  "art": [
-   " ^   ^",
-   "( o.o )",
-   "\\(oo)/",
-   " '   '"
-  ]
- },
- {
-  "label": "butterfly",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "ψ",
-  "art": [
-   "\\\\ //",
-   " (o) ",
-   "// \\\\"
-  ]
- },
- {
-  "label": "cat",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "f",
-  "art": [
-   "/\\_/\\",
-   "( =.= )",
-   " (>^<)",
-   " '   '"
-  ]
- },
- {
-  "label": "chicken",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "ķ",
-  "art": [
-   "  ,w.",
-   " (o<",
-   " (__)"
-  ]
- },
- {
-  "label": "cow",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "C",
-  "art": [
-   "(--   --)",
-   "( o.o )",
-   " (oo)  ",
-   " J   L"
-  ]
- },
- {
-  "label": "deer",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "Y",
-  "art": [
-   "\\|/ \\|/",
-   "( o.o )",
-   " (   ) ",
-   " J   L"
-  ]
- },
- {
-  "label": "dog",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "d",
-  "art": [
-   "/\\_/\\",
-   "( o.o )",
-   " (>w<)",
-   " d   b"
-  ]
- },
- {
-  "label": "dove",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "ν",
-  "art": [
-   "  ,-.",
-   " (o<",
-   " \\^^/"
-  ]
- },
- {
-  "label": "dragon",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "D",
-  "art": [
-   "  /\\_/\\",
-   " ( o.o )>",
-   "<\\ /|\\ />",
-   "  d   b"
-  ]
- },
- {
-  "label": "duck",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "u",
-  "art": [
-   "  ,-.",
-   " (o>",
-   " (__)"
-  ]
- },
- {
-  "label": "fox",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "F",
-  "art": [
-   "/\\_/\\",
-   "( o.o )",
-   " (>v<)~",
-   " '   '"
-  ]
- },
- {
-  "label": "frog",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "j",
-  "art": [
-   " @   @",
-   "( o.o )",
-   " \\___/",
-   " J   L"
-  ]
- },
- {
-  "label": "goat",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "ģ",
-  "art": [
-   "\\|   |/",
-   "( o.o )",
-   " (~~~) ",
-   " '   '"
-  ]
- },
- {
-  "label": "grey-wolf",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "W",
-  "art": [
-   "/\\_/\\",
-   "( O.O )",
-   " > w <"
-  ]
- },
- {
-  "label": "hedgehog",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "ĥ",
-  "art": [
-   "^^^^^^^",
-   "( o.o )",
-   " (###) ",
-   " '   '"
-  ]
- },
- {
-  "label": "honeybee",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "ў",
-  "art": [
-   " \\\\_//",
-   " (===)",
-   "  ' '"
-  ]
- },
- {
-  "label": "horse",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "H",
-  "art": [
-   " /|   |\\",
-   "( o.o )",
-   "  |||  ",
-   " J   L"
-  ]
- },
- {
-  "label": "ladybug",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "ŏ",
-  "art": [
-   "  ,-.  ",
-   " (o.o) ",
-   "((.:.))"
-  ]
- },
- {
-  "label": "owl",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "Ö",
-  "art": [
-   " ,-^-,",
-   "(o) (o)",
-   " \\___/"
-  ]
- },
- {
-  "label": "pig",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "P",
-  "art": [
-   " ^   ^",
-   "( o.o )",
-   " (oo)  ",
-   " '   '"
-  ]
- },
- {
-  "label": "rabbit",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "ř",
-  "art": [
-   " \\\\ //",
-   "( o.o )",
-   " (   ) ",
-   " '   '"
-  ]
- },
- {
-  "label": "sheep",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "S",
-  "art": [
-   "{~~~~~}",
-   "( o.o )",
-   "{#####}",
-   " '   '"
-  ]
- },
- {
-  "label": "snail",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "ę",
-  "art": [
-   "  ,,   ",
-   " (o.o) ",
-   " (@@@) "
-  ]
- },
- {
-  "label": "spider",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "ж",
-  "art": [
-   "  / _ \\",
-   "\\_\\(_)/_/",
-   " _//o\\\\_",
-   "  /   \\"
-  ]
- },
- {
-  "label": "turtle",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "ť",
-  "art": [
-   "  ,-.  ",
-   " (o.o) ",
-   "((###))",
-   " '   '"
-  ]
- },
- {
-  "label": "wolf",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "w",
-  "art": [
-   "/\\_/\\",
-   "( o.o )",
-   " > ^ <"
-  ]
- },
- {
-  "label": "alien",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "Ä",
-  "art": [
-   " (oo)",
-   "  |",
-   " /|\\",
-   " ' '"
-  ]
- },
- {
-  "label": "grey-alien",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "ä",
-  "art": [
-   " (@@)",
-   "  |",
-   " /|\\",
-   " ' '"
-  ]
- },
- {
-  "label": "ghost",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "§",
-  "art": [
-   " .-.",
-   "(o o)",
-   "| O \\",
-   " \\   \\",
-   " `~~~'"
-  ]
- },
- {
-  "label": "goblin",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "g",
-  "art": [
-   " ,-.",
-   "(>o<)",
-   "/|Y|\\",
-   " d b"
-  ]
- },
- {
-  "label": "ogre",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "Ǫ",
-  "art": [
-   " ,vv,",
-   "(O~~O)",
-   "/|##|\\",
-   " J  L"
-  ]
- },
- {
-  "label": "troll",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "Ť",
-  "art": [
-   " ,^^,",
-   "(O--O)",
-   "/|##|\\",
-   " L  J"
-  ]
- },
- {
-  "label": "skeleton",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "Ž",
-  "art": [
-   " ___",
-   "(o.o)",
-   " )|(",
-   "/|=|\\",
-   " d b"
-  ]
- },
- {
-  "label": "zombie",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "z",
-  "art": [
-   " ___",
-   "(x_o)",
-   "/|~|\\",
-   " J  L"
-  ]
- },
- {
-  "label": "vampire",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "Ѵ",
-  "art": [
-   " /^\\",
-   "(o o)",
-   "/|V|\\",
-   " d b"
-  ]
- },
- {
-  "label": "skull",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "ѫ",
-  "art": [
-   " ___",
-   "(o.o)",
-   " )|( "
-  ]
- },
- {
-  "label": "pumpkin",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "ϴ",
-  "art": [
-   " ,-^-,",
-   "(>_-<)",
-   " \\___/"
-  ]
- },
- {
-  "label": "arrow",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "↑"
- },
- {
-  "label": "bolt",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "¦"
- },
- {
-  "label": "bullet",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "•"
- },
- {
-  "label": "dart",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "⇡"
- },
- {
-  "label": "cleave",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "⁄"
- },
- {
-  "label": "fire-slash",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "∕"
- },
- {
-  "label": "ice-slash",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "∖"
- },
- {
-  "label": "piercing-shot",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "→"
- },
- {
-  "label": "lightning",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "Ƶ"
- },
- {
-  "label": "nova",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "✳"
- },
- {
-  "label": "heal-glow",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "±"
- },
- {
-  "label": "guard-flash",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "✧"
- },
- {
-  "label": "fist",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "ø"
- },
- {
-  "label": "run",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "»"
- },
- {
-  "label": "walk",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "›"
- },
- {
-  "label": "house",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "⌂"
- },
- {
-  "label": "houses",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "⌂⌂"
- },
- {
-  "label": "house-garden",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "⌂,"
- },
- {
-  "label": "derelict-house",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "⌐"
- },
- {
-  "label": "bank",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "Β"
- },
- {
-  "label": "castle",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "Ķ"
- },
- {
-  "label": "japanese-castle",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "Ĵ"
- },
- {
-  "label": "church",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "†"
- },
- {
-  "label": "mosque",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "Ϛ"
- },
- {
-  "label": "hospital",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "╬"
- },
- {
-  "label": "hotel",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "Ĭ"
- },
- {
-  "label": "school",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "Ŝ"
- },
- {
-  "label": "factory",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "Ƒ"
- },
- {
-  "label": "stadium",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "Ŭ"
- },
- {
-  "label": "office-building",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "Ē"
- },
- {
-  "label": "department-store",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "Ð"
- },
- {
-  "label": "convenience-store",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "Ĉ"
- },
- {
-  "label": "classical-building",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "Π"
- },
- {
-  "label": "tower",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "Ŧ"
- },
- {
-  "label": "tent",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "Λ"
- },
- {
-  "label": "torii-gate",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "π"
- },
- {
-  "label": "fountain",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "Ѱ"
- },
- {
-  "label": "well",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "Θ"
- },
- {
-  "label": "connector",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "╋"
- },
- {
-  "label": "cactus",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "ǂ"
- },
- {
-  "label": "potted-plant",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "ϙ"
- },
- {
-  "label": "wood-log",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "▭"
- },
- {
-  "label": "squirrel",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "ŝ",
-  "art": [
-   " ^   ^",
-   "( o.o )",
-   " (   )S",
-   " '   '"
-  ]
- },
- {
-  "label": "blossom",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "✽"
- },
- {
-  "label": "boulder",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "◯"
- },
- {
-  "label": "bouquet",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "❦"
- },
- {
-  "label": "brick",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "▦"
- },
- {
-  "label": "cherry-blossom",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "❋"
- },
- {
-  "label": "clover",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "⚜"
- },
- {
-  "label": "dead-tree",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "⑄"
- },
- {
-  "label": "fallen-leaf",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "⸙"
- },
- {
-  "label": "glass-window",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "▧"
- },
- {
-  "label": "hibiscus",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "✾"
- },
- {
-  "label": "maple-leaf",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "⁂"
- },
- {
-  "label": "oak-tree",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "⌭"
- },
- {
-  "label": "palm-tree",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "Ϋ"
- },
- {
-  "label": "pine-tree",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "▲"
- },
- {
-  "label": "red-mushroom",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "♤"
- },
- {
-  "label": "roof_hospital",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "⊼"
- },
- {
-  "label": "roof_store",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "⊻"
- },
- {
-  "label": "roof_top_hospital",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "▔"
- },
- {
-  "label": "roof_top_store",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "▔"
- },
- {
-  "label": "rose",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "❁"
- },
- {
-  "label": "sapling",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "⑂"
- },
- {
-  "label": "seashell",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "◠"
- },
- {
-  "label": "shamrock",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "☘"
- },
- {
-  "label": "shrub",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "❇"
- },
- {
-  "label": "sunflower",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "☀"
- },
- {
-  "label": "tulip",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "⚘"
- },
- {
-  "label": "wheat",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "⌲"
- },
- {
-  "label": "wilted-flower",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "⚱"
- },
- {
-  "label": "wooden-door",
-  "mode": "ascii",
-  "style": "ascii",
-  "glyph": "⊓"
- },
- {
-  "label": "adult_f1",
-  "mode": "ascii",
-  "style": "ascii",
-  "art": [
-   "  O",
-   " \\|/",
-   " / \\"
-  ]
- },
- {
-  "label": "alien_f1",
-  "mode": "ascii",
-  "style": "ascii",
-  "art": [
-   " (oo)",
-   "  |",
-   " \\|/",
-   " ' '"
-  ]
- },
- {
-  "label": "bat_f1",
-  "mode": "ascii",
-  "style": "ascii",
-  "art": [
-   "_\\ ^ /_",
-   "(o   o)",
-   " \\vvv/"
-  ]
- },
- {
-  "label": "bear_f1",
-  "mode": "ascii",
-  "style": "ascii",
-  "art": [
-   "(\\_/)",
-   "( -.- )",
-   "(#####)",
-   " L   J"
-  ]
- },
- {
-  "label": "bird_f1",
-  "mode": "ascii",
-  "style": "ascii",
-  "art": [
-   "  ,-.",
-   " (o<",
-   "  vv "
-  ]
- },
- {
-  "label": "boar_f1",
-  "mode": "ascii",
-  "style": "ascii",
-  "art": [
-   " ^   ^",
-   "( -.- )",
-   "/(oo)\\",
-   " '   '"
-  ]
- },
- {
-  "label": "boss_f1",
-  "mode": "ascii",
-  "style": "ascii",
-  "art": [
-   " ,WWW,",
-   "(o###o)",
-   "\\|###|/",
-   " J   L"
-  ]
- },
- {
-  "label": "boy_f1",
-  "mode": "ascii",
-  "style": "ascii",
-  "art": [
-   "  o",
-   " \\|/",
-   " / \\"
-  ]
- },
- {
-  "label": "butterfly_f1",
-  "mode": "ascii",
-  "style": "ascii",
-  "art": [
-   "/\\ /\\",
-   " (o) ",
-   "\\/ \\/"
-  ]
- },
- {
-  "label": "cat_f1",
-  "mode": "ascii",
-  "style": "ascii",
-  "art": [
-   "/\\_/\\",
-   "( -.- )",
-   " (>^<)",
-   " '   '"
-  ]
- },
- {
-  "label": "chicken_f1",
-  "mode": "ascii",
-  "style": "ascii",
-  "art": [
-   "  ,w.",
-   " (o<",
-   " (~~)"
-  ]
- },
- {
-  "label": "child_f1",
-  "mode": "ascii",
-  "style": "ascii",
-  "art": [
-   "  o",
-   " \\|/",
-   " ' '"
-  ]
- },
- {
-  "label": "construction-worker_f1",
-  "mode": "ascii",
-  "style": "ascii",
-  "art": [
-   " .-.",
-   " \\W/",
-   " / \\"
-  ]
- },
- {
-  "label": "cow_f1",
-  "mode": "ascii",
-  "style": "ascii",
-  "art": [
-   "(--   --)",
-   "( -.- )",
-   " (oo)  ",
-   " L   J"
-  ]
- },
- {
-  "label": "deer_f1",
-  "mode": "ascii",
-  "style": "ascii",
-  "art": [
-   "\\|/ \\|/",
-   "( -.- )",
-   " (   ) ",
-   " L   J"
-  ]
- },
- {
-  "label": "dog_f1",
-  "mode": "ascii",
-  "style": "ascii",
-  "art": [
-   "/\\_/\\",
-   "( o.o )",
-   " (>w<)",
-   " b   d"
-  ]
- },
- {
-  "label": "dove_f1",
-  "mode": "ascii",
-  "style": "ascii",
-  "art": [
-   "  ,-.",
-   " (o<",
-   " /vv\\"
-  ]
- },
- {
-  "label": "dragon_f1",
-  "mode": "ascii",
-  "style": "ascii",
-  "art": [
-   "  /\\_/\\",
-   " ( o.o )>",
-   "</ \\|/ \\>",
-   "  d   b"
-  ]
- },
- {
-  "label": "duck_f1",
-  "mode": "ascii",
-  "style": "ascii",
-  "art": [
-   "  ,-.",
-   " (o>",
-   " (~~)"
-  ]
- },
- {
-  "label": "elder_f1",
-  "mode": "ascii",
-  "style": "ascii",
-  "art": [
-   "  O",
-   " \\|/|",
-   " / \\|"
-  ]
- },
- {
-  "label": "elf_f1",
-  "mode": "ascii",
-  "style": "ascii",
-  "art": [
-   " >O<",
-   " \\|/",
-   " / \\"
-  ]
- },
- {
-  "label": "enemy_f1",
-  "mode": "ascii",
-  "style": "ascii",
-  "art": [
-   " ___",
-   "(@_@)",
-   "\\| |/",
-   " \" \""
-  ]
- },
- {
-  "label": "fox_f1",
-  "mode": "ascii",
-  "style": "ascii",
-  "art": [
-   "/\\_/\\",
-   "( -.- )",
-   " (>v<)~",
-   " '   '"
-  ]
- },
- {
-  "label": "frog_f1",
-  "mode": "ascii",
-  "style": "ascii",
-  "art": [
-   " @   @",
-   "( -.- )",
-   " \\___/",
-   " L   J"
-  ]
- },
- {
-  "label": "ghost_f1",
-  "mode": "ascii",
-  "style": "ascii",
-  "art": [
-   " .-.",
-   "(o o)",
-   "| O /",
-   " /   /",
-   " `~~~'"
-  ]
- },
- {
-  "label": "girl_f1",
-  "mode": "ascii",
-  "style": "ascii",
-  "art": [
-   " (o)",
-   " \\|/",
-   " /\\ "
-  ]
- },
- {
-  "label": "goat_f1",
-  "mode": "ascii",
-  "style": "ascii",
-  "art": [
-   "\\|   |/",
-   "( -.- )",
-   " (~~~) ",
-   " '   '"
-  ]
- },
- {
-  "label": "goblin_f1",
-  "mode": "ascii",
-  "style": "ascii",
-  "art": [
-   " ,-.",
-   "(>o<)",
-   "\\|Y|/",
-   " d b"
-  ]
- },
- {
-  "label": "grey-alien_f1",
-  "mode": "ascii",
-  "style": "ascii",
-  "art": [
-   " (@@)",
-   "  |",
-   " \\|/",
-   " ' '"
-  ]
- },
- {
-  "label": "grey-wolf_f1",
-  "mode": "ascii",
-  "style": "ascii",
-  "art": [
-   "/\\_/\\",
-   "( -.- )",
-   " > w <"
-  ]
- },
- {
-  "label": "guard_f1",
-  "mode": "ascii",
-  "style": "ascii",
-  "art": [
-   " [=]",
-   " \\H/",
-   " / \\"
-  ]
- },
- {
-  "label": "guardian_f1",
-  "mode": "ascii",
-  "style": "ascii",
-  "art": [
-   " [=]",
-   "[|o|]",
-   "\\|#|/",
-   " |_|"
-  ]
- },
- {
-  "label": "hedgehog_f1",
-  "mode": "ascii",
-  "style": "ascii",
-  "art": [
-   "^^^^^^^",
-   "( -.- )",
-   " (###) ",
-   " '   '"
-  ]
- },
- {
-  "label": "honeybee_f1",
-  "mode": "ascii",
-  "style": "ascii",
-  "art": [
-   " /\\_/\\",
-   " (===)",
-   "  ' '"
-  ]
- },
- {
-  "label": "horse_f1",
-  "mode": "ascii",
-  "style": "ascii",
-  "art": [
-   " /|   |\\",
-   "( -.- )",
-   "  |||  ",
-   " L   J"
-  ]
- },
- {
-  "label": "ladybug_f1",
-  "mode": "ascii",
-  "style": "ascii",
-  "art": [
-   "  ,-.  ",
-   " (-.-) ",
-   "((:.:))"
-  ]
- },
- {
-  "label": "mage_f1",
-  "mode": "ascii",
-  "style": "ascii",
-  "art": [
-   "  /\\",
-   " (o)",
-   " \\|/"
-  ]
- },
- {
-  "label": "man_f1",
-  "mode": "ascii",
-  "style": "ascii",
-  "art": [
-   "  O ",
-   " \\[]/",
-   " /  \\"
-  ]
- },
- {
-  "label": "ninja_f1",
-  "mode": "ascii",
-  "style": "ascii",
-  "art": [
-   " .-.",
-   " \\N/",
-   " / \\"
-  ]
- },
- {
-  "label": "npc_f1",
-  "mode": "ascii",
-  "style": "ascii",
-  "art": [
-   "  O",
-   " \\|/",
-   " / \\"
-  ]
- },
- {
-  "label": "ogre_f1",
-  "mode": "ascii",
-  "style": "ascii",
-  "art": [
-   " ,vv,",
-   "(o~~o)",
-   "/|##|\\",
-   " J  L"
-  ]
- },
- {
-  "label": "old-man_f1",
-  "mode": "ascii",
-  "style": "ascii",
-  "art": [
-   "  Q",
-   " \\|/_",
-   " / \\|"
-  ]
- },
- {
-  "label": "old-woman_f1",
-  "mode": "ascii",
-  "style": "ascii",
-  "art": [
-   " (Q)",
-   " \\|/_",
-   " /\\ |"
-  ]
- },
- {
-  "label": "owl_f1",
-  "mode": "ascii",
-  "style": "ascii",
-  "art": [
-   " ,-^-,",
-   "(-) (-)",
-   " \\___/"
-  ]
- },
- {
-  "label": "person_f1",
-  "mode": "ascii",
-  "style": "ascii",
-  "art": [
-   "  O",
-   " \\|/",
-   " / \\"
-  ]
- },
- {
-  "label": "pig_f1",
-  "mode": "ascii",
-  "style": "ascii",
-  "art": [
-   " ^   ^",
-   "( -.- )",
-   " (oo)  ",
-   " '   '"
-  ]
- },
- {
-  "label": "player_f1",
-  "mode": "ascii",
-  "style": "ascii",
-  "art": [
-   "  0",
-   " <#>",
-   " /\\ "
-  ]
- },
- {
-  "label": "police-officer_f1",
-  "mode": "ascii",
-  "style": "ascii",
-  "art": [
-   " ,=.",
-   " \\P/",
-   " / \\"
-  ]
- },
- {
-  "label": "prince_f1",
-  "mode": "ascii",
-  "style": "ascii",
-  "art": [
-   " vOv",
-   " \\|/",
-   " / \\"
-  ]
- },
- {
-  "label": "princess_f1",
-  "mode": "ascii",
-  "style": "ascii",
-  "art": [
-   " vOv",
-   " \\|/",
-   " /\\ "
-  ]
- },
- {
-  "label": "pumpkin_f1",
-  "mode": "ascii",
-  "style": "ascii",
-  "art": [
-   " ,-^-,",
-   "(<_->)",
-   " \\___/"
-  ]
- },
- {
-  "label": "rabbit_f1",
-  "mode": "ascii",
-  "style": "ascii",
-  "art": [
-   " \\\\ //",
-   "( -.- )",
-   " (   ) ",
-   " '   '"
-  ]
- },
- {
-  "label": "robot_f1",
-  "mode": "ascii",
-  "style": "ascii",
-  "art": [
-   " [oo]",
-   " |[]|",
-   " ][ ]["
-  ]
- },
- {
-  "label": "sheep_f1",
-  "mode": "ascii",
-  "style": "ascii",
-  "art": [
-   "{~~~~~}",
-   "( -.- )",
-   "{#####}",
-   " '   '"
-  ]
- },
- {
-  "label": "skeleton_f1",
-  "mode": "ascii",
-  "style": "ascii",
-  "art": [
-   " ___",
-   "(-.-)",
-   " )|(",
-   "\\|=|/",
-   " d b"
-  ]
- },
- {
-  "label": "skull_f1",
-  "mode": "ascii",
-  "style": "ascii",
-  "art": [
-   " ___",
-   "(-.-)",
-   " )|( "
-  ]
- },
- {
-  "label": "snail_f1",
-  "mode": "ascii",
-  "style": "ascii",
-  "art": [
-   "  ,,   ",
-   " (-.-) ",
-   " (@@@) "
-  ]
- },
- {
-  "label": "spider_f1",
-  "mode": "ascii",
-  "style": "ascii",
-  "art": [
-   "  \\ _ /",
-   "\\_\\(_)/_/",
-   " _//o\\\\_",
-   "  \\   /"
-  ]
- },
- {
-  "label": "squirrel_f1",
-  "mode": "ascii",
-  "style": "ascii",
-  "art": [
-   " ^   ^",
-   "( -.- )",
-   " (   )S",
-   " '   '"
-  ]
- },
- {
-  "label": "troll_f1",
-  "mode": "ascii",
-  "style": "ascii",
-  "art": [
-   " ,^^,",
-   "(o--o)",
-   "/|##|\\",
-   " L  J"
-  ]
- },
- {
-  "label": "turtle_f1",
-  "mode": "ascii",
-  "style": "ascii",
-  "art": [
-   "  ,-.  ",
-   " (-.-) ",
-   "((###))",
-   " '   '"
-  ]
- },
- {
-  "label": "vampire_f1",
-  "mode": "ascii",
-  "style": "ascii",
-  "art": [
-   " /^\\",
-   "(- -)",
-   "\\|V|/",
-   " d b"
-  ]
- },
- {
-  "label": "witch_f1",
-  "mode": "ascii",
-  "style": "ascii",
-  "art": [
-   "  /\\",
-   " (^)",
-   " \\|/~",
-   " / \\~"
-  ]
- },
- {
-  "label": "wizard_f1",
-  "mode": "ascii",
-  "style": "ascii",
-  "art": [
-   "  /\\",
-   " (o)",
-   " \\|/_",
-   " / \\|"
-  ]
- },
- {
-  "label": "wolf_f1",
-  "mode": "ascii",
-  "style": "ascii",
-  "art": [
-   "/\\_/\\",
-   "( -.- )",
-   " > ^ <"
-  ]
- },
- {
-  "label": "woman_f1",
-  "mode": "ascii",
-  "style": "ascii",
-  "art": [
-   " (O)",
-   " \\|/",
-   " /\\ "
-  ]
- },
- {
-  "label": "zombie_f1",
-  "mode": "ascii",
-  "style": "ascii",
-  "art": [
-   " ___",
-   "(o_x)",
-   "\\|~|/",
-   " J  L"
-  ]
- }
+  {
+    "label": "bush",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "❉"
+  },
+  {
+    "label": "mountain",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⛰"
+  },
+  {
+    "label": "window",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▒"
+  },
+  {
+    "label": "flower",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "+"
+  },
+  {
+    "label": "roof",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⌮"
+  },
+  {
+    "label": "leaf_center",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "@&@"
+  },
+  {
+    "label": "tree_stem_bottom",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "╨"
+  },
+  {
+    "label": "crate",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "$"
+  },
+  {
+    "label": "spill",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "‖"
+  },
+  {
+    "label": "path",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "░"
+  },
+  {
+    "label": "npc",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "☺",
+    "art": [
+      "  O",
+      " /|\\",
+      " / \\"
+    ]
+  },
+  {
+    "label": "hazard",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⚠"
+  },
+  {
+    "label": "tree_edge_left",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "╠"
+  },
+  {
+    "label": "trunk",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "╿"
+  },
+  {
+    "label": "snag",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⑁"
+  },
+  {
+    "label": "moss",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⸴"
+  },
+  {
+    "label": "leaf_right",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "&@)"
+  },
+  {
+    "label": "tree_bottom_left",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "╚"
+  },
+  {
+    "label": "tree",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⌯"
+  },
+  {
+    "label": "door",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "╫"
+  },
+  {
+    "label": "tree_interior",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "@"
+  },
+  {
+    "label": "axe",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "T"
+  },
+  {
+    "label": "roof_top",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▔"
+  },
+  {
+    "label": "gun",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "¬"
+  },
+  {
+    "label": "sword",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "Ɨ"
+  },
+  {
+    "label": "leaf_left",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "(@&"
+  },
+  {
+    "label": "road_center",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⌶"
+  },
+  {
+    "label": "zen_garden",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⌘"
+  },
+  {
+    "label": "water_shallow",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⌱"
+  },
+  {
+    "label": "crypt_floor",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⊟"
+  },
+  {
+    "label": "road_edge",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "-"
+  },
+  {
+    "label": "cave_moss",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⌁"
+  },
+  {
+    "label": "grave_dirt",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⁖"
+  },
+  {
+    "label": "mud_hut",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "◍"
+  },
+  {
+    "label": "tree_crown",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "♣"
+  },
+  {
+    "label": "altar",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⩚"
+  },
+  {
+    "label": "tree_stem",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "│"
+  },
+  {
+    "label": "torch",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "ϯ"
+  },
+  {
+    "label": "frost",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "❄"
+  },
+  {
+    "label": "path_dirt",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "·"
+  },
+  {
+    "label": "frozen_water",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⌒"
+  },
+  {
+    "label": "oasis",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⌾"
+  },
+  {
+    "label": "ice_cracked",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "╳"
+  },
+  {
+    "label": "ice_water",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⩪"
+  },
+  {
+    "label": "inca_stone",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⊠"
+  },
+  {
+    "label": "spanish_tile",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⧉"
+  },
+  {
+    "label": "red_lacquer",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "◉"
+  },
+  {
+    "label": "tree_leaf",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "@"
+  },
+  {
+    "label": "tree_leaf_top",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "♣"
+  },
+  {
+    "label": "pampas",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⌇"
+  },
+  {
+    "label": "lamp",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "!"
+  },
+  {
+    "label": "post",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "╽"
+  },
+  {
+    "label": "ancient_stone",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⌗"
+  },
+  {
+    "label": "outback_red",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⋅"
+  },
+  {
+    "label": "volcanic_rock",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▩"
+  },
+  {
+    "label": "sakura_petals",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "❃"
+  },
+  {
+    "label": "cliff",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "◤"
+  },
+  {
+    "label": "grass",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": ";"
+  },
+  {
+    "label": "gold_tile",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "◈"
+  },
+  {
+    "label": "tree_top",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "╦"
+  },
+  {
+    "label": "pillar",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "║"
+  },
+  {
+    "label": "tree_top_left",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "╔"
+  },
+  {
+    "label": "bamboo_floor",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⌷"
+  },
+  {
+    "label": "prairie",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⩙"
+  },
+  {
+    "label": "snow",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "❅"
+  },
+  {
+    "label": "savanna",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⋏"
+  },
+  {
+    "label": "ash",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⁙"
+  },
+  {
+    "label": "water",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "~"
+  },
+  {
+    "label": "meadow",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⁘"
+  },
+  {
+    "label": "floor",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⸪"
+  },
+  {
+    "label": "desert_road",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⋕"
+  },
+  {
+    "label": "peak",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⌃"
+  },
+  {
+    "label": "staff",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "i"
+  },
+  {
+    "label": "wall",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "█"
+  },
+  {
+    "label": "wooden_planks",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▥"
+  },
+  {
+    "label": "obsidian",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "■"
+  },
+  {
+    "label": "magma",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⩕"
+  },
+  {
+    "label": "whitewash",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⌻"
+  },
+  {
+    "label": "ice",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "❖"
+  },
+  {
+    "label": "terracotta",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⊡"
+  },
+  {
+    "label": "seafloor",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⣀"
+  },
+  {
+    "label": "koi_pond",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⨯"
+  },
+  {
+    "label": "tree_snag",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⑀"
+  },
+  {
+    "label": "enemy",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "&",
+    "art": [
+      " ___",
+      "(@_@)",
+      "/| |\\",
+      " \" \""
+    ]
+  },
+  {
+    "label": "mushroom",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "♠"
+  },
+  {
+    "label": "cliff_face",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▉"
+  },
+  {
+    "label": "courtyard_stone",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⊞"
+  },
+  {
+    "label": "hieroglyph_floor",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "☥"
+  },
+  {
+    "label": "crystal",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "◆"
+  },
+  {
+    "label": "temple_floor",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▫"
+  },
+  {
+    "label": "cave_floor",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⌸"
+  },
+  {
+    "label": "tree_bottom_right",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "╝"
+  },
+  {
+    "label": "pyramid_stone",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "◭"
+  },
+  {
+    "label": "leaf_top",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "(&)"
+  },
+  {
+    "label": "stairs",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⌅"
+  },
+  {
+    "label": "grass_tall",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⑊"
+  },
+  {
+    "label": "sand_dune",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⏝"
+  },
+  {
+    "label": "snow_path",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⁞"
+  },
+  {
+    "label": "plaza",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⌰"
+  },
+  {
+    "label": "sand_trap",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⌓"
+  },
+  {
+    "label": "olive_grove",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⩏"
+  },
+  {
+    "label": "autumn_leaves",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⩊"
+  },
+  {
+    "label": "player",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "@",
+    "art": [
+      "  0",
+      " <#>",
+      " / \\"
+    ]
+  },
+  {
+    "label": "dead_grass",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⸵"
+  },
+  {
+    "label": "tree_bottom",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "╩"
+  },
+  {
+    "label": "red_earth",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "∵"
+  },
+  {
+    "label": "russian_red",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⧅"
+  },
+  {
+    "label": "marble",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⌹"
+  },
+  {
+    "label": "bridge",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "≡"
+  },
+  {
+    "label": "sand",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⢈"
+  },
+  {
+    "label": "sandstone",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⋰"
+  },
+  {
+    "label": "snow_deep",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "≋"
+  },
+  {
+    "label": "rune_floor",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "☆"
+  },
+  {
+    "label": "seaweed",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⑃"
+  },
+  {
+    "label": "shield",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⛨"
+  },
+  {
+    "label": "key",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⚷"
+  },
+  {
+    "label": "colorful_tile",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "◇"
+  },
+  {
+    "label": "water_deep",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "≈"
+  },
+  {
+    "label": "tatami",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▤"
+  },
+  {
+    "label": "basalt",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⧈"
+  },
+  {
+    "label": "tropical_grass",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⋎"
+  },
+  {
+    "label": "adobe",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▚"
+  },
+  {
+    "label": "rock",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▓"
+  },
+  {
+    "label": "tree_edge_right",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "╣"
+  },
+  {
+    "label": "tree_top_right",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "╗"
+  },
+  {
+    "label": "bow",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "}"
+  },
+  {
+    "label": "trunk_base",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "0"
+  },
+  {
+    "label": "cavefloor",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": ":"
+  },
+  {
+    "label": "birch_forest",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "↾"
+  },
+  {
+    "label": "road",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "="
+  },
+  {
+    "label": "coral",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "※"
+  },
+  {
+    "label": "path_stone",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⌺"
+  },
+  {
+    "label": "eucalyptus",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⇂"
+  },
+  {
+    "label": "lava",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⩫"
+  },
+  {
+    "label": "autumn_ground",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⁜"
+  },
+  {
+    "label": "trunk",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "🟫"
+  },
+  {
+    "label": "coral",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "🪸"
+  },
+  {
+    "label": "leaf_top",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "🍃"
+  },
+  {
+    "label": "trunk_base",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "🟫"
+  },
+  {
+    "label": "leaf_center",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "🍃"
+  },
+  {
+    "label": "leaf_right",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "🍃"
+  },
+  {
+    "label": "dead-tree",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "🪾"
+  },
+  {
+    "label": "road",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "⬛"
+  },
+  {
+    "label": "troll",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "🧌"
+  },
+  {
+    "label": "snag",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "🟫"
+  },
+  {
+    "label": "leaf_left",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "🍃"
+  },
+  {
+    "label": "wall_stone_c",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "🪨"
+  },
+  {
+    "label": "wall_stone_t",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "🪨"
+  },
+  {
+    "label": "wall_stone_b",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "🪨"
+  },
+  {
+    "label": "wall_stone_l",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "🪨"
+  },
+  {
+    "label": "wall_stone_r",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "🪨"
+  },
+  {
+    "label": "wall_stone_tl",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "🪨"
+  },
+  {
+    "label": "wall_stone_tr",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "🪨"
+  },
+  {
+    "label": "wall_stone_bl",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "🪨"
+  },
+  {
+    "label": "wall_stone_br",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "🪨"
+  },
+  {
+    "label": "wall_brick_c",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "🧱"
+  },
+  {
+    "label": "wall_brick_t",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "🧱"
+  },
+  {
+    "label": "wall_brick_b",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "🧱"
+  },
+  {
+    "label": "wall_brick_l",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "🧱"
+  },
+  {
+    "label": "wall_brick_r",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "🧱"
+  },
+  {
+    "label": "wall_brick_tl",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "🧱"
+  },
+  {
+    "label": "wall_brick_tr",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "🧱"
+  },
+  {
+    "label": "wall_brick_bl",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "🧱"
+  },
+  {
+    "label": "wall_brick_br",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "🧱"
+  },
+  {
+    "label": "wall_wood_c",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "🟫"
+  },
+  {
+    "label": "wall_wood_t",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "🟫"
+  },
+  {
+    "label": "wall_wood_b",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "🟫"
+  },
+  {
+    "label": "wall_wood_l",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "🟫"
+  },
+  {
+    "label": "wall_wood_r",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "🟫"
+  },
+  {
+    "label": "wall_wood_tl",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "🟫"
+  },
+  {
+    "label": "wall_wood_tr",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "🟫"
+  },
+  {
+    "label": "wall_wood_bl",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "🟫"
+  },
+  {
+    "label": "wall_wood_br",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "🟫"
+  },
+  {
+    "label": "wall_plaster_c",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "⬜"
+  },
+  {
+    "label": "wall_plaster_t",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "⬜"
+  },
+  {
+    "label": "wall_plaster_b",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "⬜"
+  },
+  {
+    "label": "wall_plaster_l",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "⬜"
+  },
+  {
+    "label": "wall_plaster_r",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "⬜"
+  },
+  {
+    "label": "wall_plaster_tl",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "⬜"
+  },
+  {
+    "label": "wall_plaster_tr",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "⬜"
+  },
+  {
+    "label": "wall_plaster_bl",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "⬜"
+  },
+  {
+    "label": "wall_plaster_br",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "⬜"
+  },
+  {
+    "label": "fountain_t",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "⬜"
+  },
+  {
+    "label": "fountain_b",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "⬜"
+  },
+  {
+    "label": "fountain_l",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "⬜"
+  },
+  {
+    "label": "fountain_r",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "⬜"
+  },
+  {
+    "label": "fountain_tl",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "⬜"
+  },
+  {
+    "label": "fountain_tr",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "⬜"
+  },
+  {
+    "label": "fountain_bl",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "⬜"
+  },
+  {
+    "label": "fountain_br",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "⬜"
+  },
+  {
+    "label": "roof_slate",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "⬛"
+  },
+  {
+    "label": "post",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "⬛"
+  },
+  {
+    "label": "roof_top",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "🟥"
+  },
+  {
+    "label": "roof_top_slate",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "⬛"
+  },
+  {
+    "label": "roof_store",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "🟦"
+  },
+  {
+    "label": "roof_top_store",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "🟦"
+  },
+  {
+    "label": "roof_hospital",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "🟩"
+  },
+  {
+    "label": "roof_top_hospital",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "🟩"
+  },
+  {
+    "label": "rooftop_unit",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "⬛"
+  },
+  {
+    "label": "display_window",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "🪟"
+  },
+  {
+    "label": "awning",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "🟧"
+  },
+  {
+    "label": "water_c",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "🟦"
+  },
+  {
+    "label": "water_jet",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "💧"
+  },
+  {
+    "label": "trunk_bottom",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "║"
+  },
+  {
+    "label": "trunk_mid",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "║"
+  },
+  {
+    "label": "trunk_top",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "║"
+  },
+  {
+    "label": "canopy_tl",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "╭"
+  },
+  {
+    "label": "canopy_t",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "♧"
+  },
+  {
+    "label": "canopy_tr",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "╮"
+  },
+  {
+    "label": "canopy_l",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "♧"
+  },
+  {
+    "label": "canopy_c",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "♣"
+  },
+  {
+    "label": "canopy_r",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "♧"
+  },
+  {
+    "label": "canopy_bl",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "╰"
+  },
+  {
+    "label": "canopy_b",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "♧"
+  },
+  {
+    "label": "canopy_br",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "╯"
+  },
+  {
+    "label": "trunk_bottom",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "🟫"
+  },
+  {
+    "label": "trunk_mid",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "🟫"
+  },
+  {
+    "label": "trunk_top",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "🟫"
+  },
+  {
+    "label": "canopy_tl",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "🍃"
+  },
+  {
+    "label": "canopy_t",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "🍃"
+  },
+  {
+    "label": "canopy_tr",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "🍃"
+  },
+  {
+    "label": "canopy_l",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "🍃"
+  },
+  {
+    "label": "canopy_c",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "🍃"
+  },
+  {
+    "label": "canopy_r",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "🍃"
+  },
+  {
+    "label": "canopy_bl",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "🍃"
+  },
+  {
+    "label": "canopy_b",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "🍃"
+  },
+  {
+    "label": "canopy_br",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "🍃"
+  },
+  {
+    "label": "awning",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▨"
+  },
+  {
+    "label": "decor_blossom",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "✿"
+  },
+  {
+    "label": "decor_clover",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "♣"
+  },
+  {
+    "label": "decor_dot",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "."
+  },
+  {
+    "label": "decor_flower",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "❀"
+  },
+  {
+    "label": "decor_grit",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⁃"
+  },
+  {
+    "label": "decor_pebbles",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "∴"
+  },
+  {
+    "label": "decor_ripple",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⌣"
+  },
+  {
+    "label": "decor_shell",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "◡"
+  },
+  {
+    "label": "decor_spark",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "*"
+  },
+  {
+    "label": "display_window",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⌬"
+  },
+  {
+    "label": "flat_roof",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▂"
+  },
+  {
+    "label": "fountain_b",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▄"
+  },
+  {
+    "label": "fountain_bl",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▙"
+  },
+  {
+    "label": "fountain_br",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▟"
+  },
+  {
+    "label": "fountain_l",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▌"
+  },
+  {
+    "label": "fountain_r",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▐"
+  },
+  {
+    "label": "fountain_t",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▀"
+  },
+  {
+    "label": "fountain_tl",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▛"
+  },
+  {
+    "label": "fountain_tr",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▜"
+  },
+  {
+    "label": "parapet",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▀"
+  },
+  {
+    "label": "roof_slate",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⌆"
+  },
+  {
+    "label": "roof_top_slate",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "◣"
+  },
+  {
+    "label": "rooftop_unit",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▪"
+  },
+  {
+    "label": "wall_brick_b",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▄"
+  },
+  {
+    "label": "wall_brick_bl",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▙"
+  },
+  {
+    "label": "wall_brick_br",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▟"
+  },
+  {
+    "label": "wall_brick_c",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▒"
+  },
+  {
+    "label": "wall_brick_l",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▌"
+  },
+  {
+    "label": "wall_brick_r",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▐"
+  },
+  {
+    "label": "wall_brick_t",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▀"
+  },
+  {
+    "label": "wall_brick_tl",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▛"
+  },
+  {
+    "label": "wall_brick_tr",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▜"
+  },
+  {
+    "label": "wall_plaster_b",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▄"
+  },
+  {
+    "label": "wall_plaster_bl",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▙"
+  },
+  {
+    "label": "wall_plaster_br",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▟"
+  },
+  {
+    "label": "wall_plaster_c",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "░"
+  },
+  {
+    "label": "wall_plaster_l",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▌"
+  },
+  {
+    "label": "wall_plaster_r",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▐"
+  },
+  {
+    "label": "wall_plaster_t",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▀"
+  },
+  {
+    "label": "wall_plaster_tl",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▛"
+  },
+  {
+    "label": "wall_plaster_tr",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▜"
+  },
+  {
+    "label": "wall_stone_b",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▄"
+  },
+  {
+    "label": "wall_stone_bl",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▙"
+  },
+  {
+    "label": "wall_stone_br",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▟"
+  },
+  {
+    "label": "wall_stone_c",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▓"
+  },
+  {
+    "label": "wall_stone_l",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▌"
+  },
+  {
+    "label": "wall_stone_r",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▐"
+  },
+  {
+    "label": "wall_stone_t",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▀"
+  },
+  {
+    "label": "wall_stone_tl",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▛"
+  },
+  {
+    "label": "wall_stone_tr",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▜"
+  },
+  {
+    "label": "wall_wood_b",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▄"
+  },
+  {
+    "label": "wall_wood_bl",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▙"
+  },
+  {
+    "label": "wall_wood_br",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▟"
+  },
+  {
+    "label": "wall_wood_c",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▤"
+  },
+  {
+    "label": "wall_wood_l",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▌"
+  },
+  {
+    "label": "wall_wood_r",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▐"
+  },
+  {
+    "label": "wall_wood_t",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▀"
+  },
+  {
+    "label": "wall_wood_tl",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▛"
+  },
+  {
+    "label": "wall_wood_tr",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▜"
+  },
+  {
+    "label": "water_c",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⩭"
+  },
+  {
+    "label": "water_jet",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "|"
+  },
+  {
+    "label": "sq_green",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "🟩"
+  },
+  {
+    "label": "sq_blue",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "🟦"
+  },
+  {
+    "label": "sq_brown",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "🟫"
+  },
+  {
+    "label": "sq_yellow",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "🟨"
+  },
+  {
+    "label": "sq_white",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "⬜"
+  },
+  {
+    "label": "sq_black",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "⬛"
+  },
+  {
+    "label": "sq_red",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "🟥"
+  },
+  {
+    "label": "sq_orange",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "🟧"
+  },
+  {
+    "label": "sq_purple",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "🟪"
+  },
+  {
+    "label": "grass-field",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⸲"
+  },
+  {
+    "label": "dark-grass",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⁏"
+  },
+  {
+    "label": "shallow-water",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⌢"
+  },
+  {
+    "label": "deep-water",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⩬"
+  },
+  {
+    "label": "beach-sand",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⋄"
+  },
+  {
+    "label": "desert",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⋯"
+  },
+  {
+    "label": "mountain-slope",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "◺"
+  },
+  {
+    "label": "snowy-peak",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⋀"
+  },
+  {
+    "label": "snowflake",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "❆"
+  },
+  {
+    "label": "volcano",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⩓"
+  },
+  {
+    "label": "ember",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⚶"
+  },
+  {
+    "label": "autumn",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⁚"
+  },
+  {
+    "label": "cobblestone",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⁛"
+  },
+  {
+    "label": "dirt-path",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⋮"
+  },
+  {
+    "label": "gravel",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⁝"
+  },
+  {
+    "label": "person",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "@",
+    "art": [
+      "  O",
+      " /|\\",
+      " / \\"
+    ]
+  },
+  {
+    "label": "adult",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "@",
+    "art": [
+      "  O",
+      " /|\\",
+      " / \\"
+    ]
+  },
+  {
+    "label": "man",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "♂",
+    "art": [
+      "  O ",
+      " /[]\\",
+      " /  \\"
+    ]
+  },
+  {
+    "label": "woman",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "♀",
+    "art": [
+      " (O)",
+      " /|\\",
+      " /\\ "
+    ]
+  },
+  {
+    "label": "boy",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "ъ",
+    "art": [
+      "  o",
+      " /|\\",
+      " / \\"
+    ]
+  },
+  {
+    "label": "girl",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "ф",
+    "art": [
+      " (o)",
+      " /|\\",
+      " /\\ "
+    ]
+  },
+  {
+    "label": "child",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "ç",
+    "art": [
+      "  o",
+      " /|\\",
+      " ' '"
+    ]
+  },
+  {
+    "label": "elder",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "ê",
+    "art": [
+      "  O",
+      " /|\\|",
+      " / \\|"
+    ]
+  },
+  {
+    "label": "old-man",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "ô",
+    "art": [
+      "  Q",
+      " /|\\_",
+      " / \\|"
+    ]
+  },
+  {
+    "label": "old-woman",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "ö",
+    "art": [
+      " (Q)",
+      " /|\\_",
+      " /\\ |"
+    ]
+  },
+  {
+    "label": "prince",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "Þ",
+    "art": [
+      " vOv",
+      " /|\\",
+      " / \\"
+    ]
+  },
+  {
+    "label": "princess",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "þ",
+    "art": [
+      " vOv",
+      " /|\\",
+      " /\\ "
+    ]
+  },
+  {
+    "label": "guard",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "Ħ",
+    "art": [
+      " [=]",
+      " /H\\",
+      " / \\"
+    ]
+  },
+  {
+    "label": "police-officer",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "Ρ",
+    "art": [
+      " ,=.",
+      " /P\\",
+      " / \\"
+    ]
+  },
+  {
+    "label": "construction-worker",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "Ĥ",
+    "art": [
+      " .-.",
+      " /W\\",
+      " / \\"
+    ]
+  },
+  {
+    "label": "ninja",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "Ň",
+    "art": [
+      " .-.",
+      " /N\\",
+      " / \\"
+    ]
+  },
+  {
+    "label": "mage",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "Ϻ",
+    "art": [
+      "  /\\",
+      " (o)",
+      " /|\\"
+    ]
+  },
+  {
+    "label": "wizard",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "Ŵ",
+    "art": [
+      "  /\\",
+      " (o)",
+      " /|\\_",
+      " / \\|"
+    ]
+  },
+  {
+    "label": "witch",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "Ŷ",
+    "art": [
+      "  /\\",
+      " (^)",
+      " /|\\~",
+      " / \\~"
+    ]
+  },
+  {
+    "label": "elf",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "ë",
+    "art": [
+      " >O<",
+      " /|\\",
+      " / \\"
+    ]
+  },
+  {
+    "label": "guardian",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "Ǥ",
+    "art": [
+      " [=]",
+      "[|O|]",
+      "/|#|\\",
+      " |_|"
+    ]
+  },
+  {
+    "label": "boss",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "Ω",
+    "art": [
+      " ,WWW,",
+      "(O###O)",
+      "/|###|\\",
+      " J   L"
+    ]
+  },
+  {
+    "label": "robot",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "¤",
+    "art": [
+      " [oo]",
+      " |[]|",
+      " [] []"
+    ]
+  },
+  {
+    "label": "bat",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "v",
+    "art": [
+      "/\\ ^ /\\",
+      "(o   o)",
+      " \\vvv/"
+    ]
+  },
+  {
+    "label": "bear",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "B",
+    "art": [
+      "(\\_/)",
+      "( O.O )",
+      "(#####)",
+      " J   L"
+    ]
+  },
+  {
+    "label": "bird",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "ь",
+    "art": [
+      "  ,-.",
+      " (o<",
+      "  ^^ "
+    ]
+  },
+  {
+    "label": "boar",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "p",
+    "art": [
+      " ^   ^",
+      "( o.o )",
+      "\\(oo)/",
+      " '   '"
+    ]
+  },
+  {
+    "label": "butterfly",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "ψ",
+    "art": [
+      "\\\\ //",
+      " (o) ",
+      "// \\\\"
+    ]
+  },
+  {
+    "label": "cat",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "f",
+    "art": [
+      "/\\_/\\",
+      "( =.= )",
+      " (>^<)",
+      " '   '"
+    ]
+  },
+  {
+    "label": "chicken",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "ķ",
+    "art": [
+      "  ,w.",
+      " (o<",
+      " (__)"
+    ]
+  },
+  {
+    "label": "cow",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "C",
+    "art": [
+      "(--   --)",
+      "( o.o )",
+      " (oo)  ",
+      " J   L"
+    ]
+  },
+  {
+    "label": "deer",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "Y",
+    "art": [
+      "\\|/ \\|/",
+      "( o.o )",
+      " (   ) ",
+      " J   L"
+    ]
+  },
+  {
+    "label": "dog",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "d",
+    "art": [
+      "/\\_/\\",
+      "( o.o )",
+      " (>w<)",
+      " d   b"
+    ]
+  },
+  {
+    "label": "dove",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "ν",
+    "art": [
+      "  ,-.",
+      " (o<",
+      " \\^^/"
+    ]
+  },
+  {
+    "label": "dragon",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "D",
+    "art": [
+      "  /\\_/\\",
+      " ( o.o )>",
+      "<\\ /|\\ />",
+      "  d   b"
+    ]
+  },
+  {
+    "label": "duck",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "u",
+    "art": [
+      "  ,-.",
+      " (o>",
+      " (__)"
+    ]
+  },
+  {
+    "label": "fox",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "F",
+    "art": [
+      "/\\_/\\",
+      "( o.o )",
+      " (>v<)~",
+      " '   '"
+    ]
+  },
+  {
+    "label": "frog",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "j",
+    "art": [
+      " @   @",
+      "( o.o )",
+      " \\___/",
+      " J   L"
+    ]
+  },
+  {
+    "label": "goat",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "ģ",
+    "art": [
+      "\\|   |/",
+      "( o.o )",
+      " (~~~) ",
+      " '   '"
+    ]
+  },
+  {
+    "label": "grey-wolf",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "W",
+    "art": [
+      "/\\_/\\",
+      "( O.O )",
+      " > w <"
+    ]
+  },
+  {
+    "label": "hedgehog",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "ĥ",
+    "art": [
+      "^^^^^^^",
+      "( o.o )",
+      " (###) ",
+      " '   '"
+    ]
+  },
+  {
+    "label": "honeybee",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "ў",
+    "art": [
+      " \\\\_//",
+      " (===)",
+      "  ' '"
+    ]
+  },
+  {
+    "label": "horse",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "H",
+    "art": [
+      " /|   |\\",
+      "( o.o )",
+      "  |||  ",
+      " J   L"
+    ]
+  },
+  {
+    "label": "ladybug",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "ŏ",
+    "art": [
+      "  ,-.  ",
+      " (o.o) ",
+      "((.:.))"
+    ]
+  },
+  {
+    "label": "owl",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "Ö",
+    "art": [
+      " ,-^-,",
+      "(o) (o)",
+      " \\___/"
+    ]
+  },
+  {
+    "label": "pig",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "P",
+    "art": [
+      " ^   ^",
+      "( o.o )",
+      " (oo)  ",
+      " '   '"
+    ]
+  },
+  {
+    "label": "rabbit",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "ř",
+    "art": [
+      " \\\\ //",
+      "( o.o )",
+      " (   ) ",
+      " '   '"
+    ]
+  },
+  {
+    "label": "sheep",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "S",
+    "art": [
+      "{~~~~~}",
+      "( o.o )",
+      "{#####}",
+      " '   '"
+    ]
+  },
+  {
+    "label": "snail",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "ę",
+    "art": [
+      "  ,,   ",
+      " (o.o) ",
+      " (@@@) "
+    ]
+  },
+  {
+    "label": "spider",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "ж",
+    "art": [
+      "  / _ \\",
+      "\\_\\(_)/_/",
+      " _//o\\\\_",
+      "  /   \\"
+    ]
+  },
+  {
+    "label": "turtle",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "ť",
+    "art": [
+      "  ,-.  ",
+      " (o.o) ",
+      "((###))",
+      " '   '"
+    ]
+  },
+  {
+    "label": "wolf",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "w",
+    "art": [
+      "/\\_/\\",
+      "( o.o )",
+      " > ^ <"
+    ]
+  },
+  {
+    "label": "alien",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "Ä",
+    "art": [
+      " (oo)",
+      "  |",
+      " /|\\",
+      " ' '"
+    ]
+  },
+  {
+    "label": "grey-alien",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "ä",
+    "art": [
+      " (@@)",
+      "  |",
+      " /|\\",
+      " ' '"
+    ]
+  },
+  {
+    "label": "ghost",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "§",
+    "art": [
+      " .-.",
+      "(o o)",
+      "| O \\",
+      " \\   \\",
+      " `~~~'"
+    ]
+  },
+  {
+    "label": "goblin",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "g",
+    "art": [
+      " ,-.",
+      "(>o<)",
+      "/|Y|\\",
+      " d b"
+    ]
+  },
+  {
+    "label": "ogre",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "Ǫ",
+    "art": [
+      " ,vv,",
+      "(O~~O)",
+      "/|##|\\",
+      " J  L"
+    ]
+  },
+  {
+    "label": "troll",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "Ť",
+    "art": [
+      " ,^^,",
+      "(O--O)",
+      "/|##|\\",
+      " L  J"
+    ]
+  },
+  {
+    "label": "skeleton",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "Ž",
+    "art": [
+      " ___",
+      "(o.o)",
+      " )|(",
+      "/|=|\\",
+      " d b"
+    ]
+  },
+  {
+    "label": "zombie",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "z",
+    "art": [
+      " ___",
+      "(x_o)",
+      "/|~|\\",
+      " J  L"
+    ]
+  },
+  {
+    "label": "vampire",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "Ѵ",
+    "art": [
+      " /^\\",
+      "(o o)",
+      "/|V|\\",
+      " d b"
+    ]
+  },
+  {
+    "label": "skull",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "ѫ",
+    "art": [
+      " ___",
+      "(o.o)",
+      " )|( "
+    ]
+  },
+  {
+    "label": "pumpkin",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "ϴ",
+    "art": [
+      " ,-^-,",
+      "(>_-<)",
+      " \\___/"
+    ]
+  },
+  {
+    "label": "arrow",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "↑"
+  },
+  {
+    "label": "bolt",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "¦"
+  },
+  {
+    "label": "bullet",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "•"
+  },
+  {
+    "label": "dart",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⇡"
+  },
+  {
+    "label": "cleave",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⁄"
+  },
+  {
+    "label": "fire-slash",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "∕"
+  },
+  {
+    "label": "ice-slash",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "∖"
+  },
+  {
+    "label": "piercing-shot",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "→"
+  },
+  {
+    "label": "lightning",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "Ƶ"
+  },
+  {
+    "label": "nova",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "✳"
+  },
+  {
+    "label": "heal-glow",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "±"
+  },
+  {
+    "label": "guard-flash",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "✧"
+  },
+  {
+    "label": "fist",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "ø"
+  },
+  {
+    "label": "run",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "»"
+  },
+  {
+    "label": "walk",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "›"
+  },
+  {
+    "label": "house",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⌂"
+  },
+  {
+    "label": "houses",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⌂⌂"
+  },
+  {
+    "label": "house-garden",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⌂,"
+  },
+  {
+    "label": "derelict-house",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⌐"
+  },
+  {
+    "label": "bank",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "Β"
+  },
+  {
+    "label": "castle",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "Ķ"
+  },
+  {
+    "label": "japanese-castle",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "Ĵ"
+  },
+  {
+    "label": "church",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "†"
+  },
+  {
+    "label": "mosque",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "Ϛ"
+  },
+  {
+    "label": "hospital",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "╬"
+  },
+  {
+    "label": "hotel",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "Ĭ"
+  },
+  {
+    "label": "school",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "Ŝ"
+  },
+  {
+    "label": "factory",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "Ƒ"
+  },
+  {
+    "label": "stadium",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "Ŭ"
+  },
+  {
+    "label": "office-building",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "Ē"
+  },
+  {
+    "label": "department-store",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "Ð"
+  },
+  {
+    "label": "convenience-store",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "Ĉ"
+  },
+  {
+    "label": "classical-building",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "Π"
+  },
+  {
+    "label": "tower",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "Ŧ"
+  },
+  {
+    "label": "tent",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "Λ"
+  },
+  {
+    "label": "torii-gate",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "π"
+  },
+  {
+    "label": "fountain",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "Ѱ"
+  },
+  {
+    "label": "well",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "Θ"
+  },
+  {
+    "label": "connector",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "╋"
+  },
+  {
+    "label": "cactus",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "ǂ"
+  },
+  {
+    "label": "potted-plant",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "ϙ"
+  },
+  {
+    "label": "wood-log",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▭"
+  },
+  {
+    "label": "squirrel",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "ŝ",
+    "art": [
+      " ^   ^",
+      "( o.o )",
+      " (   )S",
+      " '   '"
+    ]
+  },
+  {
+    "label": "blossom",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "✽"
+  },
+  {
+    "label": "boulder",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "◯"
+  },
+  {
+    "label": "bouquet",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "❦"
+  },
+  {
+    "label": "brick",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▦"
+  },
+  {
+    "label": "cherry-blossom",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "❋"
+  },
+  {
+    "label": "clover",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⚜"
+  },
+  {
+    "label": "dead-tree",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⑄"
+  },
+  {
+    "label": "fallen-leaf",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⸙"
+  },
+  {
+    "label": "glass-window",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▧"
+  },
+  {
+    "label": "hibiscus",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "✾"
+  },
+  {
+    "label": "maple-leaf",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⁂"
+  },
+  {
+    "label": "oak-tree",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⌭"
+  },
+  {
+    "label": "palm-tree",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "Ϋ"
+  },
+  {
+    "label": "pine-tree",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▲"
+  },
+  {
+    "label": "red-mushroom",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "♤"
+  },
+  {
+    "label": "roof_hospital",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⊼"
+  },
+  {
+    "label": "roof_store",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⊻"
+  },
+  {
+    "label": "roof_top_hospital",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▔"
+  },
+  {
+    "label": "roof_top_store",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "▔"
+  },
+  {
+    "label": "rose",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "❁"
+  },
+  {
+    "label": "sapling",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⑂"
+  },
+  {
+    "label": "seashell",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "◠"
+  },
+  {
+    "label": "shamrock",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "☘"
+  },
+  {
+    "label": "shrub",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "❇"
+  },
+  {
+    "label": "sunflower",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "☀"
+  },
+  {
+    "label": "tulip",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⚘"
+  },
+  {
+    "label": "wheat",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⌲"
+  },
+  {
+    "label": "wilted-flower",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⚱"
+  },
+  {
+    "label": "wooden-door",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⊓"
+  },
+  {
+    "label": "adult_f1",
+    "mode": "ascii",
+    "style": "ascii",
+    "art": [
+      "  O",
+      " \\|/",
+      " / \\"
+    ]
+  },
+  {
+    "label": "alien_f1",
+    "mode": "ascii",
+    "style": "ascii",
+    "art": [
+      " (oo)",
+      "  |",
+      " \\|/",
+      " ' '"
+    ]
+  },
+  {
+    "label": "bat_f1",
+    "mode": "ascii",
+    "style": "ascii",
+    "art": [
+      "_\\ ^ /_",
+      "(o   o)",
+      " \\vvv/"
+    ]
+  },
+  {
+    "label": "bear_f1",
+    "mode": "ascii",
+    "style": "ascii",
+    "art": [
+      "(\\_/)",
+      "( -.- )",
+      "(#####)",
+      " L   J"
+    ]
+  },
+  {
+    "label": "bird_f1",
+    "mode": "ascii",
+    "style": "ascii",
+    "art": [
+      "  ,-.",
+      " (o<",
+      "  vv "
+    ]
+  },
+  {
+    "label": "boar_f1",
+    "mode": "ascii",
+    "style": "ascii",
+    "art": [
+      " ^   ^",
+      "( -.- )",
+      "/(oo)\\",
+      " '   '"
+    ]
+  },
+  {
+    "label": "boss_f1",
+    "mode": "ascii",
+    "style": "ascii",
+    "art": [
+      " ,WWW,",
+      "(o###o)",
+      "\\|###|/",
+      " J   L"
+    ]
+  },
+  {
+    "label": "boy_f1",
+    "mode": "ascii",
+    "style": "ascii",
+    "art": [
+      "  o",
+      " \\|/",
+      " / \\"
+    ]
+  },
+  {
+    "label": "butterfly_f1",
+    "mode": "ascii",
+    "style": "ascii",
+    "art": [
+      "/\\ /\\",
+      " (o) ",
+      "\\/ \\/"
+    ]
+  },
+  {
+    "label": "cat_f1",
+    "mode": "ascii",
+    "style": "ascii",
+    "art": [
+      "/\\_/\\",
+      "( -.- )",
+      " (>^<)",
+      " '   '"
+    ]
+  },
+  {
+    "label": "chicken_f1",
+    "mode": "ascii",
+    "style": "ascii",
+    "art": [
+      "  ,w.",
+      " (o<",
+      " (~~)"
+    ]
+  },
+  {
+    "label": "child_f1",
+    "mode": "ascii",
+    "style": "ascii",
+    "art": [
+      "  o",
+      " \\|/",
+      " ' '"
+    ]
+  },
+  {
+    "label": "construction-worker_f1",
+    "mode": "ascii",
+    "style": "ascii",
+    "art": [
+      " .-.",
+      " \\W/",
+      " / \\"
+    ]
+  },
+  {
+    "label": "cow_f1",
+    "mode": "ascii",
+    "style": "ascii",
+    "art": [
+      "(--   --)",
+      "( -.- )",
+      " (oo)  ",
+      " L   J"
+    ]
+  },
+  {
+    "label": "deer_f1",
+    "mode": "ascii",
+    "style": "ascii",
+    "art": [
+      "\\|/ \\|/",
+      "( -.- )",
+      " (   ) ",
+      " L   J"
+    ]
+  },
+  {
+    "label": "dog_f1",
+    "mode": "ascii",
+    "style": "ascii",
+    "art": [
+      "/\\_/\\",
+      "( o.o )",
+      " (>w<)",
+      " b   d"
+    ]
+  },
+  {
+    "label": "dove_f1",
+    "mode": "ascii",
+    "style": "ascii",
+    "art": [
+      "  ,-.",
+      " (o<",
+      " /vv\\"
+    ]
+  },
+  {
+    "label": "dragon_f1",
+    "mode": "ascii",
+    "style": "ascii",
+    "art": [
+      "  /\\_/\\",
+      " ( o.o )>",
+      "</ \\|/ \\>",
+      "  d   b"
+    ]
+  },
+  {
+    "label": "duck_f1",
+    "mode": "ascii",
+    "style": "ascii",
+    "art": [
+      "  ,-.",
+      " (o>",
+      " (~~)"
+    ]
+  },
+  {
+    "label": "elder_f1",
+    "mode": "ascii",
+    "style": "ascii",
+    "art": [
+      "  O",
+      " \\|/|",
+      " / \\|"
+    ]
+  },
+  {
+    "label": "elf_f1",
+    "mode": "ascii",
+    "style": "ascii",
+    "art": [
+      " >O<",
+      " \\|/",
+      " / \\"
+    ]
+  },
+  {
+    "label": "enemy_f1",
+    "mode": "ascii",
+    "style": "ascii",
+    "art": [
+      " ___",
+      "(@_@)",
+      "\\| |/",
+      " \" \""
+    ]
+  },
+  {
+    "label": "fox_f1",
+    "mode": "ascii",
+    "style": "ascii",
+    "art": [
+      "/\\_/\\",
+      "( -.- )",
+      " (>v<)~",
+      " '   '"
+    ]
+  },
+  {
+    "label": "frog_f1",
+    "mode": "ascii",
+    "style": "ascii",
+    "art": [
+      " @   @",
+      "( -.- )",
+      " \\___/",
+      " L   J"
+    ]
+  },
+  {
+    "label": "ghost_f1",
+    "mode": "ascii",
+    "style": "ascii",
+    "art": [
+      " .-.",
+      "(o o)",
+      "| O /",
+      " /   /",
+      " `~~~'"
+    ]
+  },
+  {
+    "label": "girl_f1",
+    "mode": "ascii",
+    "style": "ascii",
+    "art": [
+      " (o)",
+      " \\|/",
+      " /\\ "
+    ]
+  },
+  {
+    "label": "goat_f1",
+    "mode": "ascii",
+    "style": "ascii",
+    "art": [
+      "\\|   |/",
+      "( -.- )",
+      " (~~~) ",
+      " '   '"
+    ]
+  },
+  {
+    "label": "goblin_f1",
+    "mode": "ascii",
+    "style": "ascii",
+    "art": [
+      " ,-.",
+      "(>o<)",
+      "\\|Y|/",
+      " d b"
+    ]
+  },
+  {
+    "label": "grey-alien_f1",
+    "mode": "ascii",
+    "style": "ascii",
+    "art": [
+      " (@@)",
+      "  |",
+      " \\|/",
+      " ' '"
+    ]
+  },
+  {
+    "label": "grey-wolf_f1",
+    "mode": "ascii",
+    "style": "ascii",
+    "art": [
+      "/\\_/\\",
+      "( -.- )",
+      " > w <"
+    ]
+  },
+  {
+    "label": "guard_f1",
+    "mode": "ascii",
+    "style": "ascii",
+    "art": [
+      " [=]",
+      " \\H/",
+      " / \\"
+    ]
+  },
+  {
+    "label": "guardian_f1",
+    "mode": "ascii",
+    "style": "ascii",
+    "art": [
+      " [=]",
+      "[|o|]",
+      "\\|#|/",
+      " |_|"
+    ]
+  },
+  {
+    "label": "hedgehog_f1",
+    "mode": "ascii",
+    "style": "ascii",
+    "art": [
+      "^^^^^^^",
+      "( -.- )",
+      " (###) ",
+      " '   '"
+    ]
+  },
+  {
+    "label": "honeybee_f1",
+    "mode": "ascii",
+    "style": "ascii",
+    "art": [
+      " /\\_/\\",
+      " (===)",
+      "  ' '"
+    ]
+  },
+  {
+    "label": "horse_f1",
+    "mode": "ascii",
+    "style": "ascii",
+    "art": [
+      " /|   |\\",
+      "( -.- )",
+      "  |||  ",
+      " L   J"
+    ]
+  },
+  {
+    "label": "ladybug_f1",
+    "mode": "ascii",
+    "style": "ascii",
+    "art": [
+      "  ,-.  ",
+      " (-.-) ",
+      "((:.:))"
+    ]
+  },
+  {
+    "label": "mage_f1",
+    "mode": "ascii",
+    "style": "ascii",
+    "art": [
+      "  /\\",
+      " (o)",
+      " \\|/"
+    ]
+  },
+  {
+    "label": "man_f1",
+    "mode": "ascii",
+    "style": "ascii",
+    "art": [
+      "  O ",
+      " \\[]/",
+      " /  \\"
+    ]
+  },
+  {
+    "label": "ninja_f1",
+    "mode": "ascii",
+    "style": "ascii",
+    "art": [
+      " .-.",
+      " \\N/",
+      " / \\"
+    ]
+  },
+  {
+    "label": "npc_f1",
+    "mode": "ascii",
+    "style": "ascii",
+    "art": [
+      "  O",
+      " \\|/",
+      " / \\"
+    ]
+  },
+  {
+    "label": "ogre_f1",
+    "mode": "ascii",
+    "style": "ascii",
+    "art": [
+      " ,vv,",
+      "(o~~o)",
+      "/|##|\\",
+      " J  L"
+    ]
+  },
+  {
+    "label": "old-man_f1",
+    "mode": "ascii",
+    "style": "ascii",
+    "art": [
+      "  Q",
+      " \\|/_",
+      " / \\|"
+    ]
+  },
+  {
+    "label": "old-woman_f1",
+    "mode": "ascii",
+    "style": "ascii",
+    "art": [
+      " (Q)",
+      " \\|/_",
+      " /\\ |"
+    ]
+  },
+  {
+    "label": "owl_f1",
+    "mode": "ascii",
+    "style": "ascii",
+    "art": [
+      " ,-^-,",
+      "(-) (-)",
+      " \\___/"
+    ]
+  },
+  {
+    "label": "person_f1",
+    "mode": "ascii",
+    "style": "ascii",
+    "art": [
+      "  O",
+      " \\|/",
+      " / \\"
+    ]
+  },
+  {
+    "label": "pig_f1",
+    "mode": "ascii",
+    "style": "ascii",
+    "art": [
+      " ^   ^",
+      "( -.- )",
+      " (oo)  ",
+      " '   '"
+    ]
+  },
+  {
+    "label": "player_f1",
+    "mode": "ascii",
+    "style": "ascii",
+    "art": [
+      "  0",
+      " <#>",
+      " /\\ "
+    ]
+  },
+  {
+    "label": "police-officer_f1",
+    "mode": "ascii",
+    "style": "ascii",
+    "art": [
+      " ,=.",
+      " \\P/",
+      " / \\"
+    ]
+  },
+  {
+    "label": "prince_f1",
+    "mode": "ascii",
+    "style": "ascii",
+    "art": [
+      " vOv",
+      " \\|/",
+      " / \\"
+    ]
+  },
+  {
+    "label": "princess_f1",
+    "mode": "ascii",
+    "style": "ascii",
+    "art": [
+      " vOv",
+      " \\|/",
+      " /\\ "
+    ]
+  },
+  {
+    "label": "pumpkin_f1",
+    "mode": "ascii",
+    "style": "ascii",
+    "art": [
+      " ,-^-,",
+      "(<_->)",
+      " \\___/"
+    ]
+  },
+  {
+    "label": "rabbit_f1",
+    "mode": "ascii",
+    "style": "ascii",
+    "art": [
+      " \\\\ //",
+      "( -.- )",
+      " (   ) ",
+      " '   '"
+    ]
+  },
+  {
+    "label": "robot_f1",
+    "mode": "ascii",
+    "style": "ascii",
+    "art": [
+      " [oo]",
+      " |[]|",
+      " ][ ]["
+    ]
+  },
+  {
+    "label": "sheep_f1",
+    "mode": "ascii",
+    "style": "ascii",
+    "art": [
+      "{~~~~~}",
+      "( -.- )",
+      "{#####}",
+      " '   '"
+    ]
+  },
+  {
+    "label": "skeleton_f1",
+    "mode": "ascii",
+    "style": "ascii",
+    "art": [
+      " ___",
+      "(-.-)",
+      " )|(",
+      "\\|=|/",
+      " d b"
+    ]
+  },
+  {
+    "label": "skull_f1",
+    "mode": "ascii",
+    "style": "ascii",
+    "art": [
+      " ___",
+      "(-.-)",
+      " )|( "
+    ]
+  },
+  {
+    "label": "snail_f1",
+    "mode": "ascii",
+    "style": "ascii",
+    "art": [
+      "  ,,   ",
+      " (-.-) ",
+      " (@@@) "
+    ]
+  },
+  {
+    "label": "spider_f1",
+    "mode": "ascii",
+    "style": "ascii",
+    "art": [
+      "  \\ _ /",
+      "\\_\\(_)/_/",
+      " _//o\\\\_",
+      "  \\   /"
+    ]
+  },
+  {
+    "label": "squirrel_f1",
+    "mode": "ascii",
+    "style": "ascii",
+    "art": [
+      " ^   ^",
+      "( -.- )",
+      " (   )S",
+      " '   '"
+    ]
+  },
+  {
+    "label": "troll_f1",
+    "mode": "ascii",
+    "style": "ascii",
+    "art": [
+      " ,^^,",
+      "(o--o)",
+      "/|##|\\",
+      " L  J"
+    ]
+  },
+  {
+    "label": "turtle_f1",
+    "mode": "ascii",
+    "style": "ascii",
+    "art": [
+      "  ,-.  ",
+      " (-.-) ",
+      "((###))",
+      " '   '"
+    ]
+  },
+  {
+    "label": "vampire_f1",
+    "mode": "ascii",
+    "style": "ascii",
+    "art": [
+      " /^\\",
+      "(- -)",
+      "\\|V|/",
+      " d b"
+    ]
+  },
+  {
+    "label": "witch_f1",
+    "mode": "ascii",
+    "style": "ascii",
+    "art": [
+      "  /\\",
+      " (^)",
+      " \\|/~",
+      " / \\~"
+    ]
+  },
+  {
+    "label": "wizard_f1",
+    "mode": "ascii",
+    "style": "ascii",
+    "art": [
+      "  /\\",
+      " (o)",
+      " \\|/_",
+      " / \\|"
+    ]
+  },
+  {
+    "label": "wolf_f1",
+    "mode": "ascii",
+    "style": "ascii",
+    "art": [
+      "/\\_/\\",
+      "( -.- )",
+      " > ^ <"
+    ]
+  },
+  {
+    "label": "woman_f1",
+    "mode": "ascii",
+    "style": "ascii",
+    "art": [
+      " (O)",
+      " \\|/",
+      " /\\ "
+    ]
+  },
+  {
+    "label": "zombie_f1",
+    "mode": "ascii",
+    "style": "ascii",
+    "art": [
+      " ___",
+      "(o_x)",
+      "\\|~|/",
+      " J  L"
+    ]
+  },
+  {
+    "label": "tall_grass",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⁑"
+  },
+  {
+    "label": "tall_grass",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "🌾"
+  },
+  {
+    "label": "thicket",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "☙"
+  },
+  {
+    "label": "thicket",
+    "mode": "emoji",
+    "style": "emoji",
+    "emoji": "🌿"
+  }
 ]
