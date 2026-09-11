@@ -683,6 +683,7 @@ export function GenerateControls({
     options: opts,
     palette: findGenerator(catalog, categoryKey, layoutId)?.config.palette,
     subZones: findGenerator(catalog, categoryKey, layoutId)?.config.subZones,
+    formation: findGenerator(catalog, categoryKey, layoutId)?.config.formation,
     // Seeded from the preset's identity, so a card's picture is stable across renders and every card shows
     // a DIFFERENT world rather than all sharing one seed.
     seed: presetSeed(categoryKey, layoutId ?? 'default', zone),

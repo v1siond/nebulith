@@ -123,6 +123,24 @@ export interface GeneratorPalette {
  * `canopy` and `undergrowth` MULTIPLY the generator's served base densities rather than replacing them, so
  * the base stays the one knob that moves the whole map.
  */
+/**
+ * HOW THE TREES ARE DISTRIBUTED — the difference between a wood pasture, an even-aged stand and a closed
+ * canopy, none of which is a matter of how MANY trees there are.
+ *
+ * Alexander, 2026-09-11: *"there's different ways in which trees and nature is distributed across these
+ * zones"*, with six photographs. Two numbers carry most of it: `lattice` is the scale of the noise the
+ * canopy is scored against (small = fine scatter, large = big continuous masses) and `spacing` is the
+ * minimum gap between trunks (0 lets them form a wall, 3+ makes every tree individually readable).
+ */
+export interface GeneratorFormation {
+  /** noise scale in cells — the "grouping" knob */
+  lattice?: number
+  /** minimum cells between two trunks */
+  spacing?: number
+  /** multiplies the served ground cover — how choked the floor is between the trunks */
+  understory?: number
+}
+
 export interface GeneratorSubZone {
   key: string
   name?: string
@@ -136,6 +154,8 @@ export interface GeneratorSubZone {
   pools?: number
   /** the share of the region carrying fallen masonry (ruins) */
   stone?: number
+  /** this region's own tree distribution — a swamp is spaced like a pasture, dense growth is a wall */
+  formation?: GeneratorFormation
 }
 
 export interface GeneratorConfig {
@@ -147,6 +167,8 @@ export interface GeneratorConfig {
   palette?: GeneratorPalette
   /** The regions this template partitions itself into. Absent → one uniform map. */
   subZones?: readonly GeneratorSubZone[]
+  /** How this template distributes its trees. Absent → the generator's own default grouping. */
+  formation?: GeneratorFormation
 }
 
 /** One generator — a concrete map the user can ask for ("Meadow + River", "Town"). */
@@ -328,6 +350,7 @@ function parseConfig(v: unknown): GeneratorConfig {
   const settlement = parseSettlement(v.settlement)
   const palette = parsePalette(v.palette)
   const subZones = parseSubZones(v.subZones)
+  const formation = parseFormation(v.formation)
   if (grid) out.grid = grid
   if (units) out.units = units
   if (nature) out.nature = nature
@@ -335,7 +358,20 @@ function parseConfig(v: unknown): GeneratorConfig {
   if (settlement) out.settlement = settlement
   if (palette) out.palette = palette
   if (subZones) out.subZones = subZones
+  if (formation) out.formation = formation
   return out
+}
+
+/** The served distribution, keeping only the numbers that arrived. A missing field means the backend has no
+ *  opinion on it and the generator keeps its own default — never a number invented here. */
+function parseFormation(v: unknown): GeneratorFormation | undefined {
+  if (!isObject(v)) return undefined
+  const out: GeneratorFormation = {}
+  for (const k of ['lattice', 'spacing', 'understory'] as const) {
+    const n = num(v[k])
+    if (n !== undefined && n >= 0) out[k] = n
+  }
+  return Object.keys(out).length > 0 ? out : undefined
 }
 
 /** The served sub-zones. A row without a key or a usable weight is DROPPED rather than defaulted — a region
@@ -357,6 +393,8 @@ function parseSubZones(v: unknown): readonly GeneratorSubZone[] | undefined {
     }
     const floor = str(raw.floor)
     if (floor) row.floor = floor
+    const formation = parseFormation(raw.formation)
+    if (formation) row.formation = formation
     rows.push(row)
   }
   return rows.length > 0 ? rows : undefined

@@ -3551,6 +3551,9 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       palette: generator.config.palette,
       // The REGIONS this template partitions itself into — open canopy, dense growth, swamp, ruins.
       subZones: generator.config.subZones,
+      // HOW the trees group — a wood pasture, an even-aged stand and a closed canopy differ in this, not in
+      // how many trees they hold.
+      formation: generator.config.formation,
       settlement: generator.config.settlement,
       buildingSizes: buildingSizeSource(buildingTypesRef.current),
     })
@@ -3719,6 +3722,9 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       palette: generator.config.palette,
       // The REGIONS this template partitions itself into — open canopy, dense growth, swamp, ruins.
       subZones: generator.config.subZones,
+      // HOW the trees group — a wood pasture, an even-aged stand and a closed canopy differ in this, not in
+      // how many trees they hold.
+      formation: generator.config.formation,
       // The served settlement tuning — `houseWidths` is the plot-size weighting the town rolls from. Parsed
       // since T-113 and never read until now, exactly like `nature.groundCover`.
       settlement: generator.config.settlement,

@@ -16,7 +16,7 @@ import { type BuildingSizes, type SettlementTuning, planVillage, type VillageLay
 // The planner is pure: it takes the building sizes rather than reading them. They come from the BACKEND
 // compositions (buildingCatalog resolves them), so deepening a building in Elixir moves the plots with it.
 import { BACKEND_BUILDING_SIZES } from './buildingCatalog'
-import { type GeneratorPalette, type GeneratorSubZone } from '@/lib/generatorCatalog'
+import { type GeneratorFormation, type GeneratorPalette, type GeneratorSubZone } from '@/lib/generatorCatalog'
 import {
   stagePropTileOverride,
   zonePalette,
@@ -215,6 +215,8 @@ export interface GenerateOptions {
   palette?: GeneratorPalette
   /** The REGIONS this template partitions itself into (`config.subZones`). Absent → one uniform map. */
   subZones?: readonly GeneratorSubZone[]
+  /** How this template DISTRIBUTES its trees (`config.formation`) — grouping, spacing, understory. */
+  formation?: GeneratorFormation
   /**
    * Where footprints come from. Alexander, 2026-09-09: *"even the footprint should come from backend, then
    * frontend draws."* Defaults to the composition-backed source so a caller that does not care (every
@@ -624,6 +626,9 @@ interface ArchetypeContext {
   /** The REGIONS this template partitions itself into — open canopy, dense growth, swamp, ruins. A jungle is
    *  not one uniform density, it is several kinds of ground you walk between. */
   subZones?: readonly GeneratorSubZone[]
+  /** How the trees are DISTRIBUTED — a wood pasture, an even-aged stand and a closed canopy differ in this,
+   *  not in how many trees they hold. */
+  formation?: GeneratorFormation
   /** Where footprints come from — see `GenerateOptions.buildingSizes`. */
   buildingSizes?: BuildingSizes
   /** The user-steered forest layout, or undefined for a plain generate (placeForest then random-picks a
@@ -684,7 +689,7 @@ export function generateStage(opts: GenerateOptions): StageData {
     decor: layerRng(opts.seeds, 'decor'),
   }
   // Single-pass archetypes (forest/cave/temple/boss) read `ctx.rand`; the layout rng is their source.
-  const ctx: ArchetypeContext = { zone, ground, collision, floorColors, buildings, props, trees, compositions, cols, rows, layout, options: opts.options, nature: opts.nature, settlement: opts.settlement, palette: opts.palette, subZones: opts.subZones, buildingSizes: opts.buildingSizes, rand: rngs.layout }
+  const ctx: ArchetypeContext = { zone, ground, collision, floorColors, buildings, props, trees, compositions, cols, rows, layout, options: opts.options, nature: opts.nature, settlement: opts.settlement, palette: opts.palette, subZones: opts.subZones, formation: opts.formation, buildingSizes: opts.buildingSizes, rand: rngs.layout }
   ARCHETYPES[variant]?.(ctx, rngs)
   addTerrainTransitions(ctx) // blended shorelines / lava banks over the painted ground
 
@@ -1320,7 +1325,7 @@ function layoutWoodland(ctx: ArchetypeContext, opts: { river?: boolean; crossing
   //     So: score EVERY plantable cell with spatially-coherent noise, then take the lowest-scoring
   //     `target` of them. Coverage is exact by construction, and it clumps because neighbouring cells
   //     score alike. Nothing is random-walked and nothing terminates early.
-  const field = woodlandCanopyField(ctx, open, canopy)
+  const field = woodlandCanopyField(ctx, open, canopy, ctx.formation)
   for (const { col, row } of field) {
     const kind: LivingTreeKind | 'tree_dead' = ctx.rand() < 0.06 ? 'tree_dead' : pickLivingTree(ctx.rand())
     trees.push({ col, row, kind, variant: massVariant(col, row) })
@@ -1329,6 +1334,20 @@ function layoutWoodland(ctx: ArchetypeContext, opts: { river?: boolean; crossing
 
   // 4 · The clearings get whatever ground cover and flowers the generator asked for. Absent → bare.
   dressWoodlandClearings(ctx, open)
+
+  // 4b · UNDERSTORY between the trunks, when the formation asks for one. Image #15 is a woodland whose hard
+  //      part is the FLOOR — deep green growth you cannot walk through, with a narrow trail cut through it —
+  //      and no amount of canopy tuning produces that, because it is not about the canopy. A formation that
+  //      states no understory runs nothing here, so an ordinary wood is unchanged.
+  if (ctx.formation?.understory !== undefined) {
+    plantUndergrowth(ctx, open, water, ctx.palette)
+    // Undergrowth BLOCKS, so planting it pinches the floor into islands — measured at 363 separate regions
+    // on one seed before this ran. Tracks, NOT the meadow's repair: that one answers a stranded pocket by
+    // filling it with trees, which here both destroys the play area and wrecks the formation (every layout
+    // came out at the same 0.97 clumping once the carpeting had run). These pockets are walled by brush, so
+    // the honest fix is to cut through the brush.
+    joinStrandedRegions(ctx)
+  }
 
   // 5 · KEEP THE FLOOR ONE PLACE. A river can strand a pocket of forest floor behind it, and a pocket you
   //     cannot walk to is a hole in the map. Only the river variant needs this — a plain woodland carves no
@@ -1457,7 +1476,7 @@ function layoutJungle(ctx: ArchetypeContext, opts: { river?: boolean; crossing?:
   //     one number. A map with no regions runs it once, which is the old behaviour exactly.
   const field = zones.length > 0
     ? subZoneCanopyField(ctx, open, canopy, zoneAt, zones)
-    : woodlandCanopyField(ctx, open, canopy)
+    : woodlandCanopyField(ctx, open, canopy, ctx.formation)
   for (const { col, row } of field) {
     const kind: LivingTreeKind | 'tree_dead' = ctx.rand() < 0.04 ? 'tree_dead' : pickLivingTree(ctx.rand())
     trees.push({ col, row, kind, variant: massVariant(col, row) })
@@ -1511,7 +1530,9 @@ function joinStrandedRegions(ctx: ArchetypeContext): void {
   const { cols, rows, collision } = ctx
   const isFloor = (col: number, row: number) => inBounds(col, row, cols, rows) && !collision[row][col]
 
-  for (let guard = 0; guard < 12; guard++) {
+  // A few passes, because one track can absorb several strays at once and re-flooding is cheaper than
+  // assuming it did not. Each pass strictly reduces the count, so this cannot spin.
+  for (let guard = 0; guard < 6; guard++) {
     const seen = new Set<string>()
     const found: Set<string>[] = []
     forEachCell(cols, rows, (col, row) => {
@@ -1521,22 +1542,40 @@ function joinStrandedRegions(ctx: ArchetypeContext): void {
     if (found.length <= 1) return
     found.sort((a, b) => b.size - a.size)
     const main = found[0]
-    // One track per pass, then re-measure: cutting to one stray can absorb several at once, so re-flooding
-    // is cheaper than assuming it did not.
-    const stray = found[1]
-    const from = nearestCell(toCell([...main][0]), stray)
-    const to = from ? nearestCell(from, main) : null
-    if (!from || !to) return
-    const carved = new Set<string>()
-    traceJungleTrack(ctx, from, to, carved)
-    for (const key of carved) {
-      const { col, row } = toCell(key)
-      if (!inBounds(col, row, cols, rows)) continue
-      collision[row][col] = false
+
+    // EVERY stray in one pass, not one at a time. Dense undergrowth pinches the floor into hundreds of small
+    // islands — measured at 363 on one seed — and joining them one per pass would need hundreds of full
+    // re-floods. The anchor is a cell of the main region near the stray, so the track is short.
+    const mainCells = [...main].map(toCell)
+    for (const stray of found.slice(1)) {
+      const from = toCell([...stray][0])
+      const to = nearestOf(from, mainCells)
+      if (!to) continue
+      const carved = new Set<string>()
+      traceJungleTrack(ctx, from, to, carved)
+      for (const key of carved) {
+        const { col, row } = toCell(key)
+        if (!inBounds(col, row, cols, rows)) continue
+        collision[row][col] = false
+      }
+      // Whatever the track cut through stops standing there — that is what cutting a track means.
+      clearMeadowCells(ctx, carved)
     }
-    // Anything the track cleared stops being undergrowth, so drop what stood there.
-    clearMeadowCells(ctx, carved)
   }
+}
+
+/** The nearest of an already-materialised cell list. Separate from `nearestCell` because that one re-parses
+ *  keys on every call, which is wasted work when the same list is searched hundreds of times. */
+function nearestOf(from: Cell, cells: readonly Cell[]): Cell | null {
+  let best: Cell | null = null
+  let bestD = Infinity
+  for (const cell of cells) {
+    const d = (cell.col - from.col) ** 2 + (cell.row - from.row) ** 2
+    if (d >= bestD) continue
+    bestD = d
+    best = cell
+  }
+  return best
 }
 
 /**
@@ -1649,7 +1688,9 @@ function subZoneCanopyField(
       if (zoneAt[row][col] !== zone) masked.add(`${col},${row}`)
     })
     const target = clamp01(canopy * (zone.canopy ?? 1))
-    out.push(...woodlandCanopyField(ctx, masked, target))
+    // A region's OWN grouping first, the template's as the fallback — a swamp is spaced like a pasture even
+    // inside a jungle whose default is a closed canopy.
+    out.push(...woodlandCanopyField(ctx, masked, target, zone.formation ?? ctx.formation))
   }
   return out
 }
@@ -1834,17 +1875,61 @@ function plantUndergrowth(
   const cover = ctx.nature?.groundCover
   if (cover === undefined) return
   const { cols, rows, collision, floorColors } = ctx
+
+  // UNDERGROWTH GROWS IN MASSES, NOT AS PEPPER.
+  //
+  // Rolling per cell was the first version and it was wrong in a way only measurement showed: a 50% per-cell
+  // chance turns the floor into swiss cheese, and since undergrowth BLOCKS, the walkable remainder came out
+  // as hundreds of disconnected islands — 363 on one seed. Every fix downstream then made it worse. Carpeting
+  // the islands filled the map with trees and flattened every formation to the same 0.97 clumping; cutting a
+  // track to each one stripped the forest back to 47 trees.
+  //
+  // A thicket is contiguous. Scoring against the same coherent noise the canopy uses gives connected masses
+  // with open ground between them, which is both what undergrowth looks like and what leaves the floor in one
+  // piece. Same exact-coverage selection, so the served density is still hit precisely.
+  const claimed = new Set<string>()
+  for (const key of open) claimed.add(key)
+  for (const key of water) claimed.add(key)
   forEachCell(cols, rows, (col, row) => {
-    const key = `${col},${row}`
-    if (open.has(key) || water.has(key) || collision[row][col]) return
-    // The region SCALES the served density; a region that states no multiplier leaves it alone.
-    const scaled = cover * (zoneAt?.[row][col]?.undergrowth ?? 1)
-    if (ctx.rand() >= scaled) return
-    const decor = makeGroundDecor(ctx.zone, col, row)
-    if (decor) placeProp(ctx, decor)
-    collision[row][col] = true // you do not walk through it — that is what undergrowth IS
-    if (pal?.undergrowth) floorColors[row][col] = pal.undergrowth
+    if (collision[row][col]) claimed.add(`${col},${row}`)
   })
+
+  // Per REGION when the map has regions, so dense growth is choked and open canopy is not.
+  const groups: Array<{ zone: GeneratorSubZone | undefined; mask: Set<string> }> = zoneAt
+    ? uniqueZones(zoneAt).map(zone => ({ zone, mask: new Set([...claimed, ...cellsOutsideZone(ctx, zoneAt, zone)]) }))
+    : [{ zone: undefined, mask: claimed }]
+
+  for (const { zone, mask } of groups) {
+    const formation = zone?.formation ?? ctx.formation
+    const understory = formation?.understory ?? 1
+    const density = clamp01(cover * (zone?.undergrowth ?? 1) * understory)
+    if (density <= 0) continue
+    // A coarser lattice than the canopy's, so undergrowth reads as broad thickets rather than as a second
+    // canopy stippled between the trunks.
+    const thicket = woodlandCanopyField(ctx, mask, density, { lattice: (formation?.lattice ?? DEFAULT_CANOPY_LATTICE) + 3 })
+    for (const { col, row } of thicket) {
+      const decor = makeGroundDecor(ctx.zone, col, row)
+      if (decor) placeProp(ctx, decor)
+      collision[row][col] = true // you do not walk through it — that is what undergrowth IS
+      if (pal?.undergrowth) floorColors[row][col] = pal.undergrowth
+    }
+  }
+}
+
+/** The distinct sub-zones actually present on a partition map. */
+function uniqueZones(zoneAt: (GeneratorSubZone | undefined)[][]): Array<GeneratorSubZone | undefined> {
+  const seen = new Set<GeneratorSubZone | undefined>()
+  for (const row of zoneAt) for (const zone of row) seen.add(zone)
+  return [...seen]
+}
+
+/** Every cell NOT in this region, as keys — the mask that confines a pass to one region. */
+function cellsOutsideZone(ctx: ArchetypeContext, zoneAt: (GeneratorSubZone | undefined)[][], zone: GeneratorSubZone | undefined): string[] {
+  const out: string[] = []
+  forEachCell(ctx.cols, ctx.rows, (col, row) => {
+    if (zoneAt[row][col] !== zone) out.push(`${col},${row}`)
+  })
+  return out
 }
 
 /** EMERGENTS — the handful of giants standing clear above the canopy, the tallest thing in an Amazon frame.
@@ -1906,7 +1991,7 @@ function carveWoodlandPath(ctx: ArchetypeContext, from: Cell, to: Cell, open: Se
 
 /** Lattice spacing for the canopy noise, in cells. Larger = broader stands; 4 gives tree masses a few
  *  cells across, which is what reads as woodland rather than as hedges. */
-const CANOPY_LATTICE = 4
+const DEFAULT_CANOPY_LATTICE = 4
 
 /**
  * Which cells get a tree: exactly `canopy` of the plantable ones, chosen so they clump.
@@ -1923,8 +2008,13 @@ const CANOPY_LATTICE = 4
  * grow, so counting clearings in the denominator would make the density mean less the more clearings a map
  * happened to roll.
  */
-function woodlandCanopyField(ctx: ArchetypeContext, open: Set<string>, canopy: number): Cell[] {
+function woodlandCanopyField(ctx: ArchetypeContext, open: Set<string>, canopy: number, formation?: GeneratorFormation): Cell[] {
   const { cols, rows, collision } = ctx
+  // THE GROUPING. Alexander, 2026-09-11: *"there's different ways in which trees and nature is distributed
+  // across these zones"*. A small lattice scores every few cells differently, so trees land as fine scatter
+  // (his image #10, a wood pasture); a large one makes neighbours score alike, so they land as continuous
+  // masses (image #14, a closed canopy). Same density, completely different forest.
+  const CANOPY_LATTICE = Math.max(1, Math.round(formation?.lattice ?? DEFAULT_CANOPY_LATTICE))
   // The lattice — one random value per corner, drawn from the layer rng so a seed reproduces the forest.
   const latticeCols = Math.ceil(cols / CANOPY_LATTICE) + 2
   const latticeRows = Math.ceil(rows / CANOPY_LATTICE) + 2
@@ -1956,7 +2046,33 @@ function woodlandCanopyField(ctx: ArchetypeContext, open: Set<string>, canopy: n
   }
   const target = Math.round(scored.length * Math.max(0, Math.min(1, canopy)))
   scored.sort((a, b) => a.n - b.n)
-  return scored.slice(0, target).map(({ col, row }) => ({ col, row }))
+
+  // SPACING. With no minimum gap the lowest-scoring cells sit shoulder to shoulder and the stand reads as a
+  // solid wall, which is right for a closed canopy (his image #14) and wrong for everything else. A gap of
+  // 3 forces the open, individually-readable spacing of a wood pasture (image #10) at the SAME density —
+  // the trees spread out to find room rather than there being fewer of them.
+  // SPACING 1 IS A TRAP and the served formations avoid it. Claiming only the four orthogonal neighbours
+  // leaves every second cell free, which is a CHECKERBOARD: passable diagonally (how you move in the iso
+  // view) and not orthogonally (how you move in top view), so the floor measures as hundreds of separate
+  // regions and the repair then has to cut its way through the whole wood. 0 means a mass, 2+ means readable
+  // individuals; 1 means a pattern no forest has.
+  const gap = Math.max(0, Math.round(formation?.spacing ?? 0))
+  if (gap <= 0) return scored.slice(0, target).map(({ col, row }) => ({ col, row }))
+
+  const taken: Cell[] = []
+  const claimed = new Set<string>()
+  for (const cell of scored) {
+    if (taken.length >= target) break
+    if (claimed.has(`${cell.col},${cell.row}`)) continue
+    taken.push({ col: cell.col, row: cell.row })
+    // Claim the disc around it, so nothing else plants inside the gap.
+    for (let dr = -gap; dr <= gap; dr++) {
+      for (let dc = -gap; dc <= gap; dc++) {
+        if (Math.hypot(dc, dr) <= gap) claimed.add(`${cell.col + dc},${cell.row + dr}`)
+      }
+    }
+  }
+  return taken
 }
 
 /**
