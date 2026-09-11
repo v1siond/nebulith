@@ -28,21 +28,21 @@ defmodule NebulithWeb.TemplateController do
   end
 
   def show(conn, %{"id" => id}) do
-    render(conn, :show, template: Catalog.get_template!(id))
+    with {:ok, %Template{} = template} <- Catalog.get_template(id) do
+      render(conn, :show, template: template)
+    end
   end
 
   def update(conn, %{"id" => id} = params) do
-    template = Catalog.get_template!(id)
-
-    with {:ok, %Template{} = template} <- Catalog.update_template(template, params) do
+    with {:ok, %Template{} = found} <- Catalog.get_template(id),
+         {:ok, %Template{} = template} <- Catalog.update_template(found, params) do
       render(conn, :show, template: template)
     end
   end
 
   def delete(conn, %{"id" => id}) do
-    template = Catalog.get_template!(id)
-
-    with {:ok, %Template{}} <- Catalog.delete_template(template) do
+    with {:ok, %Template{} = template} <- Catalog.get_template(id),
+         {:ok, %Template{}} <- Catalog.delete_template(template) do
       json(conn, %{success: true, id: id})
     end
   end

@@ -125,6 +125,21 @@ defmodule Nebulith.Catalog do
   @doc "Gets a single template. Raises `Ecto.NoResultsError` if it does not exist."
   def get_template!(id), do: Repo.get!(Template, id)
 
+  @doc """
+  A saved map by id, or `{:error, :not_found}`.
+
+  The bang version RAISES, which reached the client as an `Ecto.NoResultsError` debug page — HTML, to a
+  caller that asked for JSON. `FallbackController` has had a `{:error, :not_found}` clause all along; this
+  is what lets a controller reach it. A missing map is an ordinary answer to an ordinary question, not an
+  exception (Alexander, 2026-09-10: *"let's correctly handle errors in frontend, like 404, 500, etc"*).
+  """
+  def get_template(id) do
+    case Repo.get(Template, id) do
+      nil -> {:error, :not_found}
+      %Template{} = template -> {:ok, template}
+    end
+  end
+
   @doc "Creates a template. Generates a text id when the caller does not supply one."
   def create_template(attrs) do
     attrs = Map.put_new(attrs, "id", Ecto.UUID.generate())
