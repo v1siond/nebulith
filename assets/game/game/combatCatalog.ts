@@ -5,10 +5,15 @@
  * their footprints, basically anything that is DATA should be moved to the backend, the frontend just
  * processes the data algorithmically"*.
  *
- * What came over: the nine enemy archetypes (`game/archetypes.ts`'s `ENEMY_ARCHETYPES`), the tunable
- * coefficients the damage maths multiplies by (`game/combat.ts`), and the default stat lines
- * (`game/entities.ts`). What did NOT: the formulas. `(weapon.baseDamage + strength) * multiplier` is the
- * shape of the algorithm, and the frontend is what runs it.
+ * What came over: the tunable coefficients the damage maths multiplies by (`game/combat.ts`) and the
+ * default stat lines (`game/entities.ts`). What did NOT: the formulas. `(weapon.baseDamage + strength) *
+ * multiplier` is the shape of the algorithm, and the frontend is what runs it.
+ *
+ * A CREATURE's numbers are not here either. Alexander, 2026-09-10: *"an enemy is just a regular unit, but
+ * marked as hostile towards player. so, I don't think we need a separate table for it"*. He was right: the
+ * archetype table held nine entries for eight creatures, one each, with a frontend map translating between
+ * the two vocabularies. A creature's stat block now rides on its own TILE (`settings.combat`) and arrives
+ * with the tileset, so `enemyCombat()` reads it from there.
  *
  * ## Two rules this file exists to keep
  *
@@ -22,19 +27,17 @@
  *    here is a FUNCTION, called when something renders or runs.
  */
 import { NEBULITH_API } from '@/lib/nebulithApi'
+import { styleTile } from '@/engine/tileset/styleTiles'
 import type { AttackPattern, Stats } from './types'
 
-
-/** One archetype as `/api/combat` serves it. */
-export interface ApiArchetype {
-  key: string
-  name: string
+/** What a creature fights with, as its tile row carries it. */
+export interface CreatureCombat {
   stats: Record<string, number>
   moveDelayMs: number
   reachCells: number
   attack: AttackPattern
-  position: number
 }
+
 
 /** Which resource a SPECIAL of a school spends, and how it fails when short. */
 export interface ResourceRule {
@@ -61,41 +64,14 @@ export interface StatRules {
   respawnMs: number
 }
 
-let ARCHETYPES: readonly ApiArchetype[] = []
 let COMBAT: CombatRules | null = null
 let STATS: StatRules | null = null
 
 const isObject = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null
 
-/** A row is kept only if it carries the fields every reader needs. A half-row is DROPPED, loudly. */
-function toArchetype(row: unknown): ApiArchetype | null {
-  if (!isObject(row)) return null
-  const { key, name, stats, moveDelayMs, reachCells, attack, position } = row
-  if (typeof key !== 'string' || key === '' || typeof name !== 'string') {
-    console.warn('[combat] a served archetype has no key or name and was dropped', row)
-    return null
-  }
-  if (typeof moveDelayMs !== 'number' || typeof reachCells !== 'number') {
-    console.warn(`[combat] archetype "${key}" is missing its pace or reach and was dropped`, row)
-    return null
-  }
-  return {
-    key,
-    name,
-    stats: isObject(stats) ? (stats as Record<string, number>) : {},
-    moveDelayMs,
-    reachCells,
-    attack: (attack ?? { mode: 'sequential', attacks: [] }) as AttackPattern,
-    position: typeof position === 'number' ? position : 0,
-  }
-}
-
 /** Install a served payload. Exported so tests and the loader share one way in. */
 export function installCombatCatalog(body: unknown): void {
   const data = isObject(body) && isObject(body.data) ? body.data : undefined
-  const rows = Array.isArray(data?.archetypes) ? data.archetypes : []
-  ARCHETYPES = rows.map(toArchetype).filter((a): a is ApiArchetype => a !== null)
-
   const rules = isObject(data?.rules) ? data.rules : {}
   COMBAT = isObject(rules.combat) ? (rules.combat as unknown as CombatRules) : null
   STATS = isObject(rules.stats) ? (rules.stats as unknown as StatRules) : null
@@ -112,19 +88,21 @@ export async function loadCombatCatalog(): Promise<void> {
   }
 }
 
-/** Every archetype the backend serves, in menu order. Empty until it answers. */
-export function enemyArchetypes(): readonly ApiArchetype[] {
-  return ARCHETYPES
-}
-
-/** One archetype by key, or undefined when the backend serves no such creature. */
-export function enemyArchetype(key: string | undefined): ApiArchetype | undefined {
-  return key === undefined ? undefined : ARCHETYPES.find(a => a.key === key)
-}
-
-/** The archetype keys, in menu order — for pickers and rosters. */
-export function enemyArchetypeIds(): readonly string[] {
-  return ARCHETYPES.map(a => a.key)
+/**
+ * The stat block a creature fights with, read off its own TILE.
+ *
+ * A creature IS a unit tile, so its numbers live in that tile's `settings.combat` and arrive with the
+ * tileset. Undefined for a tile that carries none — a peaceful animal, a prop, a person — and the caller
+ * then places a plain unit rather than inventing a fighter.
+ *
+ * Structure is style-identical (a style only changes the picture), so this reads the same catalog every
+ * other structure reader does.
+ */
+export function enemyCombat(label: string | undefined): CreatureCombat | undefined {
+  if (!label) return undefined
+  const settings = styleTile('ascii', label)?.settings as { combat?: unknown } | undefined
+  const combat = settings?.combat
+  return isObject(combat) ? (combat as unknown as CreatureCombat) : undefined
 }
 
 /** The combat coefficients, or null when the backend has not answered. */
