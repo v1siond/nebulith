@@ -247,6 +247,8 @@ export interface NatureDensity {
   flowers?: number
   /** Tree cover, 0–1. A woodland reads as woodland from about 0.35 up. */
   canopy?: number
+  /** The share of open floor standing in walkable LONG GRASS, 0 to 1. Absent means none. */
+  tallGrass?: number
 }
 
 type Cell = { col: number; row: number }
@@ -301,12 +303,50 @@ export function pickLivingTree(rand: number, mix?: readonly GeneratorTreeWeight[
 /** One blocking biome-feature cell (mountain / peak / spill) — appearance from
  *  the tileset's per-zone feature palette (ember crater in lava, snowcap + blue
  *  waterfall otherwise). Always blocks (it's terrain). */
-const makeFeatureCell = (zone: ZoneId, col: number, row: number, label: CellLabel): StageProp => {
-  const tile = resolveTile(styleCatalog('ascii'), zone, label) // LOADS from the tileset, not hardcoded cellTile
-  return { col, row, type: 'feature', char: tile.char, blocking: true, color: tile.color, label }
+// Walkable flowers read from the zone's curated bloom set (ZONE_FLOWERS in zones.ts).
+/**
+ * A THICKET: the undergrowth you cannot push through, drawn as itself.
+ *
+ * Alexander, 2026-09-11: *"some collisions are actually dumb lol, we are using collissions in flowers / like, I
+ * get it on trees, but flowers? come on, let's have some common sense when doing these generators / it's easy to
+ * know which things should be walkable and which shouldn't."* The undergrowth pass used to place the same little
+ * clover a meadow uses and then stamp `collision = true` over it, so what you saw was walkable and what you hit
+ * was a wall. This is the thing that blocks, and it looks like it.
+ */
+const makeThicket = (zone: ZoneId, col: number, row: number): StageProp => {
+  const tile = resolveTile(styleCatalog('ascii'), zone, 'thicket')
+  return { col, row, type: 'thicket', char: tile.char, label: 'thicket', blocking: true, color: tile.color }
 }
 
-// Walkable flowers read from the zone's curated bloom set (ZONE_FLOWERS in zones.ts).
+/** LONG GRASS you walk INTO: *"look pokemon they ahve regular grass and regular roads, but ALSO, have different
+ *  type of long grass where pokemon appears, that long grass is walkable"*. Walkable, so `placeProp` leaves the
+ *  cell open. */
+const makeTallGrass = (zone: ZoneId, col: number, row: number): StageProp => {
+  const tile = resolveTile(styleCatalog('ascii'), zone, 'tall_grass')
+  return { col, row, type: 'tall_grass', char: tile.char, label: 'tall_grass', blocking: false, color: tile.color }
+}
+
+/** How coarse the long-grass patches are, in cells: grass grows in stands, not as pepper. */
+const TALL_GRASS_PATCH = 4
+
+/**
+ * Patches of long grass over the open floor, as much of it as the generator SERVES (`nature.tallGrass`). No
+ * served share means none, like every other density here: this file invents no numbers.
+ */
+function scatterTallGrass(ctx: ArchetypeContext): void {
+  const share = ctx.nature?.tallGrass
+  if (share === undefined) return
+  const { cols, rows, collision, ground } = ctx
+  const occupied = new Set(ctx.props.map(p => `${p.col},${p.row}`))
+  forEachCell(cols, rows, (col, row) => {
+    if (collision[row][col] || isWaterGround(ground[row][col])) return
+    if (BUILT_FLOOR.has(ground[row][col]) || isRoadGround(ground[row][col])) return // keep paving and roads clear
+    if (occupied.has(`${col},${row}`)) return
+    if (shadeNoise(Math.floor(col / TALL_GRASS_PATCH) * 2.3 + Math.floor(row / TALL_GRASS_PATCH) * 3.7) > share) return
+    placeProp(ctx, makeTallGrass(ctx.zone, col, row))
+  })
+}
+
 const makeFlower = (rng: Rng, zone: ZoneId, col: number, row: number): StageProp => {
   const set = zoneFlowers(zone) ?? defaultFlowers()
   const pick: FlowerKind = set[randIntWith(rng, 0, set.length - 1)] // seeded pick — the caller passes its layer rng so the pass stays reproducible
@@ -1527,6 +1567,7 @@ function layoutWoodland(ctx: ArchetypeContext, opts: ForestBuild = {}): void {
 
   // 4 · The clearings get whatever ground cover and flowers the generator asked for. Absent → bare.
   dressWoodlandClearings(ctx, open)
+  scatterTallGrass(ctx) // patches of walkable long grass, as much as the generator serves
 
   // 4b · UNDERSTORY between the trunks, when the formation asks for one. Image #15 is a woodland whose hard
   //      part is the FLOOR — deep green growth you cannot walk through, with a narrow trail cut through it —
@@ -2252,9 +2293,10 @@ function plantUndergrowth(
     // canopy stippled between the trunks.
     const thicket = woodlandCanopyField(ctx, mask, density, { lattice: (formation?.lattice ?? DEFAULT_CANOPY_LATTICE) + 3 })
     for (const { col, row } of thicket) {
-      const decor = makeGroundDecor(ctx.zone, col, row)
-      if (decor) placeProp(ctx, decor)
-      collision[row][col] = true // you do not walk through it — that is what undergrowth IS
+      // A THICKET stands here, and `placeProp` blocks the cell because the thicket blocks. Stamping collision
+      // was the bug: it made a clover into a wall. If the cell cannot take the thicket (water, already blocked)
+      // it stays exactly as it was rather than becoming an invisible obstacle.
+      placeProp(ctx, makeThicket(ctx.zone, col, row))
       if (pal?.undergrowth) floorColors[row][col] = pal.undergrowth
     }
   }
@@ -2699,6 +2741,7 @@ function buildMeadow(ctx: ArchetypeContext, opts: MeadowBuild): void {
   } else {
     paintMeadowEntrance(ctx, water, routes)       // ONE bottom-left cobble entrance, lamp posts + flower beds
   }
+  scatterTallGrass(ctx)                           // patches of walkable long grass, as much as the generator serves
   repairFloorConnectivity(ctx, MEADOW_MAX_POCKET) // fill only TINY stranded pockets; the land strip beyond the river stays (decor)
   if (opts.river) bridgeRiver(ctx, water, routes, opts.river, opts.crossing === true, meadowWater(ctx)) // after repair, so the deck is never filled back in
   settleWaterDepth(ctx, meadowWater(ctx)) // last, once the bridge is down
