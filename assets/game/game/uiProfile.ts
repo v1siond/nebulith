@@ -95,6 +95,40 @@ export async function loadUiProfile(gameId?: string): Promise<void> {
   }
 }
 
+/**
+ * Save this game's bars. The first save FORKS the shared default into a profile for this game.
+ *
+ * Whole-list, not per-bar: one gesture in the editor can add, remove and reorder, and reconciling that
+ * row by row would be more moving parts than the thing is worth.
+ */
+export async function saveBars(gameId: string | undefined, bars: readonly UiBar[]): Promise<boolean> {
+  return save(gameId, { bars })
+}
+
+/** Save element placements — only the ones given, so moving one piece leaves the rest alone. */
+export async function saveElements(gameId: string | undefined, elements: readonly UiElement[]): Promise<boolean> {
+  return save(gameId, { elements })
+}
+
+async function save(gameId: string | undefined, body: Record<string, unknown>): Promise<boolean> {
+  try {
+    const url = gameId ? `${NEBULITH_API}/ui?game=${encodeURIComponent(gameId)}` : `${NEBULITH_API}/ui`
+    const res = await fetch(url, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    // The answer IS the saved profile, so the panel redraws from what actually landed rather than from
+    // what it hoped it sent.
+    installUiProfile(await res.json())
+    return true
+  } catch (error) {
+    console.warn('[ui] the player-UI profile could not be saved', error)
+    return false
+  }
+}
+
 /** Every bindable action, in menu order. Empty until the backend answers. */
 export function uiActions(): readonly UiAction[] {
   return ACTIONS

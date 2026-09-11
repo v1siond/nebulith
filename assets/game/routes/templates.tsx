@@ -5509,7 +5509,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
             <ZoneCollapse name={activeRailId === 'generate' ? 'New world' : activeRailId === 'rules' ? 'Rules' : 'Library'} shut={zoneShut.panel} side="left" onToggle={() => toggleZone('panel')} />
             {/* THE PLAYER'S UI. It is a MODE, not a rail panel: the HUD is arranged ON the running game, so
                 it takes the panel slot and drops the cell inspector (a HUD element is not a cell). */}
-            {hudMode && <PlayerUiPanel state={hudLayout} onDone={() => setHudMode(false)} />}
+            {hudMode && <PlayerUiPanel state={hudLayout} onDone={() => setHudMode(false)} gameId={gameContext?.gameId} />}
 
             {!hudMode && activeRailId === 'terrain' && (
               <>

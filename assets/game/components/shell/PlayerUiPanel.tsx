@@ -38,6 +38,7 @@ import {
 } from './playerUi.data'
 
 import { Hint, NumberField, Segmented, Slider, WideButton } from './Controls'
+import { BarsTab } from './BarsTab'
 import { InfoButton } from './InfoButton'
 
 /** The shared, editable layout. One hook, so the panel and the overlay can never disagree. */
@@ -256,7 +257,10 @@ const EXTRAS: Record<string, () => React.ReactNode> = {
 }
 
 /** The panel beside the running game. */
-export function PlayerUiPanel({ state, onDone }: { state: HudLayoutState; onDone: () => void }) {
+export function PlayerUiPanel({ state, onDone, gameId }: { state: HudLayoutState; onDone: () => void; gameId?: string }) {
+  // Two tabs, because the panel answers two different questions: WHERE a piece sits, and WHAT the bars are.
+  // Spec §2.7 draws three; Controls (the keybind table) comes with the binding editor.
+  const [tab, setTab] = useState<'layout' | 'bars'>('layout')
   const { form, setForm, layout, selected, setSelected, snap, setSnap, guides, setGuides, patch, reset, resetAll } = state
   const [stageW, stageH] = HUD_STAGE[form]
   const collisions = hudCollisions(layout, stageW, stageH)
@@ -275,16 +279,21 @@ export function PlayerUiPanel({ state, onDone }: { state: HudLayoutState; onDone
           The game is running to the right. Drag any piece of the HUD on it — what you see is what your
           players get.
         </Hint>
-        {/* Said plainly, because the alternative is implying a save that does not exist. */}
-        <div className="warn">
-          <b>Nothing here is saved yet</b>
-          <u>
-            Configuring the HUD has never existed in the product: there is no profile to write to. These are
-            the real positions, read off the classes each piece is hardcoded with today, so you can see and
-            rearrange them — but the arrangement is lost on reload until the backend for it is built.
-          </u>
-        </div>
+        {/* It saves now. This block used to say it did not, which was true until the profile model landed. */}
         <div className="ctl">
+          <span className="l">Editing</span>
+          <div className="seg" role="group" aria-label="What to edit">
+            <button type="button" className={tab === 'layout' ? 'on' : ''} aria-pressed={tab === 'layout'} onClick={() => setTab('layout')}>
+              Layout
+            </button>
+            <button type="button" className={tab === 'bars' ? 'on' : ''} aria-pressed={tab === 'bars'} onClick={() => setTab('bars')}>
+              Bars
+            </button>
+          </div>
+        </div>
+        {tab === 'bars' && <BarsTab gameId={gameId} />}
+
+        {tab === 'layout' && <div className="ctl">
           <span className="l"><span>Designing for</span><InfoButton helpId="hudform" /></span>
           <div className="seg" role="group" aria-label="Designing for">
             {(['Desktop', 'Mobile'] as HudForm[]).map((f) => (
@@ -293,7 +302,7 @@ export function PlayerUiPanel({ state, onDone }: { state: HudLayoutState; onDone
               </button>
             ))}
           </div>
-        </div>
+        </div>}
         <Hint>Two separate layouts, not one scaled down — a thumb needs a bigger action bar and no FPS readout.</Hint>
         <div className="ctl">
           <span className="l"><span>While dragging</span></span>
@@ -308,7 +317,7 @@ export function PlayerUiPanel({ state, onDone }: { state: HudLayoutState; onDone
         </div>
       </div>
 
-      <div className="grid" style={{ gridTemplateColumns: '1fr', gap: 1, padding: 10 }}>
+      {tab === 'layout' && <div className="grid" style={{ gridTemplateColumns: '1fr', gap: 1, padding: 10 }}>
         <div className="sub">Pieces of the HUD</div>
         <div className="flist">
           {HUD_ELEMENTS.map((el) => {
@@ -397,7 +406,7 @@ export function PlayerUiPanel({ state, onDone }: { state: HudLayoutState; onDone
         )}
 
         <WideButton onClick={resetAll}>↺ Reset the whole layout to the default</WideButton>
-      </div>
+      </div>}
 
       <div className="pfoot">
         <button type="button" className="b pri" style={{ width: '100%', justifyContent: 'center' }} onClick={onDone}>
