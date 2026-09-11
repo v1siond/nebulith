@@ -85,7 +85,8 @@ import { useConfirm, usePrompt } from '@/components/game/useConfirm'
 import { LevelStepper } from '@/components/game/levelStepper'
 import { GameMenu } from '@/components/game/gameMenu'
 import { describeSaveState } from '@/game/editor/saveState'
-import { useDayNight, useFloatingPanels, useGeneratorCatalog, useInspectorSections, useIsMobile, usePlayerViewRange, useSaveState } from '@/components/game/editorHooks'
+import { useDayNight, useWeather, useFloatingPanels, useGeneratorCatalog, useInspectorSections, useIsMobile, usePlayerViewRange, useSaveState } from '@/components/game/editorHooks'
+import { nextWeather } from '@/engine/render/weather'
 import { findGenerator, rollGridSize, type GeneratorBuildings, type GeneratorCatalog, type GeneratorDef, type GeneratorOptionValue, findGeneratorByKey } from '@/lib/generatorCatalog'
 import { clampMapSize, type MapSize } from '@/lib/mapSize'
 import { buildingSizeSource, composeBuilding, fetchBuildingTypes, installComposedBuildings, installPlannableBuildings, EMPTY_BUILDING_TYPES, type BuildingTypeCatalog } from '@/lib/buildingSizes'
@@ -272,6 +273,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   }, [hideEntities])
   // Day/Night: the render loop reads the ref each frame; default day.
   const { dayNight, setDayNight, dayNightRef } = useDayNight('day')
+  const { weather, setWeather, weatherRef } = useWeather('clear')
   const [initialized, setInitialized] = useState(false)
 
   // Template limits
@@ -4436,6 +4438,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
           now: time,
           quests: questsRef.current,
           dayNight: dayNightRef.current,
+          weather: weatherRef.current,
           style: activeStyleRef.current,
           hoveredCell: hoveredCellRef.current,
           ghost: ghostRef.current, // armed-composition placement shadow (top-down footprint)
@@ -4450,6 +4453,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
           connectors: connectorsRef.current,
           quests: questsRef.current,
           dayNight: dayNightRef.current,
+          weather: weatherRef.current,
           attackAnims: attackAnimsRef.current,
           hitMarkers: hitMarkersRef.current,
           projectiles: projectilesRef.current,
@@ -4475,6 +4479,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
           quests: questsRef.current,
           projectiles: projectilesRef.current,
           dayNight: dayNightRef.current,
+          weather: weatherRef.current,
           attackReach: weaponReach(playerWeaponRef.current),
           style: activeStyleRef.current,
           clampCamera: playModeRef.current,
@@ -5203,6 +5208,8 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
             onSlabBlocks={setGroundThickness}
             dayNight={dayNight}
             onDayNight={() => setDayNight(d => (d === 'day' ? 'night' : 'day'))}
+            weather={weather}
+            onWeather={() => setWeather(nextWeather)}
             showDebug={showDebug}
             onDebug={toggleDebug}
             showCollisions={showCollisions}

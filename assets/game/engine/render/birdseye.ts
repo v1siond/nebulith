@@ -8,6 +8,7 @@ import { type PlayerState, barFraction, hpFraction } from '@/game/runtime/player
 import { type CombatState, type Entity, type Quest } from '@/game/types'
 import { Connector } from '@/lib/api'
 import { ASCII_FONT, type CompositionGhost, type DayNight, applyCellTransform, clampCameraAxis, collectLampGlows, drawCompositionGhostFlat, debugCellCaptions, debugLabelColors, drawConnectorMarker, drawHitMarker, drawHpBar, drawNightLighting, drawQuestMarker, drawStyledImage, drawFlatTileForShape, SINGLE_TILE_FRAC, fillTintedGlyph, grassShade, cellFill, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, resolveAssetDraw, resolveEntityDraw, assetOverride, styleTileImage, labelTileRecolor, tileImage } from './shared'
+import { drawWeather, type WeatherId } from './weather'
 import { resolveAssetDrawSize } from './assetDimensions'
 import { resolveAssetAnimation } from './assetAnimation'
 import { DEPTH_CELL_STEP, depthCells } from './isoBlock'
@@ -59,6 +60,8 @@ export interface RenderTopViewParams {
   now?: number
   quests?: readonly Quest[]
   dayNight?: DayNight
+  /** Weather laid over the frame after the night pass (render/weather.ts). Absent → clear. */
+  weather?: WeatherId
   style?: Style
   hoveredCell?: { col: number; row: number } | null
   /** Armed Tile-composition placement ghost — a translucent footprint at the hover cell before the click. */
@@ -83,6 +86,7 @@ export function renderTopView(params: RenderTopViewParams) {
     now = 0,
     quests = [],
     dayNight = 'day',
+    weather = 'clear',
     style = ASCII_STYLE,
     hoveredCell = null,
     ghost = null,
@@ -499,6 +503,9 @@ export function renderTopView(params: RenderTopViewParams) {
     )
     drawNightLighting(ctx, w, h, lamps)
   }
+
+  // ─── WEATHER, over everything the night pass left, the same in every view.
+  drawWeather(ctx, w, h, weather, now)
 
   // The view's own CHROME — a heading and the keyboard hint. Fine across a full-screen view mode; a 16px
   // banner stamped over a 176px level map, which is why the caller can turn it off.

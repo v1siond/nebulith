@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type Dispatch, type MutableRefObject, type SetStateAction } from 'react'
 import type { DayNight } from '@/engine/render'
+import type { WeatherId } from '@/engine/render/weather'
 import { getEditorSettings, readBooleanSetting, readGeometrySetting, readNumberSetting, saveEditorSetting, type EditorSettings, type PanelGeometry } from '@/lib/editorSettings'
 import { sectionIsOpen, sectionSettingKey, type InspectorSectionId } from '@/game/editor/inspectorSections'
 import { EMPTY_GENERATOR_CATALOG, fetchGeneratorCatalog, type GeneratorCatalog } from '@/lib/generatorCatalog'
@@ -21,6 +22,21 @@ export function useDayNight(initial: DayNight = 'day'): {
     dayNightRef.current = dayNight
   }, [dayNight])
   return { dayNight, setDayNight, dayNightRef }
+}
+
+/** The weather laid over the map, and a ref the render loop reads without re-subscribing, exactly like
+ *  useDayNight. Alexander, 2026-09-11: *"a rain status, which would similar to the night mode"*. */
+export function useWeather(initial: WeatherId = 'clear'): {
+  weather: WeatherId
+  setWeather: Dispatch<SetStateAction<WeatherId>>
+  weatherRef: MutableRefObject<WeatherId>
+} {
+  const [weather, setWeather] = useState<WeatherId>(initial)
+  const weatherRef = useRef<WeatherId>(initial)
+  useEffect(() => {
+    weatherRef.current = weather
+  }, [weather])
+  return { weather, setWeather, weatherRef }
 }
 
 /**

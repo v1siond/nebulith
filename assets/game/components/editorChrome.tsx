@@ -25,6 +25,7 @@ import { HelpButton } from './editorHelp'
 import { ViewButton } from './controls'
 import type { Orientation } from '@/engine/render/isoOrientation'
 import type { DayNight } from '@/engine/render'
+import { WEATHER_LABEL, type WeatherId } from '@/engine/render/weather'
 import { collapseSizedBuildings, isSizable, type SizedBuildingItem } from '@/engine/sizedBuildings'
 import { typeOfComposedKind, type BuildingTypeCatalog, type Footprint } from '@/lib/buildingSizes'
 
@@ -1948,6 +1949,7 @@ export function ViewBar({
   playerRange, onPlayerRange,
   slabBlocks, onSlabBlocks,
   dayNight, onDayNight,
+  weather, onWeather,
   showDebug, onDebug,
   showCollisions, onCollisions,
   hideEntities, onHideEntities,
@@ -1975,6 +1977,9 @@ export function ViewBar({
   zoomPct: number
   dayNight: DayNight
   onDayNight: () => void
+  /** The weather over the map and how to step it, like Day/Night. Absent → no weather button. */
+  weather?: WeatherId
+  onWeather?: () => void
   showDebug: boolean
   onDebug: () => void
   showCollisions: boolean
@@ -2035,6 +2040,16 @@ export function ViewBar({
       >
         {dayNight === 'night' ? '🌙 Night' : '☀ Day'}
       </button>
+      {onWeather && weather && (
+        <button
+          onClick={onWeather}
+          aria-pressed={weather !== 'clear'}
+          title="Weather: rain for now, more to come"
+          className={`b sm${weather !== 'clear' ? ' on' : ''}`}
+        >
+          {WEATHER_LABEL[weather]}
+        </button>
+      )}
 
       {/* RELATIVE trigger, ABSOLUTE panel anchored to it. The shared `Dropdown` is deliberately FIXED so it
           can escape the TOP bar's clipping — but this bar sits at the BOTTOM, so a fixed panel anchored

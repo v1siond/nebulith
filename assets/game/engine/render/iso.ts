@@ -15,6 +15,7 @@ import { type CombatState, type Entity, type Quest } from '@/game/types'
 import { resolveGroundTile, type TileShape } from '@/engine/tileset/tileset'
 import { Connector } from '@/lib/api'
 import { ASCII_FONT, COMBAT_RANGE, type DayNight, type DrawVisual, ENEMY_MOVE_MS, LIGHT, applyCellTransform, isoCameraFocus, assetCaptionByCell, terrainLabelAt, collectLampGlows, type CompositionGhost, compositionGhostColors, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawHoverRing, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawConnectorMarker, drawAttackAnimFrame, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, clipToBall, SINGLE_TILE_FRAC, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, frameImage, getPlayerArt, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, resolveAssetDraw, resolveEntityDraw, assetOverride, styleTileImage, labelTileRecolor, groundDecorImage, tileImage, tintedImage, tintedGlyphSprite, treeCellSet } from './shared'
+import { drawWeather, type WeatherId } from './weather'
 import { resolveAssetDrawSize } from './assetDimensions'
 import { resolveAssetAnimation } from './assetAnimation'
 import { getStack, assetStackIndexer, unitStandLevel, type TileSource } from '@/engine/cellStack'
@@ -350,6 +351,8 @@ export interface IsoRenderParams {
   quests?: readonly Quest[]
   projectiles?: readonly Projectile[]
   dayNight?: DayNight
+  /** Weather laid over the frame after the night pass (render/weather.ts). Absent → clear. */
+  weather?: WeatherId
   attackReach?: number
   style?: Style
   clampCamera?: boolean
@@ -443,6 +446,7 @@ export function render(params: IsoRenderParams) {
     quests = [],
     projectiles = [],
     dayNight = 'day',
+    weather = 'clear',
     attackReach = 1,
     style = ASCII_STYLE,
     clampCamera = true,
@@ -910,6 +914,9 @@ export function render(params: IsoRenderParams) {
     const lamps = collectLampGlows(grid, (c, r) => toScreen(c, r), tileW, tileH * 1.5, w, h, { time, style, view: 'iso' }, bulbAnchor, entities)
     drawNightLighting(ctx, w, h, lamps)
   }
+
+  // ─── WEATHER, over everything the night pass left, the same in every view.
+  drawWeather(ctx, w, h, weather, time)
 
   // ─── DEBUG MODE ────────────────────────────────────────────────────
 

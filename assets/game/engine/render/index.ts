@@ -5,3 +5,4 @@ export { tileGeomPolygon, tileGeomCentroid, tilesInScreenRect, type Pt } from '.
 export { polyBBox, tileHandlePoints, handleAtPoint, dragOutwardPx, scaleFromDrag, depthFromDrag, drawTileHandles, HANDLE_HIT_RADIUS, HANDLE_SIZE, type TileHandle, type HandleId } from './tileHandles'
 export { renderTopView } from './birdseye'
 export { clampCameraAxis, isoCameraFocus, entityMotion, ENEMY_MOVE_MS, isDebugMode, setDebugMode, isShowCollisions, setShowCollisions, cellCaptionMap, compositionGhostColors, drawCompositionGhostFlat, type CompositionGhost, type DayNight } from './shared'
+export { type WeatherId } from './weather'

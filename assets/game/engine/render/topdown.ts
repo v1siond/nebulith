@@ -16,6 +16,7 @@ import { resolveTileSize, resolveTilePose } from '@/engine/tileset/tileViewSetti
 import { resolveTileHeight } from '@/engine/tileset/tileHeight'
 import { Connector } from '@/lib/api'
 import { ASCII_FONT, COMBAT_RANGE, type DayNight, ENEMY_MOVE_MS, applyCellTransform, clampCameraAxis, assetCaptionByCell, terrainLabelAt, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawHoverRing, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawConnectorMarker, drawAttackAnimFrame, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, drawFlatTileForShape, SINGLE_TILE_FRAC, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, frameImage, getPlayerArt, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, resolveAssetDraw, resolveEntityDraw, assetOverride, styleTileImage, labelTileRecolor, groundDecorImage, type DrawVisual } from './shared'
+import { drawWeather, type WeatherId } from './weather'
 import { resolveAssetDrawSize } from './assetDimensions'
 import { resolveAssetAnimation } from './assetAnimation'
 import { DEPTH_CELL_STEP } from './isoBlock'
@@ -356,6 +357,8 @@ export interface Render2DParams {
   connectors?: Connector[]
   quests?: readonly Quest[]
   dayNight?: DayNight
+  /** Weather laid over the frame after the night pass (render/weather.ts). Absent → clear. */
+  weather?: WeatherId
   attackAnims?: readonly AttackAnim[]
   hitMarkers?: readonly HitMarker[]
   projectiles?: readonly Projectile[]
@@ -390,6 +393,7 @@ export function render2D(params: Render2DParams) {
     connectors = [],
     quests = [],
     dayNight = 'day',
+    weather = 'clear',
     attackAnims = [],
     hitMarkers = [],
     projectiles = [],
@@ -951,6 +955,9 @@ export function render2D(params: Render2DParams) {
     const lamps = collectLampGlows(grid, (c, r) => toScreen(c + 0.5, r + 0.5), tileW, tileH * 2.2, w, h, { time, style, view: '2d' }, bulbAnchor, entities)
     drawNightLighting(ctx, w, h, lamps)
   }
+
+  // ─── WEATHER, over everything the night pass left, the same in every view.
+  drawWeather(ctx, w, h, weather, time)
 
   // ─── Hover + selection HIGHLIGHT — INVERTED: outline the ACTUAL rendered TILE (its recorded 2D rect,
   //     scaleY/heightLevel-lift/zOffset/pose aware) so the ring hugs what the user sees, not the flat cell.
