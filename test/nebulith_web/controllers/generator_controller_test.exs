@@ -53,7 +53,19 @@ defmodule NebulithWeb.GeneratorControllerTest do
       # The editor draws these toggles straight from here and greys the crossing out until the river is on.
       # It never hardcodes the pair, so the shape is the contract — keys, labels, defaults and `requires`.
       assert woodland["options"] == [
-               %{"key" => "river", "label" => "A river through it", "type" => "toggle", "default" => false},
+               %{
+                 "key" => "river",
+                 "label" => "River",
+                 "type" => "choice",
+                 "default" => "none",
+                 "choices" => [
+                   %{"key" => "none", "label" => "No river"},
+                   %{"key" => "random", "label" => "Random"},
+                   %{"key" => "through", "label" => "Winds through (easy to cross)"},
+                   %{"key" => "divides", "label" => "Divides the map in two"},
+                   %{"key" => "around", "label" => "Around the edge"}
+                 ]
+               },
                %{
                  "key" => "crossing",
                  "label" => "A crossing joined to the paths",

@@ -41,8 +41,26 @@ defmodule Nebulith.Catalog.GeneratorSource do
   # `requires` is what keeps the panel honest: a crossing is meaningless without a river, so it says so
   # rather than the frontend knowing it. That was his next ticket too — *"rivers need crossings connected to
   # the paths"* — and as an option it is one more row here, never another template.
+  #
+  # THE RIVER IS A CHOICE OF COURSE, not an on/off. Alexander, 2026-09-11: *"the rivers aren't consistently
+  # generated, It'd like to have variants of river usage, maybe it's traversable, maybe it's dividing the map
+  # in two half, maybe it's around the map, etc right now is super random, and while I want and think the
+  # randomness is good, we need to parametize it a bit more"*. So each course he named is a choice, and the
+  # randomness he wants to keep is one of them rather than the only behaviour.
   @water_options [
-    %{"key" => "river", "label" => "A river through it", "type" => "toggle", "default" => false},
+    %{
+      "key" => "river",
+      "label" => "River",
+      "type" => "choice",
+      "default" => "none",
+      "choices" => [
+        %{"key" => "none", "label" => "No river"},
+        %{"key" => "random", "label" => "Random"},
+        %{"key" => "through", "label" => "Winds through (easy to cross)"},
+        %{"key" => "divides", "label" => "Divides the map in two"},
+        %{"key" => "around", "label" => "Around the edge"}
+      ]
+    },
     %{
       "key" => "crossing",
       "label" => "A crossing joined to the paths",

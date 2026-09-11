@@ -66,7 +66,10 @@ defmodule Nebulith.GeneratorSourceTest do
 
       for g <- cats["forest"].generators do
         assert Enum.map(g.options, & &1["key"]) == ~w(river crossing), "#{g.key} offers #{inspect(g.options)}"
-        assert Enum.all?(g.options, &(&1["default"] == false)), "#{g.key} opts something in by default"
+        # Nothing runs by default: no river, and so no crossing either.
+        [river, crossing] = g.options
+        assert river["default"] == "none", "#{g.key} runs a river by default"
+        assert crossing["default"] == false
       end
     end
 
@@ -80,7 +83,18 @@ defmodule Nebulith.GeneratorSourceTest do
       # nonsense, so the row says what it depends on and the editor greys the toggle out from the DATA.
       refute Map.has_key?(river, "requires")
       assert crossing["requires"] == "river"
-      assert crossing["type"] == "toggle" and river["type"] == "toggle"
+      assert crossing["type"] == "toggle"
+      assert river["type"] == "choice"
+    end
+
+    test "the river offers each COURSE he named, and random as one of them" do
+      GeneratorSource.seed()
+      [river, _] = Catalog.list_generator_categories() |> generator("forest", "forest_woodland") |> Map.fetch!(:options)
+
+      # *"maybe it's traversable, maybe it's dividing the map in two half, maybe it's around the map"*, and
+      # *"I want and think the randomness is good"* — random stays, as one choice among the courses.
+      assert Enum.map(river["choices"], & &1["key"]) == ~w(none random through divides around)
+      assert river["default"] in Enum.map(river["choices"], & &1["key"])
     end
 
     test "a settlement or a dungeon offers no options at all" do
