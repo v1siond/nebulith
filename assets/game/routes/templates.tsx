@@ -3544,6 +3544,11 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       // woodland with a river would lose the river.
       options: recipe.options,
       nature: generator.config.nature,
+      // The template's OWN colours. Alexander, 2026-09-10: *"colors should be different"* between a jungle
+      // and a woodland. Every colour used to come from the SEASON, so two different forests in spring were
+      // painted from the same numbers. BOTH call sites get it, the build and the re-roll, or a re-rolled
+      // layer would repaint a jungle in the woodland's tones.
+      palette: generator.config.palette,
       settlement: generator.config.settlement,
       buildingSizes: buildingSizeSource(buildingTypesRef.current),
     })
@@ -3705,6 +3710,11 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       // these instead of there being a `woodland_river` row beside the `woodland` one.
       options,
       nature: generator.config.nature,
+      // The template's OWN colours. Alexander, 2026-09-10: *"colors should be different"* between a jungle
+      // and a woodland. Every colour used to come from the SEASON, so two different forests in spring were
+      // painted from the same numbers. BOTH call sites get it, the build and the re-roll, or a re-rolled
+      // layer would repaint a jungle in the woodland's tones.
+      palette: generator.config.palette,
       // The served settlement tuning — `houseWidths` is the plot-size weighting the town rolls from. Parsed
       // since T-113 and never read until now, exactly like `nature.groundCover`.
       settlement: generator.config.settlement,

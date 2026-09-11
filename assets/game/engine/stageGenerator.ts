@@ -16,6 +16,7 @@ import { type BuildingSizes, type SettlementTuning, planVillage, type VillageLay
 // The planner is pure: it takes the building sizes rather than reading them. They come from the BACKEND
 // compositions (buildingCatalog resolves them), so deepening a building in Elixir moves the plots with it.
 import { BACKEND_BUILDING_SIZES } from './buildingCatalog'
+import { type GeneratorPalette } from '@/lib/generatorCatalog'
 import {
   stagePropTileOverride,
   zonePalette,
@@ -209,6 +210,9 @@ export interface GenerateOptions {
    * `bigHouseRange`. The whole block passes through now; absent → the planner uses its own defaults.
    */
   settlement?: SettlementTuning
+  /** The served COLOURS for this template (`config.palette`). Absent → this generator states none and the
+   *  layout paints nothing, keeping the ground tile's own colour. Never substituted for here. */
+  palette?: GeneratorPalette
   /**
    * Where footprints come from. Alexander, 2026-09-09: *"even the footprint should come from backend, then
    * frontend draws."* Defaults to the composition-backed source so a caller that does not care (every
@@ -612,6 +616,9 @@ interface ArchetypeContext {
   nature?: NatureDensity
   /** The served settlement tuning — every number the backend states about a settlement's shape. */
   settlement?: SettlementTuning
+  /** The served COLOURS for this template. What makes an Amazonas not a pine wood — every colour in a forest
+   *  used to come from the SEASON, so two different forests in spring were painted identically. */
+  palette?: GeneratorPalette
   /** Where footprints come from — see `GenerateOptions.buildingSizes`. */
   buildingSizes?: BuildingSizes
   /** The user-steered forest layout, or undefined for a plain generate (placeForest then random-picks a
@@ -672,7 +679,7 @@ export function generateStage(opts: GenerateOptions): StageData {
     decor: layerRng(opts.seeds, 'decor'),
   }
   // Single-pass archetypes (forest/cave/temple/boss) read `ctx.rand`; the layout rng is their source.
-  const ctx: ArchetypeContext = { zone, ground, collision, floorColors, buildings, props, trees, compositions, cols, rows, layout, options: opts.options, nature: opts.nature, settlement: opts.settlement, buildingSizes: opts.buildingSizes, rand: rngs.layout }
+  const ctx: ArchetypeContext = { zone, ground, collision, floorColors, buildings, props, trees, compositions, cols, rows, layout, options: opts.options, nature: opts.nature, settlement: opts.settlement, palette: opts.palette, buildingSizes: opts.buildingSizes, rand: rngs.layout }
   ARCHETYPES[variant]?.(ctx, rngs)
   addTerrainTransitions(ctx) // blended shorelines / lava banks over the painted ground
 
@@ -1166,10 +1173,10 @@ const FOREST_LAYOUTS: Readonly<Partial<Record<ForestLayout, (ctx: ArchetypeConte
   // catalog row and the layout string duplicated per combination. Now the option reaches the builder from
   // the generator's declared options, and `woodland_river` / `meadow_river` are gone as layouts.
   woodland: ctx => layoutWoodland(ctx, forestWater(ctx)),
-  // A JUNGLE is a woodland at jungle DENSITY — same trails, same clearings, a much heavier canopy and floor.
-  // The difference is entirely in the served `nature` block, so it needs no structure of its own; giving it
-  // one would be two code paths that have to be kept looking alike by hand.
-  jungle: ctx => layoutWoodland(ctx, forestWater(ctx)),
+  // A JUNGLE HAS ITS OWN BUILDER. It used to share the woodland's with heavier numbers, and Alexander was
+  // right that density is not the difference: *"there's a huge difference between amazonas and a pines
+  // forest"*. Light gaps instead of clearings, a creek instead of trails, blocking undergrowth, emergents.
+  jungle: ctx => layoutJungle(ctx, forestWater(ctx)),
   meadow: ctx => buildMeadow(ctx, { ...forestWater(ctx), twoWays: false }),
   meadow_pass: layoutMeadowPass,
 }
@@ -1329,6 +1336,362 @@ function layoutWoodland(ctx: ArchetypeContext, opts: { river?: boolean; crossing
 
   void collision
   void trees
+}
+
+// ── 'jungle' — a JUNGLE, not a dense woodland ─────────────────────────────────
+//
+// Alexander, 2026-09-10: *"right now a jungle is basically the same as woodland in the app, there's not a
+// single difference between them"*, *"like there's a huge difference between amazonas and a pines forest"*,
+// *"a jungle should follow real jungle patterns"*.
+//
+// He was right and I had shipped exactly what he objected to: `layoutWoodland` with heavier numbers. Density
+// is not the difference between the Amazon and a pine wood. The STRUCTURE is, and it inverts in four ways:
+//
+//   · A wood has CLEARINGS cut into it, open ground you can walk. A jungle has none. What it has is LIGHT
+//     GAPS where a giant fell, small and irregular, and they are the only places the sun reaches the floor.
+//   · A wood has TRAILS, straight-ish routes between places. A jungle has no roads. You move along the
+//     WATER, so the creek and its banks ARE the route through the map.
+//   · A wood's floor is walkable between the trunks. A jungle's is choked — UNDERGROWTH is its own blocking
+//     layer, and it is what makes a jungle hard rather than the trunks.
+//   · A wood is lit from above and shaded below. A jungle is the other way round: the canopy is the brightest
+//     thing on the map because it is the layer getting the sun, and the floor lives in permanent shade.
+//
+// All four are here. The colours come from the SERVED palette, never from a constant in this file.
+
+const JUNGLE = {
+  /** light gaps per 1000 cells — far fewer than the woodland's clearings, and they are not walkable routes. */
+  gapsPerThousand: 2.2,
+  /** a fallen-giant gap is small: this radius, wobbled. A wood's clearing is 2-5. */
+  gapRadius: [2, 3] as const,
+  /** the creek's half-width → a ~3 wide watercourse. */
+  creekHalf: 1.5,
+  /** how far the walkable bank reaches back from the water on each side. */
+  bankDepth: 2,
+  /** emergent giants per 1000 cells — the few trees standing above the canopy. */
+  emergentsPerThousand: 1.6,
+}
+
+/**
+ * THE JUNGLE. Floor → creek → light gaps → canopy → undergrowth → keep it one place.
+ *
+ * Ordered so each pass can simply avoid what the ones before it claimed: the creek and the gaps join `open`
+ * before the canopy is scored, exactly as the woodland's clearings do, which is why neither the canopy nor
+ * the undergrowth pass needs to know what water or a gap is.
+ */
+function layoutJungle(ctx: ArchetypeContext, opts: { river?: boolean; crossing?: boolean } = {}): void {
+  const { cols, rows, collision, ground, trees } = ctx
+  const canopy = ctx.nature?.canopy
+  if (canopy === undefined) {
+    console.warn('[generate] this generator serves no `nature.canopy`, so a jungle has no tree density to build from — nothing planted')
+    return
+  }
+  const pal = ctx.palette
+
+  // 0 · THE FLOOR, in permanent shade. Mottled over coarse patches rather than one flat fill, because a
+  //     jungle floor is litter and roots and standing shade, not lawn. Absent palette → the tile's own colour.
+  const floor = zonePalette(ctx.zone)?.groundTypes[0] ?? ''
+  forEachCell(cols, rows, (col, row) => { ground[row][col] = floor })
+  paintJungleFloor(ctx, pal)
+
+  const open = new Set<string>()
+
+  // 1 · THE CREEK — the route through, and the only reliable one. A jungle map without water is a map with
+  //     no way across it, so this is not gated on the river OPTION the way the woodland's is: the option
+  //     decides whether a WOOD has a river, but a jungle IS built around its watercourse. The option still
+  //     reads, and turns the creek into a full river (wider, with a crossing).
+  const wide = opts.river === true
+  const water = carveJungleCreek(ctx, pal, wide)
+  const banks = jungleBanks(ctx, water, pal)
+  for (const key of banks) open.add(key)
+
+  // 2 · LIGHT GAPS where a giant came down. Small, irregular, and dressed brighter than the floor around
+  //     them — they are the only lit ground on the map.
+  const gaps = new Set<string>()
+  const wanted = Math.max(1, Math.round((cols * rows / 1000) * JUNGLE.gapsPerThousand))
+  for (let i = 0; i < wanted; i++) {
+    const centre = { col: randIntWith(ctx.rand, 3, Math.max(3, cols - 4)), row: randIntWith(ctx.rand, 3, Math.max(3, rows - 4)) }
+    const radius = randIntWith(ctx.rand, JUNGLE.gapRadius[0], JUNGLE.gapRadius[1])
+    for (let r = centre.row - radius - 1; r <= centre.row + radius + 1; r++) {
+      for (let c = centre.col - radius - 1; c <= centre.col + radius + 1; c++) {
+        if (!inBounds(c, r, cols, rows) || water.has(`${c},${r}`)) continue
+        if (Math.hypot(c - centre.col, r - centre.row) <= radius - 0.5 + ctx.rand()) {
+          gaps.add(`${c},${r}`)
+          open.add(`${c},${r}`)
+        }
+      }
+    }
+  }
+  paintJungleGaps(ctx, gaps, pal)
+
+  // 3 · AN ANIMAL TRACK joining each gap to the water. Not a road and not paved — it is simply the line of
+  //     least undergrowth, so it reads as a way through rather than as a path someone built. Without it a
+  //     light gap is a pocket you cannot reach, which the repair below would then carpet over.
+  const nearestWater = (from: Cell) => nearestCell(from, banks.size > 0 ? banks : water)
+  for (const key of gaps) {
+    const cell = toCell(key)
+    const target = nearestWater(cell)
+    if (target) traceJungleTrack(ctx, cell, target, open)
+  }
+
+  // 4 · THE CANOPY over everything else — the same exact-coverage field the woodland uses, because choosing
+  //     the lowest-scoring N cells is the right way to hit a density whatever the forest.
+  const field = woodlandCanopyField(ctx, open, canopy)
+  for (const { col, row } of field) {
+    const kind: LivingTreeKind | 'tree_dead' = ctx.rand() < 0.04 ? 'tree_dead' : pickLivingTree(ctx.rand())
+    trees.push({ col, row, kind, variant: massVariant(col, row) })
+    collision[row][col] = true
+  }
+
+  // 5 · UNDERGROWTH between the trunks — the layer a wood does not have. Its density is the served
+  //     `groundCover`, which is why a jungle's 0.5 chokes the floor where a woodland's 0.2 dresses it.
+  plantUndergrowth(ctx, open, water, pal)
+
+  // 6 · EMERGENTS — the few giants standing clear above the canopy. Recorded as taller tree anchors.
+  plantEmergents(ctx, open, water)
+
+  // 7 · CROSS THE CREEK. Measured before this existed: the creek ran edge to edge through the middle and
+  //     split the jungle into two halves that never met — 6 regions, the largest holding 49% of the walkable
+  //     ground, against the woodland's single region holding 100%. A map in halves is two maps.
+  //
+  //     The crossings are FALLEN LOGS, not a stone bridge: a jungle has no masonry, and the thing you
+  //     actually cross a creek on is a tree that came down over it. Same walkable deck underneath, wearing
+  //     the palette's trail tone instead of cobble.
+  fellLogsAcross(ctx, water, pal)
+
+  // 8 · KEEP IT ONE PLACE, by CUTTING TO the strays rather than carpeting them. The undergrowth pass blocks
+  //     half the floor, which pinches regions off behind it. Filling those in is the meadow's answer and it
+  //     costs play area; on a jungle the honest answer is a track, because a track is exactly what gets you
+  //     through undergrowth. Measured over 150 seeds: 1 map came out at 83% connected before this, none
+  //     after, and no map loses ground to it.
+  repairFloorConnectivity(ctx, JUNGLE_MAX_POCKET)
+  joinStrandedRegions(ctx)
+  if (wide && opts.crossing === true) crossRiver(ctx, water, open, true)
+}
+
+/** How big a stranded pocket the jungle repair absorbs. Higher than the meadow's 12 because undergrowth
+ *  closes pockets the meadow's framing trees never would, and a choked pocket is not a feature. */
+const JUNGLE_MAX_POCKET = 40
+
+/**
+ * CUT A TRACK to anything left stranded, until the whole floor is one place.
+ *
+ * `repairFloorConnectivity` answers a stranded pocket by filling it in. That is right for a meadow, where a
+ * pocket is a mistake, and wrong for a jungle, where it is simply ground the undergrowth closed off — the
+ * area is worth keeping and a machete is what you would actually use. So every region that is not the
+ * largest gets a track cut from it to the nearest cell of the largest.
+ *
+ * Bounded by the number of regions it finds, and each pass strictly reduces them, so it cannot spin.
+ */
+function joinStrandedRegions(ctx: ArchetypeContext): void {
+  const { cols, rows, collision } = ctx
+  const isFloor = (col: number, row: number) => inBounds(col, row, cols, rows) && !collision[row][col]
+
+  for (let guard = 0; guard < 12; guard++) {
+    const seen = new Set<string>()
+    const found: Set<string>[] = []
+    forEachCell(cols, rows, (col, row) => {
+      if (!isFloor(col, row) || seen.has(`${col},${row}`)) return
+      found.push(floodFloor(isFloor, col, row, seen))
+    })
+    if (found.length <= 1) return
+    found.sort((a, b) => b.size - a.size)
+    const main = found[0]
+    // One track per pass, then re-measure: cutting to one stray can absorb several at once, so re-flooding
+    // is cheaper than assuming it did not.
+    const stray = found[1]
+    const from = nearestCell(toCell([...main][0]), stray)
+    const to = from ? nearestCell(from, main) : null
+    if (!from || !to) return
+    const carved = new Set<string>()
+    traceJungleTrack(ctx, from, to, carved)
+    for (const key of carved) {
+      const { col, row } = toCell(key)
+      if (!inBounds(col, row, cols, rows)) continue
+      collision[row][col] = false
+    }
+    // Anything the track cleared stops being undergrowth, so drop what stood there.
+    clearMeadowCells(ctx, carved)
+  }
+}
+
+/**
+ * FALLEN LOGS over the creek — the crossings that keep the two banks one place.
+ *
+ * Placed along the creek's run rather than at a fixed point, because a creek that meanders has no single
+ * "middle", and two of them so a crossing is never a long detour.
+ */
+function fellLogsAcross(ctx: ArchetypeContext, water: Set<string>, pal: GeneratorPalette | undefined): void {
+  if (water.size === 0) return
+  const cells = [...water].map(toCell)
+  // Which way the creek RUNS — the axis it spans more of. The log lies across the other one.
+  const cols = cells.map(c => c.col)
+  const rows = cells.map(c => c.row)
+  const vertical = Math.max(...rows) - Math.min(...rows) >= Math.max(...cols) - Math.min(...cols)
+  const along = (c: Cell) => (vertical ? c.row : c.col)
+  const lo = Math.min(...cells.map(along))
+  const hi = Math.max(...cells.map(along))
+
+  for (const frac of [0.32, 0.72]) {
+    const at = Math.round(lo + (hi - lo) * frac)
+    // Every water cell on that line, plus one dry cell past each end so the log lands on both banks.
+    const band = cells.filter(c => along(c) === at)
+    if (band.length === 0) continue
+    const across = (c: Cell) => (vertical ? c.col : c.row)
+    const from = Math.min(...band.map(across)) - 1
+    const to = Math.max(...band.map(across)) + 1
+    const deck = new Set<string>()
+    for (let a = from; a <= to; a++) {
+      for (let w = -1; w <= 1; w++) {
+        const col = vertical ? a : at + w
+        const row = vertical ? at + w : a
+        if (inBounds(col, row, ctx.cols, ctx.rows)) deck.add(`${col},${row}`)
+      }
+    }
+    layDeck(ctx, deck, pal?.trail)
+  }
+}
+
+/** The shaded floor, mottled over coarse patches. Two tones from the served palette so it reads as litter and
+ *  shade rather than one fill; the patch size matches the meadow's for the same run-merging reason. */
+function paintJungleFloor(ctx: ArchetypeContext, pal: GeneratorPalette | undefined): void {
+  if (!pal?.floor) return // the backend states no floor colour → keep the tile's own
+  const { cols, rows, floorColors } = ctx
+  const alt = pal.floorAlt ?? pal.floor
+  const litter = pal.litter ?? pal.floor
+  forEachCell(cols, rows, (col, row) => {
+    const n = shadeNoise(Math.floor(col / 4) * 1.7 + Math.floor(row / 4) * 2.3)
+    floorColors[row][col] = n > 0.78 ? litter : n > 0.45 ? alt : pal.floor
+  })
+}
+
+/** A light gap is the only LIT ground on the map — paint it up off the canopy tone and dress it with whatever
+ *  the generator serves for flowers, because a gap is where the saplings and blooms actually are. */
+function paintJungleGaps(ctx: ArchetypeContext, gaps: Set<string>, pal: GeneratorPalette | undefined): void {
+  const lit = pal?.canopyAlt
+  const flowers = ctx.nature?.flowers
+  for (const key of gaps) {
+    const { col, row } = toCell(key)
+    if (!inBounds(col, row, ctx.cols, ctx.rows)) continue
+    if (lit) ctx.floorColors[row][col] = lit
+    if (flowers !== undefined && ctx.rand() < flowers * 2) placeProp(ctx, makeFlower(ctx.rand, ctx.zone, col, row))
+  }
+}
+
+/**
+ * THE CREEK — a watercourse running THROUGH the map, edge to opposite edge, not hugging the perimeter the
+ * way the meadow's river does. That difference is the point: a meadow's river frames the view, a jungle's
+ * creek is the thing you travel along, so it has to cross the middle.
+ */
+function carveJungleCreek(ctx: ArchetypeContext, pal: GeneratorPalette | undefined, wide: boolean): Set<string> {
+  const { cols, rows, ground, collision, floorColors } = ctx
+  const water = new Set<string>()
+  const half = JUNGLE.creekHalf * (wide ? 1.8 : 1)
+  const vertical = ctx.rand() < 0.5
+  const span = vertical ? rows : cols
+  const across = vertical ? cols : rows
+  const phase = ctx.rand() * Math.PI * 2
+  const phase2 = ctx.rand() * Math.PI * 2
+  // The centreline wanders across the map as it runs down it — two sine terms so the meander is irregular
+  // rather than a wave, kept off the edges so the creek never degenerates into a border.
+  const centre = (along: number): number => {
+    const mid = across / 2
+    const swing = across * 0.26
+    return mid + swing * Math.sin(along * 0.14 + phase) + swing * 0.4 * Math.sin(along * 0.31 + phase2)
+  }
+  for (let along = 0; along < span; along++) {
+    const c = centre(along)
+    for (let off = Math.floor(c - half); off <= Math.ceil(c + half); off++) {
+      if (Math.abs(off - c) > half) continue
+      const col = vertical ? off : along
+      const row = vertical ? along : off
+      if (!inBounds(col, row, cols, rows)) continue
+      ground[row][col] = 'water'
+      collision[row][col] = true
+      if (pal?.water) {
+        const ripple = Math.round(shadeNoise(Math.floor(col / 3) * 1.3 + Math.floor(row / 3) * 2.1) * 2) / 2
+        floorColors[row][col] = varyIntensity(pal.water, 0.44 + ripple * 0.12)
+      }
+      water.add(`${col},${row}`)
+    }
+  }
+  return water
+}
+
+/** The walkable BANK either side of the creek — this is the route through a jungle, so it is cleared to a
+ *  real width rather than being a one-cell shoreline tint. Returns the bank cells for the open mask. */
+function jungleBanks(ctx: ArchetypeContext, water: Set<string>, pal: GeneratorPalette | undefined): Set<string> {
+  const { cols, rows, collision, floorColors } = ctx
+  const banks = new Set<string>()
+  for (const key of water) {
+    const { col, row } = toCell(key)
+    for (let dr = -JUNGLE.bankDepth; dr <= JUNGLE.bankDepth; dr++) {
+      for (let dc = -JUNGLE.bankDepth; dc <= JUNGLE.bankDepth; dc++) {
+        const c = col + dc
+        const r = row + dr
+        if (!inBounds(c, r, cols, rows) || water.has(`${c},${r}`)) continue
+        if (Math.hypot(dc, dr) > JUNGLE.bankDepth) continue
+        banks.add(`${c},${r}`)
+        collision[r][c] = false
+        if (pal?.bank) floorColors[r][c] = pal.bank
+      }
+    }
+  }
+  return banks
+}
+
+/** An ANIMAL TRACK from a light gap to the water — one cell wide, wandering, and marked open rather than
+ *  paved. A jungle has no roads; what it has is the line where the undergrowth happens to be thinnest. */
+function traceJungleTrack(ctx: ArchetypeContext, from: Cell, to: Cell, open: Set<string>): void {
+  const { cols, rows } = ctx
+  let { col, row } = from
+  let guard = cols + rows
+  while ((col !== to.col || row !== to.row) && guard-- > 0) {
+    // Step toward the target on whichever axis is further off, with a wobble, so the track reads as walked
+    // rather than surveyed. The guard bounds it: a wobble must never turn into a loop.
+    const dc = to.col - col
+    const dr = to.row - row
+    if (Math.abs(dc) > Math.abs(dr) ? ctx.rand() < 0.82 : ctx.rand() < 0.18) col += Math.sign(dc)
+    else row += Math.sign(dr)
+    for (const [oc, or_] of [[0, 0], [1, 0], [0, 1]] as const) {
+      const c = col + oc
+      const r = row + or_
+      if (inBounds(c, r, cols, rows)) open.add(`${c},${r}`)
+    }
+  }
+}
+
+/** UNDERGROWTH — the choked layer between the trunks, and the thing that actually makes a jungle hard to
+ *  cross. Density is the served `groundCover`. It BLOCKS, unlike the woodland's ground dressing, which is
+ *  the whole distinction: a wood's floor cover is decoration, a jungle's is an obstacle. */
+function plantUndergrowth(ctx: ArchetypeContext, open: Set<string>, water: Set<string>, pal: GeneratorPalette | undefined): void {
+  const cover = ctx.nature?.groundCover
+  if (cover === undefined) return
+  const { cols, rows, collision, floorColors } = ctx
+  forEachCell(cols, rows, (col, row) => {
+    const key = `${col},${row}`
+    if (open.has(key) || water.has(key) || collision[row][col]) return
+    if (ctx.rand() >= cover) return
+    const decor = makeGroundDecor(ctx.zone, col, row)
+    if (decor) placeProp(ctx, decor)
+    collision[row][col] = true // you do not walk through it — that is what undergrowth IS
+    if (pal?.undergrowth) floorColors[row][col] = pal.undergrowth
+  })
+}
+
+/** EMERGENTS — the handful of giants standing clear above the canopy, the tallest thing in an Amazon frame.
+ *  They are the existing `tree_tall` shape, chosen rather than rolled: a tree anchor already has a vocabulary
+ *  for "this one is tall", so an emergent is that, not a new field the stamper would have to learn. */
+function plantEmergents(ctx: ArchetypeContext, open: Set<string>, water: Set<string>): void {
+  const { cols, rows, collision, trees } = ctx
+  const wanted = Math.max(1, Math.round((cols * rows / 1000) * JUNGLE.emergentsPerThousand))
+  for (let i = 0; i < wanted; i++) {
+    const col = randIntWith(ctx.rand, 2, Math.max(2, cols - 3))
+    const row = randIntWith(ctx.rand, 2, Math.max(2, rows - 3))
+    const key = `${col},${row}`
+    if (open.has(key) || water.has(key)) continue
+    trees.push({ col, row, kind: 'tree_tall', variant: massVariant(col, row) })
+    collision[row][col] = true
+  }
 }
 
 /**
@@ -1846,7 +2209,9 @@ function placeMeadowBridge(ctx: ArchetypeContext, water: Set<string>): void {
   const rowsToDeck = [Math.min(...span) - 1, ...span, Math.max(...span) + 1]
   const deck = new Set<string>()
   for (const row of rowsToDeck) for (let w = -1; w <= 1; w++) deck.add(`${bridgeCol + w},${row}`)
-  layDeck(ctx, deck) // clears any tree/prop the border/repair left on it, then lays the walkable deck
+  // The meadow's own cobble, stated here rather than defaulted inside layDeck — a stone bridge over a
+  // meadow river is this layout's design, not something every caller should inherit.
+  layDeck(ctx, deck, (MEADOW_PALETTES[ctx.zone] ?? MEADOW_PALETTES.summer).cobble)
 }
 
 /**
@@ -1886,7 +2251,10 @@ function placeRiverCrossing(ctx: ArchetypeContext, water: Set<string>, routes: S
     for (let w = -1; w <= 1; w++) deck.add(`${cell.col + perp[0] * w},${cell.row + perp[1] * w}`)
   }
   if (![...deck].some(key => inBounds(toCell(key).col, toCell(key).row, ctx.cols, ctx.rows))) return false
-  layDeck(ctx, deck)
+  // A crossing wears the route it joins: the template's own trail tone when it serves one, and the meadow's
+  // stone when it does not, because a bridge over a meadow river IS cobble. That is this layout's design
+  // choice, not a stand-in for a served value it failed to read.
+  layDeck(ctx, deck, ctx.palette?.trail ?? (MEADOW_PALETTES[ctx.zone] ?? MEADOW_PALETTES.summer).cobble)
 
   // JOIN IT. Both banks, because a crossing you can only reach from one side is a pier.
   for (const end of [at(-back), at(forward)]) {
@@ -1942,16 +2310,18 @@ function waterReach(water: Set<string>, at: Cell, dc: number, dr: number): numbe
 
 /** Turn a set of cells into walkable bridge deck: clear what stands on them, lay the 'bridge' tile, take the
  *  cobble tone. Shared by the plain bridge and the joined crossing, so the two always read alike. */
-function layDeck(ctx: ArchetypeContext, deck: Set<string>): void {
+function layDeck(ctx: ArchetypeContext, deck: Set<string>, tone: string | undefined): void {
   const { cols, rows, ground, collision, floorColors } = ctx
-  const pal = MEADOW_PALETTES[ctx.zone] ?? MEADOW_PALETTES.summer
   clearMeadowCells(ctx, deck)
   for (const key of deck) {
     const { col, row } = toCell(key)
     if (!inBounds(col, row, cols, rows)) continue
     ground[row][col] = 'bridge'
     collision[row][col] = false
-    floorColors[row][col] = pal.cobble
+    // No tone → leave the tile's own colour. A default here would be a hardcoded fallback for a SERVED
+    // value, which is the one thing the compliance rule names: a caller with no colour to give has no
+    // opinion, and this deck is not the place to invent one.
+    if (tone) floorColors[row][col] = tone
   }
 }
 

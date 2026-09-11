@@ -84,12 +84,42 @@ export interface GeneratorSettlement {
 
 /** Everything one generator is tuned by. Every section is OPTIONAL: a forest carries no settlement
  *  tuning and a cave carries no building palette, and the reader must see that as "none", not as zero. */
+/**
+ * The COLOURS a template paints its ground and canopy with — what makes an Amazonas not a pine wood.
+ *
+ * Alexander, 2026-09-10: *"colors should be different"*, *"like there's a huge difference between amazonas
+ * and a pines forest"*. Every colour in a forest used to come from the SEASON, so a spring jungle and a
+ * spring woodland were painted from the same numbers and looked identical. This is per GENERATOR.
+ *
+ * Every field is optional because the backend is the authority on which templates state one. A template that
+ * serves no palette gets no painting, never a colour invented here.
+ */
+export interface GeneratorPalette {
+  /** the shaded forest floor */
+  floor?: string
+  /** the second floor tone, for the mottling that stops a floor reading as one flat fill */
+  floorAlt?: string
+  /** leaf litter / bare earth showing through */
+  litter?: string
+  /** the canopy overhead */
+  canopy?: string
+  canopyAlt?: string
+  /** the choked layer between the trunks */
+  undergrowth?: string
+  /** a watercourse, and the ground either side of it */
+  water?: string
+  bank?: string
+  /** a walked route */
+  trail?: string
+}
+
 export interface GeneratorConfig {
   grid?: GeneratorGrid
   units?: GeneratorUnits
   nature?: GeneratorNature
   buildings?: GeneratorBuildings
   settlement?: GeneratorSettlement
+  palette?: GeneratorPalette
 }
 
 /** One generator — a concrete map the user can ask for ("Meadow + River", "Town"). */
@@ -269,12 +299,28 @@ function parseConfig(v: unknown): GeneratorConfig {
   const nature = parseNature(v.nature)
   const buildings = parseBuildings(v.buildings)
   const settlement = parseSettlement(v.settlement)
+  const palette = parsePalette(v.palette)
   if (grid) out.grid = grid
   if (units) out.units = units
   if (nature) out.nature = nature
   if (buildings) out.buildings = buildings
   if (settlement) out.settlement = settlement
+  if (palette) out.palette = palette
   return out
+}
+
+/** The served palette, keeping only the fields that ARRIVED as colours. A malformed or missing entry is
+ *  dropped rather than defaulted, so a layout can tell "the backend states no floor colour" from "the floor
+ *  is this colour" and paint nothing rather than inventing one. */
+function parsePalette(v: unknown): GeneratorPalette | undefined {
+  if (!isObject(v)) return undefined
+  const keys = ['floor', 'floorAlt', 'litter', 'canopy', 'canopyAlt', 'undergrowth', 'water', 'bank', 'trail'] as const
+  const out: GeneratorPalette = {}
+  for (const k of keys) {
+    const hex = str(v[k])
+    if (hex) out[k] = hex
+  }
+  return Object.keys(out).length > 0 ? out : undefined
 }
 
 /** A generator row, or null when it lacks the identity the menu needs (key + name). */
