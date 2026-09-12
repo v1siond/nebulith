@@ -394,105 +394,6 @@ defmodule Nebulith.Catalog.GeneratorSource do
     }
   ]
 
-  # ── SETTLEMENT VARIATIONS ─────────────────────────────────────────────────────────────────────────
-  # Alexander, 2026-09-11: *"and just like forest, we should have different variations of towns and cities too,
-  # like there's modern cities, traditional cities, tropical cities, snowy cities, italy cities are different to
-  # perú cities, you get the idea."*
-  #
-  # Each one states ONLY what makes it look different: what its walls are made of, what its roofs and walls are
-  # coloured, and how leafy it is. Everything else is its parent's, merged under it, exactly as a forest subtype
-  # works. Both settlements get the same list, because a modern town and a modern city differ in DENSITY, which
-  # is what their parents already say.
-  @settlement_looks [
-    %{
-      key: "traditional", name: "Traditional", position: 0,
-      description: "Timber and stone, warm roofs, trees between the lots.",
-      buildings: %{
-        "roof" => "roof",
-        "materials" => ["wall_brick", "wall_wood"],
-        "roofColors" => ["#8a4b2f", "#7a4326", "#6b4a2b"],
-        "wallColors" => ["#c9a66b", "#b08d5b", "#d8c79a"]
-      },
-      settlement: %{"natureMultiplier" => 1.3}
-    },
-    %{
-      key: "modern", name: "Modern", position: 1,
-      description: "Concrete, glass and flat grey roofs, wide streets, little green.",
-      buildings: %{
-        # Flat decks and plaster: the one look that is not a pitched roof at all.
-        "roof" => "flat_roof",
-        "materials" => ["wall_plaster"],
-        "roofColors" => ["#4a4f55", "#3f464c", "#5a636b"],
-        "wallColors" => ["#e8ecef", "#d3d8dc", "#bcc3c9"]
-      },
-      settlement: %{"natureMultiplier" => 0.5, "roadWidth" => 5, "plazaSize" => 7}
-    },
-    %{
-      key: "tropical", name: "Tropical", position: 2,
-      description: "Timber and palm thatch, bright walls, green everywhere.",
-      buildings: %{
-        # Timber and straw. A thatch roof tile does not exist yet, so the gable wears straw until it does.
-        "roof" => "roof",
-        "materials" => ["wall_wood"],
-        "roofColors" => ["#c9a84f", "#b8963f", "#d8bc6a"],
-        "wallColors" => ["#f4e3b6", "#efc9a0", "#e8d9a8"]
-      },
-      settlement: %{"natureMultiplier" => 1.8}
-    },
-    %{
-      key: "snowy", name: "Snowy", position: 3,
-      description: "Pale walls under dark steep roofs, and almost nothing growing.",
-      buildings: %{
-        "roof" => "roof_slate",
-        "materials" => ["wall_stone"],
-        "roofColors" => ["#2f3640", "#262c34", "#3d454f"],
-        "wallColors" => ["#eef2f6", "#dde6ee", "#c9d4de"]
-      },
-      settlement: %{"natureMultiplier" => 0.35}
-    },
-    %{
-      key: "mediterranean", name: "Mediterranean", position: 4,
-      description: "Cream walls and terracotta roofs packed tight around a small square.",
-      buildings: %{
-        # Whitewash and terracotta: the same plaster the modern city uses, and nothing else about it matches.
-        "roof" => "roof",
-        "materials" => ["wall_plaster"],
-        "roofColors" => ["#c2603f", "#b5533a", "#a8462f"],
-        "wallColors" => ["#faf3e4", "#f4ecd8", "#efe0c0"]
-      },
-      settlement: %{"natureMultiplier" => 0.8, "lotGap" => [1, 1], "plazaSize" => 4}
-    },
-    %{
-      key: "andean", name: "Andean", position: 5,
-      description: "Adobe walls and tin roofs stepping up the slope.",
-      buildings: %{
-        # Adobe and tin. A real adobe wall family is next through the bake pipeline; brick in ochre until then.
-        "roof" => "roof_slate",
-        "materials" => ["wall_brick"],
-        "roofColors" => ["#8f4a33", "#6f6a60", "#7a4a2c"],
-        "wallColors" => ["#c98f5c", "#b87d4a", "#d9a877"]
-      },
-      settlement: %{"natureMultiplier" => 0.7, "lotGap" => [1, 1]}
-    }
-  ]
-
-  # The same six looks under each settlement preset. A variation inherits its parent's archetype, so a
-  # Tropical town is still a town.
-  defp settlement_variations do
-    for parent <- ["town", "city"], look <- @settlement_looks do
-      %{
-        category: "settlement",
-        parent: "#{parent}_default",
-        key: "#{parent}_#{look.key}",
-        name: look.name,
-        layout: parent,
-        position: look.position,
-        description: look.description,
-        config: %{"buildings" => look.buildings, "settlement" => look.settlement}
-      }
-    end
-  end
-
   # How many ancestors a seed row has — parents seed first.
   defp depth(%{parent: parent}, by_key) when is_binary(parent), do: 1 + depth(Map.fetch!(by_key, parent), by_key)
   defp depth(_row, _by_key), do: 0
@@ -652,28 +553,138 @@ defmodule Nebulith.Catalog.GeneratorSource do
         description: "The open clearing, as it is.",
         config: %{}
       },
+      # ── SETTLEMENTS: THE LOOK IS THE PRESET ─────────────────────────────────────────────────────────
+      # Alexander, 2026-09-11: *"we still have "city" and "town" but they're exactly the same / i think we
+      # should threat setlement the same way we do with forest / instead of "town" "city" we'd have / modern
+      # city / swamp village, etc"*, and *"forest is the standard, the rest should follow the same logic /
+      # place > type of place > specific things to use in place, like season, section, size, etc"*.
+      #
+      # So Town and City are gone as presets. What you pick is the PLACE: a modern city, a swamp village. Each
+      # one says which archetype builds it (a city's density or a town's), what its houses are made of, what
+      # roof they lay, and which seasons it runs in when its climate implies one. A snowy town is winter only,
+      # which is his own example.
       %{
-        category: "settlement", key: "town_default", name: "Town", layout: "town", variant: "town", position: 0,
-        description: "Streets, a central square, houses fronting the roads.",
+        category: "settlement", key: "town_traditional", name: "Traditional town", layout: "traditional_town", variant: "town", position: 0,
+        description: "Timber and brick under warm gables, trees between the lots.",
         config: %{
           "grid" => @small_grid,
           "settlement" => settlement(plaza: 5, lot_gap: [1, 2], max_per_frontage: 6, cap: 18,
-                                     houses: [4, 6], big: [1, 3], nature_mult: 1.15),
+                                     houses: [4, 6], big: [1, 3], nature_mult: 1.3),
           "nature" => @outdoor_nature,
           "units" => townsfolk(8),
-          "buildings" => @building_palette
+          "buildings" => Map.merge(@building_palette, %{
+            "roof" => "roof",
+            "materials" => ["wall_brick", "wall_wood"],
+            "roofColors" => ["#8a4b2f", "#7a4326", "#6b4a2b"],
+            "wallColors" => ["#c9a66b", "#b08d5b", "#d8c79a"]
+          })
         }
       },
       %{
-        category: "settlement", key: "city_default", name: "City", layout: "city", variant: "city", position: 1,
-        description: "The town's rules on a bigger grid with tighter lots and no per-street limit.",
+        category: "settlement", key: "city_modern", name: "Modern city", layout: "modern_city", variant: "city", position: 1,
+        description: "Plaster and glass under flat grey decks, wide streets, little green.",
         config: %{
           "grid" => @city_grid,
           "settlement" => settlement(plaza: 7, lot_gap: [1, 1], max_per_frontage: 99, cap: 72,
-                                     houses: [7, 11], big: [3, 5], nature_mult: 0.4),
+                                     houses: [7, 11], big: [3, 5], nature_mult: 0.5),
           "nature" => @outdoor_nature,
           "units" => townsfolk(14),
-          "buildings" => @building_palette
+          "buildings" => Map.merge(@building_palette, %{
+            "roof" => "flat_roof",
+            "materials" => ["wall_plaster"],
+            "roofColors" => ["#4a4f55", "#3f464c", "#5a636b"],
+            "wallColors" => ["#e8ecef", "#d3d8dc", "#bcc3c9"]
+          })
+        }
+      },
+      %{
+        category: "settlement", key: "city_tropical", name: "Tropical city", layout: "tropical_city", variant: "city",
+        position: 2, zones: ~w(spring summer),
+        description: "Bright painted plaster under straw gables, green in every gap.",
+        config: %{
+          "grid" => @city_grid,
+          "settlement" => settlement(plaza: 6, lot_gap: [1, 2], max_per_frontage: 99, cap: 60,
+                                     houses: [7, 11], big: [2, 4], nature_mult: 1.8),
+          "nature" => @outdoor_nature,
+          "units" => townsfolk(14),
+          "buildings" => Map.merge(@building_palette, %{
+            "roof" => "roof",
+            "materials" => ["wall_plaster"],
+            "roofColors" => ["#c9a84f", "#b8963f", "#d8bc6a"],
+            "wallColors" => ["#f7d98f", "#f2b98a", "#e8e07a"]
+          })
+        }
+      },
+      %{
+        category: "settlement", key: "town_snowy", name: "Snowy town", layout: "snowy_town", variant: "town",
+        position: 3, zones: ~w(winter),
+        description: "Pale stone under near black slate, and almost nothing growing.",
+        config: %{
+          "grid" => @small_grid,
+          "settlement" => settlement(plaza: 5, lot_gap: [1, 2], max_per_frontage: 6, cap: 18,
+                                     houses: [4, 6], big: [1, 3], nature_mult: 0.35),
+          "nature" => @outdoor_nature,
+          "units" => townsfolk(8),
+          "buildings" => Map.merge(@building_palette, %{
+            "roof" => "roof_slate",
+            "materials" => ["wall_stone"],
+            "roofColors" => ["#2f3640", "#262c34", "#3d454f"],
+            "wallColors" => ["#eef2f6", "#dde6ee", "#c9d4de"]
+          })
+        }
+      },
+      %{
+        category: "settlement", key: "city_mediterranean", name: "Mediterranean city", layout: "mediterranean_city",
+        variant: "city", position: 4, zones: ~w(summer desert),
+        description: "Whitewashed stone under terracotta, packed tight around a small square.",
+        config: %{
+          "grid" => @city_grid,
+          "settlement" => settlement(plaza: 4, lot_gap: [1, 1], max_per_frontage: 99, cap: 72,
+                                     houses: [7, 11], big: [3, 5], nature_mult: 0.8),
+          "nature" => @outdoor_nature,
+          "units" => townsfolk(14),
+          "buildings" => Map.merge(@building_palette, %{
+            "roof" => "roof",
+            "materials" => ["wall_stone"],
+            "roofColors" => ["#c2603f", "#b5533a", "#a8462f"],
+            "wallColors" => ["#faf3e4", "#f4ecd8", "#efe0c0"]
+          })
+        }
+      },
+      %{
+        category: "settlement", key: "town_andean", name: "Andean town", layout: "andean_town", variant: "town",
+        position: 5, zones: ~w(autumn desert),
+        description: "Ochre adobe under tin roofs, stepping up the slope.",
+        config: %{
+          "grid" => @small_grid,
+          "settlement" => settlement(plaza: 4, lot_gap: [1, 1], max_per_frontage: 6, cap: 18,
+                                     houses: [4, 6], big: [1, 2], nature_mult: 0.7),
+          "nature" => @outdoor_nature,
+          "units" => townsfolk(8),
+          "buildings" => Map.merge(@building_palette, %{
+            "roof" => "roof_slate",
+            "materials" => ["wall_brick"],
+            "roofColors" => ["#8f4a33", "#6f6a60", "#7a4a2c"],
+            "wallColors" => ["#c98f5c", "#b87d4a", "#d9a877"]
+          })
+        }
+      },
+      %{
+        category: "settlement", key: "town_swamp", name: "Swamp village", layout: "swamp_village", variant: "town",
+        position: 6, zones: ~w(spring summer),
+        description: "Wooden huts on a green flat, the water still to come.",
+        config: %{
+          "grid" => @small_grid,
+          "settlement" => settlement(plaza: 3, lot_gap: [1, 2], max_per_frontage: 4, cap: 12,
+                                     houses: [4, 6], big: [0, 1], nature_mult: 1.6),
+          "nature" => @outdoor_nature,
+          "units" => townsfolk(6),
+          "buildings" => Map.merge(@building_palette, %{
+            "roof" => "roof",
+            "materials" => ["wall_wood"],
+            "roofColors" => ["#6b5a34", "#5c4f2c", "#7a6a3e"],
+            "wallColors" => ["#a98b5f", "#8f7450", "#c0a375"]
+          })
         }
       },
       %{
@@ -688,7 +699,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
         config: %{"grid" => @small_grid, "units" => enemies(~w(skeleton guardian wraith))},
         options: @way_options
       }
-    ] ++ settlement_variations()
+    ]
   end
 
   @doc """
@@ -721,7 +732,10 @@ defmodule Nebulith.Catalog.GeneratorSource do
         attrs
         |> Map.drop([:category, :parent])
         |> Map.put(:category_id, Map.fetch!(ids, attrs.category))
-        |> Map.put(:zones, @zones)
+        # A ROW MAY IMPLY ITS SEASON. Alexander, 2026-09-11: *"if the season is implied, it shoudl be
+        # preselected, or we don't mention the clima at all, like, snowy town implies winter season for
+        # example"*. A row that states its own seasons keeps them; everything else runs in all of them.
+        |> Map.put(:zones, Map.get(attrs, :zones, @zones))
         |> Map.put(:parent_id, parent_id)
 
       {:ok, _} =
@@ -734,6 +748,16 @@ defmodule Nebulith.Catalog.GeneratorSource do
     # merging town and city into one category would have left both behind as empty rows in the menu. Their
     # generators have already moved to their new category above, so this deletes nothing but the husk.
     for stale <- Repo.all(GeneratorCategory), stale.key not in Enum.map(categories(), & &1.key) do
+      Repo.delete(stale)
+    end
+
+    # A GENERATOR the list no longer names goes the same way, and this one bit harder: the settlement LOOKS
+    # replaced `town_default` and `city_default`, and without this the old rows sat in the menu as ghosts. His
+    # *"we still have "city" and "town" but they're exactly the same"* would have been true all over again,
+    # from the database rather than from the source. Deleting a parent takes its subtypes with it.
+    keys = Enum.map(rows, & &1.key)
+
+    for stale <- Repo.all(Generator), stale.key not in keys do
       Repo.delete(stale)
     end
 

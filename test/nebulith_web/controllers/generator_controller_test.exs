@@ -33,7 +33,7 @@ defmodule NebulithWeb.GeneratorControllerTest do
       assert town["config"]["grid"]["cols"] == %{"min" => 30, "max" => 45}
       assert town["config"]["settlement"]["buildingCap"] == 18
       assert town["config"]["units"]["townsfolk"] == 8
-      assert town["config"]["buildings"]["materials"] == ["wall_brick", "wall_wood", "wall_stone"]
+      assert town["config"]["buildings"]["materials"] == ["wall_brick", "wall_wood"]
       assert town["zones"] == ~w(spring summer autumn winter desert)
     end
 

@@ -30,12 +30,12 @@ defmodule Nebulith.GeneratorSourceTest do
 
   describe "seed/0" do
     test "creates every category and generator, and reports what it wrote" do
-      assert {4, 29} = GeneratorSource.seed()
+      assert {4, 22} = GeneratorSource.seed()
 
       categories = Catalog.list_generator_categories()
       assert Enum.map(categories, & &1.key) == ~w(forest settlement cave temple)
       assert Enum.map(categories, & &1.name) == ["Forest", "Settlement", "Cave", "Temple"]
-      assert Enum.sum(Enum.map(categories, &length(&1.generators))) == 7
+      assert Enum.sum(Enum.map(categories, &length(&1.generators))) == 12
     end
 
     test "categories come back in MENU order, not insertion or alphabetical order" do
@@ -54,9 +54,29 @@ defmodule Nebulith.GeneratorSourceTest do
       # Alexander, 2026-09-09: *"the meadow is not a forest, it doesn't look like one"* — every preset here
       # used to be a clearing, so a category called Forest opened on something that was not one.
       assert Enum.map(cats["forest"].generators, & &1.layout) == ["woodland", "jungle", "meadow"]
-      # One CATEGORY for both settlements since 2026-09-11, and each names the archetype it runs.
-      assert Enum.map(cats["settlement"].generators, & &1.key) == ["town_default", "city_default"]
-      assert [%Generator{layout: "town", variant: "town"}, %Generator{layout: "city", variant: "city"}] = cats["settlement"].generators
+      # THE LOOK IS THE PRESET since 2026-09-11: *"instead of "town" "city" we'd have modern city, swamp
+      # village, etc"*. Each one says which archetype builds it.
+      assert Enum.map(cats["settlement"].generators, & &1.name) == [
+               "Traditional town",
+               "Modern city",
+               "Tropical city",
+               "Snowy town",
+               "Mediterranean city",
+               "Andean town",
+               "Swamp village"
+             ]
+
+      builds = Map.new(cats["settlement"].generators, &{&1.layout, &1.variant})
+
+      assert builds == %{
+               "traditional_town" => "town",
+               "modern_city" => "city",
+               "tropical_city" => "city",
+               "snowy_town" => "town",
+               "mediterranean_city" => "city",
+               "andean_town" => "town",
+               "swamp_village" => "town"
+             }
     end
 
     test "a river is an OPTION on a forest, never a row of its own" do
@@ -237,12 +257,27 @@ defmodule Nebulith.GeneratorSourceTest do
       assert nature["jungle"]["flowers"] > nature["woodland"]["flowers"]
     end
 
-    test "every generator runs in every season the editor offers" do
+    test "a generator runs in seasons the editor offers, and narrows them when its climate implies one" do
       GeneratorSource.seed()
 
-      for category <- Catalog.list_generator_categories(), g <- category.generators do
-        assert g.zones == ~w(spring summer autumn winter desert), "#{g.key} has #{inspect(g.zones)}"
+      # This used to assert EVERY generator ran in EVERY season. Alexander, 2026-09-11: *"if the season is
+      # implied, it shoudl be preselected, or we don't mention the clima at all, like, snowy town implies
+      # winter season for example"*. So a row may narrow its own list; what must hold is that it names at
+      # least one season and never invents one the editor cannot offer.
+      offered = MapSet.new(~w(spring summer autumn winter desert))
+      cats = Catalog.list_generator_categories()
+
+      for category <- cats, g <- category.generators do
+        assert g.zones != [], "#{g.key} runs in no season at all"
+
+        assert MapSet.subset?(MapSet.new(g.zones), offered),
+               "#{g.key} names a season the editor cannot offer: #{inspect(g.zones)}"
       end
+
+      # His own example of a climate that implies its season.
+      assert generator(cats, "settlement", "town_snowy").zones == ["winter"]
+      # and a place with no implied climate still runs in all of them
+      assert MapSet.new(generator(cats, "forest", "forest_woodland").zones) == offered
     end
 
     test "re-seeding is idempotent — no duplicates, and the rows keep their ids" do
@@ -250,23 +285,23 @@ defmodule Nebulith.GeneratorSourceTest do
       before = Catalog.list_generator_categories()
       ids = Enum.map(before, & &1.id)
 
-      assert {4, 29} = GeneratorSource.seed()
+      assert {4, 22} = GeneratorSource.seed()
 
       again = Catalog.list_generator_categories()
       assert Enum.map(again, & &1.id) == ids
       assert Repo.aggregate(GeneratorCategory, :count) == 4
-      assert Repo.aggregate(Generator, :count) == 29
+      assert Repo.aggregate(Generator, :count) == 22
     end
 
     test "re-seeding REFRESHES a row someone edited by hand" do
       GeneratorSource.seed()
-      town = Repo.get_by!(Generator, key: "town_default")
+      town = Repo.get_by!(Generator, key: "town_traditional")
       {:ok, _} = town |> Generator.changeset(%{name: "Hand-edited"}) |> Repo.update()
 
       GeneratorSource.seed()
 
-      assert Repo.get_by!(Generator, key: "town_default").name == "Town"
-      assert Repo.get_by!(Generator, key: "town_default").id == town.id
+      assert Repo.get_by!(Generator, key: "town_traditional").name == "Traditional town"
+      assert Repo.get_by!(Generator, key: "town_traditional").id == town.id
     end
   end
 
@@ -277,8 +312,8 @@ defmodule Nebulith.GeneratorSourceTest do
     end
 
     test "grid: a city is markedly bigger than a town, and both carry the cell geometry", %{categories: cats} do
-      town = generator(cats, "settlement", "town_default").config["grid"]
-      city = generator(cats, "settlement", "city_default").config["grid"]
+      town = generator(cats, "settlement", "town_traditional").config["grid"]
+      city = generator(cats, "settlement", "city_modern").config["grid"]
 
       assert town == %{"cols" => %{"min" => 30, "max" => 45}, "rows" => %{"min" => 24, "max" => 35}, "cellSize" => 16, "isoScale" => 2.5}
       assert city["cols"] == %{"min" => 52, "max" => 71}
@@ -288,7 +323,7 @@ defmodule Nebulith.GeneratorSourceTest do
     end
 
     test "settlement tuning matches villageLayout's constants exactly", %{categories: cats} do
-      assert generator(cats, "settlement", "town_default").config["settlement"] == %{
+      assert generator(cats, "settlement", "town_traditional").config["settlement"] == %{
                "plazaSize" => 5,
                "setback" => 1,
                "roadWidth" => 4,
@@ -298,21 +333,21 @@ defmodule Nebulith.GeneratorSourceTest do
                "houseRange" => [4, 6],
                "bigHouseRange" => [1, 3],
                "houseWidths" => [3, 3, 4, 4, 4, 5],
-               "natureMultiplier" => 1.15
+               "natureMultiplier" => 1.3
              }
 
-      city = generator(cats, "settlement", "city_default").config["settlement"]
+      city = generator(cats, "settlement", "city_modern").config["settlement"]
       assert city["buildingCap"] == 72
       assert city["lotGap"] == [1, 1]
       assert city["maxPerFrontage"] == 99
-      assert city["natureMultiplier"] == 0.4
+      assert city["natureMultiplier"] == 0.5
       # A city packs harder than a town on every axis that controls density.
       assert city["buildingCap"] > 18 and city["natureMultiplier"] < 1.15
     end
 
     test "units: settlements scatter townsfolk, dungeons scatter their own enemies", %{categories: cats} do
-      assert generator(cats, "settlement", "town_default").config["units"] == %{"townsfolk" => 8, "enemies" => 0, "enemyTypes" => []}
-      assert generator(cats, "settlement", "city_default").config["units"]["townsfolk"] == 14
+      assert generator(cats, "settlement", "town_traditional").config["units"] == %{"townsfolk" => 8, "enemies" => 0, "enemyTypes" => []}
+      assert generator(cats, "settlement", "city_modern").config["units"]["townsfolk"] == 14
       assert generator(cats, "forest", "forest_meadow").config["units"]["townsfolk"] == 5
 
       cave = generator(cats, "cave", "cave_default").config["units"]
@@ -330,12 +365,12 @@ defmodule Nebulith.GeneratorSourceTest do
     end
 
     test "building materials and colours ride with the settlements that place buildings", %{categories: cats} do
-      buildings = generator(cats, "settlement", "town_default").config["buildings"]
+      buildings = generator(cats, "settlement", "town_traditional").config["buildings"]
 
-      assert buildings["materials"] == ["wall_brick", "wall_wood", "wall_stone"]
+      assert buildings["materials"] == ["wall_brick", "wall_wood"]
       assert buildings["storeRoof"] == "#235a96"
       assert buildings["hospitalRoof"] == "#2f7e50"
-      assert length(buildings["roofColors"]) == 4 and length(buildings["wallColors"]) == 5
+      assert length(buildings["roofColors"]) == 3 and length(buildings["wallColors"]) == 3
       assert generator(cats, "forest", "forest_meadow").config["buildings"] == nil
     end
 
@@ -344,17 +379,15 @@ defmodule Nebulith.GeneratorSourceTest do
       # material of houses should be different, walls different, roof different"* and *"each settlement
       # variation should have their own flavor and clear differences"*. A look that shares its family AND its
       # roof with another look is the bug he reported, so this refuses to let two of them match.
-      town = generator(cats, "settlement", "town_default")
-
       looks =
-        for look <- town.children do
+        for look <- by_key(cats)["settlement"].generators do
           b = look.config["buildings"]
           assert b["roof"] in ~w(roof roof_slate flat_roof), "#{look.key} lays #{inspect(b["roof"])}"
           assert b["materials"] != [], "#{look.key} states no materials"
           {look.name, hd(b["materials"]), b["roof"]}
         end
 
-      assert length(looks) == 6
+      assert length(looks) == 7
       # no two looks share BOTH their dominant wall family and their roof
       pairs = Enum.map(looks, fn {_name, material, roof} -> {material, roof} end)
       assert length(Enum.uniq(pairs)) == length(pairs), "two looks are the same material on the same roof: #{inspect(looks)}"
@@ -457,7 +490,7 @@ defmodule Nebulith.GeneratorSourceTest do
 
       assert {:error, changeset} =
                %Generator{}
-               |> Generator.changeset(%{key: "town_default", name: "Clash", category_id: cat.id})
+               |> Generator.changeset(%{key: "town_traditional", name: "Clash", category_id: cat.id})
                |> Repo.insert()
 
       assert "has already been taken" in errors_on(changeset).key
