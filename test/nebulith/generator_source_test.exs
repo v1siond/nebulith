@@ -82,8 +82,8 @@ defmodule Nebulith.GeneratorSourceTest do
         # A jungle also offers its REGION picker, since it is the one kind split into regions.
         expected =
           if g.key == "forest_jungle",
-            do: ~w(exits pathways region river crossing bridge),
-            else: ~w(exits pathways river crossing bridge)
+            do: ~w(exits pathways region river crossing depth bridge),
+            else: ~w(exits pathways river crossing depth bridge)
 
         assert Enum.map(g.options, & &1["key"]) == expected, "#{g.key} offers #{inspect(g.options)}"
         # Nothing runs by default: no river, and so no crossing either, whatever kind it would be.
@@ -91,6 +91,14 @@ defmodule Nebulith.GeneratorSourceTest do
         assert river["default"] == "none", "#{g.key} runs a river by default"
         assert crossing["default"] == false
         assert kind["requires"] == "river"
+
+        # HOW DEEP the channel is cut is served, not chosen by the generator. Alexander, 2026-09-11: *"river
+        # depth is confgiuravble, same as shadow, same as sun light, we want to control everyhting"*. It hangs
+        # off the river like the crossing does, so it greys out when there is no river to cut.
+        depth = Enum.find(g.options, &(&1["key"] == "depth"))
+        assert depth["requires"] == "river", "#{g.key} offers a depth with no river"
+        assert depth["default"] == "1"
+        assert Enum.map(depth["choices"], & &1["key"]) == ~w(flat 1 2)
       end
     end
 

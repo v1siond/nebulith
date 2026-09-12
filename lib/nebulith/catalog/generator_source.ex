@@ -68,6 +68,25 @@ defmodule Nebulith.Catalog.GeneratorSource do
       "default" => false,
       "requires" => "river"
     },
+    # HOW DEEP the channel is cut. Alexander, 2026-09-11: *"we need the river without water, which is negative
+    # height compared to walking floor / then inside that we put water with X height it can be < 1, but not
+    # walkable"*, and *"river depth is confgiuravble, same as shadow, same as sun light, we want to control
+    # everyhting, intensity, quality, size, activate, deactivate itm, etc"*.
+    #
+    # So the depth is a served number, not a constant the generator picks. `flat` keeps the old behaviour
+    # exactly, which is a river painted on the walking plane, so nothing changes for a map that does not ask.
+    %{
+      "key" => "depth",
+      "label" => "How deep the channel is cut",
+      "type" => "choice",
+      "default" => "1",
+      "requires" => "river",
+      "choices" => [
+        %{"key" => "flat", "label" => "Not cut (painted on the ground)"},
+        %{"key" => "1", "label" => "One block down"},
+        %{"key" => "2", "label" => "Two blocks down"}
+      ]
+    },
     # WHAT the river is crossed on. Alexander, 2026-09-11: *"on the "bridges" that we use on rivers, we must have
     # multiple variations too / it can be a simple dirt path, it can be an actual bridge, which again, are
     # multiple variations"*. Each key is a row of @crossings, which says the tile it lays.

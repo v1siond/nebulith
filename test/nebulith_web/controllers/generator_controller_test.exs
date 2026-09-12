@@ -54,7 +54,7 @@ defmodule NebulithWeb.GeneratorControllerTest do
       # It never hardcodes the pair, so the shape is the contract — keys, labels, defaults and `requires`.
       # THE WAYS COME FIRST, since 2026-09-11: his *"we should always have paths firsts"*. Their own shape is
       # pinned in `generator_source_test`; here it matters that they ride over the wire, and in what order.
-      assert Enum.map(woodland["options"], & &1["key"]) == ~w(exits pathways river crossing bridge)
+      assert Enum.map(woodland["options"], & &1["key"]) == ~w(exits pathways river crossing depth bridge)
 
       assert Enum.drop(woodland["options"], 2) == [
                %{
@@ -76,6 +76,22 @@ defmodule NebulithWeb.GeneratorControllerTest do
                  "type" => "toggle",
                  "default" => false,
                  "requires" => "river"
+               },
+               # HOW DEEP the channel is cut, and it rides the wire like the rest. Alexander, 2026-09-11:
+               # *"river depth is confgiuravble, same as shadow, same as sun light, we want to control
+               # everyhting, intensity, quality, size, activate, deactivate itm, etc"*. `flat` is the old
+               # behaviour, a river painted on the walking plane.
+               %{
+                 "key" => "depth",
+                 "label" => "How deep the channel is cut",
+                 "type" => "choice",
+                 "default" => "1",
+                 "requires" => "river",
+                 "choices" => [
+                   %{"key" => "flat", "label" => "Not cut (painted on the ground)"},
+                   %{"key" => "1", "label" => "One block down"},
+                   %{"key" => "2", "label" => "Two blocks down"}
+                 ]
                },
                %{
                  "key" => "bridge",
