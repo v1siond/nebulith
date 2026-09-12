@@ -20,10 +20,15 @@ import {
 } from '@/game/artStyle'
 import type { EntityVariant } from '@/game/types'
 
-const PUBLIC_DIR = path.join(__dirname, '../../../public')
-// The DB tileset's image_url is root-relative, absolutized against the backend origin by the loader
-// (tilesetLoader's `abs()`) — strip that origin back off before checking the static asset on disk.
-const onDisk = (src: string): boolean => fs.existsSync(path.join(PUBLIC_DIR, src.replace(/^https?:\/\/[^/]+/, '').replace(/^\//, '')))
+// THE ART LIVES IN THE BACKEND, and only there. Alexander, 2026-09-12: *"all those tiles in the frontend
+// shouldn't exist at all, all tils should come from backend"*. The frontend's `public/tiles` copy is deleted:
+// it was a partial, stale duplicate of the backend's static root, and nothing in `src/` ever read it because
+// the loader absolutises every `image_url` against the backend origin.
+//
+// So "does this PNG exist" is answered where the PNG actually is. A root-relative src is joined onto the
+// backend's static root; an absolutised one has its origin stripped first.
+const STATIC_ROOT = path.join(__dirname, '../../../../nebulith/priv/static')
+const onDisk = (src: string): boolean => fs.existsSync(path.join(STATIC_ROOT, src.replace(/^https?:\/\/[^/]+/, '').replace(/^\//, '')))
 
 describe('typed enemies resolve to baked images', () => {
   // enemyType → the glyph the baked tile shows (spot-check the roster + a few aliases).
