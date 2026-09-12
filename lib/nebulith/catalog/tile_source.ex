@@ -128,6 +128,8 @@ defmodule Nebulith.Catalog.TileSource do
     # only the picture is the style's. Without this the same `grass` was "Grass" in one style and nameless
     # in the other — two engines' worth of drift in the data.
     normalize_label_facts()
+    # …including a label's COLOURS, which was the column nobody had got to. See normalize_label_colors/0.
+    normalize_label_colors()
     point_tiles_at_own_image()
     # What each `units` tile IS — person / enemy / animal / fx. The editor reads this instead of
     # classifying 36 backend-owned slugs itself (§3.14b #11), and the Characters library sub-groups by it.
@@ -1730,6 +1732,71 @@ defmodule Nebulith.Catalog.TileSource do
 
     IO.puts("agreed #{length(changed)} per-label facts across styles (a label owns everything but the picture)")
     :ok
+  end
+
+  @doc """
+  Makes a label's per-zone COLOURS agree across styles, the next column in the same rule.
+
+  `normalize_tile_heights/0` reconciled height and blocking; `normalize_label_facts/0` did title and category
+  and its own doc says it "closes the remaining two columns". It did not: COLOUR is a per-label fact too, and
+  a label owns everything except the picture.
+
+  Measured on the live catalog before writing this: 240 ascii rows carry `settings.colors` and TWO emoji rows
+  do (`leaf_center`, `leaf_top`), whose values are already IDENTICAL to their ascii twins. So copying across
+  is the established precedent, not a new palette: nothing here invents a colour.
+
+  Alexander, 2026-09-12: *"seed the emoji colors first also"*. Why it matters beyond tidiness: the frontend
+  reads every composition cell's colour and every floor colour through `styleCatalog('ascii')`, pinned, because
+  switching those reads to the ACTIVE style today would drop 359 emoji rows onto an invented grey. This is the
+  half that has to land before that pin can come out.
+
+  Conservative on purpose: a style that ALREADY authored its own colours keeps them. This only fills a blank,
+  so a deliberate per-style colour can never be overwritten by the other style's.
+  """
+  def normalize_label_colors do
+    tilesets = Catalog.list_tilesets()
+    by_label = tiles_by_label(tilesets)
+
+    written =
+      Enum.flat_map(by_label, fn {label, tiles} ->
+        case canonical_colors(tiles) do
+          nil -> []
+          colors -> fill_blank_colors(tilesets, tiles, label, colors)
+        end
+      end)
+
+    IO.puts("agreed #{length(written)} per-label colour maps across styles (a colour is a fact about the thing, not the picture)")
+    :ok
+  end
+
+  # The label's per-zone colour map, from whichever style authored one. Nil when no style did, in which case
+  # nothing is written: a colour is never invented here, and a tile with no colour renders from its own art.
+  defp canonical_colors(tiles) do
+    Enum.find_value(tiles, fn tile ->
+      case (tile.settings || %{})["colors"] do
+        colors when is_map(colors) and map_size(colors) > 0 -> colors
+        _ -> nil
+      end
+    end)
+  end
+
+  # Written with map/filter rather than a comprehension, for the reason `agree_on_label/3` states: a binding
+  # in a `for` clause is a FILTER, so a nil quietly drops the row instead of being handled.
+  defp fill_blank_colors(tilesets, tiles, label, colors) do
+    tilesets
+    |> Enum.map(fn tileset -> {tileset, Enum.find(tiles, &(&1.tileset_id == tileset.id))} end)
+    |> Enum.filter(fn {_tileset, tile} -> tile != nil and blank_colors?(tile) end)
+    |> Enum.map(fn {tileset, _tile} ->
+      Catalog.put_tile_setting(tileset.id, label, "colors", colors)
+      {tileset.key, label}
+    end)
+  end
+
+  defp blank_colors?(tile) do
+    case (tile.settings || %{})["colors"] do
+      colors when is_map(colors) and map_size(colors) > 0 -> false
+      _ -> true
+    end
   end
 
   defp tiles_by_label(tilesets) do

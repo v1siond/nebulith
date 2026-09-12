@@ -88,6 +88,44 @@ defmodule Nebulith.TilesetParityTest do
            "shared labels that DON'T behave the same across ascii/emoji:\n" <> Enum.join(mismatches, "\n")
   end
 
+  test "every SHARED label agrees across styles on its per-zone COLOURS", ctx do
+    shared =
+      MapSet.intersection(MapSet.new(Map.keys(ctx.ascii)), MapSet.new(Map.keys(ctx.emoji)))
+      |> MapSet.to_list()
+      |> Enum.reject(&(&1 in @intentional_divergence))
+      |> Enum.sort()
+
+    mismatches =
+      for label <- shared,
+          a = (ctx.ascii[label].settings || %{})["colors"],
+          e = (ctx.emoji[label].settings || %{})["colors"],
+          a != e do
+        "#{label}: ascii=#{inspect(a)} emoji=#{inspect(e)}"
+      end
+
+    assert mismatches == [],
+           "a colour is a fact about the THING, not about the picture, so it must not differ per style:\n" <>
+             Enum.join(mismatches, "\n")
+  end
+
+  test "the colour agreement FILLS a blank without overwriting a style that authored its own", ctx do
+    ascii_id = ctx.ascii["wall"].tileset_id
+    emoji_id = ctx.emoji["wall"].tileset_id
+    own = %{"spring" => "#010203"}
+
+    # emoji states its OWN colour for one label; ascii's is left blank for another
+    Catalog.put_tile_setting(emoji_id, "wall", "colors", own)
+    Catalog.put_tile_setting(ascii_id, "door", "colors", %{})
+
+    :ok = TileSource.normalize_label_colors()
+
+    emoji_wall = Map.new(Catalog.list_tiles_for("emoji"), &{&1.label, &1})["wall"]
+    ascii_door = Map.new(Catalog.list_tiles_for("ascii"), &{&1.label, &1})["door"]
+
+    assert emoji_wall.settings["colors"] == own, "an authored per-style colour is never overwritten"
+    assert is_map(ascii_door.settings["colors"]), "a blank is filled from whichever style has one"
+  end
+
   test "AsciiEmojiBehaviorParity fixes a DRIFTED live ascii row (height/blocking/category), settings untouched, idempotent", ctx do
     door = ctx.ascii["door"]
     settings_before = door.settings
