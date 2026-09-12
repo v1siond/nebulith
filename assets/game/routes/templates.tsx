@@ -966,13 +966,26 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
    * showing on generators"*). The panel hands its own subject up instead.
    */
   const [genPeek, setGenPeek] = useState<ReturnType<typeof subjectFor>>(null)
-  const previewSubject = genPeek ?? subjectFor(libraryKind, previewLabel, activeStyleId)
+  /**
+   * The generator's peek belongs to the New world rail ALONE.
+   *
+   * Alexander, 2026-09-11: *"preview is still not working correctly on tiles nor objects nor characters, just
+   * works on template generators"*. `genPeek` holds the world a preset would build, and NOTHING ever cleared
+   * it: one visit to the New world rail left it set for the rest of the session, so `genPeek ?? subjectFor(…)`
+   * short-circuited on every other rail and a library kept showing the stale world instead of the thing under
+   * the cursor. The caption said so too.
+   *
+   * The effect below clears it when you leave that rail. This says the same thing in the DERIVATION, so a
+   * stale value cannot decide what a library shows even for the one render before an effect runs.
+   */
+  const peek = activeRailId === 'generate' ? genPeek : null
+  const previewSubject = peek ?? subjectFor(libraryKind, previewLabel, activeStyleId)
   /** What the panel calls what it is showing: a library row by its label, a generator preset by its world. */
   const previewCaption =
-    genPeek && genPeek.kind === 'stage'
+    peek && peek.kind === 'stage'
       // The picked world by NAME ("Mountain forest"), not its layout ("woodland"): once a type has subtypes,
       // the layout no longer says which world this is.
-      ? `${String(genPeek.name ?? genPeek.layout ?? genPeek.variant)}: the world this preset builds`
+      ? `${String(peek.name ?? peek.layout ?? peek.variant)}: the world this preset builds`
       : previewLabel
   /**
    * How every swatch and the preview panel should draw a thing: the view you are looking through, the zone
@@ -1005,7 +1018,11 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
    * *"when you close the preview it goes inside the sidebar and can never go back oputside until you change
    * links"*. Closing it still closes it for as long as you stay where you are.
    */
-  useEffect(() => { setPreviewOpen(true) }, [activeRailId])
+  useEffect(() => {
+    setPreviewOpen(true)
+    // AND DROP THE STALE WORLD, so the caption and the panel agree with the rail you are actually on.
+    if (activeRailId !== 'generate') setGenPeek(null)
+  }, [activeRailId])
   /** Is the level map open BIG, in its own panel? Separate from `levelMapOpen`, which is the corner one. */
   const [levelMapBig, setLevelMapBig] = useState(false)
 

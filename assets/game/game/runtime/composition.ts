@@ -91,7 +91,16 @@ export function flattenedRoof(label: string, roofTile: string | undefined): bool
   if (roofTile !== 'flat_roof') return false
   return label in ROOF_CAPS || Object.values(ROOF_CAPS).includes(label)
 }
-const isWallLabel = (label: string): boolean => label.startsWith('wall_')
+/**
+ * Is this cell a WALL, so the place's wall colour applies to it?
+ *
+ * Alexander, 2026-09-11: *"for the walls, we're using tiles wrong, just like roads, we should variate it,
+ * somne buildings can be build only with colored walls, no tile"*. A plain wall is the solid `wall` block with
+ * the colour doing all the work, the same trick the meadow's floor uses. That label has no underscore, so
+ * `startsWith('wall_')` said it was not a wall and the palette's colour skipped it: a modern block of flats
+ * would have come out in the tile's own seasonal tone instead of the city's.
+ */
+const isWallLabel = (label: string): boolean => label === 'wall' || label.startsWith('wall_')
 
 /** The per-cell RENDER fields a composition cell contributes to the tile placed in it. */
 export type CompositionCellRender = Pick<
