@@ -188,9 +188,15 @@ export interface GenerateOptions {
   rows?: number
   /** The generator's options as the person set them (`{river: true}`) — a variation, not a new template. */
   options?: Readonly<Record<string, GeneratorOptionValue>>
-  /** Steer the general forest layout; the rest is randomized. Default 'passages'
-   *  reproduces today's multi-passage forest. Only the forest variant reads it. */
-  layout?: ForestLayout
+  /**
+   * WHICH SHAPE of its kind this map builds: a forest's `woodland`, a settlement's `modern_city`.
+   *
+   * A plain string, not `ForestLayout`, since 2026-09-11: a settlement's presets are its LOOKS now
+   * (Alexander: *"instead of "town" "city" we'd have modern city, swamp village, etc"*), and passing
+   * `modern_city` through a type called ForestLayout would be a lie the compiler happily told. Only
+   * `placeForest` resolves it today, and it checks membership before it does.
+   */
+  layout?: string
   /** Per-layer SEED. A layer given a seed draws from a reproducible `makeRng(seed)` stream; a layer
    *  left out draws from the global `Math.random` (today's behaviour). This is the macro-randomize
    *  seam: re-roll one layer by changing only its seed and regenerating — the other layers, fed the
@@ -697,9 +703,9 @@ interface ArchetypeContext {
   crossings?: Readonly<Record<string, GeneratorCrossing>>
   /** Where footprints come from — see `GenerateOptions.buildingSizes`. */
   buildingSizes?: BuildingSizes
-  /** The user-steered forest layout, or undefined for a plain generate (placeForest then random-picks a
-   *  meadow layout). Only placeForest reads it. */
-  layout: ForestLayout | undefined
+  /** The user-steered shape of this kind of place, or undefined for a plain generate (placeForest then
+   *  random-picks a meadow layout). Only placeForest resolves it, and it checks membership first. */
+  layout: string | undefined
   /** The generator's OPTIONS as the person set them — `{river: true}`. A layout reads the ones it knows. */
   options: Readonly<Record<string, GeneratorOptionValue>> | undefined
   /** The ways through this map, planned BEFORE anything was planted. Undefined → this generator serves no ways
@@ -1305,7 +1311,10 @@ function placeForest(ctx: ArchetypeContext): void {
   // The forest builds one of the MEADOW layouts (Alexander retired the old passages/open/lake
   // generators). An explicit meadow layout is honoured; a plain generate (no/legacy layout) RANDOMLY
   // picks one — seeded from ctx.rand, so it's reproducible per seed. Dispatch map (Open/Closed).
-  const layout = ctx.layout && FOREST_LAYOUTS[ctx.layout] ? ctx.layout : pickMeadowLayout(ctx.rand, ctx.nature)
+  // A layout this forest does not know (a settlement's `modern_city`, or nothing at all) rolls a meadow, the
+  // same fallback a plain generate always had.
+  const named = ctx.layout as ForestLayout | undefined
+  const layout = named && FOREST_LAYOUTS[named] ? named : pickMeadowLayout(ctx.rand, ctx.nature)
   FOREST_LAYOUTS[layout]!(ctx)
 }
 

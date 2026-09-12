@@ -2671,7 +2671,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     // than no seam: it says a town has no buildings while the screen shows a town full of them.
     win.__genVillage = async () => { await generateStageInEditor('spring', 'town'); return { buildings: countBuildingTiles(gridRef.current) } }
     win.__genStage = async (zone: string, variant: string, layout?: string, seed?: number) => {
-      await generateStageInEditor(zone as ZoneId, variant as VariantId, layout as ForestLayout | undefined, undefined, seed)
+      await generateStageInEditor(zone as ZoneId, variant as VariantId, layout, undefined, seed)
       return { buildings: countBuildingTiles(gridRef.current) }
     }
     /** Count the stamped building tiles on the CURRENT map, without generating anything. */
@@ -3464,7 +3464,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   // ── macro RANDOMIZE: whole map + per-layer scopes (GENERATION-SPEC §5) ──────
   // The recipe of the last full generate — zone/variant/size + the per-layer SEEDS. Re-rolling one
   // layer changes only that layer's seed and regenerates: the rest, fed the same seeds, reproduce.
-  const lastGenRef = useRef<{ zone: ZoneId; variant: VariantId; layout?: ForestLayout; options?: Record<string, GeneratorOptionValue>; generatorKey?: string; cols: number; rows: number; seeds: Record<'layout' | 'buildings' | 'nature' | 'decor', number> } | null>(null)
+  const lastGenRef = useRef<{ zone: ZoneId; variant: VariantId; layout?: string; options?: Record<string, GeneratorOptionValue>; generatorKey?: string; cols: number; rows: number; seeds: Record<'layout' | 'buildings' | 'nature' | 'decor', number> } | null>(null)
   // Salts the per-building material/roof/wall-colour hash so "randomize buildings only" repaints.
   const buildingSaltRef = useRef(0)
   const randSeed = (): number => (Math.random() * 0x7fffffff) | 0
@@ -3632,7 +3632,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   const generateStageInEditor = async (
     zone: ZoneId,
     variant: VariantId,
-    layout?: ForestLayout,
+    layout?: string,
     /** The size the panel asked for — cell pixels included. Absent = let the generator roll one. */
     requested?: MapSize,
     seed?: number,
@@ -5705,7 +5705,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                   zone={genZone}
                   onZone={z => setGenZone(z as ZoneId)}
                   onGenerate={(z, v, layout, options, generatorKey) => {
-                    void generateStageInEditor(z as ZoneId, v as VariantId, layout as ForestLayout | undefined, undefined, undefined, options, generatorKey)
+                    void generateStageInEditor(z as ZoneId, v as VariantId, layout, undefined, undefined, options, generatorKey)
                   }}
                   onRandomizeLayer={layer => randomizeLayerInEditor(layer as LayerId)}
                   selectedCount={selectedCells.size}
