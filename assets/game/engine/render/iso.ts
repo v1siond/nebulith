@@ -578,7 +578,7 @@ export function render(params: IsoRenderParams) {
   const camCell = turn === 0
     ? { col: camX / cellSize, row: camZ / cellSize }
     : deorientCellTurn(fc, fr, grid.cols, grid.rows, turn)
-  drawGridSkirt(ctx, grid, toScreen, tileW, tileH, Math.floor(camCell.col), Math.floor(camCell.row), halfSpan)
+  drawGridSkirt(ctx, grid, toScreen, tileW, tileH, Math.floor(camCell.col), Math.floor(camCell.row), halfSpan, heightStep)
 
   const rectAssets = grid.getVisibleAssets(
     Math.floor(camCell.col),
@@ -1458,27 +1458,36 @@ export function drawGridSkirt(
   camCol: number,
   camRow: number,
   halfSpan: number,
+  /**
+   * On-screen height of ONE elevation level, `cellSize * isoScale * 0.4`, the same number the tile draw lifts
+   * a cell by. It is NOT this function's `blockH` (`tileW * ISO_BLOCK_H_FRAC`, which works out ~1.6x larger):
+   * a cliff drawn at the block scale would not meet the ground tile it holds up, and every step would show a
+   * seam. The slab keeps `blockH`, because that is the body's own look and it is unchanged.
+   */
+  heightStep: number,
 ): void {
   // THE THICKNESS IS MAP DATA — `grid.slabBlocks`, served with the level and saved with it. It was a module
   // constant (`GRID_SLAB_BLOCKS = 1`) for exactly one day, which was one day too long: Alexander, 2026-09-10,
   // *"is there any way to control the height of the grid??"* — no, and that is the same mistake as pinning a
   // floor's height in a factory, one layer up. Zero means no body at all, and nothing draws.
   const slab = grid.slabBlocks
-  if (slab <= 0) return
   const blockH = tileW * ISO_BLOCK_H_FRAC
-  const drop = slab * blockH
+  // NO EARLY RETURN on a missing slab any more. A map with no body still has RELIEF, and returning here would
+  // have silently switched every cliff off along with it.
+  const slabDrop = slab * blockH
   const c0 = Math.max(0, camCol - halfSpan)
   const c1 = Math.min(grid.cols - 1, camCol + halfSpan)
   const r0 = Math.max(0, camRow - halfSpan)
   const r1 = Math.min(grid.rows - 1, camRow + halfSpan)
 
-  const wall = (p: { x: number; y: number }, side: 'left' | 'right', color: string): void => {
+  const wall = (p: { x: number; y: number }, side: 'left' | 'right', color: string, drop: number): void => {
     // The two front faces of the cell's diamond, dropped by the slab thickness. LEFT is the L→B edge
     // (facing +row), RIGHT is the B→R edge (facing +col) — the same corners isoBlockFaces uses.
     const l = { x: p.x - tileW, y: p.y }
     const b = { x: p.x, y: p.y + tileH }
     const r = { x: p.x + tileW, y: p.y }
     const [from, to] = side === 'left' ? [l, b] : [b, r]
+    if (drop <= 0) return
     ctx.fillStyle = color
     ctx.beginPath()
     ctx.moveTo(from.x, from.y)
@@ -1499,15 +1508,33 @@ export function drawGridSkirt(
       // (Image #29), and it was this skirt, not the tile heights. The map's boundary is the grid's bounds.
       const openRight = col + 1 >= grid.cols // the +col neighbour is off the map, so this wall faces the void
       const openLeft = row + 1 >= grid.rows // the +row neighbour is off the map
-      if (!openRight && !openLeft) continue // inside the map — its walls can never be seen
-      const p = toScreen(col, row)
+
+      // RELIEF. Alexander, 2026-09-12: *"we need to have support for different levels of terrain, relieve in
+      // spanish"*. Where this cell stands ABOVE the neighbour in front of it, that difference is a CLIFF, and
+      // it is visible: the note above about interior walls is true of a flat slab, where the cell in front
+      // hides them, and false the moment two cells sit at different levels.
+      //
+      // The condition is the ELEVATION differing, never the FLOOR differing. Keying on the floor is precisely
+      // what grew a wall at every plot edge and made the grass look raised above the road, which is the
+      // artefact he reported in Image #29 and which the comment above records.
+      const here = grid.getHeight(col, row)
+      const cliffRight = openRight ? 0 : here - grid.getHeight(col + 1, row)
+      const cliffLeft = openLeft ? 0 : here - grid.getHeight(col, row + 1)
+
+      if (!openRight && !openLeft && cliffRight <= 0 && cliffLeft <= 0) continue // flat and interior: nothing shows
       // READ the body colour the floor was born with — never shade one here. Deriving a colour at draw time is
       // forbidden (and would recompute for every visible edge cell, every frame). A floor without one is a data
       // gap, and the rule for a gap is to draw nothing rather than invent something.
       const body = floor.sideColor
       if (!body) continue
-      if (openLeft) wall(p, 'left', body)
-      if (openRight) wall(p, 'right', body)
+      const p = toScreen(col, row)
+      // The faces start at the cell's DRAWN top, which a raised cell reaches by its own elevation. At level 0
+      // this is p exactly, so every flat map is byte-identical.
+      const top = { x: p.x, y: p.y - here * heightStep }
+      if (cliffLeft > 0) wall(top, 'left', body, cliffLeft * heightStep)
+      if (cliffRight > 0) wall(top, 'right', body, cliffRight * heightStep)
+      if (openLeft) wall(top, 'left', body, slabDrop)
+      if (openRight) wall(top, 'right', body, slabDrop)
     }
   }
 }
