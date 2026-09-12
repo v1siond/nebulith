@@ -42,7 +42,7 @@ import { BARE_HANDS, type HitMarker, type PlayerHud, type ProjectileContext, pla
 import { type PlayerState, aimFromKeys, facingFromKeys, playerDisplayName, resolveSpawnCell } from '@/game/runtime/player'
 import { moveWorldDelta } from '@/game/runtime/cameraMovement'
 import { MOVE_KEYS, isTypingTarget, matchEditorAction, type EditorActionId } from '@/game/shortcuts'
-import { nextLevelName } from '@/game/autoNaming'
+import { nextLevelName, resolveLevelName } from '@/game/autoNaming'
 import { activeQuest, applyQuestEvent, questAnchorScreenPos, questForGiver, reachableQuestGiver, rewardSummary, upsertQuest } from '@/game/runtime/quest'
 import { reachableSpeaker } from '@/game/runtime/dialog'
 import { type EnemyRuntime, isLivingEnemy, makeEnemyRuntime, RANGED_RANGE } from '@/game/runtime/targeting'
@@ -4789,17 +4789,19 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   /** The Inspector's discoverable "💾 Save map" action — the SAME handler behind the cell card's and the unit
    *  card's button, so both save identically. An unnamed map warns instead of silently no-opping (spec §4). */
   const saveMapFromInspector = () => {
-    if (!templateName.trim()) {
-      toast('Name your map in the top bar to save', 'warning')
-      return
-    }
     void saveCurrentTemplate()
   }
 
   // Save current map as template
   const saveCurrentTemplate = async () => {
     const grid = gridRef.current
-    if (!grid || !templateName.trim()) return
+    if (!grid) return
+    // NEVER refuse a save for want of a name. `templateName` starts empty and the name input renders only
+    // outside a game, so this guard made Save impossible inside one with nothing to click that would fix it.
+    // The generated name is the same one the add-a-level path uses, and the backend requires a name, so it is
+    // resolved here and written back into the field so the person can see what their level is called.
+    const nameToSave = resolveLevelName(templateName, savedTemplates)
+    if (nameToSave !== templateName) setTemplateName(nameToSave)
     markSaving() // the status line says "Saving…" while the write is out (§4.4)
 
     // Check template limit for new templates
@@ -4835,7 +4837,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       if (currentTemplateId) {
         // Update existing
         await updateTemplate(currentTemplateId, {
-          name: templateName,
+          name: nameToSave,
           groundData,
           heightData,
           assetsData: assetsWithEntities,
@@ -4853,7 +4855,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       } else {
         // Create new
         const created = await createTemplate({
-          name: templateName,
+          name: nameToSave,
           groundData,
           heightData,
           assetsData: assetsWithEntities,
@@ -5620,16 +5622,18 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
           {/* Outside a game there is no 🎮 menu and no level stepper, so the level's NAME and the way to
               open one live here. Inside a game the stepper names the level and `＋ Add a level` is in its
               dropdown, exactly as §4.4 draws it. */}
-          {!gameContext && (
-            <input
-              type="text"
-              value={templateName}
-              onChange={e => setTemplateName(e.target.value)}
-              placeholder="Level name…"
-              aria-label="Template name"
-              className="w-36 shrink-0 rounded bg-gray-800 px-2 py-1 text-xs"
-            />
-          )}
+          {/* The level's NAME is editable wherever the editor is open. This used to render only OUTSIDE a
+              game, on the reasoning that the stepper names the level inside one. But the stepper only
+              DISPLAYS a name, so inside a game there was no way to set one while Save still demanded it:
+              *"there's no place to do it"*. */}
+          <input
+            type="text"
+            value={templateName}
+            onChange={e => setTemplateName(e.target.value)}
+            placeholder="Level name…"
+            aria-label="Template name"
+            className="w-36 shrink-0 rounded bg-gray-800 px-2 py-1 text-xs"
+          />
           <div className="relative shrink-0">
             {/* The button only exists OUTSIDE a game (§4.4). Inside one, the same picker opens from the
                 level dropdown's `＋ Add a level…`, which is what that action means. */}
@@ -5690,7 +5694,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
           <button
             type="button"
             onClick={saveCurrentTemplate}
-            disabled={isSaving || !templateName.trim()}
+            disabled={isSaving}
             aria-label="Save template"
             title={saveStatus.label}
             className={`b${saveStatus.wouldLoseWork ? ' pri' : ''}`}

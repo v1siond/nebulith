@@ -9,7 +9,7 @@
  * enough that a gallery of them stays readable: no collisions, and the numbers keep counting up
  * instead of reusing a gap and producing two "Game 3"s a rename apart.
  */
-import { nextGameName, nextLevelName } from '@/game/autoNaming'
+import { nextGameName, nextLevelName, resolveLevelName } from '@/game/autoNaming'
 
 const named = (...names: string[]) => names.map(name => ({ name }))
 
@@ -59,5 +59,29 @@ describe('nextLevelName uses the editor\'s word for a template', () => {
 
   it('leaves hand-named levels alone', () => {
     expect(nextLevelName(named('village', 'boss-arena'))).toBe('Level 1')
+  })
+})
+
+// A SAVE IS NEVER BLOCKED FOR WANT OF A NAME. The editor starts on an empty name and the name field only
+// rendered outside a game, so Save sat permanently disabled with nothing to click that would fix it.
+describe('resolveLevelName', () => {
+  it('keeps the name the person typed', () => {
+    expect(resolveLevelName('village', named('Level 1'))).toBe('village')
+  })
+
+  it('trims it, so spaces are not a name', () => {
+    expect(resolveLevelName('  boss arena  ', [])).toBe('boss arena')
+  })
+
+  it('generates one when the field is empty, which is what unblocks Save', () => {
+    expect(resolveLevelName('', named('Level 1', 'Level 2'))).toBe('Level 3')
+  })
+
+  it('generates one when the field holds only whitespace', () => {
+    expect(resolveLevelName('   ', [])).toBe('Level 1')
+  })
+
+  it('counts around hand-named levels, like the generator it delegates to', () => {
+    expect(resolveLevelName('', named('village', 'Level 4'))).toBe('Level 5')
   })
 })

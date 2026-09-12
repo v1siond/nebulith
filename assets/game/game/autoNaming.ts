@@ -34,3 +34,17 @@ export const nextGameName = (existing: readonly { name: string }[]): string => n
 
 /** "Level 3" — the editor's word for a template (design §4.1.6: one vocabulary, Level not Template). */
 export const nextLevelName = (existing: readonly { name: string }[]): string => nextGeneratedName('Level', existing)
+
+/**
+ * The name a level SAVES under: what the person typed, or a generated one when they typed nothing.
+ *
+ * A save must never be refused for want of a name. Alexander, 2026-09-12: *"there's no way to save the map,
+ * save button is always disabeld and when i truy to save a change I get an error indicating that I must
+ * change or set a name on the template, but there's no place to do it"*. The editor starts on an empty name
+ * and the name field was hidden whenever the editor opened inside a game, so the save gate demanded a value
+ * the interface never collected. The backend requires one too (`Template.changeset` validates `:name`), so
+ * the resolution belongs here, next to the generator that the add-a-level path already uses.
+ */
+export function resolveLevelName(current: string, existing: readonly { name: string }[]): string {
+  return current.trim() || nextLevelName(existing)
+}
