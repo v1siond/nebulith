@@ -162,9 +162,9 @@ defmodule Nebulith.Catalog.BuildingCompositions do
       wall_top_bonus: 2,
       default: {5, 5}
     },
-    "temple" => %{materials: ["wall_stone"], roof: {:gable, "roof_slate", "roof_top_slate"}, default: {8, 4}},
-    "cathedral" => %{materials: ["wall_stone"], roof: {:gable, "roof_slate", "roof_top_slate"}, default: {7, 5}},
-    "castle" => %{materials: ["wall_stone"], roof: {:gable, "roof_slate", "roof_top_slate"}, default: {12, 6}},
+    "temple" => %{materials: ["wall_stone"], roof: {:gable, "roof_slate", "roof_top_slate"}, portico: true, default: {8, 4}},
+    "cathedral" => %{materials: ["wall_stone"], roof: {:gable, "roof_slate", "roof_top_slate"}, aisles: true, default: {7, 5}},
+    "castle" => %{materials: ["wall_stone"], roof: {:gable, "roof_slate", "roof_top_slate"}, wide_door: true, default: {12, 6}},
 
     # ── THE THINGS THAT MAKE A PLACE A PLACE ────────────────────────────────────────────────────────
     # Alexander, 2026-09-11: *"all you did was change colors, when everything should've changed like having
@@ -183,10 +183,11 @@ defmodule Nebulith.Catalog.BuildingCompositions do
       roof: :gable,
       # Squat and long: a stable is a roof you walk a horse under, not a house.
       wall_top_bonus: -1,
+      front_posts: true,
       title: "Stable",
       default: {6, 3}
     },
-    "barn" => %{materials: ["wall_wood"], roof: :gable, title: "Barn", default: {7, 4}},
+    "barn" => %{materials: ["wall_wood"], roof: :gable, wide_door: true, window_faces: :none, title: "Barn", default: {7, 4}},
     "smithy" => %{
       materials: ["wall_brick"],
       roof: :gable,
@@ -207,6 +208,7 @@ defmodule Nebulith.Catalog.BuildingCompositions do
       materials: ["wall_plaster"],
       roof: {:gable, "roof_slate", "roof_top_slate"},
       wall_top_bonus: 1,
+      porch: true,
       title: "Manor",
       default: {8, 5}
     },
@@ -215,12 +217,13 @@ defmodule Nebulith.Catalog.BuildingCompositions do
       roof: {:flat, []},
       # The block a modern city is made of: taller than the office, and nothing but windows.
       wall_top_bonus: 4,
+      window_levels: :every_course,
       title: "Apartments",
       default: {6, 5}
     },
     "tower" => %{
       materials: ["wall_stone"],
-      roof: {:flat, []},
+      roof: {:flat, crown: :all},
       # His skyscraper. Narrow footprint, and the height comes from the bonus rather than the width.
       wall_top_bonus: 8,
       title: "Tower",
@@ -281,7 +284,7 @@ defmodule Nebulith.Catalog.BuildingCompositions do
     wall_top = Keyword.get(opts, :wall_top) || wall_top_for(w, spec)
     mat = Keyword.get(opts, :material) || roll_material(spec, opts)
     win_levels = window_levels(spec, wall_top)
-    doors = door_cols(w)
+    doors = door_cols(w, spec)
 
     facade = facade_fun(spec, w, h, wall_top, mat, win_levels, doors)
     roof_cells = roof_for(spec, w, h, wall_top, opts)
@@ -304,6 +307,11 @@ defmodule Nebulith.Catalog.BuildingCompositions do
   # Windows on the odd courses up to the wall top, so a wall course always sits between floors — unless the
   # type says otherwise (a shop glazes only its top course; the ones below are storefront).
   defp window_levels(%{window_levels: :top_course}, wall_top), do: [wall_top]
+
+  # Every course, not every other one. A block of flats has a floor at each level; a house has two floors with a
+  # wall course between them, which is what the default expresses.
+  defp window_levels(%{window_levels: :every_course}, wall_top), do: Enum.to_list(1..wall_top)
+
   defp window_levels(_spec, wall_top), do: Enum.filter(1..wall_top//2, &(rem(&1, 2) == 1))
 
   # A material is ROLLED, not fixed. Seeded when the caller wants the same building twice (a thumbnail, a
@@ -318,20 +326,59 @@ defmodule Nebulith.Catalog.BuildingCompositions do
   end
 
   # ONE facade, from the table's row. Every authored builder was this `cond` with different arms.
+  # ── THE FORM IS THE BUILDING ─────────────────────────────────────────────────────────────────────
+  #
+  # Alexander, 2026-09-11: *"most are basically ther same, same form, same layout, same everything"* and
+  # *"there's duplicated objects, like big house and house"*, after I added seven types that were nothing but
+  # a different width, wall family and height.
+  #
+  # He was right, and it was measurable: fifteen types produced EIGHT distinct shapes, with
+  # apartment == office, barn == big_house == stable, and castle == cathedral == church == manor == temple.
+  # Every one was the same perimeter box of wall, door, window and a roof pair.
+  #
+  # These flags change the SHAPE, out of tiles that already exist (`post`, `pillar`, `parapet`), so nothing
+  # here waits on art:
+  #
+  #   · `front_posts` a stable is a roof you walk a horse under: its front is PIERS, not a glazed wall
+  #   · `wide_door`   a barn's door takes a cart, so it spans the middle of the facade and glazes nothing
+  #   · `portico`     a temple is a row of COLUMNS across its front, which is what makes it read as a temple
+  #   · `aisles`      a cathedral's long sides are an arcade, columns alternating down them
+  #   · `porch`       a manor announces its door with a column each side of it
+  #   · `every_course` an apartment block is windows all the way up, not a house's spaced pair of floors
+  #   · `crown: :all` a tower and a castle wear a PARAPET ring, not a pitched roof
+  #
+  # A cell's walkability is the composition's, not the tile's, so a colonnade still blocks: only the doorway
+  # is walkable, exactly as before.
   defp facade_fun(spec, w, h, wall_top, mat, win_levels, doors) do
     storefront? = Map.get(spec, :storefront, false)
     front_only? = Map.get(spec, :window_faces) == :front
+    unglazed? = Map.get(spec, :window_faces) == :none
+    posts? = Map.get(spec, :front_posts, false)
+    portico? = Map.get(spec, :portico, false)
+    porch? = Map.get(spec, :porch, false)
+    aisles? = Map.get(spec, :aisles, false)
     door_col = div(w, 2)
 
     fn dx, dy, level ->
       front = dy == h - 1
-      glazed_face = if front_only?, do: front, else: dy == 0 or dy == h - 1
+      flank = (dx == 0 or dx == w - 1) and not front and dy != 0
+      glazed_face =
+        cond do
+          unglazed? -> false
+          front_only? -> front
+          true -> dy == 0 or dy == h - 1
+        end
       shop = storefront? and front and abs(dx - door_col) <= 1
 
       cond do
         front and dx in doors and level in [0, 1] -> "door"
         shop and level == 0 -> "display_window"
         shop and level == 1 -> "awning"
+        # THE FORMS. Each replaces a stretch of wall with something that is not wall, which is the whole point.
+        front and posts? -> "post"
+        front and portico? -> "pillar"
+        front and porch? and abs(dx - door_col) == 1 -> "pillar"
+        flank and aisles? and rem(dy, 2) == 1 -> "pillar"
         glazed_face and window?(dx, w) and level in win_levels -> "window"
         front -> material_piece(mat, dx, level, w, wall_top)
         true -> "#{mat}_c"
@@ -375,6 +422,16 @@ defmodule Nebulith.Catalog.BuildingCompositions do
   # GENERATION-SPEC §1). Returned as the set of door columns.
   defp door_cols(w) when rem(w, 2) == 1, do: [div(w, 2)]
   defp door_cols(w), do: [div(w, 2) - 1, div(w, 2)]
+
+  # A WIDE door, centred, for a building a cart goes into. Three columns on an odd facade, four on an even one,
+  # held to the facade so a narrow barn does not end up as a doorway with no walls beside it.
+  defp door_cols(w, %{wide_door: true}) do
+    centre = door_cols(w)
+    extra = [hd(centre) - 1, List.last(centre) + 1]
+    (centre ++ extra) |> Enum.filter(&(&1 > 0 and &1 < w - 1)) |> Enum.sort()
+  end
+
+  defp door_cols(w, _spec), do: door_cols(w)
 
   defp perimeter?(dx, dy, w, h), do: dx == 0 or dx == w - 1 or dy == 0 or dy == h - 1
 
@@ -484,7 +541,20 @@ defmodule Nebulith.Catalog.BuildingCompositions do
 
     crown_label = if opts[:title], do: "roof_top", else: "rooftop_unit"
     crown = cell(div(w - 1, 2), div(h - 1, 2), roof_level + 1, crown_label, false)
-    columns ++ [crown]
+    columns ++ crown_ring(w, h, roof_level, opts) ++ [crown]
+  end
+
+  # THE PARAPET RING. The two side columns are already a parapet lip; this closes the front and back of it, so a
+  # tower and a castle are walled at the top instead of wearing a pitched roof. The engine has no battlement
+  # tile, and `parapet` is the piece that exists for exactly this job.
+  defp crown_ring(w, h, roof_level, opts) do
+    if opts[:crown] != :all or w < 3 do
+      []
+    else
+      for dx <- 1..(w - 2), dy <- Enum.uniq([0, h - 1]) do
+        cell(dx, dy, roof_level, "parapet", false)
+      end
+    end
   end
 
   # STONE BUILDING — the material+piece SAMPLE (TILESET-AUTHORING §3). A 5×4 box (matches the store footprint,
