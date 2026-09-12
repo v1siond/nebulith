@@ -3581,12 +3581,15 @@ function placeTemple(ctx: ArchetypeContext): void {
   })
   const wall = makeGrid(cols, rows, () => true)
 
-  // 2. Carve the ROOMS (south entrance, north boss chamber, pillared side halls).
-  const rooms = templeRooms(cols, rows)
+  // 2. Carve the ROOMS. With ways served they come FROM the plan (sanctum at its deepest point, chapels at the
+  //    other stops, the hall at the way in); without, the fixed list this always used.
+  const plan = plannedRoutes(ctx)
+  const rooms = plan ? templeRoomsFromPlan(ctx, plan) : templeRooms(cols, rows)
   rooms.forEach(room => carveTempleRoom(wall, room, cols, rows))
 
-  // 3. Wire the rooms into a connected NETWORK with narrow corridors (+ a couple of loops).
-  connectTempleRooms(wall, rooms, cols, rows)
+  // 3. Wire them together. The planned ways ARE the halls when there are ways; otherwise the old corridors.
+  if (plan) carveTempleWays(wall, plan, cols, rows)
+  else connectTempleRooms(wall, rooms, cols, rows)
 
   // 4. Seal the map border so the dungeon is fully enclosed.
   forEachCell(cols, rows, (col, row) => {
@@ -3615,17 +3618,94 @@ function placeTemple(ctx: ArchetypeContext): void {
 
   // 10. Seasonal HAZARDS — spike traps on room floors + water/ice/lava/sand-trap pools (kept out
   //     of the entrance + boss chambers so the critical path is never gated).
-  placeTempleHazards(ctx, rooms, pal)
+  placeTempleHazards(ctx, rooms, pal, plan?.cells ?? new Set())
 
   // 11. Guarantee ONE connected floor — fill any pocket a blocking pool stranded with wall.
   repairTempleFloor(ctx, pal)
 
-  // 12. The narratively-locked boss GATEWAY (walkable threshold) + its KEY in a side hall.
-  placeLockedDoorAndKey(ctx, boss, entrance, rooms, pal)
+  // 12. The narratively-locked GATEWAY (a walkable threshold) + its KEY. On a planned temple the gate sits on
+  //      the sanctum's own corridor and the key in a chapel, so the key is reachable WITHOUT crossing the gate.
+  if (plan) placeSanctumGate(ctx, boss, rooms, plan, pal)
+  else placeLockedDoorAndKey(ctx, boss, entrance, rooms, pal)
 }
 
 /** Lay out the dungeon rooms: a south ENTRANCE hall (spawn), a grand north BOSS chamber, and a
  *  row of pillared side HALLS across the middle band. Deterministic sizes, jittered positions. */
+/**
+ * THE PLAN IS THE TEMPLE, once the generator says how many ways run through it.
+ *
+ * Alexander, 2026-09-11: *"caves and temples are BAD, they should be completely re-imagined ... research temple
+ * types and how they've been built in other games, like world of warcraft, warcraft 3, zelda"*.
+ *
+ * The research: a Zelda dungeon is a spider (entrance, hub, legs, each leg ending somewhere worth reaching, the
+ * boss locked off the hub), and WoW's lesson is that each of those places should look like somewhere rather than
+ * like the end of a corridor. So the SANCTUM takes the plan's deepest point, the chapels take the other stops,
+ * and the entrance hall takes the way in. What used to be here was a fixed list: a boss rect at the top, an
+ * entrance rect at the bottom and three halls on a lane formula, connected by corridors of its own devising.
+ *
+ * The altar stays in the north half, which is what its suite holds it to, so the sanctum takes the most
+ * NORTHERN place the plan offers and is nudged north if even that sits south of the middle.
+ */
+function templeRoomAt(centre: RouteCell, w: number, h: number, cols: number, rows: number, role: TempleRoom['role']): TempleRoom {
+  return {
+    col: clamp(centre.col - Math.floor(w / 2), 1, Math.max(1, cols - 1 - w)),
+    row: clamp(centre.row - Math.floor(h / 2), 1, Math.max(1, rows - 1 - h)),
+    w,
+    h,
+    role,
+  }
+}
+
+function templeRoomsFromPlan(ctx: ArchetypeContext, plan: RoutePlan): TempleRoom[] {
+  const { cols, rows } = ctx
+  const places = [plan.hub, ...plan.deadEnds]
+  const deepest = places.reduce((a, b) => (b.row < a.row ? b : a))
+
+  const sanctum = templeRoomAt(deepest, clamp(Math.floor(cols * 0.42), 8, cols - 4), clamp(Math.floor(rows * 0.3), 6, rows - 4), cols, rows, 'boss')
+  if (sanctum.row + Math.floor(sanctum.h / 2) >= Math.floor(rows / 2)) {
+    sanctum.row = clamp(Math.floor(rows / 2) - sanctum.h, 1, Math.max(1, rows - 1 - sanctum.h))
+  }
+
+  const entrance = templeRoomAt(plan.entrance.inside, clamp(Math.floor(cols * 0.3), 6, cols - 4), clamp(Math.floor(rows * 0.2), 4, rows - 4), cols, rows, 'entrance')
+  const chapelW = clamp(Math.floor(cols * 0.22), 5, 12)
+  const chapelH = clamp(Math.floor(rows * 0.22), 4, 10)
+  const chapels = places.filter(place => place !== deepest).map(place => templeRoomAt(place, chapelW, chapelH, cols, rows, 'hall'))
+  return [sanctum, entrance, ...chapels]
+}
+
+/** The halls ARE the planned ways: carve the band the plan painted, never the border. */
+function carveTempleWays(wall: boolean[][], plan: RoutePlan, cols: number, rows: number): void {
+  for (const key of plan.cells) {
+    const { col, row } = toCell(key)
+    if (inBounds(col, row, cols, rows) && !isEdge(col, row, cols, rows)) wall[row][col] = false
+  }
+}
+
+/**
+ * THE LOCK, AND A KEY YOU CAN REACH WITHOUT IT.
+ *
+ * That is the one invariant a lock-and-key dungeon has to hold (Boris the Brave's piece on them is blunt about
+ * it: every lock needs a reachable key, or the dungeon is unsolvable). So the gate goes on the sanctum's OWN
+ * corridor, the nearest planned cell outside its walls, and the key goes in a chapel, which hangs off the hub
+ * rather than off the sanctum. A one-room temple has nothing to lock and gets neither.
+ */
+function placeSanctumGate(ctx: ArchetypeContext, sanctum: TempleRoom, rooms: TempleRoom[], plan: RoutePlan, pal: TemplePalette): void {
+  const { collision, cols, rows } = ctx
+  const chapel = rooms.find(room => room.role === 'hall')
+  if (!chapel) return
+  const insideSanctum = (col: number, row: number) =>
+    col >= sanctum.col && col < sanctum.col + sanctum.w && row >= sanctum.row && row < sanctum.row + sanctum.h
+  const centre = roomCentre(sanctum)
+  const gate = [...plan.spine]
+    .map(toCell)
+    .filter(cell => inBounds(cell.col, cell.row, cols, rows) && !collision[cell.row][cell.col] && !insideSanctum(cell.col, cell.row))
+    .reduce<Cell | null>((best, cell) => (best === null || manhattan(cell, centre) < manhattan(best, centre) ? cell : best), null)
+  if (!gate) return
+  ctx.props.push(makeGateway(gate.col, gate.row, pal.pillar)) // walkable, see makeGateway
+  const kc = roomCentre(chapel)
+  if (inBounds(kc.col, kc.row, cols, rows) && !collision[kc.row][kc.col]) ctx.props.push(makeKey(kc.col, kc.row))
+}
+
 function templeRooms(cols: number, rows: number): TempleRoom[] {
   const rooms: TempleRoom[] = []
   // Grand boss chamber, centred near the top.
@@ -3777,13 +3857,21 @@ function placeTorches(ctx: ArchetypeContext, rooms: TempleRoom[], pal: TemplePal
 /** Seasonal hazards: spike-trap tiles scattered on hall floors (non-blocking) + one hazard POOL
  *  per side hall (blocking per season, kept inside the room interior so it can't gate a corridor).
  *  The entrance + boss chambers stay hazard-free (clean spawn + fair boss arena). */
-function placeTempleHazards(ctx: ArchetypeContext, rooms: TempleRoom[], pal: TemplePalette): void {
+/**
+ * Seasonal hazards, and the cells they must not touch.
+ *
+ * Measured, not assumed: a chapel's planned way ENDS at the chapel's centre, and the pool stamps at that same
+ * centre, so the pool sat on the corridor's mouth. The repair then walled the pocket off, the stop came out
+ * unreachable and its key was never placed, because the cell it would have gone on was water. Three seeds out
+ * of three. The cave learned the same lesson an hour earlier: a way wins over water.
+ */
+function placeTempleHazards(ctx: ArchetypeContext, rooms: TempleRoom[], pal: TemplePalette, keepOut: ReadonlySet<string> = new Set()): void {
   const { collision, props, cols, rows } = ctx
   const occupied = new Set(props.map(p => `${p.col},${p.row}`))
   rooms.forEach(room => {
     if (room.role !== 'hall') return
     // a hazard pool near the room centre (radius 1–2), confined to the room interior.
-    stampTemplePool(ctx, room, pal)
+    stampTemplePool(ctx, room, pal, keepOut)
     // a few spike traps on remaining floor cells of the room interior.
     const spikes = 2 + randInt(0, 3)
     for (let i = 0; i < spikes; i++) {
@@ -3799,7 +3887,7 @@ function placeTempleHazards(ctx: ArchetypeContext, rooms: TempleRoom[], pal: Tem
 
 /** One organic hazard pool inside a room's interior (never spilling onto the room edge/corridor),
  *  painted only over floor cells. Blocking per season (ice stays walkable). */
-function stampTemplePool(ctx: ArchetypeContext, room: TempleRoom, pal: TemplePalette): void {
+function stampTemplePool(ctx: ArchetypeContext, room: TempleRoom, pal: TemplePalette, keepOut: ReadonlySet<string> = new Set()): void {
   const { ground, collision, cols, rows } = ctx
   const c = roomCentre(room)
   const radius = 1 + randInt(0, 1)
@@ -3812,6 +3900,7 @@ function stampTemplePool(ctx: ArchetypeContext, room: TempleRoom, pal: TemplePal
       if (col <= room.col + 1 || col >= room.col + room.w - 2) continue
       if (row <= room.row + 1 || row >= room.row + room.h - 2) continue
       if (!inBounds(col, row, cols, rows) || collision[row][col]) continue
+      if (keepOut.has(`${col},${row}`)) continue // never on a planned way: that is the corridor's mouth
       const reach = radius * (1 + 0.25 * Math.sin(Math.atan2(dr, dc) * 3 + phase))
       if (dc * dc + dr * dr > reach * reach) continue
       ground[row][col] = pal.pool
