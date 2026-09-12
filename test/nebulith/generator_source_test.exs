@@ -98,7 +98,7 @@ defmodule Nebulith.GeneratorSourceTest do
         depth = Enum.find(g.options, &(&1["key"] == "depth"))
         assert depth["requires"] == "river", "#{g.key} offers a depth with no river"
         assert depth["default"] == "1"
-        assert Enum.map(depth["choices"], & &1["key"]) == ~w(flat 1 2)
+        assert Enum.map(depth["choices"], & &1["key"]) == ~w(1 2)
       end
     end
 

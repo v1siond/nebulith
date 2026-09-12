@@ -88,7 +88,6 @@ defmodule NebulithWeb.GeneratorControllerTest do
                  "default" => "1",
                  "requires" => "river",
                  "choices" => [
-                   %{"key" => "flat", "label" => "Not cut (painted on the ground)"},
                    %{"key" => "1", "label" => "One block down"},
                    %{"key" => "2", "label" => "Two blocks down"}
                  ]

@@ -81,8 +81,8 @@ defmodule Nebulith.Catalog.GeneratorSource do
       "type" => "choice",
       "default" => "1",
       "requires" => "river",
+      # No "flat" key: a gated choice already takes "none" when its dependency is off, and that IS not cut.
       "choices" => [
-        %{"key" => "flat", "label" => "Not cut (painted on the ground)"},
         %{"key" => "1", "label" => "One block down"},
         %{"key" => "2", "label" => "Two blocks down"}
       ]
