@@ -1403,7 +1403,20 @@ defmodule Nebulith.Catalog.TileSource do
   end
 
   # What a hand-painted floor wears before anyone colours it. A generated one always carries its own.
-  @floor_color "#8c8a82"
+  # ONE EARTH FAMILY, EVERYWHERE. Alexander, 2026-09-12, answering the question that blocked the base material:
+  # *"one earth family everywhere"*, with *"please make sure the default grid, doesn't have any tiles and it's
+  # dirt color or it's a real floor, on both emoji and ascii"* and his Image #65.
+  #
+  # This was a neutral grey (#8c8a82). It is the base tone of the FLAT floor tile, and every template that lays
+  # `floor` writes its own per-cell colour over the top, so this value is only ever seen where nobody repaints:
+  # a fresh grid and a blank stage. Those are exactly the two surfaces he was looking at.
+  #
+  # `makeFloorAsset` then derives the map BODY from it (`groundSideColor` darkens the surface), so one earth
+  # tone here gives the default grid its dirt colour AND the body under it, with no new tile and no new plumbing.
+  #
+  # The hex is a PROPOSAL, not a derivation: he said "dirt color", not which one. Mid-brown, between the
+  # existing `mud_hut` (120,90,60) and `autumn_ground` (74,50,30).
+  @floor_color "#7a5c3e"
 
   defp seed_floor_tiles(ascii_id, emoji_id) do
     {:ok, _} =
