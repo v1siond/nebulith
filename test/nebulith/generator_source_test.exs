@@ -436,6 +436,35 @@ defmodule Nebulith.GeneratorSourceTest do
       end
     end
 
+    test "a variation called dense IS denser, counting trees and not bushes", %{categories: cats} do
+      # Alexander, 2026-09-11: *"'dense woodland' is not dense at all, standard woodland is denser lol"*.
+      #
+      # `canopy` is the share of plantable floor that takes an entry from the TREE table, so a table with
+      # bushes in it spends part of that share on shrubs. Comparing the canopy numbers alone said dense was
+      # denser; comparing what actually grows said the opposite. This compares what grows.
+      woodland = generator(cats, "forest", "forest_woodland")
+      dense = Enum.find(woodland.children, &(&1.key == "forest_woodland_dense"))
+
+      tree_cover = fn g ->
+        table = g.config["trees"] || []
+        total = table |> Enum.map(& &1["weight"]) |> Enum.sum()
+        bushes = table |> Enum.filter(&String.starts_with?(&1["kind"], "bush")) |> Enum.map(& &1["weight"]) |> Enum.sum()
+        share = if total == 0, do: 0.0, else: (total - bushes) / total
+        (get_in(g.config, ["nature", "canopy"]) || 0.0) * share
+      end
+
+      assert tree_cover.(dense) > tree_cover.(woodland) * 1.3,
+             "dense #{Float.round(tree_cover.(dense), 3)} vs plain #{Float.round(tree_cover.(woodland), 3)}"
+
+      # and its table is trees, not shrubs: undergrowth has its own channel
+      refute Enum.any?(dense.config["trees"], &String.starts_with?(&1["kind"], "bush"))
+      assert get_in(dense.config, ["nature", "groundCover"]) > get_in(woodland.config, ["nature", "groundCover"])
+
+      # a dense WOOD still is not a rainforest
+      jungle = generator(cats, "forest", "forest_jungle")
+      assert tree_cover.(dense) < get_in(jungle.config, ["nature", "canopy"])
+    end
+
     test "units: settlements scatter townsfolk, dungeons scatter their own enemies", %{categories: cats} do
       assert generator(cats, "settlement", "town").config["units"] == %{"townsfolk" => 8, "enemies" => 0, "enemyTypes" => []}
       assert generator(cats, "settlement", "city").config["units"]["townsfolk"] == 14

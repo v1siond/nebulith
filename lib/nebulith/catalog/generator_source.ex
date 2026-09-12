@@ -343,6 +343,40 @@ defmodule Nebulith.Catalog.GeneratorSource do
   #
   # The river is not in this list because it is not a region — it is the watercourse that runs THROUGH them,
   # and every jungle has one.
+  # WOODLAND REGIONS. Alexander, 2026-09-11: *"woodland with meadow is the same as mountain forest..."*.
+  #
+  # Measured, he was right: glades ran `canopy 0.35` and mountain forest `0.28`, both under the SAME `clumped`
+  # formation with the same ground cover, on ground that is flat everywhere. One thin uniform scatter, twice.
+  #
+  # "Stands of trees broken by open meadow" is its own description and it is TWO REGIONS, not one average. A
+  # region's `canopy` is a MULTIPLIER of the template's, so a stand closes over and a meadow is grass with the
+  # odd tree standing alone in it. The jungle has had this machinery since its open/dense split; no woodland
+  # ever used it.
+  @woodland_sub_zones [
+    %{
+      "key" => "stand",
+      "name" => "Tree stand",
+      "weight" => 3,
+      "canopy" => 1.7,
+      "undergrowth" => 0.9,
+      "floor" => "#5c6e3d",
+      # close together, floor barely visible inside a stand
+      "formation" => %{"lattice" => 7, "spacing" => 1, "understory" => 0.8},
+      "trees" => [%{"kind" => "tree_column", "weight" => 30}, %{"kind" => "tree_tall", "weight" => 25}, %{"kind" => "tree", "weight" => 25}, %{"kind" => "tree_sapling", "weight" => 20}]
+    },
+    %{
+      "key" => "meadow",
+      "name" => "Open meadow",
+      "weight" => 2,
+      # almost nothing: a meadow is the ABSENCE of canopy, which is what makes the stands read as stands
+      "canopy" => 0.06,
+      "undergrowth" => 0.4,
+      "floor" => "#8b9a5a",
+      "formation" => %{"lattice" => 3, "spacing" => 5, "understory" => 0.3},
+      "trees" => [%{"kind" => "tree_gnarled", "weight" => 60}, %{"kind" => "tree_round", "weight" => 25}, %{"kind" => "bush_round", "weight" => 15}]
+    }
+  ]
+
   @jungle_sub_zones [
     %{
       "key" => "open",
@@ -405,8 +439,10 @@ defmodule Nebulith.Catalog.GeneratorSource do
   # Tick boxes are gone. You pick a region to LEAD and the map leans that way, which is the same idiom as
   # picking a preset or a subtype. Built from the KEYS a row actually carries, so a subtype that holds two
   # regions offers two, and the names come from one place.
-  defp region_options(keys) do
-    named = Map.new(@jungle_sub_zones, &{&1["key"], &1["name"]})
+  defp region_options(keys), do: region_options(@jungle_sub_zones, keys)
+
+  defp region_options(list, keys) do
+    named = Map.new(list, &{&1["key"], &1["name"]})
 
     [
       %{
@@ -424,9 +460,11 @@ defmodule Nebulith.Catalog.GeneratorSource do
 
   # The jungle's regions at different weights — a swamp jungle is the same regions, mostly swamp. A weight of
   # zero leaves that region out.
-  defp sub_zones(weights) do
-    for z <- @jungle_sub_zones, w = Map.get(weights, z["key"], 0), w > 0, do: Map.put(z, "weight", w)
+  defp sub_zones(list, weights) do
+    for z <- list, w = Map.get(weights, z["key"], 0), w > 0, do: Map.put(z, "weight", w)
   end
+
+  defp sub_zones(weights), do: sub_zones(@jungle_sub_zones, weights)
 
   # The water options with a different starting river — an island starts ringed by water.
   defp water_options(river_default) do
@@ -488,8 +526,16 @@ defmodule Nebulith.Catalog.GeneratorSource do
         category: "forest", parent: "forest_woodland", key: "forest_woodland_dense", name: "Dense woodland",
         layout: "woodland", position: 1,
         description: "Tall trunks over deep undergrowth, with a trail cut through it.",
-        config: %{"formation" => @formations["understory"], "nature" => %{"canopy" => 0.55, "groundCover" => 0.4},
-                  "trees" => [%{"kind" => "tree_column", "weight" => 40}, %{"kind" => "tree_tall", "weight" => 30}, %{"kind" => "bush", "weight" => 30}]}
+        # A BUSH IS NOT A TREE. Alexander, 2026-09-11: *"'dense woodland' is not dense at all, standard
+        # woodland is denser lol"*. He was right and it was arithmetic: `canopy` is the share of plantable
+        # floor that gets an entry from the TREE table, and 30% of this one's table was `bush`. So its real
+        # tree cover was 0.55 x 0.70 = 0.39, against plain woodland's 0.434 x 0.95 = 0.41. It was thinner.
+        #
+        # Undergrowth has its OWN channel (`groundCover`), so the bushes move there where they belong and the
+        # table is trees only. Real cover is 0.60 now, half again as much as plain woodland, and still under
+        # the jungle's 0.62 so a dense wood does not out-thicket a rainforest.
+        config: %{"formation" => @formations["understory"], "nature" => %{"canopy" => 0.6, "groundCover" => 0.5},
+                  "trees" => [%{"kind" => "tree_column", "weight" => 35}, %{"kind" => "tree_tall", "weight" => 28}, %{"kind" => "tree", "weight" => 20}, %{"kind" => "tree_big", "weight" => 10}, %{"kind" => "tree_sapling", "weight" => 7}]}
       },
       # image #12 — conifers in patches over an open hillside
       %{
@@ -503,9 +549,11 @@ defmodule Nebulith.Catalog.GeneratorSource do
       %{
         category: "forest", parent: "forest_woodland", key: "forest_woodland_glades", name: "Woodland with meadows",
         layout: "woodland", position: 3,
-        description: "Stands of trees broken by open meadow.",
-        config: %{"formation" => @formations["clumped"], "nature" => %{"canopy" => 0.35},
-                  "trees" => [%{"kind" => "tree", "weight" => 30}, %{"kind" => "tree_round", "weight" => 25}, %{"kind" => "tree_broadleaf", "weight" => 25}, %{"kind" => "bush_round", "weight" => 20}]}
+        description: "Closed stands of trees with open meadow between them.",
+        config: %{"formation" => @formations["clumped"], "nature" => %{"canopy" => 0.4},
+                  "subZones" => sub_zones(@woodland_sub_zones, %{"stand" => 3, "meadow" => 2}),
+                  "trees" => [%{"kind" => "tree", "weight" => 30}, %{"kind" => "tree_round", "weight" => 25}, %{"kind" => "tree_broadleaf", "weight" => 25}, %{"kind" => "tree_gnarled", "weight" => 20}]},
+        options: @way_options ++ region_options(@woodland_sub_zones, ~w(stand meadow)) ++ @water_options
       },
       # image #14 — wall to wall, no floor visible
       %{
@@ -527,9 +575,30 @@ defmodule Nebulith.Catalog.GeneratorSource do
       %{
         category: "forest", parent: "forest_jungle", key: "forest_jungle_island", name: "Island jungle",
         layout: "jungle", position: 2,
-        description: "Jungle ringed by water, heavy with palms.",
+        description: "Palms over pale sand, ringed by shallow turquoise water.",
+        # AN ISLAND IS NOT THE AMAZON. Alexander, 2026-09-11: *"Island jungle is not different whatsoever from
+        # regular swamp, vegetation and colors should differt, the nature from islands is not the same as in
+        # amazonas for example"*.
+        #
+        # Measured: it inherited the jungle palette WHOLE, so its colours were the same numbers as the swamp
+        # jungle's, down to the hex. Only the tree weights differed and you cannot see a weight. An island is
+        # brighter and paler than rainforest: sand where a jungle has peat, turquoise where a jungle has
+        # blue-brown, and a canopy that is yellow-green rather than near-black.
         config: %{"subZones" => sub_zones(%{"open" => 3, "dense" => 2}),
-                  "trees" => [%{"kind" => "tree_palm", "weight" => 50}, %{"kind" => "tree_round", "weight" => 25}, %{"kind" => "bush_round", "weight" => 25}]},
+                  "palette" => Map.merge(@jungle_palette, %{
+                    "floor" => "#7c8a4e",
+                    "floorAlt" => "#8c9a5b",
+                    "litter" => "#9a8d5a",
+                    "canopy" => "#4f9147",
+                    "canopyAlt" => "#68ab56",
+                    "undergrowth" => "#618c48",
+                    "water" => "#2aa8c0",
+                    "waterShallow" => "#86e0ea",
+                    "waterDeep" => "#1a7891",
+                    "bank" => "#e8d6a6",
+                    "trail" => "#cdb684"
+                  }),
+                  "trees" => [%{"kind" => "tree_palm", "weight" => 55}, %{"kind" => "tree_round", "weight" => 20}, %{"kind" => "bush_round", "weight" => 15}, %{"kind" => "tree_stub", "weight" => 10}]},
         options: @way_options ++ region_options(~w(open dense)) ++ water_options("around")
       },
       %{
