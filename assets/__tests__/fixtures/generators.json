@@ -4038,9 +4038,9 @@
                   }
                 },
                 "nature": {
-                  "flowers": 0.06,
-                  "groundCover": 0.12,
-                  "tallGrass": 0.18
+                  "flowers": 0.08,
+                  "groundCover": 0.45,
+                  "tallGrass": 0.3
                 },
                 "settlement": {
                   "bigHouseRange": [
@@ -4088,7 +4088,7 @@
                       "type": "smithy"
                     }
                   ],
-                  "natureMultiplier": 1.6,
+                  "natureMultiplier": 2.0,
                   "plazaSize": 3,
                   "roadWidth": 4,
                   "setback": 1,
