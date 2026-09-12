@@ -9627,16 +9627,16 @@
           "settings": {
             "variants": {
               "bg": [
-                "#8c8a82",
-                "#8c8a82"
+                "#7a5c3e",
+                "#7a5c3e"
               ],
               "char": [
                 "⸪",
                 "⸪"
               ],
               "fg": [
-                "#8c8a82",
-                "#8c8a82"
+                "#7a5c3e",
+                "#7a5c3e"
               ]
             }
           },
@@ -27465,7 +27465,7 @@
           "title": "Floor",
           "category": "terrain",
           "settings": {
-            "color": "#8c8a82"
+            "color": "#7a5c3e"
           },
           "height": 0.0,
           "glyph": null,

@@ -10,7 +10,7 @@ import '@/__tests__/helpers/installTilesetSeed' // install the DB-equivalent til
  * a tile STACKS on top of it (never replaces it) — so the placed asset is the FIRST NON-FLOOR entry, read
  * here via `nonFloor()`. The floor slab is only removed by an explicit Clear/⌥Alt-erase, never by placement.
  */
-import { IsometricGrid, type GridAsset } from '@/engine/IsometricGrid'
+import { DEFAULT_FLOOR_SLUG, IsometricGrid, type GridAsset } from '@/engine/IsometricGrid'
 import { tilesForStyle, type TileDef } from '@/game/artStyle'
 import { clearGroundTile, placeGroundTile, removeTopAsset, removeAssetAtLevel, stackAssetTile } from '@/game/editor/tileBrush'
 import { tileSlug } from '@/game/editor/tilePlacement'
@@ -47,10 +47,10 @@ describe('stackAssetTile — nature/buildings stack as cell assets (ON TOP of th
     stackAssetTile(g, 1, 1, byId('emoji:pine-tree'))
     const placed = nonFloor(g, 1, 1)
     expect(placed).toHaveLength(1)
-    expect(placed[0].heightLevel).toBe(0) // sits ON the flat grass (the floor stays as slot 0, contributing no height)
+    expect(placed[0].heightLevel).toBe(0) // sits ON the flat floor (the floor stays as slot 0, contributing no height)
     expect(placed[0].tileOverride).toBe('emoji:pine-tree')
     expect(placed[0].type).toBe('pine-tree') // the tile's OWN slug, not a classified category
-    expect(g.groundAt(1, 1)).toBe('grass')  // the grass floor is NOT removed — it stays beneath
+    expect(g.groundAt(1, 1)).toBe(DEFAULT_FLOOR_SLUG)  // the floor tile is NOT removed, it stays beneath
   })
 
   test('a painted tile NEVER pins a "?" dingbat into its art (resolved by label→image, not a glyph)', () => {
@@ -339,7 +339,7 @@ describe('removeTopAsset — ⌥Alt remove + collision recompute', () => {
     const placed = nonFloor(g, 1, 1)
     expect(placed).toHaveLength(1)
     expect(placed[0].tileOverride).toBe('emoji:pine-tree')
-    expect(g.groundAt(1, 1)).toBe('grass') // the floor is never popped by ⌥Alt
+    expect(g.groundAt(1, 1)).toBe(DEFAULT_FLOOR_SLUG) // the floor is never popped by ⌥Alt
   })
 
   test('returns null on a cell with no stacked tile (only its floor — nothing to remove)', () => {
@@ -369,12 +369,12 @@ describe('removeTopAsset — ⌥Alt remove + collision recompute', () => {
 // terrain / plaza is a floor tile painted via placeGroundTile, so clearing a cell has to reset the GROUND too,
 // not just pop the stacked assets. clearGroundTile does that BARE reset uniformly — no branch on tile type.
 describe('clearGroundTile — reset a cell FLOOR back to bare (the road/ground goes too)', () => {
-  test('a painted ground tile (road/terrain) is reset to the bare default grass', () => {
+  test('a painted ground tile (road/terrain) is reset to the bare default floor', () => {
     const g = makeGrid()
     placeGroundTile(g, 2, 2, byId('emoji:desert')) // stand-in for a painted road/terrain/plaza floor tile
     expect(g.groundAt(2, 2)).toBe('desert')
     clearGroundTile(g, 2, 2)
-    expect(g.groundAt(2, 2)).toBe('grass') // the road/ground is gone — the cell is bare
+    expect(g.groundAt(2, 2)).toBe(DEFAULT_FLOOR_SLUG) // the road/ground is gone, the cell is bare
   })
 
   test('clears the floor tile entirely (its colour + dims go with it), so the cell is truly bare', () => {
@@ -385,7 +385,7 @@ describe('clearGroundTile — reset a cell FLOOR back to bare (the road/ground g
     g.floorAt(1, 1)!.scaleX = 2
     g.floorAt(1, 1)!.pose = { rot: Math.PI / 2 }
     clearGroundTile(g, 1, 1)
-    expect(g.groundAt(1, 1)).toBe('grass')            // slug back to the bare default
+    expect(g.groundAt(1, 1)).toBe(DEFAULT_FLOOR_SLUG)            // slug back to the bare default
     expect(g.floorAt(1, 1)).toBeUndefined()           // the whole floor asset is gone — colour + dims with it
   })
 
@@ -394,7 +394,7 @@ describe('clearGroundTile — reset a cell FLOOR back to bare (the road/ground g
     for (const [id, cell] of [['emoji:desert', [0, 0]], ['emoji:deep-water', [1, 0]], ['emoji:grass', [2, 0]]] as const) {
       placeGroundTile(g, cell[0], cell[1], byId(id))
       clearGroundTile(g, cell[0], cell[1])
-      expect(g.groundAt(cell[0], cell[1])).toBe('grass') // every one ends bare, the same way
+      expect(g.groundAt(cell[0], cell[1])).toBe(DEFAULT_FLOOR_SLUG) // every one ends bare, the same way
     }
   })
 })
@@ -415,7 +415,7 @@ describe('Clear tiles on a selection — empties assets + ground, and undo resto
     stackAssetTile(g, 2, 2, byId('emoji:pine-tree')) // a stacked asset on top
     clearCell(g, 2, 2)
     expect(g.getAssetsAtCell(2, 2)).toHaveLength(0) // stacked asset AND floor gone
-    expect(g.groundAt(2, 2)).toBe('grass')          // road gone — the cell is bare
+    expect(g.groundAt(2, 2)).toBe(DEFAULT_FLOOR_SLUG)          // road gone, the cell is bare
     expect(g.isBlocked(2, 2)).toBe(false)           // walkable, like a freshly-initialised cell
   })
 

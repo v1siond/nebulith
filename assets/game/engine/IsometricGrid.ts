@@ -130,8 +130,20 @@ export const DEFAULT_SLAB_BLOCKS = 1
 
 export const FLOOR_TYPE = 'floor'
 
-/** The default terrain slug a fresh grid / a repaint with no explicit type uses. */
-export const DEFAULT_FLOOR_SLUG = 'grass'
+/**
+ * The default terrain slug a fresh grid / a repaint with no explicit type uses.
+ *
+ * It was `grass`, and `emoji/grass` is 🍀, so a fresh grid stamped a four-leaf clover into all 1600 cells.
+ * Alexander, 2026-09-12, with Image #65: *"This is the first thing I need fixed, it's messing with my eyes"*,
+ * and *"please make sure the default grid, doesn't have any tiles and it's dirt color or it's a real floor, on
+ * both emoji and ascii"*.
+ *
+ * `floor` is the REAL flat floor tile that already ships (`FLAT_FLOOR` in stageGenerator, what `blankStage`
+ * has always used): a sparse `⸪` mark under a flat colour rather than a repeating motif, in both styles. Its
+ * base tone is now the one earth family he asked for, so a fresh grid comes up dirt-coloured, and
+ * `makeFloorAsset` derives the map body from the same value.
+ */
+export const DEFAULT_FLOOR_SLUG = 'floor'
 
 export interface GridConfig {
   cols: number
@@ -211,7 +223,8 @@ export class IsometricGrid {
 
     this.assets = []
 
-    // Default terrain: a grass floor asset in every cell (the old all-'grass' ground default). The generators
+    // Default terrain: the flat FLOOR tile in every cell, dirt-coloured (it was all-'grass', and emoji grass is
+    // 🍀, so a fresh grid stamped a clover 1600 times). The generators
     // then repaint via setGround; CLEARING a cell removes its floor (→ empty), which is the new bare state.
     this.fillGround(0, 0, this.cols, this.rows, DEFAULT_FLOOR_SLUG)
   }
@@ -224,7 +237,7 @@ export class IsometricGrid {
     return this.floorIndex.get(this.floorKey(col, row))
   }
 
-  /** The floor slug at a cell (e.g. 'grass'/'road') — the O(1) replacement for the old `ground[row][col]`.
+  /** The floor slug at a cell (e.g. 'floor'/'road'), the O(1) replacement for the old `ground[row][col]`.
    *  A cleared/empty cell has no floor → falls back to the default slug so callers never read undefined. */
   groundAt(col: number, row: number): string {
     return this.floorAt(col, row)?.tileKey ?? DEFAULT_FLOOR_SLUG

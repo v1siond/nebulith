@@ -4,7 +4,7 @@
  * it — an undo/redo cycle restores the same snapshot twice), and that a snapshot from a differently-sized grid
  * is refused so it can never corrupt the live map.
  */
-import { IsometricGrid } from '@/engine/IsometricGrid'
+import { DEFAULT_FLOOR_SLUG, IsometricGrid } from '@/engine/IsometricGrid'
 import { captureMapSnapshot, restoreMapSnapshot } from '@/game/editor/mapSnapshot'
 import type { Entity } from '@/game/types'
 
@@ -48,7 +48,7 @@ describe('mapSnapshot — capture/restore the exact map (grid + entities)', () =
     const again = restoreMapSnapshot(grid, snap)
     expect(again).not.toBeNull()
     expect(grid.assets.filter(a => a.type !== 'floor').map(a => a.type)).toEqual(['house'])
-    expect(grid.groundAt(0, 0)).toBe('grass')
+    expect(grid.groundAt(0, 0)).toBe(DEFAULT_FLOOR_SLUG)
   })
 
   test('entities in a snapshot are cloned — editing a restored entity does not change the snapshot', () => {

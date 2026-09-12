@@ -15,7 +15,7 @@
  * writes. Entity (units) placement stays in the page — it needs the React entities state + factories — but
  * its routing (entityKindForUnitSlug) and the category decision (placementFor) live in tilePlacement.ts.
  */
-import { FLOOR_TYPE, type GridAsset, type IsometricGrid } from '@/engine/IsometricGrid'
+import { DEFAULT_FLOOR_SLUG, FLOOR_TYPE, type GridAsset, type IsometricGrid } from '@/engine/IsometricGrid'
 import type { TileDef, Visual } from '@/game/artStyle'
 import { deriveCellCollision, getStack, popTile, pushTile, setTileCollision } from '@/engine/cellStack'
 import { tileThickness, tileThicknessReach, tileRenderBehavior } from '@/engine/tileset/tileset'
@@ -53,7 +53,9 @@ export function placeGroundTile(grid: IsometricGrid, col: number, row: number, t
 
 /** The default floor slug a freshly-initialised cell starts on (the IsometricGrid ctor fills the whole ground
  *  with it). A CLEARED cell has NO floor at all — this is only the paint/regen default, not the cleared state. */
-export const DEFAULT_GROUND_SLUG = 'grass'
+// The SAME default the grid itself uses, re-exported rather than spelled again: two constants holding two
+// different literals is how a fresh grid came up one thing and a repaint came up another.
+export const DEFAULT_GROUND_SLUG = DEFAULT_FLOOR_SLUG
 
 /** CLEAR a cell's FLOOR entirely → an EMPTY cell (NOT grass). The floor is a regular tile, so clearing it
  *  removes the floor asset just like popping any tile; a road/plaza/terrain floor all clear the SAME way, no

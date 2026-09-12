@@ -1,10 +1,13 @@
 /**
- * REMOVE SELECTED BLOCK — the Inspector's "Remove tile" action. Deletes the EXACT tile(s) the user has
- * SELECTED, one per selection KEY. Each key is "col,row,stackIndex" — the tile's slot in the cell's ordered
+ * REMOVE SELECTED BLOCK: the Inspector's "Remove tile" action. Deletes the EXACT tile(s) the user has
+ * SELECTED, one per selection KEY. Each key is "col,row,stackIndex", the tile's slot in the cell's ordered
  * stack (getAssetsAtCell order: slot 0 = the base/floor slab, then up), the SAME per-tile identity the pick +
- * highlight use, so a same-level neighbour is never hit by mistake. The FLOOR slab is floor-safe (its own
- * Clear-tiles path owns the ground), and a bare "col,row" cell key removes nothing. Mirrors
- * tileBrush.removeAssetAtLevel's collision re-derive.
+ * highlight use, so a same-level neighbour is never hit by mistake.
+ *
+ * The FLOOR slab is removed like ANY other tile, so removing it leaves the cell with no floor. That is the
+ * contract EDITOR-INTERACTION-SPEC §13 sets for these Inspector tools ("NO fork and NO tile-type branch"),
+ * and "Clear tiles" is the SEPARATE action that empties the whole cell at once. A bare "col,row" cell key
+ * removes nothing. Mirrors tileBrush.removeAssetAtLevel's collision re-derive.
  */
 import { IsometricGrid } from '@/engine/IsometricGrid'
 import { removeSelectedBlock } from '@/game/editor/selectionEdit'
@@ -12,7 +15,7 @@ import { removeSelectedBlock } from '@/game/editor/selectionEdit'
 const makeGrid = () => new IsometricGrid({ cols: 8, rows: 8, cellSize: 32, isoScale: 1.4 })
 const nonFloor = (g: IsometricGrid) => g.assets.filter(a => a.type !== 'floor')
 
-describe('removeSelectedBlock — removes the SELECTED tile(s) by stack slot, never the floor', () => {
+describe('removeSelectedBlock: removes the SELECTED tile(s) by stack slot, the floor included', () => {
   test('a "col,row,stackIndex" key removes the ONE tile at that slot, leaving the rest + the floor intact', () => {
     const g = makeGrid()
     g.setGround(5, 5, 'grass') // floor = stack slot 0
@@ -25,7 +28,7 @@ describe('removeSelectedBlock — removes the SELECTED tile(s) by stack slot, ne
     expect(g.assets).not.toContain(middle)
     expect(nonFloor(g)).toHaveLength(2)
     expect(nonFloor(g).map(a => a.type).sort()).toEqual(['leaf', 'tree'])
-    expect(g.groundAt(5, 5)).toBe('grass') // floor untouched
+    expect(g.groundAt(5, 5)).toBe('grass') // floor untouched: still the slug this test painted
   })
 
   test('removes EVERY tile across a multi-tile selection (each keyed by its own slot)', () => {
@@ -54,15 +57,19 @@ describe('removeSelectedBlock — removes the SELECTED tile(s) by stack slot, ne
     expect(g.groundAt(4, 4)).toBe('grass')
   })
 
-  test('the FLOOR slot (stackIndex 0) is floor-safe — a key at slot 0 removes nothing', () => {
+  test('the FLOOR slot (stackIndex 0) is removed like ANY other tile, leaving the cell with no floor', () => {
     const g = makeGrid()
     g.setGround(5, 5, 'grass') // floor = slot 0
     const tree = g.placeAsset(['🌲'], 5, 5, { type: 'tree', heightLevel: 1 }) // slot 1
 
     removeSelectedBlock(g, ['5,5,0']) // point at the floor slot
 
-    expect(g.groundAt(5, 5)).toBe('grass') // floor intact — never removable here (Clear tiles owns the ground)
-    expect(g.assets).toContain(tree)     // and the stacked tile is untouched
+    // Ask whether the floor ASSET exists, NOT what slug groundAt reports. groundAt is
+    // `tileKey ?? DEFAULT_FLOOR_SLUG`, so back when that default was itself 'grass' an erased floor and an
+    // intact grass floor both read back 'grass' and this test passed whichever way the code behaved. A tile
+    // either exists or it does not, and no fallback can fake that.
+    expect(g.floorAt(5, 5)).toBeUndefined() // the base tile goes too (spec §13: no tile-type branch here)
+    expect(g.assets).toContain(tree)        // and the REST of the stack is untouched
   })
 
   test('a bare "col,row" cell key removes nothing (no tile slot to target)', () => {
@@ -72,6 +79,7 @@ describe('removeSelectedBlock — removes the SELECTED tile(s) by stack slot, ne
 
     removeSelectedBlock(g, ['5,5'])
 
+    expect(g.floorAt(5, 5)).toBeDefined() // the floor asset survives a bare cell key too
     expect(g.groundAt(5, 5)).toBe('grass')
     expect(g.assets).toContain(tree)
   })

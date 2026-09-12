@@ -16,7 +16,7 @@
  * overall collision from the whole stack (deriveCellCollision) — the SAME mutation shape selectionEdit uses.
  * Pure: no React, no grid globals — a grid in, a serializable clip out (and back).
  */
-import { FLOOR_TYPE, type GridAsset, type IsometricGrid } from '@/engine/IsometricGrid'
+import { DEFAULT_FLOOR_SLUG, FLOOR_TYPE, type GridAsset, type IsometricGrid } from '@/engine/IsometricGrid'
 import type { TilePose } from '@/engine/tileset/pose'
 import { deriveCellCollision, getStack } from '@/engine/cellStack'
 
@@ -84,7 +84,7 @@ export function copyTiles(grid: IsometricGrid, keys: Iterable<string>): TileClip
         kind: 'floor',
         relCol,
         relRow,
-        slug: target.tileKey ?? 'grass',
+        slug: target.tileKey ?? DEFAULT_FLOOR_SLUG,
         color: target.color ?? null,
         scaleX: target.scaleX,
         scaleY: target.scaleY,

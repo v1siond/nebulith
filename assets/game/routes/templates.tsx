@@ -18,7 +18,7 @@ import { useToast } from '@/components/Toast'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { isApiError } from '@/lib/apiError'
 
-import { type GridAsset, IsometricGrid, FLOOR_TYPE, DEFAULT_SLAB_BLOCKS } from '@/engine/IsometricGrid'
+import { type GridAsset, IsometricGrid, FLOOR_TYPE, DEFAULT_FLOOR_SLUG, DEFAULT_SLAB_BLOCKS } from '@/engine/IsometricGrid'
 import { getStack, setTileHeight, setCellActAsTile, type TileEntry, type TileSource, unitStandLevel } from '@/engine/cellStack'
 import { type AttackAnim, isAnimDone } from '@/engine/attackAnimations'
 import { type BuildingType } from '@/engine/buildingTypes'
@@ -2927,7 +2927,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       const g = gridRef.current
       if (!g) return
       checkpointHistory() // clearing a region is a map edit → snapshot so Ctrl+Z brings it back
-      for (let r = row0; r <= row1; r++) for (let c = col0; c <= col1; c++) { placeGround(g, c, r, 'grass'); g.setCollision(c, r, false) }
+      for (let r = row0; r <= row1; r++) for (let c = col0; c <= col1; c++) { placeGround(g, c, r, DEFAULT_FLOOR_SLUG); g.setCollision(c, r, false) }
       g.removeAssetsWhere(a => a.col >= col0 && a.col <= col1 && a.row >= row0 && a.row <= row1)
       bumpBuildingVersion()
     }
@@ -3323,10 +3323,10 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       slabBlocks: gridRef.current?.slabBlocks ?? DEFAULT_SLAB_BLOCKS,
     }
     gridRef.current = new IsometricGrid(newConfig)
-    // Fill with grass by default
+    // Fill with the ONE default floor (dirt-coloured flat floor, not a repeating motif)
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols; c++) {
-        placeGround(gridRef.current, c, r, 'grass')
+        placeGround(gridRef.current, c, r, DEFAULT_FLOOR_SLUG)
       }
     }
     setGridSize({ cols, rows, cellSize: newConfig.cellSize })
@@ -3384,7 +3384,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols; c++) {
         if (c < wasCols && r < wasRows) continue
-        placeGround(next, c, r, 'grass')
+        placeGround(next, c, r, DEFAULT_FLOOR_SLUG)
       }
     }
     next.assetLevelsChanged()

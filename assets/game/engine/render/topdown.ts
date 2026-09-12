@@ -1,6 +1,6 @@
 import { styleCatalog } from '@/engine/tileset/styleTiles'
 import { player as playerSprite } from '@/assets/ascii'
-import { GridAsset, IsometricGrid, FLOOR_TYPE } from '@/engine/IsometricGrid'
+import { GridAsset, IsometricGrid, FLOOR_TYPE, DEFAULT_FLOOR_SLUG } from '@/engine/IsometricGrid'
 import { type AttackAnim, animFrame } from '@/engine/attackAnimations'
 import { assetCellTransform } from '@/engine/cellAnimation'
 import { darkenColor } from '@/engine/colors'
@@ -452,7 +452,7 @@ export function render2D(params: Render2DParams) {
       if (!floor.color) continue // no colour STATE (only a pre-colour save) → render NOTHING, never a fallback
       const p = toScreen(col + 0.5, row + 0.5)
       if (p.x < -tileW || p.x > w + tileW || p.y < -tileH || p.y > h + tileH) continue
-      const tileType = floor.tileKey || 'grass'
+      const tileType = floor.tileKey || DEFAULT_FLOOR_SLUG
       const gt = resolveGroundTile(styleCatalog('ascii'), tileType, col, row)
       const gk = groundKind(tileType)
       const gdv = resolveDraw(gk, style, undefined, gt.char, gt.fg)

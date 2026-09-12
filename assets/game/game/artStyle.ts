@@ -35,6 +35,9 @@ import { styleTile, styleTiles } from '@/engine/tileset/styleTiles'
 import { getEntityResolution } from '@/engine/entity/entityResolution'
 import type { EntityVariant } from '@/game/types'
 import type { HasTileViews } from '@/engine/tileset/tileViewSettings'
+// The grid's OWN default floor slug, re-used rather than spelled again: a floor saved before the default
+// changed carries no tileKey, and a second literal here is what made such a map resolve to grass (🍀).
+import { DEFAULT_FLOOR_SLUG } from '@/engine/IsometricGrid'
 
 export type ElementKind =
   | 'grass' | 'water' | 'path' | 'road' | 'plaza' | 'sand' | 'ground' | 'snow' | 'autumn' | 'meadow' | 'floor' // terrain (+ seasons; road = dark-gray town street; meadow + floor = flat colour-only floors)
@@ -361,7 +364,7 @@ export function assetKind(asset: { type: string; label?: string; tileKey?: strin
   // A FLOOR is a regular tile whose art KIND is its ground kind (grass/road/water/…), carried on tileKey.
   // This is the ONE floor-aware line: it reuses groundKind so the floor slab resolves the SAME ground tile
   // + colour the old ground layer did — through the normal per-asset tile path, no separate renderer.
-  if (asset.type === 'floor') return groundKind(asset.tileKey ?? 'grass')
+  if (asset.type === 'floor') return groundKind(asset.tileKey ?? DEFAULT_FLOOR_SLUG)
   const label = asset.label
   if (label) {
     if (label.startsWith('tree')) return 'tree'
