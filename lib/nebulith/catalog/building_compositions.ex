@@ -164,7 +164,68 @@ defmodule Nebulith.Catalog.BuildingCompositions do
     },
     "temple" => %{materials: ["wall_stone"], roof: {:gable, "roof_slate", "roof_top_slate"}, default: {8, 4}},
     "cathedral" => %{materials: ["wall_stone"], roof: {:gable, "roof_slate", "roof_top_slate"}, default: {7, 5}},
-    "castle" => %{materials: ["wall_stone"], roof: {:gable, "roof_slate", "roof_top_slate"}, default: {12, 6}}
+    "castle" => %{materials: ["wall_stone"], roof: {:gable, "roof_slate", "roof_top_slate"}, default: {12, 6}},
+
+    # ── THE THINGS THAT MAKE A PLACE A PLACE ────────────────────────────────────────────────────────
+    # Alexander, 2026-09-11: *"all you did was change colors, when everything should've changed like having
+    # different types of settlements implies having different objects, just like we added a bunch of new trees
+    # to be able to do the jungle and other forests, we have to add new buildings with design matching the
+    # context of the settlement"*, with a town of *"wood houses and elements, stables"* (image #28) against a
+    # city of blocks and towers (images #27, #33), and *"cities have more skycrappers, towns have more houses"*.
+    #
+    # Every one of these is a recombination of what already exists: a wall family, a roof, a footprint and a
+    # HEIGHT. That last one is the part that was missing, and it is what separates a stable from a tower:
+    # `wall_top` is `max(3, min(w - 3, 8)) + bonus`, so a negative bonus squats a building down and a large
+    # positive one takes it up. No new art, and nothing here pretends to be thatch or a windmill sail, which
+    # need tiles that do not exist yet.
+    "stable" => %{
+      materials: ["wall_wood"],
+      roof: :gable,
+      # Squat and long: a stable is a roof you walk a horse under, not a house.
+      wall_top_bonus: -1,
+      title: "Stable",
+      default: {6, 3}
+    },
+    "barn" => %{materials: ["wall_wood"], roof: :gable, title: "Barn", default: {7, 4}},
+    "smithy" => %{
+      materials: ["wall_brick"],
+      roof: :gable,
+      # A forge shows its work to the street, like a shop.
+      storefront: true,
+      window_faces: :front,
+      title: "Smithy",
+      default: {5, 4}
+    },
+    "church" => %{
+      materials: ["wall_plaster"],
+      roof: {:gable, "roof_slate", "roof_top_slate"},
+      wall_top_bonus: 2,
+      title: "Church",
+      default: {6, 5}
+    },
+    "manor" => %{
+      materials: ["wall_plaster"],
+      roof: {:gable, "roof_slate", "roof_top_slate"},
+      wall_top_bonus: 1,
+      title: "Manor",
+      default: {8, 5}
+    },
+    "apartment" => %{
+      materials: ["wall_plaster"],
+      roof: {:flat, []},
+      # The block a modern city is made of: taller than the office, and nothing but windows.
+      wall_top_bonus: 4,
+      title: "Apartments",
+      default: {6, 5}
+    },
+    "tower" => %{
+      materials: ["wall_stone"],
+      roof: {:flat, []},
+      # His skyscraper. Narrow footprint, and the height comes from the bonus rather than the width.
+      wall_top_bonus: 8,
+      title: "Tower",
+      default: {4, 4}
+    }
   }
 
   @doc "Every building type this module can compose, for the editor's palette."

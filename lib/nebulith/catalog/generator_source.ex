@@ -569,7 +569,8 @@ defmodule Nebulith.Catalog.GeneratorSource do
         config: %{
           "grid" => @small_grid,
           "settlement" => settlement(plaza: 5, lot_gap: [1, 2], max_per_frontage: 6, cap: 18,
-                                     houses: [4, 6], big: [1, 3], nature_mult: 1.3),
+                                     houses: [4, 6], big: [1, 3], nature_mult: 1.3,
+                                     mix: [{"temple", 1, 1}, {"church", 1, 1}, {"stable", 1, 2}, {"barn", 1, 2}, {"smithy", 1, 1}]),
           "nature" => @outdoor_nature,
           "units" => townsfolk(8),
           "buildings" => Map.merge(@building_palette, %{
@@ -586,7 +587,8 @@ defmodule Nebulith.Catalog.GeneratorSource do
         config: %{
           "grid" => @city_grid,
           "settlement" => settlement(plaza: 7, lot_gap: [1, 1], max_per_frontage: 99, cap: 72,
-                                     houses: [7, 11], big: [3, 5], nature_mult: 0.5),
+                                     houses: [7, 11], big: [3, 5], nature_mult: 0.5,
+                                     mix: [{"temple", 1, 1}, {"tower", 3, 5}, {"apartment", 4, 7}, {"office", 2, 4}]),
           "nature" => @outdoor_nature,
           "units" => townsfolk(14),
           "buildings" => Map.merge(@building_palette, %{
@@ -598,85 +600,14 @@ defmodule Nebulith.Catalog.GeneratorSource do
         }
       },
       %{
-        category: "settlement", key: "city_tropical", name: "Tropical city", layout: "tropical_city", variant: "city",
-        position: 2, zones: ~w(spring summer),
-        description: "Bright painted plaster under straw gables, green in every gap.",
-        config: %{
-          "grid" => @city_grid,
-          "settlement" => settlement(plaza: 6, lot_gap: [1, 2], max_per_frontage: 99, cap: 60,
-                                     houses: [7, 11], big: [2, 4], nature_mult: 1.8),
-          "nature" => @outdoor_nature,
-          "units" => townsfolk(14),
-          "buildings" => Map.merge(@building_palette, %{
-            "roof" => "roof",
-            "materials" => ["wall_plaster"],
-            "roofColors" => ["#c9a84f", "#b8963f", "#d8bc6a"],
-            "wallColors" => ["#f7d98f", "#f2b98a", "#e8e07a"]
-          })
-        }
-      },
-      %{
-        category: "settlement", key: "town_snowy", name: "Snowy town", layout: "snowy_town", variant: "town",
-        position: 3, zones: ~w(winter),
-        description: "Pale stone under near black slate, and almost nothing growing.",
-        config: %{
-          "grid" => @small_grid,
-          "settlement" => settlement(plaza: 5, lot_gap: [1, 2], max_per_frontage: 6, cap: 18,
-                                     houses: [4, 6], big: [1, 3], nature_mult: 0.35),
-          "nature" => @outdoor_nature,
-          "units" => townsfolk(8),
-          "buildings" => Map.merge(@building_palette, %{
-            "roof" => "roof_slate",
-            "materials" => ["wall_stone"],
-            "roofColors" => ["#2f3640", "#262c34", "#3d454f"],
-            "wallColors" => ["#eef2f6", "#dde6ee", "#c9d4de"]
-          })
-        }
-      },
-      %{
-        category: "settlement", key: "city_mediterranean", name: "Mediterranean city", layout: "mediterranean_city",
-        variant: "city", position: 4, zones: ~w(summer desert),
-        description: "Whitewashed stone under terracotta, packed tight around a small square.",
-        config: %{
-          "grid" => @city_grid,
-          "settlement" => settlement(plaza: 4, lot_gap: [1, 1], max_per_frontage: 99, cap: 72,
-                                     houses: [7, 11], big: [3, 5], nature_mult: 0.8),
-          "nature" => @outdoor_nature,
-          "units" => townsfolk(14),
-          "buildings" => Map.merge(@building_palette, %{
-            "roof" => "roof",
-            "materials" => ["wall_stone"],
-            "roofColors" => ["#c2603f", "#b5533a", "#a8462f"],
-            "wallColors" => ["#faf3e4", "#f4ecd8", "#efe0c0"]
-          })
-        }
-      },
-      %{
-        category: "settlement", key: "town_andean", name: "Andean town", layout: "andean_town", variant: "town",
-        position: 5, zones: ~w(autumn desert),
-        description: "Ochre adobe under tin roofs, stepping up the slope.",
-        config: %{
-          "grid" => @small_grid,
-          "settlement" => settlement(plaza: 4, lot_gap: [1, 1], max_per_frontage: 6, cap: 18,
-                                     houses: [4, 6], big: [1, 2], nature_mult: 0.7),
-          "nature" => @outdoor_nature,
-          "units" => townsfolk(8),
-          "buildings" => Map.merge(@building_palette, %{
-            "roof" => "roof_slate",
-            "materials" => ["wall_brick"],
-            "roofColors" => ["#8f4a33", "#6f6a60", "#7a4a2c"],
-            "wallColors" => ["#c98f5c", "#b87d4a", "#d9a877"]
-          })
-        }
-      },
-      %{
         category: "settlement", key: "town_swamp", name: "Swamp village", layout: "swamp_village", variant: "town",
         position: 6, zones: ~w(spring summer),
         description: "Wooden huts on a green flat, the water still to come.",
         config: %{
           "grid" => @small_grid,
           "settlement" => settlement(plaza: 3, lot_gap: [1, 2], max_per_frontage: 4, cap: 12,
-                                     houses: [4, 6], big: [0, 1], nature_mult: 1.6),
+                                     houses: [4, 6], big: [0, 1], nature_mult: 1.6,
+                                     mix: [{"temple", 1, 1}, {"stable", 1, 2}, {"barn", 1, 2}, {"smithy", 1, 1}]),
           "nature" => @outdoor_nature,
           "units" => townsfolk(6),
           "buildings" => Map.merge(@building_palette, %{
@@ -776,8 +707,27 @@ defmodule Nebulith.Catalog.GeneratorSource do
       "houseRange" => Keyword.fetch!(opts, :houses),
       "bigHouseRange" => Keyword.fetch!(opts, :big),
       "houseWidths" => [3, 3, 4, 4, 4, 5],
-      "natureMultiplier" => Keyword.fetch!(opts, :nature_mult)
+      "natureMultiplier" => Keyword.fetch!(opts, :nature_mult),
+      "mix" => mix(Keyword.fetch!(opts, :mix))
     }
+  end
+
+  # WHICH BUILDINGS A PLACE IS MADE OF. Alexander, 2026-09-11: *"there's not a single difference between any of
+  # the settlements ... all you did was change colors, when everything should've changed like having different
+  # types of settlements implies having different objects"*, and *"cities have more skycrappers, towns have more
+  # houses"*.
+  #
+  # A look was a palette, so every place built the same store, hospital, temple and offices in different colours.
+  # This is the other half: the LIST of buildings a place demands, as data, per place. A traditional town asks for
+  # a church, stables, a barn and a smithy; a modern city asks for towers and apartment blocks.
+  #
+  # Store and hospital are not in the lists because every settlement has them: that pair is the guaranteed civic
+  # minimum and it was already true before this. Houses and big-houses are not here either, they are counted by
+  # `houseRange` / `bigHouseRange` above. What a row names is what makes it ITSELF.
+  defp mix(entries) do
+    for {type, lo, hi} <- [{"store", 1, 1}, {"hospital", 1, 1} | entries] do
+      %{"type" => type, "count" => [lo, hi]}
+    end
   end
 
   defp townsfolk(count), do: %{"townsfolk" => count, "enemies" => 0, "enemyTypes" => []}

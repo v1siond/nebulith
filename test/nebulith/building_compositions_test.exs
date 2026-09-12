@@ -422,3 +422,102 @@ defmodule Nebulith.BuildingCompositionsTest do
   defp roof_label?(label),
     do: String.starts_with?(label, "roof") or label in ["flat_roof", "parapet", "rooftop_unit"]
 end
+defmodule Nebulith.BuildingCompositionsContextTest do
+  @moduledoc """
+  THE THINGS THAT MAKE A PLACE A PLACE.
+
+  Alexander, 2026-09-11: *"having different types of settlements implies having different objects, just like
+  we added a bunch of new trees to be able to do the jungle and other forests, we have to add new buildings
+  with design matching the context of the settlement"*, and *"cities have more skycrappers, towns have more
+  houses"*.
+
+  So the test that matters is not that a new type EXISTS, it is that it comes out a different SHAPE. The knob
+  that does that is `wall_top_bonus`, because `wall_top` is `max(3, min(w - 3, 8)) + bonus`: measured, the
+  walls run stable 2, house 3, barn 4, church 5, manor 6, apartment 7, tower 11.
+
+  Note the stable is measured at its WALLS, not its peak. A gable's height grows with WIDTH
+  (`max_peak = min(3, div(w + 1, 2))`), so the 6-wide stable carries a taller roof over its lower walls and
+  tops out level with a 4-wide house. That is a stable: a big roof on short walls, not a small house.
+  """
+  use ExUnit.Case, async: true
+
+  alias Nebulith.Catalog.BuildingCompositions, as: Buildings
+
+  # The highest block a set of cells reaches. A cell holds a whole vertical RUN, so its top is its base level
+  # plus its `scaleY` span (minimal cells, #30). Reading `level` alone would under-measure every wall pier.
+  defp top(cells) do
+    cells
+    |> Enum.map(fn c -> c.level + (get_in(c, [:settings, "scaleY"]) || 1) - 1 end)
+    |> Enum.max(fn -> 0 end)
+  end
+
+  defp composed(type) do
+    {w, h} = Buildings.default_footprint(type)
+    Buildings.compose_building(type, w, h, seed: 1)
+  end
+
+  defp wall_height(type) do
+    composed(type).cells |> Enum.filter(&String.starts_with?(&1.label, "wall_")) |> top()
+  end
+
+  defp peak(type), do: composed(type).cells |> top()
+
+  test "every type the module offers composes at its own default footprint" do
+    for type <- Buildings.building_types() do
+      {w, h} = Buildings.default_footprint(type)
+      comp = Buildings.compose_building(type, w, h, seed: 1)
+
+      assert %{footprint_w: ^w, footprint_h: ^h} = comp, "#{type} composed at the wrong size"
+      assert comp.cells != [], "#{type} composed no cells"
+    end
+  end
+
+  test "the new types are the town's and the city's own things" do
+    for type <- ~w(stable barn smithy church manor apartment tower) do
+      assert type in Buildings.building_types(), "#{type} is not composable"
+    end
+  end
+
+  test "a stable squats and a tower goes up: the difference is SHAPE, not colour" do
+    house = wall_height("house")
+
+    # A stable is a roof you walk a horse under: the lowest walls of anything in the set.
+    assert wall_height("stable") < house, "a stable's walls are not lower than a house's"
+    assert wall_height("stable") == Enum.min(Enum.map(Buildings.building_types(), &wall_height/1))
+
+    # And the city's things stand well over everything a town has.
+    assert wall_height("apartment") > house + 3, "an apartment block is not taller than a house"
+    assert peak("tower") > 2 * peak("house"), "a tower does not stand over a house"
+    assert wall_height("tower") == Enum.max(Enum.map(Buildings.building_types(), &wall_height/1))
+  end
+
+  test "every new type is its own height, so a street of them has a skyline" do
+    heights = Enum.map(~w(stable house barn church manor apartment tower), &wall_height/1)
+
+    assert heights == Enum.sort(heights), "the heights do not step up: #{inspect(heights)}"
+    assert length(Enum.uniq(heights)) == length(heights), "two of them are the same height"
+  end
+
+  test "a town's things are timber and a city's are not" do
+    timber = fn type ->
+      composed(type).cells |> Enum.any?(&String.starts_with?(&1.label, "wall_wood"))
+    end
+
+    assert timber.("stable")
+    assert timber.("barn")
+    refute timber.("tower")
+    refute timber.("apartment")
+  end
+
+  test "the flat-roofed city blocks are flat, and the town's are gabled" do
+    labels = fn type -> composed(type).cells |> Enum.map(& &1.label) |> MapSet.new() end
+
+    for type <- ~w(apartment tower) do
+      assert "flat_roof" in labels.(type), "#{type} has no flat deck"
+    end
+
+    for type <- ~w(stable barn smithy church manor) do
+      assert Enum.any?(labels.(type), &String.starts_with?(&1, "roof")), "#{type} has no gable"
+    end
+  end
+end
