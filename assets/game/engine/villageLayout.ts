@@ -186,6 +186,16 @@ const BUILDING_CAP: Record<Settlement, number> = { town: 18, city: 72 }
  * while making a town's tuning a data change rather than an edit in this file.
  */
 export interface SettlementTuning {
+  /**
+   * HOW LEAFY THIS PLACE IS, served per place (`settlement.natureMultiplier`).
+   *
+   * The backend has served this on EVERY settlement row all along (town 1.3, city 0.5, town_small 1.8,
+   * town_forest 2.4, town_swamp 2.0, and more), `generatorCatalog` parses it into `GeneratorSettlement`, and
+   * nothing read it: the field was never declared here, so it was invisible to types and the generator used
+   * its own `NATURE_MULT` instead. Eight rows of served tuning could not take effect. Declaring it is the
+   * whole fix; the value was already arriving.
+   */
+  natureMultiplier?: number
   plazaSize?: number
   setback?: number
   roadWidth?: number

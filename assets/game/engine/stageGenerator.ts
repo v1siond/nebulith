@@ -1001,9 +1001,18 @@ export function decorPass(ctx: ArchetypeContext, layout: VillageLayout): void {
 /** NATURE pass — trees ringing the lots (denser toward the edges) + a light scatter of grass /
  *  flowers over the open floor. This is the layer a "randomize trees / nature only" re-rolls. */
 export function naturePass(ctx: ArchetypeContext, layout: VillageLayout, settlement: Settlement): void {
-  fillVillageNature(ctx, layout, NATURE_MULT[settlement])
-  scatterGroundCover(ctx, 0.12, layout) // light flat ground tufts (clover/leaves); skips paved streets + colour roads
-  scatterFlowers(ctx, 0.06, layout) // + a light scatter of STANDING blooms (single billboards, height 1) over open grass
+  // EVERY NUMBER HERE IS SERVED, and all three used to be ignored.
+  //
+  // `NATURE_MULT[settlement]` stays as the DEFAULT, which is what this file's own rule says defaults are for,
+  // but the served `natureMultiplier` wins: eight rows carry one and none of them could reach this line.
+  fillVillageNature(ctx, layout, ctx.settlement?.natureMultiplier ?? NATURE_MULT[settlement])
+  // The densities are the served `nature` block, the same one `scatterTallGrass` already reads. They were
+  // literals here, so town_forest's 0.28/0.08 and town_swamp's 0.45/0.08 were dead data. No served share means
+  // NONE, exactly as the tall-grass pass states it: this file invents no numbers.
+  const cover = ctx.nature?.groundCover
+  if (cover !== undefined) scatterGroundCover(ctx, cover, layout) // flat ground tufts; skips paved streets + colour roads
+  const blooms = ctx.nature?.flowers
+  if (blooms !== undefined) scatterFlowers(ctx, blooms, layout) // STANDING blooms (single billboards, height 1) over open grass
 }
 
 /**

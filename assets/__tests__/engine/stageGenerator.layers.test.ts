@@ -110,10 +110,18 @@ function genSeeded(opts: Parameters<typeof generateStage>[0], seed: number): Sta
 // have more houses"*. A town now plans a church, stables, a barn and a smithy; a city plans towers and apartment
 // blocks. The temple landmark stays in every settlement, as it always was. A deliberate generation change, so the
 // digests move; the five non-settlement cases below are untouched.
+// Regenerated 2026-09-12, the three SETTLEMENT cases only: naturePass now reads the numbers the backend has
+// been serving all along. `settlement.natureMultiplier` was parsed into `GeneratorSettlement` and never
+// declared on `SettlementTuning`, so it was invisible to types and eight served rows (town 1.3, city 0.5,
+// town_small 1.8, town_forest 2.4, town_swamp 2.0 and more) could not reach `fillVillageNature`, which used
+// the frontend `NATURE_MULT` instead. The ground-cover and flower densities were literals (0.12 / 0.06) with
+// the served `nature` block sitting in scope, so town_forest's 0.28/0.08 and town_swamp's 0.45/0.08 were dead.
+// A deliberate generation change: tree, tuft and bloom counts move on every settlement. Only the three
+// settlements run this pass, so the forest/cave/temple/boss cases below are byte-identical.
 const BASELINE: Record<string, string> = {
-  'town|autumn|40x40|1': '28ab1a1b',
-  'town|summer|50x40|7': '25e9c59c',
-  'city|summer|56x44|3': '7ae509e0',
+  'town|autumn|40x40|1': 'affafaf3',
+  'town|summer|50x40|7': '9c0fd03a',
+  'city|summer|56x44|3': 'b8a0077c',
   'forest|summer|30x24|42': 'f243961a',
   'cave|autumn|40x30|99': '77075081',
   'temple|winter|36x30|5': 'c3a336a9',
