@@ -17,7 +17,7 @@ import { Connector } from '@/lib/api'
 import { ASCII_FONT, COMBAT_RANGE, type DayNight, type DrawVisual, ENEMY_MOVE_MS, LIGHT, applyCellTransform, isoCameraFocus, assetCaptionByCell, terrainLabelAt, collectLampGlows, type CompositionGhost, compositionGhostColors, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawHoverRing, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawConnectorMarker, drawAttackAnimFrame, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, clipToBall, SINGLE_TILE_FRAC, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, frameImage, getPlayerArt, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, resolveAssetDraw, resolveEntityDraw, assetOverride, styleTileImage, labelTileRecolor, groundDecorImage, tileImage, tintedImage, tintedGlyphSprite, treeCellSet } from './shared'
 import { drawWeather, type WeatherId } from './weather'
 import { resolveAssetDrawSize } from './assetDimensions'
-import { resolveAssetAnimation } from './assetAnimation'
+import { resolveAssetAnimation, spriteFrame } from './assetAnimation'
 import { getStack, assetStackIndexer, unitStandLevel, type TileSource } from '@/engine/cellStack'
 import { isoBlockFaces, isoDepthBox, depthCells, depthFrontExtent, isoZOffset, rotateDepthDir, spanBackmost, normalizeDepthSpan, assetRectExtents, reachGroundQuad, rotateThicknessReach, type BlockFace, type DepthDir, type ThicknessReach } from './isoBlock'
 import { type Orientation } from './isoOrientation'
@@ -2348,6 +2348,18 @@ export function drawIsoAssetAscii(
     const kimg = styleTileImage(assetKind(asset), style)
     if (kimg) adv = { ...adv, image: kimg, char: '', tint: adv.tint ?? asset.color }
   }
+  // A LIVE SPRITE FRAME wins over the tile's resting picture, in every style.
+  //
+  // This is the playback `resolveAssetAnimation` documents as stubbed: `spriteFrameIndex` was real and tested
+  // and nothing consumed it, so a tile carrying a frame-swap animation animated nothing. It lands HERE, where
+  // a tile's picture is chosen, so it reaches a FLOOR too: a floor is an ordinary level-0 asset whose identity
+  // is its `tileKey` (never a label), which is why animating water could not work through the label seam above.
+  //
+  // AFTER the `!adv.image` block on purpose: under emoji the style map already filled `adv.image`, so a frame
+  // that only applied when the image was missing would never play.
+  const liveFrame = spriteFrame(asset, time, style, 'iso', dayNight)
+  const framed = liveFrame ? frameImage(liveFrame, adv.char, adv.image, style) : undefined
+  if (framed && framed !== adv.image) adv = { ...adv, image: framed, char: '', tint: adv.tint ?? asset.color }
   const blocks = resolveTileHeight(dbTile, asset)
   // Z-WIDTH (directional depth) is a 3D BLOCK operation: setting it declares the tile a block extruded N cells
   // along a diagonal, so the iso render MUST extrude it even at base height 0. Z-Width only changes how FAR a

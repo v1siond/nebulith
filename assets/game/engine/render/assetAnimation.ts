@@ -23,12 +23,15 @@ import {
   animationMatchesScope,
   composeAnimatedSetting,
   resolveAnimatedSettingsDetailed,
+  spriteFrameIndex,
   type AnimatedSetting,
   type AnimatedSettingsDetailed,
   type SettingKey,
+  type SpriteAnimation,
   type TileStyle,
   type TileView,
 } from '@/engine/animation/tileAnimation'
+import { resolveFrame, type ResolvedFrame } from '@/game/runtime/entityAnimation'
 import type { Style } from '@/game/artStyle'
 import type { DayNight } from './shared'
 
@@ -44,6 +47,54 @@ export interface AssetAnimationFx {
   /** The asset with animated FIELD settings (colour / zoom / width / height) overlaid — the SAME reference
    *  when the animation writes none of them, so no needless clone. */
   asset: GridAsset
+}
+
+/**
+ * THE LIVE SPRITE FRAME for a placed asset: the playback that was stubbed.
+ *
+ * `resolveAssetAnimation` above resolves the SETTINGS kind and returns null for a sprite, with its own comment
+ * saying so: *"Only `sprite` animations in scope → no settings written → treat as no-op (playback stubbed in
+ * Phase 1)"*. So a tile carrying a frame-swap animation animated nothing, in any view. `spriteFrameIndex` was
+ * already real, clock-derived and tested; nothing consumed it.
+ *
+ * Alexander, 2026-09-12: *"fix the water look ... you usually need border and animation"*. Water is a FLOOR, and
+ * a floor is an ordinary level-0 asset drawn through the same per-asset path as everything else, so giving that
+ * path a live frame is what makes a ground tile able to move at all.
+ *
+ * Why a separate helper rather than a field on `AssetAnimationFx`: the picture is chosen inside the draw
+ * (`drawIsoAssetAscii`), which never receives that fx, and all four existing callers read only `.asset` and
+ * `.opacity`. One exported function keeps this additive, so an un-animated tile takes the same path it always did.
+ *
+ * The frame is returned RESOLVED but not turned into a picture: `frameImage` lives in `./shared`, and `shared`
+ * already imports this module, so resolving it here would close a circular import. The caller owns that step,
+ * which is also where the tile's own resting image is known.
+ *
+ * Returns null when the asset carries no sprite animation in scope, so an un-animated tile allocates nothing.
+ */
+export function spriteFrame(
+  asset: GridAsset,
+  nowMs: number,
+  style: Style,
+  view: TileView,
+  dayNight: DayNight,
+): ResolvedFrame | null {
+  const animations = asset.animations
+  if (!animations || animations.length === 0) return null
+  const token = styleToken(style)
+  // The SAME gate the settings path uses, so a sprite obeys scope and the night trigger identically.
+  const sprites = animations.filter(
+    anim => anim.kind === 'sprite' && animationMatchesScope(anim, token, view) && animationPlaysAtDayNight(anim, dayNight),
+  )
+  if (sprites.length === 0) return null
+  // Highest `priority` wins and, at equal priority, the LAST in the list, the same precedence the settings
+  // resolver documents, so two animations on one tile resolve the same way whichever kind they are.
+  const chosen = sprites.reduce((best, anim) => ((anim.priority ?? 0) >= (best.priority ?? 0) ? anim : best), sprites[0])
+  const frames = 'frames' in chosen ? chosen.frames : []
+  if (frames.length === 0) return null
+  const index = spriteFrameIndex(chosen as SpriteAnimation, nowMs, asset.placedAt ?? 0)
+  const frame = frames[index]
+  if (!frame) return null
+  return resolveFrame(frame, { char: asset.art?.[0] })
 }
 
 /** Map a render `Style` to the pure engine's scope token — only ascii/emoji exist as tile styles. */
