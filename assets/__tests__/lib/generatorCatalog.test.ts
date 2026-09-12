@@ -24,24 +24,24 @@ describe('parseGeneratorCatalog — the live /api/generators body', () => {
 
   it('reads each category\'s generators, in menu order', () => {
     expect(findCategory(LIVE, 'forest')!.generators.map(g => g.key)).toEqual(['forest_woodland', 'forest_jungle', 'forest_meadow'])
-    expect(findCategory(LIVE, 'settlement')!.generators.map(g => g.key)).toEqual(['town_default', 'city_default'])
+    expect(findCategory(LIVE, 'settlement')!.generators.map(g => g.key)).toEqual(['town_traditional', 'city_modern', 'city_tropical', 'town_snowy', 'city_mediterranean', 'town_andean', 'town_swamp'])
   })
 
   it('reads the grid range the town rolls — the numbers templates.tsx used to hardcode', () => {
-    expect(findGenerator(LIVE, 'settlement', 'town')!.config.grid).toEqual({
+    expect(findGenerator(LIVE, 'settlement', 'traditional_town')!.config.grid).toEqual({
       cols: { min: 30, max: 45 }, rows: { min: 24, max: 35 }, cellSize: 16, isoScale: 2.5,
     })
   })
 
   it('reads the CITY\'s bigger grid — the `variant === city` branch is data now', () => {
-    expect(findGenerator(LIVE, 'settlement', 'city')!.config.grid).toEqual({
+    expect(findGenerator(LIVE, 'settlement', 'modern_city')!.config.grid).toEqual({
       cols: { min: 52, max: 71 }, rows: { min: 42, max: 57 }, cellSize: 16, isoScale: 2.5,
     })
   })
 
   it('reads the townsfolk counts the editor scattered from a 14/8/5 ternary', () => {
-    expect(findGenerator(LIVE, 'settlement', 'city')!.config.units!.townsfolk).toBe(14)
-    expect(findGenerator(LIVE, 'settlement', 'town')!.config.units!.townsfolk).toBe(8)
+    expect(findGenerator(LIVE, 'settlement', 'modern_city')!.config.units!.townsfolk).toBe(14)
+    expect(findGenerator(LIVE, 'settlement', 'traditional_town')!.config.units!.townsfolk).toBe(8)
     // The forest's FIRST row is the woodland now, and a wood scatters fewer people than an open meadow.
     expect(findGenerator(LIVE, 'forest')!.config.units!.townsfolk).toBe(3)
     expect(findGenerator(LIVE, 'forest', 'meadow')!.config.units!.townsfolk).toBe(5)
@@ -53,25 +53,27 @@ describe('parseGeneratorCatalog — the live /api/generators body', () => {
   })
 
   it('reads the building material + colour palette the page declared as five consts', () => {
-    expect(findGenerator(LIVE, 'settlement', 'town')!.config.buildings).toEqual({
-      // `roof` since 2026-09-11: a look names the roof its houses lay, because the shape is baked into the
-      // composition and colours alone could never make a tropical town read as one.
+    // A LOOK'S OWN PALETTE. Since 2026-09-11 the settlement presets ARE the looks, so this reads Traditional
+    // town's: brick and timber under warm gables, and the roof TILE it lays, which is the half that colours
+    // alone could never express (*"the material of houses should be different, walls different, roof
+    // different"*).
+    expect(findGenerator(LIVE, 'settlement', 'traditional_town')!.config.buildings).toEqual({
       roof: 'roof',
-      materials: ['wall_brick', 'wall_wood', 'wall_stone'],
-      roofColors: ['#b5533a', '#5a636b', '#5c4433', '#4a6a7a'],
-      wallColors: ['#9e4b3b', '#c9a66b', '#e8dcc0', '#8a8580', '#a89f7a'],
+      materials: ['wall_brick', 'wall_wood'],
+      roofColors: ['#8a4b2f', '#7a4326', '#6b4a2b'],
+      wallColors: ['#c9a66b', '#b08d5b', '#d8c79a'],
       storeRoof: '#235a96', hospitalRoof: '#2f7e50', fixedWall: '#f0f0ea',
     })
   })
 
   it('reads the settlement tuning that lives in villageLayout as ten consts', () => {
-    expect(findGenerator(LIVE, 'settlement', 'town')!.config.settlement).toEqual({
+    expect(findGenerator(LIVE, 'settlement', 'traditional_town')!.config.settlement).toEqual({
       plazaSize: 5, roadWidth: 4, setback: 1, lotGap: [1, 2], maxPerFrontage: 6,
       buildingCap: 18, houseRange: [4, 6], bigHouseRange: [1, 3],
-      houseWidths: [3, 3, 4, 4, 4, 5], natureMultiplier: 1.15,
+      houseWidths: [3, 3, 4, 4, 4, 5], natureMultiplier: 1.3,
     })
-    expect(findGenerator(LIVE, 'settlement', 'city')!.config.settlement).toMatchObject({
-      plazaSize: 7, maxPerFrontage: 99, buildingCap: 72, natureMultiplier: 0.4,
+    expect(findGenerator(LIVE, 'settlement', 'modern_city')!.config.settlement).toMatchObject({
+      plazaSize: 7, maxPerFrontage: 99, buildingCap: 72, natureMultiplier: 0.5,
     })
   })
 
@@ -115,7 +117,15 @@ describe('categoryLayouts — a map type\'s shapes are DATA, not a `key === fore
   })
 
   it('lists NO layouts for a map type whose generator names no shape', () => {
-    expect(categoryLayouts(LIVE, 'settlement')).toEqual([{ id: 'town', label: 'Town' }, { id: 'city', label: 'City' }])
+    expect(categoryLayouts(LIVE, 'settlement')).toEqual([
+      { id: 'traditional_town', label: 'Traditional town' },
+      { id: 'modern_city', label: 'Modern city' },
+      { id: 'tropical_city', label: 'Tropical city' },
+      { id: 'snowy_town', label: 'Snowy town' },
+      { id: 'mediterranean_city', label: 'Mediterranean city' },
+      { id: 'andean_town', label: 'Andean town' },
+      { id: 'swamp_village', label: 'Swamp village' },
+    ])
     expect(categoryLayouts(LIVE, 'cave')).toEqual([])
   })
 
@@ -145,8 +155,8 @@ describe('findGenerator — the editor runs exactly the world the user asked for
 })
 
 describe('rollGridSize — the size comes from the served range', () => {
-  const town = findGenerator(LIVE, 'settlement', 'town')
-  const city = findGenerator(LIVE, 'settlement', 'city')
+  const town = findGenerator(LIVE, 'settlement', 'traditional_town')
+  const city = findGenerator(LIVE, 'settlement', 'modern_city')
 
   it('rolls the range MINIMUM at rand 0 and the MAXIMUM just under 1', () => {
     expect(rollGridSize(town, () => 0)).toEqual({ cols: 30, rows: 24 })

@@ -3373,7 +3373,7 @@
       "key": "settlement",
       "generators": [
         {
-          "name": "Town",
+          "name": "Traditional town",
           "position": 0,
           "config": {
             "buildings": {
@@ -3381,23 +3381,19 @@
               "hospitalRoof": "#2f7e50",
               "materials": [
                 "wall_brick",
-                "wall_wood",
-                "wall_stone"
+                "wall_wood"
               ],
               "roof": "roof",
               "roofColors": [
-                "#b5533a",
-                "#5a636b",
-                "#5c4433",
-                "#4a6a7a"
+                "#8a4b2f",
+                "#7a4326",
+                "#6b4a2b"
               ],
               "storeRoof": "#235a96",
               "wallColors": [
-                "#9e4b3b",
                 "#c9a66b",
-                "#e8dcc0",
-                "#8a8580",
-                "#a89f7a"
+                "#b08d5b",
+                "#d8c79a"
               ]
             },
             "grid": {
@@ -3440,7 +3436,7 @@
                 2
               ],
               "maxPerFrontage": 6,
-              "natureMultiplier": 1.15,
+              "natureMultiplier": 1.3,
               "plazaSize": 5,
               "roadWidth": 4,
               "setback": 1
@@ -3452,540 +3448,10 @@
             }
           },
           "options": [],
-          "description": "Streets, a central square, houses fronting the roads.",
-          "key": "town_default",
-          "layout": "town",
-          "children": [
-            {
-              "name": "Traditional",
-              "position": 0,
-              "config": {
-                "buildings": {
-                  "fixedWall": "#f0f0ea",
-                  "hospitalRoof": "#2f7e50",
-                  "materials": [
-                    "wall_brick",
-                    "wall_wood"
-                  ],
-                  "roof": "roof",
-                  "roofColors": [
-                    "#8a4b2f",
-                    "#7a4326",
-                    "#6b4a2b"
-                  ],
-                  "storeRoof": "#235a96",
-                  "wallColors": [
-                    "#c9a66b",
-                    "#b08d5b",
-                    "#d8c79a"
-                  ]
-                },
-                "grid": {
-                  "cellSize": 16,
-                  "cols": {
-                    "max": 45,
-                    "min": 30
-                  },
-                  "isoScale": 2.5,
-                  "rows": {
-                    "max": 35,
-                    "min": 24
-                  }
-                },
-                "nature": {
-                  "flowers": 0.06,
-                  "groundCover": 0.12,
-                  "tallGrass": 0.18
-                },
-                "settlement": {
-                  "bigHouseRange": [
-                    1,
-                    3
-                  ],
-                  "buildingCap": 18,
-                  "houseRange": [
-                    4,
-                    6
-                  ],
-                  "houseWidths": [
-                    3,
-                    3,
-                    4,
-                    4,
-                    4,
-                    5
-                  ],
-                  "lotGap": [
-                    1,
-                    2
-                  ],
-                  "maxPerFrontage": 6,
-                  "natureMultiplier": 1.3,
-                  "plazaSize": 5,
-                  "roadWidth": 4,
-                  "setback": 1
-                },
-                "units": {
-                  "enemies": 0,
-                  "enemyTypes": [],
-                  "townsfolk": 8
-                }
-              },
-              "options": [],
-              "description": "Timber and stone, warm roofs, trees between the lots.",
-              "key": "town_traditional",
-              "layout": "town",
-              "children": [],
-              "zones": [
-                "spring",
-                "summer",
-                "autumn",
-                "winter",
-                "desert"
-              ],
-              "variant": "town"
-            },
-            {
-              "name": "Modern",
-              "position": 1,
-              "config": {
-                "buildings": {
-                  "fixedWall": "#f0f0ea",
-                  "hospitalRoof": "#2f7e50",
-                  "materials": [
-                    "wall_plaster"
-                  ],
-                  "roof": "flat_roof",
-                  "roofColors": [
-                    "#4a4f55",
-                    "#3f464c",
-                    "#5a636b"
-                  ],
-                  "storeRoof": "#235a96",
-                  "wallColors": [
-                    "#e8ecef",
-                    "#d3d8dc",
-                    "#bcc3c9"
-                  ]
-                },
-                "grid": {
-                  "cellSize": 16,
-                  "cols": {
-                    "max": 45,
-                    "min": 30
-                  },
-                  "isoScale": 2.5,
-                  "rows": {
-                    "max": 35,
-                    "min": 24
-                  }
-                },
-                "nature": {
-                  "flowers": 0.06,
-                  "groundCover": 0.12,
-                  "tallGrass": 0.18
-                },
-                "settlement": {
-                  "bigHouseRange": [
-                    1,
-                    3
-                  ],
-                  "buildingCap": 18,
-                  "houseRange": [
-                    4,
-                    6
-                  ],
-                  "houseWidths": [
-                    3,
-                    3,
-                    4,
-                    4,
-                    4,
-                    5
-                  ],
-                  "lotGap": [
-                    1,
-                    2
-                  ],
-                  "maxPerFrontage": 6,
-                  "natureMultiplier": 0.5,
-                  "plazaSize": 7,
-                  "roadWidth": 5,
-                  "setback": 1
-                },
-                "units": {
-                  "enemies": 0,
-                  "enemyTypes": [],
-                  "townsfolk": 8
-                }
-              },
-              "options": [],
-              "description": "Concrete, glass and flat grey roofs, wide streets, little green.",
-              "key": "town_modern",
-              "layout": "town",
-              "children": [],
-              "zones": [
-                "spring",
-                "summer",
-                "autumn",
-                "winter",
-                "desert"
-              ],
-              "variant": "town"
-            },
-            {
-              "name": "Tropical",
-              "position": 2,
-              "config": {
-                "buildings": {
-                  "fixedWall": "#f0f0ea",
-                  "hospitalRoof": "#2f7e50",
-                  "materials": [
-                    "wall_wood"
-                  ],
-                  "roof": "roof",
-                  "roofColors": [
-                    "#c9a84f",
-                    "#b8963f",
-                    "#d8bc6a"
-                  ],
-                  "storeRoof": "#235a96",
-                  "wallColors": [
-                    "#f4e3b6",
-                    "#efc9a0",
-                    "#e8d9a8"
-                  ]
-                },
-                "grid": {
-                  "cellSize": 16,
-                  "cols": {
-                    "max": 45,
-                    "min": 30
-                  },
-                  "isoScale": 2.5,
-                  "rows": {
-                    "max": 35,
-                    "min": 24
-                  }
-                },
-                "nature": {
-                  "flowers": 0.06,
-                  "groundCover": 0.12,
-                  "tallGrass": 0.18
-                },
-                "settlement": {
-                  "bigHouseRange": [
-                    1,
-                    3
-                  ],
-                  "buildingCap": 18,
-                  "houseRange": [
-                    4,
-                    6
-                  ],
-                  "houseWidths": [
-                    3,
-                    3,
-                    4,
-                    4,
-                    4,
-                    5
-                  ],
-                  "lotGap": [
-                    1,
-                    2
-                  ],
-                  "maxPerFrontage": 6,
-                  "natureMultiplier": 1.8,
-                  "plazaSize": 5,
-                  "roadWidth": 4,
-                  "setback": 1
-                },
-                "units": {
-                  "enemies": 0,
-                  "enemyTypes": [],
-                  "townsfolk": 8
-                }
-              },
-              "options": [],
-              "description": "Timber and palm thatch, bright walls, green everywhere.",
-              "key": "town_tropical",
-              "layout": "town",
-              "children": [],
-              "zones": [
-                "spring",
-                "summer",
-                "autumn",
-                "winter",
-                "desert"
-              ],
-              "variant": "town"
-            },
-            {
-              "name": "Snowy",
-              "position": 3,
-              "config": {
-                "buildings": {
-                  "fixedWall": "#f0f0ea",
-                  "hospitalRoof": "#2f7e50",
-                  "materials": [
-                    "wall_stone"
-                  ],
-                  "roof": "roof_slate",
-                  "roofColors": [
-                    "#2f3640",
-                    "#262c34",
-                    "#3d454f"
-                  ],
-                  "storeRoof": "#235a96",
-                  "wallColors": [
-                    "#eef2f6",
-                    "#dde6ee",
-                    "#c9d4de"
-                  ]
-                },
-                "grid": {
-                  "cellSize": 16,
-                  "cols": {
-                    "max": 45,
-                    "min": 30
-                  },
-                  "isoScale": 2.5,
-                  "rows": {
-                    "max": 35,
-                    "min": 24
-                  }
-                },
-                "nature": {
-                  "flowers": 0.06,
-                  "groundCover": 0.12,
-                  "tallGrass": 0.18
-                },
-                "settlement": {
-                  "bigHouseRange": [
-                    1,
-                    3
-                  ],
-                  "buildingCap": 18,
-                  "houseRange": [
-                    4,
-                    6
-                  ],
-                  "houseWidths": [
-                    3,
-                    3,
-                    4,
-                    4,
-                    4,
-                    5
-                  ],
-                  "lotGap": [
-                    1,
-                    2
-                  ],
-                  "maxPerFrontage": 6,
-                  "natureMultiplier": 0.35,
-                  "plazaSize": 5,
-                  "roadWidth": 4,
-                  "setback": 1
-                },
-                "units": {
-                  "enemies": 0,
-                  "enemyTypes": [],
-                  "townsfolk": 8
-                }
-              },
-              "options": [],
-              "description": "Pale walls under dark steep roofs, and almost nothing growing.",
-              "key": "town_snowy",
-              "layout": "town",
-              "children": [],
-              "zones": [
-                "spring",
-                "summer",
-                "autumn",
-                "winter",
-                "desert"
-              ],
-              "variant": "town"
-            },
-            {
-              "name": "Mediterranean",
-              "position": 4,
-              "config": {
-                "buildings": {
-                  "fixedWall": "#f0f0ea",
-                  "hospitalRoof": "#2f7e50",
-                  "materials": [
-                    "wall_plaster"
-                  ],
-                  "roof": "roof",
-                  "roofColors": [
-                    "#c2603f",
-                    "#b5533a",
-                    "#a8462f"
-                  ],
-                  "storeRoof": "#235a96",
-                  "wallColors": [
-                    "#faf3e4",
-                    "#f4ecd8",
-                    "#efe0c0"
-                  ]
-                },
-                "grid": {
-                  "cellSize": 16,
-                  "cols": {
-                    "max": 45,
-                    "min": 30
-                  },
-                  "isoScale": 2.5,
-                  "rows": {
-                    "max": 35,
-                    "min": 24
-                  }
-                },
-                "nature": {
-                  "flowers": 0.06,
-                  "groundCover": 0.12,
-                  "tallGrass": 0.18
-                },
-                "settlement": {
-                  "bigHouseRange": [
-                    1,
-                    3
-                  ],
-                  "buildingCap": 18,
-                  "houseRange": [
-                    4,
-                    6
-                  ],
-                  "houseWidths": [
-                    3,
-                    3,
-                    4,
-                    4,
-                    4,
-                    5
-                  ],
-                  "lotGap": [
-                    1,
-                    1
-                  ],
-                  "maxPerFrontage": 6,
-                  "natureMultiplier": 0.8,
-                  "plazaSize": 4,
-                  "roadWidth": 4,
-                  "setback": 1
-                },
-                "units": {
-                  "enemies": 0,
-                  "enemyTypes": [],
-                  "townsfolk": 8
-                }
-              },
-              "options": [],
-              "description": "Cream walls and terracotta roofs packed tight around a small square.",
-              "key": "town_mediterranean",
-              "layout": "town",
-              "children": [],
-              "zones": [
-                "spring",
-                "summer",
-                "autumn",
-                "winter",
-                "desert"
-              ],
-              "variant": "town"
-            },
-            {
-              "name": "Andean",
-              "position": 5,
-              "config": {
-                "buildings": {
-                  "fixedWall": "#f0f0ea",
-                  "hospitalRoof": "#2f7e50",
-                  "materials": [
-                    "wall_brick"
-                  ],
-                  "roof": "roof_slate",
-                  "roofColors": [
-                    "#8f4a33",
-                    "#6f6a60",
-                    "#7a4a2c"
-                  ],
-                  "storeRoof": "#235a96",
-                  "wallColors": [
-                    "#c98f5c",
-                    "#b87d4a",
-                    "#d9a877"
-                  ]
-                },
-                "grid": {
-                  "cellSize": 16,
-                  "cols": {
-                    "max": 45,
-                    "min": 30
-                  },
-                  "isoScale": 2.5,
-                  "rows": {
-                    "max": 35,
-                    "min": 24
-                  }
-                },
-                "nature": {
-                  "flowers": 0.06,
-                  "groundCover": 0.12,
-                  "tallGrass": 0.18
-                },
-                "settlement": {
-                  "bigHouseRange": [
-                    1,
-                    3
-                  ],
-                  "buildingCap": 18,
-                  "houseRange": [
-                    4,
-                    6
-                  ],
-                  "houseWidths": [
-                    3,
-                    3,
-                    4,
-                    4,
-                    4,
-                    5
-                  ],
-                  "lotGap": [
-                    1,
-                    1
-                  ],
-                  "maxPerFrontage": 6,
-                  "natureMultiplier": 0.7,
-                  "plazaSize": 5,
-                  "roadWidth": 4,
-                  "setback": 1
-                },
-                "units": {
-                  "enemies": 0,
-                  "enemyTypes": [],
-                  "townsfolk": 8
-                }
-              },
-              "options": [],
-              "description": "Adobe walls and tin roofs stepping up the slope.",
-              "key": "town_andean",
-              "layout": "town",
-              "children": [],
-              "zones": [
-                "spring",
-                "summer",
-                "autumn",
-                "winter",
-                "desert"
-              ],
-              "variant": "town"
-            }
-          ],
+          "description": "Timber and brick under warm gables, trees between the lots.",
+          "key": "town_traditional",
+          "layout": "traditional_town",
+          "children": [],
           "zones": [
             "spring",
             "summer",
@@ -3996,31 +3462,26 @@
           "variant": "town"
         },
         {
-          "name": "City",
+          "name": "Modern city",
           "position": 1,
           "config": {
             "buildings": {
               "fixedWall": "#f0f0ea",
               "hospitalRoof": "#2f7e50",
               "materials": [
-                "wall_brick",
-                "wall_wood",
-                "wall_stone"
+                "wall_plaster"
               ],
-              "roof": "roof",
+              "roof": "flat_roof",
               "roofColors": [
-                "#b5533a",
-                "#5a636b",
-                "#5c4433",
-                "#4a6a7a"
+                "#4a4f55",
+                "#3f464c",
+                "#5a636b"
               ],
               "storeRoof": "#235a96",
               "wallColors": [
-                "#9e4b3b",
-                "#c9a66b",
-                "#e8dcc0",
-                "#8a8580",
-                "#a89f7a"
+                "#e8ecef",
+                "#d3d8dc",
+                "#bcc3c9"
               ]
             },
             "grid": {
@@ -4063,7 +3524,7 @@
                 1
               ],
               "maxPerFrontage": 99,
-              "natureMultiplier": 0.4,
+              "natureMultiplier": 0.5,
               "plazaSize": 7,
               "roadWidth": 4,
               "setback": 1
@@ -4075,540 +3536,10 @@
             }
           },
           "options": [],
-          "description": "The town's rules on a bigger grid with tighter lots and no per-street limit.",
-          "key": "city_default",
-          "layout": "city",
-          "children": [
-            {
-              "name": "Traditional",
-              "position": 0,
-              "config": {
-                "buildings": {
-                  "fixedWall": "#f0f0ea",
-                  "hospitalRoof": "#2f7e50",
-                  "materials": [
-                    "wall_brick",
-                    "wall_wood"
-                  ],
-                  "roof": "roof",
-                  "roofColors": [
-                    "#8a4b2f",
-                    "#7a4326",
-                    "#6b4a2b"
-                  ],
-                  "storeRoof": "#235a96",
-                  "wallColors": [
-                    "#c9a66b",
-                    "#b08d5b",
-                    "#d8c79a"
-                  ]
-                },
-                "grid": {
-                  "cellSize": 16,
-                  "cols": {
-                    "max": 71,
-                    "min": 52
-                  },
-                  "isoScale": 2.5,
-                  "rows": {
-                    "max": 57,
-                    "min": 42
-                  }
-                },
-                "nature": {
-                  "flowers": 0.06,
-                  "groundCover": 0.12,
-                  "tallGrass": 0.18
-                },
-                "settlement": {
-                  "bigHouseRange": [
-                    3,
-                    5
-                  ],
-                  "buildingCap": 72,
-                  "houseRange": [
-                    7,
-                    11
-                  ],
-                  "houseWidths": [
-                    3,
-                    3,
-                    4,
-                    4,
-                    4,
-                    5
-                  ],
-                  "lotGap": [
-                    1,
-                    1
-                  ],
-                  "maxPerFrontage": 99,
-                  "natureMultiplier": 1.3,
-                  "plazaSize": 7,
-                  "roadWidth": 4,
-                  "setback": 1
-                },
-                "units": {
-                  "enemies": 0,
-                  "enemyTypes": [],
-                  "townsfolk": 14
-                }
-              },
-              "options": [],
-              "description": "Timber and stone, warm roofs, trees between the lots.",
-              "key": "city_traditional",
-              "layout": "city",
-              "children": [],
-              "zones": [
-                "spring",
-                "summer",
-                "autumn",
-                "winter",
-                "desert"
-              ],
-              "variant": "city"
-            },
-            {
-              "name": "Modern",
-              "position": 1,
-              "config": {
-                "buildings": {
-                  "fixedWall": "#f0f0ea",
-                  "hospitalRoof": "#2f7e50",
-                  "materials": [
-                    "wall_plaster"
-                  ],
-                  "roof": "flat_roof",
-                  "roofColors": [
-                    "#4a4f55",
-                    "#3f464c",
-                    "#5a636b"
-                  ],
-                  "storeRoof": "#235a96",
-                  "wallColors": [
-                    "#e8ecef",
-                    "#d3d8dc",
-                    "#bcc3c9"
-                  ]
-                },
-                "grid": {
-                  "cellSize": 16,
-                  "cols": {
-                    "max": 71,
-                    "min": 52
-                  },
-                  "isoScale": 2.5,
-                  "rows": {
-                    "max": 57,
-                    "min": 42
-                  }
-                },
-                "nature": {
-                  "flowers": 0.06,
-                  "groundCover": 0.12,
-                  "tallGrass": 0.18
-                },
-                "settlement": {
-                  "bigHouseRange": [
-                    3,
-                    5
-                  ],
-                  "buildingCap": 72,
-                  "houseRange": [
-                    7,
-                    11
-                  ],
-                  "houseWidths": [
-                    3,
-                    3,
-                    4,
-                    4,
-                    4,
-                    5
-                  ],
-                  "lotGap": [
-                    1,
-                    1
-                  ],
-                  "maxPerFrontage": 99,
-                  "natureMultiplier": 0.5,
-                  "plazaSize": 7,
-                  "roadWidth": 5,
-                  "setback": 1
-                },
-                "units": {
-                  "enemies": 0,
-                  "enemyTypes": [],
-                  "townsfolk": 14
-                }
-              },
-              "options": [],
-              "description": "Concrete, glass and flat grey roofs, wide streets, little green.",
-              "key": "city_modern",
-              "layout": "city",
-              "children": [],
-              "zones": [
-                "spring",
-                "summer",
-                "autumn",
-                "winter",
-                "desert"
-              ],
-              "variant": "city"
-            },
-            {
-              "name": "Tropical",
-              "position": 2,
-              "config": {
-                "buildings": {
-                  "fixedWall": "#f0f0ea",
-                  "hospitalRoof": "#2f7e50",
-                  "materials": [
-                    "wall_wood"
-                  ],
-                  "roof": "roof",
-                  "roofColors": [
-                    "#c9a84f",
-                    "#b8963f",
-                    "#d8bc6a"
-                  ],
-                  "storeRoof": "#235a96",
-                  "wallColors": [
-                    "#f4e3b6",
-                    "#efc9a0",
-                    "#e8d9a8"
-                  ]
-                },
-                "grid": {
-                  "cellSize": 16,
-                  "cols": {
-                    "max": 71,
-                    "min": 52
-                  },
-                  "isoScale": 2.5,
-                  "rows": {
-                    "max": 57,
-                    "min": 42
-                  }
-                },
-                "nature": {
-                  "flowers": 0.06,
-                  "groundCover": 0.12,
-                  "tallGrass": 0.18
-                },
-                "settlement": {
-                  "bigHouseRange": [
-                    3,
-                    5
-                  ],
-                  "buildingCap": 72,
-                  "houseRange": [
-                    7,
-                    11
-                  ],
-                  "houseWidths": [
-                    3,
-                    3,
-                    4,
-                    4,
-                    4,
-                    5
-                  ],
-                  "lotGap": [
-                    1,
-                    1
-                  ],
-                  "maxPerFrontage": 99,
-                  "natureMultiplier": 1.8,
-                  "plazaSize": 7,
-                  "roadWidth": 4,
-                  "setback": 1
-                },
-                "units": {
-                  "enemies": 0,
-                  "enemyTypes": [],
-                  "townsfolk": 14
-                }
-              },
-              "options": [],
-              "description": "Timber and palm thatch, bright walls, green everywhere.",
-              "key": "city_tropical",
-              "layout": "city",
-              "children": [],
-              "zones": [
-                "spring",
-                "summer",
-                "autumn",
-                "winter",
-                "desert"
-              ],
-              "variant": "city"
-            },
-            {
-              "name": "Snowy",
-              "position": 3,
-              "config": {
-                "buildings": {
-                  "fixedWall": "#f0f0ea",
-                  "hospitalRoof": "#2f7e50",
-                  "materials": [
-                    "wall_stone"
-                  ],
-                  "roof": "roof_slate",
-                  "roofColors": [
-                    "#2f3640",
-                    "#262c34",
-                    "#3d454f"
-                  ],
-                  "storeRoof": "#235a96",
-                  "wallColors": [
-                    "#eef2f6",
-                    "#dde6ee",
-                    "#c9d4de"
-                  ]
-                },
-                "grid": {
-                  "cellSize": 16,
-                  "cols": {
-                    "max": 71,
-                    "min": 52
-                  },
-                  "isoScale": 2.5,
-                  "rows": {
-                    "max": 57,
-                    "min": 42
-                  }
-                },
-                "nature": {
-                  "flowers": 0.06,
-                  "groundCover": 0.12,
-                  "tallGrass": 0.18
-                },
-                "settlement": {
-                  "bigHouseRange": [
-                    3,
-                    5
-                  ],
-                  "buildingCap": 72,
-                  "houseRange": [
-                    7,
-                    11
-                  ],
-                  "houseWidths": [
-                    3,
-                    3,
-                    4,
-                    4,
-                    4,
-                    5
-                  ],
-                  "lotGap": [
-                    1,
-                    1
-                  ],
-                  "maxPerFrontage": 99,
-                  "natureMultiplier": 0.35,
-                  "plazaSize": 7,
-                  "roadWidth": 4,
-                  "setback": 1
-                },
-                "units": {
-                  "enemies": 0,
-                  "enemyTypes": [],
-                  "townsfolk": 14
-                }
-              },
-              "options": [],
-              "description": "Pale walls under dark steep roofs, and almost nothing growing.",
-              "key": "city_snowy",
-              "layout": "city",
-              "children": [],
-              "zones": [
-                "spring",
-                "summer",
-                "autumn",
-                "winter",
-                "desert"
-              ],
-              "variant": "city"
-            },
-            {
-              "name": "Mediterranean",
-              "position": 4,
-              "config": {
-                "buildings": {
-                  "fixedWall": "#f0f0ea",
-                  "hospitalRoof": "#2f7e50",
-                  "materials": [
-                    "wall_plaster"
-                  ],
-                  "roof": "roof",
-                  "roofColors": [
-                    "#c2603f",
-                    "#b5533a",
-                    "#a8462f"
-                  ],
-                  "storeRoof": "#235a96",
-                  "wallColors": [
-                    "#faf3e4",
-                    "#f4ecd8",
-                    "#efe0c0"
-                  ]
-                },
-                "grid": {
-                  "cellSize": 16,
-                  "cols": {
-                    "max": 71,
-                    "min": 52
-                  },
-                  "isoScale": 2.5,
-                  "rows": {
-                    "max": 57,
-                    "min": 42
-                  }
-                },
-                "nature": {
-                  "flowers": 0.06,
-                  "groundCover": 0.12,
-                  "tallGrass": 0.18
-                },
-                "settlement": {
-                  "bigHouseRange": [
-                    3,
-                    5
-                  ],
-                  "buildingCap": 72,
-                  "houseRange": [
-                    7,
-                    11
-                  ],
-                  "houseWidths": [
-                    3,
-                    3,
-                    4,
-                    4,
-                    4,
-                    5
-                  ],
-                  "lotGap": [
-                    1,
-                    1
-                  ],
-                  "maxPerFrontage": 99,
-                  "natureMultiplier": 0.8,
-                  "plazaSize": 4,
-                  "roadWidth": 4,
-                  "setback": 1
-                },
-                "units": {
-                  "enemies": 0,
-                  "enemyTypes": [],
-                  "townsfolk": 14
-                }
-              },
-              "options": [],
-              "description": "Cream walls and terracotta roofs packed tight around a small square.",
-              "key": "city_mediterranean",
-              "layout": "city",
-              "children": [],
-              "zones": [
-                "spring",
-                "summer",
-                "autumn",
-                "winter",
-                "desert"
-              ],
-              "variant": "city"
-            },
-            {
-              "name": "Andean",
-              "position": 5,
-              "config": {
-                "buildings": {
-                  "fixedWall": "#f0f0ea",
-                  "hospitalRoof": "#2f7e50",
-                  "materials": [
-                    "wall_brick"
-                  ],
-                  "roof": "roof_slate",
-                  "roofColors": [
-                    "#8f4a33",
-                    "#6f6a60",
-                    "#7a4a2c"
-                  ],
-                  "storeRoof": "#235a96",
-                  "wallColors": [
-                    "#c98f5c",
-                    "#b87d4a",
-                    "#d9a877"
-                  ]
-                },
-                "grid": {
-                  "cellSize": 16,
-                  "cols": {
-                    "max": 71,
-                    "min": 52
-                  },
-                  "isoScale": 2.5,
-                  "rows": {
-                    "max": 57,
-                    "min": 42
-                  }
-                },
-                "nature": {
-                  "flowers": 0.06,
-                  "groundCover": 0.12,
-                  "tallGrass": 0.18
-                },
-                "settlement": {
-                  "bigHouseRange": [
-                    3,
-                    5
-                  ],
-                  "buildingCap": 72,
-                  "houseRange": [
-                    7,
-                    11
-                  ],
-                  "houseWidths": [
-                    3,
-                    3,
-                    4,
-                    4,
-                    4,
-                    5
-                  ],
-                  "lotGap": [
-                    1,
-                    1
-                  ],
-                  "maxPerFrontage": 99,
-                  "natureMultiplier": 0.7,
-                  "plazaSize": 7,
-                  "roadWidth": 4,
-                  "setback": 1
-                },
-                "units": {
-                  "enemies": 0,
-                  "enemyTypes": [],
-                  "townsfolk": 14
-                }
-              },
-              "options": [],
-              "description": "Adobe walls and tin roofs stepping up the slope.",
-              "key": "city_andean",
-              "layout": "city",
-              "children": [],
-              "zones": [
-                "spring",
-                "summer",
-                "autumn",
-                "winter",
-                "desert"
-              ],
-              "variant": "city"
-            }
-          ],
+          "description": "Plaster and glass under flat grey decks, wide streets, little green.",
+          "key": "city_modern",
+          "layout": "modern_city",
+          "children": [],
           "zones": [
             "spring",
             "summer",
@@ -4617,6 +3548,430 @@
             "desert"
           ],
           "variant": "city"
+        },
+        {
+          "name": "Tropical city",
+          "position": 2,
+          "config": {
+            "buildings": {
+              "fixedWall": "#f0f0ea",
+              "hospitalRoof": "#2f7e50",
+              "materials": [
+                "wall_wood"
+              ],
+              "roof": "roof",
+              "roofColors": [
+                "#c9a84f",
+                "#b8963f",
+                "#d8bc6a"
+              ],
+              "storeRoof": "#235a96",
+              "wallColors": [
+                "#f4e3b6",
+                "#efc9a0",
+                "#e8d9a8"
+              ]
+            },
+            "grid": {
+              "cellSize": 16,
+              "cols": {
+                "max": 71,
+                "min": 52
+              },
+              "isoScale": 2.5,
+              "rows": {
+                "max": 57,
+                "min": 42
+              }
+            },
+            "nature": {
+              "flowers": 0.06,
+              "groundCover": 0.12,
+              "tallGrass": 0.18
+            },
+            "settlement": {
+              "bigHouseRange": [
+                2,
+                4
+              ],
+              "buildingCap": 60,
+              "houseRange": [
+                7,
+                11
+              ],
+              "houseWidths": [
+                3,
+                3,
+                4,
+                4,
+                4,
+                5
+              ],
+              "lotGap": [
+                1,
+                2
+              ],
+              "maxPerFrontage": 99,
+              "natureMultiplier": 1.8,
+              "plazaSize": 6,
+              "roadWidth": 4,
+              "setback": 1
+            },
+            "units": {
+              "enemies": 0,
+              "enemyTypes": [],
+              "townsfolk": 14
+            }
+          },
+          "options": [],
+          "description": "Timber under straw, bright walls, green in every gap.",
+          "key": "city_tropical",
+          "layout": "tropical_city",
+          "children": [],
+          "zones": [
+            "spring",
+            "summer"
+          ],
+          "variant": "city"
+        },
+        {
+          "name": "Snowy town",
+          "position": 3,
+          "config": {
+            "buildings": {
+              "fixedWall": "#f0f0ea",
+              "hospitalRoof": "#2f7e50",
+              "materials": [
+                "wall_stone"
+              ],
+              "roof": "roof_slate",
+              "roofColors": [
+                "#2f3640",
+                "#262c34",
+                "#3d454f"
+              ],
+              "storeRoof": "#235a96",
+              "wallColors": [
+                "#eef2f6",
+                "#dde6ee",
+                "#c9d4de"
+              ]
+            },
+            "grid": {
+              "cellSize": 16,
+              "cols": {
+                "max": 45,
+                "min": 30
+              },
+              "isoScale": 2.5,
+              "rows": {
+                "max": 35,
+                "min": 24
+              }
+            },
+            "nature": {
+              "flowers": 0.06,
+              "groundCover": 0.12,
+              "tallGrass": 0.18
+            },
+            "settlement": {
+              "bigHouseRange": [
+                1,
+                3
+              ],
+              "buildingCap": 18,
+              "houseRange": [
+                4,
+                6
+              ],
+              "houseWidths": [
+                3,
+                3,
+                4,
+                4,
+                4,
+                5
+              ],
+              "lotGap": [
+                1,
+                2
+              ],
+              "maxPerFrontage": 6,
+              "natureMultiplier": 0.35,
+              "plazaSize": 5,
+              "roadWidth": 4,
+              "setback": 1
+            },
+            "units": {
+              "enemies": 0,
+              "enemyTypes": [],
+              "townsfolk": 8
+            }
+          },
+          "options": [],
+          "description": "Pale stone under near black slate, and almost nothing growing.",
+          "key": "town_snowy",
+          "layout": "snowy_town",
+          "children": [],
+          "zones": [
+            "winter"
+          ],
+          "variant": "town"
+        },
+        {
+          "name": "Mediterranean city",
+          "position": 4,
+          "config": {
+            "buildings": {
+              "fixedWall": "#f0f0ea",
+              "hospitalRoof": "#2f7e50",
+              "materials": [
+                "wall_plaster"
+              ],
+              "roof": "roof",
+              "roofColors": [
+                "#c2603f",
+                "#b5533a",
+                "#a8462f"
+              ],
+              "storeRoof": "#235a96",
+              "wallColors": [
+                "#faf3e4",
+                "#f4ecd8",
+                "#efe0c0"
+              ]
+            },
+            "grid": {
+              "cellSize": 16,
+              "cols": {
+                "max": 71,
+                "min": 52
+              },
+              "isoScale": 2.5,
+              "rows": {
+                "max": 57,
+                "min": 42
+              }
+            },
+            "nature": {
+              "flowers": 0.06,
+              "groundCover": 0.12,
+              "tallGrass": 0.18
+            },
+            "settlement": {
+              "bigHouseRange": [
+                3,
+                5
+              ],
+              "buildingCap": 72,
+              "houseRange": [
+                7,
+                11
+              ],
+              "houseWidths": [
+                3,
+                3,
+                4,
+                4,
+                4,
+                5
+              ],
+              "lotGap": [
+                1,
+                1
+              ],
+              "maxPerFrontage": 99,
+              "natureMultiplier": 0.8,
+              "plazaSize": 4,
+              "roadWidth": 4,
+              "setback": 1
+            },
+            "units": {
+              "enemies": 0,
+              "enemyTypes": [],
+              "townsfolk": 14
+            }
+          },
+          "options": [],
+          "description": "Whitewash under terracotta, packed tight around a small square.",
+          "key": "city_mediterranean",
+          "layout": "mediterranean_city",
+          "children": [],
+          "zones": [
+            "summer",
+            "desert"
+          ],
+          "variant": "city"
+        },
+        {
+          "name": "Andean town",
+          "position": 5,
+          "config": {
+            "buildings": {
+              "fixedWall": "#f0f0ea",
+              "hospitalRoof": "#2f7e50",
+              "materials": [
+                "wall_brick"
+              ],
+              "roof": "roof_slate",
+              "roofColors": [
+                "#8f4a33",
+                "#6f6a60",
+                "#7a4a2c"
+              ],
+              "storeRoof": "#235a96",
+              "wallColors": [
+                "#c98f5c",
+                "#b87d4a",
+                "#d9a877"
+              ]
+            },
+            "grid": {
+              "cellSize": 16,
+              "cols": {
+                "max": 45,
+                "min": 30
+              },
+              "isoScale": 2.5,
+              "rows": {
+                "max": 35,
+                "min": 24
+              }
+            },
+            "nature": {
+              "flowers": 0.06,
+              "groundCover": 0.12,
+              "tallGrass": 0.18
+            },
+            "settlement": {
+              "bigHouseRange": [
+                1,
+                2
+              ],
+              "buildingCap": 18,
+              "houseRange": [
+                4,
+                6
+              ],
+              "houseWidths": [
+                3,
+                3,
+                4,
+                4,
+                4,
+                5
+              ],
+              "lotGap": [
+                1,
+                1
+              ],
+              "maxPerFrontage": 6,
+              "natureMultiplier": 0.7,
+              "plazaSize": 4,
+              "roadWidth": 4,
+              "setback": 1
+            },
+            "units": {
+              "enemies": 0,
+              "enemyTypes": [],
+              "townsfolk": 8
+            }
+          },
+          "options": [],
+          "description": "Ochre adobe under tin roofs, stepping up the slope.",
+          "key": "town_andean",
+          "layout": "andean_town",
+          "children": [],
+          "zones": [
+            "autumn",
+            "desert"
+          ],
+          "variant": "town"
+        },
+        {
+          "name": "Swamp village",
+          "position": 6,
+          "config": {
+            "buildings": {
+              "fixedWall": "#f0f0ea",
+              "hospitalRoof": "#2f7e50",
+              "materials": [
+                "wall_wood"
+              ],
+              "roof": "roof",
+              "roofColors": [
+                "#6b5a34",
+                "#5c4f2c",
+                "#7a6a3e"
+              ],
+              "storeRoof": "#235a96",
+              "wallColors": [
+                "#a98b5f",
+                "#8f7450",
+                "#c0a375"
+              ]
+            },
+            "grid": {
+              "cellSize": 16,
+              "cols": {
+                "max": 45,
+                "min": 30
+              },
+              "isoScale": 2.5,
+              "rows": {
+                "max": 35,
+                "min": 24
+              }
+            },
+            "nature": {
+              "flowers": 0.06,
+              "groundCover": 0.12,
+              "tallGrass": 0.18
+            },
+            "settlement": {
+              "bigHouseRange": [
+                0,
+                1
+              ],
+              "buildingCap": 12,
+              "houseRange": [
+                4,
+                6
+              ],
+              "houseWidths": [
+                3,
+                3,
+                4,
+                4,
+                4,
+                5
+              ],
+              "lotGap": [
+                1,
+                2
+              ],
+              "maxPerFrontage": 4,
+              "natureMultiplier": 1.6,
+              "plazaSize": 3,
+              "roadWidth": 4,
+              "setback": 1
+            },
+            "units": {
+              "enemies": 0,
+              "enemyTypes": [],
+              "townsfolk": 6
+            }
+          },
+          "options": [],
+          "description": "Wooden huts on a green flat, the water still to come.",
+          "key": "town_swamp",
+          "layout": "swamp_village",
+          "children": [],
+          "zones": [
+            "spring",
+            "summer"
+          ],
+          "variant": "town"
         }
       ]
     },
