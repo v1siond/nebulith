@@ -131,7 +131,7 @@ describe('picking is not building — §4.6\'s "why did my map just vanish" trap
     fireEvent.click(preset(second.label))
     build()
     // `second` is the Jungle, and a jungle carries the region picker, so its build says which region leads.
-    expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', second.id, { exits: 'random', pathways: 'random', region: 'random', river: 'none', crossing: false, bridge: 'none' })
+    expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', second.id, { exits: 'random', pathways: 'random', region: 'random', river: 'none', crossing: false, depth: 'none', bridge: 'none' })
   })
 
   it('builds the category\'s FIRST preset when the kind was chosen but no preset was', () => {
@@ -139,7 +139,7 @@ describe('picking is not building — §4.6\'s "why did my map just vanish" trap
     fireEvent.change(kinds(), { target: { value: 'forest' } })
     build()
     const [first] = categoryLayouts(CATALOG, 'forest')
-    expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', first.id, { exits: 'random', pathways: 'random', river: 'none', crossing: false, bridge: 'none' })
+    expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', first.id, { exits: 'random', pathways: 'random', river: 'none', crossing: false, depth: 'none', bridge: 'none' })
   })
 
   it('passes NO preset for a kind that has none, and hides the preset group', () => {
@@ -187,7 +187,7 @@ describe('variations are options on a preset, not more presets', () => {
     fireEvent.change(kinds(), { target: { value: 'forest' } })
     fireEvent.change(control(/^river$/i), { target: { value: 'divides' } })
     build()
-    expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', expect.any(String), { exits: 'random', pathways: 'random', river: 'divides', crossing: false, bridge: 'random' })
+    expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', expect.any(String), { exits: 'random', pathways: 'random', river: 'divides', crossing: false, depth: '1', bridge: 'random' })
   })
 
   it('will not send a crossing without the river it declares it needs', () => {
@@ -200,7 +200,7 @@ describe('variations are options on a preset, not more presets', () => {
     fireEvent.click(control(/a crossing joined to the paths/i))
     fireEvent.change(control(/^river$/i), { target: { value: 'none' } }) // the river goes, the crossing goes with it
     build()
-    expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', expect.any(String), { exits: 'random', pathways: 'random', river: 'none', crossing: false, bridge: 'none' })
+    expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', expect.any(String), { exits: 'random', pathways: 'random', river: 'none', crossing: false, depth: 'none', bridge: 'none' })
   })
 
   it('offers the kind of crossing, greyed out until there is a river, and forwards the one picked', () => {
@@ -215,7 +215,25 @@ describe('variations are options on a preset, not more presets', () => {
     expect(kind().disabled).toBe(false)
     fireEvent.change(kind(), { target: { value: 'stone' } })
     build()
-    expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', expect.any(String), { exits: 'random', pathways: 'random', river: 'divides', crossing: false, bridge: 'stone' })
+    expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', expect.any(String), { exits: 'random', pathways: 'random', river: 'divides', crossing: false, depth: '1', bridge: 'stone' })
+  })
+
+  it('offers HOW DEEP the channel is cut, greyed out until there is a river, and forwards it', () => {
+    // Alexander, 2026-09-11: *"we need the river without water, which is negative height compared to walking
+    // floor"* and *"river depth is confgiuravble, same as shadow, same as sun light, we want to control
+    // everyhting"*. Same shape as the crossing and its kind: served, dependent, forwarded. A variation is an
+    // option, so it gets the same coverage the other options have.
+    const onGenerate = setup()
+    fireEvent.change(kinds(), { target: { value: 'forest' } })
+    const depth = () => control(/how deep the channel is cut/i)
+
+    expect([...depth().options].map(o => o.value)).toEqual(['flat', '1', '2'])
+    expect(depth().disabled).toBe(true) // nothing to cut without a river
+    fireEvent.change(control(/^river$/i), { target: { value: 'divides' } })
+    expect(depth().disabled).toBe(false)
+    fireEvent.change(depth(), { target: { value: '2' } })
+    build()
+    expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', expect.any(String), { exits: 'random', pathways: 'random', river: 'divides', crossing: false, depth: '2', bridge: 'random' })
   })
 
   it('offers nothing to switch on for a kind of place that has no options', () => {
@@ -252,7 +270,7 @@ describe('forest > type > subtype — pick one, go deeper, or randomize', () => 
     fireEvent.click(preset('Woodland'))
     fireEvent.change(which('woodland'), { target: { value: 'forest_woodland_mountain' } })
     build()
-    expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', 'woodland', { exits: 'random', pathways: 'random', river: 'none', crossing: false, bridge: 'none' }, 'forest_woodland_mountain')
+    expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', 'woodland', { exits: 'random', pathways: 'random', river: 'none', crossing: false, depth: 'none', bridge: 'none' }, 'forest_woodland_mountain')
   })
 
   it('Random builds one of the subtypes, rolled on the build itself', () => {
@@ -282,7 +300,7 @@ describe('forest > type > subtype — pick one, go deeper, or randomize', () => 
 
     fireEvent.change(region, { target: { value: 'swamp' } })
     build()
-    expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', 'jungle', { exits: 'random', pathways: 'random', region: 'swamp', river: 'none', crossing: false, bridge: 'none' })
+    expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', 'jungle', { exits: 'random', pathways: 'random', region: 'swamp', river: 'none', crossing: false, depth: 'none', bridge: 'none' })
   })
 
   it('a subtype offers only the regions it carries', () => {
@@ -512,6 +530,6 @@ describe('the preview window shows the world to build, its size, and the options
     fireEvent.change(within(into).getByLabelText(/^river$/i), { target: { value: 'through' } })
     fireEvent.change(within(into).getByLabelText(/^kind of crossing$/i), { target: { value: 'planks' } })
     fireEvent.click(screen.getByRole('button', { name: /build this world/i }))
-    expect(p.onGenerate).toHaveBeenCalledWith('spring', 'forest', expect.any(String), { exits: 'random', pathways: 'random', river: 'through', crossing: false, bridge: 'planks' })
+    expect(p.onGenerate).toHaveBeenCalledWith('spring', 'forest', expect.any(String), { exits: 'random', pathways: 'random', river: 'through', crossing: false, depth: '1', bridge: 'planks' })
   })
 })
