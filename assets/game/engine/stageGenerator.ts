@@ -2099,6 +2099,16 @@ function fellLogsAcross(ctx: ArchetypeContext, water: Set<string>, pal: Generato
       }
     }
     layDeck(ctx, deck, pal?.trail)
+    // The woodland's and jungle's crossings come through HERE, not through placeRiverCrossing, which only runs
+    // when the `crossing` option joins one to the paths. Fixing only that one would have left a bridge absent
+    // from the common case, which is exactly the map in his screenshots. `vertical` is the CREEK's long axis
+    // and this deck runs across it, so the span lies along +col when the creek runs down the map.
+    //
+    // THREE of the six `layDeck` callers get a bridge: this one, placeRiverCrossing, and placeMeadowBridge.
+    // The other three stay bare ON PURPOSE, because they are PATHWAYS over water rather than spans: `cutRoute`
+    // decks the wet cells of a route it is carving, and `deckRoutes` is the swamp BOARDWALK (*"the boardwalk
+    // over the pools IS the pathway there"*). He draws that line himself: a dirt pathway (#62) is not a bridge.
+    recordBridgeSpan(ctx, deck, vertical)
   }
 }
 
@@ -3475,6 +3485,10 @@ function placeMeadowBridge(ctx: ArchetypeContext, water: Set<string>): void {
   // The meadow's own cobble, stated here rather than defaulted inside layDeck — a stone bridge over a
   // meadow river is this layout's design, not something every caller should inherit.
   layDeck(ctx, deck, (MEADOW_PALETTES[ctx.zone] ?? MEADOW_PALETTES.summer).cobble)
+  // …and the STRUCTURE on it. This function's own doc calls itself "a stone BRIDGE crossing the river", so it
+  // is the one deck of the six that most obviously owes him a real bridge. The deck runs along +row here (it
+  // spans the top-edge arm at a fixed column), so the span axis is rows, not cols.
+  recordBridgeSpan(ctx, deck, false)
 }
 
 /**
@@ -3518,6 +3532,9 @@ function placeRiverCrossing(ctx: ArchetypeContext, water: Set<string>, routes: S
   // stone when it does not, because a bridge over a meadow river IS cobble. That is this layout's design
   // choice, not a stand-in for a served value it failed to read.
   layDeck(ctx, deck, ctx.palette?.trail ?? (MEADOW_PALETTES[ctx.zone] ?? MEADOW_PALETTES.summer).cobble)
+  // …and a real BRIDGE standing on it. `horizontal` is the deck's own axis, decided above by which way the
+  // river is narrower here, so the bridge lies ACROSS the water rather than along it.
+  recordBridgeSpan(ctx, deck, horizontal)
 
   // JOIN IT. Both banks, because a crossing you can only reach from one side is a pier.
   for (const end of [at(-back), at(forward)]) {
@@ -3574,6 +3591,51 @@ function waterReach(water: Set<string>, at: Cell, dc: number, dr: number): numbe
 /** Turn a set of cells into walkable deck: clear what stands on them and lay the crossing this map is built
  *  with. Shared by every crossing (the bridge, the joined crossing, fallen logs, a route over water) so they all
  *  read alike, and each cell is remembered in `ctx.decks`. */
+/** The shortest run worth building a bridge over: one cell of water and a landing at each end. */
+const MIN_BRIDGE_SPAN = 3
+
+/**
+ * RECORD A BRIDGE over a deck run. Alexander, 2026-09-12, in capitals: *"AND THE BRIDGES ARE STILL NOT
+ * BRIDGES COMPOSITIONS / we should have actual BRIDGE"*, with a wooden arch, a steel truss and a sheet of ten
+ * variations.
+ *
+ * The flat deck STAYS. It is laid first by the caller and this adds the structure on top, which keeps every
+ * connectivity guarantee intact (a crossing is still a crossing whatever span the river turns out to be) and
+ * means no run can come out uncrossable because no composition happened to fit it.
+ *
+ * The span is asked of the CATALOG, descending, rather than read from a list here: whatever spans the backend
+ * ships are the spans used, so authoring `bridge_wood_9` needs no frontend change. A crossing that names no
+ * composition records nothing, which is how a DIRT PATH stays a path (his #62, *"this is a dirt pathway"*).
+ *
+ * Rotation: a bridge is authored `span x 3` running along +dx, so a deck lying along +row turns one quarter
+ * (`rotateOffsetCW` maps it to `3 x span`, anchor still top-left). The anchor is the run's top-left corner,
+ * nudged by half the slack so the abutments sit on the landings rather than in the water.
+ */
+function recordBridgeSpan(ctx: ArchetypeContext, deck: ReadonlySet<string>, spanAlongCol: boolean): void {
+  const family = crossingStyle(ctx)?.composition
+  if (!family) return
+  const cells = [...deck].map(toCell).filter(c => inBounds(c.col, c.row, ctx.cols, ctx.rows))
+  if (cells.length === 0) return
+  const minCol = Math.min(...cells.map(c => c.col))
+  const minRow = Math.min(...cells.map(c => c.row))
+  const runLength = spanAlongCol
+    ? Math.max(...cells.map(c => c.col)) - minCol + 1
+    : Math.max(...cells.map(c => c.row)) - minRow + 1
+  for (let span = runLength; span >= MIN_BRIDGE_SPAN; span--) {
+    const kind = `${family}_${span}`
+    if (!resolveComposition(styleCatalog('ascii'), kind)) continue
+    const offset = Math.floor((runLength - span) / 2)
+    ctx.compositions.push({
+      kind,
+      col: spanAlongCol ? minCol + offset : minCol,
+      row: spanAlongCol ? minRow : minRow + offset,
+      variant: 0,
+      rotation: spanAlongCol ? 0 : 1,
+    })
+    return
+  }
+}
+
 function layDeck(ctx: ArchetypeContext, deck: Set<string>, tone: string | undefined): void {
   const { cols, rows, ground, collision, floorColors } = ctx
   const style = crossingStyle(ctx)

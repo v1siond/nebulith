@@ -16744,6 +16744,1671 @@
             "w": 1
           },
           "title": null
+        },
+        "bridge_stone_7": {
+          "title": null,
+          "category": "props",
+          "cells": [
+            {
+              "label": "pillar",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 1.15,
+                "scaleZ": 0.3
+              },
+              "dx": 0,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "cobblestone",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 0,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "pillar",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 1.15,
+                "scaleZ": 0.3
+              },
+              "dx": 0,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "pillar",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 1,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "cobblestone",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 1,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "pillar",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 1,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "pillar",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 2,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "cobblestone",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 2,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "pillar",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 2,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "pillar",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 3,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "cobblestone",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 3,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "pillar",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 3,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "pillar",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 4,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "cobblestone",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 4,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "pillar",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 4,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "pillar",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 5,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "cobblestone",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 5,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "pillar",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 5,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "pillar",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 1.15,
+                "scaleZ": 0.3
+              },
+              "dx": 6,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "cobblestone",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 6,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "pillar",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 1.15,
+                "scaleZ": 0.3
+              },
+              "dx": 6,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            }
+          ],
+          "footprint": {
+            "h": 3,
+            "w": 7
+          }
+        },
+        "bridge_stone_3": {
+          "title": null,
+          "category": "props",
+          "cells": [
+            {
+              "label": "pillar",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 1.15,
+                "scaleZ": 0.3
+              },
+              "dx": 0,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "cobblestone",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 0,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "pillar",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 1.15,
+                "scaleZ": 0.3
+              },
+              "dx": 0,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "pillar",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 1,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "cobblestone",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 1,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "pillar",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 1,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "pillar",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 1.15,
+                "scaleZ": 0.3
+              },
+              "dx": 2,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "cobblestone",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 2,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "pillar",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 1.15,
+                "scaleZ": 0.3
+              },
+              "dx": 2,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            }
+          ],
+          "footprint": {
+            "h": 3,
+            "w": 3
+          }
+        },
+        "bridge_plank_5": {
+          "title": null,
+          "category": "props",
+          "cells": [
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 1.15,
+                "scaleZ": 0.3
+              },
+              "dx": 0,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "bridge",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 0,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 1.15,
+                "scaleZ": 0.3
+              },
+              "dx": 0,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 1,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "bridge",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 1,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 1,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 2,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "bridge",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 2,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 2,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 3,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "bridge",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 3,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 3,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 1.15,
+                "scaleZ": 0.3
+              },
+              "dx": 4,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "bridge",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 4,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 1.15,
+                "scaleZ": 0.3
+              },
+              "dx": 4,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            }
+          ],
+          "footprint": {
+            "h": 3,
+            "w": 5
+          }
+        },
+        "bridge_wood_7": {
+          "title": null,
+          "category": "props",
+          "cells": [
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 1.15,
+                "scaleZ": 0.3
+              },
+              "dx": 0,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "wooden_planks",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 0,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 1.15,
+                "scaleZ": 0.3
+              },
+              "dx": 0,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 1,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "wooden_planks",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 1,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 1,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 2,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "wooden_planks",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 2,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 2,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 3,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "wooden_planks",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 3,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 3,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 4,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "wooden_planks",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 4,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 4,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 5,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "wooden_planks",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 5,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 5,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 1.15,
+                "scaleZ": 0.3
+              },
+              "dx": 6,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "wooden_planks",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 6,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 1.15,
+                "scaleZ": 0.3
+              },
+              "dx": 6,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            }
+          ],
+          "footprint": {
+            "h": 3,
+            "w": 7
+          }
+        },
+        "bridge_wood_3": {
+          "title": null,
+          "category": "props",
+          "cells": [
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 1.15,
+                "scaleZ": 0.3
+              },
+              "dx": 0,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "wooden_planks",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 0,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 1.15,
+                "scaleZ": 0.3
+              },
+              "dx": 0,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 1,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "wooden_planks",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 1,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 1,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 1.15,
+                "scaleZ": 0.3
+              },
+              "dx": 2,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "wooden_planks",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 2,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 1.15,
+                "scaleZ": 0.3
+              },
+              "dx": 2,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            }
+          ],
+          "footprint": {
+            "h": 3,
+            "w": 3
+          }
+        },
+        "bridge_wood_5": {
+          "title": null,
+          "category": "props",
+          "cells": [
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 1.15,
+                "scaleZ": 0.3
+              },
+              "dx": 0,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "wooden_planks",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 0,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 1.15,
+                "scaleZ": 0.3
+              },
+              "dx": 0,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 1,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "wooden_planks",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 1,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 1,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 2,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "wooden_planks",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 2,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 2,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 3,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "wooden_planks",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 3,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 3,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 1.15,
+                "scaleZ": 0.3
+              },
+              "dx": 4,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "wooden_planks",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 4,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 1.15,
+                "scaleZ": 0.3
+              },
+              "dx": 4,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            }
+          ],
+          "footprint": {
+            "h": 3,
+            "w": 5
+          }
+        },
+        "bridge_stone_5": {
+          "title": null,
+          "category": "props",
+          "cells": [
+            {
+              "label": "pillar",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 1.15,
+                "scaleZ": 0.3
+              },
+              "dx": 0,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "cobblestone",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 0,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "pillar",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 1.15,
+                "scaleZ": 0.3
+              },
+              "dx": 0,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "pillar",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 1,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "cobblestone",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 1,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "pillar",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 1,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "pillar",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 2,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "cobblestone",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 2,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "pillar",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 2,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "pillar",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 3,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "cobblestone",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 3,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "pillar",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 3,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "pillar",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 1.15,
+                "scaleZ": 0.3
+              },
+              "dx": 4,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "cobblestone",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 4,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "pillar",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 1.15,
+                "scaleZ": 0.3
+              },
+              "dx": 4,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            }
+          ],
+          "footprint": {
+            "h": 3,
+            "w": 5
+          }
+        },
+        "bridge_plank_3": {
+          "title": null,
+          "category": "props",
+          "cells": [
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 1.15,
+                "scaleZ": 0.3
+              },
+              "dx": 0,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "bridge",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 0,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 1.15,
+                "scaleZ": 0.3
+              },
+              "dx": 0,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 1,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "bridge",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 1,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 1,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 1.15,
+                "scaleZ": 0.3
+              },
+              "dx": 2,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "bridge",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 2,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 1.15,
+                "scaleZ": 0.3
+              },
+              "dx": 2,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            }
+          ],
+          "footprint": {
+            "h": 3,
+            "w": 3
+          }
+        },
+        "bridge_plank_7": {
+          "title": null,
+          "category": "props",
+          "cells": [
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 1.15,
+                "scaleZ": 0.3
+              },
+              "dx": 0,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "bridge",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 0,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 1.15,
+                "scaleZ": 0.3
+              },
+              "dx": 0,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 1,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "bridge",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 1,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 1,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 2,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "bridge",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 2,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 2,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 3,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "bridge",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 3,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 3,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 4,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "bridge",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 4,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 4,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 5,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "bridge",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 5,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 5,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 1.15,
+                "scaleZ": 0.3
+              },
+              "dx": 6,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "bridge",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 6,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 1.15,
+                "scaleZ": 0.3
+              },
+              "dx": 6,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            }
+          ],
+          "footprint": {
+            "h": 3,
+            "w": 7
+          }
         }
       }
     },
@@ -32906,6 +34571,1671 @@
             "w": 1
           },
           "title": null
+        },
+        "bridge_stone_7": {
+          "title": null,
+          "category": "props",
+          "cells": [
+            {
+              "label": "pillar",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 1.15,
+                "scaleZ": 0.3
+              },
+              "dx": 0,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "cobblestone",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 0,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "pillar",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 1.15,
+                "scaleZ": 0.3
+              },
+              "dx": 0,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "pillar",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 1,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "cobblestone",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 1,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "pillar",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 1,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "pillar",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 2,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "cobblestone",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 2,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "pillar",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 2,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "pillar",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 3,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "cobblestone",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 3,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "pillar",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 3,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "pillar",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 4,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "cobblestone",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 4,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "pillar",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 4,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "pillar",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 5,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "cobblestone",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 5,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "pillar",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 5,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "pillar",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 1.15,
+                "scaleZ": 0.3
+              },
+              "dx": 6,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "cobblestone",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 6,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "pillar",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 1.15,
+                "scaleZ": 0.3
+              },
+              "dx": 6,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            }
+          ],
+          "footprint": {
+            "h": 3,
+            "w": 7
+          }
+        },
+        "bridge_stone_3": {
+          "title": null,
+          "category": "props",
+          "cells": [
+            {
+              "label": "pillar",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 1.15,
+                "scaleZ": 0.3
+              },
+              "dx": 0,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "cobblestone",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 0,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "pillar",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 1.15,
+                "scaleZ": 0.3
+              },
+              "dx": 0,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "pillar",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 1,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "cobblestone",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 1,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "pillar",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 1,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "pillar",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 1.15,
+                "scaleZ": 0.3
+              },
+              "dx": 2,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "cobblestone",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 2,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "pillar",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 1.15,
+                "scaleZ": 0.3
+              },
+              "dx": 2,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            }
+          ],
+          "footprint": {
+            "h": 3,
+            "w": 3
+          }
+        },
+        "bridge_plank_5": {
+          "title": null,
+          "category": "props",
+          "cells": [
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 1.15,
+                "scaleZ": 0.3
+              },
+              "dx": 0,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "bridge",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 0,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 1.15,
+                "scaleZ": 0.3
+              },
+              "dx": 0,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 1,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "bridge",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 1,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 1,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 2,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "bridge",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 2,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 2,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 3,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "bridge",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 3,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 3,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 1.15,
+                "scaleZ": 0.3
+              },
+              "dx": 4,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "bridge",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 4,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 1.15,
+                "scaleZ": 0.3
+              },
+              "dx": 4,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            }
+          ],
+          "footprint": {
+            "h": 3,
+            "w": 5
+          }
+        },
+        "bridge_wood_7": {
+          "title": null,
+          "category": "props",
+          "cells": [
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 1.15,
+                "scaleZ": 0.3
+              },
+              "dx": 0,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "wooden_planks",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 0,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 1.15,
+                "scaleZ": 0.3
+              },
+              "dx": 0,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 1,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "wooden_planks",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 1,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 1,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 2,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "wooden_planks",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 2,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 2,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 3,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "wooden_planks",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 3,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 3,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 4,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "wooden_planks",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 4,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 4,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 5,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "wooden_planks",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 5,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 5,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 1.15,
+                "scaleZ": 0.3
+              },
+              "dx": 6,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "wooden_planks",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 6,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 1.15,
+                "scaleZ": 0.3
+              },
+              "dx": 6,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            }
+          ],
+          "footprint": {
+            "h": 3,
+            "w": 7
+          }
+        },
+        "bridge_wood_3": {
+          "title": null,
+          "category": "props",
+          "cells": [
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 1.15,
+                "scaleZ": 0.3
+              },
+              "dx": 0,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "wooden_planks",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 0,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 1.15,
+                "scaleZ": 0.3
+              },
+              "dx": 0,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 1,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "wooden_planks",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 1,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 1,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 1.15,
+                "scaleZ": 0.3
+              },
+              "dx": 2,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "wooden_planks",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 2,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 1.15,
+                "scaleZ": 0.3
+              },
+              "dx": 2,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            }
+          ],
+          "footprint": {
+            "h": 3,
+            "w": 3
+          }
+        },
+        "bridge_wood_5": {
+          "title": null,
+          "category": "props",
+          "cells": [
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 1.15,
+                "scaleZ": 0.3
+              },
+              "dx": 0,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "wooden_planks",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 0,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 1.15,
+                "scaleZ": 0.3
+              },
+              "dx": 0,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 1,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "wooden_planks",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 1,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 1,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 2,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "wooden_planks",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 2,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 2,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 3,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "wooden_planks",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 3,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 3,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 1.15,
+                "scaleZ": 0.3
+              },
+              "dx": 4,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "wooden_planks",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 4,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 1.15,
+                "scaleZ": 0.3
+              },
+              "dx": 4,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            }
+          ],
+          "footprint": {
+            "h": 3,
+            "w": 5
+          }
+        },
+        "bridge_stone_5": {
+          "title": null,
+          "category": "props",
+          "cells": [
+            {
+              "label": "pillar",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 1.15,
+                "scaleZ": 0.3
+              },
+              "dx": 0,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "cobblestone",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 0,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "pillar",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 1.15,
+                "scaleZ": 0.3
+              },
+              "dx": 0,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "pillar",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 1,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "cobblestone",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 1,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "pillar",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 1,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "pillar",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 2,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "cobblestone",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 2,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "pillar",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 2,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "pillar",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 3,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "cobblestone",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 3,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "pillar",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 3,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "pillar",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 1.15,
+                "scaleZ": 0.3
+              },
+              "dx": 4,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "cobblestone",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 4,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "pillar",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 1.15,
+                "scaleZ": 0.3
+              },
+              "dx": 4,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            }
+          ],
+          "footprint": {
+            "h": 3,
+            "w": 5
+          }
+        },
+        "bridge_plank_3": {
+          "title": null,
+          "category": "props",
+          "cells": [
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 1.15,
+                "scaleZ": 0.3
+              },
+              "dx": 0,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "bridge",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 0,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 1.15,
+                "scaleZ": 0.3
+              },
+              "dx": 0,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 1,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "bridge",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 1,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 1,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 1.15,
+                "scaleZ": 0.3
+              },
+              "dx": 2,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "bridge",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 2,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 1.15,
+                "scaleZ": 0.3
+              },
+              "dx": 2,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            }
+          ],
+          "footprint": {
+            "h": 3,
+            "w": 3
+          }
+        },
+        "bridge_plank_7": {
+          "title": null,
+          "category": "props",
+          "cells": [
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 1.15,
+                "scaleZ": 0.3
+              },
+              "dx": 0,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "bridge",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 0,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 1.15,
+                "scaleZ": 0.3
+              },
+              "dx": 0,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 1,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "bridge",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 1,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 1,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 2,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "bridge",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 2,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 2,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 3,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "bridge",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 3,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 3,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 4,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "bridge",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 4,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 4,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 5,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "bridge",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 5,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.45,
+                "scaleZ": 0.3
+              },
+              "dx": 5,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 1.15,
+                "scaleZ": 0.3
+              },
+              "dx": 6,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "bridge",
+              "level": 0,
+              "scale": 1.0,
+              "dx": 6,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "post",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 1.15,
+                "scaleZ": 0.3
+              },
+              "dx": 6,
+              "dy": 2,
+              "walkable": false,
+              "zIndex": 0
+            }
+          ],
+          "footprint": {
+            "h": 3,
+            "w": 7
+          }
         }
       }
     }
