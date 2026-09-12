@@ -336,6 +336,20 @@ function resolveTileColor(tile: StyleTile, zone: string, variant: number): strin
   const c = tileColors(tile)?.[zone]
   if (typeof c === 'string') return c
   if (Array.isArray(c) && c.length > 0) return c[((variant % c.length) + c.length) % c.length]
+  // THE FLAT SHAPE IS SERVED DATA TOO, and dropping it is how an invented colour reached the screen.
+  //
+  // The backend serves a tile's colour two ways: a per-zone `settings.colors` map (240 of the 361 ascii rows)
+  // and a flat `settings.color` (every emoji row, plus exactly two ascii rows: `thicket` and `tall_grass`,
+  // authored that way in `tile_source.ex` @growth_tiles). This read only the map, so those two fell through to
+  // the neutral grey and `makeThicket` stamped #cccccc onto every thicket prop. `tintedImage` is documented as
+  // `tint x luminance(sprite)`, so the green sprig came out a pale white shape.
+  //
+  // Alexander, 2026-09-12: *"these white flowers have collissions, they shouldn't"* and *"the issue is what you
+  // are considering thickets. the rule is fine"*. He was right on both counts: no flower ever blocked, and the
+  // thing blocking was a thicket wearing an invented colour. `tileColorByLabel` in this same file already reads
+  // both shapes; this resolver was simply incomplete.
+  const flat = (tile.settings as { color?: unknown } | undefined)?.color
+  if (typeof flat === 'string') return flat
   return FALLBACK_RESOLVED.color
 }
 

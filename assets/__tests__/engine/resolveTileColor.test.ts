@@ -25,6 +25,17 @@ const TILESET: Tileset = {
     plain: {
       label: 'plain', char: '.', position: 'single', walkable: true, colorRole: '', settings: {},
     },
+    // The FLAT shape the backend also serves: every emoji row, and the two ascii rows `thicket` and
+    // `tall_grass`. A flat colour carries no season, so it answers for every zone.
+    thicket: {
+      label: 'thicket', char: '\u2619', position: 'single', walkable: false, colorRole: '',
+      settings: { color: '#2f6b2a' },
+    },
+    // Both shapes at once: the per-zone map is the more specific answer and must win.
+    both: {
+      label: 'both', char: 'B', position: 'single', walkable: true, colorRole: '',
+      settings: { color: '#000000', colors: { spring: '#abcdef' } },
+    },
   },
 }
 
@@ -55,6 +66,29 @@ describe("resolveTile resolves colour from each tile's own settings.colors (not 
     const r = resolveTile(TILESET, 'spring', 'wall')
     expect(r.char).toBe('█')
     expect(r.settings).toBe(TILESET.tiles.wall.settings)
+  })
+
+  /**
+   * THE FLAT COLOUR IS DATA, and inventing grey over it put a white flower in the forest.
+   *
+   * Alexander, 2026-09-12: *"these white flowers have collissions, they shouldn't"*. Nothing was wrong with
+   * the flowers or with the blocking rule: `thicket` is authored with a flat `settings.color`, this resolver
+   * read only the per-zone map, and the fallback grey then tinted the green sprig to near-white.
+   */
+  test("a tile whose colour is FLAT (settings.color) returns it, not the invented grey", () => {
+    expect(resolveTile(TILESET, 'summer', 'thicket').color).toBe('#2f6b2a')
+    expect(resolveTile(TILESET, 'summer', 'thicket').color).not.toBe(FALLBACK_RESOLVED.color)
+  })
+
+  test('a flat colour carries no season, so it answers for EVERY zone', () => {
+    for (const zone of ['spring', 'summer', 'autumn', 'winter', 'desert']) {
+      expect({ zone, color: resolveTile(TILESET, zone, 'thicket').color }).toEqual({ zone, color: '#2f6b2a' })
+    }
+  })
+
+  test('the per-zone map WINS over a flat colour when the tile carries both', () => {
+    expect(resolveTile(TILESET, 'spring', 'both').color).toBe('#abcdef')
+    expect(resolveTile(TILESET, 'winter', 'both').color).toBe('#000000') // no winter in the map, flat answers
   })
 
   test('an unknown label returns the neutral fallback', () => {
