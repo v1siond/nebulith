@@ -1035,6 +1035,29 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   }, [])
 
   /**
+   * EVERY COMPOSABLE TYPE GETS A REAL PICTURE, so the palette can offer it.
+   *
+   * Alexander, 2026-09-11: *"YOU ADDED SKYCRAPPERS TO THE GENERATOR AND DIDN'T ADDED TO THE EGULAR OBJECTS,
+   * WHY???????? WHY THE FUCK ARE YOU NOT FOLLOWING DIRECTIONS???"*
+   *
+   * The palette lists every type the backend serves now (`collapseSizedBuildings`), and each of those rows
+   * draws from the COMPOSED default, `tower@4x4`. Nothing is installed under that kind until somebody asks,
+   * so this asks once: the SAME call a generate makes before it plans, which composes every served type at its
+   * own default footprint. Then the palette is rebuilt so the new compositions are in it.
+   *
+   * Keyed on the style because a composition is installed per style (that is where its pictures come from),
+   * and gated on the tileset being ready because there is nothing to install into before that. Failures are
+   * warned and skipped inside the installer, so one type the backend cannot lay out never stops the palette.
+   */
+  useEffect(() => {
+    if (!tilesetReady || buildingTypes.types.length === 0) return
+    let live = true
+    void installPlannableBuildings(activeStyleId, buildingTypes)
+      .then(() => { if (live) setCompositionPalette(buildCompositionPalette(styleCatalog('ascii'))) })
+    return () => { live = false }
+  }, [activeStyleId, buildingTypes, tilesetReady])
+
+  /**
    * Compose a building at a size and arm it.
    *
    * The layout is the BACKEND's — this asks for it, installs the answer into the loaded catalog, and arms

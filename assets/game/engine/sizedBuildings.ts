@@ -18,7 +18,7 @@
  * parametric recipe, and folding them would claim a size control the backend cannot honour.
  */
 import type { CompositionPaletteGroup, CompositionPaletteItem } from './compositionCatalog'
-import type { BuildingType, Footprint } from '@/lib/buildingSizes'
+import { composedKind, typeOfComposedKind, type BuildingType, type Footprint } from '@/lib/buildingSizes'
 
 /** A palette entry that carries a size control, because the backend can compose its type at any size. */
 export interface SizedBuildingItem extends CompositionPaletteItem {
@@ -43,8 +43,14 @@ export function isSizable(item: CompositionPaletteItem): item is SizedBuildingIt
   return typeof (item as SizedBuildingItem).buildingType === 'string'
 }
 
-/** `house_4` → `house`; `stone_building` → `stone_building` (no trailing size to strip). */
+/**
+ * `house_4` → `house`; `house@6x4` → `house`; `stone_building` → `stone_building` (nothing to strip).
+ *
+ * The `@` form is a composition the backend laid out ON DEMAND. It has to fold into its type like a seeded
+ * size does, or every building composed at a custom size turns up in the palette as its own junk row.
+ */
 export function typeOfKind(kind: string): string {
+  if (kind.includes('@')) return typeOfComposedKind(kind)
   const match = /^(.+)_(\d+)$/.exec(kind)
   return match ? match[1] : kind
 }
@@ -68,7 +74,9 @@ export function collapseSizedBuildings(
   if (types.length === 0) return sections as CompositionPaletteGroup[] // nothing composable → nothing to fold
   const byType = new Map(types.map(t => [t.key, t]))
 
-  return sections.map(section => {
+  const represented = new Set<string>()
+
+  const folded = sections.map(section => {
     const out: CompositionPaletteItem[] = []
     const foldedAt = new Map<string, number>() // type → its index in `out`
     const baked = new Map<string, number[]>()
@@ -86,6 +94,7 @@ export function collapseSizedBuildings(
       const at = foldedAt.get(type)
       if (at !== undefined) continue // already represented; its size is a control, not another button
       foldedAt.set(type, out.length)
+      represented.add(type)
       out.push({
         ...item,
         kind: type,
@@ -115,6 +124,37 @@ export function collapseSizedBuildings(
     }
     return { ...section, items: out }
   })
+
+  // ── EVERY TYPE THE BACKEND CAN BUILD, whether one was ever seeded or not ───────────────────────
+  //
+  // Alexander, 2026-09-11: *"YOU ADDED SKYCRAPPERS TO THE GENERATOR AND DIDN'T ADDED TO THE EGULAR OBJECTS,
+  // WHY???????? WHY THE FUCK ARE YOU NOT FOLLOWING DIRECTIONS???"*
+  //
+  // This folded what the SEEDED compositions happened to contain, so a type nobody had seeded a size for was
+  // never visited and never got a row. The generator could build a tower and the palette could not offer one.
+  // Seeding one is not the answer, he was explicit: *"THIS IS DEPRECATED, houses size is built on demand"*. So
+  // the list comes from the types, and a type with no seeded size gets its row here at its own default.
+  //
+  // `previewKind` points at the COMPOSED default (`tower@4x4`), which the page installs for every served type
+  // once `/api/buildings` answers. Nothing here invents a picture: if that install has not happened the swatch
+  // is empty, the same honest blank the rest of the editor draws for a composition that is not loaded.
+  const missing = types.filter(t => !represented.has(t.key))
+  if (missing.length === 0) return folded
+
+  const rows: CompositionPaletteItem[] = missing.map(spec => ({
+    kind: spec.key,
+    label: labelForType(spec.key),
+    footprint: { w: spec.default.w, h: spec.default.h },
+    category: 'buildings' as const,
+    buildingType: spec.key,
+    defaultSize: spec.default,
+    bakedSizes: [],
+    previewKind: composedKind(spec.key, spec.default),
+  } as SizedBuildingItem))
+
+  const at = folded.findIndex(section => section.category === 'buildings')
+  if (at === -1) return [{ category: 'buildings' as const, label: 'Buildings', items: rows }, ...folded]
+  return folded.map((section, i) => (i === at ? { ...section, items: [...section.items, ...rows] } : section))
 }
 
 /** `big_house` → "Big house". The type key is a slug; the palette shows a name. */
