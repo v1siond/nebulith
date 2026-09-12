@@ -553,19 +553,28 @@ defmodule Nebulith.Catalog.GeneratorSource do
         description: "The open clearing, as it is.",
         config: %{}
       },
-      # ── SETTLEMENTS: THE LOOK IS THE PRESET ─────────────────────────────────────────────────────────
-      # Alexander, 2026-09-11: *"we still have "city" and "town" but they're exactly the same / i think we
-      # should threat setlement the same way we do with forest / instead of "town" "city" we'd have / modern
-      # city / swamp village, etc"*, and *"forest is the standard, the rest should follow the same logic /
-      # place > type of place > specific things to use in place, like season, section, size, etc"*.
+      # ── SETTLEMENTS, BUILT LIKE FORESTS ─────────────────────────────────────────────────────────────
+      # Alexander, 2026-09-11: *"all settlements are still the same fucking thing, only city and town are
+      # different, the rest are the same"*, *"we even have THE FUCKING FOREST as baseline, just like a swamp
+      # jungle is not the same as regular jungle"*, and *"i think we should threat setlement the same way we do
+      # with forest"*.
       #
-      # So Town and City are gone as presets. What you pick is the PLACE: a modern city, a swamp village. Each
-      # one says which archetype builds it (a city's density or a town's), what its houses are made of, what
-      # roof they lay, and which seasons it runs in when its climate implies one. A snowy town is winter only,
-      # which is his own example.
+      # So the shape is the forest's. What you pick is the KIND, and a town and a city really are the two
+      # different things: a town is low and green with stone pathways through it, a city is dense and paved. A
+      # VARIATION hangs under its kind and states ONLY what makes it itself, because `generator_tree` inherits
+      # the archetype and the options and deep-merges the config (a list, like the building mix, REPLACES its
+      # parent's rather than adding to it, which is the point of stating one).
+      #
+      # Four of the old rows are gone at his word: *"remove "andean town", "remove mediterranean city", remove
+      # "tropical city""* and *"snowy town shouldn't exist a snowing town is just a regular town withn winter
+      # season and rain active"*.
+      #
+      # NOT here yet, deliberately: his *"A swamp city should be a city in a fucking swamp"* and the city with a
+      # lake (image #34). A settlement generator places no WATER at all today, so both would be a normal place
+      # with browner walls, which is the exact paint he rejected. They wait on the water work.
       %{
-        category: "settlement", key: "town_traditional", name: "Traditional town", layout: "traditional_town", variant: "town", position: 0,
-        description: "Timber and brick under warm gables, trees between the lots.",
+        category: "settlement", key: "town", name: "Town", layout: "town", variant: "town", position: 0,
+        description: "Houses along stone pathways, a square in the middle, trees between the lots.",
         config: %{
           "grid" => @small_grid,
           "settlement" => settlement(plaza: 5, lot_gap: [1, 2], max_per_frontage: 6, cap: 18,
@@ -583,8 +592,8 @@ defmodule Nebulith.Catalog.GeneratorSource do
         }
       },
       %{
-        category: "settlement", key: "city_modern", name: "Modern city", layout: "modern_city", variant: "city", position: 1,
-        description: "Plaster and glass under flat grey decks, wide streets, little green.",
+        category: "settlement", key: "city", name: "City", layout: "city", variant: "city", position: 1,
+        description: "Blocks and towers on paved streets, wide junctions, little green.",
         config: %{
           "grid" => @city_grid,
           "settlement" => settlement(plaza: 7, lot_gap: [1, 1], max_per_frontage: 99, cap: 72,
@@ -601,24 +610,126 @@ defmodule Nebulith.Catalog.GeneratorSource do
           })
         }
       },
+      # ── VARIATIONS OF A TOWN ────────────────────────────────────────────────────────────────────────
+      # image #31 - a small town: a handful of houses and a lot of green between them
       %{
-        category: "settlement", key: "town_swamp", name: "Swamp village", layout: "swamp_village", variant: "town",
-        position: 6, zones: ~w(spring summer),
-        description: "Wooden huts on a green flat, the water still to come.",
+        category: "settlement", parent: "town", key: "town_small", name: "Small town",
+        layout: "town", position: 0,
+        description: "A handful of timber houses and green between every one of them.",
         config: %{
-          "grid" => @small_grid,
-          "settlement" => settlement(plaza: 3, lot_gap: [1, 2], max_per_frontage: 4, cap: 12,
-                                     houses: [4, 6], big: [0, 1], nature_mult: 1.6,
-                                     mix: [{"temple", 1, 1}, {"stable", 1, 2}, {"barn", 1, 2}, {"smithy", 1, 1}],
-                                     streets: "wooden_planks"),
-          "nature" => @outdoor_nature,
+          "settlement" => %{
+            "buildingCap" => 12, "houseRange" => [3, 5], "bigHouseRange" => [0, 1], "natureMultiplier" => 1.8,
+            "mix" => mix([{"church", 1, 1}, {"stable", 1, 1}, {"barn", 1, 1}])
+          },
+          "units" => townsfolk(5),
+          "buildings" => %{"materials" => ["wall_wood"], "wallColors" => ["#b08d5b", "#c9a66b", "#9c7c4e"]}
+        }
+      },
+      # image #29 - a forest village: the roads are made of stone and the trees come right up to the houses
+      %{
+        category: "settlement", parent: "town", key: "town_forest", name: "Forest village",
+        layout: "town", position: 1,
+        description: "Timber houses under the trees, joined by paths of stone.",
+        config: %{
+          "settlement" => %{
+            "buildingCap" => 14, "houseRange" => [4, 6], "bigHouseRange" => [0, 1], "natureMultiplier" => 2.4,
+            "streets" => "path_stone",
+            "mix" => mix([{"stable", 1, 1}, {"barn", 1, 2}, {"smithy", 1, 1}])
+          },
+          "nature" => %{"groundCover" => 0.28, "flowers" => 0.08, "tallGrass" => 0.22},
           "units" => townsfolk(6),
-          "buildings" => Map.merge(@building_palette, %{
-            "roof" => "roof",
+          "buildings" => %{"materials" => ["wall_wood"], "wallColors" => ["#8f7450", "#a98b5f", "#7d6544"]}
+        }
+      },
+      # "Like mountain town" - stone walls under slate, cobbled streets
+      %{
+        category: "settlement", parent: "town", key: "town_mountain", name: "Mountain town",
+        layout: "town", position: 2,
+        description: "Stone walls under slate, cobbled streets, conifers around the edge.",
+        config: %{
+          "settlement" => %{
+            "buildingCap" => 16, "natureMultiplier" => 1.5, "streets" => "cobblestone",
+            "mix" => mix([{"church", 1, 1}, {"manor", 1, 1}, {"stable", 1, 1}, {"smithy", 1, 1}])
+          },
+          "units" => townsfolk(7),
+          "buildings" => %{
+            "roof" => "roof_slate",
+            "materials" => ["wall_stone"],
+            "roofColors" => ["#3f464c", "#4a4f55", "#2f3439"],
+            "wallColors" => ["#8a8580", "#9c9792", "#767168"]
+          }
+        }
+      },
+      # "beach town" - timber on sand, dirt tracks instead of paving, barely any tree cover
+      %{
+        category: "settlement", parent: "town", key: "town_beach", name: "Beach town",
+        layout: "town", position: 3,
+        description: "Bleached timber along sandy tracks, hardly a tree in sight.",
+        config: %{
+          "settlement" => %{
+            "buildingCap" => 14, "natureMultiplier" => 0.6, "streets" => "path_dirt",
+            "mix" => mix([{"store", 1, 2}, {"barn", 1, 1}])
+          },
+          "nature" => %{"groundCover" => 0.06, "flowers" => 0.03, "tallGrass" => 0.08},
+          "units" => townsfolk(7),
+          "buildings" => %{
+            "materials" => ["wall_wood", "wall_plaster"],
+            "roofColors" => ["#9c8f6f", "#b5a888", "#87795c"],
+            "wallColors" => ["#e8dcc0", "#d8c79a", "#f0e7d0"]
+          }
+        }
+      },
+      # image #22 - a swamp village: wooden huts, and the water still to come (see the note above)
+      %{
+        category: "settlement", parent: "town", key: "town_swamp", name: "Swamp village",
+        layout: "town", position: 4, zones: ~w(spring summer),
+        description: "Wooden huts on boardwalks over a green flat.",
+        config: %{
+          "settlement" => %{
+            "plazaSize" => 3, "maxPerFrontage" => 4, "buildingCap" => 12, "bigHouseRange" => [0, 1],
+            "natureMultiplier" => 1.6, "streets" => "wooden_planks",
+            # No barn and no stable: there is no pasture in a swamp and nothing to keep in one. Huts, and a
+            # forge for the boats. Leaving the farm buildings in made this the forest village in other colours.
+            "mix" => mix([{"smithy", 1, 1}])
+          },
+          "units" => townsfolk(6),
+          "buildings" => %{
             "materials" => ["wall_wood"],
             "roofColors" => ["#6b5a34", "#5c4f2c", "#7a6a3e"],
             "wallColors" => ["#a98b5f", "#8f7450", "#c0a375"]
-          })
+          }
+        }
+      },
+      # ── VARIATIONS OF A CITY ────────────────────────────────────────────────────────────────────────
+      # images #27 and #33 - the modern city: towers and blocks of flats, flat grey decks, wide roads
+      %{
+        category: "settlement", parent: "city", key: "city_modern", name: "Modern city",
+        layout: "city", position: 0,
+        description: "Towers and blocks of flats under flat grey decks.",
+        config: %{
+          "settlement" => %{
+            "mix" => mix([{"tower", 4, 6}, {"apartment", 5, 8}, {"office", 2, 4}])
+          },
+          "units" => townsfolk(16)
+        }
+      },
+      # image #30 - a medieval city: stone under slate on cobbles, a cathedral and a castle, and no towers
+      %{
+        category: "settlement", parent: "city", key: "city_medieval", name: "Medieval city",
+        layout: "city", position: 1,
+        description: "Stone under slate on cobbled streets, a cathedral and a castle, nothing tall.",
+        config: %{
+          "settlement" => %{
+            "buildingCap" => 54, "lotGap" => [1, 1], "natureMultiplier" => 0.8, "streets" => "cobblestone",
+            "mix" => mix([{"cathedral", 1, 1}, {"castle", 1, 1}, {"manor", 2, 4}, {"smithy", 1, 2}, {"church", 1, 2}])
+          },
+          "units" => townsfolk(14),
+          "buildings" => %{
+            "roof" => "roof_slate",
+            "materials" => ["wall_stone", "wall_brick"],
+            "roofColors" => ["#3f464c", "#4a4f55", "#5c4433"],
+            "wallColors" => ["#8a8580", "#a89f7a", "#9e4b3b"]
+          }
         }
       },
       %{
@@ -736,9 +847,17 @@ defmodule Nebulith.Catalog.GeneratorSource do
   # minimum and it was already true before this. Houses and big-houses are not here either, they are counted by
   # `houseRange` / `bigHouseRange` above. What a row names is what makes it ITSELF.
   defp mix(entries) do
-    for {type, lo, hi} <- [{"store", 1, 1}, {"hospital", 1, 1} | entries] do
-      %{"type" => type, "count" => [lo, hi]}
-    end
+    # ONE ENTRY PER TYPE. A row that names a type the essentials already carry (a beach town wanting more than
+    # one store) used to emit it twice, which reads as a mistake in the served data and makes the count hard to
+    # see. The counts ADD instead, so the list says what it means: a seafront asks for two or three stores.
+    [{"store", 1, 1}, {"hospital", 1, 1} | entries]
+    |> Enum.reduce([], fn {type, lo, hi}, acc ->
+      case Enum.find_index(acc, fn {t, _, _} -> t == type end) do
+        nil -> acc ++ [{type, lo, hi}]
+        at -> List.update_at(acc, at, fn {t, l, h} -> {t, l + lo, h + hi} end)
+      end
+    end)
+    |> Enum.map(fn {type, lo, hi} -> %{"type" => type, "count" => [lo, hi]} end)
   end
 
   defp townsfolk(count), do: %{"townsfolk" => count, "enemies" => 0, "enemyTypes" => []}

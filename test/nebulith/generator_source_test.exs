@@ -30,12 +30,12 @@ defmodule Nebulith.GeneratorSourceTest do
 
   describe "seed/0" do
     test "creates every category and generator, and reports what it wrote" do
-      assert {4, 18} = GeneratorSource.seed()
+      assert {4, 24} = GeneratorSource.seed()
 
       categories = Catalog.list_generator_categories()
       assert Enum.map(categories, & &1.key) == ~w(forest settlement cave temple)
       assert Enum.map(categories, & &1.name) == ["Forest", "Settlement", "Cave", "Temple"]
-      assert Enum.sum(Enum.map(categories, &length(&1.generators))) == 8
+      assert Enum.sum(Enum.map(categories, &length(&1.generators))) == 7
     end
 
     test "categories come back in MENU order, not insertion or alphabetical order" do
@@ -57,18 +57,14 @@ defmodule Nebulith.GeneratorSourceTest do
       # THE LOOK IS THE PRESET since 2026-09-11: *"instead of "town" "city" we'd have modern city, swamp
       # village, etc"*. Each one says which archetype builds it.
       assert Enum.map(cats["settlement"].generators, & &1.name) == [
-               "Traditional town",
-               "Modern city",
-               "Swamp village"
+               "Town",
+               "City"
              ]
 
       builds = Map.new(cats["settlement"].generators, &{&1.layout, &1.variant})
 
-      assert builds == %{
-               "traditional_town" => "town",
-               "modern_city" => "city",
-               "swamp_village" => "town"
-             }
+      # The KIND is what a settlement row names now, and a variation inherits its archetype.
+      assert builds == %{"town" => "town", "city" => "city"}
     end
 
     test "a river is an OPTION on a forest, never a row of its own" do
@@ -269,7 +265,8 @@ defmodule Nebulith.GeneratorSourceTest do
       # A place whose climate really does narrow its seasons. Alexander, 2026-09-11, on the one that did not:
       # *"snowy town shouldn't exist a snowing town is just a regular town withn winter season and rain
       # active"*. So the snowy town is gone, and a swamp, which does not freeze over, is the honest example.
-      assert generator(cats, "settlement", "town_swamp").zones == ["spring", "summer"]
+      swamp = Enum.find(generator(cats, "settlement", "town").children, &(&1.key == "town_swamp"))
+      assert swamp.zones == ["spring", "summer"]
       # and a place with no implied climate still runs in all of them
       assert MapSet.new(generator(cats, "forest", "forest_woodland").zones) == offered
     end
@@ -279,23 +276,23 @@ defmodule Nebulith.GeneratorSourceTest do
       before = Catalog.list_generator_categories()
       ids = Enum.map(before, & &1.id)
 
-      assert {4, 18} = GeneratorSource.seed()
+      assert {4, 24} = GeneratorSource.seed()
 
       again = Catalog.list_generator_categories()
       assert Enum.map(again, & &1.id) == ids
       assert Repo.aggregate(GeneratorCategory, :count) == 4
-      assert Repo.aggregate(Generator, :count) == 18
+      assert Repo.aggregate(Generator, :count) == 24
     end
 
     test "re-seeding REFRESHES a row someone edited by hand" do
       GeneratorSource.seed()
-      town = Repo.get_by!(Generator, key: "town_traditional")
+      town = Repo.get_by!(Generator, key: "town")
       {:ok, _} = town |> Generator.changeset(%{name: "Hand-edited"}) |> Repo.update()
 
       GeneratorSource.seed()
 
-      assert Repo.get_by!(Generator, key: "town_traditional").name == "Traditional town"
-      assert Repo.get_by!(Generator, key: "town_traditional").id == town.id
+      assert Repo.get_by!(Generator, key: "town").name == "Town"
+      assert Repo.get_by!(Generator, key: "town").id == town.id
     end
   end
 
@@ -306,8 +303,8 @@ defmodule Nebulith.GeneratorSourceTest do
     end
 
     test "grid: a city is markedly bigger than a town, and both carry the cell geometry", %{categories: cats} do
-      town = generator(cats, "settlement", "town_traditional").config["grid"]
-      city = generator(cats, "settlement", "city_modern").config["grid"]
+      town = generator(cats, "settlement", "town").config["grid"]
+      city = generator(cats, "settlement", "city").config["grid"]
 
       assert town == %{"cols" => %{"min" => 30, "max" => 45}, "rows" => %{"min" => 24, "max" => 35}, "cellSize" => 16, "isoScale" => 2.5}
       assert city["cols"] == %{"min" => 52, "max" => 71}
@@ -317,7 +314,7 @@ defmodule Nebulith.GeneratorSourceTest do
     end
 
     test "settlement tuning matches villageLayout's constants exactly", %{categories: cats} do
-      assert generator(cats, "settlement", "town_traditional").config["settlement"] == %{
+      assert generator(cats, "settlement", "town").config["settlement"] == %{
                "plazaSize" => 5,
                "setback" => 1,
                "roadWidth" => 4,
@@ -340,7 +337,7 @@ defmodule Nebulith.GeneratorSourceTest do
                "streets" => "path_stone"
              }
 
-      city = generator(cats, "settlement", "city_modern").config["settlement"]
+      city = generator(cats, "settlement", "city").config["settlement"]
       assert city["buildingCap"] == 72
       assert city["lotGap"] == [1, 1]
       assert city["maxPerFrontage"] == 99
@@ -353,48 +350,82 @@ defmodule Nebulith.GeneratorSourceTest do
       # Alexander, 2026-09-11: *"there's not a single difference between any of the settlements ... all you did
       # was change colors, when everything should've changed like having different types of settlements implies
       # having different objects"*, and *"cities have more skycrappers, towns have more houses"*.
+      #
+      # Kinds AND their variations. Walking the top level alone would check two rows and miss every variation,
+      # which is exactly the thing this test exists to hold. Type AND count, because two places asking for the
+      # same buildings in different numbers are genuinely different places and the count is what makes a city
+      # dense.
       places =
-        for row <- by_key(cats)["settlement"].generators, into: %{} do
-          {row.key, get_in(row.config, ["settlement", "mix"]) |> Enum.map(& &1["type"])}
+        for kind <- by_key(cats)["settlement"].generators,
+            row <- [kind | kind.children],
+            into: %{} do
+          {row.key, get_in(row.config, ["settlement", "mix"]) |> Enum.map(&{&1["type"], &1["count"]})}
         end
 
-      # No two places build the same list. This is the assertion that fails if a "look" goes back to being paint.
+      assert map_size(places) == 9, "expected two kinds and seven variations, got #{map_size(places)}"
+      # No two places build the same list. This is the assertion that fails if a "look" goes back to paint.
       assert map_size(places) == places |> Map.values() |> Enum.uniq() |> length()
 
-      # Every settlement keeps what it always had: the civic pair and the grand temple landmark. He asked for
-      # buildings to be ADDED per context, never for the landmark to be taken away.
-      for {key, types} <- places do
-        assert "store" in types and "hospital" in types, "#{key} lost its store or hospital"
-        assert "temple" in types, "#{key} lost its temple landmark"
+      wants = Map.new(places, fn {key, mix} -> {key, Enum.map(mix, &elem(&1, 0))} end)
+
+      # The civic pair every settlement has, kinds and variations alike: `mix/1` prepends it.
+      for {key, list} <- wants do
+        assert "store" in list and "hospital" in list, "#{key} lost its store or hospital"
       end
 
-      # A town's own things are the rural ones, and no town builds a tower.
-      for {key, types} <- places, String.starts_with?(key, "town_") do
-        assert "stable" in types or "barn" in types, "#{key} has none of a town's own buildings"
-        refute "tower" in types, "#{key} is a town with a tower in it"
+      # The grand TEMPLE landmark rides with the KIND. A variation states its own mix, which replaces its
+      # parent's, so a small town having no temple is correct; the kind it is a variation OF still has one.
+      for key <- ~w(town city) do
+        assert "temple" in wants[key], "the #{key} kind lost its temple landmark"
       end
 
-      # His skyscrapers: a city stacks blocks, and none of them is a stable.
-      for {key, types} <- places, String.starts_with?(key, "city_") do
-        assert "apartment" in types or "tower" in types, "#{key} has none of a city's own buildings"
-        refute "stable" in types, "#{key} is a city with a stable in it"
+      # A town builds at least one of its OWN things and never a tower. Note the swamp village has neither a
+      # stable nor a barn on purpose: there is no pasture in a swamp.
+      for {key, list} <- wants, String.starts_with?(key, "town_") do
+        assert Enum.any?(list, &(&1 in ~w(stable barn smithy church manor))),
+               "#{key} has none of a town's own buildings"
+
+        refute "tower" in list, "#{key} is a town with a tower in it"
       end
 
-      # The modern city is the tall one, which is the difference he named first.
-      assert "tower" in places["city_modern"]
+      # And a city builds at least one of its own, with none of a town's farm buildings.
+      for {key, list} <- wants, String.starts_with?(key, "city_") do
+        assert Enum.any?(list, &(&1 in ~w(tower apartment office cathedral castle))),
+               "#{key} has none of a city's own buildings"
+
+        refute "stable" in list, "#{key} is a city with a stable in it"
+        refute "barn" in list, "#{key} is a city with a barn in it"
+      end
+
+      # The two he named first: the modern city is the tall one, and a medieval city is the same KIND with
+      # nothing tall in it at all.
+      assert "tower" in wants["city_modern"]
+      assert "apartment" in wants["city_modern"]
+      refute "tower" in wants["city_medieval"]
+      refute "apartment" in wants["city_medieval"]
+      assert "cathedral" in wants["city_medieval"]
     end
 
     test "a town paves with stone and a city with road", %{categories: cats} do
       # Alexander, 2026-09-11: *"a town doesn't have roads, it has pathways of stone, cities do have pathways a
       # skycraoppers"*. Every street used to be painted `road` whatever the place was.
       streets =
-        for row <- by_key(cats)["settlement"].generators, into: %{} do
+        for kind <- by_key(cats)["settlement"].generators,
+            row <- [kind | kind.children],
+            into: %{} do
           {row.key, get_in(row.config, ["settlement", "streets"])}
         end
 
-      assert streets["town_traditional"] == "path_stone"
-      assert streets["city_modern"] == "road"
-      refute streets["town_traditional"] == streets["city_modern"]
+      assert streets["town"] == "path_stone"
+      assert streets["city"] == "road"
+      refute streets["town"] == streets["city"]
+
+      # A variation paves with its own. Alexander's *"a town doesn't have roads, it has pathways of stone"* is
+      # the KIND's default; a mountain town cobbles, a beach town has dirt tracks, a swamp village boardwalks.
+      assert streets["town_mountain"] == "cobblestone"
+      assert streets["town_beach"] == "path_dirt"
+      assert streets["town_swamp"] == "wooden_planks"
+      assert streets["city_medieval"] == "cobblestone"
 
       # Nothing may ask for a ground the tilesets do not carry, or the street paints as nothing at all.
       real = ~w(road road_center road_edge path_stone path_dirt cobblestone snow_path desert_road bridge
@@ -406,8 +437,8 @@ defmodule Nebulith.GeneratorSourceTest do
     end
 
     test "units: settlements scatter townsfolk, dungeons scatter their own enemies", %{categories: cats} do
-      assert generator(cats, "settlement", "town_traditional").config["units"] == %{"townsfolk" => 8, "enemies" => 0, "enemyTypes" => []}
-      assert generator(cats, "settlement", "city_modern").config["units"]["townsfolk"] == 14
+      assert generator(cats, "settlement", "town").config["units"] == %{"townsfolk" => 8, "enemies" => 0, "enemyTypes" => []}
+      assert generator(cats, "settlement", "city").config["units"]["townsfolk"] == 14
       assert generator(cats, "forest", "forest_meadow").config["units"]["townsfolk"] == 5
 
       cave = generator(cats, "cave", "cave_default").config["units"]
@@ -425,7 +456,7 @@ defmodule Nebulith.GeneratorSourceTest do
     end
 
     test "building materials and colours ride with the settlements that place buildings", %{categories: cats} do
-      buildings = generator(cats, "settlement", "town_traditional").config["buildings"]
+      buildings = generator(cats, "settlement", "town").config["buildings"]
 
       assert buildings["materials"] == ["wall_brick", "wall_wood"]
       assert buildings["storeRoof"] == "#235a96"
@@ -447,7 +478,7 @@ defmodule Nebulith.GeneratorSourceTest do
           {look.name, hd(b["materials"]), b["roof"]}
         end
 
-      assert length(looks) == 3
+      assert length(looks) == 2
       # no two looks share BOTH their dominant wall family and their roof
       pairs = Enum.map(looks, fn {_name, material, roof} -> {material, roof} end)
       assert length(Enum.uniq(pairs)) == length(pairs), "two looks are the same material on the same roof: #{inspect(looks)}"
@@ -550,7 +581,7 @@ defmodule Nebulith.GeneratorSourceTest do
 
       assert {:error, changeset} =
                %Generator{}
-               |> Generator.changeset(%{key: "town_traditional", name: "Clash", category_id: cat.id})
+               |> Generator.changeset(%{key: "town", name: "Clash", category_id: cat.id})
                |> Repo.insert()
 
       assert "has already been taken" in errors_on(changeset).key
