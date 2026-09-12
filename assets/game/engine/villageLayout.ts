@@ -188,6 +188,14 @@ export interface SettlementTuning {
   bigHouseRange?: readonly [number, number]
   houseWidths?: readonly number[]
   mix?: readonly MixEntry[]
+  /**
+   * WHAT THIS PLACE PAVES ITS STREETS WITH, as a ground label. Alexander, 2026-09-11: *"a town doesn't have
+   * roads, it has pathways of stone, cities do have pathways a skycraoppers"*.
+   *
+   * The planner does not read it: a street is a COLOUR the layout pass paints, not a plot decision. It rides
+   * here because this interface mirrors the served `settlement` block whole.
+   */
+  streets?: string
 }
 
 /** The tuning with every value settled — served first, this file's default second. */

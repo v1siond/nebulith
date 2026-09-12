@@ -97,6 +97,8 @@ export interface GeneratorSettlement {
    * tuning coming back undefined.
    */
   mix?: readonly MixEntry[]
+  /** The ground whose colour this place's streets take (`path_stone` for a town, `road` for a city). */
+  streets?: string
 }
 
 /** Everything one generator is tuned by. Every section is OPTIONAL: a forest carries no settlement
@@ -435,10 +437,12 @@ function parseSettlement(v: unknown): GeneratorSettlement | undefined {
   if (maxPerFrontage === undefined || buildingCap === undefined || natureMultiplier === undefined) return undefined
   if (!lotGap || !houseRange || !bigHouseRange || !houseWidths) return undefined
   const mix = parseMix(v.mix)
+  const streets = typeof v.streets === 'string' && v.streets !== '' ? v.streets : undefined
   return {
     plazaSize, roadWidth, setback, lotGap, maxPerFrontage,
     buildingCap, houseRange, bigHouseRange, houseWidths, natureMultiplier,
     ...(mix ? { mix } : {}),
+    ...(streets ? { streets } : {}),
   }
 }
 

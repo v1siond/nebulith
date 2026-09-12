@@ -931,13 +931,17 @@ export function layoutPass(ctx: ArchetypeContext, settlement: Settlement): Villa
     )
   }
   const layout = planVillage(cols, rows, ctx.rand, ctx.buildingSizes ?? BACKEND_BUILDING_SIZES, settlement, ctx.settlement)
+  // WHAT THIS PLACE PAVES WITH. Alexander, 2026-09-11: *"a town doesn't have roads, it has pathways of stone,
+  // cities do have pathways a skycraoppers"*. It was `road` for a town and a city alike, so a village had
+  // asphalt through it. The place says it now; with nothing served it stays the road it always was.
+  const streets = ctx.settlement?.streets ?? 'road'
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
       // Roads are a COLOUR on the ground BLOCK, not a separate ROAD tile (Alexander #34/#48: "remove the tiles
       // from the roads, we can use color"). The base ground stays (a height-1 block) and is tinted asphalt, so a
       // road is FLUSH with the grass — no raised road-tile trench. Road IDENTITY lives in `layout.roads` (read by
       // placement + scatter), never re-derived from the ground kind.
-      if (layout.roads[r][c]) ctx.floorColors[r][c] = groundTileColor('road', c, r)
+      if (layout.roads[r][c]) ctx.floorColors[r][c] = groundTileColor(streets, c, r)
     }
   }
   return layout
