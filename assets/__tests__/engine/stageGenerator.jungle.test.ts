@@ -17,7 +17,7 @@
  * And the one thing that is not negotiable whatever it looks like: the whole floor is ONE PLACE.
  */
 import '@/__tests__/helpers/installTilesetSeed'
-import { FLAT_FLOOR, generateStage, type NatureDensity } from '@/engine/stageGenerator'
+import { FLAT_FLOOR, generateStage, RUIN_MIN_SITE, type NatureDensity } from '@/engine/stageGenerator'
 import { groundTileColor } from '@/engine/tileset/groundColor'
 import { zonePalette } from '@/engine/zones'
 import { type GeneratorPalette, type GeneratorSubZone } from '@/lib/generatorCatalog'
@@ -217,10 +217,26 @@ describe('the jungle is PARTITIONED into sub-zones — regions inside one map', 
       .toBeGreaterThan(dry.ground.flat().filter(t => t === 'water').length)
   })
 
-  it('drops fallen masonry in the RUINS, and nowhere else without a ruins region', () => {
-    const rocks = (s: ReturnType<typeof zoned>) => s.props.filter(p => p.type === 'rock').length
-    expect(rocks(zoned())).toBeGreaterThan(0)
-    expect(rocks(build('jungle', JUNGLE, JUNG_PAL, 5))).toBe(0)
+  /**
+   * THIS TEST USED TO PASS WHILE THE FEATURE WAS WRONG. Alexander, 2026-09-11: *"jungle ruins doesn't have any
+   * ruins..."*. It asserted only that SOME rock prop existed, and scattered boulders satisfied that happily.
+   * What makes a ruin a ruin is that it was built: a platform, and uprights at a regular interval on it.
+   */
+  it('BUILDS ruins: a stone platform with columns standing on it, not a scatter of rocks', () => {
+    const s = zoned()
+    const platform = s.ground.flat().filter(t => t === 'ancient_stone').length
+    const columns = s.props.filter(p => p.type === 'pillar').length
+
+    expect(platform).toBeGreaterThan(RUIN_MIN_SITE) // a footprint, not a cell
+    expect(columns).toBeGreaterThan(2) // standing masonry, at a fixed step around the edge
+    expect(s.props.filter(p => p.type === 'rock').length).toBeGreaterThan(0) // and what fell off them
+  })
+
+  it('puts no masonry anywhere without a ruins region', () => {
+    const plain = build('jungle', JUNGLE, JUNG_PAL, 5)
+    expect(plain.ground.flat().filter(t => t === 'ancient_stone').length).toBe(0)
+    expect(plain.props.filter(p => p.type === 'pillar').length).toBe(0)
+    expect(plain.props.filter(p => p.type === 'rock').length).toBe(0)
   })
 
   it('is STILL one place, regions and all', () => {

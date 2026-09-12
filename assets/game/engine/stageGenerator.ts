@@ -1790,8 +1790,10 @@ function layoutJungle(ctx: ArchetypeContext, opts: ForestBuild = {}): void {
   //     `groundCover` scaled by the region, which is why dense growth is a wall and open canopy is not.
   plantUndergrowth(ctx, open, water, pal, zoneAt)
 
-  // 5b · RUINS where a ruins region says so — fallen masonry, scattered, blocking.
-  raiseRuins(ctx, zoneAt, open, water)
+  // 5b · RUINS where a ruins region says so: a stone platform with columns on it. The planned routes are
+  //      kept out explicitly, which is what used to be done by skipping all of `open` and cost us every ruin
+  //      in the clearings.
+  raiseRuins(ctx, zoneAt, water, opts.routes?.cells ?? new Set<string>())
 
   // 6 · EMERGENTS — the few giants standing clear above the canopy. Recorded as taller tree anchors.
   plantEmergents(ctx, open, water)
@@ -2171,19 +2173,92 @@ function bodiesOf(cells: ReadonlySet<string>): Array<Set<string>> {
 
 /** RUINS — fallen masonry in a ruins region. Blocking stone, scattered rather than laid out, because what is
  *  left of a jungle ruin is rubble and the odd standing wall, not a building. */
-function raiseRuins(ctx: ArchetypeContext, zoneAt: (GeneratorSubZone | undefined)[][], open: Set<string>, water: Set<string>): void {
-  const { cols, rows, collision } = ctx
+/** The floor a ruin stands on. Already in `BUILT_FLOOR`, so nothing plants on a ruin's platform. */
+const RUIN_FLOOR = 'ancient_stone'
+/** Coarse patch the sites cluster on, exactly as the swamp's pools do. A patch is in or out whole, so a ruin
+ *  comes out as a FOOTPRINT rather than as speckle. */
+const RUIN_PATCH = 5
+/** Smaller than this is rubble, not a building, and gets discarded. */
+export const RUIN_MIN_SITE = 6
+/** A column every other cell around the edge. REGULAR spacing is the whole difference between masonry and a
+ *  pile of stones: nature does not put uprights at a fixed interval. */
+const RUIN_COLUMN_STEP = 2
+/** Share of a platform's interior carrying a fallen block. */
+const RUIN_RUBBLE = 0.14
+
+/**
+ * RUINS, which are BUILT.
+ *
+ * Alexander, 2026-09-11: *"jungle ruins doesn't have any ruins..."*.
+ *
+ * He was right, and this pass was the reason. It placed ONE `rock` prop per cell at a 16% roll, so the "ruins"
+ * were boulders scattered through the trees: rubble, with no architecture anywhere in it. It also skipped
+ * every cell in `open`, which reads like a bug and is not one, because the jungle puts its planned ROUTE cells
+ * into `open` and skipping them is what keeps a blocking rock off the paths. Those are two different concerns
+ * and they are separated now: `keepOut` holds the route cells, and the clearings are fair game, which is where
+ * you can actually see a ruin.
+ *
+ * A ruin is a platform with columns standing on it. Every piece already exists in both art styles, so none of
+ * this waits on new tiles.
+ */
+function raiseRuins(
+  ctx: ArchetypeContext,
+  zoneAt: (GeneratorSubZone | undefined)[][],
+  water: Set<string>,
+  keepOut: ReadonlySet<string> = new Set(),
+): void {
+  const { cols, rows } = ctx
+
+  // 1 · WHERE a ruin stands. Coherent noise on a coarse patch, the same way the swamp finds its pools.
+  const candidate = new Set<string>()
   forEachCell(cols, rows, (col, row) => {
     const share = zoneAt[row][col]?.stone
     if (share === undefined) return
     const key = `${col},${row}`
-    if (open.has(key) || water.has(key) || collision[row][col]) return
-    if (ctx.rand() >= share) return
-    // The SAME rock prop the caves place — a fallen block is a rock, and giving the ruins their own would be
-    // a second thing to keep looking like the first.
-    placeProp(ctx, makeRock(col, row))
-    collision[row][col] = true
+    if (water.has(key) || keepOut.has(key)) return
+    if (shadeNoise(Math.floor(col / RUIN_PATCH) * 2.3 + Math.floor(row / RUIN_PATCH) * 1.7) > share * 1.5) return
+    candidate.add(key)
   })
+
+  // 2 · Only the real BODIES of it. One cell of stone is a rock; a building has a footprint.
+  for (const body of bodiesOf(candidate)) {
+    if (body.size < RUIN_MIN_SITE) continue
+    stampRuin(ctx, body, keepOut)
+  }
+}
+
+/**
+ * ONE RUIN: a stone platform, columns at regular intervals around its edge, fallen blocks between them.
+ *
+ * Collision is never CLEARED here. The canopy has already planted by this point, so clearing a cell would
+ * leave a tree standing on walkable ground. The platform is laid only where nothing stands, and `placeProp`
+ * refuses an occupied or watery cell on its own.
+ */
+function stampRuin(ctx: ArchetypeContext, body: ReadonlySet<string>, keepOut: ReadonlySet<string>): void {
+  const { ground, collision } = ctx
+
+  // the platform: walkable stone, so a ruin is somewhere you go INTO rather than around
+  for (const key of body) {
+    const { col, row } = toCell(key)
+    if (keepOut.has(key) || collision[row][col]) continue
+    ground[row][col] = RUIN_FLOOR
+  }
+
+  // the columns, on the platform's EDGE at a fixed step
+  for (const key of body) {
+    const { col, row } = toCell(key)
+    if (keepOut.has(key)) continue
+    if (!ORTHO.some(([dc, dr]) => !body.has(`${col + dc},${row + dr}`))) continue
+    if ((col + row) % RUIN_COLUMN_STEP !== 0) continue
+    placeProp(ctx, makePillar(col, row))
+  }
+
+  // and what has fallen off them
+  for (const key of body) {
+    const { col, row } = toCell(key)
+    if (keepOut.has(key) || collision[row][col]) continue
+    if (ctx.rand() < RUIN_RUBBLE) placeProp(ctx, makeRock(col, row))
+  }
 }
 
 /** The shaded floor, mottled over coarse patches. Two tones from the served palette so it reads as litter and
