@@ -69,7 +69,27 @@ export function roofSwap(label: string, roofTile: string | undefined): string | 
   if (!roofTile || !(roofTile in ROOF_CAPS)) return undefined
   if (label in ROOF_CAPS) return roofTile
   const caps = Object.values(ROOF_CAPS).filter((cap): cap is string => cap !== null)
-  return caps.includes(label) ? ROOF_CAPS[roofTile] : undefined
+  if (!caps.includes(label)) return undefined
+  // A CAP ON A FLAT DECK. Alexander, 2026-09-11, with a photograph of it: *"modern city renders buoldings
+  // without roof"*.
+  //
+  // This returned `null` and the stamp reads `null` as "do not lay this cell at all". But `gable_roof` labels
+  // the PEAK columns with the cap, so in a flat-roof palette every gabled building lost its ridge columns
+  // outright and came out with a hole down the middle of its deck. The ridge has no meaning on a flat roof,
+  // the CELL very much does: it becomes deck, and `flattenedRoof` below takes its pitch away.
+  return ROOF_CAPS[roofTile] ?? roofTile
+}
+
+/**
+ * Is this cell a pitched roof being laid FLAT?
+ *
+ * A gable is authored as one block per column at its own gable-step height (`scaleY` 1 to 3, the triangular
+ * silhouette). Swapping the label alone leaves those steps standing, so a "flat" deck came out a stepped
+ * mound. On a flat deck the pitch is meaningless and the run collapses to a single block.
+ */
+export function flattenedRoof(label: string, roofTile: string | undefined): boolean {
+  if (roofTile !== 'flat_roof') return false
+  return label in ROOF_CAPS || Object.values(ROOF_CAPS).includes(label)
 }
 const isWallLabel = (label: string): boolean => label.startsWith('wall_')
 
@@ -242,6 +262,9 @@ function stampRun(
   // is not laid at all rather than substituted.
   const roofed = roofSwap(c.label, roofTile)
   if (roofed === null) return false
+  // A pitched roof laid FLAT keeps neither its step height nor its extra level, or the deck comes out as a
+  // stepped mound with the ridge floating over it (his Image #38).
+  const flatten = flattenedRoof(c.label, roofTile)
   const label = roofed ?? (material ? c.label.replace(WALL_MAT, `${material}_`) : c.label)
   const tile = resolveTile(styleCatalog('ascii'), zone, label, variant)
   // Colour SETTING = the filter the renderer tints the baked tile to. A roof/wall material override recolours
@@ -261,6 +284,10 @@ function stampRun(
   // pose/shape/light, behavior settings + apex signage, animations — through the ONE shared mapping the SAVE
   // path uses too, so the live stamp and a reloaded save can never diverge.
   Object.assign(asset, compositionCellRender(comp, c, tile, span, rotation, baseLevel))
+  if (flatten) {
+    asset.scaleY = 1
+    asset.heightLevel = (comp.cells.reduce((lowest, x) => (isRoofLabel(x.label) ? Math.min(lowest, x.level ?? 0) : lowest), Infinity) || 0) + baseLevel
+  }
   if (!c.walkable && grounded) grid.setCollision(col, row, true) // ground course only — see the note above
   return true
 }

@@ -8,7 +8,7 @@
  * `roofSwap` is the whole of the fix: a roof cell's label becomes the roof the look named, and because a roof
  * is a body plus a ridge cap, the cap has to move with it or a gable ridge ends up sitting on a flat deck.
  */
-import { roofSwap } from '@/game/runtime/composition'
+import { flattenedRoof, roofSwap } from '@/game/runtime/composition'
 
 describe('roofSwap', () => {
   it('leaves everything alone when the look names no roof', () => {
@@ -28,9 +28,45 @@ describe('roofSwap', () => {
     expect(roofSwap('roof_top_slate', 'roof')).toBe('roof_top')
   })
 
-  it('drops the ridge entirely on a flat deck', () => {
-    expect(roofSwap('roof_top', 'flat_roof')).toBeNull()
-    expect(roofSwap('roof_top_slate', 'flat_roof')).toBeNull()
+  /**
+   * THIS USED TO ASSERT THE BUG. Alexander, 2026-09-11, with a photograph: *"modern city renders buoldings
+   * without roof"*.
+   *
+   * It returned null, the stamp reads null as "do not lay this cell", and `gable_roof` labels the PEAK columns
+   * with the cap. So every gabled building in a flat-roof city lost its ridge columns and came out with a hole
+   * down the middle of its deck. The ridge is meaningless on a flat roof; the CELL is not.
+   */
+  it('turns the ridge into deck on a flat roof, never into a hole', () => {
+    expect(roofSwap('roof_top', 'flat_roof')).toBe('flat_roof')
+    expect(roofSwap('roof_top_slate', 'flat_roof')).toBe('flat_roof')
+  })
+
+  it('never returns null, because a dropped cell is a hole', () => {
+    for (const label of ['roof', 'roof_slate', 'roof_top', 'roof_top_slate', 'flat_roof']) {
+      for (const roof of ['roof', 'roof_slate', 'flat_roof']) {
+        expect(roofSwap(label, roof)).not.toBeNull()
+      }
+    }
+  })
+
+  describe('flattenedRoof: a pitch laid flat loses its pitch', () => {
+    it('is true for any roof piece going onto a flat deck', () => {
+      expect(flattenedRoof('roof', 'flat_roof')).toBe(true)
+      expect(flattenedRoof('roof_top', 'flat_roof')).toBe(true)
+      expect(flattenedRoof('roof_slate', 'flat_roof')).toBe(true)
+      expect(flattenedRoof('roof_top_slate', 'flat_roof')).toBe(true)
+    })
+
+    it('is false when the look lays a pitched roof, which keeps its steps', () => {
+      expect(flattenedRoof('roof', 'roof_slate')).toBe(false)
+      expect(flattenedRoof('roof_top', 'roof')).toBe(false)
+    })
+
+    it('is false for anything that is not a roof', () => {
+      expect(flattenedRoof('wall_wood_c', 'flat_roof')).toBe(false)
+      expect(flattenedRoof('window', 'flat_roof')).toBe(false)
+      expect(flattenedRoof('roof_store', 'flat_roof')).toBe(false) // a store keeps its own identity
+    })
   })
 
   it('never touches a store or a hospital roof: those two keep their identity', () => {
