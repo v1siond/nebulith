@@ -270,7 +270,10 @@ describe('forest > type > subtype — pick one, go deeper, or randomize', () => 
     fireEvent.click(preset('Woodland'))
     fireEvent.change(which('woodland'), { target: { value: 'forest_woodland_mountain' } })
     build()
-    expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', 'woodland', { exits: 'random', pathways: 'random', river: 'none', crossing: false, depth: 'none', bridge: 'none' }, 'forest_woodland_mountain')
+    // The mountain forest carries REGIONS now (ridge, slope and vale, at three different levels), so like the
+    // jungle above it offers a region picker, and its served default is random. Nothing here is invented: the
+    // key appears because the row's own options say it does.
+    expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', 'woodland', { exits: 'random', pathways: 'random', region: 'random', river: 'none', crossing: false, depth: 'none', bridge: 'none' }, 'forest_woodland_mountain')
   })
 
   it('Random builds one of the subtypes, rolled on the build itself', () => {

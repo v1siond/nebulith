@@ -44,6 +44,8 @@ function byKey(key: string): GeneratorDef {
 const GLADES = byKey('forest_woodland_glades')
 
 type Opts = {
+  /** The generator row to grow. Its served config is used whole, so a test cannot quietly invent a number. */
+  def?: GeneratorDef
   subZones?: readonly GeneratorSubZone[]
   options?: Record<string, string | boolean>
   seed?: number
@@ -54,15 +56,17 @@ function grow(o: Opts = {}): StageData {
   // `in`, NOT a default parameter. `grow({ subZones: undefined })` has to mean "the backend serves no regions",
   // and a default parameter silently puts glades' own regions back, so the no-regions test grew the regions it
   // was asserting the absence of and the failure read like a bug in the generator.
-  const subZones = 'subZones' in o ? o.subZones : GLADES.config.subZones
-  const { options, seed = 7, nature = GLADES.config.nature } = o
+  const def = o.def ?? GLADES
+  const subZones = 'subZones' in o ? o.subZones : def.config.subZones
+  const { options, seed = 7 } = o
+  const nature = o.nature ?? def.config.nature
   const orig = Math.random
   Math.random = makeRng(seed)
   try {
     return generateStage({
       zone: 'summer', variant: 'forest', layout: 'woodland', cols: 60, rows: 40,
-      nature, palette: GLADES.config.palette, formation: GLADES.config.formation,
-      treeMix: GLADES.config.trees, subZones, options,
+      nature, palette: def.config.palette, formation: def.config.formation,
+      treeMix: def.config.trees, subZones, options,
     })
   } finally {
     Math.random = orig
@@ -147,5 +151,47 @@ describe('RELIEF: a region can stand above the rest of the map', () => {
 
     // and the course really does cross the raised ground, or the line above only re-proves the flat case.
     expect(new Set(bed.map(([col, r]) => cut.elevation![r][col]))).toContain(1)
+  })
+})
+
+describe('the MOUNTAIN FOREST is the template that actually climbs', () => {
+  const MOUNTAIN = byKey('forest_woodland_mountain')
+  const mountain = (seed = 7) => grow({ def: MOUNTAIN, seed })
+  const region = (key: string) => {
+    const hit = MOUNTAIN.config.subZones?.find(z => z.key === key)
+    if (!hit) throw new Error(`the mountain forest no longer serves the ${key} region`)
+    return hit
+  }
+
+  it('is served three regions at three distinct levels', () => {
+    expect(MOUNTAIN.config.subZones?.map(z => [z.key, z.level])).toEqual([['ridge', 3], ['slope', 1], ['vale', 0]])
+  })
+
+  it('RAISES REAL GROUND when grown, which is the whole difference from a meadow', () => {
+    const levels = [...new Set(mountain().elevation!.flat())].sort((a, b) => a - b)
+    expect(levels).toEqual([0, 1, 3])
+  })
+
+  it('steps between regions by more than one level somewhere, so there is a cliff to see', () => {
+    const s = mountain()
+    const steps = new Set<number>()
+    for (let row = 0; row < s.rows - 1; row++) {
+      for (let col = 0; col < s.cols - 1; col++) {
+        const here = s.elevation![row][col]
+        steps.add(Math.abs(here - s.elevation![row][col + 1]))
+        steps.add(Math.abs(here - s.elevation![row + 1][col]))
+      }
+    }
+    expect(Math.max(...steps)).toBeGreaterThanOrEqual(2) // a ridge over a slope, drawn as a two-level face
+    expect(steps.has(0)).toBe(true) // and the inside of a region is level, not a staircase
+  })
+
+  it('grows the VALE thick and leaves the RIDGE bare, counting trunks and not settings', () => {
+    const s = mountain()
+    expect(canopyRate(s, region('vale').floor!)).toBeGreaterThan(canopyRate(s, region('ridge').floor!) * 2)
+  })
+
+  it('holds on ANOTHER seed too, so this is the template and not one lucky map', () => {
+    expect([...new Set(mountain(21).elevation!.flat())].sort((a, b) => a - b)).toEqual([0, 1, 3])
   })
 })
