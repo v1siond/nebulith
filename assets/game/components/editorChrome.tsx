@@ -1158,7 +1158,12 @@ export function GenerateControls({
           ◰ Preview window
         </button>
       )}
-      {!tuningSlot && <>{season}{tuning}{layers}{randomize}</>}
+      {/* THE OPTIONS LIVE IN THE WINDOW. Alexander, 2026-09-11: *"when I close the preview, it gets injected in
+          the sidebar instead of just closing"*. They fell back inline whenever there was no slot, which is
+          right when the page cannot show a window at all, and wrong when you just closed one: closing moved
+          the controls instead of closing. With `onOpenPreview` the page HAS a window, so the fallback is off
+          and the button above is the way back. */}
+      {!tuningSlot && !onOpenPreview && <>{season}{tuning}{layers}{randomize}</>}
       {building}
       {tuningSlot && createPortal(<>{sizeLine}{season}{tuning}{layers}{randomize}</>, tuningSlot)}
     </div>

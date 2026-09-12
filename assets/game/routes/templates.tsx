@@ -1023,6 +1023,19 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     // AND DROP THE STALE WORLD, so the caption and the panel agree with the rail you are actually on.
     if (activeRailId !== 'generate') setGenPeek(null)
   }, [activeRailId])
+
+  /**
+   * PICKING SOMETHING SHOWS IT.
+   *
+   * Alexander, 2026-09-11: *"then I elect another element and it doesn't show up as modal anymore"*. Closing
+   * the window closed it until the next RAIL change, so choosing a different tile, object or character left
+   * you looking at nothing. Closing still closes; choosing a new thing to look at is a new reason to look.
+   *
+   * Keyed on what is ARMED, not on what is hovered: a hover is not a decision, and reopening a window you
+   * just shut every time the cursor crossed the library would be its own bug.
+   */
+  const armedSubject = `${activeRailId}:${buildingTool ?? ''}:${armedTile?.id ?? ''}:${unitTile?.id ?? ''}`
+  useEffect(() => { setPreviewOpen(true) }, [armedSubject])
   /** Is the level map open BIG, in its own panel? Separate from `levelMapOpen`, which is the corner one. */
   const [levelMapBig, setLevelMapBig] = useState(false)
 
