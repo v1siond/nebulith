@@ -201,6 +201,8 @@ defmodule Nebulith.Catalog.BuildingCompositions do
       materials: ["wall_plaster"],
       roof: {:gable, "roof_slate", "roof_top_slate"},
       wall_top_bonus: 2,
+      # A nave with a TOWER at one end, which is what tells a church from any other hall.
+      tower_bay: true,
       title: "Church",
       default: {6, 5}
     },
@@ -209,6 +211,8 @@ defmodule Nebulith.Catalog.BuildingCompositions do
       roof: {:gable, "roof_slate", "roof_top_slate"},
       wall_top_bonus: 1,
       porch: true,
+      # A tall centre block between two lower WINGS, the shape a manor has and a big house does not.
+      wings: true,
       title: "Manor",
       default: {8, 5}
     },
@@ -282,17 +286,18 @@ defmodule Nebulith.Catalog.BuildingCompositions do
     w = max(width, 1)
     h = max(depth, 1)
     wall_top = Keyword.get(opts, :wall_top) || wall_top_for(w, spec)
+    top_at = column_tops(spec, w, wall_top)
     mat = Keyword.get(opts, :material) || roll_material(spec, opts)
     win_levels = window_levels(spec, wall_top)
     doors = door_cols(w, spec)
 
-    facade = facade_fun(spec, w, h, wall_top, mat, win_levels, doors)
-    roof_cells = roof_for(spec, w, h, wall_top, opts)
+    facade = facade_fun(spec, w, h, top_at, mat, win_levels, doors)
+    roof_cells = roof_for(spec, w, h, wall_top, top_at, opts)
 
     # The apex TITLE rides with the type, so a store composed to order keeps its badge. `all/0` attaches it
     # separately for the seeded eleven (via @titles); a building composed on request has no later pass to
     # add it, and losing it would make a 9-wide store a different thing from the 5-wide one.
-    assemble(w, h, wall_top, doors, facade, roof_cells)
+    assemble(w, h, top_at, doors, facade, roof_cells)
     |> maybe_put_title(Map.get(spec, :title))
   end
 
@@ -303,6 +308,24 @@ defmodule Nebulith.Catalog.BuildingCompositions do
   defp wall_top_for(w, spec) do
     max(3, min(w - 3, 8)) + Map.get(spec, :wall_top_bonus, 0)
   end
+
+  # ── A BUILDING NEED NOT BE ONE HEIGHT ALL THE WAY ROUND ─────────────────────────────────────────
+  #
+  # Slice 1 gave every type its own front and its own roof, and that still left a church as a box: a nave and
+  # its tower are DIFFERENT HEIGHTS, and so are a manor's centre block and its wings. `wall_top` was one number
+  # for the whole building, so those two shapes could not be stated at all.
+  #
+  # It is a function of the COLUMN now. The default returns the constant it always was, so every other type
+  # composes byte for byte as before.
+  defp column_tops(%{tower_bay: true}, w, base), do: fn dx -> if dx == w - 1, do: base + 3, else: base end
+
+  defp column_tops(%{wings: true}, w, base) do
+    lo = div(w, 3)
+    hi = w - 1 - lo
+    fn dx -> if dx >= lo and dx <= hi, do: base + 2, else: base end
+  end
+
+  defp column_tops(_spec, _w, base), do: fn _dx -> base end
 
   # Windows on the odd courses up to the wall top, so a wall course always sits between floors — unless the
   # type says otherwise (a shop glazes only its top course; the ones below are storefront).
@@ -349,7 +372,7 @@ defmodule Nebulith.Catalog.BuildingCompositions do
   #
   # A cell's walkability is the composition's, not the tile's, so a colonnade still blocks: only the doorway
   # is walkable, exactly as before.
-  defp facade_fun(spec, w, h, wall_top, mat, win_levels, doors) do
+  defp facade_fun(spec, w, h, top_at, mat, win_levels, doors) do
     storefront? = Map.get(spec, :storefront, false)
     front_only? = Map.get(spec, :window_faces) == :front
     unglazed? = Map.get(spec, :window_faces) == :none
@@ -380,21 +403,21 @@ defmodule Nebulith.Catalog.BuildingCompositions do
         front and porch? and abs(dx - door_col) == 1 -> "pillar"
         flank and aisles? and rem(dy, 2) == 1 -> "pillar"
         glazed_face and window?(dx, w) and level in win_levels -> "window"
-        front -> material_piece(mat, dx, level, w, wall_top)
+        front -> material_piece(mat, dx, level, w, top_at.(dx))
         true -> "#{mat}_c"
       end
     end
   end
 
-  defp roof_for(%{roof: :gable} = _spec, w, h, wall_top, opts) do
-    gable_roof(w, h, wall_top, Keyword.get(opts, :roof, "roof"), Keyword.get(opts, :roof_top, "roof_top"))
+  defp roof_for(%{roof: :gable} = _spec, w, h, wall_top, top_at, opts) do
+    gable_roof(w, h, wall_top, Keyword.get(opts, :roof, "roof"), Keyword.get(opts, :roof_top, "roof_top"), top_at)
   end
 
-  defp roof_for(%{roof: {:gable, roof, roof_top}}, w, h, wall_top, opts) do
-    gable_roof(w, h, wall_top, Keyword.get(opts, :roof, roof), Keyword.get(opts, :roof_top, roof_top))
+  defp roof_for(%{roof: {:gable, roof, roof_top}}, w, h, wall_top, top_at, opts) do
+    gable_roof(w, h, wall_top, Keyword.get(opts, :roof, roof), Keyword.get(opts, :roof_top, roof_top), top_at)
   end
 
-  defp roof_for(%{roof: {:flat, flat_opts}}, w, h, wall_top, _opts) do
+  defp roof_for(%{roof: {:flat, flat_opts}}, w, h, wall_top, _top_at, _opts) do
     flat_roof(w, h, wall_top, flat_opts)
   end
 
@@ -447,10 +470,10 @@ defmodule Nebulith.Catalog.BuildingCompositions do
   # A doorway is `dx in doors` AND the FRONT row — the row `facade_fun` actually puts a "door" on. Keying it on
   # the column alone left the BACK wall opposite every door walkable, so you could walk straight through the
   # back of the building (Alexander 2026-09-06: "we're most likely applying the properties wrong").
-  defp assemble(w, h, wall_top, doors, facade_fun, roof_cells) do
+  defp assemble(w, h, top_at, doors, facade_fun, roof_cells) do
     walls =
       for dy <- 0..(h - 1), dx <- 0..(w - 1), perimeter?(dx, dy, w, h) do
-        wall_column(dx, dy, wall_top, dx in doors and dy == h - 1, facade_fun)
+        wall_column(dx, dy, top_at.(dx), dx in doors and dy == h - 1, facade_fun)
       end
 
     # NO separate entrance apron (Alexander #49): now that every tile is a height-1 block, the `path` apron in
@@ -508,7 +531,8 @@ defmodule Nebulith.Catalog.BuildingCompositions do
   # ridge apex, so a gable is w+1 blocks (w column bodies + 1 apex) instead of one cell per (col,row). The
   # per-column peak heights (the triangular silhouette) are byte-preserved. `roof`/`roof_top` name the roof
   # MATERIAL — ONE colour (#31): default red gable, or the slate/plaster-green pairs — never mixed.
-  defp gable_roof(w, h, wall_top, roof \\ "roof", roof_top \\ "roof_top") do
+  defp gable_roof(w, h, wall_top, roof \\ "roof", roof_top \\ "roof_top", top_at \\ nil) do
+    tops = top_at || fn _dx -> wall_top end
     center = (w - 1) / 2
     max_peak = min(3, div(w + 1, 2))
     eave = wall_top + 1
@@ -517,10 +541,22 @@ defmodule Nebulith.Catalog.BuildingCompositions do
     # shortened one centre column + stuck a chunky block on top, which broke the left/right symmetry). The
     # PEAK-height columns wear the `roof_top` ridge tile; the lower steps wear `roof`. So a gable is exactly `w`
     # clean bars: w=4 → [1,2,2,1] (2 low `1×depth` bars + 2 ridge `2×depth` bars), w=5 → [1,2,3,2,1].
-    for dx <- 0..(w - 1) do
-      levels = max(1, max_peak - trunc(Float.floor(abs(dx - center))))
-      label = if levels == max_peak, do: roof_top, else: roof
-      roof_span_cell(dx, eave, label, h, levels)
+    bars =
+      for dx <- 0..(w - 1), tops.(dx) == wall_top do
+        levels = max(1, max_peak - trunc(Float.floor(abs(dx - center))))
+        label = if levels == max_peak, do: roof_top, else: roof
+        roof_span_cell(dx, eave, label, h, levels)
+      end
+
+    bars ++ raised_caps(w, h, wall_top, tops, roof_top)
+  end
+
+  # A column that stands ABOVE the nave wears its OWN cap, and the nave's gable skips it. Both at once would
+  # put a wall and a roof bar in the same block, which is the difference between a church with a tower and a
+  # box with a bump on it.
+  defp raised_caps(w, h, wall_top, tops, roof_top) do
+    for dx <- 0..(w - 1), tops.(dx) > wall_top do
+      roof_span_cell(dx, tops.(dx) + 1, roof_top, h, 1)
     end
   end
 
@@ -551,8 +587,11 @@ defmodule Nebulith.Catalog.BuildingCompositions do
     if opts[:crown] != :all or w < 3 do
       []
     else
+      # One level ABOVE the deck: a depth-spanned deck column is anchored at dy 0 and already occupies
+      # (dx, 0, roof_level), so a ring at the deck's own level put two cells in the same block. A parapet is a
+      # low wall standing ON the roof anyway, which is what this now draws.
       for dx <- 1..(w - 2), dy <- Enum.uniq([0, h - 1]) do
-        cell(dx, dy, roof_level, "parapet", false)
+        cell(dx, dy, roof_level + 1, "parapet", false)
       end
     end
   end
@@ -579,7 +618,9 @@ defmodule Nebulith.Catalog.BuildingCompositions do
       end
     end
 
-    assemble(w, h, wall_top, doors, facade, gable_roof(w, h, wall_top))
+    # `assemble` takes the top as a function of the COLUMN now (a church's tower, a manor's wings). This one is
+    # a plain box, so every column has the same top.
+    assemble(w, h, fn _dx -> wall_top end, doors, facade, gable_roof(w, h, wall_top))
   end
 
   # The autotile piece for a FRONT-FACE cell of a wall MATERIAL — `dx` runs along the facade, `level` up the

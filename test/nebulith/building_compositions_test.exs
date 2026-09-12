@@ -491,11 +491,73 @@ defmodule Nebulith.BuildingCompositionsContextTest do
     assert wall_height("tower") == Enum.max(Enum.map(Buildings.building_types(), &wall_height/1))
   end
 
-  test "every new type is its own height, so a street of them has a skyline" do
-    heights = Enum.map(~w(stable house barn church manor apartment tower), &wall_height/1)
+  test "a street of them has a skyline: many heights, well spread" do
+    # THIS TEST'S PREMISE CHANGED, so the test changed with it rather than the geometry being nudged to fit.
+    #
+    # It used to assert one strict ascending order over a hand-picked list, which was true while a building was
+    # ONE height, set by `wall_top_bonus`. It is not the claim any more: a church's tower and a manor's centre
+    # block are raised COLUMNS, so those two top out level with each other while being completely different
+    # shapes. What a skyline needs is many heights, well spread, and that is what this holds.
+    heights = Enum.map(Buildings.building_types(), &wall_height/1)
+    spread = Enum.uniq(heights)
 
-    assert heights == Enum.sort(heights), "the heights do not step up: #{inspect(heights)}"
-    assert length(Enum.uniq(heights)) == length(heights), "two of them are the same height"
+    assert length(spread) >= 6,
+           "only #{length(spread)} different heights across #{length(heights)} types: #{inspect(Enum.sort(heights))}"
+
+    assert Enum.max(heights) >= 3 * Enum.min(heights),
+           "the tallest (#{Enum.max(heights)}) is not much taller than the shortest (#{Enum.min(heights)})"
+  end
+
+  test "NO TWO CELLS SHARE A BLOCK, in any type at any size" do
+    # A composition cell IS a block at (dx, dy, level). Two cells in one block is a defect you cannot see in a
+    # count or a label set: one tile draws over the other and the loser is invisible. This sweep exists because
+    # slice 1's parapet ring did exactly that on the tower, putting a lip in the same block as the deck column.
+    for type <- Buildings.building_types() do
+      {w, h} = Buildings.default_footprint(type)
+      cells = Buildings.compose_building(type, w, h, seed: 1).cells
+      blocks = Enum.map(cells, &{&1.dx, &1.dy, &1.level})
+      dupes = blocks -- Enum.uniq(blocks)
+
+      assert dupes == [], "#{type} puts two cells in #{inspect(Enum.uniq(dupes))}"
+    end
+  end
+
+  test "a church is a nave with a TOWER, and a manor a centre between WINGS" do
+    # Alexander, 2026-09-11: *"most are basically ther same, same form, same layout, same everything"*. Slice 1
+    # could only change labels, so these two stayed boxes: a nave and its tower are different HEIGHTS.
+    walls = fn type ->
+      {w, h} = Buildings.default_footprint(type)
+      Buildings.compose_building(type, w, h, seed: 1).cells
+      |> Enum.filter(&String.starts_with?(&1.label, "wall_"))
+      |> Enum.group_by(& &1.dx, fn c -> c.level + (get_in(c, [:settings, "scaleY"]) || 1) - 1 end)
+      |> Map.new(fn {dx, tops} -> {dx, Enum.max(tops)} end)
+    end
+
+    church = walls.("church")
+    {nave, tower} = {Enum.min(Map.values(church)), Enum.max(Map.values(church))}
+    assert tower > nave, "a church is one height all the way round"
+    # exactly ONE bay is the tower; the rest is nave
+    assert Enum.count(church, fn {_dx, top} -> top == tower end) == 1
+
+    manor = walls.("manor")
+    {wing, centre} = {Enum.min(Map.values(manor)), Enum.max(Map.values(manor))}
+    assert centre > wing, "a manor is one height all the way round"
+    # the centre is wider than one bay, and the wings are at both ends
+    assert Enum.count(manor, fn {_dx, top} -> top == centre end) > 1
+    assert manor[0] == wing and manor[map_size(manor) - 1] == wing
+  end
+
+  test "a raised column is not roofed twice: the nave's gable skips it" do
+    {w, h} = Buildings.default_footprint("church")
+    cells = Buildings.compose_building("church", w, h, seed: 1).cells
+    roofs = Enum.filter(cells, &String.starts_with?(&1.label, "roof"))
+    tower_dx = w - 1
+
+    # the tower has exactly one roof cell, its own cap, and it sits above the nave's ridge
+    tower_roofs = Enum.filter(roofs, &(&1.dx == tower_dx))
+    assert length(tower_roofs) == 1
+    nave_peak = roofs |> Enum.reject(&(&1.dx == tower_dx)) |> Enum.map(&(&1.level + (get_in(&1, [:settings, "scaleY"]) || 1) - 1)) |> Enum.max()
+    assert hd(tower_roofs).level > nave_peak
   end
 
   test "a town's things are timber and a city's are not" do
