@@ -604,10 +604,12 @@ export function GenerateControls({
   zone,
   onZone,
   onGenerate,
+  onApply,
   onRandomizeLayer,
   selectedCount = 0,
   onRandomizeSelection,
   onPeek,
+  onOpenPreview,
   sizeDraft,
   size,
   onSizeDraft,
@@ -626,6 +628,15 @@ export function GenerateControls({
    *  Alexander, 2026-09-10: *"the template generation just uses whatever we setup on it"*. */
   /** `generatorKey` is the SUBTYPE picked below the preset, when one was — the build runs exactly that one. */
   onGenerate: (zone: string, categoryKey: string, layout?: string, options?: Record<string, GeneratorOptionValue>, generatorKey?: string) => void
+  /**
+   * Apply the season and the options to the map that is ALREADY open, without re-rolling it.
+   *
+   * Alexander, 2026-09-11: *"'build this world' is a bit limited, what If I just want to change the season of
+   * the current template¿ what if I just want to change the cell pixels, keeping the rest? we need to be able
+   * to apply changes without re-randomizing the map"*. Building was the only way anything here reached the
+   * map, and building rolls a new world, so changing one setting cost you the map you had.
+   */
+  onApply?: (zone: string, options: Record<string, GeneratorOptionValue>) => void
   /** When provided, shows the universal "re-roll one layer" row that re-rolls a single layer of the current
    *  map (leaving the others intact). Omitted where there is no current map to scope. */
   onRandomizeLayer?: (layer: string) => void
@@ -636,6 +647,16 @@ export function GenerateControls({
   onRandomizeSelection?: () => void
   /** Show this preset's world in the big Preview panel — on hover, and on the click that selects it. */
   onPeek?: (subject: { kind: 'stage' } & Record<string, unknown>) => void
+  /**
+   * Put the Preview window back on screen.
+   *
+   * Alexander, 2026-09-11: *"when you close the preview it goes inside the sidebar and can never go back
+   * oputside until you change links"*. Both halves of that are this component: the options fall back INLINE
+   * when there is no `tuningSlot` to portal them into (that is the "goes inside the sidebar"), and nothing
+   * could ask for the window again, so the only way back was switching rails. Same shape as `onOpenLibrary`
+   * and the other reopen props.
+   */
+  onOpenPreview?: () => void
   /** The matrix as TYPED — what this build will produce. Owned by the parent because `Build this world`
    *  and the resize button both read it. */
   sizeDraft?: MapSize
@@ -697,29 +718,45 @@ export function GenerateControls({
    * 2026-09-10: *"the preview panel on selection is not showing on generators"*. Built here so the small
    * picture and the big one can never disagree about which world they are showing.
    */
-  const presetSubject = (categoryKey: string, layoutId: string | undefined, opts?: Record<string, GeneratorOptionValue>, gen?: GeneratorDef, cells: { cols: number; rows: number } = PRESET_THUMB_CELLS) => ({
-    kind: 'stage' as const,
-    zone: zone as never,
-    variant: categoryKey as never,
-    layout: layoutId,
-    // The picked world's NAME, not its layout, so the preview can say "Mountain forest" and not "woodland".
-    name: (gen ?? findGenerator(catalog, categoryKey, layoutId))?.name,
-    nature: (gen ?? findGenerator(catalog, categoryKey, layoutId))?.config.nature,
-    // The preview has to be built from the SAME inputs the build uses, or it is a picture of a different
-    // map. Alexander, 2026-09-11: *"it's not clear how the extras modify the existing selected zone"* —
-    // it was not clear because the preview was not told about them.
-    options: opts,
-    palette: (gen ?? findGenerator(catalog, categoryKey, layoutId))?.config.palette,
-    subZones: (gen ?? findGenerator(catalog, categoryKey, layoutId))?.config.subZones,
-    formation: (gen ?? findGenerator(catalog, categoryKey, layoutId))?.config.formation,
-    treeMix: (gen ?? findGenerator(catalog, categoryKey, layoutId))?.config.trees,
-    crossings: (gen ?? findGenerator(catalog, categoryKey, layoutId))?.config.crossings,
-    // Seeded from the preset's identity, so a card's picture is stable across renders and every card shows
-    // a DIFFERENT world rather than all sharing one seed.
-    seed: presetSeed(categoryKey, layoutId ?? 'default', zone),
-    cols: cells.cols,
-    rows: cells.rows,
-  })
+  const presetSubject = (categoryKey: string, layoutId: string | undefined, opts?: Record<string, GeneratorOptionValue>, gen?: GeneratorDef, cells: { cols: number; rows: number } = PRESET_THUMB_CELLS) => {
+    // ONE lookup for every field below. It was written out six times, and the sixth is where the bug hid.
+    const def = gen ?? findGenerator(catalog, categoryKey, layoutId)
+    return {
+      kind: 'stage' as const,
+      zone: zone as never,
+      /**
+       * WHICH ARCHETYPE THE PREVIEW BUILDS: the row's own, exactly as `generate` asks for it.
+       *
+       * This passed the CATEGORY key, and that is why the preview was blank for every settlement and only for
+       * settlements. Alexander, 2026-09-11: *"the preview doesn't work on any of settlements"*. A category key
+       * is an archetype by coincidence: "forest", "cave" and "temple" happen to name one, and "settlement"
+       * never did, because town and city were merged under it. The engine looks its archetype up by name,
+       * finds nothing for "settlement", runs no pass, and draws an empty grid.
+       *
+       * `archetypeOf` already resolves this for the BUILD. Reading the row's `variant` here is what makes the
+       * picture and the button agree, which is the entire purpose of this object.
+       */
+      variant: (def?.variant ?? categoryKey) as never,
+      layout: layoutId,
+      // The picked world's NAME, not its layout, so the preview can say "Mountain forest" and not "woodland".
+      name: def?.name,
+      nature: def?.config.nature,
+      // The preview has to be built from the SAME inputs the build uses, or it is a picture of a different
+      // map. Alexander, 2026-09-11: *"it's not clear how the extras modify the existing selected zone"*. It
+      // was not clear because the preview was not told about them.
+      options: opts,
+      palette: def?.config.palette,
+      subZones: def?.config.subZones,
+      formation: def?.config.formation,
+      treeMix: def?.config.trees,
+      crossings: def?.config.crossings,
+      // Seeded from the preset's identity, so a card's picture is stable across renders and every card shows
+      // a DIFFERENT world rather than all sharing one seed.
+      seed: presetSeed(categoryKey, layoutId ?? 'default', zone),
+      cols: cells.cols,
+      rows: cells.rows,
+    }
+  }
   /** The big preview's size: the map as it will be built (see previewCells). The card thumbnails stay small. */
   const peekCells = () => previewCells(sizeDraft)
 
@@ -961,6 +998,20 @@ export function GenerateControls({
       >
         ⚡ Build this world
       </button>
+      {/* THE SAME MAP, WITH THE CHANGE IN IT. Build rolls a new world; this keeps the one on screen and only
+          moves what you changed, because every seed is kept. Alexander, 2026-09-11: *"we need to be able to
+          apply changes without re-randomizing the map"*. */}
+      {onApply && (
+        <button
+          type="button"
+          onClick={() => onApply(zone, chosenOptions())}
+          title={`Put the ${zone} season and these options on the map that is open, keeping its streets, plots and trees`}
+          className="b"
+          style={{ width: '100%', margin: '4px 0 0', padding: 10, justifyContent: 'center' }}
+        >
+          ✓ Apply to this map
+        </button>
+      )}
       <div className="hint">
         {/* "the numbers above, exactly" has to stay TRUE. Building goes through clampMapSize, which holds a
             size inside the cap, so at 400 columns the map would come back 100 wide while this line claimed
@@ -1092,6 +1143,21 @@ export function GenerateControls({
         </>
       )}
 
+      {/* THE WAY BACK OUT, shown exactly when the options have fallen back into the sidebar. It emits a PEEK
+          as well as opening: the window is gated on having something to show, so opening alone would leave it
+          shut and the button looking broken. Disabled with nothing picked, because then there is no world to
+          draw. */}
+      {!tuningSlot && onOpenPreview && (
+        <button
+          type="button"
+          className="b sm"
+          disabled={activeKey === null}
+          title="Show the Preview window again, with these options in it"
+          onClick={() => { onPeek?.(selectedSubject() as never); onOpenPreview() }}
+        >
+          ◰ Preview window
+        </button>
+      )}
       {!tuningSlot && <>{season}{tuning}{layers}{randomize}</>}
       {building}
       {tuningSlot && createPortal(<>{sizeLine}{season}{tuning}{layers}{randomize}</>, tuningSlot)}

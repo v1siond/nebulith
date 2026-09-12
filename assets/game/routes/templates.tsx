@@ -993,7 +993,19 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
    *  adding river, adding bridge, etc etc"*. */
   const [tuningSlot, setTuningSlot] = useState<HTMLElement | null>(null)
   // The New world panel works WITH the preview window, so opening the panel opens the window.
-  useEffect(() => { if (activeRailId === 'generate') setPreviewOpen(true) }, [activeRailId])
+  /**
+   * THE PREVIEW COMES BACK WHEN YOU CHANGE WHAT YOU ARE LOOKING AT.
+   *
+   * Alexander, 2026-09-11: *"objects no longer have preview...same with tiles... anytime you change something,
+   * other stuff break"*. One flag gates EVERY rail's preview, and the only thing that turned it back on was
+   * this effect, for the generate rail alone. So closing the window while building a world took the object and
+   * tile previews with it, and nothing in those panels could ask for it back.
+   *
+   * Any rail change restores it, which is the behaviour he had already spotted from the other side:
+   * *"when you close the preview it goes inside the sidebar and can never go back oputside until you change
+   * links"*. Closing it still closes it for as long as you stay where you are.
+   */
+  useEffect(() => { setPreviewOpen(true) }, [activeRailId])
   /** Is the level map open BIG, in its own panel? Separate from `levelMapOpen`, which is the corner one. */
   const [levelMapBig, setLevelMapBig] = useState(false)
 
@@ -3273,9 +3285,57 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
    *  is also used by the generator and by loading a level, both of which manage history themselves. The
    *  POLICY belongs here, at the one call site a person can trigger: §3.11 measured that `resizeGrid` never
    *  calls `checkpointHistory`, so a mis-typed width was unrecoverable. Now Ctrl+Z brings the map back. */
+  /**
+   * RESIZE THE OPEN MAP, KEEPING IT.
+   *
+   * Alexander, 2026-09-11: *"what if I just want to change the cell pixels, keeping the rest? we need to be
+   * able to apply changes without re-randomizing the map"*. He was reporting something worse than a missing
+   * convenience: `resizeGrid` builds a NEW grid and fills every cell with grass, so the one in-place control
+   * on this panel wiped the map.
+   *
+   * Two cases, because they are genuinely different:
+   *
+   *   · CELL PIXELS ONLY. Nothing about the map changes, only how big it is drawn, so nothing is rebuilt: the
+   *     size is a field, and `assetLevelsChanged` drops the per-cell index that cached the old geometry.
+   *   · A DIFFERENT EXTENT. That is a different map, so the grid IS rebuilt, but everything that still fits is
+   *     carried across (tiles, heights, collision) and only the cells that did not exist before are grassed.
+   *
+   * `resizeGrid` itself is left alone on purpose: a BUILD calls it too, and a build needs the clean grid.
+   */
   const resizeMapFromPanel = (cols: number, rows: number, cellSize: number) => {
+    const grid = gridRef.current
     checkpointHistory()
+    if (!grid) { resizeGrid(cols, rows, cellSize); return }
+
+    if (cols === grid.cols && rows === grid.rows) {
+      grid.cellSize = cellSize
+      grid.assetLevelsChanged()
+      setGridSize({ cols, rows, cellSize })
+      bumpBuildingVersion()
+      return
+    }
+
+    const { cols: wasCols, rows: wasRows, height: wasHeight, collision: wasCollision } = grid
+    const kept = grid.assets.filter(a => a.col >= 0 && a.row >= 0 && a.col < cols && a.row < rows)
     resizeGrid(cols, rows, cellSize)
+    const next = gridRef.current
+    if (!next) return
+    next.assets = kept // exactly what was there, clipped to the new extent, INSTEAD of a field of grass
+    for (let r = 0; r < Math.min(rows, wasRows); r++) {
+      for (let c = 0; c < Math.min(cols, wasCols); c++) {
+        next.height[r][c] = wasHeight[r][c]
+        next.collision[r][c] = wasCollision[r][c]
+      }
+    }
+    // Only the cells that did not exist before need a floor. A cell that was deliberately CLEARED stays clear.
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        if (c < wasCols && r < wasRows) continue
+        placeGround(next, c, r, 'grass')
+      }
+    }
+    next.assetLevelsChanged()
+    bumpBuildingVersion()
   }
 
   /**
@@ -3464,7 +3524,23 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   // ── macro RANDOMIZE: whole map + per-layer scopes (GENERATION-SPEC §5) ──────
   // The recipe of the last full generate — zone/variant/size + the per-layer SEEDS. Re-rolling one
   // layer changes only that layer's seed and regenerates: the rest, fed the same seeds, reproduce.
-  const lastGenRef = useRef<{ zone: ZoneId; variant: VariantId; layout?: string; options?: Record<string, GeneratorOptionValue>; generatorKey?: string; cols: number; rows: number; seeds: Record<'layout' | 'buildings' | 'nature' | 'decor', number> } | null>(null)
+  /**
+   * EVERYTHING A GENERATED MAP WAS BUILT FROM, so it can be rebuilt exactly.
+   *
+   * It had no name while one function used it. Two do now (re-roll one layer, and apply a change without
+   * re-rolling anything), and a recipe that is passed around wants a name.
+   */
+  type GenRecipe = {
+    zone: ZoneId
+    variant: VariantId
+    layout?: string
+    options?: Record<string, GeneratorOptionValue>
+    generatorKey?: string
+    cols: number
+    rows: number
+    seeds: Record<'layout' | 'buildings' | 'nature' | 'decor', number>
+  }
+  const lastGenRef = useRef<GenRecipe | null>(null)
   // Salts the per-building material/roof/wall-colour hash so "randomize buildings only" repaints.
   const buildingSaltRef = useRef(0)
   const randSeed = (): number => (Math.random() * 0x7fffffff) | 0
@@ -3512,23 +3588,27 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
    * without regenerating the map. Non-settlement archetypes (forest/cave/temple/boss) aren't
    * decomposed into layers, so any scope there re-rolls the whole archetype via its layout rng.
    */
-  const randomizeLayerInEditor = async (layer: LayerId) => {
-    const grid = gridRef.current
-    const recipe = lastGenRef.current
-    if (!grid) return
-    if (!recipe) { generateStageInEditor(genZone, 'town'); return } // nothing generated yet → a full town
-    // By ARCHETYPE, not by category. A recipe says `variant: 'town'`, and a town lives in the settlement
-    // category now, so the old lookup would search for a category called "town" and find nothing.
-    const generator = (recipe.generatorKey ? findGeneratorByKey(generatorCatalogRef.current, recipe.generatorKey) : undefined) ?? findGeneratorForVariant(generatorCatalogRef.current, recipe.variant, recipe.layout)
-    if (!generator) { console.warn(`[generate] the backend serves no "${recipe.variant}" generator — nothing re-rolled`); return }
-    if (layer === 'units') { reseedUnits(grid, generator); bumpBuildingVersion(); return }
+  /** WHICH generator a recipe was built by: the exact subtype when one was picked, else the row that serves
+   *  this archetype. By ARCHETYPE and not by category, because a town lives in the settlement category now. */
+  const generatorForRecipe = (recipe: GenRecipe) =>
+    (recipe.generatorKey ? findGeneratorByKey(generatorCatalogRef.current, recipe.generatorKey) : undefined)
+      ?? findGeneratorForVariant(generatorCatalogRef.current, recipe.variant, recipe.layout)
 
-    const isSettlement = recipe.variant === 'town' || recipe.variant === 'city'
-    // Non-settlement archetypes read only the layout rng, so route every scope through it there.
-    const engineLayer = isSettlement ? layer : 'layout'
-    const seeds = { ...recipe.seeds, [engineLayer]: randSeed() }
-    lastGenRef.current = { ...recipe, seeds }
-    if (layer === 'buildings' && isSettlement) buildingSaltRef.current = randSeed() // repaint the buildings
+  /**
+   * REBUILD THE MAP FROM A RECIPE, exactly as the recipe says.
+   *
+   * The one place a map is regenerated from what it was made of, so the two things that do it cannot drift:
+   * re-rolling a single layer (one seed changes) and applying a change without re-rolling (no seed changes).
+   * It was the body of the layer re-roll, and a second copy of this 40-line call is how a served value ends up
+   * reaching one path and not the other.
+   *
+   * `stripLayout` keeps the settlement layout pass only, which is what re-rolling the layout of a town means.
+   */
+  const regenerateFromRecipe = async (recipe: GenRecipe, stripLayout = false) => {
+    const grid = gridRef.current
+    if (!grid) return
+    const generator = generatorForRecipe(recipe)
+    if (!generator) { console.warn(`[generate] the backend serves no "${recipe.variant}" generator, nothing rebuilt`); return }
 
     await installPlannableBuildings(activeStyleId, buildingTypesRef.current, generator.config.settlement?.houseWidths)
     const full = generateStage({
@@ -3537,7 +3617,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       layout: recipe.layout,
       cols: recipe.cols,
       rows: recipe.rows,
-      seeds,
+      seeds: recipe.seeds,
       // The re-roll must be fed the SAME served config AND the same options as the original generate, or
       // a re-rolled town would plan its plots from different numbers than the one it is replacing — and a
       // woodland with a river would lose the river.
@@ -3559,7 +3639,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       settlement: generator.config.settlement,
       buildingSizes: buildingSizeSource(buildingTypesRef.current),
     })
-    const stage = layer === 'layout' && isSettlement ? stripToLayout(full) : full
+    const stage = stripLayout ? stripToLayout(full) : full
     // COMPOSE WHAT THE PLAN ROLLED, then stamp. The plan names a composition per building
     // (`house@5x4`), and `stampComposition` resolves synchronously from the loaded catalog — so the
     // footprints the generator invented have to exist before the stamp runs. This is the whole of what I
@@ -3574,6 +3654,58 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     movePlayerToValidSpawn(here.col, here.row)
     setSelectedCells(new Set())
     bumpBuildingVersion()
+  }
+
+
+  /**
+   * APPLY A CHANGE TO THE MAP THAT IS ALREADY HERE, without re-rolling it.
+   *
+   * Alexander, 2026-09-11: *"'build this world' is a bit limited, what If I just want to change the season of
+   * the current template¿ what if I just want to change the cell pixels, keeping the rest? we need to be able
+   * to apply changes without re-randomizing the map"*.
+   *
+   * Every SEED is kept, so the streets, the plots, the trees and the props come back exactly where they were
+   * and only what he changed changes. That is the whole difference from "Build this world", which rolls a new
+   * seed set and therefore a different world.
+   *
+   * With nothing generated yet there is no map to preserve, so it builds one, the same fallback the layer
+   * re-roll has always taken.
+   */
+  const applyToCurrentMap = async (zone: ZoneId, options?: Record<string, GeneratorOptionValue>) => {
+    const recipe = lastGenRef.current
+    if (!recipe) { await generateStageInEditor(zone, 'town', undefined, undefined, undefined, options); return }
+    const merged: GenRecipe = { ...recipe, zone, options: options ?? recipe.options }
+    lastGenRef.current = merged
+    await regenerateFromRecipe(merged)
+  }
+
+  /**
+   * Re-roll ONE generation layer over the current map, leaving the others intact (the Generate ▾
+   * scoped randomize). Only the requested layer's seed changes; the untouched layers, fed the same
+   * seeds, regenerate identically, so visually only that layer moves. `units` re-scatters entities
+   * without regenerating the map. Non-settlement archetypes (forest/cave/temple/boss) aren't
+   * decomposed into layers, so any scope there re-rolls the whole archetype via its layout rng.
+   */
+  const randomizeLayerInEditor = async (layer: LayerId) => {
+    const recipe = lastGenRef.current
+    if (!gridRef.current) return
+    if (!recipe) { generateStageInEditor(genZone, 'town'); return } // nothing generated yet → a full town
+
+    if (layer === 'units') {
+      const generator = generatorForRecipe(recipe)
+      if (!generator) { console.warn(`[generate] the backend serves no "${recipe.variant}" generator, nothing re-rolled`); return }
+      reseedUnits(gridRef.current, generator)
+      bumpBuildingVersion()
+      return
+    }
+
+    const isSettlement = recipe.variant === 'town' || recipe.variant === 'city'
+    // Non-settlement archetypes read only the layout rng, so route every scope through it there.
+    const engineLayer = isSettlement ? layer : 'layout'
+    const next: GenRecipe = { ...recipe, seeds: { ...recipe.seeds, [engineLayer]: randSeed() } }
+    lastGenRef.current = next
+    if (layer === 'buildings' && isSettlement) buildingSaltRef.current = randSeed() // repaint the buildings
+    await regenerateFromRecipe(next, layer === 'layout' && isSettlement)
   }
 
   // ── micro RANDOMIZE: re-roll the random attributes of the SELECTION (Stage 3) ──────
@@ -5707,10 +5839,12 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                   onGenerate={(z, v, layout, options, generatorKey) => {
                     void generateStageInEditor(z as ZoneId, v as VariantId, layout, undefined, undefined, options, generatorKey)
                   }}
+                  onApply={(z, options) => { void applyToCurrentMap(z as ZoneId, options) }}
                   onRandomizeLayer={layer => randomizeLayerInEditor(layer as LayerId)}
                   selectedCount={selectedCells.size}
                   onRandomizeSelection={randomizeSelected}
                   onPeek={next => setGenPeek((next ?? null) as ReturnType<typeof subjectFor>)}
+                  onOpenPreview={() => setPreviewOpen(true)}
                   sizeDraft={gridDraft}
                   size={gridSize}
                   onSizeDraft={next => setGridDraft(prev => ({ ...prev, ...next }))}

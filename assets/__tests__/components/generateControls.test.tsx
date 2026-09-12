@@ -418,6 +418,92 @@ describe('the preview window shows the world to build, its size, and the options
     expect(within(container).getByLabelText(/kind of place/i)).toBeInTheDocument()
   })
 
+  /**
+   * Alexander, 2026-09-11: *"the preview doesn't work on any of settlements"*.
+   *
+   * The subject carried the CATEGORY key as the archetype. That is an archetype by coincidence for forest,
+   * cave and temple, and never was for "settlement" since town and city were merged under it, so the engine
+   * ran no pass and the preview drew an empty grid. Only settlements broke, and the one test that looked at
+   * this field asserted `CATALOG[0].key` where the key and the variant happen to be the same word, so nothing
+   * caught it.
+   */
+  it('a settlement peeks the ROW\'s archetype, never the category key', () => {
+    const p = props()
+    render(<GenerateControls {...p} />)
+    fireEvent.change(kinds(), { target: { value: 'settlement' } })
+    const peek = lastPeek(p.onPeek as jest.Mock)
+    expect(peek.variant).toBe('town') // the first settlement row is a traditional town
+    expect(peek.variant).not.toBe('settlement') // which is not an archetype the engine builds
+    expect(peek).toMatchObject({ kind: 'stage', layout: 'traditional_town' })
+  })
+
+  /**
+   * Alexander, 2026-09-11: *"when you close the preview it goes inside the sidebar and can never go back
+   * oputside until you change links"*. With no window to portal into, the options fall back inline (that is
+   * the sidebar half), and nothing could ask for the window back.
+   */
+  describe('the way back to the preview window', () => {
+    const reopen = () => screen.getByRole('button', { name: /preview window/i })
+
+    it('offers it exactly when the options have fallen back into the sidebar', () => {
+      render(<GenerateControls {...props({ onOpenPreview: jest.fn() })} />)
+      expect(reopen()).toBeInTheDocument()
+    })
+
+    it('is absent while the window is already open', () => {
+      const into = slot()
+      render(<GenerateControls {...props({ tuningSlot: into, onOpenPreview: jest.fn() })} />)
+      expect(screen.queryByRole('button', { name: /preview window/i })).toBeNull()
+    })
+
+    it('opens the window AND gives it something to draw', () => {
+      const onOpenPreview = jest.fn()
+      const p = props({ onOpenPreview })
+      render(<GenerateControls {...p} />)
+      ;(p.onPeek as jest.Mock).mockClear()
+      fireEvent.click(reopen())
+      expect(onOpenPreview).toHaveBeenCalled()
+      // Opening alone leaves it shut: the window only renders when it has a subject.
+      expect(lastPeek(p.onPeek as jest.Mock)).toMatchObject({ kind: 'stage' })
+    })
+  })
+
+  /**
+   * Alexander, 2026-09-11: *"'build this world' is a bit limited, what If I just want to change the season of
+   * the current template¿ what if I just want to change the cell pixels, keeping the rest? we need to be able
+   * to apply changes without re-randomizing the map"*. Building was the only way anything in this panel
+   * reached the map, and a build rolls a new world, so changing one setting cost you the map you had.
+   */
+  describe('applying a change to the map that is already open', () => {
+    const apply = () => screen.getByRole('button', { name: /apply to this map/i })
+
+    it('reports the season and the options, and builds nothing', () => {
+      const onApply = jest.fn()
+      const p = props({ onApply })
+      render(<GenerateControls {...p} />)
+      fireEvent.change(kinds(), { target: { value: 'forest' } })
+      fireEvent.click(apply())
+      expect(onApply).toHaveBeenCalledWith('spring', expect.any(Object))
+      expect(p.onGenerate).not.toHaveBeenCalled() // the whole point: the map is kept
+    })
+
+    it('carries the options the window shows, the same ones a build would use', () => {
+      const into = slot()
+      const onApply = jest.fn()
+      const p = props({ tuningSlot: into, onApply })
+      render(<GenerateControls {...p} />)
+      fireEvent.change(kinds(), { target: { value: 'forest' } })
+      fireEvent.change(within(into).getByLabelText(/^river$/i), { target: { value: 'through' } })
+      fireEvent.click(apply())
+      expect(onApply).toHaveBeenCalledWith('spring', expect.objectContaining({ river: 'through' }))
+    })
+
+    it('is absent when the page cannot apply in place', () => {
+      render(<GenerateControls {...props()} />)
+      expect(screen.queryByRole('button', { name: /apply to this map/i })).toBeNull()
+    })
+  })
+
   it('a build from the panel builds what the window shows', () => {
     const into = slot()
     const p = props({ tuningSlot: into })
