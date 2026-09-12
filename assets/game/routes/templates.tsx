@@ -3076,7 +3076,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     const grid = gridRef.current
     if (!grid) return
     const collision = Array.from({ length: grid.rows }, (_, r) =>
-      Array.from({ length: grid.cols }, (_, c) => grid.isBlocked(c, r) || groundKind(grid.groundAt(c, r)) === 'water'),
+      Array.from({ length: grid.cols }, (_, c) => grid.isBlocked(c, r)),
     )
     setEntities(prev => {
       const occupied = prev.map(e => ({ col: e.col, row: e.row }))
@@ -3116,7 +3116,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     if (kind === 'player') { toast('Only one player — use Add to place the hero', 'warning'); return }
     if (!kind) { toast('That tile is a combat effect, not a character — it cannot be scattered', 'warning'); return }
     const collision = Array.from({ length: grid.rows }, (_, r) =>
-      Array.from({ length: grid.cols }, (_, c) => grid.isBlocked(c, r) || groundKind(grid.groundAt(c, r)) === 'water'),
+      Array.from({ length: grid.cols }, (_, c) => grid.isBlocked(c, r)),
     )
     checkpointHistory() // a scatter adds many units at once → snapshot so one Ctrl+Z removes the whole batch
     setEntities(prev => {
@@ -3622,7 +3622,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     const units = generator.config.units
     if (!units) { console.warn(`[generate] the "${generator.key}" generator serves no unit counts — no townsfolk or enemies placed`); return }
     const collision = Array.from({ length: grid.rows }, (_, r) =>
-      Array.from({ length: grid.cols }, (_, c) => grid.isBlocked(c, r) || groundKind(grid.groundAt(c, r)) === 'water'),
+      Array.from({ length: grid.cols }, (_, c) => grid.isBlocked(c, r)),
     )
     setEntities(prev => {
       const kept = byKind(prev, 'player')
@@ -3949,7 +3949,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     const units = generator.config.units
     if (!units) console.warn(`[generate] the "${generator.key}" generator serves no unit counts — no townsfolk or enemies placed`)
     const collision = Array.from({ length: grid.rows }, (_, r) =>
-      Array.from({ length: grid.cols }, (_, c) => grid.isBlocked(c, r) || groundKind(grid.groundAt(c, r)) === 'water'),
+      Array.from({ length: grid.cols }, (_, c) => grid.isBlocked(c, r)),
     )
     setEntities(prev => {
       const kept = byKind(prev, 'player')
@@ -3969,7 +3969,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   const seedStageEnemies = (grid: IsometricGrid, enemyTypes: readonly string[], count: number, prefix: string) => {
     if (count <= 0 || enemyTypes.length === 0) return
     const collision = Array.from({ length: grid.rows }, (_, r) =>
-      Array.from({ length: grid.cols }, (_, c) => grid.isBlocked(c, r) || groundKind(grid.groundAt(c, r)) === 'water'),
+      Array.from({ length: grid.cols }, (_, c) => grid.isBlocked(c, r)),
     )
     setEntities(prev => {
       const occupied = prev.map(e => ({ col: e.col, row: e.row }))
@@ -4025,9 +4025,12 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     for (let r = 0; r < rows; r++) {
       collisionLayer[r] = []
       for (let c = 0; c < cols; c++) {
-        const groundType = grid.groundAt(c, r)
-        const blocked = groundType === 'water' || grid.isBlocked(c, r) ? 1 : 0
-        collisionLayer[r][c] = blocked
+        // THE COLLISION GRID IS THE ANSWER, not the ground's label. This used to OR in a
+        // `groundType === 'water'` test, so a saved map PERSISTED a label guess: a walkable pool or a frozen
+        // river recorded as blocked, in data that outlives the session. The layer's own comment above says it
+        // records collision, and `applyStage` mirrors the generator's collision into the grid, so the grid is
+        // the whole answer.
+        collisionLayer[r][c] = grid.isBlocked(c, r) ? 1 : 0
       }
     }
 
