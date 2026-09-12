@@ -20,6 +20,10 @@
  * per-type layouts are all read from here, so adding a generator is a seed row and nothing else.
  */
 import type { MixEntry } from '@/engine/buildingTypes'
+// The bloom shape a REGION can serve, imported rather than re-declared so the two cannot drift. Cycle-free:
+// `zoneCatalog` imports only `nebulithApi`, and nothing in that chain reaches back here (checked, after a
+// circular import through `render/shared` cost a rewrite earlier the same day).
+import type { FlowerKind } from '@/engine/zoneCatalog'
 import { NEBULITH_API } from './nebulithApi'
 
 // ── the served shapes ────────────────────────────────────────────────────────
@@ -194,6 +198,12 @@ export interface GeneratorSubZone {
   formation?: GeneratorFormation
   /** which species grow in this region — the swamp is cypress, whatever the rest of the jungle is */
   trees?: readonly GeneratorTreeWeight[]
+  /**
+   * Which BLOOMS grow in this region, overriding the season's set. Alexander, 2026-09-12: *"where have you
+   * seen swamps with white flowers??"*. A region could state its species and not its flowers, so a swamp
+   * planted summer's set, which carries a near-white. Absent means the season decides, as before.
+   */
+  flowers?: readonly FlowerKind[]
 }
 
 export interface GeneratorConfig {
@@ -541,6 +551,21 @@ function parseTreeMix(v: unknown): readonly GeneratorTreeWeight[] | undefined {
   return out.length > 0 ? out : undefined
 }
 
+/** A region's served BLOOM set. Mirrors `parseTreeMix` exactly: an entry missing its mark or its colour is
+ *  DROPPED rather than defaulted, because a bloom the backend could not describe is one the generator must not
+ *  plant, and an empty set is no set at all (the season then decides). */
+function parseFlowerSet(v: unknown): readonly FlowerKind[] | undefined {
+  if (!Array.isArray(v)) return undefined
+  const out: FlowerKind[] = []
+  for (const raw of v) {
+    if (!isObject(raw)) continue
+    const char = str(raw.char)
+    const color = str(raw.color)
+    if (char && color) out.push({ char, color })
+  }
+  return out.length > 0 ? out : undefined
+}
+
 /** The served distribution, keeping only the numbers that arrived. A missing field means the backend has no
  *  opinion on it and the generator keeps its own default — never a number invented here. */
 function parseFormation(v: unknown): GeneratorFormation | undefined {
@@ -576,6 +601,10 @@ function parseSubZones(v: unknown): readonly GeneratorSubZone[] | undefined {
     if (formation) row.formation = formation
     const trees = parseTreeMix(raw.trees)
     if (trees) row.trees = trees
+    // READ HERE or it is dead data. This parser lists its keys by hand, and `parseSettlement` and
+    // `parseBuildings` have each silently dropped a newly served field for exactly that reason.
+    const flowers = parseFlowerSet(raw.flowers)
+    if (flowers) row.flowers = flowers
     rows.push(row)
   }
   return rows.length > 0 ? rows : undefined

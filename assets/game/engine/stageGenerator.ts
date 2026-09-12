@@ -378,8 +378,12 @@ function scatterTallGrass(ctx: ArchetypeContext): void {
   })
 }
 
-const makeFlower = (rng: Rng, zone: ZoneId, col: number, row: number): StageProp => {
-  const set = zoneFlowers(zone) ?? defaultFlowers()
+const makeFlower = (rng: Rng, zone: ZoneId, col: number, row: number, regionSet?: readonly FlowerKind[]): StageProp => {
+  // A REGION's own blooms beat the season's. Alexander, 2026-09-12: *"does that look like a swamp to you?? where
+  // have you seen swamps with white flowers??"*. A sub-zone could already say which SPECIES grow in it
+  // (`trees`) and had no way to say which BLOOMS, so a swamp planted the season's set, and summer's carries
+  // `✽ #f4f4ec`, a near-white. Measured in a swamp jungle before this: whites among the blooms, as he saw.
+  const set = regionSet ?? zoneFlowers(zone) ?? defaultFlowers()
   const pick: FlowerKind = set[randIntWith(rng, 0, set.length - 1)] // seeded pick — the caller passes its layer rng so the pass stays reproducible
   // Each flower gets its own intensity tone (per-cell) for a naturally varied meadow — tone only, no opacity.
   // LABEL 'flower' routes it through the label→image path (render/shared.labelTileImage) so it draws the BAKED
@@ -1727,7 +1731,7 @@ function layoutWoodland(ctx: ArchetypeContext, opts: ForestBuild = {}): void {
   }
 
   // 4 · The clearings get whatever ground cover and flowers the generator asked for. Absent → bare.
-  dressWoodlandClearings(ctx, open)
+  dressWoodlandClearings(ctx, open, zoneAt)
   scatterTallGrass(ctx) // patches of walkable long grass, as much as the generator serves
 
   // 4b · UNDERSTORY between the trunks, when the formation asks for one. Image #15 is a woodland whose hard
@@ -1867,7 +1871,7 @@ function layoutJungle(ctx: ArchetypeContext, opts: ForestBuild = {}): void {
       }
     }
   }
-  paintJungleGaps(ctx, gaps, pal)
+  paintJungleGaps(ctx, gaps, pal, zoneAt)
 
   // 3 · AN ANIMAL TRACK joining each gap to the water. Not a road and not paved — it is simply the line of
   //     least undergrowth, so it reads as a way through rather than as a path someone built. Without it a
@@ -2437,14 +2441,24 @@ function paintJungleFloor(ctx: ArchetypeContext, pal: GeneratorPalette | undefin
 
 /** A light gap is the only LIT ground on the map — paint it up off the canopy tone and dress it with whatever
  *  the generator serves for flowers, because a gap is where the saplings and blooms actually are. */
-function paintJungleGaps(ctx: ArchetypeContext, gaps: Set<string>, pal: GeneratorPalette | undefined): void {
+function paintJungleGaps(
+  ctx: ArchetypeContext,
+  gaps: Set<string>,
+  pal: GeneratorPalette | undefined,
+  zoneAt?: (GeneratorSubZone | undefined)[][],
+): void {
   const lit = pal?.canopyAlt
   const flowers = ctx.nature?.flowers
   for (const key of gaps) {
     const { col, row } = toCell(key)
     if (!inBounds(col, row, ctx.cols, ctx.rows)) continue
     if (lit) ctx.floorColors[row][col] = lit
-    if (flowers !== undefined && ctx.rand() < flowers * 2) placeProp(ctx, makeFlower(ctx.rand, ctx.zone, col, row))
+    // The REGION standing here decides its own blooms; the season answers where a region states none. This is
+    // where a swamp's daisies came from: a light gap is the only lit ground in a jungle, so it is where the
+    // blooms are, and it had no idea which region it was in.
+    if (flowers !== undefined && ctx.rand() < flowers * 2) {
+      placeProp(ctx, makeFlower(ctx.rand, ctx.zone, col, row, zoneAt?.[row]?.[col]?.flowers))
+    }
   }
 }
 
@@ -2852,7 +2866,11 @@ function woodlandCanopyField(ctx: ArchetypeContext, open: Set<string>, canopy: n
  * meadow and the town use. `makeGroundDecor` returns null when the loaded tileset carries no decor for
  * the zone; that cell is then simply bare, which is the correct answer to missing data.
  */
-function dressWoodlandClearings(ctx: ArchetypeContext, open: Set<string>): void {
+function dressWoodlandClearings(
+  ctx: ArchetypeContext,
+  open: Set<string>,
+  zoneAt?: (GeneratorSubZone | undefined)[][],
+): void {
   const cover = ctx.nature?.groundCover
   const flowers = ctx.nature?.flowers
   if (cover === undefined && flowers === undefined) return
@@ -2860,7 +2878,8 @@ function dressWoodlandClearings(ctx: ArchetypeContext, open: Set<string>): void 
     const [c, r] = key.split(',').map(Number)
     if (!inBounds(c, r, ctx.cols, ctx.rows) || ctx.collision[r][c]) continue
     if (flowers !== undefined && ctx.rand() < flowers) {
-      placeProp(ctx, makeFlower(ctx.rand, ctx.zone, c, r))
+      // A clearing's blooms belong to the REGION it sits in, the same rule the jungle's gaps follow.
+      placeProp(ctx, makeFlower(ctx.rand, ctx.zone, c, r, zoneAt?.[r]?.[c]?.flowers))
       continue
     }
     if (cover === undefined || ctx.rand() >= cover) continue
