@@ -432,9 +432,9 @@ describe('the preview window shows the world to build, its size, and the options
     render(<GenerateControls {...p} />)
     fireEvent.change(kinds(), { target: { value: 'settlement' } })
     const peek = lastPeek(p.onPeek as jest.Mock)
-    expect(peek.variant).toBe('town') // the first settlement row is a traditional town
+    expect(peek.variant).toBe('town') // the first settlement KIND is a town
     expect(peek.variant).not.toBe('settlement') // which is not an archetype the engine builds
-    expect(peek).toMatchObject({ kind: 'stage', layout: 'traditional_town' })
+    expect(peek).toMatchObject({ kind: 'stage', layout: 'town' })
   })
 
   /**
