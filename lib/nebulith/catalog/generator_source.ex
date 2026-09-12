@@ -14,7 +14,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
     * grid ranges — `templates.tsx` `generateStageInEditor` (city 52-71 x 42-57, else 30-45 x 24-35)
     * cellSize / isoScale — `levels/village.ts` `VILLAGE_CONFIG`
     * settlement tuning — `engine/villageLayout.ts` (`PLAZA_SIZE`, `SETBACK`, `ROAD_W`, `LOT_GAP_BY`,
-      `MAX_PER_FRONTAGE`, `BUILDING_CAP`, `HOUSE_RANGE`, `BIG_RANGE`, `HOUSE_WIDTHS`)
+      `MAX_PER_FRONTAGE`, `BUILDING_CAP`, `HOUSE_RANGE`, `HOUSE_WIDTHS`)
     * natureMultiplier — `engine/stageGenerator.ts` `NATURE_MULT`
     * nature densities — `engine/stageGenerator.ts` nature pass (`scatterGroundCover` 0.12,
       `scatterFlowers` 0.06)
@@ -178,7 +178,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
   # different"*, and *"each settlement variation should have their own flavor and clear differences"*.
   #
   # He was right and the reason was in here: every look carried colours only, and the ROOF TILE is baked into
-  # the composition (`house_5` is slate, `house_4` and `big_house_6` are gables, `store_5` is a flat deck), so
+  # the composition (`house_5` is slate, `house_4` is a gable, `store_5` is a flat deck), so
   # no palette could change a roof's shape. `roof` names the body tile a residential building lays, and the
   # stamper swaps its cap with it. Four wall families exist (brick, plaster, stone, wood), so each look below
   # owns a DIFFERENT one, and the colours are pulled far apart rather than sitting a few percent from each other.
@@ -717,7 +717,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
         config: %{
           "grid" => @small_grid,
           "settlement" => settlement(plaza: 5, lot_gap: [1, 2], max_per_frontage: 6, cap: 18,
-                                     houses: [4, 6], big: [1, 3], nature_mult: 1.3,
+                                     houses: [4, 6], nature_mult: 1.3,
                                      mix: [{"temple", 1, 1}, {"church", 1, 1}, {"stable", 1, 2}, {"barn", 1, 2}, {"smithy", 1, 1}],
                                      streets: "path_stone"),
           "nature" => @outdoor_nature,
@@ -736,8 +736,8 @@ defmodule Nebulith.Catalog.GeneratorSource do
         config: %{
           "grid" => @city_grid,
           "settlement" => settlement(plaza: 7, lot_gap: [1, 1], max_per_frontage: 99, cap: 72,
-                                     houses: [7, 11], big: [3, 5], nature_mult: 0.5,
-                                     mix: [{"temple", 1, 1}, {"tower", 3, 5}, {"apartment", 4, 7}, {"office", 2, 4}],
+                                     houses: [7, 11], nature_mult: 0.5,
+                                     mix: [{"temple", 1, 1}, {"house", 2, 2}, {"tower", 3, 5}, {"apartment", 4, 7}, {"office", 2, 4}],
                                      streets: "road"),
           "nature" => @outdoor_nature,
           "units" => townsfolk(14),
@@ -757,7 +757,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
         description: "A handful of timber houses and green between every one of them.",
         config: %{
           "settlement" => %{
-            "buildingCap" => 12, "houseRange" => [3, 5], "bigHouseRange" => [0, 1], "natureMultiplier" => 1.8,
+            "buildingCap" => 12, "houseRange" => [3, 5], "natureMultiplier" => 1.8,
             "mix" => mix([{"church", 1, 1}, {"stable", 1, 1}, {"barn", 1, 1}])
           },
           "units" => townsfolk(5),
@@ -771,7 +771,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
         description: "Timber houses under the trees, joined by paths of stone.",
         config: %{
           "settlement" => %{
-            "buildingCap" => 14, "houseRange" => [4, 6], "bigHouseRange" => [0, 1], "natureMultiplier" => 2.4,
+            "buildingCap" => 14, "houseRange" => [4, 6], "natureMultiplier" => 2.4,
             "streets" => "path_stone",
             "mix" => mix([{"stable", 1, 1}, {"barn", 1, 2}, {"smithy", 1, 1}])
           },
@@ -825,7 +825,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
         description: "Wooden huts on boardwalks over a green flat.",
         config: %{
           "settlement" => %{
-            "plazaSize" => 3, "maxPerFrontage" => 4, "buildingCap" => 12, "bigHouseRange" => [0, 1],
+            "plazaSize" => 3, "maxPerFrontage" => 4, "buildingCap" => 12,
             "natureMultiplier" => 2.0, "streets" => "wooden_planks",
             # No barn and no stable: there is no pasture in a swamp and nothing to keep in one. Huts, and a
             # forge for the boats. Leaving the farm buildings in made this the forest village in other colours.
@@ -964,8 +964,10 @@ defmodule Nebulith.Catalog.GeneratorSource do
       "maxPerFrontage" => Keyword.fetch!(opts, :max_per_frontage),
       "buildingCap" => Keyword.fetch!(opts, :cap),
       "houseRange" => Keyword.fetch!(opts, :houses),
-      "bigHouseRange" => Keyword.fetch!(opts, :big),
-      "houseWidths" => [3, 3, 4, 4, 4, 5],
+      # A 6 IS IN HERE ON PURPOSE. It carries what `big_house` used to: its footprint was 6x4, and with the type
+      # deleted the wide silhouette would have quietly left every settlement. A weighted roll, so one frontage in
+      # seven is a wide house.
+      "houseWidths" => [3, 3, 4, 4, 4, 5, 6],
       "natureMultiplier" => Keyword.fetch!(opts, :nature_mult),
       "mix" => mix(Keyword.fetch!(opts, :mix)),
       # WHAT THIS PLACE PAVES ITS STREETS WITH. Alexander, 2026-09-11: *"a town doesn't have roads, it has
@@ -989,13 +991,18 @@ defmodule Nebulith.Catalog.GeneratorSource do
   # a church, stables, a barn and a smithy; a modern city asks for towers and apartment blocks.
   #
   # Store and hospital are not in the lists because every settlement has them: that pair is the guaranteed civic
-  # minimum and it was already true before this. Houses and big-houses are not here either, they are counted by
-  # `houseRange` / `bigHouseRange` above. What a row names is what makes it ITSELF.
+  # minimum and it was already true before this. Houses are not here either, they are counted by `houseRange`
+  # above, and a wide house is now just a house with a bigger footprint. What a row names makes it ITSELF.
   defp mix(entries) do
     # ONE ENTRY PER TYPE. A row that names a type the essentials already carry (a beach town wanting more than
     # one store) used to emit it twice, which reads as a mistake in the served data and makes the count hard to
     # see. The counts ADD instead, so the list says what it means: a seafront asks for two or three stores.
-    [{"store", 1, 1}, {"hospital", 1, 1} | entries]
+    # A HOUSE IS DEMANDED, not just filler. Measured when `big_house` was deleted: dropping its mix entry took
+    # 1-3 buildings out of every town and the frontages thinned to one plot per block, which the neighbourhood
+    # row test caught. `houseRange` looked like the place to put that count back and it was not: only
+    # `buildingMix` reads it and nothing calls `buildingMix`. The mix is what `placePlots` demands from, so the
+    # count lives here, beside the other two things every settlement has.
+    [{"store", 1, 1}, {"hospital", 1, 1}, {"house", 1, 3} | entries]
     |> Enum.reduce([], fn {type, lo, hi}, acc ->
       case Enum.find_index(acc, fn {t, _, _} -> t == type end) do
         nil -> acc ++ [{type, lo, hi}]

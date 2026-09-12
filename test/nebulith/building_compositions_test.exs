@@ -8,9 +8,9 @@ defmodule Nebulith.BuildingCompositionsTest do
 
   alias Nebulith.Catalog.BuildingCompositions
 
-  @all ~w(house_3 house_4 house_5 store_5 office_5 stone_building hospital_6 big_house_6 temple_8 cathedral_7 castle_12)
+  @all ~w(house_3 house_4 house_5 store_5 office_5 stone_building hospital_6 temple_8 cathedral_7 castle_12)
   # GABLE buildings pair a roof BODY + APEX in ONE material (one colour); flat-roof shops (store/office) are excluded.
-  @gable ~w(house_3 house_4 house_5 stone_building hospital_6 big_house_6 temple_8 cathedral_7 castle_12)
+  @gable ~w(house_3 house_4 house_5 stone_building hospital_6 temple_8 cathedral_7 castle_12)
   # The OLD per-level stacked cell counts (before the height-collapse rebuild) — the #30 win is measured against them.
   @old_cell_counts %{
     "house_3" => 56,
@@ -20,7 +20,6 @@ defmodule Nebulith.BuildingCompositionsTest do
     "office_5" => 122,
     "stone_building" => 92,
     "hospital_6" => 112,
-    "big_house_6" => 112,
     "temple_8" => 176,
     "cathedral_7" => 155,
     "castle_12" => 396
@@ -585,7 +584,7 @@ defmodule Nebulith.BuildingCompositionsContextTest do
     end
 
     # the material, showing: you are meant to SEE the planks and the courses
-    for type <- ~w(house big_house barn stable smithy store) do
+    for type <- ~w(house barn stable smithy store) do
       {plain, tiled} = surface.(type)
       assert tiled > 0 and plain == 0, "#{type} should show its material, got plain=#{plain} tiled=#{tiled}"
     end

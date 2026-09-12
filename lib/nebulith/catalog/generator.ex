@@ -23,9 +23,8 @@ defmodule Nebulith.Catalog.Generator do
           "lotGap" => [1, 2],              # side-yard cells between neighbours (min/max)
           "maxPerFrontage" => 6,
           "buildingCap" => 18,
-          "houseRange" => [4, 6],          # how many plain houses the mix guarantees
-          "bigHouseRange" => [1, 3],
-          "houseWidths" => [3, 3, 4, 4, 4, 5],  # WEIGHTED roll; the sizes themselves are composition data
+          "houseRange" => [4, 6],          # read by buildingMix only; the mix is what demands houses
+          "houseWidths" => [3, 3, 4, 4, 4, 5, 6],  # WEIGHTED roll; the sizes themselves are composition data
           "natureMultiplier" => 1.15       # a town is leafy, a city is paved
         },
         "nature" => %{"groundCover" => 0.12, "flowers" => 0.06},

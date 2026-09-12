@@ -53,7 +53,7 @@ defmodule Nebulith.Catalog.BuildingCompositions do
   # Per-composition TYPE-SPECIFIC tile remaps — today ONLY store's apex badge. Every building is now box-BUILT
   # (house/store/office/stone_building/civic), so each emits its material + roof pieces DIRECTLY from the facade
   # and carries NO wall/roof remap here — that includes hospital (plaster walls + green gable passed straight to
-  # `house/3`) and big_house/temple/cathedral/castle. store keeps only its blue apex-sign badge: `flat_roof`
+  # `house/3`) and temple/cathedral/castle. store keeps only its blue apex-sign badge: `flat_roof`
   # emits a generic `roof_top` crown, which we SWAP to `roof_top_store`. Everything unlisted keeps its tile.
   @type_tiles %{
     "store_5" => %{"roof_top" => "roof_top_store"}
@@ -137,7 +137,6 @@ defmodule Nebulith.Catalog.BuildingCompositions do
       roof: :gable,
       default: {4, 4}
     },
-    "big_house" => %{materials: ["wall_brick"], roof: :gable, default: {6, 4}},
     "hospital" => %{
       materials: ["wall_plaster"],
       roof: {:gable, "roof_hospital", "roof_top_hospital"},
@@ -366,7 +365,7 @@ defmodule Nebulith.Catalog.BuildingCompositions do
   # a different width, wall family and height.
   #
   # He was right, and it was measurable: fifteen types produced EIGHT distinct shapes, with
-  # apartment == office, barn == big_house == stable, and castle == cathedral == church == manor == temple.
+  # apartment == office, barn == stable, and castle == cathedral == church == manor == temple.
   # Every one was the same perimeter box of wall, door, window and a roof pair.
   #
   # These flags change the SHAPE, out of tiles that already exist (`post`, `pillar`, `parapet`), so nothing
@@ -722,10 +721,13 @@ defmodule Nebulith.Catalog.BuildingCompositions do
       # spaced grid instead of a solid band. Its identity rides in as builder args: plaster walls + a green
       # gable (roof_hospital / roof_top_hospital); the "Hospital" apex badge stays via @titles.
       "hospital_6" => compose_building("hospital", 6, 4),
-      # Big civic buildings — box-built like the houses so their windows are a symmetric spaced grid.
-      # WIDTH from the name; h/wall_top preserve each one's authored footprint + height. big_house = brick +
-      # red gable; temple/cathedral/castle = stone + slate.
-      "big_house_6" => compose_building("big_house", 6, 4),
+      # Big civic buildings, box-built like the houses so their windows are a symmetric spaced grid. WIDTH from
+      # the name; h/wall_top preserve each one's authored footprint + height. temple/cathedral/castle = stone
+      # and slate.
+      #
+      # `big_house_6` USED TO BE HERE. Alexander, 2026-09-12: *"per biome, and delete big_house"*, after
+      # measuring it against `house`: same parts, same wall height, same roof, wider by two cells. A wide house
+      # is a house with a bigger footprint, and footprints are composed on demand, so the type earned nothing.
       "temple_8" => compose_building("temple", 8, 4),
       "cathedral_7" => compose_building("cathedral", 7, 5),
       "castle_12" => compose_building("castle", 12, 6)
