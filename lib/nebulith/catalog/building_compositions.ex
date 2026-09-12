@@ -46,6 +46,10 @@ defmodule Nebulith.Catalog.BuildingCompositions do
   9-slice `scaleY` piers (#30).
   """
 
+  # THE SOLID BLOCK a coloured wall is painted on. `wall` is height 1 and carries a per-zone colour, exactly
+  # like the floor tile the meadow paints its ground with, so a facade built from it is colour and nothing else.
+  @plain_wall "wall"
+
   # Per-composition TYPE-SPECIFIC tile remaps — today ONLY store's apex badge. Every building is now box-BUILT
   # (house/store/office/stone_building/civic), so each emits its material + roof pieces DIRECTLY from the facade
   # and carries NO wall/roof remap here — that includes hospital (plaster walls + green gable passed straight to
@@ -137,6 +141,7 @@ defmodule Nebulith.Catalog.BuildingCompositions do
     "hospital" => %{
       materials: ["wall_plaster"],
       roof: {:gable, "roof_hospital", "roof_top_hospital"},
+      walls: :ornament,
       title: "Hospital",
       default: {6, 4}
     },
@@ -158,13 +163,14 @@ defmodule Nebulith.Catalog.BuildingCompositions do
     "office" => %{
       materials: ["wall_stone"],
       roof: {:flat, []},
+      walls: :plain,
       # The office is authored taller than its width implies — it is the "apartment block" of the set.
       wall_top_bonus: 2,
       default: {5, 5}
     },
-    "temple" => %{materials: ["wall_stone"], roof: {:gable, "roof_slate", "roof_top_slate"}, portico: true, default: {8, 4}},
-    "cathedral" => %{materials: ["wall_stone"], roof: {:gable, "roof_slate", "roof_top_slate"}, aisles: true, default: {7, 5}},
-    "castle" => %{materials: ["wall_stone"], roof: {:gable, "roof_slate", "roof_top_slate"}, wide_door: true, default: {12, 6}},
+    "temple" => %{materials: ["wall_stone"], roof: {:gable, "roof_slate", "roof_top_slate"}, portico: true, walls: :ornament, default: {8, 4}},
+    "cathedral" => %{materials: ["wall_stone"], roof: {:gable, "roof_slate", "roof_top_slate"}, aisles: true, walls: :ornament, default: {7, 5}},
+    "castle" => %{materials: ["wall_stone"], roof: {:gable, "roof_slate", "roof_top_slate"}, wide_door: true, walls: :ornament, default: {12, 6}},
 
     # ── THE THINGS THAT MAKE A PLACE A PLACE ────────────────────────────────────────────────────────
     # Alexander, 2026-09-11: *"all you did was change colors, when everything should've changed like having
@@ -203,6 +209,7 @@ defmodule Nebulith.Catalog.BuildingCompositions do
       wall_top_bonus: 2,
       # A nave with a TOWER at one end, which is what tells a church from any other hall.
       tower_bay: true,
+      walls: :ornament,
       title: "Church",
       default: {6, 5}
     },
@@ -211,6 +218,7 @@ defmodule Nebulith.Catalog.BuildingCompositions do
       roof: {:gable, "roof_slate", "roof_top_slate"},
       wall_top_bonus: 1,
       porch: true,
+      walls: :ornament,
       # A tall centre block between two lower WINGS, the shape a manor has and a big house does not.
       wings: true,
       title: "Manor",
@@ -219,6 +227,7 @@ defmodule Nebulith.Catalog.BuildingCompositions do
     "apartment" => %{
       materials: ["wall_plaster"],
       roof: {:flat, []},
+      walls: :plain,
       # The block a modern city is made of: taller than the office, and nothing but windows.
       wall_top_bonus: 4,
       window_levels: :every_course,
@@ -228,6 +237,7 @@ defmodule Nebulith.Catalog.BuildingCompositions do
     "tower" => %{
       materials: ["wall_stone"],
       roof: {:flat, crown: :all},
+      walls: :plain,
       # His skyscraper. Narrow footprint, and the height comes from the bonus rather than the width.
       wall_top_bonus: 8,
       title: "Tower",
@@ -380,6 +390,7 @@ defmodule Nebulith.Catalog.BuildingCompositions do
     portico? = Map.get(spec, :portico, false)
     porch? = Map.get(spec, :porch, false)
     aisles? = Map.get(spec, :aisles, false)
+    walls = Map.get(spec, :walls, :tiled)
     door_col = div(w, 2)
 
     fn dx, dy, level ->
@@ -403,8 +414,14 @@ defmodule Nebulith.Catalog.BuildingCompositions do
         front and porch? and abs(dx - door_col) == 1 -> "pillar"
         flank and aisles? and rem(dy, 2) == 1 -> "pillar"
         glazed_face and window?(dx, w) and level in win_levels -> "window"
-        front -> material_piece(mat, dx, level, w, top_at.(dx))
-        true -> "#{mat}_c"
+        front -> wall_piece(walls, mat, dx, level, w, top_at.(dx))
+        walls == :tiled -> "#{mat}_c"
+        # A DRESSED building is dressed all the way round: a plinth on the ground course and a cornice at the
+        # top, on the back and the sides too. In iso you see a front AND a side, so dressing only the front
+        # left half of every civic building in bare colour. The temple showed it plainly: its portico takes the
+        # front, so nothing else was ever dressed at all.
+        walls == :ornament and (level == 0 or level == top_at.(dx)) -> "#{mat}_c"
+        true -> @plain_wall
       end
     end
   end
@@ -622,6 +639,35 @@ defmodule Nebulith.Catalog.BuildingCompositions do
     # a plain box, so every column has the same top.
     assemble(w, h, fn _dx -> wall_top end, doors, facade, gable_roof(w, h, wall_top))
   end
+
+  # ── A WALL NEED NOT BE A TILE ────────────────────────────────────────────────────────────────────
+  #
+  # Alexander, 2026-09-11: *"for the walls, we're using tiles wrong, just like roads, we should variate it,
+  # somne buildings can be build only with colored walls, no tile / others can have tiles, others can use tiles
+  # as ornaments"*.
+  #
+  # This is the ROAD decision applied to a facade. A road stopped being a tile and became a colour on the
+  # ground block (#34/#48), and a wall can do the same. So a building states how its walls are made:
+  #
+  #   · `:plain`    every wall cell is the solid block; the palette's colour does all the work. A modern block
+  #                 of flats is flat panels, not masonry.
+  #   · `:tiled`    the 9-slice material family, as it has always been. The default, and what timber and brick
+  #                 want, because the point of them is that you SEE the planks and the courses.
+  #   · `:ornament` a plain field DRESSED with the material's pieces only where a mason would dress stone: the
+  #                 corners, the ground course and the top course.
+  #
+  # This is also the answer to *"there's no difference between medieval city and regular town"*: a town is
+  # tiled timber, a medieval city is dressed stone, a modern city is flat colour. Three different surfaces
+  # before a single new tile is authored.
+  defp wall_piece(:plain, _mat, _dx, _level, _w, _top), do: @plain_wall
+
+  defp wall_piece(:ornament, mat, dx, level, w, top) do
+    if dx == 0 or dx == w - 1 or level == 0 or level == top,
+      do: material_piece(mat, dx, level, w, top),
+      else: @plain_wall
+  end
+
+  defp wall_piece(_tiled, mat, dx, level, w, top), do: material_piece(mat, dx, level, w, top)
 
   # The autotile piece for a FRONT-FACE cell of a wall MATERIAL — `dx` runs along the facade, `level` up the
   # wall — the SAME 9-piece scheme the fountain rim uses, applied to the front-elevation rectangle (corners at

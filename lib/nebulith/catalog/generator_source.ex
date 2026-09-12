@@ -687,11 +687,17 @@ defmodule Nebulith.Catalog.GeneratorSource do
         config: %{
           "settlement" => %{
             "plazaSize" => 3, "maxPerFrontage" => 4, "buildingCap" => 12, "bigHouseRange" => [0, 1],
-            "natureMultiplier" => 1.6, "streets" => "wooden_planks",
+            "natureMultiplier" => 2.0, "streets" => "wooden_planks",
             # No barn and no stable: there is no pasture in a swamp and nothing to keep in one. Huts, and a
             # forge for the boats. Leaving the farm buildings in made this the forest village in other colours.
             "mix" => mix([{"smithy", 1, 1}])
           },
+          # CHOKED, not lawn. Alexander, 2026-09-11: *"a swamp town should have rivers, be more jungle like,
+          # have houses made of wood"*. The wood it already had. This is the jungle half: undergrowth to the
+          # doorstep and trees pressing in, the same numbers that separate a jungle from a woodland.
+          # The RIVERS it wants are the one part that cannot be served yet, because a settlement generator
+          # places no water at all. That is the same blocker as the swamp city and the lake city.
+          "nature" => %{"groundCover" => 0.45, "flowers" => 0.08, "tallGrass" => 0.3},
           "units" => townsfolk(6),
           "buildings" => %{
             "materials" => ["wall_wood"],

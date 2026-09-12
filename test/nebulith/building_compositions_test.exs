@@ -456,8 +456,15 @@ defmodule Nebulith.BuildingCompositionsContextTest do
     Buildings.compose_building(type, w, h, seed: 1)
   end
 
+  # A WALL IS A WALL, plain or tiled. This filtered on `wall_` alone, so a `:plain` building (whose facade is
+  # the solid `wall` block with the colour doing the work) had NO matching cells and measured 0: a tower with
+  # eleven blocks of wall reported none at all. The frontend's `isWallLabel` had the identical blind spot for
+  # the identical reason, and fixing one without the other would have left the tests disagreeing with the
+  # render about what a wall is.
   defp wall_height(type) do
-    composed(type).cells |> Enum.filter(&String.starts_with?(&1.label, "wall_")) |> top()
+    composed(type).cells
+    |> Enum.filter(&(&1.label == "wall" or String.starts_with?(&1.label, "wall_")))
+    |> top()
   end
 
   defp peak(type), do: composed(type).cells |> top()
@@ -558,6 +565,36 @@ defmodule Nebulith.BuildingCompositionsContextTest do
     assert length(tower_roofs) == 1
     nave_peak = roofs |> Enum.reject(&(&1.dx == tower_dx)) |> Enum.map(&(&1.level + (get_in(&1, [:settings, "scaleY"]) || 1) - 1)) |> Enum.max()
     assert hd(tower_roofs).level > nave_peak
+  end
+
+  test "a wall is plain colour, tiled material, or a plain field dressed with it" do
+    # Alexander, 2026-09-11: *"for the walls, we're using tiles wrong, just like roads, we should variate it,
+    # somne buildings can be build only with colored walls, no tile / others can have tiles, others can use
+    # tiles as ornaments"*. This is the road decision applied to a facade, and it is what makes a modern city,
+    # a medieval city and a timber town three different surfaces before any new tile exists.
+    surface = fn type ->
+      {w, h} = Buildings.default_footprint(type)
+      labels = Buildings.compose_building(type, w, h, seed: 1).cells |> Enum.map(& &1.label)
+      {Enum.count(labels, &(&1 == "wall")), Enum.count(labels, &String.starts_with?(&1, "wall_"))}
+    end
+
+    # flat colour and nothing else: the city's blocks and towers
+    for type <- ~w(apartment office tower) do
+      {plain, tiled} = surface.(type)
+      assert plain > 0 and tiled == 0, "#{type} should be flat colour, got plain=#{plain} tiled=#{tiled}"
+    end
+
+    # the material, showing: you are meant to SEE the planks and the courses
+    for type <- ~w(house big_house barn stable smithy store) do
+      {plain, tiled} = surface.(type)
+      assert tiled > 0 and plain == 0, "#{type} should show its material, got plain=#{plain} tiled=#{tiled}"
+    end
+
+    # a plain field DRESSED with the material, on every face
+    for type <- ~w(church cathedral castle manor hospital temple) do
+      {plain, tiled} = surface.(type)
+      assert plain > 0 and tiled > 0, "#{type} should be dressed, got plain=#{plain} tiled=#{tiled}"
+    end
   end
 
   test "a town's things are timber and a city's are not" do
