@@ -570,7 +570,8 @@ defmodule Nebulith.Catalog.GeneratorSource do
           "grid" => @small_grid,
           "settlement" => settlement(plaza: 5, lot_gap: [1, 2], max_per_frontage: 6, cap: 18,
                                      houses: [4, 6], big: [1, 3], nature_mult: 1.3,
-                                     mix: [{"temple", 1, 1}, {"church", 1, 1}, {"stable", 1, 2}, {"barn", 1, 2}, {"smithy", 1, 1}]),
+                                     mix: [{"temple", 1, 1}, {"church", 1, 1}, {"stable", 1, 2}, {"barn", 1, 2}, {"smithy", 1, 1}],
+                                     streets: "path_stone"),
           "nature" => @outdoor_nature,
           "units" => townsfolk(8),
           "buildings" => Map.merge(@building_palette, %{
@@ -588,7 +589,8 @@ defmodule Nebulith.Catalog.GeneratorSource do
           "grid" => @city_grid,
           "settlement" => settlement(plaza: 7, lot_gap: [1, 1], max_per_frontage: 99, cap: 72,
                                      houses: [7, 11], big: [3, 5], nature_mult: 0.5,
-                                     mix: [{"temple", 1, 1}, {"tower", 3, 5}, {"apartment", 4, 7}, {"office", 2, 4}]),
+                                     mix: [{"temple", 1, 1}, {"tower", 3, 5}, {"apartment", 4, 7}, {"office", 2, 4}],
+                                     streets: "road"),
           "nature" => @outdoor_nature,
           "units" => townsfolk(14),
           "buildings" => Map.merge(@building_palette, %{
@@ -607,7 +609,8 @@ defmodule Nebulith.Catalog.GeneratorSource do
           "grid" => @small_grid,
           "settlement" => settlement(plaza: 3, lot_gap: [1, 2], max_per_frontage: 4, cap: 12,
                                      houses: [4, 6], big: [0, 1], nature_mult: 1.6,
-                                     mix: [{"temple", 1, 1}, {"stable", 1, 2}, {"barn", 1, 2}, {"smithy", 1, 1}]),
+                                     mix: [{"temple", 1, 1}, {"stable", 1, 2}, {"barn", 1, 2}, {"smithy", 1, 1}],
+                                     streets: "wooden_planks"),
           "nature" => @outdoor_nature,
           "units" => townsfolk(6),
           "buildings" => Map.merge(@building_palette, %{
@@ -708,7 +711,15 @@ defmodule Nebulith.Catalog.GeneratorSource do
       "bigHouseRange" => Keyword.fetch!(opts, :big),
       "houseWidths" => [3, 3, 4, 4, 4, 5],
       "natureMultiplier" => Keyword.fetch!(opts, :nature_mult),
-      "mix" => mix(Keyword.fetch!(opts, :mix))
+      "mix" => mix(Keyword.fetch!(opts, :mix)),
+      # WHAT THIS PLACE PAVES ITS STREETS WITH. Alexander, 2026-09-11: *"a town doesn't have roads, it has
+      # pathways of stone, cities do have pathways a skycraoppers"*.
+      #
+      # Measured before writing this: the settlement pass painted every street `road` for a town and a city
+      # alike, so a village had asphalt through it. A street is a COLOUR on the ground block, not a tile
+      # (tickets #34/#48), so this names the ground whose colour a street takes. Every label here is one both
+      # tilesets already carry, so no place is asking for art that does not exist.
+      "streets" => Keyword.fetch!(opts, :streets)
     }
   end
 

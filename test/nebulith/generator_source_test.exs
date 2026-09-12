@@ -336,7 +336,8 @@ defmodule Nebulith.GeneratorSourceTest do
                  %{"type" => "stable", "count" => [1, 2]},
                  %{"type" => "barn", "count" => [1, 2]},
                  %{"type" => "smithy", "count" => [1, 1]}
-               ]
+               ],
+               "streets" => "path_stone"
              }
 
       city = generator(cats, "settlement", "city_modern").config["settlement"]
@@ -353,9 +354,7 @@ defmodule Nebulith.GeneratorSourceTest do
       # was change colors, when everything should've changed like having different types of settlements implies
       # having different objects"*, and *"cities have more skycrappers, towns have more houses"*.
       places =
-        for row <- Nebulith.Catalog.GeneratorSource.generators(),
-            row.category == "settlement",
-            into: %{} do
+        for row <- by_key(cats)["settlement"].generators, into: %{} do
           {row.key, get_in(row.config, ["settlement", "mix"]) |> Enum.map(& &1["type"])}
         end
 
@@ -383,6 +382,27 @@ defmodule Nebulith.GeneratorSourceTest do
 
       # The modern city is the tall one, which is the difference he named first.
       assert "tower" in places["city_modern"]
+    end
+
+    test "a town paves with stone and a city with road", %{categories: cats} do
+      # Alexander, 2026-09-11: *"a town doesn't have roads, it has pathways of stone, cities do have pathways a
+      # skycraoppers"*. Every street used to be painted `road` whatever the place was.
+      streets =
+        for row <- by_key(cats)["settlement"].generators, into: %{} do
+          {row.key, get_in(row.config, ["settlement", "streets"])}
+        end
+
+      assert streets["town_traditional"] == "path_stone"
+      assert streets["city_modern"] == "road"
+      refute streets["town_traditional"] == streets["city_modern"]
+
+      # Nothing may ask for a ground the tilesets do not carry, or the street paints as nothing at all.
+      real = ~w(road road_center road_edge path_stone path_dirt cobblestone snow_path desert_road bridge
+                wooden_planks courtyard_stone plaza marble)
+
+      for {key, ground} <- streets do
+        assert ground in real, "#{key} paves with #{inspect(ground)}, which no tileset carries"
+      end
     end
 
     test "units: settlements scatter townsfolk, dungeons scatter their own enemies", %{categories: cats} do
