@@ -251,12 +251,30 @@ describe('water by depth: wade the shallows, the rest blocks', () => {
     expect(regionSizes(s, deckCells(s)).filter(n => n > 40).length).toBeGreaterThanOrEqual(2)
   })
 
-  it('paints each band from the served palette: shallow light, deep dark', () => {
+  /**
+   * ONE SURFACE COLOUR for the whole channel.
+   *
+   * Alexander, 2026-09-12, with his reference image: *"top is one color and bottom is another color, but
+   * consistent, not different currents, nor different colors mixed"*, after *"we need to use the tiles
+   * consistently, right now water tiles is far from consistent making it look random"*.
+   *
+   * THIS REPLACES what this case used to pin (shallow light, deep dark), which came from his 2026-09-11
+   * *"I only want light blue for walkable water, different layers of darkblue for the deeper waters"*. The
+   * newer instruction wins, and the measurement says why: one seed-2 `divides` river carried `#4f93b3`,
+   * `#8ccbe8` and `#2a5f8a` at once. All three bands draw the SAME picture, because a floor resolves its art
+   * through `groundKind`, which collapses every water label to `water`. So the three tones were three tints on
+   * one tile, never three kinds of water.
+   *
+   * The assertion is DIFFERENTIAL on purpose: the bands must still be MORE than one (they carry the label and
+   * decide what you can wade) while the tones must be exactly one. Collapsing the bands themselves, the wrong
+   * fix, would fail the first expectation rather than quietly pass.
+   */
+  it('paints the WHOLE channel one served tone, whatever the band', () => {
     const pal = findGenerator(CATALOG, 'forest', 'woodland')!.config.palette!
     const s = grow('woodland', 'divides', 2)
-    const tone = (label: string) => new Set(waterCells(s).filter(([c, r]) => s.ground[r][c] === label).map(([c, r]) => s.floorColors[r][c]))
-    expect([...tone('water_shallow')]).toEqual([pal.waterShallow])
-    expect([...tone('water_deep')]).toEqual([pal.waterDeep])
+    const channel = waterCells(s).filter(([c, r]) => !(pal.swamp && s.floorColors[r][c] === pal.swamp))
+    expect([...new Set(channel.map(([c, r]) => s.floorColors[r][c]))]).toEqual([pal.water])
+    expect(new Set(channel.map(([c, r]) => s.ground[r][c])).size).toBeGreaterThan(1)
   })
 
   /**

@@ -26,13 +26,15 @@ import {
   spriteFrameIndex,
   type AnimatedSetting,
   type AnimatedSettingsDetailed,
+  type Animation,
   type SettingKey,
   type SpriteAnimation,
   type TileStyle,
   type TileView,
 } from '@/engine/animation/tileAnimation'
 import { resolveFrame, type ResolvedFrame } from '@/game/runtime/entityAnimation'
-import type { Style } from '@/game/artStyle'
+import { assetKind, type Style } from '@/game/artStyle'
+import { styleTile } from '@/engine/tileset/styleTiles'
 import type { DayNight } from './shared'
 
 /** The live animation effect applied to ONE placed asset for ONE frame in ONE view. */
@@ -78,9 +80,9 @@ export function spriteFrame(
   view: TileView,
   dayNight: DayNight,
 ): ResolvedFrame | null {
-  const animations = asset.animations
-  if (!animations || animations.length === 0) return null
   const token = styleToken(style)
+  const animations = asset.animations ?? tileAnimations(asset, token)
+  if (!animations || animations.length === 0) return null
   // The SAME gate the settings path uses, so a sprite obeys scope and the night trigger identically.
   const sprites = animations.filter(
     anim => anim.kind === 'sprite' && animationMatchesScope(anim, token, view) && animationPlaysAtDayNight(anim, dayNight),
@@ -100,6 +102,33 @@ export function spriteFrame(
 /** Map a render `Style` to the pure engine's scope token — only ascii/emoji exist as tile styles. */
 function styleToken(style: Style): TileStyle {
   return style.id === 'emoji' ? 'emoji' : 'ascii'
+}
+
+/**
+ * THE ANIMATIONS THAT APPLY TO AN ASSET: its own, else the ones its TILE ROW carries.
+ *
+ * `asset.animations` is written in exactly three places: the editor's inspector, the composition stamp
+ * (`composition.ts`, copying a CELL's authored animations) and copy/paste. A GENERATED floor is none of those,
+ * so a water tile seeded with an animation animated NOTHING: the envelope never reached the asset. Measured by
+ * grepping every writer, after seeding an animation onto the water row and finding no reader for it at all.
+ *
+ * Height went the same way and was fixed the same way. `makeFloorAsset` states the principle in its own
+ * comment: a floor pins no height because "its height is the TILE's own setting, served by the backend …
+ * Pinning it here made the floor special again and, worse, put the value somewhere that never persists." An
+ * animation is a fact about the tile for exactly the same reason, so it is READ here rather than stamped onto
+ * every one of a lake's floor assets (which would also duplicate the envelope thousands of times per map).
+ *
+ * The lookup key MIRRORS how the draw picks the picture: a labeled cell by its label, everything else by its
+ * kind (`assetKind`, which for a floor is `groundKind(tileKey)`, so all three water bands resolve the one
+ * `water` row, the same row they already take their image from). A tile therefore animates through the same
+ * identity it is drawn through. `settings` arrives verbatim from the backend (`tilesetLoader` ends its per-tile
+ * map with `settings: absoluteFrames(tile.settings)`), so this reads served data and invents nothing.
+ */
+function tileAnimations(asset: GridAsset, token: TileStyle): readonly Animation[] | undefined {
+  const key = asset.label ?? assetKind(asset)
+  const settings = styleTile(token, key)?.settings as { animations?: readonly Animation[] } | undefined
+  const animations = settings?.animations
+  return Array.isArray(animations) && animations.length > 0 ? animations : undefined
 }
 
 /** A `night`-triggered animation is a CONDITION, not a one-shot: it plays ONLY while the scene is in night
@@ -163,9 +192,12 @@ export function resolveAssetAnimation(
   view: TileView,
   dayNight: DayNight = 'day',
 ): AssetAnimationFx | null {
-  const animations = asset.animations
-  if (!animations || animations.length === 0) return null
   const token = styleToken(style)
+  // A tile's OWN animations when the asset carries none (see tileAnimations): this is what lets a served
+  // `opacity` track reach a generated floor, which is how water becomes semi-transparent without a second
+  // alpha mechanism. `opacity` is already applied unconditionally by every caller (`op *= anim.opacity`).
+  const animations = asset.animations ?? tileAnimations(asset, token)
+  if (!animations || animations.length === 0) return null
   const active = animations.filter(anim => animationMatchesScope(anim, token, view) && animationPlaysAtDayNight(anim, dayNight))
   if (active.length === 0) return null
   const values = resolveAnimatedSettingsDetailed(active, nowMs, asset.placedAt ?? 0)

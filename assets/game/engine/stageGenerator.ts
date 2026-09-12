@@ -38,7 +38,7 @@ import {
 } from './zones'
 // Re-exported so the generator keeps its public tree-shape type (backend palette data now owns it).
 export type { LivingTreeKind } from './zones'
-import { type CellLabel } from './cellLabels'
+import { autotilePosition, type CellLabel } from './cellLabels'
 import { resolveTile, resolveComposition, canopyCount, pickGroundDecor, type TileDisplay } from './tileset/tileset'
 import { groundKind } from '@/game/artStyle'
 import { resolveTileHeight } from './tileset/tileHeight'
@@ -633,18 +633,56 @@ const isWaterGround = (g: string | undefined): boolean => !!g && (WATER_LIKE.has
 const isLandCell = (ctx: ArchetypeContext, col: number, row: number): boolean =>
   inBounds(col, row, ctx.cols, ctx.rows) && !isWaterGround(ctx.ground[row][col])
 
-function edgeDecor(zone: ZoneId, neighbourType: string, col: number, row: number): StageProp | null {
+function edgeDecor(neighbourType: string, col: number, row: number): StageProp | null {
   // ANY water, not the four names in WATER_LIKE. The depth pass renames a cell `water_shallow` or `water_deep`,
   // so a deep pool used to border the land with no shoreline at all, which is half of why his swamp read as
   // *"really really confusing"*: nothing marked where the water began.
-  if (isWaterGround(neighbourType)) {
-    const frost = zone === 'winter' || neighbourType === 'ice_water'
-    return { col, row, type: 'shore', char: frost ? '∼' : '≈', blocking: false, color: frost ? '#bfe6f5' : '#6fb7d8' }
-  }
+  // WATER IS A REAL TILE NOW. It used to return a single `≈` prop with a hardcoded colour whichever side the
+  // water was on; `shorePiece` picks one of the 8 baked edge/corner pieces instead. Lava keeps its ember.
+  if (isWaterGround(neighbourType)) return null
   if (LAVA_LIKE.has(neighbourType)) {
     return { col, row, type: 'ember', char: '▒', blocking: false, color: '#d2691e' }
   }
   return null
+}
+
+/**
+ * THE SHORELINE, as real tiles instead of a character.
+ *
+ * Alexander, 2026-09-12: *"you usually need border and animation"*. These are the 8 baked edge and corner
+ * pieces (`shore_*`, named the way `canopy_*` and `wall_stone_*` already are), picked by the SAME 9-piece
+ * autotile scheme trees and buildings use, so a bank reads as a bank and a corner reads as a corner.
+ *
+ * There is no `_c` piece: the centre of water is the water tile itself, so a land cell with water on no side
+ * is not a shore at all.
+ */
+const SHORE_SUFFIX: Readonly<Record<string, string>> = {
+  'TOP-LEFT': 'tl', TOP: 't', 'TOP-RIGHT': 'tr',
+  LEFT: 'l', RIGHT: 'r',
+  'BOTTOM-LEFT': 'bl', BOTTOM: 'b', 'BOTTOM-RIGHT': 'br',
+}
+
+/**
+ * The shore piece for a LAND cell that touches water, or null when it touches none.
+ *
+ * The LAND is the autotile mass, so an OPEN side is where the water is and the piece faces it. Out of bounds
+ * counts as LAND on purpose: off-map is not water, and treating it as open made a map-edge cell pick a corner
+ * piece with no water anywhere near it.
+ *
+ * It goes out as `ground_decor` carrying the piece's LABEL, which is the seam that draws a flat overlay sheared
+ * onto the ground diamond and resolves its baked image per active style (`groundDecorImage`). A labelled prop of
+ * any other type would take the labelled-tile path and stand a BLOCK up on the bank.
+ */
+function shorePiece(ctx: ArchetypeContext, col: number, row: number): StageProp | null {
+  const { ground, cols, rows, zone } = ctx
+  const wet = (c: number, r: number): boolean => inBounds(c, r, cols, rows) && isWaterGround(ground[r][c])
+  if (!ORTHO.some(([dc, dr]) => wet(col + dc, row + dr))) return null
+  const notWater = (c: number, r: number): boolean => !inBounds(c, r, cols, rows) || !isWaterGround(ground[r][c])
+  const suffix = SHORE_SUFFIX[autotilePosition(notWater, col, row)]
+  if (!suffix) return null // INTERIOR: no open side, so there is no edge to draw
+  // Frost keeps the winter look the character version had, as a per-cell COLOUR the render reads.
+  const icy = ORTHO.some(([dc, dr]) => inBounds(col + dc, row + dr, cols, rows) && ground[row + dr][col + dc] === 'ice_water')
+  return { col, row, type: 'ground_decor', char: '', label: `shore_${suffix}`, blocking: false, color: zone === 'winter' || icy ? '#bfe6f5' : '#eaf8ff' }
 }
 
 /** Stamp blended edges on land cells bordering water/lava. Non-blocking; never
@@ -658,11 +696,18 @@ function addTerrainTransitions(ctx: ArchetypeContext): void {
       const here = ground[row][col]
       if (isWaterGround(here) || LAVA_LIKE.has(here)) continue // decorate LAND only, whatever depth the water is
       if (collision[row][col] || occupied.has(`${col},${row}`)) continue
+      // WATER first, as a positioned piece read from all four neighbours rather than the first one found.
+      const shore = shorePiece(ctx, col, row)
+      if (shore) {
+        edges.push(shore)
+        occupied.add(`${col},${row}`)
+        continue
+      }
       for (const [dc, dr] of ORTHO) {
         const c = col + dc
         const r = row + dr
         if (!inBounds(c, r, cols, rows)) continue
-        const decor = edgeDecor(zone, ground[r][c], col, row)
+        const decor = edgeDecor(ground[r][c], col, row)
         if (decor) {
           edges.push(decor)
           occupied.add(`${col},${row}`)
@@ -1419,8 +1464,10 @@ export function resolveRiverCourse(value: GeneratorOptionValue | undefined, lega
 function carveRiver(ctx: ArchetypeContext, course: RiverCourse, pal: GeneratorPalette | undefined): Set<string> {
   if (course === 'around') {
     const water = paintMeadowRiver(ctx)
-    // A template that serves its own water colour wears it here too, not the meadow's blue.
-    if (pal?.water) for (const key of water) { const { col, row } = toCell(key); ctx.floorColors[row][col] = varyIntensity(pal.water, 0.44) }
+    // A template that serves its own water colour wears it here too, not the meadow's blue. THE TONE, FLAT:
+    // this used to pass it through `varyIntensity(…, 0.44)`, which is not a no-op (it darkens ~4%), so a
+    // perimeter river came out a slightly different blue from a carved one. One water colour, everywhere.
+    if (pal?.water) for (const key of water) { const { col, row } = toCell(key); ctx.floorColors[row][col] = pal.water }
     digChannel(ctx, water) // the one course that does not come through carveChannel
     return water
   }
@@ -2205,7 +2252,10 @@ function floodSwampPools(ctx: ArchetypeContext, zoneAt: (GeneratorSubZone | unde
     // elevation, which is what makes a river something you go around. A pool sits AT ground level, so the map
     // said walkable and the collision grid said otherwise. The river keeps its bands (see settleWaterDepth);
     // this stamps a wet floor and nothing more.
-    if (pal?.water) floorColors[row][col] = varyIntensity(pal.water, 0.4)
+    // The SAME water colour a channel wears. `varyIntensity(…, 0.4)` darkened it ~6%, so a puddle sat beside a
+    // river in a near-but-not-quite blue, one more of the mixed colours he flagged. A SWAMP pool is the one
+    // pool that legitimately differs (the served blue-green, applied by settleWaterDepth).
+    if (pal?.water) floorColors[row][col] = pal.water
   }
   return pools
 }
@@ -2458,10 +2508,10 @@ function carveChannel(ctx: ArchetypeContext, pal: GeneratorPalette | undefined, 
       if (!inBounds(col, row, cols, rows)) continue
       ground[row][col] = 'water'
       collision[row][col] = true
-      if (pal?.water) {
-        const ripple = Math.round(shadeNoise(Math.floor(col / 3) * 1.3 + Math.floor(row / 3) * 2.1) * 2) / 2
-        floorColors[row][col] = varyIntensity(pal.water, 0.44 + ripple * 0.12)
-      }
+      // FLAT, not noisy. This used to vary the intensity per 3x3 block from a position hash, which is a
+      // per-cell colour lottery inside one river: *"not different currents, nor different colors mixed"*.
+      // `settleWaterDepth` overwrites channel cells afterwards anyway, so the noise was also wasted work.
+      if (pal?.water) floorColors[row][col] = pal.water
       water.add(`${col},${row}`)
     }
   }
@@ -2880,13 +2930,27 @@ function settleWaterDepth(ctx: ArchetypeContext, pal: GeneratorPalette | undefin
   // audit indicts elsewhere. The durable home is a served answer on the tile, which is also what makes the ice
   // physics possible later. It reads the zone for now because nothing serves it yet.
   const frozen = ctx.zone === 'winter'
+  // ONE SURFACE COLOUR for the whole channel. Alexander, 2026-09-12, with his reference image: *"top is one
+  // color and bottom is another color, but consistent, not different currents, nor different colors mixed"*,
+  // after *"we need to use the tiles consistently, right now water tiles is far from consistent making it look
+  // random"*.
+  //
+  // MEASURED before changing it, on a seed-5 `divides` river: 120 cells `#4f93b3`, 108 `#8ccbe8`, 38 `#2a5f8a`
+  // three blues at 45/41/14% inside ONE river. And all three drew the SAME picture, because a floor resolves
+  // its art through `groundKind`, which collapses every band to `water`. So the bands were never different
+  // water; they were one tile wearing three tints. The "bottom" colour he asks for is the map BODY beneath the
+  // surface, which `groundSideColor` already derives from it, so one tone here delivers both halves of the rule.
+  //
+  // THIS REVERSES the per-depth shading he asked for on 2026-09-11 (*"I only want light blue for walkable
+  // water, different layers of darkblue for the deeper waters"*). The newest instruction wins. The band still
+  // decides the LABEL and what you can wade through, so the shallows stay walkable. They just stop being a
+  // different colour, which means the wadeable edge now needs the shoreline to mark it, not a hue.
   for (const [key, d] of depth) {
     const { col, row } = toCell(key)
     const band = waterBand(d, wadeable.has(key))
     ground[row][col] = frozen ? 'frozen_water' : band.label
     collision[row][col] = frozen ? false : !band.walkable
-    const tone = pal?.[band.tone]
-    if (tone) floorColors[row][col] = tone
+    if (pal?.water) floorColors[row][col] = pal.water
   }
   if (!pal?.swamp) return
   for (const key of pools) {
@@ -2895,11 +2959,13 @@ function settleWaterDepth(ctx: ArchetypeContext, pal: GeneratorPalette | undefin
   }
 }
 
-interface WaterBand { label: string; walkable: boolean; tone: keyof GeneratorPalette }
+// A band decides the LABEL and whether you can wade it. It used to decide a COLOUR too (`tone`), which is what
+// put three blues in one river; the surface now takes one served tone (see settleWaterDepth).
+interface WaterBand { label: string; walkable: boolean }
 const WATER_BANDS: Readonly<Record<'shallow' | 'open' | 'deep', WaterBand>> = {
-  shallow: { label: 'water_shallow', walkable: true, tone: 'waterShallow' },
-  open: { label: 'water', walkable: false, tone: 'water' },
-  deep: { label: 'water_deep', walkable: false, tone: 'waterDeep' },
+  shallow: { label: 'water_shallow', walkable: true },
+  open: { label: 'water', walkable: false },
+  deep: { label: 'water_deep', walkable: false },
 }
 /** How many cells in from the bank the water turns deep. */
 const DEEP_WATER_FROM = 3
@@ -3098,10 +3164,13 @@ function paintMeadowRiver(ctx: ArchetypeContext): Set<string> {
     if (Math.abs(d - centreInset(along)) > MEADOW_RIVER_HALF) return // outside the channel band → land
     ground[row][col] = 'water'
     collision[row][col] = true // water BLOCKS
-    // Ripple tone quantised over coarse ~3×3 PATCHES (not per-cell noise) so neighbouring water shares a colour
-    // and compressGround merges the river into runs too — same FPS reasoning as the land gradient.
-    const ripple = Math.round(shadeNoise(Math.floor(col / 3) * 1.3 + Math.floor(row / 3) * 2.1) * 2) / 2
-    floorColors[row][col] = varyIntensity(pal.river, 0.44 + ripple * 0.12) // subtle ripple tone (centred, never crushed)
+    // THE ONE TONE, flat. This quantised a ripple shade over ~3x3 patches, which is still a colour lottery
+    // across one river: *"not different currents, nor different colors mixed"* (Alexander, 2026-09-12).
+    //
+    // The old comment defended the patches on FPS grounds, because `compressGround` merges only floors sharing
+    // a tile AND a colour. A FLAT colour merges strictly better than patches do, so the performance argument
+    // points the same way as the look: one river, one run.
+    floorColors[row][col] = pal.river
     water.add(`${col},${row}`)
   })
   paintRiverBanks(ctx, water, pal)

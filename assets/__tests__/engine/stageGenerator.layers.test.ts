@@ -118,13 +118,20 @@ function genSeeded(opts: Parameters<typeof generateStage>[0], seed: number): Sta
 // the served `nature` block sitting in scope, so town_forest's 0.28/0.08 and town_swamp's 0.45/0.08 were dead.
 // A deliberate generation change: tree, tuft and bloom counts move on every settlement. Only the three
 // settlements run this pass, so the forest/cave/temple/boss cases below are byte-identical.
+// Regenerated 2026-09-12, the CAVE and TEMPLE only: the shoreline is real tiles now. A land cell bordering
+// water used to get one `≈` character prop with a hardcoded colour, whichever side the water was on; it now
+// gets one of the 8 baked `shore_*` edge/corner pieces, chosen by the same 9-piece autotile scheme trees and
+// buildings use, carried as `ground_decor` so it draws as a flat overlay on the bank. Alexander, 2026-09-12:
+// *"you usually need border and animation"*. Only these two archetypes have hazard POOLS, which is why the
+// three settlements and the forest are byte-identical: the forest's river is off by default and a settlement
+// places no water at all.
 const BASELINE: Record<string, string> = {
   'town|autumn|40x40|1': 'affafaf3',
   'town|summer|50x40|7': '9c0fd03a',
   'city|summer|56x44|3': 'b8a0077c',
   'forest|summer|30x24|42': 'f243961a',
-  'cave|autumn|40x30|99': '77075081',
-  'temple|winter|36x30|5': 'c3a336a9',
+  'cave|autumn|40x30|99': '7e914fbe',
+  'temple|winter|36x30|5': 'e3633777',
   'boss-stage|winter|36x30|11': 'e081dcd4',
 }
 
