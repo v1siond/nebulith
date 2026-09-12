@@ -109,11 +109,19 @@ defmodule Nebulith.Catalog.GeneratorSource do
   # The tile each kind of crossing lays over the water. A dirt path is the flat floor wearing the dirt path's
   # colour (the floor rule: colour on the flat tile, textured tiles for the things that stand out). The bridges
   # are the textured tiles, in the colour they come in, so each reads as its own material.
+  # A BRIDGE KIND ALSO NAMES ITS COMPOSITION. Alexander, 2026-09-12, in capitals: *"AND THE BRIDGES ARE STILL
+  # NOT BRIDGES COMPOSITIONS / we should have actual BRIDGE"*. The `tile` stays, because it is what a crossing
+  # falls back to when no composition of the needed span is loaded, and it is all a DIRT PATH ever wants: he
+  # called that one *"a dirt pathway"* (#62), not a bridge, so it names no composition on purpose.
+  #
+  # The BACKEND names it rather than the frontend deriving `bridge_#{kind}` from the option key, because a
+  # composition's name is data about what exists in the catalog. The generator appends the span it needs
+  # (`bridge_wood_5`), which is the same shape as `house_3`/`house_4`/`house_5`.
   @crossings %{
     "dirt" => %{"tile" => "floor", "colorOf" => "path_dirt"},
-    "wood" => %{"tile" => "bridge"},
-    "planks" => %{"tile" => "wooden_planks"},
-    "stone" => %{"tile" => "cobblestone"}
+    "wood" => %{"tile" => "bridge", "composition" => "bridge_wood"},
+    "planks" => %{"tile" => "wooden_planks", "composition" => "bridge_plank"},
+    "stone" => %{"tile" => "cobblestone", "composition" => "bridge_stone"}
   }
 
   # ── THE WAYS THROUGH A MAP ────────────────────────────────────────────────
