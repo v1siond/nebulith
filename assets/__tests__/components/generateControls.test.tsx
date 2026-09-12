@@ -227,7 +227,7 @@ describe('variations are options on a preset, not more presets', () => {
     fireEvent.change(kinds(), { target: { value: 'forest' } })
     const depth = () => control(/how deep the channel is cut/i)
 
-    expect([...depth().options].map(o => o.value)).toEqual(['flat', '1', '2'])
+    expect([...depth().options].map(o => o.value)).toEqual(['1', '2']) // not-cut is the off value, not a choice
     expect(depth().disabled).toBe(true) // nothing to cut without a river
     fireEvent.change(control(/^river$/i), { target: { value: 'divides' } })
     expect(depth().disabled).toBe(false)

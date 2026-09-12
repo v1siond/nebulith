@@ -197,10 +197,6 @@
             {
               "choices": [
                 {
-                  "key": "flat",
-                  "label": "Not cut (painted on the ground)"
-                },
-                {
                   "key": "1",
                   "label": "One block down"
                 },
@@ -419,10 +415,6 @@
                 },
                 {
                   "choices": [
-                    {
-                      "key": "flat",
-                      "label": "Not cut (painted on the ground)"
-                    },
                     {
                       "key": "1",
                       "label": "One block down"
@@ -660,10 +652,6 @@
                 {
                   "choices": [
                     {
-                      "key": "flat",
-                      "label": "Not cut (painted on the ground)"
-                    },
-                    {
                       "key": "1",
                       "label": "One block down"
                     },
@@ -891,10 +879,6 @@
                 },
                 {
                   "choices": [
-                    {
-                      "key": "flat",
-                      "label": "Not cut (painted on the ground)"
-                    },
                     {
                       "key": "1",
                       "label": "One block down"
@@ -1207,10 +1191,6 @@
                 },
                 {
                   "choices": [
-                    {
-                      "key": "flat",
-                      "label": "Not cut (painted on the ground)"
-                    },
                     {
                       "key": "1",
                       "label": "One block down"
@@ -1613,10 +1593,6 @@
             {
               "choices": [
                 {
-                  "key": "flat",
-                  "label": "Not cut (painted on the ground)"
-                },
-                {
                   "key": "1",
                   "label": "One block down"
                 },
@@ -1930,10 +1906,6 @@
                 },
                 {
                   "choices": [
-                    {
-                      "key": "flat",
-                      "label": "Not cut (painted on the ground)"
-                    },
                     {
                       "key": "1",
                       "label": "One block down"
@@ -2290,10 +2262,6 @@
                 {
                   "choices": [
                     {
-                      "key": "flat",
-                      "label": "Not cut (painted on the ground)"
-                    },
-                    {
                       "key": "1",
                       "label": "One block down"
                     },
@@ -2608,10 +2576,6 @@
                 },
                 {
                   "choices": [
-                    {
-                      "key": "flat",
-                      "label": "Not cut (painted on the ground)"
-                    },
                     {
                       "key": "1",
                       "label": "One block down"
@@ -2972,10 +2936,6 @@
                 {
                   "choices": [
                     {
-                      "key": "flat",
-                      "label": "Not cut (painted on the ground)"
-                    },
-                    {
                       "key": "1",
                       "label": "One block down"
                     },
@@ -3213,10 +3173,6 @@
             {
               "choices": [
                 {
-                  "key": "flat",
-                  "label": "Not cut (painted on the ground)"
-                },
-                {
                   "key": "1",
                   "label": "One block down"
                 },
@@ -3426,10 +3382,6 @@
                 },
                 {
                   "choices": [
-                    {
-                      "key": "flat",
-                      "label": "Not cut (painted on the ground)"
-                    },
                     {
                       "key": "1",
                       "label": "One block down"
@@ -3657,10 +3609,6 @@
                 },
                 {
                   "choices": [
-                    {
-                      "key": "flat",
-                      "label": "Not cut (painted on the ground)"
-                    },
                     {
                       "key": "1",
                       "label": "One block down"
