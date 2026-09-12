@@ -4083,20 +4083,6 @@
                     {
                       "count": [
                         1,
-                        2
-                      ],
-                      "type": "stable"
-                    },
-                    {
-                      "count": [
-                        1,
-                        2
-                      ],
-                      "type": "barn"
-                    },
-                    {
-                      "count": [
-                        1,
                         1
                       ],
                       "type": "smithy"
