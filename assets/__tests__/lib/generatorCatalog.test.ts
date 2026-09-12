@@ -69,8 +69,8 @@ describe('parseGeneratorCatalog — the live /api/generators body', () => {
   it("reads the settlement tuning that lives in villageLayout as consts, and the MIX that makes a place itself", () => {
     expect(findGenerator(LIVE, 'settlement', 'town')!.config.settlement).toEqual({
       plazaSize: 5, roadWidth: 4, setback: 1, lotGap: [1, 2], maxPerFrontage: 6,
-      buildingCap: 18, houseRange: [4, 6], bigHouseRange: [1, 3],
-      houseWidths: [3, 3, 4, 4, 4, 5], natureMultiplier: 1.3,
+      buildingCap: 18, houseRange: [4, 6],
+      houseWidths: [3, 3, 4, 4, 4, 5, 6], natureMultiplier: 1.3,
       streets: 'path_stone', // *"a town doesn't have roads, it has pathways of stone"*
       mix: [
         { type: 'store', count: [1, 1] },
@@ -80,6 +80,9 @@ describe('parseGeneratorCatalog — the live /api/generators body', () => {
         { type: 'stable', count: [1, 2] },
         { type: 'barn', count: [1, 2] },
         { type: 'smithy', count: [1, 1] },
+        // LAST, where the deleted big-house entry sat. Each entry costs one rng draw, so any other position
+        // shifts every later draw and moves generated maps for nothing.
+        { type: 'house', count: [1, 3] },
       ],
     })
     expect(findGenerator(LIVE, 'settlement', 'city')!.config.settlement).toMatchObject({

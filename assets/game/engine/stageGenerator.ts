@@ -230,7 +230,7 @@ export interface GenerateOptions {
    * Same dead-data story as `nature`: it has been served and parsed into `GeneratorSettlement` all along
    * and nothing read it, so every value in it had a hand-kept twin in `villageLayout` — `houseWidths`,
    * `plazaSize`, `setback`, `roadWidth`, `lotGap`, `maxPerFrontage`, `buildingCap`, `houseRange` and
-   * `bigHouseRange`. The whole block passes through now; absent → the planner uses its own defaults.
+   * `houseWidths`. The whole block passes through now; absent → the planner uses its own defaults.
    */
   settlement?: SettlementTuning
   /** The served COLOURS for this template (`config.palette`). Absent → this generator states none and the

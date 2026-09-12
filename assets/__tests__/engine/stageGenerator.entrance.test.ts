@@ -90,7 +90,7 @@ describe('G7 — the walkable ENTRANCE opening matches the door width', () => {
       }
     }
     expect(sawSingle).toBe(true) // odd facades (house_3 / house_5 / store_5) exercised
-    expect(sawDouble).toBe(true) // even facades (house_4 / hospital_6 / big_house_6) exercised
+    expect(sawDouble).toBe(true) // even facades (house_4 / hospital_6) exercised
     expect(seenFacings.size).toBeGreaterThanOrEqual(2) // both axis-aligned and rotated buildings exercised
   })
 

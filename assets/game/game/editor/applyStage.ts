@@ -76,7 +76,7 @@ export function applyStageToGrid(stage: StageData, grid: IsometricGrid, building
   // to face its road — the SAME stamp trees use. b.col + b.row are the footprint TOP-LEFT-col and BOTTOM row,
   // so back the row off its height to anchor the composition at the footprint top-left.
   // A building uses ONE wall material — variety is BETWEEN buildings, not within one. A RESIDENTIAL building
-  // (house / big-house) picks its material at generation from the GENERATOR's palette; store/hospital/office/
+  // (a house) picks its material at generation from the GENERATOR's palette; store/hospital/office/
   // civic keep their FIXED identity material. The pick is derived from the footprint position so a re-stamp of
   // the same stage is stable (no per-frame flicker) while neighbours still differ.
   // Colour is a per-tile SETTING that FILTERS the baked tile (composition.ts / render tintedImage), so we
@@ -89,7 +89,7 @@ export function applyStageToGrid(stage: StageData, grid: IsometricGrid, building
     arr.length === 0 ? undefined : arr[(((seed % arr.length) + arr.length) % arr.length)]
   for (const b of stage.buildings) {
     const anchorRow = b.row - (b.height - 1)
-    const residential = b.type === 'house' || b.type === 'big-house'
+    const residential = b.type === 'house'
     const material = residential && palette ? pick(palette.materials, b.col * 31 + b.row * 17 + buildingSalt) : undefined
     let roofColor: string | undefined
     let wallColor: string | undefined
@@ -102,7 +102,7 @@ export function applyStageToGrid(stage: StageData, grid: IsometricGrid, building
     // Stamp by the building's AUTHORITATIVE composition kind (derived from the facade length at plan time),
     // NOT re-derived from b.length: b.length is the grid COL-SPAN, which for an east/west-facing plot is the
     // DEPTH, not the facade length — deriving the kind from it asks for a non-existent composition
-    // (hospital_4 / big_house_4 / temple_4) → 0 cells stamped → a foundation with NO building (Image #42).
+    // (hospital_4 / temple_4) → 0 cells stamped → a foundation with NO building (Image #42).
     // The ROOF the generator's look names, residential only: a store and a hospital keep their identity, the
     // same rule that stops them picking a wall material.
     const roofTile = residential ? palette?.roof : undefined

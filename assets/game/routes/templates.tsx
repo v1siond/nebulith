@@ -2720,7 +2720,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     // buildings started being composed to the footprint the plan rolls. This matched only the first, so it
     // answered 0 for a town visibly full of houses — and a validation seam that under-reports is worse than
     // none: it sent a whole debugging session hunting for buildings that were on the screen the entire time.
-    const BUILDING_TYPES = 'house|big_house|store|hospital|temple|cathedral|castle|office'
+    const BUILDING_TYPES = 'house|store|hospital|temple|cathedral|castle|office'
     const BUILDING_KIND = new RegExp(`^(${BUILDING_TYPES})(_\\d+|@\\d+x\\d+)$`)
     const countBuildingTiles = (g: IsometricGrid | null): number =>
       g ? g.assets.filter(a => BUILDING_KIND.test(a.type)).length : 0

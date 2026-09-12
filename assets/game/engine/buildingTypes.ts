@@ -7,7 +7,6 @@
  */
 export type BuildingType =
   | 'house'
-  | 'big-house'
   | 'store'
   | 'office'
   | 'hospital'

@@ -434,7 +434,7 @@ describe('generateStage — buildings are backend COMPOSITIONS (store + hospital
       expect(comp).not.toBeNull()
       const cellLabels = comp!.cells.map(c => c.label)
       // Each building has wall + door cells + a ROOF CAP — matched by FAMILY since store/hospital/houses
-      // use type-specific tiles (roof_store / wall_house_b …) while big_house/temple/… keep the base
+      // use type-specific tiles (roof_store / wall_house_b …) while temple/cathedral/… keep the base
       // labels. The cap is a gable `roof`/`roof_top` OR a flat `parapet`/`flat_roof` (store/office).
       for (const part of ['wall', 'door']) expect(cellLabels.some(l => l.startsWith(part))).toBe(true)
       const roofish = (l: string): boolean => l.startsWith('roof') || l.startsWith('parapet') || l.startsWith('flat_roof')

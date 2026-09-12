@@ -42,7 +42,7 @@ const windowAt = (cells: Cell[], dx: number, level: number) =>
 
 describe('sample compositions — realistic building/fountain/tree DATA from the backend', () => {
   describe('THE window-grid rule (#31): windows are BILATERALLY SYMMETRIC, edge-walled, aligned across floors', () => {
-    for (const name of ['house_3', 'house_4', 'house_5', 'office_5', 'hospital_6', 'big_house_6', 'temple_8', 'cathedral_7', 'castle_12', 'stone_building']) {
+    for (const name of ['house_3', 'house_4', 'house_5', 'office_5', 'hospital_6', 'temple_8', 'cathedral_7', 'castle_12', 'stone_building']) {
       test(`${name}: windows mirror across the centreline, never at the bare edge, aligned across floors`, () => {
         const c = comp(name)
         const w = c.footprint.w
@@ -206,7 +206,7 @@ describe('sample compositions — realistic building/fountain/tree DATA from the
   test('every composition cell keeps the default zIndex 0 — nothing carries a non-zero draw priority', () => {
     // Guards the "default 0 → no regression" contract at the DATA level: across every seeded composition
     // (trees, bushes, all buildings, AND the fountain/well basin) NO cell carries a non-zero zIndex.
-    const names = ['tree', 'bush', 'fountain', 'well', 'house_3', 'house_4', 'house_5', 'store_5', 'office_5', 'stone_building', 'hospital_6', 'big_house_6', 'temple_8', 'cathedral_7', 'castle_12']
+    const names = ['tree', 'bush', 'fountain', 'well', 'house_3', 'house_4', 'house_5', 'store_5', 'office_5', 'stone_building', 'hospital_6', 'temple_8', 'cathedral_7', 'castle_12']
     for (const name of names) {
       const c = resolveComposition(styleCatalog('ascii'), name)
       if (!c) continue
@@ -360,11 +360,10 @@ describe('material + roof rollout — every material/piece resolves and every bu
   })
 
   test('hand-authored civic buildings SWAP only their wall to a material CENTER piece (shape untouched)', () => {
-    expect(labelsOf('big_house_6').has('wall_brick_c')).toBe(true) // brick
     expect(labelsOf('hospital_6').has('wall_plaster_c')).toBe(true) // plaster
     for (const name of ['temple_8', 'cathedral_7', 'castle_12']) expect(labelsOf(name).has('wall_stone_c')).toBe(true) // stone
     // no autotiled edge pieces (they keep the plain center field), and no generic `wall`
-    for (const name of ['big_house_6', 'hospital_6', 'temple_8', 'cathedral_7', 'castle_12'])
+    for (const name of ['hospital_6', 'temple_8', 'cathedral_7', 'castle_12'])
       expect(labelsOf(name).has('wall')).toBe(false)
   })
 

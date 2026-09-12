@@ -7,7 +7,7 @@ import type { BuildingType } from '@/lib/buildingSizes'
 
 const TYPES: BuildingType[] = [
   { key: 'house', default: { w: 4, h: 4 } },
-  { key: 'big_house', default: { w: 6, h: 4 } },
+  { key: 'hospital', default: { w: 6, h: 4 } },
   { key: 'store', default: { w: 5, h: 4 } },
 ]
 
@@ -41,10 +41,10 @@ describe('the size variants fold into one entry', () => {
     expect(isSizable(entry) && entry.bakedSizes).toEqual([3, 4, 5])
   })
 
-  it("keeps each type separate, big_house is not a house", () => {
-    const [folded] = collapseSizedBuildings(section('house_4', 'big_house_6'), TYPES)
-    expect(folded.items.slice(0, 2).map(i => i.kind)).toEqual(['house', 'big_house'])
-    expect(folded.items[1].label).toBe('Big house')
+  it("keeps each type separate, a hospital is not a house", () => {
+    const [folded] = collapseSizedBuildings(section('house_4', 'hospital_6'), TYPES)
+    expect(folded.items.slice(0, 2).map(i => i.kind)).toEqual(['house', 'hospital'])
+    expect(folded.items[1].label).toBe('Hospital')
   })
 })
 
@@ -83,7 +83,7 @@ describe('a type with no seeded size still gets a row', () => {
     const nature = [{ category: 'nature' as const, label: 'Nature', items: [item('tree_small', 1, 1)] }]
     const out = collapseSizedBuildings(nature, withTower)
     expect(out.map(s => s.category)).toEqual(['buildings', 'nature'])
-    expect(out[0].items.map(i => i.kind)).toEqual(['house', 'big_house', 'store', 'tower'])
+    expect(out[0].items.map(i => i.kind)).toEqual(['house', 'hospital', 'store', 'tower'])
   })
 })
 
@@ -111,7 +111,7 @@ describe('an object with no parametric recipe is left alone', () => {
 describe('reading a kind', () => {
   it.each([
     ['house_4', 'house', 4],
-    ['big_house_6', 'big_house', 6],
+    ['hospital_6', 'hospital', 6],
     ['castle_12', 'castle', 12],
     ['stone_building', 'stone_building', undefined],
     ['fountain', 'fountain', undefined],
@@ -121,7 +121,7 @@ describe('reading a kind', () => {
   })
 
   it('names a type for a person, not as a slug', () => {
-    expect(labelForType('big_house')).toBe('Big house')
+    expect(labelForType('stone_building')).toBe('Stone building')
     expect(labelForType('cathedral')).toBe('Cathedral')
   })
 })

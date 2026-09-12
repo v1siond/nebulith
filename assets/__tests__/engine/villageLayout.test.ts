@@ -105,13 +105,13 @@ describe('villageLayout: a town and a city are made of different buildings', () 
     const town = mixOf('town')
     const city = mixOf('city')
     const shared = [...town].filter(t => city.has(t)).sort()
-    expect(shared).toEqual(['big-house', 'hospital', 'house', 'store', 'temple'])
+    expect(shared).toEqual(['hospital', 'house', 'store', 'temple'])
   })
 
   it('the mix it plans from is the one it is GIVEN, so a place is data and not a branch', () => {
     const mix = buildingMix('town', seededRng(3), {
       plazaSize: 5, setback: 1, roadWidth: 4, lotGap: [1, 2], maxPerFrontage: 6, buildingCap: 18,
-      houseRange: [1, 1], bigHouseRange: [0, 0], houseWidths: [4],
+      houseRange: [1, 1], houseWidths: [4],
       mix: [{ type: 'store', count: [1, 1] }, { type: 'tower', count: [2, 2] }],
     })
     expect(mix.filter(t => t === 'tower')).toHaveLength(2)

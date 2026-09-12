@@ -74,7 +74,6 @@ export interface VillageLayout {
 // Settlement scaling — a city is a much bigger, denser place than a town (more + bigger buildings,
 // a denser street grid). The [min, max] count of each.
 const HOUSE_RANGE: Record<Settlement, [number, number]> = { town: [4, 6], city: [7, 11] }
-const BIG_RANGE: Record<Settlement, [number, number]> = { town: [1, 3], city: [3, 5] }
 // WHICH BUILDINGS A PLACE IS MADE OF. Alexander, 2026-09-11: *"there's not a single difference between any of
 // the settlements ... all you did was change colors, when everything should've changed like having different
 // types of settlements implies having different objects"*, and *"cities have more skycrappers, towns have more
@@ -84,9 +83,14 @@ const BIG_RANGE: Record<Settlement, [number, number]> = { town: [1, 3], city: [3
 // every place built the identical set of buildings in different colours. It is the DEFAULT list now, and the
 // served one (`settlement.mix`, per place) wins, so a town of stables and a city of towers is a data difference.
 //
-// Houses are not here: they are the FILLER every leftover frontage takes, counted by `houseRange`. Big-houses
-// are not here either, `resolveTuning` appends them from `bigHouseRange` so that served number stays the one
-// place they are counted.
+// HOUSES ARE DEMANDED HERE, and leftover frontage takes more of them on top.
+//
+// `big-house` USED TO BE A TYPE and is gone (Alexander, 2026-09-12: *"per biome, and delete big_house"*). Its
+// 6-wide footprint moved into the served `houseWidths`, and its COUNT moved into this list.
+//
+// It went into `houseRange` first, which did nothing at all: `houseRange` is read only by `buildingMix`, and
+// nothing in the app calls `buildingMix`. `placePlots` demands from THIS list. Measured, dropping the entry
+// thinned every frontage to one plot per block, and the neighbourhood row test failed exactly as it should.
 const MIX_BASE: Record<Settlement, readonly MixEntry[]> = {
   town: [
     { type: 'store', count: [1, 1] },
@@ -96,6 +100,9 @@ const MIX_BASE: Record<Settlement, readonly MixEntry[]> = {
     { type: 'stable', count: [1, 2] },
     { type: 'barn', count: [1, 2] },
     { type: 'smithy', count: [1, 1] },
+    // LAST, exactly where the `big-house` entry sat, so the rng draw order is unchanged from before the type
+    // was deleted. Measured: any other position moves the generated map for no reason.
+    { type: 'house', count: [1, 3] },
   ],
   city: [
     { type: 'store', count: [1, 1] },
@@ -105,6 +112,7 @@ const MIX_BASE: Record<Settlement, readonly MixEntry[]> = {
     { type: 'tower', count: [2, 4] },
     { type: 'apartment', count: [3, 6] },
     { type: 'office', count: [2, 4] },
+    { type: 'house', count: [3, 5] },
   ],
 }
 // Street GRID per settlement: H horizontal × V vertical FULL-SPAN streets that cross into blocks
@@ -167,7 +175,7 @@ const BUILDING_CAP: Record<Settlement, number> = { town: 18, city: 72 }
  * THE SETTLEMENT TUNING THE BACKEND SERVES.
  *
  * Every field above is also a value in `settlement` on `/api/generators` — `plazaSize`, `setback`,
- * `roadWidth`, `lotGap`, `maxPerFrontage`, `buildingCap`, `houseRange`, `bigHouseRange`, `houseWidths` —
+ * `roadWidth`, `lotGap`, `maxPerFrontage`, `buildingCap`, `houseRange`, `houseWidths`,
  * and until now the frontend kept its own copy of each and read that instead. `houseWidths` was the first
  * one traced (it duplicated the served list exactly); these are the rest of the same family.
  *
@@ -185,7 +193,6 @@ export interface SettlementTuning {
   maxPerFrontage?: number
   buildingCap?: number
   houseRange?: readonly [number, number]
-  bigHouseRange?: readonly [number, number]
   houseWidths?: readonly number[]
   mix?: readonly MixEntry[]
   /**
@@ -206,18 +213,14 @@ interface Tuning {
   lotGap: readonly [number, number]
   maxPerFrontage: number
   buildingCap: number
+  /** Read by `buildingMix` ONLY, which nothing in the app calls. The MIX is what `placePlots` demands from. */
   houseRange: readonly [number, number]
-  bigHouseRange: readonly [number, number]
   houseWidths: readonly number[]
-  /** Every building this place demands, big-houses included. `demandedBuildings` rolls a count from each. */
+  /** Every building this place demands. `demandedBuildings` rolls a count from each. */
   mix: readonly MixEntry[]
 }
 
 function resolveTuning(settlement: Settlement, served?: SettlementTuning): Tuning {
-  // Settled FIRST because the mix is built on top of it: big-houses are counted by this one served number, so
-  // appending them here keeps `bigHouseRange` the single place they come from instead of a second list to keep
-  // in step with it.
-  const bigHouseRange = served?.bigHouseRange ?? BIG_RANGE[settlement]
   return {
     plazaSize: served?.plazaSize ?? PLAZA_SIZE[settlement],
     setback: served?.setback ?? SETBACK,
@@ -226,8 +229,7 @@ function resolveTuning(settlement: Settlement, served?: SettlementTuning): Tunin
     maxPerFrontage: served?.maxPerFrontage ?? MAX_PER_FRONTAGE[settlement],
     buildingCap: served?.buildingCap ?? BUILDING_CAP[settlement],
     houseRange: served?.houseRange ?? HOUSE_RANGE[settlement],
-    bigHouseRange,
-    mix: [...(served?.mix ?? MIX_BASE[settlement]), { type: 'big-house', count: bigHouseRange }],
+    mix: served?.mix ?? MIX_BASE[settlement],
     // No default: with nothing served there is nothing to randomize FROM, and `plotWidth` then takes the
     // type's own default size rather than a spread invented here.
     houseWidths: served?.houseWidths ?? [],
@@ -444,7 +446,7 @@ export function planPlaza(cols: number, rows: number, roads: boolean[][], settle
 /**
  * STEP 3 — FILL every frontage with a tidy ROW of lots: walk it end-to-end placing buildings back
  * to back (uniform-ish width + a side-yard gap), each SET BACK behind a front yard and FACING its
- * street. Store + hospital + a few big-houses are placed first (every settlement gets them), the
+ * street. Store + hospital are placed first (every settlement gets them), the
  * rest fill as houses; where an essential doesn't fit a spot, a house fills it instead so rows never
  * starve. rectClear skips cells over cross-streets, so rows break cleanly at intersections. Pure.
  */
@@ -464,9 +466,9 @@ export function placePlots(roads: boolean[][], frontages: Frontage[], cols: numb
   const maxPer = tuning.maxPerFrontage
   const [gapLo, gapHi] = tuning.lotGap
   // WHAT THIS PLACE IS MADE OF, from its served mix: the store and hospital every settlement has, then the
-  // buildings that make it itself (a town's stables and smithy, a city's towers and blocks), then its
-  // big-houses. The round-robin fill below places each wherever its footprint fits and leaves anything that
-  // does not fit pending, exactly as it did for the old fixed trio.
+  // buildings that make it itself (a town's stables and smithy, a city's towers and blocks). The round-robin
+  // fill below places each wherever its footprint fits and leaves anything that does not fit pending, exactly
+  // as it did for the old fixed trio.
   const pending: BuildingType[] = demandedBuildings(rng, tuning)
 
   // Store + hospital ALWAYS go on the TOP horizontal street, facing FRONT (south = door toward the

@@ -55,7 +55,7 @@ function genSeeded(opts: Parameters<typeof generateStage>[0], seed: number): Sta
 // the town's open grass (single billboards, height 1). Only the FLOWERING zones bloom, so only the two SUMMER
 // settlements move; autumn town + the non-flowering archetypes are byte-identical.
 // Regenerated again 2026-07-23 for G7 — the walkable ENTRANCE now spans the composition's REAL door span
-// (buildingDoorOffset) instead of a hardcoded 1 cell, so an EVEN-facade building (house_4 / big_house_6 /
+// (buildingDoorOffset) instead of a hardcoded 1 cell, so an EVEN-facade building (house_4 / hospital_6 /
 // hospital_6 / temple_8 / castle_12, all baked with a centred 2-wide doorway) opens BOTH door cells. That
 // moves `doorCells` + the collision grid, hence the digest. Only the three SETTLEMENTS have buildings; the
 // forest/cave/temple/boss archetypes are byte-identical.
@@ -74,7 +74,7 @@ function genSeeded(opts: Parameters<typeof generateStage>[0], seed: number): Sta
 // cave, temple, boss) is byte-identical.
 // Regenerated again 2026-09-09 for the two de-hardcoding changes Alexander asked for. (1) villageLayout takes
 // its nine settlement numbers (plaza size, setback, road width, lot gap, per-frontage cap, building cap, house
-// + big-house ranges, house widths) from the backend `settlement` block instead of nine frontend constants —
+// + house ranges and widths) from the backend `settlement` block instead of nine frontend constants,
 // they were parsed and then never read. (2) A building is COMPOSED to the footprint its plot rolled rather
 // than snapping to the nearest baked size — *"we randomize the footprint and house adapts to it"*. Both move
 // where plots land and what they are called, hence the digest. Only the three SETTLEMENTS move; forest, cave,

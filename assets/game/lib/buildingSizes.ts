@@ -83,10 +83,13 @@ export function composedKind(type: string, size: Footprint): string {
 /**
  * The BACKEND's spelling of a building type.
  *
- * The frontend's `BuildingType` uses hyphens (`big-house`); the backend's keys use underscores
- * (`big_house`), and it documents that convention itself — *"keyed by type_length (hyphens in the type
- * become underscores)"*. One place converts, so a plan naming `big-house` still finds the composition that
- * was pre-composed under `big_house` instead of silently placing nothing.
+ * The frontend's `BuildingType` may use hyphens; the backend's keys use underscores, and it documents that
+ * convention itself: *"keyed by type_length (hyphens in the type become underscores)"*. One place converts, so
+ * a hyphenated plan still finds the composition it was pre-composed under instead of silently placing nothing.
+ *
+ * NO TYPE IS HYPHENATED TODAY. `big-house` was the only one and it is deleted (Alexander, 2026-09-12: *"per
+ * biome, and delete big_house"*). This stays as the guard on the seam between the two spellings rather than
+ * being deleted and rediscovered the next time a type is named with two words.
  */
 export function backendTypeKey(type: string): string {
   return type.replace(/-/g, '_')

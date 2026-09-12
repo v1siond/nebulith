@@ -77,7 +77,7 @@ export function buildingPlaceLength(type: BuildingType): number | null {
 }
 
 /** The backend composition name for a (type,length): `${type}_${length}`, hyphens → underscores
- *  (`big-house`,6 → `big_house_6`). Matches the seeded names in Nebulith.Catalog.BuildingCompositions. */
+ *  (`house`,4 → `house_4`). Matches the seeded names in Nebulith.Catalog.BuildingCompositions. */
 export function buildingCompositionKind(type: BuildingType, length: number): string {
   return `${type.replace(/-/g, '_')}_${length}`
 }

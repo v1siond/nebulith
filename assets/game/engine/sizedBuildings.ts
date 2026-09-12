@@ -157,7 +157,7 @@ export function collapseSizedBuildings(
   return folded.map((section, i) => (i === at ? { ...section, items: [...section.items, ...rows] } : section))
 }
 
-/** `big_house` → "Big house". The type key is a slug; the palette shows a name. */
+/** `stone_building` → "Stone building". The type key is a slug; the palette shows a name. */
 export function labelForType(type: string): string {
   const words = type.split('_')
   return words.map((w, i) => (i === 0 ? w.charAt(0).toUpperCase() + w.slice(1) : w)).join(' ')

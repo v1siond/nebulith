@@ -88,7 +88,6 @@ export interface GeneratorSettlement {
   maxPerFrontage: number
   buildingCap: number
   houseRange: readonly [number, number]
-  bigHouseRange: readonly [number, number]
   houseWidths: readonly number[]
   natureMultiplier: number
   /**
@@ -435,18 +434,17 @@ function parseSettlement(v: unknown): GeneratorSettlement | undefined {
   const natureMultiplier = num(v.natureMultiplier)
   const lotGap = numPair(v.lotGap)
   const houseRange = numPair(v.houseRange)
-  const bigHouseRange = numPair(v.bigHouseRange)
   const houseWidths = Array.isArray(v.houseWidths) && v.houseWidths.every(x => typeof x === 'number')
     ? (v.houseWidths as number[])
     : undefined
   if (plazaSize === undefined || roadWidth === undefined || setback === undefined) return undefined
   if (maxPerFrontage === undefined || buildingCap === undefined || natureMultiplier === undefined) return undefined
-  if (!lotGap || !houseRange || !bigHouseRange || !houseWidths) return undefined
+  if (!lotGap || !houseRange || !houseWidths) return undefined
   const mix = parseMix(v.mix)
   const streets = typeof v.streets === 'string' && v.streets !== '' ? v.streets : undefined
   return {
     plazaSize, roadWidth, setback, lotGap, maxPerFrontage,
-    buildingCap, houseRange, bigHouseRange, houseWidths, natureMultiplier,
+    buildingCap, houseRange, houseWidths, natureMultiplier,
     ...(mix ? { mix } : {}),
     ...(streets ? { streets } : {}),
   }

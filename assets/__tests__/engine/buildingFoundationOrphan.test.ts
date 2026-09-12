@@ -7,7 +7,7 @@
  * EAST/WEST-facing plot `b.length` is the footprint's grid COL-SPAN = the DEPTH, not the facade length. So a
  * hospital (facade 6, depth 4) facing west recorded `length: 4` and the stamp asked for `hospital_4` — a
  * composition that doesn't exist (only `hospital_6` is seeded) → 0 cells → foundation with no building.
- * `big_house_4` and `temple_4` orphan the same way; houses escaped only because `house_4` happens to exist.
+ * `hospital_4` and `temple_4` orphan the same way; houses escaped only because `house_4` happens to exist.
  *
  * The fix: stamp by the building's AUTHORITATIVE `PlacedBuilding.kind` (derived from the facade length at plan
  * time — the value the SAVE path `stageToTemplate` already used), via `stampBuildingKind`.
@@ -25,7 +25,7 @@ import type { ZoneId } from '@/engine/zones'
 
 const ZONES: ZoneId[] = ['spring', 'summer', 'autumn', 'winter']
 const VARIANTS = ['village', 'town', 'city'] as const
-const ITERATIONS = 40 // × 4 zones × 3 variants = 480 towns — enough to hit east/west hospital/big-house/temple
+const ITERATIONS = 40 // × 4 zones × 3 variants = 480 towns, enough to hit east/west hospital/temple
 
 interface Gen { stage: ReturnType<typeof generateStage>; grid: IsometricGrid }
 function* manyTowns(): Generator<Gen> {
@@ -78,7 +78,7 @@ describe('BUG #3: every generated building foundation gets its building stamped 
     }
   })
 
-  test('NOT VACUOUS — the OLD derivation (from b.type + b.length) still orphans east/west hospital/big-house/temple', () => {
+  test('NOT VACUOUS, the OLD derivation (from b.type + b.length) still orphans east/west hospital/temple', () => {
     let oldOrphans = 0
     const kinds = new Set<string>()
     for (const { stage, grid } of manyTowns()) {
