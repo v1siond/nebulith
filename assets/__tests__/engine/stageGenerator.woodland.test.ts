@@ -148,7 +148,10 @@ describe('woodland + river', () => {
 
   it('never plants a tree in the water — the river is carved BEFORE anything is planted', () => {
     const stage = build('woodland', WOODLAND, 1, { river: true })
-    const inWater = stage.trees.filter(t => stage.ground[t.row]?.[t.col] === 'water')
+    // ANY water-ground, never the single spelling. A pool lays `water_shallow` now, so an exact `=== 'water'`
+    // test would have stopped catching a tree planted in a PUDDLE, which is exactly the defect this case was
+    // written to catch. A guard that quietly narrows is worse than one that fails, because nothing tells you.
+    const inWater = stage.trees.filter(t => (stage.ground[t.row]?.[t.col] ?? '').includes('water'))
     expect(inWater.map(t => `${t.col},${t.row}`)).toEqual([])
   })
 

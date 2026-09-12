@@ -213,8 +213,16 @@ describe('the jungle is PARTITIONED into sub-zones — regions inside one map', 
   it('floods the SWAMP with standing pools, not a channel', () => {
     const s = zoned()
     const dry = build('jungle', JUNGLE, JUNG_PAL, 5, 60, 40) // the same seed with no regions = creek only
-    expect(s.ground.flat().filter(t => t === 'water').length)
-      .toBeGreaterThan(dry.ground.flat().filter(t => t === 'water').length)
+    // WATER-GROUND, not one spelling of it. A pool lays `water_shallow` since 2026-09-12, because that label
+    // is height 0.0 and a puddle has to sit LEVEL with the floor (Alexander: *"a puddle of water is at floor
+    // level, a little bit transparent over other tiles walkable floor tiles"*), while `water` is 0.5 so a
+    // RIVER surface sits under its bank. Counting the literal 'water' label therefore measured the CREEK only
+    // and the swamp's pools dropped out of the tally: 39 against the dry map's 77.
+    //
+    // The intent of this case is unchanged: a regioned swamp holds MORE standing water than a region-less
+    // jungle. Only the ruler was wrong, and it was wrong in the same way four places in the generator were.
+    const wet = (stage: { ground: string[][] }) => stage.ground.flat().filter(t => t.includes('water')).length
+    expect(wet(s)).toBeGreaterThan(wet(dry))
   })
 
   /**

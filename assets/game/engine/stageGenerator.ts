@@ -1680,7 +1680,9 @@ function layoutWoodland(ctx: ArchetypeContext, opts: ForestBuild = {}): void {
     const [c, r] = key.split(',').map(Number)
     // Not over the river: a trail tile laid on water leaves a blocked stripe of path across it, which is
     // neither a river nor a way over one. Water is crossed on a deck.
-    if (inBounds(c, r, cols, rows) && ground[r][c] !== 'water') ground[r][c] = trail
+    // A trail never paves WATER, of any name. The exact `!== 'water'` let a trail run straight over a puddle
+    // once pools began laying `water_shallow`.
+    if (inBounds(c, r, cols, rows) && !isWaterGround(ground[r][c])) ground[r][c] = trail
   }
 
   // 2c · AND PLANK IT where the river runs across it. After the paving, never before: the paving skips water,
@@ -2242,7 +2244,21 @@ function floodSwampPools(ctx: ArchetypeContext, zoneAt: (GeneratorSubZone | unde
   //     a coarser patch, so a swamp is as wet as it was and simply legible.
   for (const key of pools) {
     const { col, row } = toCell(key)
-    ground[row][col] = 'water'
+    // A PUDDLE IS FLUSH WITH THE FLOOR; a channel surface is not. Alexander, 2026-09-12: *"the green walkable
+    // water is also below floor level, when that's not the case, in fact a puddle of water is at floor level, a
+    // little bit transparent over other tiles walkable floor tiles"*.
+    //
+    // Measured before changing anything: a pool ALREADY sits at elevation 0, is ALREADY walkable (149 of 149
+    // cells) and is already translucent. What made it read as recessed is mine from earlier the same day. I
+    // gave `water` a height of 0.5 so a RIVER surface would sit under its bank rim, and a pool lays that same
+    // label, so a puddle drew a 0.45-tileW slab standing PROUD of the floor with dark sides, which the eye
+    // reads as a basin. One label cannot be both a sunken channel and a flush puddle.
+    //
+    // `water_shallow` is height 0.0, non-blocking, and still water-ground, so all thirteen `isWaterGround`
+    // consumers behave exactly as before. That is deliberately NOT the bigger change of clearing the water
+    // label altogether: dropping it would let tall grass, ground cover, blooms, the terrain transitions and the
+    // shoreline all flood into a puddle at once.
+    ground[row][col] = 'water_shallow'
     // NO COLLISION. Alexander, 2026-09-12, on the green water: *"I can't walk throug the green one, even when
     // the floor makes it seems like I should, specially considering the floor is at the same level"*, and
     // earlier: *"we still want to be able to use water outside of rivers, usually i'l be like water puddles,
@@ -2955,7 +2971,11 @@ function settleWaterDepth(ctx: ArchetypeContext, pal: GeneratorPalette | undefin
   if (!pal?.swamp) return
   for (const key of pools) {
     const { col, row } = toCell(key)
-    if (ground[row]?.[col] === 'water') floorColors[row][col] = pal.swamp
+    // WATER-GROUND, not one spelling of it. This tested `=== 'water'` and silently stopped applying the swamp
+    // tone the moment a pool started laying `water_shallow` (its flush height), so every pool came out wearing
+    // the plain river blue. The rule is written twenty lines up in this very file: ask what the ground IS, never
+    // which of its names it happens to carry.
+    if (isWaterGround(ground[row]?.[col])) floorColors[row][col] = pal.swamp
   }
 }
 
@@ -2984,8 +3004,12 @@ function waterBand(depth: number, wadeable: boolean): WaterBand {
  */
 function waterDepth(ctx: ArchetypeContext, pools: ReadonlySet<string>): Map<string, number> {
   const { cols, rows, ground } = ctx
-  const isChannel = (c: number, r: number) => inBounds(c, r, cols, rows) && ground[r][c] === 'water' && !pools.has(`${c},${r}`)
-  const isBank = (c: number, r: number) => inBounds(c, r, cols, rows) && ground[r][c] !== 'water' && !ctx.decks.has(`${c},${r}`)
+  // The CHANNEL is water that is not a pool. `pools` already excludes them explicitly, so this is the same
+  // answer as before; it asks what the ground is rather than which name it wears, for the same reason as above.
+  const isChannel = (c: number, r: number) => inBounds(c, r, cols, rows) && isWaterGround(ground[r][c]) && !pools.has(`${c},${r}`)
+  // A BANK is dry land. Testing `!== 'water'` made a swamp POOL count as a bank the moment pools started
+  // laying `water_shallow`, which would have made the channel read as shallow wherever a puddle touched it.
+  const isBank = (c: number, r: number) => inBounds(c, r, cols, rows) && !isWaterGround(ground[r][c]) && !ctx.decks.has(`${c},${r}`)
   const depth = new Map<string, number>()
   const queue: Cell[] = []
   forEachCell(cols, rows, (col, row) => {
